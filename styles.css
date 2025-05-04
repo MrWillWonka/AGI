@@ -1,0 +1,223 @@
+/* Essential Styles for AGI Game */
+
+:root {
+    /* Base colors */
+    --primary-color: #3a86ff;
+    --secondary-color: #5e60ce;
+    --tertiary-color: #7400b8;
+    --dark-color: #151525;
+    --panel-bg: #1a1a2e;
+    --panel-border: #2a2a40;
+    --light-color: #f8f9fa;
+    --success-color: #4cc9f0;
+    --warning-color: #ffd166;
+    --danger-color: #ef476f;
+    --text-muted: #a0a0c0;
+}
+
+/* Base styles */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--dark-color);
+    color: var(--light-color);
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: 20px;
+}
+
+/* Panel styles */
+.panel {
+    background-color: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.panel h2 {
+    margin-top: 0;
+    color: var(--primary-color);
+    border-bottom: 1px solid var(--panel-border);
+    padding-bottom: 10px;
+}
+
+/* Resource styles */
+.resource {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.resource-name {
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.resource-value {
+    font-family: 'Courier New', monospace;
+    font-size: 1.1em;
+}
+
+/* Button styles */
+.button {
+    background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: transform 0.1s, opacity 0.2s;
+}
+
+.button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.button:active {
+    transform: translateY(1px);
+}
+
+.button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Upgrade styles */
+.upgrade {
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    border: 1px solid var(--panel-border);
+}
+
+.upgrade:hover {
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Tab styles */
+.tabs {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--panel-border);
+}
+
+.tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+}
+
+.tab:hover {
+    color: var(--primary-color);
+}
+
+.tab.active {
+    border-bottom-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* Progress bar */
+.progress-container {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    height: 20px;
+    margin: 10px 0;
+}
+
+.progress-bar {
+    background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* Tooltip */
+.tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 200px;
+    background-color: var(--dark-color);
+    color: var(--light-color);
+    text-align: center;
+    border-radius: 6px;
+    padding: 10px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -100px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    border: 1px solid var(--primary-color);
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+    .container {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .resource {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .button {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+}
+
+/* Debug panel (minimal) */
+.debug-panel {
+    position: fixed;
+    top: 50px;
+    right: 10px;
+    background-color: rgba(0, 0, 0, 0.95);
+    color: #fff;
+    padding: 10px;
+    border-radius: 8px;
+    z-index: 10000;
+    max-width: 300px;
+    font-family: 'Consolas', monospace;
+    border: 1px solid #444;
+}
+
+.debug-panel.visible {
+    display: block;
+}
+
+.debug-panel.hidden {
+    display: none;
+} 
