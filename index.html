@@ -830,8 +830,7 @@
                 // Load scripts in order
                 const scripts = [
                     'debug-panel.js',
-                    'game.js',
-                    'progressive-ui.js'
+                    'game.js'
                 ];
 
                 let loaded = 0;
@@ -1325,8 +1324,11 @@
     </div>
     
     <script type="text/javascript" src="debug-panel.js"></script>
-<script type="text/javascript" src="game.js"></script>
-<script type="text/javascript" src="progressive-ui.js"></script>
-
+    <script type="text/javascript" src="game.js"></script>
+    <script>
+        window.addEventListener('load', function() {
+            window.AGI.init();
+        });
+    </script>
 </body>
 </html>

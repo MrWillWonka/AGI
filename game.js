@@ -1240,59 +1240,23 @@ window.AGI = (function() {
 
     // Create resource particles
     function createResourceParticles(element) {
+        if (!element || !gameState.settings.animationsEnabled) return;
+        
         const rect = element.getBoundingClientRect();
-        const particleCount = 8 + Math.floor(Math.random() * 5); // 8-12 particles
-
-        for (let i = 0; i < particleCount; i++) {
-            // Create main particle
-            const particle = document.createElement('div');
-            particle.className = 'data-particle';
-            document.body.appendChild(particle);
-            
-            // Random starting position within the element
-            const startX = rect.left + (rect.width * Math.random());
-            const startY = rect.top + (rect.height * Math.random());
-            
-            // Calculate angle for upward arc with spread
-            const angleSpread = Math.PI * 0.8; // 144 degrees spread
-            const baseAngle = -Math.PI / 2; // Start from pointing up
-            const angle = baseAngle + (angleSpread * (Math.random() - 0.5));
-            
-            // Randomize distance
-            const distance = 50 + Math.random() * 50;
-            
-            // Calculate end position
-            const endX = Math.cos(angle) * distance;
-            const endY = Math.sin(angle) * distance;
-            
-            // Set initial position
-            particle.style.left = `${startX}px`;
-            particle.style.top = `${startY}px`;
-            
-            // Set animation variables
-            particle.style.setProperty('--flow-x', `${endX}px`);
-            particle.style.setProperty('--flow-y', `${endY}px`);
-            
-            // Add animation
-            particle.style.animation = `particleFlow ${600 + Math.random() * 400}ms cubic-bezier(0.4, 0, 0.2, 1) forwards`;
-            
-            // Create trail particles
-            for (let j = 0; j < 2; j++) {
-                const trail = document.createElement('div');
-                trail.className = 'particle-trail';
-                document.body.appendChild(trail);
-                trail.style.left = `${startX}px`;
-                trail.style.top = `${startY}px`;
-                trail.style.setProperty('--flow-x', `${endX * 0.7}px`);
-                trail.style.setProperty('--flow-y', `${endY * 0.7}px`);
-                trail.style.animationDelay = `${j * 50}ms`;
-                
-                setTimeout(() => trail.remove(), 600);
-            }
-            
-            // Remove particle after animation
-            setTimeout(() => particle.remove(), 1000);
-        }
+        const popup = document.createElement('div');
+        popup.className = 'resource-popup';
+        popup.textContent = '+1';
+        
+        // Position popup above the element
+        popup.style.left = `${rect.left + rect.width / 2}px`;
+        popup.style.top = `${rect.top}px`;
+        
+        document.body.appendChild(popup);
+        
+        // Remove after animation
+        popup.addEventListener('animationend', () => {
+            popup.remove();
+        });
     }
 
     // Tab switching function
