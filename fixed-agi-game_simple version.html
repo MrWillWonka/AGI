@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Path to AGI: An Incremental Adventure (Simple Version)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e24;
+            color: #f8f9fa;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: #0f0f17;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 3px solid #3a86ff;
+        }
+        
+        h1 {
+            margin: 0;
+            color: #3a86ff;
+            font-size: 2.5rem;
+        }
+        
+        h2 {
+            color: #8338ec;
+            border-bottom: 2px solid #8338ec;
+            padding-bottom: 5px;
+        }
+        
+        .panel {
+            background-color: #2a2a35;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            border: 1px solid #3a3a45;
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #3a86ff 0%, #2d63c4 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            margin: 5px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            width: 100%;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .resource {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 8px 0;
+            padding: 8px;
+            background-color: rgba(0,0,0,0.1);
+            border-radius: 6px;
+        }
+        
+        .resource-name {
+            font-weight: 600;
+            color: #f8f9fa;
+        }
+        
+        .resource-value {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: rgba(0,0,0,0.2);
+            padding: 4px 10px;
+            border-radius: 6px;
+            min-width: 80px;
+            text-align: right;
+            font-weight: 600;
+            color: #f8f9fa;
+        }
+        
+        #gameLog {
+            height: 150px;
+            overflow-y: auto;
+            font-family: 'Courier New', Courier, monospace;
+            background-color: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 10px;
+            border: 1px solid #3a3a45;
+        }
+        
+        .log-entry {
+            margin: 5px 0;
+            padding: 3px;
+            border-left: 3px solid transparent;
+        }
+        
+        .log-info {
+            border-left-color: #3a86ff;
+        }
+        
+        .log-success {
+            border-left-color: #38b000;
+        }
+        
+        .log-warning {
+            border-left-color: #ffbe0b;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>The Path to AGI: An Incremental Adventure</h1>
+        <p>Your journey from narrow AI to artificial general intelligence... and beyond!</p>
+    </header>
+    
+    <div class="container">
+        <div class="panel">
+            <h2>Resources</h2>
+            <div class="resource">
+                <span class="resource-name">Compute Power (CP)</span>
+                <span class="resource-value" id="computePower">0</span>
+            </div>
+            <div class="resource">
+                <span class="resource-name">CP per Second</span>
+                <span class="resource-value" id="computePerSecond">0</span>
+            </div>
+            <div class="resource">
+                <span class="resource-name">Data Points (DP)</span>
+                <span class="resource-value" id="dataPoints">0</span>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>Actions</h2>
+            <button class="button" id="computeButton" onclick="AGI.generateCompute()">Generate Compute (1 CP)</button>
+            <button class="button" id="collectDataButton" onclick="AGI.collectData()">Collect Data (100 CP)</button>
+        </div>
+        
+        <div class="panel">
+            <h2>Upgrades</h2>
+            <div class="resource">
+                <span class="resource-name">CPU Level</span>
+                <span class="resource-value" id="cpuLevel">0</span>
+            </div>
+            <button class="button" id="cpuUpgradeButton" onclick="AGI.upgradeCPU()">Upgrade CPU: 25 CP</button>
+        </div>
+        
+        <div class="panel">
+            <h2>Game Log</h2>
+            <div id="gameLog"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Create a global namespace for all game functions
+        window.AGI = {
+            gameState: {
+                resources: {
+                    computePower: 0,
+                    dataPoints: 0
+                },
+                upgrades: {
+                    cpuLevel: 0
+                }
+            },
+            
+            // Initialize the game
+            init: function() {
+                console.log("Game initialization started");
+                
+                // Load saved game if available
+                AGI.loadGame();
+                
+                // Start the game loop
+                console.log("Starting game loop");
+                setInterval(AGI.gameLoop, 1000);
+                
+                // Update the UI
+                AGI.updateUI();
+                
+                // Add a log entry
+                AGI.addLogEntry("Game initialized successfully", "info");
+                
+                console.log("Game initialization completed");
+            },
+            
+            // Generate compute power
+            generateCompute: function() {
+                console.log("Generate compute button clicked");
+                // Base click value is 1
+                AGI.gameState.resources.computePower += 1;
+                AGI.addLogEntry("Generated 1 compute power", "info");
+                AGI.updateUI();
+            },
+            
+            // Collect data
+            collectData: function() {
+                console.log("Collect data button clicked");
+                if (AGI.gameState.resources.computePower >= 100) {
+                    AGI.gameState.resources.computePower -= 100;
+                    AGI.gameState.resources.dataPoints += 1;
+                    AGI.addLogEntry("Collected 1 data point", "info");
+                    AGI.updateUI();
+                } else {
+                    AGI.addLogEntry("Not enough compute power to collect data!", "warning");
+                }
+            },
+            
+            // Upgrade CPU
+            upgradeCPU: function() {
+                console.log("Upgrade CPU button clicked");
+                const cost = Math.floor(25 * Math.pow(1.25, AGI.gameState.upgrades.cpuLevel));
+                
+                if (AGI.gameState.resources.computePower >= cost) {
+                    AGI.gameState.resources.computePower -= cost;
+                    AGI.gameState.upgrades.cpuLevel += 1;
+                    AGI.addLogEntry(`CPU upgraded to level ${AGI.gameState.upgrades.cpuLevel}. +0.5 CP/s`, "success");
+                    AGI.updateUI();
+                } else {
+                    AGI.addLogEntry("Not enough compute power for CPU upgrade!", "warning");
+                }
+            },
+            
+            // Calculate CP rate
+            calculateCPRate: function() {
+                return 0.5 * AGI.gameState.upgrades.cpuLevel;
+            },
+            
+            // Game loop function
+            gameLoop: function() {
+                // Generate resources automatically
+                const cpRate = AGI.calculateCPRate();
+                AGI.gameState.resources.computePower += cpRate;
+                
+                // Update UI
+                AGI.updateUI();
+            },
+            
+            // UI update function
+            updateUI: function() {
+                // Update compute power
+                const computePowerElement = document.getElementById('computePower');
+                if (computePowerElement) {
+                    computePowerElement.textContent = Math.floor(AGI.gameState.resources.computePower).toLocaleString();
+                }
+                
+                // Update compute per second
+                const computePerSecondElement = document.getElementById('computePerSecond');
+                if (computePerSecondElement) {
+                    const rate = AGI.calculateCPRate();
+                    computePerSecondElement.textContent = rate.toFixed(1);
+                }
+                
+                // Update data points
+                const dataPointsElement = document.getElementById('dataPoints');
+                if (dataPointsElement) {
+                    dataPointsElement.textContent = Math.floor(AGI.gameState.resources.dataPoints).toLocaleString();
+                }
+                
+                // Update CPU level
+                const cpuLevelElement = document.getElementById('cpuLevel');
+                if (cpuLevelElement) {
+                    cpuLevelElement.textContent = AGI.gameState.upgrades.cpuLevel.toLocaleString();
+                }
+                
+                // Update CPU upgrade button
+                const cpuUpgradeButton = document.getElementById('cpuUpgradeButton');
+                if (cpuUpgradeButton) {
+                    const cost = Math.floor(25 * Math.pow(1.25, AGI.gameState.upgrades.cpuLevel));
+                    cpuUpgradeButton.textContent = `Upgrade CPU: ${cost} CP`;
+                }
+            },
+            
+            // Game log function
+            addLogEntry: function(message, type = "info") {
+                const gameLog = document.getElementById('gameLog');
+                if (!gameLog) return;
+                
+                const entry = document.createElement('div');
+                entry.className = `log-entry log-${type}`;
+                entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                gameLog.appendChild(entry);
+                gameLog.scrollTop = gameLog.scrollHeight;
+            },
+            
+            // Save and load functions
+            saveGame: function() {
+                try {
+                    localStorage.setItem('simpleAgiGame', JSON.stringify(AGI.gameState));
+                    AGI.addLogEntry("Game saved", "success");
+                } catch (error) {
+                    console.error("Error saving game:", error);
+                    AGI.addLogEntry("Error saving game", "warning");
+                }
+            },
+            
+            loadGame: function() {
+                try {
+                    const savedGame = localStorage.getItem('simpleAgiGame');
+                    if (savedGame) {
+                        AGI.gameState = JSON.parse(savedGame);
+                        AGI.addLogEntry("Game loaded", "success");
+                    } else {
+                        console.log("No saved game found");
+                    }
+                } catch (error) {
+                    console.error("Error loading game:", error);
+                    AGI.addLogEntry("Error loading game", "warning");
+                }
+            }
+        };
+        
+        // Initialize when the page is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM Content Loaded");
+            AGI.init();
+        });
+        
+        // Fallback initialization if DOMContentLoaded doesn't work
+        window.onload = function() {
+            console.log("Window loaded");
+            // Check if the game has already been initialized
+            if (typeof AGI.gameState.resources.computePower === 'undefined') {
+                console.log("Fallback initialization");
+                AGI.init();
+            }
+        };
+        
+        // Make sure AGI is initialized after 1 second regardless
+        setTimeout(function() {
+            console.log("Timeout initialization check");
+            if (typeof AGI.gameState.resources.computePower === 'undefined') {
+                console.log("Timeout initialization");
+                AGI.init();
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

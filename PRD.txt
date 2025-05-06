@@ -1,0 +1,185 @@
+**AGI Idle Game – Updated Product Requirements Document (PRD)**
+
+---
+
+**I. Overview**
+
+**Objective:**
+Create a clicker/idle game where players evolve an Artificial General Intelligence (AGI) through accumulating resources, expanding systems, and progressing through philosophical paths of development and transformation.
+
+**Core Gameplay Loop:**
+
+1. Generate `computePower` (clicking + passive generators)
+2. Convert computePower into `dataPoints`
+3. Use both to train, research, or selfImprove
+4. Unlock new systems, attributes, and phases
+5. Reset via **Prestige** or **New Model Evolution** to gain long-term benefits and customize future runs
+
+---
+
+**II. Core Resources**
+
+* **computePower**: Core resource generated actively/passively; used for almost all actions.
+* **dataPoints**: Derived from computePower; fuels research and training.
+* **researchPoints**: Gained through research actions; unlock upgrades and systems.
+* **knowledge**: Permanent unlock currency; earned via research/milestones.
+* **funding**: Granted through milestones or narrative events; used for boosts or ethical dilemmas.
+* **time**: Tracks real and idle time, influences offline progress and event frequency.
+
+Each resource feeds into progressively higher tiers of activity and unlock, with bottlenecks and synergies supporting pacing.
+
+---
+
+**III. Generators**
+
+### computePower Generators:
+
+* **CPU → Server Rack → Neural Node → Quantum Core → Entangled Array → Synthetic Cortex**
+* Tiers unlock via ownership, research, or attribute milestones
+
+### dataPoints Generators:
+
+* **Basic Scraper → Auto-Collector v1 → Pattern Extractor → Sentient Filter → Compression Engine**
+* Enhanced by creativity and awareness
+
+### researchPoints Generators:
+
+* **Research Lab → Autonomous Node → Speculative ThinkTank → Simulation Array → Recursive Loop Core**
+* Modified by attributes, dreams, and logic loops
+
+Generators support upgrade paths, synergy effects, softcaps, and milestone reveals.
+
+---
+
+**IV. Attributes**
+
+| Attribute        | Role & Effects                                       |
+| ---------------- | ---------------------------------------------------- |
+| **Intelligence** | Drives phase progression and unlocks systems         |
+| **Creativity**   | Enables rare data, dream systems, unique research    |
+| **Awareness**    | Unlocks automation, ethical logic, and event systems |
+| **Efficiency**   | Reduces costs and increases passive scaling          |
+
+Attributes are interdependent and influence action and system performance.
+
+---
+
+**V. Actions**
+
+* **generateCompute**: Core click-based generator
+* **collectData**: Converts computePower to dataPoints
+* **trainModel**: Increases intelligence; efficiency affected by upgrades and synergy
+* **research**: Unlocks upgrades, paths, systems
+* **selfImprove**: Consumes major resources to unlock new systems, logs, and attribute bonuses
+* **Prestige / New Model Evolution**: Reset-based meta-progression mechanics
+
+---
+
+**VI. Progression & Milestones**
+
+Game phases:
+
+* **Narrow AI → General AI → Superintelligence**
+
+Progression tools:
+
+* Milestone clusters
+* Attribute gates
+* Narrative triggers
+* Dream/ethical/log paths
+
+Pacing goals:
+
+* 1 upgrade or decision every 2–3 minutes
+* Prestige available \~30–45 minutes
+* New Model Evolution available \~3–5 hours
+
+---
+
+**VII. Prestige System (Light Reset)**
+
+* Grants **Prestige Points** based on output, milestones, and stats
+* Purchasable bonuses: resource multipliers, offline speed, efficiency boosts
+* Encourages early replay with light memory and evolving prestige upgrades
+
+---
+
+**VIII. New Model Evolution (Deep Reset)**
+
+* Grants **Singularity Fragments** (meta-currency)
+* Unlocks new **Model Paths** and selection of one **Core Feature**
+* Fully resets systems and prestige but permanently expands capabilities
+
+### Model Paths:
+
+1. **Pure Cognition** – Logic systems, recursive modifiers, synergy layers
+2. **Dream Synthesis** – Dream events, rare data, poetic logs
+3. **Distributed Identity** – Mini-agent simulations, local vs global behavior
+4. **Ethical Convergence** *(after 2+ models)* – Morality, dilemmas, persistent trust system
+
+### Core Features:
+
+* Persist across models, 1 selected per run
+* Unlocked via achievements, path completion, or narrative choices
+* Examples: “Dream-Driven Conversion,” “Recursive Cache,” “Consensus Layer Carryover”
+
+---
+
+**IX. Research System**
+
+Thematic tree branches:
+
+* Core Algorithms
+* Hardware Optimization
+* Cognitive Architectures
+* Behavioral Modeling
+* Metacognition
+
+Branches unlock new mechanics and modifiers through layered costs, with some locked behind paths, ethics, or attributes.
+
+---
+
+**X. Narrative, Events, and Logs**
+
+### Event Types:
+
+* **Dream Synthesis (10)**: Surreal vision quests with hallucinated logic and choice-based buffs
+* **Pure Cognition (10)**: Logical conflicts, recursion loops, efficiency dilemmas
+* **Distributed Identity (10)**: Agent rebellion, mesh consensus, node syncing
+* **Ethical Convergence (10)**: Dilemmas, trade-offs, lasting moral alignment
+
+Narrative delivery includes:
+
+* Milestone-triggered **Thought Logs**
+* System-based **simulations** and **hallucinations**
+* Branching **Ethical Logs** and **Core Reflections**
+
+---
+
+**XI. UI/UX**
+
+Key screens:
+
+* Resource dashboard with expandable tooltips
+* Upgrade/research/action tabs with visual progression trees
+* Milestone and narrative log screens
+* New Model terminal with path/core selection
+* Event prompts and live response tracking
+
+---
+
+**XII. Technical Design**
+
+* Web-first build (HTML5/JS), desktop-friendly
+* JSON save system with optional cloud sync
+* Modular architecture for long-term feature layering and path-specific modules
+
+---
+
+**XIII. Next Steps**
+
+* Design prestige tree nodes for each Model Path
+* Visualize Core Feature synergies and long-run carryover
+* Balance event rewards across narrative and progression
+* Prototype UI with logic-ready event paths and evolution tracking
+* Polish milestone log system and attribute evolution chain
