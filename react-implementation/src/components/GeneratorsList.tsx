@@ -6,7 +6,7 @@ import GeneratorComponent from './Generator';
 const Container = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 1rem;
 `;
 
 const Title = styled.h3`
@@ -14,6 +14,20 @@ const Title = styled.h3`
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
   border-bottom: 2px solid var(--panel-border);
+`;
+
+const GeneratorsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  width: 100%;
+  align-items: stretch;
+`;
+
+const LockedTitle = styled(Title)`
+  margin-top: 1.5rem;
+  font-size: 1rem;
+  color: var(--text-muted);
 `;
 
 const GeneratorsList: React.FC = () => {
@@ -31,22 +45,24 @@ const GeneratorsList: React.FC = () => {
 
   return (
     <Container>
-      {/* Render unlocked generators */}
-      {unlockedGenerators.map((generator) => (
-        <GeneratorComponent key={generator.id} generator={generator} />
-      ))}
+      {/* Render unlocked generators in grid */}
+      <GeneratorsGrid>
+        {unlockedGenerators.map((generator) => (
+          <GeneratorComponent key={generator.id} generator={generator} />
+        ))}
+      </GeneratorsGrid>
 
       {/* Show locked generators section if there are any */}
       {lockedGenerators.length > 0 && (
-        <Title style={{marginTop: '1.5rem', fontSize: '1rem', color: 'var(--text-muted)'}}>
-          Locked Generators
-        </Title>
+        <>
+          <LockedTitle>Locked Generators</LockedTitle>
+          <GeneratorsGrid>
+            {lockedGenerators.map((generator) => (
+              <GeneratorComponent key={generator.id} generator={generator} />
+            ))}
+          </GeneratorsGrid>
+        </>
       )}
-      
-      {/* Render locked generators */}
-      {lockedGenerators.map((generator) => (
-         <GeneratorComponent key={generator.id} generator={generator} />
-      ))}
     </Container>
   );
 };

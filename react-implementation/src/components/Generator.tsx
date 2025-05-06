@@ -1,164 +1,165 @@
 import React, { useMemo } from 'react';
 import styled from 'styled-components';
-import { useGameStore, Generator as GeneratorType } from '../store/gameStore';
+import { useGameStore, Generator as GeneratorType, Resources } from '../store/gameStore';
+import { FaLock, FaBolt } from 'react-icons/fa'; // Keep FaLock and FaBolt (for production) for now
+import { getIcon, IconConcept } from '../utils/getIcon'; // Import the utility
 
-// --- Styled Components ---
-const GeneratorContainer = styled.div<{ $isUnlocked: boolean; $canAfford: boolean }>`
-  background-color: var(--panel-bg);
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  border-left: 4px solid ${props => props.$isUnlocked ? 'var(--secondary-color)' : '#555'};
-  opacity: ${props => props.$isUnlocked ? 1 : 0.6};
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.5rem 1rem;
+// Need to import or redefine IconWrapper if using it here
+const IconWrapper = styled.span`
+  display: inline-flex;
   align-items: center;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-right: 0.3em; 
+  color: var(--icon-color, inherit); 
+`;
 
+const Card = styled.div<{ $isUnlocked: boolean }>`
+  background: var(--panel-bg);
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  padding: 0.75rem 0.75rem 0.5rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  opacity: ${p => p.$isUnlocked ? 1 : 0.6}; // Slightly more visible when locked
+  transition: box-shadow 0.2s, outline 0.2s, opacity 0.2s;
+  min-width: 0;
+  position: relative;
+  min-height: 140px;
   &:hover {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    transform: ${props => props.$isUnlocked ? 'translateX(3px)' : 'none'};
+    box-shadow: ${p => p.$isUnlocked ? '0 4px 16px rgba(0,0,0,0.16)' : '0 2px 8px rgba(0,0,0,0.10)'}; // No shadow change on hover if locked
+    outline: ${p => p.$isUnlocked ? '2px solid var(--primary-color)' : 'none'}; // No outline on hover if locked
   }
 `;
 
-const InfoColumn = styled.div`
+const TopRow = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
+  justify-content: space-between;
+  align-items: center;
 `;
 
-const ActionColumn = styled.div`
+const Name = styled.span`
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--light-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const Owned = styled.span`
+  font-size: 0.95rem;
+  font-weight: bold;
+  color: var(--secondary-color);
+  margin-left: 0.5rem;
+`;
+
+const InfoRow = styled.div`
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
   gap: 0.5rem;
 `;
 
-const GeneratorName = styled.h4`
-  margin: 0;
-  font-size: 1.1rem;
-  color: var(--light-color);
-`;
-
-const GeneratorDescription = styled.p`
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-`;
-
-const GeneratorStats = styled.div`
-  font-size: 0.9rem;
+const InfoItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
   color: var(--primary-color);
-  font-family: 'Courier New', Courier, monospace;
 `;
 
-const OwnedCount = styled.span`
-  font-weight: bold;
-  font-size: 1.2rem;
-  color: var(--light-color);
-  text-align: right;
-`;
-
-const BuyButton = styled.button`
-  background: linear-gradient(135deg, var(--secondary-color) 0%, var(--tertiary-color) 100%);
-  color: white;
-  border: none;
-  padding: 0.6rem 1rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 600;
-  transition: all 0.2s ease;
+const Description = styled.span`
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
   white-space: nowrap;
-
-  &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-  }
-
-  &:disabled {
-    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
-    cursor: not-allowed;
-    opacity: 0.6;
-  }
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: help;
 `;
 
-// --- Helper Functions ---
-const formatNumber = (num: number): string => {
-  if (num < 1000) return num.toFixed(1);
-  if (num < 1e6) return (num / 1e3).toFixed(1) + 'K';
-  if (num < 1e9) return (num / 1e6).toFixed(1) + 'M';
-  // Add more suffixes as needed
-  return num.toExponential(1);
-};
+const PurchaseButton = styled.button<{ $canAfford: boolean }>`
+  margin-top: 0.4rem;
+  width: 100%;
+  padding: 0.35rem 0;
+  font-size: 0.9rem;
+  border-radius: 4px;
+  border: none;
+  background: ${p => p.$canAfford ? 'linear-gradient(90deg, var(--primary-color), var(--secondary-color))' : 'var(--panel-border)'};
+  color: ${p => p.$canAfford ? 'white' : 'var(--text-muted)'};
+  cursor: ${p => p.$canAfford ? 'pointer' : 'not-allowed'};
+  font-weight: 500;
+  transition: background 0.2s;
+`;
 
-const formatResourceName = (key: string): string => {
-    // Simple formatter, can be expanded
-    return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-}
+// New component for displaying lock reason
+const LockInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 1rem 0;
+  gap: 0.4rem;
+  height: 100%; // Take up space usually used by info/button
+  margin-top: auto; // Push to bottom if needed, but centering is better
+`;
 
-// --- Component Implementation ---
-const GeneratorComponentImpl: React.FC<{ generator: GeneratorType }> = ({ generator }) => {
-  // Select only the specific state values needed + the action
-  const costResourceValue = useGameStore(state => state.resources[generator.costResource]);
-  const efficiency = useGameStore(state => state.attributes.efficiency);
-  const buyGenerator = useGameStore(state => state.buyGenerator);
+const GeneratorComponent: React.FC<{ generator: GeneratorType }> = ({ generator }) => {
+  const { purchaseGenerator, resources, getUnlockCondition } = useGameStore();
 
-  const isUnlocked = generator.isUnlocked; 
+  const canAfford = useMemo(() => {
+    const resourceAmount = resources[generator.resource] as number;
+    return resourceAmount >= generator.cost;
+  }, [resources, generator.cost, generator.resource]);
 
-  // Memoize derived values with granular dependencies
-  const { canAfford, productionPerSecond, productionPerUnit } = useMemo(() => {
-    const canAfford = isUnlocked && costResourceValue >= generator.currentCost;
-    const productionPerUnit = generator.baseProduction * efficiency;
-    const productionPerSecond = productionPerUnit * generator.owned;
-    return { canAfford, productionPerSecond, productionPerUnit };
-  }, [
-    // Depend on specific primitive values and prop values
-    isUnlocked, 
-    costResourceValue, // The specific resource value used for cost check
-    efficiency,      // The specific attribute value used for production
-    generator.currentCost, 
-    generator.baseProduction, 
-    generator.owned
-    // generator.costResource is implicitly handled by costResourceValue dependency
-  ]);
-
-  // console.log(`Rendering Generator: ${generator.name}, Unlocked: ${isUnlocked}, Owned: ${generator.owned}`); // Debug log
+  const unlockCondition = useMemo(() => {
+      if (generator.isUnlocked) return true;
+      return getUnlockCondition(generator.id);
+  }, [generator.isUnlocked, generator.id, getUnlockCondition]);
 
   return (
-    <GeneratorContainer $isUnlocked={isUnlocked} $canAfford={canAfford}>
-      <InfoColumn>
-        <GeneratorName>{generator.name}</GeneratorName>
-        <GeneratorDescription>{generator.description}</GeneratorDescription>
-        <GeneratorStats>
-          {/* Use memoized productionPerUnit */}
-          Produces: {formatNumber(productionPerUnit)} {formatResourceName(generator.resource)}/s/unit 
-          <br />
-          {/* Use memoized productionPerSecond */}
-          Total: {formatNumber(productionPerSecond)}/s
-        </GeneratorStats>
-      </InfoColumn>
+    <Card $isUnlocked={generator.isUnlocked} title={generator.description}>
+      <TopRow>
+        <Name>{generator.name}</Name>
+        {generator.isUnlocked && <Owned>x{generator.owned}</Owned>}
+      </TopRow>
 
-      <ActionColumn>
-        <OwnedCount>{generator.owned}</OwnedCount>
-        <BuyButton
-          onClick={() => buyGenerator(generator.id)}
-          // Disable based on memoized canAfford and isUnlocked
-          disabled={!canAfford}
-          title={`Cost: ${formatNumber(generator.currentCost)} ${formatResourceName(generator.costResource)}`}
-        >
-          Buy {formatNumber(generator.currentCost)} {formatResourceName(generator.costResource)}
-        </BuyButton>
-        {/* Show locked status based on the prop */}
-        {!isUnlocked && <span style={{fontSize: '0.8rem', color: 'var(--warning-color)'}}>Locked</span>}
-      </ActionColumn>
-    </GeneratorContainer>
+      {generator.isUnlocked ? (
+        <>
+          <InfoRow>
+            <InfoItem>
+              {getIcon(generator.resource as IconConcept)}
+              <span>Cost: {generator.cost}</span>
+            </InfoItem>
+            <InfoItem>
+              {getIcon(generator.resource as IconConcept)}
+              <span>{generator.production}/s</span>
+            </InfoItem>
+          </InfoRow>
+          <Description title={generator.description}>{generator.description}</Description>
+          <PurchaseButton 
+            onClick={() => purchaseGenerator(generator.id)}
+            disabled={!canAfford}
+            $canAfford={canAfford}
+          >
+            Purchase
+          </PurchaseButton>
+        </>
+      ) : (
+        <>
+          <Description title={generator.description}>{generator.description}</Description>
+          <LockInfo>
+            <FaLock size="1.2em" /> 
+            <span>{typeof unlockCondition === 'string' ? unlockCondition : 'Locked'}</span>
+          </LockInfo>
+        </>
+      )}
+    </Card>
   );
 };
 
-// Wrap the component with React.memo
-const GeneratorComponent = React.memo(GeneratorComponentImpl);
-
-export default GeneratorComponent; 
+export default React.memo(GeneratorComponent);

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 // --- Interfaces ---
-interface Resources {
+export interface Resources {
   computePower: number;
   dataPoints: number;
   researchPoints: number;
@@ -10,7 +10,7 @@ interface Resources {
   time: number; // Represents elapsed game time in seconds
 }
 
-interface Attributes {
+export interface Attributes {
   intelligence: number;
   creativity: number;
   awareness: number;
@@ -18,28 +18,30 @@ interface Attributes {
 }
 
 // Define unlock check function type separately
-type UnlockCheck = (state: GameState) => boolean;
+// Returns true if unlocked, or a string describing the condition if locked
+export type UnlockCheckResult = true | string;
+export type UnlockCheckFn = (state: GameState) => UnlockCheckResult;
 
 // Defines a single generator instance
 export interface Generator {
   id: string;
   name: string;
   description: string;
-  resource: keyof Pick<Resources, 'computePower' | 'dataPoints' | 'researchPoints'>; // Which resource it generates (simplified for now)
-  baseProduction: number; // Production per second per unit
+  cost: number;
+  production: number;
   owned: number;
-  costResource: keyof Omit<Resources, 'time' | 'knowledge' | 'funding'>; // Which resource is used to buy it (compute/data/research)
-  baseCost: number;
-  costMultiplier: number;
-  currentCost: number; // Calculated cost for the next purchase
-  unlockCheck?: UnlockCheck; // Store the function, but don't call in render
-  isUnlocked: boolean; // Store the calculated status
+  isUnlocked: boolean;
+  resource: 'computePower' | 'dataPoints' | 'researchPoints';
+  unlockCheck?: UnlockCheckFn;
 }
 
-interface GameState {
+// Forward declaration or ensure GameState is fully defined before use
+export interface GameState {
   resources: Resources;
   attributes: Attributes;
   generators: Generator[];
+  getUnlockCondition: (generatorId: string) => UnlockCheckResult;
+  purchaseGenerator: (id: string) => void;
 
   // Actions
   generateCompute: (amount: number) => void;
@@ -48,7 +50,6 @@ interface GameState {
   research: () => void;
   selfImprove: () => void;
   incrementTime: (seconds: number) => void;
-  buyGenerator: (generatorId: string) => void;
 }
 
 // --- Initial State --- (Based on PRD)
@@ -71,28 +72,67 @@ const initialAttributes: Attributes = {
 // Define initial raw generator data + unlock logic separately
 const initialGeneratorsData: Omit<Generator, 'isUnlocked'>[] = [
   // Compute Power Generators
-  { id: 'cpu', name: 'CPU', description: 'Basic processing unit.', resource: 'computePower', baseProduction: 0.1, owned: 0, costResource: 'computePower', baseCost: 10, costMultiplier: 1.15, currentCost: 10 },
-  { id: 'serverRack', name: 'Server Rack', description: 'Multiple CPUs working together.', resource: 'computePower', baseProduction: 1, owned: 0, costResource: 'computePower', baseCost: 100, costMultiplier: 1.20, currentCost: 100 },
-  { id: 'neuralNode', name: 'Neural Node', description: 'Simulates basic neural pathways.', resource: 'computePower', baseProduction: 8, owned: 0, costResource: 'computePower', baseCost: 1200, costMultiplier: 1.25, currentCost: 1200, unlockCheck: (state) => state.attributes.intelligence >= 10 },
+  { 
+    id: 'cpu', name: 'CPU', description: 'Basic processing unit.', 
+    cost: 10, production: 0.1, owned: 0, resource: 'computePower' 
+    // No unlockCheck needed for the first generator
+  },
+  { 
+    id: 'serverRack', name: 'Server Rack', description: 'Multiple CPUs working together.', 
+    cost: 100, production: 1, owned: 0, resource: 'computePower',
+    unlockCheck: (state: GameState) => (state.generators.find(g => g.id === 'cpu')?.owned ?? 0) >= 5 ? true : "Requires 5 CPUs"
+  },
+  { 
+    id: 'neuralNode', name: 'Neural Node', description: 'Simulates basic neural pathways.', 
+    cost: 1200, production: 8, owned: 0, resource: 'computePower',
+    unlockCheck: (state: GameState) => (state.generators.find(g => g.id === 'serverRack')?.owned ?? 0) >= 10 && state.attributes.intelligence >= 20 ? true : "Requires 10 Server Racks & 20 Intelligence"
+  },
   // Data Point Generators
-  { id: 'basicScraper', name: 'Basic Scraper', description: 'Scours the web for raw data.', resource: 'dataPoints', baseProduction: 0.2, owned: 0, costResource: 'computePower', baseCost: 50, costMultiplier: 1.18, currentCost: 50 },
-  { id: 'autoCollector', name: 'Auto-Collector v1', description: 'Automated data gathering.', resource: 'dataPoints', baseProduction: 1.5, owned: 0, costResource: 'computePower', baseCost: 500, costMultiplier: 1.22, currentCost: 500, unlockCheck: (state) => state.attributes.awareness >= 5 },
+  { 
+    id: 'basicScraper', name: 'Basic Scraper', description: 'Scours the web for raw data.', 
+    cost: 50, production: 0.2, owned: 0, resource: 'dataPoints',
+    unlockCheck: (state: GameState) => state.resources.computePower >= 50 ? true : "Requires 50 Compute Power"
+  },
+  { 
+    id: 'autoCollector', name: 'Auto-Collector v1', description: 'Automated data gathering.', 
+    cost: 500, production: 1.5, owned: 0, resource: 'dataPoints',
+    unlockCheck: (state: GameState) => (state.generators.find(g => g.id === 'basicScraper')?.owned ?? 0) >= 5 ? true : "Requires 5 Basic Scrapers"
+  },
   // Research Point Generators
-  { id: 'researchLab', name: 'Research Lab', description: 'Basic research calculations.', resource: 'researchPoints', baseProduction: 0.1, owned: 0, costResource: 'dataPoints', baseCost: 200, costMultiplier: 1.20, currentCost: 200 },
-  { id: 'autonomousNode', name: 'Autonomous Node', description: 'Performs independent research tasks.', resource: 'researchPoints', baseProduction: 0.8, owned: 0, costResource: 'dataPoints', baseCost: 2500, costMultiplier: 1.25, currentCost: 2500, unlockCheck: (state) => state.attributes.creativity >= 8 },
+  { 
+    id: 'researchLab', name: 'Research Lab', description: 'Basic research calculations.', 
+    cost: 200, production: 0.1, owned: 0, resource: 'researchPoints',
+    unlockCheck: (state: GameState) => state.attributes.intelligence >= 10 ? true : "Requires 10 Intelligence"
+  },
+  { 
+    id: 'autonomousNode', name: 'Autonomous Node', description: 'Performs independent research tasks.', 
+    cost: 2500, production: 0.8, owned: 0, resource: 'researchPoints',
+    unlockCheck: (state: GameState) => (state.generators.find(g => g.id === 'researchLab')?.owned ?? 0) >= 3 && state.attributes.creativity >= 15 ? true : "Requires 3 Research Labs & 15 Creativity"
+  }
 ];
 
 // --- Zustand Store ---
 export const useGameStore = create<GameState>((set, get) => {
   // Helper to calculate updated generator array based on a *target* state
-  const calculateGeneratorUnlocks = (currentGenerators: Generator[], targetState: GameState): { updatedGenerators: Generator[], changed: boolean } => {
+  // Now returns the updated generators and whether any changed
+  const checkGeneratorUnlocks = (currentGenerators: Generator[], targetState: GameState): { updatedGenerators: Generator[], changed: boolean } => {
       let changed = false;
       const updatedGenerators = currentGenerators.map(gen => {
-          const newUnlockStatus = !gen.unlockCheck || gen.unlockCheck(targetState);
-          if (newUnlockStatus !== gen.isUnlocked) {
-              changed = true;
+          // If already unlocked, keep it that way permanently.
+          if (gen.isUnlocked) {
+              return gen;
           }
-          return { ...gen, isUnlocked: newUnlockStatus };
+
+          // If currently locked, check if the unlock condition is now met.
+          const checkResult = gen.unlockCheck ? gen.unlockCheck(targetState) : true;
+          if (checkResult === true) {
+              // It just became unlocked!
+              changed = true; // Signal that *an* unlock happened in this batch
+              return { ...gen, isUnlocked: true }; // Update this generator
+          }
+          
+          // Still locked, return the generator as is (isUnlocked remains false)
+          return gen;
       });
       return { updatedGenerators, changed };
   };
@@ -106,12 +146,13 @@ export const useGameStore = create<GameState>((set, get) => {
   const initialCheckState = {
       ...initialStatePartial,
       // Dummy actions to satisfy GameState type for initial check
-      generateCompute: () => {}, collectData: () => {}, trainModel: () => {}, research: () => {}, selfImprove: () => {}, incrementTime: () => {}, buyGenerator: () => {}
+      generateCompute: () => {}, collectData: () => {}, trainModel: () => {}, research: () => {}, selfImprove: () => {}, incrementTime: () => {}, purchaseGenerator: () => {},
+      getUnlockCondition: (_id: string): UnlockCheckResult => "Checking..." // Ensure signature matches
   } as GameState;
-  const initialGeneratorsWithStatus = initialStatePartial.generators.map(gen => ({
-      ...gen,
-      isUnlocked: !gen.unlockCheck || gen.unlockCheck(initialCheckState)
-  }));
+  const { updatedGenerators: initialGeneratorsWithStatus } = checkGeneratorUnlocks(
+      initialGeneratorsData.map(genData => ({ ...genData, isUnlocked: false })), // Start all as potentially locked
+      initialCheckState
+  );
   const finalInitialState = {
       ...initialStatePartial,
       generators: initialGeneratorsWithStatus,
@@ -119,6 +160,16 @@ export const useGameStore = create<GameState>((set, get) => {
 
   return {
     ...finalInitialState,
+
+    // Helper to get condition text for a specific generator
+    getUnlockCondition: (generatorId: string): UnlockCheckResult => {
+        const state = get(); // Get current state
+        const generator = state.generators.find(g => g.id === generatorId);
+        if (!generator) return "Generator not found";
+        if (generator.isUnlocked) return true;
+        // If locked, run the check again to get the condition text
+        return generator.unlockCheck ? generator.unlockCheck(state) : true;
+    },
 
     // --- Actions ---
     generateCompute: (amount) =>
@@ -149,15 +200,8 @@ export const useGameStore = create<GameState>((set, get) => {
         const newAttributes = { ...state.attributes, intelligence: state.attributes.intelligence + intelligenceGained };
         const newResources = { ...state.resources, dataPoints: state.resources.dataPoints - dataCost };
         
-        // Construct the *potential* next state accurately for the check
-        const potentialNextState: GameState = {
-            ...state, // Include current generators and actions
-            resources: newResources, 
-            attributes: newAttributes, 
-        }; 
-        
-        // Recalculate unlocks based on this potential next state
-        const { updatedGenerators, changed } = calculateGeneratorUnlocks(state.generators, potentialNextState);
+        const potentialNextState: GameState = { ...state, resources: newResources, attributes: newAttributes }; 
+        const { updatedGenerators, changed } = checkGeneratorUnlocks(state.generators, potentialNextState);
 
         const newStateUpdate: Partial<GameState> = { resources: newResources, attributes: newAttributes };
         if (changed) {
@@ -181,7 +225,7 @@ export const useGameStore = create<GameState>((set, get) => {
             resources: newResources, 
             attributes: newAttributes, 
         };
-        const { updatedGenerators, changed } = calculateGeneratorUnlocks(state.generators, potentialNextState);
+        const { updatedGenerators, changed } = checkGeneratorUnlocks(state.generators, potentialNextState);
         
         const newStateUpdate: Partial<GameState> = { resources: newResources, attributes: newAttributes };
         if (changed) {
@@ -210,21 +254,43 @@ export const useGameStore = create<GameState>((set, get) => {
         });
     },
 
-    buyGenerator: (generatorId: string) => {
-      set((state) => {
-        const generatorIndex = state.generators.findIndex(g => g.id === generatorId);
-        if (generatorIndex === -1) return {};
-        const generator = state.generators[generatorIndex];
-        if (!generator.isUnlocked) return {}; 
-        const costResource = generator.costResource;
-        const cost = generator.currentCost;
-        if (state.resources[costResource] < cost) return {};
-        const nextCost = Math.ceil(generator.baseCost * Math.pow(generator.costMultiplier, generator.owned + 1));
-        const updatedGenerators = [...state.generators];
-        updatedGenerators[generatorIndex] = { ...generator, owned: generator.owned + 1, currentCost: nextCost };
-        const updatedResources = { ...state.resources, [costResource]: state.resources[costResource] - cost };
-        return { resources: updatedResources, generators: updatedGenerators }; 
-      });
+    purchaseGenerator: (generatorId: string) => {
+        set((state) => {
+            const generator = state.generators.find(g => g.id === generatorId);
+            // Cost check now needs to check the specific resource type
+            if (!generator || !generator.isUnlocked || state.resources[generator.resource] < generator.cost) {
+                return {}; // No change if cannot afford or locked
+            }
+
+            const cost = generator.cost;
+            const resource = generator.resource;
+            const newOwnedCount = generator.owned + 1;
+
+            const newResources = {
+                ...state.resources,
+                [resource]: state.resources[resource] - cost, // Deduct cost from the correct resource
+            };
+            const updatedOwnGenerator = { ...generator, owned: newOwnedCount };
+            const updatedGeneratorsList = state.generators.map(g => 
+                g.id === generatorId ? updatedOwnGenerator : g
+            );
+            
+            // Check if purchasing this generator unlocks others
+            const potentialNextState: GameState = { 
+                ...state, 
+                resources: newResources, 
+                generators: updatedGeneratorsList // Use the list *with* the new purchase
+            }; 
+            const { updatedGenerators: generatorsAfterUnlockCheck, changed } = checkGeneratorUnlocks(updatedGeneratorsList, potentialNextState);
+
+            // Always update resources and the purchased generator's ownership
+            const finalGenerators = changed ? generatorsAfterUnlockCheck : updatedGeneratorsList;
+
+            return { 
+                resources: newResources, 
+                generators: finalGenerators
+            };
+        });
     },
 
     incrementTime: (seconds: number) => {
@@ -235,7 +301,7 @@ export const useGameStore = create<GameState>((set, get) => {
         // Calculate total passive gains first
         state.generators.forEach(gen => {
           if (gen.owned > 0 && gen.isUnlocked) { 
-            const production = gen.baseProduction * gen.owned * state.attributes.efficiency * seconds;
+            const production = gen.production * gen.owned * state.attributes.efficiency * seconds;
             if (production > 0 && passiveGains[gen.resource] !== undefined) {
               passiveGains[gen.resource]! += production;
               generationOccurred = true;
@@ -256,7 +322,16 @@ export const useGameStore = create<GameState>((set, get) => {
                 time: state.resources.time + seconds,
                 // knowledge and funding are unchanged here, inherited via spread
             };
-            return { resources: finalResources }; // Return the newly constructed object
+            
+            // Construct potential state and check unlocks
+            const potentialNextState: GameState = { ...state, resources: finalResources }; 
+            const { updatedGenerators, changed } = checkGeneratorUnlocks(state.generators, potentialNextState);
+
+            const newStateUpdate: Partial<GameState> = { resources: finalResources };
+            if (changed) {
+                newStateUpdate.generators = updatedGenerators;
+            }
+            return newStateUpdate;
         }
         
         // No change needed, return empty object to prevent state update

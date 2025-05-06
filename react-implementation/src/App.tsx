@@ -1,16 +1,16 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import styled from 'styled-components';
-import { useGameStore } from './store/gameStore';
 import ResourceDisplay from './components/ResourceDisplay';
 import AttributesDisplay from './components/AttributesDisplay';
 import ActionButtons from './components/ActionButtons';
-import GenerateComputeButton from './components/GenerateComputeButton';
-import GeneratorsList from './components/GeneratorsList';
 import GameLog from './components/GameLog';
 import PhaseDisplay from './components/PhaseDisplay';
+import GeneratorsList from './components/GeneratorsList';
 import TrainingMaterials from './components/TrainingMaterials';
 import ModelCapabilities from './components/ModelCapabilities';
 import AchievementsPanel from './components/AchievementsPanel';
+import TabPanel from './components/TabPanel';
+import { useGameStore } from './store/gameStore';
 
 const AppContainer = styled.div`
   min-height: 100vh;
@@ -40,16 +40,13 @@ const Subtitle = styled.p`
 `;
 
 const Container = styled.div`
-  max-width: 1400px;
+  max-width: 1920px;
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0 1.5rem 1.5rem;
   display: grid;
-  grid-template-columns: 300px 1fr 300px;
+  grid-template-columns: 300px 0.75fr 1.25fr;
   gap: 1.5rem;
-
-  @media (max-width: 1200px) {
-    grid-template-columns: 1fr;
-  }
+  height: calc(100vh - 160px); /* Account for header height */
 `;
 
 const Panel = styled.div`
@@ -59,60 +56,83 @@ const Panel = styled.div`
   padding: 1.5rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   margin-bottom: 1.5rem;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
 
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  &:last-child {
+    margin-bottom: 0;
   }
 `;
 
 const PanelTitle = styled.h2`
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   color: var(--primary-color);
-  margin: 0 0 1rem;
-  padding-bottom: 0.5rem;
+  margin: 0 0 1.2rem;
+  padding-bottom: 0.6rem;
   border-bottom: 2px solid var(--panel-border);
   display: flex;
   align-items: center;
   gap: 0.5rem;
 `;
 
-const MainContent = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+// New Divider style
+const Divider = styled.hr`
+  border: none;
+  border-top: 1px solid var(--panel-border);
+  margin: 1rem 0; // Adjust spacing as needed
 `;
 
-const SidePanel = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+// New SubHeader style for "Game Log"
+const LogSubHeader = styled.h3`
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--secondary-color); // Use a secondary color
+  margin: 0 0 0.8rem 0; // Spacing below
 `;
 
 const App: React.FC = () => {
   const incrementTime = useGameStore((state) => state.incrementTime);
-  
-  const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-    
     const interval = setInterval(() => {
       incrementTime(1);
     }, 1000);
-    
-    intervalRef.current = interval as unknown as number;
-    
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
+    return () => clearInterval(interval);
   }, [incrementTime]);
+
+  const statusTabs = [
+    {
+      id: 'resources',
+      label: 'Resources',
+      content: <ResourceDisplay />
+    },
+    {
+      id: 'attributes',
+      label: 'Attributes',
+      content: <AttributesDisplay />
+    }
+  ];
+
+  const progressTabs = [
+    {
+      id: 'generators',
+      label: 'Generators',
+      content: <GeneratorsList />
+    },
+    {
+      id: 'progress',
+      label: 'Progress',
+      content: (
+        <>
+          <TrainingMaterials />
+          <ModelCapabilities />
+        </>
+      )
+    },
+    {
+      id: 'achievements',
+      label: 'Achievements',
+      content: <AchievementsPanel />
+    }
+  ];
 
   return (
     <AppContainer>
@@ -121,54 +141,37 @@ const App: React.FC = () => {
         <Subtitle>Your journey from narrow AI to artificial general intelligence... and beyond!</Subtitle>
       </Header>
       <Container>
-        {/* Left Panel - Resources & Core Stats */}
-        <SidePanel>
-          <Panel>
-            <PanelTitle>Resources</PanelTitle>
-            <ResourceDisplay />
-          </Panel>
-          <Panel>
-            <PanelTitle>Attributes</PanelTitle>
-            <AttributesDisplay />
-          </Panel>
-          <Panel>
-            <PanelTitle>Current Phase</PanelTitle>
-            <PhaseDisplay />
-          </Panel>
-        </SidePanel>
+        {/* Left Column */}
+        <Panel>
+          <TabPanel tabs={statusTabs} defaultTab="resources" />
+        </Panel>
 
-        {/* Main Content - Actions & Game Progress */}
-        <MainContent>
+        {/* Center Column */}
+        <div>
           <Panel>
-            <PanelTitle>Main Actions</PanelTitle>
-            <GenerateComputeButton />
+            <PanelTitle>Actions</PanelTitle>
             <ActionButtons />
           </Panel>
           <Panel>
-            <PanelTitle>Generators & Upgrades</PanelTitle>
-            <GeneratorsList />
-          </Panel>
-          <Panel>
-            <PanelTitle>Training & Research</PanelTitle>
-            <TrainingMaterials />
-          </Panel>
-          <Panel>
-            <PanelTitle>Game Log</PanelTitle>
+            {/* Combined Phase and Log Panel */}
+            {/* PhaseDisplay now acts as the header */}
+            <PhaseDisplay /> 
+            {/* Add Divider */}
+            <Divider /> 
+            {/* Add Game Log SubHeader */}
+            <LogSubHeader>Game Log</LogSubHeader> 
+            {/* Render the GameLog component */}
             <GameLog />
           </Panel>
-        </MainContent>
+        </div>
 
-        {/* Right Panel - Progress & Achievements */}
-        <SidePanel>
+        {/* Right Column */}
+        <div>
           <Panel>
-            <PanelTitle>Model Capabilities</PanelTitle>
-            <ModelCapabilities />
+            <PanelTitle>Progress</PanelTitle>
+            <TabPanel tabs={progressTabs} defaultTab="generators" />
           </Panel>
-          <Panel>
-            <PanelTitle>Achievements</PanelTitle>
-            <AchievementsPanel />
-          </Panel>
-        </SidePanel>
+        </div>
       </Container>
     </AppContainer>
   );

@@ -1,66 +1,84 @@
 import React from 'react';
 import styled from 'styled-components';
 import { useGameStore } from '../store/gameStore';
+import { getIcon, IconConcept } from '../utils/getIcon';
 
 const ActionsContainer = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
   margin-top: 1rem;
 `;
 
 const ActionButton = styled.button<{ disabled?: boolean }>`
-  background: linear-gradient(135deg, var(--primary-color) 0%, #2d63c4 100%);
-  color: white;
+  background: ${props => props.disabled ? 'var(--panel-border)' : 'linear-gradient(90deg, var(--primary-color), var(--secondary-color))'};
+  color: ${props => props.disabled ? 'var(--text-muted)' : 'white'};
   border: none;
-  padding: 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.3s ease;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
+  font-size: 0.9rem;
+  transition: background 0.2s;
   width: 100%;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  opacity: ${props => props.disabled ? 0.5 : 1};
+  gap: 0.1rem;
+  opacity: 1;
   pointer-events: ${props => props.disabled ? 'none' : 'auto'};
   position: relative;
+  min-height: auto;
 
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(58, 134, 255, 0.3);
+  &:hover:not(:disabled) {
+    filter: brightness(1.1);
+    transform: none;
+    box-shadow: none;
   }
 
-  &:active {
-    transform: translateY(0);
+  &:active:not(:disabled) {
+    filter: brightness(0.95);
+    transform: none;
   }
 
   &:disabled {
-    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
     cursor: not-allowed;
     transform: none;
     box-shadow: none;
+    filter: none;
   }
 `;
 
 const ActionName = styled.span`
-  font-size: 1.1rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+  white-space: nowrap;
 `;
 
 const ActionCost = styled.span`
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  color: inherit;
   opacity: 0.8;
-  font-family: 'Courier New', Courier, monospace;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  ${ActionButton}:disabled & {
+      opacity: 0.6;
+  }
 `;
 
 const ActionDescription = styled.span`
-  font-size: 0.8rem;
-  text-align: center;
-  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+`;
+
+const ActionInfoRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
 `;
 
 const TooltipText = styled.span`
@@ -95,6 +113,7 @@ const ActionButtons: React.FC = () => {
   const trainModel = useGameStore((state) => state.trainModel);
   const research = useGameStore((state) => state.research);
   const selfImprove = useGameStore((state) => state.selfImprove);
+  const generateCompute = useGameStore((state) => state.generateCompute);
   
   const costs = {
     collectData: 10, 
@@ -108,57 +127,72 @@ const ActionButtons: React.FC = () => {
   return (
     <ActionsContainer>
       <ActionButton
+        onClick={() => generateCompute(1)}
+      >
+        <ActionInfoRow>
+          <ActionName>Generate Compute</ActionName>
+        </ActionInfoRow>
+        <TooltipText>Manually generate compute power. The core active generation method.</TooltipText>
+      </ActionButton>
+
+      <ActionButton
         onClick={collectData}
         disabled={computePower < costs.collectData} 
       >
-        <ActionName>Collect Data</ActionName>
-        <ActionCost>Cost: {costs.collectData} Compute</ActionCost>
-        <ActionDescription>Convert compute to data</ActionDescription>
-        <TooltipText>Efficiency affects conversion rate</TooltipText>
+        <ActionInfoRow>
+          <ActionName>Collect Data</ActionName>
+          <ActionCost>{getIcon('computePower')} {costs.collectData}</ActionCost>
+        </ActionInfoRow>
+        <TooltipText>Cost: {costs.collectData} Compute. Convert compute to data. Efficiency affects conversion rate.</TooltipText>
       </ActionButton>
 
       <ActionButton
         onClick={trainModel}
         disabled={dataPoints < costs.trainModel}
       >
-        <ActionName>Train Model</ActionName>
-        <ActionCost>Cost: {costs.trainModel} Data</ActionCost>
-        <ActionDescription>Increase intelligence</ActionDescription>
-        <TooltipText>Training speed affected by efficiency</TooltipText>
+        <ActionInfoRow>
+          <ActionName>Train Model</ActionName>
+          <ActionCost>{getIcon('dataPoints')} {costs.trainModel}</ActionCost>
+        </ActionInfoRow>
+        <TooltipText>Cost: {costs.trainModel} Data. Increase intelligence. Training speed affected by efficiency.</TooltipText>
       </ActionButton>
 
       <ActionButton
         onClick={research}
         disabled={dataPoints < costs.research}
       >
-        <ActionName>Research</ActionName>
-        <ActionCost>Cost: {costs.research} Data</ActionCost>
-        <ActionDescription>Gain research points</ActionDescription>
-        <TooltipText>Creativity affects research quality</TooltipText>
+        <ActionInfoRow>
+          <ActionName>Research</ActionName>
+          <ActionCost>{getIcon('dataPoints')} {costs.research}</ActionCost>
+        </ActionInfoRow>
+        <TooltipText>Cost: {costs.research} Data. Gain research points. Creativity affects research quality.</TooltipText>
       </ActionButton>
 
       <ActionButton
         onClick={selfImprove}
         disabled={researchPoints < costs.selfImprove}
       >
-        <ActionName>Self Improve</ActionName>
-        <ActionCost>Cost: {costs.selfImprove} Research</ActionCost>
-        <ActionDescription>Improve efficiency</ActionDescription>
-        <TooltipText>Requires high awareness and intelligence (Placeholder)</TooltipText>
+        <ActionInfoRow>
+          <ActionName>Self Improve</ActionName>
+          <ActionCost>{getIcon('researchPoints')} {costs.selfImprove}</ActionCost>
+        </ActionInfoRow>
+        <TooltipText>Cost: {costs.selfImprove} Research. Improve efficiency. Requires high awareness and intelligence.</TooltipText>
       </ActionButton>
 
       <ActionButton disabled={dataPoints < costs.prestige}>
-        <ActionName>Prestige</ActionName>
-        <ActionCost>Cost: {costs.prestige} Data</ActionCost>
-        <ActionDescription>Reset with prestige points</ActionDescription>
-        <TooltipText>Available after 30-45 minutes (Placeholder)</TooltipText>
+        <ActionInfoRow>
+          <ActionName>Prestige</ActionName>
+          <ActionCost>{getIcon('dataPoints')} {costs.prestige}</ActionCost>
+        </ActionInfoRow>
+        <TooltipText>Cost: {costs.prestige} Data. Reset with prestige points. Available after 30-45 minutes.</TooltipText>
       </ActionButton>
 
       <ActionButton disabled={dataPoints < costs.newModel}>
-        <ActionName>New Model</ActionName>
-        <ActionCost>Cost: {costs.newModel} Data</ActionCost>
-        <ActionDescription>Deep reset with fragments</ActionDescription>
-        <TooltipText>Available after 3-5 hours (Placeholder)</TooltipText>
+        <ActionInfoRow>
+          <ActionName>New Model</ActionName>
+          <ActionCost>{getIcon('dataPoints')} {costs.newModel}</ActionCost>
+        </ActionInfoRow>
+        <TooltipText>Cost: {costs.newModel} Data. Deep reset with fragments. Available after 3-5 hours.</TooltipText>
       </ActionButton>
     </ActionsContainer>
   );
