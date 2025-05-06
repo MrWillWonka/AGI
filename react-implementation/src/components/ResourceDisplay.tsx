@@ -1,110 +1,117 @@
 import React, { useMemo } from 'react';
 import styled from 'styled-components';
-import { useGameStore, Resources } from '../store/gameStore';
+import { useGameStore, Resources, GameState } from '../store/gameStore';
 import { getIcon, IconConcept } from '../utils/getIcon';
 import { formatNumber } from '../utils/formatNumber';
 import { formatTime } from '../utils/formatTime';
 
-const ResourceList = styled.ul`
-  list-style: none;
-  padding: 0;
-  margin: 0;
-`;
-
-const ResourceItem = styled.li`
+// Main container for header display
+const HeaderResourceContainer = styled.div`
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 0.6rem 0;
-  border-bottom: 1px solid var(--panel-border-light);
-  font-size: 0.95rem;
-
-  &:last-child {
-    border-bottom: none;
-  }
+  flex-wrap: nowrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: flex-start;
+  justify-self: start;
 `;
 
-const ResourceName = styled.span`
+// Individual resource item for header
+const HeaderResourceItem = styled.div`
   display: flex;
   align-items: center;
+  gap: 0.4em;
   color: var(--light-color);
-  line-height: 1.2;
 `;
 
-// New container for the right side (amount + rate)
-const ValueContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+// Add back a simple name component if needed, or just use icon + value
+const HeaderResourceName = styled.span`
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--light-color);
 `;
 
-const ResourceValue = styled.span`
-  font-weight: bold;
+// Styling for the value part (including rate)
+const HeaderResourceValue = styled.span`
+  font-weight: 600; // Make value slightly bolder
+  font-size: 0.95rem;
   color: var(--primary-color);
-  line-height: 1.2;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3em;
 `;
 
-const ProductionRate = styled.span`
-  font-size: 0.8rem;
+const HeaderProductionRate = styled.span`
+  font-size: 0.75rem;
   color: var(--secondary-color);
   opacity: 0.8;
-  line-height: 1;
 `;
 
-// Helper to format resource names (can be moved to utils)
+// Re-add formatResourceName helper if it was removed
 const formatResourceName = (key: string): string => {
   return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
 }
 
-const ResourceDisplay: React.FC = () => {
-  const resources = useGameStore((state) => state.resources);
-  const generators = useGameStore((state) => state.generators);
-  const efficiency = useGameStore((state) => state.attributes.efficiency);
+// Component Props
+interface ResourceDisplayProps {
+  tickRateMs: number;
+}
 
-  // Calculate total production per second for relevant resources
-  const productionRates = useMemo(() => {
-    const rates: Partial<Record<keyof Resources, number>> = {};
-    generators.forEach(gen => {
-      if (gen.isUnlocked && gen.owned > 0) {
-        const rate = gen.production * gen.owned * efficiency;
-        rates[gen.resource] = (rates[gen.resource] || 0) + rate;
-      }
-    });
+const ResourceDisplay: React.FC<ResourceDisplayProps> = ({ tickRateMs }) => {
+  // Select the entire state object
+  const fullState = useGameStore();
+
+  // Use useMemo to extract and memoize the needed slice
+  const { resources, generators, efficiency } = useMemo(() => ({
+    resources: fullState.resources,
+    generators: fullState.generators,
+    efficiency: fullState.attributes.efficiency
+  }), [
+    fullState.resources,
+    fullState.generators,
+    fullState.attributes.efficiency
+  ]);
+
+  // Calculate production rates directly
+  const productionRates = generators.reduce((rates: Partial<Record<keyof Resources, number>>, gen) => {
+    if (gen.isUnlocked && gen.owned > 0) {
+      const rate = gen.production * gen.owned * efficiency;
+      const resourceKey = gen.resource;
+      rates[resourceKey] = (rates[resourceKey] || 0) + rate;
+    }
     return rates;
-  }, [generators, efficiency]);
+  }, {});
 
-  // Get all resources
+  // Use resources directly for mapping/rendering values
   const allResources = Object.entries(resources);
 
   return (
-    <ResourceList>
-      {allResources.map(([key, value]) => {
-        // Hide Funding if its value is 0
-        if (key === 'funding' && value === 0) {
+    <HeaderResourceContainer>
+      {allResources.filter(([key]) => key !== 'time').map(([key, value]) => {
+        if (key === 'funding' && (value as number) === 0) { 
           return null;
         }
 
         const production = productionRates[key as keyof Resources] || 0;
         const isTime = key === 'time';
+        const name = formatResourceName(key);
+        const iconTitle = name;
 
         return (
-          <ResourceItem key={key}>
-            <ResourceName>
-              {getIcon(key as IconConcept)}
-              {formatResourceName(key)}
-            </ResourceName>
-            <ValueContainer>
-              <ResourceValue>{isTime ? formatTime(value) : formatNumber(value)}</ResourceValue>
+          <HeaderResourceItem key={key} title={iconTitle}>
+            {getIcon(key as IconConcept, ' ')} 
+            <HeaderResourceName>{name}:</HeaderResourceName>
+            <HeaderResourceValue>
+              {isTime ? formatTime(value as number) : formatNumber(value as number)}
               {production > 0 && !isTime && (
-                <ProductionRate>
+                <HeaderProductionRate>
                   (+{formatNumber(production)}/s)
-                </ProductionRate>
+                </HeaderProductionRate>
               )}
-            </ValueContainer>
-          </ResourceItem>
+            </HeaderResourceValue>
+          </HeaderResourceItem>
         );
       })}
-    </ResourceList>
+    </HeaderResourceContainer>
   );
 };
 
