@@ -118,5 +118,17 @@
     </main>
 
     <div id="toasts" class="toasts" aria-live="polite"></div>
+
+    <dialog id="dialog" class="dialog" aria-labelledby="dialogTitle" aria-describedby="dialogMessage">
+        <form method="dialog" class="dialog-form">
+            <h2 id="dialogTitle"></h2>
+            <p id="dialogMessage" class="muted"></p>
+            <textarea id="dialogText" rows="4" spellcheck="false" aria-label="Save code" hidden></textarea>
+            <div class="dialog-actions">
+                <button type="submit" value="cancel" class="ghost-button" id="dialogCancel">Cancel</button>
+                <button type="submit" value="ok" class="button" id="dialogOk">OK</button>
+            </div>
+        </form>
+    </dialog>
 </body>
 </html>

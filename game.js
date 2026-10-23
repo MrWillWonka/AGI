@@ -279,10 +279,45 @@ window.AGI = (function () {
         if (result.ok) afterChange();
     }
 
-    function doPrestige() {
+    // In-page replacement for confirm()/prompt(), which embedded and sandboxed hosts often block.
+    // Resolves with { ok, value }. `onOk` runs inside the click handler (needed for clipboard access).
+    function openDialog({ title, message, text, readonly = false, okLabel = 'OK', cancelLabel = 'Cancel', danger = false, onOk }) {
+        const dialog = $('dialog');
+        const area = $('dialogText');
+        const ok = $('dialogOk');
+        setText($('dialogTitle'), title);
+        setText($('dialogMessage'), message);
+        area.hidden = text === undefined;
+        area.value = text ?? '';
+        area.readOnly = readonly;
+        setText(ok, okLabel);
+        ok.classList.toggle('button-danger', danger);
+        setText($('dialogCancel'), cancelLabel);
+        dialog.returnValue = '';
+        return new Promise(resolve => {
+            const handleOk = () => onOk?.(area);
+            ok.addEventListener('click', handleOk);
+            dialog.addEventListener('close', () => {
+                ok.removeEventListener('click', handleOk);
+                resolve({ ok: dialog.returnValue === 'ok', value: area.value });
+            }, { once: true });
+            dialog.showModal();
+            if (!area.hidden) {
+                area.focus();
+                if (readonly) area.select();
+            }
+        });
+    }
+
+    async function doPrestige() {
         const gain = E.prestigeGain(state);
         if (gain < 1) return;
-        if (!confirm(`Transcend for ${gain} Prestige Point${gain === 1 ? '' : 's'}? This run's resources, attributes and upgrades reset; achievements and Prestige Points are kept.`)) return;
+        const { ok } = await openDialog({
+            title: `Transcend for ${gain} Prestige Point${gain === 1 ? '' : 's'}?`,
+            message: "This run's resources, attributes and upgrades reset. Achievements and Prestige Points are kept.",
+            okLabel: 'Transcend'
+        });
+        if (!ok) return;
         const result = E.prestige(state, Date.now());
         if (!result.ok) return;
         state = result.state;
@@ -296,21 +331,35 @@ window.AGI = (function () {
     function exportSave() {
         save();
         const code = btoa(E.serialize(state));
-        const done = () => log('Save exported to your clipboard.', 'success');
-        if (navigator.clipboard?.writeText) {
-            navigator.clipboard.writeText(code).then(done, () => prompt('Copy your save code:', code));
-        } else {
-            prompt('Copy your save code:', code);
-        }
+        openDialog({
+            title: 'Export save',
+            message: 'Copy this code to back up your game or continue it in another browser.',
+            text: code,
+            readonly: true,
+            okLabel: 'Copy code',
+            cancelLabel: 'Close',
+            onOk: area => {
+                area.select();
+                navigator.clipboard?.writeText(code).then(
+                    () => log('Save code copied to your clipboard.', 'success'),
+                    () => log('Copy was blocked. Select the code and copy it manually.', 'warning')
+                );
+            }
+        });
     }
 
-    function importSave() {
-        const code = prompt('Paste a save code. This replaces your current game.');
-        if (!code) return;
+    async function importSave() {
+        const { ok, value } = await openDialog({
+            title: 'Import save',
+            message: 'Paste a save code. This replaces your current game.',
+            text: '',
+            okLabel: 'Import'
+        });
+        if (!ok || !value.trim()) return;
         let imported = null;
-        try { imported = E.deserialize(atob(code.trim()), Date.now()); } catch { /* invalid base64 */ }
+        try { imported = E.deserialize(atob(value.trim()), Date.now()); } catch { /* invalid base64 */ }
         if (!imported) {
-            log('That save code is not valid.', 'warning');
+            log('That save code is not valid. Check that you pasted the whole code.', 'warning');
             return;
         }
         state = imported;
@@ -320,8 +369,14 @@ window.AGI = (function () {
         afterChange();
     }
 
-    function hardReset() {
-        if (!confirm('Erase ALL progress, including Prestige Points and achievements? This cannot be undone.')) return;
+    async function hardReset() {
+        const { ok } = await openDialog({
+            title: 'Erase all progress?',
+            message: 'This deletes everything, including Prestige Points and achievements. It cannot be undone.',
+            okLabel: 'Erase everything',
+            danger: true
+        });
+        if (!ok) return;
         state = E.defaultState(Date.now());
         resetView();
         save();
