@@ -1,0 +1,208 @@
+// Run with: node --test
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const E = require('../engine.js');
+
+const NOW = 1_700_000_000_000;
+const fresh = () => E.defaultState(NOW);
+
+test('every upgrade has a valid tab, cost and dependency', () => {
+    const tabs = new Set(E.TABS.map(t => t.id));
+    for (const up of E.UPGRADES) {
+        assert.ok(tabs.has(up.tab), `${up.id} tab`);
+        assert.ok(Object.keys(up.cost).length > 0, `${up.id} cost`);
+        for (const [k, v] of Object.entries(up.cost)) {
+            assert.ok(k in E.RESOURCES, `${up.id} cost resource ${k}`);
+            assert.ok(Number.isFinite(v) && v > 0, `${up.id} cost value`);
+        }
+        assert.ok(up.scale || up.max === 1, `${up.id} must be repeatable or one-time`);
+        if (up.requires) assert.ok(E.UPGRADE_BY_ID[up.requires], `${up.id} requires ${up.requires}`);
+        for (const k of Object.keys(up.grants || {})) assert.ok(k in E.ATTRIBUTES, `${up.id} grants ${k}`);
+    }
+});
+
+test('compute action adds click power and counts stats', () => {
+    const s = fresh();
+    const r = E.act(s, 'compute');
+    assert.equal(r.ok, true);
+    assert.equal(s.res.cp, 1);
+    assert.equal(s.stats.clicks, 1);
+    assert.equal(s.stats.runCp, 1);
+});
+
+test('locked and unaffordable actions are rejected without side effects', () => {
+    const s = fresh();
+    assert.equal(E.act(s, 'research').ok, false);
+    assert.equal(E.act(s, 'collect').ok, false);
+    assert.deepEqual(s.res, { cp: 0, dp: 0, rp: 0 });
+});
+
+test('buying an upgrade pays the scaled cost and increases production', () => {
+    const s = fresh();
+    E.evaluate(s);
+    s.res.cp = 1000;
+    assert.equal(E.buy(s, 'cpu').ok, true);
+    assert.equal(s.res.cp, 1000 - 15);
+    assert.deepEqual(E.upgradeCost(E.UPGRADE_BY_ID.cpu, 1), { cp: Math.ceil(15 * 1.15) });
+    assert.equal(E.derive(s).cpPerSec, 0.5 * E.derive(s).mult);
+});
+
+test('one-time upgrades cannot be bought twice and grant attributes once', () => {
+    const s = fresh();
+    s.res = { cp: 1e9, dp: 1e9, rp: 1e9 };
+    E.evaluate(s);
+    assert.equal(E.buy(s, 'nlp').ok, true);
+    assert.equal(s.attr.intelligence, 1);
+    assert.equal(E.buy(s, 'nlp').ok, false);
+    assert.equal(s.attr.intelligence, 1);
+});
+
+test('upgrades in locked tabs stay hidden until the tab unlocks', () => {
+    const s = fresh();
+    s.res = { cp: 1e9, dp: 1e9, rp: 1e9 };
+    E.evaluate(s);
+    assert.equal(E.buy(s, 'machineLearning').ok, false);
+    s.attr.intelligence = 5;
+    E.evaluate(s);
+    assert.equal(E.buy(s, 'machineLearning').ok, true);
+});
+
+test('creativity and awareness are obtainable (consciousness path is not a dead end)', () => {
+    const grants = E.UPGRADES.flatMap(u => Object.keys(u.grants || {}));
+    assert.ok(grants.includes('creativity'));
+    assert.ok(grants.includes('awareness'));
+    const gate = E.MILESTONES.find(m => m.key === 'tab:consciousness');
+    const s = fresh();
+    s.attr.intelligence = 25;
+    assert.equal(gate.check(s), true);
+});
+
+test('phases require every attribute minimum and never skip', () => {
+    const s = fresh();
+    assert.equal(E.phaseIndex(s), 0);
+    s.attr.intelligence = 1e6;
+    assert.equal(E.phaseIndex(s), 1, 'intelligence alone cannot pass General AI');
+    assert.equal(E.phaseProgress(s), 1 / 3 + 0);
+    s.attr.creativity = 5;
+    s.attr.awareness = 5;
+    assert.equal(E.phaseIndex(s), 2);
+    s.attr = { intelligence: 50, creativity: 0, awareness: 0 };
+    const changes = E.evaluate(s);
+    assert.equal(changes.phase.name, 'General AI');
+    assert.equal(E.evaluate(s).phase, null, 'phase change reported only once');
+});
+
+test('unlocks persist even after the triggering resource is spent', () => {
+    const s = fresh();
+    s.res.dp = 10;
+    E.evaluate(s);
+    s.res.dp = 0;
+    E.evaluate(s);
+    assert.equal(s.unlocked['action:research'], true);
+});
+
+test('tick produces resources over time', () => {
+    const s = fresh();
+    s.levels.cpu = 2;
+    s.levels.autoCollector = 1;
+    E.tick(s, 10);
+    assert.equal(s.res.cp, 10);
+    assert.equal(s.res.dp, 5);
+    assert.equal(s.stats.playTime, 10);
+});
+
+test('offline progress is capped and respects the setting', () => {
+    const s = fresh();
+    s.levels.cpu = 2;
+    const seconds = E.applyOffline(s, NOW + 24 * 3600 * 1000);
+    assert.equal(seconds, E.MAX_OFFLINE_SECONDS);
+    assert.equal(s.res.cp, E.MAX_OFFLINE_SECONDS);
+
+    const off = fresh();
+    off.levels.cpu = 2;
+    off.settings.offline = false;
+    assert.equal(E.applyOffline(off, NOW + 3600 * 1000), 0);
+    assert.equal(off.res.cp, 0);
+});
+
+test('prestige keeps achievements and points, resets the run', () => {
+    const s = fresh();
+    s.attr.intelligence = 10;
+    s.stats.runCp = 8e5;
+    s.res.cp = 123;
+    s.levels.cpu = 5;
+    s.achievements.firstClick = true;
+    assert.equal(E.prestigeGain(s), 2);
+    const r = E.prestige(s, NOW + 1);
+    assert.equal(r.ok, true);
+    assert.equal(r.state.prestige.points, 2);
+    assert.equal(r.state.prestige.count, 1);
+    assert.equal(r.state.res.cp, 0);
+    assert.deepEqual(r.state.levels, {});
+    assert.equal(r.state.achievements.firstClick, true);
+    assert.ok(E.derive(r.state).mult > 1.2);
+});
+
+test('prestige is refused below the intelligence requirement', () => {
+    const s = fresh();
+    s.stats.runCp = 1e9;
+    assert.equal(E.prestigeGain(s), 0);
+    assert.equal(E.prestige(s).ok, false);
+});
+
+test('save round-trips', () => {
+    const s = fresh();
+    s.res.cp = 42.5;
+    s.levels.server = 3;
+    s.unlocked['action:research'] = true;
+    assert.deepEqual(E.deserialize(E.serialize(s), NOW), s);
+});
+
+test('corrupt or hostile saves are sanitized', () => {
+    assert.equal(E.deserialize('not json', NOW), null);
+    const s = E.migrate({
+        version: 2,
+        res: { cp: -5, dp: 'x', rp: Infinity },
+        levels: { cpu: 3, bogus: 9, nlp: 7, server: 1.5 },
+        achievements: { firstClick: true, fake: true },
+        settings: { autosave: 'yes' }
+    }, NOW);
+    assert.deepEqual(s.res, { cp: 0, dp: 0, rp: 0 });
+    assert.deepEqual(s.levels, { cpu: 3, nlp: 1 });
+    assert.deepEqual(s.achievements, { firstClick: true });
+    assert.equal(s.settings.autosave, true);
+});
+
+test('v1 saves migrate to the current format', () => {
+    const v1 = {
+        resources: { computePower: 5000, dataPoints: 120, researchPoints: 7, knowledge: 0, funding: 100, time: 99 },
+        attributes: { intelligence: 3.5, creativity: 0, awareness: 0, efficiency: 1 },
+        upgrades: { cpuLevel: 4, serverLevel: 2, quantumLevel: 1, neuralNetworkLevel: 0, dataProcessorLevel: 3 },
+        features: { autoCollect: true },
+        progress: { prestigePoints: 2, totalPrestigePoints: 3, phase: 'Narrow AI' },
+        settings: { autoSaveEnabled: false, backgroundProcessingEnabled: true },
+        stats: { totalClicks: 50, totalComputeGenerated: 9000, totalPrestigeCount: 1, gameStartTime: NOW - 1000 },
+        saveTime: NOW - 500
+    };
+    const s = E.migrate(v1, NOW);
+    assert.equal(s.version, E.SAVE_VERSION);
+    assert.deepEqual(s.res, { cp: 5000, dp: 120, rp: 7 });
+    assert.equal(s.attr.intelligence, 3.5);
+    assert.deepEqual(s.levels, { cpu: 4, server: 2, quantum: 1, dataProcessor: 3, autoCollector: 1 });
+    assert.deepEqual(s.prestige, { points: 2, total: 3, count: 1 });
+    assert.equal(s.settings.autosave, false);
+    assert.equal(s.stats.clicks, 50);
+    assert.equal(s.lastSaved, NOW - 500);
+});
+
+test('number formatting', () => {
+    assert.equal(E.format(0), '0');
+    assert.equal(E.format(2.5), '2.5');
+    assert.equal(E.format(999), '999');
+    assert.equal(E.format(1234), '1.23K');
+    assert.equal(E.format(1.5e6), '1.50M');
+    assert.equal(E.format(123.4e9), '123.4B');
+    assert.equal(E.format(1e40), '1.00e40');
+    assert.equal(E.formatCost({ cp: 1500, dp: 20 }), '1.50K CP, 20 DP');
+    assert.equal(E.formatDuration(3725), '1h 2m');
+});

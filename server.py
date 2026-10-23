@@ -1,20 +1,34 @@
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+"""Local dev server: serves this directory with caching disabled.
+
+Usage: python3 server.py [port] [--no-browser]
+"""
+import functools
+import sys
 import webbrowser
-import os
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
-class CORSRequestHandler(SimpleHTTPRequestHandler):
+
+class NoCacheHandler(SimpleHTTPRequestHandler):
     def end_headers(self):
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET')
-        self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
-        return super().end_headers()
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
 
-def run(server_class=HTTPServer, handler_class=CORSRequestHandler, port=8000):
-    server_address = ('', port)
-    httpd = server_class(server_address, handler_class)
-    print(f"Starting server on http://localhost:{port}")
-    webbrowser.open(f'http://localhost:{port}')
-    httpd.serve_forever()
 
-if __name__ == '__main__':
-    run() 
+def main():
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    port = int(args[0]) if args else 8000
+    handler = functools.partial(NoCacheHandler, directory=str(Path(__file__).parent))
+    with ThreadingHTTPServer(("127.0.0.1", port), handler) as httpd:
+        url = f"http://localhost:{port}"
+        print(f"Serving on {url} (Ctrl+C to stop)")
+        if "--no-browser" not in sys.argv:
+            webbrowser.open(url)
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            pass
+
+
+if __name__ == "__main__":
+    main()
