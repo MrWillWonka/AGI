@@ -7,7 +7,7 @@ An incremental game: grow a narrow AI into general intelligence, then superintel
 - Hardware, Software, Algorithms and Consciousness upgrades unlock as you progress.
 - Each phase needs minimums in all three attributes.
 - **Transcend** to reset a run for permanent Prestige Points (+10% production each).
-- 12 achievements (+2% production each), offline progress (up to 8h), autosave, and save export/import.
+- 14 achievements (+2% production each), offline progress (up to 8h), autosave, and save export/import.
 
 ## Play
 
