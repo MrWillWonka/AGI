@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="An incremental game about growing a narrow AI into a superintelligence.">
-    <meta name="theme-color" content="#14141c">
+    <meta name="theme-color" content="#0a1416">
     <title>The Path to AGI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
     <link rel="stylesheet" href="styles.css">
     <script defer src="engine.js"></script>
     <script defer src="training-path.js"></script>
@@ -14,113 +17,168 @@
     <script defer src="debug-panel.js"></script>
 </head>
 <body>
-    <header class="site-header">
-        <h1>The Path to AGI</h1>
-        <p class="tagline">Grow a narrow AI into general intelligence&hellip; and beyond.</p>
-        <button type="button" class="ghost-button" id="debugToggle" hidden>Debug</button>
-    </header>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <h1 class="brand">The Path to AGI</h1>
 
-    <main class="layout">
-        <section class="column">
-            <div class="panel panel-resources">
-                <h2>Resources</h2>
-                <dl class="stat-list">
-                    <div class="stat"><dt>Compute Power</dt><dd><span data-bind="res.cp">0</span> <small data-bind="rate.cp"></small></dd></div>
-                    <div class="stat"><dt>Data Points</dt><dd><span data-bind="res.dp">0</span> <small data-bind="rate.dp"></small></dd></div>
-                    <div class="stat"><dt>Research Points</dt><dd><span data-bind="res.rp">0</span> <small data-bind="rate.rp"></small></dd></div>
-                    <div class="stat"><dt>Experience</dt><dd data-bind="res.xp">0</dd></div>
-                </dl>
-            </div>
+            <ul class="chips" aria-label="Resources">
+                <li class="chip" title="Compute Power: earned by clicking and from hardware"><span class="chip-label">CP</span> <span data-bind="res.cp">0</span> <small data-bind="rate.cp"></small></li>
+                <li class="chip" title="Data Points: collected with CP"><span class="chip-label">DP</span> <span data-bind="res.dp">0</span> <small data-bind="rate.dp"></small></li>
+                <li class="chip" data-show="action:research" title="Research Points: from research"><span class="chip-label">RP</span> <span data-bind="res.rp">0</span> <small data-bind="rate.rp"></small></li>
+                <li class="chip chip-xp" data-show="module:path" title="Experience: earned on the Training Path, spent on Training upgrades"><span class="chip-label">XP</span> <span data-bind="res.xp">0</span></li>
+            </ul>
 
-            <div class="panel">
-                <h2>Attributes</h2>
-                <dl class="stat-list">
-                    <div class="stat"><dt>Intelligence</dt><dd data-bind="attr.intelligence">0</dd></div>
-                    <div class="stat"><dt>Creativity</dt><dd data-bind="attr.creativity">0</dd></div>
-                    <div class="stat"><dt>Awareness</dt><dd data-bind="attr.awareness">0</dd></div>
-                    <div class="stat"><dt>Production bonus</dt><dd data-bind="mult">×1.00</dd></div>
-                </dl>
-            </div>
+            <ul class="chips chips-attr" aria-label="Attributes">
+                <li class="chip" title="Intelligence"><span class="chip-label">Int</span> <span data-bind="attr.intelligence">0</span></li>
+                <li class="chip" title="Creativity"><span class="chip-label">Cre</span> <span data-bind="attr.creativity">0</span></li>
+                <li class="chip" title="Awareness"><span class="chip-label">Awa</span> <span data-bind="attr.awareness">0</span></li>
+            </ul>
 
-            <div class="panel">
-                <h2>Phase</h2>
-                <p class="phase-name" data-bind="phase.name">Narrow AI</p>
+            <div class="phase" title="Phase progress">
+                <span class="phase-name" data-bind="phase.name">Narrow AI</span>
                 <div class="progress" role="progressbar" aria-label="Progress to next phase" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="phaseBar">
                     <div class="progress-fill"></div>
                 </div>
-                <p class="muted small" data-bind="phase.next"></p>
             </div>
 
-            <div class="panel">
-                <h2>Transcend</h2>
-                <p class="muted small">Reset this run for Prestige Points. Each point permanently adds +10% to all production. Requires 5 Intelligence; gain scales with CP earned this run and your phase.</p>
-                <dl class="stat-list">
-                    <div class="stat"><dt>Prestige Points</dt><dd data-bind="prestige.points">0</dd></div>
-                    <div class="stat"><dt>Gain on transcend</dt><dd data-bind="prestige.gain">0</dd></div>
-                </dl>
-                <button type="button" class="button button-prestige" id="prestigeButton" disabled>Transcend</button>
+            <div class="topbar-buttons">
+                <button type="button" class="ghost-button" id="journalButton">Journal</button>
+                <button type="button" class="ghost-button" id="debugToggle" hidden>Debug</button>
             </div>
-        </section>
+        </div>
+    </header>
 
-        <section class="column">
-            <div class="panel panel-actions">
-                <h2>Actions</h2>
-                <p class="muted small">Hold a button to repeat it.</p>
-                <div id="actions" class="action-list"></div>
-            </div>
+    <main class="layout">
+        <section class="main-col">
+            <p class="goal" id="nextGoal" aria-live="polite"></p>
 
-            <div class="panel panel-path" id="pathPanel" hidden>
-                <h2>Training Path</h2>
-                <p class="muted small">Launch a training roll and push the ball over the rolling hills. The further it gets, the more Experience (XP) you earn. At the end of each stretch stands a skill hill: get over it to teach your AI that skill. You have a few pushes per roll, so save them for when the ball stalls on a slope.</p>
-                <canvas id="pathCanvas" class="path-canvas" tabindex="0" aria-label="Training path. Press Enter or Space to push the ball forward." aria-describedby="pathStatus"></canvas>
-                <div class="path-controls">
-                    <button type="button" class="button push-button" id="pushButton">Launch</button>
-                    <div class="path-readout small">
-                        <span data-bind="path.learned">0 skills learned</span>
-                        <span data-bind="path.stats"></span>
+            <div class="viewport hud" id="viewport">
+                <!-- Server room: each bay is a training module. Clicking one zooms into it. -->
+                <div class="hub" id="hub">
+                    <div class="hub-pipes" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+                    <div class="hub-rack" id="bays">
+                        <button type="button" class="bay" data-bay="training" id="bay-training">
+                            <span class="bay-slots" aria-hidden="true"></span>
+                            <span class="bay-info">
+                                <span class="bay-name">Training Cluster</span>
+                                <span class="bay-status" data-bind="bay.training"></span>
+                                <span class="bay-meter"><span class="bay-meter-fill" id="bayTrainingMeter"></span></span>
+                            </span>
+                        </button>
+                        <button type="button" class="bay" data-bay="pipeline">
+                            <span class="bay-slots" aria-hidden="true"></span>
+                            <span class="bay-info">
+                                <span class="bay-name">Data Pipeline</span>
+                                <span class="bay-status" data-bind="bay.pipeline"></span>
+                            </span>
+                        </button>
+                        <button type="button" class="bay" data-bay="architecture">
+                            <span class="bay-slots" aria-hidden="true"></span>
+                            <span class="bay-info">
+                                <span class="bay-name">Architecture Lab</span>
+                                <span class="bay-status" data-bind="bay.architecture"></span>
+                            </span>
+                        </button>
+                        <button type="button" class="bay bay-core" data-bay="core">
+                            <span class="bay-slots" aria-hidden="true"></span>
+                            <span class="bay-info">
+                                <span class="bay-name">The Core</span>
+                                <span class="bay-status" data-bind="bay.core"></span>
+                            </span>
+                        </button>
+                    </div>
+                    <p class="hub-caption">Server room · select a bay</p>
+                </div>
+
+                <!-- A bay, zoomed in. -->
+                <div class="module-view" id="moduleView" hidden>
+                    <div class="module-bar">
+                        <button type="button" class="ghost-button back-button" id="backButton">← Server room</button>
+                        <h2 id="moduleTitle">Training Cluster</h2>
+                        <span class="muted small" data-bind="path.learned"></span>
+                    </div>
+
+                    <div class="module" data-module="training" id="pathPanel">
+                        <canvas id="pathCanvas" class="path-canvas" tabindex="0" aria-label="Training path. Press Enter or Space to launch or push the ball." aria-describedby="pathStatus"></canvas>
+                        <div class="path-controls">
+                            <button type="button" class="button push-button" id="pushButton">Launch</button>
+                            <span class="muted small" data-bind="path.stats"></span>
+                        </div>
+                        <p class="small path-status" id="pathStatus" aria-live="polite"></p>
+                        <details class="help">
+                            <summary>How it works</summary>
+                            <p>Each launch rolls the ball over new, random hills. The further it gets, the more Experience (XP) you earn. A big skill hill ends each stretch: get over it to teach your AI that skill. Pushes are limited, so save them for when the ball is about to stall on a slope. Pushing while it rolls back is wasted. Spend XP in the Training tab.</p>
+                        </details>
+                    </div>
+
+                    <div class="module module-soon" data-module="soon" hidden>
+                        <p class="soon-title">Bay offline</p>
+                        <p class="muted" id="soonText"></p>
                     </div>
                 </div>
-                <p class="small path-status" id="pathStatus" aria-live="polite"></p>
-            </div>
-
-            <div class="panel panel-upgrades">
-                <h2>Upgrades</h2>
-                <div class="tabs" role="tablist" id="upgradeTabs"></div>
-                <div id="upgradePanels"></div>
             </div>
         </section>
 
-        <section class="column">
-            <div class="panel">
-                <h2>Log</h2>
-                <ol id="gameLog" class="log" aria-live="polite"></ol>
+        <aside class="side-col">
+            <div class="panel panel-actions hud">
+                <h2 class="sr-only">Actions</h2>
+                <div id="actions" class="action-row"></div>
+                <p class="ticker" id="ticker" aria-live="polite"></p>
             </div>
 
-            <div class="panel">
-                <h2>Milestones</h2>
+            <div class="panel panel-transcend hud" id="transcendPanel" hidden>
+                <div class="panel-head">
+                    <h2>Transcend</h2>
+                    <span class="muted small"><span data-bind="prestige.points">0</span> Prestige Points</span>
+                </div>
+                <p class="muted small">Start a new run with <strong data-bind="prestige.gain">0</strong> more Prestige Points. Each one adds +10% to all production forever.</p>
+                <button type="button" class="button button-prestige" id="prestigeButton" disabled>Transcend</button>
+            </div>
+
+            <div class="panel panel-upgrades hud">
+                <h2 class="sr-only">Upgrades</h2>
+                <div class="tabs" role="tablist" aria-label="Upgrades" id="upgradeTabs"></div>
+                <div id="upgradePanels"></div>
+            </div>
+        </aside>
+    </main>
+
+    <dialog id="journal" class="dialog journal" aria-labelledby="journalTitle">
+        <div class="journal-head">
+            <h2 id="journalTitle">Journal</h2>
+            <button type="button" class="ghost-button" id="journalClose" aria-label="Close journal">Close</button>
+        </div>
+        <div class="tabs" role="tablist" aria-label="Journal sections" id="journalTabs">
+            <button type="button" class="tab" role="tab" data-section="log">Log</button>
+            <button type="button" class="tab" role="tab" data-section="goals">Goals</button>
+            <button type="button" class="tab" role="tab" data-section="stats">Stats</button>
+            <button type="button" class="tab" role="tab" data-section="settings">Settings</button>
+        </div>
+        <div class="journal-body">
+            <section data-section="log" role="tabpanel" aria-label="Log">
+                <ol id="gameLog" class="log"></ol>
+            </section>
+            <section data-section="goals" role="tabpanel" aria-label="Goals" hidden>
+                <h3>Milestones</h3>
                 <ul id="milestones" class="check-list"></ul>
-            </div>
-
-            <div class="panel">
-                <h2>Achievements <small class="muted" data-bind="achievements.count"></small></h2>
+                <h3>Achievements <small class="muted" data-bind="achievements.count"></small></h3>
                 <p class="muted small">Each achievement adds +2% to all production.</p>
                 <ul id="achievements" class="check-list"></ul>
-            </div>
-
-            <div class="panel">
-                <h2>Statistics</h2>
+            </section>
+            <section data-section="stats" role="tabpanel" aria-label="Stats" hidden>
                 <dl class="stat-list">
+                    <div class="stat"><dt>Phase</dt><dd data-bind="phase.next"></dd></div>
+                    <div class="stat"><dt>Production bonus</dt><dd data-bind="mult">×1.00</dd></div>
                     <div class="stat"><dt>Time this run</dt><dd data-bind="stats.runTime">0s</dd></div>
                     <div class="stat"><dt>Total play time</dt><dd data-bind="stats.playTime">0s</dd></div>
                     <div class="stat"><dt>CP earned this run</dt><dd data-bind="stats.runCp">0</dd></div>
                     <div class="stat"><dt>CP earned all time</dt><dd data-bind="stats.lifetimeCp">0</dd></div>
+                    <div class="stat"><dt>Training rolls</dt><dd data-bind="stats.rolls">0</dd></div>
                     <div class="stat"><dt>Manual clicks</dt><dd data-bind="stats.clicks">0</dd></div>
                     <div class="stat"><dt>Times transcended</dt><dd data-bind="prestige.count">0</dd></div>
                 </dl>
-            </div>
-
-            <div class="panel">
-                <h2>Settings</h2>
+            </section>
+            <section data-section="settings" role="tabpanel" aria-label="Settings" hidden>
                 <label class="toggle"><input type="checkbox" id="settingAutosave"> Autosave every 30 seconds</label>
                 <label class="toggle"><input type="checkbox" id="settingOffline"> Earn progress while away (up to 8h)</label>
                 <div class="button-row">
@@ -129,9 +187,9 @@
                     <button type="button" class="ghost-button" id="importButton">Import</button>
                     <button type="button" class="ghost-button danger" id="resetButton">Hard reset</button>
                 </div>
-            </div>
-        </section>
-    </main>
+            </section>
+        </div>
+    </dialog>
 
     <div id="toasts" class="toasts" aria-live="polite"></div>
 

@@ -98,6 +98,11 @@ window.AGI = (function () {
             el('time', { text: time }), document.createTextNode(' ' + message)
         ]));
         while (list.children.length > LOG_LIMIT) list.lastChild.remove();
+        const ticker = $('ticker');
+        if (ticker) {
+            ticker.textContent = message;
+            ticker.className = `ticker log-${type || 'info'}`;
+        }
     }
 
     function toast(title, message) {
@@ -244,6 +249,26 @@ window.AGI = (function () {
         $('importButton').addEventListener('click', importSave);
         $('resetButton').addEventListener('click', hardReset);
         $('prestigeButton').addEventListener('click', doPrestige);
+    }
+
+    function buildJournal() {
+        const journal = $('journal');
+        const tabs = [...$('journalTabs').querySelectorAll('[data-section]')];
+        const sections = [...journal.querySelectorAll('section[data-section]')];
+        const show = name => {
+            for (const t of tabs) {
+                const on = t.dataset.section === name;
+                t.setAttribute('aria-selected', String(on));
+                t.tabIndex = on ? 0 : -1;
+            }
+            for (const sec of sections) sec.hidden = sec.dataset.section !== name;
+        };
+        tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.section)));
+        show('log');
+        $('journalButton').addEventListener('click', () => journal.showModal());
+        $('journalClose').addEventListener('click', () => journal.close());
+        // Click on the backdrop closes it too.
+        journal.addEventListener('click', e => { if (e.target === journal) journal.close(); });
     }
 
     function syncSettings() {
@@ -459,6 +484,11 @@ window.AGI = (function () {
             case 'stats.runCp': return f(state.stats.runCp);
             case 'stats.lifetimeCp': return f(state.stats.lifetimeCp);
             case 'stats.clicks': return f(state.stats.clicks);
+            case 'stats.rolls': return f(state.stats.rolls);
+            case 'bay.training': return bayStatus('training');
+            case 'bay.pipeline': return bayStatus('pipeline');
+            case 'bay.architecture': return bayStatus('architecture');
+            case 'bay.core': return bayStatus('core');
             case 'path.learned': return `${state.path.learned} skill${state.path.learned === 1 ? '' : 's'} learned`;
             case 'path.stats': return `Strength ${d.pushPower.toFixed(1)} · ${d.pushesPerRoll} pushes · ${d.pushCooldown.toFixed(1)}s between`;
             case 'res.xp': return f(state.res.xp);
@@ -493,7 +523,7 @@ window.AGI = (function () {
 
         const visibleCount = {};
         for (const { up, card, button, levelBadge } of Object.values(ui.upgrades)) {
-            const visible = E.isUpgradeVisible(state, up);
+            const visible = E.isUpgradeVisible(state, up) && !E.isMaxed(state, up);
             setHidden(card, !visible);
             if (!visible) continue;
             visibleCount[up.tab] = (visibleCount[up.tab] || 0) + 1;
@@ -516,15 +546,136 @@ window.AGI = (function () {
         for (const [id, item] of Object.entries(ui.achievements)) item.classList.toggle('done', !!state.achievements[id]);
 
         setDisabled($('prestigeButton'), E.prestigeGain(state) < 1);
+        setHidden($('transcendPanel'), E.prestigeGain(state) < 1 && state.prestige.count === 0);
+        for (const node of document.querySelectorAll('[data-show]')) setHidden(node, !state.unlocked[node.dataset.show]);
+        setText($('nextGoal'), nextGoal());
+        renderHub();
 
-        const pathPanel = $('pathPanel');
-        const pathWasHidden = pathPanel.hidden;
-        setHidden(pathPanel, !state.unlocked['module:path']);
-        if (pathWasHidden && !pathPanel.hidden) startPathLoop();
+        if (openBay === 'training' && !bayUnlocked('training')) exitBay();
         if (path.stateRef !== state) {
             path.pause = 0;
             startPathLoop();
         }
+    }
+
+    function nextGoal() {
+        const milestone = E.MILESTONES.find(m => !state.unlocked[m.key]);
+        if (milestone) return `Next: ${milestone.desc}`;
+        const phase = E.PHASES[E.phaseIndex(state) + 1];
+        if (!phase) return 'You reached the Singularity. Transcend to go again, stronger.';
+        const reqs = Object.entries(phase.req).filter(([k, v]) => state.attr[k] < v)
+            .map(([k, v]) => `${E.ATTRIBUTES[k].name} ${E.format(state.attr[k], 1)}/${v}`);
+        return `Next: reach ${phase.name} (${reqs.join(', ')})`;
+    }
+
+    // ---- Server room hub ---------------------------------------------------
+
+    // Bays in the server room. Each is a training module; only the Training Cluster is built so far.
+    const BAYS = {
+        training: { name: 'Training Cluster', built: true, unlocked: () => !!state.unlocked['module:path'],
+            lockedText: () => 'Locked · earn 50 CP to power it up' },
+        pipeline: { name: 'Data Pipeline', phase: 1 },
+        architecture: { name: 'Architecture Lab', phase: 2 },
+        core: { name: 'The Core', phase: 3 }
+    };
+    let openBay = null;
+
+    function bayUnlocked(id) {
+        const bay = BAYS[id];
+        return bay.unlocked ? bay.unlocked() : E.phaseIndex(state) >= bay.phase;
+    }
+
+    function bayStatus(id) {
+        const bay = BAYS[id];
+        if (!bayUnlocked(id)) return bay.lockedText ? bay.lockedText() : `Locked · reach ${E.PHASES[bay.phase].name}`;
+        if (!bay.built) return 'Online soon · in development';
+        const learned = state.path.learned;
+        const record = Math.round(state.path.best * 100);
+        return `${learned} skill${learned === 1 ? '' : 's'} · next: ${E.skillAt(learned).name}${record ? ` · record ${record}%` : ''}`;
+    }
+
+    function buildHub() {
+        for (const node of document.querySelectorAll('.bay')) {
+            node.addEventListener('click', () => enterBay(node.dataset.bay, node));
+        }
+        $('backButton').addEventListener('click', exitBay);
+        // Escape zooms back out (unless a dialog is open; dialogs handle their own Escape).
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && openBay && !document.querySelector('dialog[open]')) exitBay();
+        });
+    }
+
+    const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Zoom: the bay grows to fill the viewport while the room scales up past the camera.
+    function zoomFrames(bayNode) {
+        const vp = $('viewport').getBoundingClientRect();
+        const r = bayNode.getBoundingClientRect();
+        const sx = r.width / vp.width;
+        const sy = r.height / vp.height;
+        const bayBox = `translate(${r.left - vp.left}px, ${r.top - vp.top}px) scale(${sx}, ${sy})`;
+        const origin = `${r.left - vp.left + r.width / 2}px ${r.top - vp.top + r.height / 2}px`;
+        return { bayBox, origin, roomScale: Math.min(1 / sx, 1 / sy) };
+    }
+
+    function enterBay(id, bayNode) {
+        if (!bayUnlocked(id) || openBay) return;
+        openBay = id;
+        const bay = BAYS[id];
+        setText($('moduleTitle'), bay.name);
+        for (const m of document.querySelectorAll('.module')) m.hidden = true;
+        if (bay.built) {
+            document.querySelector(`.module[data-module="${id}"]`).hidden = false;
+        } else {
+            document.querySelector('.module[data-module="soon"]').hidden = false;
+            setText($('soonText'), `The ${bay.name} is being built. It will be the hands-on module for the ${E.PHASES[bay.phase].name} phase.`);
+        }
+        const hub = $('hub');
+        const view = $('moduleView');
+        const { bayBox, origin, roomScale } = zoomFrames(bayNode);
+        view.hidden = false;
+        const done = () => {
+            hub.hidden = true;
+            (id === 'training' ? $('pushButton') : $('backButton')).focus({ preventScroll: true });
+            startPathLoop();
+        };
+        if (reducedMotion()) return done();
+        const timing = { duration: 520, easing: 'cubic-bezier(0.65, 0, 0.35, 1)' };
+        hub.style.transformOrigin = origin;
+        hub.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: `scale(${roomScale})`, opacity: 0 }], timing);
+        view.style.transformOrigin = '0 0';
+        view.animate([{ transform: bayBox, opacity: 0.2 }, { transform: 'none', opacity: 1 }], timing).finished.then(done, done);
+    }
+
+    function exitBay() {
+        if (!openBay) return;
+        const bayNode = document.querySelector(`.bay[data-bay="${openBay}"]`);
+        const hub = $('hub');
+        const view = $('moduleView');
+        hub.hidden = false;
+        const done = () => {
+            view.hidden = true;
+            openBay = null;
+            bayNode.focus({ preventScroll: true });
+        };
+        if (reducedMotion()) return done();
+        const { bayBox, origin, roomScale } = zoomFrames(bayNode);
+        const timing = { duration: 460, easing: 'cubic-bezier(0.65, 0, 0.35, 1)' };
+        hub.style.transformOrigin = origin;
+        hub.animate([{ transform: `scale(${roomScale})`, opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], timing);
+        view.animate([{ transform: 'none', opacity: 1 }, { transform: bayBox, opacity: 0 }], timing).finished.then(done, done);
+    }
+
+    function renderHub() {
+        for (const node of document.querySelectorAll('.bay')) {
+            const id = node.dataset.bay;
+            const unlocked = bayUnlocked(id);
+            node.classList.toggle('locked', !unlocked);
+            node.classList.toggle('offline', unlocked && !BAYS[id].built);
+            node.setAttribute('aria-disabled', String(!unlocked));
+            node.setAttribute('aria-label', `${BAYS[id].name}: ${bayStatus(id)}`);
+        }
+        $('bayTrainingMeter').style.width = `${Math.round(state.path.best * 100)}%`;
     }
 
     // ---- Training Path ---------------------------------------------------
@@ -585,7 +736,7 @@ window.AGI = (function () {
         new ResizeObserver(() => {
             const dpr = window.devicePixelRatio || 1;
             path.width = canvas.clientWidth;
-            path.height = Math.round(Math.min(260, Math.max(180, path.width * 0.42)));
+            path.height = Math.round(Math.min(340, Math.max(220, path.width * 0.42)));
             canvas.style.height = path.height + 'px';
             canvas.width = Math.round(path.width * dpr);
             canvas.height = Math.round(path.height * dpr);
@@ -637,7 +788,7 @@ window.AGI = (function () {
     }
 
     function startPathLoop() {
-        if (path.frame || !path.canvas || $('pathPanel').hidden) return;
+        if (path.frame || !path.canvas || openBay !== 'training') return;
         path.last = performance.now();
         path.frame = requestAnimationFrame(pathFrame);
     }
@@ -729,12 +880,13 @@ window.AGI = (function () {
         if (!path.roll || !path.cam) return true;
         const t = cameraTarget(path.roll);
         const width = t.right - t.left;
-        return Math.abs(path.cam.left - t.left) > width * 0.002 || Math.abs(path.cam.right - t.right) > width * 0.002;
+        return Math.abs(path.cam.left - t.left) > width * 0.002 || Math.abs(path.cam.right - t.right) > width * 0.002
+            || Math.abs((path.cam.top || 0) - (path.cam.topTarget || 0)) > (path.cam.topTarget || 1) * 0.01;
     }
 
     function drawPath(dt = 0) {
         const { ctx, width: w, height: h, colors: c } = path;
-        if (!ctx || !w || !state || $('pathPanel').hidden) return;
+        if (!ctx || !w || !state || openBay !== 'training') return;
         const roll = currentRoll();
         const g = roll.ground;
         const target = cameraTarget(roll);
@@ -743,22 +895,29 @@ window.AGI = (function () {
         path.cam.left += (target.left - path.cam.left) * ease;
         path.cam.right += (target.right - path.cam.right) * ease;
         const cam = path.cam;
-        // Vertical scale is fixed per stretch (the skill hill fills most of the height), so
-        // scrolling never changes how big a hill looks; the overview shrinks everything to fit.
-        const top = g.goal.height * 1.25;
-        const X = x => PAD_X + (x - cam.left) / (cam.right - cam.left) * (w - PAD_X * 2);
-        const Y = y => h - PAD_BOTTOM - Math.min(y, top * 1.2) / top * (h - PAD_TOP - PAD_BOTTOM);
         const goal = g.goal;
 
-        ctx.clearRect(0, 0, w, h);
-
-        // Terrain, sampled across the view. The trail fades out past the skill hill (unknown ground).
+        // Sample the ground across the view. The vertical scale fits the tallest thing in view
+        // (eased), so rolling hills read clearly and the skill hill dwarfs them when it arrives.
         const n = Math.min(1400, Math.max(300, Math.round(w * 1.5)));
-        const pts = [];
+        const samples = [];
+        let tallest = goal.height * 0.12;
         for (let i = 0; i <= n; i++) {
             const x = cam.left + (cam.right - cam.left) * i / n;
-            pts.push([X(x), Y(x > goal.end ? 0 : groundAt(roll, x)), x]);
+            const y = x > goal.end ? 0 : groundAt(roll, x);
+            if (x > -0.05) tallest = Math.max(tallest, y);
+            samples.push([x, y]);
         }
+        const topTarget = tallest * 1.45;
+        cam.topTarget = topTarget;
+        if (!cam.top) cam.top = topTarget;
+        cam.top += (topTarget - cam.top) * Math.min(1, dt * 3);
+        const top = cam.top;
+        const X = x => PAD_X + (x - cam.left) / (cam.right - cam.left) * (w - PAD_X * 2);
+        const Y = y => h - PAD_BOTTOM - Math.min(y, top * 1.3) / top * (h - PAD_TOP - PAD_BOTTOM);
+        const pts = samples.map(([x, y]) => [X(x), Y(y), x]);
+
+        ctx.clearRect(0, 0, w, h);
         const fill = ctx.createLinearGradient(0, PAD_TOP, 0, h);
         fill.addColorStop(0, hexAlpha(c.secondary, 0.4));
         fill.addColorStop(1, hexAlpha(c.secondary, 0.06));
@@ -769,6 +928,17 @@ window.AGI = (function () {
         ctx.closePath();
         ctx.fillStyle = fill;
         ctx.fill();
+        ctx.save();
+        ctx.clip();
+        ctx.strokeStyle = hexAlpha(c.secondary, 0.35);
+        ctx.lineWidth = 1;
+        for (let y = h - PAD_BOTTOM - 10; y > PAD_TOP - 40; y -= 11) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(w, y);
+            ctx.stroke();
+        }
+        ctx.restore();
 
         const stroke = (from, to, color, width = 2.5) => {
             ctx.beginPath();
@@ -800,7 +970,7 @@ window.AGI = (function () {
 
         // Learned skill hills: a marker and name on each crest that is in view and wide enough.
         ctx.textAlign = 'center';
-        ctx.font = '11px system-ui, sans-serif';
+        ctx.font = '600 11px "Chakra Petch", system-ui, sans-serif';
         for (let j = 0; j < g.stretch; j++) {
             const sh = T.skillHill(j);
             if (sh.end < cam.left || sh.start > cam.right) continue;
@@ -833,17 +1003,35 @@ window.AGI = (function () {
             }
         }
 
+        // Summit flag on the skill hill.
+        if (X(goal.peak) >= 0 && X(goal.peak) <= w) {
+            const px = X(goal.peak);
+            const py = Y(goal.height);
+            ctx.strokeStyle = c.warning;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(px, py);
+            ctx.lineTo(px, py - 26);
+            ctx.stroke();
+            ctx.fillStyle = c.warning;
+            ctx.beginPath();
+            ctx.moveTo(px, py - 26);
+            ctx.lineTo(px + 13, py - 21);
+            ctx.lineTo(px, py - 16);
+            ctx.fill();
+        }
+
         // Skill hill label, kept on screen as an arrow when the hill is still ahead of the view.
         const skillName = E.skillAt(g.stretch).name;
-        ctx.font = 'bold 12px system-ui, sans-serif';
+        ctx.font = '700 13px "Chakra Petch", system-ui, sans-serif';
         ctx.fillStyle = c.warning;
         if (X(goal.peak) <= w - PAD_X) {
-            ctx.fillText(skillName, Math.min(w - 70, Math.max(70, X(goal.peak))), Math.max(14, Y(goal.height) - 10));
+            ctx.fillText(skillName, Math.min(w - 70, Math.max(70, X(goal.peak))), Math.max(16, Y(goal.height) - 34));
         } else {
             const ahead = goal.start - roll.ball.x;
             ctx.textAlign = 'right';
             ctx.fillText(`${skillName} →`, w - PAD_X, 16);
-            ctx.font = '11px ui-monospace, Consolas, monospace';
+            ctx.font = '11px "JetBrains Mono", ui-monospace, monospace';
             ctx.fillStyle = hexAlpha(c.warning, 0.75);
             ctx.fillText(`${ahead.toFixed(1)} m ahead`, w - PAD_X, 30);
         }
@@ -901,7 +1089,7 @@ window.AGI = (function () {
 
         if (path.overview > 0) {
             ctx.textAlign = 'center';
-            ctx.font = 'bold 13px system-ui, sans-serif';
+            ctx.font = '700 13px "Chakra Petch", system-ui, sans-serif';
             ctx.fillStyle = hexAlpha(c.success, Math.min(1, path.overview));
             ctx.fillText(`${state.path.learned} skill${state.path.learned === 1 ? '' : 's'} learned`, w / 2, 18);
         }
@@ -920,6 +1108,8 @@ window.AGI = (function () {
         buildChecklists();
         buildBindings();
         buildSettings();
+        buildJournal();
+        buildHub();
         buildPath();
         load();
         syncSettings();
@@ -950,6 +1140,16 @@ window.AGI = (function () {
             unlockAll() {
                 E.MILESTONES.forEach(m => { state.unlocked[m.key] = true; });
                 E.UPGRADES.forEach(u => { state.unlocked['up:' + u.id] = true; });
+                afterChange();
+            },
+            // Wipe the save and start a brand-new game, no questions asked.
+            startOver() {
+                state = E.defaultState(Date.now());
+                path.roll = null;
+                resetView();
+                save();
+                $('gameLog').replaceChildren();
+                log('Started over (debug).', 'warning');
                 afterChange();
             },
             // Learn the next skill instantly; the next roll starts at the new checkpoint.
