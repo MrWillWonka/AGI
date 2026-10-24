@@ -1333,8 +1333,11 @@ h1, h2, h3, p { margin: 0; }
         radial-gradient(circle, var(--success) 1.5px, transparent 2px) 10px 5px / 16px 18px repeat-x,
         repeating-linear-gradient(90deg, transparent 0 4px, #030708 4px 14px, transparent 14px 16px) 4px 10px / 100% 12px no-repeat,
         #0a1417;
-    animation: led-blink 0.9s steps(2, jump-none) infinite;
+    animation: led-soft 2.4s ease-in-out infinite;
 }
+
+/* Gentle glow for big decorative surfaces; hard on/off blinking stays on tiny LEDs only. */
+@keyframes led-soft { 50% { opacity: 0.8; } }
 
 /* Power supplies: fans. */
 .ru-psu {
@@ -1387,9 +1390,9 @@ h1, h2, h3, p { margin: 0; }
 .bay[data-bay="pipeline"] .bay-art i {
     background: linear-gradient(90deg, #12252a 70%, #0a1416 70%);
     box-shadow: inset -4px 0 0 -2px var(--primary), inset 0 0 0 1px #1f3a40;
-    animation: led-blink 1.3s steps(2, jump-none) infinite;
+    animation: led-soft 2.2s ease-in-out infinite;
 }
-.bay[data-bay="pipeline"] .bay-art i:nth-child(odd) { animation-duration: 0.7s; }
+.bay[data-bay="pipeline"] .bay-art i:nth-child(odd) { animation-duration: 1.6s; }
 .bay[data-bay="pipeline"] .bay-art i:nth-child(5n) { animation-delay: 0.3s; }
 
 /* Architecture Lab: a patch panel with looping cables. */

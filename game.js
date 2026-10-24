@@ -636,7 +636,8 @@ window.AGI = (function () {
         const r = ROOMS[id];
         return r.unlocked ? r.unlocked() : r.phase == null || E.phaseIndex(state) >= r.phase;
     }
-    const roomOpen = id => ROOMS[id].built && roomUnlocked(id);
+    // Always a boolean: classList.toggle(name, undefined) flips the class instead of clearing it.
+    const roomOpen = id => !!ROOMS[id].built && roomUnlocked(id);
 
     function roomStatus(id, d) {
         const r = ROOMS[id];
