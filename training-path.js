@@ -212,11 +212,19 @@
             return events;
         }
 
+        // End the roll where it is (e.g. the ball is stuck and no push is affordable).
+        function end() {
+            if (over) return null;
+            over = true;
+            return { type: 'end', skill: k, progress: ground.progress(ball.maxX) };
+        }
+
         return {
             ground,
             ball,
             push,
             step,
+            end,
             get pushesLeft() { return pushesLeft; },
             get launched() { return launched; },
             get over() { return over; },

@@ -262,3 +262,14 @@ test('engine: clean pushes add XP, and Better Sensors widens the zone', () => {
     E.finishRoll(s, 0.5, false, 1);
     assert.ok(Math.abs(s.res.xp - plain * (1 + E.PATH.cleanBonus)) < 1e-9);
 });
+
+test('a roll can be ended early and reports how far it got', () => {
+    const roll = T.createRoll(0, 3, { pushes: 3, cooldown: 0.5 });
+    roll.push(1.2);
+    for (let t = 0; t < 10 && !roll.atRest; t += 0.05) roll.step(0.05);
+    const ev = roll.end();
+    assert.equal(ev.type, 'end');
+    assert.ok(ev.progress > 0 && ev.progress < 1);
+    assert.equal(roll.over, true);
+    assert.equal(roll.end(), null, 'only once');
+});

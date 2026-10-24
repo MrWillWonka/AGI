@@ -693,6 +693,7 @@ window.AGI = (function () {
     const BALL = 7;
     const RESULT_PAUSE = 2.6;   // seconds to show a finished roll's result before the next one
     const OVERVIEW_SECONDS = 3; // how long the camera stays zoomed out after learning a skill
+    const STUCK_GRACE = 3;      // seconds a stuck roll waits for income before it ends
     const path = {
         roll: null,
         rollKey: '',
@@ -893,6 +894,13 @@ window.AGI = (function () {
             const roll = currentRoll();
             autoTrain(roll);
             for (const ev of roll.step(dt)) finishRoll(ev);
+            // Stuck with pushes left but nothing to pay for them: give income a moment, then end the roll.
+            const broke = roll.launched && !roll.over && roll.atRest && roll.pushesLeft > 0 && chargeBudget() < E.PATH.minCharge;
+            path.brokeFor = broke ? (path.brokeFor || 0) + dt : 0;
+            if (path.brokeFor > STUCK_GRACE) {
+                path.brokeFor = 0;
+                finishRoll(roll.end());
+            }
         }
         if (path.overview > 0) path.overview -= dt;
         if (path.glow && (path.glow.age += dt) > 2.5) path.glow = null;
@@ -904,7 +912,7 @@ window.AGI = (function () {
         updateLiveXp();
         const roll = path.roll;
         const busy = roll && roll.launched && !roll.over;
-        const animating = busy || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
+        const animating = busy || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
             || E.level(state, 'autoTrainer') > 0;
         if (running && animating) path.frame = requestAnimationFrame(pathFrame);
     }
