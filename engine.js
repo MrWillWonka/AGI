@@ -18,14 +18,18 @@
     const PRESTIGE_CP_DIVISOR = 1e5;
     const IMPROVE_GAIN = 5;
 
-    // Training Path: launching a roll costs CP and DP; how far it gets earns Experience (XP).
+    // Training Path: every push costs CP and DP in proportion to how hard it is charged (energy, so
+    // charge²), which ties training to passive income. How far a roll gets earns Experience (XP).
     // Costs and XP both scale with the stretch you are on (= skills learned).
     const PATH = {
-        rollCost: { cp: 10, dp: 1 },
-        rollCostScale: 1.4,
+        pushCost: { cp: 14, dp: 1.5 },  // a fully charged push on the first stretch
+        pushCostScale: 1.4,
         xpPerStretch: 5,     // XP for reaching a skill hill's peak on the first stretch
         xpScale: 1.35,
         crestBonus: 2,       // XP multiplier when the roll crests the skill hill
+        cleanBonus: 0.2,     // extra XP per clean push (released inside the meter's bonus zone)
+        zoneWidth: 0.12,     // bonus zone width as a fraction of the strength meter
+        minCharge: 0.15,     // weakest push a quick tap gives
         basePush: 1.8,       // push strength before upgrades and skills
         basePushes: 1,       // pushes per roll: just the launch until More Epochs is bought
         baseCooldown: 2.0,   // seconds between pushes
@@ -108,6 +112,7 @@
         // Training (bought with XP from the Training Path)
         { id: 'trainingOptimizer', tab: 'training', name: 'GPU Cluster', effect: 'Stronger pushes (+10%)', cost: { xp: 15 }, scale: 1.5 },
         { id: 'fasterIteration', tab: 'training', name: 'Faster Chips', effect: 'Less time between pushes (-15%)', cost: { xp: 20 }, scale: 1.7, max: 12 },
+        { id: 'precisionTuning', tab: 'training', name: 'Better Sensors', effect: 'Wider bonus zone on the strength meter (+25%)', cost: { xp: 30 }, scale: 1.8, max: 5 },
         { id: 'trainingEpochs', tab: 'training', name: 'Investor Funding', effect: '+1 push per roll. The first one lets you push mid-roll.', cost: { xp: 12 }, scale: 2.6, max: 7 },
         { id: 'autoTrainer', tab: 'training', name: 'Auto-Trainer', effect: 'Level 1 pushes when the ball stops. Level 2 times pushes with the swing.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
             unlock: s => s.prestige.count >= 1, hint: 'Transcend once' },
@@ -232,7 +237,9 @@
         const pushesPerRoll = PATH.basePushes + L('trainingEpochs');
         const pushCooldown = Math.max(PATH.minCooldown, PATH.baseCooldown * Math.pow(0.85, L('fasterIteration')));
 
-        return { mult, cpPerSec, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec, pushPower, pushesPerRoll, pushCooldown };
+        const zoneWidth = PATH.zoneWidth * (1 + 0.25 * L('precisionTuning'));
+
+        return { mult, cpPerSec, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec, pushPower, pushesPerRoll, pushCooldown, zoneWidth };
     }
 
     function meetsPhase(s, phase) {
@@ -406,11 +413,27 @@
         return total;
     }
 
-    function rollCost(s) {
-        const factor = Math.pow(PATH.rollCostScale, s.path.learned);
+    // Cost of a push charged to `charge` (0–1). Rounded up, so even a light tap costs something.
+    function pushCost(s, charge = 1) {
+        const factor = Math.pow(PATH.pushCostScale, s.path.learned) * charge * charge;
         const cost = {};
-        for (const [k, v] of Object.entries(PATH.rollCost)) cost[k] = Math.ceil(v * factor);
+        for (const [k, v] of Object.entries(PATH.pushCost)) cost[k] = Math.max(1, Math.ceil(v * factor));
         return cost;
+    }
+
+    // The fullest charge you can currently afford (0–1); below PATH.minCharge you cannot push at all.
+    function affordableCharge(s) {
+        if (canAfford(s, pushCost(s, 1))) return 1;
+        if (!canAfford(s, pushCost(s, PATH.minCharge))) return 0;
+        // Costs round up, so search for the largest charge whose rounded cost is affordable.
+        let lo = PATH.minCharge;
+        let hi = 1;
+        for (let i = 0; i < 20; i++) {
+            const mid = (lo + hi) / 2;
+            if (canAfford(s, pushCost(s, mid))) lo = mid;
+            else hi = mid;
+        }
+        return lo;
     }
 
     // Terrain seed for the next roll: new hills every roll, derived from the run and roll count.
@@ -421,10 +444,10 @@
         return (h ^ (h >>> 15)) >>> 0;
     }
 
-    // Pay to launch a roll. The UI owns the physics and reports back with finishRoll().
-    function payRoll(s) {
+    // Pay for one push at `charge`. The UI owns the physics and reports back with finishRoll().
+    function payPush(s, charge) {
         if (!s.unlocked['module:path']) return false;
-        const cost = rollCost(s);
+        const cost = pushCost(s, charge);
         if (!canAfford(s, cost)) return false;
         pay(s, cost);
         return true;
@@ -432,14 +455,23 @@
 
     // XP for a roll that got `progress` (0-1) of the way up the stretch. Distance is worth more the
     // further you get, and cresting the skill hill pays a bonus.
-    function rollXp(s, progress, crested) {
+    // Bonus zone for push number `index` of a roll: somewhere below the top of the meter, so a clean
+    // push trades some strength for XP. Deterministic per roll seed and push.
+    function bonusZone(seed, index, width) {
+        let h = Math.imul((seed ^ 0x9e3779b9) + index * 0x85ebca6b, 0xc2b2ae35) >>> 0;
+        h = (h ^ (h >>> 16)) >>> 0;
+        const centre = 0.5 + (h % 1000) / 1000 * 0.35;           // 0.50 – 0.85
+        return { from: centre - width / 2, to: centre + width / 2 };
+    }
+
+    function rollXp(s, progress, crested, cleanPushes = 0) {
         const base = PATH.xpPerStretch * Math.pow(PATH.xpScale, s.path.learned);
-        return base * progress * progress * (crested ? PATH.crestBonus : 1);
+        return base * progress * progress * (crested ? PATH.crestBonus : 1) * (1 + PATH.cleanBonus * cleanPushes);
     }
 
     // Settle a finished roll: XP, record distance, roll count, and the skill if it crested.
-    function finishRoll(s, progress, crested) {
-        const xp = rollXp(s, progress, crested);
+    function finishRoll(s, progress, crested, cleanPushes = 0) {
+        const xp = rollXp(s, progress, crested, cleanPushes);
         s.res.xp += xp;
         s.stats.rolls++;
         const record = progress > s.path.best;
@@ -623,7 +655,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, applyOffline,
-        skillAt, rollCost, rollSeed, payRoll, rollXp, finishRoll, learnSkill,
+        skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, rollXp, finishRoll, learnSkill,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration
     };

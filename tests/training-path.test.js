@@ -129,15 +129,27 @@ test('a roll is deterministic', () => {
     assert.deepEqual(run(), run());
 });
 
-test('engine: launching costs CP and DP; XP rewards distance, records and crests', () => {
+test('engine: pushes cost CP and DP by charge; XP rewards distance, records and crests', () => {
     const s = E.defaultState(NOW);
     s.res.cp = 100;
     s.res.dp = 10;
-    assert.equal(E.payRoll(s), false, 'locked until the milestone');
+    assert.equal(E.payPush(s, 1), false, 'locked until the milestone');
     s.stats.runCp = 50;
     E.evaluate(s);
-    assert.equal(E.payRoll(s), true);
-    assert.equal(s.res.cp, 100 - E.rollCost(s).cp);
+    const full = E.pushCost(s, 1);
+    const half = E.pushCost(s, 0.5);
+    assert.ok(half.cp < full.cp / 2, 'cost grows with the square of the charge');
+    assert.equal(E.payPush(s, 1), true);
+    assert.equal(s.res.cp, 100 - full.cp);
+
+    // The affordable charge is capped by your resources.
+    s.res.cp = full.cp / 4;
+    const cap = E.affordableCharge(s);
+    assert.ok(cap > 0.4 && cap < 0.6, `cap ${cap}`);
+    assert.equal(E.payPush(s, 1), false, 'cannot pay for a full push');
+    assert.equal(E.payPush(s, cap), true);
+    s.res.cp = 0;
+    assert.equal(E.affordableCharge(s), 0);
 
     assert.ok(E.rollXp(s, 0.8, false) > 2 * E.rollXp(s, 0.4, false), 'further is worth disproportionately more');
     assert.equal(E.rollXp(s, 1, true), E.rollXp(s, 1, false) * E.PATH.crestBonus);
@@ -152,7 +164,7 @@ test('engine: launching costs CP and DP; XP rewards distance, records and crests
     assert.equal(r3.skill.name, E.SKILLS[0].name);
     assert.equal(s.path.learned, 1);
     assert.equal(s.path.best, 0, 'record resets for the new stretch');
-    assert.ok(E.rollCost(s).cp > 10, 'rolls cost more further along');
+    assert.ok(E.pushCost(s, 1).cp > E.PATH.pushCost.cp, 'pushes cost more further along');
 });
 
 test('engine: training upgrades are bought with XP and change the roll setup', () => {
@@ -224,4 +236,29 @@ test('engine: the Auto-Trainer only appears after transcending', () => {
     s.prestige.count = 1;
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.autoTrainer), true);
+});
+
+test('engine: bonus zones sit below the top of the meter, vary per push, and are repeatable', () => {
+    const zones = [];
+    for (let seed = 1; seed <= 50; seed++) {
+        for (let i = 0; i < 6; i++) {
+            const z = E.bonusZone(seed * 7919, i, 0.12);
+            assert.ok(z.from >= 0.43 && z.to <= 0.92, `zone ${z.from}-${z.to}`);
+            assert.ok(Math.abs(z.to - z.from - 0.12) < 1e-9);
+            zones.push(z.from);
+        }
+    }
+    assert.deepEqual(E.bonusZone(42, 3, 0.12), E.bonusZone(42, 3, 0.12));
+    assert.ok(new Set(zones.map(z => z.toFixed(2))).size > 20, 'zones move around');
+});
+
+test('engine: clean pushes add XP, and Better Sensors widens the zone', () => {
+    const s = E.defaultState(NOW);
+    const plain = E.rollXp(s, 0.5, false, 0);
+    assert.ok(Math.abs(E.rollXp(s, 0.5, false, 2) - plain * (1 + 2 * E.PATH.cleanBonus)) < 1e-9);
+    const before = E.derive(s).zoneWidth;
+    s.levels.precisionTuning = 2;
+    assert.ok(Math.abs(E.derive(s).zoneWidth - before * 1.5) < 1e-9);
+    E.finishRoll(s, 0.5, false, 1);
+    assert.ok(Math.abs(s.res.xp - plain * (1 + E.PATH.cleanBonus)) < 1e-9);
 });

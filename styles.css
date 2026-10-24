@@ -556,13 +556,119 @@ h1, h2, h3, p { margin: 0; }
     gap: 8px 16px;
 }
 
-.path-controls .muted { font-family: var(--font-mono); font-size: 0.8rem; }
 
 .push-button {
-    min-width: 200px;
+    min-width: 230px;
     padding: 13px 22px;
     font-size: 1.05rem;
+    touch-action: none;
 }
+
+/* Overlays on the trail: live XP while rolling, and the result card when a roll ends. */
+.canvas-wrap { position: relative; }
+
+.live-xp {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: rgba(8, 17, 19, 0.8);
+    border: 1px solid var(--border);
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.live-xp-value { font: 700 1.05rem var(--font-mono); color: var(--warning); font-variant-numeric: tabular-nums; }
+.live-xp-mult { font: 700 0.78rem var(--font-mono); color: var(--success); }
+.live-xp-mult:empty { display: none; }
+.live-xp-label { font-size: 0.74rem; color: var(--muted); }
+
+.roll-result {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(340px, calc(100% - 24px));
+    transform: translate(-50%, -50%);
+    padding: 16px 18px;
+    border-radius: 10px;
+    background: rgba(11, 22, 25, 0.95);
+    border: 1px solid var(--border);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+    animation: result-in 0.25s ease-out;
+}
+
+.roll-result.skill { border-color: rgba(99, 224, 171, 0.6); box-shadow: 0 0 40px rgba(99, 224, 171, 0.2), 0 18px 40px rgba(0, 0, 0, 0.55); }
+
+@keyframes result-in {
+    from { opacity: 0; transform: translate(-50%, -44%) scale(0.96); }
+}
+
+.result-title { font: 700 0.78rem var(--font-display); text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); }
+.roll-result.skill .result-title { color: var(--success); }
+.result-main { margin-top: 2px; font: 700 1.25rem var(--font-display); }
+.result-xp { margin-top: 8px; font: 700 1.6rem var(--font-mono); color: var(--warning); }
+.result-lines { margin: 6px 0 0; padding: 0; list-style: none; font: 0.8rem var(--font-mono); color: var(--muted); }
+.result-lines li { display: flex; justify-content: space-between; gap: 12px; }
+.result-lines .good { color: var(--success); }
+.result-badge { display: inline-block; margin-top: 8px; padding: 2px 8px; border-radius: 999px; font: 700 0.7rem var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; background: rgba(255, 122, 107, 0.15); color: var(--accent); }
+.result-hint { margin-top: 10px; font-size: 0.72rem; color: var(--muted); }
+
+/* Strength meter: sweeps while the button is held; the bright band is the bonus zone. */
+.charge { flex: 1 1 240px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+
+.charge-track {
+    position: relative;
+    height: 16px;
+    border-radius: 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+
+.charge-zone {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: rgba(99, 224, 171, 0.22);
+    border-left: 2px solid var(--success);
+    border-right: 2px solid var(--success);
+}
+
+.charge-over {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(135deg, rgba(255, 93, 93, 0.16) 0 5px, transparent 5px 10px);
+    border-left: 2px solid rgba(255, 93, 93, 0.7);
+    z-index: 1;
+}
+
+.charge-fill {
+    position: absolute;
+    left: 0;
+    top: 3px;
+    bottom: 3px;
+    width: 0;
+    border-radius: 0 6px 6px 0;
+    background: linear-gradient(90deg, #a8661a, var(--warning));
+    box-shadow: 0 0 12px rgba(255, 181, 71, 0.5);
+}
+
+.charge-fill.in-zone { background: linear-gradient(90deg, #2c8a63, var(--success)); box-shadow: 0 0 14px rgba(99, 224, 171, 0.7); }
+
+.charge-labels { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 0.76rem var(--font-mono); color: var(--text); }
+.charge-labels .muted { margin-left: auto; font-family: var(--font-body); }
+.charge-clean { color: var(--success); }
+.charge.clean .charge-track { border-color: var(--success); box-shadow: 0 0 16px rgba(99, 224, 171, 0.45); }
+.charge.clean #chargeValue { color: var(--success); font-weight: 700; }
+
+.path-meta { font-family: var(--font-mono); font-size: 0.78rem; margin-top: -4px; }
 
 .path-status { color: var(--warning); margin-top: -6px; }
 .path-status:empty { display: none; }

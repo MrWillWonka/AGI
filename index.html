@@ -99,15 +99,35 @@
                     </div>
 
                     <div class="module" data-module="training" id="pathPanel">
-                        <canvas id="pathCanvas" class="path-canvas" tabindex="0" aria-label="Training path. Press Enter or Space to launch or push the ball." aria-describedby="pathStatus"></canvas>
-                        <div class="path-controls">
-                            <button type="button" class="button push-button" id="pushButton">Launch</button>
-                            <span class="muted small" data-bind="path.stats"></span>
+                        <div class="canvas-wrap">
+                            <canvas id="pathCanvas" class="path-canvas" tabindex="0" aria-label="Training path. Hold Enter or Space to charge a push, release to fire." aria-describedby="pathStatus"></canvas>
+                            <div class="live-xp" id="liveXp" hidden>
+                                <span class="live-xp-value" id="liveXpValue">+0 XP</span>
+                                <span class="live-xp-mult" id="liveXpMult"></span>
+                                <span class="live-xp-label">if it stops here</span>
+                            </div>
+                            <div class="roll-result" id="rollResult" role="status" hidden></div>
                         </div>
+                        <div class="path-controls">
+                            <button type="button" class="button push-button" id="pushButton">Hold to launch</button>
+                            <div class="charge" id="charge">
+                                <div class="charge-track" aria-hidden="true">
+                                    <div class="charge-zone" id="chargeZone"></div>
+                                    <div class="charge-over" id="chargeOver"></div>
+                                    <div class="charge-fill" id="chargeFill"></div>
+                                </div>
+                                <div class="charge-labels">
+                                    <span id="chargeValue" aria-live="polite">Strength</span>
+                                    <span class="charge-clean" id="chargeClean"></span>
+                                    <span class="muted">Release in the bright zone for +20% XP</span>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="muted small path-meta" data-bind="path.stats"></p>
                         <p class="small path-status" id="pathStatus" aria-live="polite"></p>
                         <details class="help">
                             <summary>How it works</summary>
-                            <p>Each launch rolls the ball over new, random hills. The further it gets, the more Experience (XP) you earn. A big skill hill ends each stretch: get over it to teach your AI that skill. Pushes are limited, so save them for when the ball is about to stall on a slope. Pushing while it rolls back is wasted. Spend XP in the Training tab.</p>
+                            <p>Each launch rolls the ball over new, random hills. The further it gets, the more Experience (XP) you earn. A big skill hill ends each stretch: get over it to teach your AI that skill. Hold the button to charge a push and release to fire it. The meter sweeps up and down. Every push costs CP and DP, and harder pushes cost more, so the meter only reaches as far as you can afford: grow your income to push harder. GPU Cluster raises the strength of a full push. Releasing inside the bright zone is a clean push: a little less strength, but +20% XP for the roll. Pushes are limited, so save them for when the ball is about to stall on a slope. Pushing while it rolls back is wasted. Spend XP in the Training tab.</p>
                         </details>
                     </div>
 

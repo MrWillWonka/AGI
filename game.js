@@ -691,11 +691,14 @@ window.AGI = (function () {
     const PAD_TOP = 34;
     const PAD_BOTTOM = 26;
     const BALL = 7;
-    const RESULT_PAUSE = 1.3;   // seconds to show a finished roll before the next one
+    const RESULT_PAUSE = 2.6;   // seconds to show a finished roll's result before the next one
     const OVERVIEW_SECONDS = 3; // how long the camera stays zoomed out after learning a skill
     const path = {
         roll: null,
         rollKey: '',
+        rollPushes: 0,
+        charging: null,         // { start } while the push button is held
+        cleanFlash: 0,
         stateRef: null,
         pause: 0,
         overview: 0,
@@ -720,6 +723,7 @@ window.AGI = (function () {
         const stale = !path.roll || path.stateRef !== state || path.roll.over || (!path.roll.launched && path.rollKey !== key);
         if (stale && path.pause <= 0) {
             path.roll = T.createRoll(state.path.learned, E.rollSeed(state), { pushes: d.pushesPerRoll, cooldown: d.pushCooldown });
+            path.rollPushes = d.pushesPerRoll;
             path.rollKey = key;
             if (path.stateRef !== state) path.cam = null;
             path.stateRef = state;
@@ -753,27 +757,110 @@ window.AGI = (function () {
         }).observe(canvas);
         document.addEventListener('visibilitychange', () => { if (!document.hidden) startPathLoop(); });
 
-        canvas.addEventListener('pointerdown', e => { if (e.button === 0) pushBall(); });
-        canvas.addEventListener('keydown', e => {
-            if (e.key !== 'Enter' && e.key !== ' ') return;
-            e.preventDefault();
-            pushBall();
-        });
-        $('pushButton').addEventListener('click', () => pushBall());
+        // Hold to charge, release to push: on the button and the trail, by pointer or by Space/Enter.
+        for (const target of [canvas, $('pushButton')]) {
+            target.addEventListener('pointerdown', e => {
+                if (e.button !== 0) return;
+                e.preventDefault();
+                target.setPointerCapture?.(e.pointerId);
+                startCharge();
+            });
+            target.addEventListener('pointerup', releaseCharge);
+            target.addEventListener('pointercancel', releaseCharge);
+            target.addEventListener('keydown', e => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                if (!e.repeat) startCharge();
+            });
+            target.addEventListener('keyup', e => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                releaseCharge();
+            });
+        }
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
+        $('rollResult').addEventListener('click', dismissResult);
+        $('pushButton').addEventListener('contextmenu', e => e.preventDefault());
+    }
+
+    // ---- Charging a push ----
+
+    const CHARGE_SWEEP_MS = 900;    // time for the meter to sweep from empty to full (then back)
+
+    // Meter position (0–1) while charging: sweeps up to what you can afford, back down, and up again.
+    function chargeLevel(now = performance.now()) {
+        if (!path.charging) return 0;
+        const cap = path.charging.cap;
+        const pos = ((now - path.charging.start) / CHARGE_SWEEP_MS) % (2 * cap);
+        return pos <= cap ? pos : 2 * cap - pos;
+    }
+
+    function chargeBudget() {
+        return E.affordableCharge(state);
+    }
+
+    function pushIndex(roll) {
+        return path.rollPushes - roll.pushesLeft;
+    }
+
+    function currentZone(roll) {
+        return E.bonusZone(roll.ground.seed, pushIndex(roll), E.derive(state).zoneWidth);
+    }
+
+    function canPush(roll) {
+        return !roll.over && path.pause <= 0 && roll.pushesLeft > 0 && roll.ball.cooldown <= 0
+            && chargeBudget() >= E.PATH.minCharge;
+    }
+
+    function dismissResult() {
+        if (path.pause > 0) path.pause = 0;
+        $('rollResult').hidden = true;
+        startPathLoop();
+    }
+
+    function startCharge() {
+        if (!$('rollResult').hidden) {
+            dismissResult();
+            return;
+        }
+        const roll = currentRoll();
+        if (path.charging) return;
+        if (!canPush(roll)) {
+            if (!roll.over && roll.pushesLeft > 0 && chargeBudget() < E.PATH.minCharge) {
+                setText($('pathStatus'), `Not enough to push: even a light push costs ${E.formatCost(E.pushCost(state, E.PATH.minCharge))}.`);
+            }
+            return;
+        }
+        path.charging = { start: performance.now(), cap: chargeBudget() };
+        startPathLoop();
+    }
+
+    function releaseCharge() {
+        if (!path.charging) return;
+        const level = chargeLevel();
+        path.charging = null;
+        const roll = currentRoll();
+        const zone = currentZone(roll);
+        const clean = level >= zone.from && level <= zone.to;
+        if (pushBall(false, Math.max(E.PATH.minCharge, level)) && clean) {
+            roll.clean = (roll.clean || 0) + 1;
+            path.cleanFlash = 1;
+        }
     }
 
     // The first push launches the roll (and pays for it); later pushes spend the roll's pushes.
-    function pushBall(auto) {
+    // `fraction` is how much of the meter was charged (the Auto-Trainer always pushes at full).
+    function pushBall(auto, fraction = 1) {
         const roll = currentRoll();
         if (roll.over || roll.pushesLeft <= 0 || roll.ball.cooldown > 0) return false;
-        if (!roll.launched) {
-            if (!E.payRoll(state)) {
-                if (!auto) setText($('pathStatus'), `A training roll costs ${E.formatCost(E.rollCost(state))}.`);
-                return false;
-            }
-            path.overview = 0;
+        // Every push is paid for by how hard it is charged.
+        fraction = Math.min(fraction, chargeBudget());
+        if (fraction < E.PATH.minCharge || !E.payPush(state, fraction)) {
+            if (!auto) setText($('pathStatus'), `Not enough to push: even a light push costs ${E.formatCost(E.pushCost(state, E.PATH.minCharge))}.`);
+            return false;
         }
-        roll.push(E.derive(state, debugRates).pushPower);
+        if (!roll.launched) path.overview = 0;
+        roll.push(E.derive(state, debugRates).pushPower * fraction);
         path.pushFlash = 0.35;
         setText($('pathStatus'), '');
         render();
@@ -787,7 +874,7 @@ window.AGI = (function () {
         const lvl = E.level(state, 'autoTrainer');
         if (!lvl || roll.over || path.pause > 0 || roll.ball.cooldown > 0) return;
         const stalling = roll.ball.v > 0 && roll.ball.v < 0.5 && roll.ground.slope(roll.ball.x) > 0.05;
-        if (!roll.launched || roll.atRest || (lvl >= 2 && stalling)) pushBall(true);
+        if (!roll.launched || roll.atRest || (lvl >= 2 && stalling)) pushBall(true, chargeBudget());
     }
 
     function startPathLoop() {
@@ -810,11 +897,14 @@ window.AGI = (function () {
         if (path.overview > 0) path.overview -= dt;
         if (path.glow && (path.glow.age += dt) > 2.5) path.glow = null;
         path.pushFlash = Math.max(0, path.pushFlash - dt);
+        path.cleanFlash = Math.max(0, path.cleanFlash - dt);
         drawPath(dt);
         updatePathControls();
+        if (path.pause <= 0 && !$('rollResult').hidden) $('rollResult').hidden = true;
+        updateLiveXp();
         const roll = path.roll;
         const busy = roll && roll.launched && !roll.over;
-        const animating = busy || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
+        const animating = busy || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
             || E.level(state, 'autoTrainer') > 0;
         if (running && animating) path.frame = requestAnimationFrame(pathFrame);
     }
@@ -822,34 +912,107 @@ window.AGI = (function () {
     function finishRoll(ev) {
         const crested = ev.type === 'crest';
         const target = E.skillAt(state.path.learned).name;
-        const result = E.finishRoll(state, ev.progress, crested);
+        const clean = path.roll.clean || 0;
+        const baseXp = E.rollXp(state, ev.progress, crested, 0);
+        const result = E.finishRoll(state, ev.progress, crested, clean);
         path.pause = RESULT_PAUSE;
+        const pct = Math.round(ev.progress * 100);
         if (result.skill) {
             const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
             log(`Learned ${result.skill.name}: ${result.skill.effect} (${grants}, +${E.format(result.xp)} XP).`, 'special');
             toast('Skill learned', result.skill.name);
             path.glow = { skill: state.path.learned - 1, age: 0 };
-            path.pause = 0.6;
             path.overview = OVERVIEW_SECONDS + path.pause;
+            showResult({ skill: true, title: 'Skill learned', main: result.skill.name, xp: result.xp,
+                lines: [[result.skill.effect, ''], [grants, ''], ...xpLines(baseXp, clean, true)] });
         } else {
-            const pct = Math.round(ev.progress * 100);
-            log(`Roll ${state.stats.rolls}: ${pct}% of the way to ${target} (+${E.format(result.xp, 1)} XP)${result.record ? '. New record!' : '.'}`,
+            const bonus = clean ? `, ${clean} clean push${clean === 1 ? '' : 'es'}` : '';
+            log(`Roll ${state.stats.rolls}: ${pct}% of the way to ${target} (+${xpText(result.xp)} XP${bonus})${result.record ? '. New record!' : '.'}`,
                 result.record ? 'success' : 'info');
+            showResult({ title: `Roll ${state.stats.rolls} complete`, main: `${pct}% of the way to ${target}`, xp: result.xp,
+                record: result.record, lines: xpLines(baseXp, clean, false) });
         }
         afterChange();
+    }
+
+    // Breakdown rows for the result card: distance XP, then the clean-push bonus if any.
+    const xpText = x => E.format(x, x < 10 ? 2 : 1);
+
+    function xpLines(baseXp, clean, crested) {
+        const rows = [[crested ? 'Distance (×2 for cresting)' : 'Distance', `+${xpText(baseXp)} XP`]];
+        if (clean) {
+            const bonus = baseXp * E.PATH.cleanBonus * clean;
+            rows.push([`${clean} clean push${clean === 1 ? '' : 'es'} (+${Math.round(E.PATH.cleanBonus * 100 * clean)}%)`, `+${xpText(bonus)} XP`, 'good']);
+        }
+        return rows;
+    }
+
+    function showResult({ title, main, xp, lines, record, skill }) {
+        const card = $('rollResult');
+        card.className = `roll-result${skill ? ' skill' : ''}`;
+        card.replaceChildren(
+            el('div', { class: 'result-title', text: title }),
+            el('div', { class: 'result-main', text: main }),
+            el('div', { class: 'result-xp', text: `+${xpText(xp)} XP` }),
+            el('ul', { class: 'result-lines' }, lines.filter(([a]) => a).map(([label, value, cls]) =>
+                el('li', { class: cls || '' }, [el('span', { text: label }), el('span', { text: value })]))),
+            record ? el('span', { class: 'result-badge', text: 'New record!' }) : null,
+            el('div', { class: 'result-hint', text: 'Tap or start charging to continue' })
+        );
+        card.hidden = false;
     }
 
     function updatePathControls() {
         const roll = path.roll;
         const button = $('pushButton');
         if (!roll) return;
-        const label = !roll.launched ? `Launch (${E.formatCost(E.rollCost(state))})`
+        const label = path.charging ? 'Release to push'
+            : !roll.launched ? 'Hold to launch'
             : roll.over ? 'Next roll…'
-            : `Push (${roll.pushesLeft} left)`;
+            : roll.pushesLeft > 0 ? `Hold to push (${roll.pushesLeft} left)` : 'Out of pushes';
         setText(button, label);
-        const blocked = roll.over || path.pause > 0 || roll.pushesLeft <= 0 || roll.ball.cooldown > 0
-            || (!roll.launched && !E.canAfford(state, E.rollCost(state)));
-        setDisabled(button, blocked);
+        // Stay enabled while charging so releasing the pointer still lands on the button.
+        setDisabled(button, !path.charging && !canPush(roll));
+        updateMeter(roll);
+    }
+
+    // Live projection while rolling: what the roll would pay if the ball stopped right now.
+    function updateLiveXp() {
+        const roll = path.roll;
+        const box = $('liveXp');
+        const live = roll && roll.launched && !roll.over;
+        box.hidden = !live;
+        if (!live) return;
+        const clean = roll.clean || 0;
+        setText($('liveXpValue'), `+${xpText(E.rollXp(state, roll.progress, false, clean))} XP`);
+        setText($('liveXpMult'), clean ? `×${(1 + E.PATH.cleanBonus * clean).toFixed(1)}` : '');
+    }
+
+    function updateMeter(roll) {
+        const d = E.derive(state, debugRates);
+        const level = chargeLevel();
+        const zone = currentZone(roll);
+        const inZone = path.charging && level >= zone.from && level <= zone.to;
+        const fill = $('chargeFill');
+        fill.style.width = `${level * 100}%`;
+        fill.classList.toggle('in-zone', !!inZone);
+        const zoneNode = $('chargeZone');
+        zoneNode.style.left = `${zone.from * 100}%`;
+        zoneNode.style.width = `${(zone.to - zone.from) * 100}%`;
+        zoneNode.hidden = roll.over || roll.pushesLeft <= 0;
+        // Budget: the part of the meter you can't afford right now is shaded off.
+        const budget = path.charging ? path.charging.cap : chargeBudget();
+        const over = $('chargeOver');
+        over.style.left = `${budget * 100}%`;
+        over.style.width = `${(1 - budget) * 100}%`;
+        $('charge').classList.toggle('clean', path.cleanFlash > 0);
+        const charge = Math.max(E.PATH.minCharge, level);
+        setText($('chargeValue'), path.cleanFlash > 0
+            ? `Clean push! +${Math.round(E.PATH.cleanBonus * 100)}% XP`
+            : path.charging
+                ? `Strength ${(d.pushPower * charge).toFixed(1)} · costs ${E.formatCost(E.pushCost(state, charge))}`
+                : `Full push: ${E.formatCost(E.pushCost(state, 1))}${budget < 1 ? ` · you can afford ${Math.round(budget * 100)}%` : ''}`);
+        setText($('chargeClean'), roll.clean ? `${roll.clean} clean` : '');
     }
 
     // Ground height anywhere: the live roll's terrain on the current stretch; earlier stretches show
@@ -1121,7 +1284,7 @@ window.AGI = (function () {
             ctx.textAlign = 'center';
             ctx.font = '700 13px "Chakra Petch", system-ui, sans-serif';
             ctx.fillStyle = hexAlpha(c.success, Math.min(1, path.overview));
-            ctx.fillText(`${state.path.learned} skill${state.path.learned === 1 ? '' : 's'} learned`, w / 2, 18);
+            ctx.fillText(`${state.path.learned} skill${state.path.learned === 1 ? '' : 's'} learned`, w / 2, h - PAD_BOTTOM - 8);
         }
     }
 
@@ -1194,6 +1357,7 @@ window.AGI = (function () {
                 const r = currentRoll();
                 return { stretch: r.ground.stretch, x: r.ball.x, v: r.ball.v, launched: r.launched, over: r.over,
                     pushesLeft: r.pushesLeft, cooldown: r.ball.cooldown, atRest: r.atRest, progress: r.progress,
+                    zone: currentZone(r), clean: r.clean || 0, charge: chargeLevel(),
                     slope: r.ground.slope(r.ball.x) };
             },
             simulate(seconds) {
