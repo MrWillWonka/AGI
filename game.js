@@ -14,8 +14,7 @@ window.AGI = (function () {
     let lastTick = Date.now();
     let lastSave = Date.now();
     const debugRates = { cp: 1, dp: 1, rp: 1 };
-    const ui = { binds: [], actions: {}, upgrades: {}, tabs: {}, panels: {}, milestones: {}, achievements: {} };
-    let activeTab = 'hardware';
+    const ui = { binds: [], actions: {}, upgrades: {}, stations: {}, panels: {}, devices: {}, milestones: {}, achievements: {} };
 
     // ---- Storage --------------------------------------------------------
 
@@ -176,29 +175,44 @@ window.AGI = (function () {
         }
     }
 
+    // Lab stations: one per upgrade group (E.TABS), each with its own look. Locked stations stay
+    // hidden except the next one, which shows sealed and unnamed.
+    const STATIONS = {
+        hardware: { name: 'Hardware bench', kind: 'bench' },
+        software: { name: 'Software terminal', kind: 'terminal' },
+        algorithms: { name: 'Research wall', kind: 'wall' },
+        consciousness: { name: 'Isolation chamber', kind: 'chamber' }
+    };
+
     function buildUpgrades() {
-        const tabs = $('upgradeTabs');
-        const panels = $('upgradePanels');
+        const box = $('labStations');
         for (const tab of E.TABS) {
-            const tabButton = el('button', {
-                type: 'button', class: 'tab', id: `tab-${tab.id}`, role: 'tab',
-                'aria-controls': `panel-${tab.id}`, text: tab.name
-            });
-            tabButton.addEventListener('click', () => selectTab(tab.id));
-            tabs.append(tabButton);
-            const panel = el('div', { class: 'tab-panel', id: `panel-${tab.id}`, role: 'tabpanel', 'aria-labelledby': `tab-${tab.id}` });
-            panels.append(panel);
-            ui.tabs[tab.id] = tabButton;
-            ui.panels[tab.id] = panel;
+            const st = STATIONS[tab.id];
+            const art = el('div', { class: 'station-art', 'aria-hidden': 'true' });
+            const list = el('div', { class: 'station-list' });
+            const sealed = el('div', { class: 'station-sealed', 'aria-hidden': 'true' }, [
+                el('span', { class: 'sealed-mark', text: '???' }), el('span', { class: 'muted small', text: 'Sealed station · keep growing to open it' })
+            ]);
+            const node = el('section', { class: `panel hud station station-${st.kind}`, 'aria-label': st.name }, [
+                el('h2', { class: 'station-title', text: st.name }), art, list, sealed
+            ]);
+            box.append(node);
+            ui.stations[tab.id] = { node, art, sealed, title: node.firstChild };
+            ui.panels[tab.id] = list;
         }
-        tabs.addEventListener('keydown', e => {
-            if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-            const visible = E.TABS.filter(t => !ui.tabs[t.id].hidden).map(t => t.id);
-            const i = visible.indexOf(activeTab);
-            const next = visible[(i + (e.key === 'ArrowRight' ? 1 : visible.length - 1)) % visible.length];
-            selectTab(next);
-            ui.tabs[next].focus();
-        });
+        // The bench shows one device per hardware upgrade: what you own, sitting on the shelf.
+        for (const up of E.UPGRADES.filter(u => u.tab === 'hardware')) {
+            const device = el('span', { class: `device device-${up.id}`, title: up.name }, [
+                el('span', { class: 'device-body' }), el('span', { class: 'device-count' })
+            ]);
+            ui.stations.hardware.art.append(device);
+            ui.devices[up.id] = device;
+        }
+        ui.devices.unknown = el('span', { class: 'device device-unknown', title: 'Unknown hardware' }, [el('span', { class: 'device-body', text: '?' })]);
+        ui.stations.hardware.art.append(ui.devices.unknown);
+        // The terminal has a screen header; the other stations get decorative pieces.
+        ui.stations.software.art.append(el('span', { class: 'terminal-line', text: '$ ./improve --list' }));
+        for (const id of ['algorithms', 'consciousness']) for (let i = 0; i < 5; i++) ui.stations[id].art.append(el('i'));
 
         for (const up of E.UPGRADES) {
             if (up.tab === 'training') continue;
@@ -216,11 +230,35 @@ window.AGI = (function () {
             ui.upgrades[up.id] = { up, card, button, levelBadge };
         }
         for (const tab of E.TABS) {
-            const empty = el('p', { class: 'muted small empty-hint', text: 'Keep progressing to discover upgrades here.' });
+            const empty = el('p', { class: 'muted small empty-hint', text: 'Nothing new here yet. Keep progressing.' });
             ui.panels[tab.id].append(empty);
             ui.panels[tab.id].emptyHint = empty;
         }
-        selectTab(activeTab);
+    }
+
+    function renderStations() {
+        let shownSealed = false;
+        for (const tab of E.TABS) {
+            const st = ui.stations[tab.id];
+            const open = !tab.unlock || !!state.unlocked[tab.unlock];
+            const sealed = !open && !shownSealed;
+            shownSealed ||= sealed;
+            st.node.hidden = !open && !sealed;
+            st.node.classList.toggle('is-sealed', sealed);
+            setText(st.title, open ? STATIONS[tab.id].name : 'Sealed station');
+            st.node.setAttribute('aria-label', open ? STATIONS[tab.id].name : 'Sealed station');
+        }
+        let unknown = false;
+        for (const up of E.UPGRADES.filter(u => u.tab === 'hardware')) {
+            const device = ui.devices[up.id];
+            const lvl = E.level(state, up.id);
+            const seen = E.isUpgradeVisible(state, up);
+            device.hidden = !seen;
+            unknown ||= !seen;
+            device.classList.toggle('ghost', seen && !lvl);
+            setText(device.lastChild, lvl ? `×${lvl}` : '');
+        }
+        ui.devices.unknown.hidden = !unknown;
     }
 
     function buildChecklists() {
@@ -275,16 +313,6 @@ window.AGI = (function () {
     function syncSettings() {
         $('settingAutosave').checked = state.settings.autosave;
         $('settingOffline').checked = state.settings.offline;
-    }
-
-    function selectTab(id) {
-        activeTab = id;
-        for (const tab of E.TABS) {
-            const selected = tab.id === id;
-            ui.tabs[tab.id].setAttribute('aria-selected', String(selected));
-            ui.tabs[tab.id].tabIndex = selected ? 0 : -1;
-            ui.panels[tab.id].hidden = !selected;
-        }
     }
 
     // ---- Player commands ------------------------------------------------
@@ -412,7 +440,6 @@ window.AGI = (function () {
 
     function resetView() {
         syncSettings();
-        selectTab('hardware');
     }
 
     // ---- Loop & rendering -----------------------------------------------
@@ -518,10 +545,7 @@ window.AGI = (function () {
             setText(cost, E.formatCost(price));
         }
 
-        for (const tab of E.TABS) {
-            setHidden(ui.tabs[tab.id], !!tab.unlock && !state.unlocked[tab.unlock]);
-        }
-        if (ui.tabs[activeTab].hidden) selectTab('hardware');
+        renderStations();
 
         const visibleCount = {};
         for (const { up, card, button, levelBadge } of Object.values(ui.upgrades)) {
@@ -548,12 +572,14 @@ window.AGI = (function () {
         for (const [id, item] of Object.entries(ui.achievements)) item.classList.toggle('done', !!state.achievements[id]);
 
         setDisabled($('prestigeButton'), E.prestigeGain(state) < 1);
-        setHidden($('transcendPanel'), E.prestigeGain(state) < 1 && state.prestige.count === 0);
         for (const node of document.querySelectorAll('[data-show]')) setHidden(node, !state.unlocked[node.dataset.show]);
         setText($('nextGoal'), nextGoal());
         renderAutomation(d);
-        if (!roomAvailable(room)) showRoom('lab');
-        else if (document.body.dataset.room !== room) showRoom(room);
+        renderFacility(d);
+        if (!zooming) {
+            if (view !== 'facility' && !roomOpen(view)) showView('lab');
+            else if (document.body.dataset.view !== view) showView(view);
+        }
         renderHub();
         // The trail's animation loop sleeps when nothing moves, so keep its button in step with
         // resources here too (otherwise Launch stays disabled after you can afford it).
@@ -587,44 +613,171 @@ window.AGI = (function () {
         return `Next: reach ${phase.name} (${reqs.join(', ')})`;
     }
 
-    // ---- Rooms -----------------------------------------------------------
+    // ---- Facility & rooms --------------------------------------------------
 
-    // Two screens: the lab (actions, automation, upgrades) and the server room (the bays).
-    // The server room opens once the Training Cluster is powered up.
-    const ROOM_KEY = 'agiRoom';
-    let room = 'lab';
+    // The facility is the zoomed-out floor plan; each room is a tile you zoom into. Like the bays,
+    // rooms are data: a new room is an entry here plus a `.room[data-room=id]` section (built: true).
+    const ROOMS = {
+        lab: { name: 'Lab', built: true, blurb: 'Hands-on work, automation and upgrades' },
+        servers: { name: 'Server room', built: true, blurb: 'Training bays', unlocked: () => !!state.unlocked['module:path'] },
+        rnd: { name: 'R&D', built: true, blurb: 'Long-term projects that outlast a run',
+            unlocked: () => E.prestigeGain(state) >= 1 || state.prestige.count > 0 },
+        boardroom: { name: 'Boardroom', phase: 1, blurb: 'Investors, the public and regulators' },
+        signals: { name: 'Signals room', phase: 2, blurb: 'Watching the rival labs' },
+        mirror: { name: 'Mirror room', phase: 3, blurb: 'Where the AI studies itself' }
+    };
+    const VIEW_KEY = 'agiRoom';
+    const SEEN_KEY = 'agiRoomsSeen';
+    let view = 'lab';               // 'facility' or a room id
+    let zooming = false;
+    let seenRooms = new Set(['lab']);
 
-    const roomAvailable = id => id === 'lab' || !!state.unlocked['module:path'];
+    function roomUnlocked(id) {
+        const r = ROOMS[id];
+        return r.unlocked ? r.unlocked() : r.phase == null || E.phaseIndex(state) >= r.phase;
+    }
+    const roomOpen = id => ROOMS[id].built && roomUnlocked(id);
 
-    function buildRooms() {
-        for (const b of document.querySelectorAll('[data-go]')) b.addEventListener('click', () => goRoom(b.dataset.go));
-        const saved = storageGet(ROOM_KEY);
-        if (saved === 'servers' || saved === 'lab') room = saved;
+    function roomStatus(id, d) {
+        const r = ROOMS[id];
+        if (!roomUnlocked(id)) return 'Keep growing to open it';
+        if (!r.built) return 'Under construction';
+        if (id === 'lab') {
+            const ready = E.UPGRADES.filter(u => u.tab !== 'training' && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u)
+                && E.canAfford(state, E.upgradeCost(u, E.level(state, u.id)))).length;
+            return `+${E.format(d.cpNet)} CP/s · ${ready ? `${ready} upgrade${ready === 1 ? '' : 's'} ready` : 'no upgrades ready'}`;
+        }
+        if (id === 'rnd') return `${E.format(state.prestige.points)} Prestige Points · +${E.format(E.prestigeGain(state))} ready`;
+        if (id === 'servers') {
+            const learned = state.path.learned;
+            return `${learned} skill${learned === 1 ? '' : 's'} · ${E.format(state.res.xp, 1)} XP to spend`;
+        }
+        return r.blurb;
     }
 
-    function showRoom(id) {
-        room = id;
+    function buildFacility() {
+        const plan = $('facilityPlan');
+        for (const [id, r] of Object.entries(ROOMS)) {
+            const art = el('span', { class: `fr-art fr-art-${id}`, 'aria-hidden': 'true' });
+            for (let i = 0; i < 6; i++) art.append(el('i'));
+            const tile = el('button', { type: 'button', class: `facility-room fr-${id}`, 'data-room-id': id }, [
+                art,
+                el('span', { class: 'fr-info' }, [
+                    el('span', { class: 'fr-name', text: r.name }),
+                    el('span', { class: 'fr-blurb', text: r.blurb }),
+                    el('span', { class: 'fr-status' })
+                ]),
+                el('span', { class: 'fr-new', text: 'New' })
+            ]);
+            tile.addEventListener('click', () => zoomIn(id));
+            plan.append(tile);
+        }
+        for (const b of document.querySelectorAll('[data-facility]')) b.addEventListener('click', zoomOut);
+        try { seenRooms = new Set(['lab', ...JSON.parse(storageGet(SEEN_KEY) || '[]')]); } catch { /* keep default */ }
+        const saved = storageGet(VIEW_KEY);
+        if (saved === 'facility' || ROOMS[saved]) view = saved;
+    }
+
+    // Locked rooms stay anonymous: the next SEALED_ROOMS show as sealed doors, the rest aren't drawn,
+    // so the floor plan grows as the facility does.
+    const SEALED_ROOMS = 2;
+
+    function renderFacility(d) {
+        let fresh = false;
+        let sealedShown = 0;
+        for (const tile of document.querySelectorAll('.facility-room')) {
+            const id = tile.dataset.roomId;
+            const open = roomOpen(id);
+            const unlocked = roomUnlocked(id);
+            const isNew = open && !seenRooms.has(id);
+            fresh ||= isNew;
+            const sealed = !unlocked && sealedShown < SEALED_ROOMS;
+            if (sealed) sealedShown++;
+            tile.hidden = !unlocked && !sealed;
+            setText(tile.querySelector('.fr-name'), unlocked ? ROOMS[id].name : '???');
+            setText(tile.querySelector('.fr-blurb'), unlocked ? ROOMS[id].blurb : 'Sealed wing');
+            tile.classList.toggle('locked', !unlocked);
+            tile.classList.toggle('building', roomUnlocked(id) && !ROOMS[id].built);
+            tile.classList.toggle('fresh', isNew);
+            tile.setAttribute('aria-disabled', String(!open));
+            const status = roomStatus(id, d);
+            setText(tile.querySelector('.fr-status'), status);
+            tile.setAttribute('aria-label', `${unlocked ? ROOMS[id].name : 'Sealed wing'}: ${status}`);
+        }
+        // A newly opened room: the way back to the facility pulses until you visit it.
+        for (const b of document.querySelectorAll('[data-facility]')) b.classList.toggle('ping', fresh);
+    }
+
+    // Show one screen: the facility or a room.
+    function showView(id) {
+        view = id;
+        $('facility').hidden = id !== 'facility';
         for (const r of document.querySelectorAll('.room')) r.hidden = r.dataset.room !== id;
-        for (const b of document.querySelectorAll('.room-tab')) b.setAttribute('aria-pressed', String(b.dataset.go === id));
-        document.body.dataset.room = id;
+        document.body.dataset.view = id;
+        if (ROOMS[id]) {
+            seenRooms.add(id);
+            storageSet(SEEN_KEY, JSON.stringify([...seenRooms]));
+        }
+        if (id === 'servers') startPathLoop();
     }
 
-    // Walk between rooms: the old one recedes, the new one comes forward.
-    function goRoom(id) {
-        if (id === room || !roomAvailable(id)) return;
-        storageSet(ROOM_KEY, id);
-        const from = document.querySelector(`.room[data-room="${room}"]`);
-        const to = document.querySelector(`.room[data-room="${id}"]`);
-        const dir = id === 'servers' ? 1 : -1;
-        if (reducedMotion()) return showRoom(id);
-        const timing = { duration: 220, easing: 'cubic-bezier(0.4, 0, 1, 1)' };
-        from.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: `translateX(${-dir * 40}px) scale(0.97)` }], timing)
-            .finished.then(() => {
-                showRoom(id);
-                to.animate([{ opacity: 0, transform: `translateX(${dir * 40}px) scale(0.97)` }, { opacity: 1, transform: 'none' }],
-                    { duration: 260, easing: 'cubic-bezier(0, 0, 0.2, 1)' });
-                if (id === 'servers') startPathLoop();
-            });
+    // Zoom geometry: where a facility tile sits relative to the room that fills the stage.
+    function roomZoom(id) {
+        const tile = document.querySelector(`.facility-room[data-room-id="${id}"]`).getBoundingClientRect();
+        const box = document.querySelector(`.room[data-room="${id}"]`).getBoundingClientRect();
+        const fac = $('facility').getBoundingClientRect();
+        const sx = tile.width / box.width;
+        const sy = Math.min(tile.height, window.innerHeight) / Math.min(box.height, window.innerHeight);
+        const z = uiScale();
+        return {
+            tileBox: `translate(${(tile.left - box.left) / z}px, ${(tile.top - box.top) / z}px) scale(${sx}, ${sy})`,
+            origin: `${(tile.left - fac.left + tile.width / 2) / z}px ${(tile.top - fac.top + tile.height / 2) / z}px`,
+            scale: Math.min(1 / sx, 4)
+        };
+    }
+
+    const ZOOM = { duration: 520, easing: 'cubic-bezier(0.65, 0, 0.35, 1)' };
+
+    function zoomIn(id) {
+        if (zooming || view !== 'facility' || !roomOpen(id)) return;
+        storageSet(VIEW_KEY, id);
+        const room = document.querySelector(`.room[data-room="${id}"]`);
+        const done = () => {
+            zooming = false;
+            showView(id);
+            room.querySelector('[data-facility]').focus({ preventScroll: true });
+        };
+        if (reducedMotion()) return done();
+        zooming = true;
+        window.scrollTo(0, 0);
+        room.hidden = false;
+        const { tileBox, origin, scale } = roomZoom(id);
+        $('facility').style.transformOrigin = origin;
+        $('facility').animate([{ transform: 'none', opacity: 1 }, { transform: `scale(${scale})`, opacity: 0 }], ZOOM);
+        room.style.transformOrigin = '0 0';
+        room.animate([{ transform: tileBox, opacity: 0.15 }, { transform: 'none', opacity: 1 }], ZOOM).finished.then(done, done);
+    }
+
+    function zoomOut() {
+        if (zooming || view === 'facility') return;
+        const from = view;
+        storageSet(VIEW_KEY, 'facility');
+        const room = document.querySelector(`.room[data-room="${from}"]`);
+        const done = () => {
+            zooming = false;
+            showView('facility');
+            document.querySelector(`.facility-room[data-room-id="${from}"]`).focus({ preventScroll: true });
+        };
+        if (reducedMotion()) return done();
+        zooming = true;
+        window.scrollTo(0, 0);
+        $('facility').hidden = false;
+        renderFacility(E.derive(state, debugRates));
+        const { tileBox, origin, scale } = roomZoom(from);
+        $('facility').style.transformOrigin = origin;
+        $('facility').animate([{ transform: `scale(${scale})`, opacity: 0 }, { transform: 'none', opacity: 1 }], ZOOM);
+        room.style.transformOrigin = '0 0';
+        room.animate([{ transform: 'none', opacity: 1 }, { transform: tileBox, opacity: 0 }], ZOOM).finished.then(done, done);
     }
 
     // ---- Automation budget -------------------------------------------------
@@ -670,27 +823,44 @@ window.AGI = (function () {
         return bay.unlocked ? bay.unlocked() : E.phaseIndex(state) >= bay.phase;
     }
 
+    // Locked bays never say what they are: the next one is a sealed shutter, the rest blanking plates.
+    function nextSealedBay() {
+        return Object.keys(BAYS).find(id => !bayUnlocked(id));
+    }
+
     function bayStatus(id) {
         const bay = BAYS[id];
-        if (!bayUnlocked(id)) return bay.lockedText ? bay.lockedText() : `Locked · reach ${E.PHASES[bay.phase].name}`;
+        if (!bayUnlocked(id)) return id === 'training' && bay.lockedText ? bay.lockedText() : 'Sealed · keep growing to open it';
         if (!bay.built) return 'Online soon · in development';
         const learned = state.path.learned;
         const record = Math.round(state.path.best * 100);
         return `${learned} skill${learned === 1 ? '' : 's'} · next: ${E.skillAt(learned).name}${record ? ` · record ${record}%` : ''}`;
     }
 
+    // How many art pieces each bay's hardware drawing uses (styled per bay in styles.css).
+    const BAY_ART = { training: 16, pipeline: 24, architecture: 10, core: 3 };
+
     function buildHub() {
+        for (const node of document.querySelectorAll('.bay')) {
+            const art = node.querySelector('.bay-art');
+            for (let i = 0; i < BAY_ART[node.dataset.bay]; i++) art.append(el('i'));
+        }
         for (const node of document.querySelectorAll('.bay')) {
             node.addEventListener('click', () => enterBay(node.dataset.bay, node));
         }
         $('backButton').addEventListener('click', exitBay);
-        // Escape zooms back out (unless a dialog is open; dialogs handle their own Escape).
+        // Escape zooms back out one level: bay → server room → facility (dialogs handle their own Escape).
         document.addEventListener('keydown', e => {
-            if (e.key === 'Escape' && openBay && !document.querySelector('dialog[open]')) exitBay();
+            if (e.key !== 'Escape' || document.querySelector('dialog[open]')) return;
+            if (openBay && view === 'servers') exitBay();
+            else zoomOut();
         });
     }
 
     const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Large screens zoom the whole page (styles.css, --ui-scale). Rects come back in screen pixels,
+    // transforms are in page pixels, so divide offsets by this.
+    const uiScale = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-scale')) || 1;
 
     // Zoom: the bay grows to fill the viewport while the room scales up past the camera.
     function zoomFrames(bayNode) {
@@ -698,8 +868,9 @@ window.AGI = (function () {
         const r = bayNode.getBoundingClientRect();
         const sx = r.width / vp.width;
         const sy = r.height / vp.height;
-        const bayBox = `translate(${r.left - vp.left}px, ${r.top - vp.top}px) scale(${sx}, ${sy})`;
-        const origin = `${r.left - vp.left + r.width / 2}px ${r.top - vp.top + r.height / 2}px`;
+        const z = uiScale();
+        const bayBox = `translate(${(r.left - vp.left) / z}px, ${(r.top - vp.top) / z}px) scale(${sx}, ${sy})`;
+        const origin = `${(r.left - vp.left + r.width / 2) / z}px ${(r.top - vp.top + r.height / 2) / z}px`;
         return { bayBox, origin, roomScale: Math.min(1 / sx, 1 / sy) };
     }
 
@@ -739,10 +910,11 @@ window.AGI = (function () {
         const hub = $('hub');
         const view = $('moduleView');
         hub.hidden = false;
+        // Closed at once, so another Escape during the animation goes on to the facility.
+        openBay = null;
         const done = () => {
             view.hidden = true;
-            openBay = null;
-            bayNode.focus({ preventScroll: true });
+            if (document.body.dataset.view === 'servers') bayNode.focus({ preventScroll: true });
         };
         if (reducedMotion()) return done();
         const { bayBox, origin, roomScale } = zoomFrames(bayNode);
@@ -753,16 +925,23 @@ window.AGI = (function () {
     }
 
     function renderHub() {
+        const sealed = nextSealedBay();
         for (const node of document.querySelectorAll('.bay')) {
             const id = node.dataset.bay;
             const unlocked = bayUnlocked(id);
+            const blank = !unlocked && id !== sealed;
             node.classList.toggle('locked', !unlocked);
+            node.classList.toggle('sealed', id === sealed);
+            node.classList.toggle('blank', blank);
             node.classList.toggle('offline', unlocked && !BAYS[id].built);
+            node.tabIndex = blank ? -1 : 0;
             node.setAttribute('aria-disabled', String(!unlocked));
-            node.setAttribute('aria-label', `${BAYS[id].name}: ${bayStatus(id)}`);
+            setText(node.querySelector('.bay-name'), unlocked ? BAYS[id].name : '???');
+            node.setAttribute('aria-label', blank ? 'Blank panel' : `${unlocked ? BAYS[id].name : 'Sealed section'}: ${bayStatus(id)}`);
         }
         $('bayTrainingMeter').style.width = `${Math.round(state.path.best * 100)}%`;
     }
+
 
     // ---- Training dev screen & skill tree --------------------------------
 
@@ -1034,7 +1213,7 @@ window.AGI = (function () {
         }
 
         new ResizeObserver(() => {
-            const dpr = window.devicePixelRatio || 1;
+            const dpr = (window.devicePixelRatio || 1) * uiScale();
             path.width = canvas.clientWidth;
             path.height = Math.round(Math.min(340, Math.max(220, path.width * 0.42)));
             canvas.style.height = path.height + 'px';
@@ -1646,7 +1825,7 @@ window.AGI = (function () {
         buildBindings();
         buildSettings();
         buildJournal();
-        buildRooms();
+        buildFacility();
         buildAutomation();
         buildHub();
         buildPath();

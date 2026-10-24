@@ -41,11 +41,6 @@
                 </div>
             </div>
 
-            <nav class="rooms" aria-label="Rooms">
-                <button type="button" class="room-tab" data-go="lab" aria-pressed="true">Lab</button>
-                <button type="button" class="room-tab" data-go="servers" data-show="module:path" aria-pressed="false">Server room</button>
-            </nav>
-
             <div class="topbar-buttons">
                 <button type="button" class="ghost-button" id="journalButton">Journal</button>
                 <button type="button" class="ghost-button" id="debugToggle" hidden>Debug</button>
@@ -56,47 +51,64 @@
     <main class="layout">
         <p class="goal" id="nextGoal" aria-live="polite"></p>
 
-        <!-- Server room: the bays (modules). Leave it for the lab to buy hardware and software. -->
+        <div class="stage" id="stage">
+        <!-- Facility: the zoomed-out floor plan. Each room is a tile (generated from ROOMS in game.js); click to zoom in. -->
+        <section class="facility hud" id="facility" aria-label="Facility" hidden>
+            <div class="facility-head">
+                <h2>Facility</h2>
+                <span class="muted small">Select a room</span>
+            </div>
+            <div class="facility-plan" id="facilityPlan"></div>
+        </section>
+
+        <!-- Server room: the bays (modules). -->
         <section class="room room-servers" id="serverRoom" data-room="servers" aria-label="Server room" hidden>
+            <div class="room-bar">
+                <button type="button" class="ghost-button back-button" data-facility>← Facility</button>
+                <h2>Server room</h2>
+            </div>
             <div class="viewport hud" id="viewport">
                 <!-- Server room: each bay is a training module. Clicking one zooms into it. -->
                 <div class="hub" id="hub">
                     <div class="hub-pipes" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-                    <div class="hub-rack" id="bays">
+                    <!-- One tall rack. Bays are buttons with their own hardware art (filled by game.js); rack units are decoration.
+                         Locked bays show as a sealed shutter (the next one) or a blanking plate (the rest), never by name. -->
+                    <div class="rack" id="bays">
+                        <div class="rack-unit ru-switch" aria-hidden="true"></div>
                         <button type="button" class="bay" data-bay="training" id="bay-training">
-                            <span class="bay-slots" aria-hidden="true"></span>
+                            <span class="bay-art" aria-hidden="true"></span>
                             <span class="bay-info">
-                                <span class="bay-name">Training Cluster</span>
+                                <span class="bay-name"></span>
                                 <span class="bay-status" data-bind="bay.training"></span>
                                 <span class="bay-meter"><span class="bay-meter-fill" id="bayTrainingMeter"></span></span>
                             </span>
                         </button>
+                        <div class="rack-unit ru-psu" aria-hidden="true"></div>
                         <button type="button" class="bay" data-bay="pipeline">
-                            <span class="bay-slots" aria-hidden="true"></span>
+                            <span class="bay-art" aria-hidden="true"></span>
                             <span class="bay-info">
-                                <span class="bay-name">Data Pipeline</span>
+                                <span class="bay-name"></span>
                                 <span class="bay-status" data-bind="bay.pipeline"></span>
                             </span>
                         </button>
                         <button type="button" class="bay" data-bay="architecture">
-                            <span class="bay-slots" aria-hidden="true"></span>
+                            <span class="bay-art" aria-hidden="true"></span>
                             <span class="bay-info">
-                                <span class="bay-name">Architecture Lab</span>
+                                <span class="bay-name"></span>
                                 <span class="bay-status" data-bind="bay.architecture"></span>
                             </span>
                         </button>
-                        <button type="button" class="bay bay-core" data-bay="core">
-                            <span class="bay-slots" aria-hidden="true"></span>
+                        <div class="rack-unit ru-cables" aria-hidden="true"></div>
+                        <button type="button" class="bay" data-bay="core">
+                            <span class="bay-art" aria-hidden="true"></span>
                             <span class="bay-info">
-                                <span class="bay-name">The Core</span>
+                                <span class="bay-name"></span>
                                 <span class="bay-status" data-bind="bay.core"></span>
                             </span>
                         </button>
+                        <div class="rack-unit ru-blank" aria-hidden="true"></div>
                     </div>
-                    <div class="hub-foot">
-                        <button type="button" class="ghost-button door" data-go="lab">← Lab</button>
-                        <p class="hub-caption">Server room · select a bay</p>
-                    </div>
+                    <p class="hub-caption">Select a section of the rack</p>
                 </div>
 
                 <!-- A bay, zoomed in. -->
@@ -171,38 +183,53 @@
 
         <!-- Lab: hands-on actions, automation, Transcend and the hardware/software upgrades. -->
         <section class="room room-lab" id="labRoom" data-room="lab" aria-label="Lab">
+            <div class="room-bar">
+                <button type="button" class="ghost-button back-button" data-facility>← Facility</button>
+                <h2>Lab</h2>
+            </div>
             <div class="lab-ops">
-            <div class="panel panel-actions hud">
-                <h2 class="sr-only">Actions</h2>
-                <div id="actions" class="action-row"></div>
-                <p class="ticker" id="ticker" aria-live="polite"></p>
-            </div>
-
-            <div class="panel panel-auto hud" id="autoPanel" hidden>
-                <div class="panel-head">
-                    <h2><label for="autoBudget">Automation budget</label></h2>
-                    <output class="auto-value" id="autoBudgetValue" for="autoBudget">50%</output>
+                <!-- Workbench: the hands-on actions. -->
+                <div class="panel panel-actions hud">
+                    <h2 class="station-title">Workbench</h2>
+                    <div id="actions" class="action-row"></div>
+                    <p class="ticker" id="ticker" aria-live="polite"></p>
                 </div>
-                <input type="range" id="autoBudget" min="0" max="90" step="10" value="50">
-                <p class="muted small" id="autoBudgetNote"></p>
-            </div>
 
-            <div class="panel panel-transcend hud" id="transcendPanel" hidden>
-                <div class="panel-head">
-                    <h2>Transcend</h2>
-                    <span class="muted small"><span data-bind="prestige.points">0</span> Prestige Points</span>
+                <div class="panel panel-auto hud" id="autoPanel" hidden>
+                    <div class="panel-head">
+                        <h2><label for="autoBudget">Automation budget</label></h2>
+                        <output class="auto-value" id="autoBudgetValue" for="autoBudget">50%</output>
+                    </div>
+                    <input type="range" id="autoBudget" min="0" max="90" step="10" value="50">
+                    <p class="muted small" id="autoBudgetNote"></p>
                 </div>
-                <p class="muted small">Start a new run with <strong data-bind="prestige.gain">0</strong> more Prestige Points. Each one adds +10% to all production forever.</p>
-                <button type="button" class="button button-prestige" id="prestigeButton" disabled>Transcend</button>
-            </div>
             </div>
 
-            <div class="panel panel-upgrades hud">
-                <h2 class="sr-only">Upgrades</h2>
-                <div class="tabs" role="tablist" aria-label="Upgrades" id="upgradeTabs"></div>
-                <div id="upgradePanels"></div>
+            <!-- Stations: one per upgrade group (TABS), generated by game.js. The next locked one shows sealed. -->
+            <div class="lab-stations" id="labStations"></div>
+        </section>
+
+        <!-- R&D: long-term projects that outlast a run. Transcend lives here. -->
+        <section class="room room-rnd" id="rndRoom" data-room="rnd" aria-label="R&amp;D" hidden>
+            <div class="room-bar">
+                <button type="button" class="ghost-button back-button" data-facility>← Facility</button>
+                <h2>R&amp;D</h2>
+            </div>
+            <div class="rnd-floor">
+                <div class="panel panel-transcend hud project" id="transcendPanel">
+                    <div class="project-art" aria-hidden="true"><i></i><i></i><i></i></div>
+                    <div class="panel-head">
+                        <h2>Project: Transcend</h2>
+                        <span class="muted small"><span data-bind="prestige.points">0</span> Prestige Points</span>
+                    </div>
+                    <p class="muted small">Start over with everything you have learned. You gain <strong data-bind="prestige.gain">0</strong> Prestige Points, and each one adds +10% to all production forever.</p>
+                    <button type="button" class="button button-prestige" id="prestigeButton" disabled>Transcend</button>
+                </div>
+                <div class="project sealed" aria-label="Sealed project"><span class="sealed-mark">???</span><span class="muted small">Sealed project</span></div>
+                <div class="project sealed" aria-label="Sealed project"><span class="sealed-mark">???</span><span class="muted small">Sealed project</span></div>
             </div>
         </section>
+        </div>
     </main>
 
     <dialog id="journal" class="dialog journal" aria-labelledby="journalTitle">
