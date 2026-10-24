@@ -23,7 +23,7 @@
     const PATH = {
         rollCost: { cp: 10, dp: 1 },
         rollCostScale: 1.4,
-        xpPerStretch: 10,    // XP for reaching a skill hill's peak on the first stretch
+        xpPerStretch: 5,     // XP for reaching a skill hill's peak on the first stretch
         xpScale: 1.35,
         crestBonus: 2,       // XP multiplier when the roll crests the skill hill
         basePush: 1.8,       // push strength before upgrades and skills

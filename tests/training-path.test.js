@@ -74,9 +74,27 @@ test('with only a launch, the first skill hill is a wall; upgrades break through
 test('saving pushes for stalls beats firing them all at once', () => {
     const opts = { pushes: 3, cooldown: 0.6 };
     for (const k of [2, 4]) {
-        const smart = crestRate(k, 2.5, opts, rescue);
-        const dumb = crestRate(k, 2.5, opts, blind);
+        const strength = 2.5 * Math.pow(1.1, k - 2); // what upgrades would give by this stretch
+        const smart = crestRate(k, strength, opts, rescue);
+        const dumb = crestRate(k, strength, opts, blind);
         assert.ok(smart.crests > dumb.crests + 0.3, `stretch ${k}: ${smart.crests} vs ${dumb.crests}`);
+    }
+});
+
+test('a ball stuck in a dip settles quickly instead of sloshing', () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
+        const roll = T.createRoll(1, seed, { pushes: 1, cooldown: 2 });
+        roll.push(1.8);
+        let t = 0;
+        let lastProgress = 0;
+        let stuckFor = 0;
+        while (!roll.over && t < 60) {
+            roll.step(1 / 60);
+            t += 1 / 60;
+            stuckFor = roll.ball.maxX > lastProgress + 0.01 ? 0 : stuckFor + 1 / 60;
+            lastProgress = Math.max(lastProgress, roll.ball.maxX);
+        }
+        assert.ok(roll.over && stuckFor < 6, `seed ${seed}: sloshed for ${stuckFor.toFixed(1)}s after its last progress`);
     }
 });
 

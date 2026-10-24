@@ -18,6 +18,7 @@
     const GRAVITY = 9.8;
     const DAMPING = 0.15;       // linear rolling resistance per second
     const DRAG = 0.12;          // quadratic drag: fast balls lose energy disproportionately
+    const TRAPPED_DAMPING = 4;  // extra damping once the ball cannot climb out of its dip
     const REST_SPEED = 0.03;
     const REST_SECONDS = 0.5;
     const WALL = 40;            // steepness of the wall behind the very first checkpoint
@@ -117,9 +118,21 @@
             return -b.height * (Math.PI / 2) * Math.sin(Math.PI * u) / b.halfWidth;
         }
 
+        // Peak heights of the nearest hills behind and ahead of x (the ball's way out of a dip).
+        function walls(x) {
+            let left = k === 0 ? Infinity : 0;
+            let right = Infinity;
+            for (const b of bumps) {
+                if (b.peak <= x) left = b.height;
+                else { right = b.height; break; }
+            }
+            return { left, right };
+        }
+
         const start = checkpoint(k) + 0.2;
         const goal = skillHill(k);
         return {
+            walls,
             stretch: k,
             seed,
             bumps,
@@ -138,7 +151,7 @@
     function createRoll(k, seed, opts) {
         const { pushes, cooldown } = opts;
         const ground = terrain(k, seed);
-        const ball = { x: ground.start, v: 0, still: 0, cooldown: 0, maxX: ground.start };
+        const ball = { x: ground.start, v: 0, still: 0, cooldown: 0, maxX: ground.start, trapped: false };
         let pushesLeft = pushes;
         let launched = false;
         let over = false;
@@ -165,6 +178,12 @@
             const dy = ground.slope(ball.x);
             ball.v += (-GRAVITY * dy / (1 + dy * dy)) * STEP;
             ball.v -= (DAMPING * ball.v + DRAG * ball.v * Math.abs(ball.v)) * STEP;
+            // Momentum while there is somewhere to go; once the ball lacks the energy to clear either
+            // neighbouring hill, it is stuck in this dip, so let it settle quickly instead of sloshing.
+            const { left, right } = ground.walls(ball.x);
+            const energy = 0.5 * ball.v * ball.v + GRAVITY * ground.height(ball.x);
+            ball.trapped = energy < GRAVITY * Math.min(left, right);
+            if (ball.trapped) ball.v *= 1 - TRAPPED_DAMPING * STEP;
             ball.x += ball.v * STEP;
             ball.maxX = Math.max(ball.maxX, ball.x);
 
@@ -202,7 +221,9 @@
             get launched() { return launched; },
             get over() { return over; },
             get progress() { return ground.progress(ball.maxX); },
-            get atRest() { return ball.still >= REST_SECONDS; }
+            get atRest() { return ball.still >= REST_SECONDS; },
+            // The ball no longer has the energy to clear the next hill: the moment a push matters most.
+            get trapped() { return ball.trapped; }
         };
     }
 

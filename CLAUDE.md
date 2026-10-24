@@ -34,6 +34,7 @@ Open `/?debug` (or press <kbd>`</kbd>) for the debug panel: add resources/attrib
 - **Training Path** (how the AI learns):
   - The trail is a series of stretches. Stretch k runs from a checkpoint to **skill hill k** (fixed, grows each stretch). Cresting it learns `skillAt(k)`: attributes plus a permanent bonus summed in `derive()` via `skillBonuses()`.
   - Each **roll** starts at the checkpoint over **random rolling hills** (`rollingHills(k, seed)`, new seed per roll from `rollSeed`). The roll ends when the ball rests with no pushes left, or crests the skill hill. Distance earns **XP** (`finishRoll`), and the furthest roll is the stretch record (`path.best`).
+  - Once the ball lacks the energy to clear either neighbouring hill it is "trapped" and gets heavy damping, so it settles in about a second instead of sloshing. Full momentum otherwise.
   - Pushes add a fixed amount of *energy* (pushing against a backward roll is wasted), and drag is partly quadratic. So saving pushes to rescue a stalling ball beats firing them early. Tests guard this; keep it true when tuning.
   - Progression is bought with XP in the Training tab. GPU Cluster adds strength, Faster Chips cuts the cooldown, and Investor Funding adds pushes per roll (the base is 1, the launch only). The Auto-Trainer appears after a Transcend.
   - Push strength comes from upgrades, skills and `sqrt(globalMultiplier)`. **Never tie it to Intelligence**: skills grant Intelligence, so the loop runs away (tested).
@@ -46,7 +47,7 @@ Open `/?debug` (or press <kbd>`</kbd>) for the debug panel: add resources/attrib
 ## Verifying changes
 
 1. `node --test` must pass; add tests for new rules.
-2. For balance changes, simulate a run in Node with the engine and `training-path.js`: a bot that launches rolls, pushes when the ball stalls on an upslope, and spends XP on Training upgrades. Current first-run results: General AI ≈ 16 min, Superintelligence ≈ 40 min, Singularity ≈ 90 min. A bot that pushes blindly should fall well behind (≈ 150 min to Singularity).
+2. For balance changes, simulate a run in Node with the engine and `training-path.js`: a bot that launches rolls, pushes when the ball stalls on an upslope, and spends XP on Training upgrades. Current first-run results: General AI ≈ 14 min, Superintelligence ≈ 40 min, Singularity ≈ 110 min. A bot that pushes blindly should fall behind (≈ 145 min to Singularity).
 3. Load the page (Playwright/Chromium works in cloud sessions) and check the console for errors at desktop and ~390 px widths.
 
 ## Conventions
