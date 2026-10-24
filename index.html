@@ -28,6 +28,7 @@
                     <div class="stat"><dt>Compute Power</dt><dd><span data-bind="res.cp">0</span> <small data-bind="rate.cp"></small></dd></div>
                     <div class="stat"><dt>Data Points</dt><dd><span data-bind="res.dp">0</span> <small data-bind="rate.dp"></small></dd></div>
                     <div class="stat"><dt>Research Points</dt><dd><span data-bind="res.rp">0</span> <small data-bind="rate.rp"></small></dd></div>
+                    <div class="stat"><dt>Experience</dt><dd data-bind="res.xp">0</dd></div>
                 </dl>
             </div>
 
@@ -70,14 +71,13 @@
 
             <div class="panel panel-path" id="pathPanel" hidden>
                 <h2>Training Path</h2>
-                <p class="muted small">Each hill is a skill for your AI to learn. Push the ball over it to learn the skill. Taller hills need momentum: push again while the ball rolls forward (green ring), not while it rolls back (red ring).</p>
+                <p class="muted small">Launch a training roll and push the ball over the rolling hills. The further it gets, the more Experience (XP) you earn. At the end of each stretch stands a skill hill: get over it to teach your AI that skill. You have a few pushes per roll, so save them for when the ball stalls on a slope.</p>
                 <canvas id="pathCanvas" class="path-canvas" tabindex="0" aria-label="Training path. Press Enter or Space to push the ball forward." aria-describedby="pathStatus"></canvas>
                 <div class="path-controls">
-                    <button type="button" class="button push-button" id="pushButton">Push</button>
+                    <button type="button" class="button push-button" id="pushButton">Launch</button>
                     <div class="path-readout small">
                         <span data-bind="path.learned">0 skills learned</span>
-                        <span data-bind="path.cost"></span>
-                        <span data-bind="path.power"></span>
+                        <span data-bind="path.stats"></span>
                     </div>
                 </div>
                 <p class="small path-status" id="pathStatus" aria-live="polite"></p>

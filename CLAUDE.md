@@ -31,20 +31,22 @@ Open `/?debug` (or press <kbd>`</kbd>) for the debug panel: add resources/attrib
 - **Saves.** `localStorage['agiGame']`, versioned (`SAVE_VERSION`). `migrate()` sanitizes any input (wrong types, negatives, unknown ids) and converts the original v1 format. If you change the state shape, bump `SAVE_VERSION`, extend `migrate()`, and add a test.
 - **Offline progress** is applied on load and for long gaps between ticks, capped at `MAX_OFFLINE_SECONDS`, and respects `settings.offline`.
 - Keep `engine.js` free of DOM/`window` so it stays testable.
-- **Training Path** (how the AI learns; replaces a plain Train button):
-  - Each hill is a skill (`SKILLS` in `engine.js`; generated "Frontier Skill N" past the list). Cresting hill i learns skill i: attributes plus a permanent bonus summed in `derive()` via `skillBonuses()`.
-  - Hills grow taller (×1.32) and wider each step, so later skills need momentum built over several pushes. Pushes have a cooldown, so timing beats mashing.
-  - Push strength comes from upgrades, skills and `sqrt(globalMultiplier)`. **Never tie it to Intelligence**: skills grant Intelligence, so that loop runs away (a tested invariant).
-  - The engine owns the economy (`PATH`, `pushCost`, `payPush`, `learnSkill`); `training-path.js` owns the physics; `game.js` draws it and connects them.
-  - Only `state.path.learned` is saved; the ball always restarts at rest in that valley.
-  - Simulates only while on screen and never offline. Any future offline yield must be a derived rate, e.g. from Auto-Trainer level.
-  - Planned (design doc): opposing forces as trail hazards that push the ball back, and prestige buffs along the trail. Add them as data the sim reads, the way hills are.
-  - Tuning: physics feel at the top of `training-path.js`; economy in `PATH` and `SKILLS` in `engine.js`.
+- **Training Path** (how the AI learns):
+  - The trail is a series of stretches. Stretch k runs from a checkpoint to **skill hill k** (fixed, grows each stretch). Cresting it learns `skillAt(k)`: attributes plus a permanent bonus summed in `derive()` via `skillBonuses()`.
+  - Each **roll** starts at the checkpoint over **random rolling hills** (`rollingHills(k, seed)`, new seed per roll from `rollSeed`). The roll ends when the ball rests with no pushes left, or crests the skill hill. Distance earns **XP** (`finishRoll`), and the furthest roll is the stretch record (`path.best`).
+  - Pushes add a fixed amount of *energy* (pushing against a backward roll is wasted), and drag is partly quadratic. So saving pushes to rescue a stalling ball beats firing them early. Tests guard this; keep it true when tuning.
+  - Progression is bought with XP in the Training tab. GPU Cluster adds strength, Faster Chips cuts the cooldown, and Investor Funding adds pushes per roll (the base is 1, the launch only). The Auto-Trainer appears after a Transcend.
+  - Push strength comes from upgrades, skills and `sqrt(globalMultiplier)`. **Never tie it to Intelligence**: skills grant Intelligence, so the loop runs away (tested).
+  - The engine owns the economy (`PATH`, `rollCost`, `payRoll`, `rollXp`, `finishRoll`, `learnSkill`); `training-path.js` owns the physics; `game.js` runs rolls, follows the ball with the camera and draws the trail.
+  - Only `path.learned`, `path.best`, `res.xp` and `stats.rolls` are saved; an interrupted roll is simply lost.
+  - Simulates only while on screen and never offline.
+  - Planned (design doc): opposing forces as special terrain that pushes the ball back, and prestige buffs along the trail. Add them as terrain data, like rolling hills.
+  - Player-facing names use everyday AI-lab language with plain effect text ("GPU Cluster: Stronger pushes"), not jargon.
 
 ## Verifying changes
 
 1. `node --test` must pass; add tests for new rules.
-2. For balance changes, simulate a run in Node with the engine and `training-path.js` (a bot calling `act`/`buy`/`tick`/`evaluate`, and pushing when the ball rolls forward). Current first-run targets: General AI ≈ 20 min, Superintelligence ≈ 1 h, Singularity ≈ 2 h. Blind pushing should need about twice as many pushes and fall behind later.
+2. For balance changes, simulate a run in Node with the engine and `training-path.js`: a bot that launches rolls, pushes when the ball stalls on an upslope, and spends XP on Training upgrades. Current first-run results: General AI ≈ 16 min, Superintelligence ≈ 40 min, Singularity ≈ 90 min. A bot that pushes blindly should fall well behind (≈ 150 min to Singularity).
 3. Load the page (Playwright/Chromium works in cloud sessions) and check the console for errors at desktop and ~390 px widths.
 
 ## Conventions

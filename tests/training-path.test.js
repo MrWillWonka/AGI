@@ -6,115 +6,164 @@ const E = require('../engine.js');
 
 const NOW = 1_700_000_000_000;
 
-// Push with a fixed strength using a timing rule until hill i is crested (or time runs out).
-function pushesToCrest(i, dv, timing) {
-    const sim = T.createSim(i);
-    let pushes = 0;
-    for (let t = 0; t < 120; t += 1 / 60) {
-        if (timing(sim) && sim.push(dv)) pushes++;
-        if (sim.step(1 / 60).some(e => e.type === 'crest' && e.hill === i)) return pushes;
+// Play one roll: push whenever `rule` says so, until the roll ends.
+function play(k, seed, strength, opts, rule) {
+    const roll = T.createRoll(k, seed, opts);
+    for (let t = 0; t < 180; t += 1 / 60) {
+        if (rule(roll)) roll.push(strength);
+        const [ev] = roll.step(1 / 60);
+        if (ev) return ev;
     }
-    return Infinity;
+    throw new Error('roll never ended');
 }
-const forward = sim => sim.ball.v > 0.05 || sim.atRest;
+const launchOnly = roll => !roll.launched;
+const rescue = roll => roll.atRest || (roll.ball.v > 0 && roll.ball.v < 0.5 && roll.ground.slope(roll.ball.x) > 0.05);
 const blind = () => true;
 
-test('the trail is continuous and hills grow taller and wider', () => {
-    for (let i = 0; i < 30; i++) {
-        const h = T.hill(i);
-        const next = T.hill(i + 1);
-        assert.ok(next.height > h.height && next.halfWidth > h.halfWidth);
-        assert.ok(next.start > h.end, 'a valley separates hills');
-        assert.ok(Math.abs(T.height(h.peak) - h.height) < 1e-9);
-        assert.ok(T.height(h.start) < 1e-9 && T.height(h.end) < 1e-9, 'hills meet the valley floor smoothly');
-        assert.equal(T.height((h.end + next.start) / 2), 0);
+function crestRate(k, strength, opts, rule, n = 40) {
+    let crests = 0;
+    let progress = 0;
+    for (let seed = 1; seed <= n; seed++) {
+        const ev = play(k, seed, strength, opts, rule);
+        if (ev.type === 'crest') crests++;
+        progress += ev.progress;
     }
-    assert.ok(T.height(-0.5) > T.hill(0).height, 'a wall stops the ball rolling off the start');
-});
+    return { crests: crests / n, progress: progress / n };
+}
 
-test('slope matches the height curve', () => {
-    for (const x of [0.3, T.hill(0).start + 0.1, T.hill(3).peak - 0.2, T.hill(7).peak + 0.5, -0.1]) {
-        const numeric = (T.height(x + 1e-6) - T.height(x - 1e-6)) / 2e-6;
-        assert.ok(Math.abs(numeric - T.slope(x)) < 1e-4, `x=${x}`);
+test('skill hills grow along the trail and stretches do not overlap', () => {
+    for (let k = 0; k < 25; k++) {
+        const a = T.skillHill(k);
+        const b = T.skillHill(k + 1);
+        assert.ok(b.height > a.height && b.halfWidth > a.halfWidth);
+        assert.ok(T.checkpoint(k + 1) > a.end, 'next checkpoint is past this skill hill');
+        assert.ok(a.start > T.checkpoint(k));
     }
 });
 
-test('the first hill is easy; a weak push rolls back and teaches nothing', () => {
-    assert.ok(pushesToCrest(0, 1.8, forward) <= 2);
-    const sim = T.createSim(0);
-    sim.push(0.8);
-    const events = [];
-    for (let t = 0; t < 15; t += 0.05) events.push(...sim.step(0.05));
-    assert.deepEqual(events, []);
-    assert.equal(sim.valley, 0);
-    assert.ok(sim.ball.best > 0 && sim.ball.best < 1, 'partial progress is recorded');
-    assert.ok(sim.atRest, 'ball settles back in the valley');
+test('rolling hills are random per roll, deterministic per seed, and smaller than the skill hill', () => {
+    const a = T.rollingHills(3, 11);
+    assert.deepEqual(a, T.rollingHills(3, 11));
+    assert.notDeepEqual(a, T.rollingHills(3, 12));
+    const goal = T.skillHill(3);
+    for (const hill of a) {
+        assert.ok(hill.height < goal.height * 0.7);
+        assert.ok(hill.end < goal.start && hill.start > T.checkpoint(3));
+    }
+    const sizes = a.map(h => h.height);
+    assert.ok(Math.max(...sizes) > 2 * Math.min(...sizes), 'hills vary in size');
 });
 
-test('later hills need several pushes, and timing beats blind pushing', () => {
-    const smart = pushesToCrest(8, 1.8, forward);
-    assert.ok(smart > 3 && smart < Infinity, `hill 8 took ${smart} timed pushes`);
-    assert.equal(pushesToCrest(6, 1.8, blind), Infinity, 'blind pushing stalls where timing gets through');
-    assert.ok(pushesToCrest(6, 1.8, forward) < Infinity);
+test('terrain slope matches its height curve', () => {
+    const g = T.terrain(2, 5);
+    for (const x of [g.start, ...g.bumps.flatMap(b => [b.start + 0.05, b.peak - 0.03, b.end - 0.1])]) {
+        const numeric = (g.height(x + 1e-6) - g.height(x - 1e-6)) / 2e-6;
+        assert.ok(Math.abs(numeric - g.slope(x)) < 1e-3, `x=${x}`);
+    }
 });
 
-test('pushes have a cooldown so mashing does not stack', () => {
-    const sim = T.createSim(0);
-    assert.equal(sim.push(1), true);
-    assert.equal(sim.push(1), false);
-    for (let t = 0; t < T.PUSH_COOLDOWN + 0.05; t += 0.05) sim.step(0.05);
-    assert.equal(sim.push(1), true);
+test('with only a launch, the first skill hill is a wall; upgrades break through it', () => {
+    const weak = crestRate(0, 1.8, { pushes: 1, cooldown: 2 }, launchOnly);
+    assert.equal(weak.crests, 0, 'base launch cannot crest the first skill hill');
+    assert.ok(weak.progress > 0.2, 'but it earns distance');
+    // One Investor Funding plus a couple of GPU Cluster upgrades.
+    const strong = crestRate(0, 2.2, { pushes: 2, cooldown: 1.5 }, rescue);
+    assert.ok(strong.crests > 0.8, `upgraded rolls get over it (${strong.crests})`);
 });
 
-test('the simulation is deterministic', () => {
+test('saving pushes for stalls beats firing them all at once', () => {
+    const opts = { pushes: 3, cooldown: 0.6 };
+    for (const k of [2, 4]) {
+        const smart = crestRate(k, 2.5, opts, rescue);
+        const dumb = crestRate(k, 2.5, opts, blind);
+        assert.ok(smart.crests > dumb.crests + 0.3, `stretch ${k}: ${smart.crests} vs ${dumb.crests}`);
+    }
+});
+
+test('pushing against a backward roll is wasted energy', () => {
+    const roll = T.createRoll(0, 1, { pushes: 3, cooldown: 0 });
+    roll.ball.v = -2;
+    roll.push(1.5);
+    assert.ok(roll.ball.v < 0 && roll.ball.v > -2, 'it only slows the ball');
+});
+
+test('pushes are limited per roll and have a cooldown', () => {
+    const roll = T.createRoll(0, 1, { pushes: 2, cooldown: 1 });
+    assert.equal(roll.push(1), true);
+    assert.equal(roll.push(1), false, 'cooling down');
+    for (let t = 0; t < 1.05; t += 0.05) roll.step(0.05);
+    assert.equal(roll.push(1), true);
+    for (let t = 0; t < 1.05; t += 0.05) roll.step(0.05);
+    assert.equal(roll.push(1), false, 'out of pushes');
+    assert.equal(roll.pushesLeft, 0);
+});
+
+test('a roll is deterministic', () => {
     const run = () => {
-        const sim = T.createSim(2);
-        const log = [];
-        for (let t = 0; t < 20; t += 0.05) {
-            if (sim.ball.v >= 0) sim.push(2.2);
-            log.push(...sim.step(0.05), +sim.ball.x.toFixed(6));
+        const roll = T.createRoll(3, 9, { pushes: 3, cooldown: 0.5 });
+        const trace = [];
+        for (let t = 0; t < 30 && !roll.over; t += 0.05) {
+            if (rescue(roll)) roll.push(2.4);
+            trace.push(...roll.step(0.05), +roll.ball.x.toFixed(6));
         }
-        return log;
+        return trace;
     };
     assert.deepEqual(run(), run());
 });
 
-test('a strong push can crest several small hills in one go', () => {
-    const sim = T.createSim(0);
-    sim.push(4);
-    const crests = [];
-    for (let t = 0; t < 20; t += 0.05) crests.push(...sim.step(0.05).filter(e => e.type === 'crest').map(e => e.hill));
-    assert.ok(crests.length >= 2, `crested ${crests}`);
-    assert.deepEqual(crests, crests.map((_, i) => i));
-});
-
-test('engine: pushes cost resources that grow along the trail', () => {
+test('engine: launching costs CP and DP; XP rewards distance, records and crests', () => {
     const s = E.defaultState(NOW);
-    s.res = { cp: 1000, dp: 1000, rp: 0 };
-    assert.equal(E.payPush(s), false, 'locked until the milestone');
+    s.res.cp = 100;
+    s.res.dp = 10;
+    assert.equal(E.payRoll(s), false, 'locked until the milestone');
     s.stats.runCp = 50;
     E.evaluate(s);
-    const first = E.pushCost(s);
-    assert.equal(E.payPush(s), true);
-    assert.deepEqual(s.res, { cp: 1000 - first.cp, dp: 1000 - first.dp, rp: 0 });
-    s.path.learned = 5;
-    assert.ok(E.pushCost(s).cp > first.cp * 5);
+    assert.equal(E.payRoll(s), true);
+    assert.equal(s.res.cp, 100 - E.rollCost(s).cp);
+
+    assert.ok(E.rollXp(s, 0.8, false) > 2 * E.rollXp(s, 0.4, false), 'further is worth disproportionately more');
+    assert.equal(E.rollXp(s, 1, true), E.rollXp(s, 1, false) * E.PATH.crestBonus);
+
+    const seed = E.rollSeed(s);
+    const r1 = E.finishRoll(s, 0.5, false);
+    assert.equal(r1.record, true);
+    assert.equal(s.path.best, 0.5);
+    assert.notEqual(E.rollSeed(s), seed, 'every roll gets new terrain');
+    assert.equal(E.finishRoll(s, 0.3, false).record, false);
+    const r3 = E.finishRoll(s, 1, true);
+    assert.equal(r3.skill.name, E.SKILLS[0].name);
+    assert.equal(s.path.learned, 1);
+    assert.equal(s.path.best, 0, 'record resets for the new stretch');
+    assert.ok(E.rollCost(s).cp > 10, 'rolls cost more further along');
 });
 
-test('engine: learning skills grants attributes and permanent bonuses, in order only', () => {
+test('engine: training upgrades are bought with XP and change the roll setup', () => {
+    const s = E.defaultState(NOW);
+    s.unlocked['module:path'] = true;
+    E.evaluate(s);
+    const base = E.derive(s);
+    assert.equal(base.pushesPerRoll, 1, 'launch only at first');
+    assert.equal(base.pushCooldown, E.PATH.baseCooldown);
+    assert.equal(E.buy(s, 'trainingEpochs').ok, false, 'needs XP');
+    s.res.xp = 1000;
+    for (const id of ['trainingEpochs', 'fasterIteration', 'trainingOptimizer']) assert.equal(E.buy(s, id).ok, true, id);
+    const d = E.derive(s);
+    assert.equal(d.pushesPerRoll, 2);
+    assert.ok(d.pushCooldown < base.pushCooldown);
+    assert.ok(d.pushPower > base.pushPower);
+    s.levels.fasterIteration = 12;
+    assert.equal(E.derive(s).pushCooldown, E.PATH.minCooldown);
+});
+
+test('engine: skills grant attributes and permanent bonuses, in order only', () => {
     const s = E.defaultState(NOW);
     const before = E.derive(s);
     assert.equal(E.learnSkill(s, 1), null, 'cannot skip ahead');
     assert.equal(E.learnSkill(s, 0).name, 'Pattern Matching');
-    assert.equal(s.attr.intelligence, 1);
     assert.equal(E.derive(s).clickPower, before.clickPower + 1);
-    assert.equal(E.learnSkill(s, 0), null, 'cannot relearn');
     for (let i = 1; i < E.SKILLS.length; i++) E.learnSkill(s, i);
-    assert.equal(s.path.learned, E.SKILLS.length);
     assert.ok(E.derive(s).pushPower > before.pushPower, 'Analogy and Self-Modeling boost pushes');
-    const frontier = E.learnSkill(s, E.SKILLS.length);
-    assert.match(frontier.name, /^Frontier Skill 1$/);
-    assert.equal(s.stats.skillsLearned, E.SKILLS.length + 1);
+    assert.match(E.learnSkill(s, E.SKILLS.length).name, /^Frontier Skill 1$/);
 });
 
 test('engine: push strength does not grow with Intelligence (no runaway loop)', () => {
@@ -122,14 +171,12 @@ test('engine: push strength does not grow with Intelligence (no runaway loop)', 
     const base = E.derive(s).pushPower;
     s.attr.intelligence = 1e6;
     assert.equal(E.derive(s).pushPower, base);
-    s.levels.trainingOptimizer = 3;
-    assert.ok(Math.abs(E.derive(s).pushPower - base * 1.3) < 1e-9);
 });
 
 test('engine: Self-Improve gets pricier with each use in a run', () => {
     const s = E.defaultState(NOW);
     s.unlocked['action:improve'] = true;
-    s.res = { cp: 1e6, dp: 1e6, rp: 1e6 };
+    s.res = { cp: 1e6, dp: 1e6, rp: 1e6, xp: 0 };
     const improve = E.ACTIONS.find(a => a.id === 'improve');
     const first = E.actionCost(s, improve);
     E.act(s, 'improve');
@@ -137,16 +184,18 @@ test('engine: Self-Improve gets pricier with each use in a run', () => {
     assert.equal(E.actionCost(s, improve).cp, Math.ceil(first.cp * 1.25 * 1.25));
 });
 
-test('engine: path progress saves, and resets on prestige while lifetime stats stay', () => {
+test('engine: path progress and XP save; prestige resets the run but keeps lifetime stats', () => {
     const s = E.defaultState(NOW);
-    for (let i = 0; i < 4; i++) E.learnSkill(s, i);
-    assert.equal(E.deserialize(E.serialize(s), NOW).path.learned, 4);
-    assert.equal(E.migrate({ version: E.SAVE_VERSION, path: { learned: -2 } }, NOW).path.learned, 0);
+    E.finishRoll(s, 0.6, false);
+    E.finishRoll(s, 1, true);
+    const loaded = E.deserialize(E.serialize(s), NOW);
+    assert.equal(loaded.path.learned, 1);
+    assert.equal(loaded.res.xp, s.res.xp);
+    assert.equal(E.migrate({ version: E.SAVE_VERSION, path: { learned: -2, best: 7 } }, NOW).path.best, 1);
     s.attr.intelligence = 10;
     s.stats.runCp = 1e6;
     const next = E.prestige(s, NOW + 1).state;
-    assert.equal(next.path.learned, 0);
-    assert.equal(next.stats.skillsLearned, 4);
+    assert.deepEqual([next.path.learned, next.res.xp, next.stats.rolls, next.stats.skillsLearned], [0, 0, 2, 1]);
 });
 
 test('engine: the Auto-Trainer only appears after transcending', () => {

@@ -1,8 +1,8 @@
-// training-path.js — the Training Path: a ball pushed along an endless trail of hills.
-// Each hill is a skill; cresting it learns the skill. Hills grow taller and wider as you go,
-// so later skills need momentum built up over several well-timed pushes.
-// Pure and deterministic: no DOM, no clock, no randomness. The geometry is a fixed function of
-// the hill index, so the same trail exists in every run.
+// training-path.js — the Training Path: rolls of a ball over random rolling hills toward skill hills.
+// The trail is split into stretches. Stretch k runs from checkpoint k to skill hill k, a big hill
+// that teaches skill k. Each roll starts at the checkpoint over freshly generated rolling hills;
+// the roll ends when the ball comes to rest or crests the skill hill.
+// Pure and deterministic: no DOM, no clock, no Math.random. Terrain comes from (stretch, seed).
 // Loaded in the browser as window.TrainingPath and in Node (tests) via require().
 (function (root, factory) {
     const api = factory();
@@ -16,135 +16,198 @@
 
     const STEP = 1 / 120;       // fixed physics step (seconds)
     const GRAVITY = 9.8;
-    const DAMPING = 0.35;       // velocity damping per second (air + rolling resistance)
-    const REST_SPEED = 0.02;
-    const REST_SECONDS = 0.4;
-    const WALL = 40;            // steepness of the wall behind the starting valley
-    const PUSH_COOLDOWN = 0.8;  // seconds between pushes, so timing beats mashing
+    const DAMPING = 0.15;       // linear rolling resistance per second
+    const DRAG = 0.12;          // quadratic drag: fast balls lose energy disproportionately
+    const REST_SPEED = 0.03;
+    const REST_SECONDS = 0.5;
+    const WALL = 40;            // steepness of the wall behind the very first checkpoint
+    const LEAD_IN = 0.5;        // flat run-up after each checkpoint
 
-    // ---- Geometry -----------------------------------------------------------
+    // ---- Skill hills (fixed) -----------------------------------------------
 
-    // Hill i: a smooth cos² bump. Valley i is the flat stretch in front of hill i.
-    const hillHeight = i => 0.12 * Math.pow(1.32, i);
-    const hillHalfWidth = i => 0.6 * Math.pow(1.15, i);
-    const valleyLength = i => 0.8 * Math.pow(1.1, i);
+    const skillHeight = k => 0.3 * Math.pow(1.3, k);
+    const skillHalfWidth = k => 0.55 * Math.pow(1.14, k);
+    const stretchLength = k => 4 * Math.pow(1.16, k);   // checkpoint to the foot of skill hill k
 
-    const starts = [0];         // starts[i] = x where valley i begins
-    function valleyStart(i) {
-        while (starts.length <= i) {
-            const k = starts.length - 1;
-            starts.push(starts[k] + valleyLength(k) + 2 * hillHalfWidth(k));
+    const checkpoints = [0];    // checkpoints[k] = x where stretch k starts
+    function checkpoint(k) {
+        while (checkpoints.length <= k) {
+            const j = checkpoints.length - 1;
+            checkpoints.push(checkpoints[j] + stretchLength(j) + 2 * skillHalfWidth(j) + 0.3);
         }
-        return starts[i];
+        return checkpoints[k];
     }
 
-    function hill(i) {
-        const start = valleyStart(i) + valleyLength(i);
-        const w = hillHalfWidth(i);
-        return { index: i, start, peak: start + w, end: start + 2 * w, height: hillHeight(i), halfWidth: w };
+    function skillHill(k) {
+        const start = checkpoint(k) + stretchLength(k);
+        const w = skillHalfWidth(k);
+        return { start, peak: start + w, end: start + 2 * w, height: skillHeight(k), halfWidth: w, skill: k };
     }
 
-    // Index of the hill whose span contains x, or of the valley x is in (valley i precedes hill i).
-    function locate(x) {
-        if (x < 0) return { valley: 0, hill: null };
-        let i = 0;
-        while (valleyStart(i + 1) <= x) i++;
-        const h = hill(i);
-        return x >= h.start ? { valley: i, hill: h } : { valley: i, hill: null };
+    // ---- Rolling hills (random per roll) -----------------------------------
+
+    function rng(seed) {
+        let a = seed >>> 0;
+        return function () {
+            a = (a + 0x6D2B79F5) >>> 0;
+            let t = a;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
     }
 
-    function height(x) {
-        if (x < 0) return WALL * x * x;
-        const { hill: h } = locate(x);
-        if (!h) return 0;
-        const c = Math.cos((Math.PI / 2) * (x - h.peak) / h.halfWidth);
-        return h.height * c * c;
+    // Rolling hills for stretch k: mostly small, sometimes medium, growing toward the skill hill.
+    function rollingHills(k, seed) {
+        const r = rng(seed);
+        const from = checkpoint(k) + LEAD_IN;
+        const to = skillHill(k).start - 0.25;
+        const big = skillHeight(k);
+        const hills = [];
+        let x = from;
+        while (true) {
+            const w = skillHalfWidth(k) * (0.25 + r() * 0.55);
+            const gap = 0.1 + r() * 0.5;
+            if (x + 2 * w > to) break;
+            const along = (x - from) / (to - from);              // 0 near the checkpoint, 1 near the wall
+            const roll = r();
+            const size = roll < 0.12 ? 0.35 + r() * 0.2 : 0.05 + r() * 0.2;   // occasional medium hill
+            const h = big * size * (0.6 + 0.6 * along);
+            hills.push({ start: x, peak: x + w, end: x + 2 * w, height: h, halfWidth: w, skill: null });
+            x += 2 * w + gap;
+        }
+        return hills;
     }
 
-    function slope(x) {
-        if (x < 0) return 2 * WALL * x;
-        const { hill: h } = locate(x);
-        if (!h) return 0;
-        const u = (x - h.peak) / h.halfWidth;
-        return -h.height * (Math.PI / 2) * Math.sin(Math.PI * u) / h.halfWidth;
+    // ---- Terrain for one roll ----------------------------------------------
+
+    // The ground for a roll on stretch k: the previous skill hill behind the checkpoint (or the
+    // starting wall), the rolling hills, and skill hill k ahead.
+    function terrain(k, seed) {
+        const bumps = [];
+        if (k > 0) bumps.push(skillHill(k - 1));
+        bumps.push(...rollingHills(k, seed), skillHill(k));
+
+        function find(x) {
+            let lo = 0;
+            let hi = bumps.length - 1;
+            while (lo <= hi) {
+                const mid = (lo + hi) >> 1;
+                const b = bumps[mid];
+                if (x < b.start) hi = mid - 1;
+                else if (x > b.end) lo = mid + 1;
+                else return b;
+            }
+            return null;
+        }
+
+        function height(x) {
+            if (k === 0 && x < 0) return WALL * x * x;
+            const b = find(x);
+            if (!b) return 0;
+            const c = Math.cos((Math.PI / 2) * (x - b.peak) / b.halfWidth);
+            return b.height * c * c;
+        }
+
+        function slope(x) {
+            if (k === 0 && x < 0) return 2 * WALL * x;
+            const b = find(x);
+            if (!b) return 0;
+            const u = (x - b.peak) / b.halfWidth;
+            return -b.height * (Math.PI / 2) * Math.sin(Math.PI * u) / b.halfWidth;
+        }
+
+        const start = checkpoint(k) + 0.2;
+        const goal = skillHill(k);
+        return {
+            stretch: k,
+            seed,
+            bumps,
+            height,
+            slope,
+            start,
+            goal,
+            // How far along the stretch a position is: 0 at the start, 1 at the skill hill's peak.
+            progress: x => Math.max(0, Math.min(1, (x - start) / (goal.peak - start)))
+        };
     }
 
-    function valleyCenter(i) {
-        return valleyStart(i) + valleyLength(i) / 2;
-    }
+    // ---- One roll -------------------------------------------------------------
 
-    // Speed needed at the foot of hill i to crest it with no damping (a lower bound).
-    function crestSpeed(i) {
-        return Math.sqrt(2 * GRAVITY * hillHeight(i));
-    }
-
-    // ---- Simulation ---------------------------------------------------------
-
-    // home: the valley the ball starts resting in (= number of skills learned).
-    function createSim(home) {
-        const ball = { x: valleyCenter(home), v: 0, still: REST_SECONDS, best: 0, cooldown: 0 };
-        let current = home;     // the valley the ball is in now
+    // opts: { pushes: pushes allowed this roll, cooldown: seconds between pushes }
+    function createRoll(k, seed, opts) {
+        const { pushes, cooldown } = opts;
+        const ground = terrain(k, seed);
+        const ball = { x: ground.start, v: 0, still: 0, cooldown: 0, maxX: ground.start };
+        let pushesLeft = pushes;
+        let launched = false;
+        let over = false;
         let carry = 0;
 
-        // Add speed in the forward direction. Pushing while the ball rolls back brakes it instead.
-        // Returns false (and does nothing) while the previous push is still cooling down.
-        function push(dv) {
-            if (ball.cooldown > 0) return false;
-            ball.v += dv;
+        // A push adds a fixed amount of energy (strength = the speed it gives a ball at rest).
+        // Pushing against a backward roll spends energy cancelling it first, so timing matters.
+        // Returns false if the roll is over, out of pushes, or cooling down.
+        function push(strength) {
+            if (over || pushesLeft <= 0 || ball.cooldown > 0) return false;
+            const e = strength * strength;
+            ball.v = ball.v >= 0
+                ? Math.sqrt(ball.v * ball.v + e)
+                : (ball.v * ball.v > e ? -Math.sqrt(ball.v * ball.v - e) : Math.sqrt(e - ball.v * ball.v));
             ball.still = 0;
-            ball.cooldown = PUSH_COOLDOWN;
+            ball.cooldown = cooldown;
+            pushesLeft--;
+            launched = true;
             return true;
         }
 
         function stepOnce(events) {
             ball.cooldown = Math.max(0, ball.cooldown - STEP);
-            const dy = slope(ball.x);
+            const dy = ground.slope(ball.x);
             ball.v += (-GRAVITY * dy / (1 + dy * dy)) * STEP;
-            ball.v *= 1 - DAMPING * STEP;
+            ball.v -= (DAMPING * ball.v + DRAG * ball.v * Math.abs(ball.v)) * STEP;
             ball.x += ball.v * STEP;
+            ball.maxX = Math.max(ball.maxX, ball.x);
 
-            const h = hill(current);
-            if (ball.x > h.peak) {
-                // Over the top: the ball now belongs to the next valley.
-                events.push({ type: 'crest', hill: current });
-                current++;
-                ball.best = 0;
-            } else if (current > 0 && ball.x < hill(current - 1).peak) {
-                // Pushed back over the previous hill (only possible with backward forces).
-                current--;
-                events.push({ type: 'retreat', hill: current });
-                ball.best = 0;
-            } else if (ball.x > h.start) {
-                ball.best = Math.max(ball.best, height(ball.x) / h.height);
+            if (ball.x > ground.goal.peak) {
+                over = true;
+                events.push({ type: 'crest', skill: k, progress: 1 });
+                return;
             }
-
-            ball.still = Math.abs(ball.v) < REST_SPEED && Math.abs(slope(ball.x)) < 0.05 ? ball.still + STEP : 0;
+            const resting = Math.abs(ball.v) < REST_SPEED && Math.abs(dy) < 0.08;
+            ball.still = resting ? ball.still + STEP : 0;
+            // The roll ends once the ball settles with no pushes left. With pushes left, it waits for you.
+            if (launched && pushesLeft === 0 && ball.still >= REST_SECONDS) {
+                over = true;
+                events.push({ type: 'end', skill: k, progress: ground.progress(ball.maxX) });
+            }
         }
 
         function step(seconds) {
             const events = [];
             carry = Math.min(carry + seconds, 0.25);
-            while (carry >= STEP) {
+            while (carry >= STEP && !over) {
                 stepOnce(events);
                 carry -= STEP;
             }
+            if (over) carry = 0;
             return events;
         }
 
         return {
+            ground,
             ball,
             push,
             step,
-            get valley() { return current; },
-            get atRest() { return ball.still >= REST_SECONDS; },
-            // True while the ball is on the valley floor heading forward: the right moment to push.
-            get swingingForward() { return ball.v > 0 && !locate(ball.x).hill; }
+            get pushesLeft() { return pushesLeft; },
+            get launched() { return launched; },
+            get over() { return over; },
+            get progress() { return ground.progress(ball.maxX); },
+            get atRest() { return ball.still >= REST_SECONDS; }
         };
     }
 
     return {
-        STEP, GRAVITY, PUSH_COOLDOWN,
-        hill, height, slope, locate, valleyStart, valleyCenter, crestSpeed, hillHeight,
-        createSim
+        STEP, GRAVITY,
+        checkpoint, skillHill, skillHeight, rollingHills, terrain, createRoll, rng
     };
 });

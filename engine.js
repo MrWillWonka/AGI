@@ -18,11 +18,18 @@
     const PRESTIGE_CP_DIVISOR = 1e5;
     const IMPROVE_GAIN = 5;
 
-    // Training Path: each push costs resources that scale with how far along the trail you are.
+    // Training Path: launching a roll costs CP and DP; how far it gets earns Experience (XP).
+    // Costs and XP both scale with the stretch you are on (= skills learned).
     const PATH = {
-        pushCost: { cp: 15, dp: 2 },
-        costScale: 1.45,     // per skill learned
-        basePush: 1.8        // push speed before Intelligence and upgrades
+        rollCost: { cp: 10, dp: 1 },
+        rollCostScale: 1.4,
+        xpPerStretch: 10,    // XP for reaching a skill hill's peak on the first stretch
+        xpScale: 1.35,
+        crestBonus: 2,       // XP multiplier when the roll crests the skill hill
+        basePush: 1.8,       // push strength before upgrades and skills
+        basePushes: 1,       // pushes per roll: just the launch until More Epochs is bought
+        baseCooldown: 2.0,   // seconds between pushes
+        minCooldown: 0.3
     };
 
     // Skills, in trail order. Hill i teaches SKILLS[i]. `bonus` effects are summed in derive().
@@ -36,16 +43,17 @@
         { name: 'Translation', effect: '+20% CP/s', grants: { intelligence: 8 }, bonus: { cp: 0.2 } },
         { name: 'Reasoning', effect: '+25% research production', grants: { intelligence: 10, creativity: 1 }, bonus: { rp: 0.25 } },
         { name: 'Planning', effect: '+30% CP/s', grants: { intelligence: 14, creativity: 1 }, bonus: { cp: 0.3 } },
-        { name: 'Analogy', effect: '+20% push strength', grants: { intelligence: 18, creativity: 2 }, bonus: { push: 0.2 } },
+        { name: 'Analogy', effect: 'Stronger pushes (+20%)', grants: { intelligence: 18, creativity: 2 }, bonus: { push: 0.2 } },
         { name: 'Theory of Mind', effect: '+25% data production', grants: { intelligence: 24, awareness: 2 }, bonus: { dp: 0.25 } },
-        { name: 'Self-Modeling', effect: '+20% push strength', grants: { intelligence: 30, creativity: 3, awareness: 3 }, bonus: { push: 0.2 } },
+        { name: 'Self-Modeling', effect: 'Stronger pushes (+20%)', grants: { intelligence: 30, creativity: 3, awareness: 3 }, bonus: { push: 0.2 } },
         { name: 'Open-Ended Discovery', effect: '+50% to all production', grants: { intelligence: 40, creativity: 5, awareness: 5 }, bonus: { cp: 0.5, dp: 0.5, rp: 0.5 } }
     ];
 
     const RESOURCES = {
         cp: { name: 'Compute Power', short: 'CP' },
         dp: { name: 'Data Points', short: 'DP' },
-        rp: { name: 'Research Points', short: 'RP' }
+        rp: { name: 'Research Points', short: 'RP' },
+        xp: { name: 'Experience', short: 'XP' }
     };
 
     const ATTRIBUTES = {
@@ -75,7 +83,8 @@
         { id: 'hardware', name: 'Hardware', unlock: null },
         { id: 'software', name: 'Software', unlock: null },
         { id: 'algorithms', name: 'Algorithms', unlock: 'tab:algorithms' },
-        { id: 'consciousness', name: 'Consciousness', unlock: 'tab:consciousness' }
+        { id: 'consciousness', name: 'Consciousness', unlock: 'tab:consciousness' },
+        { id: 'training', name: 'Training', unlock: 'module:path' }
     ];
 
     // Upgrades. `scale` makes it repeatable (cost × scale^level); `max: 1` makes it one-time.
@@ -96,9 +105,11 @@
         // Software
         { id: 'dataProcessor', tab: 'software', name: 'Data Processor', effect: '+1 DP per collection', cost: { cp: 50, dp: 5 }, scale: 1.2 },
         { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', effect: '+0.5 automatic collections/s', cost: { cp: 200, dp: 20 }, scale: 1.25 },
-        { id: 'trainingOptimizer', tab: 'software', name: 'Training Optimizer', effect: '+10% push strength', cost: { cp: 300, dp: 30 }, scale: 1.8,
-            unlock: s => !!s.unlocked['module:path'], hint: 'Unlock the Training Path' },
-        { id: 'autoTrainer', tab: 'software', name: 'Auto-Trainer', effect: 'Level 1 pushes when the ball stops. Level 2 times pushes with the swing.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
+        // Training (bought with XP from the Training Path)
+        { id: 'trainingOptimizer', tab: 'training', name: 'GPU Cluster', effect: 'Stronger pushes (+10%)', cost: { xp: 15 }, scale: 1.5 },
+        { id: 'fasterIteration', tab: 'training', name: 'Faster Chips', effect: 'Less time between pushes (-15%)', cost: { xp: 20 }, scale: 1.7, max: 12 },
+        { id: 'trainingEpochs', tab: 'training', name: 'Investor Funding', effect: '+1 push per roll. The first one lets you push mid-roll.', cost: { xp: 12 }, scale: 2.6, max: 7 },
+        { id: 'autoTrainer', tab: 'training', name: 'Auto-Trainer', effect: 'Level 1 pushes when the ball stops. Level 2 times pushes with the swing.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
             unlock: s => s.prestige.count >= 1, hint: 'Transcend once' },
         { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', effect: '+0.2 automatic research/s', cost: { cp: 1500, dp: 100, rp: 10 }, scale: 1.3,
             unlock: s => !!s.unlocked['action:research'], hint: 'Unlock Research' },
@@ -164,7 +175,7 @@
         now = now ?? Date.now();
         return {
             version: SAVE_VERSION,
-            res: { cp: 0, dp: 0, rp: 0 },
+            res: { cp: 0, dp: 0, rp: 0, xp: 0 },
             attr: { intelligence: 0, creativity: 0, awareness: 0 },
             levels: {},
             unlocked: {},
@@ -175,7 +186,7 @@
                 lifetimeCp: 0,
                 runCp: 0,
                 researchDone: 0,
-                pushes: 0,
+                rolls: 0,
                 skillsLearned: 0,
                 improves: 0,
                 playTime: 0,
@@ -183,7 +194,7 @@
                 firstStart: now,
                 highestPhase: 0
             },
-            path: { learned: 0 },
+            path: { learned: 0, best: 0 },
             settings: { autosave: true, offline: true },
             lastSaved: now
         };
@@ -218,8 +229,10 @@
         // Push strength grows with upgrades and skills, and gently with prestige and achievements.
         // Hills grow faster than this, so later skills need momentum built over several pushes.
         const pushPower = PATH.basePush * (1 + 0.1 * L('trainingOptimizer') + sk.push) * Math.sqrt(mult);
+        const pushesPerRoll = PATH.basePushes + L('trainingEpochs');
+        const pushCooldown = Math.max(PATH.minCooldown, PATH.baseCooldown * Math.pow(0.85, L('fasterIteration')));
 
-        return { mult, cpPerSec, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec, pushPower };
+        return { mult, cpPerSec, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec, pushPower, pushesPerRoll, pushCooldown };
     }
 
     function meetsPhase(s, phase) {
@@ -393,21 +406,46 @@
         return total;
     }
 
-    function pushCost(s) {
-        const factor = Math.pow(PATH.costScale, s.path.learned);
+    function rollCost(s) {
+        const factor = Math.pow(PATH.rollCostScale, s.path.learned);
         const cost = {};
-        for (const [k, v] of Object.entries(PATH.pushCost)) cost[k] = Math.ceil(v * factor);
+        for (const [k, v] of Object.entries(PATH.rollCost)) cost[k] = Math.ceil(v * factor);
         return cost;
     }
 
-    // Pay for one push. The UI owns the physics sim and applies derive().pushPower on success.
-    function payPush(s) {
+    // Terrain seed for the next roll: new hills every roll, derived from the run and roll count.
+    function rollSeed(s) {
+        let h = 2166136261 ^ s.stats.rolls;
+        h = Math.imul(h ^ (s.stats.runStart >>> 0), 16777619);
+        h = Math.imul(h ^ s.path.learned, 16777619);
+        return (h ^ (h >>> 15)) >>> 0;
+    }
+
+    // Pay to launch a roll. The UI owns the physics and reports back with finishRoll().
+    function payRoll(s) {
         if (!s.unlocked['module:path']) return false;
-        const cost = pushCost(s);
+        const cost = rollCost(s);
         if (!canAfford(s, cost)) return false;
         pay(s, cost);
-        s.stats.pushes++;
         return true;
+    }
+
+    // XP for a roll that got `progress` (0-1) of the way up the stretch. Distance is worth more the
+    // further you get, and cresting the skill hill pays a bonus.
+    function rollXp(s, progress, crested) {
+        const base = PATH.xpPerStretch * Math.pow(PATH.xpScale, s.path.learned);
+        return base * progress * progress * (crested ? PATH.crestBonus : 1);
+    }
+
+    // Settle a finished roll: XP, record distance, roll count, and the skill if it crested.
+    function finishRoll(s, progress, crested) {
+        const xp = rollXp(s, progress, crested);
+        s.res.xp += xp;
+        s.stats.rolls++;
+        const record = progress > s.path.best;
+        if (record) s.path.best = progress;
+        const skill = crested ? learnSkill(s, s.path.learned) : null;
+        return { xp, record, skill };
     }
 
     // Called when the ball crests hill i. Only the next unlearned hill teaches anything.
@@ -416,6 +454,7 @@
         const skill = skillAt(i);
         for (const [k, v] of Object.entries(skill.grants)) s.attr[k] += v;
         s.path.learned++;
+        s.path.best = 0;
         s.stats.skillsLearned++;
         return skill;
     }
@@ -440,7 +479,7 @@
             clicks: s.stats.clicks,
             lifetimeCp: s.stats.lifetimeCp,
             researchDone: s.stats.researchDone,
-            pushes: s.stats.pushes,
+            rolls: s.stats.rolls,
             skillsLearned: s.stats.skillsLearned,
             playTime: s.stats.playTime,
             firstStart: s.stats.firstStart
@@ -494,6 +533,7 @@
         for (const k of Object.keys(s.stats)) s.stats[k] = num(raw.stats?.[k], s.stats[k]);
         for (const k of Object.keys(s.settings)) s.settings[k] = bool(raw.settings?.[k], s.settings[k]);
         s.path.learned = Math.floor(num(raw.path?.learned, 0));
+        s.path.best = Math.min(1, num(raw.path?.best, 0));
         s.lastSaved = num(raw.lastSaved, d.lastSaved);
         return s;
     }
@@ -583,7 +623,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, applyOffline,
-        skillAt, pushCost, payPush, learnSkill,
+        skillAt, rollCost, rollSeed, payRoll, rollXp, finishRoll, learnSkill,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration
     };

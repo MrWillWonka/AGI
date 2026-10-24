@@ -3,7 +3,7 @@
 An incremental game: grow a narrow AI into general intelligence, then superintelligence, then the Singularity.
 
 - Generate compute, collect data and research to build **Intelligence**, **Creativity** and **Awareness**.
-- **Training Path:** push your AI along an endless trail of hills, each one a skill to learn (Pattern Matching, Language Modeling, Theory of Mind…). Taller hills need momentum, so time your pushes with the swing. The view zooms out as you go, and after your first Transcend an Auto-Trainer can push for you.
+- **Training Path:** launch training rolls over random rolling hills to earn Experience, then spend it on GPUs, chips and funding to push harder. At the end of each stretch a big skill hill (Pattern Matching, Language Modeling, Theory of Mind…) is the wall to break through.
 - Hardware, Software, Algorithms and Consciousness upgrades unlock as you progress.
 - Each phase needs minimums in all three attributes.
 - **Transcend** to reset a run for permanent Prestige Points (+10% production each).

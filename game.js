@@ -460,8 +460,8 @@ window.AGI = (function () {
             case 'stats.lifetimeCp': return f(state.stats.lifetimeCp);
             case 'stats.clicks': return f(state.stats.clicks);
             case 'path.learned': return `${state.path.learned} skill${state.path.learned === 1 ? '' : 's'} learned`;
-            case 'path.cost': return `Push: ${E.formatCost(E.pushCost(state))}`;
-            case 'path.power': return `Strength ${d.pushPower.toFixed(1)}`;
+            case 'path.stats': return `Strength ${d.pushPower.toFixed(1)} · ${d.pushesPerRoll} pushes · ${d.pushCooldown.toFixed(1)}s between`;
+            case 'res.xp': return f(state.res.xp);
         }
         return '';
     }
@@ -521,17 +521,33 @@ window.AGI = (function () {
         const pathWasHidden = pathPanel.hidden;
         setHidden(pathPanel, !state.unlocked['module:path']);
         if (pathWasHidden && !pathPanel.hidden) startPathLoop();
-        if (path.stateRef !== state) startPathLoop();
+        if (path.stateRef !== state) {
+            path.pause = 0;
+            startPathLoop();
+        }
     }
 
     // ---- Training Path ---------------------------------------------------
 
-    // The physics lives in training-path.js. This section draws the trail, takes pushes and
-    // reports crested hills to the engine. It only simulates while the panel is on screen.
+    // Physics lives in training-path.js; the engine settles each roll (XP, records, skills).
+    // This section runs rolls, follows the ball with the camera and draws the trail. It only
+    // simulates while the panel is on screen.
     const T = window.TrainingPath;
+    const PAD_X = 16;
+    const PAD_TOP = 34;
+    const PAD_BOTTOM = 26;
+    const BALL = 7;
+    const RESULT_PAUSE = 1.3;   // seconds to show a finished roll before the next one
+    const OVERVIEW_SECONDS = 3; // how long the camera stays zoomed out after learning a skill
     const path = {
-        sim: null,
+        roll: null,
+        rollKey: '',
         stateRef: null,
+        pause: 0,
+        overview: 0,
+        glow: null,             // { skill, age }: the skill hill just learned, briefly lit up
+        pushFlash: 0,
+        cam: null,              // smoothed { left, right }
         canvas: null,
         ctx: null,
         width: 0,
@@ -539,24 +555,22 @@ window.AGI = (function () {
         visible: false,
         frame: 0,
         last: 0,
-        cam: null,          // smoothed { left, right, top } in world units
-        glow: null,         // { hill, age }: the hill just learned, briefly lit up
-        pushFlash: 0,
         colors: {}
     };
-    const PAD_X = 16;
-    const PAD_Y = 28;
-    const BALL = 7;
 
-    // The sim follows the state: a new run, import or reset restarts the ball in the learned valley.
-    function pathSim() {
-        const outOfSync = path.sim && path.sim.valley !== state.path.learned && path.sim.atRest;
-        if (!path.sim || path.stateRef !== state || outOfSync) {
-            path.sim = T.createSim(state.path.learned);
+    // The roll waiting at the checkpoint (or in progress). Until launch it is rebuilt whenever
+    // the run, stretch, seed or training upgrades change, so what you see is what you launch.
+    function currentRoll() {
+        const d = E.derive(state, debugRates);
+        const key = [state.stats.runStart, state.path.learned, E.rollSeed(state), d.pushesPerRoll, d.pushCooldown].join(':');
+        const stale = !path.roll || path.stateRef !== state || path.roll.over || (!path.roll.launched && path.rollKey !== key);
+        if (stale && path.pause <= 0) {
+            path.roll = T.createRoll(state.path.learned, E.rollSeed(state), { pushes: d.pushesPerRoll, cooldown: d.pushCooldown });
+            path.rollKey = key;
+            if (path.stateRef !== state) path.cam = null;
             path.stateRef = state;
-            path.cam = null;
         }
-        return path.sim;
+        return path.roll;
     }
 
     function buildPath() {
@@ -564,14 +578,14 @@ window.AGI = (function () {
         path.canvas = canvas;
         path.ctx = canvas.getContext('2d');
         const css = getComputedStyle(document.documentElement);
-        for (const name of ['primary', 'secondary', 'accent', 'success', 'warning', 'danger', 'muted', 'border', 'text']) {
+        for (const name of ['primary', 'secondary', 'accent', 'success', 'warning', 'danger', 'muted', 'border', 'text', 'bg']) {
             path.colors[name] = css.getPropertyValue('--' + name).trim();
         }
 
         new ResizeObserver(() => {
             const dpr = window.devicePixelRatio || 1;
             path.width = canvas.clientWidth;
-            path.height = Math.round(Math.min(260, Math.max(170, path.width * 0.4)));
+            path.height = Math.round(Math.min(260, Math.max(180, path.width * 0.42)));
             canvas.style.height = path.height + 'px';
             canvas.width = Math.round(path.width * dpr);
             canvas.height = Math.round(path.height * dpr);
@@ -591,17 +605,21 @@ window.AGI = (function () {
             e.preventDefault();
             pushBall();
         });
-        $('pushButton').addEventListener('click', pushBall);
+        $('pushButton').addEventListener('click', () => pushBall());
     }
 
+    // The first push launches the roll (and pays for it); later pushes spend the roll's pushes.
     function pushBall(auto) {
-        const sim = pathSim();
-        if (sim.ball.cooldown > 0) return false;
-        if (!E.payPush(state)) {
-            if (!auto) setText($('pathStatus'), `Each push costs ${E.formatCost(E.pushCost(state))}.`);
-            return false;
+        const roll = currentRoll();
+        if (roll.over || roll.pushesLeft <= 0 || roll.ball.cooldown > 0) return false;
+        if (!roll.launched) {
+            if (!E.payRoll(state)) {
+                if (!auto) setText($('pathStatus'), `A training roll costs ${E.formatCost(E.rollCost(state))}.`);
+                return false;
+            }
+            path.overview = 0;
         }
-        sim.push(E.derive(state, debugRates).pushPower);
+        roll.push(E.derive(state, debugRates).pushPower);
         path.pushFlash = 0.35;
         setText($('pathStatus'), '');
         render();
@@ -609,11 +627,13 @@ window.AGI = (function () {
         return true;
     }
 
-    // Auto-Trainer: level 1 pushes when the ball has stopped; level 2 also pushes as it swings forward.
-    function autoTrain(sim) {
+    // Auto-Trainer: level 1 launches rolls and pushes when the ball stops; level 2 also
+    // rescues the ball as it stalls on a slope.
+    function autoTrain(roll) {
         const lvl = E.level(state, 'autoTrainer');
-        if (!lvl || sim.ball.cooldown > 0) return;
-        if (sim.atRest || (lvl >= 2 && sim.ball.v > 0.05)) pushBall(true);
+        if (!lvl || roll.over || path.pause > 0 || roll.ball.cooldown > 0) return;
+        const stalling = roll.ball.v > 0 && roll.ball.v < 0.5 && roll.ground.slope(roll.ball.x) > 0.05;
+        if (!roll.launched || roll.atRest || (lvl >= 2 && stalling)) pushBall(true);
     }
 
     function startPathLoop() {
@@ -626,83 +646,131 @@ window.AGI = (function () {
         path.frame = 0;
         const dt = Math.min(0.1, (now - path.last) / 1000);
         path.last = now;
-        const sim = pathSim();
         const running = path.visible && !document.hidden;
         if (running) {
-            autoTrain(sim);
-            for (const ev of sim.step(dt)) {
-                if (ev.type === 'crest') learnedHill(ev.hill);
-            }
+            if (path.pause > 0) path.pause -= dt;
+            const roll = currentRoll();
+            autoTrain(roll);
+            for (const ev of roll.step(dt)) finishRoll(ev);
         }
-        if (path.glow && (path.glow.age += dt) > 2) path.glow = null;
+        if (path.overview > 0) path.overview -= dt;
+        if (path.glow && (path.glow.age += dt) > 2.5) path.glow = null;
         path.pushFlash = Math.max(0, path.pushFlash - dt);
         drawPath(dt);
-        setDisabled($('pushButton'), sim.ball.cooldown > 0 || !E.canAfford(state, E.pushCost(state)));
-        // Keep animating while anything moves or the camera is still easing; the Auto-Trainer keeps it alive too.
-        const moving = !sim.atRest || path.glow || path.pushFlash || E.level(state, 'autoTrainer') || cameraEasing();
-        if (running && moving) path.frame = requestAnimationFrame(pathFrame);
+        updatePathControls();
+        const roll = path.roll;
+        const busy = roll && roll.launched && !roll.over;
+        const animating = busy || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
+            || E.level(state, 'autoTrainer') > 0;
+        if (running && animating) path.frame = requestAnimationFrame(pathFrame);
     }
 
-    function learnedHill(i) {
-        const skill = E.learnSkill(state, i);
-        if (!skill) return;
-        const grants = Object.entries(skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
-        path.glow = { hill: i, age: 0 };
-        log(`Learned ${skill.name}: ${skill.effect} (${grants}).`, 'special');
-        toast('Skill learned', skill.name);
+    function finishRoll(ev) {
+        const crested = ev.type === 'crest';
+        const target = E.skillAt(state.path.learned).name;
+        const result = E.finishRoll(state, ev.progress, crested);
+        path.pause = RESULT_PAUSE;
+        if (result.skill) {
+            const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
+            log(`Learned ${result.skill.name}: ${result.skill.effect} (${grants}, +${E.format(result.xp)} XP).`, 'special');
+            toast('Skill learned', result.skill.name);
+            path.glow = { skill: state.path.learned - 1, age: 0 };
+            path.pause = 0.6;
+            path.overview = OVERVIEW_SECONDS + path.pause;
+        } else {
+            const pct = Math.round(ev.progress * 100);
+            log(`Roll ${state.stats.rolls}: ${pct}% of the way to ${target} (+${E.format(result.xp, 1)} XP)${result.record ? '. New record!' : '.'}`,
+                result.record ? 'success' : 'info');
+        }
         afterChange();
     }
 
-    // Camera target: the whole journey so far, plus the next hill and a glimpse of the one after.
-    function cameraTarget() {
-        const learned = state.path.learned;
-        const next = T.hill(learned);
-        const after = T.hill(learned + 1);
-        return { left: -0.25 * T.hill(0).halfWidth - 0.1, right: after.peak, top: next.height * 1.35 };
+    function updatePathControls() {
+        const roll = path.roll;
+        const button = $('pushButton');
+        if (!roll) return;
+        const label = !roll.launched ? `Launch (${E.formatCost(E.rollCost(state))})`
+            : roll.over ? 'Next roll…'
+            : `Push (${roll.pushesLeft} left)`;
+        setText(button, label);
+        const blocked = roll.over || path.pause > 0 || roll.pushesLeft <= 0 || roll.ball.cooldown > 0
+            || (!roll.launched && !E.canAfford(state, E.rollCost(state)));
+        setDisabled(button, blocked);
     }
 
-    function cameraEasing() {
-        const t = cameraTarget();
-        const c = path.cam;
-        return !c || Math.abs(c.right - t.right) / t.right > 0.002 || Math.abs(c.top - t.top) / t.top > 0.002;
+    // Ground height anywhere: the live roll's terrain on the current stretch; earlier stretches show
+    // only their (fixed) skill hills, since their rolling hills were different every roll.
+    function groundAt(roll, x) {
+        const k = roll.ground.stretch;
+        if (x >= (k > 0 ? T.skillHill(k - 1).start : -1)) return roll.ground.height(x);
+        if (x < 0) return Math.min(10 * T.skillHeight(0), 40 * x * x);
+        for (let j = 0; j < k; j++) {
+            const h = T.skillHill(j);
+            if (x >= h.start && x <= h.end) {
+                const c = Math.cos((Math.PI / 2) * (x - h.peak) / h.halfWidth);
+                return h.height * c * c;
+            }
+        }
+        return 0;
+    }
+
+    // Following: a window around the ball, sized to show a few hills ahead.
+    // Overview (after learning a skill): the whole journey from the start to the next skill hill.
+    function cameraTarget(roll) {
+        const g = roll.ground;
+        if (path.overview > 0) return { left: -0.3, right: g.goal.end + 0.3 };
+        const span = g.goal.end - g.start;
+        const view = Math.min(span + 0.6, Math.max(3, span * 0.4));
+        const left = Math.max(g.start - 0.4, roll.ball.x - view * 0.3);
+        return { left, right: left + view };
+    }
+
+    function cameraMoving() {
+        if (!path.roll || !path.cam) return true;
+        const t = cameraTarget(path.roll);
+        const width = t.right - t.left;
+        return Math.abs(path.cam.left - t.left) > width * 0.002 || Math.abs(path.cam.right - t.right) > width * 0.002;
     }
 
     function drawPath(dt = 0) {
         const { ctx, width: w, height: h, colors: c } = path;
-        if (!ctx || !w || !state) return;
-        const sim = pathSim();
-        const target = cameraTarget();
+        if (!ctx || !w || !state || $('pathPanel').hidden) return;
+        const roll = currentRoll();
+        const g = roll.ground;
+        const target = cameraTarget(roll);
         if (!path.cam) path.cam = { ...target };
-        // Ease the zoom so a newly learned skill visibly pulls the camera out.
-        const k = Math.min(1, dt * 2.5);
-        for (const key of ['left', 'right', 'top']) path.cam[key] += (target[key] - path.cam[key]) * k;
+        const ease = Math.min(1, dt * (path.overview > 0 ? 2.2 : 5));
+        path.cam.left += (target.left - path.cam.left) * ease;
+        path.cam.right += (target.right - path.cam.right) * ease;
         const cam = path.cam;
+        // Vertical scale is fixed per stretch (the skill hill fills most of the height), so
+        // scrolling never changes how big a hill looks; the overview shrinks everything to fit.
+        const top = g.goal.height * 1.25;
         const X = x => PAD_X + (x - cam.left) / (cam.right - cam.left) * (w - PAD_X * 2);
-        const Y = y => h - PAD_Y - y / cam.top * (h - PAD_Y * 1.6);
-        const learned = state.path.learned;
+        const Y = y => h - PAD_BOTTOM - Math.min(y, top * 1.2) / top * (h - PAD_TOP - PAD_BOTTOM);
+        const goal = g.goal;
 
         ctx.clearRect(0, 0, w, h);
 
-        // Trail: learned ground solid, the hill being learned bright, the far hill fading into fog.
-        const samples = Math.min(1200, Math.max(300, Math.round(w * 1.5)));
+        // Terrain, sampled across the view. The trail fades out past the skill hill (unknown ground).
+        const n = Math.min(1400, Math.max(300, Math.round(w * 1.5)));
         const pts = [];
-        for (let i = 0; i <= samples; i++) {
-            const x = cam.left + (cam.right - cam.left) * i / samples;
-            pts.push([X(x), Y(T.height(x)), x]);
+        for (let i = 0; i <= n; i++) {
+            const x = cam.left + (cam.right - cam.left) * i / n;
+            pts.push([X(x), Y(x > goal.end ? 0 : groundAt(roll, x)), x]);
         }
-        const fog = ctx.createLinearGradient(X(T.hill(learned).end), 0, X(cam.right), 0);
-        fog.addColorStop(0, hexAlpha(c.secondary, 0.4));
-        fog.addColorStop(1, hexAlpha(c.secondary, 0));
+        const fill = ctx.createLinearGradient(0, PAD_TOP, 0, h);
+        fill.addColorStop(0, hexAlpha(c.secondary, 0.4));
+        fill.addColorStop(1, hexAlpha(c.secondary, 0.06));
         ctx.beginPath();
         ctx.moveTo(pts[0][0], h);
         for (const [px, py] of pts) ctx.lineTo(px, py);
         ctx.lineTo(pts[pts.length - 1][0], h);
         ctx.closePath();
-        ctx.fillStyle = fog;
+        ctx.fillStyle = fill;
         ctx.fill();
-        ctx.lineWidth = 2.5;
-        ctx.lineJoin = 'round';
-        const segment = (from, to, color) => {
+
+        const stroke = (from, to, color, width = 2.5) => {
             ctx.beginPath();
             let started = false;
             for (const [px, py, x] of pts) {
@@ -710,74 +778,83 @@ window.AGI = (function () {
                 started ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
                 started = true;
             }
+            ctx.lineWidth = width;
+            ctx.lineJoin = 'round';
             ctx.strokeStyle = color;
             ctx.stroke();
         };
-        const current = T.hill(learned);
-        segment(cam.left, current.start, c.success);
-        segment(current.start, current.end, c.warning);
-        segment(current.end, cam.right, hexAlpha(c.muted, 0.6));
+        const travelled = roll.launched ? roll.ball.maxX : g.start;
+        stroke(-Infinity, Math.min(travelled, goal.start), c.success);
+        stroke(travelled, goal.start, hexAlpha(c.text, 0.55));
+        stroke(goal.start, goal.end, c.warning, 3);
+        stroke(goal.end, Infinity, hexAlpha(c.muted, 0.35));
         if (path.glow) {
-            const g = T.hill(path.glow.hill);
+            const lh = T.skillHill(path.glow.skill);
             ctx.save();
-            ctx.lineWidth = 6;
             ctx.shadowColor = c.success;
-            ctx.shadowBlur = 16;
-            ctx.globalAlpha = 1 - path.glow.age / 2;
-            segment(g.start, g.end, c.success);
+            ctx.shadowBlur = 18;
+            ctx.globalAlpha = 1 - path.glow.age / 2.5;
+            stroke(lh.start, lh.end, c.success, 6);
             ctx.restore();
         }
 
-        // Learned skills: a marker on each crest, names for the most recent ones.
-        ctx.font = '11px system-ui, sans-serif';
+        // Learned skill hills: a marker and name on each crest that is in view and wide enough.
         ctx.textAlign = 'center';
-        for (let i = 0; i < learned; i++) {
-            const hl = T.hill(i);
-            const px = X(hl.peak);
-            const py = Y(hl.height);
+        ctx.font = '11px system-ui, sans-serif';
+        for (let j = 0; j < g.stretch; j++) {
+            const sh = T.skillHill(j);
+            if (sh.end < cam.left || sh.start > cam.right) continue;
+            const px = X(sh.peak);
+            const py = Y(sh.height);
             ctx.fillStyle = c.success;
             ctx.beginPath();
             ctx.arc(px, py, 2.5, 0, Math.PI * 2);
             ctx.fill();
-            if (i >= learned - 2 && X(T.hill(i).end) - X(T.hill(i).start) > 50) {
-                ctx.fillStyle = hexAlpha(c.success, 0.8);
-                ctx.fillText(E.skillAt(i).name, px, py - 8);
+            if (X(sh.end) - X(sh.start) > 70) ctx.fillText(E.skillAt(j).name, px, py - 8);
+        }
+
+        // Record flag: the furthest any roll has reached on this stretch.
+        if (state.path.best > 0) {
+            const fx = g.start + state.path.best * (goal.peak - g.start);
+            if (fx >= cam.left && fx <= cam.right) {
+                const fy = Y(groundAt(roll, fx));
+                ctx.strokeStyle = c.accent;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(X(fx), fy);
+                ctx.lineTo(X(fx), fy - 22);
+                ctx.stroke();
+                ctx.fillStyle = c.accent;
+                ctx.beginPath();
+                ctx.moveTo(X(fx), fy - 22);
+                ctx.lineTo(X(fx) + 10, fy - 18);
+                ctx.lineTo(X(fx), fy - 14);
+                ctx.fill();
             }
         }
 
-        // The hill being learned: its name and how far up it you have got.
-        const best = Math.round(sim.ball.best * 100);
-        ctx.fillStyle = c.warning;
+        // Skill hill label, kept on screen as an arrow when the hill is still ahead of the view.
+        const skillName = E.skillAt(g.stretch).name;
         ctx.font = 'bold 12px system-ui, sans-serif';
-        const labelX = Math.min(w - 70, Math.max(70, X(current.peak)));
-        ctx.fillText(E.skillAt(learned).name, labelX, Math.max(14, Y(current.height) - 22));
-        if (best > 0) {
+        ctx.fillStyle = c.warning;
+        if (X(goal.peak) <= w - PAD_X) {
+            ctx.fillText(skillName, Math.min(w - 70, Math.max(70, X(goal.peak))), Math.max(14, Y(goal.height) - 10));
+        } else {
+            const ahead = goal.start - roll.ball.x;
+            ctx.textAlign = 'right';
+            ctx.fillText(`${skillName} →`, w - PAD_X, 16);
             ctx.font = '11px ui-monospace, Consolas, monospace';
-            ctx.fillText(`best ${best}%`, labelX, Math.max(27, Y(current.height) - 9));
-            // Mark the highest point reached on the slope.
-            const reachX = reachPoint(current, sim.ball.best);
-            ctx.strokeStyle = hexAlpha(c.warning, 0.7);
-            ctx.lineWidth = 1;
-            ctx.setLineDash([3, 3]);
-            ctx.beginPath();
-            ctx.moveTo(X(reachX), Y(T.height(reachX)));
-            ctx.lineTo(X(reachX), h - PAD_Y + 6);
-            ctx.stroke();
-            ctx.setLineDash([]);
+            ctx.fillStyle = hexAlpha(c.warning, 0.75);
+            ctx.fillText(`${ahead.toFixed(1)} m ahead`, w - PAD_X, 30);
         }
-        ctx.fillStyle = hexAlpha(c.muted, 0.9);
-        ctx.font = '11px system-ui, sans-serif';
-        ctx.fillText('?', X(T.hill(learned + 1).peak), Math.max(14, Y(T.hill(learned + 1).height) - 8));
 
-        // Ball. Its ring says when to push: green while rolling forward, red while rolling back.
-        const bx = X(sim.ball.x);
-        const by = Y(T.height(sim.ball.x)) - BALL;
-        const forward = sim.ball.v > 0.05;
-        const back = sim.ball.v < -0.05;
+        // Ball. Ring: green while rolling forward, red while rolling back.
+        const bx = X(roll.ball.x);
+        const by = Y(groundAt(roll, roll.ball.x)) - BALL;
         if (path.pushFlash > 0) {
             ctx.fillStyle = hexAlpha(c.warning, path.pushFlash);
             ctx.beginPath();
-            ctx.arc(bx, by, BALL + 10 * (0.35 - path.pushFlash) / 0.35 + 4, 0, Math.PI * 2);
+            ctx.arc(bx, by, BALL + 4 + 10 * (0.35 - path.pushFlash) / 0.35, 0, Math.PI * 2);
             ctx.fill();
         }
         ctx.fillStyle = c.text;
@@ -785,17 +862,49 @@ window.AGI = (function () {
         ctx.arc(bx, by, BALL, 0, Math.PI * 2);
         ctx.fill();
         ctx.lineWidth = 3;
-        ctx.strokeStyle = forward ? c.success : back ? c.danger : c.primary;
+        ctx.strokeStyle = roll.ball.v > 0.05 ? c.success : roll.ball.v < -0.05 ? c.danger : c.primary;
         ctx.stroke();
 
+        // HUD: pushes left as pips and the cooldown as a bar under them.
+        const pips = roll.pushesLeft;
         ctx.textAlign = 'left';
-    }
+        for (let i = 0; i < E.derive(state).pushesPerRoll; i++) {
+            ctx.beginPath();
+            ctx.arc(PAD_X + 6 + i * 16, 14, 5, 0, Math.PI * 2);
+            ctx.fillStyle = i < pips ? c.warning : hexAlpha(c.muted, 0.3);
+            ctx.fill();
+        }
+        if (roll.ball.cooldown > 0) {
+            const cd = E.derive(state).pushCooldown;
+            ctx.fillStyle = hexAlpha(c.warning, 0.8);
+            ctx.fillRect(PAD_X, 23, (1 - roll.ball.cooldown / cd) * 60, 3);
+        }
 
-    // x on the front slope of hill h where the height is `fraction` of its peak.
-    function reachPoint(h, fraction) {
-        // height = H·cos²(π/2 · u), u = (x - peak)/halfWidth, u ∈ [-1, 0] on the front slope.
-        const u = -(2 / Math.PI) * Math.acos(Math.sqrt(Math.min(1, fraction)));
-        return h.peak + u * h.halfWidth;
+        // Progress strip: checkpoint → skill hill, with the ball and the record.
+        const sy = h - 9;
+        const sx0 = PAD_X;
+        const sx1 = w - PAD_X;
+        ctx.fillStyle = hexAlpha(c.muted, 0.25);
+        ctx.fillRect(sx0, sy - 1.5, sx1 - sx0, 3);
+        ctx.fillStyle = c.success;
+        ctx.fillRect(sx0, sy - 1.5, (sx1 - sx0) * roll.progress, 3);
+        if (state.path.best > 0) {
+            ctx.fillStyle = c.accent;
+            ctx.fillRect(sx0 + (sx1 - sx0) * state.path.best - 1, sy - 5, 2, 10);
+        }
+        ctx.fillStyle = c.text;
+        ctx.beginPath();
+        ctx.arc(sx0 + (sx1 - sx0) * g.progress(roll.ball.x), sy, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = c.warning;
+        ctx.fillRect(sx1 - 2, sy - 5, 2, 10);
+
+        if (path.overview > 0) {
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 13px system-ui, sans-serif';
+            ctx.fillStyle = hexAlpha(c.success, Math.min(1, path.overview));
+            ctx.fillText(`${state.path.learned} skill${state.path.learned === 1 ? '' : 's'} learned`, w / 2, 18);
+        }
     }
 
     function hexAlpha(hex, alpha) {
@@ -843,14 +952,19 @@ window.AGI = (function () {
                 E.UPGRADES.forEach(u => { state.unlocked['up:' + u.id] = true; });
                 afterChange();
             },
-            // Learn the next skill instantly (the ball jumps ahead once it is at rest).
+            // Learn the next skill instantly; the next roll starts at the new checkpoint.
             learnSkill() {
-                learnedHill(state.path.learned);
+                E.learnSkill(state, state.path.learned);
+                path.roll = null;
+                path.overview = OVERVIEW_SECONDS;
+                afterChange();
                 startPathLoop();
             },
-            pathSim: () => {
-                const sim = pathSim();
-                return { valley: sim.valley, x: sim.ball.x, v: sim.ball.v, atRest: sim.atRest, best: sim.ball.best };
+            roll: () => {
+                const r = currentRoll();
+                return { stretch: r.ground.stretch, x: r.ball.x, v: r.ball.v, launched: r.launched, over: r.over,
+                    pushesLeft: r.pushesLeft, cooldown: r.ball.cooldown, atRest: r.atRest, progress: r.progress,
+                    slope: r.ground.slope(r.ball.x) };
             },
             simulate(seconds) {
                 E.tick(state, seconds, debugRates);

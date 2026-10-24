@@ -34,7 +34,7 @@ test('locked and unaffordable actions are rejected without side effects', () => 
     const s = fresh();
     assert.equal(E.act(s, 'research').ok, false);
     assert.equal(E.act(s, 'collect').ok, false);
-    assert.deepEqual(s.res, { cp: 0, dp: 0, rp: 0 });
+    assert.deepEqual(s.res, { cp: 0, dp: 0, rp: 0, xp: 0 });
 });
 
 test('buying an upgrade pays the scaled cost and increases production', () => {
@@ -49,7 +49,7 @@ test('buying an upgrade pays the scaled cost and increases production', () => {
 
 test('one-time upgrades cannot be bought twice and grant attributes once', () => {
     const s = fresh();
-    s.res = { cp: 1e9, dp: 1e9, rp: 1e9 };
+    s.res = { cp: 1e9, dp: 1e9, rp: 1e9, xp: 0 };
     E.evaluate(s);
     assert.equal(E.buy(s, 'nlp').ok, true);
     assert.equal(s.attr.intelligence, 1);
@@ -59,7 +59,7 @@ test('one-time upgrades cannot be bought twice and grant attributes once', () =>
 
 test('upgrades in locked tabs stay hidden until the tab unlocks', () => {
     const s = fresh();
-    s.res = { cp: 1e9, dp: 1e9, rp: 1e9 };
+    s.res = { cp: 1e9, dp: 1e9, rp: 1e9, xp: 0 };
     E.evaluate(s);
     assert.equal(E.buy(s, 'machineLearning').ok, false);
     s.attr.intelligence = 5;
@@ -167,7 +167,7 @@ test('corrupt or hostile saves are sanitized', () => {
         achievements: { firstClick: true, fake: true },
         settings: { autosave: 'yes' }
     }, NOW);
-    assert.deepEqual(s.res, { cp: 0, dp: 0, rp: 0 });
+    assert.deepEqual(s.res, { cp: 0, dp: 0, rp: 0, xp: 0 });
     assert.deepEqual(s.levels, { cpu: 3, nlp: 1 });
     assert.deepEqual(s.achievements, { firstClick: true });
     assert.equal(s.settings.autosave, true);
@@ -186,7 +186,7 @@ test('v1 saves migrate to the current format', () => {
     };
     const s = E.migrate(v1, NOW);
     assert.equal(s.version, E.SAVE_VERSION);
-    assert.deepEqual(s.res, { cp: 5000, dp: 120, rp: 7 });
+    assert.deepEqual(s.res, { cp: 5000, dp: 120, rp: 7, xp: 0 });
     assert.equal(s.attr.intelligence, 3.5);
     assert.deepEqual(s.levels, { cpu: 4, server: 2, quantum: 1, dataProcessor: 3, autoCollector: 1 });
     assert.deepEqual(s.prestige, { points: 2, total: 3, count: 1 });
