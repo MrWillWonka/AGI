@@ -551,6 +551,9 @@ window.AGI = (function () {
         setHidden($('transcendPanel'), E.prestigeGain(state) < 1 && state.prestige.count === 0);
         for (const node of document.querySelectorAll('[data-show]')) setHidden(node, !state.unlocked[node.dataset.show]);
         setText($('nextGoal'), nextGoal());
+        renderAutomation(d);
+        if (!roomAvailable(room)) showRoom('lab');
+        else if (document.body.dataset.room !== room) showRoom(room);
         renderHub();
         // The trail's animation loop sleeps when nothing moves, so keep its button in step with
         // resources here too (otherwise Launch stays disabled after you can afford it).
@@ -582,6 +585,72 @@ window.AGI = (function () {
         const reqs = Object.entries(phase.req).filter(([k, v]) => state.attr[k] < v)
             .map(([k, v]) => `${E.ATTRIBUTES[k].name} ${E.format(state.attr[k], 1)}/${v}`);
         return `Next: reach ${phase.name} (${reqs.join(', ')})`;
+    }
+
+    // ---- Rooms -----------------------------------------------------------
+
+    // Two screens: the lab (actions, automation, upgrades) and the server room (the bays).
+    // The server room opens once the Training Cluster is powered up.
+    const ROOM_KEY = 'agiRoom';
+    let room = 'lab';
+
+    const roomAvailable = id => id === 'lab' || !!state.unlocked['module:path'];
+
+    function buildRooms() {
+        for (const b of document.querySelectorAll('[data-go]')) b.addEventListener('click', () => goRoom(b.dataset.go));
+        const saved = storageGet(ROOM_KEY);
+        if (saved === 'servers' || saved === 'lab') room = saved;
+    }
+
+    function showRoom(id) {
+        room = id;
+        for (const r of document.querySelectorAll('.room')) r.hidden = r.dataset.room !== id;
+        for (const b of document.querySelectorAll('.room-tab')) b.setAttribute('aria-pressed', String(b.dataset.go === id));
+        document.body.dataset.room = id;
+    }
+
+    // Walk between rooms: the old one recedes, the new one comes forward.
+    function goRoom(id) {
+        if (id === room || !roomAvailable(id)) return;
+        storageSet(ROOM_KEY, id);
+        const from = document.querySelector(`.room[data-room="${room}"]`);
+        const to = document.querySelector(`.room[data-room="${id}"]`);
+        const dir = id === 'servers' ? 1 : -1;
+        if (reducedMotion()) return showRoom(id);
+        const timing = { duration: 220, easing: 'cubic-bezier(0.4, 0, 1, 1)' };
+        from.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: `translateX(${-dir * 40}px) scale(0.97)` }], timing)
+            .finished.then(() => {
+                showRoom(id);
+                to.animate([{ opacity: 0, transform: `translateX(${dir * 40}px) scale(0.97)` }, { opacity: 1, transform: 'none' }],
+                    { duration: 260, easing: 'cubic-bezier(0, 0, 0.2, 1)' });
+                if (id === 'servers') startPathLoop();
+            });
+    }
+
+    // ---- Automation budget -------------------------------------------------
+
+    function buildAutomation() {
+        const input = $('autoBudget');
+        input.max = Math.round(E.AUTO_BUDGET.max * 100);
+        input.step = Math.round(E.AUTO_BUDGET.step * 100);
+        input.addEventListener('input', () => {
+            state.settings.autoBudget = Number(input.value) / 100;
+            render();
+        });
+        input.addEventListener('change', () => save());
+    }
+
+    function renderAutomation(d) {
+        const owned = E.level(state, 'autoCollector') + E.level(state, 'researchAssistant') > 0;
+        setHidden($('autoPanel'), !owned);
+        if (!owned) return;
+        const pct = Math.round(state.settings.autoBudget * 100);
+        const input = $('autoBudget');
+        if (document.activeElement !== input) input.value = pct;
+        setText($('autoBudgetValue'), `${pct}%`);
+        const used = `Converting ${E.format(d.cpUsePerSec)} of ${E.format(d.cpPerSec)} CP/s`;
+        setText($('autoBudgetNote'), pct === 0 ? 'Automation is paused. All compute goes to your stockpile.'
+            : `${used}${d.autoThrottled ? ' (capped by the budget)' : ''}. The other ${100 - pct}% always goes to your stockpile.`);
     }
 
     // ---- Server room hub ---------------------------------------------------
@@ -721,21 +790,25 @@ window.AGI = (function () {
         return E.UPGRADES.filter(u => u.tab === 'training');
     }
 
-    function buildTree() {
-        const nodes = treeNodes();
-        const xs = [0, ...nodes.map(n => n.tree.x)];
-        const ys = [0, ...nodes.map(n => n.tree.y)];
+    // Grid bounds of what is on show (at least one cell around the core), so the tree grows as it opens up.
+    function treeBounds(nodes) {
+        const xs = [-1, 1, ...nodes.map(n => n.tree.x)];
+        const ys = [-1, 1, ...nodes.map(n => n.tree.y)];
         const b = { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
         b.cols = b.maxX - b.minX + 1;
         b.rows = b.maxY - b.minY + 1;
-        treeUi.bounds = b;
+        return b;
+    }
+
+    function placeNode(node, x, y) {
+        const b = treeUi.bounds;
+        node.style.left = `${((x - b.minX + 0.5) / b.cols) * 100}%`;
+        node.style.top = `${((y - b.minY + 0.5) / b.rows) * 100}%`;
+    }
+
+    function buildTree() {
+        const nodes = treeNodes();
         const tree = $('skillTree');
-        tree.style.setProperty('--cols', b.cols);
-        tree.style.setProperty('--rows', b.rows);
-        const place = (node, x, y) => {
-            node.style.left = `${((x - b.minX + 0.5) / b.cols) * 100}%`;
-            node.style.top = `${((y - b.minY + 0.5) / b.rows) * 100}%`;
-        };
 
         for (const branch of E.TREE_BRANCHES) {
             tree.append(el('div', { class: `tree-branch tree-branch-${branch.dir}`, title: branch.blurb }, [
@@ -745,30 +818,25 @@ window.AGI = (function () {
 
         const core = el('div', { class: 'tree-core', title: 'Training Core' });
         core.innerHTML = `<span class="tree-core-inner">${icon('core')}</span>`;
-        place(core, 0, 0);
         tree.append(core);
+        treeUi.core = core;
 
         const svg = $('treeLinks');
-        svg.setAttribute('viewBox', `0 0 ${b.cols} ${b.rows}`);
         svg.setAttribute('preserveAspectRatio', 'none');
         for (const up of nodes) {
-            const from = up.requires ? E.UPGRADE_BY_ID[up.requires].tree : { x: 0, y: 0 };
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', from.x - b.minX + 0.5);
-            line.setAttribute('y1', from.y - b.minY + 0.5);
-            line.setAttribute('x2', up.tree.x - b.minX + 0.5);
-            line.setAttribute('y2', up.tree.y - b.minY + 0.5);
             line.setAttribute('vector-effect', 'non-scaling-stroke');
             svg.append(line);
-            treeUi.links.push({ up, line });
+            treeUi.links.push({ up, line, from: up.requires ? E.UPGRADE_BY_ID[up.requires].tree : { x: 0, y: 0 } });
 
             const button = el('button', { type: 'button', class: 'tree-node' });
             button.innerHTML = `<span class="tree-icon">${icon(up.icon)}</span><span class="tree-lock">${icon('lock')}</span><span class="tree-level"></span>`;
             button.addEventListener('click', () => {
                 path.selected = up.id;
                 renderTree();
+                // On narrow screens the details sit below the tree: bring them into view.
+                $('nodeDetail').scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' });
             });
-            place(button, up.tree.x, up.tree.y);
             tree.append(button);
             treeUi.nodes[up.id] = button;
         }
@@ -777,9 +845,13 @@ window.AGI = (function () {
         $('treeButton').addEventListener('click', () => showTrainingView('dev'));
     }
 
-    // Node state: locked (its parent isn't owned yet), owned, maxed, or available (affordable or not).
+    // Node state: hidden (more than one step from anything buyable), locked (its parent isn't owned
+    // yet), owned, maxed, or available (affordable or not).
     function nodeState(up) {
-        if (!E.isUpgradeVisible(state, up)) return 'locked';
+        if (!E.isUpgradeVisible(state, up)) {
+            const parent = up.requires && E.UPGRADE_BY_ID[up.requires];
+            return parent && !E.isUpgradeVisible(state, parent) ? 'hidden' : 'locked';
+        }
         if (E.isMaxed(state, up)) return 'maxed';
         const lvl = E.level(state, up.id);
         const affordable = E.canAfford(state, E.upgradeCost(up, lvl));
@@ -787,17 +859,33 @@ window.AGI = (function () {
     }
 
     function renderTree() {
-        if (!treeUi.bounds) return;
+        if (!treeUi.core) return;
+        const states = Object.fromEntries(treeNodes().map(up => [up.id, nodeState(up)]));
+        const shown = treeNodes().filter(up => states[up.id] !== 'hidden');
+        const b = treeUi.bounds = treeBounds(shown);
+        const tree = $('skillTree');
+        tree.style.setProperty('--cols', b.cols);
+        tree.style.setProperty('--rows', b.rows);
+        $('treeLinks').setAttribute('viewBox', `0 0 ${b.cols} ${b.rows}`);
+        placeNode(treeUi.core, 0, 0);
+        if (path.selected && states[path.selected] === 'hidden') path.selected = shown[0].id;
         for (const up of treeNodes()) {
             const node = treeUi.nodes[up.id];
-            const st = nodeState(up);
+            const st = states[up.id];
+            node.hidden = st === 'hidden';
+            placeNode(node, up.tree.x, up.tree.y);
             node.className = `tree-node ${st}${path.selected === up.id ? ' selected' : ''}`;
             const lvl = E.level(state, up.id);
             node.querySelector('.tree-level').textContent = st === 'locked' ? '' : `${lvl}/${up.max ?? '∞'}`;
             node.setAttribute('aria-label', `${up.name}: ${st === 'locked' ? 'locked' : `level ${lvl}`}`);
             node.setAttribute('aria-pressed', String(path.selected === up.id));
         }
-        for (const { up, line } of treeUi.links) {
+        for (const { up, line, from } of treeUi.links) {
+            line.setAttribute('x1', from.x - b.minX + 0.5);
+            line.setAttribute('y1', from.y - b.minY + 0.5);
+            line.setAttribute('x2', up.tree.x - b.minX + 0.5);
+            line.setAttribute('y2', up.tree.y - b.minY + 0.5);
+            line.style.display = states[up.id] === 'hidden' ? 'none' : '';
             const parentOwned = !up.requires || E.level(state, up.requires) > 0;
             const owned = E.level(state, up.id) > 0;
             line.setAttribute('class', owned && parentOwned ? 'link-owned' : parentOwned ? 'link-open' : 'link-locked');
@@ -805,11 +893,20 @@ window.AGI = (function () {
         renderNodeDetail();
     }
 
+    // Rebuilt only when what it shows changes: render() runs every tick, and replacing the button
+    // between pointerdown and pointerup would swallow the click.
     function renderNodeDetail() {
         const up = E.UPGRADE_BY_ID[path.selected];
         const box = $('nodeDetail');
         const st = nodeState(up);
         const lvl = E.level(state, up.id);
+        const key = `${up.id}:${st.split(' ')[0]}:${lvl}`;
+        if (treeUi.detailKey === key && box.isConnected) {
+            const buy = box.querySelector('.detail-buy');
+            if (buy) buy.disabled = !E.canAfford(state, E.upgradeCost(up, lvl));
+            return;
+        }
+        treeUi.detailKey = key;
         const parts = [
             el('div', { class: 'detail-head' }, [
                 el('span', { class: 'detail-icon' }),
@@ -836,38 +933,21 @@ window.AGI = (function () {
         box.querySelector('.detail-icon').innerHTML = icon(up.icon);
     }
 
+    // The dev screen only says where you stand; the run's breakdown was on its result card.
     function renderRunSummary() {
-        const r = path.lastRun;
-        const box = $('runSummary');
-        if (!r) {
-            box.replaceChildren(el('div', { class: 'result-title', text: 'Training dev' }),
-                el('div', { class: 'result-main', text: `Next skill: ${E.skillAt(state.path.learned).name}` }),
-                el('p', { class: 'muted small', text: 'Spend XP on upgrades, then start a run.' }));
-            return;
-        }
-        const rows = [[`Distance · ${r.hills} hill${r.hills === 1 ? '' : 's'} crossed`, `+${xpText(r.distanceXp)} XP`]];
-        if (r.clean) {
-            rows.push(['Clean-push roll bonus', `+${xpText(r.rollBonusXp)} XP`, 'good']);
-            rows.push([`Banked from ${r.clean} clean push${r.clean === 1 ? '' : 'es'}`, `+${xpText(r.banked)} XP`, 'good']);
-        }
         const record = Math.round(state.path.best * 100);
-        box.replaceChildren(...[
-            el('div', { class: 'result-title', text: r.skill ? 'Skill learned' : `Run ${r.n}` }),
-            el('div', { class: 'result-main', text: r.skill ? r.skill.name : `Stopped ${r.pct}% of the way to ${r.target}` }),
-            r.skill ? el('p', { class: 'muted small', text: r.skill.effect }) : null,
-            el('div', { class: 'result-xp', text: `+${xpText(r.total)} XP` }),
-            el('ul', { class: 'result-lines' }, rows.map(([a, v, c]) => el('li', { class: c || '' }, [el('span', { text: a }), el('span', { text: v })]))),
-            r.record && !r.skill ? el('span', { class: 'result-badge', text: 'New record!' }) : null,
+        $('runSummary').replaceChildren(
+            el('div', { class: 'result-title', text: `Training dev · ${state.path.learned} skill${state.path.learned === 1 ? '' : 's'} learned` }),
+            el('div', { class: 'result-main', text: `Next skill: ${E.skillAt(state.path.learned).name}` }),
             el('div', { class: 'summary-progress' }, [
-                el('span', { class: 'muted small', text: `Best toward ${E.skillAt(state.path.learned).name}: ${record}%` }),
+                el('span', { class: 'muted small', text: `Best run: ${record}% of the way` }),
                 el('span', { class: 'bay-meter' }, [el('span', { class: 'bay-meter-fill', style: `width:${record}%` })])
-            ])
-        ].filter(Boolean));
+            ]));
     }
 
     function showTrainingView(view) {
         path.view = view;
-        path.toDev = 0;
+        path.done = false;
         $('runView').hidden = view !== 'run';
         $('devView').hidden = view !== 'dev';
         if (view === 'dev') {
@@ -901,10 +981,9 @@ window.AGI = (function () {
     const PAD_TOP = 34;
     const PAD_BOTTOM = 26;
     const BALL = 7;
-    const RESULT_PAUSE = 1.2;   // seconds before the ball resets for the next roll (the result card stays up)
+    const RESULT_PAUSE = 1.2;   // Auto-Trainer only: seconds before the next roll starts (the result card stays up)
     const OVERVIEW_SECONDS = 3; // how long the camera stays zoomed out after learning a skill
     const STUCK_GRACE = 3;      // seconds a stuck roll waits for income before it ends
-    const DEV_DELAY = 1.8;      // seconds to watch a finished run before the dev screen opens
     const path = {
         roll: null,
         rollKey: '',
@@ -932,7 +1011,8 @@ window.AGI = (function () {
     function currentRoll() {
         const d = E.derive(state, debugRates);
         const key = [state.stats.runStart, state.path.learned, E.rollSeed(state), d.pushesPerRoll, d.pushCooldown, d.friction, d.slopeDrag].join(':');
-        const stale = !path.roll || path.stateRef !== state || path.roll.over || (!path.roll.launched && path.rollKey !== key);
+        // A finished run stays on screen (path.done) until you click through to the dev screen.
+        const stale = !path.roll || path.stateRef !== state || (path.roll.over && !path.done) || (!path.roll.launched && path.rollKey !== key);
         if (stale && path.pause <= 0) {
             path.roll = T.createRoll(state.path.learned, E.rollSeed(state),
                 { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, slopeDrag: d.slopeDrag });
@@ -992,7 +1072,10 @@ window.AGI = (function () {
             });
         }
         canvas.addEventListener('contextmenu', e => e.preventDefault());
-        $('rollResult').addEventListener('click', dismissResult);
+        $('rollResult').addEventListener('click', e => {
+            const go = e.target.closest('[data-next]');
+            if (go) go.dataset.next === 'dev' ? toDevScreen() : runAgain();
+        });
         $('pushButton').addEventListener('contextmenu', e => e.preventDefault());
     }
 
@@ -1030,8 +1113,24 @@ window.AGI = (function () {
         $('rollResult').hidden = true;
     }
 
+    // A finished run waits for you: go to the dev screen to spend XP, or run again to bank more.
+    function toDevScreen() {
+        if (path.view === 'run' && path.done) showTrainingView('dev');
+    }
+
+    function runAgain() {
+        if (!path.done) return;
+        path.done = false;
+        dismissResult();
+        currentRoll();
+        render();
+        startPathLoop();
+    }
+
     function startCharge() {
         if (path.view !== 'run') return;
+        // Holding the button (or the trail) after a run starts the next one straight away.
+        if (path.done) runAgain();
         const roll = currentRoll();
         if (path.charging) return;
         if (!canPush(roll)) {
@@ -1121,10 +1220,6 @@ window.AGI = (function () {
             }
         }
         if (path.overview > 0) path.overview -= dt;
-        if (path.toDev > 0) {
-            path.toDev -= dt;
-            if (path.toDev <= 0) showTrainingView('dev');
-        }
         if (path.glow && (path.glow.age += dt) > 2.5) path.glow = null;
         path.pushFlash = Math.max(0, path.pushFlash - dt);
         path.cleanFlash = Math.max(0, path.cleanFlash - dt);
@@ -1133,7 +1228,7 @@ window.AGI = (function () {
         updateLiveXp();
         const roll = path.roll;
         const busy = roll && roll.launched && !roll.over;
-        const animating = busy || path.toDev > 0 || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
+        const animating = busy || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
             || E.level(state, 'autoTrainer') > 0;
         if (running && animating) path.frame = requestAnimationFrame(pathFrame);
     }
@@ -1148,12 +1243,12 @@ window.AGI = (function () {
         const hills = ev.hills || 0;
         const plainXp = E.rollXp(state, ev.progress, crested, 0, hills);
         const result = E.finishRoll(state, ev.progress, crested, units, hills);
-        path.pause = RESULT_PAUSE;
+        // With the Auto-Trainer the next roll starts by itself; otherwise the run waits for a click.
+        const auto = E.level(state, 'autoTrainer') > 0;
+        path.pause = auto ? RESULT_PAUSE : 0;
+        path.done = !auto;
         const pct = Math.round(ev.progress * 100);
         const lines = xpLines(plainXp, result.xp - plainXp, clean, banked, crested);
-        path.lastRun = { n: state.stats.rolls, pct, target, crested, record: result.record, skill: result.skill, hills,
-            distanceXp: plainXp, rollBonusXp: result.xp - plainXp, banked, clean, total: result.xp + banked };
-        path.toDev = crested ? OVERVIEW_SECONDS + 1.2 : DEV_DELAY;
         if (result.skill) {
             const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
             log(`Learned ${result.skill.name}: ${result.skill.effect} (${grants}, +${xpText(result.xp + banked)} XP).`, 'special');
@@ -1194,7 +1289,11 @@ window.AGI = (function () {
             el('ul', { class: 'result-lines' }, lines.filter(([a]) => a).map(([label, value, cls]) =>
                 el('li', { class: cls || '' }, [el('span', { text: label }), el('span', { text: value })]))),
             record ? el('span', { class: 'result-badge', text: 'New record!' }) : null,
-            el('div', { class: 'result-hint', text: 'Hold to launch again' })
+            path.done
+                ? el('div', { class: 'result-actions' }, [
+                    el('button', { type: 'button', class: 'ghost-button', 'data-next': 'again', text: 'Run again' }),
+                    el('button', { type: 'button', class: 'button', 'data-next': 'dev', text: 'Upgrades →' })])
+                : el('div', { class: 'result-hint', text: 'Next roll starting…' })
         ].filter(Boolean));
         card.hidden = false;
     }
@@ -1205,11 +1304,11 @@ window.AGI = (function () {
         if (!roll) return;
         const label = path.charging ? 'Release to push'
             : !roll.launched ? 'Hold to launch'
-            : roll.over ? 'Next roll…'
+            : roll.over ? (path.done ? 'Hold to run again' : 'Next roll…')
             : roll.pushesLeft > 0 ? `Hold to push (${roll.pushesLeft} left)` : 'Out of pushes';
         setText(button, label);
         // Stay enabled while charging so releasing the pointer still lands on the button.
-        setDisabled(button, !path.charging && !canPush(roll));
+        setDisabled(button, !path.charging && !path.done && !canPush(roll));
         updateMeter(roll);
     }
 
@@ -1221,7 +1320,8 @@ window.AGI = (function () {
         box.hidden = !live;
         if (!live) return;
         const units = roll.units || 0;
-        setText($('liveXpValue'), `+${xpText(E.rollXp(state, roll.progress, false, units))} XP`);
+        const hills = roll.ground.hillsBefore(roll.ball.maxX);
+        setText($('liveXpValue'), `+${xpText(E.rollXp(state, roll.progress, false, units, hills))} XP`);
         const mult = 1 + E.derive(state).cleanRollBonus * units;
         setText($('liveXpMult'), units ? `×${mult.toFixed(2)} · +${xpText(roll.bonusXp)} banked` : '');
     }
@@ -1546,6 +1646,8 @@ window.AGI = (function () {
         buildBindings();
         buildSettings();
         buildJournal();
+        buildRooms();
+        buildAutomation();
         buildHub();
         buildPath();
         buildTree();

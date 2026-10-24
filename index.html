@@ -41,6 +41,11 @@
                 </div>
             </div>
 
+            <nav class="rooms" aria-label="Rooms">
+                <button type="button" class="room-tab" data-go="lab" aria-pressed="true">Lab</button>
+                <button type="button" class="room-tab" data-go="servers" data-show="module:path" aria-pressed="false">Server room</button>
+            </nav>
+
             <div class="topbar-buttons">
                 <button type="button" class="ghost-button" id="journalButton">Journal</button>
                 <button type="button" class="ghost-button" id="debugToggle" hidden>Debug</button>
@@ -49,9 +54,10 @@
     </header>
 
     <main class="layout">
-        <section class="main-col">
-            <p class="goal" id="nextGoal" aria-live="polite"></p>
+        <p class="goal" id="nextGoal" aria-live="polite"></p>
 
+        <!-- Server room: the bays (modules). Leave it for the lab to buy hardware and software. -->
+        <section class="room room-servers" id="serverRoom" data-room="servers" aria-label="Server room" hidden>
             <div class="viewport hud" id="viewport">
                 <!-- Server room: each bay is a training module. Clicking one zooms into it. -->
                 <div class="hub" id="hub">
@@ -87,7 +93,10 @@
                             </span>
                         </button>
                     </div>
-                    <p class="hub-caption">Server room · select a bay</p>
+                    <div class="hub-foot">
+                        <button type="button" class="ghost-button door" data-go="lab">← Lab</button>
+                        <p class="hub-caption">Server room · select a bay</p>
+                    </div>
                 </div>
 
                 <!-- A bay, zoomed in. -->
@@ -160,11 +169,22 @@
             </div>
         </section>
 
-        <aside class="side-col">
+        <!-- Lab: hands-on actions, automation, Transcend and the hardware/software upgrades. -->
+        <section class="room room-lab" id="labRoom" data-room="lab" aria-label="Lab">
+            <div class="lab-ops">
             <div class="panel panel-actions hud">
                 <h2 class="sr-only">Actions</h2>
                 <div id="actions" class="action-row"></div>
                 <p class="ticker" id="ticker" aria-live="polite"></p>
+            </div>
+
+            <div class="panel panel-auto hud" id="autoPanel" hidden>
+                <div class="panel-head">
+                    <h2><label for="autoBudget">Automation budget</label></h2>
+                    <output class="auto-value" id="autoBudgetValue" for="autoBudget">50%</output>
+                </div>
+                <input type="range" id="autoBudget" min="0" max="90" step="10" value="50">
+                <p class="muted small" id="autoBudgetNote"></p>
             </div>
 
             <div class="panel panel-transcend hud" id="transcendPanel" hidden>
@@ -175,13 +195,14 @@
                 <p class="muted small">Start a new run with <strong data-bind="prestige.gain">0</strong> more Prestige Points. Each one adds +10% to all production forever.</p>
                 <button type="button" class="button button-prestige" id="prestigeButton" disabled>Transcend</button>
             </div>
+            </div>
 
             <div class="panel panel-upgrades hud">
                 <h2 class="sr-only">Upgrades</h2>
                 <div class="tabs" role="tablist" aria-label="Upgrades" id="upgradeTabs"></div>
                 <div id="upgradePanels"></div>
             </div>
-        </aside>
+        </section>
     </main>
 
     <dialog id="journal" class="dialog journal" aria-labelledby="journalTitle">

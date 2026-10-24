@@ -182,31 +182,60 @@ h1, h2, h3, p { margin: 0; }
     max-width: 1320px;
     margin: 0 auto;
     padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* Rooms: one screen at a time. The server room fills the window; the lab is two columns. */
+.room { min-width: 0; }
+.room[hidden] { display: none; }
+
+.room-servers { display: flex; flex-direction: column; }
+.room-servers .viewport { min-height: calc(100dvh - 150px); }
+
+.room-lab {
     display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr);
+    grid-template-columns: minmax(280px, 1fr) minmax(0, 1.6fr);
     gap: 20px;
     align-items: start;
 }
 
-.main-col, .side-col {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    min-width: 0;
+.lab-ops { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 76px; }
+
+.rooms { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-2); }
+.rooms[hidden], .room-tab[hidden] { display: none; }
+
+.room-tab {
+    font: 600 0.74rem var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    background: none;
+    border: 0;
+    border-radius: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
 }
 
-.side-col { position: sticky; top: 76px; }
+.room-tab:hover { color: var(--text); }
+.room-tab[aria-pressed="true"] { color: var(--bg); background: var(--primary); }
+.room-tab:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.hub-foot { position: relative; display: flex; align-items: center; gap: 14px; }
+.hub-foot .hub-caption { flex: 1; margin-right: 70px; }
+
+.result-actions { display: flex; gap: 8px; margin-top: 10px; }
+.result-actions button { flex: 1; padding: 8px 10px; }
+
+.panel-auto input[type="range"] { width: 100%; accent-color: var(--primary); }
+.auto-value { font: 700 1rem var(--font-mono); color: var(--primary); }
 
 @media (max-width: 960px) {
-    .layout { grid-template-columns: minmax(0, 1fr); padding: 14px; }
-    .side-col { position: static; }
-    /* One column: actions first, then the server room, then everything else. */
-    .main-col, .side-col { display: contents; }
-    .goal { order: 1; }
-    .panel-actions { order: 2; }
-    .viewport { order: 3; }
-    .panel-transcend { order: 4; }
-    .panel-upgrades { order: 5; }
+    .layout { padding: 14px; }
+    .room-lab { grid-template-columns: minmax(0, 1fr); }
+    .lab-ops { position: static; }
+    .room-servers .viewport { min-height: calc(100dvh - 190px); }
     .topbar-inner { padding: 10px 14px; }
     .phase { order: 10; flex-basis: 100%; }
 }
@@ -575,8 +604,10 @@ h1, h2, h3, p { margin: 0; }
 /* The tree is a square-ish grid of cells; nodes sit at cell centres, links are an SVG underneath. */
 .tree {
     position: relative;
-    width: min(calc(100% - 64px), 460px);
+    /* Cells stay about the same size while few nodes are open; the tree grows as more appear. */
+    width: min(calc(100% - 64px), 460px, calc(var(--cols) * 100px));
     aspect-ratio: var(--cols) / var(--rows);
+    transition: width 0.3s ease;
     margin: 34px auto;
     background:
         radial-gradient(circle at 50% 50%, rgba(99, 224, 171, 0.08), transparent 60%);
@@ -605,8 +636,10 @@ h1, h2, h3, p { margin: 0; }
     border-radius: 10px;
     cursor: pointer;
     box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.25), 0 6px 14px rgba(0, 0, 0, 0.4);
-    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, left 0.3s ease, top 0.3s ease;
 }
+
+.tree-node[hidden] { display: none; }
 
 .tree-node:hover { transform: translate(-50%, -50%) scale(1.06); }
 
@@ -780,7 +813,7 @@ h1, h2, h3, p { margin: 0; }
     background: rgba(11, 22, 25, 0.95);
     border: 1px solid var(--border);
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
-    cursor: pointer;
+    cursor: default;
     animation: result-in 0.25s ease-out;
 }
 

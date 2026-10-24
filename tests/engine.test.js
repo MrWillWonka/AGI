@@ -6,6 +6,20 @@ const E = require('../engine.js');
 const NOW = 1_700_000_000_000;
 const fresh = () => E.defaultState(NOW);
 
+test('the skill tree starts sparse: short nodes, cheap roots, dearer further out', () => {
+    const nodes = E.UPGRADES.filter(u => u.tab === 'training');
+    const depth = n => (n.requires ? 1 + depth(E.UPGRADE_BY_ID[n.requires]) : 1);
+    for (const n of nodes) {
+        assert.ok(n.max >= 1 && n.max <= 3, `${n.id} has 1–3 levels`);
+        if (n.cost.xp == null) continue;
+        assert.ok(n.boost, `${n.id} declares its boost`);
+        if (depth(n) === 1) assert.ok(n.cost.xp <= 10, `${n.id} is a cheap root`);
+        if (n.requires && E.UPGRADE_BY_ID[n.requires].cost.xp) {
+            assert.ok(n.cost.xp > E.UPGRADE_BY_ID[n.requires].cost.xp, `${n.id} costs more than its parent`);
+        }
+    }
+});
+
 test('skill-tree nodes do not overlap and grow from a neighbouring node', () => {
     const nodes = E.UPGRADES.filter(u => u.tab === 'training');
     const seen = new Set(['0,0']);
@@ -129,27 +143,48 @@ test('tick produces resources over time', () => {
 test('automation converts resources instead of creating them', () => {
     const s = fresh();
     s.res.cp = 1000;
+    s.levels.cpu = 200;                     // plenty of production: automation runs at full speed
     s.levels.autoCollector = 1;
-    E.tick(s, 10);                          // 0.5 collections/s for 10 s, 10 CP each
-    assert.equal(s.res.cp, 950);
-    assert.equal(s.res.dp, 5 * E.derive(s).dpPerCollect);
-
-    const poor = fresh();
-    poor.res.cp = 20;
-    poor.levels.autoCollector = 1;
-    E.tick(poor, 10);                       // limited to what it can afford
-    assert.equal(poor.res.cp, 0);
-    assert.equal(poor.res.dp, 2 * E.derive(poor).dpPerCollect);
+    const d = E.derive(s);
+    assert.equal(d.autoThrottled, false);
+    assert.equal(d.collectsPerSec, 0.5);
+    E.tick(s, 10);
+    assert.ok(Math.abs(s.res.cp - (1000 + 10 * d.cpPerSec - 50)) < 1e-6);
+    assert.ok(Math.abs(s.res.dp - 5 * d.dpPerCollect) < 1e-9);
 
     const r = fresh();
-    r.res.cp = 1000;
-    r.res.dp = 15;
+    r.res.dp = 1000;
+    r.levels.cpu = 2000;
     r.levels.researchAssistant = 1;
-    E.tick(r, 10);                          // wants 2 runs, DP allows 1.5
-    assert.equal(r.res.dp, 0);
-    assert.equal(r.res.cp, 1000 - 1.5 * 50);
-    assert.equal(r.res.rp, 1.5 * E.derive(r).rpPerResearch);
-    assert.ok(E.derive(r).cpNet < 0);
+    const before = r.res.dp;
+    E.tick(r, 10);                          // research needs DP income, not stock: none is produced
+    assert.equal(r.res.dp, before);
+    assert.equal(r.res.rp, 0);
+});
+
+test('automation never spends more than its budget of production', () => {
+    for (const budget of [0, 0.5, 0.9]) {
+        const s = fresh();
+        s.settings.autoBudget = budget;
+        s.levels.cpu = 4;
+        s.levels.autoCollector = 20;
+        s.levels.researchAssistant = 20;
+        const d = E.derive(s);
+        assert.ok(d.cpUsePerSec <= budget * d.cpPerSec + 1e-9, `cp at ${budget}`);
+        assert.ok(d.dpUsePerSec <= budget * d.dpPerSec + 1e-9, `dp at ${budget}`);
+        assert.ok(d.cpNet >= (1 - budget) * d.cpPerSec - 1e-9);
+        assert.equal(d.autoThrottled, budget < 1);
+        const cp = s.res.cp;
+        E.tick(s, 60);
+        assert.ok(s.res.cp >= cp, 'compute still climbs');
+    }
+});
+
+test('the automation budget is saved and clamped', () => {
+    assert.equal(E.migrate({ version: E.SAVE_VERSION, settings: { autoBudget: 0.3 } }).settings.autoBudget, 0.3);
+    assert.equal(E.migrate({ version: E.SAVE_VERSION, settings: { autoBudget: 5 } }).settings.autoBudget, E.AUTO_BUDGET.max);
+    assert.equal(E.migrate({ version: E.SAVE_VERSION, settings: { autoBudget: 'x' } }).settings.autoBudget, E.AUTO_BUDGET.default);
+    assert.equal(E.migrate({ version: E.SAVE_VERSION, settings: {} }).settings.autosave, true);
 });
 
 test('a roll that crosses hills earns at least the hill floor', () => {

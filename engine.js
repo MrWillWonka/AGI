@@ -116,21 +116,36 @@
         // position around the central Training Core at (0, 0); `requires` is the node it grows from
         // (none = attached to the core). `icon` names a glyph drawn by game.js.
         // Branches radiate from the core: Power (up), Precision (right), Recursion (down), Capability (left).
+        // Each node has 1–3 levels and a `boost` per level (summed in treeBoosts). Deeper nodes are
+        // stronger and dearer, so the tree starts sparse and grows outward instead of stacking a few roots.
         // Power (up)
-        { id: 'trainingOptimizer', tab: 'training', tree: { x: 0, y: -1 }, icon: 'bolt', name: 'GPU Cluster', effect: 'Stronger pushes (+10%). The meter also sweeps a little slower.', cost: { xp: 15 }, scale: 1.5, max: 20 },
-        { id: 'optimizedCode', tab: 'training', tree: { x: 0, y: -2 }, icon: 'code', name: 'Optimized Code', effect: 'Less speed lost to friction (-10%)', cost: { xp: 60 }, scale: 1.9, max: 5, requires: 'trainingOptimizer' },
-        { id: 'betterAlgorithms', tab: 'training', tree: { x: 1, y: -2 }, icon: 'mountain', name: 'Better Algorithms', effect: 'Steep hills slow you less (-12%)', cost: { xp: 120 }, scale: 2, max: 5, requires: 'optimizedCode' },
+        { id: 'trainingOptimizer', tab: 'training', tree: { x: 0, y: -1 }, icon: 'bolt', name: 'GPU Cluster', effect: 'Stronger pushes (+10%). The meter also sweeps a little slower.', cost: { xp: 2 }, scale: 1.8, max: 3, boost: { push: 0.1, sweep: 0.06 } },
+        { id: 'optimizedCode', tab: 'training', tree: { x: 0, y: -2 }, icon: 'code', name: 'Optimized Code', effect: 'Less speed lost to friction (-10%)', cost: { xp: 8 }, scale: 1.8, max: 2, requires: 'trainingOptimizer', boost: { friction: 1 } },
+        { id: 'betterAlgorithms', tab: 'training', tree: { x: 1, y: -2 }, icon: 'mountain', name: 'Better Algorithms', effect: 'Steep hills slow you less (-12%)', cost: { xp: 38 }, scale: 2, max: 2, requires: 'optimizedCode', boost: { slope: 1 } },
+        { id: 'efficientKernels', tab: 'training', tree: { x: -1, y: -2 }, icon: 'code', name: 'Efficient Kernels', effect: 'Less speed lost to friction (-10%)', cost: { xp: 120 }, scale: 1.8, max: 3, requires: 'optimizedCode', boost: { friction: 1 } },
+        { id: 'gpuCluster2', tab: 'training', tree: { x: 0, y: -3 }, icon: 'bolt', name: 'Bigger GPU Cluster', effect: 'Stronger pushes (+15%) and a slower sweep', cost: { xp: 60 }, scale: 1.6, max: 3, requires: 'optimizedCode', boost: { push: 0.15, sweep: 0.06 } },
+        { id: 'smarterAlgorithms', tab: 'training', tree: { x: 1, y: -3 }, icon: 'mountain', name: 'Smarter Algorithms', effect: 'Steep hills and friction both slow you less', cost: { xp: 180 }, scale: 1.8, max: 3, requires: 'betterAlgorithms', boost: { slope: 1, friction: 1 } },
+        { id: 'gpuSupercluster', tab: 'training', tree: { x: 0, y: -4 }, icon: 'bolt', name: 'GPU Supercluster', effect: 'Much stronger pushes (+20%)', cost: { xp: 225 }, scale: 1.7, max: 3, requires: 'gpuCluster2', boost: { push: 0.2, sweep: 0.05 } },
         // Precision (right)
-        { id: 'precisionTuning', tab: 'training', tree: { x: 1, y: 0 }, icon: 'target', name: 'Better Sensors', effect: 'Wider bonus zone on the strength meter (+25%)', cost: { xp: 30 }, scale: 1.8, max: 5 },
-        { id: 'benchmarkPrizes', tab: 'training', tree: { x: 2, y: 0 }, icon: 'coin', name: 'Benchmark Prizes', effect: 'More XP banked per clean push (+25%)', cost: { xp: 25 }, scale: 1.7, max: 10, requires: 'precisionTuning' },
-        { id: 'curatedData', tab: 'training', tree: { x: 2, y: -1 }, icon: 'stack', name: 'Curated Data', effect: 'Bigger roll bonus per clean push (+25%)', cost: { xp: 30 }, scale: 1.8, max: 10, requires: 'benchmarkPrizes' },
-        { id: 'perfectCalibration', tab: 'training', tree: { x: 2, y: 1 }, icon: 'star', name: 'Perfect Calibration', effect: 'Adds a perfect spot inside the bonus zone worth 3x. Later levels widen it.', cost: { xp: 80 }, scale: 2.2, max: 4,
-            requires: 'benchmarkPrizes' },
+        { id: 'precisionTuning', tab: 'training', tree: { x: 1, y: 0 }, icon: 'target', name: 'Better Sensors', effect: 'Wider bonus zone on the strength meter (+25%)', cost: { xp: 2 }, scale: 2.5, max: 2, boost: { zone: 0.25 } },
+        { id: 'benchmarkPrizes', tab: 'training', tree: { x: 2, y: 0 }, icon: 'coin', name: 'Benchmark Prizes', effect: 'More XP banked per clean push (+25%)', cost: { xp: 6 }, scale: 1.7, max: 3, requires: 'precisionTuning', boost: { clean: 0.25 } },
+        { id: 'curatedData', tab: 'training', tree: { x: 2, y: -1 }, icon: 'stack', name: 'Curated Data', effect: 'Bigger roll bonus per clean push (+25%)', cost: { xp: 12 }, scale: 1.7, max: 3, requires: 'benchmarkPrizes', boost: { rollBonus: 0.25 } },
+        { id: 'perfectCalibration', tab: 'training', tree: { x: 2, y: 1 }, icon: 'star', name: 'Perfect Calibration', effect: 'Adds a perfect spot inside the bonus zone worth 3x', cost: { xp: 60 }, max: 1,
+            requires: 'benchmarkPrizes', boost: { perfect: 1 } },
+        { id: 'highResSensors', tab: 'training', tree: { x: 3, y: 0 }, icon: 'target', name: 'High-Res Sensors', effect: 'Wider bonus zone (+20%)', cost: { xp: 90 }, scale: 1.7, max: 3, requires: 'benchmarkPrizes', boost: { zone: 0.2 } },
+        { id: 'handLabelled', tab: 'training', tree: { x: 3, y: -1 }, icon: 'stack', name: 'Hand-Labelled Data', effect: 'Bigger roll bonus per clean push (+35%)', cost: { xp: 180 }, scale: 1.7, max: 3, requires: 'curatedData', boost: { rollBonus: 0.35 } },
+        { id: 'fineCalibration', tab: 'training', tree: { x: 3, y: 1 }, icon: 'star', name: 'Fine Calibration', effect: 'Wider perfect spot (+40%)', cost: { xp: 225 }, scale: 1.8, max: 3, requires: 'perfectCalibration', boost: { perfect: 1 } },
+        { id: 'leaderboardPrizes', tab: 'training', tree: { x: 4, y: 0 }, icon: 'coin', name: 'Leaderboard Prizes', effect: 'Much more XP per clean push (+40%)', cost: { xp: 300 }, scale: 1.7, max: 3, requires: 'highResSensors', boost: { clean: 0.4 } },
         // Recursion (down)
-        { id: 'trainingEpochs', tab: 'training', tree: { x: 0, y: 1 }, icon: 'plus', name: 'Investor Funding', effect: '+1 push per run. The first one lets you push mid-run.', cost: { xp: 12 }, scale: 2.6, max: 7 },
-        { id: 'fasterIteration', tab: 'training', tree: { x: 0, y: 2 }, icon: 'chip', name: 'Faster Chips', effect: 'Less time between pushes (-15%)', cost: { xp: 20 }, scale: 1.7, max: 12, requires: 'trainingEpochs' },
+        { id: 'trainingEpochs', tab: 'training', tree: { x: 0, y: 1 }, icon: 'plus', name: 'Investor Funding', effect: '+1 push per run. The first one lets you push mid-run.', cost: { xp: 3 }, scale: 3, max: 2, boost: { pushes: 1 } },
+        { id: 'fasterIteration', tab: 'training', tree: { x: 0, y: 2 }, icon: 'chip', name: 'Faster Chips', effect: 'Less time between pushes (-15%)', cost: { xp: 6 }, scale: 1.7, max: 3, requires: 'trainingEpochs', boost: { cooldown: 1 } },
+        { id: 'seriesA', tab: 'training', tree: { x: -1, y: 2 }, icon: 'plus', name: 'Series A', effect: '+1 push per run', cost: { xp: 90 }, scale: 2.5, max: 2, requires: 'fasterIteration', boost: { pushes: 1 } },
+        { id: 'overclockedChips', tab: 'training', tree: { x: 0, y: 3 }, icon: 'chip', name: 'Overclocked Chips', effect: 'Less time between pushes (-15%)', cost: { xp: 75 }, scale: 1.7, max: 3, requires: 'fasterIteration', boost: { cooldown: 1 } },
+        { id: 'seriesB', tab: 'training', tree: { x: -1, y: 3 }, icon: 'plus', name: 'Series B', effect: '+1 push per run', cost: { xp: 450 }, scale: 2.5, max: 2, requires: 'seriesA', boost: { pushes: 1 } },
+        { id: 'customSilicon', tab: 'training', tree: { x: 0, y: 4 }, icon: 'chip', name: 'Custom Silicon', effect: 'Less time between pushes (-15%)', cost: { xp: 375 }, scale: 1.7, max: 3, requires: 'overclockedChips', boost: { cooldown: 1 } },
         // Capability (left)
-        { id: 'scoutingData', tab: 'training', tree: { x: -1, y: 0 }, icon: 'eye', name: 'Scouting Data', effect: 'See further ahead on the trail (+25%)', cost: { xp: 40 }, scale: 2, max: 3 },
+        { id: 'scoutingData', tab: 'training', tree: { x: -1, y: 0 }, icon: 'eye', name: 'Scouting Data', effect: 'See further ahead on the trail (+25%)', cost: { xp: 4 }, scale: 2, max: 2, boost: { view: 0.25 } },
+        { id: 'satelliteMaps', tab: 'training', tree: { x: -1, y: -1 }, icon: 'eye', name: 'Satellite Maps', effect: 'See further ahead on the trail (+25%)', cost: { xp: 90 }, scale: 2, max: 2, requires: 'scoutingData', boost: { view: 0.25 } },
         { id: 'autoTrainer', tab: 'training', tree: { x: -2, y: 0 }, icon: 'robot', name: 'Auto-Trainer', effect: 'Level 1 launches runs and pushes when the ball stops. Level 2 times pushes with the swing.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
             requires: 'scoutingData', unlock: s => s.prestige.count >= 1, hint: 'Transcend once' },
         { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', effect: 'Runs research automatically (+0.2/s), paying its CP and DP', cost: { cp: 1500, dp: 100, rp: 10 }, scale: 1.3,
@@ -225,7 +240,7 @@
                 highestPhase: 0
             },
             path: { learned: 0, best: 0 },
-            settings: { autosave: true, offline: true },
+            settings: { autosave: true, offline: true, autoBudget: AUTO_BUDGET.default },
             lastSaved: now
         };
     }
@@ -234,6 +249,17 @@
 
     function level(s, id) {
         return s.levels[id] || 0;
+    }
+
+    // Skill-tree effects: each training node's `boost` times its level, summed by stat.
+    const TREE_STATS = ['push', 'sweep', 'pushes', 'cooldown', 'zone', 'perfect', 'clean', 'rollBonus', 'friction', 'slope', 'view'];
+    function treeBoosts(s) {
+        const out = Object.fromEntries(TREE_STATS.map(k => [k, 0]));
+        for (const up of UPGRADES) {
+            const lvl = up.boost ? s.levels[up.id] || 0 : 0;
+            if (lvl) for (const [k, v] of Object.entries(up.boost)) out[k] += v * lvl;
+        }
+        return out;
     }
 
     function globalMultiplier(s) {
@@ -252,35 +278,46 @@
             + 250 * L('datacenter') + 1400 * L('optical')) * (1 + sk.cp) * mult * r.cp;
         const clickPower = (1 + L('server') + sk.click) * mult;
         const dpPerCollect = (1 + L('dataProcessor') + 5 * L('nlp') + 10 * L('computerVision') + sk.collect) * (1 + sk.dp) * mult;
-        // Automation converts: collections spend CP, research spends CP and DP (at the action prices).
-        const collectsPerSec = 0.5 * L('autoCollector') * r.dp;
-        const dpPerSec = collectsPerSec * dpPerCollect;
         const rpPerResearch = (1 + L('machineLearning') + 2 * L('deepLearning') + 3 * L('reinforcementLearning')
             + 5 * L('transferLearning') + sk.research) * (1 + sk.rp) * mult;
-        const researchPerSec = 0.2 * L('researchAssistant') * r.rp;
-        const rpPerSec = researchPerSec * rpPerResearch;
+        // Automation converts at the action prices: collections spend CP, research spends CP and DP.
+        // It may only use the automation budget (a share of what is produced each second) and never
+        // touches the stockpile, so compute always keeps climbing. Over budget, both slow down evenly.
         const collectCost = actionById('collect').cost;
         const researchCost = actionById('research').cost;
+        const share = autoBudget(s);
+        const wantCollects = 0.5 * L('autoCollector') * r.dp;
+        const wantResearch = 0.2 * L('researchAssistant') * r.rp;
+        const cpWanted = wantCollects * collectCost.cp + wantResearch * researchCost.cp;
+        const cpScale = cpWanted > 0 ? Math.min(1, share * cpPerSec / cpWanted) : 1;
+        const collectsPerSec = wantCollects * cpScale;
+        const dpPerSec = collectsPerSec * dpPerCollect;
+        const dpWanted = wantResearch * cpScale * researchCost.dp;
+        const dpScale = dpWanted > 0 ? Math.min(1, share * dpPerSec / dpWanted) : 1;
+        const researchPerSec = wantResearch * cpScale * dpScale;
+        const rpPerSec = researchPerSec * rpPerResearch;
         const cpUsePerSec = collectsPerSec * collectCost.cp + researchPerSec * researchCost.cp;
         const dpUsePerSec = researchPerSec * researchCost.dp;
+        const autoThrottled = cpScale * dpScale < 1;
         // Push strength grows with upgrades and skills, and gently with prestige and achievements.
         // Hills grow faster than this, so later skills need momentum built over several pushes.
-        const pushPower = PATH.basePush * (1 + 0.1 * L('trainingOptimizer') + sk.push) * Math.sqrt(mult);
-        const pushesPerRoll = PATH.basePushes + L('trainingEpochs');
-        const pushCooldown = Math.max(PATH.minCooldown, PATH.baseCooldown * Math.pow(0.85, L('fasterIteration')));
+        const tb = treeBoosts(s);
+        const pushPower = PATH.basePush * (1 + tb.push + sk.push) * Math.sqrt(mult);
+        const pushesPerRoll = PATH.basePushes + tb.pushes;
+        const pushCooldown = Math.max(PATH.minCooldown, PATH.baseCooldown * Math.pow(0.85, tb.cooldown));
 
-        const zoneWidth = PATH.zoneWidth * (1 + 0.25 * L('precisionTuning'));
-        const perfectWidth = L('perfectCalibration') ? PATH.perfectWidth * (1 + 0.4 * (L('perfectCalibration') - 1)) : 0;
-        const cleanMult = 1 + 0.25 * L('benchmarkPrizes');
-        const cleanRollBonus = PATH.cleanRollBonus * (1 + 0.25 * L('curatedData'));
-        // A stronger rig is easier to control: each GPU Cluster level slows the meter's sweep a little.
-        const sweepScale = Math.min(1.7, 1 + 0.06 * L('trainingOptimizer'));
-        const friction = Math.pow(0.9, L('optimizedCode'));
-        const slopeDrag = Math.pow(0.88, L('betterAlgorithms'));
-        const viewScale = 1 + 0.25 * L('scoutingData');
+        const zoneWidth = PATH.zoneWidth * (1 + tb.zone);
+        const perfectWidth = tb.perfect ? PATH.perfectWidth * (1 + 0.4 * (tb.perfect - 1)) : 0;
+        const cleanMult = 1 + tb.clean;
+        const cleanRollBonus = PATH.cleanRollBonus * (1 + tb.rollBonus);
+        // A stronger rig is easier to control: GPU nodes slow the meter's sweep a little.
+        const sweepScale = Math.min(1.7, 1 + tb.sweep);
+        const friction = Math.pow(0.9, tb.friction);
+        const slopeDrag = Math.pow(0.88, tb.slope);
+        const viewScale = 1 + tb.view;
 
         return { mult, cpPerSec, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec,
-            collectsPerSec, researchPerSec, cpUsePerSec, dpUsePerSec,
+            collectsPerSec, researchPerSec, cpUsePerSec, dpUsePerSec, autoThrottled,
             cpNet: cpPerSec - cpUsePerSec, dpNet: dpPerSec - dpUsePerSec, pushPower, pushesPerRoll, pushCooldown, zoneWidth, perfectWidth, cleanMult, cleanRollBonus, sweepScale, friction, slopeDrag, viewScale };
     }
 
@@ -361,6 +398,10 @@
 
     const actionById = id => ACTIONS.find(a => a.id === id);
 
+    // Share of each second's CP (and DP) production that automation may convert.
+    const AUTO_BUDGET = { min: 0, max: 0.9, step: 0.1, default: 0.5 };
+    const autoBudget = s => Math.min(AUTO_BUDGET.max, Math.max(AUTO_BUDGET.min, s.settings.autoBudget ?? AUTO_BUDGET.default));
+
     function act(s, id, rates) {
         const action = ACTIONS.find(a => a.id === id);
         if (!action) return { ok: false, msg: `Unknown action: ${id}` };
@@ -401,7 +442,7 @@
         if (!(dt > 0)) return;
         const d = derive(s, rates);
         addCp(s, d.cpPerSec * dt);
-        // Automation converts what it can afford: compute into data, then compute and data into research.
+        // Automation converts within its budget (see derive), never more than is in stock.
         const collectCost = actionById('collect').cost;
         const collects = Math.min(d.collectsPerSec * dt, s.res.cp / collectCost.cp);
         if (collects > 0) {
@@ -653,7 +694,11 @@
         s.achievements = cleanMap(raw.achievements, (k, v) => v === true && ACHIEVEMENTS.some(a => a.id === k));
         for (const k of Object.keys(s.prestige)) s.prestige[k] = num(raw.prestige?.[k], 0);
         for (const k of Object.keys(s.stats)) s.stats[k] = num(raw.stats?.[k], s.stats[k]);
-        for (const k of Object.keys(s.settings)) s.settings[k] = bool(raw.settings?.[k], s.settings[k]);
+        for (const k of Object.keys(s.settings)) {
+            s.settings[k] = typeof s.settings[k] === 'number'
+                ? Math.min(AUTO_BUDGET.max, Math.max(AUTO_BUDGET.min, num(raw.settings?.[k], s.settings[k])))
+                : bool(raw.settings?.[k], s.settings[k]);
+        }
         s.path.learned = Math.floor(num(raw.path?.learned, 0));
         s.path.best = Math.min(1, num(raw.path?.best, 0));
         s.lastSaved = num(raw.lastSaved, d.lastSaved);
@@ -740,7 +785,7 @@
     }
 
     return {
-        SAVE_VERSION, MAX_OFFLINE_SECONDS, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN, PATH, SKILLS,
+        SAVE_VERSION, MAX_OFFLINE_SECONDS, AUTO_BUDGET, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
