@@ -43,7 +43,9 @@ Open `/?debug` (or press <kbd>`</kbd>) for the debug panel: add resources/attrib
     - Zone upgrades: Better Sensors (width), Benchmark Prizes (flat XP), Curated Data (roll bonus), Perfect Calibration (adds and widens the perfect spot). GPU Cluster also slows the sweep (`sweepScale`). The Auto-Trainer pushes at its full budget and never scores clean pushes.
     - XP follows the ball: the live pill shows `rollXp` at the ball's *current* position, and the payout uses where it stops (rolling back loses XP). The result card sits top-right, clear of the checkpoint; launching fades it.
   - Slope friction (`SLOPE_DRAG`): steeper slopes sap more speed than gentle ones.
-  - Progression is bought with XP in the Training tab. GPU Cluster adds strength, Faster Chips cuts the cooldown, and Investor Funding adds pushes per roll (the base is 1, the launch only). The Auto-Trainer appears after a Transcend.
+  - **Runs and the dev screen.** One run is one roll over a long stretch (about 10–12 rolling hills before the skill hill). When it ends, the Training bay switches from `#runView` to `#devView`: a run summary, XP to spend, the skill tree and Start run. `path.view` is `'run'` or `'dev'`, and physics only runs in `'run'`. The first visit goes straight to the run view; later visits open the dev screen.
+  - **Skill tree.** Training upgrades (`tab: 'training'`) are nodes with a `tree: {x, y}` grid position around the Training Core at (0, 0), an `icon` (glyphs in `ICONS` in `game.js`), and `requires` (the adjacent node they grow from; none means attached to the core). Branches: Power (up), Precision (right), Recursion (down), Capability (left), listed in `TREE_BRANCHES`. A node becomes buyable when its parent is owned (`evaluate()` unlocks `up:<id>`). Tests check that nodes don't overlap and are adjacent to their parent. To add a node: add an `UPGRADES` entry with `tab: 'training'`, a free grid cell next to its parent, an icon and its effect in `derive()`.
+  - Progression is bought with XP in the skill tree. GPU Cluster adds strength, Faster Chips cuts the cooldown, and Investor Funding adds pushes per roll (the base is 1, the launch only). The Auto-Trainer appears after a Transcend.
   - Push strength comes from upgrades, skills and `sqrt(globalMultiplier)`. **Never tie it to Intelligence**: skills grant Intelligence, so the loop runs away (tested).
   - The engine owns the economy (`PATH`, `rollCost`, `payRoll`, `rollXp`, `finishRoll`, `learnSkill`); `training-path.js` owns the physics; `game.js` runs rolls, follows the ball with the camera and draws the trail.
   - Only `path.learned`, `path.best`, `res.xp` and `stats.rolls` are saved; an interrupted roll is simply lost.
@@ -62,7 +64,7 @@ Open `/?debug` (or press <kbd>`</kbd>) for the debug panel: add resources/attrib
 ## Verifying changes
 
 1. `node --test` must pass; add tests for new rules.
-2. For balance changes, simulate a run in Node with the engine and `training-path.js`: a bot that launches rolls, pushes when the ball stalls on an upslope, and spends XP on Training upgrades. Current first-run results with a bot that lands a clean push half the time: General AI ≈ 23 min, Superintelligence ≈ 60 min, Singularity ≈ 2 h 15 min.
+2. For balance changes, simulate a run in Node with the engine and `training-path.js`: a bot that launches rolls, pushes when the ball stalls on an upslope, and spends XP on Training upgrades. Current first-run results with a bot that lands a clean push half the time: first skill ≈ 6 min, General AI ≈ 23 min, Superintelligence ≈ 50 min, Singularity ≈ 2 h 40 min.
 3. Load the page (Playwright/Chromium works in cloud sessions) and check the console for errors at desktop and ~390 px widths.
 
 ## Conventions

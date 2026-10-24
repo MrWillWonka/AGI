@@ -29,7 +29,7 @@
 
     const skillHeight = k => 0.3 * Math.pow(1.3, k);
     const skillHalfWidth = k => 0.55 * Math.pow(1.14, k);
-    const stretchLength = k => 4 * Math.pow(1.16, k);   // checkpoint to the foot of skill hill k
+    const stretchLength = k => 10 * Math.pow(1.12, k);  // checkpoint to the foot of skill hill k: many rolling hills
 
     const checkpoints = [0];    // checkpoints[k] = x where stretch k starts
     function checkpoint(k) {
@@ -148,9 +148,12 @@
 
     // ---- One roll -------------------------------------------------------------
 
-    // opts: { pushes: pushes allowed this roll, cooldown: seconds between pushes }
+    // opts: { pushes, cooldown, friction?, slopeDrag? } — the last two scale rolling resistance and
+    // slope friction (1 = normal), so upgrades can make the ball roll further.
     function createRoll(k, seed, opts) {
         const { pushes, cooldown } = opts;
+        const friction = opts.friction ?? 1;
+        const slopeDrag = SLOPE_DRAG * (opts.slopeDrag ?? 1);
         const ground = terrain(k, seed);
         const ball = { x: ground.start, v: 0, still: 0, cooldown: 0, maxX: ground.start, trapped: false };
         let pushesLeft = pushes;
@@ -178,7 +181,7 @@
             ball.cooldown = Math.max(0, ball.cooldown - STEP);
             const dy = ground.slope(ball.x);
             ball.v += (-GRAVITY * dy / (1 + dy * dy)) * STEP;
-            ball.v -= (DAMPING * ball.v + DRAG * ball.v * Math.abs(ball.v) + SLOPE_DRAG * Math.abs(dy) * ball.v) * STEP;
+            ball.v -= (friction * (DAMPING * ball.v + DRAG * ball.v * Math.abs(ball.v)) + slopeDrag * Math.abs(dy) * ball.v) * STEP;
             // Momentum while there is somewhere to go; once the ball lacks the energy to clear either
             // neighbouring hill, it is stuck in this dip, so let it settle quickly instead of sloshing.
             const { left, right } = ground.walls(ball.x);

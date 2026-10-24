@@ -536,6 +536,187 @@ h1, h2, h3, p { margin: 0; }
     .viewport { min-height: 0; }
 }
 
+/* ---- Training dev screen & skill tree ---- */
+
+.dev-view { display: flex; flex-direction: column; gap: 14px; }
+
+.dev-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: stretch;
+}
+
+.run-summary {
+    padding: 14px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(8, 17, 19, 0.7);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.run-summary .result-lines { max-width: 380px; }
+.summary-progress { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; max-width: 380px; }
+
+.dev-actions { display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 10px; min-width: 210px; }
+.dev-xp { text-align: center; font: 700 1.4rem var(--font-mono); color: var(--warning); }
+.dev-xp .chip-label { display: block; margin-bottom: 2px; }
+.start-run { padding: 14px 20px; font-size: 1.05rem; }
+
+.tree-area {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 250px;
+    gap: 14px;
+    align-items: start;
+}
+
+/* The tree is a square-ish grid of cells; nodes sit at cell centres, links are an SVG underneath. */
+.tree {
+    position: relative;
+    width: min(calc(100% - 64px), 460px);
+    aspect-ratio: var(--cols) / var(--rows);
+    margin: 34px auto;
+    background:
+        radial-gradient(circle at 50% 50%, rgba(99, 224, 171, 0.08), transparent 60%);
+}
+
+.tree-links { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.tree-links line { stroke-width: 3; stroke-linecap: round; }
+.tree-links .link-owned { stroke: var(--success); filter: drop-shadow(0 0 4px rgba(99, 224, 171, 0.8)); }
+.tree-links .link-open { stroke: #4a6a70; stroke-dasharray: 5 5; }
+.tree-links .link-locked { stroke: rgba(255, 93, 93, 0.35); }
+
+.tree-node, .tree-core {
+    position: absolute;
+    width: calc(64% / var(--cols));
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+}
+
+.tree-node {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    color: var(--text);
+    background: linear-gradient(180deg, #18323a, #0f2126);
+    border: 2px solid #2d4c54;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.25), 0 6px 14px rgba(0, 0, 0, 0.4);
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tree-node:hover { transform: translate(-50%, -50%) scale(1.06); }
+
+.tree-icon svg, .tree-lock svg { width: 52%; height: auto; display: block; margin: auto; }
+.tree-icon, .tree-lock { grid-area: 1 / 1; width: 100%; }
+.tree-lock { display: none; }
+
+.tree-level {
+    position: absolute;
+    bottom: -9px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0 6px;
+    border-radius: 999px;
+    font: 700 0.62rem var(--font-mono);
+    background: #0a1416;
+    border: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.tree-level:empty { display: none; }
+
+.tree-node.owned, .tree-node.maxed {
+    border-color: var(--success);
+    background: linear-gradient(180deg, #1d4a46, #12302f);
+    box-shadow: 0 0 16px rgba(99, 224, 171, 0.35), inset 0 0 0 3px rgba(0, 0, 0, 0.2);
+}
+
+.tree-node.maxed .tree-level { color: var(--success); border-color: var(--success); }
+
+.tree-node.can-buy { border-color: var(--warning); animation: node-ready 1.8s ease-in-out infinite; }
+.tree-node.can-buy .tree-icon { color: var(--warning); }
+
+@keyframes node-ready {
+    50% { box-shadow: 0 0 18px rgba(255, 181, 71, 0.45), inset 0 0 0 3px rgba(0, 0, 0, 0.2); }
+}
+
+.tree-node.locked {
+    border-color: rgba(255, 93, 93, 0.55);
+    background: linear-gradient(180deg, #2a1618, #1a0f11);
+    color: rgba(255, 140, 140, 0.8);
+}
+
+.tree-node.locked .tree-icon { display: none; }
+.tree-node.locked .tree-lock { display: block; }
+
+.tree-node.selected { outline: 2px solid var(--primary); outline-offset: 4px; }
+
+.tree-core { display: grid; place-items: center; pointer-events: none; }
+
+.tree-core-inner {
+    display: grid;
+    place-items: center;
+    width: 80%;
+    aspect-ratio: 1;
+    transform: rotate(45deg);
+    border: 2px solid var(--success);
+    border-radius: 10px;
+    background: radial-gradient(circle, #1f564f, #0f2a2c);
+    box-shadow: 0 0 26px rgba(99, 224, 171, 0.5);
+    color: var(--success);
+}
+
+.tree-core-inner svg { width: 55%; transform: rotate(-45deg); }
+
+.tree-branch {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+    font: 0.66rem var(--font-body);
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.tree-branch strong { font: 700 0.78rem var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--primary); }
+.tree-branch span { display: none; }
+.tree-branch-up { top: -30px; left: 50%; transform: translateX(-50%); }
+.tree-branch-down { bottom: -30px; left: 50%; transform: translateX(-50%); }
+.tree-branch-left { left: -18px; top: 50%; transform: translate(-50%, -50%) rotate(-90deg); }
+.tree-branch-right { right: -18px; top: 50%; transform: translate(50%, -50%) rotate(90deg); }
+
+.node-detail {
+    padding: 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(8, 17, 19, 0.7);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+}
+
+.detail-head { display: flex; gap: 10px; align-items: center; }
+.detail-head h3 { font: 700 1rem var(--font-display); }
+.detail-icon { width: 38px; height: 38px; flex: none; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 8px; color: var(--warning); }
+.detail-icon svg { width: 22px; }
+.detail-effect { font-size: 0.92rem; }
+.detail-lock { color: var(--danger); font-size: 0.85rem; }
+.detail-maxed { color: var(--success); font-weight: 700; }
+.detail-buy { width: 100%; }
+
+@media (max-width: 760px) {
+    .dev-top, .tree-area { grid-template-columns: minmax(0, 1fr); }
+    .node-detail { position: static; }
+    .dev-actions { min-width: 0; }
+}
+
 /* ---- Training Path ---- */
 
 .path-canvas {
@@ -1024,3 +1205,5 @@ h1, h2, h3, p { margin: 0; }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+.run-summary .result-badge { align-self: flex-start; }

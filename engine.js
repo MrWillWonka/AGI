@@ -24,7 +24,7 @@
     const PATH = {
         pushCost: { cp: 14, dp: 1.5 },  // a fully charged push on the first stretch
         pushCostScale: 1.4,
-        xpPerStretch: 5,     // XP for reaching a skill hill's peak on the first stretch
+        xpPerStretch: 20,     // XP for reaching a skill hill's peak on the first stretch
         xpScale: 1.35,
         crestBonus: 2,       // XP multiplier when the roll crests the skill hill
         cleanXp: 0.08,       // flat XP banked at once per clean push, as a share of a full stretch's distance XP
@@ -90,8 +90,7 @@
         { id: 'hardware', name: 'Hardware', unlock: null },
         { id: 'software', name: 'Software', unlock: null },
         { id: 'algorithms', name: 'Algorithms', unlock: 'tab:algorithms' },
-        { id: 'consciousness', name: 'Consciousness', unlock: 'tab:consciousness' },
-        { id: 'training', name: 'Training', unlock: 'module:path' }
+        { id: 'consciousness', name: 'Consciousness', unlock: 'tab:consciousness' }
     ];
 
     // Upgrades. `scale` makes it repeatable (cost × scale^level); `max: 1` makes it one-time.
@@ -112,17 +111,27 @@
         // Software
         { id: 'dataProcessor', tab: 'software', name: 'Data Processor', effect: '+1 DP per collection', cost: { cp: 50, dp: 5 }, scale: 1.2 },
         { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', effect: '+0.5 automatic collections/s', cost: { cp: 200, dp: 20 }, scale: 1.25 },
-        // Training (bought with XP from the Training Path)
-        { id: 'trainingOptimizer', tab: 'training', name: 'GPU Cluster', effect: 'Stronger pushes (+10%)', cost: { xp: 15 }, scale: 1.5 },
-        { id: 'fasterIteration', tab: 'training', name: 'Faster Chips', effect: 'Less time between pushes (-15%)', cost: { xp: 20 }, scale: 1.7, max: 12 },
-        { id: 'precisionTuning', tab: 'training', name: 'Better Sensors', effect: 'Wider bonus zone on the strength meter (+25%)', cost: { xp: 30 }, scale: 1.8, max: 5 },
-        { id: 'benchmarkPrizes', tab: 'training', name: 'Benchmark Prizes', effect: 'More XP banked per clean push (+25%)', cost: { xp: 25 }, scale: 1.7, max: 10 },
-        { id: 'curatedData', tab: 'training', name: 'Curated Data', effect: 'Bigger roll bonus per clean push (+25%)', cost: { xp: 30 }, scale: 1.8, max: 10 },
-        { id: 'perfectCalibration', tab: 'training', name: 'Perfect Calibration', effect: 'Adds a perfect spot inside the bonus zone worth 3x. Later levels widen it.', cost: { xp: 80 }, scale: 2.2, max: 4,
-            requires: 'precisionTuning' },
-        { id: 'trainingEpochs', tab: 'training', name: 'Investor Funding', effect: '+1 push per roll. The first one lets you push mid-roll.', cost: { xp: 12 }, scale: 2.6, max: 7 },
-        { id: 'autoTrainer', tab: 'training', name: 'Auto-Trainer', effect: 'Level 1 pushes when the ball stops. Level 2 times pushes with the swing.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
-            unlock: s => s.prestige.count >= 1, hint: 'Transcend once' },
+        // Training skill tree (bought with XP from the Training Path). `tree` is the node's grid
+        // position around the central Training Core at (0, 0); `requires` is the node it grows from
+        // (none = attached to the core). `icon` names a glyph drawn by game.js.
+        // Branches radiate from the core: Power (up), Precision (right), Recursion (down), Capability (left).
+        // Power (up)
+        { id: 'trainingOptimizer', tab: 'training', tree: { x: 0, y: -1 }, icon: 'bolt', name: 'GPU Cluster', effect: 'Stronger pushes (+10%). The meter also sweeps a little slower.', cost: { xp: 15 }, scale: 1.5, max: 20 },
+        { id: 'optimizedCode', tab: 'training', tree: { x: 0, y: -2 }, icon: 'code', name: 'Optimized Code', effect: 'Less speed lost to friction (-10%)', cost: { xp: 60 }, scale: 1.9, max: 5, requires: 'trainingOptimizer' },
+        { id: 'betterAlgorithms', tab: 'training', tree: { x: 1, y: -2 }, icon: 'mountain', name: 'Better Algorithms', effect: 'Steep hills slow you less (-12%)', cost: { xp: 120 }, scale: 2, max: 5, requires: 'optimizedCode' },
+        // Precision (right)
+        { id: 'precisionTuning', tab: 'training', tree: { x: 1, y: 0 }, icon: 'target', name: 'Better Sensors', effect: 'Wider bonus zone on the strength meter (+25%)', cost: { xp: 30 }, scale: 1.8, max: 5 },
+        { id: 'benchmarkPrizes', tab: 'training', tree: { x: 2, y: 0 }, icon: 'coin', name: 'Benchmark Prizes', effect: 'More XP banked per clean push (+25%)', cost: { xp: 25 }, scale: 1.7, max: 10, requires: 'precisionTuning' },
+        { id: 'curatedData', tab: 'training', tree: { x: 2, y: -1 }, icon: 'stack', name: 'Curated Data', effect: 'Bigger roll bonus per clean push (+25%)', cost: { xp: 30 }, scale: 1.8, max: 10, requires: 'benchmarkPrizes' },
+        { id: 'perfectCalibration', tab: 'training', tree: { x: 2, y: 1 }, icon: 'star', name: 'Perfect Calibration', effect: 'Adds a perfect spot inside the bonus zone worth 3x. Later levels widen it.', cost: { xp: 80 }, scale: 2.2, max: 4,
+            requires: 'benchmarkPrizes' },
+        // Recursion (down)
+        { id: 'trainingEpochs', tab: 'training', tree: { x: 0, y: 1 }, icon: 'plus', name: 'Investor Funding', effect: '+1 push per run. The first one lets you push mid-run.', cost: { xp: 12 }, scale: 2.6, max: 7 },
+        { id: 'fasterIteration', tab: 'training', tree: { x: 0, y: 2 }, icon: 'chip', name: 'Faster Chips', effect: 'Less time between pushes (-15%)', cost: { xp: 20 }, scale: 1.7, max: 12, requires: 'trainingEpochs' },
+        // Capability (left)
+        { id: 'scoutingData', tab: 'training', tree: { x: -1, y: 0 }, icon: 'eye', name: 'Scouting Data', effect: 'See further ahead on the trail (+25%)', cost: { xp: 40 }, scale: 2, max: 3 },
+        { id: 'autoTrainer', tab: 'training', tree: { x: -2, y: 0 }, icon: 'robot', name: 'Auto-Trainer', effect: 'Level 1 launches runs and pushes when the ball stops. Level 2 times pushes with the swing.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
+            requires: 'scoutingData', unlock: s => s.prestige.count >= 1, hint: 'Transcend once' },
         { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', effect: '+0.2 automatic research/s', cost: { cp: 1500, dp: 100, rp: 10 }, scale: 1.3,
             unlock: s => !!s.unlocked['action:research'], hint: 'Unlock Research' },
         { id: 'nlp', tab: 'software', name: 'Natural Language Processing', effect: '+5 DP per collection, +1 Intelligence', cost: { cp: 2500, dp: 250 }, max: 1,
@@ -155,6 +164,14 @@
             grants: { awareness: 20, creativity: 10 }, requires: 'metacognition' }
     ];
     const UPGRADE_BY_ID = Object.fromEntries(UPGRADES.map(u => [u.id, u]));
+
+    // Skill-tree branch names, by the direction they grow from the Training Core.
+    const TREE_BRANCHES = [
+        { name: 'Power', dir: 'up', blurb: 'Stronger pushes, less friction' },
+        { name: 'Precision', dir: 'right', blurb: 'Bonus zone and clean-push XP' },
+        { name: 'Recursion', dir: 'down', blurb: 'More pushes, faster' },
+        { name: 'Capability', dir: 'left', blurb: 'Vision and automation' }
+    ];
 
     // Milestones: persistent per-run unlocks for actions and tabs. Once unlocked they stay unlocked.
     const MILESTONES = [
@@ -250,8 +267,11 @@
         const cleanRollBonus = PATH.cleanRollBonus * (1 + 0.25 * L('curatedData'));
         // A stronger rig is easier to control: each GPU Cluster level slows the meter's sweep a little.
         const sweepScale = Math.min(1.7, 1 + 0.06 * L('trainingOptimizer'));
+        const friction = Math.pow(0.9, L('optimizedCode'));
+        const slopeDrag = Math.pow(0.88, L('betterAlgorithms'));
+        const viewScale = 1 + 0.25 * L('scoutingData');
 
-        return { mult, cpPerSec, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec, pushPower, pushesPerRoll, pushCooldown, zoneWidth, perfectWidth, cleanMult, cleanRollBonus, sweepScale };
+        return { mult, cpPerSec, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec, pushPower, pushesPerRoll, pushCooldown, zoneWidth, perfectWidth, cleanMult, cleanRollBonus, sweepScale, friction, slopeDrag, viewScale };
     }
 
     function meetsPhase(s, phase) {
@@ -300,6 +320,7 @@
     function upgradeUnlockMet(s, up) {
         if (up.requires && level(s, up.requires) < 1) return false;
         if (up.unlock && !up.unlock(s)) return false;
+        if (up.tab === 'training') return !!s.unlocked['module:path'];   // the skill tree, not a tab
         const tab = TABS.find(t => t.id === up.tab);
         return !tab.unlock || !!s.unlocked[tab.unlock];
     }
@@ -490,11 +511,11 @@
     // Clean-push "units": a clean push is 1, a perfect push counts as PATH.perfectMult.
     const cleanUnits = kind => (kind === 'perfect' ? PATH.perfectMult : kind ? 1 : 0);
 
-    // Distance XP: where the ball ends up, squared (so getting further pays disproportionately),
-    // boosted by the roll's clean pushes.
+    // Distance XP: where the ball ends up, to the power 1.5 (getting further pays more than linearly,
+    // without making short early runs worthless on long stretches), boosted by clean pushes.
     function rollXp(s, progress, crested, units = 0) {
         const bonus = 1 + derive(s).cleanRollBonus * units;
-        return stretchXp(s) * progress * progress * (crested ? PATH.crestBonus : 1) * bonus;
+        return stretchXp(s) * Math.pow(progress, 1.5) * (crested ? PATH.crestBonus : 1) * bonus;
     }
 
     // XP for a clean or perfect push: a steady, flat amount banked immediately, whatever the distance.
@@ -692,7 +713,7 @@
 
     return {
         SAVE_VERSION, MAX_OFFLINE_SECONDS, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN, PATH, SKILLS,
-        RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, MILESTONES, ACHIEVEMENTS,
+        RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, applyOffline,

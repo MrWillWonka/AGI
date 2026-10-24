@@ -6,10 +6,27 @@ const E = require('../engine.js');
 const NOW = 1_700_000_000_000;
 const fresh = () => E.defaultState(NOW);
 
+test('skill-tree nodes do not overlap and grow from a neighbouring node', () => {
+    const nodes = E.UPGRADES.filter(u => u.tab === 'training');
+    const seen = new Set(['0,0']);
+    for (const n of nodes) {
+        const key = `${n.tree.x},${n.tree.y}`;
+        assert.ok(!seen.has(key), `${n.id} overlaps another node`);
+        seen.add(key);
+        const parent = n.requires ? E.UPGRADE_BY_ID[n.requires].tree : { x: 0, y: 0 };
+        assert.equal(Math.abs(parent.x - n.tree.x) + Math.abs(parent.y - n.tree.y), 1, `${n.id} is adjacent to what it grows from`);
+    }
+});
+
 test('every upgrade has a valid tab, cost and dependency', () => {
     const tabs = new Set(E.TABS.map(t => t.id));
     for (const up of E.UPGRADES) {
-        assert.ok(tabs.has(up.tab), `${up.id} tab`);
+        if (up.tab === 'training') {
+            assert.ok(up.tree && Number.isInteger(up.tree.x) && Number.isInteger(up.tree.y), `${up.id} tree position`);
+            assert.ok(up.icon, `${up.id} icon`);
+        } else {
+            assert.ok(tabs.has(up.tab), `${up.id} tab`);
+        }
         assert.ok(Object.keys(up.cost).length > 0, `${up.id} cost`);
         for (const [k, v] of Object.entries(up.cost)) {
             assert.ok(k in E.RESOURCES, `${up.id} cost resource ${k}`);

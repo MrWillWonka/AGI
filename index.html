@@ -95,10 +95,12 @@
                     <div class="module-bar">
                         <button type="button" class="ghost-button back-button" id="backButton">← Server room</button>
                         <h2 id="moduleTitle">Training Cluster</h2>
+                        <button type="button" class="ghost-button" id="treeButton" hidden>Skill tree</button>
                         <span class="muted small" data-bind="path.learned"></span>
                     </div>
 
                     <div class="module" data-module="training" id="pathPanel">
+                        <div id="runView" class="run-view">
                         <div class="canvas-wrap">
                             <canvas id="pathCanvas" class="path-canvas" tabindex="0" aria-label="Training path. Hold Enter or Space to charge a push, release to fire." aria-describedby="pathStatus"></canvas>
                             <div class="live-xp" id="liveXp" hidden>
@@ -128,8 +130,26 @@
                         <p class="small path-status" id="pathStatus" aria-live="polite"></p>
                         <details class="help">
                             <summary>How it works</summary>
-                            <p>Each launch rolls the ball over new, random hills. The further it gets, the more Experience (XP) you earn. A big skill hill ends each stretch: get over it to teach your AI that skill. Hold the button to charge a push and release to fire it. The meter sweeps up and down. Every push costs CP and DP, and harder pushes cost more, so the meter only reaches as far as you can afford: grow your income to push harder. GPU Cluster raises the strength of a full push. Releasing inside the green zone is a clean push: a little less strength, but it banks a little XP straight away and boosts the roll's distance XP, so it is the reliable way to earn. Charge fully when you need the distance to clear a hill. Upgrades can widen the zone, raise either payout, or add a perfect spot worth 3x. Pushes are limited, so save them for when the ball is about to stall on a slope. Pushing while it rolls back is wasted. Spend XP in the Training tab.</p>
+                            <p>Each launch rolls the ball over new, random hills. The further it gets, the more Experience (XP) you earn. A big skill hill ends each stretch: get over it to teach your AI that skill. Hold the button to charge a push and release to fire it. The meter sweeps up and down. Every push costs CP and DP, and harder pushes cost more, so the meter only reaches as far as you can afford: grow your income to push harder. GPU Cluster raises the strength of a full push. Releasing inside the green zone is a clean push: a little less strength, but it banks a little XP straight away and boosts the roll's distance XP, so it is the reliable way to earn. Charge fully when you need the distance to clear a hill. Upgrades can widen the zone, raise either payout, or add a perfect spot worth 3x. Pushes are limited, so save them for when the ball is about to stall on a slope. Pushing while it rolls back is wasted. Between runs you land on the dev screen: spend XP in the skill tree, then start the next run.</p>
                         </details>
+                        </div>
+
+                        <!-- Training dev screen: review the last run, spend XP in the skill tree, start the next run. -->
+                        <div id="devView" class="dev-view" hidden>
+                            <div class="dev-top">
+                                <section class="run-summary" id="runSummary" aria-label="Last run"></section>
+                                <div class="dev-actions">
+                                    <div class="dev-xp"><span class="chip-label">XP to spend</span> <strong data-bind="res.xp">0</strong></div>
+                                    <button type="button" class="button start-run" id="startRunButton">Start run</button>
+                                </div>
+                            </div>
+                            <div class="tree-area">
+                                <div class="tree" id="skillTree" role="group" aria-label="Training skill tree">
+                                    <svg class="tree-links" id="treeLinks" aria-hidden="true"></svg>
+                                </div>
+                                <aside class="node-detail" id="nodeDetail" aria-live="polite"></aside>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="module module-soon" data-module="soon" hidden>

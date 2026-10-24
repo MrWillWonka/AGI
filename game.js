@@ -201,6 +201,7 @@ window.AGI = (function () {
         });
 
         for (const up of E.UPGRADES) {
+            if (up.tab === 'training') continue;
             const levelBadge = el('span', { class: 'badge' });
             const button = el('button', { type: 'button', class: 'button upgrade-button' });
             button.addEventListener('click', () => doBuy(up.id));
@@ -552,7 +553,18 @@ window.AGI = (function () {
         renderHub();
         // The trail's animation loop sleeps when nothing moves, so keep its button in step with
         // resources here too (otherwise Launch stays disabled after you can afford it).
-        if (openBay === 'training') updatePathControls();
+        if (openBay === 'training') {
+            updatePathControls();
+            updateTreeButton();
+            if (path.view === 'dev') {
+                renderTree();
+                path.autoStart = E.level(state, 'autoTrainer') ? (path.autoStart || 0) + TICK_MS / 1000 : 0;
+                if (path.autoStart > 2) {
+                    path.autoStart = 0;
+                    showTrainingView('run');
+                }
+            }
+        }
 
         if (openBay === 'training' && !bayUnlocked('training')) exitBay();
         if (path.stateRef !== state) {
@@ -629,6 +641,7 @@ window.AGI = (function () {
         for (const m of document.querySelectorAll('.module')) m.hidden = true;
         if (bay.built) {
             document.querySelector(`.module[data-module="${id}"]`).hidden = false;
+            if (id === 'training') showTrainingView(state.stats.rolls > 0 && !(path.roll && path.roll.launched && !path.roll.over) ? 'dev' : 'run');
         } else {
             document.querySelector('.module[data-module="soon"]').hidden = false;
             setText($('soonText'), `The ${bay.name} is being built. It will be the hands-on module for the ${E.PHASES[bay.phase].name} phase.`);
@@ -639,7 +652,7 @@ window.AGI = (function () {
         view.hidden = false;
         const done = () => {
             hub.hidden = true;
-            (id === 'training' ? $('pushButton') : $('backButton')).focus({ preventScroll: true });
+            (id === 'training' ? (path.view === 'dev' ? $('startRunButton') : $('pushButton')) : $('backButton')).focus({ preventScroll: true });
             startPathLoop();
         };
         if (reducedMotion()) return done();
@@ -681,6 +694,202 @@ window.AGI = (function () {
         $('bayTrainingMeter').style.width = `${Math.round(state.path.best * 100)}%`;
     }
 
+    // ---- Training dev screen & skill tree --------------------------------
+
+    // Line glyphs for skill-tree nodes (24×24, stroked with currentColor).
+    const ICONS = {
+        bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
+        code: '<path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/>',
+        mountain: '<path d="m2 20 7-12 4 6 2-3 7 9z"/>',
+        target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>',
+        coin: '<circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.6-1-1.7-1.5-3-1.5-1.7 0-3 .9-3 2s1.3 1.7 3 2 3 .9 3 2-1.3 2-3 2c-1.3 0-2.4-.5-3-1.5M12 6v12"/>',
+        stack: '<path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5"/>',
+        star: '<path d="m12 3 2.8 5.8 6.2.9-4.5 4.4 1 6.3L12 17.5l-5.5 2.9 1-6.3L3 9.7l6.2-.9z"/>',
+        plus: '<circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/>',
+        chip: '<rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"/>',
+        eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+        robot: '<rect x="4" y="8" width="16" height="12" rx="2.5"/><path d="M12 4v4M9 13v1M15 13v1M9 17h6"/><circle cx="12" cy="3.5" r="1"/>',
+        core: '<circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',
+        lock: '<rect x="6" y="11" width="12" height="9" rx="1.5"/><path d="M9 11V8a3 3 0 0 1 6 0v3"/>'
+    };
+    const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
+
+    const treeUi = { nodes: {}, links: [], bounds: null };
+
+    function treeNodes() {
+        return E.UPGRADES.filter(u => u.tab === 'training');
+    }
+
+    function buildTree() {
+        const nodes = treeNodes();
+        const xs = [0, ...nodes.map(n => n.tree.x)];
+        const ys = [0, ...nodes.map(n => n.tree.y)];
+        const b = { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+        b.cols = b.maxX - b.minX + 1;
+        b.rows = b.maxY - b.minY + 1;
+        treeUi.bounds = b;
+        const tree = $('skillTree');
+        tree.style.setProperty('--cols', b.cols);
+        tree.style.setProperty('--rows', b.rows);
+        const place = (node, x, y) => {
+            node.style.left = `${((x - b.minX + 0.5) / b.cols) * 100}%`;
+            node.style.top = `${((y - b.minY + 0.5) / b.rows) * 100}%`;
+        };
+
+        for (const branch of E.TREE_BRANCHES) {
+            tree.append(el('div', { class: `tree-branch tree-branch-${branch.dir}`, title: branch.blurb }, [
+                el('strong', { text: branch.name }), el('span', { text: branch.blurb })
+            ]));
+        }
+
+        const core = el('div', { class: 'tree-core', title: 'Training Core' });
+        core.innerHTML = `<span class="tree-core-inner">${icon('core')}</span>`;
+        place(core, 0, 0);
+        tree.append(core);
+
+        const svg = $('treeLinks');
+        svg.setAttribute('viewBox', `0 0 ${b.cols} ${b.rows}`);
+        svg.setAttribute('preserveAspectRatio', 'none');
+        for (const up of nodes) {
+            const from = up.requires ? E.UPGRADE_BY_ID[up.requires].tree : { x: 0, y: 0 };
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', from.x - b.minX + 0.5);
+            line.setAttribute('y1', from.y - b.minY + 0.5);
+            line.setAttribute('x2', up.tree.x - b.minX + 0.5);
+            line.setAttribute('y2', up.tree.y - b.minY + 0.5);
+            line.setAttribute('vector-effect', 'non-scaling-stroke');
+            svg.append(line);
+            treeUi.links.push({ up, line });
+
+            const button = el('button', { type: 'button', class: 'tree-node' });
+            button.innerHTML = `<span class="tree-icon">${icon(up.icon)}</span><span class="tree-lock">${icon('lock')}</span><span class="tree-level"></span>`;
+            button.addEventListener('click', () => {
+                path.selected = up.id;
+                renderTree();
+            });
+            place(button, up.tree.x, up.tree.y);
+            tree.append(button);
+            treeUi.nodes[up.id] = button;
+        }
+        path.selected = nodes[0].id;
+        $('startRunButton').addEventListener('click', () => showTrainingView('run'));
+        $('treeButton').addEventListener('click', () => showTrainingView('dev'));
+    }
+
+    // Node state: locked (its parent isn't owned yet), owned, maxed, or available (affordable or not).
+    function nodeState(up) {
+        if (!E.isUpgradeVisible(state, up)) return 'locked';
+        if (E.isMaxed(state, up)) return 'maxed';
+        const lvl = E.level(state, up.id);
+        const affordable = E.canAfford(state, E.upgradeCost(up, lvl));
+        return lvl > 0 ? (affordable ? 'owned can-buy' : 'owned') : (affordable ? 'available can-buy' : 'available');
+    }
+
+    function renderTree() {
+        if (!treeUi.bounds) return;
+        for (const up of treeNodes()) {
+            const node = treeUi.nodes[up.id];
+            const st = nodeState(up);
+            node.className = `tree-node ${st}${path.selected === up.id ? ' selected' : ''}`;
+            const lvl = E.level(state, up.id);
+            node.querySelector('.tree-level').textContent = st === 'locked' ? '' : `${lvl}/${up.max ?? '∞'}`;
+            node.setAttribute('aria-label', `${up.name}: ${st === 'locked' ? 'locked' : `level ${lvl}`}`);
+            node.setAttribute('aria-pressed', String(path.selected === up.id));
+        }
+        for (const { up, line } of treeUi.links) {
+            const parentOwned = !up.requires || E.level(state, up.requires) > 0;
+            const owned = E.level(state, up.id) > 0;
+            line.setAttribute('class', owned && parentOwned ? 'link-owned' : parentOwned ? 'link-open' : 'link-locked');
+        }
+        renderNodeDetail();
+    }
+
+    function renderNodeDetail() {
+        const up = E.UPGRADE_BY_ID[path.selected];
+        const box = $('nodeDetail');
+        const st = nodeState(up);
+        const lvl = E.level(state, up.id);
+        const parts = [
+            el('div', { class: 'detail-head' }, [
+                el('span', { class: 'detail-icon' }),
+                el('div', {}, [el('h3', { text: up.name }), el('p', { class: 'muted small', text: `Level ${lvl}${up.max ? ` of ${up.max}` : ''}` })])
+            ]),
+            el('p', { class: 'detail-effect', text: up.effect })
+        ];
+        if (st === 'locked') {
+            const needs = up.requires && E.level(state, up.requires) < 1 ? `Requires ${E.UPGRADE_BY_ID[up.requires].name}` : up.hint || 'Locked';
+            parts.push(el('p', { class: 'detail-lock', text: needs }));
+        } else if (st === 'maxed') {
+            parts.push(el('p', { class: 'detail-maxed', text: 'Fully upgraded' }));
+        } else {
+            const cost = E.upgradeCost(up, lvl);
+            const buy = el('button', { type: 'button', class: 'button detail-buy', text: `${lvl ? 'Upgrade' : 'Unlock'} · ${E.formatCost(cost)}` });
+            buy.disabled = !E.canAfford(state, cost);
+            buy.addEventListener('click', () => {
+                doBuy(up.id);
+                renderTree();
+            });
+            parts.push(buy);
+        }
+        box.replaceChildren(...parts);
+        box.querySelector('.detail-icon').innerHTML = icon(up.icon);
+    }
+
+    function renderRunSummary() {
+        const r = path.lastRun;
+        const box = $('runSummary');
+        if (!r) {
+            box.replaceChildren(el('div', { class: 'result-title', text: 'Training dev' }),
+                el('div', { class: 'result-main', text: `Next skill: ${E.skillAt(state.path.learned).name}` }),
+                el('p', { class: 'muted small', text: 'Spend XP on upgrades, then start a run.' }));
+            return;
+        }
+        const rows = [['Distance', `+${xpText(r.distanceXp)} XP`]];
+        if (r.clean) {
+            rows.push(['Clean-push roll bonus', `+${xpText(r.rollBonusXp)} XP`, 'good']);
+            rows.push([`Banked from ${r.clean} clean push${r.clean === 1 ? '' : 'es'}`, `+${xpText(r.banked)} XP`, 'good']);
+        }
+        const record = Math.round(state.path.best * 100);
+        box.replaceChildren(...[
+            el('div', { class: 'result-title', text: r.skill ? 'Skill learned' : `Run ${r.n}` }),
+            el('div', { class: 'result-main', text: r.skill ? r.skill.name : `Stopped ${r.pct}% of the way to ${r.target}` }),
+            r.skill ? el('p', { class: 'muted small', text: r.skill.effect }) : null,
+            el('div', { class: 'result-xp', text: `+${xpText(r.total)} XP` }),
+            el('ul', { class: 'result-lines' }, rows.map(([a, v, c]) => el('li', { class: c || '' }, [el('span', { text: a }), el('span', { text: v })]))),
+            r.record && !r.skill ? el('span', { class: 'result-badge', text: 'New record!' }) : null,
+            el('div', { class: 'summary-progress' }, [
+                el('span', { class: 'muted small', text: `Best toward ${E.skillAt(state.path.learned).name}: ${record}%` }),
+                el('span', { class: 'bay-meter' }, [el('span', { class: 'bay-meter-fill', style: `width:${record}%` })])
+            ])
+        ].filter(Boolean));
+    }
+
+    function showTrainingView(view) {
+        path.view = view;
+        path.toDev = 0;
+        $('runView').hidden = view !== 'run';
+        $('devView').hidden = view !== 'dev';
+        if (view === 'dev') {
+            path.charging = null;
+            dismissResult();
+            renderRunSummary();
+            renderTree();
+            setText($('startRunButton'), `Start run ${state.stats.rolls + 1}`);
+            $('startRunButton').focus({ preventScroll: true });
+        } else {
+            $('pushButton').focus({ preventScroll: true });
+            startPathLoop();
+        }
+        updateTreeButton();
+    }
+
+    // The "Skill tree" shortcut appears in the run view whenever no run is in progress.
+    function updateTreeButton() {
+        const roll = path.roll;
+        const midRun = roll && roll.launched && !roll.over;
+        setHidden($('treeButton'), openBay !== 'training' || path.view !== 'run' || !!midRun);
+    }
+
     // ---- Training Path ---------------------------------------------------
 
     // Physics lives in training-path.js; the engine settles each roll (XP, records, skills).
@@ -694,6 +903,7 @@ window.AGI = (function () {
     const RESULT_PAUSE = 1.2;   // seconds before the ball resets for the next roll (the result card stays up)
     const OVERVIEW_SECONDS = 3; // how long the camera stays zoomed out after learning a skill
     const STUCK_GRACE = 3;      // seconds a stuck roll waits for income before it ends
+    const DEV_DELAY = 1.8;      // seconds to watch a finished run before the dev screen opens
     const path = {
         roll: null,
         rollKey: '',
@@ -720,10 +930,11 @@ window.AGI = (function () {
     // the run, stretch, seed or training upgrades change, so what you see is what you launch.
     function currentRoll() {
         const d = E.derive(state, debugRates);
-        const key = [state.stats.runStart, state.path.learned, E.rollSeed(state), d.pushesPerRoll, d.pushCooldown].join(':');
+        const key = [state.stats.runStart, state.path.learned, E.rollSeed(state), d.pushesPerRoll, d.pushCooldown, d.friction, d.slopeDrag].join(':');
         const stale = !path.roll || path.stateRef !== state || path.roll.over || (!path.roll.launched && path.rollKey !== key);
         if (stale && path.pause <= 0) {
-            path.roll = T.createRoll(state.path.learned, E.rollSeed(state), { pushes: d.pushesPerRoll, cooldown: d.pushCooldown });
+            path.roll = T.createRoll(state.path.learned, E.rollSeed(state),
+                { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, slopeDrag: d.slopeDrag });
             path.rollPushes = d.pushesPerRoll;
             path.rollKey = key;
             if (path.stateRef !== state) path.cam = null;
@@ -819,6 +1030,7 @@ window.AGI = (function () {
     }
 
     function startCharge() {
+        if (path.view !== 'run') return;
         const roll = currentRoll();
         if (path.charging) return;
         if (!canPush(roll)) {
@@ -877,13 +1089,14 @@ window.AGI = (function () {
     // rescues the ball as it stalls on a slope.
     function autoTrain(roll) {
         const lvl = E.level(state, 'autoTrainer');
+        if (path.view !== 'run') return;
         if (!lvl || roll.over || path.pause > 0 || roll.ball.cooldown > 0) return;
         const stalling = roll.ball.v > 0 && roll.ball.v < 0.5 && roll.ground.slope(roll.ball.x) > 0.05;
         if (!roll.launched || roll.atRest || (lvl >= 2 && stalling)) pushBall(true, chargeBudget());
     }
 
     function startPathLoop() {
-        if (path.frame || !path.canvas || openBay !== 'training') return;
+        if (path.frame || !path.canvas || openBay !== 'training' || path.view !== 'run') return;
         path.last = performance.now();
         path.frame = requestAnimationFrame(pathFrame);
     }
@@ -907,6 +1120,10 @@ window.AGI = (function () {
             }
         }
         if (path.overview > 0) path.overview -= dt;
+        if (path.toDev > 0) {
+            path.toDev -= dt;
+            if (path.toDev <= 0) showTrainingView('dev');
+        }
         if (path.glow && (path.glow.age += dt) > 2.5) path.glow = null;
         path.pushFlash = Math.max(0, path.pushFlash - dt);
         path.cleanFlash = Math.max(0, path.cleanFlash - dt);
@@ -915,7 +1132,7 @@ window.AGI = (function () {
         updateLiveXp();
         const roll = path.roll;
         const busy = roll && roll.launched && !roll.over;
-        const animating = busy || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
+        const animating = busy || path.toDev > 0 || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
             || E.level(state, 'autoTrainer') > 0;
         if (running && animating) path.frame = requestAnimationFrame(pathFrame);
     }
@@ -932,6 +1149,9 @@ window.AGI = (function () {
         path.pause = RESULT_PAUSE;
         const pct = Math.round(ev.progress * 100);
         const lines = xpLines(plainXp, result.xp - plainXp, clean, banked, crested);
+        path.lastRun = { n: state.stats.rolls, pct, target, crested, record: result.record, skill: result.skill,
+            distanceXp: plainXp, rollBonusXp: result.xp - plainXp, banked, clean, total: result.xp + banked };
+        path.toDev = crested ? OVERVIEW_SECONDS + 1.2 : DEV_DELAY;
         if (result.skill) {
             const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
             log(`Learned ${result.skill.name}: ${result.skill.effect} (${grants}, +${xpText(result.xp + banked)} XP).`, 'special');
@@ -965,7 +1185,7 @@ window.AGI = (function () {
     function showResult({ title, main, xp, lines, record, skill }) {
         const card = $('rollResult');
         card.className = `roll-result${skill ? ' skill' : ''}`;
-        card.replaceChildren(
+        card.replaceChildren(...[
             el('div', { class: 'result-title', text: title }),
             el('div', { class: 'result-main', text: main }),
             el('div', { class: 'result-xp', text: `+${xpText(xp)} XP` }),
@@ -973,7 +1193,7 @@ window.AGI = (function () {
                 el('li', { class: cls || '' }, [el('span', { text: label }), el('span', { text: value })]))),
             record ? el('span', { class: 'result-badge', text: 'New record!' }) : null,
             el('div', { class: 'result-hint', text: 'Hold to launch again' })
-        );
+        ].filter(Boolean));
         card.hidden = false;
     }
 
@@ -1090,7 +1310,7 @@ window.AGI = (function () {
             return { left, right: left + view };
         }
         const span = g.goal.end - g.start;
-        const base = Math.min(span + 0.6, Math.max(3, span * 0.4));
+        const base = Math.min(span + 0.6, Math.max(3, span * 0.25) * E.derive(state).viewScale);
         const leftOf = view => Math.max(g.start - 0.4, roll.ball.x - view * 0.3);
         // Look at the base window (not the widened one) to decide the zoom, so it can't feed on itself.
         const ahead = tallestIn(roll, leftOf(base), leftOf(base) + base);
@@ -1108,7 +1328,7 @@ window.AGI = (function () {
 
     function drawPath(dt = 0) {
         const { ctx, width: w, height: h, colors: c } = path;
-        if (!ctx || !w || !state || openBay !== 'training') return;
+        if (!ctx || !w || !state || openBay !== 'training' || path.view !== 'run') return;
         const roll = currentRoll();
         const g = roll.ground;
         const target = cameraTarget(roll);
@@ -1326,6 +1546,7 @@ window.AGI = (function () {
         buildJournal();
         buildHub();
         buildPath();
+        buildTree();
         load();
         syncSettings();
         E.evaluate(state); // silently restore unlocks implied by the loaded state
