@@ -311,3 +311,26 @@ test('a roll can be ended early and reports how far it got', () => {
     assert.equal(roll.over, true);
     assert.equal(roll.end(), null, 'only once');
 });
+
+test('rollOut: cresting celebrates first, then the ball rolls down the far side and the roll ends crested', () => {
+    const roll = T.createRoll(0, 1, { pushes: 1, cooldown: 1, rollOut: true });
+    roll.push(20);
+    const events = [];
+    for (let i = 0; i < 2000 && !roll.over; i++) events.push(...roll.step(0.05));
+    const crest = events.findIndex(e => e.type === 'crest');
+    const end = events.findIndex(e => e.type === 'end');
+    assert.ok(crest >= 0 && end > crest, 'crest comes before the end');
+    assert.equal(events[end].crested, true);
+    assert.equal(events[end].progress, 1);
+    assert.ok(roll.ball.x > T.skillHill(0).end, 'it rolled down the far side');
+    assert.equal(roll.push(5), false, 'no pushes after the crest');
+});
+
+test('without rollOut, cresting still ends the roll at once', () => {
+    const roll = T.createRoll(0, 1, { pushes: 1, cooldown: 1 });
+    roll.push(20);
+    let events = [];
+    for (let i = 0; i < 2000 && !roll.over; i++) events = events.concat(roll.step(0.05));
+    assert.equal(events.at(-1).type, 'crest');
+    assert.ok(roll.ball.x < T.skillHill(0).end);
+});

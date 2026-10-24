@@ -24,12 +24,13 @@
     const REST_SECONDS = 0.5;
     const WALL = 40;            // steepness of the wall behind the very first checkpoint
     const LEAD_IN = 0.5;        // flat run-up after each checkpoint
+    const ROLL_OUT = 0.8;       // with rollOut, how far past the skill hill's foot the ball runs before the roll ends
 
     // ---- Skill hills (fixed) -----------------------------------------------
 
-    const skillHeight = k => 0.3 * Math.pow(1.3, k);
+    const skillHeight = k => 0.3 * Math.pow(1.5, k);   // each skill hill is a bigger wall than the last
     const skillHalfWidth = k => 0.55 * Math.pow(1.14, k);
-    const stretchLength = k => 10 * Math.pow(1.12, k);  // checkpoint to the foot of skill hill k: many rolling hills
+    const stretchLength = k => 10 * Math.pow(1.18, k);  // checkpoint to the foot of skill hill k: longer every stretch
 
     const checkpoints = [0];    // checkpoints[k] = x where stretch k starts
     function checkpoint(k) {
@@ -151,8 +152,10 @@
 
     // ---- One roll -------------------------------------------------------------
 
-    // opts: { pushes, cooldown, friction?, slopeDrag? } — the last two scale rolling resistance and
-    // slope friction (1 = normal), so upgrades can make the ball roll further.
+    // opts: { pushes, cooldown, friction?, slopeDrag?, rollOut? } — friction and slopeDrag scale rolling
+    // resistance and slope friction (1 = normal), so upgrades can make the ball roll further. With
+    // rollOut, cresting the skill hill emits 'crest' but the roll goes on down the far side and ends
+    // with an 'end' event marked `crested` (so the UI can celebrate first); otherwise 'crest' ends it.
     function createRoll(k, seed, opts) {
         const { pushes, cooldown } = opts;
         const friction = opts.friction ?? 1;
@@ -162,13 +165,14 @@
         let pushesLeft = pushes;
         let launched = false;
         let over = false;
+        let crested = false;
         let carry = 0;
 
         // A push adds a fixed amount of energy (strength = the speed it gives a ball at rest).
         // Pushing against a backward roll spends energy cancelling it first, so timing matters.
         // Returns false if the roll is over, out of pushes, or cooling down.
         function push(strength) {
-            if (over || pushesLeft <= 0 || ball.cooldown > 0) return false;
+            if (over || crested || pushesLeft <= 0 || ball.cooldown > 0) return false;
             const e = strength * strength;
             ball.v = ball.v >= 0
                 ? Math.sqrt(ball.v * ball.v + e)
@@ -194,9 +198,20 @@
             ball.x += ball.v * STEP;
             ball.maxX = Math.max(ball.maxX, ball.x);
 
-            if (ball.x > ground.goal.peak) {
-                over = true;
+            if (!crested && ball.x > ground.goal.peak) {
                 events.push({ type: 'crest', skill: k, progress: 1, hills: ground.hillsBefore(ball.maxX) });
+                if (!opts.rollOut) {
+                    over = true;
+                    return;
+                }
+                crested = true;
+            }
+            if (crested) {
+                // Down the far side and out onto the flat, then done.
+                if (ball.x > ground.goal.end + ROLL_OUT || (ball.x > ground.goal.end && Math.abs(ball.v) < 0.25)) {
+                    over = true;
+                    events.push({ type: 'end', skill: k, progress: 1, crested: true, hills: ground.hillsBefore(ball.maxX) });
+                }
                 return;
             }
             const resting = Math.abs(ball.v) < REST_SPEED && Math.abs(dy) < 0.08;
@@ -223,7 +238,9 @@
         function end() {
             if (over) return null;
             over = true;
-            return { type: 'end', skill: k, progress: ground.progress(ball.x), hills: ground.hillsBefore(ball.maxX) };
+            return crested
+                ? { type: 'end', skill: k, progress: 1, crested: true, hills: ground.hillsBefore(ball.maxX) }
+                : { type: 'end', skill: k, progress: ground.progress(ball.x), hills: ground.hillsBefore(ball.maxX) };
         }
 
         return {
@@ -235,6 +252,8 @@
             get pushesLeft() { return pushesLeft; },
             get launched() { return launched; },
             get over() { return over; },
+            // Past the skill hill's peak (rollOut only): rolling down the far side, no more pushes.
+            get crested() { return crested; },
             // Where the ball is now (0–1 of the stretch). Rolling back lowers it.
             get progress() { return ground.progress(ball.x); },
             get atRest() { return ball.still >= REST_SECONDS; },

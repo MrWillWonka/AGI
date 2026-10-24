@@ -25,7 +25,7 @@
                 <li class="chip" title="Compute Power: earned by clicking and from hardware"><span class="chip-label">CP</span> <span data-bind="res.cp">0</span> <small data-bind="rate.cp"></small></li>
                 <li class="chip" title="Data Points: collected with CP"><span class="chip-label">DP</span> <span data-bind="res.dp">0</span> <small data-bind="rate.dp"></small></li>
                 <li class="chip" data-show="action:research" title="Research Points: from research"><span class="chip-label">RP</span> <span data-bind="res.rp">0</span> <small data-bind="rate.rp"></small></li>
-                <li class="chip chip-xp" data-show="module:path" title="Experience: earned on the Training Path, spent on Training upgrades"><span class="chip-label">XP</span> <span data-bind="res.xp">0</span></li>
+                <li class="chip chip-xp" data-show="module:path" title="Experience: earned on the Training Path, spent on Training upgrades"><span class="chip-label">XP</span> <span data-bind="res.xp">0</span> <small data-bind="rate.xp"></small></li>
             </ul>
 
             <ul class="chips chips-attr" aria-label="Attributes">
@@ -114,9 +114,9 @@
                 <!-- A bay, zoomed in. -->
                 <div class="module-view" id="moduleView" hidden>
                     <div class="module-bar">
-                        <button type="button" class="ghost-button back-button" id="backButton">← Server room</button>
+                        <button type="button" class="ghost-button back-button" id="backButton" aria-label="Back to the server room">← Rack</button>
                         <h2 id="moduleTitle">Training Cluster</h2>
-                        <button type="button" class="ghost-button" id="treeButton" hidden>Skill tree</button>
+                        <button type="button" class="ghost-button" id="treeButton" hidden>Skills</button>
                         <span class="muted small" data-bind="path.learned"></span>
                     </div>
 
@@ -143,16 +143,10 @@
                                 <div class="charge-labels">
                                     <span id="chargeValue" aria-live="polite">Strength</span>
                                     <span class="charge-clean" id="chargeClean"></span>
-                                    <span class="muted">Release in the green zone for steady XP</span>
                                 </div>
                             </div>
                         </div>
-                        <p class="muted small path-meta" data-bind="path.stats"></p>
                         <p class="small path-status" id="pathStatus" aria-live="polite"></p>
-                        <details class="help">
-                            <summary>How it works</summary>
-                            <p>Each launch rolls the ball over new, random hills. The further it gets, the more Experience (XP) you earn. A big skill hill ends each stretch: get over it to teach your AI that skill. Hold the button to charge a push and release to fire it. The meter sweeps up and down. Every push costs CP and DP, and harder pushes cost more, so the meter only reaches as far as you can afford: grow your income to push harder. GPU Cluster raises the strength of a full push. Releasing inside the green zone is a clean push: a little less strength, but it banks a little XP straight away and boosts the roll's distance XP, so it is the reliable way to earn. Charge fully when you need the distance to clear a hill. Upgrades can widen the zone, raise either payout, or add a perfect spot worth 3x. Pushes are limited, so save them for when the ball is about to stall on a slope. Pushing while it rolls back is wasted. Between runs you land on the dev screen: spend XP in the skill tree, then start the next run.</p>
-                        </details>
                         </div>
 
                         <!-- Training dev screen: review the last run, spend XP in the skill tree, start the next run. -->
@@ -208,7 +202,7 @@
                         <h2><label for="autoBudget">Automation budget</label></h2>
                         <output class="auto-value" id="autoBudgetValue" for="autoBudget">50%</output>
                     </div>
-                    <input type="range" id="autoBudget" min="0" max="90" step="10" value="50">
+                    <input type="range" id="autoBudget" min="0" max="100" step="10" value="50">
                     <p class="muted small" id="autoBudgetNote"></p>
                 </div>
             </div>

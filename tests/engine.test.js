@@ -163,7 +163,7 @@ test('automation converts resources instead of creating them', () => {
 });
 
 test('automation never spends more than its budget of production', () => {
-    for (const budget of [0, 0.5, 0.9]) {
+    for (const budget of [0, 0.5, 1]) {
         const s = fresh();
         s.settings.autoBudget = budget;
         s.levels.cpu = 4;
@@ -173,7 +173,7 @@ test('automation never spends more than its budget of production', () => {
         assert.ok(d.cpUsePerSec <= budget * d.cpPerSec + 1e-9, `cp at ${budget}`);
         assert.ok(d.dpUsePerSec <= budget * d.dpPerSec + 1e-9, `dp at ${budget}`);
         assert.ok(d.cpNet >= (1 - budget) * d.cpPerSec - 1e-9);
-        assert.equal(d.autoThrottled, budget < 1);
+        assert.equal(d.autoThrottled, true, 'demand far above production');
         const cp = s.res.cp;
         E.tick(s, 60);
         assert.ok(s.res.cp >= cp, 'compute still climbs');
@@ -290,4 +290,25 @@ test('number formatting', () => {
     assert.equal(E.format(1e40), '1.00e40');
     assert.equal(E.formatCost({ cp: 1500, dp: 20 }), '1.50K CP, 20 DP');
     assert.equal(E.formatDuration(3725), '1h 2m');
+});
+
+test('cleared stretches earn XP slowly on their own', () => {
+    const s = fresh();
+    assert.equal(E.derive(s).xpPerSec, 0);
+    s.path.learned = 2;
+    const rate = E.derive(s).xpPerSec;
+    assert.ok(rate > 0);
+    assert.ok(Math.abs(rate - (E.PATH.xpPerStretch * (1 + E.PATH.xpScale)) * E.PATH.clearedRate) < 1e-9);
+    E.tick(s, 100);
+    assert.ok(Math.abs(s.res.xp - rate * 100) < 1e-9);
+});
+
+test('skills add pushes and glide as well as strength', () => {
+    const s = fresh();
+    const base = E.derive(s);
+    s.path.learned = 11;
+    const d = E.derive(s);
+    assert.ok(d.pushesPerRoll >= base.pushesPerRoll + 3);
+    assert.ok(d.friction < base.friction);
+    assert.ok(d.pushPower > base.pushPower * 3);
 });

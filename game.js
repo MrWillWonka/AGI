@@ -14,7 +14,7 @@ window.AGI = (function () {
     let lastTick = Date.now();
     let lastSave = Date.now();
     const debugRates = { cp: 1, dp: 1, rp: 1 };
-    const ui = { binds: [], actions: {}, upgrades: {}, stations: {}, panels: {}, devices: {}, milestones: {}, achievements: {} };
+    const ui = { binds: [], actions: {}, upgrades: {}, stations: {}, panels: {}, milestones: {}, achievements: {} };
 
     // ---- Storage --------------------------------------------------------
 
@@ -178,7 +178,7 @@ window.AGI = (function () {
     // Lab stations: one per upgrade group (E.TABS), each with its own look. Locked stations stay
     // hidden except the next one, which shows sealed and unnamed.
     const STATIONS = {
-        hardware: { name: 'Hardware bench', kind: 'bench' },
+        hardware: { name: 'Server cabinets', kind: 'bench' },
         software: { name: 'Software terminal', kind: 'terminal' },
         algorithms: { name: 'Research wall', kind: 'wall' },
         consciousness: { name: 'Isolation chamber', kind: 'chamber' }
@@ -200,16 +200,6 @@ window.AGI = (function () {
             ui.stations[tab.id] = { node, art, sealed, title: node.firstChild };
             ui.panels[tab.id] = list;
         }
-        // The bench shows one device per hardware upgrade: what you own, sitting on the shelf.
-        for (const up of E.UPGRADES.filter(u => u.tab === 'hardware')) {
-            const device = el('span', { class: `device device-${up.id}`, title: up.name }, [
-                el('span', { class: 'device-body' }), el('span', { class: 'device-count' })
-            ]);
-            ui.stations.hardware.art.append(device);
-            ui.devices[up.id] = device;
-        }
-        ui.devices.unknown = el('span', { class: 'device device-unknown', title: 'Unknown hardware' }, [el('span', { class: 'device-body', text: '?' })]);
-        ui.stations.hardware.art.append(ui.devices.unknown);
         // The terminal has a screen header; the other stations get decorative pieces.
         ui.stations.software.art.append(el('span', { class: 'terminal-line', text: '$ ./improve --list' }));
         for (const id of ['algorithms', 'consciousness']) for (let i = 0; i < 5; i++) ui.stations[id].art.append(el('i'));
@@ -248,17 +238,55 @@ window.AGI = (function () {
             setText(st.title, open ? STATIONS[tab.id].name : 'Sealed station');
             st.node.setAttribute('aria-label', open ? STATIONS[tab.id].name : 'Sealed station');
         }
-        let unknown = false;
-        for (const up of E.UPGRADES.filter(u => u.tab === 'hardware')) {
-            const device = ui.devices[up.id];
-            const lvl = E.level(state, up.id);
-            const seen = E.isUpgradeVisible(state, up);
-            device.hidden = !seen;
-            unknown ||= !seen;
-            device.classList.toggle('ghost', seen && !lvl);
-            setText(device.lastChild, lvl ? `×${lvl}` : '');
+        renderCabinets();
+    }
+
+    // Server cabinets: the hardware you own, racked. Every `per` levels of a hardware upgrade adds one
+    // unit of `size` U in its own style, stacked from the bottom; a full cabinet starts the next one.
+    // Rebuilt only when the units change, and new units flash as they go in.
+    const HARDWARE_UNITS = {
+        cpu: { per: 5, size: 1 },
+        server: { per: 3, size: 2 },
+        quantum: { per: 2, size: 2 },
+        neural: { per: 1, size: 2 },
+        datacenter: { per: 1, size: 3 },
+        optical: { per: 1, size: 3 }
+    };
+    const CABINET_U = 20;
+    const MAX_CABINETS = 6;
+    let cabinetKey = '';
+
+    function renderCabinets() {
+        const units = [];
+        for (const [id, u] of Object.entries(HARDWARE_UNITS)) {
+            const n = Math.ceil(E.level(state, id) / u.per);
+            for (let i = 0; i < n; i++) units.push({ id, size: u.size });
         }
-        ui.devices.unknown.hidden = !unknown;
+        const key = units.map(u => u.id[0]).join('');
+        if (key === cabinetKey) return;
+        const before = cabinetKey.length;
+        const first = cabinetKey === '';
+        cabinetKey = key;
+        const cabinets = [];
+        let used = CABINET_U;
+        units.forEach((u, i) => {
+            if (used + u.size > CABINET_U) {
+                cabinets.push([]);
+                used = 0;
+            }
+            used += u.size;
+            cabinets[cabinets.length - 1].push({ ...u, fresh: !first && i >= before });
+        });
+        if (!cabinets.length) cabinets.push([]);
+        const shown = cabinets.slice(0, MAX_CABINETS);
+        const art = ui.stations.hardware.art;
+        art.replaceChildren(...shown.map(list => el('div', { class: 'cabinet' }, [
+            el('div', { class: 'cabinet-units' }, list.map(u => el('span', {
+                class: `unit unit-${u.id}${u.fresh ? ' fresh' : ''}`, style: `--u:${u.size}`,
+                title: E.UPGRADE_BY_ID[u.id].name
+            })))
+        ])));
+        if (cabinets.length > MAX_CABINETS) art.append(el('span', { class: 'cabinet-more', text: `+${cabinets.length - MAX_CABINETS} more cabinets` }));
     }
 
     function buildChecklists() {
@@ -491,6 +519,7 @@ window.AGI = (function () {
             // Net rates: production minus what automation converts away.
             case 'rate.cp': return d.cpPerSec ? `${d.cpNet < 0 ? '−' : '+'}${f(Math.abs(d.cpNet))}/s` : '';
             case 'rate.dp': return d.dpPerSec ? `${d.dpNet < 0 ? '−' : '+'}${f(Math.abs(d.dpNet))}/s` : '';
+            case 'rate.xp': return d.xpPerSec ? `+${f(d.xpPerSec)}/s` : '';
             case 'rate.rp': return d.rpPerSec ? `+${f(d.rpPerSec)}/s` : '';
             case 'attr.intelligence': return f(state.attr.intelligence, 1);
             case 'attr.creativity': return f(state.attr.creativity, 1);
@@ -519,7 +548,6 @@ window.AGI = (function () {
             case 'bay.architecture': return bayStatus('architecture');
             case 'bay.core': return bayStatus('core');
             case 'path.learned': return `${state.path.learned} skill${state.path.learned === 1 ? '' : 's'} learned`;
-            case 'path.stats': return `Strength ${d.pushPower.toFixed(1)} · ${d.pushesPerRoll} pushes · ${d.pushCooldown.toFixed(1)}s between`;
             case 'res.xp': return f(state.res.xp);
         }
         return '';
@@ -681,6 +709,8 @@ window.AGI = (function () {
             n.removeAttribute('data-next');
         }
         for (const n of copy.querySelectorAll('.room-bar')) n.remove();
+        // One-off entrance animations would replay on every refresh.
+        for (const n of copy.querySelectorAll('.fresh')) n.classList.remove('fresh');
         return copy;
     }
 
@@ -706,6 +736,14 @@ window.AGI = (function () {
             const left = (w - width * scale) / 2;
             feed.style.transform = `translate(${left}px, 0) scale(${scale})`;
         }
+    }
+
+    // The rack's lanes animate (cleared stretches crawl) while the rack or its camera is on screen.
+    let laneTimer = 0;
+    function setLaneTimer(on) {
+        clearInterval(laneTimer);
+        laneTimer = on ? setInterval(drawLanes, 80) : 0;
+        if (on) requestAnimationFrame(drawLanes);
     }
 
     // Cameras run only while the facility is on screen.
@@ -781,7 +819,7 @@ window.AGI = (function () {
         view = id;
         $('facility').hidden = id !== 'facility';
         setCameras(id === 'facility');
-        if (id === 'servers') requestAnimationFrame(drawLanes);
+        setLaneTimer(id === 'facility' || id === 'servers');
         for (const r of document.querySelectorAll('.room')) r.hidden = r.dataset.room !== id;
         document.body.dataset.view = id;
         if (ROOMS[id]) {
@@ -874,7 +912,7 @@ window.AGI = (function () {
         setText($('autoBudgetValue'), `${pct}%`);
         const used = `Converting ${E.format(d.cpUsePerSec)} of ${E.format(d.cpPerSec)} CP/s`;
         setText($('autoBudgetNote'), pct === 0 ? 'Automation is paused. All compute goes to your stockpile.'
-            : `${used}${d.autoThrottled ? ' (capped by the budget)' : ''}. The other ${100 - pct}% always goes to your stockpile.`);
+            : `${used}${d.autoThrottled ? ' (capped by the budget)' : ''}. ${pct === 100 ? 'Your stockpile is never touched.' : `The other ${100 - pct}% always goes to your stockpile.`}`);
     }
 
     // ---- Server room hub ---------------------------------------------------
@@ -910,19 +948,28 @@ window.AGI = (function () {
 
     // How many art pieces each bay's hardware drawing uses (styled per bay in styles.css).
     const BAY_ART = { training: 16, pipeline: 24, architecture: 10, core: 3 };
-    // Live run lanes on the Training Cluster: one per run that can roll at once. Each lane takes three
-    // blade columns. Concurrent runs (planned) will raise this and draw their own balls.
-    const runLanes = () => 1;
+    // Lanes on the Training Cluster, drawn by drawLanes():
+    // - lane 0 (three blade columns) is the current stretch;
+    // - then one lane (two columns) per cleared stretch, newest first, up to MAX_CLEARED_LANES: that
+    //   section now trains itself, slowly, and its ball crawls along it (E.derive().xpPerSec).
+    // Concurrent runs (planned) will add live lanes the same way.
+    const MAX_CLEARED_LANES = 6;
+    const clearedLanes = () => Math.min(state.path.learned, MAX_CLEARED_LANES);
+
+    function buildTrainingArt() {
+        const art = $('bay-training').querySelector('.bay-art');
+        const cleared = clearedLanes();
+        art.replaceChildren(el('canvas', { class: 'lane', 'data-lane': 0 }));
+        for (let i = 1; i <= cleared; i++) art.append(el('canvas', { class: 'lane cleared', 'data-lane': i }));
+        for (let i = 0; i < BAY_ART.training - 3 - 2 * cleared; i++) art.append(el('i'));
+        art.dataset.cleared = cleared;
+    }
 
     function buildHub() {
         for (const node of $('bays').querySelectorAll('.bay')) {
+            if (node.dataset.bay === 'training') continue;
             const art = node.querySelector('.bay-art');
-            let blades = BAY_ART[node.dataset.bay];
-            if (node.dataset.bay === 'training') {
-                for (let i = 0; i < runLanes(); i++) art.append(el('canvas', { class: 'lane', 'data-lane': i }));
-                blades -= 3 * runLanes();
-            }
-            for (let i = 0; i < blades; i++) art.append(el('i'));
+            for (let i = 0; i < BAY_ART[node.dataset.bay]; i++) art.append(el('i'));
         }
         for (const node of $('bays').querySelectorAll('.bay')) {
             node.addEventListener('click', () => enterBay(node.dataset.bay, node));
@@ -956,6 +1003,8 @@ window.AGI = (function () {
     function enterBay(id, bayNode) {
         if (!bayUnlocked(id) || openBay) return;
         openBay = id;
+        // Inside a bay its own bar ("← Rack") is the way back; the room's bar would be a second one.
+        $('serverRoom').classList.add('bay-open');
         const bay = BAYS[id];
         setText($('moduleTitle'), bay.name);
         for (const m of document.querySelectorAll('.module')) m.hidden = true;
@@ -991,6 +1040,7 @@ window.AGI = (function () {
         hub.hidden = false;
         // Closed at once, so another Escape during the animation goes on to the facility.
         openBay = null;
+        $('serverRoom').classList.remove('bay-open');
         const done = () => {
             view.hidden = true;
             if (document.body.dataset.view === 'servers') bayNode.focus({ preventScroll: true });
@@ -1004,6 +1054,7 @@ window.AGI = (function () {
     }
 
     function renderHub() {
+        if (Number($('bay-training').querySelector('.bay-art').dataset.cleared) !== clearedLanes()) buildTrainingArt();
         const sealed = nextSealedBay();
         for (const node of $('bays').querySelectorAll('.bay')) {
             const id = node.dataset.bay;
@@ -1348,6 +1399,11 @@ window.AGI = (function () {
     const STUCK_GRACE = 3;      // seconds a stuck roll waits for income before it ends
     const path = {
         roll: null,
+        timeScale: 1,           // < 1 in slow motion
+        tension: 0,             // 0–1: how far the camera has pushed in on a nail-biter
+        focus: null,            // the hill of the current nail-biter
+        summit: null,           // { age, name } while celebrating a crest
+        particles: [],          // confetti, in world units
         rollKey: '',
         rollPushes: 0,
         charging: null,         // { start } while the push button is held
@@ -1377,7 +1433,7 @@ window.AGI = (function () {
         const stale = !path.roll || path.stateRef !== state || (path.roll.over && !path.done) || (!path.roll.launched && path.rollKey !== key);
         if (stale && path.pause <= 0) {
             path.roll = T.createRoll(state.path.learned, E.rollSeed(state),
-                { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, slopeDrag: d.slopeDrag });
+                { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, slopeDrag: d.slopeDrag, rollOut: true });
             path.rollPushes = d.pushesPerRoll;
             path.rollKey = key;
             if (path.stateRef !== state) path.cam = null;
@@ -1398,7 +1454,8 @@ window.AGI = (function () {
         new ResizeObserver(() => {
             const dpr = (window.devicePixelRatio || 1) * uiScale();
             path.width = canvas.clientWidth;
-            path.height = Math.round(Math.min(340, Math.max(220, path.width * 0.42)));
+            // Hills are drawn to scale, so extra height is just sky: about a third of the width.
+            path.height = Math.round(Math.min(window.innerHeight / uiScale() * 0.55, 420, Math.max(250, path.width * 0.36)));
             canvas.style.height = path.height + 'px';
             canvas.width = Math.round(path.width * dpr);
             canvas.height = Math.round(path.height * dpr);
@@ -1467,7 +1524,7 @@ window.AGI = (function () {
     }
 
     function canPush(roll) {
-        return !roll.over && path.pause <= 0 && roll.pushesLeft > 0 && roll.ball.cooldown <= 0
+        return !roll.over && !roll.crested && path.pause <= 0 && roll.pushesLeft > 0 && roll.ball.cooldown <= 0
             && chargeBudget() >= E.PATH.minCharge;
     }
 
@@ -1528,7 +1585,7 @@ window.AGI = (function () {
     // `fraction` is how much of the meter was charged (the Auto-Trainer always pushes at full).
     function pushBall(auto, fraction = 1) {
         const roll = currentRoll();
-        if (roll.over || roll.pushesLeft <= 0 || roll.ball.cooldown > 0) return false;
+        if (roll.over || roll.crested || roll.pushesLeft <= 0 || roll.ball.cooldown > 0) return false;
         // Every push is paid for by how hard it is charged.
         fraction = Math.min(fraction, chargeBudget());
         if (fraction < E.PATH.minCharge || !E.payPush(state, fraction)) {
@@ -1577,11 +1634,17 @@ window.AGI = (function () {
         const dt = Math.min(0.1, (now - path.last) / 1000);
         path.last = now;
         const running = !document.hidden && (path.visible || runsInBackground());
+        updateDrama(dt);
         if (running) {
             if (path.pause > 0) path.pause -= dt;
             const roll = currentRoll();
             autoTrain(roll);
-            for (const ev of roll.step(dt)) finishRoll(ev);
+            // Slow motion only matters on screen; in the background the run keeps real time.
+            const sim = path.visible ? dt * path.timeScale : dt;
+            for (const ev of roll.step(sim)) {
+                if (ev.type === 'crest' && !roll.over) celebrateSummit();
+                else finishRoll(ev);
+            }
             // Stuck with pushes left but nothing to pay for them: give income a moment, then end the roll.
             const broke = roll.launched && !roll.over && roll.atRest && roll.pushesLeft > 0 && chargeBudget() < E.PATH.minCharge;
             path.brokeFor = broke ? (path.brokeFor || 0) + dt : 0;
@@ -1600,13 +1663,75 @@ window.AGI = (function () {
         updateLiveXp();
         const roll = path.roll;
         const busy = roll && roll.launched && !roll.over;
-        const animating = busy || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
+        const animating = busy || path.summit || path.particles.length || path.tension > 0.01 || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
             || E.level(state, 'autoTrainer') > 0;
         if (running && animating) path.frame = requestAnimationFrame(pathFrame);
     }
 
+    // ---- Drama: nail-biters and summits ----
+
+    const SUMMIT_SECONDS = 2.6;     // the summit banner and confetti
+    const SUMMIT_SLOWMO = 1.1;      // slow motion right after cresting
+
+    // A nail-biter: the ball is climbing near the top of a big hill (the skill hill, or a large rolling
+    // one) with about as much energy as it needs to get over. Returns that hill, or null.
+    function nailBiter(roll) {
+        if (!roll || !roll.launched || roll.over || roll.crested || roll.ball.v <= 0) return null;
+        const g = roll.ground;
+        const x = roll.ball.x;
+        const hill = g.bumps.find(b => x >= b.start && x < b.peak);
+        if (!hill || (hill.skill === null && hill.height < 0.35 * g.goal.height)) return null;
+        // Once it starts, it lasts until the ball crests or turns back on this hill.
+        if (path.focus === hill && path.tension > 0) return hill;
+        if (hill.peak - x > hill.halfWidth * 0.75) return null;
+        const need = T.GRAVITY * (hill.height - g.height(x));
+        if (need <= 0) return null;
+        const ratio = 0.5 * roll.ball.v * roll.ball.v / need;
+        return ratio > 0.35 && ratio < 1.7 ? hill : null;
+    }
+
+    // Eases time (slow motion), tension (camera push-in, vignette) and the summit celebration.
+    function updateDrama(dt) {
+        const celebrating = path.summit && path.summit.age < SUMMIT_SLOWMO;
+        // The push-in holds through the summit, then eases back out slowly.
+        const focus = path.visible ? (celebrating ? path.roll.ground.goal : nailBiter(path.roll)) : null;
+        if (focus) path.focus = focus;
+        path.tension += ((focus ? 1 : 0) - path.tension) * Math.min(1, dt * (focus ? 9 : 1.5));
+        if (path.tension < 0.01 && !focus) {
+            path.tension = 0;
+            path.focus = null;
+        }
+        const target = celebrating ? 0.35 : focus ? 0.3 : 1;
+        path.timeScale += (target - path.timeScale) * Math.min(1, dt * (target < path.timeScale ? 10 : 3));
+        if (path.summit && (path.summit.age += dt) > SUMMIT_SECONDS) path.summit = null;
+        for (const p of path.particles) {
+            p.age += dt;
+            p.y += p.vy * dt;
+            p.x += Math.sin(p.age * p.sway + p.phase) * 40 * dt;
+            p.rot += p.spin * dt;
+        }
+        path.particles = path.particles.filter(p => p.y < path.height + 10);
+    }
+
+    // Over the top of the skill hill: banner and confetti, then the ball rolls down the far side and
+    // the skill is announced when the roll ends (finishRoll).
+    function celebrateSummit() {
+        path.summit = { age: 0, name: E.skillAt(state.path.learned).name };
+        // Confetti rains down across the whole trail (screen pixels, staggered starts above the top).
+        const colors = [path.colors.success, path.colors.warning, path.colors.accent, path.colors.primary, '#c792ea'];
+        const count = Math.round(Math.min(220, Math.max(80, path.width / 6)));
+        for (let i = 0; i < count; i++) {
+            path.particles.push({
+                x: Math.random() * path.width, y: -10 - Math.random() * path.height * 0.9,
+                vy: 70 + Math.random() * 90, sway: 2 + Math.random() * 3, phase: Math.random() * 6.3,
+                rot: Math.random() * Math.PI, spin: (Math.random() - 0.5) * 10,
+                color: colors[i % colors.length], age: 0
+            });
+        }
+    }
+
     function finishRoll(ev) {
-        const crested = ev.type === 'crest';
+        const crested = ev.type === 'crest' || !!ev.crested;
         const target = E.skillAt(state.path.learned).name;
         const roll = path.roll;
         const clean = roll.clean || 0;
@@ -1677,6 +1802,7 @@ window.AGI = (function () {
         const label = path.charging ? 'Release to push'
             : !roll.launched ? 'Hold to launch'
             : roll.over ? (path.done ? 'Hold to run again' : 'Next roll…')
+            : roll.crested ? 'Summit!'
             : roll.pushesLeft > 0 ? `Hold to push (${roll.pushesLeft} left)` : 'Out of pushes';
         setText(button, label);
         // Stay enabled while charging so releasing the pointer still lands on the button.
@@ -1790,7 +1916,16 @@ window.AGI = (function () {
         const ahead = tallestIn(roll, leftOf(base), leftOf(base) + base);
         const view = Math.max(base, widthToFit(ahead));
         const left = leftOf(view);
-        return { left, right: left + view };
+        if (!(path.tension > 0) || !path.focus) return { left, right: left + view, bottom: 0 };
+        // Nail-biter: push in on the ball and the crest, lifting the view so both stay in frame.
+        const area = drawArea();
+        const close = Math.min(view, Math.max(1.2, path.focus.halfWidth * 1.6));
+        const closeLeft = roll.ball.x - close * 0.45;
+        const visibleH = area.h * close / (area.w * RELIEF);
+        const closeBottom = Math.max(0, roll.ground.height(roll.ball.x) - visibleH * 0.35);
+        const t = path.tension;
+        const l = left + (closeLeft - left) * t;
+        return { left: l, right: l + view + (close - view) * t, bottom: closeBottom * t };
     }
 
     function cameraMoving() {
@@ -1807,9 +1942,10 @@ window.AGI = (function () {
         const g = roll.ground;
         const target = cameraTarget(roll);
         if (!path.cam) path.cam = { ...target };
-        const ease = Math.min(1, dt * (path.overview > 0 ? 2.2 : 5));
+        const ease = Math.min(1, dt * (path.overview > 0 ? 2.2 : path.tension > 0.05 ? 8 : 5));
         path.cam.left += (target.left - path.cam.left) * ease;
         path.cam.right += (target.right - path.cam.right) * ease;
+        path.cam.bottom = (path.cam.bottom || 0) + ((target.bottom || 0) - (path.cam.bottom || 0)) * ease;
         const cam = path.cam;
         const goal = g.goal;
 
@@ -1818,7 +1954,7 @@ window.AGI = (function () {
         const pxPerUnit = area.w / (cam.right - cam.left);
         const yScale = pxPerUnit * RELIEF;
         const X = x => PAD_X + (x - cam.left) * pxPerUnit;
-        const Y = y => h - PAD_BOTTOM - Math.min(y * yScale, area.h + PAD_TOP - 4);
+        const Y = y => h - PAD_BOTTOM - Math.min((y - cam.bottom) * yScale, area.h + PAD_TOP - 4);
         const n = Math.min(1400, Math.max(300, Math.round(w * 1.5)));
         const pts = [];
         for (let i = 0; i <= n; i++) {
@@ -2002,6 +2138,51 @@ window.AGI = (function () {
             ctx.fillStyle = hexAlpha(c.success, Math.min(1, path.overview));
             ctx.fillText(`${state.path.learned} skill${state.path.learned === 1 ? '' : 's'} learned`, w / 2, h - PAD_BOTTOM - 8);
         }
+
+        // Confetti, falling across the whole trail.
+        for (const p of path.particles) {
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot);
+            ctx.globalAlpha = Math.max(0, Math.min(1, (path.height + 10 - p.y) / 60));
+            ctx.fillStyle = p.color;
+            ctx.fillRect(-2, -3.5, 4, 7);
+            ctx.restore();
+        }
+
+        // Nail-biter: darken the edges and ask the question.
+        if (path.tension > 0.01 && !path.summit) {
+            const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.25, w / 2, h / 2, Math.max(w, h) * 0.7);
+            vg.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            vg.addColorStop(1, `rgba(0, 0, 0, ${0.55 * path.tension})`);
+            ctx.fillStyle = vg;
+            ctx.fillRect(0, 0, w, h);
+            ctx.textAlign = 'center';
+            ctx.font = '700 15px "Chakra Petch", system-ui, sans-serif';
+            ctx.fillStyle = hexAlpha(c.warning, path.tension);
+            ctx.fillText(path.focus && path.focus.skill !== null ? `Will it learn ${E.skillAt(path.focus.skill).name}?` : 'Come on…', w / 2, 66);
+        }
+
+        // Summit banner: pops in, holds, fades.
+        if (path.summit) {
+            const a = path.summit.age;
+            const pop = a < 0.25 ? 0.6 + 1.6 * a : 1;
+            ctx.save();
+            ctx.globalAlpha = Math.min(1, (SUMMIT_SECONDS - a) / 0.6);
+            ctx.translate(w / 2, h * 0.32);
+            ctx.scale(pop, pop);
+            ctx.textAlign = 'center';
+            ctx.shadowColor = c.success;
+            ctx.shadowBlur = 24;
+            ctx.fillStyle = c.success;
+            ctx.font = '700 30px "Chakra Petch", system-ui, sans-serif';
+            ctx.fillText('SUMMIT!', 0, 0);
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = c.text;
+            ctx.font = '600 13px "Chakra Petch", system-ui, sans-serif';
+            ctx.fillText(path.summit.name, 0, 22);
+            ctx.restore();
+        }
     }
 
     // The rack's lanes (and their copies in the facility camera). Before automation a lane is a static
@@ -2022,7 +2203,12 @@ window.AGI = (function () {
             const ctx = canvas.getContext('2d');
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             ctx.clearRect(0, 0, w, h);
-            if (Number(canvas.dataset.lane) !== 0 || !roll) continue;
+            const lane = Number(canvas.dataset.lane);
+            if (lane > 0) {
+                drawClearedLane(ctx, w, h, state.path.learned - lane, lane);
+                continue;
+            }
+            if (!roll) continue;
             // Live: a window of trail around the ball. Static: the whole stretch, checkpoint to skill hill.
             const g = roll.ground;
             const span = live ? 3 : g.goal.end - g.start;
@@ -2063,6 +2249,39 @@ window.AGI = (function () {
             ctx.fillStyle = hexAlpha(c.warning, 0.8);
             ctx.fillRect(0, h - 2, w * (live ? roll.progress : state.path.best), 2);
         }
+    }
+
+    // A cleared stretch training itself: its whole terrain, with a ball crawling along it on a loop.
+    const clearedTerrains = new Map();
+    function drawClearedLane(ctx, w, h, k, lane) {
+        if (k < 0) return;
+        if (!clearedTerrains.has(k)) clearedTerrains.set(k, T.terrain(k, 9973 * (k + 1)));
+        const g = clearedTerrains.get(k);
+        const c = path.colors;
+        const from = g.start;
+        const span = g.goal.end + 0.3 - from;
+        const samples = 90;
+        let top = 0.05;
+        for (let i = 0; i <= samples; i++) top = Math.max(top, g.height(from + (i / samples) * span));
+        const y = hgt => h - 5 - (hgt / top) * (h - 14);
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        for (let i = 0; i <= samples; i++) ctx.lineTo((i / samples) * w, y(g.height(from + (i / samples) * span)));
+        ctx.lineTo(w, h);
+        ctx.closePath();
+        ctx.fillStyle = hexAlpha(c.primary, 0.16);
+        ctx.fill();
+        ctx.strokeStyle = hexAlpha(c.primary, 0.85);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        // Very slow: one lap every 40 s or so, a little longer for later stretches.
+        const period = 40 + 5 * k;
+        const t = ((performance.now() / 1000) / period + lane * 0.37) % 1;
+        const bx = from + t * span;
+        ctx.fillStyle = c.text;
+        ctx.beginPath();
+        ctx.arc(t * w, y(g.height(bx)) - 2.5, 2.2, 0, Math.PI * 2);
+        ctx.fill();
     }
 
     function hexAlpha(hex, alpha) {
@@ -2139,9 +2358,18 @@ window.AGI = (function () {
                 return { stretch: r.ground.stretch, x: r.ball.x, v: r.ball.v, launched: r.launched, over: r.over,
                     pushesLeft: r.pushesLeft, cooldown: r.ball.cooldown, atRest: r.atRest, progress: r.progress,
                     zone: currentZone(r), clean: r.clean || 0, charge: chargeLevel(),
-                    slope: r.ground.slope(r.ball.x) };
+                    slope: r.ground.slope(r.ball.x), crested: r.crested, tension: path.tension, timeScale: path.timeScale,
+                    summit: !!path.summit, particles: path.particles.length, cam: path.cam && { ...path.cam } };
             },
-            simulate(seconds) {
+            // Put the ball somewhere with some speed (testing the camera and slow motion).
+            setBall(x, v) {
+                const r = currentRoll();
+                r.ball.x = x;
+                r.ball.v = v;
+                r.ball.maxX = Math.max(r.ball.maxX, x);
+                startPathLoop();
+            },
+                        simulate(seconds) {
                 E.tick(state, seconds, debugRates);
                 afterChange();
             },
