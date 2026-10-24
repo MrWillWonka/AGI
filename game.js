@@ -550,6 +550,9 @@ window.AGI = (function () {
         for (const node of document.querySelectorAll('[data-show]')) setHidden(node, !state.unlocked[node.dataset.show]);
         setText($('nextGoal'), nextGoal());
         renderHub();
+        // The trail's animation loop sleeps when nothing moves, so keep its button in step with
+        // resources here too (otherwise Launch stays disabled after you can afford it).
+        if (openBay === 'training') updatePathControls();
 
         if (openBay === 'training' && !bayUnlocked('training')) exitBay();
         if (path.stateRef !== state) {
