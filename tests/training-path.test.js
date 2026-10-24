@@ -77,7 +77,8 @@ test('saving pushes for stalls beats firing them all at once', () => {
         const dumb = crestRate(k, 2.5, opts, blind);
         // Score: how often the skill hill is cleared, plus average distance.
         const score = r => r.crests + r.progress;
-        assert.ok(score(smart) > score(dumb) + 0.2, `stretch ${k}: ${JSON.stringify(smart)} vs ${JSON.stringify(dumb)}`);
+        // Relative, so it holds however long the stretch is: saving pushes must go clearly further.
+        assert.ok(score(smart) > score(dumb) * 1.3, `stretch ${k}: ${JSON.stringify(smart)} vs ${JSON.stringify(dumb)}`);
     }
 });
 
