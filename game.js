@@ -870,12 +870,47 @@ window.AGI = (function () {
 
     // Following: a window around the ball, sized to show a few hills ahead.
     // Overview (after learning a skill): the whole journey from the start to the next skill hill.
+    // One zoom level for both axes: the trail is drawn with a fixed vertical exaggeration, so hills
+    // keep their shape. When something tall comes into the window ahead, the camera pulls back
+    // (wider view, everything uniformly smaller) instead of squashing the vertical axis.
+    const RELIEF = 4;           // vertical exaggeration of the drawing
+    const HEADROOM = 1.45;      // space above the tallest hill in view
+
+    function drawArea() {
+        return { w: path.width - PAD_X * 2, h: path.height - PAD_TOP - PAD_BOTTOM };
+    }
+
+    function tallestIn(roll, from, to) {
+        let tallest = 0;
+        for (let i = 0; i <= 160; i++) {
+            const x = from + (to - from) * i / 160;
+            if (x > -0.05 && x <= roll.ground.goal.end) tallest = Math.max(tallest, groundAt(roll, x));
+        }
+        return tallest;
+    }
+
+    // World width needed so a height of `tallest` fits under the headroom at this exaggeration.
+    function widthToFit(tallest) {
+        const area = drawArea();
+        return tallest * HEADROOM * RELIEF * area.w / Math.max(1, area.h);
+    }
+
+    // Following: a window around the ball showing a few hills ahead, widened if what's in it is tall.
+    // Overview (after learning a skill): the whole journey from the start to the next skill hill.
     function cameraTarget(roll) {
         const g = roll.ground;
-        if (path.overview > 0) return { left: -0.3, right: g.goal.end + 0.3 };
+        if (path.overview > 0) {
+            const left = -0.3;
+            const view = Math.max(g.goal.end + 0.6, widthToFit(g.goal.height));
+            return { left, right: left + view };
+        }
         const span = g.goal.end - g.start;
-        const view = Math.min(span + 0.6, Math.max(3, span * 0.4));
-        const left = Math.max(g.start - 0.4, roll.ball.x - view * 0.3);
+        const base = Math.min(span + 0.6, Math.max(3, span * 0.4));
+        const leftOf = view => Math.max(g.start - 0.4, roll.ball.x - view * 0.3);
+        // Look at the base window (not the widened one) to decide the zoom, so it can't feed on itself.
+        const ahead = tallestIn(roll, leftOf(base), leftOf(base) + base);
+        const view = Math.max(base, widthToFit(ahead));
+        const left = leftOf(view);
         return { left, right: left + view };
     }
 
@@ -883,8 +918,7 @@ window.AGI = (function () {
         if (!path.roll || !path.cam) return true;
         const t = cameraTarget(path.roll);
         const width = t.right - t.left;
-        return Math.abs(path.cam.left - t.left) > width * 0.002 || Math.abs(path.cam.right - t.right) > width * 0.002
-            || Math.abs((path.cam.top || 0) - (path.cam.topTarget || 0)) > (path.cam.topTarget || 1) * 0.01;
+        return Math.abs(path.cam.left - t.left) > width * 0.002 || Math.abs(path.cam.right - t.right) > width * 0.002;
     }
 
     function drawPath(dt = 0) {
@@ -900,25 +934,18 @@ window.AGI = (function () {
         const cam = path.cam;
         const goal = g.goal;
 
-        // Sample the ground across the view. The vertical scale fits the tallest thing in view
-        // (eased), so rolling hills read clearly and the skill hill dwarfs them when it arrives.
+        // Same scale on both axes (times the fixed exaggeration), derived from the eased camera width.
+        const area = drawArea();
+        const pxPerUnit = area.w / (cam.right - cam.left);
+        const yScale = pxPerUnit * RELIEF;
+        const X = x => PAD_X + (x - cam.left) * pxPerUnit;
+        const Y = y => h - PAD_BOTTOM - Math.min(y * yScale, area.h + PAD_TOP - 4);
         const n = Math.min(1400, Math.max(300, Math.round(w * 1.5)));
-        const samples = [];
-        let tallest = goal.height * 0.12;
+        const pts = [];
         for (let i = 0; i <= n; i++) {
             const x = cam.left + (cam.right - cam.left) * i / n;
-            const y = x > goal.end ? 0 : groundAt(roll, x);
-            if (x > -0.05) tallest = Math.max(tallest, y);
-            samples.push([x, y]);
+            pts.push([X(x), Y(x > goal.end ? 0 : groundAt(roll, x)), x]);
         }
-        const topTarget = tallest * 1.45;
-        cam.topTarget = topTarget;
-        if (!cam.top) cam.top = topTarget;
-        cam.top += (topTarget - cam.top) * Math.min(1, dt * 3);
-        const top = cam.top;
-        const X = x => PAD_X + (x - cam.left) / (cam.right - cam.left) * (w - PAD_X * 2);
-        const Y = y => h - PAD_BOTTOM - Math.min(y, top * 1.3) / top * (h - PAD_TOP - PAD_BOTTOM);
-        const pts = samples.map(([x, y]) => [X(x), Y(y), x]);
 
         ctx.clearRect(0, 0, w, h);
         const fill = ctx.createLinearGradient(0, PAD_TOP, 0, h);
