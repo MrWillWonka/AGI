@@ -165,8 +165,16 @@
                                 </div>
                             </div>
                             <div class="tree-area">
-                                <div class="tree" id="skillTree" role="group" aria-label="Training skill tree">
-                                    <svg class="tree-links" id="treeLinks" aria-hidden="true"></svg>
+                                <!-- Drag to pan, wheel or pinch to zoom; the buttons do the same from the keyboard. -->
+                                <div class="tree-viewport" id="treeViewport">
+                                    <div class="tree" id="skillTree" role="group" aria-label="Training skill tree">
+                                        <svg class="tree-links" id="treeLinks" aria-hidden="true"></svg>
+                                    </div>
+                                    <div class="tree-zoom" role="group" aria-label="Zoom the skill tree">
+                                        <button type="button" class="ghost-button" data-zoom="in" aria-label="Zoom in">+</button>
+                                        <button type="button" class="ghost-button" data-zoom="out" aria-label="Zoom out">−</button>
+                                        <button type="button" class="ghost-button" data-zoom="reset" aria-label="Reset view">⟲</button>
+                                    </div>
                                 </div>
                                 <aside class="node-detail" id="nodeDetail" aria-live="polite"></aside>
                             </div>

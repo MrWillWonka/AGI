@@ -656,13 +656,79 @@ window.AGI = (function () {
         return r.blurb;
     }
 
+    // Security cameras: an open room's tile shows a live, scaled-down copy of the room itself, so
+    // whatever unlocks, expands or runs in there is visible from the facility. `fit` scales the whole
+    // view into the tile (contain); 'width' fills the width and crops the bottom, like a wall camera.
+    const CAMERAS = {
+        lab: { source: () => $('labRoom'), fit: 'width' },
+        servers: { source: () => $('hub'), fit: 'contain', feedClass: 'viewport' },
+        rnd: { source: () => $('rndRoom'), fit: 'width' }
+    };
+    const CAMERA_MS = 1000;
+    let cameraTimer = 0;
+
+    function snapshot(source) {
+        const copy = source.cloneNode(true);
+        copy.hidden = false;
+        copy.removeAttribute('id');
+        copy.classList.remove('room');
+        copy.removeAttribute('data-room');
+        // Inert and anonymous: no duplicate ids, nothing focusable, nothing the game would find and update.
+        for (const n of copy.querySelectorAll('[id], [data-facility], [data-bind], [data-next]')) {
+            n.removeAttribute('id');
+            n.removeAttribute('data-facility');
+            n.removeAttribute('data-bind');
+            n.removeAttribute('data-next');
+        }
+        for (const n of copy.querySelectorAll('.room-bar')) n.remove();
+        return copy;
+    }
+
+    function refreshCameras() {
+        const stageWidth = $('stage').clientWidth || 1200;
+        for (const [id, cam] of Object.entries(CAMERAS)) {
+            const tile = $('facilityPlan').querySelector(`[data-room-id="${id}"]`);
+            const screen = tile.querySelector('.fr-cam');
+            const live = roomOpen(id);
+            screen.hidden = !live;
+            tile.querySelector('.fr-art').hidden = live;
+            if (!live) continue;
+            const feed = screen.querySelector('.fr-feed');
+            const width = Math.max(900, stageWidth);
+            feed.className = `fr-feed ${cam.feedClass || ''}`;
+            feed.style.width = `${width}px`;
+            feed.replaceChildren(snapshot(cam.source()));
+            const w = screen.clientWidth;
+            const h = screen.clientHeight;
+            if (!w || !h) continue;
+            const scale = cam.fit === 'contain' ? Math.min(w / width, h / feed.offsetHeight) : w / width;
+            const left = (w - width * scale) / 2;
+            feed.style.transform = `translate(${left}px, 0) scale(${scale})`;
+        }
+    }
+
+    // Cameras run only while the facility is on screen.
+    function setCameras(on) {
+        clearInterval(cameraTimer);
+        cameraTimer = 0;
+        if (!on) return;
+        refreshCameras();
+        cameraTimer = setInterval(refreshCameras, CAMERA_MS);
+    }
+
     function buildFacility() {
         const plan = $('facilityPlan');
         for (const [id, r] of Object.entries(ROOMS)) {
             const art = el('span', { class: `fr-art fr-art-${id}`, 'aria-hidden': 'true' });
             for (let i = 0; i < 6; i++) art.append(el('i'));
+            const camLabel = `CAM ${String(Object.keys(ROOMS).indexOf(id) + 1).padStart(2, '0')}`;
+            const cam = CAMERAS[id]
+                ? el('span', { class: 'fr-cam', 'aria-hidden': 'true', hidden: true }, [
+                    el('span', { class: 'fr-feed' }),
+                    el('span', { class: 'fr-cam-label', text: camLabel })])
+                : null;
             const tile = el('button', { type: 'button', class: `facility-room fr-${id}`, 'data-room-id': id }, [
-                art,
+                art, cam,
                 el('span', { class: 'fr-info' }, [
                     el('span', { class: 'fr-name', text: r.name }),
                     el('span', { class: 'fr-blurb', text: r.blurb }),
@@ -713,6 +779,7 @@ window.AGI = (function () {
     function showView(id) {
         view = id;
         $('facility').hidden = id !== 'facility';
+        setCameras(id === 'facility');
         for (const r of document.querySelectorAll('.room')) r.hidden = r.dataset.room !== id;
         document.body.dataset.view = id;
         if (ROOMS[id]) {
@@ -774,6 +841,7 @@ window.AGI = (function () {
         window.scrollTo(0, 0);
         $('facility').hidden = false;
         renderFacility(E.derive(state, debugRates));
+        refreshCameras();
         const { tileBox, origin, scale } = roomZoom(from);
         $('facility').style.transformOrigin = origin;
         $('facility').animate([{ transform: `scale(${scale})`, opacity: 0 }, { transform: 'none', opacity: 1 }], ZOOM);
@@ -842,11 +910,11 @@ window.AGI = (function () {
     const BAY_ART = { training: 16, pipeline: 24, architecture: 10, core: 3 };
 
     function buildHub() {
-        for (const node of document.querySelectorAll('.bay')) {
+        for (const node of $('bays').querySelectorAll('.bay')) {
             const art = node.querySelector('.bay-art');
             for (let i = 0; i < BAY_ART[node.dataset.bay]; i++) art.append(el('i'));
         }
-        for (const node of document.querySelectorAll('.bay')) {
+        for (const node of $('bays').querySelectorAll('.bay')) {
             node.addEventListener('click', () => enterBay(node.dataset.bay, node));
         }
         $('backButton').addEventListener('click', exitBay);
@@ -907,7 +975,7 @@ window.AGI = (function () {
 
     function exitBay() {
         if (!openBay) return;
-        const bayNode = document.querySelector(`.bay[data-bay="${openBay}"]`);
+        const bayNode = $('bays').querySelector(`.bay[data-bay="${openBay}"]`);
         const hub = $('hub');
         const view = $('moduleView');
         hub.hidden = false;
@@ -927,7 +995,7 @@ window.AGI = (function () {
 
     function renderHub() {
         const sealed = nextSealedBay();
-        for (const node of document.querySelectorAll('.bay')) {
+        for (const node of $('bays').querySelectorAll('.bay')) {
             const id = node.dataset.bay;
             const unlocked = bayUnlocked(id);
             const blank = !unlocked && id !== sealed;
@@ -1023,6 +1091,110 @@ window.AGI = (function () {
         path.selected = nodes[0].id;
         $('startRunButton').addEventListener('click', () => showTrainingView('run'));
         $('treeButton').addEventListener('click', () => showTrainingView('dev'));
+    }
+
+    // ---- Skill tree camera: drag to pan, wheel / pinch / buttons to zoom ----
+
+    const treeCam = { x: 0, y: 0, z: 1, pointers: new Map(), drag: null, moved: false };
+    const TREE_ZOOM = { min: 0.5, max: 2.5, step: 1.25 };
+
+    function applyTreeCam() {
+        $('skillTree').style.transform = `translate(${treeCam.x}px, ${treeCam.y}px) scale(${treeCam.z})`;
+    }
+
+    // Zoom to `z`, keeping the point (px, py) of the viewport (page pixels) still.
+    function zoomTreeAt(z, px, py) {
+        const tree = $('skillTree');
+        z = Math.min(TREE_ZOOM.max, Math.max(TREE_ZOOM.min, z));
+        const bx = tree.offsetLeft;
+        const by = tree.offsetTop;
+        const wx = (px - bx - treeCam.x) / treeCam.z;
+        const wy = (py - by - treeCam.y) / treeCam.z;
+        treeCam.z = z;
+        treeCam.x = px - bx - wx * z;
+        treeCam.y = py - by - wy * z;
+        applyTreeCam();
+    }
+
+    function resetTreeCam() {
+        Object.assign(treeCam, { x: 0, y: 0, z: 1 });
+        applyTreeCam();
+    }
+
+    // Pointer position inside the viewport, in page pixels (the page may be zoomed on large screens).
+    function treePoint(e) {
+        const r = $('treeViewport').getBoundingClientRect();
+        const z = uiScale();
+        return { x: (e.clientX - r.left) / z, y: (e.clientY - r.top) / z };
+    }
+
+    function buildTreeCamera() {
+        const vp = $('treeViewport');
+        const centre = () => ({ x: vp.clientWidth / 2, y: vp.clientHeight / 2 });
+        for (const b of vp.querySelectorAll('[data-zoom]')) {
+            b.addEventListener('click', () => {
+                const c = centre();
+                if (b.dataset.zoom === 'reset') resetTreeCam();
+                else zoomTreeAt(treeCam.z * (b.dataset.zoom === 'in' ? TREE_ZOOM.step : 1 / TREE_ZOOM.step), c.x, c.y);
+            });
+        }
+        vp.addEventListener('wheel', e => {
+            e.preventDefault();
+            const p = treePoint(e);
+            zoomTreeAt(treeCam.z * Math.exp(-e.deltaY * 0.0015), p.x, p.y);
+        }, { passive: false });
+        vp.addEventListener('pointerdown', e => {
+            if (e.target.closest('.tree-zoom') || (e.pointerType === 'mouse' && e.button !== 0)) return;
+            treeCam.pointers.set(e.pointerId, treePoint(e));
+            treeCam.moved = false;
+            treeCam.drag = { x: treeCam.x, y: treeCam.y, start: treePoint(e) };
+            if (treeCam.pointers.size === 2) {
+                const [a, b] = [...treeCam.pointers.values()];
+                treeCam.pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y), z: treeCam.z };
+            }
+        });
+        vp.addEventListener('pointermove', e => {
+            if (!treeCam.pointers.has(e.pointerId)) return;
+            const p = treePoint(e);
+            treeCam.pointers.set(e.pointerId, p);
+            if (treeCam.pointers.size === 2 && treeCam.pinch) {
+                const [a, b] = [...treeCam.pointers.values()];
+                treeCam.moved = true;
+                zoomTreeAt(treeCam.pinch.z * Math.hypot(a.x - b.x, a.y - b.y) / treeCam.pinch.dist, (a.x + b.x) / 2, (a.y + b.y) / 2);
+                return;
+            }
+            const d = treeCam.drag;
+            if (!d) return;
+            const dx = p.x - d.start.x;
+            const dy = p.y - d.start.y;
+            // A small wobble is still a click; past a few pixels it is a drag.
+            if (!treeCam.moved && Math.hypot(dx, dy) < 5) return;
+            if (!treeCam.moved) vp.setPointerCapture(e.pointerId);
+            treeCam.moved = true;
+            vp.classList.add('dragging');
+            treeCam.x = d.x + dx;
+            treeCam.y = d.y + dy;
+            applyTreeCam();
+        });
+        const end = e => {
+            treeCam.pointers.delete(e.pointerId);
+            if (treeCam.pointers.size < 2) treeCam.pinch = null;
+            if (!treeCam.pointers.size) {
+                treeCam.drag = null;
+                vp.classList.remove('dragging');
+            }
+        };
+        vp.addEventListener('pointerup', end);
+        vp.addEventListener('pointercancel', end);
+        // A drag that ends on a node must not select it.
+        vp.addEventListener('click', e => {
+            if (treeCam.moved) {
+                e.stopPropagation();
+                e.preventDefault();
+                treeCam.moved = false;
+            }
+        }, true);
+        vp.addEventListener('dblclick', e => { if (!e.target.closest('.tree-node, .tree-zoom')) resetTreeCam(); });
     }
 
     // Node state: hidden (more than one step from anything buyable), locked (its parent isn't owned
@@ -1831,6 +2003,7 @@ window.AGI = (function () {
         buildHub();
         buildPath();
         buildTree();
+        buildTreeCamera();
         load();
         syncSettings();
         E.evaluate(state); // silently restore unlocks implied by the loaded state
