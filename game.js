@@ -691,7 +691,7 @@ window.AGI = (function () {
     const PAD_TOP = 34;
     const PAD_BOTTOM = 26;
     const BALL = 7;
-    const RESULT_PAUSE = 2.6;   // seconds to show a finished roll's result before the next one
+    const RESULT_PAUSE = 1.2;   // seconds before the ball resets for the next roll (the result card stays up)
     const OVERVIEW_SECONDS = 3; // how long the camera stays zoomed out after learning a skill
     const STUCK_GRACE = 3;      // seconds a stuck roll waits for income before it ends
     const path = {
@@ -791,8 +791,8 @@ window.AGI = (function () {
     // Meter position (0–1) while charging: sweeps up to what you can afford, back down, and up again.
     function chargeLevel(now = performance.now()) {
         if (!path.charging) return 0;
-        const cap = path.charging.cap;
-        const pos = ((now - path.charging.start) / CHARGE_SWEEP_MS) % (2 * cap);
+        const { cap, sweep } = path.charging;
+        const pos = ((now - path.charging.start) / sweep) % (2 * cap);
         return pos <= cap ? pos : 2 * cap - pos;
     }
 
@@ -805,7 +805,8 @@ window.AGI = (function () {
     }
 
     function currentZone(roll) {
-        return E.bonusZone(roll.ground.seed, pushIndex(roll), E.derive(state).zoneWidth);
+        const d = E.derive(state);
+        return E.bonusZone(roll.ground.seed, pushIndex(roll), d.zoneWidth, d.perfectWidth);
     }
 
     function canPush(roll) {
@@ -814,16 +815,10 @@ window.AGI = (function () {
     }
 
     function dismissResult() {
-        if (path.pause > 0) path.pause = 0;
         $('rollResult').hidden = true;
-        startPathLoop();
     }
 
     function startCharge() {
-        if (!$('rollResult').hidden) {
-            dismissResult();
-            return;
-        }
         const roll = currentRoll();
         if (path.charging) return;
         if (!canPush(roll)) {
@@ -832,7 +827,7 @@ window.AGI = (function () {
             }
             return;
         }
-        path.charging = { start: performance.now(), cap: chargeBudget() };
+        path.charging = { start: performance.now(), cap: chargeBudget(), sweep: CHARGE_SWEEP_MS * E.derive(state).sweepScale };
         startPathLoop();
     }
 
@@ -841,11 +836,17 @@ window.AGI = (function () {
         const level = chargeLevel();
         path.charging = null;
         const roll = currentRoll();
-        const zone = currentZone(roll);
-        const clean = level >= zone.from && level <= zone.to;
-        if (pushBall(false, Math.max(E.PATH.minCharge, level)) && clean) {
+        const kind = E.zoneHit(currentZone(roll), level);
+        if (pushBall(false, Math.max(E.PATH.minCharge, level)) && kind) {
+            // Clean pushes pay at once: steady XP whatever happens to the roll.
+            const xp = E.grantPushBonus(state, kind);
             roll.clean = (roll.clean || 0) + 1;
-            path.cleanFlash = 1;
+            roll.units = (roll.units || 0) + E.cleanUnits(kind);
+            roll.bonusXp = (roll.bonusXp || 0) + xp;
+            const pct = Math.round(E.derive(state).cleanRollBonus * E.cleanUnits(kind) * 100);
+            path.cleanFlash = 1.2;
+            path.cleanText = `${kind === 'perfect' ? 'Perfect' : 'Clean'} push! +${xpText(xp)} XP, +${pct}% roll bonus`;
+            render();
         }
     }
 
@@ -860,7 +861,10 @@ window.AGI = (function () {
             if (!auto) setText($('pathStatus'), `Not enough to push: even a light push costs ${E.formatCost(E.pushCost(state, E.PATH.minCharge))}.`);
             return false;
         }
-        if (!roll.launched) path.overview = 0;
+        if (!roll.launched) {
+            path.overview = 0;
+            dismissResult();
+        }
         roll.push(E.derive(state, debugRates).pushPower * fraction);
         path.pushFlash = 0.35;
         setText($('pathStatus'), '');
@@ -908,7 +912,6 @@ window.AGI = (function () {
         path.cleanFlash = Math.max(0, path.cleanFlash - dt);
         drawPath(dt);
         updatePathControls();
-        if (path.pause <= 0 && !$('rollResult').hidden) $('rollResult').hidden = true;
         updateLiveXp();
         const roll = path.roll;
         const busy = roll && roll.launched && !roll.over;
@@ -920,37 +923,41 @@ window.AGI = (function () {
     function finishRoll(ev) {
         const crested = ev.type === 'crest';
         const target = E.skillAt(state.path.learned).name;
-        const clean = path.roll.clean || 0;
-        const baseXp = E.rollXp(state, ev.progress, crested, 0);
-        const result = E.finishRoll(state, ev.progress, crested, clean);
+        const roll = path.roll;
+        const clean = roll.clean || 0;
+        const units = roll.units || 0;
+        const banked = roll.bonusXp || 0;
+        const plainXp = E.rollXp(state, ev.progress, crested, 0);
+        const result = E.finishRoll(state, ev.progress, crested, units);
         path.pause = RESULT_PAUSE;
         const pct = Math.round(ev.progress * 100);
+        const lines = xpLines(plainXp, result.xp - plainXp, clean, banked, crested);
         if (result.skill) {
             const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
-            log(`Learned ${result.skill.name}: ${result.skill.effect} (${grants}, +${E.format(result.xp)} XP).`, 'special');
+            log(`Learned ${result.skill.name}: ${result.skill.effect} (${grants}, +${xpText(result.xp + banked)} XP).`, 'special');
             toast('Skill learned', result.skill.name);
             path.glow = { skill: state.path.learned - 1, age: 0 };
             path.overview = OVERVIEW_SECONDS + path.pause;
-            showResult({ skill: true, title: 'Skill learned', main: result.skill.name, xp: result.xp,
-                lines: [[result.skill.effect, ''], [grants, ''], ...xpLines(baseXp, clean, true)] });
+            showResult({ skill: true, title: 'Skill learned', main: result.skill.name, xp: result.xp + banked,
+                lines: [[result.skill.effect, ''], [grants, ''], ...lines] });
         } else {
             const bonus = clean ? `, ${clean} clean push${clean === 1 ? '' : 'es'}` : '';
-            log(`Roll ${state.stats.rolls}: ${pct}% of the way to ${target} (+${xpText(result.xp)} XP${bonus})${result.record ? '. New record!' : '.'}`,
+            log(`Roll ${state.stats.rolls}: stopped ${pct}% of the way to ${target} (+${xpText(result.xp + banked)} XP${bonus})${result.record ? '. New record!' : '.'}`,
                 result.record ? 'success' : 'info');
-            showResult({ title: `Roll ${state.stats.rolls} complete`, main: `${pct}% of the way to ${target}`, xp: result.xp,
-                record: result.record, lines: xpLines(baseXp, clean, false) });
+            showResult({ title: `Roll ${state.stats.rolls}`, main: `Stopped ${pct}% of the way to ${target}`, xp: result.xp + banked,
+                record: result.record, lines });
         }
         afterChange();
     }
 
-    // Breakdown rows for the result card: distance XP, then the clean-push bonus if any.
     const xpText = x => E.format(x, x < 10 ? 2 : 1);
 
-    function xpLines(baseXp, clean, crested) {
-        const rows = [[crested ? 'Distance (×2 for cresting)' : 'Distance', `+${xpText(baseXp)} XP`]];
+    // Breakdown rows for the result card: distance XP, the clean-push roll bonus, and XP already banked.
+    function xpLines(distanceXp, rollBonusXp, clean, banked, crested) {
+        const rows = [[crested ? 'Distance (×2 for cresting)' : 'Distance', `+${xpText(distanceXp)} XP`]];
         if (clean) {
-            const bonus = baseXp * E.PATH.cleanBonus * clean;
-            rows.push([`${clean} clean push${clean === 1 ? '' : 'es'} (+${Math.round(E.PATH.cleanBonus * 100 * clean)}%)`, `+${xpText(bonus)} XP`, 'good']);
+            rows.push(['Clean-push roll bonus', `+${xpText(rollBonusXp)} XP`, 'good']);
+            rows.push([`Banked from ${clean} clean push${clean === 1 ? '' : 'es'}`, `+${xpText(banked)} XP`, 'good']);
         }
         return rows;
     }
@@ -965,7 +972,7 @@ window.AGI = (function () {
             el('ul', { class: 'result-lines' }, lines.filter(([a]) => a).map(([label, value, cls]) =>
                 el('li', { class: cls || '' }, [el('span', { text: label }), el('span', { text: value })]))),
             record ? el('span', { class: 'result-badge', text: 'New record!' }) : null,
-            el('div', { class: 'result-hint', text: 'Tap or start charging to continue' })
+            el('div', { class: 'result-hint', text: 'Hold to launch again' })
         );
         card.hidden = false;
     }
@@ -991,16 +998,18 @@ window.AGI = (function () {
         const live = roll && roll.launched && !roll.over;
         box.hidden = !live;
         if (!live) return;
-        const clean = roll.clean || 0;
-        setText($('liveXpValue'), `+${xpText(E.rollXp(state, roll.progress, false, clean))} XP`);
-        setText($('liveXpMult'), clean ? `×${(1 + E.PATH.cleanBonus * clean).toFixed(1)}` : '');
+        const units = roll.units || 0;
+        setText($('liveXpValue'), `+${xpText(E.rollXp(state, roll.progress, false, units))} XP`);
+        const mult = 1 + E.derive(state).cleanRollBonus * units;
+        setText($('liveXpMult'), units ? `×${mult.toFixed(2)} · +${xpText(roll.bonusXp)} banked` : '');
     }
 
     function updateMeter(roll) {
         const d = E.derive(state, debugRates);
         const level = chargeLevel();
         const zone = currentZone(roll);
-        const inZone = path.charging && level >= zone.from && level <= zone.to;
+        const hit = path.charging ? E.zoneHit(zone, level) : null;
+        const inZone = !!hit;
         const fill = $('chargeFill');
         fill.style.width = `${level * 100}%`;
         fill.classList.toggle('in-zone', !!inZone);
@@ -1008,6 +1017,11 @@ window.AGI = (function () {
         zoneNode.style.left = `${zone.from * 100}%`;
         zoneNode.style.width = `${(zone.to - zone.from) * 100}%`;
         zoneNode.hidden = roll.over || roll.pushesLeft <= 0;
+        const perfectNode = $('chargePerfect');
+        perfectNode.hidden = zoneNode.hidden || zone.perfectTo <= zone.perfectFrom;
+        perfectNode.style.left = `${zone.perfectFrom * 100}%`;
+        perfectNode.style.width = `${(zone.perfectTo - zone.perfectFrom) * 100}%`;
+        fill.classList.toggle('perfect', hit === 'perfect');
         // Budget: the part of the meter you can't afford right now is shaded off.
         const budget = path.charging ? path.charging.cap : chargeBudget();
         const over = $('chargeOver');
@@ -1016,11 +1030,11 @@ window.AGI = (function () {
         $('charge').classList.toggle('clean', path.cleanFlash > 0);
         const charge = Math.max(E.PATH.minCharge, level);
         setText($('chargeValue'), path.cleanFlash > 0
-            ? `Clean push! +${Math.round(E.PATH.cleanBonus * 100)}% XP`
+            ? path.cleanText
             : path.charging
                 ? `Strength ${(d.pushPower * charge).toFixed(1)} · costs ${E.formatCost(E.pushCost(state, charge))}`
                 : `Full push: ${E.formatCost(E.pushCost(state, 1))}${budget < 1 ? ` · you can afford ${Math.round(budget * 100)}%` : ''}`);
-        setText($('chargeClean'), roll.clean ? `${roll.clean} clean` : '');
+        setText($('chargeClean'), roll.bonusXp ? `+${xpText(roll.bonusXp)} XP banked` : '');
     }
 
     // Ground height anywhere: the live roll's terrain on the current stretch; earlier stretches show

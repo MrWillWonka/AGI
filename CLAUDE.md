@@ -38,8 +38,11 @@ Open `/?debug` (or press <kbd>`</kbd>) for the debug panel: add resources/attrib
   - Pushes add a fixed amount of *energy* (pushing against a backward roll is wasted), and drag is partly quadratic. So saving pushes to rescue a stalling ball beats firing them early. Tests guard this; keep it true when tuning.
   - **Pushing is hold-to-charge.** A meter sweeps up and down while the button (or Space/Enter, or the canvas) is held, and release fires at that fraction of `pushPower`.
     - Every push costs CP and DP by `pushCost(s, charge)` (∝ charge², scaled per stretch), so passive income gates how hard you can push. The meter only reaches `affordableCharge()`.
-    - Each push has a **bonus zone** (`bonusZone(seed, index, width)`, centred between 50% and 85%). Releasing inside it is a clean push, worth `cleanBonus` extra XP per clean push for the roll. Better Sensors widens it. The Auto-Trainer pushes at its full budget and never scores clean pushes.
-    - While rolling, the live pill shows `rollXp` for the current distance ("if it stops here"); a result card summarises each roll.
+    - Each push has a **bonus zone** (`bonusZone(seed, index, width, perfect)`, centred between 50% and 85%), and `zoneHit()` classifies a release as `'clean'`, `'perfect'` or none.
+    - A clean push banks a small flat amount of XP at once (`grantPushBonus`) and adds `cleanRollBonus` to the roll's distance XP; a perfect push counts as `perfectMult` clean pushes (`cleanUnits`). This is the trade-off: steady XP from the zone, or full charge for distance.
+    - Zone upgrades: Better Sensors (width), Benchmark Prizes (flat XP), Curated Data (roll bonus), Perfect Calibration (adds and widens the perfect spot). GPU Cluster also slows the sweep (`sweepScale`). The Auto-Trainer pushes at its full budget and never scores clean pushes.
+    - XP follows the ball: the live pill shows `rollXp` at the ball's *current* position, and the payout uses where it stops (rolling back loses XP). The result card sits top-right, clear of the checkpoint; launching fades it.
+  - Slope friction (`SLOPE_DRAG`): steeper slopes sap more speed than gentle ones.
   - Progression is bought with XP in the Training tab. GPU Cluster adds strength, Faster Chips cuts the cooldown, and Investor Funding adds pushes per roll (the base is 1, the launch only). The Auto-Trainer appears after a Transcend.
   - Push strength comes from upgrades, skills and `sqrt(globalMultiplier)`. **Never tie it to Intelligence**: skills grant Intelligence, so the loop runs away (tested).
   - The engine owns the economy (`PATH`, `rollCost`, `payRoll`, `rollXp`, `finishRoll`, `learnSkill`); `training-path.js` owns the physics; `game.js` runs rolls, follows the ball with the camera and draws the trail.
@@ -59,7 +62,7 @@ Open `/?debug` (or press <kbd>`</kbd>) for the debug panel: add resources/attrib
 ## Verifying changes
 
 1. `node --test` must pass; add tests for new rules.
-2. For balance changes, simulate a run in Node with the engine and `training-path.js`: a bot that launches rolls, pushes when the ball stalls on an upslope, and spends XP on Training upgrades. Current first-run results: General AI ≈ 14 min, Superintelligence ≈ 40 min, Singularity ≈ 110 min. A bot that pushes blindly should fall behind (≈ 145 min to Singularity).
+2. For balance changes, simulate a run in Node with the engine and `training-path.js`: a bot that launches rolls, pushes when the ball stalls on an upslope, and spends XP on Training upgrades. Current first-run results with a bot that lands a clean push half the time: General AI ≈ 23 min, Superintelligence ≈ 60 min, Singularity ≈ 2 h 15 min.
 3. Load the page (Playwright/Chromium works in cloud sessions) and check the console for errors at desktop and ~390 px widths.
 
 ## Conventions

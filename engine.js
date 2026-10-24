@@ -27,8 +27,11 @@
         xpPerStretch: 5,     // XP for reaching a skill hill's peak on the first stretch
         xpScale: 1.35,
         crestBonus: 2,       // XP multiplier when the roll crests the skill hill
-        cleanBonus: 0.2,     // extra XP per clean push (released inside the meter's bonus zone)
+        cleanXp: 0.08,       // flat XP banked at once per clean push, as a share of a full stretch's distance XP
+        cleanRollBonus: 0.1, // and +10% distance XP for the roll per clean push
+        perfectMult: 3,      // a perfect push (inside the perfect spot) counts as this many clean pushes
         zoneWidth: 0.12,     // bonus zone width as a fraction of the strength meter
+        perfectWidth: 0.025, // perfect spot width once Perfect Calibration is bought
         minCharge: 0.15,     // weakest push a quick tap gives
         basePush: 1.8,       // push strength before upgrades and skills
         basePushes: 1,       // pushes per roll: just the launch until More Epochs is bought
@@ -113,6 +116,10 @@
         { id: 'trainingOptimizer', tab: 'training', name: 'GPU Cluster', effect: 'Stronger pushes (+10%)', cost: { xp: 15 }, scale: 1.5 },
         { id: 'fasterIteration', tab: 'training', name: 'Faster Chips', effect: 'Less time between pushes (-15%)', cost: { xp: 20 }, scale: 1.7, max: 12 },
         { id: 'precisionTuning', tab: 'training', name: 'Better Sensors', effect: 'Wider bonus zone on the strength meter (+25%)', cost: { xp: 30 }, scale: 1.8, max: 5 },
+        { id: 'benchmarkPrizes', tab: 'training', name: 'Benchmark Prizes', effect: 'More XP banked per clean push (+25%)', cost: { xp: 25 }, scale: 1.7, max: 10 },
+        { id: 'curatedData', tab: 'training', name: 'Curated Data', effect: 'Bigger roll bonus per clean push (+25%)', cost: { xp: 30 }, scale: 1.8, max: 10 },
+        { id: 'perfectCalibration', tab: 'training', name: 'Perfect Calibration', effect: 'Adds a perfect spot inside the bonus zone worth 3x. Later levels widen it.', cost: { xp: 80 }, scale: 2.2, max: 4,
+            requires: 'precisionTuning' },
         { id: 'trainingEpochs', tab: 'training', name: 'Investor Funding', effect: '+1 push per roll. The first one lets you push mid-roll.', cost: { xp: 12 }, scale: 2.6, max: 7 },
         { id: 'autoTrainer', tab: 'training', name: 'Auto-Trainer', effect: 'Level 1 pushes when the ball stops. Level 2 times pushes with the swing.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
             unlock: s => s.prestige.count >= 1, hint: 'Transcend once' },
@@ -238,8 +245,13 @@
         const pushCooldown = Math.max(PATH.minCooldown, PATH.baseCooldown * Math.pow(0.85, L('fasterIteration')));
 
         const zoneWidth = PATH.zoneWidth * (1 + 0.25 * L('precisionTuning'));
+        const perfectWidth = L('perfectCalibration') ? PATH.perfectWidth * (1 + 0.4 * (L('perfectCalibration') - 1)) : 0;
+        const cleanMult = 1 + 0.25 * L('benchmarkPrizes');
+        const cleanRollBonus = PATH.cleanRollBonus * (1 + 0.25 * L('curatedData'));
+        // A stronger rig is easier to control: each GPU Cluster level slows the meter's sweep a little.
+        const sweepScale = Math.min(1.7, 1 + 0.06 * L('trainingOptimizer'));
 
-        return { mult, cpPerSec, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec, pushPower, pushesPerRoll, pushCooldown, zoneWidth };
+        return { mult, cpPerSec, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec, pushPower, pushesPerRoll, pushCooldown, zoneWidth, perfectWidth, cleanMult, cleanRollBonus, sweepScale };
     }
 
     function meetsPhase(s, phase) {
@@ -457,21 +469,50 @@
     // further you get, and cresting the skill hill pays a bonus.
     // Bonus zone for push number `index` of a roll: somewhere below the top of the meter, so a clean
     // push trades some strength for XP. Deterministic per roll seed and push.
-    function bonusZone(seed, index, width) {
+    // `perfect` is the width of the perfect spot at the zone's centre (0 = none).
+    function bonusZone(seed, index, width, perfect = 0) {
         let h = Math.imul((seed ^ 0x9e3779b9) + index * 0x85ebca6b, 0xc2b2ae35) >>> 0;
         h = (h ^ (h >>> 16)) >>> 0;
         const centre = 0.5 + (h % 1000) / 1000 * 0.35;           // 0.50 – 0.85
-        return { from: centre - width / 2, to: centre + width / 2 };
+        return { from: centre - width / 2, to: centre + width / 2, perfectFrom: centre - perfect / 2, perfectTo: centre + perfect / 2 };
     }
 
-    function rollXp(s, progress, crested, cleanPushes = 0) {
-        const base = PATH.xpPerStretch * Math.pow(PATH.xpScale, s.path.learned);
-        return base * progress * progress * (crested ? PATH.crestBonus : 1) * (1 + PATH.cleanBonus * cleanPushes);
+    // Where a release at `level` lands: 'perfect', 'clean' or null.
+    function zoneHit(zone, level) {
+        if (zone.perfectTo > zone.perfectFrom && level >= zone.perfectFrom && level <= zone.perfectTo) return 'perfect';
+        return level >= zone.from && level <= zone.to ? 'clean' : null;
+    }
+
+    function stretchXp(s) {
+        return PATH.xpPerStretch * Math.pow(PATH.xpScale, s.path.learned);
+    }
+
+    // Clean-push "units": a clean push is 1, a perfect push counts as PATH.perfectMult.
+    const cleanUnits = kind => (kind === 'perfect' ? PATH.perfectMult : kind ? 1 : 0);
+
+    // Distance XP: where the ball ends up, squared (so getting further pays disproportionately),
+    // boosted by the roll's clean pushes.
+    function rollXp(s, progress, crested, units = 0) {
+        const bonus = 1 + derive(s).cleanRollBonus * units;
+        return stretchXp(s) * progress * progress * (crested ? PATH.crestBonus : 1) * bonus;
+    }
+
+    // XP for a clean or perfect push: a steady, flat amount banked immediately, whatever the distance.
+    function pushBonusXp(s, kind) {
+        if (!kind) return 0;
+        const d = derive(s);
+        return stretchXp(s) * PATH.cleanXp * d.cleanMult * cleanUnits(kind);
+    }
+
+    function grantPushBonus(s, kind) {
+        const xp = pushBonusXp(s, kind);
+        s.res.xp += xp;
+        return xp;
     }
 
     // Settle a finished roll: XP, record distance, roll count, and the skill if it crested.
-    function finishRoll(s, progress, crested, cleanPushes = 0) {
-        const xp = rollXp(s, progress, crested, cleanPushes);
+    function finishRoll(s, progress, crested, units = 0) {
+        const xp = rollXp(s, progress, crested, units);
         s.res.xp += xp;
         s.stats.rolls++;
         const record = progress > s.path.best;
@@ -655,7 +696,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, applyOffline,
-        skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, rollXp, finishRoll, learnSkill,
+        skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, learnSkill,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration
     };

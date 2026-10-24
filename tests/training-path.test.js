@@ -66,8 +66,8 @@ test('with only a launch, the first skill hill is a wall; upgrades break through
     const weak = crestRate(0, 1.8, { pushes: 1, cooldown: 2 }, launchOnly);
     assert.equal(weak.crests, 0, 'base launch cannot crest the first skill hill');
     assert.ok(weak.progress > 0.2, 'but it earns distance');
-    // One Investor Funding plus a couple of GPU Cluster upgrades.
-    const strong = crestRate(0, 2.2, { pushes: 2, cooldown: 1.5 }, rescue);
+    // One Investor Funding plus a few GPU Cluster upgrades.
+    const strong = crestRate(0, 2.5, { pushes: 2, cooldown: 1.5 }, rescue);
     assert.ok(strong.crests > 0.8, `upgraded rolls get over it (${strong.crests})`);
 });
 
@@ -252,16 +252,59 @@ test('engine: bonus zones sit below the top of the meter, vary per push, and are
     assert.ok(new Set(zones.map(z => z.toFixed(2))).size > 20, 'zones move around');
 });
 
-test('engine: clean pushes add XP, and Better Sensors widens the zone', () => {
+test('engine: clean pushes bank flat XP and boost the roll; perfect counts triple; all upgradable', () => {
     const s = E.defaultState(NOW);
     const plain = E.rollXp(s, 0.5, false, 0);
-    assert.ok(Math.abs(E.rollXp(s, 0.5, false, 2) - plain * (1 + 2 * E.PATH.cleanBonus)) < 1e-9);
-    const before = E.derive(s).zoneWidth;
+    const clean = E.pushBonusXp(s, 'clean');
+    assert.ok(clean > 0 && clean < plain, 'a small flat amount');
+    assert.equal(E.pushBonusXp(s, null), 0);
+    assert.ok(Math.abs(E.pushBonusXp(s, 'perfect') - 3 * clean) < 1e-9);
+    assert.ok(Math.abs(E.rollXp(s, 0.5, false, 2) - plain * (1 + 2 * E.PATH.cleanRollBonus)) < 1e-9, 'roll multiplier');
+
+    const zone = E.bonusZone(9, 0, 0.12, 0.03);
+    const mid = (zone.from + zone.to) / 2;
+    assert.equal(E.zoneHit(zone, mid), 'perfect');
+    assert.equal(E.zoneHit(zone, zone.from + 0.001), 'clean');
+    assert.equal(E.zoneHit(zone, zone.to + 0.01), null);
+    assert.equal(E.zoneHit(E.bonusZone(9, 0, 0.12, 0), mid), 'clean', 'no perfect spot without the upgrade');
+
+    s.levels.benchmarkPrizes = 2;
+    s.levels.curatedData = 2;
     s.levels.precisionTuning = 2;
-    assert.ok(Math.abs(E.derive(s).zoneWidth - before * 1.5) < 1e-9);
-    E.finishRoll(s, 0.5, false, 1);
-    assert.ok(Math.abs(s.res.xp - plain * (1 + E.PATH.cleanBonus)) < 1e-9);
+    assert.ok(Math.abs(E.pushBonusXp(s, 'clean') - clean * 1.5) < 1e-9);
+    assert.ok(Math.abs(E.derive(s).cleanRollBonus - E.PATH.cleanRollBonus * 1.5) < 1e-9);
+    assert.ok(Math.abs(E.derive(s).zoneWidth - E.PATH.zoneWidth * 1.5) < 1e-9);
+    assert.equal(E.derive(s).perfectWidth, 0);
+    s.levels.perfectCalibration = 1;
+    assert.ok(E.derive(s).perfectWidth > 0);
+
+    const before = s.res.xp;
+    E.grantPushBonus(s, 'clean');
+    assert.ok(s.res.xp > before, 'banked immediately');
 });
+
+test('engine: GPU Cluster slows the meter sweep, up to a cap', () => {
+    const s = E.defaultState(NOW);
+    assert.equal(E.derive(s).sweepScale, 1);
+    s.levels.trainingOptimizer = 5;
+    assert.ok(E.derive(s).sweepScale > 1.2);
+    s.levels.trainingOptimizer = 50;
+    assert.equal(E.derive(s).sweepScale, 1.7);
+});
+
+test('XP follows the ball: rolling back lowers it, and the payout is where it stops', () => {
+    const roll = T.createRoll(0, 5, { pushes: 1, cooldown: 2 });
+    roll.push(1.8);
+    let peak = 0;
+    let end;
+    for (let t = 0; t < 30 && !end; t += 1 / 60) {
+        peak = Math.max(peak, roll.progress);
+        [end] = roll.step(1 / 60);
+    }
+    assert.ok(end.progress <= peak + 1e-9);
+    assert.ok(Math.abs(end.progress - roll.ground.progress(roll.ball.x)) < 1e-9, 'payout uses the resting point');
+});
+
 
 test('a roll can be ended early and reports how far it got', () => {
     const roll = T.createRoll(0, 3, { pushes: 3, cooldown: 0.5 });

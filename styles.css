@@ -589,12 +589,12 @@ h1, h2, h3, p { margin: 0; }
 .live-xp-label { font-size: 0.74rem; color: var(--muted); }
 
 .roll-result {
+    /* Top-right, clear of the checkpoint where the next roll starts. */
     position: absolute;
-    left: 50%;
-    top: 50%;
-    width: min(340px, calc(100% - 24px));
-    transform: translate(-50%, -50%);
-    padding: 16px 18px;
+    right: 12px;
+    top: 44px;
+    width: min(300px, calc(100% - 120px));
+    padding: 12px 14px;
     border-radius: 10px;
     background: rgba(11, 22, 25, 0.95);
     border: 1px solid var(--border);
@@ -606,13 +606,13 @@ h1, h2, h3, p { margin: 0; }
 .roll-result.skill { border-color: rgba(99, 224, 171, 0.6); box-shadow: 0 0 40px rgba(99, 224, 171, 0.2), 0 18px 40px rgba(0, 0, 0, 0.55); }
 
 @keyframes result-in {
-    from { opacity: 0; transform: translate(-50%, -44%) scale(0.96); }
+    from { opacity: 0; transform: translateY(-8px); }
 }
 
 .result-title { font: 700 0.78rem var(--font-display); text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); }
 .roll-result.skill .result-title { color: var(--success); }
-.result-main { margin-top: 2px; font: 700 1.25rem var(--font-display); }
-.result-xp { margin-top: 8px; font: 700 1.6rem var(--font-mono); color: var(--warning); }
+.result-main { margin-top: 2px; font: 700 1.05rem var(--font-display); }
+.result-xp { margin-top: 6px; font: 700 1.35rem var(--font-mono); color: var(--warning); }
 .result-lines { margin: 6px 0 0; padding: 0; list-style: none; font: 0.8rem var(--font-mono); color: var(--muted); }
 .result-lines li { display: flex; justify-content: space-between; gap: 12px; }
 .result-lines .good { color: var(--success); }
@@ -660,7 +660,17 @@ h1, h2, h3, p { margin: 0; }
     box-shadow: 0 0 12px rgba(255, 181, 71, 0.5);
 }
 
+.charge-perfect {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: rgba(255, 215, 120, 0.55);
+    box-shadow: 0 0 8px rgba(255, 215, 120, 0.8);
+    z-index: 2;
+}
+
 .charge-fill.in-zone { background: linear-gradient(90deg, #2c8a63, var(--success)); box-shadow: 0 0 14px rgba(99, 224, 171, 0.7); }
+.charge-fill.in-zone.perfect { background: linear-gradient(90deg, #b8860b, #ffe08a); box-shadow: 0 0 16px rgba(255, 224, 138, 0.9); }
 
 .charge-labels { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 0.76rem var(--font-mono); color: var(--text); }
 .charge-labels .muted { margin-left: auto; font-family: var(--font-body); }

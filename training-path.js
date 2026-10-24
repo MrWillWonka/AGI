@@ -19,6 +19,7 @@
     const DAMPING = 0.15;       // linear rolling resistance per second
     const DRAG = 0.12;          // quadratic drag: fast balls lose energy disproportionately
     const TRAPPED_DAMPING = 4;  // extra damping once the ball cannot climb out of its dip
+    const SLOPE_DRAG = 0.5;     // extra friction in proportion to steepness: steep hills sap more speed
     const REST_SPEED = 0.03;
     const REST_SECONDS = 0.5;
     const WALL = 40;            // steepness of the wall behind the very first checkpoint
@@ -177,7 +178,7 @@
             ball.cooldown = Math.max(0, ball.cooldown - STEP);
             const dy = ground.slope(ball.x);
             ball.v += (-GRAVITY * dy / (1 + dy * dy)) * STEP;
-            ball.v -= (DAMPING * ball.v + DRAG * ball.v * Math.abs(ball.v)) * STEP;
+            ball.v -= (DAMPING * ball.v + DRAG * ball.v * Math.abs(ball.v) + SLOPE_DRAG * Math.abs(dy) * ball.v) * STEP;
             // Momentum while there is somewhere to go; once the ball lacks the energy to clear either
             // neighbouring hill, it is stuck in this dip, so let it settle quickly instead of sloshing.
             const { left, right } = ground.walls(ball.x);
@@ -197,7 +198,7 @@
             // The roll ends once the ball settles with no pushes left. With pushes left, it waits for you.
             if (launched && pushesLeft === 0 && ball.still >= REST_SECONDS) {
                 over = true;
-                events.push({ type: 'end', skill: k, progress: ground.progress(ball.maxX) });
+                events.push({ type: 'end', skill: k, progress: ground.progress(ball.x) });
             }
         }
 
@@ -216,7 +217,7 @@
         function end() {
             if (over) return null;
             over = true;
-            return { type: 'end', skill: k, progress: ground.progress(ball.maxX) };
+            return { type: 'end', skill: k, progress: ground.progress(ball.x) };
         }
 
         return {
@@ -228,7 +229,8 @@
             get pushesLeft() { return pushesLeft; },
             get launched() { return launched; },
             get over() { return over; },
-            get progress() { return ground.progress(ball.maxX); },
+            // Where the ball is now (0–1 of the stretch). Rolling back lowers it.
+            get progress() { return ground.progress(ball.x); },
             get atRest() { return ball.still >= REST_SECONDS; },
             // The ball no longer has the energy to clear the next hill: the moment a push matters most.
             get trapped() { return ball.trapped; }
