@@ -85,7 +85,7 @@
             section('Attributes', attrAmount, ...attrButtons),
             section('Rate multipliers', ...rateInputs),
             section('Time', simAmount, button('Simulate seconds', () => AGI.debug.simulate(Number(simAmount.value) || 0))),
-            section('Progress', button('Unlock everything', AGI.debug.unlockAll), button('Save now', AGI.save)),
+            section('Progress', button('Unlock everything', AGI.debug.unlockAll), button('Learn next skill', AGI.debug.learnSkill), button('Save now', AGI.save)),
             section('State', stateView)
         );
         panel.append(header, body);

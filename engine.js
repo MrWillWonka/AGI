@@ -18,13 +18,29 @@
     const PRESTIGE_CP_DIVISOR = 1e5;
     const IMPROVE_GAIN = 5;
 
-    // Loss Landscape module: dropping a ball costs CP; where it settles grants Intelligence.
-    const LOSS = {
-        dropCost: { cp: 60 },
-        maxBalls: 5,
-        baseGain: 0.4,       // Intelligence for a ball settling at loss 0
-        convergeBonus: 2     // multiplier for reaching the global minimum (which also starts a new epoch)
+    // Training Path: each push costs resources that scale with how far along the trail you are.
+    const PATH = {
+        pushCost: { cp: 15, dp: 2 },
+        costScale: 1.45,     // per skill learned
+        basePush: 1.8        // push speed before Intelligence and upgrades
     };
+
+    // Skills, in trail order. Hill i teaches SKILLS[i]. `bonus` effects are summed in derive().
+    // Past the end of the list the trail continues with generated frontier skills (see skillAt).
+    const SKILLS = [
+        { name: 'Pattern Matching', effect: '+1 CP per click', grants: { intelligence: 1 }, bonus: { click: 1 } },
+        { name: 'Edge Detection', effect: '+10% CP/s', grants: { intelligence: 2 }, bonus: { cp: 0.1 } },
+        { name: 'Image Recognition', effect: '+1 DP per collection', grants: { intelligence: 3 }, bonus: { collect: 1 } },
+        { name: 'Speech Recognition', effect: '+15% data production', grants: { intelligence: 4 }, bonus: { dp: 0.15 } },
+        { name: 'Language Modeling', effect: '+1 RP per research', grants: { intelligence: 6 }, bonus: { research: 1 } },
+        { name: 'Translation', effect: '+20% CP/s', grants: { intelligence: 8 }, bonus: { cp: 0.2 } },
+        { name: 'Reasoning', effect: '+25% research production', grants: { intelligence: 10, creativity: 1 }, bonus: { rp: 0.25 } },
+        { name: 'Planning', effect: '+30% CP/s', grants: { intelligence: 14, creativity: 1 }, bonus: { cp: 0.3 } },
+        { name: 'Analogy', effect: '+20% push strength', grants: { intelligence: 18, creativity: 2 }, bonus: { push: 0.2 } },
+        { name: 'Theory of Mind', effect: '+25% data production', grants: { intelligence: 24, awareness: 2 }, bonus: { dp: 0.25 } },
+        { name: 'Self-Modeling', effect: '+20% push strength', grants: { intelligence: 30, creativity: 3, awareness: 3 }, bonus: { push: 0.2 } },
+        { name: 'Open-Ended Discovery', effect: '+50% to all production', grants: { intelligence: 40, creativity: 5, awareness: 5 }, bonus: { cp: 0.5, dp: 0.5, rp: 0.5 } }
+    ];
 
     const RESOURCES = {
         cp: { name: 'Compute Power', short: 'CP' },
@@ -52,8 +68,7 @@
         { id: 'compute', name: 'Generate Compute', cost: {}, unlock: null },
         { id: 'collect', name: 'Collect Data', cost: { cp: 10 }, unlock: null },
         { id: 'research', name: 'Research', cost: { cp: 50, dp: 10 }, unlock: 'action:research' },
-        { id: 'train', name: 'Train Model', cost: { cp: 100, dp: 10 }, unlock: 'action:train' },
-        { id: 'improve', name: 'Self-Improve', cost: { cp: 1000, dp: 50, rp: 10 }, unlock: 'action:improve' }
+        { id: 'improve', name: 'Self-Improve', cost: { cp: 1000, dp: 50, rp: 10 }, scale: 1.25, unlock: 'action:improve' }
     ];
 
     const TABS = [
@@ -81,8 +96,10 @@
         // Software
         { id: 'dataProcessor', tab: 'software', name: 'Data Processor', effect: '+1 DP per collection', cost: { cp: 50, dp: 5 }, scale: 1.2 },
         { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', effect: '+0.5 automatic collections/s', cost: { cp: 200, dp: 20 }, scale: 1.25 },
-        { id: 'trainingOptimizer', tab: 'software', name: 'Training Optimizer', effect: '+50% Intelligence per training', cost: { cp: 500, dp: 50 }, scale: 1.6,
-            unlock: s => !!s.unlocked['action:train'], hint: 'Unlock Training' },
+        { id: 'trainingOptimizer', tab: 'software', name: 'Training Optimizer', effect: '+10% push strength', cost: { cp: 300, dp: 30 }, scale: 1.8,
+            unlock: s => !!s.unlocked['module:path'], hint: 'Unlock the Training Path' },
+        { id: 'autoTrainer', tab: 'software', name: 'Auto-Trainer', effect: 'Level 1 pushes when the ball stops. Level 2 times pushes with the swing.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
+            unlock: s => s.prestige.count >= 1, hint: 'Transcend once' },
         { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', effect: '+0.2 automatic research/s', cost: { cp: 1500, dp: 100, rp: 10 }, scale: 1.3,
             unlock: s => !!s.unlocked['action:research'], hint: 'Unlock Research' },
         { id: 'nlp', tab: 'software', name: 'Natural Language Processing', effect: '+5 DP per collection, +1 Intelligence', cost: { cp: 2500, dp: 250 }, max: 1,
@@ -118,9 +135,8 @@
 
     // Milestones: persistent per-run unlocks for actions and tabs. Once unlocked they stay unlocked.
     const MILESTONES = [
-        { key: 'module:loss', name: 'Gradient Descent', desc: 'Earn 100 CP this run to unlock the Loss Landscape', check: s => s.stats.runCp >= 100 },
+        { key: 'module:path', name: 'Training Path', desc: 'Earn 50 CP this run to start training your model', check: s => s.stats.runCp >= 50 },
         { key: 'action:research', name: 'Basic Research', desc: 'Hold 10 DP to unlock Research', check: s => s.res.dp >= 10 },
-        { key: 'action:train', name: 'Training Capability', desc: 'Earn 500 CP this run to unlock Training', check: s => s.stats.runCp >= 500 },
         { key: 'action:improve', name: 'Self-Improvement', desc: 'Hold 25 RP to unlock Self-Improvement', check: s => s.res.rp >= 25 },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }
@@ -133,8 +149,8 @@
         { id: 'cp1k', name: 'Kiloflop', desc: 'Earn 1,000 CP in total', check: s => s.stats.lifetimeCp >= 1e3 },
         { id: 'cp1m', name: 'Megaflop', desc: 'Earn 1 million CP in total', check: s => s.stats.lifetimeCp >= 1e6 },
         { id: 'cp1b', name: 'Gigaflop', desc: 'Earn 1 billion CP in total', check: s => s.stats.lifetimeCp >= 1e9 },
-        { id: 'firstDescent', name: 'Downhill From Here', desc: 'Settle a gradient in the Loss Landscape', check: s => s.stats.lossDrops >= 1 },
-        { id: 'globalMinimum', name: 'Global Minimum', desc: 'Find the global minimum of a loss landscape', check: s => s.stats.lossConverged >= 1 },
+        { id: 'firstSkill', name: 'First Steps', desc: 'Learn your first skill on the Training Path', check: s => s.path.learned >= 1 },
+        { id: 'polymath', name: 'Polymath', desc: 'Learn 10 skills in one run', check: s => s.path.learned >= 10 },
         { id: 'firstResearch', name: 'Peer Reviewed', desc: 'Complete your first research', check: s => s.stats.researchDone >= 1 },
         { id: 'cpu25', name: 'Moore\'s Law', desc: 'Own 25 Basic CPUs', check: s => (s.levels.cpu || 0) >= 25 },
         { id: 'automation', name: 'Hands Off', desc: 'Own an Auto Data Collector and a Research Assistant', check: s => (s.levels.autoCollector || 0) > 0 && (s.levels.researchAssistant || 0) > 0 },
@@ -159,14 +175,15 @@
                 lifetimeCp: 0,
                 runCp: 0,
                 researchDone: 0,
-                lossDrops: 0,
-                lossConverged: 0,
+                pushes: 0,
+                skillsLearned: 0,
+                improves: 0,
                 playTime: 0,
                 runStart: now,
                 firstStart: now,
                 highestPhase: 0
             },
-            loss: { epoch: 0 },
+            path: { learned: 0 },
             settings: { autosave: true, offline: true },
             lastSaved: now
         };
@@ -188,18 +205,21 @@
         const r = Object.assign({ cp: 1, dp: 1, rp: 1 }, rates);
         const mult = globalMultiplier(s);
         const L = id => level(s, id);
+        const sk = skillBonuses(s);
 
         const cpPerSec = (0.5 * L('cpu') + 2 * L('server') + 10 * L('quantum') + 50 * L('neural')
-            + 250 * L('datacenter') + 1400 * L('optical')) * mult * r.cp;
-        const clickPower = (1 + L('server')) * mult;
-        const dpPerCollect = (1 + L('dataProcessor') + 5 * L('nlp') + 10 * L('computerVision')) * mult;
+            + 250 * L('datacenter') + 1400 * L('optical')) * (1 + sk.cp) * mult * r.cp;
+        const clickPower = (1 + L('server') + sk.click) * mult;
+        const dpPerCollect = (1 + L('dataProcessor') + 5 * L('nlp') + 10 * L('computerVision') + sk.collect) * (1 + sk.dp) * mult;
         const dpPerSec = 0.5 * L('autoCollector') * dpPerCollect * r.dp;
         const rpPerResearch = (1 + L('machineLearning') + 2 * L('deepLearning') + 3 * L('reinforcementLearning')
-            + 5 * L('transferLearning')) * mult;
+            + 5 * L('transferLearning') + sk.research) * (1 + sk.rp) * mult;
         const rpPerSec = 0.2 * L('researchAssistant') * rpPerResearch * r.rp;
-        const trainGain = 1 + 0.5 * L('trainingOptimizer');
+        // Push strength grows with upgrades and skills, and gently with prestige and achievements.
+        // Hills grow faster than this, so later skills need momentum built over several pushes.
+        const pushPower = PATH.basePush * (1 + 0.1 * L('trainingOptimizer') + sk.push) * Math.sqrt(mult);
 
-        return { mult, cpPerSec, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec, trainGain };
+        return { mult, cpPerSec, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec, pushPower };
     }
 
     function meetsPhase(s, phase) {
@@ -267,13 +287,23 @@
         return { ok: true, msg: `${up.name} ${up.max === 1 ? 'acquired' : 'upgraded to level ' + s.levels[id]}: ${up.effect}` };
     }
 
+    // Actions with `scale` get pricier each time they are used in a run (stats.improves for Self-Improve).
+    function actionCost(s, action) {
+        if (!action.scale) return action.cost;
+        const factor = Math.pow(action.scale, s.stats.improves);
+        const cost = {};
+        for (const [k, v] of Object.entries(action.cost)) cost[k] = Math.ceil(v * factor);
+        return cost;
+    }
+
     function act(s, id, rates) {
         const action = ACTIONS.find(a => a.id === id);
         if (!action) return { ok: false, msg: `Unknown action: ${id}` };
         if (action.unlock && !s.unlocked[action.unlock]) return { ok: false, msg: `${action.name} is locked.` };
-        if (!canAfford(s, action.cost)) return { ok: false, msg: `Not enough resources to ${action.name.toLowerCase()}.` };
+        const cost = actionCost(s, action);
+        if (!canAfford(s, cost)) return { ok: false, msg: `Not enough resources to ${action.name.toLowerCase()}.` };
         const d = derive(s, rates);
-        pay(s, action.cost);
+        pay(s, cost);
         switch (id) {
             case 'compute':
                 addCp(s, d.clickPower);
@@ -286,11 +316,9 @@
                 s.res.rp += d.rpPerResearch;
                 s.stats.researchDone++;
                 return { ok: true, gained: d.rpPerResearch, resource: 'rp' };
-            case 'train':
-                s.attr.intelligence += d.trainGain;
-                return { ok: true, msg: `Training complete: +${format(d.trainGain)} Intelligence` };
             case 'improve':
                 s.attr.intelligence += IMPROVE_GAIN;
+                s.stats.improves++;
                 return { ok: true, msg: `Self-improvement complete: +${IMPROVE_GAIN} Intelligence` };
         }
         return { ok: false };
@@ -343,37 +371,53 @@
         return out;
     }
 
-    // ---- Loss Landscape -------------------------------------------------
+    // ---- Training Path --------------------------------------------------
 
-    // The landscape is derived from the run and epoch, never stored: same run + epoch = same terrain.
-    function lossSeed(s) {
-        let h = 2166136261 ^ s.loss.epoch;
-        h = Math.imul(h ^ (s.stats.runStart >>> 0), 16777619);
-        h = Math.imul(h ^ Math.floor(s.stats.runStart / 4294967296), 16777619);
-        return (h ^ (h >>> 15)) >>> 0;
+    // Skill taught by hill i. Past the hand-written list, frontier skills keep the trail going.
+    function skillAt(i) {
+        if (i < SKILLS.length) return SKILLS[i];
+        const n = i - SKILLS.length + 1;
+        return {
+            name: `Frontier Skill ${n}`,
+            effect: '+15% CP/s',
+            grants: { intelligence: 10 + 5 * n, creativity: 1, awareness: 1 },
+            bonus: { cp: 0.15 }
+        };
     }
 
-    function lossGain(loss, converged) {
-        const depth = Math.max(0, 1 - loss);
-        return LOSS.baseGain * depth * depth * depth * (converged ? LOSS.convergeBonus : 1);
+    function skillBonuses(s) {
+        const total = { click: 0, collect: 0, research: 0, cp: 0, dp: 0, rp: 0, push: 0 };
+        for (let i = 0; i < s.path.learned; i++) {
+            for (const [k, v] of Object.entries(skillAt(i).bonus)) total[k] += v;
+        }
+        return total;
     }
 
-    // Pay for a drop. The caller (UI) owns the physics sim and reports back via settleLoss().
-    function payLossDrop(s) {
-        if (!s.unlocked['module:loss'] || !canAfford(s, LOSS.dropCost)) return false;
-        pay(s, LOSS.dropCost);
+    function pushCost(s) {
+        const factor = Math.pow(PATH.costScale, s.path.learned);
+        const cost = {};
+        for (const [k, v] of Object.entries(PATH.pushCost)) cost[k] = Math.ceil(v * factor);
+        return cost;
+    }
+
+    // Pay for one push. The UI owns the physics sim and applies derive().pushPower on success.
+    function payPush(s) {
+        if (!s.unlocked['module:path']) return false;
+        const cost = pushCost(s);
+        if (!canAfford(s, cost)) return false;
+        pay(s, cost);
+        s.stats.pushes++;
         return true;
     }
 
-    function settleLoss(s, loss, converged) {
-        const gain = lossGain(loss, converged);
-        s.attr.intelligence += gain;
-        s.stats.lossDrops++;
-        if (converged) {
-            s.stats.lossConverged++;
-            s.loss.epoch++;
-        }
-        return gain;
+    // Called when the ball crests hill i. Only the next unlearned hill teaches anything.
+    function learnSkill(s, i) {
+        if (i !== s.path.learned) return null;
+        const skill = skillAt(i);
+        for (const [k, v] of Object.entries(skill.grants)) s.attr[k] += v;
+        s.path.learned++;
+        s.stats.skillsLearned++;
+        return skill;
     }
 
     // ---- Prestige -------------------------------------------------------
@@ -396,8 +440,8 @@
             clicks: s.stats.clicks,
             lifetimeCp: s.stats.lifetimeCp,
             researchDone: s.stats.researchDone,
-            lossDrops: s.stats.lossDrops,
-            lossConverged: s.stats.lossConverged,
+            pushes: s.stats.pushes,
+            skillsLearned: s.stats.skillsLearned,
             playTime: s.stats.playTime,
             firstStart: s.stats.firstStart
         });
@@ -449,7 +493,7 @@
         for (const k of Object.keys(s.prestige)) s.prestige[k] = num(raw.prestige?.[k], 0);
         for (const k of Object.keys(s.stats)) s.stats[k] = num(raw.stats?.[k], s.stats[k]);
         for (const k of Object.keys(s.settings)) s.settings[k] = bool(raw.settings?.[k], s.settings[k]);
-        s.loss.epoch = Math.floor(num(raw.loss?.epoch, 0));
+        s.path.learned = Math.floor(num(raw.path?.learned, 0));
         s.lastSaved = num(raw.lastSaved, d.lastSaved);
         return s;
     }
@@ -534,12 +578,12 @@
     }
 
     return {
-        SAVE_VERSION, MAX_OFFLINE_SECONDS, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN, LOSS,
+        SAVE_VERSION, MAX_OFFLINE_SECONDS, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
-        upgradeCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
+        upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, applyOffline,
-        lossSeed, lossGain, payLossDrop, settleLoss,
+        skillAt, pushCost, payPush, learnSkill,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration
     };

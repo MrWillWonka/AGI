@@ -9,7 +9,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
     <link rel="stylesheet" href="styles.css">
     <script defer src="engine.js"></script>
-    <script defer src="loss-landscape.js"></script>
+    <script defer src="training-path.js"></script>
     <script defer src="game.js"></script>
     <script defer src="debug-panel.js"></script>
 </head>
@@ -68,16 +68,19 @@
                 <div id="actions" class="action-list"></div>
             </div>
 
-            <div class="panel panel-loss" id="lossPanel" hidden>
-                <h2>Loss Landscape</h2>
-                <p class="muted small">Drop gradients and let them roll downhill. The lower the loss where one settles, the more Intelligence it earns. Reaching the global minimum pays double and opens a new landscape. Drag sideways to give a gradient momentum.</p>
-                <canvas id="lossCanvas" class="loss-canvas" tabindex="0" aria-label="Loss landscape. Use the left and right arrow keys to aim and Enter to drop a gradient." aria-describedby="lossStatus"></canvas>
-                <div class="loss-readout small">
-                    <span data-bind="loss.epoch">Landscape 1</span>
-                    <span data-bind="loss.balls"></span>
-                    <span data-bind="loss.cost"></span>
+            <div class="panel panel-path" id="pathPanel" hidden>
+                <h2>Training Path</h2>
+                <p class="muted small">Each hill is a skill for your AI to learn. Push the ball over it to learn the skill. Taller hills need momentum: push again while the ball rolls forward (green ring), not while it rolls back (red ring).</p>
+                <canvas id="pathCanvas" class="path-canvas" tabindex="0" aria-label="Training path. Press Enter or Space to push the ball forward." aria-describedby="pathStatus"></canvas>
+                <div class="path-controls">
+                    <button type="button" class="button push-button" id="pushButton">Push</button>
+                    <div class="path-readout small">
+                        <span data-bind="path.learned">0 skills learned</span>
+                        <span data-bind="path.cost"></span>
+                        <span data-bind="path.power"></span>
+                    </div>
                 </div>
-                <p class="small loss-status" id="lossStatus" aria-live="polite"></p>
+                <p class="small path-status" id="pathStatus" aria-live="polite"></p>
             </div>
 
             <div class="panel panel-upgrades">

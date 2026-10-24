@@ -167,7 +167,7 @@ window.AGI = (function () {
             ]);
             holdable(button, () => doAction(action.id, button));
             box.append(button);
-            ui.actions[action.id] = { action, button, gain };
+            ui.actions[action.id] = { action, button, gain, cost };
         }
     }
 
@@ -459,9 +459,9 @@ window.AGI = (function () {
             case 'stats.runCp': return f(state.stats.runCp);
             case 'stats.lifetimeCp': return f(state.stats.lifetimeCp);
             case 'stats.clicks': return f(state.stats.clicks);
-            case 'loss.epoch': return `Landscape ${state.loss.epoch + 1}`;
-            case 'loss.balls': return `${loss.sim ? loss.sim.balls.length : 0}/${E.LOSS.maxBalls} in flight`;
-            case 'loss.cost': return `${E.formatCost(E.LOSS.dropCost)} per gradient`;
+            case 'path.learned': return `${state.path.learned} skill${state.path.learned === 1 ? '' : 's'} learned`;
+            case 'path.cost': return `Push: ${E.formatCost(E.pushCost(state))}`;
+            case 'path.power': return `Strength ${d.pushPower.toFixed(1)}`;
         }
         return '';
     }
@@ -477,11 +477,13 @@ window.AGI = (function () {
         bar.firstElementChild.style.width = pct + '%';
 
         const gains = { compute: `+${E.format(d.clickPower)} CP`, collect: `+${E.format(d.dpPerCollect)} DP`,
-            research: `+${E.format(d.rpPerResearch)} RP`, train: `+${E.format(d.trainGain)} Int`, improve: `+${E.IMPROVE_GAIN} Int` };
-        for (const { action, button, gain } of Object.values(ui.actions)) {
+            research: `+${E.format(d.rpPerResearch)} RP`, improve: `+${E.IMPROVE_GAIN} Int` };
+        for (const { action, button, gain, cost } of Object.values(ui.actions)) {
+            const price = E.actionCost(state, action);
             setHidden(button, !!action.unlock && !state.unlocked[action.unlock]);
-            setDisabled(button, !E.canAfford(state, action.cost));
+            setDisabled(button, !E.canAfford(state, price));
             setText(gain, gains[action.id]);
+            setText(cost, E.formatCost(price));
         }
 
         for (const tab of E.TABS) {
@@ -515,18 +517,21 @@ window.AGI = (function () {
 
         setDisabled($('prestigeButton'), E.prestigeGain(state) < 1);
 
-        const lossPanel = $('lossPanel');
-        const lossWasHidden = lossPanel.hidden;
-        setHidden(lossPanel, !state.unlocked['module:loss']);
-        if (lossWasHidden && !lossPanel.hidden) startLossLoop();
+        const pathPanel = $('pathPanel');
+        const pathWasHidden = pathPanel.hidden;
+        setHidden(pathPanel, !state.unlocked['module:path']);
+        if (pathWasHidden && !pathPanel.hidden) startPathLoop();
+        if (path.stateRef !== state) startPathLoop();
     }
 
-    // ---- Loss Landscape module -------------------------------------------
+    // ---- Training Path ---------------------------------------------------
 
-    // The physics lives in loss-landscape.js; this section draws it, takes input and reports
-    // settled balls to the engine. It only simulates while the panel is on screen.
-    const loss = {
+    // The physics lives in training-path.js. This section draws the trail, takes pushes and
+    // reports crested hills to the engine. It only simulates while the panel is on screen.
+    const T = window.TrainingPath;
+    const path = {
         sim: null,
+        stateRef: null,
         canvas: null,
         ctx: null,
         width: 0,
@@ -534,258 +539,263 @@ window.AGI = (function () {
         visible: false,
         frame: 0,
         last: 0,
-        aimX: 0.5,
-        hover: false,
-        drag: null,
-        best: null,
-        floats: [],
+        cam: null,          // smoothed { left, right, top } in world units
+        glow: null,         // { hill, age }: the hill just learned, briefly lit up
+        pushFlash: 0,
         colors: {}
     };
-    const FLING = 5;       // drag distance (fraction of width) → initial velocity
-    const PAD = 14;
+    const PAD_X = 16;
+    const PAD_Y = 28;
+    const BALL = 7;
 
-    function lossSim() {
-        const seed = E.lossSeed(state);
-        // A new landscape (new epoch, run or save) takes over once the old one's balls have settled.
-        if (!loss.sim || (loss.sim.landscape.seed !== seed && loss.sim.balls.length === 0)) {
-            loss.sim = window.LossLandscape.createSim(window.LossLandscape.createLandscape(seed));
-            loss.best = null;
+    // The sim follows the state: a new run, import or reset restarts the ball in the learned valley.
+    function pathSim() {
+        const outOfSync = path.sim && path.sim.valley !== state.path.learned && path.sim.atRest;
+        if (!path.sim || path.stateRef !== state || outOfSync) {
+            path.sim = T.createSim(state.path.learned);
+            path.stateRef = state;
+            path.cam = null;
         }
-        return loss.sim;
+        return path.sim;
     }
 
-    function buildLoss() {
-        const canvas = $('lossCanvas');
-        loss.canvas = canvas;
-        loss.ctx = canvas.getContext('2d');
+    function buildPath() {
+        const canvas = $('pathCanvas');
+        path.canvas = canvas;
+        path.ctx = canvas.getContext('2d');
         const css = getComputedStyle(document.documentElement);
-        for (const name of ['primary', 'secondary', 'accent', 'success', 'warning', 'muted', 'border', 'text']) {
-            loss.colors[name] = css.getPropertyValue('--' + name).trim();
+        for (const name of ['primary', 'secondary', 'accent', 'success', 'warning', 'danger', 'muted', 'border', 'text']) {
+            path.colors[name] = css.getPropertyValue('--' + name).trim();
         }
 
-        const resize = () => {
+        new ResizeObserver(() => {
             const dpr = window.devicePixelRatio || 1;
-            loss.width = canvas.clientWidth;
-            loss.height = Math.round(Math.min(280, Math.max(180, loss.width * 0.42)));
-            canvas.style.height = loss.height + 'px';
-            canvas.width = Math.round(loss.width * dpr);
-            canvas.height = Math.round(loss.height * dpr);
-            loss.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            drawLoss();
-        };
-        new ResizeObserver(resize).observe(canvas);
+            path.width = canvas.clientWidth;
+            path.height = Math.round(Math.min(260, Math.max(170, path.width * 0.4)));
+            canvas.style.height = path.height + 'px';
+            canvas.width = Math.round(path.width * dpr);
+            canvas.height = Math.round(path.height * dpr);
+            path.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            drawPath();
+        }).observe(canvas);
 
         new IntersectionObserver(([entry]) => {
-            loss.visible = entry.isIntersecting;
-            if (loss.visible) startLossLoop();
+            path.visible = entry.isIntersecting;
+            if (path.visible) startPathLoop();
         }).observe(canvas);
-        document.addEventListener('visibilitychange', () => { if (!document.hidden) startLossLoop(); });
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) startPathLoop(); });
 
-        const toX = e => {
-            const rect = canvas.getBoundingClientRect();
-            return Math.min(1, Math.max(0, (e.clientX - rect.left - PAD) / (rect.width - PAD * 2)));
-        };
-        canvas.addEventListener('pointerdown', e => {
-            if (e.button !== 0) return;
-            canvas.setPointerCapture(e.pointerId);
-            loss.drag = { x0: toX(e), x: toX(e) };
-            loss.aimX = loss.drag.x0;
-            startLossLoop();
-        });
-        canvas.addEventListener('pointermove', e => {
-            loss.hover = true;
-            if (loss.drag) loss.drag.x = toX(e);
-            else loss.aimX = toX(e);
-            startLossLoop();
-        });
-        canvas.addEventListener('pointerup', () => {
-            if (!loss.drag) return;
-            const { x0, x } = loss.drag;
-            loss.drag = null;
-            dropGradient(x0, (x - x0) * FLING);
-        });
-        canvas.addEventListener('pointercancel', () => { loss.drag = null; });
-        canvas.addEventListener('pointerleave', () => { loss.hover = false; startLossLoop(); });
+        canvas.addEventListener('pointerdown', e => { if (e.button === 0) pushBall(); });
         canvas.addEventListener('keydown', e => {
-            const step = e.shiftKey ? 0.1 : 0.02;
-            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                loss.aimX = Math.min(1, Math.max(0, loss.aimX + (e.key === 'ArrowLeft' ? -step : step)));
-                loss.hover = true;
-            } else if (e.key === 'Enter' || e.key === ' ') {
-                dropGradient(loss.aimX, 0);
-            } else {
-                return;
-            }
+            if (e.key !== 'Enter' && e.key !== ' ') return;
             e.preventDefault();
-            startLossLoop();
+            pushBall();
         });
-        canvas.addEventListener('blur', () => { loss.hover = false; startLossLoop(); });
+        $('pushButton').addEventListener('click', pushBall);
     }
 
-    function dropGradient(x, vx) {
-        const sim = lossSim();
-        if (sim.balls.length >= E.LOSS.maxBalls) {
-            setText($('lossStatus'), `Up to ${E.LOSS.maxBalls} gradients at a time. Wait for one to settle.`);
-            return;
+    function pushBall(auto) {
+        const sim = pathSim();
+        if (sim.ball.cooldown > 0) return false;
+        if (!E.payPush(state)) {
+            if (!auto) setText($('pathStatus'), `Each push costs ${E.formatCost(E.pushCost(state))}.`);
+            return false;
         }
-        if (!E.payLossDrop(state)) {
-            setText($('lossStatus'), `Each gradient costs ${E.formatCost(E.LOSS.dropCost)}.`);
-            return;
-        }
-        sim.drop(x, vx);
-        setText($('lossStatus'), '');
+        sim.push(E.derive(state, debugRates).pushPower);
+        path.pushFlash = 0.35;
+        setText($('pathStatus'), '');
         render();
-        startLossLoop();
+        startPathLoop();
+        return true;
     }
 
-    function startLossLoop() {
-        if (loss.frame || !loss.canvas || $('lossPanel').hidden) return;
-        loss.last = performance.now();
-        loss.frame = requestAnimationFrame(lossFrame);
+    // Auto-Trainer: level 1 pushes when the ball has stopped; level 2 also pushes as it swings forward.
+    function autoTrain(sim) {
+        const lvl = E.level(state, 'autoTrainer');
+        if (!lvl || sim.ball.cooldown > 0) return;
+        if (sim.atRest || (lvl >= 2 && sim.ball.v > 0.05)) pushBall(true);
     }
 
-    function lossFrame(now) {
-        loss.frame = 0;
-        const dt = Math.min(0.1, (now - loss.last) / 1000);
-        loss.last = now;
-        const sim = lossSim();
-        const running = loss.visible && !document.hidden;
+    function startPathLoop() {
+        if (path.frame || !path.canvas || $('pathPanel').hidden) return;
+        path.last = performance.now();
+        path.frame = requestAnimationFrame(pathFrame);
+    }
+
+    function pathFrame(now) {
+        path.frame = 0;
+        const dt = Math.min(0.1, (now - path.last) / 1000);
+        path.last = now;
+        const sim = pathSim();
+        const running = path.visible && !document.hidden;
         if (running) {
-            for (const ev of sim.step(dt)) settleGradient(sim, ev);
+            autoTrain(sim);
+            for (const ev of sim.step(dt)) {
+                if (ev.type === 'crest') learnedHill(ev.hill);
+            }
         }
-        loss.floats = loss.floats.filter(f => (f.age += dt) < 1.4);
-        drawLoss();
-        // Keep animating while something moves; otherwise stop until the next input.
-        if (running && (sim.balls.length || loss.floats.length || loss.drag)) {
-            loss.frame = requestAnimationFrame(lossFrame);
-        }
+        if (path.glow && (path.glow.age += dt) > 2) path.glow = null;
+        path.pushFlash = Math.max(0, path.pushFlash - dt);
+        drawPath(dt);
+        setDisabled($('pushButton'), sim.ball.cooldown > 0 || !E.canAfford(state, E.pushCost(state)));
+        // Keep animating while anything moves or the camera is still easing; the Auto-Trainer keeps it alive too.
+        const moving = !sim.atRest || path.glow || path.pushFlash || E.level(state, 'autoTrainer') || cameraEasing();
+        if (running && moving) path.frame = requestAnimationFrame(pathFrame);
     }
 
-    function settleGradient(sim, ev) {
-        const gain = E.settleLoss(state, ev.loss, ev.converged);
-        if (loss.best === null || ev.loss < loss.best) loss.best = ev.loss;
-        loss.floats.push({ x: ev.x, value: sim.landscape.loss(ev.x), text: `+${gain.toFixed(2)} Int`, converged: ev.converged, age: 0 });
-        if (ev.converged) {
-            log(`Converged at the global minimum (loss ${ev.loss.toFixed(3)}): +${gain.toFixed(2)} Intelligence. A new landscape awaits.`, 'special');
-        }
+    function learnedHill(i) {
+        const skill = E.learnSkill(state, i);
+        if (!skill) return;
+        const grants = Object.entries(skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
+        path.glow = { hill: i, age: 0 };
+        log(`Learned ${skill.name}: ${skill.effect} (${grants}).`, 'special');
+        toast('Skill learned', skill.name);
         afterChange();
     }
 
-    function drawLoss() {
-        const { ctx, width: w, height: h, colors: c } = loss;
-        if (!ctx || !w) return;
-        const sim = lossSim();
-        const land = sim.landscape;
-        const X = x => PAD + x * (w - PAD * 2);
-        // Loss 0 sits at the bottom of the canvas, loss 1 at the top.
-        const Y = v => h - PAD - v * (h - PAD * 2);
+    // Camera target: the whole journey so far, plus the next hill and a glimpse of the one after.
+    function cameraTarget() {
+        const learned = state.path.learned;
+        const next = T.hill(learned);
+        const after = T.hill(learned + 1);
+        return { left: -0.25 * T.hill(0).halfWidth - 0.1, right: after.peak, top: next.height * 1.35 };
+    }
+
+    function cameraEasing() {
+        const t = cameraTarget();
+        const c = path.cam;
+        return !c || Math.abs(c.right - t.right) / t.right > 0.002 || Math.abs(c.top - t.top) / t.top > 0.002;
+    }
+
+    function drawPath(dt = 0) {
+        const { ctx, width: w, height: h, colors: c } = path;
+        if (!ctx || !w || !state) return;
+        const sim = pathSim();
+        const target = cameraTarget();
+        if (!path.cam) path.cam = { ...target };
+        // Ease the zoom so a newly learned skill visibly pulls the camera out.
+        const k = Math.min(1, dt * 2.5);
+        for (const key of ['left', 'right', 'top']) path.cam[key] += (target[key] - path.cam[key]) * k;
+        const cam = path.cam;
+        const X = x => PAD_X + (x - cam.left) / (cam.right - cam.left) * (w - PAD_X * 2);
+        const Y = y => h - PAD_Y - y / cam.top * (h - PAD_Y * 1.6);
+        const learned = state.path.learned;
 
         ctx.clearRect(0, 0, w, h);
 
-        // Loss gridlines, the way a training curve is read.
-        ctx.font = '11px ui-monospace, Consolas, monospace';
-        ctx.textBaseline = 'bottom';
-        for (const v of [0.25, 0.5, 0.75]) {
-            ctx.strokeStyle = c.border;
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(PAD, Y(v));
-            ctx.lineTo(w - PAD, Y(v));
-            ctx.stroke();
-            ctx.fillStyle = c.muted;
-            ctx.fillText(`loss ${v}`, PAD + 2, Y(v) - 2);
+        // Trail: learned ground solid, the hill being learned bright, the far hill fading into fog.
+        const samples = Math.min(1200, Math.max(300, Math.round(w * 1.5)));
+        const pts = [];
+        for (let i = 0; i <= samples; i++) {
+            const x = cam.left + (cam.right - cam.left) * i / samples;
+            pts.push([X(x), Y(T.height(x)), x]);
         }
-
-        // Terrain
-        const pts = land.profile;
+        const fog = ctx.createLinearGradient(X(T.hill(learned).end), 0, X(cam.right), 0);
+        fog.addColorStop(0, hexAlpha(c.secondary, 0.4));
+        fog.addColorStop(1, hexAlpha(c.secondary, 0));
         ctx.beginPath();
-        ctx.moveTo(X(0), h);
-        pts.forEach((v, i) => ctx.lineTo(X(i / (pts.length - 1)), Y(v)));
-        ctx.lineTo(X(1), h);
+        ctx.moveTo(pts[0][0], h);
+        for (const [px, py] of pts) ctx.lineTo(px, py);
+        ctx.lineTo(pts[pts.length - 1][0], h);
         ctx.closePath();
-        const fill = ctx.createLinearGradient(0, PAD, 0, h);
-        fill.addColorStop(0, hexAlpha(c.secondary, 0.45));
-        fill.addColorStop(1, hexAlpha(c.primary, 0.08));
-        ctx.fillStyle = fill;
+        ctx.fillStyle = fog;
         ctx.fill();
-        ctx.beginPath();
-        pts.forEach((v, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, X(i / (pts.length - 1)), Y(v)));
-        ctx.strokeStyle = c.secondary;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Best loss reached on this landscape
-        if (loss.best !== null) {
-            ctx.setLineDash([4, 4]);
-            ctx.strokeStyle = c.success;
+        ctx.lineWidth = 2.5;
+        ctx.lineJoin = 'round';
+        const segment = (from, to, color) => {
             ctx.beginPath();
-            ctx.moveTo(PAD, Y(loss.best));
-            ctx.lineTo(w - PAD, Y(loss.best));
+            let started = false;
+            for (const [px, py, x] of pts) {
+                if (x < from || x > to) continue;
+                started ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+                started = true;
+            }
+            ctx.strokeStyle = color;
             ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.fillStyle = c.success;
-            ctx.textAlign = 'right';
-            ctx.fillText(`best ${loss.best.toFixed(3)}`, w - PAD - 2, Y(loss.best) - 2);
-            ctx.textAlign = 'left';
+        };
+        const current = T.hill(learned);
+        segment(cam.left, current.start, c.success);
+        segment(current.start, current.end, c.warning);
+        segment(current.end, cam.right, hexAlpha(c.muted, 0.6));
+        if (path.glow) {
+            const g = T.hill(path.glow.hill);
+            ctx.save();
+            ctx.lineWidth = 6;
+            ctx.shadowColor = c.success;
+            ctx.shadowBlur = 16;
+            ctx.globalAlpha = 1 - path.glow.age / 2;
+            segment(g.start, g.end, c.success);
+            ctx.restore();
         }
 
-        // Aim guide and fling arrow
-        if (loss.hover || loss.drag) {
-            const ax = loss.drag ? loss.drag.x0 : loss.aimX;
-            const av = land.loss(ax);
-            ctx.strokeStyle = hexAlpha(c.text, 0.25);
-            ctx.lineWidth = 1;
+        // Learned skills: a marker on each crest, names for the most recent ones.
+        ctx.font = '11px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        for (let i = 0; i < learned; i++) {
+            const hl = T.hill(i);
+            const px = X(hl.peak);
+            const py = Y(hl.height);
+            ctx.fillStyle = c.success;
             ctx.beginPath();
-            ctx.moveTo(X(ax), PAD);
-            ctx.lineTo(X(ax), Y(av));
-            ctx.stroke();
-            ctx.fillStyle = hexAlpha(c.warning, 0.4);
-            ctx.beginPath();
-            ctx.arc(X(ax), Y(av) - 6, 6, 0, Math.PI * 2);
+            ctx.arc(px, py, 2.5, 0, Math.PI * 2);
             ctx.fill();
-            ctx.fillStyle = c.text;
-            ctx.textAlign = X(ax) > w / 2 ? 'right' : 'left';
-            ctx.fillText(`loss ${av.toFixed(3)}`, X(ax) + (X(ax) > w / 2 ? -8 : 8), Y(av) - 14);
-            ctx.textAlign = 'left';
-            if (loss.drag && Math.abs(loss.drag.x - loss.drag.x0) > 0.01) {
-                const y = Y(av) - 6;
-                const x2 = X(loss.drag.x);
-                ctx.strokeStyle = c.warning;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(X(ax), y);
-                ctx.lineTo(x2, y);
-                const dir = Math.sign(x2 - X(ax));
-                ctx.lineTo(x2 - dir * 6, y - 4);
-                ctx.moveTo(x2, y);
-                ctx.lineTo(x2 - dir * 6, y + 4);
-                ctx.stroke();
+            if (i >= learned - 2 && X(T.hill(i).end) - X(T.hill(i).start) > 50) {
+                ctx.fillStyle = hexAlpha(c.success, 0.8);
+                ctx.fillText(E.skillAt(i).name, px, py - 8);
             }
         }
 
-        // Balls with trails
-        for (const b of sim.balls) {
-            ctx.strokeStyle = hexAlpha(c.warning, 0.35);
-            ctx.lineWidth = 2;
+        // The hill being learned: its name and how far up it you have got.
+        const best = Math.round(sim.ball.best * 100);
+        ctx.fillStyle = c.warning;
+        ctx.font = 'bold 12px system-ui, sans-serif';
+        const labelX = Math.min(w - 70, Math.max(70, X(current.peak)));
+        ctx.fillText(E.skillAt(learned).name, labelX, Math.max(14, Y(current.height) - 22));
+        if (best > 0) {
+            ctx.font = '11px ui-monospace, Consolas, monospace';
+            ctx.fillText(`best ${best}%`, labelX, Math.max(27, Y(current.height) - 9));
+            // Mark the highest point reached on the slope.
+            const reachX = reachPoint(current, sim.ball.best);
+            ctx.strokeStyle = hexAlpha(c.warning, 0.7);
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 3]);
             ctx.beginPath();
-            b.trail.forEach((x, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, X(x), Y(land.loss(x)) - 6));
+            ctx.moveTo(X(reachX), Y(T.height(reachX)));
+            ctx.lineTo(X(reachX), h - PAD_Y + 6);
             ctx.stroke();
-            ctx.fillStyle = c.warning;
+            ctx.setLineDash([]);
+        }
+        ctx.fillStyle = hexAlpha(c.muted, 0.9);
+        ctx.font = '11px system-ui, sans-serif';
+        ctx.fillText('?', X(T.hill(learned + 1).peak), Math.max(14, Y(T.hill(learned + 1).height) - 8));
+
+        // Ball. Its ring says when to push: green while rolling forward, red while rolling back.
+        const bx = X(sim.ball.x);
+        const by = Y(T.height(sim.ball.x)) - BALL;
+        const forward = sim.ball.v > 0.05;
+        const back = sim.ball.v < -0.05;
+        if (path.pushFlash > 0) {
+            ctx.fillStyle = hexAlpha(c.warning, path.pushFlash);
             ctx.beginPath();
-            ctx.arc(X(b.x), Y(land.loss(b.x)) - 6, 6, 0, Math.PI * 2);
+            ctx.arc(bx, by, BALL + 10 * (0.35 - path.pushFlash) / 0.35 + 4, 0, Math.PI * 2);
             ctx.fill();
         }
+        ctx.fillStyle = c.text;
+        ctx.beginPath();
+        ctx.arc(bx, by, BALL, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = forward ? c.success : back ? c.danger : c.primary;
+        ctx.stroke();
 
-        // Rewards floating up from where balls settled
-        ctx.textAlign = 'center';
-        ctx.font = 'bold 12px system-ui, sans-serif';
-        for (const f of loss.floats) {
-            ctx.globalAlpha = Math.max(0, 1 - f.age / 1.4);
-            ctx.fillStyle = f.converged ? c.accent : c.success;
-            ctx.fillText(f.converged ? `${f.text} · converged!` : f.text, X(f.x), Y(f.value) - 16 - f.age * 24);
-        }
-        ctx.globalAlpha = 1;
         ctx.textAlign = 'left';
+    }
+
+    // x on the front slope of hill h where the height is `fraction` of its peak.
+    function reachPoint(h, fraction) {
+        // height = H·cos²(π/2 · u), u = (x - peak)/halfWidth, u ∈ [-1, 0] on the front slope.
+        const u = -(2 / Math.PI) * Math.acos(Math.sqrt(Math.min(1, fraction)));
+        return h.peak + u * h.halfWidth;
     }
 
     function hexAlpha(hex, alpha) {
@@ -801,7 +811,7 @@ window.AGI = (function () {
         buildChecklists();
         buildBindings();
         buildSettings();
-        buildLoss();
+        buildPath();
         load();
         syncSettings();
         E.evaluate(state); // silently restore unlocks implied by the loaded state
@@ -832,6 +842,15 @@ window.AGI = (function () {
                 E.MILESTONES.forEach(m => { state.unlocked[m.key] = true; });
                 E.UPGRADES.forEach(u => { state.unlocked['up:' + u.id] = true; });
                 afterChange();
+            },
+            // Learn the next skill instantly (the ball jumps ahead once it is at rest).
+            learnSkill() {
+                learnedHill(state.path.learned);
+                startPathLoop();
+            },
+            pathSim: () => {
+                const sim = pathSim();
+                return { valley: sim.valley, x: sim.ball.x, v: sim.ball.v, atRest: sim.atRest, best: sim.ball.best };
             },
             simulate(seconds) {
                 E.tick(state, seconds, debugRates);
