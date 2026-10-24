@@ -18,6 +18,14 @@
     const PRESTIGE_CP_DIVISOR = 1e5;
     const IMPROVE_GAIN = 5;
 
+    // Loss Landscape module: dropping a ball costs CP; where it settles grants Intelligence.
+    const LOSS = {
+        dropCost: { cp: 60 },
+        maxBalls: 5,
+        baseGain: 0.4,       // Intelligence for a ball settling at loss 0
+        convergeBonus: 2     // multiplier for reaching the global minimum (which also starts a new epoch)
+    };
+
     const RESOURCES = {
         cp: { name: 'Compute Power', short: 'CP' },
         dp: { name: 'Data Points', short: 'DP' },
@@ -110,6 +118,7 @@
 
     // Milestones: persistent per-run unlocks for actions and tabs. Once unlocked they stay unlocked.
     const MILESTONES = [
+        { key: 'module:loss', name: 'Gradient Descent', desc: 'Earn 100 CP this run to unlock the Loss Landscape', check: s => s.stats.runCp >= 100 },
         { key: 'action:research', name: 'Basic Research', desc: 'Hold 10 DP to unlock Research', check: s => s.res.dp >= 10 },
         { key: 'action:train', name: 'Training Capability', desc: 'Earn 500 CP this run to unlock Training', check: s => s.stats.runCp >= 500 },
         { key: 'action:improve', name: 'Self-Improvement', desc: 'Hold 25 RP to unlock Self-Improvement', check: s => s.res.rp >= 25 },
@@ -124,6 +133,8 @@
         { id: 'cp1k', name: 'Kiloflop', desc: 'Earn 1,000 CP in total', check: s => s.stats.lifetimeCp >= 1e3 },
         { id: 'cp1m', name: 'Megaflop', desc: 'Earn 1 million CP in total', check: s => s.stats.lifetimeCp >= 1e6 },
         { id: 'cp1b', name: 'Gigaflop', desc: 'Earn 1 billion CP in total', check: s => s.stats.lifetimeCp >= 1e9 },
+        { id: 'firstDescent', name: 'Downhill From Here', desc: 'Settle a gradient in the Loss Landscape', check: s => s.stats.lossDrops >= 1 },
+        { id: 'globalMinimum', name: 'Global Minimum', desc: 'Find the global minimum of a loss landscape', check: s => s.stats.lossConverged >= 1 },
         { id: 'firstResearch', name: 'Peer Reviewed', desc: 'Complete your first research', check: s => s.stats.researchDone >= 1 },
         { id: 'cpu25', name: 'Moore\'s Law', desc: 'Own 25 Basic CPUs', check: s => (s.levels.cpu || 0) >= 25 },
         { id: 'automation', name: 'Hands Off', desc: 'Own an Auto Data Collector and a Research Assistant', check: s => (s.levels.autoCollector || 0) > 0 && (s.levels.researchAssistant || 0) > 0 },
@@ -148,11 +159,14 @@
                 lifetimeCp: 0,
                 runCp: 0,
                 researchDone: 0,
+                lossDrops: 0,
+                lossConverged: 0,
                 playTime: 0,
                 runStart: now,
                 firstStart: now,
                 highestPhase: 0
             },
+            loss: { epoch: 0 },
             settings: { autosave: true, offline: true },
             lastSaved: now
         };
@@ -329,6 +343,39 @@
         return out;
     }
 
+    // ---- Loss Landscape -------------------------------------------------
+
+    // The landscape is derived from the run and epoch, never stored: same run + epoch = same terrain.
+    function lossSeed(s) {
+        let h = 2166136261 ^ s.loss.epoch;
+        h = Math.imul(h ^ (s.stats.runStart >>> 0), 16777619);
+        h = Math.imul(h ^ Math.floor(s.stats.runStart / 4294967296), 16777619);
+        return (h ^ (h >>> 15)) >>> 0;
+    }
+
+    function lossGain(loss, converged) {
+        const depth = Math.max(0, 1 - loss);
+        return LOSS.baseGain * depth * depth * depth * (converged ? LOSS.convergeBonus : 1);
+    }
+
+    // Pay for a drop. The caller (UI) owns the physics sim and reports back via settleLoss().
+    function payLossDrop(s) {
+        if (!s.unlocked['module:loss'] || !canAfford(s, LOSS.dropCost)) return false;
+        pay(s, LOSS.dropCost);
+        return true;
+    }
+
+    function settleLoss(s, loss, converged) {
+        const gain = lossGain(loss, converged);
+        s.attr.intelligence += gain;
+        s.stats.lossDrops++;
+        if (converged) {
+            s.stats.lossConverged++;
+            s.loss.epoch++;
+        }
+        return gain;
+    }
+
     // ---- Prestige -------------------------------------------------------
 
     function prestigeGain(s) {
@@ -349,6 +396,8 @@
             clicks: s.stats.clicks,
             lifetimeCp: s.stats.lifetimeCp,
             researchDone: s.stats.researchDone,
+            lossDrops: s.stats.lossDrops,
+            lossConverged: s.stats.lossConverged,
             playTime: s.stats.playTime,
             firstStart: s.stats.firstStart
         });
@@ -400,6 +449,7 @@
         for (const k of Object.keys(s.prestige)) s.prestige[k] = num(raw.prestige?.[k], 0);
         for (const k of Object.keys(s.stats)) s.stats[k] = num(raw.stats?.[k], s.stats[k]);
         for (const k of Object.keys(s.settings)) s.settings[k] = bool(raw.settings?.[k], s.settings[k]);
+        s.loss.epoch = Math.floor(num(raw.loss?.epoch, 0));
         s.lastSaved = num(raw.lastSaved, d.lastSaved);
         return s;
     }
@@ -484,11 +534,12 @@
     }
 
     return {
-        SAVE_VERSION, MAX_OFFLINE_SECONDS, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN,
+        SAVE_VERSION, MAX_OFFLINE_SECONDS, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN, LOSS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, applyOffline,
+        lossSeed, lossGain, payLossDrop, settleLoss,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration
     };

@@ -459,6 +459,9 @@ window.AGI = (function () {
             case 'stats.runCp': return f(state.stats.runCp);
             case 'stats.lifetimeCp': return f(state.stats.lifetimeCp);
             case 'stats.clicks': return f(state.stats.clicks);
+            case 'loss.epoch': return `Landscape ${state.loss.epoch + 1}`;
+            case 'loss.balls': return `${loss.sim ? loss.sim.balls.length : 0}/${E.LOSS.maxBalls} in flight`;
+            case 'loss.cost': return `${E.formatCost(E.LOSS.dropCost)} per gradient`;
         }
         return '';
     }
@@ -511,6 +514,283 @@ window.AGI = (function () {
         for (const [id, item] of Object.entries(ui.achievements)) item.classList.toggle('done', !!state.achievements[id]);
 
         setDisabled($('prestigeButton'), E.prestigeGain(state) < 1);
+
+        const lossPanel = $('lossPanel');
+        const lossWasHidden = lossPanel.hidden;
+        setHidden(lossPanel, !state.unlocked['module:loss']);
+        if (lossWasHidden && !lossPanel.hidden) startLossLoop();
+    }
+
+    // ---- Loss Landscape module -------------------------------------------
+
+    // The physics lives in loss-landscape.js; this section draws it, takes input and reports
+    // settled balls to the engine. It only simulates while the panel is on screen.
+    const loss = {
+        sim: null,
+        canvas: null,
+        ctx: null,
+        width: 0,
+        height: 0,
+        visible: false,
+        frame: 0,
+        last: 0,
+        aimX: 0.5,
+        hover: false,
+        drag: null,
+        best: null,
+        floats: [],
+        colors: {}
+    };
+    const FLING = 5;       // drag distance (fraction of width) → initial velocity
+    const PAD = 14;
+
+    function lossSim() {
+        const seed = E.lossSeed(state);
+        // A new landscape (new epoch, run or save) takes over once the old one's balls have settled.
+        if (!loss.sim || (loss.sim.landscape.seed !== seed && loss.sim.balls.length === 0)) {
+            loss.sim = window.LossLandscape.createSim(window.LossLandscape.createLandscape(seed));
+            loss.best = null;
+        }
+        return loss.sim;
+    }
+
+    function buildLoss() {
+        const canvas = $('lossCanvas');
+        loss.canvas = canvas;
+        loss.ctx = canvas.getContext('2d');
+        const css = getComputedStyle(document.documentElement);
+        for (const name of ['primary', 'secondary', 'accent', 'success', 'warning', 'muted', 'border', 'text']) {
+            loss.colors[name] = css.getPropertyValue('--' + name).trim();
+        }
+
+        const resize = () => {
+            const dpr = window.devicePixelRatio || 1;
+            loss.width = canvas.clientWidth;
+            loss.height = Math.round(Math.min(280, Math.max(180, loss.width * 0.42)));
+            canvas.style.height = loss.height + 'px';
+            canvas.width = Math.round(loss.width * dpr);
+            canvas.height = Math.round(loss.height * dpr);
+            loss.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            drawLoss();
+        };
+        new ResizeObserver(resize).observe(canvas);
+
+        new IntersectionObserver(([entry]) => {
+            loss.visible = entry.isIntersecting;
+            if (loss.visible) startLossLoop();
+        }).observe(canvas);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) startLossLoop(); });
+
+        const toX = e => {
+            const rect = canvas.getBoundingClientRect();
+            return Math.min(1, Math.max(0, (e.clientX - rect.left - PAD) / (rect.width - PAD * 2)));
+        };
+        canvas.addEventListener('pointerdown', e => {
+            if (e.button !== 0) return;
+            canvas.setPointerCapture(e.pointerId);
+            loss.drag = { x0: toX(e), x: toX(e) };
+            loss.aimX = loss.drag.x0;
+            startLossLoop();
+        });
+        canvas.addEventListener('pointermove', e => {
+            loss.hover = true;
+            if (loss.drag) loss.drag.x = toX(e);
+            else loss.aimX = toX(e);
+            startLossLoop();
+        });
+        canvas.addEventListener('pointerup', () => {
+            if (!loss.drag) return;
+            const { x0, x } = loss.drag;
+            loss.drag = null;
+            dropGradient(x0, (x - x0) * FLING);
+        });
+        canvas.addEventListener('pointercancel', () => { loss.drag = null; });
+        canvas.addEventListener('pointerleave', () => { loss.hover = false; startLossLoop(); });
+        canvas.addEventListener('keydown', e => {
+            const step = e.shiftKey ? 0.1 : 0.02;
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                loss.aimX = Math.min(1, Math.max(0, loss.aimX + (e.key === 'ArrowLeft' ? -step : step)));
+                loss.hover = true;
+            } else if (e.key === 'Enter' || e.key === ' ') {
+                dropGradient(loss.aimX, 0);
+            } else {
+                return;
+            }
+            e.preventDefault();
+            startLossLoop();
+        });
+        canvas.addEventListener('blur', () => { loss.hover = false; startLossLoop(); });
+    }
+
+    function dropGradient(x, vx) {
+        const sim = lossSim();
+        if (sim.balls.length >= E.LOSS.maxBalls) {
+            setText($('lossStatus'), `Up to ${E.LOSS.maxBalls} gradients at a time. Wait for one to settle.`);
+            return;
+        }
+        if (!E.payLossDrop(state)) {
+            setText($('lossStatus'), `Each gradient costs ${E.formatCost(E.LOSS.dropCost)}.`);
+            return;
+        }
+        sim.drop(x, vx);
+        setText($('lossStatus'), '');
+        render();
+        startLossLoop();
+    }
+
+    function startLossLoop() {
+        if (loss.frame || !loss.canvas || $('lossPanel').hidden) return;
+        loss.last = performance.now();
+        loss.frame = requestAnimationFrame(lossFrame);
+    }
+
+    function lossFrame(now) {
+        loss.frame = 0;
+        const dt = Math.min(0.1, (now - loss.last) / 1000);
+        loss.last = now;
+        const sim = lossSim();
+        const running = loss.visible && !document.hidden;
+        if (running) {
+            for (const ev of sim.step(dt)) settleGradient(sim, ev);
+        }
+        loss.floats = loss.floats.filter(f => (f.age += dt) < 1.4);
+        drawLoss();
+        // Keep animating while something moves; otherwise stop until the next input.
+        if (running && (sim.balls.length || loss.floats.length || loss.drag)) {
+            loss.frame = requestAnimationFrame(lossFrame);
+        }
+    }
+
+    function settleGradient(sim, ev) {
+        const gain = E.settleLoss(state, ev.loss, ev.converged);
+        if (loss.best === null || ev.loss < loss.best) loss.best = ev.loss;
+        loss.floats.push({ x: ev.x, value: sim.landscape.loss(ev.x), text: `+${gain.toFixed(2)} Int`, converged: ev.converged, age: 0 });
+        if (ev.converged) {
+            log(`Converged at the global minimum (loss ${ev.loss.toFixed(3)}): +${gain.toFixed(2)} Intelligence. A new landscape awaits.`, 'special');
+        }
+        afterChange();
+    }
+
+    function drawLoss() {
+        const { ctx, width: w, height: h, colors: c } = loss;
+        if (!ctx || !w) return;
+        const sim = lossSim();
+        const land = sim.landscape;
+        const X = x => PAD + x * (w - PAD * 2);
+        // Loss 0 sits at the bottom of the canvas, loss 1 at the top.
+        const Y = v => h - PAD - v * (h - PAD * 2);
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Loss gridlines, the way a training curve is read.
+        ctx.font = '11px ui-monospace, Consolas, monospace';
+        ctx.textBaseline = 'bottom';
+        for (const v of [0.25, 0.5, 0.75]) {
+            ctx.strokeStyle = c.border;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(PAD, Y(v));
+            ctx.lineTo(w - PAD, Y(v));
+            ctx.stroke();
+            ctx.fillStyle = c.muted;
+            ctx.fillText(`loss ${v}`, PAD + 2, Y(v) - 2);
+        }
+
+        // Terrain
+        const pts = land.profile;
+        ctx.beginPath();
+        ctx.moveTo(X(0), h);
+        pts.forEach((v, i) => ctx.lineTo(X(i / (pts.length - 1)), Y(v)));
+        ctx.lineTo(X(1), h);
+        ctx.closePath();
+        const fill = ctx.createLinearGradient(0, PAD, 0, h);
+        fill.addColorStop(0, hexAlpha(c.secondary, 0.45));
+        fill.addColorStop(1, hexAlpha(c.primary, 0.08));
+        ctx.fillStyle = fill;
+        ctx.fill();
+        ctx.beginPath();
+        pts.forEach((v, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, X(i / (pts.length - 1)), Y(v)));
+        ctx.strokeStyle = c.secondary;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Best loss reached on this landscape
+        if (loss.best !== null) {
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = c.success;
+            ctx.beginPath();
+            ctx.moveTo(PAD, Y(loss.best));
+            ctx.lineTo(w - PAD, Y(loss.best));
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = c.success;
+            ctx.textAlign = 'right';
+            ctx.fillText(`best ${loss.best.toFixed(3)}`, w - PAD - 2, Y(loss.best) - 2);
+            ctx.textAlign = 'left';
+        }
+
+        // Aim guide and fling arrow
+        if (loss.hover || loss.drag) {
+            const ax = loss.drag ? loss.drag.x0 : loss.aimX;
+            const av = land.loss(ax);
+            ctx.strokeStyle = hexAlpha(c.text, 0.25);
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(X(ax), PAD);
+            ctx.lineTo(X(ax), Y(av));
+            ctx.stroke();
+            ctx.fillStyle = hexAlpha(c.warning, 0.4);
+            ctx.beginPath();
+            ctx.arc(X(ax), Y(av) - 6, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = c.text;
+            ctx.textAlign = X(ax) > w / 2 ? 'right' : 'left';
+            ctx.fillText(`loss ${av.toFixed(3)}`, X(ax) + (X(ax) > w / 2 ? -8 : 8), Y(av) - 14);
+            ctx.textAlign = 'left';
+            if (loss.drag && Math.abs(loss.drag.x - loss.drag.x0) > 0.01) {
+                const y = Y(av) - 6;
+                const x2 = X(loss.drag.x);
+                ctx.strokeStyle = c.warning;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(X(ax), y);
+                ctx.lineTo(x2, y);
+                const dir = Math.sign(x2 - X(ax));
+                ctx.lineTo(x2 - dir * 6, y - 4);
+                ctx.moveTo(x2, y);
+                ctx.lineTo(x2 - dir * 6, y + 4);
+                ctx.stroke();
+            }
+        }
+
+        // Balls with trails
+        for (const b of sim.balls) {
+            ctx.strokeStyle = hexAlpha(c.warning, 0.35);
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            b.trail.forEach((x, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, X(x), Y(land.loss(x)) - 6));
+            ctx.stroke();
+            ctx.fillStyle = c.warning;
+            ctx.beginPath();
+            ctx.arc(X(b.x), Y(land.loss(b.x)) - 6, 6, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Rewards floating up from where balls settled
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 12px system-ui, sans-serif';
+        for (const f of loss.floats) {
+            ctx.globalAlpha = Math.max(0, 1 - f.age / 1.4);
+            ctx.fillStyle = f.converged ? c.accent : c.success;
+            ctx.fillText(f.converged ? `${f.text} · converged!` : f.text, X(f.x), Y(f.value) - 16 - f.age * 24);
+        }
+        ctx.globalAlpha = 1;
+        ctx.textAlign = 'left';
+    }
+
+    function hexAlpha(hex, alpha) {
+        const n = parseInt(hex.replace('#', ''), 16);
+        return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
     }
 
     // ---- Init -----------------------------------------------------------
@@ -521,6 +801,7 @@ window.AGI = (function () {
         buildChecklists();
         buildBindings();
         buildSettings();
+        buildLoss();
         load();
         syncSettings();
         E.evaluate(state); // silently restore unlocks implied by the loaded state

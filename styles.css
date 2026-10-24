@@ -218,6 +218,31 @@ h1, h2, h3, h4, p { margin: 0; }
 .action-gain { grid-area: gain; font-variant-numeric: tabular-nums; }
 .action-cost { grid-area: cost; font-size: 0.8rem; font-weight: 400; opacity: 0.85; }
 
+/* ---- Loss Landscape ---- */
+
+.loss-canvas {
+    display: block;
+    width: 100%;
+    height: 220px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.25);
+    cursor: crosshair;
+    touch-action: none;
+}
+
+.loss-canvas:focus-visible { outline: 2px solid var(--warning); outline-offset: 2px; }
+
+.loss-readout {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 4px 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.loss-status { color: var(--warning); min-height: 1.2em; }
+
 /* ---- Tabs & upgrades ---- */
 
 .tabs {
@@ -512,5 +537,6 @@ h1, h2, h3, h4, p { margin: 0; }
     .panel { order: 10; }
     .panel-resources { order: 1; }
     .panel-actions { order: 2; }
-    .panel-upgrades { order: 3; }
+    .panel-loss { order: 3; }
+    .panel-upgrades { order: 4; }
 }
