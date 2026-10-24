@@ -685,6 +685,7 @@ window.AGI = (function () {
     }
 
     function refreshCameras() {
+        requestAnimationFrame(drawLanes);
         const stageWidth = $('stage').clientWidth || 1200;
         for (const [id, cam] of Object.entries(CAMERAS)) {
             const tile = $('facilityPlan').querySelector(`[data-room-id="${id}"]`);
@@ -780,6 +781,7 @@ window.AGI = (function () {
         view = id;
         $('facility').hidden = id !== 'facility';
         setCameras(id === 'facility');
+        if (id === 'servers') requestAnimationFrame(drawLanes);
         for (const r of document.querySelectorAll('.room')) r.hidden = r.dataset.room !== id;
         document.body.dataset.view = id;
         if (ROOMS[id]) {
@@ -908,11 +910,19 @@ window.AGI = (function () {
 
     // How many art pieces each bay's hardware drawing uses (styled per bay in styles.css).
     const BAY_ART = { training: 16, pipeline: 24, architecture: 10, core: 3 };
+    // Live run lanes on the Training Cluster: one per run that can roll at once. Each lane takes three
+    // blade columns. Concurrent runs (planned) will raise this and draw their own balls.
+    const runLanes = () => 1;
 
     function buildHub() {
         for (const node of $('bays').querySelectorAll('.bay')) {
             const art = node.querySelector('.bay-art');
-            for (let i = 0; i < BAY_ART[node.dataset.bay]; i++) art.append(el('i'));
+            let blades = BAY_ART[node.dataset.bay];
+            if (node.dataset.bay === 'training') {
+                for (let i = 0; i < runLanes(); i++) art.append(el('canvas', { class: 'lane', 'data-lane': i }));
+                blades -= 3 * runLanes();
+            }
+            for (let i = 0; i < blades; i++) art.append(el('i'));
         }
         for (const node of $('bays').querySelectorAll('.bay')) {
             node.addEventListener('click', () => enterBay(node.dataset.bay, node));
@@ -1547,8 +1557,17 @@ window.AGI = (function () {
         if (!roll.launched || roll.atRest || (lvl >= 2 && stalling)) pushBall(true, chargeBudget());
     }
 
+    // A run keeps rolling when you step away (to the rack, the lab or the facility) as long as the page
+    // is open: one in flight finishes, and the Auto-Trainer keeps starting new ones. Nothing runs offline.
+    function runsInBackground() {
+        const roll = path.roll;
+        return !!roll && path.stateRef === state && path.view === 'run'
+            && ((roll.launched && !roll.over) || E.level(state, 'autoTrainer') > 0);
+    }
+
     function startPathLoop() {
-        if (path.frame || !path.canvas || openBay !== 'training' || path.view !== 'run') return;
+        if (path.frame || !path.canvas || path.view !== 'run') return;
+        if (openBay !== 'training' && !runsInBackground()) return;
         path.last = performance.now();
         path.frame = requestAnimationFrame(pathFrame);
     }
@@ -1557,7 +1576,7 @@ window.AGI = (function () {
         path.frame = 0;
         const dt = Math.min(0.1, (now - path.last) / 1000);
         path.last = now;
-        const running = path.visible && !document.hidden;
+        const running = !document.hidden && (path.visible || runsInBackground());
         if (running) {
             if (path.pause > 0) path.pause -= dt;
             const roll = currentRoll();
@@ -1576,6 +1595,7 @@ window.AGI = (function () {
         path.pushFlash = Math.max(0, path.pushFlash - dt);
         path.cleanFlash = Math.max(0, path.cleanFlash - dt);
         drawPath(dt);
+        drawLanes();
         updatePathControls();
         updateLiveXp();
         const roll = path.roll;
@@ -1981,6 +2001,51 @@ window.AGI = (function () {
             ctx.font = '700 13px "Chakra Petch", system-ui, sans-serif';
             ctx.fillStyle = hexAlpha(c.success, Math.min(1, path.overview));
             ctx.fillText(`${state.path.learned} skill${state.path.learned === 1 ? '' : 's'} learned`, w / 2, h - PAD_BOTTOM - 8);
+        }
+    }
+
+    // The rack's live lanes (and their copies in the facility camera): a tiny view of the trail
+    // around the ball. Drawn every frame the run loop runs, and on a slow timer otherwise.
+    function drawLanes() {
+        const roll = path.roll;
+        const c = path.colors;
+        for (const canvas of document.querySelectorAll('canvas.lane')) {
+            const w = canvas.clientWidth;
+            const h = canvas.clientHeight;
+            if (!w || !h) continue;
+            const dpr = Math.min(2, (window.devicePixelRatio || 1) * uiScale());
+            if (canvas.width !== Math.round(w * dpr)) canvas.width = Math.round(w * dpr);
+            if (canvas.height !== Math.round(h * dpr)) canvas.height = Math.round(h * dpr);
+            const ctx = canvas.getContext('2d');
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, w, h);
+            if (Number(canvas.dataset.lane) !== 0 || !roll) continue;
+            // A window of trail around the ball, scaled to the tallest hill in it.
+            const span = 3;
+            const from = roll.ball.x - span * 0.4;
+            const samples = 32;
+            let top = 0.05;
+            for (let i = 0; i <= samples; i++) top = Math.max(top, roll.ground.height(from + (i / samples) * span));
+            const y = hgt => h - 6 - (hgt / top) * (h - 16);
+            ctx.beginPath();
+            ctx.moveTo(0, h);
+            for (let i = 0; i <= samples; i++) ctx.lineTo((i / samples) * w, y(roll.ground.height(from + (i / samples) * span)));
+            ctx.lineTo(w, h);
+            ctx.closePath();
+            ctx.fillStyle = hexAlpha(c.success, 0.18);
+            ctx.fill();
+            ctx.strokeStyle = c.success;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            const bx = (0.4 * w);
+            const by = y(roll.ground.height(roll.ball.x)) - 3;
+            ctx.fillStyle = c.accent;
+            ctx.beginPath();
+            ctx.arc(bx, by, 2.6, 0, Math.PI * 2);
+            ctx.fill();
+            // Progress along the stretch.
+            ctx.fillStyle = hexAlpha(c.warning, 0.8);
+            ctx.fillRect(0, h - 2, w * roll.progress, 2);
         }
     }
 

@@ -1604,7 +1604,8 @@ body { zoom: var(--ui-scale); }
     user-select: none;
 }
 .tree-viewport.dragging { cursor: grabbing; }
-.tree-viewport .tree { transform-origin: 0 0; will-change: transform; }
+/* No will-change: it would cache the tree as a bitmap at 1x and blur it when zoomed in. */
+.tree-viewport .tree { transform-origin: 0 0; }
 .tree-zoom { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 4px; z-index: 2; }
 .tree-zoom button { width: 32px; height: 32px; padding: 0; font: 600 1rem var(--font-mono); background: rgba(8, 17, 19, 0.85); }
 
@@ -1655,3 +1656,15 @@ body { zoom: var(--ui-scale); }
     vertical-align: 1px;
     animation: led-soft 1.6s ease-in-out infinite;
 }
+
+/* Live run lanes: the first GPU blade(s) of the Training Cluster show the current run. */
+.bay[data-bay="training"] .bay-art .lane {
+    grid-column: span 3;
+    width: 100%;
+    height: 100%;
+    min-height: 60px;
+    border-radius: 2px;
+    background: #03100c;
+    box-shadow: inset 0 0 0 1px #2a5a4a, 0 0 12px rgba(99, 224, 171, 0.15);
+}
+.bay.sealed .bay-art .lane, .bay.blank .bay-art .lane { display: none; }
