@@ -2004,11 +2004,14 @@ window.AGI = (function () {
         }
     }
 
-    // The rack's live lanes (and their copies in the facility camera): a tiny view of the trail
-    // around the ball. Drawn every frame the run loop runs, and on a slow timer otherwise.
+    // The rack's lanes (and their copies in the facility camera). Before automation a lane is a static
+    // graph of the whole stretch with your best run marked; with the Auto-Trainer it goes live and
+    // follows the ball. Drawn every frame the run loop runs, and after each camera refresh.
     function drawLanes() {
-        const roll = path.roll;
+        // The static graph needs a stretch to draw even before the bay has been opened.
+        const roll = path.roll || (state.unlocked['module:path'] ? currentRoll() : null);
         const c = path.colors;
+        const live = E.level(state, 'autoTrainer') > 0;
         for (const canvas of document.querySelectorAll('canvas.lane')) {
             const w = canvas.clientWidth;
             const h = canvas.clientHeight;
@@ -2020,10 +2023,11 @@ window.AGI = (function () {
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             ctx.clearRect(0, 0, w, h);
             if (Number(canvas.dataset.lane) !== 0 || !roll) continue;
-            // A window of trail around the ball, scaled to the tallest hill in it.
-            const span = 3;
-            const from = roll.ball.x - span * 0.4;
-            const samples = 32;
+            // Live: a window of trail around the ball. Static: the whole stretch, checkpoint to skill hill.
+            const g = roll.ground;
+            const span = live ? 3 : g.goal.end - g.start;
+            const from = live ? roll.ball.x - span * 0.4 : g.start;
+            const samples = live ? 32 : 120;
             let top = 0.05;
             for (let i = 0; i <= samples; i++) top = Math.max(top, roll.ground.height(from + (i / samples) * span));
             const y = hgt => h - 6 - (hgt / top) * (h - 16);
@@ -2037,15 +2041,27 @@ window.AGI = (function () {
             ctx.strokeStyle = c.success;
             ctx.lineWidth = 1;
             ctx.stroke();
-            const bx = (0.4 * w);
-            const by = y(roll.ground.height(roll.ball.x)) - 3;
-            ctx.fillStyle = c.accent;
-            ctx.beginPath();
-            ctx.arc(bx, by, 2.6, 0, Math.PI * 2);
-            ctx.fill();
-            // Progress along the stretch.
+            if (live) {
+                const by = y(roll.ground.height(roll.ball.x)) - 3;
+                ctx.fillStyle = c.accent;
+                ctx.beginPath();
+                ctx.arc(0.4 * w, by, 2.6, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // Best run so far: a marker line at that point of the stretch.
+                const bestX = g.start + state.path.best * (g.goal.peak - g.start);
+                const mx = ((bestX - from) / span) * w;
+                ctx.strokeStyle = hexAlpha(c.accent, 0.8);
+                ctx.setLineDash([2, 2]);
+                ctx.beginPath();
+                ctx.moveTo(mx, 4);
+                ctx.lineTo(mx, h);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            // Progress along the stretch: live, or the best run.
             ctx.fillStyle = hexAlpha(c.warning, 0.8);
-            ctx.fillRect(0, h - 2, w * roll.progress, 2);
+            ctx.fillRect(0, h - 2, w * (live ? roll.progress : state.path.best), 2);
         }
     }
 

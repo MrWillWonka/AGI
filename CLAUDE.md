@@ -57,7 +57,7 @@ Open `/?debug` (or press <kbd>`</kbd>) for the debug panel: add resources/attrib
   - The engine owns the economy (`PATH`, `rollCost`, `payRoll`, `rollXp`, `finishRoll`, `learnSkill`); `training-path.js` owns the physics; `game.js` runs rolls, follows the ball with the camera and draws the trail.
   - Only `path.learned`, `path.best`, `res.xp` and `stats.rolls` are saved; an interrupted roll is simply lost.
   - Simulates while the page is open, never offline. Off screen (in the rack, the lab or the facility), a run in flight still finishes and the Auto-Trainer keeps starting new ones (`runsInBackground`); otherwise the loop sleeps.
-  - **Live lanes:** the Training Cluster's first three blade columns are a `canvas.lane` showing the trail around the ball (`drawLanes`, every run-loop frame and after each camera refresh), in the rack and in its facility camera copy. `runLanes()` is 1 for now; concurrent runs will add lanes, each drawing its own ball.
+  - **Lanes:** the Training Cluster's first three blade columns are a `canvas.lane` (`drawLanes`, every run-loop frame and after each camera refresh), in the rack and in its facility camera copy. Before the Auto-Trainer it is a static graph of the whole stretch with the best run marked; with it, it goes live and follows the ball. `runLanes()` is 1 for now; concurrent runs will add lanes, each drawing its own ball.
   - Planned (design doc): opposing forces as special terrain that pushes the ball back, and prestige buffs along the trail. Add them as terrain data, like rolling hills.
   - Player-facing names use everyday AI-lab language with plain effect text ("GPU Cluster: Stronger pushes"), not jargon.
 
