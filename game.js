@@ -1428,12 +1428,12 @@ window.AGI = (function () {
     // the run, stretch, seed or training upgrades change, so what you see is what you launch.
     function currentRoll() {
         const d = E.derive(state, debugRates);
-        const key = [state.stats.runStart, state.path.learned, E.rollSeed(state), d.pushesPerRoll, d.pushCooldown, d.friction, d.slopeDrag].join(':');
+        const key = [state.stats.runStart, state.path.learned, E.rollSeed(state), d.pushesPerRoll, d.pushCooldown, d.friction, d.hillScale].join(':');
         // A finished run stays on screen (path.done) until you click through to the dev screen.
         const stale = !path.roll || path.stateRef !== state || (path.roll.over && !path.done) || (!path.roll.launched && path.rollKey !== key);
         if (stale && path.pause <= 0) {
             path.roll = T.createRoll(state.path.learned, E.rollSeed(state),
-                { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, slopeDrag: d.slopeDrag, rollOut: true });
+                { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, rollOut: true });
             path.rollPushes = d.pushesPerRoll;
             path.rollKey = key;
             if (path.stateRef !== state) path.cam = null;
@@ -1500,7 +1500,7 @@ window.AGI = (function () {
 
     // ---- Charging a push ----
 
-    const CHARGE_SWEEP_MS = 900;    // time for the meter to sweep from empty to full (then back)
+    const CHARGE_SWEEP_MS = 1250;    // time for the meter to sweep from empty to full (then back)
 
     // Meter position (0–1) while charging: sweeps up to what you can afford, back down, and up again.
     function chargeLevel(now = performance.now()) {
@@ -1554,7 +1554,7 @@ window.AGI = (function () {
         if (path.charging) return;
         if (!canPush(roll)) {
             if (!roll.over && roll.pushesLeft > 0 && chargeBudget() < E.PATH.minCharge) {
-                setText($('pathStatus'), `Not enough to push: even a light push costs ${E.formatCost(E.pushCost(state, E.PATH.minCharge))}.`);
+                setText($('pathStatus'), `Not enough to sprint: even a light training sprint costs ${E.formatCost(E.pushCost(state, E.PATH.minCharge))}.`);
             }
             return;
         }
@@ -1576,7 +1576,7 @@ window.AGI = (function () {
             roll.bonusXp = (roll.bonusXp || 0) + xp;
             const pct = Math.round(E.derive(state).cleanRollBonus * E.cleanUnits(kind) * 100);
             path.cleanFlash = 1.2;
-            path.cleanText = `${kind === 'perfect' ? 'Perfect' : 'Clean'} push! +${xpText(xp)} XP, +${pct}% roll bonus`;
+            path.cleanText = `${kind === 'perfect' ? 'Perfect' : 'Clean'} sprint! +${xpText(xp)} XP, +${pct}% run bonus`;
             render();
         }
     }
@@ -1589,7 +1589,7 @@ window.AGI = (function () {
         // Every push is paid for by how hard it is charged.
         fraction = Math.min(fraction, chargeBudget());
         if (fraction < E.PATH.minCharge || !E.payPush(state, fraction)) {
-            if (!auto) setText($('pathStatus'), `Not enough to push: even a light push costs ${E.formatCost(E.pushCost(state, E.PATH.minCharge))}.`);
+            if (!auto) setText($('pathStatus'), `Not enough to sprint: even a light training sprint costs ${E.formatCost(E.pushCost(state, E.PATH.minCharge))}.`);
             return false;
         }
         if (!roll.launched) {
@@ -1755,10 +1755,10 @@ window.AGI = (function () {
             showResult({ skill: true, title: 'Skill learned', main: result.skill.name, xp: result.xp + banked,
                 lines: [[result.skill.effect, ''], [grants, ''], ...lines] });
         } else {
-            const bonus = clean ? `, ${clean} clean push${clean === 1 ? '' : 'es'}` : '';
-            log(`Roll ${state.stats.rolls}: stopped ${pct}% of the way to ${target} (+${xpText(result.xp + banked)} XP${bonus})${result.record ? '. New record!' : '.'}`,
+            const bonus = clean ? `, ${clean} clean sprint${clean === 1 ? '' : 's'}` : '';
+            log(`Run ${state.stats.rolls}: stopped ${pct}% of the way to ${target} (+${xpText(result.xp + banked)} XP${bonus})${result.record ? '. New record!' : '.'}`,
                 result.record ? 'success' : 'info');
-            showResult({ title: `Roll ${state.stats.rolls}`, main: `Stopped ${pct}% of the way to ${target}`, xp: result.xp + banked,
+            showResult({ title: `Run ${state.stats.rolls}`, main: `Stopped ${pct}% of the way to ${target}`, xp: result.xp + banked,
                 record: result.record, lines });
         }
         afterChange();
@@ -1770,8 +1770,8 @@ window.AGI = (function () {
     function xpLines(distanceXp, rollBonusXp, clean, banked, crested) {
         const rows = [[crested ? 'Distance (×2 for cresting)' : 'Distance', `+${xpText(distanceXp)} XP`]];
         if (clean) {
-            rows.push(['Clean-push roll bonus', `+${xpText(rollBonusXp)} XP`, 'good']);
-            rows.push([`Banked from ${clean} clean push${clean === 1 ? '' : 'es'}`, `+${xpText(banked)} XP`, 'good']);
+            rows.push(['Clean-sprint run bonus', `+${xpText(rollBonusXp)} XP`, 'good']);
+            rows.push([`Banked from ${clean} clean sprint${clean === 1 ? '' : 's'}`, `+${xpText(banked)} XP`, 'good']);
         }
         return rows;
     }
@@ -1799,11 +1799,11 @@ window.AGI = (function () {
         const roll = path.roll;
         const button = $('pushButton');
         if (!roll) return;
-        const label = path.charging ? 'Release to push'
+        const label = path.charging ? 'Release to sprint'
             : !roll.launched ? 'Hold to launch'
-            : roll.over ? (path.done ? 'Hold to run again' : 'Next roll…')
+            : roll.over ? (path.done ? 'Hold to run again' : 'Next run…')
             : roll.crested ? 'Summit!'
-            : roll.pushesLeft > 0 ? `Hold to push (${roll.pushesLeft} left)` : 'Out of pushes';
+            : roll.pushesLeft > 0 ? `Hold to sprint (${roll.pushesLeft} left)` : 'Out of sprints';
         setText(button, label);
         // Stay enabled while charging so releasing the pointer still lands on the button.
         setDisabled(button, !path.charging && !path.done && !canPush(roll));
@@ -1853,7 +1853,7 @@ window.AGI = (function () {
             ? path.cleanText
             : path.charging
                 ? `Strength ${(d.pushPower * charge).toFixed(1)} · costs ${E.formatCost(E.pushCost(state, charge))}`
-                : `Full push: ${E.formatCost(E.pushCost(state, 1))}${budget < 1 ? ` · you can afford ${Math.round(budget * 100)}%` : ''}`);
+                : `Full sprint: ${E.formatCost(E.pushCost(state, 1))}${budget < 1 ? ` · you can afford ${Math.round(budget * 100)}%` : ''}`);
         setText($('chargeClean'), roll.bonusXp ? `+${xpText(roll.bonusXp)} XP banked` : '');
     }
 
@@ -2081,9 +2081,10 @@ window.AGI = (function () {
             ctx.fillText(`${ahead.toFixed(1)} m ahead`, w - PAD_X, 30);
         }
 
-        // Ball. Ring: green while rolling forward, red while rolling back.
+        // Ball, riding on the line (centred on it, like a bead on a wire). Ring: green while rolling
+        // forward, red while rolling back.
         const bx = X(roll.ball.x);
-        const by = Y(groundAt(roll, roll.ball.x)) - BALL;
+        const by = Y(groundAt(roll, roll.ball.x));
         if (path.pushFlash > 0) {
             ctx.fillStyle = hexAlpha(c.warning, path.pushFlash);
             ctx.beginPath();
@@ -2228,7 +2229,7 @@ window.AGI = (function () {
             ctx.lineWidth = 1;
             ctx.stroke();
             if (live) {
-                const by = y(roll.ground.height(roll.ball.x)) - 3;
+                const by = y(roll.ground.height(roll.ball.x));
                 ctx.fillStyle = c.accent;
                 ctx.beginPath();
                 ctx.arc(0.4 * w, by, 2.6, 0, Math.PI * 2);
@@ -2280,7 +2281,7 @@ window.AGI = (function () {
         const bx = from + t * span;
         ctx.fillStyle = c.text;
         ctx.beginPath();
-        ctx.arc(t * w, y(g.height(bx)) - 2.5, 2.2, 0, Math.PI * 2);
+        ctx.arc(t * w, y(g.height(bx)), 2.2, 0, Math.PI * 2);
         ctx.fill();
     }
 

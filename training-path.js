@@ -30,7 +30,7 @@
 
     const skillHeight = k => 0.3 * Math.pow(1.5, k);   // each skill hill is a bigger wall than the last
     const skillHalfWidth = k => 0.55 * Math.pow(1.14, k);
-    const stretchLength = k => 10 * Math.pow(1.18, k);  // checkpoint to the foot of skill hill k: longer every stretch
+    const stretchLength = k => 10 * Math.pow(1.25, k) + 4 * k;   // checkpoint to the foot of skill hill k: much longer every stretch
 
     const checkpoints = [0];    // checkpoints[k] = x where stretch k starts
     function checkpoint(k) {
@@ -61,7 +61,8 @@
     }
 
     // Rolling hills for stretch k: mostly small, sometimes medium, growing toward the skill hill.
-    function rollingHills(k, seed) {
+    // `hillScale` (< 1 from upgrades) makes them less steep; the random layout stays the same.
+    function rollingHills(k, seed, hillScale = 1) {
         const r = rng(seed);
         const from = checkpoint(k) + LEAD_IN;
         const to = skillHill(k).start - 0.25;
@@ -75,7 +76,7 @@
             const along = (x - from) / (to - from);              // 0 near the checkpoint, 1 near the wall
             const roll = r();
             const size = roll < 0.12 ? 0.35 + r() * 0.2 : 0.05 + r() * 0.2;   // occasional medium hill
-            const h = big * size * (0.6 + 0.6 * along);
+            const h = big * size * (0.6 + 0.6 * along) * hillScale;
             hills.push({ start: x, peak: x + w, end: x + 2 * w, height: h, halfWidth: w, skill: null });
             x += 2 * w + gap;
         }
@@ -86,10 +87,10 @@
 
     // The ground for a roll on stretch k: the previous skill hill behind the checkpoint (or the
     // starting wall), the rolling hills, and skill hill k ahead.
-    function terrain(k, seed) {
+    function terrain(k, seed, hillScale = 1) {
         const bumps = [];
         if (k > 0) bumps.push(skillHill(k - 1));
-        bumps.push(...rollingHills(k, seed), skillHill(k));
+        bumps.push(...rollingHills(k, seed, hillScale), skillHill(k));
 
         function find(x) {
             let lo = 0;
@@ -152,15 +153,15 @@
 
     // ---- One roll -------------------------------------------------------------
 
-    // opts: { pushes, cooldown, friction?, slopeDrag?, rollOut? } — friction and slopeDrag scale rolling
-    // resistance and slope friction (1 = normal), so upgrades can make the ball roll further. With
+    // opts: { pushes, cooldown, friction?, slopeDrag?, hillScale?, rollOut? } — friction and slopeDrag
+    // scale rolling resistance and slope friction (1 = normal); hillScale lowers the rolling hills. With
     // rollOut, cresting the skill hill emits 'crest' but the roll goes on down the far side and ends
     // with an 'end' event marked `crested` (so the UI can celebrate first); otherwise 'crest' ends it.
     function createRoll(k, seed, opts) {
         const { pushes, cooldown } = opts;
         const friction = opts.friction ?? 1;
         const slopeDrag = SLOPE_DRAG * (opts.slopeDrag ?? 1);
-        const ground = terrain(k, seed);
+        const ground = terrain(k, seed, opts.hillScale ?? 1);
         const ball = { x: ground.start, v: 0, still: 0, cooldown: 0, maxX: ground.start, trapped: false };
         let pushesLeft = pushes;
         let launched = false;

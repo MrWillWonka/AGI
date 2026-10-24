@@ -25,7 +25,7 @@
         pushCost: { cp: 14, dp: 1.5 },  // a fully charged push on the first stretch
         pushCostScale: 1.4,
         xpPerStretch: 20,     // XP for reaching a skill hill's peak on the first stretch
-        xpScale: 1.35,
+        xpScale: 1.5,         // later stretches are much longer, so they pay much more
         crestBonus: 2,       // XP multiplier when the roll crests the skill hill
         hillFloor: 0.03,     // minimum distance XP per rolling hill crossed, as a share of a full stretch's XP
         cleanXp: 0.08,       // flat XP banked at once per clean push, as a share of a full stretch's distance XP
@@ -46,18 +46,18 @@
     const SKILLS = [
         // Each hill is bigger and each stretch longer than the last, so the bonuses grow too: most skills
         // also make the ball stronger (push), and a few add a push per run or let it glide.
-        { name: 'Pattern Matching', effect: '+1 CP per click, pushes +5%', grants: { intelligence: 1 }, bonus: { click: 1, push: 0.05 } },
-        { name: 'Edge Detection', effect: '+10% CP/s, pushes +10%', grants: { intelligence: 2 }, bonus: { cp: 0.1, push: 0.1 } },
-        { name: 'Image Recognition', effect: '+1 DP per collection, pushes +10%', grants: { intelligence: 3 }, bonus: { collect: 1, push: 0.1 } },
-        { name: 'Speech Recognition', effect: '+15% data production, +1 push per run', grants: { intelligence: 4 }, bonus: { dp: 0.15, pushes: 1 } },
-        { name: 'Language Modeling', effect: '+1 RP per research, pushes +15%', grants: { intelligence: 6 }, bonus: { research: 1, push: 0.15 } },
-        { name: 'Translation', effect: '+20% CP/s, pushes +20%', grants: { intelligence: 8 }, bonus: { cp: 0.2, push: 0.2 } },
-        { name: 'Reasoning', effect: '+25% research, +1 push per run', grants: { intelligence: 10, creativity: 1 }, bonus: { rp: 0.25, pushes: 1 } },
-        { name: 'Planning', effect: '+30% CP/s, pushes +30%', grants: { intelligence: 14, creativity: 1 }, bonus: { cp: 0.3, push: 0.3 } },
-        { name: 'Analogy', effect: 'Pushes +40%, a little less friction', grants: { intelligence: 18, creativity: 2 }, bonus: { push: 0.4, glide: 0.08 } },
-        { name: 'Theory of Mind', effect: '+25% data production, pushes +40%', grants: { intelligence: 24, awareness: 2 }, bonus: { dp: 0.25, push: 0.4 } },
-        { name: 'Self-Modeling', effect: 'Pushes +50%, +1 push per run', grants: { intelligence: 30, creativity: 3, awareness: 3 }, bonus: { push: 0.5, pushes: 1 } },
-        { name: 'Open-Ended Discovery', effect: '+50% to all production, pushes +60%', grants: { intelligence: 40, creativity: 5, awareness: 5 },
+        { name: 'Pattern Matching', effect: '+1 CP per click, sprints +5%', grants: { intelligence: 1 }, bonus: { click: 1, push: 0.05 } },
+        { name: 'Edge Detection', effect: '+10% CP/s, sprints +10%', grants: { intelligence: 2 }, bonus: { cp: 0.1, push: 0.1 } },
+        { name: 'Image Recognition', effect: '+1 DP per collection, sprints +10%', grants: { intelligence: 3 }, bonus: { collect: 1, push: 0.1 } },
+        { name: 'Speech Recognition', effect: '+15% data production, +1 training sprint per run', grants: { intelligence: 4 }, bonus: { dp: 0.15, pushes: 1 } },
+        { name: 'Language Modeling', effect: '+1 RP per research, sprints +15%', grants: { intelligence: 6 }, bonus: { research: 1, push: 0.15 } },
+        { name: 'Translation', effect: '+20% CP/s, sprints +20%', grants: { intelligence: 8 }, bonus: { cp: 0.2, push: 0.2 } },
+        { name: 'Reasoning', effect: '+25% research, +1 training sprint per run', grants: { intelligence: 10, creativity: 1 }, bonus: { rp: 0.25, pushes: 1 } },
+        { name: 'Planning', effect: '+30% CP/s, sprints +30%', grants: { intelligence: 14, creativity: 1 }, bonus: { cp: 0.3, push: 0.3 } },
+        { name: 'Analogy', effect: 'Sprints +40%, a little less drag', grants: { intelligence: 18, creativity: 2 }, bonus: { push: 0.4, glide: 0.08 } },
+        { name: 'Theory of Mind', effect: '+25% data production, sprints +40%', grants: { intelligence: 24, awareness: 2 }, bonus: { dp: 0.25, push: 0.4 } },
+        { name: 'Self-Modeling', effect: 'Sprints +50%, +1 training sprint per run', grants: { intelligence: 30, creativity: 3, awareness: 3 }, bonus: { push: 0.5, pushes: 1 } },
+        { name: 'Open-Ended Discovery', effect: '+50% to all production, sprints +60%', grants: { intelligence: 40, creativity: 5, awareness: 5 },
             bonus: { cp: 0.5, dp: 0.5, rp: 0.5, push: 0.6 } }
     ];
 
@@ -122,41 +122,44 @@
         // Branches radiate from the core: Power (up), Precision (right), Recursion (down), Capability (left).
         // Each node has 1–3 levels and a `boost` per level (summed in treeBoosts). Deeper nodes are
         // stronger and dearer, so the tree starts sparse and grows outward instead of stacking a few roots.
-        // Power (up)
-        { id: 'trainingOptimizer', tab: 'training', tree: { x: 0, y: -1 }, icon: 'bolt', name: 'GPU Cluster', effect: 'Stronger pushes (+10%). The meter also sweeps a little slower.', cost: { xp: 4 }, scale: 1.8, max: 3, boost: { push: 0.1, sweep: 0.06 } },
-        { id: 'optimizedCode', tab: 'training', tree: { x: 0, y: -2 }, icon: 'code', name: 'Optimized Code', effect: 'Less speed lost to friction (-5%)', cost: { xp: 15 }, scale: 1.8, max: 2, requires: 'trainingOptimizer', boost: { friction: 1 } },
-        { id: 'betterAlgorithms', tab: 'training', tree: { x: 1, y: -2 }, icon: 'mountain', name: 'Better Algorithms', effect: 'Steep hills slow you less (-6%)', cost: { xp: 38 }, scale: 2, max: 2, requires: 'optimizedCode', boost: { slope: 1 } },
-        { id: 'efficientKernels', tab: 'training', tree: { x: -1, y: -2 }, icon: 'code', name: 'Efficient Kernels', effect: 'Less speed lost to friction (-5%)', cost: { xp: 120 }, scale: 1.8, max: 3, requires: 'optimizedCode', boost: { friction: 1 } },
-        { id: 'gpuCluster2', tab: 'training', tree: { x: 0, y: -3 }, icon: 'bolt', name: 'Bigger GPU Cluster', effect: 'Stronger pushes (+15%) and a slower sweep', cost: { xp: 60 }, scale: 1.6, max: 3, requires: 'optimizedCode', boost: { push: 0.15, sweep: 0.06 } },
-        { id: 'smarterAlgorithms', tab: 'training', tree: { x: 1, y: -3 }, icon: 'mountain', name: 'Smarter Algorithms', effect: 'Steep hills and friction both slow you less', cost: { xp: 180 }, scale: 1.8, max: 3, requires: 'betterAlgorithms', boost: { slope: 1, friction: 1 } },
-        { id: 'gpuSupercluster', tab: 'training', tree: { x: 0, y: -4 }, icon: 'bolt', name: 'GPU Supercluster', effect: 'Much stronger pushes (+20%)', cost: { xp: 225 }, scale: 1.7, max: 3, requires: 'gpuCluster2', boost: { push: 0.2, sweep: 0.05 } },
+        // The roots are the basics (sprint strength, more sprints and less wait, better XP); mechanics
+        // like the sweet spot and the view ahead come after. Names are an AI lab's: you are the researchers.
+        // Power (up): compute, and how efficiently training uses it.
+        { id: 'trainingOptimizer', tab: 'training', tree: { x: 0, y: -1 }, icon: 'bolt', name: 'GPU Cluster', effect: 'Stronger training sprints (+10%), and a slower, steadier meter', cost: { xp: 4 }, scale: 1.8, max: 3, boost: { push: 0.1, sweep: 0.08 } },
+        { id: 'optimizedCode', tab: 'training', tree: { x: 0, y: -2 }, icon: 'code', name: 'Better Optimizer', effect: 'Training keeps its momentum a little longer (-5% drag)', cost: { xp: 15 }, scale: 1.8, max: 2, requires: 'trainingOptimizer', boost: { friction: 1 } },
+        { id: 'betterAlgorithms', tab: 'training', tree: { x: 1, y: -2 }, icon: 'mountain', name: 'Smoother Loss Landscape', effect: 'Rolling hills are less steep (-6%)', cost: { xp: 38 }, scale: 2, max: 2, requires: 'optimizedCode', boost: { slope: 1 } },
+        { id: 'efficientKernels', tab: 'training', tree: { x: -1, y: -2 }, icon: 'code', name: 'Learning Rate Schedule', effect: 'Training keeps its momentum longer (-5% drag)', cost: { xp: 120 }, scale: 1.8, max: 3, requires: 'optimizedCode', boost: { friction: 1 } },
+        { id: 'gpuCluster2', tab: 'training', tree: { x: 0, y: -3 }, icon: 'bolt', name: 'Bigger GPU Cluster', effect: 'Stronger training sprints (+15%), steadier meter', cost: { xp: 60 }, scale: 1.6, max: 3, requires: 'optimizedCode', boost: { push: 0.15, sweep: 0.06 } },
+        { id: 'smarterAlgorithms', tab: 'training', tree: { x: 1, y: -3 }, icon: 'mountain', name: 'Regularization', effect: 'Less steep rolling hills and a little less drag', cost: { xp: 180 }, scale: 1.8, max: 3, requires: 'betterAlgorithms', boost: { slope: 1, friction: 1 } },
+        { id: 'gpuSupercluster', tab: 'training', tree: { x: 0, y: -4 }, icon: 'bolt', name: 'GPU Supercluster', effect: 'Much stronger training sprints (+20%)', cost: { xp: 225 }, scale: 1.7, max: 3, requires: 'gpuCluster2', boost: { push: 0.2, sweep: 0.05 } },
         // Late game: the outer ring, far stronger and far dearer, for the biggest skill hills.
-        { id: 'quantumAccelerator', tab: 'training', tree: { x: 0, y: -5 }, icon: 'bolt', name: 'Quantum Accelerator', effect: 'Huge push boost (+40%)', cost: { xp: 1500 }, scale: 1.8, max: 3, requires: 'gpuSupercluster', boost: { push: 0.4, sweep: 0.03 } },
-        { id: 'exascaleCluster', tab: 'training', tree: { x: 0, y: -6 }, icon: 'bolt', name: 'Exascale Cluster', effect: 'Enormous push boost (+80%)', cost: { xp: 12000 }, scale: 1.9, max: 3, requires: 'quantumAccelerator', boost: { push: 0.8 } },
-        { id: 'superconductors', tab: 'training', tree: { x: -2, y: -2 }, icon: 'mountain', name: 'Superconductors', effect: 'Less friction and gentler hills (-5% / -6%)', cost: { xp: 2000 }, scale: 1.8, max: 3, requires: 'efficientKernels', boost: { friction: 1, slope: 1 } },
-        { id: 'neuralCompression', tab: 'training', tree: { x: -1, y: -3 }, icon: 'code', name: 'Neural Compression', effect: 'Much less friction (-10%) and gentler hills', cost: { xp: 6000 }, scale: 1.8, max: 3, requires: 'efficientKernels', boost: { friction: 2, slope: 1 } },
-        // Precision (right)
-        { id: 'precisionTuning', tab: 'training', tree: { x: 1, y: 0 }, icon: 'target', name: 'Better Sensors', effect: 'Wider bonus zone on the strength meter (+25%)', cost: { xp: 5 }, scale: 2.5, max: 2, boost: { zone: 0.25 } },
-        { id: 'benchmarkPrizes', tab: 'training', tree: { x: 2, y: 0 }, icon: 'coin', name: 'Benchmark Prizes', effect: 'More XP banked per clean push (+25%)', cost: { xp: 12 }, scale: 1.7, max: 3, requires: 'precisionTuning', boost: { clean: 0.25 } },
-        { id: 'curatedData', tab: 'training', tree: { x: 2, y: -1 }, icon: 'stack', name: 'Curated Data', effect: 'Bigger roll bonus per clean push (+25%)', cost: { xp: 22 }, scale: 1.7, max: 3, requires: 'benchmarkPrizes', boost: { rollBonus: 0.25 } },
-        { id: 'perfectCalibration', tab: 'training', tree: { x: 2, y: 1 }, icon: 'star', name: 'Perfect Calibration', effect: 'Adds a perfect spot inside the bonus zone worth 3x', cost: { xp: 60 }, max: 1,
+        { id: 'quantumAccelerator', tab: 'training', tree: { x: 0, y: -5 }, icon: 'bolt', name: 'Quantum Accelerator', effect: 'Huge sprint boost (+40%)', cost: { xp: 1500 }, scale: 1.8, max: 3, requires: 'gpuSupercluster', boost: { push: 0.4, sweep: 0.03 } },
+        { id: 'exascaleCluster', tab: 'training', tree: { x: 0, y: -6 }, icon: 'bolt', name: 'Exascale Cluster', effect: 'Enormous sprint boost (+80%)', cost: { xp: 12000 }, scale: 1.9, max: 3, requires: 'quantumAccelerator', boost: { push: 0.8 } },
+        { id: 'superconductors', tab: 'training', tree: { x: -2, y: -2 }, icon: 'mountain', name: 'Mixed Precision', effect: 'Less drag and less steep rolling hills', cost: { xp: 2000 }, scale: 1.8, max: 3, requires: 'efficientKernels', boost: { friction: 1, slope: 1 } },
+        { id: 'neuralCompression', tab: 'training', tree: { x: -1, y: -3 }, icon: 'code', name: 'Model Distillation', effect: 'Much less drag (-10%) and less steep hills', cost: { xp: 6000 }, scale: 1.8, max: 3, requires: 'efficientKernels', boost: { friction: 2, slope: 1 } },
+        // Precision (right): better XP from every run, then the meter's sweet spot.
+        { id: 'bigDatasets', tab: 'training', tree: { x: 1, y: 0 }, icon: 'stack', name: 'Bigger Datasets', effect: 'Every run earns more XP (+15%)', cost: { xp: 5 }, scale: 2, max: 3, boost: { xp: 0.15 } },
+        { id: 'precisionTuning', tab: 'training', tree: { x: 2, y: 0 }, icon: 'target', name: 'Hyperparameter Search', effect: 'Wider sweet spot on the strength meter (+25%)', cost: { xp: 14 }, scale: 2.5, max: 2, requires: 'bigDatasets', boost: { zone: 0.25 } },
+        { id: 'benchmarkPrizes', tab: 'training', tree: { x: 3, y: 0 }, icon: 'coin', name: 'Benchmark Prizes', effect: 'More XP banked per clean sprint (+25%)', cost: { xp: 22 }, scale: 1.7, max: 3, requires: 'precisionTuning', boost: { clean: 0.25 } },
+        { id: 'curatedData', tab: 'training', tree: { x: 3, y: -1 }, icon: 'stack', name: 'Curated Data', effect: 'Bigger run bonus per clean sprint (+25%)', cost: { xp: 40 }, scale: 1.7, max: 3, requires: 'benchmarkPrizes', boost: { rollBonus: 0.25 } },
+        { id: 'perfectCalibration', tab: 'training', tree: { x: 3, y: 1 }, icon: 'star', name: 'Perfect Calibration', effect: 'Adds a perfect spot inside the sweet spot, worth 3x', cost: { xp: 80 }, max: 1,
             requires: 'benchmarkPrizes', boost: { perfect: 1 } },
-        { id: 'highResSensors', tab: 'training', tree: { x: 3, y: 0 }, icon: 'target', name: 'High-Res Sensors', effect: 'Wider bonus zone (+20%)', cost: { xp: 90 }, scale: 1.7, max: 3, requires: 'benchmarkPrizes', boost: { zone: 0.2 } },
-        { id: 'handLabelled', tab: 'training', tree: { x: 3, y: -1 }, icon: 'stack', name: 'Hand-Labelled Data', effect: 'Bigger roll bonus per clean push (+35%)', cost: { xp: 180 }, scale: 1.7, max: 3, requires: 'curatedData', boost: { rollBonus: 0.35 } },
-        { id: 'fineCalibration', tab: 'training', tree: { x: 3, y: 1 }, icon: 'star', name: 'Fine Calibration', effect: 'Wider perfect spot (+40%)', cost: { xp: 225 }, scale: 1.8, max: 3, requires: 'perfectCalibration', boost: { perfect: 1 } },
-        { id: 'leaderboardPrizes', tab: 'training', tree: { x: 4, y: 0 }, icon: 'coin', name: 'Leaderboard Prizes', effect: 'Much more XP per clean push (+40%)', cost: { xp: 300 }, scale: 1.7, max: 3, requires: 'highResSensors', boost: { clean: 0.4 } },
-        // Recursion (down)
-        { id: 'trainingEpochs', tab: 'training', tree: { x: 0, y: 1 }, icon: 'plus', name: 'Investor Funding', effect: '+1 push per run. The first one lets you push mid-run.', cost: { xp: 6 }, scale: 3, max: 2, boost: { pushes: 1 } },
-        { id: 'fasterIteration', tab: 'training', tree: { x: 0, y: 2 }, icon: 'chip', name: 'Faster Chips', effect: 'Less time between pushes (-15%)', cost: { xp: 12 }, scale: 1.7, max: 3, requires: 'trainingEpochs', boost: { cooldown: 1 } },
-        { id: 'seriesA', tab: 'training', tree: { x: -1, y: 2 }, icon: 'plus', name: 'Series A', effect: '+1 push per run', cost: { xp: 90 }, scale: 2.5, max: 2, requires: 'fasterIteration', boost: { pushes: 1 } },
-        { id: 'overclockedChips', tab: 'training', tree: { x: 0, y: 3 }, icon: 'chip', name: 'Overclocked Chips', effect: 'Less time between pushes (-15%)', cost: { xp: 75 }, scale: 1.7, max: 3, requires: 'fasterIteration', boost: { cooldown: 1 } },
-        { id: 'seriesB', tab: 'training', tree: { x: -1, y: 3 }, icon: 'plus', name: 'Series B', effect: '+1 push per run', cost: { xp: 450 }, scale: 2.5, max: 2, requires: 'seriesA', boost: { pushes: 1 } },
-        { id: 'customSilicon', tab: 'training', tree: { x: 0, y: 4 }, icon: 'chip', name: 'Custom Silicon', effect: 'Less time between pushes (-15%)', cost: { xp: 375 }, scale: 1.7, max: 3, requires: 'overclockedChips', boost: { cooldown: 1 } },
-        { id: 'ipo', tab: 'training', tree: { x: -1, y: 4 }, icon: 'plus', name: 'IPO', effect: '+1 push per run', cost: { xp: 3000 }, scale: 3, max: 2, requires: 'seriesB', boost: { pushes: 1 } },
-        // Capability (left)
-        { id: 'scoutingData', tab: 'training', tree: { x: -1, y: 0 }, icon: 'eye', name: 'Scouting Data', effect: 'See further ahead on the trail (+25%)', cost: { xp: 8 }, scale: 2, max: 2, boost: { view: 0.25 } },
-        { id: 'satelliteMaps', tab: 'training', tree: { x: -1, y: -1 }, icon: 'eye', name: 'Satellite Maps', effect: 'See further ahead on the trail (+25%)', cost: { xp: 90 }, scale: 2, max: 2, requires: 'scoutingData', boost: { view: 0.25 } },
-        { id: 'autoTrainer', tab: 'training', tree: { x: -2, y: 0 }, icon: 'robot', name: 'Auto-Trainer', effect: 'Level 1 launches runs and pushes when the ball stops. Level 2 times pushes with the swing.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
+        { id: 'highResSensors', tab: 'training', tree: { x: 4, y: 0 }, icon: 'target', name: 'Automated Tuning', effect: 'Wider sweet spot (+20%)', cost: { xp: 120 }, scale: 1.7, max: 3, requires: 'benchmarkPrizes', boost: { zone: 0.2 } },
+        { id: 'handLabelled', tab: 'training', tree: { x: 4, y: -1 }, icon: 'stack', name: 'Hand-Labelled Data', effect: 'Bigger run bonus per clean sprint (+35%)', cost: { xp: 200 }, scale: 1.7, max: 3, requires: 'curatedData', boost: { rollBonus: 0.35 } },
+        { id: 'fineCalibration', tab: 'training', tree: { x: 4, y: 1 }, icon: 'star', name: 'Fine Calibration', effect: 'Wider perfect spot (+40%)', cost: { xp: 250 }, scale: 1.8, max: 3, requires: 'perfectCalibration', boost: { perfect: 1 } },
+        { id: 'leaderboardPrizes', tab: 'training', tree: { x: 5, y: 0 }, icon: 'coin', name: 'Leaderboard Prizes', effect: 'Much more XP per clean sprint (+40%)', cost: { xp: 320 }, scale: 1.7, max: 3, requires: 'highResSensors', boost: { clean: 0.4 } },
+        // Recursion (down): more sprints per run and less wait between them.
+        { id: 'trainingEpochs', tab: 'training', tree: { x: 0, y: 1 }, icon: 'plus', name: 'Investor Funding', effect: '+1 training sprint per run. The first lets you sprint again mid-run.', cost: { xp: 6 }, scale: 3, max: 2, boost: { pushes: 1 } },
+        { id: 'fasterIteration', tab: 'training', tree: { x: 0, y: 2 }, icon: 'chip', name: 'Faster Chips', effect: 'Less wait between training sprints (-15%)', cost: { xp: 10 }, scale: 1.7, max: 3, requires: 'trainingEpochs', boost: { cooldown: 1 } },
+        { id: 'seriesA', tab: 'training', tree: { x: -1, y: 2 }, icon: 'plus', name: 'Series A', effect: '+1 training sprint per run', cost: { xp: 90 }, scale: 2.5, max: 2, requires: 'fasterIteration', boost: { pushes: 1 } },
+        { id: 'overclockedChips', tab: 'training', tree: { x: 0, y: 3 }, icon: 'chip', name: 'Overclocked Chips', effect: 'Less wait between training sprints (-15%)', cost: { xp: 75 }, scale: 1.7, max: 3, requires: 'fasterIteration', boost: { cooldown: 1 } },
+        { id: 'seriesB', tab: 'training', tree: { x: -1, y: 3 }, icon: 'plus', name: 'Series B', effect: '+1 training sprint per run', cost: { xp: 450 }, scale: 2.5, max: 2, requires: 'seriesA', boost: { pushes: 1 } },
+        { id: 'customSilicon', tab: 'training', tree: { x: 0, y: 4 }, icon: 'chip', name: 'Custom Silicon', effect: 'Less wait between training sprints (-15%)', cost: { xp: 375 }, scale: 1.7, max: 3, requires: 'overclockedChips', boost: { cooldown: 1 } },
+        { id: 'ipo', tab: 'training', tree: { x: -1, y: 4 }, icon: 'plus', name: 'IPO', effect: '+1 training sprint per run', cost: { xp: 3000 }, scale: 3, max: 2, requires: 'seriesB', boost: { pushes: 1 } },
+        // Capability (left): seeing ahead, then automation.
+        { id: 'scoutingData', tab: 'training', tree: { x: -1, y: 0 }, icon: 'eye', name: 'Eval Dashboards', effect: 'See further ahead on the trail (+25%)', cost: { xp: 8 }, scale: 2, max: 2, boost: { view: 0.25 } },
+        { id: 'satelliteMaps', tab: 'training', tree: { x: -1, y: -1 }, icon: 'eye', name: 'Live Telemetry', effect: 'See further ahead on the trail (+25%)', cost: { xp: 90 }, scale: 2, max: 2, requires: 'scoutingData', boost: { view: 0.25 } },
+        { id: 'autoTrainer', tab: 'training', tree: { x: -2, y: 0 }, icon: 'robot', name: 'Auto-Trainer', effect: 'Level 1 starts runs and sprints when the model stalls. Level 2 times sprints with the swing.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
             requires: 'scoutingData', unlock: s => s.prestige.count >= 1, hint: 'Transcend once' },
         { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', effect: 'Runs research automatically (+0.2/s), paying its CP and DP', cost: { cp: 1500, dp: 100, rp: 10 }, scale: 1.3,
             unlock: s => !!s.unlocked['action:research'], hint: 'Unlock Research' },
@@ -262,7 +265,7 @@
     }
 
     // Skill-tree effects: each training node's `boost` times its level, summed by stat.
-    const TREE_STATS = ['push', 'sweep', 'pushes', 'cooldown', 'zone', 'perfect', 'clean', 'rollBonus', 'friction', 'slope', 'view'];
+    const TREE_STATS = ['push', 'sweep', 'pushes', 'cooldown', 'zone', 'perfect', 'clean', 'rollBonus', 'friction', 'slope', 'view', 'xp'];
     function treeBoosts(s) {
         const out = Object.fromEntries(TREE_STATS.map(k => [k, 0]));
         for (const up of UPGRADES) {
@@ -324,7 +327,9 @@
         const sweepScale = Math.min(1.7, 1 + tb.sweep);
         // Small steps on purpose: handling the hills is the skill, so upgrades only take the edge off.
         const friction = Math.pow(0.95, tb.friction) * (1 - sk.glide);
-        const slopeDrag = Math.pow(0.94, tb.slope);
+        // 'Less steep hills' really lowers the rolling hills (never the skill hills: those stay walls).
+        const hillScale = Math.pow(0.94, tb.slope);
+        const xpMult = 1 + tb.xp;
         const viewScale = 1 + tb.view;
         // Cleared stretches keep training on their own, slowly: XP per second from every learned skill hill.
         let xpPerSec = 0;
@@ -332,7 +337,7 @@
 
         return { mult, cpPerSec, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec,
             collectsPerSec, researchPerSec, cpUsePerSec, dpUsePerSec, autoThrottled,
-            cpNet: cpPerSec - cpUsePerSec, dpNet: dpPerSec - dpUsePerSec, pushPower, pushesPerRoll, pushCooldown, zoneWidth, perfectWidth, cleanMult, cleanRollBonus, sweepScale, friction, slopeDrag, viewScale, xpPerSec };
+            cpNet: cpPerSec - cpUsePerSec, dpNet: dpPerSec - dpUsePerSec, pushPower, pushesPerRoll, pushCooldown, zoneWidth, perfectWidth, cleanMult, cleanRollBonus, sweepScale, friction, hillScale, xpMult, viewScale, xpPerSec };
     }
 
     function meetsPhase(s, phase) {
@@ -514,7 +519,7 @@
         const push = 0.3 + 0.05 * n;
         return {
             name: `Frontier Skill ${n}`,
-            effect: `+15% CP/s, pushes +${Math.round(push * 100)}%`,
+            effect: `+15% CP/s, sprints +${Math.round(push * 100)}%`,
             grants: { intelligence: 10 + 5 * n, creativity: 1, awareness: 1 },
             bonus: { cp: 0.15, push }
         };
@@ -600,7 +605,8 @@
     // `hills` is how many rolling hills the ball got over: crossing any guarantees a small minimum,
     // even if it rolled back afterwards.
     function rollXp(s, progress, crested, units = 0, hills = 0) {
-        const bonus = 1 + derive(s).cleanRollBonus * units;
+        const d = derive(s);
+        const bonus = (1 + d.cleanRollBonus * units) * d.xpMult;
         const distance = Math.max(Math.pow(progress, 1.5), PATH.hillFloor * hills);
         return stretchXp(s) * distance * (crested ? PATH.crestBonus : 1) * bonus;
     }

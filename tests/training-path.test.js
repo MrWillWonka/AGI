@@ -334,3 +334,11 @@ test('without rollOut, cresting still ends the roll at once', () => {
     assert.equal(events.at(-1).type, 'crest');
     assert.ok(roll.ball.x < T.skillHill(0).end);
 });
+
+test('hillScale lowers the rolling hills but never the skill hill', () => {
+    const a = T.terrain(1, 42);
+    const b = T.terrain(1, 42, 0.8);
+    const roll = t => t.bumps.filter(x => x.skill === null);
+    roll(a).forEach((h, i) => assert.ok(Math.abs(roll(b)[i].height - h.height * 0.8) < 1e-12));
+    assert.equal(b.goal.height, a.goal.height);
+});
