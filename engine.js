@@ -27,6 +27,7 @@
         xpPerStretch: 20,     // XP for reaching a skill hill's peak on the first stretch
         xpScale: 1.35,
         crestBonus: 2,       // XP multiplier when the roll crests the skill hill
+        hillFloor: 0.03,     // minimum distance XP per rolling hill crossed, as a share of a full stretch's XP
         cleanXp: 0.08,       // flat XP banked at once per clean push, as a share of a full stretch's distance XP
         cleanRollBonus: 0.1, // and +10% distance XP for the roll per clean push
         perfectMult: 3,      // a perfect push (inside the perfect spot) counts as this many clean pushes
@@ -110,7 +111,7 @@
 
         // Software
         { id: 'dataProcessor', tab: 'software', name: 'Data Processor', effect: '+1 DP per collection', cost: { cp: 50, dp: 5 }, scale: 1.2 },
-        { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', effect: '+0.5 automatic collections/s', cost: { cp: 200, dp: 20 }, scale: 1.25 },
+        { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', effect: 'Converts CP into DP automatically (+0.5 collections/s, 10 CP each)', cost: { cp: 200, dp: 20 }, scale: 1.25 },
         // Training skill tree (bought with XP from the Training Path). `tree` is the node's grid
         // position around the central Training Core at (0, 0); `requires` is the node it grows from
         // (none = attached to the core). `icon` names a glyph drawn by game.js.
@@ -132,7 +133,7 @@
         { id: 'scoutingData', tab: 'training', tree: { x: -1, y: 0 }, icon: 'eye', name: 'Scouting Data', effect: 'See further ahead on the trail (+25%)', cost: { xp: 40 }, scale: 2, max: 3 },
         { id: 'autoTrainer', tab: 'training', tree: { x: -2, y: 0 }, icon: 'robot', name: 'Auto-Trainer', effect: 'Level 1 launches runs and pushes when the ball stops. Level 2 times pushes with the swing.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
             requires: 'scoutingData', unlock: s => s.prestige.count >= 1, hint: 'Transcend once' },
-        { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', effect: '+0.2 automatic research/s', cost: { cp: 1500, dp: 100, rp: 10 }, scale: 1.3,
+        { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', effect: 'Runs research automatically (+0.2/s), paying its CP and DP', cost: { cp: 1500, dp: 100, rp: 10 }, scale: 1.3,
             unlock: s => !!s.unlocked['action:research'], hint: 'Unlock Research' },
         { id: 'nlp', tab: 'software', name: 'Natural Language Processing', effect: '+5 DP per collection, +1 Intelligence', cost: { cp: 2500, dp: 250 }, max: 1,
             grants: { intelligence: 1 }, unlock: s => s.res.dp >= 100, hint: 'Hold 100 DP' },
@@ -251,10 +252,17 @@
             + 250 * L('datacenter') + 1400 * L('optical')) * (1 + sk.cp) * mult * r.cp;
         const clickPower = (1 + L('server') + sk.click) * mult;
         const dpPerCollect = (1 + L('dataProcessor') + 5 * L('nlp') + 10 * L('computerVision') + sk.collect) * (1 + sk.dp) * mult;
-        const dpPerSec = 0.5 * L('autoCollector') * dpPerCollect * r.dp;
+        // Automation converts: collections spend CP, research spends CP and DP (at the action prices).
+        const collectsPerSec = 0.5 * L('autoCollector') * r.dp;
+        const dpPerSec = collectsPerSec * dpPerCollect;
         const rpPerResearch = (1 + L('machineLearning') + 2 * L('deepLearning') + 3 * L('reinforcementLearning')
             + 5 * L('transferLearning') + sk.research) * (1 + sk.rp) * mult;
-        const rpPerSec = 0.2 * L('researchAssistant') * rpPerResearch * r.rp;
+        const researchPerSec = 0.2 * L('researchAssistant') * r.rp;
+        const rpPerSec = researchPerSec * rpPerResearch;
+        const collectCost = actionById('collect').cost;
+        const researchCost = actionById('research').cost;
+        const cpUsePerSec = collectsPerSec * collectCost.cp + researchPerSec * researchCost.cp;
+        const dpUsePerSec = researchPerSec * researchCost.dp;
         // Push strength grows with upgrades and skills, and gently with prestige and achievements.
         // Hills grow faster than this, so later skills need momentum built over several pushes.
         const pushPower = PATH.basePush * (1 + 0.1 * L('trainingOptimizer') + sk.push) * Math.sqrt(mult);
@@ -271,7 +279,9 @@
         const slopeDrag = Math.pow(0.88, L('betterAlgorithms'));
         const viewScale = 1 + 0.25 * L('scoutingData');
 
-        return { mult, cpPerSec, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec, pushPower, pushesPerRoll, pushCooldown, zoneWidth, perfectWidth, cleanMult, cleanRollBonus, sweepScale, friction, slopeDrag, viewScale };
+        return { mult, cpPerSec, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec,
+            collectsPerSec, researchPerSec, cpUsePerSec, dpUsePerSec,
+            cpNet: cpPerSec - cpUsePerSec, dpNet: dpPerSec - dpUsePerSec, pushPower, pushesPerRoll, pushCooldown, zoneWidth, perfectWidth, cleanMult, cleanRollBonus, sweepScale, friction, slopeDrag, viewScale };
     }
 
     function meetsPhase(s, phase) {
@@ -349,6 +359,8 @@
         return cost;
     }
 
+    const actionById = id => ACTIONS.find(a => a.id === id);
+
     function act(s, id, rates) {
         const action = ACTIONS.find(a => a.id === id);
         if (!action) return { ok: false, msg: `Unknown action: ${id}` };
@@ -389,8 +401,21 @@
         if (!(dt > 0)) return;
         const d = derive(s, rates);
         addCp(s, d.cpPerSec * dt);
-        s.res.dp += d.dpPerSec * dt;
-        s.res.rp += d.rpPerSec * dt;
+        // Automation converts what it can afford: compute into data, then compute and data into research.
+        const collectCost = actionById('collect').cost;
+        const collects = Math.min(d.collectsPerSec * dt, s.res.cp / collectCost.cp);
+        if (collects > 0) {
+            s.res.cp -= collects * collectCost.cp;
+            s.res.dp += collects * d.dpPerCollect;
+        }
+        const researchCost = actionById('research').cost;
+        const research = Math.min(d.researchPerSec * dt, s.res.cp / researchCost.cp, s.res.dp / researchCost.dp);
+        if (research > 0) {
+            s.res.cp -= research * researchCost.cp;
+            s.res.dp -= research * researchCost.dp;
+            s.res.rp += research * d.rpPerResearch;
+            s.stats.researchDone += research;
+        }
         s.stats.playTime += dt;
     }
 
@@ -513,9 +538,12 @@
 
     // Distance XP: where the ball ends up, to the power 1.5 (getting further pays more than linearly,
     // without making short early runs worthless on long stretches), boosted by clean pushes.
-    function rollXp(s, progress, crested, units = 0) {
+    // `hills` is how many rolling hills the ball got over: crossing any guarantees a small minimum,
+    // even if it rolled back afterwards.
+    function rollXp(s, progress, crested, units = 0, hills = 0) {
         const bonus = 1 + derive(s).cleanRollBonus * units;
-        return stretchXp(s) * Math.pow(progress, 1.5) * (crested ? PATH.crestBonus : 1) * bonus;
+        const distance = Math.max(Math.pow(progress, 1.5), PATH.hillFloor * hills);
+        return stretchXp(s) * distance * (crested ? PATH.crestBonus : 1) * bonus;
     }
 
     // XP for a clean or perfect push: a steady, flat amount banked immediately, whatever the distance.
@@ -532,8 +560,8 @@
     }
 
     // Settle a finished roll: XP, record distance, roll count, and the skill if it crested.
-    function finishRoll(s, progress, crested, units = 0) {
-        const xp = rollXp(s, progress, crested, units);
+    function finishRoll(s, progress, crested, units = 0, hills = 0) {
+        const xp = rollXp(s, progress, crested, units, hills);
         s.res.xp += xp;
         s.stats.rolls++;
         const record = progress > s.path.best;

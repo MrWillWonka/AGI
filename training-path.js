@@ -132,8 +132,11 @@
 
         const start = checkpoint(k) + 0.2;
         const goal = skillHill(k);
+        const rolling = bumps.filter(b => b.skill === null);
         return {
             walls,
+            // Rolling hills whose peak lies at or before x (how many the ball has got over).
+            hillsBefore: x => rolling.filter(b => b.peak <= x).length,
             stretch: k,
             seed,
             bumps,
@@ -193,7 +196,7 @@
 
             if (ball.x > ground.goal.peak) {
                 over = true;
-                events.push({ type: 'crest', skill: k, progress: 1 });
+                events.push({ type: 'crest', skill: k, progress: 1, hills: ground.hillsBefore(ball.maxX) });
                 return;
             }
             const resting = Math.abs(ball.v) < REST_SPEED && Math.abs(dy) < 0.08;
@@ -201,7 +204,7 @@
             // The roll ends once the ball settles with no pushes left. With pushes left, it waits for you.
             if (launched && pushesLeft === 0 && ball.still >= REST_SECONDS) {
                 over = true;
-                events.push({ type: 'end', skill: k, progress: ground.progress(ball.x) });
+                events.push({ type: 'end', skill: k, progress: ground.progress(ball.x), hills: ground.hillsBefore(ball.maxX) });
             }
         }
 
@@ -220,7 +223,7 @@
         function end() {
             if (over) return null;
             over = true;
-            return { type: 'end', skill: k, progress: ground.progress(ball.x) };
+            return { type: 'end', skill: k, progress: ground.progress(ball.x), hills: ground.hillsBefore(ball.maxX) };
         }
 
         return {

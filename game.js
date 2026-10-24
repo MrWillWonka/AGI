@@ -461,8 +461,9 @@ window.AGI = (function () {
             case 'res.cp': return f(state.res.cp);
             case 'res.dp': return f(state.res.dp);
             case 'res.rp': return f(state.res.rp);
-            case 'rate.cp': return d.cpPerSec ? `+${f(d.cpPerSec)}/s` : '';
-            case 'rate.dp': return d.dpPerSec ? `+${f(d.dpPerSec)}/s` : '';
+            // Net rates: production minus what automation converts away.
+            case 'rate.cp': return d.cpPerSec ? `${d.cpNet < 0 ? '−' : '+'}${f(Math.abs(d.cpNet))}/s` : '';
+            case 'rate.dp': return d.dpPerSec ? `${d.dpNet < 0 ? '−' : '+'}${f(Math.abs(d.dpNet))}/s` : '';
             case 'rate.rp': return d.rpPerSec ? `+${f(d.rpPerSec)}/s` : '';
             case 'attr.intelligence': return f(state.attr.intelligence, 1);
             case 'attr.creativity': return f(state.attr.creativity, 1);
@@ -844,7 +845,7 @@ window.AGI = (function () {
                 el('p', { class: 'muted small', text: 'Spend XP on upgrades, then start a run.' }));
             return;
         }
-        const rows = [['Distance', `+${xpText(r.distanceXp)} XP`]];
+        const rows = [[`Distance · ${r.hills} hill${r.hills === 1 ? '' : 's'} crossed`, `+${xpText(r.distanceXp)} XP`]];
         if (r.clean) {
             rows.push(['Clean-push roll bonus', `+${xpText(r.rollBonusXp)} XP`, 'good']);
             rows.push([`Banked from ${r.clean} clean push${r.clean === 1 ? '' : 'es'}`, `+${xpText(r.banked)} XP`, 'good']);
@@ -1144,12 +1145,13 @@ window.AGI = (function () {
         const clean = roll.clean || 0;
         const units = roll.units || 0;
         const banked = roll.bonusXp || 0;
-        const plainXp = E.rollXp(state, ev.progress, crested, 0);
-        const result = E.finishRoll(state, ev.progress, crested, units);
+        const hills = ev.hills || 0;
+        const plainXp = E.rollXp(state, ev.progress, crested, 0, hills);
+        const result = E.finishRoll(state, ev.progress, crested, units, hills);
         path.pause = RESULT_PAUSE;
         const pct = Math.round(ev.progress * 100);
         const lines = xpLines(plainXp, result.xp - plainXp, clean, banked, crested);
-        path.lastRun = { n: state.stats.rolls, pct, target, crested, record: result.record, skill: result.skill,
+        path.lastRun = { n: state.stats.rolls, pct, target, crested, record: result.record, skill: result.skill, hills,
             distanceXp: plainXp, rollBonusXp: result.xp - plainXp, banked, clean, total: result.xp + banked };
         path.toDev = crested ? OVERVIEW_SECONDS + 1.2 : DEV_DELAY;
         if (result.skill) {

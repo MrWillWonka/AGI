@@ -121,11 +121,44 @@ test('unlocks persist even after the triggering resource is spent', () => {
 test('tick produces resources over time', () => {
     const s = fresh();
     s.levels.cpu = 2;
-    s.levels.autoCollector = 1;
     E.tick(s, 10);
     assert.equal(s.res.cp, 10);
-    assert.equal(s.res.dp, 5);
     assert.equal(s.stats.playTime, 10);
+});
+
+test('automation converts resources instead of creating them', () => {
+    const s = fresh();
+    s.res.cp = 1000;
+    s.levels.autoCollector = 1;
+    E.tick(s, 10);                          // 0.5 collections/s for 10 s, 10 CP each
+    assert.equal(s.res.cp, 950);
+    assert.equal(s.res.dp, 5 * E.derive(s).dpPerCollect);
+
+    const poor = fresh();
+    poor.res.cp = 20;
+    poor.levels.autoCollector = 1;
+    E.tick(poor, 10);                       // limited to what it can afford
+    assert.equal(poor.res.cp, 0);
+    assert.equal(poor.res.dp, 2 * E.derive(poor).dpPerCollect);
+
+    const r = fresh();
+    r.res.cp = 1000;
+    r.res.dp = 15;
+    r.levels.researchAssistant = 1;
+    E.tick(r, 10);                          // wants 2 runs, DP allows 1.5
+    assert.equal(r.res.dp, 0);
+    assert.equal(r.res.cp, 1000 - 1.5 * 50);
+    assert.equal(r.res.rp, 1.5 * E.derive(r).rpPerResearch);
+    assert.ok(E.derive(r).cpNet < 0);
+});
+
+test('a roll that crosses hills earns at least the hill floor', () => {
+    const s = fresh();
+    const none = E.rollXp(s, 0.01, false, 0, 0);
+    const three = E.rollXp(s, 0.01, false, 0, 3);
+    assert.ok(three > none);
+    assert.ok(Math.abs(three / E.rollXp(s, 1, false, 0, 0) - E.PATH.hillFloor * 3) < 1e-9);
+    assert.equal(E.rollXp(s, 0.9, false, 0, 3), E.rollXp(s, 0.9, false, 0, 0));
 });
 
 test('offline progress is capped and respects the setting', () => {
