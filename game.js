@@ -1336,7 +1336,9 @@ window.AGI = (function () {
         const p = state.projects;
         const t = state.stats.playTime;
         const left = secs => (secs >= 60 ? `${Math.ceil(secs / 60)} min` : `${Math.ceil(secs)} s`);
-        setText($('boosts'), p.boosts.map(b => `${E.PROJECT_REWARDS.find(r => r.boost === b.stat).text.split(' for ')[0]} · ${left(b.until - t)}`).join('  ·  '));
+        // Active boosts by stat (older saves may still hold compute, data, XP or sprint boosts).
+        const BOOST_NAMES = { rp: 'research', cp: 'compute', dp: 'data', xp: 'XP', push: 'sprints' };
+        setText($('boosts'), p.boosts.map(b => `+${Math.round((b.mult - 1) * 100)}% ${BOOST_NAMES[b.stat] || b.stat} · ${left(b.until - t)}`).join('  ·  '));
         // Fixed slots: an offer keeps its slot until it's claimed or expires; new ones take the first free
         // slot. Nothing shuffles up when one goes, so the Claim you were aiming for stays put.
         const ids = new Set(p.offers.map(o => o.id));

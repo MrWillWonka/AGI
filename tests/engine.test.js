@@ -367,9 +367,14 @@ test('top-bar resources and attributes are revealed once they matter', () => {
     assert.equal(E.evaluate(s).reveals.length, 0, 'only once');
 });
 
-test('investor projects: offers arrive over time, track progress, pay out, and expire', () => {
+test('investor projects: offers arrive over time, track progress, pay out research, and expire', () => {
     const s = fresh();
     s.unlocked['module:path'] = true;
+    s.stats.playTime = E.PROJECTS.firstAt;
+    E.tick(s, 1);
+    assert.equal(s.projects.offers.length, 0, 'investors fund research: nothing until Research is open');
+    s.unlocked['action:research'] = true;
+    s.stats.playTime = 0;
     E.tick(s, 1);
     assert.equal(s.projects.offers.length, 0, 'nothing before the first offer time');
     s.stats.playTime = E.PROJECTS.firstAt;
@@ -381,13 +386,14 @@ test('investor projects: offers arrive over time, track progress, pay out, and e
     // Finish it by moving its stat on.
     const stat = { computes: 'clicks', collects: 'collects', runs: 'rolls', clean: 'cleanSprints', earnCp: 'runCp', research: 'researchManual' }[o.task];
     s.stats[stat] += o.target;
-    const before = { cp: s.res.cp, xp: s.res.xp };
+    const before = { rp: s.res.rp };
     const r = E.claimProject(s, o.id);
     assert.equal(r.ok, true, r.msg);
     assert.equal(s.projects.offers.length, 0);
     const reward = E.PROJECT_REWARDS[o.reward];
     if (reward.boost) assert.equal(s.projects.boosts.length, 1);
-    else assert.ok(s.res.cp > before.cp || s.res.xp > before.xp);
+    else assert.ok(s.res.rp > before.rp, 'a research grant');
+    assert.ok(E.PROJECT_REWARDS.every(x => x.boost === 'rp' || x.grant === 'rp'), 'every reward is research');
     // Deadlines: an unclaimed offer disappears.
     s.stats.playTime = s.projects.next;
     E.tick(s, 1);
@@ -629,4 +635,16 @@ test('the click tool grows from a keyboard into bigger tools, each adding more p
     assert.equal(new Set(E.CLICK_TOOLS.map(t => t.name)).size, E.CLICK_TOOLS.length);
     assert.ok(E.CLICK_TOOLS.some(t => /Intern/.test(t.name)));
     assert.ok(Math.abs(E.derive(s).clickPower - (1 + E.clickToolPower(6)) * E.derive(s).mult) < 1e-9);
+});
+
+test('the lab splits by resource: hardware is compute, software is data, research lives on the research wall', () => {
+    const tab = id => E.UPGRADE_BY_ID[id].tab;
+    for (const id of ['cpu', 'server', 'keyboard', 'shellScripts', 'compilerOpt', 'kernelFusion']) assert.equal(tab(id), 'hardware', id);
+    for (const id of ['dataProcessor', 'autoCollector', 'nlp', 'computerVision']) assert.equal(tab(id), 'software', id);
+    assert.equal(tab('researchAssistant'), 'algorithms');
+    const s = fresh();
+    s.levels.machineLearning = 1;
+    const base = E.derive(s).rpPerResearch;
+    s.projects.boosts.push({ stat: 'rp', mult: 2, until: s.stats.playTime + 60 });
+    assert.ok(Math.abs(E.derive(s).rpPerResearch - 2 * base) < 1e-9, 'research boosts work');
 });

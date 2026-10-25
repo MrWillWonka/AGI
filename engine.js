@@ -147,11 +147,11 @@
             unlock: s => phaseIndex(s) >= 2 && tierReady(s, 'optical'), hint: 'Reach Superintelligence' },
 
         // Software
-        { id: 'shellScripts', tab: 'software', name: 'Shell Scripts', shows: 'click', effect: 'Each click also earns 2% of your CP/s, per level', flavor: 'for i in range(1000): click()', cost: { cp: 600, dp: 40 }, scale: 4, max: 3,
+        { id: 'shellScripts', tab: 'hardware', name: 'Shell Scripts', shows: 'click', effect: 'Each click also earns 2% of your CP/s, per level', flavor: 'for i in range(1000): click()', cost: { cp: 600, dp: 40 }, scale: 4, max: 3,
             unlock: s => s.stats.clicks >= 150, hint: 'Generate compute by hand 150 times' },
-        { id: 'compilerOpt', tab: 'software', name: 'Compiler Optimizations', shows: 'hardwareMult', effect: 'All hardware +50% CP/s', flavor: 'Turned on -O3. Everything is faster and nobody knows why.', cost: { cp: 3000, dp: 200 }, max: 1,
+        { id: 'compilerOpt', tab: 'hardware', name: 'Compiler Optimizations', shows: 'hardwareMult', effect: 'All hardware +50% CP/s', flavor: 'Turned on -O3. Everything is faster and nobody knows why.', cost: { cp: 3000, dp: 200 }, max: 1,
             unlock: s => level(s, 'server') >= 5, hint: 'Own 5 Server Clusters' },
-        { id: 'kernelFusion', tab: 'software', name: 'Kernel Fusion', shows: 'hardwareMult', effect: 'All hardware +50% CP/s', flavor: 'Three GPU kernels walked into one bar.', cost: { cp: 180000, dp: 9000 }, max: 1,
+        { id: 'kernelFusion', tab: 'hardware', name: 'Kernel Fusion', shows: 'hardwareMult', effect: 'All hardware +50% CP/s', flavor: 'Three GPU kernels walked into one bar.', cost: { cp: 180000, dp: 9000 }, max: 1,
             unlock: s => level(s, 'neural') >= 5, hint: 'Own 5 Neural Network Chips' },
         { id: 'dataProcessor', tab: 'software', name: 'Data Processor', shows: 'collect', effect: '+1 DP per collection, per level', flavor: 'A script that cleans the data so you don\'t have to.', cost: { cp: 50, dp: 5 }, scale: 1.2 },
         { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', shows: 'autoCollect', effect: 'Collects data for you: 0.2 times a second per level, 10 CP each', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 800, dp: 80 }, scale: 1.5,
@@ -232,7 +232,7 @@
         { id: 'blackSwan', tab: 'training', tree: { x: -4, y: -2 }, icon: 'dice', name: 'Black Swan', effect: '+4% breakthrough chance, and breakthroughs +60% stronger, per level', flavor: 'Nobody saw it coming. That\'s the point.', cost: { xp: 10000 }, scale: 1.9, max: 3, requires: 'flowState', boost: { critChance: 0.04, critPower: 0.6 } },
         { id: 'autoTrainer', tab: 'training', tree: { x: -2, y: 0 }, icon: 'robot', name: 'Auto-Trainer', effect: 'Level 1 starts runs and sprints when the model stalls. Level 2 times its sprints', flavor: 'An intern who never gets tired. Or paid.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
             requires: 'scoutingData', unlock: s => s.prestige.count >= 1, hint: 'Transcend once' },
-        { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', shows: 'autoResearch', effect: 'Researches for you: 0.1 times a second per level, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.55,
+        { id: 'researchAssistant', tab: 'algorithms', name: 'Research Assistant', shows: 'autoResearch', effect: 'Researches for you: 0.1 times a second per level, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.55,
             unlock: s => !!s.unlocked['action:research'] && automationGate(s, 'researchAssistant').met, hint: 'Language Modeling, and 50 research runs by hand' },
         { id: 'nlp', tab: 'software', name: 'Natural Language Processing', shows: 'collect', effect: 'Data per collection ×1.5, +1 Intelligence', flavor: 'It reads now. Mostly forum posts, sadly.', cost: { cp: 2500, dp: 250 }, max: 1,
             grants: { intelligence: 1 }, unlock: s => s.res.dp >= 100, hint: 'Hold 100 DP' },
@@ -431,7 +431,7 @@
         const clickPower = (1 + clickToolPower(L('keyboard')) + sk.click) * mult + 0.02 * L('shellScripts') * cpPerSec;
         const dpPerCollect = (1 + L('dataProcessor') + sk.collect) * (1 + 0.5 * L('nlp')) * (1 + L('computerVision')) * (1 + sk.dp) * mult * bo.dp;
         const rpPerResearch = (1 + L('machineLearning') + 2 * L('deepLearning') + 3 * L('reinforcementLearning')
-            + 5 * L('transferLearning') + sk.research) * (1 + sk.rp) * mult;
+            + 5 * L('transferLearning') + sk.research) * (1 + sk.rp) * mult * bo.rp;
         // Automation converts at the action prices: collections spend CP, research spends CP and DP.
         // It may only use the automation budget (a share of what is produced each second) and never
         // touches the stockpile, so compute always keeps climbing. Over budget, both slow down evenly.
@@ -899,13 +899,13 @@
         research: { stat: s => s.stats.researchManual, text: n => `Research by hand ${n} times`, size: () => 10, needs: 'action:research' }
     };
 
+    // Investors fund research: every reward is research points, as a grant or a temporary boost. (The lab
+    // splits by resource: the hardware bench is compute, software is data, investors are research.)
     const PROJECT_REWARDS = [
-        { text: '+50% compute for 5 min', boost: 'cp', mult: 1.5, seconds: 300 },
-        { text: '+50% data for 5 min', boost: 'dp', mult: 1.5, seconds: 300, needs: 'seen:dp' },
-        { text: '+50% XP from runs for 5 min', boost: 'xp', mult: 1.5, seconds: 300, needs: 'module:path' },
-        { text: 'Training sprints +25% for 3 min', boost: 'push', mult: 1.25, seconds: 180, needs: 'module:path' },
-        { text: 'A lump of XP', grant: 'xp', amount: s => Math.max(5, stretchXp(s) * 0.4), needs: 'module:path' },
-        { text: 'A compute grant', grant: 'cp', amount: s => Math.max(150, derive(s).cpPerSec * 240) }
+        { text: '+50% research for 5 min', boost: 'rp', mult: 1.5, seconds: 300 },
+        { text: 'Research ×2 for 3 min', boost: 'rp', mult: 2, seconds: 180 },
+        { text: 'A research grant', grant: 'rp', amount: s => Math.max(15, Math.max(derive(s).rpPerSec * 300, derive(s).rpPerResearch * 15)) },
+        { text: 'A big research grant', grant: 'rp', amount: s => Math.max(40, Math.max(derive(s).rpPerSec * 700, derive(s).rpPerResearch * 35)) }
     ];
 
     function projectRng(seq) {
@@ -920,7 +920,7 @@
     }
 
     function projectBoosts(s) {
-        const out = { cp: 1, dp: 1, xp: 1, push: 1 };
+        const out = { cp: 1, dp: 1, xp: 1, push: 1, rp: 1 };   // older saves may still hold cp/dp/xp/push boosts
         for (const b of s.projects?.boosts || []) if (b.until > s.stats.playTime) out[b.stat] *= b.mult;
         return out;
     }
@@ -955,7 +955,8 @@
         const t = s.stats.playTime;
         p.offers = p.offers.filter(o => o.deadline > t);
         p.boosts = p.boosts.filter(b => b.until > t);
-        if (!s.unlocked['module:path'] || t < p.next) return;
+        // Investors fund research, so they call once Research is open (and the Training Cluster runs).
+        if (!s.unlocked['module:path'] || !s.unlocked['action:research'] || t < p.next) return;
         if (p.offers.length < PROJECTS.maxOffers) makeOffer(s);
         const r = projectRng(p.seq + 7919);
         p.next = t + PROJECTS.every[0] + r() * (PROJECTS.every[1] - PROJECTS.every[0]);
@@ -970,6 +971,7 @@
         if (reward.boost) p.boosts.push({ stat: reward.boost, mult: reward.mult, until: s.stats.playTime + reward.seconds });
         else if (reward.grant === 'xp') s.res.xp += reward.amount(s);
         else if (reward.grant === 'cp') addCp(s, reward.amount(s));
+        else if (reward.grant === 'rp') s.res.rp += reward.amount(s);
         p.offers = p.offers.filter(x => x !== o);
         s.stats.projectsDone = (s.stats.projectsDone || 0) + 1;
         return { ok: true, msg: `${o.investor} is pleased: ${reward.text}.` };
