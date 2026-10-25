@@ -102,8 +102,8 @@
     // `grants` adds attributes per level purchased. Production effects live in derive().
     const UPGRADES = [
         // Hardware
-        { id: 'cpu', tab: 'hardware', name: 'Basic CPU', effect: '+0.5 CP/s', flavor: 'A desktop tower from the office cupboard. It wheezes.', cost: { cp: 15 }, scale: 1.15 },
-        { id: 'server', tab: 'hardware', name: 'Server Cluster', effect: '+2 CP/s, +1 CP/click', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 100 }, scale: 1.15 },
+        { id: 'cpu', tab: 'hardware', name: 'Basic CPU', effect: '+0.5 CP/s', flavor: 'A desktop tower from the office cupboard. It wheezes.', cost: { cp: 15 }, scale: 1.18 },
+        { id: 'server', tab: 'hardware', name: 'Server Cluster', effect: '+2 CP/s, +1 CP/click', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 120 }, scale: 1.18 },
         { id: 'quantum', tab: 'hardware', name: 'Quantum Processor', effect: '+10 CP/s', flavor: 'It\'s both working and not working until you check.', cost: { cp: 1100 }, scale: 1.15,
             unlock: s => s.stats.runCp >= 500, hint: 'Earn 500 CP this run' },
         { id: 'neural', tab: 'hardware', name: 'Neural Network Chip', effect: '+50 CP/s', flavor: 'A chip shaped like the thing you\'re trying to build.', cost: { cp: 12000 }, scale: 1.15,
@@ -115,7 +115,8 @@
 
         // Software
         { id: 'dataProcessor', tab: 'software', name: 'Data Processor', effect: '+1 DP per collection', flavor: 'A script that cleans the data so you don\'t have to.', cost: { cp: 50, dp: 5 }, scale: 1.2 },
-        { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', effect: 'Collects data for you: 0.5 times a second, 10 CP each', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 200, dp: 20 }, scale: 1.25 },
+        { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', effect: 'Collects data for you: 0.5 times a second, 10 CP each', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 800, dp: 80 }, scale: 1.35,
+            unlock: s => s.path.learned >= 3, hint: 'Teach your AI Image Recognition' },
         // Training skill tree (bought with XP from the Training Path). `tree` is the node's grid
         // position around the central Training Core at (0, 0); `requires` is the node it grows from
         // (none = attached to the core). `icon` names a glyph drawn by game.js.
@@ -167,8 +168,8 @@
         { id: 'satelliteMaps', tab: 'training', tree: { x: -1, y: -1 }, icon: 'eye', name: 'Live Telemetry', effect: 'See 25% further ahead', flavor: 'Real-time numbers on everything, including the coffee machine.', cost: { xp: 90 }, scale: 2, max: 1, requires: 'scoutingData', boost: { view: 0.25 } },
         { id: 'autoTrainer', tab: 'training', tree: { x: -2, y: 0 }, icon: 'robot', name: 'Auto-Trainer', effect: 'Level 1 starts runs and sprints when the model stalls. Level 2 times its sprints', flavor: 'An intern who never gets tired. Or paid.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
             requires: 'scoutingData', unlock: s => s.prestige.count >= 1, hint: 'Transcend once' },
-        { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', effect: 'Researches for you: 0.2 times a second, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 1500, dp: 100, rp: 10 }, scale: 1.3,
-            unlock: s => !!s.unlocked['action:research'], hint: 'Unlock Research' },
+        { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', effect: 'Researches for you: 0.2 times a second, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.4,
+            unlock: s => !!s.unlocked['action:research'] && s.path.learned >= 5, hint: 'Teach your AI Language Modeling' },
         { id: 'nlp', tab: 'software', name: 'Natural Language Processing', effect: '+5 DP per collection, +1 Intelligence', flavor: 'It reads now. Mostly forum posts, sadly.', cost: { cp: 2500, dp: 250 }, max: 1,
             grants: { intelligence: 1 }, unlock: s => s.res.dp >= 100, hint: 'Hold 100 DP' },
         { id: 'computerVision', tab: 'software', name: 'Computer Vision', effect: '+10 DP per collection, +2 Intelligence', flavor: 'It sees now. It has opinions about your photos.', cost: { cp: 8000, dp: 600 }, max: 1,

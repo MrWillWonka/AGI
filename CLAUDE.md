@@ -30,6 +30,7 @@ Open `/?debug` (or press <kbd>`</kbd>) for the debug panel: add resources/attrib
 - **Unlocks are sticky.** `evaluate()` records milestone/upgrade unlocks in `state.unlocked` and achievements in `state.achievements`; it returns what changed so `game.js` can log/toast it once.
 - **Saves.** `localStorage['agiGame']`, versioned (`SAVE_VERSION`). `migrate()` sanitizes any input (wrong types, negatives, unknown ids) and converts the original v1 format. If you change the state shape, bump `SAVE_VERSION`, extend `migrate()`, and add a test.
 - **Automation converts, it never creates.** The Auto-Collector spends CP for DP and the Research Assistant spends CP and DP for RP, at the manual action prices. It may only use the **automation budget** (`settings.autoBudget`, 0–100% of each second's CP and DP production, default 50%, slider in the lab) and never touches the stockpile, so compute never falls. Over budget, both slow down evenly (`derive().autoThrottled`). Only hardware creates CP. The top-bar rates are net (`cpNet`, `dpNet`).
+- **Lab pacing ties into training:** the Auto Data Collector unlocks after the 3rd skill (Image Recognition) and the Research Assistant after the 5th (Language Modeling), so automation is a reward for going back to the trail. Bot timings: Auto Data Collector ≈ 22 min, Research Assistant ≈ 34 min. Basic CPU and Server Cluster costs scale ×1.18 per level.
 - **Offline progress** is applied on load and for long gaps between ticks, capped at `MAX_OFFLINE_SECONDS`, and respects `settings.offline`.
 - Keep `engine.js` free of DOM/`window` so it stays testable.
 - **Training Path** (how the AI learns):
@@ -103,7 +104,7 @@ Everything grows as it unlocks, and locked things never say what they are: a sea
 ## Verifying changes
 
 1. `node --test` must pass; add tests for new rules.
-2. For balance changes, simulate a run in Node with the engine and `training-path.js`: a bot that launches rolls, pushes when the ball stalls on an upslope, and spends XP on Training upgrades. Current first-run results with a bot that lands a clean sprint half the time (and passes `friction`/`hillScale` to `createRoll`): first skill ≈ 7 min, General AI ≈ 36 min, Superintelligence ≈ 2 h. The gaps between skills should keep growing.
+2. For balance changes, simulate a run in Node with the engine and `training-path.js`: a bot that launches rolls, pushes when the ball stalls on an upslope, and spends XP on Training upgrades. Current first-run results with a bot that lands a clean sprint half the time (and passes `friction`/`hillScale` to `createRoll`): first skill ≈ 6 min, General AI ≈ 37 min, Superintelligence ≈ 1 h 30 min (the bot clicks three times a second throughout, so real players are slower). The gaps between skills should keep growing.
 3. Load the page (Playwright/Chromium works in cloud sessions) and check the console for errors at ~390, 1280, 2560 and 3840 px widths.
 
 ## Conventions
