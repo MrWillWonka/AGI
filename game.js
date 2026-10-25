@@ -535,12 +535,12 @@ window.AGI = (function () {
         return log;
     }
 
-    // Racks from the buy log, replayed in order. Each new piece is a small square; it goes next to the
-    // latest small piece of its kind (to its right for a horizontal bar, on top for a vertical one) if
-    // that spot is free, else in the first free spot (bottom-left first, any rack). Pieces merge only by
+    // Racks from the buy log, replayed in order. Each new piece is a small square in the next free spot,
+    // left to right from the bottom, so the racks build up in the order you buy. Pieces merge only by
     // direct contact: the right number of the same kind and size touching in one straight line, exactly
     // the merged piece's shape (`steps`), like 3 CPUs side by side → a 3×1 board. A piece at the end of
-    // a row and one starting the next row don't touch, so they don't merge.
+    // a row and one starting the next row don't touch, so they don't merge. Vertical pieces (quantum,
+    // neural) rarely form on their own: lining them up is left to the player (the planned rack puzzle).
     function buildRacks(log) {
         const racks = [];
         const newRack = () => {
@@ -586,22 +586,8 @@ window.AGI = (function () {
         }
         for (const id of log) {
             const p = { id, tier: 0, w: 1, h: 1 };
-            const across = HW_PIECES[id].steps[0][2] === 1;
             let rack = null;
-            // Next to the latest small piece of this kind, in its merge direction.
-            for (let k = racks.length - 1; k >= 0 && !rack; k--) {
-                const r = racks[k];
-                const q = [...r.pieces].reverse().find(o => o.id === id && o.tier === 0);
-                if (!q) continue;
-                const x = across ? q.x + 1 : q.x;
-                const y = across ? q.y : q.y + 1;
-                if (inside(x, y) && !r.grid[y][x]) {
-                    Object.assign(p, { x, y });
-                    rack = r;
-                }
-                break;
-            }
-            // Otherwise the first free spot, from the bottom-left, in any rack.
+            // The next free spot, left to right from the bottom.
             for (const r of racks) {
                 if (rack) break;
                 for (let y = 0; y < RACK.rows && !rack; y++) {
