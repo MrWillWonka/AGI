@@ -367,10 +367,10 @@
 
     // Skill-tree branch names, by the direction they grow from the Training Core.
     const TREE_BRANCHES = [
-        { name: 'Power', dir: 'up', blurb: 'Stronger pushes, less friction' },
-        { name: 'Precision', dir: 'right', blurb: 'Bonus zone and clean-push XP' },
-        { name: 'Recursion', dir: 'down', blurb: 'More pushes, faster' },
-        { name: 'Capability', dir: 'left', blurb: 'Vision and automation' }
+        { name: 'Power', dir: 'up', blurb: 'Stronger sprints, breakthroughs, Max Effort' },
+        { name: 'Precision', dir: 'right', blurb: 'XP, prompts and viral runs' },
+        { name: 'Recursion', dir: 'down', blurb: 'More sprints, less wait, crunches' },
+        { name: 'Momentum', dir: 'left', blurb: 'Less drag, lower hills, flow' }
     ];
 
     // Milestones: persistent per-run unlocks for actions and tabs. Once unlocked they stay unlocked.

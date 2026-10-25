@@ -122,6 +122,80 @@ window.AGI = (function () {
         pop.addEventListener('animationend', () => pop.remove());
     }
 
+    // ---- Click glow ------------------------------------------------------
+    // Working the Workbench lights up everything in the lab that deals in that currency (its station,
+    // supply cell and, for compute, the cabinets), brighter the faster you click; sparks fly off the
+    // button, more of them (and a ring) the more each click is worth.
+    const GLOW_TARGETS = {
+        cp: () => [ui.stations.hardware.node, document.querySelector('.cell-cp'), $('cabinetPanel')],
+        dp: () => [ui.stations.software.node, document.querySelector('.cell-dp'), taskUi.autoCollector?.row],
+        rp: () => [ui.stations.algorithms.node, document.querySelector('.cell-rp'), $('projectPanel'), taskUi.researchAssistant?.row]
+    };
+    const glow = { cp: { times: [], level: 0 }, dp: { times: [], level: 0 }, rp: { times: [], level: 0 }, frame: 0 };
+    const GLOW_RATE = 8;            // clicks per second for full brightness
+    let sparkCount = 0;
+
+    function clickGlow(res, gained, button) {
+        const g = glow[res];
+        if (!g) return;
+        const now = performance.now();
+        g.times.push(now);
+        g.times = g.times.filter(t => now - t < 1500);
+        g.level = Math.max(g.level, Math.min(1, g.times.length / 1.5 / GLOW_RATE + 0.15));
+        if (!glow.frame) glow.frame = requestAnimationFrame(fadeGlow);
+        if (reducedMotion()) return;
+        // Sparks: one per order of magnitude a click is worth, more when clicking fast.
+        const worth = Math.max(0, Math.log10(Math.max(1, gained)));
+        const n = Math.min(14, Math.round(1 + worth * 1.5 + g.level * 4));
+        const r = button.getBoundingClientRect();
+        const z = uiScale();
+        const x = (r.left + r.width * (0.3 + Math.random() * 0.4)) / z;
+        const y = (r.top + r.height / 2 + window.scrollY) / z;
+        for (let i = 0; i < n && sparkCount < 60; i++) {
+            const dot = el('span', { class: `click-spark spark-${res}` });
+            const a = Math.random() * Math.PI * 2;
+            const dist = 30 + Math.random() * (40 + 25 * worth);
+            dot.style.left = `${x}px`;
+            dot.style.top = `${y}px`;
+            document.body.append(dot);
+            sparkCount++;
+            const anim = dot.animate([
+                { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+                { transform: `translate(calc(-50% + ${Math.cos(a) * dist}px), calc(-50% + ${Math.sin(a) * dist - 20}px)) scale(0.2)`, opacity: 0 }
+            ], { duration: 450 + Math.random() * 350, easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)' });
+            anim.finished.then(() => { dot.remove(); sparkCount--; }, () => { dot.remove(); sparkCount--; });
+        }
+        if (worth >= 3) {
+            const ring = el('span', { class: `click-ring spark-${res}` });
+            ring.style.left = `${x}px`;
+            ring.style.top = `${y}px`;
+            document.body.append(ring);
+            ring.animate([{ transform: 'translate(-50%, -50%) scale(0.3)', opacity: 0.9 }, { transform: `translate(-50%, -50%) scale(${1 + worth * 0.4})`, opacity: 0 }],
+                { duration: 600, easing: 'ease-out' }).finished.then(() => ring.remove(), () => ring.remove());
+        }
+    }
+
+    function fadeGlow() {
+        glow.frame = 0;
+        let busy = false;
+        for (const res of ['cp', 'dp', 'rp']) {
+            const g = glow[res];
+            const now = performance.now();
+            g.times = g.times.filter(t => now - t < 1500);
+            const target = g.times.length ? Math.min(1, g.times.length / 1.5 / GLOW_RATE + 0.15) : 0;
+            g.level += (target - g.level) * 0.12;
+            if (g.level < 0.01) g.level = 0;
+            for (const node of GLOW_TARGETS[res]()) {
+                if (!node) continue;
+                node.classList.toggle('click-glow', g.level > 0);
+                node.classList.toggle(`glow-${res}`, g.level > 0);
+                node.style.setProperty('--glow', g.level.toFixed(3));
+            }
+            busy = busy || g.level > 0;
+        }
+        if (busy) glow.frame = requestAnimationFrame(fadeGlow);
+    }
+
     // ---- Hold-to-repeat buttons -----------------------------------------
 
     // Fires `fn` on click (mouse, touch or keyboard) and repeats it while the pointer is held down.
@@ -163,7 +237,7 @@ window.AGI = (function () {
         const box = $('actions');
         for (const action of E.ACTIONS) {
             const gain = el('span', { class: 'action-gain' });
-            const cost = el('span', { class: 'action-cost', text: E.formatCost(action.cost) });
+            const cost = el('span', { class: 'action-cost' });
             // Jobs that can be automated keep a line for it (blank until it means something), so the card
             // never changes height; the rest have none.
             const auto = el('span', { class: `action-auto${AUTOMATES[action.id] ? '' : ' none'}` });
@@ -267,7 +341,7 @@ window.AGI = (function () {
             // "▾ N more": how many cards sit below the fold; clicking scrolls to them.
             const more = el('button', { type: 'button', class: 'station-more', text: '▾ more below', hidden: true });
             more.addEventListener('click', () => list.scrollBy({ top: list.clientHeight * 0.8, behavior: reducedMotion() ? 'auto' : 'smooth' }));
-            const node = el('section', { class: `panel hud station station-${st.kind}`, 'aria-label': st.name, 'data-slot': slot, hidden: true }, [
+            const node = el('section', { class: `panel hud station station-${st.kind}`, 'aria-label': st.name, 'data-slot': slot, 'data-tab': tab.id, hidden: true }, [
                 el('h2', { class: 'station-title', text: st.name }), art, list, more
             ]);
             box.append(node);
@@ -287,12 +361,11 @@ window.AGI = (function () {
             const yieldLine = up.cps || up.shows || up.grants ? el('p', { class: 'upgrade-yield' }) : null;
             const button = el('button', { type: 'button', class: 'button upgrade-button' });
             button.addEventListener('click', () => doBuy(up.id));
-            // Hardware: the part you're buying, as it will sit in the server cabinet.
-            const part = HARDWARE_UNITS[up.id];
+            // Hardware: the piece you're buying, as it will sit in the server cabinets.
+            const part = HW_PIECES[up.id];
             const side = part ? el('div', { class: 'upgrade-side' }, [
-                el('div', { class: 'upgrade-part', 'aria-hidden': 'true', title: `The rack part: ${part.size}U, one per ${part.per === 1 ? 'level' : `${part.per} levels`}` }, [
-                    el('span', { class: `unit unit-${up.id}`, style: `--u:${part.size}` }),
-                    el('span', { class: 'upgrade-part-label', text: `${part.size}U · ${part.per === 1 ? 'every level' : `every ${part.per} levels`}` })
+                el('div', { class: 'upgrade-part', 'aria-hidden': 'true', title: `Its piece in the cabinets: ${part.w}×${part.h}; every 4 merge into a bigger one` }, [
+                    el('span', { class: `hw hw-${up.id} t0`, style: `--w:${part.w};--h:${part.h}` }, [el('i'), el('b')])
                 ]),
                 button
             ]) : button;
@@ -301,7 +374,8 @@ window.AGI = (function () {
             const card = el('article', { class: 'upgrade', hidden: true, 'data-id': up.id }, [
                 el('div', { class: 'upgrade-info' }, [
                     el('h3', {}, [nameNode, document.createTextNode(' '), levelBadge]),
-                    el('p', { class: 'muted small', text: up.effect }),
+                    // Hardware's live line says what it makes, so it needs no description.
+                    up.cps ? null : el('p', { class: 'muted small', text: up.effect }),
                     yieldLine,
                     flavorNode
                 ]),
@@ -360,53 +434,100 @@ window.AGI = (function () {
         renderCabinets();
     }
 
-    // Server cabinets: the hardware you own, racked. Every `per` levels of a hardware upgrade adds one
-    // unit of `size` U in its own style, stacked from the bottom; a full cabinet starts the next one.
-    // Rebuilt only when the units change, and new units flash as they go in.
-    const HARDWARE_UNITS = {
-        cpu: { per: 5, size: 1 },
-        server: { per: 3, size: 2 },
-        quantum: { per: 2, size: 2 },
-        neural: { per: 1, size: 2 },
-        datacenter: { per: 1, size: 3 },
-        optical: { per: 1, size: 3 }
+    // Server cabinets: the hardware you own, as pieces on a rack floor. Each kind of hardware has its own
+    // shape (`w` × `h` cells); every 4 of a size merge into the next, bigger piece (`merge`: the sizes
+    // after each merge, wider or taller), so a run of buys compacts instead of piling up. Pieces fill
+    // blocks (8 × 4 cells), one kind per block, in the order you first bought each kind; a full block
+    // starts the next. Blocks scroll sideways, so buying never moves the page. Merging and packing on a
+    // grid are the groundwork for a later rack-configuration puzzle.
+    const HW_PIECES = {
+        cpu: { w: 1, h: 1, merge: [[2, 2], [4, 2], [8, 2]], names: ['CPU', 'CPU board', 'CPU shelf', 'CPU wall'] },
+        server: { w: 2, h: 1, merge: [[4, 1], [4, 2], [8, 2]], names: ['Server', 'Server pair', 'Server rack', 'Server row'] },
+        quantum: { w: 1, h: 2, merge: [[2, 2], [2, 4], [4, 4]], names: ['Quantum core', 'Quantum pair', 'Cryostat', 'Quantum array'] },
+        neural: { w: 2, h: 2, merge: [[4, 2], [4, 4], [8, 4]], names: ['Neural chip', 'Neural board', 'Neural block', 'Neural wall'] },
+        datacenter: { w: 3, h: 2, merge: [[6, 2], [6, 4]], names: ['Datacenter hall', 'Datacenter wing', 'Datacenter campus'] },
+        optical: { w: 2, h: 2, merge: [[4, 2], [4, 4], [8, 4]], names: ['Optical core', 'Optical bench', 'Optical array', 'Light field'] }
     };
-    const CABINET_U = 20;
-    const MAX_CABINETS = 6;
+    const BLOCK = { cols: 8, rows: 4 };
+    const MAX_BLOCKS = 12;
+    const RACK_ORDER_KEY = 'agiRackOrder';   // screen state: the order you first bought each kind
     let cabinetKey = null;      // null: not drawn yet
+    let cabinetPieces = new Set();
+
+    // The pieces for `n` units of one kind: every 4 of a size become one of the next size (base 4).
+    function piecesFor(id, n) {
+        const def = HW_PIECES[id];
+        const sizes = [[def.w, def.h], ...def.merge];
+        const out = [];
+        let left = n;
+        for (let t = sizes.length - 1; t >= 0; t--) {
+            const per = Math.pow(4, t);
+            const count = t === sizes.length - 1 ? Math.floor(left / per) : Math.floor(left / per) % 4;
+            left -= count * per;
+            for (let i = 0; i < count; i++) out.push({ id, tier: t, w: sizes[t][0], h: sizes[t][1], units: per, name: def.names[t] });
+        }
+        return out;   // biggest first, so the newest buys sit at the end
+    }
+
+    // First fit on a block's grid; returns false when the piece doesn't fit.
+    function place(grid, p) {
+        for (let y = 0; y + p.h <= BLOCK.rows; y++) {
+            for (let x = 0; x + p.w <= BLOCK.cols; x++) {
+                let free = true;
+                for (let j = y; j < y + p.h && free; j++) for (let i = x; i < x + p.w; i++) if (grid[j][i]) { free = false; break; }
+                if (!free) continue;
+                for (let j = y; j < y + p.h; j++) for (let i = x; i < x + p.w; i++) grid[j][i] = true;
+                Object.assign(p, { x, y });
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function rackOrder() {
+        let order = [];
+        try { order = JSON.parse(storageGet(RACK_ORDER_KEY) || '[]'); } catch { /* start fresh */ }
+        order = order.filter(id => HW_PIECES[id] && E.level(state, id) > 0);
+        for (const id of Object.keys(HW_PIECES)) if (E.level(state, id) > 0 && !order.includes(id)) order.push(id);
+        return order;
+    }
 
     function renderCabinets() {
-        const units = [];
-        for (const [id, u] of Object.entries(HARDWARE_UNITS)) {
-            const n = Math.ceil(E.level(state, id) / u.per);
-            for (let i = 0; i < n; i++) units.push({ id, size: u.size });
-        }
-        const key = units.map(u => u.id[0]).join('');
+        const order = rackOrder();
+        const key = order.map(id => `${id}${E.level(state, id)}`).join(',');
         if (key === cabinetKey) return;
-        const before = cabinetKey ? cabinetKey.length : 0;
         const first = cabinetKey === null;
         cabinetKey = key;
-        const cabinets = [];
-        let used = CABINET_U;
-        units.forEach((u, i) => {
-            if (used + u.size > CABINET_U) {
-                cabinets.push([]);
-                used = 0;
+        storageSet(RACK_ORDER_KEY, JSON.stringify(order));
+        const blocks = [];
+        for (const id of order) {
+            let grid = null;
+            for (const p of piecesFor(id, E.level(state, id))) {
+                if (!grid || !place(grid, p)) {
+                    grid = Array.from({ length: BLOCK.rows }, () => Array(BLOCK.cols).fill(false));
+                    blocks.push({ id, pieces: [] });
+                    place(grid, p);
+                }
+                blocks[blocks.length - 1].pieces.push(p);
             }
-            used += u.size;
-            cabinets[cabinets.length - 1].push({ ...u, fresh: !first && i >= before });
-        });
-        $('cabinetPanel').hidden = !units.length;
-        if (!cabinets.length) cabinets.push([]);
-        const shown = cabinets.slice(0, MAX_CABINETS);
+        }
+        $('cabinetPanel').hidden = !blocks.length;
+        // New or merged pieces (not on load) pop in; merges flash.
+        const seen = new Set();
         const art = $('cabinetArt');
-        art.replaceChildren(...shown.map(list => el('div', { class: 'cabinet' }, [
-            el('div', { class: 'cabinet-units' }, list.map(u => el('span', {
-                class: `unit unit-${u.id}${u.fresh ? ' fresh' : ''}`, style: `--u:${u.size}`,
-                title: E.UPGRADE_BY_ID[u.id].name
-            })))
-        ])));
-        if (cabinets.length > MAX_CABINETS) art.append(el('span', { class: 'cabinet-more', text: `+${cabinets.length - MAX_CABINETS} more cabinets` }));
+        art.replaceChildren(...blocks.slice(0, MAX_BLOCKS).map(b => el('div', { class: `rack-block block-${b.id}`, title: `${E.UPGRADE_BY_ID[b.id].name}: ${b.pieces.reduce((a, p) => a + p.units, 0)} in this block` },
+            b.pieces.map(p => {
+                const tag = `${p.id}:${p.tier}:${p.x}:${p.y}`;
+                seen.add(tag);
+                const fresh = !first && !cabinetPieces.has(tag);
+                return el('span', {
+                    class: `hw hw-${p.id} t${p.tier}${fresh ? (p.tier ? ' merged' : ' fresh') : ''}`,
+                    style: `--x:${p.x};--y:${p.y};--w:${p.w};--h:${p.h}`,
+                    title: `${p.name}${p.units > 1 ? ` (${p.units} × ${E.UPGRADE_BY_ID[p.id].name})` : ''}`
+                }, [el('i'), el('b')]);
+            }))));
+        cabinetPieces = seen;
+        if (blocks.length > MAX_BLOCKS) art.append(el('span', { class: 'cabinet-more', text: `+${blocks.length - MAX_BLOCKS} more blocks` }));
     }
 
     function buildChecklists() {
@@ -470,6 +591,7 @@ window.AGI = (function () {
         if (!result.ok) return;
         if (result.gained != null) {
             floatGain(button, `+${E.format(result.gained)} ${E.RESOURCES[result.resource].short}`);
+            clickGlow(result.resource, result.gained, button);
         }
         if (result.msg) log(result.msg, 'success');
         afterChange();
@@ -616,7 +738,9 @@ window.AGI = (function () {
         Object.assign(treeCam, { x: 0, y: 0, z: 1 });
         $('skillTree').style.transform = '';
         cabinetKey = null;
-        Object.assign(lab, { cp: [], dp: [], hand: [], lastRunCp: null, lastCollects: null, lines: [] });
+        Object.assign(lab, { cp: [], dp: [], rp: [], xp: [], hand: [], lastRunCp: null, lastCollects: null, lastResearch: null, lastXp: null, lines: [] });
+        storageSet(RACK_ORDER_KEY, '[]');
+        path.queued = null;
         $('labLog').hidden = true;
         ui.termLines.replaceChildren();
         for (const st of Object.values(ui.stations)) st.order = '';
@@ -671,24 +795,15 @@ window.AGI = (function () {
     // ---- Lab life: output sparklines and the terminal's job log ----
 
     const SPARK_POINTS = 90;       // 45 s of history at one sample every 0.5 s
-    const JOB_REPORT_SECONDS = 2;
-    const HAND_SAMPLES = 6;        // the supply numbers add what your clicks made over the last 3 s  // the terminal reports automation in batches this often
-    const lab = { cp: [], dp: [], hand: [], sampleT: 0, jobT: 0, lastRunCp: null, lastCollects: null, collects: 0, research: 0, batch: 0, paper: 0, lines: [] };
+    const HAND_SAMPLES = 6;        // the supply numbers add what your clicks made over the last 3 s
+    const lab = { cp: [], dp: [], rp: [], xp: [], hand: [], sampleT: 0, lastRunCp: null, lastCollects: null, lastResearch: null, lastXp: null, lines: [] };
+    const pushSample = (series, v) => {
+        series.push(v);
+        if (series.length > SPARK_POINTS) series.shift();
+    };
 
     function sampleLab(dt) {
         const d = E.derive(state, debugRates);
-        lab.collects += d.collectsPerSec * dt;
-        lab.research += d.researchPerSec * dt;
-        lab.jobT += dt;
-        if (lab.jobT >= JOB_REPORT_SECONDS) {
-            lab.jobT = 0;
-            const c = Math.floor(lab.collects);
-            const r = Math.floor(lab.research);
-            lab.collects -= c;
-            lab.research -= r;
-            if (c) termLog(`crawler: batch ${lab.batch += c} done (+${E.format(c * d.dpPerCollect)} DP)`);
-            if (r) termLog(`assistant: paper #${lab.paper += r} read (+${E.format(r * d.rpPerResearch)} RP)`);
-        }
         lab.sampleT += dt;
         if (lab.sampleT < 0.5) return;
         // Output per second over the last half second, clicks included, so the lines move as you work.
@@ -696,17 +811,22 @@ window.AGI = (function () {
         lab.sampleT = 0;
         const runCp = state.stats.runCp;
         const collects = state.stats.collects;
+        const research = state.stats.researchManual;
         if (lab.lastRunCp != null && runCp >= lab.lastRunCp) {
-            lab.cp.push((runCp - lab.lastRunCp) / span);
+            pushSample(lab.cp, (runCp - lab.lastRunCp) / span);
             const handDp = Math.max(0, collects - lab.lastCollects) * d.dpPerCollect / span;
-            lab.dp.push(handDp + d.dpPerSec);
-            lab.hand.push({ cp: Math.max(0, (runCp - lab.lastRunCp) / span - d.cpPerSec), dp: handDp });
-            if (lab.cp.length > SPARK_POINTS) lab.cp.shift();
-            if (lab.dp.length > SPARK_POINTS) lab.dp.shift();
+            const handRp = Math.max(0, research - lab.lastResearch) * d.rpPerResearch / span;
+            pushSample(lab.dp, handDp + d.dpPerSec);
+            pushSample(lab.rp, handRp + d.rpPerSec);
+            // XP: what was earned (spending it in the tree isn't a drop in output).
+            pushSample(lab.xp, Math.max(0, state.res.xp - lab.lastXp) / span);
+            lab.hand.push({ cp: Math.max(0, (runCp - lab.lastRunCp) / span - d.cpPerSec), dp: handDp, rp: handRp });
             if (lab.hand.length > HAND_SAMPLES) lab.hand.shift();
         }
         lab.lastRunCp = runCp;
         lab.lastCollects = collects;
+        lab.lastResearch = research;
+        lab.lastXp = state.res.xp;
         if (view === 'lab') drawSparks();
     }
 
@@ -749,6 +869,8 @@ window.AGI = (function () {
     function drawSparks() {
         drawSpark($('sparkCp'), lab.cp, path.colors.success || '#63e0ab');
         drawSpark($('sparkDp'), lab.dp, path.colors.primary || '#6fb3d9');
+        drawSpark($('sparkRp'), lab.rp, '#c792ea');
+        drawSpark($('sparkXp'), lab.xp, path.colors.warning || '#ffb547');
     }
 
     // The software terminal prints what the lab's automation and installs are doing (last few lines).
@@ -773,6 +895,11 @@ window.AGI = (function () {
             // Clicks count too: passive net output plus what you made by hand in the last few seconds.
             case 'supply.cp': return `${f(d.cpNet + handRate('cp'))} CP/s`;
             case 'supply.dp': return `${f(d.dpNet + handRate('dp'))} DP/s`;
+            case 'supply.rp': return `${f(d.rpPerSec + handRate('rp'))} RP/s`;
+            case 'supply.xp': {
+                const recent = lab.xp.slice(-20);
+                return `${f(recent.length ? recent.reduce((a, b) => a + b, 0) / recent.length : d.xpPerSec, 1)} XP/s`;
+            }
             case 'supply.rates': {
                 const cp = f(d.cpNet + handRate('cp'));
                 return state.unlocked['seen:dp'] ? `${cp} CP · ${f(d.dpNet + handRate('dp'))} DP /s` : `${cp} CP/s`;
@@ -849,7 +976,7 @@ window.AGI = (function () {
             setHidden(button, !!action.unlock && !state.unlocked[action.unlock]);
             setDisabled(button, !E.canAfford(state, price));
             setText(gain, gains[action.id]);
-            setText(cost, E.formatCost(price));
+            setText(cost, Object.keys(price).length ? E.formatCost(price) : '');
         }
 
         renderStations();
@@ -884,8 +1011,9 @@ window.AGI = (function () {
 
         setDisabled($('prestigeButton'), E.prestigeGain(state) < 1);
         for (const node of document.querySelectorAll('[data-show]')) setHidden(node, !state.unlocked[node.dataset.show]);
-        renderAutomation(d);
+        renderTasks(d);
         renderProjects();
+        layoutLab();
         renderFacility(d);
         renderMinimap();
         if (!zooming) {
@@ -1138,6 +1266,7 @@ window.AGI = (function () {
             storageSet(SEEN_KEY, JSON.stringify([...seenRooms]));
         }
         if (id === 'servers') startPathLoop();
+        if (state) renderMinimap();
     }
 
     // Zoom geometry: where a facility tile sits relative to the room that fills the stage.
@@ -1315,6 +1444,9 @@ window.AGI = (function () {
         $('minimapChip').replaceChildren(svg, el('span', { class: 'mm-label', text: `You are in: ${placeName(here)}` }));
     }
 
+    // A place as a path segment: "Training Cluster" → training_cluster.
+    const crumbName = name => name.toLowerCase().replace(/&/g, '_and_').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+
     function placeName(place) {
         if (place.startsWith('bay:')) return BAYS[place.slice(4)].name;
         return place === 'facility' ? 'Surveillance' : ROOMS[place].name;
@@ -1403,30 +1535,149 @@ window.AGI = (function () {
         }
     }
 
-    // ---- Automation budget -------------------------------------------------
+    // ---- Scheduled tasks ----------------------------------------------------
+    // Every automation is a scheduled task with its own switch; the converters (crawler, research) also
+    // get a slider: the share of each second's compute dedicated to them (engine taskShares). Shares
+    // never add up to more than 100%, so the part a slider can't reach is hatched. Cleared legs lapping
+    // on the rack are listed too (they need no compute).
+    const TASK_UPGRADES = { autoCollector: 'autoCollector', researchAssistant: 'researchAssistant', autoTrainer: 'autoTrainer' };
+    const taskUi = {};
 
-    function buildAutomation() {
-        const input = $('autoBudget');
-        input.max = Math.round(E.AUTO_BUDGET.max * 100);
-        input.step = Math.round(E.AUTO_BUDGET.step * 100);
-        input.addEventListener('input', () => {
-            state.settings.autoBudget = Number(input.value) / 100;
-            render();
-        });
-        input.addEventListener('change', () => save());
+    function buildTasks() {
+        const list = $('taskList');
+        for (const t of E.TASKS) {
+            const toggle = el('button', { type: 'button', class: 'task-toggle', role: 'switch', 'aria-label': `${t.name}: on or off` });
+            toggle.addEventListener('click', () => {
+                E.setTaskOn(state, t.id, !E.taskOn(state, t.id));
+                afterChange();
+                save();
+                if (t.id === 'autoTrainer') startPathLoop();
+            });
+            let slider = null;
+            if (t.budget) {
+                slider = el('input', { type: 'range', class: 'task-slider', min: 0, max: 100, step: Math.round(E.AUTO_BUDGET.step * 100), 'aria-label': `${t.name}: dedicated compute` });
+                slider.addEventListener('input', () => {
+                    slider.value = Math.round(E.setTaskShare(state, t.id, Number(slider.value) / 100) * 100);
+                    render();
+                });
+                slider.addEventListener('change', () => save());
+            }
+            const rate = el('span', { class: 'task-rate' });
+            const share = el('span', { class: 'task-share' });
+            const row = el('li', { class: `task task-${t.id}`, hidden: true }, [
+                el('div', { class: 'task-head' }, [el('span', { class: 'task-name', text: t.name }), toggle]),
+                rate,
+                slider ? el('div', { class: 'task-budget' }, [slider, share]) : null
+            ].filter(Boolean));
+            list.append(row);
+            taskUi[t.id] = { row, toggle, slider, rate, share };
+        }
+        const laps = el('li', { class: 'task task-laps', hidden: true }, [
+            el('div', { class: 'task-head' }, [el('span', { class: 'task-name', text: 'Cleared legs' }), el('span', { class: 'task-always', text: 'always on' })]),
+            el('span', { class: 'task-rate' })
+        ]);
+        list.append(laps);
+        taskUi.laps = { row: laps, rate: laps.querySelector('.task-rate') };
     }
 
-    function renderAutomation(d) {
-        const owned = E.level(state, 'autoCollector') + E.level(state, 'researchAssistant') > 0;
-        setHidden($('autoPanel'), !owned);
-        if (!owned) return;
-        const pct = Math.round(state.settings.autoBudget * 100);
-        const input = $('autoBudget');
-        if (document.activeElement !== input) input.value = pct;
-        setText($('autoBudgetValue'), `${pct}%`);
-        const used = `Converting ${E.format(d.cpUsePerSec)} of ${E.format(d.cpPerSec)} CP/s`;
-        setText($('autoBudgetNote'), pct === 0 ? 'Automation is paused. All compute goes to your stockpile.'
-            : `${used}${d.autoThrottled ? ' (capped by the budget)' : ''}. ${pct === 100 ? 'Your stockpile is never touched.' : `The other ${100 - pct}% always goes to your stockpile.`}`);
+    function renderTasks(d) {
+        const f = E.format;
+        const owned = id => E.level(state, TASK_UPGRADES[id]) > 0;
+        const any = E.TASKS.some(t => owned(t.id)) || state.path.learned > 0;
+        setHidden($('taskPanel'), !any);
+        if (!any) return;
+        const shares = E.taskShares(state);
+        let dedicated = 0;
+        for (const t of E.TASKS) {
+            const u = taskUi[t.id];
+            setHidden(u.row, !owned(t.id));
+            if (!owned(t.id)) continue;
+            const on = E.taskOn(state, t.id);
+            u.row.classList.toggle('off', !on);
+            u.toggle.setAttribute('aria-checked', String(on));
+            setText(u.toggle, on ? 'On' : 'Off');
+            if (t.id === 'autoCollector') setText(u.rate, on ? `${f(d.collectsPerSec, 2)} collections/s → ${f(d.dpPerSec)} DP/s` : 'Paused');
+            if (t.id === 'researchAssistant') setText(u.rate, on ? `${f(d.researchPerSec, 2)} research/s → ${f(d.rpPerSec)} RP/s` : 'Paused');
+            if (t.id === 'autoTrainer') setText(u.rate, on ? `Level ${E.level(state, 'autoTrainer')} · ${E.level(state, 'autoTrainer') >= 2 ? 'starts runs and times its sprints' : 'starts runs and sprints when stalled'}` : 'Paused');
+            if (!u.slider) continue;
+            const pct = Math.round((state.tasks[t.id].share ?? 0) * 100);
+            const others = Math.round(E.TASKS.filter(o => o.budget && o.id !== t.id && E.taskOn(state, o.id) && owned(o.id))
+                .reduce((a, o) => a + shares[o.id], 0) * 100);
+            if (document.activeElement !== u.slider) u.slider.value = pct;
+            u.slider.disabled = !on;
+            u.slider.style.setProperty('--reach', `${100 - others}%`);
+            u.slider.style.setProperty('--pct', `${u.slider.value}%`);
+            const task = d.tasks[t.id];
+            dedicated += on ? shares[t.id] : 0;
+            setText(u.share, on ? `${pct}% · ${f(task.cp)} CP/s${task.speed < 1 ? ' · capped' : ''}` : `${pct}%`);
+            u.share.classList.toggle('capped', on && task.speed < 1);
+        }
+        setText($('taskTotal'), `${Math.round(dedicated * 100)}% of compute dedicated`);
+        const learned = state.path.learned;
+        setHidden(taskUi.laps.row, !learned);
+        if (learned) setText(taskUi.laps.rate, `${learned} leg${learned === 1 ? '' : 's'} lapping · +${Math.round(E.clearedCpBonus(state) * 100)}% compute · +${f(d.xpPerSec, 2)} XP/s`);
+    }
+
+    // ---- Lab layout -------------------------------------------------------------
+    // The lab is one grid of named areas, laid out from what is open (so open things share the floor):
+    // wide screens put the workbench, the stations and the scheduled tasks side by side over one screen,
+    // with the Isolation chamber under the software terminal, investor projects under the research wall,
+    // and the cabinets (from the left edge) and the log (beside the minimap) along the bottom. Desktop
+    // stacks them in fixed-height rows. Rebuilt only when what's open or the screen tier changes.
+    let labLayoutKey = '';
+    const WIDE = window.matchMedia('(min-width: 1800px)');
+    const DESKTOP = window.matchMedia('(min-width: 961px)');
+
+    function layoutLab() {
+        const shown = id => !$(id).hidden;
+        const tab = id => !ui.stations[id].node.hidden;
+        const has = { sw: tab('software'), rs: tab('algorithms'), cs: tab('consciousness'), proj: shown('projectPanel'), tasks: shown('taskPanel') };
+        const tier = WIDE.matches ? 'wide' : DESKTOP.matches ? 'desktop' : 'narrow';
+        const key = `${tier}:${Object.values(has).map(Number).join('')}`;
+        if (key === labLayoutKey) return;
+        labLayoutKey = key;
+        const room = $('labRoom');
+        room.dataset.tier = tier;
+        if (tier === 'narrow') {
+            room.style.gridTemplateAreas = room.style.gridTemplateColumns = room.style.gridTemplateRows = '';
+            return;
+        }
+        const q = rows => rows.map(r => `"${r.join(' ')}"`).join(' ');
+        if (tier === 'wide') {
+            // Columns: each [top, bottom].
+            const cols = [['bench', 'bench'], ['hw', 'hw']];
+            if (has.sw) cols.push(['sw', has.cs ? 'cs' : 'sw']);
+            if (has.rs || has.proj) cols.push([has.rs ? 'rs' : 'proj', has.proj ? 'proj' : 'rs']);
+            if (has.tasks) cols.push(['tasks', 'tasks']);
+            const n = cols.length;
+            const logSpan = n >= 4 ? 2 : 1;
+            const bottom = cols.map((c, i) => (i < n - logSpan ? 'cab' : 'log'));
+            const split = cols.some(c => c[0] !== c[1]);
+            room.style.gridTemplateColumns = cols.map(c => (c[0] === 'bench' || c[0] === 'tasks' ? 'minmax(260px, 300px)' : 'minmax(0, 1fr)')).join(' ');
+            room.style.gridTemplateRows = `auto var(--supply-h) minmax(0, 1.5fr) ${split ? 'minmax(0, 1fr)' : '0px'} var(--bottom-h)`;
+            room.style.gridTemplateAreas = q([cols.map(() => 'bar'), cols.map(() => 'supply'), cols.map(c => c[0]), cols.map(c => c[1]), bottom]);
+            return;
+        }
+        // Desktop: the workbench and hardware side by side at the same height, then tasks beside the research
+        // wall (projects under it) and the Isolation chamber, then cabinets from the left edge and the log.
+        const third = has.sw ? 'sw' : 'hw';
+        const rows = [['bar', 'bar', 'bar'], ['supply', 'supply', 'supply'], ['bench', 'hw', third]];
+        const sizes = ['auto', 'var(--supply-h)', 'var(--station-row)'];
+        if (has.rs || has.proj || has.tasks || has.cs) {
+            const left = has.tasks ? 'tasks' : '.';
+            const mid = has.rs ? 'rs' : has.proj ? 'proj' : '.';
+            rows.push([left, mid, has.cs ? 'cs' : '.']);
+            sizes.push('var(--station-row-2)');
+            if (has.rs && has.proj) {
+                rows.push([left, 'proj', has.cs ? 'cs' : '.']);
+                sizes.push('var(--projects-h)');
+            }
+        }
+        rows.push(['cab', 'cab', 'log']);
+        sizes.push('auto');
+        room.style.gridTemplateColumns = 'minmax(250px, 290px) minmax(0, 1fr) minmax(0, 1fr)';
+        room.style.gridTemplateRows = sizes.join(' ');
+        room.style.gridTemplateAreas = q(rows);
     }
 
     // ---- Server room hub ---------------------------------------------------
@@ -1540,7 +1791,7 @@ window.AGI = (function () {
         if (!bayUnlocked(id) || openBay) return;
         openBay = id;
         const bay = BAYS[id];
-        setText($('moduleTitle'), bay.name);
+        setText($('moduleTitle'), crumbName(bay.name));
         for (const m of document.querySelectorAll('.module')) m.hidden = true;
         if (bay.built) {
             document.querySelector(`.module[data-module="${id}"]`).hidden = false;
@@ -3668,7 +3919,9 @@ window.AGI = (function () {
         buildJournal();
         buildFacility();
         buildMinimap();
-        buildAutomation();
+        buildTasks();
+        WIDE.addEventListener('change', () => render());
+        DESKTOP.addEventListener('change', () => render());
         buildHub();
         buildPath();
         buildTree();
@@ -3806,6 +4059,63 @@ window.AGI = (function () {
                     luckBanner(kind === 'superBreakthrough' ? 'PARADIGM SHIFT NEXT' : 'BREAKTHROUGH NEXT', 'Your next sprint', 'warning');
                 }
                 startPathLoop();
+            },
+            // ---- Lab ----
+            // Investor offers: fill every free slot now, finish them all, or clear them.
+            fillOffers() {
+                state.unlocked['module:path'] = state.unlocked['action:research'] = true;
+                while (state.projects.offers.length < E.PROJECTS.maxOffers && E.makeOffer(state)) { /* fill */ }
+                afterChange();
+            },
+            finishOffers() {
+                for (const o of state.projects.offers) o.start -= o.target;
+                afterChange();
+            },
+            clearOffers() {
+                state.projects.offers = [];
+                state.projects.boosts = [];
+                afterChange();
+            },
+            // Do every workbench job's "by hand" requirement for automation at once.
+            meetAutomation() {
+                for (const g of Object.values(E.AUTOMATION)) state.stats[g.stat] = Math.max(state.stats[g.stat] || 0, g.need);
+                E.evaluate(state);
+                afterChange();
+            },
+            // +`n` levels of every hardware tier (opens the tiers too), to watch cabinets fill and merge.
+            addHardware(n = 10) {
+                for (const up of E.UPGRADES.filter(u => u.cps)) {
+                    state.levels[up.id] = E.level(state, up.id) + n;
+                    state.unlocked['up:' + up.id] = true;
+                }
+                afterChange();
+            },
+            // Buy one level of every visible lab upgrade you can't yet afford, for free.
+            buyLabUpgrades() {
+                for (const up of E.UPGRADES.filter(u => u.tab !== 'training' && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u))) {
+                    state.levels[up.id] = E.level(state, up.id) + 1;
+                    for (const [k, v] of Object.entries(up.grants || {})) state.attr[k] += v;
+                }
+                afterChange();
+            },
+            labLog: text => termLog(text || `test line ${Date.now() % 1000}`),
+            // ---- Server room ----
+            // Automated laps on every cleared leg (their compute bonus), and the frontier record.
+            addLaps(n = 50) {
+                for (let k = 0; k < state.path.learned; k++) state.path.auto[k] = (state.path.auto[k] || 0) + n;
+                afterChange();
+            },
+            setRecord(best = 0.9) {
+                state.path.best = Math.min(1, Math.max(0, best));
+                afterChange();
+            },
+            // Forget which rooms you've visited (the ⌂ link pulses again) and the cabinets' order.
+            resetVisits() {
+                storageSet(SEEN_KEY, '[]');
+                storageSet(RACK_ORDER_KEY, '[]');
+                seenRooms = new Set([view]);
+                cabinetKey = null;
+                afterChange();
             },
             // End the run in progress where the ball is.
             finishRun() {

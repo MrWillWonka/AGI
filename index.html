@@ -53,7 +53,7 @@
         <!-- Surveillance (code: facility): every room's camera feed on one wall. Each room is a tile (ROOMS in game.js); click to zoom in. -->
         <section class="facility hud" id="facility" aria-label="Surveillance" hidden>
             <div class="facility-head">
-                <h2>Surveillance</h2>
+                <nav class="crumbs" aria-label="You are here"><h2 class="crumb-here crumb-root">surveillance</h2></nav>
                 <span class="room-goal" data-bind="goal.facility"></span>
             </div>
             <div class="facility-plan" id="facilityPlan"></div>
@@ -65,8 +65,7 @@
                 <!-- Server room: each bay is a training module. Clicking one zooms into it. -->
                 <div class="hub" id="hub">
                     <div class="room-bar">
-                        <button type="button" class="home-button" data-facility aria-label="Back to Surveillance, the main screen"><span aria-hidden="true">⌂</span> Surveillance</button>
-                        <h2>Server room</h2>
+                        <nav class="crumbs" aria-label="You are here"><button type="button" class="crumb crumb-home" data-facility aria-label="Back to Surveillance, the main screen">surveillance</button><span class="crumb-sep" aria-hidden="true">/</span><h2 class="crumb-here">server_room</h2></nav>
                         <span class="room-goal" data-bind="goal.servers"></span>
                     </div>
                     <div class="hub-pipes" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
@@ -107,17 +106,12 @@
                         </button>
                         <div class="rack-unit ru-blank" aria-hidden="true"></div>
                     </div>
-                    <p class="hub-caption">Select a section of the rack</p>
                 </div>
 
                 <!-- A bay, zoomed in. -->
                 <div class="module-view" id="moduleView" hidden>
                     <div class="module-bar">
-                        <button type="button" class="home-button" data-jump="facility" aria-label="Straight back to Surveillance, the main screen"><span aria-hidden="true">⌂</span> <span class="home-label">Surveillance</span></button>
-                        <span class="crumb-sep" aria-hidden="true">/</span>
-                        <button type="button" class="ghost-button back-button step-button" id="backButton" aria-label="Back to the server room">← Rack</button>
-                        <span class="crumb-sep" aria-hidden="true">/</span>
-                        <h2 id="moduleTitle">Training Cluster</h2>
+                        <nav class="crumbs" aria-label="You are here"><button type="button" class="crumb crumb-home" data-jump="facility" aria-label="Straight back to Surveillance, the main screen">surveillance</button><span class="crumb-sep" aria-hidden="true">/</span><button type="button" class="crumb" id="backButton" aria-label="Back to the server room">server_room</button><span class="crumb-sep" aria-hidden="true">/</span><h2 class="crumb-here" id="moduleTitle">training_cluster</h2></nav>
                         <button type="button" class="ghost-button" id="treeButton" hidden>Skills</button>
                     </div>
 
@@ -194,71 +188,76 @@
         <!-- Lab: hands-on actions, automation and the hardware/software upgrades. -->
         <section class="room room-lab room-frame hud" id="labRoom" data-room="lab" aria-label="Lab">
             <div class="room-bar">
-                <button type="button" class="home-button" data-facility aria-label="Back to Surveillance, the main screen"><span aria-hidden="true">⌂</span> Surveillance</button>
-                <h2>Lab</h2>
+                <nav class="crumbs" aria-label="You are here"><button type="button" class="crumb crumb-home" data-facility aria-label="Back to Surveillance, the main screen">surveillance</button><span class="crumb-sep" aria-hidden="true">/</span><h2 class="crumb-here">lab</h2></nav>
                 <span class="room-goal" data-bind="goal.lab"></span>
                 <span class="lab-status"><span class="status-dot"></span> Systems online · uptime <span data-bind="stats.playClock">00:00:00</span></span>
             </div>
 
-            <!-- Supply line: what the lab produces and the investors calling in. Fixed height, with a reserved
-                 column per cell, so cells appear in place and nothing below moves. -->
+            <!-- Supply line: what the lab produces, one cell per currency as it appears; the cells share the
+                 full width. Fixed height, so nothing below moves. -->
             <div class="lab-supply" id="labSupply">
                 <div class="supply-cell cell-cp">
-                    <span class="supply-label">Compute output</span>
+                    <span class="supply-label">Compute</span>
                     <span class="supply-bonus" data-bind="supply.cleared" title="Cleared training stretches boost compute, and more with every automated lap"></span>
                     <strong class="supply-value" data-bind="supply.cp"></strong>
                     <canvas class="spark" id="sparkCp" aria-hidden="true"></canvas>
                 </div>
                 <div class="supply-cell cell-dp" data-show="seen:dp">
-                    <span class="supply-label">Data output</span>
+                    <span class="supply-label">Data</span>
                     <strong class="supply-value" data-bind="supply.dp"></strong>
                     <canvas class="spark" id="sparkDp" aria-hidden="true"></canvas>
                 </div>
-                <!-- Investor projects: optional tasks with deadlines that pay boosts or payouts. -->
-                <div class="supply-cell projects" data-show="action:research" aria-label="Investor projects: tasks that pay research">
-                    <span class="supply-label">Investor projects</span>
-                    <span class="boosts" id="boosts"></span>
-                    <ul class="project-list" id="projectList"></ul>
+                <div class="supply-cell cell-rp" data-show="action:research">
+                    <span class="supply-label">Research</span>
+                    <strong class="supply-value" data-bind="supply.rp"></strong>
+                    <canvas class="spark" id="sparkRp" aria-hidden="true"></canvas>
+                </div>
+                <div class="supply-cell cell-xp" data-show="module:path">
+                    <span class="supply-label">Training XP</span>
+                    <strong class="supply-value" data-bind="supply.xp"></strong>
+                    <canvas class="spark" id="sparkXp" aria-hidden="true"></canvas>
                 </div>
             </div>
 
-            <div class="lab-ops">
-                <!-- Workbench: the hands-on actions, and how close each is to being automated. -->
-                <div class="panel panel-actions hud">
-                    <h2 class="station-title">Workbench</h2>
-                    <div id="actions" class="action-row"></div>
-                </div>
-
-                <!-- Lab log: what you install and what automation is doing (termLog). Fixed height. -->
-                <div class="panel hud lab-log" id="labLog" hidden>
-                    <h2 class="station-title">Lab log</h2>
-                </div>
-
-                <div class="panel panel-auto hud" id="autoPanel" hidden>
-                    <div class="panel-head">
-                        <h2><label for="autoBudget">Automation budget</label></h2>
-                        <output class="auto-value" id="autoBudgetValue" for="autoBudget">50%</output>
-                    </div>
-                    <input type="range" id="autoBudget" min="0" max="100" step="10" value="50">
-                    <p class="muted small" id="autoBudgetNote"></p>
-                </div>
+            <!-- Workbench: the hands-on actions, and how close each is to being automated. Clicking lights up
+                 the stations that deal in that currency (game.js "Click glow"). -->
+            <div class="panel panel-actions hud" id="workbench">
+                <h2 class="station-title">Workbench</h2>
+                <div id="actions" class="action-row"></div>
             </div>
 
-            <!-- Stations: one per upgrade group (TABS), generated by game.js, each in a reserved slot. -->
+            <!-- Stations: one per upgrade group (TABS), generated by game.js; each is placed on the lab grid
+                 by its tab (layoutLab). -->
             <div class="lab-stations" id="labStations"></div>
 
-            <!-- Server cabinets: the hardware you own, racked. Shown once you own some, in a reserved place. -->
+            <!-- Investor projects, under the research wall: optional tasks with deadlines that pay research. -->
+            <section class="panel hud panel-projects" id="projectPanel" data-show="action:research" aria-label="Investor projects: tasks that pay research">
+                <div class="panel-head"><h2 class="station-title">Investor projects</h2><span class="boosts" id="boosts"></span></div>
+                <ul class="project-list" id="projectList"></ul>
+            </section>
+
+            <!-- Scheduled tasks: every automation, each with its own on/off switch and dedicated compute. -->
+            <section class="panel hud panel-tasks" id="taskPanel" aria-label="Scheduled tasks" hidden>
+                <div class="panel-head"><h2 class="station-title">Scheduled tasks</h2><span class="task-total" id="taskTotal"></span></div>
+                <ul class="task-list" id="taskList"></ul>
+            </section>
+
+            <!-- Server cabinets: the hardware you own, racked. From the left edge, under the workbench and bench. -->
             <section class="panel hud cabinet-panel" id="cabinetPanel" aria-label="Server cabinets" hidden>
                 <h2 class="station-title">Server cabinets</h2>
                 <div class="cabinet-art" id="cabinetArt" aria-hidden="true"></div>
             </section>
+
+            <!-- Lab log: what you install and what investors pay (termLog). Beside the minimap. -->
+            <div class="panel hud lab-log" id="labLog" hidden>
+                <h2 class="station-title">Lab log</h2>
+            </div>
         </section>
 
         <!-- R&D: long-term projects that outlast a run: shipping the next version (Transcend is sealed for the endings). -->
         <section class="room room-rnd room-frame hud" id="rndRoom" data-room="rnd" aria-label="R&amp;D" hidden>
             <div class="room-bar">
-                <button type="button" class="home-button" data-facility aria-label="Back to Surveillance, the main screen"><span aria-hidden="true">⌂</span> Surveillance</button>
-                <h2>R&amp;D</h2>
+                <nav class="crumbs" aria-label="You are here"><button type="button" class="crumb crumb-home" data-facility aria-label="Back to Surveillance, the main screen">surveillance</button><span class="crumb-sep" aria-hidden="true">/</span><h2 class="crumb-here">r_and_d</h2></nav>
                 <span class="room-goal" data-bind="goal.rnd"></span>
             </div>
             <div class="rnd-floor">
