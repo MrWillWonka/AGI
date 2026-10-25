@@ -344,20 +344,13 @@ window.AGI = (function () {
     // Which machine automates each workbench job (engine AUTOMATION gates it).
     const AUTOMATES = { compute: 'cpu', collect: 'autoCollector', research: 'researchAssistant' };
 
-    // Under each job: how close it is to being automated, or what's doing it now.
+    // Under each job: what's doing it for you, once something is. No tips about how to get there (tutorials
+    // and story will carry that later).
     function automationText(actionId) {
         const id = AUTOMATES[actionId];
         if (!id) return '';
         const lvl = E.level(state, id);
-        if (lvl) return `Automated · ${E.UPGRADE_BY_ID[id].name} ×${lvl}`;
-        // Data automation means nothing until data has been introduced.
-        if (actionId === 'collect' && !state.unlocked['seen:dp']) return '';
-        const g = E.automationGate(state, id);
-        // Compute is automated only after the click tool: clicking gets better before it gets replaced.
-        if (id === 'cpu' && g.met && E.level(state, 'keyboard') < 5) return 'Build up to the Server Rack to automate';
-        if (g.met) return `Ready to automate · ${STATIONS[E.UPGRADE_BY_ID[id].tab].name}`;
-        if (g.done < g.need) return `${g.done}/${g.need} by hand to automate`;
-        return `Automate after your AI learns ${g.skill}`;
+        return lvl ? `Automated · ${E.UPGRADE_BY_ID[id].name} ×${lvl}` : '';
     }
 
     // Lab stations: one per upgrade group (E.TABS), each with its own look, in a reserved slot (its
@@ -482,7 +475,7 @@ window.AGI = (function () {
             ui.upgrades[up.id] = { up, card, button, levelBadge, yieldLine, nameNode, flavorNode };
         }
         for (const tab of E.TABS) {
-            const empty = el('p', { class: 'muted small empty-hint', text: 'Nothing new here yet. Keep progressing.' });
+            const empty = el('p', { class: 'muted small empty-hint' });
             ui.panels[tab.id].append(empty);
             ui.panels[tab.id].emptyHint = empty;
         }
