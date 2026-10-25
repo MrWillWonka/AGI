@@ -1293,7 +1293,7 @@ window.AGI = (function () {
 
     function roomStatus(id, d) {
         const r = ROOMS[id];
-        if (!roomUnlocked(id)) return 'Keep growing to open it';
+        if (!roomUnlocked(id)) return '';
         if (!r.built) return 'Under construction';
         if (id === 'lab') {
             const ready = E.UPGRADES.filter(u => u.tab !== 'training' && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u)
@@ -1410,22 +1410,22 @@ window.AGI = (function () {
         if (saved === 'facility' || ROOMS[saved]) view = saved;
     }
 
-    // Locked rooms stay anonymous: the next SEALED_ROOMS show as sealed doors, the rest aren't drawn,
-    // so the floor plan grows as the facility does.
-    const SEALED_ROOMS = 2;
-
+    // The whole floor plan is there from the start: every locked room is an anonymous sealed wing. A room
+    // that opens flashes a few times the first time you see Surveillance afterwards (.unsealed).
     function renderFacility(d) {
         let fresh = false;
-        let sealedShown = 0;
         for (const tile of document.querySelectorAll('.facility-room')) {
             const id = tile.dataset.roomId;
             const open = roomOpen(id);
             const unlocked = roomUnlocked(id);
             const isNew = open && !seenRooms.has(id);
             fresh ||= isNew;
-            const sealed = !unlocked && sealedShown < SEALED_ROOMS;
-            if (sealed) sealedShown++;
-            setHidden(tile, !unlocked && !sealed);
+            if (isNew && view === 'facility' && !tile.dataset.flashed) {
+                tile.dataset.flashed = '1';
+                tile.classList.remove('unsealed');
+                void tile.offsetWidth;
+                tile.classList.add('unsealed');
+            }
             setText(tile.querySelector('.fr-name'), unlocked ? ROOMS[id].name : '???');
             setText(tile.querySelector('.fr-blurb'), unlocked ? '' : 'Sealed wing');
             tile.classList.toggle('locked', !unlocked);

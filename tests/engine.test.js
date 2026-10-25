@@ -577,6 +577,7 @@ test('luck: breakthroughs and viral runs start at zero, grow with levels, and ar
     assert.ok(low > 0.004 && low < 0.02, `rare at first: ${low}`);
     s.levels.scoutingData = 2;
     s.levels.satelliteMaps = 2;
+    s.levels.blackSwan = 1;
     const high = rate(seed => E.breakthroughHit(s, seed, 1));
     assert.ok(high > 2 * low, `likelier with levels: ${high}`);
     assert.equal(E.breakthroughHit(s, 77, 2), E.breakthroughHit(s, 77, 2), 'deterministic');
@@ -585,10 +586,16 @@ test('luck: breakthroughs and viral runs start at zero, grow with levels, and ar
     assert.ok(Math.abs(E.sprintStrength(s, 1, null, true) / E.sprintStrength(s, 1) - E.derive(s).critMult) < 1e-9);
     s.levels.viralPaper = 2;
     const viral = rate(seed => E.windfallHit(s, seed));
-    assert.ok(viral > 0.015 && viral < 0.05, `viral ${viral}`);
+    assert.ok(viral > 0.04 && viral < 0.1, `viral ${viral}`);
+    {
+        const k = fresh();
+        k.levels.goingViral = 1;
+        assert.ok(E.derive(k).windfallMult > E.derive(fresh()).windfallMult, 'Keynote Demo makes viral runs pay more');
+    }
     const plain = E.finishRoll(fresh(), 0.5, false, 0, 5).xp;
     const t = fresh();
     t.levels.viralPaper = 2;
+    t.levels.goingViral = 1;
     assert.ok(Math.abs(E.finishRoll(t, 0.5, false, 0, 5, 0, true).xp / plain - E.derive(t).windfallMult) < 1e-9);
 });
 
@@ -604,10 +611,19 @@ test('the sweet spot widens only a little (Prompt Templates); hitting it makes t
     assert.ok(clean > 1.15 * plain && perfect > 1.3 * clean, `${plain} ${clean} ${perfect}`);
 });
 
+test('no skill-tree node upgrades the same thing as the node it grows from', () => {
+    for (const up of E.UPGRADES.filter(u => u.tab === 'training' && u.requires)) {
+        const parent = Object.keys(E.UPGRADE_BY_ID[up.requires].boost || {});
+        const same = Object.keys(up.boost || {}).filter(k => parent.includes(k));
+        assert.deepEqual(same, [], `${E.UPGRADE_BY_ID[up.requires].name} → ${up.name}`);
+    }
+});
+
 test('Fast Charging speeds up the meter', () => {
     const s = fresh();
     assert.equal(E.derive(s).sweepScale, 1);
-    s.levels.highResSensors = 3;
+    s.levels.gpuCluster2 = 2;
+    s.levels.batchNorm = 1;
     assert.ok(E.derive(s).sweepScale < 0.7);
 });
 
@@ -630,11 +646,11 @@ test('luck is earned: the branch opens after two skills; crunches and Max Effort
     s.levels.maxEffort = 1;
     const crunch = rate(seed => E.crunchHit(s, seed, 0));
     const effort = rate(seed => E.maxEffortHit(s, seed, 0));
-    assert.ok(crunch > 0.003 && crunch < 0.02, `crunch rare: ${crunch}`);
+    assert.ok(crunch > 0.008 && crunch < 0.035, `crunch rare: ${crunch}`);
     assert.ok(effort > 0.003 && effort < 0.02, `Max Effort rare: ${effort}`);
     assert.equal(E.derive(s).crunchSeconds, 3);
-    s.levels.crunchTime = 3;
-    assert.equal(E.derive(s).crunchSeconds, 5);
+    s.levels.deathMarch = 2;
+    assert.equal(E.derive(s).crunchSeconds, 5, 'Death March makes crunches longer');
 });
 
 test('the engine\'s leg lengths match the physics, so "a full stretch" of XP is what reaching its peak pays', () => {
@@ -798,10 +814,10 @@ test('versions: shipping one keeps Insight, legacy nodes and their effects; numb
     t.levels.gpuCluster2 = 2;
     t.levels.gpuSupercluster = 3;
     E.evaluate(t);
-    const before = E.derive(t).pushPower;
+    const before = E.derive(t).cleanPower;
     assert.equal(E.buy(t, 'headStart').ok, true);
     assert.equal(t.prestige.points, gain - 1);
-    assert.ok(E.derive(t).pushPower > before);
+    assert.ok(E.derive(t).cleanPower > before);
     assert.ok(E.derive(t).mult > 1 + 0.1 * (gain - 1), 'spending Insight keeps its production bonus');
     t.attr.intelligence = 10;
     t.stats.runCp = 1e5;

@@ -302,6 +302,10 @@ h1, h2, h3, p { margin: 0; }
 }
 .facility-room.fresh .fr-new { display: block; }
 .facility-room.fresh { border-color: var(--success); }
+/* A room that just opened flashes three times the first time you look at Surveillance. */
+.facility-room.unsealed { animation: room-unseal 0.9s ease-in-out 3; }
+@keyframes room-unseal { 50% { border-color: var(--success); box-shadow: 0 0 0 2px var(--success), 0 0 40px rgba(99, 224, 171, 0.45); background-color: rgba(99, 224, 171, 0.08); } }
+@media (prefers-reduced-motion: reduce) { .facility-room.unsealed { animation: none; } }
 
 /* Tiny top-down furniture per room. */
 .fr-art { position: relative; display: grid; gap: 8px; padding: 14px; min-height: 0; }
