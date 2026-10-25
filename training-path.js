@@ -25,6 +25,7 @@
     const REST_SECONDS = 0.5;
     const ROLL_BACK = 0.15;     // rolling back this far behind the start line ends the run
     const LEAD_IN = 0.5;        // flat run-up after each checkpoint
+    const FREE_COOLDOWN = 0.35; // wait after a free push (a crunch)
     const ROLL_OUT = 0.8;       // with rollOut, how far past the skill hill's foot the ball runs before the roll ends
 
     // ---- Skill hills (fixed) -----------------------------------------------
@@ -185,6 +186,7 @@
     // the ball rolls on. Cresting the last one emits 'crest'; with rollOut the roll goes on down the far
     // side and ends with an 'end' event marked `crested` (so the UI can celebrate first), otherwise
     // 'crest' ends it. 'end' events carry the `leg` the ball stopped on and the `progress` along it.
+    // `holdOpen()`, if given, keeps a resting ball's roll open while it returns true (a crunch: free pushes).
     function createRoll(k, seed, opts) {
         const { pushes, cooldown } = opts;
         const friction = opts.friction ?? 1;
@@ -202,15 +204,16 @@
         // A push adds a fixed amount of energy (strength = the speed it gives a ball at rest).
         // Pushing against a backward roll spends energy cancelling it first, so timing matters.
         // Returns false if the roll is over, out of pushes, or cooling down.
-        function push(strength) {
-            if (over || crested || pushesLeft <= 0 || ball.cooldown > 0) return false;
+        // `free` (a crunch): doesn't use up a push and barely waits, so it works even with none left.
+        function push(strength, free = false) {
+            if (over || crested || (!free && pushesLeft <= 0) || ball.cooldown > 0) return false;
             const e = strength * strength;
             ball.v = ball.v >= 0
                 ? Math.sqrt(ball.v * ball.v + e)
                 : (ball.v * ball.v > e ? -Math.sqrt(ball.v * ball.v - e) : Math.sqrt(e - ball.v * ball.v));
             ball.still = 0;
-            ball.cooldown = cooldown;
-            pushesLeft--;
+            ball.cooldown = free ? Math.min(cooldown, FREE_COOLDOWN) : cooldown;
+            if (!free) pushesLeft--;
             launched = true;
             return true;
         }
@@ -259,7 +262,7 @@
             const resting = Math.abs(ball.v) < REST_SPEED && Math.abs(dy) < 0.08;
             ball.still = resting ? ball.still + STEP : 0;
             // The roll ends once the ball settles with no pushes left. With pushes left, it waits for you.
-            if (launched && pushesLeft === 0 && ball.still >= REST_SECONDS) {
+            if (launched && pushesLeft === 0 && !opts.holdOpen?.() && ball.still >= REST_SECONDS) {
                 over = true;
                 events.push(stopEvent());
             }

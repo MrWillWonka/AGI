@@ -2129,3 +2129,55 @@ body.has-minimap .room-rnd { padding-bottom: 210px; }
     .module-bar { gap: 8px; overflow: hidden; }
     .module-bar #moduleTitle, .module-bar .crumb-sep, .module-bar .home-label { display: none; }
 }
+
+/* ---- Luck: special-looking moments ---- */
+/* Breakthrough take-off jolts the trail. */
+.path-canvas.jolt { animation: jolt 0.32s ease-out; }
+@keyframes jolt {
+    20% { transform: translate(-5px, 3px); }
+    40% { transform: translate(5px, -3px); }
+    60% { transform: translate(-3px, 2px); }
+    80% { transform: translate(2px, -1px); }
+}
+/* Crunch: the sprint button burns. */
+.push-button.crunch {
+    color: #fff;
+    background: linear-gradient(90deg, var(--danger), var(--warning), var(--danger));
+    background-size: 200% 100%;
+    box-shadow: 0 0 22px rgba(255, 122, 107, 0.65);
+    animation: crunch-burn 0.8s linear infinite;
+}
+@keyframes crunch-burn { to { background-position: -200% 0; } }
+/* Flow: the meter turns gold and shimmers; anywhere is perfect. */
+.charge.flow .charge-track {
+    border-color: var(--warning);
+    background: linear-gradient(90deg, rgba(255, 181, 71, 0.15), rgba(255, 220, 140, 0.45), rgba(255, 181, 71, 0.15));
+    background-size: 200% 100%;
+    box-shadow: 0 0 16px rgba(255, 181, 71, 0.55);
+    animation: flow-shimmer 1.2s linear infinite;
+}
+.charge.flow .charge-fill { background: var(--warning); }
+@keyframes flow-shimmer { to { background-position: -200% 0; } }
+/* Viral run: an animated rainbow edge and a stamp. */
+.roll-result.viral { border: 2px solid transparent; background:
+    linear-gradient(rgba(12, 25, 28, 0.97), rgba(12, 25, 28, 0.97)) padding-box,
+    linear-gradient(120deg, #ff7ab6, #c792ea, #6fb3d9, #ffb547, #ff7ab6) border-box;
+    background-size: 100% 100%, 300% 300%; animation: viral-edge 2.4s linear infinite; box-shadow: 0 0 30px rgba(199, 146, 234, 0.45); }
+.roll-result.viral::before {
+    content: attr(data-viral);
+    position: absolute;
+    top: -12px;
+    right: 14px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #ff7ab6, #c792ea);
+    color: #fff;
+    font: 800 0.72rem var(--font-display);
+    letter-spacing: 0.12em;
+    transform: rotate(4deg);
+    box-shadow: 0 4px 14px rgba(255, 122, 182, 0.5);
+}
+@keyframes viral-edge { to { background-position: 0 0, 300% 0; } }
+@media (prefers-reduced-motion: reduce) {
+    .push-button.crunch, .charge.flow .charge-track, .roll-result.viral, .path-canvas.jolt { animation: none; }
+}

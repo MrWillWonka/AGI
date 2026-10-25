@@ -385,3 +385,19 @@ test('legs: a roll from a cleared leg runs on through every later skill hill to 
     assert.equal(end.leg, 0);
     assert.ok(end.progress > 0 && end.progress < 1);
 });
+
+test('free pushes (a crunch) work with no pushes left and barely wait; holdOpen keeps a resting roll going', () => {
+    let open = true;
+    const roll = T.createRoll(0, 5, { pushes: 1, cooldown: 2, holdOpen: () => open });
+    assert.equal(roll.push(1), true);
+    assert.equal(roll.pushesLeft, 0);
+    for (let i = 0; i < 400; i++) roll.step(1 / 60);
+    assert.equal(roll.over, false, 'held open while resting');
+    assert.equal(roll.push(1), false, 'no normal push left');
+    assert.equal(roll.push(1, true), true, 'a free one works');
+    assert.ok(roll.ball.cooldown <= 0.35);
+    assert.equal(roll.pushesLeft, 0);
+    open = false;
+    for (let i = 0; i < 2000 && !roll.over; i++) roll.step(1 / 60);
+    assert.equal(roll.over, true, 'ends once no longer held');
+});

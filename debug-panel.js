@@ -103,6 +103,7 @@
             section('Training', button('Finish run', AGI.debug.finishRun), button('Test summit', () => AGI.debug.testSummit()),
                 button('Test near miss', () => AGI.debug.testNailBiter()), button('Max skill tree', AGI.debug.maxTree),
                 button('Toggle Auto-Trainer', AGI.debug.toggleAutoTrainer), button('Reset tree view', AGI.debug.resetTreeView)),
+            section('Luck', ...['breakthrough', 'crunch', 'flow', 'viral'].map(k => button(k[0].toUpperCase() + k.slice(1), () => AGI.debug.luck(k)))),
             section('Save', button('Save now', AGI.save), button('Start over', AGI.debug.startOver)),
             section('State', stateView)
         );

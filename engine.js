@@ -24,8 +24,6 @@
     const PATH = {
         pushCost: { cp: 14, dp: 1.5 },  // a fully charged push on the first stretch
         pushCostScale: 1.4,
-        xpPerStretch: 20,     // XP for reaching a skill hill's peak on the first stretch
-        xpScale: 1.5,         // later stretches are much longer, so they pay much more
         crestBonus: 2,       // XP multiplier when the roll crests the skill hill
         xpPerMetre: 0.45,    // distance XP per metre along a leg on the first stretch...
         metreScale: 1.05,    // ...worth a little more per metre on each later stretch (they're longer too)
@@ -37,6 +35,7 @@
         perfectPower: 0.3,   // a perfect sprint hits this much harder on top of a clean one
         breakthroughMult: 1.5, // a breakthrough sprint's strength multiplier before upgrades
         windfallMult: 2,     // a viral run's XP multiplier before upgrades
+        crunchSeconds: 3,    // a crunch's free sprints last this long at Crunch Time level 1 (+1 s per level)
         minCharge: 0.15,     // weakest push a quick tap gives
         basePush: 1.8,       // push strength before upgrades and skills
         basePushes: 1,       // pushes per roll: just the launch until More Epochs is bought
@@ -189,10 +188,15 @@
         { id: 'customSilicon', tab: 'training', tree: { x: 0, y: 4 }, icon: 'chip', name: 'Custom Silicon', effect: '-15% wait between sprints per level', flavor: 'Why buy chips when you can design your own?', cost: { xp: 375 }, scale: 1.7, max: 3, requires: 'overclockedChips', boost: { cooldown: 1 } },
         { id: 'ipo', tab: 'training', tree: { x: -1, y: 4 }, icon: 'plus', name: 'IPO', effect: '+1 training sprint per run, per level', flavor: 'Ring the bell. Mum framed the press release.', cost: { xp: 2400 }, scale: 2.2, max: 2, requires: 'seriesB', boost: { pushes: 1 } },
         // Capability (left): luck. Rare at first, then likelier and stronger with every level. Then automation.
-        { id: 'scoutingData', tab: 'training', tree: { x: -1, y: 0 }, requires: 'initialWeights', icon: 'dice', name: 'Lucky Seeds', effect: '+3% chance a sprint is a breakthrough (+25% stronger), per level', flavor: 'Seed 42. It\'s always seed 42.', cost: { xp: 8 }, scale: 2.2, max: 2, boost: { critChance: 0.03, critPower: 0.25 } },
-        { id: 'satelliteMaps', tab: 'training', tree: { x: -1, y: -1 }, icon: 'dice', name: 'Serendipity', effect: '+5% breakthrough chance, and breakthroughs +40% stronger, per level', flavor: 'Penicillin was an accident too.', cost: { xp: 60 }, scale: 1.9, max: 2, requires: 'scoutingData', boost: { critChance: 0.05, critPower: 0.4 } },
-        { id: 'viralPaper', tab: 'training', tree: { x: -2, y: -1 }, icon: 'spark', name: 'Viral Paper', effect: '+4% chance a run\'s XP is doubled (and more), per level', flavor: 'It\'s trending. Nobody read past the abstract.', cost: { xp: 90 }, scale: 2, max: 3, requires: 'satelliteMaps', boost: { windfallChance: 0.04, windfallPower: 0.25 } },
-        { id: 'goingViral', tab: 'training', tree: { x: -3, y: -1 }, icon: 'spark', name: 'Keynote Demo', effect: '+6% viral chance, and viral runs pay 50% more, per level', flavor: 'The live demo worked. Everyone is as surprised as you.', cost: { xp: 400 }, scale: 2, max: 3, requires: 'viralPaper', boost: { windfallChance: 0.06, windfallPower: 0.5 } },
+        // Luck is earned and rare: the branch opens after the second skill, chances start at a few percent,
+        // and the strongest kinds (Crunch Time, Flow State) sit at its far end.
+        { id: 'scoutingData', tab: 'training', tree: { x: -1, y: 0 }, requires: 'initialWeights', icon: 'dice', name: 'Lucky Seeds', effect: '+2% chance a sprint is a breakthrough (+25% stronger), per level', flavor: 'Seed 42. It\'s always seed 42.', cost: { xp: 10 }, scale: 2.5, max: 2, boost: { critChance: 0.02, critPower: 0.25 },
+            unlock: s => s.path.learned >= 2, hint: 'Learn two skills' },
+        { id: 'satelliteMaps', tab: 'training', tree: { x: -1, y: -1 }, icon: 'dice', name: 'Serendipity', effect: '+3% breakthrough chance, and breakthroughs +40% stronger, per level', flavor: 'Penicillin was an accident too.', cost: { xp: 120 }, scale: 2, max: 2, requires: 'scoutingData', boost: { critChance: 0.03, critPower: 0.4 } },
+        { id: 'viralPaper', tab: 'training', tree: { x: -2, y: -1 }, icon: 'spark', name: 'Viral Paper', effect: '+3% chance a run\'s XP is doubled (and more), per level', flavor: 'It\'s trending. Nobody read past the abstract.', cost: { xp: 200 }, scale: 2, max: 3, requires: 'satelliteMaps', boost: { windfallChance: 0.03, windfallPower: 0.25 } },
+        { id: 'goingViral', tab: 'training', tree: { x: -3, y: -1 }, icon: 'spark', name: 'Keynote Demo', effect: '+4% viral chance, and viral runs pay 50% more, per level', flavor: 'The live demo worked. Everyone is as surprised as you.', cost: { xp: 700 }, scale: 2, max: 3, requires: 'viralPaper', boost: { windfallChance: 0.04, windfallPower: 0.5 } },
+        { id: 'crunchTime', tab: 'training', tree: { x: -3, y: 0 }, icon: 'flame', name: 'Crunch Time', effect: '+2% chance a sprint sets off a crunch: free sprints for 3 s (+1 s/level)', flavor: 'Nobody goes home until it converges.', cost: { xp: 1200 }, scale: 2, max: 3, requires: 'goingViral', boost: { crunchChance: 0.02, crunchTime: 1 } },
+        { id: 'flowState', tab: 'training', tree: { x: -4, y: -1 }, icon: 'wave', name: 'Flow State', effect: '+3% chance your next sprint is perfect wherever you release, per level', flavor: 'The loss curve and you are one.', cost: { xp: 1600 }, scale: 2, max: 3, requires: 'goingViral', boost: { flowChance: 0.03 } },
         { id: 'autoTrainer', tab: 'training', tree: { x: -2, y: 0 }, icon: 'robot', name: 'Auto-Trainer', effect: 'Level 1 starts runs and sprints when the model stalls. Level 2 times its sprints', flavor: 'An intern who never gets tired. Or paid.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
             requires: 'scoutingData', unlock: s => s.prestige.count >= 1, hint: 'Transcend once' },
         { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', effect: 'Researches for you: 0.1 times a second per level, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.55,
@@ -318,7 +322,7 @@
     // cleanPower/perfectPower: extra strength for sprints in the zone; charge: faster meter; crit*/windfall*:
     // chance-based boosts (breakthrough sprints, viral runs) that start rare and grow with levels.
     const TREE_STATS = ['push', 'pushes', 'cooldown', 'perfect', 'clean', 'cleanPower', 'perfectPower', 'rollBonus', 'charge',
-        'critChance', 'critPower', 'windfallChance', 'windfallPower', 'friction', 'slope', 'xp'];
+        'critChance', 'critPower', 'windfallChance', 'windfallPower', 'crunchChance', 'crunchTime', 'flowChance', 'friction', 'slope', 'xp'];
     function treeBoosts(s) {
         const out = Object.fromEntries(TREE_STATS.map(k => [k, 0]));
         for (const up of UPGRADES) {
@@ -388,6 +392,9 @@
         const critMult = PATH.breakthroughMult + tb.critPower;
         const windfallChance = Math.min(0.5, tb.windfallChance);
         const windfallMult = PATH.windfallMult + tb.windfallPower;
+        const crunchChance = Math.min(0.5, tb.crunchChance);
+        const crunchSeconds = tb.crunchChance ? PATH.crunchSeconds + tb.crunchTime - 1 : 0;
+        const flowChance = Math.min(0.5, tb.flowChance);
         // Small steps on purpose: handling the hills is the skill, so upgrades only take the edge off.
         const friction = Math.pow(0.95, tb.friction) * (1 - sk.glide);
         // 'Less steep hills' really lowers the rolling hills (never the skill hills: those stay walls).
@@ -400,7 +407,7 @@
         return { mult, cpPerSec, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec,
             collectsPerSec, researchPerSec, cpUsePerSec, dpUsePerSec, autoThrottled,
             cpNet: cpPerSec - cpUsePerSec, dpNet: dpPerSec - dpUsePerSec, pushPower, pushesPerRoll, pushCooldown, zoneWidth, perfectWidth, cleanMult, cleanRollBonus, cleanPower, perfectPower, sweepScale,
-            critChance, critMult, windfallChance, windfallMult, friction, hillScale, xpMult, xpPerSec };
+            critChance, critMult, windfallChance, windfallMult, crunchChance, crunchSeconds, flowChance, friction, hillScale, xpMult, xpPerSec };
     }
 
     function meetsPhase(s, phase) {
@@ -678,6 +685,9 @@
     }
     const breakthroughHit = (s, seed, index) => luck(seed, index, 0xb7e15163) < derive(s).critChance;
     const windfallHit = (s, seed) => luck(seed, 0, 0x5bd1e995) < derive(s).windfallChance;
+    // A sprint can set off a crunch (free sprints for a few seconds) or put you in flow (next one perfect).
+    const crunchHit = (s, seed, index) => luck(seed, index, 0x1b873593) < derive(s).crunchChance;
+    const flowHit = (s, seed, index) => luck(seed, index, 0x68e31da4) < derive(s).flowChance;
 
     // How hard a sprint charged to `fraction` hits: clean and perfect sprints hit harder, and a
     // breakthrough multiplies it.
@@ -693,7 +703,12 @@
         return level >= zone.from && level <= zone.to ? 'clean' : null;
     }
 
-    const stretchXpAt = k => PATH.xpPerStretch * Math.pow(PATH.xpScale, k);
+    // Metres from leg k's start to its skill hill's peak. Mirrors training-path.js (stretchLength plus the
+    // hill's half width, less the 0.2 m start offset); a test keeps the two in step.
+    const legMetres = k => 10 * Math.pow(1.4, k) + 3 * k + 0.55 * Math.pow(1.14, k) - 0.2;
+    // What reaching leg k's peak pays by distance (before cresting and bonuses): the yardstick for
+    // everything sized "per stretch" (clean-sprint XP, replays, passive XP, investor payouts).
+    const stretchXpAt = k => PATH.xpPerMetre * Math.pow(PATH.metreScale, k) * legMetres(k) * 2;
     // Seconds per automated lap of cleared stretch k (the rack's crawling balls show the same laps).
     const clearedPeriod = k => 40 + 5 * k;
 
@@ -1060,7 +1075,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, applyOffline,
-        skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, learnSkill, sprintStrength, breakthroughHit, windfallHit, luck,
+        skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, learnSkill, stretchXpAt, legMetres, sprintStrength, breakthroughHit, windfallHit, crunchHit, flowHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration
     };

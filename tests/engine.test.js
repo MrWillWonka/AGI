@@ -316,7 +316,7 @@ test('cleared stretches earn XP slowly on their own', () => {
     s.path.learned = 2;
     const rate = E.derive(s).xpPerSec;
     assert.ok(rate > 0);
-    assert.ok(Math.abs(rate - (E.PATH.xpPerStretch * (1 + E.PATH.xpScale)) * E.PATH.clearedRate) < 1e-9);
+    assert.ok(Math.abs(rate - (E.stretchXpAt(0) + E.stretchXpAt(1)) * E.PATH.clearedRate) < 1e-9);
     E.tick(s, 100);
     assert.ok(Math.abs(s.res.xp - rate * 100) < 1e-9);
 });
@@ -519,4 +519,39 @@ test('Fast Charging speeds up the meter', () => {
     assert.equal(E.derive(s).sweepScale, 1);
     s.levels.highResSensors = 3;
     assert.ok(E.derive(s).sweepScale < 0.7);
+});
+
+test('luck is earned: the branch opens after two skills; crunches and flow start at zero and grow', () => {
+    const s = fresh();
+    s.unlocked['module:path'] = true;
+    s.levels.initialWeights = 1;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.scoutingData), false, 'hidden before the second skill');
+    s.path.learned = 2;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.scoutingData), true);
+    const rate = hit => { let n = 0; for (let seed = 1; seed <= 2000; seed++) n += hit(seed) ? 1 : 0; return n / 2000; };
+    assert.equal(rate(seed => E.crunchHit(s, seed, 0)), 0);
+    assert.equal(rate(seed => E.flowHit(s, seed, 0)), 0);
+    assert.equal(E.derive(s).crunchSeconds, 0);
+    s.levels.crunchTime = 1;
+    s.levels.flowState = 1;
+    const crunch = rate(seed => E.crunchHit(s, seed, 0));
+    const flow = rate(seed => E.flowHit(s, seed, 0));
+    assert.ok(crunch > 0.005 && crunch < 0.04, `crunch rare: ${crunch}`);
+    assert.ok(flow > 0.01 && flow < 0.06, `flow rare: ${flow}`);
+    assert.equal(E.derive(s).crunchSeconds, 3);
+    s.levels.crunchTime = 3;
+    assert.equal(E.derive(s).crunchSeconds, 5);
+});
+
+test('the engine\'s leg lengths match the physics, so "a full stretch" of XP is what reaching its peak pays', () => {
+    const T = require('../training-path.js');
+    for (let k = 0; k < 12; k++) {
+        const g = T.terrain(k, 1);
+        assert.ok(Math.abs(E.legMetres(k) - g.legLength(k)) < 1e-9, `leg ${k}`);
+        const s = fresh();
+        s.path.learned = k;
+        assert.ok(Math.abs(E.rollXp(s, 1, false, 0, g.legLength(k)) - E.stretchXpAt(k)) < 1e-9);
+    }
 });

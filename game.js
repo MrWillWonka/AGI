@@ -519,7 +519,7 @@ window.AGI = (function () {
             $('moduleView').hidden = true;
             $('hub').hidden = false;
         }
-        Object.assign(path, { roll: null, done: false, pause: 0, overview: 0, glow: null, summit: null, particles: [], tension: 0, focus: null, timeScale: 1 });
+        Object.assign(path, { roll: null, done: false, pause: 0, overview: 0, glow: null, summit: null, particles: [], tension: 0, focus: null, timeScale: 1, fx: freshFx() });
         path.view = 'run';
         dismissResult();
         seenRooms = new Set(['lab']);
@@ -1521,6 +1521,8 @@ window.AGI = (function () {
         core: '<circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',
         lock: '<rect x="6" y="11" width="12" height="9" rx="1.5"/><path d="M9 11V8a3 3 0 0 1 6 0v3"/>',
         dice: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="15" cy="9" r="1.2"/><circle cx="9" cy="15" r="1.2"/>',
+        flame: '<path d="M12 3c1 4 5 5.5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5 .3 2 1.2 3 2.5 3-1-3 0-6 0-8z"/>',
+        wave: '<path d="M2 9c3-4 5-4 8 0s5 4 8 0M2 15c3-4 5-4 8 0s5 4 8 0"/>',
         spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>'
     };
     const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
@@ -1894,6 +1896,23 @@ window.AGI = (function () {
     const PAD_TOP = 34;
     const PAD_BOTTOM = 26;
     const BALL = 7;
+
+    // ---- Luck effects ----
+    // Breakthrough: the ball glows, shakes and draws in sparks for a moment (the run holds still), then
+    // takes off with a shockwave and a golden streak. Crunch: free sprints for a few seconds, with a
+    // fiery aura and a countdown ring. Flow: the next sprint is perfect wherever you release (a cyan
+    // halo, and a gold meter). Viral: a burst of reactions rising off the ball and a special result card.
+    const WINDUP_SECONDS = 0.8;
+    const BOOST_SECONDS = 1.3;
+    function freshFx() {
+        return { windup: null, boost: 0, trail: [], shocks: [], sparks: [], shake: 0, crunch: 0, crunchMax: 0, flow: false, reactions: [] };
+    }
+    const crunching = () => path.fx.crunch > 0;
+
+    // A big luck banner: pops in at the top of the trail, in the luck's colour.
+    function luckBanner(title, sub, tone) {
+        path.legFlash = { age: 0, text: title, sub, tone, big: true };
+    }
     const RESULT_PAUSE = 1.2;   // Auto-Trainer only: seconds before the next roll starts (the result card stays up)
     const OVERVIEW_SECONDS = 3; // how long the camera stays zoomed out after learning a skill
     const STUCK_GRACE = 3;      // seconds a stuck roll waits for income before it ends
@@ -1909,6 +1928,7 @@ window.AGI = (function () {
         rollPushes: 0,
         charging: null,         // { start } while the push button is held
         cleanFlash: 0,
+        fx: freshFx(),          // luck effects: breakthrough wind-up, crunch, flow, viral burst
         stateRef: null,
         pause: 0,
         overview: 0,
@@ -1957,7 +1977,8 @@ window.AGI = (function () {
         if (stale && path.pause <= 0) {
             // A run from a cleared leg rolls on through every later leg up to the frontier.
             path.roll = T.createRoll(first, E.rollSeed(state),
-                { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, rollOut: true, last: state.path.learned });
+                { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, rollOut: true, last: state.path.learned,
+                    holdOpen: crunching });
             path.rollPushes = d.pushesPerRoll;
             path.rollKey = key;
             if (path.stateRef !== state) path.cam = null;
@@ -2048,9 +2069,11 @@ window.AGI = (function () {
         return E.bonusZone(roll.ground.seed, pushIndex(roll), d.zoneWidth, d.perfectWidth);
     }
 
+    // During a crunch sprints are free: no push used up and nothing to pay.
     function canPush(roll) {
-        return !roll.over && !roll.crested && path.pause <= 0 && roll.pushesLeft > 0 && roll.ball.cooldown <= 0
-            && chargeBudget() >= E.PATH.minCharge;
+        if (roll.over || roll.crested || path.pause > 0 || path.fx.windup || roll.ball.cooldown > 0) return false;
+        if (crunching()) return true;
+        return roll.pushesLeft > 0 && chargeBudget() >= E.PATH.minCharge;
     }
 
     function dismissResult() {
@@ -2083,7 +2106,7 @@ window.AGI = (function () {
             }
             return;
         }
-        path.charging = { start: performance.now(), cap: chargeBudget(), sweep: CHARGE_SWEEP_MS * E.derive(state).sweepScale };
+        path.charging = { start: performance.now(), cap: crunching() ? 1 : chargeBudget(), sweep: CHARGE_SWEEP_MS * E.derive(state).sweepScale };
         startPathLoop();
     }
 
@@ -2092,9 +2115,16 @@ window.AGI = (function () {
         const level = chargeLevel();
         path.charging = null;
         const roll = currentRoll();
-        const kind = E.zoneHit(currentZone(roll), level);
+        // Flow state: this sprint is perfect wherever you let go.
+        const flow = path.fx.flow;
+        const kind = flow ? 'perfect' : E.zoneHit(currentZone(roll), level);
         const leg = ballLeg();
-        if (pushBall(false, Math.max(E.PATH.minCharge, level), kind) && kind) {
+        const pushed = pushBall(false, Math.max(E.PATH.minCharge, level), kind);
+        if (pushed && flow) {
+            path.fx.flow = false;
+            burst(path.colors.primary, 26);
+        }
+        if (pushed && kind) {
             // Clean pushes pay at once: steady XP whatever happens to the roll (scaled to the leg).
             const xp = E.grantPushBonus(state, kind, leg);
             roll.clean = (roll.clean || 0) + 1;
@@ -2112,29 +2142,238 @@ window.AGI = (function () {
     // `kind` ('clean' / 'perfect') makes the sprint hit harder; any sprint can be a breakthrough (luck).
     function pushBall(auto, fraction = 1, kind = null) {
         const roll = currentRoll();
-        if (roll.over || roll.crested || roll.pushesLeft <= 0 || roll.ball.cooldown > 0) return false;
-        // Every push is paid for by how hard it is charged.
-        fraction = Math.min(fraction, chargeBudget());
+        const free = crunching();
+        if (roll.over || roll.crested || path.fx.windup || (!free && roll.pushesLeft <= 0) || roll.ball.cooldown > 0) return false;
+        // Every push is paid for by how hard it is charged (a crunch's are free).
         const leg = ballLeg();
-        if (fraction < E.PATH.minCharge || !E.payPush(state, fraction, leg)) {
-            if (!auto) setText($('pathStatus'), `Not enough to sprint: even a light training sprint costs ${E.formatCost(E.pushCost(state, E.PATH.minCharge, leg))}.`);
-            return false;
+        if (!free) {
+            fraction = Math.min(fraction, chargeBudget());
+            if (fraction < E.PATH.minCharge || !E.payPush(state, fraction, leg)) {
+                if (!auto) setText($('pathStatus'), `Not enough to sprint: even a light training sprint costs ${E.formatCost(E.pushCost(state, E.PATH.minCharge, leg))}.`);
+                return false;
+            }
         }
         if (!roll.launched) {
             path.overview = 0;
             dismissResult();
         }
-        const breakthrough = E.breakthroughHit(state, roll.ground.seed, pushIndex(roll));
-        roll.push(E.sprintStrength(state, fraction, kind, breakthrough));
+        const index = pushIndex(roll) + (roll.freePushes || 0);
+        const seed = roll.ground.seed;
+        const d = E.derive(state);
+        const breakthrough = E.breakthroughHit(state, seed, index);
+        const strength = E.sprintStrength(state, fraction, kind, breakthrough);
+        if (free) roll.freePushes = (roll.freePushes || 0) + 1;
         if (breakthrough) {
             roll.breakthroughs = (roll.breakthroughs || 0) + 1;
-            path.legFlash = { age: 0, text: `Breakthrough! ×${E.derive(state).critMult.toFixed(2)} strength`, tone: 'warning' };
+            // On screen the ball winds up first (the run holds still); off screen it just goes.
+            if (path.visible && !reducedMotion()) path.fx.windup = { age: 0, strength, free };
+            else launchBreakthrough(roll, strength, free);
+        } else {
+            roll.push(strength, free);
+        }
+        // Rarer luck rolls only on paid sprints: a crunch can't chain itself.
+        if (!free && d.crunchSeconds && E.crunchHit(state, seed, index)) {
+            path.fx.crunch = path.fx.crunchMax = d.crunchSeconds;
+            roll.crunches = (roll.crunches || 0) + 1;
+            luckBanner('CRUNCH TIME!', `Free sprints for ${d.crunchSeconds} s, no waiting`, 'danger');
+        }
+        if (!auto && !path.fx.flow && kind !== 'perfect' && E.flowHit(state, seed, index)) {
+            path.fx.flow = true;
+            luckBanner('FLOW STATE', 'Your next sprint is perfect, wherever you let go', 'primary');
         }
         path.pushFlash = 0.35;
         setText($('pathStatus'), '');
         render();
         startPathLoop();
         return true;
+    }
+
+    // The wind-up is over: the stored sprint fires with a shockwave, a golden streak and a jolt.
+    function launchBreakthrough(roll, strength, free) {
+        path.fx.windup = null;
+        roll.push(strength, free);
+        path.fx.boost = BOOST_SECONDS;
+        path.fx.shake = 0.3;
+        if (!reducedMotion()) {
+            path.canvas.classList.remove('jolt');
+            void path.canvas.offsetWidth;
+            path.canvas.classList.add('jolt');
+        }
+        path.fx.shocks.push({ age: 0 }, { age: -0.12 });
+        burst(path.colors.warning, 34);
+        luckBanner('BREAKTHROUGH!', `×${E.derive(state).critMult.toFixed(2)} sprint strength`, 'warning');
+        render();
+    }
+
+    // Sparks flying out of the ball (screen space, relative to it), in `color`.
+    function burst(color, n) {
+        if (reducedMotion()) return;
+        for (let i = 0; i < n; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const v = 60 + Math.random() * 140;
+            path.fx.sparks.push({ x: 0, y: 0, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40, age: 0, life: 0.5 + Math.random() * 0.5, color });
+        }
+    }
+
+    function ageFx(dt) {
+        const fx = path.fx;
+        fx.boost = Math.max(0, fx.boost - dt);
+        fx.shake = Math.max(0, fx.shake - dt);
+        for (const sh of fx.shocks) sh.age += dt;
+        fx.shocks = fx.shocks.filter(sh => sh.age < 0.9);
+        for (const p of fx.sparks) {
+            p.age += dt;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.vy += (p.fall === false ? -40 : 260) * dt;   // flames rise, sparks fall
+        }
+        fx.sparks = fx.sparks.filter(p => p.age < p.life);
+        for (const p of fx.reactions) {
+            p.age += dt;
+            if (p.age < 0) continue;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.vy += 30 * dt;
+        }
+        fx.reactions = fx.reactions.filter(p => p.age < p.life);
+        // The golden streak remembers where the boosted ball has been.
+        const roll = path.roll;
+        if (fx.boost > 0 && roll) fx.trail.push({ x: roll.ball.x, age: 0 });
+        for (const t of fx.trail) t.age += dt;
+        fx.trail = fx.trail.filter(t => t.age < 0.6);
+    }
+
+    const fxBusy = () => {
+        const fx = path.fx;
+        return !!(fx.windup || fx.boost || fx.shocks.length || fx.sparks.length || fx.reactions.length || fx.trail.length || fx.crunch || fx.flow);
+    };
+
+    // Under the ball: the breakthrough glow and the sparks it draws in, the golden streak behind a
+    // boosted ball, and the crunch's fiery aura with its countdown.
+    function drawLuckUnder(ctx, roll, bx, by, X, Y, wind) {
+        const fx = path.fx;
+        const c = path.colors;
+        const t = performance.now() / 1000;
+        if (fx.trail.length > 1) {
+            ctx.save();
+            ctx.lineCap = 'round';
+            for (let i = 1; i < fx.trail.length; i++) {
+                const a = fx.trail[i - 1];
+                const b = fx.trail[i];
+                ctx.strokeStyle = hexAlpha(c.warning, 0.75 * (1 - b.age / 0.6));
+                ctx.lineWidth = 2 + 9 * (1 - b.age / 0.6);
+                ctx.shadowColor = c.warning;
+                ctx.shadowBlur = 14;
+                ctx.beginPath();
+                ctx.moveTo(X(a.x), Y(groundAt(roll, a.x)));
+                ctx.lineTo(X(b.x), Y(groundAt(roll, b.x)));
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+        if (wind) {
+            // Charging: a swelling glow and sparks spiralling in.
+            const r = BALL * (2.5 + 4 * wind) * (1 + 0.08 * Math.sin(t * 40));
+            const g = ctx.createRadialGradient(bx, by, BALL * 0.5, bx, by, r);
+            g.addColorStop(0, hexAlpha(c.warning, 0.95));
+            g.addColorStop(0.45, hexAlpha(c.warning, 0.35 + 0.3 * wind));
+            g.addColorStop(1, hexAlpha(c.warning, 0));
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(bx, by, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = hexAlpha(c.warning, 0.9);
+            ctx.lineWidth = 1.5;
+            for (let i = 0; i < 10; i++) {
+                const a = i * 0.628 + t * 6;
+                const d = (BALL + 46) * (1 - ((t * 1.8 + i * 0.1) % 1)) + BALL;
+                ctx.beginPath();
+                ctx.moveTo(bx + Math.cos(a) * d, by + Math.sin(a) * d);
+                ctx.lineTo(bx + Math.cos(a) * (d - 7), by + Math.sin(a) * (d - 7));
+                ctx.stroke();
+            }
+        }
+        if (crunching()) {
+            // Crunch: a flickering fiery aura and a ring that runs down with the time left.
+            const flick = 0.85 + 0.15 * Math.sin(t * 31) * Math.sin(t * 17);
+            const r = BALL * 7 * flick;
+            const g = ctx.createRadialGradient(bx, by - 4, BALL * 0.6, bx, by - 6, r);
+            g.addColorStop(0, hexAlpha('#fff3c4', 0.9));
+            g.addColorStop(0.25, hexAlpha(c.warning, 0.75));
+            g.addColorStop(0.6, hexAlpha(c.danger, 0.35));
+            g.addColorStop(1, hexAlpha(c.danger, 0));
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(bx, by - 6, r, 0, Math.PI * 2);
+            ctx.fill();
+            // Flames licking up off the ball.
+            if (!reducedMotion()) for (let i = 0; i < 3; i++) {
+                fx.sparks.push({ x: (Math.random() - 0.5) * 16, y: -2, vx: (Math.random() - 0.5) * 50, vy: -80 - Math.random() * 90, age: 0, life: 0.35 + Math.random() * 0.3,
+                    color: [c.danger, c.warning, '#fff3c4'][i], fall: false, size: 3 + Math.random() * 3 });
+            }
+            ctx.strokeStyle = c.danger;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(bx, by, BALL + 9, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (fx.crunch / fx.crunchMax));
+            ctx.stroke();
+        }
+    }
+
+    // Over the ball: the flow halo, shockwaves, sparks and viral reactions.
+    function drawLuckOver(ctx, bx, by, wind) {
+        const fx = path.fx;
+        const c = path.colors;
+        const t = performance.now() / 1000;
+        if (fx.flow) {
+            ctx.save();
+            ctx.strokeStyle = c.primary;
+            ctx.shadowColor = c.primary;
+            ctx.shadowBlur = 12;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 4]);
+            ctx.lineDashOffset = -t * 30;
+            ctx.beginPath();
+            ctx.arc(bx, by, BALL + 7 + Math.sin(t * 4) * 1.5, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.globalAlpha = 0.5;
+            ctx.beginPath();
+            ctx.arc(bx, by, BALL + 14 + Math.sin(t * 4 + 1) * 2, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+        for (const sh of fx.shocks) {
+            if (sh.age < 0) continue;
+            const k = sh.age / 0.9;
+            ctx.strokeStyle = hexAlpha(c.warning, 0.9 * (1 - k));
+            ctx.lineWidth = 4 * (1 - k) + 1;
+            ctx.beginPath();
+            ctx.arc(bx, by, BALL + 140 * Math.sqrt(k), 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        if (wind > 0.6) {
+            ctx.fillStyle = hexAlpha('#ffffff', (wind - 0.6) * 2);
+            ctx.beginPath();
+            ctx.arc(bx, by, BALL, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        for (const p of fx.sparks) {
+            const k = 1 - p.age / p.life;
+            const size = (p.size || 3) * (p.fall === false ? k : 1);
+            ctx.fillStyle = hexAlpha(p.color, k);
+            ctx.beginPath();
+            ctx.arc(bx + p.x, by + p.y, size / 2 + 0.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.textAlign = 'center';
+        for (const p of fx.reactions) {
+            if (p.age < 0) continue;
+            ctx.globalAlpha = Math.max(0, Math.min(1, p.age * 4, (p.life - p.age) / 0.5));
+            ctx.font = `700 ${p.size}px system-ui, sans-serif`;
+            ctx.fillStyle = p.color;
+            ctx.fillText(p.glyph, bx + p.x, by + p.y);
+        }
+        ctx.globalAlpha = 1;
     }
 
     // Auto-Trainer: level 1 launches rolls and pushes when the ball stops; level 2 also
@@ -2173,7 +2412,10 @@ window.AGI = (function () {
             const roll = currentRoll();
             autoTrain(roll);
             // Slow motion only matters on screen; in the background the run keeps real time.
-            const sim = path.visible ? dt * path.timeScale : dt;
+            const sim = path.fx.windup ? 0 : path.visible ? dt * path.timeScale : dt;
+            const fx = path.fx;
+            if (fx.windup && (fx.windup.age += dt) >= WINDUP_SECONDS) launchBreakthrough(roll, fx.windup.strength, fx.windup.free);
+            if (fx.crunch > 0) fx.crunch = Math.max(0, fx.crunch - sim);
             for (const ev of roll.step(sim)) {
                 if (ev.type === 'clear') clearLeg(ev);
                 else if (ev.type === 'crest' && !roll.over) celebrateSummit();
@@ -2191,14 +2433,15 @@ window.AGI = (function () {
         if (path.glow && (path.glow.age += dt) > 2.5) path.glow = null;
         path.pushFlash = Math.max(0, path.pushFlash - dt);
         path.cleanFlash = Math.max(0, path.cleanFlash - dt);
-        if (path.legFlash && (path.legFlash.age += dt) > LEG_FLASH_SECONDS) path.legFlash = null;
+        if (path.legFlash && (path.legFlash.age += dt) > LEG_FLASH_SECONDS * (path.legFlash.big ? 1.3 : 1)) path.legFlash = null;
+        ageFx(dt);
         drawPath(dt);
         drawLanes();
         updatePathControls();
         updateLiveXp();
         const roll = path.roll;
         const busy = roll && roll.launched && !roll.over;
-        const animating = busy || path.legFlash || path.summit || path.particles.length || path.tension > 0.01 || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
+        const animating = busy || path.legFlash || fxBusy() || path.summit || path.particles.length || path.tension > 0.01 || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
             || E.level(state, 'autoTrainer') > 0;
         if (running && animating) path.frame = requestAnimationFrame(pathFrame);
     }
@@ -2279,6 +2522,9 @@ window.AGI = (function () {
     function finishRoll(ev) {
         const crested = ev.type === 'crest' || !!ev.crested;
         const roll = path.roll;
+        // A crunch or flow ends with the run.
+        path.fx.crunch = 0;
+        path.fx.flow = false;
         const leg = ev.leg ?? state.path.learned;
         const replay = roll.ground.stretch < state.path.learned;
         const target = E.skillAt(leg).name;
@@ -2288,7 +2534,8 @@ window.AGI = (function () {
         const legs = roll.legs || 0;
         const metres = ev.metres || 0;
         // Luck: a run can go viral, multiplying its distance XP.
-        const viral = metres > 0 && E.windfallHit(state, roll.ground.seed);
+        const viral = metres > 0 && (path.fx.forceViral || E.windfallHit(state, roll.ground.seed));
+        path.fx.forceViral = false;
         const plainXp = E.rollXp(state, ev.progress, crested, 0, metres, leg);
         const result = E.finishRoll(state, ev.progress, crested, units, metres, leg, viral);
         // With the Auto-Trainer the next roll starts by itself; otherwise the run waits for a click.
@@ -2298,7 +2545,10 @@ window.AGI = (function () {
         const pct = Math.round(ev.progress * 100);
         const viralMult = viral ? E.derive(state).windfallMult : 1;
         const lines = xpLines(plainXp * viralMult, result.xp - plainXp * viralMult, clean, roll.bonusXp || 0, crested);
-        if (viral) lines.unshift([`Went viral! ×${viralMult.toFixed(2)} run XP`, '', 'good']);
+        if (viral) {
+            lines.unshift([`Went viral! ×${viralMult.toFixed(2)} run XP`, '', 'good']);
+            goViral(viralMult);
+        }
         if (roll.breakthroughs) lines.push([`${roll.breakthroughs} breakthrough sprint${roll.breakthroughs === 1 ? '' : 's'}`, '', 'good']);
         if (legs) lines.unshift([`${legs} cleared leg${legs === 1 ? '' : 's'} crossed`, `+${xpText(roll.legXp)} XP`, 'good']);
         if (result.skill) {
@@ -2324,6 +2574,19 @@ window.AGI = (function () {
 
     const xpText = x => E.format(x, x < 10 ? 2 : 1);
 
+    // Viral run: reactions pour off the ball and the result card gets the viral treatment.
+    function goViral(mult) {
+        path.fx.viral = mult;
+        luckBanner('WENT VIRAL!', `×${mult.toFixed(2)} XP for this run`, 'accent');
+        if (reducedMotion()) return;
+        const glyphs = ['♥', '↑', '#', '★', '♥', '↻'];
+        for (let i = 0; i < 46; i++) {
+            path.fx.reactions.push({ x: (Math.random() - 0.5) * 60, y: 0, vx: (Math.random() - 0.5) * 70, vy: -(70 + Math.random() * 130),
+                age: -Math.random() * 0.9, life: 1.6 + Math.random(), glyph: glyphs[i % glyphs.length], size: 12 + Math.random() * 12,
+                color: ['#ff7ab6', '#c792ea', '#6fb3d9', '#ffb547'][i % 4] });
+        }
+    }
+
     // Breakdown rows for the result card: distance XP, the clean-push roll bonus, and XP already banked.
     function xpLines(distanceXp, rollBonusXp, clean, banked, crested) {
         const rows = [[crested ? 'Distance (×2 for cresting)' : 'Distance', `+${xpText(distanceXp)} XP`]];
@@ -2336,7 +2599,9 @@ window.AGI = (function () {
 
     function showResult({ title, main, flavor, xp, lines, record, skill }) {
         const card = $('rollResult');
-        card.className = `roll-result${skill ? ' skill' : ''}`;
+        card.className = `roll-result${skill ? ' skill' : ''}${path.fx.viral ? ' viral' : ''}`;
+        if (path.fx.viral) card.dataset.viral = `VIRAL ×${path.fx.viral.toFixed(2)}`;
+        path.fx.viral = null;
         card.replaceChildren(...[
             el('div', { class: 'result-title', text: title }),
             el('div', { class: 'result-main', text: main }),
@@ -2358,7 +2623,9 @@ window.AGI = (function () {
         const roll = path.roll;
         const button = $('pushButton');
         if (!roll) return;
-        const label = path.charging ? 'Release to sprint'
+        const label = path.fx.windup ? 'Breakthrough…'
+            : path.charging ? (path.fx.flow ? 'Release: perfect!' : 'Release to sprint')
+            : crunching() && !roll.over && !roll.crested ? `CRUNCH! Sprint free (${path.fx.crunch.toFixed(1)} s)`
             : !roll.launched ? 'Hold to launch'
             : roll.over ? (path.done ? 'Hold to run again' : 'Next run…')
             : roll.crested ? 'Summit!'
@@ -2366,6 +2633,8 @@ window.AGI = (function () {
         setText(button, label);
         // Stay enabled while charging so releasing the pointer still lands on the button.
         setDisabled(button, !path.charging && !path.done && !canPush(roll));
+        button.classList.toggle('crunch', crunching());
+        $('charge').classList.toggle('flow', path.fx.flow);
         updateMeter(roll);
     }
 
@@ -2413,7 +2682,8 @@ window.AGI = (function () {
         setText($('chargeValue'), path.cleanFlash > 0
             ? path.cleanText
             : path.charging
-                ? `Strength ${E.sprintStrength(state, charge, hit).toFixed(1)}${hit && zoneBoost(hit) > 1 ? ` (${hit} ×${zoneBoost(hit).toFixed(2)})` : ''} · costs ${E.formatCost(E.pushCost(state, charge, ballLeg()))}`
+                ? `Strength ${E.sprintStrength(state, charge, path.fx.flow ? 'perfect' : hit).toFixed(1)}${hit && zoneBoost(hit) > 1 ? ` (${hit} ×${zoneBoost(hit).toFixed(2)})` : ''} · ${crunching() ? 'free (crunch)' : `costs ${E.formatCost(E.pushCost(state, charge, ballLeg()))}`}`
+                : crunching() ? 'Crunch: every sprint is free, and no waiting'
                 : `Full sprint: ${E.formatCost(E.pushCost(state, 1, ballLeg()))}${budget < 1 ? ` · you can afford ${Math.round(budget * 100)}%` : ''}`);
         setText($('chargeClean'), roll.bonusXp ? `+${xpText(roll.bonusXp)} XP banked` : '');
     }
@@ -2660,8 +2930,13 @@ window.AGI = (function () {
 
         // Ball, riding on the line (centred on it, like a bead on a wire). Ring: green while rolling
         // forward, red while rolling back.
-        const bx = X(roll.ball.x);
-        const by = Y(groundAt(roll, roll.ball.x));
+        const fx = path.fx;
+        // A winding-up breakthrough shakes harder and harder until it goes.
+        const wind = fx.windup ? Math.min(1, fx.windup.age / WINDUP_SECONDS) : 0;
+        const jitter = wind ? (1.5 + 4 * wind) : 0;
+        const bx = X(roll.ball.x) + (jitter ? (Math.random() - 0.5) * jitter : 0);
+        const by = Y(groundAt(roll, roll.ball.x)) + (jitter ? (Math.random() - 0.5) * jitter : 0);
+        drawLuckUnder(ctx, roll, bx, by, X, Y, wind);
         if (path.pushFlash > 0) {
             ctx.fillStyle = hexAlpha(c.warning, path.pushFlash);
             ctx.beginPath();
@@ -2673,8 +2948,9 @@ window.AGI = (function () {
         ctx.arc(bx, by, BALL, 0, Math.PI * 2);
         ctx.fill();
         ctx.lineWidth = 3;
-        ctx.strokeStyle = roll.ball.v > 0.05 ? c.success : roll.ball.v < -0.05 ? c.danger : c.primary;
+        ctx.strokeStyle = wind ? c.warning : crunching() ? c.danger : roll.ball.v > 0.05 ? c.success : roll.ball.v < -0.05 ? c.danger : c.primary;
         ctx.stroke();
+        drawLuckOver(ctx, bx, by, wind);
 
         // HUD: pushes left as pips and the cooldown as a bar under them.
         const pips = roll.pushesLeft;
@@ -2746,7 +3022,29 @@ window.AGI = (function () {
 
         // Summit banner: pops in, holds, fades.
         // A cleared leg crossed on a replay: a quick line under the top of the trail.
-        if (path.legFlash) {
+        if (path.legFlash && path.legFlash.big) {
+            // Luck banner: pops in large with its subtitle, holds, fades.
+            const f = path.legFlash;
+            const a = f.age;
+            const life = LEG_FLASH_SECONDS * 1.3;
+            const pop = a < 0.18 ? 0.5 + 3.4 * a : a < 0.3 ? 1.11 - 0.9 * (a - 0.18) : 1;
+            const tone = c[f.tone] || c.warning;
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, a / 0.1, (life - a) / 0.5));
+            ctx.translate(w / 2, Math.max(78, h * 0.2));
+            ctx.scale(pop, pop);
+            ctx.textAlign = 'center';
+            ctx.shadowColor = tone;
+            ctx.shadowBlur = 22;
+            ctx.fillStyle = tone;
+            ctx.font = '800 30px "Chakra Petch", system-ui, sans-serif';
+            ctx.fillText(f.text, 0, 0);
+            ctx.shadowBlur = 8;
+            ctx.fillStyle = c.text;
+            ctx.font = '600 13px "Chakra Petch", system-ui, sans-serif';
+            if (f.sub) ctx.fillText(f.sub, 0, 22);
+            ctx.restore();
+        } else if (path.legFlash) {
             const a = path.legFlash.age;
             ctx.save();
             ctx.globalAlpha = Math.min(1, a / 0.15, (LEG_FLASH_SECONDS - a) / 0.5);
@@ -3057,6 +3355,24 @@ window.AGI = (function () {
             addTranscend() {
                 state.prestige.count++;
                 afterChange();
+            },
+            // Luck on demand: 'breakthrough' (the next sprint), 'crunch', 'flow' or 'viral' (the next run's end).
+            luck(kind) {
+                const roll = currentRoll();
+                if (kind === 'crunch') {
+                    path.fx.crunch = path.fx.crunchMax = Math.max(3, E.derive(state).crunchSeconds);
+                    luckBanner('CRUNCH TIME!', `Free sprints for ${path.fx.crunchMax} s, no waiting`, 'danger');
+                } else if (kind === 'flow') {
+                    path.fx.flow = true;
+                    luckBanner('FLOW STATE', 'Your next sprint is perfect, wherever you let go', 'primary');
+                } else if (kind === 'viral') {
+                    path.fx.forceViral = true;
+                    luckBanner('VIRAL NEXT', 'This run will go viral when it ends', 'accent');
+                } else if (kind === 'breakthrough') {
+                    if (!roll.launched) roll.push(0.001);
+                    path.fx.windup = { age: 0, strength: E.derive(state).pushPower * 1.2, free: true };
+                }
+                startPathLoop();
             },
             // End the run in progress where the ball is.
             finishRun() {
