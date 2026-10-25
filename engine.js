@@ -15,6 +15,7 @@
     const PRESTIGE_BONUS = 0.1;        // +10% production per Insight ever earned (spending it on legacy nodes keeps the bonus)
     const ACHIEVEMENT_BONUS = 0.02;    // +2% production per achievement
     const PRESTIGE_MIN_INTELLIGENCE = 5;
+    const RESEARCH_SPRINTS = 300;     // paid training sprints before Research (and investors) open
     const PRESTIGE_CP_DIVISOR = 1e5;
     const IMPROVE_GAIN = 5;
 
@@ -394,9 +395,13 @@
         // The server room opens once you can actually train: data collected by hand, and enough CP and DP
         // in stock for a couple of full sprints (older saves that already train keep it).
         { key: 'module:path', name: 'Training Path', desc: 'Collect data 40 times and hold 100 CP and 40 DP to start training your model',
-            callout: ['Server room online', 'Your model can start training'],
+            callout: ['Server room online', 'Train your model. Its skills will automate your data.'],
             check: s => (s.stats.collects >= 40 && s.res.cp >= 100 && s.res.dp >= 40) || s.stats.rolls > 0 || s.path.learned > 0 },
-        { key: 'action:research', name: 'Basic Research', desc: 'Hold 100 DP to unlock Research', check: s => s.res.dp >= 100 },
+        // Research is for bigger projects: it opens once training is well under way, and brings the investors
+        // (and with them the road to the next version).
+        { key: 'action:research', name: 'Basic Research', desc: `Run ${RESEARCH_SPRINTS} training sprints to unlock Research`,
+            callout: ['Research funded', 'Investors are watching. Bigger projects lead to the next version.'],
+            check: s => s.stats.sprints >= RESEARCH_SPRINTS || s.stats.researchDone > 0 },
         { key: 'action:improve', name: 'Self-Improvement', desc: 'Hold 25 RP to unlock Self-Improvement', check: s => s.res.rp >= 25 },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }
@@ -453,6 +458,7 @@
                 projectsDone: 0,
                 researchManual: 0,    // research done by hand
                 rolls: 0,
+                sprints: 0,           // paid training sprints (research opens after RESEARCH_SPRINTS)
                 skillsLearned: 0,
                 improves: 0,
                 playTime: 0,
@@ -873,6 +879,7 @@
         const cost = pushCost(s, charge, leg);
         if (!canAfford(s, cost)) return false;
         pay(s, cost);
+        s.stats.sprints++;
         return true;
     }
 
@@ -1246,6 +1253,8 @@
             if (raw.unlocked?.['up:flowState']) s.unlocked['up:maxEffort'] = true;
         }
         for (const k of Object.keys(s.stats)) s.stats[k] = num(raw.stats?.[k], s.stats[k]);
+        // Sprints weren't counted before; older saves get an estimate from their runs (about 2 per run).
+        if (raw.stats && raw.stats.sprints === undefined) s.stats.sprints = s.stats.rolls * 2;
         for (const k of Object.keys(s.settings)) s.settings[k] = bool(raw.settings?.[k], s.settings[k]);
         // Scheduled tasks (v5): an on/off switch and a share each. Older saves had one budget for all.
         const oldBudget = raw.settings?.autoBudget;

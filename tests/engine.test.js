@@ -155,11 +155,30 @@ test('phases require every attribute minimum and never skip', () => {
 
 test('unlocks persist even after the triggering resource is spent', () => {
     const s = fresh();
-    s.res.dp = 100;
+    s.res.cp = 100;
+    s.res.dp = 40;
+    s.stats.collects = 40;
     E.evaluate(s);
-    s.res.dp = 0;
+    s.res.cp = s.res.dp = 0;
+    E.evaluate(s);
+    assert.equal(s.unlocked['module:path'], true);
+});
+
+test('research waits for a good stretch of training, not a data stockpile', () => {
+    const s = fresh();
+    s.res.dp = 1e6;
+    s.stats.sprints = 299;
+    E.evaluate(s);
+    assert.equal(!!s.unlocked['action:research'], false, 'data alone is not enough');
+    s.unlocked['module:path'] = true;
+    s.res.cp = 1e6;
+    assert.equal(E.payPush(s, 1), true);
+    assert.equal(s.stats.sprints, 300, 'paid sprints count');
     E.evaluate(s);
     assert.equal(s.unlocked['action:research'], true);
+    // Older saves estimate their sprints from their runs.
+    const old = E.migrate({ version: 5, stats: { rolls: 40 } });
+    assert.equal(old.stats.sprints, 80);
 });
 
 test('tick produces resources over time', () => {
