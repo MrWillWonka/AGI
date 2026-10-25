@@ -364,7 +364,7 @@ window.AGI = (function () {
             // Hardware: the piece you're buying, as it will sit in the server cabinets.
             const part = HW_PIECES[up.id];
             const side = part ? el('div', { class: 'upgrade-side' }, [
-                el('div', { class: 'upgrade-part', 'aria-hidden': 'true', title: `Its piece in the cabinets: ${part.w}×${part.h}; every 4 merge into a bigger one` }, [
+                el('div', { class: 'upgrade-part', 'aria-hidden': 'true', title: `Its piece in the cabinets: ${part.w}×${part.h}; four bought in a row merge into a bigger one` }, [
                     el('span', { class: `hw hw-${up.id} t0`, style: `--w:${part.w};--h:${part.h}` }, [el('i'), el('b')])
                 ]),
                 button
@@ -434,45 +434,65 @@ window.AGI = (function () {
         renderCabinets();
     }
 
-    // Server cabinets: the hardware you own, as pieces on a rack floor. Each kind of hardware has its own
-    // shape (`w` × `h` cells); every 4 of a size merge into the next, bigger piece (`merge`: the sizes
-    // after each merge, wider or taller), so a run of buys compacts instead of piling up. Pieces fill
-    // blocks (8 × 4 cells), one kind per block, in the order you first bought each kind; a full block
-    // starts the next. Blocks scroll sideways, so buying never moves the page. Merging and packing on a
-    // grid are the groundwork for a later rack-configuration puzzle.
+    // Server cabinets: the hardware you own, racked in the order you bought it, all kinds mixed together
+    // like real server racks. Every piece is a rectangle (`w` × `h` cells) in its hardware's own style.
+    // When four pieces of the same kind and size go in one after another, they merge into the next,
+    // bigger piece (`merge`: wider or taller), so bulk buys compact and mixed buys stay a patchwork.
+    // Pieces fill racks of 4 × 6 cells from the bottom, first fit across every rack, so small pieces
+    // drop into earlier gaps. This mix of merged and unmerged parts is the starting point for a later
+    // rack-configuration puzzle (rearranging pieces to merge them or build shapes for bonuses).
     const HW_PIECES = {
-        cpu: { w: 1, h: 1, merge: [[2, 2], [4, 2], [8, 2]], names: ['CPU', 'CPU board', 'CPU shelf', 'CPU wall'] },
-        server: { w: 2, h: 1, merge: [[4, 1], [4, 2], [8, 2]], names: ['Server', 'Server pair', 'Server rack', 'Server row'] },
+        cpu: { w: 1, h: 1, merge: [[2, 2], [4, 2], [4, 4]], names: ['CPU', 'CPU board', 'CPU shelf', 'CPU wall'] },
+        server: { w: 2, h: 1, merge: [[4, 1], [4, 2], [4, 4]], names: ['Server', 'Server pair', 'Server rack', 'Server row'] },
         quantum: { w: 1, h: 2, merge: [[2, 2], [2, 4], [4, 4]], names: ['Quantum core', 'Quantum pair', 'Cryostat', 'Quantum array'] },
-        neural: { w: 2, h: 2, merge: [[4, 2], [4, 4], [8, 4]], names: ['Neural chip', 'Neural board', 'Neural block', 'Neural wall'] },
-        datacenter: { w: 3, h: 2, merge: [[6, 2], [6, 4]], names: ['Datacenter hall', 'Datacenter wing', 'Datacenter campus'] },
-        optical: { w: 2, h: 2, merge: [[4, 2], [4, 4], [8, 4]], names: ['Optical core', 'Optical bench', 'Optical array', 'Light field'] }
+        neural: { w: 2, h: 2, merge: [[4, 2], [4, 4], [4, 6]], names: ['Neural chip', 'Neural board', 'Neural block', 'Neural wall'] },
+        datacenter: { w: 3, h: 2, merge: [[4, 3], [4, 4], [4, 6]], names: ['Datacenter hall', 'Datacenter wing', 'Datacenter campus', 'Datacenter city'] },
+        optical: { w: 2, h: 2, merge: [[4, 2], [4, 4], [4, 6]], names: ['Optical core', 'Optical bench', 'Optical array', 'Light field'] }
     };
-    const BLOCK = { cols: 8, rows: 4 };
-    const MAX_BLOCKS = 12;
-    const RACK_ORDER_KEY = 'agiRackOrder';   // screen state: the order you first bought each kind
+    const RACK = { cols: 4, rows: 6 };
+    const MAX_RACKS = 24;
+    const RACK_LOG_KEY = 'agiRackLog';   // screen state: every hardware level, in the order it was bought
     let cabinetKey = null;      // null: not drawn yet
     let cabinetPieces = new Set();
 
-    // The pieces for `n` units of one kind: every 4 of a size become one of the next size (base 4).
-    function piecesFor(id, n) {
-        const def = HW_PIECES[id];
-        const sizes = [[def.w, def.h], ...def.merge];
-        const out = [];
-        let left = n;
-        for (let t = sizes.length - 1; t >= 0; t--) {
-            const per = Math.pow(4, t);
-            const count = t === sizes.length - 1 ? Math.floor(left / per) : Math.floor(left / per) % 4;
-            left -= count * per;
-            for (let i = 0; i < count; i++) out.push({ id, tier: t, w: sizes[t][0], h: sizes[t][1], units: per, name: def.names[t] });
-        }
-        return out;   // biggest first, so the newest buys sit at the end
+    const pieceSize = (id, tier) => (tier ? HW_PIECES[id].merge[tier - 1] : [HW_PIECES[id].w, HW_PIECES[id].h]);
+
+    // The buy log, reconciled with what you own (a reset or an old save trims it or adds what's missing).
+    function rackLog() {
+        let log = [];
+        try { log = JSON.parse(storageGet(RACK_LOG_KEY) || '[]'); } catch { /* start fresh */ }
+        if (!Array.isArray(log)) log = [];
+        const want = Object.fromEntries(Object.keys(HW_PIECES).map(id => [id, E.level(state, id)]));
+        const seen = {};
+        log = log.filter(id => want[id] != null && (seen[id] = (seen[id] || 0) + 1) <= want[id]);
+        for (const id of Object.keys(HW_PIECES)) for (let i = seen[id] || 0; i < want[id]; i++) log.push(id);
+        return log;
     }
 
-    // First fit on a block's grid; returns false when the piece doesn't fit.
+    // Pieces in buy order: four of the same kind and size in a row merge into one bigger piece.
+    function rackPieces(log) {
+        const out = [];
+        for (const id of log) {
+            out.push({ id, tier: 0 });
+            for (;;) {
+                const n = out.length;
+                const last = out[n - 1];
+                if (n < 4 || last.tier >= HW_PIECES[id].merge.length) break;
+                if (!out.slice(n - 4).every(p => p.id === last.id && p.tier === last.tier)) break;
+                out.splice(n - 4, 4, { id: last.id, tier: last.tier + 1 });
+            }
+        }
+        for (const p of out) {
+            const [w, h] = pieceSize(p.id, p.tier);
+            Object.assign(p, { w, h, units: Math.pow(4, p.tier), name: HW_PIECES[p.id].names[p.tier] });
+        }
+        return out;
+    }
+
+    // First fit on a rack's grid (rows from the bottom); false when the piece doesn't fit.
     function place(grid, p) {
-        for (let y = 0; y + p.h <= BLOCK.rows; y++) {
-            for (let x = 0; x + p.w <= BLOCK.cols; x++) {
+        for (let y = 0; y + p.h <= RACK.rows; y++) {
+            for (let x = 0; x + p.w <= RACK.cols; x++) {
                 let free = true;
                 for (let j = y; j < y + p.h && free; j++) for (let i = x; i < x + p.w; i++) if (grid[j][i]) { free = false; break; }
                 if (!free) continue;
@@ -484,50 +504,39 @@ window.AGI = (function () {
         return false;
     }
 
-    function rackOrder() {
-        let order = [];
-        try { order = JSON.parse(storageGet(RACK_ORDER_KEY) || '[]'); } catch { /* start fresh */ }
-        order = order.filter(id => HW_PIECES[id] && E.level(state, id) > 0);
-        for (const id of Object.keys(HW_PIECES)) if (E.level(state, id) > 0 && !order.includes(id)) order.push(id);
-        return order;
-    }
-
     function renderCabinets() {
-        const order = rackOrder();
-        const key = order.map(id => `${id}${E.level(state, id)}`).join(',');
+        const log = rackLog();
+        const key = log.join(',');
         if (key === cabinetKey) return;
         const first = cabinetKey === null;
         cabinetKey = key;
-        storageSet(RACK_ORDER_KEY, JSON.stringify(order));
-        const blocks = [];
-        for (const id of order) {
-            let grid = null;
-            for (const p of piecesFor(id, E.level(state, id))) {
-                if (!grid || !place(grid, p)) {
-                    grid = Array.from({ length: BLOCK.rows }, () => Array(BLOCK.cols).fill(false));
-                    blocks.push({ id, pieces: [] });
-                    place(grid, p);
-                }
-                blocks[blocks.length - 1].pieces.push(p);
+        storageSet(RACK_LOG_KEY, JSON.stringify(log));
+        const racks = [];
+        for (const p of rackPieces(log)) {
+            let rack = racks.find(r => place(r.grid, p));
+            if (!rack) {
+                rack = { grid: Array.from({ length: RACK.rows }, () => Array(RACK.cols).fill(false)), pieces: [] };
+                racks.push(rack);
+                place(rack.grid, p);
             }
+            rack.pieces.push(p);
         }
-        $('cabinetPanel').hidden = !blocks.length;
+        $('cabinetPanel').hidden = !racks.length;
         // New or merged pieces (not on load) pop in; merges flash.
         const seen = new Set();
         const art = $('cabinetArt');
-        art.replaceChildren(...blocks.slice(0, MAX_BLOCKS).map(b => el('div', { class: `rack-block block-${b.id}`, title: `${E.UPGRADE_BY_ID[b.id].name}: ${b.pieces.reduce((a, p) => a + p.units, 0)} in this block` },
-            b.pieces.map(p => {
-                const tag = `${p.id}:${p.tier}:${p.x}:${p.y}`;
-                seen.add(tag);
-                const fresh = !first && !cabinetPieces.has(tag);
-                return el('span', {
-                    class: `hw hw-${p.id} t${p.tier}${fresh ? (p.tier ? ' merged' : ' fresh') : ''}`,
-                    style: `--x:${p.x};--y:${p.y};--w:${p.w};--h:${p.h}`,
-                    title: `${p.name}${p.units > 1 ? ` (${p.units} × ${E.UPGRADE_BY_ID[p.id].name})` : ''}`
-                }, [el('i'), el('b')]);
-            }))));
+        art.replaceChildren(...racks.slice(0, MAX_RACKS).map((r, k) => el('div', { class: 'rack-block' }, r.pieces.map(p => {
+            const tag = `${k}:${p.id}:${p.tier}:${p.x}:${p.y}`;
+            seen.add(tag);
+            const fresh = !first && !cabinetPieces.has(tag);
+            return el('span', {
+                class: `hw hw-${p.id} t${p.tier}${fresh ? (p.tier ? ' merged' : ' fresh') : ''}`,
+                style: `--x:${p.x};--y:${p.y};--w:${p.w};--h:${p.h}`,
+                title: `${p.name}${p.units > 1 ? ` (${p.units} × ${E.UPGRADE_BY_ID[p.id].name})` : ''}`
+            }, [el('i'), el('b')]);
+        }))));
         cabinetPieces = seen;
-        if (blocks.length > MAX_BLOCKS) art.append(el('span', { class: 'cabinet-more', text: `+${blocks.length - MAX_BLOCKS} more blocks` }));
+        if (racks.length > MAX_RACKS) art.append(el('span', { class: 'cabinet-more', text: `+${racks.length - MAX_RACKS} more racks` }));
     }
 
     function buildChecklists() {
@@ -739,7 +748,7 @@ window.AGI = (function () {
         $('skillTree').style.transform = '';
         cabinetKey = null;
         Object.assign(lab, { cp: [], dp: [], rp: [], xp: [], hand: [], lastRunCp: null, lastCollects: null, lastResearch: null, lastXp: null, lines: [] });
-        storageSet(RACK_ORDER_KEY, '[]');
+        storageSet(RACK_LOG_KEY, '[]');
         path.queued = null;
         $('labLog').hidden = true;
         ui.termLines.replaceChildren();
@@ -4112,7 +4121,7 @@ window.AGI = (function () {
             // Forget which rooms you've visited (the ⌂ link pulses again) and the cabinets' order.
             resetVisits() {
                 storageSet(SEEN_KEY, '[]');
-                storageSet(RACK_ORDER_KEY, '[]');
+                storageSet(RACK_LOG_KEY, '[]');
                 seenRooms = new Set([view]);
                 cabinetKey = null;
                 afterChange();

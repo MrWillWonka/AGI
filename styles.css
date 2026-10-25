@@ -1230,7 +1230,7 @@ h1, h2, h3, p { margin: 0; }
     top: 72px;
     right: 12px;
     width: min(360px, calc(100vw - 24px));
-    max-height: 80vh;
+    max-height: calc(100dvh / var(--ui-scale, 1) - 84px);
     display: flex;
     flex-direction: column;
     background: rgba(8, 15, 17, 0.97);
@@ -1252,7 +1252,7 @@ h1, h2, h3, p { margin: 0; }
 .debug-panel header strong { flex: 1; font-family: var(--font-display); color: var(--primary); }
 .debug-panel.minimized .debug-body { display: none; }
 
-.debug-body { overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+.debug-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
 .debug-body h4 { margin: 0 0 4px; font: 700 0.75rem var(--font-display); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 .debug-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 
@@ -2257,54 +2257,52 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .lab-log { margin-right: 0; }
 .click-ring.spark-dp { border-color: #6fb3d9; box-shadow: 0 0 14px #6fb3d9; }
 .click-ring.spark-rp { border-color: #c792ea; box-shadow: 0 0 14px #c792ea; }
 
-/* ---- Server cabinets: hardware pieces on a rack floor ----
-   One block per kind (8 × 4 cells, filled from the bottom), each kind its own shape and light; every 4
-   pieces merge into a bigger one (t1, t2, …). New pieces pop in, merges flash. */
-.cabinet-art { --cell: calc((var(--cabinet-art-h) - 26px) / 4); align-items: flex-end; gap: 12px; }
-.rack-block { position: relative; flex: none; width: calc(8 * var(--cell) + 10px); height: calc(4 * var(--cell) + 10px); border: 1px solid #24434a; border-radius: 5px;
-    background: linear-gradient(0deg, rgba(36, 67, 74, 0.35) 1px, transparent 1px) 4px 4px / var(--cell) var(--cell),
-    linear-gradient(90deg, rgba(36, 67, 74, 0.35) 1px, transparent 1px) 4px 4px / var(--cell) var(--cell), #081214; }
-.hw { position: absolute; display: block; left: calc(5px + var(--x) * var(--cell)); bottom: calc(5px + var(--y) * var(--cell));
-    width: calc(var(--w) * var(--cell) - 3px); height: calc(var(--h) * var(--cell) - 3px); overflow: hidden; }
+/* ---- Server cabinets: every kind of hardware mixed in the same racks ----
+   Racks of 4 × 6 cells, filled from the bottom in buy order; every piece is a rectangle in its
+   hardware's style, lit; four in a row of one kind and size merge (t1, t2, t3). New pieces pop in,
+   merges flash. */
+.cabinet-art { --cell: calc((var(--cabinet-art-h) - 36px) / 6); align-items: flex-end; gap: 8px; }
+.rack-block { position: relative; flex: none; width: calc(4 * var(--cell) + 12px); height: calc(6 * var(--cell) + 10px); border: 2px solid #24434a; border-top-width: 5px; border-radius: 4px;
+    background: linear-gradient(0deg, rgba(36, 67, 74, 0.4) 1px, transparent 1px) 4px 4px / var(--cell) var(--cell),
+    linear-gradient(90deg, #13262b 0 3px, transparent 3px calc(100% - 3px), #13262b calc(100% - 3px)), #081214; }
+.hw { position: absolute; display: block; left: calc(5px + var(--x) * var(--cell)); bottom: calc(4px + var(--y) * var(--cell));
+    width: calc(var(--w) * var(--cell) - 2px); height: calc(var(--h) * var(--cell) - 2px); overflow: hidden; border-radius: 2px; }
 .hw i, .hw b { position: absolute; display: block; pointer-events: none; }
 .hw.fresh { animation: hw-in 0.6s cubic-bezier(0.2, 1.4, 0.4, 1); }
 .hw.merged { animation: hw-merge 0.9s ease-out; }
 @keyframes hw-in { from { transform: translateY(-14px) scale(0.6); opacity: 0; } }
 @keyframes hw-merge { 0% { transform: scale(0.5); filter: brightness(3); } 40% { transform: scale(1.08); filter: brightness(2); } }
 @keyframes hw-blink { 50% { opacity: 0.25; } }
-@keyframes hw-pulse { 50% { filter: brightness(1.5); } }
-@keyframes hw-flow { to { background-position: 40px 0; } }
-/* Basic CPU: a chip on a green board, pins all round, a status light. */
-.hw-cpu { border-radius: 3px; background: radial-gradient(circle at 50% 50%, #2b4a50 0 34%, #13262a 35%), #0f2a20;
-    box-shadow: inset 0 0 0 2px #1a3d33, 0 0 0 1px #2c5a4a; }
-.hw-cpu i { inset: 20%; border: 1px dashed rgba(99, 224, 171, 0.45); border-radius: 2px; }
-.hw-cpu b { right: 3px; top: 3px; width: 4px; height: 4px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success); animation: hw-blink 1.3s steps(2) infinite; }
-.hw-cpu.t1, .hw-cpu.t2, .hw-cpu.t3 { background: repeating-linear-gradient(90deg, transparent 0 calc(var(--cell) - 4px), #0a1a14 calc(var(--cell) - 4px) var(--cell)),
-    radial-gradient(circle, #2b4a50 0 30%, transparent 31%) 0 0 / var(--cell) var(--cell), #0f2a20; }
-/* Server: a 2U box, drive bays and a row of lights. */
-.hw-server { border-radius: 2px; background: repeating-linear-gradient(90deg, #1b343b 0 6px, #0d1d21 6px 8px); box-shadow: inset 0 0 0 1px #2f5660, inset 0 -3px 0 #0a1416; }
-.hw-server i { right: 4px; top: 50%; width: 22%; height: 3px; transform: translateY(-50%);
+@keyframes hw-pulse { 50% { filter: brightness(1.45); } }
+@keyframes hw-flow { to { background-position: 60px 0, 0 0; } }
+/* Basic CPU: a green board with a chip on it and a status light. */
+.hw-cpu { background: radial-gradient(circle, #2b4a50 0 30%, #13262a 31% 40%, transparent 41%) 0 0 / var(--cell) var(--cell), #0f2a20; box-shadow: inset 0 0 0 1px #2c5a4a; }
+.hw-cpu i { inset: 3px; border: 1px dashed rgba(99, 224, 171, 0.35); }
+.hw-cpu b { right: 2px; top: 2px; width: 3px; height: 3px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success); animation: hw-blink 1.3s steps(2) infinite; }
+/* Server: a rack-mount box, drive bays and a row of lights. */
+.hw-server { background: repeating-linear-gradient(90deg, #1b343b 0 5px, #0d1d21 5px 7px); box-shadow: inset 0 0 0 1px #2f5660, inset 0 -2px 0 #0a1416; }
+.hw-server i { right: 4px; top: 50%; width: 24%; height: 3px; transform: translateY(-50%);
     background: repeating-linear-gradient(90deg, var(--success) 0 3px, transparent 3px 6px); box-shadow: 0 0 6px rgba(99, 224, 171, 0.7); animation: hw-blink 0.9s steps(3) infinite; }
-.hw-server b { left: 4px; top: 3px; bottom: 3px; width: 3px; background: var(--warning); opacity: 0.8; box-shadow: 0 0 5px var(--warning); }
-.hw-server.t2, .hw-server.t3 { background: repeating-linear-gradient(0deg, #1b343b 0 calc(var(--cell) / 2 - 2px), #081214 calc(var(--cell) / 2 - 2px) calc(var(--cell) / 2)),
-    repeating-linear-gradient(90deg, transparent 0 6px, rgba(0, 0, 0, 0.35) 6px 8px); }
-/* Quantum: a gilded cryostat, tiers narrowing down to a glowing core. */
-.hw-quantum { border-radius: 40% 40% 12% 12% / 20% 20% 8% 8%; background: linear-gradient(180deg, #b8892e 0 14%, #3a2c10 14% 18%, #c9a04a 18% 30%, #3a2c10 30% 34%, #d9b25e 34% 48%, transparent 48%),
-    radial-gradient(ellipse at 50% 78%, #9fd8ff 0 12%, rgba(111, 179, 217, 0.45) 22%, transparent 40%), #10202e; box-shadow: inset 0 0 0 1px #6d5420; }
-.hw-quantum i { left: 30%; right: 30%; top: 48%; bottom: 8%; background: repeating-linear-gradient(0deg, rgba(159, 216, 255, 0.5) 0 2px, transparent 2px 5px); }
-.hw-quantum b { left: 50%; bottom: 12%; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: #e6f6ff; box-shadow: 0 0 10px 3px #6fb3ff; animation: hw-pulse 1.6s ease-in-out infinite; }
-/* Neural chip: a hexagon with a glowing mesh of synapses. */
-.hw-neural { clip-path: polygon(25% 2%, 75% 2%, 98% 50%, 75% 98%, 25% 98%, 2% 50%); background: radial-gradient(circle, #e0b8ff 1px, transparent 1.6px) 0 0 / 7px 7px,
-    radial-gradient(circle at 50% 50%, rgba(199, 146, 234, 0.55), transparent 65%), #22163a; animation: hw-pulse 2.2s ease-in-out infinite; }
-.hw-neural i { inset: 30%; border: 1px solid rgba(224, 184, 255, 0.7); transform: rotate(45deg); }
-/* Datacenter: a long hall with a roof line, cooling fans and lit windows. */
-.hw-datacenter { border-radius: 3px 3px 1px 1px; background: radial-gradient(circle, #31585f 0 30%, #0a1416 32% 40%, transparent 42%) 0 0 / calc(var(--cell) * 0.75) calc(var(--cell) * 0.75),
-    linear-gradient(180deg, #2a4950 0 16%, #142a2f 16%); box-shadow: inset 0 0 0 1px #34616a; }
-.hw-datacenter i { left: 6%; right: 6%; bottom: 10%; height: 18%; background: repeating-linear-gradient(90deg, #ffd27a 0 4px, transparent 4px 9px); opacity: 0.85; box-shadow: 0 0 8px rgba(255, 210, 122, 0.5); animation: hw-blink 3s steps(4) infinite; }
-/* Optical: a prism splitting a beam into a spectrum. */
-.hw-optical { clip-path: polygon(50% 2%, 98% 96%, 2% 96%); background: linear-gradient(115deg, transparent 38%, #ff7a6b 40%, #ffb547 46%, #63e0ab 52%, #6fb3d9 58%, #c792ea 64%, transparent 66%),
-    linear-gradient(180deg, #2c3e58, #121c2a); background-size: 200% 100%, 100% 100%; animation: hw-flow 2.4s linear infinite; }
-.hw-optical i { left: 0; top: 55%; width: 46%; height: 2px; background: #fff; box-shadow: 0 0 6px #fff; }
+.hw-server b { left: 3px; top: 3px; bottom: 3px; width: 3px; background: var(--warning); opacity: 0.8; box-shadow: 0 0 5px var(--warning); }
+.hw-server.t2, .hw-server.t3 { background: repeating-linear-gradient(0deg, #1b343b 0 calc(var(--cell) - 2px), #081214 calc(var(--cell) - 2px) var(--cell)),
+    repeating-linear-gradient(90deg, transparent 0 5px, rgba(0, 0, 0, 0.35) 5px 7px); }
+/* Quantum: a gold-trimmed cryostat cabinet with a blue core window. */
+.hw-quantum { background: linear-gradient(180deg, #c9a04a 0 3px, transparent 3px), repeating-linear-gradient(0deg, transparent 0 7px, rgba(201, 160, 74, 0.35) 7px 8px), #10202e;
+    box-shadow: inset 0 0 0 1px #6d5420; }
+.hw-quantum i { left: 22%; right: 22%; top: 30%; bottom: 12%; border-radius: 2px; background: radial-gradient(ellipse at 50% 65%, #e6f6ff 0 10%, #6fb3ff 28%, rgba(111, 179, 255, 0.15) 70%), #0a1622; }
+.hw-quantum b { inset: 0; box-shadow: inset 0 0 10px rgba(111, 179, 255, 0.45); animation: hw-pulse 1.6s ease-in-out infinite; }
+/* Neural chip: a violet board with a glowing grid of synapses. */
+.hw-neural { background: radial-gradient(circle, #e0b8ff 1px, transparent 1.6px) 0 0 / 6px 6px, radial-gradient(circle at 50% 50%, rgba(199, 146, 234, 0.5), transparent 70%), #22163a;
+    box-shadow: inset 0 0 0 1px #5b3f7a; animation: hw-pulse 2.2s ease-in-out infinite; }
+.hw-neural i { inset: 28%; border: 1px solid rgba(224, 184, 255, 0.7); border-radius: 2px; }
+/* Datacenter: a hall with a roof line, cooling fans and lit windows. */
+.hw-datacenter { background: radial-gradient(circle, #31585f 0 30%, #0a1416 32% 40%, transparent 42%) 0 4px / calc(var(--cell) * 0.75) calc(var(--cell) * 0.75),
+    linear-gradient(180deg, #2a4950 0 4px, #142a2f 4px); box-shadow: inset 0 0 0 1px #34616a; }
+.hw-datacenter i { left: 6%; right: 6%; bottom: 3px; height: 4px; background: repeating-linear-gradient(90deg, #ffd27a 0 4px, transparent 4px 8px); opacity: 0.85; box-shadow: 0 0 8px rgba(255, 210, 122, 0.5); animation: hw-blink 3s steps(4) infinite; }
+/* Optical: a dark module with a beam split into a moving spectrum. */
+.hw-optical { background: linear-gradient(90deg, transparent 0 20%, #ff7a6b, #ffb547, #63e0ab, #6fb3d9, #c792ea, transparent 80% 100%) 0 50% / 200% 30% repeat-x,
+    linear-gradient(180deg, #2c3e58, #121c2a); box-shadow: inset 0 0 0 1px #4a6283; animation: hw-flow 2.4s linear infinite; }
+.hw-optical i { left: 0; top: 50%; width: 30%; height: 2px; margin-top: -1px; background: #fff; box-shadow: 0 0 6px #fff; }
 /* Merged pieces glow a little brighter, the bigger they are. */
 .hw.t1 { filter: brightness(1.08); }
 .hw.t2 { filter: brightness(1.16) drop-shadow(0 0 4px rgba(99, 224, 171, 0.35)); }
