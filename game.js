@@ -81,7 +81,27 @@ window.AGI = (function () {
     }
 
     function setHidden(node, hidden) {
-        if (node.hidden !== hidden) node.hidden = hidden;
+        if (node.hidden === hidden) return;
+        node.hidden = hidden;
+        if (!hidden) revealIn(node);
+    }
+
+    // New sections don't just pop in: panels, stations, supply cells, chips, workbench jobs, tasks, tree
+    // nodes and facility tiles boot up (a scan wipe with a bright edge, a flicker, then settle). Not on
+    // load, not in camera copies, and not under reduced motion.
+    const REVEAL = '.panel, .station, .supply-cell, .chip, .phase, .action-button, .task, .tree-node, .facility-room, .upgrade';
+    let revealReady = false;
+    function revealIn(node) {
+        if (!revealReady || !node.matches?.(REVEAL) || reducedMotion()) return;
+        node.classList.remove('reveal-in');
+        void node.offsetWidth;
+        node.classList.add('reveal-in');
+        const done = e => {
+            if (e.target !== node || e.animationName !== 'reveal-boot') return;
+            node.classList.remove('reveal-in');
+            node.removeEventListener('animationend', done);
+        };
+        node.addEventListener('animationend', done);
     }
 
     function setDisabled(node, disabled) {
@@ -521,7 +541,7 @@ window.AGI = (function () {
             }
             rack.pieces.push(p);
         }
-        $('cabinetPanel').hidden = !racks.length;
+        setHidden($('cabinetPanel'), !racks.length);
         // New or merged pieces (not on load) pop in; merges flash.
         const seen = new Set();
         const art = $('cabinetArt');
@@ -886,7 +906,7 @@ window.AGI = (function () {
     function termLog(text) {
         lab.lines.push(text);
         if (lab.lines.length > 4) lab.lines.shift();
-        $('labLog').hidden = false;   // shows with its first line
+        setHidden($('labLog'), false);   // shows with its first line
         const box = ui.termLines;
         if (box) box.replaceChildren(...lab.lines.map((t, i) => el('span', { class: `terminal-out${i === lab.lines.length - 1 ? ' fresh' : ''}`, text: `> ${t}` })));
     }
@@ -1156,7 +1176,7 @@ window.AGI = (function () {
         }
         for (const n of copy.querySelectorAll('.room-bar')) n.remove();
         // One-off entrance animations would replay on every refresh.
-        for (const n of copy.querySelectorAll('.fresh')) n.classList.remove('fresh');
+        for (const n of copy.querySelectorAll('.fresh, .reveal-in')) n.classList.remove('fresh', 'reveal-in');
         return copy;
     }
 
@@ -1247,7 +1267,7 @@ window.AGI = (function () {
             fresh ||= isNew;
             const sealed = !unlocked && sealedShown < SEALED_ROOMS;
             if (sealed) sealedShown++;
-            tile.hidden = !unlocked && !sealed;
+            setHidden(tile, !unlocked && !sealed);
             setText(tile.querySelector('.fr-name'), unlocked ? ROOMS[id].name : '???');
             setText(tile.querySelector('.fr-blurb'), unlocked ? ROOMS[id].blurb : 'Sealed wing');
             tile.classList.toggle('locked', !unlocked);
@@ -1646,6 +1666,23 @@ window.AGI = (function () {
         if (key === labLayoutKey) return;
         labLayoutKey = key;
         const room = $('labRoom');
+        // Panels glide to their new places when the grid changes (FLIP), instead of jumping.
+        const moving = labLayoutKey === '' || reducedMotion() ? [] : [...room.querySelectorAll(':scope > .panel, :scope > .lab-supply, .lab-stations > .station')]
+            .filter(n => !n.hidden).map(n => ({ n, r: n.getBoundingClientRect() }));
+        requestAnimationFrame(() => {
+            const z = uiScale();
+            for (const { n, r } of moving) {
+                const q = n.getBoundingClientRect();
+                if (!q.width || n.classList.contains('reveal-in')) continue;
+                const dx = (r.left - q.left) / z;
+                const dy = (r.top - q.top) / z;
+                const sx = r.width / q.width;
+                const sy = r.height / q.height;
+                if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(sx - 1) < 0.01 && Math.abs(sy - 1) < 0.01) continue;
+                n.animate([{ transformOrigin: '0 0', transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` }, { transformOrigin: '0 0', transform: 'none' }],
+                    { duration: 450, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
+            }
+        });
         room.dataset.tier = tier;
         if (tier === 'narrow') {
             room.style.gridTemplateAreas = room.style.gridTemplateColumns = room.style.gridTemplateRows = '';
@@ -2099,7 +2136,7 @@ window.AGI = (function () {
         for (const up of treeNodes()) {
             const node = treeUi.nodes[up.id];
             const st = states[up.id];
-            node.hidden = st === 'hidden';
+            setHidden(node, st === 'hidden');
             placeNode(node, up.tree.x, up.tree.y);
             node.className = `tree-node ${st}${up.requires ? '' : ' seed'}${up.legacy ? ' legacy' : ''}${path.selected === up.id ? ' selected' : ''}`;
             const lvl = E.level(state, up.id);
@@ -3941,6 +3978,7 @@ window.AGI = (function () {
         render();
         lastTick = Date.now();
         setInterval(tick, TICK_MS);
+        setTimeout(() => { revealReady = true; }, 1200);
         // Save whenever the page is hidden or closed; beforeunload is unreliable on mobile.
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden' && state.settings.autosave) save();

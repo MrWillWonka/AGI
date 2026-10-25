@@ -111,6 +111,8 @@ Everything grows as it unlocks, and locked things never say what they are: a sea
 
 **Layout stability:** players should find things where they left them. Every panel has a reserved home: new things fill reserved space or grow into empty floor, never insert above or before what's there, and nothing resizes because of a click. Lists that grow scroll inside their panel; items never vanish from under the pointer (investor offers keep their slot; a finished one-time card only leaves after you bought it, with an animation); text that changes length is clipped to one line (`room-goal`, action automation lines, top-bar numbers keep a minimum width). One-off reveals may extend the layout outward. Check new UI by recording panel rects before and after a purchase (`lab2.js`-style Playwright check).
 
+**Reveals animate:** nothing pops in. Anything shown through `setHidden` that matches `REVEAL` (panels, stations, supply cells, chips, workbench jobs, tasks, cards, tree nodes, facility tiles) boots up (`revealIn`, `.reveal-in`: a scan wipe with a bright edge, a flicker, a fading glow), never on load, in camera copies or under reduced motion. When the lab grid reflows, the panels glide to their new places (FLIP in `layoutLab`). Show new UI with `setHidden`, not `.hidden =`, so it gets this.
+
 **Information grows with the game:** show only what matters at this stage (top-bar chips, supply cells, stations, automation lines appear when they mean something), and add detail as systems open rather than all at once.
 
 - **Top bar:** resource and attribute chips (`data-show="<unlock key>"` hides a chip until it matters; see Reveals), the phase bar and the Journal button.
