@@ -2181,5 +2181,29 @@ body.has-minimap .room-rnd { padding-bottom: 210px; }
 }
 
 /* Live yield on hardware and click cards: the numbers, so descriptions don't need them. */
-.upgrade-yield { font: 600 0.74rem var(--font-mono); color: var(--success); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.upgrade-yield { font: 600 0.74rem var(--font-mono); color: var(--success); }
 .station-terminal .upgrade-yield { color: #9ff0c9; }
+
+/* Lab log under the Workbench: the last few installs and automation jobs, green-screen, fixed height. */
+.lab-log[hidden] { display: none; }
+.lab-log { gap: 6px; padding: 12px 14px; }
+.lab-log .terminal-log { height: calc(4 * 1.35em); min-height: 0; margin: 0; padding: 6px 10px; justify-content: flex-end; overflow: hidden; border-radius: 6px; background: #021009; font-family: var(--font-mono); line-height: 1.35; }
+
+/* A finished one-time card: green flash and an "Installed ✓" stamp, then it folds away (retireCard). */
+.upgrade.completing { position: relative; overflow: hidden; animation: card-done 0.8s ease-out; }
+.upgrade.completing::after {
+    content: "Installed ✓";
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font: 800 1.1rem var(--font-display);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--success);
+    background: rgba(8, 26, 21, 0.82);
+    text-shadow: 0 0 14px rgba(99, 224, 171, 0.7);
+    animation: stamp-in 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+@keyframes card-done { 0% { box-shadow: inset 0 0 0 2px var(--success), 0 0 24px rgba(99, 224, 171, 0.5); } 100% { box-shadow: none; } }
+@keyframes stamp-in { from { transform: scale(1.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }

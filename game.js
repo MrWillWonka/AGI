@@ -202,8 +202,6 @@ window.AGI = (function () {
         consciousness: { name: 'Isolation chamber', kind: 'chamber' }
     };
 
-    const CLICK_UPGRADES = ['keyboard', 'shellScripts'];
-
     // A card's live line: what one unit makes now (all multipliers in), what they all make, and the next
     // doubling; for click upgrades, what a click is worth.
     function yieldText(up, lvl, d) {
@@ -211,9 +209,53 @@ window.AGI = (function () {
         if (up.cps) {
             const r = d.hardwareRates[up.id];
             const next = r.nextDoubling ? ` · ×2 at ${r.nextDoubling}` : '';
-            return lvl ? `${f(r.each)} CP/s each · ${f(r.total)} CP/s total${next}` : `${f(r.each)} CP/s each${next}`;
+            return lvl ? `${f(r.each)}/s each · ${f(r.total)}/s${next}` : `${f(r.each)} CP/s each${next}`;
         }
-        return `A click is worth ${f(d.clickPower)} CP`;
+        // What the next level would make it, for the one number this card changes.
+        const after = key => {
+            if (E.isMaxed(state, up)) return '';
+            const next = E.derive({ ...state, levels: { ...state.levels, [up.id]: lvl + 1 } }, debugRates)[key];
+            return next > d[key] * 1.0001 ? ` → ${f(next, key === 'hardwareMult' ? 2 : 1)}` : '';
+        };
+        switch (up.shows) {
+            case 'click': {
+                const next = up.id === 'keyboard' ? E.nextClickTool(lvl) : null;
+                return `Click: ${f(d.clickPower)}${after('clickPower')} CP${next ? ` · ${next.name} at ${next.from}` : ''}`;
+            }
+            case 'collect': return `Collect: ${f(d.dpPerCollect)}${after('dpPerCollect')} DP`;
+            case 'research': return `Research: ${f(d.rpPerResearch)}${after('rpPerResearch')} RP`;
+            case 'hardwareMult': return `Hardware ×${f(d.hardwareMult, 2)}${after('hardwareMult')}`;
+            case 'autoCollect': return lvl ? `${f(d.collectsPerSec, 2)}/s → ${f(d.dpPerSec)} DP/s${d.autoThrottled ? ' · capped' : ''}` : `0.2 collections/s per level`;
+            case 'autoResearch': return lvl ? `${f(d.researchPerSec, 2)}/s → ${f(d.rpPerSec)} RP/s${d.autoThrottled ? ' · capped' : ''}` : `0.1 research/s per level`;
+        }
+        // Attribute upgrades: where those attributes stand now.
+        return Object.keys(up.grants).map(k => `${E.ATTRIBUTES[k].short} ${f(state.attr[k], 1)}`).join(' · ');
+    }
+
+    // A finished card: an "Installed ✓" stamp with a green flash, then it folds away (the cards below slide
+    // up smoothly), and render() keeps it hidden from then on.
+    function retireCard(id) {
+        const item = ui.upgrades[id];
+        if (!item || item.retiring) return;
+        item.retiring = true;
+        const card = item.card;
+        if (reducedMotion()) {
+            item.retiring = false;
+            return render();
+        }
+        card.classList.add('completing');
+        const h = card.offsetHeight;
+        const fold = card.animate([
+            { maxHeight: `${h}px`, opacity: 1, offset: 0 },
+            { maxHeight: `${h}px`, opacity: 1, offset: 0.55 },
+            { maxHeight: '0px', opacity: 0, paddingTop: '0px', paddingBottom: '0px', borderBottomWidth: '0px', offset: 1 }
+        ], { duration: 1400, easing: 'ease-in-out' });
+        const done = () => {
+            item.retiring = false;
+            card.classList.remove('completing');
+            render();
+        };
+        fold.finished.then(done, done);
     }
 
     function buildUpgrades() {
@@ -232,14 +274,15 @@ window.AGI = (function () {
         });
         // The terminal has a screen header; the other stations get decorative pieces.
         ui.termLines = el('span', { class: 'terminal-log' }, [el('span', { class: 'terminal-out', text: '> waiting for jobs' })]);
-        ui.stations.software.art.append(ui.termLines, el('span', { class: 'terminal-line', text: '$ ./improve --list' }));
+        $('labLog').append(ui.termLines);
+        ui.stations.software.art.append(el('span', { class: 'terminal-line', text: '$ ./improve --list' }));
         for (const id of ['algorithms', 'consciousness']) for (let i = 0; i < 5; i++) ui.stations[id].art.append(el('i'));
 
         for (const up of E.UPGRADES) {
             if (up.tab === 'training') continue;
             const levelBadge = el('span', { class: 'badge' });
             // Live numbers (hardware output, click value) so descriptions never need updating.
-            const yieldLine = up.cps || CLICK_UPGRADES.includes(up.id) ? el('p', { class: 'upgrade-yield' }) : null;
+            const yieldLine = up.cps || up.shows || up.grants ? el('p', { class: 'upgrade-yield' }) : null;
             const button = el('button', { type: 'button', class: 'button upgrade-button' });
             button.addEventListener('click', () => doBuy(up.id));
             // Hardware: the part you're buying, as it will sit in the server cabinet.
@@ -251,17 +294,19 @@ window.AGI = (function () {
                 ]),
                 button
             ]) : button;
+            const nameNode = el('span', { text: up.name });
+            const flavorNode = up.flavor ? el('p', { class: 'upgrade-flavor', text: up.flavor }) : null;
             const card = el('article', { class: 'upgrade', hidden: true, 'data-id': up.id }, [
                 el('div', { class: 'upgrade-info' }, [
-                    el('h3', {}, [document.createTextNode(up.name + ' '), levelBadge]),
+                    el('h3', {}, [nameNode, document.createTextNode(' '), levelBadge]),
                     el('p', { class: 'muted small', text: up.effect }),
                     yieldLine,
-                    up.flavor ? el('p', { class: 'upgrade-flavor', text: up.flavor }) : null
+                    flavorNode
                 ]),
                 side
             ]);
             ui.panels[up.tab].append(card);
-            ui.upgrades[up.id] = { up, card, button, levelBadge, yieldLine };
+            ui.upgrades[up.id] = { up, card, button, levelBadge, yieldLine, nameNode, flavorNode };
         }
         for (const tab of E.TABS) {
             const empty = el('p', { class: 'muted small empty-hint', text: 'Nothing new here yet. Keep progressing.' });
@@ -418,7 +463,9 @@ window.AGI = (function () {
         log(result.msg, result.ok ? 'success' : 'warning');
         if (result.ok) {
             const up = E.UPGRADE_BY_ID[id];
-            if (up.tab !== 'training') termLog(`installed ${up.name} (level ${E.level(state, id)})`);
+            if (up.tab !== 'training') termLog(`installed ${E.upgradeName(state, up)} (level ${E.level(state, id)})`);
+            if (up.tab !== 'training' && E.isMaxed(state, up)) retireCard(id);
+            if (result.evolved) toast('Upgraded', `Your click tool is now a ${result.evolved}`);
             afterChange();
         }
     }
@@ -546,6 +593,8 @@ window.AGI = (function () {
         $('skillTree').style.transform = '';
         cabinetKey = null;
         Object.assign(lab, { cp: [], dp: [], hand: [], lastRunCp: null, lastCollects: null, lines: [] });
+        $('labLog').hidden = true;
+        ui.termLines.replaceChildren();
         for (const st of Object.values(ui.stations)) st.order = '';
         projectSlots = projectSlots.map(() => null);
         projectsKey = '';
@@ -682,6 +731,7 @@ window.AGI = (function () {
     function termLog(text) {
         lab.lines.push(text);
         if (lab.lines.length > 4) lab.lines.shift();
+        $('labLog').hidden = false;   // shows with its first line
         const box = ui.termLines;
         if (box) box.replaceChildren(...lab.lines.map((t, i) => el('span', { class: `terminal-out${i === lab.lines.length - 1 ? ' fresh' : ''}`, text: `> ${t}` })));
     }
@@ -776,15 +826,17 @@ window.AGI = (function () {
         renderStations();
 
         const visibleCount = {};
-        for (const { up, card, button, levelBadge, yieldLine } of Object.values(ui.upgrades)) {
-            // Installed upgrades stay where they are (dimmed): cards never vanish from under you.
-            const visible = E.isUpgradeVisible(state, up);
+        for (const { up, card, button, levelBadge, yieldLine, nameNode, flavorNode } of Object.values(ui.upgrades)) {
+            // Finished one-time upgrades retire: a short "installed" animation, then the card folds away.
+            const visible = E.isUpgradeVisible(state, up) && (!E.isMaxed(state, up) || !!ui.upgrades[up.id].retiring);
             setHidden(card, !visible);
             if (!visible) continue;
             visibleCount[up.tab] = (visibleCount[up.tab] || 0) + 1;
             const lvl = E.level(state, up.id);
             const maxed = E.isMaxed(state, up);
             if (yieldLine) setText(yieldLine, yieldText(up, lvl, d));
+            setText(nameNode, E.upgradeName(state, up));
+            if (flavorNode) setText(flavorNode, E.upgradeFlavor(state, up));
             setText(levelBadge, up.max === 1 ? '' : `Lv ${lvl}`);
             card.classList.toggle('owned', maxed);
             if (maxed) {

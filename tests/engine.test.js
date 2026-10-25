@@ -608,3 +608,25 @@ test('a hardware tier shows up only once you own five of the tier below and earn
     assert.ok(Math.abs(d.hardwareRates.server.total + d.hardwareRates.cpu.total - d.cpPerSec) < 1e-9);
     assert.equal(d.hardwareRates.cpu.nextDoubling, 25);
 });
+
+test('the click tool grows from a keyboard into bigger tools, each adding more per level', () => {
+    const s = fresh();
+    s.stats.clicks = 20;
+    E.evaluate(s);
+    const up = E.UPGRADE_BY_ID.keyboard;
+    assert.equal(E.upgradeName(s, up), 'Mechanical Keyboard');
+    assert.equal(E.clickToolPower(5), 5, 'keyboard: +1 per level');
+    assert.equal(E.clickToolPower(6), 7, 'level 6 is the first mouse level: +2');
+    s.levels.keyboard = 4;
+    s.res.cp = 1e9;
+    let r = E.buy(s, 'keyboard');
+    assert.equal(r.evolved, 'Gaming Mouse', 'the fifth level grows it into the next tool');
+    assert.equal(E.upgradeName(s, up), 'Gaming Mouse');
+    r = E.buy(s, 'keyboard');
+    assert.equal(r.evolved, null);
+    // Every stage adds more per level than the last, and the names are all different.
+    for (let i = 1; i < E.CLICK_TOOLS.length; i++) assert.ok(E.CLICK_TOOLS[i].per > E.CLICK_TOOLS[i - 1].per);
+    assert.equal(new Set(E.CLICK_TOOLS.map(t => t.name)).size, E.CLICK_TOOLS.length);
+    assert.ok(E.CLICK_TOOLS.some(t => /Intern/.test(t.name)));
+    assert.ok(Math.abs(E.derive(s).clickPower - (1 + E.clickToolPower(6)) * E.derive(s).mult) < 1e-9);
+});

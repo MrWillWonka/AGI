@@ -131,7 +131,9 @@
         // makes older tiers worth topping up again. Each tier shows up late (tierReady).
         { id: 'cpu', tab: 'hardware', name: 'Basic CPU', cps: 0.5, effect: 'Generates compute; output doubles at 25, 50 and 100 owned', flavor: 'A desktop tower from the office cupboard. It wheezes.', cost: { cp: 15 }, scale: 1.15,
             unlock: s => automationGate(s, 'cpu').met, hint: 'Generate compute by hand 25 times' },
-        { id: 'keyboard', tab: 'hardware', name: 'Mechanical Keyboard', effect: '+1 CP per click, per level', flavor: 'Clicky. Your desk neighbours hate it.', cost: { cp: 40 }, scale: 3, max: 4,
+        // The click tool: one upgrade that grows into new tools as you level it (CLICK_TOOLS), each adding
+        // more per level. Its name and flavour follow the current tool (upgradeName / upgradeFlavor).
+        { id: 'keyboard', tab: 'hardware', name: 'Mechanical Keyboard', shows: 'click', effect: 'More compute per click; grows into better tools as you level it', flavor: 'Clicky. Your desk neighbours hate it.', cost: { cp: 40 }, scale: 1.32,
             unlock: s => s.stats.clicks >= 15, hint: 'Generate compute by hand 15 times' },
         { id: 'server', tab: 'hardware', name: 'Server Cluster', cps: 3.3, effect: 'Generates compute; output doubles at 25, 50 and 100 owned', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 300 }, scale: 1.15,
             unlock: s => tierReady(s, 'server'), hint: 'More Basic CPUs, and more compute earned' },
@@ -145,14 +147,14 @@
             unlock: s => phaseIndex(s) >= 2 && tierReady(s, 'optical'), hint: 'Reach Superintelligence' },
 
         // Software
-        { id: 'shellScripts', tab: 'software', name: 'Shell Scripts', effect: 'Each click also earns 2% of your CP/s, per level', flavor: 'for i in range(1000): click()', cost: { cp: 600, dp: 40 }, scale: 4, max: 3,
+        { id: 'shellScripts', tab: 'software', name: 'Shell Scripts', shows: 'click', effect: 'Each click also earns 2% of your CP/s, per level', flavor: 'for i in range(1000): click()', cost: { cp: 600, dp: 40 }, scale: 4, max: 3,
             unlock: s => s.stats.clicks >= 150, hint: 'Generate compute by hand 150 times' },
-        { id: 'compilerOpt', tab: 'software', name: 'Compiler Optimizations', effect: 'All hardware +50% CP/s', flavor: 'Turned on -O3. Everything is faster and nobody knows why.', cost: { cp: 3000, dp: 200 }, max: 1,
+        { id: 'compilerOpt', tab: 'software', name: 'Compiler Optimizations', shows: 'hardwareMult', effect: 'All hardware +50% CP/s', flavor: 'Turned on -O3. Everything is faster and nobody knows why.', cost: { cp: 3000, dp: 200 }, max: 1,
             unlock: s => level(s, 'server') >= 5, hint: 'Own 5 Server Clusters' },
-        { id: 'kernelFusion', tab: 'software', name: 'Kernel Fusion', effect: 'All hardware +50% CP/s', flavor: 'Three GPU kernels walked into one bar.', cost: { cp: 180000, dp: 9000 }, max: 1,
+        { id: 'kernelFusion', tab: 'software', name: 'Kernel Fusion', shows: 'hardwareMult', effect: 'All hardware +50% CP/s', flavor: 'Three GPU kernels walked into one bar.', cost: { cp: 180000, dp: 9000 }, max: 1,
             unlock: s => level(s, 'neural') >= 5, hint: 'Own 5 Neural Network Chips' },
-        { id: 'dataProcessor', tab: 'software', name: 'Data Processor', effect: '+1 DP per collection', flavor: 'A script that cleans the data so you don\'t have to.', cost: { cp: 50, dp: 5 }, scale: 1.2 },
-        { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', effect: 'Collects data for you: 0.2 times a second per level, 10 CP each', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 800, dp: 80 }, scale: 1.5,
+        { id: 'dataProcessor', tab: 'software', name: 'Data Processor', shows: 'collect', effect: '+1 DP per collection, per level', flavor: 'A script that cleans the data so you don\'t have to.', cost: { cp: 50, dp: 5 }, scale: 1.2 },
+        { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', shows: 'autoCollect', effect: 'Collects data for you: 0.2 times a second per level, 10 CP each', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 800, dp: 80 }, scale: 1.5,
             unlock: s => automationGate(s, 'autoCollector').met, hint: 'Image Recognition, and 100 data collections by hand' },
         // Training skill tree (bought with XP from the Training Path). `tree` is the node's grid
         // position around the central Training Core at (0, 0); `requires` is the node it grows from
@@ -230,21 +232,21 @@
         { id: 'blackSwan', tab: 'training', tree: { x: -4, y: -2 }, icon: 'dice', name: 'Black Swan', effect: '+4% breakthrough chance, and breakthroughs +60% stronger, per level', flavor: 'Nobody saw it coming. That\'s the point.', cost: { xp: 10000 }, scale: 1.9, max: 3, requires: 'flowState', boost: { critChance: 0.04, critPower: 0.6 } },
         { id: 'autoTrainer', tab: 'training', tree: { x: -2, y: 0 }, icon: 'robot', name: 'Auto-Trainer', effect: 'Level 1 starts runs and sprints when the model stalls. Level 2 times its sprints', flavor: 'An intern who never gets tired. Or paid.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
             requires: 'scoutingData', unlock: s => s.prestige.count >= 1, hint: 'Transcend once' },
-        { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', effect: 'Researches for you: 0.1 times a second per level, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.55,
+        { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', shows: 'autoResearch', effect: 'Researches for you: 0.1 times a second per level, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.55,
             unlock: s => !!s.unlocked['action:research'] && automationGate(s, 'researchAssistant').met, hint: 'Language Modeling, and 50 research runs by hand' },
-        { id: 'nlp', tab: 'software', name: 'Natural Language Processing', effect: '+5 DP per collection, +1 Intelligence', flavor: 'It reads now. Mostly forum posts, sadly.', cost: { cp: 2500, dp: 250 }, max: 1,
+        { id: 'nlp', tab: 'software', name: 'Natural Language Processing', shows: 'collect', effect: 'Data per collection ×1.5, +1 Intelligence', flavor: 'It reads now. Mostly forum posts, sadly.', cost: { cp: 2500, dp: 250 }, max: 1,
             grants: { intelligence: 1 }, unlock: s => s.res.dp >= 100, hint: 'Hold 100 DP' },
-        { id: 'computerVision', tab: 'software', name: 'Computer Vision', effect: '+10 DP per collection, +2 Intelligence', flavor: 'It sees now. It has opinions about your photos.', cost: { cp: 8000, dp: 600 }, max: 1,
+        { id: 'computerVision', tab: 'software', name: 'Computer Vision', shows: 'collect', effect: 'Data per collection ×2, +2 Intelligence', flavor: 'It sees now. It has opinions about your photos.', cost: { cp: 8000, dp: 600 }, max: 1,
             grants: { intelligence: 2 }, requires: 'nlp' },
 
         // Algorithms
-        { id: 'machineLearning', tab: 'algorithms', name: 'Machine Learning', effect: '+1 RP per research, +1 Intelligence', flavor: 'Stop writing rules. Let it figure them out.', cost: { cp: 3000, dp: 300, rp: 20 }, max: 1,
+        { id: 'machineLearning', tab: 'algorithms', name: 'Machine Learning', shows: 'research', effect: '+1 RP per research, +1 Intelligence', flavor: 'Stop writing rules. Let it figure them out.', cost: { cp: 3000, dp: 300, rp: 20 }, max: 1,
             grants: { intelligence: 1 } },
-        { id: 'deepLearning', tab: 'algorithms', name: 'Deep Learning', effect: '+2 RP per research, +2 Intelligence', flavor: 'Like machine learning, but with more layers. And more GPUs.', cost: { cp: 10000, dp: 1000, rp: 60 }, max: 1,
+        { id: 'deepLearning', tab: 'algorithms', name: 'Deep Learning', shows: 'research', effect: '+2 RP per research, +2 Intelligence', flavor: 'Like machine learning, but with more layers. And more GPUs.', cost: { cp: 10000, dp: 1000, rp: 60 }, max: 1,
             grants: { intelligence: 2 }, requires: 'machineLearning' },
-        { id: 'reinforcementLearning', tab: 'algorithms', name: 'Reinforcement Learning', effect: '+3 RP per research, +2 Intelligence, +1 Creativity', flavor: 'Treats for good answers, nothing for bad ones.', cost: { cp: 30000, dp: 3000, rp: 150 }, max: 1,
+        { id: 'reinforcementLearning', tab: 'algorithms', name: 'Reinforcement Learning', shows: 'research', effect: '+3 RP per research, +2 Intelligence, +1 Creativity', flavor: 'Treats for good answers, nothing for bad ones.', cost: { cp: 30000, dp: 3000, rp: 150 }, max: 1,
             grants: { intelligence: 2, creativity: 1 }, requires: 'deepLearning' },
-        { id: 'transferLearning', tab: 'algorithms', name: 'Transfer Learning', effect: '+5 RP per research, +3 Intelligence, +2 Creativity', flavor: 'Learned chess, now it\'s quite good at checkers too.', cost: { cp: 80000, dp: 8000, rp: 400 }, max: 1,
+        { id: 'transferLearning', tab: 'algorithms', name: 'Transfer Learning', shows: 'research', effect: '+5 RP per research, +3 Intelligence, +2 Creativity', flavor: 'Learned chess, now it\'s quite good at checkers too.', cost: { cp: 80000, dp: 8000, rp: 400 }, max: 1,
             grants: { intelligence: 3, creativity: 2 }, requires: 'reinforcementLearning' },
         { id: 'generativeModels', tab: 'algorithms', name: 'Generative Models', effect: '+1 Creativity', flavor: 'It makes things up. On purpose this time.', cost: { cp: 5000, dp: 500, rp: 50 }, scale: 1.6,
             grants: { creativity: 1 }, requires: 'reinforcementLearning' },
@@ -262,6 +264,32 @@
             grants: { awareness: 20, creativity: 10 }, requires: 'metacognition' }
     ];
     const HARDWARE = UPGRADES.filter(u => u.cps);
+
+    // The click tool's stages: from a keyboard to a click farm. Each level adds `per` CP per click, using
+    // the stage that level falls in (levels 1-5 are the keyboard, 6-10 the mouse, and so on).
+    const CLICK_TOOLS = [
+        { from: 0, name: 'Mechanical Keyboard', per: 1, flavor: 'Clicky. Your desk neighbours hate it.' },
+        { from: 5, name: 'Gaming Mouse', per: 2, flavor: 'The RGB adds ten percent. Science.' },
+        { from: 10, name: 'Macro Pad', per: 5, flavor: 'One button, forty clicks. Technically allowed.' },
+        { from: 18, name: 'Summer Intern', per: 12, flavor: 'Unpaid, enthusiastic, clicks everything.' },
+        { from: 28, name: 'Team of Interns', per: 30, flavor: 'They unionised. You pay them in pizza.' },
+        { from: 40, name: 'Crowdsourcing Platform', per: 80, flavor: 'Ten thousand strangers, one button.' },
+        { from: 55, name: 'Click Farm', per: 220, flavor: 'A warehouse of phones, all tapping for you.' },
+        { from: 75, name: 'Robotic Clicker Arms', per: 600, flavor: 'They never blink. Never.' }
+    ];
+    const clickToolAt = level => CLICK_TOOLS.filter(t => level > t.from || t.from === 0).at(-1);
+    // The stage you're in now (at `owned` levels): the one the next level belongs to once you own any.
+    const clickTool = owned => CLICK_TOOLS.filter(t => owned >= t.from).at(-1);
+    function clickToolPower(owned) {
+        let total = 0;
+        for (let i = 1; i <= owned; i++) total += clickToolAt(i).per;
+        return total;
+    }
+    const nextClickTool = owned => CLICK_TOOLS.find(t => t.from > owned) || null;
+
+    // What a card is called and says now (the click tool changes as it grows).
+    const upgradeName = (s, up) => (up.id === 'keyboard' ? clickTool(level(s, 'keyboard')).name : up.name);
+    const upgradeFlavor = (s, up) => (up.id === 'keyboard' ? clickTool(level(s, 'keyboard')).flavor : up.flavor);
     // A hardware tier shows up once you own TIER_REVEAL_OWNED of the tier below and have earned half its
     // price this run: late enough that the tier below has done its job, early enough to save up for it.
     const TIER_REVEAL_OWNED = 5;
@@ -400,8 +428,8 @@
         }
         // Clicks: a flat amount (keyboards, skills), plus a share of CP/s from Shell Scripts so clicking
         // stays worth something as hardware grows.
-        const clickPower = (1 + L('keyboard') + sk.click) * mult + 0.02 * L('shellScripts') * cpPerSec;
-        const dpPerCollect = (1 + L('dataProcessor') + 5 * L('nlp') + 10 * L('computerVision') + sk.collect) * (1 + sk.dp) * mult * bo.dp;
+        const clickPower = (1 + clickToolPower(L('keyboard')) + sk.click) * mult + 0.02 * L('shellScripts') * cpPerSec;
+        const dpPerCollect = (1 + L('dataProcessor') + sk.collect) * (1 + 0.5 * L('nlp')) * (1 + L('computerVision')) * (1 + sk.dp) * mult * bo.dp;
         const rpPerResearch = (1 + L('machineLearning') + 2 * L('deepLearning') + 3 * L('reinforcementLearning')
             + 5 * L('transferLearning') + sk.research) * (1 + sk.rp) * mult;
         // Automation converts at the action prices: collections spend CP, research spends CP and DP.
@@ -457,7 +485,7 @@
         let xpPerSec = 0;
         for (let k = 0; k < s.path.learned; k++) xpPerSec += stretchXpAt(k) * PATH.clearedRate * r.xp;
 
-        return { mult, cpPerSec, hardwareRates, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec,
+        return { mult, cpPerSec, hardwareRates, hardwareMult: (1 + 0.5 * L('compilerOpt')) * (1 + 0.5 * L('kernelFusion')), clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec,
             collectsPerSec, researchPerSec, cpUsePerSec, dpUsePerSec, autoThrottled,
             cpNet: cpPerSec - cpUsePerSec, dpNet: dpPerSec - dpUsePerSec, pushPower, pushesPerRoll, pushCooldown, zoneWidth, perfectWidth, cleanMult, cleanRollBonus, cleanPower, perfectPower, sweepScale,
             critChance, critMult, windfallChance, windfallMult, crunchChance, crunchSeconds, flowChance, friction, hillScale, xpMult, xpPerSec };
@@ -520,13 +548,17 @@
         if (!isUpgradeVisible(s, up)) return { ok: false, msg: `${up.name} is locked.` };
         if (isMaxed(s, up)) return { ok: false, msg: `${up.name} is already owned.` };
         const cost = upgradeCost(up, level(s, id));
-        if (!canAfford(s, cost)) return { ok: false, msg: `Not enough resources for ${up.name}.` };
+        if (!canAfford(s, cost)) return { ok: false, msg: `Not enough resources for ${upgradeName(s, up)}.` };
+        const before = upgradeName(s, up);
         pay(s, cost);
         s.levels[id] = level(s, id) + 1;
         if (up.grants) {
             for (const [k, v] of Object.entries(up.grants)) s.attr[k] += v;
         }
-        return { ok: true, msg: `${up.name} ${up.max === 1 ? 'acquired' : 'upgraded to level ' + s.levels[id]}: ${up.effect}` };
+        // The click tool can grow into its next stage: say so.
+        const after = upgradeName(s, up);
+        const evolved = after !== before ? after : null;
+        return { ok: true, evolved, msg: `${before} ${up.max === 1 ? 'acquired' : 'upgraded to level ' + s.levels[id]}: ${up.effect}${evolved ? `. It's now a ${evolved}!` : ''}` };
     }
 
     // Actions with `scale` get pricier each time they are used in a run (stats.improves for Self-Improve).
@@ -1128,7 +1160,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, applyOffline,
-        skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, learnSkill, stretchXpAt, legMetres, sprintStrength, breakthroughHit, windfallHit, crunchHit, flowHit, luck,
+        skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, flowHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration
     };
