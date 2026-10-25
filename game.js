@@ -111,10 +111,12 @@ window.AGI = (function () {
 
     function floatGain(anchor, text) {
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        // Rects are screen pixels; the page may be zoomed on large screens (uiScale), so convert.
         const rect = anchor.getBoundingClientRect();
+        const z = uiScale();
         const pop = el('div', { class: 'float-gain', text });
-        pop.style.left = `${rect.left + rect.width / 2 + (Math.random() * 40 - 20)}px`;
-        pop.style.top = `${rect.top + window.scrollY}px`;
+        pop.style.left = `${(rect.left + rect.width / 2) / z + (Math.random() * 40 - 20)}px`;
+        pop.style.top = `${(rect.top + window.scrollY) / z}px`;
         document.body.append(pop);
         pop.addEventListener('animationend', () => pop.remove());
     }
@@ -1089,28 +1091,23 @@ window.AGI = (function () {
         return E.UPGRADES.filter(u => u.tab === 'training');
     }
 
-    // Grid bounds of what is on show (at least one cell around the core), so the tree grows as it opens up.
-    function treeBounds(nodes) {
-        const xs = [-1, 1, ...nodes.map(n => n.tree.x)];
-        const ys = [-1, 1, ...nodes.map(n => n.tree.y)];
-        const b = { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
-        b.cols = b.maxX - b.minX + 1;
-        b.rows = b.maxY - b.minY + 1;
-        return b;
-    }
+    // Fixed cells around the centre: a node's place never changes, so new unlocks appear where they
+    // are without moving anything (or the view). The cell size comes from CSS (--cell).
+    const treeCell = () => parseFloat(getComputedStyle($('treeViewport')).getPropertyValue('--cell')) || 112;
 
     function placeNode(node, x, y) {
-        const b = treeUi.bounds;
-        node.style.left = `${((x - b.minX + 0.5) / b.cols) * 100}%`;
-        node.style.top = `${((y - b.minY + 0.5) / b.rows) * 100}%`;
+        const cell = treeCell();
+        node.style.left = `${x * cell}px`;
+        node.style.top = `${y * cell}px`;
     }
 
     function buildTree() {
         const nodes = treeNodes();
         const tree = $('skillTree');
 
+        // Compass labels sit on the view's edges, not in the tree, so they stay put while you pan.
         for (const branch of E.TREE_BRANCHES) {
-            tree.append(el('div', { class: `tree-branch tree-branch-${branch.dir}`, title: branch.blurb }, [
+            $('treeViewport').append(el('div', { class: `tree-branch tree-branch-${branch.dir}`, title: branch.blurb }, [
                 el('strong', { text: branch.name }), el('span', { text: branch.blurb })
             ]));
         }
@@ -1118,7 +1115,6 @@ window.AGI = (function () {
         treeUi.built = true;
 
         const svg = $('treeLinks');
-        svg.setAttribute('preserveAspectRatio', 'none');
         for (const up of nodes) {
             if (up.requires) {
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -1148,7 +1144,23 @@ window.AGI = (function () {
     const treeCam = { x: 0, y: 0, z: 1, pointers: new Map(), drag: null, moved: false };
     const TREE_ZOOM = { min: 0.5, max: 2.5, step: 1.25 };
 
+    // The view (pan and zoom) is remembered between visits and sessions.
+    const TREE_CAM_KEY = 'agiTreeCam';
+    let treeCamSave = 0;
+
     function applyTreeCam() {
+        $('skillTree').style.transform = `translate(${treeCam.x}px, ${treeCam.y}px) scale(${treeCam.z})`;
+        clearTimeout(treeCamSave);
+        treeCamSave = setTimeout(() => storageSet(TREE_CAM_KEY, JSON.stringify({ x: treeCam.x, y: treeCam.y, z: treeCam.z })), 300);
+    }
+
+    function restoreTreeCam() {
+        try {
+            const v = JSON.parse(storageGet(TREE_CAM_KEY) || 'null');
+            if (v && [v.x, v.y, v.z].every(Number.isFinite)) {
+                Object.assign(treeCam, { x: v.x, y: v.y, z: Math.min(TREE_ZOOM.max, Math.max(TREE_ZOOM.min, v.z)) });
+            }
+        } catch { /* keep the default view */ }
         $('skillTree').style.transform = `translate(${treeCam.x}px, ${treeCam.y}px) scale(${treeCam.z})`;
     }
 
@@ -1180,6 +1192,7 @@ window.AGI = (function () {
 
     function buildTreeCamera() {
         const vp = $('treeViewport');
+        restoreTreeCam();
         const centre = () => ({ x: vp.clientWidth / 2, y: vp.clientHeight / 2 });
         for (const b of vp.querySelectorAll('[data-zoom]')) {
             b.addEventListener('click', () => {
@@ -1265,11 +1278,7 @@ window.AGI = (function () {
         if (!treeUi.built) return;
         const states = Object.fromEntries(treeNodes().map(up => [up.id, nodeState(up)]));
         const shown = treeNodes().filter(up => states[up.id] !== 'hidden');
-        const b = treeUi.bounds = treeBounds(shown);
-        const tree = $('skillTree');
-        tree.style.setProperty('--cols', b.cols);
-        tree.style.setProperty('--rows', b.rows);
-        $('treeLinks').setAttribute('viewBox', `0 0 ${b.cols} ${b.rows}`);
+        const cell = treeCell();
         if (path.selected && states[path.selected] === 'hidden') path.selected = shown[0].id;
         for (const up of treeNodes()) {
             const node = treeUi.nodes[up.id];
@@ -1283,10 +1292,10 @@ window.AGI = (function () {
             node.setAttribute('aria-pressed', String(path.selected === up.id));
         }
         for (const { up, line, from } of treeUi.links) {
-            line.setAttribute('x1', from.x - b.minX + 0.5);
-            line.setAttribute('y1', from.y - b.minY + 0.5);
-            line.setAttribute('x2', up.tree.x - b.minX + 0.5);
-            line.setAttribute('y2', up.tree.y - b.minY + 0.5);
+            line.setAttribute('x1', from.x * cell);
+            line.setAttribute('y1', from.y * cell);
+            line.setAttribute('x2', up.tree.x * cell);
+            line.setAttribute('y2', up.tree.y * cell);
             line.style.display = states[up.id] === 'hidden' ? 'none' : '';
             const parentOwned = !up.requires || E.level(state, up.requires) > 0;
             const owned = E.level(state, up.id) > 0;

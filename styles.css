@@ -654,18 +654,26 @@ h1, h2, h3, p { margin: 0; }
 
 /* The tree is a square-ish grid of cells; nodes sit at cell centres, links are an SVG underneath. */
 .tree {
-    position: relative;
-    /* Cells stay about the same size while few nodes are open; the tree grows as more appear. */
-    /* Roomy cells: the tree can be panned and zoomed, so it doesn't need to squeeze into the box. */
-    width: min(calc(100% - 64px), calc(var(--cols) * 128px));
-    aspect-ratio: var(--cols) / var(--rows);
-    transition: width 0.3s ease;
-    margin: 34px auto;
-    background:
-        radial-gradient(circle at 50% 50%, rgba(99, 224, 171, 0.08), transparent 60%);
+    /* A point at the centre of the view: nodes sit at fixed cells around it (game.js placeNode), and
+       the camera moves this point. Nothing is laid out from the tree's size, so nothing shifts. */
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0;
+    height: 0;
+}
+.tree::before {
+    content: "";
+    position: absolute;
+    left: -260px;
+    top: -260px;
+    width: 520px;
+    height: 520px;
+    background: radial-gradient(circle, rgba(99, 224, 171, 0.08), transparent 60%);
+    pointer-events: none;
 }
 
-.tree-links { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.tree-links { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; }
 .tree-links line { stroke-width: 3; stroke-linecap: round; }
 .tree-links .link-owned { stroke: var(--success); filter: drop-shadow(0 0 4px rgba(99, 224, 171, 0.8)); }
 .tree-links .link-open { stroke: #4a6a70; stroke-dasharray: 5 5; }
@@ -673,7 +681,7 @@ h1, h2, h3, p { margin: 0; }
 
 .tree-node {
     position: absolute;
-    width: min(calc(48% / var(--cols)), 64px);
+    width: calc(var(--cell) * 0.5);
     aspect-ratio: 1;
     transform: translate(-50%, -50%);
 }
@@ -756,10 +764,11 @@ h1, h2, h3, p { margin: 0; }
 
 .tree-branch strong { font: 700 0.78rem var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--primary); }
 .tree-branch span { display: none; }
-.tree-branch-up { top: -30px; left: 50%; transform: translateX(-50%); }
-.tree-branch-down { bottom: -30px; left: 50%; transform: translateX(-50%); }
-.tree-branch-left { left: -18px; top: 50%; transform: translate(-50%, -50%) rotate(-90deg); }
-.tree-branch-right { right: -18px; top: 50%; transform: translate(50%, -50%) rotate(90deg); }
+.tree-branch { z-index: 1; pointer-events: none; }
+.tree-branch-up { top: 8px; left: 50%; transform: translateX(-50%); }
+.tree-branch-down { bottom: 8px; left: 50%; transform: translateX(-50%); }
+.tree-branch-left { left: 18px; top: 50%; transform: translate(-50%, -50%) rotate(-90deg); }
+.tree-branch-right { right: 18px; top: 50%; transform: translate(50%, -50%) rotate(90deg); }
 
 .node-detail {
     padding: 14px;
@@ -1568,6 +1577,7 @@ body { zoom: var(--ui-scale); }
 .tree-viewport {
     position: relative;
     overflow: hidden;
+    --cell: 112px;
     min-height: 480px;
     border: 1px solid #1a2f34;
     border-radius: 8px;
@@ -1693,3 +1703,7 @@ body { zoom: var(--ui-scale); }
 }
 /* Sliding toasts and zooms must never make the page scroll sideways. */
 html, body { overflow-x: clip; }
+
+@media (max-width: 640px) {
+    .tree-viewport { --cell: 84px; min-height: 420px; }
+}
