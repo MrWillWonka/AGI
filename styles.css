@@ -1178,13 +1178,16 @@ h1, h2, h3, p { margin: 0; }
 /* ---- Toasts & floating gains ---- */
 
 .toasts {
+    /* Bottom-left, inside the frame: out of the way of the work, newest at the bottom. */
     position: fixed;
-    top: 72px;
-    right: 16px;
+    bottom: 34px;
+    left: 34px;
     z-index: 50;
     display: flex;
     flex-direction: column;
+    justify-content: flex-end;
     gap: 8px;
+    max-width: min(380px, calc(100vw - 68px));
     pointer-events: none;
 }
 
@@ -1199,7 +1202,7 @@ h1, h2, h3, p { margin: 0; }
     border-left: 3px solid var(--success);
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
     opacity: 0;
-    transform: translateX(24px);
+    transform: translateX(-24px);
     transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
@@ -2020,9 +2023,8 @@ body.has-minimap .room-rnd { padding-bottom: 210px; }
 
 /* Wide: one screen. The bottom row (cabinets, log) leaves the minimap its corner. */
 .room-lab[data-tier="wide"] { height: calc(100dvh / var(--ui-scale) - var(--topbar-h, 53px) - 40px); min-height: 640px; }
-.room-lab[data-tier="wide"] .lab-log { margin-right: 228px; }
-body:not(.has-minimap) .room-lab[data-tier="wide"] .lab-log { margin-right: 0; }
-.room-lab[data-tier="desktop"] .lab-log { align-self: start; }
+.room-lab[data-tier="wide"] .cabinet-panel { margin-right: 228px; }
+body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right: 0; }
 @media (max-width: 1799px) {
     body.has-minimap .room-lab { padding-bottom: 230px; }
 }
@@ -2178,6 +2180,8 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .lab-log { margin-right: 0; }
     content: "Installed ✓";
     position: absolute;
     inset: 0;
+    z-index: 4;
+    white-space: nowrap;
     display: grid;
     place-items: center;
     font: 800 1.1rem var(--font-display);
@@ -2365,3 +2369,29 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .lab-log { margin-right: 0; }
 @media (prefers-reduced-motion: reduce) {
     .rack-block::before, .rack-block::after { transition: none; }
 }
+
+/* ---- Scheduled tasks: progress bars, one row per learned skill, and the log at the foot ---- */
+.task-bar { position: relative; display: block; height: 5px; border-radius: 3px; background: #13272c; overflow: hidden; }
+.task-fill { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 3px; background: linear-gradient(90deg, #2c8a63, var(--success)); box-shadow: 0 0 8px rgba(99, 224, 171, 0.6); transition: width 0.1s linear; }
+.task-autoCollector .task-fill { background: linear-gradient(90deg, #2a6f9a, var(--primary)); box-shadow: 0 0 8px rgba(111, 179, 217, 0.6); }
+.task-researchAssistant .task-fill { background: linear-gradient(90deg, #7a4fa6, #c792ea); box-shadow: 0 0 8px rgba(199, 146, 234, 0.6); }
+.task-skill .task-name::before { content: "↻ "; color: var(--success); }
+.task.off .task-fill { opacity: 0.3; }
+.task.task-linked { animation: task-linked 1.6s ease-out; }
+@keyframes task-linked { 0% { box-shadow: 0 0 0 1px #9ff3cf, 0 0 26px rgba(99, 224, 171, 0.8); } 100% { box-shadow: none; } }
+.task-log { flex: none; display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px dashed #1d353b; }
+.task-log[hidden] { display: none; }
+.task-log-title { font: 700 0.62rem var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.task-log .terminal-log { display: flex; flex-direction: column; gap: 1px; font: 0.68rem var(--font-mono); color: #8fd9b2; }
+.task-log .terminal-out { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.7; }
+.task-log .terminal-out.fresh { opacity: 1; }
+
+/* ---- Connections: a glowing signal line from what started a task to the task, behind the panels ---- */
+.room-lab { position: relative; }
+.room-lab > :not(.signal-line):not(.lab-stations), .lab-stations > .station { position: relative; }
+.signal-line { position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none; overflow: visible; }
+.signal-line path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.signal-glow { stroke: rgba(99, 224, 171, 0.55); stroke-width: 12; filter: blur(5px); }
+.signal-core { stroke: #b8ffe0; stroke-width: 3; filter: drop-shadow(0 0 6px #63e0ab) drop-shadow(0 0 2px #fff); }
+.signal-pulse { stroke: #ffffff; stroke-width: 5; filter: drop-shadow(0 0 8px #fff) drop-shadow(0 0 14px #63e0ab); }
+.signal-end { fill: #ffffff; filter: drop-shadow(0 0 8px #63e0ab); }

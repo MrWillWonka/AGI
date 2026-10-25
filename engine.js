@@ -186,7 +186,7 @@
         // The click tool: one upgrade that grows into new tools as you level it (CLICK_TOOLS), each adding
         // more per level. Its name and flavour follow the current tool (upgradeName / upgradeFlavor).
         // The first five levels are your desk, one item each at its own price (`costs`); then x1.32 per level.
-        { id: 'keyboard', tab: 'hardware', name: 'Desktop Tower', shows: 'click', effect: 'More compute per click; grows into better tools as you level it', flavor: 'A beige box from the office cupboard. It wheezes.',
+        { id: 'keyboard', tab: 'hardware', name: 'Desktop Tower', shows: 'click', effect: 'More compute per click', flavor: 'A beige box from the office cupboard. It wheezes.',
             costs: [{ cp: 25 }, { cp: 45 }, { cp: 45 }, { cp: 75 }, { cp: 100 }], cost: { cp: 100 }, scale: 1.32,
             unlock: s => s.stats.clicks >= 15, hint: 'Generate compute by hand 15 times' },
         { id: 'server', tab: 'hardware', name: 'Server Cluster', cps: 3.3, effect: 'Generates compute', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 300 }, scale: 1.15,
@@ -208,7 +208,7 @@
         { id: 'kernelFusion', tab: 'hardware', name: 'Kernel Fusion', shows: 'hardwareMult', effect: 'All hardware +50% CP/s', flavor: 'Three GPU kernels walked into one bar.', cost: { cp: 180000, dp: 9000 }, max: 1,
             unlock: s => level(s, 'neural') >= 5, hint: 'Own 5 Neural Network Chips' },
         { id: 'dataProcessor', tab: 'software', name: 'Data Processor', shows: 'collect', effect: '+1 DP per collection, per level', flavor: 'A script that cleans the data so you don\'t have to.', cost: { cp: 50, dp: 5 }, scale: 1.2 },
-        { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', shows: 'autoCollect', effect: 'Collects data for you: 0.2 times a second per level, 10 CP each', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 800, dp: 80 }, scale: 1.5,
+        { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', shows: 'autoCollect', effect: 'Collects data for you, 10 CP each', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 800, dp: 80 }, scale: 1.5,
             unlock: s => automationGate(s, 'autoCollector').met, hint: 'Pattern Matching, and 100 data collections by hand' },
         // Training skill tree (bought with XP from the Training Path). `tree` is the node's grid
         // position around the seed at (0, 0); `requires` is the node it grows from. `icon` names a glyph
@@ -300,12 +300,14 @@
         { id: 'flowState', tab: 'training', legacy: true, tree: { x: -3, y: 1 }, icon: 'wave', name: 'Flow State', effect: '+1% chance a sprint starts a flow: coast above the hills, 3 s (+1 s/level)', flavor: 'The loss curve and you are one.', cost: { insight: 5 }, scale: 2, max: 3, requires: 'superconductors', boost: { flowChance: 0.01, flowTime: 1 } },
         { id: 'deepFocus', tab: 'training', legacy: true, tree: { x: -4, y: 1 }, icon: 'wave', name: 'Deep Focus', effect: 'Flows last 1 s longer and coast 15% faster, per level', flavor: 'Notifications off. Phone in a drawer. In another room.', cost: { insight: 4 }, scale: 2, max: 3, requires: 'flowState', boost: { flowTime: 1, flowSpeed: 0.15 } },
         { id: 'lucidDream', tab: 'training', legacy: true, tree: { x: -4, y: 2 }, icon: 'wave', name: 'Lucid Dream', effect: 'Super flows: 20% of flows (+10%/level) shrink the hills below you', flavor: 'It knows it\'s dreaming. It redecorated.', cost: { insight: 20 }, scale: 2, max: 3, requires: 'deepFocus', boost: { superFlow: 0.2 } },
-        { id: 'researchAssistant', tab: 'algorithms', name: 'Research Assistant', shows: 'autoResearch', effect: 'Researches for you: 0.1 times a second per level, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.55,
+        { id: 'researchAssistant', tab: 'algorithms', name: 'Research Assistant', shows: 'autoResearch', effect: 'Researches for you, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.55,
             unlock: s => !!s.unlocked['action:research'] && automationGate(s, 'researchAssistant').met, hint: 'Language Modeling, and 50 research runs by hand' },
-        { id: 'nlp', tab: 'software', name: 'Natural Language Processing', shows: 'collect', effect: 'Data per collection ×1.5, +1 Intelligence', flavor: 'It reads now. Mostly forum posts, sadly.', cost: { cp: 2500, dp: 250 }, max: 1,
-            grants: { intelligence: 1 }, unlock: s => s.res.dp >= 100, hint: 'Hold 100 DP' },
-        { id: 'computerVision', tab: 'software', name: 'Computer Vision', shows: 'collect', effect: 'Data per collection ×2, +2 Intelligence', flavor: 'It sees now. It has opinions about your photos.', cost: { cp: 8000, dp: 600 }, max: 1,
-            grants: { intelligence: 2 }, requires: 'nlp' },
+        // The crawler's upgrades: it reads text, then images, so it collects faster. (Data per collection
+        // grows only through the Data Processor; Intelligence comes from training, not from data.)
+        { id: 'nlp', tab: 'software', name: 'Natural Language Processing', shows: 'autoCollect', effect: 'Data crawler 50% faster', flavor: 'It reads now. Mostly forum posts, sadly.', cost: { cp: 2500, dp: 250 }, max: 1,
+            requires: 'autoCollector' },
+        { id: 'computerVision', tab: 'software', name: 'Computer Vision', shows: 'autoCollect', effect: 'Data crawler twice as fast', flavor: 'It sees now. It has opinions about your photos.', cost: { cp: 8000, dp: 600 }, max: 1,
+            requires: 'nlp' },
 
         // Algorithms
         { id: 'machineLearning', tab: 'algorithms', name: 'Machine Learning', shows: 'research', effect: '+1 RP per research, +1 Intelligence', flavor: 'Stop writing rules. Let it figure them out.', cost: { cp: 3000, dp: 300, rp: 20 }, max: 1,
@@ -516,7 +518,7 @@
         // Clicks: a flat amount (keyboards, skills), plus a share of CP/s from Shell Scripts so clicking
         // stays worth something as hardware grows.
         const clickPower = (1 + clickToolPower(L('keyboard')) + sk.click) * mult + 0.02 * L('shellScripts') * cpPerSec;
-        const dpPerCollect = (1 + L('dataProcessor') + sk.collect) * (1 + 0.5 * L('nlp')) * (1 + L('computerVision')) * (1 + sk.dp) * mult * bo.dp;
+        const dpPerCollect = (1 + L('dataProcessor') + sk.collect) * (1 + sk.dp) * mult * bo.dp;
         const rpPerResearch = (1 + L('machineLearning') + 2 * L('deepLearning') + 3 * L('reinforcementLearning')
             + 5 * L('transferLearning') + sk.research) * (1 + sk.rp) * mult * bo.rp;
         // Automation converts at the action prices: collections spend CP, research spends CP and DP.
@@ -526,7 +528,7 @@
         const researchCost = actionById('research').cost;
         // Each scheduled task has its own share (taskShares): the crawler of CP, research of CP and DP.
         const shares = taskShares(s);
-        const wantCollects = 0.2 * L('autoCollector') * r.dp;
+        const wantCollects = 0.2 * L('autoCollector') * (1 + 0.5 * L('nlp')) * (1 + L('computerVision')) * r.dp;
         const wantResearch = 0.1 * L('researchAssistant') * r.rp;
         const collectScale = wantCollects > 0 ? Math.min(1, shares.autoCollector * cpPerSec / (wantCollects * collectCost.cp)) : 1;
         const collectsPerSec = wantCollects * collectScale;
@@ -1059,6 +1061,10 @@
         { text: 'A big research grant', grant: 'rp', amount: s => Math.max(40, Math.max(derive(s).rpPerSec * 700, derive(s).rpPerResearch * 35)) }
     ];
 
+    // A short note when a project pays out (investors stay anonymous).
+    const PROJECT_QUIPS = ['The board is thrilled.', 'Someone rang a bell in the break room.', 'The cheque cleared. Nobody asked questions.',
+        'A press release is being written as we speak.', 'Champagne. Well, sparkling water.'];
+
     function projectRng(seq) {
         let a = (seq * 2654435761 + 12345) >>> 0;
         return () => {
@@ -1125,7 +1131,7 @@
         else if (reward.grant === 'rp') s.res.rp += reward.amount(s);
         p.offers = p.offers.filter(x => x !== o);
         s.stats.projectsDone = (s.stats.projectsDone || 0) + 1;
-        return { ok: true, msg: `${o.investor} is pleased: ${reward.text}.` };
+        return { ok: true, msg: `${reward.text}. ${PROJECT_QUIPS[o.id % PROJECT_QUIPS.length]}` };
     }
 
     function dismissProject(s, id) {

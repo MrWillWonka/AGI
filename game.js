@@ -168,6 +168,8 @@ window.AGI = (function () {
     function toast(title, message) {
         const box = el('div', { class: 'toast', role: 'status' }, [el('strong', { text: title }), el('span', { text: message })]);
         $('toasts').append(box);
+        // At most three at a time (oldest first out), so they never bury the bottom of the screen.
+        while ($('toasts').children.length > 3) $('toasts').firstElementChild.remove();
         requestAnimationFrame(() => box.classList.add('show'));
         setTimeout(() => {
             box.classList.remove('show');
@@ -350,13 +352,13 @@ window.AGI = (function () {
         if (up.cps) {
             const r = d.hardwareRates[up.id];
             const next = r.nextDoubling ? ` · ×2 at ${r.nextDoubling}` : '';
-            return lvl ? `${f(r.each)}/s each · ${f(r.total)}/s${next}` : `${f(r.each)} CP/s each${next}`;
+            return `+${f(r.each)} CP/s each${next}`;
         }
         // What the next level would make it, for the one number this card changes.
         const after = key => {
             if (E.isMaxed(state, up)) return '';
             const next = E.derive({ ...state, levels: { ...state.levels, [up.id]: lvl + 1 } }, debugRates)[key];
-            return next > d[key] * 1.0001 ? ` → ${f(next, key === 'hardwareMult' ? 2 : 1)}` : '';
+            return next > d[key] * 1.0001 ? ` → ${f(next, key === 'hardwareMult' || key.endsWith('PerSec') ? 2 : 1)}` : '';
         };
         switch (up.shows) {
             case 'click': {
@@ -370,8 +372,8 @@ window.AGI = (function () {
             case 'collect': return `Collect: ${f(d.dpPerCollect)}${after('dpPerCollect')} DP`;
             case 'research': return `Research: ${f(d.rpPerResearch)}${after('rpPerResearch')} RP`;
             case 'hardwareMult': return `Hardware ×${f(d.hardwareMult, 2)}${after('hardwareMult')}`;
-            case 'autoCollect': return lvl ? `${f(d.collectsPerSec, 2)}/s → ${f(d.dpPerSec)} DP/s${d.autoThrottled ? ' · capped' : ''}` : `0.2 collections/s per level`;
-            case 'autoResearch': return lvl ? `${f(d.researchPerSec, 2)}/s → ${f(d.rpPerSec)} RP/s${d.autoThrottled ? ' · capped' : ''}` : `0.1 research/s per level`;
+            case 'autoCollect': return `Crawler: ${f(d.collectsPerSec, 2)}${after('collectsPerSec')} collections/s`;
+            case 'autoResearch': return `Assistant: ${f(d.researchPerSec, 2)}${after('researchPerSec')} research/s`;
         }
         // Attribute upgrades: where those attributes stand now.
         return Object.keys(up.grants).map(k => `${E.ATTRIBUTES[k].short} ${f(state.attr[k], 1)}`).join(' · ');
@@ -389,12 +391,13 @@ window.AGI = (function () {
             return render();
         }
         card.classList.add('completing');
-        const h = card.offsetHeight;
+        // The stamp gets a full second on a card tall enough to show it, then the card folds away.
+        const h = Math.max(card.offsetHeight, 56);
         const fold = card.animate([
-            { maxHeight: `${h}px`, opacity: 1, offset: 0 },
-            { maxHeight: `${h}px`, opacity: 1, offset: 0.55 },
-            { maxHeight: '0px', opacity: 0, paddingTop: '0px', paddingBottom: '0px', borderBottomWidth: '0px', offset: 1 }
-        ], { duration: 1400, easing: 'ease-in-out' });
+            { minHeight: `${h}px`, maxHeight: `${h}px`, opacity: 1, offset: 0 },
+            { minHeight: `${h}px`, maxHeight: `${h}px`, opacity: 1, offset: 0.62 },
+            { minHeight: '0px', maxHeight: '0px', opacity: 0, paddingTop: '0px', paddingBottom: '0px', borderBottomWidth: '0px', offset: 1 }
+        ], { duration: 1800, easing: 'ease-in-out' });
         const done = () => {
             item.retiring = false;
             card.classList.remove('completing');
@@ -420,8 +423,6 @@ window.AGI = (function () {
             ui.panels[tab.id] = list;
         });
         // The terminal has a screen header; the other stations get decorative pieces.
-        ui.termLines = el('span', { class: 'terminal-log' }, [el('span', { class: 'terminal-out', text: '> waiting for jobs' })]);
-        $('labLog').append(ui.termLines);
         ui.stations.software.art.append(el('span', { class: 'terminal-line', text: '$ ./improve --list' }));
         for (const id of ['algorithms', 'consciousness']) for (let i = 0; i < 5; i++) ui.stations[id].art.append(el('i'));
 
@@ -441,7 +442,8 @@ window.AGI = (function () {
                 button
             ]) : button;
             const nameNode = el('span', { text: up.name });
-            const flavorNode = up.flavor ? el('p', { class: 'upgrade-flavor', text: up.flavor }) : null;
+            // Lab cards keep to the numbers: no flavour lines here (the skill tree and the log keep theirs).
+            const flavorNode = null;
             const card = el('article', { class: 'upgrade', hidden: true, 'data-id': up.id }, [
                 el('div', { class: 'upgrade-info' }, [
                     el('h3', {}, [nameNode, document.createTextNode(' '), levelBadge]),
@@ -855,7 +857,6 @@ window.AGI = (function () {
         Object.assign(lab, { cp: [], dp: [], rp: [], xp: [], hand: [], lastRunCp: null, lastCollects: null, lastResearch: null, lastXp: null, lines: [] });
         storageSet(RACK_LOG_KEY, '[]');
         path.queued = null;
-        $('labLog').hidden = true;
         ui.termLines.replaceChildren();
         for (const st of Object.values(ui.stations)) st.order = '';
         projectSlots = projectSlots.map(() => null);
@@ -901,6 +902,7 @@ window.AGI = (function () {
         } else {
             E.tick(state, dt * debugSpeed, debugRates);
             sampleLab(dt * debugSpeed);
+            advanceTasks(dt * debugSpeed);
         }
         afterChange();
         if (state.settings.autosave && now - lastSave >= AUTOSAVE_MS) save();
@@ -991,8 +993,7 @@ window.AGI = (function () {
     function termLog(text) {
         lab.lines.push(text);
         if (lab.lines.length > 4) lab.lines.shift();
-        // Shows with its first line, once the software terminal is open (it's a terminal's log).
-        setHidden($('labLog'), !state.unlocked['seen:dp']);
+        render();
         const box = ui.termLines;
         if (box) box.replaceChildren(...lab.lines.map((t, i) => el('span', { class: `terminal-out${i === lab.lines.length - 1 ? ' fresh' : ''}`, text: `> ${t}` })));
     }
@@ -1126,7 +1127,6 @@ window.AGI = (function () {
 
         setDisabled($('prestigeButton'), E.prestigeGain(state) < 1);
         for (const node of document.querySelectorAll('[data-show]')) setHidden(node, !state.unlocked[node.dataset.show]);
-        setHidden($('labLog'), !lab.lines.length || !state.unlocked['seen:dp']);
         // Training XP joins the supply line once cleared stretches make it on their own.
         setHidden(document.querySelector('.cell-xp'), !(d.xpPerSec > 0));
         renderTasks(d);
@@ -1623,7 +1623,7 @@ window.AGI = (function () {
                     const r = E.claimProject(state, o.id);
                     log(r.msg, r.ok ? 'success' : 'warning');
                     if (r.ok) {
-                        termLog(`investor: ${o.investor} paid out`);
+                        termLog(`project paid out: ${E.PROJECT_REWARDS[o.reward].text}`);
                         toast('Project complete', r.msg);
                     }
                     afterChange();
@@ -1635,9 +1635,9 @@ window.AGI = (function () {
                 });
                 const task = E.PROJECT_TASKS[o.task].text(o.target);
                 const reward = E.PROJECT_REWARDS[o.reward].text;
-                return el('li', { class: `offer${done ? ' done' : ''}`, 'data-id': o.id, title: `${o.investor}: ${task}. Reward: ${reward}` }, [
+                return el('li', { class: `offer${done ? ' done' : ''}`, 'data-id': o.id, title: `${task}. Reward: ${reward}` }, [
                     el('span', { class: 'project-reward', text: reward }),
-                    el('span', { class: 'project-task' }, [document.createTextNode(task + ' '), el('span', { class: 'project-who', text: `· ${o.investor}` })]),
+                    el('span', { class: 'project-task', text: task }),
                     el('span', { class: 'project-bar' }, [el('span', { class: 'project-fill' })]),
                     el('span', { class: 'project-time' }),
                     claim, drop
@@ -1661,6 +1661,11 @@ window.AGI = (function () {
     const TASK_UPGRADES = { autoCollector: 'autoCollector', researchAssistant: 'researchAssistant', autoTrainer: 'autoTrainer' };
     const taskUi = {};
 
+    // Each task shows a bar filling at the rate it earns (one fill = one collection, one research, one
+    // lap of a cleared leg). Cleared legs are listed one per skill, named after it.
+    const taskProgress = { autoCollector: 0, researchAssistant: 0 };
+    const bar = () => el('span', { class: 'task-bar' }, [el('span', { class: 'task-fill' })]);
+
     function buildTasks() {
         const list = $('taskList');
         for (const t of E.TASKS) {
@@ -1682,41 +1687,68 @@ window.AGI = (function () {
             }
             const rate = el('span', { class: 'task-rate' });
             const share = el('span', { class: 'task-share' });
+            const progress = t.budget ? bar() : null;
             const row = el('li', { class: `task task-${t.id}`, hidden: true }, [
                 el('div', { class: 'task-head' }, [el('span', { class: 'task-name', text: t.name }), toggle]),
                 rate,
+                progress,
                 slider ? el('div', { class: 'task-budget' }, [slider, share]) : null
             ].filter(Boolean));
             list.append(row);
-            taskUi[t.id] = { row, toggle, slider, rate, share };
+            taskUi[t.id] = { row, toggle, slider, rate, share, fill: progress?.firstChild };
         }
-        const laps = el('li', { class: 'task task-laps', hidden: true }, [
-            el('div', { class: 'task-head' }, [el('span', { class: 'task-name', text: 'Cleared legs' }), el('span', { class: 'task-always', text: 'always on' })]),
-            el('span', { class: 'task-rate' })
+        taskUi.skills = [];
+        // The log lives at the foot of the same panel (installs, payouts).
+        ui.termLines = el('span', { class: 'terminal-log' });
+        $('taskPanel').append(el('div', { class: 'task-log', hidden: true }, [el('span', { class: 'task-log-title', text: 'Log' }), ui.termLines]));
+    }
+
+    // One row per learned skill: its cleared leg laps on its own, adding compute and XP.
+    function skillTaskRow(k) {
+        const fill = el('span', { class: 'task-fill' });
+        const rate = el('span', { class: 'task-rate' });
+        const row = el('li', { class: 'task task-skill' }, [
+            el('div', { class: 'task-head' }, [el('span', { class: 'task-name', text: E.skillAt(k).name }), el('span', { class: 'task-always', text: `leg ${k + 1}` })]),
+            rate,
+            el('span', { class: 'task-bar' }, [fill])
         ]);
-        list.append(laps);
-        taskUi.laps = { row: laps, rate: laps.querySelector('.task-rate') };
+        $('taskList').append(row);
+        return { row, fill, rate };
+    }
+
+    // Advance the job bars (called every tick with the game time that passed).
+    function advanceTasks(dt) {
+        const d = E.derive(state, debugRates);
+        taskProgress.autoCollector = (taskProgress.autoCollector + d.collectsPerSec * dt) % 1;
+        taskProgress.researchAssistant = (taskProgress.researchAssistant + d.researchPerSec * dt) % 1;
     }
 
     function renderTasks(d) {
         const f = E.format;
         const owned = id => E.level(state, TASK_UPGRADES[id]) > 0;
-        const any = E.TASKS.some(t => owned(t.id)) || state.path.learned > 0;
+        const learned = state.path.learned;
+        const logged = lab.lines.length > 0 && !!state.unlocked['seen:dp'];
+        const any = E.TASKS.some(t => owned(t.id)) || learned > 0 || logged;
         setHidden($('taskPanel'), !any);
         if (!any) return;
+        setHidden($('taskPanel').querySelector('.task-log'), !logged);
         const shares = E.taskShares(state);
         let dedicated = 0;
         for (const t of E.TASKS) {
             const u = taskUi[t.id];
+            const was = !u.row.hidden;
             setHidden(u.row, !owned(t.id));
             if (!owned(t.id)) continue;
+            // A new automation draws its connection from the card that bought it.
+            if (!was && revealReady && ui.upgrades[t.id] && !ui.upgrades[t.id].card.hidden) connect(ui.upgrades[t.id].card, u.row);
             const on = E.taskOn(state, t.id);
             u.row.classList.toggle('off', !on);
             u.toggle.setAttribute('aria-checked', String(on));
             setText(u.toggle, on ? 'On' : 'Off');
-            if (t.id === 'autoCollector') setText(u.rate, on ? `${f(d.collectsPerSec, 2)} collections/s → ${f(d.dpPerSec)} DP/s` : 'Paused');
-            if (t.id === 'researchAssistant') setText(u.rate, on ? `${f(d.researchPerSec, 2)} research/s → ${f(d.rpPerSec)} RP/s` : 'Paused');
+            if (t.id === 'autoCollector') setText(u.rate, on ? `${f(d.collectsPerSec, 2)}/s → +${f(d.dpPerSec)} DP/s` : 'Paused');
+            if (t.id === 'researchAssistant') setText(u.rate, on ? `${f(d.researchPerSec, 2)}/s → +${f(d.rpPerSec)} RP/s` : 'Paused');
             if (t.id === 'autoTrainer') setText(u.rate, on ? `Level ${E.level(state, 'autoTrainer')} · ${E.level(state, 'autoTrainer') >= 2 ? 'starts runs and times its sprints' : 'starts runs and sprints when stalled'}` : 'Paused');
+            if (u.fill) u.fill.style.width = `${(on ? taskProgress[t.id] : 0) * 100}%`;
             if (!u.slider) continue;
             const pct = Math.round((state.tasks[t.id].share ?? 0) * 100);
             const others = Math.round(E.TASKS.filter(o => o.budget && o.id !== t.id && E.taskOn(state, o.id) && owned(o.id))
@@ -1730,10 +1762,83 @@ window.AGI = (function () {
             setText(u.share, on ? `${pct}% · ${f(task.cp)} CP/s${task.speed < 1 ? ' · capped' : ''}` : `${pct}%`);
             u.share.classList.toggle('capped', on && task.speed < 1);
         }
-        setText($('taskTotal'), `${Math.round(dedicated * 100)}% of compute dedicated`);
-        const learned = state.path.learned;
-        setHidden(taskUi.laps.row, !learned);
-        if (learned) setText(taskUi.laps.rate, `${learned} leg${learned === 1 ? '' : 's'} lapping · +${Math.round(E.clearedCpBonus(state) * 100)}% compute · +${f(d.xpPerSec, 2)} XP/s`);
+        setText($('taskTotal'), dedicated ? `${Math.round(dedicated * 100)}% of compute` : '');
+        // Skill rows: added as skills are learned (in order), removed if the run resets.
+        while (taskUi.skills.length > learned) taskUi.skills.pop().row.remove();
+        // One new skill gets its reveal and connection; a burst (a load, a debug jump) just appears.
+        const single = learned - taskUi.skills.length === 1;
+        while (taskUi.skills.length < learned) {
+            const k = taskUi.skills.length;
+            const r = skillTaskRow(k);
+            taskUi.skills.push(r);
+            if (revealReady && single) {
+                revealIn(r.row);
+                connect(document.querySelector('.cell-cp'), r.row);
+            }
+        }
+        for (let k = 0; k < learned; k++) {
+            const r = taskUi.skills[k];
+            const laps = state.path.auto[k] || 0;
+            const cp = E.PATH.clearedCp + Math.min(E.PATH.lapCpMax, E.PATH.lapCp * laps);
+            setText(r.rate, `lap ${Math.floor(laps)} · +${(cp * 100).toFixed(1)}% CP · +${f(E.stretchXpAt(k) * E.PATH.clearedRate, 2)} XP/s`);
+            r.fill.style.width = `${(laps % 1) * 100}%`;
+        }
+    }
+
+    // Connections: when something new starts working for you, a glowing signal line draws from what
+    // started it to its task, behind the panels, then fades.
+    function connect(from, to) {
+        if (reducedMotion() || !from || !to || view !== 'lab') return;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            const room = $('labRoom');
+            const z = uiScale();
+            const box = room.getBoundingClientRect();
+            const a = from.getBoundingClientRect();
+            const b = to.getBoundingClientRect();
+            if (!a.width || !b.width) return;
+            const pt = (x, y) => [(x - box.left) / z, (y - box.top) / z];
+            const [sx, sy] = pt(a.right, a.top + a.height / 2);
+            const [tx, ty] = pt(b.left, b.top + b.height / 2);
+            const back = tx < sx;
+            const [x1, y1] = back ? pt(a.left, a.top + a.height / 2) : [sx, sy];
+            const [x2, y2] = back ? pt(b.right, b.top + b.height / 2) : [tx, ty];
+            const mid = (x1 + x2) / 2;
+            const NS = 'http://www.w3.org/2000/svg';
+            const svg = document.createElementNS(NS, 'svg');
+            svg.setAttribute('class', 'signal-line');
+            svg.setAttribute('width', box.width / z);
+            svg.setAttribute('height', box.height / z);
+            const d = `M${x1} ${y1} H${mid} V${y2} H${x2}`;
+            for (const cls of ['signal-glow', 'signal-core', 'signal-pulse']) {
+                const path = document.createElementNS(NS, 'path');
+                path.setAttribute('d', d);
+                path.setAttribute('class', cls);
+                svg.append(path);
+            }
+            // A node at each end, so it reads as a wire from one thing to the other.
+            for (const [cx, cy] of [[x1, y1], [x2, y2]]) {
+                const dot = document.createElementNS(NS, 'circle');
+                dot.setAttribute('cx', cx);
+                dot.setAttribute('cy', cy);
+                dot.setAttribute('r', 4);
+                dot.setAttribute('class', 'signal-end');
+                svg.append(dot);
+            }
+            room.append(svg);
+            const len = svg.querySelector('path').getTotalLength();
+            for (const path of svg.querySelectorAll('.signal-glow, .signal-core')) {
+                path.style.strokeDasharray = `${len}`;
+                path.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], { duration: 900, easing: 'ease-in-out', fill: 'both' });
+            }
+            const pulse = svg.querySelector('.signal-pulse');
+            pulse.style.strokeDasharray = `24 ${len}`;
+            pulse.animate([{ strokeDashoffset: 24 }, { strokeDashoffset: -len }], { duration: 900, delay: 700, iterations: 3, easing: 'ease-in' });
+            setTimeout(() => {
+                to.classList.add('task-linked');
+                setTimeout(() => to.classList.remove('task-linked'), 1600);
+            }, 900);
+            svg.animate([{ opacity: 1 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }], { duration: 5200 }).finished.then(() => svg.remove(), () => svg.remove());
+        }));
     }
 
     // ---- Lab layout -------------------------------------------------------------
@@ -1770,8 +1875,7 @@ window.AGI = (function () {
             if (has.rs || has.proj) cols.push([has.rs ? 'rs' : 'proj', has.proj ? 'proj' : 'rs']);
             if (has.tasks) cols.push(['tasks', 'tasks']);
             const n = cols.length;
-            const logSpan = n >= 4 ? 2 : 1;
-            const bottom = cols.map((c, i) => (i < n - logSpan ? 'cab' : 'log'));
+            const bottom = cols.map(() => 'cab');
             const split = cols.some(c => c[0] !== c[1]);
             room.style.gridTemplateColumns = cols.map(c => (c[0] === 'bench' || c[0] === 'tasks' ? 'minmax(260px, 300px)' : 'minmax(0, 1fr)')).join(' ');
             room.style.gridTemplateRows = `auto var(--supply-h) minmax(0, 1.5fr) ${split ? 'minmax(0, 1fr)' : '0px'} var(--bottom-h)`;
@@ -1793,7 +1897,7 @@ window.AGI = (function () {
                 sizes.push('var(--projects-h)');
             }
         }
-        rows.push(['cab', 'cab', 'log']);
+        rows.push(['cab', 'cab', 'cab']);
         sizes.push('auto');
         room.style.gridTemplateColumns = 'minmax(250px, 290px) minmax(0, 1fr) minmax(0, 1fr)';
         room.style.gridTemplateRows = sizes.join(' ');

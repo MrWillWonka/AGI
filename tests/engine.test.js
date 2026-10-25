@@ -97,11 +97,25 @@ test('buying an upgrade pays the scaled cost and increases production', () => {
 test('one-time upgrades cannot be bought twice and grant attributes once', () => {
     const s = fresh();
     s.res = { cp: 1e9, dp: 1e9, rp: 1e9, xp: 0 };
+    s.unlocked['tab:algorithms'] = true;
     E.evaluate(s);
-    assert.equal(E.buy(s, 'nlp').ok, true);
+    assert.equal(E.buy(s, 'machineLearning').ok, true);
     assert.equal(s.attr.intelligence, 1);
-    assert.equal(E.buy(s, 'nlp').ok, false);
+    assert.equal(E.buy(s, 'machineLearning').ok, false);
     assert.equal(s.attr.intelligence, 1);
+});
+
+test('data per collection grows only through the Data Processor; NLP and Computer Vision speed up the crawler, no Intelligence', () => {
+    const s = fresh();
+    s.levels.cpu = 200;
+    s.levels.autoCollector = 1;
+    const before = E.derive(s);
+    s.levels.nlp = 1;
+    s.levels.computerVision = 1;
+    const after = E.derive(s);
+    assert.equal(after.dpPerCollect, before.dpPerCollect);
+    assert.ok(Math.abs(after.collectsPerSec - 3 * before.collectsPerSec) < 1e-9);
+    assert.ok(!E.UPGRADE_BY_ID.nlp.grants && !E.UPGRADE_BY_ID.computerVision.grants);
 });
 
 test('upgrades in locked tabs stay hidden until the tab unlocks', () => {
