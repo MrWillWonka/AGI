@@ -148,7 +148,9 @@
             for (let j = k; j < last; j++) if (x <= skillHill(j).peak) return j;
             return last;
         }
-        const progressIn = (j, x) => Math.max(0, Math.min(1, (x - legStart(j)) / (skillHill(j).peak - legStart(j))));
+        // A leg's length in metres: its start to its skill hill's peak (distance XP is paid per metre).
+        const legLength = j => skillHill(j).peak - legStart(j);
+        const progressIn = (j, x) => Math.max(0, Math.min(1, (x - legStart(j)) / legLength(j)));
         const rolling = bumps.filter(b => b.skill === null);
         return {
             walls,
@@ -168,6 +170,7 @@
             goal,
             legAt,
             legStart,
+            legLength,
             // How far along its leg a position is: 0 at the leg's start, 1 at its skill hill's peak.
             progress: x => progressIn(legAt(x), x),
             progressIn
@@ -231,7 +234,7 @@
                 nextClear++;
             }
             if (!crested && ball.x > ground.goal.peak) {
-                events.push({ type: 'crest', skill: last, leg: last, progress: 1, hills: ground.hillsBefore(ground.goal.peak) });
+                events.push({ type: 'crest', skill: last, leg: last, progress: 1, metres: ground.legLength(last), hills: ground.hillsBefore(ground.goal.peak) });
                 if (!opts.rollOut) {
                     over = true;
                     return;
@@ -242,13 +245,15 @@
                 // Down the far side and out onto the flat, then done.
                 if (ball.x > ground.goal.end + ROLL_OUT || (ball.x > ground.goal.end && Math.abs(ball.v) < 0.25)) {
                     over = true;
-                    events.push({ type: 'end', skill: last, leg: last, progress: 1, crested: true, hills: ground.hillsBefore(ground.goal.peak) });
+                    events.push({ type: 'end', skill: last, leg: last, progress: 1, metres: ground.legLength(last), crested: true, hills: ground.hillsBefore(ground.goal.peak) });
                 }
                 return;
             }
             if (launched && ball.v < 0 && ball.x < ground.start - ROLL_BACK) {
                 over = true;
-                events.push({ type: 'end', skill: k, leg: k, progress: 0, rolledBack: true, hills: ground.hillsBefore(Math.min(ball.maxX, skillHill(k).peak)) });
+                // Rolled back to the start: no progress, but half the furthest distance reached still counts.
+                const furthest = ground.progressIn(k, Math.min(ball.maxX, skillHill(k).peak)) * ground.legLength(k);
+                events.push({ type: 'end', skill: k, leg: k, progress: 0, metres: 0.5 * furthest, rolledBack: true, hills: ground.hillsBefore(Math.min(ball.maxX, skillHill(k).peak)) });
                 return;
             }
             const resting = Math.abs(ball.v) < REST_SPEED && Math.abs(dy) < 0.08;
@@ -260,10 +265,12 @@
             }
         }
 
-        // Where a roll that stops here ends: its leg, how far along it, and the rolling hills got over there.
+        // Where a roll that stops here ends: its leg, how far along it (fraction and metres), and the rolling
+        // hills got over there.
         function stopEvent() {
             const leg = ground.legAt(ball.x);
-            return { type: 'end', skill: leg, leg, progress: ground.progress(ball.x), hills: ground.hillsBefore(Math.min(ball.maxX, skillHill(leg).peak)) };
+            const progress = ground.progress(ball.x);
+            return { type: 'end', skill: leg, leg, progress, metres: progress * ground.legLength(leg), hills: ground.hillsBefore(Math.min(ball.maxX, skillHill(leg).peak)) };
         }
 
         function step(seconds) {
@@ -282,7 +289,7 @@
             if (over) return null;
             over = true;
             return crested
-                ? { type: 'end', skill: last, leg: last, progress: 1, crested: true, hills: ground.hillsBefore(ground.goal.peak) }
+                ? { type: 'end', skill: last, leg: last, progress: 1, metres: ground.legLength(last), crested: true, hills: ground.hillsBefore(ground.goal.peak) }
                 : stopEvent();
         }
 

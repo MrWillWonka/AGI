@@ -141,8 +141,8 @@ test('engine: pushes cost CP and DP by charge; XP rewards distance, records and 
     s.res.cp = 0;
     assert.equal(E.affordableCharge(s), 0);
 
-    assert.ok(E.rollXp(s, 0.8, false) > 2 * E.rollXp(s, 0.4, false), 'further is worth disproportionately more');
-    assert.equal(E.rollXp(s, 1, true), E.rollXp(s, 1, false) * E.PATH.crestBonus);
+    assert.ok(E.rollXp(s, 0.8, false, 0, 8) > 2 * E.rollXp(s, 0.4, false, 0, 4), 'further is worth disproportionately more');
+    assert.equal(E.rollXp(s, 1, true, 0, 10), E.rollXp(s, 1, false, 0, 10) * E.PATH.crestBonus);
 
     const seed = E.rollSeed(s);
     const r1 = E.finishRoll(s, 0.5, false);
@@ -250,12 +250,12 @@ test('engine: bonus zones sit below the top of the meter, vary per push, and are
 
 test('engine: clean pushes bank flat XP and boost the roll; perfect counts triple; all upgradable', () => {
     const s = E.defaultState(NOW);
-    const plain = E.rollXp(s, 0.5, false, 0);
+    const plain = E.rollXp(s, 0.5, false, 0, 5);
     const clean = E.pushBonusXp(s, 'clean');
     assert.ok(clean > 0 && clean < plain, 'a small flat amount');
     assert.equal(E.pushBonusXp(s, null), 0);
     assert.ok(Math.abs(E.pushBonusXp(s, 'perfect') - 3 * clean) < 1e-9);
-    assert.ok(Math.abs(E.rollXp(s, 0.5, false, 2) - plain * (1 + 2 * E.PATH.cleanRollBonus)) < 1e-9, 'roll multiplier');
+    assert.ok(Math.abs(E.rollXp(s, 0.5, false, 2, 5) - plain * (1 + 2 * E.PATH.cleanRollBonus)) < 1e-9, 'roll multiplier');
 
     const zone = E.bonusZone(9, 0, 0.12, 0.03);
     const mid = (zone.from + zone.to) / 2;
@@ -269,7 +269,6 @@ test('engine: clean pushes bank flat XP and boost the roll; perfect counts tripl
     s.levels.precisionTuning = 2;
     assert.ok(Math.abs(E.pushBonusXp(s, 'clean') - clean * 1.5) < 1e-9);
     assert.ok(Math.abs(E.derive(s).cleanRollBonus - E.PATH.cleanRollBonus * 1.5) < 1e-9);
-    assert.ok(Math.abs(E.derive(s).zoneWidth - E.PATH.zoneWidth * 1.5) < 1e-9);
     assert.equal(E.derive(s).perfectWidth, 0);
     s.levels.perfectCalibration = 1;
     assert.ok(E.derive(s).perfectWidth > 0);
@@ -277,15 +276,6 @@ test('engine: clean pushes bank flat XP and boost the roll; perfect counts tripl
     const before = s.res.xp;
     E.grantPushBonus(s, 'clean');
     assert.ok(s.res.xp > before, 'banked immediately');
-});
-
-test('engine: GPU Cluster slows the meter sweep, up to a cap', () => {
-    const s = E.defaultState(NOW);
-    assert.equal(E.derive(s).sweepScale, 1);
-    s.levels.trainingOptimizer = 5;
-    assert.ok(E.derive(s).sweepScale > 1.2);
-    s.levels.trainingOptimizer = 50;
-    assert.equal(E.derive(s).sweepScale, 1.7);
 });
 
 test('XP follows the ball: rolling back lowers it, and the payout is where it stops', () => {
@@ -353,10 +343,12 @@ test('the start is flat, and rolling back to the start line ends the run', () =>
     const roll = T.createRoll(1, 5, { pushes: 2, cooldown: 0 });
     roll.push(0.01);
     roll.ball.v = -1.5;
+    roll.ball.maxX = roll.ball.x + 3;   // it had got 3 m out before rolling back
     let events = [];
     for (let i = 0; i < 200 && !roll.over; i++) events = events.concat(roll.step(0.05));
     assert.equal(roll.over, true, 'the run ended');
     assert.equal(events.at(-1).rolledBack, true);
+    assert.ok(Math.abs(events.at(-1).metres - 1.5) < 1e-9, 'half the furthest distance still pays');
     assert.equal(events.at(-1).progress, 0);
 });
 

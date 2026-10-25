@@ -202,13 +202,16 @@ test('the automation budget is saved and clamped', () => {
     assert.equal(E.migrate({ version: E.SAVE_VERSION, settings: {} }).settings.autosave, true);
 });
 
-test('a roll that crosses hills earns at least the hill floor', () => {
+test('XP is paid by distance: per metre, more per metre further along, and more on later legs', () => {
     const s = fresh();
-    const none = E.rollXp(s, 0.01, false, 0, 0);
-    const three = E.rollXp(s, 0.01, false, 0, 3);
-    assert.ok(three > none);
-    assert.ok(Math.abs(three / E.rollXp(s, 1, false, 0, 0) - E.PATH.hillFloor * 3) < 1e-9);
-    assert.equal(E.rollXp(s, 0.9, false, 0, 3), E.rollXp(s, 0.9, false, 0, 0));
+    assert.equal(E.rollXp(s, 0, false, 0, 0), 0, 'no distance, no XP');
+    // Same leg: twice the metres (and further along) pays more than twice.
+    assert.ok(E.rollXp(s, 0.6, false, 0, 6) > 2 * E.rollXp(s, 0.3, false, 0, 3));
+    // Per metre: 1 + progress.
+    assert.ok(Math.abs(E.rollXp(s, 0.5, false, 0, 5) - E.PATH.xpPerMetre * 5 * 1.5) < 1e-9);
+    // A metre is worth a little more on a later leg.
+    s.path.learned = 3;
+    assert.ok(Math.abs(E.rollXp(s, 0.5, false, 0, 5) / (E.PATH.xpPerMetre * 5 * 1.5) - Math.pow(E.PATH.metreScale, 3)) < 1e-9);
 });
 
 test('offline progress is capped and respects the setting', () => {
@@ -453,7 +456,7 @@ test('replays: cleared legs push cheaper, pay a share of their XP, and never tea
     assert.ok(s.res.xp > xp0);
     assert.equal(s.stats.legsCleared, 1);
     // Distance on a cleared leg pays its replay share, and the frontier pays in full.
-    assert.ok(E.rollXp(s, 0.5, false, 0, 0, 2) < E.rollXp(s, 0.5, false, 0, 0, 3));
+    assert.ok(E.rollXp(s, 0.5, false, 0, 10, 2) < E.rollXp(s, 0.5, false, 0, 10, 3));
     // Stopping on a cleared leg: XP, but no record and no skill even if "crested".
     const r = E.finishRoll(s, 0.9, true, 0, 0, 1);
     assert.equal(r.skill, null);
@@ -472,4 +475,48 @@ test('data automation opens with the first skill and 100 collections by hand', (
     assert.equal(E.automationGate(s, 'autoCollector').met, false);
     s.path.learned = 1;
     assert.equal(E.automationGate(s, 'autoCollector').met, true);
+});
+
+test('luck: breakthroughs and viral runs start at zero, grow with levels, and are deterministic per seed', () => {
+    const s = fresh();
+    const rate = hit => { let n = 0; for (let seed = 1; seed <= 2000; seed++) n += hit(seed) ? 1 : 0; return n / 2000; };
+    assert.equal(rate(seed => E.breakthroughHit(s, seed, 0)), 0);
+    assert.equal(rate(seed => E.windfallHit(s, seed)), 0);
+    s.levels.scoutingData = 1;
+    const low = rate(seed => E.breakthroughHit(s, seed, 0));
+    assert.ok(low > 0.015 && low < 0.05, `rare at first: ${low}`);
+    s.levels.scoutingData = 2;
+    s.levels.satelliteMaps = 2;
+    const high = rate(seed => E.breakthroughHit(s, seed, 1));
+    assert.ok(high > 2 * low, `likelier with levels: ${high}`);
+    assert.equal(E.breakthroughHit(s, 77, 2), E.breakthroughHit(s, 77, 2), 'deterministic');
+    const weak = E.derive(fresh()).critMult;
+    assert.ok(E.derive(s).critMult > weak, 'and stronger');
+    assert.ok(Math.abs(E.sprintStrength(s, 1, null, true) / E.sprintStrength(s, 1) - E.derive(s).critMult) < 1e-9);
+    s.levels.viralPaper = 2;
+    const viral = rate(seed => E.windfallHit(s, seed));
+    assert.ok(viral > 0.05 && viral < 0.12, `viral ${viral}`);
+    const plain = E.finishRoll(fresh(), 0.5, false, 0, 5).xp;
+    const t = fresh();
+    t.levels.viralPaper = 2;
+    assert.ok(Math.abs(E.finishRoll(t, 0.5, false, 0, 5, 0, true).xp / plain - E.derive(t).windfallMult) < 1e-9);
+});
+
+test('the sweet spot never widens; hitting it makes the sprint stronger, perfect most of all', () => {
+    const s = fresh();
+    const width = E.derive(s).zoneWidth;
+    for (const up of E.UPGRADES.filter(u => u.tab === 'training')) s.levels[up.id] = up.max || 1;
+    assert.equal(E.derive(s).zoneWidth, width);
+    assert.ok(E.derive(s).perfectWidth < width / 2, 'the perfect spot stays small');
+    const plain = E.sprintStrength(s, 0.7);
+    const clean = E.sprintStrength(s, 0.7, 'clean');
+    const perfect = E.sprintStrength(s, 0.7, 'perfect');
+    assert.ok(clean > 1.15 * plain && perfect > 1.3 * clean, `${plain} ${clean} ${perfect}`);
+});
+
+test('Fast Charging speeds up the meter', () => {
+    const s = fresh();
+    assert.equal(E.derive(s).sweepScale, 1);
+    s.levels.highResSensors = 3;
+    assert.ok(E.derive(s).sweepScale < 0.7);
 });

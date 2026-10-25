@@ -1519,7 +1519,9 @@ window.AGI = (function () {
         eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
         robot: '<rect x="4" y="8" width="16" height="12" rx="2.5"/><path d="M12 4v4M9 13v1M15 13v1M9 17h6"/><circle cx="12" cy="3.5" r="1"/>',
         core: '<circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',
-        lock: '<rect x="6" y="11" width="12" height="9" rx="1.5"/><path d="M9 11V8a3 3 0 0 1 6 0v3"/>'
+        lock: '<rect x="6" y="11" width="12" height="9" rx="1.5"/><path d="M9 11V8a3 3 0 0 1 6 0v3"/>',
+        dice: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="15" cy="9" r="1.2"/><circle cx="9" cy="15" r="1.2"/>',
+        spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>'
     };
     const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
 
@@ -2086,7 +2088,7 @@ window.AGI = (function () {
         const roll = currentRoll();
         const kind = E.zoneHit(currentZone(roll), level);
         const leg = ballLeg();
-        if (pushBall(false, Math.max(E.PATH.minCharge, level)) && kind) {
+        if (pushBall(false, Math.max(E.PATH.minCharge, level), kind) && kind) {
             // Clean pushes pay at once: steady XP whatever happens to the roll (scaled to the leg).
             const xp = E.grantPushBonus(state, kind, leg);
             roll.clean = (roll.clean || 0) + 1;
@@ -2101,7 +2103,8 @@ window.AGI = (function () {
 
     // The first push launches the roll (and pays for it); later pushes spend the roll's pushes.
     // `fraction` is how much of the meter was charged (the Auto-Trainer always pushes at full).
-    function pushBall(auto, fraction = 1) {
+    // `kind` ('clean' / 'perfect') makes the sprint hit harder; any sprint can be a breakthrough (luck).
+    function pushBall(auto, fraction = 1, kind = null) {
         const roll = currentRoll();
         if (roll.over || roll.crested || roll.pushesLeft <= 0 || roll.ball.cooldown > 0) return false;
         // Every push is paid for by how hard it is charged.
@@ -2115,7 +2118,12 @@ window.AGI = (function () {
             path.overview = 0;
             dismissResult();
         }
-        roll.push(E.derive(state, debugRates).pushPower * fraction);
+        const breakthrough = E.breakthroughHit(state, roll.ground.seed, pushIndex(roll));
+        roll.push(E.sprintStrength(state, fraction, kind, breakthrough));
+        if (breakthrough) {
+            roll.breakthroughs = (roll.breakthroughs || 0) + 1;
+            path.legFlash = { age: 0, text: `Breakthrough! ×${E.derive(state).critMult.toFixed(2)} strength`, tone: 'warning' };
+        }
         path.pushFlash = 0.35;
         setText($('pathStatus'), '');
         render();
@@ -2258,7 +2266,7 @@ window.AGI = (function () {
         const roll = path.roll;
         roll.legs = (roll.legs || 0) + 1;
         roll.legXp = (roll.legXp || 0) + xp;
-        path.legFlash = { age: 0, text: `${E.skillAt(ev.skill).name} cleared · +${xpText(xp)} XP` };
+        path.legFlash = { age: 0, text: `${E.skillAt(ev.skill).name} cleared · +${xpText(xp)} XP`, tone: 'success' };
         render();
     }
 
@@ -2272,15 +2280,20 @@ window.AGI = (function () {
         const units = roll.units || 0;
         const banked = (roll.bonusXp || 0) + (roll.legXp || 0);
         const legs = roll.legs || 0;
-        const hills = ev.hills || 0;
-        const plainXp = E.rollXp(state, ev.progress, crested, 0, hills, leg);
-        const result = E.finishRoll(state, ev.progress, crested, units, hills, leg);
+        const metres = ev.metres || 0;
+        // Luck: a run can go viral, multiplying its distance XP.
+        const viral = metres > 0 && E.windfallHit(state, roll.ground.seed);
+        const plainXp = E.rollXp(state, ev.progress, crested, 0, metres, leg);
+        const result = E.finishRoll(state, ev.progress, crested, units, metres, leg, viral);
         // With the Auto-Trainer the next roll starts by itself; otherwise the run waits for a click.
         const auto = E.level(state, 'autoTrainer') > 0;
         path.pause = auto ? RESULT_PAUSE : 0;
         path.done = !auto;
         const pct = Math.round(ev.progress * 100);
-        const lines = xpLines(plainXp, result.xp - plainXp, clean, roll.bonusXp || 0, crested);
+        const viralMult = viral ? E.derive(state).windfallMult : 1;
+        const lines = xpLines(plainXp * viralMult, result.xp - plainXp * viralMult, clean, roll.bonusXp || 0, crested);
+        if (viral) lines.unshift([`Went viral! ×${viralMult.toFixed(2)} run XP`, '', 'good']);
+        if (roll.breakthroughs) lines.push([`${roll.breakthroughs} breakthrough sprint${roll.breakthroughs === 1 ? '' : 's'}`, '', 'good']);
         if (legs) lines.unshift([`${legs} cleared leg${legs === 1 ? '' : 's'} crossed`, `+${xpText(roll.legXp)} XP`, 'good']);
         if (result.skill) {
             const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
@@ -2359,8 +2372,8 @@ window.AGI = (function () {
         if (!live) return;
         const units = roll.units || 0;
         const leg = Math.min(roll.leg, state.path.learned);
-        const hills = roll.ground.hillsBefore(Math.min(roll.ball.maxX, T.skillHill(leg).peak));
-        setText($('liveXpValue'), `+${xpText(E.rollXp(state, roll.progress, false, units, hills, leg) + (roll.legXp || 0))} XP`);
+        const metres = roll.progress * roll.ground.legLength(leg);
+        setText($('liveXpValue'), `+${xpText(E.rollXp(state, roll.progress, false, units, metres, leg) + (roll.legXp || 0))} XP`);
         const mult = 1 + E.derive(state).cleanRollBonus * units;
         setText($('liveXpMult'), units ? `×${mult.toFixed(2)} · +${xpText(roll.bonusXp)} banked` : '');
     }
@@ -2390,10 +2403,11 @@ window.AGI = (function () {
         over.style.width = `${(1 - budget) * 100}%`;
         $('charge').classList.toggle('clean', path.cleanFlash > 0);
         const charge = Math.max(E.PATH.minCharge, level);
+        const zoneBoost = kind => (kind === 'perfect' ? d.perfectPower : d.cleanPower);
         setText($('chargeValue'), path.cleanFlash > 0
             ? path.cleanText
             : path.charging
-                ? `Strength ${(d.pushPower * charge).toFixed(1)} · costs ${E.formatCost(E.pushCost(state, charge, ballLeg()))}`
+                ? `Strength ${E.sprintStrength(state, charge, hit).toFixed(1)}${hit && zoneBoost(hit) > 1 ? ` (${hit} ×${zoneBoost(hit).toFixed(2)})` : ''} · costs ${E.formatCost(E.pushCost(state, charge, ballLeg()))}`
                 : `Full sprint: ${E.formatCost(E.pushCost(state, 1, ballLeg()))}${budget < 1 ? ` · you can afford ${Math.round(budget * 100)}%` : ''}`);
         setText($('chargeClean'), roll.bonusXp ? `+${xpText(roll.bonusXp)} XP banked` : '');
     }
@@ -2460,7 +2474,7 @@ window.AGI = (function () {
         // The window is sized to the leg the ball is on, so a replay frames each leg like a normal run.
         const leg = g.legAt(roll.ball.x);
         const span = T.skillHill(leg).end - g.legStart(leg);
-        const base = Math.min(span + 0.6, Math.max(3, span * 0.25) * E.derive(state).viewScale);
+        const base = Math.min(span + 0.6, Math.max(3, span * 0.25));
         const leftOf = view => Math.max(g.start - 0.4, roll.ball.x - view * 0.3);
         // Look at the base window (not the widened one) to decide the zoom, so it can't feed on itself.
         const ahead = tallestIn(roll, leftOf(base), leftOf(base) + base);
@@ -2732,9 +2746,10 @@ window.AGI = (function () {
             ctx.globalAlpha = Math.min(1, a / 0.15, (LEG_FLASH_SECONDS - a) / 0.5);
             ctx.textAlign = 'center';
             ctx.font = '700 15px "Chakra Petch", system-ui, sans-serif';
-            ctx.shadowColor = c.success;
+            const tone = c[path.legFlash.tone || 'success'];
+            ctx.shadowColor = tone;
             ctx.shadowBlur = 12;
-            ctx.fillStyle = c.success;
+            ctx.fillStyle = tone;
             ctx.fillText(path.legFlash.text, w / 2, Math.max(84, h * 0.22) - 6 * Math.min(1, a / 0.3));
             ctx.restore();
         }
