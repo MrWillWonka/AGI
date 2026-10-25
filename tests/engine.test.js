@@ -482,22 +482,16 @@ test('v2 saves load with empty projects; bad project data is dropped', () => {
     assert.deepEqual(bad.projects.boosts, []);
 });
 
-test('cleared stretches boost compute: a little on clearing, a little more per automated lap', () => {
+test('cleared stretches add no compute: their laps only train (XP/s)', () => {
     const s = fresh();
     s.levels.cpu = 10;
-    s.stats.clicks = 40;
-    s.levels.keyboard = 7;
-    assert.equal(E.clearedCpBonus(s), 0);
     s.path.learned = 2;
     s.path.auto = [0, 0];
-    assert.ok(Math.abs(E.clearedCpBonus(s) - 2 * E.PATH.clearedCp) < 1e-9, '+3% per cleared stretch');
     const before = E.derive(s).cpPerSec;
     E.tick(s, E.clearedPeriod(0) * 10);
     assert.ok(Math.abs(s.path.auto[0] - 10) < 1e-6, 'laps accumulate with time');
-    assert.ok(E.clearedCpBonus(s) > 2 * E.PATH.clearedCp);
-    assert.ok(E.derive(s).cpPerSec > before, 'laps raise compute');
-    s.path.auto = [1e6, 1e6];
-    assert.ok(Math.abs(E.clearedCpBonus(s) - 2 * (E.PATH.clearedCp + E.PATH.lapCpMax)) < 1e-9, 'capped per stretch');
+    assert.equal(E.derive(s).cpPerSec, before);
+    assert.ok(E.derive(s).xpPerSec > 0);
 });
 
 test('v3 saves load with no automated laps', () => {
@@ -643,15 +637,13 @@ test('hardware is a spaced-out ladder: each tier costs more per CP/s but gives m
     const before = E.derive(s).cpPerSec;
     s.levels.cpu = 25;
     assert.ok(Math.abs(E.derive(s).cpPerSec / before - 2 * 25 / 24) < 1e-9, 'doubles at 25 owned');
-    // Server Cluster no longer touches clicks; keyboards and Shell Scripts do.
+    // Server Cluster doesn't touch clicks; the click tool does, in round numbers.
     const t = fresh();
     const click = E.derive(t).clickPower;
     t.levels.server = 10;
     assert.equal(E.derive(t).clickPower, click);
     t.levels.keyboard = 5;
     assert.equal(E.derive(t).clickPower, click + 2, 'the desk and server rack: 1 → 3 per click');
-    t.levels.shellScripts = 1;
-    assert.ok(Math.abs(E.derive(t).clickPower - (click + 2 + 0.02 * E.derive(t).cpPerSec)) < 1e-9);
     t.levels.compilerOpt = 1;
     const u = fresh();
     u.levels.server = 10;
@@ -731,7 +723,7 @@ test('the server room waits until you can train: data collected by hand and a st
 
 test('the lab splits by resource: hardware is compute, software is data, research lives on the research wall', () => {
     const tab = id => E.UPGRADE_BY_ID[id].tab;
-    for (const id of ['cpu', 'server', 'keyboard', 'shellScripts', 'compilerOpt', 'kernelFusion']) assert.equal(tab(id), 'hardware', id);
+    for (const id of ['cpu', 'server', 'keyboard', 'compilerOpt', 'kernelFusion']) assert.equal(tab(id), 'hardware', id);
     for (const id of ['dataProcessor', 'autoCollector', 'nlp', 'computerVision']) assert.equal(tab(id), 'software', id);
     assert.equal(tab('researchAssistant'), 'algorithms');
     const s = fresh();

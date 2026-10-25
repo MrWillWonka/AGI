@@ -173,20 +173,94 @@ window.AGI = (function () {
         phase: { icon: '▲', ms: 7500 },
         version: { icon: '⬢', ms: 7000 }
     };
+    const toastCard = (title, message, kind) => el('div', { class: `toast toast-${kind}`, role: 'status' }, [
+        el('i', { class: 'toast-icon', text: (TOAST_KINDS[kind] || TOAST_KINDS.achievement).icon, 'aria-hidden': 'true' }),
+        el('div', { class: 'toast-text' }, [el('strong', { text: title }), el('span', { text: message })])
+    ]);
+
+    // One at a time, each getting its moment: the next waits until the last has left.
+    const toastQueue = [];
+    let toastBusy = false;
     function toast(title, message, kind = 'achievement') {
-        const k = TOAST_KINDS[kind] || TOAST_KINDS.achievement;
-        const box = el('div', { class: `toast toast-${kind}`, role: 'status' }, [
-            el('i', { class: 'toast-icon', text: k.icon, 'aria-hidden': 'true' }),
-            el('div', { class: 'toast-text' }, [el('strong', { text: title }), el('span', { text: message })])
-        ]);
+        toastQueue.push({ title, message, kind });
+        if (!toastBusy) nextToast();
+    }
+    function nextToast() {
+        const t = toastQueue.shift();
+        toastBusy = !!t;
+        if (!t) return;
+        const box = toastCard(t.title, t.message, t.kind);
         $('toasts').append(box);
-        // At most three at a time (oldest first out).
-        while ($('toasts').children.length > 3) $('toasts').firstElementChild.remove();
         requestAnimationFrame(() => box.classList.add('show'));
         setTimeout(() => {
             box.classList.remove('show');
-            setTimeout(() => box.remove(), 400);
-        }, k.ms);
+            setTimeout(() => { box.remove(); nextToast(); }, 400);
+        }, (TOAST_KINDS[t.kind] || TOAST_KINDS.achievement).ms);
+    }
+
+    // Contextual callouts appear beside what they're about: the Research job, or the minimap when the
+    // thing is in another room (the map opens with that room lit up). One at a time; a click on the
+    // callout or what it points at dismisses it.
+    const CALLOUTS = {
+        'module:path': { map: 'servers' },
+        'action:research': { anchor: () => ui.actions.research?.button, map: 'lab' }
+    };
+    const calloutQueue = [];
+    let calloutLive = null;
+    function callout(key, title, message) {
+        calloutQueue.push({ key, title, message });
+        if (!calloutLive) nextCallout();
+    }
+    function nextCallout() {
+        const c = calloutQueue.shift();
+        calloutLive = c || null;
+        if (!c) return;
+        // Wait for whatever just appeared (the minimap, a workbench job) to finish booting up.
+        setTimeout(() => showCallout(c), 1200);
+    }
+    function showCallout(c) {
+        const where = CALLOUTS[c.key] || {};
+        const target = where.anchor?.();
+        const onScreen = target && !target.hidden && target.offsetParent && view === 'lab';
+        const nav = $('minimap');
+        const anchor = onScreen ? target : nav;
+        if (!anchor || anchor.hidden) { calloutLive = null; return nextCallout(); }
+        const box = toastCard(c.title, c.message, 'room');
+        box.classList.add('callout', onScreen ? 'callout-side' : 'callout-map');
+        document.body.append(box);
+        let lit = null;
+        if (!onScreen) {
+            nav.classList.add('open');
+            lit = nav.querySelector(`.mm-block[data-target="${where.map}"]`);
+            lit?.classList.add('ping');
+        }
+        const z = uiScale();
+        const place = () => {
+            const r = anchor.getBoundingClientRect();
+            const b = box.getBoundingClientRect();
+            if (onScreen) {   // to the right of the job, vertically centred
+                box.style.left = `${(r.right + 14) / z}px`;
+                box.style.top = `${(r.top + r.height / 2 - b.height / 2) / z}px`;
+            } else {          // above the map, right-aligned with it
+                box.style.left = `${(r.right - b.width) / z}px`;
+                box.style.top = `${(r.top - b.height - 12) / z}px`;
+            }
+        };
+        requestAnimationFrame(() => { place(); box.classList.add('show'); });
+        let done = false;
+        const close = () => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            anchor.removeEventListener('click', close);
+            nav.classList.remove('open');
+            lit?.classList.remove('ping');
+            box.classList.remove('show');
+            setTimeout(() => { box.remove(); calloutLive = null; nextCallout(); }, 400);
+        };
+        const timer = setTimeout(close, 10000);
+        box.addEventListener('click', close);
+        anchor.addEventListener('click', close);
     }
 
     function floatGain(anchor, text) {
@@ -380,8 +454,8 @@ window.AGI = (function () {
         switch (up.shows) {
             case 'click': {
                 const next = up.id === 'keyboard' ? E.nextClickTool(lvl) : null;
-                // The desk adds a quarter CP per item, and Shell Scripts add a share of CP/s, so keep two
-                // decimals whenever whole numbers would hide the change ("14 → 14").
+                // The desk adds a quarter CP per item, so keep two decimals whenever whole numbers would hide
+                // the change ("14 → 14").
                 const now = d.clickPower;
                 const nxt = E.isMaxed(state, up) ? null : E.derive({ ...state, levels: { ...state.levels, [up.id]: lvl + 1 } }, debugRates).clickPower;
                 const fine = (now < 10 && now % 1) || (nxt !== null && nxt < 1000 && Math.floor(nxt) === Math.floor(now));
@@ -896,7 +970,7 @@ window.AGI = (function () {
         }
         for (const m of changes.milestones) {
             log(`Milestone reached: ${m.name}`, 'special');
-            if (m.callout) toast(m.callout[0], m.callout[1], 'room');
+            if (m.callout) callout(m.key, m.callout[0], m.callout[1]);
         }
         for (const a of changes.achievements) {
             log(`Achievement unlocked: ${a.name}`, 'special');
@@ -1032,15 +1106,12 @@ window.AGI = (function () {
             case 'supply.rp': return `${f(d.rpPerSec + handRate('rp'))} RP/s`;
             case 'supply.xp': {
                 const recent = lab.xp.slice(-20);
-                return `${f(recent.length ? recent.reduce((a, b) => a + b, 0) / recent.length : d.xpPerSec, 1)} XP/s`;
+                const xpRate = recent.length ? recent.reduce((a, b) => a + b, 0) / recent.length : d.xpPerSec;
+                return `${f(xpRate, xpRate < 0.1 ? 2 : 1)} XP/s`;
             }
             case 'supply.rates': {
                 const cp = f(d.cpNet + handRate('cp'));
                 return state.unlocked['seen:dp'] ? `${cp} CP · ${f(d.dpNet + handRate('dp'))} DP /s` : `${cp} CP/s`;
-            }
-            case 'supply.cleared': {
-                const b = E.clearedCpBonus(state);
-                return b ? `+${E.format(b * 100, 1)}% training` : '';
             }
             case 'goal.lab': return goalFor('lab');
             case 'goal.servers': return goalFor('servers');
@@ -1100,7 +1171,7 @@ window.AGI = (function () {
         bar.firstElementChild.style.width = pct + '%';
 
         const gains = { compute: `+${E.format(d.clickPower, d.clickPower < 10 && d.clickPower % 1 ? 2 : undefined)} CP`, collect: `+${E.format(d.dpPerCollect)} DP`,
-            research: `+${E.format(d.rpPerResearch)} RP`, improve: `+${E.IMPROVE_GAIN} Int` };
+            research: `+${E.format(d.rpPerResearch)} RP` };
         for (const { action, button, gain, cost, auto } of Object.values(ui.actions)) {
             const autoText = automationText(action.id);
             setText(auto, autoText);
@@ -1537,8 +1608,7 @@ window.AGI = (function () {
             return n;
         };
         // The chip body (pins and die) is one target: Surveillance. Hovering it lights the whole chip.
-        const body = add('g', { class: `mm-body${here === 'facility' ? ' here' : ''}`, 'data-target': 'facility', role: 'button', tabindex: 0, 'aria-label': 'Surveillance' });
-        add('title', {}, body).textContent = 'Surveillance';
+        const body = add('g', { class: `mm-body${here === 'facility' ? ' here' : ''}`, 'data-target': 'facility', role: 'button', tabindex: 0, 'aria-label': 'Surveillance room' });
         const pins = 3 + areas.filter(open).length + bays.filter(bayUnlocked).length;
         for (let i = 0; i < pins; i++) {
             const t = 22 + (i + 0.5) * (76 / pins);
@@ -1560,7 +1630,6 @@ window.AGI = (function () {
             const g = add('g', { class: `mm-block ${cls}${here === target ? ' here' : ''}`, 'data-target': target, tabindex: cls.includes('sealed') ? -1 : 0, role: 'button', 'aria-label': title });
             add('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 1.5 }, g);
             if (label) add('text', { x: b.x + b.w / 2, y: b.y + (b.h < 14 ? b.h / 2 + 1.6 : 7), 'text-anchor': 'middle' }, g).textContent = label;
-            add('title', {}, g).textContent = title;
         };
         for (const id of areas) {
             const b = MINIMAP[id];
@@ -1594,6 +1663,22 @@ window.AGI = (function () {
             if (g && !g.classList.contains('sealed') && !g.classList.contains('building')) jumpTo(g.dataset.target);
         };
         nav.addEventListener('click', go);
+        // A small tooltip naming the room under the pointer (the blocks only carry short labels).
+        const tip = el('span', { class: 'mm-tip', hidden: true });
+        nav.append(tip);
+        nav.addEventListener('pointerover', e => {
+            const g = e.target.closest('.mm-block, .mm-body');
+            if (!g) return void (tip.hidden = true);
+            const z = uiScale();
+            const n = nav.getBoundingClientRect();
+            const r = (g.querySelector('rect.mm-die') || g.querySelector('rect') || g).getBoundingClientRect();
+            tip.textContent = g.getAttribute('aria-label');
+            tip.hidden = false;
+            const top = g.classList.contains('mm-body') ? r.top - n.top + 4 : r.top - n.top - 4;
+            tip.style.left = `${(r.left + r.width / 2 - n.left) / z}px`;
+            tip.style.top = `${top / z}px`;
+        });
+        nav.addEventListener('pointerleave', () => { tip.hidden = true; });
         nav.addEventListener('keydown', e => {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -1789,14 +1874,13 @@ window.AGI = (function () {
             taskUi.skills.push(r);
             if (revealReady && single) {
                 revealIn(r.row);
-                connect(document.querySelector('.cell-cp'), r.row);
+                connect(document.querySelector('.cell-xp:not([hidden])') || document.querySelector('.cell-cp'), r.row);
             }
         }
         for (let k = 0; k < learned; k++) {
             const r = taskUi.skills[k];
             const laps = state.path.auto[k] || 0;
-            const cp = E.PATH.clearedCp + Math.min(E.PATH.lapCpMax, E.PATH.lapCp * laps);
-            setText(r.rate, `lap ${Math.floor(laps)} · +${(cp * 100).toFixed(1)}% CP · +${f(E.stretchXpAt(k) * E.PATH.clearedRate, 2)} XP/s`);
+            setText(r.rate, `lap ${Math.floor(laps)} · +${f(E.stretchXpAt(k) * E.PATH.clearedRate, 2)} XP/s`);
             r.fill.style.width = `${(laps % 1) * 100}%`;
         }
     }

@@ -1959,7 +1959,7 @@ html, body { overflow-x: clip; }
 
 /* The minimap floats over the bottom-right corner instead of taking a column: content keeps the full
    width, scrolling rooms leave room under their last row, and the chip is slightly translucent. */
-body.has-minimap .room-rnd { padding-bottom: 210px; }
+body.has-minimap .room-rnd { padding-bottom: 60px; }
 .minimap { opacity: 0.9; transition: opacity 0.15s ease; }
 .minimap:hover, .minimap:focus-within { opacity: 1; }
 @media (max-width: 640px) {
@@ -2003,7 +2003,6 @@ body.has-minimap .room-rnd { padding-bottom: 210px; }
     .station .upgrade-side { flex-direction: row; align-items: center; justify-self: start; }
     .station .upgrade-part { width: 92px; }
 }
-.supply-bonus { margin-left: 6px; font: 600 0.68rem var(--font-mono); letter-spacing: 0; text-transform: none; color: var(--success); }
 
 /* ---- Lab layout: one grid of named areas ----
    Every panel has a home: game.js (layoutLab) lays the grid out from what is open, so open things share
@@ -2048,10 +2047,10 @@ body.has-minimap .room-rnd { padding-bottom: 210px; }
 
 /* Wide: one screen. The bottom row (cabinets, log) leaves the minimap its corner. */
 .room-lab[data-tier="wide"] { height: calc(100dvh / var(--ui-scale) - var(--topbar-h, 53px) - 40px); min-height: 640px; }
-.room-lab[data-tier="wide"] .cabinet-panel { margin-right: 228px; }
+.room-lab[data-tier="wide"] .cabinet-panel { margin-right: 220px; }
 body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right: 0; }
 @media (max-width: 1799px) {
-    body.has-minimap .room-lab { padding-bottom: 230px; }
+    body.has-minimap .room-lab { padding-bottom: 60px; }
 }
 @media (max-width: 960px) {
     :root { --supply-h: auto; }
@@ -2121,7 +2120,6 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .chip small { display: inline-block; min-width: 6.5ch; }
 
 /* The training bonus sits under the label, over the sparkline's corner, so the label never wraps. */
-.supply-bonus { position: absolute; left: 12px; bottom: 6px; margin: 0; z-index: 1; }
 .supply-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
 /* Phones: the bay's bar keeps to one line (⌂, ← Rack, Skills, XP) so it never widens the page. */
@@ -2416,3 +2414,28 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .signal-core { stroke: #b8ffe0; stroke-width: 3; filter: drop-shadow(0 0 6px #63e0ab) drop-shadow(0 0 2px #fff); }
 .signal-pulse { stroke: #ffffff; stroke-width: 5; filter: drop-shadow(0 0 8px #fff) drop-shadow(0 0 14px #63e0ab); }
 .signal-end { fill: #ffffff; filter: drop-shadow(0 0 8px #63e0ab); }
+
+/* ---- Minimap: a "Surveillance room" pill that opens into the chip ----
+   Collapsed it's just the pill in the corner, so it never covers a trail, a meter or a station. Hover,
+   keyboard focus or a callout (.open) opens the chip above the pill, which stays put under the pointer.
+   A small tooltip names the room under the pointer (.mm-tip). */
+.minimap:not([hidden]) { display: flex; flex-direction: column-reverse; width: auto; aspect-ratio: auto; padding: 4px; gap: 4px; }
+.minimap .mm-title { margin: 0; white-space: nowrap; }
+.minimap .mm-chip { display: none; }
+@media (min-width: 641px) {
+    .minimap:not([hidden]):is(:hover, :focus-within, .open) { width: 212px; height: 212px; padding: 6px 6px 4px; }
+    .minimap:is(:hover, :focus-within, .open) .mm-chip { display: flex; animation: mm-open 0.18s ease-out; }
+}
+@keyframes mm-open { from { opacity: 0; transform: translateY(8px); } }
+.mm-tip { position: absolute; z-index: 2; transform: translate(-50%, -100%); padding: 3px 8px; border-radius: 6px; pointer-events: none; white-space: nowrap;
+    background: #0b1b1e; border: 1px solid var(--success); color: #e6fff4; font: 600 0.68rem var(--font-mono); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); }
+.mm-tip[hidden] { display: none; }
+.mm-block.ping rect { fill: rgba(111, 179, 255, 0.35); stroke: #6fb3ff; stroke-width: 1.4; animation: mm-ping 0.9s ease-in-out infinite; }
+@keyframes mm-ping { 50% { fill: rgba(111, 179, 255, 0.1); } }
+
+/* Contextual callouts sit beside what they point at (fixed, placed by showCallout in game.js). */
+.toast.callout { position: fixed; z-index: 60; min-width: 0; width: 320px; cursor: pointer; }
+.toast.callout-side { transform: translateX(-12px); }
+.toast.callout-map { transform: translateY(10px); }
+.toast.callout.show { transform: none; }
+@media (prefers-reduced-motion: reduce) { .minimap .mm-chip { animation: none !important; } .mm-block.ping rect { animation: none; } }

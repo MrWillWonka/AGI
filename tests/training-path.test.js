@@ -196,15 +196,9 @@ test('engine: push strength does not grow with Intelligence (no runaway loop)', 
     assert.equal(E.derive(s).pushPower, base);
 });
 
-test('engine: Self-Improve gets pricier with each use in a run', () => {
-    const s = E.defaultState(NOW);
-    s.unlocked['action:improve'] = true;
-    s.res = { cp: 1e6, dp: 1e6, rp: 1e6, xp: 0 };
-    const improve = E.ACTIONS.find(a => a.id === 'improve');
-    const first = E.actionCost(s, improve);
-    E.act(s, 'improve');
-    E.act(s, 'improve');
-    assert.equal(E.actionCost(s, improve).cp, Math.ceil(first.cp * 1.25 * 1.25));
+test('engine: Self-Improve is gone; Intelligence comes from training and the algorithms', () => {
+    assert.equal(E.ACTIONS.some(a => a.id === 'improve'), false);
+    assert.equal(E.MILESTONES.some(m => m.key === 'action:improve'), false);
 });
 
 test('engine: path progress and XP save; prestige resets the run but keeps lifetime stats', () => {

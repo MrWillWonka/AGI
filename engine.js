@@ -16,7 +16,6 @@
     const PRESTIGE_MIN_INTELLIGENCE = 5;
     const RESEARCH_SPRINTS = 50;      // paid training sprints after the first skill before Research (and investors) open
     const PRESTIGE_CP_DIVISOR = 1e5;
-    const IMPROVE_GAIN = 5;
 
     // Training Path: every push costs CP and DP in proportion to how hard it is charged (energy, so
     // charge²), which ties training to passive income. How far a roll gets earns Experience (XP).
@@ -48,10 +47,7 @@
         minCooldown: 0.3,
         clearedRate: 1 / 600, // a cleared stretch runs itself: this share of its full XP per second
         replayXp: 1,          // replaying a cleared leg pays this share of its XP: flat for clearing it, by distance otherwise
-        chainBonus: 0.5,      // each cleared hill crossed in a run adds +0.5x to everything that run earns afterwards
-        clearedCp: 0.03,      // each cleared stretch adds +3% compute
-        lapCp: 0.002,         // and every automated lap of it adds a little more (+0.2%)...
-        lapCpMax: 0.5         // ...up to +50% per stretch
+        chainBonus: 0.5       // each cleared hill crossed in a run adds +0.5x to everything that run earns afterwards
     };
 
     // Skills, in trail order. Hill i teaches SKILLS[i]. `bonus` effects are summed in derive().
@@ -101,8 +97,7 @@
     const ACTIONS = [
         { id: 'compute', name: 'Generate Compute', cost: {}, unlock: null },
         { id: 'collect', name: 'Collect Data', cost: { cp: 10 }, unlock: 'action:collect' },
-        { id: 'research', name: 'Research', cost: { cp: 200, dp: 40 }, unlock: 'action:research' },
-        { id: 'improve', name: 'Self-Improve', cost: { cp: 1000, dp: 50, rp: 10 }, scale: 1.25, unlock: 'action:improve' }
+        { id: 'research', name: 'Research', cost: { cp: 200, dp: 40 }, unlock: 'action:research' }
     ];
 
     const TABS = [
@@ -200,9 +195,7 @@
         { id: 'optical', tab: 'hardware', name: 'Optical Computing', cps: 6600, effect: 'Generates compute', flavor: 'Computing at the speed of light. Literally.', cost: { cp: 48000000 }, scale: 1.15,
             unlock: s => phaseIndex(s) >= 2 && tierReady(s, 'optical'), hint: 'Reach Superintelligence' },
 
-        // Software
-        { id: 'shellScripts', tab: 'hardware', name: 'Shell Scripts', shows: 'click', effect: 'Each click also earns 2% of your CP/s, per level', flavor: 'for i in range(1000): click()', cost: { cp: 600, dp: 40 }, scale: 4, max: 3,
-            unlock: s => s.stats.clicks >= 300 && level(s, 'server') >= 1, hint: 'Generate compute by hand 300 times, and own a Server Cluster' },
+        // Software that speeds up all hardware
         { id: 'compilerOpt', tab: 'hardware', name: 'Compiler Optimizations', shows: 'hardwareMult', effect: 'All hardware +50% CP/s', flavor: 'Turned on -O3. Everything is faster and nobody knows why.', cost: { cp: 3000, dp: 200 }, max: 1,
             unlock: s => level(s, 'server') >= 10, hint: 'Own 10 Server Clusters' },
         { id: 'kernelFusion', tab: 'hardware', name: 'Kernel Fusion', shows: 'hardwareMult', effect: 'All hardware +50% CP/s', flavor: 'Three GPU kernels walked into one bar.', cost: { cp: 180000, dp: 9000 }, max: 1,
@@ -394,14 +387,13 @@
         // The server room opens once you can actually train: data collected by hand, and enough CP and DP
         // in stock for a couple of full sprints (older saves that already train keep it).
         { key: 'module:path', name: 'Training Path', desc: 'Collect data 40 times and hold 100 CP and 40 DP to start training your model',
-            callout: ['Server room online', 'Train your model. Its skills will automate your data.'],
+            callout: ['Server room online', 'Open the map to see every area, or click the server room to start training.'],
             check: s => (s.stats.collects >= 40 && s.res.cp >= 100 && s.res.dp >= 40) || s.stats.rolls > 0 || s.path.learned > 0 },
         // Research is for bigger projects: it opens once training is well under way, and brings the investors
         // (and with them the road to the next version).
         { key: 'action:research', name: 'Basic Research', desc: `Learn a skill, then run ${RESEARCH_SPRINTS} training sprints to unlock Research`,
             callout: ['Research funded', 'Investors are watching. Bigger projects lead to the next version.'],
             check: s => s.stats.skilledSprints >= RESEARCH_SPRINTS || s.stats.researchDone > 0 },
-        { key: 'action:improve', name: 'Self-Improvement', desc: 'Hold 25 RP to unlock Self-Improvement', check: s => s.res.rp >= 25 },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }
     ];
@@ -459,7 +451,6 @@
                 rolls: 0,
                 skilledSprints: 0,    // paid training sprints since the first skill (research opens after RESEARCH_SPRINTS)
                 skillsLearned: 0,
-                improves: 0,
                 playTime: 0,
                 runStart: now,
                 firstStart: now,
@@ -512,7 +503,7 @@
         const bo = projectBoosts(s);
 
         // Every multiplier on hardware output, so each tier's real yield can be shown on its card.
-        const hardwareMult = (1 + 0.5 * L('compilerOpt')) * (1 + 0.5 * L('kernelFusion')) * (1 + sk.cp + clearedCpBonus(s)) * mult * r.cp * bo.cp;
+        const hardwareMult = (1 + 0.5 * L('compilerOpt')) * (1 + 0.5 * L('kernelFusion')) * (1 + sk.cp) * mult * r.cp * bo.cp;
         const hardwareRates = {};
         let cpPerSec = 0;
         for (const up of HARDWARE) {
@@ -521,9 +512,8 @@
             hardwareRates[up.id] = { each, total: each * n, nextDoubling: HARDWARE_DOUBLINGS.find(t => n < t) || null };
             cpPerSec += each * n;
         }
-        // Clicks: a flat amount (keyboards, skills), plus a share of CP/s from Shell Scripts so clicking
-        // stays worth something as hardware grows.
-        const clickPower = (1 + clickToolPower(L('keyboard')) + sk.click) * mult + 0.02 * L('shellScripts') * cpPerSec;
+        // Clicks: a flat amount (the click tool, skills), times versions only, so a click stays a round number.
+        const clickPower = (1 + clickToolPower(L('keyboard')) + sk.click) * mult;
         const dpPerCollect = (1 + L('dataProcessor') + sk.collect) * (1 + sk.dp) * mult * bo.dp;
         const rpPerResearch = (1 + L('machineLearning') + 2 * L('deepLearning') + 3 * L('reinforcementLearning')
             + 5 * L('transferLearning') + sk.research) * (1 + sk.rp) * mult * bo.rp;
@@ -694,13 +684,8 @@
         return { ok: true, evolved, msg: `${before} ${up.max === 1 ? 'acquired' : 'upgraded to level ' + level(s, id)}: ${up.effect}${evolved ? `. It's now a ${evolved}!` : ''}` };
     }
 
-    // Actions with `scale` get pricier each time they are used in a run (stats.improves for Self-Improve).
     function actionCost(s, action) {
-        if (!action.scale) return action.cost;
-        const factor = Math.pow(action.scale, s.stats.improves);
-        const cost = {};
-        for (const [k, v] of Object.entries(action.cost)) cost[k] = Math.ceil(v * factor);
-        return cost;
+        return action.cost;
     }
 
     const actionById = id => ACTIONS.find(a => a.id === id);
@@ -730,10 +715,6 @@
                 s.stats.researchDone++;
                 s.stats.researchManual++;
                 return { ok: true, gained: d.rpPerResearch, resource: 'rp' };
-            case 'improve':
-                s.attr.intelligence += IMPROVE_GAIN;
-                s.stats.improves++;
-                return { ok: true, msg: `Self-improvement complete: +${IMPROVE_GAIN} Intelligence` };
         }
         return { ok: false };
     }
@@ -942,12 +923,6 @@
     // Seconds per automated lap of cleared stretch k (the rack's crawling balls show the same laps).
     const clearedPeriod = k => 40 + 5 * k;
 
-    // Compute bonus from cleared stretches: a little for clearing each, a little more per automated lap.
-    function clearedCpBonus(s) {
-        let b = 0;
-        for (let k = 0; k < s.path.learned; k++) b += PATH.clearedCp + Math.min(PATH.lapCpMax, PATH.lapCp * (s.path.auto[k] || 0));
-        return b;
-    }
 
     function stretchXp(s) {
         return stretchXpAt(s.path.learned);
@@ -1363,7 +1338,7 @@
 
     return {
         SAVE_VERSION, MAX_OFFLINE_SECONDS, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
-        versionName, currentVersion, nextVersion, clearedCpBonus, clearedPeriod, legClearXp, clearLeg, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN, PATH, SKILLS,
+        versionName, currentVersion, nextVersion, clearedPeriod, legClearXp, clearLeg, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
