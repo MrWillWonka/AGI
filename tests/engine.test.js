@@ -461,8 +461,10 @@ test('replays: cleared legs push cheaper, pay a share of their XP, and never tea
     E.clearLeg(s, 1);
     assert.ok(s.res.xp > xp0);
     assert.equal(s.stats.legsCleared, 1);
-    // Distance on a cleared leg pays its replay share, and the frontier pays in full.
-    assert.ok(E.rollXp(s, 0.5, false, 0, 10, 2) < E.rollXp(s, 0.5, false, 0, 10, 3));
+    // A metre is a metre: distance on a cleared leg pays the frontier's rate times the replay share.
+    assert.ok(Math.abs(E.rollXp(s, 0.5, false, 0, 10, 2) - E.rollXp(s, 0.5, false, 0, 10, 3) * E.PATH.replayXp) < 1e-9);
+    // And a clean sprint on a cleared leg is worth the frontier's, times the replay share.
+    assert.ok(Math.abs(E.pushBonusXp(s, 'clean', 0) - E.pushBonusXp(s, 'clean') * E.PATH.replayXp) < 1e-9);
     // Stopping on a cleared leg: XP, but no record and no skill even if "crested".
     const r = E.finishRoll(s, 0.9, true, 0, 0, 1);
     assert.equal(r.skill, null);

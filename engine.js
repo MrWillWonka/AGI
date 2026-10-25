@@ -42,8 +42,8 @@
         baseCooldown: 2.0,   // seconds between pushes
         minCooldown: 0.3,
         clearedRate: 1 / 600, // a cleared stretch runs itself: this share of its full XP per second
-        replayXp: 0.75,       // replaying a cleared leg pays this share of its XP: flat for clearing it, by distance otherwise
-        chainBonus: 0.25,     // each cleared hill crossed in a run adds +0.25x to everything that run earns afterwards
+        replayXp: 1,          // replaying a cleared leg pays this share of its XP: flat for clearing it, by distance otherwise
+        chainBonus: 0.5,      // each cleared hill crossed in a run adds +0.5x to everything that run earns afterwards
         clearedCp: 0.03,      // each cleared stretch adds +3% compute
         lapCp: 0.002,         // and every automated lap of it adds a little more (+0.2%)...
         lapCpMax: 0.5         // ...up to +50% per stretch
@@ -821,9 +821,10 @@
 
     // The chain: after crossing `n` cleared hills in one run, what it earns from then on is multiplied.
     // Measured with the balance bot (runs from leg 1 never reach the frontier; they stall about halfway):
-    // a 25% replay share earned 0.2-0.4x a frontier run per minute, even with +1x per hill (players found
-    // replays pointless). A 75% share with +0.25x per hill earns about 0.9x at three skills, 1.0x at six and
-    // 1.2x at nine: level with the frontier, so either is a fair choice. Bigger chains made replays 2-4x.
+    // counting clean and perfect sprints (which an earlier measure left out, and which players lean on),
+    // a full replay share with +0.5x per hill pays 1.2-1.6x a frontier run per run, and 0.6-1.1x per minute
+    // (replays take about twice as long). Smaller settings left replays at 70-100 XP against 200+ on the
+    // frontier, which players rightly found pointless. The frontier keeps records and new skills.
     const chainMult = n => 1 + PATH.chainBonus * n;
 
     // `chain`: cleared hills already crossed this run (this one pays at that multiplier).
@@ -845,15 +846,19 @@
     function rollXp(s, progress, crested, units = 0, metres = 0, leg = s.path.learned) {
         const d = derive(s);
         const bonus = (1 + d.cleanRollBonus * units) * d.xpMult;
-        const perMetre = PATH.xpPerMetre * Math.pow(PATH.metreScale, leg) * (leg < s.path.learned ? PATH.replayXp : 1);
+        // A metre is a metre: on a replay, distance pays at the frontier's rate (times the replay share), so
+        // early legs aren't worth less just for being early.
+        const perMetre = PATH.xpPerMetre * Math.pow(PATH.metreScale, s.path.learned) * (leg < s.path.learned ? PATH.replayXp : 1);
         return perMetre * Math.max(0, metres) * (1 + progress) * (crested && leg >= s.path.learned ? PATH.crestBonus : 1) * bonus;
     }
 
     // XP for a clean or perfect push: a steady, flat amount banked immediately, whatever the distance.
+    // Clean and perfect sprints pay at the frontier's scale wherever they're hit (times the replay share on
+    // a cleared leg): sized by the leg, a perfect on leg 1 was worth a fraction of one on the frontier.
     function pushBonusXp(s, kind, leg = s.path.learned) {
         if (!kind) return 0;
         const d = derive(s);
-        return legXpBase(s, leg) * PATH.cleanXp * d.cleanMult * cleanUnits(kind);
+        return stretchXpAt(s.path.learned) * (leg < s.path.learned ? PATH.replayXp : 1) * PATH.cleanXp * d.cleanMult * cleanUnits(kind);
     }
 
     function grantPushBonus(s, kind, leg = s.path.learned) {
