@@ -42,8 +42,8 @@
         baseCooldown: 2.0,   // seconds between pushes
         minCooldown: 0.3,
         clearedRate: 1 / 600, // a cleared stretch runs itself: this share of its full XP per second
-        replayXp: 0.25,       // replaying a cleared leg pays this share of its XP: flat for clearing it, by distance otherwise
-        chainBonus: 1,        // each cleared hill crossed in a run adds +1x to everything that run earns afterwards
+        replayXp: 0.75,       // replaying a cleared leg pays this share of its XP: flat for clearing it, by distance otherwise
+        chainBonus: 0.25,     // each cleared hill crossed in a run adds +0.25x to everything that run earns afterwards
         clearedCp: 0.03,      // each cleared stretch adds +3% compute
         lapCp: 0.002,         // and every automated lap of it adds a little more (+0.2%)...
         lapCpMax: 0.5         // ...up to +50% per stretch
@@ -821,8 +821,9 @@
 
     // The chain: after crossing `n` cleared hills in one run, what it earns from then on is multiplied.
     // Measured with the balance bot (runs from leg 1 never reach the frontier; they stall about halfway):
-    // without it a replay earns about a fifth of a frontier run per minute; with +1x per hill it's about
-    // 0.4x at three skills, 0.6x at six and even at nine, so starting from the beginning is sometimes worth it.
+    // a 25% replay share earned 0.2-0.4x a frontier run per minute, even with +1x per hill (players found
+    // replays pointless). A 75% share with +0.25x per hill earns about 0.9x at three skills, 1.0x at six and
+    // 1.2x at nine: level with the frontier, so either is a fair choice. Bigger chains made replays 2-4x.
     const chainMult = n => 1 + PATH.chainBonus * n;
 
     // `chain`: cleared hills already crossed this run (this one pays at that multiplier).
