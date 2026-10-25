@@ -110,29 +110,11 @@
         panel.append(header, body);
         document.body.append(panel);
 
-        makeDraggable(panel, header);
         setInterval(() => {
             if (!panel.hidden && !panel.classList.contains('minimized')) {
                 stateView.textContent = JSON.stringify(AGI.state, null, 1);
             }
         }, 500);
-    }
-
-    function makeDraggable(target, handle) {
-        let start = null;
-        handle.addEventListener('pointerdown', e => {
-            if (e.target.closest('button')) return;
-            const rect = target.getBoundingClientRect();
-            start = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-            handle.setPointerCapture(e.pointerId);
-        });
-        handle.addEventListener('pointermove', e => {
-            if (!start) return;
-            const x = Math.min(window.innerWidth - 60, Math.max(0, e.clientX - start.x));
-            const y = Math.min(window.innerHeight - 30, Math.max(0, e.clientY - start.y));
-            Object.assign(target.style, { left: x + 'px', top: y + 'px', right: 'auto' });
-        });
-        handle.addEventListener('pointerup', () => { start = null; });
     }
 
     function toggle(show) {

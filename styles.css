@@ -1242,9 +1242,7 @@ h1, h2, h3, p { margin: 0; }
     align-items: center;
     gap: 6px;
     padding: 8px 10px;
-    cursor: move;
     border-bottom: 1px solid var(--border);
-    touch-action: none;
 }
 
 .debug-panel header strong { flex: 1; font-family: var(--font-display); color: var(--primary); }
