@@ -140,7 +140,7 @@ test('phases require every attribute minimum and never skip', () => {
 
 test('unlocks persist even after the triggering resource is spent', () => {
     const s = fresh();
-    s.res.dp = 10;
+    s.res.dp = 100;
     E.evaluate(s);
     s.res.dp = 0;
     E.evaluate(s);
@@ -618,17 +618,17 @@ test('hardware is a spaced-out ladder: each tier costs more per CP/s but gives m
     assert.ok(Math.abs(E.derive(t).cpPerSec / E.derive(u).cpPerSec - 1.5) < 1e-9, 'Compiler Optimizations +50%');
 });
 
-test('a hardware tier shows up only once you own five of the tier below and earned half its price', () => {
+test('a hardware tier shows up only once you own ten of the tier below and earned its price', () => {
     const s = fresh();
     s.stats.clicks = 30;
-    s.levels.cpu = 4;
+    s.levels.cpu = 9;
     s.stats.runCp = 1e9;
     E.evaluate(s);
-    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.server), false, 'needs 5 Basic CPUs');
-    s.levels.cpu = 5;
-    s.stats.runCp = E.UPGRADE_BY_ID.server.cost.cp / 2 - 1;
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.server), false, 'needs 10 Basic CPUs');
+    s.levels.cpu = 10;
+    s.stats.runCp = E.UPGRADE_BY_ID.server.cost.cp - 1;
     E.evaluate(s);
-    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.server), false, 'needs half its price earned');
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.server), false, 'needs its price earned');
     s.stats.runCp += 1;
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.server), true);
@@ -641,7 +641,8 @@ test('a hardware tier shows up only once you own five of the tier below and earn
 
 test('the click tool grows from a keyboard into bigger tools, each adding more per level', () => {
     const s = fresh();
-    s.stats.clicks = 20;
+    s.stats.clicks = 40;
+    s.levels.cpu = 1;
     E.evaluate(s);
     const up = E.UPGRADE_BY_ID.keyboard;
     assert.equal(E.upgradeName(s, up), 'Mechanical Keyboard');
@@ -767,13 +768,14 @@ test('prompts: system inside super inside clean; each pays and hits harder; supe
     assert.ok(sup > 0.05 && sup < 0.15, `10% of breakthroughs are super: ${sup}`);
 });
 
-test('Collect Data stays hidden until you have computed by hand 50 times', () => {
+test('Collect Data stays hidden until compute reaches 5 CP/s', () => {
     const s = fresh();
     s.res.cp = 1000;
-    s.stats.clicks = 49;
+    s.levels.cpu = 9;
     E.evaluate(s);
+    assert.ok(E.derive(s).cpPerSec < 5);
     assert.equal(E.act(s, 'collect').ok, false);
-    s.stats.clicks = 50;
+    s.levels.cpu = 10;
     E.evaluate(s);
     assert.equal(E.act(s, 'collect').ok, true);
     // Saves that had already collected keep it.

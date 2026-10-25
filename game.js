@@ -906,7 +906,8 @@ window.AGI = (function () {
     function termLog(text) {
         lab.lines.push(text);
         if (lab.lines.length > 4) lab.lines.shift();
-        setHidden($('labLog'), false);   // shows with its first line
+        // Shows with its first line, once the software terminal is open (it's a terminal's log).
+        setHidden($('labLog'), !state.unlocked['seen:dp']);
         const box = ui.termLines;
         if (box) box.replaceChildren(...lab.lines.map((t, i) => el('span', { class: `terminal-out${i === lab.lines.length - 1 ? ' fresh' : ''}`, text: `> ${t}` })));
     }
@@ -1040,6 +1041,9 @@ window.AGI = (function () {
 
         setDisabled($('prestigeButton'), E.prestigeGain(state) < 1);
         for (const node of document.querySelectorAll('[data-show]')) setHidden(node, !state.unlocked[node.dataset.show]);
+        setHidden($('labLog'), !lab.lines.length || !state.unlocked['seen:dp']);
+        // Training XP joins the supply line once cleared stretches make it on their own.
+        setHidden(document.querySelector('.cell-xp'), !(d.xpPerSec > 0));
         renderTasks(d);
         renderProjects();
         layoutLab();

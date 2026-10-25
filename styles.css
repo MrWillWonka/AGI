@@ -1985,7 +1985,7 @@ body.has-minimap .room-rnd { padding-bottom: 210px; }
    side; the Isolation chamber under the software terminal and investor projects under the research wall;
    along the bottom, the cabinets from the left edge and the log beside the minimap.
    Desktop (961–1799 px): the same order in fixed-height rows. Narrower: one column. */
-:root { --supply-h: 96px; --cabinet-art-h: 150px; --bottom-h: 196px; --u-px: 7px; --station-row: 440px; --station-row-2: 360px; --projects-h: 300px; }
+:root { --supply-h: 96px; --cabinet-art-h: 166px; --bottom-h: 212px; --u-px: 7px; --station-row: 440px; --station-row-2: 360px; --projects-h: 300px; }
 .room-lab { display: grid; gap: 14px 16px; align-items: stretch; }
 .room-lab > .room-bar { grid-area: bar; }
 .lab-supply { grid-area: supply; height: 100%; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; }
@@ -2020,7 +2020,7 @@ body.has-minimap .room-rnd { padding-bottom: 210px; }
 
 /* Wide: one screen. The bottom row (cabinets, log) leaves the minimap its corner. */
 .room-lab[data-tier="wide"] { height: calc(100dvh / var(--ui-scale) - var(--topbar-h, 53px) - 40px); min-height: 640px; }
-.room-lab[data-tier="wide"] .lab-log { margin-right: 240px; }
+.room-lab[data-tier="wide"] .lab-log { margin-right: 228px; }
 body:not(.has-minimap) .room-lab[data-tier="wide"] .lab-log { margin-right: 0; }
 .room-lab[data-tier="desktop"] .lab-log { align-self: start; }
 @media (max-width: 1799px) {
@@ -2338,4 +2338,10 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .lab-log { margin-right: 0; }
 @keyframes reveal-scan { from { left: 0; opacity: 1; } 90% { opacity: 1; } to { left: 100%; opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
     .reveal-in, .reveal-in::before { animation: none !important; }
+}
+
+/* The minimap sits inside the big frame around every screen (20 px margin + 14 px padding), lined up
+   with the content's bottom-right corner, not over the frame's edge. */
+@media (min-width: 641px) {
+    .minimap { right: 34px; bottom: 34px; }
 }

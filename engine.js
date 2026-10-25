@@ -101,7 +101,7 @@
     const ACTIONS = [
         { id: 'compute', name: 'Generate Compute', cost: {}, unlock: null },
         { id: 'collect', name: 'Collect Data', cost: { cp: 10 }, unlock: 'action:collect' },
-        { id: 'research', name: 'Research', cost: { cp: 50, dp: 10 }, unlock: 'action:research' },
+        { id: 'research', name: 'Research', cost: { cp: 200, dp: 40 }, unlock: 'action:research' },
         { id: 'improve', name: 'Self-Improve', cost: { cp: 1000, dp: 50, rp: 10 }, scale: 1.25, unlock: 'action:improve' }
     ];
 
@@ -186,7 +186,7 @@
         // The click tool: one upgrade that grows into new tools as you level it (CLICK_TOOLS), each adding
         // more per level. Its name and flavour follow the current tool (upgradeName / upgradeFlavor).
         { id: 'keyboard', tab: 'hardware', name: 'Mechanical Keyboard', shows: 'click', effect: 'More compute per click; grows into better tools as you level it', flavor: 'Clicky. Your desk neighbours hate it.', cost: { cp: 40 }, scale: 1.32,
-            unlock: s => s.stats.clicks >= 15, hint: 'Generate compute by hand 15 times' },
+            unlock: s => s.stats.clicks >= 40 && level(s, 'cpu') >= 1, hint: 'Generate compute by hand 40 times, and own a Basic CPU' },
         { id: 'server', tab: 'hardware', name: 'Server Cluster', cps: 3.3, effect: 'Generates compute', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 300 }, scale: 1.15,
             unlock: s => tierReady(s, 'server'), hint: 'More Basic CPUs, and more compute earned' },
         { id: 'quantum', tab: 'hardware', name: 'Quantum Processor', cps: 22, effect: 'Generates compute', flavor: 'It\'s both working and not working until you check.', cost: { cp: 6000 }, scale: 1.15,
@@ -200,9 +200,9 @@
 
         // Software
         { id: 'shellScripts', tab: 'hardware', name: 'Shell Scripts', shows: 'click', effect: 'Each click also earns 2% of your CP/s, per level', flavor: 'for i in range(1000): click()', cost: { cp: 600, dp: 40 }, scale: 4, max: 3,
-            unlock: s => s.stats.clicks >= 150, hint: 'Generate compute by hand 150 times' },
+            unlock: s => s.stats.clicks >= 300 && level(s, 'server') >= 1, hint: 'Generate compute by hand 300 times, and own a Server Cluster' },
         { id: 'compilerOpt', tab: 'hardware', name: 'Compiler Optimizations', shows: 'hardwareMult', effect: 'All hardware +50% CP/s', flavor: 'Turned on -O3. Everything is faster and nobody knows why.', cost: { cp: 3000, dp: 200 }, max: 1,
-            unlock: s => level(s, 'server') >= 5, hint: 'Own 5 Server Clusters' },
+            unlock: s => level(s, 'server') >= 10, hint: 'Own 10 Server Clusters' },
         { id: 'kernelFusion', tab: 'hardware', name: 'Kernel Fusion', shows: 'hardwareMult', effect: 'All hardware +50% CP/s', flavor: 'Three GPU kernels walked into one bar.', cost: { cp: 180000, dp: 9000 }, max: 1,
             unlock: s => level(s, 'neural') >= 5, hint: 'Own 5 Neural Network Chips' },
         { id: 'dataProcessor', tab: 'software', name: 'Data Processor', shows: 'collect', effect: '+1 DP per collection, per level', flavor: 'A script that cleans the data so you don\'t have to.', cost: { cp: 50, dp: 5 }, scale: 1.2 },
@@ -354,10 +354,10 @@
     const upgradeFlavor = (s, up) => (up.id === 'keyboard' ? clickTool(level(s, 'keyboard')).flavor : up.flavor);
     // A hardware tier shows up once you own TIER_REVEAL_OWNED of the tier below and have earned half its
     // price this run: late enough that the tier below has done its job, early enough to save up for it.
-    const TIER_REVEAL_OWNED = 5;
+    const TIER_REVEAL_OWNED = 10;
     function tierReady(s, id) {
         const i = HARDWARE.findIndex(u => u.id === id);
-        return level(s, HARDWARE[i - 1].id) >= TIER_REVEAL_OWNED && s.stats.runCp >= HARDWARE[i].cost.cp / 2;
+        return level(s, HARDWARE[i - 1].id) >= TIER_REVEAL_OWNED && s.stats.runCp >= HARDWARE[i].cost.cp;
     }
     // A hardware tier's output doubles at each of these counts owned.
     const HARDWARE_DOUBLINGS = [25, 50, 100];
@@ -376,9 +376,9 @@
     // Milestones: persistent per-run unlocks for actions and tabs. Once unlocked they stay unlocked.
     const MILESTONES = [
         // Data waits until compute is familiar: 50 by hand (older saves that already collected keep it).
-        { key: 'action:collect', name: 'Data Collection', desc: 'Compute by hand 50 times to start collecting data', check: s => s.stats.clicks >= 50 || s.stats.collects > 0 || s.res.dp > 0 },
+        { key: 'action:collect', name: 'Data Collection', desc: 'Reach 5 CP/s to start collecting data', check: s => derive(s).cpPerSec >= 5 || s.stats.collects > 0 || s.res.dp > 0 },
         { key: 'module:path', name: 'Training Path', desc: 'Earn 50 CP this run to start training your model', check: s => s.stats.runCp >= 50 },
-        { key: 'action:research', name: 'Basic Research', desc: 'Hold 10 DP to unlock Research', check: s => s.res.dp >= 10 },
+        { key: 'action:research', name: 'Basic Research', desc: 'Hold 100 DP to unlock Research', check: s => s.res.dp >= 100 },
         { key: 'action:improve', name: 'Self-Improvement', desc: 'Hold 25 RP to unlock Self-Improvement', check: s => s.res.rp >= 25 },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }
