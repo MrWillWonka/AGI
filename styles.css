@@ -1236,6 +1236,7 @@ h1, h2, h3, p { margin: 0; }
 .toast-skill { --accent: var(--success); }
 .toast-room { --accent: #6fb3ff; }
 .toast-version { --accent: #c792ea; }
+.toast-tip { --accent: var(--success); }
 .toast-phase { --accent: #ffd27a; min-width: 360px; padding: 16px 22px 16px 16px; }
 .toast-phase strong { font-size: 0.9rem; }
 .toast-phase .toast-icon { width: 42px; height: 42px; font-size: 1.3rem; }

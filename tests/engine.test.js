@@ -206,6 +206,16 @@ test('skill-tree nodes open only once their parent is maxed (older saves hide ea
     assert.equal(!!old.unlocked['up:gpuCluster2'], false);
 });
 
+test('Carpal Tunnel: holding a job down to repeat it', () => {
+    const s = fresh();
+    s.stats.clicks = 5000;
+    E.evaluate(s);
+    assert.equal(!!s.achievements.clicks1k, false, 'clicking alone is not enough');
+    s.stats.holds = 1;
+    E.evaluate(s);
+    assert.equal(s.achievements.clicks1k, true);
+});
+
 test('research stays open after the first version', () => {
     const s = fresh();
     s.prestige.count = 1;

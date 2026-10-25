@@ -173,7 +173,8 @@ window.AGI = (function () {
         skill: { icon: '◆', ms: 5500 },
         room: { icon: '⌂', ms: 6000 },
         phase: { icon: '▲', ms: 7500 },
-        version: { icon: '⬢', ms: 7000 }
+        version: { icon: '⬢', ms: 7000 },
+        tip: { icon: '↻', ms: 10000 }
     };
     const toastCard = (title, message, kind) => el('div', { class: `toast toast-${kind}`, role: 'status' }, [
         el('i', { class: 'toast-icon', text: (TOAST_KINDS[kind] || TOAST_KINDS.achievement).icon, 'aria-hidden': 'true' }),
@@ -205,7 +206,8 @@ window.AGI = (function () {
     // callout or what it points at dismisses it.
     const CALLOUTS = {
         'module:path': { map: 'servers' },
-        'action:research': { anchor: () => ui.actions.research?.button, map: 'lab' }
+        'action:research': { anchor: () => ui.actions.research?.button, map: 'lab' },
+        'hint:hold': { anchor: () => ui.actions.compute?.button, kind: 'tip' }
     };
     const calloutQueue = [];
     let calloutLive = null;
@@ -227,7 +229,7 @@ window.AGI = (function () {
         const nav = $('minimap');
         const anchor = onScreen ? target : nav;
         if (!anchor || anchor.hidden) { calloutLive = null; return nextCallout(); }
-        const box = toastCard(c.title, c.message, 'room');
+        const box = toastCard(c.title, c.message, where.kind || 'room');
         box.classList.add('callout', onScreen ? 'callout-side' : 'callout-map');
         document.body.append(box);
         let lit = null;
@@ -373,7 +375,8 @@ window.AGI = (function () {
     // Fires `fn` on click (mouse, touch or keyboard) and repeats it while the pointer is held down.
     // Fires on press (no wait), then repeats at HOLD_REPEAT_MS while held; the pointer's own click is
     // ignored, so a tap counts once. Keyboard activation only sends a click, so it still works.
-    function holdable(button, fn) {
+    // `onHold` fires once per press, the first time holding repeats the job.
+    function holdable(button, fn, onHold) {
         let repeat = null;
 
         const stop = () => {
@@ -386,9 +389,11 @@ window.AGI = (function () {
             if (e.button !== 0 || button.disabled) return;
             fn();
             button.classList.add('held');
+            let first = true;
             repeat = setInterval(() => {
                 if (button.disabled) return stop();
                 fn();
+                if (first) { first = false; onHold?.(); }
             }, HOLD_REPEAT_MS);
         });
         ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => button.addEventListener(t, stop));
@@ -411,7 +416,10 @@ window.AGI = (function () {
             const button = el('button', { type: 'button', class: 'button action-button' }, [
                 el('span', { class: 'action-name', text: action.name }), gain, cost, auto
             ]);
-            holdable(button, () => doAction(action.id, button));
+            holdable(button, () => doAction(action.id, button), () => {
+                state.stats.holds++;
+                afterChange();
+            });
             box.append(button);
             ui.actions[action.id] = { action, button, gain, cost, auto };
         }
@@ -813,6 +821,11 @@ window.AGI = (function () {
             const up = E.UPGRADE_BY_ID[id];
             if (up.tab !== 'training') termLog(`installed ${E.upgradeName(state, up)} (level ${E.level(state, id)})`);
             if (up.tab !== 'training' && E.isMaxed(state, up)) retireCard(id);
+            // Once the desk has its monitor (click tool level 4), point out that jobs can be held down.
+            if (id === 'keyboard' && E.level(state, id) >= 4 && !state.unlocked['hint:hold']) {
+                state.unlocked['hint:hold'] = true;
+                callout('hint:hold', 'Tip', 'Hold down any job to keep it going.');
+            }
             afterChange();
         }
     }

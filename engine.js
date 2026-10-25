@@ -412,7 +412,7 @@
     // Achievements persist across prestige. They're recognition only: no production bonus.
     const ACHIEVEMENTS = [
         { id: 'firstClick', name: 'Hello, World', desc: 'Generate compute manually', check: s => s.stats.clicks >= 1 },
-        { id: 'clicks1k', name: 'Carpal Tunnel', desc: 'Click 1,000 times', check: s => s.stats.clicks >= 1000 },
+        { id: 'clicks1k', name: 'Carpal Tunnel', desc: 'Hold down a job to keep it going', check: s => s.stats.holds >= 1 },
         { id: 'cp1k', name: 'Kiloflop', desc: 'Earn 1,000 CP in total', check: s => s.stats.lifetimeCp >= 1e3 },
         { id: 'cp1m', name: 'Megaflop', desc: 'Earn 1 million CP in total', check: s => s.stats.lifetimeCp >= 1e6 },
         { id: 'cp1b', name: 'Gigaflop', desc: 'Earn 1 billion CP in total', check: s => s.stats.lifetimeCp >= 1e9 },
@@ -450,6 +450,7 @@
                 projectsDone: 0,
                 researchManual: 0,    // research done by hand
                 rolls: 0,
+                holds: 0,             // times a job was held down to repeat it (Carpal Tunnel)
                 skilledSprints: 0,    // paid training sprints since the first skill (research opens after RESEARCH_SPRINTS)
                 skillsLearned: 0,
                 playTime: 0,
