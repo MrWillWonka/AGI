@@ -115,7 +115,7 @@
     // Automation is earned: each machine that does a job for you needs proof you've done it by hand
     // (a stat count) and, for the bigger ones, a training skill. `automationGate()` checks and reports it.
     const AUTOMATION = {
-        cpu: { stat: 'clicks', need: 25, what: 'compute by hand' },
+        cpu: { stat: 'clicks', need: 40, what: 'compute by hand' },
         autoCollector: { stat: 'collects', need: 100, what: 'data collections by hand', skill: 1 },
         researchAssistant: { stat: 'researchManual', need: 50, what: 'research runs by hand', skill: 5 }
     };
@@ -182,11 +182,11 @@
         // x1.15 per unit, and a tier's output doubles at 25, 50 and 100 owned (HARDWARE_DOUBLINGS), which
         // makes older tiers worth topping up again. Each tier shows up late (tierReady).
         { id: 'cpu', tab: 'hardware', name: 'Basic CPU', cps: 0.5, effect: 'Generates compute', flavor: 'A desktop tower from the office cupboard. It wheezes.', cost: { cp: 15 }, scale: 1.15,
-            unlock: s => automationGate(s, 'cpu').met, hint: 'Generate compute by hand 25 times' },
+            unlock: s => automationGate(s, 'cpu').met && level(s, 'keyboard') >= 1, hint: 'Upgrade your click tool, and compute by hand 40 times' },
         // The click tool: one upgrade that grows into new tools as you level it (CLICK_TOOLS), each adding
         // more per level. Its name and flavour follow the current tool (upgradeName / upgradeFlavor).
         { id: 'keyboard', tab: 'hardware', name: 'Mechanical Keyboard', shows: 'click', effect: 'More compute per click; grows into better tools as you level it', flavor: 'Clicky. Your desk neighbours hate it.', cost: { cp: 40 }, scale: 1.32,
-            unlock: s => s.stats.clicks >= 40 && level(s, 'cpu') >= 1, hint: 'Generate compute by hand 40 times, and own a Basic CPU' },
+            unlock: s => s.stats.clicks >= 15, hint: 'Generate compute by hand 15 times' },
         { id: 'server', tab: 'hardware', name: 'Server Cluster', cps: 3.3, effect: 'Generates compute', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 300 }, scale: 1.15,
             unlock: s => tierReady(s, 'server'), hint: 'More Basic CPUs, and more compute earned' },
         { id: 'quantum', tab: 'hardware', name: 'Quantum Processor', cps: 22, effect: 'Generates compute', flavor: 'It\'s both working and not working until you check.', cost: { cp: 6000 }, scale: 1.15,

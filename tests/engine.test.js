@@ -84,7 +84,8 @@ test('locked and unaffordable actions are rejected without side effects', () => 
 
 test('buying an upgrade pays the scaled cost and increases production', () => {
     const s = fresh();
-    s.stats.clicks = 25;                    // the CPU is earned by computing by hand first
+    s.stats.clicks = 40;
+    s.levels.keyboard = 1;                    // the CPU is earned by computing by hand first
     E.evaluate(s);
     s.res.cp = 1000;
     assert.equal(E.buy(s, 'cpu').ok, true);
@@ -363,7 +364,8 @@ test('automation is earned: a skill and proof of doing the job by hand', () => {
     s.res.cp = 1e6; s.res.dp = 1e6; s.res.rp = 1e6;
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.cpu), false, 'CPU waits for compute by hand');
-    s.stats.clicks = 25;
+    s.stats.clicks = 40;
+    s.levels.keyboard = 1;
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.cpu), true);
     s.path.learned = 3;
@@ -446,7 +448,8 @@ test('v2 saves load with empty projects; bad project data is dropped', () => {
 test('cleared stretches boost compute: a little on clearing, a little more per automated lap', () => {
     const s = fresh();
     s.levels.cpu = 10;
-    s.stats.clicks = 25;
+    s.stats.clicks = 40;
+    s.levels.keyboard = 1;
     assert.equal(E.clearedCpBonus(s), 0);
     s.path.learned = 2;
     s.path.auto = [0, 0];
