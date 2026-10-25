@@ -84,11 +84,12 @@ test('locked and unaffordable actions are rejected without side effects', () => 
 
 test('buying an upgrade pays the scaled cost and increases production', () => {
     const s = fresh();
+    s.stats.clicks = 25;                    // the CPU is earned by computing by hand first
     E.evaluate(s);
     s.res.cp = 1000;
     assert.equal(E.buy(s, 'cpu').ok, true);
     assert.equal(s.res.cp, 1000 - 15);
-    assert.deepEqual(E.upgradeCost(E.UPGRADE_BY_ID.cpu, 1), { cp: Math.ceil(15 * 1.15) });
+    assert.deepEqual(E.upgradeCost(E.UPGRADE_BY_ID.cpu, 1), { cp: Math.ceil(15 * 1.18) });
     assert.equal(E.derive(s).cpPerSec, 0.5 * E.derive(s).mult);
 });
 
@@ -161,10 +162,10 @@ test('automation converts resources instead of creating them', () => {
     s.levels.autoCollector = 1;
     const d = E.derive(s);
     assert.equal(d.autoThrottled, false);
-    assert.equal(d.collectsPerSec, 0.5);
+    assert.equal(d.collectsPerSec, 0.2);
     E.tick(s, 10);
-    assert.ok(Math.abs(s.res.cp - (1000 + 10 * d.cpPerSec - 50)) < 1e-6);
-    assert.ok(Math.abs(s.res.dp - 5 * d.dpPerCollect) < 1e-9);
+    assert.ok(Math.abs(s.res.cp - (1000 + 10 * d.cpPerSec - 20)) < 1e-6);
+    assert.ok(Math.abs(s.res.dp - 2 * d.dpPerCollect) < 1e-9);
 
     const r = fresh();
     r.res.dp = 1000;
@@ -333,4 +334,32 @@ test('skills and lab upgrades have a short quip and a plain effect too', () => {
         assert.ok(k.flavor && k.flavor.length <= 70 && k.effect, `skill ${i}`);
     }
     for (const up of E.UPGRADES) assert.ok(up.flavor && up.flavor.length <= 70, `${up.id} has a quip`);
+});
+
+test('automation is earned: a skill and proof of doing the job by hand', () => {
+    const s = fresh();
+    s.res.cp = 1e6; s.res.dp = 1e6; s.res.rp = 1e6;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.cpu), false, 'CPU waits for compute by hand');
+    s.stats.clicks = 25;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.cpu), true);
+    s.path.learned = 3;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.autoCollector), false, 'the skill alone is not enough');
+    assert.deepEqual(E.automationGate(s, 'autoCollector').done, 0);
+    for (let i = 0; i < 100; i++) E.act(s, 'collect');
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.autoCollector), true);
+    s.levels.autoCollector = 1;
+    assert.ok(Math.abs(E.derive(s).collectsPerSec - 0.2) < 1e-9 || E.derive(s).autoThrottled, 'starts slow');
+});
+
+test('top-bar resources and attributes are revealed once they matter', () => {
+    const s = fresh();
+    assert.equal(E.evaluate(s).reveals.length, 0);
+    s.res.dp = 1;
+    s.attr.intelligence = 1;
+    assert.deepEqual(E.evaluate(s).reveals.map(r => r.key), ['seen:dp', 'seen:int']);
+    assert.equal(E.evaluate(s).reveals.length, 0, 'only once');
 });

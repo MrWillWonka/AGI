@@ -93,16 +93,33 @@
 
     const TABS = [
         { id: 'hardware', name: 'Hardware', unlock: null },
-        { id: 'software', name: 'Software', unlock: null },
+        { id: 'software', name: 'Software', unlock: 'seen:dp' },   // opens once data has been introduced
         { id: 'algorithms', name: 'Algorithms', unlock: 'tab:algorithms' },
         { id: 'consciousness', name: 'Consciousness', unlock: 'tab:consciousness' }
     ];
+
+    // Automation is earned: each machine that does a job for you needs proof you've done it by hand
+    // (a stat count) and, for the bigger ones, a training skill. `automationGate()` checks and reports it.
+    const AUTOMATION = {
+        cpu: { stat: 'clicks', need: 25, what: 'compute by hand' },
+        autoCollector: { stat: 'collects', need: 100, what: 'data collections by hand', skill: 3 },
+        researchAssistant: { stat: 'researchManual', need: 50, what: 'research runs by hand', skill: 5 }
+    };
+
+    function automationGate(s, id) {
+        const g = AUTOMATION[id];
+        if (!g) return null;
+        const done = Math.min(g.need, s.stats[g.stat] || 0);
+        const skillOk = !g.skill || s.path.learned >= g.skill;
+        return { done, need: g.need, what: g.what, skill: g.skill ? skillAt(g.skill - 1).name : null, skillOk, met: done >= g.need && skillOk };
+    }
 
     // Upgrades. `scale` makes it repeatable (cost × scale^level); `max: 1` makes it one-time.
     // `grants` adds attributes per level purchased. Production effects live in derive().
     const UPGRADES = [
         // Hardware
-        { id: 'cpu', tab: 'hardware', name: 'Basic CPU', effect: '+0.5 CP/s', flavor: 'A desktop tower from the office cupboard. It wheezes.', cost: { cp: 15 }, scale: 1.18 },
+        { id: 'cpu', tab: 'hardware', name: 'Basic CPU', effect: '+0.5 CP/s', flavor: 'A desktop tower from the office cupboard. It wheezes.', cost: { cp: 15 }, scale: 1.18,
+            unlock: s => automationGate(s, 'cpu').met, hint: 'Generate compute by hand 25 times' },
         { id: 'server', tab: 'hardware', name: 'Server Cluster', effect: '+2 CP/s, +1 CP/click', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 120 }, scale: 1.18 },
         { id: 'quantum', tab: 'hardware', name: 'Quantum Processor', effect: '+10 CP/s', flavor: 'It\'s both working and not working until you check.', cost: { cp: 1100 }, scale: 1.15,
             unlock: s => s.stats.runCp >= 500, hint: 'Earn 500 CP this run' },
@@ -115,8 +132,8 @@
 
         // Software
         { id: 'dataProcessor', tab: 'software', name: 'Data Processor', effect: '+1 DP per collection', flavor: 'A script that cleans the data so you don\'t have to.', cost: { cp: 50, dp: 5 }, scale: 1.2 },
-        { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', effect: 'Collects data for you: 0.5 times a second, 10 CP each', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 800, dp: 80 }, scale: 1.35,
-            unlock: s => s.path.learned >= 3, hint: 'Teach your AI Image Recognition' },
+        { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', effect: 'Collects data for you: 0.2 times a second per level, 10 CP each', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 800, dp: 80 }, scale: 1.5,
+            unlock: s => automationGate(s, 'autoCollector').met, hint: 'Image Recognition, and 100 data collections by hand' },
         // Training skill tree (bought with XP from the Training Path). `tree` is the node's grid
         // position around the central Training Core at (0, 0); `requires` is the node it grows from
         // (none = attached to the core). `icon` names a glyph drawn by game.js.
@@ -168,8 +185,8 @@
         { id: 'satelliteMaps', tab: 'training', tree: { x: -1, y: -1 }, icon: 'eye', name: 'Live Telemetry', effect: 'See 25% further ahead', flavor: 'Real-time numbers on everything, including the coffee machine.', cost: { xp: 90 }, scale: 2, max: 1, requires: 'scoutingData', boost: { view: 0.25 } },
         { id: 'autoTrainer', tab: 'training', tree: { x: -2, y: 0 }, icon: 'robot', name: 'Auto-Trainer', effect: 'Level 1 starts runs and sprints when the model stalls. Level 2 times its sprints', flavor: 'An intern who never gets tired. Or paid.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
             requires: 'scoutingData', unlock: s => s.prestige.count >= 1, hint: 'Transcend once' },
-        { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', effect: 'Researches for you: 0.2 times a second, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.4,
-            unlock: s => !!s.unlocked['action:research'] && s.path.learned >= 5, hint: 'Teach your AI Language Modeling' },
+        { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', effect: 'Researches for you: 0.1 times a second per level, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.55,
+            unlock: s => !!s.unlocked['action:research'] && automationGate(s, 'researchAssistant').met, hint: 'Language Modeling, and 50 research runs by hand' },
         { id: 'nlp', tab: 'software', name: 'Natural Language Processing', effect: '+5 DP per collection, +1 Intelligence', flavor: 'It reads now. Mostly forum posts, sadly.', cost: { cp: 2500, dp: 250 }, max: 1,
             grants: { intelligence: 1 }, unlock: s => s.res.dp >= 100, hint: 'Hold 100 DP' },
         { id: 'computerVision', tab: 'software', name: 'Computer Vision', effect: '+10 DP per collection, +2 Intelligence', flavor: 'It sees now. It has opinions about your photos.', cost: { cp: 8000, dp: 600 }, max: 1,
@@ -218,6 +235,16 @@
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }
     ];
 
+    // Things on the top bar appear only once they matter, each introduced once (game.js toasts `intro`).
+    const REVEALS = [
+        { key: 'seen:dp', name: 'Data Points', check: s => s.res.dp > 0,
+            intro: 'Collected with compute. Training sprints and research run on data.' },
+        { key: 'seen:int', name: 'Intelligence', check: s => s.attr.intelligence > 0,
+            intro: 'How smart your AI is. Skills from training raise it; enough of it reaches the next phase.' },
+        { key: 'seen:cre', name: 'Creativity', check: s => s.attr.creativity > 0, intro: 'New ideas. The later phases need it.' },
+        { key: 'seen:awa', name: 'Awareness', check: s => s.attr.awareness > 0, intro: 'It knows it exists. The last phases need it.' }
+    ];
+
     // Achievements persist across prestige and each add ACHIEVEMENT_BONUS to all production.
     const ACHIEVEMENTS = [
         { id: 'firstClick', name: 'Hello, World', desc: 'Generate compute manually', check: s => s.stats.clicks >= 1 },
@@ -251,6 +278,8 @@
                 lifetimeCp: 0,
                 runCp: 0,
                 researchDone: 0,
+                collects: 0,          // data collected by hand
+                researchManual: 0,    // research done by hand
                 rolls: 0,
                 skillsLearned: 0,
                 improves: 0,
@@ -306,8 +335,8 @@
         const collectCost = actionById('collect').cost;
         const researchCost = actionById('research').cost;
         const share = autoBudget(s);
-        const wantCollects = 0.5 * L('autoCollector') * r.dp;
-        const wantResearch = 0.2 * L('researchAssistant') * r.rp;
+        const wantCollects = 0.2 * L('autoCollector') * r.dp;
+        const wantResearch = 0.1 * L('researchAssistant') * r.rp;
         const cpWanted = wantCollects * collectCost.cp + wantResearch * researchCost.cp;
         const cpScale = cpWanted > 0 ? Math.min(1, share * cpPerSec / cpWanted) : 1;
         const collectsPerSec = wantCollects * cpScale;
@@ -443,10 +472,12 @@
                 return { ok: true, gained: d.clickPower, resource: 'cp' };
             case 'collect':
                 s.res.dp += d.dpPerCollect;
+                s.stats.collects++;
                 return { ok: true, gained: d.dpPerCollect, resource: 'dp' };
             case 'research':
                 s.res.rp += d.rpPerResearch;
                 s.stats.researchDone++;
+                s.stats.researchManual++;
                 return { ok: true, gained: d.rpPerResearch, resource: 'rp' };
             case 'improve':
                 s.attr.intelligence += IMPROVE_GAIN;
@@ -489,7 +520,13 @@
 
     // Returns arrays of newly unlocked milestone keys, upgrade ids, achievement ids and phase change.
     function evaluate(s) {
-        const out = { milestones: [], upgrades: [], achievements: [], phase: null };
+        const out = { milestones: [], upgrades: [], achievements: [], phase: null, reveals: [] };
+        for (const r of REVEALS) {
+            if (!s.unlocked[r.key] && r.check(s)) {
+                s.unlocked[r.key] = true;
+                out.reveals.push(r);
+            }
+        }
         for (const m of MILESTONES) {
             if (!s.unlocked[m.key] && m.check(s)) {
                 s.unlocked[m.key] = true;
@@ -826,7 +863,7 @@
     }
 
     return {
-        SAVE_VERSION, MAX_OFFLINE_SECONDS, AUTO_BUDGET, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN, PATH, SKILLS,
+        SAVE_VERSION, MAX_OFFLINE_SECONDS, AUTO_BUDGET, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,

@@ -196,8 +196,8 @@ h1, h2, h3, p { margin: 0; }
 
 .room-lab {
     display: grid;
-    grid-template-columns: minmax(280px, 1fr) minmax(0, 1.6fr);
-    gap: 20px;
+    grid-template-columns: minmax(270px, 320px) minmax(0, 1fr);
+    gap: 16px;
     align-items: start;
 }
 
@@ -958,7 +958,7 @@ h1, h2, h3, p { margin: 0; }
 .action-button {
     display: grid;
     grid-template-columns: 1fr auto;
-    grid-template-areas: "name gain" "cost cost";
+    grid-template-areas: "name gain" "cost cost" "auto auto";
     gap: 2px 8px;
     text-align: left;
     font: 600 0.9rem var(--font-display);
@@ -978,6 +978,9 @@ h1, h2, h3, p { margin: 0; }
 .action-name { grid-area: name; }
 .action-gain { grid-area: gain; font: 500 0.8rem var(--font-mono); color: var(--success); }
 .action-cost { grid-area: cost; font: 400 0.75rem var(--font-mono); color: var(--muted); }
+.action-auto { grid-area: auto; margin-top: 4px; padding-top: 4px; border-top: 1px dashed #24434a; font: 500 0.7rem var(--font-mono); color: var(--warning); }
+.action-auto:empty { display: none; }
+.action-auto.done { color: var(--success); }
 
 
 
@@ -1413,15 +1416,19 @@ h1, h2, h3, p { margin: 0; }
 /* ---- Lab stations ---- */
 
 .station-title { font: 700 0.82rem var(--font-display); text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); }
-.lab-stations { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.lab-stations { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 16px; align-items: start; min-width: 0; }
 .station[hidden] { display: none; }
 .station-list { display: flex; flex-direction: column; }
 .station-sealed { display: none; }
 
 /* Server cabinets: the hardware you own, racked, filling up over time. */
 .station-bench .station-art {
+    /* Fixed height, scrolling sideways as cabinets are added: buying hardware never moves the page. */
+    height: 222px;
+    overflow-x: auto;
+    overflow-y: hidden;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: flex-end;
     gap: 10px;
     padding: 10px 6px 6px;
@@ -1544,8 +1551,8 @@ h1, h2, h3, p { margin: 0; }
     .bay-art { margin: 10px 10px 0; }
     .station-terminal .station-art, .station-terminal .station-list { border-left-width: 4px; border-right-width: 4px; }
     .station-terminal .station-list { padding: 0 8px 8px; }
-    .station-terminal .upgrade, .station-bench .upgrade { grid-template-columns: minmax(0, 1fr); gap: 6px; }
-    .station-terminal .upgrade-button, .station-bench .upgrade-button { justify-self: start; }
+    .station .upgrade { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+    .station .upgrade-button { justify-self: start; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1709,3 +1716,97 @@ html, body { overflow-x: clip; }
 }
 
 .debug-panel .ghost-button.active { border-color: var(--primary); color: var(--primary); }
+
+/* ---- Lab: status, supply line, and signs of life ---- */
+.lab-status { margin-left: auto; font: 500 0.75rem var(--font-mono); color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); animation: led-soft 1.8s ease-in-out infinite; }
+
+.lab-supply {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+}
+.lab-supply [hidden] { display: none; }
+.supply-cell {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "label value" "spark spark";
+    gap: 4px 10px;
+    padding: 10px 12px 8px;
+    border: 1px solid #1d353b;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #0e1d21, #0a1517);
+    overflow: hidden;
+}
+.supply-label { grid-area: label; font: 700 0.68rem var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.supply-value { grid-area: value; font: 700 0.95rem var(--font-mono); color: var(--success); }
+.spark { grid-area: spark; width: 100%; height: 34px; display: block; }
+.supply-link { grid-template-columns: 1fr; grid-template-areas: none; align-content: center; }
+.supply-link > * { grid-area: auto; }
+.supply-link .supply-label { color: var(--primary); }
+.supply-link .supply-label::after { content: " ⟶"; }
+.supply-text { font: 0.8rem var(--font-body); color: var(--text); }
+.supply-text.good { color: var(--success); font-size: 0.78rem; }
+
+/* Every rack unit has a status light. */
+.unit { position: relative; }
+.unit::after {
+    content: "";
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    width: 3px;
+    height: 3px;
+    margin-top: -1.5px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 4px var(--success);
+    animation: led-blink 1.1s steps(2, jump-none) infinite;
+}
+.unit:nth-child(3n)::after { animation-duration: 0.7s; }
+.unit:nth-child(4n+1)::after { animation-delay: 0.4s; background: var(--warning); box-shadow: 0 0 4px var(--warning); }
+.unit-optical::after { background: #fff; }
+
+/* Terminal output: what the automation is doing. */
+.terminal-log { display: flex; flex-direction: column; gap: 1px; margin-bottom: 6px; min-height: 4.4em; justify-content: flex-end; }
+.terminal-out { font-size: 0.74rem; color: #5f9c80; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.terminal-out.fresh { color: #9ff0c9; animation: type-in 0.6s steps(24, end); }
+@keyframes type-in { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+/* The lab floor: a faint blueprint grid with a slow scan line. */
+.room-lab { position: relative; background:
+    linear-gradient(rgba(111, 179, 217, 0.035) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, rgba(111, 179, 217, 0.035) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(180deg, #0c191c, #0a1416); overflow: hidden; }
+.room-lab::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 120px;
+    top: -120px;
+    background: linear-gradient(180deg, transparent, rgba(99, 224, 171, 0.05), transparent);
+    animation: lab-scan 9s linear infinite;
+    pointer-events: none;
+}
+@keyframes lab-scan { to { transform: translateY(calc(100vh + 240px)); } }
+
+/* Training Cluster bar: the lab's supply and your XP. */
+.module-supply, .module-xp { display: inline-flex; align-items: baseline; gap: 6px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; font: 500 0.8rem var(--font-mono); white-space: nowrap; }
+.module-xp { border-color: rgba(255, 181, 71, 0.5); color: var(--warning); }
+.module-xp small { color: var(--success); }
+.module-supply { color: var(--muted); }
+
+@media (max-width: 1100px) {
+    .room-lab { grid-template-columns: minmax(0, 1fr); }
+    .lab-ops { position: static; }
+}
+@media (max-width: 640px) {
+    .module-supply { display: none; }
+    .lab-stations { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .room-lab::before, .unit::after, .status-dot { animation: none; }
+}

@@ -23,18 +23,17 @@
 
             <ul class="chips" aria-label="Resources">
                 <li class="chip" title="Compute Power: earned by clicking and from hardware"><span class="chip-label">CP</span> <span data-bind="res.cp">0</span> <small data-bind="rate.cp"></small></li>
-                <li class="chip" title="Data Points: collected with CP"><span class="chip-label">DP</span> <span data-bind="res.dp">0</span> <small data-bind="rate.dp"></small></li>
+                <li class="chip" data-show="seen:dp" title="Data Points: collected with compute; training sprints and research use them"><span class="chip-label">DP</span> <span data-bind="res.dp">0</span> <small data-bind="rate.dp"></small></li>
                 <li class="chip" data-show="action:research" title="Research Points: from research"><span class="chip-label">RP</span> <span data-bind="res.rp">0</span> <small data-bind="rate.rp"></small></li>
-                <li class="chip chip-xp" data-show="module:path" title="Experience: earned on the Training Path, spent on Training upgrades"><span class="chip-label">XP</span> <span data-bind="res.xp">0</span> <small data-bind="rate.xp"></small></li>
             </ul>
 
             <ul class="chips chips-attr" aria-label="Attributes">
-                <li class="chip" title="Intelligence"><span class="chip-label">Int</span> <span data-bind="attr.intelligence">0</span></li>
-                <li class="chip" title="Creativity"><span class="chip-label">Cre</span> <span data-bind="attr.creativity">0</span></li>
-                <li class="chip" title="Awareness"><span class="chip-label">Awa</span> <span data-bind="attr.awareness">0</span></li>
+                <li class="chip" data-show="seen:int" title="Intelligence: raised by skills from training"><span class="chip-label">Int</span> <span data-bind="attr.intelligence">0</span></li>
+                <li class="chip" data-show="seen:cre" title="Creativity"><span class="chip-label">Cre</span> <span data-bind="attr.creativity">0</span></li>
+                <li class="chip" data-show="seen:awa" title="Awareness"><span class="chip-label">Awa</span> <span data-bind="attr.awareness">0</span></li>
             </ul>
 
-            <div class="phase" title="Phase progress">
+            <div class="phase" data-show="seen:int" title="Phase progress">
                 <span class="phase-name" data-bind="phase.name">Narrow AI</span>
                 <div class="progress" role="progressbar" aria-label="Progress to next phase" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="phaseBar">
                     <div class="progress-fill"></div>
@@ -117,7 +116,8 @@
                         <button type="button" class="ghost-button back-button" id="backButton" aria-label="Back to the server room">← Rack</button>
                         <h2 id="moduleTitle">Training Cluster</h2>
                         <button type="button" class="ghost-button" id="treeButton" hidden>Skills</button>
-                        <span class="muted small" data-bind="path.learned"></span>
+                        <span class="module-supply" title="What the lab feeds this cluster, per second"><span class="chip-label">Lab supply</span> <span data-bind="supply.rates"></span></span>
+                        <span class="module-xp" title="Experience: earned on the trail, spent in the skill tree"><span class="chip-label">XP</span> <strong data-bind="res.xp">0</strong> <small data-bind="rate.xp"></small></span>
                     </div>
 
                     <div class="module" data-module="training" id="pathPanel">
@@ -188,9 +188,30 @@
             <div class="room-bar">
                 <button type="button" class="ghost-button back-button" data-facility>← Facility</button>
                 <h2>Lab</h2>
+                <span class="lab-status"><span class="status-dot"></span> Systems online · uptime <span data-bind="stats.playClock">00:00:00</span></span>
             </div>
+
+            <!-- Supply line: what the lab produces, what training draws from it, and what training gives back. -->
+            <div class="lab-supply" id="labSupply">
+                <div class="supply-cell">
+                    <span class="supply-label">Compute output</span>
+                    <strong class="supply-value" data-bind="supply.cp"></strong>
+                    <canvas class="spark" id="sparkCp" aria-hidden="true"></canvas>
+                </div>
+                <div class="supply-cell" data-show="seen:dp">
+                    <span class="supply-label">Data output</span>
+                    <strong class="supply-value" data-bind="supply.dp"></strong>
+                    <canvas class="spark" id="sparkDp" aria-hidden="true"></canvas>
+                </div>
+                <div class="supply-cell supply-link" data-show="module:path">
+                    <span class="supply-label">Feeds the Training Cluster</span>
+                    <span class="supply-text" data-bind="supply.sprint"></span>
+                    <span class="supply-text good" data-bind="supply.next"></span>
+                </div>
+            </div>
+
             <div class="lab-ops">
-                <!-- Workbench: the hands-on actions. -->
+                <!-- Workbench: the hands-on actions, and how close each is to being automated. -->
                 <div class="panel panel-actions hud">
                     <h2 class="station-title">Workbench</h2>
                     <div id="actions" class="action-row"></div>

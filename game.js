@@ -164,13 +164,29 @@ window.AGI = (function () {
         for (const action of E.ACTIONS) {
             const gain = el('span', { class: 'action-gain' });
             const cost = el('span', { class: 'action-cost', text: E.formatCost(action.cost) });
+            const auto = el('span', { class: 'action-auto' });
             const button = el('button', { type: 'button', class: 'button action-button' }, [
-                el('span', { class: 'action-name', text: action.name }), gain, cost
+                el('span', { class: 'action-name', text: action.name }), gain, cost, auto
             ]);
             holdable(button, () => doAction(action.id, button));
             box.append(button);
-            ui.actions[action.id] = { action, button, gain, cost };
+            ui.actions[action.id] = { action, button, gain, cost, auto };
         }
+    }
+
+    // Which machine automates each workbench job (engine AUTOMATION gates it).
+    const AUTOMATES = { compute: 'cpu', collect: 'autoCollector', research: 'researchAssistant' };
+
+    // Under each job: how close it is to being automated, or what's doing it now.
+    function automationText(actionId) {
+        const id = AUTOMATES[actionId];
+        if (!id) return '';
+        const lvl = E.level(state, id);
+        if (lvl) return `Automated · ${E.UPGRADE_BY_ID[id].name} ×${lvl}`;
+        const g = E.automationGate(state, id);
+        if (g.met) return 'Ready to automate · see the lab stations';
+        if (g.done < g.need) return `${g.done}/${g.need} by hand to automate`;
+        return `Automate after your AI learns ${g.skill}`;
     }
 
     // Lab stations: one per upgrade group (E.TABS), each with its own look. Locked stations stay
@@ -199,7 +215,8 @@ window.AGI = (function () {
             ui.panels[tab.id] = list;
         }
         // The terminal has a screen header; the other stations get decorative pieces.
-        ui.stations.software.art.append(el('span', { class: 'terminal-line', text: '$ ./improve --list' }));
+        ui.termLines = el('span', { class: 'terminal-log' }, [el('span', { class: 'terminal-out', text: '> waiting for jobs' })]);
+        ui.stations.software.art.append(ui.termLines, el('span', { class: 'terminal-line', text: '$ ./improve --list' }));
         for (const id of ['algorithms', 'consciousness']) for (let i = 0; i < 5; i++) ui.stations[id].art.append(el('i'));
 
         for (const up of E.UPGRADES) {
@@ -253,7 +270,7 @@ window.AGI = (function () {
     };
     const CABINET_U = 20;
     const MAX_CABINETS = 6;
-    let cabinetKey = '';
+    let cabinetKey = null;      // null: not drawn yet
 
     function renderCabinets() {
         const units = [];
@@ -263,8 +280,8 @@ window.AGI = (function () {
         }
         const key = units.map(u => u.id[0]).join('');
         if (key === cabinetKey) return;
-        const before = cabinetKey.length;
-        const first = cabinetKey === '';
+        const before = cabinetKey ? cabinetKey.length : 0;
+        const first = cabinetKey === null;
         cabinetKey = key;
         const cabinets = [];
         let used = CABINET_U;
@@ -357,7 +374,11 @@ window.AGI = (function () {
     function doBuy(id) {
         const result = E.buy(state, id);
         log(result.msg, result.ok ? 'success' : 'warning');
-        if (result.ok) afterChange();
+        if (result.ok) {
+            const up = E.UPGRADE_BY_ID[id];
+            if (up.tab !== 'training') termLog(`installed ${up.name} (level ${E.level(state, id)})`);
+            afterChange();
+        }
     }
 
     // In-page replacement for confirm()/prompt(), which embedded and sandboxed hosts often block.
@@ -481,7 +502,8 @@ window.AGI = (function () {
         storageSet(TREE_CAM_KEY, '');
         Object.assign(treeCam, { x: 0, y: 0, z: 1 });
         $('skillTree').style.transform = '';
-        cabinetKey = '';
+        cabinetKey = null;
+        Object.assign(lab, { cp: [], dp: [], lastRunCp: null, lastCollects: null, lines: [] });
         showView('lab');
     }
 
@@ -493,6 +515,10 @@ window.AGI = (function () {
     }
 
     function announce(changes) {
+        for (const r of changes.reveals || []) {
+            log(`${r.name}: ${r.intro}`, 'special');
+            toast(r.name, r.intro);
+        }
         for (const m of changes.milestones) {
             log(`Milestone reached: ${m.name}`, 'special');
         }
@@ -517,9 +543,91 @@ window.AGI = (function () {
             reportOffline(seconds);
         } else {
             E.tick(state, dt * debugSpeed, debugRates);
+            sampleLab(dt * debugSpeed);
         }
         afterChange();
         if (state.settings.autosave && now - lastSave >= AUTOSAVE_MS) save();
+    }
+
+    // ---- Lab life: output sparklines and the terminal's job log ----
+
+    const SPARK_POINTS = 90;       // 45 s of history at one sample every 0.5 s
+    const JOB_REPORT_SECONDS = 2;  // the terminal reports automation in batches this often
+    const lab = { cp: [], dp: [], sampleT: 0, jobT: 0, lastRunCp: null, lastCollects: null, collects: 0, research: 0, batch: 0, paper: 0, lines: [] };
+
+    function sampleLab(dt) {
+        const d = E.derive(state, debugRates);
+        lab.collects += d.collectsPerSec * dt;
+        lab.research += d.researchPerSec * dt;
+        lab.jobT += dt;
+        if (lab.jobT >= JOB_REPORT_SECONDS) {
+            lab.jobT = 0;
+            const c = Math.floor(lab.collects);
+            const r = Math.floor(lab.research);
+            lab.collects -= c;
+            lab.research -= r;
+            if (c) termLog(`crawler: batch ${lab.batch += c} done (+${E.format(c * d.dpPerCollect)} DP)`);
+            if (r) termLog(`assistant: paper #${lab.paper += r} read (+${E.format(r * d.rpPerResearch)} RP)`);
+        }
+        lab.sampleT += dt;
+        if (lab.sampleT < 0.5) return;
+        // Output per second over the last half second, clicks included, so the lines move as you work.
+        const span = lab.sampleT;
+        lab.sampleT = 0;
+        const runCp = state.stats.runCp;
+        const collects = state.stats.collects;
+        if (lab.lastRunCp != null && runCp >= lab.lastRunCp) {
+            lab.cp.push((runCp - lab.lastRunCp) / span);
+            lab.dp.push(Math.max(0, collects - lab.lastCollects) * d.dpPerCollect / span + d.dpPerSec);
+            if (lab.cp.length > SPARK_POINTS) lab.cp.shift();
+            if (lab.dp.length > SPARK_POINTS) lab.dp.shift();
+        }
+        lab.lastRunCp = runCp;
+        lab.lastCollects = collects;
+        if (view === 'lab') drawSparks();
+    }
+
+    function drawSpark(canvas, data, color) {
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        if (!w || !h) return;
+        const dpr = Math.min(2, (window.devicePixelRatio || 1) * uiScale());
+        if (canvas.width !== Math.round(w * dpr)) canvas.width = Math.round(w * dpr);
+        if (canvas.height !== Math.round(h * dpr)) canvas.height = Math.round(h * dpr);
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        if (data.length < 2) return;
+        const top = Math.max(...data) * 1.15 || 1;
+        const x = i => (i / (SPARK_POINTS - 1)) * w + (SPARK_POINTS - data.length) * (w / (SPARK_POINTS - 1));
+        const y = v => h - 2 - (v / top) * (h - 6);
+        ctx.beginPath();
+        data.forEach((v, i) => (i ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v))));
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.lineTo(x(data.length - 1), h);
+        ctx.lineTo(x(0), h);
+        ctx.closePath();
+        ctx.fillStyle = hexAlpha(color, 0.12);
+        ctx.fill();
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x(data.length - 1), y(data[data.length - 1]), 2.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    function drawSparks() {
+        drawSpark($('sparkCp'), lab.cp, path.colors.success || '#63e0ab');
+        drawSpark($('sparkDp'), lab.dp, path.colors.primary || '#6fb3d9');
+    }
+
+    // The software terminal prints what the lab's automation and installs are doing (last few lines).
+    function termLog(text) {
+        lab.lines.push(text);
+        if (lab.lines.length > 4) lab.lines.shift();
+        const box = ui.termLines;
+        if (box) box.replaceChildren(...lab.lines.map((t, i) => el('span', { class: `terminal-out${i === lab.lines.length - 1 ? ' fresh' : ''}`, text: `> ${t}` })));
     }
 
     function bindValue(key, d) {
@@ -532,6 +640,21 @@ window.AGI = (function () {
             case 'rate.cp': return d.cpPerSec ? `${d.cpNet < 0 ? '−' : '+'}${f(Math.abs(d.cpNet))}/s` : '';
             case 'rate.dp': return d.dpPerSec ? `${d.dpNet < 0 ? '−' : '+'}${f(Math.abs(d.dpNet))}/s` : '';
             case 'rate.xp': return d.xpPerSec ? `+${f(d.xpPerSec)}/s` : '';
+            case 'supply.cp': return `${f(d.cpNet)} CP/s`;
+            case 'supply.dp': return `${f(d.dpNet)} DP/s`;
+            case 'supply.rates': return state.unlocked['seen:dp'] ? `${f(d.cpNet)} CP · ${f(d.dpNet)} DP /s` : `${f(d.cpNet)} CP/s`;
+            case 'supply.sprint': {
+                const c = E.pushCost(state, 1);
+                return `A full training sprint draws ${E.formatCost(c)}`;
+            }
+            case 'supply.next': {
+                const k = E.skillAt(state.path.learned);
+                return `Next skill, ${k.name}: ${k.effect}`;
+            }
+            case 'stats.playClock': {
+                const t = Math.floor(state.stats.playTime);
+                return [t / 3600, (t % 3600) / 60, t % 60].map(n => String(Math.floor(n)).padStart(2, '0')).join(':');
+            }
             case 'rate.rp': return d.rpPerSec ? `+${f(d.rpPerSec)}/s` : '';
             case 'attr.intelligence': return f(state.attr.intelligence, 1);
             case 'attr.creativity': return f(state.attr.creativity, 1);
@@ -577,7 +700,9 @@ window.AGI = (function () {
 
         const gains = { compute: `+${E.format(d.clickPower)} CP`, collect: `+${E.format(d.dpPerCollect)} DP`,
             research: `+${E.format(d.rpPerResearch)} RP`, improve: `+${E.IMPROVE_GAIN} Int` };
-        for (const { action, button, gain, cost } of Object.values(ui.actions)) {
+        for (const { action, button, gain, cost, auto } of Object.values(ui.actions)) {
+            setText(auto, automationText(action.id));
+            auto.classList.toggle('done', !!(AUTOMATES[action.id] && E.level(state, AUTOMATES[action.id])));
             const price = E.actionCost(state, action);
             setHidden(button, !!action.unlock && !state.unlocked[action.unlock]);
             setDisabled(button, !E.canAfford(state, price));
