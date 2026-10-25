@@ -517,21 +517,28 @@ window.AGI = (function () {
         });
     }
 
+    // Ship the next version: the run starts over for Insight (kept, with legacy nodes and achievements).
     async function doPrestige() {
         const gain = E.prestigeGain(state);
         if (gain < 1) return;
+        const next = E.nextVersion(state, gain);
+        const name = E.versionName(next.major, next.minor);
         const { ok } = await openDialog({
-            title: `Transcend for ${gain} Prestige Point${gain === 1 ? '' : 's'}?`,
-            message: "This run's resources, attributes and upgrades reset. Achievements and Prestige Points are kept.",
-            okLabel: 'Transcend'
+            title: `Ship ${name} for ${gain} Insight?`,
+            message: `This run's resources, attributes, skills and upgrades reset. You keep Insight (+10% production each, and it buys legacy nodes in the skill tree), legacy nodes and achievements.${next.isMajor ? '' : ' A bigger jump in Insight would make it a major version.'}`,
+            okLabel: `Ship ${name}`
         });
-        if (!ok) return;
+        if (ok) shipVersion(false);
+    }
+
+    function shipVersion(force) {
         const result = E.prestige(state, Date.now());
-        if (!result.ok) return;
-        state = result.state;
+        if (!result.ok && !force) return;
+        state = result.ok ? result.state : state;
+        path.roll = null;
         resetView();
-        log(`Transcended! +${result.gain} Prestige Points. All production is now ×${E.derive(state).mult.toFixed(2)}.`, 'special');
-        toast('Transcended', `+${result.gain} Prestige Points`);
+        log(`Shipped ${result.version}! +${result.gain} Insight. All production is now ×${E.derive(state).mult.toFixed(2)}. Spend Insight on legacy nodes in the skill tree.`, 'special');
+        toast(`${result.version} shipped`, `+${result.gain} Insight`);
         afterChange();
         save();
     }
@@ -792,13 +799,18 @@ window.AGI = (function () {
             case 'phase.next': {
                 const idx = E.phaseIndex(state);
                 const next = E.PHASES[idx + 1];
-                if (!next) return 'You have reached the final phase. Transcend to grow stronger.';
+                if (!next) return 'You have reached the final phase. Ship the next version to grow stronger.';
                 const reqs = Object.entries(next.req).map(([k, v]) => `${E.ATTRIBUTES[k].short} ${f(Math.min(state.attr[k], v), 1)}/${v}`);
                 return `Next: ${next.name} (${reqs.join(' · ')})`;
             }
             case 'prestige.points': return f(state.prestige.points);
             case 'prestige.gain': return f(E.prestigeGain(state));
             case 'prestige.count': return f(state.prestige.count);
+            case 'prestige.version': return E.currentVersion(state);
+            case 'prestige.next': {
+                const v = E.nextVersion(state);
+                return E.versionName(v.major, v.minor);
+            }
             case 'achievements.count': return `${Object.keys(state.achievements).length}/${E.ACHIEVEMENTS.length}`;
             case 'stats.runTime': return E.formatDuration((Date.now() - state.stats.runStart) / 1000);
             case 'stats.playTime': return E.formatDuration(state.stats.playTime);
@@ -889,7 +901,7 @@ window.AGI = (function () {
             if (path.view === 'dev') {
                 renderTree();
                 renderLegPicker();
-                path.autoStart = E.level(state, 'autoTrainer') ? (path.autoStart || 0) + TICK_MS / 1000 : 0;
+                path.autoStart = E.autoTrainerLevel(state) ? (path.autoStart || 0) + TICK_MS / 1000 : 0;
                 if (path.autoStart > 2) {
                     path.autoStart = 0;
                     showTrainingView('run');
@@ -925,7 +937,7 @@ window.AGI = (function () {
         }
         if (place === 'rnd') {
             const gain = E.prestigeGain(state);
-            return gain >= 1 ? `Transcend now for +${E.format(gain)} Prestige Points` : `Transcend needs ${E.PRESTIGE_MIN_INTELLIGENCE} Intelligence`;
+            return gain >= 1 ? `Ship the next version for +${E.format(gain)} Insight` : `Shipping needs ${E.PRESTIGE_MIN_INTELLIGENCE} Intelligence`;
         }
         if (place === 'facility') {
             const id = Object.keys(ROOMS).find(r => !roomUnlocked(r));
@@ -973,7 +985,7 @@ window.AGI = (function () {
                 && E.canAfford(state, E.upgradeCost(u, E.level(state, u.id)))).length;
             return `+${E.format(d.cpNet)} CP/s · ${ready ? `${ready} upgrade${ready === 1 ? '' : 's'} ready` : 'no upgrades ready'}`;
         }
-        if (id === 'rnd') return `${E.format(state.prestige.points)} Prestige Points · +${E.format(E.prestigeGain(state))} ready`;
+        if (id === 'rnd') return `Model ${E.currentVersion(state)} · ${E.format(state.prestige.points)} Insight · +${E.format(E.prestigeGain(state))} ready`;
         if (id === 'servers') {
             const learned = state.path.learned;
             return `${learned} skill${learned === 1 ? '' : 's'} · ${E.format(state.res.xp, 1)} XP to spend`;
@@ -1805,6 +1817,8 @@ window.AGI = (function () {
     // Node state: hidden (more than one step from anything buyable), locked (its parent isn't owned
     // yet), owned, maxed, or available (affordable or not).
     function nodeState(up) {
+        // Legacy nodes don't exist, not even as locks, until the first new version ships.
+        if (up.legacy && !state.prestige.count && !E.level(state, up.id)) return 'hidden';
         if (!E.isUpgradeVisible(state, up)) {
             // Secrets never preview; the rest show as an unknown lock one step past what you can buy.
             const parent = up.requires && E.UPGRADE_BY_ID[up.requires];
@@ -1827,7 +1841,7 @@ window.AGI = (function () {
             const st = states[up.id];
             node.hidden = st === 'hidden';
             placeNode(node, up.tree.x, up.tree.y);
-            node.className = `tree-node ${st}${up.requires ? '' : ' seed'}${path.selected === up.id ? ' selected' : ''}`;
+            node.className = `tree-node ${st}${up.requires ? '' : ' seed'}${up.legacy ? ' legacy' : ''}${path.selected === up.id ? ' selected' : ''}`;
             const lvl = E.level(state, up.id);
             node.querySelector('.tree-level').textContent = st === 'locked' ? '' : `${lvl}/${up.max ?? '∞'}`;
             node.setAttribute('aria-label', st === 'locked' ? 'Unknown research, locked' : `${up.name}: level ${lvl}`);
@@ -1890,7 +1904,7 @@ window.AGI = (function () {
             el('div', { class: 'detail-head' }, [
                 el('span', { class: 'detail-icon' }),
                 el('div', {}, [el('h3', { text: unknown ? '???' : up.name }),
-                    el('p', { class: 'muted small', text: unknown ? 'Unknown research' : `Level ${lvl}${up.max ? ` of ${up.max}` : ''}` })])
+                    el('p', { class: 'muted small', text: unknown ? 'Unknown research' : `Level ${lvl}${up.max ? ` of ${up.max}` : ''}${up.legacy ? ' · legacy, kept for good' : ''}` })])
             ]),
             el('p', { class: 'detail-effect', text: unknown ? 'Something is out here. Unlock what it grows from to find out what.' : up.effect }),
             unknown || !up.flavor ? null : el('p', { class: 'detail-flavor', text: up.flavor })
@@ -1989,17 +2003,27 @@ window.AGI = (function () {
     const PAD_BOTTOM = 26;
     const BALL = 7;
 
-    // ---- Luck effects ----
-    // Breakthrough: the ball glows, shakes and draws in sparks for a moment (the run holds still), then
-    // takes off with a shockwave and a golden streak. Crunch: free sprints for a few seconds, with a
-    // fiery aura and a countdown ring. Flow: the next sprint is perfect wherever you release (a cyan
-    // halo, and a gold meter). Viral: a burst of reactions rising off the ball and a special result card.
+    // ---- Luck effects (power-ups) ----
+    // Breakthrough: the ball glows, shakes and draws in sparks for a moment (the run holds still, and you
+    // can charge your next sprint meanwhile), then takes off with a shockwave and a golden streak; a super
+    // one (Paradigm Shift) also shatters the hills ahead. Crunch: free sprints for a few seconds, with a
+    // fiery aura and a countdown ring; a super one (Bullet Time) freezes time instead, and every sprint
+    // banks its power until it all lands at once. Max Effort: your next sprint goes all out (gold meter).
+    // Flow: the ball lifts off the line and coasts, bobbing, while calm lights drift past and the trail
+    // swells to a slow beat; a super flow (Lucid Dream) shrinks the hills beneath it. Viral: reactions
+    // pour off the ball and the result card gets a rainbow edge.
     const WINDUP_SECONDS = 0.8;
     const BOOST_SECONDS = 1.3;
+    const FLOW_BPM = 66;
     function freshFx() {
-        return { windup: null, boost: 0, trail: [], shocks: [], sparks: [], shake: 0, crunch: 0, crunchMax: 0, flow: false, reactions: [] };
+        return { windup: null, boost: 0, trail: [], shocks: [], sparks: [], shake: 0, crunch: 0, crunchMax: 0, maxEffort: false, reactions: [],
+            flowMax: 0, lift: 0, lights: [], freeze: 0, freezeMax: 0, bank: 0, banked: 0, debris: [] };
     }
     const crunching = () => path.fx.crunch > 0;
+    // Bullet Time: the run is frozen and sprints bank their power.
+    const frozen = () => path.fx.freeze > 0;
+    const flowing = () => !!path.roll && !path.roll.over && path.roll.flowing > 0;
+    const LUCID = '#b48cff';
 
     // A big luck banner: pops in at the top of the trail, in the luck's colour.
     function luckBanner(title, sub, tone) {
@@ -2019,6 +2043,7 @@ window.AGI = (function () {
         rollKey: '',
         rollPushes: 0,
         charging: null,         // { start } while the push button is held
+        queued: null,           // a sprint released during a wind-up or cooldown: fires as soon as it can
         cleanFlash: 0,
         fx: freshFx(),          // luck effects: breakthrough wind-up, crunch, flow, viral burst
         stateRef: null,
@@ -2161,11 +2186,17 @@ window.AGI = (function () {
         return E.bonusZone(roll.ground.seed, pushIndex(roll), d.zoneWidth, d.perfectWidth);
     }
 
-    // During a crunch sprints are free: no push used up and nothing to pay.
+    // Whether you can charge a sprint: also during a breakthrough's wind-up and the cooldown (the release
+    // then waits for its moment). During a crunch or Bullet Time sprints are free.
     function canPush(roll) {
-        if (roll.over || roll.crested || path.pause > 0 || path.fx.windup || roll.ball.cooldown > 0) return false;
-        if (crunching()) return true;
+        if (roll.over || roll.crested || path.pause > 0) return false;
+        if (crunching() || frozen()) return true;
         return roll.pushesLeft > 0 && chargeBudget() >= E.PATH.minCharge;
+    }
+
+    // Whether a sprint can fire right now (no wind-up or cooldown in the way).
+    function readyToFire(roll) {
+        return canPush(roll) && !path.fx.windup && roll.ball.cooldown <= 0;
     }
 
     function dismissResult() {
@@ -2198,7 +2229,12 @@ window.AGI = (function () {
             }
             return;
         }
-        path.charging = { start: performance.now(), cap: crunching() ? 1 : chargeBudget(), sweep: CHARGE_SWEEP_MS * E.derive(state).sweepScale };
+        // Max Effort: no charging needed, the sprint goes all out the moment you press.
+        if (path.fx.maxEffort) {
+            sprint(roll, 1, true);
+            return;
+        }
+        path.charging = { start: performance.now(), cap: crunching() || frozen() ? 1 : chargeBudget(), sweep: CHARGE_SWEEP_MS * E.derive(state).sweepScale };
         startPathLoop();
     }
 
@@ -2206,33 +2242,89 @@ window.AGI = (function () {
         if (!path.charging) return;
         const level = chargeLevel();
         path.charging = null;
-        const roll = currentRoll();
-        // Flow state: this sprint is perfect wherever you let go.
-        const flow = path.fx.flow;
-        const kind = flow ? 'perfect' : E.zoneHit(currentZone(roll), level);
+        sprint(currentRoll(), level, false);
+    }
+
+    const PROMPT_NAMES = { clean: 'Clean prompt', perfect: 'Super prompt', system: 'System prompt' };
+
+    // A manual sprint released at `level` of the meter: judged against the zone now, then fired, banked
+    // (Bullet Time) or, during a wind-up or cooldown, queued to fire the moment it can.
+    function sprint(roll, level, effort) {
+        const kind = effort ? 'perfect' : path.fx.forceKind || E.zoneHit(currentZone(roll), level);
+        path.fx.forceKind = null;
+        if (frozen()) {
+            bankSprint(roll, level, kind);
+            return;
+        }
+        if (!readyToFire(roll)) {
+            if (canPush(roll)) path.queued = { level, kind, effort };
+            return;
+        }
+        fireSprint(roll, level, kind, effort);
+    }
+
+    function fireSprint(roll, level, kind, effort) {
         const leg = ballLeg();
-        const pushed = pushBall(false, Math.max(E.PATH.minCharge, level), kind);
-        if (pushed && flow) {
-            path.fx.flow = false;
-            burst(path.colors.primary, 26);
+        const pushed = pushBall(false, effort ? 1 : Math.max(E.PATH.minCharge, level), kind, effort);
+        if (pushed && effort) {
+            path.fx.maxEffort = false;
+            burst(path.colors.warning, 30);
         }
-        if (pushed && kind) {
-            // Clean pushes pay at once: steady XP whatever happens to the roll (scaled to the leg).
-            const xp = E.grantPushBonus(state, kind, leg);
-            roll.clean = (roll.clean || 0) + 1;
-            roll.units = (roll.units || 0) + E.cleanUnits(kind);
-            roll.bonusXp = (roll.bonusXp || 0) + xp;
-            const pct = Math.round(E.derive(state).cleanRollBonus * E.cleanUnits(kind) * 100);
-            path.cleanFlash = 1.2;
-            path.cleanText = `${kind === 'perfect' ? 'Perfect' : 'Clean'} sprint! +${xpText(xp)} XP, +${pct}% run bonus`;
-            render();
+        if (pushed && kind) promptBonus(roll, kind, leg);
+    }
+
+    // Clean, super and system prompts pay at once: steady XP whatever happens to the roll.
+    function promptBonus(roll, kind, leg) {
+        const xp = E.grantPushBonus(state, kind, leg);
+        roll.clean = (roll.clean || 0) + 1;
+        roll.units = (roll.units || 0) + E.cleanUnits(kind);
+        roll.bonusXp = (roll.bonusXp || 0) + xp;
+        const pct = Math.round(E.derive(state).cleanRollBonus * E.cleanUnits(kind) * 100);
+        path.cleanFlash = 1.2;
+        path.cleanText = `${PROMPT_NAMES[kind]}! +${xpText(xp)} XP, +${pct}% run bonus`;
+        if (kind === 'system') {
+            luckBanner('SYSTEM PROMPT!', `Worth ${E.PATH.systemMult} clean prompts`, 'accent');
+            burst('#ffffff', 40);
         }
+        render();
+    }
+
+    // Bullet Time: the sprint's power goes into the bank (free), to land all at once when time restarts.
+    function bankSprint(roll, level, kind) {
+        const strength = E.sprintStrength(state, Math.max(E.PATH.minCharge, level), kind);
+        path.fx.bank += strength * strength;
+        path.fx.banked++;
+        burst(path.colors.primary, 10);
+        if (kind) promptBonus(roll, kind, ballLeg());
+    }
+
+    // Time restarts: everything banked lands in one go.
+    function releaseBank(roll) {
+        const fx = path.fx;
+        fx.freeze = 0;
+        if (fx.bank > 0 && roll.boost(Math.sqrt(fx.bank))) {
+            fx.boost = BOOST_SECONDS;
+            fx.shocks.push({ age: 0 }, { age: -0.1 }, { age: -0.2 });
+            burst(path.colors.primary, 40);
+            jolt();
+            luckBanner(`×${fx.banked} RELEASED`, 'Every banked sprint at once', 'primary');
+        }
+        fx.bank = 0;
+        fx.banked = 0;
+    }
+
+    function jolt() {
+        if (reducedMotion()) return;
+        path.canvas.classList.remove('jolt');
+        void path.canvas.offsetWidth;
+        path.canvas.classList.add('jolt');
     }
 
     // The first push launches the roll (and pays for it); later pushes spend the roll's pushes.
     // `fraction` is how much of the meter was charged (the Auto-Trainer always pushes at full).
-    // `kind` ('clean' / 'perfect') makes the sprint hit harder; any sprint can be a breakthrough (luck).
-    function pushBall(auto, fraction = 1, kind = null) {
+    // `kind` ('clean' / 'perfect' / 'system') makes the sprint hit harder, and so does `effort` (Max
+    // Effort); any sprint can be a breakthrough, and set off a crunch, Max Effort or a flow (luck).
+    function pushBall(auto, fraction = 1, kind = null, effort = false) {
         const roll = currentRoll();
         const free = crunching();
         if (roll.over || roll.crested || path.fx.windup || (!free && roll.pushesLeft <= 0) || roll.ball.cooldown > 0) return false;
@@ -2252,26 +2344,39 @@ window.AGI = (function () {
         const index = pushIndex(roll) + (roll.freePushes || 0);
         const seed = roll.ground.seed;
         const d = E.derive(state);
-        const breakthrough = E.breakthroughHit(state, seed, index);
-        const strength = E.sprintStrength(state, fraction, kind, breakthrough);
+        const forced = path.fx.forceLuck;
+        path.fx.forceLuck = null;
+        const breakthrough = forced === 'breakthrough' || forced === 'superBreakthrough' || E.breakthroughHit(state, seed, index);
+        const superBreak = breakthrough && (forced === 'superBreakthrough' || E.superHit(state, 'breakthrough', seed, index));
+        const strength = E.sprintStrength(state, fraction, kind, breakthrough, effort);
         if (free) roll.freePushes = (roll.freePushes || 0) + 1;
+        // The sprint lands now; on screen a breakthrough holds the run still for its wind-up first (you can
+        // charge the next sprint meanwhile), off screen it just goes.
+        roll.push(strength, free);
         if (breakthrough) {
             roll.breakthroughs = (roll.breakthroughs || 0) + 1;
-            // On screen the ball winds up first (the run holds still); off screen it just goes.
-            if (path.visible && !reducedMotion()) path.fx.windup = { age: 0, strength, free };
-            else launchBreakthrough(roll, strength, free);
-        } else {
-            roll.push(strength, free);
+            if (path.visible && !reducedMotion()) path.fx.windup = { age: 0, super: superBreak };
+            else launchBreakthrough(roll, superBreak);
         }
         // Rarer luck rolls only on paid sprints: a crunch can't chain itself.
-        if (!free && d.crunchSeconds && E.crunchHit(state, seed, index)) {
-            path.fx.crunch = path.fx.crunchMax = d.crunchSeconds;
+        if (!free && (d.crunchSeconds || forced === 'crunch' || forced === 'superCrunch') && (forced === 'crunch' || forced === 'superCrunch' || E.crunchHit(state, seed, index))) {
             roll.crunches = (roll.crunches || 0) + 1;
-            luckBanner('CRUNCH TIME!', `Free sprints for ${d.crunchSeconds} s, no waiting`, 'danger');
+            const seconds = Math.max(3, d.crunchSeconds);
+            if (forced === 'superCrunch' || E.superHit(state, 'crunch', seed, index)) {
+                path.fx.freeze = path.fx.freezeMax = seconds;
+                luckBanner('BULLET TIME', `Time stops for ${seconds} s. Every sprint banks its power`, 'primary');
+            } else {
+                path.fx.crunch = path.fx.crunchMax = seconds;
+                luckBanner('CRUNCH TIME!', `Free sprints for ${seconds} s, no waiting`, 'danger');
+            }
         }
-        if (!auto && !path.fx.flow && kind !== 'perfect' && E.flowHit(state, seed, index)) {
-            path.fx.flow = true;
-            luckBanner('FLOW STATE', 'Your next sprint is perfect, wherever you let go', 'primary');
+        if (!auto && !effort && !path.fx.maxEffort && (forced === 'maxEffort' || E.maxEffortHit(state, seed, index))) {
+            path.fx.maxEffort = true;
+            luckBanner('MAX EFFORT', 'Your next sprint goes all out: full strength, a super prompt', 'warning');
+        }
+        if (!roll.flowing && (forced === 'flow' || forced === 'superFlow' || E.flowHit(state, seed, index))) {
+            const superFlow = forced === 'superFlow' || E.superHit(state, 'flow', seed, index);
+            startFlow(roll, superFlow);
         }
         path.pushFlash = 0.35;
         setText($('pathStatus'), '');
@@ -2280,21 +2385,50 @@ window.AGI = (function () {
         return true;
     }
 
-    // The wind-up is over: the stored sprint fires with a shockwave, a golden streak and a jolt.
-    function launchBreakthrough(roll, strength, free) {
+    // The wind-up is over: the sprint takes off with a shockwave, a golden streak and a jolt. A super
+    // breakthrough (Paradigm Shift) also shatters the rolling hills ahead.
+    function launchBreakthrough(roll, superBreak) {
         path.fx.windup = null;
-        roll.push(strength, free);
         path.fx.boost = BOOST_SECONDS;
         path.fx.shake = 0.3;
-        if (!reducedMotion()) {
-            path.canvas.classList.remove('jolt');
-            void path.canvas.offsetWidth;
-            path.canvas.classList.add('jolt');
-        }
+        jolt();
         path.fx.shocks.push({ age: 0 }, { age: -0.12 });
         burst(path.colors.warning, 34);
-        luckBanner('BREAKTHROUGH!', `×${E.derive(state).critMult.toFixed(2)} sprint strength`, 'warning');
+        if (superBreak) {
+            const g = roll.ground;
+            const leg = g.legAt(roll.ball.x);
+            const hills = roll.smash(Math.max(4, 0.3 * g.legLength(leg)));
+            shatter(hills);
+            path.fx.shocks.push({ age: -0.24 }, { age: -0.36 });
+            luckBanner('PARADIGM SHIFT!', `×${E.derive(state).critMult.toFixed(2)} and ${hills.length} hill${hills.length === 1 ? '' : 's'} shattered`, 'warning');
+        } else {
+            luckBanner('BREAKTHROUGH!', `×${E.derive(state).critMult.toFixed(2)} sprint strength`, 'warning');
+        }
         render();
+    }
+
+    // Chunks of rock flying off each shattered hill (world position, screen-space velocity).
+    function shatter(hills) {
+        if (reducedMotion()) return;
+        for (const b of hills) {
+            for (let i = 0; i < 14; i++) {
+                const along = b.start + (b.end - b.start) * Math.random();
+                path.fx.debris.push({ wx: along, wy: (b.base ?? b.height) * Math.random(), x: 0, y: 0, vx: (Math.random() - 0.5) * 160,
+                    vy: -(80 + Math.random() * 220), rot: Math.random() * 6, spin: (Math.random() - 0.5) * 14, age: -Math.random() * 0.15,
+                    life: 0.9 + Math.random() * 0.6, size: 3 + Math.random() * 5 });
+            }
+        }
+    }
+
+    // A flow: the ball lifts off the line and coasts (a super flow, Lucid Dream, also shrinks the hills).
+    function startFlow(roll, superFlow) {
+        const d = E.derive(state);
+        const seconds = Math.max(3, d.flowSeconds);
+        roll.coast(seconds, d.flowSpeed * d.pushPower, superFlow ? 0.25 : 0);
+        roll.flows = (roll.flows || 0) + 1;
+        path.fx.flowMax = seconds;
+        path.fx.superFlow = superFlow;
+        luckBanner(superFlow ? 'LUCID DREAM' : 'FLOW STATE', superFlow ? 'The hills shrink beneath you' : `Coasting for ${seconds} s`, superFlow ? LUCID : 'secondary');
     }
 
     // Sparks flying out of the ball (screen space, relative to it), in `color`.
@@ -2328,6 +2462,29 @@ window.AGI = (function () {
             p.vy += 30 * dt;
         }
         fx.reactions = fx.reactions.filter(p => p.age < p.life);
+        for (const p of fx.debris) {
+            p.age += dt;
+            if (p.age < 0) continue;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.vy += 420 * dt;
+            p.rot += p.spin * dt;
+        }
+        fx.debris = fx.debris.filter(p => p.age < p.life);
+        // Flow: the ball eases off the line and back, and calm lights drift up through the view.
+        const flow = flowing();
+        fx.lift += ((flow ? 1 : 0) - fx.lift) * Math.min(1, dt * 3);
+        if (fx.lift < 0.01 && !flow) fx.lift = 0;
+        if (flow && !reducedMotion() && Math.random() < dt * 9) {
+            fx.lights.push({ x: Math.random(), y: 0.55 + Math.random() * 0.5, vx: (Math.random() - 0.5) * 0.02, vy: -(0.04 + Math.random() * 0.05),
+                r: 6 + Math.random() * 22, age: 0, life: 2.5 + Math.random() * 2, hue: Math.random() < 0.5 ? 'secondary' : fx.superFlow ? LUCID : 'primary' });
+        }
+        for (const l of fx.lights) {
+            l.age += dt;
+            l.x += l.vx * dt;
+            l.y += l.vy * dt;
+        }
+        fx.lights = fx.lights.filter(l => l.age < l.life);
         // The golden streak remembers where the boosted ball has been.
         const roll = path.roll;
         if (fx.boost > 0 && roll) fx.trail.push({ x: roll.ball.x, age: 0 });
@@ -2337,7 +2494,8 @@ window.AGI = (function () {
 
     const fxBusy = () => {
         const fx = path.fx;
-        return !!(fx.windup || fx.boost || fx.shocks.length || fx.sparks.length || fx.reactions.length || fx.trail.length || fx.crunch || fx.flow);
+        return !!(fx.windup || fx.boost || fx.shocks.length || fx.sparks.length || fx.reactions.length || fx.trail.length || fx.crunch || fx.maxEffort
+            || fx.freeze || fx.lift || fx.lights.length || fx.debris.length || flowing());
     };
 
     // Under the ball: the breakthrough glow and the sparks it draws in, the golden streak behind a
@@ -2416,10 +2574,35 @@ window.AGI = (function () {
         const fx = path.fx;
         const c = path.colors;
         const t = performance.now() / 1000;
-        if (fx.flow) {
+        if (frozen()) {
+            // Bullet Time: a ring that fills as power is banked, and the time left as a thin arc.
+            const k = Math.min(1, Math.sqrt(fx.bank) / Math.max(1, 3 * E.derive(state).pushPower));
             ctx.save();
-            ctx.strokeStyle = c.primary;
             ctx.shadowColor = c.primary;
+            ctx.shadowBlur = 10 + 20 * k;
+            ctx.strokeStyle = c.primary;
+            ctx.lineWidth = 3 + 4 * k;
+            ctx.beginPath();
+            ctx.arc(bx, by, BALL + 10 + 10 * k, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = c.text;
+            ctx.beginPath();
+            ctx.arc(bx, by, BALL + 26 + 10 * k, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (fx.freeze / fx.freezeMax));
+            ctx.stroke();
+            if (fx.banked) {
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = c.text;
+                ctx.font = '700 13px "Chakra Petch", system-ui, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`BANKED ×${fx.banked}`, bx, by - BALL - 44 - 10 * k);
+            }
+            ctx.restore();
+        }
+        if (fx.maxEffort) {
+            ctx.save();
+            ctx.strokeStyle = c.warning;
+            ctx.shadowColor = c.warning;
             ctx.shadowBlur = 12;
             ctx.lineWidth = 2;
             ctx.setLineDash([5, 4]);
@@ -2471,9 +2654,9 @@ window.AGI = (function () {
     // Auto-Trainer: level 1 launches rolls and pushes when the ball stops; level 2 also
     // rescues the ball as it stalls on a slope.
     function autoTrain(roll) {
-        const lvl = E.level(state, 'autoTrainer');
+        const lvl = E.autoTrainerLevel(state);
         if (path.view !== 'run') return;
-        if (!lvl || roll.over || path.pause > 0 || roll.ball.cooldown > 0) return;
+        if (!lvl || roll.over || path.pause > 0 || roll.ball.cooldown > 0 || path.fx.windup || frozen()) return;
         const stalling = roll.ball.v > 0 && roll.ball.v < 0.5 && roll.ground.slope(roll.ball.x) > 0.05;
         if (!roll.launched || roll.atRest || (lvl >= 2 && stalling)) pushBall(true, chargeBudget());
     }
@@ -2483,7 +2666,7 @@ window.AGI = (function () {
     function runsInBackground() {
         const roll = path.roll;
         return !!roll && path.stateRef === state && path.view === 'run'
-            && ((roll.launched && !roll.over) || E.level(state, 'autoTrainer') > 0);
+            && ((roll.launched && !roll.over) || E.autoTrainerLevel(state) > 0);
     }
 
     function startPathLoop() {
@@ -2503,11 +2686,21 @@ window.AGI = (function () {
             if (path.pause > 0) path.pause -= dt;
             const roll = currentRoll();
             autoTrain(roll);
-            // Slow motion only matters on screen; in the background the run keeps real time.
-            const sim = path.fx.windup ? 0 : path.visible ? dt * path.timeScale : dt;
+            // Slow motion only matters on screen; in the background the run keeps real time. A wind-up and
+            // Bullet Time hold the run still.
             const fx = path.fx;
-            if (fx.windup && (fx.windup.age += dt) >= WINDUP_SECONDS) launchBreakthrough(roll, fx.windup.strength, fx.windup.free);
+            const sim = fx.windup || frozen() ? 0 : path.visible ? dt * path.timeScale : dt;
+            if (fx.windup && (fx.windup.age += dt) >= WINDUP_SECONDS) launchBreakthrough(roll, fx.windup.super);
             if (fx.crunch > 0) fx.crunch = Math.max(0, fx.crunch - sim);
+            if (frozen() && (fx.freeze = Math.max(0, fx.freeze - dt)) === 0) releaseBank(roll);
+            // A sprint released during the wind-up or cooldown fires the moment it can.
+            if (path.queued && readyToFire(roll)) {
+                const q = path.queued;
+                path.queued = null;
+                fireSprint(roll, q.level, q.kind, q.effort);
+            } else if (path.queued && !canPush(roll)) {
+                path.queued = null;
+            }
             for (const ev of roll.step(sim)) {
                 if (ev.type === 'clear') clearLeg(ev);
                 else if (ev.type === 'crest' && !roll.over) celebrateSummit();
@@ -2534,7 +2727,7 @@ window.AGI = (function () {
         const roll = path.roll;
         const busy = roll && roll.launched && !roll.over;
         const animating = busy || path.legFlash || fxBusy() || path.summit || path.particles.length || path.tension > 0.01 || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
-            || E.level(state, 'autoTrainer') > 0;
+            || E.autoTrainerLevel(state) > 0;
         if (running && animating) path.frame = requestAnimationFrame(pathFrame);
     }
 
@@ -2615,9 +2808,13 @@ window.AGI = (function () {
     function finishRoll(ev) {
         const crested = ev.type === 'crest' || !!ev.crested;
         const roll = path.roll;
-        // A crunch or flow ends with the run.
+        // Crunches, Bullet Time, Max Effort and queued sprints end with the run.
         path.fx.crunch = 0;
-        path.fx.flow = false;
+        path.fx.freeze = 0;
+        path.fx.bank = 0;
+        path.fx.banked = 0;
+        path.fx.maxEffort = false;
+        path.queued = null;
         const leg = ev.leg ?? state.path.learned;
         const replay = roll.ground.stretch < state.path.learned;
         const target = E.skillAt(leg).name;
@@ -2632,7 +2829,7 @@ window.AGI = (function () {
         const plainXp = E.rollXp(state, ev.progress, crested, 0, metres, leg);
         const result = E.finishRoll(state, ev.progress, crested, units, metres, leg, viral, legs);
         // With the Auto-Trainer the next roll starts by itself; otherwise the run waits for a click.
-        const auto = E.level(state, 'autoTrainer') > 0;
+        const auto = E.autoTrainerLevel(state) > 0;
         path.pause = auto ? RESULT_PAUSE : 0;
         path.done = !auto;
         const pct = Math.round(ev.progress * 100);
@@ -2644,7 +2841,8 @@ window.AGI = (function () {
             lines.unshift([`Went viral! ×${viralMult.toFixed(2)} run XP`, '', 'good']);
             goViral(viralMult);
         }
-        if (roll.breakthroughs) lines.push([`${roll.breakthroughs} breakthrough sprint${roll.breakthroughs === 1 ? '' : 's'}`, '', 'good']);
+        if (roll.breakthroughs) lines.push([`${roll.breakthroughs} breakthrough${roll.breakthroughs === 1 ? '' : 's'}`, '', 'good']);
+        if (roll.flows) lines.push([`${roll.flows} flow${roll.flows === 1 ? '' : 's'}`, '', 'good']);
         if (legs) lines.unshift([`${legs} cleared leg${legs === 1 ? '' : 's'} crossed`, `+${xpText(roll.legXp)} XP`, 'good']);
         if (result.skill) {
             const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
@@ -2655,7 +2853,7 @@ window.AGI = (function () {
             showResult({ skill: true, title: 'Skill learned', main: result.skill.name, flavor: result.skill.flavor, xp: result.xp + banked,
                 lines: [[result.skill.effect, ''], [grants, ''], ...lines] });
         } else {
-            const bonus = clean ? `, ${clean} clean sprint${clean === 1 ? '' : 's'}` : '';
+            const bonus = clean ? `, ${clean} prompt${clean === 1 ? '' : 's'}` : '';
             const crossed = legs ? `crossed ${legs} cleared leg${legs === 1 ? '' : 's'}, then ` : '';
             const where = ev.rolledBack ? 'Rolled back to the start' : `${legs ? 'Then stopped' : 'Stopped'} ${pct}% of the way to ${target}`;
             log(`${replay ? 'Replay' : 'Run'} ${state.stats.rolls}: ${crossed}stopped ${pct}% of the way to ${target} (+${xpText(result.xp + banked)} XP${bonus})${result.record ? '. New record!' : '.'}`,
@@ -2686,8 +2884,8 @@ window.AGI = (function () {
     function xpLines(distanceXp, rollBonusXp, clean, banked, crested) {
         const rows = [[crested ? 'Distance (×2 for cresting)' : 'Distance', `+${xpText(distanceXp)} XP`]];
         if (clean) {
-            rows.push(['Clean-sprint run bonus', `+${xpText(rollBonusXp)} XP`, 'good']);
-            rows.push([`Banked from ${clean} clean sprint${clean === 1 ? '' : 's'}`, `+${xpText(banked)} XP`, 'good']);
+            rows.push(['Prompt run bonus', `+${xpText(rollBonusXp)} XP`, 'good']);
+            rows.push([`Banked from ${clean} prompt${clean === 1 ? '' : 's'}`, `+${xpText(banked)} XP`, 'good']);
         }
         return rows;
     }
@@ -2718,9 +2916,13 @@ window.AGI = (function () {
         const roll = path.roll;
         const button = $('pushButton');
         if (!roll) return;
-        const label = path.fx.windup ? 'Breakthrough…'
-            : path.charging ? (path.fx.flow ? 'Release: perfect!' : 'Release to sprint')
+        const label = path.charging ? (frozen() ? 'Release to bank' : path.fx.windup || roll.ball.cooldown > 0 ? 'Release: fires when ready' : 'Release to sprint')
+            : path.queued ? 'Sprint queued…'
+            : path.fx.windup ? 'Breakthrough… (charge now)'
+            : frozen() ? `BULLET TIME! Bank sprints (${path.fx.freeze.toFixed(1)} s)`
+            : path.fx.maxEffort && !roll.over && !roll.crested ? 'MAX EFFORT: press to go all out'
             : crunching() && !roll.over && !roll.crested ? `CRUNCH! Sprint free (${path.fx.crunch.toFixed(1)} s)`
+            : flowing() ? `Flowing… (${path.roll.flowing.toFixed(1)} s)`
             : !roll.launched ? 'Hold to launch'
             : roll.over ? (path.done ? 'Hold to run again' : 'Next run…')
             : roll.crested ? 'Summit!'
@@ -2729,7 +2931,9 @@ window.AGI = (function () {
         // Stay enabled while charging so releasing the pointer still lands on the button.
         setDisabled(button, !path.charging && !path.done && !canPush(roll));
         button.classList.toggle('crunch', crunching());
-        $('charge').classList.toggle('flow', path.fx.flow);
+        button.classList.toggle('frozen', frozen());
+        button.classList.toggle('effort', !!path.fx.maxEffort);
+        $('charge').classList.toggle('effort', !!path.fx.maxEffort);
         updateMeter(roll);
     }
 
@@ -2769,7 +2973,12 @@ window.AGI = (function () {
         perfectNode.hidden = zoneNode.hidden || zone.perfectTo <= zone.perfectFrom;
         perfectNode.style.left = `${zone.perfectFrom * 100}%`;
         perfectNode.style.width = `${(zone.perfectTo - zone.perfectFrom) * 100}%`;
-        fill.classList.toggle('perfect', hit === 'perfect');
+        const systemNode = $('chargeSystem');
+        systemNode.hidden = perfectNode.hidden || zone.systemTo <= zone.systemFrom;
+        systemNode.style.left = `${zone.systemFrom * 100}%`;
+        systemNode.style.width = `${Math.max(0.4, (zone.systemTo - zone.systemFrom) * 100)}%`;
+        fill.classList.toggle('perfect', hit === 'perfect' || hit === 'system');
+        fill.classList.toggle('system', hit === 'system');
         // Budget: the part of the meter you can't afford right now is shaded off.
         const budget = path.charging ? path.charging.cap : chargeBudget();
         const over = $('chargeOver');
@@ -2777,11 +2986,14 @@ window.AGI = (function () {
         over.style.width = `${(1 - budget) * 100}%`;
         $('charge').classList.toggle('clean', path.cleanFlash > 0);
         const charge = Math.max(E.PATH.minCharge, level);
-        const zoneBoost = kind => (kind === 'perfect' ? d.perfectPower : d.cleanPower);
+        const zoneBoost = kind => (kind === 'system' ? d.systemPower : kind === 'perfect' ? d.perfectPower : d.cleanPower);
+        const free = crunching() || frozen();
         setText($('chargeValue'), path.cleanFlash > 0
             ? path.cleanText
             : path.charging
-                ? `Strength ${E.sprintStrength(state, charge, path.fx.flow ? 'perfect' : hit).toFixed(1)}${hit && zoneBoost(hit) > 1 ? ` (${hit} ×${zoneBoost(hit).toFixed(2)})` : ''} · ${crunching() ? 'free (crunch)' : `costs ${E.formatCost(E.pushCost(state, charge, ballLeg()))}`}`
+                ? `Strength ${E.sprintStrength(state, charge, hit).toFixed(1)}${hit && zoneBoost(hit) > 1 ? ` (${PROMPT_NAMES[hit].toLowerCase()} ×${zoneBoost(hit).toFixed(2)})` : ''} · ${free ? 'free' : `costs ${E.formatCost(E.pushCost(state, charge, ballLeg()))}`}`
+                : frozen() ? 'Bullet Time: sprints are free and bank their power'
+                : path.fx.maxEffort ? `Max Effort: full strength ×${d.maxEffortMult.toFixed(2)}, a super prompt`
                 : crunching() ? 'Crunch: every sprint is free, and no waiting'
                 : `Full sprint: ${E.formatCost(E.pushCost(state, 1, ballLeg()))}${budget < 1 ? ` · you can afford ${Math.round(budget * 100)}%` : ''}`);
         setText($('chargeClean'), roll.bonusXp ? `+${xpText(roll.bonusXp)} XP banked` : '');
@@ -2902,6 +3114,30 @@ window.AGI = (function () {
         }
 
         ctx.clearRect(0, 0, w, h);
+        // Flow: calm lights drift up behind everything, and the whole trail swells gently to a slow beat
+        // around the ball (a soft thump, then a long ease back).
+        const fx = path.fx;
+        const t = performance.now() / 1000;
+        const beat = fx.lift > 0 && !reducedMotion() ? Math.exp(-((t * FLOW_BPM / 60) % 1) * 5) : 0;
+        for (const l of fx.lights) {
+            const a = Math.min(1, l.age / 0.8, (l.life - l.age) / 1.2) * 0.45 * (0.8 + 0.4 * beat);
+            const g = ctx.createRadialGradient(l.x * w, l.y * h, 0, l.x * w, l.y * h, l.r);
+            g.addColorStop(0, hexAlpha(c[l.hue] || l.hue, a));
+            g.addColorStop(1, hexAlpha(c[l.hue] || l.hue, 0));
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(l.x * w, l.y * h, l.r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.save();
+        if (beat) {
+            const pulse = 1 + 0.035 * fx.lift * beat;
+            const cx = X(roll.ball.x);
+            const cy = Y(groundAt(roll, roll.ball.x));
+            ctx.translate(cx, cy);
+            ctx.scale(pulse, pulse);
+            ctx.translate(-cx, -cy);
+        }
         const fill = ctx.createLinearGradient(0, PAD_TOP, 0, h);
         fill.addColorStop(0, hexAlpha(c.secondary, 0.4));
         fill.addColorStop(1, hexAlpha(c.secondary, 0.06));
@@ -3027,14 +3263,59 @@ window.AGI = (function () {
             ctx.fillText(`${ahead.toFixed(1)} m ahead`, w - PAD_X, 30);
         }
 
+        // Debris from shattered hills (Paradigm Shift).
+        for (const p of fx.debris) {
+            if (p.age < 0) continue;
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, 1 - p.age / p.life);
+            ctx.translate(X(p.wx) + p.x, Y(p.wy) + p.y);
+            ctx.rotate(p.rot);
+            ctx.fillStyle = hexAlpha(c.secondary, 0.9);
+            ctx.strokeStyle = c.warning;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(-p.size, -p.size * 0.4);
+            ctx.lineTo(p.size * 0.6, -p.size * 0.7);
+            ctx.lineTo(p.size * 0.8, p.size * 0.5);
+            ctx.lineTo(-p.size * 0.5, p.size * 0.6);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        }
+
         // Ball, riding on the line (centred on it, like a bead on a wire). Ring: green while rolling
-        // forward, red while rolling back.
-        const fx = path.fx;
+        // forward, red while rolling back. In flow it floats above the line with a slow bob.
         // A winding-up breakthrough shakes harder and harder until it goes.
         const wind = fx.windup ? Math.min(1, fx.windup.age / WINDUP_SECONDS) : 0;
         const jitter = wind ? (1.5 + 4 * wind) : 0;
-        const bx = X(roll.ball.x) + (jitter ? (Math.random() - 0.5) * jitter : 0);
-        const by = Y(groundAt(roll, roll.ball.x)) + (jitter ? (Math.random() - 0.5) * jitter : 0);
+        const lift = fx.lift * (28 + (reducedMotion() ? 0 : 5 * Math.sin(t * 2.4)));
+        const gx = X(roll.ball.x);
+        const gy = Y(groundAt(roll, roll.ball.x));
+        const bx = gx + (jitter ? (Math.random() - 0.5) * jitter : 0);
+        const by = gy - lift + (jitter ? (Math.random() - 0.5) * jitter : 0);
+        if (lift > 1) {
+            // Its shadow stays on the line.
+            ctx.fillStyle = hexAlpha('#000000', 0.35 * fx.lift);
+            ctx.beginPath();
+            ctx.ellipse(gx, gy + 2, BALL * (1.4 - 0.3 * fx.lift), BALL * 0.35, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.save();
+            ctx.shadowColor = c.secondary;
+            ctx.shadowBlur = 24;
+            ctx.fillStyle = hexAlpha(c.secondary, 0.25 * fx.lift);
+            ctx.beginPath();
+            ctx.arc(bx, by, BALL * 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            if (fx.superFlow && beat > 0.6) {
+                ctx.strokeStyle = hexAlpha(LUCID, 0.5 * beat);
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(gx, gy, 30 + 60 * (1 - beat), 8 + 16 * (1 - beat), 0, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
         drawLuckUnder(ctx, roll, bx, by, X, Y, wind);
         if (path.pushFlash > 0) {
             ctx.fillStyle = hexAlpha(c.warning, path.pushFlash);
@@ -3050,6 +3331,19 @@ window.AGI = (function () {
         ctx.strokeStyle = wind ? c.warning : crunching() ? c.danger : roll.ball.v > 0.05 ? c.success : roll.ball.v < -0.05 ? c.danger : c.primary;
         ctx.stroke();
         drawLuckOver(ctx, bx, by, wind);
+        ctx.restore();
+
+        // Bullet Time: the world goes cold and still.
+        if (frozen()) {
+            const a = Math.min(1, (fx.freezeMax - fx.freeze) * 4, fx.freeze * 4);
+            ctx.fillStyle = `rgba(120, 170, 255, ${0.13 * a})`;
+            ctx.fillRect(0, 0, w, h);
+            const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.75);
+            vg.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            vg.addColorStop(1, `rgba(10, 30, 70, ${0.5 * a})`);
+            ctx.fillStyle = vg;
+            ctx.fillRect(0, 0, w, h);
+        }
 
         // HUD: pushes left as pips and the cooldown as a bar under them.
         const pips = roll.pushesLeft;
@@ -3127,7 +3421,7 @@ window.AGI = (function () {
             const a = f.age;
             const life = LEG_FLASH_SECONDS * 1.3;
             const pop = a < 0.18 ? 0.5 + 3.4 * a : a < 0.3 ? 1.11 - 0.9 * (a - 0.18) : 1;
-            const tone = c[f.tone] || c.warning;
+            const tone = c[f.tone] || f.tone || c.warning;
             ctx.save();
             ctx.globalAlpha = Math.max(0, Math.min(1, a / 0.1, (life - a) / 0.5));
             ctx.translate(w / 2, Math.max(78, h * 0.2));
@@ -3185,7 +3479,7 @@ window.AGI = (function () {
         // The static graph needs a stretch to draw even before the bay has been opened.
         const roll = path.roll || (state.unlocked['module:path'] ? currentRoll() : null);
         const c = path.colors;
-        const live = E.level(state, 'autoTrainer') > 0;
+        const live = E.autoTrainerLevel(state) > 0;
         for (const canvas of document.querySelectorAll('canvas.lane')) {
             const w = canvas.clientWidth;
             const h = canvas.clientHeight;
@@ -3402,7 +3696,13 @@ window.AGI = (function () {
             rates: debugRates,
             add(path, amount) {
                 const [group, key] = path.split('.');
-                state[group][key] += amount;
+                // Insight lives with the version (spendable and lifetime).
+                if (key === 'insight') {
+                    state.prestige.points += amount;
+                    state.prestige.total += amount;
+                } else {
+                    state[group][key] += amount;
+                }
                 afterChange();
             },
             unlockAll() {
@@ -3445,31 +3745,65 @@ window.AGI = (function () {
                 afterChange();
             },
             toggleAutoTrainer() {
-                state.levels.autoTrainer = E.level(state, 'autoTrainer') ? 0 : 2;
+                const on = !E.autoTrainerLevel(state);
+                state.prestige.levels.autoTrainer = on ? 2 : 0;
+                E.setTaskOn(state, 'autoTrainer', true);
                 state.unlocked['up:autoTrainer'] = true;
                 afterChange();
                 startPathLoop();
             },
-            // Count one Transcend without resetting, to open R&D and prestige content.
-            addTranscend() {
+            // Count one new version without resetting (opens R&D and the legacy nodes), with some Insight.
+            addVersion() {
                 state.prestige.count++;
+                state.prestige.minor++;
+                state.prestige.points += 10;
+                state.prestige.total += 10;
                 afterChange();
             },
-            // Luck on demand: 'breakthrough' (the next sprint), 'crunch', 'flow' or 'viral' (the next run's end).
+            // Ship the next version for real, even below the requirement (at least 1 Insight).
+            shipVersion() {
+                state.attr.intelligence = Math.max(state.attr.intelligence, E.PRESTIGE_MIN_INTELLIGENCE);
+                state.stats.runCp = Math.max(state.stats.runCp, 1e5);
+                shipVersion(true);
+            },
+            // Every legacy node to its max (Flow State, the supers, the Auto-Trainer…).
+            maxLegacy() {
+                state.prestige.count = Math.max(1, state.prestige.count);
+                for (const up of E.UPGRADES.filter(u => u.legacy)) state.prestige.levels[up.id] = up.max;
+                path.roll = null;
+                afterChange();
+            },
+            // Power-ups on demand. Breakthroughs (and Paradigm Shift) and system prompts take your next sprint;
+            // the rest start now: a crunch, Bullet Time, Max Effort, a flow (or Lucid Dream) on the ball in
+            // flight (else on your next sprint), and a viral run at the next run's end.
             luck(kind) {
                 const roll = currentRoll();
+                const d = E.derive(state);
+                const seconds = Math.max(3, d.crunchSeconds);
                 if (kind === 'crunch') {
-                    path.fx.crunch = path.fx.crunchMax = Math.max(3, E.derive(state).crunchSeconds);
-                    luckBanner('CRUNCH TIME!', `Free sprints for ${path.fx.crunchMax} s, no waiting`, 'danger');
-                } else if (kind === 'flow') {
-                    path.fx.flow = true;
-                    luckBanner('FLOW STATE', 'Your next sprint is perfect, wherever you let go', 'primary');
+                    path.fx.crunch = path.fx.crunchMax = seconds;
+                    luckBanner('CRUNCH TIME!', `Free sprints for ${seconds} s, no waiting`, 'danger');
+                } else if (kind === 'superCrunch') {
+                    path.fx.freeze = path.fx.freezeMax = seconds;
+                    luckBanner('BULLET TIME', `Time stops for ${seconds} s. Every sprint banks its power`, 'primary');
+                } else if (kind === 'maxEffort') {
+                    path.fx.maxEffort = true;
+                    luckBanner('MAX EFFORT', 'Your next sprint goes all out: full strength, a super prompt', 'warning');
+                } else if (kind === 'flow' || kind === 'superFlow') {
+                    if (roll.launched && !roll.over && !roll.crested) startFlow(roll, kind === 'superFlow');
+                    else {
+                        path.fx.forceLuck = kind;
+                        luckBanner('FLOW NEXT', 'Your next sprint starts a flow', 'secondary');
+                    }
                 } else if (kind === 'viral') {
                     path.fx.forceViral = true;
                     luckBanner('VIRAL NEXT', 'This run will go viral when it ends', 'accent');
-                } else if (kind === 'breakthrough') {
-                    if (!roll.launched) roll.push(0.001);
-                    path.fx.windup = { age: 0, strength: E.derive(state).pushPower * 1.2, free: true };
+                } else if (kind === 'system') {
+                    path.fx.forceKind = 'system';
+                    luckBanner('SYSTEM PROMPT NEXT', 'Your next release counts as a system prompt', 'accent');
+                } else {
+                    path.fx.forceLuck = kind;
+                    luckBanner(kind === 'superBreakthrough' ? 'PARADIGM SHIFT NEXT' : 'BREAKTHROUGH NEXT', 'Your next sprint', 'warning');
                 }
                 startPathLoop();
             },

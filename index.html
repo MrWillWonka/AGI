@@ -145,6 +145,7 @@
                                 <div class="charge-track" aria-hidden="true">
                                     <div class="charge-zone" id="chargeZone"></div>
                                     <div class="charge-perfect" id="chargePerfect" hidden></div>
+                                    <div class="charge-system" id="chargeSystem" hidden></div>
                                     <div class="charge-over" id="chargeOver"></div>
                                     <div class="charge-fill" id="chargeFill"></div>
                                 </div>
@@ -190,7 +191,7 @@
             </div>
         </section>
 
-        <!-- Lab: hands-on actions, automation, Transcend and the hardware/software upgrades. -->
+        <!-- Lab: hands-on actions, automation and the hardware/software upgrades. -->
         <section class="room room-lab room-frame hud" id="labRoom" data-room="lab" aria-label="Lab">
             <div class="room-bar">
                 <button type="button" class="home-button" data-facility aria-label="Back to Surveillance, the main screen"><span aria-hidden="true">⌂</span> Surveillance</button>
@@ -253,7 +254,7 @@
             </section>
         </section>
 
-        <!-- R&D: long-term projects that outlast a run. Transcend lives here. -->
+        <!-- R&D: long-term projects that outlast a run: shipping the next version (Transcend is sealed for the endings). -->
         <section class="room room-rnd room-frame hud" id="rndRoom" data-room="rnd" aria-label="R&amp;D" hidden>
             <div class="room-bar">
                 <button type="button" class="home-button" data-facility aria-label="Back to Surveillance, the main screen"><span aria-hidden="true">⌂</span> Surveillance</button>
@@ -264,11 +265,11 @@
                 <div class="panel panel-transcend hud project" id="transcendPanel">
                     <div class="project-art" aria-hidden="true"><i></i><i></i><i></i></div>
                     <div class="panel-head">
-                        <h2>Project: Transcend</h2>
-                        <span class="muted small"><span data-bind="prestige.points">0</span> Prestige Points</span>
+                        <h2>Ship <span data-bind="prestige.next">v2.0</span></h2>
+                        <span class="muted small">Model <span data-bind="prestige.version">v1.0</span> · <span data-bind="prestige.points">0</span> Insight</span>
                     </div>
-                    <p class="muted small">Start over with everything you have learned. You gain <strong data-bind="prestige.gain">0</strong> Prestige Points, and each one adds +10% to all production forever.</p>
-                    <button type="button" class="button button-prestige" id="prestigeButton" disabled>Transcend</button>
+                    <p class="muted small">Start over for <strong data-bind="prestige.gain">0</strong> Insight: +10% production each, and it buys legacy nodes in the skill tree, kept for good.</p>
+                    <button type="button" class="button button-prestige" id="prestigeButton" disabled>Ship it</button>
                 </div>
                 <div class="project sealed" aria-label="Sealed project"><span class="sealed-mark">???</span><span class="muted small">Sealed project</span></div>
                 <div class="project sealed" aria-label="Sealed project"><span class="sealed-mark">???</span><span class="muted small">Sealed project</span></div>
@@ -309,7 +310,7 @@
                     <div class="stat"><dt>CP earned all time</dt><dd data-bind="stats.lifetimeCp">0</dd></div>
                     <div class="stat"><dt>Training rolls</dt><dd data-bind="stats.rolls">0</dd></div>
                     <div class="stat"><dt>Manual clicks</dt><dd data-bind="stats.clicks">0</dd></div>
-                    <div class="stat"><dt>Times transcended</dt><dd data-bind="prestige.count">0</dd></div>
+                    <div class="stat"><dt>Model version</dt><dd data-bind="prestige.version">v1.0</dd></div>
                 </dl>
             </section>
             <section data-section="settings" role="tabpanel" aria-label="Settings" hidden>

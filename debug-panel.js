@@ -69,7 +69,7 @@
         const attrButtons = Object.entries(E.ATTRIBUTES).map(([k, a]) =>
             button(`+${a.name.slice(0, 3)}`, () => AGI.debug.add('attr.' + k, Number(attrAmount.value) || 0)));
 
-        const rateInputs = Object.keys(E.RESOURCES).map(k => {
+        const rateInputs = ['cp', 'dp', 'rp', 'xp'].map(k => {
             const label = document.createElement('label');
             const input = amountInput(AGI.debug.rates[k], 0.5);
             input.addEventListener('change', () => { AGI.debug.rates[k] = Math.max(0, Number(input.value) || 0); });
@@ -99,11 +99,15 @@
             section('Time', simAmount, button('Simulate seconds', () => AGI.debug.simulate(Number(simAmount.value) || 0))),
             section('Game speed', ...speedButtons),
             section('Progress', button('Learn next skill', AGI.debug.learnSkill), ...phaseButtons,
-                button('Unlock everything', AGI.debug.unlockAll), button('Add a Transcend', AGI.debug.addTranscend)),
+                button('Unlock everything', AGI.debug.unlockAll)),
+            section('Versions', button('Add a version (+10 Insight)', AGI.debug.addVersion), button('Ship next version now', AGI.debug.shipVersion),
+                button('Max legacy nodes', AGI.debug.maxLegacy)),
             section('Training', button('Finish run', AGI.debug.finishRun), button('Test summit', () => AGI.debug.testSummit()),
                 button('Test near miss', () => AGI.debug.testNailBiter()), button('Max skill tree', AGI.debug.maxTree),
                 button('Toggle Auto-Trainer', AGI.debug.toggleAutoTrainer), button('Reset tree view', AGI.debug.resetTreeView)),
-            section('Luck', ...['breakthrough', 'crunch', 'flow', 'viral'].map(k => button(k[0].toUpperCase() + k.slice(1), () => AGI.debug.luck(k)))),
+            section('Power-ups', ...[['breakthrough', 'Breakthrough'], ['maxEffort', 'Max Effort'], ['crunch', 'Crunch'], ['flow', 'Flow'], ['viral', 'Viral'],
+                ['system', 'System prompt'], ['superBreakthrough', 'Paradigm Shift'], ['superCrunch', 'Bullet Time'], ['superFlow', 'Lucid Dream']]
+                .map(([k, label]) => button(label, () => AGI.debug.luck(k)))),
             section('Save', button('Save now', AGI.save), button('Start over', AGI.debug.startOver)),
             section('State', stateView)
         );

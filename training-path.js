@@ -27,6 +27,7 @@
     const LEAD_IN = 0.5;        // flat run-up after each checkpoint
     const FREE_COOLDOWN = 0.35; // wait after a free push (a crunch)
     const ROLL_OUT = 0.8;       // with rollOut, how far past the skill hill's foot the ball runs before the roll ends
+    const RESHAPE_RATE = 5;     // reshaped hills (smashed, shrunk) settle toward their new height at this rate per second
 
     // ---- Skill hills (fixed) -----------------------------------------------
 
@@ -187,6 +188,9 @@
     // side and ends with an 'end' event marked `crested` (so the UI can celebrate first), otherwise
     // 'crest' ends it. 'end' events carry the `leg` the ball stopped on and the `progress` along it.
     // `holdOpen()`, if given, keeps a resting ball's roll open while it returns true (a crunch: free pushes).
+    // Power-ups: `coast(seconds, speed, shrink)` lifts the ball off the line for a while, holding at least
+    // `speed` (a flow; with `shrink`, a super flow lowers the rolling hills under and ahead of it), `boost()`
+    // adds energy whatever the cooldown (banked sprints), and `smash(reach)` breaks the rolling hills ahead.
     function createRoll(k, seed, opts) {
         const { pushes, cooldown } = opts;
         const friction = opts.friction ?? 1;
@@ -200,6 +204,24 @@
         let over = false;
         let crested = false;
         let carry = 0;
+        const flow = { left: 0, speed: 0, shrink: 0 };
+        // Reshaped hills ease toward their target height (the drawing follows the physics).
+        let reshaping = [];
+
+        function reshape(from, to, factor) {
+            const hit = [];
+            for (const b of ground.bumps) {
+                if (b.skill !== null || b.peak < from || b.peak > to) continue;
+                if (b.base == null) b.base = b.height;
+                const target = b.base * factor;
+                if (b.target == null || target < b.target) {
+                    b.target = target;
+                    hit.push(b);
+                    if (!reshaping.includes(b)) reshaping.push(b);
+                }
+            }
+            return hit;
+        }
 
         // A push adds a fixed amount of energy (strength = the speed it gives a ball at rest).
         // Pushing against a backward roll spends energy cancelling it first, so timing matters.
@@ -220,15 +242,28 @@
 
         function stepOnce(events) {
             ball.cooldown = Math.max(0, ball.cooldown - STEP);
+            if (reshaping.length) {
+                for (const b of reshaping) b.height += (b.target - b.height) * Math.min(1, RESHAPE_RATE * STEP);
+                reshaping = reshaping.filter(b => Math.abs(b.height - b.target) > 1e-4);
+            }
             const dy = ground.slope(ball.x);
-            ball.v += (-GRAVITY * dy / (1 + dy * dy)) * STEP;
-            ball.v -= (friction * (DAMPING * ball.v + DRAG * ball.v * Math.abs(ball.v)) + slopeDrag * Math.abs(dy) * ball.v) * STEP;
-            // Momentum while there is somewhere to go; once the ball lacks the energy to clear either
-            // neighbouring hill, it is stuck in this dip, so let it settle quickly instead of sloshing.
-            const { left, right } = ground.walls(ball.x);
-            const energy = 0.5 * ball.v * ball.v + GRAVITY * ground.height(ball.x);
-            ball.trapped = energy < GRAVITY * Math.min(left, right);
-            if (ball.trapped) ball.v *= 1 - TRAPPED_DAMPING * STEP;
+            if (flow.left > 0) {
+                // Flowing: off the line, no gravity or drag, at least the flow's speed. A super flow
+                // shrinks the hills under and just ahead of the ball as it goes.
+                flow.left = Math.max(0, flow.left - STEP);
+                ball.v = Math.max(ball.v, flow.speed);
+                if (flow.shrink) reshape(ball.x - 0.3, ball.x + 1.5 * flow.speed, flow.shrink);
+                ball.trapped = false;
+            } else {
+                ball.v += (-GRAVITY * dy / (1 + dy * dy)) * STEP;
+                ball.v -= (friction * (DAMPING * ball.v + DRAG * ball.v * Math.abs(ball.v)) + slopeDrag * Math.abs(dy) * ball.v) * STEP;
+                // Momentum while there is somewhere to go; once the ball lacks the energy to clear either
+                // neighbouring hill, it is stuck in this dip, so let it settle quickly instead of sloshing.
+                const { left, right } = ground.walls(ball.x);
+                const energy = 0.5 * ball.v * ball.v + GRAVITY * ground.height(ball.x);
+                ball.trapped = energy < GRAVITY * Math.min(left, right);
+                if (ball.trapped) ball.v *= 1 - TRAPPED_DAMPING * STEP;
+            }
             ball.x += ball.v * STEP;
             ball.maxX = Math.max(ball.maxX, ball.x);
 
@@ -259,7 +294,7 @@
                 events.push({ type: 'end', skill: k, leg: k, progress: 0, metres: 0.5 * furthest, rolledBack: true, hills: ground.hillsBefore(Math.min(ball.maxX, skillHill(k).peak)) });
                 return;
             }
-            const resting = Math.abs(ball.v) < REST_SPEED && Math.abs(dy) < 0.08;
+            const resting = flow.left <= 0 && Math.abs(ball.v) < REST_SPEED && Math.abs(dy) < 0.08;
             ball.still = resting ? ball.still + STEP : 0;
             // The roll ends once the ball settles with no pushes left. With pushes left, it waits for you.
             if (launched && pushesLeft === 0 && !opts.holdOpen?.() && ball.still >= REST_SECONDS) {
@@ -296,12 +331,43 @@
                 : stopEvent();
         }
 
+        // Banked sprints (a super crunch) land all at once, whatever the cooldown; no push is used.
+        function boost(strength) {
+            if (over || crested || !(strength > 0)) return false;
+            const e = strength * strength;
+            ball.v = ball.v >= 0 ? Math.sqrt(ball.v * ball.v + e) : (ball.v * ball.v > e ? -Math.sqrt(ball.v * ball.v - e) : Math.sqrt(e - ball.v * ball.v));
+            ball.still = 0;
+            launched = true;
+            return true;
+        }
+
+        // A flow: `seconds` off the line at no less than `speed`; `shrink` (0–1) is a super flow's hill height.
+        function coast(seconds, speed, shrink = 0) {
+            if (over || crested) return false;
+            Object.assign(flow, { left: seconds, speed, shrink });
+            ball.still = 0;
+            launched = true;
+            return true;
+        }
+
+        // A super breakthrough: the rolling hills in the next `reach` metres crumble flat. Returns them.
+        function smash(reach) {
+            if (over || crested) return [];
+            return reshape(ball.x, ball.x + reach, 0);
+        }
+
         return {
             ground,
             ball,
             push,
+            boost,
+            coast,
+            smash,
             step,
             end,
+            // Seconds of flow left (0 when the ball is on the line).
+            get flowing() { return flow.left; },
+            get superFlow() { return flow.left > 0 && flow.shrink > 0; },
             get pushesLeft() { return pushesLeft; },
             get launched() { return launched; },
             get over() { return over; },

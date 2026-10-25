@@ -180,14 +180,16 @@ test('automation converts resources instead of creating them', () => {
 test('automation never spends more than its budget of production', () => {
     for (const budget of [0, 0.5, 1]) {
         const s = fresh();
-        s.settings.autoBudget = budget;
+        s.tasks.autoCollector.share = budget;
+        s.tasks.researchAssistant.share = budget;
         s.levels.cpu = 4;
         s.levels.autoCollector = 20;
         s.levels.researchAssistant = 20;
         const d = E.derive(s);
-        assert.ok(d.cpUsePerSec <= budget * d.cpPerSec + 1e-9, `cp at ${budget}`);
+        // Shares are taken in order and never add up to more than everything.
+        assert.ok(d.cpUsePerSec <= Math.min(1, 2 * budget) * d.cpPerSec + 1e-9, `cp at ${budget}`);
+        assert.ok(d.cpNet >= -1e-9, 'compute never falls');
         assert.ok(d.dpUsePerSec <= budget * d.dpPerSec + 1e-9, `dp at ${budget}`);
-        assert.ok(d.cpNet >= (1 - budget) * d.cpPerSec - 1e-9);
         assert.equal(d.autoThrottled, true, 'demand far above production');
         const cp = s.res.cp;
         E.tick(s, 60);
@@ -195,11 +197,28 @@ test('automation never spends more than its budget of production', () => {
     }
 });
 
-test('the automation budget is saved and clamped', () => {
-    assert.equal(E.migrate({ version: E.SAVE_VERSION, settings: { autoBudget: 0.3 } }).settings.autoBudget, 0.3);
-    assert.equal(E.migrate({ version: E.SAVE_VERSION, settings: { autoBudget: 5 } }).settings.autoBudget, E.AUTO_BUDGET.max);
-    assert.equal(E.migrate({ version: E.SAVE_VERSION, settings: { autoBudget: 'x' } }).settings.autoBudget, E.AUTO_BUDGET.default);
-    assert.equal(E.migrate({ version: E.SAVE_VERSION, settings: {} }).settings.autosave, true);
+test('scheduled tasks: each has its own share and switch, saved and clamped, never over 100% in total', () => {
+    const m = tasks => E.migrate({ version: E.SAVE_VERSION, tasks }, NOW).tasks;
+    assert.equal(m({ autoCollector: { on: true, share: 0.3 } }).autoCollector.share, 0.3);
+    assert.equal(m({ autoCollector: { share: 5 } }).autoCollector.share, 0.7, 'capped by what the research assistant leaves free');
+    assert.equal(m({ autoCollector: { share: 'x' } }).autoCollector.share, 0.4, 'the default');
+    assert.equal(m({ researchAssistant: { on: false } }).researchAssistant.on, false);
+    const both = m({ autoCollector: { share: 0.8 }, researchAssistant: { share: 0.8 } });
+    assert.ok(both.autoCollector.share + both.researchAssistant.share <= 1 + 1e-9, 'shares fit in 100%');
+    // Older saves had one budget for everything: each task starts from it.
+    const old = E.migrate({ version: 4, settings: { autoBudget: 0.3 } }, NOW).tasks;
+    assert.equal(old.autoCollector.share, 0.3);
+    assert.equal(old.researchAssistant.share, 0.3);
+    // A switched-off task uses nothing, and its share is free for the others.
+    const s = fresh();
+    s.levels.cpu = 50;
+    s.levels.autoCollector = 5;
+    E.setTaskOn(s, 'autoCollector', false);
+    assert.equal(E.derive(s).collectsPerSec, 0);
+    assert.equal(E.setTaskShare(s, 'researchAssistant', 1), 1, 'all of it is free');
+    E.setTaskOn(s, 'autoCollector', true);
+    assert.equal(E.taskShares(s).autoCollector + E.taskShares(s).researchAssistant, 1);
+    assert.equal(E.migrate({ version: E.SAVE_VERSION, settings: {} }, NOW).settings.autosave, true);
 });
 
 test('XP is paid by distance: per metre, more per metre further along, and more on later legs', () => {
@@ -292,7 +311,7 @@ test('v1 saves migrate to the current format', () => {
     assert.deepEqual(s.res, { cp: 5000, dp: 120, rp: 7, xp: 0 });
     assert.equal(s.attr.intelligence, 3.5);
     assert.deepEqual(s.levels, { cpu: 4, server: 2, quantum: 1, dataProcessor: 3, autoCollector: 1 });
-    assert.deepEqual(s.prestige, { points: 2, total: 3, count: 1 });
+    assert.deepEqual(s.prestige, { points: 2, total: 3, count: 1, major: 2, minor: 0, levels: {} });
     assert.equal(s.settings.autosave, false);
     assert.equal(s.stats.clicks, 50);
     assert.equal(s.lastSaved, NOW - 500);
@@ -492,7 +511,7 @@ test('luck: breakthroughs and viral runs start at zero, grow with levels, and ar
     assert.equal(rate(seed => E.windfallHit(s, seed)), 0);
     s.levels.scoutingData = 1;
     const low = rate(seed => E.breakthroughHit(s, seed, 0));
-    assert.ok(low > 0.015 && low < 0.05, `rare at first: ${low}`);
+    assert.ok(low > 0.004 && low < 0.02, `rare at first: ${low}`);
     s.levels.scoutingData = 2;
     s.levels.satelliteMaps = 2;
     const high = rate(seed => E.breakthroughHit(s, seed, 1));
@@ -503,7 +522,7 @@ test('luck: breakthroughs and viral runs start at zero, grow with levels, and ar
     assert.ok(Math.abs(E.sprintStrength(s, 1, null, true) / E.sprintStrength(s, 1) - E.derive(s).critMult) < 1e-9);
     s.levels.viralPaper = 2;
     const viral = rate(seed => E.windfallHit(s, seed));
-    assert.ok(viral > 0.05 && viral < 0.12, `viral ${viral}`);
+    assert.ok(viral > 0.015 && viral < 0.05, `viral ${viral}`);
     const plain = E.finishRoll(fresh(), 0.5, false, 0, 5).xp;
     const t = fresh();
     t.levels.viralPaper = 2;
@@ -529,10 +548,12 @@ test('Fast Charging speeds up the meter', () => {
     assert.ok(E.derive(s).sweepScale < 0.7);
 });
 
-test('luck is earned: the branch opens after two skills; crunches and flow start at zero and grow', () => {
+test('luck is earned: the branch opens after two skills; crunches and Max Effort start at zero and grow', () => {
     const s = fresh();
     s.unlocked['module:path'] = true;
     s.levels.initialWeights = 1;
+    s.levels.trainingOptimizer = 1;
+    s.levels.gpuCluster2 = 1;
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.scoutingData), false, 'hidden before the second skill');
     s.path.learned = 2;
@@ -540,14 +561,14 @@ test('luck is earned: the branch opens after two skills; crunches and flow start
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.scoutingData), true);
     const rate = hit => { let n = 0; for (let seed = 1; seed <= 2000; seed++) n += hit(seed) ? 1 : 0; return n / 2000; };
     assert.equal(rate(seed => E.crunchHit(s, seed, 0)), 0);
-    assert.equal(rate(seed => E.flowHit(s, seed, 0)), 0);
+    assert.equal(rate(seed => E.maxEffortHit(s, seed, 0)), 0);
     assert.equal(E.derive(s).crunchSeconds, 0);
     s.levels.crunchTime = 1;
-    s.levels.flowState = 1;
+    s.levels.maxEffort = 1;
     const crunch = rate(seed => E.crunchHit(s, seed, 0));
-    const flow = rate(seed => E.flowHit(s, seed, 0));
-    assert.ok(crunch > 0.005 && crunch < 0.04, `crunch rare: ${crunch}`);
-    assert.ok(flow > 0.01 && flow < 0.06, `flow rare: ${flow}`);
+    const effort = rate(seed => E.maxEffortHit(s, seed, 0));
+    assert.ok(crunch > 0.003 && crunch < 0.02, `crunch rare: ${crunch}`);
+    assert.ok(effort > 0.003 && effort < 0.02, `Max Effort rare: ${effort}`);
     assert.equal(E.derive(s).crunchSeconds, 3);
     s.levels.crunchTime = 3;
     assert.equal(E.derive(s).crunchSeconds, 5);
@@ -665,4 +686,82 @@ test('chains: each cleared hill crossed in a run multiplies what the run earns a
     const plain = E.finishRoll(fresh(), 0.5, false, 0, 5).xp;
     const t = fresh();
     assert.ok(Math.abs(E.finishRoll(t, 0.5, false, 0, 5, 0, false, 3).xp - plain * E.chainMult(3)) < 1e-9, 'the distance at the end too');
+});
+
+test('versions: shipping one keeps Insight, legacy nodes and their effects; numbering follows the jump', () => {
+    const s = fresh();
+    s.attr.intelligence = 10;
+    s.stats.runCp = 1e8;
+    s.levels.gpuCluster2 = 1;
+    assert.equal(E.currentVersion(s), 'v1.0');
+    assert.equal(E.nextVersion(s).isMajor, true, 'the first release with 3+ Insight is a major one');
+    const gain = E.prestigeGain(s);
+    const r = E.prestige(s, NOW);
+    assert.equal(r.version, 'v2.0');
+    const t = r.state;
+    assert.equal(t.prestige.points, gain);
+    assert.equal(t.levels.gpuCluster2, undefined, 'the run starts over');
+    // Legacy nodes cost Insight, need their parent once, and stay owned and in effect after the next version.
+    t.unlocked['module:path'] = true;
+    E.evaluate(t);
+    assert.equal(E.isUpgradeVisible(t, E.UPGRADE_BY_ID.headStart), false, 'needs its parent this run');
+    t.levels.trainingOptimizer = 1;
+    t.levels.gpuCluster2 = 1;
+    E.evaluate(t);
+    const before = E.derive(t).pushPower;
+    assert.equal(E.buy(t, 'headStart').ok, true);
+    assert.equal(t.prestige.points, gain - 1);
+    assert.ok(E.derive(t).pushPower > before);
+    assert.ok(E.derive(t).mult > 1 + 0.1 * (gain - 1), 'spending Insight keeps its production bonus');
+    t.attr.intelligence = 10;
+    t.stats.runCp = 1e5;
+    const small = E.prestige(t, NOW);
+    assert.equal(small.version, 'v2.1', 'a small gain is a point release');
+    const u = small.state;
+    assert.equal(E.level(u, 'headStart'), 1, 'legacy levels survive');
+    u.unlocked['module:path'] = true;
+    E.evaluate(u);
+    assert.equal(E.isUpgradeVisible(u, E.UPGRADE_BY_ID.headStart), true, 'and stay visible without their parent');
+    assert.ok(E.derive(u).pushPower > E.derive(fresh()).pushPower);
+});
+
+test('legacy nodes stay hidden until the first new version, and old saves move theirs to the version', () => {
+    const s = fresh();
+    s.unlocked['module:path'] = true;
+    for (const up of E.UPGRADES.filter(u => u.tab === 'training' && !u.legacy)) s.levels[up.id] = up.max || 1;
+    s.path.learned = 5;
+    E.evaluate(s);
+    for (const up of E.UPGRADES.filter(u => u.legacy)) assert.equal(E.isUpgradeVisible(s, up), false, `${up.id} hidden in the first version`);
+    for (const up of E.UPGRADES.filter(u => u.legacy)) assert.ok(up.cost.insight > 0 && !up.cost.xp, `${up.id} costs Insight`);
+    const old = E.migrate({ version: 4, levels: { autoTrainer: 2, flowState: 2 }, prestige: { points: 1, total: 1, count: 1 } }, NOW);
+    assert.equal(old.prestige.levels.autoTrainer, 2);
+    assert.equal(old.levels.autoTrainer, undefined);
+    assert.equal(old.levels.maxEffort, 2, 'the old Flow State (next sprint perfect) is Max Effort now');
+    assert.equal(E.level(old, 'flowState'), 0);
+    assert.equal(old.prestige.major, 2);
+});
+
+test('prompts: system inside super inside clean; each pays and hits harder; supers and flow are legacy', () => {
+    const s = fresh();
+    s.levels.perfectCalibration = 1;
+    s.prestige.levels.systemPrompt = 1;
+    const d = E.derive(s);
+    assert.ok(d.systemWidth > 0 && d.systemWidth <= d.perfectWidth / 2);
+    const z = E.bonusZone(9, 0, d.zoneWidth, d.perfectWidth, d.systemWidth);
+    const mid = (z.systemFrom + z.systemTo) / 2;
+    assert.equal(E.zoneHit(z, mid), 'system');
+    assert.equal(E.zoneHit(z, z.perfectFrom + 1e-6), 'perfect');
+    assert.equal(E.zoneHit(z, z.from + 1e-6), 'clean');
+    assert.equal(E.cleanUnits('system'), 50);
+    assert.ok(E.sprintStrength(s, 0.7, 'system') > E.sprintStrength(s, 0.7, 'perfect'));
+    assert.ok(Math.abs(E.sprintStrength(s, 1, null, false, true) / E.sprintStrength(s, 1) - d.maxEffortMult) < 1e-9);
+    const t = fresh();
+    assert.equal(E.derive(t).flowSeconds, 0);
+    assert.equal(E.superHit(t, 'breakthrough', 3, 0), false);
+    t.prestige.levels.flowState = 1;
+    t.prestige.levels.paradigmShift = 1;
+    assert.equal(E.derive(t).flowSeconds, 3);
+    const rate = hit => { let n = 0; for (let seed = 1; seed <= 2000; seed++) n += hit(seed) ? 1 : 0; return n / 2000; };
+    const sup = rate(seed => E.superHit(t, 'breakthrough', seed, 0));
+    assert.ok(sup > 0.05 && sup < 0.15, `10% of breakthroughs are super: ${sup}`);
 });

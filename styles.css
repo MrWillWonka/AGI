@@ -862,12 +862,15 @@ h1, h2, h3, p { margin: 0; }
 .live-xp-label { font-size: 0.74rem; color: var(--muted); }
 
 .roll-result {
-    /* Top-right, clear of the checkpoint where the next roll starts. */
+    /* Centred over the trail (launching the next run fades it). */
     position: absolute;
-    right: 12px;
-    top: 44px;
-    width: min(300px, calc(100% - 120px));
-    padding: 12px 14px;
+    inset: 0;
+    margin: auto;
+    height: fit-content;
+    max-height: calc(100% - 24px);
+    overflow: auto;
+    width: min(440px, calc(100% - 40px));
+    padding: 18px 22px;
     border-radius: 10px;
     background: rgba(11, 22, 25, 0.95);
     border: 1px solid var(--border);
@@ -882,11 +885,11 @@ h1, h2, h3, p { margin: 0; }
     from { opacity: 0; transform: translateY(-8px); }
 }
 
-.result-title { font: 700 0.78rem var(--font-display); text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); }
+.result-title { font: 700 0.84rem var(--font-display); text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); }
 .roll-result.skill .result-title { color: var(--success); }
-.result-main { margin-top: 2px; font: 700 1.05rem var(--font-display); }
-.result-xp { margin-top: 6px; font: 700 1.35rem var(--font-mono); color: var(--warning); }
-.result-lines { margin: 6px 0 0; padding: 0; list-style: none; font: 0.8rem var(--font-mono); color: var(--muted); }
+.result-main { margin-top: 4px; font: 700 1.3rem var(--font-display); }
+.result-xp { margin-top: 8px; font: 700 1.9rem var(--font-mono); color: var(--warning); }
+.result-lines { margin: 10px 0 0; padding: 0; list-style: none; font: 0.88rem var(--font-mono); color: var(--muted); display: grid; gap: 2px; }
 .result-lines li { display: flex; justify-content: space-between; gap: 12px; }
 .result-lines .good { color: var(--success); }
 .result-badge { display: inline-block; margin-top: 8px; padding: 2px 8px; border-radius: 999px; font: 700 0.7rem var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; background: rgba(255, 122, 107, 0.15); color: var(--accent); }
@@ -1713,9 +1716,6 @@ body { zoom: var(--ui-scale); }
 
 /* The run result card sits over the trail and above the controls (on phones it spans the trail). */
 .roll-result { z-index: 3; }
-@media (max-width: 640px) {
-    .roll-result { top: 8px; left: 8px; right: 8px; width: auto; max-height: calc(100% - 16px); overflow: auto; }
-}
 /* Sliding toasts and zooms must never make the page scroll sideways. */
 html, body { overflow-x: clip; }
 
@@ -2147,15 +2147,23 @@ body.has-minimap .room-rnd { padding-bottom: 210px; }
     animation: crunch-burn 0.8s linear infinite;
 }
 @keyframes crunch-burn { to { background-position: -200% 0; } }
-/* Flow: the meter turns gold and shimmers; anywhere is perfect. */
-.charge.flow .charge-track {
+/* Max Effort: the meter turns gold and shimmers; the next press goes all out. */
+.charge.effort .charge-track {
     border-color: var(--warning);
     background: linear-gradient(90deg, rgba(255, 181, 71, 0.15), rgba(255, 220, 140, 0.45), rgba(255, 181, 71, 0.15));
     background-size: 200% 100%;
     box-shadow: 0 0 16px rgba(255, 181, 71, 0.55);
     animation: flow-shimmer 1.2s linear infinite;
 }
-.charge.flow .charge-fill { background: var(--warning); }
+.charge.effort .charge-fill { background: var(--warning); }
+.push-button.effort { color: #1a1206; background: linear-gradient(90deg, #b8860b, #ffe08a, #b8860b); background-size: 200% 100%; animation: crunch-burn 1.2s linear infinite;
+    box-shadow: 0 0 22px rgba(255, 215, 120, 0.7); }
+/* Bullet Time: the button goes cold blue while time is stopped. */
+.push-button.frozen { color: #fff; background: linear-gradient(90deg, #2a4f8f, #6fb3ff, #2a4f8f); background-size: 200% 100%; animation: crunch-burn 2.4s linear infinite;
+    box-shadow: 0 0 22px rgba(111, 179, 255, 0.6); }
+/* The system prompt: a white-hot sliver inside the super prompt spot. */
+.charge-system { position: absolute; top: 0; bottom: 0; background: #fff; box-shadow: 0 0 10px #fff, 0 0 18px #ff7ab6; z-index: 3; }
+.charge-fill.in-zone.system { background: linear-gradient(90deg, #ff7ab6, #fff); box-shadow: 0 0 22px #ff7ab6; }
 @keyframes flow-shimmer { to { background-position: -200% 0; } }
 /* Viral run: an animated rainbow edge and a stamp. */
 .roll-result.viral { border: 2px solid transparent; background:
@@ -2178,7 +2186,7 @@ body.has-minimap .room-rnd { padding-bottom: 210px; }
 }
 @keyframes viral-edge { to { background-position: 0 0, 300% 0; } }
 @media (prefers-reduced-motion: reduce) {
-    .push-button.crunch, .charge.flow .charge-track, .roll-result.viral, .path-canvas.jolt { animation: none; }
+    .push-button.crunch, .push-button.effort, .push-button.frozen, .charge.effort .charge-track, .roll-result.viral, .path-canvas.jolt { animation: none; }
 }
 
 /* Live yield on hardware and click cards: the numbers, so descriptions don't need them. */

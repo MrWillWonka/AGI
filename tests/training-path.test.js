@@ -221,17 +221,23 @@ test('engine: path progress and XP save; prestige resets the run but keeps lifet
     assert.deepEqual([next.path.learned, next.res.xp, next.stats.rolls, next.stats.skillsLearned], [0, 0, 2, 1]);
 });
 
-test('engine: the Auto-Trainer needs Scouting Data and a Transcend', () => {
+test('engine: the Auto-Trainer needs Faster Chips and a new version, costs Insight, and can be switched off', () => {
     const s = E.defaultState(NOW);
     s.unlocked['module:path'] = true;
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.autoTrainer), false);
-    s.levels.scoutingData = 1;
+    s.levels.fasterIteration = 1;
     E.evaluate(s);
-    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.autoTrainer), false, 'still needs a Transcend');
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.autoTrainer), false, 'still needs a new version');
     s.prestige.count = 1;
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.autoTrainer), true);
+    assert.equal(E.buy(s, 'autoTrainer').ok, false, 'costs Insight');
+    s.prestige.points = 3;
+    assert.equal(E.buy(s, 'autoTrainer').ok, true);
+    assert.equal(E.autoTrainerLevel(s), 1);
+    E.setTaskOn(s, 'autoTrainer', false);
+    assert.equal(E.autoTrainerLevel(s), 0);
 });
 
 test('engine: bonus zones sit below the top of the meter, vary per push, and are repeatable', () => {
@@ -400,4 +406,44 @@ test('free pushes (a crunch) work with no pushes left and barely wait; holdOpen 
     open = false;
     for (let i = 0; i < 2000 && !roll.over; i++) roll.step(1 / 60);
     assert.equal(roll.over, true, 'ends once no longer held');
+});
+
+test('power-ups: a flow coasts over hills, a smash flattens the hills ahead, a boost ignores the cooldown', () => {
+    const opts = { pushes: 1, cooldown: 2, rollOut: true };
+    const plain = T.createRoll(0, 11, opts);
+    plain.push(2);
+    for (let i = 0; i < 2400 && !plain.over; i++) plain.step(1 / 60);
+    const flowing = T.createRoll(0, 11, opts);
+    flowing.push(2);
+    flowing.coast(3, 3);
+    assert.ok(flowing.flowing > 0);
+    const run = (roll, sec) => { for (let i = 0; i < sec * 60; i++) roll.step(1 / 60); };
+    const x0 = flowing.ball.x;
+    run(flowing, 1);
+    assert.ok(flowing.ball.x - x0 >= 2.9, 'holds its speed over the hills');
+    for (let i = 0; i < 2400 && !flowing.over; i++) flowing.step(1 / 60);
+    assert.ok(flowing.ball.maxX > plain.ball.maxX, 'and gets further');
+
+    const smashed = T.createRoll(0, 11, opts);
+    const ahead = smashed.smash(5);
+    assert.ok(ahead.length > 0 && ahead.every(b => b.skill === null), 'only rolling hills break');
+    run(smashed, 2);
+    assert.ok(ahead.every(b => b.height < 1e-3), 'they settle flat');
+    assert.ok(smashed.ground.goal.height > 0, 'the skill hill stands');
+
+    const shrunk = T.createRoll(0, 11, opts);
+    shrunk.push(1);
+    shrunk.coast(2, 3, 0.25);
+    run(shrunk, 2);
+    const low = shrunk.ground.bumps.filter(b => b.base != null);
+    assert.ok(low.length > 0 && low.every(b => b.target <= b.base * 0.25 + 1e-9), 'a super flow shrinks the hills it passes');
+    assert.ok(low.filter(b => b.peak < shrunk.ball.x - 3).every(b => b.height <= b.base * 0.26), 'and they settle low');
+
+    const banked = T.createRoll(0, 11, opts);
+    banked.push(1);
+    assert.equal(banked.push(1, true), false, 'cooling down');
+    const v = banked.ball.v;
+    assert.equal(banked.boost(2), true);
+    assert.ok(banked.ball.v > v);
+    assert.equal(banked.pushesLeft, 0);
 });
