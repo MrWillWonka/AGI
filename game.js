@@ -202,6 +202,20 @@ window.AGI = (function () {
         consciousness: { name: 'Isolation chamber', kind: 'chamber' }
     };
 
+    const CLICK_UPGRADES = ['keyboard', 'shellScripts'];
+
+    // A card's live line: what one unit makes now (all multipliers in), what they all make, and the next
+    // doubling; for click upgrades, what a click is worth.
+    function yieldText(up, lvl, d) {
+        const f = E.format;
+        if (up.cps) {
+            const r = d.hardwareRates[up.id];
+            const next = r.nextDoubling ? ` · ×2 at ${r.nextDoubling}` : '';
+            return lvl ? `${f(r.each)} CP/s each · ${f(r.total)} CP/s total${next}` : `${f(r.each)} CP/s each${next}`;
+        }
+        return `A click is worth ${f(d.clickPower)} CP`;
+    }
+
     function buildUpgrades() {
         const box = $('labStations');
         E.TABS.forEach((tab, slot) => {
@@ -224,6 +238,8 @@ window.AGI = (function () {
         for (const up of E.UPGRADES) {
             if (up.tab === 'training') continue;
             const levelBadge = el('span', { class: 'badge' });
+            // Live numbers (hardware output, click value) so descriptions never need updating.
+            const yieldLine = up.cps || CLICK_UPGRADES.includes(up.id) ? el('p', { class: 'upgrade-yield' }) : null;
             const button = el('button', { type: 'button', class: 'button upgrade-button' });
             button.addEventListener('click', () => doBuy(up.id));
             // Hardware: the part you're buying, as it will sit in the server cabinet.
@@ -239,12 +255,13 @@ window.AGI = (function () {
                 el('div', { class: 'upgrade-info' }, [
                     el('h3', {}, [document.createTextNode(up.name + ' '), levelBadge]),
                     el('p', { class: 'muted small', text: up.effect }),
+                    yieldLine,
                     up.flavor ? el('p', { class: 'upgrade-flavor', text: up.flavor }) : null
                 ]),
                 side
             ]);
             ui.panels[up.tab].append(card);
-            ui.upgrades[up.id] = { up, card, button, levelBadge };
+            ui.upgrades[up.id] = { up, card, button, levelBadge, yieldLine };
         }
         for (const tab of E.TABS) {
             const empty = el('p', { class: 'muted small empty-hint', text: 'Nothing new here yet. Keep progressing.' });
@@ -759,7 +776,7 @@ window.AGI = (function () {
         renderStations();
 
         const visibleCount = {};
-        for (const { up, card, button, levelBadge } of Object.values(ui.upgrades)) {
+        for (const { up, card, button, levelBadge, yieldLine } of Object.values(ui.upgrades)) {
             // Installed upgrades stay where they are (dimmed): cards never vanish from under you.
             const visible = E.isUpgradeVisible(state, up);
             setHidden(card, !visible);
@@ -767,6 +784,7 @@ window.AGI = (function () {
             visibleCount[up.tab] = (visibleCount[up.tab] || 0) + 1;
             const lvl = E.level(state, up.id);
             const maxed = E.isMaxed(state, up);
+            if (yieldLine) setText(yieldLine, yieldText(up, lvl, d));
             setText(levelBadge, up.max === 1 ? '' : `Lv ${lvl}`);
             card.classList.toggle('owned', maxed);
             if (maxed) {

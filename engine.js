@@ -125,23 +125,24 @@
     // `grants` adds attributes per level purchased. Production effects live in derive().
     const UPGRADES = [
         // Hardware: a ladder of generators, like most incremental games. `cps` is CP/s per unit. Each tier
-        // costs about 12x the last and gives about 6-7x, so every tier pays back a little slower but
-        // earns far more per purchase; all scale x1.15 per unit, and a tier's output doubles at 25, 50 and
-        // 100 owned (HARDWARE_DOUBLINGS). Each tier shows up as you approach it.
-        { id: 'cpu', tab: 'hardware', name: 'Basic CPU', cps: 0.5, effect: '+0.5 CP/s each; doubles at 25, 50 and 100 owned', flavor: 'A desktop tower from the office cupboard. It wheezes.', cost: { cp: 15 }, scale: 1.15,
+        // costs 20x the last and gives about 6.7x, so it pays back 3x slower: when it appears, the tier
+        // below stays the better buy for about eight more units, then the new one takes over. All scale
+        // x1.15 per unit, and a tier's output doubles at 25, 50 and 100 owned (HARDWARE_DOUBLINGS), which
+        // makes older tiers worth topping up again. Each tier shows up late (tierReady).
+        { id: 'cpu', tab: 'hardware', name: 'Basic CPU', cps: 0.5, effect: 'Generates compute; output doubles at 25, 50 and 100 owned', flavor: 'A desktop tower from the office cupboard. It wheezes.', cost: { cp: 15 }, scale: 1.15,
             unlock: s => automationGate(s, 'cpu').met, hint: 'Generate compute by hand 25 times' },
         { id: 'keyboard', tab: 'hardware', name: 'Mechanical Keyboard', effect: '+1 CP per click, per level', flavor: 'Clicky. Your desk neighbours hate it.', cost: { cp: 40 }, scale: 3, max: 4,
             unlock: s => s.stats.clicks >= 15, hint: 'Generate compute by hand 15 times' },
-        { id: 'server', tab: 'hardware', name: 'Server Cluster', cps: 3, effect: '+3 CP/s each; doubles at 25, 50 and 100 owned', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 180 }, scale: 1.15,
-            unlock: s => level(s, 'cpu') >= 3, hint: 'Own 3 Basic CPUs' },
-        { id: 'quantum', tab: 'hardware', name: 'Quantum Processor', cps: 20, effect: '+20 CP/s each; doubles at 25, 50 and 100 owned', flavor: 'It\'s both working and not working until you check.', cost: { cp: 2200 }, scale: 1.15,
-            unlock: s => s.stats.runCp >= 1000, hint: 'Earn 1,000 CP this run' },
-        { id: 'neural', tab: 'hardware', name: 'Neural Network Chip', cps: 130, effect: '+130 CP/s each; doubles at 25, 50 and 100 owned', flavor: 'A chip shaped like the thing you\'re trying to build.', cost: { cp: 26000 }, scale: 1.15,
-            unlock: s => s.stats.runCp >= 12000, hint: 'Earn 12,000 CP this run' },
-        { id: 'datacenter', tab: 'hardware', name: 'Hyperscale Datacenter', cps: 700, effect: '+700 CP/s each; doubles at 25, 50 and 100 owned', flavor: 'Bought a field. Filled it with computers.', cost: { cp: 310000 }, scale: 1.15,
-            unlock: s => phaseIndex(s) >= 1, hint: 'Reach General AI' },
-        { id: 'optical', tab: 'hardware', name: 'Optical Computing', cps: 4500, effect: '+4,500 CP/s each; doubles at 25, 50 and 100 owned', flavor: 'Computing at the speed of light. Literally.', cost: { cp: 3.7e6 }, scale: 1.15,
-            unlock: s => phaseIndex(s) >= 2, hint: 'Reach Superintelligence' },
+        { id: 'server', tab: 'hardware', name: 'Server Cluster', cps: 3.3, effect: 'Generates compute; output doubles at 25, 50 and 100 owned', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 300 }, scale: 1.15,
+            unlock: s => tierReady(s, 'server'), hint: 'More Basic CPUs, and more compute earned' },
+        { id: 'quantum', tab: 'hardware', name: 'Quantum Processor', cps: 22, effect: 'Generates compute; output doubles at 25, 50 and 100 owned', flavor: 'It\'s both working and not working until you check.', cost: { cp: 6000 }, scale: 1.15,
+            unlock: s => tierReady(s, 'quantum'), hint: 'More Server Clusters, and more compute earned' },
+        { id: 'neural', tab: 'hardware', name: 'Neural Network Chip', cps: 150, effect: 'Generates compute; output doubles at 25, 50 and 100 owned', flavor: 'A chip shaped like the thing you\'re trying to build.', cost: { cp: 120000 }, scale: 1.15,
+            unlock: s => tierReady(s, 'neural'), hint: 'More Quantum Processors, and more compute earned' },
+        { id: 'datacenter', tab: 'hardware', name: 'Hyperscale Datacenter', cps: 1000, effect: 'Generates compute; output doubles at 25, 50 and 100 owned', flavor: 'Bought a field. Filled it with computers.', cost: { cp: 2400000 }, scale: 1.15,
+            unlock: s => phaseIndex(s) >= 1 && tierReady(s, 'datacenter'), hint: 'Reach General AI' },
+        { id: 'optical', tab: 'hardware', name: 'Optical Computing', cps: 6600, effect: 'Generates compute; output doubles at 25, 50 and 100 owned', flavor: 'Computing at the speed of light. Literally.', cost: { cp: 48000000 }, scale: 1.15,
+            unlock: s => phaseIndex(s) >= 2 && tierReady(s, 'optical'), hint: 'Reach Superintelligence' },
 
         // Software
         { id: 'shellScripts', tab: 'software', name: 'Shell Scripts', effect: 'Each click also earns 2% of your CP/s, per level', flavor: 'for i in range(1000): click()', cost: { cp: 600, dp: 40 }, scale: 4, max: 3,
@@ -261,6 +262,13 @@
             grants: { awareness: 20, creativity: 10 }, requires: 'metacognition' }
     ];
     const HARDWARE = UPGRADES.filter(u => u.cps);
+    // A hardware tier shows up once you own TIER_REVEAL_OWNED of the tier below and have earned half its
+    // price this run: late enough that the tier below has done its job, early enough to save up for it.
+    const TIER_REVEAL_OWNED = 5;
+    function tierReady(s, id) {
+        const i = HARDWARE.findIndex(u => u.id === id);
+        return level(s, HARDWARE[i - 1].id) >= TIER_REVEAL_OWNED && s.stats.runCp >= HARDWARE[i].cost.cp / 2;
+    }
     // A hardware tier's output doubles at each of these counts owned.
     const HARDWARE_DOUBLINGS = [25, 50, 100];
     const hardwareDoubling = n => Math.pow(2, HARDWARE_DOUBLINGS.filter(t => n >= t).length);
@@ -380,10 +388,16 @@
         const sk = skillBonuses(s);
         const bo = projectBoosts(s);
 
-        let hardware = 0;
-        for (const up of HARDWARE) hardware += up.cps * L(up.id) * hardwareDoubling(L(up.id));
-        hardware *= (1 + 0.5 * L('compilerOpt')) * (1 + 0.5 * L('kernelFusion'));
-        const cpPerSec = hardware * (1 + sk.cp + clearedCpBonus(s)) * mult * r.cp * bo.cp;
+        // Every multiplier on hardware output, so each tier's real yield can be shown on its card.
+        const hardwareMult = (1 + 0.5 * L('compilerOpt')) * (1 + 0.5 * L('kernelFusion')) * (1 + sk.cp + clearedCpBonus(s)) * mult * r.cp * bo.cp;
+        const hardwareRates = {};
+        let cpPerSec = 0;
+        for (const up of HARDWARE) {
+            const n = L(up.id);
+            const each = up.cps * hardwareDoubling(n) * hardwareMult;
+            hardwareRates[up.id] = { each, total: each * n, nextDoubling: HARDWARE_DOUBLINGS.find(t => n < t) || null };
+            cpPerSec += each * n;
+        }
         // Clicks: a flat amount (keyboards, skills), plus a share of CP/s from Shell Scripts so clicking
         // stays worth something as hardware grows.
         const clickPower = (1 + L('keyboard') + sk.click) * mult + 0.02 * L('shellScripts') * cpPerSec;
@@ -443,7 +457,7 @@
         let xpPerSec = 0;
         for (let k = 0; k < s.path.learned; k++) xpPerSec += stretchXpAt(k) * PATH.clearedRate * r.xp;
 
-        return { mult, cpPerSec, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec,
+        return { mult, cpPerSec, hardwareRates, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec,
             collectsPerSec, researchPerSec, cpUsePerSec, dpUsePerSec, autoThrottled,
             cpNet: cpPerSec - cpUsePerSec, dpNet: dpPerSec - dpUsePerSec, pushPower, pushesPerRoll, pushCooldown, zoneWidth, perfectWidth, cleanMult, cleanRollBonus, cleanPower, perfectPower, sweepScale,
             critChance, critMult, windfallChance, windfallMult, crunchChance, crunchSeconds, flowChance, friction, hillScale, xpMult, xpPerSec };

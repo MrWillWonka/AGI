@@ -556,14 +556,17 @@ test('the engine\'s leg lengths match the physics, so "a full stretch" of XP is 
     }
 });
 
-test('hardware is a ladder: each tier costs more per CP/s but gives more per purchase, and doubles at milestones', () => {
+test('hardware is a spaced-out ladder: each tier costs more per CP/s but gives more per purchase, and doubles at milestones', () => {
     const tiers = E.UPGRADES.filter(u => u.cps);
     assert.deepEqual(tiers.map(u => u.id), ['cpu', 'server', 'quantum', 'neural', 'datacenter', 'optical']);
     for (let i = 1; i < tiers.length; i++) {
         const [a, b] = [tiers[i - 1], tiers[i]];
-        assert.ok(b.cost.cp / b.cps > a.cost.cp / a.cps, `${b.id} pays back slower than ${a.id}`);
+        // Spaced out: a new tier is about 3x worse value than the one below when it appears, so the
+        // older tier stays worth buying for a while instead of going stale at once.
+        const ratio = (b.cost.cp / b.cps) / (a.cost.cp / a.cps);
+        assert.ok(ratio > 2.5 && ratio < 3.5, `${b.id} pays back about 3x slower than ${a.id} (${ratio.toFixed(2)})`);
         assert.ok(b.cps >= 5 * a.cps, `${b.id} gives far more per purchase`);
-        assert.ok(b.cost.cp >= 8 * a.cost.cp && b.cost.cp <= 16 * a.cost.cp, `${b.id} is the next rung`);
+        assert.ok(Math.abs(b.cost.cp / a.cost.cp - 20) < 1e-9, `${b.id} costs 20x ${a.id}`);
     }
     const s = fresh();
     s.levels.cpu = 24;
@@ -583,4 +586,25 @@ test('hardware is a ladder: each tier costs more per CP/s but gives more per pur
     const u = fresh();
     u.levels.server = 10;
     assert.ok(Math.abs(E.derive(t).cpPerSec / E.derive(u).cpPerSec - 1.5) < 1e-9, 'Compiler Optimizations +50%');
+});
+
+test('a hardware tier shows up only once you own five of the tier below and earned half its price', () => {
+    const s = fresh();
+    s.stats.clicks = 30;
+    s.levels.cpu = 4;
+    s.stats.runCp = 1e9;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.server), false, 'needs 5 Basic CPUs');
+    s.levels.cpu = 5;
+    s.stats.runCp = E.UPGRADE_BY_ID.server.cost.cp / 2 - 1;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.server), false, 'needs half its price earned');
+    s.stats.runCp += 1;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.server), true);
+    // Each tier's live yield includes every multiplier.
+    s.levels.server = 2;
+    const d = E.derive(s);
+    assert.ok(Math.abs(d.hardwareRates.server.total + d.hardwareRates.cpu.total - d.cpPerSec) < 1e-9);
+    assert.equal(d.hardwareRates.cpu.nextDoubling, 25);
 });
