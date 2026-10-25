@@ -500,9 +500,9 @@ window.AGI = (function () {
     }
 
     // Server cabinets: the hardware you own, racked in the order you bought it, all kinds mixed together
-    // like a real server room. Every kind starts as a small 1×1 square; a few of them bought one after
-    // another merge into a medium piece, a horizontal or vertical bar (the count differs by kind), and
-    // a few mediums in a row merge into a large one, wider first (racks are 7 cells wide, so pieces
+    // like a real server room. Every kind starts as a small 1×1 square; a few of them touching in a line
+    // merge into a medium piece, a horizontal or vertical bar (the count differs by kind), and a few
+    // mediums touching in a line merge into a large one, wider first (racks are 7 cells wide, so pieces
     // combine across before they stack up). `steps`: [how many of the size below, width, height].
     // Pieces fill racks of 7 × 8 cells from the bottom, first fit across every rack, so small pieces
     // drop into earlier gaps. This mix of merged and unmerged parts is the starting point for a later
@@ -521,7 +521,6 @@ window.AGI = (function () {
     let cabinetKey = null;      // null: not drawn yet
     let cabinetPieces = new Set();
 
-    const pieceSize = (id, tier) => (tier ? HW_PIECES[id].steps[tier - 1].slice(1) : [1, 1]);
     const pieceUnits = (id, tier) => HW_PIECES[id].steps.slice(0, tier).reduce((a, st) => a * st[0], 1);
 
     // The buy log, reconciled with what you own (a reset or an old save trims it or adds what's missing).
@@ -536,39 +535,93 @@ window.AGI = (function () {
         return log;
     }
 
-    // Pieces in buy order: enough of the same kind and size in a row (its next step's count) merge.
-    function rackPieces(log) {
-        const out = [];
+    // Racks from the buy log, replayed in order. Each new piece is a small square; it goes next to the
+    // latest small piece of its kind (to its right for a horizontal bar, on top for a vertical one) if
+    // that spot is free, else in the first free spot (bottom-left first, any rack). Pieces merge only by
+    // direct contact: the right number of the same kind and size touching in one straight line, exactly
+    // the merged piece's shape (`steps`), like 3 CPUs side by side → a 3×1 board. A piece at the end of
+    // a row and one starting the next row don't touch, so they don't merge.
+    function buildRacks(log) {
+        const racks = [];
+        const newRack = () => {
+            const r = { grid: Array.from({ length: RACK.rows }, () => Array(RACK.cols).fill(null)), pieces: [] };
+            racks.push(r);
+            return r;
+        };
+        const inside = (x, y) => x >= 0 && y >= 0 && x < RACK.cols && y < RACK.rows;
+        const at = (r, x, y) => (inside(x, y) ? r.grid[y][x] : null);
+        const put = (r, p) => {
+            for (let j = p.y; j < p.y + p.h; j++) for (let i = p.x; i < p.x + p.w; i++) r.grid[j][i] = p;
+            r.pieces.push(p);
+        };
+        const take = (r, p) => {
+            for (let j = p.y; j < p.y + p.h; j++) for (let i = p.x; i < p.x + p.w; i++) r.grid[j][i] = null;
+            r.pieces.splice(r.pieces.indexOf(p), 1);
+        };
+        // Merge `p` with neighbours in a straight line that tile the next size exactly; returns the new piece.
+        function merge(r, p) {
+            const step = HW_PIECES[p.id].steps[p.tier];
+            if (!step) return null;
+            const [n, W, H] = step;
+            const across = H === p.h && W === n * p.w;
+            if (!across && !(W === p.w && H === n * p.h)) return null;
+            for (let i = 0; i < n; i++) {
+                const sx = across ? p.x - i * p.w : p.x;
+                const sy = across ? p.y : p.y - i * p.h;
+                const line = [];
+                for (let j = 0; j < n; j++) {
+                    const x = across ? sx + j * p.w : sx;
+                    const y = across ? sy : sy + j * p.h;
+                    const q = at(r, x, y);
+                    if (!q || q.id !== p.id || q.tier !== p.tier || q.x !== x || q.y !== y) break;
+                    line.push(q);
+                }
+                if (line.length < n) continue;
+                for (const q of line) take(r, q);
+                const big = { id: p.id, tier: p.tier + 1, x: sx, y: sy, w: W, h: H };
+                put(r, big);
+                return big;
+            }
+            return null;
+        }
         for (const id of log) {
-            out.push({ id, tier: 0 });
-            for (;;) {
-                const last = out[out.length - 1];
-                const step = HW_PIECES[last.id].steps[last.tier];
-                if (!step || out.length < step[0]) break;
-                if (!out.slice(-step[0]).every(p => p.id === last.id && p.tier === last.tier)) break;
-                out.splice(out.length - step[0], step[0], { id: last.id, tier: last.tier + 1 });
+            const p = { id, tier: 0, w: 1, h: 1 };
+            const across = HW_PIECES[id].steps[0][2] === 1;
+            let rack = null;
+            // Next to the latest small piece of this kind, in its merge direction.
+            for (let k = racks.length - 1; k >= 0 && !rack; k--) {
+                const r = racks[k];
+                const q = [...r.pieces].reverse().find(o => o.id === id && o.tier === 0);
+                if (!q) continue;
+                const x = across ? q.x + 1 : q.x;
+                const y = across ? q.y : q.y + 1;
+                if (inside(x, y) && !r.grid[y][x]) {
+                    Object.assign(p, { x, y });
+                    rack = r;
+                }
+                break;
             }
-        }
-        for (const p of out) {
-            const [w, h] = pieceSize(p.id, p.tier);
-            Object.assign(p, { w, h, units: pieceUnits(p.id, p.tier), name: HW_PIECES[p.id].names[p.tier] });
-        }
-        return out;
-    }
-
-    // First fit on a rack's grid (rows from the bottom); false when the piece doesn't fit.
-    function place(grid, p) {
-        for (let y = 0; y + p.h <= RACK.rows; y++) {
-            for (let x = 0; x + p.w <= RACK.cols; x++) {
-                let free = true;
-                for (let j = y; j < y + p.h && free; j++) for (let i = x; i < x + p.w; i++) if (grid[j][i]) { free = false; break; }
-                if (!free) continue;
-                for (let j = y; j < y + p.h; j++) for (let i = x; i < x + p.w; i++) grid[j][i] = true;
-                Object.assign(p, { x, y });
-                return true;
+            // Otherwise the first free spot, from the bottom-left, in any rack.
+            for (const r of racks) {
+                if (rack) break;
+                for (let y = 0; y < RACK.rows && !rack; y++) {
+                    const x = r.grid[y].indexOf(null);
+                    if (x >= 0) {
+                        Object.assign(p, { x, y });
+                        rack = r;
+                    }
+                }
             }
+            if (!rack) {
+                rack = newRack();
+                Object.assign(p, { x: 0, y: 0 });
+            }
+            put(rack, p);
+            let cur = p;
+            while ((cur = merge(rack, cur))) { /* a merge can complete the next size up */ }
         }
-        return false;
+        for (const r of racks) for (const p of r.pieces) Object.assign(p, { units: pieceUnits(p.id, p.tier), name: HW_PIECES[p.id].names[p.tier] });
+        return racks;
     }
 
     function renderCabinets() {
@@ -578,16 +631,7 @@ window.AGI = (function () {
         const first = cabinetKey === null;
         cabinetKey = key;
         storageSet(RACK_LOG_KEY, JSON.stringify(log));
-        const racks = [];
-        for (const p of rackPieces(log)) {
-            let rack = racks.find(r => place(r.grid, p));
-            if (!rack) {
-                rack = { grid: Array.from({ length: RACK.rows }, () => Array(RACK.cols).fill(false)), pieces: [] };
-                racks.push(rack);
-                place(rack.grid, p);
-            }
-            rack.pieces.push(p);
-        }
+        const racks = buildRacks(log);
         setHidden($('cabinetPanel'), !racks.length);
         // New or merged pieces (not on load) pop in; merges flash.
         const seen = new Set();
