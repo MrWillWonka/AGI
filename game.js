@@ -1463,11 +1463,13 @@ window.AGI = (function () {
     function buildTrainingArt() {
         const art = $('bay-training').querySelector('.bay-art');
         const cleared = clearedLanes();
-        art.replaceChildren(el('canvas', { class: 'lane', 'data-lane': 0, title: 'The frontier: your next skill' }));
-        for (let i = 1; i <= cleared; i++) {
+        // In the order you went through them: cleared legs oldest first, then the frontier you're on.
+        art.replaceChildren();
+        for (let i = cleared; i >= 1; i--) {
             const k = state.path.learned - i;
             art.append(el('canvas', { class: 'lane cleared', 'data-lane': i, 'data-leg': k, title: `Replay from ${E.skillAt(k).name}` }));
         }
+        art.append(el('canvas', { class: 'lane', 'data-lane': 0, title: 'The frontier: your next skill' }));
         for (let i = 0; i < BAY_ART.training - 3 - 2 * cleared; i++) art.append(el('i'));
         art.dataset.cleared = cleared;
         art.dataset.learned = state.path.learned;
@@ -1951,9 +1953,10 @@ window.AGI = (function () {
         const select = $('legSelect');
         if (legPickerKey !== String(learned)) {
             legPickerKey = String(learned);
+            // Leg 1 first, through to the frontier you're on.
             select.replaceChildren(
-                el('option', { value: '', text: `Frontier: ${E.skillAt(learned).name}` }),
-                ...Array.from({ length: learned }, (_, k) => el('option', { value: k, text: `Leg ${k + 1}: ${E.skillAt(k).name} ✓` })));
+                ...Array.from({ length: learned }, (_, k) => el('option', { value: k, text: `Leg ${k + 1}: ${E.skillAt(k).name} ✓` })),
+                el('option', { value: '', text: `Leg ${learned + 1}: ${E.skillAt(learned).name} (frontier)` }));
         }
         const want = startLeg() < learned ? String(startLeg()) : '';
         if (select.value !== want) select.value = want;
