@@ -318,6 +318,15 @@ window.AGI = (function () {
     }
 
     function renderStations() {
+        // Open stations share the floor: with two open, each takes half the width (a new one opening
+        // reflows them once). Slots stay in E.TABS order, so a station never jumps ahead of another.
+        const open = E.TABS.filter(t => !t.unlock || state.unlocked[t.unlock]).length;
+        const box = $('labStations');
+        if (box.dataset.open !== String(open)) {
+            box.dataset.open = open;
+            box.style.setProperty('--open-stations', Math.max(1, open));
+            box.style.setProperty('--open-stations-mid', Math.max(1, Math.min(2, open)));
+        }
         for (const tab of E.TABS) {
             const st = ui.stations[tab.id];
             setHidden(st.node, !!tab.unlock && !state.unlocked[tab.unlock]);

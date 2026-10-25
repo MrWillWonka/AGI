@@ -2224,3 +2224,14 @@ body.has-minimap .room-rnd { padding-bottom: 210px; }
 .station-terminal .station-list { padding: 0 10px 8px; }
 .station-terminal .upgrade h3 { font-size: 0.82rem; }
 .station-terminal .upgrade .muted, .station-terminal .upgrade-flavor { font-size: 0.74rem; }
+
+/* Use the floor: open stations share the width, and a wide station flows its cards into columns. */
+.lab-stations { grid-template-columns: repeat(var(--open-stations-mid, 2), minmax(0, 1fr)); }
+.lab-stations .station-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); column-gap: 18px; align-content: start; }
+.lab-stations .station-list > .empty-hint { grid-column: 1 / -1; }
+@media (min-width: 1800px) {
+    .lab-stations { grid-template-columns: repeat(var(--open-stations, 4), minmax(0, 1fr)); }
+}
+@media (max-width: 960px) {
+    .lab-stations { grid-template-columns: minmax(0, 1fr); }
+}
