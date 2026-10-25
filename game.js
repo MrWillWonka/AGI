@@ -97,11 +97,6 @@ window.AGI = (function () {
             el('time', { text: time }), document.createTextNode(' ' + message)
         ]));
         while (list.children.length > LOG_LIMIT) list.lastChild.remove();
-        const ticker = $('ticker');
-        if (ticker) {
-            ticker.textContent = message;
-            ticker.className = `ticker log-${type || 'info'}`;
-        }
     }
 
     function toast(title, message) {
@@ -481,9 +476,6 @@ window.AGI = (function () {
     function announce(changes) {
         for (const m of changes.milestones) {
             log(`Milestone reached: ${m.name}`, 'special');
-        }
-        for (const up of changes.upgrades) {
-            log(`New upgrade available: ${up.name}`, 'info');
         }
         for (const a of changes.achievements) {
             log(`Achievement unlocked: ${a.name}`, 'special');
@@ -1004,8 +996,6 @@ window.AGI = (function () {
     function enterBay(id, bayNode) {
         if (!bayUnlocked(id) || openBay) return;
         openBay = id;
-        // Inside a bay its own bar ("← Rack") is the way back; the room's bar would be a second one.
-        $('serverRoom').classList.add('bay-open');
         const bay = BAYS[id];
         setText($('moduleTitle'), bay.name);
         for (const m of document.querySelectorAll('.module')) m.hidden = true;
@@ -1041,7 +1031,6 @@ window.AGI = (function () {
         hub.hidden = false;
         // Closed at once, so another Escape during the animation goes on to the facility.
         openBay = null;
-        $('serverRoom').classList.remove('bay-open');
         const done = () => {
             view.hidden = true;
             if (document.body.dataset.view === 'servers') bayNode.focus({ preventScroll: true });

@@ -63,13 +63,13 @@
 
         <!-- Server room: the bays (modules). -->
         <section class="room room-servers" id="serverRoom" data-room="servers" aria-label="Server room" hidden>
-            <div class="room-bar">
-                <button type="button" class="ghost-button back-button" data-facility>← Facility</button>
-                <h2>Server room</h2>
-            </div>
             <div class="viewport hud" id="viewport">
                 <!-- Server room: each bay is a training module. Clicking one zooms into it. -->
                 <div class="hub" id="hub">
+                    <div class="room-bar">
+                        <button type="button" class="ghost-button back-button" data-facility>← Facility</button>
+                        <h2>Server room</h2>
+                    </div>
                     <div class="hub-pipes" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
                     <!-- One tall rack. Bays are buttons with their own hardware art (filled by game.js); rack units are decoration.
                          Locked bays show as a sealed shutter (the next one) or a blanking plate (the rest), never by name. -->
@@ -184,7 +184,7 @@
         </section>
 
         <!-- Lab: hands-on actions, automation, Transcend and the hardware/software upgrades. -->
-        <section class="room room-lab" id="labRoom" data-room="lab" aria-label="Lab">
+        <section class="room room-lab room-frame hud" id="labRoom" data-room="lab" aria-label="Lab">
             <div class="room-bar">
                 <button type="button" class="ghost-button back-button" data-facility>← Facility</button>
                 <h2>Lab</h2>
@@ -194,7 +194,6 @@
                 <div class="panel panel-actions hud">
                     <h2 class="station-title">Workbench</h2>
                     <div id="actions" class="action-row"></div>
-                    <p class="ticker" id="ticker" aria-live="polite"></p>
                 </div>
 
                 <div class="panel panel-auto hud" id="autoPanel" hidden>
@@ -212,7 +211,7 @@
         </section>
 
         <!-- R&D: long-term projects that outlast a run. Transcend lives here. -->
-        <section class="room room-rnd" id="rndRoom" data-room="rnd" aria-label="R&amp;D" hidden>
+        <section class="room room-rnd room-frame hud" id="rndRoom" data-room="rnd" aria-label="R&amp;D" hidden>
             <div class="room-bar">
                 <button type="button" class="ghost-button back-button" data-facility>← Facility</button>
                 <h2>R&amp;D</h2>

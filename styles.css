@@ -207,9 +207,6 @@ h1, h2, h3, p { margin: 0; }
 .stage { display: grid; min-width: 0; }
 .stage > * { grid-area: 1 / 1; }
 
-.room-bar { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; grid-column: 1 / -1; }
-.room-bar h2 { font: 700 0.95rem var(--font-display); text-transform: uppercase; letter-spacing: 0.14em; }
-.room-lab .room-bar { margin-bottom: -6px; }
 
 .back-button.ping { border-color: var(--success); color: var(--success); animation: node-ready 1.8s ease-in-out infinite; }
 
@@ -973,20 +970,7 @@ h1, h2, h3, p { margin: 0; }
 .action-gain { grid-area: gain; font: 500 0.8rem var(--font-mono); color: var(--success); }
 .action-cost { grid-area: cost; font: 400 0.75rem var(--font-mono); color: var(--muted); }
 
-.ticker {
-    font: 0.8rem var(--font-mono);
-    color: var(--muted);
-    min-height: 1.4em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    border-top: 1px dashed var(--border);
-    padding-top: 8px;
-}
 
-.ticker.log-special { color: var(--accent); }
-.ticker.log-success { color: var(--success); }
-.ticker.log-warning { color: var(--warning); }
 
 /* ---- Tabs (segmented control) ---- */
 
@@ -1665,7 +1649,6 @@ body { zoom: var(--ui-scale); }
 }
 
 /* ---- Training Cluster layout ---- */
-.room-servers.bay-open > .room-bar { display: none; }
 .module-bar { flex-wrap: nowrap; min-width: 0; }
 .module-bar .ghost-button { white-space: nowrap; flex: none; }
 .module-bar h2 { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1689,3 +1672,16 @@ body { zoom: var(--ui-scale); }
 .upgrade-flavor, .result-flavor { font-style: italic; font-size: 0.82rem; color: var(--text); opacity: 0.8; margin-top: 2px; }
 .station-terminal .upgrade-flavor { font-family: var(--font-mono); font-style: normal; color: #7fcfa8; opacity: 0.75; }
 .station-terminal .upgrade-flavor::before { content: "# "; }
+
+/* Every room is a framed screen with its way back inside the frame, like a bay's "← Rack". */
+.room-frame {
+    padding: 14px;
+    border: 1px solid var(--border);
+    background: linear-gradient(180deg, #0c191c, #0a1416);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+.room-bar { display: flex; align-items: center; gap: 14px; margin: 0; grid-column: 1 / -1; }
+.room-bar h2 { font: 700 0.95rem var(--font-display); text-transform: uppercase; letter-spacing: 0.12em; }
+.room-frame > .room-bar { margin-bottom: 4px; }
+.hub > .room-bar { position: absolute; top: 14px; left: 14px; right: 14px; z-index: 2; }
+.hub { padding-top: 64px; }
