@@ -380,11 +380,15 @@ window.AGI = (function () {
         switch (up.shows) {
             case 'click': {
                 const next = up.id === 'keyboard' ? E.nextClickTool(lvl) : null;
-                // The desk adds a quarter CP per item, so small values keep two decimals.
-                const c = x => f(x, x < 10 && x % 1 ? 2 : undefined);
-                const later = E.isMaxed(state, up) ? '' : ` → ${c(E.derive({ ...state, levels: { ...state.levels, [up.id]: lvl + 1 } }, debugRates).clickPower)}`;
+                // The desk adds a quarter CP per item, and Shell Scripts add a share of CP/s, so keep two
+                // decimals whenever whole numbers would hide the change ("14 → 14").
+                const now = d.clickPower;
+                const nxt = E.isMaxed(state, up) ? null : E.derive({ ...state, levels: { ...state.levels, [up.id]: lvl + 1 } }, debugRates).clickPower;
+                const fine = (now < 10 && now % 1) || (nxt !== null && nxt < 1000 && Math.floor(nxt) === Math.floor(now));
+                const c = x => f(x, fine ? 2 : undefined);
+                const later = nxt === null ? '' : ` → ${c(nxt)}`;
                 const then = !next ? '' : next.from === lvl + 1 ? ` · then ${next.name}` : ` · ${next.name} at level ${next.from + 1}`;
-                return `Click: ${c(d.clickPower)}${later} CP${then}`;
+                return `Click: ${c(now)}${later} CP${then}`;
             }
             case 'collect': return `Collect: ${f(d.dpPerCollect)}${after('dpPerCollect')} DP`;
             case 'research': return `Research: ${f(d.rpPerResearch)}${after('rpPerResearch')} RP`;
@@ -459,20 +463,18 @@ window.AGI = (function () {
                 button
             ]) : button;
             const nameNode = el('span', { text: up.name });
-            // Lab cards keep to the numbers: no flavour lines here (the skill tree and the log keep theirs).
-            const flavorNode = null;
+            // Lab cards keep to the numbers: no flavour lines here (the skill tree keeps them).
             const card = el('article', { class: 'upgrade', hidden: true, 'data-id': up.id }, [
                 el('div', { class: 'upgrade-info' }, [
                     el('h3', {}, [nameNode, document.createTextNode(' '), levelBadge]),
                     // Hardware's live line says what it makes, so it needs no description.
                     up.cps ? null : el('p', { class: 'muted small', text: up.effect }),
-                    yieldLine,
-                    flavorNode
+                    yieldLine
                 ]),
                 side
             ]);
             ui.panels[up.tab].append(card);
-            ui.upgrades[up.id] = { up, card, button, levelBadge, yieldLine, nameNode, flavorNode };
+            ui.upgrades[up.id] = { up, card, button, levelBadge, yieldLine, nameNode };
         }
         for (const tab of E.TABS) {
             const empty = el('p', { class: 'muted small empty-hint' });
@@ -1023,7 +1025,7 @@ window.AGI = (function () {
             // Net rates: production minus what automation converts away.
             case 'rate.cp': return d.cpPerSec ? `${d.cpNet < 0 ? '−' : '+'}${f(Math.abs(d.cpNet))}/s` : '';
             case 'rate.dp': return d.dpPerSec ? `${d.dpNet < 0 ? '−' : '+'}${f(Math.abs(d.dpNet))}/s` : '';
-            case 'rate.xp': return d.xpPerSec ? `+${f(d.xpPerSec)}/s` : '';
+            case 'rate.xp': return d.xpPerSec ? `+${f(d.xpPerSec, d.xpPerSec < 0.1 ? 2 : undefined)}/s` : '';
             // Clicks count too: passive net output plus what you made by hand in the last few seconds.
             case 'supply.cp': return `${f(d.cpNet + handRate('cp'))} CP/s`;
             case 'supply.dp': return `${f(d.dpNet + handRate('dp'))} DP/s`;
@@ -1114,7 +1116,7 @@ window.AGI = (function () {
         renderStations();
 
         const visibleCount = {};
-        for (const { up, card, button, levelBadge, yieldLine, nameNode, flavorNode } of Object.values(ui.upgrades)) {
+        for (const { up, card, button, levelBadge, yieldLine, nameNode } of Object.values(ui.upgrades)) {
             // Finished one-time upgrades retire: a short "installed" animation, then the card folds away.
             const visible = E.isUpgradeVisible(state, up) && (!E.isMaxed(state, up) || !!ui.upgrades[up.id].retiring);
             setHidden(card, !visible);
@@ -1124,7 +1126,6 @@ window.AGI = (function () {
             const maxed = E.isMaxed(state, up);
             if (yieldLine) setText(yieldLine, yieldText(up, lvl, d));
             setText(nameNode, E.upgradeName(state, up));
-            if (flavorNode) setText(flavorNode, E.upgradeFlavor(state, up));
             setText(levelBadge, up.max === 1 ? '' : `Lv ${lvl}`);
             card.classList.toggle('owned', maxed);
             if (maxed) {

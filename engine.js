@@ -366,7 +366,7 @@
     // What a card is called and says now (the click tool changes as it grows).
     const upgradeName = (s, up) => (up.id === 'keyboard' ? clickTool(level(s, 'keyboard')).name : up.name);
     const upgradeFlavor = (s, up) => (up.id === 'keyboard' ? clickTool(level(s, 'keyboard')).flavor : up.flavor);
-    // A hardware tier shows up once you own TIER_REVEAL_OWNED of the tier below and have earned half its
+    // A hardware tier shows up once you own TIER_REVEAL_OWNED of the tier below and have earned its full
     // price this run: late enough that the tier below has done its job, early enough to save up for it.
     const TIER_REVEAL_OWNED = 10;
     function tierReady(s, id) {
@@ -552,7 +552,7 @@
             researchAssistant: { share: shares.researchAssistant, speed: researchCpScale * researchDpScale, cp: shares.researchAssistant * cpPerSec, perSec: researchPerSec }
         };
         const autoThrottled = (wantCollects > 0 && collectScale < 1) || (wantResearch > 0 && researchCpScale * researchDpScale < 1);
-        // Push strength grows with upgrades and skills, and gently with prestige and achievements.
+        // Push strength grows with upgrades and skills, and gently with versions (Insight).
         // Hills grow faster than this, so later skills need momentum built over several pushes.
         const tb = treeBoosts(s);
         const pushPower = PATH.basePush * (1 + tb.push + sk.push) * Math.sqrt(mult) * bo.push;
@@ -1046,9 +1046,6 @@
 
     const PROJECTS = { firstAt: 120, every: [150, 300], maxOffers: 3 };
 
-    const INVESTORS = ['Dad', 'Aunt Linda', 'A guy from the gym', 'Your old roommate', 'Venture Pals LLC',
-        'Big Tech Corp', 'A mysterious foundation', 'A crypto billionaire', 'The Government (probably)'];
-
     // `size(s)` scales the target to where the player is; `needs` keeps tasks to things they can do.
     const PROJECT_TASKS = {
         computes: { stat: s => s.stats.clicks, text: n => `Compute ${n} times by hand`, size: () => 40 },
@@ -1103,7 +1100,7 @@
         const rewards = PROJECT_REWARDS.map((x, i) => i).filter(i => ok(PROJECT_REWARDS[i]));
         const offer = {
             id: p.seq,
-            investor: INVESTORS[Math.floor(r() * INVESTORS.length)],
+            investor: '',   // investors are anonymous (the field stays for the save shape)
             task,
             target: Math.ceil(PROJECT_TASKS[task].size(s)),
             start: PROJECT_TASKS[task].stat(s),
