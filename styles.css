@@ -78,7 +78,6 @@ h1, h2, h3, p { margin: 0; }
 }
 
 .topbar-inner {
-    max-width: 1320px;
     margin: 0 auto;
     padding: 10px 20px;
     display: flex;
@@ -179,7 +178,7 @@ h1, h2, h3, p { margin: 0; }
 /* ---- Layout ---- */
 
 .layout {
-    max-width: 1320px;
+    /* Full width at every size: the screen is the game. */
     margin: 0 auto;
     padding: 20px;
     display: flex;
@@ -234,12 +233,12 @@ h1, h2, h3, p { margin: 0; }
 .facility-plan {
     flex: 1;
     display: grid;
-    /* Laid out like the minimap's chip: wings across the top, the lab left, the core in the middle,
-       the server room tall on the right, R&D along the bottom. Areas not yet drawn leave bare die. */
+    /* Laid out like the minimap's chip: wings across the top, the lab left, the server room tall
+       on the right, R&D along the bottom. Areas not yet drawn leave bare die. */
     position: relative;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     grid-template-rows: minmax(110px, 0.7fr) minmax(170px, 1.2fr) minmax(140px, 1fr);
-    grid-template-areas: "brd sig mir" "lab core srv" "rnd rnd srv";
+    grid-template-areas: "brd sig mir" "lab lab srv" "rnd rnd srv";
     gap: 12px;
     margin: 14px;
     padding: 16px;
@@ -257,7 +256,6 @@ h1, h2, h3, p { margin: 0; }
 .fr-lab { grid-area: lab; }
 .fr-servers { grid-area: srv; }
 .fr-rnd { grid-area: rnd; }
-.facility-core { grid-area: core; }
 /* Pins round the die. */
 .die-pins { position: absolute; pointer-events: none; }
 .die-pins.top, .die-pins.bottom { left: 8%; right: 8%; height: 12px; background: repeating-linear-gradient(90deg, #3a5a60 0 6px, transparent 6px 26px); }
@@ -266,20 +264,6 @@ h1, h2, h3, p { margin: 0; }
 .die-pins.left, .die-pins.right { top: 8%; bottom: 8%; width: 12px; background: repeating-linear-gradient(180deg, #3a5a60 0 6px, transparent 6px 26px); }
 .die-pins.left { left: -16px; }
 .die-pins.right { right: -16px; }
-/* The core: your AI, in the middle of everything. */
-.facility-core {
-    display: grid;
-    place-content: center;
-    gap: 4px;
-    text-align: center;
-    border: 1px solid var(--success);
-    border-radius: 6px;
-    background: radial-gradient(circle, rgba(99, 224, 171, 0.14), transparent 70%), #0e221f;
-    box-shadow: 0 0 30px rgba(99, 224, 171, 0.15);
-}
-.core-label { font: 700 0.66rem var(--font-display); letter-spacing: 0.2em; text-transform: uppercase; color: var(--success); }
-.core-phase { font: 700 1.05rem var(--font-display); letter-spacing: 0.08em; }
-.core-stats { font: 500 0.75rem var(--font-mono); color: var(--muted); }
 
 
 .facility-room {
@@ -1459,8 +1443,12 @@ h1, h2, h3, p { margin: 0; }
 .station-list { display: flex; flex-direction: column; }
 .station-sealed { display: none; }
 
-/* Server cabinets: the hardware you own, racked, filling up over time. */
-.station-bench .station-art {
+/* Server cabinets: the hardware you own, racked, filling up over time, in their own panel under the stations. */
+.cabinet-panel[hidden] { display: none; }
+.cabinet-panel { grid-column: 2; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.station-bench .station-art { display: none; }
+@media (max-width: 960px) { .cabinet-panel { grid-column: auto; } }
+.cabinet-art {
     /* Fixed height, scrolling sideways as cabinets are added: buying hardware never moves the page. */
     height: 222px;
     overflow-x: auto;
@@ -1604,9 +1592,6 @@ h1, h2, h3, p { margin: 0; }
 :root { --ui-scale: 1; }
 body { zoom: var(--ui-scale); }
 
-@media (min-width: 1600px) {
-    .layout, .topbar-inner { max-width: 1480px; }
-}
 @media (min-width: 2200px) {
     :root { --ui-scale: 1.25; }
 }
@@ -1998,7 +1983,7 @@ html, body { overflow-x: clip; }
 }
 @media (max-width: 640px) {
     .facility-plan { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: minmax(120px, auto);
-        grid-template-areas: "core core" "lab srv" "rnd srv" "brd sig" "mir mir"; margin: 10px; padding: 10px; }
+        grid-template-areas: "lab srv" "rnd srv" "brd sig" "mir mir"; margin: 10px; padding: 10px; }
     .minimap { width: 128px; }
     .mm-title { font-size: 0.58rem; padding: 3px 6px; }
     .dev-actions { top: 8px; right: 8px; padding: 6px 8px; gap: 8px; }
@@ -2008,13 +1993,13 @@ html, body { overflow-x: clip; }
 }
 
 .lab-supply { align-items: start; }
-/* Keep the minimap from covering content: a gutter on wide screens, translucent until hovered elsewhere. */
-@media (min-width: 1500px) {
-    body.has-minimap .layout { padding-right: 232px; }
-}
-@media (max-width: 1499px) {
-    .minimap { opacity: 0.88; transition: opacity 0.15s ease; }
-    .minimap:hover, .minimap:focus-within { opacity: 1; }
+/* The minimap floats over the bottom-right corner instead of taking a column: content keeps the full
+   width, scrolling rooms leave room under their last row, and the chip is slightly translucent. */
+body.has-minimap .room-lab, body.has-minimap .room-rnd { padding-bottom: 210px; }
+.minimap { opacity: 0.9; transition: opacity 0.15s ease; }
+.minimap:hover, .minimap:focus-within { opacity: 1; }
+@media (max-width: 640px) {
+    body.has-minimap .room-lab, body.has-minimap .room-rnd { padding-bottom: 48px; }
 }
 @media (max-width: 640px) {
     /* Phones: just the way home; the chip would cover the screen. */
@@ -2032,3 +2017,26 @@ html, body { overflow-x: clip; }
 .minimap:has(.mm-title:hover) .mm-pin, .minimap:has(.mm-body:hover) .mm-pin, .mm-body:focus-visible .mm-pin { fill: var(--success); }
 .minimap:has(.mm-title:hover), .minimap:has(.mm-body:hover) { border-color: var(--success); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 26px rgba(99, 224, 171, 0.35); }
 .mm-body.here .mm-die { stroke: var(--success); }
+
+/* Hardware cards show the part you're buying, as it will sit in the cabinet, above the buy button. */
+.upgrade-side { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.upgrade-part {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 40px;
+    padding: 4px 8px;
+    border: 1px solid #1f3b42;
+    border-radius: 4px;
+    background:
+        radial-gradient(circle, #020506 1.4px, transparent 1.8px) 2px 0 / 5px 9px repeat-y,
+        radial-gradient(circle, #020506 1.4px, transparent 1.8px) calc(100% - 2px) 0 / 5px 9px repeat-y,
+        #070f11;
+}
+.upgrade-part .unit { width: 100%; }
+.upgrade-part-label { font: 0.62rem var(--font-mono); color: var(--muted); text-align: center; margin-top: 2px; }
+@media (max-width: 960px) {
+    .station .upgrade-side { flex-direction: row; align-items: center; justify-self: start; }
+    .station .upgrade-part { width: 92px; }
+}
+.supply-bonus { margin-left: 6px; font: 600 0.68rem var(--font-mono); letter-spacing: 0; text-transform: none; color: var(--success); }

@@ -10,7 +10,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const SAVE_VERSION = 3;   // 3: investor projects
+    const SAVE_VERSION = 4;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto)
     const MAX_OFFLINE_SECONDS = 8 * 60 * 60;
     const PRESTIGE_BONUS = 0.1;        // +10% production per prestige point
     const ACHIEVEMENT_BONUS = 0.02;    // +2% production per achievement
@@ -38,7 +38,10 @@
         basePushes: 1,       // pushes per roll: just the launch until More Epochs is bought
         baseCooldown: 2.0,   // seconds between pushes
         minCooldown: 0.3,
-        clearedRate: 1 / 600  // a cleared stretch runs itself: this share of its full XP per second
+        clearedRate: 1 / 600, // a cleared stretch runs itself: this share of its full XP per second
+        clearedCp: 0.03,      // each cleared stretch adds +3% compute
+        lapCp: 0.002,         // and every automated lap of it adds a little more (+0.2%)...
+        lapCpMax: 0.5         // ...up to +50% per stretch
     };
 
     // Skills, in trail order. Hill i teaches SKILLS[i]. `bonus` effects are summed in derive().
@@ -290,7 +293,7 @@
                 firstStart: now,
                 highestPhase: 0
             },
-            path: { learned: 0, best: 0 },
+            path: { learned: 0, best: 0, auto: [] },   // auto[k]: automated laps of cleared stretch k
             projects: { offers: [], boosts: [], next: PROJECTS.firstAt, seq: 0 },
             settings: { autosave: true, offline: true, autoBudget: AUTO_BUDGET.default },
             lastSaved: now
@@ -328,7 +331,7 @@
         const bo = projectBoosts(s);
 
         const cpPerSec = (0.5 * L('cpu') + 2 * L('server') + 10 * L('quantum') + 50 * L('neural')
-            + 250 * L('datacenter') + 1400 * L('optical')) * (1 + sk.cp) * mult * r.cp * bo.cp;
+            + 250 * L('datacenter') + 1400 * L('optical')) * (1 + sk.cp + clearedCpBonus(s)) * mult * r.cp * bo.cp;
         const clickPower = (1 + L('server') + sk.click) * mult;
         const dpPerCollect = (1 + L('dataProcessor') + 5 * L('nlp') + 10 * L('computerVision') + sk.collect) * (1 + sk.dp) * mult * bo.dp;
         const rpPerResearch = (1 + L('machineLearning') + 2 * L('deepLearning') + 3 * L('reinforcementLearning')
@@ -502,6 +505,7 @@
     function tick(s, dt, rates) {
         if (!(dt > 0)) return;
         tickProjects(s);
+        for (let k = 0; k < s.path.learned; k++) s.path.auto[k] = (s.path.auto[k] || 0) + dt / clearedPeriod(k);
         const d = derive(s, rates);
         addCp(s, d.cpPerSec * dt);
         s.res.xp += d.xpPerSec * dt;
@@ -651,6 +655,15 @@
     }
 
     const stretchXpAt = k => PATH.xpPerStretch * Math.pow(PATH.xpScale, k);
+    // Seconds per automated lap of cleared stretch k (the rack's crawling balls show the same laps).
+    const clearedPeriod = k => 40 + 5 * k;
+
+    // Compute bonus from cleared stretches: a little for clearing each, a little more per automated lap.
+    function clearedCpBonus(s) {
+        let b = 0;
+        for (let k = 0; k < s.path.learned; k++) b += PATH.clearedCp + Math.min(PATH.lapCpMax, PATH.lapCp * (s.path.auto[k] || 0));
+        return b;
+    }
 
     function stretchXp(s) {
         return stretchXpAt(s.path.learned);
@@ -886,6 +899,7 @@
         }
         s.path.learned = Math.floor(num(raw.path?.learned, 0));
         s.path.best = Math.min(1, num(raw.path?.best, 0));
+        s.path.auto = (Array.isArray(raw.path?.auto) ? raw.path.auto : []).slice(0, s.path.learned).map(v => num(v, 0));
         s.projects = cleanProjects(raw.projects, d.projects);
         s.lastSaved = num(raw.lastSaved, d.lastSaved);
         return s;
@@ -981,7 +995,7 @@
     }
 
     return {
-        SAVE_VERSION, MAX_OFFLINE_SECONDS, AUTO_BUDGET, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN, PATH, SKILLS,
+        SAVE_VERSION, MAX_OFFLINE_SECONDS, AUTO_BUDGET, clearedCpBonus, clearedPeriod, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,

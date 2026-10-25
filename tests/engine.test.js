@@ -413,3 +413,26 @@ test('v2 saves load with empty projects; bad project data is dropped', () => {
     assert.deepEqual(bad.projects.offers, []);
     assert.deepEqual(bad.projects.boosts, []);
 });
+
+test('cleared stretches boost compute: a little on clearing, a little more per automated lap', () => {
+    const s = fresh();
+    s.levels.cpu = 10;
+    s.stats.clicks = 25;
+    assert.equal(E.clearedCpBonus(s), 0);
+    s.path.learned = 2;
+    s.path.auto = [0, 0];
+    assert.ok(Math.abs(E.clearedCpBonus(s) - 2 * E.PATH.clearedCp) < 1e-9, '+3% per cleared stretch');
+    const before = E.derive(s).cpPerSec;
+    E.tick(s, E.clearedPeriod(0) * 10);
+    assert.ok(Math.abs(s.path.auto[0] - 10) < 1e-6, 'laps accumulate with time');
+    assert.ok(E.clearedCpBonus(s) > 2 * E.PATH.clearedCp);
+    assert.ok(E.derive(s).cpPerSec > before, 'laps raise compute');
+    s.path.auto = [1e6, 1e6];
+    assert.ok(Math.abs(E.clearedCpBonus(s) - 2 * (E.PATH.clearedCp + E.PATH.lapCpMax)) < 1e-9, 'capped per stretch');
+});
+
+test('v3 saves load with no automated laps', () => {
+    const v3 = E.migrate({ version: 3, path: { learned: 2, best: 0.3 } });
+    assert.deepEqual(v3.path.auto, []);
+    assert.equal(v3.path.learned, 2);
+});

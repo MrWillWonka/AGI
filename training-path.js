@@ -30,7 +30,9 @@
 
     const skillHeight = k => 0.3 * Math.pow(1.5, k);   // each skill hill is a bigger wall than the last
     const skillHalfWidth = k => 0.55 * Math.pow(1.14, k);
-    const stretchLength = k => 10 * Math.pow(1.25, k) + 4 * k;   // checkpoint to the foot of skill hill k: much longer every stretch
+    // Checkpoint to the foot of skill hill k. From the second stretch on the distance itself is the
+    // challenge (twice the old length), so strength, launches and bounces matter later on.
+    const stretchLength = k => (k === 0 ? 10 : 2 * (10 * Math.pow(1.25, k) + 4 * k));
 
     const checkpoints = [0];    // checkpoints[k] = x where stretch k starts
     function checkpoint(k) {

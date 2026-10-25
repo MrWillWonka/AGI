@@ -192,7 +192,7 @@ window.AGI = (function () {
     // Lab stations: one per upgrade group (E.TABS), each with its own look. Locked stations stay
     // hidden except the next one, which shows sealed and unnamed.
     const STATIONS = {
-        hardware: { name: 'Server cabinets', kind: 'bench' },
+        hardware: { name: 'Hardware bench', kind: 'bench' },
         software: { name: 'Software terminal', kind: 'terminal' },
         algorithms: { name: 'Research wall', kind: 'wall' },
         consciousness: { name: 'Isolation chamber', kind: 'chamber' }
@@ -224,13 +224,22 @@ window.AGI = (function () {
             const levelBadge = el('span', { class: 'badge' });
             const button = el('button', { type: 'button', class: 'button upgrade-button' });
             button.addEventListener('click', () => doBuy(up.id));
+            // Hardware: the part you're buying, as it will sit in the server cabinet.
+            const part = HARDWARE_UNITS[up.id];
+            const side = part ? el('div', { class: 'upgrade-side' }, [
+                el('div', { class: 'upgrade-part', 'aria-hidden': 'true' }, [
+                    el('span', { class: `unit unit-${up.id}`, style: `--u:${part.size}` }),
+                    el('span', { class: 'upgrade-part-label', text: `${part.size}U · ${part.per === 1 ? 'every level' : `every ${part.per} levels`}` })
+                ]),
+                button
+            ]) : button;
             const card = el('article', { class: 'upgrade', hidden: true }, [
                 el('div', { class: 'upgrade-info' }, [
                     el('h3', {}, [document.createTextNode(up.name + ' '), levelBadge]),
                     el('p', { class: 'muted small', text: up.effect }),
                     up.flavor ? el('p', { class: 'upgrade-flavor', text: up.flavor }) : null
                 ]),
-                button
+                side
             ]);
             ui.panels[up.tab].append(card);
             ui.upgrades[up.id] = { up, card, button, levelBadge };
@@ -293,9 +302,10 @@ window.AGI = (function () {
             used += u.size;
             cabinets[cabinets.length - 1].push({ ...u, fresh: !first && i >= before });
         });
+        $('cabinetPanel').hidden = !units.length;
         if (!cabinets.length) cabinets.push([]);
         const shown = cabinets.slice(0, MAX_CABINETS);
-        const art = ui.stations.hardware.art;
+        const art = $('cabinetArt');
         art.replaceChildren(...shown.map(list => el('div', { class: 'cabinet' }, [
             el('div', { class: 'cabinet-units' }, list.map(u => el('span', {
                 class: `unit unit-${u.id}${u.fresh ? ' fresh' : ''}`, style: `--u:${u.size}`,
@@ -552,8 +562,9 @@ window.AGI = (function () {
     // ---- Lab life: output sparklines and the terminal's job log ----
 
     const SPARK_POINTS = 90;       // 45 s of history at one sample every 0.5 s
-    const JOB_REPORT_SECONDS = 2;  // the terminal reports automation in batches this often
-    const lab = { cp: [], dp: [], sampleT: 0, jobT: 0, lastRunCp: null, lastCollects: null, collects: 0, research: 0, batch: 0, paper: 0, lines: [] };
+    const JOB_REPORT_SECONDS = 2;
+    const HAND_SAMPLES = 6;        // the supply numbers add what your clicks made over the last 3 s  // the terminal reports automation in batches this often
+    const lab = { cp: [], dp: [], hand: [], sampleT: 0, jobT: 0, lastRunCp: null, lastCollects: null, collects: 0, research: 0, batch: 0, paper: 0, lines: [] };
 
     function sampleLab(dt) {
         const d = E.derive(state, debugRates);
@@ -578,9 +589,12 @@ window.AGI = (function () {
         const collects = state.stats.collects;
         if (lab.lastRunCp != null && runCp >= lab.lastRunCp) {
             lab.cp.push((runCp - lab.lastRunCp) / span);
-            lab.dp.push(Math.max(0, collects - lab.lastCollects) * d.dpPerCollect / span + d.dpPerSec);
+            const handDp = Math.max(0, collects - lab.lastCollects) * d.dpPerCollect / span;
+            lab.dp.push(handDp + d.dpPerSec);
+            lab.hand.push({ cp: Math.max(0, (runCp - lab.lastRunCp) / span - d.cpPerSec), dp: handDp });
             if (lab.cp.length > SPARK_POINTS) lab.cp.shift();
             if (lab.dp.length > SPARK_POINTS) lab.dp.shift();
+            if (lab.hand.length > HAND_SAMPLES) lab.hand.shift();
         }
         lab.lastRunCp = runCp;
         lab.lastCollects = collects;
@@ -617,6 +631,12 @@ window.AGI = (function () {
         ctx.fill();
     }
 
+    // Output by hand per second, averaged over the last few samples (0 once you stop clicking).
+    function handRate(key) {
+        if (!lab.hand.length) return 0;
+        return lab.hand.reduce((sum, h) => sum + h[key], 0) / HAND_SAMPLES;
+    }
+
     function drawSparks() {
         drawSpark($('sparkCp'), lab.cp, path.colors.success || '#63e0ab');
         drawSpark($('sparkDp'), lab.dp, path.colors.primary || '#6fb3d9');
@@ -640,9 +660,17 @@ window.AGI = (function () {
             case 'rate.cp': return d.cpPerSec ? `${d.cpNet < 0 ? '−' : '+'}${f(Math.abs(d.cpNet))}/s` : '';
             case 'rate.dp': return d.dpPerSec ? `${d.dpNet < 0 ? '−' : '+'}${f(Math.abs(d.dpNet))}/s` : '';
             case 'rate.xp': return d.xpPerSec ? `+${f(d.xpPerSec)}/s` : '';
-            case 'supply.cp': return `${f(d.cpNet)} CP/s`;
-            case 'supply.dp': return `${f(d.dpNet)} DP/s`;
-            case 'supply.rates': return state.unlocked['seen:dp'] ? `${f(d.cpNet)} CP · ${f(d.dpNet)} DP /s` : `${f(d.cpNet)} CP/s`;
+            // Clicks count too: passive net output plus what you made by hand in the last few seconds.
+            case 'supply.cp': return `${f(d.cpNet + handRate('cp'))} CP/s`;
+            case 'supply.dp': return `${f(d.dpNet + handRate('dp'))} DP/s`;
+            case 'supply.rates': {
+                const cp = f(d.cpNet + handRate('cp'));
+                return state.unlocked['seen:dp'] ? `${cp} CP · ${f(d.dpNet + handRate('dp'))} DP /s` : `${cp} CP/s`;
+            }
+            case 'supply.cleared': {
+                const b = E.clearedCpBonus(state);
+                return b ? `+${E.format(b * 100, 1)}% from training` : '';
+            }
             case 'supply.sprint': {
                 const c = E.pushCost(state, 1);
                 return `A full training sprint draws ${E.formatCost(c)}`;
@@ -945,13 +973,8 @@ window.AGI = (function () {
             tile.addEventListener('click', () => zoomIn(id));
             plan.append(tile);
         }
-        // The die: pins round the edge, and the core (your AI) in the middle.
+        // The die: pins round the edge.
         for (const side of ['top', 'bottom', 'left', 'right']) plan.append(el('span', { class: `die-pins ${side}`, 'aria-hidden': 'true' }));
-        plan.append(el('div', { class: 'facility-core', 'aria-label': 'Your AI' }, [
-            el('span', { class: 'core-label', text: 'Your AI' }),
-            el('span', { class: 'core-phase', 'data-core': 'phase' }),
-            el('span', { class: 'core-stats', 'data-core': 'stats' })
-        ]));
         for (const b of document.querySelectorAll('[data-facility]')) b.addEventListener('click', zoomOut);
         try { seenRooms = new Set(['lab', ...JSON.parse(storageGet(SEEN_KEY) || '[]')]); } catch { /* keep default */ }
         const saved = storageGet(VIEW_KEY);
@@ -963,9 +986,6 @@ window.AGI = (function () {
     const SEALED_ROOMS = 2;
 
     function renderFacility(d) {
-        setText($('facilityPlan').querySelector('[data-core="phase"]'), E.PHASES[E.phaseIndex(state)].name);
-        setText($('facilityPlan').querySelector('[data-core="stats"]'),
-            `${state.path.learned} skill${state.path.learned === 1 ? '' : 's'} · Int ${E.format(state.attr.intelligence, 1)}`);
         let fresh = false;
         let sealedShown = 0;
         for (const tile of document.querySelectorAll('.facility-room')) {
@@ -2741,9 +2761,10 @@ window.AGI = (function () {
         ctx.strokeStyle = hexAlpha(c.primary, 0.85);
         ctx.lineWidth = 1;
         ctx.stroke();
-        // Very slow: one lap every 40 s or so, a little longer for later stretches.
-        const period = 40 + 5 * k;
-        const t = ((performance.now() / 1000) / period + lane * 0.37) % 1;
+        // Very slow: the engine's automated laps (one every 40 s or so, longer for later stretches),
+        // eased between ticks. Each lap adds a little compute.
+        const laps = (state.path.auto[k] || 0) + Math.min(0.2, (Date.now() - lastTick) / 1000) * debugSpeed / E.clearedPeriod(k);
+        const t = laps % 1;
         const bx = from + t * span;
         ctx.fillStyle = c.text;
         ctx.beginPath();
