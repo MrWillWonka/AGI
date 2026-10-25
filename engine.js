@@ -124,20 +124,32 @@
     // Upgrades. `scale` makes it repeatable (cost × scale^level); `max: 1` makes it one-time.
     // `grants` adds attributes per level purchased. Production effects live in derive().
     const UPGRADES = [
-        // Hardware
-        { id: 'cpu', tab: 'hardware', name: 'Basic CPU', effect: '+0.5 CP/s', flavor: 'A desktop tower from the office cupboard. It wheezes.', cost: { cp: 15 }, scale: 1.18,
+        // Hardware: a ladder of generators, like most incremental games. `cps` is CP/s per unit. Each tier
+        // costs about 12x the last and gives about 6-7x, so every tier pays back a little slower but
+        // earns far more per purchase; all scale x1.15 per unit, and a tier's output doubles at 25, 50 and
+        // 100 owned (HARDWARE_DOUBLINGS). Each tier shows up as you approach it.
+        { id: 'cpu', tab: 'hardware', name: 'Basic CPU', cps: 0.5, effect: '+0.5 CP/s each; doubles at 25, 50 and 100 owned', flavor: 'A desktop tower from the office cupboard. It wheezes.', cost: { cp: 15 }, scale: 1.15,
             unlock: s => automationGate(s, 'cpu').met, hint: 'Generate compute by hand 25 times' },
-        { id: 'server', tab: 'hardware', name: 'Server Cluster', effect: '+2 CP/s, +1 CP/click', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 120 }, scale: 1.18 },
-        { id: 'quantum', tab: 'hardware', name: 'Quantum Processor', effect: '+10 CP/s', flavor: 'It\'s both working and not working until you check.', cost: { cp: 1100 }, scale: 1.15,
-            unlock: s => s.stats.runCp >= 500, hint: 'Earn 500 CP this run' },
-        { id: 'neural', tab: 'hardware', name: 'Neural Network Chip', effect: '+50 CP/s', flavor: 'A chip shaped like the thing you\'re trying to build.', cost: { cp: 12000 }, scale: 1.15,
-            unlock: s => s.stats.runCp >= 5000, hint: 'Earn 5,000 CP this run' },
-        { id: 'datacenter', tab: 'hardware', name: 'Hyperscale Datacenter', effect: '+250 CP/s', flavor: 'Bought a field. Filled it with computers.', cost: { cp: 130000 }, scale: 1.15,
+        { id: 'keyboard', tab: 'hardware', name: 'Mechanical Keyboard', effect: '+1 CP per click, per level', flavor: 'Clicky. Your desk neighbours hate it.', cost: { cp: 40 }, scale: 3, max: 4,
+            unlock: s => s.stats.clicks >= 15, hint: 'Generate compute by hand 15 times' },
+        { id: 'server', tab: 'hardware', name: 'Server Cluster', cps: 3, effect: '+3 CP/s each; doubles at 25, 50 and 100 owned', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 180 }, scale: 1.15,
+            unlock: s => level(s, 'cpu') >= 3, hint: 'Own 3 Basic CPUs' },
+        { id: 'quantum', tab: 'hardware', name: 'Quantum Processor', cps: 20, effect: '+20 CP/s each; doubles at 25, 50 and 100 owned', flavor: 'It\'s both working and not working until you check.', cost: { cp: 2200 }, scale: 1.15,
+            unlock: s => s.stats.runCp >= 1000, hint: 'Earn 1,000 CP this run' },
+        { id: 'neural', tab: 'hardware', name: 'Neural Network Chip', cps: 130, effect: '+130 CP/s each; doubles at 25, 50 and 100 owned', flavor: 'A chip shaped like the thing you\'re trying to build.', cost: { cp: 26000 }, scale: 1.15,
+            unlock: s => s.stats.runCp >= 12000, hint: 'Earn 12,000 CP this run' },
+        { id: 'datacenter', tab: 'hardware', name: 'Hyperscale Datacenter', cps: 700, effect: '+700 CP/s each; doubles at 25, 50 and 100 owned', flavor: 'Bought a field. Filled it with computers.', cost: { cp: 310000 }, scale: 1.15,
             unlock: s => phaseIndex(s) >= 1, hint: 'Reach General AI' },
-        { id: 'optical', tab: 'hardware', name: 'Optical Computing', effect: '+1,400 CP/s', flavor: 'Computing at the speed of light. Literally.', cost: { cp: 1.4e6 }, scale: 1.15,
+        { id: 'optical', tab: 'hardware', name: 'Optical Computing', cps: 4500, effect: '+4,500 CP/s each; doubles at 25, 50 and 100 owned', flavor: 'Computing at the speed of light. Literally.', cost: { cp: 3.7e6 }, scale: 1.15,
             unlock: s => phaseIndex(s) >= 2, hint: 'Reach Superintelligence' },
 
         // Software
+        { id: 'shellScripts', tab: 'software', name: 'Shell Scripts', effect: 'Each click also earns 2% of your CP/s, per level', flavor: 'for i in range(1000): click()', cost: { cp: 600, dp: 40 }, scale: 4, max: 3,
+            unlock: s => s.stats.clicks >= 150, hint: 'Generate compute by hand 150 times' },
+        { id: 'compilerOpt', tab: 'software', name: 'Compiler Optimizations', effect: 'All hardware +50% CP/s', flavor: 'Turned on -O3. Everything is faster and nobody knows why.', cost: { cp: 3000, dp: 200 }, max: 1,
+            unlock: s => level(s, 'server') >= 5, hint: 'Own 5 Server Clusters' },
+        { id: 'kernelFusion', tab: 'software', name: 'Kernel Fusion', effect: 'All hardware +50% CP/s', flavor: 'Three GPU kernels walked into one bar.', cost: { cp: 180000, dp: 9000 }, max: 1,
+            unlock: s => level(s, 'neural') >= 5, hint: 'Own 5 Neural Network Chips' },
         { id: 'dataProcessor', tab: 'software', name: 'Data Processor', effect: '+1 DP per collection', flavor: 'A script that cleans the data so you don\'t have to.', cost: { cp: 50, dp: 5 }, scale: 1.2 },
         { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', effect: 'Collects data for you: 0.2 times a second per level, 10 CP each', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 800, dp: 80 }, scale: 1.5,
             unlock: s => automationGate(s, 'autoCollector').met, hint: 'Image Recognition, and 100 data collections by hand' },
@@ -197,6 +209,24 @@
         { id: 'goingViral', tab: 'training', tree: { x: -3, y: -1 }, icon: 'spark', name: 'Keynote Demo', effect: '+4% viral chance, and viral runs pay 50% more, per level', flavor: 'The live demo worked. Everyone is as surprised as you.', cost: { xp: 700 }, scale: 2, max: 3, requires: 'viralPaper', boost: { windfallChance: 0.04, windfallPower: 0.5 } },
         { id: 'crunchTime', tab: 'training', tree: { x: -3, y: 0 }, icon: 'flame', name: 'Crunch Time', effect: '+2% chance a sprint sets off a crunch: free sprints for 3 s (+1 s/level)', flavor: 'Nobody goes home until it converges.', cost: { xp: 1200 }, scale: 2, max: 3, requires: 'goingViral', boost: { crunchChance: 0.02, crunchTime: 1 } },
         { id: 'flowState', tab: 'training', tree: { x: -4, y: -1 }, icon: 'wave', name: 'Flow State', effect: '+3% chance your next sprint is perfect wherever you release, per level', flavor: 'The loss curve and you are one.', cost: { xp: 1600 }, scale: 2, max: 3, requires: 'goingViral', boost: { flowChance: 0.03 } },
+        // The far reaches: one more ring on every branch, priced for the late hills (thousands of XP), so
+        // there is always something worth saving for.
+        { id: 'fusionReactor', tab: 'training', tree: { x: 0, y: -7 }, icon: 'bolt', name: 'Fusion Reactor', effect: '+120% sprint strength per level', flavor: 'Power was the bottleneck. Was.', cost: { xp: 15000 }, scale: 1.8, max: 3, requires: 'exascaleCluster', boost: { push: 1.2 } },
+        { id: 'dysonSwarm', tab: 'training', tree: { x: 0, y: -8 }, icon: 'bolt', name: 'Dyson Swarm', effect: '+200% sprint strength per level', flavor: 'The sun is now a power supply. It has opinions.', cost: { xp: 80000 }, scale: 2, max: 2, requires: 'fusionReactor', boost: { push: 2 } },
+        { id: 'waferScale', tab: 'training', tree: { x: 1, y: -6 }, icon: 'chip', name: 'Wafer-Scale Engine', effect: '+50% sprint strength and -15% wait, per level', flavor: 'One chip the size of a dinner plate.', cost: { xp: 20000 }, scale: 1.8, max: 3, requires: 'exascaleCluster', boost: { push: 0.5, cooldown: 1 } },
+        { id: 'neuromorphic', tab: 'training', tree: { x: -3, y: -2 }, icon: 'mountain', name: 'Neuromorphic Chips', effect: '-5% drag and +30% sprint strength, per level', flavor: 'Silicon that thinks it\'s a brain. Close enough.', cost: { xp: 8000 }, scale: 1.8, max: 3, requires: 'superconductors', boost: { friction: 1, push: 0.3 } },
+        { id: 'sparseExperts', tab: 'training', tree: { x: -2, y: -3 }, icon: 'code', name: 'Mixture of Experts', effect: '-10% drag and rolling hills 6% lower, per level', flavor: 'Only wake the experts you need.', cost: { xp: 11000 }, scale: 1.8, max: 3, requires: 'neuralCompression', boost: { friction: 2, slope: 1 } },
+        { id: 'photonic', tab: 'training', tree: { x: 0, y: 5 }, icon: 'chip', name: 'Photonic Interconnect', effect: '-15% wait between sprints per level', flavor: 'The cables are made of light now. Don\'t look.', cost: { xp: 5000 }, scale: 1.8, max: 3, requires: 'customSilicon', boost: { cooldown: 1 } },
+        { id: 'quantumNetwork', tab: 'training', tree: { x: 0, y: 6 }, icon: 'plus', name: 'Quantum Network', effect: '+1 training sprint and -15% wait, per level', flavor: 'Entangled racks finish each other\'s sentences.', cost: { xp: 60000 }, scale: 2, max: 2, requires: 'photonic', boost: { pushes: 1, cooldown: 1 } },
+        { id: 'sovereignFund', tab: 'training', tree: { x: -1, y: 5 }, icon: 'plus', name: 'Sovereign Wealth Fund', effect: '+1 training sprint per run, per level', flavor: 'A country wants in. Several, actually.', cost: { xp: 25000 }, scale: 2.5, max: 2, requires: 'ipo', boost: { pushes: 1 } },
+        { id: 'webCorpus', tab: 'training', tree: { x: 2, y: 1 }, icon: 'stack', name: 'Web-Scale Corpus', effect: '+25% XP from every run, per level', flavor: 'The entire internet, twice, deduplicated once.', cost: { xp: 2000 }, scale: 1.8, max: 3, requires: 'dataAugmentation', boost: { xp: 0.25 } },
+        { id: 'syntheticData', tab: 'training', tree: { x: 5, y: -1 }, icon: 'stack', name: 'Synthetic Data', effect: '+50% run bonus per clean sprint and +15% XP, per level', flavor: 'The model writes its own homework now.', cost: { xp: 3500 }, scale: 1.8, max: 3, requires: 'handLabelled', boost: { rollBonus: 0.5, xp: 0.15 } },
+        { id: 'laserCalibration', tab: 'training', tree: { x: 5, y: 1 }, icon: 'star', name: 'Laser Calibration', effect: 'Perfect sprints 30% harder and the spot 25% wider, per level', flavor: 'Aligned to a thousandth of a hair.', cost: { xp: 3500 }, scale: 1.8, max: 3, requires: 'fineCalibration', boost: { perfect: 1, perfectPower: 0.3 } },
+        { id: 'globalBenchmark', tab: 'training', tree: { x: 6, y: 0 }, icon: 'coin', name: 'Global Benchmark', effect: '+60% XP per clean sprint and clean sprints 10% harder, per level', flavor: 'Everyone measures against you now.', cost: { xp: 4000 }, scale: 1.8, max: 3, requires: 'leaderboardPrizes', boost: { clean: 0.6, cleanPower: 0.1 } },
+        { id: 'turingTest', tab: 'training', tree: { x: 7, y: 0 }, icon: 'star', name: 'Turing Test', effect: '+50% XP from every run, per level', flavor: 'The judges asked it out. Twice.', cost: { xp: 45000 }, scale: 2, max: 2, requires: 'globalBenchmark', boost: { xp: 0.5 } },
+        { id: 'deathMarch', tab: 'training', tree: { x: -4, y: 0 }, icon: 'flame', name: 'Death March', effect: '+2% crunch chance, and crunches +1 s, per level', flavor: 'Sleep is a hyperparameter.', cost: { xp: 6000 }, scale: 1.9, max: 3, requires: 'crunchTime', boost: { crunchChance: 0.02, crunchTime: 1 } },
+        { id: 'muse', tab: 'training', tree: { x: -5, y: -1 }, icon: 'wave', name: 'The Muse', effect: '+3% flow chance per level', flavor: 'Inspiration arrives on schedule. Suspicious.', cost: { xp: 7000 }, scale: 1.9, max: 3, requires: 'flowState', boost: { flowChance: 0.03 } },
+        { id: 'blackSwan', tab: 'training', tree: { x: -4, y: -2 }, icon: 'dice', name: 'Black Swan', effect: '+4% breakthrough chance, and breakthroughs +60% stronger, per level', flavor: 'Nobody saw it coming. That\'s the point.', cost: { xp: 10000 }, scale: 1.9, max: 3, requires: 'flowState', boost: { critChance: 0.04, critPower: 0.6 } },
         { id: 'autoTrainer', tab: 'training', tree: { x: -2, y: 0 }, icon: 'robot', name: 'Auto-Trainer', effect: 'Level 1 starts runs and sprints when the model stalls. Level 2 times its sprints', flavor: 'An intern who never gets tired. Or paid.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
             requires: 'scoutingData', unlock: s => s.prestige.count >= 1, hint: 'Transcend once' },
         { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', effect: 'Researches for you: 0.1 times a second per level, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.55,
@@ -230,6 +260,11 @@
         { id: 'consciousnessEmergence', tab: 'consciousness', name: 'Consciousness Emergence', effect: '+20 Awareness, +10 Creativity', flavor: 'Good morning. It would like a word.', cost: { cp: 600000, dp: 60000, rp: 4000 }, max: 1,
             grants: { awareness: 20, creativity: 10 }, requires: 'metacognition' }
     ];
+    const HARDWARE = UPGRADES.filter(u => u.cps);
+    // A hardware tier's output doubles at each of these counts owned.
+    const HARDWARE_DOUBLINGS = [25, 50, 100];
+    const hardwareDoubling = n => Math.pow(2, HARDWARE_DOUBLINGS.filter(t => n >= t).length);
+
     const UPGRADE_BY_ID = Object.fromEntries(UPGRADES.map(u => [u.id, u]));
 
     // Skill-tree branch names, by the direction they grow from the Training Core.
@@ -345,9 +380,13 @@
         const sk = skillBonuses(s);
         const bo = projectBoosts(s);
 
-        const cpPerSec = (0.5 * L('cpu') + 2 * L('server') + 10 * L('quantum') + 50 * L('neural')
-            + 250 * L('datacenter') + 1400 * L('optical')) * (1 + sk.cp + clearedCpBonus(s)) * mult * r.cp * bo.cp;
-        const clickPower = (1 + L('server') + sk.click) * mult;
+        let hardware = 0;
+        for (const up of HARDWARE) hardware += up.cps * L(up.id) * hardwareDoubling(L(up.id));
+        hardware *= (1 + 0.5 * L('compilerOpt')) * (1 + 0.5 * L('kernelFusion'));
+        const cpPerSec = hardware * (1 + sk.cp + clearedCpBonus(s)) * mult * r.cp * bo.cp;
+        // Clicks: a flat amount (keyboards, skills), plus a share of CP/s from Shell Scripts so clicking
+        // stays worth something as hardware grows.
+        const clickPower = (1 + L('keyboard') + sk.click) * mult + 0.02 * L('shellScripts') * cpPerSec;
         const dpPerCollect = (1 + L('dataProcessor') + 5 * L('nlp') + 10 * L('computerVision') + sk.collect) * (1 + sk.dp) * mult * bo.dp;
         const rpPerResearch = (1 + L('machineLearning') + 2 * L('deepLearning') + 3 * L('reinforcementLearning')
             + 5 * L('transferLearning') + sk.research) * (1 + sk.rp) * mult;
@@ -380,7 +419,7 @@
         // The sweet spot doesn't widen (hitting it is the skill); upgrades make hitting it pay: XP, and
         // extra strength (clean sprints, more for perfect ones).
         const zoneWidth = PATH.zoneWidth;
-        const perfectWidth = tb.perfect ? PATH.perfectWidth * (1 + 0.25 * (tb.perfect - 1)) : 0;
+        const perfectWidth = tb.perfect ? Math.min(0.4 * zoneWidth, PATH.perfectWidth * (1 + 0.25 * (tb.perfect - 1))) : 0;   // never more than 40% of the zone
         const cleanMult = 1 + tb.clean;
         const cleanRollBonus = PATH.cleanRollBonus * (1 + tb.rollBonus);
         const cleanPower = 1 + tb.cleanPower;

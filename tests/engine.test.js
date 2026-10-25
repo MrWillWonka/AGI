@@ -555,3 +555,32 @@ test('the engine\'s leg lengths match the physics, so "a full stretch" of XP is 
         assert.ok(Math.abs(E.rollXp(s, 1, false, 0, g.legLength(k)) - E.stretchXpAt(k)) < 1e-9);
     }
 });
+
+test('hardware is a ladder: each tier costs more per CP/s but gives more per purchase, and doubles at milestones', () => {
+    const tiers = E.UPGRADES.filter(u => u.cps);
+    assert.deepEqual(tiers.map(u => u.id), ['cpu', 'server', 'quantum', 'neural', 'datacenter', 'optical']);
+    for (let i = 1; i < tiers.length; i++) {
+        const [a, b] = [tiers[i - 1], tiers[i]];
+        assert.ok(b.cost.cp / b.cps > a.cost.cp / a.cps, `${b.id} pays back slower than ${a.id}`);
+        assert.ok(b.cps >= 5 * a.cps, `${b.id} gives far more per purchase`);
+        assert.ok(b.cost.cp >= 8 * a.cost.cp && b.cost.cp <= 16 * a.cost.cp, `${b.id} is the next rung`);
+    }
+    const s = fresh();
+    s.levels.cpu = 24;
+    const before = E.derive(s).cpPerSec;
+    s.levels.cpu = 25;
+    assert.ok(Math.abs(E.derive(s).cpPerSec / before - 2 * 25 / 24) < 1e-9, 'doubles at 25 owned');
+    // Server Cluster no longer touches clicks; keyboards and Shell Scripts do.
+    const t = fresh();
+    const click = E.derive(t).clickPower;
+    t.levels.server = 10;
+    assert.equal(E.derive(t).clickPower, click);
+    t.levels.keyboard = 2;
+    assert.equal(E.derive(t).clickPower, click + 2);
+    t.levels.shellScripts = 1;
+    assert.ok(Math.abs(E.derive(t).clickPower - (click + 2 + 0.02 * E.derive(t).cpPerSec)) < 1e-9);
+    t.levels.compilerOpt = 1;
+    const u = fresh();
+    u.levels.server = 10;
+    assert.ok(Math.abs(E.derive(t).cpPerSec / E.derive(u).cpPerSec - 1.5) < 1e-9, 'Compiler Optimizations +50%');
+});

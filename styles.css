@@ -1604,7 +1604,7 @@ body { zoom: var(--ui-scale); }
 .tree-viewport.dragging { cursor: grabbing; }
 /* No will-change: it would cache the tree as a bitmap at 1x and blur it when zoomed in. */
 .tree-viewport .tree { transform-origin: 0 0; }
-.tree-zoom { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 4px; z-index: 2; }
+.tree-zoom { position: absolute; left: 8px; bottom: 8px;   /* bottom-left: the minimap covers the bottom-right */ display: flex; gap: 4px; z-index: 2; }
 .tree-zoom button { width: 32px; height: 32px; padding: 0; font: 600 1rem var(--font-mono); background: rgba(8, 17, 19, 0.85); }
 
 /* ---- Facility cameras: live copies of the rooms ---- */
