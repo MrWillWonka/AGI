@@ -741,6 +741,7 @@ window.AGI = (function () {
         setText($('nextGoal'), nextGoal());
         renderAutomation(d);
         renderFacility(d);
+        renderMinimap();
         if (!zooming) {
             if (view !== 'facility' && !roomOpen(view)) showView('lab');
             else if (document.body.dataset.view !== view) showView(view);
@@ -1024,6 +1025,139 @@ window.AGI = (function () {
         $('facility').animate([{ transform: `scale(${scale})`, opacity: 0 }, { transform: 'none', opacity: 1 }], ZOOM);
         room.style.transformOrigin = '0 0';
         room.animate([{ transform: 'none', opacity: 1 }, { transform: tileBox, opacity: 0 }], ZOOM).finished.then(done, done);
+    }
+
+    // ---- Jumping and the minimap ---------------------------------------------
+
+    // Where you are: 'facility', a room id, or 'bay:<id>'.
+    const currentPlace = () => (openBay && view === 'servers' ? `bay:${openBay}` : view);
+
+    function closeBayNow() {
+        if (!openBay) return;
+        openBay = null;
+        $('moduleView').hidden = true;
+        $('hub').hidden = false;
+    }
+
+    // Go straight to any area (a quick fade instead of zooming through the rooms in between).
+    function jumpTo(target) {
+        if (zooming || target === currentPlace()) return;
+        const bay = target.startsWith('bay:') ? target.slice(4) : null;
+        const room = bay ? 'servers' : target;
+        if (room !== 'facility' && !roomOpen(room)) return;
+        if (bay && !(bayUnlocked(bay) && BAYS[bay].built)) return;
+        storageSet(VIEW_KEY, room);
+        const go = () => {
+            closeBayNow();
+            showView(room);
+            if (bay) enterBay(bay, $('bays').querySelector(`.bay[data-bay="${bay}"]`));
+            renderMinimap();
+        };
+        if (reducedMotion()) return go();
+        zooming = true;
+        $('stage').animate([{ opacity: 1 }, { opacity: 0 }], { duration: 140 }).finished.then(() => {
+            zooming = false;
+            go();
+            $('stage').animate([{ opacity: 0, transform: 'scale(0.985)' }, { opacity: 1, transform: 'none' }], { duration: 200, easing: 'ease-out' });
+        });
+    }
+
+    // The minimap is a microchip: Surveillance is the core, each open room a block wired to it, the server
+    // room's bays sub-blocks, and the next sealed areas dim outlines. More areas, more blocks, traces and pins.
+    const MINIMAP = {
+        facility: { x: 50, y: 50, w: 20, h: 18, label: 'SV' },
+        lab: { x: 24, y: 44, w: 20, h: 30, label: 'LAB' },
+        servers: { x: 74, y: 44, w: 22, h: 52, label: 'SRV' },
+        rnd: { x: 24, y: 78, w: 46, h: 18, label: 'R&D' },
+        boardroom: { x: 24, y: 22, w: 22, h: 16, label: 'BRD' },
+        signals: { x: 50, y: 22, w: 20, h: 16, label: 'SIG' },
+        mirror: { x: 74, y: 22, w: 22, h: 16, label: 'MIR' }
+    };
+    let minimapKey = '';
+
+    function renderMinimap() {
+        const nav = $('minimap');
+        const show = !!state.unlocked['module:path'];
+        nav.hidden = !show;
+        if (!show) return;
+        const sealedShown = new Set([...$('facilityPlan').querySelectorAll('.facility-room.locked:not([hidden])')].map(t => t.dataset.roomId));
+        const areas = Object.keys(ROOMS).filter(id => roomUnlocked(id) || sealedShown.has(id));
+        const bays = Object.keys(BAYS).filter(id => bayUnlocked(id) || id === nextSealedBay());
+        const here = currentPlace();
+        const key = [areas, bays, here].join('|');
+        if (key === minimapKey) return;
+        minimapKey = key;
+        const open = id => roomOpen(id);
+        const NS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(NS, 'svg');
+        svg.setAttribute('viewBox', '0 0 120 120');
+        const add = (tag, attrs, parent = svg) => {
+            const n = document.createElementNS(NS, tag);
+            for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+            parent.append(n);
+            return n;
+        };
+        // Pins: more of them as the chip grows.
+        const pins = 3 + areas.filter(open).length + bays.filter(bayUnlocked).length;
+        for (let i = 0; i < pins; i++) {
+            const t = 22 + (i + 0.5) * (76 / pins);
+            add('rect', { class: 'mm-pin', x: t - 1.2, y: 10, width: 2.4, height: 8 });
+            add('rect', { class: 'mm-pin', x: t - 1.2, y: 102, width: 2.4, height: 8 });
+            add('rect', { class: 'mm-pin', x: 10, y: t - 1.2, width: 8, height: 2.4 });
+            add('rect', { class: 'mm-pin', x: 102, y: t - 1.2, width: 8, height: 2.4 });
+        }
+        add('rect', { class: 'mm-die', x: 18, y: 18, width: 84, height: 84, rx: 4 });
+        // Traces from the core to every open area.
+        const core = MINIMAP.facility;
+        const cx = core.x + core.w / 2;
+        const cy = core.y + core.h / 2;
+        for (const id of areas.filter(a => a !== 'facility' && open(a))) {
+            const b = MINIMAP[id];
+            add('path', { class: 'mm-trace', d: `M${cx} ${cy} H${b.x + b.w / 2} V${b.y + b.h / 2}` });
+        }
+        const block = (target, b, cls, label, title) => {
+            const g = add('g', { class: `mm-block ${cls}${here === target ? ' here' : ''}`, 'data-target': target, tabindex: cls.includes('sealed') ? -1 : 0, role: 'button', 'aria-label': title });
+            add('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 1.5 }, g);
+            if (label) add('text', { x: b.x + b.w / 2, y: b.y + (b.h < 14 ? b.h / 2 + 1.6 : 7), 'text-anchor': 'middle' }, g).textContent = label;
+            add('title', {}, g).textContent = title;
+        };
+        block('facility', core, 'core', core.label, 'Surveillance');
+        for (const id of areas) {
+            const b = MINIMAP[id];
+            if (open(id)) block(id, b, 'room', b.label, ROOMS[id].name);
+            else block(id, b, roomUnlocked(id) ? 'room building' : 'room sealed', '?', roomUnlocked(id) ? `${ROOMS[id].name} (being built)` : 'Sealed');
+        }
+        // The server room's bays, as cells inside its block.
+        if (open('servers')) {
+            const sb = MINIMAP.servers;
+            bays.forEach((id, i) => {
+                const cell = { x: sb.x + 3, y: sb.y + 11 + i * 10, w: sb.w - 6, h: 8 };
+                const live = bayUnlocked(id) && BAYS[id].built;
+                block(`bay:${id}`, cell, live ? 'bay' : 'bay sealed', '', live ? BAYS[id].name : 'Sealed');
+            });
+        }
+        nav.replaceChildren(svg, el('span', { class: 'mm-label', text: placeName(here) }));
+    }
+
+    function placeName(place) {
+        if (place.startsWith('bay:')) return BAYS[place.slice(4)].name;
+        return place === 'facility' ? 'Surveillance' : ROOMS[place].name;
+    }
+
+    function buildMinimap() {
+        const nav = $('minimap');
+        const go = e => {
+            const g = e.target.closest('.mm-block');
+            if (g && !g.classList.contains('sealed') && !g.classList.contains('building')) jumpTo(g.dataset.target);
+        };
+        nav.addEventListener('click', go);
+        nav.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                go(e);
+            }
+        });
+        for (const b of document.querySelectorAll('[data-jump]')) b.addEventListener('click', () => jumpTo(b.dataset.jump));
     }
 
     // ---- Automation budget -------------------------------------------------
@@ -2509,6 +2643,7 @@ window.AGI = (function () {
         buildSettings();
         buildJournal();
         buildFacility();
+        buildMinimap();
         buildAutomation();
         buildHub();
         buildPath();

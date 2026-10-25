@@ -51,11 +51,11 @@
         <p class="goal" id="nextGoal" aria-live="polite"></p>
 
         <div class="stage" id="stage">
-        <!-- Facility: the zoomed-out floor plan. Each room is a tile (generated from ROOMS in game.js); click to zoom in. -->
-        <section class="facility hud" id="facility" aria-label="Facility" hidden>
+        <!-- Surveillance (code: facility): every room's camera feed on one wall. Each room is a tile (ROOMS in game.js); click to zoom in. -->
+        <section class="facility hud" id="facility" aria-label="Surveillance" hidden>
             <div class="facility-head">
-                <h2>Facility</h2>
-                <span class="muted small">Select a room</span>
+                <h2>Surveillance</h2>
+                <span class="muted small">All feeds live · select a room</span>
             </div>
             <div class="facility-plan" id="facilityPlan"></div>
         </section>
@@ -66,7 +66,7 @@
                 <!-- Server room: each bay is a training module. Clicking one zooms into it. -->
                 <div class="hub" id="hub">
                     <div class="room-bar">
-                        <button type="button" class="ghost-button back-button" data-facility>← Facility</button>
+                        <button type="button" class="ghost-button back-button" data-facility>← Surveillance</button>
                         <h2>Server room</h2>
                     </div>
                     <div class="hub-pipes" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
@@ -114,6 +114,7 @@
                 <div class="module-view" id="moduleView" hidden>
                     <div class="module-bar">
                         <button type="button" class="ghost-button back-button" id="backButton" aria-label="Back to the server room">← Rack</button>
+                        <button type="button" class="ghost-button back-button" data-jump="facility" aria-label="Straight back to Surveillance">⇤ Surveillance</button>
                         <h2 id="moduleTitle">Training Cluster</h2>
                         <button type="button" class="ghost-button" id="treeButton" hidden>Skills</button>
                         <span class="module-supply" title="What the lab feeds this cluster, per second"><span class="chip-label">Lab supply</span> <span data-bind="supply.rates"></span></span>
@@ -186,7 +187,7 @@
         <!-- Lab: hands-on actions, automation, Transcend and the hardware/software upgrades. -->
         <section class="room room-lab room-frame hud" id="labRoom" data-room="lab" aria-label="Lab">
             <div class="room-bar">
-                <button type="button" class="ghost-button back-button" data-facility>← Facility</button>
+                <button type="button" class="ghost-button back-button" data-facility>← Surveillance</button>
                 <h2>Lab</h2>
                 <span class="lab-status"><span class="status-dot"></span> Systems online · uptime <span data-bind="stats.playClock">00:00:00</span></span>
             </div>
@@ -234,7 +235,7 @@
         <!-- R&D: long-term projects that outlast a run. Transcend lives here. -->
         <section class="room room-rnd room-frame hud" id="rndRoom" data-room="rnd" aria-label="R&amp;D" hidden>
             <div class="room-bar">
-                <button type="button" class="ghost-button back-button" data-facility>← Facility</button>
+                <button type="button" class="ghost-button back-button" data-facility>← Surveillance</button>
                 <h2>R&amp;D</h2>
             </div>
             <div class="rnd-floor">
@@ -301,6 +302,9 @@
             </section>
         </div>
     </dialog>
+
+    <!-- Minimap: a microchip, one block per area you've opened; click a block to go straight there. -->
+    <nav class="minimap" id="minimap" aria-label="Map" hidden></nav>
 
     <div id="toasts" class="toasts" aria-live="polite"></div>
 

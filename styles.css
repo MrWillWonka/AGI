@@ -1810,3 +1810,45 @@ html, body { overflow-x: clip; }
 @media (prefers-reduced-motion: reduce) {
     .room-lab::before, .unit::after, .status-dot { animation: none; }
 }
+
+/* ---- Minimap: a microchip; each area a block, wired to the Surveillance core ---- */
+.minimap {
+    position: fixed;
+    right: 14px;
+    bottom: 14px;
+    z-index: 40;
+    width: 132px;
+    padding: 6px 6px 4px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(7, 14, 16, 0.9);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+.minimap[hidden] { display: none; }
+.minimap svg { display: block; width: 100%; height: auto; }
+.mm-label { display: block; text-align: center; font: 600 0.62rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+.mm-pin { fill: #3a5a60; }
+.mm-die { fill: #0c1a1d; stroke: #2d4c54; stroke-width: 1; }
+.mm-trace { fill: none; stroke: rgba(99, 224, 171, 0.45); stroke-width: 1; stroke-dasharray: 2 2; animation: mm-flow 1.6s linear infinite; }
+@keyframes mm-flow { to { stroke-dashoffset: -8; } }
+.mm-block rect { fill: #14292e; stroke: #3d6a72; stroke-width: 0.8; transition: fill 0.15s ease; }
+.mm-block text { fill: #8fb7bd; font: 700 4.6px var(--font-mono); pointer-events: none; }
+.mm-block:not(.sealed):not(.building) { cursor: pointer; }
+.mm-block:not(.sealed):not(.building):hover rect, .mm-block:focus-visible rect { fill: #1f4048; stroke: var(--primary); }
+.mm-block:focus { outline: none; }
+.mm-block.core rect { fill: #10302a; stroke: var(--success); }
+.mm-block.bay rect { fill: #0f2a24; stroke: rgba(99, 224, 171, 0.7); }
+.mm-block.sealed rect, .mm-block.building rect { fill: transparent; stroke: #2d4c54; stroke-dasharray: 1.5 1.5; }
+.mm-block.sealed text, .mm-block.building text { fill: #2d4c54; }
+.mm-block.here rect { fill: rgba(99, 224, 171, 0.3); stroke: var(--success); stroke-width: 1.4; animation: mm-here 1.6s ease-in-out infinite; }
+.mm-block.here text { fill: #e6fff4; }
+@keyframes mm-here { 50% { fill: rgba(99, 224, 171, 0.12); } }
+@media (max-width: 640px) {
+    .minimap { width: 92px; right: 8px; bottom: 8px; }
+    .mm-label { font-size: 0.55rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .mm-trace, .mm-block.here rect { animation: none; }
+}
+.mm-block.sealed, .mm-block.building { pointer-events: none; }
