@@ -2214,8 +2214,32 @@ window.AGI = (function () {
         dice: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="15" cy="9" r="1.2"/><circle cx="9" cy="15" r="1.2"/>',
         flame: '<path d="M12 3c1 4 5 5.5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5 .3 2 1.2 3 2.5 3-1-3 0-6 0-8z"/>',
         wave: '<path d="M2 9c3-4 5-4 8 0s5 4 8 0M2 15c3-4 5-4 8 0s5 4 8 0"/>',
-        spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>'
+        spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
+        // A graphics card: strength.
+        gpu: '<rect x="2" y="7" width="20" height="10" rx="1.5"/><circle cx="8" cy="12" r="2.5"/><circle cx="16" cy="12" r="2.5"/><path d="M5 17v3M9 17v3M13 17v3"/>',
+        // A digital timer: the wait between sprints.
+        timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M10 2h4M12 2v3M19 5l1.5-1.5"/>',
+        // A gauge: drag.
+        gauge: '<path d="M3.5 17a9 9 0 1 1 17 0z"/><path d="m12 15 4-5M7 12.5h1M16 12.5h1M12 7.5v1"/>',
+        // A database: the run bonus.
+        db: '<ellipse cx="12" cy="5.5" rx="7.5" ry="2.5"/><path d="M4.5 5.5v13c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5v-13M4.5 12c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5"/>',
+        // A terminal: the system prompt.
+        terminal: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M12 15h5"/>',
+        // Fast-forward chevrons: Max Effort.
+        boost: '<path d="m4 6 7 6-7 6M12 6l7 6-7 6"/>'
     };
+
+    // Each kind of upgrade has its own symbol, picked from what the node boosts (its first stat), so a
+    // strength node never looks like a wait node. The seed and the Auto-Trainer keep theirs.
+    const STAT_ICON = {
+        push: 'gpu', pushes: 'plus', cooldown: 'timer', charge: 'bolt', friction: 'gauge', slope: 'mountain', xp: 'stack',
+        clean: 'coin', rollBonus: 'db', zone: 'target', cleanPower: 'target', cleanSize: 'target', zoneBias: 'target',
+        perfect: 'star', perfectPower: 'star', perfectUnits: 'star', perfectSize: 'star', system: 'terminal',
+        critChance: 'dice', critPower: 'dice', superCrit: 'dice', windfallChance: 'spark', windfallPower: 'spark',
+        crunchChance: 'flame', crunchTime: 'flame', superCrunch: 'flame', maxEffortChance: 'boost', maxEffortPower: 'boost',
+        flowChance: 'wave', flowTime: 'wave', flowSpeed: 'wave', superFlow: 'wave'
+    };
+    const nodeIcon = up => (up.requires && up.boost ? STAT_ICON[Object.keys(up.boost)[0]] : null) || up.icon;
     const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
 
     const treeUi = { nodes: {}, links: [], bounds: null };
@@ -2257,7 +2281,7 @@ window.AGI = (function () {
             }
 
             const button = el('button', { type: 'button', class: `tree-node${up.requires ? '' : ' seed'}` });
-            button.innerHTML = `<span class="tree-icon">${icon(up.icon)}</span><span class="tree-lock">${icon('lock')}</span><span class="tree-level"></span>`;
+            button.innerHTML = `<span class="tree-icon">${icon(nodeIcon(up))}</span><span class="tree-lock">${icon('lock')}</span><span class="tree-level"></span>`;
             button.addEventListener('click', () => {
                 path.selected = up.id;
                 treeUi.popup = true;
@@ -2528,7 +2552,7 @@ window.AGI = (function () {
             treeUi.popup = false;
             placeNodePopup();
         });
-        box.querySelector('.detail-icon').innerHTML = icon(unknown ? 'lock' : up.icon);
+        box.querySelector('.detail-icon').innerHTML = icon(unknown ? 'lock' : nodeIcon(up));
     }
 
     function showTrainingView(view) {
@@ -3561,7 +3585,7 @@ window.AGI = (function () {
         const zoneNode = $('chargeZone');
         zoneNode.style.left = `${zone.from * 100}%`;
         zoneNode.style.width = `${(zone.to - zone.from) * 100}%`;
-        zoneNode.hidden = roll.over || roll.pushesLeft <= 0;
+        zoneNode.hidden = roll.over || roll.pushesLeft <= 0 || !(zone.to > zone.from);   // no zone before Hyperparameter Search
         const perfectNode = $('chargePerfect');
         perfectNode.hidden = zoneNode.hidden || zone.perfectTo <= zone.perfectFrom;
         perfectNode.style.left = `${zone.perfectFrom * 100}%`;

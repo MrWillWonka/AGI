@@ -611,7 +611,10 @@ test('luck: breakthroughs and viral runs start at zero, grow with levels, and ar
 
 test('the sweet spot widens only a little (Prompt Templates); hitting it makes the sprint stronger, super prompts most', () => {
     const s = fresh();
+    assert.equal(E.derive(s).zoneWidth, 0, 'no clean prompts until Hyperparameter Search');
+    s.levels.precisionTuning = 1;
     const width = E.derive(s).zoneWidth;
+    assert.ok(width > 0);
     for (const up of E.UPGRADES.filter(u => u.tab === 'training')) s.levels[up.id] = up.max || 1;
     assert.ok(E.derive(s).zoneWidth > width && E.derive(s).zoneWidth <= 1.5 * width, 'a little wider at most');
     assert.ok(E.derive(s).perfectWidth < E.derive(s).zoneWidth / 2, 'the super prompt spot stays small');
@@ -870,6 +873,7 @@ test('legacy nodes stay hidden until the first new version, and old saves move t
 
 test('prompts: system inside super inside clean; each pays and hits harder; supers and flow are legacy', () => {
     const s = fresh();
+    s.levels.precisionTuning = 1;
     s.levels.perfectCalibration = 1;
     s.prestige.levels.systemPrompt = 1;
     const d = E.derive(s);

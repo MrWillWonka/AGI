@@ -212,7 +212,7 @@
         // crunches off Recursion's shorter waits, and Flow State off Momentum's lower drag and hills.
         // `legacy` nodes cost Insight (from shipping a new version) and are kept for good: they appear after
         // the first new version, and once owned stay visible and buyable without their parent.
-        { id: 'initialWeights', tab: 'training', tree: { x: 0, y: 0 }, icon: 'core', name: 'Initial Weights', effect: '+10% XP from clean prompts', flavor: 'Random numbers, but they\'re your random numbers.', cost: { xp: 1 }, max: 1, boost: { clean: 0.1 } },
+        { id: 'initialWeights', tab: 'training', tree: { x: 0, y: 0 }, icon: 'core', name: 'Initial Weights', effect: '-15% wait between sprints', flavor: 'Random numbers, but they\'re your random numbers.', cost: { xp: 1 }, max: 1, boost: { cooldown: 1 } },
         // Power (up): sprint strength, with breakthroughs and Max Effort branching off it.
         { id: 'trainingOptimizer', tab: 'training', tree: { x: 0, y: -1 }, requires: 'initialWeights', icon: 'bolt', name: 'GPU Cluster', effect: '+25% sprint strength per level', flavor: 'You maxed out the company card on graphics cards.', cost: { xp: 4 }, scale: 1.8, max: 2, boost: { push: 0.25 } },
         { id: 'gpuCluster2', tab: 'training', tree: { x: 0, y: -2 }, icon: 'bolt', name: 'Fast Charging', effect: 'The sprint meter charges 20% faster, per level', flavor: 'Skip the warm-up. The GPUs are already sweating.', cost: { xp: 45 }, scale: 1.6, max: 2, requires: 'trainingOptimizer', boost: { charge: 0.2 } },
@@ -245,7 +245,7 @@
         { id: 'sparseExperts', tab: 'training', tree: { x: -4, y: -1 }, icon: 'code', name: 'Mixture of Experts', effect: '-15% drag per level', flavor: 'Only wake the experts you need.', cost: { xp: 11000 }, scale: 1.8, max: 3, requires: 'neuralCompression', boost: { friction: 3 } },
         // Precision (right): better XP from every run, then the prompt spots and viral runs.
         { id: 'bigDatasets', tab: 'training', tree: { x: 1, y: 0 }, requires: 'initialWeights', icon: 'stack', name: 'Bigger Datasets', effect: '+15% XP from every run, per level', flavor: 'You scraped the whole internet. Yes, even the comments.', cost: { xp: 5 }, scale: 2, max: 2, boost: { xp: 0.15 } },
-        { id: 'precisionTuning', tab: 'training', tree: { x: 2, y: 0 }, icon: 'target', name: 'Hyperparameter Search', effect: 'Clean prompts hit 20% harder', flavor: 'Turn every knob until something works.', cost: { xp: 14 }, scale: 2.5, max: 1, requires: 'bigDatasets', boost: { cleanPower: 0.2 } },
+        { id: 'precisionTuning', tab: 'training', tree: { x: 2, y: 0 }, icon: 'target', name: 'Hyperparameter Search', effect: 'Adds clean prompts: a zone on the meter that hits 20% harder and banks XP', flavor: 'Turn every knob until something works.', cost: { xp: 14 }, scale: 2.5, max: 1, requires: 'bigDatasets', boost: { zone: 1, cleanPower: 0.2 } },
         { id: 'benchmarkPrizes', tab: 'training', tree: { x: 3, y: 0 }, icon: 'coin', name: 'Benchmark Prizes', effect: '+25% XP per clean prompt, per level', flavor: 'Top the leaderboard, collect the gift card.', cost: { xp: 22 }, scale: 1.7, max: 3, requires: 'precisionTuning', boost: { clean: 0.25 } },
         { id: 'curatedData', tab: 'training', tree: { x: 3, y: -1 }, icon: 'stack', name: 'Curated Data', effect: '+25% run bonus per clean prompt, per level', flavor: 'Less garbage in, less garbage out.', cost: { xp: 70 }, scale: 1.7, max: 2, requires: 'benchmarkPrizes', boost: { rollBonus: 0.25 } },
         // Prompts: first the clean prompt grows (power, rewards, size, placement), then super prompts arrive
@@ -478,7 +478,7 @@
     // chance-based boosts (breakthrough sprints, viral runs) that start rare and grow with levels.
     // maxEffort*: your next sprint goes all out; flow*: coasting above the line; super*: the share of
     // breakthroughs, crunches and flows that become their super kind; system: the system prompt spot.
-    const TREE_STATS = ['push', 'pushes', 'cooldown', 'perfect', 'clean', 'cleanPower', 'perfectPower', 'rollBonus', 'charge',
+    const TREE_STATS = ['zone', 'push', 'pushes', 'cooldown', 'perfect', 'clean', 'cleanPower', 'perfectPower', 'rollBonus', 'charge',
         'critChance', 'critPower', 'windfallChance', 'windfallPower', 'crunchChance', 'crunchTime', 'maxEffortChance', 'maxEffortPower',
         'flowChance', 'flowTime', 'flowSpeed', 'superCrit', 'superCrunch', 'superFlow', 'system', 'cleanSize', 'zoneBias', 'perfectSize', 'perfectUnits',
         'friction', 'slope', 'xp'];
@@ -553,7 +553,8 @@
 
         // The sweet spot doesn't widen (hitting it is the skill); upgrades make hitting it pay: XP, and
         // extra strength (clean sprints, more for perfect ones).
-        const zoneWidth = PATH.zoneWidth * (1 + 0.15 * tb.cleanSize);
+        // No clean prompts until Hyperparameter Search adds the zone (after Bigger Datasets).
+        const zoneWidth = tb.zone ? PATH.zoneWidth * (1 + 0.15 * tb.cleanSize) : 0;
         const zoneBias = tb.zoneBias;
         const perfectWidth = tb.perfect ? Math.min(0.4 * zoneWidth, PATH.perfectWidth * (1 + 0.4 * tb.perfectSize)) : 0;   // never more than 40% of the zone
         const perfectUnits = PATH.perfectMult + tb.perfectUnits;
@@ -919,6 +920,7 @@
 
     // Where a release at `level` lands: 'system', 'perfect' (a super prompt), 'clean' or null.
     function zoneHit(zone, level) {
+        if (!(zone.to > zone.from)) return null;   // no zone yet
         if (zone.systemTo > zone.systemFrom && level >= zone.systemFrom && level <= zone.systemTo) return 'system';
         if (zone.perfectTo > zone.perfectFrom && level >= zone.perfectFrom && level <= zone.perfectTo) return 'perfect';
         return level >= zone.from && level <= zone.to ? 'clean' : null;
