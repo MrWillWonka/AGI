@@ -13,7 +13,6 @@
     const SAVE_VERSION = 5;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks
     const MAX_OFFLINE_SECONDS = 8 * 60 * 60;
     const PRESTIGE_BONUS = 0.1;        // +10% production per Insight ever earned (spending it on legacy nodes keeps the bonus)
-    const ACHIEVEMENT_BONUS = 0.02;    // +2% production per achievement
     const PRESTIGE_MIN_INTELLIGENCE = 5;
     const RESEARCH_SPRINTS = 50;      // paid training sprints after the first skill before Research (and investors) open
     const PRESTIGE_CP_DIVISOR = 1e5;
@@ -417,7 +416,7 @@
         { key: 'seen:awa', name: 'Awareness', check: s => s.attr.awareness > 0, intro: 'It knows it exists. The last phases need it.' }
     ];
 
-    // Achievements persist across prestige and each add ACHIEVEMENT_BONUS to all production.
+    // Achievements persist across prestige. They're recognition only: no production bonus.
     const ACHIEVEMENTS = [
         { id: 'firstClick', name: 'Hello, World', desc: 'Generate compute manually', quiet: true, check: s => s.stats.clicks >= 1 },   // quiet: no callout on the very first click
         { id: 'clicks1k', name: 'Carpal Tunnel', desc: 'Click 1,000 times', check: s => s.stats.clicks >= 1000 },
@@ -499,12 +498,9 @@
         return out;
     }
 
-    const ACHIEVEMENT_BY_ID = Object.fromEntries(ACHIEVEMENTS.map(a => [a.id, a]));
-    // Quiet achievements (the first click) carry no bonus.
-    const prestigeMultiplier = s => 1 + PRESTIGE_BONUS * s.prestige.total;
+    // Versions (Insight) are the only global multiplier.
     function globalMultiplier(s) {
-        const achieved = Object.keys(s.achievements).filter(id => !ACHIEVEMENT_BY_ID[id]?.quiet).length;
-        return prestigeMultiplier(s) * (1 + ACHIEVEMENT_BONUS * achieved);
+        return 1 + PRESTIGE_BONUS * s.prestige.total;
     }
 
     // rates: optional debug multipliers { cp, dp, rp }
@@ -527,9 +523,7 @@
         }
         // Clicks: a flat amount (keyboards, skills), plus a share of CP/s from Shell Scripts so clicking
         // stays worth something as hardware grows.
-        // Clicks keep round numbers (1 → 1.25 → … per the desk): achievements boost passive production, not
-        // the click; only versions (Insight) scale it.
-        const clickPower = (1 + clickToolPower(L('keyboard')) + sk.click) * prestigeMultiplier(s) + 0.02 * L('shellScripts') * cpPerSec;
+        const clickPower = (1 + clickToolPower(L('keyboard')) + sk.click) * mult + 0.02 * L('shellScripts') * cpPerSec;
         const dpPerCollect = (1 + L('dataProcessor') + sk.collect) * (1 + sk.dp) * mult * bo.dp;
         const rpPerResearch = (1 + L('machineLearning') + 2 * L('deepLearning') + 3 * L('reinforcementLearning')
             + 5 * L('transferLearning') + sk.research) * (1 + sk.rp) * mult * bo.rp;
