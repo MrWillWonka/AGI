@@ -948,7 +948,6 @@ window.AGI = (function () {
         cabinetKey = null;
         Object.assign(lab, { cp: [], dp: [], rp: [], xp: [], hand: [], lastRunCp: null, lastCollects: null, lastResearch: null, lastXp: null, lines: [] });
         storageSet(RACK_LOG_KEY, '[]');
-        path.queued = null;
         ui.termLines.replaceChildren();
         for (const st of Object.values(ui.stations)) st.order = '';
         projectSlots = projectSlots.map(() => null);
@@ -2614,7 +2613,6 @@ window.AGI = (function () {
         rollKey: '',
         rollPushes: 0,
         charging: null,         // { start } while the push button is held
-        queued: null,           // a sprint released during a wind-up or cooldown: fires as soon as it can
         cleanFlash: 0,
         fx: freshFx(),          // luck effects: breakthrough wind-up, crunch, flow, viral burst
         stateRef: null,
@@ -2757,16 +2755,18 @@ window.AGI = (function () {
         return E.bonusZone(roll.ground.seed, pushIndex(roll), d.zoneWidth, d.perfectWidth, d.systemWidth, d.zoneBias);
     }
 
-    // Whether you can charge a sprint: also during a breakthrough's wind-up and the cooldown (the release
-    // then waits for its moment). During a crunch or Bullet Time sprints are free.
+    // Whether the run still takes sprints at all (pushes left and affordable, or free during a crunch or
+    // Bullet Time). Charging also needs readyToFire: no early charging or queued sprints.
     function canPush(roll) {
         if (roll.over || roll.crested || path.pause > 0) return false;
         if (crunching() || frozen()) return true;
         return roll.pushesLeft > 0 && chargeBudget() >= E.PATH.minCharge;
     }
 
-    // Whether a sprint can fire right now (no wind-up or cooldown in the way).
+    // Whether a sprint can charge and fire right now: no wind-up or cooldown in the way (Bullet Time banks
+    // sprints whenever, so it's always ready).
     function readyToFire(roll) {
+        if (frozen()) return canPush(roll);
         return canPush(roll) && !path.fx.windup && roll.ball.cooldown <= 0;
     }
 
@@ -2794,7 +2794,7 @@ window.AGI = (function () {
         if (path.done) runAgain();
         const roll = currentRoll();
         if (path.charging) return;
-        if (!canPush(roll)) {
+        if (!readyToFire(roll)) {
             if (!roll.over && roll.pushesLeft > 0 && chargeBudget() < E.PATH.minCharge) {
                 setText($('pathStatus'), `Not enough to sprint: ${E.formatCost(E.pushCost(state, E.PATH.minCharge, ballLeg()))}`);
             }
@@ -2818,8 +2818,8 @@ window.AGI = (function () {
 
     const PROMPT_NAMES = { clean: 'Clean prompt', perfect: 'Super prompt', system: 'System prompt' };
 
-    // A manual sprint released at `level` of the meter: judged against the zone now, then fired, banked
-    // (Bullet Time) or, during a wind-up or cooldown, queued to fire the moment it can.
+    // A manual sprint released at `level` of the meter: judged against the zone now, then fired (or banked,
+    // in Bullet Time). Charging only starts when a sprint can fire, so there's nothing to queue.
     function sprint(roll, level, effort) {
         const kind = effort ? 'perfect' : path.fx.forceKind || E.zoneHit(currentZone(roll), level);
         path.fx.forceKind = null;
@@ -2827,11 +2827,7 @@ window.AGI = (function () {
             bankSprint(roll, level, kind);
             return;
         }
-        if (!readyToFire(roll)) {
-            if (canPush(roll)) path.queued = { level, kind, effort };
-            return;
-        }
-        fireSprint(roll, level, kind, effort);
+        if (readyToFire(roll)) fireSprint(roll, level, kind, effort);
     }
 
     function fireSprint(roll, level, kind, effort) {
@@ -3266,14 +3262,6 @@ window.AGI = (function () {
             if (fx.windup && (fx.windup.age += dt) >= WINDUP_SECONDS) launchBreakthrough(roll, fx.windup.super);
             if (fx.crunch > 0) fx.crunch = Math.max(0, fx.crunch - sim);
             if (frozen() && (fx.freeze = Math.max(0, fx.freeze - dt)) === 0) releaseBank(roll);
-            // A sprint released during the wind-up or cooldown fires the moment it can.
-            if (path.queued && readyToFire(roll)) {
-                const q = path.queued;
-                path.queued = null;
-                fireSprint(roll, q.level, q.kind, q.effort);
-            } else if (path.queued && !canPush(roll)) {
-                path.queued = null;
-            }
             for (const ev of roll.step(sim)) {
                 if (ev.type === 'clear') clearLeg(ev);
                 else if (ev.type === 'crest' && !roll.over) celebrateSummit();
@@ -3388,13 +3376,12 @@ window.AGI = (function () {
     function finishRoll(ev) {
         const crested = ev.type === 'crest' || !!ev.crested;
         const roll = path.roll;
-        // Crunches, Bullet Time, Max Effort and queued sprints end with the run.
+        // Crunches, Bullet Time and Max Effort end with the run.
         path.fx.crunch = 0;
         path.fx.freeze = 0;
         path.fx.bank = 0;
         path.fx.banked = 0;
         path.fx.maxEffort = false;
-        path.queued = null;
         const leg = ev.leg ?? state.path.learned;
         const replay = roll.ground.stretch < state.path.learned;
         const target = E.skillAt(leg).name;
@@ -3497,11 +3484,10 @@ window.AGI = (function () {
         const roll = path.roll;
         const button = $('pushButton');
         if (!roll) return;
-        // One message at a time: charging always reads "Release to sprint" (a release during the wait just
-        // queues), and the wait itself counts down on the button.
+        // One message at a time: charging reads "Release to sprint", and the wait counts down on the button
+        // (the meter greys out and won't charge until it's over).
         const label = path.charging ? (frozen() ? 'Release to bank' : 'Release to sprint')
-            : path.queued ? `Sprint queued · ${Math.max(0, roll.ball.cooldown).toFixed(1)} s`
-            : path.fx.windup ? 'Breakthrough… (charge now)'
+            : path.fx.windup ? 'Breakthrough…'
             : frozen() ? `BULLET TIME! Bank sprints (${path.fx.freeze.toFixed(1)} s)`
             : path.fx.maxEffort && !roll.over && !roll.crested ? 'MAX EFFORT: press to go all out'
             : crunching() && !roll.over && !roll.crested ? `CRUNCH! Sprint free (${path.fx.crunch.toFixed(1)} s)`
@@ -3513,7 +3499,8 @@ window.AGI = (function () {
             : roll.pushesLeft > 0 ? `Hold to sprint (${roll.pushesLeft} left)` : 'Out of sprints';
         setText(button, label);
         // Stay enabled while charging so releasing the pointer still lands on the button.
-        setDisabled(button, !path.charging && !path.done && !canPush(roll));
+        setDisabled(button, !path.charging && !path.done && !readyToFire(roll));
+        $('charge').classList.toggle('waiting', !path.charging && roll.launched && canPush(roll) && !readyToFire(roll));
         button.classList.toggle('crunch', crunching());
         button.classList.toggle('frozen', frozen());
         button.classList.toggle('effort', !!path.fx.maxEffort);

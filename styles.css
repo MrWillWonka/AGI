@@ -898,6 +898,8 @@ h1, h2, h3, p { margin: 0; }
 
 /* Strength meter: sweeps while the button is held; the bright band is the bonus zone. */
 .charge { flex: 1 1 240px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* Waiting for the cooldown (or a breakthrough's wind-up): the meter greys out and won't charge. */
+.charge.waiting .charge-track { filter: grayscale(1); opacity: 0.45; transition: opacity 0.15s ease, filter 0.15s ease; }
 
 .charge-track {
     position: relative;
