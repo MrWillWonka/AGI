@@ -2328,7 +2328,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 
 /* ---- Reveals: new sections boot up instead of popping in ----
    A scan wipe from the left with a bright leading edge, a short flicker, then a glow that fades. */
-.reveal-in { animation: reveal-boot 0.75s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.reveal-in { animation: reveal-boot 1.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 @keyframes reveal-boot {
     0% { clip-path: inset(0 100% 0 0); opacity: 0.4; filter: brightness(2.2) saturate(0.4); box-shadow: 0 0 0 1px rgba(99, 224, 171, 0.9), 0 0 24px rgba(99, 224, 171, 0.6); }
     45% { clip-path: inset(0 0 0 0); opacity: 1; filter: brightness(1.7) saturate(0.6); }
@@ -2341,7 +2341,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 /* The scan line itself, riding the wipe's edge (on elements whose ::before is free). */
 .supply-cell.reveal-in::before, .action-button.reveal-in::before, .task.reveal-in::before, .upgrade.reveal-in::before {
     content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background: #c8ffe9; box-shadow: 0 0 12px 3px rgba(99, 224, 171, 0.8);
-    animation: reveal-scan 0.34s linear both; animation-delay: inherit; pointer-events: none; z-index: 2;
+    animation: reveal-scan 0.68s linear both; animation-delay: inherit; pointer-events: none; z-index: 2;
 }
 .action-button.reveal-in, .task.reveal-in, .upgrade.reveal-in { position: relative; }
 @keyframes reveal-scan { from { left: 0; opacity: 1; } 90% { opacity: 1; } to { left: 100%; opacity: 0; } }

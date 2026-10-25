@@ -683,14 +683,17 @@ test('the click tool starts with your desk, one item each, then grows per level;
     assert.ok(Math.abs(E.derive(s).clickPower - (1 + E.clickToolPower(5)) * E.derive(s).mult) < 1e-9);
 });
 
-test('the server room waits until you can train: data collected and a couple of sprints in stock', () => {
+test('the server room waits until you can train: data collected by hand and a stockpile built', () => {
     const s = fresh();
     s.stats.runCp = 1e4;
     s.res.cp = 1000;
     E.evaluate(s);
     assert.equal(!!s.unlocked['module:path'], false, 'compute alone is not enough');
-    s.stats.collects = 10;
-    s.res.dp = 5;
+    s.stats.collects = 40;
+    s.res.dp = 39;
+    E.evaluate(s);
+    assert.equal(!!s.unlocked['module:path'], false, 'a stockpile of data comes first');
+    s.res.dp = 40;
     E.evaluate(s);
     assert.equal(s.unlocked['module:path'], true);
 });

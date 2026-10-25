@@ -93,7 +93,7 @@ window.AGI = (function () {
     // then does the new section boot in. Snapshot before the change; play on the next frame.
     let roomBefore = null;
     let freshReveals = [];
-    const MAKE_ROOM_MS = 420;
+    const MAKE_ROOM_MS = 750;
     function labMovers() {
         const room = $('labRoom');
         return [...room.querySelectorAll(':scope > .panel, .lab-stations > .station, .supply-cell, #actions > .action-button, .task')].filter(n => !n.hidden);
@@ -125,7 +125,7 @@ window.AGI = (function () {
                 { duration: MAKE_ROOM_MS, easing: 'cubic-bezier(0.25, 0.8, 0.25, 1)' });
         }
         // The new section waits (invisible) until the others have made room.
-        if (moved) for (const n of fresh) n.style.animationDelay = `${MAKE_ROOM_MS - 60}ms`;
+        if (moved) for (const n of fresh) n.style.animationDelay = `${MAKE_ROOM_MS + 80}ms`;
     }
 
     // New sections don't just pop in: panels, stations, supply cells, chips, workbench jobs, tasks, tree

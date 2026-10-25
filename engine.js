@@ -393,8 +393,8 @@
         { key: 'action:collect', name: 'Data Collection', desc: 'Reach 5 CP/s to start collecting data', check: s => derive(s).cpPerSec >= 5 || s.stats.collects > 0 || s.res.dp > 0 },
         // The server room opens once you can actually train: data collected by hand, and enough CP and DP
         // in stock for a couple of full sprints (older saves that already train keep it).
-        { key: 'module:path', name: 'Training Path', desc: 'Collect data 10 times and hold 30 CP and 5 DP to start training your model',
-            check: s => (s.stats.collects >= 10 && s.res.cp >= 30 && s.res.dp >= 5) || s.stats.rolls > 0 || s.path.learned > 0 },
+        { key: 'module:path', name: 'Training Path', desc: 'Collect data 40 times and hold 100 CP and 40 DP to start training your model',
+            check: s => (s.stats.collects >= 40 && s.res.cp >= 100 && s.res.dp >= 40) || s.stats.rolls > 0 || s.path.learned > 0 },
         { key: 'action:research', name: 'Basic Research', desc: 'Hold 100 DP to unlock Research', check: s => s.res.dp >= 100 },
         { key: 'action:improve', name: 'Self-Improvement', desc: 'Hold 25 RP to unlock Self-Improvement', check: s => s.res.rp >= 25 },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
