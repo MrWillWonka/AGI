@@ -2554,7 +2554,7 @@ window.AGI = (function () {
 
     function currentZone(roll) {
         const d = E.derive(state);
-        return E.bonusZone(roll.ground.seed, pushIndex(roll), d.zoneWidth, d.perfectWidth);
+        return E.bonusZone(roll.ground.seed, pushIndex(roll), d.zoneWidth, d.perfectWidth, d.systemWidth, d.zoneBias);
     }
 
     // Whether you can charge a sprint: also during a breakthrough's wind-up and the cooldown (the release
@@ -2648,9 +2648,9 @@ window.AGI = (function () {
     function promptBonus(roll, kind, leg) {
         const xp = E.grantPushBonus(state, kind, leg);
         roll.clean = (roll.clean || 0) + 1;
-        roll.units = (roll.units || 0) + E.cleanUnits(kind);
+        roll.units = (roll.units || 0) + E.cleanUnits(kind, state);
         roll.bonusXp = (roll.bonusXp || 0) + xp;
-        const pct = Math.round(E.derive(state).cleanRollBonus * E.cleanUnits(kind) * 100);
+        const pct = Math.round(E.derive(state).cleanRollBonus * E.cleanUnits(kind, state) * 100);
         path.cleanFlash = 1.2;
         path.cleanText = `${PROMPT_NAMES[kind]}! +${xpText(xp)} XP, +${pct}% run bonus`;
         if (kind === 'system') {
@@ -3061,6 +3061,8 @@ window.AGI = (function () {
             // Bullet Time hold the run still.
             const fx = path.fx;
             const sim = fx.windup || frozen() ? 0 : path.visible ? dt * path.timeScale : dt;
+            // The wait between sprints keeps counting while a wind-up holds the run still.
+            if (fx.windup) roll.ball.cooldown = Math.max(0, roll.ball.cooldown - dt);
             if (fx.windup && (fx.windup.age += dt) >= WINDUP_SECONDS) launchBreakthrough(roll, fx.windup.super);
             if (fx.crunch > 0) fx.crunch = Math.max(0, fx.crunch - sim);
             if (frozen() && (fx.freeze = Math.max(0, fx.freeze - dt)) === 0) releaseBank(roll);
@@ -3115,14 +3117,18 @@ window.AGI = (function () {
         const g = roll.ground;
         const x = roll.ball.x;
         const hill = g.bumps.find(b => x >= b.start && x < b.peak);
-        if (!hill || (hill.skill === null && hill.height < 0.35 * g.goal.height)) return null;
+        // Only big hills: the skill hill, or a rolling hill at least 60% of its height.
+        if (!hill || (hill.skill === null && hill.height < 0.6 * g.goal.height)) return null;
         // Once it starts, it lasts until the ball crests or turns back on this hill.
         if (path.focus === hill && path.tension > 0) return hill;
-        if (hill.peak - x > hill.halfWidth * 0.75) return null;
+        // Rare on purpose: not again for a while after the last one.
+        if (performance.now() < (path.dramaQuiet || 0)) return null;
+        // Within 5% of the top, with almost exactly the energy it needs: a real coin flip.
+        if (g.height(x) < 0.95 * hill.height) return null;
         const need = T.GRAVITY * (hill.height - g.height(x));
         if (need <= 0) return null;
         const ratio = 0.5 * roll.ball.v * roll.ball.v / need;
-        return ratio > 0.35 && ratio < 1.7 ? hill : null;
+        return ratio > 0.6 && ratio < 1.5 ? hill : null;
     }
 
     // Eases time (slow motion), tension (camera push-in, vignette) and the summit celebration.
@@ -3130,7 +3136,10 @@ window.AGI = (function () {
         const celebrating = path.summit && path.summit.age < SUMMIT_SLOWMO;
         // The push-in holds through the summit, then eases back out slowly.
         const focus = path.visible ? (celebrating ? path.roll.ground.goal : nailBiter(path.roll)) : null;
-        if (focus) path.focus = focus;
+        if (focus) {
+            path.focus = focus;
+            path.dramaQuiet = performance.now() + 8000;
+        }
         path.tension += ((focus ? 1 : 0) - path.tension) * Math.min(1, dt * (focus ? 9 : 1.5));
         if (path.tension < 0.01 && !focus) {
             path.tension = 0;
@@ -3287,8 +3296,10 @@ window.AGI = (function () {
         const roll = path.roll;
         const button = $('pushButton');
         if (!roll) return;
-        const label = path.charging ? (frozen() ? 'Release to bank' : path.fx.windup || roll.ball.cooldown > 0 ? 'Release: fires when ready' : 'Release to sprint')
-            : path.queued ? 'Sprint queued…'
+        // One message at a time: charging always reads "Release to sprint" (a release during the wait just
+        // queues), and the wait itself counts down on the button.
+        const label = path.charging ? (frozen() ? 'Release to bank' : 'Release to sprint')
+            : path.queued ? `Sprint queued · ${Math.max(0, roll.ball.cooldown).toFixed(1)} s`
             : path.fx.windup ? 'Breakthrough… (charge now)'
             : frozen() ? `BULLET TIME! Bank sprints (${path.fx.freeze.toFixed(1)} s)`
             : path.fx.maxEffort && !roll.over && !roll.crested ? 'MAX EFFORT: press to go all out'
@@ -3297,6 +3308,7 @@ window.AGI = (function () {
             : !roll.launched ? 'Hold to launch'
             : roll.over ? (path.done ? 'Hold to run again' : 'Next run…')
             : roll.crested ? 'Summit!'
+            : roll.pushesLeft > 0 && roll.ball.cooldown > 0 ? `Next sprint in ${roll.ball.cooldown.toFixed(1)} s`
             : roll.pushesLeft > 0 ? `Hold to sprint (${roll.pushesLeft} left)` : 'Out of sprints';
         setText(button, label);
         // Stay enabled while charging so releasing the pointer still lands on the button.
@@ -3436,7 +3448,12 @@ window.AGI = (function () {
         const leftOf = view => Math.max(g.start - 0.4, roll.ball.x - view * 0.3);
         // Look at the base window (not the widened one) to decide the zoom, so it can't feed on itself.
         const ahead = tallestIn(roll, leftOf(base), leftOf(base) + base);
-        const view = Math.max(base, widthToFit(ahead));
+        // Hysteresis: zoom out at once when something tall needs it, but only zoom back in once the view
+        // could be 30% tighter, so it doesn't keep breathing in and out over every bump.
+        let view = Math.max(base, widthToFit(ahead));
+        const held = path.camView;
+        if (held && held.roll === roll && view <= held.width && view > held.width / 1.3) view = held.width;
+        else path.camView = { roll, width: view };
         const left = leftOf(view);
         if (!(path.tension > 0) || !path.focus) return { left, right: left + view, bottom: 0 };
         // Nail-biter: push in on the ball and the crest, lifting the view so both stay in frame.

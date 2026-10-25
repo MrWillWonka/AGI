@@ -240,12 +240,14 @@ test('engine: the Auto-Trainer needs Faster Chips and a new version, costs Insig
     assert.equal(E.autoTrainerLevel(s), 0);
 });
 
-test('engine: bonus zones sit below the top of the meter, vary per push, and are repeatable', () => {
+test('engine: bonus zones land anywhere on the meter, vary per push, are repeatable, and Prompt Tuning lifts them', () => {
     const zones = [];
+    const avg = bias => { let t = 0; for (let seed = 1; seed <= 300; seed++) t += E.bonusZone(seed * 31, 0, 0.12, 0, 0, bias).from; return t / 300; };
+    assert.ok(avg(2) > avg(0) + 0.08, 'biased zones sit higher on average');
     for (let seed = 1; seed <= 50; seed++) {
         for (let i = 0; i < 6; i++) {
             const z = E.bonusZone(seed * 7919, i, 0.12);
-            assert.ok(z.from >= 0.43 && z.to <= 0.92, `zone ${z.from}-${z.to}`);
+            assert.ok(z.from >= 0.18 && z.to <= 0.97, `zone ${z.from}-${z.to}`);
             assert.ok(Math.abs(z.to - z.from - 0.12) < 1e-9);
             zones.push(z.from);
         }

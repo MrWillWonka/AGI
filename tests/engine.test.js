@@ -533,12 +533,12 @@ test('luck: breakthroughs and viral runs start at zero, grow with levels, and ar
     assert.ok(Math.abs(E.finishRoll(t, 0.5, false, 0, 5, 0, true).xp / plain - E.derive(t).windfallMult) < 1e-9);
 });
 
-test('the sweet spot never widens; hitting it makes the sprint stronger, perfect most of all', () => {
+test('the sweet spot widens only a little (Prompt Templates); hitting it makes the sprint stronger, super prompts most', () => {
     const s = fresh();
     const width = E.derive(s).zoneWidth;
     for (const up of E.UPGRADES.filter(u => u.tab === 'training')) s.levels[up.id] = up.max || 1;
-    assert.equal(E.derive(s).zoneWidth, width);
-    assert.ok(E.derive(s).perfectWidth < width / 2, 'the perfect spot stays small');
+    assert.ok(E.derive(s).zoneWidth > width && E.derive(s).zoneWidth <= 1.5 * width, 'a little wider at most');
+    assert.ok(E.derive(s).perfectWidth < E.derive(s).zoneWidth / 2, 'the super prompt spot stays small');
     const plain = E.sprintStrength(s, 0.7);
     const clean = E.sprintStrength(s, 0.7, 'clean');
     const perfect = E.sprintStrength(s, 0.7, 'perfect');
@@ -728,6 +728,7 @@ test('versions: shipping one keeps Insight, legacy nodes and their effects; numb
     assert.equal(E.isUpgradeVisible(t, E.UPGRADE_BY_ID.headStart), false, 'needs its parent this run');
     t.levels.trainingOptimizer = 1;
     t.levels.gpuCluster2 = 1;
+    t.levels.gpuSupercluster = 1;
     E.evaluate(t);
     const before = E.derive(t).pushPower;
     assert.equal(E.buy(t, 'headStart').ok, true);
@@ -802,4 +803,14 @@ test('Collect Data stays hidden until compute reaches 5 CP/s', () => {
     old.stats.collects = 3;
     E.evaluate(old);
     assert.equal(!!old.unlocked['action:collect'], true);
+});
+
+test('a node never costs as little as the last level of the node it grows from', () => {
+    // Otherwise the next node is a better buy than finishing its parent (Lucky Break 2 vs Serendipity).
+    for (const n of E.UPGRADES.filter(u => u.tab === 'training' && u.cost.xp && u.requires)) {
+        const parent = E.UPGRADE_BY_ID[n.requires];
+        if (!parent.cost.xp) continue;
+        const last = E.upgradeCost(parent, (parent.max || 1) - 1).xp;
+        assert.ok(n.cost.xp > last, `${n.id} (${n.cost.xp}) must cost more than ${parent.id}'s last level (${last})`);
+    }
 });
