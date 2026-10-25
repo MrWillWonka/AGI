@@ -164,9 +164,9 @@ test('engine: training upgrades are bought with XP and change the roll setup', (
     const base = E.derive(s);
     assert.equal(base.pushesPerRoll, 1, 'launch only at first');
     assert.equal(base.pushCooldown, E.PATH.baseCooldown);
-    assert.equal(E.buy(s, 'trainingEpochs').ok, false, 'needs XP');
+    assert.equal(E.buy(s, 'initialWeights').ok, false, 'needs XP');
     s.res.xp = 1000;
-    for (const id of ['trainingEpochs', 'fasterIteration', 'trainingOptimizer']) {
+    for (const id of ['initialWeights', 'trainingEpochs', 'fasterIteration', 'trainingOptimizer']) {
         assert.equal(E.buy(s, id).ok, true, id);
         E.evaluate(s);   // buying a node opens the ones that grow from it
     }

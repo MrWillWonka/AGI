@@ -674,7 +674,7 @@ h1, h2, h3, p { margin: 0; }
 .tree-links .link-open { stroke: #4a6a70; stroke-dasharray: 5 5; }
 .tree-links .link-locked { stroke: rgba(255, 93, 93, 0.35); }
 
-.tree-node, .tree-core {
+.tree-node {
     position: absolute;
     width: min(calc(48% / var(--cols)), 64px);
     aspect-ratio: 1;
@@ -743,22 +743,8 @@ h1, h2, h3, p { margin: 0; }
 
 .tree-node.selected { outline: 2px solid var(--primary); outline-offset: 4px; }
 
-.tree-core { display: grid; place-items: center; pointer-events: none; }
 
-.tree-core-inner {
-    display: grid;
-    place-items: center;
-    width: 80%;
-    aspect-ratio: 1;
-    transform: rotate(45deg);
-    border: 2px solid var(--success);
-    border-radius: 10px;
-    background: radial-gradient(circle, #1f564f, #0f2a2c);
-    box-shadow: 0 0 26px rgba(99, 224, 171, 0.5);
-    color: var(--success);
-}
 
-.tree-core-inner svg { width: 55%; transform: rotate(-45deg); }
 
 .tree-branch {
     position: absolute;
@@ -1689,3 +1675,9 @@ body { zoom: var(--ui-scale); }
     .module-bar .muted { display: none; }
     .module-bar h2 { font-size: 0.82rem; letter-spacing: 0.08em; }
 }
+
+/* The seed node at the centre of the skill tree, in the core's diamond shape. */
+.tree-node.seed { border-radius: 8px; transform: translate(-50%, -50%) rotate(45deg); border-color: var(--success); }
+.tree-node.seed .tree-icon, .tree-node.seed .tree-level { transform: rotate(-45deg); }
+.tree-node.seed:hover { transform: translate(-50%, -50%) rotate(45deg) scale(1.06); }
+.tree-node.seed.owned, .tree-node.seed.maxed { box-shadow: 0 0 22px rgba(99, 224, 171, 0.45); }

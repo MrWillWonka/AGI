@@ -1125,20 +1125,19 @@ window.AGI = (function () {
             ]));
         }
 
-        const core = el('div', { class: 'tree-core', title: 'Training Core' });
-        core.innerHTML = `<span class="tree-core-inner">${icon('core')}</span>`;
-        tree.append(core);
-        treeUi.core = core;
+        treeUi.built = true;
 
         const svg = $('treeLinks');
         svg.setAttribute('preserveAspectRatio', 'none');
         for (const up of nodes) {
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('vector-effect', 'non-scaling-stroke');
-            svg.append(line);
-            treeUi.links.push({ up, line, from: up.requires ? E.UPGRADE_BY_ID[up.requires].tree : { x: 0, y: 0 } });
+            if (up.requires) {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('vector-effect', 'non-scaling-stroke');
+                svg.append(line);
+                treeUi.links.push({ up, line, from: E.UPGRADE_BY_ID[up.requires].tree });
+            }
 
-            const button = el('button', { type: 'button', class: 'tree-node' });
+            const button = el('button', { type: 'button', class: `tree-node${up.requires ? '' : ' seed'}` });
             button.innerHTML = `<span class="tree-icon">${icon(up.icon)}</span><span class="tree-lock">${icon('lock')}</span><span class="tree-level"></span>`;
             button.addEventListener('click', () => {
                 path.selected = up.id;
@@ -1149,7 +1148,7 @@ window.AGI = (function () {
             tree.append(button);
             treeUi.nodes[up.id] = button;
         }
-        path.selected = nodes[0].id;
+        path.selected = 'initialWeights';
         $('startRunButton').addEventListener('click', () => showTrainingView('run'));
         $('treeButton').addEventListener('click', () => showTrainingView('dev'));
     }
@@ -1262,8 +1261,9 @@ window.AGI = (function () {
     // yet), owned, maxed, or available (affordable or not).
     function nodeState(up) {
         if (!E.isUpgradeVisible(state, up)) {
+            // Secrets never preview; the rest show as an unknown lock one step past what you can buy.
             const parent = up.requires && E.UPGRADE_BY_ID[up.requires];
-            return parent && !E.isUpgradeVisible(state, parent) ? 'hidden' : 'locked';
+            return up.secret || (parent && !E.isUpgradeVisible(state, parent)) ? 'hidden' : 'locked';
         }
         if (E.isMaxed(state, up)) return 'maxed';
         const lvl = E.level(state, up.id);
@@ -1272,7 +1272,7 @@ window.AGI = (function () {
     }
 
     function renderTree() {
-        if (!treeUi.core) return;
+        if (!treeUi.built) return;
         const states = Object.fromEntries(treeNodes().map(up => [up.id, nodeState(up)]));
         const shown = treeNodes().filter(up => states[up.id] !== 'hidden');
         const b = treeUi.bounds = treeBounds(shown);
@@ -1280,17 +1280,16 @@ window.AGI = (function () {
         tree.style.setProperty('--cols', b.cols);
         tree.style.setProperty('--rows', b.rows);
         $('treeLinks').setAttribute('viewBox', `0 0 ${b.cols} ${b.rows}`);
-        placeNode(treeUi.core, 0, 0);
         if (path.selected && states[path.selected] === 'hidden') path.selected = shown[0].id;
         for (const up of treeNodes()) {
             const node = treeUi.nodes[up.id];
             const st = states[up.id];
             node.hidden = st === 'hidden';
             placeNode(node, up.tree.x, up.tree.y);
-            node.className = `tree-node ${st}${path.selected === up.id ? ' selected' : ''}`;
+            node.className = `tree-node ${st}${up.requires ? '' : ' seed'}${path.selected === up.id ? ' selected' : ''}`;
             const lvl = E.level(state, up.id);
             node.querySelector('.tree-level').textContent = st === 'locked' ? '' : `${lvl}/${up.max ?? '∞'}`;
-            node.setAttribute('aria-label', `${up.name}: ${st === 'locked' ? 'locked' : `level ${lvl}`}`);
+            node.setAttribute('aria-label', st === 'locked' ? 'Unknown research, locked' : `${up.name}: level ${lvl}`);
             node.setAttribute('aria-pressed', String(path.selected === up.id));
         }
         for (const { up, line, from } of treeUi.links) {
@@ -1320,15 +1319,18 @@ window.AGI = (function () {
             return;
         }
         treeUi.detailKey = key;
+        // Locked nodes keep their secret: no name or effect until the node they grow from is owned.
+        const unknown = st === 'locked';
         const parts = [
             el('div', { class: 'detail-head' }, [
                 el('span', { class: 'detail-icon' }),
-                el('div', {}, [el('h3', { text: up.name }), el('p', { class: 'muted small', text: `Level ${lvl}${up.max ? ` of ${up.max}` : ''}` })])
+                el('div', {}, [el('h3', { text: unknown ? '???' : up.name }),
+                    el('p', { class: 'muted small', text: unknown ? 'Unknown research' : `Level ${lvl}${up.max ? ` of ${up.max}` : ''}` })])
             ]),
-            el('p', { class: 'detail-effect', text: up.effect })
+            el('p', { class: 'detail-effect', text: unknown ? 'Something is out here. Unlock what it grows from to find out what.' : up.effect })
         ];
-        if (st === 'locked') {
-            const needs = up.requires && E.level(state, up.requires) < 1 ? `Requires ${E.UPGRADE_BY_ID[up.requires].name}` : up.hint || 'Locked';
+        if (unknown) {
+            const needs = up.requires && E.level(state, up.requires) < 1 ? `Grows from ${E.UPGRADE_BY_ID[up.requires].name}` : up.hint || 'Locked';
             parts.push(el('p', { class: 'detail-lock', text: needs }));
         } else if (st === 'maxed') {
             parts.push(el('p', { class: 'detail-maxed', text: 'Fully upgraded' }));
@@ -1343,7 +1345,7 @@ window.AGI = (function () {
             parts.push(buy);
         }
         box.replaceChildren(...parts);
-        box.querySelector('.detail-icon').innerHTML = icon(up.icon);
+        box.querySelector('.detail-icon').innerHTML = icon(unknown ? 'lock' : up.icon);
     }
 
     // The dev screen only says where you stand; the run's breakdown was on its result card.
@@ -2210,16 +2212,29 @@ window.AGI = (function () {
                 continue;
             }
             if (!roll) continue;
-            // Live: a window of trail around the ball. Static: the whole stretch, checkpoint to skill hill.
+            // Live: a window of trail around the ball. Monitor: the stretch, checkpoint to skill hill.
             const g = roll.ground;
             const span = live ? 3 : g.goal.end - g.start;
             const from = live ? roll.ball.x - span * 0.4 : g.start;
             const samples = live ? 32 : 120;
+            // Monitor mode shows only what runs have seen: up to the furthest point reached on this
+            // stretch (the record, or the run in progress). The rest is unknown, scaled to what's known.
+            const seenFrac = live ? 1 : Math.max(state.path.best, roll.launched ? g.progress(roll.ball.maxX) : 0);
+            const seenX = live ? from + span : g.start + seenFrac * (g.goal.peak - g.start);
+            const seenPx = Math.min(w, ((seenX - from) / span) * w);
+            const seenIdx = Math.min(samples, Math.floor((seenPx / w) * samples));
             let top = 0.05;
-            for (let i = 0; i <= samples; i++) top = Math.max(top, roll.ground.height(from + (i / samples) * span));
-            const y = hgt => h - 6 - (hgt / top) * (h - 16);
+            for (let i = 0; i <= samples; i++) {
+                const x = from + (i / samples) * span;
+                if (x <= seenX) top = Math.max(top, roll.ground.height(x));
+            }
+            const y = hgt => h - 6 - Math.min(1.15, hgt / top) * (h - 16);
             const pts = [];
             for (let i = 0; i <= samples; i++) pts.push([(i / samples) * w, y(roll.ground.height(from + (i / samples) * span))]);
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, 0, seenPx, h);
+            ctx.clip();
             ctx.beginPath();
             ctx.moveTo(0, h);
             for (const [px, py] of pts) ctx.lineTo(px, py);
@@ -2232,15 +2247,30 @@ window.AGI = (function () {
             ctx.beginPath();
             pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
             ctx.stroke();
-            if (!live && !reducedMotion()) {
-                // Monitor mode: a scan sweeps the stretch with a fading trail and a bright head riding the line.
+            ctx.restore();
+            if (!live) {
+                // The unseen rest: a dotted floor and a question mark.
+                ctx.strokeStyle = hexAlpha(c.muted, 0.35);
+                ctx.setLineDash([2, 4]);
+                ctx.beginPath();
+                ctx.moveTo(seenPx, h - 6);
+                ctx.lineTo(w, h - 6);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = hexAlpha(c.muted, 0.5);
+                ctx.textAlign = 'center';
+                ctx.font = '600 11px "JetBrains Mono", ui-monospace, monospace';
+                if (w - seenPx > 18) ctx.fillText(seenFrac > 0 ? '?' : 'NO DATA', (seenPx + w) / 2, h / 2 + 4);
+            }
+            if (!live && !reducedMotion() && seenIdx >= 2) {
+                // Monitor mode: a scan sweeps what's been seen, with a fading trail and a bright head on the line.
                 const scan = ((performance.now() / 1000) / LANE_SCAN_SECONDS) % 1;
-                const head = scan * samples;
-                const tail = samples * 0.3;
+                const head = scan * seenIdx;
+                const tail = Math.max(3, seenIdx * 0.3);
                 ctx.lineWidth = 1.6;
                 ctx.shadowColor = c.success;
                 ctx.shadowBlur = 6;
-                for (let i = Math.max(1, Math.floor(head - tail)); i <= Math.min(samples, Math.ceil(head)); i++) {
+                for (let i = Math.max(1, Math.floor(head - tail)); i <= Math.min(seenIdx, Math.ceil(head)); i++) {
                     const alpha = Math.max(0, 1 - (head - i) / tail);
                     ctx.strokeStyle = hexAlpha(c.success, alpha);
                     ctx.beginPath();
@@ -2248,10 +2278,11 @@ window.AGI = (function () {
                     ctx.lineTo(pts[i][0], pts[i][1]);
                     ctx.stroke();
                 }
-                const hi = Math.min(samples, Math.floor(head));
+                const hi = Math.min(seenIdx, Math.floor(head));
                 const f = head - hi;
-                const hx = pts[hi][0] + (pts[Math.min(samples, hi + 1)][0] - pts[hi][0]) * f;
-                const hy = pts[hi][1] + (pts[Math.min(samples, hi + 1)][1] - pts[hi][1]) * f;
+                const next = Math.min(seenIdx, hi + 1);
+                const hx = pts[hi][0] + (pts[next][0] - pts[hi][0]) * f;
+                const hy = pts[hi][1] + (pts[next][1] - pts[hi][1]) * f;
                 ctx.fillStyle = c.text;
                 ctx.beginPath();
                 ctx.arc(hx, hy, 2, 0, Math.PI * 2);

@@ -6,28 +6,38 @@ const E = require('../engine.js');
 const NOW = 1_700_000_000_000;
 const fresh = () => E.defaultState(NOW);
 
-test('the skill tree starts sparse: short nodes, cheap roots, dearer further out', () => {
+test('the skill tree starts sparse: one 1-XP seed, short nodes around it, dearer further out', () => {
     const nodes = E.UPGRADES.filter(u => u.tab === 'training');
     const depth = n => (n.requires ? 1 + depth(E.UPGRADE_BY_ID[n.requires]) : 1);
+    const seeds = nodes.filter(n => !n.requires);
+    assert.deepEqual(seeds.map(n => n.id), ['initialWeights'], 'one seed');
+    assert.equal(seeds[0].cost.xp, 1);
+    assert.equal(seeds[0].max, 1);
     for (const n of nodes) {
         assert.ok(n.max >= 1 && n.max <= 3, `${n.id} has 1–3 levels`);
         if (n.cost.xp == null) continue;
         assert.ok(n.boost, `${n.id} declares its boost`);
-        if (depth(n) === 1) assert.ok(n.cost.xp <= 10, `${n.id} is a cheap root`);
+        if (depth(n) === 2) assert.ok(n.cost.xp <= 10 && n.max <= 2, `${n.id}: the ring around the seed is cheap and short`);
+        if (depth(n) <= 3) assert.ok(n.max <= 2, `${n.id}: no 3-level nodes near the centre`);
         if (n.requires && E.UPGRADE_BY_ID[n.requires].cost.xp) {
             assert.ok(n.cost.xp > E.UPGRADE_BY_ID[n.requires].cost.xp, `${n.id} costs more than its parent`);
         }
     }
+    assert.ok(nodes.filter(n => n.secret).length >= 3, 'some nodes are secrets');
 });
 
 test('skill-tree nodes do not overlap and grow from a neighbouring node', () => {
     const nodes = E.UPGRADES.filter(u => u.tab === 'training');
-    const seen = new Set(['0,0']);
+    const seen = new Set();   // the seed node takes the centre cell
     for (const n of nodes) {
         const key = `${n.tree.x},${n.tree.y}`;
         assert.ok(!seen.has(key), `${n.id} overlaps another node`);
         seen.add(key);
-        const parent = n.requires ? E.UPGRADE_BY_ID[n.requires].tree : { x: 0, y: 0 };
+        if (!n.requires) {
+            assert.deepEqual(n.tree, { x: 0, y: 0 }, `${n.id}: the seed sits at the centre`);
+            continue;
+        }
+        const parent = E.UPGRADE_BY_ID[n.requires].tree;
         assert.equal(Math.abs(parent.x - n.tree.x) + Math.abs(parent.y - n.tree.y), 1, `${n.id} is adjacent to what it grows from`);
     }
 });
