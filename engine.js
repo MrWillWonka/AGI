@@ -15,7 +15,7 @@
     const PRESTIGE_BONUS = 0.1;        // +10% production per Insight ever earned (spending it on legacy nodes keeps the bonus)
     const ACHIEVEMENT_BONUS = 0.02;    // +2% production per achievement
     const PRESTIGE_MIN_INTELLIGENCE = 5;
-    const RESEARCH_SPRINTS = 300;     // paid training sprints before Research (and investors) open
+    const RESEARCH_SPRINTS = 50;      // paid training sprints after the first skill before Research (and investors) open
     const PRESTIGE_CP_DIVISOR = 1e5;
     const IMPROVE_GAIN = 5;
 
@@ -399,9 +399,9 @@
             check: s => (s.stats.collects >= 40 && s.res.cp >= 100 && s.res.dp >= 40) || s.stats.rolls > 0 || s.path.learned > 0 },
         // Research is for bigger projects: it opens once training is well under way, and brings the investors
         // (and with them the road to the next version).
-        { key: 'action:research', name: 'Basic Research', desc: `Run ${RESEARCH_SPRINTS} training sprints to unlock Research`,
+        { key: 'action:research', name: 'Basic Research', desc: `Learn a skill, then run ${RESEARCH_SPRINTS} training sprints to unlock Research`,
             callout: ['Research funded', 'Investors are watching. Bigger projects lead to the next version.'],
-            check: s => s.stats.sprints >= RESEARCH_SPRINTS || s.stats.researchDone > 0 },
+            check: s => s.stats.skilledSprints >= RESEARCH_SPRINTS || s.stats.researchDone > 0 },
         { key: 'action:improve', name: 'Self-Improvement', desc: 'Hold 25 RP to unlock Self-Improvement', check: s => s.res.rp >= 25 },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }
@@ -458,7 +458,7 @@
                 projectsDone: 0,
                 researchManual: 0,    // research done by hand
                 rolls: 0,
-                sprints: 0,           // paid training sprints (research opens after RESEARCH_SPRINTS)
+                skilledSprints: 0,    // paid training sprints since the first skill (research opens after RESEARCH_SPRINTS)
                 skillsLearned: 0,
                 improves: 0,
                 playTime: 0,
@@ -879,7 +879,7 @@
         const cost = pushCost(s, charge, leg);
         if (!canAfford(s, cost)) return false;
         pay(s, cost);
-        s.stats.sprints++;
+        if (s.path.learned >= 1) s.stats.skilledSprints++;
         return true;
     }
 
@@ -1253,8 +1253,8 @@
             if (raw.unlocked?.['up:flowState']) s.unlocked['up:maxEffort'] = true;
         }
         for (const k of Object.keys(s.stats)) s.stats[k] = num(raw.stats?.[k], s.stats[k]);
-        // Sprints weren't counted before; older saves get an estimate from their runs (about 2 per run).
-        if (raw.stats && raw.stats.sprints === undefined) s.stats.sprints = s.stats.rolls * 2;
+        // Sprints weren't counted before; older saves past the first skill get an estimate (about 2 per run).
+        if (raw.stats && raw.stats.skilledSprints === undefined && num(raw.path?.learned, 0) >= 1) s.stats.skilledSprints = s.stats.rolls * 2;
         for (const k of Object.keys(s.settings)) s.settings[k] = bool(raw.settings?.[k], s.settings[k]);
         // Scheduled tasks (v5): an on/off switch and a share each. Older saves had one budget for all.
         const oldBudget = raw.settings?.autoBudget;

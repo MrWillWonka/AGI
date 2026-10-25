@@ -167,18 +167,22 @@ test('unlocks persist even after the triggering resource is spent', () => {
 test('research waits for a good stretch of training, not a data stockpile', () => {
     const s = fresh();
     s.res.dp = 1e6;
-    s.stats.sprints = 299;
-    E.evaluate(s);
-    assert.equal(!!s.unlocked['action:research'], false, 'data alone is not enough');
-    s.unlocked['module:path'] = true;
     s.res.cp = 1e6;
+    s.unlocked['module:path'] = true;
+    for (let i = 0; i < 60; i++) E.payPush(s, 1);
+    E.evaluate(s);
+    assert.equal(!!s.unlocked['action:research'], false, 'sprints before the first skill do not count');
+    s.path.learned = 1;
+    for (let i = 0; i < 49; i++) E.payPush(s, 1);
+    E.evaluate(s);
+    assert.equal(!!s.unlocked['action:research'], false);
     assert.equal(E.payPush(s, 1), true);
-    assert.equal(s.stats.sprints, 300, 'paid sprints count');
+    assert.equal(s.stats.skilledSprints, 50);
     E.evaluate(s);
     assert.equal(s.unlocked['action:research'], true);
-    // Older saves estimate their sprints from their runs.
-    const old = E.migrate({ version: 5, stats: { rolls: 40 } });
-    assert.equal(old.stats.sprints, 80);
+    // Older saves past the first skill estimate their sprints from their runs.
+    const old = E.migrate({ version: 5, stats: { rolls: 40 }, path: { learned: 2 } });
+    assert.equal(old.stats.skilledSprints, 80);
 });
 
 test('tick produces resources over time', () => {
