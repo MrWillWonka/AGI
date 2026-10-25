@@ -370,6 +370,7 @@ test('automation is earned: a skill and proof of doing the job by hand', () => {
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.autoCollector), false, 'the skill alone is not enough');
     assert.deepEqual(E.automationGate(s, 'autoCollector').done, 0);
+    s.unlocked['action:collect'] = true;
     for (let i = 0; i < 100; i++) E.act(s, 'collect');
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.autoCollector), true);
@@ -764,4 +765,20 @@ test('prompts: system inside super inside clean; each pays and hits harder; supe
     const rate = hit => { let n = 0; for (let seed = 1; seed <= 2000; seed++) n += hit(seed) ? 1 : 0; return n / 2000; };
     const sup = rate(seed => E.superHit(t, 'breakthrough', seed, 0));
     assert.ok(sup > 0.05 && sup < 0.15, `10% of breakthroughs are super: ${sup}`);
+});
+
+test('Collect Data stays hidden until you have computed by hand 50 times', () => {
+    const s = fresh();
+    s.res.cp = 1000;
+    s.stats.clicks = 49;
+    E.evaluate(s);
+    assert.equal(E.act(s, 'collect').ok, false);
+    s.stats.clicks = 50;
+    E.evaluate(s);
+    assert.equal(E.act(s, 'collect').ok, true);
+    // Saves that had already collected keep it.
+    const old = fresh();
+    old.stats.collects = 3;
+    E.evaluate(old);
+    assert.equal(!!old.unlocked['action:collect'], true);
 });

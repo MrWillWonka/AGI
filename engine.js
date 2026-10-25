@@ -100,7 +100,7 @@
     // Manual actions. `unlock` is the unlock key that reveals the action (null = always visible).
     const ACTIONS = [
         { id: 'compute', name: 'Generate Compute', cost: {}, unlock: null },
-        { id: 'collect', name: 'Collect Data', cost: { cp: 10 }, unlock: null },
+        { id: 'collect', name: 'Collect Data', cost: { cp: 10 }, unlock: 'action:collect' },
         { id: 'research', name: 'Research', cost: { cp: 50, dp: 10 }, unlock: 'action:research' },
         { id: 'improve', name: 'Self-Improve', cost: { cp: 1000, dp: 50, rp: 10 }, scale: 1.25, unlock: 'action:improve' }
     ];
@@ -375,6 +375,8 @@
 
     // Milestones: persistent per-run unlocks for actions and tabs. Once unlocked they stay unlocked.
     const MILESTONES = [
+        // Data waits until compute is familiar: 50 by hand (older saves that already collected keep it).
+        { key: 'action:collect', name: 'Data Collection', desc: 'Compute by hand 50 times to start collecting data', check: s => s.stats.clicks >= 50 || s.stats.collects > 0 || s.res.dp > 0 },
         { key: 'module:path', name: 'Training Path', desc: 'Earn 50 CP this run to start training your model', check: s => s.stats.runCp >= 50 },
         { key: 'action:research', name: 'Basic Research', desc: 'Hold 10 DP to unlock Research', check: s => s.res.dp >= 10 },
         { key: 'action:improve', name: 'Self-Improvement', desc: 'Hold 25 RP to unlock Self-Improvement', check: s => s.res.rp >= 25 },
