@@ -291,7 +291,7 @@ test('prestige keeps achievements and points, resets the run', () => {
     s.stats.runCp = 8e5;
     s.res.cp = 123;
     s.levels.cpu = 5;
-    s.achievements.firstClick = true;
+    s.achievements.cp1k = true;
     assert.equal(E.prestigeGain(s), 2);
     const r = E.prestige(s, NOW + 1);
     assert.equal(r.ok, true);
@@ -299,7 +299,7 @@ test('prestige keeps achievements and points, resets the run', () => {
     assert.equal(r.state.prestige.count, 1);
     assert.equal(r.state.res.cp, 0);
     assert.deepEqual(r.state.levels, {});
-    assert.equal(r.state.achievements.firstClick, true);
+    assert.equal(r.state.achievements.cp1k, true);
     assert.ok(E.derive(r.state).mult > 1.2);
 });
 
@@ -704,6 +704,14 @@ test('the click tool starts with your desk, one item each, then grows per level;
     for (let i = 1; i < E.CLICK_TOOLS.length; i++) assert.ok(E.CLICK_TOOLS[i].per >= E.CLICK_TOOLS[i - 1].per);
     assert.equal(new Set(E.CLICK_TOOLS.map(t => t.name)).size, E.CLICK_TOOLS.length);
     assert.ok(Math.abs(E.derive(s).clickPower - (1 + E.clickToolPower(5)) * E.derive(s).mult) < 1e-9);
+    // Achievements don't make clicks fractional: the first click's achievement leaves a click at exactly 1.
+    const f = fresh();
+    E.act(f, 'compute');
+    E.evaluate(f);
+    assert.equal(E.derive(f).clickPower, 1);
+    f.achievements.cp1k = true;
+    assert.equal(E.derive(f).clickPower, 1, 'achievements boost passive production, not the click');
+    assert.ok(E.derive(f).mult > 1);
 });
 
 test('the server room waits until you can train: data collected by hand and a stockpile built', () => {

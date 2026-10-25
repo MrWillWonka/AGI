@@ -499,9 +499,12 @@
         return out;
     }
 
+    const ACHIEVEMENT_BY_ID = Object.fromEntries(ACHIEVEMENTS.map(a => [a.id, a]));
+    // Quiet achievements (the first click) carry no bonus.
+    const prestigeMultiplier = s => 1 + PRESTIGE_BONUS * s.prestige.total;
     function globalMultiplier(s) {
-        const achieved = Object.keys(s.achievements).length;
-        return (1 + PRESTIGE_BONUS * s.prestige.total) * (1 + ACHIEVEMENT_BONUS * achieved);
+        const achieved = Object.keys(s.achievements).filter(id => !ACHIEVEMENT_BY_ID[id]?.quiet).length;
+        return prestigeMultiplier(s) * (1 + ACHIEVEMENT_BONUS * achieved);
     }
 
     // rates: optional debug multipliers { cp, dp, rp }
@@ -524,7 +527,9 @@
         }
         // Clicks: a flat amount (keyboards, skills), plus a share of CP/s from Shell Scripts so clicking
         // stays worth something as hardware grows.
-        const clickPower = (1 + clickToolPower(L('keyboard')) + sk.click) * mult + 0.02 * L('shellScripts') * cpPerSec;
+        // Clicks keep round numbers (1 → 1.25 → … per the desk): achievements boost passive production, not
+        // the click; only versions (Insight) scale it.
+        const clickPower = (1 + clickToolPower(L('keyboard')) + sk.click) * prestigeMultiplier(s) + 0.02 * L('shellScripts') * cpPerSec;
         const dpPerCollect = (1 + L('dataProcessor') + sk.collect) * (1 + sk.dp) * mult * bo.dp;
         const rpPerResearch = (1 + L('machineLearning') + 2 * L('deepLearning') + 3 * L('reinforcementLearning')
             + 5 * L('transferLearning') + sk.research) * (1 + sk.rp) * mult * bo.rp;
