@@ -359,3 +359,37 @@ test('the start is flat, and rolling back to the start line ends the run', () =>
     assert.equal(events.at(-1).rolledBack, true);
     assert.equal(events.at(-1).progress, 0);
 });
+
+test('legs: a roll from a cleared leg runs on through every later skill hill to the last', () => {
+    // A single-leg roll is unchanged by the leg support.
+    const one = T.terrain(2, 77);
+    const same = T.terrain(2, 77, 1, 2);
+    assert.deepEqual(one.bumps, same.bumps);
+    // From leg 0 to leg 2: three skill hills, the first two cleared on the way.
+    const g = T.terrain(0, 77, 1, 2);
+    assert.deepEqual(g.bumps.filter(b => b.skill !== null).map(b => b.skill), [0, 1, 2]);
+    assert.equal(g.goal.skill, 2);
+    assert.equal(g.legAt(g.start + 1), 0);
+    assert.equal(g.legAt(T.skillHill(0).peak + 0.5), 1);
+    assert.equal(g.legAt(T.skillHill(2).end + 5), 2);
+    assert.equal(g.progressIn(1, T.skillHill(1).peak), 1);
+    assert.equal(g.progress(T.checkpoint(1) + 0.2), 0, 'progress restarts on each leg');
+
+    // A strong ball pushed whenever it can: clears legs 0 and 1 in order, then crests leg 2.
+    const roll = T.createRoll(0, 77, { pushes: 40, cooldown: 0.3, last: 2, rollOut: true });
+    const events = [];
+    for (let t = 0; t < 400 && !roll.over; t += 1 / 60) {
+        if (roll.ball.cooldown === 0 && roll.pushesLeft > 0 && (!roll.launched || roll.ball.v < 3)) roll.push(9);
+        events.push(...roll.step(1 / 60));
+    }
+    assert.deepEqual(events.map(e => e.type + (e.skill ?? '')), ['clear0', 'clear1', 'crest2', 'end2']);
+    assert.equal(events.at(-1).leg, 2);
+
+    // A weak one stops part-way along leg 0 and reports that leg.
+    const weak = T.createRoll(0, 77, { pushes: 1, cooldown: 1, last: 2 });
+    weak.push(2);
+    let end = null;
+    for (let t = 0; t < 120 && !end; t += 1 / 60) end = weak.step(1 / 60).find(e => e.type === 'end') || null;
+    assert.equal(end.leg, 0);
+    assert.ok(end.progress > 0 && end.progress < 1);
+});

@@ -1,7 +1,8 @@
 // training-path.js — the Training Path: rolls of a ball over random rolling hills toward skill hills.
-// The trail is split into stretches. Stretch k runs from checkpoint k to skill hill k, a big hill
-// that teaches skill k. Each roll starts at the checkpoint over freshly generated rolling hills;
-// the roll ends when the ball comes to rest or crests the skill hill.
+// The trail is split into stretches (legs). Stretch k runs from checkpoint k to skill hill k, a big hill
+// that teaches skill k. Each roll starts at a checkpoint over freshly generated rolling hills and runs
+// on through every later leg up to the last one asked for (a replay of cleared legs carries on toward the
+// frontier); the roll ends when the ball comes to rest or crests the last skill hill.
 // Pure and deterministic: no DOM, no clock, no Math.random. Terrain comes from (stretch, seed).
 // Loaded in the browser as window.TrainingPath and in Node (tests) via require().
 (function (root, factory) {
@@ -30,9 +31,10 @@
 
     const skillHeight = k => 0.3 * Math.pow(1.5, k);   // each skill hill is a bigger wall than the last
     const skillHalfWidth = k => 0.55 * Math.pow(1.14, k);
-    // Checkpoint to the foot of skill hill k. From the second stretch on the distance itself is the
-    // challenge (twice the old length), so strength, launches and bounces matter later on.
-    const stretchLength = k => (k === 0 ? 10 : 2 * (10 * Math.pow(1.25, k) + 4 * k));
+    // Checkpoint to the foot of skill hill k: 10, 17, 26, 36, 50, 69, 93, 124, 166 … Gentle early (no wall
+    // at the second skill), then much longer each stretch, so the distance itself becomes the challenge
+    // and strength (and later launches and bounces) matters more than the hill count.
+    const stretchLength = k => 10 * Math.pow(1.4, k) + 3 * k;
 
     const checkpoints = [0];    // checkpoints[k] = x where stretch k starts
     function checkpoint(k) {
@@ -87,10 +89,17 @@
 
     // ---- Terrain for one roll ----------------------------------------------
 
-    // The ground for a roll on stretch k: flat at the start, the rolling hills, and skill hill k ahead.
-    // Nothing behind the start line: a ball that rolls back to it ends the run.
-    function terrain(k, seed, hillScale = 1) {
-        const bumps = [...rollingHills(k, seed, hillScale), skillHill(k)];
+    // Rolling hills for leg j of a run that starts on leg k: the first leg uses the roll's seed, later legs
+    // derive their own from it, so a single-leg roll is unchanged and every leg differs.
+    const legSeed = (seed, k, j) => (j === k ? seed : (seed + Math.imul(j - k, 0x9E3779B1)) >>> 0);
+
+    // The ground for a roll from stretch k through stretch `last` (default k): flat at the start, then
+    // each leg's rolling hills and skill hill. Nothing behind the start line: a ball that rolls back to it
+    // ends the run.
+    function terrain(k, seed, hillScale = 1, last = k) {
+        last = Math.max(k, last);
+        const bumps = [];
+        for (let j = k; j <= last; j++) bumps.push(...rollingHills(j, legSeed(seed, k, j), hillScale), skillHill(j));
 
         function find(x) {
             let lo = 0;
@@ -131,35 +140,55 @@
         }
 
         const start = checkpoint(k) + 0.2;
-        const goal = skillHill(k);
+        const goal = skillHill(last);
+        // Each leg starts at its checkpoint (the run's own start line on the first) and ends at its peak.
+        const legStart = j => (j === k ? start : checkpoint(j) + 0.2);
+        // The leg a position belongs to: the one whose skill hill is next ahead.
+        function legAt(x) {
+            for (let j = k; j < last; j++) if (x <= skillHill(j).peak) return j;
+            return last;
+        }
+        const progressIn = (j, x) => Math.max(0, Math.min(1, (x - legStart(j)) / (skillHill(j).peak - legStart(j))));
         const rolling = bumps.filter(b => b.skill === null);
         return {
             walls,
-            // Rolling hills whose peak lies at or before x (how many the ball has got over).
-            hillsBefore: x => rolling.filter(b => b.peak <= x).length,
+            // Rolling hills on x's leg whose peak lies at or before x (how many the ball has got over there).
+            hillsBefore: x => {
+                const j = legAt(x);
+                const from = legStart(j);
+                return rolling.filter(b => b.peak >= from && b.peak <= x).length;
+            },
             stretch: k,
+            last,
             seed,
             bumps,
             height,
             slope,
             start,
             goal,
-            // How far along the stretch a position is: 0 at the start, 1 at the skill hill's peak.
-            progress: x => Math.max(0, Math.min(1, (x - start) / (goal.peak - start)))
+            legAt,
+            legStart,
+            // How far along its leg a position is: 0 at the leg's start, 1 at its skill hill's peak.
+            progress: x => progressIn(legAt(x), x),
+            progressIn
         };
     }
 
     // ---- One roll -------------------------------------------------------------
 
-    // opts: { pushes, cooldown, friction?, slopeDrag?, hillScale?, rollOut? } — friction and slopeDrag
-    // scale rolling resistance and slope friction (1 = normal); hillScale lowers the rolling hills. With
-    // rollOut, cresting the skill hill emits 'crest' but the roll goes on down the far side and ends
-    // with an 'end' event marked `crested` (so the UI can celebrate first); otherwise 'crest' ends it.
+    // opts: { pushes, cooldown, friction?, slopeDrag?, hillScale?, rollOut?, last? } — friction and
+    // slopeDrag scale rolling resistance and slope friction (1 = normal); hillScale lowers the rolling
+    // hills; `last` (default k) is the final leg. Cresting an earlier leg's skill hill emits 'clear' and
+    // the ball rolls on. Cresting the last one emits 'crest'; with rollOut the roll goes on down the far
+    // side and ends with an 'end' event marked `crested` (so the UI can celebrate first), otherwise
+    // 'crest' ends it. 'end' events carry the `leg` the ball stopped on and the `progress` along it.
     function createRoll(k, seed, opts) {
         const { pushes, cooldown } = opts;
         const friction = opts.friction ?? 1;
         const slopeDrag = SLOPE_DRAG * (opts.slopeDrag ?? 1);
-        const ground = terrain(k, seed, opts.hillScale ?? 1);
+        const ground = terrain(k, seed, opts.hillScale ?? 1, opts.last ?? k);
+        const last = ground.last;
+        let nextClear = k;          // the next earlier-leg skill hill still to crest
         const ball = { x: ground.start, v: 0, still: 0, cooldown: 0, maxX: ground.start, trapped: false };
         let pushesLeft = pushes;
         let launched = false;
@@ -197,8 +226,12 @@
             ball.x += ball.v * STEP;
             ball.maxX = Math.max(ball.maxX, ball.x);
 
+            while (nextClear < last && ball.x > skillHill(nextClear).peak) {
+                events.push({ type: 'clear', skill: nextClear, hills: ground.hillsBefore(skillHill(nextClear).peak) });
+                nextClear++;
+            }
             if (!crested && ball.x > ground.goal.peak) {
-                events.push({ type: 'crest', skill: k, progress: 1, hills: ground.hillsBefore(ball.maxX) });
+                events.push({ type: 'crest', skill: last, leg: last, progress: 1, hills: ground.hillsBefore(ground.goal.peak) });
                 if (!opts.rollOut) {
                     over = true;
                     return;
@@ -209,13 +242,13 @@
                 // Down the far side and out onto the flat, then done.
                 if (ball.x > ground.goal.end + ROLL_OUT || (ball.x > ground.goal.end && Math.abs(ball.v) < 0.25)) {
                     over = true;
-                    events.push({ type: 'end', skill: k, progress: 1, crested: true, hills: ground.hillsBefore(ball.maxX) });
+                    events.push({ type: 'end', skill: last, leg: last, progress: 1, crested: true, hills: ground.hillsBefore(ground.goal.peak) });
                 }
                 return;
             }
             if (launched && ball.v < 0 && ball.x < ground.start - ROLL_BACK) {
                 over = true;
-                events.push({ type: 'end', skill: k, progress: 0, rolledBack: true, hills: ground.hillsBefore(ball.maxX) });
+                events.push({ type: 'end', skill: k, leg: k, progress: 0, rolledBack: true, hills: ground.hillsBefore(Math.min(ball.maxX, skillHill(k).peak)) });
                 return;
             }
             const resting = Math.abs(ball.v) < REST_SPEED && Math.abs(dy) < 0.08;
@@ -223,8 +256,14 @@
             // The roll ends once the ball settles with no pushes left. With pushes left, it waits for you.
             if (launched && pushesLeft === 0 && ball.still >= REST_SECONDS) {
                 over = true;
-                events.push({ type: 'end', skill: k, progress: ground.progress(ball.x), hills: ground.hillsBefore(ball.maxX) });
+                events.push(stopEvent());
             }
+        }
+
+        // Where a roll that stops here ends: its leg, how far along it, and the rolling hills got over there.
+        function stopEvent() {
+            const leg = ground.legAt(ball.x);
+            return { type: 'end', skill: leg, leg, progress: ground.progress(ball.x), hills: ground.hillsBefore(Math.min(ball.maxX, skillHill(leg).peak)) };
         }
 
         function step(seconds) {
@@ -243,8 +282,8 @@
             if (over) return null;
             over = true;
             return crested
-                ? { type: 'end', skill: k, progress: 1, crested: true, hills: ground.hillsBefore(ball.maxX) }
-                : { type: 'end', skill: k, progress: ground.progress(ball.x), hills: ground.hillsBefore(ball.maxX) };
+                ? { type: 'end', skill: last, leg: last, progress: 1, crested: true, hills: ground.hillsBefore(ground.goal.peak) }
+                : stopEvent();
         }
 
         return {
@@ -258,7 +297,8 @@
             get over() { return over; },
             // Past the skill hill's peak (rollOut only): rolling down the far side, no more pushes.
             get crested() { return crested; },
-            // Where the ball is now (0–1 of the stretch). Rolling back lowers it.
+            // Where the ball is now: its leg, and how far along it (0–1). Rolling back lowers it.
+            get leg() { return ground.legAt(ball.x); },
             get progress() { return ground.progress(ball.x); },
             get atRest() { return ball.still >= REST_SECONDS; },
             // The ball no longer has the energy to clear the next hill: the moment a push matters most.

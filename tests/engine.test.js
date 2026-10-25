@@ -436,3 +436,40 @@ test('v3 saves load with no automated laps', () => {
     assert.deepEqual(v3.path.auto, []);
     assert.equal(v3.path.learned, 2);
 });
+
+test('replays: cleared legs push cheaper, pay a share of their XP, and never teach or set records', () => {
+    const s = fresh();
+    s.unlocked['module:path'] = true;
+    s.path.learned = 3;
+    s.path.best = 0.4;
+    // Push costs follow the leg the ball is on.
+    assert.ok(E.pushCost(s, 1, 0).cp < E.pushCost(s, 1, 2).cp);
+    assert.deepEqual(E.pushCost(s, 1), E.pushCost(s, 1, 3));
+    // Clearing a cleared leg's hill again pays flat XP, more for later legs; the frontier pays none.
+    assert.ok(E.legClearXp(s, 0) > 0 && E.legClearXp(s, 2) > E.legClearXp(s, 0));
+    assert.equal(E.legClearXp(s, 3), 0);
+    const xp0 = s.res.xp;
+    E.clearLeg(s, 1);
+    assert.ok(s.res.xp > xp0);
+    assert.equal(s.stats.legsCleared, 1);
+    // Distance on a cleared leg pays its replay share, and the frontier pays in full.
+    assert.ok(E.rollXp(s, 0.5, false, 0, 0, 2) < E.rollXp(s, 0.5, false, 0, 0, 3));
+    // Stopping on a cleared leg: XP, but no record and no skill even if "crested".
+    const r = E.finishRoll(s, 0.9, true, 0, 0, 1);
+    assert.equal(r.skill, null);
+    assert.equal(r.record, false);
+    assert.equal(s.path.learned, 3);
+    assert.equal(s.path.best, 0.4);
+    // Reaching the frontier leg on a replay counts as a normal frontier run.
+    const f = E.finishRoll(s, 1, true, 0, 0, 3);
+    assert.ok(f.skill);
+    assert.equal(s.path.learned, 4);
+});
+
+test('data automation opens with the first skill and 100 collections by hand', () => {
+    const s = fresh();
+    s.stats.collects = 100;
+    assert.equal(E.automationGate(s, 'autoCollector').met, false);
+    s.path.learned = 1;
+    assert.equal(E.automationGate(s, 'autoCollector').met, true);
+});

@@ -164,7 +164,9 @@ window.AGI = (function () {
         for (const action of E.ACTIONS) {
             const gain = el('span', { class: 'action-gain' });
             const cost = el('span', { class: 'action-cost', text: E.formatCost(action.cost) });
-            const auto = el('span', { class: 'action-auto' });
+            // Jobs that can be automated keep a line for it (blank until it means something), so the card
+            // never changes height; the rest have none.
+            const auto = el('span', { class: `action-auto${AUTOMATES[action.id] ? '' : ' none'}` });
             const button = el('button', { type: 'button', class: 'button action-button' }, [
                 el('span', { class: 'action-name', text: action.name }), gain, cost, auto
             ]);
@@ -183,14 +185,16 @@ window.AGI = (function () {
         if (!id) return '';
         const lvl = E.level(state, id);
         if (lvl) return `Automated · ${E.UPGRADE_BY_ID[id].name} ×${lvl}`;
+        // Data automation means nothing until data has been introduced.
+        if (actionId === 'collect' && !state.unlocked['seen:dp']) return '';
         const g = E.automationGate(state, id);
-        if (g.met) return 'Ready to automate · see the lab stations';
+        if (g.met) return `Ready to automate · ${STATIONS[E.UPGRADE_BY_ID[id].tab].name}`;
         if (g.done < g.need) return `${g.done}/${g.need} by hand to automate`;
         return `Automate after your AI learns ${g.skill}`;
     }
 
-    // Lab stations: one per upgrade group (E.TABS), each with its own look. Locked stations stay
-    // hidden except the next one, which shows sealed and unnamed.
+    // Lab stations: one per upgrade group (E.TABS), each with its own look, in a reserved slot (its
+    // place in E.TABS), so opening one never moves another. Locked stations aren't drawn at all.
     const STATIONS = {
         hardware: { name: 'Hardware bench', kind: 'bench' },
         software: { name: 'Software terminal', kind: 'terminal' },
@@ -200,20 +204,18 @@ window.AGI = (function () {
 
     function buildUpgrades() {
         const box = $('labStations');
-        for (const tab of E.TABS) {
+        E.TABS.forEach((tab, slot) => {
             const st = STATIONS[tab.id];
             const art = el('div', { class: 'station-art', 'aria-hidden': 'true' });
             const list = el('div', { class: 'station-list' });
-            const sealed = el('div', { class: 'station-sealed', 'aria-hidden': 'true' }, [
-                el('span', { class: 'sealed-mark', text: '???' }), el('span', { class: 'muted small', text: 'Sealed station · keep growing to open it' })
-            ]);
-            const node = el('section', { class: `panel hud station station-${st.kind}`, 'aria-label': st.name }, [
-                el('h2', { class: 'station-title', text: st.name }), art, list, sealed
+            const more = el('span', { class: 'station-more', 'aria-hidden': 'true', text: '▾ more below', hidden: true });
+            const node = el('section', { class: `panel hud station station-${st.kind}`, 'aria-label': st.name, 'data-slot': slot, hidden: true }, [
+                el('h2', { class: 'station-title', text: st.name }), art, list, more
             ]);
             box.append(node);
-            ui.stations[tab.id] = { node, art, sealed, title: node.firstChild };
+            ui.stations[tab.id] = { node, art, list, more, order: '' };
             ui.panels[tab.id] = list;
-        }
+        });
         // The terminal has a screen header; the other stations get decorative pieces.
         ui.termLines = el('span', { class: 'terminal-log' }, [el('span', { class: 'terminal-out', text: '> waiting for jobs' })]);
         ui.stations.software.art.append(ui.termLines, el('span', { class: 'terminal-line', text: '$ ./improve --list' }));
@@ -233,7 +235,7 @@ window.AGI = (function () {
                 ]),
                 button
             ]) : button;
-            const card = el('article', { class: 'upgrade', hidden: true }, [
+            const card = el('article', { class: 'upgrade', hidden: true, 'data-id': up.id }, [
                 el('div', { class: 'upgrade-info' }, [
                     el('h3', {}, [document.createTextNode(up.name + ' '), levelBadge]),
                     el('p', { class: 'muted small', text: up.effect }),
@@ -252,16 +254,29 @@ window.AGI = (function () {
     }
 
     function renderStations() {
-        let shownSealed = false;
         for (const tab of E.TABS) {
             const st = ui.stations[tab.id];
-            const open = !tab.unlock || !!state.unlocked[tab.unlock];
-            const sealed = !open && !shownSealed;
-            shownSealed ||= sealed;
-            st.node.hidden = !open && !sealed;
-            st.node.classList.toggle('is-sealed', sealed);
-            setText(st.title, open ? STATIONS[tab.id].name : 'Sealed station');
-            st.node.setAttribute('aria-label', open ? STATIONS[tab.id].name : 'Sealed station');
+            setHidden(st.node, !!tab.unlock && !state.unlocked[tab.unlock]);
+            // Cards in the order they were revealed (state.unlocked keeps insertion order, and saves keep
+            // it too), so a new upgrade always lands at the end and nothing you know moves.
+            const ids = Object.keys(state.unlocked).filter(k => k.startsWith('up:')).map(k => k.slice(3))
+                .filter(id => ui.upgrades[id] && ui.upgrades[id].up.tab === tab.id);
+            const order = ids.join(',');
+            if (order !== st.order) {
+                const known = new Set(st.order ? st.order.split(',') : []);
+                for (const id of ids) {
+                    const { card } = ui.upgrades[id];
+                    st.list.insertBefore(card, st.list.emptyHint || null);
+                    // Arrivals while you're here get a brief highlight (not on load).
+                    if (st.order !== '' && !known.has(id)) {
+                        card.classList.add('fresh');
+                        card.addEventListener('animationend', () => card.classList.remove('fresh'), { once: true });
+                    }
+                }
+                st.order = order;
+            }
+            const l = st.list;
+            setHidden(st.more, !(l.scrollHeight - l.scrollTop - l.clientHeight > 8));
         }
         renderCabinets();
     }
@@ -513,7 +528,11 @@ window.AGI = (function () {
         Object.assign(treeCam, { x: 0, y: 0, z: 1 });
         $('skillTree').style.transform = '';
         cabinetKey = null;
-        Object.assign(lab, { cp: [], dp: [], lastRunCp: null, lastCollects: null, lines: [] });
+        Object.assign(lab, { cp: [], dp: [], hand: [], lastRunCp: null, lastCollects: null, lines: [] });
+        for (const st of Object.values(ui.stations)) st.order = '';
+        projectSlots = projectSlots.map(() => null);
+        projectsKey = '';
+        path.startLeg = null;
         showView('lab');
     }
 
@@ -669,15 +688,7 @@ window.AGI = (function () {
             }
             case 'supply.cleared': {
                 const b = E.clearedCpBonus(state);
-                return b ? `+${E.format(b * 100, 1)}% from training` : '';
-            }
-            case 'supply.sprint': {
-                const c = E.pushCost(state, 1);
-                return `A full training sprint draws ${E.formatCost(c)}`;
-            }
-            case 'supply.next': {
-                const k = E.skillAt(state.path.learned);
-                return `Next skill, ${k.name}: ${k.effect}`;
+                return b ? `+${E.format(b * 100, 1)}% training` : '';
             }
             case 'goal.lab': return goalFor('lab');
             case 'goal.servers': return goalFor('servers');
@@ -734,7 +745,9 @@ window.AGI = (function () {
         const gains = { compute: `+${E.format(d.clickPower)} CP`, collect: `+${E.format(d.dpPerCollect)} DP`,
             research: `+${E.format(d.rpPerResearch)} RP`, improve: `+${E.IMPROVE_GAIN} Int` };
         for (const { action, button, gain, cost, auto } of Object.values(ui.actions)) {
-            setText(auto, automationText(action.id));
+            const autoText = automationText(action.id);
+            setText(auto, autoText);
+            if (auto.title !== autoText) auto.title = autoText;
             auto.classList.toggle('done', !!(AUTOMATES[action.id] && E.level(state, AUTOMATES[action.id])));
             const price = E.actionCost(state, action);
             setHidden(button, !!action.unlock && !state.unlocked[action.unlock]);
@@ -747,16 +760,17 @@ window.AGI = (function () {
 
         const visibleCount = {};
         for (const { up, card, button, levelBadge } of Object.values(ui.upgrades)) {
-            const visible = E.isUpgradeVisible(state, up) && !E.isMaxed(state, up);
+            // Installed upgrades stay where they are (dimmed): cards never vanish from under you.
+            const visible = E.isUpgradeVisible(state, up);
             setHidden(card, !visible);
             if (!visible) continue;
             visibleCount[up.tab] = (visibleCount[up.tab] || 0) + 1;
             const lvl = E.level(state, up.id);
             const maxed = E.isMaxed(state, up);
-            setText(levelBadge, up.max === 1 ? (maxed ? 'Owned' : '') : `Lv ${lvl}`);
+            setText(levelBadge, up.max === 1 ? '' : `Lv ${lvl}`);
             card.classList.toggle('owned', maxed);
             if (maxed) {
-                setText(button, 'Owned');
+                setText(button, 'Installed ✓');
                 setDisabled(button, true);
             } else {
                 const cost = E.upgradeCost(up, lvl);
@@ -787,6 +801,7 @@ window.AGI = (function () {
             updateTreeButton();
             if (path.view === 'dev') {
                 renderTree();
+                renderLegPicker();
                 path.autoStart = E.level(state, 'autoTrainer') ? (path.autoStart || 0) + TICK_MS / 1000 : 0;
                 if (path.autoStart > 2) {
                     path.autoStart = 0;
@@ -1227,6 +1242,7 @@ window.AGI = (function () {
     // Rows are rebuilt only when the offers change (render runs every tick, and rebuilding a button
     // mid-click would swallow the click); progress and timers update in place.
     let projectsKey = '';
+    let projectSlots = Array(E.PROJECTS.maxOffers).fill(null);   // offer id per slot (null = free)
 
     function renderProjects() {
         const list = $('projectList');
@@ -1234,10 +1250,22 @@ window.AGI = (function () {
         const t = state.stats.playTime;
         const left = secs => (secs >= 60 ? `${Math.ceil(secs / 60)} min` : `${Math.ceil(secs)} s`);
         setText($('boosts'), p.boosts.map(b => `${E.PROJECT_REWARDS.find(r => r.boost === b.stat).text.split(' for ')[0]} · ${left(b.until - t)}`).join('  ·  '));
-        const key = p.offers.map(o => `${o.id}:${E.projectProgress(state, o) >= o.target}`).join(',');
+        // Fixed slots: an offer keeps its slot until it's claimed or expires; new ones take the first free
+        // slot. Nothing shuffles up when one goes, so the Claim you were aiming for stays put.
+        const ids = new Set(p.offers.map(o => o.id));
+        projectSlots = projectSlots.map(id => (ids.has(id) ? id : null));
+        for (const o of p.offers) {
+            if (projectSlots.includes(o.id)) continue;
+            const free = projectSlots.indexOf(null);
+            if (free >= 0) projectSlots[free] = o.id;
+        }
+        const slotOffer = id => p.offers.find(o => o.id === id);
+        const key = projectSlots.map(id => (id == null ? '-' : `${id}:${E.projectProgress(state, slotOffer(id)) >= slotOffer(id).target}`)).join(',');
         if (key !== projectsKey) {
             projectsKey = key;
-            list.replaceChildren(...(p.offers.length ? p.offers.map(o => {
+            list.replaceChildren(...projectSlots.map(id => {
+                const o = id == null ? null : slotOffer(id);
+                if (!o) return el('li', { class: 'offer open', text: 'Line open' });
                 const done = E.projectProgress(state, o) >= o.target;
                 const claim = el('button', { type: 'button', class: 'button project-claim', text: 'Claim', disabled: !done });
                 claim.addEventListener('click', () => {
@@ -1254,22 +1282,23 @@ window.AGI = (function () {
                     E.dismissProject(state, o.id);
                     afterChange();
                 });
-                return el('li', { class: `offer${done ? ' done' : ''}`, 'data-id': o.id }, [
-                    el('span', { class: 'project-who', text: o.investor }),
-                    el('span', { class: 'project-task', text: E.PROJECT_TASKS[o.task].text(o.target) }),
+                const task = E.PROJECT_TASKS[o.task].text(o.target);
+                const reward = E.PROJECT_REWARDS[o.reward].text;
+                return el('li', { class: `offer${done ? ' done' : ''}`, 'data-id': o.id, title: `${o.investor}: ${task}. Reward: ${reward}` }, [
+                    el('span', { class: 'project-reward', text: reward }),
+                    el('span', { class: 'project-task' }, [document.createTextNode(task + ' '), el('span', { class: 'project-who', text: `· ${o.investor}` })]),
                     el('span', { class: 'project-bar' }, [el('span', { class: 'project-fill' })]),
-                    el('span', { class: 'project-reward', text: E.PROJECT_REWARDS[o.reward].text }),
                     el('span', { class: 'project-time' }),
                     claim, drop
                 ]);
-            }) : [el('li', { class: 'project-empty', text: 'No offers right now. Investors call every few minutes.' })]));
+            }));
         }
         for (const o of p.offers) {
             const row = list.querySelector(`[data-id="${o.id}"]`);
             if (!row) continue;
             const prog = E.projectProgress(state, o);
             row.querySelector('.project-fill').style.width = `${(prog / o.target) * 100}%`;
-            setText(row.querySelector('.project-time'), `${E.format(prog)}/${E.format(o.target)} · ${left(o.deadline - t)} left`);
+            setText(row.querySelector('.project-time'), `${E.format(Math.min(prog, o.target))}/${E.format(o.target)} · ${left(o.deadline - t)}`);
         }
     }
 
@@ -1338,15 +1367,21 @@ window.AGI = (function () {
     //   section now trains itself, slowly, and its ball crawls along it (E.derive().xpPerSec).
     // Concurrent runs (planned) will add live lanes the same way.
     const MAX_CLEARED_LANES = 6;
+    let hoverLane = null;       // cleared lane under the pointer on the rack (shows "Replay")
     const clearedLanes = () => Math.min(state.path.learned, MAX_CLEARED_LANES);
 
+    // Clicking a cleared lane opens the bay set to replay from that leg; the rest of the bay opens the frontier.
     function buildTrainingArt() {
         const art = $('bay-training').querySelector('.bay-art');
         const cleared = clearedLanes();
-        art.replaceChildren(el('canvas', { class: 'lane', 'data-lane': 0 }));
-        for (let i = 1; i <= cleared; i++) art.append(el('canvas', { class: 'lane cleared', 'data-lane': i }));
+        art.replaceChildren(el('canvas', { class: 'lane', 'data-lane': 0, title: 'The frontier: your next skill' }));
+        for (let i = 1; i <= cleared; i++) {
+            const k = state.path.learned - i;
+            art.append(el('canvas', { class: 'lane cleared', 'data-lane': i, 'data-leg': k, title: `Replay from ${E.skillAt(k).name}` }));
+        }
         for (let i = 0; i < BAY_ART.training - 3 - 2 * cleared; i++) art.append(el('i'));
         art.dataset.cleared = cleared;
+        art.dataset.learned = state.path.learned;
     }
 
     function buildHub() {
@@ -1356,8 +1391,22 @@ window.AGI = (function () {
             for (let i = 0; i < BAY_ART[node.dataset.bay]; i++) art.append(el('i'));
         }
         for (const node of $('bays').querySelectorAll('.bay')) {
-            node.addEventListener('click', () => enterBay(node.dataset.bay, node));
+            node.addEventListener('click', e => {
+                if (node.dataset.bay === 'training' && !openBay && bayUnlocked('training')) {
+                    hoverLane = null;
+                    const lane = e.target.closest('canvas.lane');
+                    setStartLeg(lane && lane.dataset.leg != null ? Number(lane.dataset.leg) : null);
+                }
+                enterBay(node.dataset.bay, node);
+            });
         }
+        // Cleared lanes say what clicking them does while the pointer is on them.
+        const art = $('bay-training').querySelector('.bay-art');
+        art.addEventListener('pointerover', e => {
+            const lane = e.target.closest('canvas.lane.cleared');
+            hoverLane = lane ? Number(lane.dataset.lane) : null;
+        });
+        art.addEventListener('pointerleave', () => { hoverLane = null; });
         $('backButton').addEventListener('click', exitBay);
         // Escape zooms back out one level: bay → server room → facility (dialogs handle their own Escape).
         document.addEventListener('keydown', e => {
@@ -1435,7 +1484,7 @@ window.AGI = (function () {
     }
 
     function renderHub() {
-        if (Number($('bay-training').querySelector('.bay-art').dataset.cleared) !== clearedLanes()) buildTrainingArt();
+        if (Number($('bay-training').querySelector('.bay-art').dataset.learned) !== state.path.learned) buildTrainingArt();
         const sealed = nextSealedBay();
         for (const node of $('bays').querySelectorAll('.bay')) {
             const id = node.dataset.bay;
@@ -1525,6 +1574,8 @@ window.AGI = (function () {
         path.selected = 'initialWeights';
         $('startRunButton').addEventListener('click', () => showTrainingView('run'));
         $('treeButton').addEventListener('click', () => showTrainingView('dev'));
+        $('legSelect').addEventListener('change', e => setStartLeg(e.target.value === '' ? null : Number(e.target.value)));
+        $('legTagClear').addEventListener('click', () => setStartLeg(null));
     }
 
     // ---- Skill tree camera: drag to pan, wheel / pinch / buttons to zoom ----
@@ -1781,13 +1832,41 @@ window.AGI = (function () {
             path.charging = null;
             dismissResult();
             renderTree();
-            setText($('startRunButton'), `Start run ${state.stats.rolls + 1}`);
+            renderLegPicker();
+            setText($('startRunButton'), startLeg() < state.path.learned ? 'Start replay' : `Start run ${state.stats.rolls + 1}`);
             $('startRunButton').focus({ preventScroll: true });
         } else {
             $('pushButton').focus({ preventScroll: true });
             startPathLoop();
         }
         updateTreeButton();
+        updateLegTag();
+    }
+
+    // Start at: the frontier, or any cleared leg (a replay rolls on through every later leg). Rebuilt
+    // only when the number of legs changes, so an open dropdown isn't replaced under the pointer.
+    let legPickerKey = '';
+    function renderLegPicker() {
+        const learned = state.path.learned;
+        setHidden($('legPick'), learned === 0);
+        const select = $('legSelect');
+        if (legPickerKey !== String(learned)) {
+            legPickerKey = String(learned);
+            select.replaceChildren(
+                el('option', { value: '', text: `Frontier: ${E.skillAt(learned).name}` }),
+                ...Array.from({ length: learned }, (_, k) => el('option', { value: k, text: `Leg ${k + 1}: ${E.skillAt(k).name} ✓` })));
+        }
+        const want = startLeg() < learned ? String(startLeg()) : '';
+        if (select.value !== want) select.value = want;
+    }
+
+    // On the run view: which leg this run starts on, while it isn't the frontier.
+    function updateLegTag() {
+        const k = startLeg();
+        const replay = k < state.path.learned;
+        setHidden($('legTag'), !replay);
+        if (replay) setText($('legTagText'), `Replay from ${E.skillAt(k).name} → frontier`);
+        if (path.view === 'dev') setText($('startRunButton'), replay ? 'Start replay' : `Start run ${state.stats.rolls + 1}`);
     }
 
     // The "Skill tree" shortcut appears in the run view whenever no run is in progress.
@@ -1812,6 +1891,7 @@ window.AGI = (function () {
     const STUCK_GRACE = 3;      // seconds a stuck roll waits for income before it ends
     const path = {
         roll: null,
+        startLeg: null,         // replay from this cleared leg (stretch index); null = the frontier
         timeScale: 1,           // < 1 in slow motion
         tension: 0,             // 0–1: how far the camera has pushed in on a nail-biter
         focus: null,            // the hill of the current nail-biter
@@ -1839,14 +1919,37 @@ window.AGI = (function () {
 
     // The roll waiting at the checkpoint (or in progress). Until launch it is rebuilt whenever
     // the run, stretch, seed or training upgrades change, so what you see is what you launch.
+    // The leg the next run starts on: a cleared leg picked on the rack or the dev screen, else the frontier.
+    function startLeg() {
+        const k = path.startLeg;
+        return k != null && k >= 0 && k < state.path.learned ? k : state.path.learned;
+    }
+
+    // The leg the ball is on now (pushes cost what they cost there), or where the next run starts.
+    function ballLeg() {
+        const roll = path.roll;
+        return roll && path.stateRef === state ? Math.min(roll.leg, state.path.learned) : startLeg();
+    }
+
+    function setStartLeg(k) {
+        path.startLeg = k != null && k < state.path.learned ? k : null;
+        const roll = path.roll;
+        // A run waiting at the start line is rebuilt on the chosen leg; one in flight finishes first.
+        if (roll && !roll.launched && !path.done) currentRoll();
+        renderLegPicker();
+        updateLegTag();
+    }
+
     function currentRoll() {
         const d = E.derive(state, debugRates);
-        const key = [state.stats.runStart, state.path.learned, E.rollSeed(state), d.pushesPerRoll, d.pushCooldown, d.friction, d.hillScale].join(':');
+        const first = startLeg();
+        const key = [state.stats.runStart, state.path.learned, first, E.rollSeed(state), d.pushesPerRoll, d.pushCooldown, d.friction, d.hillScale].join(':');
         // A finished run stays on screen (path.done) until you click through to the dev screen.
         const stale = !path.roll || path.stateRef !== state || (path.roll.over && !path.done) || (!path.roll.launched && path.rollKey !== key);
         if (stale && path.pause <= 0) {
-            path.roll = T.createRoll(state.path.learned, E.rollSeed(state),
-                { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, rollOut: true });
+            // A run from a cleared leg rolls on through every later leg up to the frontier.
+            path.roll = T.createRoll(first, E.rollSeed(state),
+                { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, rollOut: true, last: state.path.learned });
             path.rollPushes = d.pushesPerRoll;
             path.rollKey = key;
             if (path.stateRef !== state) path.cam = null;
@@ -1925,7 +2028,7 @@ window.AGI = (function () {
     }
 
     function chargeBudget() {
-        return E.affordableCharge(state);
+        return E.affordableCharge(state, ballLeg());
     }
 
     function pushIndex(roll) {
@@ -1968,7 +2071,7 @@ window.AGI = (function () {
         if (path.charging) return;
         if (!canPush(roll)) {
             if (!roll.over && roll.pushesLeft > 0 && chargeBudget() < E.PATH.minCharge) {
-                setText($('pathStatus'), `Not enough to sprint: even a light training sprint costs ${E.formatCost(E.pushCost(state, E.PATH.minCharge))}.`);
+                setText($('pathStatus'), `Not enough to sprint: even a light training sprint costs ${E.formatCost(E.pushCost(state, E.PATH.minCharge, ballLeg()))}.`);
             }
             return;
         }
@@ -1982,9 +2085,10 @@ window.AGI = (function () {
         path.charging = null;
         const roll = currentRoll();
         const kind = E.zoneHit(currentZone(roll), level);
+        const leg = ballLeg();
         if (pushBall(false, Math.max(E.PATH.minCharge, level)) && kind) {
-            // Clean pushes pay at once: steady XP whatever happens to the roll.
-            const xp = E.grantPushBonus(state, kind);
+            // Clean pushes pay at once: steady XP whatever happens to the roll (scaled to the leg).
+            const xp = E.grantPushBonus(state, kind, leg);
             roll.clean = (roll.clean || 0) + 1;
             roll.units = (roll.units || 0) + E.cleanUnits(kind);
             roll.bonusXp = (roll.bonusXp || 0) + xp;
@@ -2002,8 +2106,9 @@ window.AGI = (function () {
         if (roll.over || roll.crested || roll.pushesLeft <= 0 || roll.ball.cooldown > 0) return false;
         // Every push is paid for by how hard it is charged.
         fraction = Math.min(fraction, chargeBudget());
-        if (fraction < E.PATH.minCharge || !E.payPush(state, fraction)) {
-            if (!auto) setText($('pathStatus'), `Not enough to sprint: even a light training sprint costs ${E.formatCost(E.pushCost(state, E.PATH.minCharge))}.`);
+        const leg = ballLeg();
+        if (fraction < E.PATH.minCharge || !E.payPush(state, fraction, leg)) {
+            if (!auto) setText($('pathStatus'), `Not enough to sprint: even a light training sprint costs ${E.formatCost(E.pushCost(state, E.PATH.minCharge, leg))}.`);
             return false;
         }
         if (!roll.launched) {
@@ -2056,7 +2161,8 @@ window.AGI = (function () {
             // Slow motion only matters on screen; in the background the run keeps real time.
             const sim = path.visible ? dt * path.timeScale : dt;
             for (const ev of roll.step(sim)) {
-                if (ev.type === 'crest' && !roll.over) celebrateSummit();
+                if (ev.type === 'clear') clearLeg(ev);
+                else if (ev.type === 'crest' && !roll.over) celebrateSummit();
                 else finishRoll(ev);
             }
             // Stuck with pushes left but nothing to pay for them: give income a moment, then end the roll.
@@ -2071,13 +2177,14 @@ window.AGI = (function () {
         if (path.glow && (path.glow.age += dt) > 2.5) path.glow = null;
         path.pushFlash = Math.max(0, path.pushFlash - dt);
         path.cleanFlash = Math.max(0, path.cleanFlash - dt);
+        if (path.legFlash && (path.legFlash.age += dt) > LEG_FLASH_SECONDS) path.legFlash = null;
         drawPath(dt);
         drawLanes();
         updatePathControls();
         updateLiveXp();
         const roll = path.roll;
         const busy = roll && roll.launched && !roll.over;
-        const animating = busy || path.summit || path.particles.length || path.tension > 0.01 || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
+        const animating = busy || path.legFlash || path.summit || path.particles.length || path.tension > 0.01 || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
             || E.level(state, 'autoTrainer') > 0;
         if (running && animating) path.frame = requestAnimationFrame(pathFrame);
     }
@@ -2085,6 +2192,7 @@ window.AGI = (function () {
     // ---- Drama: nail-biters and summits ----
 
     const SUMMIT_SECONDS = 2.6;     // the summit banner and confetti
+    const LEG_FLASH_SECONDS = 2.2;  // "<skill> cleared" on a replay
     const SUMMIT_SLOWMO = 1.1;      // slow motion right after cresting
 
     // A nail-biter: the ball is climbing near the top of a big hill (the skill hill, or a large rolling
@@ -2144,22 +2252,36 @@ window.AGI = (function () {
         }
     }
 
+    // A replay crossed a cleared leg's skill hill: flat XP at once, and the ball rolls on.
+    function clearLeg(ev) {
+        const xp = E.clearLeg(state, ev.skill);
+        const roll = path.roll;
+        roll.legs = (roll.legs || 0) + 1;
+        roll.legXp = (roll.legXp || 0) + xp;
+        path.legFlash = { age: 0, text: `${E.skillAt(ev.skill).name} cleared · +${xpText(xp)} XP` };
+        render();
+    }
+
     function finishRoll(ev) {
         const crested = ev.type === 'crest' || !!ev.crested;
-        const target = E.skillAt(state.path.learned).name;
         const roll = path.roll;
+        const leg = ev.leg ?? state.path.learned;
+        const replay = roll.ground.stretch < state.path.learned;
+        const target = E.skillAt(leg).name;
         const clean = roll.clean || 0;
         const units = roll.units || 0;
-        const banked = roll.bonusXp || 0;
+        const banked = (roll.bonusXp || 0) + (roll.legXp || 0);
+        const legs = roll.legs || 0;
         const hills = ev.hills || 0;
-        const plainXp = E.rollXp(state, ev.progress, crested, 0, hills);
-        const result = E.finishRoll(state, ev.progress, crested, units, hills);
+        const plainXp = E.rollXp(state, ev.progress, crested, 0, hills, leg);
+        const result = E.finishRoll(state, ev.progress, crested, units, hills, leg);
         // With the Auto-Trainer the next roll starts by itself; otherwise the run waits for a click.
         const auto = E.level(state, 'autoTrainer') > 0;
         path.pause = auto ? RESULT_PAUSE : 0;
         path.done = !auto;
         const pct = Math.round(ev.progress * 100);
-        const lines = xpLines(plainXp, result.xp - plainXp, clean, banked, crested);
+        const lines = xpLines(plainXp, result.xp - plainXp, clean, roll.bonusXp || 0, crested);
+        if (legs) lines.unshift([`${legs} cleared leg${legs === 1 ? '' : 's'} crossed`, `+${xpText(roll.legXp)} XP`, 'good']);
         if (result.skill) {
             const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
             log(`Learned ${result.skill.name}: ${result.skill.effect} (${grants}, +${xpText(result.xp + banked)} XP). ${result.skill.flavor}`, 'special');
@@ -2170,9 +2292,12 @@ window.AGI = (function () {
                 lines: [[result.skill.effect, ''], [grants, ''], ...lines] });
         } else {
             const bonus = clean ? `, ${clean} clean sprint${clean === 1 ? '' : 's'}` : '';
-            log(`Run ${state.stats.rolls}: stopped ${pct}% of the way to ${target} (+${xpText(result.xp + banked)} XP${bonus})${result.record ? '. New record!' : '.'}`,
+            const crossed = legs ? `crossed ${legs} cleared leg${legs === 1 ? '' : 's'}, then ` : '';
+            const where = ev.rolledBack ? 'Rolled back to the start' : `${legs ? 'Then stopped' : 'Stopped'} ${pct}% of the way to ${target}`;
+            log(`${replay ? 'Replay' : 'Run'} ${state.stats.rolls}: ${crossed}stopped ${pct}% of the way to ${target} (+${xpText(result.xp + banked)} XP${bonus})${result.record ? '. New record!' : '.'}`,
                 result.record ? 'success' : 'info');
-            showResult({ title: `Run ${state.stats.rolls}`, main: ev.rolledBack ? 'Rolled back to the start' : `Stopped ${pct}% of the way to ${target}`, xp: result.xp + banked,
+            showResult({ title: replay ? `Replay from ${E.skillAt(roll.ground.stretch).name}` : `Run ${state.stats.rolls}`,
+                main: legs ? `Crossed ${legs} cleared leg${legs === 1 ? '' : 's'}. ${where}` : where, xp: result.xp + banked,
                 record: result.record, lines });
         }
         afterChange();
@@ -2233,8 +2358,9 @@ window.AGI = (function () {
         box.hidden = !live;
         if (!live) return;
         const units = roll.units || 0;
-        const hills = roll.ground.hillsBefore(roll.ball.maxX);
-        setText($('liveXpValue'), `+${xpText(E.rollXp(state, roll.progress, false, units, hills))} XP`);
+        const leg = Math.min(roll.leg, state.path.learned);
+        const hills = roll.ground.hillsBefore(Math.min(roll.ball.maxX, T.skillHill(leg).peak));
+        setText($('liveXpValue'), `+${xpText(E.rollXp(state, roll.progress, false, units, hills, leg) + (roll.legXp || 0))} XP`);
         const mult = 1 + E.derive(state).cleanRollBonus * units;
         setText($('liveXpMult'), units ? `×${mult.toFixed(2)} · +${xpText(roll.bonusXp)} banked` : '');
     }
@@ -2267,8 +2393,8 @@ window.AGI = (function () {
         setText($('chargeValue'), path.cleanFlash > 0
             ? path.cleanText
             : path.charging
-                ? `Strength ${(d.pushPower * charge).toFixed(1)} · costs ${E.formatCost(E.pushCost(state, charge))}`
-                : `Full sprint: ${E.formatCost(E.pushCost(state, 1))}${budget < 1 ? ` · you can afford ${Math.round(budget * 100)}%` : ''}`);
+                ? `Strength ${(d.pushPower * charge).toFixed(1)} · costs ${E.formatCost(E.pushCost(state, charge, ballLeg()))}`
+                : `Full sprint: ${E.formatCost(E.pushCost(state, 1, ballLeg()))}${budget < 1 ? ` · you can afford ${Math.round(budget * 100)}%` : ''}`);
         setText($('chargeClean'), roll.bonusXp ? `+${xpText(roll.bonusXp)} XP banked` : '');
     }
 
@@ -2331,7 +2457,9 @@ window.AGI = (function () {
             const view = Math.max(g.goal.end + 0.6, widthToFit(g.goal.height));
             return { left, right: left + view };
         }
-        const span = g.goal.end - g.start;
+        // The window is sized to the leg the ball is on, so a replay frames each leg like a normal run.
+        const leg = g.legAt(roll.ball.x);
+        const span = T.skillHill(leg).end - g.legStart(leg);
         const base = Math.min(span + 0.6, Math.max(3, span * 0.25) * E.derive(state).viewScale);
         const leftOf = view => Math.max(g.start - 0.4, roll.ball.x - view * 0.3);
         // Look at the base window (not the widened one) to decide the zoom, so it can't feed on itself.
@@ -2438,7 +2566,7 @@ window.AGI = (function () {
         // Learned skill hills: a marker and name on each crest that is in view and wide enough.
         ctx.textAlign = 'center';
         ctx.font = '600 11px "Chakra Petch", system-ui, sans-serif';
-        for (let j = 0; j < g.stretch; j++) {
+        for (let j = 0; j < g.last; j++) {
             const sh = T.skillHill(j);
             if (sh.end < cam.left || sh.start > cam.right) continue;
             const px = X(sh.peak);
@@ -2450,9 +2578,10 @@ window.AGI = (function () {
             if (X(sh.end) - X(sh.start) > 70) ctx.fillText(E.skillAt(j).name, px, py - 8);
         }
 
-        // Record flag: the furthest any roll has reached on this stretch.
+        // Record flag: the furthest any roll has reached on the frontier leg.
         if (state.path.best > 0) {
-            const fx = g.start + state.path.best * (goal.peak - g.start);
+            const fs = g.legStart(g.last);
+            const fx = fs + state.path.best * (goal.peak - fs);
             if (fx >= cam.left && fx <= cam.right) {
                 const fy = Y(groundAt(roll, fx));
                 ctx.strokeStyle = c.accent;
@@ -2488,18 +2617,24 @@ window.AGI = (function () {
             ctx.fill();
         }
 
-        // Skill hill label, kept on screen as an arrow when the hill is still ahead of the view.
-        const skillName = E.skillAt(g.stretch).name;
+        // Skill hill label, kept on screen as an arrow when the hill is still ahead of the view. On a replay
+        // it names the hill of the leg the ball is on (✓ when already learned).
+        const legNow = roll.leg;
+        const hillNow = T.skillHill(legNow);
+        const cleared = legNow < state.path.learned;
+        const skillName = E.skillAt(legNow).name + (cleared ? ' ✓' : '');
+        const tone = cleared ? c.success : c.warning;
         ctx.font = '700 13px "Chakra Petch", system-ui, sans-serif';
-        ctx.fillStyle = c.warning;
-        if (X(goal.peak) <= w - PAD_X) {
-            ctx.fillText(skillName, Math.min(w - 70, Math.max(70, X(goal.peak))), Math.max(16, Y(goal.height) - 34));
+        ctx.fillStyle = tone;
+        if (X(hillNow.peak) <= w - PAD_X) {
+            // A cleared hill in view is already named by its marker.
+            if (!cleared) ctx.fillText(skillName, Math.min(w - 70, Math.max(70, X(hillNow.peak))), Math.max(16, Y(hillNow.height) - 34));
         } else {
-            const ahead = goal.start - roll.ball.x;
+            const ahead = hillNow.start - roll.ball.x;
             ctx.textAlign = 'right';
             ctx.fillText(`${skillName} →`, w - PAD_X, 16);
             ctx.font = '11px "JetBrains Mono", ui-monospace, monospace';
-            ctx.fillStyle = hexAlpha(c.warning, 0.75);
+            ctx.fillStyle = hexAlpha(tone, 0.75);
             ctx.fillText(`${ahead.toFixed(1)} m ahead`, w - PAD_X, 30);
         }
 
@@ -2544,7 +2679,7 @@ window.AGI = (function () {
         ctx.fillRect(sx0, sy - 1.5, sx1 - sx0, 3);
         ctx.fillStyle = c.success;
         ctx.fillRect(sx0, sy - 1.5, (sx1 - sx0) * roll.progress, 3);
-        if (state.path.best > 0) {
+        if (state.path.best > 0 && !cleared) {
             ctx.fillStyle = c.accent;
             ctx.fillRect(sx0 + (sx1 - sx0) * state.path.best - 1, sy - 5, 2, 10);
         }
@@ -2583,10 +2718,27 @@ window.AGI = (function () {
             ctx.textAlign = 'center';
             ctx.font = '700 15px "Chakra Petch", system-ui, sans-serif';
             ctx.fillStyle = hexAlpha(c.warning, path.tension);
-            ctx.fillText(path.focus && path.focus.skill !== null ? `Will it learn ${E.skillAt(path.focus.skill).name}?` : 'Come on…', w / 2, 66);
+            const f = path.focus;
+            ctx.fillText(f && f.skill !== null
+                ? (f.skill < state.path.learned ? `Clear ${E.skillAt(f.skill).name}?` : `Will it learn ${E.skillAt(f.skill).name}?`)
+                : 'Come on…', w / 2, 66);
         }
 
         // Summit banner: pops in, holds, fades.
+        // A cleared leg crossed on a replay: a quick line under the top of the trail.
+        if (path.legFlash) {
+            const a = path.legFlash.age;
+            ctx.save();
+            ctx.globalAlpha = Math.min(1, a / 0.15, (LEG_FLASH_SECONDS - a) / 0.5);
+            ctx.textAlign = 'center';
+            ctx.font = '700 15px "Chakra Petch", system-ui, sans-serif';
+            ctx.shadowColor = c.success;
+            ctx.shadowBlur = 12;
+            ctx.fillStyle = c.success;
+            ctx.fillText(path.legFlash.text, w / 2, Math.max(84, h * 0.22) - 6 * Math.min(1, a / 0.3));
+            ctx.restore();
+        }
+
         if (path.summit) {
             const a = path.summit.age;
             const pop = a < 0.25 ? 0.6 + 1.6 * a : 1;
@@ -2634,13 +2786,16 @@ window.AGI = (function () {
             if (!roll) continue;
             // Live: a window of trail around the ball. Monitor: the stretch, checkpoint to skill hill.
             const g = roll.ground;
-            const span = live ? 3 : g.goal.end - g.start;
-            const from = live ? roll.ball.x - span * 0.4 : g.start;
+            // The monitor always shows the frontier leg, even while a replay runs earlier legs.
+            const fs = g.legStart(g.last);
+            const span = live ? 3 : g.goal.end - fs;
+            const from = live ? roll.ball.x - span * 0.4 : fs;
             const samples = live ? 32 : 120;
             // Monitor mode shows only what runs have seen: up to the furthest point reached on this
             // stretch (the record, or the run in progress). The rest is unknown, scaled to what's known.
-            const seenFrac = live ? 1 : Math.max(state.path.best, roll.launched ? g.progress(roll.ball.maxX) : 0);
-            const seenX = live ? from + span : g.start + seenFrac * (g.goal.peak - g.start);
+            const onFrontier = roll.launched && g.legAt(roll.ball.maxX) === g.last;
+            const seenFrac = live ? 1 : Math.max(state.path.best, onFrontier ? g.progressIn(g.last, roll.ball.maxX) : 0);
+            const seenX = live ? from + span : fs + seenFrac * (g.goal.peak - fs);
             const seenPx = Math.min(w, ((seenX - from) / span) * w);
             const seenIdx = Math.min(samples, Math.floor((seenPx / w) * samples));
             let top = 0.05;
@@ -2720,7 +2875,7 @@ window.AGI = (function () {
                 ctx.fill();
             } else {
                 // Best run so far: a marker line at that point of the stretch.
-                const bestX = g.start + state.path.best * (g.goal.peak - g.start);
+                const bestX = fs + state.path.best * (g.goal.peak - fs);
                 const mx = ((bestX - from) / span) * w;
                 ctx.strokeStyle = hexAlpha(c.accent, 0.8);
                 ctx.setLineDash([2, 2]);
@@ -2770,6 +2925,16 @@ window.AGI = (function () {
         ctx.beginPath();
         ctx.arc(t * w, y(g.height(bx)), 2.2, 0, Math.PI * 2);
         ctx.fill();
+        if (lane === hoverLane && ctx.canvas.closest('#bays')) {
+            ctx.fillStyle = 'rgba(3, 12, 10, 0.72)';
+            ctx.fillRect(0, 0, w, h);
+            ctx.fillStyle = c.success;
+            ctx.textAlign = 'center';
+            ctx.font = `700 ${Math.max(9, Math.min(12, w / 6))}px "Chakra Petch", system-ui, sans-serif`;
+            ctx.fillText('▶ REPLAY', w / 2, h / 2 - 2);
+            ctx.font = `500 ${Math.max(8, Math.min(10, w / 8))}px "JetBrains Mono", ui-monospace, monospace`;
+            ctx.fillText(`leg ${k + 1}`, w / 2, h / 2 + 11);
+        }
     }
 
     function hexAlpha(hex, alpha) {
@@ -2780,6 +2945,9 @@ window.AGI = (function () {
     // ---- Init -----------------------------------------------------------
 
     function init() {
+        // Full-height screens subtract the top bar, whose height changes as chips appear (page pixels).
+        const topbar = document.querySelector('.topbar');
+        new ResizeObserver(() => document.documentElement.style.setProperty('--topbar-h', `${topbar.offsetHeight}px`)).observe(topbar);
         buildActions();
         buildUpgrades();
         buildChecklists();
@@ -2881,7 +3049,7 @@ window.AGI = (function () {
                 if (path.done) runAgain();
                 const r = currentRoll();
                 const d = E.derive(state, debugRates);
-                const opts = { pushes: 1, cooldown: 1, friction: d.friction, hillScale: d.hillScale };
+                const opts = { pushes: 1, cooldown: 1, friction: d.friction, hillScale: d.hillScale, last: r.ground.last };
                 const h = r.ground.goal;
                 const x = h.peak - h.halfWidth * 0.7;
                 const crests = v => {

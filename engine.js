@@ -39,6 +39,7 @@
         baseCooldown: 2.0,   // seconds between pushes
         minCooldown: 0.3,
         clearedRate: 1 / 600, // a cleared stretch runs itself: this share of its full XP per second
+        replayXp: 0.25,       // replaying a cleared leg pays this share of its XP: flat for clearing it, by distance otherwise
         clearedCp: 0.03,      // each cleared stretch adds +3% compute
         lapCp: 0.002,         // and every automated lap of it adds a little more (+0.2%)...
         lapCpMax: 0.5         // ...up to +50% per stretch
@@ -105,7 +106,7 @@
     // (a stat count) and, for the bigger ones, a training skill. `automationGate()` checks and reports it.
     const AUTOMATION = {
         cpu: { stat: 'clicks', need: 25, what: 'compute by hand' },
-        autoCollector: { stat: 'collects', need: 100, what: 'data collections by hand', skill: 3 },
+        autoCollector: { stat: 'collects', need: 100, what: 'data collections by hand', skill: 1 },
         researchAssistant: { stat: 'researchManual', need: 50, what: 'research runs by hand', skill: 5 }
     };
 
@@ -283,6 +284,7 @@
                 researchDone: 0,
                 collects: 0,          // data collected by hand
                 cleanSprints: 0,
+                legsCleared: 0,       // cleared legs crossed again on replays
                 projectsDone: 0,
                 researchManual: 0,    // research done by hand
                 rolls: 0,
@@ -596,24 +598,25 @@
         return total;
     }
 
-    // Cost of a push charged to `charge` (0–1). Rounded up, so even a light tap costs something.
-    function pushCost(s, charge = 1) {
-        const factor = Math.pow(PATH.pushCostScale, s.path.learned) * charge * charge;
+    // Cost of a push charged to `charge` (0–1) on `leg` (default: the frontier). Rounded up, so even a
+    // light tap costs something. Earlier legs (replays) are cheaper, as they were when you first ran them.
+    function pushCost(s, charge = 1, leg = s.path.learned) {
+        const factor = Math.pow(PATH.pushCostScale, Math.min(leg, s.path.learned)) * charge * charge;
         const cost = {};
         for (const [k, v] of Object.entries(PATH.pushCost)) cost[k] = Math.max(1, Math.ceil(v * factor));
         return cost;
     }
 
     // The fullest charge you can currently afford (0–1); below PATH.minCharge you cannot push at all.
-    function affordableCharge(s) {
-        if (canAfford(s, pushCost(s, 1))) return 1;
-        if (!canAfford(s, pushCost(s, PATH.minCharge))) return 0;
+    function affordableCharge(s, leg = s.path.learned) {
+        if (canAfford(s, pushCost(s, 1, leg))) return 1;
+        if (!canAfford(s, pushCost(s, PATH.minCharge, leg))) return 0;
         // Costs round up, so search for the largest charge whose rounded cost is affordable.
         let lo = PATH.minCharge;
         let hi = 1;
         for (let i = 0; i < 20; i++) {
             const mid = (lo + hi) / 2;
-            if (canAfford(s, pushCost(s, mid))) lo = mid;
+            if (canAfford(s, pushCost(s, mid, leg))) lo = mid;
             else hi = mid;
         }
         return lo;
@@ -628,9 +631,9 @@
     }
 
     // Pay for one push at `charge`. The UI owns the physics and reports back with finishRoll().
-    function payPush(s, charge) {
+    function payPush(s, charge, leg = s.path.learned) {
         if (!s.unlocked['module:path']) return false;
-        const cost = pushCost(s, charge);
+        const cost = pushCost(s, charge, leg);
         if (!canAfford(s, cost)) return false;
         pay(s, cost);
         return true;
@@ -669,6 +672,24 @@
         return stretchXpAt(s.path.learned);
     }
 
+    // What a full leg is worth on this run: the frontier pays in full, a cleared leg (replay) a share.
+    function legXpBase(s, leg = s.path.learned) {
+        return leg < s.path.learned ? stretchXpAt(leg) * PATH.replayXp : stretchXpAt(s.path.learned);
+    }
+
+    // Flat XP for crossing cleared leg `leg`'s skill hill again on a replay (more for later legs).
+    function legClearXp(s, leg) {
+        return leg < s.path.learned ? legXpBase(s, leg) * derive(s).xpMult : 0;
+    }
+
+    function clearLeg(s, leg) {
+        const xp = legClearXp(s, leg);
+        if (!xp) return 0;
+        s.res.xp += xp;
+        s.stats.legsCleared++;
+        return xp;
+    }
+
     // Clean-push "units": a clean push is 1, a perfect push counts as PATH.perfectMult.
     const cleanUnits = kind => (kind === 'perfect' ? PATH.perfectMult : kind ? 1 : 0);
 
@@ -676,35 +697,38 @@
     // without making short early runs worthless on long stretches), boosted by clean pushes.
     // `hills` is how many rolling hills the ball got over: crossing any guarantees a small minimum,
     // even if it rolled back afterwards.
-    function rollXp(s, progress, crested, units = 0, hills = 0) {
+    // `leg` is where the ball stopped (default: the frontier); a cleared leg pays its replay share.
+    function rollXp(s, progress, crested, units = 0, hills = 0, leg = s.path.learned) {
         const d = derive(s);
         const bonus = (1 + d.cleanRollBonus * units) * d.xpMult;
         const distance = Math.max(Math.pow(progress, 1.5), PATH.hillFloor * hills);
-        return stretchXp(s) * distance * (crested ? PATH.crestBonus : 1) * bonus;
+        return legXpBase(s, leg) * distance * (crested && leg >= s.path.learned ? PATH.crestBonus : 1) * bonus;
     }
 
     // XP for a clean or perfect push: a steady, flat amount banked immediately, whatever the distance.
-    function pushBonusXp(s, kind) {
+    function pushBonusXp(s, kind, leg = s.path.learned) {
         if (!kind) return 0;
         const d = derive(s);
-        return stretchXp(s) * PATH.cleanXp * d.cleanMult * cleanUnits(kind);
+        return legXpBase(s, leg) * PATH.cleanXp * d.cleanMult * cleanUnits(kind);
     }
 
-    function grantPushBonus(s, kind) {
-        const xp = pushBonusXp(s, kind);
+    function grantPushBonus(s, kind, leg = s.path.learned) {
+        const xp = pushBonusXp(s, kind, leg);
         s.res.xp += xp;
         if (kind) s.stats.cleanSprints++;
         return xp;
     }
 
-    // Settle a finished roll: XP, record distance, roll count, and the skill if it crested.
-    function finishRoll(s, progress, crested, units = 0, hills = 0) {
-        const xp = rollXp(s, progress, crested, units, hills);
+    // Settle a finished roll: XP, record distance, roll count, and the skill if it crested. `leg` is
+    // where the ball stopped; only the frontier leg sets records and teaches skills.
+    function finishRoll(s, progress, crested, units = 0, hills = 0, leg = s.path.learned) {
+        const xp = rollXp(s, progress, crested, units, hills, leg);
         s.res.xp += xp;
         s.stats.rolls++;
-        const record = progress > s.path.best;
+        const frontier = leg >= s.path.learned;
+        const record = frontier && progress > s.path.best;
         if (record) s.path.best = progress;
-        const skill = crested ? learnSkill(s, s.path.learned) : null;
+        const skill = crested && frontier ? learnSkill(s, s.path.learned) : null;
         return { xp, record, skill };
     }
 
@@ -995,7 +1019,7 @@
     }
 
     return {
-        SAVE_VERSION, MAX_OFFLINE_SECONDS, AUTO_BUDGET, clearedCpBonus, clearedPeriod, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN, PATH, SKILLS,
+        SAVE_VERSION, MAX_OFFLINE_SECONDS, AUTO_BUDGET, clearedCpBonus, clearedPeriod, legClearXp, clearLeg, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
