@@ -651,6 +651,11 @@ window.AGI = (function () {
                 const k = E.skillAt(state.path.learned);
                 return `Next skill, ${k.name}: ${k.effect}`;
             }
+            case 'goal.lab': return goalFor('lab');
+            case 'goal.servers': return goalFor('servers');
+            case 'goal.bay': return goalFor('bay');
+            case 'goal.rnd': return goalFor('rnd');
+            case 'goal.facility': return goalFor('facility');
             case 'stats.playClock': {
                 const t = Math.floor(state.stats.playTime);
                 return [t / 3600, (t % 3600) / 60, t % 60].map(n => String(Math.floor(n)).padStart(2, '0')).join(':');
@@ -738,8 +743,8 @@ window.AGI = (function () {
 
         setDisabled($('prestigeButton'), E.prestigeGain(state) < 1);
         for (const node of document.querySelectorAll('[data-show]')) setHidden(node, !state.unlocked[node.dataset.show]);
-        setText($('nextGoal'), nextGoal());
         renderAutomation(d);
+        renderProjects();
         renderFacility(d);
         renderMinimap();
         if (!zooming) {
@@ -769,14 +774,38 @@ window.AGI = (function () {
         }
     }
 
-    function nextGoal() {
-        const milestone = E.MILESTONES.find(m => !state.unlocked[m.key]);
-        if (milestone) return `Next: ${milestone.desc}`;
-        const phase = E.PHASES[E.phaseIndex(state) + 1];
-        if (!phase) return 'You reached the Singularity. Transcend to go again, stronger.';
-        const reqs = Object.entries(phase.req).filter(([k, v]) => state.attr[k] < v)
-            .map(([k, v]) => `${E.ATTRIBUTES[k].name} ${E.format(state.attr[k], 1)}/${v}`);
-        return `Next: reach ${phase.name} (${reqs.join(', ')})`;
+    // Each screen's bar names its own next unlock (never what a sealed thing is).
+    const phaseReqs = phase => Object.entries(phase.req).filter(([k, v]) => state.attr[k] < v)
+        .map(([k, v]) => `${E.ATTRIBUTES[k].short} ${E.format(state.attr[k], 1)}/${v}`).join(', ');
+
+    function goalFor(place) {
+        if (place === 'lab') {
+            const m = E.MILESTONES.find(x => !state.unlocked[x.key]);
+            return m ? `Next: ${m.desc}` : '';
+        }
+        if (place === 'servers') {
+            const id = nextSealedBay();
+            if (!id || BAYS[id].phase == null) return '';
+            const phase = E.PHASES[BAYS[id].phase];
+            return `Sealed bay opens at ${phase.name} · ${phaseReqs(phase)}`;
+        }
+        if (place === 'bay') {
+            const k = E.skillAt(state.path.learned);
+            return `Next skill: ${k.name} · best run ${Math.round(state.path.best * 100)}%`;
+        }
+        if (place === 'rnd') {
+            const gain = E.prestigeGain(state);
+            return gain >= 1 ? `Transcend now for +${E.format(gain)} Prestige Points` : `Transcend needs ${E.PRESTIGE_MIN_INTELLIGENCE} Intelligence`;
+        }
+        if (place === 'facility') {
+            const id = Object.keys(ROOMS).find(r => !roomUnlocked(r));
+            if (!id) return '';
+            if (id === 'servers') return `A sealed wing opens at 50 CP · ${E.format(Math.min(50, state.stats.runCp))}/50`;
+            if (id === 'rnd') return `A sealed wing opens at ${E.PRESTIGE_MIN_INTELLIGENCE} Intelligence · ${E.format(state.attr.intelligence, 1)}/${E.PRESTIGE_MIN_INTELLIGENCE}`;
+            const phase = E.PHASES[ROOMS[id].phase];
+            return `A sealed wing opens at ${phase.name} · ${phaseReqs(phase)}`;
+        }
+        return '';
     }
 
     // ---- Facility & rooms --------------------------------------------------
@@ -916,6 +945,13 @@ window.AGI = (function () {
             tile.addEventListener('click', () => zoomIn(id));
             plan.append(tile);
         }
+        // The die: pins round the edge, and the core (your AI) in the middle.
+        for (const side of ['top', 'bottom', 'left', 'right']) plan.append(el('span', { class: `die-pins ${side}`, 'aria-hidden': 'true' }));
+        plan.append(el('div', { class: 'facility-core', 'aria-label': 'Your AI' }, [
+            el('span', { class: 'core-label', text: 'Your AI' }),
+            el('span', { class: 'core-phase', 'data-core': 'phase' }),
+            el('span', { class: 'core-stats', 'data-core': 'stats' })
+        ]));
         for (const b of document.querySelectorAll('[data-facility]')) b.addEventListener('click', zoomOut);
         try { seenRooms = new Set(['lab', ...JSON.parse(storageGet(SEEN_KEY) || '[]')]); } catch { /* keep default */ }
         const saved = storageGet(VIEW_KEY);
@@ -927,6 +963,9 @@ window.AGI = (function () {
     const SEALED_ROOMS = 2;
 
     function renderFacility(d) {
+        setText($('facilityPlan').querySelector('[data-core="phase"]'), E.PHASES[E.phaseIndex(state)].name);
+        setText($('facilityPlan').querySelector('[data-core="stats"]'),
+            `${state.path.learned} skill${state.path.learned === 1 ? '' : 's'} · Int ${E.format(state.attr.intelligence, 1)}`);
         let fresh = false;
         let sealedShown = 0;
         for (const tile of document.querySelectorAll('.facility-room')) {
@@ -1062,10 +1101,11 @@ window.AGI = (function () {
         });
     }
 
-    // The minimap is a microchip: Surveillance is the core, each open room a block wired to it, the server
-    // room's bays sub-blocks, and the next sealed areas dim outlines. More areas, more blocks, traces and pins.
+    // The minimap is a microchip: each open room a block wired to the centre, the server room's bays
+    // sub-blocks, and the next sealed areas dim outlines. More areas, more blocks, traces and pins. The chip
+    // itself (its body, edge and pins) and the title are the way back to Surveillance.
+    const MINIMAP_HUB = { x: 60, y: 59 };
     const MINIMAP = {
-        facility: { x: 50, y: 50, w: 20, h: 18, label: 'SV' },
         lab: { x: 24, y: 44, w: 20, h: 30, label: 'LAB' },
         servers: { x: 74, y: 44, w: 22, h: 52, label: 'SRV' },
         rnd: { x: 24, y: 78, w: 46, h: 18, label: 'R&D' },
@@ -1079,9 +1119,10 @@ window.AGI = (function () {
         const nav = $('minimap');
         const show = !!state.unlocked['module:path'];
         nav.hidden = !show;
+        document.body.classList.toggle('has-minimap', show);
         if (!show) return;
         const sealedShown = new Set([...$('facilityPlan').querySelectorAll('.facility-room.locked:not([hidden])')].map(t => t.dataset.roomId));
-        const areas = Object.keys(ROOMS).filter(id => roomUnlocked(id) || sealedShown.has(id));
+        const areas = Object.keys(ROOMS).filter(id => MINIMAP[id] && (roomUnlocked(id) || sealedShown.has(id)));
         const bays = Object.keys(BAYS).filter(id => bayUnlocked(id) || id === nextSealedBay());
         const here = currentPlace();
         const key = [areas, bays, here].join('|');
@@ -1097,21 +1138,23 @@ window.AGI = (function () {
             parent.append(n);
             return n;
         };
-        // Pins: more of them as the chip grows.
+        // The chip body (pins and die) is one target: Surveillance. Hovering it lights the whole chip.
+        const body = add('g', { class: `mm-body${here === 'facility' ? ' here' : ''}`, 'data-target': 'facility', role: 'button', tabindex: 0, 'aria-label': 'Surveillance' });
+        add('title', {}, body).textContent = 'Surveillance';
         const pins = 3 + areas.filter(open).length + bays.filter(bayUnlocked).length;
         for (let i = 0; i < pins; i++) {
             const t = 22 + (i + 0.5) * (76 / pins);
-            add('rect', { class: 'mm-pin', x: t - 1.2, y: 10, width: 2.4, height: 8 });
-            add('rect', { class: 'mm-pin', x: t - 1.2, y: 102, width: 2.4, height: 8 });
-            add('rect', { class: 'mm-pin', x: 10, y: t - 1.2, width: 8, height: 2.4 });
-            add('rect', { class: 'mm-pin', x: 102, y: t - 1.2, width: 8, height: 2.4 });
+            add('rect', { class: 'mm-pin', x: t - 1.2, y: 10, width: 2.4, height: 8 }, body);
+            add('rect', { class: 'mm-pin', x: t - 1.2, y: 102, width: 2.4, height: 8 }, body);
+            add('rect', { class: 'mm-pin', x: 10, y: t - 1.2, width: 8, height: 2.4 }, body);
+            add('rect', { class: 'mm-pin', x: 102, y: t - 1.2, width: 8, height: 2.4 }, body);
         }
-        add('rect', { class: 'mm-die', x: 18, y: 18, width: 84, height: 84, rx: 4 });
-        // Traces from the core to every open area.
-        const core = MINIMAP.facility;
-        const cx = core.x + core.w / 2;
-        const cy = core.y + core.h / 2;
-        for (const id of areas.filter(a => a !== 'facility' && open(a))) {
+        add('rect', { class: 'mm-die', x: 18, y: 18, width: 84, height: 84, rx: 4 }, body);
+        // Traces from a via at the centre to every open area.
+        const cx = MINIMAP_HUB.x;
+        const cy = MINIMAP_HUB.y;
+        add('circle', { class: 'mm-via', cx, cy, r: 1.8 });
+        for (const id of areas.filter(a => open(a))) {
             const b = MINIMAP[id];
             add('path', { class: 'mm-trace', d: `M${cx} ${cy} H${b.x + b.w / 2} V${b.y + b.h / 2}` });
         }
@@ -1121,7 +1164,6 @@ window.AGI = (function () {
             if (label) add('text', { x: b.x + b.w / 2, y: b.y + (b.h < 14 ? b.h / 2 + 1.6 : 7), 'text-anchor': 'middle' }, g).textContent = label;
             add('title', {}, g).textContent = title;
         };
-        block('facility', core, 'core', core.label, 'Surveillance');
         for (const id of areas) {
             const b = MINIMAP[id];
             if (open(id)) block(id, b, 'room', b.label, ROOMS[id].name);
@@ -1136,7 +1178,7 @@ window.AGI = (function () {
                 block(`bay:${id}`, cell, live ? 'bay' : 'bay sealed', '', live ? BAYS[id].name : 'Sealed');
             });
         }
-        nav.replaceChildren(svg, el('span', { class: 'mm-label', text: placeName(here) }));
+        $('minimapChip').replaceChildren(svg, el('span', { class: 'mm-label', text: `You are in: ${placeName(here)}` }));
     }
 
     function placeName(place) {
@@ -1147,7 +1189,7 @@ window.AGI = (function () {
     function buildMinimap() {
         const nav = $('minimap');
         const go = e => {
-            const g = e.target.closest('.mm-block');
+            const g = e.target.closest('.mm-block, .mm-body');
             if (g && !g.classList.contains('sealed') && !g.classList.contains('building')) jumpTo(g.dataset.target);
         };
         nav.addEventListener('click', go);
@@ -1158,6 +1200,57 @@ window.AGI = (function () {
             }
         });
         for (const b of document.querySelectorAll('[data-jump]')) b.addEventListener('click', () => jumpTo(b.dataset.jump));
+    }
+
+    // ---- Investor projects (lab) -------------------------------------------
+
+    // Rows are rebuilt only when the offers change (render runs every tick, and rebuilding a button
+    // mid-click would swallow the click); progress and timers update in place.
+    let projectsKey = '';
+
+    function renderProjects() {
+        const list = $('projectList');
+        const p = state.projects;
+        const t = state.stats.playTime;
+        const left = secs => (secs >= 60 ? `${Math.ceil(secs / 60)} min` : `${Math.ceil(secs)} s`);
+        setText($('boosts'), p.boosts.map(b => `${E.PROJECT_REWARDS.find(r => r.boost === b.stat).text.split(' for ')[0]} · ${left(b.until - t)}`).join('  ·  '));
+        const key = p.offers.map(o => `${o.id}:${E.projectProgress(state, o) >= o.target}`).join(',');
+        if (key !== projectsKey) {
+            projectsKey = key;
+            list.replaceChildren(...(p.offers.length ? p.offers.map(o => {
+                const done = E.projectProgress(state, o) >= o.target;
+                const claim = el('button', { type: 'button', class: 'button project-claim', text: 'Claim', disabled: !done });
+                claim.addEventListener('click', () => {
+                    const r = E.claimProject(state, o.id);
+                    log(r.msg, r.ok ? 'success' : 'warning');
+                    if (r.ok) {
+                        termLog(`investor: ${o.investor} paid out`);
+                        toast('Project complete', r.msg);
+                    }
+                    afterChange();
+                });
+                const drop = el('button', { type: 'button', class: 'project-drop', 'aria-label': 'Ignore this project', text: '×' });
+                drop.addEventListener('click', () => {
+                    E.dismissProject(state, o.id);
+                    afterChange();
+                });
+                return el('li', { class: `offer${done ? ' done' : ''}`, 'data-id': o.id }, [
+                    el('span', { class: 'project-who', text: o.investor }),
+                    el('span', { class: 'project-task', text: E.PROJECT_TASKS[o.task].text(o.target) }),
+                    el('span', { class: 'project-bar' }, [el('span', { class: 'project-fill' })]),
+                    el('span', { class: 'project-reward', text: E.PROJECT_REWARDS[o.reward].text }),
+                    el('span', { class: 'project-time' }),
+                    claim, drop
+                ]);
+            }) : [el('li', { class: 'project-empty', text: 'No offers right now. Investors call every few minutes.' })]));
+        }
+        for (const o of p.offers) {
+            const row = list.querySelector(`[data-id="${o.id}"]`);
+            if (!row) continue;
+            const prog = E.projectProgress(state, o);
+            row.querySelector('.project-fill').style.width = `${(prog / o.target) * 100}%`;
+            setText(row.querySelector('.project-time'), `${E.format(prog)}/${E.format(o.target)} · ${left(o.deadline - t)} left`);
+        }
     }
 
     // ---- Automation budget -------------------------------------------------
@@ -1403,9 +1496,8 @@ window.AGI = (function () {
             button.innerHTML = `<span class="tree-icon">${icon(up.icon)}</span><span class="tree-lock">${icon('lock')}</span><span class="tree-level"></span>`;
             button.addEventListener('click', () => {
                 path.selected = up.id;
+                treeUi.popup = true;
                 renderTree();
-                // On narrow screens the details sit below the tree: bring them into view.
-                $('nodeDetail').scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' });
             });
             tree.append(button);
             treeUi.nodes[up.id] = button;
@@ -1426,6 +1518,7 @@ window.AGI = (function () {
 
     function applyTreeCam() {
         $('skillTree').style.transform = `translate(${treeCam.x}px, ${treeCam.y}px) scale(${treeCam.z})`;
+        placeNodePopup();
         clearTimeout(treeCamSave);
         treeCamSave = setTimeout(() => storageSet(TREE_CAM_KEY, JSON.stringify({ x: treeCam.x, y: treeCam.y, z: treeCam.z })), 300);
     }
@@ -1533,6 +1626,13 @@ window.AGI = (function () {
                 treeCam.moved = false;
             }
         }, true);
+        // A plain click on empty space closes the node popup.
+        vp.addEventListener('click', e => {
+            if (!e.target.closest('.tree-node, .node-detail, .tree-zoom, .dev-actions')) {
+                treeUi.popup = false;
+                placeNodePopup();
+            }
+        });
         vp.addEventListener('dblclick', e => { if (!e.target.closest('.tree-node, .tree-zoom')) resetTreeCam(); });
     }
 
@@ -1578,6 +1678,29 @@ window.AGI = (function () {
             line.setAttribute('class', owned && parentOwned ? 'link-owned' : parentOwned ? 'link-open' : 'link-locked');
         }
         renderNodeDetail();
+        placeNodePopup();
+    }
+
+    // The selected node's info and buy button pop up beside it, flipping sides near the edge.
+    function placeNodePopup() {
+        const box = $('nodeDetail');
+        const node = treeUi.nodes[path.selected];
+        const show = !!treeUi.popup && node && !node.hidden;
+        box.hidden = !show;
+        if (!show) return;
+        const z = uiScale();
+        const vp = $('treeViewport').getBoundingClientRect();
+        const r = node.getBoundingClientRect();
+        const w = box.offsetWidth || 240;
+        const h = box.offsetHeight || 160;
+        const vw = vp.width / z;
+        const vh = vp.height / z;
+        let left = (r.right - vp.left) / z + 12;
+        if (left + w > vw - 8) left = (r.left - vp.left) / z - w - 12;
+        left = Math.max(8, Math.min(vw - w - 8, left));
+        const top = Math.max(8, Math.min(vh - h - 8, (r.top - vp.top) / z + r.height / z / 2 - h / 2));
+        box.style.left = `${left}px`;
+        box.style.top = `${top}px`;
     }
 
     // Rebuilt only when what it shows changes: render() runs every tick, and replacing the button
@@ -1597,6 +1720,7 @@ window.AGI = (function () {
         // Locked nodes keep their secret: no name or effect until the node they grow from is owned.
         const unknown = st === 'locked';
         const parts = [
+            el('button', { type: 'button', class: 'detail-close', 'aria-label': 'Close', text: '×' }),
             el('div', { class: 'detail-head' }, [
                 el('span', { class: 'detail-icon' }),
                 el('div', {}, [el('h3', { text: unknown ? '???' : up.name }),
@@ -1621,19 +1745,11 @@ window.AGI = (function () {
             parts.push(buy);
         }
         box.replaceChildren(...parts);
+        box.querySelector('.detail-close').addEventListener('click', () => {
+            treeUi.popup = false;
+            placeNodePopup();
+        });
         box.querySelector('.detail-icon').innerHTML = icon(unknown ? 'lock' : up.icon);
-    }
-
-    // The dev screen only says where you stand; the run's breakdown was on its result card.
-    function renderRunSummary() {
-        const record = Math.round(state.path.best * 100);
-        $('runSummary').replaceChildren(
-            el('div', { class: 'result-title', text: `Training dev · ${state.path.learned} skill${state.path.learned === 1 ? '' : 's'} learned` }),
-            el('div', { class: 'result-main', text: `Next skill: ${E.skillAt(state.path.learned).name}` }),
-            el('div', { class: 'summary-progress' }, [
-                el('span', { class: 'muted small', text: `Best run: ${record}% of the way` }),
-                el('span', { class: 'bay-meter' }, [el('span', { class: 'bay-meter-fill', style: `width:${record}%` })])
-            ]));
     }
 
     function showTrainingView(view) {
@@ -1644,7 +1760,6 @@ window.AGI = (function () {
         if (view === 'dev') {
             path.charging = null;
             dismissResult();
-            renderRunSummary();
             renderTree();
             setText($('startRunButton'), `Start run ${state.stats.rolls + 1}`);
             $('startRunButton').focus({ preventScroll: true });
@@ -1729,17 +1844,18 @@ window.AGI = (function () {
             path.colors[name] = css.getPropertyValue('--' + name).trim();
         }
 
+        // The trail fills the bay: the canvas takes its wrap's size (CSS gives the wrap the free space).
         new ResizeObserver(() => {
             const dpr = (window.devicePixelRatio || 1) * uiScale();
-            path.width = canvas.clientWidth;
-            // Hills are drawn to scale, so extra height is just sky: about a third of the width.
-            path.height = Math.round(Math.min(window.innerHeight / uiScale() * 0.55, 420, Math.max(250, path.width * 0.36)));
+            const wrap = canvas.parentElement;
+            path.width = wrap.clientWidth;
+            path.height = Math.max(220, wrap.clientHeight);
             canvas.style.height = path.height + 'px';
             canvas.width = Math.round(path.width * dpr);
             canvas.height = Math.round(path.height * dpr);
             path.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             drawPath();
-        }).observe(canvas);
+        }).observe(canvas.parentElement);
 
         new IntersectionObserver(([entry]) => {
             path.visible = entry.isIntersecting;
@@ -2036,7 +2152,7 @@ window.AGI = (function () {
             const bonus = clean ? `, ${clean} clean sprint${clean === 1 ? '' : 's'}` : '';
             log(`Run ${state.stats.rolls}: stopped ${pct}% of the way to ${target} (+${xpText(result.xp + banked)} XP${bonus})${result.record ? '. New record!' : '.'}`,
                 result.record ? 'success' : 'info');
-            showResult({ title: `Run ${state.stats.rolls}`, main: `Stopped ${pct}% of the way to ${target}`, xp: result.xp + banked,
+            showResult({ title: `Run ${state.stats.rolls}`, main: ev.rolledBack ? 'Rolled back to the start' : `Stopped ${pct}% of the way to ${target}`, xp: result.xp + banked,
                 record: result.record, lines });
         }
         afterChange();
@@ -2139,6 +2255,9 @@ window.AGI = (function () {
     // Ground height anywhere: the live roll's terrain on the current stretch; earlier stretches show
     // only their (fixed) skill hills, since their rolling hills were different every roll.
     function groundAt(roll, x) {
+        // Flat behind the start line (a ball that rolls back there ends the run), except in the
+        // overview after a skill, which shows the whole journey so far.
+        if (x < roll.ground.start && path.overview <= 0) return 0;
         const k = roll.ground.stretch;
         if (x >= (k > 0 ? T.skillHill(k - 1).start : -1)) return roll.ground.height(x);
         if (x < 0) return Math.min(10 * T.skillHeight(0), 40 * x * x);
@@ -2157,11 +2276,15 @@ window.AGI = (function () {
     // One zoom level for both axes: the trail is drawn with a fixed vertical exaggeration, so hills
     // keep their shape. When something tall comes into the window ahead, the camera pulls back
     // (wider view, everything uniformly smaller) instead of squashing the vertical axis.
-    const RELIEF = 4;           // vertical exaggeration of the drawing
+    const RELIEF_BASE = 4;      // vertical exaggeration of the drawing on a wide canvas
+    // Taller canvases exaggerate more, so the hills use the height instead of leaving empty sky.
+    let RELIEF = RELIEF_BASE;
     const HEADROOM = 1.45;      // space above the tallest hill in view
 
     function drawArea() {
-        return { w: path.width - PAD_X * 2, h: path.height - PAD_TOP - PAD_BOTTOM };
+        const a = { w: path.width - PAD_X * 2, h: path.height - PAD_TOP - PAD_BOTTOM };
+        RELIEF = RELIEF_BASE * Math.max(1, (a.h / Math.max(1, a.w)) / 0.25);
+        return a;
     }
 
     function tallestIn(roll, from, to) {

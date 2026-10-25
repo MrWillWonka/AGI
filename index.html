@@ -48,14 +48,13 @@
     </header>
 
     <main class="layout">
-        <p class="goal" id="nextGoal" aria-live="polite"></p>
 
         <div class="stage" id="stage">
         <!-- Surveillance (code: facility): every room's camera feed on one wall. Each room is a tile (ROOMS in game.js); click to zoom in. -->
         <section class="facility hud" id="facility" aria-label="Surveillance" hidden>
             <div class="facility-head">
                 <h2>Surveillance</h2>
-                <span class="muted small">All feeds live · select a room</span>
+                <span class="room-goal" data-bind="goal.facility"></span>
             </div>
             <div class="facility-plan" id="facilityPlan"></div>
         </section>
@@ -66,8 +65,9 @@
                 <!-- Server room: each bay is a training module. Clicking one zooms into it. -->
                 <div class="hub" id="hub">
                     <div class="room-bar">
-                        <button type="button" class="ghost-button back-button" data-facility>← Surveillance</button>
+                        <button type="button" class="home-button" data-facility aria-label="Back to Surveillance, the main screen"><span aria-hidden="true">⌂</span> Surveillance</button>
                         <h2>Server room</h2>
+                        <span class="room-goal" data-bind="goal.servers"></span>
                     </div>
                     <div class="hub-pipes" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
                     <!-- One tall rack. Bays are buttons with their own hardware art (filled by game.js); rack units are decoration.
@@ -113,9 +113,12 @@
                 <!-- A bay, zoomed in. -->
                 <div class="module-view" id="moduleView" hidden>
                     <div class="module-bar">
-                        <button type="button" class="ghost-button back-button" id="backButton" aria-label="Back to the server room">← Rack</button>
-                        <button type="button" class="ghost-button back-button" data-jump="facility" aria-label="Straight back to Surveillance">⇤ Surveillance</button>
+                        <button type="button" class="home-button" data-jump="facility" aria-label="Straight back to Surveillance, the main screen"><span aria-hidden="true">⌂</span> Surveillance</button>
+                        <span class="crumb-sep" aria-hidden="true">/</span>
+                        <button type="button" class="ghost-button back-button step-button" id="backButton" aria-label="Back to the server room">← Rack</button>
+                        <span class="crumb-sep" aria-hidden="true">/</span>
                         <h2 id="moduleTitle">Training Cluster</h2>
+                        <span class="room-goal" data-bind="goal.bay"></span>
                         <button type="button" class="ghost-button" id="treeButton" hidden>Skills</button>
                         <span class="module-supply" title="What the lab feeds this cluster, per second"><span class="chip-label">Lab supply</span> <span data-bind="supply.rates"></span></span>
                         <span class="module-xp" title="Experience: earned on the trail, spent in the skill tree"><span class="chip-label">XP</span> <strong data-bind="res.xp">0</strong> <small data-bind="rate.xp"></small></span>
@@ -152,26 +155,23 @@
 
                         <!-- Training dev screen: review the last run, spend XP in the skill tree, start the next run. -->
                         <div id="devView" class="dev-view" hidden>
-                            <div class="dev-top">
-                                <section class="run-summary" id="runSummary" aria-label="Last run"></section>
-                                <div class="dev-actions">
-                                    <div class="dev-xp"><span class="chip-label">XP to spend</span> <strong data-bind="res.xp">0</strong></div>
-                                    <button type="button" class="button start-run" id="startRunButton">Start run</button>
-                                </div>
-                            </div>
                             <div class="tree-area">
                                 <!-- Drag to pan, wheel or pinch to zoom; the buttons do the same from the keyboard. -->
                                 <div class="tree-viewport" id="treeViewport">
                                     <div class="tree" id="skillTree" role="group" aria-label="Training skill tree">
                                         <svg class="tree-links" id="treeLinks" aria-hidden="true"></svg>
                                     </div>
+                                    <div class="dev-actions">
+                                        <div class="dev-xp"><span class="chip-label">XP to spend</span> <strong data-bind="res.xp">0</strong></div>
+                                        <button type="button" class="button start-run" id="startRunButton">Start run</button>
+                                    </div>
+                                    <aside class="node-detail" id="nodeDetail" aria-live="polite" hidden></aside>
                                     <div class="tree-zoom" role="group" aria-label="Zoom the skill tree">
                                         <button type="button" class="ghost-button" data-zoom="in" aria-label="Zoom in">+</button>
                                         <button type="button" class="ghost-button" data-zoom="out" aria-label="Zoom out">−</button>
                                         <button type="button" class="ghost-button" data-zoom="reset" aria-label="Reset view">⟲</button>
                                     </div>
                                 </div>
-                                <aside class="node-detail" id="nodeDetail" aria-live="polite"></aside>
                             </div>
                         </div>
                     </div>
@@ -187,8 +187,9 @@
         <!-- Lab: hands-on actions, automation, Transcend and the hardware/software upgrades. -->
         <section class="room room-lab room-frame hud" id="labRoom" data-room="lab" aria-label="Lab">
             <div class="room-bar">
-                <button type="button" class="ghost-button back-button" data-facility>← Surveillance</button>
+                <button type="button" class="home-button" data-facility aria-label="Back to Surveillance, the main screen"><span aria-hidden="true">⌂</span> Surveillance</button>
                 <h2>Lab</h2>
+                <span class="room-goal" data-bind="goal.lab"></span>
                 <span class="lab-status"><span class="status-dot"></span> Systems online · uptime <span data-bind="stats.playClock">00:00:00</span></span>
             </div>
 
@@ -204,10 +205,11 @@
                     <strong class="supply-value" data-bind="supply.dp"></strong>
                     <canvas class="spark" id="sparkDp" aria-hidden="true"></canvas>
                 </div>
-                <div class="supply-cell supply-link" data-show="module:path">
-                    <span class="supply-label">Feeds the Training Cluster</span>
-                    <span class="supply-text" data-bind="supply.sprint"></span>
-                    <span class="supply-text good" data-bind="supply.next"></span>
+                <!-- Investor projects: optional tasks with deadlines that pay boosts or payouts. -->
+                <div class="supply-cell projects" data-show="module:path" aria-label="Investor projects">
+                    <span class="supply-label">Investor projects</span>
+                    <span class="boosts" id="boosts"></span>
+                    <ul class="project-list" id="projectList"></ul>
                 </div>
             </div>
 
@@ -235,8 +237,9 @@
         <!-- R&D: long-term projects that outlast a run. Transcend lives here. -->
         <section class="room room-rnd room-frame hud" id="rndRoom" data-room="rnd" aria-label="R&amp;D" hidden>
             <div class="room-bar">
-                <button type="button" class="ghost-button back-button" data-facility>← Surveillance</button>
+                <button type="button" class="home-button" data-facility aria-label="Back to Surveillance, the main screen"><span aria-hidden="true">⌂</span> Surveillance</button>
                 <h2>R&amp;D</h2>
+                <span class="room-goal" data-bind="goal.rnd"></span>
             </div>
             <div class="rnd-floor">
                 <div class="panel panel-transcend hud project" id="transcendPanel">
@@ -304,7 +307,10 @@
     </dialog>
 
     <!-- Minimap: a microchip, one block per area you've opened; click a block to go straight there. -->
-    <nav class="minimap" id="minimap" aria-label="Map" hidden></nav>
+    <nav class="minimap" id="minimap" aria-label="Map" hidden>
+        <button type="button" class="mm-title" data-jump="facility">⌂ Surveillance</button>
+        <div class="mm-chip" id="minimapChip"></div>
+    </nav>
 
     <div id="toasts" class="toasts" aria-live="polite"></div>
 

@@ -234,16 +234,53 @@ h1, h2, h3, p { margin: 0; }
 .facility-plan {
     flex: 1;
     display: grid;
+    /* Laid out like the minimap's chip: wings across the top, the lab left, the core in the middle,
+       the server room tall on the right, R&D along the bottom. Areas not yet drawn leave bare die. */
+    position: relative;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-rows: minmax(220px, 1.4fr) minmax(150px, 1fr);
-    gap: 10px;
-    padding: 10px;
-    border: 2px solid #1d3a40;
-    border-radius: 4px;
-    background: rgba(5, 12, 14, 0.6);
+    grid-template-rows: minmax(110px, 0.7fr) minmax(170px, 1.2fr) minmax(140px, 1fr);
+    grid-template-areas: "brd sig mir" "lab core srv" "rnd rnd srv";
+    gap: 12px;
+    margin: 14px;
+    padding: 16px;
+    border: 2px solid #2d4c54;
+    border-radius: 8px;
+    background:
+        linear-gradient(transparent calc(50% - 0.5px), rgba(99, 224, 171, 0.18) 50%, transparent calc(50% + 0.5px)),
+        linear-gradient(90deg, transparent calc(50% - 0.5px), rgba(99, 224, 171, 0.18) 50%, transparent calc(50% + 0.5px)),
+        #0b181b;
+    box-shadow: inset 0 0 0 4px #081214, 0 0 40px rgba(0, 0, 0, 0.5);
 }
+.fr-boardroom { grid-area: brd; }
+.fr-signals { grid-area: sig; }
+.fr-mirror { grid-area: mir; }
+.fr-lab { grid-area: lab; }
+.fr-servers { grid-area: srv; }
+.fr-rnd { grid-area: rnd; }
+.facility-core { grid-area: core; }
+/* Pins round the die. */
+.die-pins { position: absolute; pointer-events: none; }
+.die-pins.top, .die-pins.bottom { left: 8%; right: 8%; height: 12px; background: repeating-linear-gradient(90deg, #3a5a60 0 6px, transparent 6px 26px); }
+.die-pins.top { top: -16px; }
+.die-pins.bottom { bottom: -16px; }
+.die-pins.left, .die-pins.right { top: 8%; bottom: 8%; width: 12px; background: repeating-linear-gradient(180deg, #3a5a60 0 6px, transparent 6px 26px); }
+.die-pins.left { left: -16px; }
+.die-pins.right { right: -16px; }
+/* The core: your AI, in the middle of everything. */
+.facility-core {
+    display: grid;
+    place-content: center;
+    gap: 4px;
+    text-align: center;
+    border: 1px solid var(--success);
+    border-radius: 6px;
+    background: radial-gradient(circle, rgba(99, 224, 171, 0.14), transparent 70%), #0e221f;
+    box-shadow: 0 0 30px rgba(99, 224, 171, 0.15);
+}
+.core-label { font: 700 0.66rem var(--font-display); letter-spacing: 0.2em; text-transform: uppercase; color: var(--success); }
+.core-phase { font: 700 1.05rem var(--font-display); letter-spacing: 0.08em; }
+.core-stats { font: 500 0.75rem var(--font-mono); color: var(--muted); }
 
-.fr-servers { grid-column: span 2; }
 
 .facility-room {
     position: relative;
@@ -319,7 +356,6 @@ h1, h2, h3, p { margin: 0; }
 @media (max-width: 640px) {
     .facility { padding: 12px; }
     .facility-plan { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: minmax(130px, auto); }
-    .fr-lab, .fr-servers { grid-column: span 2; }
     .fr-art { padding: 10px; }
 }
 
@@ -646,10 +682,11 @@ h1, h2, h3, p { margin: 0; }
 .start-run { padding: 14px 20px; font-size: 1.05rem; }
 
 .tree-area {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 250px;
+    display: flex;
+    flex: 1;
+    min-height: 0;
     gap: 14px;
-    align-items: start;
+    align-items: stretch;
 }
 
 /* The tree is a square-ish grid of cells; nodes sit at cell centres, links are an SVG underneath. */
@@ -826,7 +863,8 @@ h1, h2, h3, p { margin: 0; }
 }
 
 /* Overlays on the trail: live XP while rolling, and the result card when a roll ends. */
-.canvas-wrap { position: relative; }
+.canvas-wrap { position: relative; flex: 1; min-height: 260px; }
+.canvas-wrap .path-canvas { position: absolute; left: 0; top: 0; }
 
 .live-xp {
     position: absolute;
@@ -1852,3 +1890,145 @@ html, body { overflow-x: clip; }
     .mm-trace, .mm-block.here rect { animation: none; }
 }
 .mm-block.sealed, .mm-block.building { pointer-events: none; }
+
+/* ---- Navigation: home (Surveillance) is a big jump; a step back is small ---- */
+.home-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--success);
+    border-radius: 999px;
+    background: rgba(99, 224, 171, 0.12);
+    color: var(--success);
+    font: 700 0.72rem var(--font-display);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.home-button span { font-size: 1rem; line-height: 1; }
+.home-button:hover { background: rgba(99, 224, 171, 0.22); }
+.home-button:focus-visible { outline: 2px solid var(--success); outline-offset: 2px; }
+.home-button.ping { animation: node-ready 1.8s ease-in-out infinite; }
+.step-button { padding: 4px 10px; font-size: 0.78rem; }
+.crumb-sep { color: #2d4c54; font: 600 1rem var(--font-mono); }
+.room-goal {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font: 500 0.75rem var(--font-mono);
+    color: var(--warning);
+    padding-left: 12px;
+    border-left: 1px solid #24434a;
+}
+.room-goal:empty { display: none; }
+
+/* ---- Training Cluster: the trail and the tree fill the bay ---- */
+.room-servers .viewport { min-height: calc(100dvh / var(--ui-scale) - 120px); }
+.module-view { min-height: 0; }
+.module[data-module="training"] { flex: 1; min-height: 0; }
+.run-view, .dev-view { flex: 1; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.run-view[hidden], .dev-view[hidden] { display: none; }
+.tree-viewport { flex: 1; height: auto; min-height: 420px; }
+.dev-actions {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px 8px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(8, 17, 19, 0.92);
+    min-width: 0;
+}
+.dev-actions .dev-xp { font-size: 1.15rem; text-align: left; }
+.dev-actions .start-run { padding: 10px 18px; font-size: 0.95rem; }
+.node-detail {
+    position: absolute;
+    z-index: 4;
+    width: 250px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    background: rgba(12, 25, 28, 0.97);
+}
+.node-detail[hidden] { display: none; }
+.detail-close { position: absolute; top: 6px; right: 8px; background: none; border: 0; color: var(--muted); font-size: 1.1rem; cursor: pointer; }
+.detail-close:hover { color: var(--text); }
+
+/* ---- Investor projects ---- */
+.projects { grid-column: span 2; grid-template-columns: 1fr auto; grid-template-areas: "label boosts" "list list"; align-content: start; }
+.projects .supply-label { grid-area: label; color: var(--warning); }
+.boosts { grid-area: boosts; font: 600 0.7rem var(--font-mono); color: var(--success); text-align: right; }
+.project-list { grid-area: list; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.offer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: "who reward claim" "task reward claim" "bar time drop";
+    gap: 2px 10px;
+    align-items: center;
+    padding: 6px 8px;
+    border: 1px solid #1d353b;
+    border-radius: 6px;
+    background: rgba(255, 181, 71, 0.04);
+}
+.offer.done { border-color: var(--success); background: rgba(99, 224, 171, 0.08); }
+.project-who { grid-area: who; font: 700 0.62rem var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.project-task { grid-area: task; font: 600 0.8rem var(--font-body); }
+.project-reward { grid-area: reward; font: 600 0.7rem var(--font-mono); color: var(--success); text-align: right; max-width: 150px; }
+.project-bar { grid-area: bar; height: 4px; border-radius: 2px; background: #13272c; overflow: hidden; }
+.project-fill { display: block; height: 100%; width: 0; background: var(--warning); transition: width 0.3s ease; }
+.offer.done .project-fill { background: var(--success); }
+.project-time { grid-area: time; font: 0.68rem var(--font-mono); color: var(--muted); text-align: right; }
+.project-claim { grid-area: claim; padding: 4px 12px; font-size: 0.75rem; }
+.project-drop { grid-area: drop; background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 1rem; justify-self: center; }
+.project-empty { font-size: 0.78rem; color: var(--muted); }
+
+/* ---- Minimap: bigger, titled, easy to find ---- */
+.minimap { width: 196px; padding: 8px; border-color: rgba(99, 224, 171, 0.45); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 18px rgba(99, 224, 171, 0.12); }
+.mm-title { width: 100%; justify-content: center; margin-bottom: 4px; display: flex; padding: 5px 8px; border: 1px solid var(--success); border-radius: 999px; background: rgba(99, 224, 171, 0.12); color: var(--success); font: 700 0.68rem var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; }
+.mm-title:hover { background: rgba(99, 224, 171, 0.22); }
+.mm-label { font-size: 0.6rem; }
+
+@media (max-width: 960px) {
+    .projects { grid-column: auto; }
+}
+@media (max-width: 640px) {
+    .facility-plan { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: minmax(120px, auto);
+        grid-template-areas: "core core" "lab srv" "rnd srv" "brd sig" "mir mir"; margin: 10px; padding: 10px; }
+    .minimap { width: 128px; }
+    .mm-title { font-size: 0.58rem; padding: 3px 6px; }
+    .dev-actions { top: 8px; right: 8px; padding: 6px 8px; gap: 8px; }
+    .dev-actions .dev-xp .chip-label { display: none; }
+    .node-detail { width: 220px; }
+    .room-goal { display: none; }
+}
+
+.lab-supply { align-items: start; }
+/* Keep the minimap from covering content: a gutter on wide screens, translucent until hovered elsewhere. */
+@media (min-width: 1500px) {
+    body.has-minimap .layout { padding-right: 232px; }
+}
+@media (max-width: 1499px) {
+    .minimap { opacity: 0.88; transition: opacity 0.15s ease; }
+    .minimap:hover, .minimap:focus-within { opacity: 1; }
+}
+@media (max-width: 640px) {
+    /* Phones: just the way home; the chip would cover the screen. */
+    .minimap { width: auto; padding: 4px; }
+    .mm-chip { display: none; }
+    .mm-title { margin: 0; }
+}
+
+/* The chip itself is the way back to Surveillance: hovering the title, the edge, the pins or bare
+   die lights up the whole chip. */
+.mm-body { cursor: pointer; }
+.mm-body:focus { outline: none; }
+.mm-via { fill: var(--success); }
+.minimap:has(.mm-title:hover) .mm-die, .minimap:has(.mm-body:hover) .mm-die, .mm-body:focus-visible .mm-die { fill: #123832; stroke: var(--success); stroke-width: 2; }
+.minimap:has(.mm-title:hover) .mm-pin, .minimap:has(.mm-body:hover) .mm-pin, .mm-body:focus-visible .mm-pin { fill: var(--success); }
+.minimap:has(.mm-title:hover), .minimap:has(.mm-body:hover) { border-color: var(--success); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 26px rgba(99, 224, 171, 0.35); }
+.mm-body.here .mm-die { stroke: var(--success); }

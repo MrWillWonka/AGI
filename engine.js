@@ -10,7 +10,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const SAVE_VERSION = 2;
+    const SAVE_VERSION = 3;   // 3: investor projects
     const MAX_OFFLINE_SECONDS = 8 * 60 * 60;
     const PRESTIGE_BONUS = 0.1;        // +10% production per prestige point
     const ACHIEVEMENT_BONUS = 0.02;    // +2% production per achievement
@@ -279,6 +279,8 @@
                 runCp: 0,
                 researchDone: 0,
                 collects: 0,          // data collected by hand
+                cleanSprints: 0,
+                projectsDone: 0,
                 researchManual: 0,    // research done by hand
                 rolls: 0,
                 skillsLearned: 0,
@@ -289,6 +291,7 @@
                 highestPhase: 0
             },
             path: { learned: 0, best: 0 },
+            projects: { offers: [], boosts: [], next: PROJECTS.firstAt, seq: 0 },
             settings: { autosave: true, offline: true, autoBudget: AUTO_BUDGET.default },
             lastSaved: now
         };
@@ -322,11 +325,12 @@
         const mult = globalMultiplier(s);
         const L = id => level(s, id);
         const sk = skillBonuses(s);
+        const bo = projectBoosts(s);
 
         const cpPerSec = (0.5 * L('cpu') + 2 * L('server') + 10 * L('quantum') + 50 * L('neural')
-            + 250 * L('datacenter') + 1400 * L('optical')) * (1 + sk.cp) * mult * r.cp;
+            + 250 * L('datacenter') + 1400 * L('optical')) * (1 + sk.cp) * mult * r.cp * bo.cp;
         const clickPower = (1 + L('server') + sk.click) * mult;
-        const dpPerCollect = (1 + L('dataProcessor') + 5 * L('nlp') + 10 * L('computerVision') + sk.collect) * (1 + sk.dp) * mult;
+        const dpPerCollect = (1 + L('dataProcessor') + 5 * L('nlp') + 10 * L('computerVision') + sk.collect) * (1 + sk.dp) * mult * bo.dp;
         const rpPerResearch = (1 + L('machineLearning') + 2 * L('deepLearning') + 3 * L('reinforcementLearning')
             + 5 * L('transferLearning') + sk.research) * (1 + sk.rp) * mult;
         // Automation converts at the action prices: collections spend CP, research spends CP and DP.
@@ -351,7 +355,7 @@
         // Push strength grows with upgrades and skills, and gently with prestige and achievements.
         // Hills grow faster than this, so later skills need momentum built over several pushes.
         const tb = treeBoosts(s);
-        const pushPower = PATH.basePush * (1 + tb.push + sk.push) * Math.sqrt(mult);
+        const pushPower = PATH.basePush * (1 + tb.push + sk.push) * Math.sqrt(mult) * bo.push;
         const pushesPerRoll = PATH.basePushes + tb.pushes + sk.pushes;
         const pushCooldown = Math.max(PATH.minCooldown, PATH.baseCooldown * Math.pow(0.85, tb.cooldown));
 
@@ -365,7 +369,7 @@
         const friction = Math.pow(0.95, tb.friction) * (1 - sk.glide);
         // 'Less steep hills' really lowers the rolling hills (never the skill hills: those stay walls).
         const hillScale = Math.pow(0.94, tb.slope);
-        const xpMult = 1 + tb.xp;
+        const xpMult = (1 + tb.xp) * bo.xp;
         const viewScale = 1 + tb.view;
         // Cleared stretches keep training on their own, slowly: XP per second from every learned skill hill.
         let xpPerSec = 0;
@@ -497,6 +501,7 @@
 
     function tick(s, dt, rates) {
         if (!(dt > 0)) return;
+        tickProjects(s);
         const d = derive(s, rates);
         addCp(s, d.cpPerSec * dt);
         s.res.xp += d.xpPerSec * dt;
@@ -675,6 +680,7 @@
     function grantPushBonus(s, kind) {
         const xp = pushBonusXp(s, kind);
         s.res.xp += xp;
+        if (kind) s.stats.cleanSprints++;
         return xp;
     }
 
@@ -698,6 +704,106 @@
         s.path.best = 0;
         s.stats.skillsLearned++;
         return skill;
+    }
+
+    // ---- Investor projects ----------------------------------------------
+    // Offers arrive over (game) time once the Training Cluster is running: an investor, an optional task
+    // with a deadline, and a reward (a temporary boost or a one-off payout). Progress counts from when the
+    // offer arrived. Claim when done; ignore it and it expires. Seeded by `seq`, so it's deterministic.
+
+    const PROJECTS = { firstAt: 120, every: [150, 300], maxOffers: 3 };
+
+    const INVESTORS = ['Dad', 'Aunt Linda', 'A guy from the gym', 'Your old roommate', 'Venture Pals LLC',
+        'Big Tech Corp', 'A mysterious foundation', 'A crypto billionaire', 'The Government (probably)'];
+
+    // `size(s)` scales the target to where the player is; `needs` keeps tasks to things they can do.
+    const PROJECT_TASKS = {
+        computes: { stat: s => s.stats.clicks, text: n => `Compute ${n} times by hand`, size: () => 40 },
+        collects: { stat: s => s.stats.collects, text: n => `Collect data by hand ${n} times`, size: () => 25, needs: 'seen:dp' },
+        runs: { stat: s => s.stats.rolls, text: n => `Finish ${n} training runs`, size: () => 4, needs: 'module:path' },
+        clean: { stat: s => s.stats.cleanSprints, text: n => `Land ${n} clean training sprints`, size: () => 3, needs: 'module:path' },
+        earnCp: { stat: s => s.stats.runCp, text: n => `Earn ${format(n)} CP`, size: s => Math.max(200, Math.round(derive(s).cpPerSec * 180)) },
+        research: { stat: s => s.stats.researchManual, text: n => `Research by hand ${n} times`, size: () => 10, needs: 'action:research' }
+    };
+
+    const PROJECT_REWARDS = [
+        { text: '+50% compute for 5 min', boost: 'cp', mult: 1.5, seconds: 300 },
+        { text: '+50% data for 5 min', boost: 'dp', mult: 1.5, seconds: 300, needs: 'seen:dp' },
+        { text: '+50% XP from runs for 5 min', boost: 'xp', mult: 1.5, seconds: 300, needs: 'module:path' },
+        { text: 'Training sprints +25% for 3 min', boost: 'push', mult: 1.25, seconds: 180, needs: 'module:path' },
+        { text: 'A lump of XP', grant: 'xp', amount: s => Math.max(5, stretchXp(s) * 0.4), needs: 'module:path' },
+        { text: 'A compute grant', grant: 'cp', amount: s => Math.max(150, derive(s).cpPerSec * 240) }
+    ];
+
+    function projectRng(seq) {
+        let a = (seq * 2654435761 + 12345) >>> 0;
+        return () => {
+            a = (a + 0x6D2B79F5) >>> 0;
+            let t = a;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    function projectBoosts(s) {
+        const out = { cp: 1, dp: 1, xp: 1, push: 1 };
+        for (const b of s.projects?.boosts || []) if (b.until > s.stats.playTime) out[b.stat] *= b.mult;
+        return out;
+    }
+
+    function projectProgress(s, o) {
+        return Math.min(o.target, Math.max(0, PROJECT_TASKS[o.task].stat(s) - o.start));
+    }
+
+    function makeOffer(s) {
+        const p = s.projects;
+        const r = projectRng(++p.seq);
+        const ok = x => !x.needs || s.unlocked[x.needs];
+        const tasks = Object.keys(PROJECT_TASKS).filter(k => ok(PROJECT_TASKS[k]) && !p.offers.some(o => o.task === k));
+        if (!tasks.length) return null;
+        const task = tasks[Math.floor(r() * tasks.length)];
+        const rewards = PROJECT_REWARDS.map((x, i) => i).filter(i => ok(PROJECT_REWARDS[i]));
+        const offer = {
+            id: p.seq,
+            investor: INVESTORS[Math.floor(r() * INVESTORS.length)],
+            task,
+            target: Math.ceil(PROJECT_TASKS[task].size(s)),
+            start: PROJECT_TASKS[task].stat(s),
+            reward: rewards[Math.floor(r() * rewards.length)],
+            deadline: s.stats.playTime + 240 + Math.floor(r() * 240)
+        };
+        p.offers.push(offer);
+        return offer;
+    }
+
+    function tickProjects(s) {
+        const p = s.projects;
+        const t = s.stats.playTime;
+        p.offers = p.offers.filter(o => o.deadline > t);
+        p.boosts = p.boosts.filter(b => b.until > t);
+        if (!s.unlocked['module:path'] || t < p.next) return;
+        if (p.offers.length < PROJECTS.maxOffers) makeOffer(s);
+        const r = projectRng(p.seq + 7919);
+        p.next = t + PROJECTS.every[0] + r() * (PROJECTS.every[1] - PROJECTS.every[0]);
+    }
+
+    function claimProject(s, id) {
+        const p = s.projects;
+        const o = p.offers.find(x => x.id === id);
+        if (!o) return { ok: false, msg: 'That project is gone.' };
+        if (projectProgress(s, o) < o.target) return { ok: false, msg: 'Not finished yet.' };
+        const reward = PROJECT_REWARDS[o.reward];
+        if (reward.boost) p.boosts.push({ stat: reward.boost, mult: reward.mult, until: s.stats.playTime + reward.seconds });
+        else if (reward.grant === 'xp') s.res.xp += reward.amount(s);
+        else if (reward.grant === 'cp') addCp(s, reward.amount(s));
+        p.offers = p.offers.filter(x => x !== o);
+        s.stats.projectsDone = (s.stats.projectsDone || 0) + 1;
+        return { ok: true, msg: `${o.investor} is pleased: ${reward.text}.` };
+    }
+
+    function dismissProject(s, id) {
+        s.projects.offers = s.projects.offers.filter(x => x.id !== id);
     }
 
     // ---- Prestige -------------------------------------------------------
@@ -758,7 +864,8 @@
         const d = defaultState(now);
         if (!raw || typeof raw !== 'object') return d;
 
-        if (raw.version !== SAVE_VERSION) raw = migrateV1(raw);
+        // v2 saves are current apart from projects (defaulted below); only unversioned v1 needs converting.
+        if (!(raw.version >= 2)) raw = migrateV1(raw);
 
         const s = d;
         for (const k of Object.keys(s.res)) s.res[k] = num(raw.res?.[k], 0);
@@ -779,8 +886,19 @@
         }
         s.path.learned = Math.floor(num(raw.path?.learned, 0));
         s.path.best = Math.min(1, num(raw.path?.best, 0));
+        s.projects = cleanProjects(raw.projects, d.projects);
         s.lastSaved = num(raw.lastSaved, d.lastSaved);
         return s;
+    }
+
+    function cleanProjects(raw, fallback) {
+        if (!raw || typeof raw !== 'object') return fallback;
+        const offers = (Array.isArray(raw.offers) ? raw.offers : []).filter(o => o && PROJECT_TASKS[o.task]
+            && PROJECT_REWARDS[o.reward] && typeof o.investor === 'string'
+            && [o.id, o.target, o.start, o.deadline].every(v => Number.isFinite(v))).slice(0, PROJECTS.maxOffers);
+        const boosts = (Array.isArray(raw.boosts) ? raw.boosts : []).filter(b => b && ['cp', 'dp', 'xp', 'push'].includes(b.stat)
+            && Number.isFinite(b.mult) && b.mult > 0 && Number.isFinite(b.until));
+        return { offers, boosts, next: num(raw.next, fallback.next), seq: Math.floor(num(raw.seq, 0)) };
     }
 
     // Original save format (v1, unversioned).
@@ -863,7 +981,7 @@
     }
 
     return {
-        SAVE_VERSION, MAX_OFFLINE_SECONDS, AUTO_BUDGET, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN, PATH, SKILLS,
+        SAVE_VERSION, MAX_OFFLINE_SECONDS, AUTO_BUDGET, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,

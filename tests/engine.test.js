@@ -363,3 +363,53 @@ test('top-bar resources and attributes are revealed once they matter', () => {
     assert.deepEqual(E.evaluate(s).reveals.map(r => r.key), ['seen:dp', 'seen:int']);
     assert.equal(E.evaluate(s).reveals.length, 0, 'only once');
 });
+
+test('investor projects: offers arrive over time, track progress, pay out, and expire', () => {
+    const s = fresh();
+    s.unlocked['module:path'] = true;
+    E.tick(s, 1);
+    assert.equal(s.projects.offers.length, 0, 'nothing before the first offer time');
+    s.stats.playTime = E.PROJECTS.firstAt;
+    E.tick(s, 1);
+    assert.equal(s.projects.offers.length, 1);
+    const o = s.projects.offers[0];
+    assert.equal(E.projectProgress(s, o), 0, 'progress counts from when it arrived');
+    assert.equal(E.claimProject(s, o.id).ok, false, 'not finished');
+    // Finish it by moving its stat on.
+    const stat = { computes: 'clicks', collects: 'collects', runs: 'rolls', clean: 'cleanSprints', earnCp: 'runCp', research: 'researchManual' }[o.task];
+    s.stats[stat] += o.target;
+    const before = { cp: s.res.cp, xp: s.res.xp };
+    const r = E.claimProject(s, o.id);
+    assert.equal(r.ok, true, r.msg);
+    assert.equal(s.projects.offers.length, 0);
+    const reward = E.PROJECT_REWARDS[o.reward];
+    if (reward.boost) assert.equal(s.projects.boosts.length, 1);
+    else assert.ok(s.res.cp > before.cp || s.res.xp > before.xp);
+    // Deadlines: an unclaimed offer disappears.
+    s.stats.playTime = s.projects.next;
+    E.tick(s, 1);
+    const late = s.projects.offers[0];
+    s.stats.playTime = late.deadline + 1;
+    E.tick(s, 1);
+    assert.ok(!s.projects.offers.some(x => x.id === late.id), 'expired');
+});
+
+test('project boosts multiply production while they last', () => {
+    const s = fresh();
+    s.levels.cpu = 10;
+    const base = E.derive(s).cpPerSec;
+    s.projects.boosts.push({ stat: 'cp', mult: 1.5, until: s.stats.playTime + 60 });
+    assert.ok(Math.abs(E.derive(s).cpPerSec - base * 1.5) < 1e-9);
+    s.stats.playTime += 61;
+    assert.ok(Math.abs(E.derive(s).cpPerSec - base) < 1e-9);
+});
+
+test('v2 saves load with empty projects; bad project data is dropped', () => {
+    const v2 = E.migrate({ version: 2, res: { cp: 50 }, path: { learned: 2 } });
+    assert.equal(v2.res.cp, 50);
+    assert.equal(v2.path.learned, 2);
+    assert.deepEqual(v2.projects.offers, []);
+    const bad = E.migrate({ version: 3, projects: { offers: [{ id: 1, task: 'nope' }, 'x'], boosts: [{ stat: 'cp', mult: -1, until: 5 }] } });
+    assert.deepEqual(bad.projects.offers, []);
+    assert.deepEqual(bad.projects.boosts, []);
+});

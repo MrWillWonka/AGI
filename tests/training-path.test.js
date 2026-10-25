@@ -343,3 +343,19 @@ test('hillScale lowers the rolling hills but never the skill hill', () => {
     roll(a).forEach((h, i) => assert.ok(Math.abs(roll(b)[i].height - h.height * 0.8) < 1e-12));
     assert.equal(b.goal.height, a.goal.height);
 });
+
+test('the start is flat, and rolling back to the start line ends the run', () => {
+    for (const k of [0, 2]) {
+        const g = T.terrain(k, 3);
+        assert.equal(g.height(g.start - 1), 0, 'nothing behind the start');
+        assert.equal(g.height(g.start), 0);
+    }
+    const roll = T.createRoll(1, 5, { pushes: 2, cooldown: 0 });
+    roll.push(0.01);
+    roll.ball.v = -1.5;
+    let events = [];
+    for (let i = 0; i < 200 && !roll.over; i++) events = events.concat(roll.step(0.05));
+    assert.equal(roll.over, true, 'the run ended');
+    assert.equal(events.at(-1).rolledBack, true);
+    assert.equal(events.at(-1).progress, 0);
+});

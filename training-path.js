@@ -22,7 +22,7 @@
     const SLOPE_DRAG = 0.5;     // extra friction in proportion to steepness: steep hills sap more speed
     const REST_SPEED = 0.03;
     const REST_SECONDS = 0.5;
-    const WALL = 40;            // steepness of the wall behind the very first checkpoint
+    const ROLL_BACK = 0.15;     // rolling back this far behind the start line ends the run
     const LEAD_IN = 0.5;        // flat run-up after each checkpoint
     const ROLL_OUT = 0.8;       // with rollOut, how far past the skill hill's foot the ball runs before the roll ends
 
@@ -85,12 +85,10 @@
 
     // ---- Terrain for one roll ----------------------------------------------
 
-    // The ground for a roll on stretch k: the previous skill hill behind the checkpoint (or the
-    // starting wall), the rolling hills, and skill hill k ahead.
+    // The ground for a roll on stretch k: flat at the start, the rolling hills, and skill hill k ahead.
+    // Nothing behind the start line: a ball that rolls back to it ends the run.
     function terrain(k, seed, hillScale = 1) {
-        const bumps = [];
-        if (k > 0) bumps.push(skillHill(k - 1));
-        bumps.push(...rollingHills(k, seed, hillScale), skillHill(k));
+        const bumps = [...rollingHills(k, seed, hillScale), skillHill(k)];
 
         function find(x) {
             let lo = 0;
@@ -106,7 +104,6 @@
         }
 
         function height(x) {
-            if (k === 0 && x < 0) return WALL * x * x;
             const b = find(x);
             if (!b) return 0;
             const c = Math.cos((Math.PI / 2) * (x - b.peak) / b.halfWidth);
@@ -114,7 +111,6 @@
         }
 
         function slope(x) {
-            if (k === 0 && x < 0) return 2 * WALL * x;
             const b = find(x);
             if (!b) return 0;
             const u = (x - b.peak) / b.halfWidth;
@@ -123,7 +119,7 @@
 
         // Peak heights of the nearest hills behind and ahead of x (the ball's way out of a dip).
         function walls(x) {
-            let left = k === 0 ? Infinity : 0;
+            let left = 0;
             let right = Infinity;
             for (const b of bumps) {
                 if (b.peak <= x) left = b.height;
@@ -213,6 +209,11 @@
                     over = true;
                     events.push({ type: 'end', skill: k, progress: 1, crested: true, hills: ground.hillsBefore(ball.maxX) });
                 }
+                return;
+            }
+            if (launched && ball.v < 0 && ball.x < ground.start - ROLL_BACK) {
+                over = true;
+                events.push({ type: 'end', skill: k, progress: 0, rolledBack: true, hills: ground.hillsBefore(ball.maxX) });
                 return;
             }
             const resting = Math.abs(ball.v) < REST_SPEED && Math.abs(dy) < 0.08;
