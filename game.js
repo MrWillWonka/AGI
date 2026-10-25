@@ -82,8 +82,50 @@ window.AGI = (function () {
 
     function setHidden(node, hidden) {
         if (node.hidden === hidden) return;
+        // Something new in the lab: remember where everything is first, so it can make room smoothly.
+        if (!hidden && revealReady && node.closest?.('#labRoom') && view === 'lab') makeRoom();
         node.hidden = hidden;
         if (!hidden) revealIn(node);
+    }
+
+    // Making room (FLIP): when something appears in the lab, what's already there slides and resizes
+    // from where it was to its new place (moving and pushing inward, never scaling its text), and only
+    // then does the new section boot in. Snapshot before the change; play on the next frame.
+    let roomBefore = null;
+    let freshReveals = [];
+    const MAKE_ROOM_MS = 420;
+    function labMovers() {
+        const room = $('labRoom');
+        return [...room.querySelectorAll(':scope > .panel, .lab-stations > .station, .supply-cell, #actions > .action-button, .task')].filter(n => !n.hidden);
+    }
+    function makeRoom() {
+        if (roomBefore || reducedMotion() || !revealReady) return;
+        roomBefore = new Map(labMovers().map(n => [n, n.getBoundingClientRect()]));
+        requestAnimationFrame(playMakeRoom);
+    }
+    function playMakeRoom() {
+        const before = roomBefore;
+        roomBefore = null;
+        const fresh = freshReveals;
+        freshReveals = [];
+        if (!before) return;
+        const z = uiScale();
+        let moved = 0;
+        for (const [n, r] of before) {
+            if (n.hidden || !n.isConnected) continue;
+            const q = n.getBoundingClientRect();
+            const dx = (r.left - q.left) / z;
+            const dy = (r.top - q.top) / z;
+            const dw = Math.abs(r.width - q.width);
+            const dh = Math.abs(r.height - q.height);
+            if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && dw < 1 && dh < 1) continue;
+            moved++;
+            const size = (w, h) => (dw >= 1 || dh >= 1 ? { width: `${w / z}px`, height: `${h / z}px` } : {});
+            n.animate([{ transform: `translate(${dx}px, ${dy}px)`, ...size(r.width, r.height) }, { transform: 'none', ...size(q.width, q.height) }],
+                { duration: MAKE_ROOM_MS, easing: 'cubic-bezier(0.25, 0.8, 0.25, 1)' });
+        }
+        // The new section waits (invisible) until the others have made room.
+        if (moved) for (const n of fresh) n.style.animationDelay = `${MAKE_ROOM_MS - 60}ms`;
     }
 
     // New sections don't just pop in: panels, stations, supply cells, chips, workbench jobs, tasks, tree
@@ -94,11 +136,14 @@ window.AGI = (function () {
     function revealIn(node) {
         if (!revealReady || !node.matches?.(REVEAL) || reducedMotion()) return;
         node.classList.remove('reveal-in');
+        node.style.animationDelay = '';
         void node.offsetWidth;
         node.classList.add('reveal-in');
+        if (roomBefore) freshReveals.push(node);
         const done = e => {
             if (e.target !== node || e.animationName !== 'reveal-boot') return;
             node.classList.remove('reveal-in');
+            node.style.animationDelay = '';
             node.removeEventListener('animationend', done);
         };
         node.addEventListener('animationend', done);
@@ -384,8 +429,8 @@ window.AGI = (function () {
             // Hardware: the piece you're buying, as it will sit in the server cabinets.
             const part = HW_PIECES[up.id];
             const side = part ? el('div', { class: 'upgrade-side' }, [
-                el('div', { class: 'upgrade-part', 'aria-hidden': 'true', title: `Its piece in the cabinets: ${part.w}×${part.h}; four bought in a row merge into a bigger one` }, [
-                    el('span', { class: `hw hw-${up.id} t0`, style: `--w:${part.w};--h:${part.h}` }, [el('i'), el('b')])
+                el('div', { class: 'upgrade-part', 'aria-hidden': 'true', title: `In the cabinets: ${part.steps[0][0]} bought in a row merge into a ${part.steps[0][1]}×${part.steps[0][2]} ${part.names[1]}` }, [
+                    el('span', { class: `hw hw-${up.id} t1`, style: `--w:${part.steps[0][1]};--h:${part.steps[0][2]}` }, [el('i'), el('b')])
                 ]),
                 button
             ]) : button;
@@ -455,27 +500,29 @@ window.AGI = (function () {
     }
 
     // Server cabinets: the hardware you own, racked in the order you bought it, all kinds mixed together
-    // like real server racks. Every piece is a rectangle (`w` × `h` cells) in its hardware's own style.
-    // When four pieces of the same kind and size go in one after another, they merge into the next,
-    // bigger piece (`merge`: wider or taller), so bulk buys compact and mixed buys stay a patchwork.
-    // Pieces fill racks of 4 × 6 cells from the bottom, first fit across every rack, so small pieces
+    // like a real server room. Every kind starts as a small 1×1 square; a few of them bought one after
+    // another merge into a medium piece, a horizontal or vertical bar (the count differs by kind), and
+    // a few mediums in a row merge into a large one, wider first (racks are 7 cells wide, so pieces
+    // combine across before they stack up). `steps`: [how many of the size below, width, height].
+    // Pieces fill racks of 7 × 8 cells from the bottom, first fit across every rack, so small pieces
     // drop into earlier gaps. This mix of merged and unmerged parts is the starting point for a later
     // rack-configuration puzzle (rearranging pieces to merge them or build shapes for bonuses).
     const HW_PIECES = {
-        cpu: { w: 1, h: 1, merge: [[2, 2], [4, 2], [4, 4]], names: ['CPU', 'CPU board', 'CPU shelf', 'CPU wall'] },
-        server: { w: 2, h: 1, merge: [[4, 1], [4, 2], [4, 4]], names: ['Server', 'Server pair', 'Server rack', 'Server row'] },
-        quantum: { w: 1, h: 2, merge: [[2, 2], [2, 4], [4, 4]], names: ['Quantum core', 'Quantum pair', 'Cryostat', 'Quantum array'] },
-        neural: { w: 2, h: 2, merge: [[4, 2], [4, 4], [4, 6]], names: ['Neural chip', 'Neural board', 'Neural block', 'Neural wall'] },
-        datacenter: { w: 3, h: 2, merge: [[4, 3], [4, 4], [4, 6]], names: ['Datacenter hall', 'Datacenter wing', 'Datacenter campus', 'Datacenter city'] },
-        optical: { w: 2, h: 2, merge: [[4, 2], [4, 4], [4, 6]], names: ['Optical core', 'Optical bench', 'Optical array', 'Light field'] }
+        cpu: { steps: [[3, 3, 1], [2, 6, 1], [2, 6, 2]], names: ['CPU', 'CPU board', 'CPU shelf', 'CPU bank'] },
+        server: { steps: [[2, 2, 1], [3, 6, 1], [2, 6, 2]], names: ['Server', 'Server pair', 'Server row', 'Server rack'] },
+        quantum: { steps: [[2, 1, 2], [3, 3, 2], [2, 6, 2]], names: ['Qubit cell', 'Quantum core', 'Cryostat', 'Quantum array'] },
+        neural: { steps: [[3, 1, 3], [2, 2, 3], [3, 6, 3]], names: ['Neural tile', 'Neural column', 'Neural block', 'Neural wall'] },
+        datacenter: { steps: [[5, 5, 1], [2, 5, 2], [2, 5, 4]], names: ['Datacenter pod', 'Datacenter hall', 'Datacenter wing', 'Datacenter campus'] },
+        optical: { steps: [[4, 4, 1], [3, 4, 3], [2, 4, 6]], names: ['Optical cell', 'Optical rail', 'Optical bench', 'Light field'] }
     };
-    const RACK = { cols: 4, rows: 6 };
+    const RACK = { cols: 7, rows: 8 };
     const MAX_RACKS = 24;
     const RACK_LOG_KEY = 'agiRackLog';   // screen state: every hardware level, in the order it was bought
     let cabinetKey = null;      // null: not drawn yet
     let cabinetPieces = new Set();
 
-    const pieceSize = (id, tier) => (tier ? HW_PIECES[id].merge[tier - 1] : [HW_PIECES[id].w, HW_PIECES[id].h]);
+    const pieceSize = (id, tier) => (tier ? HW_PIECES[id].steps[tier - 1].slice(1) : [1, 1]);
+    const pieceUnits = (id, tier) => HW_PIECES[id].steps.slice(0, tier).reduce((a, st) => a * st[0], 1);
 
     // The buy log, reconciled with what you own (a reset or an old save trims it or adds what's missing).
     function rackLog() {
@@ -489,22 +536,22 @@ window.AGI = (function () {
         return log;
     }
 
-    // Pieces in buy order: four of the same kind and size in a row merge into one bigger piece.
+    // Pieces in buy order: enough of the same kind and size in a row (its next step's count) merge.
     function rackPieces(log) {
         const out = [];
         for (const id of log) {
             out.push({ id, tier: 0 });
             for (;;) {
-                const n = out.length;
-                const last = out[n - 1];
-                if (n < 4 || last.tier >= HW_PIECES[id].merge.length) break;
-                if (!out.slice(n - 4).every(p => p.id === last.id && p.tier === last.tier)) break;
-                out.splice(n - 4, 4, { id: last.id, tier: last.tier + 1 });
+                const last = out[out.length - 1];
+                const step = HW_PIECES[last.id].steps[last.tier];
+                if (!step || out.length < step[0]) break;
+                if (!out.slice(-step[0]).every(p => p.id === last.id && p.tier === last.tier)) break;
+                out.splice(out.length - step[0], step[0], { id: last.id, tier: last.tier + 1 });
             }
         }
         for (const p of out) {
             const [w, h] = pieceSize(p.id, p.tier);
-            Object.assign(p, { w, h, units: Math.pow(4, p.tier), name: HW_PIECES[p.id].names[p.tier] });
+            Object.assign(p, { w, h, units: pieceUnits(p.id, p.tier), name: HW_PIECES[p.id].names[p.tier] });
         }
         return out;
     }
@@ -545,7 +592,9 @@ window.AGI = (function () {
         // New or merged pieces (not on load) pop in; merges flash.
         const seen = new Set();
         const art = $('cabinetArt');
-        art.replaceChildren(...racks.slice(0, MAX_RACKS).map((r, k) => el('div', { class: 'rack-block' }, r.pieces.map(p => {
+        // Each rack's cable looms grow with how full it is.
+        const fill = r => r.pieces.reduce((a, p) => a + p.w * p.h, 0) / (RACK.cols * RACK.rows);
+        art.replaceChildren(...racks.slice(0, MAX_RACKS).map((r, k) => el('div', { class: 'rack-block', style: `--fill:${fill(r).toFixed(2)}` }, r.pieces.map(p => {
             const tag = `${k}:${p.id}:${p.tier}:${p.x}:${p.y}`;
             seen.add(tag);
             const fresh = !first && !cabinetPieces.has(tag);
@@ -1670,23 +1719,8 @@ window.AGI = (function () {
         if (key === labLayoutKey) return;
         labLayoutKey = key;
         const room = $('labRoom');
-        // Panels glide to their new places when the grid changes (FLIP), instead of jumping.
-        const moving = labLayoutKey === '' || reducedMotion() ? [] : [...room.querySelectorAll(':scope > .panel, :scope > .lab-supply, .lab-stations > .station')]
-            .filter(n => !n.hidden).map(n => ({ n, r: n.getBoundingClientRect() }));
-        requestAnimationFrame(() => {
-            const z = uiScale();
-            for (const { n, r } of moving) {
-                const q = n.getBoundingClientRect();
-                if (!q.width || n.classList.contains('reveal-in')) continue;
-                const dx = (r.left - q.left) / z;
-                const dy = (r.top - q.top) / z;
-                const sx = r.width / q.width;
-                const sy = r.height / q.height;
-                if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(sx - 1) < 0.01 && Math.abs(sy - 1) < 0.01) continue;
-                n.animate([{ transformOrigin: '0 0', transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` }, { transformOrigin: '0 0', transform: 'none' }],
-                    { duration: 450, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
-            }
-        });
+        // Panels make room smoothly when the grid changes (makeRoom), instead of jumping.
+        if (room.style.gridTemplateAreas) makeRoom();
         room.dataset.tier = tier;
         if (tier === 'narrow') {
             room.style.gridTemplateAreas = room.style.gridTemplateColumns = room.style.gridTemplateRows = '';

@@ -2263,11 +2263,21 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .lab-log { margin-right: 0; }
    Racks of 4 × 6 cells, filled from the bottom in buy order; every piece is a rectangle in its
    hardware's style, lit; four in a row of one kind and size merge (t1, t2, t3). New pieces pop in,
    merges flash. */
-.cabinet-art { --cell: calc((var(--cabinet-art-h) - 36px) / 6); align-items: flex-end; gap: 8px; }
-.rack-block { position: relative; flex: none; width: calc(4 * var(--cell) + 12px); height: calc(6 * var(--cell) + 10px); border: 2px solid #24434a; border-top-width: 5px; border-radius: 4px;
-    background: linear-gradient(0deg, rgba(36, 67, 74, 0.4) 1px, transparent 1px) 4px 4px / var(--cell) var(--cell),
-    linear-gradient(90deg, #13262b 0 3px, transparent 3px calc(100% - 3px), #13262b calc(100% - 3px)), #081214; }
-.hw { position: absolute; display: block; left: calc(5px + var(--x) * var(--cell)); bottom: calc(4px + var(--y) * var(--cell));
+.cabinet-art { --cell: calc((var(--cabinet-art-h) - 38px) / 8); align-items: flex-end; gap: 14px; padding-top: 14px; position: relative;
+    /* Overhead cable tray running across the row of racks. */
+    background: linear-gradient(180deg, #1a2c31 0 3px, transparent 3px),
+        repeating-linear-gradient(90deg, #3b6cff 0 2px, #2a9df4 2px 4px, #ffb547 4px 5px, #63e0ab 5px 7px, #e0457b 7px 8px, #1f4fd1 8px 11px) 0 3px / 100% 4px no-repeat,
+        linear-gradient(0deg, rgba(111, 179, 217, 0.06), transparent 60%); }
+/* A rack: a dark cabinet with rails, and colourful cable looms down both sides that grow as it fills. */
+.rack-block { position: relative; flex: none; width: calc(7 * var(--cell) + 16px); height: calc(8 * var(--cell) + 10px); border: 2px solid #1b3036; border-top-width: 5px; border-bottom-width: 4px; border-radius: 3px;
+    background: linear-gradient(90deg, #0d1a1e 0 4px, transparent 4px calc(100% - 4px), #0d1a1e calc(100% - 4px)),
+    radial-gradient(circle, #24434a 1px, transparent 1.4px) 1px 2px / 4px var(--cell), #05090b;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.6), inset 0 0 18px rgba(0, 0, 0, 0.8); }
+.rack-block::before, .rack-block::after { content: ""; position: absolute; bottom: 0; width: 3px; height: calc(var(--fill, 0) * 100%); z-index: 2; pointer-events: none;
+    background: repeating-linear-gradient(90deg, #3b6cff 0 1px, #ffb547 1px 2px, #63e0ab 2px 3px); opacity: 0.85; filter: drop-shadow(0 0 2px rgba(59, 108, 255, 0.6)); transition: height 0.6s ease; }
+.rack-block::before { left: 1px; }
+.rack-block::after { right: 1px; background: repeating-linear-gradient(90deg, #e0457b 0 1px, #2a9df4 1px 2px, #ffd27a 2px 3px); }
+.hw { position: absolute; display: block; left: calc(7px + var(--x) * var(--cell)); bottom: calc(4px + var(--y) * var(--cell));
     width: calc(var(--w) * var(--cell) - 2px); height: calc(var(--h) * var(--cell) - 2px); overflow: hidden; border-radius: 2px; }
 .hw i, .hw b { position: absolute; display: block; pointer-events: none; }
 .hw.fresh { animation: hw-in 0.6s cubic-bezier(0.2, 1.4, 0.4, 1); }
@@ -2315,7 +2325,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .lab-log { margin-right: 0; }
 @media (prefers-reduced-motion: reduce) {
     .hw, .hw i, .hw b { animation: none !important; }
 }
-.station .upgrade-part { --cell: 9px; height: 28px; }
+.station .upgrade-part { --cell: 7px; height: 28px; }
 
 /* ---- Reveals: new sections boot up instead of popping in ----
    A scan wipe from the left with a bright leading edge, a short flicker, then a glow that fades. */
@@ -2332,7 +2342,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .lab-log { margin-right: 0; }
 /* The scan line itself, riding the wipe's edge (on elements whose ::before is free). */
 .supply-cell.reveal-in::before, .action-button.reveal-in::before, .task.reveal-in::before, .upgrade.reveal-in::before {
     content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background: #c8ffe9; box-shadow: 0 0 12px 3px rgba(99, 224, 171, 0.8);
-    animation: reveal-scan 0.34s linear both; pointer-events: none; z-index: 2;
+    animation: reveal-scan 0.34s linear both; animation-delay: inherit; pointer-events: none; z-index: 2;
 }
 .action-button.reveal-in, .task.reveal-in, .upgrade.reveal-in { position: relative; }
 @keyframes reveal-scan { from { left: 0; opacity: 1; } 90% { opacity: 1; } to { left: 100%; opacity: 0; } }
@@ -2344,4 +2354,14 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .lab-log { margin-right: 0; }
    with the content's bottom-right corner, not over the frame's edge. */
 @media (min-width: 641px) {
     .minimap { right: 34px; bottom: 34px; }
+}
+
+/* Every piece carries rows of status LEDs, like a real rack face (blue and green, a few blinking). */
+.hw::after { content: ""; position: absolute; left: 3px; right: 3px; top: 3px; height: 2px; pointer-events: none;
+    background: radial-gradient(circle, #6fb3ff 0 1px, transparent 1.3px) 0 0 / 5px 2px repeat-x; opacity: 0.8; animation: hw-blink 2.6s steps(3) infinite; }
+.hw-cpu::after, .hw-neural::after { background: radial-gradient(circle, #63e0ab 0 1px, transparent 1.3px) 0 0 / 4px 2px repeat-x; }
+.hw.t1::after, .hw.t2::after, .hw.t3::after { height: calc(100% - 6px); background: radial-gradient(circle, rgba(111, 179, 255, 0.9) 0 0.8px, transparent 1.2px) 0 0 / 6px var(--cell) repeat; opacity: 0.45; }
+.hw.t0 { border-radius: 2px; }
+@media (prefers-reduced-motion: reduce) {
+    .rack-block::before, .rack-block::after { transition: none; }
 }
