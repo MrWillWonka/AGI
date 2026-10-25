@@ -411,9 +411,23 @@ test('cleared stretches earn XP slowly on their own', () => {
     s.path.learned = 2;
     const rate = E.derive(s).xpPerSec;
     assert.ok(rate > 0);
-    assert.ok(Math.abs(rate - (E.stretchXpAt(0) + E.stretchXpAt(1)) * E.PATH.clearedRate) < 1e-9);
+    assert.ok(Math.abs(rate - 2 * (E.stretchXpAt(0) + E.stretchXpAt(1)) * E.PATH.clearedRate) < 1e-9, 'a plain cresting run at least');
     E.tick(s, 100);
     assert.ok(Math.abs(s.res.xp - rate * 100) < 1e-9);
+});
+
+test('cleared legs replicate their best run: a better replay raises passive XP, a worse one doesn\'t', () => {
+    const s = fresh();
+    s.path.learned = 2;
+    const base = E.derive(s).xpPerSec;
+    assert.equal(E.recordRun(s, 0, 2 * E.stretchXpAt(0) * 3), true);
+    const better = E.derive(s).xpPerSec;
+    assert.ok(Math.abs(better - base - 4 * E.stretchXpAt(0) * E.PATH.clearedRate) < 1e-9);
+    assert.equal(E.recordRun(s, 0, 1), false, 'a worse run keeps the best');
+    assert.equal(E.derive(s).xpPerSec, better);
+    const old = E.migrate({ version: 5, path: { learned: 2 } });
+    assert.deepEqual(old.path.legBest, []);
+    assert.equal(E.derive(old).xpPerSec, base, 'older saves start from a plain cresting run');
 });
 
 test('skills add pushes and glide as well as strength', () => {
@@ -569,9 +583,9 @@ test('replays: cleared legs push cheaper, pay a share of their XP, and never tea
     assert.equal(s.path.learned, 4);
 });
 
-test('data automation opens with the first skill and 100 collections by hand', () => {
+test('data automation opens with the first skill (the 40 collections the server room needed)', () => {
     const s = fresh();
-    s.stats.collects = 100;
+    s.stats.collects = 40;
     assert.equal(E.automationGate(s, 'autoCollector').met, false);
     s.path.learned = 1;
     assert.equal(E.automationGate(s, 'autoCollector').met, true);

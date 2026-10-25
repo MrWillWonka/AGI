@@ -10,7 +10,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const SAVE_VERSION = 5;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks
+    const SAVE_VERSION = 6;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest)
     const MAX_OFFLINE_SECONDS = 8 * 60 * 60;
     const PRESTIGE_BONUS = 0.1;        // +10% production per Insight ever earned (spending it on legacy nodes keeps the bonus)
     const PRESTIGE_MIN_INTELLIGENCE = 5;
@@ -45,7 +45,7 @@
         basePushes: 1,       // pushes per roll: just the launch until More Epochs is bought
         baseCooldown: 2.0,   // seconds between pushes
         minCooldown: 0.3,
-        clearedRate: 1 / 600, // a cleared stretch runs itself: this share of its full XP per second
+        clearedRate: 1 / 1200, // a cleared leg replicates its best run: this share of that run's XP per second
         replayXp: 1,          // replaying a cleared leg pays this share of its XP: flat for clearing it, by distance otherwise
         chainBonus: 0.5       // each cleared hill crossed in a run adds +0.5x to everything that run earns afterwards
     };
@@ -112,7 +112,7 @@
     // (a stat count) and, for the bigger ones, a training skill. `automationGate()` checks and reports it.
     const AUTOMATION = {
         cpu: { stat: 'clicks', need: 40, what: 'compute by hand' },
-        autoCollector: { stat: 'collects', need: 100, what: 'data collections by hand', skill: 1 },
+        autoCollector: { stat: 'collects', need: 40, what: 'data collections by hand', skill: 1 },
         researchAssistant: { stat: 'researchManual', need: 50, what: 'research runs by hand', skill: 5 }
     };
 
@@ -458,7 +458,7 @@
                 firstStart: now,
                 highestPhase: 0
             },
-            path: { learned: 0, best: 0, auto: [] },   // auto[k]: automated laps of cleared stretch k
+            path: { learned: 0, best: 0, auto: [], legBest: [] },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k
             projects: { offers: [], boosts: [], next: PROJECTS.firstAt, seq: 0 },
             tasks: { autoCollector: { on: true, share: TASK_DEFAULTS.autoCollector }, researchAssistant: { on: true, share: TASK_DEFAULTS.researchAssistant }, autoTrainer: { on: true } },
             settings: { autosave: true, offline: true },
@@ -590,7 +590,7 @@
         const xpMult = (1 + tb.xp) * bo.xp;
         // Cleared stretches keep training on their own, slowly: XP per second from every learned skill hill.
         let xpPerSec = 0;
-        for (let k = 0; k < s.path.learned; k++) xpPerSec += stretchXpAt(k) * PATH.clearedRate * r.xp;
+        for (let k = 0; k < s.path.learned; k++) xpPerSec += legXpRate(s, k) * r.xp;
 
         return { mult, cpPerSec, hardwareRates, hardwareMult: (1 + 0.5 * L('compilerOpt')) * (1 + 0.5 * L('kernelFusion')), clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec,
             collectsPerSec, researchPerSec, cpUsePerSec, dpUsePerSec, autoThrottled, tasks,
@@ -936,6 +936,18 @@
     const clearedPeriod = k => 40 + 5 * k;
 
 
+    // Cleared legs train themselves by replicating the best run that started on them: passive XP per second
+    // is a share of that run's XP (never less than a plain cresting run), so replaying a leg with better
+    // upgrades raises it.
+    const legBestXp = (s, k) => Math.max(2 * stretchXpAt(k), s.path.legBest?.[k] || 0);
+    const legXpRate = (s, k) => legBestXp(s, k) * PATH.clearedRate;
+    function recordRun(s, leg, xp) {
+        if (!(xp > 0)) return false;
+        const better = xp > (s.path.legBest[leg] || 0);
+        if (better) s.path.legBest[leg] = xp;
+        return better;
+    }
+
     function stretchXp(s) {
         return stretchXpAt(s.path.learned);
     }
@@ -1254,6 +1266,7 @@
         s.path.learned = Math.floor(num(raw.path?.learned, 0));
         s.path.best = Math.min(1, num(raw.path?.best, 0));
         s.path.auto = (Array.isArray(raw.path?.auto) ? raw.path.auto : []).slice(0, s.path.learned).map(v => num(v, 0));
+        s.path.legBest = (Array.isArray(raw.path?.legBest) ? raw.path.legBest : []).slice(0, s.path.learned + 1).map(v => num(v, 0));
         s.projects = cleanProjects(raw.projects, d.projects);
         s.lastSaved = num(raw.lastSaved, d.lastSaved);
         // Skill-tree nodes now open only from a maxed parent: hide unbought ones an older save revealed early.
@@ -1354,7 +1367,7 @@
 
     return {
         SAVE_VERSION, MAX_OFFLINE_SECONDS, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
-        versionName, currentVersion, nextVersion, clearedPeriod, legClearXp, clearLeg, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, PATH, SKILLS,
+        versionName, currentVersion, nextVersion, clearedPeriod, legBestXp, legXpRate, recordRun, legClearXp, clearLeg, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,

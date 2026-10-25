@@ -207,7 +207,10 @@ window.AGI = (function () {
     const CALLOUTS = {
         'module:path': { map: 'servers' },
         'action:research': { anchor: () => ui.actions.research?.button, map: 'lab' },
-        'hint:hold': { anchor: () => ui.actions.compute?.button, kind: 'tip' }
+        'hint:hold': { anchor: () => ui.actions.compute?.button, kind: 'tip' },
+        // After the first skill: on the result card, the replicated best run; in the lab, Scheduled tasks.
+        'hint:replay': { anchor: () => $('rollResult'), kind: 'tip', place: 'below', ms: 15000 },
+        'hint:tasks': { anchor: () => $('taskPanel'), kind: 'tip', ms: 12000 }
     };
     const calloutQueue = [];
     let calloutLive = null;
@@ -225,7 +228,7 @@ window.AGI = (function () {
     function showCallout(c) {
         const where = CALLOUTS[c.key] || {};
         const target = where.anchor?.();
-        const onScreen = target && !target.hidden && target.offsetParent && view === 'lab';
+        const onScreen = !!target && !target.hidden && !!target.offsetParent && target.getBoundingClientRect().width > 0;
         const nav = $('minimap');
         const anchor = onScreen ? target : nav;
         if (!anchor || anchor.hidden) { calloutLive = null; return nextCallout(); }
@@ -242,9 +245,14 @@ window.AGI = (function () {
         const place = () => {
             const r = anchor.getBoundingClientRect();
             const b = box.getBoundingClientRect();
-            if (onScreen) {   // to the right of the job, vertically centred
-                box.style.left = `${(r.right + 14) / z}px`;
-                box.style.top = `${(r.top + r.height / 2 - b.height / 2) / z}px`;
+            if (onScreen && where.place === 'below') {   // under it, centred
+                box.style.left = `${(r.left + r.width / 2 - b.width / 2) / z}px`;
+                box.style.top = `${(r.bottom + 12) / z}px`;
+            } else if (onScreen) {   // beside it, vertically centred: to the right, or the left if there's no room
+                const right = r.right + 14 + b.width <= window.innerWidth - 8;
+                box.classList.toggle('callout-left', !right);
+                box.style.left = `${(right ? r.right + 14 : r.left - 14 - b.width) / z}px`;
+                box.style.top = `${(r.top + Math.min(r.height, 160) / 2 - b.height / 2) / z}px`;
             } else {          // above the map, right-aligned with it
                 box.style.left = `${(r.right - b.width) / z}px`;
                 box.style.top = `${(r.top - b.height - 12) / z}px`;
@@ -262,7 +270,7 @@ window.AGI = (function () {
             box.classList.remove('show');
             setTimeout(() => { box.remove(); calloutLive = null; nextCallout(); }, 400);
         };
-        const timer = setTimeout(close, 10000);
+        const timer = setTimeout(close, where.ms || 10000);
         box.addEventListener('click', close);
         anchor.addEventListener('click', close);
     }
@@ -1846,6 +1854,11 @@ window.AGI = (function () {
         setHidden($('taskPanel'), !any);
         if (!any) return;
         setHidden($('taskPanel').querySelector('.task-log'), !logged);
+        // The first time you're in the lab after the first skill, point out where automations show.
+        if (learned > 0 && view === 'lab' && !state.unlocked['hint:tasks']) {
+            state.unlocked['hint:tasks'] = true;
+            callout('hint:tasks', 'Tip', 'Scheduled tasks shows every automation that\'s running, and what each cleared leg trains on its own.');
+        }
         const shares = E.taskShares(state);
         let dedicated = 0;
         for (const t of E.TASKS) {
@@ -1893,7 +1906,7 @@ window.AGI = (function () {
         for (let k = 0; k < learned; k++) {
             const r = taskUi.skills[k];
             const laps = state.path.auto[k] || 0;
-            setText(r.rate, `lap ${Math.floor(laps)} · +${f(E.stretchXpAt(k) * E.PATH.clearedRate, 2)} XP/s`);
+            setText(r.rate, `lap ${Math.floor(laps)} · +${f(E.legXpRate(state, k), 2)} XP/s`);
             r.fill.style.width = `${(laps % 1) * 100}%`;
         }
     }
@@ -3441,6 +3454,8 @@ window.AGI = (function () {
         path.fx.forceViral = false;
         const plainXp = E.rollXp(state, ev.progress, crested, 0, metres, leg);
         const result = E.finishRoll(state, ev.progress, crested, units, metres, leg, viral, legs);
+        // Cleared legs replicate their best run for passive XP: a better replay raises it.
+        const legBest = E.recordRun(state, roll.ground.stretch, result.xp + banked) && replay;
         // With the Auto-Trainer the next roll starts by itself; otherwise the run waits for a click.
         const auto = E.autoTrainerLevel(state) > 0;
         path.pause = auto ? RESULT_PAUSE : 0;
@@ -3457,6 +3472,7 @@ window.AGI = (function () {
         if (roll.breakthroughs) lines.push([`${roll.breakthroughs} breakthrough${roll.breakthroughs === 1 ? '' : 's'}`, '', 'good']);
         if (roll.flows) lines.push([`${roll.flows} flow${roll.flows === 1 ? '' : 's'}`, '', 'good']);
         if (legs) lines.unshift([`${legs} cleared leg${legs === 1 ? '' : 's'} crossed`, `+${xpText(roll.legXp)} XP`, 'good']);
+        if (legBest) lines.push([`Best run on this leg: passive XP now +${xpText(E.legXpRate(state, roll.ground.stretch))}/s`, '', 'good']);
         if (result.skill) {
             const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
             log(`Learned ${result.skill.name}: ${result.skill.effect} (${grants}, +${xpText(result.xp + banked)} XP). ${result.skill.flavor}`, 'special');
@@ -3466,6 +3482,10 @@ window.AGI = (function () {
             path.overview = OVERVIEW_SECONDS + path.pause;
             showResult({ skill: true, title: 'Skill learned', main: result.skill.name, flavor: result.skill.flavor, xp: result.xp + banked,
                 lines: [[result.skill.effect, ''], [grants, ''], ...lines] });
+            if (!state.unlocked['hint:replay']) {
+                state.unlocked['hint:replay'] = true;
+                callout('hint:replay', 'Tip', 'Your AI now replays your best run on each cleared leg for passive XP. Run a leg again with better upgrades to raise it.');
+            }
         } else {
             const bonus = clean ? `, ${clean} prompt${clean === 1 ? '' : 's'}` : '';
             const crossed = legs ? `crossed ${legs} cleared leg${legs === 1 ? '' : 's'}, then ` : '';
