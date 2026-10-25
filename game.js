@@ -207,8 +207,8 @@ window.AGI = (function () {
             const card = el('article', { class: 'upgrade', hidden: true }, [
                 el('div', { class: 'upgrade-info' }, [
                     el('h3', {}, [document.createTextNode(up.name + ' '), levelBadge]),
-                    up.flavor ? el('p', { class: 'upgrade-flavor', text: up.flavor }) : null,
-                    el('p', { class: 'muted small', text: up.effect })
+                    el('p', { class: 'muted small', text: up.effect }),
+                    up.flavor ? el('p', { class: 'upgrade-flavor', text: up.flavor }) : null
                 ]),
                 button
             ]);
@@ -1317,8 +1317,8 @@ window.AGI = (function () {
                 el('div', {}, [el('h3', { text: unknown ? '???' : up.name }),
                     el('p', { class: 'muted small', text: unknown ? 'Unknown research' : `Level ${lvl}${up.max ? ` of ${up.max}` : ''}` })])
             ]),
-            unknown || !up.flavor ? null : el('p', { class: 'detail-flavor', text: up.flavor }),
-            el('p', { class: 'detail-effect', text: unknown ? 'Something is out here. Unlock what it grows from to find out what.' : up.effect })
+            el('p', { class: 'detail-effect', text: unknown ? 'Something is out here. Unlock what it grows from to find out what.' : up.effect }),
+            unknown || !up.flavor ? null : el('p', { class: 'detail-flavor', text: up.flavor })
         ].filter(Boolean);
         if (unknown) {
             const needs = up.requires && E.level(state, up.requires) < 1 ? `Grows from ${E.UPGRADE_BY_ID[up.requires].name}` : up.hint || 'Locked';
@@ -1741,7 +1741,7 @@ window.AGI = (function () {
         const lines = xpLines(plainXp, result.xp - plainXp, clean, banked, crested);
         if (result.skill) {
             const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
-            log(`Learned ${result.skill.name}. ${result.skill.flavor} ${result.skill.effect} (${grants}, +${xpText(result.xp + banked)} XP).`, 'special');
+            log(`Learned ${result.skill.name}: ${result.skill.effect} (${grants}, +${xpText(result.xp + banked)} XP). ${result.skill.flavor}`, 'special');
             toast('Skill learned', result.skill.name);
             path.glow = { skill: state.path.learned - 1, age: 0 };
             path.overview = OVERVIEW_SECONDS + path.pause;
@@ -1775,10 +1775,10 @@ window.AGI = (function () {
         card.replaceChildren(...[
             el('div', { class: 'result-title', text: title }),
             el('div', { class: 'result-main', text: main }),
-            flavor ? el('p', { class: 'result-flavor', text: flavor }) : null,
             el('div', { class: 'result-xp', text: `+${xpText(xp)} XP` }),
             el('ul', { class: 'result-lines' }, lines.filter(([a]) => a).map(([label, value, cls]) =>
                 el('li', { class: cls || '' }, [el('span', { text: label }), el('span', { text: value })]))),
+            flavor ? el('p', { class: 'result-flavor', text: flavor }) : null,
             record ? el('span', { class: 'result-badge', text: 'New record!' }) : null,
             path.done
                 ? el('div', { class: 'result-actions' }, [

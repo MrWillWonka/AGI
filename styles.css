@@ -1685,3 +1685,11 @@ body { zoom: var(--ui-scale); }
 .room-frame > .room-bar { margin-bottom: 4px; }
 .hub > .room-bar { position: absolute; top: 14px; left: 14px; right: 14px; z-index: 2; }
 .hub { padding-top: 64px; }
+
+/* The run result card sits over the trail and above the controls (on phones it spans the trail). */
+.roll-result { z-index: 3; }
+@media (max-width: 640px) {
+    .roll-result { top: 8px; left: 8px; right: 8px; width: auto; max-height: calc(100% - 16px); overflow: auto; }
+}
+/* Sliding toasts and zooms must never make the page scroll sideways. */
+html, body { overflow-x: clip; }
