@@ -1685,3 +1685,7 @@ body { zoom: var(--ui-scale); }
 /* Node detail: a one-line quip, then the plain bonus. */
 .detail-flavor { font-style: italic; color: var(--text); opacity: 0.85; }
 .node-detail .detail-effect { color: var(--success); font: 600 0.84rem var(--font-mono); }
+
+.upgrade-flavor, .result-flavor { font-style: italic; font-size: 0.82rem; color: var(--text); opacity: 0.8; margin-top: 2px; }
+.station-terminal .upgrade-flavor { font-family: var(--font-mono); font-style: normal; color: #7fcfa8; opacity: 0.75; }
+.station-terminal .upgrade-flavor::before { content: "# "; }

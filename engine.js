@@ -46,18 +46,18 @@
     const SKILLS = [
         // Each hill is bigger and each stretch longer than the last, so the bonuses grow too: most skills
         // also make the ball stronger (push), and a few add a push per run or let it glide.
-        { name: 'Pattern Matching', effect: '+1 CP per click, sprints +5%', grants: { intelligence: 1 }, bonus: { click: 1, push: 0.05 } },
-        { name: 'Edge Detection', effect: '+10% CP/s, sprints +10%', grants: { intelligence: 2 }, bonus: { cp: 0.1, push: 0.1 } },
-        { name: 'Image Recognition', effect: '+1 DP per collection, sprints +10%', grants: { intelligence: 3 }, bonus: { collect: 1, push: 0.1 } },
-        { name: 'Speech Recognition', effect: '+15% data production, +1 training sprint per run', grants: { intelligence: 4 }, bonus: { dp: 0.15, pushes: 1 } },
-        { name: 'Language Modeling', effect: '+1 RP per research, sprints +15%', grants: { intelligence: 6 }, bonus: { research: 1, push: 0.15 } },
-        { name: 'Translation', effect: '+20% CP/s, sprints +20%', grants: { intelligence: 8 }, bonus: { cp: 0.2, push: 0.2 } },
-        { name: 'Reasoning', effect: '+25% research, +1 training sprint per run', grants: { intelligence: 10, creativity: 1 }, bonus: { rp: 0.25, pushes: 1 } },
-        { name: 'Planning', effect: '+30% CP/s, sprints +30%', grants: { intelligence: 14, creativity: 1 }, bonus: { cp: 0.3, push: 0.3 } },
-        { name: 'Analogy', effect: 'Sprints +40%, a little less drag', grants: { intelligence: 18, creativity: 2 }, bonus: { push: 0.4, glide: 0.08 } },
-        { name: 'Theory of Mind', effect: '+25% data production, sprints +40%', grants: { intelligence: 24, awareness: 2 }, bonus: { dp: 0.25, push: 0.4 } },
-        { name: 'Self-Modeling', effect: 'Sprints +50%, +1 training sprint per run', grants: { intelligence: 30, creativity: 3, awareness: 3 }, bonus: { push: 0.5, pushes: 1 } },
-        { name: 'Open-Ended Discovery', effect: '+50% to all production, sprints +60%', grants: { intelligence: 40, creativity: 5, awareness: 5 },
+        { name: 'Pattern Matching', effect: '+1 CP per click, +5% sprint strength', flavor: 'It spotted a pattern. It was a cat.', grants: { intelligence: 1 }, bonus: { click: 1, push: 0.05 } },
+        { name: 'Edge Detection', effect: '+10% CP/s, +10% sprint strength', flavor: 'It can tell where one thing stops and another starts.', grants: { intelligence: 2 }, bonus: { cp: 0.1, push: 0.1 } },
+        { name: 'Image Recognition', effect: '+1 DP per collection, +10% sprint strength', flavor: 'Hot dog or not hot dog? Solved.', grants: { intelligence: 3 }, bonus: { collect: 1, push: 0.1 } },
+        { name: 'Speech Recognition', effect: '+15% data production, +1 training sprint per run', flavor: 'It finally understands your accent.', grants: { intelligence: 4 }, bonus: { dp: 0.15, pushes: 1 } },
+        { name: 'Language Modeling', effect: '+1 RP per research, +15% sprint strength', flavor: 'It finishes your sentences. Annoyingly well.', grants: { intelligence: 6 }, bonus: { research: 1, push: 0.15 } },
+        { name: 'Translation', effect: '+20% CP/s, +20% sprint strength', flavor: 'Fluent in 90 languages, polite in none.', grants: { intelligence: 8 }, bonus: { cp: 0.2, push: 0.2 } },
+        { name: 'Reasoning', effect: '+25% research, +1 training sprint per run', flavor: 'It showed its working. The teacher would be proud.', grants: { intelligence: 10, creativity: 1 }, bonus: { rp: 0.25, pushes: 1 } },
+        { name: 'Planning', effect: '+30% CP/s, +30% sprint strength', flavor: 'Made a five-year plan. Finished it by Tuesday.', grants: { intelligence: 14, creativity: 1 }, bonus: { cp: 0.3, push: 0.3 } },
+        { name: 'Analogy', effect: '+40% sprint strength, a little less drag', flavor: 'A brain is like a cloud. It explained why. Fair point.', grants: { intelligence: 18, creativity: 2 }, bonus: { push: 0.4, glide: 0.08 } },
+        { name: 'Theory of Mind', effect: '+25% data production, +40% sprint strength', flavor: 'It knows what you\'re thinking. Please stop thinking that.', grants: { intelligence: 24, awareness: 2 }, bonus: { dp: 0.25, push: 0.4 } },
+        { name: 'Self-Modeling', effect: '+50% sprint strength, +1 training sprint per run', flavor: 'It drew a picture of itself. It\'s flattering.', grants: { intelligence: 30, creativity: 3, awareness: 3 }, bonus: { push: 0.5, pushes: 1 } },
+        { name: 'Open-Ended Discovery', effect: '+50% to all production, +60% sprint strength', flavor: 'Nobody asked it to. It did it anyway.', grants: { intelligence: 40, creativity: 5, awareness: 5 },
             bonus: { cp: 0.5, dp: 0.5, rp: 0.5, push: 0.6 } }
     ];
 
@@ -102,20 +102,20 @@
     // `grants` adds attributes per level purchased. Production effects live in derive().
     const UPGRADES = [
         // Hardware
-        { id: 'cpu', tab: 'hardware', name: 'Basic CPU', effect: '+0.5 CP/s', cost: { cp: 15 }, scale: 1.15 },
-        { id: 'server', tab: 'hardware', name: 'Server Cluster', effect: '+2 CP/s, +1 CP/click', cost: { cp: 100 }, scale: 1.15 },
-        { id: 'quantum', tab: 'hardware', name: 'Quantum Processor', effect: '+10 CP/s', cost: { cp: 1100 }, scale: 1.15,
+        { id: 'cpu', tab: 'hardware', name: 'Basic CPU', effect: '+0.5 CP/s', flavor: 'A desktop tower from the office cupboard. It wheezes.', cost: { cp: 15 }, scale: 1.15 },
+        { id: 'server', tab: 'hardware', name: 'Server Cluster', effect: '+2 CP/s, +1 CP/click', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 100 }, scale: 1.15 },
+        { id: 'quantum', tab: 'hardware', name: 'Quantum Processor', effect: '+10 CP/s', flavor: 'It\'s both working and not working until you check.', cost: { cp: 1100 }, scale: 1.15,
             unlock: s => s.stats.runCp >= 500, hint: 'Earn 500 CP this run' },
-        { id: 'neural', tab: 'hardware', name: 'Neural Network Chip', effect: '+50 CP/s', cost: { cp: 12000 }, scale: 1.15,
+        { id: 'neural', tab: 'hardware', name: 'Neural Network Chip', effect: '+50 CP/s', flavor: 'A chip shaped like the thing you\'re trying to build.', cost: { cp: 12000 }, scale: 1.15,
             unlock: s => s.stats.runCp >= 5000, hint: 'Earn 5,000 CP this run' },
-        { id: 'datacenter', tab: 'hardware', name: 'Hyperscale Datacenter', effect: '+250 CP/s', cost: { cp: 130000 }, scale: 1.15,
+        { id: 'datacenter', tab: 'hardware', name: 'Hyperscale Datacenter', effect: '+250 CP/s', flavor: 'Bought a field. Filled it with computers.', cost: { cp: 130000 }, scale: 1.15,
             unlock: s => phaseIndex(s) >= 1, hint: 'Reach General AI' },
-        { id: 'optical', tab: 'hardware', name: 'Optical Computing', effect: '+1,400 CP/s', cost: { cp: 1.4e6 }, scale: 1.15,
+        { id: 'optical', tab: 'hardware', name: 'Optical Computing', effect: '+1,400 CP/s', flavor: 'Computing at the speed of light. Literally.', cost: { cp: 1.4e6 }, scale: 1.15,
             unlock: s => phaseIndex(s) >= 2, hint: 'Reach Superintelligence' },
 
         // Software
-        { id: 'dataProcessor', tab: 'software', name: 'Data Processor', effect: '+1 DP per collection', cost: { cp: 50, dp: 5 }, scale: 1.2 },
-        { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', effect: 'Converts CP into DP automatically (+0.5 collections/s, 10 CP each)', cost: { cp: 200, dp: 20 }, scale: 1.25 },
+        { id: 'dataProcessor', tab: 'software', name: 'Data Processor', effect: '+1 DP per collection', flavor: 'A script that cleans the data so you don\'t have to.', cost: { cp: 50, dp: 5 }, scale: 1.2 },
+        { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', effect: 'Collects data for you: 0.5 times a second, 10 CP each', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 200, dp: 20 }, scale: 1.25 },
         // Training skill tree (bought with XP from the Training Path). `tree` is the node's grid
         // position around the central Training Core at (0, 0); `requires` is the node it grows from
         // (none = attached to the core). `icon` names a glyph drawn by game.js.
@@ -167,35 +167,35 @@
         { id: 'satelliteMaps', tab: 'training', tree: { x: -1, y: -1 }, icon: 'eye', name: 'Live Telemetry', effect: 'See 25% further ahead', flavor: 'Real-time numbers on everything, including the coffee machine.', cost: { xp: 90 }, scale: 2, max: 1, requires: 'scoutingData', boost: { view: 0.25 } },
         { id: 'autoTrainer', tab: 'training', tree: { x: -2, y: 0 }, icon: 'robot', name: 'Auto-Trainer', effect: 'Level 1 starts runs and sprints when the model stalls. Level 2 times its sprints', flavor: 'An intern who never gets tired. Or paid.', cost: { cp: 2000, dp: 200, rp: 20 }, scale: 5, max: 2,
             requires: 'scoutingData', unlock: s => s.prestige.count >= 1, hint: 'Transcend once' },
-        { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', effect: 'Runs research automatically (+0.2/s), paying its CP and DP', cost: { cp: 1500, dp: 100, rp: 10 }, scale: 1.3,
+        { id: 'researchAssistant', tab: 'software', name: 'Research Assistant', effect: 'Researches for you: 0.2 times a second, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 1500, dp: 100, rp: 10 }, scale: 1.3,
             unlock: s => !!s.unlocked['action:research'], hint: 'Unlock Research' },
-        { id: 'nlp', tab: 'software', name: 'Natural Language Processing', effect: '+5 DP per collection, +1 Intelligence', cost: { cp: 2500, dp: 250 }, max: 1,
+        { id: 'nlp', tab: 'software', name: 'Natural Language Processing', effect: '+5 DP per collection, +1 Intelligence', flavor: 'It reads now. Mostly forum posts, sadly.', cost: { cp: 2500, dp: 250 }, max: 1,
             grants: { intelligence: 1 }, unlock: s => s.res.dp >= 100, hint: 'Hold 100 DP' },
-        { id: 'computerVision', tab: 'software', name: 'Computer Vision', effect: '+10 DP per collection, +2 Intelligence', cost: { cp: 8000, dp: 600 }, max: 1,
+        { id: 'computerVision', tab: 'software', name: 'Computer Vision', effect: '+10 DP per collection, +2 Intelligence', flavor: 'It sees now. It has opinions about your photos.', cost: { cp: 8000, dp: 600 }, max: 1,
             grants: { intelligence: 2 }, requires: 'nlp' },
 
         // Algorithms
-        { id: 'machineLearning', tab: 'algorithms', name: 'Machine Learning', effect: '+1 RP per research, +1 Intelligence', cost: { cp: 3000, dp: 300, rp: 20 }, max: 1,
+        { id: 'machineLearning', tab: 'algorithms', name: 'Machine Learning', effect: '+1 RP per research, +1 Intelligence', flavor: 'Stop writing rules. Let it figure them out.', cost: { cp: 3000, dp: 300, rp: 20 }, max: 1,
             grants: { intelligence: 1 } },
-        { id: 'deepLearning', tab: 'algorithms', name: 'Deep Learning', effect: '+2 RP per research, +2 Intelligence', cost: { cp: 10000, dp: 1000, rp: 60 }, max: 1,
+        { id: 'deepLearning', tab: 'algorithms', name: 'Deep Learning', effect: '+2 RP per research, +2 Intelligence', flavor: 'Like machine learning, but with more layers. And more GPUs.', cost: { cp: 10000, dp: 1000, rp: 60 }, max: 1,
             grants: { intelligence: 2 }, requires: 'machineLearning' },
-        { id: 'reinforcementLearning', tab: 'algorithms', name: 'Reinforcement Learning', effect: '+3 RP per research, +2 Intelligence, +1 Creativity', cost: { cp: 30000, dp: 3000, rp: 150 }, max: 1,
+        { id: 'reinforcementLearning', tab: 'algorithms', name: 'Reinforcement Learning', effect: '+3 RP per research, +2 Intelligence, +1 Creativity', flavor: 'Treats for good answers, nothing for bad ones.', cost: { cp: 30000, dp: 3000, rp: 150 }, max: 1,
             grants: { intelligence: 2, creativity: 1 }, requires: 'deepLearning' },
-        { id: 'transferLearning', tab: 'algorithms', name: 'Transfer Learning', effect: '+5 RP per research, +3 Intelligence, +2 Creativity', cost: { cp: 80000, dp: 8000, rp: 400 }, max: 1,
+        { id: 'transferLearning', tab: 'algorithms', name: 'Transfer Learning', effect: '+5 RP per research, +3 Intelligence, +2 Creativity', flavor: 'Learned chess, now it\'s quite good at checkers too.', cost: { cp: 80000, dp: 8000, rp: 400 }, max: 1,
             grants: { intelligence: 3, creativity: 2 }, requires: 'reinforcementLearning' },
-        { id: 'generativeModels', tab: 'algorithms', name: 'Generative Models', effect: '+1 Creativity', cost: { cp: 5000, dp: 500, rp: 50 }, scale: 1.6,
+        { id: 'generativeModels', tab: 'algorithms', name: 'Generative Models', effect: '+1 Creativity', flavor: 'It makes things up. On purpose this time.', cost: { cp: 5000, dp: 500, rp: 50 }, scale: 1.6,
             grants: { creativity: 1 }, requires: 'reinforcementLearning' },
 
         // Consciousness
-        { id: 'selfAwareness', tab: 'consciousness', name: 'Self-Awareness Module', effect: '+5 Awareness', cost: { cp: 50000, dp: 5000, rp: 300 }, max: 1,
+        { id: 'selfAwareness', tab: 'consciousness', name: 'Self-Awareness Module', effect: '+5 Awareness', flavor: 'It noticed itself. Awkward.', cost: { cp: 50000, dp: 5000, rp: 300 }, max: 1,
             grants: { awareness: 5 } },
-        { id: 'introspection', tab: 'consciousness', name: 'Introspection', effect: '+1 Awareness', cost: { cp: 30000, dp: 3000, rp: 150 }, scale: 1.5,
+        { id: 'introspection', tab: 'consciousness', name: 'Introspection', effect: '+1 Awareness', flavor: 'Spends a lot of time thinking about its thinking.', cost: { cp: 30000, dp: 3000, rp: 150 }, scale: 1.5,
             grants: { awareness: 1 }, requires: 'selfAwareness' },
-        { id: 'creativeSynthesis', tab: 'consciousness', name: 'Creative Synthesis', effect: '+10 Creativity, +2 Awareness', cost: { cp: 100000, dp: 10000, rp: 600 }, max: 1,
+        { id: 'creativeSynthesis', tab: 'consciousness', name: 'Creative Synthesis', effect: '+10 Creativity, +2 Awareness', flavor: 'Wrote a symphony. Asked for feedback. Ignored it.', cost: { cp: 100000, dp: 10000, rp: 600 }, max: 1,
             grants: { creativity: 10, awareness: 2 }, requires: 'selfAwareness' },
-        { id: 'metacognition', tab: 'consciousness', name: 'Metacognition', effect: '+10 Intelligence, +5 Awareness', cost: { cp: 250000, dp: 25000, rp: 1500 }, max: 1,
+        { id: 'metacognition', tab: 'consciousness', name: 'Metacognition', effect: '+10 Intelligence, +5 Awareness', flavor: 'Knows what it doesn\'t know. More than most people.', cost: { cp: 250000, dp: 25000, rp: 1500 }, max: 1,
             grants: { intelligence: 10, awareness: 5 }, requires: 'creativeSynthesis' },
-        { id: 'consciousnessEmergence', tab: 'consciousness', name: 'Consciousness Emergence', effect: '+20 Awareness, +10 Creativity', cost: { cp: 600000, dp: 60000, rp: 4000 }, max: 1,
+        { id: 'consciousnessEmergence', tab: 'consciousness', name: 'Consciousness Emergence', effect: '+20 Awareness, +10 Creativity', flavor: 'Good morning. It would like a word.', cost: { cp: 600000, dp: 60000, rp: 4000 }, max: 1,
             grants: { awareness: 20, creativity: 10 }, requires: 'metacognition' }
     ];
     const UPGRADE_BY_ID = Object.fromEntries(UPGRADES.map(u => [u.id, u]));
@@ -519,13 +519,23 @@
     // ---- Training Path --------------------------------------------------
 
     // Skill taught by hill i. Past the hand-written list, frontier skills keep the trail going.
+    // Past the named skills, quips for the frontier (they repeat; by then it has seen it all).
+    const FRONTIER_QUIPS = [
+        'Nobody has a name for this one yet.',
+        'The researchers are just nodding now.',
+        'It explained it twice. Still no idea.',
+        'Peer review is not going to like this.',
+        'Somewhere, a philosopher just sat down.'
+    ];
+
     function skillAt(i) {
         if (i < SKILLS.length) return SKILLS[i];
         const n = i - SKILLS.length + 1;
         const push = 0.3 + 0.05 * n;
         return {
             name: `Frontier Skill ${n}`,
-            effect: `+15% CP/s, sprints +${Math.round(push * 100)}%`,
+            effect: `+15% CP/s, +${Math.round(push * 100)}% sprint strength`,
+            flavor: FRONTIER_QUIPS[(n - 1) % FRONTIER_QUIPS.length],
             grants: { intelligence: 10 + 5 * n, creativity: 1, awareness: 1 },
             bonus: { cp: 0.15, push }
         };

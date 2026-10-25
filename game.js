@@ -212,6 +212,7 @@ window.AGI = (function () {
             const card = el('article', { class: 'upgrade', hidden: true }, [
                 el('div', { class: 'upgrade-info' }, [
                     el('h3', {}, [document.createTextNode(up.name + ' '), levelBadge]),
+                    up.flavor ? el('p', { class: 'upgrade-flavor', text: up.flavor }) : null,
                     el('p', { class: 'muted small', text: up.effect })
                 ]),
                 button
@@ -1751,11 +1752,11 @@ window.AGI = (function () {
         const lines = xpLines(plainXp, result.xp - plainXp, clean, banked, crested);
         if (result.skill) {
             const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
-            log(`Learned ${result.skill.name}: ${result.skill.effect} (${grants}, +${xpText(result.xp + banked)} XP).`, 'special');
+            log(`Learned ${result.skill.name}. ${result.skill.flavor} ${result.skill.effect} (${grants}, +${xpText(result.xp + banked)} XP).`, 'special');
             toast('Skill learned', result.skill.name);
             path.glow = { skill: state.path.learned - 1, age: 0 };
             path.overview = OVERVIEW_SECONDS + path.pause;
-            showResult({ skill: true, title: 'Skill learned', main: result.skill.name, xp: result.xp + banked,
+            showResult({ skill: true, title: 'Skill learned', main: result.skill.name, flavor: result.skill.flavor, xp: result.xp + banked,
                 lines: [[result.skill.effect, ''], [grants, ''], ...lines] });
         } else {
             const bonus = clean ? `, ${clean} clean sprint${clean === 1 ? '' : 's'}` : '';
@@ -1779,12 +1780,13 @@ window.AGI = (function () {
         return rows;
     }
 
-    function showResult({ title, main, xp, lines, record, skill }) {
+    function showResult({ title, main, flavor, xp, lines, record, skill }) {
         const card = $('rollResult');
         card.className = `roll-result${skill ? ' skill' : ''}`;
         card.replaceChildren(...[
             el('div', { class: 'result-title', text: title }),
             el('div', { class: 'result-main', text: main }),
+            flavor ? el('p', { class: 'result-flavor', text: flavor }) : null,
             el('div', { class: 'result-xp', text: `+${xpText(xp)} XP` }),
             el('ul', { class: 'result-lines' }, lines.filter(([a]) => a).map(([label, value, cls]) =>
                 el('li', { class: cls || '' }, [el('span', { text: label }), el('span', { text: value })]))),

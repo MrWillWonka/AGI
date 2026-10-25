@@ -326,3 +326,11 @@ test('skills add pushes and glide as well as strength', () => {
     assert.ok(d.friction < base.friction);
     assert.ok(d.pushPower > base.pushPower * 3);
 });
+
+test('skills and lab upgrades have a short quip and a plain effect too', () => {
+    for (let i = 0; i < 20; i++) {
+        const k = E.skillAt(i);
+        assert.ok(k.flavor && k.flavor.length <= 70 && k.effect, `skill ${i}`);
+    }
+    for (const up of E.UPGRADES) assert.ok(up.flavor && up.flavor.length <= 70, `${up.id} has a quip`);
+});
