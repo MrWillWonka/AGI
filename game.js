@@ -1811,9 +1811,15 @@ window.AGI = (function () {
             const cost = E.upgradeCost(up, lvl);
             const buy = el('button', { type: 'button', class: 'button detail-buy', text: `${lvl ? 'Upgrade' : 'Unlock'} · ${E.formatCost(cost)}` });
             buy.disabled = !E.canAfford(state, cost);
-            buy.addEventListener('click', () => {
+            // Multi-level nodes keep the popup open (with the next level's price under the pointer) so
+            // you can buy again; it closes after the last level. The rebuild detaches this button, so the
+            // click must not bubble on to the "empty space closes it" handler.
+            buy.addEventListener('click', e => {
+                e.stopPropagation();
                 doBuy(up.id);
+                if (E.isMaxed(state, up)) treeUi.popup = false;
                 renderTree();
+                if (treeUi.popup) box.querySelector('.detail-buy')?.focus({ preventScroll: true });
             });
             parts.push(buy);
         }
