@@ -181,11 +181,11 @@
         // below stays the better buy for about eight more units, then the new one takes over. All scale
         // x1.15 per unit, and a tier's output doubles at 25, 50 and 100 owned (HARDWARE_DOUBLINGS), which
         // makes older tiers worth topping up again. Each tier shows up late (tierReady).
-        { id: 'cpu', tab: 'hardware', name: 'Basic CPU', cps: 0.5, effect: 'Generates compute', flavor: 'A desktop tower from the office cupboard. It wheezes.', cost: { cp: 15 }, scale: 1.15,
-            unlock: s => automationGate(s, 'cpu').met && level(s, 'keyboard') >= 1, hint: 'Upgrade your click tool, and compute by hand 40 times' },
+        { id: 'cpu', tab: 'hardware', name: 'Basic CPU', cps: 0.5, effect: 'Generates compute', flavor: 'A bare processor on a test board. It does the clicking now.', cost: { cp: 15 }, scale: 1.15,
+            unlock: s => automationGate(s, 'cpu').met && level(s, 'keyboard') >= CPU_AFTER_CLICK_LEVEL, hint: 'Upgrade your setup to a Gaming Mouse, and compute by hand 40 times' },
         // The click tool: one upgrade that grows into new tools as you level it (CLICK_TOOLS), each adding
         // more per level. Its name and flavour follow the current tool (upgradeName / upgradeFlavor).
-        { id: 'keyboard', tab: 'hardware', name: 'Mechanical Keyboard', shows: 'click', effect: 'More compute per click; grows into better tools as you level it', flavor: 'Clicky. Your desk neighbours hate it.', cost: { cp: 40 }, scale: 1.32,
+        { id: 'keyboard', tab: 'hardware', name: 'Desktop Tower', shows: 'click', effect: 'More compute per click; grows into better tools as you level it', flavor: 'A beige box from the office cupboard. It wheezes.', cost: { cp: 15 }, scale: 1.32,
             unlock: s => s.stats.clicks >= 15, hint: 'Generate compute by hand 15 times' },
         { id: 'server', tab: 'hardware', name: 'Server Cluster', cps: 3.3, effect: 'Generates compute', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 300 }, scale: 1.15,
             unlock: s => tierReady(s, 'server'), hint: 'More Basic CPUs, and more compute earned' },
@@ -327,11 +327,15 @@
     ];
     const HARDWARE = UPGRADES.filter(u => u.cps);
 
-    // The click tool's stages: from a keyboard to a click farm. Each level adds `per` CP per click, using
-    // the stage that level falls in (levels 1-5 are the keyboard, 6-10 the mouse, and so on).
+    // The click tool's stages: the desk first (tower, monitor, keyboard, mouse), then help, up to a click
+    // farm. Each level adds `per` CP per click, using the stage that level falls in (levels 1-2 are the
+    // tower, 3-4 the monitor, 5-6 the keyboard, 7-10 the mouse, and so on). Basic CPU, the first
+    // automation, shows up once the mouse is in (CPU_AFTER_CLICK_LEVEL).
     const CLICK_TOOLS = [
-        { from: 0, name: 'Mechanical Keyboard', per: 1, flavor: 'Clicky. Your desk neighbours hate it.' },
-        { from: 5, name: 'Gaming Mouse', per: 2, flavor: 'The RGB adds ten percent. Science.' },
+        { from: 0, name: 'Desktop Tower', per: 1, flavor: 'A beige box from the office cupboard. It wheezes.' },
+        { from: 2, name: 'Monitor', per: 1, flavor: 'A second screen. Twice the productivity, allegedly.' },
+        { from: 4, name: 'Mechanical Keyboard', per: 1, flavor: 'Clicky. Your desk neighbours hate it.' },
+        { from: 6, name: 'Gaming Mouse', per: 2, flavor: 'The RGB adds ten percent. Science.' },
         { from: 10, name: 'Macro Pad', per: 5, flavor: 'One button, forty clicks. Technically allowed.' },
         { from: 18, name: 'Summer Intern', per: 12, flavor: 'Unpaid, enthusiastic, clicks everything.' },
         { from: 28, name: 'Team of Interns', per: 30, flavor: 'They unionised. You pay them in pizza.' },
@@ -339,6 +343,7 @@
         { from: 55, name: 'Click Farm', per: 220, flavor: 'A warehouse of phones, all tapping for you.' },
         { from: 75, name: 'Robotic Clicker Arms', per: 600, flavor: 'They never blink. Never.' }
     ];
+    const CPU_AFTER_CLICK_LEVEL = 7;   // the first Gaming Mouse level
     const clickToolAt = level => CLICK_TOOLS.filter(t => level > t.from || t.from === 0).at(-1);
     // The stage you're in now (at `owned` levels): the one the next level belongs to once you own any.
     const clickTool = owned => CLICK_TOOLS.filter(t => owned >= t.from).at(-1);

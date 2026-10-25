@@ -328,7 +328,7 @@ window.AGI = (function () {
         if (actionId === 'collect' && !state.unlocked['seen:dp']) return '';
         const g = E.automationGate(state, id);
         // Compute is automated only after the click tool: clicking gets better before it gets replaced.
-        if (id === 'cpu' && g.met && !E.level(state, 'keyboard')) return 'Upgrade your click tool to automate';
+        if (id === 'cpu' && g.met && E.level(state, 'keyboard') < 7) return 'Get the Gaming Mouse to automate';
         if (g.met) return `Ready to automate · ${STATIONS[E.UPGRADE_BY_ID[id].tab].name}`;
         if (g.done < g.need) return `${g.done}/${g.need} by hand to automate`;
         return `Automate after your AI learns ${g.skill}`;

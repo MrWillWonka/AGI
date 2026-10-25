@@ -85,7 +85,7 @@ test('locked and unaffordable actions are rejected without side effects', () => 
 test('buying an upgrade pays the scaled cost and increases production', () => {
     const s = fresh();
     s.stats.clicks = 40;
-    s.levels.keyboard = 1;                    // the CPU is earned by computing by hand first
+    s.levels.keyboard = 7;                    // the CPU is earned by computing by hand first
     E.evaluate(s);
     s.res.cp = 1000;
     assert.equal(E.buy(s, 'cpu').ok, true);
@@ -365,7 +365,7 @@ test('automation is earned: a skill and proof of doing the job by hand', () => {
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.cpu), false, 'CPU waits for compute by hand');
     s.stats.clicks = 40;
-    s.levels.keyboard = 1;
+    s.levels.keyboard = 7;
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.cpu), true);
     s.path.learned = 3;
@@ -449,7 +449,7 @@ test('cleared stretches boost compute: a little on clearing, a little more per a
     const s = fresh();
     s.levels.cpu = 10;
     s.stats.clicks = 40;
-    s.levels.keyboard = 1;
+    s.levels.keyboard = 7;
     assert.equal(E.clearedCpBonus(s), 0);
     s.path.learned = 2;
     s.path.auto = [0, 0];
@@ -648,21 +648,22 @@ test('the click tool grows from a keyboard into bigger tools, each adding more p
     s.levels.cpu = 1;
     E.evaluate(s);
     const up = E.UPGRADE_BY_ID.keyboard;
-    assert.equal(E.upgradeName(s, up), 'Mechanical Keyboard');
-    assert.equal(E.clickToolPower(5), 5, 'keyboard: +1 per level');
-    assert.equal(E.clickToolPower(6), 7, 'level 6 is the first mouse level: +2');
-    s.levels.keyboard = 4;
+    assert.equal(E.upgradeName(s, up), 'Desktop Tower');
+    assert.deepEqual(E.CLICK_TOOLS.slice(0, 4).map(t => t.name), ['Desktop Tower', 'Monitor', 'Mechanical Keyboard', 'Gaming Mouse'], 'the desk comes first');
+    assert.equal(E.clickToolPower(6), 6, 'tower, monitor and keyboard: +1 per level');
+    assert.equal(E.clickToolPower(7), 8, 'level 7 is the first mouse level: +2');
+    s.levels.keyboard = 5;
     s.res.cp = 1e9;
     let r = E.buy(s, 'keyboard');
-    assert.equal(r.evolved, 'Gaming Mouse', 'the fifth level grows it into the next tool');
+    assert.equal(r.evolved, 'Gaming Mouse', 'the sixth level grows it into the mouse');
     assert.equal(E.upgradeName(s, up), 'Gaming Mouse');
     r = E.buy(s, 'keyboard');
     assert.equal(r.evolved, null);
     // Every stage adds more per level than the last, and the names are all different.
-    for (let i = 1; i < E.CLICK_TOOLS.length; i++) assert.ok(E.CLICK_TOOLS[i].per > E.CLICK_TOOLS[i - 1].per);
+    for (let i = 1; i < E.CLICK_TOOLS.length; i++) assert.ok(E.CLICK_TOOLS[i].per >= E.CLICK_TOOLS[i - 1].per);
     assert.equal(new Set(E.CLICK_TOOLS.map(t => t.name)).size, E.CLICK_TOOLS.length);
     assert.ok(E.CLICK_TOOLS.some(t => /Intern/.test(t.name)));
-    assert.ok(Math.abs(E.derive(s).clickPower - (1 + E.clickToolPower(6)) * E.derive(s).mult) < 1e-9);
+    assert.ok(Math.abs(E.derive(s).clickPower - (1 + E.clickToolPower(7)) * E.derive(s).mult) < 1e-9);
 });
 
 test('the lab splits by resource: hardware is compute, software is data, research lives on the research wall', () => {
