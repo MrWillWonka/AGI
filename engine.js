@@ -43,6 +43,7 @@
         minCooldown: 0.3,
         clearedRate: 1 / 600, // a cleared stretch runs itself: this share of its full XP per second
         replayXp: 0.25,       // replaying a cleared leg pays this share of its XP: flat for clearing it, by distance otherwise
+        chainBonus: 1,        // each cleared hill crossed in a run adds +1x to everything that run earns afterwards
         clearedCp: 0.03,      // each cleared stretch adds +3% compute
         lapCp: 0.002,         // and every automated lap of it adds a little more (+0.2%)...
         lapCpMax: 0.5         // ...up to +50% per stretch
@@ -818,8 +819,15 @@
         return leg < s.path.learned ? legXpBase(s, leg) * derive(s).xpMult : 0;
     }
 
-    function clearLeg(s, leg) {
-        const xp = legClearXp(s, leg);
+    // The chain: after crossing `n` cleared hills in one run, what it earns from then on is multiplied.
+    // Measured with the balance bot (runs from leg 1 never reach the frontier; they stall about halfway):
+    // without it a replay earns about a fifth of a frontier run per minute; with +1x per hill it's about
+    // 0.4x at three skills, 0.6x at six and even at nine, so starting from the beginning is sometimes worth it.
+    const chainMult = n => 1 + PATH.chainBonus * n;
+
+    // `chain`: cleared hills already crossed this run (this one pays at that multiplier).
+    function clearLeg(s, leg, chain = 0) {
+        const xp = legClearXp(s, leg) * chainMult(chain);
         if (!xp) return 0;
         s.res.xp += xp;
         s.stats.legsCleared++;
@@ -857,8 +865,9 @@
     // Settle a finished roll: XP, record distance, roll count, and the skill if it crested. `leg` is
     // where the ball stopped; only the frontier leg sets records and teaches skills.
     // `viral`: the run went viral (windfallHit), multiplying its distance XP.
-    function finishRoll(s, progress, crested, units = 0, metres = 0, leg = s.path.learned, viral = false) {
-        const xp = rollXp(s, progress, crested, units, metres, leg) * (viral ? derive(s).windfallMult : 1);
+    // `chain`: cleared hills crossed on the way (the chain multiplier applies to the distance XP too).
+    function finishRoll(s, progress, crested, units = 0, metres = 0, leg = s.path.learned, viral = false, chain = 0) {
+        const xp = rollXp(s, progress, crested, units, metres, leg) * (viral ? derive(s).windfallMult : 1) * chainMult(chain);
         s.res.xp += xp;
         s.stats.rolls++;
         const frontier = leg >= s.path.learned;
@@ -1157,7 +1166,7 @@
     }
 
     return {
-        SAVE_VERSION, MAX_OFFLINE_SECONDS, AUTO_BUDGET, clearedCpBonus, clearedPeriod, legClearXp, clearLeg, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN, PATH, SKILLS,
+        SAVE_VERSION, MAX_OFFLINE_SECONDS, AUTO_BUDGET, clearedCpBonus, clearedPeriod, legClearXp, clearLeg, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, IMPROVE_GAIN, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,

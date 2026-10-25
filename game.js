@@ -2603,11 +2603,12 @@ window.AGI = (function () {
 
     // A replay crossed a cleared leg's skill hill: flat XP at once, and the ball rolls on.
     function clearLeg(ev) {
-        const xp = E.clearLeg(state, ev.skill);
         const roll = path.roll;
+        // The chain: each cleared hill crossed raises the multiplier on everything after it.
+        const xp = E.clearLeg(state, ev.skill, roll.legs || 0);
         roll.legs = (roll.legs || 0) + 1;
         roll.legXp = (roll.legXp || 0) + xp;
-        path.legFlash = { age: 0, text: `${E.skillAt(ev.skill).name} cleared · +${xpText(xp)} XP`, tone: 'success' };
+        path.legFlash = { age: 0, text: `${E.skillAt(ev.skill).name} cleared · +${xpText(xp)} XP · chain ×${E.chainMult(roll.legs)}`, tone: 'success' };
         render();
     }
 
@@ -2629,14 +2630,16 @@ window.AGI = (function () {
         const viral = metres > 0 && (path.fx.forceViral || E.windfallHit(state, roll.ground.seed));
         path.fx.forceViral = false;
         const plainXp = E.rollXp(state, ev.progress, crested, 0, metres, leg);
-        const result = E.finishRoll(state, ev.progress, crested, units, metres, leg, viral);
+        const result = E.finishRoll(state, ev.progress, crested, units, metres, leg, viral, legs);
         // With the Auto-Trainer the next roll starts by itself; otherwise the run waits for a click.
         const auto = E.level(state, 'autoTrainer') > 0;
         path.pause = auto ? RESULT_PAUSE : 0;
         path.done = !auto;
         const pct = Math.round(ev.progress * 100);
         const viralMult = viral ? E.derive(state).windfallMult : 1;
-        const lines = xpLines(plainXp * viralMult, result.xp - plainXp * viralMult, clean, roll.bonusXp || 0, crested);
+        const runMult = viralMult * E.chainMult(legs);
+        const lines = xpLines(plainXp * runMult, result.xp - plainXp * runMult, clean, roll.bonusXp || 0, crested);
+        if (legs) lines.unshift([`Chain ×${E.chainMult(legs)} on the distance`, '', 'good']);
         if (viral) {
             lines.unshift([`Went viral! ×${viralMult.toFixed(2)} run XP`, '', 'good']);
             goViral(viralMult);
@@ -2740,9 +2743,13 @@ window.AGI = (function () {
         const units = roll.units || 0;
         const leg = Math.min(roll.leg, state.path.learned);
         const metres = roll.progress * roll.ground.legLength(leg);
-        setText($('liveXpValue'), `+${xpText(E.rollXp(state, roll.progress, false, units, metres, leg) + (roll.legXp || 0))} XP`);
+        const chain = roll.legs || 0;
+        setText($('liveXpValue'), `+${xpText(E.rollXp(state, roll.progress, false, units, metres, leg) * E.chainMult(chain) + (roll.legXp || 0))} XP`);
         const mult = 1 + E.derive(state).cleanRollBonus * units;
-        setText($('liveXpMult'), units ? `×${mult.toFixed(2)} · +${xpText(roll.bonusXp)} banked` : '');
+        const parts = [];
+        if (chain) parts.push(`chain ×${E.chainMult(chain)}`);
+        if (units) parts.push(`×${mult.toFixed(2)} · +${xpText(roll.bonusXp)} banked`);
+        setText($('liveXpMult'), parts.join(' · '));
     }
 
     function updateMeter(roll) {

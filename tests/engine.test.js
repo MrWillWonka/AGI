@@ -648,3 +648,19 @@ test('the lab splits by resource: hardware is compute, software is data, researc
     s.projects.boosts.push({ stat: 'rp', mult: 2, until: s.stats.playTime + 60 });
     assert.ok(Math.abs(E.derive(s).rpPerResearch - 2 * base) < 1e-9, 'research boosts work');
 });
+
+test('chains: each cleared hill crossed in a run multiplies what the run earns afterwards', () => {
+    const s = fresh();
+    s.unlocked['module:path'] = true;
+    s.path.learned = 4;
+    assert.equal(E.chainMult(0), 1);
+    assert.equal(E.chainMult(3), 1 + 3 * E.PATH.chainBonus);
+    const before = s.res.xp;
+    const first = E.clearLeg(s, 0, 0);
+    const third = E.clearLeg(s, 0, 2);
+    assert.ok(Math.abs(third - first * E.chainMult(2)) < 1e-9);
+    assert.ok(s.res.xp > before);
+    const plain = E.finishRoll(fresh(), 0.5, false, 0, 5).xp;
+    const t = fresh();
+    assert.ok(Math.abs(E.finishRoll(t, 0.5, false, 0, 5, 0, false, 3).xp - plain * E.chainMult(3)) < 1e-9, 'the distance at the end too');
+});

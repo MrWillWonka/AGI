@@ -118,14 +118,17 @@
                         <button type="button" class="ghost-button back-button step-button" id="backButton" aria-label="Back to the server room">← Rack</button>
                         <span class="crumb-sep" aria-hidden="true">/</span>
                         <h2 id="moduleTitle">Training Cluster</h2>
-                        <span class="room-goal" data-bind="goal.bay"></span>
                         <button type="button" class="ghost-button" id="treeButton" hidden>Skills</button>
-                        <span class="module-supply" title="What the lab feeds this cluster, per second"><span class="chip-label">Lab supply</span> <span data-bind="supply.rates"></span></span>
-                        <span class="module-xp" title="Experience: earned on the trail, spent in the skill tree"><span class="chip-label">XP</span> <strong data-bind="res.xp">0</strong> <small data-bind="rate.xp"></small></span>
                     </div>
 
                     <div class="module" data-module="training" id="pathPanel">
                         <div id="runView" class="run-view">
+                        <!-- Right above the trail: the next skill and record, what the lab supplies, and your XP. -->
+                        <div class="run-stats">
+                            <span class="room-goal run-goal" data-bind="goal.bay"></span>
+                            <span class="module-supply" title="What the lab feeds this cluster, per second"><span class="chip-label">Lab supply</span> <span data-bind="supply.rates"></span></span>
+                            <span class="module-xp" title="Experience: earned on the trail, spent in the skill tree"><span class="chip-label">XP</span> <strong data-bind="res.xp">0</strong> <small data-bind="rate.xp"></small></span>
+                        </div>
                         <div class="canvas-wrap">
                             <canvas id="pathCanvas" class="path-canvas" tabindex="0" aria-label="Training path. Hold Enter or Space to charge a training sprint, release to fire it." aria-describedby="pathStatus"></canvas>
                             <div class="live-xp" id="liveXp" hidden>

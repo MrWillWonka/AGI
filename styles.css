@@ -2235,3 +2235,8 @@ body.has-minimap .room-rnd { padding-bottom: 210px; }
 @media (max-width: 960px) {
     .lab-stations { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* The run's stats sit right above the trail, at its width. */
+.run-view > .run-stats { width: min(100%, 1360px); display: flex; align-items: center; gap: 10px; min-width: 0; }
+.run-stats .run-goal { flex: 1; padding-left: 0; border-left: 0; font-size: 0.82rem; }
+.module-bar #treeButton { margin-left: auto; }
