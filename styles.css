@@ -1990,7 +1990,9 @@ body.has-minimap .room-rnd { padding-bottom: 210px; }
 .room-lab > .room-bar { grid-area: bar; }
 .lab-supply { grid-area: supply; height: 100%; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; }
 .supply-cell { grid-template-rows: auto minmax(0, 1fr); height: 100%; min-height: 0; }
-.panel-actions { grid-area: bench; min-width: 0; min-height: 0; overflow-y: auto; }
+.panel-actions { grid-area: bench; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+/* The lists scroll inside, never the framed panel (its corner marks sit 1 px outside it). */
+.panel-actions .action-row { align-content: start; flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
 .lab-stations { display: contents; }
 .station[data-tab="hardware"] { grid-area: hw; }
 .station[data-tab="software"] { grid-area: sw; }
@@ -2040,10 +2042,10 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .lab-log { margin-right: 0; }
 .panel-projects .project-list { flex: 1; grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(0, 1fr); }
 
 /* ---- Scheduled tasks: each automation with a switch and its dedicated compute ---- */
-.panel-tasks { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.panel-tasks { display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
 .panel-tasks[hidden] { display: none; }
 .task-total { font: 600 0.7rem var(--font-mono); color: var(--primary); text-align: right; }
-.task-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.task-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
 .task { display: grid; gap: 6px; padding: 9px 10px; border: 1px solid #1d353b; border-radius: 6px; background: linear-gradient(180deg, #0e1d21, #0a1517); }
 .task[hidden] { display: none; }
 .task.off { opacity: 0.6; }
