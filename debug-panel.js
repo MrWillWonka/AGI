@@ -80,12 +80,30 @@
         const simAmount = amountInput(3600, 60);
         const stateView = document.createElement('pre');
 
+        // Game speed: economy ticks and training physics run this many times faster.
+        const speedButtons = [1, 2, 5, 20].map(x => {
+            const b = button(`${x}×`, () => {
+                AGI.debug.setSpeed(x);
+                speedButtons.forEach(o => o.classList.toggle('active', o === b));
+            });
+            if (x === AGI.debug.speed) b.classList.add('active');
+            return b;
+        });
+
+        const phaseButtons = E.PHASES.slice(1).map((p, i) => button(`Reach ${p.name}`, () => AGI.debug.reachPhase(i + 1)));
+
         body.append(
             section('Resources', resAmount, ...resButtons),
             section('Attributes', attrAmount, ...attrButtons),
             section('Rate multipliers', ...rateInputs),
             section('Time', simAmount, button('Simulate seconds', () => AGI.debug.simulate(Number(simAmount.value) || 0))),
-            section('Progress', button('Unlock everything', AGI.debug.unlockAll), button('Learn next skill', AGI.debug.learnSkill), button('Start over', AGI.debug.startOver), button('Save now', AGI.save)),
+            section('Game speed', ...speedButtons),
+            section('Progress', button('Learn next skill', AGI.debug.learnSkill), ...phaseButtons,
+                button('Unlock everything', AGI.debug.unlockAll), button('Add a Transcend', AGI.debug.addTranscend)),
+            section('Training', button('Finish run', AGI.debug.finishRun), button('Test summit', () => AGI.debug.testSummit()),
+                button('Test near miss', () => AGI.debug.testNailBiter()), button('Max skill tree', AGI.debug.maxTree),
+                button('Toggle Auto-Trainer', AGI.debug.toggleAutoTrainer), button('Reset tree view', AGI.debug.resetTreeView)),
+            section('Save', button('Save now', AGI.save), button('Start over', AGI.debug.startOver)),
             section('State', stateView)
         );
         panel.append(header, body);

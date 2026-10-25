@@ -1707,3 +1707,5 @@ html, body { overflow-x: clip; }
 @media (max-width: 640px) {
     .tree-viewport { --cell: 84px; min-height: 420px; }
 }
+
+.debug-panel .ghost-button.active { border-color: var(--primary); color: var(--primary); }

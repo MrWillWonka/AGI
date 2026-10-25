@@ -13,7 +13,8 @@ window.AGI = (function () {
     let state;
     let lastTick = Date.now();
     let lastSave = Date.now();
-    const debugRates = { cp: 1, dp: 1, rp: 1 };
+    const debugRates = { cp: 1, dp: 1, rp: 1, xp: 1 };
+    let debugSpeed = 1;         // debug: game speed (economy ticks and training physics)
     const ui = { binds: [], actions: {}, upgrades: {}, stations: {}, panels: {}, milestones: {}, achievements: {} };
 
     // ---- Storage --------------------------------------------------------
@@ -464,8 +465,24 @@ window.AGI = (function () {
         afterChange();
     }
 
+    // After a reset: no open bay, no finished run on screen, fresh room visits and tree view.
     function resetView() {
         syncSettings();
+        if (openBay) {
+            openBay = null;
+            $('moduleView').hidden = true;
+            $('hub').hidden = false;
+        }
+        Object.assign(path, { roll: null, done: false, pause: 0, overview: 0, glow: null, summit: null, particles: [], tension: 0, focus: null, timeScale: 1 });
+        path.view = 'run';
+        dismissResult();
+        seenRooms = new Set(['lab']);
+        storageSet(SEEN_KEY, '[]');
+        storageSet(TREE_CAM_KEY, '');
+        Object.assign(treeCam, { x: 0, y: 0, z: 1 });
+        $('skillTree').style.transform = '';
+        cabinetKey = '';
+        showView('lab');
     }
 
     // ---- Loop & rendering -----------------------------------------------
@@ -499,7 +516,7 @@ window.AGI = (function () {
             E.tick(state, seconds, debugRates);
             reportOffline(seconds);
         } else {
-            E.tick(state, dt, debugRates);
+            E.tick(state, dt * debugSpeed, debugRates);
         }
         afterChange();
         if (state.settings.autosave && now - lastSave >= AUTOSAVE_MS) save();
@@ -1633,7 +1650,7 @@ window.AGI = (function () {
 
     function pathFrame(now) {
         path.frame = 0;
-        const dt = Math.min(0.1, (now - path.last) / 1000);
+        const dt = Math.min(0.1, (now - path.last) / 1000) * debugSpeed;
         path.last = now;
         const running = !document.hidden && (path.visible || runsInBackground());
         updateDrama(dt);
@@ -2416,11 +2433,83 @@ window.AGI = (function () {
             // Learn the next skill instantly; the next roll starts at the new checkpoint.
             learnSkill() {
                 E.learnSkill(state, state.path.learned);
-                path.roll = null;
+                Object.assign(path, { roll: null, done: false });
+                dismissResult();
                 path.overview = OVERVIEW_SECONDS;
                 afterChange();
                 startPathLoop();
             },
+            // Learn skills until the given phase is reached (attributes topped up if skills aren't enough).
+            reachPhase(index) {
+                const phase = E.PHASES[index];
+                for (let i = 0; i < 40 && E.phaseIndex(state) < index; i++) E.learnSkill(state, state.path.learned);
+                for (const [k, v] of Object.entries(phase.req)) state.attr[k] = Math.max(state.attr[k], v);
+                Object.assign(path, { roll: null, done: false });
+                dismissResult();
+                afterChange();
+            },
+            // Buy every Training node to its max (XP-priced ones; the Auto-Trainer is separate).
+            maxTree() {
+                for (const up of E.UPGRADES.filter(u => u.tab === 'training' && u.cost.xp)) state.levels[up.id] = up.max;
+                path.roll = null;
+                afterChange();
+            },
+            toggleAutoTrainer() {
+                state.levels.autoTrainer = E.level(state, 'autoTrainer') ? 0 : 2;
+                state.unlocked['up:autoTrainer'] = true;
+                afterChange();
+                startPathLoop();
+            },
+            // Count one Transcend without resetting, to open R&D and prestige content.
+            addTranscend() {
+                state.prestige.count++;
+                afterChange();
+            },
+            // End the run in progress where the ball is.
+            finishRun() {
+                const r = path.roll;
+                if (r && r.launched && !r.over) finishRoll(r.end());
+            },
+            // Put the ball on the skill hill's climb with just enough speed (found by simulating a copy of
+            // the run, since slopes change the energy needed): a nail-biter, then a summit. Below 1 it falls short.
+            testSummit(margin = 1.02) {
+                if (openBay === 'training' && path.view !== 'run') showTrainingView('run');
+                if (path.done) runAgain();
+                const r = currentRoll();
+                const d = E.derive(state, debugRates);
+                const opts = { pushes: 1, cooldown: 1, friction: d.friction, hillScale: d.hillScale };
+                const h = r.ground.goal;
+                const x = h.peak - h.halfWidth * 0.7;
+                const crests = v => {
+                    const t = T.createRoll(r.ground.stretch, r.ground.seed, opts);
+                    t.push(0.001);
+                    Object.assign(t.ball, { x, v, maxX: x });
+                    for (let i = 0; i < 600 && !t.over; i++) if (t.step(0.05).some(e => e.type === 'crest')) return true;
+                    return false;
+                };
+                let lo = 0;
+                let hi = 1;
+                while (!crests(hi) && hi < 1e4) hi *= 2;
+                for (let i = 0; i < 30; i++) {
+                    const mid = (lo + hi) / 2;
+                    if (crests(mid)) hi = mid; else lo = mid;
+                }
+                if (!r.launched) r.push(0.001);
+                r.ball.x = x;
+                r.ball.maxX = Math.max(r.ball.maxX, x);
+                r.ball.v = hi * margin;
+                startPathLoop();
+            },
+            // The same, just short: it should nearly make it, stall and roll back.
+            testNailBiter() {
+                this.testSummit(0.97);
+            },
+            setSpeed(x) {
+                debugSpeed = Math.max(0.1, Math.min(50, Number(x) || 1));
+                startPathLoop();
+            },
+            get speed() { return debugSpeed; },
+            resetTreeView: () => resetTreeCam(),
             roll: () => {
                 const r = currentRoll();
                 return { stretch: r.ground.stretch, x: r.ball.x, v: r.ball.v, launched: r.launched, over: r.over,
@@ -2437,7 +2526,7 @@ window.AGI = (function () {
                 r.ball.maxX = Math.max(r.ball.maxX, x);
                 startPathLoop();
             },
-                        simulate(seconds) {
+            simulate(seconds) {
                 E.tick(state, seconds, debugRates);
                 afterChange();
             },

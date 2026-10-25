@@ -9,7 +9,14 @@ python3 server.py            # http://localhost:8000, no-cache; add --no-browser
 node --test                  # engine unit tests (Node 18+, no install needed)
 ```
 
-Open `/?debug` (or press <kbd>`</kbd>) for the debug panel: add resources/attributes, rate multipliers, simulate time, unlock everything, live state view.
+Open `/?debug` (or press <kbd>`</kbd>) for the debug panel (`debug-panel.js`, which talks only to `AGI.debug`):
+- **Resources / Attributes:** add any amount (XP included).
+- **Rate multipliers:** CP, DP, RP and XP/s (cleared stretches).
+- **Time:** simulate N seconds, or set a **game speed** (1×/2×/5×/20×) for both the economy and the training physics.
+- **Progress:** learn the next skill, reach a phase, unlock everything, or add a Transcend (opens R&D).
+- **Training:** finish the run; **Test summit** and **Test near miss**, which put the ball on the skill hill's climb just above or below the exact speed needed (found by simulating a copy of the run); max the skill tree; toggle the Auto-Trainer; reset the tree view.
+- **Save:** save now, or start over (wipes the save and all screen state: open bay, result card, room visits, tree view).
+- A live state view.
 
 ## Layout
 

@@ -289,7 +289,7 @@
 
     // rates: optional debug multipliers { cp, dp, rp }
     function derive(s, rates) {
-        const r = Object.assign({ cp: 1, dp: 1, rp: 1 }, rates);
+        const r = Object.assign({ cp: 1, dp: 1, rp: 1, xp: 1 }, rates);
         const mult = globalMultiplier(s);
         const L = id => level(s, id);
         const sk = skillBonuses(s);
@@ -340,7 +340,7 @@
         const viewScale = 1 + tb.view;
         // Cleared stretches keep training on their own, slowly: XP per second from every learned skill hill.
         let xpPerSec = 0;
-        for (let k = 0; k < s.path.learned; k++) xpPerSec += stretchXpAt(k) * PATH.clearedRate;
+        for (let k = 0; k < s.path.learned; k++) xpPerSec += stretchXpAt(k) * PATH.clearedRate * r.xp;
 
         return { mult, cpPerSec, clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec,
             collectsPerSec, researchPerSec, cpUsePerSec, dpUsePerSec, autoThrottled,
