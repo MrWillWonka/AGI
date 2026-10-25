@@ -1681,3 +1681,7 @@ body { zoom: var(--ui-scale); }
 .tree-node.seed .tree-icon, .tree-node.seed .tree-level { transform: rotate(-45deg); }
 .tree-node.seed:hover { transform: translate(-50%, -50%) rotate(45deg) scale(1.06); }
 .tree-node.seed.owned, .tree-node.seed.maxed { box-shadow: 0 0 22px rgba(99, 224, 171, 0.45); }
+
+/* Node detail: a one-line quip, then the plain bonus. */
+.detail-flavor { font-style: italic; color: var(--text); opacity: 0.85; }
+.node-detail .detail-effect { color: var(--success); font: 600 0.84rem var(--font-mono); }

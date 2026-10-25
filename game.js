@@ -1327,8 +1327,9 @@ window.AGI = (function () {
                 el('div', {}, [el('h3', { text: unknown ? '???' : up.name }),
                     el('p', { class: 'muted small', text: unknown ? 'Unknown research' : `Level ${lvl}${up.max ? ` of ${up.max}` : ''}` })])
             ]),
+            unknown || !up.flavor ? null : el('p', { class: 'detail-flavor', text: up.flavor }),
             el('p', { class: 'detail-effect', text: unknown ? 'Something is out here. Unlock what it grows from to find out what.' : up.effect })
-        ];
+        ].filter(Boolean);
         if (unknown) {
             const needs = up.requires && E.level(state, up.requires) < 1 ? `Grows from ${E.UPGRADE_BY_ID[up.requires].name}` : up.hint || 'Locked';
             parts.push(el('p', { class: 'detail-lock', text: needs }));

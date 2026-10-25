@@ -24,6 +24,10 @@ test('the skill tree starts sparse: one 1-XP seed, short nodes around it, dearer
         }
     }
     assert.ok(nodes.filter(n => n.secret).length >= 3, 'some nodes are secrets');
+    for (const n of nodes) {
+        assert.ok(n.flavor && n.flavor.length <= 70, `${n.id} has a short quip`);
+        assert.ok(n.effect && n.effect.length <= 80, `${n.id} has a short, plain effect`);
+    }
 });
 
 test('skill-tree nodes do not overlap and grow from a neighbouring node', () => {
