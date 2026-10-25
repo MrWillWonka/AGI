@@ -7,7 +7,7 @@ window.AGI = (function () {
     const TICK_MS = 100;
     const AUTOSAVE_MS = 30000;
     const HOLD_DELAY_MS = 400;
-    const HOLD_REPEAT_MS = 100;
+    const HOLD_REPEAT_MS = 550;       // holding a job repeats it at under 2 clicks a second (a comfort option, not a turbo)
     const LOG_LIMIT = 60;
 
     let state;
@@ -209,7 +209,11 @@ window.AGI = (function () {
         if (!pieces.length || $('cabinetPanel').hidden) return;
         const rate = times.length / 1.5;                                  // clicks per second
         const worth = Math.log10(Math.max(1, gained));                    // 0 for 1, 1 for 10, 2 for 100…
-        const n = Math.max(1, Math.min(6, Math.round(1 + rate / 3 + worth)));
+        // Very sparse until clicking moves real volume: about 1 click in 15 early on, every click only
+        // around 100k a second by hand; several effects at once only far beyond that.
+        const volume = rate * gained;
+        if (Math.random() > Math.min(1, 0.03 * Math.pow(1 + volume, 0.3))) return;
+        const n = Math.max(1, Math.min(4, Math.floor(Math.log10(1 + volume) / 2)));
         const pick = () => pieces[Math.floor(Math.random() * pieces.length)];
         if (res === 'cp') for (let i = 0; i < n; i++) sparkPiece(pick(), worth);
         if (res === 'dp') for (let i = 0; i < Math.min(3, n); i++) signal(art, pick(), worth);
@@ -223,7 +227,7 @@ window.AGI = (function () {
         const rack = piece.parentElement;
         const x = piece.offsetLeft + piece.offsetWidth * Math.random();
         const y = piece.offsetTop + piece.offsetHeight * Math.random();
-        for (let i = 0; i < 4 + Math.round(worth * 3); i++) {
+        for (let i = 0; i < 2 + Math.round(worth * 2); i++) {
             const dot = el('span', { class: 'cab-spark' });
             dot.style.left = `${x}px`;
             dot.style.top = `${y}px`;
@@ -247,7 +251,8 @@ window.AGI = (function () {
         cabinetFx++;
         const trayY = 5;
         const side = Math.random() < 0.5 ? rack.offsetLeft + 2 : rack.offsetLeft + rack.offsetWidth - 2;
-        const startX = art.scrollLeft + (Math.random() < 0.5 ? 0 : art.clientWidth);
+        // Every waypoint stays inside the visible strip, so a signal never stretches the scroll area.
+        const startX = art.scrollLeft + (Math.random() < 0.5 ? 8 : art.clientWidth - 8);
         const endY = rack.offsetTop + piece.offsetTop + piece.offsetHeight / 2;
         const endX = rack.offsetLeft + piece.offsetLeft + piece.offsetWidth / 2;
         const at = (x, y) => `translate(${x}px, ${y}px) translate(-50%, -50%)`;
@@ -1524,7 +1529,7 @@ window.AGI = (function () {
         const open = id => roomOpen(id);
         const NS = 'http://www.w3.org/2000/svg';
         const svg = document.createElementNS(NS, 'svg');
-        svg.setAttribute('viewBox', '0 0 120 120');
+        svg.setAttribute('viewBox', '13 13 94 94');   // cropped into the pins, so the chip fills its holder
         const add = (tag, attrs, parent = svg) => {
             const n = document.createElementNS(NS, tag);
             for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
@@ -1740,7 +1745,7 @@ window.AGI = (function () {
         const owned = id => E.level(state, TASK_UPGRADES[id]) > 0;
         const learned = state.path.learned;
         const logged = lab.lines.length > 0 && !!state.unlocked['seen:dp'];
-        const any = E.TASKS.some(t => owned(t.id)) || learned > 0 || logged;
+        const any = E.TASKS.some(t => owned(t.id)) || learned > 0;
         setHidden($('taskPanel'), !any);
         if (!any) return;
         setHidden($('taskPanel').querySelector('.task-log'), !logged);

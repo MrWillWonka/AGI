@@ -93,6 +93,7 @@
         const phaseButtons = E.PHASES.slice(1).map((p, i) => button(`Reach ${p.name}`, () => AGI.debug.reachPhase(i + 1)));
 
         body.append(
+            section('Save', button('Save now', AGI.save), button('Start over', AGI.debug.startOver)),
             section('Resources', resAmount, ...resButtons),
             section('Attributes', attrAmount, ...attrButtons),
             section('Rate multipliers', ...rateInputs),
@@ -114,7 +115,6 @@
             section('Power-ups', ...[['breakthrough', 'Breakthrough'], ['maxEffort', 'Max Effort'], ['crunch', 'Crunch'], ['flow', 'Flow'], ['viral', 'Viral'],
                 ['system', 'System prompt'], ['superBreakthrough', 'Paradigm Shift'], ['superCrunch', 'Bullet Time'], ['superFlow', 'Lucid Dream']]
                 .map(([k, label]) => button(label, () => AGI.debug.luck(k)))),
-            section('Save', button('Save now', AGI.save), button('Start over', AGI.debug.startOver)),
             section('State', stateView)
         );
         panel.append(header, body);

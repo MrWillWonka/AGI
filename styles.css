@@ -1178,14 +1178,15 @@ h1, h2, h3, p { margin: 0; }
 /* ---- Toasts & floating gains ---- */
 
 .toasts {
-    /* Bottom-left, inside the frame: out of the way of the work, newest at the bottom. */
+    /* Top middle, just under the top bar, newest at the bottom. */
     position: fixed;
-    bottom: 34px;
-    left: 34px;
+    top: calc(var(--topbar-h, 53px) + 12px);
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 50;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
+    align-items: center;
     gap: 8px;
     max-width: min(380px, calc(100vw - 68px));
     pointer-events: none;
@@ -1202,7 +1203,7 @@ h1, h2, h3, p { margin: 0; }
     border-left: 3px solid var(--success);
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
     opacity: 0;
-    transform: translateX(-24px);
+    transform: translateY(-16px);
     transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
@@ -1440,7 +1441,7 @@ h1, h2, h3, p { margin: 0; }
 
 /* Server cabinets: the hardware you own, racked, filling up over time, in their own panel. */
 .cabinet-panel[hidden] { display: none; }
-.cabinet-panel { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cabinet-panel { display: flex; flex-direction: column; gap: 6px; justify-self: start; width: fit-content; min-width: 240px; max-width: 100%; }
 .station-bench .station-art { display: none; }
 .cabinet-art {
     /* Fixed height, scrolling sideways as cabinets are added: buying hardware never moves the page. */
@@ -1917,7 +1918,7 @@ html, body { overflow-x: clip; }
 
 /* ---- Minimap: bigger, titled, easy to find ---- */
 .minimap { width: 196px; padding: 8px; border-color: rgba(99, 224, 171, 0.45); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 18px rgba(99, 224, 171, 0.12); }
-.mm-title { width: 100%; justify-content: center; margin-bottom: 4px; display: flex; padding: 5px 8px; border: 1px solid var(--success); border-radius: 999px; background: rgba(99, 224, 171, 0.12); color: var(--success); font: 700 0.68rem var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; }
+.mm-title { width: 100%; justify-content: center; margin-bottom: 2px; display: flex; padding: 3px 8px; border: 1px solid var(--success); border-radius: 999px; background: rgba(99, 224, 171, 0.12); color: var(--success); font: 700 0.68rem var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; }
 .mm-title:hover { background: rgba(99, 224, 171, 0.22); }
 .mm-label { font-size: 0.6rem; }
 
@@ -2232,6 +2233,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
     .minimap:not([hidden]) { display: flex; flex-direction: column; width: 212px; aspect-ratio: 1; }
     .mm-chip { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; }
     .mm-chip svg { flex: 1; min-height: 0; width: auto; height: 100%; max-width: 100%; }
+    .minimap:not([hidden]) { padding: 6px 6px 4px; }
 }
 
 /* ---- Navigation: where you are, as a file path (surveillance/server_room/training_cluster) ----
@@ -2268,7 +2270,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
         repeating-linear-gradient(90deg, #3b6cff 0 2px, #2a9df4 2px 4px, #ffb547 4px 5px, #63e0ab 5px 7px, #e0457b 7px 8px, #1f4fd1 8px 11px) 0 3px / 100% 4px no-repeat,
         linear-gradient(0deg, rgba(111, 179, 217, 0.06), transparent 60%); }
 /* A rack: a dark cabinet with rails, and colourful cable looms down both sides that grow as it fills. */
-.rack-block { position: relative; flex: none; width: calc(7 * var(--cell) + 16px); height: calc(8 * var(--cell) + 10px); border: 2px solid #1b3036; border-top-width: 5px; border-bottom-width: 4px; border-radius: 3px;
+.rack-block { position: relative; flex: none; overflow: clip; width: calc(7 * var(--cell) + 16px); height: calc(8 * var(--cell) + 10px); border: 2px solid #1b3036; border-top-width: 5px; border-bottom-width: 4px; border-radius: 3px;
     background: linear-gradient(90deg, #0d1a1e 0 4px, transparent 4px calc(100% - 4px), #0d1a1e calc(100% - 4px)),
     radial-gradient(circle, #24434a 1px, transparent 1.4px) 1px 2px / 4px var(--cell), #05090b;
     box-shadow: 0 6px 14px rgba(0, 0, 0, 0.6), inset 0 0 18px rgba(0, 0, 0, 0.8); }
