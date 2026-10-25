@@ -2799,9 +2799,8 @@ window.AGI = (function () {
     }
 
     function startCharge() {
-        if (path.view !== 'run') return;
-        // Holding the button (or the trail) after a run starts the next one straight away.
-        if (path.done) runAgain();
+        // After a run, only Train again (on the result card) starts the next one: a stray press does nothing.
+        if (path.view !== 'run' || path.done) return;
         const roll = currentRoll();
         if (path.charging) return;
         if (!readyToFire(roll)) {
@@ -3483,7 +3482,7 @@ window.AGI = (function () {
             record ? el('span', { class: 'result-badge', text: 'New record!' }) : null,
             path.done
                 ? el('div', { class: 'result-actions' }, [
-                    el('button', { type: 'button', class: 'ghost-button', 'data-next': 'again', text: 'Run again' }),
+                    el('button', { type: 'button', class: 'ghost-button', 'data-next': 'again', text: 'Train again' }),
                     el('button', { type: 'button', class: 'button', 'data-next': 'dev', text: 'Upgrades →' })])
                 : el('div', { class: 'result-hint', text: 'Next roll starting…' })
         ].filter(Boolean));
@@ -3503,14 +3502,14 @@ window.AGI = (function () {
             : crunching() && !roll.over && !roll.crested ? `CRUNCH! Sprint free (${path.fx.crunch.toFixed(1)} s)`
             : flowing() ? `Flowing… (${path.roll.flowing.toFixed(1)} s)`
             : !roll.launched ? 'Hold to launch'
-            : roll.over ? (path.done ? 'Hold to run again' : 'Next run…')
+            : roll.over ? (path.done ? 'Hold to sprint' : 'Next run…')
             : roll.crested ? 'Summit!'
             : roll.pushesLeft > 0 && roll.ball.cooldown > 0 ? `Next sprint in ${roll.ball.cooldown.toFixed(1)} s`
             : roll.pushesLeft > 0 ? `Hold to sprint (${roll.pushesLeft} left)` : 'Out of sprints';
         setText(button, label);
         // Stay enabled while charging so releasing the pointer still lands on the button.
-        setDisabled(button, !path.charging && !path.done && !readyToFire(roll));
-        $('charge').classList.toggle('waiting', !path.charging && roll.launched && canPush(roll) && !readyToFire(roll));
+        setDisabled(button, !path.charging && (path.done || !readyToFire(roll)));
+        $('charge').classList.toggle('waiting', !path.charging && roll.launched && (path.done || (canPush(roll) && !readyToFire(roll))));
         button.classList.toggle('crunch', crunching());
         button.classList.toggle('frozen', frozen());
         button.classList.toggle('effort', !!path.fx.maxEffort);
