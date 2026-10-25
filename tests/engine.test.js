@@ -611,8 +611,8 @@ test('hardware is a spaced-out ladder: each tier costs more per CP/s but gives m
     const click = E.derive(t).clickPower;
     t.levels.server = 10;
     assert.equal(E.derive(t).clickPower, click);
-    t.levels.keyboard = 2;
-    assert.equal(E.derive(t).clickPower, click + 2);
+    t.levels.keyboard = 5;
+    assert.equal(E.derive(t).clickPower, click + 2, 'the desk and server rack: 1 → 3 per click');
     t.levels.shellScripts = 1;
     assert.ok(Math.abs(E.derive(t).clickPower - (click + 2 + 0.02 * E.derive(t).cpPerSec)) < 1e-9);
     t.levels.compilerOpt = 1;
@@ -624,6 +624,7 @@ test('hardware is a spaced-out ladder: each tier costs more per CP/s but gives m
 test('a hardware tier shows up only once you own ten of the tier below and earned its price', () => {
     const s = fresh();
     s.stats.clicks = 30;
+    s.unlocked['module:path'] = true;          // and only once training has started
     s.levels.cpu = 9;
     s.stats.runCp = 1e9;
     E.evaluate(s);
@@ -642,28 +643,42 @@ test('a hardware tier shows up only once you own ten of the tier below and earne
     assert.equal(d.hardwareRates.cpu.nextDoubling, 25);
 });
 
-test('the click tool grows from a keyboard into bigger tools, each adding more per level', () => {
+test('the click tool starts with your desk, one item each, then grows per level; the first generator comes after', () => {
     const s = fresh();
     s.stats.clicks = 40;
-    s.levels.cpu = 1;
     E.evaluate(s);
     const up = E.UPGRADE_BY_ID.keyboard;
     assert.equal(E.upgradeName(s, up), 'Desktop Tower');
-    assert.deepEqual(E.CLICK_TOOLS.slice(0, 4).map(t => t.name), ['Desktop Tower', 'Monitor', 'Mechanical Keyboard', 'Gaming Mouse'], 'the desk comes first');
-    assert.equal(E.clickToolPower(6), 6, 'tower, monitor and keyboard: +1 per level');
-    assert.equal(E.clickToolPower(7), 8, 'level 7 is the first mouse level: +2');
-    s.levels.keyboard = 5;
+    assert.deepEqual(E.CLICK_TOOLS.slice(0, 5).map(t => t.name), ['Desktop Tower', 'Mechanical Keyboard', 'Gaming Mouse', 'Monitor', 'Server Rack'], 'the desk comes first');
+    assert.deepEqual([0, 1, 2, 3, 4, 5].map(l => E.upgradeCost(up, l).cp), [25, 45, 45, 75, 100, 132], 'hand-priced, then x1.32');
+    assert.equal(E.clickToolPower(4), 1, 'tower, keyboard, mouse and monitor take a click to 2 CP');
+    assert.equal(E.clickToolPower(5), 2, 'the server rack adds +1');
     s.res.cp = 1e9;
-    let r = E.buy(s, 'keyboard');
-    assert.equal(r.evolved, 'Gaming Mouse', 'the sixth level grows it into the mouse');
-    assert.equal(E.upgradeName(s, up), 'Gaming Mouse');
-    r = E.buy(s, 'keyboard');
-    assert.equal(r.evolved, null);
-    // Every stage adds more per level than the last, and the names are all different.
+    const seen = [];
+    for (let i = 0; i < 5; i++) {
+        assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.cpu), false, `no generator before the server rack (level ${i})`);
+        seen.push(E.buy(s, 'keyboard').evolved);
+        E.evaluate(s);
+    }
+    assert.deepEqual(seen, ['Mechanical Keyboard', 'Gaming Mouse', 'Monitor', 'Server Rack', 'Macro Pad'], 'one level each');
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.cpu), true, 'the Graphics Card shows after the server rack');
+    assert.equal(E.UPGRADE_BY_ID.cpu.name, 'Graphics Card');
+    // Every stage adds at least as much per level as the last, and the names are all different.
     for (let i = 1; i < E.CLICK_TOOLS.length; i++) assert.ok(E.CLICK_TOOLS[i].per >= E.CLICK_TOOLS[i - 1].per);
     assert.equal(new Set(E.CLICK_TOOLS.map(t => t.name)).size, E.CLICK_TOOLS.length);
-    assert.ok(E.CLICK_TOOLS.some(t => /Intern/.test(t.name)));
-    assert.ok(Math.abs(E.derive(s).clickPower - (1 + E.clickToolPower(7)) * E.derive(s).mult) < 1e-9);
+    assert.ok(Math.abs(E.derive(s).clickPower - (1 + E.clickToolPower(5)) * E.derive(s).mult) < 1e-9);
+});
+
+test('the server room waits until you can train: data collected and a couple of sprints in stock', () => {
+    const s = fresh();
+    s.stats.runCp = 1e4;
+    s.res.cp = 1000;
+    E.evaluate(s);
+    assert.equal(!!s.unlocked['module:path'], false, 'compute alone is not enough');
+    s.stats.collects = 10;
+    s.res.dp = 5;
+    E.evaluate(s);
+    assert.equal(s.unlocked['module:path'], true);
 });
 
 test('the lab splits by resource: hardware is compute, software is data, research lives on the research wall', () => {

@@ -328,7 +328,7 @@ window.AGI = (function () {
         if (actionId === 'collect' && !state.unlocked['seen:dp']) return '';
         const g = E.automationGate(state, id);
         // Compute is automated only after the click tool: clicking gets better before it gets replaced.
-        if (id === 'cpu' && g.met && E.level(state, 'keyboard') < 7) return 'Get the Gaming Mouse to automate';
+        if (id === 'cpu' && g.met && E.level(state, 'keyboard') < 5) return 'Build up to the Server Rack to automate';
         if (g.met) return `Ready to automate · ${STATIONS[E.UPGRADE_BY_ID[id].tab].name}`;
         if (g.done < g.need) return `${g.done}/${g.need} by hand to automate`;
         return `Automate after your AI learns ${g.skill}`;
@@ -361,7 +361,11 @@ window.AGI = (function () {
         switch (up.shows) {
             case 'click': {
                 const next = up.id === 'keyboard' ? E.nextClickTool(lvl) : null;
-                return `Click: ${f(d.clickPower)}${after('clickPower')} CP${next ? ` · ${next.name} at ${next.from}` : ''}`;
+                // The desk adds a quarter CP per item, so small values keep two decimals.
+                const c = x => f(x, x < 10 && x % 1 ? 2 : undefined);
+                const later = E.isMaxed(state, up) ? '' : ` → ${c(E.derive({ ...state, levels: { ...state.levels, [up.id]: lvl + 1 } }, debugRates).clickPower)}`;
+                const then = !next ? '' : next.from === lvl + 1 ? ` · then ${next.name}` : ` · ${next.name} at level ${next.from + 1}`;
+                return `Click: ${c(d.clickPower)}${later} CP${then}`;
             }
             case 'collect': return `Collect: ${f(d.dpPerCollect)}${after('dpPerCollect')} DP`;
             case 'research': return `Research: ${f(d.rpPerResearch)}${after('rpPerResearch')} RP`;
@@ -1076,7 +1080,7 @@ window.AGI = (function () {
         bar.setAttribute('aria-valuenow', pct);
         bar.firstElementChild.style.width = pct + '%';
 
-        const gains = { compute: `+${E.format(d.clickPower)} CP`, collect: `+${E.format(d.dpPerCollect)} DP`,
+        const gains = { compute: `+${E.format(d.clickPower, d.clickPower < 10 && d.clickPower % 1 ? 2 : undefined)} CP`, collect: `+${E.format(d.dpPerCollect)} DP`,
             research: `+${E.format(d.rpPerResearch)} RP`, improve: `+${E.IMPROVE_GAIN} Int` };
         for (const { action, button, gain, cost, auto } of Object.values(ui.actions)) {
             const autoText = automationText(action.id);
@@ -1184,7 +1188,7 @@ window.AGI = (function () {
         if (place === 'facility') {
             const id = Object.keys(ROOMS).find(r => !roomUnlocked(r));
             if (!id) return '';
-            if (id === 'servers') return `A sealed wing opens at 50 CP · ${E.format(Math.min(50, state.stats.runCp))}/50`;
+            if (id === 'servers') return `A sealed wing opens once you collect data · ${Math.min(10, state.stats.collects)}/10`;
             if (id === 'rnd') return `A sealed wing opens at ${E.PRESTIGE_MIN_INTELLIGENCE} Intelligence · ${E.format(state.attr.intelligence, 1)}/${E.PRESTIGE_MIN_INTELLIGENCE}`;
             const phase = E.PHASES[ROOMS[id].phase];
             return `A sealed wing opens at ${phase.name} · ${phaseReqs(phase)}`;
@@ -1801,7 +1805,7 @@ window.AGI = (function () {
     // Bays in the server room. Each is a training module; only the Training Cluster is built so far.
     const BAYS = {
         training: { name: 'Training Cluster', built: true, unlocked: () => !!state.unlocked['module:path'],
-            lockedText: () => 'Locked · earn 50 CP to power it up' },
+            lockedText: () => 'Locked · collect data to power it up' },
         pipeline: { name: 'Data Pipeline', phase: 1 },
         architecture: { name: 'Architecture Lab', phase: 2 },
         core: { name: 'The Core', phase: 3 }

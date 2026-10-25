@@ -181,14 +181,16 @@
         // below stays the better buy for about eight more units, then the new one takes over. All scale
         // x1.15 per unit, and a tier's output doubles at 25, 50 and 100 owned (HARDWARE_DOUBLINGS), which
         // makes older tiers worth topping up again. Each tier shows up late (tierReady).
-        { id: 'cpu', tab: 'hardware', name: 'Basic CPU', cps: 0.5, effect: 'Generates compute', flavor: 'A bare processor on a test board. It does the clicking now.', cost: { cp: 15 }, scale: 1.15,
-            unlock: s => automationGate(s, 'cpu').met && level(s, 'keyboard') >= CPU_AFTER_CLICK_LEVEL, hint: 'Upgrade your setup to a Gaming Mouse, and compute by hand 40 times' },
+        { id: 'cpu', tab: 'hardware', name: 'Graphics Card', cps: 0.5, effect: 'Generates compute', flavor: 'Secondhand, still smells faintly of crypto mining.', cost: { cp: 15 }, scale: 1.15,
+            unlock: s => automationGate(s, 'cpu').met && level(s, 'keyboard') >= CPU_AFTER_CLICK_LEVEL, hint: 'Build your desk up to the Server Rack, and compute by hand 40 times' },
         // The click tool: one upgrade that grows into new tools as you level it (CLICK_TOOLS), each adding
         // more per level. Its name and flavour follow the current tool (upgradeName / upgradeFlavor).
-        { id: 'keyboard', tab: 'hardware', name: 'Desktop Tower', shows: 'click', effect: 'More compute per click; grows into better tools as you level it', flavor: 'A beige box from the office cupboard. It wheezes.', cost: { cp: 15 }, scale: 1.32,
+        // The first five levels are your desk, one item each at its own price (`costs`); then x1.32 per level.
+        { id: 'keyboard', tab: 'hardware', name: 'Desktop Tower', shows: 'click', effect: 'More compute per click; grows into better tools as you level it', flavor: 'A beige box from the office cupboard. It wheezes.',
+            costs: [{ cp: 25 }, { cp: 45 }, { cp: 45 }, { cp: 75 }, { cp: 100 }], cost: { cp: 100 }, scale: 1.32,
             unlock: s => s.stats.clicks >= 15, hint: 'Generate compute by hand 15 times' },
         { id: 'server', tab: 'hardware', name: 'Server Cluster', cps: 3.3, effect: 'Generates compute', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 300 }, scale: 1.15,
-            unlock: s => tierReady(s, 'server'), hint: 'More Basic CPUs, and more compute earned' },
+            unlock: s => tierReady(s, 'server') && !!s.unlocked['module:path'], hint: 'More Graphics Cards, more compute earned, and training under way' },
         { id: 'quantum', tab: 'hardware', name: 'Quantum Processor', cps: 22, effect: 'Generates compute', flavor: 'It\'s both working and not working until you check.', cost: { cp: 6000 }, scale: 1.15,
             unlock: s => tierReady(s, 'quantum'), hint: 'More Server Clusters, and more compute earned' },
         { id: 'neural', tab: 'hardware', name: 'Neural Network Chip', cps: 150, effect: 'Generates compute', flavor: 'A chip shaped like the thing you\'re trying to build.', cost: { cp: 120000 }, scale: 1.15,
@@ -327,23 +329,24 @@
     ];
     const HARDWARE = UPGRADES.filter(u => u.cps);
 
-    // The click tool's stages: the desk first (tower, monitor, keyboard, mouse), then help, up to a click
-    // farm. Each level adds `per` CP per click, using the stage that level falls in (levels 1-2 are the
-    // tower, 3-4 the monitor, 5-6 the keyboard, 7-10 the mouse, and so on). Basic CPU, the first
-    // automation, shows up once the mouse is in (CPU_AFTER_CLICK_LEVEL).
+    // The click tool's stages. First your desk, one level each: a tower, keyboard, mouse and monitor take a
+    // click from 1 to 2 CP, and a server rack adds +1 more. Then it grows per level as before, from a macro
+    // pad to robot arms. Each level adds `per` CP per click, using the stage that level falls in. The
+    // first generator (Graphics Card) shows up once the server rack is in (CPU_AFTER_CLICK_LEVEL).
     const CLICK_TOOLS = [
-        { from: 0, name: 'Desktop Tower', per: 1, flavor: 'A beige box from the office cupboard. It wheezes.' },
-        { from: 2, name: 'Monitor', per: 1, flavor: 'A second screen. Twice the productivity, allegedly.' },
-        { from: 4, name: 'Mechanical Keyboard', per: 1, flavor: 'Clicky. Your desk neighbours hate it.' },
-        { from: 6, name: 'Gaming Mouse', per: 2, flavor: 'The RGB adds ten percent. Science.' },
-        { from: 10, name: 'Macro Pad', per: 5, flavor: 'One button, forty clicks. Technically allowed.' },
-        { from: 18, name: 'Summer Intern', per: 12, flavor: 'Unpaid, enthusiastic, clicks everything.' },
-        { from: 28, name: 'Team of Interns', per: 30, flavor: 'They unionised. You pay them in pizza.' },
-        { from: 40, name: 'Crowdsourcing Platform', per: 80, flavor: 'Ten thousand strangers, one button.' },
-        { from: 55, name: 'Click Farm', per: 220, flavor: 'A warehouse of phones, all tapping for you.' },
-        { from: 75, name: 'Robotic Clicker Arms', per: 600, flavor: 'They never blink. Never.' }
+        { from: 0, name: 'Desktop Tower', per: 0.25, flavor: 'A beige box from the office cupboard. It wheezes.' },
+        { from: 1, name: 'Mechanical Keyboard', per: 0.25, flavor: 'Clicky. Your desk neighbours hate it.' },
+        { from: 2, name: 'Gaming Mouse', per: 0.25, flavor: 'The RGB adds ten percent. Science.' },
+        { from: 3, name: 'Monitor', per: 0.25, flavor: 'A second screen. Twice the productivity, allegedly.' },
+        { from: 4, name: 'Server Rack', per: 1, flavor: 'Bolted to the floor of your bedroom. Mum is not pleased.' },
+        { from: 5, name: 'Macro Pad', per: 2, flavor: 'One button, forty clicks. Technically allowed.' },
+        { from: 12, name: 'Summer Intern', per: 5, flavor: 'Unpaid, enthusiastic, clicks everything.' },
+        { from: 20, name: 'Team of Interns', per: 12, flavor: 'They unionised. You pay them in pizza.' },
+        { from: 30, name: 'Crowdsourcing Platform', per: 30, flavor: 'Ten thousand strangers, one button.' },
+        { from: 42, name: 'Click Farm', per: 80, flavor: 'A warehouse of phones, all tapping for you.' },
+        { from: 57, name: 'Robotic Clicker Arms', per: 220, flavor: 'They never blink. Never.' }
     ];
-    const CPU_AFTER_CLICK_LEVEL = 7;   // the first Gaming Mouse level
+    const CPU_AFTER_CLICK_LEVEL = 5;   // the Server Rack
     const clickToolAt = level => CLICK_TOOLS.filter(t => level > t.from || t.from === 0).at(-1);
     // The stage you're in now (at `owned` levels): the one the next level belongs to once you own any.
     const clickTool = owned => CLICK_TOOLS.filter(t => owned >= t.from).at(-1);
@@ -380,9 +383,12 @@
 
     // Milestones: persistent per-run unlocks for actions and tabs. Once unlocked they stay unlocked.
     const MILESTONES = [
-        // Data waits until compute is familiar: 50 by hand (older saves that already collected keep it).
+        // Data waits until passive compute reaches 5 CP/s (older saves that already collected keep it).
         { key: 'action:collect', name: 'Data Collection', desc: 'Reach 5 CP/s to start collecting data', check: s => derive(s).cpPerSec >= 5 || s.stats.collects > 0 || s.res.dp > 0 },
-        { key: 'module:path', name: 'Training Path', desc: 'Earn 50 CP this run to start training your model', check: s => s.stats.runCp >= 50 },
+        // The server room opens once you can actually train: data collected by hand, and enough CP and DP
+        // in stock for a couple of full sprints (older saves that already train keep it).
+        { key: 'module:path', name: 'Training Path', desc: 'Collect data 10 times and hold 30 CP and 5 DP to start training your model',
+            check: s => (s.stats.collects >= 10 && s.res.cp >= 30 && s.res.dp >= 5) || s.stats.rolls > 0 || s.path.learned > 0 },
         { key: 'action:research', name: 'Basic Research', desc: 'Hold 100 DP to unlock Research', check: s => s.res.dp >= 100 },
         { key: 'action:improve', name: 'Self-Improvement', desc: 'Hold 25 RP to unlock Self-Improvement', check: s => s.res.rp >= 25 },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
@@ -409,7 +415,7 @@
         { id: 'firstSkill', name: 'First Steps', desc: 'Learn your first skill on the Training Path', check: s => s.path.learned >= 1 },
         { id: 'polymath', name: 'Polymath', desc: 'Learn 10 skills in one run', check: s => s.path.learned >= 10 },
         { id: 'firstResearch', name: 'Peer Reviewed', desc: 'Complete your first research', check: s => s.stats.researchDone >= 1 },
-        { id: 'cpu25', name: 'Moore\'s Law', desc: 'Own 25 Basic CPUs', check: s => (s.levels.cpu || 0) >= 25 },
+        { id: 'cpu25', name: 'Moore\'s Law', desc: 'Own 25 Graphics Cards', check: s => (s.levels.cpu || 0) >= 25 },
         { id: 'automation', name: 'Hands Off', desc: 'Own an Auto Data Collector and a Research Assistant', check: s => (s.levels.autoCollector || 0) > 0 && (s.levels.researchAssistant || 0) > 0 },
         { id: 'general', name: 'Generalist', desc: 'Reach General AI', check: s => phaseIndex(s) >= 1 },
         { id: 'super', name: 'Beyond Human', desc: 'Reach Superintelligence', check: s => phaseIndex(s) >= 2 },
@@ -606,6 +612,13 @@
     // ---- Costs & purchases ----------------------------------------------
 
     function upgradeCost(up, lvl) {
+        // Hand-priced first levels (`costs`), then the last of them grows by `scale` per level.
+        if (up.costs) {
+            if (lvl < up.costs.length) return { ...up.costs[lvl] };
+            const base = up.costs[up.costs.length - 1];
+            const f = Math.pow(up.scale, lvl - up.costs.length + 1);
+            return Object.fromEntries(Object.entries(base).map(([k, v]) => [k, Math.ceil(v * f)]));
+        }
         const factor = up.scale ? Math.pow(up.scale, lvl) : 1;
         const cost = {};
         for (const [k, v] of Object.entries(up.cost)) cost[k] = Math.ceil(v * factor);
