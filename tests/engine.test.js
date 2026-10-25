@@ -192,6 +192,20 @@ test('research waits for a good stretch of training, not a data stockpile', () =
     assert.equal(old.stats.skilledSprints, 80);
 });
 
+test('skill-tree nodes open only once their parent is maxed (older saves hide early reveals)', () => {
+    const s = fresh();
+    s.unlocked['module:path'] = true;
+    s.levels.initialWeights = 1;
+    s.levels.trainingOptimizer = 1;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.gpuCluster2), false, 'GPU Cluster has a level left');
+    s.levels.trainingOptimizer = 2;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.gpuCluster2), true);
+    const old = E.migrate({ version: 5, levels: { initialWeights: 1, trainingOptimizer: 1 }, unlocked: { 'module:path': true, 'up:gpuCluster2': true } });
+    assert.equal(!!old.unlocked['up:gpuCluster2'], false);
+});
+
 test('research stays open after the first version', () => {
     const s = fresh();
     s.prestige.count = 1;
@@ -601,8 +615,8 @@ test('luck is earned: the branch opens after two skills; crunches and Max Effort
     const s = fresh();
     s.unlocked['module:path'] = true;
     s.levels.initialWeights = 1;
-    s.levels.trainingOptimizer = 1;
-    s.levels.gpuCluster2 = 1;
+    s.levels.trainingOptimizer = 2;
+    s.levels.gpuCluster2 = 2;
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.scoutingData), false, 'hidden before the second skill');
     s.path.learned = 2;
@@ -780,9 +794,9 @@ test('versions: shipping one keeps Insight, legacy nodes and their effects; numb
     t.unlocked['module:path'] = true;
     E.evaluate(t);
     assert.equal(E.isUpgradeVisible(t, E.UPGRADE_BY_ID.headStart), false, 'needs its parent this run');
-    t.levels.trainingOptimizer = 1;
-    t.levels.gpuCluster2 = 1;
-    t.levels.gpuSupercluster = 1;
+    t.levels.trainingOptimizer = 2;
+    t.levels.gpuCluster2 = 2;
+    t.levels.gpuSupercluster = 3;
     E.evaluate(t);
     const before = E.derive(t).pushPower;
     assert.equal(E.buy(t, 'headStart').ok, true);

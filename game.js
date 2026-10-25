@@ -22,6 +22,8 @@ window.AGI = (function () {
         try { return localStorage.getItem(key); } catch { return null; }
     }
 
+    const MAP_MIN_KEY = 'agiMapMin';   // screen state: the minimap minimized to its pill
+
     function storageSet(key, value) {
         try { localStorage.setItem(key, value); return true; } catch { return false; }
     }
@@ -448,7 +450,7 @@ window.AGI = (function () {
         const after = key => {
             if (E.isMaxed(state, up)) return '';
             const next = E.derive({ ...state, levels: { ...state.levels, [up.id]: lvl + 1 } }, debugRates)[key];
-            return next > d[key] * 1.0001 ? ` → ${f(next, key === 'hardwareMult' || key.endsWith('PerSec') ? 2 : 1)}` : '';
+            return next > d[key] * 1.0001 ? ` → ${f(next, key === 'hardwareMult' || key.endsWith('PerSec') ? 2 : undefined)}` : '';
         };
         switch (up.shows) {
             case 'click': {
@@ -972,7 +974,7 @@ window.AGI = (function () {
         }
         for (const a of changes.achievements) {
             log(`Achievement unlocked: ${a.name}`, 'special');
-            if (!a.quiet) toast(`Achievement · ${a.name}`, a.desc, 'achievement');
+            toast(`Achievement · ${a.name}`, a.desc, 'achievement');
         }
         if (changes.phase) {
             log(`Phase transition! You have reached ${changes.phase.name}.`, 'special');
@@ -1643,6 +1645,24 @@ window.AGI = (function () {
             if (g && !g.classList.contains('sealed') && !g.classList.contains('building')) jumpTo(g.dataset.target);
         };
         nav.addEventListener('click', go);
+        // Open by default; the – button minimizes it to the pill (remembered), and hovering still opens it.
+        const min = nav.querySelector('.mm-min');
+        const setMin = on => {
+            nav.classList.toggle('min', on);
+            document.body.classList.toggle('mm-min', on);
+            min.textContent = on ? '+' : '–';
+            min.title = on ? 'Keep the map open' : 'Minimize';
+            min.setAttribute('aria-label', on ? 'Keep the map open' : 'Minimize the map');
+            min.setAttribute('aria-pressed', String(on));
+        };
+        setMin(storageGet(MAP_MIN_KEY) === '1');
+        min.addEventListener('click', e => {
+            e.stopPropagation();
+            const on = !nav.classList.contains('min');
+            setMin(on);
+            storageSet(MAP_MIN_KEY, on ? '1' : '0');
+            if (on) min.blur();
+        });
         // A small tooltip naming the room under the pointer (the blocks only carry short labels).
         const tip = el('span', { class: 'mm-tip', hidden: true });
         nav.append(tip);
@@ -2369,16 +2389,12 @@ window.AGI = (function () {
         vp.addEventListener('dblclick', e => { if (!e.target.closest('.tree-node, .tree-zoom')) resetTreeCam(); });
     }
 
-    // Node state: hidden (more than one step from anything buyable), locked (its parent isn't owned
-    // yet), owned, maxed, or available (affordable or not).
+    // Node state: hidden (its parent isn't maxed yet: what comes next shows only once a node is finished),
+    // owned, maxed, or available (affordable or not).
     function nodeState(up) {
         // Legacy nodes don't exist, not even as locks, until the first new version ships.
         if (up.legacy && !state.prestige.count && !E.level(state, up.id)) return 'hidden';
-        if (!E.isUpgradeVisible(state, up)) {
-            // Secrets never preview; the rest show as an unknown lock one step past what you can buy.
-            const parent = up.requires && E.UPGRADE_BY_ID[up.requires];
-            return up.secret || (parent && !E.isUpgradeVisible(state, parent)) ? 'hidden' : 'locked';
-        }
+        if (!E.isUpgradeVisible(state, up)) return 'hidden';
         if (E.isMaxed(state, up)) return 'maxed';
         const lvl = E.level(state, up.id);
         const affordable = E.canAfford(state, E.upgradeCost(up, lvl));
@@ -2408,7 +2424,7 @@ window.AGI = (function () {
             line.setAttribute('x2', up.tree.x * cell);
             line.setAttribute('y2', up.tree.y * cell);
             line.style.display = states[up.id] === 'hidden' ? 'none' : '';
-            const parentOwned = !up.requires || E.level(state, up.requires) > 0;
+            const parentOwned = !up.requires || E.isMaxed(state, E.UPGRADE_BY_ID[up.requires]);
             const owned = E.level(state, up.id) > 0;
             line.setAttribute('class', owned && parentOwned ? 'link-owned' : parentOwned ? 'link-open' : 'link-locked');
         }

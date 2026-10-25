@@ -168,10 +168,15 @@ test('engine: training upgrades are bought with XP and change the roll setup', (
     s.res.xp = 1000;
     for (const id of ['initialWeights', 'trainingEpochs', 'fasterIteration', 'trainingOptimizer']) {
         assert.equal(E.buy(s, id).ok, true, id);
-        E.evaluate(s);   // buying a node opens the ones that grow from it
+        E.evaluate(s);   // finishing a node opens the ones that grow from it
+        if (id === 'trainingEpochs') {
+            assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.fasterIteration), false, 'hidden until Investor Funding is maxed');
+            assert.equal(E.buy(s, id).ok, true);
+            E.evaluate(s);
+        }
     }
     const d = E.derive(s);
-    assert.equal(d.pushesPerRoll, 2);
+    assert.equal(d.pushesPerRoll, 3, "launch + two levels of Investor Funding");
     assert.ok(d.pushCooldown < base.pushCooldown);
     assert.ok(d.pushPower > base.pushPower);
     s.levels.fasterIteration = 12;
@@ -220,7 +225,7 @@ test('engine: the Auto-Trainer needs Faster Chips and a new version, costs Insig
     s.unlocked['module:path'] = true;
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.autoTrainer), false);
-    s.levels.fasterIteration = 1;
+    s.levels.fasterIteration = 2;
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.autoTrainer), false, 'still needs a new version');
     s.prestige.count = 1;
