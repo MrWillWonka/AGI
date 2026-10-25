@@ -742,7 +742,7 @@ window.AGI = (function () {
     let laneTimer = 0;
     function setLaneTimer(on) {
         clearInterval(laneTimer);
-        laneTimer = on ? setInterval(drawLanes, 80) : 0;
+        laneTimer = on ? setInterval(drawLanes, 50) : 0;
         if (on) requestAnimationFrame(drawLanes);
     }
 
@@ -2218,16 +2218,49 @@ window.AGI = (function () {
             let top = 0.05;
             for (let i = 0; i <= samples; i++) top = Math.max(top, roll.ground.height(from + (i / samples) * span));
             const y = hgt => h - 6 - (hgt / top) * (h - 16);
+            const pts = [];
+            for (let i = 0; i <= samples; i++) pts.push([(i / samples) * w, y(roll.ground.height(from + (i / samples) * span))]);
             ctx.beginPath();
             ctx.moveTo(0, h);
-            for (let i = 0; i <= samples; i++) ctx.lineTo((i / samples) * w, y(roll.ground.height(from + (i / samples) * span)));
+            for (const [px, py] of pts) ctx.lineTo(px, py);
             ctx.lineTo(w, h);
             ctx.closePath();
-            ctx.fillStyle = hexAlpha(c.success, 0.18);
+            ctx.fillStyle = hexAlpha(c.success, live ? 0.18 : 0.08);
             ctx.fill();
-            ctx.strokeStyle = c.success;
+            ctx.strokeStyle = live || reducedMotion() ? c.success : hexAlpha(c.success, 0.35);
             ctx.lineWidth = 1;
+            ctx.beginPath();
+            pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
             ctx.stroke();
+            if (!live && !reducedMotion()) {
+                // Monitor mode: a scan sweeps the stretch with a fading trail and a bright head riding the line.
+                const scan = ((performance.now() / 1000) / LANE_SCAN_SECONDS) % 1;
+                const head = scan * samples;
+                const tail = samples * 0.3;
+                ctx.lineWidth = 1.6;
+                ctx.shadowColor = c.success;
+                ctx.shadowBlur = 6;
+                for (let i = Math.max(1, Math.floor(head - tail)); i <= Math.min(samples, Math.ceil(head)); i++) {
+                    const alpha = Math.max(0, 1 - (head - i) / tail);
+                    ctx.strokeStyle = hexAlpha(c.success, alpha);
+                    ctx.beginPath();
+                    ctx.moveTo(pts[i - 1][0], pts[i - 1][1]);
+                    ctx.lineTo(pts[i][0], pts[i][1]);
+                    ctx.stroke();
+                }
+                const hi = Math.min(samples, Math.floor(head));
+                const f = head - hi;
+                const hx = pts[hi][0] + (pts[Math.min(samples, hi + 1)][0] - pts[hi][0]) * f;
+                const hy = pts[hi][1] + (pts[Math.min(samples, hi + 1)][1] - pts[hi][1]) * f;
+                ctx.fillStyle = c.text;
+                ctx.beginPath();
+                ctx.arc(hx, hy, 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                // Faint vertical scan line.
+                ctx.fillStyle = hexAlpha(c.success, 0.12);
+                ctx.fillRect(hx - 1, 0, 2, h);
+            }
             if (live) {
                 const by = y(roll.ground.height(roll.ball.x));
                 ctx.fillStyle = c.accent;
@@ -2251,6 +2284,8 @@ window.AGI = (function () {
             ctx.fillRect(0, h - 2, w * (live ? roll.progress : state.path.best), 2);
         }
     }
+
+    const LANE_SCAN_SECONDS = 4;   // one sweep of the monitor across the stretch (before automation)
 
     // A cleared stretch training itself: its whole terrain, with a ball crawling along it on a loop.
     const clearedTerrains = new Map();
