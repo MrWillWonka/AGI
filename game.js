@@ -264,7 +264,9 @@ window.AGI = (function () {
             const st = STATIONS[tab.id];
             const art = el('div', { class: 'station-art', 'aria-hidden': 'true' });
             const list = el('div', { class: 'station-list' });
-            const more = el('span', { class: 'station-more', 'aria-hidden': 'true', text: '▾ more below', hidden: true });
+            // "▾ N more": how many cards sit below the fold; clicking scrolls to them.
+            const more = el('button', { type: 'button', class: 'station-more', text: '▾ more below', hidden: true });
+            more.addEventListener('click', () => list.scrollBy({ top: list.clientHeight * 0.8, behavior: reducedMotion() ? 'auto' : 'smooth' }));
             const node = el('section', { class: `panel hud station station-${st.kind}`, 'aria-label': st.name, 'data-slot': slot, hidden: true }, [
                 el('h2', { class: 'station-title', text: st.name }), art, list, more
             ]);
@@ -338,7 +340,13 @@ window.AGI = (function () {
                 st.order = order;
             }
             const l = st.list;
-            setHidden(st.more, !(l.scrollHeight - l.scrollTop - l.clientHeight > 8));
+            const overflowing = l.scrollHeight - l.scrollTop - l.clientHeight > 8;
+            setHidden(st.more, !overflowing);
+            if (overflowing) {
+                const bottom = l.getBoundingClientRect().bottom;
+                const below = [...l.querySelectorAll('.upgrade:not([hidden])')].filter(c => c.getBoundingClientRect().bottom > bottom + 1).length;
+                setText(st.more, below ? `▾ ${below} more` : '▾ more below');
+            }
         }
         renderCabinets();
     }
