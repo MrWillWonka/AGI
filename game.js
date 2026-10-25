@@ -824,7 +824,7 @@ window.AGI = (function () {
             // Once the desk has its monitor (click tool level 4), point out that jobs can be held down.
             if (id === 'keyboard' && E.level(state, id) >= 4 && !state.unlocked['hint:hold']) {
                 state.unlocked['hint:hold'] = true;
-                callout('hint:hold', 'Tip', 'Hold down any job to keep it going.');
+                callout('hint:hold', 'Tip', 'Holding down a job generates resources at a set rate.');
             }
             afterChange();
         }
