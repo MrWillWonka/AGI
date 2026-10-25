@@ -143,10 +143,17 @@ test('phases require every attribute minimum and never skip', () => {
     assert.equal(E.phaseIndex(s), 0);
     s.attr.intelligence = 1e6;
     assert.equal(E.phaseIndex(s), 1, 'intelligence alone cannot pass General AI');
-    assert.equal(E.phaseProgress(s), 1 / 3 + 0);
+    assert.equal(E.phaseProgress(s), 1 / 4, "Int done; Cre, Awa and versions not");
     s.attr.creativity = 5;
     s.attr.awareness = 5;
+    assert.equal(E.phaseIndex(s), 1, 'Superintelligence also needs a shipped version');
+    s.prestige.count = 1;
     assert.equal(E.phaseIndex(s), 2);
+    s.attr = { intelligence: 1e6, creativity: 1e6, awareness: 1e6 };
+    assert.equal(E.phaseIndex(s), 2, 'the Singularity needs three versions');
+    s.prestige.count = 3;
+    assert.equal(E.phaseIndex(s), 3);
+    s.prestige.count = 0;
     s.attr = { intelligence: 50, creativity: 0, awareness: 0 };
     const changes = E.evaluate(s);
     assert.equal(changes.phase.name, 'General AI');
@@ -183,6 +190,13 @@ test('research waits for a good stretch of training, not a data stockpile', () =
     // Older saves past the first skill estimate their sprints from their runs.
     const old = E.migrate({ version: 5, stats: { rolls: 40 }, path: { learned: 2 } });
     assert.equal(old.stats.skilledSprints, 80);
+});
+
+test('research stays open after the first version', () => {
+    const s = fresh();
+    s.prestige.count = 1;
+    E.evaluate(s);
+    assert.equal(s.unlocked['action:research'], true);
 });
 
 test('tick produces resources over time', () => {

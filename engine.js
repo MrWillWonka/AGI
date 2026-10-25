@@ -86,11 +86,12 @@
 
     // Phase is derived from attributes (never stored as a transition chain), so it can't skip or double-fire.
     // Each phase needs every listed attribute minimum; requirements only grow from phase to phase.
+    // General AI is the first run's goal; the later phases also need shipped versions (`versions`).
     const PHASES = [
         { name: 'Narrow AI', req: {} },
         { name: 'General AI', req: { intelligence: 25 } },
-        { name: 'Superintelligence', req: { intelligence: 100, creativity: 5, awareness: 5 } },
-        { name: 'Singularity', req: { intelligence: 300, creativity: 30, awareness: 30 } }
+        { name: 'Superintelligence', req: { intelligence: 100, creativity: 5, awareness: 5 }, versions: 1 },
+        { name: 'Singularity', req: { intelligence: 300, creativity: 30, awareness: 30 }, versions: 3 }
     ];
 
     // Manual actions. `unlock` is the unlock key that reveals the action (null = always visible).
@@ -374,10 +375,10 @@
 
     // Skill-tree branch names, by the direction they grow from the Training Core.
     const TREE_BRANCHES = [
-        { name: 'Power', dir: 'up', blurb: 'Stronger sprints, breakthroughs, Max Effort' },
-        { name: 'Precision', dir: 'right', blurb: 'XP, prompts and viral runs' },
-        { name: 'Recursion', dir: 'down', blurb: 'More sprints, less wait, crunches' },
-        { name: 'Momentum', dir: 'left', blurb: 'Less drag, lower hills, flow' }
+        { name: 'Power', dir: 'up' },
+        { name: 'Precision', dir: 'right' },
+        { name: 'Recursion', dir: 'down' },
+        { name: 'Momentum', dir: 'left' }
     ];
 
     // Milestones: persistent per-run unlocks for actions and tabs. Once unlocked they stay unlocked.
@@ -393,7 +394,7 @@
         // (and with them the road to the next version).
         { key: 'action:research', name: 'Basic Research', desc: `Learn a skill, then run ${RESEARCH_SPRINTS} training sprints to unlock Research`,
             callout: ['Research funded', 'Investors are watching. Bigger projects lead to the next version.'],
-            check: s => s.stats.skilledSprints >= RESEARCH_SPRINTS || s.stats.researchDone > 0 },
+            check: s => s.stats.skilledSprints >= RESEARCH_SPRINTS || s.stats.researchDone > 0 || s.prestige.count > 0 },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }
     ];
@@ -597,7 +598,7 @@
     }
 
     function meetsPhase(s, phase) {
-        return Object.entries(phase.req).every(([k, v]) => s.attr[k] >= v);
+        return s.prestige.count >= (phase.versions || 0) && Object.entries(phase.req).every(([k, v]) => s.attr[k] >= v);
     }
 
     function phaseIndex(s) {
@@ -611,6 +612,7 @@
         const next = PHASES[phaseIndex(s) + 1];
         if (!next) return 1;
         const parts = Object.entries(next.req).map(([k, v]) => Math.min(1, s.attr[k] / v));
+        if (next.versions) parts.push(Math.min(1, s.prestige.count / next.versions));
         return parts.reduce((a, b) => a + b, 0) / parts.length;
     }
 

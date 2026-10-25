@@ -442,8 +442,7 @@ window.AGI = (function () {
         const f = E.format;
         if (up.cps) {
             const r = d.hardwareRates[up.id];
-            const next = r.nextDoubling ? ` · ×2 at ${r.nextDoubling}` : '';
-            return `+${f(r.each)} CP/s each${next}`;
+            return `+${f(r.each)} CP/s each`;
         }
         // What the next level would make it, for the one number this card changes.
         const after = key => {
@@ -453,7 +452,6 @@ window.AGI = (function () {
         };
         switch (up.shows) {
             case 'click': {
-                const next = up.id === 'keyboard' ? E.nextClickTool(lvl) : null;
                 // The desk adds a quarter CP per item, so keep two decimals whenever whole numbers would hide
                 // the change ("14 → 14").
                 const now = d.clickPower;
@@ -461,8 +459,7 @@ window.AGI = (function () {
                 const fine = (now < 10 && now % 1) || (nxt !== null && nxt < 1000 && Math.floor(nxt) === Math.floor(now));
                 const c = x => f(x, fine ? 2 : undefined);
                 const later = nxt === null ? '' : ` → ${c(nxt)}`;
-                const then = !next ? '' : next.from === lvl + 1 ? ` · then ${next.name}` : ` · ${next.name} at level ${next.from + 1}`;
-                return `Click: ${c(now)}${later} CP${then}`;
+                return `Click: ${c(now)}${later} CP`;
             }
             case 'collect': return `Collect: ${f(d.dpPerCollect)}${after('dpPerCollect')} DP`;
             case 'research': return `Research: ${f(d.rpPerResearch)}${after('rpPerResearch')} RP`;
@@ -531,7 +528,7 @@ window.AGI = (function () {
             // Hardware: the piece you're buying, as it will sit in the server cabinets.
             const part = HW_PIECES[up.id];
             const side = part ? el('div', { class: 'upgrade-side' }, [
-                el('div', { class: 'upgrade-part', 'aria-hidden': 'true', title: `In the cabinets: ${part.steps[0][0]} bought in a row merge into a ${part.steps[0][1]}×${part.steps[0][2]} ${part.names[1]}` }, [
+                el('div', { class: 'upgrade-part', 'aria-hidden': 'true' }, [
                     el('span', { class: `hw hw-${up.id} t1`, style: `--w:${part.steps[0][1]};--h:${part.steps[0][2]}` }, [el('i'), el('b')])
                 ]),
                 button
@@ -541,8 +538,9 @@ window.AGI = (function () {
             const card = el('article', { class: 'upgrade', hidden: true, 'data-id': up.id }, [
                 el('div', { class: 'upgrade-info' }, [
                     el('h3', {}, [nameNode, document.createTextNode(' '), levelBadge]),
-                    // Hardware's live line says what it makes, so it needs no description.
-                    up.cps ? null : el('p', { class: 'muted small', text: up.effect }),
+                    // The live line already says what hardware and most cards do; only cards whose line can't
+                    // (attribute grants) keep their effect text.
+                    up.cps || (up.shows && !up.grants) ? null : el('p', { class: 'muted small', text: up.effect }),
                     yieldLine
                 ]),
                 side
@@ -741,7 +739,7 @@ window.AGI = (function () {
 
     function buildChecklists() {
         for (const m of E.MILESTONES) {
-            const item = el('li', {}, [el('strong', { text: m.name }), el('span', { class: 'muted small', text: m.desc })]);
+            const item = el('li', {}, [el('strong', { text: '???' }), el('span', { class: 'muted small' })]);
             $('milestones').append(item);
             ui.milestones[m.key] = item;
         }
@@ -855,7 +853,7 @@ window.AGI = (function () {
         const name = E.versionName(next.major, next.minor);
         const { ok } = await openDialog({
             title: `Ship ${name} for ${gain} Insight?`,
-            message: `This run's resources, attributes, skills and upgrades reset. You keep Insight (+10% production each, and it buys legacy nodes in the skill tree), legacy nodes and achievements.${next.isMajor ? '' : ' A bigger jump in Insight would make it a major version.'}`,
+            message: `This run's resources, attributes, skills and upgrades reset. You keep Insight (+10% production each, and it buys legacy nodes in the skill tree), legacy nodes and achievements.`,
             okLabel: `Ship ${name}`
         });
         if (ok) shipVersion(false);
@@ -1113,11 +1111,8 @@ window.AGI = (function () {
                 const cp = f(d.cpNet + handRate('cp'));
                 return state.unlocked['seen:dp'] ? `${cp} CP · ${f(d.dpNet + handRate('dp'))} DP /s` : `${cp} CP/s`;
             }
-            case 'goal.lab': return goalFor('lab');
-            case 'goal.servers': return goalFor('servers');
             case 'goal.bay': return goalFor('bay');
             case 'goal.rnd': return goalFor('rnd');
-            case 'goal.facility': return goalFor('facility');
             case 'stats.playClock': {
                 const t = Math.floor(state.stats.playTime);
                 return [t / 3600, (t % 3600) / 60, t % 60].map(n => String(Math.floor(n)).padStart(2, '0')).join(':');
@@ -1129,11 +1124,7 @@ window.AGI = (function () {
             case 'mult': return `×${d.mult.toFixed(2)}`;
             case 'phase.name': return E.PHASES[E.phaseIndex(state)].name;
             case 'phase.next': {
-                const idx = E.phaseIndex(state);
-                const next = E.PHASES[idx + 1];
-                if (!next) return 'You have reached the final phase. Ship the next version to grow stronger.';
-                const reqs = Object.entries(next.req).map(([k, v]) => `${E.ATTRIBUTES[k].short} ${f(Math.min(state.attr[k], v), 1)}/${v}`);
-                return `Next: ${next.name} (${reqs.join(' · ')})`;
+                return E.PHASES[E.phaseIndex(state)].name;
             }
             case 'prestige.points': return f(state.prestige.points);
             case 'prestige.gain': return f(E.prestigeGain(state));
@@ -1210,7 +1201,16 @@ window.AGI = (function () {
         }
         for (const tab of E.TABS) setHidden(ui.panels[tab.id].emptyHint, !!visibleCount[tab.id]);
 
-        for (const [key, item] of Object.entries(ui.milestones)) item.classList.toggle('done', !!state.unlocked[key]);
+        // Milestones say what they were only once reached (no recipes up front).
+        for (const [key, item] of Object.entries(ui.milestones)) {
+            const done = !!state.unlocked[key];
+            if (item.classList.contains('done') === done && item.dataset.filled) continue;
+            item.dataset.filled = '1';
+            item.classList.toggle('done', done);
+            const m = E.MILESTONES.find(x => x.key === key);
+            item.firstChild.textContent = done ? m.name : '???';
+            item.lastChild.textContent = done ? m.desc : '';
+        }
         for (const [id, item] of Object.entries(ui.achievements)) item.classList.toggle('done', !!state.achievements[id]);
 
         setDisabled($('prestigeButton'), E.prestigeGain(state) < 1);
@@ -1250,36 +1250,16 @@ window.AGI = (function () {
         }
     }
 
-    // Each screen's bar names its own next unlock (never what a sealed thing is).
-    const phaseReqs = phase => Object.entries(phase.req).filter(([k, v]) => state.attr[k] < v)
-        .map(([k, v]) => `${E.ATTRIBUTES[k].short} ${E.format(state.attr[k], 1)}/${v}`).join(', ');
-
+    // Title bars keep to status (the run's next skill and record, a version ready to ship); they never say
+    // how to unlock things: players find out by playing.
     function goalFor(place) {
-        if (place === 'lab') {
-            const m = E.MILESTONES.find(x => !state.unlocked[x.key]);
-            return m ? `Next: ${m.desc}` : '';
-        }
-        if (place === 'servers') {
-            const id = nextSealedBay();
-            if (!id || BAYS[id].phase == null) return '';
-            const phase = E.PHASES[BAYS[id].phase];
-            return `Sealed bay opens at ${phase.name} · ${phaseReqs(phase)}`;
-        }
         if (place === 'bay') {
             const k = E.skillAt(state.path.learned);
             return `Next skill: ${k.name} · best run ${Math.round(state.path.best * 100)}%`;
         }
         if (place === 'rnd') {
             const gain = E.prestigeGain(state);
-            return gain >= 1 ? `Ship the next version for +${E.format(gain)} Insight` : `Shipping needs ${E.PRESTIGE_MIN_INTELLIGENCE} Intelligence`;
-        }
-        if (place === 'facility') {
-            const id = Object.keys(ROOMS).find(r => !roomUnlocked(r));
-            if (!id) return '';
-            if (id === 'servers') return `A sealed wing opens once you collect data · ${Math.min(10, state.stats.collects)}/10`;
-            if (id === 'rnd') return `A sealed wing opens at ${E.PRESTIGE_MIN_INTELLIGENCE} Intelligence · ${E.format(state.attr.intelligence, 1)}/${E.PRESTIGE_MIN_INTELLIGENCE}`;
-            const phase = E.PHASES[ROOMS[id].phase];
-            return `A sealed wing opens at ${phase.name} · ${phaseReqs(phase)}`;
+            return gain >= 1 ? `Ship the next version for +${E.format(gain)} Insight` : '';
         }
         return '';
     }
@@ -1289,13 +1269,13 @@ window.AGI = (function () {
     // The facility is the zoomed-out floor plan; each room is a tile you zoom into. Like the bays,
     // rooms are data: a new room is an entry here plus a `.room[data-room=id]` section (built: true).
     const ROOMS = {
-        lab: { name: 'Lab', built: true, blurb: 'Hands-on work, automation and upgrades' },
-        servers: { name: 'Server room', built: true, blurb: 'Training bays', unlocked: () => !!state.unlocked['module:path'] },
-        rnd: { name: 'R&D', built: true, blurb: 'Long-term projects that outlast a run',
+        lab: { name: 'Lab', built: true },
+        servers: { name: 'Server room', built: true, unlocked: () => !!state.unlocked['module:path'] },
+        rnd: { name: 'R&D', built: true,
             unlocked: () => E.prestigeGain(state) >= 1 || state.prestige.count > 0 },
-        boardroom: { name: 'Boardroom', phase: 1, blurb: 'Investors, the public and regulators' },
-        signals: { name: 'Signals room', phase: 2, blurb: 'Watching the rival labs' },
-        mirror: { name: 'Mirror room', phase: 3, blurb: 'Where the AI studies itself' }
+        boardroom: { name: 'Boardroom', phase: 1 },
+        signals: { name: 'Signals room', phase: 2 },
+        mirror: { name: 'Mirror room', phase: 3 }
     };
     const VIEW_KEY = 'agiRoom';
     const SEEN_KEY = 'agiRoomsSeen';
@@ -1324,7 +1304,7 @@ window.AGI = (function () {
             const learned = state.path.learned;
             return `${learned} skill${learned === 1 ? '' : 's'} · ${E.format(state.res.xp, 1)} XP to spend`;
         }
-        return r.blurb;
+        return '';
     }
 
     // Security cameras: an open room's tile shows a live, scaled-down copy of the room itself, so
@@ -1413,7 +1393,7 @@ window.AGI = (function () {
                 art, cam,
                 el('span', { class: 'fr-info' }, [
                     el('span', { class: 'fr-name', text: r.name }),
-                    el('span', { class: 'fr-blurb', text: r.blurb }),
+                    el('span', { class: 'fr-blurb' }),
                     el('span', { class: 'fr-status' })
                 ]),
                 el('span', { class: 'fr-new', text: 'New' })
@@ -1446,7 +1426,7 @@ window.AGI = (function () {
             if (sealed) sealedShown++;
             setHidden(tile, !unlocked && !sealed);
             setText(tile.querySelector('.fr-name'), unlocked ? ROOMS[id].name : '???');
-            setText(tile.querySelector('.fr-blurb'), unlocked ? ROOMS[id].blurb : 'Sealed wing');
+            setText(tile.querySelector('.fr-blurb'), unlocked ? '' : 'Sealed wing');
             tile.classList.toggle('locked', !unlocked);
             tile.classList.toggle('building', roomUnlocked(id) && !ROOMS[id].built);
             tile.classList.toggle('fresh', isNew);
@@ -1736,7 +1716,7 @@ window.AGI = (function () {
                 });
                 const task = E.PROJECT_TASKS[o.task].text(o.target);
                 const reward = E.PROJECT_REWARDS[o.reward].text;
-                return el('li', { class: `offer${done ? ' done' : ''}`, 'data-id': o.id, title: `${task}. Reward: ${reward}` }, [
+                return el('li', { class: `offer${done ? ' done' : ''}`, 'data-id': o.id }, [
                     el('span', { class: 'project-reward', text: reward }),
                     el('span', { class: 'project-task', text: task }),
                     el('span', { class: 'project-bar' }, [el('span', { class: 'project-fill' })]),
@@ -2009,7 +1989,7 @@ window.AGI = (function () {
     // Bays in the server room. Each is a training module; only the Training Cluster is built so far.
     const BAYS = {
         training: { name: 'Training Cluster', built: true, unlocked: () => !!state.unlocked['module:path'],
-            lockedText: () => 'Locked · collect data to power it up' },
+            lockedText: () => 'Locked' },
         pipeline: { name: 'Data Pipeline', phase: 1 },
         architecture: { name: 'Architecture Lab', phase: 2 },
         core: { name: 'The Core', phase: 3 }
@@ -2028,7 +2008,7 @@ window.AGI = (function () {
 
     function bayStatus(id) {
         const bay = BAYS[id];
-        if (!bayUnlocked(id)) return id === 'training' && bay.lockedText ? bay.lockedText() : 'Sealed · keep growing to open it';
+        if (!bayUnlocked(id)) return id === 'training' && bay.lockedText ? bay.lockedText() : 'Sealed';
         if (!bay.built) return 'Online soon · in development';
         const learned = state.path.learned;
         const record = Math.round(state.path.best * 100);
@@ -2056,7 +2036,7 @@ window.AGI = (function () {
             const k = state.path.learned - i;
             art.append(el('canvas', { class: 'lane cleared', 'data-lane': i, 'data-leg': k, title: `Replay from ${E.skillAt(k).name}` }));
         }
-        art.append(el('canvas', { class: 'lane', 'data-lane': 0, title: 'The frontier: your next skill' }));
+        art.append(el('canvas', { class: 'lane', 'data-lane': 0, title: 'The frontier' }));
         for (let i = 0; i < BAY_ART.training - 3 - 2 * cleared; i++) art.append(el('i'));
         art.dataset.cleared = cleared;
         art.dataset.learned = state.path.learned;
@@ -2122,7 +2102,7 @@ window.AGI = (function () {
             if (id === 'training') showTrainingView(state.stats.rolls > 0 && !(path.roll && path.roll.launched && !path.roll.over) ? 'dev' : 'run');
         } else {
             document.querySelector('.module[data-module="soon"]').hidden = false;
-            setText($('soonText'), `The ${bay.name} is being built. It will be the hands-on module for the ${E.PHASES[bay.phase].name} phase.`);
+            setText($('soonText'), 'Being built.');
         }
         const hub = $('hub');
         const view = $('moduleView');
@@ -2227,8 +2207,8 @@ window.AGI = (function () {
 
         // Compass labels sit on the view's edges, not in the tree, so they stay put while you pan.
         for (const branch of E.TREE_BRANCHES) {
-            $('treeViewport').append(el('div', { class: `tree-branch tree-branch-${branch.dir}`, title: branch.blurb }, [
-                el('strong', { text: branch.name }), el('span', { text: branch.blurb })
+            $('treeViewport').append(el('div', { class: `tree-branch tree-branch-${branch.dir}` }, [
+                el('strong', { text: branch.name })
             ]));
         }
 
@@ -2800,7 +2780,7 @@ window.AGI = (function () {
         if (path.charging) return;
         if (!canPush(roll)) {
             if (!roll.over && roll.pushesLeft > 0 && chargeBudget() < E.PATH.minCharge) {
-                setText($('pathStatus'), `Not enough to sprint: even a light training sprint costs ${E.formatCost(E.pushCost(state, E.PATH.minCharge, ballLeg()))}.`);
+                setText($('pathStatus'), `Not enough to sprint: ${E.formatCost(E.pushCost(state, E.PATH.minCharge, ballLeg()))}`);
             }
             return;
         }
@@ -2908,7 +2888,7 @@ window.AGI = (function () {
         if (!free) {
             fraction = Math.min(fraction, chargeBudget());
             if (fraction < E.PATH.minCharge || !E.payPush(state, fraction, leg)) {
-                if (!auto) setText($('pathStatus'), `Not enough to sprint: even a light training sprint costs ${E.formatCost(E.pushCost(state, E.PATH.minCharge, leg))}.`);
+                if (!auto) setText($('pathStatus'), `Not enough to sprint: ${E.formatCost(E.pushCost(state, E.PATH.minCharge, leg))}`);
                 return false;
             }
         }
@@ -4328,6 +4308,7 @@ window.AGI = (function () {
             // Learn skills until the given phase is reached (attributes topped up if skills aren't enough).
             reachPhase(index) {
                 const phase = E.PHASES[index];
+                state.prestige.count = Math.max(state.prestige.count, phase.versions || 0);   // later phases need shipped versions
                 for (let i = 0; i < 40 && E.phaseIndex(state) < index; i++) E.learnSkill(state, state.path.learned);
                 for (const [k, v] of Object.entries(phase.req)) state.attr[k] = Math.max(state.attr[k], v);
                 Object.assign(path, { roll: null, done: false });
