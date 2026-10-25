@@ -290,7 +290,7 @@ window.AGI = (function () {
             // Hardware: the part you're buying, as it will sit in the server cabinet.
             const part = HARDWARE_UNITS[up.id];
             const side = part ? el('div', { class: 'upgrade-side' }, [
-                el('div', { class: 'upgrade-part', 'aria-hidden': 'true' }, [
+                el('div', { class: 'upgrade-part', 'aria-hidden': 'true', title: `The rack part: ${part.size}U, one per ${part.per === 1 ? 'level' : `${part.per} levels`}` }, [
                     el('span', { class: `unit unit-${up.id}`, style: `--u:${part.size}` }),
                     el('span', { class: 'upgrade-part-label', text: `${part.size}U · ${part.per === 1 ? 'every level' : `every ${part.per} levels`}` })
                 ]),
