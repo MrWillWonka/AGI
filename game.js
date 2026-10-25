@@ -943,6 +943,7 @@ window.AGI = (function () {
         seenRooms = new Set(['lab']);
         storageSet(SEEN_KEY, '[]');
         storageSet(TREE_CAM_KEY, '');
+        treeCamFresh = true;
         Object.assign(treeCam, { x: 0, y: 0, z: 1 });
         $('skillTree').style.transform = '';
         cabinetKey = null;
@@ -2262,10 +2263,11 @@ window.AGI = (function () {
     // ---- Skill tree camera: drag to pan, wheel / pinch / buttons to zoom ----
 
     const treeCam = { x: 0, y: 0, z: 1, pointers: new Map(), drag: null, moved: false };
-    const TREE_ZOOM = { min: 0.5, max: 2.5, step: 1.25 };
+    const TREE_ZOOM = { min: 0.5, max: 2.5, step: 1.25, start: 1.4 };   // start: the default view, zoomed in on the core
 
     // The view (pan and zoom) is remembered between visits and sessions.
-    const TREE_CAM_KEY = 'agiTreeCam';
+    const TREE_CAM_KEY = 'agiTreeCam2';   // 2: the default view became closer, so older saved views are dropped
+    let treeCamFresh = true;            // no saved view yet: set the default once the tree is on screen
     let treeCamSave = 0;
 
     function applyTreeCam() {
@@ -2280,6 +2282,7 @@ window.AGI = (function () {
             const v = JSON.parse(storageGet(TREE_CAM_KEY) || 'null');
             if (v && [v.x, v.y, v.z].every(Number.isFinite)) {
                 Object.assign(treeCam, { x: v.x, y: v.y, z: Math.min(TREE_ZOOM.max, Math.max(TREE_ZOOM.min, v.z)) });
+                treeCamFresh = false;
             }
         } catch { /* keep the default view */ }
         $('skillTree').style.transform = `translate(${treeCam.x}px, ${treeCam.y}px) scale(${treeCam.z})`;
@@ -2299,9 +2302,11 @@ window.AGI = (function () {
         applyTreeCam();
     }
 
+    // The default view: zoomed in a little (TREE_ZOOM.start) about the centre, where the core sits.
     function resetTreeCam() {
+        const vp = $('treeViewport');
         Object.assign(treeCam, { x: 0, y: 0, z: 1 });
-        applyTreeCam();
+        zoomTreeAt(TREE_ZOOM.start, vp.clientWidth / 2, vp.clientHeight / 2);
     }
 
     // Pointer position inside the viewport, in page pixels (the page may be zoomed on large screens).
@@ -2402,6 +2407,11 @@ window.AGI = (function () {
 
     function renderTree() {
         if (!treeUi.built) return;
+        // First look at the tree (no saved view): start zoomed in on the core, once it has a size.
+        if (treeCamFresh && $('treeViewport').clientWidth) {
+            treeCamFresh = false;
+            resetTreeCam();
+        }
         const states = Object.fromEntries(treeNodes().map(up => [up.id, nodeState(up)]));
         const shown = treeNodes().filter(up => states[up.id] !== 'hidden');
         const cell = treeCell();
