@@ -611,6 +611,17 @@ test('the sweet spot widens only a little (Prompt Templates); hitting it makes t
     assert.ok(clean > 1.15 * plain && perfect > 1.3 * clean, `${plain} ${clean} ${perfect}`);
 });
 
+test('no two nodes growing from the same node upgrade the same thing', () => {
+    const kids = {};
+    for (const up of E.UPGRADES.filter(u => u.tab === 'training' && u.requires)) (kids[up.requires] ||= []).push(up);
+    for (const list of Object.values(kids)) {
+        for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+            const same = Object.keys(list[i].boost || {}).filter(k => k in (list[j].boost || {}));
+            assert.deepEqual(same, [], `${list[i].name} & ${list[j].name}`);
+        }
+    }
+});
+
 test('no skill-tree node upgrades the same thing as the node it grows from', () => {
     for (const up of E.UPGRADES.filter(u => u.tab === 'training' && u.requires)) {
         const parent = Object.keys(E.UPGRADE_BY_ID[up.requires].boost || {});
@@ -623,7 +634,7 @@ test('Fast Charging speeds up the meter', () => {
     const s = fresh();
     assert.equal(E.derive(s).sweepScale, 1);
     s.levels.gpuCluster2 = 2;
-    s.levels.batchNorm = 1;
+    s.levels.warmRestarts = 1;
     assert.ok(E.derive(s).sweepScale < 0.7);
 });
 
@@ -842,7 +853,7 @@ test('legacy nodes stay hidden until the first new version, and old saves move t
     const old = E.migrate({ version: 4, levels: { autoTrainer: 2, flowState: 2 }, prestige: { points: 1, total: 1, count: 1 } }, NOW);
     assert.equal(old.prestige.levels.autoTrainer, 2);
     assert.equal(old.levels.autoTrainer, undefined);
-    assert.equal(old.levels.maxEffort, 2, 'the old Flow State (next sprint perfect) is Max Effort now');
+    assert.equal(old.levels.maxEffort, 1, 'the old Flow State (next sprint perfect) is Max Effort now (capped at its one level)');
     assert.equal(E.level(old, 'flowState'), 0);
     assert.equal(old.prestige.major, 2);
 });
