@@ -1211,6 +1211,30 @@ h1, h2, h3, p { margin: 0; }
 .toast span { font-weight: 600; }
 .toast.show { opacity: 1; transform: none; }
 
+/* Callouts: an icon badge, an accent per kind and a sweep of light as they land, so they read as
+   moments (achievements, skills, rooms, phases, versions) rather than pings. */
+.toast { --accent: var(--success); flex-direction: row; align-items: center; gap: 12px; min-width: 300px; padding: 12px 18px 12px 12px; position: relative; overflow: hidden;
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); border-left-color: var(--accent);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 14%, var(--panel)), var(--panel) 70%);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 22px color-mix(in srgb, var(--accent) 22%, transparent);
+    transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.2, 1.3, 0.4, 1); }
+.toast::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--accent) 35%, transparent) 50%, transparent 70%); transform: translateX(-100%); }
+.toast.show::after { animation: toast-sweep 1.1s 0.15s ease-out both; }
+@keyframes toast-sweep { to { transform: translateX(100%); } }
+.toast-icon { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-style: normal; font-size: 1.05rem; color: var(--accent);
+    border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent); }
+.toast-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.toast strong { color: var(--accent); }
+.toast-achievement { --accent: #ffd27a; }
+.toast-skill { --accent: var(--success); }
+.toast-room { --accent: #6fb3ff; }
+.toast-version { --accent: #c792ea; }
+.toast-phase { --accent: #ffd27a; min-width: 360px; padding: 16px 22px 16px 16px; }
+.toast-phase strong { font-size: 0.9rem; }
+.toast-phase .toast-icon { width: 42px; height: 42px; font-size: 1.3rem; }
+@media (prefers-reduced-motion: reduce) { .toast.show::after { animation: none; } }
+
 .float-gain {
     position: absolute;
     transform: translateX(-50%);

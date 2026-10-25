@@ -6,8 +6,7 @@ window.AGI = (function () {
     const SAVE_KEY = 'agiGame';
     const TICK_MS = 100;
     const AUTOSAVE_MS = 30000;
-    const HOLD_DELAY_MS = 400;
-    const HOLD_REPEAT_MS = 550;       // holding a job repeats it at under 2 clicks a second (a comfort option, not a turbo)
+    const HOLD_REPEAT_MS = 400;       // holding a job repeats it at 2.5 clicks a second (a comfort option, not a turbo)
     const LOG_LIMIT = 60;
 
     let state;
@@ -165,16 +164,29 @@ window.AGI = (function () {
         while (list.children.length > LOG_LIMIT) list.lastChild.remove();
     }
 
-    function toast(title, message) {
-        const box = el('div', { class: 'toast', role: 'status' }, [el('strong', { text: title }), el('span', { text: message })]);
+    // Notifications are callouts, not pings: only things worth stopping for (an achievement, a skill learned
+    // while you're elsewhere, a new room, a phase, a shipped version). Routine events go to the log.
+    const TOAST_KINDS = {
+        achievement: { icon: '★', ms: 5500 },
+        skill: { icon: '◆', ms: 5500 },
+        room: { icon: '⌂', ms: 6000 },
+        phase: { icon: '▲', ms: 7500 },
+        version: { icon: '⬢', ms: 7000 }
+    };
+    function toast(title, message, kind = 'achievement') {
+        const k = TOAST_KINDS[kind] || TOAST_KINDS.achievement;
+        const box = el('div', { class: `toast toast-${kind}`, role: 'status' }, [
+            el('i', { class: 'toast-icon', text: k.icon, 'aria-hidden': 'true' }),
+            el('div', { class: 'toast-text' }, [el('strong', { text: title }), el('span', { text: message })])
+        ]);
         $('toasts').append(box);
-        // At most three at a time (oldest first out), so they never bury the bottom of the screen.
+        // At most three at a time (oldest first out).
         while ($('toasts').children.length > 3) $('toasts').firstElementChild.remove();
         requestAnimationFrame(() => box.classList.add('show'));
         setTimeout(() => {
             box.classList.remove('show');
-            setTimeout(() => box.remove(), 300);
-        }, 4500);
+            setTimeout(() => box.remove(), 400);
+        }, k.ms);
     }
 
     function floatGain(anchor, text) {
@@ -283,34 +295,29 @@ window.AGI = (function () {
     // ---- Hold-to-repeat buttons -----------------------------------------
 
     // Fires `fn` on click (mouse, touch or keyboard) and repeats it while the pointer is held down.
+    // Fires on press (no wait), then repeats at HOLD_REPEAT_MS while held; the pointer's own click is
+    // ignored, so a tap counts once. Keyboard activation only sends a click, so it still works.
     function holdable(button, fn) {
-        let delay = null;
         let repeat = null;
-        let repeated = false;
 
         const stop = () => {
-            clearTimeout(delay);
             clearInterval(repeat);
-            delay = repeat = null;
+            repeat = null;
             button.classList.remove('held');
         };
 
         button.addEventListener('pointerdown', e => {
-            if (e.button !== 0) return;
-            repeated = false;
-            delay = setTimeout(() => {
-                button.classList.add('held');
-                repeat = setInterval(() => {
-                    if (button.disabled) return stop();
-                    repeated = true;
-                    fn();
-                }, HOLD_REPEAT_MS);
-            }, HOLD_DELAY_MS);
+            if (e.button !== 0 || button.disabled) return;
+            fn();
+            button.classList.add('held');
+            repeat = setInterval(() => {
+                if (button.disabled) return stop();
+                fn();
+            }, HOLD_REPEAT_MS);
         });
         ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => button.addEventListener(t, stop));
-        button.addEventListener('click', () => {
-            if (repeated) { repeated = false; return; }
-            fn();
+        button.addEventListener('click', e => {
+            if (e.detail === 0) fn();     // keyboard (Enter/Space); pointer presses already fired on pointerdown
         });
         button.addEventListener('contextmenu', e => e.preventDefault());
     }
@@ -737,7 +744,6 @@ window.AGI = (function () {
             const up = E.UPGRADE_BY_ID[id];
             if (up.tab !== 'training') termLog(`installed ${E.upgradeName(state, up)} (level ${E.level(state, id)})`);
             if (up.tab !== 'training' && E.isMaxed(state, up)) retireCard(id);
-            if (result.evolved) toast('Upgraded', `Your click tool is now a ${result.evolved}`);
             afterChange();
         }
     }
@@ -793,7 +799,7 @@ window.AGI = (function () {
         path.roll = null;
         resetView();
         log(`Shipped ${result.version}! +${result.gain} Insight. All production is now ×${E.derive(state).mult.toFixed(2)}. Spend Insight on legacy nodes in the skill tree.`, 'special');
-        toast(`${result.version} shipped`, `+${result.gain} Insight`);
+        toast(`${result.version} shipped`, `+${result.gain} Insight`, 'version');
         afterChange();
         save();
     }
@@ -892,18 +898,18 @@ window.AGI = (function () {
     function announce(changes) {
         for (const r of changes.reveals || []) {
             log(`${r.name}: ${r.intro}`, 'special');
-            toast(r.name, r.intro);
         }
         for (const m of changes.milestones) {
             log(`Milestone reached: ${m.name}`, 'special');
+            if (m.callout) toast(m.callout[0], m.callout[1], 'room');
         }
         for (const a of changes.achievements) {
             log(`Achievement unlocked: ${a.name}`, 'special');
-            toast('Achievement unlocked', a.name);
+            if (!a.quiet) toast(`Achievement · ${a.name}`, a.desc, 'achievement');
         }
         if (changes.phase) {
             log(`Phase transition! You have reached ${changes.phase.name}.`, 'special');
-            toast('Phase up!', changes.phase.name);
+            toast(`${changes.phase.name} reached`, 'A new phase for your AI', 'phase');
         }
     }
 
@@ -1641,7 +1647,6 @@ window.AGI = (function () {
                     log(r.msg, r.ok ? 'success' : 'warning');
                     if (r.ok) {
                         termLog(`project paid out: ${E.PROJECT_REWARDS[o.reward].text}`);
-                        toast('Project complete', r.msg);
                     }
                     afterChange();
                 });
@@ -3348,7 +3353,8 @@ window.AGI = (function () {
         if (result.skill) {
             const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
             log(`Learned ${result.skill.name}: ${result.skill.effect} (${grants}, +${xpText(result.xp + banked)} XP). ${result.skill.flavor}`, 'special');
-            toast('Skill learned', result.skill.name);
+            // The result card announces it on screen; the toast is for when you're elsewhere.
+            if (!(currentPlace() === 'bay:training' && path.view === 'run')) toast(`Skill learned · ${result.skill.name}`, result.skill.effect, 'skill');
             path.glow = { skill: state.path.learned - 1, age: 0 };
             path.overview = OVERVIEW_SECONDS + path.pause;
             showResult({ skill: true, title: 'Skill learned', main: result.skill.name, flavor: result.skill.flavor, xp: result.xp + banked,

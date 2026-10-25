@@ -394,6 +394,7 @@
         // The server room opens once you can actually train: data collected by hand, and enough CP and DP
         // in stock for a couple of full sprints (older saves that already train keep it).
         { key: 'module:path', name: 'Training Path', desc: 'Collect data 40 times and hold 100 CP and 40 DP to start training your model',
+            callout: ['Server room online', 'Your model can start training'],
             check: s => (s.stats.collects >= 40 && s.res.cp >= 100 && s.res.dp >= 40) || s.stats.rolls > 0 || s.path.learned > 0 },
         { key: 'action:research', name: 'Basic Research', desc: 'Hold 100 DP to unlock Research', check: s => s.res.dp >= 100 },
         { key: 'action:improve', name: 'Self-Improvement', desc: 'Hold 25 RP to unlock Self-Improvement', check: s => s.res.rp >= 25 },
@@ -413,7 +414,7 @@
 
     // Achievements persist across prestige and each add ACHIEVEMENT_BONUS to all production.
     const ACHIEVEMENTS = [
-        { id: 'firstClick', name: 'Hello, World', desc: 'Generate compute manually', check: s => s.stats.clicks >= 1 },
+        { id: 'firstClick', name: 'Hello, World', desc: 'Generate compute manually', quiet: true, check: s => s.stats.clicks >= 1 },   // quiet: no callout on the very first click
         { id: 'clicks1k', name: 'Carpal Tunnel', desc: 'Click 1,000 times', check: s => s.stats.clicks >= 1000 },
         { id: 'cp1k', name: 'Kiloflop', desc: 'Earn 1,000 CP in total', check: s => s.stats.lifetimeCp >= 1e3 },
         { id: 'cp1m', name: 'Megaflop', desc: 'Earn 1 million CP in total', check: s => s.stats.lifetimeCp >= 1e6 },
