@@ -189,78 +189,90 @@ window.AGI = (function () {
         pop.addEventListener('animationend', () => pop.remove());
     }
 
-    // ---- Click glow ------------------------------------------------------
-    // Working the Workbench lights up everything in the lab that deals in that currency (its station,
-    // supply cell and, for compute, the cabinets), brighter the faster you click; sparks fly off the
-    // button, more of them (and a ring) the more each click is worth.
-    const GLOW_TARGETS = {
-        cp: () => [ui.stations.hardware.node, document.querySelector('.cell-cp'), $('cabinetPanel')],
-        dp: () => [ui.stations.software.node, document.querySelector('.cell-dp'), taskUi.autoCollector?.row],
-        rp: () => [ui.stations.algorithms.node, document.querySelector('.cell-rp'), $('projectPanel'), taskUi.researchAssistant?.row]
-    };
-    const glow = { cp: { times: [], level: 0 }, dp: { times: [], level: 0 }, rp: { times: [], level: 0 }, frame: 0 };
-    const GLOW_RATE = 8;            // clicks per second for full brightness
-    let sparkCount = 0;
+    // ---- Click effects in the server cabinets ---------------------------
+    // Working the Workbench shows up in the cabinets, and only there: compute clicks make random pieces
+    // spark, data clicks send glowing signals along the overhead tray and down a rack's wiring, research
+    // clicks make pieces flash violet. More of them the faster you click, and bigger the more a click is
+    // worth. (Nothing else on the page lights up.)
+    const clickRate = { cp: [], dp: [], rp: [] };
+    let cabinetFx = 0;          // live effect elements, capped so fast clicking can't flood the page
 
-    function clickGlow(res, gained, button) {
-        const g = glow[res];
-        if (!g) return;
+    function clickGlow(res, gained) {
+        const times = clickRate[res];
+        if (!times) return;
         const now = performance.now();
-        g.times.push(now);
-        g.times = g.times.filter(t => now - t < 1500);
-        g.level = Math.max(g.level, Math.min(1, g.times.length / 1.5 / GLOW_RATE + 0.15));
-        if (!glow.frame) glow.frame = requestAnimationFrame(fadeGlow);
-        if (reducedMotion()) return;
-        // Sparks: one per order of magnitude a click is worth, more when clicking fast.
-        const worth = Math.max(0, Math.log10(Math.max(1, gained)));
-        const n = Math.min(14, Math.round(1 + worth * 1.5 + g.level * 4));
-        const r = button.getBoundingClientRect();
-        const z = uiScale();
-        const x = (r.left + r.width * (0.3 + Math.random() * 0.4)) / z;
-        const y = (r.top + r.height / 2 + window.scrollY) / z;
-        for (let i = 0; i < n && sparkCount < 60; i++) {
-            const dot = el('span', { class: `click-spark spark-${res}` });
-            const a = Math.random() * Math.PI * 2;
-            const dist = 30 + Math.random() * (40 + 25 * worth);
+        times.push(now);
+        while (times.length && now - times[0] > 1500) times.shift();
+        if (reducedMotion() || view !== 'lab') return;
+        const art = $('cabinetArt');
+        const pieces = [...art.querySelectorAll('.hw')];
+        if (!pieces.length || $('cabinetPanel').hidden) return;
+        const rate = times.length / 1.5;                                  // clicks per second
+        const worth = Math.log10(Math.max(1, gained));                    // 0 for 1, 1 for 10, 2 for 100…
+        const n = Math.max(1, Math.min(6, Math.round(1 + rate / 3 + worth)));
+        const pick = () => pieces[Math.floor(Math.random() * pieces.length)];
+        if (res === 'cp') for (let i = 0; i < n; i++) sparkPiece(pick(), worth);
+        if (res === 'dp') for (let i = 0; i < Math.min(3, n); i++) signal(art, pick(), worth);
+        if (res === 'rp') for (let i = 0; i < n; i++) flashPiece(pick(), worth);
+    }
+
+    // Compute: a piece crackles, sparks flying off it (more and further for valuable clicks).
+    function sparkPiece(piece, worth) {
+        if (cabinetFx > 80) return;
+        piece.animate([{ filter: 'brightness(2.6) drop-shadow(0 0 6px #ffe08a)' }, { filter: 'brightness(1)' }], { duration: 260 + 60 * worth, easing: 'ease-out' });
+        const rack = piece.parentElement;
+        const x = piece.offsetLeft + piece.offsetWidth * Math.random();
+        const y = piece.offsetTop + piece.offsetHeight * Math.random();
+        for (let i = 0; i < 4 + Math.round(worth * 3); i++) {
+            const dot = el('span', { class: 'cab-spark' });
             dot.style.left = `${x}px`;
             dot.style.top = `${y}px`;
-            document.body.append(dot);
-            sparkCount++;
-            const anim = dot.animate([
-                { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
-                { transform: `translate(calc(-50% + ${Math.cos(a) * dist}px), calc(-50% + ${Math.sin(a) * dist - 20}px)) scale(0.2)`, opacity: 0 }
-            ], { duration: 450 + Math.random() * 350, easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)' });
-            anim.finished.then(() => { dot.remove(); sparkCount--; }, () => { dot.remove(); sparkCount--; });
-        }
-        if (worth >= 3) {
-            const ring = el('span', { class: `click-ring spark-${res}` });
-            ring.style.left = `${x}px`;
-            ring.style.top = `${y}px`;
-            document.body.append(ring);
-            ring.animate([{ transform: 'translate(-50%, -50%) scale(0.3)', opacity: 0.9 }, { transform: `translate(-50%, -50%) scale(${1 + worth * 0.4})`, opacity: 0 }],
-                { duration: 600, easing: 'ease-out' }).finished.then(() => ring.remove(), () => ring.remove());
+            rack.append(dot);
+            cabinetFx++;
+            const a = Math.random() * Math.PI * 2;
+            const dist = 6 + Math.random() * (8 + 6 * worth);
+            dot.animate([{ transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+                { transform: `translate(calc(-50% + ${Math.cos(a) * dist}px), calc(-50% + ${Math.sin(a) * dist}px)) scale(0.3)`, opacity: 0 }],
+                { duration: 300 + Math.random() * 250, easing: 'ease-out' }).finished.then(() => { dot.remove(); cabinetFx--; }, () => { dot.remove(); cabinetFx--; });
         }
     }
 
-    function fadeGlow() {
-        glow.frame = 0;
-        let busy = false;
-        for (const res of ['cp', 'dp', 'rp']) {
-            const g = glow[res];
-            const now = performance.now();
-            g.times = g.times.filter(t => now - t < 1500);
-            const target = g.times.length ? Math.min(1, g.times.length / 1.5 / GLOW_RATE + 0.15) : 0;
-            g.level += (target - g.level) * 0.12;
-            if (g.level < 0.01) g.level = 0;
-            for (const node of GLOW_TARGETS[res]()) {
-                if (!node) continue;
-                node.classList.toggle('click-glow', g.level > 0);
-                node.classList.toggle(`glow-${res}`, g.level > 0);
-                node.style.setProperty('--glow', g.level.toFixed(3));
-            }
-            busy = busy || g.level > 0;
-        }
-        if (busy) glow.frame = requestAnimationFrame(fadeGlow);
+    // Data: a glowing signal runs along the overhead tray to a rack, then down its cable loom to a piece.
+    function signal(art, piece, worth) {
+        if (cabinetFx > 80) return;
+        const rack = piece.parentElement;
+        const dot = el('span', { class: 'cab-signal' });
+        dot.style.setProperty('--size', `${4 + Math.min(4, worth * 1.5)}px`);
+        art.append(dot);
+        cabinetFx++;
+        const trayY = 5;
+        const side = Math.random() < 0.5 ? rack.offsetLeft + 2 : rack.offsetLeft + rack.offsetWidth - 2;
+        const startX = art.scrollLeft + (Math.random() < 0.5 ? 0 : art.clientWidth);
+        const endY = rack.offsetTop + piece.offsetTop + piece.offsetHeight / 2;
+        const endX = rack.offsetLeft + piece.offsetLeft + piece.offsetWidth / 2;
+        const at = (x, y) => `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+        dot.animate([
+            { transform: at(startX, trayY), opacity: 0 },
+            { transform: at((startX + side) / 2, trayY), opacity: 1, offset: 0.2 },
+            { transform: at(side, trayY), offset: 0.45 },
+            { transform: at(side, endY), offset: 0.8 },
+            { transform: at(endX, endY), opacity: 1, offset: 0.95 },
+            { transform: at(endX, endY), opacity: 0 }
+        ], { duration: 900 + Math.random() * 300, easing: 'linear' }).finished.then(() => {
+            dot.remove();
+            cabinetFx--;
+            piece.animate([{ filter: 'brightness(2) drop-shadow(0 0 6px #6fb3ff)' }, { filter: 'brightness(1)' }], { duration: 400, easing: 'ease-out' });
+        }, () => { dot.remove(); cabinetFx--; });
+    }
+
+    // Research: a piece lights up violet, brighter for valuable clicks.
+    function flashPiece(piece, worth) {
+        const glow = Math.min(1, 0.5 + worth * 0.25);
+        piece.animate([
+            { filter: 'brightness(1)', boxShadow: 'none' },
+            { filter: `brightness(${1.6 + glow}) hue-rotate(40deg)`, boxShadow: `0 0 ${8 + 10 * glow}px rgba(199, 146, 234, ${0.6 + 0.4 * glow}), inset 0 0 8px rgba(199, 146, 234, 0.8)`, offset: 0.25 },
+            { filter: 'brightness(1)', boxShadow: 'none' }
+        ], { duration: 650, easing: 'ease-out' });
     }
 
     // ---- Hold-to-repeat buttons -----------------------------------------
@@ -707,7 +719,7 @@ window.AGI = (function () {
         if (!result.ok) return;
         if (result.gained != null) {
             floatGain(button, `+${E.format(result.gained)} ${E.RESOURCES[result.resource].short}`);
-            clickGlow(result.resource, result.gained, button);
+            clickGlow(result.resource, result.gained);
         }
         if (result.msg) log(result.msg, 'success');
         afterChange();

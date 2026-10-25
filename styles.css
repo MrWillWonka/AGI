@@ -2251,17 +2251,12 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
     .crumbs .crumb.ping { animation: none; }
 }
 
-/* ---- Click glow: the Workbench lights up what deals in that currency ---- */
-.click-glow { --glow-c: 99, 224, 171; box-shadow: 0 0 calc(6px + 26px * var(--glow, 0)) rgba(var(--glow-c), calc(0.55 * var(--glow, 0))), inset 0 0 calc(18px * var(--glow, 0)) rgba(var(--glow-c), calc(0.3 * var(--glow, 0))) !important;
-    border-color: rgba(var(--glow-c), calc(0.25 + 0.6 * var(--glow, 0))) !important; }
-.click-glow.glow-dp { --glow-c: 111, 179, 217; }
-.click-glow.glow-rp { --glow-c: 199, 146, 234; }
-.click-spark { position: absolute; z-index: 60; width: 5px; height: 5px; border-radius: 50%; pointer-events: none; background: #9ff3cf; box-shadow: 0 0 8px #63e0ab; }
-.click-spark.spark-dp { background: #b5dcf2; box-shadow: 0 0 8px #6fb3d9; }
-.click-spark.spark-rp { background: #e3c8f7; box-shadow: 0 0 8px #c792ea; }
-.click-ring { position: absolute; z-index: 59; width: 40px; height: 40px; border-radius: 50%; pointer-events: none; border: 2px solid #63e0ab; box-shadow: 0 0 14px #63e0ab; background: none; }
-.click-ring.spark-dp { border-color: #6fb3d9; box-shadow: 0 0 14px #6fb3d9; }
-.click-ring.spark-rp { border-color: #c792ea; box-shadow: 0 0 14px #c792ea; }
+/* ---- Click effects, inside the server cabinets only ----
+   Compute clicks spark pieces, data clicks send signals along the tray and the looms, research clicks
+   flash pieces violet (clickGlow in game.js). */
+.cab-spark { position: absolute; z-index: 3; width: 4px; height: 4px; border-radius: 50%; pointer-events: none; background: #fff3c4; box-shadow: 0 0 5px #ffb547, 0 0 2px #fff; }
+.cab-signal { position: absolute; left: 0; top: 0; z-index: 4; width: var(--size, 5px); height: var(--size, 5px); border-radius: 50%; pointer-events: none;
+    background: #e6f6ff; box-shadow: 0 0 6px 2px #6fb3ff, 0 0 14px #2a9df4; }
 
 /* ---- Server cabinets: every kind of hardware mixed in the same racks ----
    Racks of 4 × 6 cells, filled from the bottom in buy order; every piece is a rectangle in its
