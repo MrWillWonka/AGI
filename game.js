@@ -4352,7 +4352,9 @@ window.AGI = (function () {
         }
         const bx = gx + (jitter ? (Math.random() - 0.5) * jitter : 0);
         const by = (ay ?? gy) - lift + (jitter ? (Math.random() - 0.5) * jitter : 0);
-        if ((flowing() || roll.airborne) && !reducedMotion()) fx.flight.push({ wx: roll.ball.x, y: by, age: 0, air: roll.airborne });
+        // The ribbon remembers where the ball was in the world (its height, plus a flow's lift), so it stays a
+        // clean arc while the camera eases: screen positions went wavy as the view moved under them.
+        if ((flowing() || roll.airborne) && !reducedMotion()) fx.flight.push({ wx: roll.ball.x, wh: roll.airborne ? roll.height : groundAt(roll, roll.ball.x), lift, age: 0, air: roll.airborne, t: performance.now() });
         if (ay !== null && gy - ay > 4) {
             const k = Math.max(0.25, 1 - (gy - ay) / 400);
             ctx.fillStyle = hexAlpha('#000000', 0.35 * k);
@@ -4368,14 +4370,16 @@ window.AGI = (function () {
                 const tone = fx.flight[i].air ? c.success : fx.superFlow ? LUCID : c.secondary;
                 const a = fx.flight[i - 1];
                 const b = fx.flight[i];
+                // A gap (it landed and rolled before flying again) starts a new ribbon, not a line through the hill.
+                if (b.t - a.t > 80) continue;
                 const k = 1 - b.age / 0.7;
                 ctx.strokeStyle = hexAlpha(tone, 0.55 * k);
                 ctx.lineWidth = 2 + 8 * k;
                 ctx.shadowColor = tone;
                 ctx.shadowBlur = 16;
                 ctx.beginPath();
-                ctx.moveTo(X(a.wx), a.y);
-                ctx.lineTo(X(b.wx), b.y);
+                ctx.moveTo(X(a.wx), Y(a.wh) - a.lift);
+                ctx.lineTo(X(b.wx), Y(b.wh) - b.lift);
                 ctx.stroke();
             }
             ctx.restore();
