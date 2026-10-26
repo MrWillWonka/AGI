@@ -3734,7 +3734,7 @@ window.AGI = (function () {
             return;
         }
         burst(path.colors.muted, Math.min(26, 6 + Math.round(ev.impact)));
-        path.fx.shake = Math.max(path.fx.shake, Math.min(0.45, ev.impact / 40));
+        if (ev.impact > 12) path.fx.shake = Math.max(path.fx.shake, Math.min(0.35, ev.impact / 60));
         if (ev.flight > 12) path.legFlash = { age: 0, text: `${Math.round(ev.flight)} m flight${ev.height > 1 ? ` · ${ev.height.toFixed(1)} m up` : ''}`, tone: 'success' };
     }
 
@@ -4041,14 +4041,24 @@ window.AGI = (function () {
             const area = drawArea();
             // Metres of height that fit in a view `v` metres wide at the late relief.
             const fitH = v => area.h * v / (area.w * RELIEF * LATE_RELIEF);
-            // The ground under the ball stays in frame: high flights zoom out (the way launcher games pull back
-            // with altitude) rather than leaving an empty sky.
-            const under = g.height(roll.ball.x);
-            const span = Math.max(0, roll.height - under);
-            let view = Math.max(LATE_VIEW + 0.9 * Math.abs(roll.ball.v), (span * 1.6 + 2) / fitH(1));
+            // A steady frame: the floor is the lowest ground across the whole view (not the ground right under
+            // the ball, which made the view bob over every swell), and the zoom only changes when speed or a high
+            // flight really needs it (hysteresis), pulling back with altitude like launcher games do.
+            const leftOf = v => Math.max(g.start - 0.4, roll.ball.x - v * 0.32);
+            const floorIn = v => {
+                let low = Infinity;
+                for (let i = 0; i <= 24; i++) low = Math.min(low, g.height(leftOf(v) + v * i / 24));
+                return low;
+            };
+            let view = LATE_VIEW + 0.35 * Math.abs(roll.ball.v);
+            const climb = roll.height - floorIn(view) + 2;
+            view = Math.max(view, climb / (0.8 * fitH(1)));
+            const held = path.lateView;
+            if (held && held.roll === roll && view < held.width * 1.2 && view > held.width / 1.3) view = held.width;
+            else path.lateView = { roll, width: view };
             view *= condense;
-            const left = Math.max(g.start - 0.4, roll.ball.x - view * 0.32);
-            const bottom = Math.max(0, under - fitH(view) * 0.25);
+            const left = leftOf(view);
+            const bottom = Math.max(0, floorIn(view) - fitH(view) * 0.06);
             return { left, right: left + view, bottom, condense, relief: LATE_RELIEF };
         }
         const span = T.skillHill(leg).end - g.legStart(leg);

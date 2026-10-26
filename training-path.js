@@ -36,6 +36,8 @@
     const SKID = 0.82;          // share of the speed along the ground kept through a landing
     const BOUNCE_MIN = 1.2;     // below this bounce-back speed the ball sticks and rolls on
     const LATE_DRAG = 0.25;     // and rolling there keeps its momentum: this share of the quadratic and slope drag
+    const AIR_GRAVITY = 1.9;    // gravity in flight, × GRAVITY: arcs come down with weight instead of hanging (game feel)
+    const REGRIP = 0.35;        // seconds after landing before it can take off again (no hop-stick-hop over a crest)
     const LAUNCH_GRIP = 0.45;   // crests throw the ball once its pull round them needs this share of gravity (game feel: it pops)      // and rolling there keeps its momentum: this share of the quadratic and slope drag
 
     // ---- Skill hills (fixed) -----------------------------------------------
@@ -395,6 +397,7 @@
         // On a late leg, the ground curving away faster than the ball can follow (its downward pull at this speed
         // would need more than gravity) throws it into the air, with the climb's upward speed.
         function takeOff(events) {
+            if (ball.grip > 0) { ball.grip -= STEP; return; }
             if (ball.v < 0.5 || ground.legAt(ball.x) < (opts.lateLeg ?? LATE_LEG)) return;
             const e = 0.02;
             const curve = (ground.height(ball.x + e) - 2 * ground.height(ball.x) + ground.height(ball.x - e)) / (e * e);
@@ -409,7 +412,7 @@
         // impact and a little speed along the ground), until the bounce is too small and it rolls on.
         function flyStep(events) {
             const a = ball.air;
-            a.vy -= GRAVITY * STEP;
+            a.vy -= GRAVITY * AIR_GRAVITY * STEP;
             const sp = Math.hypot(ball.v, a.vy);
             const drag = friction * AIR_DRAG * sp * STEP;
             ball.v -= ball.v * drag;
@@ -439,6 +442,7 @@
             } else {
                 // Stick: roll on with the speed along the ground (as dx/dt).
                 ball.air = null;
+                ball.grip = REGRIP;
                 ball.v = t / len;
             }
         }
