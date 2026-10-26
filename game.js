@@ -1951,7 +1951,10 @@ window.AGI = (function () {
             setText(u.toggle, on ? 'On' : 'Off');
             if (t.id === 'autoCollector') setText(u.rate, on ? `${f(d.collectsPerSec, 2)}/s → +${f(d.dpPerSec)} DP/s` : 'Paused');
             if (t.id === 'researchAssistant') setText(u.rate, on ? `${f(d.researchPerSec, 2)}/s → +${f(d.rpPerSec)} RP/s` : 'Paused');
-            if (t.id === 'autoTrainer') setText(u.rate, on ? `Level ${E.level(state, 'autoTrainer')} · ${E.level(state, 'autoTrainer') >= 2 ? 'starts runs and times its sprints' : 'starts runs and sprints when stalled'}` : 'Paused');
+            if (t.id === 'autoTrainer') {
+                const lv = E.level(state, 'autoTrainer');
+                setText(u.rate, on ? `Level ${lv} · ${['', 'sprints once the ball settles', 'sprints before a climb fails', 'times sprints, hits clean prompts'][Math.min(3, lv)]}` : 'Paused');
+            }
             if (u.fill) u.fill.style.width = `${(on ? taskProgress[t.id] : 0) * 100}%`;
             if (!u.slider) continue;
             const pct = Math.round((state.tasks[t.id].share ?? 0) * 100);
@@ -2839,7 +2842,9 @@ window.AGI = (function () {
     const LUCID = '#b48cff';
     const BANK_MULT = 1.5;
     const LUCID_WARP = 4;       // Lucid Dream: time condenses, the ball covers this many times the ground
-    const LUCID_CONDENSE = 3;   // and the view squeezes this much wider (heights keep their scale)      // Bullet Time: each banked sprint lands this much harder
+    const LUCID_CONDENSE = 3;
+    const LATE_VIEW = 26;       // late legs: metres of trail in view at rest (wider with speed)
+    const LATE_RELIEF = 0.35;   // and a flatter vertical scale, so the giant swells read as landscape   // and the view squeezes this much wider (heights keep their scale)      // Bullet Time: each banked sprint lands this much harder
 
     // A big luck banner: pops in at the top of the trail, in the luck's colour.
     function luckBanner(title, sub, tone) {
@@ -3534,13 +3539,35 @@ window.AGI = (function () {
         ctx.globalAlpha = 1;
     }
 
-    // Auto-Trainer: level 1 launches rolls and pushes when the ball stops; level 2 also
-    // rescues the ball as it stalls on a slope.
+    // Auto-Trainer: level 1 launches runs and sprints once the ball has settled; level 2 sprints on a climb
+    // the ball won't make (moving forward uphill with less energy than the next crest needs), which is when
+    // a sprint counts most; level 3 also aims every sprint at the clean prompt (the super prompt once there
+    // is one), banking their XP.
     function autoTrain(roll) {
         const lvl = E.autoTrainerLevel(state);
-        if (!lvl || roll.over || path.pause > 0 || roll.ball.cooldown > 0 || path.fx.windup || frozen()) return;
-        const stalling = roll.ball.v > 0 && roll.ball.v < 0.5 && roll.ground.slope(roll.ball.x) > 0.05;
-        if (!roll.launched || roll.atRest || (lvl >= 2 && stalling)) pushBall(true, chargeBudget());
+        if (!lvl || roll.over || path.pause > 0 || roll.ball.cooldown > 0 || path.fx.windup || frozen() || roll.airborne) return;
+        if (!(!roll.launched || roll.atRest || (lvl >= 2 && wontClear(roll)))) return;
+        const budget = chargeBudget();
+        if (lvl >= 3) {
+            const zone = currentZone(roll);
+            const aim = zone.perfectTo > zone.perfectFrom ? (zone.perfectFrom + zone.perfectTo) / 2 : (zone.from + zone.to) / 2;
+            if (zone.to > zone.from && aim <= budget) {
+                const kind = E.zoneHit(zone, aim);
+                if (pushBall(true, aim, kind) && kind) promptBonus(roll, kind, ballLeg());
+                return;
+            }
+        }
+        pushBall(true, budget);
+    }
+
+    // Climbing (forward, uphill) without the energy to make the next crest: it will stall and roll back.
+    function wontClear(roll) {
+        const b = roll.ball;
+        const g = roll.ground;
+        if (b.v <= 0 || g.slope(b.x) < 0.02) return false;
+        const next = g.bumps.find(h => h.peak > b.x);
+        if (!next) return false;
+        return 0.5 * b.v * b.v < T.GRAVITY * (next.height - g.height(b.x)) * 1.05;
     }
 
     // A run keeps rolling when you step away (to the upgrades screen, the rack, the lab or the facility)
@@ -3579,6 +3606,7 @@ window.AGI = (function () {
             if (frozen() && (fx.freeze = Math.max(0, fx.freeze - dt)) === 0) releaseBank(roll);
             for (const ev of roll.step(sim)) {
                 if (ev.type === 'clear') clearLeg(ev);
+                else if (ev.type === 'launch' || ev.type === 'land') airborne(ev);
                 else if (ev.type === 'crest' && ev.onward) crestFrontier(ev);
                 else if (ev.type === 'crest' && !roll.over) celebrateSummit();
                 else finishRoll(ev);
@@ -3695,6 +3723,19 @@ window.AGI = (function () {
         log(`Learned ${skill.name}: ${skill.effect} (${grants}, +${xpText(xp)} XP). ${skill.flavor}`, 'special');
         if (!(currentPlace() === 'bay:training' && path.view === 'run')) toast(`Skill learned · ${skill.name}`, skill.effect, 'skill');
         afterChange();
+    }
+
+    // Late legs: the ball flies off a crest (a burst of light), and lands with dust and a bump that grows
+    // with the impact; a long flight says how far it went.
+    function airborne(ev) {
+        if (!path.visible) return;
+        if (ev.type === 'launch') {
+            burst(path.colors.success, 14);
+            return;
+        }
+        burst(path.colors.muted, Math.min(26, 6 + Math.round(ev.impact)));
+        path.fx.shake = Math.max(path.fx.shake, Math.min(0.45, ev.impact / 40));
+        if (ev.flight > 12) path.legFlash = { age: 0, text: `${Math.round(ev.flight)} m flight${ev.height > 1 ? ` · ${ev.height.toFixed(1)} m up` : ''}`, tone: 'success' };
     }
 
     // A replay crossed a cleared leg's skill hill: flat XP at once, and the ball rolls on.
@@ -3992,6 +4033,24 @@ window.AGI = (function () {
         }
         // The window is sized to the leg the ball is on, so a replay frames each leg like a normal run.
         const leg = g.legAt(roll.ball.x);
+        const condense = flowing() && path.fx.superFlow ? LUCID_CONDENSE : 1;
+        // Late legs (a launcher): the swells are far bigger than the view, on purpose. A window that widens
+        // with speed, a flatter vertical scale (`relief`), and the view rides up and down with the ball, so
+        // you see the slope you're on and the air you're in, not the whole hill.
+        if (leg >= T.LATE_LEG) {
+            const area = drawArea();
+            // Metres of height that fit in a view `v` metres wide at the late relief.
+            const fitH = v => area.h * v / (area.w * RELIEF * LATE_RELIEF);
+            // The ground under the ball stays in frame: high flights zoom out (the way launcher games pull back
+            // with altitude) rather than leaving an empty sky.
+            const under = g.height(roll.ball.x);
+            const span = Math.max(0, roll.height - under);
+            let view = Math.max(LATE_VIEW + 0.9 * Math.abs(roll.ball.v), (span * 1.6 + 2) / fitH(1));
+            view *= condense;
+            const left = Math.max(g.start - 0.4, roll.ball.x - view * 0.32);
+            const bottom = Math.max(0, under - fitH(view) * 0.25);
+            return { left, right: left + view, bottom, condense, relief: LATE_RELIEF };
+        }
         const span = T.skillHill(leg).end - g.legStart(leg);
         const base = Math.min(span + 0.6, Math.max(3, span * 0.25));
         const leftOf = view => Math.max(g.start - 0.4, roll.ball.x - view * 0.3);
@@ -4005,7 +4064,6 @@ window.AGI = (function () {
         else path.camView = { roll, width: view };
         // Lucid Dream: the timeline condenses. The view squeezes wider while heights keep their scale
         // (drawPath divides the vertical scale back out by the same factor).
-        const condense = flowing() && path.fx.superFlow ? LUCID_CONDENSE : 1;
         if (condense > 1) view *= condense;
         const left = leftOf(view);
         if (!(path.tension > 0) || !path.focus) return { left, right: left + view, bottom: 0, condense };
@@ -4039,13 +4097,14 @@ window.AGI = (function () {
         path.cam.right += (target.right - path.cam.right) * ease;
         path.cam.bottom = (path.cam.bottom || 0) + ((target.bottom || 0) - (path.cam.bottom || 0)) * ease;
         path.cam.condense = (path.cam.condense || 1) + ((target.condense || 1) - (path.cam.condense || 1)) * ease;
+        path.cam.relief = (path.cam.relief || 1) + ((target.relief || 1) - (path.cam.relief || 1)) * ease;
         const cam = path.cam;
         const goal = g.goal;
 
         // Same scale on both axes (times the fixed exaggeration), derived from the eased camera width.
         const area = drawArea();
         const pxPerUnit = area.w / (cam.right - cam.left);
-        const yScale = pxPerUnit * RELIEF * (path.cam.condense || 1);
+        const yScale = pxPerUnit * RELIEF * (path.cam.condense || 1) * (path.cam.relief || 1);
         const X = x => PAD_X + (x - cam.left) * pxPerUnit;
         const Y = y => h - PAD_BOTTOM - Math.min((y - cam.bottom) * yScale, area.h + PAD_TOP - 4);
         const n = Math.min(1400, Math.max(300, Math.round(w * 1.5)));
@@ -4270,6 +4329,8 @@ window.AGI = (function () {
         const jitter = wind ? (1.5 + 4 * wind) : 0;
         const gx = X(roll.ball.x);
         const gy = Y(groundAt(roll, roll.ball.x));
+        // In flight (late legs) the ball is drawn at its height, over a shadow on the ground.
+        const ay = roll.airborne ? Y(roll.height) : null;
         // Flow: the ball rises to fly high over everything in view (mid-sky, or clear of the tallest hill),
         // with a slow bob, instead of skimming the line.
         let lift = 0;
@@ -4280,14 +4341,21 @@ window.AGI = (function () {
             lift = fx.lift * (fly + (reducedMotion() ? 0 : 6 * Math.sin(t * 2.4)));
         }
         const bx = gx + (jitter ? (Math.random() - 0.5) * jitter : 0);
-        const by = gy - lift + (jitter ? (Math.random() - 0.5) * jitter : 0);
-        if (flowing() && !reducedMotion()) fx.flight.push({ wx: roll.ball.x, y: by, age: 0 });
+        const by = (ay ?? gy) - lift + (jitter ? (Math.random() - 0.5) * jitter : 0);
+        if ((flowing() || roll.airborne) && !reducedMotion()) fx.flight.push({ wx: roll.ball.x, y: by, age: 0, air: roll.airborne });
+        if (ay !== null && gy - ay > 4) {
+            const k = Math.max(0.25, 1 - (gy - ay) / 400);
+            ctx.fillStyle = hexAlpha('#000000', 0.35 * k);
+            ctx.beginPath();
+            ctx.ellipse(gx, gy + 2, BALL * 1.6 * k, BALL * 0.4 * k, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
         if (fx.flight.length > 1) {
             // The flight's ribbon, fading behind the ball.
             ctx.save();
             ctx.lineCap = 'round';
-            const tone = fx.superFlow ? LUCID : c.secondary;
             for (let i = 1; i < fx.flight.length; i++) {
+                const tone = fx.flight[i].air ? c.success : fx.superFlow ? LUCID : c.secondary;
                 const a = fx.flight[i - 1];
                 const b = fx.flight[i];
                 const k = 1 - b.age / 0.7;
@@ -4614,7 +4682,8 @@ window.AGI = (function () {
             const g = roll.ground;
             // The monitor always shows the frontier leg, even while a replay runs earlier legs.
             const fs = g.legStart(g.last);
-            const span = live ? 3 : g.goal.end - fs;
+            // (Late legs' swells are tens of metres wide, so the live window is too.)
+            const span = live ? (g.legAt(roll.ball.x) >= T.LATE_LEG ? 60 : 3) : g.goal.end - fs;
             const from = live ? roll.ball.x - span * 0.4 : fs;
             const samples = live ? 32 : 120;
             // Monitor mode shows only what runs have seen: up to the furthest point reached on this
@@ -4694,7 +4763,7 @@ window.AGI = (function () {
                 ctx.fillRect(hx - 1, 0, 2, h);
             }
             if (live) {
-                const by = y(roll.ground.height(roll.ball.x));
+                const by = y(roll.height);
                 ctx.fillStyle = c.accent;
                 ctx.beginPath();
                 ctx.arc(0.4 * w, by, 2.6, 0, Math.PI * 2);
@@ -4871,7 +4940,7 @@ window.AGI = (function () {
             },
             toggleAutoTrainer() {
                 const on = !E.autoTrainerLevel(state);
-                state.prestige.levels.autoTrainer = on ? 2 : 0;
+                state.prestige.levels.autoTrainer = on ? 3 : 0;
                 E.setTaskOn(state, 'autoTrainer', true);
                 state.unlocked['up:autoTrainer'] = true;
                 afterChange();
@@ -5035,7 +5104,7 @@ window.AGI = (function () {
             resetTreeView: () => resetTreeCam(),
             roll: () => {
                 const r = currentRoll();
-                return { stretch: r.ground.stretch, x: r.ball.x, v: r.ball.v, launched: r.launched, over: r.over,
+                return { stretch: r.ground.stretch, x: r.ball.x, v: r.ball.v, airborne: r.airborne, height: r.height, leg: r.leg, launched: r.launched, over: r.over,
                     pushesLeft: r.pushesLeft, cooldown: r.ball.cooldown, atRest: r.atRest, progress: r.progress,
                     zone: currentZone(r), clean: r.clean || 0, charge: chargeLevel(),
                     slope: r.ground.slope(r.ball.x), crested: r.crested, tension: path.tension, timeScale: path.timeScale,

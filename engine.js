@@ -280,7 +280,7 @@
         { id: 'crunchTime', tab: 'training', tree: { x: 1, y: 3 }, icon: 'flame', name: 'Crunch Time', effect: '+4% chance a sprint sets off a crunch: free sprints for 3 s, per level', flavor: 'Nobody goes home until it converges.', cost: { xp: 400 }, scale: 2, max: 3, requires: 'overclockedChips', boost: { crunchChance: 0.04 } },
         { id: 'deathMarch', tab: 'training', tree: { x: 1, y: 4 }, icon: 'flame', name: 'Death March', effect: 'Crunches last 1 s longer, per level', flavor: 'Sleep is a hyperparameter.', cost: { xp: 6000 }, scale: 1.9, max: 3, requires: 'crunchTime', boost: { crunchTime: 1 } },
         // Legacy (cost Insight, kept for good): automation, Flow State, the super power-ups, and flat boosts.
-        { id: 'autoTrainer', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'robot', name: 'Auto-Trainer', effect: 'Level 1 starts runs and sprints when the model stalls. Level 2 times them', flavor: 'An intern who never gets tired. Or paid.', cost: { insight: 3 }, scale: 3, max: 2 },
+        { id: 'autoTrainer', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'robot', name: 'Auto-Trainer', effect: 'Lv 1 sprints once the ball settles; 2 before a climb fails; 3 hits clean prompts', flavor: 'An intern who never gets tired. Or paid.', cost: { insight: 3 }, scale: 3, max: 3 },
         { id: 'headStart', tab: 'legacy', legacy: true, branch: 'power', icon: 'target', name: 'Head Start', effect: 'Clean prompts hit 10% harder per level, kept for good', flavor: 'Version two starts where version one gave up.', cost: { insight: 1 }, scale: 2, max: 3, boost: { cleanPower: 0.1 } },
         { id: 'alumniNetwork', tab: 'legacy', legacy: true, branch: 'precision', icon: 'coin', name: 'Alumni Network', effect: '+15% XP from every run per level, kept for good', flavor: 'Your old team still sends you their best data.', cost: { insight: 1 }, scale: 2, max: 3, boost: { xp: 0.15 } },
         { id: 'tenure', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'coin', name: 'Tenure', effect: '+10% XP from every run per level, kept for good', flavor: 'They can\'t fire you now. Time to publish.', cost: { insight: 4 }, scale: 3, max: 2, boost: { xp: 0.1 } },
@@ -940,7 +940,7 @@
 
     // Metres from leg k's start to its skill hill's peak. Mirrors training-path.js (stretchLength plus the
     // hill's half width, less the 0.2 m start offset); a test keeps the two in step.
-    const legMetres = k => 10 * Math.pow(1.4, k) + 3 * k + 0.55 * Math.pow(1.14, k) - 0.2;
+    const legMetres = k => 10 * Math.pow(1.4, k) + 3 * k + 0.55 * Math.pow(1.14, k) * (k >= 10 ? 8 : 1) - 0.2;
     // What reaching leg k's peak pays by distance (before cresting and bonuses): the yardstick for
     // everything sized "per stretch" (clean-sprint XP, replays, passive XP, investor payouts).
     const stretchXpAt = k => PATH.xpPerMetre * Math.pow(PATH.metreScale, k) * legMetres(k) * 2;

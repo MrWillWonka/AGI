@@ -29,11 +29,20 @@
     const FREE_COOLDOWN = 0.35; // wait after a free push (a crunch)
     const ROLL_OUT = 0.8;       // with rollOut, how far past the skill hill's foot the ball runs before the roll ends
     const RESHAPE_RATE = 5;     // reshaped hills (smashed, shrunk) settle toward their new height at this rate per second
+    // Late legs (a launcher): over a crest faster than the ground can curve away, the ball takes off and flies
+    // ballistically; landing bounces it (some speed off the impact) until it sticks to the ground again.
+    const AIR_DRAG = 0.012;     // quadratic air drag in flight (much less than rolling)
+    const BOUNCE = 0.42;        // share of the impact speed a landing bounces back
+    const SKID = 0.82;          // share of the speed along the ground kept through a landing
+    const BOUNCE_MIN = 1.2;     // below this bounce-back speed the ball sticks and rolls on
+    const LATE_DRAG = 0.25;     // and rolling there keeps its momentum: this share of the quadratic and slope drag
+    const LAUNCH_GRIP = 0.45;   // crests throw the ball once its pull round them needs this share of gravity (game feel: it pops)      // and rolling there keeps its momentum: this share of the quadratic and slope drag
 
     // ---- Skill hills (fixed) -----------------------------------------------
 
     const skillHeight = k => 0.3 * Math.pow(1.5, k);   // each skill hill is a bigger wall than the last
-    const skillHalfWidth = k => 0.55 * Math.pow(1.14, k);
+    // From the late game (LATE_LEG) skill hills are 8× wider, in scale with the giant swells around them.
+    const skillHalfWidth = k => 0.55 * Math.pow(1.14, k) * (k >= 10 ? 8 : 1);
     // Checkpoint to the foot of skill hill k: 10, 17, 26, 36, 50, 69, 93, 124, 166 … Gentle early (no wall
     // at the second skill), then much longer each stretch, so the distance itself becomes the challenge
     // and strength (and later launches and bounces) matters more than the hill count.
@@ -67,30 +76,24 @@
         };
     }
 
-    // Later legs grow in distance and scale, not in hill count: about 10 rolling hills on the first leg and
-    // only 1.5 more per leg after (22 by leg 8), so each leg's hills and the flats between them get wider and
-    // the hills taller with it (`legScale`: 1 on the first leg, about 1.8 by leg 2, 2.7 by leg 5, 3.8 by 8).
-    // Distance, momentum and (later) launches matter more than counting bumps.
-    const hillCount = k => 10 + 1.5 * k;
-    function legScale(k) {
-        const natural = 2 * 0.525 * skillHalfWidth(k) + 0.35;      // average hill + gap at the old density
-        const wanted = (stretchLength(k) - LEAD_IN - 0.25) / hillCount(k);
-        return Math.max(1, wanted / natural);
-    }
+    // The late game (from leg 10, `LATE_LEG`) is a launcher: each leg is a handful of huge swells, far wider
+    // and taller than the view, and the ball can fly off their crests and bounce (see createRoll). Before
+    // that, legs are many small rolling hills.
+    const LATE_LEG = 10;          // (skillHalfWidth widens its hills from here too)
 
     // Rolling hills for stretch k: mostly small, sometimes medium, growing toward the skill hill.
     // `hillScale` (< 1 from upgrades) makes them less steep; the random layout stays the same.
     function rollingHills(k, seed, hillScale = 1) {
+        if (k >= LATE_LEG) return swells(k, seed, hillScale);
         const r = rng(seed);
         const from = checkpoint(k) + LEAD_IN;
         const to = skillHill(k).start - 0.25;
-        const scale = legScale(k);
-        const big = skillHeight(k) * Math.sqrt(scale);
+        const big = skillHeight(k);
         const hills = [];
         let x = from;
         while (true) {
-            const w = skillHalfWidth(k) * (0.25 + r() * 0.55) * scale;
-            const gap = (0.1 + r() * 0.5) * scale;
+            const w = skillHalfWidth(k) * (0.25 + r() * 0.55);
+            const gap = 0.1 + r() * 0.5;
             if (x + 2 * w > to) break;
             const along = (x - from) / (to - from);              // 0 near the checkpoint, 1 near the wall
             const roll = r();
@@ -98,6 +101,25 @@
             const h = Math.min(0.65 * skillHeight(k), big * size * (0.6 + 0.6 * along)) * hillScale;
             hills.push({ start: x, peak: x + w, end: x + 2 * w, height: h, halfWidth: w, skill: null });
             x += 2 * w + gap;
+        }
+        return hills;
+    }
+
+    // Late legs: 4–6 giant swells (a few more every three legs), each tens of metres wide and up to half the
+    // skill hill's height, with little flat between them: long climbs to build into and crests to fly off.
+    function swells(k, seed, hillScale = 1) {
+        const r = rng(seed);
+        const from = checkpoint(k) + LEAD_IN;
+        const to = skillHill(k).start - 0.25;
+        const n = 5 + Math.floor(r() * 3) + Math.floor((k - LATE_LEG) / 3);
+        const pitch = (to - from) / n;
+        const hills = [];
+        for (let i = 0; i < n; i++) {
+            const w = pitch * (0.32 + r() * 0.14);
+            const start = from + i * pitch + (pitch - 2 * w) * r();
+            const along = i / Math.max(1, n - 1);
+            const h = Math.min(0.65 * skillHeight(k), skillHeight(k) * (0.35 + r() * 0.3) * (0.75 + 0.4 * along)) * hillScale;
+            hills.push({ start, peak: start + w, end: start + 2 * w, height: h, halfWidth: w, skill: null });
         }
         return hills;
     }
@@ -261,12 +283,24 @@
         // Pushing against a backward roll spends energy cancelling it first, so timing matters.
         // Returns false if the roll is over, out of pushes, or cooling down.
         // `free` (a crunch): doesn't use up a push and barely waits, so it works even with none left.
-        function push(strength, free = false) {
-            if (over || crested || (!free && pushesLeft <= 0) || ball.cooldown > 0) return false;
-            const e = strength * strength;
+        // Energy into the ball: along the ground, or in flight along its line (an air sprint keeps a flying
+        // ball going, the way the old launcher games let you fire a booster mid-air).
+        function addEnergy(e) {
+            if (ball.air && ball.v > 0) {
+                const sp = Math.hypot(ball.v, ball.air.vy);
+                const k = Math.sqrt(sp * sp + e) / sp;
+                ball.v *= k;
+                ball.air.vy = ball.air.vy * k + 0.25 * Math.sqrt(e);   // and a little lift
+                return;
+            }
             ball.v = ball.v >= 0
                 ? Math.sqrt(ball.v * ball.v + e)
                 : (ball.v * ball.v > e ? -Math.sqrt(ball.v * ball.v - e) : Math.sqrt(e - ball.v * ball.v));
+        }
+
+        function push(strength, free = false) {
+            if (over || crested || (!free && pushesLeft <= 0) || ball.cooldown > 0) return false;
+            addEnergy(strength * strength);
             ball.still = 0;
             ball.cooldown = free ? Math.min(cooldown, FREE_COOLDOWN) : cooldown;
             if (!free) pushesLeft--;
@@ -287,7 +321,10 @@
                 reshaping = reshaping.filter(b => Math.abs(b.height - b.target) > 1e-4 || Math.abs(b.halfWidth - b.targetW) > 1e-4);
             }
             const dy = ground.slope(ball.x);
-            if (flow.left > 0) {
+            if (flow.left > 0) ball.air = null;         // a flow lifts it off on its own terms
+            if (ball.air) {
+                flyStep(events);
+            } else if (flow.left > 0) {
                 // Flowing: off the line, no gravity or drag, at least the flow's speed. A super flow
                 // shrinks the hills under and just ahead of the ball as it goes.
                 flow.left = Math.max(0, flow.left - STEP);
@@ -296,15 +333,22 @@
                 ball.trapped = false;
             } else {
                 ball.v += (-GRAVITY * dy / (1 + dy * dy)) * STEP;
-                ball.v -= (friction * (DAMPING * ball.v + DRAG * ball.v * Math.abs(ball.v)) + slopeDrag * Math.abs(dy) * ball.v) * STEP;
+                const late = ground.legAt(ball.x) >= (opts.lateLeg ?? LATE_LEG) ? LATE_DRAG : 1;
+                ball.v -= (friction * (DAMPING * ball.v + late * DRAG * ball.v * Math.abs(ball.v)) + late * slopeDrag * Math.abs(dy) * ball.v) * STEP;
                 // Momentum while there is somewhere to go; once the ball lacks the energy to clear either
                 // neighbouring hill, it is stuck in this dip, so let it settle quickly instead of sloshing.
                 const { left, right } = ground.walls(ball.x);
                 const energy = 0.5 * ball.v * ball.v + GRAVITY * ground.height(ball.x);
                 ball.trapped = energy < GRAVITY * Math.min(left, right);
-                if (ball.trapped) ball.v *= 1 - TRAPPED_DAMPING * STEP;
+                // On a late leg's giant swells, only settle it near the bottom of the valley: mid-slope it's
+                // still rolling down a long hill, not sloshing in a dip.
+                const settle = ball.trapped && (ground.legAt(ball.x) < (opts.lateLeg ?? LATE_LEG) || Math.abs(dy) < 0.04);
+                if (settle) ball.v *= 1 - TRAPPED_DAMPING * STEP;
             }
-            ball.x += ball.v * STEP * (flow.left > 0 ? flow.warp : 1);
+            if (!ball.air) {
+                ball.x += ball.v * STEP * (flow.left > 0 ? flow.warp : 1);
+                if (flow.left <= 0) takeOff(events);
+            }
             ball.maxX = Math.max(ball.maxX, ball.x);
 
             const last = ground.last;
@@ -339,12 +383,63 @@
                 events.push({ type: 'end', skill: k, leg: k, progress: 0, metres: 0.5 * furthest, rolledBack: true, hills: ground.hillsBefore(Math.min(ball.maxX, skillHill(k).peak)) });
                 return;
             }
-            const resting = flow.left <= 0 && Math.abs(ball.v) < REST_SPEED && Math.abs(dy) < 0.08;
+            const resting = !ball.air && flow.left <= 0 && Math.abs(ball.v) < REST_SPEED && Math.abs(dy) < 0.08;
             ball.still = resting ? ball.still + STEP : 0;
             // The roll ends once the ball settles with no pushes left. With pushes left, it waits for you.
             if (launched && pushesLeft === 0 && !opts.holdOpen?.() && ball.still >= REST_SECONDS) {
                 over = true;
                 events.push(stopEvent());
+            }
+        }
+
+        // On a late leg, the ground curving away faster than the ball can follow (its downward pull at this speed
+        // would need more than gravity) throws it into the air, with the climb's upward speed.
+        function takeOff(events) {
+            if (ball.v < 0.5 || ground.legAt(ball.x) < (opts.lateLeg ?? LATE_LEG)) return;
+            const e = 0.02;
+            const curve = (ground.height(ball.x + e) - 2 * ground.height(ball.x) + ground.height(ball.x - e)) / (e * e);
+            if (curve * ball.v * ball.v >= -GRAVITY * LAUNCH_GRIP) return;
+            const slope = ground.slope(ball.x);
+            ball.air = { y: ground.height(ball.x), vy: slope * ball.v, peak: ground.height(ball.x), from: ball.x };
+            ball.trapped = false;
+            events.push({ type: 'launch', speed: Math.hypot(ball.v, ball.air.vy), x: ball.x });
+        }
+
+        // In flight: gravity and a little air drag; landing bounces off the ground's normal (losing some of the
+        // impact and a little speed along the ground), until the bounce is too small and it rolls on.
+        function flyStep(events) {
+            const a = ball.air;
+            a.vy -= GRAVITY * STEP;
+            const sp = Math.hypot(ball.v, a.vy);
+            const drag = friction * AIR_DRAG * sp * STEP;
+            ball.v -= ball.v * drag;
+            a.vy -= a.vy * drag;
+            ball.x += ball.v * STEP;
+            a.y += a.vy * STEP;
+            a.peak = Math.max(a.peak, a.y);
+            const gh = ground.height(ball.x);
+            if (a.y > gh) return;
+            const s = ground.slope(ball.x);
+            const len = Math.hypot(1, s);
+            const vn = (-s * ball.v + a.vy) / len;          // into the ground when negative
+            const vt = (ball.v + s * a.vy) / len;           // along it
+            const impact = Math.max(0, -vn);
+            const back = impact * BOUNCE;
+            events.push({ type: 'land', impact, x: ball.x, flight: ball.x - a.from, height: a.peak - gh, bounce: back >= BOUNCE_MIN });
+            // A bounce that would throw it backwards (slamming into the face of the next swell) sticks instead,
+            // carrying its speed up the slope: launchers keep you going forward.
+            const t = vt * SKID;
+            if (back >= BOUNCE_MIN && (t - back * s) / len > 0) {
+                // Bounce: tangent kept (mostly), normal reflected and shrunk.
+                ball.v = (t - back * s) / len;
+                a.vy = (t * s + back) / len;
+                a.y = gh + 1e-4;
+                a.peak = gh;
+                a.from = ball.x;
+            } else {
+                // Stick: roll on with the speed along the ground (as dx/dt).
+                ball.air = null;
+                ball.v = t / len;
             }
         }
 
@@ -379,8 +474,7 @@
         // Banked sprints (a super crunch) land all at once, whatever the cooldown; no push is used.
         function boost(strength) {
             if (over || crested || !(strength > 0)) return false;
-            const e = strength * strength;
-            ball.v = ball.v >= 0 ? Math.sqrt(ball.v * ball.v + e) : (ball.v * ball.v > e ? -Math.sqrt(ball.v * ball.v - e) : Math.sqrt(e - ball.v * ball.v));
+            addEnergy(strength * strength);
             ball.still = 0;
             launched = true;
             return true;
@@ -426,12 +520,15 @@
             get progress() { return ground.progress(ball.x); },
             get atRest() { return ball.still >= REST_SECONDS; },
             // The ball no longer has the energy to clear the next hill: the moment a push matters most.
-            get trapped() { return ball.trapped; }
+            get trapped() { return ball.trapped; },
+            // In flight (late legs): the ball's height above the ground line's zero, else on the line.
+            get airborne() { return !!ball.air; },
+            get height() { return ball.air ? ball.air.y : ground.height(ball.x); }
         };
     }
 
     return {
         STEP, GRAVITY,
-        checkpoint, skillHill, skillHeight, legScale, rollingHills, terrain, createRoll, rng
+        LATE_LEG, checkpoint, skillHill, skillHeight, rollingHills, terrain, createRoll, rng
     };
 });

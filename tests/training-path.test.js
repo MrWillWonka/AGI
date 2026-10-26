@@ -468,11 +468,28 @@ test('onward: cresting the last skill hill emits crest once and the ball rolls o
     assert.ok(roll.ball.x > T.skillHill(0).peak && !roll.crested, 'still rolling past the old hill');
 });
 
-test('later legs grow in distance and scale, not hill count', () => {
-    const counts = [0, 4, 8].map(k => T.rollingHills(k, 9).length);
-    assert.ok(counts[0] >= 8 && counts[0] <= 12, `leg 1 ${counts[0]}`);
-    assert.ok(counts[2] < 30, `leg 9 stays near 22 hills, not ~80: ${counts[2]}`);
-    assert.ok(T.legScale(8) > 3 && T.legScale(0) === 1);
+test('legs 1-9 are many small hills; from leg 10 a few giant swells, far wider than the view', () => {
+    assert.ok(T.rollingHills(5, 9).length > 30);
+    const late = T.rollingHills(T.LATE_LEG, 9);
+    assert.ok(late.length >= 4 && late.length <= 7, `${late.length}`);
+    for (const h of late) assert.ok(2 * h.halfWidth > 40 && h.height < 0.7 * T.skillHeight(T.LATE_LEG));
+});
+
+test('late legs: a fast ball flies off a crest, lands, bounces and rolls on; early legs never launch', () => {
+    const fly = k => {
+        const roll = T.createRoll(k, 4, { pushes: 1, cooldown: 1 });
+        const hill = roll.ground.bumps.find(b => b.skill === null && b.peak > roll.ground.start + 1);
+        roll.push(0.001);
+        Object.assign(roll.ball, { x: hill.peak - 0.05 * hill.halfWidth, v: 40, maxX: hill.peak });
+        const seen = [];
+        for (let i = 0; i < 400 && !roll.over; i++) for (const e of roll.step(0.02)) seen.push(e.type);
+        return seen;
+    };
+    const late = fly(T.LATE_LEG);
+    assert.ok(late.includes('launch'), 'takes off');
+    assert.ok(late.includes('land'), 'lands');
+    const early = fly(3);
+    assert.ok(!early.includes('launch'));
 });
 
 test('a super flow condenses time: the ball covers warp times the ground', () => {
