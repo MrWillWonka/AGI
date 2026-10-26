@@ -1384,7 +1384,8 @@ window.AGI = (function () {
             n.removeAttribute('data-bind');
             n.removeAttribute('data-next');
         }
-        for (const n of copy.querySelectorAll('.room-bar')) n.remove();
+        // Transient effects (connection wires, cabinet sparks and signals) would freeze mid-animation.
+        for (const n of copy.querySelectorAll('.room-bar, .signal-line, .cab-spark, .cab-signal')) n.remove();
         // One-off entrance animations would replay on every refresh.
         for (const n of copy.querySelectorAll('.fresh, .reveal-in')) n.classList.remove('fresh', 'reveal-in');
         return copy;
@@ -4439,6 +4440,11 @@ window.AGI = (function () {
                     state.prestige.total += amount;
                 } else {
                     state[group][key] += amount;
+                    // Debug CP counts as earned, so it moves this run's shipping progress (R&D) too.
+                    if (path === 'res.cp' && amount > 0) {
+                        state.stats.runCp += amount;
+                        state.stats.lifetimeCp += amount;
+                    }
                 }
                 afterChange();
             },
