@@ -35,7 +35,7 @@
         systemWidth: 0.01,   // the system prompt spot inside the super prompt (legacy System Prompt)
         systemMult: 50,      // a system prompt counts as this many clean prompts
         systemPower: 0.6,    // and hits this much harder again
-        breakthroughMult: 1.5, // a breakthrough sprint's strength multiplier before upgrades
+        breakthroughMult: 1.75, // a breakthrough sprint's strength multiplier before upgrades
         windfallMult: 2,     // a viral run's XP multiplier before upgrades
         crunchSeconds: 3,    // a crunch's free sprints last this long at Crunch Time level 1 (+1 s per level)
         flowSeconds: 2,      // a flow lasts this long, +1 s per Flow State level (so 3 s at level 1)
@@ -223,13 +223,13 @@
         { id: 'dysonSwarm', tab: 'training', tree: { x: 0, y: -7 }, icon: 'bolt', name: 'Dyson Swarm', effect: '+300% sprint strength per level', flavor: 'The sun is now a power supply. It has opinions.', cost: { xp: 80000 }, scale: 2, max: 2, requires: 'fusionReactor', boost: { push: 3 } },
         { id: 'waferScale', tab: 'training', tree: { x: 1, y: -5 }, icon: 'chip', name: 'Wafer-Scale Engine', effect: '-15% wait between sprints per level', flavor: 'One chip the size of a dinner plate.', cost: { xp: 20000 }, scale: 1.8, max: 3, requires: 'exascaleCluster', boost: { cooldown: 1 } },
         // Breakthroughs: rare at first (the branch opens after the second skill). New versions add more.
-        { id: 'scoutingData', tab: 'training', tree: { x: 1, y: -2 }, requires: 'gpuCluster2', icon: 'dice', name: 'Lucky Break', effect: '+1.5% breakthrough chance per level (a breakthrough hits ×1.5)', flavor: 'Seed 42. It\'s always seed 42.', cost: { xp: 80 }, scale: 1.6, max: 2, boost: { critChance: 0.015 },
+        { id: 'scoutingData', tab: 'training', tree: { x: 1, y: -2 }, requires: 'gpuCluster2', icon: 'dice', name: 'Lucky Break', effect: '+4% breakthrough chance per level (a breakthrough hits ×1.75)', flavor: 'Seed 42. It\'s always seed 42.', cost: { xp: 80 }, scale: 1.6, max: 2, boost: { critChance: 0.04 },
             unlock: s => s.path.learned >= 2, hint: 'Learn two skills' },
         { id: 'satelliteMaps', tab: 'training', tree: { x: 2, y: -2 }, icon: 'dice', name: 'Serendipity', effect: 'Breakthroughs +50% stronger, per level', flavor: 'Penicillin was an accident too.', cost: { xp: 150 }, scale: 1.6, max: 2, requires: 'scoutingData', boost: { critPower: 0.5 } },
-        { id: 'blackSwan', tab: 'training', tree: { x: 3, y: -2 }, icon: 'dice', name: 'Black Swan', effect: '+2.5% breakthrough chance per level', flavor: 'Nobody saw it coming. That\'s the point.', cost: { xp: 10000 }, scale: 1.9, max: 3, requires: 'satelliteMaps', boost: { critChance: 0.025 } },
+        { id: 'blackSwan', tab: 'training', tree: { x: 3, y: -2 }, icon: 'dice', name: 'Black Swan', effect: '+5% breakthrough chance per level', flavor: 'Nobody saw it coming. That\'s the point.', cost: { xp: 10000 }, scale: 1.9, max: 3, requires: 'satelliteMaps', boost: { critChance: 0.05 } },
         // Max Effort: your next sprint goes all out (full strength, a super prompt) the moment you press.
-        { id: 'maxEffort', tab: 'training', tree: { x: 0, y: -4 }, icon: 'flame', name: 'Max Effort', effect: '+2% chance your next sprint is all out: full strength, a super prompt', flavor: 'Leave nothing in the tank. Then find another tank.', cost: { xp: 1100 }, scale: 1.7, max: 1, requires: 'gpuSupercluster', boost: { maxEffortChance: 0.02 } },
-        { id: 'muse', tab: 'training', tree: { x: 1, y: -4 }, icon: 'flame', name: 'The Muse', effect: '+1.5% Max Effort chance per level', flavor: 'Inspiration arrives on schedule. Suspicious.', cost: { xp: 7000 }, scale: 1.9, max: 3, requires: 'quantumAccelerator', boost: { maxEffortChance: 0.015 } },
+        { id: 'maxEffort', tab: 'training', tree: { x: 0, y: -4 }, icon: 'flame', name: 'Max Effort', effect: '+5% chance your next sprint is all out: full strength, a super prompt', flavor: 'Leave nothing in the tank. Then find another tank.', cost: { xp: 1100 }, scale: 1.7, max: 1, requires: 'gpuSupercluster', boost: { maxEffortChance: 0.05 } },
+        { id: 'muse', tab: 'training', tree: { x: 1, y: -4 }, icon: 'flame', name: 'The Muse', effect: '+3% Max Effort chance per level', flavor: 'Inspiration arrives on schedule. Suspicious.', cost: { xp: 7000 }, scale: 1.9, max: 3, requires: 'quantumAccelerator', boost: { maxEffortChance: 0.03 } },
         // Secrets: these never show, not even as a lock, until the node next to them is owned.
         { id: 'batchNorm', tab: 'training', tree: { x: 1, y: -1 }, icon: 'chip', name: 'Batch Normalization', effect: '-15% wait between sprints', flavor: 'Everybody calm down. Especially the gradients.', cost: { xp: 25 }, max: 1, requires: 'trainingOptimizer', secret: true, boost: { cooldown: 1 } },
         { id: 'dataAugmentation', tab: 'training', tree: { x: 1, y: 1 }, icon: 'stack', name: 'Data Augmentation', effect: '+15% run bonus per clean prompt', flavor: 'Flip it, rotate it, call it new data.', cost: { xp: 25 }, max: 1, requires: 'trainingEpochs', secret: true, boost: { rollBonus: 0.15 } },
@@ -264,7 +264,7 @@
         { id: 'globalBenchmark', tab: 'training', tree: { x: 6, y: 0 }, icon: 'target', name: 'Global Benchmark', effect: 'Clean prompts hit 15% harder, per level', flavor: 'Everyone measures against you now.', cost: { xp: 4000 }, scale: 1.8, max: 3, requires: 'leaderboardPrizes', boost: { cleanPower: 0.15 } },
         { id: 'turingTest', tab: 'training', tree: { x: 7, y: 0 }, icon: 'star', name: 'Turing Test', effect: '+50% XP from every run, per level', flavor: 'The judges asked it out. Twice.', cost: { xp: 45000 }, scale: 2, max: 2, requires: 'globalBenchmark', boost: { xp: 0.5 } },
         // Viral runs grow out of the XP nodes: rare, and a run's XP is multiplied.
-        { id: 'viralPaper', tab: 'training', tree: { x: 4, y: -2 }, icon: 'spark', name: 'Viral Paper', effect: '+3.5% chance a run goes viral (its XP doubled), per level', flavor: 'It\'s trending. Nobody read past the abstract.', cost: { xp: 650 }, scale: 1.6, max: 3, requires: 'handLabelled', boost: { windfallChance: 0.035 } },
+        { id: 'viralPaper', tab: 'training', tree: { x: 4, y: -2 }, icon: 'spark', name: 'Viral Paper', effect: '+5% chance a run goes viral (its XP doubled), per level', flavor: 'It\'s trending. Nobody read past the abstract.', cost: { xp: 650 }, scale: 1.6, max: 3, requires: 'handLabelled', boost: { windfallChance: 0.05 } },
         { id: 'goingViral', tab: 'training', tree: { x: 5, y: -2 }, icon: 'spark', name: 'Keynote Demo', effect: 'Viral runs pay 75% more, per level', flavor: 'The live demo worked. Everyone is as surprised as you.', cost: { xp: 1800 }, scale: 1.8, max: 3, requires: 'viralPaper', boost: { windfallPower: 0.75 } },
         // Recursion (down): more sprints per run and less wait between them, then crunches.
         { id: 'trainingEpochs', tab: 'training', tree: { x: 0, y: 1 }, requires: 'initialWeights', icon: 'plus', name: 'Investor Funding', effect: '+1 training sprint per run (sprint again mid-run!)', flavor: 'Dad lent you $100. Don\'t tell Mum.', cost: { xp: 6 }, scale: 3, max: 2, boost: { pushes: 1 } },
@@ -277,23 +277,23 @@
         { id: 'photonic', tab: 'training', tree: { x: 0, y: 5 }, icon: 'plus', name: 'Strategic Partner', effect: '+1 training sprint per run, per level', flavor: 'A tech giant wants a seat at the table. Fine.', cost: { xp: 5000 }, scale: 2, max: 2, requires: 'customSilicon', boost: { pushes: 1 } },
         { id: 'quantumNetwork', tab: 'training', tree: { x: 0, y: 6 }, icon: 'chip', name: 'Quantum Network', effect: '-15% wait between sprints per level', flavor: 'Entangled racks finish each other\'s sentences.', cost: { xp: 60000 }, scale: 2, max: 3, requires: 'photonic', boost: { cooldown: 1 } },
         { id: 'sovereignFund', tab: 'training', tree: { x: -1, y: 5 }, icon: 'chip', name: 'Round-the-Clock Ops', effect: '-15% wait between sprints per level', flavor: 'Three shifts, three time zones, zero downtime.', cost: { xp: 25000 }, scale: 2.5, max: 2, requires: 'ipo', boost: { cooldown: 1 } },
-        { id: 'crunchTime', tab: 'training', tree: { x: 1, y: 3 }, icon: 'flame', name: 'Crunch Time', effect: '+2% chance a sprint sets off a crunch: free sprints for 3 s, per level', flavor: 'Nobody goes home until it converges.', cost: { xp: 400 }, scale: 2, max: 3, requires: 'overclockedChips', boost: { crunchChance: 0.02 } },
+        { id: 'crunchTime', tab: 'training', tree: { x: 1, y: 3 }, icon: 'flame', name: 'Crunch Time', effect: '+4% chance a sprint sets off a crunch: free sprints for 3 s, per level', flavor: 'Nobody goes home until it converges.', cost: { xp: 400 }, scale: 2, max: 3, requires: 'overclockedChips', boost: { crunchChance: 0.04 } },
         { id: 'deathMarch', tab: 'training', tree: { x: 1, y: 4 }, icon: 'flame', name: 'Death March', effect: 'Crunches last 1 s longer, per level', flavor: 'Sleep is a hyperparameter.', cost: { xp: 6000 }, scale: 1.9, max: 3, requires: 'crunchTime', boost: { crunchTime: 1 } },
         // Legacy (cost Insight, kept for good): automation, Flow State, the super power-ups, and flat boosts.
         { id: 'autoTrainer', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'robot', name: 'Auto-Trainer', effect: 'Level 1 starts runs and sprints when the model stalls. Level 2 times them', flavor: 'An intern who never gets tired. Or paid.', cost: { insight: 3 }, scale: 3, max: 2 },
         { id: 'headStart', tab: 'legacy', legacy: true, branch: 'power', icon: 'target', name: 'Head Start', effect: 'Clean prompts hit 10% harder per level, kept for good', flavor: 'Version two starts where version one gave up.', cost: { insight: 1 }, scale: 2, max: 3, boost: { cleanPower: 0.1 } },
         { id: 'alumniNetwork', tab: 'legacy', legacy: true, branch: 'precision', icon: 'coin', name: 'Alumni Network', effect: '+15% XP from every run per level, kept for good', flavor: 'Your old team still sends you their best data.', cost: { insight: 1 }, scale: 2, max: 3, boost: { xp: 0.15 } },
         { id: 'tenure', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'coin', name: 'Tenure', effect: '+10% XP from every run per level, kept for good', flavor: 'They can\'t fire you now. Time to publish.', cost: { insight: 4 }, scale: 3, max: 2, boost: { xp: 0.1 } },
-        { id: 'scalingLaws', tab: 'legacy', legacy: true, branch: 'power', icon: 'dice', name: 'Scaling Laws', effect: '+1.5% Max Effort chance per level, kept for good', flavor: 'Bigger is better. There\'s a graph and everything.', cost: { insight: 2 }, scale: 2, max: 3, boost: { maxEffortChance: 0.015 } },
+        { id: 'scalingLaws', tab: 'legacy', legacy: true, branch: 'power', icon: 'dice', name: 'Scaling Laws', effect: '+3% Max Effort chance per level, kept for good', flavor: 'Bigger is better. There\'s a graph and everything.', cost: { insight: 2 }, scale: 2, max: 3, boost: { maxEffortChance: 0.03 } },
         { id: 'secondWind', tab: 'legacy', legacy: true, branch: 'power', icon: 'flame', name: 'Second Wind', effect: 'Max Effort +30% stronger per level, kept for good', flavor: 'Just when you thought it was done.', cost: { insight: 3 }, scale: 2, max: 3, boost: { maxEffortPower: 0.3 } },
-        { id: 'paradigmShift', tab: 'legacy', legacy: true, branch: 'precision', icon: 'bolt', name: 'Paradigm Shift', effect: 'Super breakthroughs: 10% of breakthroughs (+10%/level) shatter the hills ahead', flavor: 'Everything you knew is rubble. Good rubble.', cost: { insight: 15 }, scale: 2, max: 3, boost: { superCrit: 0.1 } },
-        { id: 'pressOffice', tab: 'legacy', legacy: true, branch: 'precision', icon: 'spark', name: 'Press Office', effect: '+1.5% viral chance per level, kept for good', flavor: 'Somebody has to write the headlines.', cost: { insight: 2 }, scale: 2, max: 3, boost: { windfallChance: 0.015 } },
+        { id: 'paradigmShift', tab: 'legacy', legacy: true, branch: 'precision', icon: 'bolt', name: 'Paradigm Shift', effect: 'Super breakthroughs: 25% of breakthroughs per level smash through the hills ahead', flavor: 'Everything you knew is rubble. Good rubble.', cost: { insight: 15 }, scale: 2, max: 3, boost: { superCrit: 0.25 } },
+        { id: 'pressOffice', tab: 'legacy', legacy: true, branch: 'precision', icon: 'spark', name: 'Press Office', effect: '+3% viral chance per level, kept for good', flavor: 'Somebody has to write the headlines.', cost: { insight: 2 }, scale: 2, max: 3, boost: { windfallChance: 0.03 } },
         { id: 'systemPrompt', tab: 'legacy', legacy: true, branch: 'precision', icon: 'target', name: 'System Prompt', effect: 'A tiny system prompt spot inside the super prompt: worth 50 clean prompts', flavor: 'You are a helpful model. You are a very fast model.', cost: { insight: 25 }, scale: 2, max: 2, boost: { system: 1 } },
         { id: 'hackathon', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'chip', name: 'Hackathon', effect: '-15% wait between sprints per level, kept for good', flavor: 'Free pizza. Nobody leaves for 48 hours.', cost: { insight: 2 }, scale: 2, max: 3, boost: { cooldown: 1 } },
-        { id: 'bulletTime', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'flame', name: 'Bullet Time', effect: 'Super crunches: 15% of crunches (+10%/level) freeze time and bank sprints', flavor: 'Time stops. You don\'t.', cost: { insight: 18 }, scale: 2, max: 3, requires: 'hackathon', boost: { superCrunch: 0.15 } },
-        { id: 'flowState', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Flow State', effect: '+1% chance a sprint starts a flow: coast above the hills, 3 s (+1 s/level)', flavor: 'The loss curve and you are one.', cost: { insight: 5 }, scale: 2, max: 3, boost: { flowChance: 0.01, flowTime: 1 } },
+        { id: 'bulletTime', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'flame', name: 'Bullet Time', effect: 'Super crunches: 25% of crunches per level freeze time; every tap banks a full sprint ×1.5, all landing at once', flavor: 'Time stops. You don\'t.', cost: { insight: 18 }, scale: 2, max: 3, requires: 'hackathon', boost: { superCrunch: 0.25 } },
+        { id: 'flowState', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Flow State', effect: '+3% chance a sprint starts a flow: fly high over the hills, 3 s (+1 s/level)', flavor: 'The loss curve and you are one.', cost: { insight: 5 }, scale: 2, max: 3, boost: { flowChance: 0.03, flowTime: 1 } },
         { id: 'deepFocus', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Deep Focus', effect: 'Flows coast 25% faster per level, kept for good', flavor: 'Notifications off. Phone in a drawer. In another room.', cost: { insight: 4 }, scale: 2, max: 3, requires: 'flowState', boost: { flowSpeed: 0.25 } },
-        { id: 'lucidDream', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Lucid Dream', effect: 'Super flows: 20% of flows (+10%/level) shrink the hills below you', flavor: 'It knows it\'s dreaming. It redecorated.', cost: { insight: 20 }, scale: 2, max: 3, requires: 'deepFocus', boost: { superFlow: 0.2 } },
+        { id: 'lucidDream', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Lucid Dream', effect: 'Super flows: 25% of flows per level shrink the world around you', flavor: 'It knows it\'s dreaming. It redecorated.', cost: { insight: 20 }, scale: 2, max: 3, requires: 'deepFocus', boost: { superFlow: 0.25 } },
         { id: 'researchAssistant', tab: 'algorithms', name: 'Research Assistant', shows: 'autoResearch', effect: 'Researches for you, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.55,
             unlock: s => !!s.unlocked['action:research'] && automationGate(s, 'researchAssistant').met, hint: 'Language Modeling, and 50 research runs by hand' },
         // The crawler's upgrades: it reads text, then images, so it collects faster. (Data per collection
@@ -1039,6 +1039,17 @@
         return { xp, record, skill };
     }
 
+    // A run crests the frontier's skill hill and rolls on (runs are never cut short at a skill hill): the
+    // skill is learned at once and the leg pays what a cresting run paid (its full distance, ×2), times the
+    // chain so far. The run then carries on into the new frontier leg, and finishRoll() pays for where it
+    // stops. `metres` is the leg's length (from the physics).
+    function crestSkill(s, metres, units = 0, chain = 0) {
+        const xp = rollXp(s, 1, true, units, metres, s.path.learned) * chainMult(chain);
+        s.res.xp += xp;
+        const skill = learnSkill(s, s.path.learned);
+        return { xp, skill };
+    }
+
     // Called when the ball crests hill i. Only the next unlearned hill teaches anything.
     function learnSkill(s, i) {
         if (i !== s.path.learned) return null;
@@ -1393,7 +1404,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, applyOffline,
-        skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
+        skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration
     };

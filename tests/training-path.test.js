@@ -448,3 +448,40 @@ test('power-ups: a flow coasts over hills, a smash flattens the hills ahead, a b
     assert.ok(banked.ball.v > v);
     assert.equal(banked.pushesLeft, 0);
 });
+
+test('onward: cresting the last skill hill emits crest once and the ball rolls on into an extended leg', () => {
+    const roll = T.createRoll(0, 3, { pushes: 1, cooldown: 1, onward: true });
+    const g = roll.ground;
+    roll.push(0.001);
+    Object.assign(roll.ball, { x: g.goal.peak - 0.01, v: 3, maxX: g.goal.peak - 0.01 });
+    const crests = [];
+    for (let i = 0; i < 40 && !roll.over; i++) {
+        for (const e of roll.step(0.05)) {
+            if (e.type === 'crest') { crests.push(e); roll.extend(); }
+            assert.notEqual(e.type, 'clear', 'the crested hill is not cleared again after extending');
+        }
+    }
+    assert.equal(crests.length, 1);
+    assert.equal(crests[0].onward, true);
+    assert.equal(g.last, 1, 'the next leg was laid');
+    assert.equal(g.goal.skill, 1);
+    assert.ok(roll.ball.x > T.skillHill(0).peak && !roll.crested, 'still rolling past the old hill');
+});
+
+test('later legs grow in distance and scale, not hill count', () => {
+    const counts = [0, 4, 8].map(k => T.rollingHills(k, 9).length);
+    assert.ok(counts[0] >= 8 && counts[0] <= 12, `leg 1 ${counts[0]}`);
+    assert.ok(counts[2] < 30, `leg 9 stays near 22 hills, not ~80: ${counts[2]}`);
+    assert.ok(T.legScale(8) > 3 && T.legScale(0) === 1);
+});
+
+test('a super flow shrinks hills ahead in width as well as height', () => {
+    const roll = T.createRoll(2, 21, { pushes: 2, cooldown: 0.1 });
+    roll.push(2);
+    const ahead = roll.ground.bumps.find(b => b.skill === null && b.peak > roll.ball.x + 1);
+    const w0 = ahead.halfWidth;
+    const h0 = ahead.height;
+    roll.coast(3, 1, 0.25, 0.45);
+    for (let i = 0; i < 30; i++) roll.step(0.05);
+    assert.ok(ahead.height < h0 * 0.5 && ahead.halfWidth < w0 * 0.7, `${ahead.height}/${h0} ${ahead.halfWidth}/${w0}`);
+});

@@ -641,7 +641,7 @@ test('luck: breakthroughs and viral runs start at zero, grow with levels, and ar
     assert.equal(rate(seed => E.windfallHit(s, seed)), 0);
     s.levels.scoutingData = 1;
     const low = rate(seed => E.breakthroughHit(s, seed, 0));
-    assert.ok(low > 0.004 && low < 0.02, `rare at first: ${low}`);
+    assert.ok(low > 0.025 && low < 0.06, `uncommon at first: ${low}`);
     s.levels.scoutingData = 2;
     s.levels.satelliteMaps = 2;
     s.levels.blackSwan = 1;
@@ -653,7 +653,7 @@ test('luck: breakthroughs and viral runs start at zero, grow with levels, and ar
     assert.ok(Math.abs(E.sprintStrength(s, 1, null, true) / E.sprintStrength(s, 1) - E.derive(s).critMult) < 1e-9);
     s.levels.viralPaper = 2;
     const viral = rate(seed => E.windfallHit(s, seed));
-    assert.ok(viral > 0.04 && viral < 0.1, `viral ${viral}`);
+    assert.ok(viral > 0.07 && viral < 0.14, `viral ${viral}`);
     {
         const k = fresh();
         k.levels.goingViral = 1;
@@ -727,8 +727,8 @@ test('luck is earned: the branch opens after two skills; crunches and Max Effort
     s.levels.maxEffort = 1;
     const crunch = rate(seed => E.crunchHit(s, seed, 0));
     const effort = rate(seed => E.maxEffortHit(s, seed, 0));
-    assert.ok(crunch > 0.008 && crunch < 0.035, `crunch rare: ${crunch}`);
-    assert.ok(effort > 0.003 && effort < 0.02, `Max Effort rare: ${effort}`);
+    assert.ok(crunch > 0.025 && crunch < 0.06, `crunch: ${crunch}`);
+    assert.ok(effort > 0.03 && effort < 0.075, `Max Effort: ${effort}`);
     assert.equal(E.derive(s).crunchSeconds, 3);
     s.levels.deathMarch = 2;
     assert.equal(E.derive(s).crunchSeconds, 5, 'Death March makes crunches longer');
@@ -947,7 +947,7 @@ test('prompts: system inside super inside clean; each pays and hits harder; supe
     assert.equal(E.derive(t).flowSeconds, 3);
     const rate = hit => { let n = 0; for (let seed = 1; seed <= 2000; seed++) n += hit(seed) ? 1 : 0; return n / 2000; };
     const sup = rate(seed => E.superHit(t, 'breakthrough', seed, 0));
-    assert.ok(sup > 0.05 && sup < 0.15, `10% of breakthroughs are super: ${sup}`);
+    assert.ok(sup > 0.18 && sup < 0.32, `25% of breakthroughs are super: ${sup}`);
 });
 
 test('Collect Data stays hidden until compute reaches 5 CP/s', () => {
@@ -989,4 +989,14 @@ test('hand actions pay whole numbers; percentage bonuses go to automation', () =
     const d = E.derive(s);
     for (const k of ['clickPower', 'dpPerCollect', 'rpPerResearch']) assert.equal(d[k] % 1, 0, `${k} is ${d[k]}`);
     assert.ok(d.autoDpPerCollect > d.dpPerCollect, 'the crawler gets the +% data and Insight');
+});
+
+test('cresting the frontier mid-run learns the skill and pays the leg at the crest bonus, times the chain', () => {
+    const s = fresh();
+    const metres = E.legMetres(0);
+    const plain = E.rollXp(s, 1, true, 0, metres, 0);
+    const { xp, skill } = E.crestSkill(s, metres, 0, 1);
+    assert.equal(skill.name, E.skillAt(0).name);
+    assert.equal(s.path.learned, 1);
+    assert.ok(Math.abs(xp - plain * E.chainMult(1)) < 1e-9);
 });

@@ -2182,9 +2182,11 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
     background-size: 100% 100%, 300% 300%; animation: viral-edge 2.4s linear infinite; box-shadow: 0 0 30px rgba(199, 146, 234, 0.45); }
 .roll-result.viral::before {
     content: attr(data-viral);
+    /* Inside the card: it scrolls (overflow: auto), so anything hanging over its edge was clipped. */
     position: absolute;
-    top: -12px;
-    right: 14px;
+    top: 14px;
+    right: 16px;
+    z-index: 1;
     padding: 3px 10px;
     border-radius: 999px;
     background: linear-gradient(90deg, #ff7ab6, #c792ea);

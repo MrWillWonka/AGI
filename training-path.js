@@ -2,7 +2,8 @@
 // The trail is split into stretches (legs). Stretch k runs from checkpoint k to skill hill k, a big hill
 // that teaches skill k. Each roll starts at a checkpoint over freshly generated rolling hills and runs
 // on through every later leg up to the last one asked for (a replay of cleared legs carries on toward the
-// frontier); the roll ends when the ball comes to rest or crests the last skill hill.
+// frontier), and with `onward` on past it (the caller extends the terrain a leg at a time); the roll ends
+// when the ball comes to rest.
 // Pure and deterministic: no DOM, no clock, no Math.random. Terrain comes from (stretch, seed).
 // Loaded in the browser as window.TrainingPath and in Node (tests) via require().
 (function (root, factory) {
@@ -66,23 +67,35 @@
         };
     }
 
+    // Later legs grow in distance and scale, not in hill count: about 10 rolling hills on the first leg and
+    // only 1.5 more per leg after (22 by leg 8), so each leg's hills and the flats between them get wider and
+    // the hills taller with it (`legScale`: 1 on the first leg, about 1.8 by leg 2, 2.7 by leg 5, 3.8 by 8).
+    // Distance, momentum and (later) launches matter more than counting bumps.
+    const hillCount = k => 10 + 1.5 * k;
+    function legScale(k) {
+        const natural = 2 * 0.525 * skillHalfWidth(k) + 0.35;      // average hill + gap at the old density
+        const wanted = (stretchLength(k) - LEAD_IN - 0.25) / hillCount(k);
+        return Math.max(1, wanted / natural);
+    }
+
     // Rolling hills for stretch k: mostly small, sometimes medium, growing toward the skill hill.
     // `hillScale` (< 1 from upgrades) makes them less steep; the random layout stays the same.
     function rollingHills(k, seed, hillScale = 1) {
         const r = rng(seed);
         const from = checkpoint(k) + LEAD_IN;
         const to = skillHill(k).start - 0.25;
-        const big = skillHeight(k);
+        const scale = legScale(k);
+        const big = skillHeight(k) * Math.sqrt(scale);
         const hills = [];
         let x = from;
         while (true) {
-            const w = skillHalfWidth(k) * (0.25 + r() * 0.55);
-            const gap = 0.1 + r() * 0.5;
+            const w = skillHalfWidth(k) * (0.25 + r() * 0.55) * scale;
+            const gap = (0.1 + r() * 0.5) * scale;
             if (x + 2 * w > to) break;
             const along = (x - from) / (to - from);              // 0 near the checkpoint, 1 near the wall
             const roll = r();
             const size = roll < 0.12 ? 0.35 + r() * 0.2 : 0.05 + r() * 0.2;   // occasional medium hill
-            const h = big * size * (0.6 + 0.6 * along) * hillScale;
+            const h = Math.min(0.65 * skillHeight(k), big * size * (0.6 + 0.6 * along)) * hillScale;
             hills.push({ start: x, peak: x + w, end: x + 2 * w, height: h, halfWidth: w, skill: null });
             x += 2 * w + gap;
         }
@@ -98,10 +111,19 @@
     // The ground for a roll from stretch k through stretch `last` (default k): flat at the start, then
     // each leg's rolling hills and skill hill. Nothing behind the start line: a ball that rolls back to it
     // ends the run.
+    // `extend()` adds the next leg past the last one (a run that crests its last skill hill rolls on).
     function terrain(k, seed, hillScale = 1, last = k) {
         last = Math.max(k, last);
         const bumps = [];
         for (let j = k; j <= last; j++) bumps.push(...rollingHills(j, legSeed(seed, k, j), hillScale), skillHill(j));
+        let rolling = bumps.filter(b => b.skill === null);
+        let goal = skillHill(last);
+        function extend() {
+            last++;
+            bumps.push(...rollingHills(last, legSeed(seed, k, last), hillScale), skillHill(last));
+            rolling = bumps.filter(b => b.skill === null);
+            goal = skillHill(last);
+        }
 
         function find(x) {
             let lo = 0;
@@ -142,7 +164,6 @@
         }
 
         const start = checkpoint(k) + 0.2;
-        const goal = skillHill(last);
         // Each leg starts at its checkpoint (the run's own start line on the first) and ends at its peak.
         const legStart = j => (j === k ? start : checkpoint(j) + 0.2);
         // The leg a position belongs to: the one whose skill hill is next ahead.
@@ -153,7 +174,6 @@
         // A leg's length in metres: its start to its skill hill's peak (distance XP is paid per metre).
         const legLength = j => skillHill(j).peak - legStart(j);
         const progressIn = (j, x) => Math.max(0, Math.min(1, (x - legStart(j)) / legLength(j)));
-        const rolling = bumps.filter(b => b.skill === null);
         return {
             walls,
             // Rolling hills on x's leg whose peak lies at or before x (how many the ball has got over there).
@@ -163,13 +183,14 @@
                 return rolling.filter(b => b.peak >= from && b.peak <= x).length;
             },
             stretch: k,
-            last,
+            get last() { return last; },
+            get goal() { return goal; },
+            extend,
             seed,
             bumps,
             height,
             slope,
             start,
-            goal,
             legAt,
             legStart,
             legLength,
@@ -187,6 +208,8 @@
     // the ball rolls on. Cresting the last one emits 'crest'; with rollOut the roll goes on down the far
     // side and ends with an 'end' event marked `crested` (so the UI can celebrate first), otherwise
     // 'crest' ends it. 'end' events carry the `leg` the ball stopped on and the `progress` along it.
+    // With `onward`, cresting the last skill hill emits 'crest' and the ball rolls on: the caller learns the
+    // skill and calls `extend()` to lay the next leg ahead (a run is never cut short at a skill hill).
     // `holdOpen()`, if given, keeps a resting ball's roll open while it returns true (a crunch: free pushes).
     // Power-ups: `coast(seconds, speed, shrink)` lifts the ball off the line for a while, holding at least
     // `speed` (a flow; with `shrink`, a super flow lowers the rolling hills under and ahead of it), `boost()`
@@ -196,28 +219,38 @@
         const friction = opts.friction ?? 1;
         const slopeDrag = SLOPE_DRAG * (opts.slopeDrag ?? 1);
         const ground = terrain(k, seed, opts.hillScale ?? 1, opts.last ?? k);
-        const last = ground.last;
         let nextClear = k;          // the next earlier-leg skill hill still to crest
+        let crestedGoal = -1;       // with onward: the last skill hill already announced
         const ball = { x: ground.start, v: 0, still: 0, cooldown: 0, maxX: ground.start, trapped: false };
         let pushesLeft = pushes;
         let launched = false;
         let over = false;
         let crested = false;
         let carry = 0;
-        const flow = { left: 0, speed: 0, shrink: 0 };
+        const flow = { left: 0, speed: 0, shrink: 0, narrow: 1 };
         // Reshaped hills ease toward their target height (the drawing follows the physics).
         let reshaping = [];
 
-        function reshape(from, to, factor) {
+        // `wide` (0–1) also narrows them about their peak; `instant` skips the easing (a smash: the drawing
+        // shows the hill breaking apart instead).
+        function reshape(from, to, factor, wide = 1, instant = false) {
             const hit = [];
             for (const b of ground.bumps) {
                 if (b.skill !== null || b.peak < from || b.peak > to) continue;
                 if (b.base == null) b.base = b.height;
+                if (b.baseW == null) b.baseW = b.halfWidth;
                 const target = b.base * factor;
-                if (b.target == null || target < b.target) {
-                    b.target = target;
+                const targetW = b.baseW * wide;
+                if (b.target == null || target < b.target || targetW < b.targetW) {
+                    b.target = Math.min(target, b.target ?? Infinity);
+                    b.targetW = Math.min(targetW, b.targetW ?? Infinity);
                     hit.push(b);
-                    if (!reshaping.includes(b)) reshaping.push(b);
+                    if (instant) {
+                        b.height = b.target;
+                        b.halfWidth = b.targetW;
+                        b.start = b.peak - b.halfWidth;
+                        b.end = b.peak + b.halfWidth;
+                    } else if (!reshaping.includes(b)) reshaping.push(b);
                 }
             }
             return hit;
@@ -243,8 +276,14 @@
         function stepOnce(events) {
             ball.cooldown = Math.max(0, ball.cooldown - STEP);
             if (reshaping.length) {
-                for (const b of reshaping) b.height += (b.target - b.height) * Math.min(1, RESHAPE_RATE * STEP);
-                reshaping = reshaping.filter(b => Math.abs(b.height - b.target) > 1e-4);
+                const k = Math.min(1, RESHAPE_RATE * STEP);
+                for (const b of reshaping) {
+                    b.height += (b.target - b.height) * k;
+                    b.halfWidth += (b.targetW - b.halfWidth) * k;
+                    b.start = b.peak - b.halfWidth;
+                    b.end = b.peak + b.halfWidth;
+                }
+                reshaping = reshaping.filter(b => Math.abs(b.height - b.target) > 1e-4 || Math.abs(b.halfWidth - b.targetW) > 1e-4);
             }
             const dy = ground.slope(ball.x);
             if (flow.left > 0) {
@@ -252,7 +291,7 @@
                 // shrinks the hills under and just ahead of the ball as it goes.
                 flow.left = Math.max(0, flow.left - STEP);
                 ball.v = Math.max(ball.v, flow.speed);
-                if (flow.shrink) reshape(ball.x - 0.3, ball.x + 1.5 * flow.speed, flow.shrink);
+                if (flow.shrink) reshape(ball.x - 0.3, ball.x + 3 + 3 * flow.speed, flow.shrink, flow.narrow);
                 ball.trapped = false;
             } else {
                 ball.v += (-GRAVITY * dy / (1 + dy * dy)) * STEP;
@@ -267,11 +306,16 @@
             ball.x += ball.v * STEP;
             ball.maxX = Math.max(ball.maxX, ball.x);
 
+            const last = ground.last;
             while (nextClear < last && ball.x > skillHill(nextClear).peak) {
                 events.push({ type: 'clear', skill: nextClear, hills: ground.hillsBefore(skillHill(nextClear).peak) });
                 nextClear++;
             }
-            if (!crested && ball.x > ground.goal.peak) {
+            if (opts.onward && crestedGoal < last && ball.x > ground.goal.peak) {
+                crestedGoal = last;
+                nextClear = last + 1;
+                events.push({ type: 'crest', onward: true, skill: last, leg: last, progress: 1, metres: ground.legLength(last), hills: ground.hillsBefore(ground.goal.peak) });
+            } else if (!opts.onward && !crested && ball.x > ground.goal.peak) {
                 events.push({ type: 'crest', skill: last, leg: last, progress: 1, metres: ground.legLength(last), hills: ground.hillsBefore(ground.goal.peak) });
                 if (!opts.rollOut) {
                     over = true;
@@ -283,7 +327,7 @@
                 // Down the far side and out onto the flat, then done.
                 if (ball.x > ground.goal.end + ROLL_OUT || (ball.x > ground.goal.end && Math.abs(ball.v) < 0.25)) {
                     over = true;
-                    events.push({ type: 'end', skill: last, leg: last, progress: 1, metres: ground.legLength(last), crested: true, hills: ground.hillsBefore(ground.goal.peak) });
+                    events.push({ type: 'end', skill: ground.last, leg: ground.last, progress: 1, metres: ground.legLength(last), crested: true, hills: ground.hillsBefore(ground.goal.peak) });
                 }
                 return;
             }
@@ -327,7 +371,7 @@
             if (over) return null;
             over = true;
             return crested
-                ? { type: 'end', skill: last, leg: last, progress: 1, metres: ground.legLength(last), crested: true, hills: ground.hillsBefore(ground.goal.peak) }
+                ? { type: 'end', skill: ground.last, leg: ground.last, progress: 1, metres: ground.legLength(ground.last), crested: true, hills: ground.hillsBefore(ground.goal.peak) }
                 : stopEvent();
         }
 
@@ -341,10 +385,11 @@
             return true;
         }
 
-        // A flow: `seconds` off the line at no less than `speed`; `shrink` (0–1) is a super flow's hill height.
-        function coast(seconds, speed, shrink = 0) {
+        // A flow: `seconds` off the line at no less than `speed`; `shrink` (0–1) is a super flow's hill height
+        // and `narrow` (0–1) its width: the world shrinks around the ball in both directions.
+        function coast(seconds, speed, shrink = 0, narrow = 1) {
             if (over || crested) return false;
-            Object.assign(flow, { left: seconds, speed, shrink });
+            Object.assign(flow, { left: seconds, speed, shrink, narrow: shrink ? narrow : 1 });
             ball.still = 0;
             launched = true;
             return true;
@@ -353,7 +398,7 @@
         // A super breakthrough: the rolling hills in the next `reach` metres crumble flat. Returns them.
         function smash(reach) {
             if (over || crested) return [];
-            return reshape(ball.x, ball.x + reach, 0);
+            return reshape(ball.x, ball.x + reach, 0, 1, true);
         }
 
         return {
@@ -365,6 +410,8 @@
             smash,
             step,
             end,
+            // Lay the next leg past the last one (after an onward crest).
+            extend: () => ground.extend(),
             // Seconds of flow left (0 when the ball is on the line).
             get flowing() { return flow.left; },
             get superFlow() { return flow.left > 0 && flow.shrink > 0; },
@@ -384,6 +431,6 @@
 
     return {
         STEP, GRAVITY,
-        checkpoint, skillHill, skillHeight, rollingHills, terrain, createRoll, rng
+        checkpoint, skillHill, skillHeight, legScale, rollingHills, terrain, createRoll, rng
     };
 });
