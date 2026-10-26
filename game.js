@@ -188,17 +188,29 @@ window.AGI = (function () {
         toastQueue.push({ title, message, kind });
         if (!toastBusy) nextToast();
     }
+    let toastLive = null;
     function nextToast() {
         const t = toastQueue.shift();
         toastBusy = !!t;
+        toastLive = null;
         if (!t) return;
         const box = toastCard(t.title, t.message, t.kind);
         $('toasts').append(box);
         requestAnimationFrame(() => box.classList.add('show'));
-        setTimeout(() => {
+        const done = () => {
+            if (toastLive?.box !== box) return;
+            clearTimeout(toastLive.timer);
+            toastLive = null;
             box.classList.remove('show');
             setTimeout(() => { box.remove(); nextToast(); }, 400);
-        }, (TOAST_KINDS[t.kind] || TOAST_KINDS.achievement).ms);
+        };
+        toastLive = { box, kind: t.kind, done, timer: setTimeout(done, (TOAST_KINDS[t.kind] || TOAST_KINDS.achievement).ms) };
+    }
+    // Shipping a version: what was still waiting to be announced (or on screen) belongs to the old version,
+    // achievements excepted.
+    function dropStaleToasts() {
+        for (let i = toastQueue.length - 1; i >= 0; i--) if (toastQueue[i].kind !== 'achievement') toastQueue.splice(i, 1);
+        if (toastLive && toastLive.kind !== 'achievement') toastLive.done();
     }
 
     // Contextual callouts appear beside what they're about: the Research job, or the minimap when the
@@ -207,6 +219,7 @@ window.AGI = (function () {
     const CALLOUTS = {
         'module:path': { map: 'servers' },
         'action:research': { anchor: () => ui.actions.research?.button, map: 'lab' },
+        'room:rnd': { map: 'rnd' },
         'hint:hold': { anchor: () => ui.actions.compute?.button, kind: 'tip' },
         // After the first skill: on the result card, the replicated best run; in the lab, Scheduled tasks.
         'hint:replay': { anchor: () => $('rollResult'), kind: 'tip', place: 'below', ms: 15000 },
@@ -241,6 +254,13 @@ window.AGI = (function () {
         const target = where.anchor?.();
         const onScreen = !!target && !target.hidden && !!target.offsetParent && target.getBoundingClientRect().width > 0;
         const nav = $('minimap');
+        // A tip about something on another screen (no room on the map to point at) waits until it's in view.
+        // Anything else waiting goes first meanwhile.
+        if (!onScreen && !where.map) {
+            if (calloutQueue.length) { calloutQueue.push(c); calloutLive = null; nextCallout(); }
+            else setTimeout(() => showCallout(c), 1000);
+            return;
+        }
         const anchor = onScreen ? target : nav;
         if (!anchor || anchor.hidden) { calloutLive = null; return nextCallout(); }
         const box = toastCard(c.title, c.message, where.kind || 'room');
@@ -269,6 +289,16 @@ window.AGI = (function () {
                 box.style.top = `${(r.top - b.height - 12) / z}px`;
             }
         };
+        // A target below the fold (the lab scrolls on smaller screens) is brought into view first, and the
+        // callout follows it while the page scrolls.
+        if (onScreen) {
+            const r = target.getBoundingClientRect();
+            if (r.top < 0 || r.top + Math.min(r.height, 160) > window.innerHeight) target.scrollIntoView({ block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' });
+        }
+        const follow = () => requestAnimationFrame(place);
+        window.addEventListener('scroll', follow, true);
+        // A callout beside something leaves with it (zooming out of the room, a bay opening).
+        const watch = onScreen ? setInterval(() => { if (!target.offsetParent || !target.getBoundingClientRect().width) close(); }, 300) : 0;
         requestAnimationFrame(() => { place(); box.classList.add('show'); });
         let done = false;
         const close = () => {
@@ -276,6 +306,8 @@ window.AGI = (function () {
             done = true;
             clearTimeout(timer);
             anchor.removeEventListener('click', close);
+            window.removeEventListener('scroll', follow, true);
+            clearInterval(watch);
             nav.classList.remove('open');
             lit?.classList.remove('ping');
             box.classList.remove('show');
@@ -450,13 +482,13 @@ window.AGI = (function () {
     // Which machine automates each workbench job (engine AUTOMATION gates it).
     const AUTOMATES = { compute: 'cpu', collect: 'autoCollector', research: 'researchAssistant' };
 
-    // Under each job: what's doing it for you, once something is. No tips about how to get there (tutorials
-    // and story will carry that later).
-    function automationText(actionId) {
+    // Under each job: how much of it runs by itself, once something does it for you (all your hardware
+    // computes, not just the first machine). No tips about how to get there.
+    function automationText(actionId, d) {
         const id = AUTOMATES[actionId];
-        if (!id) return '';
-        const lvl = E.level(state, id);
-        return lvl ? `Automated · ${E.UPGRADE_BY_ID[id].name} ×${lvl}` : '';
+        if (!id || !E.level(state, id)) return '';
+        const rate = { compute: [d.cpPerSec, 'CP'], collect: [d.dpPerSec, 'DP'], research: [d.rpPerSec, 'RP'] }[actionId];
+        return `↻ Automated · +${E.format(rate[0])} ${rate[1]}/s`;
     }
 
     // Lab stations: one per upgrade group (E.TABS), each with its own look, in a reserved slot (its
@@ -499,8 +531,9 @@ window.AGI = (function () {
             case 'autoCollect': return `Crawler: ${f(d.collectsPerSec, 2)}${after('collectsPerSec')} collections/s`;
             case 'autoResearch': return `Assistant: ${f(d.researchPerSec, 2)}${after('researchPerSec')} research/s`;
         }
-        // Attribute upgrades: where those attributes stand now.
-        return Object.keys(up.grants).map(k => `${E.ATTRIBUTES[k].short} ${f(state.attr[k], 1)}`).join(' · ');
+        // Attribute upgrades: where those attributes stand, now → after the next level, like every other card.
+        const a = n => f(n, n % 1 ? 1 : 0);
+        return Object.entries(up.grants).map(([k, g]) => `${E.ATTRIBUTES[k].short}: ${a(state.attr[k])}${E.isMaxed(state, up) ? '' : ` → ${a(state.attr[k] + g)}`}`).join(' · ');
     }
 
     // A finished card: an "Installed ✓" stamp with a green flash, then it folds away (the cards below slide
@@ -570,9 +603,9 @@ window.AGI = (function () {
             const card = el('article', { class: 'upgrade', hidden: true, 'data-id': up.id }, [
                 el('div', { class: 'upgrade-info' }, [
                     el('h3', {}, [nameNode, document.createTextNode(' '), levelBadge]),
-                    // The live line already says what hardware and most cards do; only cards whose line can't
-                    // (attribute grants) keep their effect text.
-                    up.cps || (up.shows && !up.grants) ? null : el('p', { class: 'muted small', text: up.effect }),
+                    // The live line already says what hardware and most cards do; only cards that change two
+                    // things (a rate and an attribute) keep their effect text.
+                    up.cps || !up.shows !== !up.grants ? null : el('p', { class: 'muted small', text: up.effect }),
                     yieldLine
                 ]),
                 side
@@ -599,7 +632,8 @@ window.AGI = (function () {
         }
         for (const tab of E.TABS) {
             const st = ui.stations[tab.id];
-            setHidden(st.node, !!tab.unlock && !state.unlocked[tab.unlock]);
+            // The hardware bench boots up with its first card (the click tool), not as an empty panel.
+            setHidden(st.node, (!!tab.unlock && !state.unlocked[tab.unlock]) || (tab.id === 'hardware' && !st.order && !Object.keys(state.unlocked).some(k => k.startsWith('up:') && ui.upgrades[k.slice(3)]?.up.tab === 'hardware')));
             // Cards in the order they were revealed (state.unlocked keeps insertion order, and saves keep
             // it too), so a new upgrade always lands at the end and nothing you know moves.
             const ids = Object.keys(state.unlocked).filter(k => k.startsWith('up:')).map(k => k.slice(3))
@@ -890,7 +924,7 @@ window.AGI = (function () {
         const name = E.versionName(next.major, next.minor);
         const { ok } = await openDialog({
             title: `Ship ${name} for ${gain} Insight?`,
-            message: `This run's resources, attributes, skills and upgrades reset (your desk stays built). You keep Insight (+10% production and training XP each, and it buys legacy upgrades), legacy upgrades and achievements.`,
+            message: `This run's resources, attributes, skills and upgrades reset (your desk stays built). You keep Insight (+10% automated production and training XP each, and it buys legacy upgrades), legacy upgrades and achievements.`,
             okLabel: `Ship ${name}`
         });
         if (ok) shipVersion(false);
@@ -902,7 +936,8 @@ window.AGI = (function () {
         state = result.ok ? result.state : state;
         path.roll = null;
         resetView(false);
-        log(`Shipped ${result.version}! +${result.gain} Insight. Production and training XP are now ×${E.derive(state).mult.toFixed(2)}. Spend Insight on legacy upgrades before you start.`, 'special');
+        log(`Shipped ${result.version}! +${result.gain} Insight. Automated production and training XP are now ×${E.derive(state).mult.toFixed(2)}. Spend Insight on legacy upgrades before you start.`, 'special');
+        dropStaleToasts();
         toast(`${result.version} shipped`, `+${result.gain} Insight`, 'version');
         afterChange();
         save();
@@ -954,7 +989,7 @@ window.AGI = (function () {
     async function hardReset() {
         const { ok } = await openDialog({
             title: 'Erase all progress?',
-            message: 'This deletes everything, including Prestige Points and achievements. It cannot be undone.',
+            message: 'This deletes everything, including shipped versions, Insight and achievements. It cannot be undone.',
             okLabel: 'Erase everything',
             danger: true
         });
@@ -1017,6 +1052,11 @@ window.AGI = (function () {
                 state.intro[m.key] = true;
                 callout(m.key, m.callout[0], m.callout[1]);
             }
+        }
+        // R&D opening is the first chance to ship: point at it once (not for players who already shipped).
+        if (!state.intro['room:rnd'] && roomOpen('rnd')) {
+            state.intro['room:rnd'] = true;
+            if (!state.prestige.count) callout('room:rnd', 'R&D online', 'Your model is ready to ship. A new version starts over with Insight to spend.');
         }
         for (const a of changes.achievements) {
             log(`Achievement unlocked: ${a.name}`, 'special');
@@ -1217,7 +1257,7 @@ window.AGI = (function () {
         const gains = { compute: `+${E.format(d.clickPower, d.clickPower < 10 && d.clickPower % 1 ? 2 : undefined)} CP`, collect: `+${E.format(d.dpPerCollect)} DP`,
             research: `+${E.format(d.rpPerResearch)} RP` };
         for (const { action, button, gain, cost, auto } of Object.values(ui.actions)) {
-            const autoText = automationText(action.id);
+            const autoText = automationText(action.id, d);
             setText(auto, autoText);
             if (auto.title !== autoText) auto.title = autoText;
             auto.classList.toggle('done', !!(AUTOMATES[action.id] && E.level(state, AUTOMATES[action.id])));
@@ -1264,12 +1304,18 @@ window.AGI = (function () {
             item.firstChild.textContent = done ? m.name : '???';
             item.lastChild.textContent = done ? m.desc : '';
         }
-        for (const [id, item] of Object.entries(ui.achievements)) item.classList.toggle('done', !!state.achievements[id]);
+        // Unearned achievements keep quiet about things you haven't met yet (a `seen` rule on the achievement).
+        for (const a of E.ACHIEVEMENTS) {
+            const item = ui.achievements[a.id];
+            const done = !!state.achievements[a.id];
+            item.classList.toggle('done', done);
+            setText(item.lastChild, done || !a.seen || a.seen(state) ? a.desc : '???');
+        }
 
         setDisabled($('prestigeButton'), E.prestigeGain(state) < 1);
         for (const node of document.querySelectorAll('[data-show]')) setHidden(node, !state.unlocked[node.dataset.show]);
         // Training XP joins the supply line once cleared stretches make it on their own.
-        setHidden(document.querySelector('.cell-xp'), !(d.xpPerSec > 0));
+        setHidden($('labRoom').querySelector('.cell-xp'), !(d.xpPerSec > 0));
         renderTasks(d);
         renderProjects();
         layoutLab();
@@ -1932,7 +1978,7 @@ window.AGI = (function () {
             taskUi.skills.push(r);
             if (revealReady && single) {
                 revealIn(r.row);
-                connect(document.querySelector('.cell-xp:not([hidden])') || document.querySelector('.cell-cp'), r.row);
+                connect($('labRoom').querySelector('.cell-xp:not([hidden])') || $('labRoom').querySelector('.cell-cp'), r.row);
             }
         }
         for (let k = 0; k < learned; k++) {

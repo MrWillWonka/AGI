@@ -219,11 +219,34 @@ test('Carpal Tunnel: holding a job down to repeat it', () => {
     assert.equal(s.achievements.clicks1k, true);
 });
 
-test('research stays open after the first version', () => {
+test('research stays open after the first version, once there is data again', () => {
     const s = fresh();
     s.prestige.count = 1;
+    s.stats.rolls = 12;
     E.evaluate(s);
+    assert.ok(!s.unlocked['action:research'], 'no research before data');
+    assert.ok(!s.unlocked['module:path'], 'the server room waits for data too');
+    s.res.dp = 1;
+    E.evaluate(s);
+    assert.equal(s.unlocked['action:collect'], true);
     assert.equal(s.unlocked['action:research'], true);
+    assert.equal(s.unlocked['module:path'], true);
+});
+
+test('investors never ask for clean prompts before the zone exists', () => {
+    const s = fresh();
+    s.unlocked['module:path'] = s.unlocked['action:research'] = s.unlocked['seen:dp'] = true;
+    for (let i = 0; i < 40; i++) {
+        s.projects.offers = [];
+        assert.notEqual(E.makeOffer(s).task, 'clean');
+    }
+    s.levels.precisionTuning = 1;
+    const tasks = new Set();
+    for (let i = 0; i < 80; i++) {
+        s.projects.offers = [];
+        tasks.add(E.makeOffer(s).task);
+    }
+    assert.ok(tasks.has('clean'));
 });
 
 test('tick produces resources over time', () => {
@@ -755,7 +778,7 @@ test('hardware is a spaced-out ladder: each tier costs more per CP/s but gives m
 test('a hardware tier shows up only once you own ten of the tier below and earned its price', () => {
     const s = fresh();
     s.stats.clicks = 30;
-    s.unlocked['module:path'] = true;          // and only once training has started
+    s.stats.rolls = 1;                          // and only once the first training run is done
     s.levels.cpu = 9;
     s.stats.runCp = 1e9;
     E.evaluate(s);
@@ -952,4 +975,18 @@ test('a node never costs as little as the last level of the node it grows from',
         const last = E.upgradeCost(parent, (parent.max || 1) - 1).xp;
         assert.ok(n.cost.xp > last, `${n.id} (${n.cost.xp}) must cost more than ${parent.id}'s last level (${last})`);
     }
+});
+
+test('hand actions pay whole numbers; percentage bonuses go to automation', () => {
+    const s = fresh();
+    s.path.learned = 6;                 // skills with +% data and research
+    s.prestige.total = 3;               // Insight ×1.3
+    s.levels.keyboard = 9;
+    s.levels.dataProcessor = 2;
+    s.levels.machineLearning = 1;
+    s.levels.autoCollector = 2;
+    s.levels.cpu = 20;
+    const d = E.derive(s);
+    for (const k of ['clickPower', 'dpPerCollect', 'rpPerResearch']) assert.equal(d[k] % 1, 0, `${k} is ${d[k]}`);
+    assert.ok(d.autoDpPerCollect > d.dpPerCollect, 'the crawler gets the +% data and Insight');
 });

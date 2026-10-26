@@ -1984,6 +1984,8 @@ body.has-minimap.mm-min .room-rnd { padding-bottom: 60px; }
    die lights up the whole chip. */
 .mm-body { cursor: pointer; }
 .mm-body:focus { outline: none; }
+/* Decoration on the die: clicks go through to the chip (Surveillance) or the block under them. */
+.mm-via, .mm-trace { pointer-events: none; }
 .mm-via { fill: var(--success); }
 .minimap:has(.mm-title:hover) .mm-die, .minimap:has(.mm-body:hover) .mm-die, .mm-body:focus-visible .mm-die { fill: #123832; stroke: var(--success); stroke-width: 2; }
 .minimap:has(.mm-title:hover) .mm-pin, .minimap:has(.mm-body:hover) .mm-pin, .mm-body:focus-visible .mm-pin { fill: var(--success); }

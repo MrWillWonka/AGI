@@ -186,7 +186,7 @@
             costs: [{ cp: 25 }, { cp: 45 }, { cp: 45 }, { cp: 75 }, { cp: 100 }], cost: { cp: 100 }, scale: 1.32,
             unlock: s => s.stats.clicks >= 15, hint: 'Generate compute by hand 15 times' },
         { id: 'server', tab: 'hardware', name: 'Server Cluster', cps: 3.3, effect: 'Generates compute', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 300 }, scale: 1.15,
-            unlock: s => tierReady(s, 'server') && !!s.unlocked['module:path'], hint: 'More Graphics Cards, more compute earned, and training under way' },
+            unlock: s => tierReady(s, 'server') && s.stats.rolls >= 1, hint: 'More Graphics Cards, more compute earned, and training under way' },
         { id: 'quantum', tab: 'hardware', name: 'Quantum Processor', cps: 22, effect: 'Generates compute', flavor: 'It\'s both working and not working until you check.', cost: { cp: 6000 }, scale: 1.15,
             unlock: s => tierReady(s, 'quantum'), hint: 'More Server Clusters, and more compute earned' },
         { id: 'neural', tab: 'hardware', name: 'Neural Network Chip', cps: 150, effect: 'Generates compute', flavor: 'A chip shaped like the thing you\'re trying to build.', cost: { cp: 120000 }, scale: 1.15,
@@ -203,7 +203,7 @@
             unlock: s => level(s, 'neural') >= 5, hint: 'Own 5 Neural Network Chips' },
         { id: 'dataProcessor', tab: 'software', name: 'Data Processor', shows: 'collect', effect: '+1 DP per collection, per level', flavor: 'A script that cleans the data so you don\'t have to.', cost: { cp: 50, dp: 5 }, scale: 1.2 },
         { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', shows: 'autoCollect', effect: 'Collects data for you, 10 CP each', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 800, dp: 80 }, scale: 1.5,
-            unlock: s => automationGate(s, 'autoCollector').met, hint: 'Pattern Matching, and 100 data collections by hand' },
+            unlock: s => automationGate(s, 'autoCollector').met, hint: 'Pattern Matching, and 40 data collections by hand' },
         // Training skill tree (bought with XP from the Training Path). `tree` is the node's grid
         // position around the seed at (0, 0); `requires` is the node it grows from. `icon` names a glyph
         // drawn by game.js. Each node has 1–3 levels and a `boost` per level (summed in treeBoosts).
@@ -389,12 +389,14 @@
         // in stock for a couple of full sprints (older saves that already train keep it).
         { key: 'module:path', name: 'Training Path', desc: 'Collect data 40 times and hold 100 CP and 40 DP to start training your model',
             callout: ['Server room online', 'Open the map to see every area, or click the server room to start training.'],
-            check: s => (s.stats.collects >= 40 && s.res.cp >= 100 && s.res.dp >= 40) || s.stats.rolls > 0 || s.path.learned > 0 },
+            // Anyone who has trained before (older saves, later versions) gets it back once data flows again.
+            check: s => (s.stats.collects >= 40 && s.res.cp >= 100 && s.res.dp >= 40) || ((s.stats.rolls > 0 || s.path.learned > 0) && s.res.dp + s.stats.collects > 0) },
         // Research is for bigger projects: it opens once training is well under way, and brings the investors
         // (and with them the road to the next version).
         { key: 'action:research', name: 'Basic Research', desc: `Learn a skill, then run ${RESEARCH_SPRINTS} training sprints to unlock Research`,
             callout: ['Research funded', 'Investors are watching. Bigger projects lead to the next version.'],
-            check: s => s.stats.skilledSprints >= RESEARCH_SPRINTS || s.stats.researchDone > 0 || s.prestige.count > 0 },
+            // After the first version it reopens as soon as there's data to research with.
+            check: s => s.stats.skilledSprints >= RESEARCH_SPRINTS || ((s.stats.researchDone > 0 || s.prestige.count > 0) && s.res.dp + s.stats.collects > 0) },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }
     ];
@@ -410,21 +412,22 @@
     ];
 
     // Achievements persist across prestige. They're recognition only: no production bonus.
+    // Achievements with `seen` keep their goal secret (???) in the Journal until what they're about has appeared.
     const ACHIEVEMENTS = [
         { id: 'firstClick', name: 'Hello, World', desc: 'Generate compute manually', check: s => s.stats.clicks >= 1 },
-        { id: 'clicks1k', name: 'Carpal Tunnel', desc: 'Hold down a job to keep it going', check: s => s.stats.holds >= 1 },
+        { id: 'clicks1k', name: 'Carpal Tunnel', desc: 'Hold down a job to keep it going', seen: s => level(s, 'keyboard') >= 4, check: s => s.stats.holds >= 1 },
         { id: 'cp1k', name: 'Kiloflop', desc: 'Earn 1,000 CP in total', check: s => s.stats.lifetimeCp >= 1e3 },
         { id: 'cp1m', name: 'Megaflop', desc: 'Earn 1 million CP in total', check: s => s.stats.lifetimeCp >= 1e6 },
         { id: 'cp1b', name: 'Gigaflop', desc: 'Earn 1 billion CP in total', check: s => s.stats.lifetimeCp >= 1e9 },
-        { id: 'firstSkill', name: 'First Steps', desc: 'Learn your first skill on the Training Path', check: s => s.path.learned >= 1 },
-        { id: 'polymath', name: 'Polymath', desc: 'Learn 10 skills in one run', check: s => s.path.learned >= 10 },
-        { id: 'firstResearch', name: 'Peer Reviewed', desc: 'Complete your first research', check: s => s.stats.researchDone >= 1 },
+        { id: 'firstSkill', name: 'First Steps', desc: 'Learn your first skill on the Training Path', seen: s => !!s.unlocked['module:path'], check: s => s.path.learned >= 1 },
+        { id: 'polymath', name: 'Polymath', desc: 'Learn 10 skills in one run', seen: s => s.path.learned >= 1, check: s => s.path.learned >= 10 },
+        { id: 'firstResearch', name: 'Peer Reviewed', desc: 'Complete your first research', seen: s => !!s.unlocked['action:research'], check: s => s.stats.researchDone >= 1 },
         { id: 'cpu25', name: 'Moore\'s Law', desc: 'Own 25 Graphics Cards', check: s => (s.levels.cpu || 0) >= 25 },
-        { id: 'automation', name: 'Hands Off', desc: 'Own an Auto Data Collector and a Research Assistant', check: s => (s.levels.autoCollector || 0) > 0 && (s.levels.researchAssistant || 0) > 0 },
+        { id: 'automation', name: 'Hands Off', desc: 'Own an Auto Data Collector and a Research Assistant', seen: s => !!s.unlocked['up:researchAssistant'], check: s => (s.levels.autoCollector || 0) > 0 && (s.levels.researchAssistant || 0) > 0 },
         { id: 'general', name: 'Generalist', desc: 'Reach General AI', check: s => phaseIndex(s) >= 1 },
-        { id: 'super', name: 'Beyond Human', desc: 'Reach Superintelligence', check: s => phaseIndex(s) >= 2 },
-        { id: 'singularity', name: 'Event Horizon', desc: 'Reach the Singularity', check: s => phaseIndex(s) >= 3 },
-        { id: 'transcend', name: 'Ship It', desc: 'Ship your next version', check: s => s.prestige.count >= 1 }
+        { id: 'super', name: 'Beyond Human', desc: 'Reach Superintelligence', seen: s => phaseIndex(s) >= 1, check: s => phaseIndex(s) >= 2 },
+        { id: 'singularity', name: 'Event Horizon', desc: 'Reach the Singularity', seen: s => phaseIndex(s) >= 2, check: s => phaseIndex(s) >= 3 },
+        { id: 'transcend', name: 'Ship It', desc: 'Ship your next version', seen: s => prestigeGain(s) >= 1 || s.prestige.count >= 1, check: s => s.prestige.count >= 1 }
     ];
 
     function defaultState(now) {
@@ -515,11 +518,17 @@
             hardwareRates[up.id] = { each, total: each * n, nextDoubling: HARDWARE_DOUBLINGS.find(t => n < t) || null };
             cpPerSec += each * n;
         }
-        // Clicks: a flat amount (the click tool, skills), times versions only, so a click stays a round number.
-        const clickPower = (1 + clickToolPower(L('keyboard')) + sk.click) * mult;
-        const dpPerCollect = (1 + L('dataProcessor') + sk.collect) * (1 + sk.dp) * mult * bo.dp;
+        // Clicks: a flat amount (the click tool, skills), so a click stays a round number. Versions (Insight)
+        // boost what runs by itself (hardware, automation, training XP), not your hands.
+        const clickPower = 1 + clickToolPower(L('keyboard')) + sk.click;
+        // By hand, a collection or research run pays a whole number (the upgrades and skills that add to it,
+        // times versions); the skills' percentage bonuses go to the automation that does the job for you,
+        // so a click never reads 2.3 DP.
+        const dpPerCollect = (1 + L('dataProcessor') + sk.collect) * bo.dp;
         const rpPerResearch = (1 + L('machineLearning') + 2 * L('deepLearning') + 3 * L('reinforcementLearning')
-            + 5 * L('transferLearning') + sk.research) * (1 + sk.rp) * mult * bo.rp;
+            + 5 * L('transferLearning') + sk.research) * bo.rp;
+        const autoDpPerCollect = dpPerCollect * (1 + sk.dp) * mult;
+        const autoRpPerResearch = rpPerResearch * (1 + sk.rp) * mult;
         // Automation converts at the action prices: collections spend CP, research spends CP and DP.
         // It may only use the automation budget (a share of what is produced each second) and never
         // touches the stockpile, so compute always keeps climbing. Over budget, both slow down evenly.
@@ -531,12 +540,12 @@
         const wantResearch = 0.1 * L('researchAssistant') * r.rp;
         const collectScale = wantCollects > 0 ? Math.min(1, shares.autoCollector * cpPerSec / (wantCollects * collectCost.cp)) : 1;
         const collectsPerSec = wantCollects * collectScale;
-        const dpPerSec = collectsPerSec * dpPerCollect;
+        const dpPerSec = collectsPerSec * autoDpPerCollect;
         const researchCpScale = wantResearch > 0 ? Math.min(1, shares.researchAssistant * cpPerSec / (wantResearch * researchCost.cp)) : 1;
         const dpWanted = wantResearch * researchCpScale * researchCost.dp;
         const researchDpScale = dpWanted > 0 ? Math.min(1, shares.researchAssistant * dpPerSec / dpWanted) : 1;
         const researchPerSec = wantResearch * researchCpScale * researchDpScale;
-        const rpPerSec = researchPerSec * rpPerResearch;
+        const rpPerSec = researchPerSec * autoRpPerResearch;
         const cpUsePerSec = collectsPerSec * collectCost.cp + researchPerSec * researchCost.cp;
         const dpUsePerSec = researchPerSec * researchCost.dp;
         // Per task: how much of what it wants it gets (1 = full speed), and the compute it has.
@@ -594,7 +603,7 @@
         let xpPerSec = 0;
         for (let k = 0; k < s.path.learned; k++) xpPerSec += legXpRate(s, k) * r.xp * mult;
 
-        return { mult, cpPerSec, hardwareRates, hardwareMult: (1 + 0.5 * L('compilerOpt')) * (1 + 0.5 * L('kernelFusion')), clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec,
+        return { mult, cpPerSec, hardwareRates, hardwareMult: (1 + 0.5 * L('compilerOpt')) * (1 + 0.5 * L('kernelFusion')), clickPower, dpPerCollect, autoDpPerCollect, dpPerSec, rpPerResearch, autoRpPerResearch, rpPerSec,
             collectsPerSec, researchPerSec, cpUsePerSec, dpUsePerSec, autoThrottled, tasks,
             cpNet: cpPerSec - cpUsePerSec, dpNet: dpPerSec - dpUsePerSec, pushPower, pushesPerRoll, pushCooldown, zoneWidth, zoneBias, perfectWidth, perfectUnits, systemWidth, cleanMult, cleanRollBonus, cleanPower, perfectPower, systemPower, sweepScale,
             critChance, critMult, windfallChance, windfallMult, crunchChance, crunchSeconds, maxEffortChance, maxEffortMult, flowChance, flowSeconds, flowSpeed,
@@ -753,14 +762,14 @@
         const collects = Math.min(d.collectsPerSec * dt, s.res.cp / collectCost.cp);
         if (collects > 0) {
             s.res.cp -= collects * collectCost.cp;
-            s.res.dp += collects * d.dpPerCollect;
+            s.res.dp += collects * d.autoDpPerCollect;
         }
         const researchCost = actionById('research').cost;
         const research = Math.min(d.researchPerSec * dt, s.res.cp / researchCost.cp, s.res.dp / researchCost.dp);
         if (research > 0) {
             s.res.cp -= research * researchCost.cp;
             s.res.dp -= research * researchCost.dp;
-            s.res.rp += research * d.rpPerResearch;
+            s.res.rp += research * d.autoRpPerResearch;
             s.stats.researchDone += research;
         }
         s.stats.playTime += dt;
@@ -1053,7 +1062,8 @@
         computes: { stat: s => s.stats.clicks, text: n => `Compute ${n} times by hand`, size: () => 40 },
         collects: { stat: s => s.stats.collects, text: n => `Collect data by hand ${n} times`, size: () => 25, needs: 'seen:dp' },
         runs: { stat: s => s.stats.rolls, text: n => `Finish ${n} training runs`, size: () => 4, needs: 'module:path' },
-        clean: { stat: s => s.stats.cleanSprints, text: n => `Land ${n} clean training sprints`, size: () => 3, needs: 'module:path' },
+        // Only once clean prompts exist (Hyperparameter Search adds the zone).
+        clean: { stat: s => s.stats.cleanSprints, text: n => `Land ${n} clean training sprints`, size: () => 3, needs: s => !!s.unlocked['module:path'] && derive(s).zoneWidth > 0 },
         earnCp: { stat: s => s.stats.runCp, text: n => `Earn ${format(n)} CP`, size: s => Math.max(200, Math.round(derive(s).cpPerSec * 180)) },
         research: { stat: s => s.stats.researchManual, text: n => `Research by hand ${n} times`, size: () => 10, needs: 'action:research' }
     };
@@ -1095,7 +1105,7 @@
     function makeOffer(s) {
         const p = s.projects;
         const r = projectRng(++p.seq);
-        const ok = x => !x.needs || s.unlocked[x.needs];
+        const ok = x => !x.needs || (typeof x.needs === 'function' ? x.needs(s) : !!s.unlocked[x.needs]);
         const tasks = Object.keys(PROJECT_TASKS).filter(k => ok(PROJECT_TASKS[k]) && !p.offers.some(o => o.task === k));
         if (!tasks.length) return null;
         const task = tasks[Math.floor(r() * tasks.length)];
@@ -1159,7 +1169,8 @@
     // A release that at least doubles your Insight (and brings 3 or more) is a major version; anything
     // smaller is a point release, like v1.0 → v1.1 → v2.0.
     function nextVersion(s, gain = prestigeGain(s)) {
-        const major = gain >= 3 && gain >= s.prestige.total;
+        // The first release is always a major one: v1.0 → v2.0.
+        const major = s.prestige.count === 0 || (gain >= 3 && gain >= s.prestige.total);
         return major ? { major: s.prestige.major + 1, minor: 0, isMajor: true } : { major: s.prestige.major, minor: s.prestige.minor + 1, isMajor: false };
     }
 
