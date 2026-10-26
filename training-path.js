@@ -211,8 +211,9 @@
     // With `onward`, cresting the last skill hill emits 'crest' and the ball rolls on: the caller learns the
     // skill and calls `extend()` to lay the next leg ahead (a run is never cut short at a skill hill).
     // `holdOpen()`, if given, keeps a resting ball's roll open while it returns true (a crunch: free pushes).
-    // Power-ups: `coast(seconds, speed, shrink)` lifts the ball off the line for a while, holding at least
-    // `speed` (a flow; with `shrink`, a super flow lowers the rolling hills under and ahead of it), `boost()`
+    // Power-ups: `coast(seconds, speed, shrink, narrow, warp)` lifts the ball off the line for a while, holding
+    // at least `speed` (a flow; `shrink`/`narrow` lower and narrow the hills under and ahead of it, and `warp`
+    // condenses time: each step carries the ball `warp` times as far, a super flow), `boost()`
     // adds energy whatever the cooldown (banked sprints), and `smash(reach)` breaks the rolling hills ahead.
     function createRoll(k, seed, opts) {
         const { pushes, cooldown } = opts;
@@ -227,7 +228,7 @@
         let over = false;
         let crested = false;
         let carry = 0;
-        const flow = { left: 0, speed: 0, shrink: 0, narrow: 1 };
+        const flow = { left: 0, speed: 0, shrink: 0, narrow: 1, warp: 1 };
         // Reshaped hills ease toward their target height (the drawing follows the physics).
         let reshaping = [];
 
@@ -303,7 +304,7 @@
                 ball.trapped = energy < GRAVITY * Math.min(left, right);
                 if (ball.trapped) ball.v *= 1 - TRAPPED_DAMPING * STEP;
             }
-            ball.x += ball.v * STEP;
+            ball.x += ball.v * STEP * (flow.left > 0 ? flow.warp : 1);
             ball.maxX = Math.max(ball.maxX, ball.x);
 
             const last = ground.last;
@@ -387,9 +388,9 @@
 
         // A flow: `seconds` off the line at no less than `speed`; `shrink` (0–1) is a super flow's hill height
         // and `narrow` (0–1) its width: the world shrinks around the ball in both directions.
-        function coast(seconds, speed, shrink = 0, narrow = 1) {
+        function coast(seconds, speed, shrink = 0, narrow = 1, warp = 1) {
             if (over || crested) return false;
-            Object.assign(flow, { left: seconds, speed, shrink, narrow: shrink ? narrow : 1 });
+            Object.assign(flow, { left: seconds, speed, shrink, narrow: shrink ? narrow : 1, warp: Math.max(1, warp) });
             ball.still = 0;
             launched = true;
             return true;
@@ -414,7 +415,7 @@
             extend: () => ground.extend(),
             // Seconds of flow left (0 when the ball is on the line).
             get flowing() { return flow.left; },
-            get superFlow() { return flow.left > 0 && flow.shrink > 0; },
+            get superFlow() { return flow.left > 0 && (flow.shrink > 0 || flow.warp > 1); },
             get pushesLeft() { return pushesLeft; },
             get launched() { return launched; },
             get over() { return over; },

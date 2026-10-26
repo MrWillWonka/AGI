@@ -2798,7 +2798,9 @@ window.AGI = (function () {
     const frozen = () => path.fx.freeze > 0;
     const flowing = () => !!path.roll && !path.roll.over && path.roll.flowing > 0;
     const LUCID = '#b48cff';
-    const BANK_MULT = 1.5;      // Bullet Time: each banked sprint lands this much harder
+    const BANK_MULT = 1.5;
+    const LUCID_WARP = 4;       // Lucid Dream: time condenses, the ball covers this many times the ground
+    const LUCID_CONDENSE = 3;   // and the view squeezes this much wider (heights keep their scale)      // Bullet Time: each banked sprint lands this much harder
 
     // A big luck banner: pops in at the top of the trail, in the luck's colour.
     function luckBanner(title, sub, tone) {
@@ -3245,11 +3247,11 @@ window.AGI = (function () {
     function startFlow(roll, superFlow) {
         const d = E.derive(state);
         const seconds = Math.max(3, d.flowSeconds);
-        roll.coast(seconds, d.flowSpeed * d.pushPower, superFlow ? 0.25 : 0, superFlow ? 0.45 : 1);
+        roll.coast(seconds, d.flowSpeed * d.pushPower, 0, 1, superFlow ? LUCID_WARP : 1);
         roll.flows = (roll.flows || 0) + 1;
         path.fx.flowMax = seconds;
         path.fx.superFlow = superFlow;
-        luckBanner(superFlow ? 'LUCID DREAM' : 'FLOW STATE', superFlow ? 'The world shrinks around you' : `Flying for ${seconds} s`, superFlow ? LUCID : 'secondary');
+        luckBanner(superFlow ? 'LUCID DREAM' : 'FLOW STATE', superFlow ? `Time slips away: ×${LUCID_WARP} the ground for ${seconds} s` : `Flying for ${seconds} s`, superFlow ? LUCID : 'secondary');
     }
 
     // Sparks flying out of the ball (screen space, relative to it), in `color`.
@@ -3305,6 +3307,10 @@ window.AGI = (function () {
         if (fx.flash && (fx.flash.age += dt) > fx.flash.life) fx.flash = null;
         for (const p of fx.streaks) p.age += dt;
         fx.streaks = fx.streaks.filter(p => p.age < p.life);
+        // Lucid Dream: time rushing past, as violet streaks.
+        if (flowing() && fx.superFlow && !reducedMotion() && Math.random() < dt * 30) {
+            fx.streaks.push({ y: Math.random(), len: 0.05 + Math.random() * 0.25, speed: 2 + Math.random() * 3, x: 1 + Math.random() * 0.3, age: 0, life: 0.6 + Math.random() * 0.4, color: LUCID });
+        }
         // Flow: a ribbon behind the flying ball (world x, screen y).
         for (const p of fx.flight) p.age += dt;
         fx.flight = fx.flight.filter(p => p.age < 0.7);
@@ -3959,8 +3965,12 @@ window.AGI = (function () {
         const held = path.camView;
         if (held && held.roll === roll && view <= held.width && view > held.width / 1.3) view = held.width;
         else path.camView = { roll, width: view };
+        // Lucid Dream: the timeline condenses. The view squeezes wider while heights keep their scale
+        // (drawPath divides the vertical scale back out by the same factor).
+        const condense = flowing() && path.fx.superFlow ? LUCID_CONDENSE : 1;
+        if (condense > 1) view *= condense;
         const left = leftOf(view);
-        if (!(path.tension > 0) || !path.focus) return { left, right: left + view, bottom: 0 };
+        if (!(path.tension > 0) || !path.focus) return { left, right: left + view, bottom: 0, condense };
         // Nail-biter: push in on the ball and the crest, lifting the view so both stay in frame.
         const area = drawArea();
         const close = Math.min(view, Math.max(1.2, path.focus.halfWidth * 1.6));
@@ -3990,13 +4000,14 @@ window.AGI = (function () {
         path.cam.left += (target.left - path.cam.left) * ease;
         path.cam.right += (target.right - path.cam.right) * ease;
         path.cam.bottom = (path.cam.bottom || 0) + ((target.bottom || 0) - (path.cam.bottom || 0)) * ease;
+        path.cam.condense = (path.cam.condense || 1) + ((target.condense || 1) - (path.cam.condense || 1)) * ease;
         const cam = path.cam;
         const goal = g.goal;
 
         // Same scale on both axes (times the fixed exaggeration), derived from the eased camera width.
         const area = drawArea();
         const pxPerUnit = area.w / (cam.right - cam.left);
-        const yScale = pxPerUnit * RELIEF;
+        const yScale = pxPerUnit * RELIEF * (path.cam.condense || 1);
         const X = x => PAD_X + (x - cam.left) * pxPerUnit;
         const Y = y => h - PAD_BOTTOM - Math.min((y - cam.bottom) * yScale, area.h + PAD_TOP - 4);
         const n = Math.min(1400, Math.max(300, Math.round(w * 1.5)));
@@ -4386,11 +4397,17 @@ window.AGI = (function () {
             ctx.fillStyle = vg;
             ctx.fillRect(0, 0, w, h);
         }
-        // Time restarting: speed streaks rush past.
+        // Lucid Dream: days pass in seconds, the sky cycling dusk to night behind everything.
+        if (fx.superFlow && fx.lift > 0) {
+            const phase = 0.5 + 0.5 * Math.sin(t * 7);
+            ctx.fillStyle = hexAlpha(phase > 0.5 ? LUCID : '#2a3a8a', 0.12 * fx.lift * Math.abs(phase - 0.5) * 2);
+            ctx.fillRect(0, 0, w, h);
+        }
+        // Time restarting (and Lucid Dream): speed streaks rush past.
         for (const p of fx.streaks) {
             const k = p.age / p.life;
             const x = (p.x - p.speed * p.age) * w;
-            ctx.strokeStyle = hexAlpha('#dff0ff', 0.6 * (1 - k));
+            ctx.strokeStyle = hexAlpha(p.color || '#dff0ff', 0.6 * (1 - k));
             ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.moveTo(x, PAD_TOP + p.y * area.h);

@@ -475,13 +475,16 @@ test('later legs grow in distance and scale, not hill count', () => {
     assert.ok(T.legScale(8) > 3 && T.legScale(0) === 1);
 });
 
-test('a super flow shrinks hills ahead in width as well as height', () => {
-    const roll = T.createRoll(2, 21, { pushes: 2, cooldown: 0.1 });
-    roll.push(2);
-    const ahead = roll.ground.bumps.find(b => b.skill === null && b.peak > roll.ball.x + 1);
-    const w0 = ahead.halfWidth;
-    const h0 = ahead.height;
-    roll.coast(3, 1, 0.25, 0.45);
-    for (let i = 0; i < 30; i++) roll.step(0.05);
-    assert.ok(ahead.height < h0 * 0.5 && ahead.halfWidth < w0 * 0.7, `${ahead.height}/${h0} ${ahead.halfWidth}/${w0}`);
+test('a super flow condenses time: the ball covers warp times the ground', () => {
+    const run = warp => {
+        const roll = T.createRoll(2, 21, { pushes: 2, cooldown: 0.1 });
+        roll.push(2);
+        const x0 = roll.ball.x;
+        roll.coast(2, 1, 0, 1, warp);
+        for (let i = 0; i < 40; i++) roll.step(0.05);
+        return roll.ball.x - x0;
+    };
+    const plain = run(1);
+    const dream = run(4);
+    assert.ok(dream > 3 * plain, `${dream} vs ${plain}`);
 });
