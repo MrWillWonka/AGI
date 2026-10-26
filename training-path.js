@@ -42,7 +42,9 @@
     // comes back within a couple of seconds whatever boosts it.
     const maxAbove = k => Math.max(4, 0.5 * skillHeight(k));
     const SETTLE_TIME = 0.4;    // seconds before touchdown it starts lining its path up with the slope it lands on        // seconds after landing before it can take off again (no hop-stick-hop over a crest)
-    const LAUNCH_GRIP = 0.45;   // crests throw the ball once its pull round them needs this share of gravity (game feel: it pops)      // and rolling there keeps its momentum: this share of the quadratic and slope drag
+    // A crest throws the ball once the ground curves away faster than a flight falls (flight gravity): only then
+    // does it really leave the line. (Against rolling gravity it left and fell straight back into the slope.)
+    const LAUNCH_GRIP = 1;
 
     // ---- Skill hills (fixed) -----------------------------------------------
 
@@ -298,6 +300,7 @@
                 ball.v *= k;
                 ball.air.vy = ball.air.vy * k + 0.25 * Math.sqrt(e);   // and a little lift
                 capClimb();
+                planLanding();
                 return;
             }
             ball.v = ball.v >= 0
@@ -406,11 +409,12 @@
             if (ball.v < 0.5 || ground.legAt(ball.x) < (opts.lateLeg ?? LATE_LEG)) return;
             const e = 0.02;
             const curve = (ground.height(ball.x + e) - 2 * ground.height(ball.x) + ground.height(ball.x - e)) / (e * e);
-            if (curve * ball.v * ball.v >= -GRAVITY * LAUNCH_GRIP) return;
+            if (curve * ball.v * ball.v >= -GRAVITY * AIR_GRAVITY * LAUNCH_GRIP) return;
             const slope = ground.slope(ball.x);
             const y0 = ground.height(ball.x);
             ball.air = { y: y0, vy: slope * ball.v, peak: y0, from: ball.x, ceil: y0 + maxAbove(ground.legAt(ball.x)) };
             capClimb();
+            planLanding();
             ball.trapped = false;
             events.push({ type: 'launch', speed: Math.hypot(ball.v, ball.air.vy), x: ball.x });
         }
@@ -423,17 +427,79 @@
             a.vy = Math.min(a.vy, Math.sqrt(2 * GRAVITY * AIR_GRAVITY * room));
         }
 
-        // In flight: gravity and a little air drag; landing bounces off the ground's normal (losing some of the
-        // impact and a little speed along the ground), until the bounce is too small and it rolls on.
+        // Where to come down: the down-slope (the back of a hill) nearest the natural landing, the way Tiny Wings
+        // drops you onto the backs of hills. The flight then follows a smooth path (a cubic in x, from where it
+        // is and how it's heading to that point, arriving along the slope about 1 m/s into it), so it rejoins the
+        // line without slamming or bouncing. Landing on the back of a hill keeps the momentum and reads right; an
+        // up-slope face never is. A path must stay over the ground and under the ceiling, and bend no harder
+        // than `PULL` (a dive down to a short flare, in flight gravities). Failing every down-slope, a valley
+        // floor; failing that, it falls naturally. Planned at take-off, at the top of the arc and after an air
+        // sprint.
+        const PULL = [-0.5, 5];
+        function pathAt(pl, x) {
+            const h = pl.x1 - pl.x0;
+            const u = Math.min(1, (x - pl.x0) / h);
+            if (x >= pl.x1) return { y: pl.y1 + pl.m1 * (x - pl.x1), dy: pl.m1, ddy: 0 };
+            const u2 = u * u, u3 = u2 * u;
+            const y = (2 * u3 - 3 * u2 + 1) * pl.y0 + (u3 - 2 * u2 + u) * h * pl.m0 + (-2 * u3 + 3 * u2) * pl.y1 + (u3 - u2) * h * pl.m1;
+            const dy = ((6 * u2 - 6 * u) * pl.y0 + (3 * u2 - 4 * u + 1) * h * pl.m0 + (-6 * u2 + 6 * u) * pl.y1 + (3 * u2 - 2 * u) * h * pl.m1) / h;
+            const ddy = ((12 * u - 6) * pl.y0 + (6 * u - 4) * h * pl.m0 + (6 - 12 * u) * pl.y1 + (6 * u - 2) * h * pl.m1) / (h * h);
+            return { y, dy, ddy };
+        }
+        function planLanding() {
+            const a = ball.air;
+            if (!a) return;
+            a.plan = null;
+            if (ball.v <= 0.5) return;
+            const G = GRAVITY * AIR_GRAVITY;
+            const nat = simulateLanding();
+            const v2 = ball.v * ball.v;
+            const m0 = a.vy / ball.v;
+            let best = null;
+            for (let x = ball.x + Math.max(2, 0.3 * ball.v); x <= nat.x + 60; x += 0.5) {
+                const s = ground.slope(x);
+                const valley = s >= -0.04;
+                if (valley && (Math.abs(s) > 0.02 || best && !best.valley)) continue;
+                const d = Math.abs(x - nat.x) + (valley ? 40 : 0);
+                if (best && d >= best.d) continue;
+                const pl = { x0: ball.x, x1: x, y0: a.y, y1: ground.height(x), m0, m1: s - 1 / ball.v };
+                let ok = true;
+                for (let i = 1; i < 32 && ok; i++) {
+                    const xi = ball.x + (x - ball.x) * i / 32;
+                    const q = pathAt(pl, xi);
+                    const pull = -q.ddy * v2;
+                    ok = q.y >= ground.height(xi) - 0.02 && q.y <= (a.ceil ?? Infinity) + 0.01 && pull >= PULL[0] * G && pull <= PULL[1] * G;
+                }
+                if (ok) best = { d, valley, pl };
+            }
+            if (best) a.plan = best.pl;
+        }
+
+        // In flight: on a planned path, it follows it (drag still slows it); otherwise gravity and a little air
+        // drag, and landing bounces off the ground's normal (losing some of the impact and a little speed along
+        // the ground), until the bounce is too small and it rolls on.
         function flyStep(events) {
             const a = ball.air;
-            a.vy -= GRAVITY * AIR_GRAVITY * STEP;
-            const sp = Math.hypot(ball.v, a.vy);
-            const drag = friction * AIR_DRAG * sp * STEP;
-            ball.v -= ball.v * drag;
-            a.vy -= a.vy * drag;
-            ball.x += ball.v * STEP;
-            a.y += a.vy * STEP;
+            if (a.plan) {
+                const sp = Math.hypot(ball.v, a.vy);
+                ball.v -= ball.v * friction * AIR_DRAG * sp * STEP;
+                ball.x += ball.v * STEP;
+                const q = pathAt(a.plan, ball.x);
+                a.y = q.y;
+                a.vy = q.dy * ball.v;
+            } else {
+                a.vy -= GRAVITY * AIR_GRAVITY * STEP;
+                const sp = Math.hypot(ball.v, a.vy);
+                const drag = friction * AIR_DRAG * sp * STEP;
+                ball.v -= ball.v * drag;
+                a.vy -= a.vy * drag;
+                ball.x += ball.v * STEP;
+                a.y += a.vy * STEP;
+            }
+            if (a.vy <= 0 && !a.apex && !a.plan) {
+                a.apex = true;
+                planLanding();
+            }
             a.peak = Math.max(a.peak, a.y);
             const gh = ground.height(ball.x);
             if (a.y > (a.ceil ?? Infinity)) { a.y = a.ceil; a.vy = Math.min(a.vy, 0); }
@@ -441,11 +507,10 @@
             // slope over the last moments, so it rejoins the line smoothly instead of slamming into it.
             // (Closing speed is relative to the ground under it: a rising slope comes up to meet it.)
             const closing = ground.slope(ball.x) * ball.v - a.vy;
-            if (closing > 0 && a.y > gh) {
+            if (!a.plan && closing > 0 && a.y > gh) {
                 const tau = (a.y - gh) / Math.max(0.5, closing);
                 if (tau < SETTLE_TIME) {
-                    const at = ball.x + ball.v * tau;
-                    const want = ground.slope(at) * ball.v - 1;   // along the slope, settling gently into it
+                    const want = ground.slope(ball.x + ball.v * tau) * ball.v - 1;   // along the slope, settling gently into it
                     a.vy += (want - a.vy) * Math.min(1, STEP / Math.max(STEP, tau));
                 }
             }
@@ -467,6 +532,8 @@
                 a.y = gh + 1e-4;
                 a.peak = gh;
                 a.from = ball.x;
+                a.plan = null;
+                planLanding();
             } else {
                 // Stick: roll on with the speed along the ground (as dx/dt).
                 ball.air = null;
@@ -479,6 +546,15 @@
         // frame the landing ahead; null on the ground.
         function landing() {
             if (!ball.air) return null;
+            const pl = ball.air.plan;
+            if (!pl) return simulateLanding();
+            let top = ball.air.y;
+            for (let i = 1; i <= 24; i++) top = Math.max(top, pathAt(pl, pl.x0 + (pl.x1 - pl.x0) * i / 24).y);
+            return { x: pl.x1, top };
+        }
+
+        // The natural landing: the flight carried on with the same gravity and drag, no steering.
+        function simulateLanding() {
             let x = ball.x;
             let y = ball.air.y;
             let vx = ball.v;
@@ -569,6 +645,7 @@
                 ball.air = { y: y0, vy, peak: y0, from: ball.x, ceil: y0 + maxAbove(ground.legAt(ball.x)) };
                 ball.v = vx;
                 capClimb();
+                planLanding();
                 launched = true;
             },
             // Seconds of flow left (0 when the ball is on the line).

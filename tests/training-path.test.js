@@ -524,3 +524,24 @@ test('a flight is capped in height, comes back within seconds and settles onto t
     assert.ok(t < 4, `aloft ${t.toFixed(1)} s`);
     assert.equal(lands.filter(e => e.bounce).length, 0, 'eases onto the slope, no bounce');
 });
+
+test('flights come down on the nearest down-slope, never on a face', () => {
+    let flights = 0;
+    let down = 0;
+    for (let seed = 1; seed <= 40; seed++) for (const v of [25, 45, 60]) {
+        const roll = T.createRoll(T.LATE_LEG + (seed % 3), seed * 17, { pushes: 1, cooldown: 1 });
+        roll.push(0.001);
+        roll.ball.v = v;
+        for (let t = 0; t < 20 && !roll.over && !roll.atRest; t += 0.05) {
+            for (const e of roll.step(0.05)) {
+                if (e.type !== 'land' || e.flight <= 3) continue;
+                flights++;
+                const s = roll.ground.slope(e.x);
+                assert.ok(s < 0.03, `landed on a face (slope ${s.toFixed(2)})`);
+                assert.ok(!e.bounce, 'no bounce');
+                if (s < -0.04) down++;
+            }
+        }
+    }
+    assert.ok(flights > 10 && down >= 0.9 * flights, `${down}/${flights} on down-slopes`);
+});
