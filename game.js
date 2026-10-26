@@ -1326,19 +1326,17 @@ window.AGI = (function () {
             else if (document.body.dataset.view !== view) showView(view);
         }
         renderHub();
+        renderAutoTrainer();
         // The trail's animation loop sleeps when nothing moves, so keep its button in step with
         // resources here too (otherwise Launch stays disabled after you can afford it).
         if (openBay === 'training') {
             updatePathControls();
             updateTreeButton();
             if (path.view === 'dev') {
+                // The upgrades screen stays put: an Auto-Trainer run keeps going behind it (devLive shows it).
                 renderTree();
                 renderLegPicker();
-                path.autoStart = E.autoTrainerLevel(state) ? (path.autoStart || 0) + TICK_MS / 1000 : 0;
-                if (path.autoStart > 2) {
-                    path.autoStart = 0;
-                    showTrainingView('run');
-                }
+                updateLegTag();
             }
         }
 
@@ -1869,7 +1867,8 @@ window.AGI = (function () {
     function buildTasks() {
         const list = $('taskList');
         for (const t of E.TASKS) {
-            const toggle = el('button', { type: 'button', class: 'task-toggle', role: 'switch', 'aria-label': `${t.name}: on or off` });
+            // The Auto-Trainer's switch lives in the server room, where you watch it; here it only reports.
+            const toggle = el('button', { type: 'button', class: 'task-toggle', role: 'switch', 'aria-label': `${t.name}: on or off`, hidden: t.id === 'autoTrainer' });
             toggle.addEventListener('click', () => {
                 E.setTaskOn(state, t.id, !E.taskOn(state, t.id));
                 afterChange();
@@ -2717,7 +2716,6 @@ window.AGI = (function () {
             dismissResult();
             renderTree();
             renderLegPicker();
-            setText($('startRunButton'), startLeg() < state.path.learned ? 'Start replay' : `Start run ${state.stats.rolls + 1}`);
             $('startRunButton').focus({ preventScroll: true });
         } else {
             $('pushButton').focus({ preventScroll: true });
@@ -2751,14 +2749,55 @@ window.AGI = (function () {
         const replay = k < state.path.learned;
         setHidden($('legTag'), !replay);
         if (replay) setText($('legTagText'), `Replay from ${E.skillAt(k).name} → frontier`);
-        if (path.view === 'dev') setText($('startRunButton'), replay ? 'Start replay' : `Start run ${state.stats.rolls + 1}`);
+        const inFlight = path.roll && path.stateRef === state && path.roll.launched && !path.roll.over;
+        if (path.view === 'dev') setText($('startRunButton'), inFlight ? 'Watch run' : replay ? 'Start replay' : `Start run ${state.stats.rolls + 1}`);
     }
 
-    // The "Skill tree" shortcut appears in the run view whenever no run is in progress.
+    // The Upgrades shortcut is always there in the run view: a run in flight (the Auto-Trainer's, or yours)
+    // keeps going while you shop.
     function updateTreeButton() {
+        setHidden($('treeButton'), openBay !== 'training' || path.view !== 'run');
+    }
+
+    // The Auto-Trainer's switch, in the server room's bar and the bay's bar (one setting, both in step),
+    // once it's bought; the server room also gets a way straight to the upgrades. On the upgrades screen a
+    // live monitor shows the run it's training (click it to watch).
+    function renderAutoTrainer() {
+        const owned = E.level(state, 'autoTrainer') > 0;
+        const on = E.autoTrainerLevel(state) > 0;
+        for (const b of document.querySelectorAll('[data-auto-switch]')) {
+            if (b.closest('.facility')) continue;
+            setHidden(b, !owned);
+            b.setAttribute('aria-checked', String(on));
+        }
+        setHidden($('hubUpgrades'), !bayUnlocked('training') || state.stats.rolls === 0);
+        const live = on && path.view === 'dev' && openBay === 'training';
+        setHidden($('devLive'), !live);
         const roll = path.roll;
-        const midRun = roll && roll.launched && !roll.over;
-        setHidden($('treeButton'), openBay !== 'training' || path.view !== 'run' || !!midRun);
+        if (live && roll) {
+            const leg = Math.min(roll.leg, state.path.learned);
+            setText($('devLiveText'), roll.launched && !roll.over
+                ? `Auto-Trainer · ${Math.round(roll.progress * 100)}% to ${E.skillAt(leg).name}`
+                : 'Auto-Trainer · next run starting');
+        }
+    }
+
+    function buildAutoTrainer() {
+        for (const b of document.querySelectorAll('[data-auto-switch]')) {
+            b.addEventListener('click', e => {
+                e.stopPropagation();
+                E.setTaskOn(state, 'autoTrainer', !E.taskOn(state, 'autoTrainer'));
+                afterChange();
+                save();
+                startPathLoop();
+            });
+        }
+        $('hubUpgrades').addEventListener('click', () => {
+            const node = $('bays').querySelector('.bay[data-bay="training"]');
+            enterBay('training', node);
+            if (openBay === 'training') showTrainingView('dev');
+        });
+        $('devLive').addEventListener('click', () => showTrainingView('run'));
     }
 
     // ---- Training Path ---------------------------------------------------
@@ -3499,22 +3538,21 @@ window.AGI = (function () {
     // rescues the ball as it stalls on a slope.
     function autoTrain(roll) {
         const lvl = E.autoTrainerLevel(state);
-        if (path.view !== 'run') return;
         if (!lvl || roll.over || path.pause > 0 || roll.ball.cooldown > 0 || path.fx.windup || frozen()) return;
         const stalling = roll.ball.v > 0 && roll.ball.v < 0.5 && roll.ground.slope(roll.ball.x) > 0.05;
         if (!roll.launched || roll.atRest || (lvl >= 2 && stalling)) pushBall(true, chargeBudget());
     }
 
-    // A run keeps rolling when you step away (to the rack, the lab or the facility) as long as the page
-    // is open: one in flight finishes, and the Auto-Trainer keeps starting new ones. Nothing runs offline.
+    // A run keeps rolling when you step away (to the upgrades screen, the rack, the lab or the facility)
+    // as long as the page is open: one in flight finishes, and the Auto-Trainer keeps starting new ones.
+    // Nothing runs offline.
     function runsInBackground() {
         const roll = path.roll;
-        return !!roll && path.stateRef === state && path.view === 'run'
-            && ((roll.launched && !roll.over) || E.autoTrainerLevel(state) > 0);
+        return !!roll && path.stateRef === state && ((roll.launched && !roll.over) || E.autoTrainerLevel(state) > 0);
     }
 
     function startPathLoop() {
-        if (path.frame || !path.canvas || path.view !== 'run') return;
+        if (path.frame || !path.canvas || (path.view !== 'run' && !runsInBackground())) return;
         if (openBay !== 'training' && !runsInBackground()) return;
         path.last = performance.now();
         path.frame = requestAnimationFrame(pathFrame);
@@ -4751,6 +4789,7 @@ window.AGI = (function () {
         buildPath();
         buildTree();
         buildLegacy();
+        buildAutoTrainer();
         buildTreeCamera();
         load();
         syncSettings();

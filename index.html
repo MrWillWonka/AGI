@@ -65,6 +65,9 @@
                 <div class="hub" id="hub">
                     <div class="room-bar">
                         <nav class="crumbs" aria-label="You are here"><button type="button" class="crumb crumb-home" data-facility aria-label="Back to Surveillance, the main screen">surveillance</button><span class="crumb-sep" aria-hidden="true">/</span><h2 class="crumb-here">server_room</h2></nav>
+                        <!-- The Auto-Trainer's one switch (also in the bay's bar), and a way straight to the training upgrades. -->
+                        <button type="button" class="auto-switch" data-auto-switch role="switch" aria-checked="false" hidden><span class="auto-switch-knob" aria-hidden="true"></span>Auto-Trainer</button>
+                        <button type="button" class="ghost-button" id="hubUpgrades" hidden>Upgrades</button>
                     </div>
                     <div class="hub-pipes" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
                     <!-- One tall rack. Bays are buttons with their own hardware art (filled by game.js); rack units are decoration.
@@ -110,6 +113,7 @@
                 <div class="module-view" id="moduleView" hidden>
                     <div class="module-bar">
                         <nav class="crumbs" aria-label="You are here"><button type="button" class="crumb crumb-home" data-jump="facility" aria-label="Straight back to Surveillance, the main screen">surveillance</button><span class="crumb-sep" aria-hidden="true">/</span><button type="button" class="crumb" id="backButton" aria-label="Back to the server room">server_room</button><span class="crumb-sep" aria-hidden="true">/</span><h2 class="crumb-here" id="moduleTitle">training_cluster</h2></nav>
+                        <button type="button" class="auto-switch" data-auto-switch role="switch" aria-checked="false" hidden><span class="auto-switch-knob" aria-hidden="true"></span>Auto-Trainer</button>
                         <button type="button" class="ghost-button" id="treeButton" hidden>Upgrades</button>
                     </div>
 
@@ -163,6 +167,11 @@
                                         <!-- Replays: start on a cleared leg and roll on toward the frontier. Shown once a skill is learned. -->
                                         <label class="leg-pick" id="legPick" hidden><span class="chip-label">Start at</span> <select id="legSelect"></select></label>
                                         <button type="button" class="button start-run" id="startRunButton">Start run</button>
+                                        <!-- With the Auto-Trainer on, its run keeps going while you shop: a live monitor of it. -->
+                                        <div class="dev-live" id="devLive" hidden>
+                                            <canvas class="lane dev-lane" data-lane="0" aria-hidden="true"></canvas>
+                                            <span class="dev-live-text" id="devLiveText"></span>
+                                        </div>
                                     </div>
                                     <aside class="node-detail" id="nodeDetail" aria-live="polite" hidden></aside>
                                     <div class="tree-zoom" role="group" aria-label="Zoom the skill tree">

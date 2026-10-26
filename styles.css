@@ -2481,3 +2481,22 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .legacy-flavor { margin: 2px 0 0; font-size: 0.75rem; font-style: italic; color: var(--muted); }
 .legacy-buy { grid-column: 2; justify-self: start; margin-top: 6px; }
 #legacyOpen { margin-top: 8px; }
+
+/* Auto-Trainer: one switch in the server room's bar and the bay's bar (both stay in step). */
+.auto-switch { display: inline-flex; align-items: center; gap: 8px; flex: none; padding: 5px 12px 5px 6px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); font: 700 0.72rem var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; white-space: nowrap; }
+.auto-switch[hidden] { display: none; }
+.auto-switch-knob { position: relative; width: 26px; height: 14px; border-radius: 999px; background: rgba(140, 160, 165, 0.25); transition: background 0.2s; }
+.auto-switch-knob::after { content: ''; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); transition: transform 0.2s, background 0.2s; }
+.auto-switch[aria-checked="true"] { border-color: rgba(99, 224, 171, 0.6); color: var(--success); background: rgba(99, 224, 171, 0.08); }
+.auto-switch[aria-checked="true"] .auto-switch-knob { background: rgba(99, 224, 171, 0.35); }
+.auto-switch[aria-checked="true"] .auto-switch-knob::after { transform: translateX(12px); background: var(--success); box-shadow: 0 0 8px var(--success); }
+.auto-switch:hover, .auto-switch:focus-visible { border-color: var(--success); outline: none; }
+.room-bar .auto-switch { margin-left: auto; }
+/* The live monitor on the upgrades screen while the Auto-Trainer runs: click it to watch. */
+.dev-live { display: flex; flex-direction: column; gap: 4px; padding: 6px; border: 1px solid rgba(99, 224, 171, 0.35); border-radius: 8px; background: rgba(8, 17, 19, 0.7); cursor: pointer; }
+.dev-live[hidden] { display: none; }
+.dev-live:hover { border-color: var(--success); }
+.dev-lane { display: block; width: 100%; height: 56px; }
+.dev-live-text { font: 600 0.68rem var(--font-mono); color: var(--success); }
+.dev-actions:has(.dev-live:not([hidden])) { flex-wrap: wrap; max-width: 420px; }
+.dev-actions .dev-live { flex-basis: 100%; }
