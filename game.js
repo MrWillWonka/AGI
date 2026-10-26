@@ -1628,7 +1628,8 @@ window.AGI = (function () {
         const areas = Object.keys(ROOMS).filter(id => MINIMAP[id] && (roomUnlocked(id) || sealedShown.has(id)));
         const bays = Object.keys(BAYS).filter(id => bayUnlocked(id) || id === nextSealedBay());
         const here = currentPlace();
-        const key = [areas, bays, here].join('|');
+        // Open state too: a sealed outline that opens keeps the same id, and must redraw as a room.
+        const key = [areas.map(id => id + (roomOpen(id) ? '+' : '')), bays.map(id => id + (bayUnlocked(id) ? '+' : '')), here].join('|');
         if (key === minimapKey) return;
         minimapKey = key;
         const open = id => roomOpen(id);
