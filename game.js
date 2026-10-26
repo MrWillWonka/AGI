@@ -3089,7 +3089,8 @@ window.AGI = (function () {
                 luckBanner('CRUNCH TIME!', `Free sprints for ${seconds} s, no waiting`, 'danger');
             }
         }
-        if (!auto && !effort && !path.fx.maxEffort && (forced === 'maxEffort' || E.maxEffortHit(state, seed, index))) {
+        // Only with a sprint left to spend it on, so it never shows on a run that can't use it.
+        if (!auto && !effort && !path.fx.maxEffort && roll.pushesLeft > 0 && (forced === 'maxEffort' || E.maxEffortHit(state, seed, index))) {
             path.fx.maxEffort = true;
             luckBanner('MAX EFFORT', 'Your next sprint goes all out: full strength, a super prompt', 'warning');
         }
@@ -3648,7 +3649,8 @@ window.AGI = (function () {
         const label = path.charging ? (frozen() ? 'Release to bank' : 'Release to sprint')
             : path.fx.windup ? 'Breakthrough…'
             : frozen() ? `BULLET TIME! Bank sprints (${path.fx.freeze.toFixed(1)} s)`
-            : path.fx.maxEffort && !roll.over && !roll.crested ? 'MAX EFFORT: press to go all out'
+            : path.fx.maxEffort && readyToFire(roll) ? 'MAX EFFORT: press to go all out'
+            : path.fx.maxEffort && canPush(roll) && roll.ball.cooldown > 0 ? `MAX EFFORT in ${roll.ball.cooldown.toFixed(1)} s`
             : crunching() && !roll.over && !roll.crested ? `CRUNCH! Sprint free (${path.fx.crunch.toFixed(1)} s)`
             : flowing() ? `Flowing… (${path.roll.flowing.toFixed(1)} s)`
             : !roll.launched ? 'Hold to launch'
