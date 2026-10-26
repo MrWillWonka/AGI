@@ -261,6 +261,7 @@
                     </div>
                     <p class="muted small">+<strong data-bind="prestige.gain">0</strong> Insight</p>
                     <button type="button" class="button button-prestige" id="prestigeButton" disabled>Ship it</button>
+                    <button type="button" class="ghost-button" id="legacyOpen" hidden>Legacy upgrades</button>
                 </div>
                 <div class="project sealed" aria-label="Sealed project"><span class="sealed-mark">???</span></div>
                 <div class="project sealed" aria-label="Sealed project"><span class="sealed-mark">???</span></div>
@@ -321,6 +322,18 @@
         <div class="mm-bar"><button type="button" class="mm-title" data-jump="facility">⌂ Surveillance room</button><button type="button" class="mm-min" aria-label="Minimize the map" aria-pressed="false" title="Minimize">–</button></div>
         <div class="mm-chip" id="minimapChip"></div>
     </nav>
+
+    <!-- Legacy upgrades: bought with Insight between versions (and from R&D). -->
+    <section class="legacy-screen room-frame hud" id="legacyScreen" aria-label="Legacy upgrades" hidden>
+        <div class="legacy-head">
+            <div>
+                <h2>Legacy upgrades</h2>
+                <p class="muted small" id="legacyInsight"></p>
+            </div>
+            <button type="button" class="button" id="legacyDone">Done</button>
+        </div>
+        <div class="legacy-grid" id="legacyGrid"></div>
+    </section>
 
     <div id="toasts" class="toasts" aria-live="polite"></div>
 

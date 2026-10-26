@@ -52,6 +52,9 @@ test('every upgrade has a valid tab, cost and dependency', () => {
         if (up.tab === 'training') {
             assert.ok(up.tree && Number.isInteger(up.tree.x) && Number.isInteger(up.tree.y), `${up.id} tree position`);
             assert.ok(up.icon, `${up.id} icon`);
+        } else if (up.tab === 'legacy') {
+            assert.ok(up.legacy && ['power', 'precision', 'recursion', 'momentum'].includes(up.branch), `${up.id} legacy branch`);
+            assert.ok(!up.requires || E.UPGRADE_BY_ID[up.requires].legacy, `${up.id} grows only from another legacy upgrade`);
         } else {
             assert.ok(tabs.has(up.tab), `${up.id} tab`);
         }
@@ -336,9 +339,26 @@ test('prestige keeps achievements and points, resets the run', () => {
     assert.equal(r.state.prestige.points, 2);
     assert.equal(r.state.prestige.count, 1);
     assert.equal(r.state.res.cp, 0);
-    assert.deepEqual(r.state.levels, {});
+    assert.deepEqual(r.state.levels, { keyboard: E.CPU_AFTER_CLICK_LEVEL }, 'the run starts over, with the desk built');
     assert.equal(r.state.achievements.cp1k, true);
     assert.ok(Math.abs(E.derive(r.state).mult - 1.2) < 1e-9, 'two Insight: +20%, achievements add nothing');
+});
+
+test('a new version remembers first-time intros, trains faster, and starts with the desk built', () => {
+    const s = fresh();
+    s.attr.intelligence = 10;
+    s.stats.runCp = 8e5;
+    s.intro['module:path'] = true;
+    s.path.learned = 1;
+    const before = E.derive(s).xpMult;
+    const t = E.prestige(s, NOW).state;
+    assert.equal(t.intro['module:path'], true, 'callouts and tips stay seen');
+    t.path.learned = 1;
+    assert.ok(Math.abs(E.derive(t).xpMult / before - E.derive(t).mult) < 1e-9, 'Insight boosts training XP');
+    assert.ok(E.derive(t).xpPerSec > E.derive(s).xpPerSec, 'passive XP too');
+    assert.equal(E.level(t, 'keyboard'), E.CPU_AFTER_CLICK_LEVEL);
+    const old = E.migrate({ version: 6, unlocked: { 'module:path': true, 'hint:hold': true, 'action:collect': true } });
+    assert.deepEqual(Object.keys(old.intro).sort(), ['hint:hold', 'module:path'], 'older saves: tips and reached callouts count as seen');
 });
 
 test('prestige is refused below the intelligence requirement', () => {
@@ -844,14 +864,10 @@ test('versions: shipping one keeps Insight, legacy nodes and their effects; numb
     const t = r.state;
     assert.equal(t.prestige.points, gain);
     assert.equal(t.levels.gpuCluster2, undefined, 'the run starts over');
-    // Legacy nodes cost Insight, need their parent once, and stay owned and in effect after the next version.
-    t.unlocked['module:path'] = true;
+    // Legacy upgrades cost Insight, show on their own screen from the first new version, and stay owned.
     E.evaluate(t);
-    assert.equal(E.isUpgradeVisible(t, E.UPGRADE_BY_ID.headStart), false, 'needs its parent this run');
-    t.levels.trainingOptimizer = 2;
-    t.levels.gpuCluster2 = 2;
-    t.levels.gpuSupercluster = 3;
-    E.evaluate(t);
+    assert.equal(E.isUpgradeVisible(t, E.UPGRADE_BY_ID.headStart), true, 'no skill-tree parent needed');
+    assert.equal(E.isUpgradeVisible(t, E.UPGRADE_BY_ID.deepFocus), false, 'an earlier legacy upgrade maxed first');
     const before = E.derive(t).cleanPower;
     assert.equal(E.buy(t, 'headStart').ok, true);
     assert.equal(t.prestige.points, gain - 1);

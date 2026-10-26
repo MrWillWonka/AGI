@@ -215,7 +215,7 @@ window.AGI = (function () {
     const calloutQueue = [];
     let calloutLive = null;
     function callout(key, title, message) {
-        calloutQueue.push({ key, title, message });
+        calloutQueue.push({ key, title, message, gen: calloutGen });
         if (!calloutLive) nextCallout();
     }
     function nextCallout() {
@@ -225,7 +225,18 @@ window.AGI = (function () {
         // Wait for whatever just appeared (the minimap, a workbench job) to finish booting up.
         setTimeout(() => showCallout(c), 1200);
     }
+    // Drop any callout still waiting or showing (a new version, or starting over).
+    function clearCallouts() {
+        calloutQueue.length = 0;
+        calloutLive = null;
+        calloutGen++;
+        for (const n of document.querySelectorAll('.toast.callout')) n.remove();
+        $('minimap').classList.remove('open');
+    }
+    let calloutGen = 0;
+
     function showCallout(c) {
+        if (c.gen !== calloutGen) return;
         const where = CALLOUTS[c.key] || {};
         const target = where.anchor?.();
         const onScreen = !!target && !target.hidden && !!target.offsetParent && target.getBoundingClientRect().width > 0;
@@ -268,7 +279,7 @@ window.AGI = (function () {
             nav.classList.remove('open');
             lit?.classList.remove('ping');
             box.classList.remove('show');
-            setTimeout(() => { box.remove(); calloutLive = null; nextCallout(); }, 400);
+            setTimeout(() => { box.remove(); if (c.gen === calloutGen) { calloutLive = null; nextCallout(); } }, 400);
         };
         const timer = setTimeout(close, where.ms || 10000);
         box.addEventListener('click', close);
@@ -413,6 +424,9 @@ window.AGI = (function () {
 
     // ---- Build static UI ------------------------------------------------
 
+    // Lab cards: everything but the skill tree and the legacy upgrades (their own screen).
+    const isLabUpgrade = up => up.tab !== 'training' && up.tab !== 'legacy';
+
     function buildActions() {
         const box = $('actions');
         for (const action of E.ACTIONS) {
@@ -537,7 +551,7 @@ window.AGI = (function () {
         for (const id of ['algorithms', 'consciousness']) for (let i = 0; i < 5; i++) ui.stations[id].art.append(el('i'));
 
         for (const up of E.UPGRADES) {
-            if (up.tab === 'training') continue;
+            if (!isLabUpgrade(up)) continue;
             const levelBadge = el('span', { class: 'badge' });
             // Live numbers (hardware output, click value) so descriptions never need updating.
             const yieldLine = up.cps || up.shows || up.grants ? el('p', { class: 'upgrade-yield' }) : null;
@@ -827,11 +841,11 @@ window.AGI = (function () {
         log(result.msg, result.ok ? 'success' : 'warning');
         if (result.ok) {
             const up = E.UPGRADE_BY_ID[id];
-            if (up.tab !== 'training') termLog(`installed ${E.upgradeName(state, up)} (level ${E.level(state, id)})`);
-            if (up.tab !== 'training' && E.isMaxed(state, up)) retireCard(id);
+            if (isLabUpgrade(up)) termLog(`installed ${E.upgradeName(state, up)} (level ${E.level(state, id)})`);
+            if (isLabUpgrade(up) && E.isMaxed(state, up)) retireCard(id);
             // Once the desk has its monitor (click tool level 4), point out that jobs can be held down.
-            if (id === 'keyboard' && E.level(state, id) >= 4 && !state.unlocked['hint:hold']) {
-                state.unlocked['hint:hold'] = true;
+            if (id === 'keyboard' && E.level(state, id) >= 4 && !state.intro['hint:hold']) {
+                state.intro['hint:hold'] = true;
                 callout('hint:hold', 'Tip', 'Holding down a job generates resources at a set rate.');
             }
             afterChange();
@@ -876,7 +890,7 @@ window.AGI = (function () {
         const name = E.versionName(next.major, next.minor);
         const { ok } = await openDialog({
             title: `Ship ${name} for ${gain} Insight?`,
-            message: `This run's resources, attributes, skills and upgrades reset. You keep Insight (+10% production each, and it buys legacy nodes in the skill tree), legacy nodes and achievements.`,
+            message: `This run's resources, attributes, skills and upgrades reset (your desk stays built). You keep Insight (+10% production and training XP each, and it buys legacy upgrades), legacy upgrades and achievements.`,
             okLabel: `Ship ${name}`
         });
         if (ok) shipVersion(false);
@@ -887,11 +901,13 @@ window.AGI = (function () {
         if (!result.ok && !force) return;
         state = result.ok ? result.state : state;
         path.roll = null;
-        resetView();
-        log(`Shipped ${result.version}! +${result.gain} Insight. All production is now ×${E.derive(state).mult.toFixed(2)}. Spend Insight on legacy nodes in the skill tree.`, 'special');
+        resetView(false);
+        log(`Shipped ${result.version}! +${result.gain} Insight. Production and training XP are now ×${E.derive(state).mult.toFixed(2)}. Spend Insight on legacy upgrades before you start.`, 'special');
         toast(`${result.version} shipped`, `+${result.gain} Insight`, 'version');
         afterChange();
         save();
+        // Spend Insight first, then start the new version.
+        openLegacy(true);
     }
 
     function exportSave() {
@@ -951,22 +967,27 @@ window.AGI = (function () {
     }
 
     // After a reset: no open bay, no finished run on screen, fresh room visits and tree view.
-    function resetView() {
+    // `full` (start over, import, erase): also forget screen-level memories (rooms seen, the tree view).
+    // Shipping a version keeps them, so first-time flashes and badges don't come back.
+    function resetView(full = true) {
         syncSettings();
         if (openBay) {
             openBay = null;
             $('moduleView').hidden = true;
             $('hub').hidden = false;
         }
+        clearCallouts();
         Object.assign(path, { roll: null, done: false, pause: 0, overview: 0, glow: null, summit: null, particles: [], tension: 0, focus: null, timeScale: 1, fx: freshFx() });
         path.view = 'run';
         dismissResult();
-        seenRooms = new Set(['lab']);
-        storageSet(SEEN_KEY, '[]');
-        storageSet(TREE_CAM_KEY, '');
-        treeCamFresh = true;
-        Object.assign(treeCam, { x: 0, y: 0, z: 1 });
-        $('skillTree').style.transform = '';
+        if (full) {
+            seenRooms = new Set(['lab']);
+            storageSet(SEEN_KEY, '[]');
+            storageSet(TREE_CAM_KEY, '');
+            treeCamFresh = true;
+            Object.assign(treeCam, { x: 0, y: 0, z: 1 });
+            $('skillTree').style.transform = '';
+        }
         cabinetKey = null;
         Object.assign(lab, { cp: [], dp: [], rp: [], xp: [], hand: [], lastRunCp: null, lastCollects: null, lastResearch: null, lastXp: null, lines: [] });
         storageSet(RACK_LOG_KEY, '[]');
@@ -991,7 +1012,11 @@ window.AGI = (function () {
         }
         for (const m of changes.milestones) {
             log(`Milestone reached: ${m.name}`, 'special');
-            if (m.callout) callout(m.key, m.callout[0], m.callout[1]);
+            // First-time callouts show once per save, not again after a new version.
+            if (m.callout && !state.intro[m.key]) {
+                state.intro[m.key] = true;
+                callout(m.key, m.callout[0], m.callout[1]);
+            }
         }
         for (const a of changes.achievements) {
             log(`Achievement unlocked: ${a.name}`, 'special');
@@ -999,7 +1024,11 @@ window.AGI = (function () {
         }
         if (changes.phase) {
             log(`Phase transition! You have reached ${changes.phase.name}.`, 'special');
-            toast(`${changes.phase.name} reached`, 'A new phase for your AI', 'phase');
+            const seenPhase = `phase:${changes.phase.name}`;
+            if (!state.intro[seenPhase]) {
+                state.intro[seenPhase] = true;
+                toast(`${changes.phase.name} reached`, 'A new phase for your AI', 'phase');
+            }
         }
     }
 
@@ -1178,6 +1207,7 @@ window.AGI = (function () {
         const d = E.derive(state, debugRates);
 
         for (const b of ui.binds) setText(b.node, bindValue(b.key, d));
+        renderLegacy();
 
         const pct = Math.round(E.phaseProgress(state) * 100);
         const bar = $('phaseBar');
@@ -1318,7 +1348,7 @@ window.AGI = (function () {
         if (!roomUnlocked(id)) return '';
         if (!r.built) return 'Under construction';
         if (id === 'lab') {
-            const ready = E.UPGRADES.filter(u => u.tab !== 'training' && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u)
+            const ready = E.UPGRADES.filter(u => isLabUpgrade(u) && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u)
                 && E.canAfford(state, E.upgradeCost(u, E.level(state, u.id)))).length;
             return `+${E.format(d.cpNet)} CP/s · ${ready ? `${ready} upgrade${ready === 1 ? '' : 's'} ready` : 'no upgrades ready'}`;
         }
@@ -1855,8 +1885,8 @@ window.AGI = (function () {
         if (!any) return;
         setHidden($('taskPanel').querySelector('.task-log'), !logged);
         // The first time you're in the lab after the first skill, point out where automations show.
-        if (learned > 0 && view === 'lab' && !state.unlocked['hint:tasks']) {
-            state.unlocked['hint:tasks'] = true;
+        if (learned > 0 && view === 'lab' && !state.intro['hint:tasks']) {
+            state.intro['hint:tasks'] = true;
             callout('hint:tasks', 'Tip', 'Scheduled tasks shows every automation that\'s running, and what each cleared leg trains on its own.');
         }
         const shares = E.taskShares(state);
@@ -2252,7 +2282,68 @@ window.AGI = (function () {
         crunchChance: 'flame', crunchTime: 'flame', superCrunch: 'flame', maxEffortChance: 'boost', maxEffortPower: 'boost',
         flowChance: 'wave', flowTime: 'wave', flowSpeed: 'wave', superFlow: 'wave'
     };
-    const nodeIcon = up => (up.requires && up.boost ? STAT_ICON[Object.keys(up.boost)[0]] : null) || up.icon;
+    const nodeIcon = up => ((up.requires || up.legacy) && up.boost ? STAT_ICON[Object.keys(up.boost)[0]] : null) || up.icon;
+
+    // ---- Legacy upgrades: their own screen, bought with Insight ----------------
+    // Opens after shipping a version (spend first, then "Start vX.Y") and from R&D any time after.
+    // Cards appear by branch; one that grows from another legacy upgrade shows once that one is maxed.
+    const LEGACY_BRANCHES = [['power', 'Power'], ['precision', 'Precision'], ['recursion', 'Recursion'], ['momentum', 'Momentum']];
+    const legacyUi = { cards: {}, afterShip: false };
+
+    function buildLegacy() {
+        const grid = $('legacyGrid');
+        for (const [id, name] of LEGACY_BRANCHES) {
+            const col = el('div', { class: 'legacy-col' }, [el('h3', { class: 'legacy-branch', text: name })]);
+            for (const up of E.UPGRADES.filter(u => u.legacy && u.branch === id)) {
+                const level = el('span', { class: 'legacy-level' });
+                const button = el('button', { type: 'button', class: 'button legacy-buy' });
+                button.addEventListener('click', () => doBuy(up.id));
+                const card = el('article', { class: 'legacy-card', hidden: true }, [
+                    el('span', { class: 'legacy-icon', 'aria-hidden': 'true' }),
+                    el('div', { class: 'legacy-info' }, [
+                        el('h4', {}, [el('span', { text: up.name }), level]),
+                        el('p', { class: 'legacy-effect', text: up.effect }),
+                        el('p', { class: 'legacy-flavor', text: up.flavor })
+                    ]),
+                    button
+                ]);
+                card.querySelector('.legacy-icon').innerHTML = icon(nodeIcon(up));
+                col.append(card);
+                legacyUi.cards[up.id] = { up, card, level, button };
+            }
+            grid.append(col);
+        }
+        $('legacyDone').addEventListener('click', closeLegacy);
+        $('legacyOpen').addEventListener('click', () => openLegacy(false));
+    }
+
+    function openLegacy(afterShip) {
+        legacyUi.afterShip = afterShip;
+        setText($('legacyDone'), afterShip ? `Start ${E.currentVersion(state)}` : 'Done');
+        $('legacyScreen').hidden = false;
+        renderLegacy();
+    }
+
+    function closeLegacy() {
+        $('legacyScreen').hidden = true;
+        if (legacyUi.afterShip) showView('lab');
+        legacyUi.afterShip = false;
+    }
+
+    function renderLegacy() {
+        setHidden($('legacyOpen'), state.prestige.count < 1);
+        if ($('legacyScreen').hidden) return;
+        setText($('legacyInsight'), `${E.currentVersion(state)} · ${E.format(state.prestige.points)} Insight to spend`);
+        for (const { up, card, level, button } of Object.values(legacyUi.cards)) {
+            setHidden(card, !E.isUpgradeVisible(state, up));
+            const lvl = E.level(state, up.id);
+            const maxed = E.isMaxed(state, up);
+            setText(level, `${lvl}/${up.max}`);
+            card.classList.toggle('owned', lvl > 0);
+            setText(button, maxed ? 'Owned' : `${E.formatCost(E.upgradeCost(up, lvl))}`);
+            setDisabled(button, maxed || !E.canAfford(state, E.upgradeCost(up, lvl)));
+        }
+    }
     const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
 
     const treeUi = { nodes: {}, links: [], bounds: null };
@@ -3482,8 +3573,8 @@ window.AGI = (function () {
             path.overview = OVERVIEW_SECONDS + path.pause;
             showResult({ skill: true, title: 'Skill learned', main: result.skill.name, flavor: result.skill.flavor, xp: result.xp + banked,
                 lines: [[result.skill.effect, ''], [grants, ''], ...lines] });
-            if (!state.unlocked['hint:replay']) {
-                state.unlocked['hint:replay'] = true;
+            if (!state.intro['hint:replay']) {
+                state.intro['hint:replay'] = true;
                 callout('hint:replay', 'Tip', 'Your AI now replays your best run on each cleared leg for passive XP. Run a leg again with better upgrades to raise it.');
             }
         } else {
@@ -4316,6 +4407,7 @@ window.AGI = (function () {
         buildHub();
         buildPath();
         buildTree();
+        buildLegacy();
         buildTreeCamera();
         load();
         syncSettings();
@@ -4485,7 +4577,7 @@ window.AGI = (function () {
             },
             // Buy one level of every visible lab upgrade you can't yet afford, for free.
             buyLabUpgrades() {
-                for (const up of E.UPGRADES.filter(u => u.tab !== 'training' && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u))) {
+                for (const up of E.UPGRADES.filter(u => isLabUpgrade(u) && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u))) {
                     state.levels[up.id] = E.level(state, up.id) + 1;
                     for (const [k, v] of Object.entries(up.grants || {})) state.attr[k] += v;
                 }

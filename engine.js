@@ -10,7 +10,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const SAVE_VERSION = 6;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest)
+    const SAVE_VERSION = 7;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro)
     const MAX_OFFLINE_SECONDS = 8 * 60 * 60;
     const PRESTIGE_BONUS = 0.1;        // +10% production per Insight ever earned (spending it on legacy nodes keeps the bonus)
     const PRESTIGE_MIN_INTELLIGENCE = 5;
@@ -280,20 +280,20 @@
         { id: 'crunchTime', tab: 'training', tree: { x: 1, y: 3 }, icon: 'flame', name: 'Crunch Time', effect: '+2% chance a sprint sets off a crunch: free sprints for 3 s, per level', flavor: 'Nobody goes home until it converges.', cost: { xp: 400 }, scale: 2, max: 3, requires: 'overclockedChips', boost: { crunchChance: 0.02 } },
         { id: 'deathMarch', tab: 'training', tree: { x: 1, y: 4 }, icon: 'flame', name: 'Death March', effect: 'Crunches last 1 s longer, per level', flavor: 'Sleep is a hyperparameter.', cost: { xp: 6000 }, scale: 1.9, max: 3, requires: 'crunchTime', boost: { crunchTime: 1 } },
         // Legacy (cost Insight, kept for good): automation, Flow State, the super power-ups, and flat boosts.
-        { id: 'autoTrainer', tab: 'training', legacy: true, tree: { x: 1, y: 2 }, icon: 'robot', name: 'Auto-Trainer', effect: 'Level 1 starts runs and sprints when the model stalls. Level 2 times them', flavor: 'An intern who never gets tired. Or paid.', cost: { insight: 3 }, scale: 3, max: 2, requires: 'fasterIteration' },
-        { id: 'headStart', tab: 'training', legacy: true, tree: { x: -1, y: -3 }, icon: 'target', name: 'Head Start', effect: 'Clean prompts hit 10% harder per level, kept for good', flavor: 'Version two starts where version one gave up.', cost: { insight: 1 }, scale: 2, max: 3, requires: 'gpuSupercluster', boost: { cleanPower: 0.1 } },
-        { id: 'alumniNetwork', tab: 'training', legacy: true, tree: { x: 2, y: -1 }, icon: 'coin', name: 'Alumni Network', effect: '+15% XP from every run per level, kept for good', flavor: 'Your old team still sends you their best data.', cost: { insight: 1 }, scale: 2, max: 3, requires: 'precisionTuning', boost: { xp: 0.15 } },
-        { id: 'tenure', tab: 'training', legacy: true, tree: { x: -2, y: 2 }, icon: 'coin', name: 'Tenure', effect: '+10% XP from every run per level, kept for good', flavor: 'They can\'t fire you now. Time to publish.', cost: { insight: 4 }, scale: 3, max: 2, requires: 'seriesA', boost: { xp: 0.1 } },
-        { id: 'scalingLaws', tab: 'training', legacy: true, tree: { x: 2, y: -3 }, icon: 'dice', name: 'Scaling Laws', effect: '+1.5% Max Effort chance per level, kept for good', flavor: 'Bigger is better. There\'s a graph and everything.', cost: { insight: 2 }, scale: 2, max: 3, requires: 'satelliteMaps', boost: { maxEffortChance: 0.015 } },
-        { id: 'secondWind', tab: 'training', legacy: true, tree: { x: 2, y: -4 }, icon: 'flame', name: 'Second Wind', effect: 'Max Effort +30% stronger per level, kept for good', flavor: 'Just when you thought it was done.', cost: { insight: 3 }, scale: 2, max: 3, requires: 'muse', boost: { maxEffortPower: 0.3 } },
-        { id: 'paradigmShift', tab: 'training', legacy: true, tree: { x: 3, y: -3 }, icon: 'bolt', name: 'Paradigm Shift', effect: 'Super breakthroughs: 10% of breakthroughs (+10%/level) shatter the hills ahead', flavor: 'Everything you knew is rubble. Good rubble.', cost: { insight: 15 }, scale: 2, max: 3, requires: 'blackSwan', boost: { superCrit: 0.1 } },
-        { id: 'pressOffice', tab: 'training', legacy: true, tree: { x: 5, y: -3 }, icon: 'spark', name: 'Press Office', effect: '+1.5% viral chance per level, kept for good', flavor: 'Somebody has to write the headlines.', cost: { insight: 2 }, scale: 2, max: 3, requires: 'goingViral', boost: { windfallChance: 0.015 } },
-        { id: 'systemPrompt', tab: 'training', legacy: true, tree: { x: 7, y: 1 }, icon: 'target', name: 'System Prompt', effect: 'A tiny system prompt spot inside the super prompt: worth 50 clean prompts', flavor: 'You are a helpful model. You are a very fast model.', cost: { insight: 25 }, scale: 2, max: 2, requires: 'laserCalibration', boost: { system: 1 } },
-        { id: 'hackathon', tab: 'training', legacy: true, tree: { x: 2, y: 3 }, icon: 'chip', name: 'Hackathon', effect: '-15% wait between sprints per level, kept for good', flavor: 'Free pizza. Nobody leaves for 48 hours.', cost: { insight: 2 }, scale: 2, max: 3, requires: 'crunchTime', boost: { cooldown: 1 } },
-        { id: 'bulletTime', tab: 'training', legacy: true, tree: { x: 1, y: 5 }, icon: 'flame', name: 'Bullet Time', effect: 'Super crunches: 15% of crunches (+10%/level) freeze time and bank sprints', flavor: 'Time stops. You don\'t.', cost: { insight: 18 }, scale: 2, max: 3, requires: 'deathMarch', boost: { superCrunch: 0.15 } },
-        { id: 'flowState', tab: 'training', legacy: true, tree: { x: -3, y: 1 }, icon: 'wave', name: 'Flow State', effect: '+1% chance a sprint starts a flow: coast above the hills, 3 s (+1 s/level)', flavor: 'The loss curve and you are one.', cost: { insight: 5 }, scale: 2, max: 3, requires: 'superconductors', boost: { flowChance: 0.01, flowTime: 1 } },
-        { id: 'deepFocus', tab: 'training', legacy: true, tree: { x: -4, y: 1 }, icon: 'wave', name: 'Deep Focus', effect: 'Flows coast 25% faster per level, kept for good', flavor: 'Notifications off. Phone in a drawer. In another room.', cost: { insight: 4 }, scale: 2, max: 3, requires: 'flowState', boost: { flowSpeed: 0.25 } },
-        { id: 'lucidDream', tab: 'training', legacy: true, tree: { x: -4, y: 2 }, icon: 'wave', name: 'Lucid Dream', effect: 'Super flows: 20% of flows (+10%/level) shrink the hills below you', flavor: 'It knows it\'s dreaming. It redecorated.', cost: { insight: 20 }, scale: 2, max: 3, requires: 'deepFocus', boost: { superFlow: 0.2 } },
+        { id: 'autoTrainer', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'robot', name: 'Auto-Trainer', effect: 'Level 1 starts runs and sprints when the model stalls. Level 2 times them', flavor: 'An intern who never gets tired. Or paid.', cost: { insight: 3 }, scale: 3, max: 2 },
+        { id: 'headStart', tab: 'legacy', legacy: true, branch: 'power', icon: 'target', name: 'Head Start', effect: 'Clean prompts hit 10% harder per level, kept for good', flavor: 'Version two starts where version one gave up.', cost: { insight: 1 }, scale: 2, max: 3, boost: { cleanPower: 0.1 } },
+        { id: 'alumniNetwork', tab: 'legacy', legacy: true, branch: 'precision', icon: 'coin', name: 'Alumni Network', effect: '+15% XP from every run per level, kept for good', flavor: 'Your old team still sends you their best data.', cost: { insight: 1 }, scale: 2, max: 3, boost: { xp: 0.15 } },
+        { id: 'tenure', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'coin', name: 'Tenure', effect: '+10% XP from every run per level, kept for good', flavor: 'They can\'t fire you now. Time to publish.', cost: { insight: 4 }, scale: 3, max: 2, boost: { xp: 0.1 } },
+        { id: 'scalingLaws', tab: 'legacy', legacy: true, branch: 'power', icon: 'dice', name: 'Scaling Laws', effect: '+1.5% Max Effort chance per level, kept for good', flavor: 'Bigger is better. There\'s a graph and everything.', cost: { insight: 2 }, scale: 2, max: 3, boost: { maxEffortChance: 0.015 } },
+        { id: 'secondWind', tab: 'legacy', legacy: true, branch: 'power', icon: 'flame', name: 'Second Wind', effect: 'Max Effort +30% stronger per level, kept for good', flavor: 'Just when you thought it was done.', cost: { insight: 3 }, scale: 2, max: 3, boost: { maxEffortPower: 0.3 } },
+        { id: 'paradigmShift', tab: 'legacy', legacy: true, branch: 'precision', icon: 'bolt', name: 'Paradigm Shift', effect: 'Super breakthroughs: 10% of breakthroughs (+10%/level) shatter the hills ahead', flavor: 'Everything you knew is rubble. Good rubble.', cost: { insight: 15 }, scale: 2, max: 3, boost: { superCrit: 0.1 } },
+        { id: 'pressOffice', tab: 'legacy', legacy: true, branch: 'precision', icon: 'spark', name: 'Press Office', effect: '+1.5% viral chance per level, kept for good', flavor: 'Somebody has to write the headlines.', cost: { insight: 2 }, scale: 2, max: 3, boost: { windfallChance: 0.015 } },
+        { id: 'systemPrompt', tab: 'legacy', legacy: true, branch: 'precision', icon: 'target', name: 'System Prompt', effect: 'A tiny system prompt spot inside the super prompt: worth 50 clean prompts', flavor: 'You are a helpful model. You are a very fast model.', cost: { insight: 25 }, scale: 2, max: 2, boost: { system: 1 } },
+        { id: 'hackathon', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'chip', name: 'Hackathon', effect: '-15% wait between sprints per level, kept for good', flavor: 'Free pizza. Nobody leaves for 48 hours.', cost: { insight: 2 }, scale: 2, max: 3, boost: { cooldown: 1 } },
+        { id: 'bulletTime', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'flame', name: 'Bullet Time', effect: 'Super crunches: 15% of crunches (+10%/level) freeze time and bank sprints', flavor: 'Time stops. You don\'t.', cost: { insight: 18 }, scale: 2, max: 3, requires: 'hackathon', boost: { superCrunch: 0.15 } },
+        { id: 'flowState', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Flow State', effect: '+1% chance a sprint starts a flow: coast above the hills, 3 s (+1 s/level)', flavor: 'The loss curve and you are one.', cost: { insight: 5 }, scale: 2, max: 3, boost: { flowChance: 0.01, flowTime: 1 } },
+        { id: 'deepFocus', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Deep Focus', effect: 'Flows coast 25% faster per level, kept for good', flavor: 'Notifications off. Phone in a drawer. In another room.', cost: { insight: 4 }, scale: 2, max: 3, requires: 'flowState', boost: { flowSpeed: 0.25 } },
+        { id: 'lucidDream', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Lucid Dream', effect: 'Super flows: 20% of flows (+10%/level) shrink the hills below you', flavor: 'It knows it\'s dreaming. It redecorated.', cost: { insight: 20 }, scale: 2, max: 3, requires: 'deepFocus', boost: { superFlow: 0.2 } },
         { id: 'researchAssistant', tab: 'algorithms', name: 'Research Assistant', shows: 'autoResearch', effect: 'Researches for you, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.55,
             unlock: s => !!s.unlocked['action:research'] && automationGate(s, 'researchAssistant').met, hint: 'Language Modeling, and 50 research runs by hand' },
         // The crawler's upgrades: it reads text, then images, so it collects faster. (Data per collection
@@ -436,6 +436,7 @@
             levels: {},
             unlocked: {},
             achievements: {},
+            intro: {},          // first-time callouts, tips and phase announcements already shown: kept across versions
             // Versions: shipping one resets the run for Insight. `levels` holds legacy nodes (kept for good);
             // major.minor is the model's version number (a big jump in Insight ships a major version).
             prestige: { points: 0, total: 0, count: 0, major: 1, minor: 0, levels: {} },
@@ -587,10 +588,11 @@
         const friction = Math.pow(0.95, tb.friction) * (1 - sk.glide);
         // 'Less steep hills' really lowers the rolling hills (never the skill hills: those stay walls).
         const hillScale = Math.pow(0.94, tb.slope);
-        const xpMult = (1 + tb.xp) * bo.xp;
+        // Versions train faster too: Insight's +10% each (mult) applies to training XP, passive included.
+        const xpMult = (1 + tb.xp) * bo.xp * mult;
         // Cleared stretches keep training on their own, slowly: XP per second from every learned skill hill.
         let xpPerSec = 0;
-        for (let k = 0; k < s.path.learned; k++) xpPerSec += legXpRate(s, k) * r.xp;
+        for (let k = 0; k < s.path.learned; k++) xpPerSec += legXpRate(s, k) * r.xp * mult;
 
         return { mult, cpPerSec, hardwareRates, hardwareMult: (1 + 0.5 * L('compilerOpt')) * (1 + 0.5 * L('kernelFusion')), clickPower, dpPerCollect, dpPerSec, rpPerResearch, rpPerSec,
             collectsPerSec, researchPerSec, cpUsePerSec, dpUsePerSec, autoThrottled, tasks,
@@ -662,10 +664,11 @@
     }
 
     function upgradeUnlockMet(s, up) {
-        // Legacy nodes appear after the first new version; once owned they stay, whatever this run owns.
+        // Legacy upgrades live on their own screen (not the skill tree): they appear after the first new
+        // version, need only an earlier legacy upgrade maxed (if any), and once owned they stay.
         if (up.legacy) {
             if (level(s, up.id) > 0) return true;
-            if (s.prestige.count < 1) return false;
+            return s.prestige.count >= 1 && (!up.requires || parentDone(s, up));
         }
         if (up.requires && level(s, up.requires) < 1) return false;
         // Skill-tree nodes grow only from a finished parent: what comes next stays hidden until it's maxed.
@@ -1167,6 +1170,10 @@
         const fresh = defaultState(now);
         const next = Object.assign(fresh, {
             achievements: s.achievements,
+            intro: { ...s.intro },
+            // A new version starts with the desk built (the click tool at the Server Rack), so the first
+            // thing to do is automate compute again.
+            levels: { keyboard: CPU_AFTER_CLICK_LEVEL },
             prestige: { points: s.prestige.points + gain, total: s.prestige.total + gain, count: s.prestige.count + 1,
                 major: v.major, minor: v.minor, levels: { ...s.prestige.levels } },
             tasks: JSON.parse(JSON.stringify(s.tasks)),
@@ -1227,6 +1234,9 @@
         }
         s.unlocked = cleanMap(raw.unlocked, (k, v) => v === true);
         s.achievements = cleanMap(raw.achievements, (k, v) => v === true && ACHIEVEMENTS.some(a => a.id === k));
+        s.intro = cleanMap(raw.intro, (k, v) => v === true);
+        // Before v7, tips were marked in `unlocked`, and a milestone's callout had shown if it was reached.
+        if (!(raw.version >= 7)) for (const k of Object.keys(s.unlocked)) if (k.startsWith('hint:') || MILESTONES.some(m => m.key === k && m.callout)) s.intro[k] = true;
         for (const k of ['points', 'total', 'count']) s.prestige[k] = num(raw.prestige?.[k], 0);
         // Before v5 a prestige was a Transcend with no version number: each one counts as a major version.
         s.prestige.major = Math.max(1, Math.floor(num(raw.prestige?.major, 1 + s.prestige.count)));
@@ -1367,7 +1377,7 @@
 
     return {
         SAVE_VERSION, MAX_OFFLINE_SECONDS, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
-        versionName, currentVersion, nextVersion, clearedPeriod, legBestXp, legXpRate, recordRun, legClearXp, clearLeg, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, PATH, SKILLS,
+        versionName, currentVersion, nextVersion, clearedPeriod, legBestXp, legXpRate, recordRun, legClearXp, clearLeg, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
