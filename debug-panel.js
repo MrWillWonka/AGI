@@ -110,7 +110,7 @@
             section('Server room', button('+50 laps per cleared leg', () => AGI.debug.addLaps(50)), button('Record 90%', () => AGI.debug.setRecord(0.9)),
                 button('Reset room visits', AGI.debug.resetVisits)),
             section('Training', button('Finish run', AGI.debug.finishRun), button('Test summit', () => AGI.debug.testSummit()),
-                button('Test near miss', () => AGI.debug.testNailBiter()), button('Max skill tree', AGI.debug.maxTree),
+                button('Test near miss', () => AGI.debug.testNailBiter()), button('Fling the ball', () => AGI.debug.fling()), button('Max skill tree', AGI.debug.maxTree),
                 button('Toggle Auto-Trainer', AGI.debug.toggleAutoTrainer), button('Reset tree view', AGI.debug.resetTreeView)),
             section('Power-ups', ...[['breakthrough', 'Breakthrough'], ['maxEffort', 'Max Effort'], ['crunch', 'Crunch'], ['flow', 'Flow'], ['viral', 'Viral'],
                 ['system', 'System prompt'], ['superBreakthrough', 'Paradigm Shift'], ['superCrunch', 'Bullet Time'], ['superFlow', 'Lucid Dream']]

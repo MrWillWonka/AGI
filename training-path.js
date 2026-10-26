@@ -447,6 +447,29 @@
             }
         }
 
+        // Where the current flight will come down (same gravity and drag, ignoring sprints), for the camera to
+        // frame the landing ahead; null on the ground.
+        function landing() {
+            if (!ball.air) return null;
+            let x = ball.x;
+            let y = ball.air.y;
+            let vx = ball.v;
+            let vy = ball.air.vy;
+            const dt = STEP * 4;
+            let top = y;
+            for (let i = 0; i < 1200; i++) {
+                vy -= GRAVITY * AIR_GRAVITY * dt;
+                const d = friction * AIR_DRAG * Math.hypot(vx, vy) * dt;
+                vx -= vx * d;
+                vy -= vy * d;
+                x += vx * dt;
+                y += vy * dt;
+                top = Math.max(top, y);
+                if (y <= ground.height(x)) break;
+            }
+            return { x, top };
+        }
+
         // Where a roll that stops here ends: its leg, how far along it (fraction and metres), and the rolling
         // hills got over there.
         function stopEvent() {
@@ -527,6 +550,7 @@
             get trapped() { return ball.trapped; },
             // In flight (late legs): the ball's height above the ground line's zero, else on the line.
             get airborne() { return !!ball.air; },
+            get landing() { return landing(); },
             get height() { return ball.air ? ball.air.y : ground.height(ball.x); }
         };
     }

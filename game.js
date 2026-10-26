@@ -4050,11 +4050,16 @@ window.AGI = (function () {
                 for (let i = 0; i <= 24; i++) low = Math.min(low, g.height(leftOf(v) + v * i / 24));
                 return low;
             };
-            let view = LATE_VIEW + 0.35 * Math.abs(roll.ball.v);
-            const climb = roll.height - floorIn(view) + 2;
-            view = Math.max(view, climb / (0.8 * fitH(1)));
+            // Pull back to watch: wider with speed, and in flight wide enough to frame the ball, the top of its
+            // arc and where it will come down (the physics predicts the landing). Zooming out follows at once
+            // (eased by the camera); zooming back in waits until it could be 30% tighter, so it doesn't breathe.
+            let view = LATE_VIEW + 0.7 * Math.abs(roll.ball.v);
+            const land = roll.landing;
+            if (land) view = Math.max(view, (land.x - roll.ball.x) / 0.62 + 6);
+            const top = land ? Math.max(roll.height, land.top) : roll.height;
+            view = Math.max(view, (top - floorIn(view) + 2) / (0.75 * fitH(1)));
             const held = path.lateView;
-            if (held && held.roll === roll && view < held.width * 1.2 && view > held.width / 1.3) view = held.width;
+            if (held && held.roll === roll && view <= held.width && view > held.width / 1.3) view = held.width;
             else path.lateView = { roll, width: view };
             view *= condense;
             const left = leftOf(view);
@@ -5123,6 +5128,16 @@ window.AGI = (function () {
                     zone: currentZone(r), clean: r.clean || 0, charge: chargeLevel(),
                     slope: r.ground.slope(r.ball.x), crested: r.crested, tension: path.tension, timeScale: path.timeScale,
                     summit: !!path.summit, particles: path.particles.length, cam: path.cam && { ...path.cam } };
+            },
+            // Throw the ball into the air (late legs: test flights, bounces and the camera).
+            fling(vx = 45, vy = 25) {
+                if (openBay === 'training' && path.view !== 'run') showTrainingView('run');
+                if (path.done) runAgain();
+                const r = currentRoll();
+                if (!r.launched) r.push(0.001);
+                r.ball.air = { y: r.height, vy, peak: r.height, from: r.ball.x };
+                r.ball.v = vx;
+                startPathLoop();
             },
             // Put the ball somewhere with some speed (testing the camera and slow motion).
             setBall(x, v) {
