@@ -37,7 +37,11 @@
     const BOUNCE_MIN = 1.2;     // below this bounce-back speed the ball sticks and rolls on
     const LATE_DRAG = 0.25;     // and rolling there keeps its momentum: this share of the quadratic and slope drag
     const AIR_GRAVITY = 1.9;    // gravity in flight, × GRAVITY: arcs come down with weight instead of hanging (game feel)
-    const REGRIP = 0.35;        // seconds after landing before it can take off again (no hop-stick-hop over a crest)
+    const REGRIP = 0.35;
+    // A flight rises at most this far above the ground it left (half that leg's skill hill, at least 4 m), so it
+    // comes back within a couple of seconds whatever boosts it.
+    const maxAbove = k => Math.max(4, 0.5 * skillHeight(k));
+    const SETTLE_TIME = 0.4;    // seconds before touchdown it starts lining its path up with the slope it lands on        // seconds after landing before it can take off again (no hop-stick-hop over a crest)
     const LAUNCH_GRIP = 0.45;   // crests throw the ball once its pull round them needs this share of gravity (game feel: it pops)      // and rolling there keeps its momentum: this share of the quadratic and slope drag
 
     // ---- Skill hills (fixed) -----------------------------------------------
@@ -293,6 +297,7 @@
                 const k = Math.sqrt(sp * sp + e) / sp;
                 ball.v *= k;
                 ball.air.vy = ball.air.vy * k + 0.25 * Math.sqrt(e);   // and a little lift
+                capClimb();
                 return;
             }
             ball.v = ball.v >= 0
@@ -403,9 +408,19 @@
             const curve = (ground.height(ball.x + e) - 2 * ground.height(ball.x) + ground.height(ball.x - e)) / (e * e);
             if (curve * ball.v * ball.v >= -GRAVITY * LAUNCH_GRIP) return;
             const slope = ground.slope(ball.x);
-            ball.air = { y: ground.height(ball.x), vy: slope * ball.v, peak: ground.height(ball.x), from: ball.x };
+            const y0 = ground.height(ball.x);
+            ball.air = { y: y0, vy: slope * ball.v, peak: y0, from: ball.x, ceil: y0 + maxAbove(ground.legAt(ball.x)) };
+            capClimb();
             ball.trapped = false;
             events.push({ type: 'launch', speed: Math.hypot(ball.v, ball.air.vy), x: ball.x });
+        }
+
+        // The ceiling: no more upward speed than reaches it (extra speed from a sprint goes into distance).
+        function capClimb() {
+            const a = ball.air;
+            if (!a || a.vy <= 0) return;
+            const room = Math.max(0, (a.ceil ?? Infinity) - a.y);
+            a.vy = Math.min(a.vy, Math.sqrt(2 * GRAVITY * AIR_GRAVITY * room));
         }
 
         // In flight: gravity and a little air drag; landing bounces off the ground's normal (losing some of the
@@ -421,6 +436,19 @@
             a.y += a.vy * STEP;
             a.peak = Math.max(a.peak, a.y);
             const gh = ground.height(ball.x);
+            if (a.y > (a.ceil ?? Infinity)) { a.y = a.ceil; a.vy = Math.min(a.vy, 0); }
+            // Coming down: work out where it touches (the hill it's about to meet) and ease its path into that
+            // slope over the last moments, so it rejoins the line smoothly instead of slamming into it.
+            // (Closing speed is relative to the ground under it: a rising slope comes up to meet it.)
+            const closing = ground.slope(ball.x) * ball.v - a.vy;
+            if (closing > 0 && a.y > gh) {
+                const tau = (a.y - gh) / Math.max(0.5, closing);
+                if (tau < SETTLE_TIME) {
+                    const at = ball.x + ball.v * tau;
+                    const want = ground.slope(at) * ball.v - 1;   // along the slope, settling gently into it
+                    a.vy += (want - a.vy) * Math.min(1, STEP / Math.max(STEP, tau));
+                }
+            }
             if (a.y > gh) return;
             const s = ground.slope(ball.x);
             const len = Math.hypot(1, s);
@@ -534,6 +562,15 @@
             end,
             // Lay the next leg past the last one (after an onward crest).
             extend: () => ground.extend(),
+            // Throw the ball into the air (the debug fling), under the same ceiling as a take-off.
+            fly(vx, vy) {
+                if (over) return;
+                const y0 = ground.height(ball.x);
+                ball.air = { y: y0, vy, peak: y0, from: ball.x, ceil: y0 + maxAbove(ground.legAt(ball.x)) };
+                ball.v = vx;
+                capClimb();
+                launched = true;
+            },
             // Seconds of flow left (0 when the ball is on the line).
             get flowing() { return flow.left; },
             get superFlow() { return flow.left > 0 && (flow.shrink > 0 || flow.warp > 1); },
@@ -557,6 +594,6 @@
 
     return {
         STEP, GRAVITY,
-        LATE_LEG, checkpoint, skillHill, skillHeight, rollingHills, terrain, createRoll, rng
+        LATE_LEG, maxAbove, checkpoint, skillHill, skillHeight, rollingHills, terrain, createRoll, rng
     };
 });

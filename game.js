@@ -5135,8 +5135,7 @@ window.AGI = (function () {
                 if (path.done) runAgain();
                 const r = currentRoll();
                 if (!r.launched) r.push(0.001);
-                r.ball.air = { y: r.height, vy, peak: r.height, from: r.ball.x };
-                r.ball.v = vx;
+                r.fly(vx, vy);
                 startPathLoop();
             },
             // Put the ball somewhere with some speed (testing the camera and slow motion).

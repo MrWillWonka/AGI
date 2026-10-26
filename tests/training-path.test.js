@@ -505,3 +505,22 @@ test('a super flow condenses time: the ball covers warp times the ground', () =>
     const dream = run(4);
     assert.ok(dream > 3 * plain, `${dream} vs ${plain}`);
 });
+
+test('a flight is capped in height, comes back within seconds and settles onto the line without bouncing', () => {
+    const roll = T.createRoll(T.LATE_LEG, 5, { pushes: 3, cooldown: 0.1 });
+    roll.push(0.001);
+    const x = roll.ground.start + 20;
+    const y0 = roll.ground.height(x);
+    Object.assign(roll.ball, { x, v: 40, maxX: x, air: { y: y0, vy: 200, peak: y0, from: x, ceil: y0 + T.maxAbove(T.LATE_LEG) } });
+    let t = 0;
+    let top = y0;
+    const lands = [];
+    while (roll.airborne && t < 20) {
+        for (const e of roll.step(0.05)) if (e.type === 'land') lands.push(e);
+        top = Math.max(top, roll.height);
+        t += 0.05;
+    }
+    assert.ok(top <= y0 + T.maxAbove(T.LATE_LEG) + 0.01, `top ${top}`);
+    assert.ok(t < 4, `aloft ${t.toFixed(1)} s`);
+    assert.equal(lands.filter(e => e.bounce).length, 0, 'eases onto the slope, no bounce');
+});
