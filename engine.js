@@ -10,7 +10,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const SAVE_VERSION = 9;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings
+    const SAVE_VERSION = 10;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers
     const MAX_OFFLINE_SECONDS = 8 * 60 * 60;
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
@@ -632,7 +632,7 @@
         const xpMult = (1 + tb.xp) * bo.xp * mult;
         // Cleared stretches keep training on their own, slowly: XP per second from every learned skill hill.
         let xpPerSec = 0;
-        for (let k = 0; k < s.path.learned; k++) xpPerSec += legXpRate(s, k) * r.xp * mult;
+        for (let k = 0; k < s.path.learned; k++) xpPerSec += legXpRate(s, k, xpMult) * r.xp;
 
         return { mult, cpPerSec, hardwareRates, hardwareMult: (1 + 0.5 * L('compilerOpt')) * (1 + 0.5 * L('kernelFusion')), clickPower, dpPerCollect, autoDpPerCollect, dpPerSec, rpPerResearch, autoRpPerResearch, rpPerSec,
             collectsPerSec, researchPerSec, cpUsePerSec, dpUsePerSec, autoThrottled, tasks,
@@ -1034,13 +1034,17 @@
 
     // Cleared legs train themselves by replicating the best run that started on them: passive XP per second
     // is a share of that run's XP (never less than a plain cresting run), so replaying a leg with better
-    // upgrades raises it.
+    // upgrades raises it. The run is stored without the XP multipliers in force at the time (Insight, the
+    // tree's XP, an investor boost, a viral hit), which apply live instead: a lucky moment never sets a
+    // permanent rate, and buying XP nodes raises every leg's passive XP at once.
     const legBestXp = (s, k) => Math.max(2 * stretchXpAt(k), s.path.legBest?.[k] || 0);
-    const legXpRate = (s, k) => legBestXp(s, k) * PATH.clearedRate;
-    function recordRun(s, leg, xp) {
-        if (!(xp > 0)) return false;
-        const better = xp > (s.path.legBest[leg] || 0);
-        if (better) s.path.legBest[leg] = xp;
+    const legXpRate = (s, k, xpMult = derive(s).xpMult) => legBestXp(s, k) * PATH.clearedRate * xpMult;
+    // `xp`: what the run paid; `luck`: any one-off multiplier on it (viral).
+    function recordRun(s, leg, xp, luck = 1) {
+        const base = xp / (derive(s).xpMult * luck);
+        if (!(base > 0)) return false;
+        const better = base > (s.path.legBest[leg] || 0);
+        if (better) s.path.legBest[leg] = base;
         return better;
     }
 
@@ -1169,9 +1173,12 @@
     const PROJECT_REWARDS = [
         { text: '+50% training XP for 5 min', boost: 'xp', mult: 1.5, seconds: 300 },
         { text: 'Training XP ×2 for 3 min', boost: 'xp', mult: 2, seconds: 180 },
-        { text: 'A training grant', grant: 'xp', amount: s => Math.max(5, 1.5 * stretchXp(s) * derive(s).xpMult) },
-        { text: 'A big training grant', grant: 'xp', amount: s => Math.max(12, 4 * stretchXp(s) * derive(s).xpMult) }
+        { text: 'A training grant', grant: 'xp', amount: s => Math.max(5, 1.5 * stretchXp(s) * grantMult(s)) },
+        { text: 'A big training grant', grant: 'xp', amount: s => Math.max(12, 4 * stretchXp(s) * grantMult(s)) }
     ];
+
+    // Grants follow your XP multiplier, but not a running investor boost (claiming ×2 first doubled them).
+    const grantMult = s => derive(s).xpMult / projectBoosts(s).xp;
 
     // A short note when a project pays out (investors stay anonymous).
     const PROJECT_QUIPS = ['The board is thrilled.', 'Someone rang a bell in the break room.', 'The cheque cleared. Nobody asked questions.',
@@ -1222,7 +1229,7 @@
     function tickProjects(s) {
         const p = s.projects;
         const t = s.stats.playTime;
-        p.offers = p.offers.filter(o => o.deadline > t);
+        p.offers = p.offers.filter(o => o.deadline > t || projectProgress(s, o) >= o.target);   // a finished offer waits to be claimed
         p.boosts = p.boosts.filter(b => b.until > t);
         // Investors fund research, so they call once Research is open (and the Training Cluster runs).
         if (!s.unlocked['module:path'] || !s.unlocked['action:research'] || t < p.next) return;
@@ -1411,6 +1418,11 @@
             s.stats.skillsLearned += 1;
         }
         s.projects = cleanProjects(raw.projects, d.projects);
+        // v10 stores each leg's best run without XP multipliers (they apply live): divide out today's.
+        if (!(raw.version >= 10)) {
+            const m = derive(s).xpMult / projectBoosts(s).xp;
+            s.path.legBest = s.path.legBest.map(v => v / m);
+        }
         s.lastSaved = num(raw.lastSaved, d.lastSaved);
         return s;
     }

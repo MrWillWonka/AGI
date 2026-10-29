@@ -1133,3 +1133,41 @@ test('number notation: standard suffixes, scientific and engineering; settings s
     const bad = E.migrate({ version: 8, settings: { notation: 'roman', sound: 7, shake: 'yes' } }, NOW).settings;
     assert.deepEqual([bad.notation, bad.sound, bad.shake], ['standard', 1, true]);
 });
+
+test('a leg\'s best run is stored without XP multipliers, which apply to passive XP live', () => {
+    const s = fresh();
+    s.path.learned = 2;
+    const plain = E.derive(s).xpPerSec;
+    // A run under an investor ×2 boost doesn't double that leg's passive XP for good.
+    s.projects.boosts.push({ stat: 'xp', mult: 2, until: s.stats.playTime + 60 });
+    const boosted = E.derive(s).xpPerSec;
+    assert.ok(Math.abs(boosted - 2 * plain) < 1e-9, 'the boost reaches passive XP while it runs');
+    E.recordRun(s, 0, 2 * E.stretchXpAt(0) * 2);   // a plain cresting run, doubled by the boost
+    s.projects.boosts = [];
+    assert.ok(Math.abs(E.derive(s).xpPerSec - plain) < 1e-9, 'no lasting gain from the boost');
+    // A viral run doesn't either.
+    E.recordRun(s, 1, 2 * E.stretchXpAt(1) * 3, 3);
+    assert.ok(Math.abs(E.derive(s).xpPerSec - plain) < 1e-9);
+    // Older saves' best runs had the multipliers in: v10 divides them out.
+    const old = E.migrate({ version: 9, path: { learned: 2, legBest: [10, 20] }, prestige: { total: 100 } });
+    const m = E.derive(old).xpMult;
+    assert.ok(m > 1);
+    assert.ok(Math.abs(old.path.legBest[1] - 20 / m) < 1e-9);
+});
+
+test('finished investor offers wait to be claimed; grants ignore a running boost', () => {
+    const s = fresh();
+    s.unlocked['module:path'] = true;
+    s.unlocked['action:research'] = true;
+    const o = E.makeOffer(s);
+    s.projects.offers = [o];
+    o.target = 1;
+    o.start = E.PROJECT_TASKS[o.task].stat(s) - 1;   // done
+    s.stats.playTime = o.deadline + 10;
+    E.tick(s, 0.1);
+    assert.ok(s.projects.offers.some(x => x.id === o.id), 'a finished offer outlives its deadline');
+    const grant = E.PROJECT_REWARDS.find(r => r.grant === 'xp');
+    const before = grant.amount(s);
+    s.projects.boosts.push({ stat: 'xp', mult: 2, until: s.stats.playTime + 60 });
+    assert.ok(Math.abs(grant.amount(s) - before) < 1e-9);
+});

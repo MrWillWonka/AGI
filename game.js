@@ -4056,7 +4056,7 @@ window.AGI = (function () {
         const plainXp = E.rollXp(state, ev.progress, crested, 0, metres, leg);
         const result = E.finishRoll(state, ev.progress, crested, units, metres, leg, viral, legs);
         // Cleared legs replicate their best run for passive XP: a better replay raises it.
-        const legBest = E.recordRun(state, roll.ground.stretch, result.xp + banked) && replay;
+        const legBest = E.recordRun(state, roll.ground.stretch, result.xp + banked, viral ? E.derive(state).windfallMult : 1) && replay;
         // With the Auto-Trainer the next roll starts by itself; otherwise the run waits for a click.
         const auto = E.autoTrainerLevel(state) > 0;
         path.pause = auto ? RESULT_PAUSE : 0;
