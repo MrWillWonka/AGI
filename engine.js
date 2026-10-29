@@ -10,7 +10,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const SAVE_VERSION = 8;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front
+    const SAVE_VERSION = 9;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings
     const MAX_OFFLINE_SECONDS = 8 * 60 * 60;
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
@@ -480,12 +480,17 @@
                 playTime: 0,
                 runStart: now,
                 firstStart: now,
-                highestPhase: 0
+                highestPhase: 0,
+                topSpeed: 0,          // personal bests across every run (m/s, m, m): the result card calls out new ones
+                bestFlight: 0,
+                bestHeight: 0
             },
             path: { learned: 0, best: 0, auto: [], legBest: [] },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k
             projects: { offers: [], boosts: [], next: PROJECTS.firstAt, seq: 0 },
             tasks: { autoCollector: { on: true, share: TASK_DEFAULTS.autoCollector }, researchAssistant: { on: true, share: TASK_DEFAULTS.researchAssistant }, autoTrainer: { on: true } },
-            settings: { autosave: true, offline: true },
+            // notation: 'standard' (1.23M), 'scientific' (1.23e6) or 'engineering' (1.23e6, exponents in threes);
+            // sound: master volume 0–1; shake: screen shake and flashes on big moments.
+            settings: { autosave: true, offline: true, notation: 'standard', sound: 0.5, shake: true },
             lastSaved: now
         };
     }
@@ -731,6 +736,47 @@
         const after = upgradeName(s, up);
         const evolved = after !== before ? after : null;
         return { ok: true, evolved, msg: `${before} ${up.max === 1 ? 'acquired' : 'upgraded to level ' + level(s, id)}: ${up.effect}${evolved ? `. It's now a ${evolved}!` : ''}` };
+    }
+
+    // Bulk buying (the lab's ×1 / ×10 / Max): the summed price of the next `n` levels, how many levels you can
+    // afford in a row (capped at `limit`), and buying several at once.
+    function bulkCost(s, up, n) {
+        const lvl = level(s, up.id);
+        const room = up.max != null ? Math.max(0, up.max - lvl) : n;
+        const total = {};
+        for (let i = 0; i < Math.min(n, room); i++) {
+            for (const [k, v] of Object.entries(upgradeCost(up, lvl + i))) total[k] = (total[k] || 0) + v;
+        }
+        return total;
+    }
+
+    function maxAffordable(s, up, limit = 1000) {
+        const lvl = level(s, up.id);
+        const room = up.max != null ? Math.max(0, up.max - lvl) : limit;
+        const total = {};
+        let n = 0;
+        while (n < Math.min(limit, room)) {
+            for (const [k, v] of Object.entries(upgradeCost(up, lvl + n))) total[k] = (total[k] || 0) + v;
+            if (!canAfford(s, total)) break;
+            n++;
+        }
+        return n;
+    }
+
+    function buyMany(s, id, n) {
+        let last = null;
+        let count = 0;
+        for (let i = 0; i < n; i++) {
+            const r = buy(s, id);
+            if (!r.ok) {
+                if (!count) return r;
+                break;
+            }
+            last = r;
+            count++;
+        }
+        if (!last) return { ok: false, msg: 'Nothing to buy.' };
+        return { ...last, count };
     }
 
     function actionCost(s, action) {
@@ -1250,6 +1296,9 @@
             researchDone: s.stats.researchDone,
             rolls: s.stats.rolls,
             skillsLearned: s.stats.skillsLearned,
+            topSpeed: s.stats.topSpeed,
+            bestFlight: s.stats.bestFlight,
+            bestHeight: s.stats.bestHeight,
             playTime: s.stats.playTime,
             firstStart: s.stats.firstStart
         });
@@ -1334,7 +1383,9 @@
         for (const k of Object.keys(s.stats)) s.stats[k] = num(raw.stats?.[k], s.stats[k]);
         // Sprints weren't counted before; older saves past the first skill get an estimate (about 2 per run).
         if (raw.stats && raw.stats.skilledSprints === undefined && num(raw.path?.learned, 0) >= 1) s.stats.skilledSprints = s.stats.rolls * 2;
-        for (const k of Object.keys(s.settings)) s.settings[k] = bool(raw.settings?.[k], s.settings[k]);
+        for (const k of ['autosave', 'offline', 'shake']) s.settings[k] = bool(raw.settings?.[k], s.settings[k]);
+        if (NOTATIONS.includes(raw.settings?.notation)) s.settings.notation = raw.settings.notation;
+        s.settings.sound = Math.min(1, num(raw.settings?.sound, s.settings.sound));
         // Scheduled tasks (v5): an on/off switch and a share each. Older saves had one budget for all.
         const oldBudget = raw.settings?.autoBudget;
         for (const t of TASKS) {
@@ -1432,6 +1483,9 @@
     // ---- Formatting -----------------------------------------------------
 
     const SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
+    const NOTATIONS = ['standard', 'scientific', 'engineering'];
+    let notation = 'standard';   // set from the player's settings (setNotation)
+    const setNotation = mode => { notation = NOTATIONS.includes(mode) ? mode : 'standard'; };
 
     function format(n, decimals) {
         if (Number.isNaN(n)) return '—';
@@ -1442,6 +1496,18 @@
             const dp = decimals ?? (n < 10 && n % 1 !== 0 ? 1 : 0);
             // 9.96 rounds up to 10: drop the decimal there, as for any other 10.
             return sign + (dp ? (decimals == null && n >= 9.95 ? '10' : n.toFixed(dp)) : Math.floor(n).toString());
+        }
+        if (notation !== 'standard') {
+            let exp = Math.floor(Math.log10(n));
+            let mant = n / Math.pow(10, exp);
+            if (Number(mant.toFixed(2)) >= 10) { mant /= 10; exp++; }
+            if (notation === 'engineering') {
+                const shift = ((exp % 3) + 3) % 3;
+                mant *= Math.pow(10, shift);
+                exp -= shift;
+                return sign + mant.toFixed(mant < 10 ? 2 : mant < 100 ? 1 : 0) + 'e' + exp;
+            }
+            return sign + mant.toFixed(2) + 'e' + exp;
         }
         let tier = Math.floor(Math.log10(n) / 3);
         // Rounding can carry into the next tier (999,999.5 → 1.00M, not 1000.0K).
@@ -1475,6 +1541,6 @@
         prestigeGain, prestige, applyOffline, insightMult, ACT_TWO_LEG,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
-        format, formatCost, formatDuration
+        format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany
     };
 });

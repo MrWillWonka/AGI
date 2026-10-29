@@ -1160,6 +1160,9 @@ h1, h2, h3, p { margin: 0; }
 .check-list li.done strong::after { content: ' ✓'; color: var(--success); }
 
 .toggle { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; }
+.setting-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.setting-row input[type="range"] { width: 160px; accent-color: var(--success); }
+.setting-row select { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; font: inherit; }
 .toggle input { accent-color: var(--warning); width: 16px; height: 16px; }
 [data-section="settings"] .button-row { margin-top: 14px; }
 
@@ -1741,6 +1744,16 @@ html, body { overflow-x: clip; }
 .debug-panel .ghost-button.active { border-color: var(--primary); color: var(--primary); }
 
 /* ---- Lab: status, supply line, and signs of life ---- */
+/* Bulk buying for repeatable lab cards: a segmented ×1 / ×10 / Max switch in the lab's bar. */
+.bulk-buy { margin-left: auto; display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+.bulk-buy[hidden] { display: none; }
+.bulk-buy button { font: 600 0.72rem var(--font-mono); color: var(--muted); background: transparent; border: 0; padding: 4px 11px; cursor: pointer; }
+.bulk-buy button + button { border-left: 1px solid var(--border); }
+.bulk-buy button:hover { color: var(--text); }
+.bulk-buy button[aria-checked="true"] { background: rgba(99, 224, 171, 0.16); color: var(--success); }
+.bulk-buy button:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.bulk-buy:not([hidden]) + .lab-status { margin-left: 14px; }
+.upgrade-button .eta { display: block; font-size: 0.68em; opacity: 0.75; font-weight: 500; }
 .lab-status { margin-left: auto; font: 500 0.75rem var(--font-mono); color: var(--muted); display: flex; align-items: center; gap: 6px; }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); animation: led-soft 1.8s ease-in-out infinite; }
 
@@ -2502,3 +2515,15 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .dev-live-text { font: 600 0.68rem var(--font-mono); color: var(--success); }
 .dev-actions:has(.dev-live:not([hidden])) { flex-wrap: wrap; max-width: 420px; }
 .dev-actions .dev-live { flex-basis: 100%; }
+
+/* Upgrades buttons wear a badge while XP can buy a skill-tree node (data-ready: how many). */
+#hubUpgrades, #treeButton, .roll-result [data-next="dev"] { position: relative; }
+[data-ready]::after {
+    content: attr(data-ready);
+    position: absolute; top: -7px; right: -7px;
+    min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
+    border-radius: 999px; background: var(--warning); color: #1a1205;
+    font: 700 0.68rem/18px var(--font-mono); text-align: center;
+    box-shadow: 0 0 0 2px var(--bg), 0 0 12px rgba(255, 181, 71, 0.5);
+    pointer-events: none;
+}

@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="styles.css">
     <script defer src="engine.js"></script>
     <script defer src="training-path.js"></script>
+    <script defer src="sfx.js"></script>
     <script defer src="game.js"></script>
     <script defer src="debug-panel.js"></script>
 </head>
@@ -196,6 +197,9 @@
         <section class="room room-lab room-frame hud" id="labRoom" data-room="lab" aria-label="Lab">
             <div class="room-bar">
                 <nav class="crumbs" aria-label="You are here"><button type="button" class="crumb crumb-home" data-facility aria-label="Back to Surveillance, the main screen">surveillance</button><span class="crumb-sep" aria-hidden="true">/</span><h2 class="crumb-here">lab</h2></nav>
+                <div class="bulk-buy" id="bulkBuy" role="radiogroup" aria-label="How many to buy" hidden>
+                    <button type="button" role="radio" data-bulk="1">×1</button><button type="button" role="radio" data-bulk="10">×10</button><button type="button" role="radio" data-bulk="max">Max</button>
+                </div>
                 <span class="lab-status"><span class="status-dot"></span> Systems online · uptime <span data-bind="stats.playClock">00:00:00</span></span>
             </div>
 
@@ -309,6 +313,10 @@
                     <div class="stat"><dt>CP earned this run</dt><dd data-bind="stats.runCp">0</dd></div>
                     <div class="stat"><dt>CP earned all time</dt><dd data-bind="stats.lifetimeCp">0</dd></div>
                     <div class="stat"><dt>Training runs</dt><dd data-bind="stats.rolls">0</dd></div>
+                    <div class="stat"><dt>Skills learned (all versions)</dt><dd data-bind="stats.skills">0</dd></div>
+                    <div class="stat"><dt>Clean prompts this version</dt><dd data-bind="stats.clean">0</dd></div>
+                    <div class="stat"><dt>Top speed</dt><dd data-bind="stats.topSpeed">—</dd></div>
+                    <div class="stat"><dt>Longest flight</dt><dd data-bind="stats.bestFlight">—</dd></div>
                     <div class="stat"><dt>Manual clicks</dt><dd data-bind="stats.clicks">0</dd></div>
                     <div class="stat"><dt>Model version</dt><dd data-bind="prestige.version">v1.0</dd></div>
                 </dl>
@@ -316,6 +324,16 @@
             <section data-section="settings" role="tabpanel" aria-label="Settings" hidden>
                 <label class="toggle"><input type="checkbox" id="settingAutosave"> Autosave every 30 seconds</label>
                 <label class="toggle"><input type="checkbox" id="settingOffline"> Earn progress while away (up to 8h)</label>
+                <label class="toggle"><input type="checkbox" id="settingShake"> Screen shake and flashes</label>
+                <label class="setting-row">Sound <input type="range" id="settingSound" min="0" max="1" step="0.05" aria-label="Sound volume"> <span id="settingSoundValue" class="muted small"></span></label>
+                <label class="setting-row">Numbers
+                    <select id="settingNotation" aria-label="Number notation">
+                        <option value="standard">Standard (1.23M)</option>
+                        <option value="scientific">Scientific (1.23e6)</option>
+                        <option value="engineering">Engineering (123e3)</option>
+                    </select>
+                </label>
+                <p class="muted small">Keys: Space or Enter to charge a sprint · U upgrades ↔ trail · R train again · Esc back out</p>
                 <div class="button-row">
                     <button type="button" class="ghost-button" id="saveButton">Save</button>
                     <button type="button" class="ghost-button" id="exportButton">Export</button>

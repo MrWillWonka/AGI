@@ -52,13 +52,25 @@ window.AGI = (function () {
             return;
         }
         state = loaded;
+        E.setNotation(state.settings.notation);
         log('Game loaded.', 'success');
-        reportOffline(E.applyOffline(state, now, debugRates));
+        const before = { ...state.res };
+        reportOffline(E.applyOffline(state, now, debugRates), before);
     }
 
-    function reportOffline(seconds) {
+    // Sound (sfx.js): lab sounds always; training sounds only while you can see the trail.
+    const sfx = (name, opts) => window.SFX?.play(name, opts);
+    const trailSfx = (name, opts) => { if (path.visible) sfx(name, opts); };
+
+    // Back from a break: the log always says so, and from five minutes away a card shows what was earned.
+    function reportOffline(seconds, before) {
         if (seconds < 60) return;
-        log(`Welcome back! Your systems ran for ${E.formatDuration(seconds)} while you were away.`, 'special');
+        const gains = before ? Object.keys(state.res).map(k => [k, state.res[k] - (before[k] || 0)]).filter(([, v]) => v >= 0.5) : [];
+        const list = gains.map(([k, v]) => `+${E.format(v)} ${E.RESOURCES[k].short}`).join(' · ');
+        log(`Welcome back! Your systems ran for ${E.formatDuration(seconds)} while you were away${list ? `: ${list}` : ''}.`, 'special');
+        if (seconds >= 300 && list) {
+            setTimeout(() => openDialog({ title: 'While you were away', message: `Your lab ran for ${E.formatDuration(seconds)} and made ${list}.`, okLabel: 'Back to work', cancelLabel: null }), 600);
+        }
     }
 
     // ---- Small DOM helpers ----------------------------------------------
@@ -198,6 +210,7 @@ window.AGI = (function () {
         if (!t) return;
         const box = toastCard(t.title, t.message, t.kind);
         $('toasts').append(box);
+        sfx({ phase: 'phase', version: 'ship', skill: 'achievement' }[t.kind] || 'achievement');
         requestAnimationFrame(() => box.classList.add('show'));
         const done = () => {
             if (toastLive?.box !== box) return;
@@ -469,6 +482,21 @@ window.AGI = (function () {
 
     // Lab cards: everything but the skill tree and the legacy upgrades (their own screen).
     const isLabUpgrade = up => up.tab !== 'training' && up.tab !== 'legacy';
+
+    function buildBulk() {
+        const box = $('bulkBuy');
+        const sync = () => box.querySelectorAll('[data-bulk]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.bulk === bulkMode)));
+        box.addEventListener('click', e => {
+            const b = e.target.closest('[data-bulk]');
+            if (!b) return;
+            bulkMode = b.dataset.bulk;
+            storageSet(BULK_KEY, bulkMode);
+            sync();
+            sfx('ui');
+            render();
+        });
+        sync();
+    }
 
     function buildActions() {
         const box = $('actions');
@@ -865,6 +893,19 @@ window.AGI = (function () {
         const offline = $('settingOffline');
         autosave.addEventListener('change', () => { state.settings.autosave = autosave.checked; save(); });
         offline.addEventListener('change', () => { state.settings.offline = offline.checked; save(); });
+        $('settingShake').addEventListener('change', e => { state.settings.shake = e.target.checked; save(); });
+        $('settingSound').addEventListener('input', e => {
+            state.settings.sound = Number(e.target.value);
+            applySettings();
+            sfx('buy');
+        });
+        $('settingSound').addEventListener('change', () => save());
+        $('settingNotation').addEventListener('change', e => {
+            state.settings.notation = e.target.value;
+            applySettings();
+            render();
+            save();
+        });
         $('saveButton').addEventListener('click', () => save(true));
         $('exportButton').addEventListener('click', exportSave);
         $('importButton').addEventListener('click', importSave);
@@ -895,7 +936,19 @@ window.AGI = (function () {
     function syncSettings() {
         $('settingAutosave').checked = state.settings.autosave;
         $('settingOffline').checked = state.settings.offline;
+        $('settingShake').checked = state.settings.shake;
+        $('settingSound').value = state.settings.sound;
+        $('settingNotation').value = state.settings.notation;
+        applySettings();
     }
+
+    // Settings that live outside the state: number notation (the engine formats), volume (sfx.js).
+    function applySettings() {
+        E.setNotation(state.settings.notation);
+        window.SFX?.setVolume(state.settings.sound);
+        setText($('settingSoundValue'), state.settings.sound > 0 ? `${Math.round(state.settings.sound * 100)}%` : 'off');
+    }
+    const shakeOn = () => state.settings.shake && !reducedMotion();
 
     // ---- Player commands ------------------------------------------------
 
@@ -905,14 +958,46 @@ window.AGI = (function () {
         if (result.gained != null) {
             floatGain(button, `+${E.format(result.gained)} ${E.RESOURCES[result.resource].short}`);
             clickGlow(result.resource, result.gained);
+            sfx('click', { res: result.resource });
         }
         if (result.msg) log(result.msg, 'success');
         afterChange();
     }
 
+    // Skill-tree nodes you can buy right now (shown, not maxed, affordable).
+    function treeReady() {
+        return E.UPGRADES.filter(u => u.tab === 'training' && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u)
+            && E.canAfford(state, E.upgradeCost(u, E.level(state, u.id)))).length;
+    }
+
+    // Bulk buying (×1 / ×10 / Max, remembered): how many levels a click on a repeatable lab card buys.
+    const BULK_KEY = 'agiBulk';
+    let bulkMode = ['1', '10', 'max'].includes(storageGet(BULK_KEY)) ? storageGet(BULK_KEY) : '1';
+    function bulkCount(up) {
+        if (bulkMode === 'max') return Math.max(1, E.maxAffordable(state, up));
+        return Number(bulkMode);
+    }
+
+    // How long until a price is affordable at the current net rates ('' if never, or already).
+    function etaText(cost, d) {
+        const rate = { cp: d.cpNet, dp: d.dpNet, rp: d.rpPerSec, xp: d.xpPerSec };
+        let worst = 0;
+        for (const [k, v] of Object.entries(cost)) {
+            const short = v - (state.res[k] ?? 0);
+            if (short <= 0) continue;
+            if (!(rate[k] > 0)) return '';
+            worst = Math.max(worst, short / rate[k]);
+        }
+        return worst > 0 && worst < 86400 ? `in ${E.formatDuration(Math.ceil(worst))}` : '';
+    }
+
     function doBuy(id) {
-        const result = E.buy(state, id);
-        log(result.msg, result.ok ? 'success' : 'warning');
+        const up0 = E.UPGRADE_BY_ID[id];
+        // The lab's bulk setting (×1 / ×10 / Max) applies to repeatable lab cards; the tree buys one level.
+        const n = isLabUpgrade(up0) && up0.max == null ? bulkCount(up0) : 1;
+        const result = n > 1 ? E.buyMany(state, id, n) : E.buy(state, id);
+        log(result.count > 1 ? `${E.upgradeName(state, up0)} ×${result.count}: now level ${E.level(state, id)}.` : result.msg, result.ok ? 'success' : 'warning');
+        sfx(result.ok ? (up0.max === 1 || result.count > 1 || result.evolved ? 'buyBig' : 'buy') : 'error');
         if (result.ok) {
             const up = E.UPGRADE_BY_ID[id];
             if (isLabUpgrade(up)) termLog(`installed ${E.upgradeName(state, up)} (level ${E.level(state, id)})`);
@@ -939,7 +1024,8 @@ window.AGI = (function () {
         area.readOnly = readonly;
         setText(ok, okLabel);
         ok.classList.toggle('button-danger', danger);
-        setText($('dialogCancel'), cancelLabel);
+        setText($('dialogCancel'), cancelLabel || '');
+        $('dialogCancel').hidden = !cancelLabel;
         dialog.returnValue = '';
         return new Promise(resolve => {
             const handleOk = () => onOk?.(area);
@@ -1138,9 +1224,10 @@ window.AGI = (function () {
         // Long gaps (sleep, frozen tab) count as offline time and obey the offline setting/cap.
         if (dt > 60) {
             const seconds = state.settings.offline ? Math.min(dt, E.MAX_OFFLINE_SECONDS) : 0;
+            const before = { ...state.res };
             E.tick(state, seconds, debugRates);
             addDebugIncome(seconds);
-            reportOffline(seconds);
+            reportOffline(seconds, before);
         } else {
             E.tick(state, dt * debugSpeed, debugRates);
             addDebugIncome(dt * debugSpeed);
@@ -1294,6 +1381,10 @@ window.AGI = (function () {
             case 'stats.lifetimeCp': return f(state.stats.lifetimeCp);
             case 'stats.clicks': return f(state.stats.clicks);
             case 'stats.rolls': return f(state.stats.rolls);
+            case 'stats.skills': return f(state.stats.skillsLearned);
+            case 'stats.clean': return f(state.stats.cleanSprints);
+            case 'stats.topSpeed': return state.stats.topSpeed ? `${state.stats.topSpeed.toFixed(1)} m/s` : '—';
+            case 'stats.bestFlight': return state.stats.bestFlight ? `${Math.round(state.stats.bestFlight)} m (${state.stats.bestHeight.toFixed(1)} m up)` : '—';
             case 'bay.training': return bayStatus('training');
             case 'bay.pipeline': return bayStatus('pipeline');
             case 'bay.architecture': return bayStatus('architecture');
@@ -1335,6 +1426,15 @@ window.AGI = (function () {
         }
 
         renderStations();
+        // A badge on every Upgrades button while XP can buy a skill-tree node: the shop between runs.
+        const ready = treeReady();
+        for (const b of [$('hubUpgrades'), $('treeButton'), document.querySelector('#rollResult [data-next="dev"]')]) {
+            if (!b) continue;
+            if (ready) b.dataset.ready = ready > 9 ? '9+' : String(ready);
+            else delete b.dataset.ready;
+        }
+        // The bulk switch shows once a card it applies to does (the first generator).
+        setHidden($('bulkBuy'), !state.unlocked['up:cpu']);
 
         const visibleCount = {};
         for (const { up, card, button, levelBadge, yieldLine, nameNode } of Object.values(ui.upgrades)) {
@@ -1353,9 +1453,19 @@ window.AGI = (function () {
                 setText(button, 'Installed ✓');
                 setDisabled(button, true);
             } else {
-                const cost = E.upgradeCost(up, lvl);
-                setText(button, E.formatCost(cost));
-                setDisabled(button, !E.canAfford(state, cost));
+                const n = up.max == null ? bulkCount(up) : 1;
+                const cost = n > 1 ? E.bulkCost(state, up, n) : E.upgradeCost(up, lvl);
+                const ok = E.canAfford(state, cost);
+                const eta = ok ? '' : etaText(cost, d);
+                // The price, and under it (small) how many it buys and how long until you can afford it.
+                const label = E.formatCost(cost);
+                const sub = [n > 1 ? `×${n}` : '', eta].filter(Boolean).join(' · ');
+                const key = label + '|' + sub;
+                if (button.dataset.key !== key) {
+                    button.dataset.key = key;
+                    button.replaceChildren(label, ...(sub ? [el('span', { class: 'eta', text: sub })] : []));
+                }
+                setDisabled(button, !ok);
             }
         }
         for (const tab of E.TABS) setHidden(ui.panels[tab.id].emptyHint, !!visibleCount[tab.id]);
@@ -2526,6 +2636,16 @@ window.AGI = (function () {
         $('treeButton').addEventListener('click', () => showTrainingView('dev'));
         $('legSelect').addEventListener('change', e => setStartLeg(e.target.value === '' ? null : Number(e.target.value)));
         $('legTagClear').addEventListener('click', () => setStartLeg(null));
+        // Hotkeys in the Training Cluster: U swaps the trail and the upgrades, R trains again after a run.
+        document.addEventListener('keydown', e => {
+            if (openBay !== 'training' || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+            if (document.querySelector('dialog[open]') || e.target.closest?.('input, textarea, select')) return;
+            const key = e.key.toLowerCase();
+            if (key === 'u') showTrainingView(path.view === 'run' ? 'dev' : 'run');
+            else if (key === 'r' && path.view === 'run' && path.done) runAgain();
+            else return;
+            e.preventDefault();
+        });
     }
 
     // ---- Skill tree camera: drag to pan, wheel / pinch / buttons to zoom ----
@@ -2793,6 +2913,7 @@ window.AGI = (function () {
         $('devView').hidden = view !== 'dev';
         if (view === 'dev') {
             path.charging = null;
+            window.SFX?.chargeStop();
             dismissResult();
             renderTree();
             renderLegPicker();
@@ -3145,6 +3266,7 @@ window.AGI = (function () {
             return;
         }
         path.charging = { start: performance.now(), cap: crunching() || frozen() ? 1 : chargeBudget(), sweep: CHARGE_SWEEP_MS, hold: 1000 * E.derive(state).chargeHold };
+        path.chargeZone = null;
         startPathLoop();
     }
 
@@ -3152,6 +3274,7 @@ window.AGI = (function () {
         if (!path.charging) return;
         const level = chargeLevel();
         path.charging = null;
+        window.SFX?.chargeStop();
         sprint(currentRoll(), level, false);
     }
 
@@ -3188,6 +3311,7 @@ window.AGI = (function () {
         const pct = Math.round(E.derive(state).cleanRollBonus * E.cleanUnits(kind, state) * 100);
         path.cleanFlash = 1.2;
         path.cleanText = `${PROMPT_NAMES[kind]}! +${xpText(xp)} XP, +${pct}% run bonus`;
+        trailSfx(kind === 'system' ? 'system' : kind === 'perfect' ? 'perfect' : 'clean');
         if (kind === 'system') {
             luckBanner('SYSTEM PROMPT!', `Worth ${E.PATH.systemMult} clean prompts`, 'accent');
             burst('#ffffff', 40);
@@ -3231,6 +3355,7 @@ window.AGI = (function () {
             burst(path.colors.primary, 50);
             if (!reducedMotion()) for (let i = 0; i < 40; i++) fx.streaks.push({ y: Math.random(), len: 0.1 + Math.random() * 0.3, speed: 1.5 + Math.random() * 2.5, x: Math.random(), age: 0, life: 0.5 + Math.random() * 0.5 });
             jolt();
+            trailSfx('release');
             luckBanner(`×${fx.banked} RELEASED`, 'Every banked sprint at once', 'primary');
         }
         fx.bank = 0;
@@ -3238,7 +3363,7 @@ window.AGI = (function () {
     }
 
     function jolt() {
-        if (reducedMotion()) return;
+        if (!shakeOn()) return;
         path.canvas.classList.remove('jolt');
         void path.canvas.offsetWidth;
         path.canvas.classList.add('jolt');
@@ -3277,7 +3402,9 @@ window.AGI = (function () {
         // The sprint lands now; on screen a breakthrough holds the run still for its wind-up first (you can
         // charge the next sprint meanwhile), off screen it just goes.
         roll.push(strength, free);
+        trailSfx('sprint', { charge: fraction });
         if (breakthrough) {
+            trailSfx('windup');
             roll.breakthroughs = (roll.breakthroughs || 0) + 1;
             if (path.visible && !reducedMotion()) path.fx.windup = { age: 0, super: superBreak };
             else launchBreakthrough(roll, superBreak);
@@ -3288,8 +3415,10 @@ window.AGI = (function () {
             const seconds = Math.max(3, d.crunchSeconds);
             if (forced === 'superCrunch' || E.superHit(state, 'crunch', seed, index)) {
                 freezeTime(seconds);
+                trailSfx('freeze');
             } else {
                 path.fx.crunch = path.fx.crunchMax = seconds;
+                trailSfx('crunch');
                 luckBanner('CRUNCH TIME!', `Free sprints for ${seconds} s, no waiting`, 'danger');
             }
         }
@@ -3328,8 +3457,10 @@ window.AGI = (function () {
             path.fx.flash = { age: 0, life: 0.35, color: '#fff3c4', max: 0.55 };
             path.fx.shake = 0.7;
             path.fx.shocks.push({ age: -0.24 }, { age: -0.36 });
+            trailSfx('smash');
             luckBanner('PARADIGM SHIFT!', `×${E.derive(state).critMult.toFixed(2)} and ${hills.length} hill${hills.length === 1 ? '' : 's'} shattered`, 'warning');
         } else {
+            trailSfx('breakthrough');
             luckBanner('BREAKTHROUGH!', `×${E.derive(state).critMult.toFixed(2)} sprint strength`, 'warning');
         }
         render();
@@ -3387,6 +3518,7 @@ window.AGI = (function () {
         roll.flows = (roll.flows || 0) + 1;
         path.fx.flowMax = seconds;
         path.fx.superFlow = superFlow;
+        trailSfx('flow');
         luckBanner(superFlow ? 'LUCID DREAM' : 'FLOW STATE', superFlow ? `Time slips away: ×${LUCID_WARP} the ground for ${seconds} s` : `Flying for ${seconds} s`, superFlow ? LUCID : 'secondary');
     }
 
@@ -3696,7 +3828,9 @@ window.AGI = (function () {
             if (fx.windup && (fx.windup.age += dt) >= WINDUP_SECONDS) launchBreakthrough(roll, fx.windup.super);
             if (fx.crunch > 0) fx.crunch = Math.max(0, fx.crunch - sim);
             if (frozen() && (fx.freeze = Math.max(0, fx.freeze - dt)) === 0) releaseBank(roll);
-            for (const ev of roll.step(sim)) {
+            const events = roll.step(sim);
+            roll.topSpeed = Math.max(roll.topSpeed || 0, Math.abs(roll.ball.v));
+            for (const ev of events) {
                 if (ev.type === 'clear') clearLeg(ev);
                 else if (ev.type === 'launch' || ev.type === 'land') airborne(ev);
                 else if (ev.type === 'crest' && ev.onward) crestFrontier(ev);
@@ -3785,6 +3919,7 @@ window.AGI = (function () {
     // the skill is announced when the roll ends (finishRoll).
     function celebrateSummit(name = E.skillAt(state.path.learned).name, hill = null) {
         path.summit = { age: 0, name, hill };
+        trailSfx('summit');
         // Confetti rains down across the whole trail (screen pixels, staggered starts above the top).
         const colors = [path.colors.success, path.colors.warning, path.colors.accent, path.colors.primary, '#c792ea'];
         const count = Math.round(Math.min(220, Math.max(80, path.width / 6)));
@@ -3820,9 +3955,15 @@ window.AGI = (function () {
     // Late legs: the ball flies off a crest (a burst of light), and lands with dust and a bump that grows
     // with the impact; a long flight says how far it went.
     function airborne(ev) {
+        const roll = path.roll;
+        if (roll && ev.type === 'land') {
+            roll.bestFlight = Math.max(roll.bestFlight || 0, ev.flight || 0);
+            roll.bestHeight = Math.max(roll.bestHeight || 0, ev.height || 0);
+        }
         if (!path.visible) return;
         if (ev.type === 'launch') {
             burst(path.colors.success, 14);
+            sfx('launch');
             // Act two's reveal: the first time the ball leaves the ground (once per save).
             if (!state.intro['act:two']) {
                 state.intro['act:two'] = true;
@@ -3832,6 +3973,7 @@ window.AGI = (function () {
             return;
         }
         burst(path.colors.muted, Math.min(26, 6 + Math.round(ev.impact)));
+        sfx('land', { impact: ev.impact });
         if (ev.impact > 12) path.fx.shake = Math.max(path.fx.shake, Math.min(0.35, ev.impact / 60));
         if (ev.flight > 12) path.legFlash = { age: 0, text: `${Math.round(ev.flight)} m flight${ev.height > 1 ? ` · ${ev.height.toFixed(1)} m up` : ''}`, tone: 'success' };
     }
@@ -3885,6 +4027,7 @@ window.AGI = (function () {
             goViral(viralMult);
         }
         if (roll.breakthroughs) lines.push([`${roll.breakthroughs} breakthrough${roll.breakthroughs === 1 ? '' : 's'}`, '', 'good']);
+        lines.push(...runStats(roll));
         if (roll.flows) lines.push([`${roll.flows} flow${roll.flows === 1 ? '' : 's'}`, '', 'good']);
         const learned = roll.learned || [];
         const crossedLegs = legs - learned.length;
@@ -3934,9 +4077,33 @@ window.AGI = (function () {
 
     const xpText = x => E.format(x, x < 10 ? 2 : 1);
 
+    // The run's own numbers for the result card (top speed; in act two its best flight), with any new
+    // all-time best called out and saved (stats.topSpeed / bestFlight / bestHeight).
+    function runStats(roll) {
+        const st = state.stats;
+        const out = [];
+        const best = (key, value) => {
+            const beat = value > (st[key] || 0) + 1e-9 && (st[key] || 0) > 0;
+            st[key] = Math.max(st[key] || 0, value);
+            return beat;
+        };
+        const speed = roll.topSpeed || 0;
+        if (speed > 0) out.push([`Top speed ${speed.toFixed(1)} m/s${best('topSpeed', speed) ? ' · new best!' : ''}`, '', st.topSpeed === speed ? 'good' : '']);
+        const flight = roll.bestFlight || 0;
+        if (flight > 3) {
+            const height = roll.bestHeight || 0;
+            const newFlight = best('bestFlight', flight);
+            const newHeight = best('bestHeight', height);
+            out.push([`Longest flight ${Math.round(flight)} m · ${height.toFixed(1)} m up${newFlight || newHeight ? ' · new best!' : ''}`, '', newFlight || newHeight ? 'good' : '']);
+            if (newFlight || newHeight) trailSfx('record');
+        }
+        return out;
+    }
+
     // Viral run: reactions pour off the ball and the result card gets the viral treatment.
     function goViral(mult) {
         path.fx.viral = mult;
+        trailSfx('viral');
         luckBanner('WENT VIRAL!', `×${mult.toFixed(2)} XP for this run`, 'accent');
         if (reducedMotion()) return;
         const glyphs = ['♥', '↑', '#', '★', '♥', '↻'];
@@ -3959,6 +4126,8 @@ window.AGI = (function () {
 
     function showResult({ title, main, flavor, xp, lines, record, skill }) {
         const card = $('rollResult');
+        if (record) trailSfx('record');
+        else if (!skill) trailSfx('runEnd', { good: xp > 0 });
         card.className = `roll-result${skill ? ' skill' : ''}${path.fx.viral ? ' viral' : ''}`;
         if (path.fx.viral) card.dataset.viral = `VIRAL ×${path.fx.viral.toFixed(2)}`;
         path.fx.viral = null;
@@ -4033,6 +4202,11 @@ window.AGI = (function () {
         const zone = currentZone(roll);
         const hit = path.charging ? E.zoneHit(zone, level) : null;
         const inZone = !!hit;
+        if (path.charging) {
+            window.SFX?.charge(level);
+            if (hit && hit !== path.chargeZone) sfx('ui');
+            path.chargeZone = hit;
+        }
         const fill = $('chargeFill');
         fill.style.width = `${level * 100}%`;
         fill.classList.toggle('in-zone', !!inZone);
@@ -4230,7 +4404,7 @@ window.AGI = (function () {
         ctx.clearRect(0, 0, w, h);
         // Big hits shake the whole view for a moment.
         ctx.save();
-        if (path.fx.shake > 0 && !reducedMotion()) {
+        if (path.fx.shake > 0 && shakeOn()) {
             const m = 14 * Math.min(1, path.fx.shake / 0.4);
             ctx.translate((Math.random() - 0.5) * m, (Math.random() - 0.5) * m);
         }
@@ -4638,7 +4812,7 @@ window.AGI = (function () {
             ctx.stroke();
         }
         // A flash for the big moments (a super breakthrough, time stopping and restarting).
-        if (fx.flash) {
+        if (fx.flash && shakeOn()) {
             ctx.fillStyle = hexAlpha(fx.flash.color, fx.flash.max * (1 - fx.flash.age / fx.flash.life));
             ctx.fillRect(0, 0, w, h);
         }
@@ -4961,6 +5135,7 @@ window.AGI = (function () {
         const topbar = document.querySelector('.topbar');
         new ResizeObserver(() => document.documentElement.style.setProperty('--topbar-h', `${topbar.offsetHeight}px`)).observe(topbar);
         buildActions();
+        buildBulk();
         buildUpgrades();
         buildChecklists();
         buildBindings();

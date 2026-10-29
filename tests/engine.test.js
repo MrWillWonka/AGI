@@ -1093,3 +1093,43 @@ test('removed skill-tree nodes (viral runs, crunches) refund their XP on load', 
     const again = E.migrate(JSON.parse(E.serialize(s)), NOW);
     assert.equal(again.res.xp, s.res.xp, 'once');
 });
+
+test('bulk buying: ×N prices add up level by level, Max buys what you can afford, one-time cards stop at their max', () => {
+    const s = fresh();
+    s.unlocked['up:cpu'] = true;
+    const cpu = E.UPGRADE_BY_ID.cpu;
+    const ten = E.bulkCost(s, cpu, 10).cp;
+    let sum = 0;
+    for (let i = 0; i < 10; i++) sum += E.upgradeCost(cpu, i).cp;
+    assert.equal(ten, sum);
+    s.res.cp = ten;
+    assert.equal(E.maxAffordable(s, cpu), 10);
+    const r = E.buyMany(s, 'cpu', 10);
+    assert.equal(r.ok, true);
+    assert.equal(r.count, 10);
+    assert.equal(E.level(s, 'cpu'), 10);
+    assert.ok(s.res.cp >= 0 && s.res.cp < E.upgradeCost(cpu, 10).cp);
+    assert.equal(E.maxAffordable(s, cpu), 0);
+    assert.equal(E.buyMany(s, 'cpu', 5).ok, false, 'nothing affordable');
+    const opt = E.UPGRADE_BY_ID.compilerOpt;
+    assert.deepEqual(E.bulkCost(s, opt, 10), E.upgradeCost(opt, 0), 'a one-time card prices one level');
+});
+
+test('number notation: standard suffixes, scientific and engineering; settings survive a save', () => {
+    try {
+        assert.equal(E.format(1234567), '1.23M');
+        E.setNotation('scientific');
+        assert.equal(E.format(1234567), '1.23e6');
+        assert.equal(E.format(999), '999', 'small numbers stay plain');
+        E.setNotation('engineering');
+        assert.equal(E.format(1234567), '1.23e6');
+        assert.equal(E.format(12345678), '12.3e6');
+    } finally {
+        E.setNotation('standard');
+    }
+    const s = fresh();
+    Object.assign(s.settings, { notation: 'scientific', sound: 0.25, shake: false });
+    assert.deepEqual(E.deserialize(E.serialize(s), NOW).settings, s.settings);
+    const bad = E.migrate({ version: 8, settings: { notation: 'roman', sound: 7, shake: 'yes' } }, NOW).settings;
+    assert.deepEqual([bad.notation, bad.sound, bad.shake], ['standard', 1, true]);
+});
