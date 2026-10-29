@@ -1171,3 +1171,26 @@ test('finished investor offers wait to be claimed; grants ignore a running boost
     s.projects.boosts.push({ stat: 'xp', mult: 2, until: s.stats.playTime + 60 });
     assert.ok(Math.abs(grant.amount(s) - before) < 1e-9);
 });
+
+test('automation gates count hand work across versions; text size and calm settings are sanitized', () => {
+    const s = fresh();
+    s.stats.collects = 40;
+    s.attr.intelligence = 100;
+    s.path.learned = 8;
+    const next = E.prestige(s, NOW).state;
+    assert.equal(next.stats.collects, 0, 'this version starts counting again');
+    assert.equal(next.stats.collectsEver, 40);
+    next.path.learned = 2;
+    assert.equal(E.automationGate(next, 'autoCollector').met, true, 'a gate met once stays met');
+    const m = E.migrate({ version: 10, settings: { textSize: 7, calm: true } });
+    assert.equal(m.settings.textSize, 1);
+    assert.equal(m.settings.calm, true);
+    assert.equal(E.migrate({ version: 10, settings: { textSize: 1.3 } }).settings.textSize, 1.3);
+});
+
+test('R&D status: the next skill count that raises Insight', () => {
+    const s = fresh();
+    s.path.learned = 7;
+    const n = E.nextInsightAt(s);
+    assert.ok(E.insightAt(n) > E.insightAt(7) && E.insightAt(n - 1) === E.insightAt(7));
+});

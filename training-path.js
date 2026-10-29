@@ -24,7 +24,8 @@
     const SLOPE_DRAG = 0.5;     // extra friction in proportion to steepness: steep hills sap more speed
     const REST_SPEED = 0.03;
     const REST_SECONDS = 0.5;
-    const ROLL_BACK = 0.15;     // rolling back this far behind the start line ends the run
+    const ROLL_BACK = 0.15;     // rolling back this far behind the start line ends the run (with no sprints left)
+    const BUMPER = 0.3;         // with sprints left, the start line bounces the ball back at this share of its speed
     const LEAD_IN = 0.5;        // flat run-up after each checkpoint
     const FREE_COOLDOWN = 0.35; // wait after a free push (a crunch)
     const ROLL_OUT = 0.8;       // with rollOut, how far past the skill hill's foot the ball runs before the roll ends
@@ -36,16 +37,38 @@
     const SKID = 0.82;          // share of the speed along the ground kept through a landing
     const BOUNCE_MIN = 1.2;     // below this bounce-back speed the ball sticks and rolls on
     const LATE_DRAG = 0.45;     // and rolling there keeps more momentum: this share of the quadratic and slope drag (0.25 made act two a burst)
-    const AIR_GRAVITY = 1.9;    // gravity in flight, × GRAVITY: arcs come down with weight instead of hanging (game feel)
-    const REGRIP = 0.35;
+    const AIR_GRAVITY = 1.5;    // gravity in flight, × GRAVITY: arcs come down with weight instead of floating, with some hang time off a kicker (1.9 before kickers)
+    const REGRIP = 0.35;        // seconds after landing before it can take off again (no hop-stick-hop over a crest)
     // A flight rises at most this far above the ground it left (half that leg's skill hill, at least 4 m), so it
     // comes back within a couple of seconds whatever boosts it.
     const maxAbove = k => Math.max(4, 0.5 * skillHeight(k));
-    const SETTLE_TIME = 0.4;    // seconds before touchdown it starts lining its path up with the slope it lands on        // seconds after landing before it can take off again (no hop-stick-hop over a crest)
+    const SETTLE_TIME = 0.4;    // seconds before touchdown it starts lining its path up with the slope it lands on
     // A crest throws the ball once the ground curves away faster than 0.6 of a flight's fall: crests pop from act
     // two's first leg (at 1 the sim's player barely flew before leg 10), and the landing planner turns the short
     // hops into clean arcs onto the next down-slope. (Against rolling gravity alone, ~0.5, it hopped constantly.)
     const LAUNCH_GRIP = 0.6;
+    const KICKERS = 0.85;           // share of act two's swells that are kickers (a lip to launch off)
+    const KICK_SLOPE = [0.75, 1];   // a kicker's slope at its lip
+
+    // A hill's height at x: a cos² bump, or on a kicker's face (`up`: the face's width over the back's) a
+    // parabola steepening to the lip, then cos² down the back. `H`, `W`: draw an older outline (a smash).
+    function bumpAt(b, x, H = b.height, W = b.halfWidth) {
+        if (b.up && x < b.peak) {
+            const t = Math.max(0, 1 - (b.peak - x) / (W * b.up));
+            return H * t * t;
+        }
+        const c = Math.cos((Math.PI / 2) * (x - b.peak) / W);
+        return H * c * c;
+    }
+    function bumpSlope(b, x) {
+        if (b.up && x < b.peak) {
+            const face = b.halfWidth * b.up;
+            const t = Math.max(0, 1 - (b.peak - x) / face);
+            return 2 * b.height * t / face;
+        }
+        const u = (x - b.peak) / b.halfWidth;
+        return -b.height * (Math.PI / 2) * Math.sin(Math.PI * u) / b.halfWidth;
+    }
 
     // ---- Skill hills (fixed) -----------------------------------------------
 
@@ -131,12 +154,18 @@
         const hills = [];
         for (let i = 0; i < n; i++) {
             const w = pitch * (0.24 + r() * 0.12);   // narrow enough to curve away under act two's first speeds
-            const start = from + i * pitch + (pitch - 2 * w) * r();
             const along = i / Math.max(1, n - 1);
             // The first is a low ramp: right after the start line, a full swell sent a one-sprint ball
             // straight back over the line (ending the run) before its next sprint was ready.
             const h = Math.min(0.65 * skillHeight(k), skillHeight(k) * (0.35 + r() * 0.3) * (0.75 + 0.4 * along)) * hillScale * (i === 0 ? 0.35 : 1);
-            hills.push({ start, peak: start + w, end: start + 2 * w, height: h, halfWidth: w, skill: null });
+            // Most swells are kickers (the rest stay round, for variety): a face that steepens all the way up to
+            // a lip at KICK_SLOPE, so a crest throws the ball with real upward speed. Off a round crest it took
+            // off near the top, where the slope is about 0, and only skimmed (5% of act two's first leg in the air).
+            const kick = r() < KICKERS;
+            const slope = KICK_SLOPE[0] + r() * (KICK_SLOPE[1] - KICK_SLOPE[0]);
+            const up = kick ? Math.min(pitch - w, Math.max(0.4 * w, 2 * h / slope)) : w;
+            const start = from + i * pitch + Math.max(0, pitch - up - w) * r();
+            hills.push({ start, peak: start + up, end: start + up + w, height: h, halfWidth: w, up: up / w, skill: null });
         }
         return hills;
     }
@@ -179,16 +208,12 @@
 
         function height(x) {
             const b = find(x);
-            if (!b) return 0;
-            const c = Math.cos((Math.PI / 2) * (x - b.peak) / b.halfWidth);
-            return b.height * c * c;
+            return b ? bumpAt(b, x) : 0;
         }
 
         function slope(x) {
             const b = find(x);
-            if (!b) return 0;
-            const u = (x - b.peak) / b.halfWidth;
-            return -b.height * (Math.PI / 2) * Math.sin(Math.PI * u) / b.halfWidth;
+            return b ? bumpSlope(b, x) : 0;
         }
 
         // Peak heights of the nearest hills behind and ahead of x (the ball's way out of a dip).
@@ -288,7 +313,7 @@
                     if (instant) {
                         b.height = b.target;
                         b.halfWidth = b.targetW;
-                        b.start = b.peak - b.halfWidth;
+                        b.start = b.peak - b.halfWidth * (b.up || 1);
                         b.end = b.peak + b.halfWidth;
                     } else if (!reshaping.includes(b)) reshaping.push(b);
                 }
@@ -334,7 +359,7 @@
                 for (const b of reshaping) {
                     b.height += (b.target - b.height) * k;
                     b.halfWidth += (b.targetW - b.halfWidth) * k;
-                    b.start = b.peak - b.halfWidth;
+                    b.start = b.peak - b.halfWidth * (b.up || 1);
                     b.end = b.peak + b.halfWidth;
                 }
                 reshaping = reshaping.filter(b => Math.abs(b.height - b.target) > 1e-4 || Math.abs(b.halfWidth - b.targetW) > 1e-4);
@@ -397,6 +422,13 @@
                 }
                 return;
             }
+            // With sprints left the start line is a soft bumper: the run never ends with a sprint unspent
+            // (a weak launch used to roll back over the start before the wait was up).
+            if (launched && ball.v < 0 && ball.x < ground.start - ROLL_BACK && pushesLeft > 0 && !opts.rollBackEnds) {
+                ball.x = ground.start - ROLL_BACK;
+                ball.v = -ball.v * BUMPER;
+                events.push({ type: 'bump' });
+            }
             if (launched && ball.v < 0 && ball.x < ground.start - ROLL_BACK) {
                 over = true;
                 // Rolled back to the start: no progress, but half the furthest distance reached still counts.
@@ -418,10 +450,13 @@
         function takeOff(events) {
             if (ball.grip > 0) { ball.grip -= STEP; return; }
             if (ball.v < 0.5 || ground.legAt(ball.x) < (opts.lateLeg ?? LATE_LEG)) return;
-            const e = 0.02;
-            const curve = (ground.height(ball.x + e) - 2 * ground.height(ball.x) + ground.height(ball.x - e)) / (e * e);
+            // How fast the slope turns over the last step (not a fixed 2 cm: a fast ball steps clean over a
+            // kicker's lip, and launched just past it at a slope of 0). It leaves at the slope it came up.
+            const dx = Math.max(0.02, ball.v * STEP);
+            const before = ground.slope(ball.x - dx);
+            const curve = (ground.slope(ball.x) - before) / dx;
             if (curve * ball.v * ball.v >= -GRAVITY * AIR_GRAVITY * LAUNCH_GRIP) return;
-            const slope = ground.slope(ball.x);
+            const slope = Math.max(before, ground.slope(ball.x));
             const y0 = ground.height(ball.x);
             ball.air = { y: y0, vy: slope * ball.v, peak: y0, from: ball.x, ceil: y0 + maxAbove(ground.legAt(ball.x)) };
             capClimb();
@@ -480,6 +515,11 @@
                     const q = pathAt(pl, xi);
                     const pull = -q.ddy * v2;
                     ok = q.y >= ground.height(xi) - 0.02 && q.y <= (a.ceil ?? Infinity) + 0.01 && pull >= PULL[0] * G && pull <= PULL[1] * G;
+                }
+                // A kicker's lip is a sharp corner the samples can step over: the path must clear every crest too.
+                for (const b of ground.bumps) {
+                    if (!ok || b.peak >= x) break;
+                    if (b.peak > ball.x) ok = pathAt(pl, b.peak).y >= b.height - 0.02;
                 }
                 if (ok) best = { d, valley, pl };
             }
@@ -682,7 +722,7 @@
     }
 
     return {
-        STEP, GRAVITY,
+        STEP, GRAVITY, BUMPER, KICKERS, KICK_SLOPE, bumpAt, bumpSlope,
         LATE_LEG, maxAbove, checkpoint, skillHill, skillHeight, rollingHills, terrain, createRoll, rng
     };
 });

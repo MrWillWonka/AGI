@@ -10,7 +10,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const SAVE_VERSION = 10;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers
+    const SAVE_VERSION = 10;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts
     const MAX_OFFLINE_SECONDS = 8 * 60 * 60;
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
@@ -57,8 +57,8 @@
         basePushes: 2,       // pushes per roll: the launch and one more (one alone made early runs a slot machine)
         baseCooldown: 2.0,   // seconds between pushes
         minCooldown: 0.3,
-        clearedRate: 0.006,   // a cleared leg replicates its best run: this share of that run's XP per second (about a tenth of all XP;
-                              // at 1/1200 it was 2%, too little to notice)
+        clearedRate: 0.0045,  // a cleared leg replicates its best run: this share of that run's XP per second (about 30% of all XP in the
+                              // human-model sim now that XP multipliers apply to it live; 0.006 before that; at 1/1200 it was 2%, too little to notice)
         replayXp: 1,          // replaying a cleared leg pays this share of its XP: flat for clearing it, by distance otherwise
         chainBonus: 0.5       // each cleared hill crossed in a run adds +0.5x to everything that run earns afterwards
     };
@@ -179,7 +179,9 @@
     function automationGate(s, id) {
         const g = AUTOMATION[id];
         if (!g) return null;
-        const done = Math.min(g.need, s.stats[g.stat] || 0);
+        // Proof by hand counts across versions: a gate met once stays met (each version used to repeat 40
+        // collections and 50 research runs by hand before automation came back).
+        const done = Math.min(g.need, Math.max(s.stats[g.stat] || 0, s.stats[g.stat + 'Ever'] || 0));
         const skillOk = !g.skill || s.path.learned >= g.skill;
         return { done, need: g.need, what: g.what, skill: g.skill ? skillAt(g.skill - 1).name : null, skillOk, met: done >= g.need && skillOk };
     }
@@ -483,14 +485,16 @@
                 highestPhase: 0,
                 topSpeed: 0,          // personal bests across every run (m/s, m, m): the result card calls out new ones
                 bestFlight: 0,
-                bestHeight: 0
+                bestHeight: 0,
+                collectsEver: 0,      // hand collections and research runs in earlier versions (automation gates)
+                researchManualEver: 0
             },
             path: { learned: 0, best: 0, auto: [], legBest: [] },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k
             projects: { offers: [], boosts: [], next: PROJECTS.firstAt, seq: 0 },
             tasks: { autoCollector: { on: true, share: TASK_DEFAULTS.autoCollector }, researchAssistant: { on: true, share: TASK_DEFAULTS.researchAssistant }, autoTrainer: { on: true } },
             // notation: 'standard' (1.23M), 'scientific' (1.23e6) or 'engineering' (1.23e6, exponents in threes);
             // sound: master volume 0–1; shake: screen shake and flashes on big moments.
-            settings: { autosave: true, offline: true, notation: 'standard', sound: 0.5, shake: true },
+            settings: { autosave: true, offline: true, notation: 'standard', sound: 0.5, shake: true, textSize: 1, calm: false },
             lastSaved: now
         };
     }
@@ -1265,10 +1269,20 @@
     // Insight comes from how far training got (skills learned this run, squared): 3 at General AI (6 skills),
     // 10 at 10, 22 at 15. It used to come from compute earned, which shipped for 1–2 Insight long before
     // the model had learned anything worth releasing.
+    // Insight for shipping with `learned` skills (the warm-up skill doesn't count).
+    const insightAt = learned => Math.floor(0.1 * Math.max(0, learned - 1) ** 2);
+    const TEXT_SIZES = [1, 1.15, 1.3];   // the text size setting (it scales the whole UI)
+
     function prestigeGain(s) {
         if (s.attr.intelligence < PRESTIGE_MIN_INTELLIGENCE) return 0;
-        const skills = Math.max(0, s.path.learned - 1);   // the warm-up skill doesn't count
-        return Math.floor(0.1 * skills * skills);
+        return insightAt(s.path.learned);
+    }
+    // The next skill count that raises it (status for R&D, like an Insight-per-hour readout).
+    function nextInsightAt(s) {
+        const now = insightAt(s.path.learned);
+        let n = s.path.learned + 1;
+        while (insightAt(n) <= now) n++;
+        return n;
     }
 
     const versionName = (major, minor) => `v${major}.${minor}`;
@@ -1307,7 +1321,9 @@
             bestFlight: s.stats.bestFlight,
             bestHeight: s.stats.bestHeight,
             playTime: s.stats.playTime,
-            firstStart: s.stats.firstStart
+            firstStart: s.stats.firstStart,
+            collectsEver: Math.max(s.stats.collectsEver, s.stats.collects),
+            researchManualEver: Math.max(s.stats.researchManualEver, s.stats.researchManual)
         });
         // Offers are timed on play time, which carries over: the first one still waits its delay.
         next.projects.next = s.stats.playTime + PROJECTS.firstAt;
@@ -1390,9 +1406,10 @@
         for (const k of Object.keys(s.stats)) s.stats[k] = num(raw.stats?.[k], s.stats[k]);
         // Sprints weren't counted before; older saves past the first skill get an estimate (about 2 per run).
         if (raw.stats && raw.stats.skilledSprints === undefined && num(raw.path?.learned, 0) >= 1) s.stats.skilledSprints = s.stats.rolls * 2;
-        for (const k of ['autosave', 'offline', 'shake']) s.settings[k] = bool(raw.settings?.[k], s.settings[k]);
+        for (const k of ['autosave', 'offline', 'shake', 'calm']) s.settings[k] = bool(raw.settings?.[k], s.settings[k]);
         if (NOTATIONS.includes(raw.settings?.notation)) s.settings.notation = raw.settings.notation;
         s.settings.sound = Math.min(1, num(raw.settings?.sound, s.settings.sound));
+        if (TEXT_SIZES.includes(raw.settings?.textSize)) s.settings.textSize = raw.settings.textSize;
         // Scheduled tasks (v5): an on/off switch and a share each. Older saves had one budget for all.
         const oldBudget = raw.settings?.autoBudget;
         for (const t of TASKS) {
@@ -1545,8 +1562,8 @@
     }
 
     return {
-        SAVE_VERSION, MAX_OFFLINE_SECONDS, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
-        versionName, currentVersion, nextVersion, clearedPeriod, legBestXp, legXpRate, recordRun, legClearXp, clearLeg, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
+        SAVE_VERSION, TEXT_SIZES, MAX_OFFLINE_SECONDS, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
+        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, legClearXp, clearLeg, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,

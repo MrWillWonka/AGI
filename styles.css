@@ -191,7 +191,7 @@ h1, h2, h3, p { margin: 0; }
 .room[hidden] { display: none; }
 
 .room-servers { display: flex; flex-direction: column; }
-.room-servers .viewport { min-height: calc(100dvh / var(--ui-scale) - 200px); }
+.room-servers .viewport { min-height: calc(100dvh / var(--zoom) - 200px); }
 
 
 /* Stage: the facility and the rooms share one grid cell, so a zoom can show both at once. */
@@ -208,7 +208,7 @@ h1, h2, h3, p { margin: 0; }
     display: flex;
     flex-direction: column;
     gap: 12px;
-    min-height: calc(100dvh / var(--ui-scale) - 150px);
+    min-height: calc(100dvh / var(--zoom) - 150px);
     padding: 18px;
     border: 1px solid var(--border);
     background:
@@ -351,7 +351,7 @@ h1, h2, h3, p { margin: 0; }
 
 @media (max-width: 960px) {
     .layout { padding: 14px; }
-    .room-servers .viewport { min-height: calc(100dvh / var(--ui-scale) - 240px); }
+    .room-servers .viewport { min-height: calc(100dvh / var(--zoom) - 240px); }
     .topbar-inner { padding: 10px 14px; }
     .phase { order: 10; flex-basis: 100%; }
 }
@@ -981,7 +981,7 @@ h1, h2, h3, p { margin: 0; }
 .action-button {
     display: grid;
     grid-template-columns: 1fr auto;
-    grid-template-areas: "name gain" "cost cost" "auto auto";
+    grid-template-areas: "name gain" "cost cost" "line line";
     gap: 2px 8px;
     text-align: left;
     font: 600 0.9rem var(--font-display);
@@ -1001,7 +1001,7 @@ h1, h2, h3, p { margin: 0; }
 .action-name { grid-area: name; }
 .action-gain { grid-area: gain; font: 500 0.8rem var(--font-mono); color: var(--success); }
 .action-cost { grid-area: cost; font: 400 0.75rem var(--font-mono); color: var(--muted); }
-.action-auto { grid-area: auto; margin-top: 4px; padding-top: 4px; border-top: 1px dashed #24434a; font: 500 0.7rem var(--font-mono); color: var(--warning); }
+.action-auto { grid-area: line; margin-top: 4px; padding-top: 4px; border-top: 1px dashed #24434a; font: 500 0.7rem var(--font-mono); color: var(--warning); }
 .action-auto:empty { visibility: hidden; }
 .action-auto.none { display: none; }
 .action-auto.done { color: var(--success); }
@@ -1272,7 +1272,7 @@ h1, h2, h3, p { margin: 0; }
     top: 72px;
     right: 12px;
     width: min(360px, calc(100vw - 24px));
-    max-height: calc(100dvh / var(--ui-scale, 1) - 84px);
+    max-height: calc(100dvh / var(--zoom) - 84px);
     display: flex;
     flex-direction: column;
     background: rgba(8, 15, 17, 0.97);
@@ -1597,10 +1597,10 @@ h1, h2, h3, p { margin: 0; }
    Phone (≤ 640 px) and tablet/small laptop (≤ 960 px) reflow the layout (rules above). Desktop is the
    base. Large screens scale the whole UI with `zoom` so a 1440p or 4K monitor reads like a desktop
    instead of a postage stamp: --ui-scale is read by game.js to keep zoom animations and the canvas sharp. */
-:root { --ui-scale: 1; }
+:root { --ui-scale: 1; --zoom: calc(var(--ui-scale) * var(--text-size, 1)); }
 /* Where a list does scroll on purpose, its bar matches the dark theme instead of the browser's light default. */
 * { scrollbar-color: #2c4a50 transparent; }
-body { zoom: var(--ui-scale); }
+body { zoom: var(--zoom); }
 
 @media (min-width: 2200px) {
     :root { --ui-scale: 1.25; }
@@ -1904,7 +1904,7 @@ html, body { overflow-x: clip; }
 .room-goal:empty { display: none; }
 
 /* ---- Training Cluster: the trail and the tree fill the bay ---- */
-.room-servers .viewport { min-height: calc(100dvh / var(--ui-scale) - 120px); }
+.room-servers .viewport { min-height: calc(100dvh / var(--zoom) - 120px); }
 .module-view { min-height: 0; }
 .module[data-module="training"] { flex: 1; min-height: 0; }
 .run-view, .dev-view { flex: 1; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
@@ -2074,11 +2074,12 @@ body.has-minimap.mm-min .room-rnd { padding-bottom: 60px; }
 .upgrade.owned .upgrade-button:disabled { color: var(--success); border-color: rgba(99, 224, 171, 0.35); }
 .upgrade.fresh { animation: card-in 1.6s ease-out; }
 @keyframes card-in { from { background: rgba(255, 181, 71, 0.18); } }
-/* Action cards keep one height whatever their automation line says. */
-.action-auto { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Action cards keep one height whatever their automation line says: two lines reserved (a gate's progress
+   can need both on a narrow card), clamped, never more. */
+.action-auto { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; line-height: 1.3; min-height: 2.6em; box-sizing: content-box; width: 100%; }
 
 /* Wide: one screen. The bottom row (cabinets, log) leaves the minimap its corner. */
-.room-lab[data-tier="wide"] { height: calc(100dvh / var(--ui-scale) - var(--topbar-h, 53px) - 40px); min-height: 640px; }
+.room-lab[data-tier="wide"] { height: calc(100dvh / var(--zoom) - var(--topbar-h, 53px) - 40px); min-height: 640px; }
 .room-lab[data-tier="wide"] .cabinet-panel { margin-right: 220px; }
 body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right: 0; }
 @media (max-width: 1799px) {
@@ -2133,7 +2134,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
    The run view is a centred screen (capped width and height) rather than the whole bay; the dev
    screen (the skill tree) still fills it. */
 .run-view { align-items: center; justify-content: center; }
-.run-view > .canvas-wrap { flex: none; width: min(100%, 1360px); height: clamp(280px, calc(56dvh / var(--ui-scale)), 600px); min-height: 0; }
+.run-view > .canvas-wrap { flex: none; width: min(100%, 1360px); height: clamp(280px, calc(56dvh / var(--zoom)), 600px); min-height: 0; }
 .run-view > .path-controls, .run-view > .path-status { width: min(100%, 1360px); }
 
 /* Replays: which leg a run starts on. */
@@ -2524,7 +2525,10 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .dev-actions .dev-live { flex-basis: 100%; }
 
 /* Upgrades buttons wear a badge while XP can buy a skill-tree node (data-ready: how many). */
-#hubUpgrades, #treeButton, .roll-result [data-next="dev"] { position: relative; }
+#hubUpgrades, #treeButton, .roll-result [data-next="dev"], .run-stats .module-supply { position: relative; }
+/* Investor offers ready to claim (the Lab tile is already positioned). */
+.facility-room[data-ready]::after, .module-supply[data-ready]::after { background: var(--success); color: #04140d; box-shadow: 0 0 0 2px var(--bg), 0 0 12px rgba(80, 220, 160, 0.5); }
+.facility-room[data-ready]::after { top: 8px; right: 8px; z-index: 2; }
 [data-ready]::after {
     content: attr(data-ready);
     position: absolute; top: -7px; right: -7px;
@@ -2539,7 +2543,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
    rows shrink to share it (at 1280 × 800 its rows' minimums ran 16 px past the window and showed a scrollbar).
    Very short windows still scroll, from 520 px down. */
 @media (min-width: 961px) {
-    .facility { height: calc(100dvh / var(--ui-scale) - var(--topbar-h, 53px) - 40px); min-height: 520px; box-sizing: border-box; }
+    .facility { height: calc(100dvh / var(--zoom) - var(--topbar-h, 53px) - 40px); min-height: 520px; box-sizing: border-box; }
     .facility-plan { min-height: 0; grid-template-rows: minmax(70px, 0.7fr) minmax(110px, 1.2fr) minmax(90px, 1fr); }
 }
 
@@ -2547,3 +2551,19 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
    pops up for a card's bottom padding. */
 .nearly-fits { overflow-y: hidden !important; }
 .making-room .station-list, .making-room .action-row, .making-room .task-list { overflow: hidden !important; }
+
+/* Reduce animations (Settings): the in-game version of the system's reduced-motion preference. */
+body.calm *, body.calm *::before, body.calm *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+/* Idle (a minute without input, or the window in the background): decorative loops pause. Callouts and
+   toasts keep playing, so one arriving meanwhile still shows. */
+body.idle :not(.toast, .toast *), body.idle :not(.toast, .toast *)::before, body.idle :not(.toast, .toast *)::after { animation-play-state: paused !important; }
+/* Scrolling something into view (a tip's target) keeps it clear of the sticky top bar. */
+* { scroll-margin-top: calc(var(--topbar-h, 53px) + 12px); }
+/* Small desktops (1280–1440 px): the top bar keeps to one row in the late game (rates on every resource and
+   the phase bar wrapped it to two at 1280). */
+@media (min-width: 961px) and (max-width: 1440px) {
+    .topbar-inner { gap: 8px 12px; padding: 10px 16px; }
+    .brand { letter-spacing: 0.08em; }
+    .chip { padding: 4px 8px; gap: 5px; }
+    .phase { min-width: 110px; flex-basis: 110px; }
+}

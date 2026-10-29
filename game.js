@@ -4,6 +4,9 @@ window.AGI = (function () {
 
     const E = window.AGIEngine;
     const SAVE_KEY = 'agiGame';
+    const BACKUP_KEY = 'agiGame.bak';         // the last good save (refreshed every BACKUP_MS, and kept before an import)
+    const CORRUPT_KEY = 'agiGame.corrupt';    // a save that couldn't be read, kept as it was
+    const BACKUP_MS = 10 * 60000;
     const TICK_MS = 100;
     const AUTOSAVE_MS = 30000;
     const HOLD_REPEAT_MS = 400;       // holding a job repeats it at 2.5 clicks a second (a comfort option, not a turbo)
@@ -12,6 +15,10 @@ window.AGI = (function () {
     let state;
     let lastTick = Date.now();
     let lastSave = Date.now();
+    let lastBackup = 0;
+    let passiveTab = false;     // another tab has the game: this one stops ticking and saving
+    let hiddenGap = document.hidden;   // the page was hidden since the last tick (a throttled tab, not time away)
+    let notice = null;          // a dialog to show once the page is up (an unreadable save)
     const debugRates = { cp: 1, dp: 1, rp: 1, xp: 1 };
     // Debug: flat amounts added every second of game time (on top of production), per resource.
     const debugIncome = { cp: 0, dp: 0, rp: 0, xp: 0, insight: 0 };
@@ -31,11 +38,21 @@ window.AGI = (function () {
     }
 
     function save(manual) {
+        if (passiveTab) return;
         state.lastSaved = Date.now();
         lastSave = state.lastSaved;
-        const ok = storageSet(SAVE_KEY, E.serialize(state));
+        const json = E.serialize(state);
+        const ok = storageSet(SAVE_KEY, json);
+        if (ok && lastSave - lastBackup >= BACKUP_MS) {
+            storageSet(BACKUP_KEY, json);
+            lastBackup = lastSave;
+        }
         if (manual) log(ok ? 'Game saved.' : 'Could not save: browser storage is unavailable.', ok ? 'success' : 'warning');
     }
+
+    // A save's one-line summary, for the import and backup prompts.
+    const saveSummary = s => `${E.currentVersion(s)} · ${s.path.learned} skill${s.path.learned === 1 ? '' : 's'} · ${E.formatDuration(s.stats.playTime)} played`;
+    const ago = s => `${E.formatDuration(Math.max(0, (Date.now() - s.lastSaved) / 1000))} ago`;
 
     function load() {
         const now = Date.now();
@@ -47,11 +64,24 @@ window.AGI = (function () {
         }
         const loaded = E.deserialize(json, now);
         if (!loaded) {
-            state = E.defaultState(now);
-            log('Your save could not be read, so a new game was started.', 'warning');
+            // Nothing is thrown away: the unreadable save is kept as it was, and the backup comes back if
+            // there is one (the next autosave used to write a fresh game over it).
+            storageSet(CORRUPT_KEY, json);
+            const raw = storageGet(BACKUP_KEY);
+            const backup = raw && E.deserialize(raw, now);
+            state = backup || E.defaultState(now);
+            E.setNotation(state.settings.notation);
+            log(backup ? 'Your save could not be read, so your last backup was restored.' : 'Your save could not be read, so a new game was started.', 'warning');
+            notice = {
+                title: backup ? 'Save restored from backup' : 'Your save could not be read',
+                message: `${backup ? `The backup from ${ago(backup)} was restored (${saveSummary(backup)}).` : 'A new game was started.'} The unreadable save is below and still kept in this browser: copy it if you want to keep it.`,
+                text: json
+            };
             return;
         }
         state = loaded;
+        storageSet(BACKUP_KEY, json);   // it reads: a good backup
+        lastBackup = now;
         E.setNotation(state.settings.notation);
         log('Game loaded.', 'success');
         const before = { ...state.res };
@@ -548,7 +578,8 @@ window.AGI = (function () {
         }
         // (A later version reopens it with the first data, so only a brand-new lab counts collections.)
         if (actionId === 'collect' && !state.unlocked['module:path'] && !state.stats.rolls) {
-            return st.collects < 40 ? `Server room: ${st.collects}/40 collections` : 'Server room: hold 100 CP and 40 DP';
+            const held = (v, need) => `${E.format(Math.min(need, Math.floor(v)))}/${need}`;
+            return st.collects < 40 ? `Server room: ${st.collects}/40 collections` : `Server room: hold ${held(state.res.cp, 100)} CP · ${held(state.res.dp, 40)} DP`;
         }
         const g = E.automationGate(state, AUTOMATES[actionId]);
         if (!g || g.met) return '';
@@ -953,6 +984,14 @@ window.AGI = (function () {
         $('saveButton').addEventListener('click', () => save(true));
         $('exportButton').addEventListener('click', exportSave);
         $('importButton').addEventListener('click', importSave);
+        $('restoreButton').addEventListener('click', restoreBackup);
+        $('settingCalm').addEventListener('change', e => { state.settings.calm = e.target.checked; applySettings(); save(); });
+        $('settingTextSize').addEventListener('change', e => {
+            state.settings.textSize = Number(e.target.value);
+            applySettings();
+            render();
+            save();
+        });
         $('resetButton').addEventListener('click', hardReset);
         $('prestigeButton').addEventListener('click', doPrestige);
     }
@@ -983,6 +1022,8 @@ window.AGI = (function () {
         $('settingShake').checked = state.settings.shake;
         $('settingSound').value = state.settings.sound;
         $('settingNotation').value = state.settings.notation;
+        $('settingCalm').checked = state.settings.calm;
+        $('settingTextSize').value = String(state.settings.textSize);
         applySettings();
     }
 
@@ -990,6 +1031,10 @@ window.AGI = (function () {
     function applySettings() {
         E.setNotation(state.settings.notation);
         window.SFX?.setVolume(state.settings.sound);
+        // Text size scales the whole UI (the same zoom large screens use); Reduce animations is the in-game
+        // version of the system's reduced-motion setting.
+        document.documentElement.style.setProperty('--text-size', String(state.settings.textSize));
+        document.body.classList.toggle('calm', state.settings.calm);
         setText($('settingSoundValue'), state.settings.sound > 0 ? `${Math.round(state.settings.sound * 100)}%` : 'off');
     }
     const shakeOn = () => state.settings.shake && !reducedMotion();
@@ -1149,11 +1194,87 @@ window.AGI = (function () {
             log('That save code is not valid. Check that you pasted the whole code.', 'warning');
             return;
         }
+        let version = 0;
+        try { version = JSON.parse(atob(value.trim())).version; } catch { /* checked above */ }
+        const sure = await openDialog({
+            title: 'Replace your game?',
+            message: `Importing ${saveSummary(imported)}, over your game (${saveSummary(state)}). Your current game is kept as a backup: Restore backup brings it back.${version > E.SAVE_VERSION ? ' This save is from a newer version of the game, so some of it may not carry over.' : ''}`,
+            okLabel: 'Import',
+            danger: true
+        });
+        if (!sure.ok) return;
+        storageSet(BACKUP_KEY, E.serialize(state));
+        lastBackup = Date.now();
         state = imported;
         resetView();
         save();
+        syncSettings();
         log('Save imported.', 'success');
         afterChange();
+    }
+
+    // Swap the game for the backup (the game becomes the backup, so it can be swapped back).
+    async function restoreBackup() {
+        const raw = storageGet(BACKUP_KEY);
+        const backup = raw && E.deserialize(raw, Date.now());
+        if (!backup) {
+            await openDialog({ title: 'No backup yet', message: 'A backup is kept every 10 minutes of play, and before an import.', okLabel: 'OK', cancelLabel: null });
+            return;
+        }
+        const { ok } = await openDialog({
+            title: 'Restore the backup?',
+            message: `The backup is ${saveSummary(backup)}, saved ${ago(backup)}. Your game (${saveSummary(state)}) becomes the backup, so you can switch back.`,
+            okLabel: 'Restore',
+            danger: true
+        });
+        if (!ok) return;
+        const current = E.serialize(state);
+        state = backup;
+        storageSet(BACKUP_KEY, current);
+        lastBackup = Date.now();
+        resetView();
+        save();
+        syncSettings();
+        log('Backup restored.', 'success');
+        afterChange();
+    }
+
+    // One tab at a time: a tab that opens the game claims it, and the others stop ticking and saving (two
+    // tabs used to take turns writing over each other's progress). The old tab saves once as it hands over,
+    // and the new one reloads that save if it arrives in its first moments.
+    const TAB_ID = Math.random().toString(36).slice(2);
+    function claimTab() {
+        if (typeof BroadcastChannel === 'undefined') return;
+        const startedAt = Date.now();
+        const channel = new BroadcastChannel('agiGame');
+        channel.onmessage = e => {
+            const m = e.data || {};
+            // The newest tab wins (two opening at once mustn't both stand down).
+            if (m.claim && m.claim !== TAB_ID && !passiveTab && (m.at > startedAt || m.at === startedAt && m.claim > TAB_ID)) {
+                save();
+                channel.postMessage({ flushed: m.claim });
+                standDown();
+            } else if (m.flushed === TAB_ID && Date.now() - startedAt < 4000) {
+                const loaded = E.deserialize(storageGet(SAVE_KEY) || '', Date.now());
+                if (!loaded) return;
+                state = loaded;
+                E.evaluate(state);
+                syncSettings();
+                render();
+            }
+        };
+        channel.postMessage({ claim: TAB_ID, at: startedAt });
+    }
+    async function standDown() {
+        passiveTab = true;
+        for (;;) {
+            if ($('dialog').open) $('dialog').close();
+            const { ok } = await openDialog({ title: 'Open in another tab', message: 'The game is running in another tab, so this one has paused to keep your save safe.', okLabel: 'Use this tab', cancelLabel: null });
+            if (ok) {
+                location.reload();
+                return;
+            }
+        }
     }
 
     async function hardReset() {
@@ -1262,11 +1383,22 @@ window.AGI = (function () {
     }
 
     function tick() {
+        if (passiveTab) return;
         const now = Date.now();
         const dt = (now - lastTick) / 1000;
         lastTick = now;
-        // Long gaps (sleep, frozen tab) count as offline time and obey the offline setting/cap.
-        if (dt > 60) {
+        const wasHidden = hiddenGap;
+        if (!document.hidden) hiddenGap = false;
+        // A hidden tab is still open: the browser only wakes its timer about once a minute, so those gaps are
+        // play time (whatever the offline setting), and only a long one gets the While you were away card.
+        if (dt > 60 && wasHidden) {
+            const seconds = Math.min(dt, E.MAX_OFFLINE_SECONDS);
+            const before = { ...state.res };
+            E.tick(state, seconds, debugRates);
+            addDebugIncome(seconds);
+            if (seconds >= 300) reportOffline(seconds, before);
+        } else if (dt > 60) {
+            // Long gaps (sleep, frozen tab) count as offline time and obey the offline setting/cap.
             const seconds = state.settings.offline ? Math.min(dt, E.MAX_OFFLINE_SECONDS) : 0;
             const before = { ...state.res };
             E.tick(state, seconds, debugRates);
@@ -1477,6 +1609,14 @@ window.AGI = (function () {
             if (ready) b.dataset.ready = ready > 9 ? '9+' : String(ready);
             else delete b.dataset.ready;
         }
+        // Finished investor offers wait to be claimed: a badge on the Lab's tile and the run view's lab supply,
+        // where most of the time is spent (status, like the Upgrades badge, not a hint).
+        const claimable = state.projects.offers.filter(o => E.projectProgress(state, o) >= o.target).length;
+        for (const b of [document.querySelector('.facility-room[data-room-id="lab"]'), document.querySelector('.run-stats .module-supply')]) {
+            if (!b) continue;
+            if (claimable) b.dataset.ready = String(claimable);
+            else delete b.dataset.ready;
+        }
         // The bulk switch shows once a card it applies to does (the first generator).
         setHidden($('bulkBuy'), !state.unlocked['up:cpu']);
 
@@ -1576,7 +1716,11 @@ window.AGI = (function () {
         }
         if (place === 'rnd') {
             const gain = E.prestigeGain(state);
-            return gain >= 1 ? `Ship the next version for +${E.format(gain)} Insight` : '';
+            if (gain < 1) return '';
+            // Status, not advice: the version's Insight per hour so far, and the skill that brings more.
+            const hours = Math.max(1 / 60, (Date.now() - state.stats.runStart) / 3.6e6);
+            const next = E.nextInsightAt(state);
+            return `Ship the next version for +${E.format(gain)} Insight · ${E.format(gain / hours)}/h this version · +${E.format(E.insightAt(next) - gain)} more at ${E.skillAt(next - 1).name}`;
         }
         return '';
     }
@@ -1655,7 +1799,9 @@ window.AGI = (function () {
         return copy;
     }
 
+    let cameraSkip = 0;
     function refreshCameras() {
+        if (idle() && ++cameraSkip % 5) return;
         requestAnimationFrame(drawLanes);
         const stageWidth = $('stage').clientWidth || 1200;
         for (const [id, cam] of Object.entries(CAMERAS)) {
@@ -1974,16 +2120,18 @@ window.AGI = (function () {
             min.setAttribute('aria-label', on ? 'Keep the map open' : 'Minimize the map');
             min.setAttribute('aria-pressed', String(on));
         };
-        // On Surveillance (the map itself, full size) and inside a bay (the trail and meter run to the
-        // corner), it shrinks to the pill without changing your setting; hover still opens it.
+        // On Surveillance (the map itself, full size), inside a bay (the trail and meter run to the corner)
+        // and in the lab on a small desktop (below 1440 px it sat over the cards as the lab scrolled), it
+        // shrinks to the pill without changing your setting; hover still opens it.
         let auto = null;
         mapAutoMin = () => {
-            const want = view === 'facility' || !!openBay;
+            const want = view === 'facility' || !!openBay || (view === 'lab' && window.innerWidth < 1440);
             if (want === auto || zooming) return;   // resizing rooms mid-zoom throws the zoom off
             auto = want;
             setMin(want || storageGet(MAP_MIN_KEY) === '1');
         };
         mapAutoMin();
+        window.addEventListener('resize', () => mapAutoMin());
         min.addEventListener('click', e => {
             e.stopPropagation();
             const on = !nav.classList.contains('min');
@@ -2431,10 +2579,10 @@ window.AGI = (function () {
         });
     }
 
-    const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reducedMotion = () => !!state?.settings.calm || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     // Large screens zoom the whole page (styles.css, --ui-scale). Rects come back in screen pixels,
     // transforms are in page pixels, so divide offsets by this.
-    const uiScale = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-scale')) || 1;
+    const uiScale = () => (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-scale')) || 1) * (state?.settings.textSize || 1);
 
     // Zoom: the bay grows to fill the viewport while the room scales up past the camera.
     function zoomFrames(bayNode) {
@@ -2759,6 +2907,20 @@ window.AGI = (function () {
                 else zoomTreeAt(treeCam.z * (b.dataset.zoom === 'in' ? TREE_ZOOM.step : 1 / TREE_ZOOM.step), c.x, c.y);
             });
         }
+        // Keyboard: tabbing to a node outside the view pans it into view (focus used to land off screen).
+        vp.addEventListener('focusin', e => {
+            const node = e.target.closest?.('.tree-node');
+            if (!node) return;
+            const v = vp.getBoundingClientRect();
+            const r = node.getBoundingClientRect();
+            const z = uiScale();
+            const margin = 40 * z;
+            if (r.left >= v.left + margin && r.right <= v.right - margin && r.top >= v.top + margin && r.bottom <= v.bottom - margin) return;
+            vp.scrollTop = vp.scrollLeft = 0;   // focus() may have scrolled the clipped viewport itself
+            treeCam.x += (v.left + v.width / 2 - (r.left + r.width / 2)) / z;
+            treeCam.y += (v.top + v.height / 2 - (r.top + r.height / 2)) / z;
+            applyTreeCam();
+        });
         vp.addEventListener('wheel', e => {
             e.preventDefault();
             const p = treePoint(e);
@@ -3082,11 +3244,11 @@ window.AGI = (function () {
     const frozen = () => path.fx.freeze > 0;
     const flowing = () => !!path.roll && !path.roll.over && path.roll.flowing > 0;
     const LUCID = '#b48cff';
-    const BANK_MULT = 1.5;
+    const BANK_MULT = 1.5;      // Bullet Time: each banked sprint lands this much harder
     const LUCID_WARP = 4;       // Lucid Dream: time condenses, the ball covers this many times the ground
-    const LUCID_CONDENSE = 3;
+    const LUCID_CONDENSE = 3;   // and the view squeezes this much wider (heights keep their scale)
     const LATE_VIEW = 26;       // late legs: metres of trail in view at rest (wider with speed)
-    const LATE_RELIEF = 0.35;   // and a flatter vertical scale, so the giant swells read as landscape   // and the view squeezes this much wider (heights keep their scale)      // Bullet Time: each banked sprint lands this much harder
+    const LATE_RELIEF = 0.9;    // and a slightly flatter vertical scale (0.35 left the swells and flights in the bottom fifth of an empty sky)
 
     // A big luck banner: pops in at the top of the trail, in the luck's colour.
     function luckBanner(title, sub, tone) {
@@ -3202,10 +3364,11 @@ window.AGI = (function () {
                 if (e.button !== 0) return;
                 e.preventDefault();
                 target.setPointerCapture?.(e.pointerId);
+                path.held = true;
                 startCharge();
             });
-            target.addEventListener('pointerup', releaseCharge);
-            target.addEventListener('pointercancel', releaseCharge);
+            target.addEventListener('pointerup', letGo);
+            target.addEventListener('pointercancel', letGo);
         }
         // Space/Enter charge from anywhere in the run view, not only with the trail or button focused:
         // clicking Train again leaves focus on the page, and the keys went dead. Other controls (a focused
@@ -3216,12 +3379,15 @@ window.AGI = (function () {
         document.addEventListener('keydown', e => {
             if (!runKeys(e)) return;
             e.preventDefault();
-            if (!e.repeat) startCharge();
+            if (e.repeat) return;
+            path.held = true;
+            startCharge();
         });
+        window.addEventListener('blur', () => { path.held = false; });
         document.addEventListener('keyup', e => {
             if (!runKeys(e)) return;
             e.preventDefault();
-            releaseCharge();
+            letGo();
         });
         canvas.addEventListener('contextmenu', e => e.preventDefault());
         $('rollResult').addEventListener('click', e => {
@@ -3312,6 +3478,14 @@ window.AGI = (function () {
         path.charging = { start: performance.now(), cap: crunching() || frozen() ? 1 : chargeBudget(), sweep: CHARGE_SWEEP_MS, hold: 1000 * E.derive(state).chargeHold };
         path.chargeZone = null;
         startPathLoop();
+    }
+
+    // Letting go of the button, the trail or the key fires a charging sprint. A press held through the wait
+    // starts charging the moment the sprint is ready (pathFrame): pressing a touch early is natural, and the
+    // release is still judged, so nothing is queued.
+    function letGo() {
+        path.held = false;
+        releaseCharge();
     }
 
     function releaseCharge() {
@@ -3518,13 +3692,13 @@ window.AGI = (function () {
         for (const b of hills) {
             const H = b.base ?? b.height;
             const W = b.baseW ?? b.halfWidth;
-            const left = b.peak - W;
+            const left = b.peak - W * (b.up || 1);
             const n = 5 + Math.floor(Math.random() * 3);
             const cuts = [left];
-            for (let i = 1; i < n; i++) cuts.push(left + 2 * W * (i + (Math.random() - 0.5) * 0.6) / n);
+            for (let i = 1; i < n; i++) cuts.push(left + W * (1 + (b.up || 1)) * (i + (Math.random() - 0.5) * 0.6) / n);
             cuts.push(b.peak + W);
             const delay = 0.12 + 0.45 * Math.max(0, Math.min(1, (b.peak - fromX) / reach));
-            const top = x => { const c = Math.cos((Math.PI / 2) * (x - b.peak) / W); return H * c * c; };
+            const top = x => T.bumpAt(b, x, H, W);
             for (let i = 0; i < n; i++) {
                 const a = cuts[i];
                 const z = cuts[i + 1];
@@ -3863,10 +4037,14 @@ window.AGI = (function () {
             if (path.pause > 0) path.pause -= dt;
             const roll = currentRoll();
             autoTrain(roll);
+            if (path.held && !path.charging && path.view === 'run' && !path.done && readyToFire(roll)) startCharge();
             // Slow motion only matters on screen; in the background the run keeps real time. A wind-up and
             // Bullet Time hold the run still.
             const fx = path.fx;
-            const sim = fx.windup || frozen() ? 0 : path.visible ? dt * path.timeScale : dt;
+            // A lost run (no sprints left, rolling back, so it can't beat its furthest point) plays out at
+            // FAST_FORWARD on screen instead of drifting home for seconds.
+            path.ff = path.visible && lostRun(roll);
+            const sim = fx.windup || frozen() ? 0 : path.visible ? dt * path.timeScale * (path.ff ? FAST_FORWARD : 1) : dt;
             // The wait between sprints keeps counting while a wind-up holds the run still.
             if (fx.windup) roll.ball.cooldown = Math.max(0, roll.ball.cooldown - dt);
             if (fx.windup && (fx.windup.age += dt) >= WINDUP_SECONDS) launchBreakthrough(roll, fx.windup.super);
@@ -3879,6 +4057,7 @@ window.AGI = (function () {
                 else if (ev.type === 'launch' || ev.type === 'land') airborne(ev);
                 else if (ev.type === 'crest' && ev.onward) crestFrontier(ev);
                 else if (ev.type === 'crest' && !roll.over) celebrateSummit();
+                else if (ev.type === 'bump') trailSfx('land', { impact: 1 });
                 else finishRoll(ev);
             }
             // Stuck with pushes left but nothing to pay for them: give income a moment, then end the roll.
@@ -3904,6 +4083,12 @@ window.AGI = (function () {
         const animating = busy || path.legFlash || fxBusy() || path.summit || path.particles.length || path.tension > 0.01 || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
             || E.autoTrainerLevel(state) > 0;
         if (running && animating) path.frame = requestAnimationFrame(pathFrame);
+    }
+
+    const FAST_FORWARD = 3;
+    function lostRun(roll) {
+        return roll.launched && !roll.over && roll.pushesLeft === 0 && roll.ball.v < -0.05 && !roll.airborne
+            && !roll.flowing && !crunching() && !frozen() && !path.fx.windup && path.tension < 0.01;
     }
 
     // ---- Drama: nail-biters and summits ----
@@ -4416,6 +4601,12 @@ window.AGI = (function () {
         return Math.abs(path.cam.left - t.left) > width * 0.002 || Math.abs(path.cam.right - t.right) > width * 0.002;
     }
 
+    // Metres between labelled distance posts: a round number that leaves at least 90 px between posts.
+    function postStep(pxPerUnit) {
+        for (const m of [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000]) if (m * pxPerUnit >= 90) return m;
+        return 10000;
+    }
+
     function drawPath(dt = 0) {
         const { ctx, width: w, height: h, colors: c } = path;
         if (!ctx || !w || !state || openBay !== 'training' || path.view !== 'run') return;
@@ -4498,7 +4689,32 @@ window.AGI = (function () {
             ctx.lineTo(w, y);
             ctx.stroke();
         }
+        // Distance marks tied to the world (the lines above are fixed to the screen), so speed reads on the
+        // flat too: faint verticals every fifth of a post, and a labelled post every `post` metres.
+        const post = postStep(pxPerUnit);
+        const x0 = g.start + Math.ceil((cam.left - g.start) / (post / 5)) * (post / 5);
+        ctx.strokeStyle = hexAlpha(c.secondary, 0.16);
+        for (let x = x0; x <= cam.right; x += post / 5) {
+            ctx.beginPath();
+            ctx.moveTo(X(x), h);
+            ctx.lineTo(X(x), PAD_TOP);
+            ctx.stroke();
+        }
         ctx.restore();
+        if (path.overview <= 0) {
+            ctx.font = '600 10px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            for (let x = g.start + Math.max(1, Math.ceil((cam.left - g.start) / post)) * post; x <= cam.right; x += post) {
+                const gy = Y(groundAt(roll, x));
+                ctx.strokeStyle = hexAlpha(c.muted, 0.45);
+                ctx.beginPath();
+                ctx.moveTo(X(x), gy - 4);
+                ctx.lineTo(X(x), gy - 12);
+                ctx.stroke();
+                ctx.fillStyle = hexAlpha(c.muted, 0.6);
+                ctx.fillText(`${Math.round(x - g.start)} m`, X(x), gy - 16);
+            }
+        }
 
         const stroke = (from, to, color, width = 2.5) => {
             ctx.beginPath();
@@ -4800,6 +5016,24 @@ window.AGI = (function () {
         ctx.beginPath();
         ctx.arc(bx, by, BALL, 0, Math.PI * 2);
         ctx.fill();
+        // A spin mark: the ball turns as it rolls (in screen pixels, so it spins at the speed you see).
+        if (!reducedMotion()) {
+            const spin = (roll.ball.x - g.start) * pxPerUnit / BALL;
+            ctx.strokeStyle = hexAlpha(c.bg, 0.75);
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(bx + Math.cos(spin) * 1.5, by + Math.sin(spin) * 1.5);
+            ctx.lineTo(bx + Math.cos(spin) * (BALL - 1.5), by + Math.sin(spin) * (BALL - 1.5));
+            ctx.stroke();
+        }
+        // In flight: how high it is above the ground under it.
+        const above = roll.airborne ? roll.height - g.height(roll.ball.x) : 0;
+        if (above > 0.5) {
+            ctx.font = '600 11px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = hexAlpha(c.success, 0.9);
+            ctx.fillText(`↑ ${above.toFixed(1)} m`, bx, by - BALL - 10);
+        }
         ctx.lineWidth = 3;
         ctx.strokeStyle = wind ? c.warning : crunching() ? c.danger : roll.ball.v > 0.05 ? c.success : roll.ball.v < -0.05 ? c.danger : c.primary;
         ctx.stroke();
@@ -4869,6 +5103,13 @@ window.AGI = (function () {
             ctx.arc(PAD_X + 6 + i * 16, 14, 5, 0, Math.PI * 2);
             ctx.fillStyle = i < pips ? c.warning : hexAlpha(c.muted, 0.3);
             ctx.fill();
+        }
+        if (path.ff) {
+            ctx.font = '700 12px "JetBrains Mono", monospace';
+            ctx.fillStyle = hexAlpha(c.muted, 0.8);
+            ctx.textAlign = 'right';
+            ctx.fillText(`▶▶ ${FAST_FORWARD}×`, w - PAD_X, 18);
+            ctx.textAlign = 'left';
         }
         if (roll.ball.cooldown > 0) {
             const cd = E.derive(state).pushCooldown;
@@ -5172,6 +5413,27 @@ window.AGI = (function () {
         return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
     }
 
+    // Idle: after a minute without input, or while the window is in the background, the decorative CSS
+    // animations (blinking LEDs, blades, scans) pause and the camera feeds refresh less often. Left open for
+    // hours, they were most of the page's CPU.
+    const IDLE_MS = 60000;
+    let idleTimer = 0;
+    let lastWake = 0;
+    function watchIdle() {
+        const wake = () => {
+            const now = Date.now();
+            if (now - lastWake < 1000 && !document.body.classList.contains('idle')) return;
+            lastWake = now;
+            document.body.classList.remove('idle');
+            clearTimeout(idleTimer);
+            idleTimer = setTimeout(() => document.body.classList.add('idle'), IDLE_MS);
+        };
+        for (const t of ['pointermove', 'pointerdown', 'keydown', 'wheel', 'focus']) window.addEventListener(t, wake, { passive: true });
+        window.addEventListener('blur', () => document.body.classList.add('idle'));
+        wake();
+    }
+    const idle = () => document.body.classList.contains('idle');
+
     // ---- Init -----------------------------------------------------------
 
     function init() {
@@ -5197,6 +5459,7 @@ window.AGI = (function () {
         buildAutoTrainer();
         buildTreeCamera();
         load();
+        claimTab();
         syncSettings();
         E.evaluate(state); // silently restore unlocks implied by the loaded state
         render();
@@ -5205,8 +5468,16 @@ window.AGI = (function () {
         setTimeout(() => { revealReady = true; }, 1200);
         // Save whenever the page is hidden or closed; beforeunload is unreliable on mobile.
         document.addEventListener('visibilitychange', () => {
+            if (document.hidden) hiddenGap = true;
             if (document.visibilityState === 'hidden' && state.settings.autosave) save();
         });
+        watchIdle();
+        if (notice) {
+            const n = notice;
+            notice = null;
+            setTimeout(() => openDialog({ title: n.title, message: n.message, text: n.text, readonly: true, okLabel: 'Copy', cancelLabel: 'Close',
+                onOk: area => { area.select(); navigator.clipboard?.writeText(n.text); } }), 400);
+        }
         window.addEventListener('pagehide', () => { if (state.settings.autosave) save(); });
     }
 
