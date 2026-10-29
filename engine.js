@@ -13,9 +13,11 @@
     const SAVE_VERSION = 7;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro)
     const MAX_OFFLINE_SECONDS = 8 * 60 * 60;
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
-    // training XP by 1 + 0.2·√Insight: ×1.35 at 3, ×1.9 at 20, ×3 at 100. It used to be +10% each with no
-    // limit, which compounded every version into a faster speedrun (the Singularity 18 minutes into run 4).
-    const PRESTIGE_BONUS = 0.2;
+    // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
+    // Auto-Trainer, XP nodes) carry most of a new version's speed, so this stays small: at 0.2 a second run
+    // reached General AI 4× faster than the first; at 0.07 about 2× (56 → 29 → 21 → 18 min in the sim).
+    // It used to be +10% each with no limit, which compounded every version into a speedrun.
+    const PRESTIGE_BONUS = 0.07;
     const PRESTIGE_MIN_INTELLIGENCE = 5;
     const RESEARCH_SPRINTS = 50;      // paid training sprints after the first skill before Research (and investors) open
     // Act two: from this leg the trail is a launcher (giant swells; training-path.js LATE_LEG). It is the leg

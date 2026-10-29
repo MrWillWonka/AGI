@@ -365,7 +365,7 @@ test('prestige keeps achievements and points, resets the run', () => {
     assert.equal(r.state.res.cp, 0);
     assert.deepEqual(r.state.levels, { keyboard: E.CPU_AFTER_CLICK_LEVEL }, 'the run starts over, with the desk built');
     assert.equal(r.state.achievements.cp1k, true);
-    assert.ok(Math.abs(E.derive(r.state).mult - (1 + 0.2 * Math.sqrt(2))) < 1e-9, 'two Insight: 1 + 0.2√2, achievements add nothing');
+    assert.ok(Math.abs(E.derive(r.state).mult - (1 + 0.07 * Math.sqrt(2))) < 1e-9, 'two Insight: 1 + 0.07√2, achievements add nothing');
 });
 
 test('a new version remembers first-time intros, trains faster, and starts with the desk built', () => {
@@ -1078,7 +1078,7 @@ test('Insight comes from skills learned and its bonus diminishes', () => {
     assert.equal(E.prestigeGain(s), 10, 'compute earned no longer counts');
     const step = n => E.insightMult(n + 10) - E.insightMult(n);
     assert.ok(step(0) > step(100), 'each Insight is worth less the more you have');
-    assert.ok(E.insightMult(100) <= 3, 'no runaway: ×3 at 100 Insight');
+    assert.ok(E.insightMult(100) <= 2, 'no runaway: ×1.7 at 100 Insight');
 });
 
 test('removed skill-tree nodes (viral runs, crunches) refund their XP on load', () => {
