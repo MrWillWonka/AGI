@@ -339,7 +339,10 @@ window.AGI = (function () {
         const follow = () => requestAnimationFrame(place);
         window.addEventListener('scroll', follow, true);
         // A callout beside something leaves with it (zooming out of the room, a bay opening).
-        const watch = onScreen ? setInterval(() => { if (!target.offsetParent || !target.getBoundingClientRect().width) close(); }, 300) : 0;
+        // One pointing at a room on the map leaves once you're in that room.
+        const watch = setInterval(() => {
+            if (onScreen ? !target.offsetParent || !target.getBoundingClientRect().width : view === where.map) close();
+        }, 300);
         requestAnimationFrame(() => { place(); box.classList.add('show'); });
         let done = false;
         const close = () => {
@@ -572,11 +575,14 @@ window.AGI = (function () {
             return st.collects < 40 ? `Server room: ${st.collects}/40 collections` : `Server room: hold ${held(state.res.cp, 100)} CP · ${held(state.res.dp, 40)} DP`;
         }
         const g = E.automationGate(state, AUTOMATES[actionId]);
-        if (!g || g.met) return '';
+        if (!g) return '';
         const parts = [];
         if (g.done < g.need) parts.push(`${g.done}/${g.need} by hand`);
-        if (!g.skillOk) parts.push(`after skill ${E.AUTOMATION[AUTOMATES[actionId]].skill}`);
-        if (actionId === 'compute' && E.level(state, 'keyboard') < E.CPU_AFTER_CLICK_LEVEL) parts.push('desk built');
+        if (!g.skillOk) parts.push(`after ${g.skill}`);   // named, like everything else the player reads
+        // The desk is checked before the gate counts as met: the line used to go blank once the 40 computes
+        // were done, with the desk still unbuilt.
+        const desk = E.level(state, 'keyboard');
+        if (actionId === 'compute' && desk < E.CPU_AFTER_CLICK_LEVEL) parts.push(`desk ${desk}/${E.CPU_AFTER_CLICK_LEVEL}`);
         return parts.length ? `Automation: ${parts.join(' · ')}` : '';
     }
 
@@ -1345,11 +1351,14 @@ window.AGI = (function () {
             // The newest tab wins (two opening at once mustn't both stand down).
             if (m.claim && m.claim !== TAB_ID && !passiveTab && (m.at > startedAt || m.at === startedAt && m.claim > TAB_ID)) {
                 save();
-                channel.postMessage({ flushed: m.claim });
+                // The save travels with the message: another tab's storage can lag behind the channel, and the
+                // new tab read the save from before the handover (losing up to an autosave's worth).
+                channel.postMessage({ flushed: m.claim, json: E.serialize(state) });
                 standDown();
             } else if (m.flushed === TAB_ID && Date.now() - startedAt < 4000) {
-                const loaded = E.deserialize(storageGet(SAVE_KEY) || '', Date.now());
+                const loaded = E.deserialize(m.json || storageGet(SAVE_KEY) || '', Date.now());
                 if (!loaded) return;
+                if (m.json) storageSet(SAVE_KEY, m.json);
                 state = loaded;
                 E.evaluate(state);
                 syncSettings();
@@ -1645,7 +1654,7 @@ window.AGI = (function () {
                 return E.versionName(v.major, v.minor);
             }
             case 'achievements.count': return `${Object.keys(state.achievements).length}/${E.ACHIEVEMENTS.length}`;
-            case 'stats.runTime': return E.formatDuration((Date.now() - state.stats.runStart) / 1000);
+            case 'stats.runTime': return E.formatDuration(state.stats.playTime - state.stats.runPlayStart);
             case 'stats.playTime': return E.formatDuration(state.stats.playTime);
             case 'stats.runCp': return f(state.stats.runCp);
             case 'stats.lifetimeCp': return f(state.stats.lifetimeCp);
@@ -1814,9 +1823,9 @@ window.AGI = (function () {
             const gain = E.prestigeGain(state);
             if (gain < 1) return '';
             // Status, not advice: the version's Insight per hour so far, and the skill that brings more.
-            const hours = Math.max(1 / 60, (Date.now() - state.stats.runStart) / 3.6e6);
+            const hours = Math.max(1 / 60, (state.stats.playTime - state.stats.runPlayStart) / 3600);
             const next = E.nextInsightAt(state);
-            return `Ship the next version for +${E.format(gain)} Insight · ${E.format(gain / hours)}/h this version · +${E.format(Math.floor(E.insightAt(next) * E.insightBoost(state)) - gain)} more at ${E.skillAt(next - 1).name}`;
+            return `Ship the next version for +${E.format(gain)} Insight · ${E.format(gain / hours)} Insight/h this version · +${E.format(Math.floor(E.insightAt(next) * E.insightBoost(state)) - gain)} more at ${E.skillAt(next - 1).name}`;
         }
         return '';
     }
@@ -4429,7 +4438,9 @@ window.AGI = (function () {
         const st = state.stats;
         const out = [];
         const best = (key, value) => {
-            const beat = value > (st[key] || 0) + 1e-9 && (st[key] || 0) > 0;
+            // Compared as shown (one decimal): 2.2 after a 2.2 isn't a new best.
+            const shown = v => Math.round(v * 10);
+            const beat = shown(value) > shown(st[key] || 0) && (st[key] || 0) > 0;
             st[key] = Math.max(st[key] || 0, value);
             return beat;
         };
@@ -4462,7 +4473,7 @@ window.AGI = (function () {
 
     // Breakdown rows for the result card: distance XP, the clean-push roll bonus, and XP already banked.
     function xpLines(distanceXp, rollBonusXp, clean, banked, crested) {
-        const rows = [[crested ? 'Distance (×2 for cresting)' : 'Distance', `+${xpText(distanceXp)} XP`]];
+        const rows = distanceXp >= 0.01 ? [[crested ? 'Distance (×2 for cresting)' : 'Distance', `+${xpText(distanceXp)} XP`]] : [];
         if (clean) {
             rows.push(['Prompt run bonus', `+${xpText(rollBonusXp)} XP`, 'good']);
             rows.push([`Banked from ${clean} prompt${clean === 1 ? '' : 's'}`, `+${xpText(banked)} XP`, 'good']);
@@ -4514,7 +4525,12 @@ window.AGI = (function () {
             : roll.pushesLeft > 0 ? `Hold to sprint (${roll.pushesLeft} left)` : 'Out of sprints';
         setText(button, label);
         // Stay enabled while charging so releasing the pointer still lands on the button.
-        setDisabled(button, !path.charging && (path.done || !readyToFire(roll)));
+        // Looks disabled but still takes presses (aria-disabled, not disabled): a hold during the wait tucks or
+        // charges when ready, and Firefox sends no pointer events to a disabled button.
+        // While a sprint charges (or the trail is held), the minimap pill in the corner doesn't open on hover.
+        document.body.classList.toggle('charging', !!path.charging || !!path.held);
+        const off = !path.charging && (path.done || !readyToFire(roll));
+        if (button.getAttribute('aria-disabled') !== String(off)) button.setAttribute('aria-disabled', String(off));
         $('charge').classList.toggle('waiting', !path.charging && roll.launched && (path.done || (canPush(roll) && !readyToFire(roll))));
         button.classList.toggle('crunch', crunching());
         button.classList.toggle('frozen', frozen());
@@ -5350,12 +5366,12 @@ window.AGI = (function () {
             ctx.fillStyle = i < pips ? c.warning : hexAlpha(c.muted, 0.3);
             ctx.fill();
         }
-        if (path.ff) {
+        // Under the pips (top right holds the skill hill's label), and only while the run is on.
+        if (path.ff && !roll.over) {
             ctx.font = '700 12px "JetBrains Mono", monospace';
             ctx.fillStyle = hexAlpha(c.muted, 0.8);
-            ctx.textAlign = 'right';
-            ctx.fillText(`▶▶ ${FAST_FORWARD}×`, w - PAD_X, 18);
             ctx.textAlign = 'left';
+            ctx.fillText(`▶▶ ${FAST_FORWARD}×`, PAD_X, 42);
         }
         if (roll.ball.cooldown > 0) {
             const cd = E.derive(state).pushCooldown;

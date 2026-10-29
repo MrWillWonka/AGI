@@ -432,7 +432,7 @@ h1, h2, h3, p { margin: 0; }
 .button:hover:not(:disabled) { filter: brightness(1.06); box-shadow: 0 8px 24px rgba(255, 181, 71, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35); }
 .button:active:not(:disabled) { transform: translateY(1px) scale(0.99); }
 
-.button:disabled {
+.button:disabled, .push-button[aria-disabled="true"] {
     cursor: not-allowed;
     color: var(--muted);
     background: var(--panel-2);
@@ -1191,9 +1191,10 @@ h1, h2, h3, p { margin: 0; }
 /* ---- Toasts & floating gains ---- */
 
 .toasts {
-    /* Top middle, just under the top bar, newest at the bottom. */
+    /* Top middle, under the rooms' title bars (just under the top bar, they hid the room's status line),
+       newest at the bottom. */
     position: fixed;
-    top: calc(var(--topbar-h, 53px) + 12px);
+    top: calc(var(--topbar-h, 53px) + 64px);
     left: 50%;
     transform: translateX(-50%);
     z-index: 50;
@@ -2580,3 +2581,7 @@ body.idle :not(.toast, .toast *), body.idle :not(.toast, .toast *)::before, body
     .chip { padding: 4px 8px; gap: 5px; }
     .phase { min-width: 110px; flex-basis: 110px; }
 }
+.push-button[aria-disabled="true"]:hover, .push-button[aria-disabled="true"]:active { filter: none; transform: none; box-shadow: none; }
+body.charging .minimap { pointer-events: none; }
+/* Keyboard focus shows on the lab's buttons too (the browser default was lost under their own styles). */
+.action-button:focus-visible, .upgrade-button:focus-visible, .ghost-button:focus-visible, .tree-node:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

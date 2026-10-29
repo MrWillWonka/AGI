@@ -486,6 +486,7 @@
                 skillsLearned: 0,
                 playTime: 0,
                 runStart: now,
+                runPlayStart: 0,      // play time when this version began (an active game: wall clock means nothing)
                 firstStart: now,
                 highestPhase: 0,
                 topSpeed: 0,          // personal bests across every run (m/s, m, m): the result card calls out new ones
@@ -1415,7 +1416,8 @@
             firstStart: s.stats.firstStart,
             collectsEver: Math.max(s.stats.collectsEver, s.stats.collects),
             researchManualEver: Math.max(s.stats.researchManualEver, s.stats.researchManual),
-            tokens: s.stats.tokens
+            tokens: s.stats.tokens,
+            runPlayStart: s.stats.playTime
         });
         // Offers are timed on play time, which carries over: the first one still waits its delay.
         next.projects.next = s.stats.playTime + PROJECTS.firstAt;
@@ -1431,6 +1433,7 @@
         const next = Object.assign(fresh, {
             achievements: s.achievements,
             intro: { ...s.intro },
+            levels: { keyboard: CPU_AFTER_CLICK_LEVEL },   // the desk stays built, as after shipping
             tasks: JSON.parse(JSON.stringify(s.tasks)),
             settings: s.settings,
             challengesDone: { ...s.challengesDone },
@@ -1449,7 +1452,8 @@
             firstStart: s.stats.firstStart,
             tokens: s.stats.tokens,
             collectsEver: Math.max(s.stats.collectsEver, s.stats.collects),
-            researchManualEver: Math.max(s.stats.researchManualEver, s.stats.researchManual)
+            researchManualEver: Math.max(s.stats.researchManualEver, s.stats.researchManual),
+            runPlayStart: s.stats.playTime
         });
         next.projects.next = s.stats.playTime + PROJECTS.firstAt;
         return { ok: true, gain, state: next };

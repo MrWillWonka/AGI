@@ -682,3 +682,10 @@ test('the tuck: held on act two, the ball gains on the way down and loses on the
     const one = tuck => { const r = T.createRoll(2, 3, { pushes: 1, cooldown: 1 }); r.push(1); r.tuck = tuck; for (let i = 0; i < 20; i++) r.step(0.05); return r.ball.x; };
     assert.equal(one(true), one(false));
 });
+
+test('a spent ball sloshing over a boost strip still ends its run (it used to never end)', () => {
+    const roll = T.createRoll(2, 1148255, { pushes: 1, cooldown: 1, friction: 0.75, hillScale: 0.8, onward: true, last: 2 });
+    roll.push(2.4);
+    for (let t = 0; t < 120 && !roll.over; t += 0.05) roll.step(0.05);
+    assert.equal(roll.over, true);
+});

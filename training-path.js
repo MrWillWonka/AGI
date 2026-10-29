@@ -25,6 +25,7 @@
     const REST_SPEED = 0.03;
     const REST_SECONDS = 0.5;
     const ROLL_BACK = 0.15;     // rolling back this far behind the start line ends the run (with no sprints left)
+    const STALL_SECONDS = 8;    // with no sprints left, a ball that gains no new ground for this long ends its run
     const BUMPER = 0.3;         // with sprints left, the start line bounces the ball back at this share of its speed
     const LEAD_IN = 0.5;        // flat run-up after each checkpoint
     const FREE_COOLDOWN = 0.35; // wait after a free push (a crunch)
@@ -448,7 +449,9 @@
                 const settle = ball.trapped && (ground.legAt(ball.x) < (opts.lateLeg ?? LATE_LEG) || Math.abs(dy) < 0.04);
                 if (settle) ball.v *= 1 - TRAPPED_DAMPING * STEP;
             }
-            if (!ball.air && flow.left <= 0 && ball.v > 0) {
+            // A strip pushes only a ball at its furthest yet: sloshing back and forth over one in a dip, it
+            // pumped a spent ball forever (a run that never ended).
+            if (!ball.air && flow.left <= 0 && ball.v > 0 && ball.x >= ball.maxX - 0.01) {
                 const strip = ground.stripAt(ball.x);
                 if (strip) ball.v += strip.push * STEP;
             }
@@ -456,6 +459,9 @@
                 ball.x += ball.v * STEP * (flow.left > 0 ? flow.warp : 1);
                 if (flow.left <= 0) takeOff(events);
             }
+            // The safety net: no sprints left and no new ground for STALL_SECONDS ends the run, whatever keeps
+            // the ball moving.
+            ball.stall = ball.x > ball.maxX + 0.01 ? 0 : (ball.stall || 0) + STEP;
             ball.maxX = Math.max(ball.maxX, ball.x);
             // Tokens: taken by a ball passing close enough (its height in flight, the line on the ground).
             for (const tk of ground.tokens) {
@@ -509,7 +515,7 @@
             const resting = !ball.air && flow.left <= 0 && Math.abs(ball.v) < REST_SPEED && Math.abs(dy) < 0.08;
             ball.still = resting ? ball.still + STEP : 0;
             // The roll ends once the ball settles with no pushes left. With pushes left, it waits for you.
-            if (launched && pushesLeft === 0 && !opts.holdOpen?.() && ball.still >= REST_SECONDS) {
+            if (launched && pushesLeft === 0 && !opts.holdOpen?.() && (ball.still >= REST_SECONDS || (!ball.air && flow.left <= 0 && ball.stall >= STALL_SECONDS))) {
                 over = true;
                 events.push(stopEvent());
             }
