@@ -780,7 +780,8 @@ h1, h2, h3, p { margin: 0; }
 
 .tree-branch strong { font: 700 0.78rem var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--primary); }
 .tree-branch span { display: none; }
-.tree-branch { z-index: 1; pointer-events: none; }
+/* A tag on a backing, above the nodes: they pass under it as you pan (bare text collided with them). */
+.tree-branch { z-index: 3; pointer-events: none; padding: 3px 12px; border-radius: 999px; background: rgba(10, 20, 22, 0.88); border: 1px solid var(--border); }
 .tree-branch-up { top: 8px; left: 50%; transform: translateX(-50%); }
 .tree-branch-down { bottom: 8px; left: 50%; transform: translateX(-50%); }
 .tree-branch-left { left: 18px; top: 50%; transform: translate(-50%, -50%) rotate(-90deg); }
@@ -1004,6 +1005,7 @@ h1, h2, h3, p { margin: 0; }
 .action-auto:empty { visibility: hidden; }
 .action-auto.none { display: none; }
 .action-auto.done { color: var(--success); }
+.action-auto.gate { color: var(--muted); }   /* progress toward the job's next gate */
 
 
 

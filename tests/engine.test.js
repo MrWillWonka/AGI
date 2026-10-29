@@ -14,7 +14,8 @@ test('the skill tree starts sparse: one 1-XP seed, short nodes around it, dearer
     assert.equal(seeds[0].cost.xp, 1);
     assert.equal(seeds[0].max, 1);
     for (const n of nodes) {
-        assert.ok(n.max >= 1 && n.max <= 3, `${n.id} has 1–3 levels`);
+        if (n.endless) assert.equal(n.max, undefined, `${n.id}: the endless node has no cap`);
+        else assert.ok(n.max >= 1 && n.max <= 3, `${n.id} has 1–3 levels`);
         if (n.cost.xp == null) continue;
         assert.ok(n.boost, `${n.id} declares its boost`);
         if (depth(n) === 2) assert.ok(n.cost.xp <= 10 && n.max <= 2, `${n.id}: the ring around the seed is cheap and short`);
@@ -352,11 +353,11 @@ test('offline progress is capped and respects the setting', () => {
 test('prestige keeps achievements and points, resets the run', () => {
     const s = fresh();
     s.attr.intelligence = 10;
-    s.stats.runCp = 8e5;
+    s.path.learned = 5;
     s.res.cp = 123;
     s.levels.cpu = 5;
     s.achievements.cp1k = true;
-    assert.equal(E.prestigeGain(s), 2);
+    assert.equal(E.prestigeGain(s), 2, 'Insight comes from skills learned: floor(0.1 × 5²)');
     const r = E.prestige(s, NOW + 1);
     assert.equal(r.ok, true);
     assert.equal(r.state.prestige.points, 2);
@@ -364,20 +365,19 @@ test('prestige keeps achievements and points, resets the run', () => {
     assert.equal(r.state.res.cp, 0);
     assert.deepEqual(r.state.levels, { keyboard: E.CPU_AFTER_CLICK_LEVEL }, 'the run starts over, with the desk built');
     assert.equal(r.state.achievements.cp1k, true);
-    assert.ok(Math.abs(E.derive(r.state).mult - 1.2) < 1e-9, 'two Insight: +20%, achievements add nothing');
+    assert.ok(Math.abs(E.derive(r.state).mult - (1 + 0.2 * Math.sqrt(2))) < 1e-9, 'two Insight: 1 + 0.2√2, achievements add nothing');
 });
 
 test('a new version remembers first-time intros, trains faster, and starts with the desk built', () => {
     const s = fresh();
     s.attr.intelligence = 10;
-    s.stats.runCp = 8e5;
+    s.path.learned = 5;
     s.intro['module:path'] = true;
-    s.path.learned = 1;
-    const before = E.derive(s).xpMult;
     const t = E.prestige(s, NOW).state;
     assert.equal(t.intro['module:path'], true, 'callouts and tips stay seen');
     t.path.learned = 1;
-    assert.ok(Math.abs(E.derive(t).xpMult / before - E.derive(t).mult) < 1e-9, 'Insight boosts training XP');
+    s.path.learned = 1;
+    assert.ok(Math.abs(E.derive(t).xpMult / E.derive(s).xpMult - E.derive(t).mult) < 1e-9, 'Insight boosts training XP');
     assert.ok(E.derive(t).xpPerSec > E.derive(s).xpPerSec, 'passive XP too');
     assert.equal(E.level(t, 'keyboard'), E.CPU_AFTER_CLICK_LEVEL);
     const old = E.migrate({ version: 6, unlocked: { 'module:path': true, 'hint:hold': true, 'action:collect': true } });
@@ -521,12 +521,12 @@ test('top-bar resources and attributes are revealed once they matter', () => {
     assert.equal(E.evaluate(s).reveals.length, 0, 'only once');
 });
 
-test('investor projects: offers arrive over time, track progress, pay out research, and expire', () => {
+test('investor projects: offers arrive over time, track progress, pay out training XP, and expire', () => {
     const s = fresh();
     s.unlocked['module:path'] = true;
     s.stats.playTime = E.PROJECTS.firstAt;
     E.tick(s, 1);
-    assert.equal(s.projects.offers.length, 0, 'investors fund research: nothing until Research is open');
+    assert.equal(s.projects.offers.length, 0, 'investors come with Research: nothing until it is open');
     s.unlocked['action:research'] = true;
     s.stats.playTime = 0;
     E.tick(s, 1);
@@ -540,14 +540,14 @@ test('investor projects: offers arrive over time, track progress, pay out resear
     // Finish it by moving its stat on.
     const stat = { computes: 'clicks', collects: 'collects', runs: 'rolls', clean: 'cleanSprints', earnCp: 'runCp', research: 'researchManual' }[o.task];
     s.stats[stat] += o.target;
-    const before = { rp: s.res.rp };
+    const before = { xp: s.res.xp };
     const r = E.claimProject(s, o.id);
     assert.equal(r.ok, true, r.msg);
     assert.equal(s.projects.offers.length, 0);
     const reward = E.PROJECT_REWARDS[o.reward];
     if (reward.boost) assert.equal(s.projects.boosts.length, 1);
-    else assert.ok(s.res.rp > before.rp, 'a research grant');
-    assert.ok(E.PROJECT_REWARDS.every(x => x.boost === 'rp' || x.grant === 'rp'), 'every reward is research');
+    else assert.ok(s.res.xp > before.xp, 'a training grant');
+    assert.ok(E.PROJECT_REWARDS.every(x => x.boost === 'xp' || x.grant === 'xp'), 'investors fund training: every reward is XP');
     // Deadlines: an unclaimed offer disappears.
     s.stats.playTime = s.projects.next;
     E.tick(s, 1);
@@ -651,18 +651,14 @@ test('luck: breakthroughs and viral runs start at zero, grow with levels, and ar
     const weak = E.derive(fresh()).critMult;
     assert.ok(E.derive(s).critMult > weak, 'and stronger');
     assert.ok(Math.abs(E.sprintStrength(s, 1, null, true) / E.sprintStrength(s, 1) - E.derive(s).critMult) < 1e-9);
-    s.levels.viralPaper = 2;
+    // Viral runs are legacy only (Press Office).
+    assert.ok(!E.UPGRADES.some(u => u.tab === 'training' && u.boost && ('windfallChance' in u.boost || 'crunchChance' in u.boost)), 'viral runs and crunches are legacy only');
+    s.prestige.levels.pressOffice = 3;
     const viral = rate(seed => E.windfallHit(s, seed));
-    assert.ok(viral > 0.07 && viral < 0.14, `viral ${viral}`);
-    {
-        const k = fresh();
-        k.levels.goingViral = 1;
-        assert.ok(E.derive(k).windfallMult > E.derive(fresh()).windfallMult, 'Keynote Demo makes viral runs pay more');
-    }
+    assert.ok(viral > 0.06 && viral < 0.12, `viral ${viral}`);
     const plain = E.finishRoll(fresh(), 0.5, false, 0, 5).xp;
     const t = fresh();
-    t.levels.viralPaper = 2;
-    t.levels.goingViral = 1;
+    t.prestige.levels.pressOffice = 2;
     assert.ok(Math.abs(E.finishRoll(t, 0.5, false, 0, 5, 0, true).xp / plain - E.derive(t).windfallMult) < 1e-9);
 });
 
@@ -700,15 +696,15 @@ test('no skill-tree node upgrades the same thing as the node it grows from', () 
     }
 });
 
-test('Fast Charging speeds up the meter', () => {
+test('Fast Charging holds the meter at full instead of speeding it up', () => {
     const s = fresh();
-    assert.equal(E.derive(s).sweepScale, 1);
+    assert.equal(E.derive(s).chargeHold, 0);
     s.levels.gpuCluster2 = 2;
     s.levels.warmRestarts = 1;
-    assert.ok(E.derive(s).sweepScale < 0.7);
+    assert.ok(Math.abs(E.derive(s).chargeHold - 0.5) < 1e-9, 'half a second at full');
 });
 
-test('luck is earned: the branch opens after two skills; crunches and Max Effort start at zero and grow', () => {
+test('luck is earned: the branch opens after two skills; crunches (legacy) and Max Effort start at zero and grow', () => {
     const s = fresh();
     s.unlocked['module:path'] = true;
     s.levels.initialWeights = 1;
@@ -723,15 +719,15 @@ test('luck is earned: the branch opens after two skills; crunches and Max Effort
     assert.equal(rate(seed => E.crunchHit(s, seed, 0)), 0);
     assert.equal(rate(seed => E.maxEffortHit(s, seed, 0)), 0);
     assert.equal(E.derive(s).crunchSeconds, 0);
-    s.levels.crunchTime = 1;
+    s.prestige.levels.hackathon = 1;
     s.levels.maxEffort = 1;
     const crunch = rate(seed => E.crunchHit(s, seed, 0));
     const effort = rate(seed => E.maxEffortHit(s, seed, 0));
-    assert.ok(crunch > 0.025 && crunch < 0.06, `crunch: ${crunch}`);
+    assert.ok(crunch > 0.015 && crunch < 0.05, `crunch: ${crunch}`);
     assert.ok(effort > 0.03 && effort < 0.075, `Max Effort: ${effort}`);
-    assert.equal(E.derive(s).crunchSeconds, 3);
-    s.levels.deathMarch = 2;
-    assert.equal(E.derive(s).crunchSeconds, 5, 'Death March makes crunches longer');
+    assert.equal(E.derive(s).crunchSeconds, 4);
+    s.prestige.levels.hackathon = 3;
+    assert.equal(E.derive(s).crunchSeconds, 6, 'Hackathon makes crunches longer');
 });
 
 test('the engine\'s leg lengths match the physics, so "a full stretch" of XP is what reaching its peak pays', () => {
@@ -877,7 +873,7 @@ test('chains: each cleared hill crossed in a run multiplies what the run earns a
 test('versions: shipping one keeps Insight, legacy nodes and their effects; numbering follows the jump', () => {
     const s = fresh();
     s.attr.intelligence = 10;
-    s.stats.runCp = 1e8;
+    s.path.learned = 8;
     s.levels.gpuCluster2 = 1;
     assert.equal(E.currentVersion(s), 'v1.0');
     assert.equal(E.nextVersion(s).isMajor, true, 'the first release with 3+ Insight is a major one');
@@ -895,9 +891,9 @@ test('versions: shipping one keeps Insight, legacy nodes and their effects; numb
     assert.equal(E.buy(t, 'headStart').ok, true);
     assert.equal(t.prestige.points, gain - 1);
     assert.ok(E.derive(t).cleanPower > before);
-    assert.ok(E.derive(t).mult > 1 + 0.1 * (gain - 1), 'spending Insight keeps its production bonus');
+    assert.ok(Math.abs(E.derive(t).mult - E.insightMult(gain)) < 1e-9, 'spending Insight keeps its production bonus');
     t.attr.intelligence = 10;
-    t.stats.runCp = 1e5;
+    t.path.learned = 4;
     const small = E.prestige(t, NOW);
     assert.equal(small.version, 'v2.1', 'a small gain is a point release');
     const u = small.state;
@@ -1028,7 +1024,7 @@ test('a timed boost covers only its own seconds of a long tick', () => {
 test('shipping a version waits the first-offer delay again', () => {
     const s = fresh();
     s.stats.playTime = 50000;
-    s.stats.runCp = 1e15; s.stats.lifetimeCp = 1e15;
+    s.path.learned = 8;
     s.attr.intelligence = 100;
     const r = E.prestige(s, NOW);
     assert.ok(r.ok);
@@ -1041,4 +1037,54 @@ test('numbers format cleanly at tier edges and in error states', () => {
     assert.equal(E.format(-Infinity), '-∞');
     assert.equal(E.format(NaN), '—');
     assert.equal(E.formatDuration(Infinity), '∞');
+});
+
+test('the lab feeds training: research and data buy training strength, sprints and XP', () => {
+    const s = fresh();
+    const base = E.derive(s);
+    s.levels.machineLearning = 1;
+    assert.ok(E.derive(s).xpMult > base.xpMult, 'Machine Learning: training XP');
+    s.levels.deepLearning = 1;
+    assert.ok(E.derive(s).pushPower > base.pushPower, 'Deep Learning: sprint strength');
+    s.levels.reinforcementLearning = 1;
+    assert.equal(E.derive(s).pushesPerRoll, base.pushesPerRoll + 1, 'Reinforcement Learning: a sprint per run');
+    const papers = E.UPGRADE_BY_ID.publications;
+    assert.ok(papers.cost.rp && !papers.cost.cp && papers.max == null, 'Published Papers: an endless research sink');
+    const data = E.UPGRADE_BY_ID.trainingData;
+    assert.equal(data.tab, 'software');
+    assert.ok(data.cost.dp && data.max == null && data.boost.push > 0, 'the Training Data Pipeline: an endless data sink');
+});
+
+test('Scale Up: the endless node multiplies sprint strength, with a geometric price', () => {
+    const up = E.UPGRADE_BY_ID.scaleUp;
+    assert.ok(up.endless && up.max == null);
+    const s = fresh();
+    const one = E.derive(s).pushPower;
+    s.levels.scaleUp = 5;
+    assert.ok(Math.abs(E.derive(s).pushPower / one - Math.pow(1.1, 5)) < 1e-9);
+    assert.ok(E.upgradeCost(up, 10).xp > 50 * E.upgradeCost(up, 0).xp);
+    const parent = E.UPGRADE_BY_ID[up.requires];
+    assert.ok(up.cost.xp > E.upgradeCost(parent, parent.max - 1).xp, 'dearer than the end of the strength line');
+});
+
+test('Insight comes from skills learned and its bonus diminishes', () => {
+    const s = fresh();
+    s.attr.intelligence = 50;
+    s.path.learned = 6;
+    assert.equal(E.prestigeGain(s), 3, 'General AI ships for 3');
+    s.path.learned = 10;
+    assert.equal(E.prestigeGain(s), 10);
+    s.stats.runCp = 1e15;
+    assert.equal(E.prestigeGain(s), 10, 'compute earned no longer counts');
+    const step = n => E.insightMult(n + 10) - E.insightMult(n);
+    assert.ok(step(0) > step(100), 'each Insight is worth less the more you have');
+    assert.ok(E.insightMult(100) <= 3, 'no runaway: ×3 at 100 Insight');
+});
+
+test('removed skill-tree nodes (viral runs, crunches) refund their XP on load', () => {
+    const s = E.migrate({ version: 7, res: { xp: 10 }, levels: { crunchTime: 2, viralPaper: 1 } }, NOW);
+    assert.equal(s.res.xp, 10 + 400 + 800 + 650);
+    assert.equal(s.levels.crunchTime, undefined);
+    const again = E.migrate(JSON.parse(E.serialize(s)), NOW);
+    assert.equal(again.res.xp, s.res.xp, 'once');
 });

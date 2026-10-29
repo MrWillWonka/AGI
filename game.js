@@ -492,12 +492,35 @@ window.AGI = (function () {
     const AUTOMATES = { compute: 'cpu', collect: 'autoCollector', research: 'researchAssistant' };
 
     // Under each job: how much of it runs by itself, once something does it for you (all your hardware
-    // computes, not just the first machine). No tips about how to get there.
+    // computes, not just the first machine). Before that, progress toward the gate that joins this job to
+    // the rest of the game (the server room, Research, its automation): requirements show, what they open
+    // into stays a surprise beyond its name.
     function automationText(actionId, d) {
         const id = AUTOMATES[actionId];
-        if (!id || !E.level(state, id)) return '';
-        const rate = { compute: [d.cpPerSec, 'CP'], collect: [d.dpPerSec, 'DP'], research: [d.rpPerSec, 'RP'] }[actionId];
-        return `↻ Automated · +${E.format(rate[0])} ${rate[1]}/s`;
+        if (!id) return '';
+        if (E.level(state, id)) {
+            const rate = { compute: [d.cpPerSec, 'CP'], collect: [d.dpPerSec, 'DP'], research: [d.rpPerSec, 'RP'] }[actionId];
+            return `↻ Automated · +${E.format(rate[0])} ${rate[1]}/s`;
+        }
+        return gateText(actionId);
+    }
+
+    function gateText(actionId) {
+        const st = state.stats;
+        if (actionId === 'research' && !state.unlocked['action:research']) {
+            return `Sprints to open: ${Math.min(st.skilledSprints, E.RESEARCH_SPRINTS)}/${E.RESEARCH_SPRINTS}`;
+        }
+        // (A later version reopens it with the first data, so only a brand-new lab counts collections.)
+        if (actionId === 'collect' && !state.unlocked['module:path'] && !state.stats.rolls) {
+            return st.collects < 40 ? `Server room: ${st.collects}/40 collections` : 'Server room: hold 100 CP and 40 DP';
+        }
+        const g = E.automationGate(state, AUTOMATES[actionId]);
+        if (!g || g.met) return '';
+        const parts = [];
+        if (g.done < g.need) parts.push(`${g.done}/${g.need} by hand`);
+        if (!g.skillOk) parts.push(`after skill ${E.AUTOMATION[AUTOMATES[actionId]].skill}`);
+        if (actionId === 'compute' && E.level(state, 'keyboard') < E.CPU_AFTER_CLICK_LEVEL) parts.push('desk built');
+        return parts.length ? `Automation: ${parts.join(' · ')}` : '';
     }
 
     // Lab stations: one per upgrade group (E.TABS), each with its own look, in a reserved slot (its
@@ -939,7 +962,7 @@ window.AGI = (function () {
         const name = E.versionName(next.major, next.minor);
         const { ok } = await openDialog({
             title: `Ship ${name} for ${gain} Insight?`,
-            message: `This run's resources, attributes, skills and upgrades reset (your desk stays built). You keep Insight (+10% automated production and training XP each, and it buys legacy upgrades), legacy upgrades and achievements.`,
+            message: `This run's resources, attributes, skills and upgrades reset (your desk stays built). You keep Insight (automated production and training XP ×${E.insightMult(state.prestige.total).toFixed(2)} → ×${E.insightMult(state.prestige.total + gain).toFixed(2)}, and it buys legacy upgrades), legacy upgrades and achievements.`,
             okLabel: `Ship ${name}`
         });
         if (ok) shipVersion(false);
@@ -1276,10 +1299,15 @@ window.AGI = (function () {
             const autoText = automationText(action.id, d);
             setText(auto, autoText);
             if (auto.title !== autoText) auto.title = autoText;
-            auto.classList.toggle('done', !!(AUTOMATES[action.id] && E.level(state, AUTOMATES[action.id])));
+            const automated = !!(AUTOMATES[action.id] && E.level(state, AUTOMATES[action.id]));
+            auto.classList.toggle('done', automated);
+            auto.classList.toggle('gate', !automated && !!autoText);
             const price = E.actionCost(state, action);
-            setHidden(button, !!action.unlock && !state.unlocked[action.unlock]);
-            setDisabled(button, !E.canAfford(state, price));
+            const locked = !!action.unlock && !state.unlocked[action.unlock];
+            // Research shows (locked, with its progress) once the first skill starts its countdown.
+            const preview = locked && action.id === 'research' && state.path.learned >= 1 && !!state.unlocked['module:path'];
+            setHidden(button, locked && !preview);
+            setDisabled(button, locked || !E.canAfford(state, price));
             setText(gain, gains[action.id]);
             setText(cost, Object.keys(price).length ? E.formatCost(price) : '');
         }
@@ -2352,7 +2380,7 @@ window.AGI = (function () {
     // Each kind of upgrade has its own symbol, picked from what the node boosts (its first stat), so a
     // strength node never looks like a wait node. The seed and the Auto-Trainer keep theirs.
     const STAT_ICON = {
-        push: 'gpu', pushes: 'plus', cooldown: 'timer', charge: 'bolt', friction: 'gauge', slope: 'mountain', xp: 'stack',
+        push: 'gpu', pushMult: 'gpu', pushes: 'plus', cooldown: 'timer', charge: 'bolt', friction: 'gauge', slope: 'mountain', xp: 'stack',
         clean: 'coin', rollBonus: 'db', zone: 'target', cleanPower: 'target', cleanSize: 'target', zoneBias: 'target',
         perfect: 'star', perfectPower: 'star', perfectUnits: 'star', perfectSize: 'star', system: 'terminal',
         critChance: 'dice', critPower: 'dice', superCrit: 'dice', windfallChance: 'spark', windfallPower: 'spark',
@@ -3020,12 +3048,16 @@ window.AGI = (function () {
 
     const CHARGE_SWEEP_MS = 1250;    // time for the meter to sweep from empty to full (then back)
 
-    // Meter position (0–1) while charging: sweeps up to what you can afford, back down, and up again.
+    // Meter position (0–1) while charging: sweeps up to what you can afford, holds there for `hold` ms
+    // (Fast Charging), sweeps back down, and up again.
     function chargeLevel(now = performance.now()) {
         if (!path.charging) return 0;
-        const { cap, sweep } = path.charging;
-        const pos = ((now - path.charging.start) / sweep) % (2 * cap);
-        return pos <= cap ? pos : 2 * cap - pos;
+        const { cap, sweep, hold } = path.charging;
+        const up = cap * sweep;
+        const t = (now - path.charging.start) % (2 * up + hold);
+        if (t <= up) return t / sweep;
+        if (t <= up + hold) return cap;
+        return cap - (t - up - hold) / sweep;
     }
 
     function chargeBudget() {
@@ -3090,7 +3122,7 @@ window.AGI = (function () {
             sprint(roll, 1, true);
             return;
         }
-        path.charging = { start: performance.now(), cap: crunching() || frozen() ? 1 : chargeBudget(), sweep: CHARGE_SWEEP_MS * E.derive(state).sweepScale };
+        path.charging = { start: performance.now(), cap: crunching() || frozen() ? 1 : chargeBudget(), sweep: CHARGE_SWEEP_MS, hold: 1000 * E.derive(state).chargeHold };
         startPathLoop();
     }
 
@@ -3769,6 +3801,12 @@ window.AGI = (function () {
         if (!path.visible) return;
         if (ev.type === 'launch') {
             burst(path.colors.success, 14);
+            // Act two's reveal: the first time the ball leaves the ground (once per save).
+            if (!state.intro['act:two']) {
+                state.intro['act:two'] = true;
+                luckBanner('ACT II', 'The model generalised. Now it flies.', 'success');
+                log('Act II: past General AI the trail opens into giant swells. Build speed and fly off the crests.', 'special');
+            }
             return;
         }
         burst(path.colors.muted, Math.min(26, 6 + Math.round(ev.impact)));
@@ -4992,7 +5030,7 @@ window.AGI = (function () {
             },
             // Buy every Training node to its max (XP-priced ones; the Auto-Trainer is separate).
             maxTree() {
-                for (const up of E.UPGRADES.filter(u => u.tab === 'training' && u.cost.xp)) state.levels[up.id] = up.max;
+                for (const up of E.UPGRADES.filter(u => u.tab === 'training' && u.cost.xp && u.max != null)) state.levels[up.id] = up.max;
                 path.roll = null;
                 afterChange();
             },

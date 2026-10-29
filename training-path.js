@@ -35,22 +35,28 @@
     const BOUNCE = 0.42;        // share of the impact speed a landing bounces back
     const SKID = 0.82;          // share of the speed along the ground kept through a landing
     const BOUNCE_MIN = 1.2;     // below this bounce-back speed the ball sticks and rolls on
-    const LATE_DRAG = 0.25;     // and rolling there keeps its momentum: this share of the quadratic and slope drag
+    const LATE_DRAG = 0.45;     // and rolling there keeps more momentum: this share of the quadratic and slope drag (0.25 made act two a burst)
     const AIR_GRAVITY = 1.9;    // gravity in flight, × GRAVITY: arcs come down with weight instead of hanging (game feel)
     const REGRIP = 0.35;
     // A flight rises at most this far above the ground it left (half that leg's skill hill, at least 4 m), so it
     // comes back within a couple of seconds whatever boosts it.
     const maxAbove = k => Math.max(4, 0.5 * skillHeight(k));
     const SETTLE_TIME = 0.4;    // seconds before touchdown it starts lining its path up with the slope it lands on        // seconds after landing before it can take off again (no hop-stick-hop over a crest)
-    // A crest throws the ball once the ground curves away faster than a flight falls (flight gravity): only then
-    // does it really leave the line. (Against rolling gravity it left and fell straight back into the slope.)
-    const LAUNCH_GRIP = 1;
+    // A crest throws the ball once the ground curves away faster than 0.6 of a flight's fall: crests pop from act
+    // two's first leg (at 1 the sim's player barely flew before leg 10), and the landing planner turns the short
+    // hops into clean arcs onto the next down-slope. (Against rolling gravity alone, ~0.5, it hopped constantly.)
+    const LAUNCH_GRIP = 0.6;
 
     // ---- Skill hills (fixed) -----------------------------------------------
 
     const skillHeight = k => 0.3 * Math.pow(1.5, k);   // each skill hill is a bigger wall than the last
-    // From the late game (LATE_LEG) skill hills are 8× wider, in scale with the giant swells around them.
-    const skillHalfWidth = k => 0.55 * Math.pow(1.14, k) * (k >= 10 ? 8 : 1);
+    // Act two (from leg 6, `LATE_LEG`: the leg after Translation, the skill that reaches General AI) is a
+    // launcher: each leg is a handful of huge swells, far wider than the view, and the ball can fly off
+    // their crests and bounce (see createRoll). Before that, legs are many small rolling hills. The engine
+    // mirrors this as ACT_TWO_LEG (a test keeps them in step).
+    const LATE_LEG = 6;           // (skillHalfWidth widens its hills from here too)
+    // From act two (LATE_LEG) skill hills are 8× wider, in scale with the giant swells around them.
+    const skillHalfWidth = k => 0.55 * Math.pow(1.14, k) * (k >= LATE_LEG ? 8 : 1);
     // Checkpoint to the foot of skill hill k: 10, 17, 26, 36, 50, 69, 93, 124, 166 … Gentle early (no wall
     // at the second skill), then much longer each stretch, so the distance itself becomes the challenge
     // and strength (and later launches and bounces) matters more than the hill count.
@@ -84,10 +90,6 @@
         };
     }
 
-    // The late game (from leg 10, `LATE_LEG`) is a launcher: each leg is a handful of huge swells, far wider
-    // and taller than the view, and the ball can fly off their crests and bounce (see createRoll). Before
-    // that, legs are many small rolling hills.
-    const LATE_LEG = 10;          // (skillHalfWidth widens its hills from here too)
 
     // Rolling hills for stretch k: mostly small, sometimes medium, growing toward the skill hill.
     // `hillScale` (< 1 from upgrades) makes them less steep; the random layout stays the same.
@@ -123,10 +125,12 @@
         const pitch = (to - from) / n;
         const hills = [];
         for (let i = 0; i < n; i++) {
-            const w = pitch * (0.32 + r() * 0.14);
+            const w = pitch * (0.24 + r() * 0.12);   // narrow enough to curve away under act two's first speeds
             const start = from + i * pitch + (pitch - 2 * w) * r();
             const along = i / Math.max(1, n - 1);
-            const h = Math.min(0.65 * skillHeight(k), skillHeight(k) * (0.35 + r() * 0.3) * (0.75 + 0.4 * along)) * hillScale;
+            // The first is a low ramp: right after the start line, a full swell sent a one-sprint ball
+            // straight back over the line (ending the run) before its next sprint was ready.
+            const h = Math.min(0.65 * skillHeight(k), skillHeight(k) * (0.35 + r() * 0.3) * (0.75 + 0.4 * along)) * hillScale * (i === 0 ? 0.35 : 1);
             hills.push({ start, peak: start + w, end: start + 2 * w, height: h, halfWidth: w, skill: null });
         }
         return hills;

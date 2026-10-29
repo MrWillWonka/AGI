@@ -162,7 +162,7 @@ test('engine: training upgrades are bought with XP and change the roll setup', (
     s.unlocked['module:path'] = true;
     E.evaluate(s);
     const base = E.derive(s);
-    assert.equal(base.pushesPerRoll, 1, 'launch only at first');
+    assert.equal(base.pushesPerRoll, 2, 'the launch and one more at first');
     assert.equal(base.pushCooldown, E.PATH.baseCooldown);
     assert.equal(E.buy(s, 'initialWeights').ok, false, 'needs XP');
     s.res.xp = 1000;
@@ -176,7 +176,7 @@ test('engine: training upgrades are bought with XP and change the roll setup', (
         }
     }
     const d = E.derive(s);
-    assert.equal(d.pushesPerRoll, 3, "launch + two levels of Investor Funding");
+    assert.equal(d.pushesPerRoll, 4, "two to start + two levels of Investor Funding");
     assert.ok(d.pushCooldown < base.pushCooldown);
     assert.ok(d.pushPower > base.pushPower);
     s.levels.fasterIteration = 12;
@@ -215,7 +215,7 @@ test('engine: path progress and XP save; prestige resets the run but keeps lifet
     assert.equal(loaded.res.xp, s.res.xp);
     assert.equal(E.migrate({ version: E.SAVE_VERSION, path: { learned: -2, best: 7 } }, NOW).path.best, 1);
     s.attr.intelligence = 10;
-    s.stats.runCp = 1e6;
+    s.path.learned = 5;
     const next = E.prestige(s, NOW + 1).state;
     assert.deepEqual([next.path.learned, next.res.xp, next.stats.rolls, next.stats.skillsLearned], [0, 0, 2, 1]);
 });
@@ -468,11 +468,24 @@ test('onward: cresting the last skill hill emits crest once and the ball rolls o
     assert.ok(roll.ball.x > T.skillHill(0).peak && !roll.crested, 'still rolling past the old hill');
 });
 
-test('legs 1-9 are many small hills; from leg 10 a few giant swells, far wider than the view', () => {
-    assert.ok(T.rollingHills(5, 9).length > 30);
-    const late = T.rollingHills(T.LATE_LEG, 9);
-    assert.ok(late.length >= 4 && late.length <= 7, `${late.length}`);
-    for (const h of late) assert.ok(2 * h.halfWidth > 40 && h.height < 0.7 * T.skillHeight(T.LATE_LEG));
+test('act one is many small hills; act two (from General AI) a few giant swells, many times wider', () => {
+    const before = T.rollingHills(T.LATE_LEG - 1, 9);
+    assert.ok(before.length > 30);
+    const widest = Math.max(...before.map(h => 2 * h.halfWidth));
+    for (const k of [T.LATE_LEG, T.LATE_LEG + 4]) {
+        const late = T.rollingHills(k, 9);
+        assert.ok(late.length >= 4 && late.length <= 8, `${late.length}`);
+        for (const h of late) assert.ok(2 * h.halfWidth > 4 * widest && h.height < 0.7 * T.skillHeight(k));
+    }
+    // The engine's copy of the boundary, and General AI arriving exactly with it on skills alone.
+    assert.equal(E.ACT_TWO_LEG, T.LATE_LEG);
+    const s = E.defaultState(NOW);
+    s.attr.intelligence = 1 + 2 + 2 + 3;   // every algorithm's Intelligence
+    for (let i = 0; i < T.LATE_LEG - 1; i++) E.learnSkill(s, i);
+    assert.equal(E.phaseIndex(s), 0, 'not a skill sooner, whatever research bought');
+    s.attr.intelligence -= 8;
+    E.learnSkill(s, T.LATE_LEG - 1);
+    assert.equal(E.phaseIndex(s), 1, 'General AI with the skill that opens act two');
 });
 
 test('late legs: a fast ball flies off a crest, lands, bounces and rolls on; early legs never launch', () => {
@@ -507,31 +520,36 @@ test('a super flow condenses time: the ball covers warp times the ground', () =>
 });
 
 test('a flight is capped in height, comes back within seconds and settles onto the line without bouncing', () => {
-    const roll = T.createRoll(T.LATE_LEG, 5, { pushes: 3, cooldown: 0.1 });
-    roll.push(0.001);
-    const x = roll.ground.start + 20;
-    const y0 = roll.ground.height(x);
-    Object.assign(roll.ball, { x, v: 40, maxX: x, air: { y: y0, vy: 200, peak: y0, from: x, ceil: y0 + T.maxAbove(T.LATE_LEG) } });
-    let t = 0;
-    let top = y0;
-    const lands = [];
-    while (roll.airborne && t < 20) {
-        for (const e of roll.step(0.05)) if (e.type === 'land') lands.push(e);
-        top = Math.max(top, roll.height);
-        t += 0.05;
+    // A huge upward boost at a fast speed, in scale with the leg.
+    for (const k of [T.LATE_LEG, T.LATE_LEG + 4]) {
+        const roll = T.createRoll(k, 5, { pushes: 3, cooldown: 0.1 });
+        roll.push(0.001);
+        const x = roll.ground.start + 0.2 * (T.skillHill(k).start - roll.ground.start);
+        const y0 = roll.ground.height(x);
+        Object.assign(roll.ball, { x, v: 3.5 * Math.sqrt(9.8 * T.skillHeight(k)), maxX: x, air: { y: y0, vy: 200, peak: y0, from: x, ceil: y0 + T.maxAbove(k) } });
+        let t = 0;
+        let top = y0;
+        const lands = [];
+        while (roll.airborne && t < 20) {
+            for (const e of roll.step(0.05)) if (e.type === 'land') lands.push(e);
+            top = Math.max(top, roll.height);
+            t += 0.05;
+        }
+        assert.ok(top <= y0 + T.maxAbove(k) + 0.01, `top ${top}`);
+        assert.ok(t < 4, `aloft ${t.toFixed(1)} s`);
+        assert.equal(lands.filter(e => e.bounce).length, 0, `leg ${k}: eases onto the slope, no bounce`);
     }
-    assert.ok(top <= y0 + T.maxAbove(T.LATE_LEG) + 0.01, `top ${top}`);
-    assert.ok(t < 4, `aloft ${t.toFixed(1)} s`);
-    assert.equal(lands.filter(e => e.bounce).length, 0, 'eases onto the slope, no bounce');
 });
 
 test('flights come down on the nearest down-slope, never on a face', () => {
     let flights = 0;
     let down = 0;
-    for (let seed = 1; seed <= 40; seed++) for (const v of [25, 45, 60]) {
-        const roll = T.createRoll(T.LATE_LEG + (seed % 3), seed * 17, { pushes: 1, cooldown: 1 });
+    // Speeds in scale with the leg (its skill hill's height): a fast, a faster and a very fast ball.
+    for (let seed = 1; seed <= 40; seed++) for (const f of [1.5, 2.5, 3.5]) {
+        const k = T.LATE_LEG + (seed % 3) * 2;
+        const roll = T.createRoll(k, seed * 17, { pushes: 1, cooldown: 1 });
         roll.push(0.001);
-        roll.ball.v = v;
+        roll.ball.v = f * Math.sqrt(9.8 * T.skillHeight(k));
         for (let t = 0; t < 20 && !roll.over && !roll.atRest; t += 0.05) {
             for (const e of roll.step(0.05)) {
                 if (e.type !== 'land' || e.flight <= 3) continue;
