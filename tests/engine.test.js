@@ -1251,3 +1251,11 @@ test('Transcend: only at the Singularity; versions and Insight start over, Trans
     t.path.learned = 8;
     assert.equal(E.prestigeGain(t), Math.floor(E.insightAt(8) * 3), '+50% Insight per point');
 });
+
+test('act two\'s first legs are shorter but pay what their full length did', () => {
+    const full = k => E.PATH.xpPerMetre * Math.pow(E.PATH.metreScale, k) * ((10 * Math.pow(1.4, k - 1) + 3 * (k - 1)) + 0.55 * Math.pow(1.14, k - 1) * 8 - 0.2) * 2;
+    for (const k of [E.ACT_TWO_LEG, E.ACT_TWO_LEG + 1, E.ACT_TWO_LEG + 2]) {
+        const short = E.stretchXpAt(k);
+        assert.ok(short > 0.9 * full(k) && short < 1.15 * full(k), `leg ${k}: ${short.toFixed(1)} vs ${full(k).toFixed(1)}`);
+    }
+});

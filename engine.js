@@ -1102,11 +1102,15 @@
 
     // Metres from leg k's start to its skill hill's peak. Mirrors training-path.js (stretchLength plus the
     // hill's half width, less the 0.2 m start offset); a test keeps the two in step.
+    // Act two's first legs are shorter (training-path.js ACT_TWO_EASE, mirrored here) but pay what their full
+    // length did: their metres pay at 1/ease (shortening them alone cut the XP the tree needed, and the wall stayed).
+    const ACT_TWO_EASE = [0.7, 0.76, 0.88];
+    const legEase = k => (k >= ACT_TWO_LEG ? ACT_TWO_EASE[k - ACT_TWO_LEG] ?? 1 : 1);
     const legMetres = k => (k === 0 ? 2 + 0.45 - 0.2   // the warm-up leg
-        : (k === 1 ? 9 : (10 * Math.pow(1.4, k - 1) + 3 * (k - 1)) * (k < ACT_TWO_LEG ? 0.8 : 1)) + 0.55 * Math.pow(1.14, k - 1) * (k >= ACT_TWO_LEG ? 8 : 1) - 0.2);
+        : (k === 1 ? 9 : (10 * Math.pow(1.4, k - 1) + 3 * (k - 1)) * (k < ACT_TWO_LEG ? 0.8 : legEase(k))) + 0.55 * Math.pow(1.14, k - 1) * (k >= ACT_TWO_LEG ? 8 : 1) - 0.2);
     // What reaching leg k's peak pays by distance (before cresting and bonuses): the yardstick for
     // everything sized "per stretch" (clean-sprint XP, replays, passive XP, investor payouts).
-    const stretchXpAt = k => PATH.xpPerMetre * Math.pow(PATH.metreScale, k) * legMetres(k) * 2;
+    const stretchXpAt = k => PATH.xpPerMetre * Math.pow(PATH.metreScale, k) * legMetres(k) * 2 / legEase(k);
     // Seconds per automated lap of cleared stretch k (the rack's crawling balls show the same laps).
     const clearedPeriod = k => 40 + 5 * k;
 
@@ -1171,7 +1175,7 @@
         const bonus = (1 + d.cleanRollBonus * units) * d.xpMult;
         // A metre is a metre: on a replay, distance pays at the frontier's rate (times the replay share), so
         // early legs aren't worth less just for being early.
-        const perMetre = PATH.xpPerMetre * Math.pow(PATH.metreScale, s.path.learned) * (leg < s.path.learned ? PATH.replayXp : 1);
+        const perMetre = PATH.xpPerMetre * Math.pow(PATH.metreScale, s.path.learned) * (leg < s.path.learned ? PATH.replayXp : 1) / legEase(leg);
         return perMetre * Math.max(0, metres) * (1 + progress) * (crested && leg >= s.path.learned ? PATH.crestBonus : 1) * bonus;
     }
 

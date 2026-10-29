@@ -93,9 +93,13 @@
     // at the second skill), then much longer each stretch, so the distance itself becomes the challenge
     // and strength (and later launches and bounces) matters more than the hill count.
     // Pattern Matching's leg is 9 m (10 by the formula): with the warm-up skill in hand, it lands about 15 runs in.
-    // Act one's legs after Pattern Matching's are a fifth shorter (ACT_ONE_LENGTH), for the same 30 minutes.
+    // Act one's legs after Pattern Matching's are a fifth shorter (ACT_ONE_LENGTH), for the same 30 minutes, and
+    // act two's first three ease back up to full length (ACT_TWO_EASE): reached 20 minutes sooner, its first leg
+    // had become a 15-minute wall.
     const ACT_ONE_LENGTH = 0.8;
-    const stretchLength = k => (k === 0 ? TUTORIAL.length : k === 1 ? 9 : (10 * Math.pow(1.4, k - 1) + 3 * (k - 1)) * (k < LATE_LEG ? ACT_ONE_LENGTH : 1));
+    const ACT_TWO_EASE = [0.7, 0.76, 0.88];
+    const lengthScale = k => (k < LATE_LEG ? ACT_ONE_LENGTH : ACT_TWO_EASE[k - LATE_LEG] ?? 1);
+    const stretchLength = k => (k === 0 ? TUTORIAL.length : k === 1 ? 9 : (10 * Math.pow(1.4, k - 1) + 3 * (k - 1)) * lengthScale(k));
 
     const checkpoints = [0];    // checkpoints[k] = x where stretch k starts
     function checkpoint(k) {
@@ -790,7 +794,7 @@
     }
 
     return {
-        STEP, GRAVITY, BUMPER, TUCK_GRAVITY, features, KICKERS, KICK_SLOPE, bumpAt, bumpSlope,
+        STEP, GRAVITY, BUMPER, lengthScale, TUCK_GRAVITY, features, KICKERS, KICK_SLOPE, bumpAt, bumpSlope,
         LATE_LEG, maxAbove, checkpoint, skillHill, skillHeight, rollingHills, terrain, createRoll, rng
     };
 });
