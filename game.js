@@ -141,6 +141,12 @@ window.AGI = (function () {
         }
         // The new section waits (invisible) until the others have made room.
         if (moved) for (const n of fresh) n.style.animationDelay = `${MAKE_ROOM_MS + 80}ms`;
+        // Panels resize while they make room, so their lists clip rather than flash a scrollbar meanwhile.
+        if (moved) {
+            document.body.classList.add('making-room');
+            clearTimeout(playMakeRoom.timer);
+            playMakeRoom.timer = setTimeout(() => document.body.classList.remove('making-room'), MAKE_ROOM_MS + 50);
+        }
     }
 
     // New sections don't just pop in: panels, stations, supply cells, chips, workbench jobs, tasks, tree
@@ -716,7 +722,8 @@ window.AGI = (function () {
             }
             const l = st.list;
             if (!st.node.offsetParent) continue;   // off screen: no layout reads
-            const overflowing = l.scrollHeight - l.scrollTop - l.clientHeight > 8;
+            nearlyFits(l);
+            const overflowing = l.scrollHeight - l.scrollTop - l.clientHeight > NEARLY_FITS;
             setHidden(st.more, !overflowing);
             if (overflowing) {
                 const bottom = l.getBoundingClientRect().bottom;
@@ -724,7 +731,44 @@ window.AGI = (function () {
                 setText(st.more, below ? `▾ ${below} more` : '▾ more below');
             }
         }
+        nearlyFits($('actions'));
+        if ($('taskList').offsetParent) nearlyFits($('taskList'));
         renderCabinets();
+    }
+
+    // A list that overflows its panel by only a few pixels (a card's bottom padding, mid-animation sizes)
+    // clips instead of showing a scrollbar for them; real overflow keeps its scrollbar (and the "▾ more" pill).
+    const NEARLY_FITS = 12;
+    function nearlyFits(list) {
+        if (!list) return;
+        watchFit(list);
+        const over = list.scrollHeight - list.clientHeight;
+        const tiny = over > 0 && over <= NEARLY_FITS;
+        if (tiny !== list.classList.contains('nearly-fits')) {
+            list.classList.toggle('nearly-fits', tiny);
+            if (tiny) list.scrollTop = 0;
+        }
+    }
+    // Lists are re-checked the moment they or their items change size (ResizeObserver runs before paint),
+    // so a scrollbar never shows for even a frame between render ticks.
+    const fitWatched = new WeakSet();
+    let fitResize, fitMutate;
+    function watchFit(list) {
+        if (fitWatched.has(list) || typeof ResizeObserver === 'undefined') return;
+        fitWatched.add(list);
+        fitResize ||= new ResizeObserver(entries => {
+            const lists = new Set(entries.map(e => (fitWatched.has(e.target) ? e.target : e.target.parentElement)));
+            for (const l of lists) if (l && fitWatched.has(l)) nearlyFits(l);
+        });
+        fitMutate ||= new MutationObserver(records => {
+            for (const r of records) {
+                for (const n of r.addedNodes) if (n.nodeType === 1) fitResize.observe(n);
+                nearlyFits(r.target);
+            }
+        });
+        fitResize.observe(list);
+        for (const c of list.children) fitResize.observe(c);
+        fitMutate.observe(list, { childList: true });
     }
 
     // Server cabinets: the hardware you own, racked in the order you bought it, all kinds mixed together
