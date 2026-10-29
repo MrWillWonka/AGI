@@ -660,6 +660,7 @@ window.AGI = (function () {
                 st.order = order;
             }
             const l = st.list;
+            if (!st.node.offsetParent) continue;   // off screen: no layout reads
             const overflowing = l.scrollHeight - l.scrollTop - l.clientHeight > 8;
             setHidden(st.more, !overflowing);
             if (overflowing) {
@@ -782,7 +783,12 @@ window.AGI = (function () {
         return racks;
     }
 
+    let cabinetLevels = '';
     function renderCabinets() {
+        // Runs every tick: skip reading and parsing the buy log unless the hardware you own changed.
+        const levels = Object.keys(HW_PIECES).map(id => E.level(state, id)).join(',');
+        if (cabinetKey !== null && levels === cabinetLevels) return;
+        cabinetLevels = levels;
         const log = rackLog();
         const key = log.join(',');
         if (key === cabinetKey) return;
@@ -2085,7 +2091,7 @@ window.AGI = (function () {
         if (tier === 'wide') {
             // Columns: each [top, bottom].
             const cols = [['bench', 'bench'], ['hw', 'hw']];
-            if (has.sw) cols.push(['sw', has.cs ? 'cs' : 'sw']);
+            if (has.sw || has.cs) cols.push([has.sw ? 'sw' : 'cs', has.cs ? 'cs' : 'sw']);
             if (has.rs || has.proj) cols.push([has.rs ? 'rs' : 'proj', has.proj ? 'proj' : 'rs']);
             if (has.tasks) cols.push(['tasks', 'tasks']);
             const n = cols.length;
@@ -4932,6 +4938,7 @@ window.AGI = (function () {
             },
             unlockAll() {
                 E.MILESTONES.forEach(m => { state.unlocked[m.key] = true; });
+                E.REVEALS.forEach(r => { state.unlocked[r.key] = true; });
                 E.UPGRADES.forEach(u => { state.unlocked['up:' + u.id] = true; });
                 afterChange();
             },
