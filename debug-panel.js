@@ -77,6 +77,15 @@
             return label;
         });
 
+        // Per second: a flat amount of each resource added every second of game time (0 = off).
+        const incomeInputs = Object.entries(E.RESOURCES).map(([k, r]) => {
+            const label = document.createElement('label');
+            const input = amountInput(AGI.debug.income[k] || 0);
+            input.addEventListener('input', () => { AGI.debug.income[k] = Math.max(0, Number(input.value) || 0); });
+            label.append(`${r.short}/s`, input);
+            return label;
+        });
+
         const simAmount = amountInput(3600, 60);
         const stateView = document.createElement('pre');
 
@@ -96,6 +105,7 @@
             section('Save', button('Save now', AGI.save), button('Start over', AGI.debug.startOver)),
             section('Resources', resAmount, ...resButtons),
             section('Attributes', attrAmount, ...attrButtons),
+            section('Per second', ...incomeInputs),
             section('Rate multipliers', ...rateInputs),
             section('Time', simAmount, button('Simulate seconds', () => AGI.debug.simulate(Number(simAmount.value) || 0))),
             section('Game speed', ...speedButtons),

@@ -12,6 +12,7 @@ node --test                  # engine unit tests (Node 18+, no install needed)
 Open `/?debug` (or press <kbd>`</kbd>) for the debug panel (`debug-panel.js`, which talks only to `AGI.debug`):
 - **Save** (first, so it's easy to reach): save now, or start over (wipes the save and all screen state: open bay, result card, room visits, tree view).
 - **Resources / Attributes:** add any amount (XP included; added CP counts as earned this run, so it moves the hardware reveals and shipping).
+- **Per second:** a flat amount of any resource (Insight included) added every second of game time, on top of production (`AGI.debug.income`; follows game speed and Simulate; debug CP counts as earned). 0 turns it off.
 - **Rate multipliers:** CP, DP, RP and XP/s (cleared stretches).
 - **Time:** simulate N seconds, or set a **game speed** (1×/2×/5×/20×) for both the economy and the training physics.
 - **Progress:** learn the next skill, reach a phase, or unlock everything.

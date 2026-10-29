@@ -13,6 +13,8 @@ window.AGI = (function () {
     let lastTick = Date.now();
     let lastSave = Date.now();
     const debugRates = { cp: 1, dp: 1, rp: 1, xp: 1 };
+    // Debug: flat amounts added every second of game time (on top of production), per resource.
+    const debugIncome = { cp: 0, dp: 0, rp: 0, xp: 0, insight: 0 };
     let debugSpeed = 1;         // debug: game speed (economy ticks and training physics)
     const ui = { binds: [], actions: {}, upgrades: {}, stations: {}, panels: {}, milestones: {}, achievements: {} };
 
@@ -1111,6 +1113,24 @@ window.AGI = (function () {
         }
     }
 
+    function addDebugIncome(seconds) {
+        for (const [k, perSec] of Object.entries(debugIncome)) {
+            const amount = perSec * seconds;
+            if (!amount) continue;
+            if (k === 'insight') {
+                state.prestige.points += amount;
+                state.prestige.total += amount;
+                continue;
+            }
+            state.res[k] += amount;
+            // Like the debug add: debug CP counts as earned (hardware reveals, shipping).
+            if (k === 'cp') {
+                state.stats.runCp += amount;
+                state.stats.lifetimeCp += amount;
+            }
+        }
+    }
+
     function tick() {
         const now = Date.now();
         const dt = (now - lastTick) / 1000;
@@ -1119,9 +1139,11 @@ window.AGI = (function () {
         if (dt > 60) {
             const seconds = state.settings.offline ? Math.min(dt, E.MAX_OFFLINE_SECONDS) : 0;
             E.tick(state, seconds, debugRates);
+            addDebugIncome(seconds);
             reportOffline(seconds);
         } else {
             E.tick(state, dt * debugSpeed, debugRates);
+            addDebugIncome(dt * debugSpeed);
             sampleLab(dt * debugSpeed);
             advanceTasks(dt * debugSpeed);
         }
@@ -4977,6 +4999,7 @@ window.AGI = (function () {
         save: () => save(true),
         debug: {
             rates: debugRates,
+            income: debugIncome,
             add(path, amount) {
                 const [group, key] = path.split('.');
                 // Insight lives with the version (spendable and lifetime).
@@ -5225,6 +5248,7 @@ window.AGI = (function () {
             },
             simulate(seconds) {
                 E.tick(state, seconds, debugRates);
+                addDebugIncome(seconds);
                 afterChange();
             },
             log
