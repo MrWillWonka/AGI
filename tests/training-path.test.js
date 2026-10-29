@@ -689,3 +689,36 @@ test('a spent ball sloshing over a boost strip still ends its run (it used to ne
     for (let t = 0; t < 120 && !roll.over; t += 0.05) roll.step(0.05);
     assert.equal(roll.over, true);
 });
+
+test('an air dive (tucked in flight) comes down sooner, on a down-slope, and keeps its speed', () => {
+    let tried = 0, sooner = 0;
+    for (let seed = 1; seed <= 12; seed++) {
+        const fling = tuck => {
+            const roll = T.createRoll(T.LATE_LEG, seed, { pushes: 0, cooldown: 1, onward: true, last: T.LATE_LEG });
+            for (let i = 0; i < 40; i++) roll.step(1 / 60);   // settle on the line
+            roll.fly(9, 6);
+            let land = null;
+            for (let i = 0; i < 1200 && !land; i++) {
+                if (i === 12) roll.tuck = tuck;
+                land = roll.step(1 / 60).find(e => e.type === 'land');
+            }
+            return { land, v: roll.ball.v };
+        };
+        const a = fling(false);
+        const b = fling(true);
+        if (!a.land || !b.land) continue;
+        tried++;
+        assert.ok(b.land.x <= a.land.x + 0.5, `seed ${seed}: dived at ${b.land.x.toFixed(2)}, glided to ${a.land.x.toFixed(2)}`);
+        if (b.land.x < a.land.x - 0.5) sooner++;
+        if (b.land.dive) {
+            assert.equal(b.land.bounce, false, 'an air dive sticks');
+            assert.ok(b.v > 0, 'and rolls on forward');
+        }
+    }
+    assert.ok(tried >= 6 && sooner >= tried / 3, `${sooner}/${tried} came down sooner`);
+});
+
+test('tucked, the ball takes tokens from further away', () => {
+    assert.ok(T.TOKEN_PULL > 1);
+    assert.ok(T.AIR_DIVE > 1 && T.AIR_DIVE < 1.15);
+});

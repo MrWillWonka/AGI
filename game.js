@@ -1157,7 +1157,7 @@ window.AGI = (function () {
 
     // R&D's other projects: challenges (after three versions) and Transcend (at the Singularity). Each slot
     // stays a sealed ??? until it opens.
-    const rndUi = { rows: {} };
+    const rndUi = { rows: {}, perks: {} };
     function buildRnd() {
         const list = $('challengeList');
         for (const c of E.CHALLENGES) {
@@ -1175,6 +1175,26 @@ window.AGI = (function () {
             rndUi.rows[c.id] = { row, button };
         }
         $('ascendButton').addEventListener('click', doTranscend);
+        const perks = $('perkList');
+        for (const p of E.TRANSCEND_PERKS) {
+            const button = el('button', { type: 'button', class: 'ghost-button' });
+            const level = el('span', { class: 'perk-level' });
+            const row = el('li', { class: 'challenge perk' }, [
+                el('div', { class: 'challenge-text' }, [
+                    el('strong', {}, [el('span', { text: p.name }), level]),
+                    el('span', { class: 'challenge-rule', text: p.effect })
+                ]),
+                button
+            ]);
+            button.addEventListener('click', () => {
+                if (!E.buyPerk(state, p.id)) return;
+                log(`Transcendence perk: ${p.name}${p.costs.length > 1 ? ` ${E.perkLevel(state, p.id)}` : ''}.`, 'special');
+                afterChange();
+                save();
+            });
+            perks.append(row);
+            rndUi.perks[p.id] = { row, button, level };
+        }
     }
 
     function renderRnd() {
@@ -1212,6 +1232,17 @@ window.AGI = (function () {
                 ? `Start over from v1.0 for +${E.format(tg)} Transcendence: every point makes each release bring +50% Insight. Challenges beaten stay beaten.`
                 : `Each release brings ×${E.insightBoost(state).toFixed(1)} Insight. Reach the Singularity again to transcend further.`);
             setDisabled($('ascendButton'), tg < 1);
+            setText($('perkPoints'), `${E.format(state.transcend.points)} to spend`);
+            for (const p of E.TRANSCEND_PERKS) {
+                const { row, button, level } = rndUi.perks[p.id];
+                const lv = E.perkLevel(state, p.id);
+                const maxed = lv >= p.costs.length;
+                row.classList.toggle('done', maxed);
+                setText(level, p.costs.length > 1 ? ` · ${lv}/${p.costs.length}` : '');
+                const cost = E.perkCost(state, p.id);
+                setText(button, maxed ? (p.costs.length > 1 ? 'Maxed ✓' : 'Owned ✓') : `Buy (${cost})`);
+                setDisabled(button, maxed || state.transcend.points < cost);
+            }
         }
     }
 
@@ -1240,7 +1271,7 @@ window.AGI = (function () {
         if (gain < 1) return;
         const { ok } = await openDialog({
             title: `Transcend for ${gain} Transcendence?`,
-            message: 'Everything starts over from v1.0: versions, Insight and legacy upgrades too. You keep Transcendence (each release brings +50% Insight per point), achievements and the challenges you\'ve beaten.',
+            message: 'Everything starts over from v1.0: versions, Insight and legacy upgrades too. You keep Transcendence (each release brings +50% Insight per point) and its perks, achievements and the challenges you\'ve beaten.',
             okLabel: 'Transcend',
             danger: true
         });
@@ -2225,11 +2256,12 @@ window.AGI = (function () {
             min.setAttribute('aria-pressed', String(on));
         };
         // On Surveillance (the map itself, full size), inside a bay (the trail and meter run to the corner)
-        // and in the lab on a small desktop (below 1440 px it sat over the cards as the lab scrolled), it
+        // and in the lab or R&D on a small desktop (below 1440 px it sat over the cards, and over Transcend's
+        // perks), it
         // shrinks to the pill without changing your setting; hover still opens it.
         let auto = null;
         mapAutoMin = () => {
-            const want = view === 'facility' || !!openBay || (view === 'lab' && window.innerWidth < 1440);
+            const want = view === 'facility' || !!openBay || ((view === 'lab' || view === 'rnd') && window.innerWidth < 1440);
             if (want === auto || zooming) return;   // resizing rooms mid-zoom throws the zoom off
             auto = want;
             setMin(want || storageGet(MAP_MIN_KEY) === '1');
@@ -2834,7 +2866,7 @@ window.AGI = (function () {
                 const card = el('article', { class: 'legacy-card', hidden: true }, [
                     el('span', { class: 'legacy-icon', 'aria-hidden': 'true' }),
                     el('div', { class: 'legacy-info' }, [
-                        el('h4', {}, [el('span', { text: up.name }), level]),
+                        el('h4', {}, [el('span', { text: up.name }), up.tag ? el('span', { class: 'legacy-tag', text: up.tag }) : null, level].filter(Boolean)),
                         el('p', { class: 'legacy-effect', text: up.effect }),
                         el('p', { class: 'legacy-flavor', text: up.flavor })
                     ]),
@@ -3163,6 +3195,40 @@ window.AGI = (function () {
 
     // Rebuilt only when what it shows changes: render() runs every tick, and replacing the button
     // between pointerdown and pointerup would swallow the click.
+    // What buying the next level does to the run, as "now → after" (the node's first stat that moves a
+    // derived number). Status, like the lab cards' live lines.
+    const previewPct = v => `${Math.round(v * 100)}%`;
+    const STAT_PREVIEW = {
+        push: ['pushPower', 'Sprint strength', v => v.toFixed(2)], pushMult: ['pushPower', 'Sprint strength', v => v.toFixed(2)],
+        pushes: ['pushesPerRoll', 'Sprints per run', v => String(v)], cooldown: ['pushCooldown', 'Wait between sprints', v => `${v.toFixed(2)} s`],
+        xp: ['xpMult', 'Training XP', v => `×${v.toFixed(2)}`], friction: ['friction', 'Drag', previewPct], slope: ['hillScale', 'Rolling hills', previewPct],
+        zone: ['zoneWidth', 'Clean prompt zone', previewPct], cleanSize: ['zoneWidth', 'Clean prompt zone', previewPct], zoneBias: ['zoneBias', 'Zone height', v => `+${previewPct(v)}`],
+        cleanPower: ['cleanPower', 'Clean prompt power', v => `×${v.toFixed(2)}`], perfectPower: ['perfectPower', 'Super prompt power', v => `×${v.toFixed(2)}`],
+        perfect: ['perfectWidth', 'Super prompt', previewPct], perfectSize: ['perfectWidth', 'Super prompt', previewPct], perfectUnits: ['perfectUnits', 'Super prompt worth', v => `${v.toFixed(1)} clean`],
+        clean: ['cleanMult', 'Clean prompt XP', v => `×${v.toFixed(2)}`], rollBonus: ['cleanRollBonus', 'Run bonus per prompt', previewPct], charge: ['chargeHold', 'Meter holds at the top', v => `${v.toFixed(2)} s`],
+        critChance: ['critChance', 'Breakthrough chance', previewPct], critPower: ['critMult', 'Breakthrough power', v => `×${v.toFixed(2)}`],
+        maxEffortChance: ['maxEffortChance', 'Max Effort chance', previewPct], maxEffortPower: ['maxEffortMult', 'Max Effort power', v => `×${v.toFixed(2)}`],
+        windfallChance: ['windfallChance', 'Viral chance', previewPct], windfallPower: ['windfallMult', 'Viral run', v => `×${v.toFixed(2)}`],
+        crunchChance: ['crunchChance', 'Crunch chance', previewPct], crunchTime: ['crunchSeconds', 'Crunch', v => `${v.toFixed(1)} s`],
+        flowChance: ['flowChance', 'Flow chance', previewPct], flowTime: ['flowSeconds', 'Flow', v => `${v.toFixed(1)} s`], system: ['systemWidth', 'System prompt', previewPct]
+    };
+    function nodePreview(up, lvl) {
+        if (!up.boost) return null;
+        for (const stat of Object.keys(up.boost)) {
+            const p = STAT_PREVIEW[stat];
+            if (!p) continue;
+            const now = E.derive(state)[p[0]];
+            const store = up.legacy ? state.prestige.levels : state.levels;
+            const had = store[up.id];
+            store[up.id] = lvl + 1;
+            const next = E.derive(state)[p[0]];
+            if (had === undefined) delete store[up.id]; else store[up.id] = had;
+            if (typeof now !== 'number' || Math.abs(next - now) < 1e-9) continue;
+            return `${p[1]}: ${p[2](now)} → ${p[2](next)}`;
+        }
+        return null;
+    }
+
     function renderNodeDetail() {
         const up = E.UPGRADE_BY_ID[path.selected];
         const box = $('nodeDetail');
@@ -3194,6 +3260,8 @@ window.AGI = (function () {
             parts.push(el('p', { class: 'detail-maxed', text: 'Fully upgraded' }));
         } else {
             const cost = E.upgradeCost(up, lvl);
+            const preview = nodePreview(up, lvl);
+            if (preview) parts.push(el('p', { class: 'detail-preview', text: preview }));
             const buy = el('button', { type: 'button', class: 'button detail-buy', text: `${lvl ? 'Upgrade' : 'Unlock'} · ${E.formatCost(cost)}` });
             buy.disabled = !E.canAfford(state, cost);
             // Multi-level nodes keep the popup open (with the next level's price under the pointer) so
@@ -3320,7 +3388,10 @@ window.AGI = (function () {
     const PAD_X = 16;
     const PAD_TOP = 34;
     const PAD_BOTTOM = 26;
-    const BALL = 7;
+    // The ball's radius in px: grows with the zoom (BALL_MIN at wide views, BALL_MAX close up), eased per frame.
+    const BALL_MIN = 7;
+    const BALL_MAX = 12;
+    let BALL = BALL_MIN;
 
     // ---- Luck effects (power-ups) ----
     // Breakthrough: the ball glows, shakes and draws in sparks for a moment (the run holds still, and you
@@ -4172,10 +4243,11 @@ window.AGI = (function () {
             autoTrain(roll);
             if (path.held && !path.holdTuck && !path.charging && path.view === 'run' && !path.done && readyToFire(roll)) startCharge();
             // The tuck: a hold that isn't charging a sprint (during the wait, or with none left) makes the ball
-            // heavier on act two's swells. (The Auto-Trainer never tucks.)
-            roll.tuck = !!path.held && !path.charging && path.view === 'run' && !roll.airborne && roll.leg >= T.LATE_LEG;
+            // heavier on act two's swells; in the air it dives for the first down-slope it can reach (an air
+            // dive). (The Auto-Trainer never tucks.)
+            roll.tuck = !!path.held && !path.charging && path.view === 'run' && roll.leg >= T.LATE_LEG;
             // Keep score of the dive: time held going down, and time held into the climb after it.
-            if (roll.tuck) {
+            if (roll.tuck && !roll.airborne) {
                 const sl = roll.ground.slope(roll.ball.x);
                 const d = path.dive || (path.dive = { down: 0, late: 0 });
                 if (sl < -0.05) { d.down += dt; d.late = 0; } else if (sl > 0.1) d.late += dt;
@@ -4265,8 +4337,9 @@ window.AGI = (function () {
         if (path.focus === hill && path.tension > 0) return hill;
         // Rare on purpose: not again for a while after the last one.
         if (performance.now() < (path.dramaQuiet || 0)) return null;
-        // Within 5% of the top, with almost exactly the energy it needs: a real coin flip.
-        if (g.height(x) < 0.95 * hill.height) return null;
+        // Within 5% of the top, with almost exactly the energy it needs: a real coin flip. Act two's skill walls
+        // are long climbs, and by 95% the energy had already left the window, so it never fired there: 88%.
+        if (g.height(x) < (roll.leg >= T.LATE_LEG ? 0.88 : 0.95) * hill.height) return null;
         const need = T.GRAVITY * (hill.height - g.height(x));
         if (need <= 0) return null;
         const ratio = 0.5 * roll.ball.v * roll.ball.v / need;
@@ -4334,6 +4407,7 @@ window.AGI = (function () {
         // What it earned, where it happened (it used to wait for the result card), and a beat of stillness.
         path.fx.pops.push({ wx: hill.peak, wh: hill.height, age: 0, life: 2.6, big: true, text: `+${xpText(xp)} XP · ${skill.effect}` });
         path.hitStop = HIT_STOP;
+        path.fx.shake = Math.max(path.fx.shake, 0.18);   // a camera punch with the beat
         path.glow = { skill: state.path.learned - 1, age: 0 };
         const grants = Object.entries(skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
         log(`Learned ${skill.name}: ${skill.effect} (${grants ? grants + ', ' : ''}+${xpText(xp)} XP). ${skill.flavor}`, 'special');
@@ -4348,6 +4422,7 @@ window.AGI = (function () {
         if (roll && ev.type === 'land') {
             roll.bestFlight = Math.max(roll.bestFlight || 0, ev.flight || 0);
             roll.bestHeight = Math.max(roll.bestHeight || 0, ev.height || 0);
+            if ((ev.flight || 0) >= E.LONG_FLIGHT) state.stats.flights++;
         }
         if (!path.visible) return;
         if (ev.type === 'launch') {
@@ -4363,6 +4438,13 @@ window.AGI = (function () {
         }
         burst(path.colors.muted, Math.min(26, 6 + Math.round(ev.impact)));
         sfx('land', { impact: ev.impact });
+        // Tucked onto a down-slope from the air: an air dive (the physics adds the speed).
+        if (ev.dive && roll) {
+            path.fx.pops.push({ wx: ev.x, wh: roll.ground.height(ev.x), age: 0, life: 1.2, big: true, text: 'AIR DIVE' });
+            path.fx.boost = Math.max(path.fx.boost, 0.25);
+            roll.dives = (roll.dives || 0) + 1;
+            trailSfx('clean');
+        }
         if (ev.impact > 12) path.fx.shake = Math.max(path.fx.shake, Math.min(0.35, ev.impact / 60));
         if (ev.flight > 12) path.legFlash = { age: 0, text: `${Math.round(ev.flight)} m flight${ev.height > 1 ? ` · ${ev.height.toFixed(1)} m up` : ''}`, tone: 'success' };
     }
@@ -4466,6 +4548,18 @@ window.AGI = (function () {
                 callout('hint:replay', 'Tip', 'Your AI now replays your best run on each cleared leg for passive XP. Run a leg again with better upgrades to raise it.');
             }
         } else {
+            // So close: stopped on the frontier's climb near the top. A consolation share and how much more speed
+            // it needed (status, not a recipe).
+            const goal = roll.ground.goal;
+            const top = roll.ball.maxX;
+            if (!replay && !legs && !ev.rolledBack && leg === state.path.learned && top > goal.start && top < goal.peak) {
+                const frac = roll.ground.height(top) / goal.height;
+                const near = E.nearMiss(state, frac, result.xp + banked);
+                if (near > 0) {
+                    result.xp += near;
+                    lines.unshift([`So close: about ${Math.max(1, Math.round(E.speedShort(frac) * 100))}% more speed would have crested it`, `+${xpText(near)} XP`, 'good']);
+                }
+            }
             const bonus = clean ? `, ${clean} prompt${clean === 1 ? '' : 's'}` : '';
             const crossed = legs ? `crossed ${legs} cleared leg${legs === 1 ? '' : 's'}, then ` : '';
             const where = ev.rolledBack ? 'Rolled back to the start' : `${legs ? 'Then stopped' : 'Stopped'} ${pct}% of the way to ${target}`;
@@ -4749,7 +4843,15 @@ window.AGI = (function () {
             view *= condense;
             const left = leftOf(view);
             const bottom = Math.max(0, floorIn(view) - fitH(view) * 0.06);
-            return { left, right: left + view, bottom, condense, relief: LATE_RELIEF };
+            if (!(path.tension > 0) || !path.focus) return { left, right: left + view, bottom, condense, relief: LATE_RELIEF };
+            // Nail-biter (and the summit): push in on the ball and the crest, with the crest high in the frame.
+            const f = path.focus;
+            const close = Math.min(view, Math.max(LATE_VIEW * 0.6, (f.peak - roll.ball.x) / 0.6 + 4));
+            const closeLeft = roll.ball.x - close * 0.3;
+            const closeBottom = Math.max(0, f.height - 0.75 * fitH(close));
+            const k = path.tension;
+            const l = left + (closeLeft - left) * k;
+            return { left: l, right: l + view + (close - view) * k, bottom: bottom + (closeBottom - bottom) * k, condense, relief: LATE_RELIEF };
         }
         const span = T.skillHill(leg).end - g.legStart(leg);
         const base = Math.min(span + 0.6, Math.max(3, span * 0.25));
@@ -4934,8 +5036,11 @@ window.AGI = (function () {
         const area = drawArea();
         const pxPerUnit = area.w / (cam.right - cam.left);
         const yScale = pxPerUnit * RELIEF * (path.cam.condense || 1) * (path.cam.relief || 1);
+        BALL += (Math.max(BALL_MIN, Math.min(BALL_MAX, 4 + 0.07 * pxPerUnit)) - BALL) * Math.min(1, dt * 4);
         const X = x => PAD_X + (x - cam.left) * pxPerUnit;
-        const Y = y => h - PAD_BOTTOM - Math.min((y - cam.bottom) * yScale, area.h + PAD_TOP - 4);
+        // No clamp at the top: a crest taller than the view runs off it (and gets a marker) instead of being
+        // drawn flattened into a plateau.
+        const Y = y => h - PAD_BOTTOM - (y - cam.bottom) * yScale;
         const n = Math.min(1400, Math.max(300, Math.round(w * 1.5)));
         const pts = [];
         for (let i = 0; i <= n; i++) {
@@ -5018,8 +5123,12 @@ window.AGI = (function () {
                 ctx.moveTo(X(x), gy - 4);
                 ctx.lineTo(X(x), gy - 12);
                 ctx.stroke();
+                // Labels run along the floor like a ruler, beside each tick's foot (on the ground they sat on
+                // hill faces; at the very bottom they ran into the progress track).
                 ctx.fillStyle = hexAlpha(c.muted, 0.6);
-                ctx.fillText(`${Math.round(x - g.start)} m`, X(x), gy - 16);
+                ctx.textAlign = 'left';
+                ctx.fillText(`${Math.round(x - g.start)} m`, X(x) + 4, h - PAD_BOTTOM - 4);
+                ctx.textAlign = 'center';
             }
         }
         drawFeatures(ctx, roll, X, Y, t);
@@ -5108,6 +5217,21 @@ window.AGI = (function () {
             ctx.lineTo(px + 13, py - 21);
             ctx.lineTo(px, py - 16);
             ctx.fill();
+        }
+        // A skill hill whose crest is above the view: an arrow at the top edge with how far up it is.
+        for (const b of g.bumps) {
+            if (b.skill === null || b.peak < cam.left || b.peak > cam.right || Y(b.height) > PAD_TOP) continue;
+            const px = X(b.peak);
+            const up = (PAD_TOP - Y(b.height)) / yScale;
+            ctx.fillStyle = c.warning;
+            ctx.beginPath();
+            ctx.moveTo(px, PAD_TOP - 10);
+            ctx.lineTo(px + 7, PAD_TOP);
+            ctx.lineTo(px - 7, PAD_TOP);
+            ctx.fill();
+            ctx.font = '600 10px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(`+${up < 10 ? up.toFixed(1) : Math.round(up)} m`, px, PAD_TOP + 12);
         }
 
         // Debris from shattered hills (Paradigm Shift).
@@ -5337,6 +5461,21 @@ window.AGI = (function () {
                 }
             }
         }
+        // Fast: speed lines stream off the back of the ball (by screen speed, so they mean "this is quick").
+        const screenSpeed = roll.ball.v * pxPerUnit;
+        if (!roll.tuck && screenSpeed > 420 && !reducedMotion()) {
+            const k = Math.min(1, (screenSpeed - 420) / 600);
+            ctx.strokeStyle = hexAlpha(c.text, 0.12 + 0.25 * k);
+            ctx.lineWidth = 1.5;
+            for (let i = 0; i < 4; i++) {
+                const off = ((t * 9 + i * 0.37) % 1) * 10;
+                const len = 12 + 26 * k;
+                ctx.beginPath();
+                ctx.moveTo(bx - BALL - 4 - off, by - 6 + i * 4);
+                ctx.lineTo(bx - BALL - 4 - off - len, by - 6 + i * 4);
+                ctx.stroke();
+            }
+        }
         ctx.fillStyle = c.text;
         ctx.beginPath();
         ctx.arc(bx, by, BALL, 0, Math.PI * 2);
@@ -5443,6 +5582,13 @@ window.AGI = (function () {
             ctx.fillStyle = hexAlpha(c.muted, 0.8);
             ctx.textAlign = 'left';
             ctx.fillText(`▶▶ ${FAST_FORWARD}×`, PAD_X, 42);
+        }
+        // Skills learned on this run so far (a strong run can learn several; the result card lists them too).
+        if (roll.learned?.length && !roll.over) {
+            ctx.font = '600 11px "Atkinson Hyperlegible", sans-serif';
+            ctx.fillStyle = hexAlpha(c.success, 0.85);
+            ctx.textAlign = 'left';
+            roll.learned.slice(-4).forEach((l, i) => ctx.fillText(`✓ ${l.skill.name}`, PAD_X, 60 + i * 15));
         }
         if (roll.ball.cooldown > 0) {
             const cd = E.derive(state).pushCooldown;

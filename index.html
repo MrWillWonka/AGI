@@ -158,21 +158,21 @@
                         <!-- Training dev screen: review the last run, spend XP in the skill tree, start the next run. -->
                         <div id="devView" class="dev-view" hidden>
                             <div class="tree-area">
+                                <div class="dev-actions">
+                                    <div class="dev-xp"><span class="chip-label">XP to spend</span> <strong data-bind="res.xp">0</strong></div>
+                                    <!-- Replays: start on a cleared leg and roll on toward the frontier. Shown once a skill is learned. -->
+                                    <label class="leg-pick" id="legPick" hidden><span class="chip-label">Start at</span> <select id="legSelect"></select></label>
+                                    <button type="button" class="button start-run" id="startRunButton">Start run</button>
+                                    <!-- With the Auto-Trainer on, its run keeps going while you shop: a live monitor of it. -->
+                                    <div class="dev-live" id="devLive" hidden>
+                                        <canvas class="lane dev-lane" data-lane="0" aria-hidden="true"></canvas>
+                                        <span class="dev-live-text" id="devLiveText"></span>
+                                    </div>
+                                </div>
                                 <!-- Drag to pan, wheel or pinch to zoom; the buttons do the same from the keyboard. -->
                                 <div class="tree-viewport" id="treeViewport">
                                     <div class="tree" id="skillTree" role="group" aria-label="Training skill tree">
                                         <svg class="tree-links" id="treeLinks" aria-hidden="true"></svg>
-                                    </div>
-                                    <div class="dev-actions">
-                                        <div class="dev-xp"><span class="chip-label">XP to spend</span> <strong data-bind="res.xp">0</strong></div>
-                                        <!-- Replays: start on a cleared leg and roll on toward the frontier. Shown once a skill is learned. -->
-                                        <label class="leg-pick" id="legPick" hidden><span class="chip-label">Start at</span> <select id="legSelect"></select></label>
-                                        <button type="button" class="button start-run" id="startRunButton">Start run</button>
-                                        <!-- With the Auto-Trainer on, its run keeps going while you shop: a live monitor of it. -->
-                                        <div class="dev-live" id="devLive" hidden>
-                                            <canvas class="lane dev-lane" data-lane="0" aria-hidden="true"></canvas>
-                                            <span class="dev-live-text" id="devLiveText"></span>
-                                        </div>
                                     </div>
                                     <aside class="node-detail" id="nodeDetail" aria-live="polite" hidden></aside>
                                     <div class="tree-zoom" role="group" aria-label="Zoom the skill tree">
@@ -292,6 +292,8 @@
                     </div>
                     <p class="muted small" id="ascendInfo"></p>
                     <button type="button" class="button button-prestige" id="ascendButton" disabled>Transcend</button>
+                    <div class="perk-head"><h3>Perks</h3><span class="muted small" id="perkPoints"></span></div>
+                    <ul class="challenge-list perk-list" id="perkList"></ul>
                 </div>
             </div>
         </section>

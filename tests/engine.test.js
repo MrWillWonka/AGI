@@ -1297,3 +1297,55 @@ test('investor tasks grow with the frontier, and dear legacy cards wait until th
     E.evaluate(v);
     assert.equal(E.isUpgradeVisible(v, E.UPGRADE_BY_ID.computeMoat), true);
 });
+
+test('Transcendence perks: bought with points, kept through Transcend, never lower the Insight boost', () => {
+    const s = fresh();
+    s.transcend = { points: 3, total: 3, count: 1, perks: {} };
+    const boost = E.insightBoost(s);
+    assert.equal(E.buyPerk(s, 'recursion'), true);
+    assert.equal(s.transcend.points, 0);
+    assert.ok(E.insightBoost(s) > boost, 'spending points never lowers the boost');
+    assert.equal(E.buyPerk(s, 'starterLab'), false, 'no points left');
+    s.transcend.points = 1;
+    assert.equal(E.buyPerk(s, 'starterLab'), true);
+    assert.equal(E.buyPerk(s, 'starterLab'), false, 'one level only');
+    s.transcend.points = 2;
+    const insight = s.prestige.total;
+    assert.equal(E.buyPerk(s, 'seedFund'), true);
+    assert.equal(s.prestige.total, insight + 5, 'Seed Fund pays at once');
+    s.attr.intelligence = 30;
+    s.path.learned = 8;
+    const v = E.prestige(s, NOW).state;
+    assert.equal(v.levels.quantum, 3, 'Starter Lab racks the whole kit');
+    assert.deepEqual(v.transcend.perks, { recursion: 1, starterLab: 1, seedFund: 1 });
+    Object.assign(v.attr, { intelligence: 300, creativity: 30, awareness: 30 });
+    v.prestige.count = 3;
+    v.prestige.total = 100;
+    const t = E.transcend(v, NOW).state;
+    assert.equal(t.prestige.total, 5, 'Seed Fund at every new beginning');
+    assert.equal(t.levels.cpu, 10);
+    assert.equal(E.perkLevel(t, 'recursion'), 1);
+    const m = E.migrate(JSON.parse(E.serialize(t)));
+    assert.deepEqual(m.transcend.perks, t.transcend.perks);
+    const bad = E.migrate({ ...JSON.parse(E.serialize(t)), transcend: { points: 1, total: 1, count: 1, perks: { recursion: 9, nope: 1 } } });
+    assert.deepEqual(bad.transcend.perks, { recursion: 3 });
+});
+
+test('Pretrained Weights and Founders\' Lab multiply training XP and hardware', () => {
+    const s = fresh();
+    s.levels.cpu = 10;
+    const a = E.derive(s);
+    s.transcend.perks = { pretrained: 2, founders: 1 };
+    const b = E.derive(s);
+    assert.ok(Math.abs(b.xpMult / a.xpMult - 1.5625) < 1e-9);
+    assert.ok(Math.abs(b.cpPerSec / a.cpPerSec - 1.5) < 1e-6);
+});
+
+test('a near miss on the skill hill pays a consolation share; anything lower pays nothing', () => {
+    const s = fresh();
+    assert.equal(E.nearMiss(s, 0.85, 100), 0);
+    assert.equal(E.nearMiss(s, 1, 100), 0, 'a crest is not a near miss');
+    assert.equal(E.nearMiss(s, 0.95, 100), 100 * E.NEAR_MISS.share);
+    assert.equal(s.res.xp, 100 * E.NEAR_MISS.share);
+    assert.ok(Math.abs(E.speedShort(0.81) - 1 / 9) < 1e-9);
+});

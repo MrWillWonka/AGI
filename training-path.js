@@ -51,6 +51,12 @@
     // The tuck (act two, Tiny Wings' one verb): while held, the ball is heavier on the ground, so it gains on the
     // way down and loses on the way up. Hold on the descent, let go before the climb.
     const TUCK_GRAVITY = 1.6;
+    // Tucked in the air: the flight dives for the first down-slope it can reach (a steeper path, `DIVE_PULL`
+    // flight gravities down at most), and touching down on it still tucked is an air dive, ×AIR_DIVE speed.
+    const DIVE_PULL = -2;
+    const AIR_DIVE = 1.06;
+    // Tucked, the ball takes tokens from further away (Tiny Wings' coins reward the dive).
+    const TOKEN_PULL = 2.5;
     const KICKERS = 0.85;           // share of act two's swells that are kickers (a lip to launch off)
     const KICK_SLOPE = [0.75, 1];   // a kicker's slope at its lip
 
@@ -424,6 +430,10 @@
             const dy = ground.slope(ball.x);
             if (flow.left > 0) ball.air = null;         // a flow lifts it off on its own terms
             if (ball.air) {
+                if (tuck && !ball.air.dive) {
+                    ball.air.dive = true;
+                    planLanding(true);
+                }
                 flyStep(events);
             } else if (flow.left > 0) {
                 // Flowing: off the line, no gravity or drag, at least the flow's speed. A super flow
@@ -465,9 +475,10 @@
             ball.maxX = Math.max(ball.maxX, ball.x);
             // Tokens: taken by a ball passing close enough (its height in flight, the line on the ground).
             for (const tk of ground.tokens) {
-                if (tk.taken || Math.abs(tk.x - ball.x) > TOKEN_REACH) continue;
+                const pull = tuck ? TOKEN_PULL : 1;
+                if (tk.taken || Math.abs(tk.x - ball.x) > TOKEN_REACH * pull) continue;
                 const h = ball.air ? ball.air.y : ground.height(ball.x);
-                if (Math.abs(h - tk.y) <= Math.max(0.45, 0.12 * skillHeight(tk.leg))) {
+                if (Math.abs(h - tk.y) <= pull * Math.max(0.45, 0.12 * skillHeight(tk.leg))) {
                     tk.taken = true;
                     events.push({ type: 'token', leg: tk.leg, x: tk.x, y: tk.y });
                 }
@@ -568,9 +579,12 @@
             const ddy = ((12 * u - 6) * pl.y0 + (6 * u - 4) * h * pl.m0 + (6 - 12 * u) * pl.y1 + (6 * u - 2) * h * pl.m1) / (h * h);
             return { y, dy, ddy };
         }
-        function planLanding() {
+        // `dive`: tucked in the air, so the first reachable down-slope wins, on a steeper path (keeps the old
+        // plan if none fits).
+        function planLanding(dive = false) {
             const a = ball.air;
             if (!a) return;
+            const old = a.plan;
             a.plan = null;
             if (ball.v <= 0.5) return;
             const G = GRAVITY * AIR_GRAVITY;
@@ -582,7 +596,8 @@
                 const s = ground.slope(x);
                 const valley = s >= -0.04;
                 if (valley && (Math.abs(s) > 0.02 || best && !best.valley)) continue;
-                const d = Math.abs(x - nat.x) + (valley ? 40 : 0);
+                if (dive && valley) continue;
+                const d = (dive ? x - ball.x : Math.abs(x - nat.x)) + (valley ? 40 : 0);
                 if (best && d >= best.d) continue;
                 const pl = { x0: ball.x, x1: x, y0: a.y, y1: ground.height(x), m0, m1: s - 1 / ball.v };
                 let ok = true;
@@ -590,7 +605,7 @@
                     const xi = ball.x + (x - ball.x) * i / 32;
                     const q = pathAt(pl, xi);
                     const pull = -q.ddy * v2;
-                    ok = q.y >= ground.height(xi) - 0.02 && q.y <= (a.ceil ?? Infinity) + 0.01 && pull >= PULL[0] * G && pull <= PULL[1] * G;
+                    ok = q.y >= ground.height(xi) - 0.02 && q.y <= (a.ceil ?? Infinity) + 0.01 && pull >= (dive ? DIVE_PULL : PULL[0]) * G && pull <= PULL[1] * G;
                 }
                 // A kicker's lip is a sharp corner the samples can step over: the path must clear every crest too.
                 for (const b of ground.bumps) {
@@ -600,6 +615,7 @@
                 if (ok) best = { d, valley, pl };
             }
             if (best) a.plan = best.pl;
+            else if (dive) a.plan = old;
         }
 
         // In flight: on a planned path, it follows it (drag still slows it); otherwise gravity and a little air
@@ -615,7 +631,7 @@
                 a.y = q.y;
                 a.vy = q.dy * ball.v;
             } else {
-                a.vy -= GRAVITY * AIR_GRAVITY * STEP;
+                a.vy -= GRAVITY * AIR_GRAVITY * (a.dive && tuck ? TUCK_GRAVITY : 1) * STEP;
                 const sp = Math.hypot(ball.v, a.vy);
                 const drag = 1 + friction * AIR_DRAG * sp * STEP;
                 ball.v /= drag;
@@ -648,11 +664,12 @@
             const vt = (ball.v + s * a.vy) / len;           // along it
             const impact = Math.max(0, -vn);
             const back = impact * BOUNCE;
-            events.push({ type: 'land', impact, x: ball.x, flight: ball.x - a.from, height: a.peak - gh, bounce: back >= BOUNCE_MIN });
+            const dive = !!a.dive && tuck && s < -0.05;
+            events.push({ type: 'land', impact, x: ball.x, flight: ball.x - a.from, height: a.peak - gh, bounce: back >= BOUNCE_MIN && !dive, dive });
             // A bounce that would throw it backwards (slamming into the face of the next swell) sticks instead,
             // carrying its speed up the slope: launchers keep you going forward.
             const t = vt * SKID;
-            if (back >= BOUNCE_MIN && (t - back * s) / len > 0) {
+            if (!dive && back >= BOUNCE_MIN && (t - back * s) / len > 0) {
                 // Bounce: tangent kept (mostly), normal reflected and shrunk.
                 ball.v = (t - back * s) / len;
                 a.vy = (t * s + back) / len;
@@ -665,7 +682,7 @@
                 // Stick: roll on with the speed along the ground (as dx/dt).
                 ball.air = null;
                 ball.grip = REGRIP;
-                ball.v = t / len;
+                ball.v = t / len * (dive ? AIR_DIVE : 1);
             }
         }
 
@@ -800,7 +817,7 @@
     }
 
     return {
-        STEP, GRAVITY, BUMPER, lengthScale, TUCK_GRAVITY, features, KICKERS, KICK_SLOPE, bumpAt, bumpSlope,
+        STEP, GRAVITY, BUMPER, lengthScale, TUCK_GRAVITY, AIR_DIVE, TOKEN_PULL, features, KICKERS, KICK_SLOPE, bumpAt, bumpSlope,
         LATE_LEG, maxAbove, checkpoint, skillHill, skillHeight, rollingHills, terrain, createRoll, rng
     };
 });

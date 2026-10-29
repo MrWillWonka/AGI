@@ -10,7 +10,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const SAVE_VERSION = 12;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart
+    const SAVE_VERSION = 13;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
     // Auto-Trainer, XP nodes) carry most of a new version's speed, so this stays small: at 0.2 a second run
@@ -298,7 +298,7 @@
         { id: 'quantumNetwork', tab: 'training', tree: { x: 0, y: 6 }, icon: 'chip', name: 'Quantum Network', effect: '-15% wait between sprints per level', flavor: 'Entangled racks finish each other\'s sentences.', cost: { xp: 60000 }, scale: 2, max: 3, requires: 'photonic', boost: { cooldown: 1 } },
         { id: 'sovereignFund', tab: 'training', tree: { x: -1, y: 5 }, icon: 'chip', name: 'Round-the-Clock Ops', effect: '-15% wait between sprints per level', flavor: 'Three shifts, three time zones, zero downtime.', cost: { xp: 25000 }, scale: 2.5, max: 2, requires: 'ipo', boost: { cooldown: 1 } },
         // Legacy (cost Insight, kept for good): automation, Flow State, the super power-ups, and flat boosts.
-        { id: 'autoTrainer', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'robot', name: 'Auto-Trainer', effect: 'Lv 1 sprints once the ball settles; 2 before a climb fails; 3 hits clean prompts', flavor: 'An intern who never gets tired. Or paid.', cost: { insight: 3 }, scale: 3, max: 3 },
+        { id: 'autoTrainer', tag: 'Automation', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'robot', name: 'Auto-Trainer', effect: 'Lv 1 sprints once the ball settles; 2 before a climb fails; 3 hits clean prompts', flavor: 'An intern who never gets tired. Or paid.', cost: { insight: 3 }, scale: 3, max: 3 },
         // A starter kit (Cookie Clicker's): a new version's lab was the bottleneck, not XP (v2 sprinted to leg 6 on
         // empty income), so each level starts it with hardware already racked (HEAD_START, in prestige()).
         { id: 'headStart', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'chip', name: 'Head Start', effect: 'Each version starts with 10 Graphics Cards (Lv 2 +5 Server Clusters, Lv 3 +3 Quantum Processors)', flavor: 'Version two starts where version one gave up.', cost: { insight: 1 }, scale: 2, max: 3 },
@@ -493,7 +493,7 @@
             challenge: null,
             challengesDone: {},
             // Transcending (at the Singularity) resets versions for Transcendence, which multiplies Insight.
-            transcend: { points: 0, total: 0, count: 0 },
+            transcend: { points: 0, total: 0, count: 0, perks: {} },
             stats: {
                 clicks: 0,
                 lifetimeCp: 0,
@@ -515,6 +515,7 @@
                 highestPhase: 0,
                 topSpeed: 0,          // personal bests across every run (m/s, m, m): the result card calls out new ones
                 bestFlight: 0,
+                flights: 0,           // flights of LONG_FLIGHT m or more this version (investor tasks)
                 bestHeight: 0,
                 tokens: 0,            // XP tokens taken
                 collectsEver: 0,      // hand collections and research runs in earlier versions (automation gates)
@@ -567,6 +568,7 @@
     // one, play the version under its rule, and reaching Superintelligence beats it for a perk kept for good
     // (Transcending too). Abandon any time (no reset, no perk). Content is data: add an entry here and its
     // rule and perk in challengeMods().
+    const LONG_FLIGHT = 10;       // metres: a flight that counts for investor tasks
     const CHALLENGES_AFTER = 3;   // versions shipped before challenges open
     const CHALLENGE_GOAL = 2;     // the phase that beats a challenge: Superintelligence (General AI came in 10-18 min, no test)
     const CHALLENGES = [
@@ -616,7 +618,35 @@
     // and every point ever earned makes each release bring +50% Insight. Challenges beaten stay beaten.
     const canTranscend = s => phaseIndex(s) >= PHASES.length - 1;
     const transcendGain = s => (canTranscend(s) ? Math.max(1, Math.floor(Math.sqrt(s.prestige.total) / 2)) : 0);
-    const insightBoost = s => 1 + 0.5 * (s.transcend?.total || 0);
+    const insightBoost = s => (1 + 0.5 * (s.transcend?.total || 0)) * (1 + 0.25 * perkLevel(s, 'recursion'));
+
+    // Transcendence is also spent, on perks kept for good (Antimatter Dimensions' Infinity upgrades): it used
+    // to pile up with nothing to buy. Spending never lowers the Insight boost, which counts every point ever
+    // earned (`total`). `costs` lists each level's price.
+    const TRANSCEND_PERKS = [
+        { id: 'starterLab', name: 'Starter Lab', effect: 'Every version starts with Head Start\'s full kit', costs: [1] },
+        { id: 'seedFund', name: 'Seed Fund', effect: '+5 Insight now and at every new beginning', costs: [2, 3, 4] },
+        { id: 'pretrained', name: 'Pretrained Weights', effect: 'Training XP ×1.25', costs: [2, 3, 5] },
+        { id: 'founders', name: 'Founders\' Lab', effect: 'Hardware CP/s ×1.5', costs: [2, 3, 5] },
+        { id: 'recursion', name: 'Recursive Self-Improvement', effect: 'Each release brings +25% Insight', costs: [3, 5, 8] }
+    ];
+    const PERK_BY_ID = Object.fromEntries(TRANSCEND_PERKS.map(p => [p.id, p]));
+    const SEED_INSIGHT = 5;   // Seed Fund's Insight per level
+    function perkLevel(s, id) { return s.transcend?.perks?.[id] || 0; }
+    function perkCost(s, id) { return PERK_BY_ID[id]?.costs[perkLevel(s, id)] ?? Infinity; }
+    function buyPerk(s, id) {
+        const cost = perkCost(s, id);
+        if (!(s.transcend.points >= cost)) return false;
+        s.transcend.points -= cost;
+        s.transcend.perks[id] = perkLevel(s, id) + 1;
+        if (id === 'seedFund') {
+            s.prestige.points += SEED_INSIGHT;
+            s.prestige.total += SEED_INSIGHT;
+        }
+        return true;
+    }
+    // Head Start's kit, or the whole kit with Starter Lab.
+    const kitLevel = s => Math.max(s.prestige.levels.headStart || 0, perkLevel(s, 'starterLab') ? HEAD_START.length : 0);
 
     function derive(s, rates) {
         const r = Object.assign({ cp: 1, dp: 1, rp: 1, xp: 1 }, rates);
@@ -626,7 +656,7 @@
         const bo = projectBoosts(s);
 
         // Every multiplier on hardware output, so each tier's real yield can be shown on its card.
-        const hardwareMult = (1 + 0.5 * L('compilerOpt')) * (1 + 0.5 * L('kernelFusion')) * (1 + sk.cp) * mult * r.cp * bo.cp;
+        const hardwareMult = (1 + 0.5 * L('compilerOpt')) * (1 + 0.5 * L('kernelFusion')) * (1 + sk.cp) * mult * r.cp * bo.cp * 1.5 ** perkLevel(s, 'founders');
         const hardwareRates = {};
         let cpPerSec = 0;
         for (const up of HARDWARE) {
@@ -722,7 +752,7 @@
         // 'Less steep hills' really lowers the rolling hills (never the skill hills: those stay walls).
         const hillScale = Math.pow(0.94, tb.slope);
         // Versions train faster too: Insight's multiplier (mult) applies to training XP, passive included.
-        const xpMult = (1 + tb.xp) * bo.xp * mult;
+        const xpMult = (1 + tb.xp) * bo.xp * mult * 1.25 ** perkLevel(s, 'pretrained');
         // Cleared stretches keep training on their own, slowly: XP per second from every learned skill hill.
         let xpPerSec = 0;
         if (!ch.noAuto) for (let k = 0; k < s.path.learned; k++) xpPerSec += legXpRate(s, k, xpMult) * r.xp;
@@ -1251,6 +1281,19 @@
         return { xp, record, skill };
     }
 
+    // A near miss: a frontier run that stopped on its skill hill's climb, at NEAR_MISS.height of the crest or
+    // more, pays a consolation share of its run XP (repeated near-misses with nothing to show lost players on
+    // Pattern Matching's plateau). `heightFrac`: the highest point reached over the crest's height.
+    const NEAR_MISS = { height: 0.9, share: 0.25 };
+    function nearMiss(s, heightFrac, xp) {
+        if (!(heightFrac >= NEAR_MISS.height && heightFrac < 1) || !(xp > 0)) return 0;
+        const bonus = xp * NEAR_MISS.share;
+        s.res.xp += bonus;
+        return bonus;
+    }
+    // About how much more launch speed would have crested it (energy grows with the square of speed).
+    const speedShort = heightFrac => Math.sqrt(1 / Math.max(0.01, heightFrac)) - 1;
+
     // A run crests the frontier's skill hill and rolls on (runs are never cut short at a skill hill): the
     // skill is learned at once and the leg pays what a cresting run paid (its full distance, ×2), times the
     // chain so far. The run then carries on into the new frontier leg, and finishRoll() pays for where it
@@ -1288,6 +1331,8 @@
         runs: { stat: s => s.stats.rolls, text: n => `Finish ${n} training runs`, size: s => 4 + Math.floor(s.path.learned / 3), needs: 'module:path' },
         // Only once clean prompts exist (Hyperparameter Search adds the zone).
         clean: { stat: s => s.stats.cleanSprints, text: n => `Land ${n} clean training sprints`, size: s => 3 + Math.floor(s.path.learned / 2), needs: s => !!s.unlocked['module:path'] && derive(s).zoneWidth > 0 },
+        flights: { stat: s => s.stats.flights, text: n => `Make ${n} flights of 10 m or more`, size: s => 3 + Math.floor(Math.max(0, s.path.learned - ACT_TWO_LEG) / 2), needs: s => s.path.learned > ACT_TWO_LEG },
+        replays: { stat: s => s.stats.legsCleared, text: n => `Cross ${n} cleared skill hills on replays`, size: s => 2 + Math.floor(s.path.learned / 4), needs: s => s.path.learned >= 4 },
         tokens: { stat: s => s.stats.tokens, text: n => `Take ${n} XP tokens in flight`, size: s => 4 + Math.max(0, s.path.learned - ACT_TWO_LEG), needs: s => s.path.learned > ACT_TWO_LEG },
         earnCp: { stat: s => s.stats.runCp, text: n => `Earn ${format(n)} CP`, size: s => Math.max(200, Math.round(derive(s).cpPerSec * 180)) },
         research: { stat: s => s.stats.researchManual, text: n => `Research by hand ${n} times`, size: () => 10, needs: 'action:research' }
@@ -1434,13 +1479,13 @@
             intro: { ...s.intro },
             // A new version starts with the desk built (the click tool at the Server Rack), so the first
             // thing to do is automate compute again.
-            levels: { keyboard: CPU_AFTER_CLICK_LEVEL, ...headStartKit(s.prestige.levels.headStart || 0) },
+            levels: { keyboard: CPU_AFTER_CLICK_LEVEL, ...headStartKit(kitLevel(s)) },
             prestige: { points: s.prestige.points + gain, total: s.prestige.total + gain, count: s.prestige.count + 1,
                 major: v.major, minor: v.minor, levels: { ...s.prestige.levels } },
             tasks: JSON.parse(JSON.stringify(s.tasks)),
             settings: s.settings,
             challengesDone: { ...s.challengesDone },
-            transcend: { ...s.transcend }
+            transcend: { ...s.transcend, perks: { ...s.transcend.perks } }
         });
         Object.assign(next.stats, {
             clicks: s.stats.clicks,
@@ -1472,12 +1517,15 @@
         const next = Object.assign(fresh, {
             achievements: s.achievements,
             intro: { ...s.intro },
-            levels: { keyboard: CPU_AFTER_CLICK_LEVEL },   // the desk stays built, as after shipping
+            // The desk stays built, as after shipping (and Starter Lab's kit with it).
+            levels: { keyboard: CPU_AFTER_CLICK_LEVEL, ...headStartKit(perkLevel(s, 'starterLab') ? HEAD_START.length : 0) },
             tasks: JSON.parse(JSON.stringify(s.tasks)),
             settings: s.settings,
             challengesDone: { ...s.challengesDone },
-            transcend: { points: s.transcend.points + gain, total: s.transcend.total + gain, count: s.transcend.count + 1 }
+            transcend: { points: s.transcend.points + gain, total: s.transcend.total + gain, count: s.transcend.count + 1, perks: { ...s.transcend.perks } }
         });
+        const seed = SEED_INSIGHT * perkLevel(s, 'seedFund');
+        next.prestige.points = next.prestige.total = seed;
         // The Auto-Trainer is quality of life, not power: it stays.
         if (s.prestige.levels.autoTrainer) next.prestige.levels = { autoTrainer: s.prestige.levels.autoTrainer };
         Object.assign(next.stats, {
@@ -1608,6 +1656,8 @@
         s.challenge = rc && Object.hasOwn(CHALLENGE_BY_ID, rc.id) && !s.challengesDone[rc.id] ? { id: rc.id, start: num(rc.start, 0) } : null;
         s.transcend = { points: Math.floor(num(raw.transcend?.points, 0)), total: Math.floor(num(raw.transcend?.total, 0)), count: Math.floor(num(raw.transcend?.count, 0)) };
         s.transcend.total = Math.max(s.transcend.total, s.transcend.points);
+        s.transcend.perks = cleanMap(raw.transcend?.perks, (k, v) => Object.hasOwn(PERK_BY_ID, k) && Number.isInteger(v) && v > 0);
+        for (const k of Object.keys(s.transcend.perks)) s.transcend.perks[k] = Math.min(s.transcend.perks[k], PERK_BY_ID[k].costs.length);
         // v10 stores each leg's best run without XP multipliers (they apply live): divide out today's.
         if (!(raw.version >= 10)) {
             const m = derive(s).xpMult / projectBoosts(s).xp;
@@ -1736,11 +1786,11 @@
 
     return {
         SAVE_VERSION, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
-        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, legClearXp, clearLeg, collectToken, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
+        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, legClearXp, clearLeg, collectToken, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
-        prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, ACT_TWO_LEG,
+        prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, ACT_TWO_LEG,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany

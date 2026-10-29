@@ -1568,6 +1568,10 @@ h1, h2, h3, p { margin: 0; }
 .challenge.running { border-color: var(--warning); box-shadow: 0 0 0 1px rgba(255, 181, 71, 0.3) inset; }
 .panel-ascend { border-color: rgba(180, 140, 255, 0.5); background: linear-gradient(180deg, rgba(180, 140, 255, 0.12), var(--bg-2)); }
 .panel-ascend .button-prestige { margin-top: 8px; }
+.perk-level { font: 600 0.72rem var(--font-mono); color: var(--muted); white-space: nowrap; }
+.perk.done .perk-level { color: var(--success); }
+.perk-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 12px; }
+.perk-head h3 { margin: 0; font: 600 0.85rem var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; }
 .project-art { display: flex; gap: 10px; align-items: flex-end; height: 54px; }
 .project-art i { display: block; width: 18px; border-radius: 3px 3px 9px 9px; border: 2px solid rgba(255, 122, 107, 0.6); background: linear-gradient(0deg, rgba(255, 122, 107, 0.35) 45%, transparent 45%); }
 .project-art i:nth-child(1) { height: 36px; }
@@ -1735,6 +1739,7 @@ body { zoom: var(--zoom); }
 /* Node detail: a one-line quip, then the plain bonus. */
 .detail-flavor { font-style: italic; color: var(--text); opacity: 0.85; }
 .node-detail .detail-effect { color: var(--success); font: 600 0.84rem var(--font-mono); }
+.node-detail .detail-preview { margin: 6px 0 0; font: 600 0.78rem var(--font-mono); color: var(--primary); }
 
 .upgrade-flavor, .result-flavor { font-style: italic; font-size: 0.82rem; color: var(--text); opacity: 0.8; margin-top: 2px; }
 .station-terminal .upgrade-flavor { font-family: var(--font-mono); font-style: normal; color: #7fcfa8; opacity: 0.75; }
@@ -1940,6 +1945,9 @@ html, body { overflow-x: clip; }
 }
 .dev-actions .dev-xp { font-size: 1.15rem; text-align: left; }
 .dev-actions .start-run { padding: 10px 18px; font-size: 0.95rem; }
+/* The panel floats over the tree's top-right corner on wide screens; below 1441 px it covered nodes, so it
+   becomes a one-row bar above the tree instead. */
+.tree-area { position: relative; }
 .node-detail {
     position: absolute;
     z-index: 4;
@@ -2514,6 +2522,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .legacy-icon svg { width: 20px; height: 20px; }
 .legacy-info h4 { display: flex; justify-content: space-between; gap: 8px; margin: 0; font: 700 0.9rem var(--font-display); }
 .legacy-level { font: 600 0.72rem var(--font-mono); color: var(--muted); }
+.legacy-tag { margin-right: auto; padding: 1px 6px; border-radius: 999px; font: 600 0.66rem var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--success); border: 1px solid rgba(99, 224, 171, 0.45); align-self: center; }
 .legacy-effect { margin: 4px 0 0; font-size: 0.82rem; }
 .legacy-flavor { margin: 2px 0 0; font-size: 0.75rem; font-style: italic; color: var(--muted); }
 .legacy-buy { grid-column: 2; justify-self: start; margin-top: 6px; }
@@ -2589,4 +2598,16 @@ body.charging .minimap { pointer-events: none; }
    server cabinets (where clicks show) come up above the fold; station lists scroll inside as before. */
 @media (min-width: 961px) and (max-width: 1799px) and (max-height: 900px) {
     :root { --station-row: 330px; --station-row-2: 290px; --projects-h: 260px; }
+}
+
+/* (After the base rules, so it wins: see "The panel floats" above.) */
+@media (max-width: 1440px) and (min-width: 641px) {
+    .tree-area { flex-direction: column; gap: 8px; }
+    .dev-actions { position: static; flex-direction: row; justify-content: flex-end; align-self: stretch; padding: 6px 8px 6px 14px; }
+    .dev-actions .dev-xp { display: flex; align-items: baseline; gap: 8px; margin-right: auto; }
+    .dev-actions .dev-xp .chip-label { display: inline; margin: 0; }
+    .dev-actions .start-run { padding: 8px 16px; }
+    .dev-actions:has(.dev-live:not([hidden])) { flex-wrap: nowrap; max-width: none; }
+    .dev-actions .dev-live { flex-basis: 260px; }
+    .dev-actions .leg-pick select { max-width: 340px; }
 }
