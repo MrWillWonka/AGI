@@ -1061,7 +1061,8 @@ window.AGI = (function () {
             }
         }
         // R&D opening is the first chance to ship: point at it once (not for players who already shipped).
-        if (!state.intro['room:rnd'] && roomOpen('rnd')) {
+        // Only nudge once shipping is worth it (General AI): an early ship for 1–2 Insight sets you back.
+        if (!state.intro['room:rnd'] && roomOpen('rnd') && E.phaseIndex(state) >= 1) {
             state.intro['room:rnd'] = true;
             if (!state.prestige.count) callout('room:rnd', 'R&D online', 'Your model is ready to ship. A new version starts over with Insight to spend.');
         }

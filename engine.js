@@ -22,7 +22,9 @@
     // Costs and XP both scale with the stretch you are on (= skills learned).
     const PATH = {
         pushCost: { cp: 14, dp: 1.5 },  // a fully charged push on the first stretch
-        pushCostScale: 1.4,
+        pushCostScale: 1.4,  // ×1.4 per stretch for the first few, while the lab is still small...
+        pushCostLate: 1.9,   // ...then ×1.9 from stretch 3 on, so sprints keep leaning on the lab's income
+        pushCostRampFrom: 3,
         crestBonus: 2,       // XP multiplier when the roll crests the skill hill
         xpPerMetre: 0.56,    // distance XP per metre along a leg on the first stretch...
         metreScale: 1.05,    // ...worth a little more per metre on each later stretch (they're longer too)
@@ -228,7 +230,7 @@
         { id: 'satelliteMaps', tab: 'training', tree: { x: 2, y: -2 }, icon: 'dice', name: 'Serendipity', effect: 'Breakthroughs +50% stronger, per level', flavor: 'Penicillin was an accident too.', cost: { xp: 150 }, scale: 1.6, max: 2, requires: 'scoutingData', boost: { critPower: 0.5 } },
         { id: 'blackSwan', tab: 'training', tree: { x: 3, y: -2 }, icon: 'dice', name: 'Black Swan', effect: '+5% breakthrough chance per level', flavor: 'Nobody saw it coming. That\'s the point.', cost: { xp: 10000 }, scale: 1.9, max: 3, requires: 'satelliteMaps', boost: { critChance: 0.05 } },
         // Max Effort: your next sprint goes all out (full strength, a super prompt) the moment you press.
-        { id: 'maxEffort', tab: 'training', tree: { x: 0, y: -4 }, icon: 'flame', name: 'Max Effort', effect: '+5% chance your next sprint is all out: full strength, a super prompt', flavor: 'Leave nothing in the tank. Then find another tank.', cost: { xp: 1100 }, scale: 1.7, max: 1, requires: 'gpuSupercluster', boost: { maxEffortChance: 0.05 } },
+        { id: 'maxEffort', tab: 'training', tree: { x: 0, y: -4 }, icon: 'flame', name: 'Max Effort', effect: '+5% chance your next sprint is all out: full strength, a super prompt', flavor: 'Leave nothing in the tank. Then find another tank.', cost: { xp: 700 }, scale: 1.7, max: 1, requires: 'gpuSupercluster', boost: { maxEffortChance: 0.05 } },
         { id: 'muse', tab: 'training', tree: { x: 1, y: -4 }, icon: 'flame', name: 'The Muse', effect: '+3% Max Effort chance per level', flavor: 'Inspiration arrives on schedule. Suspicious.', cost: { xp: 7000 }, scale: 1.9, max: 3, requires: 'quantumAccelerator', boost: { maxEffortChance: 0.03 } },
         // Secrets: these never show, not even as a lock, until the node next to them is owned.
         { id: 'batchNorm', tab: 'training', tree: { x: 1, y: -1 }, icon: 'chip', name: 'Batch Normalization', effect: '-15% wait between sprints', flavor: 'Everybody calm down. Especially the gradients.', cost: { xp: 25 }, max: 1, requires: 'trainingOptimizer', secret: true, boost: { cooldown: 1 } },
@@ -259,7 +261,7 @@
         { id: 'fineCalibration', tab: 'training', tree: { x: 5, y: 1 }, icon: 'star', name: 'Few-Shot Examples', effect: 'Super prompts 20% harder and worth +1 clean prompt, per level', flavor: 'Here are three examples. Do it like that.', cost: { xp: 450 }, scale: 1.6, max: 3, requires: 'perfectCalibration', boost: { perfectPower: 0.2, perfectUnits: 1 } },
         { id: 'leaderboardPrizes', tab: 'training', tree: { x: 5, y: 0 }, icon: 'coin', name: 'Leaderboard Prizes', effect: '+60% XP per clean prompt, per level', flavor: 'First place, and a trophy bigger than the team.', cost: { xp: 320 }, scale: 1.7, max: 3, requires: 'promptTemplates', boost: { clean: 0.6 } },
         { id: 'webCorpus', tab: 'training', tree: { x: 2, y: 1 }, icon: 'stack', name: 'Web-Scale Corpus', effect: '+25% XP from every run, per level', flavor: 'The entire internet, twice, deduplicated once.', cost: { xp: 2000 }, scale: 1.8, max: 3, requires: 'dataAugmentation', boost: { xp: 0.25 } },
-        { id: 'syntheticData', tab: 'training', tree: { x: 5, y: -1 }, icon: 'stack', name: 'Synthetic Data', effect: '+70% run bonus per clean prompt and +15% XP, per level', flavor: 'The model writes its own homework now.', cost: { xp: 3500 }, scale: 1.8, max: 3, requires: 'handLabelled', boost: { rollBonus: 0.7, xp: 0.15 } },
+        { id: 'syntheticData', tab: 'training', tree: { x: 5, y: -1 }, icon: 'stack', name: 'Synthetic Data', effect: '+25% run bonus per clean prompt and +15% XP, per level', flavor: 'The model writes its own homework now.', cost: { xp: 3500 }, scale: 1.8, max: 3, requires: 'handLabelled', boost: { rollBonus: 0.25, xp: 0.15 } },
         { id: 'laserCalibration', tab: 'training', tree: { x: 6, y: 1 }, icon: 'star', name: 'Chain of Thought', effect: 'Super prompt spot 40% wider, per level', flavor: 'Let\'s think step by step. Out loud. For a while.', cost: { xp: 5000 }, scale: 1.8, max: 2, requires: 'fineCalibration', boost: { perfectSize: 1 } },
         { id: 'globalBenchmark', tab: 'training', tree: { x: 6, y: 0 }, icon: 'target', name: 'Global Benchmark', effect: 'Clean prompts hit 15% harder, per level', flavor: 'Everyone measures against you now.', cost: { xp: 4000 }, scale: 1.8, max: 3, requires: 'leaderboardPrizes', boost: { cleanPower: 0.15 } },
         { id: 'turingTest', tab: 'training', tree: { x: 7, y: 0 }, icon: 'star', name: 'Turing Test', effect: '+50% XP from every run, per level', flavor: 'The judges asked it out. Twice.', cost: { xp: 45000 }, scale: 2, max: 2, requires: 'globalBenchmark', boost: { xp: 0.5 } },
@@ -859,7 +861,9 @@
     // Cost of a push charged to `charge` (0–1) on `leg` (default: the frontier). Rounded up, so even a
     // light tap costs something. Earlier legs (replays) are cheaper, as they were when you first ran them.
     function pushCost(s, charge = 1, leg = s.path.learned) {
-        const factor = Math.pow(PATH.pushCostScale, Math.min(leg, s.path.learned)) * charge * charge;
+        const n = Math.min(leg, s.path.learned);
+        const early = Math.min(n, PATH.pushCostRampFrom);
+        const factor = Math.pow(PATH.pushCostScale, early) * Math.pow(PATH.pushCostLate, n - early) * charge * charge;
         const cost = {};
         for (const [k, v] of Object.entries(PATH.pushCost)) cost[k] = Math.max(1, Math.ceil(v * factor));
         return cost;
