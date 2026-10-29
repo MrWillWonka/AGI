@@ -353,15 +353,15 @@ test('prestige keeps achievements and points, resets the run', () => {
     s.res.cp = 123;
     s.levels.cpu = 5;
     s.achievements.cp1k = true;
-    assert.equal(E.prestigeGain(s), 2, 'Insight comes from skills learned past the warm-up: floor(0.1 × 5²)');
+    assert.equal(E.prestigeGain(s), 3, 'Insight comes from skills learned past the warm-up: floor(0.25 × 5^1.7)');
     const r = E.prestige(s, NOW + 1);
     assert.equal(r.ok, true);
-    assert.equal(r.state.prestige.points, 2);
+    assert.equal(r.state.prestige.points, 3);
     assert.equal(r.state.prestige.count, 1);
     assert.equal(r.state.res.cp, 0);
     assert.deepEqual(r.state.levels, { keyboard: E.CPU_AFTER_CLICK_LEVEL }, 'the run starts over, with the desk built');
     assert.equal(r.state.achievements.cp1k, true);
-    assert.ok(Math.abs(E.derive(r.state).mult - (1 + 0.07 * Math.sqrt(2))) < 1e-9, 'two Insight: 1 + 0.07√2, achievements add nothing');
+    assert.ok(Math.abs(E.derive(r.state).mult - (1 + 0.07 * Math.sqrt(3))) < 1e-9, 'three Insight: 1 + 0.07√3, achievements add nothing');
 });
 
 test('a new version remembers first-time intros, trains faster, and starts with the desk built', () => {
@@ -888,7 +888,7 @@ test('versions: shipping one keeps Insight, legacy nodes and their effects; numb
     assert.equal(E.isUpgradeVisible(t, E.UPGRADE_BY_ID.headStart), true, 'no skill-tree parent needed');
     assert.equal(E.isUpgradeVisible(t, E.UPGRADE_BY_ID.deepFocus), false, 'an earlier legacy upgrade maxed first');
     const before = E.derive(t).cleanPower;
-    assert.equal(E.buy(t, 'headStart').ok, true);
+    assert.equal(E.buy(t, 'muscleMemory').ok, true);
     assert.equal(t.prestige.points, gain - 1);
     assert.ok(E.derive(t).cleanPower > before);
     assert.ok(Math.abs(E.derive(t).mult - E.insightMult(gain)) < 1e-9, 'spending Insight keeps its production bonus');
@@ -897,10 +897,10 @@ test('versions: shipping one keeps Insight, legacy nodes and their effects; numb
     const small = E.prestige(t, NOW);
     assert.equal(small.version, 'v2.1', 'a small gain is a point release');
     const u = small.state;
-    assert.equal(E.level(u, 'headStart'), 1, 'legacy levels survive');
+    assert.equal(E.level(u, 'muscleMemory'), 1, 'legacy levels survive');
     u.unlocked['module:path'] = true;
     E.evaluate(u);
-    assert.equal(E.isUpgradeVisible(u, E.UPGRADE_BY_ID.headStart), true, 'and stay visible without their parent');
+    assert.equal(E.isUpgradeVisible(u, E.UPGRADE_BY_ID.muscleMemory), true, 'and stay visible without their parent');
     assert.ok(E.derive(u).pushPower > E.derive(fresh()).pushPower);
 });
 
@@ -1071,11 +1071,11 @@ test('Insight comes from skills learned and its bonus diminishes', () => {
     const s = fresh();
     s.attr.intelligence = 50;
     s.path.learned = 7;
-    assert.equal(E.prestigeGain(s), 3, 'General AI (6 skills past the warm-up) ships for 3');
+    assert.equal(E.prestigeGain(s), 5, 'General AI (6 skills past the warm-up) ships for 5');
     s.path.learned = 11;
-    assert.equal(E.prestigeGain(s), 10);
+    assert.equal(E.prestigeGain(s), 12);
     s.stats.runCp = 1e15;
-    assert.equal(E.prestigeGain(s), 10, 'compute earned no longer counts');
+    assert.equal(E.prestigeGain(s), 12, 'compute earned no longer counts');
     const step = n => E.insightMult(n + 10) - E.insightMult(n);
     assert.ok(step(0) > step(100), 'each Insight is worth less the more you have');
     assert.ok(E.insightMult(100) <= 2, 'no runaway: ×1.7 at 100 Insight');
@@ -1190,7 +1190,7 @@ test('R&D status: the next skill count that raises Insight', () => {
     assert.ok(E.insightAt(n) > E.insightAt(7) && E.insightAt(n - 1) === E.insightAt(7));
 });
 
-test('challenges: open after three versions, ship into one, its rule holds until General AI beats it for a perk', () => {
+test('challenges: open after three versions, ship into one, its rule holds until Superintelligence beats it for a perk', () => {
     const s = fresh();
     s.attr.intelligence = 30;
     s.path.learned = 8;
@@ -1200,8 +1200,10 @@ test('challenges: open after three versions, ship into one, its rule holds until
     assert.equal(r.ok, true);
     const v = r.state;
     assert.equal(v.challenge.id, 'lean');
-    assert.equal(E.derive(v).pushesPerRoll, 1, 'one sprint per run');
+    assert.equal(E.derive(v).pushesPerRoll, E.PATH.basePushes, 'sprints held at the base');
     v.attr.intelligence = 25;
+    assert.equal(E.evaluate(v).challenge, null, 'General AI is not enough');
+    Object.assign(v.attr, { intelligence: 100, creativity: 5, awareness: 5 });
     const out = E.evaluate(v);
     assert.equal(out.challenge.won, true);
     assert.equal(v.challenge, null);
@@ -1222,10 +1224,14 @@ test('challenge rules: no prompts, no automation, dear sprints, and a time limit
     assert.ok(E.pushCost(s, 1).cp >= 3 * base.cost - 1);
     s.levels.autoCollector = 2;
     s.levels.cpu = 50;
+    s.prestige.levels.autoTrainer = 1;
+    s.path.learned = 3;
     s.challenge = { id: 'handmade', start: 0 };
     assert.equal(E.derive(s).collectsPerSec, 0);
+    assert.equal(E.autoTrainerLevel(s), 0, 'no Auto-Trainer');
+    assert.equal(E.derive(s).xpPerSec, 0, 'no passive leg XP');
     s.challenge = { id: 'speedrun', start: 0 };
-    s.stats.playTime = 1801;
+    s.stats.playTime = 2401;
     const out = E.evaluate(s);
     assert.equal(out.challenge.won, false);
     assert.equal(s.challenge, null);
@@ -1238,18 +1244,19 @@ test('Transcend: only at the Singularity; versions and Insight start over, Trans
     s.prestige = { points: 50, total: 144, count: 3, major: 4, minor: 0, levels: { autoTrainer: 1 } };
     Object.assign(s.attr, { intelligence: 300, creativity: 30, awareness: 30 });
     s.challengesDone.lean = true;
-    assert.equal(E.transcendGain(s), 4);
+    assert.equal(E.transcendGain(s), 6);
     const r = E.transcend(s, NOW);
     assert.equal(r.ok, true);
     const t = r.state;
     assert.equal(t.prestige.count, 0);
     assert.equal(t.prestige.total, 0);
-    assert.deepEqual(t.prestige.levels, {});
-    assert.equal(t.transcend.total, 4);
+    assert.deepEqual(t.prestige.levels, { autoTrainer: 1 }, 'only the Auto-Trainer stays');
+    assert.equal(t.levels.keyboard, E.CPU_AFTER_CLICK_LEVEL, 'the desk stays built');
+    assert.equal(t.transcend.total, 6);
     assert.equal(t.challengesDone.lean, true, 'challenges stay beaten');
     t.attr.intelligence = 30;
     t.path.learned = 8;
-    assert.equal(E.prestigeGain(t), Math.floor(E.insightAt(8) * 3), '+50% Insight per point');
+    assert.equal(E.prestigeGain(t), Math.floor(E.insightAt(8) * 4), '+50% Insight per point');
 });
 
 test('act two\'s first legs are shorter but pay what their full length did', () => {
@@ -1258,4 +1265,35 @@ test('act two\'s first legs are shorter but pay what their full length did', () 
         const short = E.stretchXpAt(k);
         assert.ok(short > 0.9 * full(k) && short < 1.15 * full(k), `leg ${k}: ${short.toFixed(1)} vs ${full(k).toFixed(1)}`);
     }
+});
+
+test('Head Start racks hardware at the start of each version; Compute Moat compounds strength without limit', () => {
+    const s = fresh();
+    s.attr.intelligence = 30;
+    s.path.learned = 8;
+    s.prestige.levels.headStart = 2;
+    const t = E.prestige(s, NOW).state;
+    assert.equal(t.levels.cpu, 10);
+    assert.equal(t.levels.server, 5);
+    assert.equal(t.levels.quantum, undefined);
+    const base = E.derive(t).pushPower;
+    t.prestige.levels.computeMoat = 3;
+    assert.ok(Math.abs(E.derive(t).pushPower / base - 1.1 ** 3) < 1e-9);
+    // Older saves' Head Start was today's Muscle Memory: they keep it.
+    const old = E.migrate({ version: 11, prestige: { count: 1, levels: { headStart: 2 } } });
+    assert.equal(old.prestige.levels.muscleMemory, 2);
+});
+
+test('investor tasks grow with the frontier, and dear legacy cards wait until they are within reach', () => {
+    const s = fresh();
+    s.path.learned = 12;
+    assert.ok(E.PROJECT_TASKS.runs.size(s) > E.PROJECT_TASKS.runs.size(fresh()));
+    const v = fresh();
+    v.prestige.count = 1;
+    v.prestige.total = 3;
+    E.evaluate(v);
+    assert.equal(E.isUpgradeVisible(v, E.UPGRADE_BY_ID.computeMoat), false, '10 Insight with 3 earned');
+    v.prestige.total = 5;
+    E.evaluate(v);
+    assert.equal(E.isUpgradeVisible(v, E.UPGRADE_BY_ID.computeMoat), true);
 });

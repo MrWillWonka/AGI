@@ -10,7 +10,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const SAVE_VERSION = 11;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend
+    const SAVE_VERSION = 12;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
     // Auto-Trainer, XP nodes) carry most of a new version's speed, so this stays small: at 0.2 a second run
@@ -174,7 +174,7 @@
     }
 
     // The Auto-Trainer's level, or 0 while its task is switched off.
-    const autoTrainerLevel = s => (taskOn(s, 'autoTrainer') ? level(s, 'autoTrainer') : 0);
+    const autoTrainerLevel = s => (taskOn(s, 'autoTrainer') && s.challenge?.id !== 'handmade' ? level(s, 'autoTrainer') : 0);
 
     function automationGate(s, id) {
         const g = AUTOMATION[id];
@@ -221,7 +221,7 @@
         { id: 'dataProcessor', tab: 'software', name: 'Data Processor', shows: 'collect', effect: '+1 DP per collection, per level', flavor: 'A script that cleans the data so you don\'t have to.', cost: { cp: 50, dp: 5 }, scale: 1.2 },
         // Data feeds training: cleaner data makes every sprint stronger (a data sink that never runs out).
         { id: 'trainingData', tab: 'software', name: 'Training Data Pipeline', effect: '+8% sprint strength per level', flavor: 'Deduplicated, filtered, shuffled, and finally useful.', cost: { cp: 400, dp: 150 }, scale: 1.55,
-            unlock: s => s.path.learned > FIRST_REAL_SKILL, boost: { push: 0.08 } },
+            unlock: s => s.path.learned >= FIRST_REAL_SKILL, boost: { push: 0.08 } },   // from the warm-up: data had no use until Pattern Matching
         { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', shows: 'autoCollect', effect: 'Collects data for you, 10 CP each', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 800, dp: 80 }, scale: 1.5,
             unlock: s => automationGate(s, 'autoCollector').met, hint: 'Pattern Matching, and 40 data collections by hand' },
         // Training skill tree (bought with XP from the Training Path). `tree` is the node's grid
@@ -299,7 +299,13 @@
         { id: 'sovereignFund', tab: 'training', tree: { x: -1, y: 5 }, icon: 'chip', name: 'Round-the-Clock Ops', effect: '-15% wait between sprints per level', flavor: 'Three shifts, three time zones, zero downtime.', cost: { xp: 25000 }, scale: 2.5, max: 2, requires: 'ipo', boost: { cooldown: 1 } },
         // Legacy (cost Insight, kept for good): automation, Flow State, the super power-ups, and flat boosts.
         { id: 'autoTrainer', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'robot', name: 'Auto-Trainer', effect: 'Lv 1 sprints once the ball settles; 2 before a climb fails; 3 hits clean prompts', flavor: 'An intern who never gets tired. Or paid.', cost: { insight: 3 }, scale: 3, max: 3 },
-        { id: 'headStart', tab: 'legacy', legacy: true, branch: 'power', icon: 'target', name: 'Head Start', effect: 'Clean prompts hit 10% harder per level, kept for good', flavor: 'Version two starts where version one gave up.', cost: { insight: 1 }, scale: 2, max: 3, boost: { cleanPower: 0.1 } },
+        // A starter kit (Cookie Clicker's): a new version's lab was the bottleneck, not XP (v2 sprinted to leg 6 on
+        // empty income), so each level starts it with hardware already racked (HEAD_START, in prestige()).
+        { id: 'headStart', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'chip', name: 'Head Start', effect: 'Each version starts with 10 Graphics Cards (Lv 2 +5 Server Clusters, Lv 3 +3 Quantum Processors)', flavor: 'Version two starts where version one gave up.', cost: { insight: 1 }, scale: 2, max: 3 },
+        { id: 'muscleMemory', tab: 'legacy', legacy: true, branch: 'power', icon: 'target', name: 'Muscle Memory', effect: 'Clean prompts hit 10% harder per level, kept for good', flavor: 'Your fingers remember where the zone was.', cost: { insight: 1 }, scale: 2, max: 3, boost: { cleanPower: 0.1 } },
+        // The long tail: Insight's endless sink, compounding strength like the tree's Scale Up (late versions stalled
+        // at the same skill count every time).
+        { id: 'computeMoat', tab: 'legacy', legacy: true, branch: 'power', icon: 'bolt', name: 'Compute Moat', effect: 'Sprint strength ×1.1 per level, on top of everything, no limit, kept for good', flavor: 'Nobody else can afford to train this.', cost: { insight: 10 }, scale: 1.6, endless: true, boost: { pushMult: 1 } },
         { id: 'alumniNetwork', tab: 'legacy', legacy: true, branch: 'precision', icon: 'coin', name: 'Alumni Network', effect: '+15% XP from every run per level, kept for good', flavor: 'Your old team still sends you their best data.', cost: { insight: 1 }, scale: 2, max: 3, boost: { xp: 0.15 } },
         { id: 'tenure', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'coin', name: 'Tenure', effect: '+10% XP from every run per level, kept for good', flavor: 'They can\'t fire you now. Time to publish.', cost: { insight: 4 }, scale: 3, max: 2, boost: { xp: 0.1 } },
         { id: 'scalingLaws', tab: 'legacy', legacy: true, branch: 'power', icon: 'dice', name: 'Scaling Laws', effect: '+3% breakthrough chance and breakthroughs 25% stronger, per level, kept for good', flavor: 'Bigger is better. There\'s a graph and everything.', cost: { insight: 2 }, scale: 2, max: 3, boost: { critChance: 0.03, critPower: 0.25 } },
@@ -449,7 +455,25 @@
         { id: 'general', name: 'Generalist', desc: 'Reach General AI', check: s => phaseIndex(s) >= 1 },
         { id: 'super', name: 'Beyond Human', desc: 'Reach Superintelligence', seen: s => phaseIndex(s) >= 1, check: s => phaseIndex(s) >= 2 },
         { id: 'singularity', name: 'Event Horizon', desc: 'Reach the Singularity', seen: s => phaseIndex(s) >= 2, check: s => phaseIndex(s) >= 3 },
-        { id: 'transcend', name: 'Ship It', desc: 'Ship your next version', seen: s => prestigeGain(s) >= 1 || s.prestige.count >= 1, check: s => s.prestige.count >= 1 }
+        { id: 'transcend', name: 'Ship It', desc: 'Ship your next version', seen: s => prestigeGain(s) >= 1 || s.prestige.count >= 1, check: s => s.prestige.count >= 1 },
+        // The long-term list (recognition only, like the rest): versions, challenges, act two, investors, replays.
+        { id: 'cp1t', name: 'Teraflop', desc: 'Earn 1 trillion CP in total', seen: s => s.stats.lifetimeCp >= 1e9, check: s => s.stats.lifetimeCp >= 1e12 },
+        { id: 'skills20', name: 'Renaissance', desc: 'Learn 20 skills in one run', seen: s => s.path.learned >= 10, check: s => s.path.learned >= 20 },
+        { id: 'clean100', name: 'Prompt Engineer', desc: 'Land 100 clean prompts in one version', seen: s => s.stats.cleanSprints >= 1, check: s => s.stats.cleanSprints >= 100 },
+        { id: 'rolls1000', name: 'Ten Thousand Hours', desc: 'Finish 1,000 training runs', seen: s => s.stats.rolls >= 100, check: s => s.stats.rolls >= 1000 },
+        { id: 'replays25', name: 'Déjà Vu', desc: 'Cross 25 cleared legs on replays', seen: s => s.path.learned >= 2, check: s => s.stats.legsCleared >= 25 },
+        { id: 'projects10', name: 'Investor Darling', desc: 'Finish 10 investor projects', seen: s => !!s.unlocked['action:research'], check: s => s.stats.projectsDone >= 10 },
+        { id: 'projects50', name: 'Unicorn', desc: 'Finish 50 investor projects', seen: s => s.stats.projectsDone >= 10, check: s => s.stats.projectsDone >= 50 },
+        { id: 'flight30', name: 'Liftoff', desc: 'Fly 30 m in one flight', seen: s => s.stats.bestFlight > 0, check: s => s.stats.bestFlight >= 30 },
+        { id: 'flight100', name: 'Low Orbit', desc: 'Fly 100 m in one flight', seen: s => s.stats.bestFlight >= 30, check: s => s.stats.bestFlight >= 100 },
+        { id: 'speed20', name: 'Escape Velocity', desc: 'Reach 20 m/s', seen: s => s.stats.topSpeed >= 5, check: s => s.stats.topSpeed >= 20 },
+        { id: 'tokens50', name: 'Token Collector', desc: 'Take 50 XP tokens', seen: s => s.stats.tokens >= 1, check: s => s.stats.tokens >= 50 },
+        { id: 'tokens500', name: 'Hoarder', desc: 'Take 500 XP tokens', seen: s => s.stats.tokens >= 50, check: s => s.stats.tokens >= 500 },
+        { id: 'versions5', name: 'Release Cadence', desc: 'Ship 5 versions', seen: s => s.prestige.count >= 1, check: s => s.prestige.count >= 5 },
+        { id: 'versions10', name: 'Long-Term Support', desc: 'Ship 10 versions', seen: s => s.prestige.count >= 5, check: s => s.prestige.count >= 10 },
+        { id: 'challenge1', name: 'Constraint Satisfaction', desc: 'Beat a challenge', seen: s => challengesOpen(s), check: s => Object.keys(s.challengesDone).length >= 1 },
+        { id: 'challengeAll', name: 'Benchmark Sweep', desc: 'Beat every challenge', seen: s => Object.keys(s.challengesDone).length >= 1, check: s => CHALLENGES.every(c => s.challengesDone[c.id]) },
+        { id: 'transcended', name: 'Beyond the Horizon', desc: 'Transcend', seen: s => canTranscend(s) || s.transcend.count > 0, check: s => s.transcend.count >= 1 }
     ];
 
     function defaultState(now) {
@@ -540,16 +564,17 @@
     // rates: optional debug multipliers { cp, dp, rp }
     // ---- Challenges ------------------------------------------------------
     // Constrained releases, opened from R&D after three versions (Antimatter Dimensions-style): you ship into
-    // one, play the version under its rule, and reaching General AI beats it for a perk kept for good
+    // one, play the version under its rule, and reaching Superintelligence beats it for a perk kept for good
     // (Transcending too). Abandon any time (no reset, no perk). Content is data: add an entry here and its
     // rule and perk in challengeMods().
     const CHALLENGES_AFTER = 3;   // versions shipped before challenges open
+    const CHALLENGE_GOAL = 2;     // the phase that beats a challenge: Superintelligence (General AI came in 10-18 min, no test)
     const CHALLENGES = [
-        { id: 'lean', name: 'Lean Startup', rule: 'One training sprint per run', reward: '+1 training sprint per run' },
+        { id: 'lean', name: 'Lean Startup', rule: 'Training sprints held at 2 per run', reward: '+1 training sprint per run' },
         { id: 'noPrompts', name: 'No Prompting', rule: 'No prompt zones on the meter', reward: 'Clean prompts pay +50% XP' },
-        { id: 'handmade', name: 'Handmade', rule: 'The Data crawler and Research assistant never run', reward: 'Automation runs 50% faster' },
+        { id: 'handmade', name: 'Handmade', rule: 'No automation: no crawler, research assistant, Auto-Trainer or passive leg XP', reward: 'Automation runs 50% faster' },
         { id: 'frugal', name: 'Frugal', rule: 'Training sprints cost 3× as much', reward: 'Training sprints cost 20% less' },
-        { id: 'speedrun', name: 'Speedrun', rule: 'Reach General AI within 30 minutes of play', reward: '+15% sprint strength', limit: 1800 }
+        { id: 'speedrun', name: 'Speedrun', rule: 'Reach Superintelligence within 40 minutes of play', reward: '+15% sprint strength', limit: 2400 }
     ];
     const CHALLENGE_BY_ID = Object.fromEntries(CHALLENGES.map(c => [c.id, c]));
 
@@ -558,7 +583,7 @@
         const on = s.challenge?.id;
         const done = id => !!s.challengesDone?.[id];
         return {
-            oneSprint: on === 'lean',
+            twoSprints: on === 'lean',
             noPrompts: on === 'noPrompts',
             noAuto: on === 'handmade',
             costMult: (on === 'frugal' ? 3 : 1) * (done('frugal') ? 0.8 : 1),
@@ -590,7 +615,7 @@
     // The endgame layer: at the Singularity, versions, Insight and legacy upgrades reset for Transcendence,
     // and every point ever earned makes each release bring +50% Insight. Challenges beaten stay beaten.
     const canTranscend = s => phaseIndex(s) >= PHASES.length - 1;
-    const transcendGain = s => (canTranscend(s) ? Math.max(1, Math.floor(Math.sqrt(s.prestige.total) / 3)) : 0);
+    const transcendGain = s => (canTranscend(s) ? Math.max(1, Math.floor(Math.sqrt(s.prestige.total) / 2)) : 0);
     const insightBoost = s => 1 + 0.5 * (s.transcend?.total || 0);
 
     function derive(s, rates) {
@@ -655,7 +680,7 @@
         // Hills grow faster than this, so later skills need momentum built over several pushes.
         const tb = treeBoosts(s);
         const pushPower = PATH.basePush * (1 + tb.push + sk.push) * Math.pow(1.1, tb.pushMult) * Math.sqrt(mult) * bo.push * ch.strength;
-        const pushesPerRoll = ch.oneSprint ? 1 : PATH.basePushes + tb.pushes + sk.pushes + ch.pushes;
+        const pushesPerRoll = ch.twoSprints ? PATH.basePushes : PATH.basePushes + tb.pushes + sk.pushes + ch.pushes;
         const pushCooldown = Math.max(PATH.minCooldown, PATH.baseCooldown * Math.pow(0.85, tb.cooldown));
 
         // The sweet spot doesn't widen (hitting it is the skill); upgrades make hitting it pay: XP, and
@@ -700,7 +725,7 @@
         const xpMult = (1 + tb.xp) * bo.xp * mult;
         // Cleared stretches keep training on their own, slowly: XP per second from every learned skill hill.
         let xpPerSec = 0;
-        for (let k = 0; k < s.path.learned; k++) xpPerSec += legXpRate(s, k, xpMult) * r.xp;
+        if (!ch.noAuto) for (let k = 0; k < s.path.learned; k++) xpPerSec += legXpRate(s, k, xpMult) * r.xp;
 
         return { mult, cpPerSec, hardwareRates, hardwareMult: (1 + 0.5 * L('compilerOpt')) * (1 + 0.5 * L('kernelFusion')), clickPower, dpPerCollect, autoDpPerCollect, dpPerSec, rpPerResearch, autoRpPerResearch, rpPerSec,
             collectsPerSec, researchPerSec, cpUsePerSec, dpUsePerSec, autoThrottled, tasks,
@@ -776,7 +801,8 @@
         // version, need only an earlier legacy upgrade maxed (if any), and once owned they stay.
         if (up.legacy) {
             if (level(s, up.id) > 0) return true;
-            return s.prestige.count >= 1 && (!up.requires || parentDone(s, up));
+            // Information grows: a dear card shows once Insight ever earned is half its price.
+            return s.prestige.count >= 1 && (!up.requires || parentDone(s, up)) && (up.cost.insight <= 5 || 2 * s.prestige.total >= up.cost.insight);
         }
         // A skill-tree node shows once the node it grows from has its first level (finishing the parent is
         // still the cheaper buy: a node's first level costs more than its parent's last).
@@ -930,7 +956,7 @@
         // A running challenge is beaten at General AI, or lost when a time limit runs out.
         if (s.challenge) {
             const c = CHALLENGE_BY_ID[s.challenge.id];
-            if (s.attr.intelligence >= PHASES[1].req.intelligence) {
+            if (phaseIndex(s) >= CHALLENGE_GOAL) {
                 s.challengesDone[c.id] = true;
                 s.challenge = null;
                 out.challenge = { ...c, won: true };
@@ -1183,10 +1209,15 @@
     // XP for a clean or perfect push: a steady, flat amount banked immediately, whatever the distance.
     // Clean and perfect sprints pay at the frontier's scale wherever they're hit (times the replay share on
     // a cleared leg): sized by the leg, a perfect on leg 1 was worth a fraction of one on the frontier.
-    function pushBonusXp(s, kind, leg = s.path.learned) {
+    // `charge`: where on the meter it was released. A prompt pays by it (the zone's centre averages
+    // PROMPT_CHARGE, so on average nothing changes): weak taps into a low zone out-earned full sprints, the
+    // dull way to play skipping the launcher.
+    const PROMPT_CHARGE = 0.575;
+    const chargeFactor = charge => (charge == null ? 1 : Math.min(1.5, Math.max(0.3, charge / PROMPT_CHARGE)));
+    function pushBonusXp(s, kind, leg = s.path.learned, charge) {
         if (!kind) return 0;
         const d = derive(s);
-        return stretchXpAt(s.path.learned) * (leg < s.path.learned ? PATH.replayXp : 1) * PATH.cleanXp * d.cleanMult * cleanUnits(kind, s);
+        return stretchXpAt(s.path.learned) * (leg < s.path.learned ? PATH.replayXp : 1) * PATH.cleanXp * d.cleanMult * cleanUnits(kind, s) * chargeFactor(charge);
     }
 
     // An XP token taken in flight: a flat share of the frontier's stretch (the replay share on a cleared leg),
@@ -1198,8 +1229,8 @@
         return xp;
     }
 
-    function grantPushBonus(s, kind, leg = s.path.learned) {
-        const xp = pushBonusXp(s, kind, leg);
+    function grantPushBonus(s, kind, leg = s.path.learned, charge) {
+        const xp = pushBonusXp(s, kind, leg, charge);
         s.res.xp += xp;
         if (kind) s.stats.cleanSprints++;
         return xp;
@@ -1252,10 +1283,12 @@
     // `size(s)` scales the target to where the player is; `needs` keeps tasks to things they can do.
     const PROJECT_TASKS = {
         computes: { stat: s => s.stats.clicks, text: n => `Compute ${n} times by hand`, size: () => 40 },
-        collects: { stat: s => s.stats.collects, text: n => `Collect data by hand ${n} times`, size: () => 25, needs: 'seen:dp' },
-        runs: { stat: s => s.stats.rolls, text: n => `Finish ${n} training runs`, size: () => 4, needs: 'module:path' },
+        collects: { stat: s => s.stats.collects, text: n => `Collect data by hand ${n} times`, size: () => 25, needs: s => !!s.unlocked['seen:dp'] && !level(s, 'autoCollector') },
+        // Sized by the frontier, so late offers ask for more than the first ones did.
+        runs: { stat: s => s.stats.rolls, text: n => `Finish ${n} training runs`, size: s => 4 + Math.floor(s.path.learned / 3), needs: 'module:path' },
         // Only once clean prompts exist (Hyperparameter Search adds the zone).
-        clean: { stat: s => s.stats.cleanSprints, text: n => `Land ${n} clean training sprints`, size: () => 3, needs: s => !!s.unlocked['module:path'] && derive(s).zoneWidth > 0 },
+        clean: { stat: s => s.stats.cleanSprints, text: n => `Land ${n} clean training sprints`, size: s => 3 + Math.floor(s.path.learned / 2), needs: s => !!s.unlocked['module:path'] && derive(s).zoneWidth > 0 },
+        tokens: { stat: s => s.stats.tokens, text: n => `Take ${n} XP tokens in flight`, size: s => 4 + Math.max(0, s.path.learned - ACT_TWO_LEG), needs: s => s.path.learned > ACT_TWO_LEG },
         earnCp: { stat: s => s.stats.runCp, text: n => `Earn ${format(n)} CP`, size: s => Math.max(200, Math.round(derive(s).cpPerSec * 180)) },
         research: { stat: s => s.stats.researchManual, text: n => `Research by hand ${n} times`, size: () => 10, needs: 'action:research' }
     };
@@ -1359,7 +1392,9 @@
     // 10 at 10, 22 at 15. It used to come from compute earned, which shipped for 1–2 Insight long before
     // the model had learned anything worth releasing.
     // Insight for shipping with `learned` skills (the warm-up skill doesn't count).
-    const insightAt = learned => Math.floor(0.1 * Math.max(0, learned - 1) ** 2);
+    // A gentler front (5 at General AI, about 24 at 15 skills: it was 0.1·n², 3 at General AI, where the first
+    // ship lands at about 30 minutes, too little to feel; every later ship stayed a point release).
+    const insightAt = learned => Math.floor(0.25 * Math.max(0, learned - 1) ** 1.7);
     const TEXT_SIZES = [1, 1.15, 1.3];   // the text size setting (it scales the whole UI)
 
     function prestigeGain(s) {
@@ -1374,6 +1409,10 @@
         while (at(n) <= now) n++;
         return n;
     }
+
+    // Head Start's hardware, racked at the start of a version (by its level).
+    const HEAD_START = [['cpu', 10], ['server', 5], ['quantum', 3]];
+    const headStartKit = lv => Object.fromEntries(HEAD_START.slice(0, lv));
 
     const versionName = (major, minor) => `v${major}.${minor}`;
     const currentVersion = s => versionName(s.prestige.major, s.prestige.minor);
@@ -1395,7 +1434,7 @@
             intro: { ...s.intro },
             // A new version starts with the desk built (the click tool at the Server Rack), so the first
             // thing to do is automate compute again.
-            levels: { keyboard: CPU_AFTER_CLICK_LEVEL },
+            levels: { keyboard: CPU_AFTER_CLICK_LEVEL, ...headStartKit(s.prestige.levels.headStart || 0) },
             prestige: { points: s.prestige.points + gain, total: s.prestige.total + gain, count: s.prestige.count + 1,
                 major: v.major, minor: v.minor, levels: { ...s.prestige.levels } },
             tasks: JSON.parse(JSON.stringify(s.tasks)),
@@ -1439,6 +1478,8 @@
             challengesDone: { ...s.challengesDone },
             transcend: { points: s.transcend.points + gain, total: s.transcend.total + gain, count: s.transcend.count + 1 }
         });
+        // The Auto-Trainer is quality of life, not power: it stays.
+        if (s.prestige.levels.autoTrainer) next.prestige.levels = { autoTrainer: s.prestige.levels.autoTrainer };
         Object.assign(next.stats, {
             clicks: s.stats.clicks,
             lifetimeCp: s.stats.lifetimeCp,
@@ -1557,6 +1598,11 @@
             s.stats.skillsLearned += 1;
         }
         s.projects = cleanProjects(raw.projects, d.projects);
+        // v12: Head Start's old effect moved to Muscle Memory (owners keep it) and the run's play-time start is new.
+        if (!(raw.version >= 12)) {
+            if (s.prestige.levels.headStart) s.prestige.levels.muscleMemory = s.prestige.levels.headStart;
+            s.stats.runPlayStart = Math.max(0, s.stats.playTime - Math.max(0, (num(raw.lastSaved, d.lastSaved) - s.stats.runStart) / 1000));
+        }
         s.challengesDone = cleanMap(raw.challengesDone, (k, v) => Object.hasOwn(CHALLENGE_BY_ID, k) && v === true);
         const rc = raw.challenge;
         s.challenge = rc && Object.hasOwn(CHALLENGE_BY_ID, rc.id) && !s.challengesDone[rc.id] ? { id: rc.id, start: num(rc.start, 0) } : null;

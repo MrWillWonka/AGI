@@ -260,8 +260,7 @@ window.AGI = (function () {
         'hint:hold': { anchor: () => ui.actions.compute?.button, kind: 'tip' },
         // After the first skill: on the result card, the replicated best run; in the lab, Scheduled tasks.
         'hint:replay': { anchor: () => $('rollResult'), kind: 'tip', place: 'below', ms: 15000 },
-        'hint:tasks': { anchor: () => $('taskPanel'), kind: 'tip', ms: 12000 },
-        'hint:tuck': { anchor: () => $('pathCanvas'), kind: 'tip', place: 'inside', ms: 12000 }
+        'hint:tasks': { anchor: () => $('taskPanel'), kind: 'tip', ms: 12000 }
     };
     const calloutQueue = [];
     let calloutLive = null;
@@ -1145,7 +1144,7 @@ window.AGI = (function () {
         path.roll = null;
         resetView(false);
         log(`Shipped ${result.version}! +${result.gain} Insight. Automated production and training XP are now ×${E.derive(state).mult.toFixed(2)}. Spend Insight on legacy upgrades before you start.`, 'special');
-        if (into) log(`Challenge: ${challengeName(into)}. ${E.CHALLENGES.find(c => c.id === into).rule} until General AI.`, 'warning');
+        if (into) log(`Challenge: ${challengeName(into)}. ${E.CHALLENGES.find(c => c.id === into).rule} until Superintelligence.`, 'warning');
         dropStaleToasts();
         toast(`${result.version} shipped`, `+${result.gain} Insight`, 'version');
         afterChange();
@@ -1207,7 +1206,7 @@ window.AGI = (function () {
             }
         }
         if (ascend) {
-            setText($('ascendPoints'), E.format(state.transcend.points));
+            setText($('ascendPoints'), E.format(state.transcend.total));
             const tg = E.transcendGain(state);
             setText($('ascendInfo'), tg >= 1
                 ? `Start over from v1.0 for +${E.format(tg)} Transcendence: every point makes each release bring +50% Insight. Challenges beaten stay beaten.`
@@ -1230,7 +1229,7 @@ window.AGI = (function () {
         const next = E.nextVersion(state, gain);
         const { ok } = await openDialog({
             title: `Ship ${E.versionName(next.major, next.minor)} into ${c.name}?`,
-            message: `A normal release (+${gain} Insight), then the new version plays under one rule: ${c.rule.toLowerCase()}. Reach General AI to beat it. Perk, for good: ${c.reward.charAt(0).toLowerCase()}${c.reward.slice(1)}.`,
+            message: `A normal release (+${gain} Insight), then the new version plays under one rule: ${c.rule.toLowerCase()}. Reach Superintelligence to beat it. Perk, for good: ${c.reward.charAt(0).toLowerCase()}${c.reward.slice(1)}.`,
             okLabel: 'Ship into it'
         });
         if (ok) shipVersion(false, c.id);
@@ -2872,7 +2871,7 @@ window.AGI = (function () {
             setHidden(card, !E.isUpgradeVisible(state, up));
             const lvl = E.level(state, up.id);
             const maxed = E.isMaxed(state, up);
-            setText(level, `${lvl}/${up.max}`);
+            setText(level, up.endless ? `Lv ${lvl}` : `${lvl}/${up.max}`);
             card.classList.toggle('owned', lvl > 0);
             setText(button, maxed ? 'Owned' : `${E.formatCost(E.upgradeCost(up, lvl))}`);
             setDisabled(button, maxed || !E.canAfford(state, E.upgradeCost(up, lvl)));
@@ -3352,7 +3351,8 @@ window.AGI = (function () {
     const BANK_MULT = 1.5;      // Bullet Time: each banked sprint lands this much harder
     const LUCID_WARP = 4;       // Lucid Dream: time condenses, the ball covers this many times the ground
     const LUCID_CONDENSE = 3;   // and the view squeezes this much wider (heights keep their scale)
-    const LATE_VIEW = 26;       // late legs: metres of trail in view at rest (wider with speed)
+    const LATE_VIEW = 18;       // late legs: metres of trail in view at rest (wider with speed; 26 made flights look tiny)
+    const ACT_ONE_RELIEF = 2;   // act one: how far the vertical scale may stretch to fill the height
     const LATE_RELIEF = 0.9;    // and a slightly flatter vertical scale (0.35 left the swells and flights in the bottom fifth of an empty sky)
 
     // A big luck banner: pops in at the top of the trail, in the luck's colour.
@@ -3469,8 +3469,7 @@ window.AGI = (function () {
                 if (e.button !== 0) return;
                 e.preventDefault();
                 target.setPointerCapture?.(e.pointerId);
-                path.held = true;
-                startCharge();
+                pressHold();
             });
             target.addEventListener('pointerup', letGo);
             target.addEventListener('pointercancel', letGo);
@@ -3485,8 +3484,7 @@ window.AGI = (function () {
             if (!runKeys(e)) return;
             e.preventDefault();
             if (e.repeat) return;
-            path.held = true;
-            startCharge();
+            pressHold();
         });
         window.addEventListener('blur', () => { path.held = false; });
         document.addEventListener('keyup', e => {
@@ -3590,7 +3588,35 @@ window.AGI = (function () {
     // release is still judged, so nothing is queued.
     function letGo() {
         path.held = false;
+        if (path.holdTuck) endTuck();
+        path.holdTuck = false;
         releaseCharge();
+    }
+
+    // A press. On act two, one that can't fire yet (the wait, or no sprints left) is a tuck, and stays one
+    // until it's let go: it used to turn into a charge the moment the wait ended, so a dive lasted 1.2 s at
+    // most and its release fired a sprint at whatever the meter said.
+    function pressHold() {
+        path.held = true;
+        const roll = path.roll;
+        path.holdTuck = !!roll && path.view === 'run' && !path.done && roll.launched && roll.leg >= T.LATE_LEG && !path.fx.maxEffort && !readyToFire(roll);
+        if (!path.holdTuck) startCharge();
+    }
+
+    // A clean dive: held all the way down a descent and let go at the bottom (before the climb has gone on
+    // long) kicks the ball NICE_DIVE faster, with a pop. Too early, too late or not at all: nothing.
+    const NICE_DIVE = 1.12;
+    function endTuck() {
+        const roll = path.roll;
+        const d = path.dive;
+        path.dive = null;
+        if (!roll || roll.over || roll.airborne || !d || d.down < 0.35 || d.late > 0.3) return;
+        if (roll.ground.slope(roll.ball.x) < -0.08 || roll.ball.v <= 0.5) return;
+        roll.ball.v *= NICE_DIVE;
+        path.fx.pops.push({ wx: roll.ball.x, wh: roll.ground.height(roll.ball.x), age: 0, life: 1.2, big: true, text: 'NICE DIVE' });
+        path.fx.boost = Math.max(path.fx.boost, 0.25);
+        roll.dives = (roll.dives || 0) + 1;
+        trailSfx('clean');
     }
 
     function releaseCharge() {
@@ -3622,12 +3648,12 @@ window.AGI = (function () {
             path.fx.maxEffort = false;
             burst(path.colors.warning, 30);
         }
-        if (pushed && kind) promptBonus(roll, kind, leg);
+        if (pushed && kind) promptBonus(roll, kind, leg, effort ? 1 : level);
     }
 
     // Clean, super and system prompts pay at once: steady XP whatever happens to the roll.
-    function promptBonus(roll, kind, leg) {
-        const xp = E.grantPushBonus(state, kind, leg);
+    function promptBonus(roll, kind, leg, charge) {
+        const xp = E.grantPushBonus(state, kind, leg, charge);
         roll.clean = (roll.clean || 0) + 1;
         roll.units = (roll.units || 0) + E.cleanUnits(kind, state);
         roll.bonusXp = (roll.bonusXp || 0) + xp;
@@ -3661,7 +3687,7 @@ window.AGI = (function () {
         // The zone doesn't move while time stands still, so its prompt pays once per freeze.
         if (kind && !path.fx.bankPrompted) {
             path.fx.bankPrompted = true;
-            promptBonus(roll, kind, ballLeg());
+            promptBonus(roll, kind, ballLeg(), 1);
         }
     }
 
@@ -3858,7 +3884,7 @@ window.AGI = (function () {
     function ageFx(dt) {
         const fx = path.fx;
         for (const p of fx.pops) p.age += dt;
-        fx.pops = fx.pops.filter(p => p.age < 1.1);
+        fx.pops = fx.pops.filter(p => p.age < (p.life || 1.1));
         fx.boost = Math.max(0, fx.boost - dt);
         fx.shake = Math.max(0, fx.shake - dt);
         for (const sh of fx.shocks) sh.age += dt;
@@ -4102,7 +4128,7 @@ window.AGI = (function () {
             const aim = zone.perfectTo > zone.perfectFrom ? (zone.perfectFrom + zone.perfectTo) / 2 : (zone.from + zone.to) / 2;
             if (zone.to > zone.from && aim <= budget) {
                 const kind = E.zoneHit(zone, aim);
-                if (pushBall(true, aim, kind) && kind) promptBonus(roll, kind, ballLeg());
+                if (pushBall(true, aim, kind) && kind) promptBonus(roll, kind, ballLeg(), aim);
                 return;
             }
         }
@@ -4144,17 +4170,33 @@ window.AGI = (function () {
             if (path.pause > 0) path.pause -= dt;
             const roll = currentRoll();
             autoTrain(roll);
-            if (path.held && !path.charging && path.view === 'run' && !path.done && readyToFire(roll)) startCharge();
+            if (path.held && !path.holdTuck && !path.charging && path.view === 'run' && !path.done && readyToFire(roll)) startCharge();
             // The tuck: a hold that isn't charging a sprint (during the wait, or with none left) makes the ball
             // heavier on act two's swells. (The Auto-Trainer never tucks.)
             roll.tuck = !!path.held && !path.charging && path.view === 'run' && !roll.airborne && roll.leg >= T.LATE_LEG;
+            // Keep score of the dive: time held going down, and time held into the climb after it.
+            if (roll.tuck) {
+                const sl = roll.ground.slope(roll.ball.x);
+                const d = path.dive || (path.dive = { down: 0, late: 0 });
+                if (sl < -0.05) { d.down += dt; d.late = 0; } else if (sl > 0.1) d.late += dt;
+            } else if (!path.held) path.dive = null;
+            // Teach it in place, once: the first time the ball heads down a swell with no sprint to fire, a
+            // pulsing HOLD over it (and the tip in the log).
+            if (!state.intro['hint:tuck'] && path.visible && roll.leg >= T.LATE_LEG && !roll.airborne && !path.held && roll.launched && !roll.over
+                && roll.ground.slope(roll.ball.x) < -0.1 && roll.ball.v > 1 && !readyToFire(roll)) {
+                state.intro['hint:tuck'] = true;
+                path.holdHint = 3;
+                log('Tip: hold on the way down a swell to dive and pick up speed; let go at the bottom.', 'info');
+            }
+            if (path.holdHint > 0) path.holdHint -= dt;
             // Slow motion only matters on screen; in the background the run keeps real time. A wind-up and
             // Bullet Time hold the run still.
             const fx = path.fx;
             // A lost run (no sprints left, rolling back, so it can't beat its furthest point) plays out at
             // FAST_FORWARD on screen instead of drifting home for seconds.
             path.ff = path.visible && lostRun(roll);
-            const sim = fx.windup || frozen() ? 0 : path.visible ? dt * path.timeScale * (path.ff ? FAST_FORWARD : 1) : dt;
+            if (path.hitStop > 0) path.hitStop -= dt;
+            const sim = fx.windup || frozen() || path.hitStop > 0 ? 0 : path.visible ? dt * path.timeScale * (path.ff ? FAST_FORWARD : 1) : dt;
             // The wait between sprints keeps counting while a wind-up holds the run still.
             if (fx.windup) roll.ball.cooldown = Math.max(0, roll.ball.cooldown - dt);
             if (fx.windup && (fx.windup.age += dt) >= WINDUP_SECONDS) launchBreakthrough(roll, fx.windup.super);
@@ -4204,7 +4246,9 @@ window.AGI = (function () {
 
     // ---- Drama: nail-biters and summits ----
 
-    const SUMMIT_SECONDS = 2.6;     // the summit banner and confetti
+    const SUMMIT_SECONDS = 2.6;     // the summit banner
+    const CONFETTI_SECONDS = 2.8;   // and its confetti
+    const HIT_STOP = 0.1;           // a summit freezes the run this long (a beat, before the slow motion)
     const LEG_FLASH_SECONDS = 2.2;  // "<skill> cleared" on a replay
     const SUMMIT_SLOWMO = 1.1;      // slow motion right after cresting
 
@@ -4252,7 +4296,7 @@ window.AGI = (function () {
             p.x += Math.sin(p.age * p.sway + p.phase) * 40 * dt;
             p.rot += p.spin * dt;
         }
-        path.particles = path.particles.filter(p => p.y < path.height + 10);
+        path.particles = path.particles.filter(p => p.y < path.height + 10 && p.age < CONFETTI_SECONDS);
     }
 
     // Over the top of the skill hill: banner and confetti, then the ball rolls down the far side and
@@ -4260,13 +4304,15 @@ window.AGI = (function () {
     function celebrateSummit(name = E.skillAt(state.path.learned).name, hill = null) {
         path.summit = { age: 0, name, hill };
         trailSfx('summit');
-        // Confetti rains down across the whole trail (screen pixels, staggered starts above the top).
-        const colors = [path.colors.success, path.colors.warning, path.colors.accent, path.colors.primary, '#c792ea'];
+        // Confetti rains down across the whole trail (screen pixels, from just above the top) and is gone in
+        // CONFETTI_SECONDS: it used to drift for up to 16 s over a run that goes on, and its orange looked like
+        // the XP tokens.
+        const colors = [path.colors.success, path.colors.accent, path.colors.primary, '#c792ea'];
         const count = Math.round(Math.min(220, Math.max(80, path.width / 6)));
         for (let i = 0; i < count; i++) {
             path.particles.push({
-                x: Math.random() * path.width, y: -10 - Math.random() * path.height * 0.9,
-                vy: 70 + Math.random() * 90, sway: 2 + Math.random() * 3, phase: Math.random() * 6.3,
+                x: Math.random() * path.width, y: -10 - Math.random() * path.height * 0.25,
+                vy: 160 + Math.random() * 120, sway: 2 + Math.random() * 3, phase: Math.random() * 6.3,
                 rot: Math.random() * Math.PI, spin: (Math.random() - 0.5) * 10,
                 color: colors[i % colors.length], age: 0
             });
@@ -4285,6 +4331,9 @@ window.AGI = (function () {
         roll.legXp = (roll.legXp || 0) + xp;
         (roll.learned = roll.learned || []).push({ skill, xp });
         celebrateSummit(skill.name, hill);
+        // What it earned, where it happened (it used to wait for the result card), and a beat of stillness.
+        path.fx.pops.push({ wx: hill.peak, wh: hill.height, age: 0, life: 2.6, big: true, text: `+${xpText(xp)} XP · ${skill.effect}` });
+        path.hitStop = HIT_STOP;
         path.glow = { skill: state.path.learned - 1, age: 0 };
         const grants = Object.entries(skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
         log(`Learned ${skill.name}: ${skill.effect} (${grants ? grants + ', ' : ''}+${xpText(xp)} XP). ${skill.flavor}`, 'special');
@@ -4309,10 +4358,6 @@ window.AGI = (function () {
                 state.intro['act:two'] = true;
                 luckBanner('ACT II', 'The model generalised. Now it flies.', 'success');
                 log('Act II: past General AI the trail opens into giant swells. Build speed and fly off the crests.', 'special');
-                if (!state.intro['hint:tuck']) {
-                    state.intro['hint:tuck'] = true;
-                    callout('hint:tuck', 'Tip', 'Hold on the way down to dive and pick up speed. Let go before the climb.');
-                }
             }
             return;
         }
@@ -4339,7 +4384,10 @@ window.AGI = (function () {
         const xp = E.collectToken(state, ev.leg, roll.legs || 0);
         roll.tokenXp = (roll.tokenXp || 0) + xp;
         roll.tokens = (roll.tokens || 0) + 1;
-        path.fx.pops.push({ wx: ev.x, wh: ev.y, age: 0, text: `+${xpText(xp)}` });
+        // A run of tokens adds up in one pop that follows the latest (stacked +7.07s couldn't be read).
+        const last = path.fx.pops.find(p => p.tokens && p.age < 0.6);
+        if (last) Object.assign(last, { wx: ev.x, wh: ev.y, age: 0, tokens: last.tokens + 1, xp: last.xp + xp, text: `×${last.tokens + 1} +${xpText(last.xp + xp)}` });
+        else path.fx.pops.push({ wx: ev.x, wh: ev.y, age: 0, tokens: 1, xp, text: `+${xpText(xp)}` });
         trailSfx('clean');
     }
 
@@ -4554,7 +4602,7 @@ window.AGI = (function () {
         const mult = 1 + E.derive(state).cleanRollBonus * units;
         const parts = [];
         if (chain) parts.push(`chain ×${E.chainMult(chain)}`);
-        if (units) parts.push(`×${mult.toFixed(2)} · +${xpText(roll.bonusXp)} banked`);
+        if (units) parts.push(`prompts ×${mult.toFixed(2)} · +${xpText(roll.bonusXp)} banked`);
         setText($('liveXpMult'), parts.join(' · '));
     }
 
@@ -4690,7 +4738,10 @@ window.AGI = (function () {
             let view = LATE_VIEW + 0.7 * Math.abs(roll.ball.v);
             const land = roll.landing;
             if (land) view = Math.max(view, (land.x - roll.ball.x) / 0.62 + 6);
-            const top = land ? Math.max(roll.height, land.top) : roll.height;
+            let top = land ? Math.max(roll.height, land.top) : roll.height;
+            // The leg's skill wall, once it's coming up, stays in frame (its crest was cut off at the top).
+            const wall = T.skillHill(leg);
+            if (wall.peak - roll.ball.x < view * 0.68) top = Math.max(top, wall.height + 0.5);
             view = Math.max(view, (top - floorIn(view) + 2) / (0.75 * fitH(1)));
             const held = path.lateView;
             if (held && held.roll === roll && view <= held.width && view > held.width / 1.3) view = held.width;
@@ -4715,7 +4766,16 @@ window.AGI = (function () {
         // (drawPath divides the vertical scale back out by the same factor).
         if (condense > 1) view *= condense;
         const left = leftOf(view);
-        if (!(path.tension > 0) || !path.focus) return { left, right: left + view, bottom: 0, condense };
+        // Act one fills the height: the vertical scale stretches (up to ACT_ONE_RELIEF) until the tallest hill
+        // in view reaches about 60% of it (the hills sat in the bottom fifth of an empty sky).
+        const area0 = drawArea();
+        // (Sized by the leg's tallest rolling hill, not what's in view, so the scale holds steady along a leg.)
+        const from = g.legStart(leg);
+        const to = T.skillHill(leg).start;
+        const tallest = Math.max(0.01, ...g.bumps.filter(b => b.skill === null && b.peak > from && b.peak < to).map(b => b.height));
+        const inView = Math.max(0.01, tallestIn(roll, left, left + view));   // and nothing in view (a skill hill) is cut off
+        const relief = Math.max(1, Math.min(ACT_ONE_RELIEF, 0.6 * area0.h * view / (tallest * area0.w * RELIEF), 0.85 * area0.h * view / (inView * area0.w * RELIEF)));
+        if (!(path.tension > 0) || !path.focus) return { left, right: left + view, bottom: 0, condense, relief };
         // Nail-biter: push in on the ball and the crest, lifting the view so both stay in frame.
         const area = drawArea();
         const close = Math.min(view, Math.max(1.2, path.focus.halfWidth * 1.6));
@@ -4724,7 +4784,7 @@ window.AGI = (function () {
         const closeBottom = Math.max(0, roll.ground.height(roll.ball.x) - visibleH * 0.35);
         const t = path.tension;
         const l = left + (closeLeft - left) * t;
-        return { left: l, right: l + view + (close - view) * t, bottom: closeBottom * t };
+        return { left: l, right: l + view + (close - view) * t, bottom: closeBottom * t, relief: relief + (1 - relief) * t };
     }
 
     function cameraMoving() {
@@ -4830,16 +4890,20 @@ window.AGI = (function () {
         ctx.textAlign = 'center';
         ctx.font = '700 12px "JetBrains Mono", monospace';
         for (const p of path.fx.pops) {
-            const k = p.age / 1.1;
+            const k = p.age / (p.life || 1.1);
             const px = X(p.wx);
             const py = Y(p.wh);
-            ctx.strokeStyle = hexAlpha(c.warning, 1 - k);
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(px, py, 6 + 18 * k, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.fillStyle = hexAlpha(c.warning, 1 - k);
-            ctx.fillText(p.text, px, py - 12 - 20 * k);
+            const tone = p.big ? c.success : c.warning;
+            if (!p.big) {
+                ctx.strokeStyle = hexAlpha(tone, 1 - k);
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(px, py, 6 + 18 * k, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            ctx.font = p.big ? '700 15px "Chakra Petch", system-ui, sans-serif' : '700 12px "JetBrains Mono", monospace';
+            ctx.fillStyle = hexAlpha(tone, Math.min(1, 2 * (1 - k)));
+            ctx.fillText(p.text, Math.max(PAD_X + 120, Math.min(path.width - PAD_X - 120, px)), Math.max(PAD_TOP + 40, py - (p.big ? 34 : 12) - 20 * k));
         }
         ctx.restore();
     }
@@ -5299,6 +5363,13 @@ window.AGI = (function () {
         ctx.strokeStyle = wind ? c.warning : crunching() ? c.danger : roll.ball.v > 0.05 ? c.success : roll.ball.v < -0.05 ? c.danger : c.primary;
         ctx.stroke();
         if (path.charging) drawChargeRing(ctx, roll, bx, by);
+        if (path.holdHint > 0 && !path.held) {
+            const a = Math.min(1, path.holdHint) * (0.6 + 0.4 * Math.sin(t * 8));
+            ctx.font = '700 13px "Chakra Petch", system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = hexAlpha(c.warning, a);
+            ctx.fillText('HOLD ▼', bx, by - BALL - 26);
+        }
         drawLuckOver(ctx, bx, by, wind);
         ctx.restore();
 
@@ -5410,7 +5481,7 @@ window.AGI = (function () {
             ctx.save();
             ctx.translate(p.x, p.y);
             ctx.rotate(p.rot);
-            ctx.globalAlpha = Math.max(0, Math.min(1, (path.height + 10 - p.y) / 60));
+            ctx.globalAlpha = Math.max(0, Math.min(1, (path.height + 10 - p.y) / 60, (CONFETTI_SECONDS - p.age) / 0.6));
             ctx.fillStyle = p.color;
             ctx.fillRect(-2, -3.5, 4, 7);
             ctx.restore();

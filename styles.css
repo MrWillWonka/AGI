@@ -2154,7 +2154,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 /* Replays: which leg a run starts on. */
 .leg-pick { display: flex; align-items: center; gap: 8px; }
 .leg-pick[hidden] { display: none; }
-.leg-pick select { max-width: 230px; padding: 7px 8px; font: 600 0.8rem var(--font-body); color: var(--text); background: #0e1d21; border: 1px solid var(--border); border-radius: 8px; }
+.leg-pick select { max-width: 230px; text-overflow: ellipsis; padding: 7px 8px; font: 600 0.8rem var(--font-body); color: var(--text); background: #0e1d21; border: 1px solid var(--border); border-radius: 8px; }
 .leg-tag { position: absolute; left: 12px; bottom: 20px; z-index: 2; display: flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border: 1px solid rgba(99, 224, 171, 0.45); border-radius: 999px; background: rgba(8, 17, 19, 0.88); font: 600 0.72rem var(--font-mono); color: var(--success); }
 .leg-tag[hidden] { display: none; }
 .leg-tag-clear { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 0.95rem; line-height: 1; padding: 0 4px; }
@@ -2585,3 +2585,8 @@ body.idle :not(.toast, .toast *), body.idle :not(.toast, .toast *)::before, body
 body.charging .minimap { pointer-events: none; }
 /* Keyboard focus shows on the lab's buttons too (the browser default was lost under their own styles). */
 .action-button:focus-visible, .upgrade-button:focus-visible, .ghost-button:focus-visible, .tree-node:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* Short desktop screens (800 px tall laptops): the reserved station rows shrink, so Scheduled tasks and the
+   server cabinets (where clicks show) come up above the fold; station lists scroll inside as before. */
+@media (min-width: 961px) and (max-width: 1799px) and (max-height: 900px) {
+    :root { --station-row: 330px; --station-row-2: 290px; --projects-h: 260px; }
+}
