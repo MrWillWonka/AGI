@@ -10,7 +10,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const SAVE_VERSION = 7;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro)
+    const SAVE_VERSION = 8;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front
     const MAX_OFFLINE_SECONDS = 8 * 60 * 60;
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
@@ -20,10 +20,12 @@
     const PRESTIGE_BONUS = 0.07;
     const PRESTIGE_MIN_INTELLIGENCE = 5;
     const RESEARCH_SPRINTS = 50;      // paid training sprints after the first skill before Research (and investors) open
+    // Leg 0 is a warm-up (Tokenization, a summit in the first few runs); Pattern Matching is skill 1.
+    const FIRST_REAL_SKILL = 1;
     // Act two: from this leg the trail is a launcher (giant swells; training-path.js LATE_LEG). It is the leg
     // after Translation, whose Intelligence reaches General AI on skills alone (and the algorithms' +8 can't
     // reach it a skill sooner), so the trail changes exactly when the model generalises. Tested.
-    const ACT_TWO_LEG = 6;
+    const ACT_TWO_LEG = 7;
 
     // Training Path: every push costs CP and DP in proportion to how hard it is charged (energy, so
     // charge²), which ties training to passive income. How far a roll gets earns Experience (XP).
@@ -64,6 +66,8 @@
     // Skills, in trail order. Hill i teaches SKILLS[i]. `bonus` effects are summed in derive().
     // Past the end of the list the trail continues with generated frontier skills (see skillAt).
     const SKILLS = [
+        // The warm-up hill (leg 0): a summit in the first few runs, before the real climb starts.
+        { name: 'Tokenization', effect: '+10% sprint strength', flavor: 'It can split words into pieces. Mostly the wrong pieces.', grants: {}, bonus: { push: 0.1 } },
         // Each hill is bigger and each stretch longer than the last, so the bonuses grow too: most skills
         // also make the ball stronger (push), and a few add a push per run or let it glide.
         { name: 'Pattern Matching', effect: '+1 CP per click, +5% sprint strength', flavor: 'It spotted a pattern. It was a cat.', grants: { intelligence: 1 }, bonus: { click: 1, push: 0.05 } },
@@ -123,8 +127,8 @@
     // (a stat count) and, for the bigger ones, a training skill. `automationGate()` checks and reports it.
     const AUTOMATION = {
         cpu: { stat: 'clicks', need: 40, what: 'compute by hand' },
-        autoCollector: { stat: 'collects', need: 40, what: 'data collections by hand', skill: 1 },
-        researchAssistant: { stat: 'researchManual', need: 50, what: 'research runs by hand', skill: 5 }
+        autoCollector: { stat: 'collects', need: 40, what: 'data collections by hand', skill: 2 },      // Pattern Matching
+        researchAssistant: { stat: 'researchManual', need: 50, what: 'research runs by hand', skill: 6 }  // Language Modeling
     };
 
     // Scheduled tasks: each automation gets its own share of the lab's production ("dedicated compute")
@@ -215,7 +219,7 @@
         { id: 'dataProcessor', tab: 'software', name: 'Data Processor', shows: 'collect', effect: '+1 DP per collection, per level', flavor: 'A script that cleans the data so you don\'t have to.', cost: { cp: 50, dp: 5 }, scale: 1.2 },
         // Data feeds training: cleaner data makes every sprint stronger (a data sink that never runs out).
         { id: 'trainingData', tab: 'software', name: 'Training Data Pipeline', effect: '+8% sprint strength per level', flavor: 'Deduplicated, filtered, shuffled, and finally useful.', cost: { cp: 400, dp: 150 }, scale: 1.55,
-            unlock: s => s.path.learned >= 1, boost: { push: 0.08 } },
+            unlock: s => s.path.learned > FIRST_REAL_SKILL, boost: { push: 0.08 } },
         { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', shows: 'autoCollect', effect: 'Collects data for you, 10 CP each', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 800, dp: 80 }, scale: 1.5,
             unlock: s => automationGate(s, 'autoCollector').met, hint: 'Pattern Matching, and 40 data collections by hand' },
         // Training skill tree (bought with XP from the Training Path). `tree` is the node's grid
@@ -241,7 +245,7 @@
         { id: 'waferScale', tab: 'training', tree: { x: 1, y: -5 }, icon: 'chip', name: 'Wafer-Scale Engine', effect: '-15% wait between sprints per level', flavor: 'One chip the size of a dinner plate.', cost: { xp: 20000 }, scale: 1.8, max: 3, requires: 'exascaleCluster', boost: { cooldown: 1 } },
         // Breakthroughs: rare at first (the branch opens after the second skill). New versions add more.
         { id: 'scoutingData', tab: 'training', tree: { x: 1, y: -2 }, requires: 'gpuCluster2', icon: 'dice', name: 'Lucky Break', effect: '+4% breakthrough chance per level (a breakthrough hits ×1.75)', flavor: 'Seed 42. It\'s always seed 42.', cost: { xp: 80 }, scale: 1.6, max: 2, boost: { critChance: 0.04 },
-            unlock: s => s.path.learned >= 2, hint: 'Learn two skills' },
+            unlock: s => s.path.learned >= 3, hint: 'Learn two skills after the warm-up' },
         { id: 'satelliteMaps', tab: 'training', tree: { x: 2, y: -2 }, icon: 'dice', name: 'Serendipity', effect: 'Breakthroughs +50% stronger, per level', flavor: 'Penicillin was an accident too.', cost: { xp: 150 }, scale: 1.6, max: 2, requires: 'scoutingData', boost: { critPower: 0.5 } },
         { id: 'blackSwan', tab: 'training', tree: { x: 3, y: -2 }, icon: 'dice', name: 'Black Swan', effect: '+5% breakthrough chance per level', flavor: 'Nobody saw it coming. That\'s the point.', cost: { xp: 10000 }, scale: 1.9, max: 3, requires: 'satelliteMaps', boost: { critChance: 0.05 } },
         // Max Effort: your next sprint goes all out (full strength, a super prompt) the moment you press.
@@ -878,7 +882,7 @@
     // Cost of a push charged to `charge` (0–1) on `leg` (default: the frontier). Rounded up, so even a
     // light tap costs something. Earlier legs (replays) are cheaper, as they were when you first ran them.
     function pushCost(s, charge = 1, leg = s.path.learned) {
-        const n = Math.min(leg, s.path.learned);
+        const n = Math.max(0, Math.min(leg, s.path.learned) - 1);   // the warm-up and Pattern Matching's leg cost the base
         const early = Math.min(n, PATH.pushCostRampFrom);
         const factor = Math.pow(PATH.pushCostScale, early) * Math.pow(PATH.pushCostLate, n - early) * charge * charge;
         const cost = {};
@@ -915,7 +919,7 @@
         const cost = pushCost(s, charge, leg);
         if (!canAfford(s, cost)) return false;
         pay(s, cost);
-        if (s.path.learned >= 1) s.stats.skilledSprints++;
+        if (s.path.learned > FIRST_REAL_SKILL) s.stats.skilledSprints++;
         return true;
     }
 
@@ -973,7 +977,8 @@
 
     // Metres from leg k's start to its skill hill's peak. Mirrors training-path.js (stretchLength plus the
     // hill's half width, less the 0.2 m start offset); a test keeps the two in step.
-    const legMetres = k => 10 * Math.pow(1.4, k) + 3 * k + 0.55 * Math.pow(1.14, k) * (k >= ACT_TWO_LEG ? 8 : 1) - 0.2;
+    const legMetres = k => (k === 0 ? 2 + 0.45 - 0.2   // the warm-up leg
+        : (k === 1 ? 9 : 10 * Math.pow(1.4, k - 1) + 3 * (k - 1)) + 0.55 * Math.pow(1.14, k - 1) * (k >= ACT_TWO_LEG ? 8 : 1) - 0.2);
     // What reaching leg k's peak pays by distance (before cresting and bonuses): the yardstick for
     // everything sized "per stretch" (clean-sprint XP, replays, passive XP, investor payouts).
     const stretchXpAt = k => PATH.xpPerMetre * Math.pow(PATH.metreScale, k) * legMetres(k) * 2;
@@ -1209,7 +1214,8 @@
     // the model had learned anything worth releasing.
     function prestigeGain(s) {
         if (s.attr.intelligence < PRESTIGE_MIN_INTELLIGENCE) return 0;
-        return Math.floor(0.1 * s.path.learned * s.path.learned);
+        const skills = Math.max(0, s.path.learned - 1);   // the warm-up skill doesn't count
+        return Math.floor(0.1 * skills * skills);
     }
 
     const versionName = (major, minor) => `v${major}.${minor}`;
@@ -1345,6 +1351,14 @@
         s.path.best = Math.min(1, num(raw.path?.best, 0));
         s.path.auto = (Array.isArray(raw.path?.auto) ? raw.path.auto : []).slice(0, s.path.learned).map(v => num(v, 0));
         s.path.legBest = (Array.isArray(raw.path?.legBest) ? raw.path.legBest : []).slice(0, s.path.learned + 1).map(v => num(v, 0));
+        // v8 put a warm-up leg (Tokenization) in front: older saves past the start have it learned too, and every
+        // leg they knew moves one along (its laps and best run with it). It grants no attributes.
+        if (!(raw.version >= 8) && s.path.learned > 0) {
+            s.path.learned = Math.min(MAX_LEARNED, s.path.learned + 1);
+            s.path.auto.unshift(0);
+            s.path.legBest.unshift(0);
+            s.stats.skillsLearned += 1;
+        }
         s.projects = cleanProjects(raw.projects, d.projects);
         s.lastSaved = num(raw.lastSaved, d.lastSaved);
         // Skill-tree nodes now open only from a maxed parent: hide unbought ones an older save revealed early.

@@ -182,8 +182,11 @@ test('research waits for a good stretch of training, not a data stockpile', () =
     s.unlocked['module:path'] = true;
     for (let i = 0; i < 60; i++) E.payPush(s, 1);
     E.evaluate(s);
-    assert.equal(!!s.unlocked['action:research'], false, 'sprints before the first skill do not count');
     s.path.learned = 1;
+    for (let i = 0; i < 60; i++) E.payPush(s, 1);
+    E.evaluate(s);
+    assert.equal(!!s.unlocked['action:research'], false, 'sprints before Pattern Matching (the warm-up included) do not count');
+    s.path.learned = 2;
     for (let i = 0; i < 49; i++) E.payPush(s, 1);
     E.evaluate(s);
     assert.equal(!!s.unlocked['action:research'], false);
@@ -194,6 +197,7 @@ test('research waits for a good stretch of training, not a data stockpile', () =
     // Older saves past the first skill estimate their sprints from their runs.
     const old = E.migrate({ version: 5, stats: { rolls: 40 }, path: { learned: 2 } });
     assert.equal(old.stats.skilledSprints, 80);
+    assert.equal(old.path.learned, 3, 'and gain the warm-up skill in front');
 });
 
 test('skill-tree nodes open only once their parent is maxed (older saves hide early reveals)', () => {
@@ -353,11 +357,11 @@ test('offline progress is capped and respects the setting', () => {
 test('prestige keeps achievements and points, resets the run', () => {
     const s = fresh();
     s.attr.intelligence = 10;
-    s.path.learned = 5;
+    s.path.learned = 6;
     s.res.cp = 123;
     s.levels.cpu = 5;
     s.achievements.cp1k = true;
-    assert.equal(E.prestigeGain(s), 2, 'Insight comes from skills learned: floor(0.1 × 5²)');
+    assert.equal(E.prestigeGain(s), 2, 'Insight comes from skills learned past the warm-up: floor(0.1 × 5²)');
     const r = E.prestige(s, NOW + 1);
     assert.equal(r.ok, true);
     assert.equal(r.state.prestige.points, 2);
@@ -468,7 +472,7 @@ test('cleared legs replicate their best run: a better replay raises passive XP, 
     assert.ok(Math.abs(better - base - 4 * E.stretchXpAt(0) * E.PATH.clearedRate) < 1e-9);
     assert.equal(E.recordRun(s, 0, 1), false, 'a worse run keeps the best');
     assert.equal(E.derive(s).xpPerSec, better);
-    const old = E.migrate({ version: 5, path: { learned: 2 } });
+    const old = E.migrate({ version: 8, path: { learned: 2 } });
     assert.deepEqual(old.path.legBest, []);
     assert.equal(E.derive(old).xpPerSec, base, 'older saves start from a plain cresting run');
 });
@@ -476,7 +480,7 @@ test('cleared legs replicate their best run: a better replay raises passive XP, 
 test('skills add pushes and glide as well as strength', () => {
     const s = fresh();
     const base = E.derive(s);
-    s.path.learned = 11;
+    s.path.learned = 12;
     const d = E.derive(s);
     assert.ok(d.pushesPerRoll >= base.pushesPerRoll + 3);
     assert.ok(d.friction < base.friction);
@@ -570,7 +574,7 @@ test('project boosts multiply production while they last', () => {
 test('v2 saves load with empty projects; bad project data is dropped', () => {
     const v2 = E.migrate({ version: 2, res: { cp: 50 }, path: { learned: 2 } });
     assert.equal(v2.res.cp, 50);
-    assert.equal(v2.path.learned, 2);
+    assert.equal(v2.path.learned, 3, 'with the warm-up leg in front');
     assert.deepEqual(v2.projects.offers, []);
     const bad = E.migrate({ version: 3, projects: { offers: [{ id: 1, task: 'nope' }, 'x'], boosts: [{ stat: 'cp', mult: -1, until: 5 }] } });
     assert.deepEqual(bad.projects.offers, []);
@@ -591,8 +595,8 @@ test('cleared stretches add no compute: their laps only train (XP/s)', () => {
 
 test('v3 saves load with no automated laps', () => {
     const v3 = E.migrate({ version: 3, path: { learned: 2, best: 0.3 } });
-    assert.deepEqual(v3.path.auto, []);
-    assert.equal(v3.path.learned, 2);
+    assert.deepEqual(v3.path.auto, [0], 'the warm-up leg in front, no laps yet');
+    assert.equal(v3.path.learned, 3);
 });
 
 test('replays: cleared legs push cheaper, pay a share of their XP, and never teach or set records', () => {
@@ -626,11 +630,13 @@ test('replays: cleared legs push cheaper, pay a share of their XP, and never tea
     assert.equal(s.path.learned, 4);
 });
 
-test('data automation opens with the first skill (the 40 collections the server room needed)', () => {
+test('data automation opens with Pattern Matching (the 40 collections the server room needed)', () => {
     const s = fresh();
     s.stats.collects = 40;
     assert.equal(E.automationGate(s, 'autoCollector').met, false);
     s.path.learned = 1;
+    assert.equal(E.automationGate(s, 'autoCollector').met, false, 'the warm-up skill is not enough');
+    s.path.learned = 2;
     assert.equal(E.automationGate(s, 'autoCollector').met, true);
 });
 
@@ -711,8 +717,10 @@ test('luck is earned: the branch opens after two skills; crunches (legacy) and M
     s.levels.trainingOptimizer = 2;
     s.levels.gpuCluster2 = 2;
     E.evaluate(s);
-    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.scoutingData), false, 'hidden before the second skill');
     s.path.learned = 2;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.scoutingData), false, 'hidden before the second skill past the warm-up');
+    s.path.learned = 3;
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.scoutingData), true);
     const rate = hit => { let n = 0; for (let seed = 1; seed <= 2000; seed++) n += hit(seed) ? 1 : 0; return n / 2000; };
@@ -873,7 +881,7 @@ test('chains: each cleared hill crossed in a run multiplies what the run earns a
 test('versions: shipping one keeps Insight, legacy nodes and their effects; numbering follows the jump', () => {
     const s = fresh();
     s.attr.intelligence = 10;
-    s.path.learned = 8;
+    s.path.learned = 9;
     s.levels.gpuCluster2 = 1;
     assert.equal(E.currentVersion(s), 'v1.0');
     assert.equal(E.nextVersion(s).isMajor, true, 'the first release with 3+ Insight is a major one');
@@ -893,7 +901,7 @@ test('versions: shipping one keeps Insight, legacy nodes and their effects; numb
     assert.ok(E.derive(t).cleanPower > before);
     assert.ok(Math.abs(E.derive(t).mult - E.insightMult(gain)) < 1e-9, 'spending Insight keeps its production bonus');
     t.attr.intelligence = 10;
-    t.path.learned = 4;
+    t.path.learned = 5;
     const small = E.prestige(t, NOW);
     assert.equal(small.version, 'v2.1', 'a small gain is a point release');
     const u = small.state;
@@ -1070,9 +1078,9 @@ test('Scale Up: the endless node multiplies sprint strength, with a geometric pr
 test('Insight comes from skills learned and its bonus diminishes', () => {
     const s = fresh();
     s.attr.intelligence = 50;
-    s.path.learned = 6;
-    assert.equal(E.prestigeGain(s), 3, 'General AI ships for 3');
-    s.path.learned = 10;
+    s.path.learned = 7;
+    assert.equal(E.prestigeGain(s), 3, 'General AI (6 skills past the warm-up) ships for 3');
+    s.path.learned = 11;
     assert.equal(E.prestigeGain(s), 10);
     s.stats.runCp = 1e15;
     assert.equal(E.prestigeGain(s), 10, 'compute earned no longer counts');

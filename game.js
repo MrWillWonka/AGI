@@ -1305,7 +1305,7 @@ window.AGI = (function () {
             const price = E.actionCost(state, action);
             const locked = !!action.unlock && !state.unlocked[action.unlock];
             // Research shows (locked, with its progress) once the first skill starts its countdown.
-            const preview = locked && action.id === 'research' && state.path.learned >= 1 && !!state.unlocked['module:path'];
+            const preview = locked && action.id === 'research' && state.path.learned >= 2 && !!state.unlocked['module:path'];
             setHidden(button, locked && !preview);
             setDisabled(button, locked || !E.canAfford(state, price));
             setText(gain, gains[action.id]);
@@ -3790,7 +3790,7 @@ window.AGI = (function () {
         celebrateSummit(skill.name, hill);
         path.glow = { skill: state.path.learned - 1, age: 0 };
         const grants = Object.entries(skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
-        log(`Learned ${skill.name}: ${skill.effect} (${grants}, +${xpText(xp)} XP). ${skill.flavor}`, 'special');
+        log(`Learned ${skill.name}: ${skill.effect} (${grants ? grants + ', ' : ''}+${xpText(xp)} XP). ${skill.flavor}`, 'special');
         if (!(currentPlace() === 'bay:training' && path.view === 'run')) toast(`Skill learned · ${skill.name}`, skill.effect, 'skill');
         afterChange();
     }
@@ -3873,26 +3873,26 @@ window.AGI = (function () {
         if (learned.length && !result.skill) {
             // Skills learned on the way (announced as they happened); the run went on until it stopped.
             const last = learned[learned.length - 1].skill;
-            const grants = learned.map(l => Object.entries(l.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ')).join(' · ');
+            const grants = learned.map(l => Object.entries(l.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ')).filter(Boolean).join(' · ');
             const names = learned.map(l => l.skill.name).join(', ');
             log(`${replay ? 'Replay' : 'Run'} ${state.stats.rolls}: learned ${names}, then stopped ${pct}% of the way to ${target} (+${xpText(result.xp + banked)} XP).`, 'special');
             path.overview = OVERVIEW_SECONDS + path.pause;
             showResult({ skill: true, title: learned.length > 1 ? `${learned.length} skills learned` : 'Skill learned', main: names,
                 flavor: last.flavor, xp: result.xp + banked,
-                lines: [...learned.map(l => [l.skill.effect, '']), [grants, ''], ...lines, [`Then ${pct}% of the way to ${target}`, '']], record: result.record });
+                lines: [...learned.map(l => [l.skill.effect, '']), ...(grants ? [[grants, '']] : []), ...lines, [`Then ${pct}% of the way to ${target}`, '']], record: result.record });
             if (!state.intro['hint:replay']) {
                 state.intro['hint:replay'] = true;
                 callout('hint:replay', 'Tip', 'Your AI now replays your best run on each cleared leg for passive XP. Run a leg again with better upgrades to raise it.');
             }
         } else if (result.skill) {
             const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
-            log(`Learned ${result.skill.name}: ${result.skill.effect} (${grants}, +${xpText(result.xp + banked)} XP). ${result.skill.flavor}`, 'special');
+            log(`Learned ${result.skill.name}: ${result.skill.effect} (${grants ? grants + ', ' : ''}+${xpText(result.xp + banked)} XP). ${result.skill.flavor}`, 'special');
             // The result card announces it on screen; the toast is for when you're elsewhere.
             if (!(currentPlace() === 'bay:training' && path.view === 'run')) toast(`Skill learned · ${result.skill.name}`, result.skill.effect, 'skill');
             path.glow = { skill: state.path.learned - 1, age: 0 };
             path.overview = OVERVIEW_SECONDS + path.pause;
             showResult({ skill: true, title: 'Skill learned', main: result.skill.name, flavor: result.skill.flavor, xp: result.xp + banked,
-                lines: [[result.skill.effect, ''], [grants, ''], ...lines] });
+                lines: [[result.skill.effect, ''], ...(grants ? [[grants, '']] : []), ...lines] });
             if (!state.intro['hint:replay']) {
                 state.intro['hint:replay'] = true;
                 callout('hint:replay', 'Tip', 'Your AI now replays your best run on each cleared leg for passive XP. Run a leg again with better upgrades to raise it.');

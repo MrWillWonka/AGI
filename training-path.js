@@ -49,18 +49,22 @@
 
     // ---- Skill hills (fixed) -----------------------------------------------
 
-    const skillHeight = k => 0.3 * Math.pow(1.5, k);   // each skill hill is a bigger wall than the last
-    // Act two (from leg 6, `LATE_LEG`: the leg after Translation, the skill that reaches General AI) is a
+    // Leg 0 is a warm-up: a short flat run to a small hill most first runs crest with their two sprints, so the
+    // first skill (and a summit) comes in the first few runs. Every later leg k is the old leg k − 1 (`j`).
+    const TUTORIAL = { length: 2, height: 0.03, halfWidth: 0.45 };
+    const skillHeight = k => (k === 0 ? TUTORIAL.height : 0.3 * Math.pow(1.5, k - 1));   // each skill hill is a bigger wall than the last
+    // Act two (from leg 7, `LATE_LEG`: the leg after Translation, the skill that reaches General AI) is a
     // launcher: each leg is a handful of huge swells, far wider than the view, and the ball can fly off
     // their crests and bounce (see createRoll). Before that, legs are many small rolling hills. The engine
     // mirrors this as ACT_TWO_LEG (a test keeps them in step).
-    const LATE_LEG = 6;           // (skillHalfWidth widens its hills from here too)
+    const LATE_LEG = 7;           // (skillHalfWidth widens its hills from here too)
     // From act two (LATE_LEG) skill hills are 8× wider, in scale with the giant swells around them.
-    const skillHalfWidth = k => 0.55 * Math.pow(1.14, k) * (k >= LATE_LEG ? 8 : 1);
-    // Checkpoint to the foot of skill hill k: 10, 17, 26, 36, 50, 69, 93, 124, 166 … Gentle early (no wall
+    const skillHalfWidth = k => (k === 0 ? TUTORIAL.halfWidth : 0.55 * Math.pow(1.14, k - 1) * (k >= LATE_LEG ? 8 : 1));
+    // Checkpoint to the foot of skill hill k (after the warm-up): 10, 17, 26, 36, 50, 69, 93, 124, 166 … Gentle early (no wall
     // at the second skill), then much longer each stretch, so the distance itself becomes the challenge
     // and strength (and later launches and bounces) matters more than the hill count.
-    const stretchLength = k => 10 * Math.pow(1.4, k) + 3 * k;
+    // Pattern Matching's leg is 9 m (10 by the formula): with the warm-up skill in hand, it lands about 15 runs in.
+    const stretchLength = k => (k === 0 ? TUTORIAL.length : k === 1 ? 9 : 10 * Math.pow(1.4, k - 1) + 3 * (k - 1));
 
     const checkpoints = [0];    // checkpoints[k] = x where stretch k starts
     function checkpoint(k) {
@@ -94,6 +98,7 @@
     // Rolling hills for stretch k: mostly small, sometimes medium, growing toward the skill hill.
     // `hillScale` (< 1 from upgrades) makes them less steep; the random layout stays the same.
     function rollingHills(k, seed, hillScale = 1) {
+        if (k === 0) return [];   // the warm-up: nothing between the start and its little hill
         if (k >= LATE_LEG) return swells(k, seed, hillScale);
         const r = rng(seed);
         const from = checkpoint(k) + LEAD_IN;
