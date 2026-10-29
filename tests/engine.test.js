@@ -200,18 +200,15 @@ test('research waits for a good stretch of training, not a data stockpile', () =
     assert.equal(old.path.learned, 3, 'and gain the warm-up skill in front');
 });
 
-test('skill-tree nodes open only once their parent is maxed (older saves hide early reveals)', () => {
+test('skill-tree nodes open once their parent has its first level', () => {
     const s = fresh();
     s.unlocked['module:path'] = true;
     s.levels.initialWeights = 1;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.gpuCluster2), false, 'not before GPU Cluster is bought');
     s.levels.trainingOptimizer = 1;
     E.evaluate(s);
-    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.gpuCluster2), false, 'GPU Cluster has a level left');
-    s.levels.trainingOptimizer = 2;
-    E.evaluate(s);
-    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.gpuCluster2), true);
-    const old = E.migrate({ version: 5, levels: { initialWeights: 1, trainingOptimizer: 1 }, unlocked: { 'module:path': true, 'up:gpuCluster2': true } });
-    assert.equal(!!old.unlocked['up:gpuCluster2'], false);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.gpuCluster2), true, 'GPU Cluster still has a level left');
 });
 
 test('Carpal Tunnel: holding a job down to repeat it', () => {

@@ -705,9 +705,9 @@
             if (level(s, up.id) > 0) return true;
             return s.prestige.count >= 1 && (!up.requires || parentDone(s, up));
         }
+        // A skill-tree node shows once the node it grows from has its first level (finishing the parent is
+        // still the cheaper buy: a node's first level costs more than its parent's last).
         if (up.requires && level(s, up.requires) < 1) return false;
-        // Skill-tree nodes grow only from a finished parent: what comes next stays hidden until it's maxed.
-        if (up.tab === 'training' && up.requires && !parentDone(s, up)) return false;
         if (up.unlock && !up.unlock(s)) return false;
         if (up.tab === 'training') return !!s.unlocked['module:path'];   // the skill tree, not a tab
         const tab = TABS.find(t => t.id === up.tab);
@@ -1361,10 +1361,6 @@
         }
         s.projects = cleanProjects(raw.projects, d.projects);
         s.lastSaved = num(raw.lastSaved, d.lastSaved);
-        // Skill-tree nodes now open only from a maxed parent: hide unbought ones an older save revealed early.
-        for (const up of UPGRADES) {
-            if (up.tab === 'training' && up.requires && !level(s, up.id) && !parentDone(s, up)) delete s.unlocked['up:' + up.id];
-        }
         return s;
     }
 

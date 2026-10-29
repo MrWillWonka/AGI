@@ -170,9 +170,9 @@ test('engine: training upgrades are bought with XP and change the roll setup', (
     s.res.xp = 1000;
     for (const id of ['initialWeights', 'trainingEpochs', 'fasterIteration', 'trainingOptimizer']) {
         assert.equal(E.buy(s, id).ok, true, id);
-        E.evaluate(s);   // finishing a node opens the ones that grow from it
+        E.evaluate(s);   // buying a node opens the ones that grow from it
         if (id === 'trainingEpochs') {
-            assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.fasterIteration), false, 'hidden until Investor Funding is maxed');
+            assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.fasterIteration), true, 'shows after Investor Funding\'s first level');
             assert.equal(E.buy(s, id).ok, true);
             E.evaluate(s);
         }
