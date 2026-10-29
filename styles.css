@@ -1255,7 +1255,7 @@ h1, h2, h3, p { margin: 0; }
 
 @keyframes float-up {
     from { opacity: 1; translate: 0 0; }
-    to { opacity: 0; translate: 0 -36px; }
+    to { opacity: 0; translate: 0 -22px; }
 }
 
 /* ---- Debug panel ---- */
@@ -2435,15 +2435,15 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .minimap:not([hidden]) { display: flex; flex-direction: column-reverse; width: auto; aspect-ratio: auto; padding: 4px; gap: 4px; }
 .mm-bar { display: flex; gap: 4px; align-items: stretch; }
 .minimap .mm-title { margin: 0; white-space: nowrap; flex: 1; }
-.mm-min { flex: none; width: 26px; border: 1px solid rgba(99, 224, 171, 0.5); border-radius: 999px; background: transparent; color: var(--success); font: 700 0.8rem var(--font-mono); cursor: pointer; line-height: 1; }
-.mm-min:hover, .mm-min:focus-visible { background: rgba(99, 224, 171, 0.18); outline: none; }
+.minimap .mm-min { flex: none; width: 26px; border: 1px solid rgba(99, 224, 171, 0.5); border-radius: 999px; background: transparent; color: var(--success); font: 700 0.8rem var(--font-mono); cursor: pointer; line-height: 1; }
+.minimap .mm-min:hover, .minimap .mm-min:focus-visible { background: rgba(99, 224, 171, 0.18); outline: none; }
 .minimap .mm-chip { display: none; }
 @media (min-width: 641px) {
     .minimap:not([hidden]):not(.min), .minimap.min:not([hidden]):is(:hover, :focus-within, .open) { width: 212px; height: 212px; padding: 6px 6px 4px; }
     .minimap:not(.min) .mm-chip, .minimap.min:is(:hover, :focus-within, .open) .mm-chip { display: flex; }
     .minimap.min:is(:hover, :focus-within, .open) .mm-chip { animation: mm-open 0.18s ease-out; }
 }
-@media (max-width: 640px) { .mm-min { display: none; } }
+@media (max-width: 640px) { .minimap .mm-min { display: none; } }
 @keyframes mm-open { from { opacity: 0; transform: translateY(8px); } }
 .mm-tip { position: absolute; z-index: 2; transform: translate(-50%, -100%); padding: 3px 8px; border-radius: 6px; pointer-events: none; white-space: nowrap;
     background: #0b1b1e; border: 1px solid var(--success); color: #e6fff4; font: 600 0.68rem var(--font-mono); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); }

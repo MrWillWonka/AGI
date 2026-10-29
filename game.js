@@ -325,7 +325,9 @@ window.AGI = (function () {
         const z = uiScale();
         const pop = el('div', { class: 'float-gain', text });
         pop.style.left = `${(rect.left + rect.width / 2) / z + (Math.random() * 40 - 20)}px`;
-        pop.style.top = `${(rect.top + window.scrollY) / z}px`;
+        // From the card's middle, rising less than half its height, so it stays on the card it came from
+        // (from the top edge it floated over the card or heading above).
+        pop.style.top = `${(rect.top + rect.height / 2 + window.scrollY) / z - 10}px`;
         document.body.append(pop);
         pop.addEventListener('animationend', () => pop.remove());
     }
@@ -1676,12 +1678,14 @@ window.AGI = (function () {
     };
     let minimapKey = '';
 
+    let mapAutoMin = null;   // set once the minimap is built: shrinks it to the pill where it would cover things
     function renderMinimap() {
         const nav = $('minimap');
         const show = !!state.unlocked['module:path'];
         nav.hidden = !show;
         document.body.classList.toggle('has-minimap', show);
         if (!show) return;
+        mapAutoMin?.();
         const sealedShown = new Set([...$('facilityPlan').querySelectorAll('.facility-room.locked:not([hidden])')].map(t => t.dataset.roomId));
         const areas = Object.keys(ROOMS).filter(id => MINIMAP[id] && (roomUnlocked(id) || sealedShown.has(id)));
         const bays = Object.keys(BAYS).filter(id => bayUnlocked(id) || id === nextSealedBay());
@@ -1766,12 +1770,21 @@ window.AGI = (function () {
             min.setAttribute('aria-label', on ? 'Keep the map open' : 'Minimize the map');
             min.setAttribute('aria-pressed', String(on));
         };
-        setMin(storageGet(MAP_MIN_KEY) === '1');
+        // On Surveillance (the map itself, full size) and inside a bay (the trail and meter run to the
+        // corner), it shrinks to the pill without changing your setting; hover still opens it.
+        let auto = null;
+        mapAutoMin = () => {
+            const want = view === 'facility' || !!openBay;
+            if (want === auto || zooming) return;   // resizing rooms mid-zoom throws the zoom off
+            auto = want;
+            setMin(want || storageGet(MAP_MIN_KEY) === '1');
+        };
+        mapAutoMin();
         min.addEventListener('click', e => {
             e.stopPropagation();
             const on = !nav.classList.contains('min');
             setMin(on);
-            storageSet(MAP_MIN_KEY, on ? '1' : '0');
+            if (!auto) storageSet(MAP_MIN_KEY, on ? '1' : '0');
             if (on) min.blur();
         });
         // A small tooltip naming the room under the pointer (the blocks only carry short labels).
@@ -2138,6 +2151,7 @@ window.AGI = (function () {
 
     function bayUnlocked(id) {
         const bay = BAYS[id];
+        if (!bay.built) return false;   // unbuilt modules stay sealed: they never say what they'll be
         return bay.unlocked ? bay.unlocked() : E.phaseIndex(state) >= bay.phase;
     }
 
@@ -2149,7 +2163,6 @@ window.AGI = (function () {
     function bayStatus(id) {
         const bay = BAYS[id];
         if (!bayUnlocked(id)) return id === 'training' && bay.lockedText ? bay.lockedText() : 'Sealed';
-        if (!bay.built) return 'Online soon · in development';
         const learned = state.path.learned;
         const record = Math.round(state.path.best * 100);
         return `${learned} skill${learned === 1 ? '' : 's'} · next: ${E.skillAt(learned).name}${record ? ` · record ${record}%` : ''}`;
@@ -2978,17 +2991,23 @@ window.AGI = (function () {
             });
             target.addEventListener('pointerup', releaseCharge);
             target.addEventListener('pointercancel', releaseCharge);
-            target.addEventListener('keydown', e => {
-                if (e.key !== 'Enter' && e.key !== ' ') return;
-                e.preventDefault();
-                if (!e.repeat) startCharge();
-            });
-            target.addEventListener('keyup', e => {
-                if (e.key !== 'Enter' && e.key !== ' ') return;
-                e.preventDefault();
-                releaseCharge();
-            });
         }
+        // Space/Enter charge from anywhere in the run view, not only with the trail or button focused:
+        // clicking Train again leaves focus on the page, and the keys went dead. Other controls (a focused
+        // button, an input, a dialog) keep their own keys.
+        const runKeys = e => (e.key === 'Enter' || e.key === ' ') && openBay === 'training' && path.view === 'run'
+            && (e.target === document.body || e.target === canvas || e.target === $('pushButton') || e.target.closest?.('#runView') && !e.target.closest('button:not(#pushButton), input, a, [data-next]'))
+            && !document.querySelector('dialog[open]');
+        document.addEventListener('keydown', e => {
+            if (!runKeys(e)) return;
+            e.preventDefault();
+            if (!e.repeat) startCharge();
+        });
+        document.addEventListener('keyup', e => {
+            if (!runKeys(e)) return;
+            e.preventDefault();
+            releaseCharge();
+        });
         canvas.addEventListener('contextmenu', e => e.preventDefault());
         $('rollResult').addEventListener('click', e => {
             const go = e.target.closest('[data-next]');
