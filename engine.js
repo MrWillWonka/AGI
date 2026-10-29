@@ -1103,7 +1103,7 @@
     // Metres from leg k's start to its skill hill's peak. Mirrors training-path.js (stretchLength plus the
     // hill's half width, less the 0.2 m start offset); a test keeps the two in step.
     const legMetres = k => (k === 0 ? 2 + 0.45 - 0.2   // the warm-up leg
-        : (k === 1 ? 9 : 10 * Math.pow(1.4, k - 1) + 3 * (k - 1)) + 0.55 * Math.pow(1.14, k - 1) * (k >= ACT_TWO_LEG ? 8 : 1) - 0.2);
+        : (k === 1 ? 9 : (10 * Math.pow(1.4, k - 1) + 3 * (k - 1)) * (k < ACT_TWO_LEG ? 0.8 : 1)) + 0.55 * Math.pow(1.14, k - 1) * (k >= ACT_TWO_LEG ? 8 : 1) - 0.2);
     // What reaching leg k's peak pays by distance (before cresting and bonuses): the yardstick for
     // everything sized "per stretch" (clean-sprint XP, replays, passive XP, investor payouts).
     const stretchXpAt = k => PATH.xpPerMetre * Math.pow(PATH.metreScale, k) * legMetres(k) * 2;

@@ -78,7 +78,10 @@
     // Leg 0 is a warm-up: a short flat run to a small hill most first runs crest with their two sprints, so the
     // first skill (and a summit) comes in the first few runs. Every later leg k is the old leg k − 1 (`j`).
     const TUTORIAL = { length: 2, height: 0.03, halfWidth: 0.45 };
-    const skillHeight = k => (k === 0 ? TUTORIAL.height : 0.3 * Math.pow(1.5, k - 1));   // each skill hill is a bigger wall than the last
+    // Each skill hill is a bigger wall than the last: ×1.25 a leg through act one (so General AI, the first
+    // version worth shipping, comes about 30 minutes in), ×1.5 a leg in act two, from where it always was.
+    const ACT_ONE_GROWTH = 1.25;
+    const skillHeight = k => (k === 0 ? TUTORIAL.height : 0.3 * Math.pow(k < LATE_LEG ? ACT_ONE_GROWTH : 1.5, k - 1));
     // Act two (from leg 7, `LATE_LEG`: the leg after Translation, the skill that reaches General AI) is a
     // launcher: each leg is a handful of huge swells, far wider than the view, and the ball can fly off
     // their crests and bounce (see createRoll). Before that, legs are many small rolling hills. The engine
@@ -90,7 +93,9 @@
     // at the second skill), then much longer each stretch, so the distance itself becomes the challenge
     // and strength (and later launches and bounces) matters more than the hill count.
     // Pattern Matching's leg is 9 m (10 by the formula): with the warm-up skill in hand, it lands about 15 runs in.
-    const stretchLength = k => (k === 0 ? TUTORIAL.length : k === 1 ? 9 : 10 * Math.pow(1.4, k - 1) + 3 * (k - 1));
+    // Act one's legs after Pattern Matching's are a fifth shorter (ACT_ONE_LENGTH), for the same 30 minutes.
+    const ACT_ONE_LENGTH = 0.8;
+    const stretchLength = k => (k === 0 ? TUTORIAL.length : k === 1 ? 9 : (10 * Math.pow(1.4, k - 1) + 3 * (k - 1)) * (k < LATE_LEG ? ACT_ONE_LENGTH : 1));
 
     const checkpoints = [0];    // checkpoints[k] = x where stretch k starts
     function checkpoint(k) {
