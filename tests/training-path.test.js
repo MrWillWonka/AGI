@@ -625,3 +625,60 @@ test('act two: most swells are kickers whose face steepens to a lip, so crests l
     }
     assert.ok(climbs >= 10, `${climbs} launches climbing off a lip`);
 });
+
+test('terrain features: their own random stream (the hills are unchanged), strips push, flights take tokens', () => {
+    const a = T.terrain(T.LATE_LEG, 11);
+    assert.deepEqual(a.bumps.filter(b => b.skill === null).map(b => b.peak), T.rollingHills(T.LATE_LEG, 11).map(b => b.peak));
+    let tokens = 0;
+    let strips = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+        const g = T.terrain(T.LATE_LEG + (seed % 3), seed);
+        tokens += g.tokens.length;
+        strips += g.strips.length;
+        for (const tk of g.tokens) assert.ok(tk.y > 0);
+    }
+    assert.ok(tokens > 20 && strips > 5, `${tokens} tokens, ${strips} strips`);
+    assert.equal(T.terrain(0, 3).tokens.length + T.terrain(0, 3).strips.length, 0, 'the warm-up stays bare');
+    // A strip speeds a ball rolling over it.
+    const over = keep => {
+        for (let seed = 1; seed <= 40; seed++) {
+            const roll = T.createRoll(T.LATE_LEG, seed, { pushes: 1, cooldown: 1 });
+            const st = roll.ground.strips[0];
+            if (!st) continue;
+            if (!keep) roll.ground.strips.length = 0;
+            roll.push(0.001);
+            roll.ball.x = st.from + 0.01;
+            roll.ball.v = 0.8;
+            roll.step(0.2);
+            return roll.ball.v;
+        }
+        return null;
+    };
+    assert.ok(over(true) > over(false));
+    let taken = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+        const roll = T.createRoll(T.LATE_LEG, seed, { pushes: 1, cooldown: 1 });
+        roll.push(0.001);
+        roll.ball.v = 2.5 * Math.sqrt(9.8 * T.skillHeight(T.LATE_LEG));
+        for (let t = 0; t < 12 && !roll.over; t += 0.05) taken += roll.step(0.05).filter(e => e.type === 'token').length;
+    }
+    assert.ok(taken > 0, 'fast flights take tokens');
+});
+
+test('the tuck: held on act two, the ball gains on the way down and loses on the way up', () => {
+    const run = (tuck, from) => {
+        const roll = T.createRoll(T.LATE_LEG, 5, { pushes: 1, cooldown: 1 });
+        roll.push(0.001);
+        const b = roll.ground.bumps.find(h => h.skill === null && h.up && h.up !== 1 && h.peak > roll.ground.start + 5);
+        roll.ball.x = from === 'back' ? b.peak + 0.1 * b.halfWidth : b.start + 0.05 * b.halfWidth * b.up;
+        roll.ball.v = from === 'back' ? 1 : 8;
+        roll.tuck = tuck;
+        roll.step(0.25);
+        return roll.ball.v;
+    };
+    assert.ok(run(true, 'back') > run(false, 'back'), 'faster down the back');
+    assert.ok(run(true, 'face') < run(false, 'face'), 'slower up the face');
+    // Act one ignores it.
+    const one = tuck => { const r = T.createRoll(2, 3, { pushes: 1, cooldown: 1 }); r.push(1); r.tuck = tuck; for (let i = 0; i < 20; i++) r.step(0.05); return r.ball.x; };
+    assert.equal(one(true), one(false));
+});

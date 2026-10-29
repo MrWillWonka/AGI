@@ -337,18 +337,13 @@ test('XP is paid by distance: per metre, more per metre further along, and more 
     assert.ok(Math.abs(E.rollXp(s, 0.5, false, 0, 5) / (E.PATH.xpPerMetre * 5 * 1.5) - Math.pow(E.PATH.metreScale, 3)) < 1e-9);
 });
 
-test('offline progress is capped and respects the setting', () => {
+test('an active game: there is no offline progress (loading a save adds nothing, whenever it was saved)', () => {
     const s = fresh();
     s.levels.cpu = 2;
-    const seconds = E.applyOffline(s, NOW + 24 * 3600 * 1000);
-    assert.equal(seconds, E.MAX_OFFLINE_SECONDS);
-    assert.equal(s.res.cp, E.MAX_OFFLINE_SECONDS);
-
-    const off = fresh();
-    off.levels.cpu = 2;
-    off.settings.offline = false;
-    assert.equal(E.applyOffline(off, NOW + 3600 * 1000), 0);
-    assert.equal(off.res.cp, 0);
+    const back = E.deserialize(E.serialize(s), NOW + 24 * 3600 * 1000);
+    assert.equal(back.res.cp, 0);
+    assert.equal(E.applyOffline, undefined);
+    assert.equal('offline' in back.settings, false);
 });
 
 test('prestige keeps achievements and points, resets the run', () => {
@@ -1193,4 +1188,66 @@ test('R&D status: the next skill count that raises Insight', () => {
     s.path.learned = 7;
     const n = E.nextInsightAt(s);
     assert.ok(E.insightAt(n) > E.insightAt(7) && E.insightAt(n - 1) === E.insightAt(7));
+});
+
+test('challenges: open after three versions, ship into one, its rule holds until General AI beats it for a perk', () => {
+    const s = fresh();
+    s.attr.intelligence = 30;
+    s.path.learned = 8;
+    assert.equal(E.startChallenge(s, 'lean', NOW).ok, false, 'closed before three versions');
+    s.prestige.count = E.CHALLENGES_AFTER;
+    const r = E.startChallenge(s, 'lean', NOW);
+    assert.equal(r.ok, true);
+    const v = r.state;
+    assert.equal(v.challenge.id, 'lean');
+    assert.equal(E.derive(v).pushesPerRoll, 1, 'one sprint per run');
+    v.attr.intelligence = 25;
+    const out = E.evaluate(v);
+    assert.equal(out.challenge.won, true);
+    assert.equal(v.challenge, null);
+    assert.equal(E.derive(v).pushesPerRoll, E.derive(fresh()).pushesPerRoll + 1, 'the perk: +1 sprint for good');
+    // Kept across versions; a save keeps it; a bogus id doesn't load.
+    const back = E.migrate(JSON.parse(E.serialize(v)));
+    assert.equal(back.challengesDone.lean, true);
+    assert.equal(E.migrate({ version: 11, challenge: { id: 'nope' } }).challenge, null);
+});
+
+test('challenge rules: no prompts, no automation, dear sprints, and a time limit that fails', () => {
+    const s = fresh();
+    s.levels.hyperparamSearch = 1;
+    const base = { zone: E.derive(s).zoneWidth, cost: E.pushCost(s, 1).cp };
+    s.challenge = { id: 'noPrompts', start: 0 };
+    assert.equal(E.derive(s).zoneWidth, 0);
+    s.challenge = { id: 'frugal', start: 0 };
+    assert.ok(E.pushCost(s, 1).cp >= 3 * base.cost - 1);
+    s.levels.autoCollector = 2;
+    s.levels.cpu = 50;
+    s.challenge = { id: 'handmade', start: 0 };
+    assert.equal(E.derive(s).collectsPerSec, 0);
+    s.challenge = { id: 'speedrun', start: 0 };
+    s.stats.playTime = 1801;
+    const out = E.evaluate(s);
+    assert.equal(out.challenge.won, false);
+    assert.equal(s.challenge, null);
+    assert.equal(s.challengesDone.speedrun, undefined);
+});
+
+test('Transcend: only at the Singularity; versions and Insight start over, Transcendence multiplies Insight', () => {
+    const s = fresh();
+    assert.equal(E.transcendGain(s), 0);
+    s.prestige = { points: 50, total: 144, count: 3, major: 4, minor: 0, levels: { autoTrainer: 1 } };
+    Object.assign(s.attr, { intelligence: 300, creativity: 30, awareness: 30 });
+    s.challengesDone.lean = true;
+    assert.equal(E.transcendGain(s), 4);
+    const r = E.transcend(s, NOW);
+    assert.equal(r.ok, true);
+    const t = r.state;
+    assert.equal(t.prestige.count, 0);
+    assert.equal(t.prestige.total, 0);
+    assert.deepEqual(t.prestige.levels, {});
+    assert.equal(t.transcend.total, 4);
+    assert.equal(t.challengesDone.lean, true, 'challenges stay beaten');
+    t.attr.intelligence = 30;
+    t.path.learned = 8;
+    assert.equal(E.prestigeGain(t), Math.floor(E.insightAt(8) * 3), '+50% Insight per point');
 });

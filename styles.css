@@ -1554,6 +1554,19 @@ h1, h2, h3, p { margin: 0; }
     border-radius: var(--radius);
     background: repeating-linear-gradient(135deg, #0b1719 0 12px, #0a1416 12px 24px);
 }
+/* Challenges and Transcend (R&D's second and third slots). */
+.challenge-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.challenge { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); }
+.challenge-text { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.challenge-text strong { font: 600 0.88rem var(--font-display); }
+.challenge-rule { font-size: 0.78rem; color: var(--warning); }
+.challenge-reward { font-size: 0.74rem; color: var(--muted); }
+.challenge .ghost-button { flex: none; font-size: 0.75rem; padding: 5px 9px; }
+.challenge.done { border-color: rgba(99, 224, 171, 0.35); }
+.challenge.done .challenge-reward { color: var(--success); }
+.challenge.running { border-color: var(--warning); box-shadow: 0 0 0 1px rgba(255, 181, 71, 0.3) inset; }
+.panel-ascend { border-color: rgba(180, 140, 255, 0.5); background: linear-gradient(180deg, rgba(180, 140, 255, 0.12), var(--bg-2)); }
+.panel-ascend .button-prestige { margin-top: 8px; }
 .project-art { display: flex; gap: 10px; align-items: flex-end; height: 54px; }
 .project-art i { display: block; width: 18px; border-radius: 3px 3px 9px 9px; border: 2px solid rgba(255, 122, 107, 0.6); background: linear-gradient(0deg, rgba(255, 122, 107, 0.35) 45%, transparent 45%); }
 .project-art i:nth-child(1) { height: 36px; }

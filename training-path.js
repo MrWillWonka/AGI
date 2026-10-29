@@ -47,6 +47,9 @@
     // two's first leg (at 1 the sim's player barely flew before leg 10), and the landing planner turns the short
     // hops into clean arcs onto the next down-slope. (Against rolling gravity alone, ~0.5, it hopped constantly.)
     const LAUNCH_GRIP = 0.6;
+    // The tuck (act two, Tiny Wings' one verb): while held, the ball is heavier on the ground, so it gains on the
+    // way down and loses on the way up. Hold on the descent, let go before the climb.
+    const TUCK_GRAVITY = 1.6;
     const KICKERS = 0.85;           // share of act two's swells that are kickers (a lip to launch off)
     const KICK_SLOPE = [0.75, 1];   // a kicker's slope at its lip
 
@@ -170,6 +173,37 @@
         return hills;
     }
 
+    // ---- Terrain features: boost strips and XP tokens ------------------------
+
+    // Something to aim for, so runs differ: boost strips ("data streams") on some hills' backs push a ball
+    // rolling forward over them; XP tokens hang in arcs past act two's kicker lips, where flights go.
+    // Their own random stream (salted from the leg's seed), so the hills come out exactly as before.
+    const STRIP_PUSH = 0.6;      // a strip's push: this share of sqrt(g · the leg's skill hill height) per second
+    const TOKEN_REACH = 0.4;     // metres along the trail within which a passing ball takes a token
+    function features(k, seed, hills) {
+        const strips = [];
+        const tokens = [];
+        if (k <= 1) return { strips, tokens };   // the warm-up and Pattern Matching's leg keep their tuned pace
+        const r = rng((seed ^ 0x51ed27) >>> 0);
+        const late = k >= LATE_LEG;
+        const push = STRIP_PUSH * Math.sqrt(GRAVITY * skillHeight(k));
+        // Act one (from its second leg): about half the legs have a few strips; act two: some swells' backs.
+        const stripChance = late ? 0.3 : r() < 0.5 ? 0.25 : 0;
+        for (const b of hills) {
+            if (r() < stripChance) strips.push({ from: b.peak + 0.15 * b.halfWidth, to: b.end - 0.1 * b.halfWidth, push, leg: k });
+            if (!late || !b.up || b.up === 1 || r() > 0.6) continue;
+            // An arc of tokens off the lip: a flight's path, give or take.
+            const n = 3 + Math.floor(r() * 3);
+            const span = b.halfWidth * (0.5 + 0.5 * r());
+            const lift = skillHeight(k) * (0.08 + 0.17 * r());
+            for (let i = 0; i < n; i++) {
+                const f = (i + 1) / (n + 1);
+                tokens.push({ x: b.peak + span * f, y: b.height + lift * Math.sin(Math.PI * f) + 0.3, leg: k, taken: false });
+            }
+        }
+        return { strips, tokens };
+    }
+
     // ---- Terrain for one roll ----------------------------------------------
 
     // Rolling hills for leg j of a run that starts on leg k: the first leg uses the roll's seed, later legs
@@ -183,12 +217,21 @@
     function terrain(k, seed, hillScale = 1, last = k) {
         last = Math.max(k, last);
         const bumps = [];
-        for (let j = k; j <= last; j++) bumps.push(...rollingHills(j, legSeed(seed, k, j), hillScale), skillHill(j));
+        const strips = [];
+        const tokens = [];
+        const addLeg = j => {
+            const hills = rollingHills(j, legSeed(seed, k, j), hillScale);
+            bumps.push(...hills, skillHill(j));
+            const f = features(j, legSeed(seed, k, j), hills);
+            strips.push(...f.strips);
+            tokens.push(...f.tokens);
+        };
+        for (let j = k; j <= last; j++) addLeg(j);
         let rolling = bumps.filter(b => b.skill === null);
         let goal = skillHill(last);
         function extend() {
             last++;
-            bumps.push(...rollingHills(last, legSeed(seed, k, last), hillScale), skillHill(last));
+            addLeg(last);
             rolling = bumps.filter(b => b.skill === null);
             goal = skillHill(last);
         }
@@ -247,6 +290,9 @@
                 return rolling.filter(b => b.peak >= from && b.peak <= x).length;
             },
             stretch: k,
+            strips,
+            tokens,
+            stripAt: x => strips.find(st => x >= st.from && x <= st.to) || null,
             get last() { return last; },
             get goal() { return goal; },
             extend,
@@ -288,6 +334,7 @@
         let crestedGoal = -1;       // with onward: the last skill hill already announced
         const ball = { x: ground.start, v: 0, still: 0, cooldown: 0, maxX: ground.start, trapped: false };
         let pushesLeft = pushes;
+        let tuck = false;           // held in act two (see TUCK_GRAVITY); set by the UI each frame
         let launched = false;
         let over = false;
         let crested = false;
@@ -376,8 +423,9 @@
                 if (flow.shrink) reshape(ball.x - 0.3, ball.x + 3 + 3 * flow.speed, flow.shrink, flow.narrow);
                 ball.trapped = false;
             } else {
-                ball.v += (-GRAVITY * dy / (1 + dy * dy)) * STEP;
-                const late = ground.legAt(ball.x) >= (opts.lateLeg ?? LATE_LEG) ? LATE_DRAG : 1;
+                const lateLeg = ground.legAt(ball.x) >= (opts.lateLeg ?? LATE_LEG);
+                ball.v += (-GRAVITY * (tuck && lateLeg ? TUCK_GRAVITY : 1) * dy / (1 + dy * dy)) * STEP;
+                const late = lateLeg ? LATE_DRAG : 1;
                 // Semi-implicit drag: dividing instead of subtracting can't flip the ball's direction at
                 // huge speeds (a stacked breakthrough or Bullet Time release reversed it into a roll-back).
                 ball.v /= 1 + (friction * (DAMPING + late * DRAG * Math.abs(ball.v)) + late * slopeDrag * Math.abs(dy)) * STEP;
@@ -391,11 +439,24 @@
                 const settle = ball.trapped && (ground.legAt(ball.x) < (opts.lateLeg ?? LATE_LEG) || Math.abs(dy) < 0.04);
                 if (settle) ball.v *= 1 - TRAPPED_DAMPING * STEP;
             }
+            if (!ball.air && flow.left <= 0 && ball.v > 0) {
+                const strip = ground.stripAt(ball.x);
+                if (strip) ball.v += strip.push * STEP;
+            }
             if (!ball.air) {
                 ball.x += ball.v * STEP * (flow.left > 0 ? flow.warp : 1);
                 if (flow.left <= 0) takeOff(events);
             }
             ball.maxX = Math.max(ball.maxX, ball.x);
+            // Tokens: taken by a ball passing close enough (its height in flight, the line on the ground).
+            for (const tk of ground.tokens) {
+                if (tk.taken || Math.abs(tk.x - ball.x) > TOKEN_REACH) continue;
+                const h = ball.air ? ball.air.y : ground.height(ball.x);
+                if (Math.abs(h - tk.y) <= Math.max(0.45, 0.12 * skillHeight(tk.leg))) {
+                    tk.taken = true;
+                    events.push({ type: 'token', leg: tk.leg, x: tk.x, y: tk.y });
+                }
+            }
 
             const last = ground.last;
             while (nextClear < last && ball.x > skillHill(nextClear).peak) {
@@ -704,6 +765,8 @@
             get flowing() { return flow.left; },
             get superFlow() { return flow.left > 0 && (flow.shrink > 0 || flow.warp > 1); },
             get pushesLeft() { return pushesLeft; },
+            get tuck() { return tuck; },
+            set tuck(v) { tuck = !!v; },
             get launched() { return launched; },
             get over() { return over; },
             // Past the skill hill's peak (rollOut only): rolling down the far side, no more pushes.
@@ -722,7 +785,7 @@
     }
 
     return {
-        STEP, GRAVITY, BUMPER, KICKERS, KICK_SLOPE, bumpAt, bumpSlope,
+        STEP, GRAVITY, BUMPER, TUCK_GRAVITY, features, KICKERS, KICK_SLOPE, bumpAt, bumpSlope,
         LATE_LEG, maxAbove, checkpoint, skillHill, skillHeight, rollingHills, terrain, createRoll, rng
     };
 });

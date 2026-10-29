@@ -276,8 +276,23 @@
                     <button type="button" class="button button-prestige" id="prestigeButton" disabled>Ship it</button>
                     <button type="button" class="ghost-button" id="legacyOpen" hidden>Legacy upgrades</button>
                 </div>
-                <div class="project sealed" aria-label="Sealed project"><span class="sealed-mark">???</span></div>
-                <div class="project sealed" aria-label="Sealed project"><span class="sealed-mark">???</span></div>
+                <div class="project sealed" id="challengeSealed" aria-label="Sealed project"><span class="sealed-mark">???</span></div>
+                <div class="panel hud project panel-challenges" id="challengePanel" hidden>
+                    <div class="panel-head">
+                        <h2>Challenges</h2>
+                        <span class="muted small" id="challengeStatus"></span>
+                    </div>
+                    <ul class="challenge-list" id="challengeList"></ul>
+                </div>
+                <div class="project sealed" id="ascendSealed" aria-label="Sealed project"><span class="sealed-mark">???</span></div>
+                <div class="panel hud project panel-ascend" id="ascendPanel" hidden>
+                    <div class="panel-head">
+                        <h2>Transcend</h2>
+                        <span class="muted small"><span id="ascendPoints">0</span> Transcendence</span>
+                    </div>
+                    <p class="muted small" id="ascendInfo"></p>
+                    <button type="button" class="button button-prestige" id="ascendButton" disabled>Transcend</button>
+                </div>
             </div>
         </section>
         </div>
@@ -323,7 +338,6 @@
             </section>
             <section data-section="settings" role="tabpanel" aria-label="Settings" hidden>
                 <label class="toggle"><input type="checkbox" id="settingAutosave"> Autosave every 30 seconds</label>
-                <label class="toggle"><input type="checkbox" id="settingOffline"> Earn progress while away (up to 8h)</label>
                 <label class="toggle"><input type="checkbox" id="settingShake"> Screen shake and flashes</label>
                 <label class="setting-row">Sound <input type="range" id="settingSound" min="0" max="1" step="0.05" aria-label="Sound volume"> <span id="settingSoundValue" class="muted small"></span></label>
                 <label class="toggle"><input type="checkbox" id="settingCalm"> Reduce animations</label>

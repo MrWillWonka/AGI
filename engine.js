@@ -10,8 +10,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const SAVE_VERSION = 10;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts
-    const MAX_OFFLINE_SECONDS = 8 * 60 * 60;
+    const SAVE_VERSION = 11;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
     // Auto-Trainer, XP nodes) carry most of a new version's speed, so this stays small: at 0.2 a second run
@@ -59,6 +58,7 @@
         minCooldown: 0.3,
         clearedRate: 0.0045,  // a cleared leg replicates its best run: this share of that run's XP per second (about 30% of all XP in the
                               // human-model sim now that XP multipliers apply to it live; 0.006 before that; at 1/1200 it was 2%, too little to notice)
+        tokenXp: 0.03,        // an XP token (act two, hanging past a kicker's lip): this share of a frontier stretch's XP
         replayXp: 1,          // replaying a cleared leg pays this share of its XP: flat for clearing it, by distance otherwise
         chainBonus: 0.5       // each cleared hill crossed in a run adds +0.5x to everything that run earns afterwards
     };
@@ -465,6 +465,11 @@
             // Versions: shipping one resets the run for Insight. `levels` holds legacy nodes (kept for good);
             // major.minor is the model's version number (a big jump in Insight ships a major version).
             prestige: { points: 0, total: 0, count: 0, major: 1, minor: 0, levels: {} },
+            // Challenges (after three versions): the one running, if any, and the ones beaten (perks for good).
+            challenge: null,
+            challengesDone: {},
+            // Transcending (at the Singularity) resets versions for Transcendence, which multiplies Insight.
+            transcend: { points: 0, total: 0, count: 0 },
             stats: {
                 clicks: 0,
                 lifetimeCp: 0,
@@ -486,6 +491,7 @@
                 topSpeed: 0,          // personal bests across every run (m/s, m, m): the result card calls out new ones
                 bestFlight: 0,
                 bestHeight: 0,
+                tokens: 0,            // XP tokens taken
                 collectsEver: 0,      // hand collections and research runs in earlier versions (automation gates)
                 researchManualEver: 0
             },
@@ -494,7 +500,7 @@
             tasks: { autoCollector: { on: true, share: TASK_DEFAULTS.autoCollector }, researchAssistant: { on: true, share: TASK_DEFAULTS.researchAssistant }, autoTrainer: { on: true } },
             // notation: 'standard' (1.23M), 'scientific' (1.23e6) or 'engineering' (1.23e6, exponents in threes);
             // sound: master volume 0–1; shake: screen shake and flashes on big moments.
-            settings: { autosave: true, offline: true, notation: 'standard', sound: 0.5, shake: true, textSize: 1, calm: false },
+            settings: { autosave: true, notation: 'standard', sound: 0.5, shake: true, textSize: 1, calm: false },
             lastSaved: now
         };
     }
@@ -531,6 +537,61 @@
     }
 
     // rates: optional debug multipliers { cp, dp, rp }
+    // ---- Challenges ------------------------------------------------------
+    // Constrained releases, opened from R&D after three versions (Antimatter Dimensions-style): you ship into
+    // one, play the version under its rule, and reaching General AI beats it for a perk kept for good
+    // (Transcending too). Abandon any time (no reset, no perk). Content is data: add an entry here and its
+    // rule and perk in challengeMods().
+    const CHALLENGES_AFTER = 3;   // versions shipped before challenges open
+    const CHALLENGES = [
+        { id: 'lean', name: 'Lean Startup', rule: 'One training sprint per run', reward: '+1 training sprint per run' },
+        { id: 'noPrompts', name: 'No Prompting', rule: 'No prompt zones on the meter', reward: 'Clean prompts pay +50% XP' },
+        { id: 'handmade', name: 'Handmade', rule: 'The Data crawler and Research assistant never run', reward: 'Automation runs 50% faster' },
+        { id: 'frugal', name: 'Frugal', rule: 'Training sprints cost 3× as much', reward: 'Training sprints cost 20% less' },
+        { id: 'speedrun', name: 'Speedrun', rule: 'Reach General AI within 30 minutes of play', reward: '+15% sprint strength', limit: 1800 }
+    ];
+    const CHALLENGE_BY_ID = Object.fromEntries(CHALLENGES.map(c => [c.id, c]));
+
+    // What the running challenge forbids and what beaten ones give.
+    function challengeMods(s) {
+        const on = s.challenge?.id;
+        const done = id => !!s.challengesDone?.[id];
+        return {
+            oneSprint: on === 'lean',
+            noPrompts: on === 'noPrompts',
+            noAuto: on === 'handmade',
+            costMult: (on === 'frugal' ? 3 : 1) * (done('frugal') ? 0.8 : 1),
+            pushes: done('lean') ? 1 : 0,
+            cleanMult: done('noPrompts') ? 1.5 : 1,
+            autoSpeed: done('handmade') ? 1.5 : 1,
+            strength: done('speedrun') ? 1.15 : 1
+        };
+    }
+    const challengesOpen = s => s.prestige.count >= CHALLENGES_AFTER || s.transcend.count > 0;
+
+    // Ship the next version into a challenge (a normal release: Insight and all), whose rule holds until it is
+    // beaten or abandoned.
+    function startChallenge(s, id, now) {
+        const c = CHALLENGE_BY_ID[id];
+        if (!c || !challengesOpen(s) || s.challengesDone[id] || s.challenge) return { ok: false, msg: 'That challenge can\'t start now.' };
+        const res = prestige(s, now);
+        if (!res.ok) return res;
+        res.state.challenge = { id, start: res.state.stats.playTime };
+        return res;
+    }
+    function abandonChallenge(s) {
+        if (!s.challenge) return false;
+        s.challenge = null;
+        return true;
+    }
+
+    // ---- Transcend --------------------------------------------------------
+    // The endgame layer: at the Singularity, versions, Insight and legacy upgrades reset for Transcendence,
+    // and every point ever earned makes each release bring +50% Insight. Challenges beaten stay beaten.
+    const canTranscend = s => phaseIndex(s) >= PHASES.length - 1;
+    const transcendGain = s => (canTranscend(s) ? Math.max(1, Math.floor(Math.sqrt(s.prestige.total) / 3)) : 0);
+    const insightBoost = s => 1 + 0.5 * (s.transcend?.total || 0);
+
     function derive(s, rates) {
         const r = Object.assign({ cp: 1, dp: 1, rp: 1, xp: 1 }, rates);
         const mult = globalMultiplier(s);
@@ -569,8 +630,10 @@
         const researchCost = actionById('research').cost;
         // Each scheduled task has its own share (taskShares): the crawler of CP, research of CP and DP.
         const shares = taskShares(s);
-        const wantCollects = 0.2 * L('autoCollector') * (1 + 0.5 * L('nlp')) * (1 + L('computerVision')) * r.dp;
-        const wantResearch = 0.1 * L('researchAssistant') * r.rp;
+        const ch = challengeMods(s);
+        const autoOn = ch.noAuto ? 0 : ch.autoSpeed;
+        const wantCollects = 0.2 * L('autoCollector') * (1 + 0.5 * L('nlp')) * (1 + L('computerVision')) * r.dp * autoOn;
+        const wantResearch = 0.1 * L('researchAssistant') * r.rp * autoOn;
         const collectScale = wantCollects > 0 ? Math.min(1, shares.autoCollector * cpPerSec / (wantCollects * collectCost.cp)) : 1;
         const collectsPerSec = wantCollects * collectScale;
         const dpPerSec = collectsPerSec * autoDpPerCollect;
@@ -590,18 +653,18 @@
         // Push strength grows with upgrades and skills, and gently with versions (Insight).
         // Hills grow faster than this, so later skills need momentum built over several pushes.
         const tb = treeBoosts(s);
-        const pushPower = PATH.basePush * (1 + tb.push + sk.push) * Math.pow(1.1, tb.pushMult) * Math.sqrt(mult) * bo.push;
-        const pushesPerRoll = PATH.basePushes + tb.pushes + sk.pushes;
+        const pushPower = PATH.basePush * (1 + tb.push + sk.push) * Math.pow(1.1, tb.pushMult) * Math.sqrt(mult) * bo.push * ch.strength;
+        const pushesPerRoll = ch.oneSprint ? 1 : PATH.basePushes + tb.pushes + sk.pushes + ch.pushes;
         const pushCooldown = Math.max(PATH.minCooldown, PATH.baseCooldown * Math.pow(0.85, tb.cooldown));
 
         // The sweet spot doesn't widen (hitting it is the skill); upgrades make hitting it pay: XP, and
         // extra strength (clean sprints, more for perfect ones).
         // No clean prompts until Hyperparameter Search adds the zone (after Bigger Datasets).
-        const zoneWidth = tb.zone ? PATH.zoneWidth * (1 + 0.15 * tb.cleanSize) : 0;
+        const zoneWidth = tb.zone && !ch.noPrompts ? PATH.zoneWidth * (1 + 0.15 * tb.cleanSize) : 0;
         const zoneBias = tb.zoneBias;
         const perfectWidth = tb.perfect ? Math.min(0.4 * zoneWidth, PATH.perfectWidth * (1 + 0.4 * tb.perfectSize)) : 0;   // never more than 40% of the zone
         const perfectUnits = PATH.perfectMult + tb.perfectUnits;
-        const cleanMult = 1 + tb.clean;
+        const cleanMult = (1 + tb.clean) * ch.cleanMult;
         const cleanRollBonus = PATH.cleanRollBonus * (1 + tb.rollBonus);
         const cleanPower = 1 + tb.cleanPower;
         const perfectPower = cleanPower + PATH.perfectPower + tb.perfectPower;
@@ -862,7 +925,19 @@
 
     // Returns arrays of newly unlocked milestone keys, upgrade ids, achievement ids and phase change.
     function evaluate(s) {
-        const out = { milestones: [], upgrades: [], achievements: [], phase: null, reveals: [] };
+        const out = { milestones: [], upgrades: [], achievements: [], phase: null, reveals: [], challenge: null };
+        // A running challenge is beaten at General AI, or lost when a time limit runs out.
+        if (s.challenge) {
+            const c = CHALLENGE_BY_ID[s.challenge.id];
+            if (s.attr.intelligence >= PHASES[1].req.intelligence) {
+                s.challengesDone[c.id] = true;
+                s.challenge = null;
+                out.challenge = { ...c, won: true };
+            } else if (c.limit && s.stats.playTime - s.challenge.start > c.limit) {
+                s.challenge = null;
+                out.challenge = { ...c, won: false };
+            }
+        }
         for (const r of REVEALS) {
             if (!s.unlocked[r.key] && r.check(s)) {
                 s.unlocked[r.key] = true;
@@ -934,7 +1009,7 @@
     function pushCost(s, charge = 1, leg = s.path.learned) {
         const n = Math.max(0, Math.min(leg, s.path.learned) - 1);   // the warm-up and Pattern Matching's leg cost the base
         const early = Math.min(n, PATH.pushCostRampFrom);
-        const factor = Math.pow(PATH.pushCostScale, early) * Math.pow(PATH.pushCostLate, n - early) * charge * charge;
+        const factor = Math.pow(PATH.pushCostScale, early) * Math.pow(PATH.pushCostLate, n - early) * charge * charge * challengeMods(s).costMult;
         const cost = {};
         for (const [k, v] of Object.entries(PATH.pushCost)) cost[k] = Math.max(1, Math.ceil(v * factor));
         return cost;
@@ -1109,6 +1184,15 @@
         return stretchXpAt(s.path.learned) * (leg < s.path.learned ? PATH.replayXp : 1) * PATH.cleanXp * d.cleanMult * cleanUnits(kind, s);
     }
 
+    // An XP token taken in flight: a flat share of the frontier's stretch (the replay share on a cleared leg),
+    // with the XP multipliers and the chain so far.
+    function collectToken(s, leg = s.path.learned, chain = 0) {
+        const xp = stretchXpAt(s.path.learned) * PATH.tokenXp * (leg < s.path.learned ? PATH.replayXp : 1) * derive(s).xpMult * chainMult(chain);
+        s.res.xp += xp;
+        s.stats.tokens = (s.stats.tokens || 0) + 1;
+        return xp;
+    }
+
     function grantPushBonus(s, kind, leg = s.path.learned) {
         const xp = pushBonusXp(s, kind, leg);
         s.res.xp += xp;
@@ -1275,13 +1359,14 @@
 
     function prestigeGain(s) {
         if (s.attr.intelligence < PRESTIGE_MIN_INTELLIGENCE) return 0;
-        return insightAt(s.path.learned);
+        return Math.floor(insightAt(s.path.learned) * insightBoost(s));
     }
     // The next skill count that raises it (status for R&D, like an Insight-per-hour readout).
     function nextInsightAt(s) {
-        const now = insightAt(s.path.learned);
+        const at = n => Math.floor(insightAt(n) * insightBoost(s));
+        const now = at(s.path.learned);
         let n = s.path.learned + 1;
-        while (insightAt(n) <= now) n++;
+        while (at(n) <= now) n++;
         return n;
     }
 
@@ -1309,7 +1394,9 @@
             prestige: { points: s.prestige.points + gain, total: s.prestige.total + gain, count: s.prestige.count + 1,
                 major: v.major, minor: v.minor, levels: { ...s.prestige.levels } },
             tasks: JSON.parse(JSON.stringify(s.tasks)),
-            settings: s.settings
+            settings: s.settings,
+            challengesDone: { ...s.challengesDone },
+            transcend: { ...s.transcend }
         });
         Object.assign(next.stats, {
             clicks: s.stats.clicks,
@@ -1323,22 +1410,49 @@
             playTime: s.stats.playTime,
             firstStart: s.stats.firstStart,
             collectsEver: Math.max(s.stats.collectsEver, s.stats.collects),
-            researchManualEver: Math.max(s.stats.researchManualEver, s.stats.researchManual)
+            researchManualEver: Math.max(s.stats.researchManualEver, s.stats.researchManual),
+            tokens: s.stats.tokens
         });
         // Offers are timed on play time, which carries over: the first one still waits its delay.
         next.projects.next = s.stats.playTime + PROJECTS.firstAt;
         return { ok: true, gain, version: versionName(v.major, v.minor), state: next };
     }
 
-    // ---- Offline progress -----------------------------------------------
-
-    function applyOffline(s, now, rates) {
-        if (!s.settings.offline) return 0;
-        const seconds = Math.min(MAX_OFFLINE_SECONDS, Math.max(0, (now - s.lastSaved) / 1000));
-        if (seconds < 1) return 0;
-        tick(s, seconds, rates);
-        return seconds;
+    // Transcend: a new beginning at the Singularity. Versions, Insight and legacy upgrades start over (v1.0);
+    // Transcendence, achievements, challenges beaten, intros, tasks and settings carry over.
+    function transcend(s, now) {
+        const gain = transcendGain(s);
+        if (gain < 1) return { ok: false, msg: 'Only the Singularity can transcend.' };
+        const fresh = defaultState(now);
+        const next = Object.assign(fresh, {
+            achievements: s.achievements,
+            intro: { ...s.intro },
+            tasks: JSON.parse(JSON.stringify(s.tasks)),
+            settings: s.settings,
+            challengesDone: { ...s.challengesDone },
+            transcend: { points: s.transcend.points + gain, total: s.transcend.total + gain, count: s.transcend.count + 1 }
+        });
+        Object.assign(next.stats, {
+            clicks: s.stats.clicks,
+            lifetimeCp: s.stats.lifetimeCp,
+            researchDone: s.stats.researchDone,
+            rolls: s.stats.rolls,
+            skillsLearned: s.stats.skillsLearned,
+            topSpeed: s.stats.topSpeed,
+            bestFlight: s.stats.bestFlight,
+            bestHeight: s.stats.bestHeight,
+            playTime: s.stats.playTime,
+            firstStart: s.stats.firstStart,
+            tokens: s.stats.tokens,
+            collectsEver: Math.max(s.stats.collectsEver, s.stats.collects),
+            researchManualEver: Math.max(s.stats.researchManualEver, s.stats.researchManual)
+        });
+        next.projects.next = s.stats.playTime + PROJECTS.firstAt;
+        return { ok: true, gain, state: next };
     }
+
+    // No offline progress: this is an active game. Time with the page closed (or hidden) doesn't count;
+    // the lab and training only run while you're playing.
 
     // ---- Persistence ----------------------------------------------------
 
@@ -1406,7 +1520,7 @@
         for (const k of Object.keys(s.stats)) s.stats[k] = num(raw.stats?.[k], s.stats[k]);
         // Sprints weren't counted before; older saves past the first skill get an estimate (about 2 per run).
         if (raw.stats && raw.stats.skilledSprints === undefined && num(raw.path?.learned, 0) >= 1) s.stats.skilledSprints = s.stats.rolls * 2;
-        for (const k of ['autosave', 'offline', 'shake', 'calm']) s.settings[k] = bool(raw.settings?.[k], s.settings[k]);
+        for (const k of ['autosave', 'shake', 'calm']) s.settings[k] = bool(raw.settings?.[k], s.settings[k]);
         if (NOTATIONS.includes(raw.settings?.notation)) s.settings.notation = raw.settings.notation;
         s.settings.sound = Math.min(1, num(raw.settings?.sound, s.settings.sound));
         if (TEXT_SIZES.includes(raw.settings?.textSize)) s.settings.textSize = raw.settings.textSize;
@@ -1435,6 +1549,11 @@
             s.stats.skillsLearned += 1;
         }
         s.projects = cleanProjects(raw.projects, d.projects);
+        s.challengesDone = cleanMap(raw.challengesDone, (k, v) => Object.hasOwn(CHALLENGE_BY_ID, k) && v === true);
+        const rc = raw.challenge;
+        s.challenge = rc && Object.hasOwn(CHALLENGE_BY_ID, rc.id) && !s.challengesDone[rc.id] ? { id: rc.id, start: num(rc.start, 0) } : null;
+        s.transcend = { points: Math.floor(num(raw.transcend?.points, 0)), total: Math.floor(num(raw.transcend?.total, 0)), count: Math.floor(num(raw.transcend?.count, 0)) };
+        s.transcend.total = Math.max(s.transcend.total, s.transcend.points);
         // v10 stores each leg's best run without XP multipliers (they apply live): divide out today's.
         if (!(raw.version >= 10)) {
             const m = derive(s).xpMult / projectBoosts(s).xp;
@@ -1488,7 +1607,7 @@
                 runStart: st.gameStartTime,
                 firstStart: st.gameStartTime
             },
-            settings: { autosave: set.autoSaveEnabled, offline: set.backgroundProcessingEnabled },
+            settings: { autosave: set.autoSaveEnabled },
             lastSaved: o.saveTime
         };
     }
@@ -1562,12 +1681,12 @@
     }
 
     return {
-        SAVE_VERSION, TEXT_SIZES, MAX_OFFLINE_SECONDS, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
-        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, legClearXp, clearLeg, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
+        SAVE_VERSION, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
+        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, legClearXp, clearLeg, collectToken, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
-        prestigeGain, prestige, applyOffline, insightMult, ACT_TWO_LEG,
+        prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, ACT_TWO_LEG,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany

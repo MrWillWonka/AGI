@@ -17,7 +17,6 @@ window.AGI = (function () {
     let lastSave = Date.now();
     let lastBackup = 0;
     let passiveTab = false;     // another tab has the game: this one stops ticking and saving
-    let hiddenGap = document.hidden;   // the page was hidden since the last tick (a throttled tab, not time away)
     let notice = null;          // a dialog to show once the page is up (an unreadable save)
     const debugRates = { cp: 1, dp: 1, rp: 1, xp: 1 };
     // Debug: flat amounts added every second of game time (on top of production), per resource.
@@ -84,24 +83,11 @@ window.AGI = (function () {
         lastBackup = now;
         E.setNotation(state.settings.notation);
         log('Game loaded.', 'success');
-        const before = { ...state.res };
-        reportOffline(E.applyOffline(state, now, debugRates), before);
     }
 
     // Sound (sfx.js): lab sounds always; training sounds only while you can see the trail.
     const sfx = (name, opts) => window.SFX?.play(name, opts);
     const trailSfx = (name, opts) => { if (path.visible) sfx(name, opts); };
-
-    // Back from a break: the log always says so, and from five minutes away a card shows what was earned.
-    function reportOffline(seconds, before) {
-        if (seconds < 60) return;
-        const gains = before ? Object.keys(state.res).map(k => [k, state.res[k] - (before[k] || 0)]).filter(([, v]) => v >= 0.5) : [];
-        const list = gains.map(([k, v]) => `+${E.format(v)} ${E.RESOURCES[k].short}`).join(' · ');
-        log(`Welcome back! Your systems ran for ${E.formatDuration(seconds)} while you were away${list ? `: ${list}` : ''}.`, 'special');
-        if (seconds >= 300 && list) {
-            setTimeout(() => openDialog({ title: 'While you were away', message: `Your lab ran for ${E.formatDuration(seconds)} and made ${list}.`, okLabel: 'Back to work', cancelLabel: null }), 600);
-        }
-    }
 
     // ---- Small DOM helpers ----------------------------------------------
 
@@ -274,7 +260,8 @@ window.AGI = (function () {
         'hint:hold': { anchor: () => ui.actions.compute?.button, kind: 'tip' },
         // After the first skill: on the result card, the replicated best run; in the lab, Scheduled tasks.
         'hint:replay': { anchor: () => $('rollResult'), kind: 'tip', place: 'below', ms: 15000 },
-        'hint:tasks': { anchor: () => $('taskPanel'), kind: 'tip', ms: 12000 }
+        'hint:tasks': { anchor: () => $('taskPanel'), kind: 'tip', ms: 12000 },
+        'hint:tuck': { anchor: () => $('pathCanvas'), kind: 'tip', place: 'inside', ms: 12000 }
     };
     const calloutQueue = [];
     let calloutLive = null;
@@ -327,7 +314,10 @@ window.AGI = (function () {
         const place = () => {
             const r = anchor.getBoundingClientRect();
             const b = box.getBoundingClientRect();
-            if (onScreen && where.place === 'below') {   // under it, centred
+            if (onScreen && where.place === 'inside') {   // inside its top edge, centred (over the trail's sky)
+                box.style.left = `${(r.left + r.width / 2 - b.width / 2) / z}px`;
+                box.style.top = `${(r.top + 56) / z}px`;
+            } else if (onScreen && where.place === 'below') {   // under it, centred
                 box.style.left = `${(r.left + r.width / 2 - b.width / 2) / z}px`;
                 box.style.top = `${(r.bottom + 12) / z}px`;
             } else if (onScreen) {   // beside it, vertically centred: to the right, or the left if there's no room
@@ -965,9 +955,7 @@ window.AGI = (function () {
 
     function buildSettings() {
         const autosave = $('settingAutosave');
-        const offline = $('settingOffline');
         autosave.addEventListener('change', () => { state.settings.autosave = autosave.checked; save(); });
-        offline.addEventListener('change', () => { state.settings.offline = offline.checked; save(); });
         $('settingShake').addEventListener('change', e => { state.settings.shake = e.target.checked; save(); });
         $('settingSound').addEventListener('input', e => {
             state.settings.sound = Number(e.target.value);
@@ -1018,7 +1006,6 @@ window.AGI = (function () {
 
     function syncSettings() {
         $('settingAutosave').checked = state.settings.autosave;
-        $('settingOffline').checked = state.settings.offline;
         $('settingShake').checked = state.settings.shake;
         $('settingSound').value = state.settings.sound;
         $('settingNotation').value = state.settings.notation;
@@ -1145,19 +1132,125 @@ window.AGI = (function () {
         if (ok) shipVersion(false);
     }
 
-    function shipVersion(force) {
-        const result = E.prestige(state, Date.now());
+    function shipVersion(force, into) {
+        const result = into ? E.startChallenge(state, into, Date.now()) : E.prestige(state, Date.now());
         if (!result.ok && !force) return;
         state = result.ok ? result.state : state;
         path.roll = null;
         resetView(false);
         log(`Shipped ${result.version}! +${result.gain} Insight. Automated production and training XP are now ×${E.derive(state).mult.toFixed(2)}. Spend Insight on legacy upgrades before you start.`, 'special');
+        if (into) log(`Challenge: ${challengeName(into)}. ${E.CHALLENGES.find(c => c.id === into).rule} until General AI.`, 'warning');
         dropStaleToasts();
         toast(`${result.version} shipped`, `+${result.gain} Insight`, 'version');
         afterChange();
         save();
         // Spend Insight first, then start the new version.
         openLegacy(true);
+    }
+
+    const challengeName = id => E.CHALLENGES.find(c => c.id === id)?.name || id;
+
+    // R&D's other projects: challenges (after three versions) and Transcend (at the Singularity). Each slot
+    // stays a sealed ??? until it opens.
+    const rndUi = { rows: {} };
+    function buildRnd() {
+        const list = $('challengeList');
+        for (const c of E.CHALLENGES) {
+            const button = el('button', { type: 'button', class: 'ghost-button' });
+            const row = el('li', { class: 'challenge' }, [
+                el('div', { class: 'challenge-text' }, [
+                    el('strong', { text: c.name }),
+                    el('span', { class: 'challenge-rule', text: c.rule }),
+                    el('span', { class: 'challenge-reward', text: `Perk: ${c.reward}` })
+                ]),
+                button
+            ]);
+            button.addEventListener('click', () => challengeAction(c));
+            list.append(row);
+            rndUi.rows[c.id] = { row, button };
+        }
+        $('ascendButton').addEventListener('click', doTranscend);
+    }
+
+    function renderRnd() {
+        const open = E.challengesOpen(state);
+        setHidden($('challengeSealed'), open);
+        setHidden($('challengePanel'), !open);
+        const ascend = E.canTranscend(state) || state.transcend.count > 0;
+        setHidden($('ascendSealed'), ascend);
+        setHidden($('ascendPanel'), !ascend);
+        if (open) {
+            const gain = E.prestigeGain(state);
+            const running = state.challenge;
+            const beaten = E.CHALLENGES.filter(c => state.challengesDone[c.id]).length;
+            let status = `${beaten}/${E.CHALLENGES.length} beaten`;
+            if (running) {
+                const c = E.CHALLENGES.find(x => x.id === running.id);
+                const used = state.stats.playTime - running.start;
+                status = `${c.name} running${c.limit ? ` · ${E.formatDuration(Math.max(0, c.limit - used))} left` : ''}`;
+            }
+            setText($('challengeStatus'), status);
+            for (const c of E.CHALLENGES) {
+                const { row, button } = rndUi.rows[c.id];
+                const done = !!state.challengesDone[c.id];
+                const here = running?.id === c.id;
+                row.classList.toggle('done', done);
+                row.classList.toggle('running', here);
+                setText(button, done ? 'Beaten ✓' : here ? 'Abandon' : gain >= 1 ? `Ship into it (+${E.format(gain)})` : 'Ship into it');
+                setDisabled(button, done || (!here && (!!running || gain < 1)));
+            }
+        }
+        if (ascend) {
+            setText($('ascendPoints'), E.format(state.transcend.points));
+            const tg = E.transcendGain(state);
+            setText($('ascendInfo'), tg >= 1
+                ? `Start over from v1.0 for +${E.format(tg)} Transcendence: every point makes each release bring +50% Insight. Challenges beaten stay beaten.`
+                : `Each release brings ×${E.insightBoost(state).toFixed(1)} Insight. Reach the Singularity again to transcend further.`);
+            setDisabled($('ascendButton'), tg < 1);
+        }
+    }
+
+    async function challengeAction(c) {
+        if (state.challenge?.id === c.id) {
+            const { ok } = await openDialog({ title: `Abandon ${c.name}?`, message: 'The rule lifts and this version carries on as normal. No perk.', okLabel: 'Abandon', danger: true });
+            if (ok && E.abandonChallenge(state)) {
+                log(`Challenge abandoned: ${c.name}.`, 'warning');
+                afterChange();
+            }
+            return;
+        }
+        const gain = E.prestigeGain(state);
+        if (gain < 1 || state.challenge) return;
+        const next = E.nextVersion(state, gain);
+        const { ok } = await openDialog({
+            title: `Ship ${E.versionName(next.major, next.minor)} into ${c.name}?`,
+            message: `A normal release (+${gain} Insight), then the new version plays under one rule: ${c.rule.toLowerCase()}. Reach General AI to beat it. Perk, for good: ${c.reward.charAt(0).toLowerCase()}${c.reward.slice(1)}.`,
+            okLabel: 'Ship into it'
+        });
+        if (ok) shipVersion(false, c.id);
+    }
+
+    async function doTranscend() {
+        const gain = E.transcendGain(state);
+        if (gain < 1) return;
+        const { ok } = await openDialog({
+            title: `Transcend for ${gain} Transcendence?`,
+            message: 'Everything starts over from v1.0: versions, Insight and legacy upgrades too. You keep Transcendence (each release brings +50% Insight per point), achievements and the challenges you\'ve beaten.',
+            okLabel: 'Transcend',
+            danger: true
+        });
+        if (!ok) return;
+        const result = E.transcend(state, Date.now());
+        if (!result.ok) return;
+        state = result.state;
+        path.roll = null;
+        resetView(false);
+        log(`Transcended. +${result.gain} Transcendence. Every release now brings ×${E.insightBoost(state).toFixed(1)} Insight.`, 'special');
+        dropStaleToasts();
+        toast('Transcended', `+${result.gain} Transcendence`, 'version');
+        afterChange();
+        save();
+        showView('lab');
     }
 
     function exportSave() {
@@ -1354,6 +1447,16 @@ window.AGI = (function () {
             log(`Achievement unlocked: ${a.name}`, 'special');
             toast(`Achievement · ${a.name}`, a.desc, 'achievement');
         }
+        if (changes.challenge) {
+            const c = changes.challenge;
+            if (c.won) {
+                log(`Challenge beaten: ${c.name}! Perk for good: ${c.reward}.`, 'special');
+                toast(`Challenge beaten · ${c.name}`, c.reward, 'version');
+            } else {
+                log(`Challenge failed: ${c.name}. Out of time; this version carries on without the rule.`, 'warning');
+                toast(`Challenge failed · ${c.name}`, 'Out of time', 'phase');
+            }
+        }
         if (changes.phase) {
             log(`Phase transition! You have reached ${changes.phase.name}.`, 'special');
             const seenPhase = `phase:${changes.phase.name}`;
@@ -1387,23 +1490,14 @@ window.AGI = (function () {
         const now = Date.now();
         const dt = (now - lastTick) / 1000;
         lastTick = now;
-        const wasHidden = hiddenGap;
-        if (!document.hidden) hiddenGap = false;
-        // A hidden tab is still open: the browser only wakes its timer about once a minute, so those gaps are
-        // play time (whatever the offline setting), and only a long one gets the While you were away card.
-        if (dt > 60 && wasHidden) {
-            const seconds = Math.min(dt, E.MAX_OFFLINE_SECONDS);
-            const before = { ...state.res };
-            E.tick(state, seconds, debugRates);
-            addDebugIncome(seconds);
-            if (seconds >= 300) reportOffline(seconds, before);
-        } else if (dt > 60) {
-            // Long gaps (sleep, frozen tab) count as offline time and obey the offline setting/cap.
-            const seconds = state.settings.offline ? Math.min(dt, E.MAX_OFFLINE_SECONDS) : 0;
-            const before = { ...state.res };
-            E.tick(state, seconds, debugRates);
-            addDebugIncome(seconds);
-            reportOffline(seconds, before);
+        // An active game: nothing runs while the tab is hidden, and a long gap (the machine asleep, a frozen
+        // tab) is simply skipped. The lab only works while you're here.
+        if (document.hidden) {
+            if (state.settings.autosave && now - lastSave >= AUTOSAVE_MS) save();
+            return;
+        }
+        if (dt > 5) {
+            log(`Paused for ${E.formatDuration(dt)} while you were away.`, 'info');
         } else {
             E.tick(state, dt * debugSpeed, debugRates);
             addDebugIncome(dt * debugSpeed);
@@ -1677,6 +1771,7 @@ window.AGI = (function () {
         // Training XP joins the supply line once cleared stretches make it on their own.
         setHidden($('labRoom').querySelector('.cell-xp'), !(d.xpPerSec > 0));
         renderTasks(d);
+        renderRnd();
         renderProjects();
         layoutLab();
         renderFacility(d);
@@ -1712,7 +1807,8 @@ window.AGI = (function () {
     function goalFor(place) {
         if (place === 'bay') {
             const k = E.skillAt(state.path.learned);
-            return `Next skill: ${k.name} · best run ${Math.round(state.path.best * 100)}%`;
+            const ch = state.challenge ? ` · challenge: ${challengeName(state.challenge.id)}` : '';
+            return `Next skill: ${k.name} · best run ${Math.round(state.path.best * 100)}%${ch}`;
         }
         if (place === 'rnd') {
             const gain = E.prestigeGain(state);
@@ -1720,7 +1816,7 @@ window.AGI = (function () {
             // Status, not advice: the version's Insight per hour so far, and the skill that brings more.
             const hours = Math.max(1 / 60, (Date.now() - state.stats.runStart) / 3.6e6);
             const next = E.nextInsightAt(state);
-            return `Ship the next version for +${E.format(gain)} Insight · ${E.format(gain / hours)}/h this version · +${E.format(E.insightAt(next) - gain)} more at ${E.skillAt(next - 1).name}`;
+            return `Ship the next version for +${E.format(gain)} Insight · ${E.format(gain / hours)}/h this version · +${E.format(Math.floor(E.insightAt(next) * E.insightBoost(state)) - gain)} more at ${E.skillAt(next - 1).name}`;
         }
         return '';
     }
@@ -1733,7 +1829,7 @@ window.AGI = (function () {
         lab: { name: 'Lab', built: true },
         servers: { name: 'Server room', built: true, unlocked: () => !!state.unlocked['module:path'] },
         rnd: { name: 'R&D', built: true,
-            unlocked: () => E.prestigeGain(state) >= 1 || state.prestige.count > 0 },
+            unlocked: () => E.prestigeGain(state) >= 1 || state.prestige.count > 0 || state.transcend.count > 0 },
         boardroom: { name: 'Boardroom', phase: 1 },
         signals: { name: 'Signals room', phase: 2 },
         mirror: { name: 'Mirror room', phase: 3 }
@@ -3237,7 +3333,7 @@ window.AGI = (function () {
     function freshFx() {
         return { windup: null, boost: 0, trail: [], shocks: [], sparks: [], shake: 0, crunch: 0, crunchMax: 0, maxEffort: false, reactions: [],
             flowMax: 0, lift: 0, lights: [], freeze: 0, freezeMax: 0, bank: 0, banked: 0, debris: [],
-            shards: [], breach: null, flash: null, motes: [], streaks: [], flight: [] };
+            shards: [], breach: null, flash: null, motes: [], streaks: [], flight: [], pops: [] };
     }
     const crunching = () => path.fx.crunch > 0;
     // Bullet Time: the run is frozen and sprints bank their power.
@@ -3752,6 +3848,8 @@ window.AGI = (function () {
 
     function ageFx(dt) {
         const fx = path.fx;
+        for (const p of fx.pops) p.age += dt;
+        fx.pops = fx.pops.filter(p => p.age < 1.1);
         fx.boost = Math.max(0, fx.boost - dt);
         fx.shake = Math.max(0, fx.shake - dt);
         for (const sh of fx.shocks) sh.age += dt;
@@ -3825,7 +3923,7 @@ window.AGI = (function () {
         const fx = path.fx;
         return !!(fx.windup || fx.boost || fx.shocks.length || fx.sparks.length || fx.reactions.length || fx.trail.length || fx.crunch || fx.maxEffort
             || fx.freeze || fx.lift || fx.lights.length || fx.debris.length || fx.shards.length || fx.breach || fx.flash || fx.streaks.length
-            || fx.flight.length || flowing());
+            || fx.flight.length || fx.pops.length || flowing());
     };
 
     // Under the ball: the breakthrough glow and the sparks it draws in, the golden streak behind a
@@ -4038,6 +4136,9 @@ window.AGI = (function () {
             const roll = currentRoll();
             autoTrain(roll);
             if (path.held && !path.charging && path.view === 'run' && !path.done && readyToFire(roll)) startCharge();
+            // The tuck: a hold that isn't charging a sprint (during the wait, or with none left) makes the ball
+            // heavier on act two's swells. (The Auto-Trainer never tucks.)
+            roll.tuck = !!path.held && !path.charging && path.view === 'run' && !roll.airborne && roll.leg >= T.LATE_LEG;
             // Slow motion only matters on screen; in the background the run keeps real time. A wind-up and
             // Bullet Time hold the run still.
             const fx = path.fx;
@@ -4054,6 +4155,7 @@ window.AGI = (function () {
             roll.topSpeed = Math.max(roll.topSpeed || 0, Math.abs(roll.ball.v));
             for (const ev of events) {
                 if (ev.type === 'clear') clearLeg(ev);
+                else if (ev.type === 'token') takeToken(ev);
                 else if (ev.type === 'launch' || ev.type === 'land') airborne(ev);
                 else if (ev.type === 'crest' && ev.onward) crestFrontier(ev);
                 else if (ev.type === 'crest' && !roll.over) celebrateSummit();
@@ -4198,6 +4300,10 @@ window.AGI = (function () {
                 state.intro['act:two'] = true;
                 luckBanner('ACT II', 'The model generalised. Now it flies.', 'success');
                 log('Act II: past General AI the trail opens into giant swells. Build speed and fly off the crests.', 'special');
+                if (!state.intro['hint:tuck']) {
+                    state.intro['hint:tuck'] = true;
+                    callout('hint:tuck', 'Tip', 'Hold on the way down to dive and pick up speed. Let go before the climb.');
+                }
             }
             return;
         }
@@ -4218,6 +4324,16 @@ window.AGI = (function () {
         render();
     }
 
+    // An XP token taken in flight: paid at once (with the chain so far), a pop where it hung.
+    function takeToken(ev) {
+        const roll = path.roll;
+        const xp = E.collectToken(state, ev.leg, roll.legs || 0);
+        roll.tokenXp = (roll.tokenXp || 0) + xp;
+        roll.tokens = (roll.tokens || 0) + 1;
+        path.fx.pops.push({ wx: ev.x, wh: ev.y, age: 0, text: `+${xpText(xp)}` });
+        trailSfx('clean');
+    }
+
     function finishRoll(ev) {
         const crested = ev.type === 'crest' || !!ev.crested;
         const roll = path.roll;
@@ -4232,7 +4348,7 @@ window.AGI = (function () {
         const target = E.skillAt(leg).name;
         const clean = roll.clean || 0;
         const units = roll.units || 0;
-        const banked = (roll.bonusXp || 0) + (roll.legXp || 0);
+        const banked = (roll.bonusXp || 0) + (roll.legXp || 0) + (roll.tokenXp || 0);
         const legs = roll.legs || 0;
         const metres = ev.metres || 0;
         // Luck: a run can go viral, multiplying its distance XP.
@@ -4250,6 +4366,7 @@ window.AGI = (function () {
         const viralMult = viral ? E.derive(state).windfallMult : 1;
         const runMult = viralMult * E.chainMult(legs);
         const lines = xpLines(plainXp * runMult, result.xp - plainXp * runMult, clean, roll.bonusXp || 0, crested);
+        if (roll.tokens) lines.push([`${roll.tokens} XP token${roll.tokens === 1 ? '' : 's'}`, `+${xpText(roll.tokenXp)} XP`, 'good']);
         if (legs) lines.unshift([`Chain ×${E.chainMult(legs)} on the distance`, '', 'good']);
         if (viral) {
             lines.unshift([`Went viral! ×${viralMult.toFixed(2)} run XP`, '', 'good']);
@@ -4601,6 +4718,116 @@ window.AGI = (function () {
         return Math.abs(path.cam.left - t.left) > width * 0.002 || Math.abs(path.cam.right - t.right) > width * 0.002;
     }
 
+    // The charge meter, again on the ball: an arc over it (left = empty, right = full) with the prompt zones,
+    // so the release can be timed while watching the ball stall (the bar under the trail is far away).
+    function drawChargeRing(ctx, roll, bx, by) {
+        const c = path.colors;
+        const R = BALL + 15;
+        const at = f => Math.PI + Math.max(0, Math.min(1, f)) * Math.PI;
+        const arc = (from, to, color, width) => {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.beginPath();
+            ctx.arc(bx, by, R, at(from), at(to));
+            ctx.stroke();
+        };
+        ctx.save();
+        ctx.lineCap = 'butt';
+        arc(0, 1, hexAlpha(c.muted, 0.25), 5);
+        const cap = path.charging.cap;
+        if (cap < 1) arc(cap, 1, hexAlpha(c.danger, 0.35), 5);   // beyond what you can afford
+        const z = currentZone(roll);
+        const level = chargeLevel();
+        if (z && z.to > z.from) {
+            arc(z.from, z.to, hexAlpha(c.success, 0.55), 7);
+            if (z.perfectTo > z.perfectFrom) arc(z.perfectFrom, z.perfectTo, hexAlpha(c.warning, 0.9), 7);
+            if (z.systemTo > z.systemFrom) arc(z.systemFrom, z.systemTo, c.text, 7);
+        }
+        const kind = E.zoneHit(z, level);
+        ctx.lineCap = 'round';
+        arc(0, level, kind ? c.success : c.warning, 3);
+        const a = at(level);
+        ctx.fillStyle = kind ? c.success : c.warning;
+        ctx.beginPath();
+        ctx.arc(bx + Math.cos(a) * R, by + Math.sin(a) * R, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // Boost strips glow along the line with chevrons running forward (brighter under the ball); XP tokens
+    // hang as small diamonds that bob; a taken one pops with its XP.
+    function drawFeatures(ctx, roll, X, Y, t) {
+        const c = path.colors;
+        const g = roll.ground;
+        const { left, right } = path.cam;
+        const still = reducedMotion();
+        ctx.save();
+        for (const st of g.strips) {
+            if (st.to < left || st.from > right) continue;
+            const on = !roll.airborne && roll.ball.x >= st.from && roll.ball.x <= st.to;
+            ctx.strokeStyle = hexAlpha(c.primary, on ? 0.95 : 0.6);
+            ctx.lineWidth = on ? 5 : 4;
+            ctx.shadowColor = c.primary;
+            ctx.shadowBlur = on ? 16 : 8;
+            ctx.beginPath();
+            const n = Math.max(2, Math.ceil((X(st.to) - X(st.from)) / 6));
+            for (let i = 0; i <= n; i++) {
+                const x = st.from + (st.to - st.from) * i / n;
+                const px = X(x);
+                const py = Y(groundAt(roll, x)) - 3;
+                i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+            }
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            // Chevrons running forward along it.
+            const len = X(st.to) - X(st.from);
+            const gap = 18;
+            const shift = still ? 0 : (t * 60) % gap;
+            ctx.fillStyle = hexAlpha(c.text, 0.75);
+            for (let d = shift; d < len; d += gap) {
+                const x = st.from + (st.to - st.from) * d / len;
+                const px = X(x);
+                const py = Y(groundAt(roll, x)) - 3;
+                ctx.beginPath();
+                ctx.moveTo(px - 3, py - 4);
+                ctx.lineTo(px + 2, py);
+                ctx.lineTo(px - 3, py + 4);
+                ctx.fill();
+            }
+        }
+        for (const tk of g.tokens) {
+            if (tk.taken || tk.x < left || tk.x > right) continue;
+            const px = X(tk.x);
+            const py = Y(tk.y) + (still ? 0 : Math.sin(t * 3 + tk.x) * 2.5);
+            ctx.fillStyle = c.warning;
+            ctx.shadowColor = c.warning;
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.moveTo(px, py - 6);
+            ctx.lineTo(px + 4.5, py);
+            ctx.lineTo(px, py + 6);
+            ctx.lineTo(px - 4.5, py);
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.shadowBlur = 0;
+        ctx.textAlign = 'center';
+        ctx.font = '700 12px "JetBrains Mono", monospace';
+        for (const p of path.fx.pops) {
+            const k = p.age / 1.1;
+            const px = X(p.wx);
+            const py = Y(p.wh);
+            ctx.strokeStyle = hexAlpha(c.warning, 1 - k);
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(px, py, 6 + 18 * k, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fillStyle = hexAlpha(c.warning, 1 - k);
+            ctx.fillText(p.text, px, py - 12 - 20 * k);
+        }
+        ctx.restore();
+    }
+
     // Metres between labelled distance posts: a round number that leaves at least 90 px between posts.
     function postStep(pxPerUnit) {
         for (const m of [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000]) if (m * pxPerUnit >= 90) return m;
@@ -4715,6 +4942,7 @@ window.AGI = (function () {
                 ctx.fillText(`${Math.round(x - g.start)} m`, X(x), gy - 16);
             }
         }
+        drawFeatures(ctx, roll, X, Y, t);
 
         const stroke = (from, to, color, width = 2.5) => {
             ctx.beginPath();
@@ -5012,6 +5240,23 @@ window.AGI = (function () {
             ctx.arc(bx, by, BALL + 4 + 10 * (0.35 - path.pushFlash) / 0.35, 0, Math.PI * 2);
             ctx.fill();
         }
+        // Tucked: a gold halo, and speed lines behind it on the way down.
+        if (roll.tuck) {
+            ctx.strokeStyle = hexAlpha(c.warning, 0.7);
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(bx, by, BALL + 4, 0, Math.PI * 2);
+            ctx.stroke();
+            if (g.slope(roll.ball.x) < -0.05 && roll.ball.v > 1) {
+                ctx.strokeStyle = hexAlpha(c.warning, 0.45);
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(bx - BALL - 6, by - 4 + i * 4);
+                    ctx.lineTo(bx - BALL - 18 - i * 4, by - 4 + i * 4);
+                    ctx.stroke();
+                }
+            }
+        }
         ctx.fillStyle = c.text;
         ctx.beginPath();
         ctx.arc(bx, by, BALL, 0, Math.PI * 2);
@@ -5037,6 +5282,7 @@ window.AGI = (function () {
         ctx.lineWidth = 3;
         ctx.strokeStyle = wind ? c.warning : crunching() ? c.danger : roll.ball.v > 0.05 ? c.success : roll.ball.v < -0.05 ? c.danger : c.primary;
         ctx.stroke();
+        if (path.charging) drawChargeRing(ctx, roll, bx, by);
         drawLuckOver(ctx, bx, by, wind);
         ctx.restore();
 
@@ -5456,6 +5702,7 @@ window.AGI = (function () {
         buildPath();
         buildTree();
         buildLegacy();
+        buildRnd();
         buildAutoTrainer();
         buildTreeCamera();
         load();
@@ -5468,7 +5715,6 @@ window.AGI = (function () {
         setTimeout(() => { revealReady = true; }, 1200);
         // Save whenever the page is hidden or closed; beforeunload is unreliable on mobile.
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden) hiddenGap = true;
             if (document.visibilityState === 'hidden' && state.settings.autosave) save();
         });
         watchIdle();
@@ -5568,6 +5814,22 @@ window.AGI = (function () {
                 state.attr.intelligence = Math.max(state.attr.intelligence, E.PRESTIGE_MIN_INTELLIGENCE);
                 state.stats.runCp = Math.max(state.stats.runCp, 1e5);
                 shipVersion(true);
+            },
+            // Endgame: open the challenges (three versions shipped), beat the running one, or make Transcend ready.
+            openChallenges() {
+                state.prestige.count = Math.max(E.CHALLENGES_AFTER, state.prestige.count);
+                afterChange();
+            },
+            beatChallenge() {
+                if (!state.challenge) return;
+                state.attr.intelligence = Math.max(state.attr.intelligence, 25);
+                afterChange();
+            },
+            readyTranscend() {
+                state.prestige.count = Math.max(3, state.prestige.count);
+                state.prestige.total = Math.max(state.prestige.total, 100);
+                Object.assign(state.attr, { intelligence: Math.max(state.attr.intelligence, 300), creativity: Math.max(state.attr.creativity, 30), awareness: Math.max(state.attr.awareness, 30) });
+                afterChange();
             },
             // Every legacy node to its max (Flow State, the supers, the Auto-Trainer…).
             maxLegacy() {
