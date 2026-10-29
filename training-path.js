@@ -344,7 +344,9 @@
             } else {
                 ball.v += (-GRAVITY * dy / (1 + dy * dy)) * STEP;
                 const late = ground.legAt(ball.x) >= (opts.lateLeg ?? LATE_LEG) ? LATE_DRAG : 1;
-                ball.v -= (friction * (DAMPING * ball.v + late * DRAG * ball.v * Math.abs(ball.v)) + late * slopeDrag * Math.abs(dy) * ball.v) * STEP;
+                // Semi-implicit drag: dividing instead of subtracting can't flip the ball's direction at
+                // huge speeds (a stacked breakthrough or Bullet Time release reversed it into a roll-back).
+                ball.v /= 1 + (friction * (DAMPING + late * DRAG * Math.abs(ball.v)) + late * slopeDrag * Math.abs(dy)) * STEP;
                 // Momentum while there is somewhere to go; once the ball lacks the energy to clear either
                 // neighbouring hill, it is stuck in this dip, so let it settle quickly instead of sloshing.
                 const { left, right } = ground.walls(ball.x);
@@ -482,7 +484,7 @@
             const a = ball.air;
             if (a.plan) {
                 const sp = Math.hypot(ball.v, a.vy);
-                ball.v -= ball.v * friction * AIR_DRAG * sp * STEP;
+                ball.v /= 1 + friction * AIR_DRAG * sp * STEP;
                 ball.x += ball.v * STEP;
                 const q = pathAt(a.plan, ball.x);
                 a.y = q.y;
@@ -490,9 +492,9 @@
             } else {
                 a.vy -= GRAVITY * AIR_GRAVITY * STEP;
                 const sp = Math.hypot(ball.v, a.vy);
-                const drag = friction * AIR_DRAG * sp * STEP;
-                ball.v -= ball.v * drag;
-                a.vy -= a.vy * drag;
+                const drag = 1 + friction * AIR_DRAG * sp * STEP;
+                ball.v /= drag;
+                a.vy /= drag;
                 ball.x += ball.v * STEP;
                 a.y += a.vy * STEP;
             }
@@ -563,9 +565,9 @@
             let top = y;
             for (let i = 0; i < 1200; i++) {
                 vy -= GRAVITY * AIR_GRAVITY * dt;
-                const d = friction * AIR_DRAG * Math.hypot(vx, vy) * dt;
-                vx -= vx * d;
-                vy -= vy * d;
+                const d = 1 + friction * AIR_DRAG * Math.hypot(vx, vy) * dt;
+                vx /= d;
+                vy /= d;
                 x += vx * dt;
                 y += vy * dt;
                 top = Math.max(top, y);
@@ -584,6 +586,7 @@
 
         function step(seconds) {
             const events = [];
+            if (!(seconds > 0)) return events;   // a NaN frame would poison `carry` for good
             carry = Math.min(carry + seconds, 0.25);
             while (carry >= STEP && !over) {
                 stepOnce(events);

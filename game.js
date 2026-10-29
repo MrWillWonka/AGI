@@ -429,6 +429,7 @@ window.AGI = (function () {
     // `onHold` fires once per press, the first time holding repeats the job.
     function holdable(button, fn, onHold) {
         let repeat = null;
+        let lastKey = 0;
 
         const stop = () => {
             clearInterval(repeat);
@@ -437,7 +438,7 @@ window.AGI = (function () {
         };
 
         button.addEventListener('pointerdown', e => {
-            if (e.button !== 0 || button.disabled) return;
+            if (e.button !== 0 || button.disabled || repeat) return;   // a second finger mustn't leak a timer
             fn();
             button.classList.add('held');
             let first = true;
@@ -449,7 +450,13 @@ window.AGI = (function () {
         });
         ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => button.addEventListener(t, stop));
         button.addEventListener('click', e => {
-            if (e.detail === 0) fn();     // keyboard (Enter/Space); pointer presses already fired on pointerdown
+            // Keyboard (Enter/Space); pointer presses already fired on pointerdown. A held key repeats at
+            // the same comfort rate as a held pointer, not the OS key-repeat rate.
+            if (e.detail !== 0) return;
+            const now = performance.now();
+            if (now - lastKey < HOLD_REPEAT_MS) return;
+            lastKey = now;
+            fn();
         });
         button.addEventListener('contextmenu', e => e.preventDefault());
     }
@@ -3111,6 +3118,7 @@ window.AGI = (function () {
     // Bullet Time starts: time stops, with a cold flash and dust hanging in the air.
     function freezeTime(seconds) {
         path.fx.freeze = path.fx.freezeMax = seconds;
+        path.fx.bankPrompted = false;
         path.fx.flash = { age: 0, life: 0.3, color: '#9cc8ff', max: 0.5 };
         if (!reducedMotion()) path.fx.motes = Array.from({ length: 70 }, () => ({ x: Math.random(), y: Math.random(), r: 0.6 + Math.random() * 2, tw: Math.random() * 6 }));
         luckBanner('BULLET TIME', `Time stops for ${seconds} s. Tap to bank full sprints ×${BANK_MULT}`, 'primary');
@@ -3123,7 +3131,11 @@ window.AGI = (function () {
         path.fx.bank += strength * strength;
         path.fx.banked++;
         burst(path.colors.primary, 10);
-        if (kind) promptBonus(roll, kind, ballLeg());
+        // The zone doesn't move while time stands still, so its prompt pays once per freeze.
+        if (kind && !path.fx.bankPrompted) {
+            path.fx.bankPrompted = true;
+            promptBonus(roll, kind, ballLeg());
+        }
     }
 
     // Time restarts: everything banked lands in one go.

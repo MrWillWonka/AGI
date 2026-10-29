@@ -1000,3 +1000,45 @@ test('cresting the frontier mid-run learns the skill and pays the leg at the cre
     assert.equal(s.path.learned, 1);
     assert.ok(Math.abs(xp - plain * E.chainMult(1)) < 1e-9);
 });
+
+test('a tampered save is cleaned, never crashes or freezes, and non-object JSON never imports', () => {
+    const s = E.migrate({ version: 7, levels: { constructor: 3, toString: 2 },
+        path: { learned: 1e7 }, prestige: { total: 1e300, points: 0 },
+        projects: { offers: [{ id: 1, task: 'constructor', reward: 0, investor: '', target: 1, start: 0, deadline: 1e9 },
+            { id: 2, task: Object.keys(E.PROJECT_TASKS)[0], reward: 'length', investor: '', target: 1, start: 0, deadline: 1e9 }] } }, NOW);
+    assert.deepEqual(s.levels, {});
+    assert.equal(s.projects.offers.length, 0);
+    assert.ok(s.path.learned <= 500);
+    E.tick(s, 10);
+    assert.ok(Number.isFinite(s.res.cp));
+    for (const json of ['1', 'null', '[]', '"x"']) assert.equal(E.deserialize(json, NOW), null, json);
+});
+
+test('a timed boost covers only its own seconds of a long tick', () => {
+    const base = E.defaultState(NOW);
+    base.levels.cpu = 10;
+    const plain = JSON.parse(JSON.stringify(base));
+    base.projects.boosts.push({ stat: 'cp', mult: 2, until: base.stats.playTime + 1 });
+    E.tick(base, 3600);
+    E.tick(plain, 3600);
+    const rate = E.derive(plain).cpPerSec;
+    assert.ok(Math.abs(base.res.cp - plain.res.cp - rate) < 1e-6 * plain.res.cp);
+});
+
+test('shipping a version waits the first-offer delay again', () => {
+    const s = fresh();
+    s.stats.playTime = 50000;
+    s.stats.runCp = 1e15; s.stats.lifetimeCp = 1e15;
+    s.attr.intelligence = 100;
+    const r = E.prestige(s, NOW);
+    assert.ok(r.ok);
+    assert.equal(r.state.projects.next, 50000 + E.PROJECTS.firstAt);
+});
+
+test('numbers format cleanly at tier edges and in error states', () => {
+    assert.equal(E.format(999999.5), '1.00M');
+    assert.equal(E.format(9.96), '10');
+    assert.equal(E.format(-Infinity), '-∞');
+    assert.equal(E.format(NaN), '—');
+    assert.equal(E.formatDuration(Infinity), '∞');
+});

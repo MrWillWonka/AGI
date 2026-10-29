@@ -524,11 +524,14 @@
         // By hand, a collection or research run pays a whole number (the upgrades and skills that add to it,
         // times versions); the skills' percentage bonuses go to the automation that does the job for you,
         // so a click never reads 2.3 DP.
-        const dpPerCollect = (1 + L('dataProcessor') + sk.collect) * bo.dp;
-        const rpPerResearch = (1 + L('machineLearning') + 2 * L('deepLearning') + 3 * L('reinforcementLearning')
+        // An investor boost rounds by hand (+50% on 1 RP pays 2) and applies exactly to automation.
+        const dpBase = (1 + L('dataProcessor') + sk.collect) * bo.dp;
+        const rpBase = (1 + L('machineLearning') + 2 * L('deepLearning') + 3 * L('reinforcementLearning')
             + 5 * L('transferLearning') + sk.research) * bo.rp;
-        const autoDpPerCollect = dpPerCollect * (1 + sk.dp) * mult;
-        const autoRpPerResearch = rpPerResearch * (1 + sk.rp) * mult;
+        const dpPerCollect = Math.round(dpBase);
+        const rpPerResearch = Math.round(rpBase);
+        const autoDpPerCollect = dpBase * (1 + sk.dp) * mult;
+        const autoRpPerResearch = rpBase * (1 + sk.rp) * mult;
         // Automation converts at the action prices: collections spend CP, research spends CP and DP.
         // It may only use the automation budget (a share of what is produced each second) and never
         // touches the stockpile, so compute always keeps climbing. Over budget, both slow down evenly.
@@ -752,6 +755,15 @@
 
     function tick(s, dt, rates) {
         if (!(dt > 0)) return;
+        // A timed boost ends mid-tick on long gaps (offline, a hidden tab): split there, so one
+        // second of ×2 left doesn't double eight hours.
+        const ends = (s.projects?.boosts || []).map(b => b.until - s.stats.playTime).filter(t => t > 0 && t < dt);
+        if (ends.length) {
+            const first = Math.min(...ends);
+            tick(s, first, rates);
+            tick(s, dt - first, rates);
+            return;
+        }
         tickProjects(s);
         for (let k = 0; k < s.path.learned; k++) s.path.auto[k] = (s.path.auto[k] || 0) + dt / clearedPeriod(k);
         const d = derive(s, rates);
@@ -1210,6 +1222,8 @@
             playTime: s.stats.playTime,
             firstStart: s.stats.firstStart
         });
+        // Offers are timed on play time, which carries over: the first one still waits its delay.
+        next.projects.next = s.stats.playTime + PROJECTS.firstAt;
         return { ok: true, gain, version: versionName(v.major, v.minor), state: next };
     }
 
@@ -1225,7 +1239,9 @@
 
     // ---- Persistence ----------------------------------------------------
 
-    const num = (v, fallback) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : fallback);
+    // Finite, non-negative and below a ceiling, so a tampered save can't overflow production to Infinity.
+    const num = (v, fallback) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.min(v, 1e250) : fallback);
+    const MAX_LEARNED = 500;
     const bool = (v, fallback) => (typeof v === 'boolean' ? v : fallback);
 
     function cleanMap(obj, valid) {
@@ -1249,7 +1265,7 @@
         const s = d;
         for (const k of Object.keys(s.res)) s.res[k] = num(raw.res?.[k], 0);
         for (const k of Object.keys(s.attr)) s.attr[k] = num(raw.attr?.[k], 0);
-        s.levels = cleanMap(raw.levels, (k, v) => UPGRADE_BY_ID[k] && Number.isInteger(v) && v > 0);
+        s.levels = cleanMap(raw.levels, (k, v) => Object.hasOwn(UPGRADE_BY_ID, k) && Number.isInteger(v) && v > 0);
         for (const [k, v] of Object.entries(s.levels)) {
             const max = UPGRADE_BY_ID[k].max;
             if (max != null) s.levels[k] = Math.min(v, max);
@@ -1264,7 +1280,7 @@
         s.prestige.major = Math.max(1, Math.floor(num(raw.prestige?.major, 1 + s.prestige.count)));
         s.prestige.minor = Math.floor(num(raw.prestige?.minor, 0));
         s.prestige.total = Math.max(s.prestige.total, s.prestige.points);
-        s.prestige.levels = cleanMap(raw.prestige?.levels, (k, v) => UPGRADE_BY_ID[k]?.legacy && Number.isInteger(v) && v > 0);
+        s.prestige.levels = cleanMap(raw.prestige?.levels, (k, v) => Object.hasOwn(UPGRADE_BY_ID, k) && UPGRADE_BY_ID[k].legacy && Number.isInteger(v) && v > 0);
         // Legacy nodes bought before v5 (the Auto-Trainer) live with the version now.
         for (const [k, v] of Object.entries(s.levels)) {
             if (k === 'flowState' && !(raw.version >= 5)) delete s.levels[k];   // a different node now (see below)
@@ -1295,7 +1311,7 @@
         }
         // Shares never add up to more than all of production.
         for (const t of TASKS) if (t.budget) setTaskShare(s, t.id, s.tasks[t.id].share);
-        s.path.learned = Math.floor(num(raw.path?.learned, 0));
+        s.path.learned = Math.min(MAX_LEARNED, Math.floor(num(raw.path?.learned, 0)));
         s.path.best = Math.min(1, num(raw.path?.best, 0));
         s.path.auto = (Array.isArray(raw.path?.auto) ? raw.path.auto : []).slice(0, s.path.learned).map(v => num(v, 0));
         s.path.legBest = (Array.isArray(raw.path?.legBest) ? raw.path.legBest : []).slice(0, s.path.learned + 1).map(v => num(v, 0));
@@ -1310,8 +1326,8 @@
 
     function cleanProjects(raw, fallback) {
         if (!raw || typeof raw !== 'object') return fallback;
-        const offers = (Array.isArray(raw.offers) ? raw.offers : []).filter(o => o && PROJECT_TASKS[o.task]
-            && PROJECT_REWARDS[o.reward] && typeof o.investor === 'string'
+        const offers = (Array.isArray(raw.offers) ? raw.offers : []).filter(o => o && typeof o.task === 'string' && Object.hasOwn(PROJECT_TASKS, o.task)
+            && Number.isInteger(o.reward) && o.reward >= 0 && o.reward < PROJECT_REWARDS.length && typeof o.investor === 'string'
             && [o.id, o.target, o.start, o.deadline].every(v => Number.isFinite(v))).slice(0, PROJECTS.maxOffers);
         const boosts = (Array.isArray(raw.boosts) ? raw.boosts : []).filter(b => b && ['cp', 'dp', 'xp', 'push', 'rp'].includes(b.stat)
             && Number.isFinite(b.mult) && b.mult > 0 && Number.isFinite(b.until));
@@ -1362,6 +1378,8 @@
         } catch {
             return null;
         }
+        // Only a save object: valid JSON like `1` or `null` would otherwise import as a fresh game.
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
         return migrate(raw, now);
     }
 
@@ -1370,14 +1388,18 @@
     const SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
 
     function format(n, decimals) {
-        if (!Number.isFinite(n)) return '∞';
+        if (Number.isNaN(n)) return '—';
         const sign = n < 0 ? '-' : '';
+        if (!Number.isFinite(n)) return sign + '∞';
         n = Math.abs(n);
         if (n < 1000) {
             const dp = decimals ?? (n < 10 && n % 1 !== 0 ? 1 : 0);
-            return sign + (dp ? n.toFixed(dp) : Math.floor(n).toString());
+            // 9.96 rounds up to 10: drop the decimal there, as for any other 10.
+            return sign + (dp ? (decimals == null && n >= 9.95 ? '10' : n.toFixed(dp)) : Math.floor(n).toString());
         }
-        const tier = Math.floor(Math.log10(n) / 3);
+        let tier = Math.floor(Math.log10(n) / 3);
+        // Rounding can carry into the next tier (999,999.5 → 1.00M, not 1000.0K).
+        if (Number((n / Math.pow(1000, tier)).toFixed(1)) >= 1000) tier++;
         if (tier >= SUFFIXES.length) return sign + n.toExponential(2).replace('+', '');
         const scaled = n / Math.pow(1000, tier);
         return sign + scaled.toFixed(scaled < 100 ? 2 : 1) + SUFFIXES[tier];
@@ -1388,7 +1410,8 @@
     }
 
     function formatDuration(seconds) {
-        seconds = Math.floor(seconds);
+        if (!Number.isFinite(seconds)) return '∞';
+        seconds = Math.floor(Math.max(0, seconds));
         const h = Math.floor(seconds / 3600);
         const m = Math.floor((seconds % 3600) / 60);
         const sec = seconds % 60;
