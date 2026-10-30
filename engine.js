@@ -53,8 +53,8 @@
         flowSpeed: 0.6,      // a flowing ball coasts at least this share of a full sprint's speed
         minCharge: 0.15,     // weakest push a quick tap gives
         basePush: 1.4,       // push strength before upgrades and skills (two sprints: about the old single 1.8's energy)
-        basePushes: 1,       // pushes per roll before the tree: the warm-up's one launch; the seed (Initial Weights) adds
-                             // the second (one alone made later runs a slot machine)
+        basePushes: 1,       // pushes per roll before the tree: the warm-up's one launch; Investor Funding, one node out,
+                             // adds the second (one alone made later runs a slot machine)
         leanPushes: 2,       // Lean Startup holds every run at this many
         baseCooldown: 2.0,   // seconds between pushes
         minCooldown: 0.3,
@@ -236,14 +236,14 @@
         // and special, so the tree's choices are about strength, sprints, drag and XP).
         // `legacy` nodes cost Insight (from shipping a new version) and are kept for good: they appear after
         // the first new version, and once owned stay visible and buyable without their parent.
-        { id: 'initialWeights', tab: 'training', tree: { x: 0, y: 0 }, icon: 'core', name: 'Initial Weights', effect: '+1 training sprint per run, rolling hills 6% lower', flavor: 'Random numbers, but they\'re your random numbers.', cost: { xp: 1 }, max: 1, boost: { pushes: 1, slope: 1 } },
+        { id: 'initialWeights', tab: 'training', tree: { x: 0, y: 0 }, icon: 'core', name: 'Initial Weights', effect: 'Rolling hills 6% lower', flavor: 'Random numbers, but they\'re your random numbers.', cost: { xp: 1 }, max: 1, boost: { slope: 1 } },
         // Power (up): sprint strength, with breakthroughs and Max Effort branching off it.
         { id: 'trainingOptimizer', tab: 'training', tree: { x: 0, y: -1 }, requires: 'initialWeights', icon: 'bolt', name: 'GPU Cluster', effect: '+25% sprint strength per level', flavor: 'You maxed out the company card on graphics cards.', cost: { xp: 4 }, scale: 1.8, max: 2, boost: { push: 0.25 } },
         { id: 'gpuCluster2', tab: 'training', tree: { x: 0, y: -2 }, icon: 'bolt', name: 'Fast Charging', effect: 'The sprint meter holds at full 0.2 s longer, per level', flavor: 'Skip the warm-up. The GPUs are already sweating.', cost: { xp: 45 }, scale: 1.6, max: 2, requires: 'trainingOptimizer', boost: { charge: 0.2 } },
         { id: 'gpuSupercluster', tab: 'training', tree: { x: 0, y: -3 }, icon: 'bolt', name: 'GPU Supercluster', effect: '+45% sprint strength per level', flavor: 'The building hums. The neighbours have questions.', cost: { xp: 225 }, scale: 1.7, max: 3, requires: 'gpuCluster2', boost: { push: 0.45 } },
-        { id: 'quantumAccelerator', tab: 'training', tree: { x: 1, y: -3 }, icon: 'flame', name: 'Quantum Accelerator', effect: 'Max Effort +20% stronger, per level', flavor: 'Nobody fully understands it. It works anyway.', cost: { xp: 700 }, scale: 2, max: 3, requires: 'gpuSupercluster', boost: { maxEffortPower: 0.2 } },
+        { id: 'quantumAccelerator', tab: 'training', tree: { x: 1, y: -4 }, icon: 'flame', name: 'Quantum Accelerator', effect: 'Max Effort +20% stronger, per level', flavor: 'Nobody fully understands it. It works anyway.', cost: { xp: 1000 }, scale: 2, max: 3, requires: 'maxEffort', boost: { maxEffortPower: 0.2 } },
         { id: 'exascaleCluster', tab: 'training', tree: { x: 0, y: -5 }, icon: 'bolt', name: 'Exascale Cluster', effect: '+150% sprint strength per level', flavor: 'A billion billion sums a second. Still can\'t fold a fitted sheet.', cost: { xp: 4500 }, scale: 1.7, max: 3, requires: 'maxEffort', boost: { push: 1.5 } },
-        { id: 'fusionReactor', tab: 'training', tree: { x: 0, y: -6 }, icon: 'dice', name: 'Fusion Reactor', effect: 'Breakthroughs +60% stronger, per level', flavor: 'Power was the bottleneck. Was.', cost: { xp: 15000 }, scale: 1.8, max: 3, requires: 'exascaleCluster', boost: { critPower: 0.6 } },
+        { id: 'fusionReactor', tab: 'training', tree: { x: 0, y: -6 }, icon: 'dice', name: 'Fusion Reactor', effect: 'Breakthroughs +60% stronger, per level', flavor: 'Power was the bottleneck. Was.', cost: { xp: 15000 }, scale: 1.8, max: 3, requires: 'exascaleCluster', after: 'scoutingData', boost: { critPower: 0.6 } },
         { id: 'dysonSwarm', tab: 'training', tree: { x: 0, y: -7 }, icon: 'bolt', name: 'Dyson Swarm', effect: '+300% sprint strength per level', flavor: 'The sun is now a power supply. It has opinions.', cost: { xp: 80000 }, scale: 2, max: 2, requires: 'fusionReactor', boost: { push: 3 } },
         // The endless node: once the strength line is finished, XP always has somewhere to go. Each level
         // multiplies sprint strength (everything else is additive, so a flat % would vanish this late).
@@ -252,11 +252,11 @@
         // Breakthroughs: rare at first (the branch opens after the second skill). New versions add more.
         { id: 'scoutingData', tab: 'training', tree: { x: 1, y: -2 }, requires: 'gpuCluster2', icon: 'dice', name: 'Lucky Break', effect: '+4% breakthrough chance per level (a breakthrough hits ×1.75)', flavor: 'Seed 42. It\'s always seed 42.', cost: { xp: 80 }, scale: 1.6, max: 2, boost: { critChance: 0.04 },
             unlock: s => s.path.learned >= 3, hint: 'Learn two skills after the warm-up' },
-        { id: 'satelliteMaps', tab: 'training', tree: { x: 2, y: -2 }, icon: 'dice', name: 'Serendipity', effect: 'Breakthroughs +50% stronger, per level', flavor: 'Penicillin was an accident too.', cost: { xp: 150 }, scale: 1.6, max: 2, requires: 'scoutingData', boost: { critPower: 0.5 } },
-        { id: 'blackSwan', tab: 'training', tree: { x: 3, y: -2 }, icon: 'dice', name: 'Black Swan', effect: '+5% breakthrough chance per level', flavor: 'Nobody saw it coming. That\'s the point.', cost: { xp: 10000 }, scale: 1.9, max: 3, requires: 'satelliteMaps', boost: { critChance: 0.05 } },
+        { id: 'satelliteMaps', tab: 'training', tree: { x: 1, y: 2 }, icon: 'dice', name: 'Serendipity', effect: 'Breakthroughs +50% stronger, per level', flavor: 'Penicillin was an accident too.', cost: { xp: 150 }, scale: 1.6, max: 2, requires: 'dataAugmentation', after: 'scoutingData', boost: { critPower: 0.5 } },
+        { id: 'blackSwan', tab: 'training', tree: { x: -3, y: 1 }, icon: 'dice', name: 'Black Swan', effect: '+5% breakthrough chance per level', flavor: 'Nobody saw it coming. That\'s the point.', cost: { xp: 10000 }, scale: 1.9, max: 3, requires: 'superconductors', after: 'scoutingData', boost: { critChance: 0.05 } },
         // Max Effort: your next sprint goes all out (full strength, a super prompt) the moment you press.
         { id: 'maxEffort', tab: 'training', tree: { x: 0, y: -4 }, icon: 'flame', name: 'Max Effort', effect: '+5% chance your next sprint is all out: full strength, a super prompt', flavor: 'Leave nothing in the tank. Then find another tank.', cost: { xp: 700 }, scale: 1.7, max: 1, requires: 'gpuSupercluster', boost: { maxEffortChance: 0.05 } },
-        { id: 'muse', tab: 'training', tree: { x: 1, y: -4 }, icon: 'flame', name: 'The Muse', effect: '+3% Max Effort chance per level', flavor: 'Inspiration arrives on schedule. Suspicious.', cost: { xp: 7000 }, scale: 1.9, max: 3, requires: 'quantumAccelerator', boost: { maxEffortChance: 0.03 } },
+        { id: 'muse', tab: 'training', tree: { x: 2, y: -4 }, icon: 'flame', name: 'The Muse', effect: '+3% Max Effort chance per level', flavor: 'Inspiration arrives on schedule. Suspicious.', cost: { xp: 7000 }, scale: 1.9, max: 3, requires: 'quantumAccelerator', boost: { maxEffortChance: 0.03 } },
         // Secrets: these never show, not even as a lock, until the node next to them is owned.
         { id: 'batchNorm', tab: 'training', tree: { x: 1, y: -1 }, icon: 'chip', name: 'Batch Normalization', effect: '-15% wait between sprints', flavor: 'Everybody calm down. Especially the gradients.', cost: { xp: 25 }, max: 1, requires: 'trainingOptimizer', secret: true, boost: { cooldown: 1 } },
         { id: 'dataAugmentation', tab: 'training', tree: { x: 1, y: 1 }, icon: 'stack', name: 'Data Augmentation', effect: '+15% run bonus per clean prompt', flavor: 'Flip it, rotate it, call it new data.', cost: { xp: 25 }, max: 1, requires: 'trainingEpochs', secret: true, boost: { rollBonus: 0.15 } },
@@ -291,7 +291,9 @@
         { id: 'globalBenchmark', tab: 'training', tree: { x: 6, y: 0 }, icon: 'target', name: 'Global Benchmark', effect: 'Clean prompts hit 15% harder, per level', flavor: 'Everyone measures against you now.', cost: { xp: 4000 }, scale: 1.8, max: 3, requires: 'leaderboardPrizes', boost: { cleanPower: 0.15 } },
         { id: 'turingTest', tab: 'training', tree: { x: 7, y: 0 }, icon: 'star', name: 'Turing Test', effect: '+50% XP from every run, per level', flavor: 'The judges asked it out. Twice.', cost: { xp: 45000 }, scale: 2, max: 2, requires: 'globalBenchmark', boost: { xp: 0.5 } },
         // Recursion (down): more sprints per run and less wait between them.
-        { id: 'trainingEpochs', tab: 'training', tree: { x: 0, y: 1 }, requires: 'initialWeights', icon: 'plus', name: 'Investor Funding', effect: '+1 training sprint per run', flavor: 'Dad lent you $100. Don\'t tell Mum.', cost: { xp: 6 }, scale: 3, max: 2, boost: { pushes: 1 } },
+        { id: 'trainingEpochs', tab: 'training', tree: { x: 0, y: 1 }, requires: 'initialWeights', icon: 'plus', name: 'Investor Funding', effect: '+1 training sprint per run', flavor: 'Dad lent you $100. Don\'t tell Mum.', cost: { xp: 4 }, scale: 3, max: 2, boost: { pushes: 1 } },
+        // The fourth sprint, out in Precision (the seed's sprint moved to Investor Funding): a choice against the prompts.
+        { id: 'angelInvestor', tab: 'training', tree: { x: 2, y: -1 }, requires: 'precisionTuning', icon: 'plus', name: 'Angel Investor', effect: '+1 training sprint per run', flavor: 'A stranger at a meetup believed in you. Cash is cash.', cost: { xp: 18 }, max: 1, boost: { pushes: 1 } },
         { id: 'fasterIteration', tab: 'training', tree: { x: 0, y: 2 }, icon: 'chip', name: 'Faster Chips', effect: '-15% wait between sprints per level', flavor: 'Less waiting, more training. Coffee breaks cancelled.', cost: { xp: 20 }, scale: 1.7, max: 2, requires: 'trainingEpochs', boost: { cooldown: 1 } },
         { id: 'seriesA', tab: 'training', tree: { x: -1, y: 2 }, icon: 'plus', name: 'Series A', effect: '+1 training sprint per run', flavor: 'A real investor! They wear a fleece vest.', cost: { xp: 90 }, scale: 2.5, max: 1, requires: 'fasterIteration', boost: { pushes: 1 } },
         { id: 'overclockedChips', tab: 'training', tree: { x: 0, y: 3 }, icon: 'coin', name: 'Bridge Round', effect: '+10% XP from every run', flavor: 'Money for more experiments. Mostly snacks.', cost: { xp: 150 }, scale: 1.7, max: 1, requires: 'fasterIteration', boost: { xp: 0.1 } },
@@ -841,6 +843,9 @@
         // A skill-tree node shows once the node it grows from has its first level (finishing the parent is
         // still the cheaper buy: a node's first level costs more than its parent's last).
         if (up.requires && level(s, up.requires) < 1) return false;
+        // `after`: a node that powers up something else (breakthrough power, more chance) also waits for the node
+        // that brings it, wherever that sits in the tree, so nothing is bought before it can do anything.
+        if (up.after && level(s, up.after) < 1) return false;
         if (up.unlock && !up.unlock(s)) return false;
         if (up.tab === 'training') return !!s.unlocked['module:path'];   // the skill tree, not a tab
         const tab = TABS.find(t => t.id === up.tab);

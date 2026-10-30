@@ -687,10 +687,8 @@ test('no two nodes growing from the same node upgrade the same thing', () => {
 });
 
 test('no skill-tree node upgrades the same thing as the node it grows from', () => {
-    // The seed is the exception: its +1 sprint is the base kit's second sprint (the warm-up runs on one), so
-    // Investor Funding's are still the first sprints you buy.
     for (const up of E.UPGRADES.filter(u => u.tab === 'training' && u.requires)) {
-        const parent = Object.keys(E.UPGRADE_BY_ID[up.requires].boost || {}).filter(k => !(up.requires === 'initialWeights' && k === 'pushes'));
+        const parent = Object.keys(E.UPGRADE_BY_ID[up.requires].boost || {});
         const same = Object.keys(up.boost || {}).filter(k => parent.includes(k));
         assert.deepEqual(same, [], `${E.UPGRADE_BY_ID[up.requires].name} → ${up.name}`);
     }
@@ -1365,4 +1363,49 @@ test('act two thrust is paid as it burns: a share of a full sprint, no whole-num
     assert.ok(Math.abs(s.res.cp - (1e9 - tenth.cp)) < 1e-6);
     s.res.cp = 0;
     assert.equal(E.payBurn(s, 0.1), false, 'not without the money');
+});
+
+test('a node that powers up a power-up never shows before the power-up itself', () => {
+    const POWERS = { critPower: 'critChance', maxEffortPower: 'maxEffortChance' };
+    const brings = (id, stat) => {
+        for (let n = E.UPGRADE_BY_ID[id]; n; n = n.requires && E.UPGRADE_BY_ID[n.requires]) if (stat in (n.boost || {})) return true;
+        return false;
+    };
+    for (const up of E.UPGRADES.filter(u => u.tab === 'training')) {
+        for (const [power, chance] of Object.entries(POWERS)) {
+            if (!(power in (up.boost || {}))) continue;
+            assert.ok(brings(up.requires, chance) || (up.after && brings(up.after, chance)), `${up.name} needs ${chance} before it`);
+        }
+    }
+    // `after` gates the node on top of its parent.
+    const s = fresh();
+    s.unlocked['module:path'] = true;
+    s.levels.initialWeights = 1;
+    s.levels.trainingEpochs = 1;
+    s.levels.dataAugmentation = 1;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.satelliteMaps), false, 'Serendipity waits for Lucky Break');
+    s.levels.scoutingData = 1;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.satelliteMaps), true);
+});
+
+test('breakthrough nodes are found across the tree, not one after another', () => {
+    const luck = up => 'critChance' in (up.boost || {}) || 'critPower' in (up.boost || {});
+    const nodes = E.UPGRADES.filter(u => u.tab === 'training' && luck(u));
+    for (const up of nodes) assert.ok(!up.requires || !luck(E.UPGRADE_BY_ID[up.requires]), `${up.name} grows straight from another breakthrough node`);
+    const branches = new Set(nodes.map(u => Math.abs(u.tree.y) >= Math.abs(u.tree.x) ? (u.tree.y < 0 ? 'up' : 'down') : (u.tree.x < 0 ? 'left' : 'right')));
+    assert.ok(branches.size >= 3, `breakthroughs in ${[...branches].join(', ')}`);
+});
+
+test('the warm-up runs on one sprint; Investor Funding brings the second and third, Angel Investor the fourth', () => {
+    const s = fresh();
+    assert.equal(E.derive(s).pushesPerRoll, 1);
+    s.levels.initialWeights = 1;
+    assert.equal(E.derive(s).pushesPerRoll, 1, 'the seed lowers hills only');
+    s.levels.trainingEpochs = 1;
+    assert.equal(E.derive(s).pushesPerRoll, 2);
+    s.levels.trainingEpochs = 2;
+    s.levels.angelInvestor = 1;
+    assert.equal(E.derive(s).pushesPerRoll, 4);
 });
