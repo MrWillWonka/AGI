@@ -2075,7 +2075,7 @@ body.has-minimap.mm-min .room-rnd { padding-bottom: 60px; }
    side; the Isolation chamber under the software terminal and investor projects under the research wall;
    along the bottom, the cabinets from the left edge and the log beside the minimap.
    Desktop (961–1799 px): the same order in fixed-height rows. Narrower: one column. */
-:root { --supply-h: 96px; --cabinet-art-h: 166px; --bottom-h: 212px; --u-px: 7px; --station-row: 440px; --station-row-2: 360px; --projects-h: 300px; }
+:root { --supply-h: 112px; --cabinet-art-h: 166px; --bottom-h: 212px; --u-px: 7px; --station-row: 440px; --station-row-2: 360px; --projects-h: 300px; }
 .room-lab { display: grid; gap: 14px 16px; align-items: stretch; }
 .room-lab > .room-bar { grid-area: bar; }
 .lab-supply { grid-area: supply; height: 100%; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; }
@@ -2746,26 +2746,26 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
     .tree-viewport { min-height: 0; }
 }
 
-/* ---- Resources in the lab (placeResources): the amounts sit in the lab's bar, larger, each in its own colour
-   (compute amber like CP prices, data blue, research violet like its cabinet flashes), and the lab's status
-   line takes their place in the top bar. */
-.room-bar .chips-res { gap: 8px; flex-wrap: wrap; }
-.room-bar .chips-res .chip { padding: 5px 14px; font-size: 1.02rem; font-weight: 600; background: var(--panel); border-width: 1px; }
-.room-bar .chips-res .chip-label { font-size: 0.72rem; }
-.room-bar .chip-cp { border-color: rgba(255, 181, 71, 0.55); box-shadow: inset 0 0 12px rgba(255, 181, 71, 0.08); }
-.room-bar .chip-cp .chip-label { color: var(--warning); }
-.room-bar .chip-dp { border-color: rgba(111, 179, 217, 0.55); box-shadow: inset 0 0 12px rgba(111, 179, 217, 0.08); }
-.room-bar .chip-dp .chip-label { color: var(--primary); }
-.room-bar .chip-rp { border-color: rgba(199, 146, 234, 0.55); box-shadow: inset 0 0 12px rgba(199, 146, 234, 0.08); }
-.room-bar .chip-rp .chip-label { color: #c792ea; }
+/* ---- Resources in the lab (placeResources): the supply cells carry the amounts (the bank, its rate and a
+   sparkline in one place: a chip and a cell showed two different rates), so the top bar's resource chips sit
+   hidden in the lab's bar and the lab's status line takes their place up top. Each currency has its colour
+   (compute amber like CP prices, data blue, research violet like its cabinet flashes, XP gold). */
+.room-bar .chips-res { display: none; }
 .topbar-inner .lab-status { margin-left: 0; white-space: nowrap; }
+.supply-cell { grid-template-areas: "label value" "bank bank" "spark spark"; grid-template-rows: auto auto minmax(0, 1fr); --res: var(--success); }
+.supply-bank { grid-area: bank; font: 700 1.35rem/1.1 var(--font-mono); color: var(--res); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.supply-value { font-size: 0.8rem; color: var(--muted); }
+.supply-label { color: var(--res); }
+.cell-cp { --res: var(--warning); border-color: rgba(255, 181, 71, 0.4); }
+.cell-dp { --res: var(--primary); border-color: rgba(111, 179, 217, 0.4); }
+.cell-rp { --res: #c792ea; border-color: rgba(199, 146, 234, 0.4); }
+.cell-xp { --res: #ffd27a; border-color: rgba(255, 210, 122, 0.4); }
 @media (max-width: 640px) {
-    /* Phones: the amounts get their own row in the lab's bar, under the path; the status line takes the top
-       bar's resource row. */
-    .room-lab .room-bar { flex-wrap: wrap; row-gap: 8px; }
-    .room-bar .chips-res { order: 5; flex-basis: 100%; flex-wrap: nowrap; }
-    .room-bar .chips-res .chip { flex: 1 1 0; justify-content: center; padding: 5px 8px; font-size: 0.9rem; }
     .topbar-inner .lab-status { grid-area: res; font-size: 0.72rem; display: flex; }
+    .lab-supply { grid-auto-rows: 80px; }
+    .supply-cell { padding: 8px 10px 6px; gap: 2px 8px; }
+    .supply-bank { font-size: 1.1rem; }
+    .supply-value { font-size: 0.72rem; }
 }
 
 /* ---- Phones, portrait: screens use the height they have ----

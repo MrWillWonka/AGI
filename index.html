@@ -22,8 +22,8 @@
         <div class="topbar-inner">
             <h1 class="brand">The Path to AGI</h1>
 
-            <!-- In the lab this list trades places with the lab's "Systems online" line (game.js placeResources), so the
-                 amounts sit beside the jobs that make them. -->
+            <!-- In the lab this list trades places with the lab's "Systems online" line and hides (game.js
+                 placeResources): the lab's supply cells show the amounts there. -->
             <ul class="chips chips-res" id="resChips" aria-label="Resources">
                 <li class="chip chip-cp" title="Compute Power"><span class="chip-label">CP</span> <span data-bind="res.cp">0</span> <small data-bind="rate.cp"></small></li>
                 <li class="chip chip-dp" data-show="seen:dp" title="Data Points"><span class="chip-label">DP</span> <span data-bind="res.dp">0</span> <small data-bind="rate.dp"></small></li>
@@ -206,27 +206,32 @@
                 <span class="lab-status" id="labStatus"><span class="status-dot"></span> Systems online · uptime <span data-bind="stats.playClock">00:00:00</span></span>
             </div>
 
-            <!-- Supply line: what the lab produces, one cell per currency as it appears; the cells share the
+            <!-- Supply line: what the lab holds and produces, one cell per currency as it appears (the amount, its
+                 rate and a sparkline: in the lab these replace the top bar's resource chips); the cells share the
                  full width. Fixed height, so nothing below moves. -->
             <div class="lab-supply" id="labSupply">
                 <div class="supply-cell cell-cp">
                     <span class="supply-label">Compute</span>
                     <strong class="supply-value" data-bind="supply.cp"></strong>
+                    <strong class="supply-bank" data-bind="res.cp">0</strong>
                     <canvas class="spark" id="sparkCp" aria-hidden="true"></canvas>
                 </div>
                 <div class="supply-cell cell-dp" data-show="seen:dp">
                     <span class="supply-label">Data</span>
                     <strong class="supply-value" data-bind="supply.dp"></strong>
+                    <strong class="supply-bank" data-bind="res.dp">0</strong>
                     <canvas class="spark" id="sparkDp" aria-hidden="true"></canvas>
                 </div>
                 <div class="supply-cell cell-rp" data-show="action:research">
                     <span class="supply-label">Research</span>
                     <strong class="supply-value" data-bind="supply.rp"></strong>
+                    <strong class="supply-bank" data-bind="res.rp">0</strong>
                     <canvas class="spark" id="sparkRp" aria-hidden="true"></canvas>
                 </div>
                 <div class="supply-cell cell-xp" hidden>
                     <span class="supply-label">Training XP</span>
                     <strong class="supply-value" data-bind="supply.xp"></strong>
+                    <strong class="supply-bank" data-bind="res.xp">0</strong>
                     <canvas class="spark" id="sparkXp" aria-hidden="true"></canvas>
                 </div>
             </div>

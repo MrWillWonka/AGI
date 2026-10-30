@@ -52,8 +52,10 @@
         flowSeconds: 2,      // a flow lasts this long, +1 s per Flow State level (so 3 s at level 1)
         flowSpeed: 0.6,      // a flowing ball coasts at least this share of a full sprint's speed
         minCharge: 0.15,     // weakest push a quick tap gives
-        basePush: 1.4,       // push strength before upgrades and skills (two sprints to start: about the old single 1.8's energy)
-        basePushes: 2,       // pushes per roll: the launch and one more (one alone made early runs a slot machine)
+        basePush: 1.4,       // push strength before upgrades and skills (two sprints: about the old single 1.8's energy)
+        basePushes: 1,       // pushes per roll before the tree: the warm-up's one launch; the seed (Initial Weights) adds
+                             // the second (one alone made later runs a slot machine)
+        leanPushes: 2,       // Lean Startup holds every run at this many
         baseCooldown: 2.0,   // seconds between pushes
         minCooldown: 0.3,
         clearedRate: 0.0045,  // a cleared leg replicates its best run: this share of that run's XP per second (about 30% of all XP in the
@@ -234,7 +236,7 @@
         // and special, so the tree's choices are about strength, sprints, drag and XP).
         // `legacy` nodes cost Insight (from shipping a new version) and are kept for good: they appear after
         // the first new version, and once owned stay visible and buyable without their parent.
-        { id: 'initialWeights', tab: 'training', tree: { x: 0, y: 0 }, icon: 'core', name: 'Initial Weights', effect: 'Rolling hills 6% lower', flavor: 'Random numbers, but they\'re your random numbers.', cost: { xp: 1 }, max: 1, boost: { slope: 1 } },
+        { id: 'initialWeights', tab: 'training', tree: { x: 0, y: 0 }, icon: 'core', name: 'Initial Weights', effect: '+1 training sprint per run, rolling hills 6% lower', flavor: 'Random numbers, but they\'re your random numbers.', cost: { xp: 1 }, max: 1, boost: { pushes: 1, slope: 1 } },
         // Power (up): sprint strength, with breakthroughs and Max Effort branching off it.
         { id: 'trainingOptimizer', tab: 'training', tree: { x: 0, y: -1 }, requires: 'initialWeights', icon: 'bolt', name: 'GPU Cluster', effect: '+25% sprint strength per level', flavor: 'You maxed out the company card on graphics cards.', cost: { xp: 4 }, scale: 1.8, max: 2, boost: { push: 0.25 } },
         { id: 'gpuCluster2', tab: 'training', tree: { x: 0, y: -2 }, icon: 'bolt', name: 'Fast Charging', effect: 'The sprint meter holds at full 0.2 s longer, per level', flavor: 'Skip the warm-up. The GPUs are already sweating.', cost: { xp: 45 }, scale: 1.6, max: 2, requires: 'trainingOptimizer', boost: { charge: 0.2 } },
@@ -712,7 +714,7 @@
         // Hills grow faster than this, so later skills need momentum built over several pushes.
         const tb = treeBoosts(s);
         const pushPower = PATH.basePush * (1 + tb.push + sk.push) * Math.pow(1.1, tb.pushMult) * Math.sqrt(mult) * bo.push * ch.strength;
-        const pushesPerRoll = ch.twoSprints ? PATH.basePushes : PATH.basePushes + tb.pushes + sk.pushes + ch.pushes;
+        const pushesPerRoll = ch.twoSprints ? PATH.leanPushes : PATH.basePushes + tb.pushes + sk.pushes + ch.pushes;
         const pushCooldown = Math.max(PATH.minCooldown, PATH.baseCooldown * Math.pow(0.85, tb.cooldown));
 
         // The sweet spot doesn't widen (hitting it is the skill); upgrades make hitting it pay: XP, and

@@ -687,8 +687,10 @@ test('no two nodes growing from the same node upgrade the same thing', () => {
 });
 
 test('no skill-tree node upgrades the same thing as the node it grows from', () => {
+    // The seed is the exception: its +1 sprint is the base kit's second sprint (the warm-up runs on one), so
+    // Investor Funding's are still the first sprints you buy.
     for (const up of E.UPGRADES.filter(u => u.tab === 'training' && u.requires)) {
-        const parent = Object.keys(E.UPGRADE_BY_ID[up.requires].boost || {});
+        const parent = Object.keys(E.UPGRADE_BY_ID[up.requires].boost || {}).filter(k => !(up.requires === 'initialWeights' && k === 'pushes'));
         const same = Object.keys(up.boost || {}).filter(k => parent.includes(k));
         assert.deepEqual(same, [], `${E.UPGRADE_BY_ID[up.requires].name} → ${up.name}`);
     }
@@ -1200,7 +1202,7 @@ test('challenges: open after three versions, ship into one, its rule holds until
     assert.equal(r.ok, true);
     const v = r.state;
     assert.equal(v.challenge.id, 'lean');
-    assert.equal(E.derive(v).pushesPerRoll, E.PATH.basePushes, 'sprints held at the base');
+    assert.equal(E.derive(v).pushesPerRoll, E.PATH.leanPushes, 'sprints held at two');
     v.attr.intelligence = 25;
     assert.equal(E.evaluate(v).challenge, null, 'General AI is not enough');
     Object.assign(v.attr, { intelligence: 100, creativity: 5, awareness: 5 });

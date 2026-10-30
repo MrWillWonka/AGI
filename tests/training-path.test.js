@@ -164,13 +164,14 @@ test('engine: training upgrades are bought with XP and change the roll setup', (
     s.unlocked['module:path'] = true;
     E.evaluate(s);
     const base = E.derive(s);
-    assert.equal(base.pushesPerRoll, 2, 'the launch and one more at first');
+    assert.equal(base.pushesPerRoll, 1, 'the warm-up runs on one sprint');
     assert.equal(base.pushCooldown, E.PATH.baseCooldown);
     assert.equal(E.buy(s, 'initialWeights').ok, false, 'needs XP');
     s.res.xp = 1000;
     for (const id of ['initialWeights', 'trainingEpochs', 'fasterIteration', 'trainingOptimizer']) {
         assert.equal(E.buy(s, id).ok, true, id);
         E.evaluate(s);   // buying a node opens the ones that grow from it
+        if (id === 'initialWeights') assert.equal(E.derive(s).pushesPerRoll, 2, 'the first node is the second sprint');
         if (id === 'trainingEpochs') {
             assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.fasterIteration), true, 'shows after Investor Funding\'s first level');
             assert.equal(E.buy(s, id).ok, true);
@@ -178,7 +179,7 @@ test('engine: training upgrades are bought with XP and change the roll setup', (
         }
     }
     const d = E.derive(s);
-    assert.equal(d.pushesPerRoll, 4, "two to start + two levels of Investor Funding");
+    assert.equal(d.pushesPerRoll, 4, "one to start, the seed's, and two levels of Investor Funding");
     assert.ok(d.pushCooldown < base.pushCooldown);
     assert.ok(d.pushPower > base.pushPower);
     s.levels.fasterIteration = 12;

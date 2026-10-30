@@ -2075,9 +2075,9 @@ window.AGI = (function () {
         if (state) renderMinimap();
     }
 
-    // In the lab the resource amounts trade places with the lab's "Systems online · uptime" line: they sit in
-    // the lab's own bar, beside the jobs that make them (up in the top bar, by the title, they went unnoticed
-    // while clicking), and the status line goes up top. Every other screen keeps them in the top bar.
+    // In the lab the supply cells carry the amounts (bank, rate and sparkline together), so the top bar's
+    // resource chips trade places with the lab's "Systems online · uptime" line and sit hidden in its bar
+    // (styles.css "Resources in the lab"). Every other screen keeps them in the top bar.
     let resInLab = false;
     function placeResources(inLab) {
         if (inLab === resInLab) return;
@@ -3928,6 +3928,26 @@ window.AGI = (function () {
         fx.banked = 0;
     }
 
+    // The weakest launch that crests the warm-up's hill (found by simulating copies of this run), plus
+    // FIRST_SUMMIT_MARGIN: it reaches the top crawling.
+    const FIRST_SUMMIT_MARGIN = 1.01;
+    function firstSummitStrength(roll, d) {
+        const crests = strength => {
+            const t = T.createRoll(0, roll.ground.seed, { pushes: 1, cooldown: 1, friction: d.friction, hillScale: d.hillScale, last: 0 });
+            t.push(strength);
+            for (let i = 0; i < 1200 && !t.over; i++) if (t.step(0.05).some(e => e.type === 'crest')) return true;
+            return false;
+        };
+        let lo = 0;
+        let hi = 1;
+        while (!crests(hi) && hi < 1e3) hi *= 2;
+        for (let i = 0; i < 24; i++) {
+            const mid = (lo + hi) / 2;
+            if (crests(mid)) hi = mid; else lo = mid;
+        }
+        return hi * FIRST_SUMMIT_MARGIN;
+    }
+
     function jolt() {
         if (!shakeOn()) return;
         path.canvas.classList.remove('jolt');
@@ -3963,7 +3983,11 @@ window.AGI = (function () {
         path.fx.forceLuck = null;
         const breakthrough = forced === 'breakthrough' || forced === 'superBreakthrough' || E.breakthroughHit(state, seed, index);
         const superBreak = breakthrough && (forced === 'superBreakthrough' || E.superHit(state, 'breakthrough', seed, index));
-        const strength = E.sprintStrength(state, fraction, kind, breakthrough, effort);
+        // The warm-up's sprint always crests Tokenization, only just, whatever the charge: the first summit is
+        // guaranteed and a nail-biter (slow motion, "Will it learn…?") rather than a hop over a 3 cm bump.
+        const strength = !roll.launched && state.path.learned === 0 && roll.ground.stretch === 0
+            ? firstSummitStrength(roll, d)
+            : E.sprintStrength(state, fraction, kind, breakthrough, effort);
         if (free) roll.freePushes = (roll.freePushes || 0) + 1;
         // The sprint lands now; on screen a breakthrough holds the run still for its wind-up first (you can
         // charge the next sprint meanwhile), off screen it just goes.
