@@ -297,7 +297,8 @@ window.AGI = (function () {
         const nav = $('minimap');
         // A tip about something on another screen (no room on the map to point at) waits until it's in view.
         // Anything else waiting goes first meanwhile.
-        if (!onScreen && !where.map) {
+        const mapShown = !!nav && !nav.hidden && !!nav.offsetParent && nav.getBoundingClientRect().width > 0;
+        if (!onScreen && (!where.map || !mapShown)) {
             if (calloutQueue.length) { calloutQueue.push(c); calloutLive = null; nextCallout(); }
             else setTimeout(() => showCallout(c), 1000);
             return;
@@ -342,6 +343,10 @@ window.AGI = (function () {
             // Never past the screen's sides: on a phone a centred or right-aligned box could start off the edge.
             const x = parseFloat(box.style.left) * z;
             box.style.left = `${Math.max(8, Math.min(x, window.innerWidth - b.width - 8)) / z}px`;
+            if (onScreen && where.place === 'below') {   // and never past the bottom (a phone's result card fills the trail)
+                const y = parseFloat(box.style.top) * z;
+                box.style.top = `${Math.max(8, Math.min(y, window.innerHeight - b.height - 8)) / z}px`;
+            }
         };
         // A target below the fold (the lab scrolls on smaller screens) is brought into view first, and the
         // callout follows it while the page scrolls.
@@ -3011,10 +3016,10 @@ window.AGI = (function () {
     // ---- Skill tree camera: drag to pan, wheel / pinch / buttons to zoom ----
 
     const treeCam = { x: 0, y: 0, z: 1, pointers: new Map(), drag: null, moved: false };
-    const TREE_ZOOM = { min: 0.5, max: 2.5, step: 1.25, start: 1.4 };   // start: the default view, zoomed in on the core
+    const TREE_ZOOM = { min: 0.5, max: 2.5, step: 1.25, start: 1.4, phone: 0.75 };   // start: the default view, zoomed in on the core
 
     // The view (pan and zoom) is remembered between visits and sessions.
-    const TREE_CAM_KEY = 'agiTreeCam2';   // 2: the default view became closer, so older saved views are dropped
+    const TREE_CAM_KEY = 'agiTreeCam3';   // 3: phones open further out, so older saved views are dropped
     let treeCamFresh = true;            // no saved view yet: set the default once the tree is on screen
     let treeCamSave = 0;
 
@@ -3050,11 +3055,12 @@ window.AGI = (function () {
         applyTreeCam();
     }
 
-    // The default view: zoomed in a little (TREE_ZOOM.start) about the centre, where the core sits.
+    // The default view: zoomed in a little (TREE_ZOOM.start) about the centre, where the core sits; phones open
+    // further out (`phone`), so the first rings show round the core on a narrow screen.
     function resetTreeCam() {
         const vp = $('treeViewport');
         Object.assign(treeCam, { x: 0, y: 0, z: 1 });
-        zoomTreeAt(TREE_ZOOM.start, vp.clientWidth / 2, vp.clientHeight / 2);
+        zoomTreeAt(window.matchMedia('(max-width: 640px)').matches ? TREE_ZOOM.phone : TREE_ZOOM.start, vp.clientWidth / 2, vp.clientHeight / 2);
     }
 
     // Pointer position inside the viewport, in page pixels (the page may be zoomed on large screens).

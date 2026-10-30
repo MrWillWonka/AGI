@@ -2767,3 +2767,37 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
     .room-bar .chips-res .chip { flex: 1 1 0; justify-content: center; padding: 5px 8px; font-size: 0.9rem; }
     .topbar-inner .lab-status { grid-area: res; font-size: 0.72rem; display: flex; }
 }
+
+/* ---- Phones, portrait: screens use the height they have ----
+   Inside a bay the bay is the screen: no ⌂ in the corner (the crumb's ⌂ goes home; callouts about another
+   room wait until you're out) and no room kept for it. The trail and the skill tree take the height their
+   controls leave, so the result card fits on the trail and the page doesn't scroll. */
+@media (max-width: 640px) and (min-height: 501px) {
+    body:has(#moduleView:not([hidden])) .minimap { display: none; }
+    body:has(#moduleView:not([hidden])) .stage { padding-bottom: 0; }
+    body:has(#moduleView:not([hidden])) .room-servers .viewport { min-height: calc(100dvh - var(--topbar-h, 100px) - 31px); }
+    .run-view > .canvas-wrap { height: max(260px, calc(100dvh - var(--topbar-h, 100px) - 248px)); }
+    .dev-view .tree-viewport { flex: none; min-height: 0; height: max(280px, calc(100dvh - var(--topbar-h, 100px) - 210px)); }
+
+    /* XP to spend and Start run share a row; Start at goes under them. */
+    .dev-actions { flex-direction: row; align-items: center; gap: 8px 12px; padding: 10px 12px; }
+    .dev-actions .dev-xp { text-align: left; font-size: 1.15rem; }
+    .dev-actions .dev-xp .chip-label { display: inline; margin: 0 6px 0 0; }
+    .dev-actions .leg-pick { order: 3; }
+    .dev-actions .start-run { padding: 10px 18px; font-size: 0.98rem; }
+
+    /* A compact result card: it has to fit on the trail with its buttons. */
+    .roll-result { padding: 12px 14px; width: calc(100% - 20px); max-height: calc(100% - 12px); }
+    .result-xp { margin-top: 4px; font-size: 1.5rem; }
+    .result-lines { margin-top: 6px; font-size: 0.76rem; gap: 1px; }
+    .result-flavor { font-size: 0.8rem; margin: 6px 0 0; }
+    .result-actions { margin-top: 8px; }
+
+    /* Callouts: a little smaller, so one under the result card stays on screen. */
+    .toast.callout { padding: 9px 12px 9px 10px; gap: 10px; }
+    .toast.callout .toast-icon { width: 28px; height: 28px; }
+    .toast.callout .toast-text span { font-size: 0.86rem; line-height: 1.3; }
+}
+
+/* The bay bar clips long crumbs (overflow: hidden), which cut off the Upgrades badge: room for it inside the box. */
+.module-bar { padding: 8px 8px 0 0; margin: -8px -8px 0 0; }
