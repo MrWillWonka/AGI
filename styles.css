@@ -2506,7 +2506,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 @keyframes mm-ping { 50% { fill: rgba(111, 179, 255, 0.1); } }
 
 /* Contextual callouts sit beside what they point at (fixed, placed by showCallout in game.js). */
-.toast.callout { position: fixed; z-index: 60; min-width: 0; width: 320px; cursor: pointer; }
+.toast.callout { position: fixed; z-index: 60; min-width: 0; width: 320px; max-width: calc(100vw / var(--zoom, 1) - 16px); cursor: pointer; }
 .toast.callout-side { transform: translateX(-12px); }
 .toast.callout-map { transform: translateY(10px); }
 .toast.callout.show { transform: none; }

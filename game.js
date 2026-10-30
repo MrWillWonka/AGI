@@ -325,13 +325,23 @@ window.AGI = (function () {
                 box.style.top = `${(r.bottom + 12) / z}px`;
             } else if (onScreen) {   // beside it, vertically centred: to the right, or the left if there's no room
                 const right = r.right + 14 + b.width <= window.innerWidth - 8;
-                box.classList.toggle('callout-left', !right);
-                box.style.left = `${(right ? r.right + 14 : r.left - 14 - b.width) / z}px`;
-                box.style.top = `${(r.top + Math.min(r.height, 160) / 2 - b.height / 2) / z}px`;
+                const left = r.left - 14 - b.width >= 8;
+                box.classList.toggle('callout-left', !right && left);
+                if (right || left) {
+                    box.style.left = `${(right ? r.right + 14 : r.left - 14 - b.width) / z}px`;
+                    box.style.top = `${(r.top + Math.min(r.height, 160) / 2 - b.height / 2) / z}px`;
+                } else {   // no room either side (a phone): under it, or over it near the bottom of the screen
+                    const below = r.bottom + 12 + b.height <= window.innerHeight - 8;
+                    box.style.left = `${(r.left + r.width / 2 - b.width / 2) / z}px`;
+                    box.style.top = `${(below ? r.bottom + 12 : r.top - 12 - b.height) / z}px`;
+                }
             } else {          // above the map, right-aligned with it
                 box.style.left = `${(r.right - b.width) / z}px`;
                 box.style.top = `${(r.top - b.height - 12) / z}px`;
             }
+            // Never past the screen's sides: on a phone a centred or right-aligned box could start off the edge.
+            const x = parseFloat(box.style.left) * z;
+            box.style.left = `${Math.max(8, Math.min(x, window.innerWidth - b.width - 8)) / z}px`;
         };
         // A target below the fold (the lab scrolls on smaller screens) is brought into view first, and the
         // callout follows it while the page scrolls.
