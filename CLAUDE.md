@@ -9,7 +9,7 @@ python3 server.py            # http://localhost:8000, no-cache; add --no-browser
 node --test                  # engine unit tests (Node 18+, no install needed)
 ```
 
-Open the debug panel (`debug-panel.js`, which talks only to `AGI.debug`) by tapping the small terminal icon beside Journal three times (works on a phone and inside the artifact), with `/?debug` or `#debug` (only a `#hash` reaches an artifact), or with <kbd>`</kbd>; it's remembered per device, and its × closes it:
+Open the debug panel (`debug-panel.js`, which talks only to `AGI.debug`) by tapping the small terminal icon beside Journal (works on a phone and inside the artifact), with `/?debug` or `#debug` (only a `#hash` reaches an artifact), or with <kbd>`</kbd>; it's remembered per device, and its × closes it:
 - **Save** (first, so it's easy to reach): save now, or start over (wipes the save and all screen state: open bay, result card, room visits, tree view).
 - **Resources / Attributes:** add any amount (XP included; added CP counts as earned this run, so it moves the hardware reveals and shipping).
 - **Per second:** a flat amount of any resource (Insight included) added every second of game time, on top of production (`AGI.debug.income`; follows game speed and Simulate; debug CP counts as earned). 0 turns it off.

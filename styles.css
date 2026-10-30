@@ -174,7 +174,7 @@ h1, h2, h3, p { margin: 0; }
 }
 
 .topbar-buttons { display: flex; gap: 6px; margin-left: auto; }
-/* Developer tools: a small, quiet icon by the Journal (three taps open the debug panel). */
+/* Developer tools: a small, quiet icon by the Journal (a tap opens or closes the debug panel). */
 .debug-toggle { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid transparent;
     border-radius: 8px; background: none; color: var(--muted); opacity: 0.55; cursor: pointer; align-self: center; }
 .debug-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
