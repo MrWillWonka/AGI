@@ -22,10 +22,12 @@
         <div class="topbar-inner">
             <h1 class="brand">The Path to AGI</h1>
 
-            <ul class="chips" aria-label="Resources">
-                <li class="chip" title="Compute Power"><span class="chip-label">CP</span> <span data-bind="res.cp">0</span> <small data-bind="rate.cp"></small></li>
-                <li class="chip" data-show="seen:dp" title="Data Points"><span class="chip-label">DP</span> <span data-bind="res.dp">0</span> <small data-bind="rate.dp"></small></li>
-                <li class="chip" data-show="action:research" title="Research Points"><span class="chip-label">RP</span> <span data-bind="res.rp">0</span> <small data-bind="rate.rp"></small></li>
+            <!-- In the lab this list trades places with the lab's "Systems online" line (game.js placeResources), so the
+                 amounts sit beside the jobs that make them. -->
+            <ul class="chips chips-res" id="resChips" aria-label="Resources">
+                <li class="chip chip-cp" title="Compute Power"><span class="chip-label">CP</span> <span data-bind="res.cp">0</span> <small data-bind="rate.cp"></small></li>
+                <li class="chip chip-dp" data-show="seen:dp" title="Data Points"><span class="chip-label">DP</span> <span data-bind="res.dp">0</span> <small data-bind="rate.dp"></small></li>
+                <li class="chip chip-rp" data-show="action:research" title="Research Points"><span class="chip-label">RP</span> <span data-bind="res.rp">0</span> <small data-bind="rate.rp"></small></li>
             </ul>
 
             <ul class="chips chips-attr" aria-label="Attributes">
@@ -201,7 +203,7 @@
                 <div class="bulk-buy" id="bulkBuy" role="radiogroup" aria-label="How many to buy" hidden>
                     <button type="button" role="radio" data-bulk="1">×1</button><button type="button" role="radio" data-bulk="10">×10</button><button type="button" role="radio" data-bulk="max">Max</button>
                 </div>
-                <span class="lab-status"><span class="status-dot"></span> Systems online · uptime <span data-bind="stats.playClock">00:00:00</span></span>
+                <span class="lab-status" id="labStatus"><span class="status-dot"></span> Systems online · uptime <span data-bind="stats.playClock">00:00:00</span></span>
             </div>
 
             <!-- Supply line: what the lab produces, one cell per currency as it appears; the cells share the

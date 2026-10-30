@@ -2056,7 +2056,24 @@ window.AGI = (function () {
             storageSet(SEEN_KEY, JSON.stringify([...seenRooms]));
         }
         if (id === 'servers') startPathLoop();
+        placeResources(id === 'lab');
         if (state) renderMinimap();
+    }
+
+    // In the lab the resource amounts trade places with the lab's "Systems online · uptime" line: they sit in
+    // the lab's own bar, beside the jobs that make them (up in the top bar, by the title, they went unnoticed
+    // while clicking), and the status line goes up top. Every other screen keeps them in the top bar.
+    let resInLab = false;
+    function placeResources(inLab) {
+        if (inLab === resInLab) return;
+        const chips = $('resChips');
+        const status = $('labStatus');
+        const mark = document.createComment('');
+        chips.replaceWith(mark);
+        status.replaceWith(chips);
+        mark.replaceWith(status);
+        resInLab = inLab;
+        document.body.classList.toggle('res-in-lab', inLab);
     }
 
     // Zoom geometry: where a facility tile sits relative to the room that fills the stage.
