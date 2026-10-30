@@ -3662,14 +3662,13 @@ window.AGI = (function () {
         releaseCharge();
     }
 
-    // A press. On act two with no sprints left (nothing it could ever fire) it is only a tuck, until it's let
-    // go. During the wait it tucks too, but turns into a charge the moment the sprint is ready, as it always
-    // did: keeping it a tuck made a hold meant to queue a sprint drag the ball uphill and never fire.
+    // A press that can't fire yet (the wait, or no sprints left) never queues a sprint: holding through the
+    // wait used to start a charge the moment it ended, and letting go a beat later fired a tiny sprint by
+    // accident. On act two it's a tuck instead, until it's let go; a sprint takes a fresh press.
     function pressHold() {
         path.held = true;
         const roll = path.roll;
-        path.holdTuck = !!roll && path.view === 'run' && !path.done && roll.launched && roll.leg >= T.LATE_LEG && !path.fx.maxEffort
-            && roll.pushesLeft <= 0 && !crunching() && !frozen();
+        path.holdTuck = !!roll && path.view === 'run' && !path.done && roll.launched && roll.leg >= T.LATE_LEG && !path.fx.maxEffort && !readyToFire(roll);
         if (!path.holdTuck) startCharge();
     }
 
@@ -4240,11 +4239,10 @@ window.AGI = (function () {
             if (path.pause > 0) path.pause -= dt;
             const roll = currentRoll();
             autoTrain(roll);
-            if (path.held && !path.holdTuck && !path.charging && path.view === 'run' && !path.done && readyToFire(roll)) startCharge();
             // The tuck: a hold that isn't charging a sprint (during the wait, or with none left) makes the ball
             // heavier on act two's swells; in the air it dives for the first down-slope it can reach (an air
             // dive). (The Auto-Trainer never tucks.)
-            roll.tuck = !!path.held && !path.charging && path.view === 'run' && roll.leg >= T.LATE_LEG && (!roll.airborne || path.holdTuck);
+            roll.tuck = !!path.held && !path.charging && path.view === 'run' && roll.leg >= T.LATE_LEG && path.holdTuck;
             // Keep score of the dive: time held going down, and time held into the climb after it.
             if (roll.tuck && !roll.airborne) {
                 const sl = roll.ground.slope(roll.ball.x);
@@ -4263,10 +4261,8 @@ window.AGI = (function () {
             // Slow motion only matters on screen; in the background the run keeps real time. A wind-up and
             // Bullet Time hold the run still.
             const fx = path.fx;
-            // A lost run (no sprints left, rolling back, so it can't beat its furthest point) plays out at
-            // FAST_FORWARD on screen instead of drifting home for seconds.
-            path.ff = path.visible && lostRun(roll);
-            const sim = fx.windup || frozen() ? 0 : path.visible ? dt * path.timeScale * (path.ff ? FAST_FORWARD : 1) : dt;
+            // (A lost run used to play out at 3× on screen: falling back at triple speed looked weightless.)
+            const sim = fx.windup || frozen() ? 0 : path.visible ? dt * path.timeScale : dt;
             // The wait between sprints keeps counting while a wind-up holds the run still.
             if (fx.windup) roll.ball.cooldown = Math.max(0, roll.ball.cooldown - dt);
             if (fx.windup && (fx.windup.age += dt) >= WINDUP_SECONDS) launchBreakthrough(roll, fx.windup.super);
@@ -4306,12 +4302,6 @@ window.AGI = (function () {
         const animating = busy || path.legFlash || fxBusy() || path.summit || path.particles.length || path.tension > 0.01 || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
             || E.autoTrainerLevel(state) > 0;
         if (running && animating) path.frame = requestAnimationFrame(pathFrame);
-    }
-
-    const FAST_FORWARD = 3;
-    function lostRun(roll) {
-        return roll.launched && !roll.over && roll.pushesLeft === 0 && roll.ball.v < -0.05 && !roll.airborne
-            && !roll.flowing && !crunching() && !frozen() && !path.fx.windup && path.tension < 0.01;
     }
 
     // ---- Drama: nail-biters and summits ----
@@ -5563,13 +5553,6 @@ window.AGI = (function () {
             ctx.arc(PAD_X + 6 + i * 16, 14, 5, 0, Math.PI * 2);
             ctx.fillStyle = i < pips ? c.warning : hexAlpha(c.muted, 0.3);
             ctx.fill();
-        }
-        // Under the pips (top right holds the skill hill's label), and only while the run is on.
-        if (path.ff && !roll.over) {
-            ctx.font = '700 12px "JetBrains Mono", monospace';
-            ctx.fillStyle = hexAlpha(c.muted, 0.8);
-            ctx.textAlign = 'left';
-            ctx.fillText(`▶▶ ${FAST_FORWARD}×`, PAD_X, 42);
         }
         // Skills learned on this run so far (a strong run can learn several; the result card lists them too).
         if (roll.learned?.length && !roll.over) {

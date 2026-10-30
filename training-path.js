@@ -20,7 +20,7 @@
     const GRAVITY = 9.8;
     const DAMPING = 0.15;       // linear rolling resistance per second
     const DRAG = 0.12;          // quadratic drag: fast balls lose energy disproportionately
-    const TRAPPED_DAMPING = 4;  // extra damping once the ball cannot climb out of its dip
+    const TRAPPED_DAMPING = 6;  // extra damping near the floor once the ball cannot climb out of its dip
     const SLOPE_DRAG = 0.5;     // extra friction in proportion to steepness: steep hills sap more speed
     const REST_SPEED = 0.03;
     const REST_SECONDS = 0.5;
@@ -450,13 +450,14 @@
                 // huge speeds (a stacked breakthrough or Bullet Time release reversed it into a roll-back).
                 ball.v /= 1 + (friction * (DAMPING + late * DRAG * Math.abs(ball.v)) + late * slopeDrag * Math.abs(dy)) * STEP;
                 // Momentum while there is somewhere to go; once the ball lacks the energy to clear either
-                // neighbouring hill, it is stuck in this dip, so let it settle quickly instead of sloshing.
+                // neighbouring hill, it is stuck in this dip, so let it settle instead of sloshing for long.
                 const { left, right } = ground.walls(ball.x);
                 const energy = 0.5 * ball.v * ball.v + GRAVITY * ground.height(ball.x);
                 ball.trapped = energy < GRAVITY * Math.min(left, right);
-                // On a late leg's giant swells, only settle it near the bottom of the valley: mid-slope it's
-                // still rolling down a long hill, not sloshing in a dip.
-                const settle = ball.trapped && (ground.legAt(ball.x) < (opts.lateLeg ?? LATE_LEG) || Math.abs(dy) < 0.04);
+                // Only near the floor of the dip: braking it on the slopes too made it roll back down (and come
+                // to rest) as if through syrup. It swings freely on the slopes and bleeds speed at the bottom,
+                // like a pendulum, ending about as soon (median 1.1 s from stuck to stopped, was 1.4).
+                const settle = ball.trapped && Math.abs(dy) < 0.08;
                 if (settle) ball.v *= 1 - TRAPPED_DAMPING * STEP;
             }
             // A strip pushes only a ball at its furthest yet: sloshing back and forth over one in a dip, it

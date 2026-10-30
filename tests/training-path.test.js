@@ -295,8 +295,8 @@ test('XP follows the ball: rolling back lowers it, and the payout is where it st
     let peak = 0;
     let end;
     for (let t = 0; t < 30 && !end; t += 1 / 60) {
-        peak = Math.max(peak, roll.progress);
         [end] = roll.step(1 / 60);
+        peak = Math.max(peak, roll.ground.progress(roll.ball.maxX));
     }
     assert.ok(end.progress <= peak + 1e-9);
     assert.ok(Math.abs(end.progress - roll.ground.progress(roll.ball.x)) < 1e-9, 'payout uses the resting point');
@@ -681,6 +681,28 @@ test('the tuck: held on act two, the ball gains on the way down and loses on the
     // Act one ignores it.
     const one = tuck => { const r = T.createRoll(2, 3, { pushes: 1, cooldown: 1 }); r.push(1); r.tuck = tuck; for (let i = 0; i < 20; i++) r.step(0.05); return r.ball.x; };
     assert.equal(one(true), one(false));
+});
+
+test('a stuck ball swings freely on the slopes and is only braked near the floor of its dip', () => {
+    // Rolling back down a slope it can't climb, it speeds up like any falling ball. (It used to be braked on
+    // the slopes too, as if through syrup: these seeds gained speed on 0-5% of their downhill steps.)
+    for (const seed of [4, 7, 9, 15, 33, 34]) {
+        const roll = T.createRoll(1 + seed % 5, seed, { pushes: 1, cooldown: 1 });
+        roll.push(1.4 + (seed % 5) * 0.3);
+        let downhill = 0, gaining = 0;
+        for (let i = 0; i < 3600 && !roll.over; i++) {
+            const before = Math.abs(roll.ball.v);
+            const slope = roll.ground.slope(roll.ball.x);
+            roll.step(1 / 60);
+            if (!roll.trapped || Math.abs(slope) <= 0.08) continue;
+            if (Math.sign(-slope) === Math.sign(roll.ball.v)) {
+                downhill++;
+                if (Math.abs(roll.ball.v) > before) gaining++;
+            }
+        }
+        assert.ok(roll.over, `seed ${seed}: it still comes to rest`);
+        assert.ok(gaining >= 0.6 * downhill, `seed ${seed}: gained speed on ${gaining}/${downhill} downhill steps`);
+    }
 });
 
 test('a spent ball sloshing over a boost strip still ends its run (it used to never end)', () => {
