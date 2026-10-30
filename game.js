@@ -3388,10 +3388,7 @@ window.AGI = (function () {
     const PAD_X = 16;
     const PAD_TOP = 34;
     const PAD_BOTTOM = 26;
-    // The ball's radius in px: grows with the zoom (BALL_MIN at wide views, BALL_MAX close up), eased per frame.
-    const BALL_MIN = 7;
-    const BALL_MAX = 12;
-    let BALL = BALL_MIN;
+    const BALL = 7;
 
     // ---- Luck effects (power-ups) ----
     // Breakthrough: the ball glows, shakes and draws in sparks for a moment (the run holds still, and you
@@ -3422,8 +3419,8 @@ window.AGI = (function () {
     const BANK_MULT = 1.5;      // Bullet Time: each banked sprint lands this much harder
     const LUCID_WARP = 4;       // Lucid Dream: time condenses, the ball covers this many times the ground
     const LUCID_CONDENSE = 3;   // and the view squeezes this much wider (heights keep their scale)
-    const LATE_VIEW = 18;       // late legs: metres of trail in view at rest (wider with speed; 26 made flights look tiny)
-    const ACT_ONE_RELIEF = 2;   // act one: how far the vertical scale may stretch to fill the height
+    const LATE_VIEW = 26;       // late legs: metres of trail in view at rest (wider with speed; at 18 the zoom tracked
+                                //   speed so closely that a fast ball looked no faster)
     const LATE_RELIEF = 0.9;    // and a slightly flatter vertical scale (0.35 left the swells and flights in the bottom fifth of an empty sky)
 
     // A big luck banner: pops in at the top of the trail, in the luck's colour.
@@ -3659,18 +3656,20 @@ window.AGI = (function () {
     // release is still judged, so nothing is queued.
     function letGo() {
         path.held = false;
-        if (path.holdTuck) endTuck();
+        if (!path.charging) endTuck();
+        path.dive = null;
         path.holdTuck = false;
         releaseCharge();
     }
 
-    // A press. On act two, one that can't fire yet (the wait, or no sprints left) is a tuck, and stays one
-    // until it's let go: it used to turn into a charge the moment the wait ended, so a dive lasted 1.2 s at
-    // most and its release fired a sprint at whatever the meter said.
+    // A press. On act two with no sprints left (nothing it could ever fire) it is only a tuck, until it's let
+    // go. During the wait it tucks too, but turns into a charge the moment the sprint is ready, as it always
+    // did: keeping it a tuck made a hold meant to queue a sprint drag the ball uphill and never fire.
     function pressHold() {
         path.held = true;
         const roll = path.roll;
-        path.holdTuck = !!roll && path.view === 'run' && !path.done && roll.launched && roll.leg >= T.LATE_LEG && !path.fx.maxEffort && !readyToFire(roll);
+        path.holdTuck = !!roll && path.view === 'run' && !path.done && roll.launched && roll.leg >= T.LATE_LEG && !path.fx.maxEffort
+            && roll.pushesLeft <= 0 && !crunching() && !frozen();
         if (!path.holdTuck) startCharge();
     }
 
@@ -4245,7 +4244,7 @@ window.AGI = (function () {
             // The tuck: a hold that isn't charging a sprint (during the wait, or with none left) makes the ball
             // heavier on act two's swells; in the air it dives for the first down-slope it can reach (an air
             // dive). (The Auto-Trainer never tucks.)
-            roll.tuck = !!path.held && !path.charging && path.view === 'run' && roll.leg >= T.LATE_LEG;
+            roll.tuck = !!path.held && !path.charging && path.view === 'run' && roll.leg >= T.LATE_LEG && (!roll.airborne || path.holdTuck);
             // Keep score of the dive: time held going down, and time held into the climb after it.
             if (roll.tuck && !roll.airborne) {
                 const sl = roll.ground.slope(roll.ball.x);
@@ -4267,8 +4266,7 @@ window.AGI = (function () {
             // A lost run (no sprints left, rolling back, so it can't beat its furthest point) plays out at
             // FAST_FORWARD on screen instead of drifting home for seconds.
             path.ff = path.visible && lostRun(roll);
-            if (path.hitStop > 0) path.hitStop -= dt;
-            const sim = fx.windup || frozen() || path.hitStop > 0 ? 0 : path.visible ? dt * path.timeScale * (path.ff ? FAST_FORWARD : 1) : dt;
+            const sim = fx.windup || frozen() ? 0 : path.visible ? dt * path.timeScale * (path.ff ? FAST_FORWARD : 1) : dt;
             // The wait between sprints keeps counting while a wind-up holds the run still.
             if (fx.windup) roll.ball.cooldown = Math.max(0, roll.ball.cooldown - dt);
             if (fx.windup && (fx.windup.age += dt) >= WINDUP_SECONDS) launchBreakthrough(roll, fx.windup.super);
@@ -4320,7 +4318,6 @@ window.AGI = (function () {
 
     const SUMMIT_SECONDS = 2.6;     // the summit banner
     const CONFETTI_SECONDS = 2.8;   // and its confetti
-    const HIT_STOP = 0.1;           // a summit freezes the run this long (a beat, before the slow motion)
     const LEG_FLASH_SECONDS = 2.2;  // "<skill> cleared" on a replay
     const SUMMIT_SLOWMO = 1.1;      // slow motion right after cresting
 
@@ -4337,9 +4334,9 @@ window.AGI = (function () {
         if (path.focus === hill && path.tension > 0) return hill;
         // Rare on purpose: not again for a while after the last one.
         if (performance.now() < (path.dramaQuiet || 0)) return null;
-        // Within 5% of the top, with almost exactly the energy it needs: a real coin flip. Act two's skill walls
-        // are long climbs, and by 95% the energy had already left the window, so it never fired there: 88%.
-        if (g.height(x) < (roll.leg >= T.LATE_LEG ? 0.88 : 0.95) * hill.height) return null;
+        // Within 5% of the top, with almost exactly the energy it needs: a real coin flip. (Opening act two's at
+        // 88% put its fast runs in slow motion on every skill wall, which broke their momentum.)
+        if (g.height(x) < 0.95 * hill.height) return null;
         const need = T.GRAVITY * (hill.height - g.height(x));
         if (need <= 0) return null;
         const ratio = 0.5 * roll.ball.v * roll.ball.v / need;
@@ -4406,7 +4403,6 @@ window.AGI = (function () {
         celebrateSummit(skill.name, hill);
         // What it earned, where it happened (it used to wait for the result card), and a beat of stillness.
         path.fx.pops.push({ wx: hill.peak, wh: hill.height, age: 0, life: 2.6, big: true, text: `+${xpText(xp)} XP · ${skill.effect}` });
-        path.hitStop = HIT_STOP;
         path.fx.shake = Math.max(path.fx.shake, 0.18);   // a camera punch with the beat
         path.glow = { skill: state.path.learned - 1, age: 0 };
         const grants = Object.entries(skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
@@ -4868,16 +4864,9 @@ window.AGI = (function () {
         // (drawPath divides the vertical scale back out by the same factor).
         if (condense > 1) view *= condense;
         const left = leftOf(view);
-        // Act one fills the height: the vertical scale stretches (up to ACT_ONE_RELIEF) until the tallest hill
-        // in view reaches about 60% of it (the hills sat in the bottom fifth of an empty sky).
-        const area0 = drawArea();
-        // (Sized by the leg's tallest rolling hill, not what's in view, so the scale holds steady along a leg.)
-        const from = g.legStart(leg);
-        const to = T.skillHill(leg).start;
-        const tallest = Math.max(0.01, ...g.bumps.filter(b => b.skill === null && b.peak > from && b.peak < to).map(b => b.height));
-        const inView = Math.max(0.01, tallestIn(roll, left, left + view));   // and nothing in view (a skill hill) is cut off
-        const relief = Math.max(1, Math.min(ACT_ONE_RELIEF, 0.6 * area0.h * view / (tallest * area0.w * RELIEF), 0.85 * area0.h * view / (inView * area0.w * RELIEF)));
-        if (!(path.tension > 0) || !path.focus) return { left, right: left + view, bottom: 0, condense, relief };
+        // Act one draws hills at the trail's own scale. (Stretching them up to 2× taller to fill the height made
+        // slopes look far steeper than the ball felt them, so it no longer read as having weight.)
+        if (!(path.tension > 0) || !path.focus) return { left, right: left + view, bottom: 0, condense };
         // Nail-biter: push in on the ball and the crest, lifting the view so both stay in frame.
         const area = drawArea();
         const close = Math.min(view, Math.max(1.2, path.focus.halfWidth * 1.6));
@@ -4886,7 +4875,7 @@ window.AGI = (function () {
         const closeBottom = Math.max(0, roll.ground.height(roll.ball.x) - visibleH * 0.35);
         const t = path.tension;
         const l = left + (closeLeft - left) * t;
-        return { left: l, right: l + view + (close - view) * t, bottom: closeBottom * t, relief: relief + (1 - relief) * t };
+        return { left: l, right: l + view + (close - view) * t, bottom: closeBottom * t, };
     }
 
     function cameraMoving() {
@@ -5036,7 +5025,6 @@ window.AGI = (function () {
         const area = drawArea();
         const pxPerUnit = area.w / (cam.right - cam.left);
         const yScale = pxPerUnit * RELIEF * (path.cam.condense || 1) * (path.cam.relief || 1);
-        BALL += (Math.max(BALL_MIN, Math.min(BALL_MAX, 4 + 0.07 * pxPerUnit)) - BALL) * Math.min(1, dt * 4);
         const X = x => PAD_X + (x - cam.left) * pxPerUnit;
         // No clamp at the top: a crest taller than the view runs off it (and gets a marker) instead of being
         // drawn flattened into a plateau.
