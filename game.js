@@ -4875,42 +4875,6 @@ window.AGI = (function () {
         return Math.abs(path.cam.left - t.left) > width * 0.002 || Math.abs(path.cam.right - t.right) > width * 0.002;
     }
 
-    // The charge meter, again on the ball: an arc over it (left = empty, right = full) with the prompt zones,
-    // so the release can be timed while watching the ball stall (the bar under the trail is far away).
-    function drawChargeRing(ctx, roll, bx, by) {
-        const c = path.colors;
-        const R = BALL + 15;
-        const at = f => Math.PI + Math.max(0, Math.min(1, f)) * Math.PI;
-        const arc = (from, to, color, width) => {
-            ctx.strokeStyle = color;
-            ctx.lineWidth = width;
-            ctx.beginPath();
-            ctx.arc(bx, by, R, at(from), at(to));
-            ctx.stroke();
-        };
-        ctx.save();
-        ctx.lineCap = 'butt';
-        arc(0, 1, hexAlpha(c.muted, 0.25), 5);
-        const cap = path.charging.cap;
-        if (cap < 1) arc(cap, 1, hexAlpha(c.danger, 0.35), 5);   // beyond what you can afford
-        const z = currentZone(roll);
-        const level = chargeLevel();
-        if (z && z.to > z.from) {
-            arc(z.from, z.to, hexAlpha(c.success, 0.55), 7);
-            if (z.perfectTo > z.perfectFrom) arc(z.perfectFrom, z.perfectTo, hexAlpha(c.warning, 0.9), 7);
-            if (z.systemTo > z.systemFrom) arc(z.systemFrom, z.systemTo, c.text, 7);
-        }
-        const kind = E.zoneHit(z, level);
-        ctx.lineCap = 'round';
-        arc(0, level, kind ? c.success : c.warning, 3);
-        const a = at(level);
-        ctx.fillStyle = kind ? c.success : c.warning;
-        ctx.beginPath();
-        ctx.arc(bx + Math.cos(a) * R, by + Math.sin(a) * R, 3.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-    }
-
     // Boost strips glow along the line with chevrons running forward (brighter under the ball); XP tokens
     // hang as small diamonds that bob; a taken one pops with its XP.
     function drawFeatures(ctx, roll, X, Y, t) {
@@ -5458,16 +5422,6 @@ window.AGI = (function () {
         ctx.beginPath();
         ctx.arc(bx, by, BALL, 0, Math.PI * 2);
         ctx.fill();
-        // A spin mark: the ball turns as it rolls (in screen pixels, so it spins at the speed you see).
-        if (!reducedMotion()) {
-            const spin = (roll.ball.x - g.start) * pxPerUnit / BALL;
-            ctx.strokeStyle = hexAlpha(c.bg, 0.75);
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(bx + Math.cos(spin) * 1.5, by + Math.sin(spin) * 1.5);
-            ctx.lineTo(bx + Math.cos(spin) * (BALL - 1.5), by + Math.sin(spin) * (BALL - 1.5));
-            ctx.stroke();
-        }
         // In flight: how high it is above the ground under it.
         const above = roll.airborne ? roll.height - g.height(roll.ball.x) : 0;
         if (above > 0.5) {
@@ -5479,7 +5433,6 @@ window.AGI = (function () {
         ctx.lineWidth = 3;
         ctx.strokeStyle = wind ? c.warning : crunching() ? c.danger : roll.ball.v > 0.05 ? c.success : roll.ball.v < -0.05 ? c.danger : c.primary;
         ctx.stroke();
-        if (path.charging) drawChargeRing(ctx, roll, bx, by);
         if (path.holdHint > 0 && !path.held) {
             const a = Math.min(1, path.holdHint) * (0.6 + 0.4 * Math.sin(t * 8));
             ctx.font = '700 13px "Chakra Petch", system-ui, sans-serif';
