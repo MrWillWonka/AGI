@@ -274,7 +274,7 @@ h1, h2, h3, p { margin: 0; }
     transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
-.facility-room:hover:not(.locked):not(.building) { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary), 0 0 30px rgba(111, 179, 217, 0.15); }
+@media (hover: hover) { .facility-room:hover:not(.locked):not(.building) { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary), 0 0 30px rgba(111, 179, 217, 0.15); } }
 .facility-room:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 .facility-room.locked, .facility-room.building { cursor: default; background: repeating-linear-gradient(135deg, #0b1719 0 10px, #0a1416 10px 20px); border-style: dashed; }
 .facility-room.locked .fr-art, .facility-room.building .fr-art { opacity: 0.15; }
@@ -429,7 +429,7 @@ h1, h2, h3, p { margin: 0; }
     -webkit-user-select: none;
 }
 
-.button:hover:not(:disabled) { filter: brightness(1.06); box-shadow: 0 8px 24px rgba(255, 181, 71, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+@media (hover: hover) { .button:hover:not(:disabled) { filter: brightness(1.06); box-shadow: 0 8px 24px rgba(255, 181, 71, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35); } }
 .button:active:not(:disabled) { transform: translateY(1px) scale(0.99); }
 
 .button:disabled, .push-button[aria-disabled="true"] {
@@ -450,8 +450,8 @@ h1, h2, h3, p { margin: 0; }
     cursor: pointer;
 }
 
-.ghost-button:hover { border-color: var(--primary); color: var(--primary); }
-.ghost-button.danger:hover { border-color: var(--danger); color: var(--danger); }
+@media (hover: hover) { .ghost-button:hover { border-color: var(--primary); color: var(--primary); } }
+@media (hover: hover) { .ghost-button.danger:hover { border-color: var(--danger); color: var(--danger); } }
 
 .button-row { display: flex; flex-wrap: wrap; gap: 8px; }
 
@@ -553,11 +553,11 @@ h1, h2, h3, p { margin: 0; }
     transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-.bay:hover:not(.locked) {
+@media (hover: hover) { .bay:hover:not(.locked) {
     border-color: rgba(99, 224, 171, 0.6);
     box-shadow: 0 0 0 1px rgba(99, 224, 171, 0.25), 0 0 30px rgba(99, 224, 171, 0.12);
     transform: translateY(-1px);
-}
+} }
 
 /* Status LEDs. */
 .bay::before {
@@ -717,7 +717,7 @@ h1, h2, h3, p { margin: 0; }
 
 .tree-node[hidden] { display: none; }
 
-.tree-node:hover { transform: translate(-50%, -50%) scale(1.06); }
+@media (hover: hover) { .tree-node:hover { transform: translate(-50%, -50%) scale(1.06); } }
 
 .tree-icon svg, .tree-lock svg { width: 52%; height: auto; display: block; margin: auto; }
 .tree-icon, .tree-lock { grid-area: 1 / 1; width: 100%; }
@@ -997,7 +997,7 @@ h1, h2, h3, p { margin: 0; }
     transition: border-color 0.15s ease, background 0.15s ease, transform 0.08s ease;
 }
 
-.action-button:hover:not(:disabled) { border-color: var(--primary); background: #18323a; filter: none; box-shadow: none; }
+@media (hover: hover) { .action-button:hover:not(:disabled) { border-color: var(--primary); background: #18323a; filter: none; box-shadow: none; } }
 .action-button:active:not(:disabled), .action-button.held { transform: scale(0.98); border-color: var(--success); }
 .action-button:disabled { opacity: 0.45; color: var(--text); background: var(--panel-2); }
 
@@ -1037,7 +1037,7 @@ h1, h2, h3, p { margin: 0; }
     cursor: pointer;
 }
 
-.tab:hover { color: var(--text); }
+@media (hover: hover) { .tab:hover { color: var(--text); } }
 .tab[aria-selected="true"] { color: var(--text); background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--border); }
 
 /* ---- Upgrades ---- */
@@ -1075,7 +1075,7 @@ h1, h2, h3, p { margin: 0; }
     box-shadow: none;
 }
 
-.upgrade-button:hover:not(:disabled) { background: rgba(255, 181, 71, 0.12); filter: none; box-shadow: none; }
+@media (hover: hover) { .upgrade-button:hover:not(:disabled) { background: rgba(255, 181, 71, 0.12); filter: none; box-shadow: none; } }
 .upgrade-button:disabled { color: var(--muted); border-color: var(--border); background: transparent; }
 
 .badge {
@@ -1736,7 +1736,7 @@ body { zoom: var(--zoom); }
 /* The seed node at the centre of the skill tree, in the core's diamond shape. */
 .tree-node.seed { border-radius: 8px; transform: translate(-50%, -50%) rotate(45deg); border-color: var(--success); }
 .tree-node.seed .tree-icon, .tree-node.seed .tree-level { transform: rotate(-45deg); }
-.tree-node.seed:hover { transform: translate(-50%, -50%) rotate(45deg) scale(1.06); }
+@media (hover: hover) { .tree-node.seed:hover { transform: translate(-50%, -50%) rotate(45deg) scale(1.06); } }
 .tree-node.seed.owned, .tree-node.seed.maxed { box-shadow: 0 0 22px rgba(99, 224, 171, 0.45); }
 
 /* Node detail: a one-line quip, then the plain bonus. */
@@ -1778,7 +1778,7 @@ html, body { overflow-x: clip; }
 .bulk-buy[hidden] { display: none; }
 .bulk-buy button { font: 600 0.72rem var(--font-mono); color: var(--muted); background: transparent; border: 0; padding: 4px 11px; cursor: pointer; }
 .bulk-buy button + button { border-left: 1px solid var(--border); }
-.bulk-buy button:hover { color: var(--text); }
+@media (hover: hover) { .bulk-buy button:hover { color: var(--text); } }
 .bulk-buy button[aria-checked="true"] { background: rgba(99, 224, 171, 0.16); color: var(--success); }
 .bulk-buy button:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .bulk-buy:not([hidden]) + .lab-status { margin-left: 14px; }
@@ -1873,7 +1873,7 @@ html, body { overflow-x: clip; }
 .mm-block rect { fill: #14292e; stroke: #3d6a72; stroke-width: 0.8; transition: fill 0.15s ease; }
 .mm-block text { fill: #8fb7bd; font: 700 4.6px var(--font-mono); pointer-events: none; }
 .mm-block:not(.sealed):not(.building) { cursor: pointer; }
-.mm-block:not(.sealed):not(.building):hover rect, .mm-block:focus-visible rect { fill: #1f4048; stroke: var(--primary); }
+@media (hover: hover) { .mm-block:not(.sealed):not(.building):hover rect, .mm-block:focus-visible rect { fill: #1f4048; stroke: var(--primary); } }
 .mm-block:focus { outline: none; }
 .mm-block.core rect { fill: #10302a; stroke: var(--success); }
 .mm-block.bay rect { fill: #0f2a24; stroke: rgba(99, 224, 171, 0.7); }
@@ -1908,7 +1908,7 @@ html, body { overflow-x: clip; }
     white-space: nowrap;
 }
 .home-button span { font-size: 1rem; line-height: 1; }
-.home-button:hover { background: rgba(99, 224, 171, 0.22); }
+@media (hover: hover) { .home-button:hover { background: rgba(99, 224, 171, 0.22); } }
 .home-button:focus-visible { outline: 2px solid var(--success); outline-offset: 2px; }
 .home-button.ping { animation: node-ready 1.8s ease-in-out infinite; }
 .step-button { padding: 4px 10px; font-size: 0.78rem; }
@@ -1960,7 +1960,7 @@ html, body { overflow-x: clip; }
 }
 .node-detail[hidden] { display: none; }
 .detail-close { position: absolute; top: 6px; right: 8px; background: none; border: 0; color: var(--muted); font-size: 1.1rem; cursor: pointer; }
-.detail-close:hover { color: var(--text); }
+@media (hover: hover) { .detail-close:hover { color: var(--text); } }
 
 /* ---- Investor projects ---- */
 .projects { grid-template-columns: 1fr auto; grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "label boosts" "list list"; }
@@ -1997,7 +1997,7 @@ html, body { overflow-x: clip; }
 /* ---- Minimap: bigger, titled, easy to find ---- */
 .minimap { width: 196px; padding: 8px; border-color: rgba(99, 224, 171, 0.45); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 18px rgba(99, 224, 171, 0.12); }
 .mm-title { width: 100%; justify-content: center; margin-bottom: 2px; display: flex; padding: 3px 8px; border: 1px solid var(--success); border-radius: 999px; background: rgba(99, 224, 171, 0.12); color: var(--success); font: 700 0.68rem var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; }
-.mm-title:hover { background: rgba(99, 224, 171, 0.22); }
+@media (hover: hover) { .mm-title:hover { background: rgba(99, 224, 171, 0.22); } }
 .mm-label { font-size: 0.6rem; }
 
 @media (max-width: 640px) {
@@ -2016,7 +2016,7 @@ html, body { overflow-x: clip; }
 body.has-minimap .room-rnd { padding-bottom: 210px; }
 body.has-minimap.mm-min .room-rnd { padding-bottom: 60px; }
 .minimap { opacity: 0.9; transition: opacity 0.15s ease; }
-.minimap:hover, .minimap:focus-within { opacity: 1; }
+@media (hover: hover) { .minimap:hover, .minimap:focus-within { opacity: 1; } }
 @media (max-width: 640px) {
     body.has-minimap .room-rnd { padding-bottom: 48px; }
 }
@@ -2034,9 +2034,9 @@ body.has-minimap.mm-min .room-rnd { padding-bottom: 60px; }
 /* Decoration on the die: clicks go through to the chip (Surveillance) or the block under them. */
 .mm-via, .mm-trace { pointer-events: none; }
 .mm-via { fill: var(--success); }
-.minimap:has(.mm-title:hover) .mm-die, .minimap:has(.mm-body:hover) .mm-die, .mm-body:focus-visible .mm-die { fill: #123832; stroke: var(--success); stroke-width: 2; }
-.minimap:has(.mm-title:hover) .mm-pin, .minimap:has(.mm-body:hover) .mm-pin, .mm-body:focus-visible .mm-pin { fill: var(--success); }
-.minimap:has(.mm-title:hover), .minimap:has(.mm-body:hover) { border-color: var(--success); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 26px rgba(99, 224, 171, 0.35); }
+@media (hover: hover) { .minimap:has(.mm-title:hover) .mm-die, .minimap:has(.mm-body:hover) .mm-die, .mm-body:focus-visible .mm-die { fill: #123832; stroke: var(--success); stroke-width: 2; } }
+@media (hover: hover) { .minimap:has(.mm-title:hover) .mm-pin, .minimap:has(.mm-body:hover) .mm-pin, .mm-body:focus-visible .mm-pin { fill: var(--success); } }
+@media (hover: hover) { .minimap:has(.mm-title:hover), .minimap:has(.mm-body:hover) { border-color: var(--success); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 26px rgba(99, 224, 171, 0.35); } }
 .mm-body.here .mm-die { stroke: var(--success); }
 
 /* Hardware cards show the part you're buying, as it will sit in the cabinet, above the buy button. */
@@ -2092,7 +2092,7 @@ body.has-minimap.mm-min .room-rnd { padding-bottom: 60px; }
 /* "More below" hint when a station's list scrolls past its panel. */
 .station { position: relative; }
 .station-more { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); padding: 3px 12px; border-radius: 999px; border: 1px solid rgba(255, 181, 71, 0.5); background: rgba(10, 20, 22, 0.94); font: 600 0.7rem var(--font-mono); color: var(--warning); cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); }
-.station-more:hover { background: rgba(255, 181, 71, 0.15); }
+@media (hover: hover) { .station-more:hover { background: rgba(255, 181, 71, 0.15); } }
 .station-more[hidden] { display: none; }
 /* Installed upgrades keep their place, dimmed, with a check instead of a price. */
 .upgrade.owned h3, .upgrade.owned p { opacity: 0.55; }
@@ -2169,10 +2169,10 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .leg-tag { position: absolute; left: 12px; bottom: 20px; z-index: 2; display: flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border: 1px solid rgba(99, 224, 171, 0.45); border-radius: 999px; background: rgba(8, 17, 19, 0.88); font: 600 0.72rem var(--font-mono); color: var(--success); }
 .leg-tag[hidden] { display: none; }
 .leg-tag-clear { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 0.95rem; line-height: 1; padding: 0 4px; }
-.leg-tag-clear:hover { color: var(--text); }
+@media (hover: hover) { .leg-tag-clear:hover { color: var(--text); } }
 /* Cleared lanes on the rack are buttons into a replay of that leg. */
 .bay[data-bay="training"]:not(.sealed) .bay-art .lane.cleared { cursor: pointer; transition: box-shadow 0.15s ease; }
-.bay[data-bay="training"]:not(.sealed) .bay-art .lane.cleared:hover { box-shadow: inset 0 0 0 1px var(--success), 0 0 10px rgba(99, 224, 171, 0.35); }
+@media (hover: hover) { .bay[data-bay="training"]:not(.sealed) .bay-art .lane.cleared:hover { box-shadow: inset 0 0 0 1px var(--success), 0 0 10px rgba(99, 224, 171, 0.35); } }
 
 /* Top-bar numbers keep their width as they grow, so the chips beside them don't jitter. */
 .chip [data-bind^="res."], .chip [data-bind^="attr."] { display: inline-block; min-width: 5ch; text-align: right; }
@@ -2324,7 +2324,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .crumbs { display: flex; align-items: baseline; gap: 1px; min-width: 0; white-space: nowrap; font: 600 0.95rem var(--font-mono); }
 .crumbs .crumb { padding: 2px 5px; border: 0; border-radius: 4px; background: none; font: inherit; color: var(--success); cursor: pointer;
     text-decoration: underline; text-decoration-color: rgba(99, 224, 171, 0.3); text-underline-offset: 4px; }
-.crumbs .crumb:hover { background: rgba(99, 224, 171, 0.12); text-decoration-color: currentColor; }
+@media (hover: hover) { .crumbs .crumb:hover { background: rgba(99, 224, 171, 0.12); text-decoration-color: currentColor; } }
 .crumbs .crumb:focus-visible { outline: 2px solid var(--success); outline-offset: 1px; }
 .crumbs .crumb-home::before { content: "⌂ "; text-decoration: none; display: inline-block; margin-right: 2px; }
 .crumbs .crumb.ping { animation: crumb-ping 1.8s ease-in-out infinite; }
@@ -2484,7 +2484,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .mm-bar { display: flex; gap: 4px; align-items: stretch; }
 .minimap .mm-title { margin: 0; white-space: nowrap; flex: 1; }
 .minimap .mm-min { flex: none; width: 26px; border: 1px solid rgba(99, 224, 171, 0.5); border-radius: 999px; background: transparent; color: var(--success); font: 700 0.8rem var(--font-mono); cursor: pointer; line-height: 1; }
-.minimap .mm-min:hover, .minimap .mm-min:focus-visible { background: rgba(99, 224, 171, 0.18); outline: none; }
+@media (hover: hover) { .minimap .mm-min:hover, .minimap .mm-min:focus-visible { background: rgba(99, 224, 171, 0.18); outline: none; } }
 .minimap .mm-chip { display: none; }
 @media (min-width: 641px) {
     .minimap:not([hidden]):not(.min), .minimap.min:not([hidden]):is(:hover, :focus-within, .open) { width: 212px; height: 212px; padding: 6px 6px 4px; }
@@ -2539,12 +2539,12 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .auto-switch[aria-checked="true"] { border-color: rgba(99, 224, 171, 0.6); color: var(--success); background: rgba(99, 224, 171, 0.08); }
 .auto-switch[aria-checked="true"] .auto-switch-knob { background: rgba(99, 224, 171, 0.35); }
 .auto-switch[aria-checked="true"] .auto-switch-knob::after { transform: translateX(12px); background: var(--success); box-shadow: 0 0 8px var(--success); }
-.auto-switch:hover, .auto-switch:focus-visible { border-color: var(--success); outline: none; }
+@media (hover: hover) { .auto-switch:hover, .auto-switch:focus-visible { border-color: var(--success); outline: none; } }
 .room-bar .auto-switch { margin-left: auto; }
 /* The live monitor on the upgrades screen while the Auto-Trainer runs: click it to watch. */
 .dev-live { display: flex; flex-direction: column; gap: 4px; padding: 6px; border: 1px solid rgba(99, 224, 171, 0.35); border-radius: 8px; background: rgba(8, 17, 19, 0.7); cursor: pointer; }
 .dev-live[hidden] { display: none; }
-.dev-live:hover { border-color: var(--success); }
+@media (hover: hover) { .dev-live:hover { border-color: var(--success); } }
 .dev-lane { display: block; width: 100%; height: 56px; }
 .dev-live-text { font: 600 0.68rem var(--font-mono); color: var(--success); }
 .dev-actions:has(.dev-live:not([hidden])) { flex-wrap: wrap; max-width: 420px; }
@@ -2593,7 +2593,7 @@ body.idle :not(.toast, .toast *), body.idle :not(.toast, .toast *)::before, body
     .chip { padding: 4px 8px; gap: 5px; }
     .phase { min-width: 110px; flex-basis: 110px; }
 }
-.push-button[aria-disabled="true"]:hover, .push-button[aria-disabled="true"]:active { filter: none; transform: none; box-shadow: none; }
+@media (hover: hover) { .push-button[aria-disabled="true"]:hover, .push-button[aria-disabled="true"]:active { filter: none; transform: none; box-shadow: none; } }
 body.charging .minimap { pointer-events: none; }
 /* Keyboard focus shows on the lab's buttons too (the browser default was lost under their own styles). */
 .action-button:focus-visible, .upgrade-button:focus-visible, .ghost-button:focus-visible, .tree-node:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
@@ -2604,7 +2604,7 @@ body.charging .minimap { pointer-events: none; }
 }
 
 /* (After the base rules, so it wins: see "The panel floats" above.) */
-@media (max-width: 1440px) and (min-width: 641px) {
+@media (max-width: 1440px) {
     .tree-area { flex-direction: column; gap: 8px; }
     .dev-actions { position: static; flex-direction: row; justify-content: flex-end; align-self: stretch; padding: 6px 8px 6px 14px; }
     .dev-actions .dev-xp { display: flex; align-items: baseline; gap: 8px; margin-right: auto; }
@@ -2613,4 +2613,69 @@ body.charging .minimap { pointer-events: none; }
     .dev-actions:has(.dev-live:not([hidden])) { flex-wrap: nowrap; max-width: none; }
     .dev-actions .dev-live { flex-basis: 260px; }
     .dev-actions .leg-pick select { max-width: 340px; }
+}
+
+/* ---- Touch: no tap flash, no stray text selection or long-press menus on the game's controls ----
+   (Hover effects only apply where a pointer really hovers, @media (hover: hover): on a phone a tap left
+   them stuck on.) Text you might copy (the Journal's log, dialogs, inputs) stays selectable. */
+html { -webkit-tap-highlight-color: transparent; }
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+input, textarea, select, .dialog, .journal-log, .log { -webkit-user-select: text; user-select: text; }
+button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-action: manipulation; }
+.path-canvas { touch-action: none; }
+
+/* Touch screens and narrow ones: the meter sits above a centred sprint button, so a thumb on the button
+   never covers it. */
+@media (max-width: 960px), (pointer: coarse) {
+    .run-view > .path-controls { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .path-controls .charge { order: -1; width: 100%; flex: none; }
+    .path-controls .push-button { width: min(100%, 340px); min-height: 56px; font-size: 1.05rem; }
+    .run-view > .path-status { text-align: center; }
+}
+
+/* ---- Phones ---- */
+@media (max-width: 640px) {
+    /* The top bar: three short rows (name and Journal; resources, scrolling sideways if they must;
+       attributes beside the phase) instead of five. */
+    .topbar-inner { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "brand buttons" "res res" "attr phase";
+        padding: 8px 12px; gap: 6px 8px; }
+    .brand { grid-area: brand; font-size: 0.86rem; letter-spacing: 0.08em; min-width: 0; }
+    .topbar-buttons { grid-area: buttons; min-width: 0; justify-content: flex-end; }
+    .topbar-buttons .ghost-button { padding: 4px 10px; font-size: 0.78rem; }
+    .chips { grid-area: res; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chips-attr { grid-area: attr; }
+    .chip { padding: 3px 8px; font-size: 0.78rem; gap: 4px; }
+    .chips-attr .chip { padding: 3px 6px; }
+    .phase { grid-area: phase; min-width: 0; flex: none; gap: 6px; }
+    .phase-name { font-size: 0.72rem; }
+
+    /* Room bars: the home crumb is just ⌂, so three levels fit beside a button. */
+    .crumbs { font-size: 0.74rem; flex-shrink: 0; }
+    .crumbs .crumb-home { font-size: 0; }
+    .crumbs .crumb-home::before { font-size: 0.95rem; margin-right: 0; }
+
+    /* The minimap is just a round ⌂ in the corner (the pill covered cards), with room left for it under every
+       screen's content. Callouts about another room still point at it. */
+    .stage { padding-bottom: 52px; }
+    .minimap { padding: 0; border-radius: 50%; }
+    .minimap .mm-bar { gap: 0; }
+    .minimap .mm-title { width: 42px; height: 42px; padding: 0; margin: 0; border-radius: 50%; font-size: 0; display: flex; align-items: center; justify-content: center; }
+    .minimap .mm-title::before { content: "⌂"; font-size: 1.15rem; letter-spacing: 0; }
+    .minimap .mm-min, .minimap .mm-here { display: none; }
+
+    /* Lab: a compact status line and supply cells. */
+    .lab-status { font-size: 0.66rem; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; display: block; }
+    /* One column of cards (the lists' 300 px minimum ran the terminal's prices off its edge). */
+    .lab-stations .station-list { grid-template-columns: minmax(0, 1fr); }
+    .lab-supply { grid-auto-rows: 60px; gap: 8px; }
+
+    /* The run: a trail that fits the screen with the controls under it. */
+    .run-view > .canvas-wrap { height: clamp(220px, 40dvh, 340px); }
+    .run-view { gap: 8px; justify-content: flex-start; }
+
+    /* The skill tree's bar wraps rather than squeezing. */
+    .dev-actions { flex-wrap: wrap; justify-content: space-between; }
+    .dev-actions .leg-pick { flex: 1 1 100%; }
+    .dev-actions .leg-pick select { max-width: none; flex: 1; min-width: 0; }
 }

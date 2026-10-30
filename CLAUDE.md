@@ -163,7 +163,10 @@ Everything grows as it unlocks, and locked things never say what they are: a sea
   - Desktop is the base. Content always uses the full width (no max-width).
   - Large screens scale the whole UI with CSS `zoom` through `--ui-scale`: 1.25 from 2200 px (1440p), 1.6 from 3000 px, 1.9 from 3600 px (4K at 100%).
   - Under zoom, `getBoundingClientRect` returns screen pixels but transforms and positions use page pixels, so `zoomFrames`/`roomZoom`/`floatGain`/`treePoint` divide by `uiScale()` and the canvas multiplies its backing-store resolution by it. Full-height rules use `calc(100dvh / var(--ui-scale) - …)`.
-  - **Desktop first:** check new UI at 1280 × 800, 1920 × 1080 and 3840 × 2160 (4K). Phone layouts exist but aren't a focus for now.
+  - **Touch:** no tap flash (`-webkit-tap-highlight-color`), no text selection or long-press menu on the game's controls (`user-select: none` on the body; the log, dialogs and inputs stay selectable), and every hover effect sits in `@media (hover: hover)`, because a tap left them stuck on. Add new hover styles the same way.
+  - **Touch screens and ≤ 960 px:** the strength meter sits above a centred sprint button (`.path-controls` as a column, the meter first), so a thumb on the button never covers it; desktop keeps the button beside the meter.
+  - **Phones (≤ 640 px, the last block in `styles.css`):** a three-row top bar (name and Journal; resources scrolling sideways; attributes beside the phase), the home crumb as just ⌂, the minimap as a round ⌂ in the corner with room left under every screen, a compact lab status and supply cells, single-column station lists (their 300 px minimum ran the terminal's prices off its edge), the run's trail at 40% of the screen with the controls under it, and the skill tree's bar above the tree. Check with Playwright at 390 × 844 (`isMobile`, `hasTouch`): no horizontal scroll.
+  - **Desktop first:** check new UI at 1280 × 800, 1920 × 1080 and 3840 × 2160 (4K), then at 390 × 844.
 
 ## Verifying changes
 
