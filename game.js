@@ -9,7 +9,7 @@ window.AGI = (function () {
     const BACKUP_MS = 10 * 60000;
     const TICK_MS = 100;
     const AUTOSAVE_MS = 30000;
-    const HOLD_REPEAT_MS = 400;       // holding a job repeats it at 2.5 clicks a second (a comfort option, not a turbo)
+    const HOLD_REPEAT_MS = 250;       // holding a job repeats it at 4 clicks a second (a comfort option, not a turbo)
     const LOG_LIMIT = 60;
 
     let state;
