@@ -174,6 +174,12 @@ h1, h2, h3, p { margin: 0; }
 }
 
 .topbar-buttons { display: flex; gap: 6px; margin-left: auto; }
+/* Developer tools: a small, quiet icon by the Journal (three taps open the debug panel). */
+.debug-toggle { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid transparent;
+    border-radius: 8px; background: none; color: var(--muted); opacity: 0.55; cursor: pointer; align-self: center; }
+.debug-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.debug-toggle.on { opacity: 1; color: var(--primary); border-color: var(--border); }
+.debug-toggle:focus-visible { opacity: 1; outline: 2px solid var(--primary); outline-offset: 2px; }
 
 /* ---- Layout ---- */
 
@@ -1852,8 +1858,8 @@ html, body { overflow-x: clip; }
 /* ---- Minimap: a microchip; each area a block, wired to the Surveillance core ---- */
 .minimap {
     position: fixed;
-    right: 14px;
-    bottom: 14px;
+    right: calc(14px + env(safe-area-inset-right, 0px));
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
     z-index: 40;
     width: 132px;
     padding: 6px 6px 4px;
@@ -1883,7 +1889,7 @@ html, body { overflow-x: clip; }
 .mm-block.here text { fill: #e6fff4; }
 @keyframes mm-here { 50% { fill: rgba(99, 224, 171, 0.12); } }
 @media (max-width: 640px) {
-    .minimap { width: 92px; right: 8px; bottom: 8px; }
+    .minimap { width: 92px; right: calc(8px + env(safe-area-inset-right, 0px)); bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
     .mm-label { font-size: 0.55rem; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -2437,7 +2443,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 /* The minimap sits inside the big frame around every screen (20 px margin + 14 px padding), lined up
    with the content's bottom-right corner, not over the frame's edge. */
 @media (min-width: 641px) {
-    .minimap { right: 34px; bottom: 34px; }
+    .minimap { right: calc(34px + env(safe-area-inset-right, 0px)); bottom: calc(34px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* Every piece carries rows of status LEDs, like a real rack face (blue and green, a few blinking). */
@@ -2678,4 +2684,64 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
     .dev-actions { flex-wrap: wrap; justify-content: space-between; }
     .dev-actions .leg-pick { flex: 1 1 100%; }
     .dev-actions .leg-pick select { max-width: none; flex: 1; min-width: 0; }
+
+    /* The live XP pill sits under the trail's top labels (the next skill, top right), not over them. */
+    .live-xp { top: 40px; padding: 3px 10px; gap: 6px; max-width: calc(100% - 20px); }
+    .live-xp-value { font-size: 0.92rem; }
+    .live-xp-label { display: none; }
+}
+
+/* ---- Notches and system bars (an artifact's frame runs edge to edge on phones: viewport-fit=cover) ----
+   The sticky top bar sits under the top inset and paints the band above itself (a copy of its own background
+   shifted up), and everything fixed to an edge clears that edge's inset. */
+.topbar { top: env(safe-area-inset-top, 0px); box-shadow: 0 calc(-1 * env(safe-area-inset-top, 0px)) 0 0 #0a1416; }
+.topbar-inner { padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+.toasts { top: calc(var(--topbar-h, 53px) + 64px + env(safe-area-inset-top, 0px)); }
+.debug-panel { top: calc(72px + env(safe-area-inset-top, 0px)); right: calc(12px + env(safe-area-inset-right, 0px)); }
+.legacy-screen { inset: calc(var(--topbar-h, 53px) + 20px + env(safe-area-inset-top, 0px)) calc(20px + env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) calc(20px + env(safe-area-inset-left, 0px)); }
+
+/* Touch: no zoom-in when a field takes focus (iOS zooms anything under 16 px), and no pull-to-refresh or
+   rubber-banding when a drag on the trail or the tree runs past the edge. */
+@media (pointer: coarse) {
+    input:not([type="range"]):not([type="checkbox"]), select, textarea { font-size: 16px; }
+    html, body { overscroll-behavior: none; }
+}
+@media (max-width: 640px) {
+    .topbar-inner { padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
+    .debug-panel { top: auto; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); right: calc(8px + env(safe-area-inset-right, 0px)); left: calc(8px + env(safe-area-inset-left, 0px));
+        width: auto; max-height: 62dvh; }
+}
+
+/* ---- Phones held sideways (touch, 500 px tall or less): everything for a run fits on one screen ----
+   A one-row top bar (the logo without the name, the phase bar without its label), tight frames, the trail
+   sized to what's left with the meter and the sprint button in one row under it (the thumb sits on the
+   button at the right, clear of the meter), and the minimap as the round ⌂ the phone layout uses. */
+@media (pointer: coarse) and (max-height: 500px) {
+    .topbar-inner { flex-wrap: nowrap; padding-top: 4px; padding-bottom: 4px; gap: 6px 10px; }
+    .brand { font-size: 0; gap: 0; }
+    .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip { padding: 2px 7px; font-size: 0.74rem; gap: 4px; }
+    .phase { min-width: 60px; flex: 1 1 60px; }
+    .phase-name { display: none; }
+    .topbar-buttons .ghost-button { padding: 3px 9px; font-size: 0.76rem; }
+    .layout { padding: 6px max(8px, env(safe-area-inset-left, 0px)) 8px max(8px, env(safe-area-inset-right, 0px)); }
+    .room-frame { padding: 8px 10px; }
+    .module { gap: 6px; }
+    .run-view { gap: 6px; justify-content: flex-start; }
+    .run-view > .canvas-wrap { height: clamp(140px, calc(100dvh - 222px), 600px); }
+    .run-view > .run-stats { font-size: 0.8rem; }
+    /* Inside a bay the ⌂ crumb is the way home; the floating ⌂ only covered the trail's end. */
+    body:has(#moduleView:not([hidden])) .minimap { display: none; }
+    .run-view > .path-controls { flex-direction: row; align-items: center; gap: 12px; }
+    .path-controls .charge { order: 0; flex: 1 1 auto; width: auto; }
+    .path-controls .push-button { width: 210px; min-height: 48px; flex: none; }
+    .stage { padding-bottom: 52px; }
+    .minimap { padding: 0; border-radius: 50%; width: auto; }
+    .minimap .mm-chip { display: none; }
+    .minimap .mm-bar { gap: 0; }
+    .minimap .mm-title { width: 42px; height: 42px; padding: 0; margin: 0; border-radius: 50%; font-size: 0; display: flex; align-items: center; justify-content: center; }
+    .minimap .mm-title::before { content: "⌂"; font-size: 1.15rem; letter-spacing: 0; }
+    .minimap .mm-min { display: none; }
+    .tree-viewport { min-height: 0; }
 }

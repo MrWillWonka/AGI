@@ -1,4 +1,5 @@
-// debug-panel.js — developer tools. Enabled with ?debug in the URL (remembered) or by pressing ` (backtick).
+// debug-panel.js — developer tools. Opened by tapping the small terminal icon by the Journal three times, ?debug
+// or #debug in the URL, or the ` (backtick) key; remembered per device. The panel's × closes it.
 (function () {
     'use strict';
 
@@ -142,14 +143,25 @@
         if (!panel) build();
         panel.hidden = !show;
         flag(show);
-        document.getElementById('debugToggle').hidden = false;
+        document.getElementById('debugToggle').classList.toggle('on', show);
     }
+
+    // Three taps within TAP_WINDOW ms toggle the panel (one stray tap does nothing).
+    const TAP_WINDOW = 1200;
+    let taps = [];
 
     document.addEventListener('DOMContentLoaded', () => {
         const toggleButton = document.getElementById('debugToggle');
-        toggleButton.addEventListener('click', () => toggle(!panel || panel.hidden));
+        toggleButton.addEventListener('click', () => {
+            const now = performance.now();
+            taps = taps.filter(t => now - t < TAP_WINDOW).concat(now);
+            if (taps.length < 3) return;
+            taps = [];
+            toggle(!panel || panel.hidden);
+        });
 
-        if (new URLSearchParams(location.search).has('debug') || flag()) toggle(true);
+        // ?debug only reaches a standalone page; inside an artifact only a #hash passes through.
+        if (new URLSearchParams(location.search).has('debug') || location.hash === '#debug' || flag()) toggle(true);
 
         document.addEventListener('keydown', e => {
             if (e.key === '`' && !e.target.closest('input, textarea')) toggle(!panel || panel.hidden);

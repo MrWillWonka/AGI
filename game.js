@@ -55,7 +55,11 @@ window.AGI = (function () {
 
     function load() {
         const now = Date.now();
-        const json = storageGet(SAVE_KEY);
+        // Republished while open (a claude.ai artifact): the viewer hands over the save the old page made just
+        // before the update, newer than (or, with storage blocked, instead of) the stored one.
+        let handed = null;
+        try { handed = window.claude?.hot?.data?.save || null; } catch { /* not in a viewer */ }
+        const json = handed || storageGet(SAVE_KEY);
         if (!json) {
             state = E.defaultState(now);
             log('Welcome. Click Generate Compute to begin.', 'special');
@@ -1375,7 +1379,8 @@ window.AGI = (function () {
     function claimTab() {
         if (typeof BroadcastChannel === 'undefined') return;
         const startedAt = Date.now();
-        const channel = new BroadcastChannel('agiGame');
+        let channel;
+        try { channel = new BroadcastChannel('agiGame'); } catch { return; }   // a sandboxed frame may refuse it
         channel.onmessage = e => {
             const m = e.data || {};
             // The newest tab wins (two opening at once mustn't both stand down).
@@ -6099,9 +6104,38 @@ window.AGI = (function () {
             const n = notice;
             notice = null;
             setTimeout(() => openDialog({ title: n.title, message: n.message, text: n.text, readonly: true, okLabel: 'Copy', cancelLabel: 'Close',
-                onOk: area => { area.select(); navigator.clipboard?.writeText(n.text); } }), 400);
+                onOk: area => { area.select(); navigator.clipboard?.writeText(n.text)?.catch(() => {}); } }), 400);
         }
         window.addEventListener('pagehide', () => { if (state.settings.autosave) save(); });
+        // A claude.ai artifact's viewer swaps in a republished page while it's open: save first and hand the save
+        // across (load() prefers it), so an update mid-session loses nothing.
+        try { window.claude?.hot?.snapshot?.(() => { save(); return { save: E.serialize(state) }; }); } catch { /* not in a viewer */ }
+        keepAwake();
+    }
+
+    // Keep screen on (touch devices, per device): an active game earns nothing while the screen sleeps, so on a
+    // phone the screen stays on while the game is open and visible (a screen wake lock: requested on the first
+    // touch, released when hidden, taken again when shown; hosts that refuse it are simply ignored).
+    const AWAKE_KEY = 'agiAwake';
+    const awakeWanted = () => (storageGet(AWAKE_KEY) ?? (matchMedia('(pointer: coarse)').matches ? '1' : '0')) === '1';
+    let wakeLock = null;
+    async function requestWake() {
+        if (!awakeWanted() || wakeLock || document.hidden || !navigator.wakeLock) return;
+        try {
+            wakeLock = await navigator.wakeLock.request('screen');
+            wakeLock.addEventListener('release', () => { wakeLock = null; });
+        } catch { wakeLock = null; }
+    }
+    function keepAwake() {
+        const box = $('settingAwake');
+        box.checked = awakeWanted();
+        box.addEventListener('change', () => {
+            storageSet(AWAKE_KEY, box.checked ? '1' : '0');
+            if (box.checked) requestWake();
+            else wakeLock?.release().catch(() => {});
+        });
+        document.addEventListener('pointerdown', requestWake, { passive: true });
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) requestWake(); });
     }
 
     document.addEventListener('DOMContentLoaded', init);
