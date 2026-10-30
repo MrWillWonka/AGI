@@ -744,3 +744,40 @@ test('tucked, the ball takes tokens from further away', () => {
     assert.ok(T.TOKEN_PULL > 1);
     assert.ok(T.AIR_DIVE > 1 && T.AIR_DIVE < 1.15);
 });
+
+test('act two thrust: held, it drives the ball and burns one sprint of fuel per BURN_SECONDS', () => {
+    const roll = T.createRoll(T.LATE_LEG, 4, { pushes: 3, cooldown: 1, onward: true, last: T.LATE_LEG });
+    roll.thrust = 25 / T.BURN_SECONDS;
+    const steps = Math.round(T.BURN_SECONDS * 60);
+    for (let i = 0; i < steps; i++) roll.step(1 / 60);
+    assert.ok(roll.launched && roll.ball.v > 2, `it got going (${roll.ball.v.toFixed(2)} m/s)`);
+    assert.ok(Math.abs(roll.pushesLeft - 2) < 0.05, `one unit burned (${roll.pushesLeft.toFixed(3)} left)`);
+    roll.thrustFree = true;
+    for (let i = 0; i < steps; i++) roll.step(1 / 60);
+    assert.ok(Math.abs(roll.pushesLeft - 2) < 0.05, 'a free burn (crunch) uses no fuel');
+    roll.thrustFree = false;
+    for (let i = 0; i < 600 && roll.pushesLeft > 0; i++) roll.step(1 / 60);
+    assert.equal(roll.pushesLeft, 0, 'the tank runs dry');
+    assert.equal(roll.thrusting, false, 'and the jet stops');
+    for (let i = 0; i < 6000 && !roll.over; i++) roll.step(1 / 60);
+    assert.ok(roll.over, 'an empty tank ends the run once the ball rests');
+});
+
+test('act two thrust keeps a flight up: thrust in the air stays aloft longer and goes further', () => {
+    const flight = thrust => {
+        const roll = T.createRoll(T.LATE_LEG, 6, { pushes: 3, cooldown: 1, onward: true, last: T.LATE_LEG });
+        for (let i = 0; i < 30; i++) roll.step(1 / 60);
+        roll.fly(8, 4);
+        let air = 0;
+        for (let i = 0; i < 1200 && roll.airborne; i++) {
+            roll.thrust = thrust;
+            roll.step(1 / 60);
+            air += 1 / 60;
+        }
+        return { air, x: roll.ball.x };
+    };
+    const glide = flight(0);
+    const jet = flight(40);
+    assert.ok(jet.air > glide.air * 1.3, `airtime ${jet.air.toFixed(2)} s vs ${glide.air.toFixed(2)} s`);
+    assert.ok(jet.x > glide.x, 'and further');
+});

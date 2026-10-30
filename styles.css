@@ -954,6 +954,9 @@ h1, h2, h3, p { margin: 0; }
 }
 
 .charge-fill.in-zone { background: linear-gradient(90deg, #2c8a63, var(--success)); box-shadow: 0 0 14px rgba(99, 224, 171, 0.7); }
+/* Act two: the meter is the fuel tank, burning down while you thrust. */
+.charge.fuel .charge-fill { background: linear-gradient(90deg, #c2410c, var(--warning)); transition: width 0.08s linear; }
+.charge.fuel.burning .charge-fill { box-shadow: 0 0 14px rgba(255, 181, 71, 0.75); }
 .charge-fill.in-zone.perfect { background: linear-gradient(90deg, #b8860b, #ffe08a); box-shadow: 0 0 16px rgba(255, 224, 138, 0.9); }
 
 .charge-labels { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 0.76rem var(--font-mono); color: var(--text); }

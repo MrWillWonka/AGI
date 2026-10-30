@@ -60,6 +60,8 @@
                               // human-model sim now that XP multipliers apply to it live; 0.006 before that; at 1/1200 it was 2%, too little to notice)
         tokenXp: 0.03,        // an XP token (act two, hanging past a kicker's lip): this share of a frontier stretch's XP
         replayXp: 1,          // replaying a cleared leg pays this share of its XP: flat for clearing it, by distance otherwise
+        thrustEfficiency: 1.25, // act two's thrust delivers this much more energy per unit of fuel than a sprint (spread over a burn it loses more to drag)
+        slipstream: 0.25,     // act two: every quarter unit of fuel burned in flight pays like a clean prompt (the prompts' replacement)
         chainBonus: 0.5       // each cleared hill crossed in a run adds +0.5x to everything that run earns afterwards
     };
 
@@ -1105,6 +1107,20 @@
         return true;
     }
 
+    // Act two's thrust is paid as it burns: `units` of fuel (one full sprint each) cost that share of a full
+    // sprint, without the whole-number floor a sprint's price has.
+    function burnCost(s, units, leg = s.path.learned) {
+        const full = pushCost(s, 1, leg);
+        return Object.fromEntries(Object.entries(full).map(([k, v]) => [k, v * Math.max(0, units)]));
+    }
+    function payBurn(s, units, leg = s.path.learned) {
+        if (!s.unlocked['module:path']) return false;
+        const cost = burnCost(s, units, leg);
+        if (!canAfford(s, cost)) return false;
+        pay(s, cost);
+        return true;
+    }
+
     // XP for a roll that got `progress` (0-1) of the way up the stretch. Distance is worth more the
     // further you get, and cresting the skill hill pays a bonus.
     // Bonus zone for push number `index` of a roll: somewhere below the top of the meter, so a clean
@@ -1786,7 +1802,7 @@
 
     return {
         SAVE_VERSION, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
-        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, legClearXp, clearLeg, collectToken, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
+        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,

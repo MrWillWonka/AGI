@@ -57,6 +57,12 @@
     const AIR_DIVE = 1.06;
     // Tucked, the ball takes tokens from further away (Tiny Wings' coins reward the dive).
     const TOKEN_PULL = 2.5;
+    // Act two's thrust: held, a jet behind the ball feeds it energy continuously instead of a sprint's one kick.
+    // The run's sprints are its fuel: one sprint's worth burns in BURN_SECONDS at full thrust and delivers
+    // the same energy as a full sprint (the game sets the power, strength² / BURN_SECONDS). In the air it also
+    // drives it forward and holds it up (THRUST_LIFT of flight gravity), so thrust keeps a flight going.
+    const BURN_SECONDS = 0.6;   // a hot, short burn: at 1 s, slow thrust up the skill walls lost the energy to drag
+    const THRUST_LIFT = 0.7;
     const KICKERS = 0.85;           // share of act two's swells that are kickers (a lip to launch off)
     const KICK_SLOPE = [0.75, 1];   // a kicker's slope at its lip
 
@@ -351,6 +357,8 @@
         const ball = { x: ground.start, v: 0, still: 0, cooldown: 0, maxX: ground.start, trapped: false };
         let pushesLeft = pushes;
         let tuck = false;           // held in act two (see TUCK_GRAVITY); set by the UI each frame
+        let thrust = 0;             // act two's jet: energy per second while held (0 = off); set by the UI each frame
+        let thrustFree = false;     // a crunch: thrust burns no fuel
         let launched = false;
         let over = false;
         let crested = false;
@@ -410,13 +418,44 @@
             addEnergy(strength * strength);
             ball.still = 0;
             ball.cooldown = free ? Math.min(cooldown, FREE_COOLDOWN) : cooldown;
-            if (!free) pushesLeft--;
+            if (!free) pushesLeft = Math.max(0, pushesLeft - 1);
             launched = true;
             return true;
         }
 
+        // The jet, for one step: along the ground, or in flight forward plus lift (it flies freely
+        // while thrusting and plans its landing again once the jet stops). Burns fuel unless free.
+        function burn() {
+            const on = thrust > 0 && !over && !crested && flow.left <= 0 && (thrustFree || pushesLeft > 0);
+            const a = ball.air;
+            if (!on) {
+                if (a?.thrust) {
+                    a.thrust = false;
+                    a.apex = false;
+                    planLanding();
+                }
+                return;
+            }
+            const e = thrust * STEP;
+            if (a) {
+                a.plan = null;
+                a.thrust = true;
+                // Forward, not along the heading: on the way down that drove the ball into the ground, and the
+                // landing threw the speed away.
+                const v = Math.max(0, ball.v);
+                ball.v = Math.sqrt(v * v + e);
+                a.vy += THRUST_LIFT * GRAVITY * AIR_GRAVITY * STEP;
+            } else {
+                addEnergy(e);
+            }
+            ball.still = 0;
+            launched = true;
+            if (!thrustFree) pushesLeft = Math.max(0, pushesLeft - STEP / BURN_SECONDS);
+        }
+
         function stepOnce(events) {
             ball.cooldown = Math.max(0, ball.cooldown - STEP);
+            burn();
             if (reshaping.length) {
                 const k = Math.min(1, RESHAPE_RATE * STEP);
                 for (const b of reshaping) {
@@ -527,7 +566,7 @@
             const resting = !ball.air && flow.left <= 0 && Math.abs(ball.v) < REST_SPEED && Math.abs(dy) < 0.08;
             ball.still = resting ? ball.still + STEP : 0;
             // The roll ends once the ball settles with no pushes left. With pushes left, it waits for you.
-            if (launched && pushesLeft === 0 && !opts.holdOpen?.() && (ball.still >= REST_SECONDS || (!ball.air && flow.left <= 0 && ball.stall >= STALL_SECONDS))) {
+            if (launched && pushesLeft <= 1e-9 && !opts.holdOpen?.() && (ball.still >= REST_SECONDS || (!ball.air && flow.left <= 0 && ball.stall >= STALL_SECONDS))) {
                 over = true;
                 events.push(stopEvent());
             }
@@ -640,7 +679,7 @@
                 ball.x += ball.v * STEP;
                 a.y += a.vy * STEP;
             }
-            if (a.vy <= 0 && !a.apex && !a.plan) {
+            if (a.vy <= 0 && !a.apex && !a.plan && !a.thrust) {
                 a.apex = true;
                 planLanding();
             }
@@ -800,6 +839,11 @@
             get pushesLeft() { return pushesLeft; },
             get tuck() { return tuck; },
             set tuck(v) { tuck = !!v; },
+            get thrust() { return thrust; },
+            set thrust(v) { thrust = Math.max(0, +v || 0); },
+            set thrustFree(v) { thrustFree = !!v; },
+            // The jet is burning this step (held, fuel or free, and nothing in the way).
+            get thrusting() { return thrust > 0 && !over && !crested && flow.left <= 0 && (thrustFree || pushesLeft > 0); },
             get launched() { return launched; },
             get over() { return over; },
             // Past the skill hill's peak (rollOut only): rolling down the far side, no more pushes.
@@ -812,13 +856,15 @@
             get trapped() { return ball.trapped; },
             // In flight (late legs): the ball's height above the ground line's zero, else on the line.
             get airborne() { return !!ball.air; },
+            // Vertical speed in flight (m/s, up is positive); 0 on the line.
+            get vy() { return ball.air ? ball.air.vy : 0; },
             get landing() { return landing(); },
             get height() { return ball.air ? ball.air.y : ground.height(ball.x); }
         };
     }
 
     return {
-        STEP, GRAVITY, BUMPER, lengthScale, TUCK_GRAVITY, AIR_DIVE, TOKEN_PULL, features, KICKERS, KICK_SLOPE, bumpAt, bumpSlope,
+        STEP, GRAVITY, BUMPER, lengthScale, TUCK_GRAVITY, AIR_DIVE, TOKEN_PULL, BURN_SECONDS, THRUST_LIFT, features, KICKERS, KICK_SLOPE, bumpAt, bumpSlope,
         LATE_LEG, maxAbove, checkpoint, skillHill, skillHeight, rollingHills, terrain, createRoll, rng
     };
 });

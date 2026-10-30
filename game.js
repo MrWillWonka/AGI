@@ -3496,6 +3496,9 @@ window.AGI = (function () {
                     holdOpen: crunching });
             path.roll.frontier = state.path.learned;   // where the frontier was when the run started
             path.rollPushes = d.pushesPerRoll;
+            path.burnUnit = null;
+            path.burnStrength = null;
+            path.autoThrust = false;
             path.rollKey = key;
             if (path.stateRef !== state) path.cam = null;
             path.stateRef = state;
@@ -3616,6 +3619,101 @@ window.AGI = (function () {
         $('rollResult').hidden = true;
     }
 
+    // ---- Act two: thrust ----
+    // From LATE_LEG the ball is a launcher: holding fires a jet behind it (training-path.js `thrust`), burning
+    // the run's sprints as fuel and paying for them as they burn. Each unit of fuel that lights rolls the
+    // sprint luck (breakthroughs, crunches, Max Effort, flow) the way a sprint did.
+    const thrustLeg = roll => roll.leg >= T.LATE_LEG;
+    const BURN_FX_SECONDS = 0.8;   // a lucky burn's glow
+    function lightBurn(roll) {
+        const index = pushIndex(roll);
+        const seed = roll.ground.seed;
+        const d = E.derive(state);
+        const forced = path.fx.forceLuck;
+        path.fx.forceLuck = null;
+        const effort = !!path.fx.maxEffort;
+        path.fx.maxEffort = false;
+        const breakthrough = forced === 'breakthrough' || forced === 'superBreakthrough' || E.breakthroughHit(state, seed, index);
+        const superBreak = breakthrough && (forced === 'superBreakthrough' || E.superHit(state, 'breakthrough', seed, index));
+        path.burnStrength = E.sprintStrength(state, 1, null, breakthrough, effort);
+        if (breakthrough) {
+            roll.breakthroughs = (roll.breakthroughs || 0) + 1;
+            launchBreakthrough(roll, superBreak);
+            path.burnGlow = BURN_FX_SECONDS;
+        } else if (effort) {
+            path.fx.boost = BOOST_SECONDS;
+            burst(path.colors.warning, 24);
+            trailSfx('breakthrough');
+            path.burnGlow = BURN_FX_SECONDS;
+        }
+        if (!crunching() && (d.crunchSeconds || forced === 'crunch' || forced === 'superCrunch') && (forced === 'crunch' || forced === 'superCrunch' || E.crunchHit(state, seed, index))) {
+            roll.crunches = (roll.crunches || 0) + 1;
+            const seconds = Math.max(3, d.crunchSeconds);
+            path.fx.crunch = path.fx.crunchMax = seconds;
+            trailSfx('crunch');
+            luckBanner('CRUNCH TIME!', `Free thrust for ${seconds} s`, 'danger');
+        }
+        if (!path.fx.maxEffort && roll.pushesLeft > 1 && (forced === 'maxEffort' || E.maxEffortHit(state, seed, index))) {
+            path.fx.maxEffort = true;
+            luckBanner('MAX EFFORT', `Your next burn goes ×${d.maxEffortMult.toFixed(2)}`, 'warning');
+        }
+        if (!roll.flowing && (forced === 'flow' || forced === 'superFlow' || E.flowHit(state, seed, index))) {
+            startFlow(roll, forced === 'superFlow' || E.superHit(state, 'flow', seed, index));
+        }
+    }
+
+    // A slipstream: a clean prompt's XP and run bonus for fuel burned in flight. A run of them adds up in
+    // one pop that follows the ball.
+    function slipstream(roll) {
+        const xp = E.grantPushBonus(state, 'clean', ballLeg(), 1);
+        roll.units = (roll.units || 0) + 1;
+        roll.bonusXp = (roll.bonusXp || 0) + xp;
+        roll.slips = (roll.slips || 0) + 1;
+        if (!path.visible) return;
+        const h = roll.airborne ? roll.height : roll.ground.height(roll.ball.x);
+        const last = path.fx.pops.find(p => p.slips && p.age < 0.8);
+        if (last) Object.assign(last, { wx: roll.ball.x, wh: h, age: 0, slips: last.slips + 1, xp: last.xp + xp, text: `slipstream ×${last.slips + 1} +${xpText(last.xp + xp)}` });
+        else path.fx.pops.push({ wx: roll.ball.x, wh: h, age: 0, slips: 1, xp, text: `slipstream +${xpText(xp)}` });
+    }
+
+    // One frame of the jet: held by you (or the Auto-Trainer), paid as it burns. Running dry mid-hold turns
+    // the hold into a tuck.
+    function updateThrust(roll, sim) {
+        const free = crunching();
+        const want = (path.thrusting && path.held) || path.autoThrust;
+        if (path.thrusting && path.held && roll.pushesLeft <= 0 && !free) {
+            path.thrusting = false;
+            path.holdTuck = true;
+        }
+        let power = 0;
+        if (want && thrustLeg(roll) && !roll.over && !roll.crested && !roll.flowing && (roll.pushesLeft > 0 || free)) {
+            const unit = Math.ceil(roll.pushesLeft - 1e-9);
+            if (path.burnUnit !== unit || path.burnStrength == null) {
+                path.burnUnit = unit;
+                lightBurn(roll);
+            }
+            if (free || sim <= 0 || E.payBurn(state, sim / T.BURN_SECONDS, ballLeg())) {
+                power = E.PATH.thrustEfficiency * path.burnStrength * path.burnStrength / T.BURN_SECONDS;
+                setText($('pathStatus'), '');
+                // The slipstream: fuel burned in flight pays like clean prompts (XP now, and the run bonus).
+                if (roll.airborne) {
+                    roll.slip = (roll.slip || 0) + sim / T.BURN_SECONDS;
+                    while (roll.slip >= E.PATH.slipstream) {
+                        roll.slip -= E.PATH.slipstream;
+                        slipstream(roll);
+                    }
+                }
+            } else if (!path.autoThrust) {
+                setText($('pathStatus'), `Not enough to thrust: ${E.formatCost(E.burnCost(state, 1, ballLeg()))} per second`);
+            }
+        }
+        roll.thrust = power;
+        roll.thrustFree = free;
+        if (path.visible && power > 0) window.SFX?.charge(0.35 + 0.15 * Math.sin(performance.now() / 90));
+        else if (path.thrustSound) window.SFX?.chargeStop();
+        path.thrustSound = path.visible && power > 0;
+    }
+
     // A finished run waits for you: go to the dev screen to spend XP, or run again to bank more.
     function toDevScreen() {
         if (path.view === 'run' && path.done) showTrainingView('dev');
@@ -3634,7 +3732,7 @@ window.AGI = (function () {
         // After a run, only Train again (on the result card) starts the next one: a stray press does nothing.
         if (path.view !== 'run' || path.done) return;
         const roll = currentRoll();
-        if (path.charging) return;
+        if (path.charging || thrustLeg(roll)) return;
         if (!readyToFire(roll)) {
             if (!roll.over && roll.pushesLeft > 0 && chargeBudget() < E.PATH.minCharge) {
                 setText($('pathStatus'), `Not enough to sprint: ${E.formatCost(E.pushCost(state, E.PATH.minCharge, ballLeg()))}`);
@@ -3656,6 +3754,7 @@ window.AGI = (function () {
     // release is still judged, so nothing is queued.
     function letGo() {
         path.held = false;
+        path.thrusting = false;
         if (!path.charging) endTuck();
         path.dive = null;
         path.holdTuck = false;
@@ -3668,6 +3767,17 @@ window.AGI = (function () {
     function pressHold() {
         path.held = true;
         const roll = path.roll;
+        // Act two: hold to thrust while there's fuel (or a crunch makes it free); empty, a hold is a tuck.
+        if (roll && thrustLeg(roll) && path.view === 'run' && !path.done && !roll.over) {
+            path.holdTuck = roll.launched && roll.pushesLeft <= 0 && !crunching();
+            path.thrusting = !path.holdTuck;
+            if (path.thrusting && !roll.launched) {
+                path.overview = 0;
+                dismissResult();
+            }
+            startPathLoop();
+            return;
+        }
         path.holdTuck = !!roll && path.view === 'run' && !path.done && roll.launched && roll.leg >= T.LATE_LEG && !path.fx.maxEffort && !readyToFire(roll);
         if (!path.holdTuck) startCharge();
     }
@@ -4189,6 +4299,14 @@ window.AGI = (function () {
     // is one), banking their XP.
     function autoTrain(roll) {
         const lvl = E.autoTrainerLevel(state);
+        path.autoThrust = false;
+        // Act two: thrust instead of sprints. Level 1 keeps the ball rolling (from rest and when slow), level 2
+        // also thrusts up climbs it won't make, level 3 also holds flights up on the way down.
+        if (lvl && thrustLeg(roll) && !roll.over && path.pause <= 0 && !frozen() && (roll.pushesLeft > 0 || crunching())) {
+            const slow = !roll.airborne && roll.ball.v < AUTO_THRUST_SPEED;
+            path.autoThrust = !roll.launched || slow || (lvl >= 2 && wontClear(roll)) || (lvl >= 3 && roll.airborne && roll.vy < 0);
+            return;
+        }
         if (!lvl || roll.over || path.pause > 0 || roll.ball.cooldown > 0 || path.fx.windup || frozen() || roll.airborne) return;
         if (!(!roll.launched || roll.atRest || (lvl >= 2 && wontClear(roll)))) return;
         const budget = chargeBudget();
@@ -4203,6 +4321,8 @@ window.AGI = (function () {
         }
         pushBall(true, budget);
     }
+
+    const AUTO_THRUST_SPEED = 1.5; // m/s: below this on the ground the Auto-Trainer thrusts
 
     // Climbing (forward, uphill) without the energy to make the next crest: it will stall and roll back.
     function wontClear(roll) {
@@ -4252,7 +4372,7 @@ window.AGI = (function () {
             // Teach it in place, once: the first time the ball heads down a swell with no sprint to fire, a
             // pulsing HOLD over it (and the tip in the log).
             if (!state.intro['hint:tuck'] && path.visible && roll.leg >= T.LATE_LEG && !roll.airborne && !path.held && roll.launched && !roll.over
-                && roll.ground.slope(roll.ball.x) < -0.1 && roll.ball.v > 1 && !readyToFire(roll)) {
+                && roll.ground.slope(roll.ball.x) < -0.1 && roll.ball.v > 1 && roll.pushesLeft <= 0) {
                 state.intro['hint:tuck'] = true;
                 path.holdHint = 3;
                 log('Tip: hold on the way down a swell to dive and pick up speed; let go at the bottom.', 'info');
@@ -4268,6 +4388,14 @@ window.AGI = (function () {
             if (fx.windup && (fx.windup.age += dt) >= WINDUP_SECONDS) launchBreakthrough(roll, fx.windup.super);
             if (fx.crunch > 0) fx.crunch = Math.max(0, fx.crunch - sim);
             if (frozen() && (fx.freeze = Math.max(0, fx.freeze - dt)) === 0) releaseBank(roll);
+            // Act two's reveal: the first time a run is on its trail (once per save), since its control changes.
+            if (path.visible && thrustLeg(roll) && !state.intro['act:two']) {
+                state.intro['act:two'] = true;
+                luckBanner('ACT II', 'The model generalised. Hold to thrust.', 'success');
+                log('Act II: past General AI the trail opens into giant swells. Hold to thrust: your sprints are now fuel, burning behind the ball to keep it moving and flying.', 'special');
+            }
+            updateThrust(roll, sim);
+            if (path.burnGlow > 0) path.burnGlow -= dt;
             const events = roll.step(sim);
             roll.topSpeed = Math.max(roll.topSpeed || 0, Math.abs(roll.ball.v));
             for (const ev of events) {
@@ -4280,7 +4408,8 @@ window.AGI = (function () {
                 else finishRoll(ev);
             }
             // Stuck with pushes left but nothing to pay for them: give income a moment, then end the roll.
-            const broke = roll.launched && !roll.over && roll.atRest && roll.pushesLeft > 0 && chargeBudget() < E.PATH.minCharge;
+            const broke = roll.launched && !roll.over && roll.atRest && roll.pushesLeft > 0
+                && (thrustLeg(roll) ? !E.canAfford(state, E.burnCost(state, 0.1, ballLeg())) : chargeBudget() < E.PATH.minCharge);
             path.brokeFor = broke ? (path.brokeFor || 0) + dt : 0;
             if (path.brokeFor > STUCK_GRACE) {
                 path.brokeFor = 0;
@@ -4302,6 +4431,66 @@ window.AGI = (function () {
         const animating = busy || path.legFlash || fxBusy() || path.summit || path.particles.length || path.tension > 0.01 || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
             || E.autoTrainerLevel(state) > 0;
         if (running && animating) path.frame = requestAnimationFrame(pathFrame);
+    }
+
+    // The jet: a flame out of the back of the ball along its heading, and exhaust puffs left in the world
+    // behind it (they stay where they were blown, so the gas trails the flight), hotter for a lucky burn.
+    const PUFF_SECONDS = 0.7;
+    function drawThrust(ctx, roll, bx, by, X, Y, pxPerUnit, yScale, dt) {
+        const c = path.colors;
+        const puffs = path.puffs || (path.puffs = []);
+        const on = roll.thrusting;
+        const hot = path.burnGlow > 0 || !!path.fx.maxEffort;
+        if (on && dt > 0 && !reducedMotion()) {
+            const h = roll.airborne ? roll.height : roll.ground.height(roll.ball.x);
+            for (let i = 0; i < 2; i++) {
+                puffs.push({ wx: roll.ball.x - 0.05 * Math.random(), wy: h + (Math.random() - 0.5) * 0.08, age: 0,
+                    r: 3 + Math.random() * 3, hot });
+            }
+        }
+        for (const p of puffs) p.age += dt;
+        path.puffs = puffs.filter(p => p.age < PUFF_SECONDS);
+        for (const p of path.puffs) {
+            const k = p.age / PUFF_SECONDS;
+            ctx.fillStyle = hexAlpha(k < 0.3 ? (p.hot ? '#fff3c4' : c.warning) : k < 0.6 ? c.accent : c.muted, 0.5 * (1 - k));
+            ctx.beginPath();
+            ctx.arc(X(p.wx), Y(p.wy), p.r * (1 + 2.5 * k), 0, Math.PI * 2);
+            ctx.fill();
+        }
+        if (!on) return;
+        // Heading on screen (up is negative y): along the flight, or along the ground.
+        const vy = roll.airborne ? roll.vy : roll.ground.slope(roll.ball.x) * roll.ball.v;
+        let ux = roll.ball.v * pxPerUnit;
+        let uy = -vy * yScale;
+        const n = Math.hypot(ux, uy) || 1;
+        ux /= n;
+        uy /= n;
+        if (n < 1) { ux = 1; uy = 0; }
+        const flick = reducedMotion() ? 1 : 0.8 + 0.4 * Math.random();
+        const len = (BALL * 3.2 + (hot ? 14 : 0)) * flick;
+        const tipX = bx - ux * (BALL + len);
+        const tipY = by - uy * (BALL + len);
+        const grad = ctx.createLinearGradient(bx, by, tipX, tipY);
+        grad.addColorStop(0, hexAlpha(hot ? '#fff3c4' : '#ffe9a8', 0.95));
+        grad.addColorStop(0.4, hexAlpha(c.warning, 0.8));
+        grad.addColorStop(1, hexAlpha(c.accent, 0));
+        // A cone from the back of the ball to the tip.
+        const px = -uy * BALL * 0.85;
+        const py = ux * BALL * 0.85;
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(bx - ux * BALL * 0.3 + px, by - uy * BALL * 0.3 + py);
+        ctx.lineTo(tipX, tipY);
+        ctx.lineTo(bx - ux * BALL * 0.3 - px, by - uy * BALL * 0.3 - py);
+        ctx.closePath();
+        ctx.fill();
+        if (hot) {
+            ctx.strokeStyle = hexAlpha('#fff3c4', 0.6);
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(bx, by, BALL + 5, 0, Math.PI * 2);
+            ctx.stroke();
+        }
     }
 
     // ---- Drama: nail-biters and summits ----
@@ -4414,12 +4603,6 @@ window.AGI = (function () {
         if (ev.type === 'launch') {
             burst(path.colors.success, 14);
             sfx('launch');
-            // Act two's reveal: the first time the ball leaves the ground (once per save).
-            if (!state.intro['act:two']) {
-                state.intro['act:two'] = true;
-                luckBanner('ACT II', 'The model generalised. Now it flies.', 'success');
-                log('Act II: past General AI the trail opens into giant swells. Build speed and fly off the crests.', 'special');
-            }
             return;
         }
         burst(path.colors.muted, Math.min(26, 6 + Math.round(ev.impact)));
@@ -4490,7 +4673,7 @@ window.AGI = (function () {
         const pct = Math.round(ev.progress * 100);
         const viralMult = viral ? E.derive(state).windfallMult : 1;
         const runMult = viralMult * E.chainMult(legs);
-        const lines = xpLines(plainXp * runMult, result.xp - plainXp * runMult, clean, roll.bonusXp || 0, crested);
+        const lines = xpLines(plainXp * runMult, result.xp - plainXp * runMult, clean, roll.bonusXp || 0, crested, roll.slips || 0);
         if (roll.tokens) lines.push([`${roll.tokens} XP token${roll.tokens === 1 ? '' : 's'}`, `+${xpText(roll.tokenXp)} XP`, 'good']);
         if (legs) lines.unshift([`Chain ×${E.chainMult(legs)} on the distance`, '', 'good']);
         if (viral) {
@@ -4600,11 +4783,13 @@ window.AGI = (function () {
     }
 
     // Breakdown rows for the result card: distance XP, the clean-push roll bonus, and XP already banked.
-    function xpLines(distanceXp, rollBonusXp, clean, banked, crested) {
+    // `slips`: act two's slipstreams, which bank and add run bonus like prompts.
+    function xpLines(distanceXp, rollBonusXp, clean, banked, crested, slips = 0) {
         const rows = distanceXp >= 0.01 ? [[crested ? 'Distance (×2 for cresting)' : 'Distance', `+${xpText(distanceXp)} XP`]] : [];
-        if (clean) {
-            rows.push(['Prompt run bonus', `+${xpText(rollBonusXp)} XP`, 'good']);
-            rows.push([`Banked from ${clean} prompt${clean === 1 ? '' : 's'}`, `+${xpText(banked)} XP`, 'good']);
+        if (clean || slips) {
+            const from = [clean ? `${clean} prompt${clean === 1 ? '' : 's'}` : '', slips ? `${slips} slipstream${slips === 1 ? '' : 's'}` : ''].filter(Boolean).join(' and ');
+            rows.push([slips && !clean ? 'Slipstream run bonus' : 'Prompt run bonus', `+${xpText(rollBonusXp)} XP`, 'good']);
+            rows.push([`Banked from ${from}`, `+${xpText(banked)} XP`, 'good']);
         }
         return rows;
     }
@@ -4639,7 +4824,15 @@ window.AGI = (function () {
         if (!roll) return;
         // One message at a time: charging reads "Release to sprint", and the wait counts down on the button
         // (the meter greys out and won't charge until it's over).
-        const label = path.charging ? (frozen() ? 'Release to bank' : 'Release to sprint')
+        const thrustMode = thrustLeg(roll) && !path.charging && !frozen();
+        const label = thrustMode
+            ? (roll.thrusting ? (crunching() ? `CRUNCH! Free thrust (${path.fx.crunch.toFixed(1)} s)` : 'Thrusting…')
+                : !roll.launched ? 'Hold to launch'
+                : roll.over ? (path.done ? 'Hold to thrust' : 'Next run…')
+                : flowing() ? `Flowing… (${path.roll.flowing.toFixed(1)} s)`
+                : path.fx.maxEffort ? 'MAX EFFORT: hold to burn'
+                : roll.pushesLeft > 0 || crunching() ? 'Hold to thrust' : 'Out of fuel · hold to dive')
+            : path.charging ? (frozen() ? 'Release to bank' : 'Release to sprint')
             : path.fx.windup ? 'Breakthrough…'
             : frozen() ? `BULLET TIME! Bank sprints (${path.fx.freeze.toFixed(1)} s)`
             : path.fx.maxEffort && readyToFire(roll) ? 'MAX EFFORT: press to go all out'
@@ -4657,9 +4850,12 @@ window.AGI = (function () {
         // charges when ready, and Firefox sends no pointer events to a disabled button.
         // While a sprint charges (or the trail is held), the minimap pill in the corner doesn't open on hover.
         document.body.classList.toggle('charging', !!path.charging || !!path.held);
-        const off = !path.charging && (path.done || !readyToFire(roll));
+        const off = thrustMode ? path.done || roll.over || (roll.launched && roll.pushesLeft <= 0 && !crunching())
+            : !path.charging && (path.done || !readyToFire(roll));
         if (button.getAttribute('aria-disabled') !== String(off)) button.setAttribute('aria-disabled', String(off));
-        $('charge').classList.toggle('waiting', !path.charging && roll.launched && (path.done || (canPush(roll) && !readyToFire(roll))));
+        $('charge').classList.toggle('waiting', !thrustMode && !path.charging && roll.launched && (path.done || (canPush(roll) && !readyToFire(roll))));
+        $('charge').classList.toggle('fuel', thrustMode);
+        $('charge').classList.toggle('burning', thrustMode && roll.thrusting);
         button.classList.toggle('crunch', crunching());
         button.classList.toggle('frozen', frozen());
         button.classList.toggle('effort', !!path.fx.maxEffort);
@@ -4682,12 +4878,26 @@ window.AGI = (function () {
         const mult = 1 + E.derive(state).cleanRollBonus * units;
         const parts = [];
         if (chain) parts.push(`chain ×${E.chainMult(chain)}`);
-        if (units) parts.push(`prompts ×${mult.toFixed(2)} · +${xpText(roll.bonusXp)} banked`);
+        if (units) parts.push(`${roll.slips ? 'run bonus' : 'prompts'} ×${mult.toFixed(2)} · +${xpText(roll.bonusXp)} banked`);
         setText($('liveXpMult'), parts.join(' · '));
     }
 
     function updateMeter(roll) {
         const d = E.derive(state, debugRates);
+        // Act two: the meter is the fuel tank (what's left of the run's sprints), with what full thrust costs.
+        if (thrustLeg(roll) && !path.charging && !frozen()) {
+            const total = Math.max(1, path.rollPushes || d.pushesPerRoll);
+            const fuel = Math.max(0, roll.pushesLeft);
+            $('chargeFill').style.width = `${Math.min(1, fuel / total) * 100}%`;
+            for (const id of ['chargeZone', 'chargePerfect', 'chargeSystem']) $(id).hidden = true;
+            const over = $('chargeOver');
+            over.style.left = '100%';
+            over.style.width = '0%';
+            setText($('chargeValue'), crunching() ? 'Crunch: thrust is free'
+                : `Fuel ${fuel.toFixed(1)} / ${total} · full thrust ${E.formatCost(E.burnCost(state, 1, ballLeg()))} per second`);
+            setText($('chargeClean'), '');
+            return;
+        }
         const level = chargeLevel();
         const zone = currentZone(roll);
         const hit = path.charging ? E.zoneHit(zone, level) : null;
@@ -5386,6 +5596,7 @@ window.AGI = (function () {
             ctx.arc(bx, by, BALL + 4 + 10 * (0.35 - path.pushFlash) / 0.35, 0, Math.PI * 2);
             ctx.fill();
         }
+        drawThrust(ctx, roll, bx, by, X, Y, pxPerUnit, yScale, dt);
         // Tucked: a gold halo, and speed lines behind it on the way down.
         if (roll.tuck) {
             ctx.strokeStyle = hexAlpha(c.warning, 0.7);
@@ -5504,8 +5715,17 @@ window.AGI = (function () {
         for (let i = 0; i < E.derive(state).pushesPerRoll; i++) {
             ctx.beginPath();
             ctx.arc(PAD_X + 6 + i * 16, 14, 5, 0, Math.PI * 2);
-            ctx.fillStyle = i < pips ? c.warning : hexAlpha(c.muted, 0.3);
+            ctx.fillStyle = hexAlpha(c.muted, 0.3);
             ctx.fill();
+            // Act two burns fuel continuously: the pip being burned drains.
+            const left = Math.max(0, Math.min(1, pips - i));
+            if (left > 0) {
+                ctx.fillStyle = hexAlpha(c.warning, left < 1 ? 0.35 + 0.65 * left : 1);
+                ctx.beginPath();
+                ctx.moveTo(PAD_X + 6 + i * 16, 14);
+                ctx.arc(PAD_X + 6 + i * 16, 14, 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left);
+                ctx.fill();
+            }
         }
         // Skills learned on this run so far (a strong run can learn several; the result card lists them too).
         if (roll.learned?.length && !roll.over) {

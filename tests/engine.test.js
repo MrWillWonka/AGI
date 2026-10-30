@@ -1349,3 +1349,18 @@ test('a near miss on the skill hill pays a consolation share; anything lower pay
     assert.equal(s.res.xp, 100 * E.NEAR_MISS.share);
     assert.ok(Math.abs(E.speedShort(0.81) - 1 / 9) < 1e-9);
 });
+
+test('act two thrust is paid as it burns: a share of a full sprint, no whole-number floor', () => {
+    const s = fresh();
+    s.unlocked['module:path'] = true;
+    s.path.learned = 8;
+    const full = E.pushCost(s, 1);
+    const tenth = E.burnCost(s, 0.1);
+    for (const k of Object.keys(full)) assert.ok(Math.abs(tenth[k] - full[k] * 0.1) < 1e-9);
+    s.res.cp = 1e9;
+    s.res.dp = 1e9;
+    assert.equal(E.payBurn(s, 0.1), true);
+    assert.ok(Math.abs(s.res.cp - (1e9 - tenth.cp)) < 1e-6);
+    s.res.cp = 0;
+    assert.equal(E.payBurn(s, 0.1), false, 'not without the money');
+});
