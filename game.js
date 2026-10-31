@@ -4756,11 +4756,13 @@ window.AGI = (function () {
             const last = learned[learned.length - 1].skill;
             const grants = learned.map(l => Object.entries(l.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ')).filter(Boolean).join(' · ');
             const names = learned.map(l => l.skill.name).join(', ');
-            log(`${replay ? 'Replay' : 'Run'} ${state.stats.rolls}: learned ${names}, then stopped ${pct}% of the way to ${target} (+${xpText(result.xp + banked)} XP).`, 'special');
+            // Stopping just past the crest reads "0% of the way": say nothing about the next leg then.
+            const onward = pct > 0 ? `, then stopped ${pct}% of the way to ${target}` : '';
+            log(`${replay ? 'Replay' : 'Run'} ${state.stats.rolls}: learned ${names}${onward} (+${xpText(result.xp + banked)} XP).`, 'special');
             path.overview = OVERVIEW_SECONDS + path.pause;
             showResult({ skill: true, title: learned.length > 1 ? `${learned.length} skills learned` : 'Skill learned', main: names,
                 flavor: last.flavor, xp: result.xp + banked,
-                lines: [...learned.map(l => [l.skill.effect, '']), ...(grants ? [[grants, '']] : []), ...lines, [`Then ${pct}% of the way to ${target}`, '']], record: result.record });
+                lines: [...learned.map(l => [l.skill.effect, '']), ...(grants ? [[grants, '']] : []), ...lines, ...(pct > 0 ? [[`Then ${pct}% of the way to ${target}`, '']] : [])], record: result.record });
             if (!state.intro['hint:replay']) {
                 state.intro['hint:replay'] = true;
                 callout('hint:replay', 'Tip', 'Your AI now replays your best run on each cleared leg for passive XP. Run a leg again with better upgrades to raise it.');
@@ -5824,8 +5826,14 @@ window.AGI = (function () {
         if (path.overview > 0) {
             ctx.textAlign = 'center';
             ctx.font = '700 13px "Chakra Petch", system-ui, sans-serif';
-            ctx.fillStyle = hexAlpha(c.success, Math.min(1, path.overview));
-            ctx.fillText(`${state.path.learned} skill${state.path.learned === 1 ? '' : 's'} learned`, w / 2, h - PAD_BOTTOM - 8);
+            const label = `${state.path.learned} skill${state.path.learned === 1 ? '' : 's'} learned`;
+            const fade = Math.min(1, path.overview);
+            // A plate in the trail's colour: the overview's hills sit right under the label and ran through the count.
+            const lw = ctx.measureText(label).width + 16;
+            ctx.fillStyle = hexAlpha(c.bg, 0.85 * fade);
+            ctx.fillRect(w / 2 - lw / 2, h - PAD_BOTTOM - 24, lw, 22);
+            ctx.fillStyle = hexAlpha(c.success, fade);
+            ctx.fillText(label, w / 2, h - PAD_BOTTOM - 8);
         }
 
         // Confetti, falling across the whole trail.
