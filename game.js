@@ -36,6 +36,33 @@ window.AGI = (function () {
         try { localStorage.setItem(key, value); return true; } catch { return false; }
     }
 
+    // Playtest recorder (playtest.js): events stamped with play time, kept on this device, copied out from Settings.
+    const playtest = window.Playtest?.create({ get: storageGet, set: storageSet }) || null;
+    let playtestSampleAt = 0;
+    function pt(type, data) {
+        if (playtest && state) playtest.event(state.stats.playTime, type, data);
+    }
+    const r2 = x => Math.round(x * 100) / 100;
+    let playtestView = null;
+    const ptPlace = () => (openBay === 'training' && path.view === 'dev' ? 'tree' : currentPlace());
+    function ptView(v) {
+        if (v === playtestView) return;
+        playtestView = v;
+        pt('view', { v });
+    }
+    // Every SAMPLE_SECONDS of play: what you hold, what comes in, where you are, and the clicks since the last one.
+    function playtestSample(force) {
+        if (!playtest || !state || (!force && state.stats.playTime < playtestSampleAt)) return;
+        playtestSampleAt = state.stats.playTime + window.Playtest.SAMPLE_SECONDS;
+        const d = E.derive(state);
+        const r = state.res;
+        pt('sample', { cp: Math.round(r.cp), dp: Math.round(r.dp), rp: Math.round(r.rp), xp: Math.round(r.xp),
+            cpNet: r2(d.cpNet), dpNet: r2(d.dpNet), rpRate: r2(d.rpPerSec), xpRate: r2(d.xpPerSec),
+            int: r2(state.attr.intelligence), skills: state.path.learned, phase: E.phaseIndex(state), at: ptPlace(),
+            hand: playtest.takeCounts() });
+        playtest.flush();
+    }
+
     function save(manual) {
         if (passiveTab) return;
         state.lastSaved = Date.now();
@@ -995,6 +1022,11 @@ window.AGI = (function () {
         });
         $('saveButton').addEventListener('click', () => save(true));
         $('exportButton').addEventListener('click', exportSave);
+        $('playtestButton').addEventListener('click', exportPlaytest);
+        $('playtestClear').addEventListener('click', clearPlaytest);
+        $('settingPlaytest').checked = !!playtest?.enabled;
+        $('settingPlaytest').disabled = !playtest;
+        $('settingPlaytest').addEventListener('change', e => playtest?.setEnabled(e.target.checked));
         $('importButton').addEventListener('click', importSave);
         $('restoreButton').addEventListener('click', restoreBackup);
         $('settingCalm').addEventListener('change', e => { state.settings.calm = e.target.checked; applySettings(); save(); });
@@ -1055,6 +1087,7 @@ window.AGI = (function () {
     function doAction(id, button) {
         const result = E.act(state, id, debugRates);
         if (!result.ok) return;
+        playtest?.count(id);
         if (result.gained != null) {
             floatGain(button, `+${E.format(result.gained)} ${E.RESOURCES[result.resource].short}`);
             clickGlow(result.resource, result.gained);
@@ -1099,6 +1132,7 @@ window.AGI = (function () {
         log(result.count > 1 ? `${E.upgradeName(state, up0)} ×${result.count}: now level ${E.level(state, id)}.` : result.msg, result.ok ? 'success' : 'warning');
         sfx(result.ok ? (up0.max === 1 || result.count > 1 || result.evolved ? 'buyBig' : 'buy') : 'error');
         if (result.ok) {
+            pt('buy', { id, lvl: E.level(state, id), ...(result.count > 1 ? { n: result.count } : {}) });
             const up = E.UPGRADE_BY_ID[id];
             if (isLabUpgrade(up)) termLog(`installed ${E.upgradeName(state, up)} (level ${E.level(state, id)})`);
             if (isLabUpgrade(up) && E.isMaxed(state, up)) retireCard(id);
@@ -1160,6 +1194,7 @@ window.AGI = (function () {
         const result = into ? E.startChallenge(state, into, Date.now()) : E.prestige(state, Date.now());
         if (!result.ok && !force) return;
         state = result.ok ? result.state : state;
+        if (result.ok) pt('ship', { version: result.version, gain: result.gain, ...(into ? { challenge: into } : {}) });
         path.roll = null;
         resetView(false);
         log(`Shipped ${result.version}! +${result.gain} Insight. Automated production and training XP are now ×${E.derive(state).mult.toFixed(2)}. Spend Insight on legacy upgrades before you start.`, 'special');
@@ -1207,6 +1242,7 @@ window.AGI = (function () {
             ]);
             button.addEventListener('click', () => {
                 if (!E.buyPerk(state, p.id)) return;
+                pt('perk', { id: p.id });
                 log(`Transcendence perk: ${p.name}${p.costs.length > 1 ? ` ${E.perkLevel(state, p.id)}` : ''}.`, 'special');
                 afterChange();
                 save();
@@ -1298,6 +1334,7 @@ window.AGI = (function () {
         const result = E.transcend(state, Date.now());
         if (!result.ok) return;
         state = result.state;
+        pt('transcend', { gain: result.gain });
         path.roll = null;
         resetView(false);
         log(`Transcended. +${result.gain} Transcendence. Every release now brings ×${E.insightBoost(state).toFixed(1)} Insight.`, 'special');
@@ -1306,6 +1343,40 @@ window.AGI = (function () {
         afterChange();
         save();
         showView('lab');
+    }
+
+    // The playtest log as text to copy (the artifact frame refuses downloads, like Export).
+    function exportPlaytest() {
+        if (!playtest) return;
+        playtestSample(true);
+        const text = playtest.report({ save: `v${E.SAVE_VERSION}, ${E.currentVersion(state)}, ${state.path.learned} skills`,
+            screen: `${innerWidth}×${innerHeight}${matchMedia('(pointer: coarse)').matches ? ', touch' : ''}`,
+            browser: navigator.userAgent });
+        openDialog({
+            title: 'Playtest log',
+            message: `${playtest.events.length} events. Copy it and paste it into your chat with Claude.`,
+            text,
+            readonly: true,
+            okLabel: 'Copy log',
+            cancelLabel: 'Close',
+            onOk: area => {
+                area.select();
+                navigator.clipboard?.writeText(text).then(
+                    () => log('Playtest log copied to your clipboard.', 'success'),
+                    () => log('Copy was blocked. Select the log and copy it manually.', 'warning')
+                );
+            }
+        });
+    }
+
+    async function clearPlaytest() {
+        if (!playtest) return;
+        const { ok } = await openDialog({ title: 'Clear the playtest log?', message: 'Every recorded event on this device is deleted. Your game is not touched.', okLabel: 'Clear log', danger: true });
+        if (!ok) return;
+        playtest.clear();
+        pt('session', { cleared: true, skills: state.path.learned, at: playtestView = ptPlace() });
+        playtestSample(true);
+        log('Playtest log cleared.', 'info');
     }
 
     function exportSave() {
@@ -1489,6 +1560,7 @@ window.AGI = (function () {
             log(`${r.name}: ${r.intro}`, 'special');
         }
         for (const m of changes.milestones) {
+            pt('unlock', { key: m.key });
             log(`Milestone reached: ${m.name}`, 'special');
             // First-time callouts show once per save, not again after a new version.
             if (m.callout && !state.intro[m.key]) {
@@ -1503,6 +1575,7 @@ window.AGI = (function () {
             if (!state.prestige.count) callout('room:rnd', 'R&D online', 'Your model is ready to ship. A new version starts over with Insight to spend.');
         }
         for (const a of changes.achievements) {
+            pt('achievement', { id: a.id });
             log(`Achievement unlocked: ${a.name}`, 'special');
             toast(`Achievement · ${a.name}`, a.desc, 'achievement');
         }
@@ -1516,7 +1589,9 @@ window.AGI = (function () {
                 toast(`Challenge failed · ${c.name}`, 'Out of time', 'phase');
             }
         }
+        if (changes.challenge) pt('challenge', { name: changes.challenge.name, won: !!changes.challenge.won });
         if (changes.phase) {
+            pt('phase', { name: changes.phase.name });
             log(`Phase transition! You have reached ${changes.phase.name}.`, 'special');
             const seenPhase = `phase:${changes.phase.name}`;
             if (!state.intro[seenPhase]) {
@@ -1557,6 +1632,7 @@ window.AGI = (function () {
         }
         if (dt > 5) {
             log(`Paused for ${E.formatDuration(dt)} while you were away.`, 'info');
+            pt('gap', { s: Math.round(dt) });
         } else {
             E.tick(state, dt * debugSpeed, debugRates);
             addDebugIncome(dt * debugSpeed);
@@ -1564,6 +1640,7 @@ window.AGI = (function () {
             advanceTasks(dt * debugSpeed);
         }
         afterChange();
+        playtestSample();
         if (state.settings.autosave && now - lastSave >= AUTOSAVE_MS) save();
     }
 
@@ -2060,6 +2137,7 @@ window.AGI = (function () {
 
     // Show one screen: the facility or a room.
     function showView(id) {
+        ptView(id);
         view = id;
         $('facility').hidden = id !== 'facility';
         setCameras(id === 'facility');
@@ -2772,6 +2850,7 @@ window.AGI = (function () {
     function enterBay(id, bayNode) {
         if (!bayUnlocked(id) || openBay) return;
         openBay = id;
+        ptView(`bay:${id}`);
         const bay = BAYS[id];
         setText($('moduleTitle'), crumbName(bay.name));
         for (const m of document.querySelectorAll('.module')) m.hidden = true;
@@ -2801,6 +2880,7 @@ window.AGI = (function () {
 
     function exitBay() {
         if (!openBay) return;
+        ptView('servers');
         const bayNode = $('bays').querySelector(`.bay[data-bay="${openBay}"]`);
         const hub = $('hub');
         const view = $('moduleView');
@@ -3323,6 +3403,7 @@ window.AGI = (function () {
     }
 
     function showTrainingView(view) {
+        if (openBay) ptView(view === 'dev' ? 'tree' : 'bay:training');
         path.view = view;
         path.done = false;
         $('runView').hidden = view !== 'run';
@@ -3732,6 +3813,10 @@ window.AGI = (function () {
             }
             if (free || sim <= 0 || E.payBurn(state, sim / T.BURN_SECONDS, ballLeg())) {
                 power = E.PATH.thrustEfficiency * path.burnStrength * path.burnStrength / T.BURN_SECONDS;
+                // Playtest: act two logs fuel per run (burn time in sprints' worth, and how much of it was in the air).
+                if (!roll.launched && roll.ptStart == null) roll.ptStart = state.stats.playTime;
+                roll.ptFuel = (roll.ptFuel || 0) + sim / T.BURN_SECONDS;
+                if (roll.airborne) roll.ptAirFuel = (roll.ptAirFuel || 0) + sim / T.BURN_SECONDS;
                 setText($('pathStatus'), '');
                 // The slipstream: fuel burned in flight pays like clean prompts (XP now, and the run bonus).
                 if (roll.airborne) {
@@ -3965,9 +4050,11 @@ window.AGI = (function () {
         if (roll.over || roll.crested || path.fx.windup || (!free && roll.pushesLeft <= 0) || roll.ball.cooldown > 0) return false;
         // Every push is paid for by how hard it is charged (a crunch's are free).
         const leg = ballLeg();
+        const capBefore = free ? 1 : chargeBudget();   // the playtest log wants the meter's cap before paying
         if (!free) {
             fraction = Math.min(fraction, chargeBudget());
             if (fraction < E.PATH.minCharge || !E.payPush(state, fraction, leg)) {
+                if (!auto) playtest?.count('sprintBroke');
                 if (!auto) setText($('pathStatus'), `Not enough to sprint: ${E.formatCost(E.pushCost(state, E.PATH.minCharge, leg))}`);
                 return false;
             }
@@ -3989,6 +4076,10 @@ window.AGI = (function () {
             ? firstSummitStrength(roll, d)
             : E.sprintStrength(state, fraction, kind, breakthrough, effort);
         if (free) roll.freePushes = (roll.freePushes || 0) + 1;
+        if (!roll.launched) roll.ptStart = state.stats.playTime;
+        pt('sprint', { leg, ch: r2(fraction), cap: r2(capBefore), ...(kind ? { k: kind } : {}), ...(auto ? { auto: true } : {}),
+            ...(effort ? { effort: true } : {}), ...(breakthrough ? { br: true } : {}), ...(free ? { free: true } : {}),
+            first: !roll.launched || undefined, x: r2(roll.ball.x), v: r2(roll.ball.v), left: r2(roll.pushesLeft) });
         // The sprint lands now; on screen a breakthrough holds the run still for its wind-up first (you can
         // charge the next sprint meanwhile), off screen it just goes.
         roll.push(strength, free);
@@ -4641,6 +4732,7 @@ window.AGI = (function () {
         roll.legs = (roll.legs || 0) + 1;
         roll.legXp = (roll.legXp || 0) + xp;
         (roll.learned = roll.learned || []).push({ skill, xp });
+        pt('skill', { n: state.path.learned, name: skill.name, xp: r2(xp), runs: state.stats.rolls + 1 });
         celebrateSummit(skill.name, hill);
         // What it earned, where it happened (it used to wait for the result card), and a beat of stillness.
         path.fx.pops.push({ wx: hill.peak, wh: hill.height, age: 0, life: 2.6, big: true, text: `+${xpText(xp)} XP · ${skill.effect}` });
@@ -4728,6 +4820,13 @@ window.AGI = (function () {
         const result = E.finishRoll(state, ev.progress, crested, units, metres, leg, viral, legs);
         // Cleared legs replicate their best run for passive XP: a better replay raises it.
         const legBest = E.recordRun(state, roll.ground.stretch, result.xp + banked, viral ? E.derive(state).windfallMult : 1) && replay;
+        pt('run', { from: roll.ground.stretch, leg, prog: r2(ev.progress), m: r2(metres), xp: r2(result.xp + banked), legs,
+            sprints: r2((path.rollPushes || 0) - Math.max(0, roll.pushesLeft)), clean, top: r2(roll.topSpeed || 0),
+            dur: Math.round(state.stats.playTime - (roll.ptStart ?? state.stats.playTime)),
+            ...(roll.ptFuel ? { fuel: r2(roll.ptFuel), airFuel: r2(roll.ptAirFuel || 0) } : {}),
+            ...(roll.bestFlight ? { flight: r2(roll.bestFlight) } : {}),
+            ...(ev.rolledBack ? { back: true } : {}), ...(result.record ? { record: true } : {}), ...(viral ? { viral: true } : {}),
+            ...(E.autoTrainerLevel(state) > 0 ? { auto: true } : {}) });
         // With the Auto-Trainer the next roll starts by itself; otherwise the run waits for a click.
         const auto = E.autoTrainerLevel(state) > 0;
         path.pause = auto ? RESULT_PAUSE : 0;
@@ -6163,7 +6262,12 @@ window.AGI = (function () {
         // Save whenever the page is hidden or closed; beforeunload is unreliable on mobile.
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden' && state.settings.autosave) save();
+            pt(document.hidden ? 'hidden' : 'shown');
+            if (document.hidden) playtest?.flush();
         });
+        pt('session', { save: E.SAVE_VERSION, skills: state.path.learned, version: E.currentVersion(state),
+            screen: `${innerWidth}x${innerHeight}`, touch: matchMedia('(pointer: coarse)').matches, at: playtestView = ptPlace() });
+        playtestSample(true);
         watchIdle();
         if (notice) {
             const n = notice;
@@ -6171,7 +6275,7 @@ window.AGI = (function () {
             setTimeout(() => openDialog({ title: n.title, message: n.message, text: n.text, readonly: true, okLabel: 'Copy', cancelLabel: 'Close',
                 onOk: area => { area.select(); navigator.clipboard?.writeText(n.text)?.catch(() => {}); } }), 400);
         }
-        window.addEventListener('pagehide', () => { if (state.settings.autosave) save(); });
+        window.addEventListener('pagehide', () => { if (state.settings.autosave) save(); playtest?.flush(); });
         // A claude.ai artifact's viewer swaps in a republished page while it's open: save first and hand the save
         // across (load() prefers it), so an update mid-session loses nothing.
         try { window.claude?.hot?.snapshot?.(() => { save(); return { save: E.serialize(state) }; }); } catch { /* not in a viewer */ }

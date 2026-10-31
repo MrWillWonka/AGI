@@ -460,6 +460,7 @@ h1, h2, h3, p { margin: 0; }
 @media (hover: hover) { .ghost-button.danger:hover { border-color: var(--danger); color: var(--danger); } }
 
 .button-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.playtest-toggle { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
 
 .button-prestige {
     background: linear-gradient(180deg, #ff9b8f, var(--accent));
