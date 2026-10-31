@@ -291,8 +291,16 @@ window.AGI = (function () {
         'hint:hold': { anchor: () => ui.actions.compute?.button, kind: 'tip' },
         // After the first skill: on the result card, the replicated best run; in the lab, Scheduled tasks.
         'hint:replay': { anchor: () => $('rollResult'), kind: 'tip', place: 'below', ms: 15000 },
-        'hint:tasks': { anchor: () => $('taskPanel'), kind: 'tip', ms: 12000 }
+        'hint:tasks': { anchor: () => $('taskPanel'), kind: 'tip', ms: 12000 },
+        // While you train: the first time the lab has something new, or an investor's task is done. Beside the
+        // run view's Lab supply (a way there), else the Lab's tile on Surveillance (phones hide the chip).
+        'hint:lab': { anchor: () => labPointer(), kind: 'tip', place: 'below', ms: 12000 },
+        'hint:offer': { anchor: () => labPointer(), kind: 'tip', place: 'below', ms: 12000 }
     };
+    function labPointer() {
+        return [document.querySelector('.run-stats .module-supply'), document.querySelector('.facility-room[data-room-id="lab"]')]
+            .find(n => n && !n.hidden && n.offsetParent && n.getBoundingClientRect().width > 0) || null;
+    }
     const calloutQueue = [];
     let calloutLive = null;
     function callout(key, title, message) {
@@ -556,6 +564,28 @@ window.AGI = (function () {
 
     // Lab cards: everything but the skill tree and the legacy upgrades (their own screen).
     const isLabUpgrade = up => up.tab !== 'training' && up.tab !== 'legacy';
+
+    // Lab cards you haven't seen: revealed while you were out of the lab (screen state, per device). Everything
+    // on show counts as seen while you're in the lab, and on the first look (no sudden badge for older saves).
+    const LAB_SEEN_KEY = 'agiLabSeen';
+    let labSeen;
+    function labUnseen() {
+        // Not before the load has settled: the first render runs before evaluate() restores the save's unlocks,
+        // and cards it restored then counted as new.
+        if (!revealReady) return [];
+        if (labSeen === undefined) {
+            try { labSeen = new Set(JSON.parse(storageGet(LAB_SEEN_KEY))); } catch { labSeen = null; }
+        }
+        const shown = E.UPGRADES.filter(u => isLabUpgrade(u) && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u));
+        if (!labSeen || view === 'lab') {
+            if (!labSeen || shown.some(u => !labSeen.has(u.id))) {
+                labSeen = new Set([...(labSeen || []), ...shown.map(u => u.id)]);
+                storageSet(LAB_SEEN_KEY, JSON.stringify([...labSeen]));
+            }
+            return [];
+        }
+        return shown.filter(u => !labSeen.has(u.id));
+    }
 
     function buildBulk() {
         const box = $('bulkBuy');
@@ -1842,10 +1872,22 @@ window.AGI = (function () {
         // Finished investor offers wait to be claimed: a badge on the Lab's tile and the run view's lab supply,
         // where most of the time is spent (status, like the Upgrades badge, not a hint).
         const claimable = state.projects.offers.filter(o => E.projectProgress(state, o) >= o.target).length;
+        // Lab cards revealed while you were elsewhere count too: training opens lab upgrades you'd otherwise miss.
+        const unseen = labUnseen();
+        const waiting = claimable + unseen.length;
         for (const b of [document.querySelector('.facility-room[data-room-id="lab"]'), document.querySelector('.run-stats .module-supply')]) {
             if (!b) continue;
-            if (claimable) b.dataset.ready = String(claimable);
+            if (waiting) b.dataset.ready = waiting > 9 ? '9+' : String(waiting);
             else delete b.dataset.ready;
+        }
+        // The first time each happens, a tip says what the badge means (once per save).
+        if (unseen.length && !state.intro['hint:lab']) {
+            state.intro['hint:lab'] = true;
+            callout('hint:lab', 'New in the lab', `${E.upgradeName(state, unseen[0])} just opened. The lab's badge counts what's new since your last visit.`);
+        }
+        if (claimable && view !== 'lab' && !state.intro['hint:offer']) {
+            state.intro['hint:offer'] = true;
+            callout('hint:offer', 'Investor task done', 'Claim the reward in the lab: it pays in training XP.');
         }
         // The bulk switch shows once a card it applies to does (the first generator).
         setHidden($('bulkBuy'), !state.unlocked['up:cpu']);
@@ -3432,10 +3474,12 @@ window.AGI = (function () {
         const select = $('legSelect');
         if (legPickerKey !== String(learned)) {
             legPickerKey = String(learned);
-            // Leg 1 first, through to the frontier you're on.
+            // The frontier first (the usual run), then replays from the newest cleared leg back to the warm-up.
+            // "Leg 1: Tokenization ✓" read as "start from the beginning" in a playtest and sent a run to the warm-up.
             select.replaceChildren(
-                ...Array.from({ length: learned }, (_, k) => el('option', { value: k, text: `Leg ${k + 1}: ${E.skillAt(k).name} ✓` })),
-                el('option', { value: '', text: `Leg ${learned + 1}: ${E.skillAt(learned).name} (frontier)` }));
+                el('option', { value: '', text: `Frontier: ${E.skillAt(learned).name} (leg ${learned + 1})` }),
+                ...Array.from({ length: learned }, (_, i) => learned - 1 - i).map(k =>
+                    el('option', { value: k, text: `Replay leg ${k + 1}: ${E.skillAt(k).name}${k === 0 ? ' (warm-up)' : ''}` })));
         }
         const want = startLeg() < learned ? String(startLeg()) : '';
         if (select.value !== want) select.value = want;
@@ -3626,6 +3670,7 @@ window.AGI = (function () {
     }
 
     function buildPath() {
+        document.querySelector('.run-stats .module-supply').addEventListener('click', () => jumpTo('lab'));
         const canvas = $('pathCanvas');
         path.canvas = canvas;
         path.ctx = canvas.getContext('2d');
@@ -4077,7 +4122,7 @@ window.AGI = (function () {
             : E.sprintStrength(state, fraction, kind, breakthrough, effort);
         if (free) roll.freePushes = (roll.freePushes || 0) + 1;
         if (!roll.launched) roll.ptStart = state.stats.playTime;
-        pt('sprint', { leg, ch: r2(fraction), cap: r2(capBefore), ...(kind ? { k: kind } : {}), ...(auto ? { auto: true } : {}),
+        pt('sprint', { leg: leg + 1, ch: r2(fraction), cap: r2(capBefore), ...(kind ? { k: kind } : {}), ...(auto ? { auto: true } : {}),
             ...(effort ? { effort: true } : {}), ...(breakthrough ? { br: true } : {}), ...(free ? { free: true } : {}),
             first: !roll.launched || undefined, x: r2(roll.ball.x), v: r2(roll.ball.v), left: r2(roll.pushesLeft) });
         // The sprint lands now; on screen a breakthrough holds the run still for its wind-up first (you can
@@ -4820,7 +4865,7 @@ window.AGI = (function () {
         const result = E.finishRoll(state, ev.progress, crested, units, metres, leg, viral, legs);
         // Cleared legs replicate their best run for passive XP: a better replay raises it.
         const legBest = E.recordRun(state, roll.ground.stretch, result.xp + banked, viral ? E.derive(state).windfallMult : 1) && replay;
-        pt('run', { from: roll.ground.stretch, leg, prog: r2(ev.progress), m: r2(metres), xp: r2(result.xp + banked), legs,
+        pt('run', { from: roll.ground.stretch + 1, leg: leg + 1, prog: r2(ev.progress), m: r2(metres), xp: r2(result.xp + banked), legs,
             sprints: r2((path.rollPushes || 0) - Math.max(0, roll.pushesLeft)), clean, top: r2(roll.topSpeed || 0),
             dur: Math.round(state.stats.playTime - (roll.ptStart ?? state.stats.playTime)),
             ...(roll.ptFuel ? { fuel: r2(roll.ptFuel), airFuel: r2(roll.ptAirFuel || 0) } : {}),

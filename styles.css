@@ -1847,7 +1847,8 @@ html, body { overflow-x: clip; }
 .module-supply, .module-xp { display: inline-flex; align-items: baseline; gap: 6px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; font: 500 0.8rem var(--font-mono); white-space: nowrap; }
 .module-xp { border-color: rgba(255, 181, 71, 0.5); color: var(--warning); }
 .module-xp small { color: var(--success); }
-.module-supply { color: var(--muted); }
+.module-supply { color: var(--muted); background: none; cursor: pointer; }
+@media (hover: hover) { .module-supply:hover { border-color: var(--success); color: var(--text); } }
 
 @media (max-width: 640px) {
     .module-supply { display: none; }
