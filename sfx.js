@@ -242,11 +242,13 @@
     const stab = (notes, opts) => notes.forEach(n => tone({ f0: NOTE(n), dur: 0.22, type: 'sawtooth', gain: 0.05, cutoff: 1800, q: 4, detune: 7, ...opts }));
     const sub = (from, to, dur, gain, at = 0) => tone({ f0: NOTE(from), f1: NOTE(to), dur, type: 'sine', gain, at });
     // The bar's position picks a click's note, so taps and holds play a figure that sits on the beat.
-    // Phone speakers push the upper mids, where compute's square blip sits: it's quieter and darker there.
+    // Each job has its own instrument in every track, so they never sound alike: compute low and round (it
+    // took data's old sound, the owner's call), data bright and short, research high and bell-like.
+    // Phone speakers push the upper mids, where data's square blip sits: it's quieter and darker there.
     const PHONE = !!window.matchMedia?.('(pointer: coarse)').matches;
     const CLICK_NOTES = {
-        cp: [81, 76, 79, 76, 84, 76, 79, 74],       // compute: a bright square figure round A5
-        dp: [69, 64, 67, 64, 72, 64, 67, 62],       // data: an octave down, rounder
+        cp: [69, 64, 67, 64, 72, 64, 67, 62],       // compute: round, round A4
+        dp: [81, 76, 79, 76, 84, 76, 79, 74],       // data: a bright figure an octave up
         rp: [88, 84, 86, 81, 91, 84, 86, 79]        // research: up high, bell-like
     };
     const PENTA = [57, 60, 62, 64, 67, 69, 72, 74, 76, 79, 81];   // the meter climbs these, A3 to A5
@@ -308,10 +310,11 @@
     }
 
     const SOUNDS = {
-        // Workbench jobs: a blip on the bar's current 8th (a hold lands on the 8ths: see holdDelay).
+        // Workbench jobs: a note on the bar's current 8th (a hold lands on the 8ths: see holdDelay). Compute a
+        // round triangle, data the square blip, research a sine with its octave.
         click: ({ res = 'cp' } = {}) => {
             const n = clickNote(res);
-            if (res === 'dp') tone({ f0: NOTE(n), dur: 0.12, type: 'triangle', gain: 0.13, cutoff: 1600 });
+            if (res === 'cp') tone({ f0: NOTE(n), dur: 0.12, type: 'triangle', gain: 0.13, cutoff: 1600 });
             else if (res === 'rp') { tone({ f0: NOTE(n), dur: 0.16, type: 'sine', gain: 0.09 }); tone({ f0: NOTE(n + 12), dur: 0.06, type: 'sine', gain: 0.03 }); }
             else blip(n, { gain: 0.06 * (PHONE ? 0.55 : 1), dur: 0.07, cutoff: PHONE ? 1800 : 2600 });
         },
@@ -411,12 +414,18 @@
     const chipNoise = (dur, gain, at = 0) => noise({ dur, gain, f0: 6000, type: 'highpass', at });
 
     // Each track's sound set, levelled to Classic's loudness (measured with a K-weighted meter, like the music).
-    const SFX_TRIM = { classic: 1, dark: 1.18, soft: 1.03, ominous: 0.76, retro: 1.82 };
-    const SIMPLE_TRIM = { classic: 1.49, dark: 2.51, soft: 1.58, ominous: 1.73, retro: 3.08 };   // the simple sets, levelled the same way
+    const SFX_TRIM = { classic: 1, dark: 1.29, soft: 1.21, ominous: 0.81, retro: 2.1 };
+    const SIMPLE_TRIM = { classic: 2.33, dark: 4.65, soft: 1.56, ominous: 1.63, retro: 4.17 };   // the simple sets, levelled the same way
 
     const TRACK_SOUNDS = {
         dark: {
-            click: ({ res = 'cp' }) => { saw(clickNote(res) - 12, { dur: 0.06, gain: phone(0.045) }); metal(phone(0.035)); },
+            // Compute a driven low saw, data a metal tick on a thin square, research a detuned triangle ping.
+            click: ({ res = 'cp' }) => {
+                const n = clickNote(res);
+                if (res === 'cp') saw(n - 12, { dur: 0.08, gain: 0.09, cutoff: 1100 });
+                else if (res === 'rp') T(n - 12, { type: 'triangle', dur: 0.2, gain: 0.063, detune: -20, drive: true });
+                else { T(n, { type: 'square', dur: 0.04, gain: phone(0.07), cutoff: 4500 }); metal(phone(0.1), 0, 5200); }
+            },
             buy: ({ panel = 'hardware', big }) => {
                 const o = PANEL_OCT[panel] ?? 0, inst = PANEL_INST[panel] ?? 0;
                 const figs = [[57, 58, 57], [57, 64, 58], [64, 58, 57], [57, 57, 64]];
@@ -449,7 +458,13 @@
             ship: () => { [45, 52, 57].forEach(n => saw(n, { dur: 1.6, gain: 0.04, cutoff: 1200, attack: 0.05 })); T(33, { to: 21, dur: 1.6, gain: 0.3 }); [0, 2, 4].forEach(k => metal(0.06, k * S(), 3600)); }
         },
         soft: {
-            click: ({ res = 'cp' }) => marimba(clickNote(res) - (res === 'rp' ? 0 : 12), { gain: phone(0.06) }),
+            // Compute a low marimba, data a glassy kalimba, research a bell.
+            click: ({ res = 'cp' }) => {
+                const n = clickNote(res);
+                if (res === 'cp') marimba(n - 12, { gain: 0.062 });
+                else if (res === 'rp') softBell(n - 12, { gain: 0.05 });
+                else { T(n, { type: 'sine', dur: 0.1, gain: phone(0.063) }); T(n + 12, { type: 'sine', dur: 0.03, gain: phone(0.015) }); }
+            },
             buy: ({ panel = 'hardware', big }) => {
                 const o = PANEL_OCT[panel] ?? 0, inst = PANEL_INST[panel] ?? 0;
                 const figs = [[57, 60, 64], [60, 64, 67], [64, 67, 72], [57, 64, 69]];
@@ -477,7 +492,13 @@
             ship: () => { padChord([57, 64, 69, 72, 76], { dur: 2 }); [69, 76, 81, 88].forEach((n, i) => softBell(n, { at: i * S(), gain: 0.04 })); }
         },
         ominous: {
-            click: ({ res = 'cp' }) => { knock(clickNote(res) - 24, { gain: phone(0.07) }); T(clickNote(res) + 12, { type: 'sine', dur: 0.4, gain: phone(0.006), detune: -15 }); },
+            // Compute a low knock, data a ghostly ping with its echo, research a short toll.
+            click: ({ res = 'cp' }) => {
+                const n = clickNote(res);
+                if (res === 'cp') knock(n - 12, { gain: 0.16 });
+                else if (res === 'rp') toll(n - 12, { gain: 0.065, dur: 0.7 });
+                else T(n, { type: 'sine', dur: 0.22, gain: phone(0.052), detune: -15, echo: 0.4 });
+            },
             buy: ({ panel = 'hardware', big }) => {
                 const o = PANEL_OCT[panel] ?? 0, inst = PANEL_INST[panel] ?? 0;
                 const figs = [[45, 52], [45, 48], [52, 45], [48, 45]];
@@ -510,7 +531,13 @@
             ship: () => { [0, 2, 4].forEach(k => toll(45 + k * 6, { at: k * S(), gain: 0.06 })); T(33, { dur: 2.4, gain: 0.22, attack: 0.4 }); }
         },
         retro: {
-            click: ({ res = 'cp' }) => { const n = clickNote(res); sq(n, { dur: 0.03, gain: phone(0.03) }); sq(n + 12, { dur: 0.04, gain: phone(0.025), at: 0.03 }); },
+            // Compute a triangle bass blip, data a two-step square, research a square jumping up the scale.
+            click: ({ res = 'cp' }) => {
+                const n = clickNote(res);
+                if (res === 'cp') tri(n - 12, { dur: 0.07, gain: 0.092 });
+                else if (res === 'rp') { sq(n, { dur: 0.035, gain: 0.048 }); sq(degShift(n, 2), { dur: 0.05, gain: 0.048, at: 0.035 }); }
+                else { sq(n, { dur: 0.03, gain: phone(0.032) }); sq(n + 12, { dur: 0.04, gain: phone(0.027), at: 0.03 }); }
+            },
             buy: ({ panel = 'hardware', big }) => {
                 const o = PANEL_OCT[panel] ?? 0, inst = PANEL_INST[panel] ?? 0;
                 const figs = [[76, 81], [81, 88], [72, 76, 79], [81, 84, 88]];
@@ -553,17 +580,28 @@
     function setMix(m) { for (const k of Object.keys(mix)) if (m && m[k] != null) mix[k] = Math.max(0, Math.min(1, Number(m[k]) || 0)); }
 
     // Simple sounds only: every effect as a plain one-to-three-note figure, nothing on the grid, in the track's
-    // key and its plain voice (SIMPLE_VOICE: Classic and Soft a sine, Dark a low triangle, Ominous a low sine,
-    // Retro a square), still varying play to play. Notes are written in A minor pentatonic like everywhere.
+    // key and its plain voice, still varying play to play. Notes are written in A minor pentatonic like
+    // everywhere. The voice is the plain form of the track's instruments: Classic a filtered square (its blip),
+    // Dark a dark saw an octave down, Soft a sine that rings like a mallet, Ominous a low sine with a long tail,
+    // Retro a raw square.
     let simple = false;
-    const SIMPLE_VOICE = { classic: ['sine', 0], dark: ['triangle', -12], soft: ['sine', 0], ominous: ['sine', -12], retro: ['square', 0] };
+    const SIMPLE_VOICE = {
+        classic: { type: 'square', oct: 0, cutoff: 1800, len: 1, gain: 0.55 },
+        dark: { type: 'sawtooth', oct: -12, cutoff: 1100, len: 1, gain: 0.6 },
+        soft: { type: 'sine', oct: 0, len: 1.4, gain: 1, attack: 0.008 },
+        ominous: { type: 'sine', oct: -12, len: 1.8, gain: 1, attack: 0.02 },
+        retro: { type: 'square', oct: 0, len: 0.8, gain: 0.35 }
+    };
+    const sv = () => SIMPLE_VOICE[style] || SIMPLE_VOICE.classic;
     const sb = (n, dur = 0.08, gain = 0.07, at = 0, to = null) => {
-        const [w, o] = SIMPLE_VOICE[style] || SIMPLE_VOICE.classic;
-        tone({ f0: NOTE(n + o), ...(to != null ? { f1: NOTE(to + o) } : {}), dur, type: w, at,
-            gain: gain * (w === 'square' ? 0.35 : w === 'triangle' ? 0.9 : 1), attack: style === 'soft' || style === 'ominous' ? 0.012 : 0.005 });
+        const v = sv();
+        tone({ f0: NOTE(n + v.oct), ...(to != null ? { f1: NOTE(to + v.oct) } : {}), dur: dur * v.len, type: v.type, at,
+            cutoff: v.cutoff || 0, gain: gain * v.gain, attack: v.attack || 0.005 });
     };
     const SIMPLE = {
-        click: ({ res = 'cp' } = {}) => sb({ cp: 81, dp: 76, rp: 84 }[res] || 81, 0.04, 0.05 * (PHONE ? 0.6 : 1)),
+        // Compute a low note sliding down, data a short high tick, research two notes up.
+        click: ({ res = 'cp' } = {}) => res === 'rp' ? (sb(84, 0.05, 0.09), sb(96, 0.04, 0.04, 0.03))
+            : res === 'dp' ? sb(81, 0.035, 0.054 * (PHONE ? 0.6 : 1)) : sb(69, 0.08, 0.065, 0, 64),
         buy: () => { sb(76, 0.07); sb(81, 0.09, 0.07, 0.06); },
         buyBig: () => { sb(76, 0.07); sb(81, 0.07, 0.07, 0.06); sb(88, 0.1, 0.07, 0.12); },
         claim: () => { sb(81, 0.07); sb(88, 0.1, 0.07, 0.07); },
@@ -598,11 +636,7 @@
     // Minimum seconds between two plays of the same sound (clicks and dust can come in floods).
     const GAP = { click: 0.045, land: 0.08, launch: 0.15, buy: 0.05, ui: 0.05, error: 0.2, clean: 0.05 };
 
-    // Compute and data trade click sounds (the owner's call): compute plays what was written for data and data
-    // what was written for compute, in every track and in simple sounds. Swapped here, once, for all of them.
-    const CLICK_SWAP = { cp: 'dp', dp: 'cp' };
     function play(name, opts) {
-        if (name === 'click' && opts && CLICK_SWAP[opts.res]) opts = { ...opts, res: CLICK_SWAP[opts.res] };
         const gv = mix[GROUP_OF[name] || 'ui'];
         if (volume <= 0 || gv <= 0 || !SOUNDS[name] || !ensure() || ctx.state !== 'running') return;
         const now = ctx.currentTime;
@@ -693,7 +727,7 @@
             const f = ctx.createBiquadFilter();
             const g = ctx.createGain();
             const P = simple ? null : PROFILES[style];
-            o.type = simple ? (SIMPLE_VOICE[style] || SIMPLE_VOICE.classic)[0] : free ? 'triangle' : P ? P.wave(v.type, 440) : v.type;
+            o.type = simple ? sv().type : free ? 'triangle' : P ? P.wave(v.type, 440) : v.type;
             f.type = 'lowpass';
             f.frequency.value = free ? 4000 : v.cutoff(l);
             f.Q.value = v?.q || 1;
@@ -707,7 +741,7 @@
         }
         const c = chargeOsc;
         if (c.free) {
-            c.o.frequency.setTargetAtTime(keyHz(NOTE(57 + (simple ? (SIMPLE_VOICE[style] || SIMPLE_VOICE.classic)[1] : 0))) * Math.pow(2, 2 * l), now, 0.015);
+            c.o.frequency.setTargetAtTime(keyHz(NOTE(57 + (simple ? sv().oct : 0))) * Math.pow(2, 2 * l), now, 0.015);
             return;
         }
         // Schedule the next 16th a little ahead, so it's struck exactly on the beat.
@@ -723,19 +757,24 @@
         o.stop(ctx.currentTime + 0.2);
     }
 
-    // ---- Music: a techno backbeat that follows the run -------------------------------------------------
-    // A step sequencer (16 steps a bar) scheduled a little ahead on the audio clock. Layers come in with the
-    // intensity (0-1, from the ball's speed in game.js): kick and bass always, off-beat hats, then a clap, 16th
-    // hats and an arpeggio when it's flying. Power-ups bend it: a crunch distorts it, flow and bullet time slow
-    // and muffle it, a breakthrough is a swell that opens the filter and lands on a crash. Its own volume
-    // (`setMusic`), so sounds and music can be set apart; silent until the first gesture, like everything here.
-    let music = null;               // { bus, drive, dry, wet, filter, nextStep, step, timer }
+    // ---- Music: songs in each track's voice, that follow the run -----------------------------------------
+    // A step sequencer (16 steps a bar) scheduled a little ahead on the audio clock. Each track (Classic, Dark,
+    // Soft, Ominous, Retro) has its drums and instruments (`STYLES`) and four songs (`SONGS`): two for the lab
+    // (and Surveillance and R&D) and two for the server room (and its bays). A song is an eight-bar chord
+    // progression with voiced chords, a bass line that follows it, a four-bar melody (A) and an eight-bar one
+    // (B), played in a two-minute form (`FORM`): intro, A, B, A, a breakdown, B, A with a harmony, out. Then the
+    // area's other song takes over; moving between the lab and the server room changes song on the next bar,
+    // and coming back picks a song up at the section it left. Layers come in with the intensity (0-1, from the
+    // ball's speed in game.js): off-beat hats, a clap, 16th hats and an arpeggio of the chord when it's flying.
+    // Power-ups bend it: a crunch distorts it, flow and bullet time slow and muffle it, a breakthrough is a
+    // swell that opens the filter and lands on a crash. Its own volume (`setMusic`), so sounds and music can be
+    // set apart; silent until the first gesture, like everything here.
+    let music = null;               // { bus, parts, drive, dry, wet, filter, trim, nextStep, step, timer, song… }
     let musicVolume = 0.35;
     let intensity = 0;
     let mode = null;                // null | 'crunch' | 'flow' | 'freeze'
-    const BASS = [45, 0, 0, 45, 0, 0, 48, 0, 45, 0, 0, 43, 0, 0, 40, 0];   // A minor, a pulse with a lift
-    const ARP = [69, 72, 76, 79, 76, 72, 69, 64];
-    const BASS_B = [45, 0, 0, 45, 0, 0, 48, 0, 50, 0, 0, 48, 0, 45, 43, 0];  // the fourth bar of a phrase answers
+    let area = 'lab';               // 'lab' | 'server' (game.js, `setArea`)
+    let songLvl = 1;                // the current song's level trim, on its pitched voices
 
     function driveCurve(k) {
         const n = 1024;
@@ -769,8 +808,9 @@
         const trim = ctx.createGain();
         trim.gain.value = styleTrim();
         filter.connect(trim).connect(out);
-        const first = nextStep(1, 0.05);           // joins the clock, so it's in time with the grid sounds already use
-        music = { bus, parts, drive, dry, wet, filter, trim, nextStep: first.t, step: first.n };
+        const first = nextStep(16, 0.05);          // joins the clock on a downbeat, in time with the grid sounds
+        music = { bus, parts, drive, dry, wet, filter, trim, nextStep: first.t, step: first.n,
+            area, song: songFor[area], songStep: first.n, left: {}, cmd: null };
         music.timer = setInterval(schedule, 25);
     }
 
@@ -784,7 +824,6 @@
         setTimeout(() => m.filter.disconnect(), 600);
     }
 
-    // One voice into the music bus.
     // One voice into the music, through its part: the beat (kick, hats, claps) or the tones (everything
     // pitched), each with its own volume in Settings (`setMusicMix`).
     function voice(fn, part = 'tones') {
@@ -824,18 +863,18 @@
             src.stop(t + dur + 0.1);
         }, 'beat');
     }
-    // A soft chord held for a bar (the Soft beat's pad): slow attack, gentle release.
-    function pad(t, notes, dur, gain) {
+    // A soft chord held for a bar (pads): slow attack, gentle release.
+    function pad(t, notes, dur, gain, type = 'triangle', cutoff = 1400) {
         for (const n of notes) voice(g => {
             const o = ctx.createOscillator();
             const f = ctx.createBiquadFilter();
-            o.type = 'triangle';
+            o.type = type;
             o.frequency.value = NOTE(n + shift());
             o.detune.value = (Math.random() - 0.5) * 10;
             f.type = 'lowpass';
-            f.frequency.value = 1400;
+            f.frequency.value = cutoff;
             g.gain.setValueAtTime(0.0001, t);
-            g.gain.exponentialRampToValueAtTime(gain, t + dur * 0.3);
+            g.gain.exponentialRampToValueAtTime(gain * songLvl, t + dur * 0.3);
             g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
             o.connect(f).connect(g);
             o.start(t);
@@ -873,8 +912,9 @@
             src.stop(t + 0.2);
         }, 'beat');
     }
-    // A pitched voice; `q` the filter's resonance, `env` sweeps the filter down from cutoff × (1 + env) (acid).
-    function synth(t, note, dur, gain, type, cutoff, q = 6, env = 0, detune = 0) {
+    // A pitched voice; `q` the filter's resonance, `env` sweeps the filter down from cutoff × (1 + env) (acid),
+    // `attack` in seconds (pads and slow leads).
+    function synth(t, note, dur, gain, type, cutoff, q = 6, env = 0, detune = 0, attack = 0.008) {
         voice(g => {
             const o = ctx.createOscillator();
             const f = ctx.createBiquadFilter();
@@ -888,7 +928,7 @@
                 f.frequency.exponentialRampToValueAtTime(Math.max(40, cutoff), t + Math.min(dur, 0.18));
             } else f.frequency.value = cutoff;
             g.gain.setValueAtTime(0.0001, t);
-            g.gain.exponentialRampToValueAtTime(gain, t + 0.008);
+            g.gain.exponentialRampToValueAtTime(gain * songLvl, t + Math.min(attack, dur * 0.5));
             g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
             o.connect(f).connect(g);
             o.start(t);
@@ -896,63 +936,333 @@
         });
     }
 
-    // Three beats to pick from (Settings → Beat, per device), all at 124 BPM in A minor so every sound and the
-    // held clicks still sit on them; the layers come in with the same intensity bands.
-    // - Classic: the original: a pulse bass with a lift, off-beat hats, a clap, 16th hats, a square arpeggio.
-    // - Dark: harder and heavier: a longer, deeper kick, a distorted rolling 16th bass on A with a flat-two
-    //   (B flat) turn, metallic hats, a driven snare and sparse minor stabs; drive always partly in.
-    // - Soft: deep and gentle: a soft kick, a round bass on the beats, a pad moving Am – F – C – G a bar each,
-    //   quiet shakers, a rim, and a soft sine arpeggio.
-    let style = 'classic';
-    // Dark's acid line (written in A, played in E): roots, the flat second and the octave, accents on the turns.
-    const DARK_ACID = [45, 0, 45, 57, 0, 46, 45, 0, 48, 0, 45, 57, 46, 0, 45, 52];
+    // ---- Songs ----------------------------------------------------------------------------------------
+    // Everything is written in A (A minor, A Phrygian…, or C major for the bright songs, its relative), and the
+    // track's `shift` moves it to the track's key: Classic and Retro stay in A minor / C major, Dark goes to E
+    // (Phrygian), Soft to D minor / F major, Ominous to C. The sounds sit in the same keys (KEYS).
+    const AEOL = [0, 2, 3, 5, 7, 8, 10], PHRY = [0, 1, 3, 5, 7, 8, 10], DOR = [0, 2, 3, 5, 7, 9, 10];
+    const HARM = [0, 2, 3, 5, 7, 8, 11], ION = [0, 2, 4, 5, 7, 9, 11];
+    const PC = { A: 0, B: 2, C: 3, D: 5, E: 7, F: 8, G: 10 };
+    const QUALITY = {
+        '': [0, 4, 7], m: [0, 3, 7], 5: [0, 7, 12], 6: [0, 4, 7, 9], 7: [0, 4, 7, 10], maj7: [0, 4, 7, 11], m7: [0, 3, 7, 10],
+        9: [0, 4, 7, 10, 14], maj9: [0, 4, 7, 11, 14], m9: [0, 3, 7, 10, 14], add9: [0, 4, 7, 14], sus2: [0, 2, 7],
+        sus4: [0, 5, 7], '7sus4': [0, 5, 7, 10], dim: [0, 3, 6]
+    };
+    const pcOf = n => (((n - 57) % 12) + 12) % 12;     // pitch class from A
+    // A chord name ('Am9', 'Fmaj7', 'E7', 'G/B') → its bass note (A1 to G#2), chord tones, third and fifth.
+    function parseChord(name) {
+        const m = /^([A-G])([b#]?)([^/]*)(?:\/([A-G])([b#]?))?$/.exec(name);
+        if (!m) throw new Error('chord ' + name);
+        const acc = a => (a === 'b' ? -1 : a === '#' ? 1 : 0);
+        const pc = (PC[m[1]] + acc(m[2]) + 12) % 12;
+        const iv = QUALITY[m[3]];
+        if (!iv) throw new Error('chord ' + name);
+        const bass = m[4] ? (PC[m[4]] + acc(m[5]) + 12) % 12 : pc;
+        return { name, pc, iv, root: 33 + bass, third: iv.find(x => x === 3 || x === 4 || x === 5 || x === 2) ?? 7 };
+    }
+    // Voice a chord close to the last one (smooth voice leading, A3 to about D5); five-note chords leave the
+    // root to the bass.
+    function voiceChord(c, prev) {
+        const pcs = (c.iv.length >= 5 ? c.iv.slice(1) : c.iv).map(x => (c.pc + x) % 12).filter((p, i, a) => a.indexOf(p) === i);
+        let best = null, cost = Infinity;
+        for (let inv = 0; inv < pcs.length; inv++) {
+            const order = pcs.slice(inv).concat(pcs.slice(0, inv));
+            for (let lo = 52; lo <= 63; lo++) {
+                if (pcOf(lo) !== order[0]) continue;
+                const v = [lo];
+                for (const p of order.slice(1)) { let n = v[v.length - 1] + 1; while (pcOf(n) !== p) n++; v.push(n); }
+                const top = v[v.length - 1];
+                const c2 = (prev ? v.reduce((a, n, i) => a + Math.abs(n - prev[Math.min(i, prev.length - 1)]), 0) : Math.abs(v[0] - 57))
+                    + Math.max(0, top - 74) * 3;
+                if (c2 < cost) { cost = c2; best = v; }
+            }
+        }
+        return best;
+    }
+    // A melody: one token per 8th note. A scale degree (1-7, from the song's tonic), with b/# for a sharp or
+    // flat, ' for each octave up and , for each octave down; '-' holds the note on, '.' rests, and 'x+y' splits
+    // the 8th into two 16ths. Bars may be split with '|' for reading. Each note: { deg, acc, len } in 16ths.
+    function parseMelody(str, steps) {
+        const ev = new Array(steps).fill(null);
+        let i = 0, cur = null;
+        const put = tok => {
+            if (tok === '-') { if (cur) cur.len++; }
+            else if (tok === '.') cur = null;
+            else {
+                const m = /^([b#]?)([1-7])('*|,*)$/.exec(tok);
+                if (!m) throw new Error('note ' + tok);
+                const oct = m[3][0] === "'" ? m[3].length : -m[3].length;
+                cur = { deg: +m[2] - 1 + 7 * oct, acc: m[1] === 'b' ? -1 : m[1] === '#' ? 1 : 0, len: 1 };
+                ev[i] = cur;
+            }
+            i++;
+        };
+        for (const tk of str.replace(/\|/g, ' ').trim().split(/\s+/)) {
+            if (tk.includes('+')) tk.split('+').forEach(put);
+            else { put(tk); put(tk === '.' ? '.' : '-'); }
+        }
+        if (i !== steps) throw new Error(`melody of ${i} steps, not ${steps}`);
+        return ev;
+    }
+    // A melody note, `harm` degrees away in the song's scale (−2: a third below, the A2 section's harmony).
+    function melNote(song, e, harm = 0) {
+        const d = e.deg + harm, o = Math.floor(d / 7), sc = song.scale;
+        return 69 + song.tonic + sc[d - 7 * o] + 12 * o + 12 * song.oct + (harm ? 0 : e.acc);
+    }
+    // Snap a note into the song's scale (the Dark acid line's turns, written over any root).
+    function snap(song, n) {
+        const inScale = x => song.scale.includes(((pcOf(x) - song.tonic) % 12 + 12) % 12);
+        return inScale(n) ? n : inScale(n - 1) ? n - 1 : n + 1;
+    }
+    // Bass patterns: 16 characters a bar. '.' rest, r root, o its octave, f the fifth, d the fifth below,
+    // t the chord's third (sus chords: their 4th or 2nd).
+    function bassAt(song, s, ch) {
+        const c = song.bass[s];
+        if (!c || c === '.') return 0;
+        return ch.root + ({ r: 0, o: 12, f: 7, d: -5, t: ch.third }[c] ?? 0);
+    }
+    function buildSong(def) {
+        const song = { tonic: 0, oct: 0, lvl: 1, comp: [], bass: 'r.......r.......', acid: 1, ...def };
+        let prev = null, hold = 69, bell = 69;
+        song.chords = def.chords.map(name => {
+            const c = parseChord(name);
+            c.v = voiceChord(c, prev);
+            prev = c.v;
+            // Simple sounds' held note: the chord tone nearest the last one, E4 to E5 (no wrong notes).
+            const tones = [];
+            for (let n = 52; n <= 88; n++) if (c.iv.some(x => (c.pc + x) % 12 === pcOf(n))) tones.push(n);
+            const near = (lo, hi, to) => tones.filter(n => n >= lo && n <= hi).sort((a, b) => Math.abs(a - to) - Math.abs(b - to))[0];
+            c.hold = hold = near(64, 76, hold);
+            c.bell = bell = near(64, 76, bell);       // Ominous's bell tolls a chord tone
+            return c;
+        });
+        song.melA = parseMelody(def.melA, 64);
+        song.melB = parseMelody(def.melB, 128);
+        return song;
+    }
+    // The form, eight bars a section: two minutes at 124 BPM, then the area's other song.
+    const FORM = ['intro', 'A', 'B', 'A', 'break', 'B', 'A2', 'out'];
+    const SONG_BARS = FORM.length * 8;
+
+    // Two songs for the lab and two for the server room, per track. Lab songs are steadier and more
+    // melodic; server-room songs drive harder (busier bass, syncopated chords, riffs). `lvl` trims each song's
+    // pitched voices so every song measures the same (K-weighted, the tones 2 dB over the beat).
+    const SONGS = {
+        classic: {
+            lab: [
+                {   // Night Survey: dub chords on the off-beats, a long-breathed line.
+                    lvl: 0.91, scale: AEOL, chords: ['Am9', 'Am9', 'Fmaj7', 'Fmaj7', 'Cmaj7', 'Cmaj7', 'Dm7', 'Cmaj7'],
+                    bass: 'r..r..o.r..r.f..', comp: [2, 10],
+                    melA: "5 - 1' - 7 5 - 3 | 4 3 1 - - - . . | 3 - 5 - 6 5 3 1 | 2 - 3 - 7, - - .",
+                    melB: "1' - - 7 1' - 3' - | 2' - 1' - 7 - 5 - | 6 - - 5 6 - 1' - | 7 - 6 - 5 - 3 - | 5 - - 3 5 - 7 - | 1' - 7 - 5 - 3 - | 4 - 5 - 7 - 2' - | 1' - 7 - 5 - - -"
+                },
+                {   // Uptime: i – VI – III – VII, wide and hopeful, chords late in the bar.
+                    lvl: 1.01, scale: AEOL, chords: ['Am7', 'Fmaj9', 'C6', 'Gsus2', 'Am7', 'Fmaj9', 'Dm7', 'E7'],
+                    bass: 'r...r.f.r...o...', comp: [6, 14],
+                    melA: "3' - 2' - 1' - 5 - | 6 - 1' - 5 - 3 - | 5 - 3 - 1' - 3' - | 2' - - - 5 - - .",
+                    melB: "1 - 3 - 5 - 1' - | 7 - 6 - 5 - - . | 5 - 3 - 5 - 1' - | 2' - 1' - 2' - - . | 3' - 2' - 1' - 5 - | 6 - - 5 6 - 3' - | 2' - 1' - 6 - 4 - | #7, - - - 2 - - ."
+                }
+            ],
+            server: [
+                {   // Overclock: a rolling bass, a riff, harmonic minor's E7 at the turn.
+                    lvl: 0.85, scale: AEOL, chords: ['Am7', 'Am7', 'Dm7', 'Dm7', 'Fmaj7', 'G', 'Esus4', 'E7'],
+                    bass: 'r.rr.or.r.rr.o.f', comp: [3, 6, 14],
+                    melA: "1' . 1' 7 . 5 . 3 | 4 3 . 1 . . 5, . | 4 . 4 3 . 1 . 6, | 2 - - - 7, - - .",
+                    melB: "5 . 5 . 6 5 3 1 | 2 . 3 . 1 - - . | 4 . 4 . 5 4 3 1 | 6, . 1 . 3 - - . | 3 . 5 . 1' . 7 5 | 7 - 6 - 5 - 2 - | 1 - 2 - 4 - 2 - | #7, - - - 2 - - -"
+                },
+                {   // Packet Storm: the Andalusian cadence (Am – G – F – E) under a 16th-note hook.
+                    lvl: 0.82, scale: AEOL, chords: ['Am', 'G', 'Fmaj7', 'E7', 'Am', 'G', 'Dm9', 'E7'],
+                    bass: 'r.o.r.o.r.o.f.o.', comp: [2, 7, 10],
+                    melA: "1' 7 1' 5 . 1' 7 5 | 7 5 7 2 . 7 5 2 | 6 5 6 1 . 6 5 3 | #7, 2 #7, 2 3 2 #7, .",
+                    melB: "5 - - - 1' - 3' - | 2' - 1' - 7 - - . | 1' - 7 - 6 - 3 - | #7 - - - 2' - - . | 5 - 1' - 2'+3' 2'+1' - - | 7 - 5 - 2 - 5 - | 4 - 6 - 1' - 2' - | #7 - 2' - #7 - . ."
+                }
+            ]
+        },
+        dark: {
+            lab: [
+                {   // Foundry: Phrygian (the flat second), a low pad, the acid line held back.
+                    lvl: 1.05, scale: PHRY, chords: ['Am', 'Am', 'Bb', 'Am', 'Dm', 'Dm', 'Bb', 'C'], comp: [0], acid: 0.45,
+                    melA: "1' - - - 2' - 1' - | 5 - - - . . 7 6 | 6 - 4 - 2 - - . | 1 - - - . . . .",
+                    melB: "1 . 1 . 2 1 . 5, | 1 . 1 . 3 2 1 . | 2 . 2 . 4 2 . 6, | 1 - - - 5, - 7, - | 4 . 4 . 6 4 . 1 | 4 . 3 . 2 - 1 - | 2 - 4 - 6 - 4 - | 3 - 5 - 7 - 5 -"
+                },
+                {   // Rust: a slow descent, i – vii – VI – vii.
+                    lvl: 0.86, scale: PHRY, chords: ['Am', 'Gm', 'F', 'Gm', 'Am', 'Bb', 'F', 'Bb'], comp: [0], acid: 0.35,
+                    melA: "5 - - - 3 - 1 - | 2 - - - 4 - 7, - | 1 - - - 3 - 6, - | 2 - 4 - 6 - 4 -",
+                    melB: "1' - - 7 1' - 5 - | 4' - - 2' 7 - - - | 6 - - 5 6 - 1' - | 7 - 6 - 4 - 2 - | 5 - - - 1' - 3' - | 2' - - - 6 - 4 - | 3' - 1' - 7 - 5 - | 4 - 2 - 1 - - -"
+                }
+            ],
+            server: [
+                {   // Warehouse: the acid line at full tilt, a hoover riff over it.
+                    lvl: 0.84, scale: PHRY, chords: ['Am', 'Am', 'Bb', 'Bb', 'Am', 'Am', 'F', 'Gm'], comp: [0],
+                    melA: "1' . . 1' . . 2' . | 1' . . 7 . . 5 . | 2' . . 2' . . 4' . | 3' . . 2' . . 6 .",
+                    melB: "5 - - - 6 - 5 - | 1' - - - 7 - 6 - | 4 - - - 6 - 4 - | 2 - - - - - . . | 5 - 6 - 1' - 2' - | 1' - 7 - 5 - - - | 6 - 5 - 3 - 1 - | 2 - 4 - 7 - - -"
+                },
+                {   // Pressure: a low hoover stabbing on the 16ths, stabs on the off-beats.
+                    lvl: 0.77, scale: PHRY, chords: ['Am', 'Bb', 'Am', 'Gm', 'Am', 'Bb', 'Dm', 'Bb'], comp: [0, 3, 11], oct: -1,
+                    melA: "1 . 1 . . 5 . 1 | 2 . 2 . . 4 . 6, | 1 . 1 . . 5 . 3 | 2 . 7, . . 4 . 2",
+                    melB: "5 . 5 6 5 . 3 1 | 2 . 2 4 2 . 6, . | 5 . 5 6 5 . 1' . | 7 . 6 . 4 . 2 . | 1' . 1' 2' 1' . 5 . | 4' . 2' . 6 . 4 . | 6 . 4 . 3 . 1 . | 2 - - - 6, - - -"
+                }
+            ]
+        },
+        soft: {
+            lab: [
+                {   // Morning Lab: major sevenths, a Rhodes on the off-beats, a kalimba line.
+                    lvl: 0.87, scale: ION, tonic: 3, oct: -1, chords: ['Cmaj7', 'Am7', 'Fmaj7', 'G6', 'Cmaj7', 'Em7', 'Fmaj7', 'Gsus4'],
+                    bass: 'r......f..r.....', comp: [6, 14],
+                    melA: "3 - 5 - 7 - 5 - | 6 - - - 5 - 3 - | 4 - 6 - 1' - 6 - | 5 - - - 2 - - .",
+                    melB: "1' - - - 7 - 5 - | 6 - - - 1' - 3' - | 2' - - - 1' - 6 - | 7 - - - 5 - - - | 3 - 5 - 1' - 7 - | 5 - - - 7 - 3' - | 2' - 1' - 6 - 4 - | 5 - - - - - . ."
+                },
+                {   // Window Seat: IV – V – iii – vi, unhurried.
+                    lvl: 0.83, scale: ION, tonic: 3, oct: -1, chords: ['Fmaj7', 'G', 'Em7', 'Am7', 'Dm7', 'G', 'Cmaj7', 'Cmaj7'],
+                    bass: 'r.....f...r...o.', comp: [3, 10],
+                    melA: "3 - 4 - 6 - 3 - | 2 - - - 7, - 5, - | 7, - 2 - 3 - 5 - | 6 - - - 3 - - .",
+                    melB: "6 - 5 - 3 - 1 - | 2 - - - 4 - 7, - | 5 - 3 - 2 - 7, - | 1 - - - 3 - 5 - | 6 - - - 4 - 2 - | 7, - 2 - 4 - 5 - | 3 - 2 - 1 - 7, - | 1 - - - - - . ."
+                }
+            ],
+            server: [
+                {   // Gentle Climb: minor ninths, the bass on 1, the and of 2 and 3.
+                    lvl: 0.91, scale: AEOL, chords: ['Am9', 'Fmaj7', 'Cadd9', 'G6', 'Dm9', 'Fmaj7', 'Cadd9', 'Esus4'],
+                    bass: 'r......r..f.....', comp: [4, 12],
+                    melA: "5 - 3 - 2 - 3 - | 1 - - - 3 - 5 - | 4 - 3 - 2 - 5, - | 2 - - - 7, - - .",
+                    melB: "1' - 7 - 5 - 3 - | 5 - - - 3 - 1 - | 2 - 3 - 5 - 7 - | 5 - - - 2' - - - | 1' - - - 6 - 4 - | 3 - 5 - 1' - 7 - | 5 - 3 - 2 - 1 - | 2 - - - - - . ."
+                },
+                {   // Glide Path: Dorian (the bright sixth), a funky Rhodes on every off-beat.
+                    lvl: 0.77, scale: DOR, chords: ['Am7', 'D9', 'Am7', 'D9', 'Fmaj7', 'G', 'Am7', 'Esus4'],
+                    bass: 'r..r..f.r..r..o.', comp: [2, 6, 10, 14],
+                    melA: "5 - 7 - 1' - 7 5 | 6 - 5 - 4 - 1 - | 5 - 7 - 2' - 1' 7 | 6 - - - 4 - - .",
+                    melB: "1' - - 7 5 - 3 - | 4 - 6 - 1' - 3' - | 2' - 1' - 7 - 5 - | 6 - - - 3' - - - | 3' - 1' - 7 - 5 - | 4' - - - 2' - 7 - | 1' - 5 - 3 - 1 - | 2 - - - 4 - - -"
+                }
+            ]
+        },
+        ominous: {
+            lab: [
+                {   // Vigil: harmonic minor, half notes, the flat second and E7's flat ninth.
+                    lvl: 0.88, scale: HARM, oct: -1, chords: ['Am', 'Am', 'Bb', 'Bb', 'Dm', 'Dm', 'E7', 'E7'], comp: [0],
+                    melA: "1 - - - 3 - - - | 5 - - - - - 3 - | b2 - - - 4 - - - | 6 - - - - - . .",
+                    melB: "5 - - - 6 - 5 - | 3 - - - 1 - - - | 4 - - - b2 - 4 - | 6 - - - 5 - 4 - | 4 - - - 6 - 1' - | 1' - - - 6 - 3 - | 7, - - - 2 - 4 - | 3 - - - 2 - 7, -"
+                },
+                {   // Static: a motif that keeps falling back to the flat second.
+                    lvl: 0.95, scale: HARM, oct: -1, chords: ['Am', 'Dm', 'Am', 'Bb', 'Am', 'Dm', 'F', 'E'], comp: [0],
+                    melA: "3' - - - 2' - 1' - | 1' - - - 6 - - - | 5 - - - 7, - 1 - | b2 - - - - - . .",
+                    melB: "1 - - - 5 - - - | 6 - - - 4 - - - | 3 - - - 2 - 1 - | 4 - - - b2 - - - | 5 - - - 1' - - - | 6' - - - 4' - - - | 3' - - - 1' - 6 - | 7 - - - - - . ."
+                }
+            ],
+            server: [
+                {   // Descent: A against B flat, then down through F to E.
+                    lvl: 0.91, scale: HARM, oct: -1, chords: ['Am', 'Bb', 'Am', 'Bb', 'Fmaj7', 'Dm', 'Bb', 'E7'], comp: [0],
+                    melA: "1' - - - b2' - - - | 1' - - - 6 - - - | 1' - - - b2' - 3' - | b2' - - - - - . .",
+                    melB: "5 - - - 1' - - - | b2' - - - 4' - - - | 3' - - - 1' - 5 - | 4 - - - 6 - - - | 5 - - - 3 - 1 - | 6, - - - 1 - - - | 4 - - - 6 - 1' - | 7 - - - 6 - 5 -"
+                },
+                {   // Undertow: a dotted figure climbing the chord, and back.
+                    lvl: 0.95, scale: HARM, oct: -1, chords: ['Am', 'Am', 'Bb', 'C', 'Am', 'Am', 'Bb', 'E7'], comp: [0],
+                    melA: "1 . . 3 . . 5 . | 6 . . 5 . . 3 . | b2 . . 4 . . 6 . | 5 . . 3 . . 1 .",
+                    melB: "5 - - - - - 6 5 | 3 - - - 1 - - - | 4 - - - 6 - b2' - | 1' - - - 5 - - - | 1' - - - - - b2' 1' | 3 - - - 5 - - - | 4 - - - b2 - 4 - | 7, - - - 2 - - -"
+                }
+            ]
+        },
+        retro: {
+            lab: [
+                {   // Pixel Desk: I – V – vi – IV, a square lead with its echo channel.
+                    lvl: 0.89, scale: ION, tonic: 3, chords: ['C', 'G', 'Am', 'F', 'C', 'G', 'F', 'G'],
+                    melA: "1 - 3 - 5 - 3 - | 2 - 5, - 7, - 2 - | 3 - 1 - 6, - 1 - | 4 - 3 - 2 - - .",
+                    melB: "5 - 5 - 6 - 5 - | 4 - 2 - 7, - 5, - | 1 - 3 - 6 - 5 - | 4 - 6 - 1' - - - | 1' - 7 - 5 - 3 - | 2 - 4 - 7 - 5 - | 6 - 4 - 1 - 4 - | 5 - - - 7, - 2 -"
+                },
+                {   // Save Point: IV – I – V – vi, gentle.
+                    lvl: 0.91, scale: ION, tonic: 3, chords: ['F', 'C', 'G', 'Am', 'F', 'C', 'Dm', 'G'],
+                    melA: "6 - 5 - 4 - 1 - | 3 - 2 - 1 - 5, - | 7, - 2 - 5 - 4 - | 3 - - - 2 - - .",
+                    melB: "1' - 6 - 4 - 6 - | 5 - 3 - 1 - 3 - | 2 - 7, - 2 - 4 - | 3 - 6 - 1' - - - | 1' - 6 - 5 - 4 - | 3 - 5 - 1' - 5 - | 4 - 6 - 2' - 1' - | 7 - - - 5 - - -"
+                }
+            ],
+            server: [
+                {   // Boss Rush: A minor, a 16th-note riff, the chords arpeggiated.
+                    lvl: 0.87, scale: AEOL, chords: ['Am', 'F', 'G', 'Em', 'Am', 'F', 'Dm', 'E5'],
+                    melA: "1 1 5 1' . 7 5 3 | 1 1 6 1' . 6 5 3 | 7, 7, 2 5 . 4 2 7, | 5, 5, 7, 2 . 5 2 7,",
+                    melB: "1' - 7 - 1' - 3' - | 1' - 6 - 5 - 3 - | 2' - 1' - 7 - 5 - | 7 - 5 - 2 - - - | 1' - 5 - 1' - 3' - | 1' - 3' - 6 - 1' - | 4' - 3' - 2' - 6 - | 5 - - - 7 - 2' -"
+                },
+                {   // Turbo: Dorian's raised sixth over D, a race to the finish.
+                    lvl: 0.89, scale: AEOL, chords: ['Am', 'Am', 'C', 'D', 'Am', 'Am', 'F', 'G'],
+                    melA: "1' . 1' . 5 . 7 1' | . 1' 7 5 . 3 5 . | 5 . 5 . 3 . 5 1' | #6 . 5 . 4 - - .",
+                    melB: "1 . 3 . 5 . 1' . | 7 . 5 . 3 . 5 . | 3' . 1' . 5 . 3 . | #6 . 4 . 1' . #6 . | 5 . 1' . 3' . 2' . | 1' . 7 . 5 - - . | 6 . 1' . 3' . 1' . | 2' . 7 . 5 . 2' ."
+                }
+            ]
+        }
+    };
+    for (const st of Object.values(SONGS)) for (const a of Object.keys(st)) st[a] = st[a].map(buildSong);
+    const songFor = { lab: 0, server: 0 };       // which of the area's two songs plays next (flips each cycle)
+
+    // Dark's acid line, as offsets from the chord's root (snapped into E Phrygian): roots, the flat second and
+    // the octave, accents on the turns; the second half of each phrase answers with its own line.
+    const DARK_ACID = [0, null, 0, 12, null, 1, 0, null, 3, null, 0, 12, 1, null, 0, 7];
     const DARK_ACCENT = [1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1];
-    const DARK_ACID_B = [45, 0, 57, 0, 46, 0, 45, 52, 0, 45, 0, 58, 0, 57, 45, 0];
+    const DARK_ACID_B = [0, null, 12, null, 1, null, 0, 7, null, 0, null, 13, null, 12, 0, null];
     const DARK_ACCENT_B = [1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0];
-    const PROGRESSION = [[57, 60, 64, 67], [53, 57, 60, 64], [55, 60, 64, 67], [55, 59, 62, 67]];
-    const ROOTS = [45, 41, 48, 43];
+
+    // Each step gets `c`: { song, chord, next (the next bar's chord), bar (in the song), sec (FORM), barIn
+    // (in the section), mel (a melody note starting now: { n, len, harm }), melGain, drums, bassOn }.
+    let style = 'classic';
     const STYLES = {
+        // Classic: the original techno: a pulse bass on the song's line, off-beat hats, a clap, 16th hats; dub
+        // chords (a filtered saw stab with its echo a dotted 8th later), a filtered square lead with a delay
+        // throw, and an arpeggio of the chord when it's flying.
         classic: {
             cutoff: k => 900 + 9000 * k * k, drive: 0,
             beat: 0.659, tones: 1.97,   // drums 2 dB under the tones, measured (K-weighted)
-            simpleRoots: [45, 45, 48, 43], simpleMix: { gain: 1, beat: 0.987, tones: 2.455 }, simpleVoice: 'triangle',   // the simple version (simpleStep)
-            step(t, s, k, len, L, bar) {
-                const bass = bar % 4 === 3 ? BASS_B : BASS;
-                if (s % 4 === 0) kick(t, 0.5);
-                if (bass[s]) synth(t, bass[s], len * 2.2, 0.22, 'sawtooth', 220 + 1600 * k);
+            simpleMix: { gain: 1, beat: 0.987, tones: 2.455 }, simpleVoice: 'triangle',   // the simple version (simpleStep)
+            step(t, s, k, len, L, c) {
+                const ch = c.chord;
+                if (c.drums && s % 4 === 0) kick(t, 0.5);
+                const b = c.bassOn && bassAt(c.song, s, ch);
+                if (b) synth(t, b, len * 2.2, 0.22, 'sawtooth', 220 + 1600 * k);
                 if (L.off > 0.02 && s % 4 === 2) hat(t, (0.08 + 0.06 * k) * L.off);
-                if (L.clap > 0.02 && (s === 4 || s === 12)) clap(t, 0.16 * L.clap);
+                if (L.clap > 0.02 && c.drums && (s === 4 || s === 12)) clap(t, 0.16 * L.clap);
                 if (L.sixteenth > 0.02 && s % 2 === 1) hat(t, 0.05 * L.sixteenth, 0.025);
+                if (c.song.comp.includes(s)) for (const n of ch.v) {
+                    synth(t, n, len * 1.6, 0.02, 'sawtooth', 700 + 1500 * k, 2);
+                    synth(t + 3 * len, n, len * 1.4, 0.008, 'sawtooth', 600 + 900 * k, 2);
+                }
                 // The arpeggio starts a step later each bar, so the figure turns over a four-bar phrase.
-                if (L.arp > 0.02) synth(t, ARP[(s + 2 * (bar % 4)) % ARP.length] + 12, len * 0.9, 0.05 * L.arp, 'square', 1200 + 2000 * L.arp);
+                if (L.arp > 0.02) synth(t, ch.v[(s + 2 * (c.bar % 4)) % ch.v.length] + 12, len * 0.9, 0.04 * L.arp, 'square', 1200 + 2000 * L.arp);
+                if (c.mel) {
+                    const d = len * c.mel.len * 0.92;
+                    synth(t, c.mel.n, d, 0.05 * c.melGain, 'square', 1800 + 1500 * k, 2);
+                    synth(t + 3 * len, c.mel.n, d, 0.015 * c.melGain, 'square', 1100, 2);
+                    if (c.mel.harm) synth(t, c.mel.harm, d, 0.025, 'square', 1500, 2);
+                }
             },
             // The end of every eighth bar: a clap roll building into the next phrase.
-            fill(t, s, k, len, L) {
+            fill(t, s, k, len, L, c) {
                 clap(t, 0.08 + 0.03 * (s - 12));
-                if (s === 15) synth(t, 57, len, 0.06, 'square', 2400);
+                if (s === 15) synth(t, c.next.root + 24, len, 0.06, 'square', 2400);
             }
         },
-        // Dark (reimagined): hard warehouse techno in E Phrygian. A punchy kick with a distorted rumble rolling
-        // off it on the 16ths between (the sub that makes the genre), an acid line with a resonant filter that
-        // snaps shut on every note and opens with speed, open hats on the off-beats, a ride of 16ths, a snare
-        // layered with metal on 2 and 4, and a detuned hoover stab with a flat second every other bar.
+        // Dark: hard warehouse techno in E Phrygian. A punchy kick with a distorted rumble rolling off it on the
+        // 16ths between (on the chord's root), an acid line with a resonant filter that snaps shut on every
+        // note and opens with speed, open hats on the off-beats, a ride of 16ths, a snare layered with metal on
+        // 2 and 4, a low pad of detuned saws, a hoover lead, and detuned hoover stabs every other bar.
         dark: {
             cutoff: k => 1400 + 8000 * k * k, drive: 0.04, gain: 0.94, shift: -5,   // E Phrygian; trim set from measured loudness
             beat: 0.31, tones: 3.49,   // drums 2 dB under the tones, measured (K-weighted)
-            simpleRoots: [45, 45, 46, 45], simpleMix: { gain: 1, beat: 1.032, tones: 3.515 }, simpleVoice: 'sawtooth',   // the simple version (simpleStep)
-            step(t, s, k, len, L, bar) {
-                if (s % 4 === 0) kick(t, 0.6, 170, 42, 0.32);
+            simpleMix: { gain: 1, beat: 1.032, tones: 3.515 }, simpleVoice: 'sawtooth',   // the simple version (simpleStep)
+            step(t, s, k, len, L, c) {
+                const ch = c.chord, song = c.song;
+                if (c.drums && s % 4 === 0) kick(t, 0.6, 170, 42, 0.32);
                 // The rumble: a low saw on the three 16ths after each kick, fading, its filter opening with speed.
-                if (s % 4) synth(t, 33, len * 0.95, [0, 0.12, 0.09, 0.06][s % 4], 'sawtooth', 240 + 260 * k, 1, 0);   // bright enough for small speakers
-                // The acid line, in from the off-beat hats' band.
-                const B = bar % 4 >= 2;   // the second half of each phrase answers with its own line
-                const acid = (B ? DARK_ACID_B : DARK_ACID)[s], acc = (B ? DARK_ACCENT_B : DARK_ACCENT)[s];
-                // Always there (quieter at rest, so the lab has its line too), opening up with speed.
-                if (acid) synth(t, acid, len * (acc ? 1.4 : 0.8), (acc ? 0.08 : 0.055) * (0.6 + 0.4 * L.off), 'sawtooth', 600 + 2200 * k, 12, acc ? 5 : 2.5);
+                if (c.bassOn && s % 4) synth(t, ch.root, len * 0.95, [0, 0.12, 0.09, 0.06][s % 4], 'sawtooth', 240 + 260 * k, 1, 0);   // bright enough for small speakers
+                const B = c.bar % 4 >= 2;
+                const off = (B ? DARK_ACID_B : DARK_ACID)[s], acc = (B ? DARK_ACCENT_B : DARK_ACCENT)[s];
+                // Always there (quieter at rest and in the lab's songs), opening up with speed.
+                if (off != null && c.bassOn) synth(t, snap(song, ch.root + 12 + off), len * (acc ? 1.4 : 0.8), (acc ? 0.08 : 0.055) * (0.6 + 0.4 * L.off) * song.acid, 'sawtooth', 600 + 2200 * k, 12, acc ? 5 : 2.5);
                 if (L.off > 0.02 && s % 4 === 2) hat(t, (0.09 + 0.05 * k) * L.off, 0.11);
-                if (L.clap > 0.02 && (s === 4 || s === 12)) { clap(t, 0.2 * L.clap); hat(t, 0.08 * L.clap, 0.05); }
+                if (L.clap > 0.02 && c.drums && (s === 4 || s === 12)) { clap(t, 0.2 * L.clap); hat(t, 0.08 * L.clap, 0.05); }
                 if (L.sixteenth > 0.02) hat(t, (s % 4 === 2 ? 0 : s % 2 ? 0.045 : 0.025) * L.sixteenth, 0.02);
-                if (L.arp > 0.02 && bar % 2 === 1 && (s === 0 || s === 10)) for (const [n, dt] of [[57, -14], [58, 12], [64, -6]]) synth(t, n + 12, len * 3, 0.028 * L.arp, 'sawtooth', 1800 + 2400 * L.arp, 2, 0, dt);
+                if (s === 0 && song.comp.includes(0)) for (const [n, dt] of ch.v.map((n, i) => [n, i % 2 ? 9 : -9])) synth(t, n - 12, len * 16, 0.014, 'sawtooth', 500 + 700 * k, 1, 0, dt, 0.35);
+                for (const st of song.comp) if (st && st === s) for (const n of ch.v) synth(t, n, len * 1.2, 0.018, 'sawtooth', 1600 + 1600 * k, 3, 1.5);
+                if (L.arp > 0.02 && c.bar % 2 === 1 && (s === 0 || s === 10)) ch.v.slice(0, 3).forEach((n, i) => synth(t, n + 12, len * 3, 0.026 * L.arp, 'sawtooth', 1800 + 2400 * L.arp, 2, 0, [-14, 12, -6][i]));
+                if (c.mel) {
+                    const d = len * c.mel.len * 0.95;
+                    for (const dt of [-12, 12]) synth(t, c.mel.n, d, 0.026 * c.melGain, 'sawtooth', 1300 + 1500 * k, 3, 1, dt);
+                    if (c.mel.harm) synth(t, c.mel.harm, d, 0.016, 'sawtooth', 1200, 3, 0, 8);
+                }
             },
             // A snare roll with metal and a riser into the next phrase.
             fill(t, s, k, len) {
@@ -961,85 +1271,112 @@
                 if (s === 12) riser(t, len * 4, 0.12);
             }
         },
-        // Ominous: a half-time feel on the same grid: a deep kick on 1 and 3, a sub drone under every bar, a bell
-        // tolling every other bar, a clock ticking, a low reversed swell, and a slow motif rubbing A against B flat.
+        // Ominous: a half-time feel on the same grid: a deep kick on 1 and 3, a sub drone on the chord's root, a
+        // bell tolling a chord tone every other bar, a clock ticking, a low string pad, and a slow lead (a
+        // triangle swelling in, with a faint bell an octave up).
         ominous: {
             cutoff: k => 500 + 3500 * k * k, drive: 0, gain: 1.42, shift: 3,    // C, with its flat second
             beat: 0.598, tones: 2.145,   // drums 2 dB under the tones, measured (K-weighted)
-            simpleRoots: [45, 45, 46, 45], simpleMix: { gain: 1, beat: 1.378, tones: 1.951 }, simpleVoice: 'sine',   // the simple version (simpleStep)
-            step(t, s, k, len, L, bar) {
-                if (s === 0 || s === 8) kick(t, 0.55, 110, 32, 0.6);
-                if (s === 0) synth(t, bar % 2 ? 34 : 33, len * 16, 0.13, 'sawtooth', 160 + 260 * k);
-                if (s === 0 && bar % 2 === 0) { synth(t, 69, len * 12, 0.05, 'sine', 4000); synth(t, 88, len * 6, 0.012, 'sine', 4000); }
+            simpleMix: { gain: 1, beat: 1.378, tones: 1.951 }, simpleVoice: 'sine',   // the simple version (simpleStep)
+            step(t, s, k, len, L, c) {
+                const ch = c.chord;
+                if (c.drums && (s === 0 || s === 8)) kick(t, 0.55, 110, 32, 0.6);
+                if (c.bassOn && s === 0) synth(t, ch.root, len * 16, 0.13, 'sawtooth', 160 + 260 * k);
+                if (s === 0 && c.bar % 2 === 0) { synth(t, ch.bell, len * 12, 0.05, 'sine', 4000); synth(t, ch.bell + 19, len * 6, 0.012, 'sine', 4000); }
+                if (s === 0 && c.song.comp.includes(0)) pad(t, ch.v.map(n => n - 12), len * 16, 0.016, 'triangle', 900);
                 if (L.off > 0.02 && s % 4 === 2) hat(t, 0.035 * L.off, 0.02);
-                if (L.clap > 0.02 && s === 12) clap(t, 0.08 * L.clap);
+                if (L.clap > 0.02 && c.drums && s === 12) clap(t, 0.08 * L.clap);
                 if (L.sixteenth > 0.02 && s % 2 === 1) hat(t, 0.02 * L.sixteenth, 0.015);
-                const motif = bar % 4 >= 2 ? [69, 70, 72, 70] : [69, 70, 69, 64];
-                if (L.arp > 0.02 && s % 4 === 0) synth(t, motif[(s / 4) % 4], len * 3.5, 0.045 * L.arp, 'triangle', 1400);
+                if (L.arp > 0.02 && s % 4 === 0) synth(t, ch.v[(s / 4) % ch.v.length] + 12, len * 3.5, 0.03 * L.arp, 'triangle', 1400);
+                if (c.mel) {
+                    const d = len * c.mel.len * 1.05;
+                    synth(t, c.mel.n, d, 0.05 * c.melGain, 'triangle', 1300, 1, 0, -10, Math.min(0.08, d * 0.3));
+                    synth(t, c.mel.n + 12, Math.min(d, 0.8), 0.008 * c.melGain, 'sine', 4000, 1);
+                    if (c.mel.harm) synth(t, c.mel.harm, d, 0.025, 'triangle', 1100, 1, 0, 10, 0.06);
+                }
             },
             // A reversed swell rising into the next phrase.
             fill(t, s, k, len) {
                 if (s === 12) riser(t, len * 4, 0.1);
             }
         },
-        // Retro: chiptune: a short punchy kick, a triangle bass bouncing octaves on the 8ths, noise snares and hats,
-        // and a square arpeggio through Am – F – C – G (its 16ths once it's flying).
+        // Retro: chiptune: a short punchy kick, a triangle bass bouncing octaves on the chord's root, noise
+        // snares and hats, the chord as a square arpeggio (8ths, 16ths once it's flying), and a square lead with
+        // its echo channel (the same line a dotted 8th later, quieter).
         retro: {
             cutoff: k => 4000 + 9000 * k, drive: 0, gain: 1.62,
             beat: 0.701, tones: 1.829,   // drums 2 dB under the tones, measured (K-weighted)
-            simpleRoots: [45, 41, 48, 43], simpleMix: { gain: 1, beat: 1.013, tones: 1.855 }, simpleVoice: 'square',   // the simple version (simpleStep)
-            step(t, s, k, len, L, bar) {
-                const chord = PROGRESSION[bar % 4];
-                const root = ROOTS[bar % 4];
-                if (s % 4 === 0) kick(t, 0.45, 220, 50, 0.12);
-                if (s % 2 === 0) synth(t, root + (s % 4 === 2 ? 12 : 0), len * 1.6, 0.14, 'triangle', 9000);
+            simpleMix: { gain: 1, beat: 1.013, tones: 1.855 }, simpleVoice: 'square',   // the simple version (simpleStep)
+            step(t, s, k, len, L, c) {
+                const ch = c.chord;
+                if (c.drums && s % 4 === 0) kick(t, 0.45, 220, 50, 0.12);
+                if (c.bassOn && s % 2 === 0) synth(t, ch.root + 12 + (s % 4 === 2 ? 12 : 0), len * 1.6, 0.14, 'triangle', 9000);
                 if (L.off > 0.02 && s % 4 === 2) hat(t, 0.07 * L.off, 0.02);
-                if (L.clap > 0.02 && (s === 4 || s === 12)) clap(t, 0.13 * L.clap);
+                if (L.clap > 0.02 && c.drums && (s === 4 || s === 12)) clap(t, 0.13 * L.clap);
                 if (L.sixteenth > 0.02 && s % 2 === 1) hat(t, 0.035 * L.sixteenth, 0.012);
-                const arpEvery = L.arp > 0.5 ? 1 : 2;
+                const every = L.arp > 0.5 ? 1 : 2;
                 // Up on even bars, down on odd ones.
-                const i = (s / arpEvery) % 4, idx = bar % 2 ? 3 - i : i;
-                if (L.clap > 0.3 && s % arpEvery === 0) synth(t, chord[idx] + 12, len * 0.8, 0.03 * Math.max(L.clap, L.arp), 'square', 9000);
-            },
-            // A noise-snare roll and a square run up into the next phrase.
-            fill(t, s, k, len) {
-                clap(t, 0.1 + 0.02 * (s - 12));
-                synth(t, [69, 72, 76, 81][s - 12] + 12, len * 0.8, 0.035, 'square', 9000);
-            }
-        },
-        soft: {
-            cutoff: k => 700 + 4500 * k * k, drive: 0, gain: 1.7, shift: 5,     // F major: Dm – Bb – F – C
-            beat: 0.738, tones: 1.487,   // drums 2 dB under the tones, measured (K-weighted)
-            simpleRoots: [45, 41, 48, 43], simpleMix: { gain: 1, beat: 0.997, tones: 2.032 }, simpleVoice: 'sine',   // the simple version (simpleStep)
-            step(t, s, k, len, L, bar) {
-                if (s % 4 === 0) kick(t, 0.32, 110, 48, 0.22);
-                const chord = bar % 4;
-                if (s === 0) pad(t, PROGRESSION[chord], len * 16, 0.028);
-                if (s === 0 || s === 7 || s === 10) synth(t, ROOTS[chord] + (s === 10 ? 7 : 0), len * 3, 0.16, 'triangle', 500 + 600 * k);
-                if (L.off > 0.02 && s % 2 === 1) hat(t, 0.025 * L.off, 0.03);
-                if (L.clap > 0.02 && s === 12) hat(t, 0.06 * L.clap, 0.08);
-                if (L.arp > 0.02 && s % 2 === 0) {
-                    // The arpeggio rises for two bars, then falls for two.
-                    const notes = PROGRESSION[chord], i = (s / 2) % notes.length;
-                    synth(t, notes[bar % 4 >= 2 ? notes.length - 1 - i : i] + 12, len * 1.8, 0.035 * L.arp, 'sine', 3000);
+                if (s % every === 0) {
+                    const v = ch.v, i = (s / every) % v.length, idx = c.bar % 2 ? v.length - 1 - i : i;
+                    synth(t, v[idx], len * 0.8, 0.016 + 0.014 * Math.max(L.clap, L.arp), 'square', 9000);
+                }
+                if (c.mel) {
+                    const d = len * c.mel.len * 0.85;
+                    synth(t, c.mel.n, d, 0.03 * c.melGain, 'square', 9000);
+                    synth(t + 3 * len, c.mel.n, d, 0.01 * c.melGain, 'square', 9000);
+                    if (c.mel.harm) synth(t, c.mel.harm, d, 0.016, 'square', 9000);
                 }
             },
-            // A soft rim pattern and a pad note leading into the next phrase.
-            fill(t, s, k, len) {
+            // A noise-snare roll and a square run up the next chord into the next phrase.
+            fill(t, s, k, len, L, c) {
+                clap(t, 0.1 + 0.02 * (s - 12));
+                synth(t, c.next.v[(s - 12) % c.next.v.length] + 12, len * 0.8, 0.035, 'square', 9000);
+            }
+        },
+        // Soft: deep and gentle: a soft kick, a round bass on the song's line, a pad of the chord each bar, a
+        // Rhodes-like comp (soft sines) on the song's off-beats, quiet shakers, a rim, a kalimba lead (a sine
+        // with a bright octave tick) and a sine arpeggio rising two bars and falling two.
+        soft: {
+            cutoff: k => 700 + 4500 * k * k, drive: 0, gain: 1.7, shift: 5,     // D minor / F major
+            beat: 0.738, tones: 1.487,   // drums 2 dB under the tones, measured (K-weighted)
+            simpleMix: { gain: 1, beat: 0.997, tones: 2.032 }, simpleVoice: 'sine',   // the simple version (simpleStep)
+            step(t, s, k, len, L, c) {
+                const ch = c.chord;
+                if (c.drums && s % 4 === 0) kick(t, 0.32, 110, 48, 0.22);
+                if (s === 0) pad(t, ch.v, len * 16, 0.02);
+                const b = c.bassOn && bassAt(c.song, s, ch);
+                if (b) synth(t, b, len * 3, 0.16, 'triangle', 500 + 600 * k);
+                if (L.off > 0.02 && s % 2 === 1) hat(t, 0.025 * L.off, 0.03);
+                if (L.clap > 0.02 && s === 12) hat(t, 0.06 * L.clap, 0.08);
+                if (c.song.comp.includes(s)) for (const n of ch.v) synth(t, n + 12, len * 2.5, 0.009, 'sine', 3000, 1);
+                if (L.arp > 0.02 && s % 2 === 0) {
+                    const v = ch.v, i = (s / 2) % v.length;
+                    synth(t, v[c.bar % 4 >= 2 ? v.length - 1 - i : i] + 12, len * 1.8, 0.03 * L.arp, 'sine', 3000);
+                }
+                if (c.mel) {
+                    const d = Math.min(len * c.mel.len * 1.1, 0.9);
+                    synth(t, c.mel.n, d, 0.06 * c.melGain, 'sine', 4000, 1);
+                    synth(t, c.mel.n + 12, 0.07, 0.012 * c.melGain, 'sine', 5000, 1);
+                    if (c.mel.harm) synth(t, c.mel.harm, d, 0.03, 'sine', 4000, 1);
+                }
+            },
+            // A soft rim pattern and the next chord's top note leading into the next phrase.
+            fill(t, s, k, len, L, c) {
                 if (s === 12 || s === 14 || s === 15) hat(t, 0.05, 0.07);
-                if (s === 14) synth(t, 76, len * 3, 0.04, 'sine', 3000);
+                if (s === 14) synth(t, c.next.v[c.next.v.length - 1] + 12, len * 3, 0.035, 'sine', 3000);
             }
         }
     };
-    // Simple sounds: each track stripped to its bones, in its key: a kick (Ominous's on 1 and 3), a bass on
-    // beats 1 and 3 following the track's roots (`simpleRoots`), and one held note of the chord each bar, in
-    // the track's plain voice; no hats, claps, arpeggios, fills or drive.
-    function simpleStep(st, t, s, k, len, bar) {
+    // Simple sounds: each song stripped to its bones, in its key: a kick (Ominous's on 1 and 3), the bass on
+    // beats 1 and 3 on the chord's root, one held chord tone each bar (voice-led, so it never rubs), and the
+    // melody in a plain sine (Retro: a square), all in the track's plain voice; no hats, claps, chords,
+    // arpeggios, fills or drive.
+    function simpleStep(st, t, s, k, len, c) {
         const sv = st.simpleVoice || 'triangle';
         if (st === STYLES.ominous ? s % 8 === 0 : s % 4 === 0) kick(t, 0.38, 130, 45, 0.22);
-        const root = (st.simpleRoots || [45, 45, 48, 43])[bar % 4];
-        if (s === 0 || s === 8) synth(t, root, len * 6, 0.16, sv, 700, 1);
-        if (s === 0) synth(t, root + 24 + (bar % 2 ? 7 : 3), len * 14, 0.035, 'sine', 3000, 1);
+        if (s === 0 || s === 8) synth(t, c.chord.root + 12, len * 6, 0.16, sv, 700, 1);
+        if (s === 0) synth(t, c.chord.hold, len * 14, 0.035, 'sine', 3000, 1);
+        if (c.mel) synth(t, c.mel.n, Math.min(len * c.mel.len * 0.9, 0.7), 0.03 * c.melGain * (sv === 'square' ? 0.5 : 1), sv === 'square' ? 'square' : 'sine', 2500, 1);
     }
 
     // The bus level for the music volume, and each beat's trim (`gain` on the style, measured RMS against Classic,
@@ -1061,6 +1398,39 @@
     // band around its threshold, and the tempo glides into and out of flow's slow-down.
     const RISE = 1.2, FALL = 3;       // seconds (time constants) for the intensity to follow speed
     const layer = (k, at) => Math.max(0, Math.min(1, (k - at) / 0.2 + 0.5));
+    const songsOf = () => (SONGS[style] || SONGS.classic);
+    // On a downbeat: change song if the area changed (the old area's place is kept, to its section), after a
+    // whole song (the area's other one), or on a debug command.
+    function songTurn() {
+        const m = music;
+        const bar = Math.floor((m.step - m.songStep) / 16);
+        if (m.area !== area) {
+            m.left[m.area] = { song: m.song, bar: Math.floor(bar / 8) * 8 % SONG_BARS };
+            const back = m.left[area];
+            m.area = area;
+            m.song = back ? back.song : songFor[area];
+            m.songStep = m.step - 16 * (back ? back.bar : 0);
+        } else if (m.cmd === 'song' || bar >= SONG_BARS) {
+            m.song = songFor[area] = (m.song + 1) % 2;
+            m.songStep = m.step;
+        } else if (m.cmd === 'section') m.songStep = m.step - 16 * ((Math.floor(bar / 8) + 1) * 8 % SONG_BARS);
+        m.cmd = null;
+    }
+    function songContext(s) {
+        const m = music, song = songsOf()[m.area][m.song];
+        const bar = Math.floor((m.step - m.songStep) / 16), barIn = bar % 8;
+        const sec = FORM[Math.floor(bar / 8) % FORM.length];
+        let e = null;
+        if (sec === 'A' || sec === 'A2' || sec === 'break') e = song.melA[(barIn % 4) * 16 + s];
+        else if (sec === 'B') e = song.melB[barIn * 16 + s];
+        const n = song.chords.length;
+        return {
+            song, bar, barIn, sec, chord: song.chords[bar % n], next: song.chords[(bar + 1) % n],
+            mel: e && { n: melNote(song, e), len: e.len, harm: sec === 'A2' ? melNote(song, e, -2) : 0 },
+            melGain: sec === 'break' ? 0.6 : 1,
+            drums: !(sec === 'break' && barIn < 6), bassOn: !(sec === 'break' && barIn < 4)
+        };
+    }
     function schedule() {
         if (!music || ctx.state !== 'running' || document.hidden) return;
         const now = ctx.currentTime;
@@ -1077,14 +1447,20 @@
             if (len !== clock.len) retime(len, music.step, music.nextStep);
             const t = music.nextStep;
             const s = ((music.step % 16) + 16) % 16;
+            if (s === 0) songTurn();
             const L = { off: layer(k, 0.2), clap: layer(k, 0.45), sixteenth: layer(k, 0.65), arp: layer(k, 0.8) };
-            const st8 = STYLES[style] || STYLES.classic, bar = Math.floor(music.step / 16);
-            if (simple) simpleStep(st8, t, s, k, len, bar);
-            else {
-                st8.step(t, s, k, len, L, bar);
-                // Every eighth bar ends in a fill, so the loop phrases instead of repeating one bar for ever.
-                if (st8.fill && ((bar % 8) + 8) % 8 === 7 && s >= 12) st8.fill(t, s, k, len, L);
-            }
+            const st8 = STYLES[style] || STYLES.classic;
+            const c = songContext(s);
+            songLvl = c.song.lvl;
+            try {
+                if (simple) simpleStep(st8, t, s, k, len, c);
+                else {
+                    st8.step(t, s, k, len, L, c);
+                    // Every eighth bar ends in a fill, so the song phrases instead of repeating one bar for ever.
+                    if (st8.fill && c.barIn === 7 && s >= 12) st8.fill(t, s, k, len, L, c);
+                }
+            } catch { /* a bad note never stops the music */ }
+            songLvl = 1;
             music.nextStep += len;
             music.step++;
         }
@@ -1095,6 +1471,18 @@
         music.wet.gain.setTargetAtTime(mode === 'crunch' ? 0.55 : simple ? 0 : st.drive, now, 0.15);
         music.dry.gain.setTargetAtTime(mode === 'crunch' ? 0.6 : 1, now, 0.15);
     }
+
+    // Where the player is (game.js): 'lab' (the lab, Surveillance, R&D) or 'server' (the server room and its
+    // bays); the music changes song on the next bar.
+    function setArea(a) { area = a === 'server' ? 'server' : 'lab'; }
+    // What's playing (the debug panel), and debug commands on the next downbeat: the area's other song, or the
+    // next section.
+    function songNow() {
+        if (!music) return null;
+        const bar = Math.floor((music.step - music.songStep) / 16);
+        return { area: music.area, song: music.song + 1, section: FORM[Math.floor(bar / 8) % FORM.length], bar: (bar % 8) + 1 };
+    }
+    function songCmd(cmd) { if (music) music.cmd = cmd; }
 
     // The ball's speed (0-1), and the power-up shaping the beat, from game.js.
     function musicState(k, m = null) {
@@ -1159,5 +1547,5 @@
             for (const k of Object.keys(musicMix)) music.parts[k].gain.setTargetAtTime(partLevel(k), ctx.currentTime, 0.2);
         }
     }
-    window.SFX = { play, holdDelay, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
+    window.SFX = { play, holdDelay, setArea, songCmd, get song() { return songNow(); }, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
 })();

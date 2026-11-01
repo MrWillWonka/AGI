@@ -100,6 +100,9 @@
             return b;
         });
 
+        // What's playing: the area, which of its two songs, the section and the bar in it.
+        const songLabel = document.createElement('span');
+        songLabel.className = 'debug-song';
         const phaseButtons = E.PHASES.slice(1).map((p, i) => button(`Reach ${p.name}`, () => AGI.debug.reachPhase(i + 1)));
 
         body.append(
@@ -124,6 +127,7 @@
             section('Training', button('Finish run', AGI.debug.finishRun), button('Test summit', () => AGI.debug.testSummit()),
                 button('Test near miss', () => AGI.debug.testNailBiter()), button('Fling the ball', () => AGI.debug.fling()), button('Max skill tree', AGI.debug.maxTree),
                 button('Toggle Auto-Trainer', AGI.debug.toggleAutoTrainer), button('Reset tree view', AGI.debug.resetTreeView)),
+            section('Music', songLabel, button('Next song', AGI.debug.nextSong), button('Next section', AGI.debug.nextSection)),
             section('Power-ups', ...[['breakthrough', 'Breakthrough'], ['maxEffort', 'Max Effort'], ['crunch', 'Crunch'], ['flow', 'Flow'], ['viral', 'Viral'],
                 ['system', 'System prompt'], ['superBreakthrough', 'Paradigm Shift'], ['superCrunch', 'Bullet Time'], ['superFlow', 'Lucid Dream']]
                 .map(([k, label]) => button(label, () => AGI.debug.luck(k)))),
@@ -135,6 +139,8 @@
         setInterval(() => {
             if (!panel.hidden && !panel.classList.contains('minimized')) {
                 stateView.textContent = JSON.stringify(AGI.state, null, 1);
+                const sg = AGI.debug.song;
+                songLabel.textContent = sg ? `${sg.area} song ${sg.song} · ${sg.section} bar ${sg.bar}` : 'music off';
             }
         }, 500);
     }

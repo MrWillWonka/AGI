@@ -58,6 +58,8 @@ window.AGI = (function () {
     const MUSIC_DEFAULT = '0.35';
     function musicTick() {
         if (!window.SFX?.musicState) return;
+        // The lab (with Surveillance and R&D) and the server room (with its bays) each have their own songs.
+        window.SFX.setArea?.(openBay || view === 'servers' ? 'server' : 'lab');
         const r = path.roll;
         const running = openBay === 'training' && path.view === 'run' && r && r.launched && !r.over;
         if (!running) return window.SFX.musicState(openBay === 'training' ? 0.15 : 0.05, null);
@@ -6916,6 +6918,10 @@ window.AGI = (function () {
         get state() { return state; },
         save: () => save(true),
         debug: {
+            // The music: the area's other song, or the next section of this one (on the next downbeat).
+            nextSong: () => window.SFX?.songCmd?.('song'),
+            nextSection: () => window.SFX?.songCmd?.('section'),
+            get song() { return window.SFX?.song || null; },
             rates: debugRates,
             income: debugIncome,
             add(path, amount) {
