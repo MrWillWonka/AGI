@@ -889,6 +889,7 @@
     const STYLES = {
         classic: {
             cutoff: k => 900 + 9000 * k * k, drive: 0,
+            beat: 0.659, tones: 1.97,   // drums 2 dB under the tones, measured (K-weighted)
             step(t, s, k, len, L, bar) {
                 const bass = bar % 4 === 3 ? BASS_B : BASS;
                 if (s % 4 === 0) kick(t, 0.5);
@@ -911,6 +912,7 @@
         // layered with metal on 2 and 4, and a detuned hoover stab with a flat second every other bar.
         dark: {
             cutoff: k => 1400 + 8000 * k * k, drive: 0.12, gain: 0.376, shift: -5,   // E Phrygian; trim set from measured loudness
+            beat: 0.644, tones: 3.42,   // drums 2 dB under the tones, measured (K-weighted)
             step(t, s, k, len, L, bar) {
                 if (s % 4 === 0) kick(t, 0.6, 170, 42, 0.32);
                 // The rumble: a low saw on the three 16ths after each kick, fading, its filter opening with speed.
@@ -936,6 +938,7 @@
         // tolling every other bar, a clock ticking, a low reversed swell, and a slow motif rubbing A against B flat.
         ominous: {
             cutoff: k => 500 + 3500 * k * k, drive: 0.08, gain: 0.71, shift: 3,    // C, with its flat second
+            beat: 0.689, tones: 1.578,   // drums 2 dB under the tones, measured (K-weighted)
             step(t, s, k, len, L, bar) {
                 if (s === 0 || s === 8) kick(t, 0.55, 110, 32, 0.6);
                 if (s === 0) synth(t, bar % 2 ? 34 : 33, len * 16, 0.13, 'sawtooth', 160 + 260 * k);
@@ -955,6 +958,7 @@
         // and a square arpeggio through Am – F – C – G (its 16ths once it's flying).
         retro: {
             cutoff: k => 4000 + 9000 * k, drive: 0, gain: 1.62,
+            beat: 0.701, tones: 1.829,   // drums 2 dB under the tones, measured (K-weighted)
             step(t, s, k, len, L, bar) {
                 const chord = PROGRESSION[bar % 4];
                 const root = ROOTS[bar % 4];
@@ -976,6 +980,7 @@
         },
         soft: {
             cutoff: k => 700 + 4500 * k * k, drive: 0, gain: 1.7, shift: 5,     // F major: Dm – Bb – F – C
+            beat: 0.738, tones: 1.487,   // drums 2 dB under the tones, measured (K-weighted)
             step(t, s, k, len, L, bar) {
                 if (s % 4 === 0) kick(t, 0.32, 110, 48, 0.22);
                 const chord = bar % 4;
