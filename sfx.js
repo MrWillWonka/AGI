@@ -911,8 +911,8 @@
         // snaps shut on every note and opens with speed, open hats on the off-beats, a ride of 16ths, a snare
         // layered with metal on 2 and 4, and a detuned hoover stab with a flat second every other bar.
         dark: {
-            cutoff: k => 1400 + 8000 * k * k, drive: 0.12, gain: 0.376, shift: -5,   // E Phrygian; trim set from measured loudness
-            beat: 0.644, tones: 3.42,   // drums 2 dB under the tones, measured (K-weighted)
+            cutoff: k => 1400 + 8000 * k * k, drive: 0.04, gain: 0.94, shift: -5,   // E Phrygian; trim set from measured loudness
+            beat: 0.31, tones: 3.49,   // drums 2 dB under the tones, measured (K-weighted)
             step(t, s, k, len, L, bar) {
                 if (s % 4 === 0) kick(t, 0.6, 170, 42, 0.32);
                 // The rumble: a low saw on the three 16ths after each kick, fading, its filter opening with speed.
@@ -937,8 +937,8 @@
         // Ominous: a half-time feel on the same grid: a deep kick on 1 and 3, a sub drone under every bar, a bell
         // tolling every other bar, a clock ticking, a low reversed swell, and a slow motif rubbing A against B flat.
         ominous: {
-            cutoff: k => 500 + 3500 * k * k, drive: 0.08, gain: 0.71, shift: 3,    // C, with its flat second
-            beat: 0.689, tones: 1.578,   // drums 2 dB under the tones, measured (K-weighted)
+            cutoff: k => 500 + 3500 * k * k, drive: 0, gain: 1.42, shift: 3,    // C, with its flat second
+            beat: 0.598, tones: 2.145,   // drums 2 dB under the tones, measured (K-weighted)
             step(t, s, k, len, L, bar) {
                 if (s === 0 || s === 8) kick(t, 0.55, 110, 32, 0.6);
                 if (s === 0) synth(t, bar % 2 ? 34 : 33, len * 16, 0.13, 'sawtooth', 160 + 260 * k);
