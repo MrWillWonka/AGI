@@ -28,10 +28,38 @@
         return ctx;
     }
 
-    // Audio may only start after a gesture: unlock on the first one.
-    ['pointerdown', 'keydown'].forEach(t => window.addEventListener(t, () => {
-        if (ensure() && ctx.state === 'suspended') ctx.resume();
-    }, { capture: true }));
+    // Audio may only start after a gesture: unlock on every one until it runs. Phones need care:
+    // - WebKit (every iOS browser) doesn't count pointerdown or touchstart as a gesture, only touchend, click
+    //   and keys, so those are listened for too;
+    // - the ring/silent switch mutes Web Audio unless the page's audio session is 'playback' (Safari 16.4+);
+    //   older iOS needs a media element playing once inside the gesture to take the same session;
+    // - a context put on hold by a call or by leaving the app comes back 'interrupted', not 'suspended'.
+    let unlocked = false;
+    function unlock() {
+        if (!ensure()) return;
+        if (ctx.state !== 'running') ctx.resume().catch(() => {});
+        if (unlocked) return;
+        unlocked = true;
+        try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* not offered */ }
+        if (!navigator.audioSession) {
+            try {
+                // A tenth of a second of silence (a tiny WAV), played once, moves iOS onto the media session.
+                const a = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQQAAACAgICA');
+                a.setAttribute('playsinline', '');
+                a.play().catch(() => {});
+            } catch { /* no media element */ }
+        }
+        // An empty buffer started inside the gesture: the old WebKit unlock, harmless elsewhere.
+        try {
+            const src = ctx.createBufferSource();
+            src.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+            src.connect(ctx.destination);
+            src.start();
+        } catch { /* fine */ }
+    }
+    ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach(t => window.addEventListener(t, unlock, { capture: true, passive: true }));
+    // Back from the background (a phone call, another app): resume on the next gesture, and try at once.
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && ctx && ctx.state !== 'running') ctx.resume().catch(() => {}); });
 
     function setVolume(v) {
         volume = Math.max(0, Math.min(1, Number(v) || 0));
@@ -481,5 +509,5 @@
         if (music) music.bus.gain.setTargetAtTime(musicVolume * 0.55, ctx.currentTime, 0.05);
     }
 
-    window.SFX = { play, holdDelay, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get musicVolume() { return musicVolume; } };
+    window.SFX = { play, holdDelay, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
 })();
