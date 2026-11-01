@@ -71,8 +71,11 @@
     // Every effect goes through here, so each beat's sound profile (PROFILES) reshapes the whole game's sounds:
     // the waveform, the octave, the filter, the length and attack, a drive, an echo, chip-style stepped slides.
     function tone(opts) {
-        const P = simple ? null : PROFILES[style];
+        const P = simple || ownSound ? null : PROFILES[style];
         let { f0, f1 = f0, dur = 0.15, type = 'sine', gain = 0.3, at = 0, attack = 0.005, detune = 0, cutoff = 0, q = 1 } = opts;
+        // Every note is written in A minor pentatonic; the track's key re-voices it (KEYS, `raw` skips it).
+        if (!simple && !opts.raw) { f0 = keyHz(f0); f1 = keyHz(f1); }
+        if (opts.echo && !opts.echoed) tone({ ...opts, echo: 0, echoed: true, gain: (opts.gain ?? 0.3) * opts.echo, at: (opts.at || 0) + 3 * S() });
         if (P) {
             type = P.wave(type, f0);
             if (P.oct && f0 > 160) { const m = Math.pow(2, P.oct); f0 *= m; f1 *= m; }
@@ -90,7 +93,7 @@
         const g = ctx.createGain();
         o.type = type;
         o.frequency.setValueAtTime(f0, t);
-        if (P?.steps && f1 !== f0) {
+        if ((opts.steps || P?.steps) && f1 !== f0) {
             // Chip-style: a slide is four quick steps, not a glide.
             for (let i = 1; i <= 4; i++) o.frequency.setValueAtTime(f0 * Math.pow(f1 / f0, i / 4), t + (dur * i) / 5);
         } else o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
@@ -106,7 +109,7 @@
             f.Q.value = q;
             src = src.connect(f);
         }
-        if (P?.drive) {
+        if (opts.drive || P?.drive) {
             const sh = ctx.createWaveShaper();
             sh.curve = sfxDrive || (sfxDrive = driveCurve(6));
             src = src.connect(sh);
@@ -119,13 +122,13 @@
 
     let noiseBuf = null;
     // Filtered noise: whooshes, dust, impacts.
-    function noise({ dur = 0.3, gain = 0.25, f0 = 800, f1 = f0, q = 1, type = 'bandpass', at = 0 }) {
+    function noise({ dur = 0.3, gain = 0.25, f0 = 800, f1 = f0, q = 1, type = 'bandpass', at = 0, attack = 0.01 }) {
         if (!noiseBuf) {
             noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
             const d = noiseBuf.getChannelData(0);
             for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
         }
-        const P = simple ? null : PROFILES[style];
+        const P = simple || ownSound ? null : PROFILES[style];
         if (P?.noise) ({ dur, gain, f0, f1 } = P.noise({ dur, gain, f0, f1 }));
         const t = ctx.currentTime + base + at;
         const src = ctx.createBufferSource();
@@ -137,7 +140,7 @@
         f.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
         const g = ctx.createGain();
         g.gain.setValueAtTime(0.0001, t);
-        g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain * gmul), t + 0.01);
+        g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain * gmul), t + Math.min(attack, dur * 0.9));
         g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
         src.connect(f).connect(g).connect(master);
         src.start(t);
@@ -166,6 +169,34 @@
     let base = 0;                                   // seconds every note of the current sound is delayed by
     let gmul = 1;                                   // the current sound's group volume (see GROUPS)
     let sfxDrive = null;
+    let ownSound = false;                           // a track's own sound is playing: no profile on top of it
+    // Each track has its own key and scale. Sounds are written in A minor pentatonic (A C D E G, from A3);
+    // a note's degree in that scale moves to the same degree of the track's scale, and a note off the scale
+    // keeps its distance from the degree below (so a B flat stays a flat second).
+    const KEYS = {
+        classic: null,                                          // A minor pentatonic, as written
+        dark: { root: 52, set: [0, 1, 3, 7, 8] },               // E Phrygian: E F G B C
+        soft: { root: 53, set: [0, 2, 4, 7, 9] },               // F major pentatonic: F G A C D
+        ominous: { root: 60, set: [0, 1, 3, 6, 7] },            // C with its flat second and tritone: C Db Eb F# G
+        retro: { root: 60, set: [0, 2, 4, 7, 9] }               // C major pentatonic: C D E G A
+    };
+    const WRITTEN = [0, 3, 5, 7, 10];
+    function mapNote(m) {
+        const K = KEYS[style];
+        if (!K) return m;
+        const rel = m - 57;
+        const oct = Math.floor(rel / 12);
+        const pc = rel - 12 * oct;
+        let d = 0;
+        while (d < 4 && WRITTEN[d + 1] <= pc) d++;
+        return K.root + 12 * oct + K.set[d] + (pc - WRITTEN[d]);
+    }
+    function keyHz(f) {
+        if (!KEYS[style] || !(f > 0)) return f;
+        const m = 69 + 12 * Math.log2(f / 440);
+        const r = Math.round(m);
+        return Math.abs(m - r) > 0.03 ? f : 440 * Math.pow(2, (mapNote(r) - 69) / 12);
+    }
     // Each beat brings its own sound for every effect (applied in tone and noise; Simple sounds skip it).
     const keep = t => t;
     const PROFILES = {
@@ -251,12 +282,17 @@
         ]
     };
 
+    // A click's note: where it falls in the bar picks it from the job's figure.
+    function clickNote(res) {
+        const notes = CLICK_NOTES[res] || CLICK_NOTES.cp;
+        const i = clock ? Math.floor(Math.round(stepAt(ctx.currentTime + base)) / 2) % 8 : 0;
+        return notes[(i + 8) % 8];
+    }
+
     const SOUNDS = {
         // Workbench jobs: a blip on the bar's current 8th (a hold lands on the 8ths: see holdDelay).
         click: ({ res = 'cp' } = {}) => {
-            const notes = CLICK_NOTES[res] || CLICK_NOTES.cp;
-            const i = clock ? Math.floor(Math.round(stepAt(ctx.currentTime + base)) / 2) % 8 : 0;
-            const n = notes[(i + 8) % 8];
+            const n = clickNote(res);
             if (res === 'dp') tone({ f0: NOTE(n), dur: 0.12, type: 'triangle', gain: 0.13, cutoff: 1600 });
             else if (res === 'rp') { tone({ f0: NOTE(n), dur: 0.16, type: 'sine', gain: 0.09 }); tone({ f0: NOTE(n + 12), dur: 0.06, type: 'sine', gain: 0.03 }); }
             else blip(n, { gain: 0.06 * (PHONE ? 0.55 : 1), dur: 0.07, cutoff: PHONE ? 1800 : 2600 });
@@ -325,6 +361,163 @@
         ship: () => { arp([57, 64, 69, 76, 81], S(), { type: 'sawtooth', gain: 0.05, cutoff: 2200 }); sub(33, 33, 1.6, 0.25); },
         ui: () => noise({ dur: 0.025, gain: 0.05, f0: 9000, type: 'highpass' })
     };
+    // ---- Each track's own sounds -------------------------------------------------------------------------
+    // The important effects are written again for each track, in its instruments (notes in A minor
+    // pentatonic as everywhere, re-voiced into the track's key by tone). Anything a track doesn't list falls
+    // back to the shared sound, shaped by the track's profile. Panels keep their identity inside each track:
+    // hardware and legacy, software and consciousness, research and the skill tree each get their own
+    // instrument (PANEL_INST) and register (PANEL_OCT).
+    const T = (n, o = {}) => tone({ f0: NOTE(n), ...o, ...(o.to != null ? { f1: NOTE(o.to) } : {}) });
+    const seq = (notes, step, o = {}) => notes.forEach((n, i) => { if (n) T(n, { ...o, at: (o.at || 0) + i * step }); });
+    const PANEL_INST = { hardware: 0, legacy: 0, software: 1, consciousness: 1, algorithms: 2, training: 2 };
+    const PANEL_OCT = { hardware: 0, software: 12, algorithms: 12, consciousness: -12, training: 0, legacy: -12 };
+    const phone = g => g * (PHONE ? 0.6 : 1);
+
+    // Dark: industrial: distorted saws, metal hits, sub drops, flat seconds (E Phrygian).
+    const metal = (gain = 0.05, at = 0, f = 3200) => noise({ dur: 0.04, gain, f0: f, q: 9, at });
+    const saw = (n, o = {}) => T(n, { type: 'sawtooth', dur: 0.12, gain: 0.05, cutoff: 1500, q: 6, drive: true, ...o });
+    // Soft: mallets and bells: a marimba, a kalimba, glassy bells and a warm pad (F major pentatonic).
+    const marimba = (n, o = {}) => { T(n, { type: 'sine', dur: 0.25, gain: 0.07, ...o }); T(n + 24, { type: 'sine', dur: 0.05, gain: (o.gain ?? 0.07) * 0.22, at: o.at }); };
+    const softBell = (n, o = {}) => { T(n, { type: 'sine', dur: 0.7, gain: 0.05, attack: 0.008, ...o }); T(n + 12, { type: 'triangle', dur: 0.25, gain: (o.gain ?? 0.05) * 0.25, at: o.at }); };
+    const padChord = (notes, o = {}) => notes.forEach(n => T(n, { type: 'triangle', dur: 1.4, gain: 0.025, attack: 0.15, cutoff: 1800, ...o }));
+    // Ominous: tolling bells with an inharmonic partial, knocks, reversed swells, drones (C, b2, tritone).
+    const toll = (n, o = {}) => {
+        T(n, { type: 'sine', dur: 1.6, gain: 0.06, ...o });
+        tone({ f0: NOTE(mapNote(n)) * 2.76, dur: 0.6, type: 'sine', gain: (o.gain ?? 0.06) * 0.25, at: o.at, raw: true });
+    };
+    const knock = (n, o = {}) => { T(n, { type: 'triangle', dur: 0.09, gain: 0.07, cutoff: 900, ...o }); noise({ dur: 0.05, gain: 0.03, f0: 700, q: 3, at: o.at }); };
+    const swellUp = (dur, gain) => noise({ dur, gain, f0: 300, f1: 2400, type: 'lowpass', attack: dur * 0.85 });
+    // Retro: an 8-bit console: square pulses, a triangle bass, noise drums, stepped slides (C major pentatonic).
+    const sq = (n, o = {}) => T(n, { type: 'square', dur: 0.07, gain: 0.03, ...o });
+    const tri = (n, o = {}) => T(n, { type: 'triangle', dur: 0.12, gain: 0.08, ...o });
+    const chipNoise = (dur, gain, at = 0) => noise({ dur, gain, f0: 6000, type: 'highpass', at });
+
+    const TRACK_SOUNDS = {
+        dark: {
+            click: ({ res = 'cp' }) => { saw(clickNote(res) - 12, { dur: 0.06, gain: phone(0.045) }); metal(phone(0.035)); },
+            buy: ({ panel = 'hardware', big }) => {
+                const o = PANEL_OCT[panel] ?? 0, inst = PANEL_INST[panel] ?? 0;
+                const figs = [[57, 58, 57], [57, 64, 58], [64, 58, 57], [57, 57, 64]];
+                const f = figs[vary('buy:dark:' + inst, figs.length)].map(n => n + o);
+                if (inst === 0) seq(f, S() / 2, { type: 'sawtooth', dur: 0.12, gain: 0.05, cutoff: 1600, q: 5, drive: true });
+                else if (inst === 1) { seq(f.map(n => n + 12), S() / 4, { type: 'square', dur: 0.05, gain: 0.035, cutoff: 5000 }); metal(0.05, 0, 5200); }
+                else seq(f, S(), { type: 'triangle', dur: 0.3, gain: 0.06, detune: -20, drive: true });
+                if (big) { T(33, { to: 21, dur: 0.5, gain: 0.3 }); noise({ dur: 0.5, gain: 0.1, f0: 3000, f1: 700, type: 'highpass', at: S() * 2 }); }
+            },
+            claim: () => { seq([57, 64, 69], S() / 2, { type: 'sawtooth', dur: 0.15, gain: 0.05, cutoff: 2200, drive: true }); metal(0.06, S() * 1.5, 4500); },
+            error: () => { saw(40, { dur: 0.18, gain: 0.05, cutoff: 600 }); saw(41, { dur: 0.18, gain: 0.04, cutoff: 600 }); },
+            ui: () => metal(0.035, 0, 6000),
+            sprint: ({ charge = 1 }) => { noise({ dur: 0.2 + 0.25 * charge, gain: 0.1 + 0.2 * charge, f0: 400, f1: 2500 + 2000 * charge, q: 2 }); T(33, { to: 21, dur: 0.25, gain: 0.3 * charge, drive: true }); },
+            clean: () => { saw(81, { type: 'square', dur: 0.06, gain: 0.04, cutoff: 4000 }); metal(0.05, S() / 2, 5000); saw(88, { type: 'square', dur: 0.08, gain: 0.03, cutoff: 4000, at: S() / 2 }); },
+            perfect: () => { seq([82, 81, 76, 69], S() / 2, { type: 'sawtooth', dur: 0.1, gain: 0.045, cutoff: 3000, drive: true }); metal(0.06, 0, 4000); },
+            summit: () => {
+                [45, 52, 57, 58].forEach(n => saw(n, { dur: 1.1, gain: 0.04, cutoff: 1400, detune: 8 }));
+                T(33, { to: 21, dur: 1, gain: 0.35 });
+                noise({ dur: 1, gain: 0.12, f0: 6000, f1: 1500, type: 'highpass' });
+                [0, 3].forEach(k => metal(0.06, k * S(), 4200));
+            },
+            achievement: () => { [0, 2].forEach(k => [57, 64, 69].forEach(n => saw(n, { dur: 0.16, gain: 0.035, at: k * S(), cutoff: 2000 }))); },
+            land: ({ impact = 3 }) => { const k = Math.min(1, impact / 15); T(40, { to: 28, dur: 0.2 + 0.25 * k, gain: 0.15 + 0.35 * k, drive: true }); noise({ dur: 0.25, gain: 0.08 + 0.15 * k, f0: 900, f1: 200, type: 'lowpass' }); },
+            launch: () => { noise({ dur: 0.3, gain: 0.14, f0: 600, f1: 3500, q: 3 }); saw(57, { to: 64, dur: 0.2, gain: 0.035 }); },
+            runEnd: ({ good }) => good ? seq([57, 64], S(), { type: 'sawtooth', dur: 0.2, gain: 0.04, cutoff: 1800, drive: true }) : saw(58, { to: 57, dur: 0.35, gain: 0.04, cutoff: 900 }),
+            record: () => { seq([57, 64, 69, 76], S() / 2, { type: 'sawtooth', dur: 0.12, gain: 0.04, cutoff: 2600, drive: true }); metal(0.05, S() * 2, 4500); },
+            nearMiss: () => saw(64, { to: 58, dur: 0.7, gain: 0.04, cutoff: 900 }),
+            breakthrough: () => { T(33, { to: 18, dur: 0.7, gain: 0.45, drive: true }); noise({ dur: 0.5, gain: 0.25, f0: 300, f1: 4000, q: 1 }); [45, 52, 58].forEach(n => saw(n, { dur: 0.5, gain: 0.04, at: S() })); },
+            phase: () => { seq([45, 52, 57, 58, 64, 69, 70, 76], S() / 2, { type: 'sawtooth', dur: 0.14, gain: 0.04, cutoff: 2400, drive: true }); T(33, { dur: 1.4, gain: 0.25 }); },
+            ship: () => { [45, 52, 57].forEach(n => saw(n, { dur: 1.6, gain: 0.04, cutoff: 1200, attack: 0.05 })); T(33, { to: 21, dur: 1.6, gain: 0.3 }); [0, 2, 4].forEach(k => metal(0.06, k * S(), 3600)); }
+        },
+        soft: {
+            click: ({ res = 'cp' }) => marimba(clickNote(res) - (res === 'rp' ? 0 : 12), { gain: phone(0.06) }),
+            buy: ({ panel = 'hardware', big }) => {
+                const o = PANEL_OCT[panel] ?? 0, inst = PANEL_INST[panel] ?? 0;
+                const figs = [[57, 60, 64], [60, 64, 67], [64, 67, 72], [57, 64, 69]];
+                const f = figs[vary('buy:soft:' + inst, figs.length)].map(n => n + o);
+                if (inst === 0) f.forEach((n, i) => marimba(n, { at: i * S() / 2, gain: 0.06 }));
+                else if (inst === 1) f.forEach((n, i) => T(n + 24, { type: 'sine', dur: 0.12, gain: 0.04, at: i * S() / 4 }));
+                else f.forEach((n, i) => softBell(n + 12, { at: i * S(), gain: 0.04 }));
+                if (big) padChord([57, 64, 69, 72], { at: S() * 2 });
+            },
+            claim: () => [88, 84, 81, 76].forEach((n, i) => softBell(n, { at: i * S() / 2, gain: 0.04 })),
+            error: () => T(64, { to: 60, type: 'sine', dur: 0.28, gain: 0.05 }),
+            ui: () => T(93, { type: 'sine', dur: 0.025, gain: 0.025 }),
+            sprint: ({ charge = 1 }) => { noise({ dur: 0.3 + 0.3 * charge, gain: 0.05 + 0.1 * charge, f0: 400, f1: 1500, type: 'lowpass', attack: 0.06 }); T(45, { to: 57, type: 'sine', dur: 0.3, gain: 0.14 * charge, attack: 0.03 }); },
+            clean: () => { softBell(76, { gain: 0.045 }); softBell(81, { gain: 0.035, at: S() / 2 }); },
+            perfect: () => [69, 72, 76, 81, 84].forEach((n, i) => T(n, { type: 'sine', dur: 0.7, gain: 0.04, at: i * S() / 4 })),
+            summit: () => { padChord([57, 64, 69, 72], { dur: 1.8 }); [76, 81, 84, 88].forEach((n, i) => softBell(n, { at: i * S(), gain: 0.045 })); T(45, { type: 'sine', dur: 1.6, gain: 0.12, attack: 0.1 }); },
+            achievement: () => [81, 88, 93].forEach((n, i) => softBell(n, { at: i * S(), gain: 0.04 })),
+            land: ({ impact = 3 }) => { const k = Math.min(1, impact / 15); T(45, { to: 40, type: 'sine', dur: 0.2, gain: 0.08 + 0.2 * k }); noise({ dur: 0.25, gain: 0.04 + 0.08 * k, f0: 500, f1: 200, type: 'lowpass' }); },
+            launch: () => { noise({ dur: 0.35, gain: 0.08, f0: 500, f1: 1800, type: 'lowpass', attack: 0.1 }); T(69, { to: 76, type: 'sine', dur: 0.3, gain: 0.04 }); },
+            runEnd: ({ good }) => good ? [76, 81].forEach((n, i) => marimba(n, { at: i * S(), gain: 0.06 })) : [64, 60].forEach((n, i) => marimba(n, { at: i * S(), gain: 0.05 })),
+            record: () => [81, 84, 88, 93].forEach((n, i) => softBell(n, { at: i * S(), gain: 0.04 })),
+            nearMiss: () => T(76, { to: 74, type: 'sine', dur: 0.7, gain: 0.05 }),
+            breakthrough: () => { noise({ dur: 0.6, gain: 0.1, f0: 300, f1: 2500, type: 'lowpass', attack: 0.4 }); padChord([57, 64, 69, 76], { at: 0.45, dur: 1.4 }); softBell(88, { at: 0.45, gain: 0.05 }); },
+            phase: () => { [57, 64, 69, 72, 76, 81, 84, 88].forEach((n, i) => T(n, { type: 'sine', dur: 0.8, gain: 0.035, at: i * S() / 2 })); padChord([57, 64, 69], { at: 4 * S() }); },
+            ship: () => { padChord([57, 64, 69, 72, 76], { dur: 2 }); [69, 76, 81, 88].forEach((n, i) => softBell(n, { at: i * S(), gain: 0.04 })); }
+        },
+        ominous: {
+            click: ({ res = 'cp' }) => { knock(clickNote(res) - 24, { gain: phone(0.07) }); T(clickNote(res) + 12, { type: 'sine', dur: 0.4, gain: phone(0.006), detune: -15 }); },
+            buy: ({ panel = 'hardware', big }) => {
+                const o = PANEL_OCT[panel] ?? 0, inst = PANEL_INST[panel] ?? 0;
+                const figs = [[45, 52], [45, 48], [52, 45], [48, 45]];
+                const f = figs[vary('buy:ominous:' + inst, figs.length)].map(n => n + o + 12);
+                if (inst === 0) f.forEach((n, i) => toll(n, { at: i * S() * 2, gain: 0.06 }));
+                else if (inst === 1) f.forEach((n, i) => T(n + 24, { type: 'sine', dur: 0.9, gain: 0.025, at: i * S(), detune: -12, echo: 0.35 }));
+                else f.forEach((n, i) => T(n, { type: 'triangle', dur: 1, gain: 0.04, attack: 0.15, detune: i ? 12 : -12, cutoff: 1400, at: i * S() }));
+                if (big) { swellUp(0.5, 0.12); T(33, { to: 24, dur: 1.2, gain: 0.3, at: 0.45 }); }
+            },
+            claim: () => [81, 76, 69].forEach((n, i) => toll(n, { at: i * S(), gain: 0.04 })),
+            error: () => { T(52, { type: 'sawtooth', dur: 0.3, gain: 0.035, cutoff: 600 }); T(53, { type: 'sawtooth', dur: 0.3, gain: 0.035, cutoff: 600 }); },
+            ui: () => noise({ dur: 0.02, gain: 0.04, f0: 2500, q: 12 }),
+            sprint: ({ charge = 1 }) => { swellUp(0.3 + 0.2 * charge, 0.08 + 0.15 * charge); T(33, { to: 26, dur: 0.6, gain: 0.25 * charge, at: 0.25 + 0.17 * charge }); },
+            clean: () => T(76, { type: 'sine', dur: 0.9, gain: 0.04, echo: 0.4 }),
+            perfect: () => { toll(69, { gain: 0.05 }); toll(76, { gain: 0.04, at: S() }); },
+            summit: () => {
+                toll(45, { gain: 0.09 });
+                [45, 48, 52].forEach(n => T(n, { type: 'triangle', dur: 2.4, gain: 0.03, attack: 0.4, cutoff: 1200, detune: -10 }));
+                toll(81, { at: 4 * S(), gain: 0.04 });
+                T(33, { dur: 2, gain: 0.2, attack: 0.3 });
+            },
+            achievement: () => { toll(69, { gain: 0.05 }); toll(64, { gain: 0.05, at: 2 * S() }); },
+            land: ({ impact = 3 }) => { const k = Math.min(1, impact / 15); T(45, { to: 33, dur: 0.5 + 0.4 * k, gain: 0.15 + 0.25 * k }); noise({ dur: 0.6 + 0.4 * k, gain: 0.05 + 0.1 * k, f0: 400, f1: 80, type: 'lowpass' }); },
+            launch: () => { swellUp(0.35, 0.1); T(64, { to: 69, type: 'sine', dur: 0.4, gain: 0.03, detune: -12 }); },
+            runEnd: ({ good }) => good ? toll(76, { gain: 0.05 }) : T(60, { to: 57, type: 'sine', dur: 0.8, gain: 0.05, detune: -10 }),
+            record: () => [69, 72, 76].forEach((n, i) => toll(n, { at: i * S(), gain: 0.04 })),
+            nearMiss: () => T(64, { to: 62, type: 'sawtooth', dur: 0.9, gain: 0.03, cutoff: 700 }),
+            breakthrough: () => { swellUp(0.5, 0.2); T(33, { to: 21, dur: 1.2, gain: 0.45, at: 0.45 }); [45, 48, 52].forEach(n => T(n, { type: 'triangle', dur: 1.2, gain: 0.035, at: 0.45, cutoff: 1500 })); },
+            phase: () => { toll(45, { gain: 0.08 }); toll(57, { at: 2 * S(), gain: 0.06 }); toll(69, { at: 4 * S(), gain: 0.05 }); T(33, { dur: 2.2, gain: 0.2, attack: 0.3 }); },
+            ship: () => { [0, 2, 4].forEach(k => toll(45 + k * 6, { at: k * S(), gain: 0.06 })); T(33, { dur: 2.4, gain: 0.22, attack: 0.4 }); }
+        },
+        retro: {
+            click: ({ res = 'cp' }) => { const n = clickNote(res); sq(n, { dur: 0.03, gain: phone(0.03) }); sq(n + 12, { dur: 0.04, gain: phone(0.025), at: 0.03 }); },
+            buy: ({ panel = 'hardware', big }) => {
+                const o = PANEL_OCT[panel] ?? 0, inst = PANEL_INST[panel] ?? 0;
+                const figs = [[76, 81], [81, 88], [72, 76, 79], [81, 84, 88]];
+                const f = figs[vary('buy:retro:' + inst, figs.length)].map(n => n + Math.min(0, o));
+                if (inst === 0) seq(f, 0.06, { type: 'square', dur: 0.08, gain: 0.03 });
+                else if (inst === 1) seq([...f, ...f.map(n => n + 12)], S() / 4, { type: 'square', dur: 0.04, gain: 0.025 });
+                else { seq(f, S() / 2, { type: 'square', dur: 0.06, gain: 0.025 }); tri(f[0] - 24, { dur: 0.2 }); }
+                if (big) { seq([69, 72, 76, 81, 84, 88], S() / 4, { type: 'square', dur: 0.05, gain: 0.025, at: S() * 2 }); chipNoise(0.08, 0.05, S() * 2); }
+            },
+            claim: () => [0, 1, 2].forEach(k => { sq(81, { at: k * 0.12, dur: 0.04 }); sq(88, { at: k * 0.12 + 0.04, dur: 0.07 }); }),
+            error: () => seq([45, 44], 0.12, { type: 'square', dur: 0.11, gain: 0.03 }),
+            ui: () => sq(93, { dur: 0.015, gain: 0.02 }),
+            sprint: ({ charge = 1 }) => { chipNoise(0.08 + 0.1 * charge, 0.05 + 0.08 * charge); T(57, { to: 69 + Math.round(12 * charge), type: 'square', dur: 0.15, gain: 0.03, steps: true }); },
+            clean: () => seq([76, 81, 88], S() / 4, { type: 'square', dur: 0.05, gain: 0.03 }),
+            perfect: () => seq([69, 72, 76, 81, 84, 88], S() / 4, { type: 'square', dur: 0.05, gain: 0.028 }),
+            system: () => { seq([69, 72, 76, 81, 84, 88, 93, 96], S() / 4, { type: 'square', dur: 0.05, gain: 0.028 }); chipNoise(0.3, 0.04); },
+            summit: () => { seq([69, 69, 76, 81, 0, 81, 88], S(), { type: 'square', dur: 0.1, gain: 0.032 }); seq([45, 45, 52, 57, 0, 57, 64], S(), { type: 'triangle', dur: 0.12, gain: 0.08 }); },
+            achievement: () => seq([72, 76, 79, 84], S() / 2, { type: 'square', dur: 0.07, gain: 0.03 }),
+            land: ({ impact = 3 }) => { const k = Math.min(1, impact / 15); chipNoise(0.06 + 0.08 * k, 0.04 + 0.08 * k); tri(45, { to: 33, dur: 0.12 + 0.1 * k, gain: 0.08 + 0.12 * k, steps: true }); },
+            launch: () => T(64, { to: 81, type: 'square', dur: 0.2, gain: 0.028, steps: true }),
+            runEnd: ({ good }) => good ? seq([81, 88], S() / 2, { type: 'square', dur: 0.08, gain: 0.03 }) : seq([64, 60, 57], S() / 2, { type: 'square', dur: 0.1, gain: 0.028 }),
+            record: () => seq([81, 84, 88, 93], S() / 2, { type: 'square', dur: 0.06, gain: 0.03 }),
+            nearMiss: () => seq([76, 74, 76, 74], 0.06, { type: 'square', dur: 0.05, gain: 0.025 }),
+            breakthrough: () => { chipNoise(0.3, 0.12); seq([57, 64, 69, 76, 81, 88], S() / 4, { type: 'square', dur: 0.05, gain: 0.03 }); tri(33, { dur: 0.4, gain: 0.15 }); },
+            phase: () => { seq([57, 60, 64, 69, 72, 76, 81, 84, 88, 93], S() / 4, { type: 'square', dur: 0.05, gain: 0.028 }); tri(45, { dur: 0.8, gain: 0.1, at: S() * 2.5 }); },
+            ship: () => { seq([69, 0, 69, 76, 81, 0, 88], S() / 2, { type: 'square', dur: 0.1, gain: 0.032 }); seq([45, 0, 45, 52, 57, 0, 64], S() / 2, { type: 'triangle', dur: 0.12, gain: 0.08 }); }
+        }
+    };
+
     // Sound groups, each with its own volume in Settings (per device): a group at 0 is silent.
     const GROUPS = {
         clicks: ['click'],
@@ -373,9 +566,17 @@
         base = div ? Math.max(0, nextStep(div).t - now) : 0;
         if (base > 0.25) base = 0;
         gmul = gv;
-        try { (simple ? SIMPLE[name] || SIMPLE.default : SOUNDS[name])(opts); } catch { /* a bad node never breaks the game */ }
+        // A track's own version of the sound if it has one (TRACK_SOUNDS), else the shared one in its profile.
+        const own = !simple && TRACK_SOUNDS[style]?.[name === 'buyBig' ? 'buy' : name];
+        ownSound = !!own;
+        try {
+            if (simple) (SIMPLE[name] || SIMPLE.default)(opts);
+            else if (own) own(name === 'buyBig' ? { ...opts, big: true } : opts || {});
+            else SOUNDS[name](opts);
+        } catch { /* a bad node never breaks the game */ }
         base = 0;
         gmul = 1;
+        ownSound = false;
     }
 
     // Milliseconds until the next held-job beat: the next 8th note (at least `minMs` away), or while the track
@@ -421,7 +622,8 @@
     function strikeCharge(c, l, n, t) {
         const v = c.v;
         const P = simple ? null : PROFILES[style];
-        c.o.frequency.setValueAtTime(NOTE(v.note(l, n) + (P?.oct || 0) * 12), t);
+        const hz = NOTE(v.note(l, n) + (P?.oct || 0) * 12);
+        c.o.frequency.setValueAtTime(simple ? hz : keyHz(hz), t);   // in the track's key, like every sound
         c.f.frequency.setTargetAtTime(v.cutoff(l), t, 0.02);
         c.g.gain.cancelScheduledValues(t);
         c.g.gain.setValueAtTime(v.gain * mix.training, t);
@@ -455,7 +657,7 @@
         }
         const c = chargeOsc;
         if (c.free) {
-            c.o.frequency.setTargetAtTime(NOTE(57) * Math.pow(2, 2 * l), now, 0.015);
+            c.o.frequency.setTargetAtTime((simple ? NOTE(57) : keyHz(NOTE(57))) * Math.pow(2, 2 * l), now, 0.015);
             return;
         }
         // Schedule the next 16th a little ahead, so it's struck exactly on the beat.
@@ -508,6 +710,8 @@
         const wet = ctx.createGain();
         dry.gain.value = 1;
         wet.gain.value = 0;
+        const parts = { beat: ctx.createGain(), tones: ctx.createGain() };
+        for (const [k, g] of Object.entries(parts)) { g.gain.value = musicMix[k]; g.connect(bus); }
         bus.connect(dry).connect(filter);
         bus.connect(drive).connect(wet).connect(filter);
         // The beat's trim comes after the drive, which would otherwise saturate back up to full level.
@@ -515,7 +719,7 @@
         trim.gain.value = styleTrim();
         filter.connect(trim).connect(out);
         const first = nextStep(1, 0.05);           // joins the clock, so it's in time with the grid sounds already use
-        music = { bus, drive, dry, wet, filter, trim, nextStep: first.t, step: first.n };
+        music = { bus, parts, drive, dry, wet, filter, trim, nextStep: first.t, step: first.n };
         music.timer = setInterval(schedule, 25);
     }
 
@@ -530,11 +734,14 @@
     }
 
     // One voice into the music bus.
-    function voice(fn) {
+    // One voice into the music, through its part: the beat (kick, hats, claps) or the tones (everything
+    // pitched), each with its own volume in Settings (`setMusicMix`).
+    function voice(fn, part = 'tones') {
         const g = ctx.createGain();
-        g.connect(music.bus);
+        g.connect(music.parts[part] || music.bus);
         fn(g);
     }
+    const shift = () => (STYLES[style] || STYLES.classic).shift || 0;   // the track's key, from A
     function kick(t, gain, from = 150, to = 45, decay = 0.28) {
         voice(g => {
             const o = ctx.createOscillator();
@@ -545,7 +752,7 @@
             o.connect(g);
             o.start(t);
             o.stop(t + decay + 0.02);
-        });
+        }, 'beat');
     }
     // A soft chord held for a bar (the Soft beat's pad): slow attack, gentle release.
     function pad(t, notes, dur, gain) {
@@ -553,7 +760,7 @@
             const o = ctx.createOscillator();
             const f = ctx.createBiquadFilter();
             o.type = 'triangle';
-            o.frequency.value = NOTE(n);
+            o.frequency.value = NOTE(n + shift());
             o.detune.value = (Math.random() - 0.5) * 10;
             f.type = 'lowpass';
             f.frequency.value = 1400;
@@ -578,7 +785,7 @@
             src.connect(f).connect(g);
             src.start(t, Math.random() * 0.5);
             src.stop(t + len + 0.02);
-        });
+        }, 'beat');
     }
     function clap(t, gain) {
         voice(g => {
@@ -594,14 +801,14 @@
             src.connect(f).connect(g);
             src.start(t, Math.random() * 0.5);
             src.stop(t + 0.2);
-        });
+        }, 'beat');
     }
     function synth(t, note, dur, gain, type, cutoff) {
         voice(g => {
             const o = ctx.createOscillator();
             const f = ctx.createBiquadFilter();
             o.type = type;
-            o.frequency.value = NOTE(note);
+            o.frequency.value = NOTE(note + shift());
             f.type = 'lowpass';
             f.frequency.value = cutoff;
             f.Q.value = 6;
@@ -637,7 +844,7 @@
             }
         },
         dark: {
-            cutoff: k => 1200 + 9000 * k * k, drive: 0.22, gain: 0.2,   // dense and driven: trimmed to Classic's loudness (measured RMS)
+            cutoff: k => 1200 + 9000 * k * k, drive: 0.22, gain: 0.2, shift: -5,   // E Phrygian   // dense and driven: trimmed to Classic's loudness (measured RMS)
             step(t, s, k, len, L) {
                 if (s % 4 === 0) kick(t, 0.62, 140, 38, 0.4);
                 // The rolling bass: every 16th but the kick's, A1 with a B flat turn at the end of the bar.
@@ -651,10 +858,10 @@
         // Ominous: a half-time feel on the same grid: a deep kick on 1 and 3, a sub drone under every bar, a bell
         // tolling every other bar, a clock ticking, a low reversed swell, and a slow motif rubbing A against B flat.
         ominous: {
-            cutoff: k => 500 + 3500 * k * k, drive: 0.08, gain: 0.47,
+            cutoff: k => 500 + 3500 * k * k, drive: 0.08, gain: 0.47, shift: 3,    // C, with its flat second
             step(t, s, k, len, L, bar) {
                 if (s === 0 || s === 8) kick(t, 0.55, 110, 32, 0.6);
-                if (s === 0) synth(t, bar % 2 ? 31 : 33, len * 16, 0.13, 'sawtooth', 160 + 260 * k);
+                if (s === 0) synth(t, bar % 2 ? 34 : 33, len * 16, 0.13, 'sawtooth', 160 + 260 * k);
                 if (s === 0 && bar % 2 === 0) { synth(t, 69, len * 12, 0.05, 'sine', 4000); synth(t, 88, len * 6, 0.012, 'sine', 4000); }
                 if (L.off > 0.02 && s % 4 === 2) hat(t, 0.035 * L.off, 0.02);
                 if (L.clap > 0.02 && s === 12) clap(t, 0.08 * L.clap);
@@ -679,7 +886,7 @@
             }
         },
         soft: {
-            cutoff: k => 700 + 4500 * k * k, drive: 0, gain: 1.35,
+            cutoff: k => 700 + 4500 * k * k, drive: 0, gain: 1.35, shift: 5,     // F major: Dm – Bb – F – C
             step(t, s, k, len, L, bar) {
                 if (s % 4 === 0) kick(t, 0.32, 110, 48, 0.22);
                 const chord = bar % 4;
@@ -777,11 +984,18 @@
         synth(hit, 33, 0.8, 0.2, 'sawtooth', 900);
     }
 
+    // The music's parts, each 0-1 (Settings → Music: Beat and Tones, per device).
+    const musicMix = { beat: 1, tones: 1 };
+    function setMusicMix(m) {
+        for (const k of Object.keys(musicMix)) if (m && m[k] != null) musicMix[k] = Math.max(0, Math.min(1, Number(m[k]) || 0));
+        if (music) for (const k of Object.keys(musicMix)) music.parts[k].gain.setTargetAtTime(musicMix[k], ctx.currentTime, 0.05);
+    }
+
     function setMusic(v) {
         musicVolume = Math.max(0, Math.min(1, Number(v) || 0));
         if (musicVolume <= 0) return stopMusic();
         if (music) music.bus.gain.setTargetAtTime(musicLevel(), ctx.currentTime, 0.05);
     }
 
-    window.SFX = { play, holdDelay, setMix, setSimple(v) { simple = !!v; chargeStop(); }, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
+    window.SFX = { play, holdDelay, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple(v) { simple = !!v; chargeStop(); }, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
 })();

@@ -2873,7 +2873,8 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
 .sound-groups summary { cursor: pointer; padding: 6px 0; color: var(--muted); font-weight: 600; }
 .sound-groups .setting-row { display: grid; grid-template-columns: 9.5em 160px auto; padding: 4px 0 4px 14px; }
 
-/* Themes (Settings → Theme; by default they follow the beat: Dark → Red, Soft → Soft pink). Every colour
+/* Themes (Settings → Theme; every role keeps its own hue within a theme (data, progress, the ball, alerts,
+   research, the terminal), so nothing reads as one wash; by default they follow the beat: Dark → Red, Soft → Soft pink). Every colour
    above that was one of these tokens reads the token (directly or through color-mix), so a theme is just a
    new set of tokens. Resource colours (research violet, the ball's amber) stay. */
 :root[data-theme="red"] {
@@ -2884,17 +2885,17 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
     --border: #4a1b21;
     --text: #f4e4e4;
     --muted: #b98c8f;
-    --primary: #ff5a68;
-    --secondary: #9b2433;
+    --primary: #ff4d5e;
+    --secondary: #8f1d2c;
     --accent: #ffcc66;
-    --success: #ff7f6e;
-    --warning: #ffb547;
-    --danger: #ff2e44;
-    --terminal: #ff6b5e;
-    --terminal-hi: #ffb3a8;
-    --terminal-dim: #a2504a;
-    --research: #ff5fa2;
-    --research-deep: #9c2b5e;
+    --success: #ff9f45;
+    --warning: #ffd447;
+    --danger: #ff1f3d;
+    --terminal: #ff8a5c;
+    --terminal-hi: #ffc4a3;
+    --terminal-dim: #a35a3c;
+    --research: #c77dff;
+    --research-deep: #6f3aa6;
 }
 :root[data-theme="pink"] {
     --bg: #19111a;
@@ -2905,16 +2906,16 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
     --text: #fbecf3;
     --muted: #c2a3b8;
     --primary: #f6a8cf;
-    --secondary: #a5739a;
-    --accent: #ffc9a8;
-    --success: #f3b6d6;
-    --warning: #ffd59e;
-    --danger: #ff8fa8;
-    --terminal: #f3b6d6;
-    --terminal-hi: #ffdcee;
-    --terminal-dim: #a37c95;
-    --research: #c9a7ff;
-    --research-deep: #7d62b5;
+    --secondary: #8a5f86;
+    --accent: #ffcfa3;
+    --success: #8fe3c8;
+    --warning: #ffe08a;
+    --danger: #ff7a95;
+    --terminal: #8fe3c8;
+    --terminal-hi: #c8f5e6;
+    --terminal-dim: #5f9c88;
+    --research: #b9a4ff;
+    --research-deep: #6f5cb0;
 }
 /* Void (with the Ominous beat): near-black indigo, cold violet light. */
 :root[data-theme="void"] {
@@ -2928,12 +2929,12 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
     --primary: #7b6cff;
     --secondary: #3d3470;
     --accent: #c9b6ff;
-    --success: #9aa7ff;
+    --success: #5fe0c8;
     --warning: #e8b04a;
     --danger: #ff4b6e;
-    --terminal: #8f86ff;
-    --terminal-hi: #c4beff;
-    --terminal-dim: #5b5490;
+    --terminal: #6fe3d0;
+    --terminal-hi: #b5f5ea;
+    --terminal-dim: #3f8f84;
     --research: #b07cff;
     --research-deep: #5e3aa6;
 }
@@ -2958,3 +2959,5 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
     --research: #ff2bd6;
     --research-deep: #9a1684;
 }
+/* Settings: the music's parts, indented under Music */
+.music-parts .setting-row { display: grid; grid-template-columns: 9.5em 160px auto; padding: 4px 0 4px 14px; }

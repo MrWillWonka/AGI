@@ -353,8 +353,12 @@
                 <label class="toggle"><input type="checkbox" id="settingShake"> Screen shake and flashes</label>
                 <label class="setting-row">Sound <input type="range" id="settingSound" min="0" max="1" step="0.05" aria-label="Sound volume"> <span id="settingSoundValue" class="muted small"></span></label>
                 <label class="setting-row">Music <input type="range" id="settingMusic" min="0" max="1" step="0.05" aria-label="Music volume"> <span id="settingMusicValue" class="muted small"></span></label>
-                <label class="setting-row">Beat
-                    <select id="settingBeat" aria-label="Music style">
+                <div class="music-parts">
+                    <label class="setting-row">Beat <input type="range" id="settingMusicBeat" min="0" max="1" step="0.05" aria-label="Beat (drums) volume"> <span id="settingMusicBeatValue" class="muted small"></span></label>
+                    <label class="setting-row">Tones <input type="range" id="settingMusicTones" min="0" max="1" step="0.05" aria-label="Tones (bass, chords, melody) volume"> <span id="settingMusicTonesValue" class="muted small"></span></label>
+                </div>
+                <label class="setting-row">Track
+                    <select id="settingBeat" aria-label="Music track">
                         <option value="classic">Classic</option>
                         <option value="dark">Dark (intense)</option>
                         <option value="soft">Soft (subtle)</option>

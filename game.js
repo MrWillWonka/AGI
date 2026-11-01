@@ -39,7 +39,8 @@ window.AGI = (function () {
     // Music (sfx.js): a backbeat whose intensity follows the ball's speed on the trail and whose mood follows the
     // power-up in play (a crunch distorts it, flow and bullet time slow and muffle it). Quiet everywhere else.
     const MUSIC_KEY = 'agiMusic';
-    const BEAT_KEY = 'agiBeat';      // Classic, Dark or Soft (per device)
+    const BEAT_KEY = 'agiBeat';      // the music track: Classic, Dark, Soft, Ominous or Retro (per device)
+    const MUSIC_MIX_KEY = 'agiMusicMix';   // the music's Beat and Tones volumes (per device)
     const THEME_KEY = 'agiTheme';           // auto (follows the beat), night, red or pink (per device)
     // The colour theme: chosen, or by default the beat's (Classic → Night survey, Dark → Red, Soft → Soft pink).
     function applyTheme() {
@@ -1201,7 +1202,22 @@ window.AGI = (function () {
             window.SFX?.setSimple?.(simpleBox.checked);
             sfx('buy', { panel: 'hardware' });
         });
-        // The beat: Classic, Dark or Soft, per device.
+        // The music's parts: the beat (drums) and the tones (bass, chords, melody), per device.
+        const musicMix = (() => { try { return { beat: 1, tones: 1, ...JSON.parse(storageGet(MUSIC_MIX_KEY) || '{}') }; } catch { return { beat: 1, tones: 1 }; } })();
+        window.SFX?.setMusicMix?.(musicMix);
+        for (const [k, id] of [['beat', 'settingMusicBeat'], ['tones', 'settingMusicTones']]) {
+            const input = $(id);
+            const show = () => setText($(id + 'Value'), musicMix[k] > 0 ? `${Math.round(musicMix[k] * 100)}%` : 'off');
+            input.value = musicMix[k];
+            show();
+            input.addEventListener('input', () => {
+                musicMix[k] = Number(input.value);
+                window.SFX?.setMusicMix?.(musicMix);
+                storageSet(MUSIC_MIX_KEY, JSON.stringify(musicMix));
+                show();
+            });
+        }
+        // The track: Classic, Dark, Soft, Ominous or Retro, per device.
         const beat = $('settingBeat');
         const beatStyle = ['classic', 'dark', 'soft', 'ominous', 'retro'].includes(storageGet(BEAT_KEY)) ? storageGet(BEAT_KEY) : 'classic';
         beat.value = beatStyle;
