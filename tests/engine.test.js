@@ -926,7 +926,7 @@ test('prompts: system inside super inside clean; each pays and hits harder; supe
     s.levels.perfectCalibration = 1;
     s.prestige.levels.systemPrompt = 1;
     const d = E.derive(s);
-    assert.ok(d.systemWidth > 0 && d.systemWidth <= d.perfectWidth / 2);
+    assert.ok(d.systemWidth > 0 && d.systemWidth <= d.perfectWidth * 0.8, "inside the super prompt, a little harder than a new one");
     const z = E.bonusZone(9, 0, d.zoneWidth, d.perfectWidth, d.systemWidth);
     const mid = (z.systemFrom + z.systemTo) / 2;
     assert.equal(E.zoneHit(z, mid), 'system');
@@ -1525,4 +1525,16 @@ test('mid-game achievements: runs, skills, prompts, breakthroughs, replays and t
     const got = E.evaluate(s).achievements.map(a => a.id);
     for (const id of ['runs10', 'skills3', 'clean1', 'break1', 'super1', 'replay1', 'tree10']) assert.ok(got.includes(id), id);
     assert.ok(!got.includes('runs50') && !got.includes('skills5'));
+});
+
+test('super prompts start tight and stay a fixed share smaller as they widen; system prompts tighter still', () => {
+    // Playtest 2: super prompts weren't hard once bought.
+    const s = fresh();
+    s.levels.precisionTuning = 1;
+    s.levels.perfectCalibration = 1;
+    const d = E.derive(s);
+    assert.ok(Math.abs(d.perfectWidth - 0.015) < 1e-9);
+    s.prestige.levels.systemPrompt = 1;
+    const d2 = E.derive(s);
+    assert.ok(d2.systemWidth <= d2.perfectWidth && d2.systemWidth >= 0.6 * d2.perfectWidth, 'about as hard as a new super prompt, a little harder');
 });

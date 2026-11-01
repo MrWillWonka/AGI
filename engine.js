@@ -41,9 +41,9 @@
         cleanRollBonus: 0.1, // and +10% distance XP for the roll per clean push
         perfectMult: 3,      // a perfect push (inside the perfect spot) counts as this many clean pushes
         zoneWidth: 0.1,      // bonus zone width as a fraction of the strength meter (fixed: hitting it is the skill)
-        perfectWidth: 0.025, // perfect spot width once Perfect Calibration is bought
+        perfectWidth: 0.015, // perfect spot width once Prompt Engineering is bought (0.025 was hit almost at will in playtest 2; widening keeps the same share)
         perfectPower: 0.3,   // a super prompt (perfect) hits this much harder on top of a clean one
-        systemWidth: 0.01,   // the system prompt spot inside the super prompt (legacy System Prompt)
+        systemWidth: 0.012,  // the system prompt spot inside the super prompt (legacy System Prompt): a little harder than a new super prompt
         systemMult: 50,      // a system prompt counts as this many clean prompts
         systemPower: 0.6,    // and hits this much harder again
         breakthroughMult: 1.75, // a breakthrough sprint's strength multiplier before upgrades
@@ -236,7 +236,7 @@
         // and special, so the tree's choices are about strength, sprints, drag and XP).
         // `legacy` nodes cost Insight (from shipping a new version) and are kept for good: they appear after
         // the first new version, and once owned stay visible and buyable without their parent.
-        { id: 'initialWeights', tab: 'training', tree: { x: 0, y: 0 }, icon: 'core', name: 'Initial Weights', effect: 'Rolling hills 6% lower', flavor: 'Random numbers, but they\'re your random numbers.', cost: { xp: 1 }, max: 1, boost: { slope: 1 } },
+        { id: 'initialWeights', tab: 'training', tree: { x: 0, y: 0 }, icon: 'core', name: 'Initial Weights', effect: 'Rolling hills 7% lower', flavor: 'Random numbers, but they\'re your random numbers.', cost: { xp: 1 }, max: 1, boost: { slope: 1 } },
         // Power (up): sprint strength, with breakthroughs and Max Effort branching off it.
         { id: 'trainingOptimizer', tab: 'training', tree: { x: 0, y: -1 }, requires: 'initialWeights', icon: 'bolt', name: 'GPU Cluster', effect: '+25% sprint strength per level', flavor: 'You maxed out the company card on graphics cards.', cost: { xp: 4 }, scale: 1.8, max: 2, boost: { push: 0.25 } },
         { id: 'gpuCluster2', mechanic: 'charge', tab: 'training', tree: { x: 0, y: -2 }, icon: 'bolt', name: 'Fast Charging', effect: 'The sprint meter holds at full 0.2 s longer, per level', flavor: 'Skip the warm-up. The GPUs are already sweating.', cost: { xp: 45 }, scale: 1.6, max: 2, requires: 'trainingOptimizer', boost: { charge: 0.2 } },
@@ -261,12 +261,12 @@
         { id: 'muse', tab: 'training', tree: { x: 2, y: -4 }, icon: 'flame', name: 'The Muse', effect: '+3% Max Effort chance per level', flavor: 'Inspiration arrives on schedule. Suspicious.', cost: { xp: 7000 }, scale: 1.9, max: 3, requires: 'quantumAccelerator', boost: { maxEffortChance: 0.03 } },
         // Secrets: these never show, not even as a lock, until the node next to them is owned.
         { id: 'batchNorm', tab: 'training', tree: { x: 1, y: -1 }, icon: 'chip', name: 'Batch Normalization', effect: '-15% wait between sprints', flavor: 'Everybody calm down. Especially the gradients.', cost: { xp: 25 }, max: 1, requires: 'trainingOptimizer', secret: true, boost: { cooldown: 1 } },
-        { id: 'dataAugmentation', tab: 'training', tree: { x: 1, y: 1 }, icon: 'stack', name: 'Data Augmentation', effect: '+15% run bonus per clean prompt', flavor: 'Flip it, rotate it, call it new data.', cost: { xp: 25 }, max: 1, requires: 'trainingEpochs', secret: true, boost: { rollBonus: 0.15 } },
+        { id: 'dataAugmentation', tab: 'training', tree: { x: 1, y: 1 }, icon: 'stack', name: 'Data Augmentation', effect: '+20% run bonus per clean prompt', flavor: 'Flip it, rotate it, call it new data.', cost: { xp: 25 }, max: 1, requires: 'trainingEpochs', secret: true, boost: { rollBonus: 0.2 } },
         { id: 'warmRestarts', tab: 'training', tree: { x: -1, y: 1 }, icon: 'chip', name: 'Warm Restarts', effect: 'The sprint meter holds at full 0.1 s longer', flavor: 'Have you tried turning it off and on again?', cost: { xp: 20 }, max: 1, requires: 'trainingEpochs', secret: true, boost: { charge: 0.1 } },
         // Momentum (left): less drag and lower rolling hills, then Flow State.
         { id: 'optimizedCode', tab: 'training', tree: { x: -1, y: 0 }, requires: 'initialWeights', icon: 'code', name: 'Better Optimizer', effect: '-5% drag', flavor: 'Swapped the default settings for ones a forum post swore by.', cost: { xp: 7 }, max: 1, boost: { friction: 1 } },
-        { id: 'efficientKernels', tab: 'training', tree: { x: -2, y: 0 }, icon: 'mountain', name: 'Gradient Clipping', effect: 'Rolling hills 6% lower per level', flavor: 'Trim the spikes before they trip you up.', cost: { xp: 30 }, scale: 1.8, max: 2, requires: 'optimizedCode', boost: { slope: 1 } },
-        { id: 'betterAlgorithms', tab: 'training', tree: { x: -1, y: -1 }, icon: 'mountain', name: 'Smoother Loss Landscape', effect: 'Rolling hills 6% lower per level', flavor: 'Fewer potholes on the road to genius.', cost: { xp: 38 }, scale: 2, max: 2, requires: 'trainingOptimizer', boost: { slope: 1 } },
+        { id: 'efficientKernels', tab: 'training', tree: { x: -2, y: 0 }, icon: 'mountain', name: 'Gradient Clipping', effect: 'Rolling hills 7% lower per level', flavor: 'Trim the spikes before they trip you up.', cost: { xp: 30 }, scale: 1.8, max: 2, requires: 'optimizedCode', boost: { slope: 1 } },
+        { id: 'betterAlgorithms', tab: 'training', tree: { x: -1, y: -1 }, icon: 'mountain', name: 'Smoother Loss Landscape', effect: 'Rolling hills 7% lower per level', flavor: 'Fewer potholes on the road to genius.', cost: { xp: 38 }, scale: 2, max: 2, requires: 'trainingOptimizer', boost: { slope: 1 } },
         { id: 'smarterAlgorithms', tab: 'training', tree: { x: -2, y: -1 }, icon: 'code', name: 'Regularization', effect: '-10% drag per level', flavor: 'Stop the model memorising the answer key.', cost: { xp: 180 }, scale: 1.8, max: 3, requires: 'betterAlgorithms', boost: { friction: 2 } },
         { id: 'superconductors', tab: 'training', tree: { x: -3, y: 0 }, icon: 'code', name: 'Mixed Precision', effect: '-10% drag per level', flavor: 'Half the decimal places, twice the speed. Nobody notices.', cost: { xp: 1400 }, scale: 1.7, max: 3, requires: 'efficientKernels', boost: { friction: 2 } },
         // `mechanic` marks the first node of each new way to play (a breakthrough, the prompt zone, strips...): it
@@ -275,17 +275,18 @@
     // Boost strips, bought (a playtest read free ones as an unexplained upgrade, and weak): front strips on hills'
         // faces push you up, back strips on hills' backs brake a backward roll before you lose the ground you made.
         // Each starts weak and grows by level; Streaming Pipeline puts them on more hills (training-path.js `strips`).
-        { id: 'dataStreams', mechanic: 'stripFront', tab: 'training', tree: { x: -2, y: 1 }, requires: 'efficientKernels', icon: 'chevrons', name: 'Data Streams', effect: 'Boost strips on some hill faces push you up them (stronger per level)', flavor: 'Point the firehose uphill.', cost: { xp: 60 }, scale: 1.8, max: 3, boost: { stripFront: 1 } },
-        { id: 'checkpointing', mechanic: 'stripBack', tab: 'training', tree: { x: -2, y: -2 }, requires: 'highResSensors', icon: 'chevrons', name: 'Checkpointing', effect: 'Strips on some hill backs brake a roll backward (stronger per level)', flavor: 'Save often. Lose less.', cost: { xp: 160 }, scale: 1.7, max: 3, boost: { stripBack: 1 } },
-        { id: 'streamingPipeline', tab: 'training', tree: { x: -2, y: 2 }, requires: 'dataStreams', icon: 'chevrons', name: 'Streaming Pipeline', effect: 'Boost strips on more hills, per level', flavor: 'More pipes. Same plumber.', cost: { xp: 330 }, scale: 1.8, max: 2, boost: { stripMore: 1 } },
-        { id: 'neuralCompression', tab: 'training', tree: { x: -3, y: -1 }, icon: 'mountain', name: 'Model Distillation', effect: 'Rolling hills 12% lower per level', flavor: 'Teach a small model everything the big one knows.', cost: { xp: 3200 }, scale: 1.7, max: 3, requires: 'smarterAlgorithms', boost: { slope: 2 } },
-        { id: 'neuromorphic', tab: 'training', tree: { x: -4, y: 0 }, icon: 'mountain', name: 'Neuromorphic Chips', effect: '+30% sprint strength and rolling hills 6% lower, per level', flavor: 'Silicon that thinks it\'s a brain. Close enough.', cost: { xp: 8000 }, scale: 1.8, max: 3, requires: 'superconductors', boost: { push: 0.3, slope: 1 } },
+        { id: 'checkpointing', mechanic: 'stripBack', tab: 'training', tree: { x: -2, y: 1 }, requires: 'efficientKernels', icon: 'chevrons', name: 'Checkpointing', effect: 'Strips on some hill backs brake a roll backward (stronger per level)', flavor: 'Save often. Lose less.', cost: { xp: 60 }, scale: 1.8, max: 3, boost: { stripBack: 1 } },
+        { id: 'streamingPipeline', tab: 'training', tree: { x: -2, y: 2 }, requires: 'checkpointing', icon: 'chevrons', name: 'Streaming Pipeline', effect: 'Boost strips on more hills, per level', flavor: 'More pipes. Same plumber.', cost: { xp: 330 }, scale: 1.8, max: 2, boost: { stripMore: 1 } },
+        // Front strips come later: brakes first (a bad sprint loses less), then pushes up the faces.
+        { id: 'dataStreams', mechanic: 'stripFront', tab: 'training', tree: { x: -3, y: 2 }, requires: 'streamingPipeline', icon: 'chevrons', name: 'Data Streams', effect: 'Boost strips on some hill faces push you up them (stronger per level)', flavor: 'Point the firehose uphill.', cost: { xp: 650 }, scale: 1.7, max: 3, boost: { stripFront: 1 } },
+        { id: 'neuralCompression', tab: 'training', tree: { x: -3, y: -1 }, icon: 'mountain', name: 'Model Distillation', effect: 'Rolling hills 14% lower per level', flavor: 'Teach a small model everything the big one knows.', cost: { xp: 3200 }, scale: 1.7, max: 3, requires: 'smarterAlgorithms', boost: { slope: 2 } },
+        { id: 'neuromorphic', tab: 'training', tree: { x: -4, y: 0 }, icon: 'mountain', name: 'Neuromorphic Chips', effect: '+30% sprint strength and rolling hills 7% lower, per level', flavor: 'Silicon that thinks it\'s a brain. Close enough.', cost: { xp: 8000 }, scale: 1.8, max: 3, requires: 'superconductors', boost: { push: 0.3, slope: 1 } },
         { id: 'sparseExperts', tab: 'training', tree: { x: -4, y: -1 }, icon: 'code', name: 'Mixture of Experts', effect: '-15% drag per level', flavor: 'Only wake the experts you need.', cost: { xp: 11000 }, scale: 1.8, max: 3, requires: 'neuralCompression', boost: { friction: 3 } },
         // Precision (right): better XP from every run, then the prompt spots.
-        { id: 'bigDatasets', tab: 'training', tree: { x: 1, y: 0 }, requires: 'initialWeights', icon: 'stack', name: 'Bigger Datasets', effect: '+15% XP from every run, per level', flavor: 'You scraped the whole internet. Yes, even the comments.', cost: { xp: 5 }, scale: 2, max: 2, boost: { xp: 0.15 } },
+        { id: 'bigDatasets', tab: 'training', tree: { x: 1, y: 0 }, requires: 'initialWeights', icon: 'stack', name: 'Bigger Datasets', effect: '+20% XP from every run, per level', flavor: 'You scraped the whole internet. Yes, even the comments.', cost: { xp: 5 }, scale: 2, max: 2, boost: { xp: 0.2 } },
         { id: 'precisionTuning', mechanic: 'prompt', tab: 'training', tree: { x: 2, y: 0 }, icon: 'target', name: 'Hyperparameter Search', effect: 'Adds clean prompts: a zone on the meter that hits 20% harder and banks XP', flavor: 'Turn every knob until something works.', cost: { xp: 14 }, scale: 2.5, max: 1, requires: 'bigDatasets', boost: { zone: 1, cleanPower: 0.2 } },
-        { id: 'benchmarkPrizes', tab: 'training', tree: { x: 3, y: 0 }, icon: 'coin', name: 'Benchmark Prizes', effect: '+25% XP per clean prompt, per level', flavor: 'Top the leaderboard, collect the gift card.', cost: { xp: 22 }, scale: 1.7, max: 3, requires: 'precisionTuning', boost: { clean: 0.25 } },
-        { id: 'curatedData', tab: 'training', tree: { x: 3, y: -1 }, icon: 'stack', name: 'Curated Data', effect: '+25% run bonus per clean prompt, per level', flavor: 'Less garbage in, less garbage out.', cost: { xp: 70 }, scale: 1.7, max: 2, requires: 'benchmarkPrizes', boost: { rollBonus: 0.25 } },
+        { id: 'benchmarkPrizes', tab: 'training', tree: { x: 3, y: 0 }, icon: 'coin', name: 'Benchmark Prizes', effect: '+30% XP per clean prompt, per level', flavor: 'Top the leaderboard, collect the gift card.', cost: { xp: 22 }, scale: 1.7, max: 3, requires: 'precisionTuning', boost: { clean: 0.3 } },
+        { id: 'curatedData', tab: 'training', tree: { x: 3, y: -1 }, icon: 'stack', name: 'Curated Data', effect: '+30% run bonus per clean prompt, per level', flavor: 'Less garbage in, less garbage out.', cost: { xp: 70 }, scale: 1.7, max: 2, requires: 'benchmarkPrizes', boost: { rollBonus: 0.3 } },
         // Prompts: first the clean prompt grows (power, rewards, size, placement), then super prompts arrive
         // with their effects, and their spot only widens late and dear, so they stay rare.
         { id: 'promptTemplates', tab: 'training', tree: { x: 4, y: 0 }, icon: 'target', name: 'Prompt Templates', effect: 'Clean prompt zone 15% wider, per level', flavor: 'Fill in the blanks. Fewer blanks every time.', cost: { xp: 90 }, scale: 1.6, max: 3, requires: 'benchmarkPrizes', boost: { cleanSize: 1 } },
@@ -293,21 +294,21 @@
         { id: 'perfectCalibration', tab: 'training', tree: { x: 4, y: 1 }, icon: 'star', name: 'Prompt Engineering', effect: 'Adds a tiny super prompt spot: 30% harder, worth 3 clean prompts', flavor: 'A bullseye inside the bullseye.', cost: { xp: 300 }, max: 1,
             requires: 'promptTuning', boost: { perfect: 1 } },
         { id: 'highResSensors', tab: 'training', tree: { x: -1, y: -2 }, icon: 'code', name: 'Liquid Cooling', effect: '-5% drag per level', flavor: 'Runs cooler, coasts further.', cost: { xp: 90 }, scale: 1.6, max: 2, requires: 'gpuCluster2', boost: { friction: 1 } },
-        { id: 'handLabelled', tab: 'training', tree: { x: 4, y: -1 }, icon: 'coin', name: 'Hand-Labelled Data', effect: '+35% XP per clean prompt, per level', flavor: 'Interns. So many interns.', cost: { xp: 200 }, scale: 1.7, max: 3, requires: 'curatedData', boost: { clean: 0.35 } },
+        { id: 'handLabelled', tab: 'training', tree: { x: 4, y: -1 }, icon: 'coin', name: 'Hand-Labelled Data', effect: '+40% XP per clean prompt, per level', flavor: 'Interns. So many interns.', cost: { xp: 200 }, scale: 1.7, max: 3, requires: 'curatedData', boost: { clean: 0.4 } },
         { id: 'fineCalibration', tab: 'training', tree: { x: 5, y: 1 }, icon: 'star', name: 'Few-Shot Examples', effect: 'Super prompts 20% harder and worth +1 clean prompt, per level', flavor: 'Here are three examples. Do it like that.', cost: { xp: 450 }, scale: 1.6, max: 3, requires: 'perfectCalibration', boost: { perfectPower: 0.2, perfectUnits: 1 } },
-        { id: 'leaderboardPrizes', tab: 'training', tree: { x: 5, y: 0 }, icon: 'coin', name: 'Leaderboard Prizes', effect: '+60% XP per clean prompt, per level', flavor: 'First place, and a trophy bigger than the team.', cost: { xp: 320 }, scale: 1.7, max: 3, requires: 'promptTemplates', boost: { clean: 0.6 } },
-        { id: 'webCorpus', tab: 'training', tree: { x: 2, y: 1 }, icon: 'stack', name: 'Web-Scale Corpus', effect: '+25% XP from every run, per level', flavor: 'The entire internet, twice, deduplicated once.', cost: { xp: 2000 }, scale: 1.8, max: 3, requires: 'dataAugmentation', boost: { xp: 0.25 } },
-        { id: 'syntheticData', tab: 'training', tree: { x: 5, y: -1 }, icon: 'stack', name: 'Synthetic Data', effect: '+25% run bonus per clean prompt and +15% XP, per level', flavor: 'The model writes its own homework now.', cost: { xp: 3500 }, scale: 1.8, max: 3, requires: 'handLabelled', boost: { rollBonus: 0.25, xp: 0.15 } },
+        { id: 'leaderboardPrizes', tab: 'training', tree: { x: 5, y: 0 }, icon: 'coin', name: 'Leaderboard Prizes', effect: '+70% XP per clean prompt, per level', flavor: 'First place, and a trophy bigger than the team.', cost: { xp: 320 }, scale: 1.7, max: 3, requires: 'promptTemplates', boost: { clean: 0.7 } },
+        { id: 'webCorpus', tab: 'training', tree: { x: 2, y: 1 }, icon: 'stack', name: 'Web-Scale Corpus', effect: '+30% XP from every run, per level', flavor: 'The entire internet, twice, deduplicated once.', cost: { xp: 2000 }, scale: 1.8, max: 3, requires: 'dataAugmentation', boost: { xp: 0.3 } },
+        { id: 'syntheticData', tab: 'training', tree: { x: 5, y: -1 }, icon: 'stack', name: 'Synthetic Data', effect: '+30% run bonus per clean prompt and +20% XP, per level', flavor: 'The model writes its own homework now.', cost: { xp: 3500 }, scale: 1.8, max: 3, requires: 'handLabelled', boost: { rollBonus: 0.3, xp: 0.2 } },
         { id: 'laserCalibration', tab: 'training', tree: { x: 6, y: 1 }, icon: 'star', name: 'Chain of Thought', effect: 'Super prompt spot 40% wider, per level', flavor: 'Let\'s think step by step. Out loud. For a while.', cost: { xp: 5000 }, scale: 1.8, max: 2, requires: 'fineCalibration', boost: { perfectSize: 1 } },
         { id: 'globalBenchmark', tab: 'training', tree: { x: 6, y: 0 }, icon: 'target', name: 'Global Benchmark', effect: 'Clean prompts hit 15% harder, per level', flavor: 'Everyone measures against you now.', cost: { xp: 4000 }, scale: 1.8, max: 3, requires: 'leaderboardPrizes', boost: { cleanPower: 0.15 } },
-        { id: 'turingTest', tab: 'training', tree: { x: 7, y: 0 }, icon: 'star', name: 'Turing Test', effect: '+50% XP from every run, per level', flavor: 'The judges asked it out. Twice.', cost: { xp: 45000 }, scale: 2, max: 2, requires: 'globalBenchmark', boost: { xp: 0.5 } },
+        { id: 'turingTest', tab: 'training', tree: { x: 7, y: 0 }, icon: 'star', name: 'Turing Test', effect: '+60% XP from every run, per level', flavor: 'The judges asked it out. Twice.', cost: { xp: 45000 }, scale: 2, max: 2, requires: 'globalBenchmark', boost: { xp: 0.6 } },
         // Recursion (down): more sprints per run and less wait between them.
         { id: 'trainingEpochs', tab: 'training', tree: { x: 0, y: 1 }, requires: 'initialWeights', icon: 'plus', name: 'Investor Funding', effect: '+1 training sprint per run', flavor: 'Dad lent you $100. Don\'t tell Mum.', cost: { xp: 4 }, scale: 3, max: 2, boost: { pushes: 1 } },
         // The fourth sprint, out in Precision (the seed's sprint moved to Investor Funding): a choice against the prompts.
         { id: 'angelInvestor', tab: 'training', tree: { x: 2, y: -1 }, requires: 'precisionTuning', icon: 'plus', name: 'Angel Investor', effect: '+1 training sprint per run', flavor: 'A stranger at a meetup believed in you. Cash is cash.', cost: { xp: 18 }, max: 1, boost: { pushes: 1 } },
         { id: 'fasterIteration', tab: 'training', tree: { x: 0, y: 2 }, icon: 'chip', name: 'Faster Chips', effect: '-15% wait between sprints per level', flavor: 'Less waiting, more training. Coffee breaks cancelled.', cost: { xp: 20 }, scale: 1.7, max: 2, requires: 'trainingEpochs', boost: { cooldown: 1 } },
         { id: 'seriesA', tab: 'training', tree: { x: -1, y: 2 }, icon: 'plus', name: 'Series A', effect: '+1 training sprint per run', flavor: 'A real investor! They wear a fleece vest.', cost: { xp: 90 }, scale: 2.5, max: 1, requires: 'fasterIteration', boost: { pushes: 1 } },
-        { id: 'overclockedChips', tab: 'training', tree: { x: 0, y: 3 }, icon: 'coin', name: 'Bridge Round', effect: '+10% XP from every run', flavor: 'Money for more experiments. Mostly snacks.', cost: { xp: 150 }, scale: 1.7, max: 1, requires: 'fasterIteration', boost: { xp: 0.1 } },
+        { id: 'overclockedChips', tab: 'training', tree: { x: 0, y: 3 }, icon: 'coin', name: 'Bridge Round', effect: '+15% XP from every run', flavor: 'Money for more experiments. Mostly snacks.', cost: { xp: 150 }, scale: 1.7, max: 1, requires: 'fasterIteration', boost: { xp: 0.15 } },
         { id: 'seriesB', tab: 'training', tree: { x: -1, y: 3 }, icon: 'chip', name: 'Hiring Spree', effect: '-15% wait between sprints per level', flavor: 'More engineers, shorter queues. Mostly.', cost: { xp: 450 }, scale: 1.7, max: 3, requires: 'seriesA', boost: { cooldown: 1 } },
         { id: 'customSilicon', tab: 'training', tree: { x: 0, y: 4 }, icon: 'chip', name: 'Custom Silicon', effect: '-15% wait between sprints per level', flavor: 'Why buy chips when you can design your own?', cost: { xp: 375 }, scale: 1.7, max: 3, requires: 'overclockedChips', boost: { cooldown: 1 } },
         { id: 'ipo', tab: 'training', tree: { x: -1, y: 4 }, icon: 'plus', name: 'IPO', effect: '+1 training sprint per run, per level', flavor: 'Ring the bell. Mum framed the press release.', cost: { xp: 2400 }, scale: 2.2, max: 3, requires: 'seriesB', boost: { pushes: 1 } },
@@ -773,7 +774,7 @@
         const cleanPower = 1 + tb.cleanPower;
         const perfectPower = cleanPower + PATH.perfectPower + tb.perfectPower;
         // The system prompt: a sliver inside the super prompt spot (legacy), worth 50 clean prompts.
-        const systemWidth = tb.system && perfectWidth ? Math.min(0.5 * perfectWidth, PATH.systemWidth * (1 + 0.5 * (tb.system - 1))) : 0;
+        const systemWidth = tb.system && perfectWidth ? Math.min(0.8 * perfectWidth, PATH.systemWidth * (1 + 0.5 * (tb.system - 1))) : 0;
         const systemPower = perfectPower + PATH.systemPower;
         // Fast Charging: the meter lingers at full for a moment before sweeping back (seconds), so a
         // full-strength release is easier to catch. (It used to sweep faster, which made every timed
@@ -798,7 +799,7 @@
         // Small steps on purpose: handling the hills is the skill, so upgrades only take the edge off.
         const friction = Math.pow(0.95, tb.friction) * (1 - sk.glide);
         // 'Less steep hills' really lowers the rolling hills (never the skill hills: those stay walls).
-        const hillScale = Math.pow(0.94, tb.slope);
+        const hillScale = Math.pow(0.93, tb.slope);   // 7% lower per step (was 6%: it didn't feel worth it in playtest 2)
         // Versions train faster too: Insight's multiplier (mult) applies to training XP, passive included.
         const xpMult = (1 + tb.xp) * bo.xp * mult * 1.25 ** perkLevel(s, 'pretrained');
         // Cleared stretches keep training on their own, slowly: XP per second from every learned skill hill.
@@ -1142,6 +1143,12 @@
         const cost = {};
         for (const [k, v] of Object.entries(PATH.pushCost)) cost[k] = Math.max(1, Math.ceil(v * factor));
         return cost;
+    }
+
+    // Restarting a run costs half a full sprint on the leg the ball is on: dropping a bad start isn't free.
+    function restartCost(s, leg = s.path.learned) {
+        const full = pushCost(s, 1, leg);
+        return Object.fromEntries(Object.entries(full).map(([k, v]) => [k, Math.max(1, Math.ceil(v / 2))]));
     }
 
     // The fullest charge you can currently afford (0–1); below PATH.minCharge you cannot push at all.
@@ -1901,7 +1908,7 @@
 
     return {
         SAVE_VERSION, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
-        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, CAPACITY, capacity, atCapacity, breakGuaranteed, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
+        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,

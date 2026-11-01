@@ -279,8 +279,8 @@ test('engine: clean pushes bank flat XP and boost the roll; perfect counts tripl
     s.levels.benchmarkPrizes = 2;
     s.levels.curatedData = 2;
     s.levels.precisionTuning = 2;
-    assert.ok(Math.abs(E.pushBonusXp(s, 'clean') - clean * 1.5) < 1e-9);
-    assert.ok(Math.abs(E.derive(s).cleanRollBonus - E.PATH.cleanRollBonus * 1.5) < 1e-9);
+    assert.ok(Math.abs(E.pushBonusXp(s, 'clean') - clean * 1.6) < 1e-9);
+    assert.ok(Math.abs(E.derive(s).cleanRollBonus - E.PATH.cleanRollBonus * 1.6) < 1e-9);
     assert.equal(E.derive(s).perfectWidth, 0);
     s.levels.perfectCalibration = 1;
     assert.ok(E.derive(s).perfectWidth > 0);

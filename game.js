@@ -241,6 +241,10 @@ window.AGI = (function () {
     let revealReady = false;
     function revealIn(node) {
         if (!revealReady || !node.matches?.(REVEAL) || reducedMotion()) return;
+        // Off screen (a lab card unlocked while you were training): it just appears. An animation started on a
+        // hidden room waited and played on the way back in, over the room's zoom, and the card couldn't be clicked
+        // until it finished (playtest 2). The lab's badge says what's new instead.
+        if (!node.getClientRects().length) return;
         node.classList.remove('reveal-in');
         node.style.animationDelay = '';
         void node.offsetWidth;
@@ -334,6 +338,8 @@ window.AGI = (function () {
         // run view's Lab supply (a way there), else the Lab's tile on Surveillance (phones hide the chip).
         'hint:lab': { anchor: () => labPointer(), kind: 'tip', place: 'below', ms: 12000 },
         'hint:offer': { anchor: () => labPointer(), kind: 'tip', place: 'below', ms: 12000 },
+        // The first time on the trail: what a training run is (over the trail's sky, before the first sprint).
+        'hint:train': { anchor: () => $('pathCanvas'), kind: 'tip', place: 'inside' },
         // The first run with a zone on the meter: what a prompt is, without telling anyone to take them.
         'hint:prompt': { anchor: () => $('charge'), kind: 'tip', place: 'above' }
     };
@@ -1980,9 +1986,13 @@ window.AGI = (function () {
             const more = [...(labSeen || [])].some(k => k.startsWith(`${u.id}@`));
             callout('hint:lab', 'New in the lab', `${more ? `More room for ${E.upgradeName(state, u)}` : `${E.upgradeName(state, u)} just opened`}. The lab's badge counts what's new since your last visit.`);
         }
+        if (!state.intro['hint:train'] && openBay === 'training' && path.view === 'run' && state.stats.rolls === 0) {
+            state.intro['hint:train'] = true;
+            callout('hint:train', 'Training runs', 'This is how your model learns. Hold the button to charge a sprint and let go to fire it. Roll over the hills to the flag: cresting the skill hill teaches the model a skill, and every metre earns XP to spend on upgrades.');
+        }
         if (!state.intro['hint:prompt'] && openBay === 'training' && path.view === 'run' && E.derive(state).zoneWidth > 0) {
             state.intro['hint:prompt'] = true;
-            callout('hint:prompt', 'Prompts', 'Release a sprint inside the green zone for bonus XP and a bigger run bonus. It isn\'t always the best play: a full charge can carry you further.');
+            callout('hint:prompt', 'Prompts', 'Release a sprint inside the green zone for bonus XP and a bigger run bonus. It isn\'t always the best play: a full charge might take you farther.');
         }
         if (claimable && view !== 'lab' && !state.intro['hint:offer']) {
             state.intro['hint:offer'] = true;
@@ -2131,6 +2141,8 @@ window.AGI = (function () {
     }
     // Always a boolean: classList.toggle(name, undefined) flips the class instead of clearing it.
     const roomOpen = id => !!ROOMS[id].built && roomUnlocked(id);
+    // Entered a bay before (older saves that have run count as having seen the Training Cluster).
+    const baySeen = id => seenRooms.has(`bay:${id}`) || (id === 'training' && state.stats.rolls > 0);
 
     function roomStatus(id, d) {
         const r = ROOMS[id];
@@ -2440,7 +2452,7 @@ window.AGI = (function () {
         const bays = Object.keys(BAYS).filter(id => bayUnlocked(id) || id === nextSealedBay());
         const here = currentPlace();
         // Open state too: a sealed outline that opens keeps the same id, and must redraw as a room.
-        const key = [areas.map(id => id + (roomOpen(id) ? '+' : '')), bays.map(id => id + (bayUnlocked(id) ? '+' : '')), here].join('|');
+        const key = [areas.map(id => id + (roomOpen(id) ? '+' : '') + (seenRooms.has(id) ? 's' : '')), bays.map(id => id + (bayUnlocked(id) ? '+' : '') + (baySeen(id) ? 's' : '')), here].join('|');
         if (key === minimapKey) return;
         minimapKey = key;
         const open = id => roomOpen(id);
@@ -2479,7 +2491,8 @@ window.AGI = (function () {
         };
         for (const id of areas) {
             const b = MINIMAP[id];
-            if (open(id)) block(id, b, 'room', b.label, ROOMS[id].name);
+            // A room you haven't been in yet pulses on the map: the way the first visit to the server room is steered.
+            if (open(id)) block(id, b, `room${seenRooms.has(id) ? '' : ' fresh'}`, b.label, ROOMS[id].name);
             else block(id, b, roomUnlocked(id) ? 'room building' : 'room sealed', '?', roomUnlocked(id) ? `${ROOMS[id].name} (being built)` : 'Sealed');
         }
         // The server room's bays, as cells inside its block.
@@ -2488,6 +2501,9 @@ window.AGI = (function () {
             bays.forEach((id, i) => {
                 const cell = { x: sb.x + 3, y: sb.y + 11 + i * 10, w: sb.w - 6, h: 8 };
                 const live = bayUnlocked(id) && BAYS[id].built;
+                // No shortcut into a bay you haven't entered: the first time, the way in is through the server room
+                // (its New badge, and a sign there may be more bays to come).
+                if (live && !baySeen(id)) return;
                 block(`bay:${id}`, cell, live ? 'bay' : 'bay sealed', '', live ? BAYS[id].name : 'Sealed');
             });
         }
@@ -3003,6 +3019,12 @@ window.AGI = (function () {
         if (!bayUnlocked(id) || openBay) return;
         openBay = id;
         ptView(`bay:${id}`);
+        // A bay you've entered stops wearing its New badge, and the map offers it as a shortcut from now on.
+        if (!seenRooms.has(`bay:${id}`)) {
+            seenRooms.add(`bay:${id}`);
+            storageSet(SEEN_KEY, JSON.stringify([...seenRooms]));
+            minimapKey = '';
+        }
         const bay = BAYS[id];
         setText($('moduleTitle'), crumbName(bay.name));
         for (const m of document.querySelectorAll('.module')) m.hidden = true;
@@ -3062,6 +3084,8 @@ window.AGI = (function () {
             node.classList.toggle('sealed', id === sealed);
             node.classList.toggle('blank', blank);
             node.classList.toggle('offline', unlocked && !BAYS[id].built);
+            // New until you've been in: steers a first visit from the server room into the Training Cluster.
+            node.classList.toggle('fresh', unlocked && !!BAYS[id].built && !baySeen(id));
             node.tabIndex = blank ? -1 : 0;
             node.setAttribute('aria-disabled', String(!unlocked));
             setText(node.querySelector('.bay-name'), unlocked ? BAYS[id].name : '???');
@@ -3568,10 +3592,11 @@ window.AGI = (function () {
     }
 
     // ---- Mechanic demos ---------------------------------------------------------
-    // A node that brings a new way to play (`mechanic` in engine.js) shows a short looping demo in its popup
-    // before it's bought, so the change can be felt before it's chosen (playtest 2: a breakthrough "wasn't well
-    // defined" until it happened). A small canvas, drawn from code: the same ball, hills and colours as the trail.
-    const DEMO = { w: 240, h: 96, period: 3.2 };
+    // A node that brings a new way to play (`mechanic` in engine.js) shows three seconds of actual gameplay in its
+    // popup before it's bought, so the change can be felt before it's chosen (playtest 2: a breakthrough "wasn't
+    // well defined" until it happened). The real ball physics (training-path.js) on a short stretch, with scripted
+    // sprints and the mechanic at work, drawn like the trail: same ball, hills, strips and colours.
+    const DEMO = { w: 240, h: 96, period: 3.2, leg: 2, seed: 7, strength: 1.6, view: 9 };
     const DEMO_TEXT = {
         breakthrough: 'Sometimes a sprint hits ×1.75 harder',
         prompt: 'Release inside the zone: bonus XP',
@@ -3583,6 +3608,19 @@ window.AGI = (function () {
         crunch: 'For a few seconds, every sprint is free',
         flow: 'The ball lifts and glides over the hills'
     };
+    // Each demo: the roll's options, where the ball starts, and the sprints [time s, strength ×, label].
+    const DEMO_SCRIPTS = {
+        breakthrough: { sprints: [[0.15, 1], [1.1, 1.75, 'BREAKTHROUGH ×1.75']] },
+        prompt: { meter: 'zone', sprints: [[0.7, 1.2, 'CLEAN PROMPT +XP'], [1.9, 1.2, 'CLEAN PROMPT +XP']] },
+        maxEffort: { meter: 'effort', sprints: [[0.15, 1], [1.2, 2.2, 'MAX EFFORT']] },
+        charge: { meter: 'hold', sprints: [[1.15, 1]] },
+        stripBack: { strips: { back: 3, more: 2 }, place: 'back' },
+        stripFront: { strips: { front: 3, more: 2 }, place: 'front' },
+        viral: { sprints: [[0.15, 1], [1.0, 1]], pop: [2.0, '+XP ×2', 'VIRAL'] },
+        crunch: { sprints: [[0.15, 1, 'CRUNCH: FREE SPRINTS'], [0.5, 1], [0.85, 1], [1.2, 1], [1.55, 1]], flames: [0.15, 2] },
+        flow: { sprints: [[0.15, 1]], flow: [0.6, 1.8, 'FLOW'] }
+    };
+
     function mechanicDemo(kind) {
         const canvas = el('canvas', { class: 'mechanic-demo', 'aria-hidden': 'true' });
         const wrap = el('figure', { class: 'demo' }, [canvas, el('figcaption', { text: DEMO_TEXT[kind] || '' })]);
@@ -3590,180 +3628,158 @@ window.AGI = (function () {
         canvas.width = DEMO.w * dpr;
         canvas.height = DEMO.h * dpr;
         const ctx = canvas.getContext('2d');
-        const start = performance.now();
+        let sim = null;
+        let last = performance.now();
         const frame = now => {
             if (!canvas.isConnected) return;
             // Off screen (a hidden legacy card or screen): check back now and then rather than drawing.
             if (!canvas.offsetParent) return void setTimeout(() => requestAnimationFrame(frame), 500);
-            const u = reducedMotion() ? 0.62 : ((now - start) / 1000 / DEMO.period) % 1;
+            const dt = Math.min(0.05, (now - last) / 1000);
+            last = now;
+            if (!sim || sim.t >= DEMO.period) sim = demoStart(kind);
+            // Under reduced motion: one still frame partway in.
+            if (reducedMotion()) { while (sim.t < 1.6) demoStep(sim, 1 / 60); }
+            else demoStep(sim, dt);
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            drawDemo(ctx, kind, u);
+            drawDemo(ctx, sim);
             if (!reducedMotion()) requestAnimationFrame(frame);
         };
         requestAnimationFrame(frame);
         return wrap;
     }
 
-    function drawDemo(ctx, kind, u) {
+    function demoStart(kind) {
+        const script = DEMO_SCRIPTS[kind] || {};
+        const roll = T.createRoll(DEMO.leg, DEMO.seed, { pushes: 8, cooldown: 0.3, strips: script.strips });
+        const sim = { kind, script, roll, t: 0, next: 0, label: null, labelAt: -9, shock: null, cam: null };
+        // The strip demos start the ball where its strip matters: rolling back onto a back strip, or up to a face strip.
+        if (script.place) {
+            const st = roll.ground.strips.find(x => x.kind === script.place);
+            roll.push(0.001);
+            if (st && script.place === 'back') { roll.ball.x = st.to + 0.5; roll.ball.v = -2.3; sim.label = 'BRAKE ■'; sim.labelAt = 0.4; }
+            if (st && script.place === 'front') { roll.ball.x = st.from - 0.4; roll.ball.v = 1.5; roll.ball.maxX = roll.ball.x; sim.label = 'PUSH ▲'; sim.labelAt = 0.3; }
+        }
+        return sim;
+    }
+
+    function demoStep(sim, dt) {
+        const { roll, script } = sim;
+        const sprints = script.sprints || [];
+        while (sim.next < sprints.length && sim.t >= sprints[sim.next][0]) {
+            const [, mult, label] = sprints[sim.next++];
+            roll.ball.cooldown = 0;
+            roll.push(DEMO.strength * mult, true);
+            if (label) { sim.label = label; sim.labelAt = sim.t; }
+            if (mult > 1.5) sim.shock = { x: roll.ball.x, t: sim.t };
+        }
+        if (script.flow && sim.t >= script.flow[0] && !sim.flowed) {
+            sim.flowed = true;
+            roll.coast(script.flow[1], 1.4);
+            sim.label = script.flow[2];
+            sim.labelAt = sim.t;
+        }
+        if (script.pop && sim.t >= script.pop[0] && !sim.popped) {
+            sim.popped = true;
+            sim.label = script.pop[2];
+            sim.labelAt = sim.t;
+        }
+        if (!roll.over) roll.step(dt);
+        sim.t += dt;
+    }
+
+    function drawDemo(ctx, sim) {
         const c = path.colors;
         const { w, h } = DEMO;
-        const base = h - 16;
-        // Hills: [centre, half width, height]; the strip demos add a small hill before the big one.
-        const hills = kind === 'stripBack' ? [[70, 34, 16], [175, 40, 38]] : [[150, 42, 34]];
-        const ground = x => base - hills.reduce((y, [cx, hw, hh]) => y + (Math.abs(x - cx) < hw ? hh * (0.5 + 0.5 * Math.cos(Math.PI * (x - cx) / hw)) : 0), 0);
-        const ease = v => 1 - Math.pow(1 - Math.max(0, Math.min(1, v)), 3);
-        const clamp01 = v => Math.max(0, Math.min(1, v));
+        const { roll, script, t } = sim;
+        const g = roll.ground;
+        // The camera follows the ball, a little ahead; the hills in view fill the height.
+        const want = roll.ball.x - DEMO.view * 0.35;
+        sim.cam = sim.cam == null ? want : sim.cam + (want - sim.cam) * 0.12;
+        const left = sim.cam;
+        const xs = Array.from({ length: 61 }, (_, i) => left + (DEMO.view * i) / 60);
+        const top = Math.max(0.15, ...xs.map(x => g.height(x))) * 1.15;   // the hills in view fill the height, however small
+        const X = x => ((x - left) / DEMO.view) * w;
+        const Y = y => h - 14 - (y / top) * (h - 34);
         ctx.clearRect(0, 0, w, h);
         ctx.fillStyle = hexAlpha(c.bg, 1);
         ctx.fillRect(0, 0, w, h);
-        // The trail.
+        // The trail, filled below like the run view.
         ctx.beginPath();
-        for (let x = 0; x <= w; x += 2) x ? ctx.lineTo(x, ground(x)) : ctx.moveTo(x, ground(x));
-        ctx.strokeStyle = hexAlpha(c.muted, 0.8);
+        xs.forEach((x, i) => (i ? ctx.lineTo(X(x), Y(g.height(x))) : ctx.moveTo(X(x), Y(g.height(x)))));
+        ctx.strokeStyle = hexAlpha(c.muted, 0.85);
         ctx.lineWidth = 2;
         ctx.stroke();
-        const ball = (x, tone, alpha = 1, lift = 0) => {
+        ctx.lineTo(w, h);
+        ctx.lineTo(0, h);
+        ctx.closePath();
+        ctx.fillStyle = hexAlpha(c.primary, 0.06);
+        ctx.fill();
+        // Strips in view.
+        for (const st of g.strips) {
+            if (st.to < left || st.from > left + DEMO.view) continue;
             ctx.beginPath();
-            ctx.arc(x, ground(x) - 5 - lift, 5, 0, Math.PI * 2);
-            ctx.fillStyle = hexAlpha(tone, alpha);
-            ctx.fill();
-        };
-        const label = (text, tone, x = 8, y = 14) => {
-            ctx.font = '700 10px "Chakra Petch", system-ui, sans-serif';
-            ctx.textAlign = 'left';
-            ctx.fillStyle = tone;
-            ctx.fillText(text, x, y);
-        };
-        const strip = (from, to, tone) => {
-            ctx.beginPath();
-            for (let x = from; x <= to; x += 2) x === from ? ctx.moveTo(x, ground(x) - 2) : ctx.lineTo(x, ground(x) - 2);
-            ctx.strokeStyle = hexAlpha(tone, 0.9);
+            for (let x = st.from; x <= st.to; x += 0.1) x === st.from ? ctx.moveTo(X(x), Y(g.height(x)) - 2) : ctx.lineTo(X(x), Y(g.height(x)) - 2);
+            ctx.strokeStyle = hexAlpha(st.kind === 'back' ? c.success : c.primary, 0.9);
             ctx.lineWidth = 4;
             ctx.stroke();
-        };
-        const meter = (fill, zone, tone = c.primary) => {
-            ctx.fillStyle = hexAlpha(c.muted, 0.25);
-            ctx.fillRect(w - 92, 8, 84, 7);
-            if (zone) {
-                ctx.fillStyle = hexAlpha(c.success, 0.45);
-                ctx.fillRect(w - 92 + 84 * zone[0], 8, 84 * (zone[1] - zone[0]), 7);
-            }
-            ctx.fillStyle = tone;
-            ctx.fillRect(w - 92, 8, 84 * clamp01(fill), 7);
-        };
-        const ghostLabel = () => label('without', hexAlpha(c.muted, 0.9), 8, h - 3);
-        switch (kind) {
-        case 'breakthrough': {
-            const go = clamp01((u - 0.35) / 0.45);
-            const wind = u > 0.18 && u < 0.35;
-            ball(20 + 95 * ease(go), c.muted, 0.45);   // an ordinary sprint stops on the hill's face
-            const x = 20 + 205 * ease(go) + (wind ? Math.sin(u * 300) * 1.5 : 0);
-            if (wind || (u > 0.35 && u < 0.5)) {
-                ctx.beginPath();
-                ctx.arc(20, ground(20) - 5, 6 + (u > 0.35 ? (u - 0.35) * 220 : 4 * Math.sin(u * 60)), 0, Math.PI * 2);
-                ctx.strokeStyle = hexAlpha(c.warning, u > 0.35 ? 1 - (u - 0.35) / 0.15 : 0.8);
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            }
-            ball(x, c.warning);
-            if (u > 0.35) label('BREAKTHROUGH ×1.75', c.warning);
-            ghostLabel();
-            break;
         }
-        case 'prompt': {
-            const fill = u < 0.4 ? u / 0.4 * 0.62 : 0.62;
-            meter(fill, [0.52, 0.72], u >= 0.4 ? c.success : c.primary);
-            const go = clamp01((u - 0.4) / 0.4);
-            ball(20 + 100 * ease(go), c.primary);
-            if (u > 0.4 && u < 0.85) {
-                label('CLEAN PROMPT', c.success);
-                ctx.fillStyle = c.warning;
-                ctx.font = '700 10px "JetBrains Mono", monospace';
-                ctx.fillText('+XP', 20, ground(20) - 16 - 30 * (u - 0.4));
-            }
-            break;
-        }
-        case 'maxEffort': {
-            meter(u > 0.2 ? 1 : 0, null, c.warning);
-            const go = clamp01((u - 0.22) / 0.5);
-            ball(20 + 95 * ease(go), c.muted, 0.45);
-            ball(20 + 200 * ease(go), c.warning);
-            if (u > 0.2) label('MAX EFFORT', c.warning);
-            ghostLabel();
-            break;
-        }
-        case 'charge': {
-            // Up the sweep, a hold at the top, back down.
-            const fill = u < 0.35 ? u / 0.35 : u < 0.65 ? 1 : 1 - (u - 0.65) / 0.35;
-            meter(fill, null, u >= 0.35 && u < 0.65 ? c.warning : c.primary);
-            if (u >= 0.35 && u < 0.65) label('HOLD', c.warning, w - 92, 28);
-            ball(20, c.primary);
-            break;
-        }
-        case 'stripFront': {
-            strip(118, 142, c.primary);
-            // Without the strip the ball climbs most of the face and rolls back; with it, it crests.
-            const climb = u < 0.6 ? ease(u / 0.6) : 1;
-            const ghostX = u < 0.45 ? 20 + 112 * ease(u / 0.45) : 132 - 40 * ease((u - 0.45) / 0.4);
-            ball(ghostX, c.muted, 0.45);
-            ball(20 + 200 * climb, c.primary);
-            if (u > 0.3 && u < 0.6) label('PUSH ▲', c.primary);
-            ghostLabel();
-            break;
-        }
-        case 'stripBack': {
-            strip(74, 102, c.success);
-            // Rolling back down from the big hill: the ghost runs on past the small one, the ball stops on the strip.
-            const back = ease(u / 0.7);
-            ball(150 - 140 * back, c.muted, 0.45);
-            ball(150 - 62 * ease(u / 0.45), c.success);
-            if (u > 0.4) label('BRAKE ■', c.success);
-            ghostLabel();
-            break;
-        }
-        case 'viral': {
-            ball(20 + 120 * ease(u / 0.4), c.primary);
-            if (u > 0.4) {
-                const big = u > 0.6;
-                ctx.font = `700 ${big ? 16 : 12}px "JetBrains Mono", monospace`;
-                ctx.textAlign = 'center';
-                ctx.fillStyle = big ? `hsl(${(u * 720) % 360} 90% 65%)` : c.warning;
-                ctx.fillText(big ? '+80 XP ×2' : '+40 XP', 140, 36);
-                if (big) label('VIRAL', c.warning);
-            }
-            break;
-        }
-        case 'crunch': {
-            // Quick free sprints in a row: the ball hops on in steps, flames round it.
-            const steps = Math.min(5, Math.floor(u / 0.14));
-            const x = 20 + steps * 36 + 36 * ease((u % 0.14) / 0.14) * (steps < 5 ? 1 : 0);
+        // The ball (lifted while it flows or flies).
+        const lift = roll.flowing ? 0.35 * top : roll.airborne ? roll.height || 0 : 0;
+        const bx = X(roll.ball.x);
+        const by = Y(g.height(roll.ball.x) + lift) - 5;
+        if (script.flames && t >= script.flames[0] && t < script.flames[0] + script.flames[1]) {
             for (let i = 0; i < 6; i++) {
-                const a = u * 40 + i;
+                const a = t * 40 + i;
                 ctx.beginPath();
-                ctx.arc(x + Math.cos(a) * 8, ground(x) - 5 + Math.sin(a) * 8, 2, 0, Math.PI * 2);
+                ctx.arc(bx + Math.cos(a) * 8, by + Math.sin(a) * 8, 2, 0, Math.PI * 2);
                 ctx.fillStyle = hexAlpha(i % 2 ? c.warning : c.danger, 0.8);
                 ctx.fill();
             }
-            ball(x, c.danger);
-            label('CRUNCH: FREE SPRINTS', c.danger);
-            break;
         }
-        case 'flow': {
-            const x = 20 + 200 * u;
-            const lift = 26 * Math.sin(Math.PI * clamp01(u * 1.3));
+        if (sim.shock && t - sim.shock.t < 0.35) {
             ctx.beginPath();
-            for (let i = 0; i <= 20; i++) {
-                const px = x - i * 4;
-                const pl = 26 * Math.sin(Math.PI * clamp01((px - 20) / 200 * 1.3));
-                i ? ctx.lineTo(px, ground(px) - 5 - pl) : ctx.moveTo(px, ground(px) - 5 - pl);
-            }
-            ctx.strokeStyle = hexAlpha(c.accent, 0.5);
-            ctx.lineWidth = 3;
+            ctx.arc(X(sim.shock.x), by, 6 + (t - sim.shock.t) * 120, 0, Math.PI * 2);
+            ctx.strokeStyle = hexAlpha(c.warning, 1 - (t - sim.shock.t) / 0.35);
+            ctx.lineWidth = 2;
             ctx.stroke();
-            ball(x, c.accent, 1, lift);
-            label('FLOW', c.accent);
-            break;
         }
+        ctx.beginPath();
+        ctx.arc(bx, by, 5, 0, Math.PI * 2);
+        ctx.fillStyle = sim.shock && t - sim.shock.t < 1 ? c.warning : roll.flowing ? c.accent : c.text;
+        ctx.fill();
+        // The meter, for the demos about it: up to the zone, all at once, or holding at the top.
+        if (script.meter) {
+            const nextAt = (script.sprints || []).find(x => x[0] >= t - 0.05)?.[0] ?? 9;
+            const prevAt = [...(script.sprints || [])].reverse().find(x => x[0] < t)?.[0] ?? 0;
+            const span = Math.max(0.3, nextAt - prevAt);
+            let fill = Math.min(1, (t - prevAt) / span);
+            let tone = c.primary;
+            if (script.meter === 'zone') fill *= 0.62;
+            if (script.meter === 'effort') { fill = t > 1.0 && t < 1.4 ? 1 : fill * 0.7; if (fill === 1) tone = c.warning; }
+            if (script.meter === 'hold') { fill = t < 0.6 ? t / 0.6 : 1; if (t >= 0.6 && t < 1.15) tone = c.warning; }
+            ctx.fillStyle = hexAlpha(c.muted, 0.25);
+            ctx.fillRect(w - 92, 6, 84, 6);
+            if (script.meter === 'zone') {
+                ctx.fillStyle = hexAlpha(c.success, 0.45);
+                ctx.fillRect(w - 92 + 84 * 0.55, 6, 84 * 0.13, 6);
+            }
+            ctx.fillStyle = tone;
+            ctx.fillRect(w - 92, 6, 84 * fill, 6);
+            if (script.meter === 'hold' && t >= 0.6 && t < 1.15) sim.label = 'HOLD', sim.labelAt = Math.max(sim.labelAt, 0.6);
+        }
+        // What's happening, for a moment after it happens.
+        if (sim.label && t >= sim.labelAt && t - sim.labelAt < 1.3) {
+            ctx.font = '700 10px "Chakra Petch", system-ui, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = sim.label.startsWith('BRAKE') ? c.success : sim.label.startsWith('PUSH') || sim.label.startsWith('CLEAN') ? c.primary
+                : sim.label === 'FLOW' ? c.accent : sim.label.startsWith('CRUNCH') ? c.danger : c.warning;
+            ctx.fillText(sim.label, 8, 14);
+        }
+        if (script.pop && sim.popped && t - script.pop[0] < 1.1) {
+            ctx.font = '700 14px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = `hsl(${(t * 260) % 360} 90% 65%)`;
+            ctx.fillText(script.pop[1], bx, by - 12 - 14 * (t - script.pop[0]));
         }
     }
 
@@ -3824,14 +3840,23 @@ window.AGI = (function () {
         setHidden($('treeButton'), openBay !== 'training' || path.view !== 'run');
         // Restart shows while a run is under way (a playtester wanted to drop a bad start without playing it out).
         const r = path.roll;
-        setHidden($('restartButton'), openBay !== 'training' || path.view !== 'run' || !r || !r.launched || r.over || path.done);
+        const show = openBay === 'training' && path.view === 'run' && r && r.launched && !r.over && !path.done;
+        setHidden($('restartButton'), !show);
+        if (show) {
+            const cost = E.restartCost(state, ballLeg());
+            setText($('restartButton'), `Restart · ${E.formatCost(cost)}`);
+            setDisabled($('restartButton'), !E.canAfford(state, cost));
+        }
     }
 
-    // Restart: abandon the run in flight and set up a fresh one at the same start. What it spent stays spent and
-    // nothing it earned is paid; it doesn't count as a run.
+    // Restart: abandon the run in flight and set up a fresh one at the same start, for half a full sprint
+    // (`E.restartCost`). What it spent stays spent and nothing it earned is paid; it doesn't count as a run.
     function restartRun() {
         const r = path.roll;
         if (!r || !r.launched || r.over || path.done) return;
+        const cost = E.restartCost(state, ballLeg());
+        if (!E.canAfford(state, cost)) return;
+        for (const [k, v] of Object.entries(cost)) state.res[k] -= v;
         pt('restart', { leg: (r.leg ?? r.ground.stretch) + 1, prog: r2(r.progress || 0) });
         log('Run abandoned. A fresh one is waiting at the start.', 'info');
         path.roll = null;

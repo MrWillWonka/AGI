@@ -585,6 +585,25 @@ h1, h2, h3, p { margin: 0; }
     50% { opacity: 0.35; }
 }
 
+/* A built bay you haven't entered: a New badge and a pulsing ring, so the first trip into training goes through it. */
+.bay.fresh { outline: 2px solid var(--success); outline-offset: 3px; animation: bay-fresh 1.6s ease-in-out infinite; }
+.bay.fresh::after {
+    content: 'New';
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 3;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font: 700 0.62rem var(--font-mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #04140d;
+    background: var(--success);
+}
+@keyframes bay-fresh { 50% { box-shadow: 0 0 22px rgba(99, 224, 171, 0.45); } }
+@media (prefers-reduced-motion: reduce) { .bay.fresh { animation: none; } }
+
 .bay-info {
     display: flex;
     flex-direction: column;
@@ -2537,6 +2556,9 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
     background: #0b1b1e; border: 1px solid var(--success); color: #e6fff4; font: 600 0.68rem var(--font-mono); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); }
 .mm-tip[hidden] { display: none; }
 .mm-block.ping rect { fill: rgba(111, 179, 255, 0.35); stroke: #6fb3ff; stroke-width: 1.4; animation: mm-ping 0.9s ease-in-out infinite; }
+/* A room you haven't been in yet pulses green on the map (the first visit to the server room is steered there). */
+.mm-block.room.fresh rect { stroke: var(--success); stroke-width: 1.6; animation: mm-fresh 1.4s ease-in-out infinite; }
+@keyframes mm-fresh { 50% { fill: rgba(99, 224, 171, 0.3); } }
 @keyframes mm-ping { 50% { fill: rgba(111, 179, 255, 0.1); } }
 
 /* Contextual callouts sit beside what they point at (fixed, placed by showCallout in game.js). */
@@ -2549,7 +2571,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
     box-shadow: 0 0 0 200vmax rgba(2, 8, 10, 0.62), 0 0 0 2px rgba(99, 224, 171, 0.7); }
 .tip-spot.show { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .tip-spot { transition: none; } }
-@media (prefers-reduced-motion: reduce) { .minimap .mm-chip { animation: none !important; } .mm-block.ping rect { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .minimap .mm-chip { animation: none !important; } .mm-block.ping rect, .mm-block.room.fresh rect { animation: none; } }
 
 /* ---- Legacy upgrades: their own screen between versions (and from R&D) ----
    Four branch columns of cards bought with Insight; violet, like Insight everywhere. */
