@@ -197,23 +197,38 @@
 
     // ---- Terrain features: boost strips and XP tokens ------------------------
 
-    // Something to aim for, so runs differ: boost strips ("data streams") on some hills' backs push a ball
-    // rolling forward over them; XP tokens hang in arcs past act two's kicker lips, where flights go.
-    // Their own random stream (salted from the leg's seed), so the hills come out exactly as before.
-    const STRIP_PUSH = 0.6;      // a strip's push: this share of sqrt(g · the leg's skill hill height) per second
+    // Something to aim for, so runs differ. Boost strips are bought in the Momentum branch (a playtest found the
+    // free ones confusing, "they showed up without buying them", and weak): **front strips** on hills' faces push a
+    // ball rolling forward up them, and **back strips** on hills' backs brake a ball rolling backward, so a bad
+    // sprint doesn't lose as much ground before a big hill. Each starts weak and grows by level (`strips` option:
+    // { front, back, more } levels); `more` puts strips on more hills. XP tokens hang in arcs past act two's
+    // kicker lips, where flights go. Strips and tokens have their own random streams (salted from the leg's seed),
+    // so the hills come out exactly as before, and buying strips never moves a token.
+    const STRIP_PUSH = [0, 0.35, 0.55, 0.75];   // a front strip's push by level: this share of sqrt(g · the leg's skill hill height) per second
+    const STRIP_BRAKE = [0, 0.6, 0.9, 1.2];     // a back strip's brake on a backward roll by level, the same units
+    const STRIP_CHANCE = 0.22;   // share of hills with a strip of each kind, +0.12 per `more` level
     const TOKEN_REACH = 0.4;     // metres along the trail within which a passing ball takes a token
-    function features(k, seed, hills) {
+    const level = (table, n) => table[Math.max(0, Math.min(table.length - 1, n | 0))];
+    function features(k, seed, hills, owned = {}) {
         const strips = [];
         const tokens = [];
-        if (k <= 1) return { strips, tokens };   // the warm-up and Pattern Matching's leg keep their tuned pace
-        const r = rng((seed ^ 0x51ed27) >>> 0);
+        if (k <= 0) return { strips, tokens };   // the warm-up stays bare
         const late = k >= LATE_LEG;
-        const push = STRIP_PUSH * Math.sqrt(GRAVITY * skillHeight(k));
-        // Act one (from its second leg): about half the legs have a few strips; act two: some swells' backs.
-        const stripChance = late ? 0.3 : r() < 0.5 ? 0.25 : 0;
+        const unit = Math.sqrt(GRAVITY * skillHeight(k));
+        const push = level(STRIP_PUSH, owned.front) * unit;
+        const brake = level(STRIP_BRAKE, owned.back) * unit;
+        const chance = STRIP_CHANCE + 0.12 * (owned.more || 0);
+        const rs = rng((seed ^ 0x5717ab) >>> 0);
         for (const b of hills) {
-            if (r() < stripChance) strips.push({ from: b.peak + 0.15 * b.halfWidth, to: b.end - 0.1 * b.halfWidth, push, leg: k });
-            if (!late || !b.up || b.up === 1 || r() > 0.6) continue;
+            const front = rs() < chance;
+            const back = rs() < chance;
+            if (push > 0 && front) strips.push({ kind: 'front', from: b.start + 0.15 * b.halfWidth, to: b.peak - 0.12 * b.halfWidth, push, leg: k });
+            if (brake > 0 && back) strips.push({ kind: 'back', from: b.peak + 0.15 * b.halfWidth, to: b.end - 0.1 * b.halfWidth, brake, leg: k });
+        }
+        if (!late) return { strips, tokens };
+        const r = rng((seed ^ 0x51ed27) >>> 0);
+        for (const b of hills) {
+            if (!b.up || b.up === 1 || r() > 0.6) continue;
             // An arc of tokens off the lip: a flight's path, give or take.
             const n = 3 + Math.floor(r() * 3);
             const span = b.halfWidth * (0.5 + 0.5 * r());
@@ -236,7 +251,7 @@
     // each leg's rolling hills and skill hill. Nothing behind the start line: a ball that rolls back to it
     // ends the run.
     // `extend()` adds the next leg past the last one (a run that crests its last skill hill rolls on).
-    function terrain(k, seed, hillScale = 1, last = k) {
+    function terrain(k, seed, hillScale = 1, last = k, owned = {}) {
         last = Math.max(k, last);
         const bumps = [];
         const strips = [];
@@ -244,7 +259,7 @@
         const addLeg = j => {
             const hills = rollingHills(j, legSeed(seed, k, j), hillScale);
             bumps.push(...hills, skillHill(j));
-            const f = features(j, legSeed(seed, k, j), hills);
+            const f = features(j, legSeed(seed, k, j), hills, owned);
             strips.push(...f.strips);
             tokens.push(...f.tokens);
         };
@@ -314,7 +329,7 @@
             stretch: k,
             strips,
             tokens,
-            stripAt: x => strips.find(st => x >= st.from && x <= st.to) || null,
+            stripAt: (x, kind) => strips.find(st => x >= st.from && x <= st.to && (!kind || st.kind === kind)) || null,
             get last() { return last; },
             get goal() { return goal; },
             extend,
@@ -351,7 +366,7 @@
         const { pushes, cooldown } = opts;
         const friction = opts.friction ?? 1;
         const slopeDrag = SLOPE_DRAG * (opts.slopeDrag ?? 1);
-        const ground = terrain(k, seed, opts.hillScale ?? 1, opts.last ?? k);
+        const ground = terrain(k, seed, opts.hillScale ?? 1, opts.last ?? k, opts.strips);
         let nextClear = k;          // the next earlier-leg skill hill still to crest
         let crestedGoal = -1;       // with onward: the last skill hill already announced
         const ball = { x: ground.start, v: 0, still: 0, cooldown: 0, maxX: ground.start, trapped: false };
@@ -502,8 +517,13 @@
             // A strip pushes only a ball at its furthest yet: sloshing back and forth over one in a dip, it
             // pumped a spent ball forever (a run that never ended).
             if (!ball.air && flow.left <= 0 && ball.v > 0 && ball.x >= ball.maxX - 0.01) {
-                const strip = ground.stripAt(ball.x);
+                const strip = ground.stripAt(ball.x, 'front');
                 if (strip) ball.v += strip.push * STEP;
+            }
+            // A back strip only takes speed out of a backward roll, never adds any, so it can't pump a ball either.
+            if (!ball.air && ball.v < 0) {
+                const strip = ground.stripAt(ball.x, 'back');
+                if (strip) ball.v = Math.min(0, ball.v + strip.brake * STEP);
             }
             if (!ball.air) {
                 ball.x += ball.v * STEP * (flow.left > 0 ? flow.warp : 1);
@@ -865,6 +885,6 @@
 
     return {
         STEP, GRAVITY, BUMPER, lengthScale, TUCK_GRAVITY, AIR_DIVE, TOKEN_PULL, BURN_SECONDS, THRUST_LIFT, features, KICKERS, KICK_SLOPE, bumpAt, bumpSlope,
-        LATE_LEG, maxAbove, checkpoint, skillHill, skillHeight, rollingHills, terrain, createRoll, rng
+        LATE_LEG, maxAbove, checkpoint, skillHill, skillHeight, rollingHills, terrain, createRoll, rng, STRIP_PUSH, STRIP_BRAKE
     };
 });

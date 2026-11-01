@@ -119,7 +119,8 @@
                     <div class="module-bar">
                         <nav class="crumbs" aria-label="You are here"><button type="button" class="crumb crumb-home" data-jump="facility" aria-label="Straight back to Surveillance, the main screen">surveillance</button><span class="crumb-sep" aria-hidden="true">/</span><button type="button" class="crumb" id="backButton" aria-label="Back to the server room">server_room</button><span class="crumb-sep" aria-hidden="true">/</span><h2 class="crumb-here" id="moduleTitle">training_cluster</h2></nav>
                         <button type="button" class="auto-switch" data-auto-switch role="switch" aria-checked="false" hidden><span class="auto-switch-knob" aria-hidden="true"></span>Auto-Trainer</button>
-                        <button type="button" class="ghost-button" id="treeButton" hidden>Upgrades</button>
+                        <button type="button" class="ghost-button" id="restartButton" title="Abandon this run and start again (nothing it earned so far is paid)" hidden>Restart</button>
+                    <button type="button" class="ghost-button" id="treeButton" hidden>Upgrades</button>
                     </div>
 
                     <div class="module" data-module="training" id="pathPanel">
@@ -351,6 +352,7 @@
                 <label class="toggle"><input type="checkbox" id="settingAutosave"> Autosave every 30 seconds</label>
                 <label class="toggle"><input type="checkbox" id="settingShake"> Screen shake and flashes</label>
                 <label class="setting-row">Sound <input type="range" id="settingSound" min="0" max="1" step="0.05" aria-label="Sound volume"> <span id="settingSoundValue" class="muted small"></span></label>
+                <label class="setting-row">Music <input type="range" id="settingMusic" min="0" max="1" step="0.05" aria-label="Music volume"> <span id="settingMusicValue" class="muted small"></span></label>
                 <label class="toggle"><input type="checkbox" id="settingCalm"> Reduce animations</label>
                 <label class="toggle"><input type="checkbox" id="settingAwake"> Keep the screen on while playing (this device)</label>
                 <label class="setting-row">Text size

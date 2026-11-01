@@ -10,7 +10,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const SAVE_VERSION = 13;   // 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
+    const SAVE_VERSION = 14;   // 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
     // Auto-Trainer, XP nodes) carry most of a new version's speed, so this stays small: at 0.2 a second run
@@ -30,8 +30,8 @@
     // charge²), which ties training to passive income. How far a roll gets earns Experience (XP).
     // Costs and XP both scale with the stretch you are on (= skills learned).
     const PATH = {
-        pushCost: { cp: 14, dp: 1.5 },  // a fully charged push on the first stretch
-        pushCostScale: 1.4,  // ×1.4 per stretch for the first few, while the lab is still small...
+        pushCost: { cp: 24, dp: 2.5 },  // a fully charged push on the first stretch (was 14 CP, 1.5 DP: income never limited a sprint in playtest 2)
+        pushCostScale: 1.5,  // ×1.5 per stretch for the first few, while the lab is still small (was 1.4)...
         pushCostLate: 1.9,   // ...then ×1.9 from stretch 3 on, so sprints keep leaning on the lab's income
         pushCostRampFrom: 3,
         crestBonus: 2,       // XP multiplier when the roll crests the skill hill
@@ -239,8 +239,10 @@
         { id: 'initialWeights', tab: 'training', tree: { x: 0, y: 0 }, icon: 'core', name: 'Initial Weights', effect: 'Rolling hills 6% lower', flavor: 'Random numbers, but they\'re your random numbers.', cost: { xp: 1 }, max: 1, boost: { slope: 1 } },
         // Power (up): sprint strength, with breakthroughs and Max Effort branching off it.
         { id: 'trainingOptimizer', tab: 'training', tree: { x: 0, y: -1 }, requires: 'initialWeights', icon: 'bolt', name: 'GPU Cluster', effect: '+25% sprint strength per level', flavor: 'You maxed out the company card on graphics cards.', cost: { xp: 4 }, scale: 1.8, max: 2, boost: { push: 0.25 } },
-        { id: 'gpuCluster2', tab: 'training', tree: { x: 0, y: -2 }, icon: 'bolt', name: 'Fast Charging', effect: 'The sprint meter holds at full 0.2 s longer, per level', flavor: 'Skip the warm-up. The GPUs are already sweating.', cost: { xp: 45 }, scale: 1.6, max: 2, requires: 'trainingOptimizer', boost: { charge: 0.2 } },
-        { id: 'gpuSupercluster', tab: 'training', tree: { x: 0, y: -3 }, icon: 'bolt', name: 'GPU Supercluster', effect: '+45% sprint strength per level', flavor: 'The building hums. The neighbours have questions.', cost: { xp: 225 }, scale: 1.7, max: 3, requires: 'gpuCluster2', boost: { push: 0.45 } },
+        { id: 'gpuCluster2', mechanic: 'charge', tab: 'training', tree: { x: 0, y: -2 }, icon: 'bolt', name: 'Fast Charging', effect: 'The sprint meter holds at full 0.2 s longer, per level', flavor: 'Skip the warm-up. The GPUs are already sweating.', cost: { xp: 45 }, scale: 1.6, max: 2, requires: 'trainingOptimizer', boost: { charge: 0.2 } },
+        // 140 XP (was 225): strength behind Fast Charging arrived too late to break the 90% wall in playtest 2
+        // (one level in 16 minutes, while cheaper mechanics took the XP).
+        { id: 'gpuSupercluster', tab: 'training', tree: { x: 0, y: -3 }, icon: 'bolt', name: 'GPU Supercluster', effect: '+45% sprint strength per level', flavor: 'The building hums. The neighbours have questions.', cost: { xp: 140 }, scale: 1.7, max: 3, requires: 'gpuCluster2', boost: { push: 0.45 } },
         { id: 'quantumAccelerator', tab: 'training', tree: { x: 1, y: -4 }, icon: 'flame', name: 'Quantum Accelerator', effect: 'Max Effort +20% stronger, per level', flavor: 'Nobody fully understands it. It works anyway.', cost: { xp: 1000 }, scale: 2, max: 3, requires: 'maxEffort', boost: { maxEffortPower: 0.2 } },
         { id: 'exascaleCluster', tab: 'training', tree: { x: 0, y: -5 }, icon: 'bolt', name: 'Exascale Cluster', effect: '+150% sprint strength per level', flavor: 'A billion billion sums a second. Still can\'t fold a fitted sheet.', cost: { xp: 4500 }, scale: 1.7, max: 3, requires: 'maxEffort', boost: { push: 1.5 } },
         { id: 'fusionReactor', tab: 'training', tree: { x: 0, y: -6 }, icon: 'dice', name: 'Fusion Reactor', effect: 'Breakthroughs +60% stronger, per level', flavor: 'Power was the bottleneck. Was.', cost: { xp: 15000 }, scale: 1.8, max: 3, requires: 'exascaleCluster', after: 'scoutingData', boost: { critPower: 0.6 } },
@@ -250,12 +252,12 @@
         { id: 'scaleUp', tab: 'training', tree: { x: 0, y: -8 }, icon: 'bolt', name: 'Scale Up', effect: 'Sprint strength ×1.1 per level, on top of everything else, no limit', flavor: 'More parameters. More data. More everything. Again.', cost: { xp: 200000 }, scale: 1.5, endless: true, requires: 'dysonSwarm', boost: { pushMult: 1 } },
         { id: 'waferScale', tab: 'training', tree: { x: 1, y: -5 }, icon: 'chip', name: 'Wafer-Scale Engine', effect: '-15% wait between sprints per level', flavor: 'One chip the size of a dinner plate.', cost: { xp: 20000 }, scale: 1.8, max: 3, requires: 'exascaleCluster', boost: { cooldown: 1 } },
         // Breakthroughs: rare at first (the branch opens after the second skill). New versions add more.
-        { id: 'scoutingData', tab: 'training', tree: { x: 1, y: -2 }, requires: 'gpuCluster2', icon: 'dice', name: 'Lucky Break', effect: '+4% breakthrough chance per level (a breakthrough hits ×1.75)', flavor: 'Seed 42. It\'s always seed 42.', cost: { xp: 80 }, scale: 1.6, max: 2, boost: { critChance: 0.04 },
+        { id: 'scoutingData', mechanic: 'breakthrough', tab: 'training', tree: { x: 1, y: -2 }, requires: 'gpuCluster2', icon: 'dice', name: 'Lucky Break', effect: '+4% breakthrough chance per level (a breakthrough hits ×1.75)', flavor: 'Seed 42. It\'s always seed 42.', cost: { xp: 80 }, scale: 1.6, max: 2, boost: { critChance: 0.04 },
             unlock: s => s.path.learned >= 3, hint: 'Learn two skills after the warm-up' },
         { id: 'satelliteMaps', tab: 'training', tree: { x: 1, y: 2 }, icon: 'dice', name: 'Serendipity', effect: 'Breakthroughs +50% stronger, per level', flavor: 'Penicillin was an accident too.', cost: { xp: 150 }, scale: 1.6, max: 2, requires: 'dataAugmentation', after: 'scoutingData', boost: { critPower: 0.5 } },
         { id: 'blackSwan', tab: 'training', tree: { x: -3, y: 1 }, icon: 'dice', name: 'Black Swan', effect: '+5% breakthrough chance per level', flavor: 'Nobody saw it coming. That\'s the point.', cost: { xp: 10000 }, scale: 1.9, max: 3, requires: 'superconductors', after: 'scoutingData', boost: { critChance: 0.05 } },
         // Max Effort: your next sprint goes all out (full strength, a super prompt) the moment you press.
-        { id: 'maxEffort', tab: 'training', tree: { x: 0, y: -4 }, icon: 'flame', name: 'Max Effort', effect: '+5% chance your next sprint is all out: full strength, a super prompt', flavor: 'Leave nothing in the tank. Then find another tank.', cost: { xp: 700 }, scale: 1.7, max: 1, requires: 'gpuSupercluster', boost: { maxEffortChance: 0.05 } },
+        { id: 'maxEffort', mechanic: 'maxEffort', tab: 'training', tree: { x: 0, y: -4 }, icon: 'flame', name: 'Max Effort', effect: '+5% chance your next sprint is all out: full strength, a super prompt', flavor: 'Leave nothing in the tank. Then find another tank.', cost: { xp: 700 }, scale: 1.7, max: 1, requires: 'gpuSupercluster', boost: { maxEffortChance: 0.05 } },
         { id: 'muse', tab: 'training', tree: { x: 2, y: -4 }, icon: 'flame', name: 'The Muse', effect: '+3% Max Effort chance per level', flavor: 'Inspiration arrives on schedule. Suspicious.', cost: { xp: 7000 }, scale: 1.9, max: 3, requires: 'quantumAccelerator', boost: { maxEffortChance: 0.03 } },
         // Secrets: these never show, not even as a lock, until the node next to them is owned.
         { id: 'batchNorm', tab: 'training', tree: { x: 1, y: -1 }, icon: 'chip', name: 'Batch Normalization', effect: '-15% wait between sprints', flavor: 'Everybody calm down. Especially the gradients.', cost: { xp: 25 }, max: 1, requires: 'trainingOptimizer', secret: true, boost: { cooldown: 1 } },
@@ -267,12 +269,21 @@
         { id: 'betterAlgorithms', tab: 'training', tree: { x: -1, y: -1 }, icon: 'mountain', name: 'Smoother Loss Landscape', effect: 'Rolling hills 6% lower per level', flavor: 'Fewer potholes on the road to genius.', cost: { xp: 38 }, scale: 2, max: 2, requires: 'trainingOptimizer', boost: { slope: 1 } },
         { id: 'smarterAlgorithms', tab: 'training', tree: { x: -2, y: -1 }, icon: 'code', name: 'Regularization', effect: '-10% drag per level', flavor: 'Stop the model memorising the answer key.', cost: { xp: 180 }, scale: 1.8, max: 3, requires: 'betterAlgorithms', boost: { friction: 2 } },
         { id: 'superconductors', tab: 'training', tree: { x: -3, y: 0 }, icon: 'code', name: 'Mixed Precision', effect: '-10% drag per level', flavor: 'Half the decimal places, twice the speed. Nobody notices.', cost: { xp: 1400 }, scale: 1.7, max: 3, requires: 'efficientKernels', boost: { friction: 2 } },
+        // `mechanic` marks the first node of each new way to play (a breakthrough, the prompt zone, strips...): it
+    // draws as a hexagon and its popup plays a short demo (game.js `mechanicDemo`), so it can be felt before it's
+    // chosen. Super versions and later levels don't get one.
+    // Boost strips, bought (a playtest read free ones as an unexplained upgrade, and weak): front strips on hills'
+        // faces push you up, back strips on hills' backs brake a backward roll before you lose the ground you made.
+        // Each starts weak and grows by level; Streaming Pipeline puts them on more hills (training-path.js `strips`).
+        { id: 'dataStreams', mechanic: 'stripFront', tab: 'training', tree: { x: -2, y: 1 }, requires: 'efficientKernels', icon: 'chevrons', name: 'Data Streams', effect: 'Boost strips on some hill faces push you up them (stronger per level)', flavor: 'Point the firehose uphill.', cost: { xp: 60 }, scale: 1.8, max: 3, boost: { stripFront: 1 } },
+        { id: 'checkpointing', mechanic: 'stripBack', tab: 'training', tree: { x: -2, y: -2 }, requires: 'highResSensors', icon: 'chevrons', name: 'Checkpointing', effect: 'Strips on some hill backs brake a roll backward (stronger per level)', flavor: 'Save often. Lose less.', cost: { xp: 160 }, scale: 1.7, max: 3, boost: { stripBack: 1 } },
+        { id: 'streamingPipeline', tab: 'training', tree: { x: -2, y: 2 }, requires: 'dataStreams', icon: 'chevrons', name: 'Streaming Pipeline', effect: 'Boost strips on more hills, per level', flavor: 'More pipes. Same plumber.', cost: { xp: 330 }, scale: 1.8, max: 2, boost: { stripMore: 1 } },
         { id: 'neuralCompression', tab: 'training', tree: { x: -3, y: -1 }, icon: 'mountain', name: 'Model Distillation', effect: 'Rolling hills 12% lower per level', flavor: 'Teach a small model everything the big one knows.', cost: { xp: 3200 }, scale: 1.7, max: 3, requires: 'smarterAlgorithms', boost: { slope: 2 } },
         { id: 'neuromorphic', tab: 'training', tree: { x: -4, y: 0 }, icon: 'mountain', name: 'Neuromorphic Chips', effect: '+30% sprint strength and rolling hills 6% lower, per level', flavor: 'Silicon that thinks it\'s a brain. Close enough.', cost: { xp: 8000 }, scale: 1.8, max: 3, requires: 'superconductors', boost: { push: 0.3, slope: 1 } },
         { id: 'sparseExperts', tab: 'training', tree: { x: -4, y: -1 }, icon: 'code', name: 'Mixture of Experts', effect: '-15% drag per level', flavor: 'Only wake the experts you need.', cost: { xp: 11000 }, scale: 1.8, max: 3, requires: 'neuralCompression', boost: { friction: 3 } },
         // Precision (right): better XP from every run, then the prompt spots.
         { id: 'bigDatasets', tab: 'training', tree: { x: 1, y: 0 }, requires: 'initialWeights', icon: 'stack', name: 'Bigger Datasets', effect: '+15% XP from every run, per level', flavor: 'You scraped the whole internet. Yes, even the comments.', cost: { xp: 5 }, scale: 2, max: 2, boost: { xp: 0.15 } },
-        { id: 'precisionTuning', tab: 'training', tree: { x: 2, y: 0 }, icon: 'target', name: 'Hyperparameter Search', effect: 'Adds clean prompts: a zone on the meter that hits 20% harder and banks XP', flavor: 'Turn every knob until something works.', cost: { xp: 14 }, scale: 2.5, max: 1, requires: 'bigDatasets', boost: { zone: 1, cleanPower: 0.2 } },
+        { id: 'precisionTuning', mechanic: 'prompt', tab: 'training', tree: { x: 2, y: 0 }, icon: 'target', name: 'Hyperparameter Search', effect: 'Adds clean prompts: a zone on the meter that hits 20% harder and banks XP', flavor: 'Turn every knob until something works.', cost: { xp: 14 }, scale: 2.5, max: 1, requires: 'bigDatasets', boost: { zone: 1, cleanPower: 0.2 } },
         { id: 'benchmarkPrizes', tab: 'training', tree: { x: 3, y: 0 }, icon: 'coin', name: 'Benchmark Prizes', effect: '+25% XP per clean prompt, per level', flavor: 'Top the leaderboard, collect the gift card.', cost: { xp: 22 }, scale: 1.7, max: 3, requires: 'precisionTuning', boost: { clean: 0.25 } },
         { id: 'curatedData', tab: 'training', tree: { x: 3, y: -1 }, icon: 'stack', name: 'Curated Data', effect: '+25% run bonus per clean prompt, per level', flavor: 'Less garbage in, less garbage out.', cost: { xp: 70 }, scale: 1.7, max: 2, requires: 'benchmarkPrizes', boost: { rollBonus: 0.25 } },
         // Prompts: first the clean prompt grows (power, rewards, size, placement), then super prompts arrive
@@ -317,11 +328,11 @@
         { id: 'scalingLaws', tab: 'legacy', legacy: true, branch: 'power', icon: 'dice', name: 'Scaling Laws', effect: '+3% breakthrough chance and breakthroughs 25% stronger, per level, kept for good', flavor: 'Bigger is better. There\'s a graph and everything.', cost: { insight: 2 }, scale: 2, max: 3, boost: { critChance: 0.03, critPower: 0.25 } },
         { id: 'secondWind', tab: 'legacy', legacy: true, branch: 'power', icon: 'flame', name: 'Second Wind', effect: 'Max Effort +30% stronger per level, kept for good', flavor: 'Just when you thought it was done.', cost: { insight: 3 }, scale: 2, max: 3, boost: { maxEffortPower: 0.3 } },
         { id: 'paradigmShift', tab: 'legacy', legacy: true, branch: 'power', icon: 'bolt', name: 'Paradigm Shift', effect: 'Super breakthroughs: 25% of breakthroughs per level smash through the hills ahead', flavor: 'Everything you knew is rubble. Good rubble.', cost: { insight: 15 }, scale: 2, max: 3, boost: { superCrit: 0.25 } },
-        { id: 'pressOffice', tab: 'legacy', legacy: true, branch: 'precision', icon: 'spark', name: 'Press Office', effect: '+3% viral chance per level, kept for good', flavor: 'Somebody has to write the headlines.', cost: { insight: 2 }, scale: 2, max: 3, boost: { windfallChance: 0.03 } },
+        { id: 'pressOffice', mechanic: 'viral', tab: 'legacy', legacy: true, branch: 'precision', icon: 'spark', name: 'Press Office', effect: '+3% viral chance per level, kept for good', flavor: 'Somebody has to write the headlines.', cost: { insight: 2 }, scale: 2, max: 3, boost: { windfallChance: 0.03 } },
         { id: 'systemPrompt', tab: 'legacy', legacy: true, branch: 'precision', icon: 'target', name: 'System Prompt', effect: 'A tiny system prompt spot inside the super prompt: worth 50 clean prompts', flavor: 'You are a helpful model. You are a very fast model.', cost: { insight: 25 }, scale: 2, max: 2, boost: { system: 1 } },
-        { id: 'hackathon', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'chip', name: 'Hackathon', effect: '+3% crunch chance and crunches 1 s longer, per level, kept for good', flavor: 'Free pizza. Nobody leaves for 48 hours.', cost: { insight: 2 }, scale: 2, max: 3, boost: { crunchChance: 0.03, crunchTime: 1 } },
+        { id: 'hackathon', mechanic: 'crunch', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'chip', name: 'Hackathon', effect: '+3% crunch chance and crunches 1 s longer, per level, kept for good', flavor: 'Free pizza. Nobody leaves for 48 hours.', cost: { insight: 2 }, scale: 2, max: 3, boost: { crunchChance: 0.03, crunchTime: 1 } },
         { id: 'bulletTime', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'flame', name: 'Bullet Time', effect: 'Super crunches: 25% of crunches per level freeze time; every tap banks a full sprint ×1.5, all landing at once', flavor: 'Time stops. You don\'t.', cost: { insight: 18 }, scale: 2, max: 3, requires: 'hackathon', boost: { superCrunch: 0.25 } },
-        { id: 'flowState', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Flow State', effect: '+3% chance a sprint starts a flow: fly high over the hills, 3 s (+1 s/level)', flavor: 'The loss curve and you are one.', cost: { insight: 5 }, scale: 2, max: 3, boost: { flowChance: 0.03, flowTime: 1 } },
+        { id: 'flowState', mechanic: 'flow', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Flow State', effect: '+3% chance a sprint starts a flow: fly high over the hills, 3 s (+1 s/level)', flavor: 'The loss curve and you are one.', cost: { insight: 5 }, scale: 2, max: 3, boost: { flowChance: 0.03, flowTime: 1 } },
         { id: 'deepFocus', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Deep Focus', effect: 'Flows coast 25% faster per level, kept for good', flavor: 'Notifications off. Phone in a drawer. In another room.', cost: { insight: 4 }, scale: 2, max: 3, requires: 'flowState', boost: { flowSpeed: 0.25 } },
         { id: 'lucidDream', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Lucid Dream', effect: 'Super flows: 25% of flows per level condense time: the flow covers 4× the ground', flavor: 'It knows it\'s dreaming. It redecorated.', cost: { insight: 20 }, scale: 2, max: 3, requires: 'deepFocus', boost: { superFlow: 0.25 } },
         { id: 'researchAssistant', tab: 'algorithms', name: 'Research Assistant', shows: 'autoResearch', effect: 'Researches for you, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.55,
@@ -462,6 +473,23 @@
         { id: 'super', name: 'Beyond Human', desc: 'Reach Superintelligence', seen: s => phaseIndex(s) >= 1, check: s => phaseIndex(s) >= 2 },
         { id: 'singularity', name: 'Event Horizon', desc: 'Reach the Singularity', seen: s => phaseIndex(s) >= 2, check: s => phaseIndex(s) >= 3 },
         { id: 'transcend', name: 'Ship It', desc: 'Ship your next version', seen: s => prestigeGain(s) >= 1 || s.prestige.count >= 1, check: s => s.prestige.count >= 1 },
+        // The mid-game (playtest 2 went 34 minutes without one, from the first skill to General AI): runs, skills,
+        // prompts, luck, replays and the tree, each about something you've met (`seen`).
+        { id: 'runs10', name: 'Practice Run', desc: 'Finish 10 training runs', seen: s => s.stats.rolls >= 1, check: s => s.stats.rolls >= 10 },
+        { id: 'runs50', name: 'Grinding the Gradient', desc: 'Finish 50 training runs', seen: s => s.stats.rolls >= 10, check: s => s.stats.rolls >= 50 },
+        { id: 'runs100', name: 'Epoch 100', desc: 'Finish 100 training runs', seen: s => s.stats.rolls >= 50, check: s => s.stats.rolls >= 100 },
+        { id: 'skills3', name: 'Fast Learner', desc: 'Learn 3 skills after the warm-up', seen: s => s.path.learned >= 2, check: s => s.path.learned >= 4 },
+        { id: 'skills5', name: 'Quick Study', desc: 'Learn 5 skills after the warm-up', seen: s => s.path.learned >= 4, check: s => s.path.learned >= 6 },
+        { id: 'clean1', name: 'Prompted', desc: 'Land a clean prompt', seen: s => derive(s).zoneWidth > 0, check: s => s.stats.cleanSprints >= 1 },
+        { id: 'clean25', name: 'In the Zone', desc: 'Land 25 clean prompts in one version', seen: s => s.stats.cleanSprints >= 1, check: s => s.stats.cleanSprints >= 25 },
+        { id: 'super1', name: 'Super Prompt', desc: 'Land a super prompt', seen: s => derive(s).perfectWidth > 0, check: s => s.stats.superPrompts >= 1 },
+        { id: 'break1', name: 'Eureka', desc: 'Land a breakthrough', seen: s => derive(s).critChance > 0, check: s => s.stats.breakthroughs >= 1 },
+        { id: 'break25', name: 'Paradigm Shifter', desc: 'Land 25 breakthroughs', seen: s => s.stats.breakthroughs >= 1, check: s => s.stats.breakthroughs >= 25 },
+        { id: 'replay1', name: 'Run It Back', desc: 'Cross a cleared leg on a replay', seen: s => s.path.learned >= 2, check: s => s.stats.legsCleared >= 1 },
+        { id: 'tree10', name: 'Branching Out', desc: 'Own 10 skill-tree upgrades', seen: s => s.unlocked['module:path'], check: s => treeOwned(s) >= 10 },
+        { id: 'tree25', name: 'Deep Roots', desc: 'Own 25 skill-tree upgrades', seen: s => treeOwned(s) >= 10, check: s => treeOwned(s) >= 25 },
+        { id: 'cp100k', name: 'Hundred Kiloflop', desc: 'Earn 100,000 CP in total', seen: s => s.stats.lifetimeCp >= 1e3, check: s => s.stats.lifetimeCp >= 1e5 },
+        { id: 'speed5', name: 'Picking Up Speed', desc: 'Reach 5 m/s', seen: s => s.stats.rolls >= 1, check: s => s.stats.topSpeed >= 5 },
         // The long-term list (recognition only, like the rest): versions, challenges, act two, investors, replays.
         { id: 'cp1t', name: 'Teraflop', desc: 'Earn 1 trillion CP in total', seen: s => s.stats.lifetimeCp >= 1e9, check: s => s.stats.lifetimeCp >= 1e12 },
         { id: 'skills20', name: 'Renaissance', desc: 'Learn 20 skills in one run', seen: s => s.path.learned >= 10, check: s => s.path.learned >= 20 },
@@ -481,6 +509,9 @@
         { id: 'challengeAll', name: 'Benchmark Sweep', desc: 'Beat every challenge', seen: s => Object.keys(s.challengesDone).length >= 1, check: s => CHALLENGES.every(c => s.challengesDone[c.id]) },
         { id: 'transcended', name: 'Beyond the Horizon', desc: 'Transcend', seen: s => canTranscend(s) || s.transcend.count > 0, check: s => s.transcend.count >= 1 }
     ];
+
+    // Skill-tree upgrades owned (one per node with a level).
+    const treeOwned = s => UPGRADES.filter(u => u.tab === 'training' && (s.levels[u.id] || 0) > 0).length;
 
     function defaultState(now) {
         now = now ?? Date.now();
@@ -502,6 +533,8 @@
             transcend: { points: 0, total: 0, count: 0, perks: {} },
             stats: {
                 clicks: 0,
+                breakthroughs: 0,     // all time, for the mid-game achievements
+                superPrompts: 0,
                 lifetimeCp: 0,
                 runCp: 0,
                 researchDone: 0,
@@ -527,7 +560,7 @@
                 collectsEver: 0,      // hand collections and research runs in earlier versions (automation gates)
                 researchManualEver: 0
             },
-            path: { learned: 0, best: 0, auto: [], legBest: [] },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k
+            path: { learned: 0, best: 0, auto: [], legBest: [], breakDue: 0 },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k
             projects: { offers: [], boosts: [], next: PROJECTS.firstAt, seq: 0 },
             tasks: { autoCollector: { on: true, share: TASK_DEFAULTS.autoCollector }, researchAssistant: { on: true, share: TASK_DEFAULTS.researchAssistant }, autoTrainer: { on: true } },
             // notation: 'standard' (1.23M), 'scientific' (1.23e6) or 'engineering' (1.23e6, exponents in threes);
@@ -552,7 +585,7 @@
     const TREE_STATS = ['zone', 'push', 'pushes', 'cooldown', 'perfect', 'clean', 'cleanPower', 'perfectPower', 'rollBonus', 'charge',
         'critChance', 'critPower', 'windfallChance', 'windfallPower', 'crunchChance', 'crunchTime', 'maxEffortChance', 'maxEffortPower',
         'flowChance', 'flowTime', 'flowSpeed', 'superCrit', 'superCrunch', 'superFlow', 'system', 'cleanSize', 'zoneBias', 'perfectSize', 'perfectUnits',
-        'friction', 'slope', 'xp', 'pushMult'];
+        'friction', 'slope', 'xp', 'pushMult', 'stripFront', 'stripBack', 'stripMore'];
     function treeBoosts(s) {
         const out = Object.fromEntries(TREE_STATS.map(k => [k, 0]));
         for (const up of UPGRADES) {
@@ -776,7 +809,9 @@
             collectsPerSec, researchPerSec, cpUsePerSec, dpUsePerSec, autoThrottled, tasks,
             cpNet: cpPerSec - cpUsePerSec, dpNet: dpPerSec - dpUsePerSec, pushPower, pushesPerRoll, pushCooldown, zoneWidth, zoneBias, perfectWidth, perfectUnits, systemWidth, cleanMult, cleanRollBonus, cleanPower, perfectPower, systemPower, chargeHold,
             critChance, critMult, windfallChance, windfallMult, crunchChance, crunchSeconds, maxEffortChance, maxEffortMult, flowChance, flowSeconds, flowSpeed,
-            superCritChance, superCrunchChance, superFlowChance, friction, hillScale, xpMult, xpPerSec };
+            superCritChance, superCrunchChance, superFlowChance, friction, hillScale, xpMult, xpPerSec,
+            // Boost strips bought in the Momentum branch, as levels (training-path.js reads them via createRoll's `strips`).
+            strips: { front: tb.stripFront, back: tb.stripBack, more: tb.stripMore }, stripFront: tb.stripFront, stripBack: tb.stripBack, stripMore: tb.stripMore };
     }
 
     function meetsPhase(s, phase) {
@@ -832,6 +867,22 @@
         return up.max != null && level(s, up.id) >= up.max;
     }
 
+    // Lab capacity: how far compute and data can scale grows with the skills you've learned, so the lab and
+    // training take turns (playtest 2: the lab ran away in the first 10 minutes, 248K CP sat unspent and nothing
+    // pulled the player back). [base, per skill]: the base before Pattern Matching, then more per real skill
+    // (the warm-up doesn't count). Hand data scales only through the Data Processor until the crawler arrives
+    // with Pattern Matching. The Training Data Pipeline, research and one-time upgrades are never capped: data
+    // always has somewhere to go. A capacity that rises counts as news in the lab (game.js `labUnseen`).
+    const CAPACITY = {
+        keyboard: [10, 3], cpu: [15, 6], server: [3, 2], quantum: [0, 1], neural: [0, 1], datacenter: [0, 1], optical: [0, 1],
+        dataProcessor: [6, 3], autoCollector: [0, 2]
+    };
+    function capacity(s, up) {
+        const c = CAPACITY[up.id];
+        return c ? c[0] + c[1] * Math.max(0, s.path.learned - FIRST_REAL_SKILL) : Infinity;
+    }
+    const atCapacity = (s, up) => level(s, up.id) >= capacity(s, up);
+
     function parentDone(s, up) {
         const parent = UPGRADE_BY_ID[up.requires];
         return parent.max == null ? level(s, parent.id) > 0 : level(s, parent.id) >= parent.max;
@@ -866,12 +917,14 @@
         if (!up) return { ok: false, msg: `Unknown upgrade: ${id}` };
         if (!isUpgradeVisible(s, up)) return { ok: false, msg: `${up.name} is locked.` };
         if (isMaxed(s, up)) return { ok: false, msg: `${up.name} is already owned.` };
+        if (atCapacity(s, up)) return { ok: false, capped: true, msg: `No room for more ${upgradeName(s, up)} yet: capacity ${capacity(s, up)}, more with each skill.` };
         const cost = upgradeCost(up, level(s, id));
         if (!canAfford(s, cost)) return { ok: false, msg: `Not enough resources for ${upgradeName(s, up)}.` };
         const before = upgradeName(s, up);
         pay(s, cost);
         (up.legacy ? s.prestige.levels : s.levels)[id] = level(s, id) + 1;
         if (id === 'headStart') topUpKit(s);
+        if (id === 'scoutingData' && level(s, id) === 1) startBreakCountdown(s);
         if (up.grants) {
             for (const [k, v] of Object.entries(up.grants)) s.attr[k] += v;
         }
@@ -885,7 +938,7 @@
     // afford in a row (capped at `limit`), and buying several at once.
     function bulkCost(s, up, n) {
         const lvl = level(s, up.id);
-        const room = up.max != null ? Math.max(0, up.max - lvl) : n;
+        const room = Math.min(up.max != null ? Math.max(0, up.max - lvl) : n, Math.max(0, capacity(s, up) - lvl));
         const total = {};
         for (let i = 0; i < Math.min(n, room); i++) {
             for (const [k, v] of Object.entries(upgradeCost(up, lvl + i))) total[k] = (total[k] || 0) + v;
@@ -895,7 +948,7 @@
 
     function maxAffordable(s, up, limit = 1000) {
         const lvl = level(s, up.id);
-        const room = up.max != null ? Math.max(0, up.max - lvl) : limit;
+        const room = Math.min(up.max != null ? Math.max(0, up.max - lvl) : limit, Math.max(0, capacity(s, up) - lvl));
         const total = {};
         let n = 0;
         while (n < Math.min(limit, room)) {
@@ -1163,6 +1216,22 @@
         return ((h ^ (h >>> 13)) >>> 0) / 4294967296;
     }
     const breakthroughHit = (s, seed, index) => luck(seed, index, 0xb7e15163) < derive(s).critChance;
+
+    // The breakthrough guarantee: Lucky Break's chance is small, so its first breakthrough could take 20+ sprints and
+    // players didn't connect the two (playtest 2). Buying its first level starts a countdown of 1-3 runs; if none of
+    // them has a breakthrough by itself, the last one's second sprint is one (its first, if it has just one sprint).
+    // Not the very next sprint, and only once per version.
+    const BREAK_WINDOW = 3;
+    function startBreakCountdown(s) {
+        s.path.breakDue = 1 + (s.stats.rolls * 7 + 3) % BREAK_WINDOW;
+    }
+    // Is this sprint the guaranteed breakthrough? `index` counts the run's sprints from 0.
+    const breakGuaranteed = (s, index, pushesLeft) => s.path.breakDue === 1 && (index >= 1 || pushesLeft <= 1);
+    // At a run's end: a breakthrough (natural or guaranteed) ends the countdown, else one run fewer to go.
+    function settleBreakCountdown(s, hadBreakthrough) {
+        if (!s.path.breakDue) return;
+        s.path.breakDue = hadBreakthrough ? 0 : s.path.breakDue - 1;
+    }
     const windfallHit = (s, seed) => luck(seed, 0, 0x5bd1e995) < derive(s).windfallChance;
     // A sprint can set off a crunch (free sprints for a few seconds), Max Effort (the next sprint goes all
     // out) or a flow (the ball coasts above the hills for a few seconds).
@@ -1219,6 +1288,18 @@
         const better = base > (s.path.legBest[leg] || 0);
         if (better) s.path.legBest[leg] = base;
         return better;
+    }
+
+    // A run credits every leg it ran through, not just the one it started on: the start leg gets the whole run,
+    // and each leg it entered past a skill hill gets what the run earned from there on (as a run starting there
+    // would). `entries` are { leg, banked }: the leg entered and the XP banked by then. Returns the cleared legs
+    // whose best rose (a playtest asked why a better pass over later legs didn't raise their passive XP).
+    function recordLegs(s, start, entries, total, luck = 1) {
+        const improved = [];
+        const credit = (leg, xp) => { if (recordRun(s, leg, xp, luck) && leg < s.path.learned) improved.push(leg); };
+        credit(start, total);
+        for (const e of entries || []) credit(e.leg, total - e.banked);
+        return improved;
     }
 
     function stretchXp(s) {
@@ -1670,6 +1751,7 @@
         s.path.best = Math.min(1, num(raw.path?.best, 0));
         s.path.auto = (Array.isArray(raw.path?.auto) ? raw.path.auto : []).slice(0, s.path.learned).map(v => num(v, 0));
         s.path.legBest = (Array.isArray(raw.path?.legBest) ? raw.path.legBest : []).slice(0, s.path.learned + 1).map(v => num(v, 0));
+        s.path.breakDue = Math.min(BREAK_WINDOW, Math.max(0, Math.floor(num(raw.path?.breakDue, 0))));
         // v8 put a warm-up leg (Tokenization) in front: older saves past the start have it learned too, and every
         // leg they knew moves one along (its laps and best run with it). It grants no attributes.
         if (!(raw.version >= 8) && s.path.learned > 0) {
@@ -1819,7 +1901,7 @@
 
     return {
         SAVE_VERSION, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
-        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
+        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, CAPACITY, capacity, atCapacity, breakGuaranteed, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,

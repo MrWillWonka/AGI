@@ -771,6 +771,32 @@ h1, h2, h3, p { margin: 0; }
 
 .tree-node.selected { outline: 2px solid var(--primary); outline-offset: 4px; }
 
+/* Mechanic nodes (a new way to play: `mechanic` in engine.js) are hexagons, so they stand out from stat nodes.
+   The shape is two clipped layers (edge, then fill) behind the icon, so the level badge isn't clipped and the
+   states below only swap two colours. */
+.tree-node.mechanic {
+    --edge: #2d4c54;
+    --fill: linear-gradient(180deg, #18323a, #0f2126);
+    background: none;
+    border-color: transparent;
+    box-shadow: none;
+    border-radius: 0;
+}
+.tree-node.mechanic::before, .tree-node.mechanic::after {
+    content: '';
+    position: absolute;
+    clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%);
+    pointer-events: none;
+}
+.tree-node.mechanic::before { inset: -4px; background: var(--edge); }
+.tree-node.mechanic::after { inset: -1px; background: var(--fill); }
+.tree-node.mechanic .tree-icon, .tree-node.mechanic .tree-lock, .tree-node.mechanic .tree-level { position: relative; z-index: 1; }
+.tree-node.mechanic .tree-level { position: absolute; }
+.tree-node.mechanic.owned, .tree-node.mechanic.maxed { --edge: var(--success); --fill: linear-gradient(180deg, #1d4a46, #12302f); filter: drop-shadow(0 0 8px rgba(99, 224, 171, 0.35)); }
+.tree-node.mechanic.can-buy { --edge: var(--warning); animation: none; filter: drop-shadow(0 0 9px rgba(255, 181, 71, 0.45)); }
+.tree-node.mechanic.locked { --edge: rgba(255, 93, 93, 0.55); --fill: linear-gradient(180deg, #2a1618, #1a0f11); }
+.tree-node.mechanic.selected { outline: none; --edge: var(--primary); }
+
 
 
 
@@ -1748,6 +1774,12 @@ body { zoom: var(--zoom); }
 
 /* Node detail: a one-line quip, then the plain bonus. */
 .detail-flavor { font-style: italic; color: var(--text); opacity: 0.85; }
+
+/* Mechanic demos: a short looping scene in a mechanic node's popup (and its legacy card) before it's bought. */
+.demo { margin: 8px 0 4px; }
+.demo canvas { display: block; width: 240px; max-width: 100%; aspect-ratio: 240 / 96; border: 1px solid var(--border); border-radius: 6px; }
+.demo figcaption { margin-top: 4px; font: 600 0.72rem var(--font-body); color: var(--muted); }
+.demo[hidden] { display: none; }
 .node-detail .detail-effect { color: var(--success); font: 600 0.84rem var(--font-mono); }
 .node-detail .detail-preview { margin: 6px 0 0; font: 600 0.78rem var(--font-mono); color: var(--primary); }
 
@@ -2512,6 +2544,11 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .toast.callout-side { transform: translateX(-12px); }
 .toast.callout-map { transform: translateY(10px); }
 .toast.callout.show { transform: none; }
+/* A tip's spotlight: everything but its target dims (a hole cut by a huge shadow); clicks pass through. */
+.tip-spot { position: fixed; z-index: 59; border-radius: 10px; pointer-events: none; opacity: 0; transition: opacity 0.35s ease;
+    box-shadow: 0 0 0 200vmax rgba(2, 8, 10, 0.62), 0 0 0 2px rgba(99, 224, 171, 0.7); }
+.tip-spot.show { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .tip-spot { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .minimap .mm-chip { animation: none !important; } .mm-block.ping rect { animation: none; } }
 
 /* ---- Legacy upgrades: their own screen between versions (and from R&D) ----

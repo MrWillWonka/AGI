@@ -1435,3 +1435,94 @@ test('Head Start bought on the legacy screen after shipping racks its kit in the
     assert.equal(E.buyPerk(u, 'starterLab'), true);
     assert.deepEqual([E.level(u, 'cpu'), E.level(u, 'server'), E.level(u, 'quantum')], [10, 5, 3]);
 });
+
+test('a run credits passive XP to every leg it ran through, not only the one it started on', () => {
+    // A playtest asked why a better pass over later legs didn't raise their passive XP.
+    const s = fresh();
+    s.path.learned = 4;
+    s.path.legBest = [];
+    // Started on leg 1, entered leg 2 with 30 XP banked and leg 3 with 70; 100 XP in all.
+    const improved = E.recordLegs(s, 1, [{ leg: 2, banked: 30 }, { leg: 3, banked: 70 }], 100);
+    assert.deepEqual(improved, [1, 2, 3]);
+    const base = xp => xp / E.derive(s).xpMult;
+    assert.ok(Math.abs(s.path.legBest[1] - base(100)) < 1e-9, 'the start leg gets the whole run');
+    assert.ok(Math.abs(s.path.legBest[2] - base(70)) < 1e-9, 'leg 2 gets what was earned from there on');
+    assert.ok(Math.abs(s.path.legBest[3] - base(30)) < 1e-9);
+    // A weaker run improves nothing; the frontier leg (not cleared yet) is never reported.
+    assert.deepEqual(E.recordLegs(s, 1, [{ leg: 2, banked: 10 }], 50), []);
+    assert.deepEqual(E.recordLegs(s, 3, [{ leg: 4, banked: 10 }], 500), [3]);
+});
+
+test('Lucky Break guarantees a breakthrough within 1-3 runs of buying it, not on the next sprint', () => {
+    const s = fresh();
+    s.path.learned = 4;
+    s.res.xp = 1e6;
+    s.levels.gpuCluster2 = 1;
+    s.levels.trainingOptimizer = 2;
+    s.unlocked['module:path'] = true;
+    E.evaluate(s);
+    assert.equal(E.buy(s, 'scoutingData').ok, true);
+    const due = s.path.breakDue;
+    assert.ok(due >= 1 && due <= E.BREAK_WINDOW, `countdown ${due}`);
+    // Runs without a breakthrough count down; only the last one forces it, on its second sprint.
+    for (let r = due; r > 1; r--) {
+        assert.equal(E.breakGuaranteed(s, 1, 3), false);
+        E.settleBreakCountdown(s, false);
+    }
+    assert.equal(E.breakGuaranteed(s, 0, 3), false, 'not the first sprint');
+    assert.equal(E.breakGuaranteed(s, 1, 2), true);
+    assert.equal(E.breakGuaranteed(s, 0, 1), true, 'a one-sprint run gets it on its only sprint');
+    E.settleBreakCountdown(s, true);
+    assert.equal(s.path.breakDue, 0, 'done after one');
+    assert.equal(E.buy(s, 'scoutingData').ok, true);
+    assert.equal(s.path.breakDue, 0, 'the second level starts nothing');
+    // A natural breakthrough in the window ends it too, and the countdown survives a save.
+    const t = fresh();
+    t.path.breakDue = 2;
+    assert.equal(E.migrate(JSON.parse(E.serialize(t)), NOW).path.breakDue, 2);
+    E.settleBreakCountdown(t, true);
+    assert.equal(t.path.breakDue, 0);
+});
+
+test('lab capacity grows with skills: compute and data scale in steps, data sinks never cap', () => {
+    // Playtest 2: the lab ran away in 10 minutes (248K CP unspent) and nothing pulled the player back.
+    const s = fresh();
+    s.res.cp = 1e9;
+    s.res.dp = 1e9;
+    s.stats.clicks = 1000;
+    s.levels.keyboard = 5;
+    s.path.learned = 1;   // the warm-up only
+    E.evaluate(s);
+    const cpu = E.UPGRADE_BY_ID.cpu;
+    const cap0 = E.capacity(s, cpu);
+    assert.equal(E.maxAffordable(s, cpu), cap0, 'Max stops at the capacity');
+    assert.equal(E.buyMany(s, 'cpu', cap0 + 5).count, cap0);
+    const r = E.buy(s, 'cpu');
+    assert.equal(r.ok, false);
+    assert.equal(r.capped, true);
+    // Pattern Matching makes room; more with every skill after.
+    s.path.learned = 2;
+    assert.ok(E.capacity(s, cpu) > cap0);
+    assert.equal(E.buy(s, 'cpu').ok, true);
+    assert.equal(E.capacity(s, E.UPGRADE_BY_ID.autoCollector), 2, 'the crawler scales with skills too');
+    s.path.learned = 1;
+    assert.equal(E.capacity(s, E.UPGRADE_BY_ID.autoCollector), 0);
+    // The Training Data Pipeline (data's sink) and one-time upgrades have no cap.
+    assert.equal(E.capacity(s, E.UPGRADE_BY_ID.trainingData), Infinity);
+    assert.equal(E.capacity(s, E.UPGRADE_BY_ID.compilerOpt), Infinity);
+});
+
+test('mid-game achievements: runs, skills, prompts, breakthroughs, replays and the tree', () => {
+    // Playtest 2 went 34 minutes without an achievement, from the first skill to General AI.
+    const s = fresh();
+    s.stats.rolls = 10;
+    s.stats.cleanSprints = 1;
+    s.stats.breakthroughs = 1;
+    s.stats.superPrompts = 1;
+    s.stats.legsCleared = 1;
+    s.path.learned = 4;
+    for (const u of E.UPGRADES.filter(x => x.tab === 'training').slice(0, 10)) s.levels[u.id] = 1;
+    const got = E.evaluate(s).achievements.map(a => a.id);
+    for (const id of ['runs10', 'skills3', 'clean1', 'break1', 'super1', 'replay1', 'tree10']) assert.ok(got.includes(id), id);
+    assert.ok(!got.includes('runs50') && !got.includes('skills5'));
+});

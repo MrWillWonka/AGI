@@ -6,12 +6,13 @@
 
     let ctx = null;
     let master = null;
+    let out = null;             // the compressor everything ends in (music joins here, apart from the sounds' volume)
     let volume = 0.5;
     const last = {};            // name -> time last played, to thin out rapid repeats
     let chargeOsc = null;
 
     function ensure() {
-        if (ctx || volume <= 0) return ctx;
+        if (ctx || (volume <= 0 && musicVolume <= 0)) return ctx;
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return null;
         ctx = new AC();
@@ -22,6 +23,7 @@
         comp.threshold.value = -18;
         comp.ratio.value = 6;
         master.connect(comp).connect(ctx.destination);
+        out = comp;
         return ctx;
     }
 
@@ -163,5 +165,193 @@
         o.stop(ctx.currentTime + 0.2);
     }
 
-    window.SFX = { play, charge, chargeStop, setVolume, get volume() { return volume; } };
+    // ---- Music: a techno backbeat that follows the run -------------------------------------------------
+    // A step sequencer (16 steps a bar) scheduled a little ahead on the audio clock. Layers come in with the
+    // intensity (0-1, from the ball's speed in game.js): kick and bass always, off-beat hats, then a clap, 16th
+    // hats and an arpeggio when it's flying. Power-ups bend it: a crunch distorts it, flow and bullet time slow
+    // and muffle it, a breakthrough is a swell that opens the filter and lands on a crash. Its own volume
+    // (`setMusic`), so sounds and music can be set apart; silent until the first gesture, like everything here.
+    const BPM = 124;
+    let music = null;               // { bus, drive, dry, wet, filter, nextStep, step, timer }
+    let musicVolume = 0.35;
+    let intensity = 0;
+    let mode = null;                // null | 'crunch' | 'flow' | 'freeze'
+    const BASS = [45, 0, 0, 45, 0, 0, 48, 0, 45, 0, 0, 43, 0, 0, 40, 0];   // A minor, a pulse with a lift
+    const ARP = [69, 72, 76, 79, 76, 72, 69, 64];
+
+    function driveCurve(k) {
+        const n = 1024;
+        const curve = new Float32Array(n);
+        for (let i = 0; i < n; i++) {
+            const x = (i / (n - 1)) * 2 - 1;
+            curve[i] = ((1 + k) * x) / (1 + k * Math.abs(x));
+        }
+        return curve;
+    }
+
+    function startMusic() {
+        if (music || musicVolume <= 0 || !ensure() || ctx.state !== 'running') return;
+        const bus = ctx.createGain();
+        bus.gain.value = musicVolume * 0.55;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 1400;
+        filter.Q.value = 0.7;
+        const drive = ctx.createWaveShaper();
+        drive.curve = driveCurve(40);
+        const dry = ctx.createGain();
+        const wet = ctx.createGain();
+        dry.gain.value = 1;
+        wet.gain.value = 0;
+        bus.connect(dry).connect(filter);
+        bus.connect(drive).connect(wet).connect(filter);
+        filter.connect(out);
+        music = { bus, drive, dry, wet, filter, nextStep: ctx.currentTime + 0.1, step: 0 };
+        music.timer = setInterval(schedule, 25);
+    }
+
+    function stopMusic() {
+        if (!music) return;
+        clearInterval(music.timer);
+        const m = music;
+        music = null;
+        m.bus.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.1);
+        setTimeout(() => m.filter.disconnect(), 600);
+    }
+
+    // One voice into the music bus.
+    function voice(fn) {
+        const g = ctx.createGain();
+        g.connect(music.bus);
+        fn(g);
+    }
+    function kick(t, gain) {
+        voice(g => {
+            const o = ctx.createOscillator();
+            o.frequency.setValueAtTime(150, t);
+            o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+            g.gain.setValueAtTime(gain, t);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+            o.connect(g);
+            o.start(t);
+            o.stop(t + 0.3);
+        });
+    }
+    function hat(t, gain, len = 0.04) {
+        voice(g => {
+            if (!noiseBuf) noise({ dur: 0.01, gain: 0.0001 });   // builds the shared noise buffer
+            const src = ctx.createBufferSource();
+            src.buffer = noiseBuf;
+            const f = ctx.createBiquadFilter();
+            f.type = 'highpass';
+            f.frequency.value = 7000;
+            g.gain.setValueAtTime(gain, t);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+            src.connect(f).connect(g);
+            src.start(t, Math.random() * 0.5);
+            src.stop(t + len + 0.02);
+        });
+    }
+    function clap(t, gain) {
+        voice(g => {
+            if (!noiseBuf) noise({ dur: 0.01, gain: 0.0001 });
+            const src = ctx.createBufferSource();
+            src.buffer = noiseBuf;
+            const f = ctx.createBiquadFilter();
+            f.type = 'bandpass';
+            f.frequency.value = 1600;
+            f.Q.value = 0.9;
+            g.gain.setValueAtTime(gain, t);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+            src.connect(f).connect(g);
+            src.start(t, Math.random() * 0.5);
+            src.stop(t + 0.2);
+        });
+    }
+    function synth(t, note, dur, gain, type, cutoff) {
+        voice(g => {
+            const o = ctx.createOscillator();
+            const f = ctx.createBiquadFilter();
+            o.type = type;
+            o.frequency.value = NOTE(note);
+            f.type = 'lowpass';
+            f.frequency.value = cutoff;
+            f.Q.value = 6;
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(gain, t + 0.008);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            o.connect(f).connect(g);
+            o.start(t);
+            o.stop(t + dur + 0.02);
+        });
+    }
+
+    function schedule() {
+        if (!music || ctx.state !== 'running' || document.hidden) return;
+        const slow = mode === 'flow' || mode === 'freeze';
+        const stepLen = 60 / (BPM * (slow ? 0.6 : 1)) / 4;
+        const k = intensity;
+        while (music.nextStep < ctx.currentTime + 0.12) {
+            const t = music.nextStep;
+            const s = music.step % 16;
+            if (s % 4 === 0) kick(t, 0.5);
+            if (BASS[s]) synth(t, BASS[s], stepLen * 2.2, 0.22, 'sawtooth', 220 + 1600 * k);
+            if (k > 0.2 && s % 4 === 2) hat(t, 0.08 + 0.06 * k);
+            if (k > 0.45 && (s === 4 || s === 12)) clap(t, 0.16);
+            if (k > 0.65 && s % 2 === 1) hat(t, 0.05, 0.025);
+            if (k > 0.8) synth(t, ARP[s % ARP.length] + 12, stepLen * 0.9, 0.05, 'square', 3200);
+            music.nextStep += stepLen;
+            music.step++;
+        }
+        // The mood: muffled in flow and bullet time, distorted in a crunch, opening up with speed.
+        const now = ctx.currentTime;
+        const cutoff = slow ? 600 : 900 + 9000 * k * k;
+        music.filter.frequency.setTargetAtTime(cutoff, now, 0.25);
+        music.wet.gain.setTargetAtTime(mode === 'crunch' ? 0.55 : 0, now, 0.08);
+        music.dry.gain.setTargetAtTime(mode === 'crunch' ? 0.6 : 1, now, 0.08);
+    }
+
+    // The ball's speed (0-1), and the power-up shaping the beat, from game.js.
+    function musicState(k, m = null) {
+        intensity = Math.max(0, Math.min(1, Number(k) || 0));
+        mode = m;
+        if (musicVolume > 0 && ctx?.state === 'running') startMusic();
+    }
+
+    // A breakthrough: a rising swell into the filter, then a crash on the next beat.
+    function swell() {
+        if (!music) return;
+        const now = ctx.currentTime;
+        music.filter.frequency.cancelScheduledValues(now);
+        music.filter.frequency.setValueAtTime(music.filter.frequency.value, now);
+        music.filter.frequency.exponentialRampToValueAtTime(14000, now + 0.6);
+        music.bus.gain.setTargetAtTime(musicVolume * 0.85, now, 0.15);
+        music.bus.gain.setTargetAtTime(musicVolume * 0.55, now + 0.9, 0.4);
+        voice(g => {
+            if (!noiseBuf) noise({ dur: 0.01, gain: 0.0001 });
+            const src = ctx.createBufferSource();
+            src.buffer = noiseBuf;
+            src.loop = true;
+            const f = ctx.createBiquadFilter();
+            f.type = 'bandpass';
+            f.frequency.setValueAtTime(400, now);
+            f.frequency.exponentialRampToValueAtTime(6000, now + 0.6);
+            g.gain.setValueAtTime(0.0001, now);
+            g.gain.exponentialRampToValueAtTime(0.25, now + 0.55);
+            g.gain.exponentialRampToValueAtTime(0.0001, now + 1.4);
+            src.connect(f).connect(g);
+            src.start(now);
+            src.stop(now + 1.5);
+        });
+        kick(now + 0.6, 0.7);
+        hat(now + 0.6, 0.2, 0.6);
+    }
+
+    function setMusic(v) {
+        musicVolume = Math.max(0, Math.min(1, Number(v) || 0));
+        if (musicVolume <= 0) return stopMusic();
+        if (music) music.bus.gain.setTargetAtTime(musicVolume * 0.55, ctx.currentTime, 0.05);
+    }
+
+    window.SFX = { play, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get musicVolume() { return musicVolume; } };
 })();

@@ -627,35 +627,55 @@ test('act two: most swells are kickers whose face steepens to a lip, so crests l
     assert.ok(climbs >= 10, `${climbs} launches climbing off a lip`);
 });
 
-test('terrain features: their own random stream (the hills are unchanged), strips push, flights take tokens', () => {
+test('terrain features: their own random stream (the hills are unchanged), bought strips push and brake, flights take tokens', () => {
     const a = T.terrain(T.LATE_LEG, 11);
     assert.deepEqual(a.bumps.filter(b => b.skill === null).map(b => b.peak), T.rollingHills(T.LATE_LEG, 11).map(b => b.peak));
+    // No strips until they're bought (a playtest read free ones as an unexplained upgrade); buying them never moves
+    // a hill or a token.
+    const owned = { front: 1, back: 1 };
     let tokens = 0;
     let strips = 0;
     for (let seed = 1; seed <= 20; seed++) {
-        const g = T.terrain(T.LATE_LEG + (seed % 3), seed);
-        tokens += g.tokens.length;
+        const k = 2 + (seed % 5);
+        assert.equal(T.terrain(k, seed).strips.length, 0, 'none until bought');
+        const g = T.terrain(k, seed, 1, k, owned);
         strips += g.strips.length;
-        for (const tk of g.tokens) assert.ok(tk.y > 0);
+        const late = T.terrain(T.LATE_LEG + (seed % 3), seed);
+        const lateBought = T.terrain(T.LATE_LEG + (seed % 3), seed, 1, T.LATE_LEG + (seed % 3), owned);
+        assert.deepEqual(lateBought.tokens.map(t => t.x), late.tokens.map(t => t.x), 'tokens stay put');
+        tokens += late.tokens.length;
+        for (const tk of late.tokens) assert.ok(tk.y > 0);
+        for (const st of g.strips) {
+            const hill = g.bumps.find(h => st.from >= h.start && st.to <= h.end);
+            assert.ok(hill, 'a strip sits on one hill');
+            assert.ok(st.kind === 'front' ? st.to <= hill.peak : st.from >= hill.peak, `${st.kind} strips sit on the ${st.kind === 'front' ? 'face' : 'back'}`);
+        }
     }
-    assert.ok(tokens > 20 && strips > 5, `${tokens} tokens, ${strips} strips`);
-    assert.equal(T.terrain(0, 3).tokens.length + T.terrain(0, 3).strips.length, 0, 'the warm-up stays bare');
-    // A strip speeds a ball rolling over it.
-    const over = keep => {
-        for (let seed = 1; seed <= 40; seed++) {
-            const roll = T.createRoll(T.LATE_LEG, seed, { pushes: 1, cooldown: 1 });
-            const st = roll.ground.strips[0];
+    assert.ok(tokens > 20 && strips > 10, `${tokens} tokens, ${strips} strips`);
+    assert.equal(T.terrain(0, 3, 1, 0, owned).strips.length, 0, 'the warm-up stays bare');
+    // More strips with the `more` level, and stronger ones by level.
+    const count = more => [...Array(30)].reduce((n, _, i) => n + T.terrain(3, i + 1, 1, 3, { front: 1, back: 1, more }).strips.length, 0);
+    assert.ok(count(2) > count(0) * 1.4);
+    assert.ok(T.STRIP_PUSH[3] > T.STRIP_PUSH[1] && T.STRIP_BRAKE[3] > T.STRIP_BRAKE[1]);
+    // A front strip speeds a ball rolling forward over it; a back strip slows a ball rolling backward, never pushes.
+    const over = (kind, keep, v) => {
+        for (let seed = 1; seed <= 60; seed++) {
+            const roll = T.createRoll(3, seed, { pushes: 1, cooldown: 1, strips: owned });
+            const st = roll.ground.strips.find(x => x.kind === kind);
             if (!st) continue;
             if (!keep) roll.ground.strips.length = 0;
             roll.push(0.001);
-            roll.ball.x = st.from + 0.01;
-            roll.ball.v = 0.8;
-            roll.step(0.2);
+            roll.ball.x = (st.from + st.to) / 2;
+            roll.ball.maxX = roll.ball.x;
+            roll.ball.v = v;
+            roll.step(0.1);
             return roll.ball.v;
         }
         return null;
     };
-    assert.ok(over(true) > over(false));
+    assert.ok(over('front', true, 0.8) > over('front', false, 0.8), 'front strips push');
+    assert.ok(over('back', true, -1.5) > over('back', false, -1.5), 'back strips brake a backward roll');
+    assert.ok(over('back', true, -1.5) <= 0, 'and never turn it round');
     let taken = 0;
     for (let seed = 1; seed <= 20; seed++) {
         const roll = T.createRoll(T.LATE_LEG, seed, { pushes: 1, cooldown: 1 });
@@ -707,7 +727,7 @@ test('a stuck ball swings freely on the slopes and is only braked near the floor
 });
 
 test('a spent ball sloshing over a boost strip still ends its run (it used to never end)', () => {
-    const roll = T.createRoll(2, 1148255, { pushes: 1, cooldown: 1, friction: 0.75, hillScale: 0.8, onward: true, last: 2 });
+    const roll = T.createRoll(2, 1148255, { pushes: 1, cooldown: 1, friction: 0.75, hillScale: 0.8, onward: true, last: 2, strips: { front: 3, back: 3, more: 2 } });
     roll.push(2.4);
     for (let t = 0; t < 120 && !roll.over; t += 0.05) roll.step(0.05);
     assert.equal(roll.over, true);

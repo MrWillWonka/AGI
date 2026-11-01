@@ -36,6 +36,20 @@ window.AGI = (function () {
         try { localStorage.setItem(key, value); return true; } catch { return false; }
     }
 
+    // Music (sfx.js): a backbeat whose intensity follows the ball's speed on the trail and whose mood follows the
+    // power-up in play (a crunch distorts it, flow and bullet time slow and muffle it). Quiet everywhere else.
+    const MUSIC_KEY = 'agiMusic';
+    const MUSIC_DEFAULT = '0.35';
+    function musicTick() {
+        if (!window.SFX?.musicState) return;
+        const r = path.roll;
+        const running = openBay === 'training' && path.view === 'run' && r && r.launched && !r.over;
+        if (!running) return window.SFX.musicState(openBay === 'training' ? 0.15 : 0.05, null);
+        const speed = Math.abs(r.ball.v) / Math.max(1, Math.sqrt(9.8 * T.skillHeight(Math.max(1, ballLeg()))));
+        const m = path.fx.freeze > 0 ? 'freeze' : path.fx.crunch > 0 ? 'crunch' : r.flowing ? 'flow' : null;
+        window.SFX.musicState(0.25 + 0.75 * Math.min(1, speed / 1.6), m);
+    }
+
     // Playtest recorder (playtest.js): events stamped with play time, kept on this device, copied out from Settings.
     const playtest = window.Playtest?.create({ get: storageGet, set: storageSet }) || null;
     let playtestSampleAt = 0;
@@ -319,7 +333,9 @@ window.AGI = (function () {
         // While you train: the first time the lab has something new, or an investor's task is done. Beside the
         // run view's Lab supply (a way there), else the Lab's tile on Surveillance (phones hide the chip).
         'hint:lab': { anchor: () => labPointer(), kind: 'tip', place: 'below', ms: 12000 },
-        'hint:offer': { anchor: () => labPointer(), kind: 'tip', place: 'below', ms: 12000 }
+        'hint:offer': { anchor: () => labPointer(), kind: 'tip', place: 'below', ms: 12000 },
+        // The first run with a zone on the meter: what a prompt is, without telling anyone to take them.
+        'hint:prompt': { anchor: () => $('charge'), kind: 'tip', place: 'above' }
     };
     function labPointer() {
         return [document.querySelector('.run-stats .module-supply'), document.querySelector('.facility-room[data-room-id="lab"]')]
@@ -367,6 +383,11 @@ window.AGI = (function () {
         const box = toastCard(c.title, c.message, where.kind || 'room');
         box.classList.add('callout', onScreen ? 'callout-side' : 'callout-map');
         document.body.append(box);
+        // A tip beside what it's about dims the rest of the screen around it, to lead the eye there (playtest 2
+        // moved past tips without seeing them). The game stays usable underneath; it lifts with the tip.
+        const tip = where.kind === 'tip';
+        const spot = tip && onScreen ? el('div', { class: 'tip-spot', 'aria-hidden': 'true' }) : null;
+        if (spot) document.body.append(spot);
         let lit = null;
         if (!onScreen) {
             nav.classList.add('open');
@@ -377,9 +398,16 @@ window.AGI = (function () {
         const place = () => {
             const r = anchor.getBoundingClientRect();
             const b = box.getBoundingClientRect();
+            if (spot) {
+                const pad = 6;
+                Object.assign(spot.style, { left: `${(r.left - pad) / z}px`, top: `${(r.top - pad) / z}px`, width: `${(r.width + 2 * pad) / z}px`, height: `${(r.height + 2 * pad) / z}px` });
+            }
             if (onScreen && where.place === 'inside') {   // inside its top edge, centred (over the trail's sky)
                 box.style.left = `${(r.left + r.width / 2 - b.width / 2) / z}px`;
                 box.style.top = `${(r.top + 56) / z}px`;
+            } else if (onScreen && where.place === 'above') {   // over it, centred (the sprint button sits beside the meter)
+                box.style.left = `${(r.left + r.width / 2 - b.width / 2) / z}px`;
+                box.style.top = `${(r.top - 12 - b.height) / z}px`;
             } else if (onScreen && where.place === 'below') {   // under it, centred
                 box.style.left = `${(r.left + r.width / 2 - b.width / 2) / z}px`;
                 box.style.top = `${(r.bottom + 12) / z}px`;
@@ -420,7 +448,7 @@ window.AGI = (function () {
         const watch = setInterval(() => {
             if (onScreen ? !target.offsetParent || !target.getBoundingClientRect().width : view === where.map) close('left');
         }, 300);
-        requestAnimationFrame(() => { place(); box.classList.add('show'); });
+        requestAnimationFrame(() => { place(); box.classList.add('show'); spot?.classList.add('show'); });
         // Playtest: which tips and callouts players saw, where, for how long, and how they went away.
         const shownAt = Date.now();
         pt('tip', { key: c.key, at: onScreen ? 'beside' : 'map' });
@@ -436,9 +464,11 @@ window.AGI = (function () {
             nav.classList.remove('open');
             lit?.classList.remove('ping');
             box.classList.remove('show');
+            if (spot) { spot.classList.remove('show'); setTimeout(() => spot.remove(), 400); }
             setTimeout(() => { box.remove(); if (c.gen === calloutGen) { calloutLive = null; nextCallout(); } }, 400);
         };
-        const timer = setTimeout(() => close('timeout'), where.ms || 10000);
+        // Tips stay until they're clicked (or their target goes); other callouts leave on their own.
+        const timer = tip ? null : setTimeout(() => close('timeout'), where.ms || 10000);
         const onTarget = () => close('target');
         box.addEventListener('click', () => close('clicked'));
         anchor.addEventListener('click', onTarget);
@@ -605,15 +635,20 @@ window.AGI = (function () {
         if (labSeen === undefined) {
             try { labSeen = new Set(JSON.parse(storageGet(LAB_SEEN_KEY))); } catch { labSeen = null; }
         }
+        // A capped card is news again when its capacity rises (a skill made room: `id@capacity`). Older lists kept
+        // plain ids: those count as seen at today's capacity.
+        const key = u => (E.CAPACITY[u.id] ? `${u.id}@${E.capacity(state, u)}` : u.id);
         const shown = E.UPGRADES.filter(u => isLabUpgrade(u) && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u));
+        if (labSeen) for (const u of shown) if (E.CAPACITY[u.id] && labSeen.has(u.id)) { labSeen.delete(u.id); labSeen.add(key(u)); }
         if (!labSeen || view === 'lab') {
-            if (!labSeen || shown.some(u => !labSeen.has(u.id))) {
-                labSeen = new Set([...(labSeen || []), ...shown.map(u => u.id)]);
+            if (!labSeen || shown.some(u => !labSeen.has(key(u)))) {
+                labSeen = new Set([...(labSeen || []), ...shown.map(key)]);
                 storageSet(LAB_SEEN_KEY, JSON.stringify([...labSeen]));
             }
             return [];
         }
-        return shown.filter(u => !labSeen.has(u.id));
+        // Only a card you could use more of counts: a full one whose capacity rose, or a card you've never seen.
+        return shown.filter(u => !labSeen.has(key(u)));
     }
 
     function buildBulk() {
@@ -1073,6 +1108,19 @@ window.AGI = (function () {
             sfx('buy');
         });
         $('settingSound').addEventListener('change', () => save());
+        // Music: its own volume, per device (localStorage, not the save).
+        const music = $('settingMusic');
+        const showMusic = v => setText($('settingMusicValue'), v > 0 ? `${Math.round(v * 100)}%` : 'off');
+        const musicVol = Number(storageGet(MUSIC_KEY) ?? MUSIC_DEFAULT);
+        music.value = musicVol;
+        showMusic(musicVol);
+        window.SFX?.setMusic(musicVol);
+        music.addEventListener('input', e => {
+            const v = Number(e.target.value);
+            storageSet(MUSIC_KEY, String(v));
+            window.SFX?.setMusic(v);
+            showMusic(v);
+        });
         $('settingNotation').addEventListener('change', e => {
             state.settings.notation = e.target.value;
             applySettings();
@@ -1713,6 +1761,7 @@ window.AGI = (function () {
             advanceTasks(dt * debugSpeed);
         }
         afterChange();
+        musicTick();
         playtestOffers();
         playtestSample();
         if (state.settings.autosave && now - lastSave >= AUTOSAVE_MS) save();
@@ -1927,7 +1976,13 @@ window.AGI = (function () {
         // The first time each happens, a tip says what the badge means (once per save).
         if (unseen.length && !state.intro['hint:lab']) {
             state.intro['hint:lab'] = true;
-            callout('hint:lab', 'New in the lab', `${E.upgradeName(state, unseen[0])} just opened. The lab's badge counts what's new since your last visit.`);
+            const u = unseen[0];
+            const more = [...(labSeen || [])].some(k => k.startsWith(`${u.id}@`));
+            callout('hint:lab', 'New in the lab', `${more ? `More room for ${E.upgradeName(state, u)}` : `${E.upgradeName(state, u)} just opened`}. The lab's badge counts what's new since your last visit.`);
+        }
+        if (!state.intro['hint:prompt'] && openBay === 'training' && path.view === 'run' && E.derive(state).zoneWidth > 0) {
+            state.intro['hint:prompt'] = true;
+            callout('hint:prompt', 'Prompts', 'Release a sprint inside the green zone for bonus XP and a bigger run bonus. It isn\'t always the best play: a full charge can carry you further.');
         }
         if (claimable && view !== 'lab' && !state.intro['hint:offer']) {
             state.intro['hint:offer'] = true;
@@ -1952,8 +2007,16 @@ window.AGI = (function () {
             if (maxed) {
                 setText(button, 'Installed ✓');
                 setDisabled(button, true);
+            } else if (E.atCapacity(state, up)) {
+                // Lab capacity grows with skills: the card says it's full, and that the next skill makes room.
+                const key = `full|${lvl}`;
+                if (button.dataset.key !== key) {
+                    button.dataset.key = key;
+                    button.replaceChildren(`Full ${lvl}/${E.capacity(state, up)}`, el('span', { class: 'eta', text: 'more room with the next skill' }));
+                }
+                setDisabled(button, true);
             } else {
-                const n = up.max == null ? bulkCount(up) : 1;
+                const n = up.max == null ? Math.min(bulkCount(up), E.capacity(state, up) - lvl) : 1;
                 const cost = n > 1 ? E.bulkCost(state, up, n) : E.upgradeCost(up, lvl);
                 const ok = E.canAfford(state, cost);
                 const eta = ok ? '' : etaText(cost, d);
@@ -3040,7 +3103,9 @@ window.AGI = (function () {
         // A terminal: the system prompt.
         terminal: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M12 15h5"/>',
         // Fast-forward chevrons: Max Effort.
-        boost: '<path d="m4 6 7 6-7 6M12 6l7 6-7 6"/>'
+        boost: '<path d="m4 6 7 6-7 6M12 6l7 6-7 6"/>',
+        // A strip on a slope: boost strips.
+        strip: '<path d="M3 19 21 7"/><path d="m8 13 2 2M13 10l2 2"/>'
     };
 
     // Each kind of upgrade has its own symbol, picked from what the node boosts (its first stat), so a
@@ -3051,7 +3116,8 @@ window.AGI = (function () {
         perfect: 'star', perfectPower: 'star', perfectUnits: 'star', perfectSize: 'star', system: 'terminal',
         critChance: 'dice', critPower: 'dice', superCrit: 'dice', windfallChance: 'spark', windfallPower: 'spark',
         crunchChance: 'flame', crunchTime: 'flame', superCrunch: 'flame', maxEffortChance: 'boost', maxEffortPower: 'boost',
-        flowChance: 'wave', flowTime: 'wave', flowSpeed: 'wave', superFlow: 'wave'
+        flowChance: 'wave', flowTime: 'wave', flowSpeed: 'wave', superFlow: 'wave',
+        stripFront: 'strip', stripBack: 'strip', stripMore: 'strip'
     };
     const nodeIcon = up => ((up.requires || up.legacy) && up.boost ? STAT_ICON[Object.keys(up.boost)[0]] : null) || up.icon;
 
@@ -3074,13 +3140,14 @@ window.AGI = (function () {
                     el('div', { class: 'legacy-info' }, [
                         el('h4', {}, [el('span', { text: up.name }), up.tag ? el('span', { class: 'legacy-tag', text: up.tag }) : null, level].filter(Boolean)),
                         el('p', { class: 'legacy-effect', text: up.effect }),
-                        el('p', { class: 'legacy-flavor', text: up.flavor })
-                    ]),
+                        el('p', { class: 'legacy-flavor', text: up.flavor }),
+                        up.mechanic ? mechanicDemo(up.mechanic) : null
+                    ].filter(Boolean)),
                     button
                 ]);
                 card.querySelector('.legacy-icon').innerHTML = icon(nodeIcon(up));
                 col.append(card);
-                legacyUi.cards[up.id] = { up, card, level, button };
+                legacyUi.cards[up.id] = { up, card, level, button, demo: card.querySelector('.demo') };
             }
             grid.append(col);
         }
@@ -3107,9 +3174,10 @@ window.AGI = (function () {
         setHidden($('legacyOpen'), state.prestige.count < 1);
         if ($('legacyScreen').hidden) return;
         setText($('legacyInsight'), `${E.currentVersion(state)} · ${E.format(state.prestige.points)} Insight to spend`);
-        for (const { up, card, level, button } of Object.values(legacyUi.cards)) {
+        for (const { up, card, level, button, demo } of Object.values(legacyUi.cards)) {
             setHidden(card, !E.isUpgradeVisible(state, up));
             const lvl = E.level(state, up.id);
+            if (demo) demo.hidden = lvl > 0;   // the demo is for before it's chosen
             const maxed = E.isMaxed(state, up);
             setText(level, up.endless ? `Lv ${lvl}` : `${lvl}/${up.max}`);
             card.classList.toggle('owned', lvl > 0);
@@ -3157,7 +3225,7 @@ window.AGI = (function () {
                 treeUi.links.push({ up, line, from: E.UPGRADE_BY_ID[up.requires].tree });
             }
 
-            const button = el('button', { type: 'button', class: `tree-node${up.requires ? '' : ' seed'}` });
+            const button = el('button', { type: 'button', class: `tree-node${up.requires ? '' : ' seed'}${up.mechanic ? ' mechanic' : ''}` });
             button.innerHTML = `<span class="tree-icon">${icon(nodeIcon(up))}</span><span class="tree-lock">${icon('lock')}</span><span class="tree-level"></span>`;
             button.addEventListener('click', () => {
                 path.selected = up.id;
@@ -3170,6 +3238,7 @@ window.AGI = (function () {
         path.selected = 'initialWeights';
         $('startRunButton').addEventListener('click', () => showTrainingView('run'));
         $('treeButton').addEventListener('click', () => showTrainingView('dev'));
+        $('restartButton').addEventListener('click', restartRun);
         $('legSelect').addEventListener('change', e => setStartLeg(e.target.value === '' ? null : Number(e.target.value)));
         $('legTagClear').addEventListener('click', () => setStartLeg(null));
         // Hotkeys in the Training Cluster: U swaps the trail and the upgrades, R trains again after a run.
@@ -3360,7 +3429,7 @@ window.AGI = (function () {
             const st = states[up.id];
             setHidden(node, st === 'hidden');
             placeNode(node, up.tree.x, up.tree.y);
-            node.className = `tree-node ${st}${up.requires ? '' : ' seed'}${up.legacy ? ' legacy' : ''}${path.selected === up.id ? ' selected' : ''}`;
+            node.className = `tree-node ${st}${up.requires ? '' : ' seed'}${up.mechanic ? ' mechanic' : ''}${up.legacy ? ' legacy' : ''}${path.selected === up.id ? ' selected' : ''}`;
             const lvl = E.level(state, up.id);
             node.querySelector('.tree-level').textContent = st === 'locked' ? '' : `${lvl}/${up.max ?? '∞'}`;
             node.setAttribute('aria-label', st === 'locked' ? 'Unknown research, locked' : `${up.name}: level ${lvl}`);
@@ -3419,8 +3488,11 @@ window.AGI = (function () {
         maxEffortChance: ['maxEffortChance', 'Max Effort chance', previewPct], maxEffortPower: ['maxEffortMult', 'Max Effort power', v => `×${v.toFixed(2)}`],
         windfallChance: ['windfallChance', 'Viral chance', previewPct], windfallPower: ['windfallMult', 'Viral run', v => `×${v.toFixed(2)}`],
         crunchChance: ['crunchChance', 'Crunch chance', previewPct], crunchTime: ['crunchSeconds', 'Crunch', v => `${v.toFixed(1)} s`],
-        flowChance: ['flowChance', 'Flow chance', previewPct], flowTime: ['flowSeconds', 'Flow', v => `${v.toFixed(1)} s`], system: ['systemWidth', 'System prompt', previewPct]
+        flowChance: ['flowChance', 'Flow chance', previewPct], flowTime: ['flowSeconds', 'Flow', v => `${v.toFixed(1)} s`], system: ['systemWidth', 'System prompt', previewPct],
+        stripFront: ['stripFront', 'Face strips', stripWord], stripBack: ['stripBack', 'Back strips', stripWord],
+        stripMore: ['stripMore', 'Hills with strips', v => `${Math.round((0.22 + 0.12 * v) * 100)}%`]
     };
+    function stripWord(v) { return ['none', 'weak', 'medium', 'strong'][v] || 'strong'; }
     function nodePreview(up, lvl) {
         if (!up.boost) return null;
         for (const stat of Object.keys(up.boost)) {
@@ -3460,7 +3532,9 @@ window.AGI = (function () {
                     el('p', { class: 'muted small', text: unknown ? 'Unknown research' : `Level ${lvl}${up.max ? ` of ${up.max}` : ''}${up.legacy ? ' · legacy, kept for good' : ''}` })])
             ]),
             el('p', { class: 'detail-effect', text: unknown ? 'Something is out here. Unlock what it grows from to find out what.' : up.effect }),
-            unknown || !up.flavor ? null : el('p', { class: 'detail-flavor', text: up.flavor })
+            unknown || !up.flavor ? null : el('p', { class: 'detail-flavor', text: up.flavor }),
+            // A new way to play shows what it does before it's bought.
+            !unknown && up.mechanic && lvl === 0 ? mechanicDemo(up.mechanic) : null
         ].filter(Boolean);
         if (unknown) {
             const needs = up.requires && E.level(state, up.requires) < 1 ? `Grows from ${E.UPGRADE_BY_ID[up.requires].name}` : up.hint || 'Locked';
@@ -3491,6 +3565,206 @@ window.AGI = (function () {
             placeNodePopup();
         });
         box.querySelector('.detail-icon').innerHTML = icon(unknown ? 'lock' : nodeIcon(up));
+    }
+
+    // ---- Mechanic demos ---------------------------------------------------------
+    // A node that brings a new way to play (`mechanic` in engine.js) shows a short looping demo in its popup
+    // before it's bought, so the change can be felt before it's chosen (playtest 2: a breakthrough "wasn't well
+    // defined" until it happened). A small canvas, drawn from code: the same ball, hills and colours as the trail.
+    const DEMO = { w: 240, h: 96, period: 3.2 };
+    const DEMO_TEXT = {
+        breakthrough: 'Sometimes a sprint hits ×1.75 harder',
+        prompt: 'Release inside the zone: bonus XP',
+        maxEffort: 'Now and then a sprint goes all out at once',
+        charge: 'The meter holds at full for a moment',
+        stripFront: 'Strips on hill faces push you up',
+        stripBack: 'Strips on hill backs stop a roll-back',
+        viral: 'Sometimes a run\'s XP is multiplied',
+        crunch: 'For a few seconds, every sprint is free',
+        flow: 'The ball lifts and glides over the hills'
+    };
+    function mechanicDemo(kind) {
+        const canvas = el('canvas', { class: 'mechanic-demo', 'aria-hidden': 'true' });
+        const wrap = el('figure', { class: 'demo' }, [canvas, el('figcaption', { text: DEMO_TEXT[kind] || '' })]);
+        const dpr = Math.min(3, (window.devicePixelRatio || 1) * uiScale());
+        canvas.width = DEMO.w * dpr;
+        canvas.height = DEMO.h * dpr;
+        const ctx = canvas.getContext('2d');
+        const start = performance.now();
+        const frame = now => {
+            if (!canvas.isConnected) return;
+            // Off screen (a hidden legacy card or screen): check back now and then rather than drawing.
+            if (!canvas.offsetParent) return void setTimeout(() => requestAnimationFrame(frame), 500);
+            const u = reducedMotion() ? 0.62 : ((now - start) / 1000 / DEMO.period) % 1;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            drawDemo(ctx, kind, u);
+            if (!reducedMotion()) requestAnimationFrame(frame);
+        };
+        requestAnimationFrame(frame);
+        return wrap;
+    }
+
+    function drawDemo(ctx, kind, u) {
+        const c = path.colors;
+        const { w, h } = DEMO;
+        const base = h - 16;
+        // Hills: [centre, half width, height]; the strip demos add a small hill before the big one.
+        const hills = kind === 'stripBack' ? [[70, 34, 16], [175, 40, 38]] : [[150, 42, 34]];
+        const ground = x => base - hills.reduce((y, [cx, hw, hh]) => y + (Math.abs(x - cx) < hw ? hh * (0.5 + 0.5 * Math.cos(Math.PI * (x - cx) / hw)) : 0), 0);
+        const ease = v => 1 - Math.pow(1 - Math.max(0, Math.min(1, v)), 3);
+        const clamp01 = v => Math.max(0, Math.min(1, v));
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = hexAlpha(c.bg, 1);
+        ctx.fillRect(0, 0, w, h);
+        // The trail.
+        ctx.beginPath();
+        for (let x = 0; x <= w; x += 2) x ? ctx.lineTo(x, ground(x)) : ctx.moveTo(x, ground(x));
+        ctx.strokeStyle = hexAlpha(c.muted, 0.8);
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        const ball = (x, tone, alpha = 1, lift = 0) => {
+            ctx.beginPath();
+            ctx.arc(x, ground(x) - 5 - lift, 5, 0, Math.PI * 2);
+            ctx.fillStyle = hexAlpha(tone, alpha);
+            ctx.fill();
+        };
+        const label = (text, tone, x = 8, y = 14) => {
+            ctx.font = '700 10px "Chakra Petch", system-ui, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = tone;
+            ctx.fillText(text, x, y);
+        };
+        const strip = (from, to, tone) => {
+            ctx.beginPath();
+            for (let x = from; x <= to; x += 2) x === from ? ctx.moveTo(x, ground(x) - 2) : ctx.lineTo(x, ground(x) - 2);
+            ctx.strokeStyle = hexAlpha(tone, 0.9);
+            ctx.lineWidth = 4;
+            ctx.stroke();
+        };
+        const meter = (fill, zone, tone = c.primary) => {
+            ctx.fillStyle = hexAlpha(c.muted, 0.25);
+            ctx.fillRect(w - 92, 8, 84, 7);
+            if (zone) {
+                ctx.fillStyle = hexAlpha(c.success, 0.45);
+                ctx.fillRect(w - 92 + 84 * zone[0], 8, 84 * (zone[1] - zone[0]), 7);
+            }
+            ctx.fillStyle = tone;
+            ctx.fillRect(w - 92, 8, 84 * clamp01(fill), 7);
+        };
+        const ghostLabel = () => label('without', hexAlpha(c.muted, 0.9), 8, h - 3);
+        switch (kind) {
+        case 'breakthrough': {
+            const go = clamp01((u - 0.35) / 0.45);
+            const wind = u > 0.18 && u < 0.35;
+            ball(20 + 95 * ease(go), c.muted, 0.45);   // an ordinary sprint stops on the hill's face
+            const x = 20 + 205 * ease(go) + (wind ? Math.sin(u * 300) * 1.5 : 0);
+            if (wind || (u > 0.35 && u < 0.5)) {
+                ctx.beginPath();
+                ctx.arc(20, ground(20) - 5, 6 + (u > 0.35 ? (u - 0.35) * 220 : 4 * Math.sin(u * 60)), 0, Math.PI * 2);
+                ctx.strokeStyle = hexAlpha(c.warning, u > 0.35 ? 1 - (u - 0.35) / 0.15 : 0.8);
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+            ball(x, c.warning);
+            if (u > 0.35) label('BREAKTHROUGH ×1.75', c.warning);
+            ghostLabel();
+            break;
+        }
+        case 'prompt': {
+            const fill = u < 0.4 ? u / 0.4 * 0.62 : 0.62;
+            meter(fill, [0.52, 0.72], u >= 0.4 ? c.success : c.primary);
+            const go = clamp01((u - 0.4) / 0.4);
+            ball(20 + 100 * ease(go), c.primary);
+            if (u > 0.4 && u < 0.85) {
+                label('CLEAN PROMPT', c.success);
+                ctx.fillStyle = c.warning;
+                ctx.font = '700 10px "JetBrains Mono", monospace';
+                ctx.fillText('+XP', 20, ground(20) - 16 - 30 * (u - 0.4));
+            }
+            break;
+        }
+        case 'maxEffort': {
+            meter(u > 0.2 ? 1 : 0, null, c.warning);
+            const go = clamp01((u - 0.22) / 0.5);
+            ball(20 + 95 * ease(go), c.muted, 0.45);
+            ball(20 + 200 * ease(go), c.warning);
+            if (u > 0.2) label('MAX EFFORT', c.warning);
+            ghostLabel();
+            break;
+        }
+        case 'charge': {
+            // Up the sweep, a hold at the top, back down.
+            const fill = u < 0.35 ? u / 0.35 : u < 0.65 ? 1 : 1 - (u - 0.65) / 0.35;
+            meter(fill, null, u >= 0.35 && u < 0.65 ? c.warning : c.primary);
+            if (u >= 0.35 && u < 0.65) label('HOLD', c.warning, w - 92, 28);
+            ball(20, c.primary);
+            break;
+        }
+        case 'stripFront': {
+            strip(118, 142, c.primary);
+            // Without the strip the ball climbs most of the face and rolls back; with it, it crests.
+            const climb = u < 0.6 ? ease(u / 0.6) : 1;
+            const ghostX = u < 0.45 ? 20 + 112 * ease(u / 0.45) : 132 - 40 * ease((u - 0.45) / 0.4);
+            ball(ghostX, c.muted, 0.45);
+            ball(20 + 200 * climb, c.primary);
+            if (u > 0.3 && u < 0.6) label('PUSH ▲', c.primary);
+            ghostLabel();
+            break;
+        }
+        case 'stripBack': {
+            strip(74, 102, c.success);
+            // Rolling back down from the big hill: the ghost runs on past the small one, the ball stops on the strip.
+            const back = ease(u / 0.7);
+            ball(150 - 140 * back, c.muted, 0.45);
+            ball(150 - 62 * ease(u / 0.45), c.success);
+            if (u > 0.4) label('BRAKE ■', c.success);
+            ghostLabel();
+            break;
+        }
+        case 'viral': {
+            ball(20 + 120 * ease(u / 0.4), c.primary);
+            if (u > 0.4) {
+                const big = u > 0.6;
+                ctx.font = `700 ${big ? 16 : 12}px "JetBrains Mono", monospace`;
+                ctx.textAlign = 'center';
+                ctx.fillStyle = big ? `hsl(${(u * 720) % 360} 90% 65%)` : c.warning;
+                ctx.fillText(big ? '+80 XP ×2' : '+40 XP', 140, 36);
+                if (big) label('VIRAL', c.warning);
+            }
+            break;
+        }
+        case 'crunch': {
+            // Quick free sprints in a row: the ball hops on in steps, flames round it.
+            const steps = Math.min(5, Math.floor(u / 0.14));
+            const x = 20 + steps * 36 + 36 * ease((u % 0.14) / 0.14) * (steps < 5 ? 1 : 0);
+            for (let i = 0; i < 6; i++) {
+                const a = u * 40 + i;
+                ctx.beginPath();
+                ctx.arc(x + Math.cos(a) * 8, ground(x) - 5 + Math.sin(a) * 8, 2, 0, Math.PI * 2);
+                ctx.fillStyle = hexAlpha(i % 2 ? c.warning : c.danger, 0.8);
+                ctx.fill();
+            }
+            ball(x, c.danger);
+            label('CRUNCH: FREE SPRINTS', c.danger);
+            break;
+        }
+        case 'flow': {
+            const x = 20 + 200 * u;
+            const lift = 26 * Math.sin(Math.PI * clamp01(u * 1.3));
+            ctx.beginPath();
+            for (let i = 0; i <= 20; i++) {
+                const px = x - i * 4;
+                const pl = 26 * Math.sin(Math.PI * clamp01((px - 20) / 200 * 1.3));
+                i ? ctx.lineTo(px, ground(px) - 5 - pl) : ctx.moveTo(px, ground(px) - 5 - pl);
+            }
+            ctx.strokeStyle = hexAlpha(c.accent, 0.5);
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ball(x, c.accent, 1, lift);
+            label('FLOW', c.accent);
+            break;
+        }
+        }
     }
 
     function showTrainingView(view) {
@@ -3548,6 +3822,31 @@ window.AGI = (function () {
     // keeps going while you shop.
     function updateTreeButton() {
         setHidden($('treeButton'), openBay !== 'training' || path.view !== 'run');
+        // Restart shows while a run is under way (a playtester wanted to drop a bad start without playing it out).
+        const r = path.roll;
+        setHidden($('restartButton'), openBay !== 'training' || path.view !== 'run' || !r || !r.launched || r.over || path.done);
+    }
+
+    // Restart: abandon the run in flight and set up a fresh one at the same start. What it spent stays spent and
+    // nothing it earned is paid; it doesn't count as a run.
+    function restartRun() {
+        const r = path.roll;
+        if (!r || !r.launched || r.over || path.done) return;
+        pt('restart', { leg: (r.leg ?? r.ground.stretch) + 1, prog: r2(r.progress || 0) });
+        log('Run abandoned. A fresh one is waiting at the start.', 'info');
+        path.roll = null;
+        path.fx = freshFx();
+        path.charging = null;
+        window.SFX?.chargeStop();
+        path.timeScale = 1;
+        path.overview = 0;
+        path.pause = 0;
+        dismissResult();
+        currentRoll();
+        updateTreeButton();
+        render();
+        startPathLoop();
+        $('pushButton').focus({ preventScroll: true });
     }
 
     // The Auto-Trainer's switch, in the server room's bar and the bay's bar (one setting, both in step),
@@ -3697,14 +3996,14 @@ window.AGI = (function () {
     function currentRoll() {
         const d = E.derive(state, debugRates);
         const first = startLeg();
-        const key = [state.stats.runStart, state.path.learned, first, E.rollSeed(state), d.pushesPerRoll, d.pushCooldown, d.friction, d.hillScale].join(':');
+        const key = [state.stats.runStart, state.path.learned, first, E.rollSeed(state), d.pushesPerRoll, d.pushCooldown, d.friction, d.hillScale, d.stripFront, d.stripBack, d.stripMore].join(':');
         // A finished run stays on screen (path.done) until you click through to the dev screen.
         const stale = !path.roll || path.stateRef !== state || (path.roll.over && !path.done) || (!path.roll.launched && path.rollKey !== key);
         if (stale && path.pause <= 0) {
             // A run from a cleared leg rolls on through every later leg up to the frontier, and past it: cresting
             // the frontier's skill hill learns the skill and lays the next leg (onward), so nothing cuts a run short.
             path.roll = T.createRoll(first, E.rollSeed(state),
-                { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, onward: true, last: state.path.learned,
+                { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, strips: d.strips, onward: true, last: state.path.learned,
                     holdOpen: crunching });
             path.roll.frontier = state.path.learned;   // where the frontier was when the run started
             path.rollPushes = d.pushesPerRoll;
@@ -3851,6 +4150,7 @@ window.AGI = (function () {
         path.burnStrength = E.sprintStrength(state, 1, null, breakthrough, effort);
         if (breakthrough) {
             roll.breakthroughs = (roll.breakthroughs || 0) + 1;
+            state.stats.breakthroughs = (state.stats.breakthroughs || 0) + 1;
             launchBreakthrough(roll, superBreak);
             path.burnGlow = BURN_FX_SECONDS;
         } else if (effort) {
@@ -4050,6 +4350,7 @@ window.AGI = (function () {
     // Clean, super and system prompts pay at once: steady XP whatever happens to the roll.
     function promptBonus(roll, kind, leg, charge) {
         const xp = E.grantPushBonus(state, kind, leg, charge);
+        if (kind === 'perfect' || kind === 'system') state.stats.superPrompts = (state.stats.superPrompts || 0) + 1;
         roll.clean = (roll.clean || 0) + 1;
         roll.units = (roll.units || 0) + E.cleanUnits(kind, state);
         roll.bonusXp = (roll.bonusXp || 0) + xp;
@@ -4112,7 +4413,7 @@ window.AGI = (function () {
     const FIRST_SUMMIT_MARGIN = 1.01;
     function firstSummitStrength(roll, d) {
         const crests = strength => {
-            const t = T.createRoll(0, roll.ground.seed, { pushes: 1, cooldown: 1, friction: d.friction, hillScale: d.hillScale, last: 0 });
+            const t = T.createRoll(0, roll.ground.seed, { pushes: 1, cooldown: 1, friction: d.friction, hillScale: d.hillScale, strips: d.strips, last: 0 });
             t.push(strength);
             for (let i = 0; i < 1200 && !t.over; i++) if (t.step(0.05).some(e => e.type === 'crest')) return true;
             return false;
@@ -4162,7 +4463,9 @@ window.AGI = (function () {
         const d = E.derive(state);
         const forced = path.fx.forceLuck;
         path.fx.forceLuck = null;
-        const breakthrough = forced === 'breakthrough' || forced === 'superBreakthrough' || E.breakthroughHit(state, seed, index);
+        // Lucky Break's guarantee: one of the 1-3 runs after buying it has a breakthrough (E.breakGuaranteed).
+        const breakthrough = forced === 'breakthrough' || forced === 'superBreakthrough' || E.breakthroughHit(state, seed, index)
+            || (!free && E.breakGuaranteed(state, pushIndex(roll), roll.pushesLeft));
         const superBreak = breakthrough && (forced === 'superBreakthrough' || E.superHit(state, 'breakthrough', seed, index));
         // The warm-up's sprint always crests Tokenization, only just, whatever the charge: the first summit is
         // guaranteed and a nail-biter (slow motion, "Will it learn…?") rather than a hop over a 3 cm bump.
@@ -4180,7 +4483,9 @@ window.AGI = (function () {
         trailSfx('sprint', { charge: fraction });
         if (breakthrough) {
             trailSfx('windup');
+            if (path.visible) window.SFX?.swell();
             roll.breakthroughs = (roll.breakthroughs || 0) + 1;
+            state.stats.breakthroughs = (state.stats.breakthroughs || 0) + 1;
             if (path.visible && !reducedMotion()) path.fx.windup = { age: 0, super: superBreak };
             else launchBreakthrough(roll, superBreak);
         }
@@ -4825,6 +5130,7 @@ window.AGI = (function () {
         if (!skill) return;
         roll.legs = (roll.legs || 0) + 1;
         roll.legXp = (roll.legXp || 0) + xp;
+        markLegEntry(roll, ev.skill + 1);
         (roll.learned = roll.learned || []).push({ skill, xp });
         pt('skill', { n: state.path.learned, name: skill.name, xp: r2(xp), runs: state.stats.rolls + 1 });
         celebrateSummit(skill.name, hill);
@@ -4866,6 +5172,13 @@ window.AGI = (function () {
         if (ev.flight > 12) path.legFlash = { age: 0, text: `${Math.round(ev.flight)} m flight${ev.height > 1 ? ` · ${ev.height.toFixed(1)} m up` : ''}`, tone: 'success' };
     }
 
+    // Crossing a skill hill enters the next leg: note what the run had banked by then, so at its end each leg it ran
+    // through is credited with what it earned from there on (passive XP, `E.recordLegs`).
+    function markLegEntry(roll, leg) {
+        const banked = (roll.bonusXp || 0) + (roll.legXp || 0) + (roll.tokenXp || 0);
+        (roll.legEntries = roll.legEntries || []).push({ leg, banked });
+    }
+
     // A replay crossed a cleared leg's skill hill: flat XP at once, and the ball rolls on.
     function clearLeg(ev) {
         const roll = path.roll;
@@ -4873,7 +5186,8 @@ window.AGI = (function () {
         const xp = E.clearLeg(state, ev.skill, roll.legs || 0);
         roll.legs = (roll.legs || 0) + 1;
         roll.legXp = (roll.legXp || 0) + xp;
-        path.legFlash = { age: 0, text: `${E.skillAt(ev.skill).name} cleared · +${xpText(xp)} XP · chain ×${E.chainMult(roll.legs)}`, tone: 'success' };
+        markLegEntry(roll, ev.skill + 1);
+        path.legFlash ={ age: 0, text: `${E.skillAt(ev.skill).name} cleared · +${xpText(xp)} XP · chain ×${E.chainMult(roll.legs)}`, tone: 'success' };
         render();
     }
 
@@ -4913,7 +5227,10 @@ window.AGI = (function () {
         const plainXp = E.rollXp(state, ev.progress, crested, 0, metres, leg);
         const result = E.finishRoll(state, ev.progress, crested, units, metres, leg, viral, legs);
         // Cleared legs replicate their best run for passive XP: a better replay raises it.
-        const legBest = E.recordRun(state, roll.ground.stretch, result.xp + banked, viral ? E.derive(state).windfallMult : 1) && replay;
+        // Every cleared leg the run ran through is credited with what it earned from there on (`E.recordLegs`).
+        const passiveBefore = E.derive(state).xpPerSec;
+        E.settleBreakCountdown(state, (roll.breakthroughs || 0) > 0);
+        const improvedLegs = E.recordLegs(state, roll.ground.stretch, roll.legEntries, result.xp + banked, viral ? E.derive(state).windfallMult : 1);
         pt('run', { from: roll.ground.stretch + 1, leg: leg + 1, prog: r2(ev.progress), m: r2(metres), xp: r2(result.xp + banked), legs,
             sprints: r2((path.rollPushes || 0) - Math.max(0, roll.pushesLeft)), clean, top: r2(roll.topSpeed || 0),
             dur: Math.round(state.stats.playTime - (roll.ptStart ?? state.stats.playTime)),
@@ -4945,7 +5262,12 @@ window.AGI = (function () {
         const clearedXp = (roll.legXp || 0) - learned.reduce((a, l) => a + l.xp, 0);
         if (crossedLegs) lines.unshift([`${crossedLegs} cleared leg${crossedLegs === 1 ? '' : 's'} crossed`, `+${xpText(clearedXp)} XP`, 'good']);
         for (const l of learned.slice().reverse()) lines.unshift([`Crested ${l.skill.name} (×2)`, `+${xpText(l.xp)} XP`, 'good']);
-        if (legBest) lines.push([`Best run on this leg: passive XP now +${xpText(E.legXpRate(state, roll.ground.stretch))}/s`, '', 'good']);
+        // Passive XP rose: say which legs and the new total, so the replicated best runs read as something you raise.
+        if (improvedLegs.length) {
+            const names = improvedLegs.map(k => E.skillAt(k).name);
+            const shown = names.length > 2 ? `${names.slice(0, 2).join(', ')} +${names.length - 2}` : names.join(', ');
+            lines.push([`Passive XP up (${shown}): +${xpText(passiveBefore)} → +${xpText(E.derive(state).xpPerSec)}/s`, '', 'good']);
+        }
         if (learned.length && !result.skill) {
             // Skills learned on the way (announced as they happened); the run went on until it stopped.
             const last = learned[learned.length - 1].skill;
@@ -5346,8 +5668,9 @@ window.AGI = (function () {
         return Math.abs(path.cam.left - t.left) > width * 0.002 || Math.abs(path.cam.right - t.right) > width * 0.002;
     }
 
-    // Boost strips glow along the line with chevrons running forward (brighter under the ball); XP tokens
-    // hang as small diamonds that bob; a taken one pops with its XP.
+    // Boost strips glow along the line (brighter under the ball): front strips (hill faces) in blue with chevrons
+    // running forward, back strips (hill backs, they brake a backward roll) in green with still brake bars. XP
+    // tokens hang as small diamonds that bob; a taken one pops with its XP.
     function drawFeatures(ctx, roll, X, Y, t) {
         const c = path.colors;
         const g = roll.ground;
@@ -5357,9 +5680,11 @@ window.AGI = (function () {
         for (const st of g.strips) {
             if (st.to < left || st.from > right) continue;
             const on = !roll.airborne && roll.ball.x >= st.from && roll.ball.x <= st.to;
-            ctx.strokeStyle = hexAlpha(c.primary, on ? 0.95 : 0.6);
+            const back = st.kind === 'back';
+            const tone = back ? c.success : c.primary;
+            ctx.strokeStyle = hexAlpha(tone, on ? 0.95 : 0.6);
             ctx.lineWidth = on ? 5 : 4;
-            ctx.shadowColor = c.primary;
+            ctx.shadowColor = tone;
             ctx.shadowBlur = on ? 16 : 8;
             ctx.beginPath();
             const n = Math.max(2, Math.ceil((X(st.to) - X(st.from)) / 6));
@@ -5374,12 +5699,21 @@ window.AGI = (function () {
             // Chevrons running forward along it.
             const len = X(st.to) - X(st.from);
             const gap = 18;
-            const shift = still ? 0 : (t * 60) % gap;
+            const shift = still || back ? gap / 2 : (t * 60) % gap;
             ctx.fillStyle = hexAlpha(c.text, 0.75);
+            ctx.strokeStyle = hexAlpha(c.text, 0.75);
+            ctx.lineWidth = 2;
             for (let d = shift; d < len; d += gap) {
                 const x = st.from + (st.to - st.from) * d / len;
                 const px = X(x);
                 const py = Y(groundAt(roll, x)) - 3;
+                if (back) {   // a brake: a short bar across the line
+                    ctx.beginPath();
+                    ctx.moveTo(px, py - 5);
+                    ctx.lineTo(px, py + 3);
+                    ctx.stroke();
+                    continue;
+                }
                 ctx.beginPath();
                 ctx.moveTo(px - 3, py - 4);
                 ctx.lineTo(px + 2, py);
@@ -6618,7 +6952,7 @@ window.AGI = (function () {
                 if (path.done) runAgain();
                 const r = currentRoll();
                 const d = E.derive(state, debugRates);
-                const opts = { pushes: 1, cooldown: 1, friction: d.friction, hillScale: d.hillScale, last: r.ground.last };
+                const opts = { pushes: 1, cooldown: 1, friction: d.friction, hillScale: d.hillScale, strips: d.strips, last: r.ground.last };
                 const h = r.ground.goal;
                 const x = h.peak - h.halfWidth * 0.7;
                 const crests = v => {
