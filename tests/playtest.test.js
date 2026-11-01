@@ -66,3 +66,25 @@ test('playtest: the report summarizes skills, runs, sprints and time by screen, 
     assert.match(text, /bay:training\s+1\.0 min\s+50%/);
     assert.strictEqual(text.split('\n').filter(l => l.startsWith('{')).length, 8);
 });
+
+test('playtest: the report counts sprint kinds, climbs, choices, investor offers and tips', () => {
+    const a = P.create(memory());
+    a.event(0, 'session');
+    a.event(1, 'sprint', { ch: 1, cap: 1, v: -1 });
+    a.event(2, 'sprint', { ch: 0.6, cap: 1, k: 'clean', br: true, v: 1 });
+    a.event(3, 'sprint', { ch: 1, cap: 1, k: 'perfect', effort: true, v: 1 });
+    a.event(4, 'run', { sprints: 3 });
+    a.event(4, 'climb', { leg: 2, h: 0.93, short: 0.04, near: 2 });
+    a.event(5, 'buy', { id: 'gpuCluster', rank: 1 });
+    a.event(6, 'buy', { id: 'maxEffort', rank: 4 });
+    a.event(7, 'offer', { id: 1 });
+    a.event(8, 'offerDone', { id: 1 });
+    a.event(9, 'claim', { id: 1 });
+    a.event(10, 'tipClosed', { key: 'hint:lab', by: 'timeout', s: 12 });
+    const text = a.report();
+    assert.match(text, /Sprint kinds: regular 1, clean 1, perfect 1; breakthroughs 1, Max Effort 1; 1 fired while rolling backward/);
+    assert.match(text, /1 runs, 1 of them at 90%\+ of its height \(1 paid a near miss\)/);
+    assert.match(text, /buys: 2; 50% the cheapest affordable/);
+    assert.match(text, /1 arrived, 1 finished, 1 claimed, 0 dismissed, 0 expired/);
+    assert.match(text, /hint:lab\s+timeout\s+12 s/);
+});

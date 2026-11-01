@@ -121,6 +121,40 @@
             }
         }
 
+        // Prompt kinds and luck, from the sprints themselves.
+        const kinds = sprints.reduce((m, x) => { const k = x.k || 'none'; m[k] = (m[k] || 0) + 1; return m; }, {});
+        const br = sprints.filter(x => x.br).length;
+        const effort = sprints.filter(x => x.effort).length;
+        const back = sprints.filter(x => !x.auto && x.v < -0.3).length;
+        if (sprints.length) {
+            lines.push(`Sprint kinds: ${Object.entries(kinds).map(([k, n]) => `${k === 'none' ? 'regular' : k} ${n}`).join(', ')}; breakthroughs ${br}, Max Effort ${effort}; ${back} fired while rolling backward.`);
+        }
+
+        // The skill hill's climb: how high frontier runs that didn't crest got, and the near misses.
+        const climbs = events.filter(e => e.e === 'climb');
+        if (climbs.length) {
+            const high = climbs.filter(c => c.h >= 0.9).length;
+            lines.push(`Stopped on a skill hill's climb: ${climbs.length} runs, ${high} of them at 90%+ of its height (${climbs.filter(c => c.near).length} paid a near miss).`);
+        }
+
+        // Skill-tree and legacy choices: the cheapest affordable option or something dearer.
+        const choices = events.filter(e => e.e === 'buy' && e.rank);
+        if (choices.length) {
+            const cheapest = choices.filter(c => c.rank === 1).length;
+            lines.push(`Skill-tree and legacy buys: ${choices.length}; ${Math.round(cheapest / choices.length * 100)}% the cheapest affordable, the rest dearer picks.`);
+        }
+
+        // Investor offers and tips: did players see them, and what happened.
+        const count = type => events.filter(e => e.e === type).length;
+        if (count('offer')) {
+            lines.push(`Investor offers: ${count('offer')} arrived, ${count('offerDone')} finished, ${count('claim')} claimed, ${count('dismiss')} dismissed, ${count('offerExpired')} expired.`);
+        }
+        const tips = events.filter(e => e.e === 'tipClosed');
+        if (tips.length) {
+            lines.push('', 'Tips and callouts (how they closed, seconds shown):');
+            for (const t of tips) lines.push(`  ${t.key.padEnd(18)} ${t.by.padEnd(8)} ${t.s} s`);
+        }
+
         const views = {};
         let prev = null;
         for (const e of events) {

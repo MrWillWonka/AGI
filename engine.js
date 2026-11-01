@@ -649,10 +649,19 @@
             s.prestige.points += SEED_INSIGHT;
             s.prestige.total += SEED_INSIGHT;
         }
+        if (id === 'starterLab') topUpKit(s);
         return true;
     }
     // Head Start's kit, or the whole kit with Starter Lab.
     const kitLevel = s => Math.max(s.prestige.levels.headStart || 0, perkLevel(s, 'starterLab') ? HEAD_START.length : 0);
+    // The kit is racked when a version ships, but Head Start is bought on the legacy screen that opens after it
+    // ("spend first, then Start"), so a level bought then did nothing until the version after (a playtest sat at
+    // 0 CP). Buying it now tops this version's hardware up to the kit; hardware already above it is kept.
+    function topUpKit(s) {
+        for (const [id, n] of HEAD_START.slice(0, kitLevel(s))) {
+            if ((s.levels[id] || 0) < n) s.levels[id] = n;
+        }
+    }
 
     function derive(s, rates) {
         const r = Object.assign({ cp: 1, dp: 1, rp: 1, xp: 1 }, rates);
@@ -862,6 +871,7 @@
         const before = upgradeName(s, up);
         pay(s, cost);
         (up.legacy ? s.prestige.levels : s.levels)[id] = level(s, id) + 1;
+        if (id === 'headStart') topUpKit(s);
         if (up.grants) {
             for (const [k, v] of Object.entries(up.grants)) s.attr[k] += v;
         }

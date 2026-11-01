@@ -45,6 +45,27 @@ window.AGI = (function () {
     const r2 = x => Math.round(x * 100) / 100;
     let playtestView = null;
     const ptPlace = () => (openBay === 'training' && path.view === 'dev' ? 'tree' : currentPlace());
+    // Investor offers: when each arrives, is finished, and leaves (claimed and dismissed are logged by their buttons).
+    const ptOffers = { state: null, seen: new Map(), handled: new Set() };
+    function playtestOffers() {
+        if (!playtest) return;
+        if (ptOffers.state !== state) { ptOffers.state = state; ptOffers.seen.clear(); for (const o of state.projects.offers) ptOffers.seen.set(o.id, false); return; }
+        const now = new Set();
+        for (const o of state.projects.offers) {
+            now.add(o.id);
+            const done = E.projectProgress(state, o) >= o.target;
+            if (!ptOffers.seen.has(o.id)) {
+                pt('offer', { id: o.id, task: o.task, target: o.target, reward: E.PROJECT_REWARDS[o.reward].text, s: Math.round(o.deadline - state.stats.playTime) });
+            }
+            if (done && !ptOffers.seen.get(o.id)) pt('offerDone', { id: o.id });
+            ptOffers.seen.set(o.id, done);
+        }
+        for (const id of [...ptOffers.seen.keys()]) {
+            if (now.has(id)) continue;
+            if (!ptOffers.handled.has(id)) pt('offerExpired', { id });
+            ptOffers.seen.delete(id);
+        }
+    }
     function ptView(v) {
         if (v === playtestView) return;
         playtestView = v;
@@ -59,6 +80,9 @@ window.AGI = (function () {
         pt('sample', { cp: Math.round(r.cp), dp: Math.round(r.dp), rp: Math.round(r.rp), xp: Math.round(r.xp),
             cpNet: r2(d.cpNet), dpNet: r2(d.dpNet), rpRate: r2(d.rpPerSec), xpRate: r2(d.xpPerSec),
             int: r2(state.attr.intelligence), skills: state.path.learned, phase: E.phaseIndex(state), at: ptPlace(),
+            // What the badges said: new lab cards, investor offers (open / done), skill-tree nodes you could buy.
+            labNew: labUnseen().length, offers: state.projects.offers.length,
+            offersDone: state.projects.offers.filter(o => E.projectProgress(state, o) >= o.target).length, treeReady: treeReady(),
             hand: playtest.takeCounts() });
         playtest.flush();
     }
@@ -394,15 +418,19 @@ window.AGI = (function () {
         // A callout beside something leaves with it (zooming out of the room, a bay opening).
         // One pointing at a room on the map leaves once you're in that room.
         const watch = setInterval(() => {
-            if (onScreen ? !target.offsetParent || !target.getBoundingClientRect().width : view === where.map) close();
+            if (onScreen ? !target.offsetParent || !target.getBoundingClientRect().width : view === where.map) close('left');
         }, 300);
         requestAnimationFrame(() => { place(); box.classList.add('show'); });
+        // Playtest: which tips and callouts players saw, where, for how long, and how they went away.
+        const shownAt = Date.now();
+        pt('tip', { key: c.key, at: onScreen ? 'beside' : 'map' });
         let done = false;
-        const close = () => {
+        const close = by => {
             if (done) return;
             done = true;
+            pt('tipClosed', { key: c.key, by, s: Math.round((Date.now() - shownAt) / 100) / 10 });
             clearTimeout(timer);
-            anchor.removeEventListener('click', close);
+            anchor.removeEventListener('click', onTarget);
             window.removeEventListener('scroll', follow, true);
             clearInterval(watch);
             nav.classList.remove('open');
@@ -410,9 +438,10 @@ window.AGI = (function () {
             box.classList.remove('show');
             setTimeout(() => { box.remove(); if (c.gen === calloutGen) { calloutLive = null; nextCallout(); } }, 400);
         };
-        const timer = setTimeout(close, where.ms || 10000);
-        box.addEventListener('click', close);
-        anchor.addEventListener('click', close);
+        const timer = setTimeout(() => close('timeout'), where.ms || 10000);
+        const onTarget = () => close('target');
+        box.addEventListener('click', () => close('clicked'));
+        anchor.addEventListener('click', onTarget);
     }
 
     function floatGain(anchor, text) {
@@ -1154,15 +1183,29 @@ window.AGI = (function () {
         return worst > 0 && worst < 86400 ? `in ${E.formatDuration(Math.ceil(worst))}` : '';
     }
 
+    // The choice behind a skill-tree or legacy buy: currency held, the price paid, and the affordable options.
+    function playtestChoice(up) {
+        const cur = up.tab === 'legacy' ? 'insight' : 'xp';
+        const held = cur === 'insight' ? state.prestige.points : state.res.xp;
+        const options = E.UPGRADES.filter(u => u.tab === up.tab && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u))
+            .map(u => ({ id: u.id, cost: E.upgradeCost(u, E.level(state, u.id))[cur] }))
+            .filter(o => o.cost != null && o.cost <= held).sort((a, b) => a.cost - b.cost);
+        const price = E.upgradeCost(up, E.level(state, up.id))[cur];
+        return { held: Math.round(held), price: Math.round(price), cheapest: options[0]?.id, cheapestCost: options[0] ? Math.round(options[0].cost) : undefined,
+            affordable: options.length, rank: options.findIndex(o => o.id === up.id) + 1 };
+    }
+
     function doBuy(id) {
         const up0 = E.UPGRADE_BY_ID[id];
         // The lab's bulk setting (×1 / ×10 / Max) applies to repeatable lab cards; the tree buys one level.
         const n = isLabUpgrade(up0) && up0.max == null ? bulkCount(up0) : 1;
+        // Playtest: for skill-tree and legacy buys, what you had and the cheapest thing you could have bought instead.
+        const ptChoice = playtest && !isLabUpgrade(up0) ? playtestChoice(up0) : null;
         const result = n > 1 ? E.buyMany(state, id, n) : E.buy(state, id);
         log(result.count > 1 ? `${E.upgradeName(state, up0)} ×${result.count}: now level ${E.level(state, id)}.` : result.msg, result.ok ? 'success' : 'warning');
         sfx(result.ok ? (up0.max === 1 || result.count > 1 || result.evolved ? 'buyBig' : 'buy') : 'error');
         if (result.ok) {
-            pt('buy', { id, lvl: E.level(state, id), ...(result.count > 1 ? { n: result.count } : {}) });
+            pt('buy', { id, lvl: E.level(state, id), ...(result.count > 1 ? { n: result.count } : {}), ...(ptChoice || {}) });
             const up = E.UPGRADE_BY_ID[id];
             if (isLabUpgrade(up)) termLog(`installed ${E.upgradeName(state, up)} (level ${E.level(state, id)})`);
             if (isLabUpgrade(up) && E.isMaxed(state, up)) retireCard(id);
@@ -1670,6 +1713,7 @@ window.AGI = (function () {
             advanceTasks(dt * debugSpeed);
         }
         afterChange();
+        playtestOffers();
         playtestSample();
         if (state.settings.autosave && now - lastSave >= AUTOSAVE_MS) save();
     }
@@ -2492,6 +2536,7 @@ window.AGI = (function () {
                 const claim = el('button', { type: 'button', class: 'button project-claim', text: 'Claim', disabled: !done });
                 claim.addEventListener('click', () => {
                     const r = E.claimProject(state, o.id);
+                    if (r.ok) { ptOffers.handled.add(o.id); pt('claim', { id: o.id, task: o.task, reward: E.PROJECT_REWARDS[o.reward].text }); }
                     log(r.msg, r.ok ? 'success' : 'warning');
                     if (r.ok) {
                         termLog(`project paid out: ${E.PROJECT_REWARDS[o.reward].text}`);
@@ -2501,6 +2546,8 @@ window.AGI = (function () {
                 const drop = el('button', { type: 'button', class: 'project-drop', 'aria-label': 'Ignore this project', text: '×' });
                 drop.addEventListener('click', () => {
                     E.dismissProject(state, o.id);
+                    ptOffers.handled.add(o.id);
+                    pt('dismiss', { id: o.id, task: o.task });
                     afterChange();
                 });
                 const task = E.PROJECT_TASKS[o.task].text(o.target);
@@ -3045,11 +3092,13 @@ window.AGI = (function () {
         legacyUi.afterShip = afterShip;
         setText($('legacyDone'), afterShip ? `Start ${E.currentVersion(state)}` : 'Done');
         $('legacyScreen').hidden = false;
+        ptView('legacy');
         renderLegacy();
     }
 
     function closeLegacy() {
         $('legacyScreen').hidden = true;
+        ptView(legacyUi.afterShip ? 'lab' : ptPlace());
         if (legacyUi.afterShip) showView('lab');
         legacyUi.afterShip = false;
     }
@@ -4870,6 +4919,8 @@ window.AGI = (function () {
             dur: Math.round(state.stats.playTime - (roll.ptStart ?? state.stats.playTime)),
             ...(roll.ptFuel ? { fuel: r2(roll.ptFuel), airFuel: r2(roll.ptAirFuel || 0) } : {}),
             ...(roll.bestFlight ? { flight: r2(roll.bestFlight) } : {}),
+            ...(roll.tokens ? { tokens: roll.tokens } : {}), ...(roll.dives ? { dives: roll.dives } : {}),
+            ...(roll.breakthroughs ? { br: roll.breakthroughs } : {}),
             ...(ev.rolledBack ? { back: true } : {}), ...(result.record ? { record: true } : {}), ...(viral ? { viral: true } : {}),
             ...(E.autoTrainerLevel(state) > 0 ? { auto: true } : {}) });
         // With the Auto-Trainer the next roll starts by itself; otherwise the run waits for a click.
@@ -4932,6 +4983,8 @@ window.AGI = (function () {
             if (!replay && !legs && !ev.rolledBack && leg === state.path.learned && top > goal.start && top < goal.peak) {
                 const frac = roll.ground.height(top) / goal.height;
                 const near = E.nearMiss(state, frac, result.xp + banked);
+                // How high up the skill hill a frontier run got, and how much more speed it needed (the "90% wall").
+                pt('climb', { leg: leg + 1, h: r2(frac), short: r2(E.speedShort(frac)), ...(near > 0 ? { near: r2(near) } : {}) });
                 if (near > 0) {
                     result.xp += near;
                     lines.unshift([`So close: about ${Math.max(1, Math.round(E.speedShort(frac) * 100))}% more speed would have crested it`, `+${xpText(near)} XP`, 'good']);

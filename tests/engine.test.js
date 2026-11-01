@@ -1409,3 +1409,29 @@ test('the warm-up runs on one sprint; Investor Funding brings the second and thi
     s.levels.angelInvestor = 1;
     assert.equal(E.derive(s).pushesPerRoll, 4);
 });
+
+test('Head Start bought on the legacy screen after shipping racks its kit in the version about to start', () => {
+    // A playtest bought Head Start after shipping (spend first, then Start) and sat at 0 CP: the kit was only
+    // racked at the next ship.
+    const s = fresh();
+    s.attr.intelligence = 10;
+    s.path.learned = 9;
+    const t = E.prestige(s, NOW).state;
+    E.evaluate(t);
+    assert.equal(E.level(t, 'cpu'), 0);
+    assert.equal(E.buy(t, 'headStart').ok, true);
+    assert.equal(E.level(t, 'cpu'), 10, 'level 1: 10 Graphics Cards now');
+    t.prestige.points = 10;
+    assert.equal(E.buy(t, 'headStart').ok, true);
+    assert.equal(E.level(t, 'server'), 5, 'level 2 adds 5 Server Clusters');
+    // Mid-version, hardware already above the kit is kept, never lowered.
+    t.levels.cpu = 30;
+    assert.equal(E.buy(t, 'headStart').ok, true);
+    assert.equal(E.level(t, 'cpu'), 30);
+    assert.equal(E.level(t, 'quantum'), 3);
+    // The Starter Lab perk racks the whole kit at once too.
+    const u = fresh();
+    u.transcend = { points: 1, total: 1, count: 1, perks: {} };
+    assert.equal(E.buyPerk(u, 'starterLab'), true);
+    assert.deepEqual([E.level(u, 'cpu'), E.level(u, 'server'), E.level(u, 'quantum')], [10, 5, 3]);
+});
