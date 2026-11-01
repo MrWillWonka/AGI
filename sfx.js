@@ -392,6 +392,9 @@
     const tri = (n, o = {}) => T(n, { type: 'triangle', dur: 0.12, gain: 0.08, ...o });
     const chipNoise = (dur, gain, at = 0) => noise({ dur, gain, f0: 6000, type: 'highpass', at });
 
+    // Each track's sound set, levelled to Classic's loudness (measured with a K-weighted meter, like the music).
+    const SFX_TRIM = { classic: 1, dark: 1, soft: 1, ominous: 1, retro: 1 };
+
     const TRACK_SOUNDS = {
         dark: {
             click: ({ res = 'cp' }) => { saw(clickNote(res) - 12, { dur: 0.06, gain: phone(0.045) }); metal(phone(0.035)); },
@@ -565,7 +568,7 @@
         const div = simple ? 0 : opts?.q ?? QUANT[name];
         base = div ? Math.max(0, nextStep(div).t - now) : 0;
         if (base > 0.25) base = 0;
-        gmul = gv;
+        gmul = gv * (simple ? 1 : SFX_TRIM[style] || 1);
         // A track's own version of the sound if it has one (TRACK_SOUNDS), else the shared one in its profile.
         const own = !simple && TRACK_SOUNDS[style]?.[name === 'buyBig' ? 'buy' : name];
         ownSound = !!own;
@@ -803,15 +806,20 @@
             src.stop(t + 0.2);
         }, 'beat');
     }
-    function synth(t, note, dur, gain, type, cutoff) {
+    // A pitched voice; `q` the filter's resonance, `env` sweeps the filter down from cutoff × (1 + env) (acid).
+    function synth(t, note, dur, gain, type, cutoff, q = 6, env = 0, detune = 0) {
         voice(g => {
             const o = ctx.createOscillator();
             const f = ctx.createBiquadFilter();
             o.type = type;
             o.frequency.value = NOTE(note + shift());
+            if (detune) o.detune.value = detune;
             f.type = 'lowpass';
-            f.frequency.value = cutoff;
-            f.Q.value = 6;
+            f.Q.value = q;
+            if (env) {
+                f.frequency.setValueAtTime(cutoff * (1 + env), t);
+                f.frequency.exponentialRampToValueAtTime(Math.max(40, cutoff), t + Math.min(dur, 0.18));
+            } else f.frequency.value = cutoff;
             g.gain.setValueAtTime(0.0001, t);
             g.gain.exponentialRampToValueAtTime(gain, t + 0.008);
             g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
@@ -829,6 +837,9 @@
     // - Soft: deep and gentle: a soft kick, a round bass on the beats, a pad moving Am – F – C – G a bar each,
     //   quiet shakers, a rim, and a soft sine arpeggio.
     let style = 'classic';
+    // Dark's acid line (written in A, played in E): roots, the flat second and the octave, accents on the turns.
+    const DARK_ACID = [45, 0, 45, 57, 0, 46, 45, 0, 48, 0, 45, 57, 46, 0, 45, 52];
+    const DARK_ACCENT = [1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1];
     const PROGRESSION = [[57, 60, 64, 67], [53, 57, 60, 64], [55, 60, 64, 67], [55, 59, 62, 67]];
     const ROOTS = [45, 41, 48, 43];
     const STYLES = {
@@ -843,16 +854,23 @@
                 if (L.arp > 0.02) synth(t, ARP[s % ARP.length] + 12, len * 0.9, 0.05 * L.arp, 'square', 1200 + 2000 * L.arp);
             }
         },
+        // Dark (reimagined): hard warehouse techno in E Phrygian. A punchy kick with a distorted rumble rolling
+        // off it on the 16ths between (the sub that makes the genre), an acid line with a resonant filter that
+        // snaps shut on every note and opens with speed, open hats on the off-beats, a ride of 16ths, a snare
+        // layered with metal on 2 and 4, and a detuned hoover stab with a flat second every other bar.
         dark: {
-            cutoff: k => 1200 + 9000 * k * k, drive: 0.22, gain: 0.2, shift: -5,   // E Phrygian   // dense and driven: trimmed to Classic's loudness (measured RMS)
-            step(t, s, k, len, L) {
-                if (s % 4 === 0) kick(t, 0.62, 140, 38, 0.4);
-                // The rolling bass: every 16th but the kick's, A1 with a B flat turn at the end of the bar.
-                if (s % 4) synth(t, s === 14 ? 34 : 33, len * 0.8, 0.2, 'sawtooth', 260 + 1300 * k);
-                if (L.off > 0.02 && s % 4 === 2) hat(t, (0.1 + 0.06 * k) * L.off, 0.06);
-                if (L.clap > 0.02 && (s === 4 || s === 12)) { clap(t, 0.2 * L.clap); synth(t, 45, 0.08, 0.06 * L.clap, 'square', 900); }
-                if (L.sixteenth > 0.02) hat(t, (s % 2 ? 0.06 : 0.03) * L.sixteenth, 0.02);
-                if (L.arp > 0.02 && (s === 3 || s === 6 || s === 10)) for (const n of [57, 60, 64]) synth(t, n + 12, len * 1.6, 0.03 * L.arp, 'sawtooth', 1600 + 2000 * L.arp);
+            cutoff: k => 1400 + 8000 * k * k, drive: 0.12, gain: 1, shift: -5,   // E Phrygian; trim set from measured loudness
+            step(t, s, k, len, L, bar) {
+                if (s % 4 === 0) kick(t, 0.6, 170, 42, 0.32);
+                // The rumble: a low saw on the three 16ths after each kick, fading, its filter opening with speed.
+                if (s % 4) synth(t, 33, len * 0.95, [0, 0.12, 0.09, 0.06][s % 4], 'sawtooth', 110 + 160 * k, 1, 0);
+                // The acid line, in from the off-beat hats' band.
+                const acid = DARK_ACID[s];
+                if (acid && L.off > 0.02) synth(t, acid, len * (DARK_ACCENT[s] ? 1.4 : 0.8), (DARK_ACCENT[s] ? 0.07 : 0.045) * L.off, 'sawtooth', 300 + 2200 * k, 14, DARK_ACCENT[s] ? 5 : 2.5);
+                if (L.off > 0.02 && s % 4 === 2) hat(t, (0.09 + 0.05 * k) * L.off, 0.11);
+                if (L.clap > 0.02 && (s === 4 || s === 12)) { clap(t, 0.2 * L.clap); hat(t, 0.08 * L.clap, 0.05); }
+                if (L.sixteenth > 0.02) hat(t, (s % 4 === 2 ? 0 : s % 2 ? 0.045 : 0.025) * L.sixteenth, 0.02);
+                if (L.arp > 0.02 && bar % 2 === 1 && (s === 0 || s === 10)) for (const [n, dt] of [[57, -14], [58, 12], [64, -6]]) synth(t, n + 12, len * 3, 0.028 * L.arp, 'sawtooth', 1800 + 2400 * L.arp, 2, 0, dt);
             }
         },
         // Ominous: a half-time feel on the same grid: a deep kick on 1 and 3, a sub drone under every bar, a bell
