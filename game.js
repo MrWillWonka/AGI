@@ -40,7 +40,7 @@ window.AGI = (function () {
     // power-up in play (a crunch distorts it, flow and bullet time slow and muffle it). Quiet everywhere else.
     const MUSIC_KEY = 'agiMusic';
     const BEAT_KEY = 'agiBeat';      // the music track: Classic, Dark, Soft, Ominous or Retro (per device)
-    const MUSIC_MIX_KEY = 'agiMusicMix';   // the music's Beat and Tones volumes (per device)
+    const MUSIC_MIX_KEY = 'agiMusicMix2';  // the music's Beat and Tones volumes (per device; v2 when the tracks' own balance put the beat under the tones, so old settings don't halve it again)
     const THEME_KEY = 'agiTheme';           // auto (follows the beat), night, red or pink (per device)
     // The colour theme: chosen, or by default the beat's (Classic → Night survey, Dark → Red, Soft → Soft pink).
     function applyTheme() {

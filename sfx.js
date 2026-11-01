@@ -737,7 +737,7 @@
         dry.gain.value = 1;
         wet.gain.value = 0;
         const parts = { beat: ctx.createGain(), tones: ctx.createGain() };
-        for (const [k, g] of Object.entries(parts)) { g.gain.value = musicMix[k]; g.connect(bus); }
+        for (const [k, g] of Object.entries(parts)) { g.gain.value = partLevel(k); g.connect(bus); }
         bus.connect(dry).connect(filter);
         bus.connect(drive).connect(wet).connect(filter);
         // The beat's trim comes after the drive, which would otherwise saturate back up to full level.
@@ -914,11 +914,12 @@
             step(t, s, k, len, L, bar) {
                 if (s % 4 === 0) kick(t, 0.6, 170, 42, 0.32);
                 // The rumble: a low saw on the three 16ths after each kick, fading, its filter opening with speed.
-                if (s % 4) synth(t, 33, len * 0.95, [0, 0.12, 0.09, 0.06][s % 4], 'sawtooth', 110 + 160 * k, 1, 0);
+                if (s % 4) synth(t, 33, len * 0.95, [0, 0.12, 0.09, 0.06][s % 4], 'sawtooth', 240 + 260 * k, 1, 0);   // bright enough for small speakers
                 // The acid line, in from the off-beat hats' band.
                 const B = bar % 4 >= 2;   // the second half of each phrase answers with its own line
                 const acid = (B ? DARK_ACID_B : DARK_ACID)[s], acc = (B ? DARK_ACCENT_B : DARK_ACCENT)[s];
-                if (acid && L.off > 0.02) synth(t, acid, len * (acc ? 1.4 : 0.8), (acc ? 0.07 : 0.045) * L.off, 'sawtooth', 300 + 2200 * k, 14, acc ? 5 : 2.5);
+                // Always there (quieter at rest, so the lab has its line too), opening up with speed.
+                if (acid) synth(t, acid, len * (acc ? 1.4 : 0.8), (acc ? 0.08 : 0.055) * (0.6 + 0.4 * L.off), 'sawtooth', 600 + 2200 * k, 12, acc ? 5 : 2.5);
                 if (L.off > 0.02 && s % 4 === 2) hat(t, (0.09 + 0.05 * k) * L.off, 0.11);
                 if (L.clap > 0.02 && (s === 4 || s === 12)) { clap(t, 0.2 * L.clap); hat(t, 0.08 * L.clap, 0.05); }
                 if (L.sixteenth > 0.02) hat(t, (s % 4 === 2 ? 0 : s % 2 ? 0.045 : 0.025) * L.sixteenth, 0.02);
@@ -1003,7 +1004,10 @@
         if (!STYLES[name]) return;
         style = name;
         chargeStop();
-        if (music) music.trim.gain.setTargetAtTime(styleTrim(), ctx.currentTime, 0.3);
+        if (music) {
+            music.trim.gain.setTargetAtTime(styleTrim(), ctx.currentTime, 0.3);
+            for (const k of Object.keys(musicMix)) music.parts[k].gain.setTargetAtTime(partLevel(k), ctx.currentTime, 0.3);
+        }
     }
 
     // Layers fade in and out over a couple of bars rather than switching on a threshold: the intensity
@@ -1085,8 +1089,11 @@
     const musicMix = { beat: 1, tones: 1 };
     function setMusicMix(m) {
         for (const k of Object.keys(musicMix)) if (m && m[k] != null) musicMix[k] = Math.max(0, Math.min(1, Number(m[k]) || 0));
-        if (music) for (const k of Object.keys(musicMix)) music.parts[k].gain.setTargetAtTime(musicMix[k], ctx.currentTime, 0.05);
+        if (music) for (const k of Object.keys(musicMix)) music.parts[k].gain.setTargetAtTime(partLevel(k), ctx.currentTime, 0.05);
     }
+    // A part's level: the player's slider times the track's balance (`beat`/`tones` on the style: the drums sit
+    // about 2 dB under the tones on every track, measured; at an even split the beat drowned the music).
+    const partLevel = k => musicMix[k] * ((STYLES[style] || STYLES.classic)[k] ?? 1);
 
     function setMusic(v) {
         musicVolume = Math.max(0, Math.min(1, Number(v) || 0));
