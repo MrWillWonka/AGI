@@ -75,6 +75,7 @@
         let { f0, f1 = f0, dur = 0.15, type = 'sine', gain = 0.3, at = 0, attack = 0.005, detune = 0, cutoff = 0, q = 1 } = opts;
         // Every note is written in A minor pentatonic; the track's key re-voices it (KEYS, `raw` skips it).
         if (!simple && !opts.raw) { f0 = keyHz(f0); f1 = keyHz(f1); }
+        else if (simple && varDeg) { const r = Math.pow(2, [0, 2, -2, 4][VARIANTS.findIndex(v => v[0] === varDeg)] / 12); f0 *= r; f1 *= r; }
         if (opts.echo && !opts.echoed) tone({ ...opts, echo: 0, echoed: true, gain: (opts.gain ?? 0.3) * opts.echo, at: (opts.at || 0) + 3 * S() });
         if (P) {
             type = P.wave(type, f0);
@@ -130,6 +131,7 @@
         }
         const P = simple || ownSound ? null : PROFILES[style];
         if (P?.noise) ({ dur, gain, f0, f1 } = P.noise({ dur, gain, f0, f1 }));
+        f0 *= varNoise; f1 *= varNoise;
         const t = ctx.currentTime + base + at;
         const src = ctx.createBufferSource();
         src.buffer = noiseBuf;
@@ -191,11 +193,28 @@
         while (d < 4 && WRITTEN[d + 1] <= pc) d++;
         return K.root + 12 * oct + K.set[d] + (pc - WRITTEN[d]);
     }
+    // This play's variation: the whole figure moved by `varDeg` degrees of the scale (so it stays in key and
+    // on the beat), noise coloured by `varNoise`. Set per play in `play` (never the same twice running); the
+    // generate clicks don't vary (they already play a figure across the bar).
+    let varDeg = 0, varNoise = 1;
+    const VARIANTS = [[0, 1], [1, 1.19], [-1, 0.84], [2, 1.41]];
+    function degShift(m, k) {
+        if (!k) return m;
+        const rel = m - 57;
+        let oct = Math.floor(rel / 12);
+        const pc = rel - 12 * oct;
+        let d = 0;
+        while (d < 4 && WRITTEN[d + 1] <= pc) d++;
+        let d2 = d + k;
+        oct += Math.floor(d2 / 5);
+        d2 = ((d2 % 5) + 5) % 5;
+        return 57 + 12 * oct + WRITTEN[d2] + (pc - WRITTEN[d]);
+    }
     function keyHz(f) {
-        if (!KEYS[style] || !(f > 0)) return f;
+        if (!(f > 0) || (!KEYS[style] && !varDeg)) return f;
         const m = 69 + 12 * Math.log2(f / 440);
         const r = Math.round(m);
-        return Math.abs(m - r) > 0.03 ? f : 440 * Math.pow(2, (mapNote(r) - 69) / 12);
+        return Math.abs(m - r) > 0.03 ? f : 440 * Math.pow(2, (mapNote(degShift(r, varDeg)) - 69) / 12);
     }
     // Each beat brings its own sound for every effect (applied in tone and noise; Simple sounds skip it).
     const keep = t => t;
@@ -383,7 +402,7 @@
     // Ominous: tolling bells with an inharmonic partial, knocks, reversed swells, drones (C, b2, tritone).
     const toll = (n, o = {}) => {
         T(n, { type: 'sine', dur: 1.6, gain: 0.06, ...o });
-        tone({ f0: NOTE(mapNote(n)) * 2.76, dur: 0.6, type: 'sine', gain: (o.gain ?? 0.06) * 0.25, at: o.at, raw: true });
+        tone({ f0: NOTE(mapNote(degShift(n, varDeg))) * 2.76, dur: 0.6, type: 'sine', gain: (o.gain ?? 0.06) * 0.25, at: o.at, raw: true });
     };
     const knock = (n, o = {}) => { T(n, { type: 'triangle', dur: 0.09, gain: 0.07, cutoff: 900, ...o }); noise({ dur: 0.05, gain: 0.03, f0: 700, q: 3, at: o.at }); };
     const swellUp = (dur, gain) => noise({ dur, gain, f0: 300, f1: 2400, type: 'lowpass', attack: dur * 0.85 });
@@ -569,6 +588,7 @@
         base = div ? Math.max(0, nextStep(div).t - now) : 0;
         if (base > 0.25) base = 0;
         gmul = gv * (simple ? 1 : SFX_TRIM[style] || 1);
+        if (name !== 'click') [varDeg, varNoise] = VARIANTS[vary('v:' + name, VARIANTS.length)];
         // A track's own version of the sound if it has one (TRACK_SOUNDS), else the shared one in its profile.
         const own = !simple && TRACK_SOUNDS[style]?.[name === 'buyBig' ? 'buy' : name];
         ownSound = !!own;
@@ -580,6 +600,7 @@
         base = 0;
         gmul = 1;
         ownSound = false;
+        varDeg = 0; varNoise = 1;
     }
 
     // Milliseconds until the next held-job beat: the next 8th note (at least `minMs` away), or while the track
@@ -689,6 +710,7 @@
     let mode = null;                // null | 'crunch' | 'flow' | 'freeze'
     const BASS = [45, 0, 0, 45, 0, 0, 48, 0, 45, 0, 0, 43, 0, 0, 40, 0];   // A minor, a pulse with a lift
     const ARP = [69, 72, 76, 79, 76, 72, 69, 64];
+    const BASS_B = [45, 0, 0, 45, 0, 0, 48, 0, 50, 0, 0, 48, 0, 45, 43, 0];  // the fourth bar of a phrase answers
 
     function driveCurve(k) {
         const n = 1024;
@@ -756,6 +778,25 @@
             o.connect(g);
             o.start(t);
             o.stop(t + decay + 0.02);
+        }, 'beat');
+    }
+    // A noise swell rising into the next bar (the fills): its gain and filter climb to the downbeat.
+    function riser(t, dur, gain) {
+        voice(g => {
+            if (!noiseBuf) noise({ dur: 0.01, gain: 0.0001 });
+            const src = ctx.createBufferSource();
+            src.buffer = noiseBuf;
+            src.loop = true;
+            const f = ctx.createBiquadFilter();
+            f.type = 'bandpass';
+            f.frequency.setValueAtTime(400, t);
+            f.frequency.exponentialRampToValueAtTime(5000, t + dur);
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(gain, t + dur);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.05);
+            src.connect(f).connect(g);
+            src.start(t);
+            src.stop(t + dur + 0.1);
         }, 'beat');
     }
     // A soft chord held for a bar (the Soft beat's pad): slow attack, gentle release.
@@ -841,18 +882,27 @@
     // Dark's acid line (written in A, played in E): roots, the flat second and the octave, accents on the turns.
     const DARK_ACID = [45, 0, 45, 57, 0, 46, 45, 0, 48, 0, 45, 57, 46, 0, 45, 52];
     const DARK_ACCENT = [1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1];
+    const DARK_ACID_B = [45, 0, 57, 0, 46, 0, 45, 52, 0, 45, 0, 58, 0, 57, 45, 0];
+    const DARK_ACCENT_B = [1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0];
     const PROGRESSION = [[57, 60, 64, 67], [53, 57, 60, 64], [55, 60, 64, 67], [55, 59, 62, 67]];
     const ROOTS = [45, 41, 48, 43];
     const STYLES = {
         classic: {
             cutoff: k => 900 + 9000 * k * k, drive: 0,
-            step(t, s, k, len, L) {
+            step(t, s, k, len, L, bar) {
+                const bass = bar % 4 === 3 ? BASS_B : BASS;
                 if (s % 4 === 0) kick(t, 0.5);
-                if (BASS[s]) synth(t, BASS[s], len * 2.2, 0.22, 'sawtooth', 220 + 1600 * k);
+                if (bass[s]) synth(t, bass[s], len * 2.2, 0.22, 'sawtooth', 220 + 1600 * k);
                 if (L.off > 0.02 && s % 4 === 2) hat(t, (0.08 + 0.06 * k) * L.off);
                 if (L.clap > 0.02 && (s === 4 || s === 12)) clap(t, 0.16 * L.clap);
                 if (L.sixteenth > 0.02 && s % 2 === 1) hat(t, 0.05 * L.sixteenth, 0.025);
-                if (L.arp > 0.02) synth(t, ARP[s % ARP.length] + 12, len * 0.9, 0.05 * L.arp, 'square', 1200 + 2000 * L.arp);
+                // The arpeggio starts a step later each bar, so the figure turns over a four-bar phrase.
+                if (L.arp > 0.02) synth(t, ARP[(s + 2 * (bar % 4)) % ARP.length] + 12, len * 0.9, 0.05 * L.arp, 'square', 1200 + 2000 * L.arp);
+            },
+            // The end of every eighth bar: a clap roll building into the next phrase.
+            fill(t, s, k, len, L) {
+                clap(t, 0.08 + 0.03 * (s - 12));
+                if (s === 15) synth(t, 57, len, 0.06, 'square', 2400);
             }
         },
         // Dark (reimagined): hard warehouse techno in E Phrygian. A punchy kick with a distorted rumble rolling
@@ -866,12 +916,19 @@
                 // The rumble: a low saw on the three 16ths after each kick, fading, its filter opening with speed.
                 if (s % 4) synth(t, 33, len * 0.95, [0, 0.12, 0.09, 0.06][s % 4], 'sawtooth', 110 + 160 * k, 1, 0);
                 // The acid line, in from the off-beat hats' band.
-                const acid = DARK_ACID[s];
-                if (acid && L.off > 0.02) synth(t, acid, len * (DARK_ACCENT[s] ? 1.4 : 0.8), (DARK_ACCENT[s] ? 0.07 : 0.045) * L.off, 'sawtooth', 300 + 2200 * k, 14, DARK_ACCENT[s] ? 5 : 2.5);
+                const B = bar % 4 >= 2;   // the second half of each phrase answers with its own line
+                const acid = (B ? DARK_ACID_B : DARK_ACID)[s], acc = (B ? DARK_ACCENT_B : DARK_ACCENT)[s];
+                if (acid && L.off > 0.02) synth(t, acid, len * (acc ? 1.4 : 0.8), (acc ? 0.07 : 0.045) * L.off, 'sawtooth', 300 + 2200 * k, 14, acc ? 5 : 2.5);
                 if (L.off > 0.02 && s % 4 === 2) hat(t, (0.09 + 0.05 * k) * L.off, 0.11);
                 if (L.clap > 0.02 && (s === 4 || s === 12)) { clap(t, 0.2 * L.clap); hat(t, 0.08 * L.clap, 0.05); }
                 if (L.sixteenth > 0.02) hat(t, (s % 4 === 2 ? 0 : s % 2 ? 0.045 : 0.025) * L.sixteenth, 0.02);
                 if (L.arp > 0.02 && bar % 2 === 1 && (s === 0 || s === 10)) for (const [n, dt] of [[57, -14], [58, 12], [64, -6]]) synth(t, n + 12, len * 3, 0.028 * L.arp, 'sawtooth', 1800 + 2400 * L.arp, 2, 0, dt);
+            },
+            // A snare roll with metal and a riser into the next phrase.
+            fill(t, s, k, len) {
+                clap(t, 0.12 + 0.04 * (s - 12));
+                hat(t, 0.06, 0.03);
+                if (s === 12) riser(t, len * 4, 0.12);
             }
         },
         // Ominous: a half-time feel on the same grid: a deep kick on 1 and 3, a sub drone under every bar, a bell
@@ -885,7 +942,12 @@
                 if (L.off > 0.02 && s % 4 === 2) hat(t, 0.035 * L.off, 0.02);
                 if (L.clap > 0.02 && s === 12) clap(t, 0.08 * L.clap);
                 if (L.sixteenth > 0.02 && s % 2 === 1) hat(t, 0.02 * L.sixteenth, 0.015);
-                if (L.arp > 0.02 && s % 4 === 0) synth(t, [69, 70, 69, 64][(s / 4) % 4], len * 3.5, 0.045 * L.arp, 'triangle', 1400);
+                const motif = bar % 4 >= 2 ? [69, 70, 72, 70] : [69, 70, 69, 64];
+                if (L.arp > 0.02 && s % 4 === 0) synth(t, motif[(s / 4) % 4], len * 3.5, 0.045 * L.arp, 'triangle', 1400);
+            },
+            // A reversed swell rising into the next phrase.
+            fill(t, s, k, len) {
+                if (s === 12) riser(t, len * 4, 0.1);
             }
         },
         // Retro: chiptune: a short punchy kick, a triangle bass bouncing octaves on the 8ths, noise snares and hats,
@@ -901,7 +963,14 @@
                 if (L.clap > 0.02 && (s === 4 || s === 12)) clap(t, 0.13 * L.clap);
                 if (L.sixteenth > 0.02 && s % 2 === 1) hat(t, 0.035 * L.sixteenth, 0.012);
                 const arpEvery = L.arp > 0.5 ? 1 : 2;
-                if (L.clap > 0.3 && s % arpEvery === 0) synth(t, chord[(s / arpEvery) % 4] + 12, len * 0.8, 0.03 * Math.max(L.clap, L.arp), 'square', 9000);
+                // Up on even bars, down on odd ones.
+                const i = (s / arpEvery) % 4, idx = bar % 2 ? 3 - i : i;
+                if (L.clap > 0.3 && s % arpEvery === 0) synth(t, chord[idx] + 12, len * 0.8, 0.03 * Math.max(L.clap, L.arp), 'square', 9000);
+            },
+            // A noise-snare roll and a square run up into the next phrase.
+            fill(t, s, k, len) {
+                clap(t, 0.1 + 0.02 * (s - 12));
+                synth(t, [69, 72, 76, 81][s - 12] + 12, len * 0.8, 0.035, 'square', 9000);
             }
         },
         soft: {
@@ -914,9 +983,15 @@
                 if (L.off > 0.02 && s % 2 === 1) hat(t, 0.025 * L.off, 0.03);
                 if (L.clap > 0.02 && s === 12) hat(t, 0.06 * L.clap, 0.08);
                 if (L.arp > 0.02 && s % 2 === 0) {
-                    const notes = PROGRESSION[chord];
-                    synth(t, notes[(s / 2) % notes.length] + 12, len * 1.8, 0.035 * L.arp, 'sine', 3000);
+                    // The arpeggio rises for two bars, then falls for two.
+                    const notes = PROGRESSION[chord], i = (s / 2) % notes.length;
+                    synth(t, notes[bar % 4 >= 2 ? notes.length - 1 - i : i] + 12, len * 1.8, 0.035 * L.arp, 'sine', 3000);
                 }
+            },
+            // A soft rim pattern and a pad note leading into the next phrase.
+            fill(t, s, k, len) {
+                if (s === 12 || s === 14 || s === 15) hat(t, 0.05, 0.07);
+                if (s === 14) synth(t, 76, len * 3, 0.04, 'sine', 3000);
             }
         }
     };
@@ -953,7 +1028,10 @@
             const t = music.nextStep;
             const s = ((music.step % 16) + 16) % 16;
             const L = { off: layer(k, 0.2), clap: layer(k, 0.45), sixteenth: layer(k, 0.65), arp: layer(k, 0.8) };
-            (STYLES[style] || STYLES.classic).step(t, s, k, len, L, Math.floor(music.step / 16));
+            const st8 = STYLES[style] || STYLES.classic, bar = Math.floor(music.step / 16);
+            st8.step(t, s, k, len, L, bar);
+            // Every eighth bar ends in a fill, so the loop phrases instead of repeating one bar for ever.
+            if (st8.fill && ((bar % 8) + 8) % 8 === 7 && s >= 12) st8.fill(t, s, k, len, L);
             music.nextStep += len;
             music.step++;
         }

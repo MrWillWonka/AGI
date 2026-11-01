@@ -20,6 +20,7 @@
     --terminal-dim: #5f9c80;
     --research: #c792ea;      /* research: the wall, its supply cell, legacy */
     --research-deep: #7a4fa6;
+    --owned: var(--success);  /* what you've bought (the skill tree): set apart from what you can buy (--warning) */
     --font-display: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
     --font-body: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
@@ -722,7 +723,7 @@ h1, h2, h3, p { margin: 0; }
 
 .tree-links { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; }
 .tree-links line { stroke-width: 3; stroke-linecap: round; }
-.tree-links .link-owned { stroke: var(--success); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--success) 80%, transparent)); }
+.tree-links .link-owned { stroke: var(--owned); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--owned) 80%, transparent)); }
 .tree-links .link-open { stroke: #4a6a70; stroke-dasharray: 5 5; }
 .tree-links .link-locked { stroke: color-mix(in srgb, var(--danger) 35%, transparent); }
 
@@ -770,12 +771,12 @@ h1, h2, h3, p { margin: 0; }
 .tree-level:empty { display: none; }
 
 .tree-node.owned, .tree-node.maxed {
-    border-color: var(--success);
+    border-color: var(--owned);
     background: linear-gradient(180deg, var(--border), var(--panel-2));
-    box-shadow: 0 0 16px color-mix(in srgb, var(--success) 35%, transparent), inset 0 0 0 3px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--owned) 35%, transparent), inset 0 0 0 3px rgba(0, 0, 0, 0.2);
 }
 
-.tree-node.maxed .tree-level { color: var(--success); border-color: var(--success); }
+.tree-node.maxed .tree-level { color: var(--owned); border-color: var(--owned); }
 
 .tree-node.can-buy { border-color: var(--warning); animation: node-ready 1.8s ease-in-out infinite; }
 .tree-node.can-buy .tree-icon { color: var(--warning); }
@@ -816,7 +817,7 @@ h1, h2, h3, p { margin: 0; }
 .tree-node.mechanic::after { inset: -1px; background: var(--fill); }
 .tree-node.mechanic .tree-icon, .tree-node.mechanic .tree-lock, .tree-node.mechanic .tree-level { position: relative; z-index: 1; }
 .tree-node.mechanic .tree-level { position: absolute; }
-.tree-node.mechanic.owned, .tree-node.mechanic.maxed { --edge: var(--success); --fill: linear-gradient(180deg, var(--border), var(--panel-2)); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--success) 35%, transparent)); }
+.tree-node.mechanic.owned, .tree-node.mechanic.maxed { --edge: var(--owned); --fill: linear-gradient(180deg, var(--border), var(--panel-2)); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--owned) 35%, transparent)); }
 .tree-node.mechanic.can-buy { --edge: var(--warning); animation: none; filter: drop-shadow(0 0 9px color-mix(in srgb, var(--warning) 45%, transparent)); }
 .tree-node.mechanic.locked { --edge: color-mix(in srgb, var(--danger) 55%, transparent); --fill: linear-gradient(180deg, #2a1618, #1a0f11); }
 .tree-node.mechanic.selected { outline: none; --edge: var(--primary); }
@@ -2896,6 +2897,7 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
     --terminal-dim: #a35a3c;
     --research: #c77dff;
     --research-deep: #6f3aa6;
+    --owned: var(--research);   /* violet: ember and gold were too close to tell bought from buyable */
 }
 :root[data-theme="pink"] {
     --bg: #19111a;
