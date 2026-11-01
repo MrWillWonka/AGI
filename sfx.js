@@ -146,6 +146,8 @@
     const stab = (notes, opts) => notes.forEach(n => tone({ f0: NOTE(n), dur: 0.22, type: 'sawtooth', gain: 0.05, cutoff: 1800, q: 4, detune: 7, ...opts }));
     const sub = (from, to, dur, gain, at = 0) => tone({ f0: NOTE(from), f1: NOTE(to), dur, type: 'sine', gain, at });
     // The bar's position picks a click's note, so taps and holds play a figure that sits on the beat.
+    // Phone speakers push the upper mids, where compute's square blip sits: it's quieter and darker there.
+    const PHONE = !!window.matchMedia?.('(pointer: coarse)').matches;
     const CLICK_NOTES = {
         cp: [81, 76, 79, 76, 84, 76, 79, 74],       // compute: a bright square figure round A5
         dp: [69, 64, 67, 64, 72, 64, 67, 62],       // data: an octave down, rounder
@@ -161,9 +163,9 @@
             const n = notes[(i + 8) % 8];
             if (res === 'dp') tone({ f0: NOTE(n), dur: 0.12, type: 'triangle', gain: 0.13, cutoff: 1600 });
             else if (res === 'rp') { tone({ f0: NOTE(n), dur: 0.16, type: 'sine', gain: 0.09 }); tone({ f0: NOTE(n + 12), dur: 0.06, type: 'sine', gain: 0.03 }); }
-            else blip(n, { gain: 0.06, dur: 0.07 });
+            else blip(n, { gain: 0.06 * (PHONE ? 0.55 : 1), dur: 0.07, cutoff: PHONE ? 1800 : 2600 });
         },
-        buy: () => { blip(81, { gain: 0.08 }); blip(88, { gain: 0.08, at: S() / 2 }); },
+        buy: () => SOUNDS.buyBig(),   // one at a time sounds like buying many (the owner preferred it)
         buyBig: () => { arp([69, 72, 76, 81], S() / 2, { gain: 0.07 }); sub(45, 45, 0.3, 0.12); },
         error: () => tone({ f0: NOTE(52), f1: NOTE(45), dur: 0.12, type: 'square', gain: 0.05, cutoff: 700 }),
         // A sprint: a filter riser as strong as the charge, and a sub drop to A.
@@ -215,7 +217,7 @@
         ui: () => noise({ dur: 0.025, gain: 0.05, f0: 9000, type: 'highpass' })
     };
     // Stingers wait for the grid: steps to quantize to (1 = the next 16th, 2 = the next 8th).
-    const QUANT = { buyBig: 1, summit: 2, record: 1, runEnd: 1, viral: 1, achievement: 1, phase: 2, ship: 2 };
+    const QUANT = { buy: 1, buyBig: 1, summit: 2, record: 1, runEnd: 1, viral: 1, achievement: 1, phase: 2, ship: 2 };
     // Minimum seconds between two plays of the same sound (clicks and dust can come in floods).
     const GAP = { click: 0.045, land: 0.08, launch: 0.15, buy: 0.05, ui: 0.05, error: 0.2, clean: 0.05 };
 
