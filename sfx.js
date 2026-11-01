@@ -598,7 +598,11 @@
     // Minimum seconds between two plays of the same sound (clicks and dust can come in floods).
     const GAP = { click: 0.045, land: 0.08, launch: 0.15, buy: 0.05, ui: 0.05, error: 0.2, clean: 0.05 };
 
+    // Compute and data trade click sounds (the owner's call): compute plays what was written for data and data
+    // what was written for compute, in every track and in simple sounds. Swapped here, once, for all of them.
+    const CLICK_SWAP = { cp: 'dp', dp: 'cp' };
     function play(name, opts) {
+        if (name === 'click' && opts && CLICK_SWAP[opts.res]) opts = { ...opts, res: CLICK_SWAP[opts.res] };
         const gv = mix[GROUP_OF[name] || 'ui'];
         if (volume <= 0 || gv <= 0 || !SOUNDS[name] || !ensure() || ctx.state !== 'running') return;
         const now = ctx.currentTime;
