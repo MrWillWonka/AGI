@@ -74,8 +74,7 @@
         const P = simple || ownSound ? null : PROFILES[style];
         let { f0, f1 = f0, dur = 0.15, type = 'sine', gain = 0.3, at = 0, attack = 0.005, detune = 0, cutoff = 0, q = 1 } = opts;
         // Every note is written in A minor pentatonic; the track's key re-voices it (KEYS, `raw` skips it).
-        if (!simple && !opts.raw) { f0 = keyHz(f0); f1 = keyHz(f1); }
-        else if (simple && varDeg) { const r = Math.pow(2, [0, 2, -2, 4][VARIANTS.findIndex(v => v[0] === varDeg)] / 12); f0 *= r; f1 *= r; }
+        if (!opts.raw) { f0 = keyHz(f0); f1 = keyHz(f1); }   // simple sounds too: they're in the track's key
         if (opts.echo && !opts.echoed) tone({ ...opts, echo: 0, echoed: true, gain: (opts.gain ?? 0.3) * opts.echo, at: (opts.at || 0) + 3 * S() });
         if (P) {
             type = P.wave(type, f0);
@@ -413,6 +412,7 @@
 
     // Each track's sound set, levelled to Classic's loudness (measured with a K-weighted meter, like the music).
     const SFX_TRIM = { classic: 1, dark: 1.18, soft: 1.03, ominous: 0.76, retro: 1.82 };
+    const SIMPLE_TRIM = { classic: 1, dark: 1, soft: 1, ominous: 1, retro: 1 };   // the simple sets, levelled the same way
 
     const TRACK_SOUNDS = {
         dark: {
@@ -552,24 +552,45 @@
     const mix = { clicks: 1, buys: 1, training: 1, events: 1, ui: 1 };
     function setMix(m) { for (const k of Object.keys(mix)) if (m && m[k] != null) mix[k] = Math.max(0, Math.min(1, Number(m[k]) || 0)); }
 
-    // Simple sounds only: plain short sine beeps, nothing on the grid, no arpeggios or variations.
+    // Simple sounds only: every effect as a plain one-to-three-note figure, nothing on the grid, in the track's
+    // key and its plain voice (SIMPLE_VOICE: Classic and Soft a sine, Dark a low triangle, Ominous a low sine,
+    // Retro a square), still varying play to play. Notes are written in A minor pentatonic like everywhere.
     let simple = false;
-    const beep = (f, dur = 0.08, gain = 0.07, at = 0) => tone({ f0: f, dur, type: 'sine', gain, at });
+    const SIMPLE_VOICE = { classic: ['sine', 0], dark: ['triangle', -12], soft: ['sine', 0], ominous: ['sine', -12], retro: ['square', 0] };
+    const sb = (n, dur = 0.08, gain = 0.07, at = 0, to = null) => {
+        const [w, o] = SIMPLE_VOICE[style] || SIMPLE_VOICE.classic;
+        tone({ f0: NOTE(n + o), ...(to != null ? { f1: NOTE(to + o) } : {}), dur, type: w, at,
+            gain: gain * (w === 'square' ? 0.35 : w === 'triangle' ? 0.9 : 1), attack: style === 'soft' || style === 'ominous' ? 0.012 : 0.005 });
+    };
     const SIMPLE = {
-        click: () => beep(880, 0.04, 0.05),
-        buy: () => { beep(660, 0.07); beep(880, 0.09, 0.07, 0.06); },
-        buyBig: () => { beep(660, 0.07); beep(880, 0.07, 0.07, 0.06); beep(1100, 0.1, 0.07, 0.12); },
-        claim: () => { beep(880, 0.07); beep(1320, 0.1, 0.07, 0.07); },
-        error: () => beep(220, 0.12, 0.05),
-        ui: () => beep(1200, 0.03, 0.04),
-        sprint: ({ charge = 1 } = {}) => beep(220 + 220 * charge, 0.12, 0.06 + 0.06 * charge),
-        clean: () => beep(1320, 0.1),
-        perfect: () => { beep(1320, 0.08); beep(1760, 0.12, 0.07, 0.07); },
-        system: () => { beep(1320, 0.08); beep(1760, 0.08, 0.07, 0.07); beep(2200, 0.14, 0.07, 0.14); },
-        land: ({ impact = 3 } = {}) => beep(110, 0.12, 0.05 + 0.1 * Math.min(1, impact / 15)),
-        summit: () => { beep(660, 0.1); beep(880, 0.1, 0.07, 0.1); beep(1320, 0.25, 0.07, 0.2); },
-        achievement: () => { beep(880, 0.1); beep(1320, 0.2, 0.07, 0.1); },
-        default: () => beep(660, 0.12)
+        click: ({ res = 'cp' } = {}) => sb({ cp: 81, dp: 76, rp: 84 }[res] || 81, 0.04, 0.05 * (PHONE ? 0.6 : 1)),
+        buy: () => { sb(76, 0.07); sb(81, 0.09, 0.07, 0.06); },
+        buyBig: () => { sb(76, 0.07); sb(81, 0.07, 0.07, 0.06); sb(88, 0.1, 0.07, 0.12); },
+        claim: () => { sb(81, 0.07); sb(88, 0.1, 0.07, 0.07); },
+        error: () => sb(52, 0.14, 0.05, 0, 45),
+        ui: () => sb(93, 0.03, 0.03),
+        sprint: ({ charge = 1 } = {}) => sb(57, 0.12, 0.05 + 0.06 * charge, 0, 64),
+        clean: () => sb(88, 0.1),
+        perfect: () => { sb(88, 0.08); sb(93, 0.12, 0.07, 0.07); },
+        system: () => { sb(88, 0.08); sb(93, 0.08, 0.07, 0.07); sb(100, 0.14, 0.07, 0.14); },
+        breakthrough: () => { sb(45, 0.3, 0.12, 0, 33); sb(81, 0.2, 0.06, 0.1); },
+        smash: () => sb(45, 0.4, 0.12, 0, 28),
+        windup: () => sb(57, 0.5, 0.04, 0, 69),
+        launch: () => sb(69, 0.15, 0.04, 0, 76),
+        land: ({ impact = 3 } = {}) => sb(45, 0.12, 0.05 + 0.1 * Math.min(1, impact / 15)),
+        summit: () => { sb(76, 0.1); sb(81, 0.1, 0.07, 0.1); sb(88, 0.25, 0.07, 0.2); },
+        nearMiss: () => sb(76, 0.3, 0.05, 0, 74),
+        runEnd: ({ good = false } = {}) => good ? (sb(76, 0.1), sb(81, 0.15, 0.07, 0.1)) : sb(64, 0.2, 0.05, 0, 60),
+        record: () => { sb(81, 0.08); sb(88, 0.12, 0.07, 0.08); },
+        crunch: () => sb(52, 0.2, 0.06),
+        flow: () => sb(69, 0.5, 0.05),
+        freeze: () => sb(93, 0.4, 0.06, 0, 69),
+        release: () => sb(57, 0.3, 0.08, 0, 69),
+        viral: () => { sb(81, 0.06); sb(84, 0.06, 0.07, 0.06); sb(88, 0.1, 0.07, 0.12); },
+        achievement: () => { sb(81, 0.1); sb(88, 0.2, 0.07, 0.1); },
+        phase: () => { sb(69, 0.12); sb(76, 0.12, 0.07, 0.12); sb(81, 0.3, 0.07, 0.24); },
+        ship: () => { sb(57, 0.15); sb(69, 0.15, 0.07, 0.15); sb(81, 0.4, 0.07, 0.3); },
+        default: () => sb(76, 0.12)
     };
 
     // Stingers wait for the grid: steps to quantize to (1 = the next 16th, 2 = the next 8th).
@@ -587,7 +608,7 @@
         const div = simple ? 0 : opts?.q ?? QUANT[name];
         base = div ? Math.max(0, nextStep(div).t - now) : 0;
         if (base > 0.25) base = 0;
-        gmul = gv * (simple ? 1 : SFX_TRIM[style] || 1);
+        gmul = gv * ((simple ? SIMPLE_TRIM : SFX_TRIM)[style] || 1);
         if (name !== 'click') [varDeg, varNoise] = VARIANTS[vary('v:' + name, VARIANTS.length)];
         // A track's own version of the sound if it has one (TRACK_SOUNDS), else the shared one in its profile.
         const own = !simple && TRACK_SOUNDS[style]?.[name === 'buyBig' ? 'buy' : name];
@@ -668,7 +689,7 @@
             const f = ctx.createBiquadFilter();
             const g = ctx.createGain();
             const P = simple ? null : PROFILES[style];
-            o.type = free ? 'triangle' : P ? P.wave(v.type, 440) : v.type;
+            o.type = simple ? (SIMPLE_VOICE[style] || SIMPLE_VOICE.classic)[0] : free ? 'triangle' : P ? P.wave(v.type, 440) : v.type;
             f.type = 'lowpass';
             f.frequency.value = free ? 4000 : v.cutoff(l);
             f.Q.value = v?.q || 1;
@@ -682,7 +703,7 @@
         }
         const c = chargeOsc;
         if (c.free) {
-            c.o.frequency.setTargetAtTime((simple ? NOTE(57) : keyHz(NOTE(57))) * Math.pow(2, 2 * l), now, 0.015);
+            c.o.frequency.setTargetAtTime(keyHz(NOTE(57 + (simple ? (SIMPLE_VOICE[style] || SIMPLE_VOICE.classic)[1] : 0))) * Math.pow(2, 2 * l), now, 0.015);
             return;
         }
         // Schedule the next 16th a little ahead, so it's struck exactly on the beat.
@@ -890,6 +911,7 @@
         classic: {
             cutoff: k => 900 + 9000 * k * k, drive: 0,
             beat: 0.659, tones: 1.97,   // drums 2 dB under the tones, measured (K-weighted)
+            simpleRoots: [45, 45, 48, 43], simpleVoice: 'triangle',   // the simple version (simpleStep)
             step(t, s, k, len, L, bar) {
                 const bass = bar % 4 === 3 ? BASS_B : BASS;
                 if (s % 4 === 0) kick(t, 0.5);
@@ -913,6 +935,7 @@
         dark: {
             cutoff: k => 1400 + 8000 * k * k, drive: 0.04, gain: 0.94, shift: -5,   // E Phrygian; trim set from measured loudness
             beat: 0.31, tones: 3.49,   // drums 2 dB under the tones, measured (K-weighted)
+            simpleRoots: [45, 45, 46, 45], simpleVoice: 'sawtooth',   // the simple version (simpleStep)
             step(t, s, k, len, L, bar) {
                 if (s % 4 === 0) kick(t, 0.6, 170, 42, 0.32);
                 // The rumble: a low saw on the three 16ths after each kick, fading, its filter opening with speed.
@@ -939,6 +962,7 @@
         ominous: {
             cutoff: k => 500 + 3500 * k * k, drive: 0, gain: 1.42, shift: 3,    // C, with its flat second
             beat: 0.598, tones: 2.145,   // drums 2 dB under the tones, measured (K-weighted)
+            simpleRoots: [45, 45, 46, 45], simpleVoice: 'sine',   // the simple version (simpleStep)
             step(t, s, k, len, L, bar) {
                 if (s === 0 || s === 8) kick(t, 0.55, 110, 32, 0.6);
                 if (s === 0) synth(t, bar % 2 ? 34 : 33, len * 16, 0.13, 'sawtooth', 160 + 260 * k);
@@ -959,6 +983,7 @@
         retro: {
             cutoff: k => 4000 + 9000 * k, drive: 0, gain: 1.62,
             beat: 0.701, tones: 1.829,   // drums 2 dB under the tones, measured (K-weighted)
+            simpleRoots: [45, 41, 48, 43], simpleVoice: 'square',   // the simple version (simpleStep)
             step(t, s, k, len, L, bar) {
                 const chord = PROGRESSION[bar % 4];
                 const root = ROOTS[bar % 4];
@@ -981,6 +1006,7 @@
         soft: {
             cutoff: k => 700 + 4500 * k * k, drive: 0, gain: 1.7, shift: 5,     // F major: Dm – Bb – F – C
             beat: 0.738, tones: 1.487,   // drums 2 dB under the tones, measured (K-weighted)
+            simpleRoots: [45, 41, 48, 43], simpleVoice: 'sine',   // the simple version (simpleStep)
             step(t, s, k, len, L, bar) {
                 if (s % 4 === 0) kick(t, 0.32, 110, 48, 0.22);
                 const chord = bar % 4;
@@ -1001,10 +1027,21 @@
             }
         }
     };
+    // Simple sounds: each track stripped to its bones, in its key: a kick (Ominous's on 1 and 3), a bass on
+    // beats 1 and 3 following the track's roots (`simpleRoots`), and one held note of the chord each bar, in
+    // the track's plain voice; no hats, claps, arpeggios, fills or drive.
+    function simpleStep(st, t, s, k, len, bar) {
+        const sv = st.simpleVoice || 'triangle';
+        if (st === STYLES.ominous ? s % 8 === 0 : s % 4 === 0) kick(t, 0.38, 130, 45, 0.22);
+        const root = (st.simpleRoots || [45, 45, 48, 43])[bar % 4];
+        if (s === 0 || s === 8) synth(t, root, len * 6, 0.16, sv, 700, 1);
+        if (s === 0) synth(t, root + 24 + (bar % 2 ? 7 : 3), len * 14, 0.035, 'sine', 3000, 1);
+    }
+
     // The bus level for the music volume, and each beat's trim (`gain` on the style, measured RMS against Classic,
     // all at the same level (K-weighted, within about 1 dB of Classic; re-measure if a track changes).
     const musicLevel = () => musicVolume * 0.55;
-    const styleTrim = () => (STYLES[style] || STYLES.classic).gain || 1;
+    const styleTrim = () => { const st = STYLES[style] || STYLES.classic; return (simple ? st.simpleMix?.gain : st.gain) || 1; };
     function setMusicStyle(name) {
         if (!STYLES[name]) return;
         style = name;
@@ -1038,9 +1075,12 @@
             const s = ((music.step % 16) + 16) % 16;
             const L = { off: layer(k, 0.2), clap: layer(k, 0.45), sixteenth: layer(k, 0.65), arp: layer(k, 0.8) };
             const st8 = STYLES[style] || STYLES.classic, bar = Math.floor(music.step / 16);
-            st8.step(t, s, k, len, L, bar);
-            // Every eighth bar ends in a fill, so the loop phrases instead of repeating one bar for ever.
-            if (st8.fill && ((bar % 8) + 8) % 8 === 7 && s >= 12) st8.fill(t, s, k, len, L);
+            if (simple) simpleStep(st8, t, s, k, len, bar);
+            else {
+                st8.step(t, s, k, len, L, bar);
+                // Every eighth bar ends in a fill, so the loop phrases instead of repeating one bar for ever.
+                if (st8.fill && ((bar % 8) + 8) % 8 === 7 && s >= 12) st8.fill(t, s, k, len, L);
+            }
             music.nextStep += len;
             music.step++;
         }
@@ -1048,7 +1088,7 @@
         const st = STYLES[style] || STYLES.classic;
         const cutoff = slow ? 600 : st.cutoff(k);
         music.filter.frequency.setTargetAtTime(cutoff, now, slow ? 0.6 : 0.5);
-        music.wet.gain.setTargetAtTime(mode === 'crunch' ? 0.55 : st.drive, now, 0.15);
+        music.wet.gain.setTargetAtTime(mode === 'crunch' ? 0.55 : simple ? 0 : st.drive, now, 0.15);
         music.dry.gain.setTargetAtTime(mode === 'crunch' ? 0.6 : 1, now, 0.15);
     }
 
@@ -1098,7 +1138,7 @@
     }
     // A part's level: the player's slider times the track's balance (`beat`/`tones` on the style: the drums sit
     // about 2 dB under the tones on every track, measured; at an even split the beat drowned the music).
-    const partLevel = k => musicMix[k] * ((STYLES[style] || STYLES.classic)[k] ?? 1);
+    const partLevel = k => { const st = STYLES[style] || STYLES.classic; return musicMix[k] * ((simple ? st.simpleMix?.[k] : st[k]) ?? 1); };
 
     function setMusic(v) {
         musicVolume = Math.max(0, Math.min(1, Number(v) || 0));
@@ -1106,5 +1146,14 @@
         if (music) music.bus.gain.setTargetAtTime(musicLevel(), ctx.currentTime, 0.05);
     }
 
-    window.SFX = { play, holdDelay, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple(v) { simple = !!v; chargeStop(); }, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
+    // Simple sounds on or off: the music's levels follow (the simple tracks have their own balance).
+    function setSimple(v) {
+        simple = !!v;
+        chargeStop();
+        if (music) {
+            music.trim.gain.setTargetAtTime(styleTrim(), ctx.currentTime, 0.2);
+            for (const k of Object.keys(musicMix)) music.parts[k].gain.setTargetAtTime(partLevel(k), ctx.currentTime, 0.2);
+        }
+    }
+    window.SFX = { play, holdDelay, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
 })();
