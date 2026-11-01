@@ -393,7 +393,7 @@
     const chipNoise = (dur, gain, at = 0) => noise({ dur, gain, f0: 6000, type: 'highpass', at });
 
     // Each track's sound set, levelled to Classic's loudness (measured with a K-weighted meter, like the music).
-    const SFX_TRIM = { classic: 1, dark: 1, soft: 1, ominous: 1, retro: 1 };
+    const SFX_TRIM = { classic: 1, dark: 1.18, soft: 1.03, ominous: 0.76, retro: 1.82 };
 
     const TRACK_SOUNDS = {
         dark: {
@@ -629,8 +629,9 @@
         c.o.frequency.setValueAtTime(simple ? hz : keyHz(hz), t);   // in the track's key, like every sound
         c.f.frequency.setTargetAtTime(v.cutoff(l), t, 0.02);
         c.g.gain.cancelScheduledValues(t);
-        c.g.gain.setValueAtTime(v.gain * mix.training, t);
-        c.g.gain.setTargetAtTime(Math.max(0.0001, v.gain * v.sustain * mix.training), t + 0.005, 0.045);
+        const lvl = mix.training * (simple ? 1 : SFX_TRIM[style] || 1);
+        c.g.gain.setValueAtTime(v.gain * lvl, t);
+        c.g.gain.setTargetAtTime(Math.max(0.0001, v.gain * v.sustain * lvl), t + 0.005, 0.045);
         c.sched = n;
     }
 
@@ -859,7 +860,7 @@
         // snaps shut on every note and opens with speed, open hats on the off-beats, a ride of 16ths, a snare
         // layered with metal on 2 and 4, and a detuned hoover stab with a flat second every other bar.
         dark: {
-            cutoff: k => 1400 + 8000 * k * k, drive: 0.12, gain: 1, shift: -5,   // E Phrygian; trim set from measured loudness
+            cutoff: k => 1400 + 8000 * k * k, drive: 0.12, gain: 0.376, shift: -5,   // E Phrygian; trim set from measured loudness
             step(t, s, k, len, L, bar) {
                 if (s % 4 === 0) kick(t, 0.6, 170, 42, 0.32);
                 // The rumble: a low saw on the three 16ths after each kick, fading, its filter opening with speed.
@@ -876,7 +877,7 @@
         // Ominous: a half-time feel on the same grid: a deep kick on 1 and 3, a sub drone under every bar, a bell
         // tolling every other bar, a clock ticking, a low reversed swell, and a slow motif rubbing A against B flat.
         ominous: {
-            cutoff: k => 500 + 3500 * k * k, drive: 0.08, gain: 0.47, shift: 3,    // C, with its flat second
+            cutoff: k => 500 + 3500 * k * k, drive: 0.08, gain: 0.71, shift: 3,    // C, with its flat second
             step(t, s, k, len, L, bar) {
                 if (s === 0 || s === 8) kick(t, 0.55, 110, 32, 0.6);
                 if (s === 0) synth(t, bar % 2 ? 34 : 33, len * 16, 0.13, 'sawtooth', 160 + 260 * k);
@@ -890,7 +891,7 @@
         // Retro: chiptune: a short punchy kick, a triangle bass bouncing octaves on the 8ths, noise snares and hats,
         // and a square arpeggio through Am – F – C – G (its 16ths once it's flying).
         retro: {
-            cutoff: k => 4000 + 9000 * k, drive: 0, gain: 1.6,
+            cutoff: k => 4000 + 9000 * k, drive: 0, gain: 1.62,
             step(t, s, k, len, L, bar) {
                 const chord = PROGRESSION[bar % 4];
                 const root = ROOTS[bar % 4];
@@ -904,7 +905,7 @@
             }
         },
         soft: {
-            cutoff: k => 700 + 4500 * k * k, drive: 0, gain: 1.35, shift: 5,     // F major: Dm – Bb – F – C
+            cutoff: k => 700 + 4500 * k * k, drive: 0, gain: 1.7, shift: 5,     // F major: Dm – Bb – F – C
             step(t, s, k, len, L, bar) {
                 if (s % 4 === 0) kick(t, 0.32, 110, 48, 0.22);
                 const chord = bar % 4;
@@ -920,7 +921,7 @@
         }
     };
     // The bus level for the music volume, and each beat's trim (`gain` on the style, measured RMS against Classic,
-    // Soft a little under) so every beat plays about as loud.
+    // all at the same level (K-weighted, within about 1 dB of Classic; re-measure if a track changes).
     const musicLevel = () => musicVolume * 0.55;
     const styleTrim = () => (STYLES[style] || STYLES.classic).gain || 1;
     function setMusicStyle(name) {
