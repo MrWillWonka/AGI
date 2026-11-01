@@ -214,23 +214,59 @@
     }
 
     // The sprint meter: a soft tone that rises with the charge while you hold.
+    // The meter's voice changes every few charges, so a sound heard thousands of times doesn't go stale.
+    // Every voice stays in A minor and rises with the charge; some move with the 16ths of the track.
+    const CHORD = [57, 60, 64, 67, 69, 72, 76, 79, 81];           // Am7 tones, A3 to A5
+    const CHARGE_VOICES = [
+        // The pentatonic, note by note, an arpeggiator climbing.
+        { type: 'triangle', gain: 0.05, note: (l) => PENTA[Math.min(PENTA.length - 1, Math.floor(l * PENTA.length))] },
+        // Chord tones only, a filtered square opening as it rises.
+        { type: 'square', gain: 0.035, cutoff: l => 600 + 3400 * l, note: (l) => CHORD[Math.min(CHORD.length - 1, Math.floor(l * CHORD.length))] },
+        // Octave hops on the 16ths while it climbs.
+        { type: 'triangle', gain: 0.05, note: (l, n) => PENTA[Math.min(PENTA.length - 1, Math.floor(l * PENTA.length))] - 12 + (n % 2 ? 12 : 0) },
+        // An acid line: a low A whose resonant filter sweeps open with the charge.
+        { type: 'sawtooth', gain: 0.045, q: 12, cutoff: l => 180 * Math.pow(24, l), note: (l, n) => (n % 4 === 3 ? 57 : 45) },
+        // A gated pad: the pentatonic chopped into 16ths, the gate opening wider as it fills.
+        { type: 'sawtooth', gain: 0.04, cutoff: l => 900 + 2000 * l, gate: true, note: (l) => PENTA[Math.min(PENTA.length - 1, Math.floor(l * PENTA.length))] }
+    ];
+    const VOICE_EVERY = 6;            // charges per voice
+    let charges = 0;
+    let voiceIdx = 0;
+
     function charge(level, free = false) {
         if (volume <= 0 || !ensure() || ctx.state !== 'running') return;
-        if (!chargeOsc) {
-            const o = ctx.createOscillator();
-            const g = ctx.createGain();
-            o.type = 'triangle';
-            g.gain.value = 0.0001;
-            g.gain.setTargetAtTime(0.05, ctx.currentTime, 0.03);
-            o.connect(g).connect(master);
-            o.start();
-            chargeOsc = { o, g };
-        }
-        // The meter climbs the pentatonic (A3 to A5) note by note, an arpeggiator rising with the charge;
-        // `free` (act two's thrust) glides instead.
+        const now = ctx.currentTime;
         const l = Math.max(0, Math.min(1, level));
-        const f = free ? NOTE(57) * Math.pow(2, 2 * l) : NOTE(PENTA[Math.min(PENTA.length - 1, Math.floor(l * PENTA.length))]);
-        chargeOsc.o.frequency.setTargetAtTime(f, ctx.currentTime, free ? 0.015 : 0.004);
+        // `free` (act two's thrust) is always a smooth glide.
+        const v = free ? { type: 'triangle', gain: 0.05 } : CHARGE_VOICES[voiceIdx];
+        if (!chargeOsc) {
+            if (!free && ++charges % VOICE_EVERY === 0) {
+                voiceIdx = (voiceIdx + 1 + Math.floor(Math.random() * (CHARGE_VOICES.length - 1))) % CHARGE_VOICES.length;
+            }
+            const vv = free ? v : CHARGE_VOICES[voiceIdx];
+            const o = ctx.createOscillator();
+            const f = ctx.createBiquadFilter();
+            const g = ctx.createGain();
+            o.type = vv.type;
+            f.type = 'lowpass';
+            f.frequency.value = vv.cutoff ? vv.cutoff(l) : 12000;
+            f.Q.value = vv.q || 1;
+            g.gain.value = 0.0001;
+            g.gain.setTargetAtTime(vv.gain, now, 0.03);
+            o.connect(f).connect(g).connect(master);
+            o.start();
+            chargeOsc = { o, f, g, v: vv };
+        }
+        const cv = chargeOsc.v;
+        if (free) {
+            chargeOsc.o.frequency.setTargetAtTime(NOTE(57) * Math.pow(2, 2 * l), now, 0.015);
+            return;
+        }
+        const pos = clock ? stepAt(now) : 0;
+        const n = Math.floor(pos);
+        chargeOsc.o.frequency.setTargetAtTime(NOTE(cv.note(l, n)), now, 0.004);
+        if (cv.cutoff) chargeOsc.f.frequency.setTargetAtTime(cv.cutoff(l), now, 0.02);
+        if (cv.gate) chargeOsc.g.gain.setTargetAtTime((pos % 1) < 0.35 + 0.5 * l ? cv.gain : cv.gain * 0.08, now, 0.006);
     }
 
     function chargeStop() {
@@ -363,30 +399,42 @@
         });
     }
 
+    // Layers fade in and out over a couple of bars rather than switching on a threshold: the intensity
+    // eases toward the ball's speed (faster on the way up than down), each layer's level ramps across a
+    // band around its threshold, and the tempo glides into and out of flow's slow-down.
+    const RISE = 1.2, FALL = 3;       // seconds (time constants) for the intensity to follow speed
+    const layer = (k, at) => Math.max(0, Math.min(1, (k - at) / 0.2 + 0.5));
     function schedule() {
         if (!music || ctx.state !== 'running' || document.hidden) return;
+        const now = ctx.currentTime;
+        const dt = Math.min(0.5, now - (music.last ?? now));
+        music.last = now;
+        music.k ??= intensity;
+        music.k += (intensity - music.k) * (1 - Math.exp(-dt / (intensity > music.k ? RISE : FALL)));
+        const k = music.k;
         const slow = mode === 'flow' || mode === 'freeze';
-        const stepLen = STEP / (slow ? 0.6 : 1);
-        if (stepLen !== clock.len) retime(stepLen, music.step, music.nextStep);   // the grid slows with the track
-        const k = intensity;
-        while (music.nextStep < ctx.currentTime + 0.12) {
+        const target = STEP / (slow ? 0.6 : 1);
+        while (music.nextStep < now + 0.12) {
+            // The tempo glides a step at a time (about a bar to settle).
+            const len = Math.abs(clock.len - target) < 1e-4 ? target : clock.len + (target - clock.len) * 0.12;
+            if (len !== clock.len) retime(len, music.step, music.nextStep);
             const t = music.nextStep;
             const s = ((music.step % 16) + 16) % 16;
             if (s % 4 === 0) kick(t, 0.5);
-            if (BASS[s]) synth(t, BASS[s], stepLen * 2.2, 0.22, 'sawtooth', 220 + 1600 * k);
-            if (k > 0.2 && s % 4 === 2) hat(t, 0.08 + 0.06 * k);
-            if (k > 0.45 && (s === 4 || s === 12)) clap(t, 0.16);
-            if (k > 0.65 && s % 2 === 1) hat(t, 0.05, 0.025);
-            if (k > 0.8) synth(t, ARP[s % ARP.length] + 12, stepLen * 0.9, 0.05, 'square', 3200);
-            music.nextStep += stepLen;
+            if (BASS[s]) synth(t, BASS[s], len * 2.2, 0.22, 'sawtooth', 220 + 1600 * k);
+            const off = layer(k, 0.2), clapL = layer(k, 0.45), sixteenth = layer(k, 0.65), arpL = layer(k, 0.8);
+            if (off > 0.02 && s % 4 === 2) hat(t, (0.08 + 0.06 * k) * off);
+            if (clapL > 0.02 && (s === 4 || s === 12)) clap(t, 0.16 * clapL);
+            if (sixteenth > 0.02 && s % 2 === 1) hat(t, 0.05 * sixteenth, 0.025);
+            if (arpL > 0.02) synth(t, ARP[s % ARP.length] + 12, len * 0.9, 0.05 * arpL, 'square', 1200 + 2000 * arpL);
+            music.nextStep += len;
             music.step++;
         }
         // The mood: muffled in flow and bullet time, distorted in a crunch, opening up with speed.
-        const now = ctx.currentTime;
         const cutoff = slow ? 600 : 900 + 9000 * k * k;
-        music.filter.frequency.setTargetAtTime(cutoff, now, 0.25);
-        music.wet.gain.setTargetAtTime(mode === 'crunch' ? 0.55 : 0, now, 0.08);
-        music.dry.gain.setTargetAtTime(mode === 'crunch' ? 0.6 : 1, now, 0.08);
+        music.filter.frequency.setTargetAtTime(cutoff, now, slow ? 0.6 : 0.5);
+        music.wet.gain.setTargetAtTime(mode === 'crunch' ? 0.55 : 0, now, 0.15);
+        music.dry.gain.setTargetAtTime(mode === 'crunch' ? 0.6 : 1, now, 0.15);
     }
 
     // The ball's speed (0-1), and the power-up shaping the beat, from game.js.

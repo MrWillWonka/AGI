@@ -333,7 +333,9 @@ window.AGI = (function () {
         'room:rnd': { map: 'rnd' },
         'hint:hold': { anchor: () => ui.actions.compute?.button, kind: 'tip' },
         // After the first skill: on the result card, the replicated best run; in the lab, Scheduled tasks.
-        'hint:replay': { anchor: () => $('rollResult'), kind: 'tip', place: 'below', ms: 15000 },
+        // On the card's passive XP line (the whole card when it has none).
+        'hint:replay': { anchor: () => $('rollResult').querySelector('.passive-line') || $('rollResult'), kind: 'tip' },
+        'hint:rerun': { anchor: () => $('legPick'), kind: 'tip' },
         'hint:tasks': { anchor: () => $('taskPanel'), kind: 'tip', ms: 12000 },
         // While you train: the first time the lab has something new, or an investor's task is done. Beside the
         // run view's Lab supply (a way there), else the Lab's tile on Surveillance (phones hide the chip).
@@ -374,7 +376,7 @@ window.AGI = (function () {
     function showCallout(c) {
         if (c.gen !== calloutGen) return;
         const where = CALLOUTS[c.key] || {};
-        const target = where.anchor?.();
+        let target = where.anchor?.();
         const onScreen = !!target && !target.hidden && !!target.offsetParent && target.getBoundingClientRect().width > 0;
         const nav = $('minimap');
         // A tip about something on another screen (no room on the map to point at) waits until it's in view.
@@ -385,7 +387,7 @@ window.AGI = (function () {
             else setTimeout(() => showCallout(c), 1000);
             return;
         }
-        const anchor = onScreen ? target : nav;
+        let anchor = onScreen ? target : nav;
         if (!anchor || anchor.hidden) { calloutLive = null; return nextCallout(); }
         const box = toastCard(c.title, c.message, where.kind || 'room');
         box.classList.add('callout', onScreen ? 'callout-side' : 'callout-map');
@@ -453,6 +455,16 @@ window.AGI = (function () {
         // A callout beside something leaves with it (zooming out of the room, a bay opening).
         // One pointing at a room on the map leaves once you're in that room.
         const watch = setInterval(() => {
+            // A target that was rebuilt (the result card gets its buttons when the run's over) is found again.
+            if (onScreen && !target.isConnected) {
+                const t = where.anchor?.();
+                if (t?.isConnected) {
+                    anchor.removeEventListener('click', onTarget);
+                    target = anchor = t;
+                    anchor.addEventListener('click', onTarget);
+                    place();
+                }
+            }
             if (onScreen ? !target.offsetParent || !target.getBoundingClientRect().width : view === where.map) close('left');
         }, 300);
         requestAnimationFrame(() => { place(); box.classList.add('show'); spot?.classList.add('show'); });
@@ -460,9 +472,11 @@ window.AGI = (function () {
         const shownAt = Date.now();
         pt('tip', { key: c.key, at: onScreen ? 'beside' : 'map' });
         let done = false;
+        if (tip) tipDismiss = () => close('clicked');
         const close = by => {
             if (done) return;
             done = true;
+            if (tip) tipDismiss = null;
             pt('tipClosed', { key: c.key, by, s: Math.round((Date.now() - shownAt) / 100) / 10 });
             clearTimeout(timer);
             anchor.removeEventListener('click', onTarget);
@@ -479,6 +493,15 @@ window.AGI = (function () {
         const onTarget = () => close('target');
         box.addEventListener('click', () => close('clicked'));
         anchor.addEventListener('click', onTarget);
+    }
+
+    // While a tip is up, the press that dismisses it never also sprints (the spotlight lets clicks through,
+    // so tapping the trail to clear the first-run tip fired a sprint).
+    let tipDismiss = null;
+    function dismissTipFirst() {
+        if (!tipDismiss) return false;
+        tipDismiss();
+        return true;
     }
 
     function floatGain(anchor, text) {
@@ -1215,7 +1238,7 @@ window.AGI = (function () {
         if (result.gained != null) {
             floatGain(button, `+${E.format(result.gained)} ${E.RESOURCES[result.resource].short}`);
             clickGlow(result.resource, result.gained);
-            sfx('click', { res: result.resource, q: heldBeat ? 2 : 0 });
+            sfx('click', { res: result.resource, q: heldBeat ? 2 : 1 });
         }
         if (result.msg) log(result.msg, 'success');
         afterChange();
@@ -2008,6 +2031,13 @@ window.AGI = (function () {
         if (!state.intro['hint:train'] && openBay === 'training' && path.view === 'run' && state.stats.rolls === 0) {
             state.intro['hint:train'] = true;
             callout('hint:train', 'Training runs', 'This is how your model learns. Hold the button to charge a sprint and let go to fire it. Roll over the hills to the flag: cresting the skill hill teaches the model a skill, and every metre earns XP to spend on upgrades.');
+        }
+        // Replaying pays once there's a real leg behind you (the warm-up's is two metres), on the screen
+        // where you pick one.
+        if (!state.intro['hint:rerun'] && state.intro['hint:replay'] && openBay === 'training' && path.view === 'dev'
+            && state.path.learned > E.FIRST_REAL_SKILL && !$('legPick').hidden) {
+            state.intro['hint:rerun'] = true;
+            callout('hint:rerun', 'Raise your passive XP', 'Run a cleared leg again with better upgrades: a better run raises what that leg earns by itself. Pick the leg here.');
         }
         if (!state.intro['hint:prompt'] && openBay === 'training' && path.view === 'run' && E.derive(state).zoneWidth > 0) {
             state.intro['hint:prompt'] = true;
@@ -4095,6 +4125,7 @@ window.AGI = (function () {
             target.addEventListener('pointerdown', e => {
                 if (e.button !== 0) return;
                 e.preventDefault();
+                if (dismissTipFirst()) return;
                 target.setPointerCapture?.(e.pointerId);
                 pressHold();
             });
@@ -4110,7 +4141,7 @@ window.AGI = (function () {
         document.addEventListener('keydown', e => {
             if (!runKeys(e)) return;
             e.preventDefault();
-            if (e.repeat) return;
+            if (e.repeat || dismissTipFirst()) return;
             pressHold();
         });
         window.addEventListener('blur', () => { path.held = false; });
@@ -5310,7 +5341,7 @@ window.AGI = (function () {
         if (improvedLegs.length) {
             const names = improvedLegs.map(k => E.skillAt(k).name);
             const shown = names.length > 2 ? `${names.slice(0, 2).join(', ')} +${names.length - 2}` : names.join(', ');
-            lines.push([`Passive XP up (${shown}): +${xpText(passiveBefore)} → +${xpText(E.derive(state).xpPerSec)}/s`, '', 'good']);
+            lines.push([`Passive XP up (${shown}): +${xpText(passiveBefore)} → +${xpText(E.derive(state).xpPerSec)}/s`, '', 'good passive-line']);
         }
         if (learned.length && !result.skill) {
             // Skills learned on the way (announced as they happened); the run went on until it stopped.
@@ -5326,7 +5357,7 @@ window.AGI = (function () {
                 lines: [...learned.map(l => [l.skill.effect, '']), ...(grants ? [[grants, '']] : []), ...lines, ...(pct > 0 ? [[`Then ${pct}% of the way to ${target}`, '']] : [])], record: result.record });
             if (!state.intro['hint:replay']) {
                 state.intro['hint:replay'] = true;
-                callout('hint:replay', 'Tip', 'Your AI now replays your best run on each cleared leg for passive XP. Run a leg again with better upgrades to raise it.');
+                callout('hint:replay', 'Passive XP', 'Your AI now replays your best run on each cleared leg, earning XP by itself while you play.');
             }
         } else if (result.skill) {
             const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
@@ -5339,7 +5370,7 @@ window.AGI = (function () {
                 lines: [[result.skill.effect, ''], ...(grants ? [[grants, '']] : []), ...lines] });
             if (!state.intro['hint:replay']) {
                 state.intro['hint:replay'] = true;
-                callout('hint:replay', 'Tip', 'Your AI now replays your best run on each cleared leg for passive XP. Run a leg again with better upgrades to raise it.');
+                callout('hint:replay', 'Passive XP', 'Your AI now replays your best run on each cleared leg, earning XP by itself while you play.');
             }
         } else {
             // So close: stopped on the frontier's climb near the top. A consolation share and how much more speed
