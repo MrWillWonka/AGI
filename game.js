@@ -39,6 +39,21 @@ window.AGI = (function () {
     // Music (sfx.js): a backbeat whose intensity follows the ball's speed on the trail and whose mood follows the
     // power-up in play (a crunch distorts it, flow and bullet time slow and muffle it). Quiet everywhere else.
     const MUSIC_KEY = 'agiMusic';
+    const BEAT_KEY = 'agiBeat';      // Classic, Dark or Soft (per device)
+    const THEME_KEY = 'agiTheme';           // auto (follows the beat), night, red or pink (per device)
+    // The colour theme: chosen, or by default the beat's (Classic → Night survey, Dark → Red, Soft → Soft pink).
+    function applyTheme() {
+        const pick = storageGet(THEME_KEY) || 'auto';
+        const beat = storageGet(BEAT_KEY) || 'classic';
+        const theme = pick === 'auto' ? { classic: 'night', dark: 'red', soft: 'pink' }[beat] || 'night' : pick;
+        if (theme === 'night') delete document.documentElement.dataset.theme;
+        else document.documentElement.dataset.theme = theme;
+        readPathColors();
+    }
+    const SFX_MIX_KEY = 'agiSfxMix';        // each sound group's volume (per device)
+    const SFX_SIMPLE_KEY = 'agiSfxSimple';  // simple sounds only (per device)
+    const SOUND_GROUPS = [['clicks', 'Workbench clicks'], ['buys', 'Purchases'], ['training', 'Training'], ['events', 'Celebrations'], ['ui', 'Interface']];
+    const SOUND_GROUP_SAMPLE = { clicks: 'click', buys: 'buy', training: 'clean', events: 'achievement', ui: 'ui' };
     const MUSIC_DEFAULT = '0.35';
     function musicTick() {
         if (!window.SFX?.musicState) return;
@@ -1161,6 +1176,45 @@ window.AGI = (function () {
             window.SFX?.setMusic(v);
             showMusic(v);
         });
+        // Sound groups: a volume for each kind of sound, and simple sounds only (per device).
+        const mixSaved = (() => { try { return JSON.parse(storageGet(SFX_MIX_KEY) || '{}'); } catch { return {}; } })();
+        const mix = Object.fromEntries(SOUND_GROUPS.map(([k]) => [k, mixSaved[k] ?? 1]));
+        window.SFX?.setMix?.(mix);
+        $('soundGroups').replaceChildren(...SOUND_GROUPS.map(([k, label]) => {
+            const value = el('span', { class: 'muted small', text: mix[k] > 0 ? `${Math.round(mix[k] * 100)}%` : 'off' });
+            const input = el('input', { type: 'range', min: '0', max: '1', step: '0.05', 'aria-label': `${label} volume` });
+            input.value = mix[k];
+            input.addEventListener('input', () => {
+                mix[k] = Number(input.value);
+                setText(value, mix[k] > 0 ? `${Math.round(mix[k] * 100)}%` : 'off');
+                window.SFX?.setMix?.(mix);
+                storageSet(SFX_MIX_KEY, JSON.stringify(mix));
+            });
+            input.addEventListener('change', () => sfx(SOUND_GROUP_SAMPLE[k], k === 'buys' ? { panel: 'hardware' } : undefined));
+            return el('label', { class: 'setting-row' }, [label, ' ', input, ' ', value]);
+        }));
+        const simpleBox = $('settingSimpleSfx');
+        simpleBox.checked = storageGet(SFX_SIMPLE_KEY) === '1';
+        window.SFX?.setSimple?.(simpleBox.checked);
+        simpleBox.addEventListener('change', () => {
+            storageSet(SFX_SIMPLE_KEY, simpleBox.checked ? '1' : '0');
+            window.SFX?.setSimple?.(simpleBox.checked);
+            sfx('buy', { panel: 'hardware' });
+        });
+        // The beat: Classic, Dark or Soft, per device.
+        const beat = $('settingBeat');
+        const beatStyle = ['classic', 'dark', 'soft'].includes(storageGet(BEAT_KEY)) ? storageGet(BEAT_KEY) : 'classic';
+        beat.value = beatStyle;
+        window.SFX?.setMusicStyle?.(beatStyle);
+        beat.addEventListener('change', e => {
+            storageSet(BEAT_KEY, e.target.value);
+            window.SFX?.setMusicStyle?.(e.target.value);
+            applyTheme();
+        });
+        const theme = $('settingTheme');
+        theme.value = ['auto', 'night', 'red', 'pink'].includes(storageGet(THEME_KEY)) ? storageGet(THEME_KEY) : 'auto';
+        theme.addEventListener('change', e => { storageSet(THEME_KEY, e.target.value); applyTheme(); });
+        applyTheme();
         $('settingNotation').addEventListener('change', e => {
             state.settings.notation = e.target.value;
             applySettings();
@@ -1291,7 +1345,9 @@ window.AGI = (function () {
         const ptChoice = playtest && !isLabUpgrade(up0) ? playtestChoice(up0) : null;
         const result = n > 1 ? E.buyMany(state, id, n) : E.buy(state, id);
         log(result.count > 1 ? `${E.upgradeName(state, up0)} ×${result.count}: now level ${E.level(state, id)}.` : result.msg, result.ok ? 'success' : 'warning');
-        sfx(result.ok ? (up0.max === 1 || result.count > 1 || result.evolved ? 'buyBig' : 'buy') : 'error');
+        // Each panel has its own buy sound (hardware, software, research, consciousness, the tree, legacy).
+        if (result.ok) sfx('buy', { panel: up0.tab, big: up0.max === 1 || result.count > 1 || !!result.evolved });
+        else sfx('error');
         if (result.ok) {
             pt('buy', { id, lvl: E.level(state, id), ...(result.count > 1 ? { n: result.count } : {}), ...(ptChoice || {}) });
             const up = E.UPGRADE_BY_ID[id];
@@ -2667,6 +2723,7 @@ window.AGI = (function () {
                     if (r.ok) { ptOffers.handled.add(o.id); pt('claim', { id: o.id, task: o.task, reward: E.PROJECT_REWARDS[o.reward].text }); }
                     log(r.msg, r.ok ? 'success' : 'warning');
                     if (r.ok) {
+                        sfx('claim');
                         termLog(`project paid out: ${E.PROJECT_REWARDS[o.reward].text}`);
                     }
                     afterChange();
@@ -3645,7 +3702,7 @@ window.AGI = (function () {
     // popup before it's bought, so the change can be felt before it's chosen (playtest 2: a breakthrough "wasn't
     // well defined" until it happened). The real ball physics (training-path.js) on a short stretch, with scripted
     // sprints and the mechanic at work, drawn like the trail: same ball, hills, strips and colours.
-    const DEMO = { w: 240, h: 96, period: 3.2, leg: 2, seed: 7, strength: 1.6, view: 9 };
+    const DEMO = { w: 240, h: 112, graph: 92, period: 3.2, leg: 2, seed: 7, strength: 1.6, view: 9 };
     const DEMO_TEXT = {
         breakthrough: 'Sometimes a sprint hits ×1.75 harder',
         prompt: 'Release inside the zone: bonus XP',
@@ -3701,6 +3758,13 @@ window.AGI = (function () {
         const script = DEMO_SCRIPTS[kind] || {};
         const roll = T.createRoll(DEMO.leg, DEMO.seed, { pushes: 8, cooldown: 0.3, strips: script.strips });
         const sim = { kind, script, roll, t: 0, next: 0, label: null, labelAt: -9, shock: null, cam: null };
+        // One vertical scale for the whole loop, from the tallest hill it can reach: rescaling as hills came into
+        // view made the peaks jump and clip.
+        let tallest = 0.15;
+        // What the camera can show in one loop, short of the leg's skill hill (a goal the demos never reach).
+        const end = Math.min(roll.ball.x + DEMO.view + 14, roll.ground.goal?.start ?? Infinity);
+        for (let x = roll.ball.x - DEMO.view; x < end; x += 0.02) tallest = Math.max(tallest, roll.ground.height(x));
+        sim.top = tallest * 1.12;
         // The strip demos start the ball where its strip matters: rolling back onto a back strip, or up to a face strip.
         if (script.place) {
             const st = roll.ground.strips.find(x => x.kind === script.place);
@@ -3745,10 +3809,15 @@ window.AGI = (function () {
         const want = roll.ball.x - DEMO.view * 0.35;
         sim.cam = sim.cam == null ? want : sim.cam + (want - sim.cam) * 0.12;
         const left = sim.cam;
-        const xs = Array.from({ length: 61 }, (_, i) => left + (DEMO.view * i) / 60);
-        const top = Math.max(0.15, ...xs.map(x => g.height(x))) * 1.15;   // the hills in view fill the height, however small
+        // A sample per canvas pixel, so a steep, narrow peak keeps its tip as it scrolls past.
+        const xs = Array.from({ length: w + 1 }, (_, i) => left + (DEMO.view * i) / w);
+        // The loop's scale, eased up to make room when the skill hill comes into view (never a jump, never a clip).
+        const need = Math.max(sim.top, ...xs.map(x => g.height(x) * 1.08));
+        sim.view = sim.view == null ? need : sim.view + (need - sim.view) * (need > sim.view ? 0.3 : 0.05);
+        const top = Math.max(sim.view, need * 0.97);
+        const gh = DEMO.graph;   // the graph; the meter sits under it, as in a run
         const X = x => ((x - left) / DEMO.view) * w;
-        const Y = y => h - 14 - (y / top) * (h - 34);
+        const Y = y => gh - 6 - (y / top) * (gh - 24);
         ctx.clearRect(0, 0, w, h);
         ctx.fillStyle = hexAlpha(c.bg, 1);
         ctx.fillRect(0, 0, w, h);
@@ -3758,11 +3827,13 @@ window.AGI = (function () {
         ctx.strokeStyle = hexAlpha(c.muted, 0.85);
         ctx.lineWidth = 2;
         ctx.stroke();
-        ctx.lineTo(w, h);
-        ctx.lineTo(0, h);
+        ctx.lineTo(w, gh);
+        ctx.lineTo(0, gh);
         ctx.closePath();
         ctx.fillStyle = hexAlpha(c.primary, 0.06);
         ctx.fill();
+        ctx.fillStyle = hexAlpha(c.muted, 0.25);
+        ctx.fillRect(0, gh, w, 1);
         // Strips in view.
         for (const st of g.strips) {
             if (st.to < left || st.from > left + DEMO.view) continue;
@@ -3796,8 +3867,8 @@ window.AGI = (function () {
         ctx.arc(bx, by, 5, 0, Math.PI * 2);
         ctx.fillStyle = sim.shock && t - sim.shock.t < 1 ? c.warning : roll.flowing ? c.accent : c.text;
         ctx.fill();
-        // The meter, for the demos about it: up to the zone, all at once, or holding at the top.
-        if (script.meter) {
+        // The meter, under the trail whenever the demo sprints: up to the zone, all at once, or holding at the top.
+        if (script.meter || script.sprints) {
             const nextAt = (script.sprints || []).find(x => x[0] >= t - 0.05)?.[0] ?? 9;
             const prevAt = [...(script.sprints || [])].reverse().find(x => x[0] < t)?.[0] ?? 0;
             const span = Math.max(0.3, nextAt - prevAt);
@@ -3806,14 +3877,16 @@ window.AGI = (function () {
             if (script.meter === 'zone') fill *= 0.62;
             if (script.meter === 'effort') { fill = t > 1.0 && t < 1.4 ? 1 : fill * 0.7; if (fill === 1) tone = c.warning; }
             if (script.meter === 'hold') { fill = t < 0.6 ? t / 0.6 : 1; if (t >= 0.6 && t < 1.15) tone = c.warning; }
+            // The strength meter, under the trail like the run view's.
+            const mx = 8, mw = w - 16, my = gh + 7, mh = 7;
             ctx.fillStyle = hexAlpha(c.muted, 0.25);
-            ctx.fillRect(w - 92, 6, 84, 6);
+            ctx.fillRect(mx, my, mw, mh);
             if (script.meter === 'zone') {
                 ctx.fillStyle = hexAlpha(c.success, 0.45);
-                ctx.fillRect(w - 92 + 84 * 0.55, 6, 84 * 0.13, 6);
+                ctx.fillRect(mx + mw * 0.55, my, mw * 0.13, mh);
             }
             ctx.fillStyle = tone;
-            ctx.fillRect(w - 92, 6, 84 * fill, 6);
+            ctx.fillRect(mx, my, mw * fill, mh);
             if (script.meter === 'hold' && t >= 0.6 && t < 1.15) sim.label = 'HOLD', sim.labelAt = Math.max(sim.labelAt, 0.6);
         }
         // What's happening, for a moment after it happens.
@@ -4091,15 +4164,21 @@ window.AGI = (function () {
         return path.roll;
     }
 
+    // The trail's canvas colours come from the theme's tokens (read again when the theme changes).
+    function readPathColors() {
+        const css = getComputedStyle(document.documentElement);
+        for (const name of ['primary', 'secondary', 'accent', 'success', 'warning', 'danger', 'muted', 'border', 'text', 'bg']) {
+            path.colors[name] = css.getPropertyValue('--' + name).trim();
+        }
+        if (path.canvas && path.width) drawPath();
+    }
+
     function buildPath() {
         document.querySelector('.run-stats .module-supply').addEventListener('click', () => jumpTo('lab'));
         const canvas = $('pathCanvas');
         path.canvas = canvas;
         path.ctx = canvas.getContext('2d');
-        const css = getComputedStyle(document.documentElement);
-        for (const name of ['primary', 'secondary', 'accent', 'success', 'warning', 'danger', 'muted', 'border', 'text', 'bg']) {
-            path.colors[name] = css.getPropertyValue('--' + name).trim();
-        }
+        readPathColors();
 
         // The trail fills the bay: the canvas takes its wrap's size (CSS gives the wrap the free space).
         new ResizeObserver(() => {

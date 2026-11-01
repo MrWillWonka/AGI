@@ -77,7 +77,7 @@
         o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
         if (detune) o.detune.value = detune;
         g.gain.setValueAtTime(0.0001, t);
-        g.gain.exponentialRampToValueAtTime(gain, t + attack);
+        g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain * gmul), t + attack);
         g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
         if (cutoff) {
             const f = ctx.createBiquadFilter();
@@ -109,7 +109,7 @@
         f.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
         const g = ctx.createGain();
         g.gain.setValueAtTime(0.0001, t);
-        g.gain.exponentialRampToValueAtTime(gain, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain * gmul), t + 0.01);
         g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
         src.connect(f).connect(g).connect(master);
         src.start(t);
@@ -136,6 +136,7 @@
         clock = { t0: t, n0: n, len };
     }
     let base = 0;                                   // seconds every note of the current sound is delayed by
+    let gmul = 1;                                   // the current sound's group volume (see GROUPS)
     const S = () => (clock ? clock.len : STEP);     // one 16th at the current tempo
 
     // A filtered note: the house voice (a short blip through a lowpass, techno-style).
@@ -155,6 +156,55 @@
     };
     const PENTA = [57, 60, 62, 64, 67, 69, 72, 74, 76, 79, 81];   // the meter climbs these, A3 to A5
 
+    // A different variation from last time: `vary(key, n)` never returns the same index twice running.
+    const lastVar = {};
+    function vary(key, n) {
+        let i = Math.floor(Math.random() * n);
+        if (n > 1 && i === lastVar[key]) i = (i + 1 + Math.floor(Math.random() * (n - 1))) % n;
+        lastVar[key] = i;
+        return i;
+    }
+    const bell = (n, o = {}) => { tone({ f0: NOTE(n), dur: 0.35, type: 'sine', gain: 0.06, ...o }); tone({ f0: NOTE(n + 19), dur: 0.12, type: 'sine', gain: 0.015, ...o }); };
+    const pluck = (n, o = {}) => tone({ f0: NOTE(n), dur: 0.18, type: 'sawtooth', gain: 0.04, cutoff: 2200, q: 3, ...o });
+    const run = (fn, notes, step, g = 1, at = 0) => notes.forEach((n, i) => fn(n, { at: at + i * step, gain: (fn === bell ? 0.06 : fn === pluck ? 0.04 : 0.07) * g }));
+    // Every panel in its own colour of the track: hardware square blips with a sub (the sound the owner liked),
+    // software (data) quick high triangles like a terminal, research bells, consciousness a soft pad, the skill
+    // tree saw plucks, legacy a wide chord.
+    const BUY_SETS = {
+        hardware: [
+            g => run(blip, [69, 72, 76, 81], S() / 2, g),
+            g => run(blip, [64, 69, 72, 76], S() / 2, g),
+            g => run(blip, [57, 64, 69, 76], S() / 2, g),
+            g => run(blip, [69, 76, 72, 81], S() / 2, g)
+        ],
+        software: [
+            g => run((n, o) => blip(n, { type: 'triangle', cutoff: 6000, dur: 0.06, ...o }), [81, 84, 88, 93], S() / 4, g),
+            g => run((n, o) => blip(n, { type: 'triangle', cutoff: 6000, dur: 0.06, ...o }), [88, 84, 81, 88], S() / 4, g),
+            g => run((n, o) => blip(n, { type: 'triangle', cutoff: 6000, dur: 0.06, ...o }), [76, 81, 79, 84, 88], S() / 4, g)
+        ],
+        algorithms: [
+            g => run(bell, [69, 76, 81], S(), g),
+            g => run(bell, [72, 79, 84], S(), g),
+            g => run(bell, [64, 69, 76, 81], S() / 2, g)
+        ],
+        consciousness: [
+            g => [57, 64, 69, 72].forEach(n => tone({ f0: NOTE(n), dur: 0.9, type: 'sawtooth', gain: 0.02 * g, cutoff: 1200, attack: 0.12, detune: 6 })),
+            g => [55, 62, 67, 71].forEach(n => tone({ f0: NOTE(n), dur: 0.9, type: 'sawtooth', gain: 0.02 * g, cutoff: 1200, attack: 0.12, detune: 6 })),
+            g => [60, 64, 67, 72].forEach(n => tone({ f0: NOTE(n), dur: 0.9, type: 'sawtooth', gain: 0.02 * g, cutoff: 1200, attack: 0.12, detune: 6 }))
+        ],
+        training: [
+            g => run(pluck, [57, 64, 69, 72], S() / 2, g),
+            g => run(pluck, [64, 69, 72, 76], S() / 2, g),
+            g => run(pluck, [60, 67, 72, 76], S() / 2, g),
+            g => run(pluck, [57, 62, 64, 69], S() / 2, g)
+        ],
+        legacy: [
+            g => { stab([57, 64, 69, 72, 76], { gain: 0.045 * g, dur: 0.7, cutoff: 2600 }); sub(33, 33, 0.8, 0.2 * g); },
+            g => { stab([55, 62, 67, 71, 74], { gain: 0.045 * g, dur: 0.7, cutoff: 2600 }); sub(31, 31, 0.8, 0.2 * g); },
+            g => { stab([53, 60, 64, 69, 72], { gain: 0.045 * g, dur: 0.7, cutoff: 2600 }); sub(29, 29, 0.8, 0.2 * g); }
+        ]
+    };
+
     const SOUNDS = {
         // Workbench jobs: a blip on the bar's current 8th (a hold lands on the 8ths: see holdDelay).
         click: ({ res = 'cp' } = {}) => {
@@ -165,8 +215,21 @@
             else if (res === 'rp') { tone({ f0: NOTE(n), dur: 0.16, type: 'sine', gain: 0.09 }); tone({ f0: NOTE(n + 12), dur: 0.06, type: 'sine', gain: 0.03 }); }
             else blip(n, { gain: 0.06 * (PHONE ? 0.55 : 1), dur: 0.07, cutoff: PHONE ? 1800 : 2600 });
         },
-        buy: () => SOUNDS.buyBig(),   // one at a time sounds like buying many (the owner preferred it)
-        buyBig: () => { arp([69, 72, 76, 81], S() / 2, { gain: 0.07 }); sub(45, 45, 0.3, 0.12); },
+        // Buying: each panel has its own sound, in a few variations that never repeat back to back; a big buy
+        // (several at once, a one-time upgrade, a tool growing) adds a sub and a top note.
+        buy: ({ panel = 'hardware', big = false } = {}) => {
+            const set = BUY_SETS[panel] || BUY_SETS.hardware;
+            const i = vary('buy:' + panel, set.length);
+            set[i](big ? 1.15 : 1);
+            if (big) { sub(45, 45, 0.3, 0.12); blip(93, { gain: 0.035, at: 3 * S() / 2 + S() * 0.5, dur: 0.16 }); }
+        },
+        buyBig: (o = {}) => SOUNDS.buy({ ...o, big: true }),
+        // An investor's reward claimed: a bright figure, varied.
+        claim: () => [
+            () => arp([76, 81, 84, 88, 93], S() / 2, { type: 'triangle', gain: 0.06, cutoff: 5000 }),
+            () => arp([81, 88, 84, 93], S() / 2, { type: 'triangle', gain: 0.06, cutoff: 5000 }),
+            () => arp([72, 76, 79, 84, 88], S() / 2, { type: 'triangle', gain: 0.06, cutoff: 5000 })
+        ][vary('claim', 3)](),
         error: () => tone({ f0: NOTE(52), f1: NOTE(45), dur: 0.12, type: 'square', gain: 0.05, cutoff: 700 }),
         // A sprint: a filter riser as strong as the charge, and a sub drop to A.
         sprint: ({ charge = 1 } = {}) => {
@@ -216,22 +279,57 @@
         ship: () => { arp([57, 64, 69, 76, 81], S(), { type: 'sawtooth', gain: 0.05, cutoff: 2200 }); sub(33, 33, 1.6, 0.25); },
         ui: () => noise({ dur: 0.025, gain: 0.05, f0: 9000, type: 'highpass' })
     };
+    // Sound groups, each with its own volume in Settings (per device): a group at 0 is silent.
+    const GROUPS = {
+        clicks: ['click'],
+        buys: ['buy', 'buyBig', 'claim'],
+        training: ['sprint', 'clean', 'perfect', 'system', 'breakthrough', 'smash', 'windup', 'launch', 'land', 'nearMiss', 'crunch', 'flow', 'freeze', 'release'],
+        events: ['summit', 'runEnd', 'record', 'viral', 'achievement', 'phase', 'ship'],
+        ui: ['ui', 'error']
+    };
+    const GROUP_OF = Object.fromEntries(Object.entries(GROUPS).flatMap(([g, names]) => names.map(n => [n, g])));
+    const mix = { clicks: 1, buys: 1, training: 1, events: 1, ui: 1 };
+    function setMix(m) { for (const k of Object.keys(mix)) if (m && m[k] != null) mix[k] = Math.max(0, Math.min(1, Number(m[k]) || 0)); }
+
+    // Simple sounds only: plain short sine beeps, nothing on the grid, no arpeggios or variations.
+    let simple = false;
+    const beep = (f, dur = 0.08, gain = 0.07, at = 0) => tone({ f0: f, dur, type: 'sine', gain, at });
+    const SIMPLE = {
+        click: () => beep(880, 0.04, 0.05),
+        buy: () => { beep(660, 0.07); beep(880, 0.09, 0.07, 0.06); },
+        buyBig: () => { beep(660, 0.07); beep(880, 0.07, 0.07, 0.06); beep(1100, 0.1, 0.07, 0.12); },
+        claim: () => { beep(880, 0.07); beep(1320, 0.1, 0.07, 0.07); },
+        error: () => beep(220, 0.12, 0.05),
+        ui: () => beep(1200, 0.03, 0.04),
+        sprint: ({ charge = 1 } = {}) => beep(220 + 220 * charge, 0.12, 0.06 + 0.06 * charge),
+        clean: () => beep(1320, 0.1),
+        perfect: () => { beep(1320, 0.08); beep(1760, 0.12, 0.07, 0.07); },
+        system: () => { beep(1320, 0.08); beep(1760, 0.08, 0.07, 0.07); beep(2200, 0.14, 0.07, 0.14); },
+        land: ({ impact = 3 } = {}) => beep(110, 0.12, 0.05 + 0.1 * Math.min(1, impact / 15)),
+        summit: () => { beep(660, 0.1); beep(880, 0.1, 0.07, 0.1); beep(1320, 0.25, 0.07, 0.2); },
+        achievement: () => { beep(880, 0.1); beep(1320, 0.2, 0.07, 0.1); },
+        default: () => beep(660, 0.12)
+    };
+
     // Stingers wait for the grid: steps to quantize to (1 = the next 16th, 2 = the next 8th).
-    const QUANT = { buy: 1, buyBig: 1, summit: 2, record: 1, runEnd: 1, viral: 1, achievement: 1, phase: 2, ship: 2 };
+    const QUANT = { buy: 1, buyBig: 1, claim: 1, summit: 2, record: 1, runEnd: 1, viral: 1, achievement: 1, phase: 2, ship: 2 };
     // Minimum seconds between two plays of the same sound (clicks and dust can come in floods).
     const GAP = { click: 0.045, land: 0.08, launch: 0.15, buy: 0.05, ui: 0.05, error: 0.2, clean: 0.05 };
 
     function play(name, opts) {
-        if (volume <= 0 || !SOUNDS[name] || !ensure() || ctx.state !== 'running') return;
+        const gv = mix[GROUP_OF[name] || 'ui'];
+        if (volume <= 0 || gv <= 0 || !SOUNDS[name] || !ensure() || ctx.state !== 'running') return;
         const now = ctx.currentTime;
         if (last[name] != null && now - last[name] < (GAP[name] ?? 0.03)) return;
         last[name] = now;
         // A held click (`q` from game.js) or a stinger lands on the grid; a grid point too far off plays now.
-        const div = opts?.q ?? QUANT[name];
+        const div = simple ? 0 : opts?.q ?? QUANT[name];
         base = div ? Math.max(0, nextStep(div).t - now) : 0;
         if (base > 0.25) base = 0;
-        try { SOUNDS[name](opts); } catch { /* a bad node never breaks the game */ }
+        gmul = gv;
+        try { (simple ? SIMPLE[name] || SIMPLE.default : SOUNDS[name])(opts); } catch { /* a bad node never breaks the game */ }
         base = 0;
+        gmul = 1;
     }
 
     // Milliseconds until the next held-job beat: the next 8th note (at least `minMs` away), or while the track
@@ -244,59 +342,77 @@
     }
 
     // The sprint meter: a soft tone that rises with the charge while you hold.
-    // The meter's voice changes every few charges, so a sound heard thousands of times doesn't go stale.
-    // Every voice stays in A minor and rises with the charge; some move with the 16ths of the track.
+    // The meter: most charges are a quiet pluck that retriggers on the track's 16ths and climbs the pentatonic
+    // with the charge, so it plays along with the beat. Now and then (once in 25 to 50 charges) a special voice
+    // takes over for one charge, never the same special twice running.
     const CHORD = [57, 60, 64, 67, 69, 72, 76, 79, 81];           // Am7 tones, A3 to A5
-    const CHARGE_VOICES = [
-        // The pentatonic, note by note, an arpeggiator climbing.
-        { type: 'triangle', gain: 0.05, note: (l) => PENTA[Math.min(PENTA.length - 1, Math.floor(l * PENTA.length))] },
+    const pick = (list, l) => list[Math.min(list.length - 1, Math.floor(l * list.length))];
+    const BASE_VOICE = { type: 'triangle', gain: 0.022, sustain: 0.35, cutoff: () => 1800, note: l => pick(PENTA, l) };
+    const SPECIAL_VOICES = [
         // Chord tones only, a filtered square opening as it rises.
-        { type: 'square', gain: 0.035, cutoff: l => 600 + 3400 * l, note: (l) => CHORD[Math.min(CHORD.length - 1, Math.floor(l * CHORD.length))] },
+        { type: 'square', gain: 0.026, sustain: 0.4, cutoff: l => 600 + 3000 * l, note: l => pick(CHORD, l) },
         // Octave hops on the 16ths while it climbs.
-        { type: 'triangle', gain: 0.05, note: (l, n) => PENTA[Math.min(PENTA.length - 1, Math.floor(l * PENTA.length))] - 12 + (n % 2 ? 12 : 0) },
+        { type: 'triangle', gain: 0.03, sustain: 0.3, cutoff: () => 3000, note: (l, n) => pick(PENTA, l) - 12 + (n % 2 ? 12 : 0) },
         // An acid line: a low A whose resonant filter sweeps open with the charge.
-        { type: 'sawtooth', gain: 0.045, q: 12, cutoff: l => 180 * Math.pow(24, l), note: (l, n) => (n % 4 === 3 ? 57 : 45) },
-        // A gated pad: the pentatonic chopped into 16ths, the gate opening wider as it fills.
-        { type: 'sawtooth', gain: 0.04, cutoff: l => 900 + 2000 * l, gate: true, note: (l) => PENTA[Math.min(PENTA.length - 1, Math.floor(l * PENTA.length))] }
+        { type: 'sawtooth', gain: 0.028, sustain: 0.6, q: 10, cutoff: l => 180 * Math.pow(20, l), note: (l, n) => (n % 4 === 3 ? 57 : 45) },
+        // A gated pad: short chops on every 16th, opening as it fills.
+        { type: 'sawtooth', gain: 0.026, sustain: 0.05, cutoff: l => 900 + 1800 * l, note: l => pick(PENTA, l) }
     ];
-    const VOICE_EVERY = 6;            // charges per voice
-    let charges = 0;
-    let voiceIdx = 0;
+    const SPECIAL_EVERY = [25, 50];
+    let specialIn = SPECIAL_EVERY[0] + Math.floor(Math.random() * (SPECIAL_EVERY[1] - SPECIAL_EVERY[0] + 1));
+    let lastSpecial = -1;
+
+    function chargeVoice() {
+        if (--specialIn > 0) return BASE_VOICE;
+        specialIn = SPECIAL_EVERY[0] + Math.floor(Math.random() * (SPECIAL_EVERY[1] - SPECIAL_EVERY[0] + 1));
+        let i = Math.floor(Math.random() * SPECIAL_VOICES.length);
+        if (i === lastSpecial) i = (i + 1 + Math.floor(Math.random() * (SPECIAL_VOICES.length - 1))) % SPECIAL_VOICES.length;
+        lastSpecial = i;
+        return SPECIAL_VOICES[i];
+    }
+
+    // One 16th of the meter: the note for the charge then, struck at time t and decaying to its sustain.
+    function strikeCharge(c, l, n, t) {
+        const v = c.v;
+        c.o.frequency.setValueAtTime(NOTE(v.note(l, n)), t);
+        c.f.frequency.setTargetAtTime(v.cutoff(l), t, 0.02);
+        c.g.gain.cancelScheduledValues(t);
+        c.g.gain.setValueAtTime(v.gain * mix.training, t);
+        c.g.gain.setTargetAtTime(Math.max(0.0001, v.gain * v.sustain * mix.training), t + 0.005, 0.045);
+        c.sched = n;
+    }
 
     function charge(level, free = false) {
-        if (volume <= 0 || !ensure() || ctx.state !== 'running') return;
+        if (volume <= 0 || mix.training <= 0 || !ensure() || ctx.state !== 'running') return;
+        free = free || simple;   // simple sounds: a plain rising tone
         const now = ctx.currentTime;
         const l = Math.max(0, Math.min(1, level));
-        // `free` (act two's thrust) is always a smooth glide.
-        const v = free ? { type: 'triangle', gain: 0.05 } : CHARGE_VOICES[voiceIdx];
         if (!chargeOsc) {
-            if (!free && ++charges % VOICE_EVERY === 0) {
-                voiceIdx = (voiceIdx + 1 + Math.floor(Math.random() * (CHARGE_VOICES.length - 1))) % CHARGE_VOICES.length;
-            }
-            const vv = free ? v : CHARGE_VOICES[voiceIdx];
+            // `free` (act two's thrust) is a smooth glide instead.
+            const v = free ? null : chargeVoice();
             const o = ctx.createOscillator();
             const f = ctx.createBiquadFilter();
             const g = ctx.createGain();
-            o.type = vv.type;
+            o.type = free ? 'triangle' : v.type;
             f.type = 'lowpass';
-            f.frequency.value = vv.cutoff ? vv.cutoff(l) : 12000;
-            f.Q.value = vv.q || 1;
+            f.frequency.value = free ? 4000 : v.cutoff(l);
+            f.Q.value = v?.q || 1;
             g.gain.value = 0.0001;
-            g.gain.setTargetAtTime(vv.gain, now, 0.03);
+            if (free) g.gain.setTargetAtTime(0.04 * mix.training, now, 0.03);
             o.connect(f).connect(g).connect(master);
             o.start();
-            chargeOsc = { o, f, g, v: vv };
+            chargeOsc = { o, f, g, v, free, sched: -Infinity };
+            // The press sounds at once; after that the notes land on the grid.
+            if (!free) strikeCharge(chargeOsc, l, Math.floor(stepAt(now)), now);
         }
-        const cv = chargeOsc.v;
-        if (free) {
-            chargeOsc.o.frequency.setTargetAtTime(NOTE(57) * Math.pow(2, 2 * l), now, 0.015);
+        const c = chargeOsc;
+        if (c.free) {
+            c.o.frequency.setTargetAtTime(NOTE(57) * Math.pow(2, 2 * l), now, 0.015);
             return;
         }
-        const pos = clock ? stepAt(now) : 0;
-        const n = Math.floor(pos);
-        chargeOsc.o.frequency.setTargetAtTime(NOTE(cv.note(l, n)), now, 0.004);
-        if (cv.cutoff) chargeOsc.f.frequency.setTargetAtTime(cv.cutoff(l), now, 0.02);
-        if (cv.gate) chargeOsc.g.gain.setTargetAtTime((pos % 1) < 0.35 + 0.5 * l ? cv.gain : cv.gain * 0.08, now, 0.006);
+        // Schedule the next 16th a little ahead, so it's struck exactly on the beat.
+        const next = Math.floor(stepAt(now)) + 1;
+        if (c.sched < next && stepTime(next) - now < 0.06) strikeCharge(c, l, next, stepTime(next));
     }
 
     function chargeStop() {
@@ -368,16 +484,34 @@
         g.connect(music.bus);
         fn(g);
     }
-    function kick(t, gain) {
+    function kick(t, gain, from = 150, to = 45, decay = 0.28) {
         voice(g => {
             const o = ctx.createOscillator();
-            o.frequency.setValueAtTime(150, t);
-            o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+            o.frequency.setValueAtTime(from, t);
+            o.frequency.exponentialRampToValueAtTime(to, t + 0.12);
             g.gain.setValueAtTime(gain, t);
-            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
             o.connect(g);
             o.start(t);
-            o.stop(t + 0.3);
+            o.stop(t + decay + 0.02);
+        });
+    }
+    // A soft chord held for a bar (the Soft beat's pad): slow attack, gentle release.
+    function pad(t, notes, dur, gain) {
+        for (const n of notes) voice(g => {
+            const o = ctx.createOscillator();
+            const f = ctx.createBiquadFilter();
+            o.type = 'triangle';
+            o.frequency.value = NOTE(n);
+            o.detune.value = (Math.random() - 0.5) * 10;
+            f.type = 'lowpass';
+            f.frequency.value = 1400;
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(gain, t + dur * 0.3);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            o.connect(f).connect(g);
+            o.start(t);
+            o.stop(t + dur + 0.05);
         });
     }
     function hat(t, gain, len = 0.04) {
@@ -429,6 +563,58 @@
         });
     }
 
+    // Three beats to pick from (Settings → Beat, per device), all at 124 BPM in A minor so every sound and the
+    // held clicks still sit on them; the layers come in with the same intensity bands.
+    // - Classic: the original: a pulse bass with a lift, off-beat hats, a clap, 16th hats, a square arpeggio.
+    // - Dark: harder and heavier: a longer, deeper kick, a distorted rolling 16th bass on A with a flat-two
+    //   (B flat) turn, metallic hats, a driven snare and sparse minor stabs; drive always partly in.
+    // - Soft: deep and gentle: a soft kick, a round bass on the beats, a pad moving Am – F – C – G a bar each,
+    //   quiet shakers, a rim, and a soft sine arpeggio.
+    let style = 'classic';
+    const PROGRESSION = [[57, 60, 64, 67], [53, 57, 60, 64], [55, 60, 64, 67], [55, 59, 62, 67]];
+    const ROOTS = [45, 41, 48, 43];
+    const STYLES = {
+        classic: {
+            cutoff: k => 900 + 9000 * k * k, drive: 0,
+            step(t, s, k, len, L) {
+                if (s % 4 === 0) kick(t, 0.5);
+                if (BASS[s]) synth(t, BASS[s], len * 2.2, 0.22, 'sawtooth', 220 + 1600 * k);
+                if (L.off > 0.02 && s % 4 === 2) hat(t, (0.08 + 0.06 * k) * L.off);
+                if (L.clap > 0.02 && (s === 4 || s === 12)) clap(t, 0.16 * L.clap);
+                if (L.sixteenth > 0.02 && s % 2 === 1) hat(t, 0.05 * L.sixteenth, 0.025);
+                if (L.arp > 0.02) synth(t, ARP[s % ARP.length] + 12, len * 0.9, 0.05 * L.arp, 'square', 1200 + 2000 * L.arp);
+            }
+        },
+        dark: {
+            cutoff: k => 1200 + 9000 * k * k, drive: 0.22,
+            step(t, s, k, len, L) {
+                if (s % 4 === 0) kick(t, 0.62, 140, 38, 0.4);
+                // The rolling bass: every 16th but the kick's, A1 with a B flat turn at the end of the bar.
+                if (s % 4) synth(t, s === 14 ? 34 : 33, len * 0.8, 0.2, 'sawtooth', 260 + 1300 * k);
+                if (L.off > 0.02 && s % 4 === 2) hat(t, (0.1 + 0.06 * k) * L.off, 0.06);
+                if (L.clap > 0.02 && (s === 4 || s === 12)) { clap(t, 0.2 * L.clap); synth(t, 45, 0.08, 0.06 * L.clap, 'square', 900); }
+                if (L.sixteenth > 0.02) hat(t, (s % 2 ? 0.06 : 0.03) * L.sixteenth, 0.02);
+                if (L.arp > 0.02 && (s === 3 || s === 6 || s === 10)) for (const n of [57, 60, 64]) synth(t, n + 12, len * 1.6, 0.03 * L.arp, 'sawtooth', 1600 + 2000 * L.arp);
+            }
+        },
+        soft: {
+            cutoff: k => 700 + 4500 * k * k, drive: 0,
+            step(t, s, k, len, L, bar) {
+                if (s % 4 === 0) kick(t, 0.32, 110, 48, 0.22);
+                const chord = bar % 4;
+                if (s === 0) pad(t, PROGRESSION[chord], len * 16, 0.028);
+                if (s === 0 || s === 7 || s === 10) synth(t, ROOTS[chord] + (s === 10 ? 7 : 0), len * 3, 0.16, 'triangle', 500 + 600 * k);
+                if (L.off > 0.02 && s % 2 === 1) hat(t, 0.025 * L.off, 0.03);
+                if (L.clap > 0.02 && s === 12) hat(t, 0.06 * L.clap, 0.08);
+                if (L.arp > 0.02 && s % 2 === 0) {
+                    const notes = PROGRESSION[chord];
+                    synth(t, notes[(s / 2) % notes.length] + 12, len * 1.8, 0.035 * L.arp, 'sine', 3000);
+                }
+            }
+        }
+    };
+    function setMusicStyle(name) { if (STYLES[name]) style = name; }
+
     // Layers fade in and out over a couple of bars rather than switching on a threshold: the intensity
     // eases toward the ball's speed (faster on the way up than down), each layer's level ramps across a
     // band around its threshold, and the tempo glides into and out of flow's slow-down.
@@ -450,20 +636,16 @@
             if (len !== clock.len) retime(len, music.step, music.nextStep);
             const t = music.nextStep;
             const s = ((music.step % 16) + 16) % 16;
-            if (s % 4 === 0) kick(t, 0.5);
-            if (BASS[s]) synth(t, BASS[s], len * 2.2, 0.22, 'sawtooth', 220 + 1600 * k);
-            const off = layer(k, 0.2), clapL = layer(k, 0.45), sixteenth = layer(k, 0.65), arpL = layer(k, 0.8);
-            if (off > 0.02 && s % 4 === 2) hat(t, (0.08 + 0.06 * k) * off);
-            if (clapL > 0.02 && (s === 4 || s === 12)) clap(t, 0.16 * clapL);
-            if (sixteenth > 0.02 && s % 2 === 1) hat(t, 0.05 * sixteenth, 0.025);
-            if (arpL > 0.02) synth(t, ARP[s % ARP.length] + 12, len * 0.9, 0.05 * arpL, 'square', 1200 + 2000 * arpL);
+            const L = { off: layer(k, 0.2), clap: layer(k, 0.45), sixteenth: layer(k, 0.65), arp: layer(k, 0.8) };
+            (STYLES[style] || STYLES.classic).step(t, s, k, len, L, Math.floor(music.step / 16));
             music.nextStep += len;
             music.step++;
         }
         // The mood: muffled in flow and bullet time, distorted in a crunch, opening up with speed.
-        const cutoff = slow ? 600 : 900 + 9000 * k * k;
+        const st = STYLES[style] || STYLES.classic;
+        const cutoff = slow ? 600 : st.cutoff(k);
         music.filter.frequency.setTargetAtTime(cutoff, now, slow ? 0.6 : 0.5);
-        music.wet.gain.setTargetAtTime(mode === 'crunch' ? 0.55 : 0, now, 0.15);
+        music.wet.gain.setTargetAtTime(mode === 'crunch' ? 0.55 : st.drive, now, 0.15);
         music.dry.gain.setTargetAtTime(mode === 'crunch' ? 0.6 : 1, now, 0.15);
     }
 
@@ -511,5 +693,5 @@
         if (music) music.bus.gain.setTargetAtTime(musicVolume * 0.55, ctx.currentTime, 0.05);
     }
 
-    window.SFX = { play, holdDelay, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
+    window.SFX = { play, holdDelay, setMix, setSimple(v) { simple = !!v; chargeStop(); }, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
 })();
