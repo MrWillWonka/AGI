@@ -412,7 +412,7 @@
 
     // Each track's sound set, levelled to Classic's loudness (measured with a K-weighted meter, like the music).
     const SFX_TRIM = { classic: 1, dark: 1.18, soft: 1.03, ominous: 0.76, retro: 1.82 };
-    const SIMPLE_TRIM = { classic: 1, dark: 1, soft: 1, ominous: 1, retro: 1 };   // the simple sets, levelled the same way
+    const SIMPLE_TRIM = { classic: 1.49, dark: 2.51, soft: 1.58, ominous: 1.73, retro: 3.08 };   // the simple sets, levelled the same way
 
     const TRACK_SOUNDS = {
         dark: {
@@ -911,7 +911,7 @@
         classic: {
             cutoff: k => 900 + 9000 * k * k, drive: 0,
             beat: 0.659, tones: 1.97,   // drums 2 dB under the tones, measured (K-weighted)
-            simpleRoots: [45, 45, 48, 43], simpleVoice: 'triangle',   // the simple version (simpleStep)
+            simpleRoots: [45, 45, 48, 43], simpleMix: { gain: 1, beat: 0.987, tones: 2.455 }, simpleVoice: 'triangle',   // the simple version (simpleStep)
             step(t, s, k, len, L, bar) {
                 const bass = bar % 4 === 3 ? BASS_B : BASS;
                 if (s % 4 === 0) kick(t, 0.5);
@@ -935,7 +935,7 @@
         dark: {
             cutoff: k => 1400 + 8000 * k * k, drive: 0.04, gain: 0.94, shift: -5,   // E Phrygian; trim set from measured loudness
             beat: 0.31, tones: 3.49,   // drums 2 dB under the tones, measured (K-weighted)
-            simpleRoots: [45, 45, 46, 45], simpleVoice: 'sawtooth',   // the simple version (simpleStep)
+            simpleRoots: [45, 45, 46, 45], simpleMix: { gain: 1, beat: 1.032, tones: 3.515 }, simpleVoice: 'sawtooth',   // the simple version (simpleStep)
             step(t, s, k, len, L, bar) {
                 if (s % 4 === 0) kick(t, 0.6, 170, 42, 0.32);
                 // The rumble: a low saw on the three 16ths after each kick, fading, its filter opening with speed.
@@ -962,7 +962,7 @@
         ominous: {
             cutoff: k => 500 + 3500 * k * k, drive: 0, gain: 1.42, shift: 3,    // C, with its flat second
             beat: 0.598, tones: 2.145,   // drums 2 dB under the tones, measured (K-weighted)
-            simpleRoots: [45, 45, 46, 45], simpleVoice: 'sine',   // the simple version (simpleStep)
+            simpleRoots: [45, 45, 46, 45], simpleMix: { gain: 1, beat: 1.378, tones: 1.951 }, simpleVoice: 'sine',   // the simple version (simpleStep)
             step(t, s, k, len, L, bar) {
                 if (s === 0 || s === 8) kick(t, 0.55, 110, 32, 0.6);
                 if (s === 0) synth(t, bar % 2 ? 34 : 33, len * 16, 0.13, 'sawtooth', 160 + 260 * k);
@@ -983,7 +983,7 @@
         retro: {
             cutoff: k => 4000 + 9000 * k, drive: 0, gain: 1.62,
             beat: 0.701, tones: 1.829,   // drums 2 dB under the tones, measured (K-weighted)
-            simpleRoots: [45, 41, 48, 43], simpleVoice: 'square',   // the simple version (simpleStep)
+            simpleRoots: [45, 41, 48, 43], simpleMix: { gain: 1, beat: 1.013, tones: 1.855 }, simpleVoice: 'square',   // the simple version (simpleStep)
             step(t, s, k, len, L, bar) {
                 const chord = PROGRESSION[bar % 4];
                 const root = ROOTS[bar % 4];
@@ -1006,7 +1006,7 @@
         soft: {
             cutoff: k => 700 + 4500 * k * k, drive: 0, gain: 1.7, shift: 5,     // F major: Dm – Bb – F – C
             beat: 0.738, tones: 1.487,   // drums 2 dB under the tones, measured (K-weighted)
-            simpleRoots: [45, 41, 48, 43], simpleVoice: 'sine',   // the simple version (simpleStep)
+            simpleRoots: [45, 41, 48, 43], simpleMix: { gain: 1, beat: 0.997, tones: 2.032 }, simpleVoice: 'sine',   // the simple version (simpleStep)
             step(t, s, k, len, L, bar) {
                 if (s % 4 === 0) kick(t, 0.32, 110, 48, 0.22);
                 const chord = bar % 4;
