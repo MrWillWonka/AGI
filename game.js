@@ -9,7 +9,7 @@ window.AGI = (function () {
     const BACKUP_MS = 10 * 60000;
     const TICK_MS = 100;
     const AUTOSAVE_MS = 30000;
-    const HOLD_REPEAT_MS = 250;       // holding a job repeats it at 4 clicks a second (a comfort option, not a turbo)
+    const HOLD_REPEAT_MS = 242;       // holding a job repeats on the music's 8th notes (124 BPM: 4.13 clicks a second, a comfort option, not a turbo); this is the fallback without audio
     const LOG_LIMIT = 60;
 
     let state;
@@ -156,6 +156,7 @@ window.AGI = (function () {
 
     // Sound (sfx.js): lab sounds always; training sounds only while you can see the trail.
     const sfx = (name, opts) => window.SFX?.play(name, opts);
+    let heldBeat = false;   // a held job's repeat is firing: its click sound lands on the next 8th note
     const trailSfx = (name, opts) => { if (path.visible) sfx(name, opts); };
 
     // ---- Small DOM helpers ----------------------------------------------
@@ -591,12 +592,15 @@ window.AGI = (function () {
     // Fires on press (no wait), then repeats at HOLD_REPEAT_MS while held; the pointer's own click is
     // ignored, so a tap counts once. Keyboard activation only sends a click, so it still works.
     // `onHold` fires once per press, the first time holding repeats the job.
+    // The repeats follow the music's 8th notes (`SFX.holdDelay`): the timer fires a little early and the click's
+    // sound waits for the grid point (`heldBeat`), so a hold plays along with the track.
+    const HOLD_LEAD_MS = 30;
     function holdable(button, fn, onHold) {
         let repeat = null;
         let lastKey = 0;
 
         const stop = () => {
-            clearInterval(repeat);
+            clearTimeout(repeat);
             repeat = null;
             button.classList.remove('held');
         };
@@ -606,11 +610,18 @@ window.AGI = (function () {
             fn();
             button.classList.add('held');
             let first = true;
-            repeat = setInterval(() => {
+            const next = minMs => {
+                const ms = window.SFX?.holdDelay?.(minMs);
+                repeat = setTimeout(beat, ms == null ? HOLD_REPEAT_MS : Math.max(0, ms - HOLD_LEAD_MS));
+            };
+            const beat = () => {
                 if (button.disabled) return stop();
-                fn();
+                heldBeat = true;
+                try { fn(); } finally { heldBeat = false; }
                 if (first) { first = false; onHold?.(); }
-            }, HOLD_REPEAT_MS);
+                next(HOLD_LEAD_MS + 40);
+            };
+            next(150);   // the first repeat skips a grid point too close to the press
         });
         ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => button.addEventListener(t, stop));
         button.addEventListener('click', e => {
@@ -1204,7 +1215,7 @@ window.AGI = (function () {
         if (result.gained != null) {
             floatGain(button, `+${E.format(result.gained)} ${E.RESOURCES[result.resource].short}`);
             clickGlow(result.resource, result.gained);
-            sfx('click', { res: result.resource });
+            sfx('click', { res: result.resource, q: heldBeat ? 2 : 0 });
         }
         if (result.msg) log(result.msg, 'success');
         afterChange();
@@ -1637,9 +1648,17 @@ window.AGI = (function () {
         if (!ok) return;
         state = E.defaultState(Date.now());
         resetView();
+        resetBulk();
         save();
         log('Game reset.', 'warning');
         afterChange();
+    }
+
+    // A brand-new game (erase, debug start over) starts the ×1 / ×10 / Max switch at ×1 again.
+    function resetBulk() {
+        bulkMode = '1';
+        storageSet(BULK_KEY, '1');
+        $('bulkBuy')?.querySelectorAll('[data-bulk]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.bulk === '1')));
     }
 
     // After a reset: no open bay, no finished run on screen, fresh room visits and tree view.
@@ -4251,7 +4270,7 @@ window.AGI = (function () {
         }
         roll.thrust = power;
         roll.thrustFree = free;
-        if (path.visible && power > 0) window.SFX?.charge(0.35 + 0.15 * Math.sin(performance.now() / 90));
+        if (path.visible && power > 0) window.SFX?.charge(0.35 + 0.15 * Math.sin(performance.now() / 90), true);
         else if (path.thrustSound) window.SFX?.chargeStop();
         path.thrustSound = path.visible && power > 0;
     }
@@ -6800,6 +6819,7 @@ window.AGI = (function () {
                 state = E.defaultState(Date.now());
                 path.roll = null;
                 resetView();
+                resetBulk();
                 save();
                 $('gameLog').replaceChildren();
                 log('Started over (debug).', 'warning');
