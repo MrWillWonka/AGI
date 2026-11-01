@@ -15,6 +15,11 @@
     --success: #63e0ab;   /* covered ground, learned skills */
     --warning: #ffb547;   /* the ball, skill hills, primary action */
     --danger: #ff5d5d;
+    --terminal: #63e0ab;      /* the software terminal's screen */
+    --terminal-hi: #9ff0c9;
+    --terminal-dim: #5f9c80;
+    --research: #c792ea;      /* research: the wall, its supply cell, legacy */
+    --research-deep: #7a4fa6;
     --font-display: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
     --font-body: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
@@ -1298,7 +1303,7 @@ h1, h2, h3, p { margin: 0; }
 .toast-achievement { --accent: #ffd27a; }
 .toast-skill { --accent: var(--success); }
 .toast-room { --accent: #6fb3ff; }
-.toast-version { --accent: #c792ea; }
+.toast-version { --accent: var(--research); }
 .toast-tip { --accent: var(--success); }
 .toast-phase { --accent: #ffd27a; min-width: 360px; padding: 16px 22px 16px 16px; }
 .toast-phase strong { font-size: 0.9rem; }
@@ -1567,15 +1572,15 @@ h1, h2, h3, p { margin: 0; }
     border-radius: 0 0 10px 10px;
     margin-top: -12px;
     background:
-        repeating-linear-gradient(180deg, color-mix(in srgb, var(--success) 3.5%, transparent) 0 1px, transparent 1px 3px),
+        repeating-linear-gradient(180deg, color-mix(in srgb, var(--terminal) 3.5%, transparent) 0 1px, transparent 1px 3px),
         var(--bg);
 }
-.terminal-line { font-size: 0.78rem; color: var(--success); }
+.terminal-line { font-size: 0.78rem; color: var(--terminal); }
 .terminal-line::after { content: "_"; animation: led-blink 1s steps(2, jump-none) infinite; }
-.station-terminal .upgrade { border-bottom: 1px dashed color-mix(in srgb, var(--success) 18%, transparent); }
-.station-terminal .upgrade h3 { font: 600 0.88rem var(--font-mono); color: #9ff0c9; }
-.station-terminal .upgrade h3::before { content: "> "; color: var(--success); }
-.station-terminal .upgrade .muted { color: #5f9c80; }
+.station-terminal .upgrade { border-bottom: 1px dashed color-mix(in srgb, var(--terminal) 18%, transparent); }
+.station-terminal .upgrade h3 { font: 600 0.88rem var(--font-mono); color: var(--terminal-hi); }
+.station-terminal .upgrade h3::before { content: "> "; color: var(--terminal); }
+.station-terminal .upgrade .muted { color: var(--terminal-dim); }
 
 /* Research wall and isolation chamber: decoration above their lists. */
 .station-wall .station-art { display: grid; gap: 6px; padding: 10px; border-radius: 6px; background: var(--panel); }
@@ -1586,10 +1591,10 @@ h1, h2, h3, p { margin: 0; }
 .station-wall .station-art i:nth-child(4) { width: 70%; }
 .station-wall .station-art i:nth-child(5) { width: 30%; }
 .station-chamber .station-art { display: grid; place-items: center; height: 70px; }
-.station-chamber .station-art i { grid-area: 1 / 1; border-radius: 50%; border: 1px solid rgba(199, 146, 234, 0.4); }
+.station-chamber .station-art i { grid-area: 1 / 1; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--research) 40%, transparent); }
 .station-chamber .station-art i:nth-child(1) { width: 60px; height: 60px; }
 .station-chamber .station-art i:nth-child(2) { width: 40px; height: 40px; }
-.station-chamber .station-art i:nth-child(3) { width: 14px; height: 14px; background: #c792ea; box-shadow: 0 0 20px #c792ea; }
+.station-chamber .station-art i:nth-child(3) { width: 14px; height: 14px; background: var(--research); box-shadow: 0 0 20px var(--research); }
 .station-chamber .station-art i:nth-child(n+4) { display: none; }
 
 /* Sealed: the next station, unnamed. */
@@ -1803,7 +1808,7 @@ body { zoom: var(--zoom); }
 .node-detail .detail-preview { margin: 6px 0 0; font: 600 0.78rem var(--font-mono); color: var(--primary); }
 
 .upgrade-flavor, .result-flavor { font-style: italic; font-size: 0.82rem; color: var(--text); opacity: 0.8; margin-top: 2px; }
-.station-terminal .upgrade-flavor { font-family: var(--font-mono); font-style: normal; color: #7fcfa8; opacity: 0.75; }
+.station-terminal .upgrade-flavor { font-family: var(--font-mono); font-style: normal; color: var(--terminal-hi); opacity: 0.75; }
 .station-terminal .upgrade-flavor::before { content: "# "; }
 
 /* Every room is a framed screen with its way back inside the frame, like a bay's "← Rack". */
@@ -1872,8 +1877,8 @@ html, body { overflow-x: clip; }
 
 /* Terminal output: what the automation is doing. */
 .terminal-log { display: flex; flex-direction: column; gap: 1px; margin-bottom: 6px; min-height: 4.4em; justify-content: flex-end; }
-.terminal-out { font-size: 0.74rem; color: #5f9c80; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.terminal-out.fresh { color: #9ff0c9; animation: type-in 0.6s steps(24, end); }
+.terminal-out { font-size: 0.74rem; color: var(--terminal-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.terminal-out.fresh { color: var(--terminal-hi); animation: type-in 0.6s steps(24, end); }
 @keyframes type-in { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 
 /* The lab floor: a faint blueprint grid with a slow scan line. */
@@ -1939,7 +1944,7 @@ html, body { overflow-x: clip; }
 .mm-block.sealed rect, .mm-block.building rect { fill: transparent; stroke: var(--border); stroke-dasharray: 1.5 1.5; }
 .mm-block.sealed text, .mm-block.building text { fill: var(--border); }
 .mm-block.here rect { fill: color-mix(in srgb, var(--success) 30%, transparent); stroke: var(--success); stroke-width: 1.4; animation: mm-here 1.6s ease-in-out infinite; }
-.mm-block.here text { fill: #e6fff4; }
+.mm-block.here text { fill: var(--terminal-hi); }
 @keyframes mm-here { 50% { fill: color-mix(in srgb, var(--success) 12%, transparent); } }
 @media (max-width: 640px) {
     .minimap { width: 92px; right: calc(8px + env(safe-area-inset-right, 0px)); bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
@@ -2285,8 +2290,8 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 /* Viral run: an animated rainbow edge and a stamp. */
 .roll-result.viral { border: 2px solid transparent; background:
     linear-gradient(color-mix(in srgb, var(--bg-2) 97%, transparent), color-mix(in srgb, var(--bg-2) 97%, transparent)) padding-box,
-    linear-gradient(120deg, #ff7ab6, #c792ea, var(--primary), var(--warning), #ff7ab6) border-box;
-    background-size: 100% 100%, 300% 300%; animation: viral-edge 2.4s linear infinite; box-shadow: 0 0 30px rgba(199, 146, 234, 0.45); }
+    linear-gradient(120deg, #ff7ab6, var(--research), var(--primary), var(--warning), #ff7ab6) border-box;
+    background-size: 100% 100%, 300% 300%; animation: viral-edge 2.4s linear infinite; box-shadow: 0 0 30px color-mix(in srgb, var(--research) 45%, transparent); }
 .roll-result.viral::before {
     content: attr(data-viral);
     /* Inside the card: it scrolls (overflow: auto), so anything hanging over its edge was clipped. */
@@ -2296,7 +2301,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
     z-index: 1;
     padding: 3px 10px;
     border-radius: 999px;
-    background: linear-gradient(90deg, #ff7ab6, #c792ea);
+    background: linear-gradient(90deg, #ff7ab6, var(--research));
     color: #fff;
     font: 800 0.72rem var(--font-display);
     letter-spacing: 0.12em;
@@ -2310,7 +2315,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 
 /* Live yield on hardware and click cards: the numbers, so descriptions don't need them. */
 .upgrade-yield { font: 600 0.74rem var(--font-mono); color: var(--success); }
-.station-terminal .upgrade-yield { color: #9ff0c9; }
+.station-terminal .upgrade-yield { color: var(--terminal-hi); }
 
 /* Lab log under the Workbench: the last few installs and automation jobs, green-screen, fixed height. */
 .lab-log[hidden] { display: none; }
@@ -2447,7 +2452,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .hw-quantum i { left: 22%; right: 22%; top: 30%; bottom: 12%; border-radius: 2px; background: radial-gradient(ellipse at 50% 65%, #e6f6ff 0 10%, #6fb3ff 28%, rgba(111, 179, 255, 0.15) 70%), var(--bg-2); }
 .hw-quantum b { inset: 0; box-shadow: inset 0 0 10px rgba(111, 179, 255, 0.45); animation: hw-pulse 1.6s ease-in-out infinite; }
 /* Neural chip: a violet board with a glowing grid of synapses. */
-.hw-neural { background: radial-gradient(circle, #e0b8ff 1px, transparent 1.6px) 0 0 / 6px 6px, radial-gradient(circle at 50% 50%, rgba(199, 146, 234, 0.5), transparent 70%), #22163a;
+.hw-neural { background: radial-gradient(circle, #e0b8ff 1px, transparent 1.6px) 0 0 / 6px 6px, radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--research) 50%, transparent), transparent 70%), #22163a;
     box-shadow: inset 0 0 0 1px #5b3f7a; animation: hw-pulse 2.2s ease-in-out infinite; }
 .hw-neural i { inset: 28%; border: 1px solid rgba(224, 184, 255, 0.7); border-radius: 2px; }
 /* Datacenter: a hall with a roof line, cooling fans and lit windows. */
@@ -2455,7 +2460,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
     linear-gradient(180deg, var(--border) 0 4px, var(--panel-2) 4px); box-shadow: inset 0 0 0 1px #34616a; }
 .hw-datacenter i { left: 6%; right: 6%; bottom: 3px; height: 4px; background: repeating-linear-gradient(90deg, #ffd27a 0 4px, transparent 4px 8px); opacity: 0.85; box-shadow: 0 0 8px rgba(255, 210, 122, 0.5); animation: hw-blink 3s steps(4) infinite; }
 /* Optical: a dark module with a beam split into a moving spectrum. */
-.hw-optical { background: linear-gradient(90deg, transparent 0 20%, var(--accent), var(--warning), var(--success), var(--primary), #c792ea, transparent 80% 100%) 0 50% / 200% 30% repeat-x,
+.hw-optical { background: linear-gradient(90deg, transparent 0 20%, var(--accent), var(--warning), var(--success), var(--primary), var(--research), transparent 80% 100%) 0 50% / 200% 30% repeat-x,
     linear-gradient(180deg, var(--border), var(--panel)); box-shadow: inset 0 0 0 1px var(--secondary); animation: hw-flow 2.4s linear infinite; }
 .hw-optical i { left: 0; top: 50%; width: 30%; height: 2px; margin-top: -1px; background: #fff; box-shadow: 0 0 6px #fff; }
 /* Merged pieces glow a little brighter, the bigger they are. */
@@ -2513,7 +2518,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .task-bar { position: relative; display: block; height: 5px; border-radius: 3px; background: var(--panel-2); overflow: hidden; }
 .task-fill { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 3px; background: linear-gradient(90deg, var(--secondary), var(--success)); box-shadow: 0 0 8px color-mix(in srgb, var(--success) 60%, transparent); transition: width 0.1s linear; }
 .task-autoCollector .task-fill { background: linear-gradient(90deg, var(--secondary), var(--primary)); box-shadow: 0 0 8px color-mix(in srgb, var(--primary) 60%, transparent); }
-.task-researchAssistant .task-fill { background: linear-gradient(90deg, #7a4fa6, #c792ea); box-shadow: 0 0 8px rgba(199, 146, 234, 0.6); }
+.task-researchAssistant .task-fill { background: linear-gradient(90deg, var(--research-deep), var(--research)); box-shadow: 0 0 8px color-mix(in srgb, var(--research) 60%, transparent); }
 .task-skill .task-name::before { content: "↻ "; color: var(--success); }
 .task.off .task-fill { opacity: 0.3; }
 .task.task-linked { animation: task-linked 1.6s ease-out; }
@@ -2521,7 +2526,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .task-log { flex: none; display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px dashed var(--border); }
 .task-log[hidden] { display: none; }
 .task-log-title { font: 700 0.62rem var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
-.task-log .terminal-log { display: flex; flex-direction: column; gap: 1px; font: 0.68rem var(--font-mono); color: #8fd9b2; }
+.task-log .terminal-log { display: flex; flex-direction: column; gap: 1px; font: 0.68rem var(--font-mono); color: var(--terminal-hi); }
 .task-log .terminal-out { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.7; }
 .task-log .terminal-out.fresh { opacity: 1; }
 
@@ -2553,7 +2558,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 @media (max-width: 640px) { .minimap .mm-min { display: none; } }
 @keyframes mm-open { from { opacity: 0; transform: translateY(8px); } }
 .mm-tip { position: absolute; z-index: 2; transform: translate(-50%, -100%); padding: 3px 8px; border-radius: 6px; pointer-events: none; white-space: nowrap;
-    background: var(--bg-2); border: 1px solid var(--success); color: #e6fff4; font: 600 0.68rem var(--font-mono); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); }
+    background: var(--bg-2); border: 1px solid var(--success); color: var(--terminal-hi); font: 600 0.68rem var(--font-mono); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); }
 .mm-tip[hidden] { display: none; }
 .mm-block.ping rect { fill: rgba(111, 179, 255, 0.35); stroke: #6fb3ff; stroke-width: 1.4; animation: mm-ping 0.9s ease-in-out infinite; }
 /* A room you haven't been in yet pulses green on the map (the first visit to the server room is steered there). */
@@ -2576,19 +2581,19 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 /* ---- Legacy upgrades: their own screen between versions (and from R&D) ----
    Four branch columns of cards bought with Insight; violet, like Insight everywhere. */
 .legacy-screen { position: fixed; z-index: 45; inset: calc(var(--topbar-h, 53px) + 20px) 20px 20px; display: flex; flex-direction: column; gap: 16px;
-    padding: 20px 24px; background: var(--bg); border: 1px solid rgba(199, 146, 234, 0.45); border-radius: 12px; overflow: auto;
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 40px rgba(199, 146, 234, 0.12); }
+    padding: 20px 24px; background: var(--bg); border: 1px solid color-mix(in srgb, var(--research) 45%, transparent); border-radius: 12px; overflow: auto;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 40px color-mix(in srgb, var(--research) 12%, transparent); }
 .legacy-screen[hidden] { display: none; }
 .legacy-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.legacy-head h2 { font: 700 1.1rem var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: #c792ea; margin: 0; }
+.legacy-head h2 { font: 700 1.1rem var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--research); margin: 0; }
 .legacy-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; align-items: start; }
 @media (max-width: 960px) { .legacy-grid { grid-template-columns: minmax(0, 1fr); } }
 .legacy-col { display: flex; flex-direction: column; gap: 10px; }
 .legacy-branch { font: 700 0.78rem var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin: 0 0 2px; }
 .legacy-card { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 4px 12px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
-.legacy-card.owned { border-color: rgba(199, 146, 234, 0.55); box-shadow: 0 0 16px rgba(199, 146, 234, 0.12); }
+.legacy-card.owned { border-color: color-mix(in srgb, var(--research) 55%, transparent); box-shadow: 0 0 16px color-mix(in srgb, var(--research) 12%, transparent); }
 .legacy-card[hidden] { display: none; }
-.legacy-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; color: #c792ea; border: 1px solid rgba(199, 146, 234, 0.5); background: rgba(199, 146, 234, 0.1); }
+.legacy-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; color: var(--research); border: 1px solid color-mix(in srgb, var(--research) 50%, transparent); background: color-mix(in srgb, var(--research) 10%, transparent); }
 .legacy-icon svg { width: 20px; height: 20px; }
 .legacy-info h4 { display: flex; justify-content: space-between; gap: 8px; margin: 0; font: 700 0.9rem var(--font-display); }
 .legacy-level { font: 600 0.72rem var(--font-mono); color: var(--muted); }
@@ -2819,7 +2824,7 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
 .supply-label { color: var(--res); }
 .cell-cp { --res: var(--warning); border-color: color-mix(in srgb, var(--warning) 40%, transparent); }
 .cell-dp { --res: var(--primary); border-color: color-mix(in srgb, var(--primary) 40%, transparent); }
-.cell-rp { --res: #c792ea; border-color: rgba(199, 146, 234, 0.4); }
+.cell-rp { --res: var(--research); border-color: color-mix(in srgb, var(--research) 40%, transparent); }
 .cell-xp { --res: #ffd27a; border-color: rgba(255, 210, 122, 0.4); }
 @media (max-width: 640px) {
     .topbar-inner .lab-status { grid-area: res; font-size: 0.72rem; display: flex; }
@@ -2885,6 +2890,11 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
     --success: #ff7f6e;
     --warning: #ffb547;
     --danger: #ff2e44;
+    --terminal: #ff6b5e;
+    --terminal-hi: #ffb3a8;
+    --terminal-dim: #a2504a;
+    --research: #ff5fa2;
+    --research-deep: #9c2b5e;
 }
 :root[data-theme="pink"] {
     --bg: #19111a;
@@ -2900,4 +2910,51 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
     --success: #f3b6d6;
     --warning: #ffd59e;
     --danger: #ff8fa8;
+    --terminal: #f3b6d6;
+    --terminal-hi: #ffdcee;
+    --terminal-dim: #a37c95;
+    --research: #c9a7ff;
+    --research-deep: #7d62b5;
+}
+/* Void (with the Ominous beat): near-black indigo, cold violet light. */
+:root[data-theme="void"] {
+    --bg: #07070c;
+    --bg-2: #0b0b13;
+    --panel: #10101a;
+    --panel-2: #161624;
+    --border: #2a2840;
+    --text: #dcd8e8;
+    --muted: #8a84a3;
+    --primary: #7b6cff;
+    --secondary: #3d3470;
+    --accent: #c9b6ff;
+    --success: #9aa7ff;
+    --warning: #e8b04a;
+    --danger: #ff4b6e;
+    --terminal: #8f86ff;
+    --terminal-hi: #c4beff;
+    --terminal-dim: #5b5490;
+    --research: #b07cff;
+    --research-deep: #5e3aa6;
+}
+/* Arcade (with the Retro beat): synthwave neon on deep navy. */
+:root[data-theme="arcade"] {
+    --bg: #0b0820;
+    --bg-2: #100b2b;
+    --panel: #160f36;
+    --panel-2: #1e1545;
+    --border: #3a2a78;
+    --text: #f2ecff;
+    --muted: #9c8fd1;
+    --primary: #00e5ff;
+    --secondary: #ff2bd6;
+    --accent: #ffe14d;
+    --success: #39ff88;
+    --warning: #ffb000;
+    --danger: #ff3860;
+    --terminal: #39ff88;
+    --terminal-hi: #b8ffd4;
+    --terminal-dim: #2f9a63;
+    --research: #ff2bd6;
+    --research-deep: #9a1684;
 }

@@ -68,24 +68,50 @@
     }
 
     // One tone: frequency sweep `f0` → `f1`, an attack/decay envelope, optional detuned partner.
-    function tone({ f0, f1 = f0, dur = 0.15, type = 'sine', gain = 0.3, at = 0, attack = 0.005, detune = 0, cutoff = 0, q = 1 }) {
+    // Every effect goes through here, so each beat's sound profile (PROFILES) reshapes the whole game's sounds:
+    // the waveform, the octave, the filter, the length and attack, a drive, an echo, chip-style stepped slides.
+    function tone(opts) {
+        const P = simple ? null : PROFILES[style];
+        let { f0, f1 = f0, dur = 0.15, type = 'sine', gain = 0.3, at = 0, attack = 0.005, detune = 0, cutoff = 0, q = 1 } = opts;
+        if (P) {
+            type = P.wave(type, f0);
+            if (P.oct && f0 > 160) { const m = Math.pow(2, P.oct); f0 *= m; f1 *= m; }
+            if (P.raw) cutoff = 0;
+            else if (cutoff) cutoff *= P.cut || 1;
+            else if (P.lp) cutoff = P.lp;
+            dur *= P.len || 1;
+            attack = Math.max(attack, P.attack || 0);
+            gain *= P.gain || 1;
+            if (P.detune) detune += P.detune;
+            if (P.echo && !opts.echoed) tone({ ...opts, echoed: true, gain: (opts.gain ?? 0.3) * P.echo, at: (opts.at || 0) + 3 * S() });
+        }
         const t = ctx.currentTime + base + at;
         const o = ctx.createOscillator();
         const g = ctx.createGain();
         o.type = type;
         o.frequency.setValueAtTime(f0, t);
-        o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+        if (P?.steps && f1 !== f0) {
+            // Chip-style: a slide is four quick steps, not a glide.
+            for (let i = 1; i <= 4; i++) o.frequency.setValueAtTime(f0 * Math.pow(f1 / f0, i / 4), t + (dur * i) / 5);
+        } else o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
         if (detune) o.detune.value = detune;
         g.gain.setValueAtTime(0.0001, t);
         g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain * gmul), t + attack);
         g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        let src = o;
         if (cutoff) {
             const f = ctx.createBiquadFilter();
             f.type = 'lowpass';
             f.frequency.value = cutoff;
             f.Q.value = q;
-            o.connect(f).connect(g);
-        } else o.connect(g);
+            src = src.connect(f);
+        }
+        if (P?.drive) {
+            const sh = ctx.createWaveShaper();
+            sh.curve = sfxDrive || (sfxDrive = driveCurve(6));
+            src = src.connect(sh);
+        }
+        src.connect(g);
         g.connect(master);
         o.start(t);
         o.stop(t + dur + 0.05);
@@ -99,6 +125,8 @@
             const d = noiseBuf.getChannelData(0);
             for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
         }
+        const P = simple ? null : PROFILES[style];
+        if (P?.noise) ({ dur, gain, f0, f1 } = P.noise({ dur, gain, f0, f1 }));
         const t = ctx.currentTime + base + at;
         const src = ctx.createBufferSource();
         src.buffer = noiseBuf;
@@ -137,6 +165,24 @@
     }
     let base = 0;                                   // seconds every note of the current sound is delayed by
     let gmul = 1;                                   // the current sound's group volume (see GROUPS)
+    let sfxDrive = null;
+    // Each beat brings its own sound for every effect (applied in tone and noise; Simple sounds skip it).
+    const keep = t => t;
+    const PROFILES = {
+        classic: null,
+        // Dark: saws an octave down through a drive, a closed filter.
+        dark: { wave: t => ({ triangle: 'sawtooth', sine: 'triangle', square: 'sawtooth' })[t] || t, oct: -1, cut: 0.7, lp: 2400, gain: 0.8, drive: true,
+            noise: n => ({ ...n, gain: n.gain * 1.1, f0: n.f0 * 0.8, f1: n.f1 * 0.8 }) },
+        // Soft: rounded triangles, a slower attack, a darker filter, a little longer.
+        soft: { wave: t => (t === 'square' || t === 'sawtooth' ? 'triangle' : t), cut: 0.55, lp: 2200, gain: 0.85, len: 1.25, attack: 0.012,
+            noise: n => ({ ...n, gain: n.gain * 0.7 }) },
+        // Ominous: an octave down, slow swells with a long tail and a detuned shadow, each answered by an echo.
+        ominous: { wave: t => (t === 'square' ? 'triangle' : t), oct: -1, cut: 0.45, lp: 1600, gain: 0.9, len: 1.7, attack: 0.02, detune: -14, echo: 0.3,
+            noise: n => ({ ...n, dur: n.dur * 1.4, f0: n.f0 * 0.6, f1: n.f1 * 0.6 }) },
+        // Retro: raw square waves (a triangle for the low end), short, with chip-style stepped slides.
+        retro: { wave: (t, f) => (f < 200 ? 'triangle' : 'square'), raw: true, gain: 0.45, len: 0.75, steps: true,
+            noise: n => ({ ...n, dur: n.dur * 0.6 }) }
+    };
     const S = () => (clock ? clock.len : STEP);     // one 16th at the current tempo
 
     // A filtered note: the house voice (a short blip through a lowpass, techno-style).
@@ -374,7 +420,8 @@
     // One 16th of the meter: the note for the charge then, struck at time t and decaying to its sustain.
     function strikeCharge(c, l, n, t) {
         const v = c.v;
-        c.o.frequency.setValueAtTime(NOTE(v.note(l, n)), t);
+        const P = simple ? null : PROFILES[style];
+        c.o.frequency.setValueAtTime(NOTE(v.note(l, n) + (P?.oct || 0) * 12), t);
         c.f.frequency.setTargetAtTime(v.cutoff(l), t, 0.02);
         c.g.gain.cancelScheduledValues(t);
         c.g.gain.setValueAtTime(v.gain * mix.training, t);
@@ -393,7 +440,8 @@
             const o = ctx.createOscillator();
             const f = ctx.createBiquadFilter();
             const g = ctx.createGain();
-            o.type = free ? 'triangle' : v.type;
+            const P = simple ? null : PROFILES[style];
+            o.type = free ? 'triangle' : P ? P.wave(v.type, 440) : v.type;
             f.type = 'lowpass';
             f.frequency.value = free ? 4000 : v.cutoff(l);
             f.Q.value = v?.q || 1;
@@ -449,7 +497,7 @@
     function startMusic() {
         if (music || musicVolume <= 0 || !ensure() || ctx.state !== 'running') return;
         const bus = ctx.createGain();
-        bus.gain.value = musicVolume * 0.55;
+        bus.gain.value = musicLevel();
         const filter = ctx.createBiquadFilter();
         filter.type = 'lowpass';
         filter.frequency.value = 1400;
@@ -462,9 +510,12 @@
         wet.gain.value = 0;
         bus.connect(dry).connect(filter);
         bus.connect(drive).connect(wet).connect(filter);
-        filter.connect(out);
+        // The beat's trim comes after the drive, which would otherwise saturate back up to full level.
+        const trim = ctx.createGain();
+        trim.gain.value = styleTrim();
+        filter.connect(trim).connect(out);
         const first = nextStep(1, 0.05);           // joins the clock, so it's in time with the grid sounds already use
-        music = { bus, drive, dry, wet, filter, nextStep: first.t, step: first.n };
+        music = { bus, drive, dry, wet, filter, trim, nextStep: first.t, step: first.n };
         music.timer = setInterval(schedule, 25);
     }
 
@@ -586,7 +637,7 @@
             }
         },
         dark: {
-            cutoff: k => 1200 + 9000 * k * k, drive: 0.22,
+            cutoff: k => 1200 + 9000 * k * k, drive: 0.22, gain: 0.2,   // dense and driven: trimmed to Classic's loudness (measured RMS)
             step(t, s, k, len, L) {
                 if (s % 4 === 0) kick(t, 0.62, 140, 38, 0.4);
                 // The rolling bass: every 16th but the kick's, A1 with a B flat turn at the end of the bar.
@@ -597,8 +648,38 @@
                 if (L.arp > 0.02 && (s === 3 || s === 6 || s === 10)) for (const n of [57, 60, 64]) synth(t, n + 12, len * 1.6, 0.03 * L.arp, 'sawtooth', 1600 + 2000 * L.arp);
             }
         },
+        // Ominous: a half-time feel on the same grid: a deep kick on 1 and 3, a sub drone under every bar, a bell
+        // tolling every other bar, a clock ticking, a low reversed swell, and a slow motif rubbing A against B flat.
+        ominous: {
+            cutoff: k => 500 + 3500 * k * k, drive: 0.08, gain: 0.47,
+            step(t, s, k, len, L, bar) {
+                if (s === 0 || s === 8) kick(t, 0.55, 110, 32, 0.6);
+                if (s === 0) synth(t, bar % 2 ? 31 : 33, len * 16, 0.13, 'sawtooth', 160 + 260 * k);
+                if (s === 0 && bar % 2 === 0) { synth(t, 69, len * 12, 0.05, 'sine', 4000); synth(t, 88, len * 6, 0.012, 'sine', 4000); }
+                if (L.off > 0.02 && s % 4 === 2) hat(t, 0.035 * L.off, 0.02);
+                if (L.clap > 0.02 && s === 12) clap(t, 0.08 * L.clap);
+                if (L.sixteenth > 0.02 && s % 2 === 1) hat(t, 0.02 * L.sixteenth, 0.015);
+                if (L.arp > 0.02 && s % 4 === 0) synth(t, [69, 70, 69, 64][(s / 4) % 4], len * 3.5, 0.045 * L.arp, 'triangle', 1400);
+            }
+        },
+        // Retro: chiptune: a short punchy kick, a triangle bass bouncing octaves on the 8ths, noise snares and hats,
+        // and a square arpeggio through Am – F – C – G (its 16ths once it's flying).
+        retro: {
+            cutoff: k => 4000 + 9000 * k, drive: 0, gain: 1.6,
+            step(t, s, k, len, L, bar) {
+                const chord = PROGRESSION[bar % 4];
+                const root = ROOTS[bar % 4];
+                if (s % 4 === 0) kick(t, 0.45, 220, 50, 0.12);
+                if (s % 2 === 0) synth(t, root + (s % 4 === 2 ? 12 : 0), len * 1.6, 0.14, 'triangle', 9000);
+                if (L.off > 0.02 && s % 4 === 2) hat(t, 0.07 * L.off, 0.02);
+                if (L.clap > 0.02 && (s === 4 || s === 12)) clap(t, 0.13 * L.clap);
+                if (L.sixteenth > 0.02 && s % 2 === 1) hat(t, 0.035 * L.sixteenth, 0.012);
+                const arpEvery = L.arp > 0.5 ? 1 : 2;
+                if (L.clap > 0.3 && s % arpEvery === 0) synth(t, chord[(s / arpEvery) % 4] + 12, len * 0.8, 0.03 * Math.max(L.clap, L.arp), 'square', 9000);
+            }
+        },
         soft: {
-            cutoff: k => 700 + 4500 * k * k, drive: 0,
+            cutoff: k => 700 + 4500 * k * k, drive: 0, gain: 1.35,
             step(t, s, k, len, L, bar) {
                 if (s % 4 === 0) kick(t, 0.32, 110, 48, 0.22);
                 const chord = bar % 4;
@@ -613,7 +694,16 @@
             }
         }
     };
-    function setMusicStyle(name) { if (STYLES[name]) style = name; }
+    // The bus level for the music volume, and each beat's trim (`gain` on the style, measured RMS against Classic,
+    // Soft a little under) so every beat plays about as loud.
+    const musicLevel = () => musicVolume * 0.55;
+    const styleTrim = () => (STYLES[style] || STYLES.classic).gain || 1;
+    function setMusicStyle(name) {
+        if (!STYLES[name]) return;
+        style = name;
+        chargeStop();
+        if (music) music.trim.gain.setTargetAtTime(styleTrim(), ctx.currentTime, 0.3);
+    }
 
     // Layers fade in and out over a couple of bars rather than switching on a threshold: the intensity
     // eases toward the ball's speed (faster on the way up than down), each layer's level ramps across a
@@ -664,8 +754,8 @@
         music.filter.frequency.cancelScheduledValues(now);
         music.filter.frequency.setValueAtTime(music.filter.frequency.value, now);
         music.filter.frequency.exponentialRampToValueAtTime(14000, hit);
-        music.bus.gain.setTargetAtTime(musicVolume * 0.85, now, 0.15);
-        music.bus.gain.setTargetAtTime(musicVolume * 0.55, hit + 0.3, 0.4);
+        music.bus.gain.setTargetAtTime(musicLevel() * 1.55, now, 0.15);
+        music.bus.gain.setTargetAtTime(musicLevel(), hit + 0.3, 0.4);
         voice(g => {
             if (!noiseBuf) noise({ dur: 0.01, gain: 0.0001 });
             const src = ctx.createBufferSource();
@@ -690,8 +780,8 @@
     function setMusic(v) {
         musicVolume = Math.max(0, Math.min(1, Number(v) || 0));
         if (musicVolume <= 0) return stopMusic();
-        if (music) music.bus.gain.setTargetAtTime(musicVolume * 0.55, ctx.currentTime, 0.05);
+        if (music) music.bus.gain.setTargetAtTime(musicLevel(), ctx.currentTime, 0.05);
     }
 
-    window.SFX = { play, holdDelay, setMix, setSimple(v) { simple = !!v; chargeStop(); }, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
+    window.SFX = { play, holdDelay, setMix, setSimple(v) { simple = !!v; chargeStop(); }, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
 })();

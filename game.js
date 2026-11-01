@@ -45,7 +45,7 @@ window.AGI = (function () {
     function applyTheme() {
         const pick = storageGet(THEME_KEY) || 'auto';
         const beat = storageGet(BEAT_KEY) || 'classic';
-        const theme = pick === 'auto' ? { classic: 'night', dark: 'red', soft: 'pink' }[beat] || 'night' : pick;
+        const theme = pick === 'auto' ? { classic: 'night', dark: 'red', soft: 'pink', ominous: 'void', retro: 'arcade' }[beat] || 'night' : pick;
         if (theme === 'night') delete document.documentElement.dataset.theme;
         else document.documentElement.dataset.theme = theme;
         readPathColors();
@@ -1203,7 +1203,7 @@ window.AGI = (function () {
         });
         // The beat: Classic, Dark or Soft, per device.
         const beat = $('settingBeat');
-        const beatStyle = ['classic', 'dark', 'soft'].includes(storageGet(BEAT_KEY)) ? storageGet(BEAT_KEY) : 'classic';
+        const beatStyle = ['classic', 'dark', 'soft', 'ominous', 'retro'].includes(storageGet(BEAT_KEY)) ? storageGet(BEAT_KEY) : 'classic';
         beat.value = beatStyle;
         window.SFX?.setMusicStyle?.(beatStyle);
         beat.addEventListener('change', e => {
@@ -1212,7 +1212,7 @@ window.AGI = (function () {
             applyTheme();
         });
         const theme = $('settingTheme');
-        theme.value = ['auto', 'night', 'red', 'pink'].includes(storageGet(THEME_KEY)) ? storageGet(THEME_KEY) : 'auto';
+        theme.value = ['auto', 'night', 'red', 'pink', 'void', 'arcade'].includes(storageGet(THEME_KEY)) ? storageGet(THEME_KEY) : 'auto';
         theme.addEventListener('change', e => { storageSet(THEME_KEY, e.target.value); applyTheme(); });
         applyTheme();
         $('settingNotation').addEventListener('change', e => {
@@ -1948,7 +1948,7 @@ window.AGI = (function () {
     function drawSparks() {
         drawSpark($('sparkCp'), lab.cp, path.colors.success || '#63e0ab');
         drawSpark($('sparkDp'), lab.dp, path.colors.primary || '#6fb3d9');
-        drawSpark($('sparkRp'), lab.rp, '#c792ea');
+        drawSpark($('sparkRp'), lab.rp, path.colors.research || '#c792ea');
         drawSpark($('sparkXp'), lab.xp, path.colors.warning || '#ffb547');
     }
 
@@ -4167,7 +4167,7 @@ window.AGI = (function () {
     // The trail's canvas colours come from the theme's tokens (read again when the theme changes).
     function readPathColors() {
         const css = getComputedStyle(document.documentElement);
-        for (const name of ['primary', 'secondary', 'accent', 'success', 'warning', 'danger', 'muted', 'border', 'text', 'bg']) {
+        for (const name of ['primary', 'secondary', 'accent', 'success', 'warning', 'danger', 'muted', 'border', 'text', 'bg', 'research', 'terminal']) {
             path.colors[name] = css.getPropertyValue('--' + name).trim();
         }
         if (path.canvas && path.width) drawPath();
@@ -5262,7 +5262,7 @@ window.AGI = (function () {
         // Confetti rains down across the whole trail (screen pixels, from just above the top) and is gone in
         // CONFETTI_SECONDS: it used to drift for up to 16 s over a run that goes on, and its orange looked like
         // the XP tokens.
-        const colors = [path.colors.success, path.colors.accent, path.colors.primary, '#c792ea'];
+        const colors = [path.colors.success, path.colors.accent, path.colors.primary, path.colors.research];
         const count = Math.round(Math.min(220, Math.max(80, path.width / 6)));
         for (let i = 0; i < count; i++) {
             path.particles.push({
@@ -5515,7 +5515,7 @@ window.AGI = (function () {
         for (let i = 0; i < 46; i++) {
             path.fx.reactions.push({ x: (Math.random() - 0.5) * 60, y: 0, vx: (Math.random() - 0.5) * 70, vy: -(70 + Math.random() * 130),
                 age: -Math.random() * 0.9, life: 1.6 + Math.random(), glyph: glyphs[i % glyphs.length], size: 12 + Math.random() * 12,
-                color: ['#ff7ab6', '#c792ea', '#6fb3d9', '#ffb547'][i % 4] });
+                color: ['#ff7ab6', path.colors.research, path.colors.primary, path.colors.warning][i % 4] });
         }
     }
 
