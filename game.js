@@ -60,6 +60,9 @@ window.AGI = (function () {
         if (!window.SFX?.musicState) return;
         // The lab (with Surveillance and R&D) and the server room (with its bays) each have their own songs.
         window.SFX.setArea?.(openBay || view === 'servers' ? 'server' : 'lab');
+        // How much of the arrangement the game has earned: a new game is a kick and a bass, and every skill
+        // (and every shipped version) adds to it; training runs add the rest with speed.
+        window.SFX.setDepth?.(Math.min(1, (state.path.learned + 2 * state.prestige.count + 2 * state.transcend.count) / 12));
         const r = path.roll;
         const running = openBay === 'training' && path.view === 'run' && r && r.launched && !r.over;
         if (!running) return window.SFX.musicState(openBay === 'training' ? 0.15 : 0.05, null);
