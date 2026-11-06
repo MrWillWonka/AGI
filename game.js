@@ -443,7 +443,9 @@ window.AGI = (function () {
         // Anything else waiting goes first meanwhile.
         // (Not offsetParent: the map is position: fixed, so it has none even when it's on screen, and every
         // callout over the map waited forever. A map hidden by CSS, as inside a bay on phones, has no width.)
-        const mapShown = !!nav && !nav.hidden && nav.getBoundingClientRect().width > 0;
+        // Inside a bay the map's callouts wait for you to come out: over the trail they covered the next skill
+        // hill (desktop) and the fuel line (phones) for their 10 seconds (round C).
+        const mapShown = !!nav && !nav.hidden && !openBay && nav.getBoundingClientRect().width > 0;
         if (!onScreen && (!where.map || !mapShown)) {
             if (calloutQueue.length) { calloutQueue.push(c); calloutLive = null; nextCallout(); }
             else setTimeout(() => showCallout(c), 1000);
@@ -545,6 +547,7 @@ window.AGI = (function () {
                 }
             }
             if (onScreen ? !target.offsetParent || !target.getBoundingClientRect().width : view === where.map) close('left');
+            else if (!onScreen && openBay) { calloutQueue.unshift(c); close('bay'); }   // shown again once you're out
         }, 300);
         requestAnimationFrame(() => { place(); box.classList.add('show'); spot?.classList.add('show'); });
         // Playtest: which tips and callouts players saw, where, for how long, and how they went away.
@@ -850,7 +853,7 @@ window.AGI = (function () {
         // The desk is checked before the gate counts as met: the line used to go blank once the 40 computes
         // were done, with the desk still unbuilt.
         const desk = E.level(state, 'keyboard');
-        if (actionId === 'compute' && desk < E.CPU_AFTER_CLICK_LEVEL) parts.push(`desk ${desk}/${E.CPU_AFTER_CLICK_LEVEL}`);
+        if (actionId === 'compute' && desk < E.CPU_AFTER_CLICK_LEVEL) parts.push(`desk\u00a0${desk}/${E.CPU_AFTER_CLICK_LEVEL}`);
         return parts.length ? `Automation: ${parts.join(' · ')}` : '';
     }
 
