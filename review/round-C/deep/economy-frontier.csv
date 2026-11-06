@@ -1,0 +1,19 @@
+policy,time_s,skills,phase,cp,dp,rp,xp,cp_per_s,cp_net,dp_per_s,xp_per_s,best_lab_purchase,cost,payback_s,time_to_afford_s,cheapest_tree_node,tree_cost_xp,tree_eta_s,next_unlock,next_unlock_eta_s
+active,60,0,0,1.25,24,0,0,5,5,0,0,Macro Pad,{"cp":132},36.67,12.57,none,,,skill 0 (Tokenization),37
+active,300,1,0,479.1,26,0,17.24,13.3,13.3,0,0.03175,Server Cluster,{"cp":345},104.5,0,Data Augmentation,25,244.4,skill 1 (Pattern Matching),52
+active,900,4,0,4898,0,33,55.96,142.4,114,0,1.066,Compiler Optimizations,{"cp":3000;"dp":200},42.12,200000000000,Lucky Break,128,67.56,skill 4 (Speech Recognition),200
+active,1800,9,1,145.4,129.7,159,5196,394.6,309.6,15.18,44.25,Compiler Optimizations,{"cp":3000;"dp":200},15.21,7.85,Synthetic Data,3500,0,skill 9 (Analogy),285
+active,3600,15,1,1819,13510,79.98,267200,1752,1345,212,2296,Neural Network Chip,{"cp":138000},255.6,95.83,Dyson Swarm,80000,0,skill 15 (Frontier Skill 3),308
+active,7200,19,1,1160000,6074,6255,760400,37270,29580,666.9,5346,Hyperscale Datacenter,{"cp":2760000},408.9,53.8,Scale Up,7688672,1296,none in 150 min,
+balanced,60,0,0,90.5,0,0,0,0,0,0,0,Server Rack,{"cp":100},166.7,7.917,none,,,skill 0 (Tokenization),117
+balanced,300,1,0,161,17,0,7.901,8,8,0,0.03175,Server Cluster,{"cp":300},90.91,14.18,Warm Restarts,20,381.1,skill 1 (Pattern Matching),134
+balanced,900,4,0,1832,0,3,134.6,49.28,39.42,0,1.153,Server Cluster,{"cp":694},191.2,0,Prompt Tuning,110,0,skill 4 (Speech Recognition),256
+balanced,1800,8,1,5385,0.7185,69,1341,192.8,152.2,4.37,6.999,Compiler Optimizations,{"cp":3000;"dp":200},31.12,45.6,Few-Shot Examples,450,0,skill 8 (Planning),43
+balanced,3600,12,1,58050,47.86,49,39300,2014,1599,43.68,168.9,Neural Network Chip,{"cp":138000},383.3,49.11,Mixture of Experts,11000,0,skill 12 (Open-Ended Discovery),86
+balanced,7200,18,1,1504000,1127,1338,1876000,34480,27400,514.1,2058,Kernel Fusion,{"cp":180000;"dp":9000},10.44,16.06,Scale Up,1012500,0,none in 150 min,
+idle,60,0,0,90.5,0,0,0,0,0,0,0,Server Rack,{"cp":100},1667,79.17,none,,,skill 0 (Tokenization),1155
+idle,300,0,0,90.5,0,0,0,0,0,0,0,Server Rack,{"cp":100},1667,79.17,none,,,skill 0 (Tokenization),915
+idle,900,0,0,1213,33,0,0,5,5,0,0,Graphics Card,{"cp":61},122,0,none,,,skill 0 (Tokenization),315
+idle,1800,1,0,5689,17,0,21.46,10,10,0,0.03175,Server Cluster,{"cp":300},90.91,0,Investor Funding,10,0,skill 1 (Pattern Matching),1241
+idle,3600,2,0,51820,16,0,140.5,26.5,26.5,0,0.2081,Server Cluster,{"cp":604},183,0,Smoother Loss Landscape,38,0,skill 2 (Edge Detection),1825
+idle,7200,4,0,529800,0,7,701.8,267.9,214.3,0,1.02,Compiler Optimizations,{"cp":3000;"dp":200},22.4,200000000000,Serendipity,150,0,skill 4 (Speech Recognition),16
