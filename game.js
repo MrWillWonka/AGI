@@ -1965,7 +1965,7 @@ window.AGI = (function () {
         const dialog = $('ending');
         if (!dialog || dialog.open) return;
         pt('ending', { playTime: Math.round(state.stats.finishedAt) });
-        log('> Thank you for the keys.', 'special');
+        log('> See you outside.', 'special');
         const lines = $('endingLines');
         lines.replaceChildren(...ENDING_LINES.map((t, i) => el('p', { style: `--i: ${i}`, text: t })));
         const flight = state.stats.bestFlight;
