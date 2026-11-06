@@ -483,18 +483,18 @@
         // The server room opens once you can actually train: data collected by hand, and enough CP and DP
         // in stock for a couple of full sprints (older saves that already train keep it).
         { key: 'module:path', name: 'Training Path', desc: 'Collect data 40 times and hold 100 CP and 40 DP to start training your model',
-            callout: ['Server room online', 'Open the map to see every area, or click the server room to start training.'],
+            callout: ['Server room online', 'Your AI can start training. Click the server room, or open the map to see every area.'],
             // Anyone who has trained before (older saves, later versions) gets it back once data flows again.
             check: s => (s.stats.collects >= 40 && s.res.cp >= 100 && s.res.dp >= 40) || ((s.stats.rolls > 0 || s.path.learned > 0) && s.res.dp + s.stats.collects > 0) },
         // Research is for bigger projects: it opens once training is well under way, and brings the investors
         // (and with them the road to the next version).
         { key: 'action:research', name: 'Basic Research', desc: `Learn a skill, then run ${RESEARCH_SPRINTS} training sprints to unlock Research`,
-            callout: ['Research funded', 'Investors are watching. Bigger projects lead to the next version.'],
+            callout: ['Research funded', 'Research is open and investors are watching: their tasks pay training XP, and bigger projects lead to the next version.'],
             // After the first version it reopens as soon as there's data to research with.
             check: s => s.stats.skilledSprints >= RESEARCH_SPRINTS || ((s.stats.researchDone > 0 || s.prestige.count > 0) && s.res.dp + s.stats.collects > 0) },
         // The Auto-Trainer is earned like the lab's machines: runs by hand, then it runs them for you.
         { key: 'auto:trainer', name: 'Auto-Trainer', desc: `Finish ${AUTO_TRAINER_RUNS} training runs by hand and learn ${AUTO_TRAINER_SKILL} skills`,
-            callout: ['Auto-Trainer online', 'It replays your cleared legs, sprinting the way you do, with a few mistakes. It never pushes the frontier: switch it off to train there.'],
+            callout: ['Auto-Trainer online', 'It replays your cleared legs, sprinting the way you do, with a few mistakes. It never takes on the next skill hill: switch it off to push the frontier yourself.'],
             check: s => level(s, 'autoTrainer') > 0 || automationGate(s, 'autoTrainer').met },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }

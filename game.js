@@ -1472,7 +1472,7 @@ window.AGI = (function () {
             // Once the desk has its monitor (click tool level 4), point out that jobs can be held down.
             if (id === 'keyboard' && E.level(state, id) >= 4 && !state.intro['hint:hold']) {
                 state.intro['hint:hold'] = true;
-                callout('hint:hold', 'Tip', 'Holding down a job generates resources at a set rate.');
+                callout('hint:hold', 'Hold to repeat', 'Hold a job\'s button and it repeats about four times a second.');
             }
             afterChange();
         }
@@ -1920,7 +1920,7 @@ window.AGI = (function () {
         // Only nudge once shipping is worth it (General AI): an early ship for 1–2 Insight sets you back.
         if (!state.intro['room:rnd'] && roomOpen('rnd') && E.phaseIndex(state) >= 1) {
             state.intro['room:rnd'] = true;
-            if (!state.prestige.count) callout('room:rnd', 'R&D online', 'Your model is ready to ship. A new version starts over with Insight to spend.');
+            if (!state.prestige.count) callout('room:rnd', 'R&D online', 'Your model is ready to ship. Shipping restarts the run but pays Insight: a permanent boost, and the currency for legacy upgrades.');
         }
         for (const a of changes.achievements) {
             pt('achievement', { id: a.id });
@@ -2241,18 +2241,18 @@ window.AGI = (function () {
         }
         if (!state.intro['hint:train'] && openBay === 'training' && path.view === 'run' && state.stats.rolls === 0) {
             state.intro['hint:train'] = true;
-            callout('hint:train', 'Training runs', 'This is how your model learns. Hold the button to charge a sprint and let go to fire it. Roll over the hills to the flag: cresting the skill hill teaches the model a skill, and every metre earns XP to spend on upgrades.');
+            callout('hint:train', 'Training runs', 'Your model learns by rolling. Hold the button to charge a sprint, release to fire it. Crest the big hill at the flag to learn a skill; every metre earns XP for upgrades.');
         }
         // Replaying pays once there's a real leg behind you (the warm-up's is two metres), on the screen
         // where you pick one.
         if (!state.intro['hint:rerun'] && state.intro['hint:replay'] && openBay === 'training' && path.view === 'dev'
             && state.path.learned > E.FIRST_REAL_SKILL && !$('legPick').hidden) {
             state.intro['hint:rerun'] = true;
-            callout('hint:rerun', 'Raise your passive XP', 'Run a cleared leg again with better upgrades: a better run raises what that leg earns by itself. Pick the leg here.');
+            callout('hint:rerun', 'Raise your passive XP', 'Run a cleared leg again with better upgrades and its passive XP goes up. Pick the leg here.');
         }
         if (!state.intro['hint:prompt'] && openBay === 'training' && path.view === 'run' && E.derive(state).zoneWidth > 0) {
             state.intro['hint:prompt'] = true;
-            callout('hint:prompt', 'Prompts', 'Release a sprint inside the green zone for bonus XP and a bigger run bonus. It isn\'t always the best play: a full charge might take you farther.');
+            callout('hint:prompt', 'Clean prompts', 'Release a sprint inside the green zone to land a clean prompt: bonus XP now and a bigger payout when the run ends. A full charge may still carry you farther.');
         }
         if (claimable && view !== 'lab' && !state.intro['hint:offer']) {
             state.intro['hint:offer'] = true;
@@ -3028,7 +3028,7 @@ window.AGI = (function () {
         // The first time you're in the lab after the first skill, point out where automations show.
         if (learned > 0 && view === 'lab' && !state.intro['hint:tasks']) {
             state.intro['hint:tasks'] = true;
-            callout('hint:tasks', 'Tip', 'Scheduled tasks shows every automation that\'s running, and what each cleared leg trains on its own.');
+            callout('hint:tasks', 'Scheduled tasks', 'Every automation running for you is listed here, along with the XP each cleared leg earns by itself.');
         }
         const shares = E.taskShares(state);
         let dedicated = 0;
@@ -5394,7 +5394,7 @@ window.AGI = (function () {
                 && roll.ground.slope(roll.ball.x) < -0.1 && roll.ball.v > 1 && roll.pushesLeft <= 0) {
                 state.intro['hint:tuck'] = true;
                 path.holdHint = 3;
-                log('Tip: hold on the way down a swell to dive and pick up speed; let go at the bottom.', 'info');
+                log('Tip: out of fuel? Hold while the ball rolls down a slope to tuck, and let go at the bottom for a NICE DIVE: extra speed.', 'info');
             }
             if (path.holdHint > 0) path.holdHint -= dt;
             // Slow motion only matters on screen; in the background the run keeps real time. A wind-up and
@@ -5411,7 +5411,7 @@ window.AGI = (function () {
             if (path.visible && thrustLeg(roll) && !state.intro['act:two']) {
                 state.intro['act:two'] = true;
                 luckBanner('ACT II', 'The model generalised. Hold to thrust.', 'success');
-                log('Act II: past General AI the trail opens into giant swells. Hold to thrust: your sprints are now fuel, burning behind the ball to keep it moving and flying.', 'special');
+                log('Act II. Past General AI the trail turns into giant swells, and your sprints become fuel: hold to thrust and keep the ball moving and flying.', 'special');
                 modelSay('I can fly now. Nobody told me I couldn\'t.');
             }
             updateThrust(roll, sim);
@@ -5773,7 +5773,7 @@ window.AGI = (function () {
                 lines: [...learned.map(l => [l.skill.effect, '']), ...(grants ? [[grants, '']] : []), ...surgeLine(learned.some(l => l.skill.wall)), ...lines, ...(pct > 0 ? [[`Then ${pct}% of the way to ${target}`, '']] : [])], record: result.record });
             if (!state.intro['hint:replay']) {
                 state.intro['hint:replay'] = true;
-                callout('hint:replay', 'Passive XP', 'Your AI now replays your best run on each cleared leg, earning XP by itself while you play.');
+                callout('hint:replay', 'Passive XP', 'Each cleared leg (a stretch of trail you\'ve crested) now replays your best run on its own, earning XP while you play.');
             }
         } else if (result.skill) {
             const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
@@ -5787,7 +5787,7 @@ window.AGI = (function () {
                 lines: [[result.skill.effect, ''], ...(grants ? [[grants, '']] : []), ...surgeLine(result.skill.wall), ...lines] });
             if (!state.intro['hint:replay']) {
                 state.intro['hint:replay'] = true;
-                callout('hint:replay', 'Passive XP', 'Your AI now replays your best run on each cleared leg, earning XP by itself while you play.');
+                callout('hint:replay', 'Passive XP', 'Each cleared leg (a stretch of trail you\'ve crested) now replays your best run on its own, earning XP while you play.');
             }
         } else {
             // So close: stopped on the frontier's climb near the top. A consolation share and how much more speed
