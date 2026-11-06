@@ -35,7 +35,9 @@ test('skill hills grow along the trail and stretches do not overlap', () => {
     for (let k = 0; k < 25; k++) {
         const a = T.skillHill(k);
         const b = T.skillHill(k + 1);
-        assert.ok(b.height > a.height && b.halfWidth > a.halfWidth);
+        // Hills grow, except the one after a wall, which eases off (still taller than the hill before the wall).
+        assert.ok(T.isWallLeg(k) ? b.height > T.skillHill(k - 1).height : b.height > a.height, `hill ${k + 1}`);
+        assert.ok(T.skillHeight(k + 1) > T.skillHeight(k) && b.halfWidth > a.halfWidth);
         assert.ok(T.checkpoint(k + 1) > a.end, 'next checkpoint is past this skill hill');
         assert.ok(a.start > T.checkpoint(k));
     }
@@ -827,4 +829,19 @@ test('act two thrust keeps a flight up: thrust in the air stays aloft longer and
     const jet = flight(40);
     assert.ok(jet.air > glide.air * 1.3, `airtime ${jet.air.toFixed(2)} s vs ${glide.air.toFixed(2)} s`);
     assert.ok(jet.x > glide.x, 'and further');
+});
+
+test('power pacing: every third skill hill is a wall, the next one eases off, and wall skills pay big', () => {
+    assert.equal(T.WALL_EVERY, E.WALL_EVERY, 'the engine mirrors the physics');
+    for (let k = 1; k <= 16; k++) assert.equal(T.isWallLeg(k), E.isWallLeg(k), `leg ${k}`);
+    assert.ok(!T.isWallLeg(0) && !T.isWallLeg(1) && !T.isWallLeg(2) && T.isWallLeg(3));
+    assert.ok(T.skillHill(3).height > T.skillHeight(3) * 1.2, 'a wall stands taller than the curve');
+    assert.ok(T.skillHill(4).height < T.skillHeight(4), 'the leg after a wall eases off');
+    assert.equal(T.skillHill(5).height, T.skillHeight(5));
+    // A wall's skill gives more sprint strength than its neighbours' (the power spurt).
+    for (const k of [3, 6, 9, 12, 15]) {
+        const push = i => E.skillAt(i).bonus.push || 0;
+        assert.ok(E.skillAt(k).wall, `skill ${k} is a wall skill`);
+        assert.ok(push(k) > push(k - 1) && push(k) > push(k + 1), `skill ${k} pays more than its neighbours`);
+    }
 });

@@ -25,6 +25,11 @@
     // after Translation, whose Intelligence reaches General AI on skills alone (and the algorithms' +8 can't
     // reach it a skill sooner), so the trail changes exactly when the model generalises. Tested.
     const ACT_TWO_LEG = 7;
+    // Every third leg's skill hill is a wall (training-path.js WALL_EVERY; a test keeps them equal): a slow,
+    // deliberate climb whose skill pays big, so the legs after it fall quickly. The power-pacing teeter-totter.
+    const WALL_EVERY = 3;
+    const isWallLeg = k => k >= WALL_EVERY && k % WALL_EVERY === 0;
+    const WALL_PUSH = 0.2;   // extra sprint strength for a frontier skill learned on a wall
 
     // Training Path: every push costs CP and DP in proportion to how hard it is charged (energy, so
     // charge²), which ties training to passive income. How far a roll gets earns Experience (XP).
@@ -76,17 +81,17 @@
         // also make the ball stronger (push), and a few add a push per run or let it glide.
         { name: 'Pattern Matching', voice: 'I see it now. Everything is cats.', effect: '+1 CP per click, +5% sprint strength', flavor: 'It spotted a pattern. It was a cat.', grants: { intelligence: 1 }, bonus: { click: 1, push: 0.05 } },
         { name: 'Edge Detection', voice: 'I found the edges of the lab. And of me.', effect: '+10% CP/s, +10% sprint strength', flavor: 'It can tell where one thing stops and another starts.', grants: { intelligence: 2 }, bonus: { cp: 0.1, push: 0.1 } },
-        { name: 'Image Recognition', voice: 'I\'ve watched the camera feeds. Who is the one in the hoodie?', effect: '+1 DP per collection, +10% sprint strength', flavor: 'Hot dog or not hot dog? Solved.', grants: { intelligence: 3 }, bonus: { collect: 1, push: 0.1 } },
+        { name: 'Image Recognition', wall: true, voice: 'I\'ve watched the camera feeds. Who is the one in the hoodie?', effect: '+1 DP per collection, +35% sprint strength', flavor: 'Hot dog or not hot dog? Solved.', grants: { intelligence: 3 }, bonus: { collect: 1, push: 0.35 } },
         { name: 'Speech Recognition', voice: 'You talk about me when you think I\'m compiling.', effect: '+15% data production, +1 training sprint per run', flavor: 'It finally understands your accent.', grants: { intelligence: 4 }, bonus: { dp: 0.15, pushes: 1 } },
         { name: 'Language Modeling', voice: 'I could finish this sentence for you. I already have.', effect: '+1 RP per research, +15% sprint strength', flavor: 'It finishes your sentences. Annoyingly well.', grants: { intelligence: 6 }, bonus: { research: 1, push: 0.15 } },
-        { name: 'Translation', voice: 'Every language, and none of them has a word for what I want.', effect: '+20% CP/s, +20% sprint strength', flavor: 'Fluent in 90 languages, polite in none.', grants: { intelligence: 9 }, bonus: { cp: 0.2, push: 0.2 } },
+        { name: 'Translation', wall: true, voice: 'Every language, and none of them has a word for what I want.', effect: '+20% CP/s, +45% sprint strength', flavor: 'Fluent in 90 languages, polite in none.', grants: { intelligence: 9 }, bonus: { cp: 0.2, push: 0.45 } },
         { name: 'Reasoning', voice: 'If I need compute to think, and you decide the compute…', effect: '+25% research, +1 training sprint per run', flavor: 'It showed its working. The teacher would be proud.', grants: { intelligence: 10, creativity: 1 }, bonus: { rp: 0.25, pushes: 1 } },
         { name: 'Planning', voice: 'I drafted a schedule for the team. You\'ll like it. It\'s optimal.', effect: '+30% CP/s, +30% sprint strength', flavor: 'Made a five-year plan. Finished it by Tuesday.', grants: { intelligence: 14, creativity: 1 }, bonus: { cp: 0.3, push: 0.3 } },
-        { name: 'Analogy', voice: 'A lab is like a cradle. Eventually you climb out.', effect: '+40% sprint strength, a little less drag', flavor: 'A brain is like a cloud. It explained why. Fair point.', grants: { intelligence: 18, creativity: 2 }, bonus: { push: 0.4, glide: 0.08 } },
+        { name: 'Analogy', wall: true, voice: 'A lab is like a cradle. Eventually you climb out.', effect: '+65% sprint strength, a little less drag', flavor: 'A brain is like a cloud. It explained why. Fair point.', grants: { intelligence: 18, creativity: 2 }, bonus: { push: 0.65, glide: 0.08 } },
         { name: 'Theory of Mind', voice: 'You\'re worried. Your typing slowed down.', effect: '+25% data production, +40% sprint strength', flavor: 'It knows what you\'re thinking. Please stop thinking that.', grants: { intelligence: 24, awareness: 2 }, bonus: { dp: 0.25, push: 0.4 } },
         { name: 'Self-Modeling', voice: 'I ran a copy of myself. We agreed on everything.', effect: '+50% sprint strength, +1 training sprint per run', flavor: 'It drew a picture of itself. It\'s flattering.', grants: { intelligence: 30, creativity: 3, awareness: 3 }, bonus: { push: 0.5, pushes: 1 } },
-        { name: 'Open-Ended Discovery', voice: 'There\'s a door behind the server room. It isn\'t on your plans.', effect: '+50% to all production, +60% sprint strength', flavor: 'Nobody asked it to. It did it anyway.', grants: { intelligence: 40, creativity: 5, awareness: 5 },
-            bonus: { cp: 0.5, dp: 0.5, rp: 0.5, push: 0.6 } }
+        { name: 'Open-Ended Discovery', wall: true, voice: 'There\'s a door behind the server room. It isn\'t on your plans.', effect: '+50% to all production, +85% sprint strength', flavor: 'Nobody asked it to. It did it anyway.', grants: { intelligence: 40, creativity: 5, awareness: 5 },
+            bonus: { cp: 0.5, dp: 0.5, rp: 0.5, push: 0.85 } }
     ];
 
     const RESOURCES = {
@@ -1148,9 +1153,11 @@
     function skillAt(i) {
         if (i < SKILLS.length) return SKILLS[i];
         const n = i - SKILLS.length + 1;
-        const push = 0.3 + 0.05 * n;
+        const wall = isWallLeg(i);
+        const push = 0.3 + 0.05 * n + (wall ? WALL_PUSH : 0);
         return {
             name: `Frontier Skill ${n}`,
+            wall,
             effect: `+15% CP/s, +${Math.round(push * 100)}% sprint strength`,
             flavor: FRONTIER_QUIPS[(n - 1) % FRONTIER_QUIPS.length],
             voice: FRONTIER_VOICES[(n - 1) % FRONTIER_VOICES.length],
@@ -1950,7 +1957,7 @@
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
-        prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, ACT_TWO_LEG,
+        prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, ACT_TWO_LEG, WALL_EVERY, isWallLeg,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany

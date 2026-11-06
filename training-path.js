@@ -95,6 +95,15 @@
     // version worth shipping, comes about 30 minutes in), ×1.5 a leg in act two, from where it always was.
     const ACT_ONE_GROWTH = 1.25;
     const skillHeight = k => (k === 0 ? TUTORIAL.height : 0.3 * Math.pow(k < LATE_LEG ? ACT_ONE_GROWTH : 1.5, k - 1));
+    // The teeter-totter: every third leg's skill hill is a wall (WALL_HEIGHT taller), and the leg after it eases
+    // off (AFTER_WALL), so progress swings between a slow, deliberate climb and a stretch you cut through. The
+    // skills learned on walls pay big (the engine's SKILLS), which is the power spurt. Only the skill hill moves:
+    // the leg's rolling hills keep the smooth curve. The engine mirrors WALL_EVERY (`isWallLeg`; a test keeps them equal).
+    const WALL_EVERY = 3;
+    const WALL_HEIGHT = 1.3;
+    const AFTER_WALL = 0.85;
+    const isWallLeg = k => k >= WALL_EVERY && k % WALL_EVERY === 0;
+    const wallMult = k => (isWallLeg(k) ? WALL_HEIGHT : k > WALL_EVERY && isWallLeg(k - 1) ? AFTER_WALL : 1);
     // Act two (from leg 7, `LATE_LEG`: the leg after Translation, the skill that reaches General AI) is a
     // launcher: each leg is a handful of huge swells, far wider than the view, and the ball can fly off
     // their crests and bounce (see createRoll). Before that, legs are many small rolling hills. The engine
@@ -126,7 +135,7 @@
     function skillHill(k) {
         const start = checkpoint(k) + stretchLength(k);
         const w = skillHalfWidth(k);
-        return { start, peak: start + w, end: start + 2 * w, height: skillHeight(k), halfWidth: w, skill: k };
+        return { start, peak: start + w, end: start + 2 * w, height: skillHeight(k) * wallMult(k), halfWidth: w, skill: k, wall: isWallLeg(k) };
     }
 
     // ---- Rolling hills (random per roll) -----------------------------------
@@ -885,6 +894,6 @@
 
     return {
         STEP, GRAVITY, BUMPER, lengthScale, TUCK_GRAVITY, AIR_DIVE, TOKEN_PULL, BURN_SECONDS, THRUST_LIFT, features, KICKERS, KICK_SLOPE, bumpAt, bumpSlope,
-        LATE_LEG, maxAbove, checkpoint, skillHill, skillHeight, rollingHills, terrain, createRoll, rng, STRIP_PUSH, STRIP_BRAKE
+        LATE_LEG, maxAbove, checkpoint, skillHill, skillHeight, WALL_EVERY, WALL_HEIGHT, AFTER_WALL, isWallLeg, wallMult, rollingHills, terrain, createRoll, rng, STRIP_PUSH, STRIP_BRAKE
     };
 });

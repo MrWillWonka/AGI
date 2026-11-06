@@ -2262,7 +2262,9 @@ window.AGI = (function () {
         if (place === 'bay') {
             const k = E.skillAt(state.path.learned);
             const ch = state.challenge ? ` · challenge: ${challengeName(state.challenge.id)}` : '';
-            return `Next skill: ${k.name} · best run ${Math.round(state.path.best * 100)}%${ch}`;
+            // A wall leg says so (status: its skill hill stands taller, and its skill pays big).
+            const wall = E.isWallLeg(state.path.learned) ? ' (wall)' : '';
+            return `Next skill: ${k.name}${wall} · best run ${Math.round(state.path.best * 100)}%${ch}`;
         }
         if (place === 'rnd') {
             const gain = E.prestigeGain(state);
@@ -5528,7 +5530,7 @@ window.AGI = (function () {
             const onward = pct > 0 ? `, then stopped ${pct}% of the way to ${target}` : '';
             log(`${replay ? 'Replay' : 'Run'} ${state.stats.rolls}: learned ${names}${onward} (+${xpText(result.xp + banked)} XP).`, 'special');
             path.overview = OVERVIEW_SECONDS + path.pause;
-            showResult({ skill: true, title: learned.length > 1 ? `${learned.length} skills learned` : 'Skill learned', main: names,
+            showResult({ skill: true, title: learned.length > 1 ? `${learned.length} skills learned` : last.wall ? 'Wall broken · skill learned' : 'Skill learned', main: names,
                 flavor: last.flavor, voice: last.voice, xp: result.xp + banked,
                 lines: [...learned.map(l => [l.skill.effect, '']), ...(grants ? [[grants, '']] : []), ...lines, ...(pct > 0 ? [[`Then ${pct}% of the way to ${target}`, '']] : [])], record: result.record });
             if (!state.intro['hint:replay']) {
@@ -5543,7 +5545,7 @@ window.AGI = (function () {
             if (!(currentPlace() === 'bay:training' && path.view === 'run')) toast(`Skill learned · ${result.skill.name}`, result.skill.effect, 'skill');
             path.glow = { skill: state.path.learned - 1, age: 0 };
             path.overview = OVERVIEW_SECONDS + path.pause;
-            showResult({ skill: true, title: 'Skill learned', main: result.skill.name, flavor: result.skill.flavor, voice: result.skill.voice, xp: result.xp + banked,
+            showResult({ skill: true, title: result.skill.wall ? 'Wall broken · skill learned' : 'Skill learned', main: result.skill.name, flavor: result.skill.flavor, voice: result.skill.voice, xp: result.xp + banked,
                 lines: [[result.skill.effect, ''], ...(grants ? [[grants, '']] : []), ...lines] });
             if (!state.intro['hint:replay']) {
                 state.intro['hint:replay'] = true;
