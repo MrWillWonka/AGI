@@ -2245,7 +2245,7 @@ window.AGI = (function () {
         }
         if (!state.intro['hint:train'] && openBay === 'training' && path.view === 'run' && state.stats.rolls === 0) {
             state.intro['hint:train'] = true;
-            callout('hint:train', 'Training runs', 'Your model learns by rolling. Hold the button to charge a sprint, release to fire it. Crest the big hill at the flag to learn a skill; every metre earns XP for upgrades.');
+            callout('hint:train', 'Training runs', 'Your model learns by rolling. Hold the button to charge a sprint, release to fire it. Crest the big hill at the flag to learn a skill; every meter earns XP for upgrades.');
         }
         // Replaying pays once there's a real leg behind you (the warm-up's is two metres), on the screen
         // where you pick one.
