@@ -3577,8 +3577,8 @@ window.AGI = (function () {
         $('startRunButton').addEventListener('click', () => showTrainingView('run'));
         $('treeButton').addEventListener('click', () => showTrainingView('dev'));
         $('restartButton').addEventListener('click', restartRun);
-        $('legSelect').addEventListener('change', e => setStartLeg(e.target.value === '' ? null : Number(e.target.value)));
-        $('legTagClear').addEventListener('click', () => setStartLeg(null));
+        $('legSelect').addEventListener('change', e => setStartLeg(e.target.value === '' ? null : Number(e.target.value), true));
+        $('legTagClear').addEventListener('click', () => setStartLeg(null, true));
         // Hotkeys in the Training Cluster: U swaps the trail and the upgrades, R trains again after a run.
         document.addEventListener('keydown', e => {
             if (openBay !== 'training' || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
@@ -4375,9 +4375,19 @@ window.AGI = (function () {
         return roll && path.stateRef === state ? Math.min(roll.leg, state.path.learned) : startLeg();
     }
 
-    function setStartLeg(k) {
+    // `chosen`: the player picked it (Start at, or the tag's ×), not just walked into the bay.
+    function setStartLeg(k, chosen = false) {
         path.startLeg = k != null && k < state.path.learned ? k : null;
         pt('startAt', { leg: path.startLeg == null ? 'frontier' : path.startLeg + 1 });
+        // The Auto-Trainer only replays cleared legs, so picking the frontier switches it off: with it on, "Frontier"
+        // in Start at snapped back to the newest cleared leg and the next run was a replay again.
+        if (chosen && path.startLeg == null && autoOn()) {
+            E.setTaskOn(state, 'autoTrainer', false);
+            pt('task', { id: 'autoTrainer', on: false, why: 'frontier' });
+            log('Auto-Trainer off: the frontier is yours. Switch it back on to replay cleared legs.', 'info');
+            afterChange();
+            save();
+        }
         const roll = path.roll;
         // A run waiting at the start line is rebuilt on the chosen leg; one in flight finishes first.
         if (roll && !roll.launched && !path.done) currentRoll();

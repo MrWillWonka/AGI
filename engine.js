@@ -492,7 +492,7 @@
             check: s => s.stats.skilledSprints >= RESEARCH_SPRINTS || ((s.stats.researchDone > 0 || s.prestige.count > 0) && s.res.dp + s.stats.collects > 0) },
         // The Auto-Trainer is earned like the lab's machines: runs by hand, then it runs them for you.
         { key: 'auto:trainer', name: 'Auto-Trainer', desc: `Finish ${AUTO_TRAINER_RUNS} training runs by hand and learn ${AUTO_TRAINER_SKILL} skills`,
-            callout: ['Auto-Trainer online', 'It replays the legs you\'ve cleared, sprinting the way you do, while you work in the lab. New skills are still yours to win by hand.'],
+            callout: ['Auto-Trainer online', 'It replays your cleared legs, sprinting the way you do, with a few mistakes. It never pushes the frontier: switch it off to train there.'],
             check: s => level(s, 'autoTrainer') > 0 || automationGate(s, 'autoTrainer').met },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }
