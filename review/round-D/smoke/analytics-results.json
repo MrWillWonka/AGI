@@ -1,0 +1,439 @@
+{
+  "expected": {
+    "session": 1,
+    "sample": 1,
+    "view": 10,
+    "mailRead": 1,
+    "buy": 3,
+    "setting": 1,
+    "save": 2,
+    "unlock": 0,
+    "mail": 3,
+    "tip": 2,
+    "tipClosed": 2,
+    "sprint": 2,
+    "skill": 1,
+    "run": 1,
+    "restart": 1,
+    "offer": 3,
+    "offerDone": 3,
+    "claim": 1,
+    "dismiss": 1,
+    "phase": 2,
+    "task": 1,
+    "ship": 2,
+    "challenge": 1,
+    "perk": 1,
+    "hidden": 1,
+    "shown": 1
+  },
+  "calls": {
+    "view": 20,
+    "session": 1,
+    "sample": 4,
+    "mailRead": 1,
+    "achievement": 10,
+    "buy": 3,
+    "setting": 1,
+    "save": 2,
+    "unlock": 8,
+    "mail": 6,
+    "tip": 6,
+    "tipClosed": 6,
+    "startAt": 1,
+    "sprint": 2,
+    "skill": 1,
+    "run": 1,
+    "restart": 1,
+    "offer": 3,
+    "offerDone": 3,
+    "claim": 1,
+    "dismiss": 1,
+    "task": 1,
+    "phase": 4,
+    "ship": 2,
+    "challenge": 1,
+    "ending": 1,
+    "hidden": 1,
+    "shown": 1
+  },
+  "stored": {
+    "view": 20,
+    "session": 1,
+    "sample": 4,
+    "mailRead": 1,
+    "achievement": 10,
+    "buy": 3,
+    "setting": 1,
+    "save": 2,
+    "unlock": 8,
+    "mail": 6,
+    "tip": 6,
+    "tipClosed": 6,
+    "startAt": 1,
+    "sprint": 2,
+    "skill": 1,
+    "run": 1,
+    "restart": 1,
+    "offer": 3,
+    "offerDone": 3,
+    "claim": 1,
+    "dismiss": 1,
+    "task": 1,
+    "phase": 4,
+    "ship": 2,
+    "challenge": 1,
+    "ending": 1,
+    "hidden": 1,
+    "shown": 1
+  },
+  "missing": [
+    {
+      "type": "perk",
+      "expected": 1,
+      "got": 0
+    }
+  ],
+  "schema": {
+    "fieldsByType": {
+      "view": [
+        "t",
+        "w",
+        "e",
+        "v"
+      ],
+      "session": [
+        "t",
+        "w",
+        "e",
+        "save",
+        "skills",
+        "version",
+        "screen",
+        "touch",
+        "at"
+      ],
+      "sample": [
+        "t",
+        "w",
+        "e",
+        "cp",
+        "dp",
+        "rp",
+        "xp",
+        "cpNet",
+        "dpNet",
+        "rpRate",
+        "xpRate",
+        "int",
+        "skills",
+        "phase",
+        "at",
+        "labNew",
+        "offers",
+        "offersDone",
+        "treeReady",
+        "hand"
+      ],
+      "mailRead": [
+        "t",
+        "w",
+        "e",
+        "id"
+      ],
+      "achievement": [
+        "t",
+        "w",
+        "e",
+        "id"
+      ],
+      "buy": [
+        "t",
+        "w",
+        "e",
+        "id",
+        "lvl",
+        "held",
+        "price",
+        "cheapest",
+        "cheapestCost",
+        "affordable",
+        "rank"
+      ],
+      "setting": [
+        "t",
+        "w",
+        "e",
+        "key",
+        "value"
+      ],
+      "save": [
+        "t",
+        "w",
+        "e",
+        "op"
+      ],
+      "unlock": [
+        "t",
+        "w",
+        "e",
+        "key"
+      ],
+      "mail": [
+        "t",
+        "w",
+        "e",
+        "id"
+      ],
+      "tip": [
+        "t",
+        "w",
+        "e",
+        "key",
+        "at"
+      ],
+      "tipClosed": [
+        "t",
+        "w",
+        "e",
+        "key",
+        "by",
+        "s"
+      ],
+      "startAt": [
+        "t",
+        "w",
+        "e",
+        "leg"
+      ],
+      "sprint": [
+        "t",
+        "w",
+        "e",
+        "leg",
+        "ch",
+        "cap",
+        "first",
+        "x",
+        "v",
+        "left"
+      ],
+      "skill": [
+        "t",
+        "w",
+        "e",
+        "n",
+        "name",
+        "xp",
+        "runs"
+      ],
+      "run": [
+        "t",
+        "w",
+        "e",
+        "from",
+        "leg",
+        "prog",
+        "m",
+        "xp",
+        "legs",
+        "sprints",
+        "clean",
+        "top",
+        "dur"
+      ],
+      "restart": [
+        "t",
+        "w",
+        "e",
+        "leg",
+        "prog"
+      ],
+      "offer": [
+        "t",
+        "w",
+        "e",
+        "id",
+        "task",
+        "target",
+        "reward",
+        "s"
+      ],
+      "offerDone": [
+        "t",
+        "w",
+        "e",
+        "id"
+      ],
+      "claim": [
+        "t",
+        "w",
+        "e",
+        "id",
+        "task",
+        "reward"
+      ],
+      "dismiss": [
+        "t",
+        "w",
+        "e",
+        "id",
+        "task"
+      ],
+      "task": [
+        "t",
+        "w",
+        "e",
+        "id",
+        "on"
+      ],
+      "phase": [
+        "t",
+        "w",
+        "e",
+        "name"
+      ],
+      "ship": [
+        "t",
+        "w",
+        "e",
+        "version",
+        "gain",
+        "challenge"
+      ],
+      "challenge": [
+        "t",
+        "w",
+        "e",
+        "name",
+        "won"
+      ],
+      "ending": [
+        "t",
+        "w",
+        "e",
+        "playTime"
+      ],
+      "hidden": [
+        "t",
+        "w",
+        "e"
+      ],
+      "shown": [
+        "t",
+        "w",
+        "e"
+      ]
+    },
+    "badBase": 0,
+    "exactDuplicates": 0,
+    "logVersion": 1,
+    "sessionEvent": {
+      "t": 0,
+      "w": 0,
+      "e": "session",
+      "save": 15,
+      "skills": 0,
+      "version": "v1.0",
+      "screen": "1280x800",
+      "touch": false,
+      "at": "lab"
+    },
+    "hasGameBuildVersion": false,
+    "labBuysWithoutContext": [
+      "keyboard"
+    ],
+    "shipEvent": {
+      "t": 36.7,
+      "w": 34,
+      "e": "ship",
+      "version": "v2.0",
+      "gain": 5
+    },
+    "skillEvent": {
+      "t": 16.4,
+      "w": 16,
+      "e": "skill",
+      "n": 1,
+      "name": "Tokenization",
+      "xp": 5.04,
+      "runs": 1
+    },
+    "runEvent": {
+      "t": 19.5,
+      "w": 19,
+      "e": "run",
+      "from": 1,
+      "leg": 2,
+      "prog": 0,
+      "m": 0,
+      "xp": 5.04,
+      "legs": 1,
+      "sprints": 1,
+      "clean": 0,
+      "top": 1.35,
+      "dur": 6
+    },
+    "unlockKeys": [
+      "action:collect",
+      "module:path",
+      "tab:algorithms",
+      "tab:consciousness",
+      "tab:algorithms",
+      "tab:consciousness",
+      "tab:algorithms",
+      "tab:consciousness"
+    ]
+  },
+  "notes": [
+    "room before rnd: facility",
+    "ascend button not clickable",
+    "perk not clickable"
+  ],
+  "loss": {
+    "callsTotal": 93,
+    "storedTotal": 93,
+    "storedBeforeFlush": 92,
+    "atRiskBeforeFlush": 1,
+    "lossAfterFlush": 0,
+    "dropped": 0
+  },
+  "funnel": {
+    "firstClick": 30.1,
+    "firstLabBuy": 2.8,
+    "firstAutomation": null,
+    "serverRoomOpen": 4.3,
+    "firstRun": 19.5,
+    "firstSkill": 16.4,
+    "generalAI": 31.7,
+    "ship": 36.7,
+    "transcend": null
+  },
+  "errors": [],
+  "reportHead": [
+    "The Path to AGI · playtest log",
+    "Log v1 · began 2026-11-06T23:13:10.827Z · exported 2026-11-06T23:14:57.278Z",
+    "build: test",
+    "",
+    "Play time 1.9 min over 1 session, 93 events, 1.8 min on the clock.",
+    "",
+    "Skills (skills learned, play time, runs so far):",
+    "   1 Tokenization                0.3 min  run 1",
+    "",
+    "Phases and versions:",
+    "     0.5 min  General AI",
+    "     0.6 min  shipped v2.0 (+5 Insight)",
+    "     0.6 min  General AI",
+    "     0.7 min  shipped v3.0 (+5 Insight)",
+    "     0.8 min  General AI",
+    "     0.8 min  Singularity",
+    "",
+    "Runs: 1 (0 rolled back), 1.0 sprints and 6 s each on average.",
+    "Sprints by hand: 2; 0% at 95%+ charge, 0% with the meter capped by income, 0% hit a prompt.",
+    "Sprint kinds: regular 2; breakthroughs 0, Max Effort 0; 0 fired while rolling backward.",
+    "Skill-tree and legacy buys: 2; 50% the cheapest affordable, the rest dearer picks.",
+    "Investor offers: 3 arrived, 3 finished, 1 claimed, 1 dismissed, 0 expired.",
+    "",
+    "Tips and callouts (how they closed, seconds shown):"
+  ]
+}

@@ -1,0 +1,354 @@
+[
+  {
+    "id": 1,
+    "name": "boot without uncaught exceptions",
+    "pass": true,
+    "evidence": {
+      "pageerrors": [],
+      "consoleErrors": [],
+      "booted": true
+    }
+  },
+  {
+    "id": 2,
+    "name": "clean save valid finite state",
+    "pass": true,
+    "evidence": {
+      "bad": [],
+      "res": {
+        "cp": 0,
+        "dp": 0,
+        "rp": 0,
+        "xp": 0
+      },
+      "version": 15,
+      "playTime": 1.8000000000000005
+    }
+  },
+  {
+    "id": 3,
+    "name": "Generate Compute changes CP exactly once",
+    "pass": true,
+    "evidence": {
+      "clickValue": 1,
+      "deltaCp": 1,
+      "clicks": [
+        0,
+        1
+      ],
+      "dp": [
+        0,
+        0
+      ],
+      "rp": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "id": "3b",
+    "name": "two more clicks give exactly two more",
+    "pass": true,
+    "evidence": {
+      "cp": 3
+    }
+  },
+  {
+    "id": 4,
+    "name": "first purchase: cost removed and effect applied",
+    "pass": true,
+    "evidence": {
+      "cardVisible": true,
+      "cost": {
+        "cp": 15
+      },
+      "cpBefore": 17,
+      "cpAfter": 2,
+      "level": 1,
+      "clickBefore": 1,
+      "clickAfter": 1.25,
+      "clicksSoFar": 17
+    }
+  },
+  {
+    "id": 5,
+    "name": "production matches derive() over elapsed time",
+    "pass": true,
+    "evidence": {
+      "cpPerSec": 1.5,
+      "sim100": {
+        "delta": 150,
+        "expected": 150
+      },
+      "real": {
+        "deltaCp": 5.997000000000185,
+        "expected": 5.996999999999709,
+        "playElapsed": 3.9979999999998057,
+        "wallElapsed": 4.003100000000093
+      }
+    }
+  },
+  {
+    "id": 6,
+    "name": "save -> reload -> save equivalent",
+    "pass": true,
+    "evidence": {
+      "diffs": [],
+      "saveBytes": 1369,
+      "pageerrors": []
+    }
+  },
+  {
+    "id": 7,
+    "name": "no earning while hidden/closed; long gap finite and logged",
+    "pass": true,
+    "evidence": {
+      "hidden": {
+        "before": {
+          "cp": 158.15000000000018,
+          "pt": 107.6079999999998
+        },
+        "after3s": {
+          "cp": 158.15000000000018,
+          "pt": 107.6079999999998
+        },
+        "afterShown": {
+          "cp": 158.9000000000002,
+          "pt": 108.10799999999978,
+          "log": [
+            "11:12:25 PM Game saved.",
+            "11:12:25 PM Game loaded."
+          ]
+        }
+      },
+      "closed": {
+        "before": {
+          "cp": 158.9000000000002,
+          "pt": 108.10799999999978
+        },
+        "after": {
+          "cp": 159.20000000000022,
+          "pt": 108.30799999999977,
+          "log": [
+            "11:12:32 PM Game loaded."
+          ]
+        }
+      },
+      "gap": {
+        "before": {
+          "cp": 160.70000000000027,
+          "pt": 109.30799999999972
+        },
+        "after1h": {
+          "cp": 161.1500000000003,
+          "pt": 109.6079999999997,
+          "log": [
+            "12:12:34 AM Paused for 1h 0m while you were away.",
+            "11:12:33 PM Game loaded."
+          ],
+          "bad": null
+        },
+        "bad": [],
+        "errors": []
+      },
+      "cpPerSec": 1.5
+    }
+  },
+  {
+    "id": 8,
+    "name": "no NaN/Infinity/negative in state or derive() after debug jumps",
+    "pass": true,
+    "evidence": {
+      "scans": {
+        "add cp 1e6": {
+          "bad": [],
+          "badDerive": [],
+          "cp": 1000160.4015,
+          "xp": 0,
+          "cps": 1.5,
+          "mult": 1,
+          "phase": 0
+        },
+        "add dp 1e6": {
+          "bad": [],
+          "badDerive": [],
+          "cp": 1000160.706,
+          "xp": 0,
+          "cps": 1.5,
+          "mult": 1,
+          "phase": 0
+        },
+        "add rp 1e6": {
+          "bad": [],
+          "badDerive": [],
+          "cp": 1000160.856,
+          "xp": 0,
+          "cps": 1.5,
+          "mult": 1,
+          "phase": 0
+        },
+        "add xp 1e9": {
+          "bad": [],
+          "badDerive": [],
+          "cp": 1000161.1560000001,
+          "xp": 1000000000,
+          "cps": 1.5,
+          "mult": 1,
+          "phase": 0
+        },
+        "learnSkill x8": {
+          "bad": [],
+          "badDerive": [],
+          "cp": 1000161.3060000001,
+          "xp": 1000000000,
+          "cps": 1.9500000000000002,
+          "mult": 1,
+          "phase": 1
+        },
+        "addHardware 100": {
+          "bad": [],
+          "badDerive": [],
+          "cp": 1000161.6960000001,
+          "xp": 1000000000.737056,
+          "cps": 8086847.6,
+          "mult": 1,
+          "phase": 1
+        },
+        "buyLabUpgrades": {
+          "bad": [],
+          "badDerive": [],
+          "cp": 3717342.4896,
+          "xp": 1000000001.9753102,
+          "cps": 18377360.82,
+          "mult": 1,
+          "phase": 1
+        },
+        "maxTree": {
+          "bad": [],
+          "badDerive": [],
+          "cp": 16838778.11508,
+          "xp": 1000000004.8697294,
+          "cps": 18377360.82,
+          "mult": 1,
+          "phase": 1
+        },
+        "simulate 1e5 s": {
+          "bad": [],
+          "badDerive": [],
+          "cp": 1837757000552.217,
+          "xp": 1001603105.3875399,
+          "cps": 18377360.82,
+          "mult": 1,
+          "phase": 1
+        },
+        "reachPhase 2": {
+          "bad": [],
+          "badDerive": [],
+          "cp": 1837761833798.1128,
+          "xp": 1001603109.6036849,
+          "cps": 22618290.240000002,
+          "mult": 1,
+          "phase": 2
+        },
+        "shipVersion": {
+          "bad": [],
+          "badDerive": [],
+          "cp": 0,
+          "xp": 0,
+          "cps": 0,
+          "mult": 1.2619160170741759,
+          "phase": 0
+        },
+        "maxLegacy": {
+          "bad": [],
+          "badDerive": [],
+          "cp": 0,
+          "xp": 0,
+          "cps": 0,
+          "mult": 1.2619160170741759,
+          "phase": 0
+        },
+        "addVersion x3": {
+          "bad": [],
+          "badDerive": [],
+          "cp": 0,
+          "xp": 0,
+          "cps": 0,
+          "mult": 1.464327470649756,
+          "phase": 0
+        },
+        "readyTranscend": {
+          "bad": [],
+          "badDerive": [],
+          "cp": 0,
+          "xp": 0,
+          "cps": 0,
+          "mult": 1.7000000000000002,
+          "phase": 3
+        },
+        "add cp 1e300": {
+          "bad": [],
+          "badDerive": [],
+          "cp": 1e+300,
+          "xp": 0,
+          "cps": 0,
+          "mult": 1.7000000000000002,
+          "phase": 3
+        },
+        "simulate 1e6 s after 1e300": {
+          "bad": [],
+          "badDerive": [],
+          "cp": 1e+300,
+          "xp": 0,
+          "cps": 0,
+          "mult": 1.7000000000000002,
+          "phase": 3
+        },
+        "add xp 1e308 then simulate": {
+          "bad": [],
+          "badDerive": [],
+          "cp": 1e+300,
+          "xp": 1e+308,
+          "cps": 0,
+          "mult": 1.7000000000000002,
+          "phase": 3
+        }
+      },
+      "topText": "1.00e300",
+      "pageerrors": []
+    }
+  },
+  {
+    "id": 9,
+    "name": "purchase loop keyboard-operable",
+    "pass": true,
+    "evidence": {
+      "focusedAfterInbox": "Generate Compute+1 C",
+      "fastEnterPresses15_registered": 15,
+      "tabsToBuyButton": 1,
+      "focusRing": {
+        "outline": "solid 2px rgb(111, 179, 217)",
+        "boxShadow": "none"
+      },
+      "cpBefore": 15,
+      "levelAfterEnter": 1
+    }
+  },
+  {
+    "id": 10,
+    "name": "baseline screenshots",
+    "pass": true,
+    "evidence": {
+      "files": [
+        "g10-desktop-1280.png",
+        "g10-desktop-1920.png",
+        "g10-desktop-4k.png",
+        "g10-phone-inbox.png",
+        "g10-phone-lab.png"
+      ],
+      "phoneErrors": [],
+      "phoneHorizontalScroll": false
+    }
+  }
+]
