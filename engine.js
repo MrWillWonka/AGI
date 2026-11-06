@@ -113,9 +113,9 @@
     // General AI is the first run's goal; the later phases also need shipped versions (`versions`).
     const PHASES = [
         { name: 'Narrow AI', req: {} },
-        { name: 'General AI', req: { intelligence: 25 } },
+        { name: 'General AI', req: { intelligence: 25 }, note: 'It can think about anything now. The trail opens up.' },
         { name: 'Superintelligence', req: { intelligence: 100, creativity: 5, awareness: 5 }, versions: 1 },
-        { name: 'Singularity', req: { intelligence: 300, creativity: 30, awareness: 30 }, versions: 3 }
+        { name: 'Singularity', req: { intelligence: 300, creativity: 30, awareness: 30 }, versions: 3, note: 'It has stopped asking permission.' }
     ];
 
     // The phase that ends chapter one: one shipped version and Superintelligence, about 1.5–2 hours in. A
@@ -575,13 +575,13 @@
         { id: 'runs10', name: 'Practice Run', desc: 'Finish 10 training runs', seen: s => s.stats.rolls >= 1, check: s => s.stats.rolls >= 10 },
         { id: 'runs50', name: 'Grinding the Gradient', desc: 'Finish 50 training runs', seen: s => s.stats.rolls >= 10, check: s => s.stats.rolls >= 50 },
         { id: 'runs100', name: 'Epoch 100', desc: 'Finish 100 training runs', seen: s => s.stats.rolls >= 50, check: s => s.stats.rolls >= 100 },
-        { id: 'skills3', name: 'Fast Learner', desc: 'Learn 3 skills after the warm-up', seen: s => s.path.learned >= 2, check: s => s.path.learned >= 4 },
-        { id: 'skills5', name: 'Quick Study', desc: 'Learn 5 skills after the warm-up', seen: s => s.path.learned >= 4, check: s => s.path.learned >= 6 },
+        { id: 'skills3', name: 'Fast Learner', desc: 'Learn 4 skills', seen: s => s.path.learned >= 2, check: s => s.path.learned >= 4 },
+        { id: 'skills5', name: 'Quick Study', desc: 'Learn 6 skills', seen: s => s.path.learned >= 4, check: s => s.path.learned >= 6 },
         { id: 'clean1', name: 'Prompted', desc: 'Land a clean prompt', seen: s => derive(s).zoneWidth > 0, check: s => s.stats.cleanSprints >= 1 },
         { id: 'clean25', name: 'In the Zone', desc: 'Land 25 clean prompts in one version', seen: s => s.stats.cleanSprints >= 1, check: s => s.stats.cleanSprints >= 25 },
         { id: 'super1', name: 'Super Prompt', desc: 'Land a super prompt', seen: s => derive(s).perfectWidth > 0, check: s => s.stats.superPrompts >= 1 },
         { id: 'break1', name: 'Eureka', desc: 'Land a breakthrough', seen: s => derive(s).critChance > 0, check: s => s.stats.breakthroughs >= 1 },
-        { id: 'break25', name: 'Paradigm Shifter', desc: 'Land 25 breakthroughs', seen: s => s.stats.breakthroughs >= 1, check: s => s.stats.breakthroughs >= 25 },
+        { id: 'break25', name: 'Breakthrough Habit', desc: 'Land 25 breakthroughs', seen: s => s.stats.breakthroughs >= 1, check: s => s.stats.breakthroughs >= 25 },
         { id: 'replay1', name: 'Run It Back', desc: 'Cross a cleared leg on a replay', seen: s => s.path.learned >= 2, check: s => s.stats.legsCleared >= 1 },
         { id: 'tree10', name: 'Branching Out', desc: 'Own 10 skill-tree upgrades', seen: s => s.unlocked['module:path'], check: s => treeOwned(s) >= 10 },
         { id: 'tree25', name: 'Deep Roots', desc: 'Own 25 skill-tree upgrades', seen: s => treeOwned(s) >= 10, check: s => treeOwned(s) >= 25 },
@@ -762,7 +762,7 @@
     // earned (`total`). `costs` lists each level's price.
     const TRANSCEND_PERKS = [
         { id: 'starterLab', name: 'Starter Lab', effect: 'Every version starts with Head Start\'s full kit', costs: [1] },
-        { id: 'seedFund', name: 'Seed Fund', effect: '+5 Insight now and at every new beginning', costs: [2, 3, 4] },
+        { id: 'seedFund', name: 'Seed Fund', effect: '+5 Insight now, and +5 after every Transcend, per level', costs: [2, 3, 4] },
         { id: 'pretrained', name: 'Pretrained Weights', effect: 'Training XP ×1.25', costs: [2, 3, 5] },
         { id: 'founders', name: 'Founders\' Lab', effect: 'Hardware CP/s ×1.5', costs: [2, 3, 5] },
         { id: 'recursion', name: 'Recursive Self-Improvement', effect: 'Each release brings +25% Insight', costs: [3, 5, 8] }

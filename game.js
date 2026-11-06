@@ -1940,12 +1940,12 @@ window.AGI = (function () {
         if (changes.challenge) pt('challenge', { name: changes.challenge.name, won: !!changes.challenge.won });
         if (changes.phase) {
             pt('phase', { name: changes.phase.name });
-            log(`Phase transition! You have reached ${changes.phase.name}.`, 'special');
+            log(`Phase reached: ${changes.phase.name}.`, 'special');
             const seenPhase = `phase:${changes.phase.name}`;
             if (!state.intro[seenPhase]) {
                 state.intro[seenPhase] = true;
                 // The chapter's ending card is the announcement for this phase.
-                if (!changes.ending) toast(`${changes.phase.name} reached`, 'A new phase for your AI', 'phase');
+                if (!changes.ending) toast(`${changes.phase.name} reached`, changes.phase.note || 'A new phase for your AI', 'phase');
             }
         }
         if (changes.ending) showEnding();
