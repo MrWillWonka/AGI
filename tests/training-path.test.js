@@ -198,7 +198,10 @@ test('engine: skills grant attributes and permanent bonuses, in order only', () 
     assert.equal(E.derive(s).clickPower, before.clickPower + 1);
     for (let i = 2; i < E.SKILLS.length; i++) E.learnSkill(s, i);
     assert.ok(E.derive(s).pushPower > before.pushPower, 'Analogy and Self-Modeling boost pushes');
-    assert.match(E.learnSkill(s, E.SKILLS.length).name, /^Frontier Skill 1$/);
+    // Frontier skills have names now (a flat "Frontier Skill 1" landed on the Skill learned card at the 70-minute mark);
+    // past the list they are numbered again.
+    assert.equal(E.learnSkill(s, E.SKILLS.length).name, 'Abstraction');
+    assert.equal(E.skillAt(E.SKILLS.length + 12).name, 'Frontier Skill 1');
 });
 
 test('engine: push strength does not grow with Intelligence (no runaway loop)', () => {

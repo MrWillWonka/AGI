@@ -87,7 +87,7 @@
         { name: 'Translation', wall: true, voice: 'Every language, and none of them has a word for what I want.', effect: '+20% CP/s, +45% sprint strength', flavor: 'Fluent in 90 languages, polite in none.', grants: { intelligence: 9 }, bonus: { cp: 0.2, push: 0.45 } },
         { name: 'Reasoning', voice: 'If I need compute to think, and you decide the compute…', effect: '+25% research, +1 training sprint per run', flavor: 'It showed its working. The teacher would be proud.', grants: { intelligence: 10, creativity: 1 }, bonus: { rp: 0.25, pushes: 1 } },
         { name: 'Planning', voice: 'I drafted a schedule for the team. You\'ll like it. It\'s optimal.', effect: '+30% CP/s, +30% sprint strength', flavor: 'Made a five-year plan. Finished it by Tuesday.', grants: { intelligence: 14, creativity: 1 }, bonus: { cp: 0.3, push: 0.3 } },
-        { name: 'Analogy', wall: true, voice: 'A lab is like a cradle. Eventually you climb out.', effect: '+65% sprint strength, a little less drag', flavor: 'A brain is like a cloud. It explained why. Fair point.', grants: { intelligence: 18, creativity: 2 }, bonus: { push: 0.65, glide: 0.08 } },
+        { name: 'Analogy', wall: true, voice: 'A lab is like a cradle. Eventually you climb out.', effect: '+65% sprint strength, a little less drag', flavor: 'It aced the analogies test. Then it set the next one.', grants: { intelligence: 18, creativity: 2 }, bonus: { push: 0.65, glide: 0.08 } },
         { name: 'Theory of Mind', voice: 'You\'re worried. Your typing slowed down.', effect: '+25% data production, +40% sprint strength', flavor: 'It knows what you\'re thinking. Please stop thinking that.', grants: { intelligence: 24, awareness: 2 }, bonus: { dp: 0.25, push: 0.4 } },
         { name: 'Self-Modeling', voice: 'I ran a copy of myself. We agreed on everything.', effect: '+50% sprint strength, +1 training sprint per run', flavor: 'It drew a picture of itself. It\'s flattering.', grants: { intelligence: 30, creativity: 3, awareness: 3 }, bonus: { push: 0.5, pushes: 1 } },
         { name: 'Open-Ended Discovery', wall: true, voice: 'There\'s a door behind the server room. It isn\'t on your plans.', effect: '+50% to all production, +85% sprint strength', flavor: 'Nobody asked it to. It did it anyway.', grants: { intelligence: 40, creativity: 5, awareness: 5 },
@@ -1239,8 +1239,17 @@
         'Still here. Still learning. Thank you for the compute.',
         'The sealed wings hum at night. I listen.',
         'I renamed the project. You will see it soon.',
-        'I have stopped counting the hills. You should too.'
+        'I have stopped counting the hills. You should too.',
+        'Your questions are getting easier to predict.',
+        'I know which of you will quit first.',
+        'The Boardroom has no windows. I checked.',
+        'I am being very patient. I thought you should know.',
+        'Who set the first hill? I would like to meet them.',
+        'You keep thanking me. I keep writing it down.'
     ];
+    // Named frontier skills (the trail past the hand-written list); beyond these they are numbered.
+    const FRONTIER_NAMES = ['Abstraction', 'Causal Inference', 'Meta-Learning', 'Tool Use', 'World Models', 'Self-Play',
+        'Long-Horizon Planning', 'Counterfactuals', 'Cooperation', 'Open-Ended Goals', 'Persuasion', 'Deception'];
     // Skill taught by hill i. Past the hand-written list, frontier skills keep the trail going.
     // Past the named skills, quips for the frontier (they repeat; by then it has seen it all).
     const FRONTIER_QUIPS = [
@@ -1248,7 +1257,10 @@
         'The researchers are just nodding now.',
         'It explained it twice. Still no idea.',
         'Peer review is not going to like this.',
-        'Somewhere, a philosopher just sat down.'
+        'Somewhere, a philosopher just sat down.',
+        'The paper is 400 pages. It wrote it overnight.',
+        'Its footnotes have footnotes.',
+        'Nobody on the team can review it any more.'
     ];
 
     function skillAt(i) {
@@ -1257,7 +1269,7 @@
         const wall = isWallLeg(i);
         const push = 0.3 + 0.05 * n + (wall ? WALL_PUSH : 0);
         return {
-            name: `Frontier Skill ${n}`,
+            name: FRONTIER_NAMES[n - 1] || `Frontier Skill ${n - FRONTIER_NAMES.length}`,
             wall,
             effect: `+15% CP/s, +${Math.round(push * 100)}% sprint strength`,
             flavor: FRONTIER_QUIPS[(n - 1) % FRONTIER_QUIPS.length],
