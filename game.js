@@ -4314,6 +4314,13 @@ window.AGI = (function () {
                                 //   speed so closely that a fast ball looked no faster)
     const LATE_RELIEF = 0.9;    // and a slightly flatter vertical scale (0.35 left the swells and flights in the bottom fifth of an empty sky)
 
+    // A banner's baseline on the trail, kept clear of the live XP pill over it (on phones the pill sits at
+    // 40 px and wraps, and a banner at 20% of a short canvas was drawn through it). `cap`: the text's height.
+    function bannerTop(y, cap) {
+        const pill = $('liveXp');
+        return pill && !pill.hidden ? Math.max(y, pill.offsetTop + pill.offsetHeight + cap) : y;
+    }
+
     // A big luck banner: pops in at the top of the trail, in the luck's colour.
     function luckBanner(title, sub, tone) {
         path.legFlash = { age: 0, text: title, sub, tone, big: true };
@@ -6959,7 +6966,7 @@ window.AGI = (function () {
             const tone = c[f.tone] || f.tone || c.warning;
             ctx.save();
             ctx.globalAlpha = Math.max(0, Math.min(1, a / 0.1, (life - a) / 0.5));
-            ctx.translate(w / 2, Math.max(78, h * 0.2));
+            ctx.translate(w / 2, bannerTop(Math.max(78, h * 0.2), 34));
             ctx.scale(pop, pop);
             ctx.textAlign = 'center';
             ctx.shadowColor = tone;
@@ -6982,7 +6989,7 @@ window.AGI = (function () {
             ctx.shadowColor = tone;
             ctx.shadowBlur = 12;
             ctx.fillStyle = tone;
-            ctx.fillText(path.legFlash.text, w / 2, Math.max(84, h * 0.22) - 6 * Math.min(1, a / 0.3));
+            ctx.fillText(path.legFlash.text, w / 2, bannerTop(Math.max(84, h * 0.22), 20) - 6 * Math.min(1, a / 0.3));
             ctx.restore();
         }
 
