@@ -1648,6 +1648,29 @@ test('the click tool sums its stages per level, and a huge level from a bad save
     assert.ok(Number.isFinite(E.derive(s).clickPower));
 });
 
+test('the Procurement Bot is kept by a new version and a new beginning, and keeps buying', () => {
+    const s = fresh();
+    s.attr.intelligence = 25;
+    s.path.learned = 7;
+    s.levels.procurement = 1;
+    const v2 = E.prestige(s, NOW).state;
+    assert.equal(E.level(v2, 'procurement'), 1);
+    v2.levels.cpu = 10;
+    v2.unlocked['up:cpu'] = true;
+    const before = E.level(v2, 'cpu');
+    for (let i = 0; i < 600; i++) E.tick(v2, 1);
+    assert.ok(E.level(v2, 'cpu') > before, 'its fund buys hardware in the new version');
+    const t = fresh();
+    t.levels.procurement = 1;
+    Object.assign(t.attr, { intelligence: 300, creativity: 30, awareness: 30 });
+    t.prestige.count = 3;
+    assert.equal(E.level(E.transcend(t, NOW).state, 'procurement'), 1);
+    const none = fresh();
+    none.attr.intelligence = 25;
+    none.path.learned = 7;
+    assert.equal(E.level(E.prestige(none, NOW).state, 'procurement'), 0, 'never bought, never granted');
+});
+
 test('a save with absurd investor boosts loads with them held to a sane size', () => {
     const s = fresh();
     s.projects.boosts = [{ stat: 'xp', mult: 1e300, until: 1e12 }, { stat: 'xp', mult: 1e300, until: 1e12 }, { stat: 'xp', mult: 2, until: 1e12 }];

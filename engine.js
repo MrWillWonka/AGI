@@ -1728,6 +1728,9 @@
     const HEAD_START = [['cpu', 10], ['server', 5], ['quantum', 3]];
     const headStartKit = lv => Object.fromEntries(HEAD_START.slice(0, lv));
 
+    // Lab automation a new beginning keeps once bought (it buys nothing by itself without its share of compute).
+    const keptAutomation = s => (level(s, 'procurement') > 0 ? { procurement: 1 } : {});
+
     const versionName = (major, minor) => `v${major}.${minor}`;
     const currentVersion = s => versionName(s.prestige.major, s.prestige.minor);
     // A release that at least doubles your Insight (and brings 3 or more) is a major version; anything
@@ -1747,8 +1750,10 @@
             achievements: s.achievements,
             intro: { ...s.intro },
             // A new version starts with the desk built (the click tool at the Server Rack), so the first
-            // thing to do is automate compute again.
-            levels: { keyboard: CPU_AFTER_CLICK_LEVEL, ...headStartKit(kitLevel(s)) },
+            // thing to do is automate compute again. The Procurement Bot stays too (quality of life, like the
+            // Auto-Trainer): the inherited Auto-Trainer sprints with every CP from the first second, so a new
+            // version could never save its 400 CP and the lab stalled (round B: 15 CP/s for an hour).
+            levels: { keyboard: CPU_AFTER_CLICK_LEVEL, ...headStartKit(kitLevel(s)), ...keptAutomation(s) },
             prestige: { points: s.prestige.points + gain, total: s.prestige.total + gain, count: s.prestige.count + 1,
                 major: v.major, minor: v.minor, levels: { ...s.prestige.levels } },
             tasks: { ...JSON.parse(JSON.stringify(s.tasks)), procurement: { ...s.tasks.procurement, fund: 0, bought: [] } },
@@ -1788,7 +1793,7 @@
             achievements: s.achievements,
             intro: { ...s.intro },
             // The desk stays built, as after shipping (and Starter Lab's kit with it).
-            levels: { keyboard: CPU_AFTER_CLICK_LEVEL, ...headStartKit(perkLevel(s, 'starterLab') ? HEAD_START.length : 0) },
+            levels: { keyboard: CPU_AFTER_CLICK_LEVEL, ...headStartKit(perkLevel(s, 'starterLab') ? HEAD_START.length : 0), ...keptAutomation(s) },
             tasks: { ...JSON.parse(JSON.stringify(s.tasks)), procurement: { ...s.tasks.procurement, fund: 0, bought: [] } },
             settings: s.settings,
             challengesDone: { ...s.challengesDone },
