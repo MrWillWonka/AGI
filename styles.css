@@ -2726,8 +2726,9 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 #hubUpgrades, #treeButton, .roll-result [data-next="dev"], .run-stats .module-supply { position: relative; }
 /* The badge on Lab supply sat over the end of its "/s": leave it room. */
 .run-stats .module-supply[data-ready] { padding-right: 16px; }
-/* A mail toast is a way in: click it to read. */
-.toast-mail { pointer-events: auto; cursor: pointer; }
+/* A mail toast is a way in: click it to read. Only with a mouse: on a touch screen it sat over the Workbench's
+   first job and the Training Cluster bay, so a tap meant for them opened the inbox (the envelope still does). */
+@media (hover: hover) and (pointer: fine) { .toast-mail { pointer-events: auto; cursor: pointer; } }
 /* Investor offers ready to claim (the Lab tile is already positioned). */
 .facility-room[data-ready]::after, .module-supply[data-ready]::after { background: var(--success); color: var(--bg); box-shadow: 0 0 0 2px var(--bg), 0 0 12px rgba(80, 220, 160, 0.5); }
 .facility-room[data-ready]::after { top: 8px; right: 8px; z-index: 2; }

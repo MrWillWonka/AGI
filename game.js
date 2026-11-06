@@ -2151,6 +2151,9 @@ window.AGI = (function () {
 
         for (const b of ui.binds) setText(b.node, bindValue(b.key, d));
         renderLegacy();
+        // A toast outlives a zoom (6–7.5 s against 0.5 s): placed for the screen it arrived on, it sat over the
+        // next screen's status line (the lab's supply cells). Keep clearing whatever is on screen now.
+        if (toastLive) placeToasts();
 
         const pct = Math.round(E.phaseProgress(state) * 100);
         const bar = $('phaseBar');
