@@ -1265,7 +1265,8 @@ h1, h2, h3, p { margin: 0; }
 .inbox-from, .inbox-subject { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .inbox-row.unread .inbox-open { color: var(--text); font-weight: 700; background: color-mix(in srgb, var(--primary) 7%, transparent); }
 .inbox-row.unread .inbox-from::before { content: '● '; color: var(--primary); }
-.inbox-row.junk .inbox-open { cursor: default; opacity: 0.45; }
+/* Junk rows read quieter than the bold unread one, but still at AA: at 0.45 their text measured 2.42:1 (round D). */
+.inbox-row.junk .inbox-open { cursor: default; opacity: 0.8; }
 @media (hover: hover) { button.inbox-open:hover { background: color-mix(in srgb, var(--primary) 12%, transparent); } }
 .inbox-message { padding: 14px 18px 16px; max-height: min(72vh, 560px); overflow: auto; }
 .inbox-back { border: 0; background: none; color: var(--primary); font: 600 0.8rem var(--font-mono); cursor: pointer; padding: 0 0 10px; }
