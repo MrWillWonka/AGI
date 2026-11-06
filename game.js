@@ -349,7 +349,10 @@ window.AGI = (function () {
         }
         if (below > base) box.style.top = `${below / z}px`;
     }
+    // The summit celebration (the SUMMIT banner, its confetti) keeps the screen to itself: a toast waits for it.
+    const summitOnScreen = () => !!path.summit && openBay === 'training' && path.view === 'run' && !document.hidden;
     function nextToast() {
+        if (toastQueue.length && summitOnScreen()) { toastBusy = true; setTimeout(nextToast, 300); return; }
         const t = toastQueue.shift();
         toastBusy = !!t;
         toastLive = null;
@@ -445,8 +448,13 @@ window.AGI = (function () {
             return;
         }
         // A tip never dims a run in flight on screen (it dimmed flights and smashes): it waits for the ball to stop.
-        if (where.kind === 'tip' && runInFlightOnScreen()) {
-            setTimeout(() => showCallout(c), 600);
+        // Nor the result card, unless it's about the card itself (Passive XP): "New in the lab" landed on the
+        // first Skill learned card a second after it appeared and dimmed it, SUMMIT banner and all, until
+        // clicked. A tip that has to wait lets one that can show go first (Passive XP before New in the lab).
+        const cardUp = openBay === 'training' && path.view === 'run' && !$('rollResult').hidden && !document.hidden;
+        if (where.kind === 'tip' && (runInFlightOnScreen() || (cardUp && !(onScreen && $('rollResult').contains(target))))) {
+            if (calloutQueue.length) { calloutQueue.push(c); calloutLive = null; nextCallout(); }
+            else setTimeout(() => showCallout(c), 600);
             return;
         }
         let anchor = onScreen ? target : nav;
