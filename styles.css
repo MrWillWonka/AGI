@@ -33,6 +33,11 @@
 [hidden] { display: none !important; }
 
 html, body { min-height: 100%; }
+/* The static shell paints before the deferred scripts build it (every panel showing, the lab's grid not laid
+   out), then jumps into place: a layout shift of 0.25-0.95 on loading a saved game. It stays invisible until
+   game.js has rendered once (html.booted), with a CSS-only fallback after 4 s in case a script never runs. */
+html:not(.booted) body > * { visibility: hidden; animation: boot-fallback 0s 4s forwards; }
+@keyframes boot-fallback { to { visibility: visible; } }
 
 body {
     margin: 0;
@@ -2653,7 +2658,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .toast.callout-map { transform: translateY(10px); }
 .toast.callout.show { transform: none; }
 /* A tip's spotlight: everything but its target dims (a hole cut by a huge shadow); clicks pass through. */
-.tip-spot { position: fixed; z-index: 59; border-radius: 10px; pointer-events: none; opacity: 0; transition: opacity 0.35s ease;
+.tip-spot { position: fixed; left: 0; top: 0; z-index: 59; border-radius: 10px; pointer-events: none; opacity: 0; transition: opacity 0.35s ease;
     box-shadow: 0 0 0 200vmax color-mix(in srgb, var(--bg) 62%, transparent), 0 0 0 2px color-mix(in srgb, var(--success) 70%, transparent); }
 .tip-spot.show { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .tip-spot { transition: none; } }

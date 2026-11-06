@@ -462,7 +462,9 @@ window.AGI = (function () {
             const b = box.getBoundingClientRect();
             if (spot) {
                 const pad = 6;
-                Object.assign(spot.style, { left: `${(r.left - pad) / z}px`, top: `${(r.top - pad) / z}px`, width: `${(r.width + 2 * pad) / z}px`, height: `${(r.height + 2 * pad) / z}px` });
+                // Moved with a transform, not left/top: following a target that scrolls into view moved it every
+                // frame, and each move counted as a layout shift (CLS 2.4 on a phone).
+                Object.assign(spot.style, { transform: `translate(${(r.left - pad) / z}px, ${(r.top - pad) / z}px)`, width: `${(r.width + 2 * pad) / z}px`, height: `${(r.height + 2 * pad) / z}px` });
             }
             if (onScreen && where.place === 'inside') {   // inside its top edge, centred (over the trail's sky)
                 box.style.left = `${(r.left + r.width / 2 - b.width / 2) / z}px`;
@@ -7062,6 +7064,7 @@ window.AGI = (function () {
         syncSettings();
         E.evaluate(state); // silently restore unlocks implied by the loaded state
         render();
+        document.documentElement.classList.add('booted');   // the shell shows only once it's built (styles.css)
         lastTick = Date.now();
         setInterval(tick, TICK_MS);
         setTimeout(() => { revealReady = true; }, 1200);
