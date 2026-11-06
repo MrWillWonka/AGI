@@ -1632,3 +1632,18 @@ test('mail: the story by email, the spam first, then one message per story beat'
     s.stats.finishedAt = 100;
     assert.ok(E.MAIL.find(m => m.id === 'chapterOne').when(s));
 });
+
+test('the click tool sums its stages per level, and a huge level from a bad save stays cheap', () => {
+    const stageAt = level => E.CLICK_TOOLS.filter(t => level > t.from || t.from === 0).at(-1);
+    let sum = 0;
+    for (let n = 0; n <= 300; n++) {
+        if (n > 0) sum += stageAt(n).per;
+        assert.ok(Math.abs(E.clickToolPower(n) - sum) < 1e-9, `level ${n}`);
+    }
+    const s = fresh();
+    s.levels.keyboard = 5e6;
+    const t = Date.now();
+    for (let i = 0; i < 200; i++) E.derive(s);
+    assert.ok(Date.now() - t < 200, 'derive() stays fast at an absurd click-tool level');
+    assert.ok(Number.isFinite(E.derive(s).clickPower));
+});

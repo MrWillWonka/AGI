@@ -435,9 +435,17 @@
     const clickToolAt = level => CLICK_TOOLS.filter(t => level > t.from || t.from === 0).at(-1);
     // The stage you're in now (at `owned` levels): the one the next level belongs to once you own any.
     const clickTool = owned => CLICK_TOOLS.filter(t => owned >= t.from).at(-1);
+    // Summed stage by stage (level i belongs to the last stage whose `from` is below it, the first stage
+    // taking level 1), so a huge level from a tampered or corrupt save costs no more than a small one: a
+    // per-level loop made every derive() take ~70 ms at level 2M and froze the game.
     function clickToolPower(owned) {
+        const n = Math.max(0, Math.floor(owned) || 0);
         let total = 0;
-        for (let i = 1; i <= owned; i++) total += clickToolAt(i).per;
+        for (let k = 0; k < CLICK_TOOLS.length; k++) {
+            const lo = k === 0 ? 1 : Math.max(2, CLICK_TOOLS[k].from + 1);
+            const hi = k + 1 < CLICK_TOOLS.length ? CLICK_TOOLS[k + 1].from : Infinity;
+            if (n >= lo) total += (Math.min(n, hi) - lo + 1) * CLICK_TOOLS[k].per;
+        }
         return total;
     }
     const nextClickTool = owned => CLICK_TOOLS.find(t => t.from > owned) || null;
