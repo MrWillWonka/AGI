@@ -337,6 +337,9 @@ window.AGI = (function () {
     function placeToasts() {
         const box = $('toasts');
         box.style.top = '';
+        // Phones dock toasts over the top bar (styles.css): below it there is no free space, and they covered
+        // the trail's goal line and the skill tree's controls (owner's phone).
+        if (window.matchMedia('(max-width: 640px)').matches) return;
         const z = uiScale();
         const base = box.getBoundingClientRect().top;
         // The toast's own height (two lines and a badge run past 80 px): it sat over the lab's supply cells.
@@ -3087,6 +3090,11 @@ window.AGI = (function () {
             const a = from.getBoundingClientRect();
             const b = to.getBoundingClientRect();
             if (!a.width || !b.width) return;
+            if (window.matchMedia('(max-width: 640px)').matches) {   // one column: no wire across the cards, just the flash
+                to.classList.add('task-linked');
+                setTimeout(() => to.classList.remove('task-linked'), 1600);
+                return;
+            }
             const pt = (x, y) => [(x - box.left) / z, (y - box.top) / z];
             const [sx, sy] = pt(a.right, a.top + a.height / 2);
             const [tx, ty] = pt(b.left, b.top + b.height / 2);
@@ -4148,11 +4156,15 @@ window.AGI = (function () {
         // Restart shows while a run is under way (a playtester wanted to drop a bad start without playing it out).
         const r = path.roll;
         const show = openBay === 'training' && path.view === 'run' && r && r.launched && !r.over && !path.done;
-        setHidden($('restartButton'), !show);
-        if (show) {
+        // In the run view it keeps its place while it can't be used (invisible), so the bay bar never changes
+        // height on the first sprint: the trail used to jump and the sprint button left the screen on phones.
+        const keep = openBay === 'training' && path.view === 'run' && !!r;
+        setHidden($('restartButton'), !show && !keep);
+        $('restartButton').classList.toggle('reserve', !show);
+        if (show || keep) {
             const cost = E.restartCost(state, ballLeg());
             setText($('restartButton'), `Restart · ${E.formatCost(cost)}`);
-            setDisabled($('restartButton'), !E.canAfford(state, cost));
+            setDisabled($('restartButton'), !show || !E.canAfford(state, cost));
         }
     }
 
@@ -4361,13 +4373,20 @@ window.AGI = (function () {
     }
 
     // The trail's canvas colours come from the theme's tokens (read again when the theme changes).
-    function readPathColors() {
+    function readColorTokens() {
         const css = getComputedStyle(document.documentElement);
         for (const name of ['primary', 'secondary', 'accent', 'success', 'warning', 'danger', 'muted', 'border', 'text', 'bg', 'research', 'terminal']) {
             path.colors[name] = css.getPropertyValue('--' + name).trim();
         }
+        return !!path.colors.primary;
+    }
+    function readPathColors() {
+        readColorTokens();
         if (path.canvas && path.width) drawPath();
     }
+    // In the artifact the stylesheet can land after the scripts start, and tokens read then are empty: the
+    // first run's trail drew all in black (owner's phone). A draw with no colours reads them again.
+    const ensurePathColors = () => path.colors.primary || readColorTokens();
 
     function buildPath() {
         document.querySelector('.run-stats .module-supply').addEventListener('click', () => jumpTo('lab'));
@@ -6217,6 +6236,7 @@ window.AGI = (function () {
     function drawPath(dt = 0) {
         const { ctx, width: w, height: h, colors: c } = path;
         if (!ctx || !w || !state || openBay !== 'training' || path.view !== 'run') return;
+        ensurePathColors();
         const roll = currentRoll();
         const g = roll.ground;
         const target = cameraTarget(roll);
@@ -7139,7 +7159,19 @@ window.AGI = (function () {
         syncSettings();
         E.evaluate(state); // silently restore unlocks implied by the loaded state
         render();
-        document.documentElement.classList.add('booted');   // the shell shows only once it's built (styles.css)
+        document.documentElement.classList.add('booted');
+        // Phones: the round ⌂ slides away while scrolling down and comes back on the way up (styles.css).
+        let lastScroll = window.scrollY;
+        window.addEventListener('scroll', () => {
+            const y = window.scrollY;
+            const atEnd = y < 60 || y + window.innerHeight >= document.documentElement.scrollHeight - 40;
+            if (atEnd || y < lastScroll - 6) document.body.classList.remove('fab-away');
+            else if (y > lastScroll + 6) document.body.classList.add('fab-away');
+            lastScroll = y;
+        }, { passive: true });
+        // The bay's bar height, for the trail's size on phones (it wraps to two rows when its buttons don't fit).
+        const bayBar = document.querySelector('#moduleView .module-bar');
+        if (bayBar) new ResizeObserver(() => document.documentElement.style.setProperty('--bay-bar-h', `${bayBar.offsetHeight || 39}px`)).observe(bayBar);   // the shell shows only once it's built (styles.css)
         lastTick = Date.now();
         setInterval(tick, TICK_MS);
         setTimeout(() => { revealReady = true; }, 1200);

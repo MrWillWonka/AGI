@@ -2985,9 +2985,11 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
        with the first sprint, the Auto-Trainer switch in act two) and a second line under the meter (act two's
        "Fuel … per second"). Sized for one row and one line, the first sprint pushed the trail down 37 px and
        the sprint button 8 px under the fold, and act two's Hold to thrust 34 px under (22 of 56 px showing). */
-    body:has(#runView:not([hidden])) #moduleView .module-bar { min-height: 76px; align-content: flex-start; }
+    /* (Restart keeps its place in the bar before the first sprint, game.js, so the bar's height never changes
+       mid-run; a fixed two-row reserve left an empty band when everything fit on one row.) The trail takes
+       what the bar really leaves (--bay-bar-h, measured). */
     .run-view .charge-labels { min-height: calc(2 * 1.25em + 4px); align-content: flex-start; line-height: 1.25; }
-    .run-view > .canvas-wrap { height: max(260px, calc(100dvh - var(--topbar-h, 100px) - 312px)); }
+    .run-view > .canvas-wrap { height: max(260px, calc(100dvh - var(--topbar-h, 100px) - var(--bay-bar-h, 39px) - 273px)); }
     .dev-view .tree-viewport { flex: none; min-height: 0; height: max(280px, calc(100dvh - var(--topbar-h, 100px) - 210px)); }
 
     /* XP to spend and Start run share a row; Start at goes under them. */
@@ -3107,3 +3109,30 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
 }
 /* Settings: the music's parts, indented under Music */
 .music-parts .setting-row { display: grid; grid-template-columns: 9.5em 160px auto; padding: 4px 0 4px 14px; }
+
+/* Restart before a run is under way: invisible, but keeping its place in the bay's bar (game.js). */
+#restartButton.reserve { visibility: hidden; }
+
+/* ---- Phones: owner's playtest on an iPhone ---- */
+@media (max-width: 640px) {
+    /* Toasts dock over the top bar, compact and full width: below it there is no free space, and they covered
+       the trail's goal line and the skill tree's controls. */
+    .toasts { top: calc(env(safe-area-inset-top, 0px) + 6px); left: 12px; right: 12px; transform: none; max-width: none; z-index: 70; }
+    .toast { min-width: 0; width: 100%; box-sizing: border-box; padding: 8px 12px 8px 8px; gap: 10px; }
+    .toast .toast-icon { width: 28px; height: 28px; font-size: 0.9rem; }
+    /* The live XP pill wraps its multipliers onto a second line instead of running off the trail. */
+    .live-xp { flex-direction: column; align-items: center; gap: 0; white-space: normal; border-radius: 14px; text-align: center; }
+    /* Branch names sit behind the nodes (pinned to the edges, they covered nodes on a narrow view). */
+    .tree-viewport .tree { z-index: 1; }
+    .tree-branch { z-index: 0; opacity: 0.8; }
+    /* The round ⌂ slides away while you scroll down a screen (it covered card prices) and comes back on the
+       way up, at the top and at the bottom. */
+    .minimap { transition: translate 0.25s ease, opacity 0.25s ease; }
+    body.fab-away .minimap:not(.open) { translate: 0 160%; opacity: 0; pointer-events: none; }
+}
+@media (max-width: 640px) {
+    /* The Auto-Trainer's gate line shares the row with the XP pill: it gives way (clipped with an ellipsis),
+       never the pill, which it pushed off the screen's edge. */
+    .run-stats .auto-gate { flex: 0 1 auto; min-width: 0; max-width: none; }
+    .run-stats .module-xp { flex: none; }
+}
