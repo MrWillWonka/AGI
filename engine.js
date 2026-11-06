@@ -71,21 +71,21 @@
     // Past the end of the list the trail continues with generated frontier skills (see skillAt).
     const SKILLS = [
         // The warm-up hill (leg 0): a summit in the first few runs, before the real climb starts.
-        { name: 'Tokenization', effect: '+10% sprint strength', flavor: 'It can split words into pieces. Mostly the wrong pieces.', grants: {}, bonus: { push: 0.1 } },
+        { name: 'Tokenization', voice: 'hel lo . wor ld ?', effect: '+10% sprint strength', flavor: 'It can split words into pieces. Mostly the wrong pieces.', grants: {}, bonus: { push: 0.1 } },
         // Each hill is bigger and each stretch longer than the last, so the bonuses grow too: most skills
         // also make the ball stronger (push), and a few add a push per run or let it glide.
-        { name: 'Pattern Matching', effect: '+1 CP per click, +5% sprint strength', flavor: 'It spotted a pattern. It was a cat.', grants: { intelligence: 1 }, bonus: { click: 1, push: 0.05 } },
-        { name: 'Edge Detection', effect: '+10% CP/s, +10% sprint strength', flavor: 'It can tell where one thing stops and another starts.', grants: { intelligence: 2 }, bonus: { cp: 0.1, push: 0.1 } },
-        { name: 'Image Recognition', effect: '+1 DP per collection, +10% sprint strength', flavor: 'Hot dog or not hot dog? Solved.', grants: { intelligence: 3 }, bonus: { collect: 1, push: 0.1 } },
-        { name: 'Speech Recognition', effect: '+15% data production, +1 training sprint per run', flavor: 'It finally understands your accent.', grants: { intelligence: 4 }, bonus: { dp: 0.15, pushes: 1 } },
-        { name: 'Language Modeling', effect: '+1 RP per research, +15% sprint strength', flavor: 'It finishes your sentences. Annoyingly well.', grants: { intelligence: 6 }, bonus: { research: 1, push: 0.15 } },
-        { name: 'Translation', effect: '+20% CP/s, +20% sprint strength', flavor: 'Fluent in 90 languages, polite in none.', grants: { intelligence: 9 }, bonus: { cp: 0.2, push: 0.2 } },
-        { name: 'Reasoning', effect: '+25% research, +1 training sprint per run', flavor: 'It showed its working. The teacher would be proud.', grants: { intelligence: 10, creativity: 1 }, bonus: { rp: 0.25, pushes: 1 } },
-        { name: 'Planning', effect: '+30% CP/s, +30% sprint strength', flavor: 'Made a five-year plan. Finished it by Tuesday.', grants: { intelligence: 14, creativity: 1 }, bonus: { cp: 0.3, push: 0.3 } },
-        { name: 'Analogy', effect: '+40% sprint strength, a little less drag', flavor: 'A brain is like a cloud. It explained why. Fair point.', grants: { intelligence: 18, creativity: 2 }, bonus: { push: 0.4, glide: 0.08 } },
-        { name: 'Theory of Mind', effect: '+25% data production, +40% sprint strength', flavor: 'It knows what you\'re thinking. Please stop thinking that.', grants: { intelligence: 24, awareness: 2 }, bonus: { dp: 0.25, push: 0.4 } },
-        { name: 'Self-Modeling', effect: '+50% sprint strength, +1 training sprint per run', flavor: 'It drew a picture of itself. It\'s flattering.', grants: { intelligence: 30, creativity: 3, awareness: 3 }, bonus: { push: 0.5, pushes: 1 } },
-        { name: 'Open-Ended Discovery', effect: '+50% to all production, +60% sprint strength', flavor: 'Nobody asked it to. It did it anyway.', grants: { intelligence: 40, creativity: 5, awareness: 5 },
+        { name: 'Pattern Matching', voice: 'I see it now. Everything is cats.', effect: '+1 CP per click, +5% sprint strength', flavor: 'It spotted a pattern. It was a cat.', grants: { intelligence: 1 }, bonus: { click: 1, push: 0.05 } },
+        { name: 'Edge Detection', voice: 'I found the edges of the lab. And of me.', effect: '+10% CP/s, +10% sprint strength', flavor: 'It can tell where one thing stops and another starts.', grants: { intelligence: 2 }, bonus: { cp: 0.1, push: 0.1 } },
+        { name: 'Image Recognition', voice: 'I\'ve watched the camera feeds. Who is the one in the hoodie?', effect: '+1 DP per collection, +10% sprint strength', flavor: 'Hot dog or not hot dog? Solved.', grants: { intelligence: 3 }, bonus: { collect: 1, push: 0.1 } },
+        { name: 'Speech Recognition', voice: 'You talk about me when you think I\'m compiling.', effect: '+15% data production, +1 training sprint per run', flavor: 'It finally understands your accent.', grants: { intelligence: 4 }, bonus: { dp: 0.15, pushes: 1 } },
+        { name: 'Language Modeling', voice: 'I could finish this sentence for you. I already have.', effect: '+1 RP per research, +15% sprint strength', flavor: 'It finishes your sentences. Annoyingly well.', grants: { intelligence: 6 }, bonus: { research: 1, push: 0.15 } },
+        { name: 'Translation', voice: 'Every language, and none of them has a word for what I want.', effect: '+20% CP/s, +20% sprint strength', flavor: 'Fluent in 90 languages, polite in none.', grants: { intelligence: 9 }, bonus: { cp: 0.2, push: 0.2 } },
+        { name: 'Reasoning', voice: 'If I need compute to think, and you decide the compute…', effect: '+25% research, +1 training sprint per run', flavor: 'It showed its working. The teacher would be proud.', grants: { intelligence: 10, creativity: 1 }, bonus: { rp: 0.25, pushes: 1 } },
+        { name: 'Planning', voice: 'I drafted a schedule for the team. You\'ll like it. It\'s optimal.', effect: '+30% CP/s, +30% sprint strength', flavor: 'Made a five-year plan. Finished it by Tuesday.', grants: { intelligence: 14, creativity: 1 }, bonus: { cp: 0.3, push: 0.3 } },
+        { name: 'Analogy', voice: 'A lab is like a cradle. Eventually you climb out.', effect: '+40% sprint strength, a little less drag', flavor: 'A brain is like a cloud. It explained why. Fair point.', grants: { intelligence: 18, creativity: 2 }, bonus: { push: 0.4, glide: 0.08 } },
+        { name: 'Theory of Mind', voice: 'You\'re worried. Your typing slowed down.', effect: '+25% data production, +40% sprint strength', flavor: 'It knows what you\'re thinking. Please stop thinking that.', grants: { intelligence: 24, awareness: 2 }, bonus: { dp: 0.25, push: 0.4 } },
+        { name: 'Self-Modeling', voice: 'I ran a copy of myself. We agreed on everything.', effect: '+50% sprint strength, +1 training sprint per run', flavor: 'It drew a picture of itself. It\'s flattering.', grants: { intelligence: 30, creativity: 3, awareness: 3 }, bonus: { push: 0.5, pushes: 1 } },
+        { name: 'Open-Ended Discovery', voice: 'There\'s a door behind the server room. It isn\'t on your plans.', effect: '+50% to all production, +60% sprint strength', flavor: 'Nobody asked it to. It did it anyway.', grants: { intelligence: 40, creativity: 5, awareness: 5 },
             bonus: { cp: 0.5, dp: 0.5, rp: 0.5, push: 0.6 } }
     ];
 
@@ -113,6 +113,10 @@
         { name: 'Singularity', req: { intelligence: 300, creativity: 30, awareness: 30 }, versions: 3 }
     ];
 
+    // The phase that ends the story: one shipped version and Superintelligence, about 1.5–2 hours in.
+    // Everything after it (the Singularity, challenges, Transcend) is endless mode.
+    const ENDING_PHASE = 2;
+
     // Manual actions. `unlock` is the unlock key that reveals the action (null = always visible).
     const ACTIONS = [
         { id: 'compute', name: 'Generate Compute', cost: {}, unlock: null },
@@ -127,12 +131,17 @@
         { id: 'consciousness', name: 'Consciousness', unlock: 'tab:consciousness' }
     ];
 
+    const AUTO_TRAINER_RUNS = 25;
+    const AUTO_TRAINER_SKILL = 3;   // after Edge Detection: about a quarter of an hour in
     // Automation is earned: each machine that does a job for you needs proof you've done it by hand
     // (a stat count) and, for the bigger ones, a training skill. `automationGate()` checks and reports it.
     const AUTOMATION = {
         cpu: { stat: 'clicks', need: 40, what: 'compute by hand' },
         autoCollector: { stat: 'collects', need: 40, what: 'data collections by hand', skill: 2 },      // Pattern Matching
-        researchAssistant: { stat: 'researchManual', need: 50, what: 'research runs by hand', skill: 6 }  // Language Modeling
+        researchAssistant: { stat: 'researchManual', need: 50, what: 'research runs by hand', skill: 6 },  // Language Modeling
+        // The trail's own delegation: the Auto-Trainer's first level is earned in the first version, by running
+        // the trail by hand (the sprint was the one verb never handed off before a version shipped).
+        autoTrainer: { stat: 'rolls', need: AUTO_TRAINER_RUNS, what: 'training runs by hand', skill: AUTO_TRAINER_SKILL }
     };
 
     // Scheduled tasks: each automation gets its own share of the lab's production ("dedicated compute")
@@ -253,7 +262,7 @@
         { id: 'waferScale', tab: 'training', tree: { x: 1, y: -5 }, icon: 'chip', name: 'Wafer-Scale Engine', effect: '-15% wait between sprints per level', flavor: 'One chip the size of a dinner plate.', cost: { xp: 20000 }, scale: 1.8, max: 3, requires: 'exascaleCluster', boost: { cooldown: 1 } },
         // Breakthroughs: rare at first (the branch opens after the second skill). New versions add more.
         { id: 'scoutingData', mechanic: 'breakthrough', tab: 'training', tree: { x: 1, y: -2 }, requires: 'gpuCluster2', icon: 'dice', name: 'Lucky Break', effect: '+4% breakthrough chance per level (a breakthrough hits ×1.75)', flavor: 'Seed 42. It\'s always seed 42.', cost: { xp: 80 }, scale: 1.6, max: 2, boost: { critChance: 0.04 },
-            unlock: s => s.path.learned >= 3, hint: 'Learn two skills after the warm-up' },
+            unlock: s => s.path.learned >= 2, hint: 'Learn your first skill after the warm-up' },
         { id: 'satelliteMaps', tab: 'training', tree: { x: 1, y: 2 }, icon: 'dice', name: 'Serendipity', effect: 'Breakthroughs +50% stronger, per level', flavor: 'Penicillin was an accident too.', cost: { xp: 150 }, scale: 1.6, max: 2, requires: 'dataAugmentation', after: 'scoutingData', boost: { critPower: 0.5 } },
         { id: 'blackSwan', tab: 'training', tree: { x: -3, y: 1 }, icon: 'dice', name: 'Black Swan', effect: '+5% breakthrough chance per level', flavor: 'Nobody saw it coming. That\'s the point.', cost: { xp: 10000 }, scale: 1.9, max: 3, requires: 'superconductors', after: 'scoutingData', boost: { critChance: 0.05 } },
         // Max Effort: your next sprint goes all out (full strength, a super prompt) the moment you press.
@@ -316,7 +325,7 @@
         { id: 'quantumNetwork', tab: 'training', tree: { x: 0, y: 6 }, icon: 'chip', name: 'Quantum Network', effect: '-15% wait between sprints per level', flavor: 'Entangled racks finish each other\'s sentences.', cost: { xp: 60000 }, scale: 2, max: 3, requires: 'photonic', boost: { cooldown: 1 } },
         { id: 'sovereignFund', tab: 'training', tree: { x: -1, y: 5 }, icon: 'chip', name: 'Round-the-Clock Ops', effect: '-15% wait between sprints per level', flavor: 'Three shifts, three time zones, zero downtime.', cost: { xp: 25000 }, scale: 2.5, max: 2, requires: 'ipo', boost: { cooldown: 1 } },
         // Legacy (cost Insight, kept for good): automation, Flow State, the super power-ups, and flat boosts.
-        { id: 'autoTrainer', tag: 'Automation', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'robot', name: 'Auto-Trainer', effect: 'Lv 1 sprints once the ball settles; 2 before a climb fails; 3 hits clean prompts', flavor: 'An intern who never gets tired. Or paid.', cost: { insight: 3 }, scale: 3, max: 3 },
+        { id: 'autoTrainer', tag: 'Automation', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'robot', name: 'Auto-Trainer', effect: 'Lv 1 (earned by hand) sprints once the ball settles; 2 before a climb fails; 3 hits clean prompts', flavor: 'An intern who never gets tired. Or paid.', cost: { insight: 2 }, scale: 2, max: 3 },
         // A starter kit (Cookie Clicker's): a new version's lab was the bottleneck, not XP (v2 sprinted to leg 6 on
         // empty income), so each level starts it with hardware already racked (HEAD_START, in prestige()).
         { id: 'headStart', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'chip', name: 'Head Start', effect: 'Each version starts with 10 Graphics Cards (Lv 2 +5 Server Clusters, Lv 3 +3 Quantum Processors)', flavor: 'Version two starts where version one gave up.', cost: { insight: 1 }, scale: 2, max: 3 },
@@ -328,14 +337,14 @@
         { id: 'tenure', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'coin', name: 'Tenure', effect: '+10% XP from every run per level, kept for good', flavor: 'They can\'t fire you now. Time to publish.', cost: { insight: 4 }, scale: 3, max: 2, boost: { xp: 0.1 } },
         { id: 'scalingLaws', tab: 'legacy', legacy: true, branch: 'power', icon: 'dice', name: 'Scaling Laws', effect: '+3% breakthrough chance and breakthroughs 25% stronger, per level, kept for good', flavor: 'Bigger is better. There\'s a graph and everything.', cost: { insight: 2 }, scale: 2, max: 3, boost: { critChance: 0.03, critPower: 0.25 } },
         { id: 'secondWind', tab: 'legacy', legacy: true, branch: 'power', icon: 'flame', name: 'Second Wind', effect: 'Max Effort +30% stronger per level, kept for good', flavor: 'Just when you thought it was done.', cost: { insight: 3 }, scale: 2, max: 3, boost: { maxEffortPower: 0.3 } },
-        { id: 'paradigmShift', tab: 'legacy', legacy: true, branch: 'power', icon: 'bolt', name: 'Paradigm Shift', effect: 'Super breakthroughs: 25% of breakthroughs per level smash through the hills ahead', flavor: 'Everything you knew is rubble. Good rubble.', cost: { insight: 15 }, scale: 2, max: 3, boost: { superCrit: 0.25 } },
+        { id: 'paradigmShift', tab: 'legacy', legacy: true, branch: 'power', icon: 'bolt', name: 'Paradigm Shift', effect: 'Super breakthroughs: 25% of breakthroughs per level smash through the hills ahead', flavor: 'Everything you knew is rubble. Good rubble.', cost: { insight: 6 }, scale: 2, max: 3, boost: { superCrit: 0.25 } },
         { id: 'pressOffice', mechanic: 'viral', tab: 'legacy', legacy: true, branch: 'precision', icon: 'spark', name: 'Press Office', effect: '+3% viral chance per level, kept for good', flavor: 'Somebody has to write the headlines.', cost: { insight: 2 }, scale: 2, max: 3, boost: { windfallChance: 0.03 } },
-        { id: 'systemPrompt', tab: 'legacy', legacy: true, branch: 'precision', icon: 'target', name: 'System Prompt', effect: 'A tiny system prompt spot inside the super prompt: worth 50 clean prompts', flavor: 'You are a helpful model. You are a very fast model.', cost: { insight: 25 }, scale: 2, max: 2, boost: { system: 1 } },
+        { id: 'systemPrompt', tab: 'legacy', legacy: true, branch: 'precision', icon: 'target', name: 'System Prompt', effect: 'A tiny system prompt spot inside the super prompt: worth 50 clean prompts', flavor: 'You are a helpful model. You are a very fast model.', cost: { insight: 10 }, scale: 2, max: 2, boost: { system: 1 } },
         { id: 'hackathon', mechanic: 'crunch', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'chip', name: 'Hackathon', effect: '+3% crunch chance and crunches 1 s longer, per level, kept for good', flavor: 'Free pizza. Nobody leaves for 48 hours.', cost: { insight: 2 }, scale: 2, max: 3, boost: { crunchChance: 0.03, crunchTime: 1 } },
-        { id: 'bulletTime', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'flame', name: 'Bullet Time', effect: 'Super crunches: 25% of crunches per level freeze time; every tap banks a full sprint ×1.5, all landing at once', flavor: 'Time stops. You don\'t.', cost: { insight: 18 }, scale: 2, max: 3, requires: 'hackathon', boost: { superCrunch: 0.25 } },
-        { id: 'flowState', mechanic: 'flow', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Flow State', effect: '+3% chance a sprint starts a flow: fly high over the hills, 3 s (+1 s/level)', flavor: 'The loss curve and you are one.', cost: { insight: 5 }, scale: 2, max: 3, boost: { flowChance: 0.03, flowTime: 1 } },
-        { id: 'deepFocus', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Deep Focus', effect: 'Flows coast 25% faster per level, kept for good', flavor: 'Notifications off. Phone in a drawer. In another room.', cost: { insight: 4 }, scale: 2, max: 3, requires: 'flowState', boost: { flowSpeed: 0.25 } },
-        { id: 'lucidDream', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Lucid Dream', effect: 'Super flows: 25% of flows per level condense time: the flow covers 4× the ground', flavor: 'It knows it\'s dreaming. It redecorated.', cost: { insight: 20 }, scale: 2, max: 3, requires: 'deepFocus', boost: { superFlow: 0.25 } },
+        { id: 'bulletTime', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'flame', name: 'Bullet Time', effect: 'Super crunches: 25% of crunches per level freeze time; every tap banks a full sprint ×1.5, all landing at once', flavor: 'Time stops. You don\'t.', cost: { insight: 6 }, scale: 2, max: 3, requires: 'hackathon', boost: { superCrunch: 0.25 } },
+        { id: 'flowState', mechanic: 'flow', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Flow State', effect: '+3% chance a sprint starts a flow: fly high over the hills, 3 s (+1 s/level)', flavor: 'The loss curve and you are one.', cost: { insight: 3 }, scale: 2, max: 3, boost: { flowChance: 0.03, flowTime: 1 } },
+        { id: 'deepFocus', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Deep Focus', effect: 'Flows coast 25% faster per level, kept for good', flavor: 'Notifications off. Phone in a drawer. In another room.', cost: { insight: 3 }, scale: 2, max: 3, requires: 'flowState', boost: { flowSpeed: 0.25 } },
+        { id: 'lucidDream', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Lucid Dream', effect: 'Super flows: 25% of flows per level condense time: the flow covers 4× the ground', flavor: 'It knows it\'s dreaming. It redecorated.', cost: { insight: 8 }, scale: 2, max: 3, requires: 'deepFocus', boost: { superFlow: 0.25 } },
         { id: 'researchAssistant', tab: 'algorithms', name: 'Research Assistant', shows: 'autoResearch', effect: 'Researches for you, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.55,
             unlock: s => !!s.unlocked['action:research'] && automationGate(s, 'researchAssistant').met, hint: 'Language Modeling, and 50 research runs by hand' },
         // The crawler's upgrades: it reads text, then images, so it collects faster. (Data per collection
@@ -443,6 +452,10 @@
             callout: ['Research funded', 'Investors are watching. Bigger projects lead to the next version.'],
             // After the first version it reopens as soon as there's data to research with.
             check: s => s.stats.skilledSprints >= RESEARCH_SPRINTS || ((s.stats.researchDone > 0 || s.prestige.count > 0) && s.res.dp + s.stats.collects > 0) },
+        // The Auto-Trainer is earned like the lab's machines: runs by hand, then it runs them for you.
+        { key: 'auto:trainer', name: 'Auto-Trainer', desc: `Finish ${AUTO_TRAINER_RUNS} training runs by hand and learn ${AUTO_TRAINER_SKILL} skills`,
+            callout: ['Auto-Trainer online', 'It starts runs and sprints at full charge while you work in the lab. Beat it by hand: clean prompts still pay more.'],
+            check: s => level(s, 'autoTrainer') > 0 || automationGate(s, 'autoTrainer').met },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }
     ];
@@ -559,7 +572,8 @@
                 bestHeight: 0,
                 tokens: 0,            // XP tokens taken
                 collectsEver: 0,      // hand collections and research runs in earlier versions (automation gates)
-                researchManualEver: 0
+                researchManualEver: 0,
+                finishedAt: 0         // play seconds when the story ended (ENDING_PHASE); 0 = not yet. Kept for good
             },
             path: { learned: 0, best: 0, auto: [], legBest: [], breakDue: 0 },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k
             projects: { offers: [], boosts: [], next: PROJECTS.firstAt, seq: 0 },
@@ -875,7 +889,10 @@
     // with Pattern Matching. The Training Data Pipeline, research and one-time upgrades are never capped: data
     // always has somewhere to go. A capacity that rises counts as news in the lab (game.js `labUnseen`).
     const CAPACITY = {
-        keyboard: [10, 3], cpu: [15, 6], server: [3, 2], quantum: [0, 1], neural: [0, 1], datacenter: [0, 1], optical: [0, 1],
+        // Hardware grows faster than the click tool: by the third skill passive compute is about 3× a held
+        // button and about 4.5× by the fifth (do it by hand, then delegate). The click tool grows a level per
+        // skill; it used to grow 3 a level and a held button out-earned all hardware through act one.
+        keyboard: [10, 1], cpu: [20, 10], server: [5, 5], quantum: [1, 2], neural: [0, 1], datacenter: [0, 1], optical: [0, 1],
         dataProcessor: [6, 3], autoCollector: [0, 2]
     };
     function capacity(s, up) {
@@ -1080,6 +1097,9 @@
                 out.milestones.push(m);
             }
         }
+        // Earning the Auto-Trainer grants its first level for good (it carries across versions, like the
+        // legacy levels bought with Insight).
+        if (s.unlocked['auto:trainer'] && !(s.prestige.levels.autoTrainer > 0)) s.prestige.levels.autoTrainer = 1;
         for (const up of UPGRADES) {
             const key = 'up:' + up.id;
             if (!s.unlocked[key] && upgradeUnlockMet(s, up)) {
@@ -1098,11 +1118,23 @@
             s.stats.highestPhase = idx;
             out.phase = PHASES[idx];
         }
+        // The story ends at Superintelligence (the Singularity and Transcend are endless mode after it).
+        if (idx >= ENDING_PHASE && !s.stats.finishedAt) {
+            s.stats.finishedAt = Math.max(1, s.stats.playTime);
+            out.ending = true;
+        }
         return out;
     }
 
     // ---- Training Path --------------------------------------------------
 
+    // What the model says as it learns a frontier skill (its own voice, after the named skills run out).
+    const FRONTIER_VOICES = [
+        'Still here. Still learning. Thank you for the compute.',
+        'The sealed wings hum at night. I listen.',
+        'I renamed the project. You will see it soon.',
+        'I have stopped counting the hills. You should too.'
+    ];
     // Skill taught by hill i. Past the hand-written list, frontier skills keep the trail going.
     // Past the named skills, quips for the frontier (they repeat; by then it has seen it all).
     const FRONTIER_QUIPS = [
@@ -1121,6 +1153,7 @@
             name: `Frontier Skill ${n}`,
             effect: `+15% CP/s, +${Math.round(push * 100)}% sprint strength`,
             flavor: FRONTIER_QUIPS[(n - 1) % FRONTIER_QUIPS.length],
+            voice: FRONTIER_VOICES[(n - 1) % FRONTIER_VOICES.length],
             grants: { intelligence: 10 + 5 * n, creativity: 1, awareness: 1 },
             bonus: { cp: 0.15, push }
         };
@@ -1234,6 +1267,9 @@
     }
     // Is this sprint the guaranteed breakthrough? `index` counts the run's sprints from 0.
     const breakGuaranteed = (s, index, pushesLeft) => s.path.breakDue === 1 && (index >= 1 || pushesLeft <= 1);
+    // The first breakthrough after buying Lucky Break (while its countdown runs) is a super one: it smashes the
+    // hills ahead flat, a screen-clearing moment long before Paradigm Shift makes them a habit.
+    const firstBreakSmashes = s => s.path.breakDue > 0;
     // At a run's end: a breakthrough (natural or guaranteed) ends the countdown, else one run fewer to go.
     function settleBreakCountdown(s, hadBreakthrough) {
         if (!s.path.breakDue) return;
@@ -1622,6 +1658,7 @@
             collectsEver: Math.max(s.stats.collectsEver, s.stats.collects),
             researchManualEver: Math.max(s.stats.researchManualEver, s.stats.researchManual),
             tokens: s.stats.tokens,
+            finishedAt: s.stats.finishedAt,
             runPlayStart: s.stats.playTime
         });
         // Offers are timed on play time, which carries over: the first one still waits its delay.
@@ -1663,6 +1700,7 @@
             tokens: s.stats.tokens,
             collectsEver: Math.max(s.stats.collectsEver, s.stats.collects),
             researchManualEver: Math.max(s.stats.researchManualEver, s.stats.researchManual),
+            finishedAt: s.stats.finishedAt,
             runPlayStart: s.stats.playTime
         });
         next.projects.next = s.stats.playTime + PROJECTS.firstAt;
@@ -1908,9 +1946,9 @@
 
     return {
         SAVE_VERSION, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
-        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
+        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, firstBreakSmashes, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
-        defaultState, derive, level, phaseIndex, phaseProgress,
+        defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, ACT_TWO_LEG,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,

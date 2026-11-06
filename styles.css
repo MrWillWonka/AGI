@@ -1206,6 +1206,8 @@ h1, h2, h3, p { margin: 0; }
 .log-entry.log-success { border-left-color: var(--success); }
 .log-entry.log-warning { border-left-color: var(--warning); }
 .log-entry.log-special { border-left-color: var(--accent); color: #ffd2cc; }
+/* The model talking (its voice line per skill): the terminal's green, in mono. */
+.log-entry.log-model { border-left-color: var(--terminal); color: var(--terminal-hi); font-family: var(--font-mono); font-size: 0.92em; }
 
 .check-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
 
@@ -1230,6 +1232,33 @@ h1, h2, h3, p { margin: 0; }
 [data-section="settings"] .button-row { margin-top: 14px; }
 
 #dialog { width: min(440px, calc(100vw - 32px)); }
+
+/* The title card (a brand-new game): the pitch, a live five-second trailer and the loop. */
+#titleCard { width: min(560px, calc(100vw - 24px)); border-color: var(--warning); }
+.title-form { display: flex; flex-direction: column; gap: 12px; padding: 24px 22px 18px; }
+.title-form h2 { font: 700 2rem var(--font-display); letter-spacing: 0.04em; color: var(--warning); }
+.title-pitch { line-height: 1.45; }
+.title-demo .demo { margin: 0; }
+.title-demo .demo canvas { display: block; width: 100%; height: auto; aspect-ratio: 360 / 150; border: 1px solid var(--border); border-radius: 8px; }
+.title-demo .demo figcaption { margin-top: 6px; font-size: 0.8rem; color: var(--muted); text-align: center; }
+.title-loop { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; font: 600 0.78rem var(--font-mono); color: var(--muted); }
+.title-loop li { display: flex; align-items: center; gap: 6px; }
+.title-loop li + li::before { content: '→'; color: var(--warning); }
+.title-loop li:last-child { color: var(--warning); }
+
+/* The ending (Superintelligence): a title card, three lines typed in one after another, the run in numbers. */
+#ending { width: min(520px, calc(100vw - 32px)); border-color: var(--accent); box-shadow: 0 0 60px color-mix(in srgb, var(--accent) 25%, transparent); }
+.ending-form { display: flex; flex-direction: column; gap: 14px; padding: 26px 24px 20px; }
+.ending-kicker { font: 600 0.72rem var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.ending-form h2 { font: 700 2rem var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.ending-lines p { opacity: 0; animation: ending-line 0.8s ease forwards; animation-delay: calc(0.6s + var(--i) * 1.1s); }
+.ending-lines p + p { margin-top: 6px; }
+@keyframes ending-line { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.ending-stats { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; }
+.ending-stats dt { color: var(--muted); }
+.ending-stats dd { font-family: var(--font-mono); text-align: right; }
+body.calm .ending-lines p { animation: none; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .ending-lines p { animation: none; opacity: 1; } }
 
 .dialog-form { display: flex; flex-direction: column; gap: 12px; padding: 20px; }
 .dialog-form h2 { font: 700 1.05rem var(--font-display); letter-spacing: 0.02em; }
@@ -1809,6 +1838,10 @@ body { zoom: var(--zoom); }
 .node-detail .detail-preview { margin: 6px 0 0; font: 600 0.78rem var(--font-mono); color: var(--primary); }
 
 .upgrade-flavor, .result-flavor { font-style: italic; font-size: 0.82rem; color: var(--text); opacity: 0.8; margin-top: 2px; }
+/* The model's line on the Skill learned card: it talks, in the terminal's voice, typed in a beat later. */
+.result-voice { font: 0.8rem var(--font-mono); color: var(--terminal-hi); margin-top: 6px; opacity: 0; animation: ending-line 0.6s ease 0.9s forwards; }
+body.calm .result-voice { animation: none; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .result-voice { animation: none; opacity: 1; } }
 .station-terminal .upgrade-flavor { font-family: var(--font-mono); font-style: normal; color: var(--terminal-hi); opacity: 0.75; }
 .station-terminal .upgrade-flavor::before { content: "# "; }
 
@@ -2374,6 +2407,8 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 /* The run's stats sit right above the trail, at its width. */
 .run-view > .run-stats { width: min(100%, 1360px); display: flex; align-items: center; gap: 10px; min-width: 0; }
 .run-stats .run-goal { flex: 1; padding-left: 0; border-left: 0; font-size: 0.82rem; }
+/* The Auto-Trainer's gate: muted status, like the Workbench's automation lines before they're met. */
+.run-stats .auto-gate { flex: none; font-size: 0.74rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32ch; }
 .module-bar #treeButton { margin-left: auto; }
 
 /* The minimap's holder is square: the title on top, the chip filling the rest, "You are in" under it. */

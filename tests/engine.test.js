@@ -702,17 +702,17 @@ test('Fast Charging holds the meter at full instead of speeding it up', () => {
     assert.ok(Math.abs(E.derive(s).chargeHold - 0.5) < 1e-9, 'half a second at full');
 });
 
-test('luck is earned: the branch opens after two skills; crunches (legacy) and Max Effort start at zero and grow', () => {
+test('luck is earned: the branch opens after the first real skill; crunches (legacy) and Max Effort start at zero and grow', () => {
     const s = fresh();
     s.unlocked['module:path'] = true;
     s.levels.initialWeights = 1;
     s.levels.trainingOptimizer = 2;
     s.levels.gpuCluster2 = 2;
     E.evaluate(s);
-    s.path.learned = 2;
+    s.path.learned = 1;
     E.evaluate(s);
-    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.scoutingData), false, 'hidden before the second skill past the warm-up');
-    s.path.learned = 3;
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.scoutingData), false, 'hidden before the first skill past the warm-up');
+    s.path.learned = 2;
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.scoutingData), true);
     const rate = hit => { let n = 0; for (let seed = 1; seed <= 2000; seed++) n += hit(seed) ? 1 : 0; return n / 2000; };
@@ -1537,4 +1537,27 @@ test('super prompts start tight and stay a fixed share smaller as they widen; sy
     s.prestige.levels.systemPrompt = 1;
     const d2 = E.derive(s);
     assert.ok(d2.systemWidth <= d2.perfectWidth && d2.systemWidth >= 0.6 * d2.perfectWidth, 'about as hard as a new super prompt, a little harder');
+});
+
+test('the first breakthrough after Lucky Break smashes through: only while its countdown runs', () => {
+    const s = fresh();
+    assert.equal(E.firstBreakSmashes(s), false, 'no countdown, no smash');
+    s.path.breakDue = 2;
+    assert.equal(E.firstBreakSmashes(s), true);
+    E.settleBreakCountdown(s, true);
+    assert.equal(E.firstBreakSmashes(s), false, 'once it has broken through, breakthroughs are ordinary again');
+});
+
+test('do it once, then delegate: at full capacity, hardware out-earns a held button from the third skill', () => {
+    const HOLD_CLICKS_PER_SEC = 4.13;   // hold-to-repeat on the music's 8th notes
+    const ratio = learned => {
+        const s = fresh();
+        s.path.learned = learned;
+        for (const id of ['keyboard', 'cpu', 'server', 'quantum']) s.levels[id] = E.capacity(s, E.UPGRADE_BY_ID[id]);
+        const d = E.derive(s);
+        return d.cpPerSec / (d.clickPower * HOLD_CLICKS_PER_SEC);
+    };
+    assert.ok(ratio(1) < 1, 'early on, clicking is the hook');
+    assert.ok(ratio(3) > 2.5, `third skill: ${ratio(3).toFixed(2)}×`);
+    assert.ok(ratio(5) > 4, `fifth skill: ${ratio(5).toFixed(2)}×`);
 });

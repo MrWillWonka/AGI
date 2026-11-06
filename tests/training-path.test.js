@@ -237,11 +237,37 @@ test('engine: the Auto-Trainer needs Faster Chips and a new version, costs Insig
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.autoTrainer), true);
     assert.equal(E.buy(s, 'autoTrainer').ok, false, 'costs Insight');
-    s.prestige.points = 3;
+    s.prestige.points = 2;
     assert.equal(E.buy(s, 'autoTrainer').ok, true);
     assert.equal(E.autoTrainerLevel(s), 1);
     E.setTaskOn(s, 'autoTrainer', false);
     assert.equal(E.autoTrainerLevel(s), 0);
+});
+
+test('engine: the Auto-Trainer\'s first level is earned in the first version by running the trail by hand', () => {
+    const s = E.defaultState(NOW);
+    s.unlocked['module:path'] = true;
+    s.stats.rolls = E.AUTO_TRAINER_RUNS;
+    s.path.learned = E.AUTO_TRAINER_SKILL - 1;
+    E.evaluate(s);
+    assert.equal(E.level(s, 'autoTrainer'), 0, 'needs the skill too');
+    s.path.learned = E.AUTO_TRAINER_SKILL;
+    s.stats.rolls = E.AUTO_TRAINER_RUNS - 1;
+    E.evaluate(s);
+    assert.equal(E.level(s, 'autoTrainer'), 0, 'needs the runs too');
+    s.stats.rolls = E.AUTO_TRAINER_RUNS;
+    const out = E.evaluate(s);
+    assert.ok(out.milestones.some(m => m.key === 'auto:trainer'), 'announced once');
+    assert.equal(E.autoTrainerLevel(s), 1, 'level 1, no Insight spent');
+    assert.equal(s.prestige.count, 0);
+    // It's kept for good: a new version starts with it.
+    s.attr.intelligence = 30;
+    s.path.learned = 7;
+    const next = E.prestige(s, NOW + 1).state;
+    assert.equal(E.level(next, 'autoTrainer'), 1);
+    // The Handmade challenge still switches it off.
+    next.challenge = { id: 'handmade', start: 0 };
+    assert.equal(E.autoTrainerLevel(next), 0);
 });
 
 test('engine: bonus zones land anywhere on the meter, vary per push, are repeatable, and Prompt Tuning lifts them', () => {

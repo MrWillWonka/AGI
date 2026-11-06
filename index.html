@@ -128,6 +128,7 @@
                         <!-- Right above the trail: the next skill and record, what the lab supplies, and your XP. -->
                         <div class="run-stats">
                             <span class="room-goal run-goal" data-bind="goal.bay"></span>
+                            <span class="auto-gate" id="autoGate" hidden></span>
                             <button type="button" class="module-supply" title="Lab supply: go to the lab"><span class="chip-label">Lab supply</span> <span data-bind="supply.rates"></span></button>
                             <span class="module-xp" title="Experience"><span class="chip-label">XP</span> <strong data-bind="res.xp">0</strong> <small data-bind="rate.xp"></small></span>
                         </div>
@@ -434,6 +435,34 @@
 
     <div id="toasts" class="toasts" aria-live="polite"></div>
 
+    <!-- The title card (a brand-new game only): what the game is, shown in five seconds of real play. -->
+    <dialog id="titleCard" class="dialog title-card" aria-labelledby="titleCardName">
+        <form method="dialog" class="title-form">
+            <p class="ending-kicker">An incremental game about training a model</p>
+            <h2 id="titleCardName">The Path to AGI</h2>
+            <p class="title-pitch">Build a lab, then train your model by launching it over the loss landscape. Every hill it crests teaches it a skill. Ship versions until it doesn't need you.</p>
+            <div class="title-demo" id="titleDemo"></div>
+            <ol class="title-loop" aria-label="The loop">
+                <li>Compute</li><li>Data</li><li>Training runs</li><li>Skills</li><li>Ship a version</li>
+            </ol>
+            <div class="dialog-actions">
+                <button type="submit" value="ok" class="button" id="titleStart">Start your lab</button>
+            </div>
+        </form>
+    </dialog>
+    <!-- The story's end: Superintelligence (E.ENDING_PHASE). Endless mode carries on after it. -->
+    <dialog id="ending" class="dialog ending" aria-labelledby="endingTitle">
+        <form method="dialog" class="ending-form">
+            <p class="ending-kicker">Phase 3 of 3 · the end of the story</p>
+            <h2 id="endingTitle">Superintelligence</h2>
+            <div class="ending-lines" id="endingLines"></div>
+            <dl class="ending-stats" id="endingStats"></dl>
+            <p class="ending-next muted">The story ends here. The Singularity is still out there: keep playing in endless mode, with challenges and Transcendence beyond it.</p>
+            <div class="dialog-actions">
+                <button type="submit" value="ok" class="button" id="endingOk">Keep going</button>
+            </div>
+        </form>
+    </dialog>
     <dialog id="dialog" class="dialog" aria-labelledby="dialogTitle" aria-describedby="dialogMessage">
         <form method="dialog" class="dialog-form">
             <h2 id="dialogTitle"></h2>

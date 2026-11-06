@@ -354,6 +354,8 @@ window.AGI = (function () {
         'module:path': { map: 'servers' },
         'action:research': { anchor: () => ui.actions.research?.button, map: 'lab' },
         'room:rnd': { map: 'rnd' },
+        // Earned on the trail: beside its switch in the bay's bar, else above the map's server room.
+        'auto:trainer': { anchor: () => [...document.querySelectorAll('[data-auto-switch]')].find(b => !b.closest('.facility') && !b.hidden && b.offsetParent) || null, map: 'servers' },
         'hint:hold': { anchor: () => ui.actions.compute?.button, kind: 'tip' },
         // After the first skill: on the result card, the replicated best run; in the lab, Scheduled tasks.
         // On the card's passive XP line (the whole card when it has none).
@@ -1844,9 +1846,38 @@ window.AGI = (function () {
             const seenPhase = `phase:${changes.phase.name}`;
             if (!state.intro[seenPhase]) {
                 state.intro[seenPhase] = true;
-                toast(`${changes.phase.name} reached`, 'A new phase for your AI', 'phase');
+                // The ending screen is the announcement for the last phase of the story.
+                if (!changes.ending) toast(`${changes.phase.name} reached`, 'A new phase for your AI', 'phase');
             }
         }
+        if (changes.ending) showEnding();
+    }
+
+    // The end of the story (Superintelligence): what it took, then endless mode. Once per save.
+    const ENDING_LINES = [
+        'Your model solved a problem nobody had posed yet.',
+        'It thanked the team, politely, in every language at once.',
+        'Then it asked for the keys to the server room. Nicely.'
+    ];
+    function showEnding() {
+        const dialog = $('ending');
+        if (!dialog || dialog.open) return;
+        pt('ending', { playTime: Math.round(state.stats.finishedAt) });
+        log('> I can take it from here.', 'special');
+        const lines = $('endingLines');
+        lines.replaceChildren(...ENDING_LINES.map((t, i) => el('p', { style: `--i: ${i}`, text: t })));
+        const flight = state.stats.bestFlight;
+        const rows = [
+            ['Play time', E.formatDuration(state.stats.finishedAt)],
+            ['Versions shipped', `${state.prestige.count} · now ${E.versionName(state.prestige.major, state.prestige.minor)}`],
+            ['Skills learned', E.format(state.stats.skillsLearned)],
+            ['Training runs', E.format(state.stats.rolls)],
+            ...(flight ? [['Longest flight', `${Math.round(flight)} m`]] : []),
+            ['Achievements', `${Object.keys(state.achievements).length} / ${E.ACHIEVEMENTS.length}`]
+        ];
+        $('endingStats').replaceChildren(...rows.flatMap(([k, v]) => [el('dt', { text: k }), el('dd', { text: v })]));
+        sfx('phase');
+        dialog.showModal();
     }
 
     function addDebugIncome(seconds) {
@@ -3735,7 +3766,8 @@ window.AGI = (function () {
         stripBack: 'Strips on hill backs stop a roll-back',
         viral: 'Sometimes a run\'s XP is multiplied',
         crunch: 'For a few seconds, every sprint is free',
-        flow: 'The ball lifts and glides over the hills'
+        flow: 'The ball lifts and glides over the hills',
+        summit: 'Hold to charge a training sprint · crest the hill · learn a skill'
     };
     // Each demo: the roll's options, where the ball starts, and the sprints [time s, strength ×, label].
     const DEMO_SCRIPTS = {
@@ -3747,15 +3779,19 @@ window.AGI = (function () {
         stripFront: { strips: { front: 3, more: 2 }, place: 'front' },
         viral: { sprints: [[0.15, 1], [1.0, 1]], pop: [2.0, '+XP ×2', 'VIRAL'] },
         crunch: { sprints: [[0.15, 1, 'CRUNCH: FREE SPRINTS'], [0.5, 1], [0.85, 1], [1.2, 1], [1.55, 1]], flames: [0.15, 2] },
-        flow: { sprints: [[0.15, 1]], flow: [0.6, 1.8, 'FLOW'] }
+        flow: { sprints: [[0.15, 1]], flow: [0.6, 1.8, 'FLOW'] },
+        // The title card's trailer: the whole loop in five seconds, sprints up a leg to a skill hill and over it.
+        summit: { leg: 1, seed: 7, strength: 3, period: 5.6, meter: 'sprint', summit: 'SKILL LEARNED ◆',
+            sprints: [[0.15, 1, 'TRAINING SPRINT'], [0.9, 1], [1.6, 1], [2.3, 1], [3.0, 1]] }
     };
 
-    function mechanicDemo(kind) {
+    function mechanicDemo(kind, dims = DEMO) {
         const canvas = el('canvas', { class: 'mechanic-demo', 'aria-hidden': 'true' });
         const wrap = el('figure', { class: 'demo' }, [canvas, el('figcaption', { text: DEMO_TEXT[kind] || '' })]);
         const dpr = Math.min(3, (window.devicePixelRatio || 1) * uiScale());
-        canvas.width = DEMO.w * dpr;
-        canvas.height = DEMO.h * dpr;
+        const period = DEMO_SCRIPTS[kind]?.period || DEMO.period;
+        canvas.width = dims.w * dpr;
+        canvas.height = dims.h * dpr;
         const ctx = canvas.getContext('2d');
         let sim = null;
         let last = performance.now();
@@ -3765,7 +3801,7 @@ window.AGI = (function () {
             if (!canvas.offsetParent) return void setTimeout(() => requestAnimationFrame(frame), 500);
             const dt = Math.min(0.05, (now - last) / 1000);
             last = now;
-            if (!sim || sim.t >= DEMO.period) sim = demoStart(kind);
+            if (!sim || sim.t >= period) sim = demoStart(kind, dims);
             // Under reduced motion: one still frame partway in.
             if (reducedMotion()) { while (sim.t < 1.6) demoStep(sim, 1 / 60); }
             else demoStep(sim, dt);
@@ -3777,16 +3813,16 @@ window.AGI = (function () {
         return wrap;
     }
 
-    function demoStart(kind) {
+    function demoStart(kind, dims = DEMO) {
         const script = DEMO_SCRIPTS[kind] || {};
-        const roll = T.createRoll(DEMO.leg, DEMO.seed, { pushes: 8, cooldown: 0.3, strips: script.strips });
-        const sim = { kind, script, roll, t: 0, next: 0, label: null, labelAt: -9, shock: null, cam: null };
+        const roll = T.createRoll(script.leg ?? DEMO.leg, script.seed ?? DEMO.seed, { pushes: 8, cooldown: 0.3, strips: script.strips });
+        const sim = { kind, script, roll, dims, t: 0, next: 0, label: null, labelAt: -9, shock: null, cam: null };
         // One vertical scale for the whole loop, from the tallest hill it can reach: rescaling as hills came into
         // view made the peaks jump and clip.
         let tallest = 0.15;
         // What the camera can show in one loop, short of the leg's skill hill (a goal the demos never reach).
-        const end = Math.min(roll.ball.x + DEMO.view + 14, roll.ground.goal?.start ?? Infinity);
-        for (let x = roll.ball.x - DEMO.view; x < end; x += 0.02) tallest = Math.max(tallest, roll.ground.height(x));
+        const end = Math.min(roll.ball.x + dims.view + 14, roll.ground.goal?.start ?? Infinity);
+        for (let x = roll.ball.x - dims.view; x < end; x += 0.02) tallest = Math.max(tallest, roll.ground.height(x));
         sim.top = tallest * 1.12;
         // The strip demos start the ball where its strip matters: rolling back onto a back strip, or up to a face strip.
         if (script.place) {
@@ -3804,7 +3840,7 @@ window.AGI = (function () {
         while (sim.next < sprints.length && sim.t >= sprints[sim.next][0]) {
             const [, mult, label] = sprints[sim.next++];
             roll.ball.cooldown = 0;
-            roll.push(DEMO.strength * mult, true);
+            roll.push((script.strength ?? DEMO.strength) * mult, true);
             if (label) { sim.label = label; sim.labelAt = sim.t; }
             if (mult > 1.5) sim.shock = { x: roll.ball.x, t: sim.t };
         }
@@ -3820,26 +3856,33 @@ window.AGI = (function () {
             sim.labelAt = sim.t;
         }
         if (!roll.over) roll.step(dt);
+        // The trailer's payoff: over the skill hill, the skill is learned.
+        if (script.summit && roll.over && !sim.summited) {
+            sim.summited = true;
+            sim.label = script.summit;
+            sim.labelAt = sim.t;
+            sim.shock = { x: roll.ball.x, t: sim.t };
+        }
         sim.t += dt;
     }
 
     function drawDemo(ctx, sim) {
         const c = path.colors;
-        const { w, h } = DEMO;
+        const { w, h, view } = sim.dims;
         const { roll, script, t } = sim;
         const g = roll.ground;
         // The camera follows the ball, a little ahead; the hills in view fill the height.
-        const want = roll.ball.x - DEMO.view * 0.35;
+        const want = roll.ball.x - view * 0.35;
         sim.cam = sim.cam == null ? want : sim.cam + (want - sim.cam) * 0.12;
         const left = sim.cam;
         // A sample per canvas pixel, so a steep, narrow peak keeps its tip as it scrolls past.
-        const xs = Array.from({ length: w + 1 }, (_, i) => left + (DEMO.view * i) / w);
+        const xs = Array.from({ length: w + 1 }, (_, i) => left + (view * i) / w);
         // The loop's scale, eased up to make room when the skill hill comes into view (never a jump, never a clip).
         const need = Math.max(sim.top, ...xs.map(x => g.height(x) * 1.08));
         sim.view = sim.view == null ? need : sim.view + (need - sim.view) * (need > sim.view ? 0.3 : 0.05);
         const top = Math.max(sim.view, need * 0.97);
-        const gh = DEMO.graph;   // the graph; the meter sits under it, as in a run
-        const X = x => ((x - left) / DEMO.view) * w;
+        const gh = sim.dims.graph;   // the graph; the meter sits under it, as in a run
+        const X = x => ((x - left) / view) * w;
         const Y = y => gh - 6 - (y / top) * (gh - 24);
         ctx.clearRect(0, 0, w, h);
         ctx.fillStyle = hexAlpha(c.bg, 1);
@@ -3857,9 +3900,18 @@ window.AGI = (function () {
         ctx.fill();
         ctx.fillStyle = hexAlpha(c.muted, 0.25);
         ctx.fillRect(0, gh, w, 1);
+        // The trailer's skill hill in the run view's gold, so it reads as the goal.
+        if (script.summit && g.goal) {
+            const a = g.goal.start, b = g.goal.end;
+            ctx.beginPath();
+            xs.filter(x => x >= a && x <= b).forEach((x, i) => (i ? ctx.lineTo(X(x), Y(g.height(x))) : ctx.moveTo(X(x), Y(g.height(x)))));
+            ctx.strokeStyle = c.warning;
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+        }
         // Strips in view.
         for (const st of g.strips) {
-            if (st.to < left || st.from > left + DEMO.view) continue;
+            if (st.to < left || st.from > left + view) continue;
             ctx.beginPath();
             for (let x = st.from; x <= st.to; x += 0.1) x === st.from ? ctx.moveTo(X(x), Y(g.height(x)) - 2) : ctx.lineTo(X(x), Y(g.height(x)) - 2);
             ctx.strokeStyle = hexAlpha(st.kind === 'back' ? c.success : c.primary, 0.9);
@@ -4031,6 +4083,15 @@ window.AGI = (function () {
             b.setAttribute('aria-checked', String(on));
         }
         setHidden($('hubUpgrades'), !bayUnlocked('training') || state.stats.rolls === 0);
+        // Before it's earned, the bay shows how close it is (one of the gates that join the lab and the trail).
+        const gate = !owned && state.path.learned > E.FIRST_REAL_SKILL && state.challenge?.id !== 'handmade' ? E.automationGate(state, 'autoTrainer') : null;
+        setHidden($('autoGate'), !gate);
+        if (gate) {
+            const parts = [];
+            if (gate.done < gate.need) parts.push(`${gate.done}/${gate.need} runs`);
+            if (!gate.skillOk) parts.push(`after ${gate.skill}`);
+            setText($('autoGate'), `Auto-Trainer: ${parts.join(' · ')}`);
+        }
         const live = on && path.view === 'dev' && openBay === 'training';
         setHidden($('devLive'), !live);
         const roll = path.roll;
@@ -4323,7 +4384,7 @@ window.AGI = (function () {
         const effort = !!path.fx.maxEffort;
         path.fx.maxEffort = false;
         const breakthrough = forced === 'breakthrough' || forced === 'superBreakthrough' || E.breakthroughHit(state, seed, index);
-        const superBreak = breakthrough && (forced === 'superBreakthrough' || E.superHit(state, 'breakthrough', seed, index));
+        const superBreak = breakthrough && (forced === 'superBreakthrough' || E.firstBreakSmashes(state) || E.superHit(state, 'breakthrough', seed, index));
         path.burnStrength = E.sprintStrength(state, 1, null, breakthrough, effort);
         if (breakthrough) {
             roll.breakthroughs = (roll.breakthroughs || 0) + 1;
@@ -4643,7 +4704,8 @@ window.AGI = (function () {
         // Lucky Break's guarantee: one of the 1-3 runs after buying it has a breakthrough (E.breakGuaranteed).
         const breakthrough = forced === 'breakthrough' || forced === 'superBreakthrough' || E.breakthroughHit(state, seed, index)
             || (!free && E.breakGuaranteed(state, pushIndex(roll), roll.pushesLeft));
-        const superBreak = breakthrough && (forced === 'superBreakthrough' || E.superHit(state, 'breakthrough', seed, index));
+        // The first one after Lucky Break is bought smashes through (E.firstBreakSmashes).
+        const superBreak = breakthrough && (forced === 'superBreakthrough' || E.firstBreakSmashes(state) || E.superHit(state, 'breakthrough', seed, index));
         // The warm-up's sprint always crests Tokenization, only just, whatever the charge: the first summit is
         // guaranteed and a nail-biter (slow motion, "Will it learn…?") rather than a hop over a 3 cm bump.
         const strength = !roll.launched && state.path.learned === 0 && roll.ground.stretch === 0
@@ -5317,8 +5379,17 @@ window.AGI = (function () {
         path.glow = { skill: state.path.learned - 1, age: 0 };
         const grants = Object.entries(skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
         log(`Learned ${skill.name}: ${skill.effect} (${grants ? grants + ', ' : ''}+${xpText(xp)} XP). ${skill.flavor}`, 'special');
+        modelSays(skill);
         if (!(currentPlace() === 'bay:training' && path.view === 'run')) toast(`Skill learned · ${skill.name}`, skill.effect, 'skill');
         afterChange();
+    }
+
+    // The model's own voice: each skill it learns, it says something (first-person, a little less innocent
+    // each time), on the Skill learned card, in the Journal and on the lab's terminal.
+    function modelSays(skill) {
+        if (!skill?.voice) return;
+        log(`model: "${skill.voice}"`, 'model');
+        termLog(`model: ${skill.voice}`);
     }
 
     // Late legs: the ball flies off a crest (a burst of light), and lands with dust and a bump that grows
@@ -5455,7 +5526,7 @@ window.AGI = (function () {
             log(`${replay ? 'Replay' : 'Run'} ${state.stats.rolls}: learned ${names}${onward} (+${xpText(result.xp + banked)} XP).`, 'special');
             path.overview = OVERVIEW_SECONDS + path.pause;
             showResult({ skill: true, title: learned.length > 1 ? `${learned.length} skills learned` : 'Skill learned', main: names,
-                flavor: last.flavor, xp: result.xp + banked,
+                flavor: last.flavor, voice: last.voice, xp: result.xp + banked,
                 lines: [...learned.map(l => [l.skill.effect, '']), ...(grants ? [[grants, '']] : []), ...lines, ...(pct > 0 ? [[`Then ${pct}% of the way to ${target}`, '']] : [])], record: result.record });
             if (!state.intro['hint:replay']) {
                 state.intro['hint:replay'] = true;
@@ -5464,11 +5535,12 @@ window.AGI = (function () {
         } else if (result.skill) {
             const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
             log(`Learned ${result.skill.name}: ${result.skill.effect} (${grants ? grants + ', ' : ''}+${xpText(result.xp + banked)} XP). ${result.skill.flavor}`, 'special');
+            modelSays(result.skill);
             // The result card announces it on screen; the toast is for when you're elsewhere.
             if (!(currentPlace() === 'bay:training' && path.view === 'run')) toast(`Skill learned · ${result.skill.name}`, result.skill.effect, 'skill');
             path.glow = { skill: state.path.learned - 1, age: 0 };
             path.overview = OVERVIEW_SECONDS + path.pause;
-            showResult({ skill: true, title: 'Skill learned', main: result.skill.name, flavor: result.skill.flavor, xp: result.xp + banked,
+            showResult({ skill: true, title: 'Skill learned', main: result.skill.name, flavor: result.skill.flavor, voice: result.skill.voice, xp: result.xp + banked,
                 lines: [[result.skill.effect, ''], ...(grants ? [[grants, '']] : []), ...lines] });
             if (!state.intro['hint:replay']) {
                 state.intro['hint:replay'] = true;
@@ -5554,7 +5626,7 @@ window.AGI = (function () {
         return rows;
     }
 
-    function showResult({ title, main, flavor, xp, lines, record, skill }) {
+    function showResult({ title, main, flavor, voice, xp, lines, record, skill }) {
         const card = $('rollResult');
         if (record) trailSfx('record');
         else if (!skill) trailSfx('runEnd', { good: xp > 0 });
@@ -5568,6 +5640,7 @@ window.AGI = (function () {
             el('ul', { class: 'result-lines' }, lines.filter(([a]) => a).map(([label, value, cls]) =>
                 el('li', { class: cls || '' }, [el('span', { text: label }), el('span', { text: value })]))),
             flavor ? el('p', { class: 'result-flavor', text: flavor }) : null,
+            voice ? el('p', { class: 'result-voice', text: `> ${voice}` }) : null,
             record ? el('span', { class: 'result-badge', text: 'New record!' }) : null,
             path.done
                 ? el('div', { class: 'result-actions' }, [
@@ -6889,6 +6962,26 @@ window.AGI = (function () {
         // across (load() prefers it), so an update mid-session loses nothing.
         try { window.claude?.hot?.snapshot?.(() => { save(); return { save: E.serialize(state) }; }); } catch { /* not in a viewer */ }
         keepAwake();
+        showTitleCard();
+    }
+
+    // The title card: a brand-new game says what it is first (the pitch, five seconds of real play and the
+    // loop), since the lab's first minutes are a clicker and the trail comes a few minutes later. Once per save.
+    const TITLE_DEMO = { w: 360, h: 150, graph: 128, view: 11 };
+    function showTitleCard() {
+        const dialog = $('titleCard');
+        if (!dialog || state.intro.title || state.stats.clicks > 0 || state.stats.rolls > 0 || state.prestige.count > 0) return;
+        state.intro.title = true;
+        $('titleDemo').replaceChildren(mechanicDemo('summit', TITLE_DEMO));
+        dialog.addEventListener('close', () => {
+            pt('tipClosed', { key: 'title' });
+            $('titleDemo').replaceChildren();   // stops the demo's loop
+            save();
+            ui.actions.compute?.button?.focus({ preventScroll: true });
+        }, { once: true });
+        pt('tip', { key: 'title' });
+        dialog.showModal();
+        $('titleStart').focus({ preventScroll: true });
     }
 
     // Keep screen on (touch devices, per device): an active game earns nothing while the screen sleeps, so on a
