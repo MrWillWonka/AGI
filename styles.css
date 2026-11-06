@@ -1138,13 +1138,15 @@ h1, h2, h3, p { margin: 0; }
     font: 600 0.78rem var(--font-mono);
     letter-spacing: 0;
     color: var(--warning);
-    background: transparent;
-    border: 1px solid color-mix(in srgb, var(--warning) 55%, transparent);
+    /* A price you can pay is a filled pill; one you can't stays an outline in the muted grey. The two used
+       to share a transparent fill and differ by text hue alone (1.6:1 between the two text colours). */
+    background: color-mix(in srgb, var(--warning) 18%, transparent);
+    border: 1px solid color-mix(in srgb, var(--warning) 75%, transparent);
     border-radius: 8px;
     box-shadow: none;
 }
 
-@media (hover: hover) { .upgrade-button:hover:not(:disabled):not([aria-disabled="true"]) { background: color-mix(in srgb, var(--warning) 12%, transparent); filter: none; box-shadow: none; } }
+@media (hover: hover) { .upgrade-button:hover:not(:disabled):not([aria-disabled="true"]) { background: color-mix(in srgb, var(--warning) 30%, transparent); filter: none; box-shadow: none; } }
 .upgrade-button:disabled, .upgrade-button[aria-disabled="true"] { color: var(--muted); border-color: var(--border); background: transparent; }
 
 .badge {
