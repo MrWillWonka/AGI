@@ -1832,6 +1832,10 @@
     // Finite, non-negative and below a ceiling, so a tampered save can't overflow production to Infinity.
     const num = (v, fallback) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.min(v, 1e250) : fallback);
     const MAX_LEARNED = 500;
+    // No upgrade can reach this many levels in play (the cheapest repeatable costs ×1.15 a level: 1.15^1000 is
+    // 10^60 times its first price); a tampered level above it made production or sprint strength Infinity
+    // (Compute Moat at 10^4 levels: 1.1^10^4), and an infinite sprint made the ball's position NaN.
+    const MAX_LEVEL = 1000;
     const bool = (v, fallback) => (typeof v === 'boolean' ? v : fallback);
 
     function cleanMap(obj, valid) {
@@ -1856,10 +1860,7 @@
         for (const k of Object.keys(s.res)) s.res[k] = num(raw.res?.[k], 0);
         for (const k of Object.keys(s.attr)) s.attr[k] = num(raw.attr?.[k], 0);
         s.levels = cleanMap(raw.levels, (k, v) => Object.hasOwn(UPGRADE_BY_ID, k) && Number.isInteger(v) && v > 0);
-        for (const [k, v] of Object.entries(s.levels)) {
-            const max = UPGRADE_BY_ID[k].max;
-            if (max != null) s.levels[k] = Math.min(v, max);
-        }
+        for (const [k, v] of Object.entries(s.levels)) s.levels[k] = Math.min(v, UPGRADE_BY_ID[k].max ?? MAX_LEVEL);
         // Skill-tree nodes that were removed (viral runs and crunches moved to legacy) refund their XP.
         for (const [id, n] of Object.entries(REMOVED_NODES)) {
             const lvl = raw.levels?.[id];
@@ -1884,7 +1885,7 @@
                 delete s.levels[k];
             }
         }
-        for (const [k, v] of Object.entries(s.prestige.levels)) s.prestige.levels[k] = Math.min(v, UPGRADE_BY_ID[k].max ?? v);
+        for (const [k, v] of Object.entries(s.prestige.levels)) s.prestige.levels[k] = Math.min(v, UPGRADE_BY_ID[k].max ?? MAX_LEVEL);
         // Before v5 Flow State made the next sprint perfect: that's Max Effort now.
         if (!(raw.version >= 5) && raw.levels?.flowState > 0) {
             s.levels.maxEffort = Math.min(UPGRADE_BY_ID.maxEffort.max, Math.floor(num(raw.levels.flowState, 0)));

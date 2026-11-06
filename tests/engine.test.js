@@ -1671,6 +1671,25 @@ test('the Procurement Bot is kept by a new version and a new beginning, and keep
     assert.equal(E.level(E.prestige(none, NOW).state, 'procurement'), 0, 'never bought, never granted');
 });
 
+test('a save with absurd upgrade levels loads with them held to a sane size (no Infinity production or strength)', () => {
+    const s = fresh();
+    s.path.learned = 12;
+    s.levels = { optical: 1e300, cpu: Number.MAX_SAFE_INTEGER, scaleUp: 1e4, keyboard: 1e300 };
+    s.prestige.levels = { computeMoat: 1e6 };
+    const loaded = E.deserialize(E.serialize(s), NOW);
+    const d = E.derive(loaded);
+    for (const k of ['cpPerSec', 'pushPower', 'clickPower', 'xpPerSec']) assert.ok(Number.isFinite(d[k]), k);
+    E.tick(loaded, 3600);
+    assert.ok(Number.isFinite(loaded.res.cp));
+    // Real levels are untouched.
+    const ok = fresh();
+    ok.levels = { cpu: 40, scaleUp: 12 };
+    ok.prestige.levels = { computeMoat: 7 };
+    const back = E.deserialize(E.serialize(ok), NOW);
+    assert.deepEqual(back.levels, ok.levels);
+    assert.deepEqual(back.prestige.levels, ok.prestige.levels);
+});
+
 test('a save with absurd investor boosts loads with them held to a sane size', () => {
     const s = fresh();
     s.projects.boosts = [{ stat: 'xp', mult: 1e300, until: 1e12 }, { stat: 'xp', mult: 1e300, until: 1e12 }, { stat: 'xp', mult: 2, until: 1e12 }];
