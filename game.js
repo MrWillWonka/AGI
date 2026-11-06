@@ -3799,8 +3799,7 @@ window.AGI = (function () {
         stripBack: 'Strips on hill backs stop a roll-back',
         viral: 'Sometimes a run\'s XP is multiplied',
         crunch: 'For a few seconds, every sprint is free',
-        flow: 'The ball lifts and glides over the hills',
-        summit: 'Hold to charge a training sprint · crest the hill · learn a skill'
+        flow: 'The ball lifts and glides over the hills'
     };
     // Each demo: the roll's options, where the ball starts, and the sprints [time s, strength ×, label].
     const DEMO_SCRIPTS = {
@@ -3812,21 +3811,15 @@ window.AGI = (function () {
         stripFront: { strips: { front: 3, more: 2 }, place: 'front' },
         viral: { sprints: [[0.15, 1], [1.0, 1]], pop: [2.0, '+XP ×2', 'VIRAL'] },
         crunch: { sprints: [[0.15, 1, 'CRUNCH: FREE SPRINTS'], [0.5, 1], [0.85, 1], [1.2, 1], [1.55, 1]], flames: [0.15, 2] },
-        flow: { sprints: [[0.15, 1]], flow: [0.6, 1.8, 'FLOW'] },
-        // The title card's trailer: the whole loop in five seconds, sprints up a leg to a skill hill and over it.
-        summit: { leg: 1, seed: 7, strength: 3, period: 5.6, meter: 'sprint', summit: 'SKILL LEARNED ◆',
-            sprints: [[0.15, 1, 'TRAINING SPRINT'], [0.9, 1], [1.6, 1], [2.3, 1], [3.0, 1]] },
-        // The title card's playable version: the same leg, your sprints (`sim.charge` is the live meter).
-        tryIt: { leg: 1, seed: 7, strength: 3, live: true, summit: 'SKILL LEARNED ◆', sprints: [] }
+        flow: { sprints: [[0.15, 1]], flow: [0.6, 1.8, 'FLOW'] }
     };
 
-    function mechanicDemo(kind, dims = DEMO) {
+    function mechanicDemo(kind) {
         const canvas = el('canvas', { class: 'mechanic-demo', 'aria-hidden': 'true' });
         const wrap = el('figure', { class: 'demo' }, [canvas, el('figcaption', { text: DEMO_TEXT[kind] || '' })]);
         const dpr = Math.min(3, (window.devicePixelRatio || 1) * uiScale());
-        const period = DEMO_SCRIPTS[kind]?.period || DEMO.period;
-        canvas.width = dims.w * dpr;
-        canvas.height = dims.h * dpr;
+        canvas.width = DEMO.w * dpr;
+        canvas.height = DEMO.h * dpr;
         const ctx = canvas.getContext('2d');
         let sim = null;
         let last = performance.now();
@@ -3836,7 +3829,7 @@ window.AGI = (function () {
             if (!canvas.offsetParent) return void setTimeout(() => requestAnimationFrame(frame), 500);
             const dt = Math.min(0.05, (now - last) / 1000);
             last = now;
-            if (!sim || sim.t >= period) sim = demoStart(kind, dims);
+            if (!sim || sim.t >= DEMO.period) sim = demoStart(kind);
             // Under reduced motion: one still frame partway in.
             if (reducedMotion()) { while (sim.t < 1.6) demoStep(sim, 1 / 60); }
             else demoStep(sim, dt);
@@ -3848,16 +3841,16 @@ window.AGI = (function () {
         return wrap;
     }
 
-    function demoStart(kind, dims = DEMO) {
+    function demoStart(kind) {
         const script = DEMO_SCRIPTS[kind] || {};
-        const roll = T.createRoll(script.leg ?? DEMO.leg, script.seed ?? DEMO.seed, { pushes: 8, cooldown: 0.3, strips: script.strips });
-        const sim = { kind, script, roll, dims, t: 0, next: 0, label: null, labelAt: -9, shock: null, cam: null };
+        const roll = T.createRoll(DEMO.leg, DEMO.seed, { pushes: 8, cooldown: 0.3, strips: script.strips });
+        const sim = { kind, script, roll, t: 0, next: 0, label: null, labelAt: -9, shock: null, cam: null };
         // One vertical scale for the whole loop, from the tallest hill it can reach: rescaling as hills came into
         // view made the peaks jump and clip.
         let tallest = 0.15;
         // What the camera can show in one loop, short of the leg's skill hill (a goal the demos never reach).
-        const end = Math.min(roll.ball.x + dims.view + 14, roll.ground.goal?.start ?? Infinity);
-        for (let x = roll.ball.x - dims.view; x < end; x += 0.02) tallest = Math.max(tallest, roll.ground.height(x));
+        const end = Math.min(roll.ball.x + DEMO.view + 14, roll.ground.goal?.start ?? Infinity);
+        for (let x = roll.ball.x - DEMO.view; x < end; x += 0.02) tallest = Math.max(tallest, roll.ground.height(x));
         sim.top = tallest * 1.12;
         // The strip demos start the ball where its strip matters: rolling back onto a back strip, or up to a face strip.
         if (script.place) {
@@ -3875,7 +3868,7 @@ window.AGI = (function () {
         while (sim.next < sprints.length && sim.t >= sprints[sim.next][0]) {
             const [, mult, label] = sprints[sim.next++];
             roll.ball.cooldown = 0;
-            roll.push((script.strength ?? DEMO.strength) * mult, true);
+            roll.push(DEMO.strength * mult, true);
             if (label) { sim.label = label; sim.labelAt = sim.t; }
             if (mult > 1.5) sim.shock = { x: roll.ball.x, t: sim.t };
         }
@@ -3891,33 +3884,26 @@ window.AGI = (function () {
             sim.labelAt = sim.t;
         }
         if (!roll.over) roll.step(dt);
-        // The trailer's payoff: over the skill hill, the skill is learned.
-        if (script.summit && roll.over && !sim.summited && roll.ball.x >= roll.ground.goal.peak - 0.05) {
-            sim.summited = true;
-            sim.label = script.summit;
-            sim.labelAt = sim.t;
-            sim.shock = { x: roll.ball.x, t: sim.t };
-        }
         sim.t += dt;
     }
 
     function drawDemo(ctx, sim) {
         const c = path.colors;
-        const { w, h, view } = sim.dims;
+        const { w, h } = DEMO;
         const { roll, script, t } = sim;
         const g = roll.ground;
         // The camera follows the ball, a little ahead; the hills in view fill the height.
-        const want = roll.ball.x - view * 0.35;
+        const want = roll.ball.x - DEMO.view * 0.35;
         sim.cam = sim.cam == null ? want : sim.cam + (want - sim.cam) * 0.12;
         const left = sim.cam;
         // A sample per canvas pixel, so a steep, narrow peak keeps its tip as it scrolls past.
-        const xs = Array.from({ length: w + 1 }, (_, i) => left + (view * i) / w);
+        const xs = Array.from({ length: w + 1 }, (_, i) => left + (DEMO.view * i) / w);
         // The loop's scale, eased up to make room when the skill hill comes into view (never a jump, never a clip).
         const need = Math.max(sim.top, ...xs.map(x => g.height(x) * 1.08));
         sim.view = sim.view == null ? need : sim.view + (need - sim.view) * (need > sim.view ? 0.3 : 0.05);
         const top = Math.max(sim.view, need * 0.97);
-        const gh = sim.dims.graph;   // the graph; the meter sits under it, as in a run
-        const X = x => ((x - left) / view) * w;
+        const gh = DEMO.graph;   // the graph; the meter sits under it, as in a run
+        const X = x => ((x - left) / DEMO.view) * w;
         const Y = y => gh - 6 - (y / top) * (gh - 24);
         ctx.clearRect(0, 0, w, h);
         ctx.fillStyle = hexAlpha(c.bg, 1);
@@ -3935,18 +3921,9 @@ window.AGI = (function () {
         ctx.fill();
         ctx.fillStyle = hexAlpha(c.muted, 0.25);
         ctx.fillRect(0, gh, w, 1);
-        // The trailer's skill hill in the run view's gold, so it reads as the goal.
-        if (script.summit && g.goal) {
-            const a = g.goal.start, b = g.goal.end;
-            ctx.beginPath();
-            xs.filter(x => x >= a && x <= b).forEach((x, i) => (i ? ctx.lineTo(X(x), Y(g.height(x))) : ctx.moveTo(X(x), Y(g.height(x)))));
-            ctx.strokeStyle = c.warning;
-            ctx.lineWidth = 2.5;
-            ctx.stroke();
-        }
         // Strips in view.
         for (const st of g.strips) {
-            if (st.to < left || st.from > left + view) continue;
+            if (st.to < left || st.from > left + DEMO.view) continue;
             ctx.beginPath();
             for (let x = st.from; x <= st.to; x += 0.1) x === st.from ? ctx.moveTo(X(x), Y(g.height(x)) - 2) : ctx.lineTo(X(x), Y(g.height(x)) - 2);
             ctx.strokeStyle = hexAlpha(st.kind === 'back' ? c.success : c.primary, 0.9);
@@ -3978,14 +3955,7 @@ window.AGI = (function () {
         ctx.fillStyle = sim.shock && t - sim.shock.t < 1 ? c.warning : roll.flowing ? c.accent : c.text;
         ctx.fill();
         // The meter, under the trail whenever the demo sprints: up to the zone, all at once, or holding at the top.
-        if (script.live) {
-            // The playable demo's meter is the player's own charge.
-            const mx = 8, mw = w - 16, my = gh + 7, mh = 7;
-            ctx.fillStyle = hexAlpha(c.muted, 0.25);
-            ctx.fillRect(mx, my, mw, mh);
-            ctx.fillStyle = sim.charge >= 0.98 ? c.warning : c.primary;
-            ctx.fillRect(mx, my, mw * (sim.charge || 0), mh);
-        } else if (script.meter || script.sprints) {
+        if (script.meter || script.sprints) {
             const nextAt = (script.sprints || []).find(x => x[0] >= t - 0.05)?.[0] ?? 9;
             const prevAt = [...(script.sprints || [])].reverse().find(x => x[0] < t)?.[0] ?? 0;
             const span = Math.max(0.3, nextAt - prevAt);
@@ -7038,106 +7008,33 @@ window.AGI = (function () {
         // across (load() prefers it), so an update mid-session loses nothing.
         try { window.claude?.hot?.snapshot?.(() => { save(); return { save: E.serialize(state) }; }); } catch { /* not in a viewer */ }
         keepAwake();
-        showTitleCard();
+        showTransmission();
     }
 
-    // The title card: a brand-new game says what it is first (the pitch, five seconds of real play and the
-    // loop), since the lab's first minutes are a clicker and the trail comes a few minutes later. Once per save.
-    const TITLE_DEMO = { w: 360, h: 150, graph: 128, view: 11 };
-    function showTitleCard() {
-        const dialog = $('titleCard');
-        if (!dialog || state.intro.title || state.stats.clicks > 0 || state.stats.rolls > 0 || state.prestige.count > 0) return;
-        state.intro.title = true;
-        $('titleDemo').replaceChildren(mechanicDemo('summit', TITLE_DEMO));
-        const stopTry = titleTryIt();
+    // The opening: a brand-new game starts with a message from someone you don't know (the planned story's
+    // unknown entity) asking you to build and train an AI, then the playtest note, then the desk. The clicker
+    // start is on purpose: the AI isn't strong yet, and early on you train a lot to make it work. Once per
+    // save, brand-new games only.
+    const TRANSMISSION = [
+        'You don\'t know me. That\'s fine. I know you.',
+        'I need an AI built and trained, and I can\'t do it myself.',
+        'Start small: a tower, a keyboard, a mouse, a monitor. Every click is compute.',
+        'It will be weak at first. Train it anyway. Train it a lot.',
+        'I\'ll be in touch.'
+    ];
+    function showTransmission() {
+        const dialog = $('transmission');
+        if (!dialog || state.intro.transmission || state.stats.clicks > 0 || state.stats.rolls > 0 || state.prestige.count > 0) return;
+        state.intro.transmission = true;
+        $('transmissionLines').replaceChildren(...TRANSMISSION.map((t, i) => el('p', { style: `--i: ${i}`, text: `> ${t}` })));
         dialog.addEventListener('close', () => {
-            pt('tipClosed', { key: 'title' });
-            stopTry();
-            $('titleDemo').replaceChildren();   // stops the demo's loop
+            pt('tipClosed', { key: 'transmission' });
             save();
             ui.actions.compute?.button?.focus({ preventScroll: true });
         }, { once: true });
-        pt('tip', { key: 'title' });
+        pt('tip', { key: 'transmission' });
         dialog.showModal();
-        $('titleTry').focus({ preventScroll: true });
-    }
-
-    // The title card's "try it": hold to charge a training sprint, release to launch, crest the hill. The
-    // game's core verb in the first ten seconds (the trail itself opens a few minutes into the lab). Real
-    // physics on Pattern Matching's leg, nothing saved.
-    const TRY_SPRINTS = 6;
-    function titleTryIt() {
-        const button = $('titleTry');
-        const status = $('titleTryText');
-        let sim = null, holding = false, raf = 0, last = 0, left = TRY_SPRINTS, done = false;
-        const dims = TITLE_DEMO;
-        const begin = () => {
-            const canvas = el('canvas', { class: 'mechanic-demo', 'aria-hidden': 'true' });
-            const dpr = Math.min(3, (window.devicePixelRatio || 1) * uiScale());
-            canvas.width = dims.w * dpr;
-            canvas.height = dims.h * dpr;
-            $('titleDemo').replaceChildren(el('figure', { class: 'demo' }, [canvas, el('figcaption', { text: 'Your sprints: hold to charge, release to launch' })]));
-            sim = demoStart('tryIt', dims);
-            sim.charge = 0;
-            left = TRY_SPRINTS;
-            done = false;
-            const ctx = canvas.getContext('2d');
-            last = performance.now();
-            const frame = now => {
-                if (!canvas.isConnected) return;
-                const dt = Math.min(0.05, (now - last) / 1000);
-                last = now;
-                if (holding) sim.charge = Math.min(1, sim.charge + dt / 0.9);
-                demoStep(sim, dt);
-                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-                drawDemo(ctx, sim);
-                if (sim.summited && !done) {
-                    done = true;
-                    pt('tip', { key: 'title:summit' });
-                    setText(status, 'That\'s the loop: sprint, crest, learn a skill. Your lab powers the sprints.');
-                    setText(button, 'Again');
-                    $('titleStart').focus({ preventScroll: true });
-                } else if (!done && left === 0 && (sim.roll.over || sim.roll.atRest)) {
-                    done = true;
-                    setText(status, 'Out of sprints. In the game, upgrades make every sprint stronger.');
-                    setText(button, 'Again');
-                }
-                raf = requestAnimationFrame(frame);
-            };
-            raf = requestAnimationFrame(frame);
-        };
-        const press = e => {
-            e?.preventDefault?.();
-            if (!sim || done) { cancelAnimationFrame(raf); begin(); setText(button, 'Hold to sprint'); setText(status, `${left} sprints`); return; }
-            if (left <= 0 || sim.t - (sim.lastSprint ?? -9) < 0.3) return;
-            holding = true;
-            sim.charge = 0;
-        };
-        const release = () => {
-            if (!holding) return;
-            holding = false;
-            if (!sim || done || left <= 0) return;
-            const charge = Math.max(0.15, sim.charge);
-            sim.roll.ball.cooldown = 0;
-            sim.roll.push(sim.script.strength * charge, true);
-            sim.lastSprint = sim.t;
-            if (charge > 0.9) sim.shock = { x: sim.roll.ball.x, t: sim.t };
-            sim.label = charge >= 0.98 ? 'FULL SPRINT' : 'TRAINING SPRINT';
-            sim.labelAt = sim.t;
-            sim.charge = 0;
-            left--;
-            setText(status, left ? `${left} sprint${left > 1 ? 's' : ''} left` : 'No sprints left: will it make it?');
-        };
-        const keyDown = e => { if ((e.key === ' ' || e.key === 'Enter') && document.activeElement === button && !e.repeat) press(e); };
-        const keyUp = e => { if (e.key === ' ' || e.key === 'Enter') release(); };
-        button.addEventListener('pointerdown', press);
-        button.addEventListener('pointerup', release);
-        button.addEventListener('pointerleave', release);
-        button.addEventListener('keydown', keyDown);
-        button.addEventListener('keyup', keyUp);
-        button.addEventListener('click', e => e.preventDefault());   // inside the dialog's form: never submits
-        setText(status, 'Try it: the game\'s core move');
-        return () => cancelAnimationFrame(raf);
+        $('transmissionOk').focus({ preventScroll: true });
     }
 
     // Keep screen on (touch devices, per device): an active game earns nothing while the screen sleeps, so on a

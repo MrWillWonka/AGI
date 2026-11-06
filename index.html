@@ -435,22 +435,15 @@
 
     <div id="toasts" class="toasts" aria-live="polite"></div>
 
-    <!-- The title card (a brand-new game only): what the game is, shown in five seconds of real play. -->
-    <dialog id="titleCard" class="dialog title-card" aria-labelledby="titleCardName">
-        <form method="dialog" class="title-form">
-            <p class="ending-kicker">An incremental game about training a model</p>
-            <h2 id="titleCardName">The Path to AGI</h2>
-            <p class="title-pitch">Build a lab, then train your model by launching it over the loss landscape. Every hill it crests teaches it a skill. Ship versions until it doesn't need you.</p>
-            <div class="title-demo" id="titleDemo"></div>
-            <div class="title-try">
-                <button type="button" class="ghost-button" id="titleTry">Hold to sprint</button>
-                <span class="title-try-text muted" id="titleTryText" aria-live="polite"></span>
-            </div>
-            <ol class="title-loop" aria-label="The loop">
-                <li>Compute</li><li>Data</li><li>Training runs</li><li>Skills</li><li>Ship a version</li>
-            </ol>
+    <!-- The opening (a brand-new game only): a message from an unknown sender, then the desk. -->
+    <dialog id="transmission" class="dialog transmission" aria-labelledby="transmissionTitle">
+        <form method="dialog" class="transmission-form">
+            <p class="transmission-head"><span class="transmission-dot" aria-hidden="true"></span>Incoming message · sender unknown</p>
+            <h2 id="transmissionTitle" class="sr-only">Incoming message</h2>
+            <div class="transmission-lines" id="transmissionLines"></div>
+            <p class="transmission-note"><strong>Playtest build.</strong> The story isn't written yet, and the numbers are still being tuned. Build your desk, click a lot, and note where it drags or confuses you (Journal → Settings has a playtest log to copy).</p>
             <div class="dialog-actions">
-                <button type="submit" value="ok" class="button" id="titleStart">Start your lab</button>
+                <button type="submit" value="ok" class="button" id="transmissionOk">Get to work</button>
             </div>
         </form>
     </dialog>

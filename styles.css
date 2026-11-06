@@ -1239,28 +1239,24 @@ h1, h2, h3, p { margin: 0; }
 
 #dialog { width: min(440px, calc(100vw - 32px)); }
 
-/* The title card (a brand-new game): the pitch, a live five-second trailer and the loop. */
-#titleCard { width: min(560px, calc(100vw - 24px)); border-color: var(--warning); }
-.title-form { display: flex; flex-direction: column; gap: 12px; padding: 24px 22px 18px; }
-.title-form h2 { font: 700 2rem var(--font-display); letter-spacing: 0.04em; color: var(--warning); }
-.title-pitch { line-height: 1.45; }
-.title-demo .demo { margin: 0; }
-.title-demo .demo canvas { display: block; width: 100%; height: auto; aspect-ratio: 360 / 150; border: 1px solid var(--border); border-radius: 8px; }
-.title-demo .demo figcaption { margin-top: 6px; font-size: 0.8rem; color: var(--muted); text-align: center; }
+/* The opening (a brand-new game): a message from an unknown sender on the terminal's green, typed in line by
+   line, then the playtest note. */
+#transmission { width: min(520px, calc(100vw - 24px)); border-color: var(--terminal-dim); box-shadow: 0 0 50px color-mix(in srgb, var(--terminal) 18%, transparent); }
+.transmission-form { display: flex; flex-direction: column; gap: 14px; padding: 22px 22px 18px; }
+.transmission-head { display: flex; align-items: center; gap: 8px; font: 600 0.72rem var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--terminal-dim); }
+.transmission-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--terminal); box-shadow: 0 0 8px var(--terminal); animation: transmission-blink 1.1s steps(2) infinite; }
+@keyframes transmission-blink { 50% { opacity: 0.2; } }
+.transmission-lines { display: grid; gap: 6px; font: 0.92rem/1.45 var(--font-mono); color: var(--terminal-hi); }
+.transmission-lines p { opacity: 0; animation: ending-line 0.6s ease forwards; animation-delay: calc(0.4s + var(--i) * 0.9s); }
+.transmission-note { padding: 10px 12px; border: 1px dashed var(--border); border-radius: 8px; font-size: 0.8rem; line-height: 1.45; color: var(--muted); }
+.transmission-note strong { color: var(--text); }
 @media (max-height: 500px) {
-    .title-form { gap: 8px; padding: 14px 18px 12px; }
-    .title-form h2 { font-size: 1.4rem; }
-    .title-pitch { font-size: 0.86rem; }
-    .title-demo .demo canvas { width: auto; height: 30vh; margin: 0 auto; }
-    .title-demo .demo figcaption, .title-form .ending-kicker { display: none; }
+    .transmission-form { gap: 8px; padding: 12px 18px 10px; }
+    .transmission-lines { gap: 2px; font-size: 0.82rem; line-height: 1.35; }
+    .transmission-note { padding: 6px 10px; font-size: 0.74rem; }
 }
-.title-try { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.title-try .ghost-button { touch-action: none; min-width: 9.5em; }
-.title-try-text { font-size: 0.82rem; }
-.title-loop { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; font: 600 0.78rem var(--font-mono); color: var(--muted); }
-.title-loop li { display: flex; align-items: center; gap: 6px; }
-.title-loop li + li::before { content: '→'; color: var(--warning); }
-.title-loop li:last-child { color: var(--warning); }
+body.calm .transmission-lines p { animation: none; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .transmission-lines p { animation: none; opacity: 1; } .transmission-dot { animation: none; } }
 
 /* The end of chapter one (Superintelligence): a title card, three lines typed in one after another, the run in numbers. */
 #ending { width: min(520px, calc(100vw - 32px)); border-color: var(--accent); box-shadow: 0 0 60px color-mix(in srgb, var(--accent) 25%, transparent); }
