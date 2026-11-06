@@ -2810,9 +2810,13 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
     .topbar-buttons .ghost-button { padding: 4px 10px; font-size: 0.78rem; }
     .chips { grid-area: res; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
     .chips::-webkit-scrollbar { display: none; }
-    .chips-attr { grid-area: attr; }
+    /* The attribute row shares its grid column with the name, and the buttons share theirs with the phase:
+       three chips (Int, Cre, Awa: 247 px) grew that column until the Journal button ran 29 px off a
+       390 px screen and the phase bar shrank to 2–56 px. The row is capped at what the buttons leave
+       (153 px plus the bar's paddings and gap) and scrolls sideways inside it, like the resources. */
+    .chips-attr { grid-area: attr; max-width: calc(100vw - 188px); gap: 4px; }
     .chip { padding: 3px 8px; font-size: 0.78rem; gap: 4px; }
-    .chips-attr .chip { padding: 3px 6px; }
+    .chips-attr .chip { padding: 3px 5px; font-size: 0.74rem; }
     .phase { grid-area: phase; min-width: 0; flex: none; gap: 6px; }
     .phase-name { font-size: 0.72rem; }
 
