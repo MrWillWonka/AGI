@@ -793,6 +793,7 @@
     let mode = null;                // null | 'crunch' | 'flow' | 'freeze'
     let area = 'lab';               // 'lab' | 'server' (game.js, `setArea`)
     let depth = 0;                  // 0-1: how much of the arrangement the game has earned (game.js, `setDepth`)
+    let training = false;           // the beat plays only while training (game.js, `setTraining`)
     let songLvl = 1;                // the current song's level trim, on its pitched voices
 
     function driveCurve(k) {
@@ -1558,7 +1559,16 @@
     }
     // A part's level: the player's slider times the track's balance (`beat`/`tones` on the style: the drums sit
     // about 2 dB under the tones on every track, measured; at an even split the beat drowned the music).
-    const partLevel = k => { const st = STYLES[style] || STYLES.classic; return musicMix[k] * ((simple ? st.simpleMix?.[k] : st[k]) ?? 1); };
+    // The beat (kick, hats, claps, fills) plays only while training (`setTraining`); everywhere else the music
+    // is its tones alone.
+    const partLevel = k => { const st = STYLES[style] || STYLES.classic; return musicMix[k] * ((simple ? st.simpleMix?.[k] : st[k]) ?? 1) * (k === 'beat' && !training ? 0 : 1); };
+    // In the training run view (game.js): the beat comes in over about a bar, and leaves the same way.
+    function setTraining(on) {
+        on = !!on;
+        if (on === training) return;
+        training = on;
+        if (music) music.parts.beat.gain.setTargetAtTime(Math.max(0.0001, partLevel('beat')), ctx.currentTime, 0.6);
+    }
 
     function setMusic(v) {
         musicVolume = Math.max(0, Math.min(1, Number(v) || 0));
@@ -1575,5 +1585,5 @@
             for (const k of Object.keys(musicMix)) music.parts[k].gain.setTargetAtTime(partLevel(k), ctx.currentTime, 0.2);
         }
     }
-    window.SFX = { play, holdDelay, setArea, setDepth, songCmd, get song() { return songNow(); }, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
+    window.SFX = { play, holdDelay, setArea, setDepth, setTraining, songCmd, get song() { return songNow(); }, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
 })();

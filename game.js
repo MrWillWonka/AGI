@@ -63,6 +63,8 @@ window.AGI = (function () {
         // How much of the arrangement the game has earned: a new game is a kick and a bass, and every skill
         // (and every shipped version) adds to it; training runs add the rest with speed.
         window.SFX.setDepth?.(Math.min(1, (state.path.learned + 2 * state.prestige.count + 2 * state.transcend.count) / 12));
+        // The beat only while training: the Training Cluster's run view, runs and the pauses between them.
+        window.SFX.setTraining?.(openBay === 'training' && path.view === 'run');
         const r = path.roll;
         const running = openBay === 'training' && path.view === 'run' && r && r.launched && !r.over;
         if (!running) return window.SFX.musicState(openBay === 'training' ? 0.15 : 0.05, null);
