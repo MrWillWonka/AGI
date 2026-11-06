@@ -7376,7 +7376,8 @@ window.AGI = (function () {
     function openInbox() {
         renderInbox();
         $('inbox').showModal();
-        pt('view', { at: 'inbox' });
+        // The same `v` field as every other view (it was `at`, which the report's time-by-screen read as "undefined").
+        ptView('inbox');
         $('inboxList').querySelector('.inbox-open')?.focus({ preventScroll: true });
     }
     function buildMail() {
@@ -7387,6 +7388,7 @@ window.AGI = (function () {
         $('mailReply').addEventListener('click', () => dialog.close());
         dialog.addEventListener('close', () => {
             save();
+            ptView(ptPlace());   // back on the room under the inbox, so its time isn't counted as the inbox's
             if (state.stats.clicks === 0) ui.actions.compute?.button?.focus({ preventScroll: true });
         });
         // Older saves get the story so far quietly (it waits in the inbox); a brand-new game opens on the first.
