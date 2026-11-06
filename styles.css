@@ -1247,6 +1247,13 @@ h1, h2, h3, p { margin: 0; }
 .title-demo .demo { margin: 0; }
 .title-demo .demo canvas { display: block; width: 100%; height: auto; aspect-ratio: 360 / 150; border: 1px solid var(--border); border-radius: 8px; }
 .title-demo .demo figcaption { margin-top: 6px; font-size: 0.8rem; color: var(--muted); text-align: center; }
+@media (max-height: 500px) {
+    .title-form { gap: 8px; padding: 14px 18px 12px; }
+    .title-form h2 { font-size: 1.4rem; }
+    .title-pitch { font-size: 0.86rem; }
+    .title-demo .demo canvas { width: auto; height: 30vh; margin: 0 auto; }
+    .title-demo .demo figcaption, .title-form .ending-kicker { display: none; }
+}
 .title-try { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .title-try .ghost-button { touch-action: none; min-width: 9.5em; }
 .title-try-text { font-size: 0.82rem; }
