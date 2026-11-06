@@ -2125,12 +2125,13 @@ html, body { overflow-x: clip; }
 /* Three fixed slots: an offer keeps its slot until it's claimed or gone, and new ones fill free slots. */
 .offer {
     display: grid;
-    /* Three short rows: the reward with the countdown and ×, the task with Claim, the progress bar along
+    /* Three short rows: the reward with the countdown, the task with Claim and ×, the progress bar along
        the foot. The old "bar time claim" third row needed 53 px in a 46 px slot at 1920 x 1080 once Claim
-       and × got 24 px targets: the bar's track was drawn over the task line and Claim hung out of the row. */
+       and × got 24 px targets: the bar's track was drawn over the task line and Claim hung out of the row.
+       Claim and × sit side by side: stacked in one column, their 24 px targets overlapped. */
     grid-template-columns: minmax(0, 1fr) auto auto;
     grid-template-rows: auto auto auto;
-    grid-template-areas: "reward time drop" "task task claim" "bar bar bar";
+    grid-template-areas: "reward reward time" "task claim drop" "bar bar bar";
     gap: 1px 8px;
     align-items: center;
     min-width: 0;
@@ -2151,6 +2152,11 @@ html, body { overflow-x: clip; }
 .project-claim { grid-area: claim; min-height: 24px; padding: 3px 10px; font-size: 0.7rem; }
 /* Claim and × keep their 24 px targets without making their rows 24 px tall. */
 .project-claim, .project-drop { margin-block: -4px; }
+/* Phones: the rows aren't squeezed, so the task keeps the whole width and the bar shares a row with Claim and ×. */
+@media (max-width: 640px) {
+    .offer { grid-template-areas: "reward reward time" "task task task" "bar claim drop"; gap: 3px 8px; }
+    .project-bar { margin-top: 0; }
+}
 .project-drop { grid-area: drop; min-width: 24px; min-height: 24px; background: none; border: 0; padding: 0 4px; line-height: 1; color: var(--muted); cursor: pointer; font-size: 0.95rem; }
 .offer.open { display: grid; place-items: center; grid-template: none; border-style: dashed; background: none; font: 500 0.66rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 

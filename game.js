@@ -2880,7 +2880,7 @@ window.AGI = (function () {
                 const reward = E.PROJECT_REWARDS[o.reward].text;
                 return el('li', { class: `offer${done ? ' done' : ''}`, 'data-id': o.id }, [
                     el('span', { class: 'project-reward', text: reward }),
-                    el('span', { class: 'project-task', text: task }),
+                    el('span', { class: 'project-task', text: task, title: task }),
                     el('span', { class: 'project-bar' }, [el('span', { class: 'project-fill' })]),
                     el('span', { class: 'project-time' }),
                     claim, drop
