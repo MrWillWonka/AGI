@@ -2,7 +2,8 @@
 // Usage: node tools/sim.js [gameDir] [seed] [--quiet]   (gameDir defaults to this repo)
 //   env LABSHARE (default 0.2): share of each minute in the lab; CLICKS (default 3): clicks/s in the lab;
 //   MINUTES (default 150), MAXSKILL (default 14, warm-up = skill 0), CLEAN (default 0.5): clean-prompt hit rate,
-//   HYBRID=1: the Auto-Trainer drives only while the player is in the lab; LABDBG=1: hardware against capacity.
+//   HYBRID (default 1): the Auto-Trainer drives only while the player is in the lab (HYBRID=0: it drives every run,
+//   and since it only replays cleared legs the bot then stops at the skill it earned it on); LABDBG=1: hardware against capacity.
 // Mirrors game.js's run loop (pushBall, fireSprint/promptBonus, updateThrust/lightBurn, crestFrontier,
 // clearLeg, takeToken, finishRoll, nearMiss, STUCK_GRACE) with the engine's real API.
 'use strict';
@@ -34,8 +35,9 @@ const MAXSKILL = +(process.env.MAXSKILL ?? 14);
 const CLEAN = +(process.env.CLEAN ?? 0.5);
 const DT = 0.05;
 const RESERVE = +(process.env.RESERVE ?? 0);
-// HYBRID=1: the Auto-Trainer drives only while the player is in the lab; while training, the human plays.
-const HYBRID = !!+(process.env.HYBRID ?? 0);
+// HYBRID=1 (the default): the Auto-Trainer drives only while the player is in the lab; while training, the human
+// plays. HYBRID=0 leaves it on for every run: it only replays cleared legs, so the bot never passes skill 3.
+const HYBRID = !!+(process.env.HYBRID ?? 1);
 const STUCK_GRACE = 3;
 const HUMAN_PAUSE = 2;          // seconds between a run's end and Train again
 const AUTO_PAUSE = 1.2;          // RESULT_PAUSE
