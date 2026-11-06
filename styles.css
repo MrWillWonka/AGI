@@ -2450,11 +2450,15 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
    title row, so the text gets the full width and several cards fit in a station at once. */
 .station .upgrade { grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 1px 8px; padding: 8px 2px; }
 .station .upgrade-info, .station .upgrade-side { display: contents; }
-.station .upgrade h3 { grid-column: 1; grid-row: 1; min-width: 0; }
+.station .upgrade h3 { grid-column: 1; grid-row: 1; min-width: 0; flex-wrap: wrap; row-gap: 2px; }
 .station .upgrade-part { grid-column: 2; grid-row: 1; width: 64px; height: 26px; padding: 3px 5px; }
 
 .station .upgrade-part-label { display: none; }
 .station .upgrade-button { grid-column: 3; grid-row: 1; min-width: 0; padding: 4px 9px; font-size: 0.72rem; white-space: nowrap; }
+/* A full card's note wraps under "Full n/n" instead of running 211 px wide: on one line it squeezed the
+   title column to 66 px at 1920 (3 px on a phone), wrapping every name and hiding the Lv badge under the part. */
+.station .upgrade-button.full { white-space: normal; max-width: 10em; line-height: 1.15; text-align: center; }
+.station .upgrade-button.full .eta { margin-top: 1px; }
 .station .upgrade p { grid-column: 1 / -1; margin: 0; line-height: 1.35; }
 .station .upgrade-flavor { font-size: 0.74rem; }
 .station-terminal .station-art, .station-terminal .station-list { border-left-width: 5px; border-right-width: 5px; }

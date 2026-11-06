@@ -2240,6 +2240,7 @@ window.AGI = (function () {
             setText(nameNode, E.upgradeName(state, up));
             setText(levelBadge, up.max === 1 ? '' : `Lv ${lvl}`);
             card.classList.toggle('owned', maxed);
+            button.classList.toggle('full', !maxed && E.atCapacity(state, up));
             if (maxed) {
                 setText(button, 'Installed ✓');
                 setUnavailable(button, true);
