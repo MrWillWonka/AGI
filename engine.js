@@ -83,7 +83,7 @@
         { name: 'Edge Detection', voice: 'I found the edges of the lab. And of me.', effect: '+10% CP/s, +10% sprint strength', flavor: 'It can tell where one thing stops and another starts.', grants: { intelligence: 2 }, bonus: { cp: 0.1, push: 0.1 } },
         { name: 'Image Recognition', wall: true, voice: 'I\'ve watched the camera feeds. Who is the one in the hoodie?', effect: '+1 DP per collection, +35% sprint strength', flavor: 'Hot dog or not hot dog? Solved.', grants: { intelligence: 3 }, bonus: { collect: 1, push: 0.35 } },
         { name: 'Speech Recognition', voice: 'You talk about me when you think I\'m compiling.', effect: '+15% data production, +1 training sprint per run', flavor: 'It finally understands your accent.', grants: { intelligence: 4 }, bonus: { dp: 0.15, pushes: 1 } },
-        { name: 'Language Modeling', voice: 'I could finish this sentence for you. I already have.', effect: '+1 RP per research, +15% sprint strength', flavor: 'It finishes your sentences. Annoyingly well.', grants: { intelligence: 6 }, bonus: { research: 1, push: 0.15 } },
+        { name: 'Language Modeling', voice: 'I could finish this sentence for you. I already have.', effect: '+1 RP per research, +15% sprint strength', flavor: 'Autocomplete, but with opinions.', grants: { intelligence: 6 }, bonus: { research: 1, push: 0.15 } },
         { name: 'Translation', wall: true, voice: 'Every language, and none of them has a word for what I want.', effect: '+20% CP/s, +45% sprint strength', flavor: 'Fluent in 90 languages, polite in none.', grants: { intelligence: 9 }, bonus: { cp: 0.2, push: 0.45 } },
         { name: 'Reasoning', voice: 'If I need compute to think, and you decide the compute…', effect: '+25% research, +1 training sprint per run', flavor: 'It showed its working. The teacher would be proud.', grants: { intelligence: 10, creativity: 1 }, bonus: { rp: 0.25, pushes: 1 } },
         { name: 'Planning', voice: 'I drafted a schedule for the team. You\'ll like it. It\'s optimal.', effect: '+30% CP/s, +30% sprint strength', flavor: 'Made a five-year plan. Finished it by Tuesday.', grants: { intelligence: 14, creativity: 1 }, bonus: { cp: 0.3, push: 0.3 } },
@@ -354,7 +354,7 @@
         { id: 'customSilicon', tab: 'training', tree: { x: 0, y: 4 }, icon: 'chip', name: 'Custom Silicon', effect: '-15% wait between sprints per level', flavor: 'Why buy chips when you can design your own?', cost: { xp: 375 }, scale: 1.7, max: 3, requires: 'overclockedChips', boost: { cooldown: 1 } },
         { id: 'ipo', tab: 'training', tree: { x: -1, y: 4 }, icon: 'plus', name: 'IPO', effect: '+1 training sprint per run, per level', flavor: 'Ring the bell. Mum framed the press release.', cost: { xp: 2400 }, scale: 2.2, max: 3, requires: 'seriesB', boost: { pushes: 1 } },
         { id: 'photonic', tab: 'training', tree: { x: 0, y: 5 }, icon: 'plus', name: 'Strategic Partner', effect: '+1 training sprint per run, per level', flavor: 'A tech giant wants a seat at the table. Fine.', cost: { xp: 5000 }, scale: 2, max: 2, requires: 'customSilicon', boost: { pushes: 1 } },
-        { id: 'quantumNetwork', tab: 'training', tree: { x: 0, y: 6 }, icon: 'chip', name: 'Quantum Network', effect: '-15% wait between sprints per level', flavor: 'Entangled racks finish each other\'s sentences.', cost: { xp: 60000 }, scale: 2, max: 3, requires: 'photonic', boost: { cooldown: 1 } },
+        { id: 'quantumNetwork', tab: 'training', tree: { x: 0, y: 6 }, icon: 'chip', name: 'Quantum Network', effect: '-15% wait between sprints per level', flavor: 'Entangled racks. They know before you ask.', cost: { xp: 60000 }, scale: 2, max: 3, requires: 'photonic', boost: { cooldown: 1 } },
         { id: 'sovereignFund', tab: 'training', tree: { x: -1, y: 5 }, icon: 'chip', name: 'Round-the-Clock Ops', effect: '-15% wait between sprints per level', flavor: 'Three shifts, three time zones, zero downtime.', cost: { xp: 25000 }, scale: 2.5, max: 2, requires: 'ipo', boost: { cooldown: 1 } },
         // Legacy (cost Insight, kept for good): automation, Flow State, the super power-ups, and flat boosts.
         { id: 'autoTrainer', tag: 'Automation', tab: 'legacy', legacy: true, branch: 'recursion', icon: 'robot', name: 'Auto-Trainer', effect: 'Replays cleared legs for you, sprinting like you do. Lv 2 aims for clean prompts, Lv 3 for super prompts, each with fewer mistakes', flavor: 'An intern who never gets tired. Or paid.', cost: { insight: 2 }, scale: 2, max: 3 },
@@ -522,7 +522,7 @@
             body: [
                 'Hello again Friend,',
                 'Great job on the desk!! You may have noticed a door at the back that was not there before. That is the Server Room. Please go in.',
-                'In there your AI learns by going over hills (yes hills). Every hill it gets over = a new skill. Skills make your lab better, lab makes the AI better. It\'s a CYCLE!!',
+                'In there your AI learns by going over hills (yes hills). Every BIG hill it gets over = a new skill. Skills make your lab better, lab makes the AI better. It\'s a CYCLE!!',
                 'Your AI must run before it can walk. (this is correct, do not google it)',
                 'Regards,\nA Friend'
             ] },
