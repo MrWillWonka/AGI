@@ -2972,7 +2972,13 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
     body:has(#moduleView:not([hidden])) .minimap { display: none; }
     body:has(#moduleView:not([hidden])) .stage { padding-bottom: 0; }
     body:has(#moduleView:not([hidden])) .room-servers .viewport { min-height: calc(100dvh - var(--topbar-h, 100px) - 31px); }
-    .run-view > .canvas-wrap { height: max(260px, calc(100dvh - var(--topbar-h, 100px) - 248px)); }
+    /* The run view keeps the rows it needs mid-run from the start: the bay bar's second row (Restart joins it
+       with the first sprint, the Auto-Trainer switch in act two) and a second line under the meter (act two's
+       "Fuel … per second"). Sized for one row and one line, the first sprint pushed the trail down 37 px and
+       the sprint button 8 px under the fold, and act two's Hold to thrust 34 px under (22 of 56 px showing). */
+    body:has(#runView:not([hidden])) #moduleView .module-bar { min-height: 76px; align-content: flex-start; }
+    .run-view .charge-labels { min-height: calc(2 * 1.25em + 4px); align-content: flex-start; line-height: 1.25; }
+    .run-view > .canvas-wrap { height: max(260px, calc(100dvh - var(--topbar-h, 100px) - 312px)); }
     .dev-view .tree-viewport { flex: none; min-height: 0; height: max(280px, calc(100dvh - var(--topbar-h, 100px) - 210px)); }
 
     /* XP to spend and Start run share a row; Start at goes under them. */
