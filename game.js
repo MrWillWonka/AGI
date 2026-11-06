@@ -791,6 +791,7 @@ window.AGI = (function () {
             if (!b) return;
             bulkMode = b.dataset.bulk;
             storageSet(BULK_KEY, bulkMode);
+            ptSetting('bulk', bulkMode);
             sync();
             sfx('ui');
             render();
@@ -1231,16 +1232,19 @@ window.AGI = (function () {
         ui.binds = [...document.querySelectorAll('[data-bind]')].map(node => ({ node, key: node.dataset.bind }));
     }
 
+    // Playtest: a setting changed (sliders log on release, not every notch), so a log shows what a player turned off.
+    const ptSetting = (key, value) => pt('setting', { key, value: typeof value === 'number' ? r2(value) : value });
+
     function buildSettings() {
         const autosave = $('settingAutosave');
-        autosave.addEventListener('change', () => { state.settings.autosave = autosave.checked; save(); });
-        $('settingShake').addEventListener('change', e => { state.settings.shake = e.target.checked; save(); });
+        autosave.addEventListener('change', () => { state.settings.autosave = autosave.checked; ptSetting('autosave', autosave.checked); save(); });
+        $('settingShake').addEventListener('change', e => { state.settings.shake = e.target.checked; ptSetting('shake', e.target.checked); save(); });
         $('settingSound').addEventListener('input', e => {
             state.settings.sound = Number(e.target.value);
             applySettings();
             sfx('buy');
         });
-        $('settingSound').addEventListener('change', () => save());
+        $('settingSound').addEventListener('change', e => { ptSetting('sound', Number(e.target.value)); save(); });
         // Music: its own volume, per device (localStorage, not the save).
         const music = $('settingMusic');
         const showMusic = v => setText($('settingMusicValue'), v > 0 ? `${Math.round(v * 100)}%` : 'off');
@@ -1254,6 +1258,7 @@ window.AGI = (function () {
             window.SFX?.setMusic(v);
             showMusic(v);
         });
+        music.addEventListener('change', e => ptSetting('music', Number(e.target.value)));
         // Sound groups: a volume for each kind of sound, and simple sounds only (per device).
         const mixSaved = (() => { try { return JSON.parse(storageGet(SFX_MIX_KEY) || '{}'); } catch { return {}; } })();
         const mix = Object.fromEntries(SOUND_GROUPS.map(([k]) => [k, mixSaved[k] ?? 1]));
@@ -1275,6 +1280,7 @@ window.AGI = (function () {
         simpleBox.checked = storageGet(SFX_SIMPLE_KEY) === '1';
         window.SFX?.setSimple?.(simpleBox.checked);
         simpleBox.addEventListener('change', () => {
+            ptSetting('simpleSfx', simpleBox.checked);
             storageSet(SFX_SIMPLE_KEY, simpleBox.checked ? '1' : '0');
             window.SFX?.setSimple?.(simpleBox.checked);
             sfx('buy', { panel: 'hardware' });
@@ -1300,32 +1306,35 @@ window.AGI = (function () {
         beat.value = beatStyle;
         window.SFX?.setMusicStyle?.(beatStyle);
         beat.addEventListener('change', e => {
+            ptSetting('beat', e.target.value);
             storageSet(BEAT_KEY, e.target.value);
             window.SFX?.setMusicStyle?.(e.target.value);
             applyTheme();
         });
         const theme = $('settingTheme');
         theme.value = ['auto', 'night', 'red', 'pink', 'void', 'arcade'].includes(storageGet(THEME_KEY)) ? storageGet(THEME_KEY) : 'auto';
-        theme.addEventListener('change', e => { storageSet(THEME_KEY, e.target.value); applyTheme(); });
+        theme.addEventListener('change', e => { ptSetting('theme', e.target.value); storageSet(THEME_KEY, e.target.value); applyTheme(); });
         applyTheme();
         $('settingNotation').addEventListener('change', e => {
             state.settings.notation = e.target.value;
+            ptSetting('notation', e.target.value);
             applySettings();
             render();
             save();
         });
-        $('saveButton').addEventListener('click', () => save(true));
+        $('saveButton').addEventListener('click', () => { pt('save', { op: 'manual' }); save(true); });
         $('exportButton').addEventListener('click', exportSave);
         $('playtestButton').addEventListener('click', exportPlaytest);
         $('playtestClear').addEventListener('click', clearPlaytest);
         $('settingPlaytest').checked = !!playtest?.enabled;
         $('settingPlaytest').disabled = !playtest;
-        $('settingPlaytest').addEventListener('change', e => playtest?.setEnabled(e.target.checked));
+        $('settingPlaytest').addEventListener('change', e => { ptSetting('playtest', e.target.checked); playtest?.setEnabled(e.target.checked); });
         $('importButton').addEventListener('click', importSave);
         $('restoreButton').addEventListener('click', restoreBackup);
-        $('settingCalm').addEventListener('change', e => { state.settings.calm = e.target.checked; applySettings(); save(); });
+        $('settingCalm').addEventListener('change', e => { state.settings.calm = e.target.checked; ptSetting('calm', e.target.checked); applySettings(); save(); });
         $('settingTextSize').addEventListener('change', e => {
             state.settings.textSize = Number(e.target.value);
+            ptSetting('textSize', state.settings.textSize);
             applySettings();
             render();
             save();
@@ -1694,6 +1703,7 @@ window.AGI = (function () {
 
     function exportSave() {
         save();
+        pt('save', { op: 'export' });
         const code = btoa(E.serialize(state));
         openDialog({
             title: 'Export save',
@@ -1737,6 +1747,7 @@ window.AGI = (function () {
         if (!sure.ok) return;
         storageSet(BACKUP_KEY, E.serialize(state));
         lastBackup = Date.now();
+        pt('save', { op: 'import', skills: imported.path.learned, version: E.currentVersion(imported) });
         state = imported;
         resetView();
         save();
@@ -1761,6 +1772,7 @@ window.AGI = (function () {
         });
         if (!ok) return;
         const current = E.serialize(state);
+        pt('save', { op: 'restore', skills: backup.path.learned, version: E.currentVersion(backup) });
         state = backup;
         storageSet(BACKUP_KEY, current);
         lastBackup = Date.now();
@@ -1821,6 +1833,7 @@ window.AGI = (function () {
             danger: true
         });
         if (!ok) return;
+        pt('save', { op: 'erase', skills: state.path.learned, version: E.currentVersion(state) });
         state = E.defaultState(Date.now());
         resetView();
         resetBulk();
@@ -2924,6 +2937,7 @@ window.AGI = (function () {
             const toggle = el('button', { type: 'button', class: 'task-toggle', role: 'switch', 'aria-label': `${t.name}: on or off`, hidden: t.id === 'autoTrainer' });
             toggle.addEventListener('click', () => {
                 E.setTaskOn(state, t.id, !E.taskOn(state, t.id));
+                pt('task', { id: t.id, on: E.taskOn(state, t.id) });
                 afterChange();
                 save();
                 if (t.id === 'autoTrainer') startPathLoop();
@@ -2935,7 +2949,7 @@ window.AGI = (function () {
                     slider.value = Math.round(E.setTaskShare(state, t.id, Number(slider.value) / 100) * 100);
                     render();
                 });
-                slider.addEventListener('change', () => save());
+                slider.addEventListener('change', () => { pt('task', { id: t.id, share: Number(slider.value) }); save(); });
             }
             const rate = el('span', { class: 'task-rate' });
             const share = el('span', { class: 'task-share' });
@@ -4204,6 +4218,7 @@ window.AGI = (function () {
             b.addEventListener('click', e => {
                 e.stopPropagation();
                 E.setTaskOn(state, 'autoTrainer', !E.taskOn(state, 'autoTrainer'));
+                pt('task', { id: 'autoTrainer', on: E.taskOn(state, 'autoTrainer') });
                 afterChange();
                 save();
                 startPathLoop();
@@ -4313,6 +4328,7 @@ window.AGI = (function () {
 
     function setStartLeg(k) {
         path.startLeg = k != null && k < state.path.learned ? k : null;
+        pt('startAt', { leg: path.startLeg == null ? 'frontier' : path.startLeg + 1 });
         const roll = path.roll;
         // A run waiting at the start line is rebuilt on the chosen leg; one in flight finishes first.
         if (roll && !roll.launched && !path.done) currentRoll();
