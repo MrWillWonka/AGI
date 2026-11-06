@@ -4339,7 +4339,9 @@ window.AGI = (function () {
             const dpr = (window.devicePixelRatio || 1) * uiScale();
             const wrap = canvas.parentElement;
             path.width = wrap.clientWidth;
-            path.height = Math.max(220, wrap.clientHeight);
+            // No 220 px floor: a sideways phone gives the wrap 140–180 px, and a taller canvas spilled over the
+            // meter and the sprint button (measured 220 px in a 168 px wrap at 844 × 390).
+            path.height = Math.max(120, wrap.clientHeight);
             canvas.style.height = path.height + 'px';
             canvas.width = Math.round(path.width * dpr);
             canvas.height = Math.round(path.height * dpr);

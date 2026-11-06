@@ -2893,10 +2893,14 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
     .room-frame { padding: 8px 10px; }
     .module { gap: 6px; }
     .run-view { gap: 6px; justify-content: flex-start; }
-    .run-view > .canvas-wrap { height: clamp(140px, calc(100dvh - 222px), 600px); }
+    /* The chrome around the trail measures 213 px (top bar, paddings, the bay bar, stats, controls, status);
+       at 222 the page scrolled 43–45 px on every sideways size from 667 × 375 to 932 × 430. */
+    .run-view > .canvas-wrap { height: clamp(120px, calc(100dvh - 214px), 600px); }
     .run-view > .run-stats { font-size: 0.8rem; }
-    /* Inside a bay the ⌂ crumb is the way home; the floating ⌂ only covered the trail's end. */
+    /* Inside a bay the ⌂ crumb is the way home; the floating ⌂ only covered the trail's end, and the room
+       the stage keeps for it isn't needed there either. */
     body:has(#moduleView:not([hidden])) .minimap { display: none; }
+    body:has(#moduleView:not([hidden])) .stage { padding-bottom: 0; }
     .run-view > .path-controls { flex-direction: row; align-items: center; gap: 12px; }
     .path-controls .charge { order: 0; flex: 1 1 auto; width: auto; }
     .path-controls .push-button { width: 210px; min-height: 48px; flex: none; }
