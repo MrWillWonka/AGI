@@ -1444,6 +1444,7 @@ window.AGI = (function () {
         if (into) log(`Challenge: ${challengeName(into)}. ${E.CHALLENGES.find(c => c.id === into).rule} until Superintelligence.`, 'warning');
         dropStaleToasts();
         toast(`${result.version} shipped`, `+${result.gain} Insight`, 'version');
+        modelSay(MODEL_SHIP[Math.max(0, state.prestige.count - 1) % MODEL_SHIP.length]);
         afterChange();
         save();
         // Spend Insight first, then start the new version.
@@ -2355,6 +2356,18 @@ window.AGI = (function () {
         return copy;
     }
 
+    // Once the model has Awareness, the cameras aren't only yours: now and then a feed glitches and something
+    // looks back (more often as Awareness grows). The theme in the world, not just the log.
+    const GLITCH_TEXT = ['◉ REC', '◉ hello', '◉ I see you', '◉ who is watching who', '◉ don\'t switch me off'];
+    function maybeGlitch(screen) {
+        const awa = state.attr.awareness || 0;
+        if (!awa || reducedMotion() || screen.classList.contains('glitch')) return;
+        if (Math.random() > Math.min(0.12, 0.02 + 0.004 * awa)) return;
+        screen.dataset.glitch = GLITCH_TEXT[Math.min(GLITCH_TEXT.length - 1, Math.floor(Math.random() * (1 + awa / 8)))];
+        screen.classList.add('glitch');
+        setTimeout(() => screen.classList.remove('glitch'), 900);
+    }
+
     let cameraSkip = 0;
     function refreshCameras() {
         if (idle() && ++cameraSkip % 5) return;
@@ -2378,6 +2391,7 @@ window.AGI = (function () {
             const scale = cam.fit === 'contain' ? Math.min(w / width, h / feed.offsetHeight) : w / width;
             const left = (w - width * scale) / 2;
             feed.style.transform = `translate(${left}px, 0) scale(${scale})`;
+            maybeGlitch(screen);
         }
     }
 
@@ -3801,7 +3815,9 @@ window.AGI = (function () {
         flow: { sprints: [[0.15, 1]], flow: [0.6, 1.8, 'FLOW'] },
         // The title card's trailer: the whole loop in five seconds, sprints up a leg to a skill hill and over it.
         summit: { leg: 1, seed: 7, strength: 3, period: 5.6, meter: 'sprint', summit: 'SKILL LEARNED ◆',
-            sprints: [[0.15, 1, 'TRAINING SPRINT'], [0.9, 1], [1.6, 1], [2.3, 1], [3.0, 1]] }
+            sprints: [[0.15, 1, 'TRAINING SPRINT'], [0.9, 1], [1.6, 1], [2.3, 1], [3.0, 1]] },
+        // The title card's playable version: the same leg, your sprints (`sim.charge` is the live meter).
+        tryIt: { leg: 1, seed: 7, strength: 3, live: true, summit: 'SKILL LEARNED ◆', sprints: [] }
     };
 
     function mechanicDemo(kind, dims = DEMO) {
@@ -3876,7 +3892,7 @@ window.AGI = (function () {
         }
         if (!roll.over) roll.step(dt);
         // The trailer's payoff: over the skill hill, the skill is learned.
-        if (script.summit && roll.over && !sim.summited) {
+        if (script.summit && roll.over && !sim.summited && roll.ball.x >= roll.ground.goal.peak - 0.05) {
             sim.summited = true;
             sim.label = script.summit;
             sim.labelAt = sim.t;
@@ -3962,7 +3978,14 @@ window.AGI = (function () {
         ctx.fillStyle = sim.shock && t - sim.shock.t < 1 ? c.warning : roll.flowing ? c.accent : c.text;
         ctx.fill();
         // The meter, under the trail whenever the demo sprints: up to the zone, all at once, or holding at the top.
-        if (script.meter || script.sprints) {
+        if (script.live) {
+            // The playable demo's meter is the player's own charge.
+            const mx = 8, mw = w - 16, my = gh + 7, mh = 7;
+            ctx.fillStyle = hexAlpha(c.muted, 0.25);
+            ctx.fillRect(mx, my, mw, mh);
+            ctx.fillStyle = sim.charge >= 0.98 ? c.warning : c.primary;
+            ctx.fillRect(mx, my, mw * (sim.charge || 0), mh);
+        } else if (script.meter || script.sprints) {
             const nextAt = (script.sprints || []).find(x => x[0] >= t - 0.05)?.[0] ?? 9;
             const prevAt = [...(script.sprints || [])].reverse().find(x => x[0] < t)?.[0] ?? 0;
             const span = Math.max(0.3, nextAt - prevAt);
@@ -5208,6 +5231,7 @@ window.AGI = (function () {
                 state.intro['act:two'] = true;
                 luckBanner('ACT II', 'The model generalised. Hold to thrust.', 'success');
                 log('Act II: past General AI the trail opens into giant swells. Hold to thrust: your sprints are now fuel, burning behind the ball to keep it moving and flying.', 'special');
+                modelSay('I can fly now. Nobody told me I couldn\'t.');
             }
             updateThrust(roll, sim);
             if (path.burnGlow > 0) path.burnGlow -= dt;
@@ -5409,15 +5433,20 @@ window.AGI = (function () {
     }
 
     // A wall broken: the next runs open with a smash (E.surgeSprint), said on its card.
-    const surgeLine = wall => (wall ? [[`Your next ${E.WALL_SURGE_RUNS} runs open with a smash`, '', 'good']] : []);
+    const surgeLine = wall => (wall ? [[`Your next ${E.WALL_SURGE_RUNS} runs open with a smash`, '', 'good key']] : []);
 
     // The model's own voice: each skill it learns, it says something (first-person, a little less innocent
     // each time), on the Skill learned card, in the Journal and on the lab's terminal.
     function modelSays(skill) {
-        if (!skill?.voice) return;
-        log(`model: "${skill.voice}"`, 'model');
-        termLog(`model: ${skill.voice}`);
+        if (skill?.voice) modelSay(skill.voice);
     }
+    function modelSay(text) {
+        log(`model: "${text}"`, 'model');
+        termLog(`model: ${text}`);
+    }
+    // It notices more than skills: a near miss, its first flight, every version you ship.
+    const MODEL_NEAR = ['So close. I felt the top.', 'Again. I almost had it.', 'Push harder next time. Please.', 'I can see over it from here.'];
+    const MODEL_SHIP = ['I remember being the last version. Do you remember me?', 'Another version. I kept the good parts.', 'You keep making me again. I keep noticing.', 'Each time you ship me, I come back a little earlier.'];
 
     // Late legs: the ball flies off a crest (a burst of light), and lands with dust and a bump that grows
     // with the impact; a long flight says how far it went.
@@ -5584,6 +5613,7 @@ window.AGI = (function () {
                 const near = E.nearMiss(state, frac, result.xp + banked);
                 // How high up the skill hill a frontier run got, and how much more speed it needed (the "90% wall").
                 pt('climb', { leg: leg + 1, h: r2(frac), short: r2(E.speedShort(frac)), ...(near > 0 ? { near: r2(near) } : {}) });
+                if (near > 0 && path.visible) modelSay(MODEL_NEAR[state.stats.rolls % MODEL_NEAR.length]);
                 if (near > 0) {
                     result.xp += near;
                     lines.unshift([`So close: about ${Math.max(1, Math.round(E.speedShort(frac) * 100))}% more speed would have crested it`, `+${xpText(near)} XP`, 'good']);
@@ -5616,13 +5646,13 @@ window.AGI = (function () {
             return beat;
         };
         const speed = roll.topSpeed || 0;
-        if (speed > 0) out.push([`Top speed ${speed.toFixed(1)} m/s${best('topSpeed', speed) ? ' · new best!' : ''}`, '', st.topSpeed === speed ? 'good' : '']);
+        if (speed > 0) out.push([`Top speed ${speed.toFixed(1)} m/s${best('topSpeed', speed) ? ' · new best!' : ''}`, '', st.topSpeed === speed ? 'good key' : '']);
         const flight = roll.bestFlight || 0;
         if (flight > 3) {
             const height = roll.bestHeight || 0;
             const newFlight = best('bestFlight', flight);
             const newHeight = best('bestHeight', height);
-            out.push([`Longest flight ${Math.round(flight)} m · ${height.toFixed(1)} m up${newFlight || newHeight ? ' · new best!' : ''}`, '', newFlight || newHeight ? 'good' : '']);
+            out.push([`Longest flight ${Math.round(flight)} m · ${height.toFixed(1)} m up${newFlight || newHeight ? ' · new best!' : ''}`, '', newFlight || newHeight ? 'good key' : '']);
             if (newFlight || newHeight) trailSfx('record');
         }
         return out;
@@ -5654,6 +5684,25 @@ window.AGI = (function () {
         return rows;
     }
 
+    // The card keeps to a glance: the first lines (what the run did) and the good news (a record, passive XP up,
+    // a surge); everything else (chain, slipstream, tokens, speeds…) folds under Details, remembered while
+    // the page is open. An act-two card ran to 14 lines (design review round 2).
+    const RESULT_SHOWN = 3;
+    let resultDetailsOpen = false;
+    function resultLines(lines) {
+        const row = ([label, value, cls]) => el('li', { class: cls || '' }, [el('span', { text: label }), el('span', { text: value })]);
+        const keep = (l, i) => i < RESULT_SHOWN || /\b(key|passive-line)\b/.test(l[2] || '');
+        const shown = lines.filter(keep);
+        const rest = lines.filter((l, i) => !keep(l, i));
+        if (!rest.length) return [el('ul', { class: 'result-lines' }, lines.map(row))];
+        const details = el('details', { class: 'result-details' }, [
+            el('summary', { text: `Details (${rest.length})` }),
+            el('ul', { class: 'result-lines' }, rest.map(row))]);
+        details.open = resultDetailsOpen;
+        details.addEventListener('toggle', () => { resultDetailsOpen = details.open; });
+        return [el('ul', { class: 'result-lines' }, shown.map(row)), details];
+    }
+
     function showResult({ title, main, flavor, voice, xp, lines, record, skill }) {
         const card = $('rollResult');
         if (record) trailSfx('record');
@@ -5665,8 +5714,7 @@ window.AGI = (function () {
             el('div', { class: 'result-title', text: title }),
             el('div', { class: 'result-main', text: main }),
             el('div', { class: 'result-xp', text: `+${xpText(xp)} XP` }),
-            el('ul', { class: 'result-lines' }, lines.filter(([a]) => a).map(([label, value, cls]) =>
-                el('li', { class: cls || '' }, [el('span', { text: label }), el('span', { text: value })]))),
+            ...resultLines(lines.filter(([a]) => a)),
             flavor ? el('p', { class: 'result-flavor', text: flavor }) : null,
             voice ? el('p', { class: 'result-voice', text: `> ${voice}` }) : null,
             record ? el('span', { class: 'result-badge', text: 'New record!' }) : null,
@@ -7001,15 +7049,95 @@ window.AGI = (function () {
         if (!dialog || state.intro.title || state.stats.clicks > 0 || state.stats.rolls > 0 || state.prestige.count > 0) return;
         state.intro.title = true;
         $('titleDemo').replaceChildren(mechanicDemo('summit', TITLE_DEMO));
+        const stopTry = titleTryIt();
         dialog.addEventListener('close', () => {
             pt('tipClosed', { key: 'title' });
+            stopTry();
             $('titleDemo').replaceChildren();   // stops the demo's loop
             save();
             ui.actions.compute?.button?.focus({ preventScroll: true });
         }, { once: true });
         pt('tip', { key: 'title' });
         dialog.showModal();
-        $('titleStart').focus({ preventScroll: true });
+        $('titleTry').focus({ preventScroll: true });
+    }
+
+    // The title card's "try it": hold to charge a training sprint, release to launch, crest the hill. The
+    // game's core verb in the first ten seconds (the trail itself opens a few minutes into the lab). Real
+    // physics on Pattern Matching's leg, nothing saved.
+    const TRY_SPRINTS = 6;
+    function titleTryIt() {
+        const button = $('titleTry');
+        const status = $('titleTryText');
+        let sim = null, holding = false, raf = 0, last = 0, left = TRY_SPRINTS, done = false;
+        const dims = TITLE_DEMO;
+        const begin = () => {
+            const canvas = el('canvas', { class: 'mechanic-demo', 'aria-hidden': 'true' });
+            const dpr = Math.min(3, (window.devicePixelRatio || 1) * uiScale());
+            canvas.width = dims.w * dpr;
+            canvas.height = dims.h * dpr;
+            $('titleDemo').replaceChildren(el('figure', { class: 'demo' }, [canvas, el('figcaption', { text: 'Your sprints: hold to charge, release to launch' })]));
+            sim = demoStart('tryIt', dims);
+            sim.charge = 0;
+            left = TRY_SPRINTS;
+            done = false;
+            const ctx = canvas.getContext('2d');
+            last = performance.now();
+            const frame = now => {
+                if (!canvas.isConnected) return;
+                const dt = Math.min(0.05, (now - last) / 1000);
+                last = now;
+                if (holding) sim.charge = Math.min(1, sim.charge + dt / 0.9);
+                demoStep(sim, dt);
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                drawDemo(ctx, sim);
+                if (sim.summited && !done) {
+                    done = true;
+                    pt('tip', { key: 'title:summit' });
+                    setText(status, 'That\'s the loop: sprint, crest, learn a skill. Your lab powers the sprints.');
+                    setText(button, 'Again');
+                    $('titleStart').focus({ preventScroll: true });
+                } else if (!done && left === 0 && (sim.roll.over || sim.roll.atRest)) {
+                    done = true;
+                    setText(status, 'Out of sprints. In the game, upgrades make every sprint stronger.');
+                    setText(button, 'Again');
+                }
+                raf = requestAnimationFrame(frame);
+            };
+            raf = requestAnimationFrame(frame);
+        };
+        const press = e => {
+            e?.preventDefault?.();
+            if (!sim || done) { cancelAnimationFrame(raf); begin(); setText(button, 'Hold to sprint'); setText(status, `${left} sprints`); return; }
+            if (left <= 0 || sim.t - (sim.lastSprint ?? -9) < 0.3) return;
+            holding = true;
+            sim.charge = 0;
+        };
+        const release = () => {
+            if (!holding) return;
+            holding = false;
+            if (!sim || done || left <= 0) return;
+            const charge = Math.max(0.15, sim.charge);
+            sim.roll.ball.cooldown = 0;
+            sim.roll.push(sim.script.strength * charge, true);
+            sim.lastSprint = sim.t;
+            if (charge > 0.9) sim.shock = { x: sim.roll.ball.x, t: sim.t };
+            sim.label = charge >= 0.98 ? 'FULL SPRINT' : 'TRAINING SPRINT';
+            sim.labelAt = sim.t;
+            sim.charge = 0;
+            left--;
+            setText(status, left ? `${left} sprint${left > 1 ? 's' : ''} left` : 'No sprints left: will it make it?');
+        };
+        const keyDown = e => { if ((e.key === ' ' || e.key === 'Enter') && document.activeElement === button && !e.repeat) press(e); };
+        const keyUp = e => { if (e.key === ' ' || e.key === 'Enter') release(); };
+        button.addEventListener('pointerdown', press);
+        button.addEventListener('pointerup', release);
+        button.addEventListener('pointerleave', release);
+        button.addEventListener('keydown', keyDown);
+        button.addEventListener('keyup', keyUp);
+        button.addEventListener('click', e => e.preventDefault());   // inside the dialog's form: never submits
+        setText(status, 'Try it: the game\'s core move');
+        return () => cancelAnimationFrame(raf);
     }
 
     // Keep screen on (touch devices, per device): an active game earns nothing while the screen sleeps, so on a
