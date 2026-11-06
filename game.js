@@ -2383,6 +2383,9 @@ window.AGI = (function () {
         copy.removeAttribute('id');
         copy.classList.remove('room');
         copy.removeAttribute('data-room');
+        // A picture of the room: its buttons must not take keyboard focus (Tab used to land on them, hidden
+        // from screen readers by the feed's aria-hidden).
+        copy.inert = true;
         // Inert and anonymous: no duplicate ids, nothing focusable, nothing the game would find and update.
         for (const n of copy.querySelectorAll('[id], [data-facility], [data-bind], [data-next]')) {
             n.removeAttribute('id');
