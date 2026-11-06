@@ -1517,7 +1517,7 @@ window.AGI = (function () {
         const name = E.versionName(next.major, next.minor);
         const { ok } = await openDialog({
             title: `Ship ${name} for ${gain} Insight?`,
-            message: `This run's resources, attributes, skills and upgrades reset (your desk stays built). You keep Insight (automated production and training XP ×${E.insightMult(state.prestige.total).toFixed(2)} → ×${E.insightMult(state.prestige.total + gain).toFixed(2)}, and it buys legacy upgrades), legacy upgrades and achievements.`,
+            message: `This version starts over: resources, XP, attributes, skills, and lab and skill-tree upgrades. You keep your desk, the Auto-Trainer and Procurement Bot, legacy upgrades, achievements and Insight, which speeds up automated production and training XP (×${E.insightMult(state.prestige.total).toFixed(2)} → ×${E.insightMult(state.prestige.total + gain).toFixed(2)}) and buys legacy upgrades.`,
             okLabel: `Ship ${name}`
         });
         if (ok) shipVersion(false);
@@ -1940,16 +1940,20 @@ window.AGI = (function () {
         if (changes.challenge) pt('challenge', { name: changes.challenge.name, won: !!changes.challenge.won });
         if (changes.phase) {
             pt('phase', { name: changes.phase.name });
-            log(`Phase reached: ${changes.phase.name}.`, 'special');
+            log(`Your AI reached ${changes.phase.name}.`, 'special');
             const seenPhase = `phase:${changes.phase.name}`;
             if (!state.intro[seenPhase]) {
                 state.intro[seenPhase] = true;
                 // The chapter's ending card is the announcement for this phase.
-                if (!changes.ending) toast(`${changes.phase.name} reached`, changes.phase.note || 'A new phase for your AI', 'phase');
+                // What it means for you first (where to go next), then a line of mood.
+                if (!changes.ending) toast(`${changes.phase.name} reached`, [PHASE_NEWS[changes.phase.name], changes.phase.note].filter(Boolean).join(' ') || 'A new phase for your AI', 'phase');
             }
         }
         if (changes.ending) showEnding();
     }
+
+    // What a phase means, on its toast (Superintelligence has the chapter card instead).
+    const PHASE_NEWS = { 'General AI': 'It can learn anything now. R&D can ship it.', 'Singularity': 'Transcend is open in R&D.' };
 
     // The end of chapter one (Superintelligence): what it took, then the story goes on. Once per save.
     const ENDING_LINES = [
@@ -5935,7 +5939,7 @@ window.AGI = (function () {
             : thrustMode
             ? (roll.thrusting ? (crunching() ? `CRUNCH! Free thrust (${path.fx.crunch.toFixed(1)} s)` : 'Thrusting…')
                 : !roll.launched ? 'Hold to launch'
-                : roll.over ? (path.done ? 'Hold to thrust' : 'Next run…')
+                : roll.over ? (path.done ? 'Run over' : 'Next run…')
                 : flowing() ? `Flowing… (${path.roll.flowing.toFixed(1)} s)`
                 : path.fx.maxEffort ? 'MAX EFFORT: hold to burn'
                 : roll.pushesLeft > 0 || crunching() ? 'Hold to thrust' : 'Out of fuel · hold to dive')
@@ -5947,7 +5951,7 @@ window.AGI = (function () {
             : crunching() && !roll.over && !roll.crested ? `CRUNCH! Sprint free (${path.fx.crunch.toFixed(1)} s)`
             : flowing() ? `Flowing… (${path.roll.flowing.toFixed(1)} s)`
             : !roll.launched ? 'Hold to launch'
-            : roll.over ? (path.done ? 'Hold to sprint' : 'Next run…')
+            : roll.over ? (path.done ? 'Run over' : 'Next run…')
             : roll.crested ? 'Summit!'
             : roll.pushesLeft > 0 && roll.ball.cooldown > 0 ? `Next sprint in ${roll.ball.cooldown.toFixed(1)} s`
             : roll.pushesLeft > 0 ? `Hold to sprint (${roll.pushesLeft} left)` : 'Out of sprints';
@@ -6001,7 +6005,7 @@ window.AGI = (function () {
             over.style.left = '100%';
             over.style.width = '0%';
             setText($('chargeValue'), crunching() ? 'Crunch: thrust is free'
-                : `Fuel ${fuel.toFixed(1)} / ${total} · full thrust ${E.formatCost(E.burnCost(state, 1, ballLeg()))} per second`);
+                : `Fuel ${fuel.toFixed(1)} / ${total} · full thrust ${E.formatCost(E.burnCost(state, 1 / T.BURN_SECONDS, ballLeg()))} per second`);
             setText($('chargeClean'), '');
             return;
         }
