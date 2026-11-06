@@ -10,7 +10,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const SAVE_VERSION = 15;   // 15: Procurement's fund (tasks.procurement.fund); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
+    const SAVE_VERSION = 15;   // 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
     // Auto-Trainer, XP nodes) carry most of a new version's speed, so this stays small: at 0.2 a second run
@@ -143,12 +143,12 @@
     const AUTOMATION = {
         cpu: { stat: 'clicks', need: 40, what: 'compute by hand' },
         autoCollector: { stat: 'collects', need: 40, what: 'data collections by hand', skill: 2 },      // Pattern Matching
-        researchAssistant: { stat: 'researchManual', need: 50, what: 'research runs by hand', skill: 6 },  // Language Modeling
+        researchAssistant: { stat: 'researchManual', need: 25, what: 'research runs by hand', skill: 6 },  // Language Modeling (50 by hand was 10K CP of mashing)
         // The trail's own delegation: the Auto-Trainer's first level is earned in the first version, by running
         // the trail by hand (the sprint was the one verb never handed off before a version shipped).
         autoTrainer: { stat: 'rolls', need: AUTO_TRAINER_RUNS, what: 'training runs by hand', skill: AUTO_TRAINER_SKILL },
         // Buying hardware is delegated too, once you've racked enough of it yourself (hardware owned, every tier).
-        procurement: { stat: 'hardware', need: 40, what: 'hardware bought by hand', skill: 3 }
+        procurement: { stat: 'hardware', need: 20, what: 'hardware bought by hand', skill: 3 }
     };
 
     // Scheduled tasks: each automation gets its own share of the lab's production ("dedicated compute")
@@ -263,8 +263,8 @@
         // Data feeds training: cleaner data makes every sprint stronger (a data sink that never runs out).
         { id: 'trainingData', tab: 'software', name: 'Training Data Pipeline', effect: '+8% sprint strength per level', flavor: 'Deduplicated, filtered, shuffled, and finally useful.', cost: { cp: 400, dp: 150 }, scale: 1.55,
             unlock: s => s.path.learned >= FIRST_REAL_SKILL, boost: { push: 0.08 } },   // from the warm-up: data had no use until Pattern Matching
-        { id: 'procurement', tab: 'hardware', name: 'Procurement Bot', shows: 'procurement', effect: 'Buys the best hardware for you with its share of compute', flavor: 'It reads every spec sheet. It haggles. It wins.', cost: { cp: 2500 }, max: 1,
-            unlock: s => automationGate(s, 'procurement').met, hint: 'Edge Detection, and 40 hardware bought by hand' },
+        { id: 'procurement', tab: 'hardware', name: 'Procurement Bot', shows: 'procurement', effect: 'Buys the best hardware for you with its share of compute', flavor: 'It reads every spec sheet. It haggles. It wins.', cost: { cp: 400 }, max: 1,
+            unlock: s => automationGate(s, 'procurement').met, hint: 'Edge Detection, and 20 hardware bought by hand' },
         { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', shows: 'autoCollect', effect: 'Collects data for you, 10 CP each', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 800, dp: 80 }, scale: 1.5,
             unlock: s => automationGate(s, 'autoCollector').met, hint: 'Pattern Matching, and 40 data collections by hand' },
         // Training skill tree (bought with XP from the Training Path). `tree` is the node's grid
@@ -342,7 +342,7 @@
         { id: 'globalBenchmark', tab: 'training', tree: { x: 6, y: 0 }, icon: 'target', name: 'Global Benchmark', effect: 'Clean prompts hit 15% harder, per level', flavor: 'Everyone measures against you now.', cost: { xp: 4000 }, scale: 1.8, max: 3, requires: 'leaderboardPrizes', boost: { cleanPower: 0.15 } },
         { id: 'turingTest', tab: 'training', tree: { x: 7, y: 0 }, icon: 'star', name: 'Turing Test', effect: '+60% XP from every run, per level', flavor: 'The judges asked it out. Twice.', cost: { xp: 45000 }, scale: 2, max: 2, requires: 'globalBenchmark', boost: { xp: 0.6 } },
         // Recursion (down): more sprints per run and less wait between them.
-        { id: 'trainingEpochs', tab: 'training', tree: { x: 0, y: 1 }, requires: 'initialWeights', icon: 'plus', name: 'Investor Funding', effect: '+1 training sprint per run', flavor: 'Dad lent you $100. Don\'t tell Mum.', cost: { xp: 4 }, scale: 3, max: 2, boost: { pushes: 1 } },
+        { id: 'trainingEpochs', tab: 'training', tree: { x: 0, y: 1 }, requires: 'initialWeights', icon: 'plus', name: 'Investor Funding', effect: '+1 training sprint per run', flavor: 'Dad lent you $100. Don\'t tell Mum.', cost: { xp: 2 }, scale: 5, max: 2, boost: { pushes: 1 } },
         // The fourth sprint, out in Precision (the seed's sprint moved to Investor Funding): a choice against the prompts.
         { id: 'angelInvestor', tab: 'training', tree: { x: 2, y: -1 }, requires: 'precisionTuning', icon: 'plus', name: 'Angel Investor', effect: '+1 training sprint per run', flavor: 'A stranger at a meetup believed in you. Cash is cash.', cost: { xp: 18 }, max: 1, boost: { pushes: 1 } },
         { id: 'fasterIteration', tab: 'training', tree: { x: 0, y: 2 }, icon: 'chip', name: 'Faster Chips', effect: '-15% wait between sprints per level', flavor: 'Less waiting, more training. Coffee breaks cancelled.', cost: { xp: 20 }, scale: 1.7, max: 2, requires: 'trainingEpochs', boost: { cooldown: 1 } },
@@ -605,7 +605,7 @@
                 researchManualEver: 0,
                 finishedAt: 0         // play seconds when chapter one ended (ENDING_PHASE); 0 = not yet. Kept for good
             },
-            path: { learned: 0, best: 0, auto: [], legBest: [], breakDue: 0 },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k
+            path: { learned: 0, best: 0, auto: [], legBest: [], breakDue: 0, surge: 0 },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k
             projects: { offers: [], boosts: [], next: PROJECTS.firstAt, seq: 0 },
             tasks: { autoCollector: { on: true, share: TASK_DEFAULTS.autoCollector }, researchAssistant: { on: true, share: TASK_DEFAULTS.researchAssistant }, autoTrainer: { on: true }, procurement: { on: true, share: TASK_DEFAULTS.procurement, fund: 0 } },
             // notation: 'standard' (1.23M), 'scientific' (1.23e6) or 'engineering' (1.23e6, exponents in threes);
@@ -1323,6 +1323,13 @@
     // The first breakthrough after buying Lucky Break (while its countdown runs) is a super one: it smashes the
     // hills ahead flat, a screen-clearing moment long before Paradigm Shift makes them a habit.
     const firstBreakSmashes = s => s.path.breakDue > 0;
+    // The wall's power spurt, felt: breaking a wall (a wall skill) makes the first sprint (or burn) of each of the
+    // next WALL_SURGE_RUNS runs a breakthrough that smashes the hills ahead (`path.surge`, save v15).
+    const WALL_SURGE_RUNS = 3;
+    const surgeSprint = (s, index) => s.path.surge > 0 && index === 0;
+    function settleSurge(s) {
+        if (s.path.surge > 0) s.path.surge--;
+    }
     // At a run's end: a breakthrough (natural or guaranteed) ends the countdown, else one run fewer to go.
     function settleBreakCountdown(s, hadBreakthrough) {
         if (!s.path.breakDue) return;
@@ -1523,6 +1530,7 @@
         s.path.learned++;
         s.path.best = 0;
         s.stats.skillsLearned++;
+        if (skill.wall) s.path.surge = WALL_SURGE_RUNS;
         return skill;
     }
 
@@ -1851,6 +1859,7 @@
         s.path.auto = (Array.isArray(raw.path?.auto) ? raw.path.auto : []).slice(0, s.path.learned).map(v => num(v, 0));
         s.path.legBest = (Array.isArray(raw.path?.legBest) ? raw.path.legBest : []).slice(0, s.path.learned + 1).map(v => num(v, 0));
         s.path.breakDue = Math.min(BREAK_WINDOW, Math.max(0, Math.floor(num(raw.path?.breakDue, 0))));
+        s.path.surge = Math.min(WALL_SURGE_RUNS, Math.max(0, Math.floor(num(raw.path?.surge, 0))));
         // v8 put a warm-up leg (Tokenization) in front: older saves past the start have it learned too, and every
         // leg they knew moves one along (its laps and best run with it). It grants no attributes.
         if (!(raw.version >= 8) && s.path.learned > 0) {
@@ -2000,7 +2009,7 @@
 
     return {
         SAVE_VERSION, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
-        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, firstBreakSmashes, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
+        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, firstBreakSmashes, WALL_SURGE_RUNS, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,

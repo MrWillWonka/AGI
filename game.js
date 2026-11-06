@@ -2265,7 +2265,8 @@ window.AGI = (function () {
             const ch = state.challenge ? ` · challenge: ${challengeName(state.challenge.id)}` : '';
             // A wall leg says so (status: its skill hill stands taller, and its skill pays big).
             const wall = E.isWallLeg(state.path.learned) ? ' (wall)' : '';
-            return `Next skill: ${k.name}${wall} · best run ${Math.round(state.path.best * 100)}%${ch}`;
+            const surge = state.path.surge > 0 ? ` · smash start ×${state.path.surge}` : '';
+            return `Next skill: ${k.name}${wall} · best run ${Math.round(state.path.best * 100)}%${surge}${ch}`;
         }
         if (place === 'rnd') {
             const gain = E.prestigeGain(state);
@@ -4401,8 +4402,9 @@ window.AGI = (function () {
         path.fx.forceLuck = null;
         const effort = !!path.fx.maxEffort;
         path.fx.maxEffort = false;
-        const breakthrough = forced === 'breakthrough' || forced === 'superBreakthrough' || E.breakthroughHit(state, seed, index);
-        const superBreak = breakthrough && (forced === 'superBreakthrough' || E.firstBreakSmashes(state) || E.superHit(state, 'breakthrough', seed, index));
+        const surge = E.surgeSprint(state, index);
+        const breakthrough = forced === 'breakthrough' || forced === 'superBreakthrough' || surge || E.breakthroughHit(state, seed, index);
+        const superBreak = breakthrough && (forced === 'superBreakthrough' || surge || E.firstBreakSmashes(state) || E.superHit(state, 'breakthrough', seed, index));
         path.burnStrength = E.sprintStrength(state, 1, null, breakthrough, effort);
         if (breakthrough) {
             roll.breakthroughs = (roll.breakthroughs || 0) + 1;
@@ -4720,10 +4722,11 @@ window.AGI = (function () {
         const forced = path.fx.forceLuck;
         path.fx.forceLuck = null;
         // Lucky Break's guarantee: one of the 1-3 runs after buying it has a breakthrough (E.breakGuaranteed).
-        const breakthrough = forced === 'breakthrough' || forced === 'superBreakthrough' || E.breakthroughHit(state, seed, index)
+        // A wall's surge: the run's first sprint is a smash (E.surgeSprint), like the first one after Lucky Break.
+        const surge = !free && E.surgeSprint(state, pushIndex(roll));
+        const breakthrough = forced === 'breakthrough' || forced === 'superBreakthrough' || surge || E.breakthroughHit(state, seed, index)
             || (!free && E.breakGuaranteed(state, pushIndex(roll), roll.pushesLeft));
-        // The first one after Lucky Break is bought smashes through (E.firstBreakSmashes).
-        const superBreak = breakthrough && (forced === 'superBreakthrough' || E.firstBreakSmashes(state) || E.superHit(state, 'breakthrough', seed, index));
+        const superBreak = breakthrough && (forced === 'superBreakthrough' || surge || E.firstBreakSmashes(state) || E.superHit(state, 'breakthrough', seed, index));
         // The warm-up's sprint always crests Tokenization, only just, whatever the charge: the first summit is
         // guaranteed and a nail-biter (slow motion, "Will it learn…?") rather than a hop over a 3 cm bump.
         const strength = !roll.launched && state.path.learned === 0 && roll.ground.stretch === 0
@@ -5405,6 +5408,9 @@ window.AGI = (function () {
         afterChange();
     }
 
+    // A wall broken: the next runs open with a smash (E.surgeSprint), said on its card.
+    const surgeLine = wall => (wall ? [[`Your next ${E.WALL_SURGE_RUNS} runs open with a smash`, '', 'good']] : []);
+
     // The model's own voice: each skill it learns, it says something (first-person, a little less innocent
     // each time), on the Skill learned card, in the Journal and on the lab's terminal.
     function modelSays(skill) {
@@ -5499,6 +5505,7 @@ window.AGI = (function () {
         // Every cleared leg the run ran through is credited with what it earned from there on (`E.recordLegs`).
         const passiveBefore = E.derive(state).xpPerSec;
         E.settleBreakCountdown(state, (roll.breakthroughs || 0) > 0);
+        if (roll.launched) E.settleSurge(state);
         const improvedLegs = E.recordLegs(state, roll.ground.stretch, roll.legEntries, result.xp + banked, viral ? E.derive(state).windfallMult : 1);
         pt('run', { from: roll.ground.stretch + 1, leg: leg + 1, prog: r2(ev.progress), m: r2(metres), xp: r2(result.xp + banked), legs,
             sprints: r2((path.rollPushes || 0) - Math.max(0, roll.pushesLeft)), clean, top: r2(roll.topSpeed || 0),
@@ -5548,7 +5555,7 @@ window.AGI = (function () {
             path.overview = OVERVIEW_SECONDS + path.pause;
             showResult({ skill: true, title: learned.length > 1 ? `${learned.length} skills learned` : last.wall ? 'Wall broken · skill learned' : 'Skill learned', main: names,
                 flavor: last.flavor, voice: last.voice, xp: result.xp + banked,
-                lines: [...learned.map(l => [l.skill.effect, '']), ...(grants ? [[grants, '']] : []), ...lines, ...(pct > 0 ? [[`Then ${pct}% of the way to ${target}`, '']] : [])], record: result.record });
+                lines: [...learned.map(l => [l.skill.effect, '']), ...(grants ? [[grants, '']] : []), ...surgeLine(learned.some(l => l.skill.wall)), ...lines, ...(pct > 0 ? [[`Then ${pct}% of the way to ${target}`, '']] : [])], record: result.record });
             if (!state.intro['hint:replay']) {
                 state.intro['hint:replay'] = true;
                 callout('hint:replay', 'Passive XP', 'Your AI now replays your best run on each cleared leg, earning XP by itself while you play.');
@@ -5562,7 +5569,7 @@ window.AGI = (function () {
             path.glow = { skill: state.path.learned - 1, age: 0 };
             path.overview = OVERVIEW_SECONDS + path.pause;
             showResult({ skill: true, title: result.skill.wall ? 'Wall broken · skill learned' : 'Skill learned', main: result.skill.name, flavor: result.skill.flavor, voice: result.skill.voice, xp: result.xp + banked,
-                lines: [[result.skill.effect, ''], ...(grants ? [[grants, '']] : []), ...lines] });
+                lines: [[result.skill.effect, ''], ...(grants ? [[grants, '']] : []), ...surgeLine(result.skill.wall), ...lines] });
             if (!state.intro['hint:replay']) {
                 state.intro['hint:replay'] = true;
                 callout('hint:replay', 'Passive XP', 'Your AI now replays your best run on each cleared leg, earning XP by itself while you play.');

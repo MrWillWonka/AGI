@@ -1562,18 +1562,18 @@ test('do it once, then delegate: at full capacity, hardware out-earns a held but
     assert.ok(ratio(5) > 4, `fifth skill: ${ratio(5).toFixed(2)}×`);
 });
 
-test('Procurement: earned by buying hardware by hand, then buys the best CP/s per CP with its share, never past capacity', () => {
+test('Procurement: earned by buying hardware by hand (20), then buys the best CP/s per CP with its share, never past capacity', () => {
     const s = fresh();
     s.path.learned = 3;
     s.unlocked['up:cpu'] = true;
     s.unlocked['up:server'] = true;
-    s.levels.cpu = 30;
-    s.levels.server = 9;
+    s.levels.cpu = 15;
+    s.levels.server = 4;
     E.evaluate(s);
-    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.procurement), false, '39 hardware: not yet');
-    s.levels.server = 10;
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.procurement), false, '19 hardware: not yet');
+    s.levels.server = 5;
     E.evaluate(s);
-    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.procurement), true, '40 hardware by hand and Edge Detection');
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.procurement), true, '20 hardware by hand and Edge Detection');
     // Not owned: it claims no share (the other tasks keep theirs).
     assert.equal(E.taskShares(s).procurement, 0);
     s.res.cp = 1e6;
@@ -1598,4 +1598,20 @@ test('Procurement: earned by buying hardware by hand, then buys the best CP/s pe
     // Switched off, it takes nothing.
     E.setTaskOn(s, 'procurement', false);
     assert.equal(E.derive(s).tasks.procurement.cp, 0);
+});
+
+test('breaking a wall: the next runs open with a smash, counted down per run, and saved', () => {
+    const s = fresh();
+    s.path.learned = 3;   // the next skill (Image Recognition) is learned on a wall
+    assert.equal(E.surgeSprint(s, 0), false);
+    const skill = E.learnSkill(s, 3);
+    assert.ok(skill.wall);
+    assert.equal(s.path.surge, E.WALL_SURGE_RUNS);
+    assert.equal(E.surgeSprint(s, 0), true, 'the first sprint smashes');
+    assert.equal(E.surgeSprint(s, 1), false, 'only the first');
+    assert.equal(E.deserialize(E.serialize(s), NOW).path.surge, E.WALL_SURGE_RUNS);
+    for (let i = 0; i < E.WALL_SURGE_RUNS; i++) E.settleSurge(s);
+    assert.equal(E.surgeSprint(s, 0), false, 'used up');
+    E.learnSkill(s, 4);
+    assert.equal(s.path.surge, 0, 'an ordinary skill brings none');
 });
