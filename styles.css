@@ -446,10 +446,10 @@ h1, h2, h3, p { margin: 0; }
     -webkit-user-select: none;
 }
 
-@media (hover: hover) { .button:hover:not(:disabled) { filter: brightness(1.06); box-shadow: 0 8px 24px color-mix(in srgb, var(--warning) 35%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35); } }
-.button:active:not(:disabled) { transform: translateY(1px) scale(0.99); }
+@media (hover: hover) { .button:hover:not(:disabled):not([aria-disabled="true"]) { filter: brightness(1.06); box-shadow: 0 8px 24px color-mix(in srgb, var(--warning) 35%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35); } }
+.button:active:not(:disabled):not([aria-disabled="true"]) { transform: translateY(1px) scale(0.99); }
 
-.button:disabled, .push-button[aria-disabled="true"] {
+.button:disabled, .push-button[aria-disabled="true"], .upgrade-button[aria-disabled="true"] {
     cursor: not-allowed;
     color: var(--muted);
     background: var(--panel-2);
@@ -1144,8 +1144,8 @@ h1, h2, h3, p { margin: 0; }
     box-shadow: none;
 }
 
-@media (hover: hover) { .upgrade-button:hover:not(:disabled) { background: color-mix(in srgb, var(--warning) 12%, transparent); filter: none; box-shadow: none; } }
-.upgrade-button:disabled { color: var(--muted); border-color: var(--border); background: transparent; }
+@media (hover: hover) { .upgrade-button:hover:not(:disabled):not([aria-disabled="true"]) { background: color-mix(in srgb, var(--warning) 12%, transparent); filter: none; box-shadow: none; } }
+.upgrade-button:disabled, .upgrade-button[aria-disabled="true"] { color: var(--muted); border-color: var(--border); background: transparent; }
 
 .badge {
     white-space: nowrap;
@@ -2240,7 +2240,7 @@ body.has-minimap.mm-min .room-rnd { padding-bottom: 60px; }
 .station-more[hidden] { display: none; }
 /* Installed upgrades keep their place, dimmed, with a check instead of a price. */
 .upgrade.owned h3, .upgrade.owned p { opacity: 0.55; }
-.upgrade.owned .upgrade-button:disabled { color: var(--success); border-color: color-mix(in srgb, var(--success) 35%, transparent); }
+.upgrade.owned .upgrade-button:disabled, .upgrade.owned .upgrade-button[aria-disabled="true"] { color: var(--success); border-color: color-mix(in srgb, var(--success) 35%, transparent); }
 .upgrade.fresh { animation: card-in 1.6s ease-out; }
 @keyframes card-in { from { background: color-mix(in srgb, var(--warning) 18%, transparent); } }
 /* Action cards keep one height whatever their automation line says: two lines reserved (a gate's progress

@@ -287,6 +287,13 @@ window.AGI = (function () {
         if (node.disabled !== disabled) node.disabled = disabled;
     }
 
+    // Lab buy buttons: unavailable, not disabled, so they keep keyboard focus (a native disabled button
+    // dropped focus to the page after the buy that made it unaffordable) and stay reachable by Tab, with
+    // their price and wait. A press on one is refused by the engine (an error sound and a log line).
+    function setUnavailable(node, off) {
+        if (node.getAttribute('aria-disabled') !== String(off)) node.setAttribute('aria-disabled', String(off));
+    }
+
     // ---- Log & toasts ---------------------------------------------------
 
     function log(message, type) {
@@ -2218,7 +2225,7 @@ window.AGI = (function () {
             card.classList.toggle('owned', maxed);
             if (maxed) {
                 setText(button, 'Installed ✓');
-                setDisabled(button, true);
+                setUnavailable(button, true);
             } else if (E.atCapacity(state, up)) {
                 // Lab capacity grows with skills: the card says it's full, and that the next skill makes room.
                 const key = `full|${lvl}`;
@@ -2226,7 +2233,7 @@ window.AGI = (function () {
                     button.dataset.key = key;
                     button.replaceChildren(`Full ${lvl}/${E.capacity(state, up)}`, el('span', { class: 'eta', text: 'more room with the next skill' }));
                 }
-                setDisabled(button, true);
+                setUnavailable(button, true);
             } else {
                 const n = up.max == null ? Math.min(bulkCount(up), E.capacity(state, up) - lvl) : 1;
                 const cost = n > 1 ? E.bulkCost(state, up, n) : E.upgradeCost(up, lvl);
@@ -2240,7 +2247,7 @@ window.AGI = (function () {
                     button.dataset.key = key;
                     button.replaceChildren(label, ...(sub ? [el('span', { class: 'eta', text: sub })] : []));
                 }
-                setDisabled(button, !ok);
+                setUnavailable(button, !ok);
             }
         }
         for (const tab of E.TABS) setHidden(ui.panels[tab.id].emptyHint, !!visibleCount[tab.id]);
