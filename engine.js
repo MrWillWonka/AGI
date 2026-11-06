@@ -190,7 +190,9 @@
     function setTaskShare(s, id, share) {
         const others = TASKS.filter(t => t.budget && t.id !== id && taskClaims(s, t.id))
             .reduce((a, t) => a + (s.tasks[t.id]?.share ?? TASK_DEFAULTS[t.id]), 0);
-        s.tasks[id].share = Math.round(Math.min(Math.max(0, 1 - others), Math.max(0, share)) * 100) / 100;
+        // A non-number (NaN from a bad input) counts as 0: it used to be stored and made derive()'s data rate NaN.
+        const want = Number.isFinite(share) ? Math.max(0, share) : 0;
+        s.tasks[id].share = Math.round(Math.min(Math.max(0, 1 - others), want) * 100) / 100;
         return s.tasks[id].share;
     }
 
@@ -1125,7 +1127,8 @@
     // ---- Simulation -----------------------------------------------------
 
     function tick(s, dt, rates) {
-        if (!(dt > 0)) return;
+        // Finite only: tick(Infinity) (a bad debug input or a broken clock) made every balance Infinity or NaN for good.
+        if (!(dt > 0) || !Number.isFinite(dt)) return;
         // A timed boost ends mid-tick on long gaps (offline, a hidden tab): split there, so one
         // second of ×2 left doesn't double eight hours.
         const ends = (s.projects?.boosts || []).map(b => b.until - s.stats.playTime).filter(t => t > 0 && t < dt);

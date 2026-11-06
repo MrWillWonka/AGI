@@ -1722,3 +1722,18 @@ test('a save with absurd investor boosts loads with them held to a sane size', (
     ok.projects.boosts = [{ stat: 'xp', mult: 1.5, until: 300 }];
     assert.deepEqual(E.deserialize(E.serialize(ok), NOW).projects.boosts, ok.projects.boosts);
 });
+
+test('tick ignores a non-finite time step, and a task share that is not a number counts as 0', () => {
+    const s = fresh();
+    s.levels.cpu = 10;
+    s.levels.autoCollector = 1;
+    s.res.cp = 100;
+    for (const dt of [Infinity, -Infinity, NaN]) E.tick(s, dt);
+    assert.equal(s.res.cp, 100);
+    assert.ok(Number.isFinite(s.stats.playTime));
+    E.setTaskShare(s, 'autoCollector', NaN);
+    assert.equal(s.tasks.autoCollector.share, 0);
+    assert.ok(Number.isFinite(E.derive(s).dpPerSec));
+    E.tick(s, 1);
+    assert.ok([s.res.cp, s.res.dp].every(Number.isFinite));
+});
