@@ -241,7 +241,7 @@
         // more per level. Its name and flavour follow the current tool (upgradeName / upgradeFlavor).
         // The first five levels are your desk, one item each at its own price (`costs`); then x1.32 per level.
         { id: 'keyboard', tab: 'hardware', name: 'Desktop Tower', shows: 'click', effect: 'More compute per click', flavor: 'A beige box from the office cupboard. It wheezes.',
-            costs: [{ cp: 25 }, { cp: 45 }, { cp: 45 }, { cp: 75 }, { cp: 100 }], cost: { cp: 100 }, scale: 1.32,
+            costs: [{ cp: 15 }, { cp: 25 }, { cp: 40 }, { cp: 60 }, { cp: 75 }], cost: { cp: 100 }, scale: 1.32,
             unlock: s => s.stats.clicks >= 15, hint: 'Generate compute by hand 15 times' },
         { id: 'server', tab: 'hardware', name: 'Server Cluster', cps: 3.3, effect: 'Generates compute', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 300 }, scale: 1.15,
             unlock: s => tierReady(s, 'server') && s.stats.rolls >= 1, hint: 'More Graphics Cards, more compute earned, and training under way' },
@@ -936,10 +936,11 @@
     // ---- Costs & purchases ----------------------------------------------
 
     function upgradeCost(up, lvl) {
-        // Hand-priced first levels (`costs`), then the last of them grows by `scale` per level.
+        // Hand-priced first levels (`costs`), then `cost` (else the last hand price) grows by `scale` per level
+        // (the desk got cheaper without moving the click tool's later stages).
         if (up.costs) {
             if (lvl < up.costs.length) return { ...up.costs[lvl] };
-            const base = up.costs[up.costs.length - 1];
+            const base = up.cost || up.costs[up.costs.length - 1];
             const f = Math.pow(up.scale, lvl - up.costs.length + 1);
             return Object.fromEntries(Object.entries(base).map(([k, v]) => [k, Math.ceil(v * f)]));
         }

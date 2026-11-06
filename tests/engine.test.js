@@ -800,7 +800,7 @@ test('the click tool starts with your desk, one item each, then grows per level;
     const up = E.UPGRADE_BY_ID.keyboard;
     assert.equal(E.upgradeName(s, up), 'Desktop Tower');
     assert.deepEqual(E.CLICK_TOOLS.slice(0, 5).map(t => t.name), ['Desktop Tower', 'Mechanical Keyboard', 'Gaming Mouse', 'Monitor', 'Server Rack'], 'the desk comes first');
-    assert.deepEqual([0, 1, 2, 3, 4, 5].map(l => E.upgradeCost(up, l).cp), [25, 45, 45, 75, 100, 132], 'hand-priced, then x1.32');
+    assert.deepEqual([0, 1, 2, 3, 4, 5].map(l => E.upgradeCost(up, l).cp), [15, 25, 40, 60, 75, 132], 'hand-priced, then x1.32 from 100');
     assert.equal(E.clickToolPower(4), 1, 'tower, keyboard, mouse and monitor take a click to 2 CP');
     assert.equal(E.clickToolPower(5), 2, 'the server rack adds +1');
     s.res.cp = 1e9;
