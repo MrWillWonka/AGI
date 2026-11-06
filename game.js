@@ -2379,7 +2379,7 @@ window.AGI = (function () {
             // Status, not advice: the version's Insight per hour so far, and the skill that brings more.
             const hours = Math.max(1 / 60, (state.stats.playTime - state.stats.runPlayStart) / 3600);
             const next = E.nextInsightAt(state);
-            return `Ship the next version for +${E.format(gain)} Insight · ${E.format(gain / hours)} Insight/h this version · +${E.format(Math.floor(E.insightAt(next) * E.insightBoost(state)) - gain)} more at ${E.skillAt(next - 1).name}`;
+            return `Ship now for +${E.format(gain)} Insight · ${E.format(gain / hours)} Insight an hour so far · +${E.format(Math.floor(E.insightAt(next) * E.insightBoost(state)) - gain)} more once you learn ${E.skillAt(next - 1).name}`;
         }
         return '';
     }
