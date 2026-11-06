@@ -829,6 +829,7 @@ window.AGI = (function () {
             case 'hardwareMult': return `Hardware ×${f(d.hardwareMult, 2)}${after('hardwareMult')}`;
             case 'autoCollect': return `Crawler: ${f(d.collectsPerSec, 2)}${after('collectsPerSec')} collections/s`;
             case 'autoResearch': return `Assistant: ${f(d.researchPerSec, 2)}${after('researchPerSec')} research/s`;
+            case 'procurement': return `Buys hardware with ${Math.round((state.tasks.procurement?.share ?? 0) * 100)}% of compute`;
         }
         // Attribute upgrades: where those attributes stand, now → after the next level, like every other card.
         const a = n => f(n, n % 1 ? 1 : 0);
@@ -2816,12 +2817,12 @@ window.AGI = (function () {
     // get a slider: the share of each second's compute dedicated to them (engine taskShares). Shares
     // never add up to more than 100%, so the part a slider can't reach is hatched. Cleared legs lapping
     // on the rack are listed too (they need no compute).
-    const TASK_UPGRADES = { autoCollector: 'autoCollector', researchAssistant: 'researchAssistant', autoTrainer: 'autoTrainer' };
+    const TASK_UPGRADES = { autoCollector: 'autoCollector', researchAssistant: 'researchAssistant', autoTrainer: 'autoTrainer', procurement: 'procurement' };
     const taskUi = {};
 
     // Each task shows a bar filling at the rate it earns (one fill = one collection, one research, one
     // lap of a cleared leg). Cleared legs are listed one per skill, named after it.
-    const taskProgress = { autoCollector: 0, researchAssistant: 0 };
+    const taskProgress = { autoCollector: 0, researchAssistant: 0, procurement: 0 };
     const bar = () => el('span', { class: 'task-bar' }, [el('span', { class: 'task-fill' })]);
 
     function buildTasks() {
@@ -2880,6 +2881,17 @@ window.AGI = (function () {
         const d = E.derive(state, debugRates);
         taskProgress.autoCollector = (taskProgress.autoCollector + d.collectsPerSec * dt) % 1;
         taskProgress.researchAssistant = (taskProgress.researchAssistant + d.researchPerSec * dt) % 1;
+        // Procurement's bar is its fund against the next buy.
+        const p = d.tasks.procurement;
+        taskProgress.procurement = p.need ? Math.min(1, p.fund / p.need) : 0;
+        // What it bought since the last tick goes to the log (the cabinets pick the new pieces up by themselves).
+        const bought = state.tasks.procurement?.bought;
+        if (bought?.length) {
+            const n = {};
+            for (const id of bought) n[id] = (n[id] || 0) + 1;
+            for (const [id, k] of Object.entries(n)) termLog(`procurement bought ${k > 1 ? k + '× ' : ''}${E.UPGRADE_BY_ID[id].name}`);
+            bought.length = 0;
+        }
     }
 
     function renderTasks(d) {
@@ -2913,7 +2925,11 @@ window.AGI = (function () {
             if (t.id === 'researchAssistant') setText(u.rate, on ? `${f(d.researchPerSec, 2)}/s → +${f(d.rpPerSec)} RP/s` : 'Paused');
             if (t.id === 'autoTrainer') {
                 const lv = E.level(state, 'autoTrainer');
-                setText(u.rate, on ? `Level ${lv} · ${['', 'sprints once the ball settles', 'sprints before a climb fails', 'times sprints, hits clean prompts'][Math.min(3, lv)]}` : 'Paused');
+                setText(u.rate, on ? `Level ${lv} · ${['', 'runs the trail at full charge', 'aims at clean prompts', 'aims at super prompts'][Math.min(3, lv)]}` : 'Paused');
+            }
+            if (t.id === 'procurement') {
+                const p = d.tasks.procurement;
+                setText(u.rate, !on ? 'Paused' : p.pick ? `Next: ${E.UPGRADE_BY_ID[p.pick].name} · ${f(p.fund)}/${f(p.need)} CP` : 'Idle · hardware at capacity');
             }
             if (u.fill) u.fill.style.width = `${(on ? taskProgress[t.id] : 0) * 100}%`;
             if (!u.slider) continue;

@@ -103,7 +103,10 @@
     const WALL_HEIGHT = 1.3;
     const AFTER_WALL = 0.85;
     const isWallLeg = k => k >= WALL_EVERY && k % WALL_EVERY === 0;
-    const wallMult = k => (isWallLeg(k) ? WALL_HEIGHT : k > WALL_EVERY && isWallLeg(k - 1) ? AFTER_WALL : 1);
+    // Act two's hills already grow ×1.5 a leg: its walls stand a little less proud (WALL_HEIGHT_LATE), or each took
+    // 25–75 minutes in the sim.
+    const WALL_HEIGHT_LATE = 1.15;
+    const wallMult = k => (isWallLeg(k) ? (k >= LATE_LEG ? WALL_HEIGHT_LATE : WALL_HEIGHT) : k > WALL_EVERY && isWallLeg(k - 1) ? AFTER_WALL : 1);
     // Act two (from leg 7, `LATE_LEG`: the leg after Translation, the skill that reaches General AI) is a
     // launcher: each leg is a handful of huge swells, far wider than the view, and the ball can fly off
     // their crests and bounce (see createRoll). Before that, legs are many small rolling hills. The engine

@@ -10,7 +10,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const SAVE_VERSION = 14;   // 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
+    const SAVE_VERSION = 15;   // 15: Procurement's fund (tasks.procurement.fund); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
     // Auto-Trainer, XP nodes) carry most of a new version's speed, so this stays small: at 0.2 a second run
@@ -146,7 +146,9 @@
         researchAssistant: { stat: 'researchManual', need: 50, what: 'research runs by hand', skill: 6 },  // Language Modeling
         // The trail's own delegation: the Auto-Trainer's first level is earned in the first version, by running
         // the trail by hand (the sprint was the one verb never handed off before a version shipped).
-        autoTrainer: { stat: 'rolls', need: AUTO_TRAINER_RUNS, what: 'training runs by hand', skill: AUTO_TRAINER_SKILL }
+        autoTrainer: { stat: 'rolls', need: AUTO_TRAINER_RUNS, what: 'training runs by hand', skill: AUTO_TRAINER_SKILL },
+        // Buying hardware is delegated too, once you've racked enough of it yourself (hardware owned, every tier).
+        procurement: { stat: 'hardware', need: 40, what: 'hardware bought by hand', skill: 3 }
     };
 
     // Scheduled tasks: each automation gets its own share of the lab's production ("dedicated compute")
@@ -155,13 +157,20 @@
     const TASKS = [
         { id: 'autoCollector', name: 'Data crawler', budget: true, does: 'collects data' },
         { id: 'researchAssistant', name: 'Research assistant', budget: true, does: 'researches' },
-        { id: 'autoTrainer', name: 'Auto-Trainer', budget: false, does: 'trains' }
+        { id: 'autoTrainer', name: 'Auto-Trainer', budget: false, does: 'trains' },
+        // Procurement saves its share of compute into a fund and buys the hardware that adds the most CP/s per CP
+        // (within capacity) whenever the fund covers it: the lab grows while you train (sprints used to spend
+        // every CP, and hardware stopped growing; round-two design review).
+        { id: 'procurement', name: 'Procurement', budget: true, owned: true, does: 'buys hardware' }   // claims a share only once bought
     ];
-    const TASK_DEFAULTS = { autoCollector: 0.4, researchAssistant: 0.3 };
+    const TASK_DEFAULTS = { autoCollector: 0.4, researchAssistant: 0.3, procurement: 0.2 };
 
     function taskOn(s, id) {
         return s.tasks?.[id]?.on !== false;
     }
+    // A task that takes a share: switched on, and (for `owned` tasks) bought.
+    const TASK_BY_ID = Object.fromEntries(TASKS.map(t => [t.id, t]));
+    const taskClaims = (s, id) => taskOn(s, id) && (!TASK_BY_ID[id].owned || level(s, id) > 0);
 
     // The share of each second's CP (and, for research, DP) a task may use: its slider, if it is on, and
     // never more than the earlier tasks left over.
@@ -170,7 +179,7 @@
         const out = {};
         for (const t of TASKS) {
             if (!t.budget) continue;
-            const want = taskOn(s, t.id) ? Math.min(1, Math.max(0, s.tasks?.[t.id]?.share ?? TASK_DEFAULTS[t.id])) : 0;
+            const want = taskClaims(s, t.id) ? Math.min(1, Math.max(0, s.tasks?.[t.id]?.share ?? TASK_DEFAULTS[t.id])) : 0;
             out[t.id] = Math.min(want, left);
             left -= out[t.id];
         }
@@ -179,7 +188,7 @@
 
     // Set a task's share, capped by what the other tasks leave free.
     function setTaskShare(s, id, share) {
-        const others = TASKS.filter(t => t.budget && t.id !== id && taskOn(s, t.id))
+        const others = TASKS.filter(t => t.budget && t.id !== id && taskClaims(s, t.id))
             .reduce((a, t) => a + (s.tasks[t.id]?.share ?? TASK_DEFAULTS[t.id]), 0);
         s.tasks[id].share = Math.round(Math.min(Math.max(0, 1 - others), Math.max(0, share)) * 100) / 100;
         return s.tasks[id].share;
@@ -194,12 +203,26 @@
     // The Auto-Trainer's level, or 0 while its task is switched off.
     const autoTrainerLevel = s => (taskOn(s, 'autoTrainer') && s.challenge?.id !== 'handmade' ? level(s, 'autoTrainer') : 0);
 
+    // Procurement's next buy: the visible hardware below capacity with the most CP/s per CP (CP-only prices).
+    function procurementPick(s, rates) {
+        let best = null;
+        for (const up of HARDWARE) {
+            if (!s.unlocked['up:' + up.id] || atCapacity(s, up)) continue;
+            const cost = upgradeCost(up, level(s, up.id));
+            if (Object.keys(cost).some(k => k !== 'cp')) continue;
+            const score = cost.cp / Math.max(1e-9, rates[up.id].each);
+            if (!best || score < best.score) best = { id: up.id, cost: cost.cp, score };
+        }
+        return best;
+    }
+    const hardwareOwned = s => UPGRADES.filter(u => u.cps).reduce((a, u) => a + level(s, u.id), 0);
     function automationGate(s, id) {
         const g = AUTOMATION[id];
         if (!g) return null;
         // Proof by hand counts across versions: a gate met once stays met (each version used to repeat 40
         // collections and 50 research runs by hand before automation came back).
-        const done = Math.min(g.need, Math.max(s.stats[g.stat] || 0, s.stats[g.stat + 'Ever'] || 0));
+        const have = g.stat === 'hardware' ? hardwareOwned(s) : Math.max(s.stats[g.stat] || 0, s.stats[g.stat + 'Ever'] || 0);
+        const done = Math.min(g.need, have);
         const skillOk = !g.skill || s.path.learned >= g.skill;
         return { done, need: g.need, what: g.what, skill: g.skill ? skillAt(g.skill - 1).name : null, skillOk, met: done >= g.need && skillOk };
     }
@@ -240,6 +263,8 @@
         // Data feeds training: cleaner data makes every sprint stronger (a data sink that never runs out).
         { id: 'trainingData', tab: 'software', name: 'Training Data Pipeline', effect: '+8% sprint strength per level', flavor: 'Deduplicated, filtered, shuffled, and finally useful.', cost: { cp: 400, dp: 150 }, scale: 1.55,
             unlock: s => s.path.learned >= FIRST_REAL_SKILL, boost: { push: 0.08 } },   // from the warm-up: data had no use until Pattern Matching
+        { id: 'procurement', tab: 'hardware', name: 'Procurement Bot', shows: 'procurement', effect: 'Buys the best hardware for you with its share of compute', flavor: 'It reads every spec sheet. It haggles. It wins.', cost: { cp: 2500 }, max: 1,
+            unlock: s => automationGate(s, 'procurement').met, hint: 'Edge Detection, and 40 hardware bought by hand' },
         { id: 'autoCollector', tab: 'software', name: 'Auto Data Collector', shows: 'autoCollect', effect: 'Collects data for you, 10 CP each', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 800, dp: 80 }, scale: 1.5,
             unlock: s => automationGate(s, 'autoCollector').met, hint: 'Pattern Matching, and 40 data collections by hand' },
         // Training skill tree (bought with XP from the Training Path). `tree` is the node's grid
@@ -400,11 +425,11 @@
         { from: 3, name: 'Monitor', per: 0.25, flavor: 'A second screen. Twice the productivity, allegedly.' },
         { from: 4, name: 'Server Rack', per: 1, flavor: 'Bolted to the floor of your bedroom. Mum is not pleased.' },
         { from: 5, name: 'Macro Pad', per: 2, flavor: 'One button, forty clicks. Technically allowed.' },
-        { from: 12, name: 'Summer Intern', per: 5, flavor: 'Unpaid, enthusiastic, clicks everything.' },
-        { from: 20, name: 'Team of Interns', per: 12, flavor: 'They unionised. You pay them in pizza.' },
-        { from: 30, name: 'Crowdsourcing Platform', per: 30, flavor: 'Ten thousand strangers, one button.' },
-        { from: 42, name: 'Click Farm', per: 80, flavor: 'A warehouse of phones, all tapping for you.' },
-        { from: 57, name: 'Robotic Clicker Arms', per: 220, flavor: 'They never blink. Never.' }
+        { from: 12, name: 'Summer Intern', per: 3, flavor: 'Unpaid, enthusiastic, clicks everything.' },
+        { from: 20, name: 'Team of Interns', per: 6, flavor: 'They unionised. You pay them in pizza.' },
+        { from: 30, name: 'Crowdsourcing Platform', per: 15, flavor: 'Ten thousand strangers, one button.' },
+        { from: 42, name: 'Click Farm', per: 40, flavor: 'A warehouse of phones, all tapping for you.' },
+        { from: 57, name: 'Robotic Clicker Arms', per: 110, flavor: 'They never blink. Never.' }
     ];
     const CPU_AFTER_CLICK_LEVEL = 5;   // the Server Rack
     const clickToolAt = level => CLICK_TOOLS.filter(t => level > t.from || t.from === 0).at(-1);
@@ -582,7 +607,7 @@
             },
             path: { learned: 0, best: 0, auto: [], legBest: [], breakDue: 0 },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k
             projects: { offers: [], boosts: [], next: PROJECTS.firstAt, seq: 0 },
-            tasks: { autoCollector: { on: true, share: TASK_DEFAULTS.autoCollector }, researchAssistant: { on: true, share: TASK_DEFAULTS.researchAssistant }, autoTrainer: { on: true } },
+            tasks: { autoCollector: { on: true, share: TASK_DEFAULTS.autoCollector }, researchAssistant: { on: true, share: TASK_DEFAULTS.researchAssistant }, autoTrainer: { on: true }, procurement: { on: true, share: TASK_DEFAULTS.procurement, fund: 0 } },
             // notation: 'standard' (1.23M), 'scientific' (1.23e6) or 'engineering' (1.23e6, exponents in threes);
             // sound: master volume 0–1; shake: screen shake and flashes on big moments.
             settings: { autosave: true, notation: 'standard', sound: 0.5, shake: true, textSize: 1, calm: false },
@@ -766,12 +791,16 @@
         const researchDpScale = dpWanted > 0 ? Math.min(1, shares.researchAssistant * dpPerSec / dpWanted) : 1;
         const researchPerSec = wantResearch * researchCpScale * researchDpScale;
         const rpPerSec = researchPerSec * autoRpPerResearch;
-        const cpUsePerSec = collectsPerSec * collectCost.cp + researchPerSec * researchCost.cp;
+        // Procurement: its share goes into a fund while there's hardware it can buy (none at capacity: it rests).
+        const procPick = L('procurement') > 0 && taskOn(s, 'procurement') && !ch.noAuto ? procurementPick(s, hardwareRates) : null;
+        const procCp = procPick ? shares.procurement * cpPerSec : 0;
+        const cpUsePerSec = collectsPerSec * collectCost.cp + researchPerSec * researchCost.cp + procCp;
         const dpUsePerSec = researchPerSec * researchCost.dp;
         // Per task: how much of what it wants it gets (1 = full speed), and the compute it has.
         const tasks = {
             autoCollector: { share: shares.autoCollector, speed: collectScale, cp: shares.autoCollector * cpPerSec, perSec: collectsPerSec },
-            researchAssistant: { share: shares.researchAssistant, speed: researchCpScale * researchDpScale, cp: shares.researchAssistant * cpPerSec, perSec: researchPerSec }
+            researchAssistant: { share: shares.researchAssistant, speed: researchCpScale * researchDpScale, cp: shares.researchAssistant * cpPerSec, perSec: researchPerSec },
+            procurement: { share: shares.procurement, speed: procPick ? 1 : 0, cp: procCp, pick: procPick?.id || null, need: procPick?.cost || 0, fund: s.tasks?.procurement?.fund || 0 }
         };
         const autoThrottled = (wantCollects > 0 && collectScale < 1) || (wantResearch > 0 && researchCpScale * researchDpScale < 1);
         // Push strength grows with upgrades and skills, and gently with versions (Insight).
@@ -948,6 +977,8 @@
         (up.legacy ? s.prestige.levels : s.levels)[id] = level(s, id) + 1;
         if (id === 'headStart') topUpKit(s);
         if (id === 'scoutingData' && level(s, id) === 1) startBreakCountdown(s);
+        // Procurement starts claiming its share once bought: never more than the other tasks leave free.
+        if (id === 'procurement') setTaskShare(s, id, s.tasks.procurement.share);
         if (up.grants) {
             for (const [k, v] of Object.entries(up.grants)) s.attr[k] += v;
         }
@@ -1071,6 +1102,21 @@
             s.res.dp -= research * researchCost.dp;
             s.res.rp += research * d.autoRpPerResearch;
             s.stats.researchDone += research;
+        }
+        // Procurement saves its share and buys whenever the fund covers the best buy (never the stockpile).
+        const proc = d.tasks.procurement;
+        if (proc.cp > 0) {
+            const take = Math.min(proc.cp * dt, s.res.cp);
+            s.res.cp -= take;
+            s.tasks.procurement.fund += take;
+            for (let guard = 0; guard < 20; guard++) {
+                const pick = procurementPick(s, derive(s, rates).hardwareRates);
+                if (!pick || s.tasks.procurement.fund < pick.cost) break;
+                s.res.cp += pick.cost;
+                if (!buy(s, pick.id).ok) { s.res.cp -= pick.cost; break; }
+                s.tasks.procurement.fund -= pick.cost;
+                (s.tasks.procurement.bought = s.tasks.procurement.bought || []).push(pick.id);
+            }
         }
         s.stats.playTime += dt;
     }
@@ -1646,7 +1692,7 @@
             levels: { keyboard: CPU_AFTER_CLICK_LEVEL, ...headStartKit(kitLevel(s)) },
             prestige: { points: s.prestige.points + gain, total: s.prestige.total + gain, count: s.prestige.count + 1,
                 major: v.major, minor: v.minor, levels: { ...s.prestige.levels } },
-            tasks: JSON.parse(JSON.stringify(s.tasks)),
+            tasks: { ...JSON.parse(JSON.stringify(s.tasks)), procurement: { ...s.tasks.procurement, fund: 0, bought: [] } },
             settings: s.settings,
             challengesDone: { ...s.challengesDone },
             transcend: { ...s.transcend, perks: { ...s.transcend.perks } }
@@ -1684,7 +1730,7 @@
             intro: { ...s.intro },
             // The desk stays built, as after shipping (and Starter Lab's kit with it).
             levels: { keyboard: CPU_AFTER_CLICK_LEVEL, ...headStartKit(perkLevel(s, 'starterLab') ? HEAD_START.length : 0) },
-            tasks: JSON.parse(JSON.stringify(s.tasks)),
+            tasks: { ...JSON.parse(JSON.stringify(s.tasks)), procurement: { ...s.tasks.procurement, fund: 0, bought: [] } },
             settings: s.settings,
             challengesDone: { ...s.challengesDone },
             transcend: { points: s.transcend.points + gain, total: s.transcend.total + gain, count: s.transcend.count + 1, perks: { ...s.transcend.perks } }
@@ -1799,6 +1845,7 @@
         }
         // Shares never add up to more than all of production.
         for (const t of TASKS) if (t.budget) setTaskShare(s, t.id, s.tasks[t.id].share);
+        s.tasks.procurement.fund = num(raw.tasks?.procurement?.fund, 0);
         s.path.learned = Math.min(MAX_LEARNED, Math.floor(num(raw.path?.learned, 0)));
         s.path.best = Math.min(1, num(raw.path?.best, 0));
         s.path.auto = (Array.isArray(raw.path?.auto) ? raw.path.auto : []).slice(0, s.path.learned).map(v => num(v, 0));
@@ -1953,7 +2000,7 @@
 
     return {
         SAVE_VERSION, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
-        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, firstBreakSmashes, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
+        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, firstBreakSmashes, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,

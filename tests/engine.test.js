@@ -1561,3 +1561,41 @@ test('do it once, then delegate: at full capacity, hardware out-earns a held but
     assert.ok(ratio(3) > 2.5, `third skill: ${ratio(3).toFixed(2)}×`);
     assert.ok(ratio(5) > 4, `fifth skill: ${ratio(5).toFixed(2)}×`);
 });
+
+test('Procurement: earned by buying hardware by hand, then buys the best CP/s per CP with its share, never past capacity', () => {
+    const s = fresh();
+    s.path.learned = 3;
+    s.unlocked['up:cpu'] = true;
+    s.unlocked['up:server'] = true;
+    s.levels.cpu = 30;
+    s.levels.server = 9;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.procurement), false, '39 hardware: not yet');
+    s.levels.server = 10;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.procurement), true, '40 hardware by hand and Edge Detection');
+    // Not owned: it claims no share (the other tasks keep theirs).
+    assert.equal(E.taskShares(s).procurement, 0);
+    s.res.cp = 1e6;
+    assert.equal(E.buy(s, 'procurement').ok, true);
+    assert.ok(E.taskShares(s).procurement > 0);
+    const d = E.derive(s);
+    const pick = E.procurementPick(s, d.hardwareRates);
+    assert.ok(pick && ['cpu', 'server'].includes(pick.id));
+    assert.ok(Math.abs(d.tasks.procurement.cp - d.tasks.procurement.share * d.cpPerSec) < 1e-9);
+    // Over time its fund buys hardware, never touching the stockpile beyond its share.
+    s.res.cp = 0;
+    const before = s.levels.cpu + s.levels.server;
+    for (let i = 0; i < 600; i++) E.tick(s, 1);
+    assert.ok(s.levels.cpu + s.levels.server > before, 'it bought hardware');
+    assert.ok(s.levels.cpu <= E.capacity(s, E.UPGRADE_BY_ID.cpu) && s.levels.server <= E.capacity(s, E.UPGRADE_BY_ID.server));
+    // Saved, and a new version starts with an empty fund.
+    s.tasks.procurement.fund = 123;
+    assert.equal(E.deserialize(E.serialize(s), NOW).tasks.procurement.fund, 123);
+    s.attr.intelligence = 30;
+    s.path.learned = 7;
+    assert.equal(E.prestige(s, NOW + 1).state.tasks.procurement.fund, 0);
+    // Switched off, it takes nothing.
+    E.setTaskOn(s, 'procurement', false);
+    assert.equal(E.derive(s).tasks.procurement.cp, 0);
+});
