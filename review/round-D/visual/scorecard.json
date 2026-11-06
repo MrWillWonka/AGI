@@ -1,0 +1,29 @@
+{
+  "build": "92a207b",
+  "reviewVersion": 1,
+  "reviewer": "UI art-direction and interaction-design reviewer (visual design / UI-UX), round D",
+  "hardGatesPassed": true,
+  "scores": { "economy": null, "progression": null, "upgrades": null, "prestige": null, "offline": null, "performance": null,
+              "saveRestore": null, "architecture": null, "accessibility": null, "analytics": null, "visualDesign": 2,
+              "onboarding": null, "retention": null },
+  "overall": 6,
+  "regressions": [],
+  "unresolvedRisks": [
+    "Toasts still land on station headers and cards: the legacy screen's Auto-Trainer card (the one tagged Automation) at 1920 and 4K, the Software terminal title in the lab at 1920, the Hardware bench title and first price at 1280.",
+    "The early desktop lab is about 85% empty floor at 1920 (one 300 px Workbench card under a full-width supply cell); R&D is about 60% empty floor.",
+    "Act-one trail: the terrain fills the bottom quarter of a 1360x600 canvas, so the most-seen screen is mostly empty sky in a screenshot.",
+    "The Skill learned card is 95% opaque, so the canvas SUMMIT! banner and hill labels show through behind its XP line for about 1.4 s when a run ends near the crest.",
+    "Hill labels are cut at the canvas edge ('Pattern Mat'), as in round C.",
+    "Head Start level 3 grants 3 Quantum Processors while capacity at 0 skills is 1, so a new version's card reads 'Full 3/1'.",
+    "Callouts move with top/left as they follow a scrolled target; on phones one tip logged a 0.06 layout shift.",
+    "844x390: the scripted path into the bay timed out, so landscape was only spot-checked on Surveillance (page scrolls 690/390 there)."
+  ],
+  "artifacts": {
+    "scratch": "/tmp/claude-0/-home-user/0f1158a2-f868-5c40-8aa1-2529913decec/scratchpad/roundD/visual/",
+    "screenshotsBefore": "before/92a207b-<desktop|narrow|mobile>-<state>.png (37/36/35 states)",
+    "screenshotsAfter": "after/92a207b-<vp>-<state>.png (taken at worktree HEAD 492691f)",
+    "audits": "before/audit-92a207b-<vp>.json, after/audit-92a207b-<vp>.json, compare-before-after.json",
+    "probes": "probe1.js (act two at the frontier, keyboard on the legacy screen; probes/ before, after/ after), probe-banner.js",
+    "comparisons": "after/cmp-banner-mobile.png, after/cmp-banner-artifact.png, after/cmp-autotrainer-row.png, after/crop-autotrainer-lv3.png"
+  }
+}

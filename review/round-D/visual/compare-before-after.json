@@ -1,0 +1,140 @@
+{
+ "desktop": {
+  "contrastFails": [
+   4,
+   4
+  ],
+  "small": [
+   33,
+   35
+  ],
+  "offscreen": [
+   6,
+   6
+  ],
+  "clipped": [
+   16,
+   16
+  ],
+  "truncated": [
+   4,
+   4
+  ],
+  "overlaps": [
+   24,
+   26
+  ],
+  "spill": [
+   38,
+   38
+  ],
+  "vScrollStates": [
+   0,
+   0
+  ],
+  "hScrollStates": [
+   0,
+   0
+  ],
+  "states": [
+   37,
+   37
+  ],
+  "textChecked": [
+   1953,
+   1960
+  ]
+ },
+ "narrow": {
+  "contrastFails": [
+   4,
+   4
+  ],
+  "small": [
+   21,
+   21
+  ],
+  "offscreen": [
+   15,
+   15
+  ],
+  "clipped": [
+   53,
+   53
+  ],
+  "truncated": [
+   2,
+   2
+  ],
+  "overlaps": [
+   69,
+   68
+  ],
+  "spill": [
+   70,
+   70
+  ],
+  "vScrollStates": [
+   10,
+   10
+  ],
+  "hScrollStates": [
+   0,
+   0
+  ],
+  "states": [
+   36,
+   37
+  ],
+  "textChecked": [
+   1666,
+   1703
+  ]
+ },
+ "mobile": {
+  "contrastFails": [
+   4,
+   4
+  ],
+  "small": [
+   22,
+   22
+  ],
+  "offscreen": [
+   20,
+   20
+  ],
+  "clipped": [
+   12,
+   12
+  ],
+  "truncated": [
+   7,
+   7
+  ],
+  "overlaps": [
+   155,
+   149
+  ],
+  "spill": [
+   32,
+   32
+  ],
+  "vScrollStates": [
+   10,
+   10
+  ],
+  "hScrollStates": [
+   0,
+   0
+  ],
+  "states": [
+   35,
+   35
+  ],
+  "textChecked": [
+   1214,
+   1214
+  ]
+ }
+}
