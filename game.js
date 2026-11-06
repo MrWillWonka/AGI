@@ -7175,6 +7175,8 @@ window.AGI = (function () {
         setHidden($('mailCount'), !n);
         setText($('mailCount'), String(n));
         $('mailButton').classList.toggle('unread', n > 0);
+        // The count badge is decorative for assistive tech (aria-hidden); the name carries it instead.
+        $('mailButton').setAttribute('aria-label', n ? `Inbox, ${n} unread` : 'Inbox');
     }
     function renderInbox() {
         const rows = mailArrived().slice().reverse().map(m => {

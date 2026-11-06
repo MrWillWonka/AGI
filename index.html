@@ -47,7 +47,7 @@
             <div class="topbar-buttons">
                 <!-- Developer tools: a tap (or the ` key) opens and closes the debug panel, so it works on a phone too. -->
                 <button type="button" class="debug-toggle" id="debugToggle" aria-label="Developer tools" title="Developer tools"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M12 15h5"/></svg></button>
-                <button type="button" class="ghost-button mail-button" id="mailButton" aria-label="Inbox"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span class="mail-count" id="mailCount" hidden></span></button>
+                <button type="button" class="ghost-button mail-button" id="mailButton" aria-label="Inbox"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span class="mail-count" id="mailCount" aria-hidden="true" hidden></span></button>
                 <button type="button" class="ghost-button" id="journalButton">Journal</button>
             </div>
         </div>
@@ -154,7 +154,7 @@
                                     <div class="charge-fill" id="chargeFill"></div>
                                 </div>
                                 <div class="charge-labels">
-                                    <span id="chargeValue" aria-live="polite">Strength</span>
+                                    <span id="chargeValue">Strength</span>
                                     <span class="charge-clean" id="chargeClean"></span>
                                 </div>
                             </div>
@@ -323,7 +323,7 @@
             <button type="button" class="tab" role="tab" data-section="stats">Stats</button>
             <button type="button" class="tab" role="tab" data-section="settings">Settings</button>
         </div>
-        <div class="journal-body">
+        <div class="journal-body" tabindex="0">
             <section data-section="log" role="tabpanel" aria-label="Log">
                 <ol id="gameLog" class="log"></ol>
             </section>
