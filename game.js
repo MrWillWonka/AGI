@@ -1846,14 +1846,14 @@ window.AGI = (function () {
             const seenPhase = `phase:${changes.phase.name}`;
             if (!state.intro[seenPhase]) {
                 state.intro[seenPhase] = true;
-                // The ending screen is the announcement for the last phase of the story.
+                // The chapter's ending card is the announcement for this phase.
                 if (!changes.ending) toast(`${changes.phase.name} reached`, 'A new phase for your AI', 'phase');
             }
         }
         if (changes.ending) showEnding();
     }
 
-    // The end of the story (Superintelligence): what it took, then endless mode. Once per save.
+    // The end of chapter one (Superintelligence): what it took, then the story goes on. Once per save.
     const ENDING_LINES = [
         'Your model solved a problem nobody had posed yet.',
         'It thanked the team, politely, in every language at once.',

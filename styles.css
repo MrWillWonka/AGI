@@ -1246,7 +1246,7 @@ h1, h2, h3, p { margin: 0; }
 .title-loop li + li::before { content: '→'; color: var(--warning); }
 .title-loop li:last-child { color: var(--warning); }
 
-/* The ending (Superintelligence): a title card, three lines typed in one after another, the run in numbers. */
+/* The end of chapter one (Superintelligence): a title card, three lines typed in one after another, the run in numbers. */
 #ending { width: min(520px, calc(100vw - 32px)); border-color: var(--accent); box-shadow: 0 0 60px color-mix(in srgb, var(--accent) 25%, transparent); }
 .ending-form { display: flex; flex-direction: column; gap: 14px; padding: 26px 24px 20px; }
 .ending-kicker { font: 600 0.72rem var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }

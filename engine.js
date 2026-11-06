@@ -113,8 +113,8 @@
         { name: 'Singularity', req: { intelligence: 300, creativity: 30, awareness: 30 }, versions: 3 }
     ];
 
-    // The phase that ends the story: one shipped version and Superintelligence, about 1.5–2 hours in.
-    // Everything after it (the Singularity, challenges, Transcend) is endless mode.
+    // The phase that ends chapter one: one shipped version and Superintelligence, about 1.5–2 hours in. A
+    // payoff with the run in numbers; the story arc and the facility's other bays carry on after it.
     const ENDING_PHASE = 2;
 
     // Manual actions. `unlock` is the unlock key that reveals the action (null = always visible).
@@ -573,7 +573,7 @@
                 tokens: 0,            // XP tokens taken
                 collectsEver: 0,      // hand collections and research runs in earlier versions (automation gates)
                 researchManualEver: 0,
-                finishedAt: 0         // play seconds when the story ended (ENDING_PHASE); 0 = not yet. Kept for good
+                finishedAt: 0         // play seconds when chapter one ended (ENDING_PHASE); 0 = not yet. Kept for good
             },
             path: { learned: 0, best: 0, auto: [], legBest: [], breakDue: 0 },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k
             projects: { offers: [], boosts: [], next: PROJECTS.firstAt, seq: 0 },
@@ -1118,7 +1118,7 @@
             s.stats.highestPhase = idx;
             out.phase = PHASES[idx];
         }
-        // The story ends at Superintelligence (the Singularity and Transcend are endless mode after it).
+        // Chapter one ends at Superintelligence (the story goes on after it).
         if (idx >= ENDING_PHASE && !s.stats.finishedAt) {
             s.stats.finishedAt = Math.max(1, s.stats.playTime);
             out.ending = true;
