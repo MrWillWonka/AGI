@@ -5091,19 +5091,22 @@ window.AGI = (function () {
     function autoTrain(roll) {
         const lvl = E.autoTrainerLevel(state);
         path.autoThrust = false;
-        // Act two: thrust instead of sprints. Level 1 keeps the ball rolling (from rest and when slow), level 2
-        // also thrusts up climbs it won't make, level 3 also holds flights up on the way down.
+        // Act two: thrust instead of sprints. Every level keeps the ball rolling (from rest and when slow), thrusts
+        // up climbs it won't make and holds flights up on the way down: the earned first level plays the trail as
+        // well as a player at full charge would (it used to only sprint from rest, and leaving it on was slower
+        // than playing by hand). Levels 2 and 3 add the prompts.
         if (lvl && thrustLeg(roll) && !roll.over && path.pause <= 0 && !frozen() && (roll.pushesLeft > 0 || crunching())) {
             const slow = !roll.airborne && roll.ball.v < AUTO_THRUST_SPEED;
-            path.autoThrust = !roll.launched || slow || (lvl >= 2 && wontClear(roll)) || (lvl >= 3 && roll.airborne && roll.vy < 0);
+            path.autoThrust = !roll.launched || slow || wontClear(roll) || (roll.airborne && roll.vy < 0);
             return;
         }
         if (!lvl || roll.over || path.pause > 0 || roll.ball.cooldown > 0 || path.fx.windup || frozen() || roll.airborne) return;
-        if (!(!roll.launched || roll.atRest || (lvl >= 2 && wontClear(roll)))) return;
+        if (!(!roll.launched || roll.atRest || wontClear(roll))) return;
         const budget = chargeBudget();
-        if (lvl >= 3) {
+        if (lvl >= 2) {
+            // Level 2 aims at the clean prompt's centre, level 3 at the super prompt's (else the clean one's).
             const zone = currentZone(roll);
-            const aim = zone.perfectTo > zone.perfectFrom ? (zone.perfectFrom + zone.perfectTo) / 2 : (zone.from + zone.to) / 2;
+            const aim = lvl >= 3 && zone.perfectTo > zone.perfectFrom ? (zone.perfectFrom + zone.perfectTo) / 2 : (zone.from + zone.to) / 2;
             if (zone.to > zone.from && aim <= budget) {
                 const kind = E.zoneHit(zone, aim);
                 if (pushBall(true, aim, kind) && kind) promptBonus(roll, kind, ballLeg(), aim);
