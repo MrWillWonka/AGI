@@ -1,0 +1,36 @@
+{
+  "build": "3c2d750",
+  "reviewVersion": 1,
+  "reviewer": "visual design / UI-UX (round B)",
+  "hardGatesPassed": true,
+  "scores": {
+    "economy": null, "progression": null, "upgrades": null, "prestige": null, "offline": null, "performance": null,
+    "saveRestore": null, "architecture": null, "accessibility": null, "analytics": null,
+    "visualDesign": 2,
+    "onboarding": null, "retention": null
+  },
+  "overall": 6,
+  "regressions": [],
+  "unresolvedRisks": [
+    "The first lab screen at 1920×1080 is ~95% empty: one 265 px action card and a 560 px empty Workbench column; the owner's layout-stability rule reserves the space, so a fix needs a design decision (station art / a one-column early lab / a tighter max width for the early lab).",
+    "Toasts are placed top-centre under the supply row and sit over whatever is there: the Data supply cell (1920), the Research cell (1280), the Compute+Data cells and the Generate Compute card (390), the result card's header (390), a legacy column header (1920). placeToasts only clears the status lines.",
+    "With the Auto-Trainer on, the next run's breakthrough wind-up starts under the previous run's result card ('Next roll starting…'); the card also hides the PARADIGM SHIFT banner's sub-line.",
+    "A hardware tier at capacity on a phone: the 3-line 'Full n/n · more room with the next skill' pill collapses the title column to 3 px and the piece thumbnail covers the name (measured at 390×844 with Graphics Card 30/30).",
+    "Upright phones in act two: the bay bar wraps to two rows (Auto-Trainer, Restart, Upgrades) and the primary Hold to thrust button drops below the fold (page 903/844).",
+    "The lab's supply label truncates to 'COMPU…' / 'TRAINING …' at 390 px; the inbox subject and sender ellipsise at every width.",
+    "Natural reveals on a phone shift layout by CLS 0.12–0.14 per reveal (the makeRoom slide is the design); debug-driven bursts reached 1.0+.",
+    "'Line open' placeholders in Investor projects measure 2.7:1 (10.6 px); the gate line under workbench jobs 4.4:1 at 11.2 px; the '???' sealed marks 1.5:1 (decorative, deliberate).",
+    "The affordable-pill fill (patch 22e68b5) is a mockup at 1.3–1.4:1 state separation; the solid variant measures 10.3:1 but is louder: the owner's call.",
+    "4K was spot-checked only (Playwright's click targets fail under CSS zoom 1.9); the UI-scale zoom reproduces the 1920 layout, nothing broken seen, mid-reveal frames only."
+  ],
+  "artifacts": {
+    "scratch": "/tmp/claude-0/-home-user/0f1158a2-f868-5c40-8aa1-2529913decec/scratchpad/roundB/visual/",
+    "screenshotsBefore": "3c2d750-<viewport>-<state>.png (desktop 1920×1080, narrow 1280×800, mobile 390×844, landscape 844×390, 4k 3840×2160)",
+    "screenshotsAfter": "after/after/3c2d750-<viewport>-<state>.png",
+    "auditsBefore": "audit-3c2d750-<viewport>.json",
+    "auditsAfter": "after/after/audit-3c2d750-<viewport>.json",
+    "comparison": "compare-before-after.json",
+    "probes": "harness.js run.js landscape-check.js summit-check.js topbar-check.js popup-check.js popup-swipe.js targets-check.js affordance-check.js affordance-eval.py capped-check.js compare.py",
+    "probeOutputs": "summit-{before,after}-1920x1080.json, affordance-{before,after,solid}-*.json, 3c2d750-sideways-*-bay-{before,after}.png, 3c2d750-topbar-*-lab-{before,after}.png, 3c2d750-popup-*-{before,after}.png, 3c2d750-targets-*-{before,after}.png, 3c2d750-affordance-*-{before,after,solid}.png, 3c2d750-capped-*.png, crop-*.png"
+  }
+}

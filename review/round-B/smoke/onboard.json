@@ -1,0 +1,172 @@
+{
+  "capMin": 20,
+  "wall": 1200.4,
+  "final": {
+    "play": 1199.600999999981,
+    "cp": 6721.897999999034,
+    "dp": 0,
+    "xp": 24.893430454066607,
+    "clicks": 576,
+    "collects": 56,
+    "rolls": 13,
+    "learned": 1,
+    "kb": 5,
+    "cpu": 14,
+    "lvSum": 35,
+    "collectOpen": true,
+    "serverOpen": true,
+    "inbox": false,
+    "dialog": false,
+    "room": "servers",
+    "bayOpen": true,
+    "runView": true,
+    "devView": false,
+    "labVisible": false,
+    "facility": false
+  },
+  "milestones": {
+    "firstClick": {
+      "play": 4,
+      "wall": 4.6
+    },
+    "firstPurchase(desk item 1)": {
+      "play": 13.2,
+      "wall": 13.8
+    },
+    "deskBuilt(Server Rack)": {
+      "play": 77.3,
+      "wall": 78
+    },
+    "firstAutomation(Graphics Card)": {
+      "play": 79.2,
+      "wall": 79.9
+    },
+    "collectDataUnlocked": {
+      "play": 108.5,
+      "wall": 109.1
+    },
+    "firstCollect": {
+      "play": 109.4,
+      "wall": 110.1
+    },
+    "serverRoomUnlocked": {
+      "play": 210.1,
+      "wall": 210.8
+    },
+    "serverRoomEntered": {
+      "play": 211.4,
+      "wall": 212
+    },
+    "trainingBayEntered": {
+      "play": 215.4,
+      "wall": 216
+    },
+    "Tokenization": {
+      "play": 221.2,
+      "wall": 221.8
+    },
+    "firstRunEnded": {
+      "play": 222.9,
+      "wall": 223.5
+    }
+  },
+  "events": [
+    "4.6s firstClick",
+    "13.8s firstPurchase(desk item 1)",
+    "78s deskBuilt(Server Rack)",
+    "79.9s firstAutomation(Graphics Card)",
+    "109.1s collectDataUnlocked",
+    "110.1s firstCollect",
+    "210.8s serverRoomUnlocked",
+    "212s serverRoomEntered",
+    "216s trainingBayEntered",
+    "221.8s Tokenization",
+    "223.5s firstRunEnded",
+    "585.7s STALL 120 s without a purchase, run or milestone",
+    "705.9s STALL 120 s without a purchase, run or milestone",
+    "826.2s STALL 120 s without a purchase, run or milestone",
+    "946.7s STALL 120 s without a purchase, run or milestone",
+    "1067.1s STALL 120 s without a purchase, run or milestone",
+    "1187.6s STALL 120 s without a purchase, run or milestone"
+  ],
+  "callouts": [
+    {
+      "wall": 58.3,
+      "play": 57.6,
+      "text": "↻ TIP Holding down a job generates resources at a set rate."
+    },
+    {
+      "wall": 212.1,
+      "play": 211.4,
+      "text": "⌂ SERVER ROOM ONLINE Open the map to see every area, or click the server room to start training."
+    },
+    {
+      "wall": 217.6,
+      "play": 216.9,
+      "text": "↻ TRAINING RUNS This is how your model learns. Hold the button to charge a sprint and let go to fire it. Roll over the hills to the flag: cresting the skill hil"
+    },
+    {
+      "wall": 231.3,
+      "play": 230.7,
+      "text": "↻ TIP Scheduled tasks shows every automation that's running, and what each cleared leg trains on its own."
+    },
+    {
+      "wall": 261.3,
+      "play": 260.6,
+      "text": "↻ NEW IN THE LAB Training Data Pipeline just opened. The lab's badge counts what's new since your last visit."
+    },
+    {
+      "wall": 266.3,
+      "play": 265.6,
+      "text": "↻ PASSIVE XP Your AI now replays your best run on each cleared leg, earning XP by itself while you play."
+    },
+    {
+      "wall": 393.1,
+      "play": 392.2,
+      "text": "↻ PROMPTS Release a sprint inside the green zone for bonus XP and a bigger run bonus. It isn't always the best play: a full charge might take you farther."
+    }
+  ],
+  "clicks": 757,
+  "errorClicks": 37,
+  "errorRate": 0.049,
+  "errorList": [
+    "2.3 no effect: open unread mail",
+    "62.7 callout: dismiss: locator.click: Timeout 1500ms exceeded.",
+    "214.8 callout: dismiss: locator.click: Timeout 1500ms exceeded.",
+    "221.8 callout: dismiss: locator.click: Timeout 1500ms exceeded.",
+    "224.3 no effect: tree node",
+    "225 no effect: tree node",
+    "226.5 tree buy: locator.click: Timeout 1500ms exceeded.",
+    "229.4 lab buy: locator.click: Timeout 1500ms exceeded.",
+    "235.6 callout: dismiss: locator.click: Timeout 1500ms exceeded.",
+    "255.1 compute: locator.click: Timeout 1500ms exceeded.",
+    "256.4 no effect: tree node",
+    "258.3 start run: locator.click: Timeout 1500ms exceeded.",
+    "265.5 callout: dismiss: locator.click: Timeout 1500ms exceeded.",
+    "270.5 callout: dismiss: locator.click: Timeout 1500ms exceeded.",
+    "271.2 no effect: tree node",
+    "273.1 start run: locator.click: Timeout 1500ms exceeded.",
+    "286.3 no effect: tree node",
+    "288.2 start run: locator.click: Timeout 1500ms exceeded.",
+    "299.6 no effect: tree node",
+    "301.5 start run: locator.click: Timeout 1500ms exceeded.",
+    "313.1 no effect: tree node",
+    "315.2 start run: locator.click: Timeout 1500ms exceeded.",
+    "328.7 no effect: tree node",
+    "330.7 start run: locator.click: Timeout 1500ms exceeded.",
+    "368.4 compute: locator.click: Timeout 1500ms exceeded.",
+    "370.1 no effect: tree node",
+    "373 start run: locator.click: Timeout 1500ms exceeded.",
+    "386.2 no effect: tree node",
+    "388.7 start run: locator.click: Timeout 1500ms exceeded.",
+    "397.6 callout: dismiss: locator.click: Timeout 1500ms exceeded.",
+    "403.7 no effect: tree node",
+    "423 no effect: Train again",
+    "438.5 no effect: tree node",
+    "441.1 start run: locator.click: Timeout 1500ms exceeded.",
+    "455 no effect: Train again",
+    "464.8 no effect: tree node",
+    "467.3 start run: locator.click: Timeout 1500ms exceeded."
+  ],
+  "pageErrors": []
+}

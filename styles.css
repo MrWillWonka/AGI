@@ -8,7 +8,7 @@
     --panel-2: #152a2f;
     --border: #21393f;
     --text: #e4eee9;
-    --muted: #86a19a;
+    --muted: #8fa9a2;   /* 4.5:1 on panels (round B: #86a19a read 4.4:1) */
     --primary: #6fb3d9;   /* data, focus */
     --secondary: #2f7f86; /* terrain */
     --accent: #ff7a6b;    /* record flag, special log lines */
@@ -2147,7 +2147,7 @@ html, body { overflow-x: clip; }
 .project-time { grid-area: time; font: 0.62rem var(--font-mono); color: var(--muted); text-align: right; white-space: nowrap; }
 .project-claim { grid-area: claim; min-height: 24px; padding: 3px 10px; font-size: 0.7rem; }
 .project-drop { grid-area: drop; min-width: 24px; min-height: 24px; background: none; border: 0; padding: 0 4px; line-height: 1; color: var(--muted); cursor: pointer; font-size: 0.95rem; }
-.offer.open { display: grid; place-items: center; grid-template: none; border-style: dashed; background: none; font: 500 0.66rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: #3e5f66; }
+.offer.open { display: grid; place-items: center; grid-template: none; border-style: dashed; background: none; font: 500 0.66rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 
 /* ---- Minimap: bigger, titled, easy to find ---- */
 .minimap { width: 196px; padding: 8px; border-color: color-mix(in srgb, var(--success) 45%, transparent); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 18px color-mix(in srgb, var(--success) 12%, transparent); }

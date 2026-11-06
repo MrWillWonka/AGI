@@ -339,12 +339,14 @@ window.AGI = (function () {
         box.style.top = '';
         const z = uiScale();
         const base = box.getBoundingClientRect().top;
+        // The toast's own height (two lines and a badge run past 80 px): it sat over the lab's supply cells.
+        const tall = Math.max(80, ...[...box.children].map(c => c.getBoundingClientRect().height));
         let below = 0;
         for (const sel of TOAST_CLEAR) {
             for (const n of document.querySelectorAll(sel)) {
                 if (n.closest('.facility') || !n.offsetParent) continue;
                 const r = n.getBoundingClientRect();
-                if (r.width && r.bottom > base - 8 && r.top < base + 80) below = Math.max(below, r.bottom + 8);
+                if (r.width && r.bottom > base - 8 && r.top < base + tall) below = Math.max(below, r.bottom + 8);
             }
         }
         if (below > base) box.style.top = `${below / z}px`;
@@ -5184,6 +5186,8 @@ window.AGI = (function () {
         if (lvl && thrustLeg(roll) && !roll.over && path.pause <= 0 && !frozen() && (roll.pushesLeft > 0 || crunching())) {
             const slow = !roll.airborne && roll.ball.v < AUTO_THRUST_SPEED;
             path.autoThrust = !roll.launched || slow || wontClear(roll) || (roll.airborne && roll.vy < 0);
+            // Its launch clears the last run's card, as a hand launch does (it sat over the next run's smash).
+            if (path.autoThrust && !roll.launched && !$('rollResult').hidden) { path.overview = 0; dismissResult(); }
             return;
         }
         if (!lvl || roll.over || path.pause > 0 || roll.ball.cooldown > 0 || path.fx.windup || frozen() || roll.airborne) return;

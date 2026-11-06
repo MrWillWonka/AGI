@@ -1,0 +1,29 @@
+{
+  "build": "3c2d750 (reviewed); patches on top: bc519d2, e40acc8, 0e10b6a, b2c21e0",
+  "reviewVersion": 1,
+  "reviewer": "release-gate (smoke) + systems/UX (accessibility, analytics, onboarding)",
+  "hardGatesPassed": true,
+  "scores": { "economy": null, "progression": null, "upgrades": null, "prestige": null, "offline": null, "performance": null,
+              "saveRestore": null, "architecture": null, "accessibility": 2, "analytics": 2, "visualDesign": null,
+              "onboarding": 2, "retention": null },
+  "overall": 7,
+  "regressions": [
+    "Since 1493e89 no callout pointing at a room on the minimap was ever shown (Server room online, R&D online, Research while training, Auto-Trainer online away from the bay): the minimap is position:fixed so offsetParent is always null. Fixed in b2c21e0."
+  ],
+  "unresolvedRisks": [
+    "Data starvation dead end: a player who trains without returning to the lab reaches DP 0 at 0 DP/s before the Auto Data Collector (needs Pattern Matching); the sprint button keeps reading 'Hold to launch', presses do nothing (only a sprintBroke tally); the naive bot stopped here after 13 runs at a 92% record.",
+    "Playtest log flushes every 30 s of play and on pagehide/hidden: a crash or a torn-down artifact frame loses up to 30 s of events (3 of ~9 events were in storage at the moment of a reload; pagehide recovered them).",
+    "Playtest events carry no per-event save/game version (only 'session' and 'ship'), no marker for debug-panel use, and no events for settings changes, import/export, backup restore or Erase everything.",
+    "Contrast: read junk mail rows 2.28:1 and unearned achievement descriptions 3.03:1 (need 4.5:1).",
+    "Phones: the home crumb (the only way home inside a bay) is 19x25 px; tree-popup close 22x23; #chargeValue is an aria-live region rewritten every frame while charging."
+  ],
+  "artifacts": {
+    "folder": "/tmp/claude-0/-home-user/0f1158a2-f868-5c40-8aa1-2529913decec/scratchpad/roundB/smoke/",
+    "smoke": "smoke.js, smoke-results.json (after patches), smoke-results-before.json",
+    "keyboard": "keyboard.js, keyboard-results.json, keyboard-results-before.json, 09-keyboard-*.png",
+    "accessibility": "a11y.js, a11y-1280x800.json, a11y-1280x800-before.json, a11y-390x844.json, motion.js, motion.json, probe-cam.js, probe-unaff.js",
+    "analytics": "analytics.js, analytics.json, analytics-before.json, analytics-events.jsonl, analytics-events-before.jsonl",
+    "onboarding": "onboard.js, onboard.json (after fix), onboard-run1-before-fix.json, onboard-stall-*.png, onboard-final.png, probe-server-cue.js, probe-mm.js",
+    "screenshots": "shot-1280x800-*.png, shot-390x844-*.png, 01-boot-inbox-1280.png, 04-first-buy-1280.png"
+  }
+}

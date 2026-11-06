@@ -1,0 +1,183 @@
+{
+  "g1_boot": {
+    "errors": [],
+    "inboxOpen": true
+  },
+  "g2_clean": {
+    "res": {
+      "cp": 0,
+      "dp": 0,
+      "rp": 0,
+      "xp": 0
+    },
+    "nonFinite": [],
+    "negatives": [],
+    "saveVersion": 15
+  },
+  "g3_click": {
+    "before": {
+      "cp": 0,
+      "clicks": 0
+    },
+    "after": {
+      "cp": 1,
+      "clicks": 1,
+      "clickPower": 1
+    },
+    "cpsAtStart": 0,
+    "deltaCp": 1,
+    "deltaClicks": 1
+  },
+  "g4_buy": {
+    "preBuy": {
+      "cp": 41,
+      "lvl": 0,
+      "cost": {
+        "cp": 25
+      },
+      "click": 1,
+      "visible": true
+    },
+    "postBuy": {
+      "cp": 16,
+      "lvl": 1,
+      "click": 1.25
+    },
+    "cpSpent": 25,
+    "clickDelta": 0.25
+  },
+  "g5_production": {
+    "lvlKey": "levels",
+    "cpPerSec": 2.5,
+    "cp0": 16,
+    "cp1": 166,
+    "expected": 150,
+    "actual": 150
+  },
+  "g6_roundtrip": {
+    "bytes": 1324,
+    "diffs": [
+      "s.stats.playTime: 17.936000000000007 -> 19.522000000000023",
+      "s.lastSaved: 1793950503906 -> 1793950505846"
+    ]
+  },
+  "g7_offline": {
+    "hid": {
+      "cps": 2.5,
+      "cp0": 5016,
+      "cp1": 5016,
+      "earnedHidden": 0,
+      "playTimeHidden": 0
+    },
+    "gap": {
+      "cp0": 5016,
+      "cp1": 5016.75,
+      "delta": 0.75,
+      "finite": true,
+      "logHasPaused": true
+    },
+    "loadGap": {
+      "cpBefore": 5016.75,
+      "cpAfterLoad24h": 5016.75
+    }
+  },
+  "g8_nan": [
+    {
+      "label": "after offline checks",
+      "stateBad": [],
+      "deriveBad": [],
+      "badPrices": []
+    },
+    {
+      "label": "simulate 600",
+      "stateBad": [],
+      "deriveBad": [],
+      "badPrices": []
+    },
+    {
+      "label": "learnSkill x3",
+      "stateBad": [],
+      "deriveBad": [],
+      "badPrices": []
+    },
+    {
+      "label": "addHardware",
+      "stateBad": [],
+      "deriveBad": [],
+      "badPrices": []
+    },
+    {
+      "label": "buyLabUpgrades",
+      "stateBad": [],
+      "deriveBad": [],
+      "badPrices": []
+    },
+    {
+      "label": "unlockAll",
+      "stateBad": [],
+      "deriveBad": [],
+      "badPrices": []
+    },
+    {
+      "label": "reachPhase 2",
+      "stateBad": [],
+      "deriveBad": [],
+      "badPrices": []
+    },
+    {
+      "label": "addVersion",
+      "stateBad": [],
+      "deriveBad": [],
+      "badPrices": []
+    },
+    {
+      "label": "shipVersion",
+      "stateBad": [],
+      "deriveBad": [],
+      "badPrices": []
+    },
+    {
+      "label": "maxLegacy",
+      "stateBad": [],
+      "deriveBad": [],
+      "badPrices": []
+    },
+    {
+      "label": "maxTree",
+      "stateBad": [],
+      "deriveBad": [],
+      "badPrices": []
+    },
+    {
+      "label": "simulate 3600",
+      "stateBad": [],
+      "deriveBad": [],
+      "badPrices": []
+    },
+    {
+      "label": "openChallenges+beat",
+      "stateBad": [],
+      "deriveBad": [],
+      "badPrices": []
+    },
+    {
+      "label": "readyTranscend",
+      "stateBad": [],
+      "deriveBad": [],
+      "badPrices": []
+    },
+    {
+      "label": "add cp 1e300",
+      "stateBad": [],
+      "deriveBad": [],
+      "badPrices": []
+    },
+    {
+      "label": "simulate 60 after 1e300",
+      "stateBad": [],
+      "deriveBad": [],
+      "badPrices": []
+    }
+  ],
+  "errorsSoFar": []
+}
