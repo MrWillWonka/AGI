@@ -1596,6 +1596,7 @@ window.AGI = (function () {
         if (state.challenge?.id === c.id) {
             const { ok } = await openDialog({ title: `Abandon ${c.name}?`, message: 'The rule lifts and this version carries on as normal. No perk.', okLabel: 'Abandon', danger: true });
             if (ok && E.abandonChallenge(state)) {
+                pt('challenge', { name: c.name, abandoned: true });
                 log(`Challenge abandoned: ${c.name}.`, 'warning');
                 afterChange();
             }
@@ -2955,7 +2956,10 @@ window.AGI = (function () {
         if (bought?.length) {
             const n = {};
             for (const id of bought) n[id] = (n[id] || 0) + 1;
-            for (const [id, k] of Object.entries(n)) termLog(`procurement bought ${k > 1 ? k + '× ' : ''}${E.UPGRADE_BY_ID[id].name}`);
+            for (const [id, k] of Object.entries(n)) {
+                termLog(`procurement bought ${k > 1 ? k + '× ' : ''}${E.UPGRADE_BY_ID[id].name}`);
+                pt('buy', { id, lvl: E.level(state, id), ...(k > 1 ? { n: k } : {}), auto: true });
+            }
             bought.length = 0;
         }
     }
