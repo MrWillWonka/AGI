@@ -2702,6 +2702,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
     padding: 20px 24px; background: var(--bg); border: 1px solid color-mix(in srgb, var(--research) 45%, transparent); border-radius: 12px; overflow: auto;
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 40px color-mix(in srgb, var(--research) 12%, transparent); }
 .legacy-screen[hidden] { display: none; }
+.legacy-screen:focus { outline: none; }
 .legacy-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .legacy-head h2 { font: 700 1.1rem var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--research); margin: 0; }
 .legacy-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; align-items: start; }

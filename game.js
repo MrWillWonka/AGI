@@ -3298,6 +3298,7 @@ window.AGI = (function () {
         // Escape zooms back out one level: bay → server room → facility (dialogs handle their own Escape).
         document.addEventListener('keydown', e => {
             if (e.key !== 'Escape' || document.querySelector('dialog[open]')) return;
+            if (!$('legacyScreen').hidden) { closeLegacy(); return; }
             if (openBay && view === 'servers') exitBay();
             else zoomOut();
         });
@@ -3488,12 +3489,20 @@ window.AGI = (function () {
         legacyUi.afterShip = afterShip;
         setText($('legacyDone'), afterShip ? `Start ${E.currentVersion(state)}` : 'Done');
         $('legacyScreen').hidden = false;
+        // The screen covers the room under it: keep keyboard focus (and screen readers) on it, not on what it hides.
+        legacyBehind(true);
+        $('legacyScreen').focus({ preventScroll: true });
         ptView('legacy');
         renderLegacy();
     }
 
+    function legacyBehind(covered) {
+        for (const el of [document.querySelector('main.layout'), $('minimap')]) if (el) el.inert = covered;
+    }
+
     function closeLegacy() {
         $('legacyScreen').hidden = true;
+        legacyBehind(false);
         ptView(legacyUi.afterShip ? 'lab' : ptPlace());
         if (legacyUi.afterShip) showView('lab');
         legacyUi.afterShip = false;
