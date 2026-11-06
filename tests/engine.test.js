@@ -1615,3 +1615,20 @@ test('breaking a wall: the next runs open with a smash, counted down per run, an
     E.learnSkill(s, 4);
     assert.equal(s.path.surge, 0, 'an ordinary skill brings none');
 });
+
+test('mail: the story by email, the spam first, then one message per story beat', () => {
+    const s = fresh();
+    const ids = new Set();
+    for (const m of E.MAIL) {
+        assert.ok(m.id && !ids.has(m.id), 'unique ids');
+        ids.add(m.id);
+        assert.ok(m.from && m.subject && Array.isArray(m.body) && m.body.length, `${m.id} has a sender, subject and body`);
+    }
+    assert.equal(E.MAIL[0].id, 'welcome');
+    assert.deepEqual(E.MAIL.filter(m => m.when(s)).map(m => m.id), ['welcome'], 'a new game has only the spam');
+    s.unlocked['module:path'] = true;
+    s.path.learned = 2;
+    assert.ok(E.MAIL.find(m => m.id === 'serverRoom').when(s) && E.MAIL.find(m => m.id === 'firstSkill').when(s));
+    s.stats.finishedAt = 100;
+    assert.ok(E.MAIL.find(m => m.id === 'chapterOne').when(s));
+});

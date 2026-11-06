@@ -47,6 +47,7 @@
             <div class="topbar-buttons">
                 <!-- Developer tools: a tap (or the ` key) opens and closes the debug panel, so it works on a phone too. -->
                 <button type="button" class="debug-toggle" id="debugToggle" aria-label="Developer tools" title="Developer tools"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M12 15h5"/></svg></button>
+                <button type="button" class="ghost-button mail-button" id="mailButton" aria-label="Inbox"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span class="mail-count" id="mailCount" hidden></span></button>
                 <button type="button" class="ghost-button" id="journalButton">Journal</button>
             </div>
         </div>
@@ -435,17 +436,22 @@
 
     <div id="toasts" class="toasts" aria-live="polite"></div>
 
-    <!-- The opening (a brand-new game only): a message from an unknown sender, then the desk. -->
-    <dialog id="transmission" class="dialog transmission" aria-labelledby="transmissionTitle">
-        <form method="dialog" class="transmission-form">
-            <p class="transmission-head"><span class="transmission-dot" aria-hidden="true"></span>Incoming message · sender unknown</p>
-            <h2 id="transmissionTitle" class="sr-only">Incoming message</h2>
-            <div class="transmission-lines" id="transmissionLines"></div>
-            <p class="transmission-note"><strong>Playtest build.</strong> The story isn't written yet, and the numbers are still being tuned. Build your desk, click a lot, and note where it drags or confuses you (Journal → Settings has a playtest log to copy).</p>
-            <div class="dialog-actions">
-                <button type="submit" value="ok" class="button" id="transmissionOk">Get to work</button>
-            </div>
-        </form>
+    <!-- Mail: the story by email (E.MAIL). A new game opens here, on one unread spam email. -->
+    <dialog id="inbox" class="dialog inbox" aria-labelledby="inboxTitle">
+        <div class="inbox-bar">
+            <h2 id="inboxTitle">Inbox</h2>
+            <button type="button" class="ghost-button inbox-close" id="inboxClose" aria-label="Close the inbox">×</button>
+        </div>
+        <ul class="inbox-list" id="inboxList"></ul>
+        <article class="inbox-message" id="inboxMessage" hidden>
+            <button type="button" class="inbox-back" id="inboxBack">← Inbox</button>
+            <h3 class="mail-subject" id="mailSubject"></h3>
+            <p class="mail-from"><span class="muted">From</span> <span id="mailFrom"></span><br><span class="muted">To</span> you</p>
+            <div class="mail-body" id="mailBody"></div>
+            <p class="mail-footer" id="mailFooter"></p>
+            <div class="dialog-actions"><button type="button" class="button" id="mailReply"></button></div>
+        </article>
+        <p class="inbox-note"><strong>Playtest build.</strong> The story isn't written yet and the numbers are still being tuned. Build your desk, click a lot, and note where it drags or confuses you (Journal → Settings has a playtest log to copy).</p>
     </dialog>
     <!-- The end of chapter one: Superintelligence (E.ENDING_PHASE). The story and the facility go on after it. -->
     <dialog id="ending" class="dialog ending" aria-labelledby="endingTitle">

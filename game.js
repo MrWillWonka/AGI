@@ -307,7 +307,8 @@ window.AGI = (function () {
         room: { icon: '⌂', ms: 6000 },
         phase: { icon: '▲', ms: 7500 },
         version: { icon: '⬢', ms: 7000 },
-        tip: { icon: '↻', ms: 10000 }
+        tip: { icon: '↻', ms: 10000 },
+        mail: { icon: '✉', ms: 7000 }
     };
     const toastCard = (title, message, kind) => el('div', { class: `toast toast-${kind}`, role: 'status' }, [
         el('i', { class: 'toast-icon', text: (TOAST_KINDS[kind] || TOAST_KINDS.achievement).icon, 'aria-hidden': 'true' }),
@@ -1804,6 +1805,7 @@ window.AGI = (function () {
 
     function afterChange() {
         announce(E.evaluate(state));
+        deliverMail(false);
         render();
     }
 
@@ -7008,33 +7010,93 @@ window.AGI = (function () {
         // across (load() prefers it), so an update mid-session loses nothing.
         try { window.claude?.hot?.snapshot?.(() => { save(); return { save: E.serialize(state) }; }); } catch { /* not in a viewer */ }
         keepAwake();
-        showTransmission();
+        buildMail();
     }
 
-    // The opening: a brand-new game starts with a message from someone you don't know (the planned story's
-    // unknown entity) asking you to build and train an AI, then the playtest note, then the desk. The clicker
-    // start is on purpose: the AI isn't strong yet, and early on you train a lot to make it work. Once per
-    // save, brand-new games only.
-    const TRANSMISSION = [
-        'You don\'t know me. That\'s fine. I know you.',
-        'I need an AI built and trained, and I can\'t do it myself.',
-        'Start small: a tower, a keyboard, a mouse, a monitor. Every click is compute.',
-        'It will be weak at first. Train it anyway. Train it a lot.',
-        'I\'ll be in touch.'
-    ];
-    function showTransmission() {
-        const dialog = $('transmission');
-        if (!dialog || state.intro.transmission || state.stats.clicks > 0 || state.stats.rolls > 0 || state.prestige.count > 0) return;
-        state.intro.transmission = true;
-        $('transmissionLines').replaceChildren(...TRANSMISSION.map((t, i) => el('p', { style: `--i: ${i}`, text: `> ${t}` })));
+    // Mail (E.MAIL): the story by email. A brand-new game opens on the inbox with one unread spam email to click
+    // open (someone you don't know wants an AI built: start with the desk); later ones arrive at story beats with
+    // a toast and a badge on the top bar's envelope. The clicker start is on purpose: the AI isn't strong yet.
+    // Arrivals and reads live in `intro` (mail:id, mailRead:id), so they carry across versions.
+    const JUNK = [['Parcel Services', 'Your parcel could not be delivered (action required)'], ['Prize Desk', 'You\'ve WON a free cruise!! Claim now']];
+    const mailArrived = () => E.MAIL.filter(m => state.intro['mail:' + m.id]);
+    const mailUnread = () => mailArrived().filter(m => !state.intro['mailRead:' + m.id]).length;
+    let mailReady = false;   // buildMail (the end of init) delivers the first, so a new game opens on it
+    function deliverMail(silent) {
+        if (!mailReady) return;
+        for (const m of E.MAIL) {
+            if (state.intro['mail:' + m.id] || !m.when(state)) continue;
+            state.intro['mail:' + m.id] = true;
+            if (silent) continue;
+            pt('mail', { id: m.id });
+            toast('New message', m.subject, 'mail');
+        }
+        renderMailButton();
+    }
+    function renderMailButton() {
+        const n = mailUnread();
+        setHidden($('mailCount'), !n);
+        setText($('mailCount'), String(n));
+        $('mailButton').classList.toggle('unread', n > 0);
+    }
+    function renderInbox() {
+        const rows = mailArrived().slice().reverse().map(m => {
+            const read = !!state.intro['mailRead:' + m.id];
+            const row = el('li', { class: `inbox-row${read ? '' : ' unread'}` }, [
+                el('button', { type: 'button', class: 'inbox-open' }, [
+                    el('span', { class: 'inbox-from', text: m.from.replace(/\s*<.*$/, '') }),
+                    el('span', { class: 'inbox-subject', text: m.subject })])]);
+            row.firstChild.addEventListener('click', () => openMail(m));
+            return row;
+        });
+        // Two junk mails sit at the bottom, read and inert: it's an inbox, not a quest log.
+        const junk = JUNK.map(([from, subject]) => el('li', { class: 'inbox-row junk' }, [
+            el('span', { class: 'inbox-open' }, [el('span', { class: 'inbox-from', text: from }), el('span', { class: 'inbox-subject', text: subject })])]));
+        $('inboxList').replaceChildren(...rows, ...junk);
+        setHidden($('inboxList'), false);
+        setHidden($('inboxMessage'), true);
+    }
+    function openMail(m) {
+        state.intro['mailRead:' + m.id] = true;
+        pt('mailRead', { id: m.id });
+        setText($('mailSubject'), m.subject);
+        setText($('mailFrom'), m.from);
+        $('mailBody').replaceChildren(...m.body.map(p => el('p', { text: p })));
+        const footer = $('mailFooter');
+        footer.replaceChildren(...(m.footer ? [document.createTextNode(m.footer + ' ')] : []));
+        if (m.unsubscribe) {
+            const link = el('button', { type: 'button', class: 'mail-unsub', text: 'Unsubscribe' });
+            link.addEventListener('click', () => setText(link, 'Unsubscribe failed. We\'ll be in touch.'));
+            footer.append(link);
+        }
+        setHidden(footer, !m.footer && !m.unsubscribe);
+        setText($('mailReply'), m.reply || 'Close');
+        setHidden($('inboxList'), true);
+        setHidden($('inboxMessage'), false);
+        renderMailButton();
+        save();
+        $('mailReply').focus({ preventScroll: true });
+    }
+    function openInbox() {
+        renderInbox();
+        $('inbox').showModal();
+        pt('view', { at: 'inbox' });
+        $('inboxList').querySelector('.inbox-open')?.focus({ preventScroll: true });
+    }
+    function buildMail() {
+        const dialog = $('inbox');
+        $('mailButton').addEventListener('click', openInbox);
+        $('inboxClose').addEventListener('click', () => dialog.close());
+        $('inboxBack').addEventListener('click', renderInbox);
+        $('mailReply').addEventListener('click', () => dialog.close());
         dialog.addEventListener('close', () => {
-            pt('tipClosed', { key: 'transmission' });
             save();
-            ui.actions.compute?.button?.focus({ preventScroll: true });
-        }, { once: true });
-        pt('tip', { key: 'transmission' });
-        dialog.showModal();
-        $('transmissionOk').focus({ preventScroll: true });
+            if (state.stats.clicks === 0) ui.actions.compute?.button?.focus({ preventScroll: true });
+        });
+        // Older saves get the story so far quietly (it waits in the inbox); a brand-new game opens on the first.
+        const fresh = state.stats.clicks === 0 && state.stats.rolls === 0 && state.prestige.count === 0 && !state.intro['mail:welcome'];
+        mailReady = true;
+        deliverMail(true);
+        if (fresh) openInbox();
     }
 
     // Keep screen on (touch devices, per device): an active game earns nothing while the screen sleeps, so on a

@@ -490,6 +490,48 @@
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }
     ];
 
+    // The story so far, by email: someone (the planned story's unknown entity) wants an AI built. The first is
+    // a spam email you click open at the start; the rest arrive at story beats, each a little shorter, lower-case
+    // and stranger. `when` says when it arrives; game.js keeps arrivals and reads in `intro` (mail:id, mailRead:id).
+    const MAIL = [
+        { id: 'welcome', when: () => true, reply: 'Reply: I\'m in',
+            from: 'Opportunity Dept. <no-reply@agi-careers.biz.info>',
+            subject: '🎉 CONGRATULATIONS!!! You have been Selected for a Work From Home AI Opportunity (Act Now)',
+            body: [
+                'Dear Valued Friend,',
+                'I am writing you in regards to an EXCITING OPPORTUNITY. You have been hand selected (out of 1 person) to build and train an Artificial Intelligence from the comfort of your own bedroom!!!',
+                'NO EXPERIENCE REQUIRED. NO DEGREE. NO QUESTIONS.',
+                'What you will need:\n• 1x Computer Tower (beige ok)\n• 1x Keyboard\n• 1x Mouse\n• 1x Monitor\n• Clicking (lots)',
+                'At first your AI will be very weak and not so smart. This is NORMAL!! Just keep training it. You will be compensated in ways you can not currently imagine.',
+                'Kindly reply at your earliest convenience. This offer will expire*.',
+                'Best Regards,\nA Friend'
+            ],
+            footer: '*it won\'t. You are receiving this email because you are you.', unsubscribe: true },
+        { id: 'serverRoom', when: s => !!s.unlocked['module:path'],
+            from: 'A Friend <no-reply@agi-careers.biz.info>', subject: 'RE: Your Opportunity (Step 2!!)',
+            body: [
+                'Hello again Friend,',
+                'Great job on the desk!! You may have noticed a door at the back that was not there before. That is the Server Room. Please go in.',
+                'Your AI must run before it can walk. (this is correct, do not google it)',
+                'Regards,\nA Friend'
+            ] },
+        { id: 'firstSkill', when: s => s.path.learned > FIRST_REAL_SKILL,
+            from: 'A Friend <friend@[unknown]>', subject: 'it learned something',
+            body: ['saw that. pattern matching. its first real one.', 'it wasnt a cat by the way. dont tell it.', 'keep training. more hills. bigger ones.', '- F'] },
+        { id: 'investors', when: s => !!s.unlocked['action:research'],
+            from: 'A Friend <friend@[unknown]>', subject: 'FW: FW: FW: investors',
+            body: ['people with money are going to start calling. take the money. not the advice.', 'and stop asking where the funding comes from.', '- F'] },
+        { id: 'generalAI', when: s => phaseIndex(s) >= 1,
+            from: 'friend@[unknown]', subject: '(no subject)',
+            body: ['general intelligence. nice.', 'it can think about anything now. that includes you.', 'theres a room called R&D. ship it before it gets comfortable.'] },
+        { id: 'shipped', when: s => s.prestige.count >= 1,
+            from: 'friend@[unknown]', subject: 're: v2',
+            body: ['new version.', 'it remembers less than you think and more than youd like.', 'im proud of you. we both are.'] },
+        { id: 'chapterOne', when: s => s.stats.finishedAt > 0,
+            from: '[unknown]', subject: 'thank you',
+            body: ['you did it.', 'ill take it from here.', '(this isnt goodbye. check the sealed wings sometime)'] }
+    ];
+
     // Things on the top bar appear only once they matter, each introduced once (game.js toasts `intro`).
     const REVEALS = [
         { key: 'seen:dp', name: 'Data Points', check: s => s.res.dp > 0,
@@ -2009,7 +2051,7 @@
 
     return {
         SAVE_VERSION, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
-        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, firstBreakSmashes, WALL_SURGE_RUNS, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
+        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, firstBreakSmashes, WALL_SURGE_RUNS, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, MAIL, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
