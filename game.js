@@ -1961,7 +1961,7 @@ window.AGI = (function () {
         const dialog = $('ending');
         if (!dialog || dialog.open) return;
         pt('ending', { playTime: Math.round(state.stats.finishedAt) });
-        log('> I can take it from here.', 'special');
+        log('> Thank you for the keys.', 'special');
         const lines = $('endingLines');
         lines.replaceChildren(...ENDING_LINES.map((t, i) => el('p', { style: `--i: ${i}`, text: t })));
         const flight = state.stats.bestFlight;
@@ -5908,7 +5908,7 @@ window.AGI = (function () {
                 ? el('div', { class: 'result-actions' }, [
                     el('button', { type: 'button', class: 'ghost-button', 'data-next': 'again', text: 'Train again' }),
                     el('button', { type: 'button', class: 'button', 'data-next': 'dev', text: 'Upgrades →' })])
-                : el('div', { class: 'result-hint', text: 'Next roll starting…' })
+                : el('div', { class: 'result-hint', text: 'Next run starting…' })
         ].filter(Boolean));
         card.hidden = false;
     }

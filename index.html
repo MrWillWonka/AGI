@@ -251,8 +251,8 @@
                  by its tab (layoutLab). -->
             <div class="lab-stations" id="labStations"></div>
 
-            <!-- Investor projects, under the research wall: optional tasks with deadlines that pay research. -->
-            <section class="panel hud panel-projects" id="projectPanel" data-show="action:research" aria-label="Investor projects: tasks that pay research">
+            <!-- Investor projects, under the research wall: optional tasks with deadlines that pay training XP. -->
+            <section class="panel hud panel-projects" id="projectPanel" data-show="action:research" aria-label="Investor projects: tasks that pay training XP">
                 <div class="panel-head"><h2 class="station-title">Investor projects</h2><span class="boosts" id="boosts"></span></div>
                 <ul class="project-list" id="projectList"></ul>
             </section>
@@ -284,7 +284,7 @@
                         <h2>Ship <span data-bind="prestige.next">v2.0</span></h2>
                         <span class="muted small">Model <span data-bind="prestige.version">v1.0</span> · <span data-bind="prestige.points">0</span> Insight</span>
                     </div>
-                    <p class="muted small">+<strong data-bind="prestige.gain">0</strong> Insight</p>
+                    <p class="muted small">Shipping now pays +<strong data-bind="prestige.gain">0</strong> Insight</p>
                     <button type="button" class="button button-prestige" id="prestigeButton" disabled>Ship it</button>
                     <button type="button" class="ghost-button" id="legacyOpen" hidden>Legacy upgrades</button>
                 </div>
