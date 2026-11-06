@@ -1647,3 +1647,20 @@ test('the click tool sums its stages per level, and a huge level from a bad save
     assert.ok(Date.now() - t < 200, 'derive() stays fast at an absurd click-tool level');
     assert.ok(Number.isFinite(E.derive(s).clickPower));
 });
+
+test('a save with absurd investor boosts loads with them held to a sane size', () => {
+    const s = fresh();
+    s.projects.boosts = [{ stat: 'xp', mult: 1e300, until: 1e12 }, { stat: 'xp', mult: 1e300, until: 1e12 }, { stat: 'xp', mult: 2, until: 1e12 }];
+    s.path.learned = 5;
+    const loaded = E.deserialize(E.serialize(s), NOW);
+    assert.ok(loaded.projects.boosts.every(b => b.mult <= 4));
+    E.tick(loaded, 10);
+    assert.ok(Number.isFinite(loaded.res.xp) && Number.isFinite(E.derive(loaded).xpMult));
+    const many = fresh();
+    many.projects.boosts = Array.from({ length: 500 }, () => ({ stat: 'xp', mult: 4, until: 1e12 }));
+    assert.ok(E.deserialize(E.serialize(many), NOW).projects.boosts.length <= 8);
+    // Ordinary boosts survive a round trip untouched.
+    const ok = fresh();
+    ok.projects.boosts = [{ stat: 'xp', mult: 1.5, until: 300 }];
+    assert.deepEqual(E.deserialize(E.serialize(ok), NOW).projects.boosts, ok.projects.boosts);
+});

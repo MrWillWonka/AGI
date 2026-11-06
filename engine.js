@@ -1941,13 +1941,18 @@
         return s;
     }
 
+    const MAX_BOOST = 4;     // the largest investor boost a save may hold (rewards give ×1.5 and ×2)
+    const MAX_BOOSTS = 8;    // and how many may run at once (three offers at a time; boosts last 3-5 minutes)
     function cleanProjects(raw, fallback) {
         if (!raw || typeof raw !== 'object') return fallback;
         const offers = (Array.isArray(raw.offers) ? raw.offers : []).filter(o => o && typeof o.task === 'string' && Object.hasOwn(PROJECT_TASKS, o.task)
             && Number.isInteger(o.reward) && o.reward >= 0 && o.reward < PROJECT_REWARDS.length && typeof o.investor === 'string'
             && [o.id, o.target, o.start, o.deadline].every(v => Number.isFinite(v))).slice(0, PROJECTS.maxOffers);
+        // Rewards multiply by 1.5 or 2; a tampered save's ×1e300 (or a pile of boosts) overflowed training XP to
+        // Infinity, so each is held to MAX_BOOST and only the last few are kept.
         const boosts = (Array.isArray(raw.boosts) ? raw.boosts : []).filter(b => b && ['cp', 'dp', 'xp', 'push', 'rp'].includes(b.stat)
-            && Number.isFinite(b.mult) && b.mult > 0 && Number.isFinite(b.until));
+            && Number.isFinite(b.mult) && b.mult > 0 && Number.isFinite(b.until))
+            .slice(-MAX_BOOSTS).map(b => ({ stat: b.stat, mult: Math.min(MAX_BOOST, b.mult), until: b.until }));
         return { offers, boosts, next: num(raw.next, fallback.next), seq: Math.floor(num(raw.seq, 0)) };
     }
 
