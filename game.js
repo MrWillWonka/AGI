@@ -436,7 +436,9 @@ window.AGI = (function () {
         const nav = $('minimap');
         // A tip about something on another screen (no room on the map to point at) waits until it's in view.
         // Anything else waiting goes first meanwhile.
-        const mapShown = !!nav && !nav.hidden && !!nav.offsetParent && nav.getBoundingClientRect().width > 0;
+        // (Not offsetParent: the map is position: fixed, so it has none even when it's on screen, and every
+        // callout over the map waited forever. A map hidden by CSS, as inside a bay on phones, has no width.)
+        const mapShown = !!nav && !nav.hidden && nav.getBoundingClientRect().width > 0;
         if (!onScreen && (!where.map || !mapShown)) {
             if (calloutQueue.length) { calloutQueue.push(c); calloutLive = null; nextCallout(); }
             else setTimeout(() => showCallout(c), 1000);
