@@ -1,0 +1,363 @@
+{
+  "g1_boot": {
+    "errors": [],
+    "inboxOpen": true,
+    "booted": true
+  },
+  "g2_clean": {
+    "res": {
+      "cp": 0,
+      "dp": 0,
+      "rp": 0,
+      "xp": 0
+    },
+    "attr": {
+      "intelligence": 0,
+      "creativity": 0,
+      "awareness": 0
+    },
+    "saveVersion": 15,
+    "engineVersion": 15,
+    "scan": {
+      "label": "fresh",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": []
+    }
+  },
+  "g3_click": {
+    "before": {
+      "cp": 0,
+      "clicks": 0,
+      "cps": 0,
+      "clickPower": 1
+    },
+    "after": {
+      "cp": 1,
+      "clicks": 1
+    },
+    "deltaCp": 1,
+    "deltaClicks": 1,
+    "pass": true
+  },
+  "g4_buy": {
+    "pre": {
+      "cp": 31,
+      "lvl": 0,
+      "cost": {
+        "cp": 25
+      },
+      "click": 1,
+      "clicks": 31
+    },
+    "post": {
+      "cp": 6,
+      "lvl": 1,
+      "click": 1.25,
+      "name": "Mechanical Keyboard",
+      "cardText": "Mechanical Keyboard Lv 1Click: 1.25 → 1.50 CP45 CP"
+    },
+    "cpSpent": 25,
+    "clickDelta": 0.25,
+    "nextClickPaid": 1.25,
+    "pass": true
+  },
+  "g5_production": {
+    "cps": 1.5,
+    "use": 0,
+    "formula": {
+      "expected": 150,
+      "actual": 150,
+      "playDelta": 100
+    },
+    "live": {
+      "wall": 6.006300000000047,
+      "playDelta": 5.999999999999673,
+      "cpDelta": 9.000000000000313,
+      "expectedFromPlay": 8.99999999999951
+    },
+    "pass": true
+  },
+  "g6_roundtrip": {
+    "bytes": 1391,
+    "inboxReopened": false,
+    "diffsAfterReload": [
+      "lastSaved: 1793967245636 -> 1793967245646"
+    ],
+    "diffsAfterResave": [
+      "lastSaved: 1793967245636 -> 1793967245798"
+    ],
+    "unexpected": [],
+    "pass": true
+  },
+  "g7_offline": {
+    "hidden": {
+      "cps": 1.5,
+      "cpDelta": 0,
+      "playDelta": 0,
+      "afterShownDelta": 0.45000000000001705
+    },
+    "gap": {
+      "cpDelta": 0.45000000000001705,
+      "playDelta": 0.29999999999998295,
+      "lastLog": [
+        "12:14:09 PM Paused for 2h 0m while you were away.",
+        "12:14:05 PM Game saved.",
+        "12:14:05 PM Game loaded."
+      ],
+      "finite": true
+    },
+    "closed": {
+      "cpBefore": 167.30000000000035,
+      "cpAfterReload": 167.30000000000035,
+      "playBefore": 111.60599999999964,
+      "playAfter": 111.60599999999964,
+      "offlineCard": false
+    },
+    "pass": true
+  },
+  "g8_nan": [
+    {
+      "label": "afterReload",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "simulate 600",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "learnSkill x3",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "addHardware",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "buyLabUpgrades",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "meetAutomation",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "unlockAll",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "fillOffers+finish",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "reachPhase 1",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "maxTree",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "simulate 3600",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "addVersion",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "maxLegacy",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "shipVersion",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "openChallenges",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "readyTranscend",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "add 1e300 cp",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "simulate 1e6 at 1e300",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "add xp 1e300 + maxTree",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "startOver",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    },
+    {
+      "label": "simulate 60 fresh",
+      "nonFinite": [],
+      "negative": [],
+      "badPrices": [],
+      "badDerive": [],
+      "threw": null
+    }
+  ],
+  "g8_nan_pass": true,
+  "errorsSoFar": [],
+  "g9_keyboard": {
+    "steps": [
+      [
+        "inbox focus",
+        "button#.inbox-open|Opportunity Dept.🎉 CONGRATULATIONS!!! Y"
+      ],
+      [
+        "after Enter (open mail)",
+        "button#mailReply.button|Reply: I'm in"
+      ],
+      [
+        "after Enter (reply)",
+        "button#.button.action-button|Generate Compute+1 CPAutomation: 0/40 by",
+        "inboxOpen=false"
+      ],
+      [
+        "after 16 Space",
+        {
+          "cp": 16,
+          "clicks": 16
+        }
+      ],
+      [
+        "after 14 Enter",
+        {
+          "cp": 30,
+          "clicks": 30
+        }
+      ],
+      [
+        "Tab",
+        "button#.button.upgrade-button|25 CP"
+      ]
+    ],
+    "foundBuy": true,
+    "focusRing": {
+      "outline": "solid 2px rgb(111, 179, 217)",
+      "boxShadow": "none",
+      "matchesFocusVisible": true
+    },
+    "buy": {
+      "before": {
+        "cp": 30,
+        "lvl": 0
+      },
+      "after": {
+        "cp": 5,
+        "lvl": 1,
+        "focusStillOnBuy": true
+      },
+      "pass": true
+    },
+    "pass": true
+  },
+  "errors": [],
+  "phone": {
+    "errors": [],
+    "horizontalOverflow": false
+  },
+  "hardGates": {
+    "g1": true,
+    "g2": true,
+    "g3": true,
+    "g4": true,
+    "g5": true,
+    "g6": true,
+    "g7": true,
+    "g8": true,
+    "g9": true,
+    "consoleErrorsTotal": 0
+  }
+}

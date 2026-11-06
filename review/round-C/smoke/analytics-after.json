@@ -1,0 +1,955 @@
+{
+  "logVersion": 1,
+  "dropped": 0,
+  "total": 112,
+  "byType": {
+    "view": 22,
+    "session": 3,
+    "sample": 8,
+    "hidden": 2,
+    "mailRead": 1,
+    "achievement": 10,
+    "buy": 3,
+    "setting": 8,
+    "unlock": 12,
+    "mail": 7,
+    "task": 3,
+    "offer": 3,
+    "offerDone": 3,
+    "claim": 1,
+    "tip": 3,
+    "dismiss": 1,
+    "offerExpired": 1,
+    "tipClosed": 3,
+    "startAt": 2,
+    "sprint": 1,
+    "restart": 1,
+    "phase": 3,
+    "shown": 1,
+    "gap": 1,
+    "ship": 2,
+    "challenge": 1,
+    "ending": 1,
+    "transcend": 1,
+    "perk": 1,
+    "save": 3
+  },
+  "schema": {
+    "view": {
+      "n": 22,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "v": "20/22",
+        "at": "2/22"
+      }
+    },
+    "session": {
+      "n": 3,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "save": "always",
+        "skills": "always",
+        "version": "always",
+        "screen": "always",
+        "touch": "always",
+        "at": "always"
+      }
+    },
+    "sample": {
+      "n": 8,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "cp": "always",
+        "dp": "always",
+        "rp": "always",
+        "xp": "always",
+        "cpNet": "always",
+        "dpNet": "always",
+        "rpRate": "always",
+        "xpRate": "always",
+        "int": "always",
+        "skills": "always",
+        "phase": "always",
+        "at": "always",
+        "labNew": "always",
+        "offers": "always",
+        "offersDone": "always",
+        "treeReady": "always",
+        "hand": "1/8"
+      }
+    },
+    "hidden": {
+      "n": 2,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always"
+      }
+    },
+    "mailRead": {
+      "n": 1,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "id": "always"
+      }
+    },
+    "achievement": {
+      "n": 10,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "id": "always"
+      }
+    },
+    "buy": {
+      "n": 3,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "id": "always",
+        "lvl": "always",
+        "held": "2/3",
+        "price": "2/3",
+        "cheapest": "2/3",
+        "cheapestCost": "2/3",
+        "affordable": "2/3",
+        "rank": "2/3"
+      }
+    },
+    "setting": {
+      "n": 8,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "key": "always",
+        "value": "always"
+      }
+    },
+    "unlock": {
+      "n": 12,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "key": "always"
+      }
+    },
+    "mail": {
+      "n": 7,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "id": "always"
+      }
+    },
+    "task": {
+      "n": 3,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "id": "always",
+        "on": "2/3",
+        "share": "1/3"
+      }
+    },
+    "offer": {
+      "n": 3,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "id": "always",
+        "task": "always",
+        "target": "always",
+        "reward": "always",
+        "s": "always"
+      }
+    },
+    "offerDone": {
+      "n": 3,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "id": "always"
+      }
+    },
+    "claim": {
+      "n": 1,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "id": "always",
+        "task": "always",
+        "reward": "always"
+      }
+    },
+    "tip": {
+      "n": 3,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "key": "always",
+        "at": "always"
+      }
+    },
+    "dismiss": {
+      "n": 1,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "id": "always",
+        "task": "always"
+      }
+    },
+    "offerExpired": {
+      "n": 1,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "id": "always"
+      }
+    },
+    "tipClosed": {
+      "n": 3,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "key": "always",
+        "by": "always",
+        "s": "always"
+      }
+    },
+    "startAt": {
+      "n": 2,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "leg": "always"
+      }
+    },
+    "sprint": {
+      "n": 1,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "leg": "always",
+        "ch": "always",
+        "cap": "always",
+        "first": "always",
+        "x": "always",
+        "v": "always",
+        "left": "always"
+      }
+    },
+    "restart": {
+      "n": 1,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "leg": "always",
+        "prog": "always"
+      }
+    },
+    "phase": {
+      "n": 3,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "name": "always"
+      }
+    },
+    "shown": {
+      "n": 1,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always"
+      }
+    },
+    "gap": {
+      "n": 1,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "s": "always"
+      }
+    },
+    "ship": {
+      "n": 2,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "version": "always",
+        "gain": "always",
+        "challenge": "1/2"
+      }
+    },
+    "challenge": {
+      "n": 1,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "name": "always",
+        "abandoned": "always"
+      }
+    },
+    "ending": {
+      "n": 1,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "playTime": "always"
+      }
+    },
+    "transcend": {
+      "n": 1,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "gain": "always"
+      }
+    },
+    "perk": {
+      "n": 1,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "id": "always"
+      }
+    },
+    "save": {
+      "n": 3,
+      "keys": {
+        "t": "always",
+        "w": "always",
+        "e": "always",
+        "op": "always",
+        "skills": "2/3",
+        "version": "2/3"
+      }
+    }
+  },
+  "missingCore": 0,
+  "duplicates": 0,
+  "nonMonotonicW": 1,
+  "playTimeBackwards": 3,
+  "typesWithVersionContext": [
+    "session",
+    "ship",
+    "save"
+  ],
+  "funnel": {
+    "session": {
+      "t": 0,
+      "w": 0
+    },
+    "mailRead": {
+      "t": 0.8,
+      "w": 1
+    },
+    "firstBuy": {
+      "t": 4.4,
+      "w": 5
+    },
+    "firstLabBuy": {
+      "t": 4.4,
+      "w": 5
+    },
+    "collectUnlocked": {
+      "t": 6.5,
+      "w": 7
+    },
+    "serverRoom": null,
+    "enteredBay": {
+      "t": 13,
+      "w": 14
+    },
+    "firstSprint": {
+      "t": 80.5,
+      "w": 81
+    },
+    "firstRun": null,
+    "firstSkill": null,
+    "firstTreeBuy": {
+      "t": 83.4,
+      "w": 84
+    },
+    "phase": {
+      "t": 85,
+      "w": 86
+    },
+    "ship": {
+      "t": 89.9,
+      "w": 7291
+    },
+    "transcend": {
+      "t": 133.3,
+      "w": 7334
+    },
+    "ending": {
+      "t": 128.9,
+      "w": 7330
+    }
+  },
+  "actions": [
+    {
+      "label": "boot (new game, inbox opens)",
+      "expect": [
+        "session",
+        "view",
+        "sample"
+      ],
+      "added": [],
+      "missing": [
+        "session",
+        "view",
+        "sample"
+      ],
+      "eventsAdded": 0,
+      "unflushed": 1
+    },
+    {
+      "label": "open the spam mail",
+      "expect": [
+        "mailRead"
+      ],
+      "added": [
+        "mailRead+1"
+      ],
+      "missing": [],
+      "eventsAdded": 1,
+      "unflushed": 2
+    },
+    {
+      "label": "Reply: I'm in",
+      "expect": [],
+      "added": [],
+      "missing": [],
+      "eventsAdded": 0,
+      "unflushed": 2
+    },
+    {
+      "label": "30 compute clicks (counted, not logged)",
+      "expect": [
+        "achievement"
+      ],
+      "added": [
+        "achievement+1"
+      ],
+      "missing": [],
+      "eventsAdded": 1,
+      "unflushed": 3
+    },
+    {
+      "label": "buy the click tool (UI)",
+      "expect": [
+        "buy"
+      ],
+      "added": [
+        "buy+1"
+      ],
+      "missing": [],
+      "eventsAdded": 1,
+      "unflushed": 4
+    },
+    {
+      "label": "settings: shake off, notation scientific, calm on, text 115%",
+      "expect": [],
+      "added": [
+        "setting+4"
+      ],
+      "missing": [],
+      "eventsAdded": 4,
+      "unflushed": 8
+    },
+    {
+      "label": "settings: theme Red, beat Dark, sound 0.2",
+      "expect": [],
+      "added": [
+        "setting+3"
+      ],
+      "missing": [],
+      "eventsAdded": 3,
+      "unflushed": 11
+    },
+    {
+      "label": "bulk buy ×10 (UI)",
+      "expect": [],
+      "added": [
+        "setting+1"
+      ],
+      "missing": [],
+      "eventsAdded": 1,
+      "unflushed": 12
+    },
+    {
+      "label": "debug: +CP/DP/RP, meet automation, buy lab upgrades",
+      "expect": [
+        "unlock"
+      ],
+      "added": [
+        "achievement+1",
+        "unlock+1",
+        "mail+1"
+      ],
+      "missing": [],
+      "eventsAdded": 3,
+      "unflushed": 15
+    },
+    {
+      "label": "task switch toggle + share slider (UI)",
+      "expect": [],
+      "added": [
+        "task+2"
+      ],
+      "missing": [],
+      "eventsAdded": 2,
+      "unflushed": 17
+    },
+    {
+      "label": "debug: learn 2 skills (bypasses the trail)",
+      "expect": [
+        "unlock"
+      ],
+      "added": [
+        "achievement+1",
+        "mail+1"
+      ],
+      "missing": [
+        "unlock"
+      ],
+      "eventsAdded": 2,
+      "unflushed": 19
+    },
+    {
+      "label": "investor offers: fill + finish (debug)",
+      "expect": [
+        "offer",
+        "offerDone"
+      ],
+      "added": [
+        "mail+1",
+        "offer+3",
+        "offerDone+3"
+      ],
+      "missing": [],
+      "eventsAdded": 7,
+      "unflushed": 26
+    },
+    {
+      "label": "claim an offer (UI)",
+      "expect": [
+        "claim"
+      ],
+      "added": [
+        "claim+1",
+        "tip+1"
+      ],
+      "missing": [],
+      "eventsAdded": 2,
+      "unflushed": 28
+    },
+    {
+      "label": "dismiss an offer (UI)",
+      "expect": [
+        "dismiss"
+      ],
+      "added": [
+        "dismiss+1"
+      ],
+      "missing": [],
+      "eventsAdded": 1,
+      "unflushed": 29
+    },
+    {
+      "label": "clear offers (debug) -> logged as expired",
+      "expect": [
+        "offerExpired"
+      ],
+      "added": [
+        "offerExpired+1"
+      ],
+      "missing": [],
+      "eventsAdded": 1,
+      "unflushed": 30
+    },
+    {
+      "label": "go to Surveillance (crumb)",
+      "expect": [
+        "view"
+      ],
+      "added": [
+        "view+1",
+        "tipClosed+1"
+      ],
+      "missing": [],
+      "eventsAdded": 2,
+      "unflushed": 32
+    },
+    {
+      "label": "enter the server room",
+      "expect": [
+        "view"
+      ],
+      "added": [
+        "view+1"
+      ],
+      "missing": [],
+      "eventsAdded": 1,
+      "unflushed": 33
+    },
+    {
+      "label": "enter the Training Cluster",
+      "expect": [
+        "view"
+      ],
+      "added": [
+        "view+2",
+        "startAt+1"
+      ],
+      "missing": [],
+      "eventsAdded": 3,
+      "unflushed": 36
+    },
+    {
+      "label": "tips on screen: click them away",
+      "expect": [
+        "tip",
+        "tipClosed"
+      ],
+      "added": [],
+      "missing": [
+        "tip",
+        "tipClosed"
+      ],
+      "eventsAdded": 0,
+      "unflushed": 36
+    },
+    {
+      "label": "sprint by Space, wait for the run to end",
+      "expect": [
+        "sprint",
+        "run"
+      ],
+      "added": [
+        "view+1",
+        "sample+2"
+      ],
+      "missing": [
+        "sprint",
+        "run"
+      ],
+      "eventsAdded": 3,
+      "unflushed": 0
+    },
+    {
+      "label": "Restart a run (UI): train again, sprint, restart",
+      "expect": [
+        "sprint",
+        "restart"
+      ],
+      "added": [
+        "sprint+1",
+        "restart+1"
+      ],
+      "missing": [],
+      "eventsAdded": 2,
+      "unflushed": 2
+    },
+    {
+      "label": "Upgrades: buy a tree node (UI)",
+      "expect": [
+        "view",
+        "buy"
+      ],
+      "added": [
+        "view+1",
+        "buy+1"
+      ],
+      "missing": [],
+      "eventsAdded": 2,
+      "unflushed": 4
+    },
+    {
+      "label": "Start at: pick a replay leg (UI select)",
+      "expect": [],
+      "added": [
+        "startAt+1"
+      ],
+      "missing": [],
+      "eventsAdded": 1,
+      "unflushed": 5
+    },
+    {
+      "label": "Auto-Trainer switch (UI)",
+      "expect": [],
+      "added": [
+        "unlock+1",
+        "task+1"
+      ],
+      "missing": [],
+      "eventsAdded": 2,
+      "unflushed": 7
+    },
+    {
+      "label": "debug: reach General AI",
+      "expect": [
+        "phase"
+      ],
+      "added": [
+        "achievement+3",
+        "unlock+2",
+        "mail+1",
+        "phase+1"
+      ],
+      "missing": [],
+      "eventsAdded": 7,
+      "unflushed": 14
+    },
+    {
+      "label": "hidden / shown",
+      "expect": [
+        "hidden",
+        "shown"
+      ],
+      "added": [
+        "hidden+1",
+        "tip+1",
+        "shown+1"
+      ],
+      "missing": [],
+      "eventsAdded": 3,
+      "unflushed": 2
+    },
+    {
+      "label": "a 2 h clock gap",
+      "expect": [
+        "gap"
+      ],
+      "added": [
+        "gap+1"
+      ],
+      "missing": [],
+      "eventsAdded": 1,
+      "unflushed": 3
+    },
+    {
+      "label": "R&D: Ship it (UI, dialog OK)",
+      "expect": [
+        "ship",
+        "view"
+      ],
+      "added": [
+        "view+3",
+        "sample+1",
+        "achievement+1",
+        "unlock+1",
+        "mail+1",
+        "tip+1",
+        "tipClosed+1",
+        "ship+1"
+      ],
+      "missing": [],
+      "eventsAdded": 10,
+      "unflushed": 0
+    },
+    {
+      "label": "legacy screen: buy a card (UI)",
+      "expect": [
+        "buy"
+      ],
+      "added": [
+        "buy+1"
+      ],
+      "missing": [],
+      "eventsAdded": 1,
+      "unflushed": 1
+    },
+    {
+      "label": "legacy: Start the new version",
+      "expect": [],
+      "added": [
+        "view+1"
+      ],
+      "missing": [],
+      "eventsAdded": 1,
+      "unflushed": 2
+    },
+    {
+      "label": "challenges: open, ship into one (UI), then abandon (UI)",
+      "expect": [
+        "ship",
+        "challenge"
+      ],
+      "added": [
+        "view+2",
+        "sample+1",
+        "unlock+3",
+        "phase+1",
+        "ship+1",
+        "challenge+1"
+      ],
+      "missing": [],
+      "eventsAdded": 9,
+      "unflushed": 5
+    },
+    {
+      "label": "transcend (UI) + buy a perk (UI)",
+      "expect": [
+        "transcend",
+        "perk",
+        "ending"
+      ],
+      "added": [
+        "view+3",
+        "achievement+3",
+        "unlock+4",
+        "mail+1",
+        "phase+1",
+        "ending+1",
+        "transcend+1",
+        "perk+1"
+      ],
+      "missing": [],
+      "eventsAdded": 15,
+      "unflushed": 20
+    },
+    {
+      "label": "export save (dialog)",
+      "expect": [],
+      "added": [
+        "save+1"
+      ],
+      "missing": [],
+      "eventsAdded": 1,
+      "unflushed": 21
+    },
+    {
+      "label": "restore backup (dialog)",
+      "expect": [],
+      "added": [
+        "save+1"
+      ],
+      "missing": [],
+      "eventsAdded": 1,
+      "unflushed": 22
+    },
+    {
+      "label": "playtest log: view the report (button)",
+      "expect": [],
+      "added": [
+        "sample+1"
+      ],
+      "missing": [],
+      "eventsAdded": 1,
+      "unflushed": 0
+    },
+    {
+      "label": "hard reset (Erase everything)",
+      "expect": [],
+      "added": [
+        "mail+1",
+        "save+1"
+      ],
+      "missing": [],
+      "eventsAdded": 2,
+      "unflushed": 2
+    }
+  ],
+  "loss": {
+    "inMemoryAtClose": 109,
+    "storedBeforePagehide": 107,
+    "storedAfterReload": 112,
+    "flushCalls": 7,
+    "lostOnNormalClose": -2,
+    "lostOnNormalClosePrecise": -2
+  },
+  "crash": {
+    "maxUnflushedAfterAnAction": 36,
+    "meanUnflushed": 12.6,
+    "perAction": [
+      1,
+      2,
+      2,
+      3,
+      4,
+      8,
+      11,
+      12,
+      15,
+      17,
+      19,
+      26,
+      28,
+      29,
+      30,
+      32,
+      33,
+      36,
+      36,
+      0,
+      2,
+      4,
+      5,
+      7,
+      14,
+      2,
+      3,
+      0,
+      1,
+      2,
+      5,
+      20,
+      21,
+      22,
+      0,
+      2
+    ]
+  },
+  "gaps": {
+    "skillsLearnedByDebugNotLogged": "0 learned in the final state vs skill events: 0",
+    "noEventFor": [
+      "boot (new game, inbox opens)",
+      "Reply: I'm in",
+      "tips on screen: click them away"
+    ],
+    "missingExpected": [
+      "boot (new game, inbox opens): session,view,sample",
+      "debug: learn 2 skills (bypasses the trail): unlock",
+      "tips on screen: click them away: tip,tipClosed",
+      "sprint by Space, wait for the run to end: sprint,run"
+    ]
+  },
+  "maxEvents": 15000,
+  "sampleSeconds": 30,
+  "errors": []
+}

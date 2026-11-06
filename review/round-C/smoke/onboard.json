@@ -1,0 +1,3317 @@
+{
+  "milestones": {
+    "inbox": {
+      "wall": 0,
+      "play": 0.4,
+      "cp": 0,
+      "dp": 0,
+      "xp": 0,
+      "clicks": 0,
+      "collects": 0,
+      "rolls": 0,
+      "learned": 0,
+      "keyboard": 0,
+      "cpu": 0,
+      "cps": 0,
+      "unlocked": [],
+      "room": null,
+      "bay": false,
+      "dev": false,
+      "push": "Hold to launch",
+      "status": ""
+    },
+    "inboxClosed": {
+      "wall": 10.5,
+      "play": 10.8,
+      "cp": 0,
+      "dp": 0,
+      "xp": 0,
+      "clicks": 0,
+      "collects": 0,
+      "rolls": 0,
+      "learned": 0,
+      "keyboard": 0,
+      "cpu": 0,
+      "cps": 0,
+      "unlocked": [],
+      "room": null,
+      "bay": false,
+      "dev": false,
+      "push": "Hold to launch",
+      "status": ""
+    },
+    "firstClick": {
+      "wall": 12.8,
+      "play": 13.1,
+      "cp": 4,
+      "dp": 0,
+      "xp": 0,
+      "clicks": 4,
+      "collects": 0,
+      "rolls": 0,
+      "learned": 0,
+      "keyboard": 0,
+      "cpu": 0,
+      "cps": 0,
+      "unlocked": [],
+      "room": null,
+      "bay": false,
+      "dev": false,
+      "push": "Hold to launch",
+      "status": ""
+    },
+    "firstPurchase": {
+      "wall": 24,
+      "play": 24.3,
+      "cp": 3,
+      "dp": 0,
+      "xp": 0,
+      "clicks": 28,
+      "collects": 0,
+      "rolls": 0,
+      "learned": 0,
+      "keyboard": 1,
+      "cpu": 0,
+      "cps": 0,
+      "unlocked": [
+        "up:keyboard"
+      ],
+      "room": null,
+      "bay": false,
+      "dev": false,
+      "push": "Hold to launch",
+      "status": ""
+    },
+    "deskBuilt": {
+      "wall": 83.8,
+      "play": 84.1,
+      "cp": 12,
+      "dp": 0,
+      "xp": 0,
+      "clicks": 191,
+      "collects": 0,
+      "rolls": 0,
+      "learned": 0,
+      "keyboard": 5,
+      "cpu": 0,
+      "cps": 0,
+      "unlocked": [
+        "up:keyboard",
+        "up:cpu"
+      ],
+      "room": null,
+      "bay": false,
+      "dev": false,
+      "push": "Hold to launch",
+      "status": ""
+    },
+    "graphicsCard": {
+      "wall": 87.1,
+      "play": 87.4,
+      "cp": 27.12,
+      "dp": 0,
+      "xp": 0,
+      "clicks": 201,
+      "collects": 0,
+      "rolls": 0,
+      "learned": 0,
+      "keyboard": 5,
+      "cpu": 1,
+      "cps": 0.5,
+      "unlocked": [
+        "up:keyboard",
+        "up:cpu"
+      ],
+      "room": null,
+      "bay": false,
+      "dev": false,
+      "push": "Hold to launch",
+      "status": ""
+    },
+    "fiveCps": {
+      "wall": 110.4,
+      "play": 110.8,
+      "cp": 33.04250000000005,
+      "dp": 0,
+      "xp": 0,
+      "clicks": 278,
+      "collects": 0,
+      "rolls": 0,
+      "learned": 0,
+      "keyboard": 5,
+      "cpu": 10,
+      "cps": 5,
+      "unlocked": [
+        "up:keyboard",
+        "up:cpu",
+        "action:collect"
+      ],
+      "room": null,
+      "bay": false,
+      "dev": false,
+      "push": "Hold to launch",
+      "status": ""
+    },
+    "collectVisible": {
+      "wall": 111.1,
+      "play": 111.4,
+      "cp": 36.52250000000004,
+      "dp": 0,
+      "xp": 0,
+      "clicks": 278,
+      "collects": 0,
+      "rolls": 0,
+      "learned": 0,
+      "keyboard": 5,
+      "cpu": 10,
+      "cps": 5,
+      "unlocked": [
+        "up:keyboard",
+        "up:cpu",
+        "action:collect"
+      ],
+      "room": null,
+      "bay": false,
+      "dev": false,
+      "push": "Hold to launch",
+      "status": ""
+    },
+    "firstCollect": {
+      "wall": 111.7,
+      "play": 112.2,
+      "cp": 29.987500000000043,
+      "dp": 1,
+      "xp": 0,
+      "clicks": 278,
+      "collects": 1,
+      "rolls": 0,
+      "learned": 0,
+      "keyboard": 5,
+      "cpu": 10,
+      "cps": 5,
+      "unlocked": [
+        "up:keyboard",
+        "up:cpu",
+        "action:collect",
+        "seen:dp",
+        "up:dataProcessor"
+      ],
+      "room": null,
+      "bay": false,
+      "dev": false,
+      "push": "Hold to launch",
+      "status": ""
+    },
+    "serverRoomUnlocked": {
+      "wall": 171,
+      "play": 171.3,
+      "cp": 106.55699999999995,
+      "dp": 58,
+      "xp": 0,
+      "clicks": 413,
+      "collects": 40,
+      "rolls": 0,
+      "learned": 0,
+      "keyboard": 5,
+      "cpu": 12,
+      "cps": 6,
+      "unlocked": [
+        "up:keyboard",
+        "up:cpu",
+        "action:collect",
+        "seen:dp",
+        "up:dataProcessor",
+        "module:path",
+        "up:initialWeights"
+      ],
+      "room": null,
+      "bay": false,
+      "dev": false,
+      "push": "Hold to launch",
+      "status": ""
+    },
+    "serverRoomEntered": {
+      "wall": 177.7,
+      "play": 178,
+      "cp": 146.79299999999986,
+      "dp": 58,
+      "xp": 0,
+      "clicks": 413,
+      "collects": 40,
+      "rolls": 0,
+      "learned": 0,
+      "keyboard": 5,
+      "cpu": 12,
+      "cps": 6,
+      "unlocked": [
+        "up:keyboard",
+        "up:cpu",
+        "action:collect",
+        "seen:dp",
+        "up:dataProcessor",
+        "module:path",
+        "up:initialWeights"
+      ],
+      "room": "facility",
+      "bay": false,
+      "dev": false,
+      "push": "Hold to launch",
+      "status": ""
+    },
+    "bayEntered": {
+      "wall": 185.9,
+      "play": 186.2,
+      "cp": 195.87899999999973,
+      "dp": 58,
+      "xp": 0,
+      "clicks": 413,
+      "collects": 40,
+      "rolls": 0,
+      "learned": 0,
+      "keyboard": 5,
+      "cpu": 12,
+      "cps": 6,
+      "unlocked": [
+        "up:keyboard",
+        "up:cpu",
+        "action:collect",
+        "seen:dp",
+        "up:dataProcessor",
+        "module:path",
+        "up:initialWeights"
+      ],
+      "room": "servers",
+      "bay": true,
+      "dev": false,
+      "push": "Hold to launch",
+      "status": ""
+    },
+    "warmUpSkill": {
+      "wall": 191,
+      "play": 191.3,
+      "cp": 206.70099999999957,
+      "dp": 55,
+      "xp": 5.047121520000001,
+      "clicks": 413,
+      "collects": 40,
+      "rolls": 0,
+      "learned": 1,
+      "keyboard": 5,
+      "cpu": 12,
+      "cps": 6,
+      "unlocked": [
+        "up:keyboard",
+        "up:cpu",
+        "action:collect",
+        "seen:dp",
+        "up:dataProcessor",
+        "module:path",
+        "up:initialWeights",
+        "up:trainingData"
+      ],
+      "room": "servers",
+      "bay": true,
+      "dev": false,
+      "push": "Out of sprints",
+      "status": ""
+    },
+    "firstRun": {
+      "wall": 195.1,
+      "play": 195.5,
+      "cp": 232.03899999999953,
+      "dp": 55,
+      "xp": 5.1428991600000025,
+      "clicks": 413,
+      "collects": 40,
+      "rolls": 1,
+      "learned": 1,
+      "keyboard": 5,
+      "cpu": 12,
+      "cps": 6,
+      "unlocked": [
+        "up:keyboard",
+        "up:cpu",
+        "action:collect",
+        "seen:dp",
+        "up:dataProcessor",
+        "module:path",
+        "up:initialWeights",
+        "up:trainingData",
+        "up:server"
+      ],
+      "room": "servers",
+      "bay": true,
+      "dev": false,
+      "push": "Hold to sprint",
+      "status": ""
+    },
+    "serverRoomReturn": {
+      "wall": 421.2,
+      "play": 421.6,
+      "cp": 236.1225000000112,
+      "dp": 43,
+      "xp": 20.967086595161746,
+      "clicks": 467,
+      "collects": 57,
+      "rolls": 12,
+      "learned": 1,
+      "keyboard": 6,
+      "cpu": 18,
+      "cps": 9,
+      "unlocked": [
+        "up:keyboard",
+        "up:cpu",
+        "action:collect",
+        "seen:dp",
+        "up:dataProcessor",
+        "module:path",
+        "up:initialWeights",
+        "up:trainingData",
+        "up:server",
+        "up:trainingOptimizer",
+        "up:optimizedCode",
+        "up:bigDatasets",
+        "up:trainingEpochs",
+        "up:dataAugmentation",
+        "up:warmRestarts",
+        "up:fasterIteration",
+        "up:gpuCluster2",
+        "up:batchNorm",
+        "up:betterAlgorithms",
+        "up:precisionTuning",
+        "up:efficientKernels",
+        "up:benchmarkPrizes",
+        "up:angelInvestor"
+      ],
+      "room": "servers",
+      "bay": false,
+      "dev": false,
+      "push": "Hold to sprint",
+      "status": ""
+    }
+  },
+  "errorClicks": [],
+  "errorClickCount": 0,
+  "controls": [
+    {
+      "label": "inbox: unread mail row",
+      "selector": "#inbox .inbox-row.unread .inbox-open",
+      "text": "Opportunity Dept.🎉 CONGRATULATIONS!!! You have been Selecte",
+      "aria": null,
+      "n": 1
+    },
+    {
+      "label": "mail: Reply button",
+      "selector": "#mailReply",
+      "text": "Reply: I'm in",
+      "aria": null,
+      "n": 1
+    },
+    {
+      "label": "workbench: Generate Compute",
+      "selector": "#actions .action-button >> nth=0",
+      "text": "Generate Compute+1 CPAutomation: 0/40 by hand · desk 0/5",
+      "aria": null,
+      "n": 136
+    },
+    {
+      "label": "lab: buy keyboard",
+      "selector": "#labRoom .upgrade[data-id=\"keyboard\"] .upgrade-button",
+      "text": "25 CP",
+      "aria": null,
+      "n": 10
+    },
+    {
+      "label": "workbench: Generate Compute (hold)",
+      "n": 33
+    },
+    {
+      "label": "lab: buy cpu",
+      "selector": "#labRoom .upgrade[data-id=\"cpu\"] .upgrade-button",
+      "text": "15 CP",
+      "aria": null,
+      "n": 20
+    },
+    {
+      "label": "workbench: Collect Data",
+      "selector": "#actions .action-button >> nth=1",
+      "text": "Collect Data+1 DP10 CPServer room: 0/40 collections",
+      "aria": null,
+      "n": 149
+    },
+    {
+      "label": "lab: buy dataProcessor",
+      "selector": "#labRoom .upgrade[data-id=\"dataProcessor\"] .upgrade-button",
+      "text": "50 CP, 5 DP",
+      "aria": null,
+      "n": 6
+    },
+    {
+      "label": "lab: ⌂ surveillance crumb",
+      "selector": "#labRoom .crumb-home",
+      "text": "surveillance",
+      "aria": "Back to Surveillance, the main screen",
+      "n": 17
+    },
+    {
+      "label": "surveillance: Server room tile",
+      "selector": ".facility-room[data-room-id=\"servers\"]",
+      "text": "Training Cluster 0 skills · next: Tokenization ??? Sealed ??",
+      "aria": "Server room: 0 skills · 0.0 XP to spend",
+      "n": 18
+    },
+    {
+      "label": "server room: Training Cluster bay",
+      "selector": "#bays .bay[data-bay=\"training\"]",
+      "text": "Training Cluster 0 skills · next: Tokenization",
+      "aria": "Training Cluster: 0 skills · next: Tokenization",
+      "n": 17
+    },
+    {
+      "label": "bay: sprint button (hold)",
+      "n": 311
+    },
+    {
+      "label": "card: Upgrades →",
+      "selector": "#rollResult [data-next=\"dev\"]",
+      "text": "Upgrades →",
+      "aria": null,
+      "n": 27
+    },
+    {
+      "label": "tree: buy initialWeights",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 1 XP",
+      "aria": null,
+      "n": 1
+    },
+    {
+      "label": "tree: buy trainingEpochs",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 2 XP",
+      "aria": null,
+      "n": 2
+    },
+    {
+      "label": "tree: Start run",
+      "selector": "#startRunButton",
+      "text": "Start run 2",
+      "aria": null,
+      "n": 31
+    },
+    {
+      "label": "card: Train again",
+      "selector": "#rollResult [data-next=\"again\"]",
+      "text": "Train again",
+      "aria": null,
+      "n": 54
+    },
+    {
+      "label": "tree: buy trainingOptimizer",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 4 XP",
+      "aria": null,
+      "n": 2
+    },
+    {
+      "label": "tree: buy bigDatasets",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 5 XP",
+      "aria": null,
+      "n": 2
+    },
+    {
+      "label": "tree: buy optimizedCode",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 7 XP",
+      "aria": null,
+      "n": 1
+    },
+    {
+      "label": "tree: buy precisionTuning",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 14 XP",
+      "aria": null,
+      "n": 1
+    },
+    {
+      "label": "tree: buy angelInvestor",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 18 XP",
+      "aria": null,
+      "n": 1
+    },
+    {
+      "label": "bay: ⌂ surveillance crumb",
+      "selector": "#moduleView .crumb-home",
+      "text": "surveillance",
+      "aria": "Straight back to Surveillance, the main screen",
+      "n": 16
+    },
+    {
+      "label": "surveillance: Lab tile",
+      "selector": ".facility-room[data-room-id=\"lab\"]",
+      "text": "Compute 6.0 CP/s 934 Data 0 DP/s 0 Research 0 RP/s 0 Trainin",
+      "aria": "Lab: +6 CP/s · 3 upgrades ready",
+      "n": 16
+    },
+    {
+      "label": "tree: buy warmRestarts",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 20 XP",
+      "aria": null,
+      "n": 1
+    },
+    {
+      "label": "tree: buy fasterIteration",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 20 XP",
+      "aria": null,
+      "n": 2
+    },
+    {
+      "label": "tree: buy benchmarkPrizes",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 22 XP",
+      "aria": null,
+      "n": 3
+    },
+    {
+      "label": "tree: buy batchNorm",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 25 XP",
+      "aria": null,
+      "n": 1
+    },
+    {
+      "label": "tree: buy dataAugmentation",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 25 XP",
+      "aria": null,
+      "n": 1
+    },
+    {
+      "label": "lab: buy server",
+      "selector": "#labRoom .upgrade[data-id=\"server\"] .upgrade-button",
+      "text": "300 CP",
+      "aria": null,
+      "n": 5
+    },
+    {
+      "label": "tree: buy efficientKernels",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 30 XP",
+      "aria": null,
+      "n": 2
+    },
+    {
+      "label": "tree: buy betterAlgorithms",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 38 XP",
+      "aria": null,
+      "n": 2
+    },
+    {
+      "label": "tree: buy gpuCluster2",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 45 XP",
+      "aria": null,
+      "n": 2
+    },
+    {
+      "label": "tree: buy checkpointing",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 60 XP",
+      "aria": null,
+      "n": 1
+    },
+    {
+      "label": "tree: buy curatedData",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 70 XP",
+      "aria": null,
+      "n": 1
+    },
+    {
+      "label": "tree: buy promptTemplates",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 90 XP",
+      "aria": null,
+      "n": 1
+    },
+    {
+      "label": "tree: buy highResSensors",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 90 XP",
+      "aria": null,
+      "n": 1
+    },
+    {
+      "label": "tree: buy seriesA",
+      "selector": "#nodeDetail .detail-buy",
+      "text": "Unlock · 90 XP",
+      "aria": null,
+      "n": 1
+    }
+  ],
+  "final": {
+    "cp": 29415.688400006104,
+    "dp": 15,
+    "xp": 47.060785258964074,
+    "clicks": 489,
+    "collects": 149,
+    "rolls": 82,
+    "learned": 1,
+    "keyboard": 10,
+    "cpu": 20,
+    "cps": 26.5,
+    "unlocked": [
+      "up:keyboard",
+      "up:cpu",
+      "action:collect",
+      "seen:dp",
+      "up:dataProcessor",
+      "module:path",
+      "up:initialWeights",
+      "up:trainingData",
+      "up:server",
+      "up:trainingOptimizer",
+      "up:optimizedCode",
+      "up:bigDatasets",
+      "up:trainingEpochs",
+      "up:dataAugmentation",
+      "up:warmRestarts",
+      "up:fasterIteration",
+      "up:gpuCluster2",
+      "up:batchNorm",
+      "up:betterAlgorithms",
+      "up:precisionTuning",
+      "up:efficientKernels",
+      "up:benchmarkPrizes",
+      "up:angelInvestor",
+      "up:seriesA",
+      "up:overclockedChips",
+      "up:curatedData",
+      "up:promptTemplates",
+      "up:promptTuning",
+      "up:webCorpus",
+      "up:superconductors",
+      "up:checkpointing",
+      "up:smarterAlgorithms",
+      "up:gpuSupercluster",
+      "up:highResSensors",
+      "up:streamingPipeline",
+      "up:handLabelled",
+      "up:leaderboardPrizes",
+      "up:seriesB"
+    ],
+    "room": "servers",
+    "bay": true,
+    "dev": false,
+    "push": "Next sprint in 1.1 s",
+    "status": ""
+  },
+  "log": [
+    {
+      "w": 0,
+      "what": "start",
+      "inboxOpen": true
+    },
+    {
+      "w": 0.1,
+      "what": "milestone",
+      "key": "inbox"
+    },
+    {
+      "w": 10.5,
+      "what": "milestone",
+      "key": "inboxClosed"
+    },
+    {
+      "w": 12.8,
+      "what": "milestone",
+      "key": "firstClick"
+    },
+    {
+      "w": 23.7,
+      "what": "buy",
+      "id": "keyboard",
+      "name": "Desktop Tower",
+      "price": "25 CP"
+    },
+    {
+      "w": 24,
+      "what": "milestone",
+      "key": "firstPurchase"
+    },
+    {
+      "w": 36.6,
+      "what": "buy",
+      "id": "keyboard",
+      "name": "Mechanical Keyboard",
+      "price": "45 CP"
+    },
+    {
+      "w": 49.4,
+      "what": "buy",
+      "id": "keyboard",
+      "name": "Gaming Mouse",
+      "price": "45 CP"
+    },
+    {
+      "w": 69.3,
+      "what": "buy",
+      "id": "keyboard",
+      "name": "Monitor",
+      "price": "75 CP"
+    },
+    {
+      "w": 83,
+      "what": "buy",
+      "id": "keyboard",
+      "name": "Server Rack",
+      "price": "100 CP"
+    },
+    {
+      "w": 83.8,
+      "what": "milestone",
+      "key": "deskBuilt"
+    },
+    {
+      "w": 86.8,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "15 CP"
+    },
+    {
+      "w": 87.1,
+      "what": "milestone",
+      "key": "graphicsCard"
+    },
+    {
+      "w": 87.4,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "18 CP"
+    },
+    {
+      "w": 90.5,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "20 CP"
+    },
+    {
+      "w": 90.9,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "23 CP"
+    },
+    {
+      "w": 94,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "27 CP"
+    },
+    {
+      "w": 96.9,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "31 CP"
+    },
+    {
+      "w": 100.5,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "35 CP"
+    },
+    {
+      "w": 103.6,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "40 CP"
+    },
+    {
+      "w": 106.8,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "46 CP"
+    },
+    {
+      "w": 110,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "53 CP"
+    },
+    {
+      "w": 110.4,
+      "what": "milestone",
+      "key": "fiveCps"
+    },
+    {
+      "w": 111.1,
+      "what": "milestone",
+      "key": "collectVisible"
+    },
+    {
+      "w": 111.4,
+      "what": "collectLine",
+      "text": "Collect Data+1 DP10 CPServer room: 0/40 collections"
+    },
+    {
+      "w": 111.9,
+      "what": "milestone",
+      "key": "firstCollect"
+    },
+    {
+      "w": 112.4,
+      "what": "collectLine",
+      "text": "Collect Data+1 DP10 CPServer room: 1/40 collections"
+    },
+    {
+      "w": 113.1,
+      "what": "collectLine",
+      "text": "Collect Data+1 DP10 CPServer room: 2/40 collections"
+    },
+    {
+      "w": 113.6,
+      "what": "collectLine",
+      "text": "Collect Data+1 DP10 CPServer room: 3/40 collections"
+    },
+    {
+      "w": 114.2,
+      "what": "collectLine",
+      "text": "Collect Data+1 DP10 CPServer room: 4/40 collections"
+    },
+    {
+      "w": 115,
+      "what": "collectLine",
+      "text": "Collect Data+1 DP10 CPServer room: 5/40 collections"
+    },
+    {
+      "w": 118.9,
+      "what": "collectLine",
+      "text": "Collect Data+1 DP10 CPServer room: 6/40 collections"
+    },
+    {
+      "w": 119.4,
+      "what": "collectLine",
+      "text": "Collect Data+1 DP10 CPServer room: 7/40 collections"
+    },
+    {
+      "w": 119.8,
+      "what": "collectLine",
+      "text": "Collect Data+1 DP10 CPServer room: 8/40 collections"
+    },
+    {
+      "w": 120.2,
+      "what": "collectLine",
+      "text": "Collect Data+1 DP10 CPServer room: 9/40 collections"
+    },
+    {
+      "w": 120.6,
+      "what": "collectLine",
+      "text": "Collect Data+1 DP10 CPServer room: 10/40 collections"
+    },
+    {
+      "w": 121.3,
+      "what": "collectLine",
+      "text": "Collect Data+1 DP10 CPServer room: 11/40 collections"
+    },
+    {
+      "w": 123.8,
+      "what": "buy",
+      "id": "dataProcessor",
+      "name": "Data Processor",
+      "price": "50 CP, 5 DP"
+    },
+    {
+      "w": 124.1,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 11/40 collections"
+    },
+    {
+      "w": 127.3,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 12/40 collections"
+    },
+    {
+      "w": 127.7,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 13/40 collections"
+    },
+    {
+      "w": 128.3,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 14/40 collections"
+    },
+    {
+      "w": 129.8,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 15/40 collections"
+    },
+    {
+      "w": 130.1,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 16/40 collections"
+    },
+    {
+      "w": 130.7,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 17/40 collections"
+    },
+    {
+      "w": 131.5,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 18/40 collections"
+    },
+    {
+      "w": 135.2,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 19/40 collections"
+    },
+    {
+      "w": 135.6,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 20/40 collections"
+    },
+    {
+      "w": 136.2,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 21/40 collections"
+    },
+    {
+      "w": 136.5,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 22/40 collections"
+    },
+    {
+      "w": 136.7,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 23/40 collections"
+    },
+    {
+      "w": 140,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 24/40 collections"
+    },
+    {
+      "w": 140.5,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 25/40 collections"
+    },
+    {
+      "w": 140.8,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 26/40 collections"
+    },
+    {
+      "w": 141.2,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 27/40 collections"
+    },
+    {
+      "w": 141.7,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 28/40 collections"
+    },
+    {
+      "w": 142.2,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 29/40 collections"
+    },
+    {
+      "w": 142.7,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 30/40 collections"
+    },
+    {
+      "w": 146.3,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 31/40 collections"
+    },
+    {
+      "w": 146.9,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 32/40 collections"
+    },
+    {
+      "w": 147.5,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 33/40 collections"
+    },
+    {
+      "w": 147.9,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 34/40 collections"
+    },
+    {
+      "w": 148.3,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 35/40 collections"
+    },
+    {
+      "w": 148.8,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 36/40 collections"
+    },
+    {
+      "w": 152.1,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 37/40 collections"
+    },
+    {
+      "w": 152.6,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 38/40 collections"
+    },
+    {
+      "w": 152.9,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: 39/40 collections"
+    },
+    {
+      "w": 153.3,
+      "what": "collectLine",
+      "text": "Collect Data+2 DP10 CPServer room: hold 19/100 CP · 40/40 DP"
+    },
+    {
+      "w": 156.1,
+      "what": "buy",
+      "id": "dataProcessor",
+      "name": "Data Processor",
+      "price": "60 CP, 6 DP"
+    },
+    {
+      "w": 156.7,
+      "what": "collectLine",
+      "text": "Collect Data+3 DP10 CPServer room: hold 9/100 CP · 40/40 DP"
+    },
+    {
+      "w": 159.6,
+      "what": "collectLine",
+      "text": "Collect Data+3 DP10 CPServer room: hold 50/100 CP · 40/40 DP"
+    },
+    {
+      "w": 162.2,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "61 CP"
+    },
+    {
+      "w": 162.6,
+      "what": "collectLine",
+      "text": "Collect Data+3 DP10 CPServer room: hold 38/100 CP · 40/40 DP"
+    },
+    {
+      "w": 165.2,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "70 CP"
+    },
+    {
+      "w": 165.8,
+      "what": "collectLine",
+      "text": "Collect Data+3 DP10 CPServer room: hold 15/100 CP · 40/40 DP"
+    },
+    {
+      "w": 168.4,
+      "what": "collectLine",
+      "text": "Collect Data+3 DP10 CPServer room: hold 61/100 CP · 40/40 DP"
+    },
+    {
+      "w": 171.1,
+      "what": "milestone",
+      "key": "serverRoomUnlocked"
+    },
+    {
+      "w": 176.5,
+      "what": "clickFailed",
+      "selector": ".facility-room[data-room-id=\"servers\"]",
+      "label": "surveillance: Server room tile",
+      "err": "elementHandle.click: Timeout 2000ms exceeded.\nCall log:\n\u001b[2m  - attempting click"
+    },
+    {
+      "w": 177.8,
+      "what": "milestone",
+      "key": "serverRoomEntered"
+    },
+    {
+      "w": 178.4,
+      "what": "invisible",
+      "selector": "#bays .bay[data-bay=\"training\"]",
+      "label": "server room: Training Cluster bay"
+    },
+    {
+      "w": 179.9,
+      "what": "bayNotOpen"
+    },
+    {
+      "w": 179.9,
+      "what": "tip",
+      "text": "⌂Server room onlineOpen the map to see every area, or click the server room to start training."
+    },
+    {
+      "w": 185.9,
+      "what": "milestone",
+      "key": "bayEntered"
+    },
+    {
+      "w": 186.2,
+      "what": "tip",
+      "text": "↻Training runsThis is how your model learns. Hold the button to charge a sprint and let go to fire it. Roll over the hil"
+    },
+    {
+      "w": 188.1,
+      "what": "sprint"
+    },
+    {
+      "w": 191,
+      "what": "milestone",
+      "key": "warmUpSkill"
+    },
+    {
+      "w": 195.3,
+      "what": "milestone",
+      "key": "firstRun"
+    },
+    {
+      "w": 196.1,
+      "what": "resultCard",
+      "card": "Skill learnedTokenization+5.04 XP+10% sprint strengthCrested Tokenization (×2)+5.04 XPChain ×1.5 on the distanceTop speed 1.3 m/sPassive XP up (Tokenization): +0.02 → +0.02/sIt can split words into pi"
+    },
+    {
+      "w": 198.9,
+      "what": "treeBuy",
+      "id": "initialWeights",
+      "cost": 1
+    },
+    {
+      "w": 200.2,
+      "what": "treeBuy",
+      "id": "trainingEpochs",
+      "cost": 2
+    },
+    {
+      "w": 203.6,
+      "what": "sprint"
+    },
+    {
+      "w": 204.9,
+      "what": "sprint"
+    },
+    {
+      "w": 210,
+      "what": "sprint"
+    },
+    {
+      "w": 215.4,
+      "what": "resultCard",
+      "card": "Run 2Stopped 16% of the way to Pattern Matching+0.99 XPDistance+0.99 XPTop speed 1.4 m/s · new best!New record!Train againUpgrades →"
+    },
+    {
+      "w": 218.5,
+      "what": "sprint"
+    },
+    {
+      "w": 221.9,
+      "what": "sprint"
+    },
+    {
+      "w": 225.8,
+      "what": "resultCard",
+      "card": "Run 3Stopped 46% of the way to Pattern Matching+3.72 XPDistance+3.72 XPTop speed 1.4 m/sNew record!Train againUpgrades →"
+    },
+    {
+      "w": 227.6,
+      "what": "treeBuy",
+      "id": "trainingOptimizer",
+      "cost": 4
+    },
+    {
+      "w": 230.4,
+      "what": "sprint"
+    },
+    {
+      "w": 238.3,
+      "what": "sprint"
+    },
+    {
+      "w": 246.2,
+      "what": "resultCard",
+      "card": "Run 4Stopped 25% of the way to Pattern Matching+1.72 XPDistance+1.72 XPTop speed 1.8 m/s · new best!Train againUpgrades →"
+    },
+    {
+      "w": 248.3,
+      "what": "treeBuy",
+      "id": "bigDatasets",
+      "cost": 5
+    },
+    {
+      "w": 251.7,
+      "what": "sprint"
+    },
+    {
+      "w": 259.3,
+      "what": "sprint"
+    },
+    {
+      "w": 262.2,
+      "what": "resultCard",
+      "card": "Run 5Stopped 59% of the way to Pattern Matching+6.24 XPDistance+6.24 XPTop speed 1.6 m/sNew record!Train againUpgrades →"
+    },
+    {
+      "w": 264.2,
+      "what": "treeBuy",
+      "id": "optimizedCode",
+      "cost": 7
+    },
+    {
+      "w": 267.7,
+      "what": "sprint"
+    },
+    {
+      "w": 273.5,
+      "what": "sprint"
+    },
+    {
+      "w": 280.4,
+      "what": "resultCard",
+      "card": "Run 6Stopped 77% of the way to Pattern Matching+8.97 XPDistance+8.97 XPTop speed 1.5 m/sNew record!Train againUpgrades →"
+    },
+    {
+      "w": 282.3,
+      "what": "treeBuy",
+      "id": "trainingOptimizer",
+      "cost": 8
+    },
+    {
+      "w": 285.7,
+      "what": "sprint"
+    },
+    {
+      "w": 292.6,
+      "what": "sprint"
+    },
+    {
+      "w": 296,
+      "what": "resultCard",
+      "card": "Run 7Stopped 73% of the way to Pattern Matching+8.25 XPDistance+8.25 XPTop speed 2.1 m/s · new best!Train againUpgrades →"
+    },
+    {
+      "w": 298,
+      "what": "treeBuy",
+      "id": "bigDatasets",
+      "cost": 10
+    },
+    {
+      "w": 301.9,
+      "what": "sprint"
+    },
+    {
+      "w": 308.7,
+      "what": "sprint"
+    },
+    {
+      "w": 312.3,
+      "what": "resultCard",
+      "card": "Run 8Stopped 84% of the way to Pattern Matching+11.9 XPDistance+11.9 XPTop speed 2.0 m/sNew record!Train againUpgrades →"
+    },
+    {
+      "w": 314,
+      "what": "treeBuy",
+      "id": "trainingEpochs",
+      "cost": 10
+    },
+    {
+      "w": 317.8,
+      "what": "sprint"
+    },
+    {
+      "w": 323,
+      "what": "sprint"
+    },
+    {
+      "w": 330.5,
+      "what": "sprint"
+    },
+    {
+      "w": 334.1,
+      "what": "resultCard",
+      "card": "Run 9Stopped 93% of the way to Pattern Matching+13.7 XPDistance+13.7 XPTop speed 2.0 m/sNew record!Train againUpgrades →"
+    },
+    {
+      "w": 336,
+      "what": "treeBuy",
+      "id": "precisionTuning",
+      "cost": 14
+    },
+    {
+      "w": 339.2,
+      "what": "sprint"
+    },
+    {
+      "w": 339.3,
+      "what": "tip",
+      "text": "↻PromptsRelease a sprint inside the green zone for bonus XP and a bigger run bonus. It isn't always the best play: a ful"
+    },
+    {
+      "w": 348.3,
+      "what": "sprint"
+    },
+    {
+      "w": 354.2,
+      "what": "sprint"
+    },
+    {
+      "w": 356.5,
+      "what": "resultCard",
+      "card": "Run 10Stopped 93% of the way to Pattern Matching+13.8 XPDistance+13.8 XPTop speed 1.8 m/sNew record!Train againUpgrades →"
+    },
+    {
+      "w": 359.8,
+      "what": "sprint"
+    },
+    {
+      "w": 365.5,
+      "what": "sprint"
+    },
+    {
+      "w": 370.6,
+      "what": "sprint"
+    },
+    {
+      "w": 374.2,
+      "what": "resultCard",
+      "card": "Run 11Stopped 88% of the way to Pattern Matching+12.7 XPDistance+12.7 XPTop speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 376.3,
+      "what": "treeBuy",
+      "id": "angelInvestor",
+      "cost": 18
+    },
+    {
+      "w": 379.3,
+      "what": "sprint"
+    },
+    {
+      "w": 384.7,
+      "what": "sprint"
+    },
+    {
+      "w": 384.7,
+      "what": "broke",
+      "push": "Out of data · make more in the lab",
+      "cp": 925.6790000000111,
+      "dp": 0
+    },
+    {
+      "w": 388.6,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "81 CP"
+    },
+    {
+      "w": 388.9,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "93 CP"
+    },
+    {
+      "w": 389.4,
+      "what": "tip",
+      "text": "↻TipScheduled tasks shows every automation that's running, and what each cleared leg trains on its own."
+    },
+    {
+      "w": 390.4,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "107 CP"
+    },
+    {
+      "w": 390.7,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "123 CP"
+    },
+    {
+      "w": 391,
+      "what": "buy",
+      "id": "keyboard",
+      "name": "Macro Pad",
+      "price": "132 CP"
+    },
+    {
+      "w": 391.4,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "141 CP"
+    },
+    {
+      "w": 391.8,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "162 CP"
+    },
+    {
+      "w": 392.1,
+      "what": "collectLine",
+      "text": "Collect Data+3 DP10 CPAutomation: after Pattern Matching"
+    },
+    {
+      "w": 393,
+      "what": "buy",
+      "id": "dataProcessor",
+      "name": "Data Processor",
+      "price": "72 CP, 8 DP"
+    },
+    {
+      "w": 393.4,
+      "what": "collectLine",
+      "text": "Collect Data+4 DP10 CPAutomation: after Pattern Matching"
+    },
+    {
+      "w": 403.9,
+      "what": "buy",
+      "id": "dataProcessor",
+      "name": "Data Processor",
+      "price": "87 CP, 9 DP"
+    },
+    {
+      "w": 404.9,
+      "what": "collectLine",
+      "text": "Collect Data+5 DP10 CPAutomation: after Pattern Matching"
+    },
+    {
+      "w": 408.5,
+      "what": "buy",
+      "id": "dataProcessor",
+      "name": "Data Processor",
+      "price": "104 CP, 11 DP"
+    },
+    {
+      "w": 409.5,
+      "what": "collectLine",
+      "text": "Collect Data+6 DP10 CPAutomation: after Pattern Matching"
+    },
+    {
+      "w": 421.3,
+      "what": "milestone",
+      "key": "serverRoomReturn"
+    },
+    {
+      "w": 423.9,
+      "what": "treeBuy",
+      "id": "warmRestarts",
+      "cost": 20
+    },
+    {
+      "w": 426.9,
+      "what": "sprint"
+    },
+    {
+      "w": 432.8,
+      "what": "sprint"
+    },
+    {
+      "w": 436.6,
+      "what": "sprint"
+    },
+    {
+      "w": 441.6,
+      "what": "sprint"
+    },
+    {
+      "w": 445.5,
+      "what": "resultCard",
+      "card": "Run 13Stopped 79% of the way to Pattern Matching+10.9 XPDistance+10.9 XPTop speed 2.0 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 448.5,
+      "what": "sprint"
+    },
+    {
+      "w": 454,
+      "what": "sprint"
+    },
+    {
+      "w": 459,
+      "what": "sprint"
+    },
+    {
+      "w": 463.1,
+      "what": "sprint"
+    },
+    {
+      "w": 466.7,
+      "what": "resultCard",
+      "card": "Run 14Stopped 74% of the way to Pattern Matching+9.98 XPDistance+9.98 XPTop speed 2.0 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 468.5,
+      "what": "treeBuy",
+      "id": "fasterIteration",
+      "cost": 20
+    },
+    {
+      "w": 471,
+      "what": "sprint"
+    },
+    {
+      "w": 474,
+      "what": "sprint"
+    },
+    {
+      "w": 481.3,
+      "what": "sprint"
+    },
+    {
+      "w": 488.2,
+      "what": "sprint"
+    },
+    {
+      "w": 490.5,
+      "what": "resultCard",
+      "card": "Run 15Stopped 91% of the way to Pattern Matching+13.5 XPDistance+13.5 XPTop speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 493.9,
+      "what": "sprint"
+    },
+    {
+      "w": 500.4,
+      "what": "sprint"
+    },
+    {
+      "w": 508.8,
+      "what": "sprint"
+    },
+    {
+      "w": 515.9,
+      "what": "sprint"
+    },
+    {
+      "w": 517.3,
+      "what": "resultCard",
+      "card": "Run 16Stopped 95% of the way to Pattern Matching+14.2 XPDistance+14.2 XPTop speed 2.1 m/sNew record!Train againUpgrades →"
+    },
+    {
+      "w": 519.2,
+      "what": "treeBuy",
+      "id": "benchmarkPrizes",
+      "cost": 22
+    },
+    {
+      "w": 522.2,
+      "what": "sprint"
+    },
+    {
+      "w": 530.4,
+      "what": "sprint"
+    },
+    {
+      "w": 536.4,
+      "what": "sprint"
+    },
+    {
+      "w": 536.6,
+      "what": "broke",
+      "push": "Out of data · make more in the lab",
+      "cp": 922.2645000000101,
+      "dp": 0
+    },
+    {
+      "w": 540.2,
+      "what": "buy",
+      "id": "keyboard",
+      "name": "Macro Pad",
+      "price": "175 CP"
+    },
+    {
+      "w": 540.6,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "186 CP"
+    },
+    {
+      "w": 541.1,
+      "what": "buy",
+      "id": "cpu",
+      "name": "Graphics Card",
+      "price": "214 CP"
+    },
+    {
+      "w": 541.4,
+      "what": "buy",
+      "id": "keyboard",
+      "name": "Macro Pad",
+      "price": "230 CP"
+    },
+    {
+      "w": 543.7,
+      "what": "buy",
+      "id": "dataProcessor",
+      "name": "Data Processor",
+      "price": "125 CP, 13 DP"
+    },
+    {
+      "w": 544,
+      "what": "collectLine",
+      "text": "Collect Data+7 DP10 CPAutomation: after Pattern Matching"
+    },
+    {
+      "w": 558.7,
+      "what": "sprint"
+    },
+    {
+      "w": 558.8,
+      "what": "resultCard",
+      "card": "Run 17Stopped 67% of the way to Pattern Matching+11.2 XPDistance+8.62 XPPrompt run bonus+0.86 XPBanked from 1 prompt+1.71 XPTop speed 2.3 m/s · new best!Train againUpgrades →"
+    },
+    {
+      "w": 562,
+      "what": "sprint"
+    },
+    {
+      "w": 566.6,
+      "what": "sprint"
+    },
+    {
+      "w": 571.7,
+      "what": "sprint"
+    },
+    {
+      "w": 580.3,
+      "what": "sprint"
+    },
+    {
+      "w": 580.4,
+      "what": "resultCard",
+      "card": "Run 18Stopped 55% of the way to Pattern Matching+6.61 XPDistance+6.61 XPTop speed 2.2 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 582.2,
+      "what": "treeBuy",
+      "id": "batchNorm",
+      "cost": 25
+    },
+    {
+      "w": 584.9,
+      "what": "sprint"
+    },
+    {
+      "w": 589,
+      "what": "sprint"
+    },
+    {
+      "w": 596.9,
+      "what": "sprint"
+    },
+    {
+      "w": 601.4,
+      "what": "sprint"
+    },
+    {
+      "w": 603.8,
+      "what": "resultCard",
+      "card": "Run 19Stopped 90% of the way to Pattern Matching+13.1 XPDistance+13.1 XPTop speed 2.0 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 606.8,
+      "what": "sprint"
+    },
+    {
+      "w": 612.5,
+      "what": "sprint"
+    },
+    {
+      "w": 621.2,
+      "what": "sprint"
+    },
+    {
+      "w": 630.2,
+      "what": "sprint"
+    },
+    {
+      "w": 630.3,
+      "what": "resultCard",
+      "card": "Run 20Stopped 86% of the way to Pattern Matching+17.8 XPDistance+12.2 XPPrompt run bonus+2.45 XPBanked from 2 prompts+3.11 XPDetails (1)Top speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 632.2,
+      "what": "treeBuy",
+      "id": "dataAugmentation",
+      "cost": 25
+    },
+    {
+      "w": 635.5,
+      "what": "sprint"
+    },
+    {
+      "w": 641.1,
+      "what": "sprint"
+    },
+    {
+      "w": 647.2,
+      "what": "sprint"
+    },
+    {
+      "w": 647.2,
+      "what": "broke",
+      "push": "Out of data · make more in the lab",
+      "cp": 907.3590000000115,
+      "dp": 0
+    },
+    {
+      "w": 650,
+      "what": "buy",
+      "id": "server",
+      "name": "Server Cluster",
+      "price": "300 CP"
+    },
+    {
+      "w": 650.2,
+      "what": "buy",
+      "id": "keyboard",
+      "name": "Macro Pad",
+      "price": "304 CP"
+    },
+    {
+      "w": 658.8,
+      "what": "sprint"
+    },
+    {
+      "w": 659,
+      "what": "resultCard",
+      "card": "Run 21Stopped 80% of the way to Pattern Matching+14.0 XPDistance+11.1 XPPrompt run bonus+1.34 XPBanked from 1 prompt+1.53 XPDetails (1)Top speed 2.2 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 662.2,
+      "what": "sprint"
+    },
+    {
+      "w": 667.2,
+      "what": "sprint"
+    },
+    {
+      "w": 674.6,
+      "what": "sprint"
+    },
+    {
+      "w": 680.7,
+      "what": "sprint"
+    },
+    {
+      "w": 683,
+      "what": "resultCard",
+      "card": "Run 22Stopped 95% of the way to Pattern Matching+14.4 XPDistance+14.4 XPTop speed 2.1 m/sNew record!Train againUpgrades →"
+    },
+    {
+      "w": 685.1,
+      "what": "treeBuy",
+      "id": "efficientKernels",
+      "cost": 30
+    },
+    {
+      "w": 688.7,
+      "what": "sprint"
+    },
+    {
+      "w": 698.8,
+      "what": "sprint"
+    },
+    {
+      "w": 703.5,
+      "what": "sprint"
+    },
+    {
+      "w": 710.2,
+      "what": "sprint"
+    },
+    {
+      "w": 711.8,
+      "what": "resultCard",
+      "card": "Run 23Stopped 97% of the way to Pattern Matching+14.6 XPDistance+14.6 XPTop speed 2.2 m/sNew record!Train againUpgrades →"
+    },
+    {
+      "w": 715.4,
+      "what": "sprint"
+    },
+    {
+      "w": 719.7,
+      "what": "sprint"
+    },
+    {
+      "w": 728.3,
+      "what": "sprint"
+    },
+    {
+      "w": 735.7,
+      "what": "sprint"
+    },
+    {
+      "w": 737.1,
+      "what": "resultCard",
+      "card": "Run 24Stopped 96% of the way to Pattern Matching+14.5 XPDistance+14.5 XPTop speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 739.3,
+      "what": "treeBuy",
+      "id": "fasterIteration",
+      "cost": 34
+    },
+    {
+      "w": 743.4,
+      "what": "sprint"
+    },
+    {
+      "w": 751.5,
+      "what": "sprint"
+    },
+    {
+      "w": 755.9,
+      "what": "sprint"
+    },
+    {
+      "w": 760.3,
+      "what": "sprint"
+    },
+    {
+      "w": 765.7,
+      "what": "resultCard",
+      "card": "Run 25Stopped 67% of the way to Pattern Matching+8.53 XPDistance+8.53 XPTop speed 2.0 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 768.9,
+      "what": "sprint"
+    },
+    {
+      "w": 768.9,
+      "what": "broke",
+      "push": "Out of data · make more in the lab",
+      "cp": 1524.3590000000065,
+      "dp": 0
+    },
+    {
+      "w": 771.6,
+      "what": "buy",
+      "id": "server",
+      "name": "Server Cluster",
+      "price": "345 CP"
+    },
+    {
+      "w": 771.9,
+      "what": "buy",
+      "id": "server",
+      "name": "Server Cluster",
+      "price": "397 CP"
+    },
+    {
+      "w": 772.2,
+      "what": "buy",
+      "id": "keyboard",
+      "name": "Macro Pad",
+      "price": "401 CP"
+    },
+    {
+      "w": 780,
+      "what": "sprint"
+    },
+    {
+      "w": 784.1,
+      "what": "sprint"
+    },
+    {
+      "w": 788.2,
+      "what": "sprint"
+    },
+    {
+      "w": 790.8,
+      "what": "resultCard",
+      "card": "Run 26Stopped 92% of the way to Pattern Matching+13.7 XPDistance+13.7 XPTop speed 1.8 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 793.7,
+      "what": "sprint"
+    },
+    {
+      "w": 798.1,
+      "what": "sprint"
+    },
+    {
+      "w": 800.7,
+      "what": "sprint"
+    },
+    {
+      "w": 809.9,
+      "what": "sprint"
+    },
+    {
+      "w": 814.5,
+      "what": "resultCard",
+      "card": "Run 27Stopped 65% of the way to Pattern Matching+8.19 XPDistance+8.19 XPTop speed 2.0 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 816.6,
+      "what": "treeBuy",
+      "id": "betterAlgorithms",
+      "cost": 38
+    },
+    {
+      "w": 819.6,
+      "what": "sprint"
+    },
+    {
+      "w": 826.8,
+      "what": "sprint"
+    },
+    {
+      "w": 830.1,
+      "what": "sprint"
+    },
+    {
+      "w": 835.3,
+      "what": "sprint"
+    },
+    {
+      "w": 839.1,
+      "what": "resultCard",
+      "card": "Run 28Stopped 70% of the way to Pattern Matching+14.9 XPSo close: about 5% more speed would have crested it+2.98 XPDistance+9.14 XPPrompt run bonus+1.10 XPDetails (2)Banked from 1 prompt+1.69 XPTop sp"
+    },
+    {
+      "w": 842.1,
+      "what": "sprint"
+    },
+    {
+      "w": 846.4,
+      "what": "sprint"
+    },
+    {
+      "w": 852,
+      "what": "sprint"
+    },
+    {
+      "w": 858.8,
+      "what": "sprint"
+    },
+    {
+      "w": 860.7,
+      "what": "resultCard",
+      "card": "Run 29Stopped 88% of the way to Pattern Matching+15.6 XPDistance+12.6 XPPrompt run bonus+1.52 XPBanked from 1 prompt+1.49 XPDetails (1)Top speed 2.2 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 863.7,
+      "what": "sprint"
+    },
+    {
+      "w": 870,
+      "what": "sprint"
+    },
+    {
+      "w": 870,
+      "what": "broke",
+      "push": "Out of data · make more in the lab",
+      "cp": 1991.8321000000103,
+      "dp": 0
+    },
+    {
+      "w": 872.7,
+      "what": "buy",
+      "id": "server",
+      "name": "Server Cluster",
+      "price": "457 CP"
+    },
+    {
+      "w": 872.9,
+      "what": "buy",
+      "id": "server",
+      "name": "Server Cluster",
+      "price": "525 CP"
+    },
+    {
+      "w": 880.3,
+      "what": "sprint"
+    },
+    {
+      "w": 888.4,
+      "what": "sprint"
+    },
+    {
+      "w": 888.9,
+      "what": "resultCard",
+      "card": "Run 30Stopped 72% of the way to Pattern Matching+12.2 XPDistance+9.49 XPPrompt run bonus+1.14 XPBanked from 1 prompt+1.56 XPDetails (1)Top speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 890.7,
+      "what": "treeBuy",
+      "id": "benchmarkPrizes",
+      "cost": 38
+    },
+    {
+      "w": 893.2,
+      "what": "sprint"
+    },
+    {
+      "w": 897.5,
+      "what": "sprint"
+    },
+    {
+      "w": 903.7,
+      "what": "sprint"
+    },
+    {
+      "w": 906,
+      "what": "sprint"
+    },
+    {
+      "w": 915.4,
+      "what": "resultCard",
+      "card": "Run 31Stopped 70% of the way to Pattern Matching+12.1 XPDistance+9.20 XPPrompt run bonus+1.10 XPBanked from 1 prompt+1.79 XPTop speed 2.3 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 918.5,
+      "what": "sprint"
+    },
+    {
+      "w": 923.5,
+      "what": "sprint"
+    },
+    {
+      "w": 927.5,
+      "what": "sprint"
+    },
+    {
+      "w": 930.3,
+      "what": "sprint"
+    },
+    {
+      "w": 936.3,
+      "what": "resultCard",
+      "card": "Run 32Stopped 93% of the way to Pattern Matching+13.9 XPDistance+13.9 XPTop speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 939.3,
+      "what": "sprint"
+    },
+    {
+      "w": 944.8,
+      "what": "sprint"
+    },
+    {
+      "w": 949,
+      "what": "sprint"
+    },
+    {
+      "w": 953.7,
+      "what": "sprint"
+    },
+    {
+      "w": 956.3,
+      "what": "resultCard",
+      "card": "Run 33Stopped 92% of the way to Pattern Matching+17.2 XPDistance+13.6 XPPrompt run bonus+1.63 XPBanked from 1 prompt+1.99 XPDetails (1)Top speed 2.2 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 958.1,
+      "what": "treeBuy",
+      "id": "gpuCluster2",
+      "cost": 45
+    },
+    {
+      "w": 960.6,
+      "what": "sprint"
+    },
+    {
+      "w": 967,
+      "what": "sprint"
+    },
+    {
+      "w": 972.3,
+      "what": "sprint"
+    },
+    {
+      "w": 975.5,
+      "what": "sprint"
+    },
+    {
+      "w": 976.6,
+      "what": "resultCard",
+      "card": "Run 34Stopped 92% of the way to Pattern Matching+17.2 XPDistance+13.6 XPPrompt run bonus+1.64 XPBanked from 1 prompt+1.91 XPDetails (1)Top speed 2.0 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 979.6,
+      "what": "sprint"
+    },
+    {
+      "w": 984,
+      "what": "sprint"
+    },
+    {
+      "w": 984,
+      "what": "broke",
+      "push": "Out of data · make more in the lab",
+      "cp": 3623.791400000068,
+      "dp": 0
+    },
+    {
+      "w": 993.5,
+      "what": "sprint"
+    },
+    {
+      "w": 996.2,
+      "what": "sprint"
+    },
+    {
+      "w": 998.9,
+      "what": "resultCard",
+      "card": "Run 35Stopped 82% of the way to Pattern Matching+17.9 XPDistance+11.5 XPPrompt run bonus+2.75 XPBanked from 2 prompts+3.63 XPDetails (1)Top speed 2.3 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1001.8,
+      "what": "sprint"
+    },
+    {
+      "w": 1005.8,
+      "what": "sprint"
+    },
+    {
+      "w": 1010,
+      "what": "sprint"
+    },
+    {
+      "w": 1012.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1016.3,
+      "what": "resultCard",
+      "card": "Run 36Stopped 81% of the way to Pattern Matching+11.2 XPDistance+11.2 XPTop speed 2.0 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1018.1,
+      "what": "treeBuy",
+      "id": "efficientKernels",
+      "cost": 54
+    },
+    {
+      "w": 1020.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1027.9,
+      "what": "sprint"
+    },
+    {
+      "w": 1032.3,
+      "what": "sprint"
+    },
+    {
+      "w": 1034.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1036.6,
+      "what": "resultCard",
+      "card": "Run 37Stopped 91% of the way to Pattern Matching+17.0 XPDistance+13.4 XPPrompt run bonus+1.60 XPBanked from 1 prompt+2.03 XPDetails (1)Top speed 2.2 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1039.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1045.2,
+      "what": "sprint"
+    },
+    {
+      "w": 1049,
+      "what": "sprint"
+    },
+    {
+      "w": 1054.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1057.2,
+      "what": "resultCard",
+      "card": "Run 38Stopped 92% of the way to Pattern Matching+17.2 XPDistance+13.5 XPPrompt run bonus+1.62 XPBanked from 1 prompt+2.08 XPDetails (1)Top speed 2.3 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1060.4,
+      "what": "sprint"
+    },
+    {
+      "w": 1066.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1072.9,
+      "what": "sprint"
+    },
+    {
+      "w": 1079.3,
+      "what": "sprint"
+    },
+    {
+      "w": 1081.3,
+      "what": "resultCard",
+      "card": "Run 39Stopped 95% of the way to Pattern Matching+14.3 XPDistance+14.3 XPTop speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1083.1,
+      "what": "broke",
+      "push": "Out of data · make more in the lab",
+      "cp": 5864.782399999851,
+      "dp": 0
+    },
+    {
+      "w": 1092.8,
+      "what": "sprint"
+    },
+    {
+      "w": 1097.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1102.2,
+      "what": "sprint"
+    },
+    {
+      "w": 1104.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1110.6,
+      "what": "resultCard",
+      "card": "Run 40Stopped 72% of the way to Pattern Matching+9.57 XPDistance+9.57 XPTop speed 2.0 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1112.3,
+      "what": "treeBuy",
+      "id": "checkpointing",
+      "cost": 60
+    },
+    {
+      "w": 1114.9,
+      "what": "sprint"
+    },
+    {
+      "w": 1120.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1125.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1133.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1133.6,
+      "what": "resultCard",
+      "card": "Run 41Stopped 56% of the way to Pattern Matching+6.68 XPDistance+6.68 XPTop speed 2.2 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1136.8,
+      "what": "sprint"
+    },
+    {
+      "w": 1140.8,
+      "what": "sprint"
+    },
+    {
+      "w": 1146.4,
+      "what": "sprint"
+    },
+    {
+      "w": 1148.8,
+      "what": "sprint"
+    },
+    {
+      "w": 1153.3,
+      "what": "resultCard",
+      "card": "Run 42Stopped 64% of the way to Pattern Matching+11.1 XPDistance+8.15 XPPrompt run bonus+0.98 XPBanked from 1 prompt+1.95 XPDetails (1)Top speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1156.3,
+      "what": "sprint"
+    },
+    {
+      "w": 1159.5,
+      "what": "sprint"
+    },
+    {
+      "w": 1166.5,
+      "what": "sprint"
+    },
+    {
+      "w": 1173.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1175.9,
+      "what": "resultCard",
+      "card": "Run 43Stopped 92% of the way to Pattern Matching+17.3 XPDistance+13.7 XPPrompt run bonus+1.64 XPBanked from 1 prompt+2.03 XPDetails (1)Top speed 2.2 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1178.8,
+      "what": "sprint"
+    },
+    {
+      "w": 1184,
+      "what": "sprint"
+    },
+    {
+      "w": 1187.3,
+      "what": "sprint"
+    },
+    {
+      "w": 1187.3,
+      "what": "broke",
+      "push": "Out of data · make more in the lab",
+      "cp": 8241.082399999517,
+      "dp": 0
+    },
+    {
+      "w": 1196.9,
+      "what": "sprint"
+    },
+    {
+      "w": 1197.1,
+      "what": "resultCard",
+      "card": "Run 44Stopped 82% of the way to Pattern Matching+15.0 XPDistance+11.6 XPPrompt run bonus+1.39 XPBanked from 1 prompt+2.06 XPDetails (1)Top speed 2.3 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1200.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1204.9,
+      "what": "sprint"
+    },
+    {
+      "w": 1210.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1214.2,
+      "what": "sprint"
+    },
+    {
+      "w": 1218,
+      "what": "resultCard",
+      "card": "Run 45Stopped 90% of the way to Pattern Matching+13.1 XPDistance+13.1 XPTop speed 2.0 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1219.8,
+      "what": "treeBuy",
+      "id": "benchmarkPrizes",
+      "cost": 64
+    },
+    {
+      "w": 1222.4,
+      "what": "sprint"
+    },
+    {
+      "w": 1228.5,
+      "what": "sprint"
+    },
+    {
+      "w": 1232.3,
+      "what": "sprint"
+    },
+    {
+      "w": 1237.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1240.5,
+      "what": "resultCard",
+      "card": "Run 46Stopped 93% of the way to Pattern Matching+18.0 XPDistance+13.9 XPPrompt run bonus+1.67 XPBanked from 1 prompt+2.46 XPDetails (1)Top speed 2.3 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1243.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1250.2,
+      "what": "sprint"
+    },
+    {
+      "w": 1253.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1259.5,
+      "what": "sprint"
+    },
+    {
+      "w": 1262.2,
+      "what": "resultCard",
+      "card": "Run 47Stopped 86% of the way to Pattern Matching+12.4 XPDistance+12.4 XPTop speed 2.0 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1265.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1268.8,
+      "what": "sprint"
+    },
+    {
+      "w": 1276,
+      "what": "sprint"
+    },
+    {
+      "w": 1283.5,
+      "what": "sprint"
+    },
+    {
+      "w": 1284.6,
+      "what": "resultCard",
+      "card": "Run 48Stopped 97% of the way to Pattern Matching+14.7 XPDistance+14.7 XPTop speed 2.0 m/sNew record!Train againUpgrades →"
+    },
+    {
+      "w": 1287.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1287.7,
+      "what": "broke",
+      "push": "Out of data · make more in the lab",
+      "cp": 10508.84139999916,
+      "dp": 0
+    },
+    {
+      "w": 1298.3,
+      "what": "sprint"
+    },
+    {
+      "w": 1303.9,
+      "what": "sprint"
+    },
+    {
+      "w": 1310.5,
+      "what": "sprint"
+    },
+    {
+      "w": 1312.5,
+      "what": "resultCard",
+      "card": "Run 49Stopped 94% of the way to Pattern Matching+26.4 XPDistance+14.0 XPPrompt run bonus+5.06 XPBanked from 3 prompts+7.34 XPTop speed 2.4 m/s · new best!Train againUpgrades →"
+    },
+    {
+      "w": 1314.3,
+      "what": "treeBuy",
+      "id": "curatedData",
+      "cost": 70
+    },
+    {
+      "w": 1316.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1321.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1325.9,
+      "what": "sprint"
+    },
+    {
+      "w": 1330.8,
+      "what": "sprint"
+    },
+    {
+      "w": 1334.8,
+      "what": "resultCard",
+      "card": "Run 50Stopped 73% of the way to Pattern Matching+9.78 XPDistance+9.78 XPTop speed 2.0 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1337.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1342.4,
+      "what": "sprint"
+    },
+    {
+      "w": 1348.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1354.5,
+      "what": "sprint"
+    },
+    {
+      "w": 1356.7,
+      "what": "resultCard",
+      "card": "Run 51Stopped 89% of the way to Pattern Matching+12.9 XPDistance+12.9 XPTop speed 2.0 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1359.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1364.5,
+      "what": "sprint"
+    },
+    {
+      "w": 1367.9,
+      "what": "sprint"
+    },
+    {
+      "w": 1373,
+      "what": "sprint"
+    },
+    {
+      "w": 1377.4,
+      "what": "resultCard",
+      "card": "Run 52Stopped 72% of the way to Pattern Matching+9.57 XPDistance+9.57 XPTop speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1380.4,
+      "what": "sprint"
+    },
+    {
+      "w": 1384.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1387.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1391.8,
+      "what": "sprint"
+    },
+    {
+      "w": 1394.2,
+      "what": "resultCard",
+      "card": "Run 53Stopped 64% of the way to Pattern Matching+8.14 XPDistance+8.14 XPTop speed 2.0 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1397.3,
+      "what": "sprint"
+    },
+    {
+      "w": 1397.3,
+      "what": "broke",
+      "push": "Out of data · make more in the lab",
+      "cp": 13022.082399998777,
+      "dp": 0
+    },
+    {
+      "w": 1406.4,
+      "what": "sprint"
+    },
+    {
+      "w": 1411.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1416,
+      "what": "sprint"
+    },
+    {
+      "w": 1419.5,
+      "what": "resultCard",
+      "card": "Run 54Stopped 75% of the way to Pattern Matching+10.1 XPDistance+10.1 XPTop speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1422.5,
+      "what": "sprint"
+    },
+    {
+      "w": 1426.4,
+      "what": "sprint"
+    },
+    {
+      "w": 1430,
+      "what": "sprint"
+    },
+    {
+      "w": 1432.5,
+      "what": "sprint"
+    },
+    {
+      "w": 1437.8,
+      "what": "resultCard",
+      "card": "Run 55Stopped 89% of the way to Pattern Matching+13.0 XPDistance+13.0 XPTop speed 2.2 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1439.7,
+      "what": "treeBuy",
+      "id": "gpuCluster2",
+      "cost": 72
+    },
+    {
+      "w": 1442.3,
+      "what": "sprint"
+    },
+    {
+      "w": 1447.2,
+      "what": "sprint"
+    },
+    {
+      "w": 1453.4,
+      "what": "sprint"
+    },
+    {
+      "w": 1459.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1461.6,
+      "what": "resultCard",
+      "card": "Run 56Stopped 96% of the way to Pattern Matching+14.5 XPDistance+14.5 XPTop speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1464.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1469.4,
+      "what": "sprint"
+    },
+    {
+      "w": 1476.9,
+      "what": "sprint"
+    },
+    {
+      "w": 1484.5,
+      "what": "sprint"
+    },
+    {
+      "w": 1485.6,
+      "what": "resultCard",
+      "card": "Run 57Stopped 82% of the way to Pattern Matching+11.4 XPDistance+11.4 XPTop speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1488.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1493.5,
+      "what": "sprint"
+    },
+    {
+      "w": 1493.5,
+      "what": "broke",
+      "push": "Out of data · make more in the lab",
+      "cp": 15197.38239999844,
+      "dp": 0
+    },
+    {
+      "w": 1502.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1511.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1511.8,
+      "what": "resultCard",
+      "card": "Run 58Stopped 82% of the way to Pattern Matching+15.5 XPDistance+11.5 XPPrompt run bonus+1.73 XPBanked from 1 prompt+2.23 XPDetails (1)Top speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1514.9,
+      "what": "sprint"
+    },
+    {
+      "w": 1520.3,
+      "what": "sprint"
+    },
+    {
+      "w": 1526.5,
+      "what": "sprint"
+    },
+    {
+      "w": 1533.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1534.7,
+      "what": "resultCard",
+      "card": "Run 59Stopped 89% of the way to Pattern Matching+13.0 XPDistance+13.0 XPTop speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1537.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1544.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1549,
+      "what": "sprint"
+    },
+    {
+      "w": 1556.3,
+      "what": "sprint"
+    },
+    {
+      "w": 1557.4,
+      "what": "resultCard",
+      "card": "Run 60Stopped 90% of the way to Pattern Matching+17.3 XPDistance+13.1 XPPrompt run bonus+1.97 XPBanked from 1 prompt+2.21 XPDetails (1)Top speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1559.2,
+      "what": "treeBuy",
+      "id": "betterAlgorithms",
+      "cost": 76
+    },
+    {
+      "w": 1561.5,
+      "what": "sprint"
+    },
+    {
+      "w": 1566.8,
+      "what": "sprint"
+    },
+    {
+      "w": 1569.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1572.3,
+      "what": "sprint"
+    },
+    {
+      "w": 1575,
+      "what": "resultCard",
+      "card": "Run 61Stopped 90% of the way to Pattern Matching+17.3 XPDistance+13.1 XPPrompt run bonus+1.97 XPBanked from 1 prompt+2.19 XPDetails (1)Top speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1578.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1582.3,
+      "what": "sprint"
+    },
+    {
+      "w": 1585.2,
+      "what": "sprint"
+    },
+    {
+      "w": 1592.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1597.8,
+      "what": "resultCard",
+      "card": "Run 62Stopped 74% of the way to Pattern Matching+9.82 XPDistance+9.82 XPTop speed 2.0 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1599.5,
+      "what": "broke",
+      "push": "Out of data · make more in the lab",
+      "cp": 17641.38239999903,
+      "dp": 0
+    },
+    {
+      "w": 1609.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1614.4,
+      "what": "sprint"
+    },
+    {
+      "w": 1619.8,
+      "what": "sprint"
+    },
+    {
+      "w": 1628.9,
+      "what": "sprint"
+    },
+    {
+      "w": 1628.9,
+      "what": "resultCard",
+      "card": "Run 63Stopped 59% of the way to Pattern Matching+7.23 XPDistance+7.23 XPTop speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1631.9,
+      "what": "sprint"
+    },
+    {
+      "w": 1638.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1643.8,
+      "what": "sprint"
+    },
+    {
+      "w": 1649.2,
+      "what": "sprint"
+    },
+    {
+      "w": 1649.2,
+      "what": "resultCard",
+      "card": "Run 64Stopped 67% of the way to Pattern Matching+12.3 XPDistance+8.68 XPPrompt run bonus+1.30 XPBanked from 1 prompt+2.34 XPDetails (1)Top speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1652.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1658,
+      "what": "sprint"
+    },
+    {
+      "w": 1663.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1670.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1672.4,
+      "what": "resultCard",
+      "card": "Run 65Stopped 95% of the way to Pattern Matching+14.3 XPDistance+14.3 XPTop speed 2.0 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1675.5,
+      "what": "sprint"
+    },
+    {
+      "w": 1682.8,
+      "what": "sprint"
+    },
+    {
+      "w": 1686.8,
+      "what": "sprint"
+    },
+    {
+      "w": 1692.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1695.9,
+      "what": "resultCard",
+      "card": "Run 66Stopped 73% of the way to Pattern Matching+13.7 XPDistance+9.69 XPPrompt run bonus+1.45 XPBanked from 1 prompt+2.51 XPTop speed 2.4 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1699,
+      "what": "sprint"
+    },
+    {
+      "w": 1704.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1704.1,
+      "what": "broke",
+      "push": "Out of data · make more in the lab",
+      "cp": 20027.38840000045,
+      "dp": 0
+    },
+    {
+      "w": 1713.4,
+      "what": "sprint"
+    },
+    {
+      "w": 1716.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1721.3,
+      "what": "resultCard",
+      "card": "Run 67Stopped 78% of the way to Pattern Matching+10.7 XPDistance+10.7 XPTop speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1723.1,
+      "what": "treeBuy",
+      "id": "promptTemplates",
+      "cost": 90
+    },
+    {
+      "w": 1725.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1729.3,
+      "what": "sprint"
+    },
+    {
+      "w": 1734.5,
+      "what": "sprint"
+    },
+    {
+      "w": 1737.2,
+      "what": "sprint"
+    },
+    {
+      "w": 1744.5,
+      "what": "resultCard",
+      "card": "Run 68Stopped 57% of the way to Pattern Matching+6.82 XPDistance+6.82 XPTop speed 2.2 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1747.4,
+      "what": "sprint"
+    },
+    {
+      "w": 1751,
+      "what": "sprint"
+    },
+    {
+      "w": 1756,
+      "what": "sprint"
+    },
+    {
+      "w": 1760.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1764.8,
+      "what": "resultCard",
+      "card": "Run 69Stopped 69% of the way to Pattern Matching+15.8 XPSo close: about 4% more speed would have crested it+3.17 XPDistance+9.00 XPPrompt run bonus+1.35 XPDetails (2)Banked from 1 prompt+2.32 XPTop sp"
+    },
+    {
+      "w": 1767.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1772.3,
+      "what": "sprint"
+    },
+    {
+      "w": 1777.4,
+      "what": "sprint"
+    },
+    {
+      "w": 1784.4,
+      "what": "sprint"
+    },
+    {
+      "w": 1786.2,
+      "what": "resultCard",
+      "card": "Run 70Stopped 90% of the way to Pattern Matching+13.1 XPDistance+13.1 XPTop speed 1.8 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1789.2,
+      "what": "sprint"
+    },
+    {
+      "w": 1797.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1799.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1803.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1808.5,
+      "what": "resultCard",
+      "card": "Run 71Stopped 84% of the way to Pattern Matching+11.8 XPDistance+11.8 XPTop speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1811.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1811.6,
+      "what": "broke",
+      "push": "Out of data · make more in the lab",
+      "cp": 22484.03240000197,
+      "dp": 0
+    },
+    {
+      "w": 1821,
+      "what": "sprint"
+    },
+    {
+      "w": 1824.9,
+      "what": "sprint"
+    },
+    {
+      "w": 1829.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1837.3,
+      "what": "resultCard",
+      "card": "Run 72Stopped 69% of the way to Pattern Matching+11.3 XPSo close: about 4% more speed would have crested it+2.25 XPDistance+9.02 XPTop speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1840.3,
+      "what": "sprint"
+    },
+    {
+      "w": 1844.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1849.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1855.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1858.2,
+      "what": "resultCard",
+      "card": "Run 73Stopped 84% of the way to Pattern Matching+11.9 XPDistance+11.9 XPTop speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1861.2,
+      "what": "sprint"
+    },
+    {
+      "w": 1867.4,
+      "what": "sprint"
+    },
+    {
+      "w": 1874.2,
+      "what": "sprint"
+    },
+    {
+      "w": 1882,
+      "what": "sprint"
+    },
+    {
+      "w": 1882.6,
+      "what": "resultCard",
+      "card": "Run 74Stopped 71% of the way to Pattern Matching+16.7 XPDistance+9.35 XPPrompt run bonus+2.80 XPBanked from 2 prompts+4.57 XPDetails (1)Top speed 2.2 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1884.5,
+      "what": "treeBuy",
+      "id": "highResSensors",
+      "cost": 90
+    },
+    {
+      "w": 1887,
+      "what": "sprint"
+    },
+    {
+      "w": 1894.3,
+      "what": "sprint"
+    },
+    {
+      "w": 1901.9,
+      "what": "sprint"
+    },
+    {
+      "w": 1907.7,
+      "what": "sprint"
+    },
+    {
+      "w": 1913.2,
+      "what": "resultCard",
+      "card": "Run 75Stopped 66% of the way to Pattern Matching+15.6 XPDistance+8.49 XPPrompt run bonus+2.55 XPBanked from 2 prompts+4.55 XPDetails (1)Top speed 2.2 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1916.1,
+      "what": "sprint"
+    },
+    {
+      "w": 1922.5,
+      "what": "sprint"
+    },
+    {
+      "w": 1930.9,
+      "what": "sprint"
+    },
+    {
+      "w": 1936.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1939.5,
+      "what": "resultCard",
+      "card": "Run 76Stopped 91% of the way to Pattern Matching+13.3 XPDistance+13.3 XPTop speed 1.9 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1941.2,
+      "what": "broke",
+      "push": "Out of data · make more in the lab",
+      "cp": 25539.082400003783,
+      "dp": 0
+    },
+    {
+      "w": 1950.9,
+      "what": "sprint"
+    },
+    {
+      "w": 1960.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1963.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1970.4,
+      "what": "sprint"
+    },
+    {
+      "w": 1973.5,
+      "what": "resultCard",
+      "card": "Run 77Stopped 86% of the way to Pattern Matching+12.3 XPDistance+12.3 XPTop speed 2.0 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 1976.6,
+      "what": "sprint"
+    },
+    {
+      "w": 1981.2,
+      "what": "sprint"
+    },
+    {
+      "w": 1988.8,
+      "what": "sprint"
+    },
+    {
+      "w": 1997.8,
+      "what": "sprint"
+    },
+    {
+      "w": 1997.8,
+      "what": "resultCard",
+      "card": "Run 78Stopped 64% of the way to Pattern Matching+11.7 XPDistance+8.04 XPPrompt run bonus+1.21 XPBanked from 1 prompt+2.51 XPDetails (1)Top speed 2.4 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 2000.9,
+      "what": "sprint"
+    },
+    {
+      "w": 2005.4,
+      "what": "sprint"
+    },
+    {
+      "w": 2010.7,
+      "what": "sprint"
+    },
+    {
+      "w": 2016.4,
+      "what": "sprint"
+    },
+    {
+      "w": 2019.9,
+      "what": "resultCard",
+      "card": "Run 79Stopped 75% of the way to Pattern Matching+13.9 XPDistance+10.0 XPPrompt run bonus+1.50 XPBanked from 1 prompt+2.41 XPDetails (1)Top speed 2.2 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 2023,
+      "what": "sprint"
+    },
+    {
+      "w": 2028.7,
+      "what": "sprint"
+    },
+    {
+      "w": 2033.3,
+      "what": "sprint"
+    },
+    {
+      "w": 2039.2,
+      "what": "sprint"
+    },
+    {
+      "w": 2041.8,
+      "what": "resultCard",
+      "card": "Run 80Stopped 94% of the way to Pattern Matching+23.3 XPSo close: about 1% more speed would have crested it+4.66 XPDistance+14.0 XPPrompt run bonus+2.10 XPDetails (2)Banked from 1 prompt+2.51 XPTop sp"
+    },
+    {
+      "w": 2043.6,
+      "what": "treeBuy",
+      "id": "seriesA",
+      "cost": 90
+    },
+    {
+      "w": 2046.1,
+      "what": "sprint"
+    },
+    {
+      "w": 2046.1,
+      "what": "broke",
+      "push": "Out of data · make more in the lab",
+      "cp": 27931.282400005242,
+      "dp": 0
+    },
+    {
+      "w": 2055.6,
+      "what": "sprint"
+    },
+    {
+      "w": 2062.2,
+      "what": "sprint"
+    },
+    {
+      "w": 2067.3,
+      "what": "sprint"
+    },
+    {
+      "w": 2073.7,
+      "what": "sprint"
+    },
+    {
+      "w": 2073.7,
+      "what": "resultCard",
+      "card": "Run 81Stopped 78% of the way to Pattern Matching+18.5 XPDistance+10.6 XPPrompt run bonus+3.19 XPBanked from 2 prompts+4.64 XPDetails (1)Top speed 2.3 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 2076.7,
+      "what": "sprint"
+    },
+    {
+      "w": 2083.6,
+      "what": "sprint"
+    },
+    {
+      "w": 2092.3,
+      "what": "sprint"
+    },
+    {
+      "w": 2099.8,
+      "what": "sprint"
+    },
+    {
+      "w": 2105.3,
+      "what": "sprint"
+    },
+    {
+      "w": 2105.3,
+      "what": "resultCard",
+      "card": "Run 82Stopped 66% of the way to Pattern Matching+8.41 XPDistance+8.41 XPTop speed 2.1 m/sTrain againUpgrades →"
+    },
+    {
+      "w": 2108.2,
+      "what": "sprint"
+    },
+    {
+      "w": 2112.3,
+      "what": "sprint"
+    }
+  ],
+  "errors": [],
+  "wallMinutes": 35.20666666666667
+}
