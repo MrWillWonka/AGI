@@ -280,7 +280,7 @@ function finishRoll(ev) {
     xpBy.distance += result.xp;
     E.settleBreakCountdown(s, (roll.breakthroughs || 0) > 0);
     if (roll.launched) E.settleSurge?.(s);
-    E.recordLegs(s, roll.ground.stretch, roll.legEntries, result.xp + banked, viral ? d0().windfallMult : 1);
+    E.recordLegs(s, roll.ground.stretch, roll.legEntries, result.xp + banked, viral ? d0().windfallMult : 1, result.xp);
     if (!crested && !replay && !legs && !ev.rolledBack && leg === before) {
         const goal = roll.ground.goal;
         const top = roll.ball.maxX;

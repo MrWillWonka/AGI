@@ -1448,9 +1448,14 @@
     // and each leg it entered past a skill hill gets what the run earned from there on (as a run starting there
     // would). `entries` are { leg, banked }: the leg entered and the XP banked by then. Returns the cleared legs
     // whose best rose (a playtest asked why a better pass over later legs didn't raise their passive XP).
-    function recordLegs(s, start, entries, total, luck = 1) {
+    // `luck` (a viral run's multiplier) applied only to `lucky`, the run's distance XP, not to what was banked on
+    // the way (prompts, crests, clears, tokens): dividing the whole total by it recorded a viral run below the same
+    // run without the luck. `lucky` defaults to the whole total (the old behaviour, for callers that don't split).
+    function recordLegs(s, start, entries, total, luck = 1, lucky = total) {
         const improved = [];
-        const credit = (leg, xp) => { if (recordRun(s, leg, xp, luck) && leg < s.path.learned) improved.push(leg); };
+        // What the luck added to `xp` (the distance XP is paid at the end, so it's inside every leg's share).
+        const added = xp => Math.min(xp, Math.max(0, lucky)) * (1 - 1 / luck);
+        const credit = (leg, xp) => { if (recordRun(s, leg, xp - added(xp), 1) && leg < s.path.learned) improved.push(leg); };
         credit(start, total);
         for (const e of entries || []) credit(e.leg, total - e.banked);
         return improved;

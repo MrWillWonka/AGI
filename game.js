@@ -5581,7 +5581,7 @@ window.AGI = (function () {
         const passiveBefore = E.derive(state).xpPerSec;
         E.settleBreakCountdown(state, (roll.breakthroughs || 0) > 0);
         if (roll.launched) E.settleSurge(state);
-        const improvedLegs = E.recordLegs(state, roll.ground.stretch, roll.legEntries, result.xp + banked, viral ? E.derive(state).windfallMult : 1);
+        const improvedLegs = E.recordLegs(state, roll.ground.stretch, roll.legEntries, result.xp + banked, viral ? E.derive(state).windfallMult : 1, result.xp);
         pt('run', { from: roll.ground.stretch + 1, leg: leg + 1, prog: r2(ev.progress), m: r2(metres), xp: r2(result.xp + banked), legs,
             sprints: r2((path.rollPushes || 0) - Math.max(0, roll.pushesLeft)), clean, top: r2(roll.topSpeed || 0),
             dur: Math.round(state.stats.playTime - (roll.ptStart ?? state.stats.playTime)),

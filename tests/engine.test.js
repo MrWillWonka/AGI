@@ -1453,6 +1453,22 @@ test('a run credits passive XP to every leg it ran through, not only the one it 
     assert.deepEqual(E.recordLegs(s, 3, [{ leg: 4, banked: 10 }], 500), [3]);
 });
 
+test('a viral run records its luck-free XP: its luck only ever multiplied the distance, not what was banked', () => {
+    const plain = fresh();
+    plain.path.learned = 4;
+    plain.path.legBest = [0, 0, 0, 0, 0];
+    const viral = JSON.parse(JSON.stringify(plain));
+    // 1000 XP banked on the way (crests, prompts) and 200 of distance; the viral run's distance paid ×2.
+    E.recordLegs(plain, 1, [{ leg: 2, banked: 600 }], 1000 + 200, 1, 200);
+    E.recordLegs(viral, 1, [{ leg: 2, banked: 600 }], 1000 + 400, 2, 400);
+    for (const k of [1, 2]) assert.ok(Math.abs(viral.path.legBest[k] - plain.path.legBest[k]) < 1e-9, `leg ${k}: the same run records the same best`);
+    // Without the split, the whole total is taken as lucky (the old behaviour).
+    const old = JSON.parse(JSON.stringify(plain));
+    old.path.legBest = [0, 0, 0, 0, 0];
+    E.recordLegs(old, 1, [], 1400, 2);
+    assert.ok(Math.abs(old.path.legBest[1] - 700 / E.derive(old).xpMult) < 1e-9);
+});
+
 test('Lucky Break guarantees a breakthrough within 1-3 runs of buying it, not on the next sprint', () => {
     const s = fresh();
     s.path.learned = 4;
