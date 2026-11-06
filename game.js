@@ -3047,7 +3047,7 @@ window.AGI = (function () {
             if (t.id === 'researchAssistant') setText(u.rate, on ? `${f(d.researchPerSec, 2)}/s → +${f(d.rpPerSec)} RP/s` : 'Paused');
             if (t.id === 'autoTrainer') {
                 const lv = E.level(state, 'autoTrainer');
-                setText(u.rate, on ? `Level ${lv} · ${['', 'runs the trail at full charge', 'aims at clean prompts', 'aims at super prompts'][Math.min(3, lv)]}` : 'Paused');
+                setText(u.rate, on ? `Level ${lv} · ${['', 'replays cleared legs the way you sprint', 'replays cleared legs, aiming at clean prompts', 'replays cleared legs, aiming at super prompts'][Math.min(3, lv)]}` : 'Paused');
             }
             if (t.id === 'procurement') {
                 const p = d.tasks.procurement;
