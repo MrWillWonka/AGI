@@ -418,12 +418,22 @@ window.AGI = (function () {
         calloutQueue.push({ key, title, message, gen: calloutGen });
         if (!calloutLive) nextCallout();
     }
+    // Tips about the run (and the lab, which feeds it) show before a run can start, and a run can't start
+    // while one is on its way: the owner pressed sprint and a tip landed on top, blocking the run and getting
+    // closed unread. They show fast in the bay, and the press waits for them (`runTipPending`, `pressHold`).
+    const RUN_TIPS = new Set(['hint:train', 'hint:prompt', 'hint:lab', 'hint:offer']);
+    function runTipPending() {
+        const c = calloutLive;
+        return !!c && RUN_TIPS.has(c.key) && Date.now() - (c.since || 0) < 6000;
+    }
     function nextCallout() {
         const c = calloutQueue.shift();
         calloutLive = c || null;
         if (!c) return;
-        // Wait for whatever just appeared (the minimap, a workbench job) to finish booting up.
-        setTimeout(() => showCallout(c), 1200);
+        c.since = Date.now();
+        // Wait for whatever just appeared (the minimap, a workbench job) to finish booting up; a run's tip goes
+        // up at once, before the player's first press.
+        setTimeout(() => showCallout(c), RUN_TIPS.has(c.key) && openBay === 'training' ? 250 : 1200);
     }
     // Drop any callout still waiting or showing (a new version, or starting over).
     function clearCallouts() {
@@ -459,7 +469,7 @@ window.AGI = (function () {
         // first Skill learned card a second after it appeared and dimmed it, SUMMIT banner and all, until
         // clicked. A tip that has to wait lets one that can show go first (Passive XP before New in the lab).
         const cardUp = openBay === 'training' && path.view === 'run' && !$('rollResult').hidden && !document.hidden;
-        if (where.kind === 'tip' && (runInFlightOnScreen() || (cardUp && !(onScreen && $('rollResult').contains(target))))) {
+        if (where.kind === 'tip' && (runInFlightOnScreen() || path.charging || (cardUp && !(onScreen && $('rollResult').contains(target))))) {
             if (calloutQueue.length) { calloutQueue.push(c); calloutLive = null; nextCallout(); }
             else setTimeout(() => showCallout(c), 600);
             return;
@@ -4144,7 +4154,10 @@ window.AGI = (function () {
         const k = startLeg();
         const replay = k < state.path.learned;
         setHidden($('legTag'), !replay);
-        if (replay) setText($('legTagText'), `Replay from ${E.skillAt(k).name} → frontier`);
+        // The Auto-Trainer's replays stop at the frontier (it's yours); your own replays run on to it.
+        const auto = autoOn();
+        if (replay) setText($('legTagText'), auto ? `Auto-Trainer · replaying from ${E.skillAt(k).name}` : `Replay from ${E.skillAt(k).name} → frontier`);
+        setHidden(document.querySelector('#legTag .leg-tag-clear'), auto && path.startLeg == null);
         const inFlight = path.roll && path.stateRef === state && path.roll.launched && !path.roll.over;
         if (path.view === 'dev') setText($('startRunButton'), inFlight ? 'Watch run' : replay ? 'Start replay' : `Start run ${state.stats.rolls + 1}`);
     }
@@ -4220,8 +4233,8 @@ window.AGI = (function () {
         if (live && roll) {
             const leg = Math.min(roll.leg, state.path.learned);
             setText($('devLiveText'), roll.launched && !roll.over
-                ? `Auto-Trainer · ${Math.round(roll.progress * 100)}% to ${E.skillAt(leg).name}`
-                : 'Auto-Trainer · next run starting');
+                ? `Auto-Trainer · replaying ${E.skillAt(leg).name} (${Math.round(roll.progress * 100)}%)`
+                : 'Auto-Trainer · next replay starting');
         }
     }
 
@@ -4233,6 +4246,10 @@ window.AGI = (function () {
                 pt('task', { id: 'autoTrainer', on: E.taskOn(state, 'autoTrainer') });
                 afterChange();
                 save();
+                // A run waiting at the start switches between the frontier and the Auto-Trainer's replay.
+                if (path.roll && !path.roll.launched && !path.done) currentRoll();
+                updateLegTag();
+                renderLegPicker();
                 startPathLoop();
             });
         }
@@ -4298,6 +4315,7 @@ window.AGI = (function () {
     const path = {
         roll: null,
         startLeg: null,         // replay from this cleared leg (stretch index); null = the frontier
+        handCharges: [],        // your recent sprint charges, which the Auto-Trainer copies
         timeScale: 1,           // < 1 in slow motion
         tension: 0,             // 0–1: how far the camera has pushed in on a nail-biter
         focus: null,            // the hill of the current nail-biter
@@ -4329,8 +4347,11 @@ window.AGI = (function () {
     // The leg the next run starts on: a cleared leg picked on the rack or the dev screen, else the frontier.
     function startLeg() {
         const k = path.startLeg;
-        return k != null && k >= 0 && k < state.path.learned ? k : state.path.learned;
+        if (k != null && k >= 0 && k < state.path.learned) return k;
+        // The Auto-Trainer only runs legs you've cleared: with it on, the next run replays the newest one.
+        return autoOn() && state.path.learned > 0 ? state.path.learned - 1 : state.path.learned;
     }
+    const autoOn = () => E.autoTrainerLevel(state) > 0;
 
     // The leg the ball is on now (pushes cost what they cost there), or where the next run starts.
     function ballLeg() {
@@ -4351,7 +4372,7 @@ window.AGI = (function () {
     function currentRoll() {
         const d = E.derive(state, debugRates);
         const first = startLeg();
-        const key = [state.stats.runStart, state.path.learned, first, E.rollSeed(state), d.pushesPerRoll, d.pushCooldown, d.friction, d.hillScale, d.stripFront, d.stripBack, d.stripMore].join(':');
+        const key = [state.stats.runStart, state.path.learned, first, autoOn(), E.rollSeed(state), d.pushesPerRoll, d.pushCooldown, d.friction, d.hillScale, d.stripFront, d.stripBack, d.stripMore].join(':');
         // A finished run stays on screen (path.done) until you click through to the dev screen.
         const stale = !path.roll || path.stateRef !== state || (path.roll.over && !path.done) || (!path.roll.launched && path.rollKey !== key);
         if (stale && path.pause <= 0) {
@@ -4361,6 +4382,8 @@ window.AGI = (function () {
                 { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, strips: d.strips, onward: true, last: state.path.learned,
                     holdOpen: crunching });
             path.roll.frontier = state.path.learned;   // where the frontier was when the run started
+            path.roll.auto = autoOn() && first < state.path.learned;   // the Auto-Trainer's replay of cleared legs
+            path.autoAt = 0;
             path.rollPushes = d.pushesPerRoll;
             path.burnUnit = null;
             path.burnStrength = null;
@@ -4654,8 +4677,10 @@ window.AGI = (function () {
     // wait used to start a charge the moment it ended, and letting go a beat later fired a tiny sprint by
     // accident. On act two it's a tuck instead, until it's let go; a sprint takes a fresh press.
     function pressHold() {
-        path.held = true;
         const roll = path.roll;
+        // A tip about to show (before the run): the press waits for it rather than launching under it.
+        if (roll && !roll.launched && path.view === 'run' && runTipPending()) return;
+        path.held = true;
         // Act two: hold to thrust while there's fuel (or a crunch makes it free); empty, a hold is a tuck.
         if (roll && thrustLeg(roll) && path.view === 'run' && !path.done && !roll.over) {
             path.holdTuck = roll.launched && roll.pushesLeft <= 0 && !crunching();
@@ -4712,6 +4737,10 @@ window.AGI = (function () {
     function fireSprint(roll, level, kind, effort) {
         const leg = ballLeg();
         const pushed = pushBall(false, effort ? 1 : Math.max(E.PATH.minCharge, level), kind, effort);
+        if (pushed && !effort) {   // the Auto-Trainer sprints like you do (autoCharge)
+            path.handCharges.push(level);
+            if (path.handCharges.length > 20) path.handCharges.shift();
+        }
         if (pushed && effort) {
             path.fx.maxEffort = false;
             burst(path.colors.warning, 30);
@@ -5219,38 +5248,71 @@ window.AGI = (function () {
         ctx.globalAlpha = 1;
     }
 
-    // Auto-Trainer: level 1 launches runs and sprints once the ball has settled; level 2 sprints on a climb
-    // the ball won't make (moving forward uphill with less energy than the next crest needs), which is when
-    // a sprint counts most; level 3 also aims every sprint at the clean prompt (the super prompt once there
-    // is one), banking their XP.
+    // Auto-Trainer: it replays legs you've cleared (never the frontier: that's yours), and it plays like you,
+    // not like a machine: its sprints copy your recent charges, with an early model's mistakes (a wobble on the
+    // charge and a slow reaction) that shrink as it's trained (its legacy levels) and as you learn skills
+    // (owner's playtest: firing a perfect full charge every time made it far stronger than the player, and it
+    // took the skills and achievements away from them). Every level sprints from rest and on a climb the ball
+    // won't make (`wontClear`); in act two it thrusts from rest, when slow, up such climbs and on the way down
+    // in flight. Level 2 aims at the clean prompt, level 3 at the super prompt, both with the same wobble.
+    const AUTO_ERROR = [0.24, 0.13, 0.06];     // the charge's wobble (standard deviation of the meter), by level
+    const AUTO_REACTION = [0.7, 0.35, 0.15];   // longest reaction delay (s), by level
+    function autoSkill() {
+        const lvl = Math.max(1, Math.min(3, E.autoTrainerLevel(state)));
+        // Trained further with every skill past the third: about half the mistakes by the fifteenth.
+        const learn = Math.max(0.5, 1 - 0.04 * Math.max(0, state.path.learned - 3));
+        return { err: AUTO_ERROR[lvl - 1] * learn, react: AUTO_REACTION[lvl - 1] * learn };
+    }
+    const gauss = () => Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random());
+    // What it would charge: your recent average, a wobble either way, within what the lab can pay.
+    function autoCharge(budget, err) {
+        const h = path.handCharges;
+        const usual = h.length ? h.reduce((a, b) => a + b, 0) / h.length : 0.8;
+        return Math.max(E.PATH.minCharge, Math.min(budget, usual + gauss() * err));
+    }
+    // A decision is acted on after a reaction delay: the moment the trigger holds it picks one, and acts when
+    // it's up (the trigger has to still hold).
+    function autoReady(want, react) {
+        if (!want) { path.autoAt = 0; return false; }
+        const now = performance.now();
+        if (!path.autoAt) path.autoAt = now + 1000 * react * Math.random();
+        return now >= path.autoAt;
+    }
     function autoTrain(roll) {
         const lvl = E.autoTrainerLevel(state);
         path.autoThrust = false;
-        // Act two: thrust instead of sprints. Every level keeps the ball rolling (from rest and when slow), thrusts
-        // up climbs it won't make and holds flights up on the way down: the earned first level plays the trail as
-        // well as a player at full charge would (it used to only sprint from rest, and leaving it on was slower
-        // than playing by hand). Levels 2 and 3 add the prompts.
-        if (lvl && thrustLeg(roll) && !roll.over && path.pause <= 0 && !frozen() && (roll.pushesLeft > 0 || crunching())) {
+        if (!lvl || !roll.auto) return;
+        const { err, react } = autoSkill();
+        if (thrustLeg(roll) && !roll.over && path.pause <= 0 && !frozen() && (roll.pushesLeft > 0 || crunching())) {
             const slow = !roll.airborne && roll.ball.v < AUTO_THRUST_SPEED;
-            path.autoThrust = !roll.launched || slow || wontClear(roll) || (roll.airborne && roll.vy < 0);
+            const want = !roll.launched || slow || wontClear(roll) || (roll.airborne && roll.vy < 0);
+            // Once it's thrusting it keeps on while the reason holds; starting waits for its reaction.
+            path.autoThrust = want && (path.autoThrusting || autoReady(want, react));
+            path.autoThrusting = path.autoThrust;
+            if (!want) path.autoAt = 0;
             // Its launch clears the last run's card, as a hand launch does (it sat over the next run's smash).
             if (path.autoThrust && !roll.launched && !$('rollResult').hidden) { path.overview = 0; dismissResult(); }
             return;
         }
-        if (!lvl || roll.over || path.pause > 0 || roll.ball.cooldown > 0 || path.fx.windup || frozen() || roll.airborne) return;
-        if (!(!roll.launched || roll.atRest || wontClear(roll))) return;
+        path.autoThrusting = false;
+        if (roll.over || path.pause > 0 || roll.ball.cooldown > 0 || path.fx.windup || frozen() || roll.airborne) { path.autoAt = 0; return; }
+        if (!autoReady(!roll.launched || roll.atRest || wontClear(roll), react)) return;
+        path.autoAt = 0;
         const budget = chargeBudget();
+        if (budget < E.PATH.minCharge) return;
         if (lvl >= 2) {
-            // Level 2 aims at the clean prompt's centre, level 3 at the super prompt's (else the clean one's).
+            // Level 2 aims at the clean prompt's centre, level 3 at the super prompt's (else the clean one's),
+            // and misses by its wobble.
             const zone = currentZone(roll);
             const aim = lvl >= 3 && zone.perfectTo > zone.perfectFrom ? (zone.perfectFrom + zone.perfectTo) / 2 : (zone.from + zone.to) / 2;
             if (zone.to > zone.from && aim <= budget) {
-                const kind = E.zoneHit(zone, aim);
-                if (pushBall(true, aim, kind) && kind) promptBonus(roll, kind, ballLeg(), aim);
+                const level = Math.max(E.PATH.minCharge, Math.min(budget, aim + gauss() * err * 0.5));
+                const kind = E.zoneHit(zone, level);
+                if (pushBall(true, level, kind) && kind) promptBonus(roll, kind, ballLeg(), level);
                 return;
             }
         }
-        pushBall(true, budget);
+        pushBall(true, autoCharge(budget, err));
     }
 
     const AUTO_THRUST_SPEED = 1.5; // m/s: below this on the ground the Auto-Trainer thrusts
@@ -5339,6 +5401,7 @@ window.AGI = (function () {
                 else if (ev.type === 'bump') trailSfx('land', { impact: 1 });
                 else finishRoll(ev);
             }
+            if (roll.autoDone && !roll.over) finishRoll(roll.end());
             // Stuck with pushes left but nothing to pay for them: give income a moment, then end the roll.
             const broke = roll.launched && !roll.over && roll.atRest && roll.pushesLeft > 0
                 && (thrustLeg(roll) ? !E.canAfford(state, E.burnCost(state, 0.1, ballLeg())) : chargeBudget() < E.PATH.minCharge);
@@ -5581,6 +5644,8 @@ window.AGI = (function () {
         const roll = path.roll;
         // The chain: each cleared hill crossed raises the multiplier on everything after it.
         const xp = E.clearLeg(state, ev.skill, roll.legs || 0);
+        // The Auto-Trainer's replay is done once it has crossed the last cleared hill: the frontier is yours.
+        if (roll.auto && ev.skill >= state.path.learned - 1) roll.autoDone = true;
         roll.legs = (roll.legs || 0) + 1;
         roll.legXp = (roll.legXp || 0) + xp;
         markLegEntry(roll, ev.skill + 1);
@@ -5628,7 +5693,9 @@ window.AGI = (function () {
         const passiveBefore = E.derive(state).xpPerSec;
         E.settleBreakCountdown(state, (roll.breakthroughs || 0) > 0);
         if (roll.launched) E.settleSurge(state);
-        const improvedLegs = E.recordLegs(state, roll.ground.stretch, roll.legEntries, result.xp + banked, viral ? E.derive(state).windfallMult : 1, result.xp);
+        // Only your own runs set a leg's best (its passive XP): the Auto-Trainer's replays earn, but don't raise it,
+        // so going back to optimise a leg by hand stays the way to speed it up (owner's playtest).
+        const improvedLegs = roll.auto ? [] : E.recordLegs(state, roll.ground.stretch, roll.legEntries, result.xp + banked, viral ? E.derive(state).windfallMult : 1, result.xp);
         pt('run', { from: roll.ground.stretch + 1, leg: leg + 1, prog: r2(ev.progress), m: r2(metres), xp: r2(result.xp + banked), legs,
             sprints: r2((path.rollPushes || 0) - Math.max(0, roll.pushesLeft)), clean, top: r2(roll.topSpeed || 0),
             dur: Math.round(state.stats.playTime - (roll.ptStart ?? state.stats.playTime)),
@@ -5637,7 +5704,7 @@ window.AGI = (function () {
             ...(roll.tokens ? { tokens: roll.tokens } : {}), ...(roll.dives ? { dives: roll.dives } : {}),
             ...(roll.breakthroughs ? { br: roll.breakthroughs } : {}),
             ...(ev.rolledBack ? { back: true } : {}), ...(result.record ? { record: true } : {}), ...(viral ? { viral: true } : {}),
-            ...(E.autoTrainerLevel(state) > 0 ? { auto: true } : {}) });
+            ...(roll.auto ? { auto: true } : {}) });
         // With the Auto-Trainer the next roll starts by itself; otherwise the run waits for a click.
         const auto = E.autoTrainerLevel(state) > 0;
         path.pause = auto ? RESULT_PAUSE : 0;
@@ -6071,6 +6138,13 @@ window.AGI = (function () {
         // Hysteresis: zoom out at once when something tall needs it, but only zoom back in once the view
         // could be 30% tighter, so it doesn't keep breathing in and out over every bump.
         let view = Math.max(base, widthToFit(ahead));
+        // A tall hill already in the widened view (a skill hill at its right edge) counts too: it was drawn off
+        // the top with an arrow (owner's playtest). A few passes, since widening can show more.
+        for (let i = 0; i < 3; i++) {
+            const need = widthToFit(tallestIn(roll, leftOf(view), leftOf(view) + view));
+            if (need <= view * 1.001) break;
+            view = need;
+        }
         const held = path.camView;
         if (held && held.roll === roll && view <= held.width && view > held.width / 1.3) view = held.width;
         else path.camView = { roll, width: view };

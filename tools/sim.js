@@ -58,19 +58,23 @@ let runs = 0;
 let sprints = 0, partial = 0;
 
 // ---- the run ----
-const run = { roll: null, rollPushes: 0, pause: 0, brokeFor: 0, maxEffort: false, burnUnit: null, burnStrength: null };
+const run = { roll: null, handCharges: [], autoAt: 0, autoThrusting: false, rollPushes: 0, pause: 0, brokeFor: 0, maxEffort: false, burnUnit: null, burnStrength: null };
 const d0 = () => E.derive(s);
 const ballLeg = () => (run.roll ? Math.min(run.roll.leg, s.path.learned) : s.path.learned);
 const chargeBudget = () => E.affordableCharge(s, ballLeg());
 const pushIndex = roll => run.rollPushes - roll.pushesLeft;
 const thrustLeg = roll => roll.leg >= T.LATE_LEG;
 
-function newRoll() {
+function newRoll(auto) {
     const d = d0();
-    const first = s.path.learned;   // the bot always starts on the frontier
+    // The human starts on the frontier; the Auto-Trainer (game.js startLeg) replays the newest cleared leg.
+    const replay = auto && s.path.learned > 0;
+    const first = replay ? s.path.learned - 1 : s.path.learned;
     run.roll = T.createRoll(first, E.rollSeed(s), { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction,
         hillScale: d.hillScale, strips: d.strips, onward: true, last: s.path.learned });
     run.roll.frontier = s.path.learned;
+    run.roll.auto = replay;
+    run.autoAt = 0;
     run.rollPushes = d.pushesPerRoll;
     run.burnUnit = null;
     run.burnStrength = null;
@@ -166,24 +170,47 @@ function humanSprint(roll) {
     }
     const kind = zone.to > zone.from ? E.zoneHit(zone, level) : null;
     const leg = ballLeg();
-    if (pushBall(false, Math.max(E.PATH.minCharge, level), kind, false) && kind) promptBonus(roll, kind, leg, level);
+    const pushed = pushBall(false, Math.max(E.PATH.minCharge, level), kind, false);
+    if (pushed) { run.handCharges.push(level); if (run.handCharges.length > 20) run.handCharges.shift(); }
+    if (pushed && kind) promptBonus(roll, kind, leg, level);
+}
+
+// The Auto-Trainer as game.js plays it: your recent charges with a wobble, after a reaction delay, both shrinking
+// with its level and with skills learned (AUTO_ERROR, AUTO_REACTION, autoSkill, autoCharge, autoReady).
+const AUTO_ERROR = [0.24, 0.13, 0.06];
+const AUTO_REACTION = [0.7, 0.35, 0.15];
+function autoSkill(lvl) {
+    const l = Math.max(1, Math.min(3, lvl));
+    const learn = Math.max(0.5, 1 - 0.04 * Math.max(0, s.path.learned - 3));
+    return { err: AUTO_ERROR[l - 1] * learn, react: AUTO_REACTION[l - 1] * learn };
+}
+const gauss = () => Math.sqrt(-2 * Math.log(1 - rng())) * Math.cos(2 * Math.PI * rng());
+function autoReady(want, react) {
+    if (!want) { run.autoAt = 0; return false; }
+    if (!run.autoAt) run.autoAt = s.stats.playTime + react * rng();
+    return s.stats.playTime >= run.autoAt;
 }
 
 function autoSprint(roll, lvl) {
-    if (roll.over || roll.ball.cooldown > 0 || roll.airborne) return;
-    const OLD = !!process.env.OLDAUTO;   // the original levels (1 settle, 2 failing climbs, 3 prompts)
-    if (!(!roll.launched || roll.atRest || ((OLD ? lvl >= 2 : true) && wontClear(roll)))) return;
+    if (roll.over || roll.ball.cooldown > 0 || roll.airborne) { run.autoAt = 0; return; }
+    const { err, react } = autoSkill(lvl);
+    if (!autoReady(!roll.launched || roll.atRest || wontClear(roll), react)) return;
+    run.autoAt = 0;
     const budget = chargeBudget();
-    if (OLD ? lvl >= 3 : lvl >= 2) {
+    if (budget < E.PATH.minCharge) return;
+    if (lvl >= 2) {
         const zone = currentZone(roll);
-        const aim = (OLD || lvl >= 3) && zone.perfectTo > zone.perfectFrom ? (zone.perfectFrom + zone.perfectTo) / 2 : (zone.from + zone.to) / 2;
+        const aim = lvl >= 3 && zone.perfectTo > zone.perfectFrom ? (zone.perfectFrom + zone.perfectTo) / 2 : (zone.from + zone.to) / 2;
         if (zone.to > zone.from && aim <= budget) {
-            const kind = E.zoneHit(zone, aim);
-            if (pushBall(true, aim, kind) && kind) promptBonus(roll, kind, ballLeg(), aim);
+            const level = Math.max(E.PATH.minCharge, Math.min(budget, aim + gauss() * err * 0.5));
+            const kind = E.zoneHit(zone, level);
+            if (pushBall(true, level, kind) && kind) promptBonus(roll, kind, ballLeg(), level);
             return;
         }
     }
-    pushBall(true, budget);
+    const h = run.handCharges;
+    const usual = h.length ? h.reduce((a, b) => a + b, 0) / h.length : 0.8;
+    pushBall(true, Math.max(E.PATH.minCharge, Math.min(budget, usual + gauss() * err)));
 }
 
 // Act two: thrust (game.js updateThrust / lightBurn / slipstream).
@@ -228,9 +255,14 @@ function updateThrust(roll, want, sim) {
 function wantThrust(roll, lvl) {
     if (!thrustLeg(roll) || roll.over || roll.pushesLeft <= 0) return false;
     const slow = !roll.airborne && roll.ball.v < AUTO_THRUST_SPEED;
-    if (lvl && process.env.OLDAUTO) return !roll.launched || slow || (lvl >= 2 && wontClear(roll)) || (lvl >= 3 && roll.airborne && roll.vy < 0);
-    // The human: from rest, when slow or stalling, and on the way down in flight.
-    return !roll.launched || slow || wontClear(roll) || (roll.airborne && roll.vy < 0);
+    // From rest, when slow or stalling, and on the way down in flight (the human and the Auto-Trainer alike; the
+    // Auto-Trainer starts a burn after its reaction delay and keeps on while the reason holds).
+    const want = !roll.launched || slow || wontClear(roll) || (roll.airborne && roll.vy < 0);
+    if (!lvl) return want;
+    const on = want && (run.autoThrusting || autoReady(want, autoSkill(lvl).react));
+    run.autoThrusting = on;
+    if (!want) run.autoAt = 0;
+    return on;
 }
 
 function markLegEntry(roll, leg) {
@@ -253,6 +285,7 @@ function clearLeg(ev) {
     const roll = run.roll;
     const xp = E.clearLeg(s, ev.skill, roll.legs || 0);
     xpBy.cleared += xp;
+    if (roll.auto && ev.skill >= s.path.learned - 1) roll.autoDone = true;   // the replay ends at the frontier
     roll.legs = (roll.legs || 0) + 1;
     roll.legXp = (roll.legXp || 0) + xp;
     markLegEntry(roll, ev.skill + 1);
@@ -280,7 +313,7 @@ function finishRoll(ev) {
     xpBy.distance += result.xp;
     E.settleBreakCountdown(s, (roll.breakthroughs || 0) > 0);
     if (roll.launched) E.settleSurge?.(s);
-    E.recordLegs(s, roll.ground.stretch, roll.legEntries, result.xp + banked, viral ? d0().windfallMult : 1, result.xp);
+    if (!roll.auto) E.recordLegs(s, roll.ground.stretch, roll.legEntries, result.xp + banked, viral ? d0().windfallMult : 1, result.xp);
     if (!crested && !replay && !legs && !ev.rolledBack && leg === before) {
         const goal = roll.ground.goal;
         const top = roll.ball.maxX;
@@ -304,13 +337,17 @@ function onSkill(skill) {
 
 function stepRun(dt, inLab) {
     if (!s.unlocked['module:path']) return;
+    const autoNow = HYBRID && !inLab ? 0 : E.autoTrainerLevel(s);
     if (!run.roll || run.roll.over) {
-        if (inLab && E.autoTrainerLevel(s) === 0) return;   // Train again is a click: not while in the lab
+        if (inLab && autoNow === 0) return;   // Train again is a click: not while in the lab
         if ((run.pause -= dt) > 0) return;
-        newRoll();
+        newRoll(autoNow > 0);
     }
     const roll = run.roll;
-    const lvl = HYBRID && !inLab ? 0 : E.autoTrainerLevel(s);
+    // The Auto-Trainer plays only its own replays; a frontier run you started waits for you.
+    // A replay still waiting at the start when you come back to train is yours to rebuild as a frontier run.
+    if (!inLab && HYBRID && roll.auto && !roll.launched) { newRoll(false); return; }
+    const lvl = roll.auto ? autoNow : 0;
     const acting = lvl > 0 || !inLab;
     if (thrustLeg(roll)) updateThrust(roll, acting && wantThrust(roll, lvl), dt);
     else {
@@ -327,6 +364,7 @@ function stepRun(dt, inLab) {
         else if (ev.type === 'crest' && !roll.over) { /* rollOut only */ }
         else finishRoll(ev);
     }
+    if (roll.autoDone && !roll.over) finishRoll(roll.end());
     if (!roll.over) {
         const broke = roll.launched && roll.atRest && roll.pushesLeft > 0
             && (thrustLeg(roll) ? !E.canAfford(s, E.burnCost(s, 0.1, ballLeg())) : chargeBudget() < E.PATH.minCharge);
