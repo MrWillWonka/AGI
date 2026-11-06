@@ -3618,13 +3618,17 @@ window.AGI = (function () {
             treeCam.y += (v.top + v.height / 2 - (r.top + r.height / 2)) / z;
             applyTreeCam();
         });
+        // A node popup taller than the view scrolls inside itself (a sideways phone): a wheel or a finger on it
+        // scrolls the popup, not the tree.
+        const inScrollingPopup = e => { const d = e.target.closest?.('.node-detail'); return !!d && d.scrollHeight > d.clientHeight + 1; };
         vp.addEventListener('wheel', e => {
+            if (inScrollingPopup(e)) return;
             e.preventDefault();
             const p = treePoint(e);
             zoomTreeAt(treeCam.z * Math.exp(-e.deltaY * 0.0015), p.x, p.y);
         }, { passive: false });
         vp.addEventListener('pointerdown', e => {
-            if (e.target.closest('.tree-zoom') || (e.pointerType === 'mouse' && e.button !== 0)) return;
+            if (e.target.closest('.tree-zoom') || inScrollingPopup(e) || (e.pointerType === 'mouse' && e.button !== 0)) return;
             treeCam.pointers.set(e.pointerId, treePoint(e));
             treeCam.moved = false;
             treeCam.drag = { x: treeCam.x, y: treeCam.y, start: treePoint(e) };

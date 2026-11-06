@@ -2099,6 +2099,12 @@ html, body { overflow-x: clip; }
     position: absolute;
     z-index: 4;
     width: 250px;
+    /* Never taller than the tree's viewport: on a sideways phone (145–185 px of tree) the popup's buy
+       button sat 46–86 px below the bottom edge, clipped, so a node couldn't be bought from it there. */
+    max-height: calc(100% - 16px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;   /* the viewport's is none (it pans and pinches itself) */
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
     background: color-mix(in srgb, var(--bg-2) 97%, transparent);
 }
