@@ -752,12 +752,17 @@ window.AGI = (function () {
             next(150);   // the first repeat skips a grid point too close to the press
         });
         ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => button.addEventListener(t, stop));
+        // Keyboard: only a key *held down* (the OS auto-repeat, `e.repeat`) is held to the comfort rate; every
+        // distinct press counts, like every distinct click. The throttle used to apply to all key clicks, so
+        // tapping Enter faster than 4 a second lost presses (15 presses at 80 ms registered 5) while mouse
+        // clicks never did (round D).
+        let keyRepeat = false;
+        button.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') keyRepeat = e.repeat; });
         button.addEventListener('click', e => {
-            // Keyboard (Enter/Space); pointer presses already fired on pointerdown. A held key repeats at
-            // the same comfort rate as a held pointer, not the OS key-repeat rate.
+            // Keyboard (Enter/Space); pointer presses already fired on pointerdown.
             if (e.detail !== 0) return;
             const now = performance.now();
-            if (now - lastKey < HOLD_REPEAT_MS) return;
+            if (keyRepeat && now - lastKey < HOLD_REPEAT_MS) return;
             lastKey = now;
             fn();
         });
