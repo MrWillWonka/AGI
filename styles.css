@@ -467,8 +467,11 @@ h1, h2, h3, p { margin: 0; }
     cursor: pointer;
 }
 
-@media (hover: hover) { .ghost-button:hover { border-color: var(--primary); color: var(--primary); } }
-@media (hover: hover) { .ghost-button.danger:hover { border-color: var(--danger); color: var(--danger); } }
+/* A ghost button that can't be used says so: R&D's perk Buys and the challenges' Ship into it carried
+   `disabled` with nothing to spend but drew exactly like the live ones (same text colour, full opacity). */
+.ghost-button:disabled { color: var(--muted); border-color: color-mix(in srgb, var(--border) 70%, transparent); opacity: 0.6; cursor: not-allowed; }
+@media (hover: hover) { .ghost-button:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); } }
+@media (hover: hover) { .ghost-button.danger:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); } }
 
 .button-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .playtest-toggle { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
