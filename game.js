@@ -1419,7 +1419,8 @@ window.AGI = (function () {
         // Playtest: for skill-tree and legacy buys, what you had and the cheapest thing you could have bought instead.
         const ptChoice = playtest && !isLabUpgrade(up0) ? playtestChoice(up0) : null;
         const result = n > 1 ? E.buyMany(state, id, n) : E.buy(state, id);
-        log(result.count > 1 ? `${E.upgradeName(state, up0)} ×${result.count}: now level ${E.level(state, id)}.` : result.msg, result.ok ? 'success' : 'warning');
+        // A refused buy only sounds (lab cards stay pressable while unaffordable, to keep focus): a log line per press was noise.
+        if (result.ok) log(result.count > 1 ? `${E.upgradeName(state, up0)} ×${result.count}: now level ${E.level(state, id)}.` : result.msg, 'success');
         // Each panel has its own buy sound (hardware, software, research, consciousness, the tree, legacy).
         if (result.ok) sfx('buy', { panel: up0.tab, big: up0.max === 1 || result.count > 1 || !!result.evolved });
         else sfx('error');
@@ -5754,6 +5755,12 @@ window.AGI = (function () {
         card.hidden = false;
     }
 
+    function brokeLabel() {
+        const cost = E.pushCost(state, E.PATH.minCharge, ballLeg());
+        const short = (cost.dp || 0) > state.res.dp ? 'data' : 'compute';
+        return `Out of ${short} · make more in the lab`;
+    }
+
     function updatePathControls() {
         const roll = path.roll;
         const button = $('pushButton');
@@ -5761,7 +5768,13 @@ window.AGI = (function () {
         // One message at a time: charging reads "Release to sprint", and the wait counts down on the button
         // (the meter greys out and won't charge until it's over).
         const thrustMode = thrustLeg(roll) && !path.charging && !frozen();
-        const label = thrustMode
+        // Broke: a sprint is due but the lab can't pay even a tap. Say which supply ran dry and where it comes
+        // from (the lab-training gate exception to "no hints"): the button used to read "Hold to launch" and
+        // presses did nothing (round B: a naive player stalled here before the Data crawler).
+        const broke = !thrustMode && !path.charging && !path.fx.windup && !frozen() && !crunching() && !path.fx.maxEffort
+            && !path.done && !roll.over && !roll.crested && (!roll.launched || roll.pushesLeft > 0) && chargeBudget() <= 0;
+        const label = broke ? brokeLabel()
+            : thrustMode
             ? (roll.thrusting ? (crunching() ? `CRUNCH! Free thrust (${path.fx.crunch.toFixed(1)} s)` : 'Thrusting…')
                 : !roll.launched ? 'Hold to launch'
                 : roll.over ? (path.done ? 'Hold to thrust' : 'Next run…')
