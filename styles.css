@@ -3140,14 +3140,16 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
 /* ---- Phones: a denser lab (owner's playtest: "more things visible on screen"; each supply cell took half the
    screen's width and 80 px for a sparkline, and the lab scrolled a long way). ---- */
 @media (max-width: 640px) {
-    /* The supply cells share one row; the sparkline is a thin line under the numbers. */
+    /* The supply cells share one row; the sparkline sits behind the words. */
     .lab-supply { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: minmax(0, 1fr); grid-auto-rows: auto; gap: 6px; }
-    .supply-cell { grid-template-columns: minmax(0, 1fr); grid-template-areas: "label" "bank" "value" "spark"; grid-template-rows: auto auto auto 12px;
-        gap: 1px; padding: 6px 8px 4px; height: auto; }
+    .supply-cell { grid-template-columns: minmax(0, 1fr); grid-template-areas: "label" "bank" "value"; grid-template-rows: auto auto auto;
+        gap: 1px; padding: 6px 8px 6px; height: auto; }
     .supply-label { font-size: 0.58rem; letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .supply-bank { font-size: 1rem; }
     .supply-value { justify-self: start; font-size: 0.64rem; white-space: nowrap; }
-    .spark { height: 12px; }
+    /* The sparkline fills the cell behind the words (owner's call), faint so the numbers stay readable. */
+    .supply-cell .spark { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.45; pointer-events: none; }
+    .supply-cell > :not(.spark) { position: relative; z-index: 1; }
     /* Lab cards: tighter rows, no cabinet piece (the cabinets below show the hardware), and a full card says
        just "Full n/n" (the "more room with the next skill" line made it three lines tall). */
     .station .upgrade { padding: 5px 2px; }
