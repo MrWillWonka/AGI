@@ -323,12 +323,32 @@ window.AGI = (function () {
         if (!toastBusy) nextToast();
     }
     let toastLive = null;
+    // Toasts sit top middle, but never over a screen's status line: below the run's stats, the lab's supply cells
+    // or the legacy screen's header when one is up there (they hid "Auto-Trainer 22/25", the Data cell and the
+    // legacy column headers).
+    const TOAST_CLEAR = ['.run-view .run-stats', '#labRoom .lab-supply', '#legacyScreen .legacy-head', '#moduleView .module-bar'];
+    function placeToasts() {
+        const box = $('toasts');
+        box.style.top = '';
+        const z = uiScale();
+        const base = box.getBoundingClientRect().top;
+        let below = 0;
+        for (const sel of TOAST_CLEAR) {
+            for (const n of document.querySelectorAll(sel)) {
+                if (n.closest('.facility') || !n.offsetParent) continue;
+                const r = n.getBoundingClientRect();
+                if (r.width && r.bottom > base - 8 && r.top < base + 80) below = Math.max(below, r.bottom + 8);
+            }
+        }
+        if (below > base) box.style.top = `${below / z}px`;
+    }
     function nextToast() {
         const t = toastQueue.shift();
         toastBusy = !!t;
         toastLive = null;
         if (!t) return;
         const box = toastCard(t.title, t.message, t.kind);
+        placeToasts();
         $('toasts').append(box);
         sfx({ phase: 'phase', version: 'ship', skill: 'achievement' }[t.kind] || 'achievement');
         requestAnimationFrame(() => box.classList.add('show'));
@@ -340,6 +360,7 @@ window.AGI = (function () {
             setTimeout(() => { box.remove(); nextToast(); }, 400);
         };
         toastLive = { box, kind: t.kind, done, timer: setTimeout(done, (TOAST_KINDS[t.kind] || TOAST_KINDS.achievement).ms) };
+        if (t.kind === 'mail') box.addEventListener('click', () => { done(); openInbox(); });
     }
     // Shipping a version: what was still waiting to be announced (or on screen) belongs to the old version,
     // achievements excepted.
@@ -398,6 +419,7 @@ window.AGI = (function () {
         $('minimap').classList.remove('open');
     }
     let calloutGen = 0;
+    const runInFlightOnScreen = () => !!path.roll && path.roll.launched && !path.roll.over && path.view === 'run' && openBay === 'training' && !document.hidden;
 
     function showCallout(c) {
         if (c.gen !== calloutGen) return;
@@ -411,6 +433,11 @@ window.AGI = (function () {
         if (!onScreen && (!where.map || !mapShown)) {
             if (calloutQueue.length) { calloutQueue.push(c); calloutLive = null; nextCallout(); }
             else setTimeout(() => showCallout(c), 1000);
+            return;
+        }
+        // A tip never dims a run in flight on screen (it dimmed flights and smashes): it waits for the ball to stop.
+        if (where.kind === 'tip' && runInFlightOnScreen()) {
+            setTimeout(() => showCallout(c), 600);
             return;
         }
         let anchor = onScreen ? target : nav;
@@ -530,12 +557,22 @@ window.AGI = (function () {
         return true;
     }
 
-    function floatGain(anchor, text) {
+    // Gains while a job is held merge into the pop still rising from the same button (counting up), rather than
+    // stacking a new one each click (held clicks piled up into an unreadable smear).
+    const GAIN_MERGE_MS = 450;
+    function floatGain(anchor, amount, unit) {
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const live = anchor._gain;
+        if (live && live.pop.isConnected && performance.now() - live.at < GAIN_MERGE_MS) {
+            live.total += amount;
+            live.pop.textContent = `+${E.format(live.total)} ${unit}`;
+            return;
+        }
         // Rects are screen pixels; the page may be zoomed on large screens (uiScale), so convert.
         const rect = anchor.getBoundingClientRect();
         const z = uiScale();
-        const pop = el('div', { class: 'float-gain', text });
+        const pop = el('div', { class: 'float-gain', text: `+${E.format(amount)} ${unit}` });
+        anchor._gain = { pop, total: amount, at: performance.now() };
         pop.style.left = `${(rect.left + rect.width / 2) / z + (Math.random() * 40 - 20)}px`;
         // From the card's middle, rising less than half its height, so it stays on the card it came from
         // (from the top edge it floated over the card or heading above).
@@ -1317,7 +1354,7 @@ window.AGI = (function () {
         if (!result.ok) return;
         playtest?.count(id);
         if (result.gained != null) {
-            floatGain(button, `+${E.format(result.gained)} ${E.RESOURCES[result.resource].short}`);
+            floatGain(button, result.gained, E.RESOURCES[result.resource].short);
             clickGlow(result.resource, result.gained);
             sfx('click', { res: result.resource, q: heldBeat ? 2 : 1 });
         }
@@ -6062,6 +6099,44 @@ window.AGI = (function () {
         return 10000;
     }
 
+    // The sky behind the trail: two ranges of distant ridges drifting slower than the trail (parallax), a faint
+    // glow behind the skill hill and a soft haze, so the landscape reads as a place rather than a line on a void
+    // (act one's trail left three quarters of the canvas empty at 1920 px). Decoration only: no physics, and the
+    // hills keep their own scale.
+    const RIDGES = [{ par: 0.18, amp: 0.62, alpha: 0.045, seed: 1.3 }, { par: 0.38, amp: 0.4, alpha: 0.065, seed: 4.1 }];
+    function drawBackdrop(ctx, w, h, cam, pxPerUnit, goalX, goalY) {
+        const c = path.colors;
+        const floor = h - PAD_BOTTOM;
+        const sky = Math.max(1, floor - PAD_TOP);
+        const haze = ctx.createLinearGradient(0, 0, 0, floor);
+        haze.addColorStop(0, hexAlpha(c.primary, 0.05));
+        haze.addColorStop(1, hexAlpha(c.primary, 0));
+        ctx.fillStyle = haze;
+        ctx.fillRect(0, 0, w, floor);
+        if (goalX != null && goalX > -w * 0.2 && goalX < w * 1.2) {
+            const r = Math.max(80, Math.min(w, h) * 0.45);
+            const glow = ctx.createRadialGradient(goalX, Math.max(PAD_TOP, goalY), 0, goalX, Math.max(PAD_TOP, goalY), r);
+            glow.addColorStop(0, hexAlpha(c.warning, 0.1));
+            glow.addColorStop(1, hexAlpha(c.warning, 0));
+            ctx.fillStyle = glow;
+            ctx.fillRect(goalX - r, Math.max(PAD_TOP, goalY) - r, 2 * r, 2 * r);
+        }
+        const shift = cam.left * pxPerUnit;
+        for (const L of RIDGES) {
+            ctx.beginPath();
+            ctx.moveTo(0, floor);
+            for (let px = 0; px <= w + 6; px += 6) {
+                const u = (shift * L.par + px) / 260;
+                const y = 0.55 + 0.22 * Math.sin(u * 0.9 + L.seed) + 0.14 * Math.sin(u * 2.3 + 2 * L.seed) + 0.09 * Math.sin(u * 5.3 + L.seed * 3);
+                ctx.lineTo(px, floor - sky * L.amp * Math.max(0, y));
+            }
+            ctx.lineTo(w, floor);
+            ctx.closePath();
+            ctx.fillStyle = hexAlpha(c.primary, L.alpha);   // a cooler hue than the trail, so it never reads as terrain
+            ctx.fill();
+        }
+    }
+
     function drawPath(dt = 0) {
         const { ctx, width: w, height: h, colors: c } = path;
         if (!ctx || !w || !state || openBay !== 'training' || path.view !== 'run') return;
@@ -6126,6 +6201,7 @@ window.AGI = (function () {
         }
         // Bullet Time drains the world to grey (the ball and its power keep their colour).
         if (frozen()) ctx.filter = `grayscale(${Math.min(1, (fx.freezeMax - fx.freeze) * 5, fx.freeze * 4)})`;
+        drawBackdrop(ctx, w, h, cam, pxPerUnit, goal ? X(goal.peak) : null, goal ? Y(goal.height) : null);
         const fill = ctx.createLinearGradient(0, PAD_TOP, 0, h);
         fill.addColorStop(0, hexAlpha(c.secondary, 0.4));
         fill.addColorStop(1, hexAlpha(c.secondary, 0.06));

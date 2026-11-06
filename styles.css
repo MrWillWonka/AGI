@@ -1920,7 +1920,7 @@ html, body { overflow-x: clip; }
 .bulk-buy button[aria-checked="true"] { background: color-mix(in srgb, var(--success) 16%, transparent); color: var(--success); }
 .bulk-buy button:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .bulk-buy:not([hidden]) + .lab-status { margin-left: 14px; }
-.upgrade-button .eta { display: block; font-size: 0.68em; opacity: 0.75; font-weight: 500; }
+.upgrade-button .eta { display: block; font-size: max(11px, 0.72em); opacity: 0.8; font-weight: 500; }
 .lab-status { margin-left: auto; font: 500 0.75rem var(--font-mono); color: var(--muted); display: flex; align-items: center; gap: 6px; }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); animation: led-soft 1.8s ease-in-out infinite; }
 
@@ -2322,8 +2322,12 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 
 /* Phones: the bay's bar keeps to one line (⌂, ← Rack, Skills, XP) so it never widens the page. */
 @media (max-width: 640px) {
-    .module-bar { gap: 8px; overflow: hidden; }
+    .module-bar { gap: 6px 8px; flex-wrap: wrap; }
     .module-bar #moduleTitle, .module-bar .crumb-sep, .module-bar .home-label { display: none; }
+    /* The crumbs keep their room; once the Auto-Trainer and Restart join, the buttons wrap to a second row
+       (they used to crush the crumbs to nothing and push Upgrades off a 390 px screen). */
+    .module-bar .crumbs { flex: 1 1 auto; min-width: 8.5em; }
+    .module-bar .ghost-button, .module-bar .auto-switch { flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 }
 
 /* ---- Luck: special-looking moments ---- */
@@ -2701,6 +2705,10 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 
 /* Upgrades buttons wear a badge while XP can buy a skill-tree node (data-ready: how many). */
 #hubUpgrades, #treeButton, .roll-result [data-next="dev"], .run-stats .module-supply { position: relative; }
+/* The badge on Lab supply sat over the end of its "/s": leave it room. */
+.run-stats .module-supply[data-ready] { padding-right: 16px; }
+/* A mail toast is a way in: click it to read. */
+.toast-mail { pointer-events: auto; cursor: pointer; }
 /* Investor offers ready to claim (the Lab tile is already positioned). */
 .facility-room[data-ready]::after, .module-supply[data-ready]::after { background: var(--success); color: var(--bg); box-shadow: 0 0 0 2px var(--bg), 0 0 12px rgba(80, 220, 160, 0.5); }
 .facility-room[data-ready]::after { top: 8px; right: 8px; z-index: 2; }
@@ -2731,7 +2739,11 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 body.calm *, body.calm *::before, body.calm *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 /* Idle (a minute without input, or the window in the background): decorative loops pause. Callouts and
    toasts keep playing, so one arriving meanwhile still shows. */
-body.idle :not(.toast, .toast *), body.idle :not(.toast, .toast *)::before, body.idle :not(.toast, .toast *)::after { animation-play-state: paused !important; }
+/* Idle pauses the decorative loops only: one-off animations (a card booting in, a gain rising, dialogs, callouts)
+   still finish, or a card revealed while idle stayed clipped invisible until the mouse moved. */
+body.idle :not(.toast, .toast *, .reveal-in, .reveal-in *, .float-gain, dialog *, .callout, .callout *, .tip-spot),
+body.idle :not(.toast, .toast *, .reveal-in, .reveal-in *, .float-gain, dialog *, .callout, .callout *, .tip-spot)::before,
+body.idle :not(.toast, .toast *, .reveal-in, .reveal-in *, .float-gain, dialog *, .callout, .callout *, .tip-spot)::after { animation-play-state: paused !important; }
 /* Scrolling something into view (a tip's target) keeps it clear of the sticky top bar. */
 * { scroll-margin-top: calc(var(--topbar-h, 53px) + 12px); }
 /* Small desktops (1280–1440 px): the top bar keeps to one row in the late game (rates on every resource and
@@ -2825,8 +2837,12 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
 
     /* The skill tree's bar wraps rather than squeezing. */
     .dev-actions { flex-wrap: wrap; justify-content: space-between; }
-    .dev-actions .leg-pick { flex: 1 1 100%; }
+    .dev-actions .leg-pick { flex: 1 1 100%; min-width: 0; }
     .dev-actions .leg-pick select { max-width: none; flex: 1; min-width: 0; }
+    /* With a run in flight, the Auto-Trainer's monitor takes its own full row under XP and Start (the wide-screen
+       rule kept them on one row, squeezing the monitor to a word a line and pushing Start at off the screen). */
+    .dev-actions:has(.dev-live:not([hidden])) { flex-wrap: wrap; }
+    .dev-actions .dev-live { flex: 1 1 100%; order: 4; min-width: 0; }
 
     /* The live XP pill sits under the trail's top labels (the next skill, top right), not over them. */
     .live-xp { top: 40px; padding: 3px 10px; gap: 6px; max-width: calc(100% - 20px); }

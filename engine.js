@@ -512,6 +512,7 @@
             body: [
                 'Hello again Friend,',
                 'Great job on the desk!! You may have noticed a door at the back that was not there before. That is the Server Room. Please go in.',
+                'In there your AI learns by going over hills (yes hills). Every hill it gets over = a new skill. Skills make your lab better, lab makes the AI better. It\'s a CYCLE!!',
                 'Your AI must run before it can walk. (this is correct, do not google it)',
                 'Regards,\nA Friend'
             ] },
