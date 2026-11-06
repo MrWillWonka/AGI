@@ -504,7 +504,12 @@ window.AGI = (function () {
                 } else {   // no room either side (a phone): under it, or over it near the bottom of the screen
                     const below = r.bottom + 12 + b.height <= window.innerHeight - 8;
                     box.style.left = `${(r.left + r.width / 2 - b.width / 2) / z}px`;
-                    box.style.top = `${(below ? r.bottom + 12 : r.top - 12 - b.height) / z}px`;
+                    // Over it only if that stays under the top bar: a target taller than the screen (Scheduled
+                    // tasks on a phone) put the tip above the screen's top, its title cut off, over the Journal.
+                    const topMin = (document.querySelector('.topbar')?.getBoundingClientRect().bottom || 0) + 8;
+                    const over = r.top - 12 - b.height;
+                    const y = below ? r.bottom + 12 : over >= topMin ? over : Math.max(r.top, topMin) + 8;
+                    box.style.top = `${y / z}px`;
                 }
             } else {          // above the map, right-aligned with it
                 box.style.left = `${(r.right - b.width) / z}px`;
