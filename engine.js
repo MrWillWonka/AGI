@@ -556,13 +556,13 @@
     // Achievements persist across prestige. They're recognition only: no production bonus.
     // Achievements with `seen` keep their goal secret (???) in the Journal until what they're about has appeared.
     const ACHIEVEMENTS = [
-        { id: 'firstClick', name: 'Hello, World', desc: 'Generate compute manually', check: s => s.stats.clicks >= 1 },
+        { id: 'firstClick', name: 'Hello, World', desc: 'Generate compute by hand', check: s => s.stats.clicks >= 1 },
         { id: 'clicks1k', name: 'Carpal Tunnel', desc: 'Hold down a job to keep it going', seen: s => level(s, 'keyboard') >= 4, check: s => s.stats.holds >= 1 },
         { id: 'cp1k', name: 'Kiloflop', desc: 'Earn 1,000 CP in total', check: s => s.stats.lifetimeCp >= 1e3 },
         { id: 'cp1m', name: 'Megaflop', desc: 'Earn 1 million CP in total', check: s => s.stats.lifetimeCp >= 1e6 },
         { id: 'cp1b', name: 'Gigaflop', desc: 'Earn 1 billion CP in total', check: s => s.stats.lifetimeCp >= 1e9 },
         { id: 'firstSkill', name: 'First Steps', desc: 'Learn your first skill on the Training Path', seen: s => !!s.unlocked['module:path'], check: s => s.path.learned >= 1 },
-        { id: 'polymath', name: 'Polymath', desc: 'Learn 10 skills in one run', seen: s => s.path.learned >= 1, check: s => s.path.learned >= 10 },
+        { id: 'polymath', name: 'Polymath', desc: 'Learn 10 skills in one version', seen: s => s.path.learned >= 1, check: s => s.path.learned >= 10 },
         { id: 'firstResearch', name: 'Peer Reviewed', desc: 'Complete your first research', seen: s => !!s.unlocked['action:research'], check: s => s.stats.researchDone >= 1 },
         { id: 'cpu25', name: 'Moore\'s Law', desc: 'Own 25 Graphics Cards', check: s => (s.levels.cpu || 0) >= 25 },
         { id: 'automation', name: 'Hands Off', desc: 'Own a Data Crawler and a Research Assistant', seen: s => !!s.unlocked['up:researchAssistant'], check: s => (s.levels.autoCollector || 0) > 0 && (s.levels.researchAssistant || 0) > 0 },
@@ -582,17 +582,17 @@
         { id: 'super1', name: 'Super Prompt', desc: 'Land a super prompt', seen: s => derive(s).perfectWidth > 0, check: s => s.stats.superPrompts >= 1 },
         { id: 'break1', name: 'Eureka', desc: 'Land a breakthrough', seen: s => derive(s).critChance > 0, check: s => s.stats.breakthroughs >= 1 },
         { id: 'break25', name: 'Breakthrough Habit', desc: 'Land 25 breakthroughs', seen: s => s.stats.breakthroughs >= 1, check: s => s.stats.breakthroughs >= 25 },
-        { id: 'replay1', name: 'Run It Back', desc: 'Cross a cleared leg on a replay', seen: s => s.path.learned >= 2, check: s => s.stats.legsCleared >= 1 },
+        { id: 'replay1', name: 'Run It Back', desc: 'Cross a cleared skill hill on a replay', seen: s => s.path.learned >= 2, check: s => s.stats.legsCleared >= 1 },
         { id: 'tree10', name: 'Branching Out', desc: 'Own 10 skill-tree upgrades', seen: s => s.unlocked['module:path'], check: s => treeOwned(s) >= 10 },
         { id: 'tree25', name: 'Deep Roots', desc: 'Own 25 skill-tree upgrades', seen: s => treeOwned(s) >= 10, check: s => treeOwned(s) >= 25 },
         { id: 'cp100k', name: 'Hundred Kiloflop', desc: 'Earn 100,000 CP in total', seen: s => s.stats.lifetimeCp >= 1e3, check: s => s.stats.lifetimeCp >= 1e5 },
         { id: 'speed5', name: 'Picking Up Speed', desc: 'Reach 5 m/s', seen: s => s.stats.rolls >= 1, check: s => s.stats.topSpeed >= 5 },
         // The long-term list (recognition only, like the rest): versions, challenges, act two, investors, replays.
         { id: 'cp1t', name: 'Teraflop', desc: 'Earn 1 trillion CP in total', seen: s => s.stats.lifetimeCp >= 1e9, check: s => s.stats.lifetimeCp >= 1e12 },
-        { id: 'skills20', name: 'Renaissance', desc: 'Learn 20 skills in one run', seen: s => s.path.learned >= 10, check: s => s.path.learned >= 20 },
+        { id: 'skills20', name: 'Renaissance', desc: 'Learn 20 skills in one version', seen: s => s.path.learned >= 10, check: s => s.path.learned >= 20 },
         { id: 'clean100', name: 'Prompt Engineer', desc: 'Land 100 clean prompts in one version', seen: s => s.stats.cleanSprints >= 1, check: s => s.stats.cleanSprints >= 100 },
         { id: 'rolls1000', name: 'Ten Thousand Hours', desc: 'Finish 1,000 training runs', seen: s => s.stats.rolls >= 100, check: s => s.stats.rolls >= 1000 },
-        { id: 'replays25', name: 'Déjà Vu', desc: 'Cross 25 cleared legs on replays', seen: s => s.path.learned >= 2, check: s => s.stats.legsCleared >= 25 },
+        { id: 'replays25', name: 'Déjà Vu', desc: 'Cross 25 cleared skill hills on replays', seen: s => s.path.learned >= 2, check: s => s.stats.legsCleared >= 25 },
         { id: 'projects10', name: 'Investor Darling', desc: 'Finish 10 investor projects', seen: s => !!s.unlocked['action:research'], check: s => s.stats.projectsDone >= 10 },
         { id: 'projects50', name: 'Unicorn', desc: 'Finish 50 investor projects', seen: s => s.stats.projectsDone >= 10, check: s => s.stats.projectsDone >= 50 },
         { id: 'flight30', name: 'Liftoff', desc: 'Fly 30 m in one flight', seen: s => s.stats.bestFlight > 0, check: s => s.stats.bestFlight >= 30 },
@@ -1620,7 +1620,7 @@
         // Sized by the frontier, so late offers ask for more than the first ones did.
         runs: { stat: s => s.stats.rolls, text: n => `Finish ${n} training runs`, size: s => 4 + Math.floor(s.path.learned / 3), needs: 'module:path' },
         // Only once clean prompts exist (Hyperparameter Search adds the zone).
-        clean: { stat: s => s.stats.cleanSprints, text: n => `Land ${n} clean training sprints`, size: s => 3 + Math.floor(s.path.learned / 2), needs: s => !!s.unlocked['module:path'] && derive(s).zoneWidth > 0 },
+        clean: { stat: s => s.stats.cleanSprints, text: n => `Land ${n} clean prompts`, size: s => 3 + Math.floor(s.path.learned / 2), needs: s => !!s.unlocked['module:path'] && derive(s).zoneWidth > 0 },
         flights: { stat: s => s.stats.flights, text: n => `Make ${n} flights of 10 m or more`, size: s => 3 + Math.floor(Math.max(0, s.path.learned - ACT_TWO_LEG) / 2), needs: s => s.path.learned > ACT_TWO_LEG },
         replays: { stat: s => s.stats.legsCleared, text: n => `Cross ${n} cleared skill hills on replays`, size: s => 2 + Math.floor(s.path.learned / 4), needs: s => s.path.learned >= 4 },
         tokens: { stat: s => s.stats.tokens, text: n => `Take ${n} XP tokens in flight`, size: s => 4 + Math.max(0, s.path.learned - ACT_TWO_LEG), needs: s => s.path.learned > ACT_TWO_LEG },
