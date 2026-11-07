@@ -2067,6 +2067,7 @@ html, body { overflow-x: clip; }
 .mm-block:focus { outline: none; }
 .mm-block.core rect { fill: var(--panel-2); stroke: var(--success); }
 .mm-block.bay rect { fill: var(--panel); stroke: color-mix(in srgb, var(--success) 70%, transparent); }
+.mm-block.bay.ready rect { stroke: var(--warning); stroke-width: 1.2; }
 .mm-block.sealed rect, .mm-block.building rect { fill: transparent; stroke: var(--border); stroke-dasharray: 1.5 1.5; }
 .mm-block.sealed text, .mm-block.building text { fill: var(--border); }
 .mm-block.here rect { fill: color-mix(in srgb, var(--success) 30%, transparent); stroke: var(--success); stroke-width: 1.4; animation: mm-here 1.6s ease-in-out infinite; }
@@ -3313,6 +3314,7 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 .snare-focus-text { color: var(--muted); white-space: nowrap; }
 .snare-haul { margin-left: auto; color: var(--primary); white-space: nowrap; }
 .snare-card[hidden] { display: none; }
+.snare-card { max-height: calc(100% - 16px); overflow-y: auto; overscroll-behavior: contain; }
 .snare-card .result-xp { color: var(--primary); }
 .snare-card .result-actions .button { flex: 1; }
 /* No sprint controls under the field: on upright phones it takes the height the trail's controls would. */
@@ -3320,49 +3322,27 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
     .snare-view > .canvas-wrap { height: max(260px, calc(100dvh - var(--topbar-h, 100px) - var(--bay-bar-h, 39px) - 150px)); }
 }
 @media (pointer: coarse) and (max-height: 500px) {
-    .snare-view > .canvas-wrap { height: clamp(120px, calc(100dvh - 150px), 600px); }
+    .snare-view > .canvas-wrap { height: clamp(120px, calc(100dvh - 158px), 600px); }
 }
 
-/* Packet Snare's skill tree: a small grid of nodes around the Lasso, over the field. */
-.snare-tree { position: absolute; inset: 0; z-index: 4; display: grid; grid-template: auto 1fr auto / 1fr; gap: 8px; padding: 10px; border-radius: 10px;
-    background: color-mix(in srgb, var(--bg) 94%, transparent); border: 1px solid var(--border); }
-@media (min-width: 700px) {
-    .snare-tree { grid-template: auto 1fr / 1fr minmax(240px, 320px); }
-    .snare-tree-bar { grid-column: 1 / -1; }
-    .snare-tree-detail { align-self: center; }
-}
+/* Packet Snare's skill tree, over the field: the Training tree's nodes, links and popup on a fixed 5 × 5 grid. */
+.snare-tree { position: absolute; inset: 0; z-index: 4; display: grid; grid-template: auto minmax(0, 1fr) / minmax(0, 1fr); gap: 8px; padding: 10px; border-radius: 10px;
+    background: color-mix(in srgb, var(--bg) 96%, transparent); border: 1px solid var(--border); }
 .snare-tree[hidden] { display: none; }
 .snare-tree-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .snare-tree-dp { margin-right: auto; font: 600 0.85rem var(--font-mono); color: var(--primary); }
-.snare-tree-grid { position: relative; min-height: 180px; }
-.snare-tree-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.snare-tree-links line { stroke: var(--border); stroke-width: 2; }
-.snare-tree-links line.owned { stroke: var(--owned); }
-.snare-node { position: absolute; left: 0; top: 0; width: calc(var(--snare-cell, 80px) * 0.72); height: calc(var(--snare-cell, 80px) * 0.72);
-    display: grid; place-items: center; border-radius: 50%; border: 2px solid var(--border); background: var(--panel); color: var(--muted);
-    font: 600 calc(var(--snare-cell, 80px) * 0.3) var(--font-body); cursor: pointer; padding: 0; }
-/* Abilities are hexagons: the clip cuts the border, so their state shows in the fill. */
-.snare-node.mechanic { border: 0; border-radius: 0; clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%);
-    background: color-mix(in srgb, var(--research) 35%, var(--panel)); color: var(--text); }
-.snare-node.mechanic.owned { background: color-mix(in srgb, var(--owned) 45%, var(--panel)); color: var(--text); }
-.snare-node.mechanic.affordable { background: color-mix(in srgb, var(--warning) 55%, var(--panel)); color: var(--bg); box-shadow: none; }
-.snare-node.core { border-radius: 4px; transform-origin: center; color: var(--primary); border-color: var(--primary); cursor: default; }
-.snare-node.owned { border-color: var(--owned); color: var(--owned); }
-.snare-node.affordable { border-color: var(--warning); color: var(--warning); box-shadow: 0 0 12px color-mix(in srgb, var(--warning) 45%, transparent); }
-.snare-node.picked { outline: 2px solid var(--text); outline-offset: 3px; }
-.snare-node-level { position: absolute; bottom: -2px; right: -4px; font: 700 0.62rem var(--font-mono); color: var(--text); background: var(--bg); border-radius: 999px; padding: 0 4px; }
-.snare-node.mechanic .snare-node-level { right: 18%; bottom: 6%; }
-.snare-tree-detail { min-height: 96px; display: grid; gap: 4px; align-content: start; font-size: 0.86rem; }
-.snare-tree-detail p { margin: 0; }
-.snare-tree-detail .flavor { font-style: italic; color: var(--muted); }
-.snare-detail-head { display: flex; justify-content: space-between; gap: 8px; }
-.snare-buy[aria-disabled="true"] { opacity: 0.5; }
+.snare-tree-grid { position: relative; min-height: 0; overflow: hidden; --cell: 80px; }
+.snare-tree-grid .tree-links line { stroke-width: 2.5; }
+.snare-tree-grid .tree-node { width: calc(var(--cell) * 0.56); }
+.snare-tree-grid .tree-node.seed { width: calc(var(--cell) * 0.5); pointer-events: none; }
+.snare-tree-grid .tree-level { font-size: 0.58rem; }
+.snare-tree-grid .node-detail { width: 250px; max-height: calc(100% - 8px); }
 .snare-upgrades { position: relative; overflow: visible; }
 @media (max-width: 640px) {
     .snare-tree { padding: 8px; gap: 6px; }
     .snare-tree-bar { flex-wrap: nowrap; gap: 6px; }
     .snare-tree-dp .chip-label { display: none; }
     .snare-tree-bar .button, .snare-tree-bar .ghost-button { padding: 6px 12px; font-size: 0.85rem; }
-    .snare-tree-detail { min-height: 0; font-size: 0.8rem; }
-    .snare-tree-detail .snare-buy { padding: 8px; }
+    .snare-tree-grid .node-detail { width: min(230px, calc(100% - 8px)); }
+}
 }

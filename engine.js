@@ -513,43 +513,47 @@
 
     // Packet Snare's skill tree (tab 'snare'; `snare: {x, y}` its cell around the Lasso at the centre, `requires` the node it
     // grows from; bought with data, the resource the game makes; reset by a new version like the lab). Each node's
-    // `sn` is what a level adds to the run's options (`snareOpts`). It starts small and quick and grows into a sprawl:
-    // more Focus and field, then the abilities, each a hexagon (`mechanic`): Chain Lightning, the Scanner and the
-    // Targeted Laser (the delegation: it takes packets by itself).
+    // `sn` is what a level adds to the run's options (`snareOpts`); `stages` (by level) set options outright where a level
+    // changes more than a number (Sprawl's hazards, the laser's interval). Priced like the Training tree: a node's first
+    // level costs more than its parent's last, 1–3 levels a node (tested). It starts small and quick and grows into a
+    // sprawl: more Focus and field, then the abilities, each a new rule and so a hexagon (`mechanic`).
     const SNARE_TREE = [
         { id: 'snareFocus', name: 'Attention Span', snare: { x: 0, y: -1 }, cost: { dp: 90 }, scale: 3, max: 3,
-            sn: { focus: 0.25 }, effect: '+25% Focus per level: longer runs', flavor: 'It can sit still for a whole minute now.' },
-        { id: 'snareBandwidth', name: 'Bandwidth', snare: { x: 0, y: -2 }, requires: 'snareFocus', cost: { dp: 420 }, scale: 3, max: 2,
-            sn: { maxMult: 2 }, effect: 'Big loops can reach a higher multiplier (+2 per level)', flavor: 'Wider pipes. Bigger nets.' },
-        { id: 'snareSprawl', name: 'Sprawl', snare: { x: 1, y: 0 }, cost: { dp: 60 }, scale: 2.5, max: 4,
-            sn: { sprawl: 1 }, effect: 'A bigger field with more packets (and more Antivirus)', flavor: 'The pipeline found more pipeline.' },
-        { id: 'snareGold', name: 'Gold Rush', snare: { x: 2, y: 0 }, requires: 'snareSprawl', cost: { dp: 260 }, scale: 3, max: 2,
-            sn: { goldChance: 0.05 }, effect: '+5% of new packets are gold (worth 5)', flavor: 'Premium data. Hand-labelled, allegedly.' },
-        { id: 'snareSchools', name: 'Schooling', snare: { x: 1, y: -1 }, requires: 'snareSprawl', cost: { dp: 180 }, scale: 2, max: 1,
+            sn: { focus: 0.25 }, effect: '+25% Focus per level', flavor: 'It can sit still for a whole minute now.' },
+        { id: 'snareBandwidth', name: 'Bandwidth', snare: { x: 0, y: -2 }, requires: 'snareFocus', cost: { dp: 900 }, scale: 2.5, max: 2,
+            sn: { maxMult: 2 }, effect: 'Big loops reach a higher multiplier (+2 per level)', flavor: 'Wider pipes. Bigger nets.' },
+        { id: 'snareSprawl', name: 'Sprawl', snare: { x: 1, y: 0 }, cost: { dp: 60 }, scale: 2.5, max: 3,
+            sn: { sprawl: 1 }, stages: { 2: { antivirus: [5, 18], sweepEvery: 6, rogueEvery: 7 }, 3: { antivirus: [5, 14, 26], rogueCores: 2 } },
+            effect: 'A bigger field with more packets, and more Antivirus', flavor: 'The pipeline found more pipeline.' },
+        { id: 'snareSchools', name: 'Schooling', snare: { x: 1, y: -1 }, requires: 'snareSprawl', cost: { dp: 400 }, scale: 2, max: 1,
             sn: { schooling: 0.5, schoolSize: 4 }, effect: 'Packets swim in bigger, tighter schools', flavor: 'Data of a feather.' },
-        // The pipeline flows past you: hold the good data in, then herd it.
-        { id: 'snareContain', name: 'Containment Field', snare: { x: 2, y: -1 }, requires: 'snareSchools', cost: { dp: 350 }, scale: 2, max: 1,
-            sn: { contain: 1 }, effect: 'The edges turn good packets back into the field; corrupt ones still leave', flavor: 'Data goes in. Data stays in.' },
-        { id: 'snareHerders', name: 'Herders', mechanic: true, snare: { x: 2, y: -2 }, requires: 'snareContain', cost: { dp: 700 }, scale: 2.5, max: 3,
-            sn: { herders: 1 }, effect: 'A drone per level rounds strays up toward your pen (or the middle) and shoos corrupt packets away', flavor: 'Good data. Sit. Stay.' },
-        { id: 'snareObfuscation', name: 'Obfuscation', snare: { x: 1, y: 1 }, requires: 'snareSprawl', cost: { dp: 220 }, scale: 2.6, max: 2,
+        { id: 'snareObfuscation', name: 'Obfuscation', snare: { x: 1, y: 1 }, requires: 'snareSprawl', cost: { dp: 450 }, scale: 2.5, max: 2,
             sn: { avSpeed: -0.2 }, effect: 'Antivirus moves 20% slower per level', flavor: 'Nothing to see here. Just packets.' },
-        { id: 'snareChain', name: 'Chain Lightning', mechanic: true, snare: { x: -1, y: 0 }, cost: { dp: 120 }, scale: 2.8, max: 3,
+        { id: 'snareGold', name: 'Gold Rush', snare: { x: 2, y: 0 }, requires: 'snareSprawl', cost: { dp: 500 }, scale: 2.5, max: 2,
+            sn: { goldChance: 0.05 }, effect: '+5% of new packets are gold (worth 5)', flavor: 'Premium data. Hand-labelled, allegedly.' },
+        // The pipeline flows past you: hold the good data in, then herd it.
+        { id: 'snareContain', name: 'Containment Field', mechanic: 'contain', snare: { x: 2, y: -1 }, requires: 'snareSchools', cost: { dp: 600 }, scale: 2, max: 1,
+            sn: { contain: 1 }, effect: 'The edges turn good packets back; corrupt ones still leave', flavor: 'Data goes in. Data stays in.' },
+        { id: 'snareHerders', name: 'Herders', mechanic: 'herders', snare: { x: 2, y: -2 }, requires: 'snareContain', cost: { dp: 900 }, scale: 2.5, max: 3,
+            sn: { herders: 1 }, effect: 'A drone per level herds strays to your pen and shoos corrupt ones', flavor: 'Good data. Sit. Stay.' },
+        { id: 'snareChain', name: 'Chain Lightning', mechanic: 'chain', snare: { x: -1, y: 0 }, cost: { dp: 120 }, scale: 3, max: 2,
             sn: { chain: 2 }, effect: 'Each catch arcs to 2 more packets nearby per level', flavor: 'One packet tells its friends.' },
-        { id: 'snareScanner', name: 'Scanner', mechanic: true, snare: { x: -2, y: 0 }, requires: 'snareChain', cost: { dp: 520 }, scale: 3, max: 2,
-            sn: { scanner: 1 }, effect: 'A sweeping beam tags packets: tagged ones are worth ×2 for a while (a beam per level)', flavor: 'Ping. Ping. Ping. Oh, that one\'s nice.' },
-        { id: 'snareScrubbers', name: 'Scrubbers', snare: { x: -1, y: -1 }, requires: 'snareChain', cost: { dp: 160 }, scale: 3, max: 2,
+        { id: 'snareScrubbers', name: 'Scrubbers', mechanic: 'scrubbers', snare: { x: -1, y: -1 }, requires: 'snareChain', cost: { dp: 400 }, scale: 2.5, max: 2,
             sn: { scrubbers: 1 }, effect: 'A loop forgives 1 corrupt packet per level', flavor: 'Mostly clean. Clean enough.' },
-        { id: 'snareLaser', name: 'Targeted Laser', mechanic: true, snare: { x: 0, y: 1 }, cost: { dp: 200 }, scale: 2.6, max: 3,
-            sn: { laser: 1 }, effect: 'A laser locks onto the richest packet and takes it by itself (faster per level)', flavor: 'Point. Click. It does the clicking now.' },
-        { id: 'snareEmitters', name: 'Twin Emitters', snare: { x: 0, y: 2 }, requires: 'snareLaser', cost: { dp: 900 }, scale: 3, max: 2,
+        { id: 'snareScanner', name: 'Scanner', mechanic: 'scanner', snare: { x: -2, y: 0 }, requires: 'snareChain', cost: { dp: 520 }, scale: 3, max: 2,
+            sn: { scanner: 1 }, effect: 'A sweeping beam tags packets ×2 for a while (a beam per level)', flavor: 'Ping. Ping. Ping. Oh, that one\'s nice.' },
+        { id: 'snareLaser', name: 'Targeted Laser', mechanic: 'laser', snare: { x: 0, y: 1 }, cost: { dp: 200 }, scale: 2, max: 3,
+            sn: {}, stages: { 1: { laser: 4 }, 2: { laser: 2.5 }, 3: { laser: 1.6 } },
+            effect: 'A laser takes the richest packet by itself, every 4 / 2.5 / 1.6 s', flavor: 'Point. Click. It does the clicking now.' },
+        { id: 'snareEmitters', name: 'Twin Emitters', snare: { x: 0, y: 2 }, requires: 'snareLaser', cost: { dp: 1000 }, scale: 3, max: 2,
             sn: { emitters: 1 }, effect: 'Each laser shot takes one more packet per level', flavor: 'Two beams. Twice the pew.' },
         // The phase shift: from drawing to building. Tap to place anchors; each joins the last with a Firewall of your own
-        // (three or more close a pen): good packets bounce off them, corrupt ones pass. The layout is kept between runs.
-        { id: 'snareAnchors', name: 'Anchors', mechanic: true, snare: { x: -1, y: 1 }, requires: 'snareLaser', cost: { dp: 600 }, scale: 2.4, max: 3,
-            sn: { anchors: 1 }, effect: 'Tap to place anchors (3, then 4, then 5): each joins the last with your own Firewall. Good packets bounce off it, corrupt ones pass, and an Antivirus that hits it is stunned (and the firewall goes down)', flavor: 'Stop chasing the data. Fence it in.' },
-        { id: 'snareHardened', name: 'Hardened Firewalls', snare: { x: -1, y: 2 }, requires: 'snareAnchors', cost: { dp: 1500 }, scale: 2.6, max: 2,
-            sn: { fwHits: 1 }, effect: 'Your Firewalls stun one more Antivirus before they go down, per level', flavor: 'Now with extra fire.' }
+        // (three or more close a pen): good packets bounce off them, corrupt ones pass, an Antivirus that runs into one is
+        // stunned and the firewall goes down. The layout is kept between runs.
+        { id: 'snareAnchors', name: 'Anchors', mechanic: 'anchors', snare: { x: -1, y: 1 }, requires: 'snareLaser', cost: { dp: 900 }, scale: 1.8, max: 3,
+            sn: { anchors: 1 }, effect: 'Tap to place 3 / 4 / 5 anchors, joined by Firewalls of your own', flavor: 'Stop chasing the data. Fence it in.' },
+        { id: 'snareHardened', name: 'Hardened Firewalls', snare: { x: -1, y: 2 }, requires: 'snareAnchors', cost: { dp: 3000 }, scale: 2, max: 2,
+            sn: { fwHits: 1 }, effect: 'Your Firewalls stun one more Antivirus before going down, per level', flavor: 'Now with extra fire.' }
     ].map(n => ({ ...n, tab: 'snare' }));
     UPGRADES.push(...SNARE_TREE);
 
@@ -2057,40 +2061,41 @@
     // A hand action like Collect Data: each packet snared is worth a hand collection's data, times the loop's area
     // multiplier (gold packets count as several), paid in whole numbers as it's caught. A run's haul against the
     // version's best is the record (snare.best). It needs no compute: Focus is its budget.
-    // A run's options from the tree: it starts small, short and hard (a 70 unit² field, Focus 26, about 10 s of drawing,
-    // an Antivirus at 5 s, a system Firewall sweeping across every 8 s from 7 s), and Sprawl grows the field ×1.6 a level
-    // (a second Antivirus at level 2, a third at 4, Firewall sweeps every 6 s from level 2), so the
-    // sprawl comes with the abilities. The Rogue AI arrives on the third run (`ROGUE_FROM_RUN`) and gets busier with the
-    // sprawl. packet-snare.js takes these as overrides of its SNARE table.
+    // A run's options from the tree, as overrides of packet-snare.js's SNARE table (the one place the base numbers live:
+    // a 70 unit² field, Focus 26, about 10 s of drawing, an Antivirus at 5 s, a system Firewall sweeping every 8 s from
+    // 7 s). Each node's `sn` adds per level and its `stages` set options by level (Sprawl: the field ×1.6 a level, a
+    // second Antivirus and faster sweeps and cores at 2, a third Antivirus and two cores at a time at 3). The Rogue AI
+    // arrives on the third run (`ROGUE_FROM_RUN`).
+    const snareBase = () => (typeof module === 'object' && module.exports ? require('./packet-snare.js') : self.PacketSnare).SNARE;
     function snareOpts(s) {
-        const n = {};
+        const B = snareBase();
+        const n = {}, staged = {};
         for (const up of SNARE_TREE) {
             const lvl = level(s, up.id);
-            if (lvl) for (const [k, v] of Object.entries(up.sn)) n[k] = (n[k] || 0) + v * lvl;
+            if (!lvl) continue;
+            for (const [k, v] of Object.entries(up.sn)) n[k] = (n[k] || 0) + v * lvl;
+            for (let l = 1; l <= lvl; l++) Object.assign(staged, up.stages?.[l]);
         }
-        const sprawl = n.sprawl || 0;
+        const { rogueCores = 1, ...stage } = staged;
         return {
-            area: Math.round(70 * Math.pow(1.6, sprawl)),
-            focus: Math.round(26 * (1 + (n.focus || 0))),
-            maxMult: 4 + (n.maxMult || 0),
-            goldChance: 0.04 + (n.goldChance || 0),
-            schooling: 0.3 + (n.schooling || 0),
-            schoolSize: 4 + (n.schoolSize || 0),
-            antivirus: sprawl >= 4 ? [5, 14, 26] : sprawl >= 2 ? [5, 18] : [5],
-            sweepEvery: sprawl >= 2 ? 6 : 8,
-            rogue: s.snare.runs >= ROGUE_FROM_RUN ? 1 + (sprawl >= 3 ? 1 : 0) : 0,
-            rogueEvery: sprawl >= 2 ? 7 : 9,
+            area: Math.round(B.area * Math.pow(1.6, n.sprawl || 0)),
+            focus: Math.round(B.focus * (1 + (n.focus || 0))),
+            maxMult: B.maxMult + (n.maxMult || 0),
+            goldChance: B.goldChance + (n.goldChance || 0),
+            schooling: B.schooling + (n.schooling || 0),
+            schoolSize: B.schoolSize + (n.schoolSize || 0),
+            avSpeed: Math.max(0.4, B.avSpeed + (n.avSpeed || 0)),
+            emitters: B.emitters + (n.emitters || 0),
+            fwHits: B.fwHits + (n.fwHits || 0),
             anchors: n.anchors ? 2 + n.anchors : 0,
-            fwHits: 1 + (n.fwHits || 0),
-            layout: s.snare.anchors,
             contain: n.contain || 0,
             herders: n.herders || 0,
-            avSpeed: Math.max(0.4, 1 + (n.avSpeed || 0)),
             chain: n.chain || 0,
             scanner: n.scanner || 0,
-            laser: n.laser ? [0, 4, 2.5, 1.6][n.laser] : 0,
-            emitters: 1 + (n.emitters || 0),
-            scrubbers: n.scrubbers || 0
+            scrubbers: n.scrubbers || 0,
+            ...stage,
+            rogue: s.snare.runs >= ROGUE_FROM_RUN ? rogueCores : 0,
+            layout: s.snare.anchors
         };
     }
     const ROGUE_FROM_RUN = 2;   // runs before the Rogue AI turns up (it arrives on the third)
@@ -2585,7 +2590,12 @@
         for (const k of Object.keys(s.res)) s.res[k] = num(raw.res?.[k], 0);
         for (const k of Object.keys(s.attr)) s.attr[k] = num(raw.attr?.[k], 0);
         s.levels = cleanMap(raw.levels, (k, v) => Object.hasOwn(UPGRADE_BY_ID, k) && Number.isInteger(v) && v > 0);
-        for (const [k, v] of Object.entries(s.levels)) s.levels[k] = Math.min(v, UPGRADE_BY_ID[k].max ?? MAX_LEVEL);
+        for (const [k, v] of Object.entries(s.levels)) {
+            const up = UPGRADE_BY_ID[k], max = up.max ?? MAX_LEVEL;
+            // Packet Snare nodes that lost levels (Sprawl 4 → 3, Chain Lightning 3 → 2) give back the data they cost.
+            if (v > max && up.tab === 'snare') for (let l = max; l < Math.min(v, 10); l++) s.res.dp += upgradeCost(up, l).dp;
+            s.levels[k] = Math.min(v, max);
+        }
         // Skill-tree nodes that were removed (viral runs and crunches moved to legacy) refund their XP.
         for (const [id, n] of Object.entries(REMOVED_NODES)) {
             const lvl = raw.levels?.[id];

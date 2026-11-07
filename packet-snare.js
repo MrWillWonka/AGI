@@ -204,7 +204,6 @@
             anchors: [],            // { id, x, y }: each joins the last with a Firewall, three or more close a pen
             fwHits: {},             // hits each of your Firewalls has taken, by its key (`${a.id}-${b.id}`)
             rogueAt: o.rogue ? o.rogueFirst : Infinity,
-            penAt: 0,               // when the pen went down (a wall is a quick straight stroke)
             stats: { catches: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
                 stolen: 0, cores: 0, quarantined: 0, walls: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0 },
             acc: 0,
@@ -514,10 +513,11 @@
             return out;
         }
         const penPoly = () => (s.anchors.length >= 3 ? s.anchors : null);
-        // Tap an empty spot to place an anchor (while any are left); tap an anchor to take it back.
-        function tapAt(x, y) {
+        // Tap an empty spot to place an anchor (while any are left); tap an anchor to take it back. `reach`: how near a
+        // tap must be to an anchor to take it (the UI passes a fixed size on screen, so a sprawled field doesn't grow it).
+        function tapAt(x, y, reach = 0.5) {
             if (!o.anchors || s.over) return false;
-            const hit = s.anchors.find(a => Math.hypot(a.x - x, a.y - y) <= Math.max(0.5, closeR * 0.8));
+            const hit = s.anchors.find(a => Math.hypot(a.x - x, a.y - y) <= reach);
             if (hit) {
                 s.anchors = s.anchors.filter(a => a !== hit);
                 s.events.push({ type: 'anchor', x: hit.x, y: hit.y, removed: true });
@@ -550,11 +550,20 @@
             if (!fws.length) return;
             for (const v of s.antivirus) {
                 if (v.stunned > s.time) continue;
-                const f = fws.find(f => segDist(v, f.a, f.b) < v.r);
+                // A firewall stuns an Antivirus once per approach: it has to get clear of that line before it can hit it again
+                // (stunned, it drifts to a stop on the line, and used to be stunned again the moment it woke).
+                const clear = v.r * 2.5;
+                if (v.immune) v.immune = v.immune.filter(k => { const f = fws.find(f => f.key === k); return f && segDist(v, f.a, f.b) <= clear; });
+                const f = fws.find(f => !v.immune?.includes(f.key) && segDist(v, f.a, f.b) < v.r);
                 if (!f) continue;
+                // Immune to every line it's touching (at a corner, two), and knocked back off the one it hit.
+                v.immune = fws.filter(g => segDist(v, g.a, g.b) <= clear).map(g => g.key);
                 v.stunned = s.time + o.avStun;
-                v.vx *= 0.2;
-                v.vy *= 0.2;
+                const dx = f.b.x - f.a.x, dy = f.b.y - f.a.y, L = Math.hypot(dx, dy) || 1;
+                let nx = -dy / L, ny = dx / L;
+                if ((v.x - f.a.x) * nx + (v.y - f.a.y) * ny < 0) { nx = -nx; ny = -ny; }
+                v.vx = nx * 4;   // drifts about 1.3 units off the line as it stops: clear of it
+                v.vy = ny * 4;
                 s.fwHits[f.key] = (s.fwHits[f.key] || 0) + 1;
                 s.stats.stuns++;
                 const down = s.fwHits[f.key] >= o.fwHits;
@@ -735,9 +744,11 @@
             const at = centroid(poly);
             s.leftStart = false;
             // The Chokehold: a tight loop round a core quarantines it; what it stole comes back, half of it, as a bonus.
+            let quarantined = false;
             if (s.cores.length && j.area <= o.chokeArea * fieldArea) {
                 const caught = s.cores.filter(c => pointInPolygon(c, poly));
                 if (caught.length) {
+                    quarantined = true;
                     s.cores = s.cores.filter(c => !caught.includes(c));
                     for (const c of caught) {
                         const units = 2 + 0.5 * c.stole;
@@ -748,6 +759,7 @@
                 }
             }
             if (!j.inside.length) {
+                if (quarantined) return;
                 s.stats.empty++;
                 s.events.push({ type: 'empty', x: at.x, y: at.y, poly, area: j.area });
                 return;

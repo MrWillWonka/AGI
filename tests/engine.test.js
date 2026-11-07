@@ -47,6 +47,30 @@ test('skill-tree nodes do not overlap and grow from a neighbouring node', () => 
     }
 });
 
+test('Packet Snare\'s tree follows the Training tree\'s rules: priced past its parent, short text, no overlaps', () => {
+    const nodes = E.SNARE_TREE;
+    const total = (up, n) => { let c = 0; for (let l = 0; l < n; l++) c = E.upgradeCost(up, l).dp; return c; };
+    const seen = new Set(['0,0']);   // the Lasso takes the centre
+    for (const n of nodes) {
+        assert.ok(n.max >= 1 && n.max <= 3, `${n.id} has 1–3 levels`);
+        assert.ok(n.cost.dp > 0 && Object.keys(n.cost).length === 1, `${n.id} is bought with data`);
+        assert.ok(n.effect && n.effect.length <= 80, `${n.id}: a short, plain effect`);
+        assert.ok(n.flavor && n.flavor.length <= 70, `${n.id}: a short quip`);
+        const key = `${n.snare.x},${n.snare.y}`;
+        assert.ok(!seen.has(key), `${n.id} overlaps another node`);
+        seen.add(key);
+        assert.ok(Math.abs(n.snare.x) <= 2 && Math.abs(n.snare.y) <= 2, `${n.id} sits on the 5 × 5 grid`);
+        const parent = n.requires ? E.UPGRADE_BY_ID[n.requires] : null;
+        const at = parent ? parent.snare : { x: 0, y: 0 };
+        assert.equal(Math.abs(at.x - n.snare.x) + Math.abs(at.y - n.snare.y), 1, `${n.id} is adjacent to what it grows from`);
+        if (parent) assert.ok(n.cost.dp > total(parent, parent.max), `${n.id}'s first level costs more than ${parent.id}'s last`);
+    }
+    // Every node that brings a new rule is a hexagon.
+    for (const id of ['snareChain', 'snareScanner', 'snareScrubbers', 'snareLaser', 'snareAnchors', 'snareContain', 'snareHerders']) {
+        assert.ok(E.UPGRADE_BY_ID[id].mechanic, `${id} is a mechanic`);
+    }
+});
+
 test('every upgrade has a valid tab, cost and dependency', () => {
     const tabs = new Set(E.TABS.map(t => t.id));
     for (const up of E.UPGRADES) {

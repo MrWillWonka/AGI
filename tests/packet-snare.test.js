@@ -331,8 +331,9 @@ test('saves before v19 get an empty snare record; a save keeps it', () => {
 
 test('a first run is small, short and hard; the tree grows the field, Focus and abilities', () => {
     const s = E.defaultState(NOW);
-    const o = E.snareOpts(s);
-    assert.equal(o.area, 70);
+    // snareOpts overrides packet-snare.js's SNARE table: that table is the one place the base numbers live
+    const o = { ...P.SNARE, ...E.snareOpts(s) };
+    assert.equal(o.area, P.SNARE.area);
     assert.equal(o.focus, 26);
     assert.deepEqual(o.antivirus, [5]);
     assert.equal(o.rogue, 0, 'no Rogue AI on the first runs');
@@ -341,7 +342,7 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     s.levels.snareFocus = 1;
     s.levels.snareChain = 1;
     s.levels.snareLaser = 2;
-    const g = E.snareOpts(s);
+    const g = { ...P.SNARE, ...E.snareOpts(s) };
     assert.ok(g.area > 170 && g.area < 190, 'two levels of Sprawl: ×1.6²');
     assert.equal(g.antivirus.length, 2, 'a second Antivirus with the sprawl');
     assert.equal(g.focus, 33);
@@ -499,6 +500,47 @@ test('an Antivirus that hits your Firewall is stunned (it can\'t snap the wire),
     h.antivirus[0].x = 5; h.antivirus[0].y = 3.3;
     h.step(1 / 60);
     assert.equal(h.firewallsUp().length, 1, 'a hardened firewall takes another hit');
+});
+
+test('a firewall stuns an Antivirus once per approach: it is knocked clear, and only a second approach hits again', () => {
+    const s = still({ anchors: 2, antivirus: [0], fwHits: 3, avStun: 3 });
+    s.tapAt(5, 0.5); s.tapAt(5, 6.1);
+    s.step(1 / 60);
+    const v = s.antivirus[0];
+    v.x = 5.2; v.y = 3.3; v.vx = 0; v.vy = 0;
+    const stuns = [];
+    let farthest = 0;
+    for (let t = 0; t < 12; t += 1 / 60) {
+        s.step(1 / 60);
+        for (const e of s.takeEvents()) if (e.type === 'stun') stuns.push({ t, far: farthest });
+        farthest = Math.max(farthest, Math.abs(v.x - 5));
+    }
+    assert.ok(stuns.length >= 2, 'it comes back for another try');
+    assert.ok(stuns[1].t - stuns[0].t > 3.3, 'not the moment its stun ends');
+    assert.ok(stuns[1].far > 0.45 * 2.5, 'only after it got clear of the line');
+});
+
+test('a tap takes an anchor back only within the reach the UI passes', () => {
+    const s = still({ anchors: 3 });
+    s.tapAt(3, 3);
+    s.tapAt(3.6, 3, 0.3);
+    assert.equal(s.anchors.length, 2, 'a tap outside the reach places a new anchor');
+    s.tapAt(3.1, 3, 0.3);
+    assert.equal(s.anchors.length, 1, 'a tap inside it takes one back');
+});
+
+test('a Chokehold round a core with nothing else inside is not an empty loop', () => {
+    const s = still({ rogue: 1, rogueFirst: 0, rogueEvery: 1e9 });
+    s.step(1 / 60);
+    const c = s.cores[0];
+    assert.ok(c);
+    c.stole = 0;
+    s.packets = [];
+    drawSquare(s, c.x, c.y, 0.7);
+    const ev = s.takeEvents().map(e => e.type);
+    assert.ok(ev.includes('quarantine'));
+    assert.ok(!ev.includes('empty'));
+    assert.equal(s.stats.empty, 0);
 });
 
 test('a system Firewall flashes its edge, then sweeps across and snaps an open wire it crosses', () => {

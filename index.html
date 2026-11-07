@@ -124,6 +124,7 @@
                         <button type="button" class="auto-switch" data-auto-switch role="switch" aria-checked="false" hidden><span class="auto-switch-knob" aria-hidden="true"></span><span class="auto-switch-label">Auto-Trainer</span></button>
                         <button type="button" class="ghost-button" id="restartButton" title="Abandon this run and start again, for half a full sprint (nothing it earned so far is paid)" hidden>Restart</button>
                     <button type="button" class="ghost-button" id="treeButton" hidden>Upgrades</button>
+                    <button type="button" class="ghost-button" id="snareTreeButton" hidden>Upgrades</button>
                     </div>
 
                     <div class="module" data-module="training" id="pathPanel">
@@ -212,7 +213,7 @@
                                 <span class="module-xp snare-dp" title="Data"><span class="chip-label">DP</span> <strong data-bind="res.dp">0</strong></span>
                             </div>
                             <div class="canvas-wrap">
-                                <canvas id="snareCanvas" class="path-canvas snare-canvas" aria-label="Packet Snare. Draw a wire and cross it to close a loop round the data packets inside." aria-describedby="snareStatus"></canvas>
+                                <canvas id="snareCanvas" class="path-canvas snare-canvas" aria-label="Packet Snare. Draw a wire round the data packets and bring it back to its start to close the loop." aria-describedby="snareStatus"></canvas>
                                 <div class="roll-result snare-card" id="snareCard" role="status"></div>
                                 <!-- Packet Snare's skill tree: nodes around the Lasso, bought with data. -->
                                 <div class="snare-tree" id="snareTree" hidden>
@@ -221,8 +222,10 @@
                                         <button type="button" class="ghost-button" id="snareTreeClose">Back</button>
                                         <button type="button" class="button" id="snareTreeStart">Start run</button>
                                     </div>
-                                    <div class="snare-tree-grid" id="snareTreeGrid"><svg class="snare-tree-links" id="snareTreeLinks" aria-hidden="true"></svg></div>
-                                    <div class="snare-tree-detail" id="snareTreeDetail" aria-live="polite"></div>
+                                    <div class="snare-tree-grid" id="snareTreeGrid" role="group" aria-label="Packet Snare skill tree">
+                                        <svg class="tree-links snare-tree-links" id="snareTreeLinks" aria-hidden="true"></svg>
+                                        <aside class="node-detail" id="snareTreeDetail" aria-live="polite" hidden></aside>
+                                    </div>
                                 </div>
                             </div>
                             <p class="small path-status" id="snareStatus" aria-live="polite"></p>
