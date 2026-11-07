@@ -794,7 +794,7 @@ test('hardware is a spaced-out ladder: each tier costs more per CP/s but gives m
 test('a hardware tier shows up only once you own ten of the tier below and earned its price', () => {
     const s = fresh();
     s.stats.clicks = 30;
-    s.stats.rolls = 1;                          // and only once the first training run is done
+    s.stats.rolls = 20;
     s.levels.cpu = 9;
     s.stats.runCp = 1e9;
     E.evaluate(s);
@@ -804,6 +804,12 @@ test('a hardware tier shows up only once you own ten of the tier below and earne
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.server), false, 'needs its price earned');
     s.stats.runCp += 1;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.server), false, 'and only after the first real skill (not the warm-up)');
+    s.path.learned = E.FIRST_REAL_SKILL;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.server), false, 'the warm-up is not enough');
+    s.path.learned = E.FIRST_REAL_SKILL + 1;
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.server), true);
     // Each tier's live yield includes every multiplier.
@@ -1073,6 +1079,12 @@ test('the lab feeds training: research and data buy training strength, sprints a
     const data = E.UPGRADE_BY_ID.trainingData;
     assert.equal(data.tab, 'software');
     assert.ok(data.cost.dp && data.max == null && data.boost.push > 0, 'the Training Data Pipeline: an endless data sink');
+    // It opens with the first real skill, not the warm-up (the owner's call).
+    const t = fresh();
+    t.path.learned = E.FIRST_REAL_SKILL;
+    assert.equal(data.unlock(t), false);
+    t.path.learned = E.FIRST_REAL_SKILL + 1;
+    assert.equal(data.unlock(t), true);
 });
 
 test('Scale Up: the endless node multiplies sprint strength, with a geometric price', () => {

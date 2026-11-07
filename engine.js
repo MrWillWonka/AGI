@@ -280,7 +280,9 @@
             costs: [{ cp: 15 }, { cp: 25 }, { cp: 40 }, { cp: 60 }, { cp: 75 }], cost: { cp: 100 }, scale: 1.32,
             unlock: s => s.stats.clicks >= 15, hint: 'Generate compute by hand 15 times' },
         { id: 'server', tab: 'hardware', name: 'Server Cluster', cps: 3.3, effect: 'Generates compute', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 300 }, scale: 1.15,
-            unlock: s => tierReady(s, 'server') && s.stats.rolls >= 1, hint: 'More Graphics Cards, more compute earned, and training under way' },
+            // Only after the first real skill (Pattern Matching), the owner's call: opened by the first run (the warm-up),
+            // it sent you to the Training Cluster and straight back to the lab, which didn't feel good.
+            unlock: s => tierReady(s, 'server') && s.path.learned > FIRST_REAL_SKILL, hint: 'More Graphics Cards, more compute earned, and the first real skill' },
         { id: 'quantum', tab: 'hardware', name: 'Quantum Processor', cps: 22, effect: 'Generates compute', flavor: 'It\'s both working and not working until you check.', cost: { cp: 6000 }, scale: 1.15,
             unlock: s => tierReady(s, 'quantum'), hint: 'More Server Clusters, and more compute earned' },
         { id: 'neural', tab: 'hardware', name: 'Neural Network Chip', cps: 150, effect: 'Generates compute', flavor: 'A chip shaped like the thing you\'re trying to build.', cost: { cp: 120000 }, scale: 1.15,
@@ -298,7 +300,7 @@
         { id: 'dataProcessor', tab: 'software', name: 'Data Processor', shows: 'collect', effect: '+1 DP per collection, per level', flavor: 'A script that cleans the data so you don\'t have to.', cost: { cp: 50, dp: 5 }, scale: 1.2 },
         // Data feeds training: cleaner data makes every sprint stronger (a data sink that never runs out).
         { id: 'trainingData', tab: 'software', name: 'Training Data Pipeline', effect: '+8% sprint strength per level', flavor: 'Deduplicated, filtered, shuffled, and finally useful.', cost: { cp: 400, dp: 150 }, scale: 1.55,
-            unlock: s => s.path.learned >= FIRST_REAL_SKILL, boost: { push: 0.08 } },   // from the warm-up: data had no use until Pattern Matching
+            unlock: s => s.path.learned > FIRST_REAL_SKILL, boost: { push: 0.08 } },   // with Pattern Matching (the owner's call: not on the warm-up)
         { id: 'procurement', tab: 'hardware', name: 'Procurement Bot', shows: 'procurement', effect: 'Buys the best hardware for you with its share of compute', flavor: 'It reads every spec sheet. It haggles. It wins.', cost: { cp: 400 }, max: 1,
             unlock: s => automationGate(s, 'procurement').met, hint: 'Edge Detection, and 20 hardware bought by hand' },
         { id: 'autoCollector', tab: 'software', name: 'Data Crawler', shows: 'autoCollect', effect: 'Collects data for you with its share of compute, 10 CP a collection; each level +25% data a collection', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 800, dp: 80 }, scale: 1.5,
