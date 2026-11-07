@@ -1,7 +1,9 @@
 // Human-model balance sim for "The Path to AGI" (first version only).
 // Usage: node tools/sim.js [gameDir] [seed] [--quiet]   (gameDir defaults to this repo)
-//   env LABSHARE (default 0.2): share of each minute in the lab; CLICKS (default 3): clicks/s in the lab;
-//   MINUTES (default 150), MAXSKILL (default 14, warm-up = skill 0), CLEAN (default 0.5): clean-prompt hit rate,
+//   PROFILE (default playtests/profile.json, the real players' pooled mean; 'none' for the old bot) sets the player:
+//   env LABSHARE (bot 0.2): share of each minute in the lab; CLICKS (bot 3): clicks/s in the lab; IDLE (bot 0): share
+//   neither in the lab nor training; PAUSE (bot 2): seconds between runs;
+//   MINUTES (default 150), MAXSKILL (default 14, warm-up = skill 0), CLEAN (bot 0.5): clean-prompt hit rate,
 //   HYBRID (default 1): the Auto-Trainer drives only while the player is in the lab (HYBRID=0: it drives every run,
 //   and since it only replays cleared legs the bot then stops at the skill it earned it on); LABDBG=1: hardware against capacity.
 // Mirrors game.js's run loop (pushBall, fireSprint/promptBonus, updateThrust/lightBurn, crestFrontier,
@@ -28,18 +30,32 @@ const rng = mulberry32(SEED * 104729 + 17);
 const E = require(path.join(dir, 'engine.js'));
 const T = require(path.join(dir, 'training-path.js'));
 
-const LABSHARE = +(process.env.LABSHARE ?? 0.2);
-const CLICKS = +(process.env.CLICKS ?? 3);
+// PROFILE=<file.json>: a player profile measured from real playtest logs (tools/playtest-calibrate.js --json writes
+// one: { sim: { CLICKS, LABSHARE, IDLE, CLEAN, PAUSE } }, or a flat object with those keys). Env vars still win.
+// The default is the pooled mean of the real logs (playtests/profile.json); PROFILE=none is the old bot (3 clicks/s,
+// a fifth of each minute in the lab, no idle time), which starved itself of data no human did.
+const PROFILE = (() => {
+    const file = process.env.PROFILE ?? path.join(__dirname, '..', 'playtests', 'profile.json');
+    if (file === 'none' || !require('fs').existsSync(file)) return {};
+    const p = JSON.parse(require('fs').readFileSync(file, 'utf8'));
+    return p.sim || p;
+})();
+const knob = (name, fallback) => +(process.env[name] ?? PROFILE[name] ?? fallback);
+const LABSHARE = knob('LABSHARE', 0.2);
+const CLICKS = knob('CLICKS', 3);
+// IDLE: the share of each minute (after the server room opens) spent neither in the lab nor training: the skill
+// tree, mail, other rooms, reading, away. Runs in flight roll on; nothing is clicked, bought or sprinted.
+const IDLE = knob('IDLE', 0);
 const MINUTES = +(process.env.MINUTES ?? 150);
 const MAXSKILL = +(process.env.MAXSKILL ?? 14);
-const CLEAN = +(process.env.CLEAN ?? 0.5);
+const CLEAN = knob('CLEAN', 0.5);
 const DT = 0.05;
 const RESERVE = +(process.env.RESERVE ?? 0);
 // HYBRID=1 (the default): the Auto-Trainer drives only while the player is in the lab; while training, the human
 // plays. HYBRID=0 leaves it on for every run: it only replays cleared legs, so the bot never passes skill 3.
 const HYBRID = !!+(process.env.HYBRID ?? 1);
 const STUCK_GRACE = 3;
-const HUMAN_PAUSE = 2;          // seconds between a run's end and Train again
+const HUMAN_PAUSE = knob('PAUSE', 2);   // seconds between a run's end and Train again
 const AUTO_PAUSE = 1.2;          // RESULT_PAUSE
 const AUTO_THRUST_SPEED = 1.5;
 const FIRST_SUMMIT_MARGIN = 1.01;
@@ -234,7 +250,7 @@ function finishGhost(ev, done) {
     ghost.roll = null;
     ghost.pause = GHOST_PAUSE;
 }
-function ghostTrain(dt, training) {
+function ghostTrain(dt) {
     const lvl = E.autoTrainerLevel(s);
     if (!lvl || !s.path.learned || process.env.GHOST === '0') { ghost.roll = null; return; }
     if (ghost.pause > 0) { ghost.pause -= dt; return; }
@@ -512,18 +528,19 @@ function buyTree() {
 
 // ---- main loop ----
 let clickAcc = 0, secAcc = 0, nextReport = 0;
-say(`sim ${dir} seed ${SEED} labshare ${LABSHARE} clicks ${CLICKS}/s`);
+say(`sim ${dir} seed ${SEED} labshare ${LABSHARE} idle ${IDLE} clicks ${CLICKS}/s clean ${CLEAN} pause ${HUMAN_PAUSE}s`);
 while (s.stats.playTime < MINUTES * 60 && s.path.learned <= MAXSKILL) {
     const t = s.stats.playTime;
     const inLab = !s.unlocked['module:path'] || (t % 60) < 60 * LABSHARE;
+    const idle = !inLab && (t % 60) < 60 * (LABSHARE + IDLE);
     if (inLab) {
         clickAcc += CLICKS * DT;
         while (clickAcc >= 1) { clickAcc--; labClick(); }
     }
-    stepRun(DT, inLab);
+    stepRun(DT, inLab || idle);
     // Earning the Auto-Trainer asks first (game.js promptAutoTrainer): the sim always says yes.
     if (E.level(s, 'autoTrainer') > 0 && !s.intro['prompt:autoTrainer']) { s.intro['prompt:autoTrainer'] = true; E.setTaskOn(s, 'autoTrainer', true); }
-    ghostTrain(DT, !inLab);
+    ghostTrain(DT);
     const before = s.res.xp;
     const xps = d0().xpPerSec;
     E.tick(s, DT);
