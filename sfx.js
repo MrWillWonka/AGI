@@ -334,21 +334,35 @@
             if (big) { sub(45, 45, 0.3, 0.12); blip(93, { gain: 0.035, at: 3 * S() / 2 + S() * 0.5, dur: 0.16 }); }
         },
         buyBig: (o = {}) => SOUNDS.buy({ ...o, big: true }),
-        // Packet Snare's own (every track re-voices them through its profile, like any shared sound): a catch is a
-        // rising glassy run, longer the bigger the loop; a spoil a low crunch; a snap a short static crack and a fall;
-        // your laser a quick downward zap; chain lightning a crackle; a system Firewall's warning a two-note alarm;
-        // the boss a low stab with a sub; a hit on it a metal knock.
+        // Packet Snare's own: the shared versions (each track writes its own in TRACK_SOUNDS; a track that didn't
+        // would hear these through its profile). Stealthy and short, out of the training sounds' way: a catch is a
+        // run of muted plucks low down (longer the bigger the loop's multiplier), not a prompt's bright blips; a
+        // snap a static crack and a dull thud, not the near miss's slow bend.
         snareCatch: ({ mult = 1 } = {}) => {
-            const notes = [76, 79, 81, 84, 88, 91, 93].slice(0, 2 + Math.min(5, Math.round((mult - 1) * 1.7)));
-            run((n, o) => tone({ f0: NOTE(n), dur: 0.09, type: 'triangle', cutoff: 5200, ...o }), notes, S() / 2, 0.9);
+            const notes = [57, 60, 62, 64, 67, 69].slice(0, 2 + Math.min(4, Math.round((mult - 1) * 1.5)));
+            notes.forEach((n, i) => tone({ f0: NOTE(n), dur: 0.07, type: 'triangle', gain: 0.09, cutoff: 1100 + 250 * i, at: i * S() / 2 }));
+            tone({ f0: NOTE(notes[notes.length - 1] + 24), dur: 0.04, type: 'sine', gain: 0.03, at: (notes.length - 1) * S() / 2 });
         },
-        snareSpoil: () => { tone({ f0: NOTE(52), f1: NOTE(45), dur: 0.25, type: 'sawtooth', gain: 0.05, cutoff: 900, detune: 18 }); noise({ dur: 0.18, gain: 0.08, f0: 400, q: 1.5 }); },
-        snareSnap: () => { noise({ dur: 0.07, gain: 0.12, f0: 5200, q: 3 }); tone({ f0: NOTE(69), f1: NOTE(57), dur: 0.16, type: 'square', gain: 0.03, cutoff: 2000 }); },
-        snareLaser: () => tone({ f0: NOTE(100), f1: NOTE(81), dur: 0.08, type: 'square', gain: 0.025, cutoff: 6000 }),
-        snareChain: () => { for (let i = 0; i < 4; i++) noise({ dur: 0.025, gain: 0.07, f0: 3000 + 1500 * i, q: 6, at: i * 0.035 }); },
-        snareSweep: () => { tone({ f0: NOTE(76), dur: 0.12, type: 'square', gain: 0.03, cutoff: 2400 }); tone({ f0: NOTE(72), dur: 0.12, type: 'square', gain: 0.03, cutoff: 2400, at: S() }); },
-        snareBoss: () => { stab([45, 52, 57, 60], { gain: 0.04, dur: 0.5, cutoff: 1100 }); sub(33, 28, 0.6, 0.16); },
-        snareHit: () => { tone({ f0: NOTE(57), dur: 0.2, type: 'square', gain: 0.04, cutoff: 1400 }); tone({ f0: NOTE(57 + 17), dur: 0.12, type: 'sine', gain: 0.03 }); noise({ dur: 0.05, gain: 0.08, f0: 2500, q: 4 }); },
+        snareSpoil: () => { tone({ f0: NOTE(52), f1: NOTE(45), dur: 0.28, type: 'sawtooth', gain: 0.05, cutoff: 700, detune: -20 }); tone({ f0: NOTE(53), f1: NOTE(46), dur: 0.28, type: 'sawtooth', gain: 0.04, cutoff: 700 }); noise({ dur: 0.12, gain: 0.07, f0: 300, type: 'lowpass' }); },
+        snareSnap: () => { noise({ dur: 0.03, gain: 0.12, f0: 7000, q: 2 }); noise({ dur: 0.08, gain: 0.05, f0: 1800, f1: 600, q: 5, at: 0.02 }); tone({ f0: NOTE(45), dur: 0.1, type: 'sine', gain: 0.12 }); },
+        snareLaser: () => tone({ f0: NOTE(100), f1: NOTE(81), dur: 0.06, type: 'sine', gain: 0.045 }),
+        snareChain: () => [81, 84, 88].forEach((n, i) => { noise({ dur: 0.02, gain: 0.05, f0: 4000 + 2000 * i, q: 8, at: i * S() / 4 }); tone({ f0: NOTE(n), dur: 0.03, type: 'square', gain: 0.015, cutoff: 4000, at: i * S() / 4 }); }),
+        snareSweep: () => { [0, 2].forEach(k => stab([64, 69], { at: k * S(), dur: 0.14, gain: 0.045, cutoff: 1400, q: 6 })); noise({ dur: 0.5, gain: 0.06, f0: 600, f1: 3000, q: 2, attack: 0.4 }); },
+        snareCharge: () => { [69, 72, 76, 81].forEach((n, i) => blip(n, { at: i * S() / 2, gain: 0.04 + 0.01 * i, cutoff: 1500 + 800 * i, dur: 0.05 })); tone({ f0: NOTE(45), f1: NOTE(57), dur: 0.45, type: 'sawtooth', gain: 0.04, cutoff: 1200, q: 8, attack: 0.3 }); },
+        snareBoss: () => { sub(33, 30, 0.18, 0.3); sub(33, 30, 0.15, 0.2, 2 * S()); stab([45, 52, 57], { gain: 0.035, dur: 0.4, cutoff: 700 }); },
+        snareHit: () => { tone({ f0: NOTE(57), dur: 0.12, type: 'square', gain: 0.04, cutoff: 1600 }); tone({ f0: NOTE(57) * 2.76, dur: 0.1, type: 'sine', gain: 0.025, raw: true }); noise({ dur: 0.04, gain: 0.08, f0: 3000, q: 6 }); },
+        snarePlace: ({ kind = 'wall' } = {}) => {
+            if (kind === 'decoy') blip(76, { gain: 0.045, dur: 0.08, cutoff: 2000, echo: 0.4 });
+            else if (kind === 'turret') { [0, 1].forEach(i => noise({ dur: 0.015, gain: 0.06, f0: 3500, q: 5, at: i * S() / 4 })); blip(64, { at: S() / 2, gain: 0.055, dur: 0.07, cutoff: 1800 }); }
+            else if (kind === 'tower') { sub(45, 45, 0.2, 0.12); blip(69, { gain: 0.04, dur: 0.1 }); blip(76, { gain: 0.04, dur: 0.12, at: S() / 2 }); }
+            else { tone({ f0: NOTE(45), dur: 0.12, type: 'triangle', gain: 0.14 }); noise({ dur: 0.05, gain: 0.05, f0: 900, q: 2 }); blip(69, { gain: 0.035, dur: 0.05, cutoff: 1500, at: S() / 2 }); }
+        },
+        snareRemove: () => { tone({ f0: NOTE(72), f1: NOTE(64), dur: 0.07, type: 'square', gain: 0.04, cutoff: 1600 }); noise({ dur: 0.015, gain: 0.04, f0: 5000, q: 3 }); },
+        snarePower: ({ kind = 'freeze' } = {}) => kind === 'purge'
+            ? (noise({ dur: 4 * S(), gain: 0.1, f0: 500, f1: 7000, q: 1.2, attack: 3.5 * S() }), stab([57, 64, 69, 76], { gain: 0.035, dur: 0.35, cutoff: 2400, at: 4 * S() }))
+            : (tone({ f0: NOTE(93), f1: NOTE(81), dur: 0.6, type: 'sine', gain: 0.05 }), noise({ dur: 0.7, gain: 0.08, f0: 5000, f1: 300, type: 'lowpass' }), sub(45, 33, 0.6, 0.12)),
+        snareZap: () => { tone({ f0: NOTE(88), f1: NOTE(64), dur: 0.05, type: 'square', gain: 0.035, cutoff: 3000 }); noise({ dur: 0.04, gain: 0.05, f0: 6000, type: 'highpass' }); },
+        snareDecoy: () => { noise({ dur: 0.08, gain: 0.07, f0: 6000, type: 'highpass' }); tone({ f0: NOTE(84), dur: 0.08, type: 'triangle', gain: 0.045 }); tone({ f0: NOTE(76), dur: 0.1, type: 'triangle', gain: 0.04, at: S() / 2 }); },
         // An investor's reward claimed: a bright figure, varied.
         claim: () => [
             () => arp([76, 81, 84, 88, 93], S() / 2, { type: 'triangle', gain: 0.06, cutoff: 5000 }),
@@ -434,12 +448,65 @@
     const sq = (n, o = {}) => T(n, { type: 'square', dur: 0.07, gain: 0.03, ...o });
     const tri = (n, o = {}) => T(n, { type: 'triangle', dur: 0.12, gain: 0.08, ...o });
     const chipNoise = (dur, gain, at = 0) => noise({ dur, gain, f0: 6000, type: 'highpass', at });
+    // Packet Snare: a catch's notes, two to six by the loop's multiplier, low down (a pocket, not a prompt).
+    const catchNotes = mult => [57, 60, 62, 64, 67, 69].slice(0, 2 + Math.min(4, Math.round((mult - 1) * 1.5)));
+    const lastAt = notes => (notes.length - 1) * S() / 2;
 
     // Each track's sound set, levelled to Classic's loudness (measured with a K-weighted meter, like the music).
     const SFX_TRIM = { classic: 1, dark: 1.29, soft: 1.21, ominous: 0.81, retro: 2.1 };
     const SIMPLE_TRIM = { classic: 2.33, dark: 4.65, soft: 1.56, ominous: 1.37, retro: 4.17 };   // the simple sets, levelled the same way
 
+    // Packet Snare's effects, levelled per track (and simple version) against that track's own effects, measured
+    // K-weighted (the peak 100 ms, averaged over four plays, against the mean of 17 existing effects): a catch, a
+    // placement and a broken decoy at the clicks' level, a spoil, a snap and a hit on the boss 1.5 dB over, your
+    // laser, a turret's zap and a chain 3.5 dB under (they come often, by themselves), the sweep's warning 3.5 dB
+    // over, the boss locking on and the powers 4 dB over and the boss 5.5 dB over. Keys `name` or `name:kind`.
+    const SNARE_TRIM = {
+        classic: { snareCatch: 1.81, snareSpoil: 1.55, snareSnap: 0.95, snareLaser: 1.49, snareChain: 3.39, snareSweep: 2.47, snareCharge: 2.21, snareBoss: 1.02, snareHit: 2.24, 'snarePlace:wall': 0.87, 'snarePlace:decoy': 2.35, 'snarePlace:turret': 2.05, 'snarePlace:tower': 0.58, snareRemove: 2.07, 'snarePower:freeze': 0.5, 'snarePower:purge': 1.64, snareZap: 1.73, snareDecoy: 1.54 },
+        dark: { snareCatch: 1.39, snareSpoil: 0.68, snareSnap: 0.86, snareLaser: 1.55, snareChain: 5.41, snareSweep: 1.21, snareCharge: 0.48, snareBoss: 0.67, snareHit: 2.11, 'snarePlace:wall': 0.54, 'snarePlace:decoy': 3.05, 'snarePlace:turret': 2.13, 'snarePlace:tower': 0.77, snareRemove: 1.4, 'snarePower:freeze': 0.41, 'snarePower:purge': 1.05, snareZap: 1.79, snareDecoy: 1.88 },
+        soft: { snareCatch: 1.37, snareSpoil: 0.6, snareSnap: 1.16, snareLaser: 1.77, snareChain: 1.77, snareSweep: 1.59, snareCharge: 2.67, snareBoss: 0.97, snareHit: 1.22, 'snarePlace:wall': 0.74, 'snarePlace:decoy': 1.59, 'snarePlace:turret': 2.01, 'snarePlace:tower': 0.96, snareRemove: 1.53, 'snarePower:freeze': 1.05, 'snarePower:purge': 1.39, snareZap: 2, snareDecoy: 1.72 },
+        ominous: { snareCatch: 1.58, snareSpoil: 2.14, snareSnap: 1.86, snareLaser: 1.64, snareChain: 8.85, snareSweep: 1.39, snareCharge: 3.01, snareBoss: 0.88, snareHit: 1.27, 'snarePlace:wall': 0.96, 'snarePlace:decoy': 1.96, 'snarePlace:turret': 1.81, 'snarePlace:tower': 0.79, snareRemove: 1.54, 'snarePower:freeze': 0.86, 'snarePower:purge': 1.22, snareZap: 2.3, snareDecoy: 1.59 },
+        retro: { snareCatch: 0.71, snareSpoil: 0.91, snareSnap: 0.7, snareLaser: 1.48, snareChain: 1.31, snareSweep: 2.33, snareCharge: 1.37, snareBoss: 0.99, snareHit: 0.82, 'snarePlace:wall': 0.55, 'snarePlace:decoy': 2.77, 'snarePlace:turret': 2.03, 'snarePlace:tower': 0.49, snareRemove: 1.73, 'snarePower:freeze': 0.46, 'snarePower:purge': 0.91, snareZap: 1.3, snareDecoy: 1.01 },
+        's:classic': { snareCatch: 1.06, snareSpoil: 1.02, snareSnap: 1.52, snareLaser: 3.42, snareChain: 2.01, snareSweep: 2.69, snareCharge: 1.41, snareBoss: 1.24, snareHit: 1.04, 'snarePlace:wall': 1.34, 'snarePlace:decoy': 1.32, 'snarePlace:turret': 1.37, 'snarePlace:tower': 1.36, snareRemove: 1.25, 'snarePower:freeze': 1.05, 'snarePower:purge': 1.26, snareZap: 1.55, snareDecoy: 1.54 },
+        's:dark': { snareCatch: 0.98, snareSpoil: 1.03, snareSnap: 2.08, snareLaser: 2.2, snareChain: 1.82, snareSweep: 2.46, snareCharge: 1.31, snareBoss: 1.43, snareHit: 0.98, 'snarePlace:wall': 1.3, 'snarePlace:decoy': 1.29, 'snarePlace:turret': 1.26, 'snarePlace:tower': 1.32, snareRemove: 1.23, 'snarePower:freeze': 1.06, 'snarePower:purge': 1.35, snareZap: 1.63, snareDecoy: 1.5 },
+        's:soft': { snareCatch: 0.98, snareSpoil: 0.9, snareSnap: 1.65, snareLaser: 1.94, snareChain: 1.69, snareSweep: 2.5, snareCharge: 1.25, snareBoss: 1.36, snareHit: 0.9, 'snarePlace:wall': 1.19, 'snarePlace:decoy': 1.3, 'snarePlace:turret': 1.25, 'snarePlace:tower': 1.29, snareRemove: 1.19, 'snarePower:freeze': 1.03, 'snarePower:purge': 1.37, snareZap: 1.66, snareDecoy: 1.55 },
+        's:ominous': { snareCatch: 0.9, snareSpoil: 1.06, snareSnap: 2.48, snareLaser: 2.17, snareChain: 1.8, snareSweep: 2.25, snareCharge: 1.23, snareBoss: 2.28, snareHit: 0.88, 'snarePlace:wall': 1.16, 'snarePlace:decoy': 1.24, 'snarePlace:turret': 1.14, 'snarePlace:tower': 1.18, snareRemove: 1.09, 'snarePower:freeze': 1.18, 'snarePower:purge': 1.4, snareZap: 1.68, snareDecoy: 1.49 },
+        's:retro': { snareCatch: 1.06, snareSpoil: 1.05, snareSnap: 1.5, snareLaser: 2.02, snareChain: 1.68, snareSweep: 2.71, snareCharge: 1.43, snareBoss: 1.21, snareHit: 1.06, 'snarePlace:wall': 1.37, 'snarePlace:decoy': 1.3, 'snarePlace:turret': 1.38, 'snarePlace:tower': 1.35, snareRemove: 1.25, 'snarePower:freeze': 0.95, 'snarePower:purge': 1.28, snareZap: 1.65, snareDecoy: 1.53 }
+    };
+    // Packet Snare's sounds are written for every track (Classic included), in the stealth spirit: quiet ticks, muted
+    // plucks, filtered noise, a heartbeat sub for the boss. Each effect keeps its idea across the tracks: a catch is
+    // muted plucks low down, rising with the multiplier, with a small tick on top; a spoil a semitone cluster falling;
+    // a snap a static crack and a thud; your laser a thin zap down; a chain a crackle; a system Firewall's warning
+    // two pulses and a rising hiss; the boss locking on a run of ticks climbing over a rising tone, and the boss
+    // itself a heartbeat; placing a wall a clunk, a decoy a hollow note, a turret two ticks and a note, a tower a
+    // low note and two up; taking one back a short fall; freeze a long fall with the world muffling, purge a
+    // rising sweep into a chord; a turret's zap a fizz; a broken decoy a glassy shatter.
     const TRACK_SOUNDS = {
+        classic: {
+            // Dub techno, quiet: muted saw plucks, filtered square blips, sub thumps, a delay throw.
+            snareCatch: ({ mult = 1 }) => { const f = catchNotes(mult); f.forEach((n, i) => T(n, { type: 'sawtooth', dur: 0.07, gain: 0.06, cutoff: 900 + 250 * i, q: 7, at: i * S() / 2 })); T(f[f.length - 1] + 24, { type: 'sine', dur: 0.04, gain: 0.035, at: lastAt(f) }); noise({ dur: 0.015, gain: 0.04, f0: 6000, q: 3 }); },
+            snareSpoil: () => { T(52, { to: 45, type: 'sawtooth', dur: 0.28, gain: 0.05, cutoff: 700, q: 4, detune: -20 }); T(53, { to: 46, type: 'sawtooth', dur: 0.28, gain: 0.04, cutoff: 700, q: 4 }); noise({ dur: 0.12, gain: 0.07, f0: 300, type: 'lowpass' }); },
+            snareSnap: () => { noise({ dur: 0.03, gain: 0.12, f0: 7000, q: 2 }); noise({ dur: 0.08, gain: 0.05, f0: 1800, f1: 600, q: 5, at: 0.02 }); T(45, { type: 'sine', dur: 0.1, gain: 0.14 }); },
+            snareLaser: () => { T(100, { to: 81, type: 'sine', dur: 0.06, gain: 0.045 }); T(88, { type: 'square', dur: 0.025, gain: 0.015, cutoff: 5000 }); },
+            snareChain: () => [81, 84, 88].forEach((n, i) => { noise({ dur: 0.02, gain: 0.05, f0: 4000 + 2000 * i, q: 8, at: i * S() / 4 }); T(n, { type: 'square', dur: 0.03, gain: 0.015, cutoff: 4000, at: i * S() / 4 }); }),
+            snareSweep: () => { [0, 2].forEach(k => stab([64, 69], { at: k * S(), dur: 0.14, gain: 0.05, cutoff: 1400, q: 6 })); noise({ dur: 0.5, gain: 0.06, f0: 600, f1: 3000, q: 2, attack: 0.4 }); },
+            snareCharge: () => { [69, 72, 76, 81].forEach((n, i) => blip(n, { at: i * S() / 2, gain: 0.04 + 0.01 * i, cutoff: 1500 + 800 * i, dur: 0.05 })); T(45, { to: 57, type: 'sawtooth', dur: 0.45, gain: 0.045, cutoff: 1200, q: 8, attack: 0.3 }); },
+            snareBoss: () => { sub(33, 30, 0.18, 0.32); sub(33, 30, 0.15, 0.22, 2 * S()); stab([45, 52, 57], { gain: 0.04, dur: 0.4, cutoff: 700, echo: 0.35 }); },
+            snareHit: () => { T(57, { type: 'square', dur: 0.12, gain: 0.04, cutoff: 1600 }); tone({ f0: NOTE(mapNote(degShift(57, varDeg))) * 2.76, dur: 0.1, type: 'sine', gain: 0.025, raw: true }); noise({ dur: 0.04, gain: 0.08, f0: 3000, q: 6 }); },
+            snarePlace: ({ kind = 'wall' }) => {
+                if (kind === 'decoy') blip(76, { gain: 0.045, dur: 0.08, cutoff: 2000, echo: 0.4 });
+                else if (kind === 'turret') { [0, 1].forEach(i => noise({ dur: 0.015, gain: 0.06, f0: 3500, q: 5, at: i * S() / 4 })); blip(64, { at: S() / 2, gain: 0.055, dur: 0.07, cutoff: 1800 }); }
+                else if (kind === 'tower') { sub(45, 45, 0.2, 0.12); blip(69, { gain: 0.04, dur: 0.1 }); blip(76, { gain: 0.04, dur: 0.12, at: S() / 2 }); }
+                else { T(45, { type: 'triangle', dur: 0.12, gain: 0.14 }); noise({ dur: 0.05, gain: 0.05, f0: 900, q: 2 }); blip(69, { gain: 0.035, dur: 0.05, cutoff: 1500, at: S() / 2 }); }
+            },
+            snareRemove: () => { T(72, { to: 64, type: 'square', dur: 0.07, gain: 0.04, cutoff: 1600 }); noise({ dur: 0.015, gain: 0.04, f0: 5000, q: 3 }); },
+            snarePower: ({ kind = 'freeze' }) => {
+                if (kind === 'purge') { noise({ dur: 4 * S(), gain: 0.1, f0: 500, f1: 7000, q: 1.2, attack: 3.5 * S() }); stab([57, 64, 69, 76], { gain: 0.035, dur: 0.35, cutoff: 2400, at: 4 * S(), echo: 0.3 }); }
+                else { T(93, { to: 81, type: 'sine', dur: 0.6, gain: 0.05 }); noise({ dur: 0.7, gain: 0.08, f0: 5000, f1: 300, type: 'lowpass' }); sub(45, 33, 0.6, 0.12); }
+            },
+            snareZap: () => { T(88, { to: 64, type: 'square', dur: 0.05, gain: 0.035, cutoff: 3000 }); noise({ dur: 0.04, gain: 0.05, f0: 6000, type: 'highpass' }); },
+            snareDecoy: () => { noise({ dur: 0.08, gain: 0.07, f0: 6000, type: 'highpass' }); T(84, { type: 'triangle', dur: 0.08, gain: 0.045 }); T(76, { type: 'triangle', dur: 0.1, gain: 0.04, at: S() / 2 }); }
+        },
         dark: {
             // Compute a short saw with a tick, data a metal tick on a thin square, research a detuned triangle ping.
             click: ({ res = 'cp' }) => {
@@ -477,7 +544,30 @@
             nearMiss: () => saw(64, { to: 58, dur: 0.7, gain: 0.04, cutoff: 900 }),
             breakthrough: () => { T(33, { to: 18, dur: 0.7, gain: 0.45, drive: true }); noise({ dur: 0.5, gain: 0.25, f0: 300, f1: 4000, q: 1 }); [45, 52, 58].forEach(n => saw(n, { dur: 0.5, gain: 0.04, at: S() })); },
             phase: () => { seq([45, 52, 57, 58, 64, 69, 70, 76], S() / 2, { type: 'sawtooth', dur: 0.14, gain: 0.04, cutoff: 2400, drive: true }); T(33, { dur: 1.4, gain: 0.25 }); },
-            ship: () => { [45, 52, 57].forEach(n => saw(n, { dur: 1.6, gain: 0.04, cutoff: 1200, attack: 0.05 })); T(33, { to: 21, dur: 1.6, gain: 0.3 }); [0, 2, 4].forEach(k => metal(0.06, k * S(), 3600)); }
+            ship: () => { [45, 52, 57].forEach(n => saw(n, { dur: 1.6, gain: 0.04, cutoff: 1200, attack: 0.05 })); T(33, { to: 21, dur: 1.6, gain: 0.3 }); [0, 2, 4].forEach(k => metal(0.06, k * S(), 3600)); },
+            // Packet Snare, held back: driven saws muted low, metal ticks, sub thumps, the flat second for alarms.
+            snareCatch: ({ mult = 1 }) => { const f = catchNotes(mult); f.forEach((n, i) => saw(n, { dur: 0.06, gain: 0.05, cutoff: 700 + 220 * i, q: 8, at: i * S() / 2 })); metal(0.05, lastAt(f), 6500); },
+            snareSpoil: () => { saw(52, { to: 45, dur: 0.3, gain: 0.05, cutoff: 600, q: 3 }); saw(53, { to: 46, dur: 0.3, gain: 0.04, cutoff: 600, q: 3 }); noise({ dur: 0.15, gain: 0.08, f0: 350, type: 'lowpass' }); },
+            snareSnap: () => { metal(0.1, 0, 7000); T(33, { dur: 0.12, gain: 0.22, drive: true }); noise({ dur: 0.06, gain: 0.05, f0: 1200, q: 4, at: 0.02 }); },
+            snareLaser: () => T(100, { to: 76, type: 'square', dur: 0.05, gain: 0.03, cutoff: 5000, drive: true }),
+            snareChain: () => [0, 1, 2].forEach(i => metal(0.05, i * S() / 4, 4000 + 1500 * i)),
+            snareSweep: () => { [0, 2].forEach(k => { saw(57, { dur: 0.12, gain: 0.05, cutoff: 1600, at: k * S() }); saw(58, { dur: 0.12, gain: 0.04, cutoff: 1600, at: k * S() }); }); noise({ dur: 0.5, gain: 0.06, f0: 800, f1: 4000, q: 3, attack: 0.4 }); },
+            snareCharge: () => { seq([57, 58, 64, 69], S() / 2, { type: 'sawtooth', dur: 0.06, gain: 0.045, cutoff: 1500, q: 6, drive: true }); T(33, { to: 45, dur: 0.45, gain: 0.2, drive: true, attack: 0.3 }); },
+            snareBoss: () => { T(33, { to: 28, dur: 0.2, gain: 0.35, drive: true }); T(33, { to: 28, dur: 0.16, gain: 0.24, drive: true, at: 2 * S() }); metal(0.05, 0, 2500); [45, 46].forEach(n => saw(n, { dur: 0.4, gain: 0.03, cutoff: 700 })); },
+            snareHit: () => { metal(0.1, 0, 3000); saw(45, { dur: 0.12, gain: 0.05, cutoff: 1200 }); },
+            snarePlace: ({ kind = 'wall' }) => {
+                if (kind === 'decoy') { T(76, { type: 'square', dur: 0.06, gain: 0.03, cutoff: 3000 }); T(76, { type: 'square', dur: 0.06, gain: 0.012, cutoff: 2000, at: 3 * S() }); }
+                else if (kind === 'turret') { metal(0.05, 0, 5000); metal(0.05, S() / 4, 5000); saw(64, { dur: 0.06, gain: 0.045, at: S() / 2 }); }
+                else if (kind === 'tower') { T(33, { dur: 0.25, gain: 0.2 }); saw(57, { dur: 0.12, gain: 0.04 }); saw(64, { dur: 0.12, gain: 0.04, at: S() / 2 }); }
+                else { T(40, { dur: 0.12, gain: 0.2, drive: true }); metal(0.045, S() / 2, 4000); }
+            },
+            snareRemove: () => { saw(64, { to: 57, dur: 0.08, gain: 0.045, cutoff: 1400 }); metal(0.03, 0, 6000); },
+            snarePower: ({ kind = 'freeze' }) => {
+                if (kind === 'purge') { noise({ dur: 4 * S(), gain: 0.12, f0: 600, f1: 8000, q: 2, attack: 3.5 * S() }); [45, 52, 57].forEach(n => saw(n, { dur: 0.4, gain: 0.035, cutoff: 2000, at: 4 * S() })); metal(0.06, 4 * S(), 3500); }
+                else { noise({ dur: 0.8, gain: 0.1, f0: 4000, f1: 200, type: 'lowpass' }); T(33, { to: 24, dur: 0.8, gain: 0.25, drive: true }); saw(81, { to: 69, dur: 0.6, gain: 0.025, cutoff: 1200 }); }
+            },
+            snareZap: () => { saw(88, { to: 64, type: 'square', dur: 0.05, gain: 0.03, cutoff: 4000 }); metal(0.05, 0, 7000); },
+            snareDecoy: () => { metal(0.07, 0, 6500); metal(0.05, S() / 4, 5000); saw(76, { to: 70, dur: 0.15, gain: 0.03, cutoff: 2000 }); }
         },
         soft: {
             // Compute a marimba, data a glassy kalimba, research a bell.
@@ -511,7 +601,30 @@
             nearMiss: () => T(76, { to: 74, type: 'sine', dur: 0.7, gain: 0.05 }),
             breakthrough: () => { noise({ dur: 0.6, gain: 0.1, f0: 300, f1: 2500, type: 'lowpass', attack: 0.4 }); padChord([57, 64, 69, 76], { at: 0.45, dur: 1.4 }); softBell(88, { at: 0.45, gain: 0.05 }); },
             phase: () => { [57, 64, 69, 72, 76, 81, 84, 88].forEach((n, i) => T(n, { type: 'sine', dur: 0.8, gain: 0.035, at: i * S() / 2 })); padChord([57, 64, 69], { at: 4 * S() }); },
-            ship: () => { padChord([57, 64, 69, 72, 76], { dur: 2 }); [69, 76, 81, 88].forEach((n, i) => softBell(n, { at: i * S(), gain: 0.04 })); }
+            ship: () => { padChord([57, 64, 69, 72, 76], { dur: 2 }); [69, 76, 81, 88].forEach((n, i) => softBell(n, { at: i * S(), gain: 0.04 })); },
+            // Packet Snare, secretive: muted triangles and glassy sines, soft bells, a sine heartbeat, a warm pad.
+            snareCatch: ({ mult = 1 }) => { const f = catchNotes(mult); f.forEach((n, i) => T(n, { type: 'triangle', dur: 0.08, gain: 0.07, cutoff: 1000 + 200 * i, at: i * S() / 2 })); T(f[f.length - 1] + 24, { type: 'sine', dur: 0.12, gain: 0.02, at: lastAt(f) }); },
+            snareSpoil: () => { T(52, { to: 45, type: 'sine', dur: 0.35, gain: 0.09 }); T(53, { to: 46, type: 'triangle', dur: 0.3, gain: 0.035, cutoff: 600 }); noise({ dur: 0.15, gain: 0.04, f0: 400, type: 'lowpass' }); },
+            snareSnap: () => { noise({ dur: 0.04, gain: 0.06, f0: 5000, q: 2 }); T(45, { type: 'sine', dur: 0.12, gain: 0.12 }); T(64, { type: 'triangle', dur: 0.05, gain: 0.03, cutoff: 1500 }); },
+            snareLaser: () => T(96, { to: 84, type: 'sine', dur: 0.06, gain: 0.045 }),
+            snareChain: () => [88, 91, 93].forEach((n, i) => T(n, { type: 'sine', dur: 0.05, gain: 0.03, at: i * S() / 4 })),
+            snareSweep: () => { softBell(69, { gain: 0.05, dur: 0.4 }); softBell(64, { gain: 0.05, dur: 0.4, at: 2 * S() }); noise({ dur: 0.5, gain: 0.04, f0: 500, f1: 2000, type: 'lowpass', attack: 0.35 }); },
+            snareCharge: () => { [69, 72, 76, 81].forEach((n, i) => T(n, { type: 'sine', dur: 0.08, gain: 0.035 + 0.008 * i, at: i * S() / 2 })); noise({ dur: 0.45, gain: 0.05, f0: 300, f1: 2400, type: 'lowpass', attack: 0.4 }); },
+            snareBoss: () => { T(45, { to: 40, type: 'sine', dur: 0.2, gain: 0.2 }); T(45, { to: 40, type: 'sine', dur: 0.16, gain: 0.14, at: 2 * S() }); padChord([45, 52, 57], { dur: 0.8, gain: 0.03, cutoff: 900 }); },
+            snareHit: () => { T(57, { type: 'sine', dur: 0.15, gain: 0.08 }); T(76, { type: 'sine', dur: 0.08, gain: 0.025 }); noise({ dur: 0.03, gain: 0.03, f0: 2500, q: 4 }); },
+            snarePlace: ({ kind = 'wall' }) => {
+                if (kind === 'decoy') softBell(76, { gain: 0.035, dur: 0.4 });
+                else if (kind === 'turret') { T(81, { type: 'sine', dur: 0.03, gain: 0.03 }); T(81, { type: 'sine', dur: 0.03, gain: 0.03, at: S() / 4 }); T(64, { type: 'triangle', dur: 0.15, gain: 0.05, cutoff: 1500, at: S() / 2 }); }
+                else if (kind === 'tower') { padChord([57, 64, 69], { dur: 0.6, gain: 0.025 }); softBell(81, { gain: 0.035, at: S() / 2 }); }
+                else { T(45, { type: 'sine', dur: 0.15, gain: 0.14 }); T(57, { type: 'triangle', dur: 0.12, gain: 0.045, cutoff: 1200, at: S() / 2 }); }
+            },
+            snareRemove: () => T(72, { to: 64, type: 'sine', dur: 0.12, gain: 0.05 }),
+            snarePower: ({ kind = 'freeze' }) => {
+                if (kind === 'purge') { noise({ dur: 4 * S(), gain: 0.06, f0: 400, f1: 4000, type: 'lowpass', attack: 3 * S() }); [69, 76, 81, 88].forEach((n, i) => softBell(n, { at: 4 * S() + i * S() / 2, gain: 0.035 })); }
+                else { T(93, { to: 81, type: 'sine', dur: 0.8, gain: 0.045 }); noise({ dur: 0.8, gain: 0.06, f0: 3000, f1: 200, type: 'lowpass' }); padChord([57, 64, 72], { dur: 1.2, gain: 0.022, cutoff: 800 }); }
+            },
+            snareZap: () => { T(84, { to: 72, type: 'sine', dur: 0.06, gain: 0.045 }); noise({ dur: 0.03, gain: 0.03, f0: 6000, type: 'highpass' }); },
+            snareDecoy: () => { noise({ dur: 0.08, gain: 0.04, f0: 7000, type: 'highpass' }); T(88, { type: 'sine', dur: 0.1, gain: 0.035 }); T(81, { type: 'sine', dur: 0.12, gain: 0.035, at: S() / 2 }); }
         },
         ominous: {
             // Compute a knock, data a ghostly ping with its echo, research a short toll.
@@ -550,7 +663,31 @@
             nearMiss: () => T(64, { to: 62, type: 'sawtooth', dur: 0.9, gain: 0.03, cutoff: 700 }),
             breakthrough: () => { swellUp(0.5, 0.2); T(33, { to: 21, dur: 1.2, gain: 0.45, at: 0.45 }); [45, 48, 52].forEach(n => T(n, { type: 'triangle', dur: 1.2, gain: 0.035, at: 0.45, cutoff: 1500 })); },
             phase: () => { toll(45, { gain: 0.08 }); toll(57, { at: 2 * S(), gain: 0.06 }); toll(69, { at: 4 * S(), gain: 0.05 }); T(33, { dur: 2.2, gain: 0.2, attack: 0.3 }); },
-            ship: () => { [0, 2, 4].forEach(k => toll(45 + k * 6, { at: k * S(), gain: 0.06 })); T(33, { dur: 2.4, gain: 0.22, attack: 0.4 }); }
+            ship: () => { [0, 2, 4].forEach(k => toll(45 + k * 6, { at: k * S(), gain: 0.06 })); T(33, { dur: 2.4, gain: 0.22, attack: 0.4 }); },
+            // Packet Snare, creeping: muffled detuned triangles, knocks, a bell's warning down to the flat second,
+            // a deep heartbeat with a toll, reversed swells.
+            snareCatch: ({ mult = 1 }) => { const f = catchNotes(mult); f.forEach((n, i) => T(n, { type: 'triangle', dur: 0.08, gain: 0.065, cutoff: 800, detune: -12, at: i * S() / 2 })); T(f[f.length - 1] + 24, { type: 'sine', dur: 0.3, gain: 0.014, detune: -15, at: lastAt(f) }); },
+            snareSpoil: () => { T(52, { to: 45, type: 'sawtooth', dur: 0.45, gain: 0.03, cutoff: 500 }); T(53, { to: 46, type: 'sawtooth', dur: 0.45, gain: 0.03, cutoff: 500 }); noise({ dur: 0.4, gain: 0.05, f0: 300, f1: 80, type: 'lowpass' }); },
+            snareSnap: () => { noise({ dur: 0.03, gain: 0.08, f0: 4500, q: 6 }); knock(45, { gain: 0.1, cutoff: 600 }); },
+            snareLaser: () => T(96, { to: 76, type: 'sine', dur: 0.1, gain: 0.035, detune: -15 }),
+            snareChain: () => [0, 1, 2].forEach(i => noise({ dur: 0.03, gain: 0.05, f0: 3000 + 1200 * i, q: 10, at: i * S() / 4 })),
+            snareSweep: () => { toll(64, { gain: 0.05, dur: 0.8 }); toll(58, { gain: 0.045, dur: 0.8, at: 2 * S() }); },
+            snareCharge: () => { swellUp(4 * S(), 0.08); seq([57, 58, 60, 63], S() / 2, { type: 'triangle', dur: 0.1, gain: 0.045, cutoff: 1200, detune: -10 }); },
+            snareBoss: () => { T(33, { to: 28, dur: 0.25, gain: 0.32 }); T(33, { to: 28, dur: 0.2, gain: 0.22, at: 2 * S() }); toll(45, { gain: 0.05, dur: 1.2 }); },
+            snareHit: () => { toll(57, { gain: 0.05, dur: 0.4 }); knock(52, { gain: 0.06 }); },
+            snarePlace: ({ kind = 'wall' }) => {
+                if (kind === 'decoy') T(76, { type: 'sine', dur: 0.3, gain: 0.035, detune: -15, echo: 0.4 });
+                else if (kind === 'turret') { knock(64, { gain: 0.06 }); knock(64, { gain: 0.05, at: S() / 2 }); }
+                else if (kind === 'tower') { toll(57, { gain: 0.045, dur: 0.9 }); T(33, { dur: 0.5, gain: 0.1, attack: 0.1 }); }
+                else { knock(45, { gain: 0.11, cutoff: 700 }); T(33, { dur: 0.25, gain: 0.12 }); }
+            },
+            snareRemove: () => T(64, { to: 57, type: 'triangle', dur: 0.2, gain: 0.045, cutoff: 900, detune: -10 }),
+            snarePower: ({ kind = 'freeze' }) => {
+                if (kind === 'purge') { swellUp(4 * S(), 0.14); toll(69, { gain: 0.05, at: 4 * S() }); toll(76, { gain: 0.04, at: 5 * S() }); }
+                else { T(93, { to: 69, type: 'sine', dur: 1, gain: 0.035, detune: -15 }); noise({ dur: 1, gain: 0.07, f0: 2500, f1: 100, type: 'lowpass' }); T(33, { dur: 1, gain: 0.15, attack: 0.2 }); }
+            },
+            snareZap: () => { T(81, { to: 64, type: 'triangle', dur: 0.08, gain: 0.04, cutoff: 2000 }); noise({ dur: 0.04, gain: 0.04, f0: 5000, q: 4 }); },
+            snareDecoy: () => { noise({ dur: 0.12, gain: 0.05, f0: 6000, type: 'highpass' }); T(82, { type: 'sine', dur: 0.4, gain: 0.025, detune: -15 }); T(76, { type: 'sine', dur: 0.4, gain: 0.025, detune: -15, at: S() }); }
         },
         retro: {
             // Compute a triangle blip with a noise tick, data a two-step square, research a square jumping up the scale.
@@ -585,7 +722,30 @@
             nearMiss: () => seq([76, 74, 76, 74], 0.06, { type: 'square', dur: 0.05, gain: 0.025 }),
             breakthrough: () => { chipNoise(0.3, 0.12); seq([57, 64, 69, 76, 81, 88], S() / 4, { type: 'square', dur: 0.05, gain: 0.03 }); tri(33, { dur: 0.4, gain: 0.15 }); },
             phase: () => { seq([57, 60, 64, 69, 72, 76, 81, 84, 88, 93], S() / 4, { type: 'square', dur: 0.05, gain: 0.028 }); tri(45, { dur: 0.8, gain: 0.1, at: S() * 2.5 }); },
-            ship: () => { seq([69, 0, 69, 76, 81, 0, 88], S() / 2, { type: 'square', dur: 0.1, gain: 0.032 }); seq([45, 0, 45, 52, 57, 0, 64], S() / 2, { type: 'triangle', dur: 0.12, gain: 0.08 }); }
+            ship: () => { seq([69, 0, 69, 76, 81, 0, 88], S() / 2, { type: 'square', dur: 0.1, gain: 0.032 }); seq([45, 0, 45, 52, 57, 0, 64], S() / 2, { type: 'triangle', dur: 0.12, gain: 0.08 }); },
+            // Packet Snare, an 8-bit stealth game: triangle pockets low, chip ticks, a two-tone alarm, stepped slides.
+            snareCatch: ({ mult = 1 }) => { const f = catchNotes(mult); f.forEach((n, i) => tri(n - 12, { dur: 0.05, gain: 0.09, at: i * S() / 2 })); sq(f[f.length - 1] + 24, { dur: 0.025, gain: 0.02, at: lastAt(f) }); },
+            snareSpoil: () => { T(52, { to: 40, type: 'square', dur: 0.25, gain: 0.025, steps: true }); chipNoise(0.12, 0.05); },
+            snareSnap: () => { chipNoise(0.04, 0.08); tri(45, { dur: 0.08, gain: 0.11 }); },
+            snareLaser: () => T(100, { to: 84, type: 'square', dur: 0.05, gain: 0.02, steps: true }),
+            snareChain: () => [93, 96, 100].forEach((n, i) => { chipNoise(0.015, 0.035, i * S() / 4); sq(n, { dur: 0.02, gain: 0.015, at: i * S() / 4 }); }),
+            snareSweep: () => seq([76, 69, 76, 69], S() / 2, { type: 'square', dur: 0.05, gain: 0.028 }),
+            snareCharge: () => { T(57, { to: 81, type: 'square', dur: 0.4, gain: 0.025, steps: true }); chipNoise(0.03, 0.04, 3 * S()); },
+            snareBoss: () => { tri(33, { dur: 0.15, gain: 0.2 }); tri(33, { dur: 0.12, gain: 0.14, at: 2 * S() }); seq([45, 46], S(), { type: 'square', dur: 0.1, gain: 0.022 }); },
+            snareHit: () => { chipNoise(0.05, 0.07); sq(57, { dur: 0.06, gain: 0.03 }); tri(45, { dur: 0.08, gain: 0.08 }); },
+            snarePlace: ({ kind = 'wall' }) => {
+                if (kind === 'decoy') { sq(76, { dur: 0.04, gain: 0.025 }); sq(76, { dur: 0.04, gain: 0.012, at: 3 * S() }); }
+                else if (kind === 'turret') { sq(64, { dur: 0.03, gain: 0.025 }); sq(69, { dur: 0.03, gain: 0.025, at: S() / 4 }); chipNoise(0.015, 0.04, S() / 2); }
+                else if (kind === 'tower') { seq([57, 64, 69], S() / 4, { type: 'square', dur: 0.04, gain: 0.022 }); tri(45, { dur: 0.15, gain: 0.1 }); }
+                else { tri(45, { dur: 0.08, gain: 0.13 }); chipNoise(0.02, 0.04); }
+            },
+            snareRemove: () => seq([69, 64], S() / 4, { type: 'square', dur: 0.03, gain: 0.024 }),
+            snarePower: ({ kind = 'freeze' }) => {
+                if (kind === 'purge') { chipNoise(0.25, 0.08); seq([88, 84, 81, 76, 72, 69], S() / 4, { type: 'square', dur: 0.04, gain: 0.02, at: S() }); }
+                else { T(93, { to: 69, type: 'square', dur: 0.6, gain: 0.02, steps: true }); chipNoise(0.3, 0.04); tri(45, { dur: 0.5, gain: 0.08 }); }
+            },
+            snareZap: () => { T(84, { to: 64, type: 'square', dur: 0.05, gain: 0.024, steps: true }); chipNoise(0.02, 0.04); },
+            snareDecoy: () => { chipNoise(0.08, 0.06); seq([81, 76], S() / 2, { type: 'square', dur: 0.04, gain: 0.022 }); }
         }
     };
 
@@ -594,7 +754,8 @@
         clicks: ['click'],
         buys: ['buy', 'buyBig', 'claim'],
         training: ['sprint', 'clean', 'perfect', 'system', 'breakthrough', 'smash', 'windup', 'launch', 'land', 'nearMiss', 'crunch', 'flow', 'freeze', 'release',
-            'snareCatch', 'snareSpoil', 'snareSnap', 'snareLaser', 'snareChain', 'snareSweep', 'snareBoss', 'snareHit'],
+            'snareCatch', 'snareSpoil', 'snareSnap', 'snareLaser', 'snareChain', 'snareSweep', 'snareBoss', 'snareHit',
+            'snareCharge', 'snarePlace', 'snareRemove', 'snarePower', 'snareZap', 'snareDecoy'],
         events: ['summit', 'runEnd', 'record', 'viral', 'achievement', 'phase', 'ship'],
         ui: ['ui', 'error']
     };
@@ -628,14 +789,21 @@
         buy: () => { sb(76, 0.07); sb(81, 0.09, 0.07, 0.06); },
         buyBig: () => { sb(76, 0.07); sb(81, 0.07, 0.07, 0.06); sb(88, 0.1, 0.07, 0.12); },
         claim: () => { sb(81, 0.07); sb(88, 0.1, 0.07, 0.07); },
-        snareCatch: ({ mult = 1 } = {}) => { sb(81, 0.06); sb(mult >= 2.5 ? 93 : 88, 0.08, 0.07, 0.05); },
+        // Packet Snare: low and short, away from the prompts' high notes and the near miss's bend.
+        snareCatch: ({ mult = 1 } = {}) => { sb(64, 0.05, 0.07); sb(mult >= 2.5 ? 76 : 69, 0.06, 0.07, 0.06); },
         snareSpoil: () => sb(52, 0.2, 0.06, 0, 45),
-        snareSnap: () => sb(69, 0.12, 0.05, 0, 57),
+        snareSnap: () => { sb(45, 0.06, 0.08); sb(81, 0.02, 0.03); },
         snareLaser: () => sb(100, 0.04, 0.03, 0, 88),
         snareChain: () => { sb(93, 0.03, 0.03); sb(96, 0.03, 0.03, 0.04); },
-        snareSweep: () => { sb(76, 0.08, 0.04); sb(72, 0.08, 0.04, 0.1); },
-        snareBoss: () => sb(45, 0.5, 0.1, 0, 33),
-        snareHit: () => sb(57, 0.15, 0.08),
+        snareSweep: () => { sb(69, 0.08, 0.05); sb(64, 0.08, 0.05, 0.12); },
+        snareCharge: () => { sb(57, 0.3, 0.05, 0, 69); sb(81, 0.05, 0.05, 0.36); },
+        snareBoss: () => { sb(45, 0.15, 0.1, 0, 40); sb(45, 0.12, 0.07, 0.24, 40); },
+        snareHit: () => sb(57, 0.12, 0.08),
+        snarePlace: ({ kind = 'wall' } = {}) => { const n = { wall: 57, decoy: 76, turret: 64, tower: 69 }[kind] ?? 64; sb(n, 0.06, 0.07); sb(n + 12, 0.03, 0.035, 0.06); },
+        snareRemove: () => sb(72, 0.06, 0.06, 0, 64),
+        snarePower: ({ kind = 'freeze' } = {}) => kind === 'purge' ? (sb(69, 0.08, 0.06), sb(81, 0.08, 0.06, 0.12), sb(88, 0.18, 0.06, 0.24)) : sb(93, 0.4, 0.05, 0, 76),
+        snareZap: () => sb(88, 0.04, 0.045, 0, 72),
+        snareDecoy: () => { sb(84, 0.04, 0.045); sb(76, 0.06, 0.045, 0.06); },
         error: () => { sb(64, 0.14, 0.05, 0, 57); sb(65, 0.14, 0.035, 0, 58); },
         ui: () => sb(93, 0.03, 0.03),
         sprint: ({ charge = 1 } = {}) => sb(57, 0.12, 0.05 + 0.06 * charge, 0, 64),
@@ -665,7 +833,8 @@
     // Stingers wait for the grid: steps to quantize to (1 = the next 16th, 2 = the next 8th).
     const QUANT = { buy: 1, buyBig: 1, claim: 1, summit: 2, record: 1, runEnd: 1, viral: 1, achievement: 1, phase: 2, ship: 2 };
     // Minimum seconds between two plays of the same sound (clicks and dust can come in floods).
-    const GAP = { click: 0.045, land: 0.08, launch: 0.15, buy: 0.05, ui: 0.05, error: 0.2, clean: 0.05 };
+    const GAP = { click: 0.045, land: 0.08, launch: 0.15, buy: 0.05, ui: 0.05, error: 0.2, clean: 0.05,
+        snareCatch: 0.05, snareChain: 0.06, snareLaser: 0.06, snareZap: 0.06, snareSnap: 0.1, snareHit: 0.06 };
 
     function play(name, opts) {
         const gv = mix[GROUP_OF[name] || 'ui'];
@@ -681,6 +850,8 @@
         if (base > 0.3 && div > 1) base = Math.max(0, nextStep(1).t - now);
         startAt = now + base;
         gmul = gv * ((simple ? SIMPLE_TRIM : SFX_TRIM)[style] || 1);
+        const st = SNARE_TRIM[(simple ? 's:' : '') + style];
+        if (st && name.startsWith('snare')) gmul *= st[name + ':' + (opts?.kind ?? { snarePlace: 'wall', snarePower: 'freeze' }[name])] ?? st[name] ?? 1;
         if (name !== 'click') [varDeg, varNoise] = VARIANTS[vary('v:' + name, VARIANTS.length)];
         // A track's own version of the sound if it has one (TRACK_SOUNDS), else the shared one in its profile.
         const own = !simple && TRACK_SOUNDS[style]?.[name === 'buyBig' ? 'buy' : name];
@@ -807,8 +978,8 @@
 
     // ---- Music: songs in each track's voice, that follow the run -----------------------------------------
     // A step sequencer (16 steps a bar) scheduled a little ahead on the audio clock. Each track (Classic, Dark,
-    // Soft, Ominous, Retro) has its drums and instruments (`STYLES`) and four songs (`SONGS`): two for the lab
-    // (and Surveillance and R&D) and two for the server room (and its bays). A song is an eight-bar chord
+    // Soft, Ominous, Retro) has its drums and instruments (`STYLES`) and six songs (`SONGS`): two for the lab
+    // (and Surveillance and R&D), two for the server room (and its bays) and two for Packet Snare's bay. A song is an eight-bar chord
     // progression with voiced chords, a bass line that follows it, a four-bar melody (A) and an eight-bar one
     // (B), played in a two-minute form (`FORM`): intro, A, B, A, a breakdown, B, A with a harmony, out. Then the
     // area's other song takes over; moving between the lab and the server room changes song on the next bar,
@@ -821,7 +992,7 @@
     let musicVolume = 0.35;
     let intensity = 0;
     let mode = null;                // null | 'crunch' | 'flow' | 'freeze'
-    let area = 'lab';               // 'lab' | 'server' (game.js, `setArea`)
+    let area = 'lab';               // 'lab' | 'server' | 'snare' (game.js, `setArea`)
     let depth = 0;                  // 0-1: how much of the arrangement the game has earned (game.js, `setDepth`)
     let training = false;           // the beat plays only while training (game.js, `setTraining`)
     let songLvl = 1;                // the current song's level trim, on its pitched voices
@@ -1094,9 +1265,12 @@
     const FORM = ['intro', 'A', 'B', 'A', 'break', 'B', 'A2', 'out'];
     const SONG_BARS = FORM.length * 8;
 
-    // Two songs for the lab and two for the server room, per track. Lab songs are steadier and more
-    // melodic; server-room songs drive harder (busier bass, syncopated chords, riffs). `lvl` trims each song's
-    // pitched voices so every song measures the same (K-weighted, the tones 2 dB over the beat).
+    // Two songs for the lab, two for the server room and two for Packet Snare, per track. Lab songs are steadier and
+    // more melodic; server-room songs drive harder (busier bass, syncopated chords, riffs); Packet Snare's are the
+    // track gone stealthy (sparse, muted, suspended chords that don't resolve, a hushed kick of their own and a
+    // ticking clock: see `kickLevel`) until you're spotted and the beat drops in. `lvl` trims each song's pitched
+    // voices so every song measures the same (K-weighted, the tones 2 dB over the beat); a stealth song's `rest`
+    // lifts its tones while it's hushed (fading out as you're spotted), so it measures the same then too.
     const SONGS = {
         classic: {
             lab: [
@@ -1126,6 +1300,20 @@
                     melA: "1' 7 1' 5 . 1' 7 5 | 7 5 7 2 . 7 5 2 | 6 5 6 1 . 6 5 3 | #7, 2 #7, 2 3 2 #7, .",
                     melB: "5 - - - 1' - 3' - | 2' - 1' - 7 - - . | 1' - 7 - 6 - 3 - | #7 - - - 2' - - . | 5 - 1' - 2'+3' 2'+1' - - | 7 - 5 - 2 - 5 - | 4 - 6 - 1' - 2' - | #7 - 2' - #7 - . ."
                 }
+            ],
+            snare: [
+                {   // Packet Sniffer: dub techno gone quiet: Am9 and Dm9 hanging on an unresolved Esus4, one muted stab a bar.
+                    lvl: 1.62, rest: 1.40, scale: AEOL, chords: ['Am9', 'Am9', 'Fmaj7', 'Fmaj7', 'Dm9', 'Dm9', 'Esus4', 'Esus4'],
+                    bass: 'r..r......r.....', comp: [10], kick: 'x.........x.....', hush: 0.45, tick: '..o..x..o.o..x..', cut: 0.75,
+                    melA: "5, . . 1 . . 3 . | 1 - - - . . . . | 5 . . . 1' . . . | 5 - - - . . . .",
+                    melB: "1 . 1 . 3 . 5 . | 7 - - - 5 . 3 . | 1 . 1 . 3 . 5 . | 1' - - - 5 - - - | 6 . 4 . 3 . 1 . | 3 - - - 5 - - - | 5 . 4 . 5 . 1' . | 2' - - - 1' - - -"
+                },
+                {   // Dead Drop: i – v – VI – VII held on sus chords, a bass that steps and stops.
+                    lvl: 1.37, rest: 1.36, scale: AEOL, chords: ['Am7', 'Am7', 'Em7', 'Em7', 'Fmaj7', 'Fmaj7', 'Gsus4', 'Gsus4'],
+                    bass: 'r..r..r.....r...', comp: [6], kick: 'x......x........', hush: 0.45, tick: 'o..x..o...o..x..', cut: 0.75,
+                    melA: ". . 3 . . . 1 . | 5, - - - . . . . | . . 5 . . . 4 . | 5 - - - . . . .",
+                    melB: "1 . . 3 . . 5 . | 3 - - - 1 - - - | 5 . . 7 . . 2' . | 7 - - - 5 - - - | 6 . . 1' . . 3' . | 1' - - - 5 - - - | 4 . . 5 . . 1' . | 4 - - - 5 - - -"
+                }
             ]
         },
         dark: {
@@ -1151,6 +1339,20 @@
                     lvl: 0.77, scale: PHRY, chords: ['Am', 'Bb', 'Am', 'Gm', 'Am', 'Bb', 'Dm', 'Bb'], comp: [0, 3, 11], oct: -1,
                     melA: "1 . 1 . . 5 . 1 | 2 . 2 . . 4 . 6, | 1 . 1 . . 5 . 3 | 2 . 7, . . 4 . 2",
                     melB: "5 . 5 6 5 . 3 1 | 2 . 2 4 2 . 6, . | 5 . 5 6 5 . 1' . | 7 . 6 . 4 . 2 . | 1' . 1' 2' 1' . 5 . | 4' . 2' . 6 . 4 . | 6 . 4 . 3 . 1 . | 2 - - - 6, - - -"
+                }
+            ],
+            snare: [
+                {   // Black Box: the warehouse held back: the acid line low and closed, the kick a pulse, the flat second waiting.
+                    lvl: 1.30, rest: 1.41, scale: PHRY, chords: ['Am', 'Am', 'Bb', 'Bb', 'Am', 'Am', 'Gm', 'Gm'], comp: [0], acid: 0.3, rumble: 0.6,
+                    kick: 'x.......x.......', hush: 0.5, tick: 'x.o.x.o.x.o.x.oo', cut: 0.7,
+                    melA: "1 - - - . . . . | . . 5, - 1 - - . | 4 - - - . . 2 . | 2 - - - . . . .",
+                    melB: "1 . 1 . 2 . 1 . | 5, - - - . . . . | 4 . 4 . 6 . 4 . | 2 - - - . . . . | 1 . 3 . 5 . 3 . | 1 - - - 2 - 1 - | 7, . 2 . 4 . 2 . | 7, - - - 5, - - -"
+                },
+                {   // Tripwire: A against B flat, a hoover creeping up the D minor, never home.
+                    lvl: 1.39, rest: 1.41, scale: PHRY, chords: ['Am', 'Bb', 'Am', 'Bb', 'Dm', 'C', 'Dm', 'Bb'], comp: [0], acid: 0.25, rumble: 0.5,
+                    kick: 'x.........x.....', hush: 0.5, tick: '..x...x...x..xx.', cut: 0.7,
+                    melA: "1 . . . . . 3 . | 4 - - - . . . . | 1 . . 4 . . . . | 2 - - - . . . .",
+                    melB: "1 - - - 5, - - - | 2 - - - 4 - - - | 1 . 1 . 3 . 5 . | 4 - - - 2 - - - | 4 . 6 . 1' . 6 . | 5 - - - 3 - - - | 4 . 1 . 6, . 4 . | 4 - - - - - . ."
                 }
             ]
         },
@@ -1182,6 +1384,20 @@
                     melA: "5 - 7 - 1' - 7 5 | 6 - 5 - 4 - 1 - | 5 - 7 - 2' - 1' 7 | 6 - - - 4 - - .",
                     melB: "1' - - 7 5 - 3 - | 4 - 6 - 1' - 3' - | 2' - 1' - 7 - 5 - | 6 - - - 3' - - - | 3' - 1' - 7 - 5 - | 4' - - - 2' - 7 - | 1' - 5 - 3 - 1 - | 2 - - - 4 - - -"
                 }
+            ],
+            snare: [
+                {   // Tiptoe: minor ninths and sus chords, a mallet whispering low, the bass on one and the and of three.
+                    lvl: 1.14, rest: 1.32, scale: AEOL, chords: ['Am9', 'Am9', 'Gsus2', 'Gsus2', 'Fmaj7', 'Fmaj7', 'Esus4', 'Esus4'],
+                    bass: 'r.......f.......', comp: [6, 14], kick: 'x.......x.......', hush: 0.5, tick: '...o...x...o..o.', cut: 0.8,
+                    melA: "5 . . . 3 . . . | 1 - - - . . . . | 2 . . . 1 . . . | 5, - - - . . . .",
+                    melB: "1 . 3 . 5 . 7 . | 5 - - - 3 - - - | 4 . 5 . 2 . 1 . | 2 - - - . . . . | 6 . 5 . 3 . 1 . | 3 - - - 5 - - - | 5 . 4 . 2 . 1 . | 2 - - - 1 - - -"
+                },
+                {   // Hushed Channel: F major sevenths drifting to a Gsus4 that never lands, a kalimba line kept low.
+                    lvl: 1.27, rest: 1.26, scale: ION, tonic: 3, oct: -1, chords: ['Fmaj7', 'Fmaj7', 'Dm9', 'Dm9', 'Am7', 'Am7', 'Gsus4', 'Gsus4'],
+                    bass: 'r.....r.........', comp: [10], kick: 'x.....x.........', hush: 0.5, tick: '.o...o...o...x..', cut: 0.8,
+                    melA: "3 . . . . . 1 . | 6, - - - . . . . | 2 . . . 1 . . . | 2 - - - . . . .",
+                    melB: "6 . 5 . 3 . 1 . | 3 - - - 5 - - - | 4 . 3 . 2 . 6, . | 1 - - - . . . . | 3 . 5 . 6 . 1' . | 5 - - - 3 - - - | 5 . 4 . 2 . 1 . | 2 - - - 5 - - -"
+                }
             ]
         },
         ominous: {
@@ -1207,6 +1423,20 @@
                     lvl: 0.95, scale: HARM, oct: -1, chords: ['Am', 'Am', 'Bb', 'C', 'Am', 'Am', 'Bb', 'E7'], comp: [0],
                     melA: "1 . . 3 . . 5 . | 6 . . 5 . . 3 . | b2 . . 4 . . 6 . | 5 . . 3 . . 1 .",
                     melB: "5 - - - - - 6 5 | 3 - - - 1 - - - | 4 - - - 6 - b2' - | 1' - - - 5 - - - | 1' - - - - - b2' 1' | 3 - - - 5 - - - | 4 - - - b2 - 4 - | 7, - - - 2 - - -"
+                }
+            ],
+            snare: [
+                {   // Crawlspace: a heartbeat for a kick, A against B flat, the bell far off.
+                    lvl: 0.93, rest: 1.14, scale: HARM, oct: -1, chords: ['Am', 'Bb', 'Am', 'Bb', 'Dm', 'Bb', 'E', 'E'], comp: [0],
+                    kick: 'x.o.....x.o.....', hush: 0.6, tick: 'x.......o.......', cut: 0.8,
+                    melA: "1 - - - . . . . | b2 - - - . . . . | 5 - - - . . . . | 4 - - - . . . .",
+                    melB: "5 - - - 3 - - - | 4 - - - b2 - - - | 1 - - - 3 - 5 - | 4 - - - - - . . | 6 - - - 4 - - - | 4 - - - b2 - - - | 7, - - - 2 - - - | 5 - - - - - . ."
+                },
+                {   // Lights Out: Am – F – Dm – E, the line stepping down and stopping to listen.
+                    lvl: 0.89, rest: 1.22, scale: HARM, oct: -1, chords: ['Am', 'F', 'Dm', 'E', 'Am', 'F', 'Bb', 'E7'], comp: [0],
+                    kick: 'x..o............', hush: 0.6, tick: '....x.......o...', cut: 0.8,
+                    melA: "5 - - - . . 3 . | 1 - - - . . . . | 4 - - - . . . . | 2 - - - . . . .",
+                    melB: "1 - - - - - . . | 1 - - - 3 - - - | 4 - - - 6 - - - | 5 - - - 7, - - - | 3 - - - 5 - - - | 6 - - - 1' - - - | b2' - - - 6 - - - | 7 - - - - - . ."
                 }
             ]
         },
@@ -1234,11 +1464,26 @@
                     melA: "1' . 1' . 5 . 7 1' | . 1' 7 5 . 3 5 . | 5 . 5 . 3 . 5 1' | #6 . 5 . 4 - - .",
                     melB: "1 . 3 . 5 . 1' . | 7 . 5 . 3 . 5 . | 3' . 1' . 5 . 3 . | #6 . 4 . 1' . #6 . | 5 . 1' . 3' . 2' . | 1' . 7 . 5 - - . | 6 . 1' . 3' . 1' . | 2' . 7 . 5 . 2' ."
                 }
+            ],
+            snare: [
+                {   // Sneaking Mission: an 8-bit infiltration: a triangle bass tiptoeing, a pulse creeping up the A minor.
+                    lvl: 1.39, rest: 1.29, scale: AEOL, chords: ['Am', 'Am', 'F', 'G', 'Am', 'Am', 'F', 'Esus4'],
+                    bass: 'r...f...r...f.o.', walk: true, kick: 'x.......x.......', hush: 0.5, tick: '..x...x...x...x.', cut: 0.85,
+                    melA: "1 . 1 . . . 3 . | 5, . . . . . . . | 6 . 6 . . . 1' . | 5 - - - . . . .",
+                    melB: "1 . 3 . 5 . 1' . | 7 . 5 . 3 . 5 . | 6 . 1' . 3' . 1' . | 2' - - - 7 - - - | 1' . 1' . 7 . 5 . | 3 . 5 . 1' - - - | 6 . 4 . 6 . 1' . | 2' - - - 1' - - -"
+                },
+                {   // Hide and Seek: A minor seen from C, sus chords that never land, a pulse peeking out and back.
+                    lvl: 1.44, rest: 1.51, scale: ION, tonic: 3, chords: ['Am', 'Am', 'Fmaj7', 'Fmaj7', 'Dm7', 'Dm7', 'Gsus4', 'Gsus4'],
+                    bass: 'r.....r...o.....', walk: true, kick: 'x.....x.........', hush: 0.5, tick: 'o...x...o...x.o.', cut: 0.85,
+                    melA: "6, . . 1 . . . . | 2 - - - . . . . | 6, . . 1 . . . . | 2 - - - 5, . . .",
+                    melB: "3 . 1 . 6, . 1 . | 3 - - - 2 - - - | 1 . 3 . 5 . 3 . | 6, - - - . . . . | 4 . 6 . 1' . 6 . | 4 - - - 2 - - - | 1 . 2 . 5 . 2 . | 1 - - - 5, - - -"
+                }
             ]
         }
     };
     for (const st of Object.values(SONGS)) for (const a of Object.keys(st)) st[a] = st[a].map(buildSong);
-    const songFor = { lab: 0, server: 0 };       // which of the area's two songs plays next (flips each cycle)
+    const songFor = { lab: 0, server: 0, snare: 0 };   // which of the area's two songs plays next (flips each cycle)
+    const AREAS = Object.keys(songFor);
 
     // Dark's acid line, as offsets from the chord's root (snapped into E Phrygian): roots, the flat second and
     // the octave, accents on the turns; the second half of each phrase answers with its own line.
@@ -1260,7 +1505,8 @@
             simpleMix: { gain: 1, beat: 0.987, tones: 2.455 }, simpleVoice: 'triangle',   // the simple version (simpleStep)
             step(t, s, k, len, L, c) {
                 const ch = c.chord;
-                if (c.drums && s % 4 === 0) kick(t, 0.5);
+                const kg = kickLevel(c, s, s % 4 === 0);
+                if (kg) kick(t, 0.5 * kg);
                 const b = c.bassOn && bassAt(c.song, s, ch);
                 if (b) synth(t, b, len * 2.2, 0.22, 'sawtooth', 220 + 1600 * k);
                 if (L.off > 0.02 && s % 4 === 2) hat(t, (0.08 + 0.06 * k) * L.off);
@@ -1295,9 +1541,10 @@
             simpleMix: { gain: 1, beat: 1.032, tones: 3.515 }, simpleVoice: 'sawtooth',   // the simple version (simpleStep)
             step(t, s, k, len, L, c) {
                 const ch = c.chord, song = c.song;
-                if (c.drums && s % 4 === 0) kick(t, 0.6, 170, 42, 0.32);
+                const kg = kickLevel(c, s, s % 4 === 0);
+                if (kg) kick(t, 0.6 * kg, 170, 42, 0.32);
                 // The rumble: a low saw on the three 16ths after each kick, fading, its filter opening with speed.
-                if (c.bassOn && s % 4) synth(t, ch.root, len * 0.95, [0, 0.12, 0.09, 0.06][s % 4], 'sawtooth', 240 + 260 * k, 1, 0);   // bright enough for small speakers
+                if (c.bassOn && s % 4) synth(t, ch.root, len * 0.95, [0, 0.12, 0.09, 0.06][s % 4] * (song.rumble ?? 1), 'sawtooth', 240 + 260 * k, 1, 0);   // bright enough for small speakers
                 const B = c.bar % 4 >= 2;
                 const off = (B ? DARK_ACID_B : DARK_ACID)[s], acc = (B ? DARK_ACCENT_B : DARK_ACCENT)[s];
                 // Always there (quieter at rest and in the lab's songs), opening up with speed.
@@ -1330,7 +1577,8 @@
             simpleMix: { gain: 1, beat: 1.378, tones: 1.951 }, simpleVoice: 'sine',   // the simple version (simpleStep)
             step(t, s, k, len, L, c) {
                 const ch = c.chord;
-                if (c.drums && (s === 0 || s === 8)) kick(t, 0.55, 110, 32, 0.6);
+                const kg = kickLevel(c, s, s === 0 || s === 8);
+                if (kg) kick(t, 0.55 * kg, 110, 32, 0.6);
                 if (c.bassOn && s === 0) synth(t, ch.root, len * 16, 0.13, 'sawtooth', 160 + 260 * k);
                 if (L.pad > 0.02 && s === 0 && c.bar % 2 === 0) { synth(t, ch.bell, len * 12, 0.05 * L.pad, 'sine', 4000); synth(t, ch.bell + 19, len * 6, 0.012 * L.pad, 'sine', 4000); }
                 if (L.off > 0.02 && s === 0 && c.song.comp.includes(0)) pad(t, ch.v.map(n => n - 12), len * 16, 0.016 * L.off, 'triangle', 900);
@@ -1359,8 +1607,11 @@
             simpleMix: { gain: 1, beat: 1.013, tones: 1.855 }, simpleVoice: 'square',   // the simple version (simpleStep)
             step(t, s, k, len, L, c) {
                 const ch = c.chord;
-                if (c.drums && s % 4 === 0) kick(t, 0.45, 220, 50, 0.12);
-                if (c.bassOn && s % 2 === 0) synth(t, ch.root + 12 + (s % 4 === 2 ? 12 : 0), len * 1.6, 0.14, 'triangle', 9000);
+                const kg = kickLevel(c, s, s % 4 === 0);
+                if (kg) kick(t, 0.45 * kg, 220, 50, 0.12);
+                // The bass bounces octaves on the 8ths; a song with its own line (`walk`) tiptoes it, staccato.
+                if (c.bassOn && c.song.walk) { const b = bassAt(c.song, s, ch); if (b) synth(t, b + 12, len * 0.9, 0.16, 'triangle', 9000); }
+                else if (c.bassOn && s % 2 === 0) synth(t, ch.root + 12 + (s % 4 === 2 ? 12 : 0), len * 1.6, 0.14, 'triangle', 9000);
                 if (L.off > 0.02 && s % 4 === 2) hat(t, 0.07 * L.off, 0.02);
                 if (L.clap > 0.02 && c.drums && (s === 4 || s === 12)) clap(t, 0.13 * L.clap);
                 if (L.sixteenth > 0.02 && s % 2 === 1) hat(t, 0.035 * L.sixteenth, 0.012);
@@ -1392,7 +1643,8 @@
             simpleMix: { gain: 1, beat: 0.997, tones: 2.032 }, simpleVoice: 'sine',   // the simple version (simpleStep)
             step(t, s, k, len, L, c) {
                 const ch = c.chord;
-                if (c.drums && s % 4 === 0) kick(t, 0.32, 110, 48, 0.22);
+                const kg = kickLevel(c, s, s % 4 === 0);
+                if (kg) kick(t, 0.32 * kg, 110, 48, 0.22);
                 if (L.pad > 0.02 && s === 0) pad(t, ch.v, len * 16, 0.02 * L.pad);
                 const b = c.bassOn && bassAt(c.song, s, ch);
                 if (b) synth(t, b, len * 3, 0.16, 'triangle', 500 + 600 * k);
@@ -1417,13 +1669,34 @@
             }
         }
     };
+    // Packet Snare's songs are stealth versions of each track: until you're spotted their kick plays its own sparse
+    // pattern (`kick`: 'x' a kick, 'o' a softer one), hushed (`hush`), and crossfades into the track's own as the
+    // clap's layer comes in (the busier the field and the lower your Focus, the more of it); a quiet clock ticks
+    // (`tick`, the same marks) and hides under the 16th hats as they arrive; the whole mix sits under a closed
+    // filter at rest (`cut`) that opens with the intensity. `kickLevel` is the kick's level on a step (0: none).
+    function kickLevel(c, s, on, plain = false) {
+        if (!c.drums && !plain) return 0;
+        const p = c.song.kick;
+        if (!p) return on ? 1 : 0;
+        const hid = (p[s] === 'x' ? 1 : p[s] === 'o' ? 0.6 : 0) * (c.song.hush ?? 1);
+        const g = hid * (1 - c.spot) + (on ? c.spot : 0);
+        return g > 0.02 ? g : 0;
+    }
+    function stealthStep(t, s, k, len, L, c) {
+        const m = c.song.tick?.[s];
+        if (!m || m === '.' || !c.drums) return;
+        const st = STYLES[style] || STYLES.classic;
+        hat(t, (m === 'x' ? 1 : 0.55) * 0.05 * (st.tick ?? 1) * (1 - 0.7 * L.sixteenth), 0.014);
+    }
+
     // Simple sounds: each song stripped to its bones, in its key: a kick (Ominous's on 1 and 3), the bass on
     // beats 1 and 3 on the chord's root, one held chord tone each bar (voice-led, so it never rubs), and the
     // melody in a plain sine (Retro: a square), all in the track's plain voice; no hats, claps, chords,
     // arpeggios, fills or drive.
     function simpleStep(st, t, s, k, len, c, L) {
         const sv = st.simpleVoice || 'triangle';
-        if (st === STYLES.ominous ? s % 8 === 0 : s % 4 === 0) kick(t, 0.38, 130, 45, 0.22);
+        const kg = kickLevel(c, s, st === STYLES.ominous ? s % 8 === 0 : s % 4 === 0, true);
+        if (kg) kick(t, 0.38 * kg, 130, 45, 0.22);
         if (s === 0 || s === 8) synth(t, c.chord.root + 12, len * 6, 0.16, sv, 700, 1);
         if (L.pad > 0.02 && s === 0) synth(t, c.chord.hold, len * 14, 0.035 * L.pad, 'sine', 3000, 1);
         if (c.mel) synth(t, c.mel.n, Math.min(len * c.mel.len * 0.9, 0.7), 0.03 * c.melGain * (sv === 'square' ? 0.5 : 1), sv === 'square' ? 'square' : 'sine', 2500, 1);
@@ -1449,6 +1722,7 @@
     const RISE = 1.2, FALL = 3;       // seconds (time constants) for the intensity to follow speed
     const layer = (k, at) => Math.max(0, Math.min(1, (k - at) / 0.2 + 0.5));
     const songsOf = () => (SONGS[style] || SONGS.classic);
+    const areaSongs = a => songsOf()[a] || songsOf().server;
     // On a downbeat: change song if the area changed (the old area's place is kept, to its section), after a
     // whole song (the area's other one), or on a debug command.
     function songTurn() {
@@ -1467,7 +1741,7 @@
         m.cmd = null;
     }
     function songContext(s) {
-        const m = music, song = songsOf()[m.area][m.song];
+        const m = music, song = areaSongs(m.area)[m.song];
         const bar = Math.floor((m.step - m.songStep) / 16), barIn = bar % 8;
         const sec = FORM[Math.floor(bar / 8) % FORM.length];
         let e = null;
@@ -1506,7 +1780,9 @@
             const st8 = STYLES[style] || STYLES.classic;
             const c = songContext(s);
             if (s === 0) { (music.chordLog ||= []).push({ t, ch: c.chord }); if (music.chordLog.length > 3) music.chordLog.shift(); }
-            songLvl = c.song.lvl;
+            // A stealth song's tones stand a little forward while its drums are hushed (`rest`), so it keeps the level.
+            c.spot = L.clap;
+            songLvl = c.song.lvl * (c.song.rest ? 1 + (c.song.rest - 1) * (1 - c.spot) : 1);
             // The melody waits for its layer; the A2 harmony for its own.
             if (c.mel && L.mel <= 0.02) c.mel = null;
             if (c.mel) { c.melGain *= L.mel; if (L.harm < 0.5) c.mel.harm = 0; }
@@ -1514,6 +1790,7 @@
                 if (simple) simpleStep(st8, t, s, k, len, c, L);
                 else {
                     st8.step(t, s, k, len, L, c);
+                    if (c.song.tick) stealthStep(t, s, k, len, L, c);
                     // Every eighth bar ends in a fill, so the song phrases instead of repeating one bar for ever.
                     if (st8.fill && L.off > 0.5 && c.barIn === 7 && s >= 12) st8.fill(t, s, k, len, L, c);
                 }
@@ -1524,15 +1801,16 @@
         }
         // The mood: muffled in flow and bullet time, distorted in a crunch, opening up with speed.
         const st = STYLES[style] || STYLES.classic;
-        const cutoff = slow ? 600 : st.cutoff(k);
+        const cut = areaSongs(music.area)[music.song]?.cut;
+        const cutoff = slow ? 600 : st.cutoff(k) * (cut ? cut + (1 - cut) * k : 1);
         music.filter.frequency.setTargetAtTime(cutoff, now, slow ? 0.6 : 0.5);
         music.wet.gain.setTargetAtTime(mode === 'crunch' ? 0.55 : simple ? 0 : st.drive, now, 0.15);
         music.dry.gain.setTargetAtTime(mode === 'crunch' ? 0.6 : 1, now, 0.15);
     }
 
-    // Where the player is (game.js): 'lab' (the lab, Surveillance, R&D) or 'server' (the server room and its
-    // bays); the music changes song on the next bar.
-    function setArea(a) { area = a === 'server' ? 'server' : 'lab'; }
+    // Where the player is (game.js): 'lab' (the lab, Surveillance, R&D), 'server' (the server room and its bays) or
+    // 'snare' (Packet Snare's bay); anything else is the lab. The music changes song on the next bar.
+    function setArea(a) { area = AREAS.includes(a) ? a : 'lab'; }
     function setDepth(d) { depth = Math.max(0, Math.min(1, Number(d) || 0)); }
     // What's playing (the debug panel), and debug commands on the next downbeat: the area's other song, or the
     // next section.
