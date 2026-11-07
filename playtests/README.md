@@ -50,6 +50,7 @@ What each build had, newest first (artifact publish times, UTC). A log played on
 
 | Published | Build | What changed |
 |---|---|---|
+| unpublished (5) | branch `claude/optimistic-hamilton-ey00uj` | **Packet Snare 5**: the hunters are Antivirus; Anchors build your own Firewalls (good packets bounce, Antivirus stunned, the firewall goes down; Hardened Firewalls), no more nets; system Firewalls sweep across the field and snap open wires |
 | unpublished (4) | branch `claude/optimistic-hamilton-ey00uj` | **Packet Snare 4**: the pipeline flows (a current; packets leave the field downstream), Containment Field and Herders, Attention Span dearer and weaker (+25%, from 90 DP) |
 | unpublished (3) | branch `claude/optimistic-hamilton-ey00uj` | **Packet Snare 3**: a short, hard start (Focus 26, faster packets, corrupt ones hiding in the schools); the Rogue AI from the third run (Infection Cores, the Chokehold, the Wall); Anchors and nets |
 | unpublished (2) | branch `claude/optimistic-hamilton-ey00uj` | **Packet Snare 2**: loops close near their start, a live loop preview, a small quick start, schools, and its own skill tree (Chain Lightning, Scanner, Targeted Laser, Scrubbers, Sprawl) |

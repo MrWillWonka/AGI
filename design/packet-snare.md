@@ -83,13 +83,21 @@ multiplier fell to ×1.8–1.95, so abilities did the work and big loops stopped
 - **Herders** (off Containment, 1–3): drones round strays up toward your net (or the middle) and shoo corrupt ones away.
 - **Attention Span** dearer and weaker: +25% a level from 90 DP ×3 (it was +35% from 40 ×2.4).
 
+## Built: the fifth pass (the owner: "firewalls instead of nets")
+
+- **Antivirus:** the hunters that chase and snap the wire are renamed.
+- **Your Firewalls:** anchors join into green laser lines (three or more close a pen). Good packets bounce off them,
+  corrupt ones pass; nothing is caught automatically, so you build pens and funnels and lasso the pile yourself. An
+  Antivirus that hits one is stunned and the firewall goes down (Hardened Firewalls take more hits). Herders feed the pen.
+- **System Firewalls:** a red line sweeps the field from side to side after its edge flashes, snapping any open wire.
+
 ## Next slices
 
 1. **Playtest the second pass:** does closing feel easy, does the preview make big loops a decision, is the first run
    short enough, do the abilities change how you play? Tune `SNARE` and the tree's prices from the log.
 2. **The record links to the lab:** the best haul raises the Data crawler's yield per collection (the rule: automation
    converts, never creates).
-4. **Active defense:** slash through a Firewall with a quick stroke before it breaks your net.
+4. **Active defense:** slash through an Antivirus with a quick stroke before it reaches your Firewalls.
 5. **The best net as passive income** between visits, and the Rogue AI's story beats (leaving a core alone as a deliberate
    freedom choice, never a missed loop).
 6. **The sim** plays it (a time share and a simple loop policy, from the first log with `snare` events).
