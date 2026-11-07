@@ -42,6 +42,13 @@ around Edge Detection, where a full sprint costs about 5–6 DP).
 
 ## Built: the second pass (the owner's first playtest)
 
+The first log (`playtests/snare/2026-11-07-owner-snare-1.txt`, on the first cut): 7 runs averaging 25 s, a loop every 4.5 s
+of 4.6 packets, and a multiplier of 3.2–4.8 at least once every run, so big loops already tempted. The costly mistake was
+corruption: 18% of loops spoiled, and a run with a spoil earned about 40% less a second. The preview is the answer (a corrupt
+packet inside shows before the loop closes). At 1 DP a packet the first cut paid 4 DP/s; at Edge Detection's 7 DP a
+collection that's about 28 DP/s, against about 17 from clicking Collect Data (which also costs compute), so the second
+pass's smaller start (fewer packets, shorter runs) brings it back near the lab's hand rate, with the tree to grow it.
+
 The owner played the first cut on the test artifact: loops were hard to close, it wasn't clear when a big loop was worth it,
 and runs were long to start; it should start small and quick and grow into a sprawl of abilities, like the fish-tank
 incrementals (schools, chain lightning, scanners, targeted lasers), with its own skill tree.

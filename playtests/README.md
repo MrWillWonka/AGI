@@ -35,6 +35,15 @@ publish), and the calibrator prints it. Older logs are placed below by when they
 | `2026-11-07-owner-2.txt` | 01:55 to 02:15 | after the earned server-room gate (save v17, about `570fa76`) | the owner, desktop, 20 min, a fresh game to Edge Detection | no debug; six-skill act one; 70% of the time in the lab, 2.75 clicks/s, prompts only 23% |
 | `2026-11-07-owner-3-4.txt` | 14:33 to 15:33 (four sessions) | sessions 1–2 (to 22 min) on leg characters (`2b8eafe`, 14:32); session 3 (22–35 min, from 15:03) on Hop + the lab badge (`0f83076`, 15:02); session 4 (from 15:17) on the build stamp (15:08) | the owner, iPhone, 52 min, a fresh game to General AI (37.1 min) | no debug; the third log continued (the same game, so one file: it replaces `owner-3`). Hop used 17 times from 22 min: 6 clean, 4 good, 7 flagged; the owner found the timing practically impossible (on a phone the window was 4–12 px and 25–135 ms), which the 15:50 build reworks. The sim as this player reaches General AI at 49–58 min (real 37): it neither replays legs nor hops, and its lab share is 58% |
 
+### Packet Snare logs (`playtests/snare/`)
+
+Kept out of the sim's pool (`playtests/*.txt`): they're sessions in the second minigame, not whole games, and would skew
+the player profile. Read them with `node tools/playtest-calibrate.js playtests/snare/*.txt` and their `snare` events.
+
+| Log | Played (UTC) | Build | Who | Notes |
+|---|---|---|---|---|
+| `snare/2026-11-07-owner-snare-1.txt` | 18:25 to 18:38 | Packet Snare's first cut (before the second pass) | the owner, iPhone, 6 min, a fresh game via the debug shortcut | 7 runs of 15–34 s (25 on average), 38 loops of 4.6 packets each, a best multiplier of 3.2–4.8 every run (big loops tempted); 7 of 38 loops spoiled by a corrupt packet (18%), and runs with a spoil earned 2.9 DP/s against 4.6 clean; 8 snaps in 7 runs; 4.0 DP/s at 1 DP a packet (no Data Processor). Led to the second pass: closing near the start, the live preview (which shows a corrupt packet before it spoils the loop), a smaller, quicker start and the tree |
+
 ## Builds
 
 What each build had, newest first (artifact publish times, UTC). A log played on a build has everything below it too.

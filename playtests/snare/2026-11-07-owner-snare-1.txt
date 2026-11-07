@@ -1,0 +1,69 @@
+The Path to AGI · playtest log
+Log v1 · began 2026-11-07T18:25:41.232Z · exported 2026-11-07T18:38:53.384Z
+build: 2026-11-07 (branch, unpublished) · Packet Snare: the Data Pipeline bay, a second minigame (draw loops round data packets)
+save: v19, v1.0, 4 skills
+screen: 440×820, touch
+browser: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Claude/1.261030.19
+
+Play time 6.0 min over 2 sessions, 50 events, 13.2 min on the clock.
+
+Tips and callouts (how they closed, seconds shown):
+  module:snare       left     0.3 s
+
+Time by screen:
+  bay:pipeline    5.6 min  94%
+  inbox           0.2 min  3%
+  lab             0.1 min  2%
+  servers         0.1 min  1%
+
+--- events (t = play seconds, w = wall seconds) ---
+{"t":0,"w":0,"e":"view","v":"lab"}
+{"t":0,"w":0,"e":"session","build":"2026-11-07 (branch, unpublished) · Packet Snare: the Data Pipeline bay, a second minigame (draw loops round data packets)","save":19,"skills":0,"version":"v1.0","screen":"440x820","touch":true,"at":"lab"}
+{"t":0,"w":0,"e":"sample","cp":0,"dp":0,"rp":0,"xp":0,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0,"int":0,"skills":0,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":0}
+{"t":0,"w":0,"e":"view","v":"inbox"}
+{"t":0.6,"w":1,"e":"mail","id":"parcel"}
+{"t":2.6,"w":3,"e":"mailRead","id":"m:parcel"}
+{"t":5.3,"w":5,"e":"mail","id":"prize"}
+{"t":6.1,"w":6,"e":"mailRead","id":"m:prize"}
+{"t":8.7,"w":9,"e":"mail","id":"welcome"}
+{"t":9.1,"w":9,"e":"mailRead","id":"m:welcome"}
+{"t":9.7,"w":10,"e":"mailAccepted","id":"welcome","nags":0}
+{"t":9.7,"w":10,"e":"view","v":"lab"}
+{"t":16.9,"w":17,"e":"unlock","key":"module:snare"}
+{"t":16.9,"w":17,"e":"achievement","id":"firstSkill"}
+{"t":16.9,"w":17,"e":"mail","id":"serverRoom"}
+{"t":16.9,"w":17,"e":"mail","id":"firstSkill"}
+{"t":16.9,"w":17,"e":"mail","id":"edges"}
+{"t":16.9,"w":17,"e":"mail","id":"pipeline"}
+{"t":17,"w":17,"e":"dilemma","id":"maintenance"}
+{"t":17.1,"w":17,"e":"view","v":"servers"}
+{"t":17.1,"w":17,"e":"view","v":"bay:pipeline"}
+{"t":24.3,"w":24,"e":"unlock","key":"action:collect"}
+{"t":30.1,"w":30,"e":"sample","cp":0,"dp":32,"rp":0,"xp":4,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
+{"t":49.1,"w":49,"e":"snare","haul":136,"catches":8,"caught":41,"gold":3,"corrupted":1,"snaps":1,"empty":0,"bestMult":3.23,"secs":28,"record":false,"seed":20510}
+{"t":60.1,"w":60,"e":"sample","cp":0,"dp":136,"rp":0,"xp":13,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
+{"t":74.1,"w":74,"e":"snare","haul":29,"catches":1,"caught":5,"gold":1,"corrupted":3,"snaps":2,"empty":0,"bestMult":3.28,"secs":15,"record":false,"seed":66803}
+{"t":90.2,"w":90,"e":"sample","cp":0,"dp":221,"rp":0,"xp":22,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
+{"t":99.2,"w":99,"e":"snare","haul":56,"catches":2,"caught":8,"gold":2,"corrupted":1,"snaps":3,"empty":0,"bestMult":4.17,"secs":20,"record":false,"seed":94691}
+{"t":120.2,"w":120,"e":"sample","cp":0,"dp":331,"rp":0,"xp":31,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
+{"t":128,"w":128,"e":"snare","haul":130,"catches":5,"caught":27,"gold":3,"corrupted":0,"snaps":1,"empty":0,"bestMult":4.8,"secs":27,"record":false,"seed":124969}
+{"t":132.8,"w":133,"e":"view","v":"servers"}
+{"t":133.5,"w":133,"e":"tip","key":"module:snare","at":"map"}
+{"t":133.8,"w":134,"e":"tipClosed","key":"module:snare","by":"left","s":0.3}
+{"t":136.6,"w":137,"e":"view","v":"bay:pipeline"}
+{"t":150.3,"w":150,"e":"sample","cp":0,"dp":405,"rp":0,"xp":40,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
+{"t":170.7,"w":171,"e":"snare","haul":122,"catches":9,"caught":34,"gold":5,"corrupted":0,"snaps":1,"empty":1,"bestMult":3.23,"secs":31,"record":false,"seed":171577}
+{"t":175.5,"w":176,"e":"hidden"}
+{"t":175.5,"w":608,"e":"view","v":"servers"}
+{"t":175.5,"w":608,"e":"session","build":"2026-11-07 (branch, unpublished) · Packet Snare: the Data Pipeline bay, a second minigame (draw loops round data packets)","save":19,"skills":4,"version":"v1.0","screen":"440x820","touch":true,"at":"servers"}
+{"t":175.5,"w":608,"e":"sample","cp":0,"dp":473,"rp":0,"xp":48,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"servers","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
+{"t":176.9,"w":610,"e":"view","v":"bay:pipeline"}
+{"t":205.6,"w":638,"e":"sample","cp":0,"dp":607,"rp":0,"xp":57,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
+{"t":211.7,"w":644,"e":"snare","haul":174,"catches":11,"caught":52,"gold":3,"corrupted":0,"snaps":0,"empty":0,"bestMult":4.12,"secs":34,"record":true,"seed":217697}
+{"t":235.6,"w":668,"e":"sample","cp":0,"dp":647,"rp":0,"xp":66,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
+{"t":265.7,"w":698,"e":"sample","cp":0,"dp":647,"rp":0,"xp":75,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
+{"t":295.7,"w":728,"e":"sample","cp":0,"dp":647,"rp":0,"xp":84,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
+{"t":325.8,"w":758,"e":"sample","cp":0,"dp":681,"rp":0,"xp":93,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
+{"t":327.8,"w":760,"e":"snare","haul":34,"catches":2,"caught":9,"gold":0,"corrupted":2,"snaps":0,"empty":0,"bestMult":4.3,"secs":17,"record":false,"seed":357806}
+{"t":355.8,"w":789,"e":"sample","cp":0,"dp":799,"rp":0,"xp":103,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
+{"t":359.4,"w":792,"e":"sample","cp":0,"dp":799,"rp":0,"xp":103,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
