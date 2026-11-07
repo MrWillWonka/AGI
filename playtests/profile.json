@@ -1,0 +1,303 @@
+{
+  "sim": {
+    "CLICKS": 2.2,
+    "LABSHARE": 0.49,
+    "IDLE": 0.2,
+    "CLEAN": 0.46,
+    "PAUSE": 3.8
+  },
+  "simMedian": {
+    "CLICKS": 2.49,
+    "LABSHARE": 0.58,
+    "IDLE": 0.15,
+    "CLEAN": 0.42,
+    "PAUSE": 3.4
+  },
+  "logs": [
+    {
+      "file": "playtests/2026-11-07-owner-2.txt",
+      "playMinutes": 19.68,
+      "openingSeconds": 5,
+      "share": {
+        "lab": 0.64,
+        "train": 0.24,
+        "tree": 0.09,
+        "other": 0.03
+      },
+      "labClicksPerSecond": 2.75,
+      "handSprints": 42,
+      "promptRate": 0.23,
+      "fullChargeRate": 0.79,
+      "incomeCappedRate": 0,
+      "runPauseSeconds": 5.2,
+      "runSeconds": 13,
+      "minutesFromStart": {
+        "collect": 1.08,
+        "serverRoom": 2.94,
+        "research": null
+      },
+      "skills": [
+        {
+          "n": 1,
+          "name": "Tokenization",
+          "min": 3.52,
+          "fromStart": 3.44,
+          "runs": 1
+        },
+        {
+          "n": 2,
+          "name": "Pattern Matching",
+          "min": 7.56,
+          "fromStart": 7.48,
+          "runs": 6
+        },
+        {
+          "n": 3,
+          "name": "Edge Detection",
+          "min": 8.25,
+          "fromStart": 8.17,
+          "runs": 7
+        }
+      ],
+      "phases": [],
+      "debugJumps": [],
+      "sim": {
+        "CLICKS": 2.75,
+        "LABSHARE": 0.64,
+        "IDLE": 0.12,
+        "CLEAN": 0.23,
+        "PAUSE": 5.2
+      }
+    },
+    {
+      "file": "playtests/2026-11-07-owner-3-4.txt",
+      "playMinutes": 51.52,
+      "openingSeconds": 5,
+      "share": {
+        "lab": 0.58,
+        "train": 0.27,
+        "tree": 0.12,
+        "other": 0.03
+      },
+      "labClicksPerSecond": 2.49,
+      "handSprints": 145,
+      "promptRate": 0.42,
+      "fullChargeRate": 0.57,
+      "incomeCappedRate": 0.01,
+      "runPauseSeconds": 2.8,
+      "runSeconds": 20,
+      "minutesFromStart": {
+        "collect": 0.89,
+        "serverRoom": 2.54,
+        "research": 19.26
+      },
+      "skills": [
+        {
+          "n": 1,
+          "name": "Tokenization",
+          "min": 2.94,
+          "fromStart": 2.86,
+          "runs": 1
+        },
+        {
+          "n": 2,
+          "name": "Pattern Matching",
+          "min": 6.53,
+          "fromStart": 6.45,
+          "runs": 10
+        },
+        {
+          "n": 3,
+          "name": "Embeddings",
+          "min": 13.49,
+          "fromStart": 13.41,
+          "runs": 11
+        },
+        {
+          "n": 4,
+          "name": "Edge Detection",
+          "min": 13.6,
+          "fromStart": 13.53,
+          "runs": 11
+        },
+        {
+          "n": 5,
+          "name": "Feature Extraction",
+          "min": 16.87,
+          "fromStart": 16.79,
+          "runs": 16
+        },
+        {
+          "n": 6,
+          "name": "Image Recognition",
+          "min": 18.27,
+          "fromStart": 18.19,
+          "runs": 18
+        },
+        {
+          "n": 7,
+          "name": "Optical Character Recognition",
+          "min": 18.81,
+          "fromStart": 18.73,
+          "runs": 19
+        },
+        {
+          "n": 8,
+          "name": "Speech Recognition",
+          "min": 19.3,
+          "fromStart": 19.23,
+          "runs": 20
+        },
+        {
+          "n": 9,
+          "name": "Sentiment Analysis",
+          "min": 19.95,
+          "fromStart": 19.87,
+          "runs": 21
+        },
+        {
+          "n": 10,
+          "name": "Language Modeling",
+          "min": 23.2,
+          "fromStart": 23.12,
+          "runs": 25
+        },
+        {
+          "n": 11,
+          "name": "Summarization",
+          "min": 27.94,
+          "fromStart": 27.86,
+          "runs": 36
+        },
+        {
+          "n": 12,
+          "name": "Translation",
+          "min": 28.84,
+          "fromStart": 28.76,
+          "runs": 38
+        },
+        {
+          "n": 13,
+          "name": "In-Context Learning",
+          "min": 37.14,
+          "fromStart": 37.06,
+          "runs": 58
+        }
+      ],
+      "phases": [
+        {
+          "name": "General AI",
+          "min": 37.14
+        }
+      ],
+      "debugJumps": [],
+      "sim": {
+        "CLICKS": 2.49,
+        "LABSHARE": 0.58,
+        "IDLE": 0.15,
+        "CLEAN": 0.42,
+        "PAUSE": 2.8
+      }
+    },
+    {
+      "file": "playtests/2026-11-07-owner.txt",
+      "playMinutes": 39.34,
+      "openingSeconds": 212,
+      "share": {
+        "lab": 0.24,
+        "train": 0.44,
+        "tree": 0.08,
+        "other": 0.24
+      },
+      "labClicksPerSecond": 1.35,
+      "handSprints": 124,
+      "promptRate": 0.72,
+      "fullChargeRate": 0.29,
+      "incomeCappedRate": 0,
+      "runPauseSeconds": 3.4,
+      "runSeconds": 16,
+      "minutesFromStart": {
+        "collect": 2.83,
+        "serverRoom": 4.01,
+        "research": 27.03
+      },
+      "skills": [
+        {
+          "n": 1,
+          "name": "Tokenization",
+          "min": 8.2,
+          "fromStart": 4.67,
+          "runs": 1
+        },
+        {
+          "n": 2,
+          "name": "Pattern Matching",
+          "min": 12.96,
+          "fromStart": 9.43,
+          "runs": 11
+        },
+        {
+          "n": 3,
+          "name": "Edge Detection",
+          "min": 15.43,
+          "fromStart": 11.9,
+          "runs": 14
+        },
+        {
+          "n": 4,
+          "name": "Image Recognition",
+          "min": 27.18,
+          "fromStart": 23.65,
+          "runs": 19
+        },
+        {
+          "n": 5,
+          "name": "Speech Recognition",
+          "min": 28.02,
+          "fromStart": 24.49,
+          "runs": 21
+        },
+        {
+          "n": 6,
+          "name": "Language Modeling",
+          "min": 38.84,
+          "fromStart": 35.31,
+          "runs": 41
+        },
+        {
+          "n": 7,
+          "name": "Translation",
+          "min": 40.81,
+          "fromStart": 37.28,
+          "runs": 43
+        },
+        {
+          "n": 8,
+          "name": "Reasoning",
+          "min": 41.3,
+          "fromStart": 37.78,
+          "runs": 44
+        }
+      ],
+      "phases": [
+        {
+          "name": "General AI",
+          "min": 40.81
+        }
+      ],
+      "debugJumps": [
+        {
+          "t": 421.2,
+          "cp": 11911
+        }
+      ],
+      "sim": {
+        "CLICKS": 1.35,
+        "LABSHARE": 0.24,
+        "IDLE": 0.32,
+        "CLEAN": 0.72,
+        "PAUSE": 3.4
+      }
+    }
+  ]
+}

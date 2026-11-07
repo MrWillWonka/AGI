@@ -1,0 +1,320 @@
+The Path to AGI · playtest log
+Log v1 · began 2026-11-07T01:55:50.954Z · exported 2026-11-07T02:15:34.870Z
+save: v17, v1.0, 3 skills
+screen: 1920×988
+browser: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Claude/4.23118.0 Chrome/152.0.7977.167 Electron/44.9.3 Safari/537.36 MSIX
+
+Play time 19.8 min over 1 session, 283 events, 19.7 min on the clock.
+
+Skills (skills learned, play time, runs so far):
+   1 Tokenization                3.5 min  run 1
+   2 Pattern Matching            7.6 min  run 6
+   3 Edge Detection              8.2 min  run 7
+
+Runs: 13 (0 rolled back), 3.2 sprints and 13 s each on average.
+Sprints by hand: 42; 79% at 95%+ charge, 0% with the meter capped by income, 14% hit a prompt.
+Sprint kinds: regular 36, clean 6; breakthroughs 1, Max Effort 0; 6 fired while rolling backward.
+Stopped on a skill hill's climb: 2 runs, 0 of them at 90%+ of its height (0 paid a near miss).
+Skill-tree and legacy buys: 23; 39% the cheapest affordable, the rest dearer picks.
+
+Tips and callouts (how they closed, seconds shown):
+  hint:hold          target   0.1 s
+  module:path        clicked  3.9 s
+  hint:train         clicked  13.5 s
+  hint:replay        clicked  8.1 s
+  hint:tasks         clicked  5.2 s
+  hint:rerun         clicked  5.5 s
+  hint:prompt        clicked  0.3 s
+
+Time by screen:
+  lab            13.7 min  70%
+  bay:training    4.1 min  21%
+  tree            1.5 min  8%
+  inbox           0.3 min  2%
+  facility        0.1 min  0%
+  servers         0.0 min  0%
+
+--- events (t = play seconds, w = wall seconds) ---
+{"t":1.7,"w":0,"e":"session","cleared":true,"skills":0,"at":"lab"}
+{"t":1.7,"w":0,"e":"sample","cp":0,"dp":0,"rp":0,"xp":0,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0,"int":0,"skills":0,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":0}
+{"t":4.7,"w":3,"e":"achievement","id":"firstClick"}
+{"t":9.7,"w":8,"e":"buy","id":"keyboard","lvl":1}
+{"t":14,"w":12,"e":"buy","id":"keyboard","lvl":2}
+{"t":20.5,"w":19,"e":"buy","id":"keyboard","lvl":3}
+{"t":28.7,"w":27,"e":"buy","id":"keyboard","lvl":4}
+{"t":29.9,"w":28,"e":"tip","key":"hint:hold","at":"beside"}
+{"t":30.1,"w":28,"e":"tipClosed","key":"hint:hold","by":"target","s":0.1}
+{"t":31.8,"w":30,"e":"sample","cp":20,"dp":0,"rp":0,"xp":0,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0,"int":0,"skills":0,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":0,"hand":{"compute":108}}
+{"t":38.7,"w":37,"e":"buy","id":"keyboard","lvl":5}
+{"t":39.4,"w":38,"e":"achievement","id":"clicks1k"}
+{"t":46.3,"w":45,"e":"buy","id":"cpu","lvl":1}
+{"t":47,"w":45,"e":"buy","id":"cpu","lvl":2}
+{"t":47.3,"w":46,"e":"buy","id":"cpu","lvl":3}
+{"t":47.7,"w":46,"e":"buy","id":"cpu","lvl":4}
+{"t":50.5,"w":49,"e":"setting","key":"bulk","value":"10"}
+{"t":61.6,"w":60,"e":"setting","key":"bulk","value":"max"}
+{"t":61.9,"w":60,"e":"sample","cp":161,"dp":0,"rp":0,"xp":0,"cpNet":2,"dpNet":0,"rpRate":0,"xpRate":0,"int":0,"skills":0,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":0,"hand":{"compute":97}}
+{"t":63.4,"w":62,"e":"buy","id":"cpu","lvl":8,"n":4}
+{"t":69.4,"w":68,"e":"buy","id":"cpu","lvl":10,"n":2}
+{"t":69.4,"w":68,"e":"unlock","key":"action:collect"}
+{"t":82.7,"w":81,"e":"buy","id":"cpu","lvl":12,"n":2}
+{"t":88.6,"w":87,"e":"buy","id":"dataProcessor","lvl":1}
+{"t":92,"w":90,"e":"sample","cp":34,"dp":13,"rp":0,"xp":0,"cpNet":6,"dpNet":0,"rpRate":0,"xpRate":0,"int":0,"skills":0,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":0,"hand":{"compute":89,"collect":13}}
+{"t":98.1,"w":96,"e":"buy","id":"dataProcessor","lvl":2}
+{"t":100.8,"w":99,"e":"achievement","id":"cp1k"}
+{"t":103.4,"w":102,"e":"buy","id":"dataProcessor","lvl":3}
+{"t":110,"w":108,"e":"buy","id":"cpu","lvl":13}
+{"t":122.1,"w":120,"e":"sample","cp":96,"dp":57,"rp":0,"xp":0,"cpNet":6.5,"dpNet":0,"rpRate":0,"xpRate":0,"int":0,"skills":0,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":0,"hand":{"collect":17,"compute":86}}
+{"t":125.8,"w":124,"e":"buy","id":"dataProcessor","lvl":4}
+{"t":131.8,"w":130,"e":"buy","id":"keyboard","lvl":6}
+{"t":135.1,"w":133,"e":"buy","id":"cpu","lvl":14}
+{"t":139.5,"w":138,"e":"buy","id":"cpu","lvl":15}
+{"t":144.5,"w":143,"e":"buy","id":"cpu","lvl":16}
+{"t":150.3,"w":149,"e":"buy","id":"cpu","lvl":17}
+{"t":152.2,"w":150,"e":"sample","cp":72,"dp":48,"rp":0,"xp":0,"cpNet":8.5,"dpNet":0,"rpRate":0,"xpRate":0,"int":0,"skills":0,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":0,"hand":{"compute":102}}
+{"t":156.2,"w":154,"e":"buy","id":"cpu","lvl":18}
+{"t":171.1,"w":169,"e":"buy","id":"cpu","lvl":20,"n":2}
+{"t":176.3,"w":175,"e":"buy","id":"dataProcessor","lvl":5}
+{"t":181,"w":179,"e":"unlock","key":"module:path"}
+{"t":181,"w":179,"e":"mail","id":"serverRoom"}
+{"t":182.2,"w":180,"e":"tip","key":"module:path","at":"map"}
+{"t":182.3,"w":181,"e":"sample","cp":6,"dp":103,"rp":0,"xp":0,"cpNet":10,"dpNet":0,"rpRate":0,"xpRate":0,"int":0,"skills":0,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":0,"hand":{"compute":86,"collect":11}}
+{"t":186.1,"w":184,"e":"tipClosed","key":"module:path","by":"clicked","s":3.9}
+{"t":188.5,"w":187,"e":"view","v":"servers"}
+{"t":190.9,"w":189,"e":"startAt","leg":"frontier"}
+{"t":190.9,"w":189,"e":"view","v":"bay:training"}
+{"t":191.2,"w":189,"e":"tip","key":"hint:train","at":"beside"}
+{"t":204.7,"w":203,"e":"tipClosed","key":"hint:train","by":"clicked","s":13.5}
+{"t":208.1,"w":206,"e":"sprint","leg":1,"ch":0.98,"cap":1,"first":true,"x":0.2,"v":0,"left":1}
+{"t":210.9,"w":209,"e":"skill","n":1,"name":"Tokenization","xp":5.04,"runs":1}
+{"t":210.9,"w":209,"e":"achievement","id":"firstSkill"}
+{"t":211,"w":209,"e":"dilemma","id":"broker"}
+{"t":212.3,"w":211,"e":"sample","cp":282,"dp":100,"rp":0,"xp":5,"cpNet":10,"dpNet":0,"rpRate":0,"xpRate":0.02,"int":0,"skills":1,"phase":0,"ver":"v1.0","at":"bay:training","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
+{"t":214,"w":212,"e":"run","from":1,"leg":2,"prog":0,"m":0,"xp":5.04,"legs":1,"sprints":1,"clean":0,"top":1.35,"dur":6}
+{"t":215.2,"w":213,"e":"tip","key":"hint:replay","at":"beside"}
+{"t":223.3,"w":222,"e":"tipClosed","key":"hint:replay","by":"clicked","s":8.1}
+{"t":225.1,"w":223,"e":"view","v":"tree"}
+{"t":229.2,"w":227,"e":"buy","id":"initialWeights","lvl":1,"held":5,"price":1,"cheapest":"initialWeights","cheapestCost":1,"affordable":1,"rank":1}
+{"t":235,"w":233,"e":"buy","id":"trainingEpochs","lvl":1,"held":5,"price":2,"cheapest":"trainingEpochs","cheapestCost":2,"affordable":2,"rank":1}
+{"t":237.6,"w":236,"e":"view","v":"bay:training"}
+{"t":240.4,"w":239,"e":"sprint","leg":2,"ch":0.99,"cap":1,"first":true,"x":3.4,"v":0,"left":2}
+{"t":242.4,"w":241,"e":"sample","cp":559,"dp":97,"rp":0,"xp":3,"cpNet":10,"dpNet":0,"rpRate":0,"xpRate":0.02,"int":0,"skills":1,"phase":0,"ver":"v1.0","at":"bay:training","labNew":0,"offers":0,"offersDone":0,"treeReady":0}
+{"t":244.1,"w":242,"e":"sprint","leg":2,"ch":1,"cap":1,"x":6.14,"v":0.03,"left":1}
+{"t":248.2,"w":246,"e":"run","from":2,"leg":2,"prog":0.55,"m":5.15,"xp":4.7,"legs":0,"sprints":2,"clean":0,"top":1.53,"dur":8,"record":true}
+{"t":253.4,"w":252,"e":"sprint","leg":2,"ch":0.98,"cap":1,"first":true,"x":3.4,"v":0,"left":2}
+{"t":257.9,"w":256,"e":"sprint","leg":2,"ch":0.97,"cap":1,"x":4.87,"v":-0.6,"left":1}
+{"t":261.3,"w":260,"e":"run","from":2,"leg":2,"prog":0.32,"m":3.01,"xp":2.34,"legs":0,"sprints":2,"clean":0,"top":1.49,"dur":8}
+{"t":262.6,"w":261,"e":"view","v":"tree"}
+{"t":265.3,"w":264,"e":"buy","id":"trainingEpochs","lvl":2,"held":10,"price":10,"cheapest":"trainingOptimizer","cheapestCost":4,"affordable":4,"rank":4}
+{"t":266.7,"w":265,"e":"view","v":"bay:training"}
+{"t":268.7,"w":267,"e":"sprint","leg":2,"ch":0.97,"cap":1,"first":true,"x":3.4,"v":0,"left":3}
+{"t":272.3,"w":271,"e":"sprint","leg":2,"ch":1,"cap":1,"x":5.43,"v":-0.65,"left":2}
+{"t":272.4,"w":271,"e":"sample","cp":742,"dp":82,"rp":0,"xp":0,"cpNet":10,"dpNet":0,"rpRate":0,"xpRate":0.02,"int":0,"skills":1,"phase":0,"ver":"v1.0","at":"bay:training","labNew":0,"offers":0,"offersDone":0,"treeReady":0}
+{"t":276.3,"w":275,"e":"sprint","leg":2,"ch":0.99,"cap":1,"x":7.71,"v":0,"left":1}
+{"t":281,"w":279,"e":"run","from":2,"leg":2,"prog":0.73,"m":6.86,"xp":6.99,"legs":0,"sprints":3,"clean":0,"top":1.5,"dur":12,"record":true}
+{"t":282.2,"w":280,"e":"view","v":"tree"}
+{"t":283.6,"w":282,"e":"buy","id":"trainingOptimizer","lvl":1,"held":8,"price":4,"cheapest":"trainingOptimizer","cheapestCost":4,"affordable":3,"rank":1}
+{"t":286.3,"w":285,"e":"view","v":"facility"}
+{"t":287.6,"w":286,"e":"view","v":"lab"}
+{"t":288.9,"w":287,"e":"tip","key":"hint:tasks","at":"beside"}
+{"t":294.1,"w":292,"e":"tipClosed","key":"hint:tasks","by":"clicked","s":5.2}
+{"t":299.8,"w":298,"e":"buy","id":"dataProcessor","lvl":6}
+{"t":302.5,"w":301,"e":"sample","cp":784,"dp":140,"rp":0,"xp":4,"cpNet":10,"dpNet":0,"rpRate":0,"xpRate":0.02,"int":0,"skills":1,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":0,"hand":{"collect":11}}
+{"t":303.8,"w":302,"e":"buy","id":"trainingData","lvl":1}
+{"t":315.7,"w":314,"e":"buy","id":"keyboard","lvl":7}
+{"t":324.6,"w":323,"e":"buy","id":"server","lvl":1}
+{"t":332.5,"w":331,"e":"sample","cp":349,"dp":235,"rp":0,"xp":5,"cpNet":13.3,"dpNet":0,"rpRate":0,"xpRate":0.02,"int":0,"skills":1,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":0,"hand":{"collect":35,"compute":68}}
+{"t":336.1,"w":334,"e":"buy","id":"server","lvl":2}
+{"t":346.1,"w":344,"e":"buy","id":"server","lvl":3}
+{"t":348.4,"w":347,"e":"buy","id":"keyboard","lvl":8}
+{"t":358.6,"w":357,"e":"buy","id":"server","lvl":4}
+{"t":362.5,"w":361,"e":"sample","cp":310,"dp":235,"rp":0,"xp":6,"cpNet":23.2,"dpNet":0,"rpRate":0,"xpRate":0.02,"int":0,"skills":1,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":1,"hand":{"compute":105}}
+{"t":374.8,"w":373,"e":"buy","id":"trainingData","lvl":2}
+{"t":384,"w":382,"e":"buy","id":"keyboard","lvl":9}
+{"t":392.5,"w":391,"e":"sample","cp":522,"dp":212,"rp":0,"xp":6,"cpNet":23.2,"dpNet":0,"rpRate":0,"xpRate":0.02,"int":0,"skills":1,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":1,"hand":{"compute":76,"collect":30}}
+{"t":395.4,"w":394,"e":"buy","id":"server","lvl":5}
+{"t":408.2,"w":406,"e":"buy","id":"keyboard","lvl":10}
+{"t":421,"w":419,"e":"buy","id":"trainingData","lvl":3}
+{"t":422.6,"w":421,"e":"sample","cp":96,"dp":33,"rp":0,"xp":7,"cpNet":26.5,"dpNet":0,"rpRate":0,"xpRate":0.02,"int":0,"skills":1,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":1,"hand":{"collect":26,"compute":76}}
+{"t":423.5,"w":422,"e":"view","v":"servers"}
+{"t":423.5,"w":422,"e":"view","v":"bay:training"}
+{"t":423.5,"w":422,"e":"view","v":"tree"}
+{"t":426.3,"w":425,"e":"buy","id":"bigDatasets","lvl":1,"held":7,"price":5,"cheapest":"bigDatasets","cheapestCost":5,"affordable":1,"rank":1}
+{"t":427.2,"w":425,"e":"view","v":"bay:training"}
+{"t":429.4,"w":428,"e":"sprint","leg":2,"ch":0.99,"cap":1,"first":true,"x":3.4,"v":0,"left":3}
+{"t":433.2,"w":431,"e":"sprint","leg":2,"ch":0.98,"cap":1,"x":7.89,"v":0.44,"left":2}
+{"t":436.6,"w":435,"e":"sprint","leg":2,"ch":0.78,"cap":1,"x":11.21,"v":0,"left":1}
+{"t":439.2,"w":437,"e":"run","from":2,"leg":2,"prog":0.9,"m":8.43,"xp":11.32,"legs":0,"sprints":3,"clean":0,"top":2.24,"dur":10,"record":true}
+{"t":439.2,"w":437,"e":"climb","leg":2,"h":0.4,"short":0.59}
+{"t":440.6,"w":439,"e":"view","v":"tree"}
+{"t":442.3,"w":441,"e":"buy","id":"trainingOptimizer","lvl":2,"held":14,"price":8,"cheapest":"optimizedCode","cheapestCost":7,"affordable":3,"rank":2}
+{"t":443.3,"w":442,"e":"view","v":"bay:training"}
+{"t":445.5,"w":444,"e":"sprint","leg":2,"ch":1,"cap":1,"first":true,"x":3.4,"v":0,"left":3}
+{"t":449.4,"w":448,"e":"sprint","leg":2,"ch":0.99,"cap":1,"x":7.73,"v":0,"left":2}
+{"t":452.6,"w":451,"e":"sample","cp":780,"dp":19,"rp":0,"xp":6,"cpNet":26.5,"dpNet":0,"rpRate":0,"xpRate":0.03,"int":0,"skills":1,"phase":0,"ver":"v1.0","at":"bay:training","labNew":0,"offers":0,"offersDone":0,"treeReady":0}
+{"t":453.1,"w":451,"e":"sprint","leg":2,"ch":0.99,"cap":1,"x":11.9,"v":0.01,"left":1}
+{"t":453.5,"w":452,"e":"skill","n":2,"name":"Pattern Matching","xp":26.39,"runs":6}
+{"t":453.5,"w":452,"e":"mail","id":"firstSkill"}
+{"t":459,"w":457,"e":"run","from":2,"leg":3,"prog":0.21,"m":2.99,"xp":30.42,"legs":1,"sprints":3,"clean":0,"top":2.56,"dur":14,"record":true}
+{"t":464.1,"w":462,"e":"view","v":"tree"}
+{"t":465.4,"w":464,"e":"tip","key":"hint:rerun","at":"beside"}
+{"t":470.8,"w":469,"e":"tipClosed","key":"hint:rerun","by":"clicked","s":5.5}
+{"t":475.5,"w":474,"e":"buy","id":"precisionTuning","lvl":1,"held":40,"price":14,"cheapest":"optimizedCode","cheapestCost":7,"affordable":8,"rank":3}
+{"t":477.3,"w":476,"e":"buy","id":"angelInvestor","lvl":1,"held":26,"price":18,"cheapest":"optimizedCode","cheapestCost":7,"affordable":8,"rank":3}
+{"t":479.4,"w":478,"e":"buy","id":"optimizedCode","lvl":1,"held":9,"price":7,"cheapest":"optimizedCode","cheapestCost":7,"affordable":1,"rank":1}
+{"t":480.1,"w":478,"e":"view","v":"bay:training"}
+{"t":480.4,"w":479,"e":"tip","key":"hint:prompt","at":"beside"}
+{"t":480.7,"w":479,"e":"tipClosed","key":"hint:prompt","by":"clicked","s":0.3}
+{"t":482.7,"w":481,"e":"sample","cp":1554,"dp":16,"rp":0,"xp":2,"cpNet":26.5,"dpNet":0,"rpRate":0,"xpRate":0.16,"int":1,"skills":2,"phase":0,"ver":"v1.0","at":"bay:training","labNew":0,"offers":0,"offersDone":0,"treeReady":0}
+{"t":483.2,"w":481,"e":"sprint","leg":3,"ch":0.99,"cap":1,"first":true,"x":13.8,"v":0,"left":4}
+{"t":486.9,"w":485,"e":"sprint","leg":3,"ch":0.95,"cap":1,"x":18.96,"v":0.88,"left":3}
+{"t":490.1,"w":488,"e":"sprint","leg":3,"ch":0.88,"cap":1,"k":"clean","x":23.47,"v":1.03,"left":2}
+{"t":490.2,"w":488,"e":"achievement","id":"clean1"}
+{"t":494.3,"w":493,"e":"sprint","leg":3,"ch":0.99,"cap":1,"x":27.02,"v":0,"left":1}
+{"t":494.9,"w":493,"e":"skill","n":3,"name":"Edge Detection","xp":45.73,"runs":7}
+{"t":494.9,"w":493,"e":"mail","id":"edges"}
+{"t":503.9,"w":502,"e":"run","from":3,"leg":4,"prog":0.13,"m":2.71,"xp":52.14,"legs":1,"sprints":4,"clean":1,"top":2.96,"dur":21,"record":true}
+{"t":505.6,"w":504,"e":"view","v":"tree"}
+{"t":509.6,"w":508,"e":"buy","id":"betterAlgorithms","lvl":1,"held":62,"price":38,"cheapest":"bigDatasets","cheapestCost":10,"affordable":9,"rank":8}
+{"t":512.7,"w":511,"e":"sample","cp":2263,"dp":1,"rp":0,"xp":25,"cpNet":29.15,"dpNet":0,"rpRate":0,"xpRate":0.4,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"tree","labNew":0,"offers":0,"offersDone":0,"treeReady":4}
+{"t":514.5,"w":513,"e":"buy","id":"benchmarkPrizes","lvl":1,"held":26,"price":22,"cheapest":"bigDatasets","cheapestCost":10,"affordable":6,"rank":4}
+{"t":516,"w":514,"e":"view","v":"facility"}
+{"t":517.4,"w":516,"e":"view","v":"lab"}
+{"t":524.5,"w":523,"e":"buy","id":"procurement","lvl":1}
+{"t":530,"w":528,"e":"task","id":"procurement","share":30}
+{"t":534.6,"w":533,"e":"buy","id":"server","lvl":8,"n":3}
+{"t":535.9,"w":534,"e":"buy","id":"cpu","lvl":21}
+{"t":542.7,"w":541,"e":"sample","cp":650,"dp":1,"rp":0,"xp":15,"cpNet":28.41,"dpNet":0,"rpRate":0,"xpRate":0.4,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":1,"hand":{"compute":24}}
+{"t":550.6,"w":549,"e":"buy","id":"server","lvl":9}
+{"t":560.6,"w":559,"e":"buy","id":"server","lvl":10}
+{"t":572.7,"w":571,"e":"sample","cp":1170,"dp":1,"rp":0,"xp":27,"cpNet":33.49,"dpNet":0,"rpRate":0,"xpRate":0.4,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":5,"hand":{"compute":111}}
+{"t":576.2,"w":574,"e":"buy","id":"server","lvl":11}
+{"t":602.8,"w":601,"e":"sample","cp":701,"dp":575,"rp":0,"xp":39,"cpNet":36.04,"dpNet":0,"rpRate":0,"xpRate":0.4,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":7,"hand":{"compute":35,"collect":82}}
+{"t":605.4,"w":604,"e":"buy","id":"autoCollector","lvl":1}
+{"t":632.9,"w":631,"e":"sample","cp":1043,"dp":533,"rp":0,"xp":51,"cpNet":34.04,"dpNet":1.4,"rpRate":0,"xpRate":0.4,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":8,"hand":{"compute":8}}
+{"t":662.9,"w":661,"e":"sample","cp":2064,"dp":575,"rp":0,"xp":63,"cpNet":34.04,"dpNet":1.4,"rpRate":0,"xpRate":0.4,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":8}
+{"t":667.8,"w":666,"e":"buy","id":"trainingData","lvl":4}
+{"t":668.9,"w":667,"e":"buy","id":"dataProcessor","lvl":7}
+{"t":673,"w":671,"e":"buy","id":"dataProcessor","lvl":10,"n":3}
+{"t":678.9,"w":677,"e":"buy","id":"dataProcessor","lvl":11}
+{"t":684.6,"w":683,"e":"buy","id":"dataProcessor","lvl":12}
+{"t":692.9,"w":691,"e":"sample","cp":418,"dp":54,"rp":0,"xp":75,"cpNet":34.04,"dpNet":2.6,"rpRate":0,"xpRate":0.4,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":9,"hand":{"collect":14,"compute":32}}
+{"t":718,"w":716,"e":"buy","id":"keyboard","lvl":12,"n":2}
+{"t":722.9,"w":721,"e":"sample","cp":211,"dp":132,"rp":0,"xp":87,"cpNet":34.04,"dpNet":2.6,"rpRate":0,"xpRate":0.4,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":10}
+{"t":752.9,"w":751,"e":"sample","cp":1232,"dp":210,"rp":0,"xp":99,"cpNet":34.04,"dpNet":2.6,"rpRate":0,"xpRate":0.4,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":11}
+{"t":774.7,"w":773,"e":"buy","id":"autoCollector","lvl":2}
+{"t":782.9,"w":781,"e":"sample","cp":1037,"dp":189,"rp":0,"xp":111,"cpNet":32.04,"dpNet":5.2,"rpRate":0,"xpRate":0.4,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":12}
+{"t":787.7,"w":786,"e":"view","v":"servers"}
+{"t":787.7,"w":786,"e":"view","v":"bay:training"}
+{"t":787.7,"w":786,"e":"view","v":"tree"}
+{"t":792,"w":790,"e":"buy","id":"gpuCluster2","lvl":1,"held":114,"price":45,"cheapest":"bigDatasets","cheapestCost":10,"affordable":12,"rank":8}
+{"t":792,"w":790,"e":"achievement","id":"tree10"}
+{"t":793.5,"w":792,"e":"buy","id":"benchmarkPrizes","lvl":2,"held":70,"price":38,"cheapest":"bigDatasets","cheapestCost":10,"affordable":7,"rank":7}
+{"t":795.2,"w":793,"e":"buy","id":"bigDatasets","lvl":2,"held":33,"price":10,"cheapest":"bigDatasets","cheapestCost":10,"affordable":6,"rank":1}
+{"t":796.9,"w":795,"e":"buy","id":"warmRestarts","lvl":1,"held":23,"price":20,"cheapest":"warmRestarts","cheapestCost":20,"affordable":2,"rank":1}
+{"t":797.7,"w":796,"e":"view","v":"bay:training"}
+{"t":802,"w":800,"e":"sprint","leg":4,"ch":0.98,"cap":1,"first":true,"x":28.95,"v":0,"left":4}
+{"t":806.3,"w":805,"e":"sprint","leg":4,"ch":1,"cap":1,"x":34.84,"v":0.34,"left":3}
+{"t":810.6,"w":809,"e":"sprint","leg":4,"ch":0.98,"cap":1,"x":40.08,"v":-0.05,"left":2}
+{"t":812.9,"w":811,"e":"sample","cp":1839,"dp":327,"rp":0,"xp":11,"cpNet":32.04,"dpNet":5.2,"rpRate":0,"xpRate":0.47,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"bay:training","labNew":0,"offers":0,"offersDone":0,"treeReady":0}
+{"t":814.4,"w":813,"e":"sprint","leg":4,"ch":1,"cap":1,"x":41.79,"v":-1.09,"left":1}
+{"t":818.6,"w":817,"e":"run","from":4,"leg":4,"prog":0.76,"m":15.89,"xp":25.33,"legs":0,"sprints":4,"clean":0,"top":2.89,"dur":17,"record":true}
+{"t":819.8,"w":818,"e":"view","v":"tree"}
+{"t":821.3,"w":820,"e":"buy","id":"fasterIteration","lvl":1,"held":40,"price":20,"cheapest":"fasterIteration","cheapestCost":20,"affordable":4,"rank":1}
+{"t":822.5,"w":821,"e":"view","v":"bay:training"}
+{"t":824.5,"w":823,"e":"sprint","leg":4,"ch":1,"cap":1,"first":true,"x":28.95,"v":0,"left":4}
+{"t":828.1,"w":826,"e":"sprint","leg":4,"ch":0.79,"cap":1,"x":34.28,"v":1,"left":3}
+{"t":831.4,"w":830,"e":"sprint","leg":4,"ch":0.79,"cap":1,"k":"clean","x":38.99,"v":0.55,"left":2}
+{"t":835.3,"w":834,"e":"sprint","leg":4,"ch":1,"cap":1,"x":44.51,"v":0.94,"left":1}
+{"t":840.5,"w":839,"e":"run","from":4,"leg":4,"prog":0.85,"m":17.82,"xp":39.59,"legs":0,"sprints":4,"clean":1,"top":3.02,"dur":16,"record":true}
+{"t":841.6,"w":840,"e":"view","v":"tree"}
+{"t":843,"w":841,"e":"sample","cp":2574,"dp":458,"rp":0,"xp":70,"cpNet":32.04,"dpNet":5.2,"rpRate":0,"xpRate":0.47,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"tree","labNew":0,"offers":0,"offersDone":0,"treeReady":5}
+{"t":844.8,"w":843,"e":"buy","id":"efficientKernels","lvl":1,"held":71,"price":30,"cheapest":"batchNorm","cheapestCost":25,"affordable":6,"rank":3}
+{"t":846.2,"w":844,"e":"buy","id":"fasterIteration","lvl":2,"held":41,"price":34,"cheapest":"batchNorm","cheapestCost":25,"affordable":3,"rank":3}
+{"t":848.5,"w":847,"e":"view","v":"bay:training"}
+{"t":849.8,"w":848,"e":"sprint","leg":4,"ch":0.5,"cap":1,"k":"clean","first":true,"x":28.95,"v":0,"left":4}
+{"t":852.6,"w":851,"e":"sprint","leg":4,"ch":0.79,"cap":1,"k":"clean","x":31.68,"v":0.24,"left":3}
+{"t":855.5,"w":854,"e":"sprint","leg":4,"ch":0.98,"cap":1,"x":36.49,"v":0.55,"left":2}
+{"t":858.7,"w":857,"e":"sprint","leg":4,"ch":1,"cap":1,"x":40.64,"v":-1.15,"left":1}
+{"t":863.2,"w":861,"e":"run","from":4,"leg":4,"prog":0.7,"m":14.59,"xp":37.87,"legs":0,"sprints":4,"clean":2,"top":2.96,"dur":13}
+{"t":863.2,"w":861,"e":"achievement","id":"runs10"}
+{"t":864.3,"w":863,"e":"view","v":"tree"}
+{"t":865.4,"w":864,"e":"buy","id":"dataAugmentation","lvl":1,"held":54,"price":25,"cheapest":"batchNorm","cheapestCost":25,"affordable":3,"rank":2}
+{"t":866.9,"w":865,"e":"buy","id":"batchNorm","lvl":1,"held":30,"price":25,"cheapest":"batchNorm","cheapestCost":25,"affordable":1,"rank":1}
+{"t":868.6,"w":867,"e":"view","v":"facility"}
+{"t":870,"w":868,"e":"view","v":"lab"}
+{"t":873,"w":871,"e":"sample","cp":3380,"dp":596,"rp":0,"xp":8,"cpNet":32.04,"dpNet":5.2,"rpRate":0,"xpRate":0.47,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":0}
+{"t":882.3,"w":881,"e":"buy","id":"nlp","lvl":1}
+{"t":896.9,"w":895,"e":"buy","id":"server","lvl":12}
+{"t":898.3,"w":897,"e":"buy","id":"cpu","lvl":22}
+{"t":901.5,"w":900,"e":"view","v":"inbox"}
+{"t":903,"w":901,"e":"sample","cp":334,"dp":698,"rp":0,"xp":22,"cpNet":32.96,"dpNet":7.8,"rpRate":0,"xpRate":0.47,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":0,"hand":{"collect":11,"compute":17}}
+{"t":904.2,"w":902,"e":"mailRead","id":"m:serverRoom"}
+{"t":906.6,"w":905,"e":"mailRead","id":"d:broker"}
+{"t":910.5,"w":909,"e":"choice","id":"broker","choice":0,"label":"Buy it"}
+{"t":913.9,"w":912,"e":"mailRead","id":"m:firstSkill"}
+{"t":916,"w":914,"e":"mailRead","id":"m:edges"}
+{"t":919.4,"w":918,"e":"view","v":"lab"}
+{"t":922.2,"w":920,"e":"buy","id":"quantum","lvl":1,"auto":true}
+{"t":933.1,"w":931,"e":"sample","cp":998,"dp":2071,"rp":0,"xp":36,"cpNet":49.9,"dpNet":15.6,"rpRate":0,"xpRate":0.47,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":0,"hand":{"collect":37,"compute":5}}
+{"t":934.2,"w":932,"e":"buy","id":"cpu","lvl":24,"n":2}
+{"t":936.2,"w":934,"e":"buy","id":"cpu","lvl":25}
+{"t":936.2,"w":934,"e":"achievement","id":"cpu25"}
+{"t":951.9,"w":950,"e":"view","v":"servers"}
+{"t":951.9,"w":950,"e":"view","v":"bay:training"}
+{"t":951.9,"w":950,"e":"view","v":"tree"}
+{"t":953.3,"w":952,"e":"view","v":"bay:training"}
+{"t":954.9,"w":953,"e":"sprint","leg":4,"ch":0.71,"cap":1,"k":"clean","first":true,"x":28.95,"v":0,"left":4}
+{"t":958.1,"w":956,"e":"sprint","leg":4,"ch":1,"cap":1,"x":33.4,"v":1,"left":3}
+{"t":961,"w":959,"e":"sprint","leg":4,"ch":0.86,"cap":1,"k":"clean","x":38.28,"v":0.97,"left":2}
+{"t":963.1,"w":961,"e":"sample","cp":2651,"dp":2525,"rp":0,"xp":63,"cpNet":60.68,"dpNet":15.6,"rpRate":0,"xpRate":0.47,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"bay:training","labNew":0,"offers":0,"offersDone":0,"treeReady":2,"hand":{"compute":62}}
+{"t":963.8,"w":962,"e":"sprint","leg":4,"ch":0.99,"cap":1,"x":43.27,"v":1.23,"left":1}
+{"t":967.9,"w":966,"e":"run","from":4,"leg":4,"prog":0.92,"m":19.34,"xp":55.16,"legs":0,"sprints":4,"clean":2,"top":3.14,"dur":13,"record":true}
+{"t":969,"w":967,"e":"view","v":"tree"}
+{"t":971.1,"w":969,"e":"buy","id":"scoutingData","lvl":1,"held":108,"price":80,"cheapest":"efficientKernels","cheapestCost":54,"affordable":10,"rank":7}
+{"t":972.4,"w":971,"e":"view","v":"bay:training"}
+{"t":974.3,"w":973,"e":"sprint","leg":4,"ch":0.99,"cap":1,"first":true,"x":28.95,"v":0,"left":4}
+{"t":977.5,"w":976,"e":"sprint","leg":4,"ch":0.98,"cap":1,"x":33.94,"v":1.08,"left":3}
+{"t":980.6,"w":979,"e":"sprint","leg":4,"ch":1,"cap":1,"x":38.96,"v":1.06,"left":2}
+{"t":983.8,"w":982,"e":"sprint","leg":4,"ch":0.94,"cap":1,"x":44.08,"v":0.17,"left":1}
+{"t":987.8,"w":986,"e":"run","from":4,"leg":4,"prog":0.96,"m":20.16,"xp":35.87,"legs":0,"sprints":4,"clean":0,"top":3.06,"dur":13,"record":true}
+{"t":988.5,"w":987,"e":"view","v":"tree"}
+{"t":990.1,"w":988,"e":"buy","id":"gpuCluster2","lvl":2,"held":73,"price":72,"cheapest":"efficientKernels","cheapestCost":54,"affordable":5,"rank":5}
+{"t":992.7,"w":991,"e":"view","v":"facility"}
+{"t":993.2,"w":991,"e":"sample","cp":4216,"dp":2966,"rp":0,"xp":3,"cpNet":60.68,"dpNet":15.6,"rpRate":0,"xpRate":0.47,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"facility","labNew":0,"offers":0,"offersDone":0,"treeReady":0}
+{"t":994,"w":992,"e":"view","v":"lab"}
+{"t":995.7,"w":994,"e":"buy","id":"autoCollector","lvl":3}
+{"t":996.5,"w":995,"e":"buy","id":"trainingData","lvl":5}
+{"t":1000.6,"w":999,"e":"buy","id":"cpu","lvl":26}
+{"t":1022,"w":1020,"e":"task","id":"autoCollector","share":0}
+{"t":1022.9,"w":1021,"e":"task","id":"procurement","share":0}
+{"t":1023.3,"w":1022,"e":"sample","cp":2933,"dp":2570,"rp":0,"xp":17,"cpNet":96.36,"dpNet":0,"rpRate":0,"xpRate":0.47,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":0,"hand":{"compute":85}}
+{"t":1023.9,"w":1022,"e":"buy","id":"autoCollector","lvl":4}
+{"t":1050.5,"w":1049,"e":"buy","id":"compilerOpt","lvl":1}
+{"t":1053.3,"w":1052,"e":"sample","cp":2203,"dp":2100,"rp":0,"xp":30,"cpNet":144.54,"dpNet":0,"rpRate":0,"xpRate":0.47,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":0,"hand":{"compute":108}}
+{"t":1060.6,"w":1059,"e":"consequence","id":"broker"}
+{"t":1069.3,"w":1068,"e":"buy","id":"trainingData","lvl":6}
+{"t":1083.4,"w":1082,"e":"sample","cp":4321,"dp":46,"rp":0,"xp":44,"cpNet":144.54,"dpNet":0,"rpRate":0,"xpRate":0.47,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":0,"hand":{"compute":82,"collect":13}}
+{"t":1095.3,"w":1094,"e":"buy","id":"quantum","lvl":2}
+{"t":1113.5,"w":1112,"e":"sample","cp":4038,"dp":644,"rp":0,"xp":58,"cpNet":180.84,"dpNet":0,"rpRate":0,"xpRate":0.47,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":1,"hand":{"compute":102,"collect":23}}
+{"t":1130.2,"w":1128,"e":"buy","id":"computerVision","lvl":1}
+{"t":1136.9,"w":1135,"e":"task","id":"autoCollector","share":10}
+{"t":1139.1,"w":1137,"e":"task","id":"procurement","share":60}
+{"t":1143.6,"w":1142,"e":"sample","cp":1968,"dp":676,"rp":0,"xp":72,"cpNet":54.25,"dpNet":47.02,"rpRate":0,"xpRate":0.47,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":4,"hand":{"compute":71,"collect":7}}
+{"t":1158.1,"w":1156,"e":"buy","id":"server","lvl":14,"n":2}
+{"t":1161.4,"w":1160,"e":"view","v":"servers"}
+{"t":1161.4,"w":1160,"e":"view","v":"bay:training"}
+{"t":1161.4,"w":1160,"e":"view","v":"tree"}
+{"t":1164,"w":1162,"e":"buy","id":"checkpointing","lvl":1,"held":82,"price":60,"cheapest":"efficientKernels","cheapestCost":54,"affordable":5,"rank":2}
+{"t":1165.7,"w":1164,"e":"view","v":"bay:training"}
+{"t":1167.9,"w":1166,"e":"sprint","leg":4,"ch":1,"cap":1,"first":true,"x":28.95,"v":0,"left":4}
+{"t":1171.6,"w":1170,"e":"sprint","leg":4,"ch":1,"cap":1,"br":true,"x":34.32,"v":-0.29,"left":3}
+{"t":1171.7,"w":1170,"e":"achievement","id":"break1"}
+{"t":1173.6,"w":1172,"e":"sample","cp":824,"dp":2118,"rp":0,"xp":26,"cpNet":57.52,"dpNet":49.85,"rpRate":0,"xpRate":0.47,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"bay:training","labNew":0,"offers":0,"offersDone":0,"treeReady":0,"hand":{"compute":41}}
+{"t":1176.1,"w":1174,"e":"sprint","leg":4,"ch":1,"cap":1,"x":41.22,"v":-1,"left":2}
+{"t":1179,"w":1177,"e":"sprint","leg":4,"ch":0.99,"cap":1,"x":45.4,"v":-0.5,"left":1}
+{"t":1184.2,"w":1182,"e":"buy","id":"quantum","lvl":3,"auto":true}
+{"t":1185.6,"w":1184,"e":"run","from":4,"leg":4,"prog":0.84,"m":17.64,"xp":29.47,"legs":0,"sprints":4,"clean":0,"top":5.46,"dur":18,"br":1}
+{"t":1185.6,"w":1184,"e":"climb","leg":4,"h":0.35,"short":0.7}
+{"t":1185.6,"w":1184,"e":"achievement","id":"speed5"}
+{"t":1185.7,"w":1184,"e":"sample","cp":1428,"dp":2723,"rp":0,"xp":62,"cpNet":68.41,"dpNet":59.29,"rpRate":0,"xpRate":0.47,"int":3,"skills":3,"phase":0,"ver":"v1.0","at":"bay:training","labNew":0,"offers":0,"offersDone":0,"treeReady":1}

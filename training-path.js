@@ -1,0 +1,1000 @@
+// training-path.js — the Training Path: rolls of a ball over random rolling hills toward skill hills.
+// The trail is split into stretches (legs). Stretch k runs from checkpoint k to skill hill k, a big hill
+// that teaches skill k. Each roll starts at a checkpoint over freshly generated rolling hills and runs
+// on through every later leg up to the last one asked for (a replay of cleared legs carries on toward the
+// frontier), and with `onward` on past it (the caller extends the terrain a leg at a time); the roll ends
+// when the ball comes to rest.
+// Pure and deterministic: no DOM, no clock, no Math.random. Terrain comes from (stretch, seed).
+// Loaded in the browser as window.TrainingPath and in Node (tests) via require().
+(function (root, factory) {
+    const api = factory();
+    if (typeof module === 'object' && module.exports) {
+        module.exports = api;
+    } else {
+        root.TrainingPath = api;
+    }
+})(typeof self !== 'undefined' ? self : this, function () {
+    'use strict';
+
+    const STEP = 1 / 120;       // fixed physics step (seconds)
+    const GRAVITY = 9.8;
+    const DAMPING = 0.15;       // linear rolling resistance per second
+    const DRAG = 0.12;          // quadratic drag: fast balls lose energy disproportionately
+    const TRAPPED_DAMPING = 6;  // extra damping near the floor once the ball cannot climb out of its dip
+    const SLOPE_DRAG = 0.5;     // extra friction in proportion to steepness: steep hills sap more speed
+    const REST_SPEED = 0.03;
+    const REST_SECONDS = 0.5;
+    const ROLL_BACK = 0.15;     // rolling back this far behind the start line ends the run (with no sprints left)
+    const STALL_SECONDS = 8;    // with no sprints left, a ball that gains no new ground for this long ends its run
+    const BUMPER = 0.3;         // with sprints left, the start line bounces the ball back at this share of its speed
+    const LEAD_IN = 0.5;        // flat run-up after each checkpoint
+    const FREE_COOLDOWN = 0.35; // wait after a free push (a crunch)
+    const ROLL_OUT = 0.8;       // with rollOut, how far past the skill hill's foot the ball runs before the roll ends
+    const RESHAPE_RATE = 5;     // reshaped hills (smashed, shrunk) settle toward their new height at this rate per second
+    // Late legs (a launcher): over a crest faster than the ground can curve away, the ball takes off and flies
+    // ballistically; landing bounces it (some speed off the impact) until it sticks to the ground again.
+    const AIR_DRAG = 0.012;     // quadratic air drag in flight (much less than rolling)
+    const BOUNCE = 0.42;        // share of the impact speed a landing bounces back
+    const SKID = 0.82;          // share of the speed along the ground kept through a landing
+    const BOUNCE_MIN = 1.2;     // below this bounce-back speed the ball sticks and rolls on
+    const LATE_DRAG = 0.45;     // and rolling there keeps more momentum: this share of the quadratic and slope drag (0.25 made act two a burst)
+    const AIR_GRAVITY = 1.5;    // gravity in flight, × GRAVITY: arcs come down with weight instead of floating, with some hang time off a kicker (1.9 before kickers)
+    const REGRIP = 0.35;        // seconds after landing before it can take off again (no hop-stick-hop over a crest)
+    // A flight rises at most this far above the ground it left (half that leg's skill hill, at least 4 m), so it
+    // comes back within a couple of seconds whatever boosts it.
+    const maxAbove = k => Math.max(4, 0.5 * skillHeight(k));
+    // Hop (an exploit, act one): upward speed HOP_BASE + HOP_SPEED × the ball's speed (m/s), under a ceiling of
+    // HOP_CEIL of the leg's skill hill above where it left (and never that hill's top).
+    const HOP_BASE = 0.4;
+    const HOP_SPEED = 0.25;
+    const HOP_CEIL = 0.45;
+    // The hop is a physics glitch: in its flight gravity is HOP_GRAVITY × GRAVITY (floaty, so it carries over the
+    // next dip instead of a 0.3 m blip at flight gravity), there's no air drag, and it lands clean: it sticks
+    // and keeps `keep` of its speed along the ground (a timed hop all of it; a normal landing lost about 15%).
+    const HOP_GRAVITY = 0.2;
+    const HOP_KEEP = 1;
+    const SETTLE_TIME = 0.4;    // seconds before touchdown it starts lining its path up with the slope it lands on
+    // A crest throws the ball once the ground curves away faster than 0.6 of a flight's fall: crests pop from act
+    // two's first leg (at 1 the sim's player barely flew before leg 10), and the landing planner turns the short
+    // hops into clean arcs onto the next down-slope. (Against rolling gravity alone, ~0.5, it hopped constantly.)
+    const LAUNCH_GRIP = 0.6;
+    // The tuck (act two, Tiny Wings' one verb): while held, the ball is heavier on the ground, so it gains on the
+    // way down and loses on the way up. Hold on the descent, let go before the climb.
+    const TUCK_GRAVITY = 1.6;
+    // Tucked in the air: the flight dives for the first down-slope it can reach (a steeper path, `DIVE_PULL`
+    // flight gravities down at most), and touching down on it still tucked is an air dive, ×AIR_DIVE speed.
+    const DIVE_PULL = -2;
+    const AIR_DIVE = 1.06;
+    // Tucked, the ball takes tokens from further away (Tiny Wings' coins reward the dive).
+    const TOKEN_PULL = 2.5;
+    // Act two's thrust: held, a jet behind the ball feeds it energy continuously instead of a sprint's one kick.
+    // The run's sprints are its fuel: one sprint's worth burns in BURN_SECONDS at full thrust and delivers
+    // the same energy as a full sprint (the game sets the power, strength² / BURN_SECONDS). In the air it also
+    // drives it forward and holds it up (THRUST_LIFT of flight gravity), so thrust keeps a flight going.
+    const BURN_SECONDS = 0.6;   // a hot, short burn: at 1 s, slow thrust up the skill walls lost the energy to drag
+    const THRUST_LIFT = 0.7;
+    const KICKERS = 0.85;           // share of act two's swells that are kickers (a lip to launch off)
+    const KICK_SLOPE = [0.75, 1];   // a kicker's slope at its lip
+
+    // A hill's height at x: a cos² bump, or on a kicker's face (`up`: the face's width over the back's) a
+    // parabola steepening to the lip, then cos² down the back. `H`, `W`: draw an older outline (a smash).
+    function bumpAt(b, x, H = b.height, W = b.halfWidth) {
+        if (b.up && x < b.peak) {
+            const t = Math.max(0, 1 - (b.peak - x) / (W * b.up));
+            return H * t * t;
+        }
+        const c = Math.cos((Math.PI / 2) * (x - b.peak) / W);
+        return H * c * c;
+    }
+    function bumpSlope(b, x) {
+        if (b.up && x < b.peak) {
+            const face = b.halfWidth * b.up;
+            const t = Math.max(0, 1 - (b.peak - x) / face);
+            return 2 * b.height * t / face;
+        }
+        const u = (x - b.peak) / b.halfWidth;
+        return -b.height * (Math.PI / 2) * Math.sin(Math.PI * u) / b.halfWidth;
+    }
+
+    // ---- Skill hills (fixed) -----------------------------------------------
+
+    // Leg 0 is a warm-up: a short flat run to a small hill most first runs crest with their two sprints, so the
+    // first skill (and a summit) comes in the first few runs.
+    const TUTORIAL = { length: 2, height: 0.03, halfWidth: 0.45 };
+    // Act two (from leg 13, `LATE_LEG`: the leg after In-Context Learning, the skill that reaches General AI) is a
+    // launcher: each leg is a handful of huge swells, far wider than the view, and the ball can fly off
+    // their crests and bounce (see createRoll). Before that, legs are many small rolling hills. The engine
+    // mirrors this as ACT_TWO_LEG (a test keeps them in step).
+    const LATE_LEG = 13;          // (skillHalfWidth widens its hills from here too)
+    // Act one has twelve real skills on legs 1–12 (the owner's call: twice the six it had, so its tree nodes get
+    // more use and each new skill is a slot for a new mechanic). The difficulty curves were written for six, so
+    // they read a leg's *position* on the old curve: the warm-up 0, act one's legs at half steps (leg k at
+    // (k + 1) / 2: 1, 1.5, 2 … 6.5; the old legs keep their whole numbers, the new ones fall between), and act
+    // two's legs where they were (k − 6), so its geometry is exactly what it was. The engine mirrors it (`legPos`;
+    // a test keeps the two equal).
+    const legPos = k => (k <= 0 ? 0 : k < LATE_LEG ? (k + 1) / 2 : k - (LATE_LEG - 7));
+    // Each skill hill is a bigger wall than the last: ×1.25 a step through act one (so General AI, the first
+    // version worth shipping, comes about 40 minutes in), ×1.5 a step in act two, from where it always was.
+    const ACT_ONE_GROWTH = 1.25;
+    const skillHeight = k => (k === 0 ? TUTORIAL.height : 0.3 * Math.pow(k < LATE_LEG ? ACT_ONE_GROWTH : 1.5, legPos(k) - 1));
+    // The teeter-totter: every third step's skill hill is a wall (WALL_HEIGHT taller), and the leg or two after it
+    // ease off (AFTER_WALL), so progress swings between a slow, deliberate climb and a stretch you cut through. The
+    // skills learned on walls pay big (the engine's SKILLS), which is the power spurt. Only the skill hill moves:
+    // the leg's rolling hills keep the smooth curve. Walls stand where they did: Image Recognition (leg 5),
+    // Translation (11), then act two's 15, 18, 21… The engine mirrors it (`isWallLeg`; a test keeps them equal).
+    const WALL_EVERY = 3;
+    const WALL_HEIGHT = 1.3;
+    const AFTER_WALL = 0.85;
+    const wallPos = p => Number.isInteger(p) && p >= WALL_EVERY && p % WALL_EVERY === 0;
+    const isWallLeg = k => k > 0 && wallPos(legPos(k));
+    // Act two's hills already grow ×1.5 a leg: its walls stand a little less proud (WALL_HEIGHT_LATE), or each took
+    // 25–75 minutes in the sim.
+    const WALL_HEIGHT_LATE = 1.15;
+    // After a wall: every leg up to one step on (act one's in-between leg and the next old one; act two's next leg).
+    const afterWall = k => legPos(k) > WALL_EVERY && wallPos(Math.ceil(legPos(k)) - 1);
+    const wallMult = k => (isWallLeg(k) ? (k >= LATE_LEG ? WALL_HEIGHT_LATE : WALL_HEIGHT) : afterWall(k) ? AFTER_WALL : 1);
+    // From act two (LATE_LEG) skill hills are 8× wider, in scale with the giant swells around them.
+    const skillHalfWidth = k => (k === 0 ? TUTORIAL.halfWidth : 0.55 * Math.pow(1.14, legPos(k) - 1) * (k >= LATE_LEG ? 8 : 1));
+    // Checkpoint to the foot of skill hill k, from its position p: 10·1.4^(p − 1) + 3(p − 1) (10, 17, 26, 36, 50,
+    // 69, 93, 124, 166 … at whole steps). Gentle early (no wall at the second skill), then much longer each
+    // stretch, so the distance itself becomes the challenge and strength (and later launches and bounces)
+    // matters more than the hill count.
+    // Pattern Matching's leg is 9 m (10 by the formula): with the warm-up skill in hand, it lands about 15 runs in.
+    // Act one's legs after Pattern Matching's are shorter (`actOneLength`): there are twice as many of them, each a
+    // half step of the old curve. They start at about 60% of an old leg (Embeddings at 0.6 of the old curve's 80%) and
+    // grow 13% of it a step, past the old length from Language Modeling (step 5) to 115% at Translation and
+    // In-Context Learning: the early ones go quickly, the wall at Image Recognition is the slow climb, and the gaps
+    // between act one's last skills grow (the sim's pooled player: General AI at about 41 minutes, 42 before; a flat
+    // 60% made it 29–38 and the legs after Image Recognition fell in a run each).
+    // Act two's first three ease back up to full length (ACT_TWO_EASE): reached sooner, its first leg had become
+    // a 15-minute wall.
+    const actOneLength = p => 0.8 * Math.min(1.15, 0.4 + 0.13 * p);
+    const ACT_TWO_EASE = [0.7, 0.76, 0.88];
+    // Leg characters (the owner's call: every stretch felt the same distance and shape). Each act-one leg after
+    // Pattern Matching has a character, fixed per leg so a leg is known by it, with its rolling hills still random
+    // inside it: Rolling (the classic), Sprint (short, a breather), Long flats (long low swells: momentum bleeds
+    // away to drag), Marathon (long and sparse: endurance, spending sprints late) and Cliffs (short, a few tall
+    // steep faces: climbed on the speed you bring; Inertia keeps it). Length is the character's multiplier; the
+    // engine pays a leg's metres at 1/length (`legEase`), so XP and pacing follow the leg's step on the curve,
+    // not its length. Walls keep their skill hills (Image Recognition and Translation are Cliffs). The engine
+    // mirrors the table (`LEG_CHARACTERS`; a test keeps them equal). Act two keeps its swells.
+    const LEG_CHARACTERS = {
+        rolling: { name: 'Rolling', length: 1 },
+        sprint: { name: 'Sprint', length: 0.65 },
+        flats: { name: 'Long flats', length: 0.85 },
+        marathon: { name: 'Marathon', length: 1.4 },
+        cliffs: { name: 'Cliffs', length: 0.8 }
+    };
+    const ACT_ONE_CHARACTERS = [null, 'rolling', 'sprint', 'rolling', 'flats', 'cliffs', 'marathon',
+        'rolling', 'flats', 'marathon', 'sprint', 'cliffs', 'marathon'];
+    const legCharacter = k => (k > 0 && k < LATE_LEG ? ACT_ONE_CHARACTERS[k] || 'rolling' : null);
+    const characterLength = k => LEG_CHARACTERS[legCharacter(k)]?.length ?? 1;
+    const lengthScale = k => (k < LATE_LEG ? actOneLength(legPos(k)) * characterLength(k) : ACT_TWO_EASE[k - LATE_LEG] ?? 1);
+    const stretchLength = k => (k === 0 ? TUTORIAL.length : k === 1 ? 9 : (10 * Math.pow(1.4, legPos(k) - 1) + 3 * (legPos(k) - 1)) * lengthScale(k));
+
+    const checkpoints = [0];    // checkpoints[k] = x where stretch k starts
+    function checkpoint(k) {
+        while (checkpoints.length <= k) {
+            const j = checkpoints.length - 1;
+            checkpoints.push(checkpoints[j] + stretchLength(j) + 2 * skillHalfWidth(j) + 0.3);
+        }
+        return checkpoints[k];
+    }
+
+    function skillHill(k) {
+        const start = checkpoint(k) + stretchLength(k);
+        const w = skillHalfWidth(k);
+        return { start, peak: start + w, end: start + 2 * w, height: skillHeight(k) * wallMult(k), halfWidth: w, skill: k, wall: isWallLeg(k) };
+    }
+
+    // ---- Rolling hills (random per roll) -----------------------------------
+
+    function rng(seed) {
+        let a = seed >>> 0;
+        return function () {
+            a = (a + 0x6D2B79F5) >>> 0;
+            let t = a;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+
+    // Each character's rolling hills: half-width (a share of the skill hill's, from + random), the gap after
+    // each, the chance of a medium hill and the sizes (shares of the skill hill's height) of medium and small
+    // ones. Rolling is the original; Long flats are wide and low (gentle slopes, little rise: drag decides how
+    // far you coast); Marathon spreads normal hills out; Cliffs are narrow and tall (steep faces, slope drag bites).
+    const HILL_SHAPES = {
+        rolling: { w: [0.25, 0.55], gap: [0.1, 0.5], medium: 0.12, big: [0.35, 0.2], small: [0.05, 0.2] },
+        sprint: { w: [0.25, 0.5], gap: [0.2, 0.6], medium: 0.1, big: [0.3, 0.15], small: [0.05, 0.15] },
+        flats: { w: [1.3, 1.1], gap: [0.05, 0.25], medium: 0, big: [0, 0], small: [0.06, 0.12] },
+        marathon: { w: [0.25, 0.55], gap: [0.5, 1.3], medium: 0.12, big: [0.35, 0.2], small: [0.05, 0.2] },
+        cliffs: { w: [0.18, 0.14], gap: [0.35, 0.8], medium: 0.7, big: [0.3, 0.25], small: [0.1, 0.15] }
+    };
+
+    // Rolling hills for stretch k: mostly small, sometimes medium, growing toward the skill hill.
+    // `hillScale` (< 1 from upgrades) makes them less steep; the random layout stays the same.
+    function rollingHills(k, seed, hillScale = 1) {
+        if (k === 0) return [];   // the warm-up: nothing between the start and its little hill
+        if (k >= LATE_LEG) return swells(k, seed, hillScale);
+        const r = rng(seed);
+        const from = checkpoint(k) + LEAD_IN;
+        const to = skillHill(k).start - 0.25;
+        const big = skillHeight(k);
+        const hills = [];
+        const shape = HILL_SHAPES[legCharacter(k)] || HILL_SHAPES.rolling;
+        let x = from;
+        while (true) {
+            const w = skillHalfWidth(k) * (shape.w[0] + r() * shape.w[1]);
+            const gap = shape.gap[0] + r() * shape.gap[1];
+            if (x + 2 * w > to) break;
+            const along = (x - from) / (to - from);              // 0 near the checkpoint, 1 near the wall
+            const roll = r();
+            const size = roll < shape.medium ? shape.big[0] + r() * shape.big[1] : shape.small[0] + r() * shape.small[1];
+            const h = Math.min(0.65 * skillHeight(k), big * size * (0.6 + 0.6 * along)) * hillScale;
+            hills.push({ start: x, peak: x + w, end: x + 2 * w, height: h, halfWidth: w, skill: null });
+            x += 2 * w + gap;
+        }
+        return hills;
+    }
+
+    // Late legs: 4–6 giant swells (a few more every three legs), each tens of metres wide and up to half the
+    // skill hill's height, with little flat between them: long climbs to build into and crests to fly off.
+    function swells(k, seed, hillScale = 1) {
+        const r = rng(seed);
+        const from = checkpoint(k) + LEAD_IN;
+        const to = skillHill(k).start - 0.25;
+        const n = 5 + Math.floor(r() * 3) + Math.floor((k - LATE_LEG) / 3);
+        const pitch = (to - from) / n;
+        const hills = [];
+        for (let i = 0; i < n; i++) {
+            const w = pitch * (0.24 + r() * 0.12);   // narrow enough to curve away under act two's first speeds
+            const along = i / Math.max(1, n - 1);
+            // The first is a low ramp: right after the start line, a full swell sent a one-sprint ball
+            // straight back over the line (ending the run) before its next sprint was ready.
+            const h = Math.min(0.65 * skillHeight(k), skillHeight(k) * (0.35 + r() * 0.3) * (0.75 + 0.4 * along)) * hillScale * (i === 0 ? 0.35 : 1);
+            // Most swells are kickers (the rest stay round, for variety): a face that steepens all the way up to
+            // a lip at KICK_SLOPE, so a crest throws the ball with real upward speed. Off a round crest it took
+            // off near the top, where the slope is about 0, and only skimmed (5% of act two's first leg in the air).
+            const kick = r() < KICKERS;
+            const slope = KICK_SLOPE[0] + r() * (KICK_SLOPE[1] - KICK_SLOPE[0]);
+            const up = kick ? Math.min(pitch - w, Math.max(0.4 * w, 2 * h / slope)) : w;
+            const start = from + i * pitch + Math.max(0, pitch - up - w) * r();
+            hills.push({ start, peak: start + up, end: start + up + w, height: h, halfWidth: w, up: up / w, skill: null });
+        }
+        return hills;
+    }
+
+    // ---- Terrain features: boost strips and XP tokens ------------------------
+
+    // Something to aim for, so runs differ. Boost strips are bought in the Momentum branch (a playtest found the
+    // free ones confusing, "they showed up without buying them", and weak): **front strips** on hills' faces push a
+    // ball rolling forward up them, and **back strips** on hills' backs brake a ball rolling backward, so a bad
+    // sprint doesn't lose as much ground before a big hill. Each starts weak and grows by level (`strips` option:
+    // { front, back, more } levels); `more` puts strips on more hills. XP tokens hang in arcs past act two's
+    // kicker lips, where flights go. Strips and tokens have their own random streams (salted from the leg's seed),
+    // so the hills come out exactly as before, and buying strips never moves a token.
+    const STRIP_PUSH = [0, 0.35, 0.55, 0.75];   // a front strip's push by level: this share of sqrt(g · the leg's skill hill height) per second
+    const STRIP_BRAKE = [0, 0.6, 0.9, 1.2];     // a back strip's brake on a backward roll by level, the same units
+    const STRIP_CHANCE = 0.22;   // share of hills with a strip of each kind, +0.12 per `more` level
+    const TOKEN_REACH = 0.4;     // metres along the trail within which a passing ball takes a token
+    const level = (table, n) => table[Math.max(0, Math.min(table.length - 1, n | 0))];
+    function features(k, seed, hills, owned = {}) {
+        const strips = [];
+        const tokens = [];
+        if (k <= 0) return { strips, tokens };   // the warm-up stays bare
+        const late = k >= LATE_LEG;
+        const unit = Math.sqrt(GRAVITY * skillHeight(k));
+        const push = level(STRIP_PUSH, owned.front) * unit;
+        const brake = level(STRIP_BRAKE, owned.back) * unit;
+        const chance = STRIP_CHANCE + 0.12 * (owned.more || 0);
+        const rs = rng((seed ^ 0x5717ab) >>> 0);
+        for (const b of hills) {
+            const front = rs() < chance;
+            const back = rs() < chance;
+            if (push > 0 && front) strips.push({ kind: 'front', from: b.start + 0.15 * b.halfWidth, to: b.peak - 0.12 * b.halfWidth, push, leg: k });
+            if (brake > 0 && back) strips.push({ kind: 'back', from: b.peak + 0.15 * b.halfWidth, to: b.end - 0.1 * b.halfWidth, brake, leg: k });
+        }
+        if (!late) return { strips, tokens };
+        const r = rng((seed ^ 0x51ed27) >>> 0);
+        for (const b of hills) {
+            if (!b.up || b.up === 1 || r() > 0.6) continue;
+            // An arc of tokens off the lip: a flight's path, give or take.
+            const n = 3 + Math.floor(r() * 3);
+            const span = b.halfWidth * (0.5 + 0.5 * r());
+            const lift = skillHeight(k) * (0.08 + 0.17 * r());
+            for (let i = 0; i < n; i++) {
+                const f = (i + 1) / (n + 1);
+                tokens.push({ x: b.peak + span * f, y: b.height + lift * Math.sin(Math.PI * f) + 0.3, leg: k, taken: false });
+            }
+        }
+        return { strips, tokens };
+    }
+
+    // ---- Terrain for one roll ----------------------------------------------
+
+    // Rolling hills for leg j of a run that starts on leg k: the first leg uses the roll's seed, later legs
+    // derive their own from it, so a single-leg roll is unchanged and every leg differs.
+    const legSeed = (seed, k, j) => (j === k ? seed : (seed + Math.imul(j - k, 0x9E3779B1)) >>> 0);
+
+    // The ground for a roll from stretch k through stretch `last` (default k): flat at the start, then
+    // each leg's rolling hills and skill hill. Nothing behind the start line: a ball that rolls back to it
+    // ends the run.
+    // `extend()` adds the next leg past the last one (a run that crests its last skill hill rolls on).
+    function terrain(k, seed, hillScale = 1, last = k, owned = {}) {
+        last = Math.max(k, last);
+        const bumps = [];
+        const strips = [];
+        const tokens = [];
+        const addLeg = j => {
+            const hills = rollingHills(j, legSeed(seed, k, j), hillScale);
+            bumps.push(...hills, skillHill(j));
+            const f = features(j, legSeed(seed, k, j), hills, owned);
+            strips.push(...f.strips);
+            tokens.push(...f.tokens);
+        };
+        for (let j = k; j <= last; j++) addLeg(j);
+        let rolling = bumps.filter(b => b.skill === null);
+        let goal = skillHill(last);
+        function extend() {
+            last++;
+            addLeg(last);
+            rolling = bumps.filter(b => b.skill === null);
+            goal = skillHill(last);
+        }
+
+        function find(x) {
+            let lo = 0;
+            let hi = bumps.length - 1;
+            while (lo <= hi) {
+                const mid = (lo + hi) >> 1;
+                const b = bumps[mid];
+                if (x < b.start) hi = mid - 1;
+                else if (x > b.end) lo = mid + 1;
+                else return b;
+            }
+            return null;
+        }
+
+        function height(x) {
+            const b = find(x);
+            return b ? bumpAt(b, x) : 0;
+        }
+
+        function slope(x) {
+            const b = find(x);
+            return b ? bumpSlope(b, x) : 0;
+        }
+
+        // Peak heights of the nearest hills behind and ahead of x (the ball's way out of a dip).
+        function walls(x) {
+            let left = 0;
+            let right = Infinity;
+            for (const b of bumps) {
+                if (b.peak <= x) left = b.height;
+                else { right = b.height; break; }
+            }
+            return { left, right };
+        }
+
+        const start = checkpoint(k) + 0.2;
+        // Each leg starts at its checkpoint (the run's own start line on the first) and ends at its peak.
+        const legStart = j => (j === k ? start : checkpoint(j) + 0.2);
+        // The leg a position belongs to: the one whose skill hill is next ahead.
+        function legAt(x) {
+            for (let j = k; j < last; j++) if (x <= skillHill(j).peak) return j;
+            return last;
+        }
+        // A leg's length in metres: its start to its skill hill's peak (distance XP is paid per metre).
+        const legLength = j => skillHill(j).peak - legStart(j);
+        const progressIn = (j, x) => Math.max(0, Math.min(1, (x - legStart(j)) / legLength(j)));
+        return {
+            walls,
+            // Rolling hills on x's leg whose peak lies at or before x (how many the ball has got over there).
+            hillsBefore: x => {
+                const j = legAt(x);
+                const from = legStart(j);
+                return rolling.filter(b => b.peak >= from && b.peak <= x).length;
+            },
+            stretch: k,
+            strips,
+            tokens,
+            stripAt: (x, kind) => strips.find(st => x >= st.from && x <= st.to && (!kind || st.kind === kind)) || null,
+            get last() { return last; },
+            get goal() { return goal; },
+            extend,
+            seed,
+            bumps,
+            height,
+            slope,
+            start,
+            legAt,
+            legStart,
+            legLength,
+            // How far along its leg a position is: 0 at the leg's start, 1 at its skill hill's peak.
+            progress: x => progressIn(legAt(x), x),
+            progressIn
+        };
+    }
+
+    // ---- One roll -------------------------------------------------------------
+
+    // opts: { pushes, cooldown, friction?, slopeDrag?, hillScale?, rollOut?, last? } — friction and
+    // slopeDrag scale rolling resistance and slope friction (1 = normal); hillScale lowers the rolling
+    // hills; `last` (default k) is the final leg. Cresting an earlier leg's skill hill emits 'clear' and
+    // the ball rolls on. Cresting the last one emits 'crest'; with rollOut the roll goes on down the far
+    // side and ends with an 'end' event marked `crested` (so the UI can celebrate first), otherwise
+    // 'crest' ends it. 'end' events carry the `leg` the ball stopped on and the `progress` along it.
+    // With `onward`, cresting the last skill hill emits 'crest' and the ball rolls on: the caller learns the
+    // skill and calls `extend()` to lay the next leg ahead (a run is never cut short at a skill hill).
+    // `holdOpen()`, if given, keeps a resting ball's roll open while it returns true (a crunch: free pushes).
+    // Power-ups: `coast(seconds, speed, shrink, narrow, warp)` lifts the ball off the line for a while, holding
+    // at least `speed` (a flow; `shrink`/`narrow` lower and narrow the hills under and ahead of it, and `warp`
+    // condenses time: each step carries the ball `warp` times as far, a super flow), `boost()`
+    // adds energy whatever the cooldown (banked sprints), and `smash(reach)` breaks the rolling hills ahead.
+    function createRoll(k, seed, opts) {
+        const { pushes, cooldown } = opts;
+        const friction = opts.friction ?? 1;
+        const slopeDrag = SLOPE_DRAG * (opts.slopeDrag ?? 1);
+        const inertia = Math.max(0, Math.min(0.8, opts.inertia ?? 0));   // share of drag waived at top speed
+        const ground = terrain(k, seed, opts.hillScale ?? 1, opts.last ?? k, opts.strips);
+        let nextClear = k;          // the next earlier-leg skill hill still to crest
+        let crestedGoal = -1;       // with onward: the last skill hill already announced
+        const ball = { x: ground.start, v: 0, still: 0, cooldown: 0, maxX: ground.start, trapped: false };
+        let pushesLeft = pushes;
+        let tuck = false;           // held in act two (see TUCK_GRAVITY); set by the UI each frame
+        let thrust = 0;             // act two's jet: energy per second while held (0 = off); set by the UI each frame
+        let thrustFree = false;     // a crunch: thrust burns no fuel
+        let launched = false;
+        let over = false;
+        let crested = false;
+        let carry = 0;
+        const flow = { left: 0, speed: 0, shrink: 0, narrow: 1, warp: 1 };
+        // Reshaped hills ease toward their target height (the drawing follows the physics).
+        let reshaping = [];
+
+        // `wide` (0–1) also narrows them about their peak; `instant` skips the easing (a smash: the drawing
+        // shows the hill breaking apart instead).
+        function reshape(from, to, factor, wide = 1, instant = false) {
+            const hit = [];
+            for (const b of ground.bumps) {
+                if (b.skill !== null || b.peak < from || b.peak > to) continue;
+                if (b.base == null) b.base = b.height;
+                if (b.baseW == null) b.baseW = b.halfWidth;
+                const target = b.base * factor;
+                const targetW = b.baseW * wide;
+                if (b.target == null || target < b.target || targetW < b.targetW) {
+                    b.target = Math.min(target, b.target ?? Infinity);
+                    b.targetW = Math.min(targetW, b.targetW ?? Infinity);
+                    hit.push(b);
+                    if (instant) {
+                        b.height = b.target;
+                        b.halfWidth = b.targetW;
+                        b.start = b.peak - b.halfWidth * (b.up || 1);
+                        b.end = b.peak + b.halfWidth;
+                    } else if (!reshaping.includes(b)) reshaping.push(b);
+                }
+            }
+            return hit;
+        }
+
+        // A push adds a fixed amount of energy (strength = the speed it gives a ball at rest).
+        // Pushing against a backward roll spends energy cancelling it first, so timing matters.
+        // Returns false if the roll is over, out of pushes, or cooling down.
+        // `free` (a crunch): doesn't use up a push and barely waits, so it works even with none left.
+        // Energy into the ball: along the ground, or in flight along its line (an air sprint keeps a flying
+        // ball going, the way the old launcher games let you fire a booster mid-air).
+        function addEnergy(e) {
+            if (ball.air && ball.v > 0) {
+                const sp = Math.hypot(ball.v, ball.air.vy);
+                const k = Math.sqrt(sp * sp + e) / sp;
+                ball.v *= k;
+                ball.air.vy = ball.air.vy * k + 0.25 * Math.sqrt(e);   // and a little lift
+                capClimb();
+                planLanding();
+                return;
+            }
+            ball.v = ball.v >= 0
+                ? Math.sqrt(ball.v * ball.v + e)
+                : (ball.v * ball.v > e ? -Math.sqrt(ball.v * ball.v - e) : Math.sqrt(e - ball.v * ball.v));
+        }
+
+        function push(strength, free = false) {
+            if (over || crested || (!free && pushesLeft <= 0) || ball.cooldown > 0) return false;
+            addEnergy(strength * strength);
+            ball.still = 0;
+            ball.cooldown = free ? Math.min(cooldown, FREE_COOLDOWN) : cooldown;
+            if (!free) pushesLeft = Math.max(0, pushesLeft - 1);
+            launched = true;
+            return true;
+        }
+
+        // The jet, for one step: along the ground, or in flight forward plus lift (it flies freely
+        // while thrusting and plans its landing again once the jet stops). Burns fuel unless free.
+        function burn() {
+            const on = thrust > 0 && !over && !crested && flow.left <= 0 && (thrustFree || pushesLeft > 0);
+            const a = ball.air;
+            if (!on) {
+                if (a?.thrust) {
+                    a.thrust = false;
+                    a.apex = false;
+                    planLanding();
+                }
+                return;
+            }
+            const e = thrust * STEP;
+            if (a) {
+                a.plan = null;
+                a.thrust = true;
+                // Forward, not along the heading: on the way down that drove the ball into the ground, and the
+                // landing threw the speed away.
+                const v = Math.max(0, ball.v);
+                ball.v = Math.sqrt(v * v + e);
+                a.vy += THRUST_LIFT * GRAVITY * AIR_GRAVITY * STEP;
+            } else {
+                addEnergy(e);
+            }
+            ball.still = 0;
+            launched = true;
+            if (!thrustFree) pushesLeft = Math.max(0, pushesLeft - STEP / BURN_SECONDS);
+        }
+
+        function stepOnce(events) {
+            ball.cooldown = Math.max(0, ball.cooldown - STEP);
+            burn();
+            if (reshaping.length) {
+                const k = Math.min(1, RESHAPE_RATE * STEP);
+                for (const b of reshaping) {
+                    b.height += (b.target - b.height) * k;
+                    b.halfWidth += (b.targetW - b.halfWidth) * k;
+                    b.start = b.peak - b.halfWidth * (b.up || 1);
+                    b.end = b.peak + b.halfWidth;
+                }
+                reshaping = reshaping.filter(b => Math.abs(b.height - b.target) > 1e-4 || Math.abs(b.halfWidth - b.targetW) > 1e-4);
+            }
+            const dy = ground.slope(ball.x);
+            if (flow.left > 0) ball.air = null;         // a flow lifts it off on its own terms
+            if (ball.air) {
+                if (tuck && !ball.air.dive) {
+                    ball.air.dive = true;
+                    planLanding(true);
+                }
+                flyStep(events);
+            } else if (flow.left > 0) {
+                // Flowing: off the line, no gravity or drag, at least the flow's speed. A super flow
+                // shrinks the hills under and just ahead of the ball as it goes.
+                flow.left = Math.max(0, flow.left - STEP);
+                ball.v = Math.max(ball.v, flow.speed);
+                if (flow.shrink) reshape(ball.x - 0.3, ball.x + 3 + 3 * flow.speed, flow.shrink, flow.narrow);
+                ball.trapped = false;
+            } else {
+                const lateLeg = ground.legAt(ball.x) >= (opts.lateLeg ?? LATE_LEG);
+                ball.v += (-GRAVITY * (tuck && lateLeg ? TUCK_GRAVITY : 1) * dy / (1 + dy * dy)) * STEP;
+                const late = lateLeg ? LATE_DRAG : 1;
+                // Semi-implicit drag: dividing instead of subtracting can't flip the ball's direction at
+                // huge speeds (a stacked breakthrough or Bullet Time release reversed it into a roll-back).
+                // Inertia (the Momentum branch, never shown as a number): speed you've built is harder to lose. A share
+                // of the quadratic and slope drag is waived in proportion to how fast the ball is going against the
+                // run's top speed so far, so a ball that arrives at a steep face fast keeps most of it up the climb,
+                // and a slow one gets no help.
+                ball.top = Math.max(ball.top || 0, Math.abs(ball.v));
+                const keep = inertia > 0 ? 1 - inertia * Math.min(1, Math.abs(ball.v) / Math.max(0.3, ball.top)) : 1;
+                ball.v /= 1 + (friction * (DAMPING + keep * late * DRAG * Math.abs(ball.v)) + keep * late * slopeDrag * Math.abs(dy)) * STEP;
+                // Momentum while there is somewhere to go; once the ball lacks the energy to clear either
+                // neighbouring hill, it is stuck in this dip, so let it settle instead of sloshing for long.
+                const { left, right } = ground.walls(ball.x);
+                const energy = 0.5 * ball.v * ball.v + GRAVITY * ground.height(ball.x);
+                ball.trapped = energy < GRAVITY * Math.min(left, right);
+                // Only near the floor of the dip: braking it on the slopes too made it roll back down (and come
+                // to rest) as if through syrup. It swings freely on the slopes and bleeds speed at the bottom,
+                // like a pendulum, ending about as soon (median 1.1 s from stuck to stopped, was 1.4).
+                const settle = ball.trapped && Math.abs(dy) < 0.08;
+                if (settle) ball.v *= 1 - TRAPPED_DAMPING * STEP;
+            }
+            // A strip pushes only a ball at its furthest yet: sloshing back and forth over one in a dip, it
+            // pumped a spent ball forever (a run that never ended).
+            if (!ball.air && flow.left <= 0 && ball.v > 0 && ball.x >= ball.maxX - 0.01) {
+                const strip = ground.stripAt(ball.x, 'front');
+                if (strip) ball.v += strip.push * STEP;
+            }
+            // A back strip only takes speed out of a backward roll, never adds any, so it can't pump a ball either.
+            if (!ball.air && ball.v < 0) {
+                const strip = ground.stripAt(ball.x, 'back');
+                if (strip) ball.v = Math.min(0, ball.v + strip.brake * STEP);
+            }
+            if (!ball.air) {
+                ball.x += ball.v * STEP * (flow.left > 0 ? flow.warp : 1);
+                if (flow.left <= 0) takeOff(events);
+            }
+            // The safety net: no sprints left and no new ground for STALL_SECONDS ends the run, whatever keeps
+            // the ball moving.
+            ball.stall = ball.x > ball.maxX + 0.01 ? 0 : (ball.stall || 0) + STEP;
+            ball.maxX = Math.max(ball.maxX, ball.x);
+            // Tokens: taken by a ball passing close enough (its height in flight, the line on the ground).
+            for (const tk of ground.tokens) {
+                const pull = tuck ? TOKEN_PULL : 1;
+                if (tk.taken || Math.abs(tk.x - ball.x) > TOKEN_REACH * pull) continue;
+                const h = ball.air ? ball.air.y : ground.height(ball.x);
+                if (Math.abs(h - tk.y) <= pull * Math.max(0.45, 0.12 * skillHeight(tk.leg))) {
+                    tk.taken = true;
+                    events.push({ type: 'token', leg: tk.leg, x: tk.x, y: tk.y });
+                }
+            }
+
+            const last = ground.last;
+            while (nextClear < last && ball.x > skillHill(nextClear).peak) {
+                events.push({ type: 'clear', skill: nextClear, hills: ground.hillsBefore(skillHill(nextClear).peak) });
+                nextClear++;
+            }
+            if (opts.onward && crestedGoal < last && ball.x > ground.goal.peak) {
+                crestedGoal = last;
+                nextClear = last + 1;
+                events.push({ type: 'crest', onward: true, skill: last, leg: last, progress: 1, metres: ground.legLength(last), hills: ground.hillsBefore(ground.goal.peak) });
+            } else if (!opts.onward && !crested && ball.x > ground.goal.peak) {
+                events.push({ type: 'crest', skill: last, leg: last, progress: 1, metres: ground.legLength(last), hills: ground.hillsBefore(ground.goal.peak) });
+                if (!opts.rollOut) {
+                    over = true;
+                    return;
+                }
+                crested = true;
+            }
+            // The demo's gate (`endAt`, game.js): the trail stops here, and so does the run, paid as the whole last leg.
+            if (opts.endAt != null && ball.x > opts.endAt && !crested) {
+                over = true;
+                events.push({ type: 'end', skill: ground.last, leg: ground.last, progress: 1, metres: ground.legLength(ground.last), gate: true, hills: ground.hillsBefore(ground.goal.peak) });
+                return;
+            }
+            if (crested) {
+                // Down the far side and out onto the flat, then done.
+                if (ball.x > ground.goal.end + ROLL_OUT || (ball.x > ground.goal.end && Math.abs(ball.v) < 0.25)) {
+                    over = true;
+                    events.push({ type: 'end', skill: ground.last, leg: ground.last, progress: 1, metres: ground.legLength(last), crested: true, hills: ground.hillsBefore(ground.goal.peak) });
+                }
+                return;
+            }
+            // With sprints left the start line is a soft bumper: the run never ends with a sprint unspent
+            // (a weak launch used to roll back over the start before the wait was up).
+            if (launched && ball.v < 0 && ball.x < ground.start - ROLL_BACK && pushesLeft > 0 && !opts.rollBackEnds) {
+                ball.x = ground.start - ROLL_BACK;
+                ball.v = -ball.v * BUMPER;
+                events.push({ type: 'bump' });
+            }
+            if (launched && ball.v < 0 && ball.x < ground.start - ROLL_BACK) {
+                over = true;
+                // Rolled back to the start: no progress, but half the furthest distance reached still counts.
+                const furthest = ground.progressIn(k, Math.min(ball.maxX, skillHill(k).peak)) * ground.legLength(k);
+                events.push({ type: 'end', skill: k, leg: k, progress: 0, metres: 0.5 * furthest, rolledBack: true, hills: ground.hillsBefore(Math.min(ball.maxX, skillHill(k).peak)) });
+                return;
+            }
+            const resting = !ball.air && flow.left <= 0 && Math.abs(ball.v) < REST_SPEED && Math.abs(dy) < 0.08;
+            ball.still = resting ? ball.still + STEP : 0;
+            // The roll ends once the ball settles with no pushes left. With pushes left, it waits for you.
+            if (launched && pushesLeft <= 1e-9 && !opts.holdOpen?.() && (ball.still >= REST_SECONDS || (!ball.air && flow.left <= 0 && ball.stall >= STALL_SECONDS))) {
+                over = true;
+                events.push(stopEvent());
+            }
+        }
+
+        // On a late leg, the ground curving away faster than the ball can follow (its downward pull at this speed
+        // would need more than gravity) throws it into the air, with the climb's upward speed.
+        function takeOff(events) {
+            if (ball.grip > 0) { ball.grip -= STEP; return; }
+            if (ball.v < 0.5 || ground.legAt(ball.x) < (opts.lateLeg ?? LATE_LEG)) return;
+            // How fast the slope turns over the last step (not a fixed 2 cm: a fast ball steps clean over a
+            // kicker's lip, and launched just past it at a slope of 0). It leaves at the slope it came up.
+            const dx = Math.max(0.02, ball.v * STEP);
+            const before = ground.slope(ball.x - dx);
+            const curve = (ground.slope(ball.x) - before) / dx;
+            if (curve * ball.v * ball.v >= -GRAVITY * AIR_GRAVITY * LAUNCH_GRIP) return;
+            const slope = Math.max(before, ground.slope(ball.x));
+            const y0 = ground.height(ball.x);
+            ball.air = { y: y0, vy: slope * ball.v, peak: y0, from: ball.x, ceil: y0 + maxAbove(ground.legAt(ball.x)) };
+            capClimb();
+            planLanding();
+            ball.trapped = false;
+            events.push({ type: 'launch', speed: Math.hypot(ball.v, ball.air.vy), x: ball.x });
+        }
+
+        // The ceiling: no more upward speed than reaches it (extra speed from a sprint goes into distance).
+        function capClimb() {
+            const a = ball.air;
+            if (!a || a.vy <= 0) return;
+            const room = Math.max(0, (a.ceil ?? Infinity) - a.y);
+            a.vy = Math.min(a.vy, Math.sqrt(2 * GRAVITY * AIR_GRAVITY * room));   // (a hop floats up to its ceiling and is held there)
+        }
+
+        // Where to come down: the down-slope (the back of a hill) nearest the natural landing, the way Tiny Wings
+        // drops you onto the backs of hills. The flight then follows a smooth path (a cubic in x, from where it
+        // is and how it's heading to that point, arriving along the slope about 1 m/s into it), so it rejoins the
+        // line without slamming or bouncing. Landing on the back of a hill keeps the momentum and reads right; an
+        // up-slope face never is. A path must stay over the ground and under the ceiling, and bend no harder
+        // than `PULL` (a dive down to a short flare, in flight gravities). Failing every down-slope, a valley
+        // floor; failing that, it falls naturally. Planned at take-off, at the top of the arc and after an air
+        // sprint.
+        const PULL = [-0.5, 5];
+        function pathAt(pl, x) {
+            const h = pl.x1 - pl.x0;
+            const u = Math.min(1, (x - pl.x0) / h);
+            if (x >= pl.x1) return { y: pl.y1 + pl.m1 * (x - pl.x1), dy: pl.m1, ddy: 0 };
+            const u2 = u * u, u3 = u2 * u;
+            const y = (2 * u3 - 3 * u2 + 1) * pl.y0 + (u3 - 2 * u2 + u) * h * pl.m0 + (-2 * u3 + 3 * u2) * pl.y1 + (u3 - u2) * h * pl.m1;
+            const dy = ((6 * u2 - 6 * u) * pl.y0 + (3 * u2 - 4 * u + 1) * h * pl.m0 + (-6 * u2 + 6 * u) * pl.y1 + (3 * u2 - 2 * u) * h * pl.m1) / h;
+            const ddy = ((12 * u - 6) * pl.y0 + (6 * u - 4) * h * pl.m0 + (6 - 12 * u) * pl.y1 + (6 * u - 2) * h * pl.m1) / (h * h);
+            return { y, dy, ddy };
+        }
+        // `dive`: tucked in the air, so the first reachable down-slope wins, on a steeper path (keeps the old
+        // plan if none fits).
+        function planLanding(dive = false) {
+            const a = ball.air;
+            if (!a) return;
+            const old = a.plan;
+            a.plan = null;
+            if (ball.v <= 0.5) return;
+            const G = GRAVITY * AIR_GRAVITY;
+            const nat = simulateLanding();
+            const v2 = ball.v * ball.v;
+            const m0 = a.vy / ball.v;
+            let best = null;
+            for (let x = ball.x + Math.max(2, 0.3 * ball.v); x <= nat.x + 60; x += 0.5) {
+                const s = ground.slope(x);
+                const valley = s >= -0.04;
+                if (valley && (Math.abs(s) > 0.02 || best && !best.valley)) continue;
+                if (dive && valley) continue;
+                const d = (dive ? x - ball.x : Math.abs(x - nat.x)) + (valley ? 40 : 0);
+                if (best && d >= best.d) continue;
+                const pl = { x0: ball.x, x1: x, y0: a.y, y1: ground.height(x), m0, m1: s - 1 / ball.v };
+                let ok = true;
+                for (let i = 1; i < 32 && ok; i++) {
+                    const xi = ball.x + (x - ball.x) * i / 32;
+                    const q = pathAt(pl, xi);
+                    const pull = -q.ddy * v2;
+                    ok = q.y >= ground.height(xi) - 0.02 && q.y <= (a.ceil ?? Infinity) + 0.01 && pull >= (dive ? DIVE_PULL : PULL[0]) * G && pull <= PULL[1] * G;
+                }
+                // A kicker's lip is a sharp corner the samples can step over: the path must clear every crest too.
+                for (const b of ground.bumps) {
+                    if (!ok || b.peak >= x) break;
+                    if (b.peak > ball.x) ok = pathAt(pl, b.peak).y >= b.height - 0.02;
+                }
+                if (ok) best = { d, valley, pl };
+            }
+            if (best) a.plan = best.pl;
+            else if (dive) a.plan = old;
+        }
+
+        // In flight: on a planned path, it follows it (drag still slows it); otherwise gravity and a little air
+        // drag, and landing bounces off the ground's normal (losing some of the impact and a little speed along
+        // the ground), until the bounce is too small and it rolls on.
+        function flyStep(events) {
+            const a = ball.air;
+            if (a.plan) {
+                const sp = Math.hypot(ball.v, a.vy);
+                ball.v /= 1 + friction * AIR_DRAG * sp * STEP;
+                ball.x += ball.v * STEP;
+                const q = pathAt(a.plan, ball.x);
+                a.y = q.y;
+                a.vy = q.dy * ball.v;
+            } else {
+                a.vy -= (a.hop ? GRAVITY * HOP_GRAVITY : GRAVITY * AIR_GRAVITY * (a.dive && tuck ? TUCK_GRAVITY : 1)) * STEP;
+                const sp = Math.hypot(ball.v, a.vy);
+                const drag = a.hop ? 1 : 1 + friction * AIR_DRAG * sp * STEP;
+                ball.v /= drag;
+                a.vy /= drag;
+                ball.x += ball.v * STEP;
+                a.y += a.vy * STEP;
+            }
+            if (a.vy <= 0 && !a.apex && !a.plan && !a.thrust && !a.hop) {
+                a.apex = true;
+                planLanding();
+            }
+            a.peak = Math.max(a.peak, a.y);
+            const gh = ground.height(ball.x);
+            if (a.y > (a.ceil ?? Infinity)) { a.y = a.ceil; a.vy = Math.min(a.vy, 0); }
+            // Coming down: work out where it touches (the hill it's about to meet) and ease its path into that
+            // slope over the last moments, so it rejoins the line smoothly instead of slamming into it.
+            // (Closing speed is relative to the ground under it: a rising slope comes up to meet it.)
+            const closing = ground.slope(ball.x) * ball.v - a.vy;
+            if (!a.plan && closing > 0 && a.y > gh) {
+                const tau = (a.y - gh) / Math.max(0.5, closing);
+                if (tau < SETTLE_TIME) {
+                    const want = ground.slope(ball.x + ball.v * tau) * ball.v - 1;   // along the slope, settling gently into it
+                    a.vy += (want - a.vy) * Math.min(1, STEP / Math.max(STEP, tau));
+                }
+            }
+            if (a.y > gh) return;
+            const s = ground.slope(ball.x);
+            const len = Math.hypot(1, s);
+            const vn = (-s * ball.v + a.vy) / len;          // into the ground when negative
+            const vt = (ball.v + s * a.vy) / len;           // along it
+            const impact = Math.max(0, -vn);
+            const back = impact * BOUNCE;
+            const dive = !!a.dive && tuck && s < -0.05;
+            events.push({ type: 'land', impact, x: ball.x, flight: ball.x - a.from, height: a.peak - gh, bounce: back >= BOUNCE_MIN && !dive, dive });
+            // A bounce that would throw it backwards (slamming into the face of the next swell) sticks instead,
+            // carrying its speed up the slope: launchers keep you going forward.
+            if (a.hop) {
+                // A hop lands clean: it sticks and keeps its speed (the share `keep`), turned along the ground.
+                ball.air = null;
+                ball.grip = REGRIP;
+                ball.v = Math.max(0, Math.hypot(ball.v, a.vy) * (a.keep ?? HOP_KEEP) * Math.sign(vt)) / len;
+                return;
+            }
+            const t = vt * SKID;
+            if (!dive && back >= BOUNCE_MIN && (t - back * s) / len > 0) {
+                // Bounce: tangent kept (mostly), normal reflected and shrunk.
+                ball.v = (t - back * s) / len;
+                a.vy = (t * s + back) / len;
+                a.y = gh + 1e-4;
+                a.peak = gh;
+                a.from = ball.x;
+                a.plan = null;
+                if (!a.hop) planLanding();
+            } else {
+                // Stick: roll on with the speed along the ground (as dx/dt).
+                ball.air = null;
+                ball.grip = REGRIP;
+                ball.v = t / len * (dive ? AIR_DIVE : 1);
+            }
+        }
+
+        // Where the current flight will come down (same gravity and drag, ignoring sprints), for the camera to
+        // frame the landing ahead; null on the ground.
+        function landing() {
+            if (!ball.air) return null;
+            const pl = ball.air.plan;
+            if (!pl) return simulateLanding();
+            let top = ball.air.y;
+            for (let i = 1; i <= 24; i++) top = Math.max(top, pathAt(pl, pl.x0 + (pl.x1 - pl.x0) * i / 24).y);
+            return { x: pl.x1, top };
+        }
+
+        // The natural landing: the flight carried on with the same gravity and drag, no steering.
+        function simulateLanding() {
+            let x = ball.x;
+            let y = ball.air.y;
+            let vx = ball.v;
+            let vy = ball.air.vy;
+            const dt = STEP * 4;
+            let top = y;
+            for (let i = 0; i < 1200; i++) {
+                vy -= GRAVITY * AIR_GRAVITY * dt;
+                const d = 1 + friction * AIR_DRAG * Math.hypot(vx, vy) * dt;
+                vx /= d;
+                vy /= d;
+                x += vx * dt;
+                y += vy * dt;
+                top = Math.max(top, y);
+                if (y <= ground.height(x)) break;
+            }
+            return { x, top };
+        }
+
+        // Where a roll that stops here ends: its leg, how far along it (fraction and metres), and the rolling
+        // hills got over there.
+        function stopEvent() {
+            const leg = ground.legAt(ball.x);
+            const progress = ground.progress(ball.x);
+            return { type: 'end', skill: leg, leg, progress, metres: progress * ground.legLength(leg), hills: ground.hillsBefore(Math.min(ball.maxX, skillHill(leg).peak)) };
+        }
+
+        function step(seconds) {
+            const events = [];
+            if (!(seconds > 0)) return events;   // a NaN frame would poison `carry` for good
+            carry = Math.min(carry + seconds, 0.25);
+            while (carry >= STEP && !over) {
+                stepOnce(events);
+                carry -= STEP;
+            }
+            if (over) carry = 0;
+            return events;
+        }
+
+        // End the roll where it is (e.g. the ball is stuck and no push is affordable).
+        function end() {
+            if (over) return null;
+            over = true;
+            return crested
+                ? { type: 'end', skill: ground.last, leg: ground.last, progress: 1, metres: ground.legLength(ground.last), crested: true, hills: ground.hillsBefore(ground.goal.peak) }
+                : stopEvent();
+        }
+
+        // Banked sprints (a super crunch) land all at once, whatever the cooldown; no push is used.
+        function boost(strength) {
+            if (over || crested || !(strength > 0)) return false;
+            addEnergy(strength * strength);
+            ball.still = 0;
+            launched = true;
+            return true;
+        }
+
+        // A flow: `seconds` off the line at no less than `speed`; `shrink` (0–1) is a super flow's hill height
+        // and `narrow` (0–1) its width: the world shrinks around the ball in both directions.
+        function coast(seconds, speed, shrink = 0, narrow = 1, warp = 1) {
+            if (over || crested) return false;
+            Object.assign(flow, { left: seconds, speed, shrink, narrow: shrink ? narrow : 1, warp: Math.max(1, warp) });
+            ball.still = 0;
+            launched = true;
+            return true;
+        }
+
+        // A super breakthrough: the rolling hills in the next `reach` metres crumble flat. Returns them.
+        function smash(reach) {
+            if (over || crested) return [];
+            return reshape(ball.x, ball.x + reach, 0, 1, true);
+        }
+
+        return {
+            ground,
+            ball,
+            push,
+            boost,
+            coast,
+            smash,
+            step,
+            end,
+            // Lay the next leg past the last one (after an onward crest).
+            extend: () => ground.extend(),
+            // Hop (the first exploit, act one): the ball leaves the line with upward speed from its own speed (more
+            // off a rising slope), `power` 0–1 by how well it was timed. It falls naturally (no landing planner: that
+            // looks 2 m ahead, five act-one hills) and settles onto what it meets; a landing on a face carries its
+            // speed up the slope, so a hop just before a cliff lands high on it. Its ceiling is a share of the leg's
+            // skill hill and never that hill's top, so a hop can't clear a skill hill on its own.
+            hop(power = 1, keep = HOP_KEEP) {
+                const k = ground.legAt(ball.x);
+                if (over || ball.air || flow.left > 0 || k >= (opts.lateLeg ?? LATE_LEG)) return false;
+                const v = Math.max(0, ball.v);
+                const y0 = ground.height(ball.x);
+                const vy = (HOP_BASE + HOP_SPEED * v) * power + Math.max(0, ground.slope(ball.x)) * v;
+                const top = skillHeight(k) * wallMult(k);
+                ball.air = { y: y0, vy, peak: y0, from: ball.x, hop: true, keep, ceil: Math.min(y0 + HOP_CEIL * top, 0.92 * top) };
+                capClimb();
+                ball.trapped = false;
+                ball.still = 0;
+                launched = true;
+                return true;
+            },
+            // Throw the ball into the air (the debug fling), under the same ceiling as a take-off.
+            fly(vx, vy) {
+                if (over) return;
+                const y0 = ground.height(ball.x);
+                ball.air = { y: y0, vy, peak: y0, from: ball.x, ceil: y0 + maxAbove(ground.legAt(ball.x)) };
+                ball.v = vx;
+                capClimb();
+                planLanding();
+                launched = true;
+            },
+            // Seconds of flow left (0 when the ball is on the line).
+            get flowing() { return flow.left; },
+            get superFlow() { return flow.left > 0 && (flow.shrink > 0 || flow.warp > 1); },
+            get pushesLeft() { return pushesLeft; },
+            get tuck() { return tuck; },
+            set tuck(v) { tuck = !!v; },
+            get thrust() { return thrust; },
+            set thrust(v) { thrust = Math.max(0, +v || 0); },
+            set thrustFree(v) { thrustFree = !!v; },
+            // The jet is burning this step (held, fuel or free, and nothing in the way).
+            get thrusting() { return thrust > 0 && !over && !crested && flow.left <= 0 && (thrustFree || pushesLeft > 0); },
+            get launched() { return launched; },
+            get over() { return over; },
+            // Past the skill hill's peak (rollOut only): rolling down the far side, no more pushes.
+            get crested() { return crested; },
+            // Where the ball is now: its leg, and how far along it (0–1). Rolling back lowers it.
+            get leg() { return ground.legAt(ball.x); },
+            get progress() { return ground.progress(ball.x); },
+            get atRest() { return ball.still >= REST_SECONDS; },
+            // The ball no longer has the energy to clear the next hill: the moment a push matters most.
+            get trapped() { return ball.trapped; },
+            // In flight (late legs): the ball's height above the ground line's zero, else on the line.
+            get airborne() { return !!ball.air; },
+            // Vertical speed in flight (m/s, up is positive); 0 on the line.
+            get vy() { return ball.air ? ball.air.vy : 0; },
+            get landing() { return landing(); },
+            get height() { return ball.air ? ball.air.y : ground.height(ball.x); }
+        };
+    }
+
+    return {
+        STEP, GRAVITY, BUMPER, HOP_BASE, HOP_SPEED, HOP_CEIL, HOP_GRAVITY, HOP_KEEP, lengthScale, LEG_CHARACTERS, legCharacter, characterLength, HILL_SHAPES, TUCK_GRAVITY, AIR_DIVE, TOKEN_PULL, BURN_SECONDS, THRUST_LIFT, features, KICKERS, KICK_SLOPE, bumpAt, bumpSlope,
+        LATE_LEG, legPos, maxAbove, checkpoint, skillHill, skillHeight, WALL_EVERY, WALL_HEIGHT, AFTER_WALL, isWallLeg, wallMult, rollingHills, terrain, createRoll, rng, STRIP_PUSH, STRIP_BRAKE
+    };
+});

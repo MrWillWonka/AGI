@@ -1,0 +1,48 @@
+{
+ "marks": {
+  "firstClick": {
+   "wall": 9.6,
+   "play": 8.802999999999995
+  },
+  "firstPurchase(desk)": {
+   "wall": 12.6,
+   "play": 11.90099999999999
+  },
+  "deskDone": {
+   "wall": 38.4,
+   "play": 37.70000000000015
+  },
+  "firstAutomation(GraphicsCard)": {
+   "wall": 41.4,
+   "play": 40.700000000000166
+  },
+  "collectOpen": {
+   "wall": 61,
+   "play": 60.30000000000031
+  },
+  "firstCollect": {
+   "wall": 68.6,
+   "play": 67.90000000000018
+  }
+ },
+ "clicks": 2223,
+ "errorClicks": 0,
+ "errLog": [],
+ "errs": [],
+ "final": {
+  "clicks": 1212,
+  "collects": 990,
+  "rolls": 0,
+  "learned": 0,
+  "kb": 5,
+  "cpu": 10,
+  "collectOpen": true,
+  "server": false,
+  "cp": 1.9975000000000485,
+  "dp": 990,
+  "xp": 0,
+  "inbox": false,
+  "play": 1445.399999999807,
+  "room": "lab"
+ }
+}

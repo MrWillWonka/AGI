@@ -1,286 +1,3300 @@
-/* Essential Styles for AGI Game */
-
+/* The Path to AGI — "night survey" theme.
+   Layout: slim instrument bar on top; the Training Path is the hero on the left; upgrades on the right.
+   A deliberate single dark theme (it is a game screen), so colours are set once on :root. */
 :root {
-    /* Base colors */
-    --primary-color: #3a86ff;
-    --secondary-color: #5e60ce;
-    --tertiary-color: #7400b8;
-    --dark-color: #151525;
-    --panel-bg: #1a1a2e;
-    --panel-border: #2a2a40;
-    --light-color: #f8f9fa;
-    --success-color: #4cc9f0;
-    --warning-color: #ffd166;
-    --danger-color: #ef476f;
-    --text-muted: #a0a0c0;
+    --bg: #0a1416;
+    --bg-2: #0e1b1e;
+    --panel: #102024;
+    --panel-2: #152a2f;
+    --border: #21393f;
+    --text: #e4eee9;
+    --muted: #8fa9a2;   /* 4.5:1 on panels (round B: #86a19a read 4.4:1) */
+    --primary: #6fb3d9;   /* data, focus */
+    --secondary: #2f7f86; /* terrain */
+    --accent: #ff7a6b;    /* record flag, special log lines */
+    --success: #63e0ab;   /* covered ground, learned skills */
+    --warning: #ffb547;   /* the ball, skill hills, primary action */
+    --danger: #ff5d5d;
+    --terminal: #63e0ab;      /* the software terminal's screen */
+    --terminal-hi: #9ff0c9;
+    --terminal-dim: #5f9c80;
+    --research: #c792ea;      /* research: the wall, its supply cell, legacy */
+    --research-deep: #7a4fa6;
+    --owned: var(--success);  /* what you've bought (the skill tree): set apart from what you can buy (--warning) */
+    --font-display: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
+    --font-body: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+    --radius: 14px;
+    color-scheme: dark;
 }
 
-/* Base styles */
+*, *::before, *::after { box-sizing: border-box; }
+
+[hidden] { display: none !important; }
+
+html, body { min-height: 100%; }
+/* The static shell paints before the deferred scripts build it (every panel showing, the lab's grid not laid
+   out), then jumps into place: a layout shift of 0.25-0.95 on loading a saved game. It stays invisible until
+   game.js has rendered once (html.booted), with a CSS-only fallback after 4 s in case a script never runs. */
+html:not(.booted) body > * { visibility: hidden; animation: boot-fallback 0s 4s forwards; }
+@keyframes boot-fallback { to { visibility: visible; } }
+
 body {
     margin: 0;
-    padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: var(--dark-color);
-    color: var(--light-color);
-    line-height: 1.6;
+    font: 15px/1.5 var(--font-body);
+    color: var(--text);
+    background:
+        radial-gradient(1200px 600px at 20% -10%, color-mix(in srgb, var(--secondary) 22%, transparent), transparent 60%),
+        radial-gradient(900px 500px at 110% 110%, color-mix(in srgb, var(--warning) 7%, transparent), transparent 60%),
+        var(--bg);
+    background-attachment: fixed;
 }
 
-.container {
-    max-width: 1200px;
+/* Faint contour lines behind everything, like a survey sheet. */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.35;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600' viewBox='0 0 600 600'%3E%3Cg fill='none' stroke='%2321393f' stroke-width='1'%3E%3Cpath d='M-20 420 C 80 360 160 470 280 400 S 480 300 620 380'/%3E%3Cpath d='M-20 450 C 90 390 170 500 290 430 S 490 330 620 410'/%3E%3Cpath d='M-20 480 C 100 420 180 530 300 460 S 500 360 620 440'/%3E%3Cpath d='M-20 140 C 60 90 180 200 300 130 S 470 40 620 120'/%3E%3Cpath d='M-20 170 C 70 120 190 230 310 160 S 480 70 620 150'/%3E%3Cellipse cx='450' cy='250' rx='60' ry='30'/%3E%3Cellipse cx='450' cy='250' rx='95' ry='50'/%3E%3Cellipse cx='450' cy='250' rx='135' ry='72'/%3E%3Cellipse cx='120' cy='300' rx='40' ry='22'/%3E%3Cellipse cx='120' cy='300' rx='75' ry='40'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+h1, h2, h3, p { margin: 0; }
+
+.muted { color: var(--muted); }
+.small { font-size: 0.85rem; }
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+:focus-visible { outline: 2px solid var(--warning); outline-offset: 2px; }
+
+/* ---- Top bar ---- */
+
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+}
+
+.topbar-inner {
+    margin: 0 auto;
+    padding: 10px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 18px;
+}
+
+.brand {
+    font: 700 1.05rem/1 var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+}
+
+/* Logo: a ball on a hill. */
+.brand::before {
+    content: "";
+    width: 26px;
+    height: 18px;
+    background:
+        radial-gradient(circle at 15px 5px, var(--warning) 0 4px, transparent 4.5px),
+        radial-gradient(ellipse 13px 13px at 13px 18px, var(--success) 0 12px, transparent 12.5px);
+}
+
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    font: 500 0.85rem var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.chip-label {
+    font: 700 0.68rem var(--font-display);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.chip small { color: var(--success); font-size: 0.72rem; }
+.chip small:empty { display: none; }
+.chip-xp { border-color: color-mix(in srgb, var(--warning) 45%, transparent); }
+.chip-xp .chip-label { color: var(--warning); }
+.chips-attr .chip { background: transparent; }
+
+.phase {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 200px;
+    flex: 1 1 200px;
+}
+
+.phase-name {
+    font: 600 0.85rem var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--primary);
+    white-space: nowrap;
+}
+
+.progress {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--panel-2);
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--primary), var(--success));
+    transition: width 0.4s ease;
+}
+
+.topbar-buttons { display: flex; gap: 6px; margin-left: auto; }
+/* Developer tools: a small, quiet icon by the Journal (a tap opens or closes the debug panel). */
+.debug-toggle { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid transparent;
+    border-radius: 8px; background: none; color: var(--muted); opacity: 0.55; cursor: pointer; align-self: center; }
+.debug-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.debug-toggle.on { opacity: 1; color: var(--primary); border-color: var(--border); }
+.debug-toggle:focus-visible { opacity: 1; outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* ---- Layout ---- */
+
+.layout {
+    /* Full width at every size: the screen is the game. */
     margin: 0 auto;
     padding: 20px;
-    display: grid;
-    grid-template-columns: 1fr 2fr 1fr;
-    gap: 20px;
-}
-
-/* Panel styles */
-.panel {
-    background-color: var(--panel-bg);
-    border: 1px solid var(--panel-border);
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
-}
-
-.panel h2 {
-    margin-top: 0;
-    color: var(--primary-color);
-    border-bottom: 1px solid var(--panel-border);
-    padding-bottom: 10px;
-}
-
-/* Resource styles */
-.resource {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px;
-    margin-bottom: 10px;
-    background-color: rgba(0, 0, 0, 0.2);
-    border-radius: 4px;
+    flex-direction: column;
+    gap: 14px;
 }
 
-.resource-name {
-    font-weight: bold;
-    color: var(--primary-color);
+/* Rooms: one screen at a time. The server room fills the window; the lab is two columns. */
+.room { min-width: 0; position: relative; }   /* its HUD corner marks (.hud::after, inset -1px) anchor here, not to the page (R&D's poked 2 px out at 4K) */
+.room[hidden] { display: none; }
+
+.room-servers { display: flex; flex-direction: column; }
+.room-servers .viewport { min-height: calc(100dvh / var(--zoom) - 200px); }
+
+
+/* Stage: the facility and the rooms share one grid cell, so a zoom can show both at once. */
+.stage { display: grid; min-width: 0; }
+.stage > * { grid-area: 1 / 1; }
+
+
+.back-button.ping { border-color: var(--success); color: var(--success); animation: node-ready 1.8s ease-in-out infinite; }
+
+/* ---- Facility (the zoomed-out floor plan) ---- */
+
+.facility {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: calc(100dvh / var(--zoom) - 150px);
+    padding: 18px;
+    border: 1px solid var(--border);
+    background:
+        linear-gradient(color-mix(in srgb, var(--primary) 5%, transparent) 1px, transparent 1px) 0 0 / 28px 28px,
+        linear-gradient(90deg, color-mix(in srgb, var(--primary) 5%, transparent) 1px, transparent 1px) 0 0 / 28px 28px,
+        var(--bg);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), inset 0 0 80px rgba(0, 0, 0, 0.6);
 }
 
-.resource-value {
-    font-family: 'Courier New', monospace;
-    font-size: 1.1em;
-}
+.facility[hidden] { display: none; }
+.facility-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.facility-head h2 { font: 700 0.95rem var(--font-display); text-transform: uppercase; letter-spacing: 0.14em; }
 
-/* Button styles */
-.button {
-    background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
+.facility-plan {
+    flex: 1;
+    display: grid;
+    /* Laid out like the minimap's chip: wings across the top, the lab left, the server room tall
+       on the right, R&D along the bottom. Areas not yet drawn leave bare die. */
+    position: relative;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: minmax(110px, 0.7fr) minmax(170px, 1.2fr) minmax(140px, 1fr);
+    grid-template-areas: "brd sig mir" "lab lab srv" "rnd rnd srv";
+    gap: 12px;
+    margin: 14px;
+    padding: 16px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    background:
+        linear-gradient(transparent calc(50% - 0.5px), color-mix(in srgb, var(--success) 18%, transparent) 50%, transparent calc(50% + 0.5px)),
+        linear-gradient(90deg, transparent calc(50% - 0.5px), color-mix(in srgb, var(--success) 18%, transparent) 50%, transparent calc(50% + 0.5px)),
+        var(--bg-2);
+    box-shadow: inset 0 0 0 4px var(--bg), 0 0 40px rgba(0, 0, 0, 0.5);
+}
+.fr-boardroom { grid-area: brd; }
+.fr-signals { grid-area: sig; }
+.fr-mirror { grid-area: mir; }
+.fr-lab { grid-area: lab; }
+.fr-servers { grid-area: srv; }
+.fr-rnd { grid-area: rnd; }
+/* Pins round the die. */
+.die-pins { position: absolute; pointer-events: none; }
+.die-pins.top, .die-pins.bottom { left: 8%; right: 8%; height: 12px; background: repeating-linear-gradient(90deg, #3a5a60 0 6px, transparent 6px 26px); }
+.die-pins.top { top: -16px; }
+.die-pins.bottom { bottom: -16px; }
+.die-pins.left, .die-pins.right { top: 8%; bottom: 8%; width: 12px; background: repeating-linear-gradient(180deg, #3a5a60 0 6px, transparent 6px 26px); }
+.die-pins.left { left: -16px; }
+.die-pins.right { right: -16px; }
+
+
+.facility-room {
+    position: relative;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    min-width: 0;
+    padding: 0;
+    text-align: left;
+    color: var(--text);
+    background: linear-gradient(180deg, var(--panel), var(--bg-2));
+    border: 1px solid var(--border);
+    border-radius: 3px;
     cursor: pointer;
-    font-size: 1em;
-    transition: transform 0.1s, opacity 0.2s;
+    overflow: hidden;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
-.button:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
+@media (hover: hover) { .facility-room:hover:not(.locked):not(.building) { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary), 0 0 30px color-mix(in srgb, var(--primary) 15%, transparent); } }
+.facility-room:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.facility-room.locked, .facility-room.building { cursor: default; background: repeating-linear-gradient(135deg, var(--bg) 0 10px, var(--bg) 10px 20px); border-style: dashed; }
+.facility-room.locked .fr-art, .facility-room.building .fr-art { opacity: 0.15; }
+.facility-room.locked .fr-name { color: var(--muted); }
+.facility-room.building .fr-status { color: var(--warning); }
+
+.fr-info { display: flex; flex-direction: column; gap: 1px; padding: 10px 12px 12px; background: linear-gradient(0deg, color-mix(in srgb, var(--bg) 90%, transparent), transparent); }
+.fr-name { font: 700 0.85rem var(--font-display); text-transform: uppercase; letter-spacing: 0.12em; }
+.fr-blurb { font-size: 0.78rem; color: var(--muted); }
+.fr-status { font: 0.76rem var(--font-mono); color: var(--success); }
+.facility-room.locked .fr-status { color: var(--muted); }
+
+.fr-new {
+    display: none;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font: 700 0.66rem var(--font-display);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--bg);
+    background: var(--success);
+}
+.facility-room.fresh .fr-new { display: block; }
+.facility-room.fresh { border-color: var(--success); }
+/* A room that just opened flashes three times the first time you look at Surveillance. */
+.facility-room.unsealed { animation: room-unseal 0.9s ease-in-out 3; }
+@keyframes room-unseal { 50% { border-color: var(--success); box-shadow: 0 0 0 2px var(--success), 0 0 40px color-mix(in srgb, var(--success) 45%, transparent); background-color: color-mix(in srgb, var(--success) 8%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .facility-room.unsealed { animation: none; } }
+
+/* Tiny top-down furniture per room. */
+.fr-art { position: relative; display: grid; gap: 8px; padding: 14px; min-height: 0; }
+.fr-art i { display: block; border-radius: 2px; }
+.fr-art-lab { grid-template-columns: repeat(3, 1fr); align-content: center; }
+.fr-art-lab i { height: 22px; background: var(--border); box-shadow: inset 0 -4px 0 var(--border); }
+.fr-art-lab i:nth-child(odd) { background: var(--border); box-shadow: inset 0 -4px 0 color-mix(in srgb, var(--success) 35%, transparent); }
+.fr-art-servers { grid-template-columns: repeat(6, 1fr); }
+.fr-art-servers i {
+    background: repeating-linear-gradient(180deg, var(--bg-2) 0 6px, var(--panel) 6px 8px);
+    border: 1px solid var(--border);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+    animation: rack-blink 2.4s steps(2) infinite;
+}
+.fr-art-servers i:nth-child(2n) { animation-delay: 0.6s; }
+.fr-art-servers i:nth-child(3n) { animation-delay: 1.3s; }
+@keyframes rack-blink { 50% { box-shadow: inset 0 3px 0 color-mix(in srgb, var(--success) 50%, transparent); } }
+.fr-art-boardroom { grid-template-columns: 1fr; place-items: center; }
+.fr-art-boardroom i:first-child { width: 70%; height: 30px; border-radius: 15px; background: var(--panel-2); }
+.fr-art-boardroom i:not(:first-child) { display: none; }
+.fr-art-signals { grid-template-columns: repeat(3, 1fr); align-content: center; }
+.fr-art-signals i { aspect-ratio: 1; border-radius: 50%; border: 2px solid var(--border); }
+.fr-art-signals i:nth-child(n+4) { display: none; }
+.fr-art-mirror { grid-template-columns: 1fr; place-items: center; }
+.fr-art-mirror i:first-child { width: 36px; height: 36px; transform: rotate(45deg); border: 2px solid var(--border); }
+.fr-art-mirror i:not(:first-child) { display: none; }
+
+@media (max-width: 640px) {
+    .facility { padding: 12px; }
+    .facility-plan { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: minmax(130px, auto); }
+    .fr-art { padding: 10px; }
 }
 
-.button:active {
-    transform: translateY(1px);
+@media (prefers-reduced-motion: reduce) {
+    .fr-art-servers i, .back-button.ping { animation: none; }
 }
 
-.button:disabled {
-    opacity: 0.5;
+.result-actions { display: flex; gap: 8px; margin-top: 10px; }
+.result-actions button { flex: 1; padding: 8px 10px; }
+
+.panel-auto input[type="range"] { width: 100%; accent-color: var(--primary); }
+.auto-value { font: 700 1rem var(--font-mono); color: var(--primary); }
+
+@media (max-width: 960px) {
+    .layout { padding: 14px; }
+    .room-servers .viewport { min-height: calc(100dvh / var(--zoom) - 240px); }
+    .topbar-inner { padding: 10px 14px; }
+    .phase { order: 10; flex-basis: 100%; }
+}
+
+.panel {
+    position: relative;
+    background: linear-gradient(180deg, var(--panel), var(--bg-2));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.panel h2, .journal h2 {
+    font: 700 0.9rem var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+}
+
+.panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+/* "Next goal" line, marked with a survey flag. */
+.goal {
+    font-size: 0.95rem;
+    color: var(--muted);
+    padding-left: 22px;
+    position: relative;
+}
+
+.goal::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 0.2em;
+    width: 2px;
+    height: 1em;
+    background: var(--accent);
+}
+
+.goal::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 0.2em;
+    border-left: 9px solid var(--accent);
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+}
+
+.goal:empty { display: none; }
+
+/* ---- Buttons ---- */
+
+.button {
+    font: 700 0.95rem var(--font-display);
+    letter-spacing: 0.04em;
+    color: #1b1203;
+    background: linear-gradient(180deg, #ffc76b, var(--warning));
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--warning) 25%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    transition: transform 0.08s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+@media (hover: hover) { .button:hover:not(:disabled):not([aria-disabled="true"]) { filter: brightness(1.06); box-shadow: 0 8px 24px color-mix(in srgb, var(--warning) 35%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35); } }
+.button:active:not(:disabled):not([aria-disabled="true"]) { transform: translateY(1px) scale(0.99); }
+
+.button:disabled, .push-button[aria-disabled="true"], .upgrade-button[aria-disabled="true"] {
     cursor: not-allowed;
+    color: var(--muted);
+    background: var(--panel-2);
+    box-shadow: none;
 }
 
-/* Upgrade styles */
-.upgrade {
-    background-color: rgba(0, 0, 0, 0.2);
-    padding: 15px;
-    margin-bottom: 10px;
-    border-radius: 4px;
-    border: 1px solid var(--panel-border);
+.ghost-button {
+    font: 600 0.82rem var(--font-display);
+    letter-spacing: 0.05em;
+    color: var(--text);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
 }
 
-.upgrade:hover {
-    background-color: rgba(0, 0, 0, 0.3);
+/* A ghost button that can't be used says so: R&D's perk Buys and the challenges' Ship into it carried
+   `disabled` with nothing to spend but drew exactly like the live ones (same text colour, full opacity). */
+.ghost-button:disabled { color: var(--muted); border-color: color-mix(in srgb, var(--border) 70%, transparent); opacity: 0.6; cursor: not-allowed; }
+@media (hover: hover) { .ghost-button:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); } }
+@media (hover: hover) { .ghost-button.danger:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); } }
+
+.button-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.playtest-toggle { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+
+.button-prestige {
+    background: linear-gradient(180deg, #ff9b8f, var(--accent));
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 30%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
-/* Tab styles */
+.button-danger { background: linear-gradient(180deg, #ff8a7a, var(--danger)); color: #210404; }
+
+/* ---- HUD corner brackets ---- */
+
+.hud { border-radius: 6px; }
+
+.hud::after {
+    --c: color-mix(in srgb, var(--success) 75%, transparent);
+    content: "";
+    position: absolute;
+    inset: -1px;
+    pointer-events: none;
+    background:
+        linear-gradient(var(--c), var(--c)) top left / 18px 2px no-repeat,
+        linear-gradient(var(--c), var(--c)) top left / 2px 18px no-repeat,
+        linear-gradient(var(--c), var(--c)) top right / 18px 2px no-repeat,
+        linear-gradient(var(--c), var(--c)) top right / 2px 18px no-repeat,
+        linear-gradient(var(--c), var(--c)) bottom left / 18px 2px no-repeat,
+        linear-gradient(var(--c), var(--c)) bottom left / 2px 18px no-repeat,
+        linear-gradient(var(--c), var(--c)) bottom right / 18px 2px no-repeat,
+        linear-gradient(var(--c), var(--c)) bottom right / 2px 18px no-repeat;
+}
+
+/* ---- Server room ---- */
+
+.viewport {
+    position: relative;
+    display: grid;
+    min-height: 500px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.35), transparent 30%, rgba(0, 0, 0, 0.45)),
+        repeating-linear-gradient(90deg, var(--bg-2) 0 118px, var(--bg) 118px 120px),
+        var(--bg);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), inset 0 0 80px rgba(0, 0, 0, 0.6);
+}
+
+.hub, .module-view { grid-area: 1 / 1; min-width: 0; }
+
+.hub {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+    padding: 34px 28px 22px;
+}
+
+/* Coolant pipes running down the back wall. */
+.hub-pipes { position: absolute; inset: 0; pointer-events: none; }
+
+.hub-pipes span {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 14px;
+    background: linear-gradient(90deg, var(--panel), var(--border) 45%, var(--panel));
+    box-shadow: 0 0 20px color-mix(in srgb, var(--primary) 8%, transparent);
+    opacity: 0.8;
+}
+
+.hub-pipes span:nth-child(1) { left: 6%; }
+.hub-pipes span:nth-child(2) { left: 9%; width: 8px; opacity: 0.5; }
+.hub-pipes span:nth-child(3) { right: 7%; }
+.hub-pipes span:nth-child(4) { right: 22%; width: 6px; opacity: 0.4; }
+
+.hub-caption {
+    position: relative;
+    text-align: center;
+    font: 600 0.72rem var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+}
+
+.bay {
+    position: relative;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    min-height: 150px;
+    padding: 0;
+    text-align: left;
+    color: var(--text);
+    font: inherit;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+@media (hover: hover) { .bay:hover:not(.locked) {
+    border-color: color-mix(in srgb, var(--success) 60%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--success) 25%, transparent), 0 0 30px color-mix(in srgb, var(--success) 12%, transparent);
+    transform: translateY(-1px);
+} }
+
+/* Status LEDs. */
+.bay::before {
+    content: "";
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: -8px 0 0 var(--success), -16px 0 0 var(--warning), 0 0 6px var(--success);
+    animation: led-blink 1.6s steps(2, jump-none) infinite;
+    z-index: 1;
+}
+
+@keyframes led-blink {
+    50% { opacity: 0.35; }
+}
+
+/* A built bay you haven't entered: a New badge and a pulsing ring, so the first trip into training goes through it. */
+.bay.fresh { outline: 2px solid var(--success); outline-offset: 3px; animation: bay-fresh 1.6s ease-in-out infinite; }
+.bay.fresh::after {
+    content: 'New';
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 3;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font: 700 0.62rem var(--font-mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--bg);
+    background: var(--success);
+}
+@keyframes bay-fresh { 50% { box-shadow: 0 0 22px color-mix(in srgb, var(--success) 45%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .bay.fresh { animation: none; } }
+
+.bay-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 14px 12px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 0%, transparent), var(--bg) 35%);
+}
+
+.bay-name { font: 700 0.95rem var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; }
+.bay-status { font: 0.76rem var(--font-mono); color: var(--muted); }
+
+.bay-meter { display: block; height: 3px; margin-top: 4px; background: var(--panel-2); border-radius: 2px; overflow: hidden; }
+.bay-meter-fill { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.4s ease; }
+
+.bay.locked { cursor: not-allowed; }
+.bay.locked::before { background: #3b2020; box-shadow: -8px 0 0 #3b2020, -16px 0 0 #3b2020; animation: none; }
+.bay.locked .bay-name { color: var(--muted); }
+.bay.offline::before { background: var(--warning); box-shadow: -8px 0 0 #3b3220, -16px 0 0 #3b3220, 0 0 6px var(--warning); }
+
+
+/* ---- Module view (a bay, zoomed in) ---- */
+
+.module-view {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    background: linear-gradient(180deg, var(--bg-2), var(--bg));
+}
+
+.module-bar { display: flex; align-items: center; gap: 14px; }
+.module-bar h2 { font: 700 0.95rem var(--font-display); text-transform: uppercase; letter-spacing: 0.12em; }
+.module-bar .crumbs { flex: 1; }
+.module { display: flex; flex-direction: column; gap: 12px; }
+
+.module-soon {
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 300px;
+}
+
+.soon-title { font: 700 1.1rem var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--warning); }
+
+@media (max-width: 640px) {
+    .hub { padding: 20px 12px 14px; }
+    .bay { min-height: 96px; }
+    .bay-name { font-size: 0.7rem; letter-spacing: 0.04em; overflow-wrap: anywhere; }
+    .bay-info { padding: 8px 10px 10px; }
+    .viewport { min-height: 0; }
+}
+
+/* ---- Training dev screen & skill tree ---- */
+
+.dev-view { display: flex; flex-direction: column; gap: 14px; }
+
+.dev-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: stretch;
+}
+
+.run-summary {
+    padding: 14px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 70%, transparent);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.run-summary .result-lines { max-width: 380px; }
+.summary-progress { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; max-width: 380px; }
+
+.dev-actions { display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 10px; min-width: 210px; }
+.dev-xp { text-align: center; font: 700 1.4rem var(--font-mono); color: var(--warning); }
+.dev-xp .chip-label { display: block; margin-bottom: 2px; }
+.start-run { padding: 14px 20px; font-size: 1.05rem; }
+
+.tree-area {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    gap: 14px;
+    align-items: stretch;
+}
+
+/* The tree is a square-ish grid of cells; nodes sit at cell centres, links are an SVG underneath. */
+.tree {
+    /* A point at the centre of the view: nodes sit at fixed cells around it (game.js placeNode), and
+       the camera moves this point. Nothing is laid out from the tree's size, so nothing shifts. */
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0;
+    height: 0;
+}
+.tree::before {
+    content: "";
+    position: absolute;
+    left: -260px;
+    top: -260px;
+    width: 520px;
+    height: 520px;
+    background: radial-gradient(circle, color-mix(in srgb, var(--success) 8%, transparent), transparent 60%);
+    pointer-events: none;
+}
+
+.tree-links { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; }
+.tree-links line { stroke-width: 3; stroke-linecap: round; }
+.tree-links .link-owned { stroke: var(--owned); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--owned) 80%, transparent)); }
+.tree-links .link-open { stroke: #4a6a70; stroke-dasharray: 5 5; }
+.tree-links .link-locked { stroke: color-mix(in srgb, var(--danger) 35%, transparent); }
+
+.tree-node {
+    position: absolute;
+    width: calc(var(--cell) * 0.5);
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+}
+
+.tree-node {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    color: var(--text);
+    background: linear-gradient(180deg, var(--border), var(--panel));
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.25), 0 6px 14px rgba(0, 0, 0, 0.4);
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, left 0.3s ease, top 0.3s ease;
+}
+
+.tree-node[hidden] { display: none; }
+
+@media (hover: hover) { .tree-node:hover { transform: translate(-50%, -50%) scale(1.06); } }
+
+.tree-icon svg, .tree-lock svg { width: 52%; height: auto; display: block; margin: auto; }
+.tree-icon, .tree-lock { grid-area: 1 / 1; width: 100%; }
+.tree-lock { display: none; }
+
+.tree-level {
+    position: absolute;
+    bottom: -9px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0 6px;
+    border-radius: 999px;
+    font: 700 0.62rem var(--font-mono);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.tree-level:empty { display: none; }
+
+.tree-node.owned, .tree-node.maxed {
+    border-color: var(--owned);
+    background: linear-gradient(180deg, var(--border), var(--panel-2));
+    box-shadow: 0 0 16px color-mix(in srgb, var(--owned) 35%, transparent), inset 0 0 0 3px rgba(0, 0, 0, 0.2);
+}
+
+.tree-node.maxed .tree-level { color: var(--owned); border-color: var(--owned); }
+
+.tree-node.can-buy { border-color: var(--warning); animation: node-ready 1.8s ease-in-out infinite; }
+.tree-node.can-buy .tree-icon { color: var(--warning); }
+
+@keyframes node-ready {
+    50% { box-shadow: 0 0 18px color-mix(in srgb, var(--warning) 45%, transparent), inset 0 0 0 3px rgba(0, 0, 0, 0.2); }
+}
+
+.tree-node.locked {
+    border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+    background: linear-gradient(180deg, #2a1618, #1a0f11);
+    color: rgba(255, 140, 140, 0.8);
+}
+
+.tree-node.locked .tree-icon { display: none; }
+.tree-node.locked .tree-lock { display: block; }
+
+.tree-node.selected { outline: 2px solid var(--primary); outline-offset: 4px; }
+
+/* Mechanic nodes (a new way to play: `mechanic` in engine.js) are hexagons, so they stand out from stat nodes.
+   The shape is two clipped layers (edge, then fill) behind the icon, so the level badge isn't clipped and the
+   states below only swap two colours. */
+.tree-node.mechanic {
+    --edge: var(--border);
+    --fill: linear-gradient(180deg, var(--border), var(--panel));
+    background: none;
+    border-color: transparent;
+    box-shadow: none;
+    border-radius: 0;
+}
+.tree-node.mechanic::before, .tree-node.mechanic::after {
+    content: '';
+    position: absolute;
+    clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%);
+    pointer-events: none;
+}
+.tree-node.mechanic::before { inset: -4px; background: var(--edge); }
+.tree-node.mechanic::after { inset: -1px; background: var(--fill); }
+.tree-node.mechanic .tree-icon, .tree-node.mechanic .tree-lock, .tree-node.mechanic .tree-level { position: relative; z-index: 1; }
+.tree-node.mechanic .tree-level { position: absolute; }
+.tree-node.mechanic.owned, .tree-node.mechanic.maxed { --edge: var(--owned); --fill: linear-gradient(180deg, var(--border), var(--panel-2)); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--owned) 35%, transparent)); }
+.tree-node.mechanic.can-buy { --edge: var(--warning); animation: none; filter: drop-shadow(0 0 9px color-mix(in srgb, var(--warning) 45%, transparent)); }
+.tree-node.mechanic.locked { --edge: color-mix(in srgb, var(--danger) 55%, transparent); --fill: linear-gradient(180deg, #2a1618, #1a0f11); }
+.tree-node.mechanic.selected { outline: none; --edge: var(--primary); }
+
+
+
+
+.tree-branch {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+    font: 0.66rem var(--font-body);
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.tree-branch strong { font: 700 0.78rem var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--primary); }
+.tree-branch span { display: none; }
+/* A tag on a backing, above the nodes: they pass under it as you pan (bare text collided with them). */
+.tree-branch { z-index: 3; pointer-events: none; padding: 3px 12px; border-radius: 999px; background: color-mix(in srgb, var(--bg) 88%, transparent); border: 1px solid var(--border); }
+.tree-branch-up { top: 8px; left: 50%; transform: translateX(-50%); }
+.tree-branch-down { bottom: 8px; left: 50%; transform: translateX(-50%); }
+.tree-branch-left { left: 18px; top: 50%; transform: translate(-50%, -50%) rotate(-90deg); }
+.tree-branch-right { right: 18px; top: 50%; transform: translate(50%, -50%) rotate(90deg); }
+
+.node-detail {
+    padding: 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 70%, transparent);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+}
+
+.detail-head { display: flex; gap: 10px; align-items: center; }
+.detail-head h3 { font: 700 1rem var(--font-display); }
+.detail-icon { width: 38px; height: 38px; flex: none; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 8px; color: var(--warning); }
+.detail-icon svg { width: 22px; }
+.detail-effect { font-size: 0.92rem; }
+.detail-lock { color: var(--danger); font-size: 0.85rem; }
+.detail-maxed { color: var(--success); font-weight: 700; }
+.detail-buy { width: 100%; }
+
+@media (max-width: 760px) {
+    .dev-top, .tree-area { grid-template-columns: minmax(0, 1fr); }
+    .node-detail { position: static; }
+    .dev-actions { min-width: 0; }
+}
+
+/* ---- Training Path ---- */
+
+.path-canvas {
+    display: block;
+    width: 100%;
+    height: 300px;
+    border-radius: 10px;
+    background: linear-gradient(180deg, var(--bg), var(--bg-2));
+    border: 1px solid var(--border);
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.path-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+}
+
+
+.push-button {
+    min-width: 230px;
+    padding: 13px 22px;
+    font-size: 1.05rem;
+    touch-action: none;
+}
+
+/* Overlays on the trail: live XP while rolling, and the result card when a roll ends. */
+.canvas-wrap { position: relative; flex: 1; min-height: 260px; }
+.canvas-wrap .path-canvas { position: absolute; left: 0; top: 0; }
+
+.live-xp {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bg) 80%, transparent);
+    border: 1px solid var(--border);
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.live-xp-value { font: 700 1.05rem var(--font-mono); color: var(--warning); font-variant-numeric: tabular-nums; }
+.live-xp-mult { font: 700 0.78rem var(--font-mono); color: var(--success); }
+.live-xp-mult:empty { display: none; }
+.live-xp-label { font-size: 0.74rem; color: var(--muted); }
+
+.roll-result {
+    /* Centred over the trail (launching the next run fades it). */
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    height: fit-content;
+    max-height: calc(100% - 24px);
+    overflow: auto;
+    width: min(440px, calc(100% - 40px));
+    padding: 18px 22px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--bg) 95%, transparent);
+    border: 1px solid var(--border);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+    cursor: default;
+    animation: result-in 0.25s ease-out;
+}
+
+.roll-result.skill { border-color: color-mix(in srgb, var(--success) 60%, transparent); box-shadow: 0 0 40px color-mix(in srgb, var(--success) 20%, transparent), 0 18px 40px rgba(0, 0, 0, 0.55); }
+
+@keyframes result-in {
+    from { opacity: 0; transform: translateY(-8px); }
+}
+
+.result-title { font: 700 0.84rem var(--font-display); text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); }
+.roll-result.skill .result-title { color: var(--success); }
+.result-main { margin-top: 4px; font: 700 1.3rem var(--font-display); }
+.result-xp { margin-top: 8px; font: 700 1.9rem var(--font-mono); color: var(--warning); }
+.result-lines { margin: 10px 0 0; padding: 0; list-style: none; font: 0.88rem var(--font-mono); color: var(--muted); display: grid; gap: 2px; }
+.result-lines li { display: flex; justify-content: space-between; gap: 12px; }
+.result-lines .good { color: var(--success); }
+.result-lines .bad { color: var(--danger); }
+
+/* Exploits (game.js "Exploits"): the second verb beside Sprint, in the glitch's colours: the research violet on a
+   terminal-dark face, its charges and flags on a small second line. */
+.exploit-button { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 96px;
+    font-family: var(--font-display); letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--research); background: color-mix(in srgb, var(--research) 12%, var(--bg)); border: 1px solid color-mix(in srgb, var(--research) 55%, transparent); }
+.exploit-button .exploit-name { font-weight: 700; }
+.exploit-button .exploit-meta { font: 0.68rem var(--font-mono); letter-spacing: 0; text-transform: none; color: var(--muted); }
+.exploit-button[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+.exploit-button.flagged .exploit-meta { color: var(--danger); }
+.exploit-button.armed { box-shadow: 0 0 0 1px var(--research), 0 0 14px color-mix(in srgb, var(--research) 45%, transparent); }
+.exploit-button.aiming { background: color-mix(in srgb, var(--research) 28%, var(--bg)); touch-action: none; }
+.exploit-button { touch-action: none; -webkit-touch-callout: none; }
+@media (hover: hover) { .exploit-button:not([aria-disabled="true"]):hover { background: color-mix(in srgb, var(--research) 22%, var(--bg)); } }
+.result-details { margin-top: 4px; font: 0.8rem var(--font-mono); color: var(--muted); }
+.result-details summary { cursor: pointer; width: max-content; padding: 2px 0; color: var(--primary); list-style: none; }
+.result-details summary::-webkit-details-marker { display: none; }
+.result-details summary::before { content: '▸ '; }
+.result-details[open] summary::before { content: '▾ '; }
+.result-details .result-lines { margin-top: 2px; }
+.result-badge { display: inline-block; margin-top: 8px; padding: 2px 8px; border-radius: 999px; font: 700 0.7rem var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.result-hint { margin-top: 10px; font-size: 0.72rem; color: var(--muted); }
+
+/* Strength meter: sweeps while the button is held; the bright band is the bonus zone. */
+.charge { flex: 1 1 240px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* Waiting for the cooldown (or a breakthrough's wind-up): the meter greys out and won't charge. */
+.charge.waiting .charge-track { filter: grayscale(1); opacity: 0.45; transition: opacity 0.15s ease, filter 0.15s ease; }
+
+.charge-track {
+    position: relative;
+    height: 16px;
+    border-radius: 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+
+.charge-zone {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: color-mix(in srgb, var(--success) 22%, transparent);
+    border-left: 2px solid var(--success);
+    border-right: 2px solid var(--success);
+}
+
+.charge-over {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--danger) 16%, transparent) 0 5px, transparent 5px 10px);
+    border-left: 2px solid color-mix(in srgb, var(--danger) 70%, transparent);
+    z-index: 1;
+}
+
+.charge-fill {
+    position: absolute;
+    left: 0;
+    top: 3px;
+    bottom: 3px;
+    width: 0;
+    border-radius: 0 6px 6px 0;
+    background: linear-gradient(90deg, #a8661a, var(--warning));
+    box-shadow: 0 0 12px color-mix(in srgb, var(--warning) 50%, transparent);
+}
+
+.charge-perfect {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: rgba(255, 215, 120, 0.55);
+    box-shadow: 0 0 8px rgba(255, 215, 120, 0.8);
+    z-index: 2;
+}
+
+.charge-fill.in-zone { background: linear-gradient(90deg, var(--secondary), var(--success)); box-shadow: 0 0 14px color-mix(in srgb, var(--success) 70%, transparent); }
+/* Act two: the meter is the fuel tank, burning down while you thrust. */
+.charge.fuel .charge-fill { background: linear-gradient(90deg, #c2410c, var(--warning)); transition: width 0.08s linear; }
+.charge.fuel.burning .charge-fill { box-shadow: 0 0 14px color-mix(in srgb, var(--warning) 75%, transparent); }
+.charge-fill.in-zone.perfect { background: linear-gradient(90deg, #b8860b, #ffe08a); box-shadow: 0 0 16px rgba(255, 224, 138, 0.9); }
+
+.charge-labels { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 0.76rem var(--font-mono); color: var(--text); }
+.charge-labels .muted { margin-left: auto; font-family: var(--font-body); }
+.charge-clean { color: var(--success); }
+.charge.clean .charge-track { border-color: var(--success); box-shadow: 0 0 16px color-mix(in srgb, var(--success) 45%, transparent); }
+.charge.clean #chargeValue { color: var(--success); font-weight: 700; }
+
+
+.path-status { color: var(--warning); margin-top: -6px; }
+.path-status:empty { display: none; }
+
+
+
+/* ---- Actions ---- */
+
+.panel-actions { gap: 10px; }
+
+.action-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
+}
+
+.action-button {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "name gain" "cost cost" "line line";
+    gap: 2px 8px;
+    text-align: left;
+    font: 600 0.9rem var(--font-display);
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    box-shadow: none;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.08s ease;
+}
+
+@media (hover: hover) { .action-button:hover:not(:disabled) { border-color: var(--primary); background: var(--border); filter: none; box-shadow: none; } }
+.action-button:active:not(:disabled), .action-button.held { transform: scale(0.98); border-color: var(--success); }
+.action-button:disabled { opacity: 0.45; color: var(--text); background: var(--panel-2); }
+
+.action-name { grid-area: name; }
+.action-gain { grid-area: gain; font: 500 0.8rem var(--font-mono); color: var(--success); }
+.action-cost { grid-area: cost; font: 400 0.75rem var(--font-mono); color: var(--muted); }
+.action-auto { grid-area: line; margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--border); font: 500 0.7rem var(--font-mono); color: var(--warning); }
+.action-auto:empty { visibility: hidden; }
+.action-auto.none { display: none; }
+.action-auto.done { color: var(--success); }
+.action-auto.gate { color: var(--muted); }   /* progress toward the job's next gate */
+
+
+
+/* ---- Tabs (segmented control) ---- */
+
 .tabs {
     display: flex;
-    margin-bottom: 20px;
-    border-bottom: 1px solid var(--panel-border);
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
 }
 
 .tab {
-    padding: 10px 20px;
+    flex: 1 1 auto;
+    font: 600 0.78rem var(--font-display);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: transparent;
+    border: none;
+    border-radius: 7px;
+    padding: 7px 10px;
     cursor: pointer;
-    border-bottom: 2px solid transparent;
 }
 
-.tab:hover {
-    color: var(--primary-color);
+@media (hover: hover) { .tab:hover { color: var(--text); } }
+.tab[aria-selected="true"] { color: var(--text); background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--border); }
+
+/* ---- Upgrades ---- */
+
+
+.upgrade {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 2px;
+    border-bottom: 1px solid var(--border);
 }
 
-.tab.active {
-    border-bottom-color: var(--primary-color);
-    color: var(--primary-color);
+.upgrade:last-of-type { border-bottom: none; }
+
+.upgrade h3 {
+    font: 600 0.95rem var(--font-body);
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
-/* Progress bar */
-.progress-container {
-    background-color: rgba(0, 0, 0, 0.2);
-    border-radius: 4px;
-    height: 20px;
-    margin: 10px 0;
-}
+.upgrade p { margin-top: 2px; }
 
-.progress-bar {
-    background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
-    height: 100%;
-    border-radius: 4px;
-    transition: width 0.3s ease;
-}
-
-/* Tooltip */
-.tooltip {
-    position: relative;
-    display: inline-block;
-}
-
-.tooltip .tooltiptext {
-    visibility: hidden;
-    width: 200px;
-    background-color: var(--dark-color);
-    color: var(--light-color);
-    text-align: center;
-    border-radius: 6px;
-    padding: 10px;
-    position: absolute;
-    z-index: 1;
-    bottom: 125%;
-    left: 50%;
-    margin-left: -100px;
-    opacity: 0;
-    transition: opacity 0.3s;
-    border: 1px solid var(--primary-color);
-}
-
-.tooltip:hover .tooltiptext {
-    visibility: visible;
-    opacity: 1;
-}
-
-/* Responsive design */
-@media (max-width: 1200px) {
-    .container {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 768px) {
-    .container {
-        padding: 10px;
-    }
-    
-    .resource {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .button {
-        width: 100%;
-        margin-bottom: 10px;
-    }
-}
-
-/* Debug panel (minimal) */
-.debug-panel {
-    position: fixed;
-    top: 50px;
-    right: 10px;
-    background-color: rgba(0, 0, 0, 0.95);
-    color: #fff;
-    padding: 10px;
+.upgrade-button {
+    min-width: 108px;
+    padding: 7px 10px;
+    font: 600 0.78rem var(--font-mono);
+    letter-spacing: 0;
+    color: var(--warning);
+    /* A price you can pay is a filled pill; one you can't stays an outline in the muted grey. The two used
+       to share a transparent fill and differ by text hue alone (1.6:1 between the two text colours). */
+    background: color-mix(in srgb, var(--warning) 18%, transparent);
+    border: 1px solid color-mix(in srgb, var(--warning) 75%, transparent);
     border-radius: 8px;
-    z-index: 10000;
-    max-width: 300px;
-    font-family: 'Consolas', monospace;
-    border: 1px solid #444;
+    box-shadow: none;
 }
 
-.debug-panel.visible {
-    display: block;
-}
+@media (hover: hover) { .upgrade-button:hover:not(:disabled):not([aria-disabled="true"]) { background: color-mix(in srgb, var(--warning) 30%, transparent); filter: none; box-shadow: none; } }
+.upgrade-button:disabled, .upgrade-button[aria-disabled="true"] { color: var(--muted); border-color: var(--border); background: transparent; }
 
-.debug-panel.hidden {
-    display: none;
-}
-
-/* Resource Particles */
-.resource-particle {
-    position: fixed;
-    pointer-events: none;
-    z-index: 9999;
-    font-size: 1.2em;
-    font-weight: bold;
-    color: var(--success-color);
-    text-shadow: 0 0 5px rgba(76, 201, 240, 0.5);
-    animation: particle-float 1s ease-out forwards;
+.badge {
     white-space: nowrap;
-    will-change: transform, opacity;
-    transform-origin: center;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font: 600 0.68rem var(--font-mono);
+    background: var(--panel-2);
+    color: var(--muted);
 }
 
-@keyframes particle-float {
-    0% {
-        transform: translate(0, 0);
-        opacity: 1;
-    }
-    100% {
-        transform: translate(var(--end-x, 0), var(--end-y, -100px));
-        opacity: 0;
-    }
+.badge:empty { display: none; }
+
+.empty-hint { padding: 12px 2px; }
+
+/* ---- Transcend ---- */
+
+.panel-transcend {
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, transparent), var(--bg-2));
 }
 
-/* Resource Popups */
-.resource-popup {
+/* ---- Dialogs & Journal ---- */
+
+.dialog {
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+}
+
+.dialog::backdrop { background: color-mix(in srgb, var(--bg) 72%, transparent); backdrop-filter: blur(3px); }
+
+.journal {
+    width: min(640px, calc(100vw - 32px));
+    max-height: min(80vh, 760px);
+    padding: 18px;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.journal[open] { display: flex; }
+
+.journal-head { display: flex; align-items: center; justify-content: space-between; }
+
+.journal-body { overflow-y: auto; min-height: 260px; }
+.journal-body h3 { font: 700 0.8rem var(--font-display); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 6px 0 8px; }
+.journal-body h3:not(:first-child) { margin-top: 18px; }
+
+.stat-list { margin: 0; display: flex; flex-direction: column; }
+/* Two columns where the Journal has the width, so the whole list fits without a scrollbar. */
+@media (min-width: 700px) { .stat-list { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; } }
+
+.stat {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 2px;
+    border-bottom: 1px solid var(--border);
+}
+
+.stat dt { color: var(--muted); }
+.stat dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+
+.log { list-style: none; margin: 0; padding: 0; font: 0.82rem/1.5 var(--font-mono); }
+.log-entry { padding: 5px 0 5px 10px; border-left: 2px solid var(--border); margin-bottom: 2px; }
+.log-entry time { color: var(--muted); margin-right: 4px; }
+.log-entry.log-success { border-left-color: var(--success); }
+.log-entry.log-warning { border-left-color: var(--warning); }
+.log-entry.log-special { border-left-color: var(--accent); color: #ffd2cc; }
+/* The model talking (its voice line per skill): the terminal's green, in mono. */
+.log-entry.log-model { border-left-color: var(--terminal); color: var(--terminal-hi); font-family: var(--font-mono); font-size: 0.92em; }
+
+.check-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+
+.check-list li {
+    display: flex;
+    flex-direction: column;
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: 1px dashed var(--border);
+    opacity: 0.6;
+}
+
+.check-list li strong { font: 600 0.9rem var(--font-display); }
+.check-list li.done { opacity: 1; border-style: solid; border-color: color-mix(in srgb, var(--success) 45%, transparent); background: color-mix(in srgb, var(--success) 6%, transparent); }
+.check-list li.done strong::after { content: ' ✓'; color: var(--success); }
+
+.toggle { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; }
+.setting-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.setting-row input[type="range"] { width: 160px; accent-color: var(--success); }
+.setting-row select { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; font: inherit; }
+.toggle input { accent-color: var(--warning); width: 16px; height: 16px; }
+[data-section="settings"] .button-row { margin-top: 14px; }
+
+#dialog { width: min(440px, calc(100vw - 32px)); }
+
+/* Mail (the story by email): an envelope in the top bar with an unread count, and an inbox that looks like
+   one (bold unread rows, junk at the bottom); the first email is spam, and you click it open. */
+.mail-button { position: relative; display: inline-grid; place-items: center; padding: 6px 9px; }
+.mail-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.mail-button.unread { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 55%, transparent); }
+.mail-count { position: absolute; top: -6px; right: -6px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--danger); color: var(--bg); font: 700 0.66rem/17px var(--font-mono); text-align: center; }
+/* Anchored to the top, not centred: switching between the list and a mail (or a mail arriving) changes its
+   height, and a centred dialog jumped 55–409 px each time, moving the rows and ← Inbox out from under the pointer. */
+#inbox { width: min(620px, calc(100vw - 24px)); padding: 0; margin-top: clamp(8px, 10vh, 120px); margin-bottom: auto; }
+.inbox-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.inbox-bar h2 { font: 700 1rem var(--font-display); letter-spacing: 0.04em; }
+.inbox-close { padding: 2px 10px; font-size: 1.1rem; }
+.inbox-list { list-style: none; margin: 0; padding: 0; max-height: min(60vh, 420px); overflow: auto; }
+.inbox-row { border-bottom: 1px solid var(--border); }
+.inbox-open { display: grid; grid-template-columns: 9.5em 1fr; gap: 12px; width: 100%; padding: 11px 16px; border: 0; background: none; color: var(--muted); font: inherit; font-size: 0.86rem; text-align: left; cursor: pointer; }
+.inbox-from, .inbox-subject { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.inbox-row.unread .inbox-open { color: var(--text); font-weight: 700; background: color-mix(in srgb, var(--primary) 7%, transparent); }
+.inbox-row.unread .inbox-from::before { content: '● '; color: var(--primary); }
+/* Junk rows read quieter than the bold unread one, but still at AA: at 0.45 their text measured 2.42:1 (round D). */
+.inbox-empty { padding: 22px 16px; color: var(--muted); font-size: 0.86rem; text-align: center; }
+/* The opening's mails arrive one at a time: the new row slides in from the top and glows once. */
+.inbox-row.arrive { animation: mail-arrive 700ms ease-out; }
+@keyframes mail-arrive {
+    from { opacity: 0; transform: translateY(-10px); background: color-mix(in srgb, var(--primary) 30%, transparent); }
+    to { opacity: 1; transform: none; background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .inbox-row.arrive { animation: none; } }
+body.calm .inbox-row.arrive { animation: none; }
+@media (hover: hover) { button.inbox-open:hover { background: color-mix(in srgb, var(--primary) 12%, transparent); } }
+.inbox-message { padding: 14px 18px 16px; max-height: min(72vh, 560px); overflow: auto; }
+/* The reply stays in view while the mail scrolls: the offer's reply is the only way out of the opening, and it
+   sat 50–290 px below the scroll box's fold on every screen size, focused but unseen. */
+.inbox-message .dialog-actions { position: sticky; bottom: -16px; margin: 12px -18px -16px; padding: 10px 18px 16px;
+    background: var(--panel); border-top: 1px solid var(--border); box-shadow: 0 -10px 14px -6px color-mix(in srgb, var(--panel) 90%, transparent); }
+.mail-subject { font: 700 1.02rem/1.35 var(--font-body); }
+.mail-from { margin: 6px 0 12px; font: 0.78rem/1.5 var(--font-mono); }
+.mail-body { display: grid; gap: 10px; font: 0.92rem/1.5 'Times New Roman', Georgia, serif; color: var(--text); white-space: pre-line; }
+.mail-footer { margin-top: 14px; font-size: 0.72rem; color: var(--muted); }
+.mail-unsub { border: 0; padding: 4px 0; min-height: 24px; background: none; color: var(--primary); font: inherit; text-decoration: underline; cursor: pointer; }
+/* Dilemmas: a question by email answered with one of its choices, each with what it's known to do. */
+.mail-choices { display: grid; gap: 8px; margin-top: 16px; }
+.mail-choice { display: grid; gap: 3px; width: 100%; padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--border));
+    border-radius: 8px; background: color-mix(in srgb, var(--warning) 7%, transparent); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.mail-choice strong { font: 600 0.92rem var(--font-display); }
+.mail-choice span { font-size: 0.78rem; color: var(--muted); }
+@media (hover: hover) { .mail-choice:hover { background: color-mix(in srgb, var(--warning) 16%, transparent); border-color: var(--warning); } }
+.mail-choice:focus-visible { outline: 2px solid var(--warning); outline-offset: 2px; }
+.mail-chosen { margin: 0; padding: 8px 12px; border-left: 3px solid var(--warning); font-size: 0.86rem; }
+.inbox-tag { display: inline-block; margin-right: 8px; padding: 1px 7px; border-radius: 999px; font: 700 0.66rem var(--font-mono); letter-spacing: 0.05em;
+    text-transform: uppercase; vertical-align: 1px; color: var(--bg); background: var(--warning); }
+.mail-button.decision::after { content: ''; position: absolute; inset: -3px; border-radius: inherit; border: 1px solid var(--warning); opacity: 0.6; pointer-events: none; }
+.inbox-note { margin: 0; padding: 10px 16px 12px; border-top: 1px dashed var(--border); font-size: 0.76rem; line-height: 1.45; color: var(--muted); }
+.inbox-note strong { color: var(--text); }
+@media (max-width: 640px) { .inbox-open { grid-template-columns: 1fr; gap: 2px; } }
+@media (max-height: 500px) { .inbox-message { max-height: 62vh; } .inbox-note { padding: 6px 16px 8px; } }
+
+/* The end of chapter one (Superintelligence): a title card, three lines typed in one after another, the run in numbers. */
+#ending { width: min(520px, calc(100vw - 32px)); border-color: var(--accent); box-shadow: 0 0 60px color-mix(in srgb, var(--accent) 25%, transparent); }
+.ending-form { display: flex; flex-direction: column; gap: 14px; padding: 26px 24px 20px; }
+.ending-kicker { font: 600 0.72rem var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.ending-form h2 { font: 700 2rem var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.ending-lines p { opacity: 0; animation: ending-line 0.8s ease forwards; animation-delay: calc(0.6s + var(--i) * 1.1s); }
+.ending-lines p + p { margin-top: 6px; }
+@keyframes ending-line { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.ending-stats { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; }
+.ending-stats dt { color: var(--muted); }
+.ending-stats dd { font-family: var(--font-mono); text-align: right; }
+body.calm .ending-lines p { animation: none; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .ending-lines p { animation: none; opacity: 1; } }
+
+.dialog-form { display: flex; flex-direction: column; gap: 12px; padding: 20px; }
+.dialog-form h2 { font: 700 1.05rem var(--font-display); letter-spacing: 0.02em; }
+
+.dialog textarea {
+    width: 100%;
+    font: 0.78rem var(--font-mono);
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    resize: vertical;
+    word-break: break-all;
+}
+
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.dialog-actions .button { padding: 8px 16px; }
+
+/* ---- Toasts & floating gains ---- */
+
+.toasts {
+    /* Top middle, under the rooms' title bars (just under the top bar, they hid the room's status line),
+       newest at the bottom. */
     position: fixed;
+    top: calc(var(--topbar-h, 53px) + 64px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    max-width: min(380px, calc(100vw - 68px));
     pointer-events: none;
-    z-index: 9999;
-    font-size: 1.2em;
-    font-weight: bold;
-    color: var(--success-color);
-    text-shadow: 0 0 5px rgba(76, 201, 240, 0.5);
-    animation: float-up 1s ease-out forwards;
-    white-space: nowrap;
+}
+
+.toast {
+    display: flex;
+    flex-direction: column;
+    min-width: 220px;
+    padding: 10px 14px 10px 16px;
+    border-radius: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--success);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    transform: translateY(-16px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.toast strong { font: 700 0.72rem var(--font-display); text-transform: uppercase; letter-spacing: 0.1em; color: var(--success); }
+.toast span { font-weight: 600; }
+.toast.show { opacity: 1; transform: none; }
+
+/* Callouts: an icon badge, an accent per kind and a sweep of light as they land, so they read as
+   moments (achievements, skills, rooms, phases, versions) rather than pings. */
+.toast { --accent: var(--success); flex-direction: row; align-items: center; gap: 12px; min-width: 300px; padding: 12px 18px 12px 12px; position: relative; overflow: hidden;
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); border-left-color: var(--accent);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 14%, var(--panel)), var(--panel) 70%);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 22px color-mix(in srgb, var(--accent) 22%, transparent);
+    transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.2, 1.3, 0.4, 1); }
+.toast::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--accent) 35%, transparent) 50%, transparent 70%); transform: translateX(-100%); }
+.toast.show::after { animation: toast-sweep 1.1s 0.15s ease-out both; }
+@keyframes toast-sweep { to { transform: translateX(100%); } }
+.toast-icon { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-style: normal; font-size: 1.05rem; color: var(--accent);
+    border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent); }
+.toast-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.toast strong { color: var(--accent); }
+.toast-achievement { --accent: #ffd27a; }
+.toast-skill { --accent: var(--success); }
+.toast-room { --accent: #6fb3ff; }
+.toast-version { --accent: var(--research); }
+.toast-tip { --accent: var(--success); }
+.toast-phase { --accent: #ffd27a; min-width: 360px; padding: 16px 22px 16px 16px; }
+.toast-phase strong { font-size: 0.9rem; }
+.toast-phase .toast-icon { width: 42px; height: 42px; font-size: 1.3rem; }
+@media (prefers-reduced-motion: reduce) { .toast.show::after { animation: none; } }
+
+.float-gain {
+    position: absolute;
+    transform: translateX(-50%);
+    pointer-events: none;
+    font: 700 0.85rem var(--font-mono);
+    color: var(--success);
+    text-shadow: 0 1px 3px #000;
+    animation: float-up 0.9s ease-out forwards;
+    z-index: 30;
 }
 
 @keyframes float-up {
-    0% {
-        transform: translateY(0);
-        opacity: 1;
-    }
-    100% {
-        transform: translateY(-50px);
-        transform: translateX(-50%) translateY(-100px);
-        opacity: 0;
-    }
+    from { opacity: 1; translate: 0 0; }
+    to { opacity: 0; translate: 0 -22px; }
 }
 
-/* Container to prevent page expansion */
-.resource-popup-container {
+/* ---- Debug panel ---- */
+
+.debug-panel {
     position: fixed;
-    top: 0;
+    top: 72px;
+    right: 12px;
+    width: min(360px, calc(100vw - 24px));
+    max-height: calc(100dvh / var(--zoom) - 84px);
+    display: flex;
+    flex-direction: column;
+    background: color-mix(in srgb, var(--bg) 97%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+    z-index: 60;
+    font-size: 0.85rem;
+}
+
+.debug-panel header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+.debug-panel header strong { flex: 1; font-family: var(--font-display); color: var(--primary); }
+.debug-panel.minimized .debug-body { display: none; }
+
+.debug-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+.debug-body h4 { margin: 0 0 4px; font: 700 0.75rem var(--font-display); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.debug-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+.debug-row input {
+    width: 90px;
+    font: 0.8rem var(--font-mono);
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 6px;
+    margin-left: 4px;
+}
+
+.debug-body pre {
+    margin: 0;
+    max-height: 200px;
+    overflow: auto;
+    font: 0.72rem var(--font-mono);
+    background: var(--bg);
+    padding: 6px;
+    border-radius: 6px;
+    width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+.run-summary .result-badge { align-self: flex-start; }
+
+/* ---- The rack (server room) ---- */
+
+.rack {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 14px 34px;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 14px 50px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+/* Mounting rails with unit holes down both sides. */
+.rack::before, .rack::after {
+    content: "";
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    width: 14px;
+    background: radial-gradient(circle, var(--bg) 2px, transparent 2.5px) 50% 0 / 14px 14px repeat-y, linear-gradient(90deg, var(--panel-2), var(--border), var(--panel-2));
+    border-radius: 2px;
+}
+.rack::before { left: 10px; }
+.rack::after { right: 10px; }
+
+.rack-unit { grid-column: 1 / -1; border: 1px solid var(--panel-2); border-radius: 2px; background: var(--bg); }
+
+/* Network switch: a row of ports with blinking link lights. */
+.ru-switch {
+    height: 28px;
+    background:
+        radial-gradient(circle, var(--success) 1.5px, transparent 2px) 10px 5px / 16px 18px repeat-x,
+        repeating-linear-gradient(90deg, transparent 0 4px, var(--bg) 4px 14px, transparent 14px 16px) 4px 10px / 100% 12px no-repeat,
+        var(--bg);
+    animation: led-soft 2.4s ease-in-out infinite;
+}
+
+/* Gentle glow for big decorative surfaces; hard on/off blinking stays on tiny LEDs only. */
+@keyframes led-soft { 50% { opacity: 0.8; } }
+
+/* Power supplies: fans. */
+.ru-psu {
+    height: 40px;
+    background:
+        radial-gradient(circle, var(--bg) 6px, var(--panel-2) 7px, var(--bg) 12px, var(--panel-2) 13px, transparent 14px) 8px 50% / 40px 32px repeat-x,
+        linear-gradient(90deg, transparent 70%, var(--bg-2) 70%),
+        var(--bg);
+}
+
+/* Cable tray: a bundle of coloured cables. */
+.ru-cables {
+    height: 22px;
+    background:
+        repeating-linear-gradient(176deg, transparent 0 3px, var(--secondary) 3px 5px, transparent 5px 8px, #8a5a2f 8px 10px, transparent 10px 13px, var(--secondary) 13px 15px, transparent 15px 18px),
+        var(--bg);
+}
+
+/* Blanking plates: empty units, with screws. */
+.ru-blank { height: 34px; }
+.ru-blank, .bay.blank {
+    min-height: 34px;
+    background:
+        radial-gradient(circle, var(--border) 2px, transparent 2.5px) 8px 50% / calc(100% - 16px) 100% no-repeat,
+        radial-gradient(circle, var(--border) 2px, transparent 2.5px) calc(100% - 8px) 50% / 16px 100% no-repeat,
+        linear-gradient(180deg, var(--bg-2), var(--bg));
+    border: 1px solid var(--panel-2);
+}
+
+.bay { min-height: 140px; }
+.bay[data-bay="training"], .bay[data-bay="core"] { grid-column: 1 / -1; }
+.bay[data-bay="training"] { min-height: 200px; }
+
+.bay-art { position: relative; display: grid; gap: 4px; margin: 14px 14px 0; min-height: 60px; }
+.bay-art i { display: block; border-radius: 2px; }
+
+/* Training Cluster: a row of GPU blades. */
+.bay[data-bay="training"] .bay-art { grid-template-columns: repeat(20, 1fr); }   /* 3 for the frontier, 2 per cleared lane (8 at most), the rest blades */
+.bay[data-bay="training"] .bay-art i {
+    background: linear-gradient(180deg, var(--panel-2), var(--bg-2) 30%, var(--bg-2));
+    box-shadow: inset 0 3px 0 color-mix(in srgb, var(--success) 85%, transparent), inset 0 0 0 1px var(--border);
+    animation: blade 2.6s ease-in-out infinite;
+}
+.bay[data-bay="training"] .bay-art i:nth-child(3n) { animation-delay: 0.4s; }
+.bay[data-bay="training"] .bay-art i:nth-child(4n+1) { animation-delay: 1.1s; }
+@keyframes blade { 50% { box-shadow: inset 0 3px 0 color-mix(in srgb, var(--success) 25%, transparent), inset 0 0 0 1px var(--border); } }
+
+/* Data Pipeline: a disk array of drive caddies. */
+.bay[data-bay="pipeline"] .bay-art { grid-template-columns: repeat(8, 1fr); grid-auto-rows: 16px; }
+.bay[data-bay="pipeline"] .bay-art i {
+    background: linear-gradient(90deg, var(--panel-2) 70%, var(--bg) 70%);
+    box-shadow: inset -4px 0 0 -2px var(--primary), inset 0 0 0 1px var(--border);
+    animation: led-soft 2.2s ease-in-out infinite;
+}
+.bay[data-bay="pipeline"] .bay-art i:nth-child(odd) { animation-duration: 1.6s; }
+.bay[data-bay="pipeline"] .bay-art i:nth-child(5n) { animation-delay: 0.3s; }
+
+/* Architecture Lab: a patch panel with looping cables. */
+.bay[data-bay="architecture"] .bay-art { grid-template-columns: repeat(10, 1fr); align-items: start; }
+.bay[data-bay="architecture"] .bay-art i {
+    height: 54px;
+    border: 3px solid var(--secondary);
+    border-top: 0;
+    border-radius: 0 0 14px 14px;
+    background: radial-gradient(circle at 50% 0, var(--bg) 3px, transparent 3.5px);
+}
+.bay[data-bay="architecture"] .bay-art i:nth-child(3n) { border-color: #8a5a2f; height: 40px; }
+.bay[data-bay="architecture"] .bay-art i:nth-child(4n) { border-color: var(--secondary); height: 62px; }
+
+/* The Core: a glowing reactor. */
+.bay[data-bay="core"] .bay-art { place-items: center; }
+.bay[data-bay="core"] .bay-art i { grid-area: 1 / 1; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--accent) 50%, transparent); }
+.bay[data-bay="core"] .bay-art i:nth-child(1) { width: 70px; height: 70px; }
+.bay[data-bay="core"] .bay-art i:nth-child(2) { width: 46px; height: 46px; border-style: dashed; animation: spin 8s linear infinite; }
+.bay[data-bay="core"] .bay-art i:nth-child(3) { width: 20px; height: 20px; background: var(--accent); box-shadow: 0 0 24px var(--accent); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Locked: the next section is a sealed shutter; the rest are blanking plates. */
+.bay.sealed .bay-art {
+    background:
+        repeating-linear-gradient(180deg, var(--panel-2) 0 9px, var(--bg) 9px 12px),
+        var(--bg);
+    border: 1px solid var(--border);
+    min-height: 80px;
+}
+.bay.sealed .bay-art i { display: none; }
+.bay.sealed .bay-art::after {
+    content: "";
+    position: absolute;
     left: 0;
+    right: 0;
+    bottom: 0;
+    height: 8px;
+    background: repeating-linear-gradient(135deg, var(--warning) 0 8px, #1a1406 8px 16px);
+    opacity: 0.6;
+}
+.bay.sealed .bay-name { color: var(--muted); letter-spacing: 0.3em; }
+.bay.blank { pointer-events: none; cursor: default; }
+.bay.blank .bay-art, .bay.blank .bay-info, .bay.blank::before { display: none; }
+.bay.offline .bay-art { filter: saturate(0.4) brightness(0.8); }
+
+/* ---- Lab stations ---- */
+
+.station-title { font: 700 0.82rem var(--font-display); text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); }
+.station[hidden] { display: none; }
+.station-list { display: flex; flex-direction: column; }
+
+/* Server cabinets: the hardware you own, racked, filling up over time, in their own panel. */
+.cabinet-panel[hidden] { display: none; }
+.cabinet-panel { display: flex; flex-direction: column; gap: 6px; justify-self: start; width: fit-content; min-width: 240px; max-width: 100%; }
+.station-bench .station-art { display: none; }
+.cabinet-art {
+    /* Fixed height, scrolling sideways as cabinets are added: buying hardware never moves the page. */
+    height: var(--cabinet-art-h);
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 10px 6px 6px;
+    border-bottom: 4px solid var(--border);
+    background: linear-gradient(0deg, color-mix(in srgb, var(--primary) 6%, transparent), transparent 60%);
+}
+.cabinet-more { align-self: center; font: 600 0.75rem var(--font-mono); color: var(--muted); }
+
+/* Software terminal: a monitor with a green screen. */
+.station-terminal { background: var(--bg); }
+.station-terminal .station-art, .station-terminal .station-list {
+    font-family: var(--font-mono);
+    background: var(--bg);
+    border-left: 10px solid var(--panel-2);
+    border-right: 10px solid var(--panel-2);
+}
+.station-terminal .station-art { padding: 10px 12px 4px; border-top: 10px solid var(--panel-2); border-radius: 10px 10px 0 0; }
+.station-terminal .station-list {
+    padding: 0 12px 10px;
+    border-bottom: 14px solid var(--panel-2);
+    border-radius: 0 0 10px 10px;
+    margin-top: -12px;
+    background:
+        repeating-linear-gradient(180deg, color-mix(in srgb, var(--terminal) 3.5%, transparent) 0 1px, transparent 1px 3px),
+        var(--bg);
+}
+.terminal-line { font-size: 0.78rem; color: var(--terminal); }
+.terminal-line::after { content: "_"; animation: led-blink 1s steps(2, jump-none) infinite; }
+.station-terminal .upgrade { border-bottom: 1px dashed color-mix(in srgb, var(--terminal) 18%, transparent); }
+.station-terminal .upgrade h3 { font: 600 0.88rem var(--font-mono); color: var(--terminal-hi); }
+.station-terminal .upgrade h3::before { content: "> "; color: var(--terminal); }
+.station-terminal .upgrade .muted { color: var(--terminal-dim); }
+
+/* Research wall and isolation chamber: decoration above their lists. */
+.station-wall .station-art { display: grid; gap: 6px; padding: 10px; border-radius: 6px; background: var(--panel); }
+.station-wall .station-art i { height: 3px; border-radius: 2px; background: rgba(230, 237, 243, 0.25); }
+.station-wall .station-art i:nth-child(1) { width: 60%; }
+.station-wall .station-art i:nth-child(2) { width: 85%; }
+.station-wall .station-art i:nth-child(3) { width: 40%; background: color-mix(in srgb, var(--warning) 40%, transparent); }
+.station-wall .station-art i:nth-child(4) { width: 70%; }
+.station-wall .station-art i:nth-child(5) { width: 30%; }
+.station-chamber .station-art { display: grid; place-items: center; height: 70px; }
+.station-chamber .station-art i { grid-area: 1 / 1; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--research) 40%, transparent); }
+.station-chamber .station-art i:nth-child(1) { width: 60px; height: 60px; }
+.station-chamber .station-art i:nth-child(2) { width: 40px; height: 40px; }
+.station-chamber .station-art i:nth-child(3) { width: 14px; height: 14px; background: var(--research); box-shadow: 0 0 20px var(--research); }
+.station-chamber .station-art i:nth-child(n+4) { display: none; }
+
+/* Sealed: the next station, unnamed. */
+.sealed-mark { font: 700 1.4rem var(--font-mono); letter-spacing: 0.3em; color: var(--border); }
+
+/* ---- R&D ---- */
+
+.room-rnd { display: flex; flex-direction: column; }
+.rnd-floor { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+.project { min-height: 220px; }
+.project.sealed {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    background: repeating-linear-gradient(135deg, var(--bg) 0 12px, var(--bg) 12px 24px);
+}
+/* Challenges and Transcend (R&D's second and third slots). */
+.challenge-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.challenge { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); }
+.challenge-text { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.challenge-text strong { font: 600 0.88rem var(--font-display); }
+.challenge-rule { font-size: 0.78rem; color: var(--warning); }
+.challenge-reward { font-size: 0.74rem; color: var(--muted); }
+.challenge .ghost-button { flex: none; font-size: 0.75rem; padding: 5px 9px; }
+.challenge.done { border-color: color-mix(in srgb, var(--success) 35%, transparent); }
+.challenge.done .challenge-reward { color: var(--success); }
+.challenge.running { border-color: var(--warning); box-shadow: 0 0 0 1px color-mix(in srgb, var(--warning) 30%, transparent) inset; }
+.panel-ascend { border-color: rgba(180, 140, 255, 0.5); background: linear-gradient(180deg, rgba(180, 140, 255, 0.12), var(--bg-2)); }
+.panel-ascend .button-prestige { margin-top: 8px; }
+.perk-level { font: 600 0.72rem var(--font-mono); color: var(--muted); white-space: nowrap; }
+.perk.done .perk-level { color: var(--success); }
+.perk-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 12px; }
+.perk-head h3 { margin: 0; font: 600 0.85rem var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; }
+.project-art { display: flex; gap: 10px; align-items: flex-end; height: 54px; }
+.project-art i { display: block; width: 18px; border-radius: 3px 3px 9px 9px; border: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); background: linear-gradient(0deg, color-mix(in srgb, var(--accent) 35%, transparent) 45%, transparent 45%); }
+.project-art i:nth-child(1) { height: 36px; }
+.project-art i:nth-child(2) { height: 52px; }
+.project-art i:nth-child(3) { height: 28px; }
+
+/* Facility tiles for the newer rooms. */
+.facility-room[hidden] { display: none; }
+.fr-art-rnd { grid-template-columns: repeat(3, 1fr); align-items: end; }
+.fr-art-rnd i { height: 26px; border-radius: 3px 3px 10px 10px; border: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); }
+.fr-art-rnd i:nth-child(n+4) { display: none; }
+.facility-room.locked .fr-name { letter-spacing: 0.3em; }
+
+@media (max-width: 960px) {
+    .rnd-floor { grid-template-columns: minmax(0, 1fr); }
+    .project.sealed { min-height: 90px; }
+}
+
+@media (max-width: 640px) {
+    .rack { padding: 10px 26px; gap: 5px; }
+    .rack::before { left: 6px; width: 12px; }
+    .rack::after { right: 6px; width: 12px; }
+    .bay { min-height: 110px; }
+    .bay[data-bay="training"] .bay-art { grid-template-columns: repeat(8, 1fr); }
+    .bay[data-bay="pipeline"] .bay-art { grid-template-columns: repeat(4, 1fr); }
+    .bay[data-bay="pipeline"] .bay-art i:nth-child(n+13) { display: none; }
+    .bay[data-bay="architecture"] .bay-art { grid-template-columns: repeat(5, 1fr); }
+    .bay[data-bay="architecture"] .bay-art i:nth-child(n+6) { display: none; }
+    .bay-art { margin: 10px 10px 0; }
+    .station-terminal .station-art, .station-terminal .station-list { border-left-width: 4px; border-right-width: 4px; }
+    .station-terminal .station-list { padding: 0 8px 8px; }
+    .station .upgrade { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+    .station .upgrade-button { justify-self: start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bay-art i, .ru-switch, .terminal-line::after { animation: none !important; }
+}
+
+/* ---- Screen sizes ----
+   Phone (≤ 640 px) and tablet/small laptop (≤ 960 px) reflow the layout (rules above). Desktop is the
+   base. Large screens scale the whole UI with `zoom` so a 1440p or 4K monitor reads like a desktop
+   instead of a postage stamp: --ui-scale is read by game.js to keep zoom animations and the canvas sharp. */
+:root { --ui-scale: 1; --zoom: calc(var(--ui-scale) * var(--text-size, 1)); }
+/* Where a list does scroll on purpose, its bar matches the dark theme instead of the browser's light default. */
+* { scrollbar-color: var(--border) transparent; }
+body { zoom: var(--zoom); }
+
+@media (min-width: 2200px) {
+    :root { --ui-scale: 1.25; }
+}
+@media (min-width: 3000px) {
+    :root { --ui-scale: 1.6; }
+}
+@media (min-width: 3600px) {
+    :root { --ui-scale: 1.9; }
+}
+
+/* ---- Skill tree camera ---- */
+
+.tree-viewport {
+    position: relative;
+    overflow: hidden;
+    --cell: 112px;
+    min-height: 480px;
+    border: 1px solid var(--panel-2);
+    border-radius: 8px;
+    background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--success) 5%, transparent), transparent 70%), var(--bg);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+.tree-viewport.dragging { cursor: grabbing; }
+/* No will-change: it would cache the tree as a bitmap at 1x and blur it when zoomed in. */
+.tree-viewport .tree { transform-origin: 0 0; }
+.tree-zoom { position: absolute; left: 8px; bottom: 8px;   /* bottom-left: the minimap covers the bottom-right */ display: flex; gap: 4px; z-index: 2; }
+.tree-zoom button { width: 32px; height: 32px; padding: 0; font: 600 1rem var(--font-mono); background: color-mix(in srgb, var(--bg) 85%, transparent); }
+
+/* ---- Facility cameras: live copies of the rooms ---- */
+
+.fr-art[hidden], .fr-cam[hidden] { display: none; }
+.fr-cam {
+    position: relative;
+    display: block;
+    min-height: 0;
+    margin: 8px 8px 0;
+    overflow: hidden;
+    border-radius: 3px;
+    background: var(--bg);
+    box-shadow: inset 0 0 0 1px var(--panel-2);
+}
+.fr-feed { position: absolute; top: 0; left: 0; transform-origin: 0 0; pointer-events: none; }
+/* Camera feeds are pictures, not panels: their copied lists never show scrollbars. */
+.fr-feed, .fr-feed * { scrollbar-width: none; }
+.fr-feed ::-webkit-scrollbar { display: none; }
+.fr-feed.viewport { min-height: 0; border: 0; box-shadow: none; }
+.fr-feed .hub { padding: 20px; }
+/* Scanlines and a vignette over the feed, so it reads as a camera. */
+.fr-cam::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background:
+        repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 3px),
+        radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.55));
+    pointer-events: none;
+}
+.fr-cam.glitch .fr-feed { animation: cam-glitch 0.9s steps(4) both; }
+.fr-cam.glitch::after {
+    content: attr(data-glitch);
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    font: 700 0.9rem var(--font-mono);
+    letter-spacing: 0.12em;
+    color: var(--danger);
+    text-shadow: 0 0 8px var(--danger);
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    animation: cam-glitch-text 0.9s steps(3) both;
+    pointer-events: none;
+}
+@keyframes cam-glitch { 0% { filter: none; } 25% { filter: hue-rotate(160deg) contrast(1.6); translate: 3px 0; } 50% { filter: grayscale(1) brightness(1.4); translate: -4px 1px; } 75% { filter: invert(0.15); translate: 2px 0; } 100% { filter: none; translate: 0; } }
+@keyframes cam-glitch-text { 0%, 100% { opacity: 0; } 20%, 80% { opacity: 1; } }
+.fr-cam-label {
+    position: absolute;
+    top: 6px;
+    left: 8px;
+    z-index: 2;
+    font: 600 0.62rem var(--font-mono);
+    letter-spacing: 0.1em;
+    color: rgba(230, 237, 243, 0.75);
+}
+.fr-cam-label::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    vertical-align: 1px;
+    animation: led-soft 1.6s ease-in-out infinite;
+}
+
+/* Live run lanes: the first GPU blade(s) of the Training Cluster show the current run. */
+.bay[data-bay="training"] .bay-art .lane {
+    grid-column: span 3;
     width: 100%;
     height: 100%;
-    pointer-events: none;
-    z-index: 9998;
+    min-height: 60px;
+    border-radius: 2px;
+    background: var(--bg);
+    box-shadow: inset 0 0 0 1px var(--border), 0 0 12px color-mix(in srgb, var(--success) 15%, transparent);
+}
+.bay.sealed .bay-art .lane, .bay.blank .bay-art .lane { display: none; }
+
+.bay[data-bay="training"] .bay-art .lane.cleared {
+    grid-column: span 2;
+    background: var(--bg);
+    box-shadow: inset 0 0 0 1px var(--border);
+}
+
+/* ---- Training Cluster layout ---- */
+.module-bar { flex-wrap: nowrap; min-width: 0; }
+.module-bar .ghost-button { white-space: nowrap; flex: none; }
+.module-bar h2 { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.charge-labels { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+@media (max-width: 640px) {
+    .module-bar { gap: 8px; }
+    .module-bar .muted { display: none; }
+    .module-bar h2 { font-size: 0.82rem; letter-spacing: 0.08em; }
+}
+
+/* The seed node at the centre of the skill tree, in the core's diamond shape. */
+.tree-node.seed { border-radius: 8px; transform: translate(-50%, -50%) rotate(45deg); border-color: var(--success); }
+.tree-node.seed .tree-icon, .tree-node.seed .tree-level { transform: rotate(-45deg); }
+@media (hover: hover) { .tree-node.seed:hover { transform: translate(-50%, -50%) rotate(45deg) scale(1.06); } }
+.tree-node.seed.owned, .tree-node.seed.maxed { box-shadow: 0 0 22px color-mix(in srgb, var(--success) 45%, transparent); }
+
+/* Node detail: a one-line quip, then the plain bonus. */
+.detail-flavor { font-style: italic; color: var(--text); opacity: 0.85; }
+
+/* Mechanic demos: a short looping scene in a mechanic node's popup (and its legacy card) before it's bought. */
+.demo { margin: 8px 0 4px; }
+.demo canvas { display: block; width: 240px; max-width: 100%; aspect-ratio: 240 / 112; border: 1px solid var(--border); border-radius: 6px; }
+.demo figcaption { margin-top: 4px; font: 600 0.72rem var(--font-body); color: var(--muted); }
+.demo[hidden] { display: none; }
+.node-detail .detail-effect { color: var(--success); font: 600 0.84rem var(--font-mono); }
+.node-detail .detail-preview { margin: 6px 0 0; font: 600 0.78rem var(--font-mono); color: var(--primary); }
+
+.upgrade-flavor, .result-flavor { font-style: italic; font-size: 0.82rem; color: var(--text); opacity: 0.8; margin-top: 2px; }
+/* The model's line on the Skill learned card: it talks, in the terminal's voice, typed in a beat later. */
+.result-voice { font: 0.8rem var(--font-mono); color: var(--terminal-hi); margin-top: 6px; opacity: 0; animation: ending-line 0.6s ease 0.9s forwards; }
+body.calm .result-voice { animation: none; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .result-voice { animation: none; opacity: 1; } }
+.station-terminal .upgrade-flavor { font-family: var(--font-mono); font-style: normal; color: var(--terminal-hi); opacity: 0.75; }
+.station-terminal .upgrade-flavor::before { content: "# "; }
+
+/* Every room is a framed screen with its way back inside the frame, like a bay's "← Rack". */
+.room-frame {
+    padding: 14px;
+    border: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--bg-2), var(--bg));
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+.room-bar { display: flex; align-items: center; gap: 14px; margin: 0; grid-column: 1 / -1; }
+.room-bar h2 { font: 700 0.95rem var(--font-display); text-transform: uppercase; letter-spacing: 0.12em; }
+.room-frame > .room-bar { margin-bottom: 4px; }
+.hub > .room-bar { position: absolute; top: 14px; left: 14px; right: 14px; z-index: 2; }
+.hub { padding-top: 64px; }
+
+/* The run result card sits over the trail and above the controls (on phones it spans the trail). */
+.roll-result { z-index: 3; }
+/* Sliding toasts and zooms must never make the page scroll sideways. */
+html, body { overflow-x: clip; }
+
+@media (max-width: 640px) {
+    .tree-viewport { --cell: 84px; min-height: 420px; }
+}
+
+.debug-panel .ghost-button.active { border-color: var(--primary); color: var(--primary); }
+
+/* ---- Lab: status, supply line, and signs of life ---- */
+/* Bulk buying for repeatable lab cards: a segmented ×1 / ×10 / Max switch in the lab's bar. */
+.bulk-buy { margin-left: auto; display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+.bulk-buy[hidden] { display: none; }
+.bulk-buy button { min-height: 24px; font: 600 0.72rem var(--font-mono); color: var(--muted); background: transparent; border: 0; padding: 4px 11px; cursor: pointer; }
+.bulk-buy button + button { border-left: 1px solid var(--border); }
+@media (hover: hover) { .bulk-buy button:hover { color: var(--text); } }
+.bulk-buy button[aria-checked="true"] { background: color-mix(in srgb, var(--success) 16%, transparent); color: var(--success); }
+.bulk-buy button:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.bulk-buy:not([hidden]) + .lab-status { margin-left: 14px; }
+.upgrade-button .eta { display: block; font-size: max(11px, 0.72em); opacity: 0.8; font-weight: 500; }
+.lab-status { margin-left: auto; font: 500 0.75rem var(--font-mono); color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); animation: led-soft 1.8s ease-in-out infinite; }
+
+.lab-supply [hidden] { display: none; }
+.supply-cell {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "label value" "spark spark";
+    gap: 4px 10px;
+    padding: 10px 12px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: linear-gradient(180deg, var(--bg-2), var(--bg));
     overflow: hidden;
-} 
+}
+.supply-label { grid-area: label; font: 700 0.68rem var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.supply-value { grid-area: value; font: 700 0.95rem var(--font-mono); color: var(--success); }
+.spark { grid-area: spark; width: 100%; height: 100%; min-height: 0; display: block; }
+.supply-link { grid-template-columns: 1fr; grid-template-areas: none; align-content: center; }
+.supply-link > * { grid-area: auto; }
+.supply-link .supply-label { color: var(--primary); }
+.supply-link .supply-label::after { content: " ⟶"; }
+.supply-text { font: 0.8rem var(--font-body); color: var(--text); }
+.supply-text.good { color: var(--success); font-size: 0.78rem; }
+
+/* Every rack unit has a status light. */
+
+
+/* Terminal output: what the automation is doing. */
+.terminal-log { display: flex; flex-direction: column; gap: 1px; margin-bottom: 6px; min-height: 4.4em; justify-content: flex-end; }
+.terminal-out { font-size: 0.74rem; color: var(--terminal-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.terminal-out.fresh { color: var(--terminal-hi); animation: type-in 0.6s steps(24, end); }
+@keyframes type-in { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+/* The lab floor: a faint blueprint grid with a slow scan line. */
+.room-lab { position: relative; background:
+    linear-gradient(color-mix(in srgb, var(--primary) 3.5%, transparent) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, color-mix(in srgb, var(--primary) 3.5%, transparent) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(180deg, var(--bg-2), var(--bg)); overflow: hidden; }
+.room-lab::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 120px;
+    top: -120px;
+    background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--success) 5%, transparent), transparent);
+    animation: lab-scan 9s linear infinite;
+    pointer-events: none;
+}
+@keyframes lab-scan { to { transform: translateY(calc(100vh + 240px)); } }
+
+/* Training Cluster bar: the lab's supply and your XP. */
+.module-supply, .module-xp { display: inline-flex; align-items: baseline; gap: 6px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; font: 500 0.8rem var(--font-mono); white-space: nowrap; }
+.module-xp { border-color: color-mix(in srgb, var(--warning) 50%, transparent); color: var(--warning); }
+.module-xp small { color: var(--success); }
+.module-supply { color: var(--muted); background: none; cursor: pointer; }
+@media (hover: hover) { .module-supply:hover { border-color: var(--success); color: var(--text); } }
+
+@media (max-width: 640px) {
+    .module-supply { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .room-lab::before, .status-dot { animation: none; }
+}
+
+/* ---- Minimap: a microchip; each area a block, wired to the Surveillance core ---- */
+.minimap {
+    position: fixed;
+    right: calc(14px + env(safe-area-inset-right, 0px));
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    z-index: 40;
+    width: 132px;
+    padding: 6px 6px 4px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--bg) 90%, transparent);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+.minimap[hidden] { display: none; }
+.minimap svg { display: block; width: 100%; height: auto; }
+.mm-label { display: block; text-align: center; font: 600 0.62rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+.mm-pin { fill: #3a5a60; }
+.mm-die { fill: var(--bg-2); stroke: var(--border); stroke-width: 1; }
+.mm-trace { fill: none; stroke: color-mix(in srgb, var(--success) 45%, transparent); stroke-width: 1; stroke-dasharray: 2 2; animation: mm-flow 1.6s linear infinite; }
+@keyframes mm-flow { to { stroke-dashoffset: -8; } }
+.mm-block rect { fill: var(--panel-2); stroke: var(--secondary); stroke-width: 0.8; transition: fill 0.15s ease; }
+.mm-block text { fill: #8fb7bd; font: 700 4.6px var(--font-mono); pointer-events: none; }
+.mm-block:not(.sealed):not(.building) { cursor: pointer; }
+@media (hover: hover) { .mm-block:not(.sealed):not(.building):hover rect, .mm-block:focus-visible rect { fill: var(--border); stroke: var(--primary); } }
+.mm-block:focus { outline: none; }
+.mm-block.core rect { fill: var(--panel-2); stroke: var(--success); }
+.mm-block.bay rect { fill: var(--panel); stroke: color-mix(in srgb, var(--success) 70%, transparent); }
+.mm-block.sealed rect, .mm-block.building rect { fill: transparent; stroke: var(--border); stroke-dasharray: 1.5 1.5; }
+.mm-block.sealed text, .mm-block.building text { fill: var(--border); }
+.mm-block.here rect { fill: color-mix(in srgb, var(--success) 30%, transparent); stroke: var(--success); stroke-width: 1.4; animation: mm-here 1.6s ease-in-out infinite; }
+.mm-block.here text { fill: var(--terminal-hi); }
+@keyframes mm-here { 50% { fill: color-mix(in srgb, var(--success) 12%, transparent); } }
+@media (max-width: 640px) {
+    .minimap { width: 92px; right: calc(8px + env(safe-area-inset-right, 0px)); bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+    .mm-label { font-size: 0.55rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .mm-trace, .mm-block.here rect { animation: none; }
+}
+.mm-block.sealed, .mm-block.building { pointer-events: none; }
+
+/* ---- Navigation: home (Surveillance) is a big jump; a step back is small ---- */
+.home-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--success);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--success) 12%, transparent);
+    color: var(--success);
+    font: 700 0.72rem var(--font-display);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.home-button span { font-size: 1rem; line-height: 1; }
+@media (hover: hover) { .home-button:hover { background: color-mix(in srgb, var(--success) 22%, transparent); } }
+.home-button:focus-visible { outline: 2px solid var(--success); outline-offset: 2px; }
+.home-button.ping { animation: node-ready 1.8s ease-in-out infinite; }
+.step-button { padding: 4px 10px; font-size: 0.78rem; }
+.crumb-sep { color: var(--border); font: 600 1rem var(--font-mono); }
+.room-goal {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font: 500 0.75rem var(--font-mono);
+    color: var(--warning);
+    padding-left: 12px;
+    border-left: 1px solid var(--border);
+}
+.room-goal:empty { display: none; }
+
+/* ---- Training Cluster: the trail and the tree fill the bay ---- */
+.room-servers .viewport { min-height: calc(100dvh / var(--zoom) - 120px); }
+.module-view { min-height: 0; }
+.module[data-module="training"] { flex: 1; min-height: 0; }
+.run-view, .dev-view { flex: 1; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.run-view[hidden], .dev-view[hidden] { display: none; }
+.tree-viewport { flex: 1; height: auto; min-height: 420px; }
+.dev-actions {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px 8px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    min-width: 0;
+}
+.dev-actions .dev-xp { font-size: 1.15rem; text-align: left; }
+.dev-actions .start-run { padding: 10px 18px; font-size: 0.95rem; }
+/* The panel floats over the tree's top-right corner on wide screens; below 1441 px it covered nodes, so it
+   becomes a one-row bar above the tree instead. */
+.tree-area { position: relative; }
+.node-detail {
+    position: absolute;
+    z-index: 4;
+    width: 250px;
+    /* Never taller than the tree's viewport: on a sideways phone (145–185 px of tree) the popup's buy
+       button sat 46–86 px below the bottom edge, clipped, so a node couldn't be bought from it there. */
+    max-height: calc(100% - 16px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;   /* the viewport's is none (it pans and pinches itself) */
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    background: color-mix(in srgb, var(--bg-2) 97%, transparent);
+}
+.node-detail[hidden] { display: none; }
+.detail-close { position: absolute; top: 4px; right: 6px; min-width: 24px; min-height: 24px; background: none; border: 0; color: var(--muted); font-size: 1.1rem; cursor: pointer; }
+@media (hover: hover) { .detail-close:hover { color: var(--text); } }
+
+/* ---- Investor projects ---- */
+.projects { grid-template-columns: 1fr auto; grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "label boosts" "list list"; }
+.projects .supply-label { grid-area: label; color: var(--warning); }
+.boosts { grid-area: boosts; font: 600 0.7rem var(--font-mono); color: var(--success); text-align: right; }
+.project-list { grid-area: list; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; min-height: 0; }
+/* Three fixed slots: an offer keeps its slot until it's claimed or gone, and new ones fill free slots. */
+.offer {
+    display: grid;
+    /* Three short rows: the reward with the countdown, the task with Claim and ×, the progress bar along
+       the foot. The old "bar time claim" third row needed 53 px in a 46 px slot at 1920 x 1080 once Claim
+       and × got 24 px targets: the bar's track was drawn over the task line and Claim hung out of the row.
+       Claim and × sit side by side: stacked in one column, their 24 px targets overlapped. */
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: auto auto auto;
+    grid-template-areas: "reward reward time" "task claim drop" "bar bar bar";
+    gap: 1px 8px;
+    align-items: center;
+    min-width: 0;
+    min-height: 0;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--warning) 4%, transparent);
+}
+.offer.done { border-color: var(--success); background: color-mix(in srgb, var(--success) 8%, transparent); }
+.project-task { grid-area: task; font: 600 0.76rem var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.project-who { font: 400 0.7rem var(--font-body); color: var(--muted); }
+.project-reward { grid-area: reward; font: 600 0.68rem var(--font-mono); color: var(--success); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.project-bar { grid-area: bar; height: 3px; margin-top: 2px; border-radius: 2px; background: var(--panel-2); overflow: hidden; }
+.project-fill { display: block; height: 100%; width: 0; background: var(--warning); transition: width 0.3s ease; }
+.offer.done .project-fill { background: var(--success); }
+.project-time { grid-area: time; font: 0.62rem var(--font-mono); color: var(--muted); text-align: right; white-space: nowrap; }
+.project-claim { grid-area: claim; min-height: 24px; padding: 3px 10px; font-size: 0.7rem; }
+/* Claim and × keep their 24 px targets without making their rows 24 px tall. */
+.project-claim, .project-drop { margin-block: -4px; }
+/* Phones: the rows aren't squeezed, so the task keeps the whole width and the bar shares a row with Claim and ×. */
+@media (max-width: 640px) {
+    .offer { grid-template-areas: "reward reward time" "task task task" "bar claim drop"; gap: 3px 8px; }
+    .project-bar { margin-top: 0; }
+}
+.project-drop { grid-area: drop; min-width: 24px; min-height: 24px; background: none; border: 0; padding: 0 4px; line-height: 1; color: var(--muted); cursor: pointer; font-size: 0.95rem; }
+.offer.open { display: grid; place-items: center; grid-template: none; border-style: dashed; background: none; font: 500 0.66rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+/* ---- Minimap: bigger, titled, easy to find ---- */
+.minimap { width: 196px; padding: 8px; border-color: color-mix(in srgb, var(--success) 45%, transparent); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 18px color-mix(in srgb, var(--success) 12%, transparent); }
+.mm-title { width: 100%; min-height: 24px; align-items: center; justify-content: center; margin-bottom: 2px; display: flex; padding: 3px 8px; border: 1px solid var(--success); border-radius: 999px; background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); font: 700 0.68rem var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; }
+@media (hover: hover) { .mm-title:hover { background: color-mix(in srgb, var(--success) 22%, transparent); } }
+.mm-label { font-size: 0.6rem; }
+
+@media (max-width: 640px) {
+    .facility-plan { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: minmax(120px, auto);
+        grid-template-areas: "lab srv" "rnd srv" "brd sig" "mir mir"; margin: 10px; padding: 10px; }
+    .minimap { width: 128px; }
+    .mm-title { font-size: 0.58rem; padding: 3px 6px; }
+    .dev-actions { top: 8px; right: 8px; padding: 6px 8px; gap: 8px; }
+    .dev-actions .dev-xp .chip-label { display: none; }
+    .node-detail { width: 220px; }
+    .room-goal { display: none; }
+}
+
+/* The minimap floats over the bottom-right corner instead of taking a column: content keeps the full
+   width, scrolling rooms leave room under their last row, and the chip is slightly translucent. */
+body.has-minimap .room-rnd { padding-bottom: 210px; }
+body.has-minimap.mm-min .room-rnd { padding-bottom: 60px; }
+.minimap { opacity: 0.9; transition: opacity 0.15s ease; }
+@media (hover: hover) { .minimap:hover, .minimap:focus-within { opacity: 1; } }
+@media (max-width: 640px) {
+    body.has-minimap .room-rnd { padding-bottom: 48px; }
+}
+@media (max-width: 640px) {
+    /* Phones: just the way home; the chip would cover the screen. */
+    .minimap { width: auto; padding: 4px; }
+    .mm-chip { display: none; }
+    .mm-title { margin: 0; }
+}
+
+/* The chip itself is the way back to Surveillance: hovering the title, the edge, the pins or bare
+   die lights up the whole chip. */
+.mm-body { cursor: pointer; }
+.mm-body:focus { outline: none; }
+/* Decoration on the die: clicks go through to the chip (Surveillance) or the block under them. */
+.mm-via, .mm-trace { pointer-events: none; }
+.mm-via { fill: var(--success); }
+@media (hover: hover) { .minimap:has(.mm-title:hover) .mm-die, .minimap:has(.mm-body:hover) .mm-die, .mm-body:focus-visible .mm-die { fill: var(--panel-2); stroke: var(--success); stroke-width: 2; } }
+@media (hover: hover) { .minimap:has(.mm-title:hover) .mm-pin, .minimap:has(.mm-body:hover) .mm-pin, .mm-body:focus-visible .mm-pin { fill: var(--success); } }
+@media (hover: hover) { .minimap:has(.mm-title:hover), .minimap:has(.mm-body:hover) { border-color: var(--success); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 26px color-mix(in srgb, var(--success) 35%, transparent); } }
+.mm-body.here .mm-die { stroke: var(--success); }
+
+/* Hardware cards show the part you're buying, as it will sit in the cabinet, above the buy button. */
+.upgrade-side { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.upgrade-part {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 40px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background:
+        radial-gradient(circle, var(--bg) 1.4px, transparent 1.8px) 2px 0 / 5px 9px repeat-y,
+        radial-gradient(circle, var(--bg) 1.4px, transparent 1.8px) calc(100% - 2px) 0 / 5px 9px repeat-y,
+        var(--bg);
+}
+
+.upgrade-part-label { font: 0.62rem var(--font-mono); color: var(--muted); text-align: center; margin-top: 2px; }
+@media (max-width: 960px) {
+    .station .upgrade-side { flex-direction: row; align-items: center; justify-self: start; }
+    .station .upgrade-part { width: 92px; }
+}
+
+/* ---- Lab layout: one grid of named areas ----
+   Every panel has a home: game.js (layoutLab) lays the grid out from what is open, so open things share
+   the floor and a new one reflows it once. Nothing resizes because of what you click: installed upgrades
+   stay where they were, and lists scroll inside their panel instead of pushing the page.
+   Wide screens (from 1800 px): one screen, no page scroll. Workbench, stations and scheduled tasks side by
+   side; the Isolation chamber under the software terminal and investor projects under the research wall;
+   along the bottom, the cabinets from the left edge and the log beside the minimap.
+   Desktop (961–1799 px): the same order in fixed-height rows. Narrower: one column. */
+:root { --supply-h: 112px; --cabinet-art-h: 166px; --bottom-h: 212px; --u-px: 7px; --station-row: 440px; --station-row-2: 360px; --projects-h: 300px; }
+.room-lab { display: grid; gap: 14px 16px; align-items: stretch; }
+.room-lab > .room-bar { grid-area: bar; }
+.lab-supply { grid-area: supply; height: 100%; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; }
+.supply-cell { grid-template-rows: auto minmax(0, 1fr); height: 100%; min-height: 0; }
+.panel-actions { grid-area: bench; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+/* The lists scroll inside, never the framed panel (its corner marks sit 1 px outside it). */
+.panel-actions .action-row { align-content: start; flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
+.lab-stations { display: contents; }
+.station[data-tab="hardware"] { grid-area: hw; }
+.station[data-tab="software"] { grid-area: sw; }
+.station[data-tab="algorithms"] { grid-area: rs; }
+.station[data-tab="consciousness"] { grid-area: cs; }
+.panel-projects { grid-area: proj; }
+.panel-tasks { grid-area: tasks; }
+.cabinet-panel { grid-area: cab; }
+.lab-log { grid-area: log; }
+.room-lab > .panel, .room-lab .station { min-width: 0; min-height: 0; }
+.lab-stations .station { overflow: hidden; }
+.lab-stations .station-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+/* "More below" hint when a station's list scrolls past its panel. */
+.station { position: relative; }
+.station-more { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); min-height: 24px; padding: 4px 12px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--warning) 50%, transparent); background: color-mix(in srgb, var(--bg) 94%, transparent); font: 600 0.7rem var(--font-mono); color: var(--warning); cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); }
+@media (hover: hover) { .station-more:hover { background: color-mix(in srgb, var(--warning) 15%, transparent); } }
+.station-more[hidden] { display: none; }
+/* While the pill shows, the list fades out under it, so the line it sits on doesn't read as text broken by a
+   button ("+2 RP per research, +2 [▾ 5 more] +15% sprint strength"). Only while there's more below: scrolled
+   to the end, the pill hides and the last card shows in full. */
+.station:has(> .station-more:not([hidden])) > .station-list {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 46px), transparent calc(100% - 4px));
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 46px), transparent calc(100% - 4px));
+}
+/* Installed upgrades keep their place, dimmed, with a check instead of a price. */
+.upgrade.owned h3, .upgrade.owned p { opacity: 0.55; }
+.upgrade.owned .upgrade-button:disabled, .upgrade.owned .upgrade-button[aria-disabled="true"] { color: var(--success); border-color: color-mix(in srgb, var(--success) 35%, transparent); }
+.upgrade.fresh { animation: card-in 1.6s ease-out; }
+@keyframes card-in { from { background: color-mix(in srgb, var(--warning) 18%, transparent); } }
+/* Action cards keep one height whatever their automation line says: two lines reserved (a gate's progress
+   can need both on a narrow card), clamped, never more. */
+.action-auto { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; line-height: 1.3; min-height: 2.6em; box-sizing: content-box; width: 100%; }
+
+/* Wide: one screen. The bottom row (cabinets, log) leaves the minimap its corner. */
+.room-lab[data-tier="wide"] { height: calc(100dvh / var(--zoom) - var(--topbar-h, 53px) - 40px); min-height: 640px; }
+.room-lab[data-tier="wide"] .cabinet-panel { margin-right: 220px; }
+body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right: 0; }
+@media (max-width: 1799px) {
+    body.has-minimap .room-lab { padding-bottom: 230px; }
+    body.has-minimap.mm-min .room-lab { padding-bottom: 60px; }
+}
+@media (max-width: 960px) {
+    :root { --supply-h: auto; }
+    .room-lab { grid-template-columns: minmax(0, 1fr); }
+    .room-lab > *, .lab-stations > .station { grid-area: auto !important; }
+    .lab-supply { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 84px; }
+    .lab-stations .station { max-height: 560px; }
+}
+
+/* ---- Investor projects: a panel under the research wall, three fixed slots stacked ---- */
+.panel-projects { display: flex; flex-direction: column; gap: 8px; }
+.panel-projects[hidden] { display: none; }
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.panel-projects .station-title { color: var(--warning); }
+.panel-projects .project-list { flex: 1; grid-template-columns: minmax(0, 1fr); grid-auto-rows: min-content; align-content: start; }
+/* (Offers keep their own height when the panel grows down into free floor: stretched, they read as empty boxes.) */
+/* The head stays one line: a boost or two (the dilemmas add their own) wrapped it and the fixed-height panel
+   squeezed the three offers into each other. Long lists clip, the full list is the tooltip. */
+.panel-projects .panel-head { flex-wrap: nowrap; min-width: 0; }
+.panel-projects .station-title { white-space: nowrap; flex: none; }
+.panel-projects .boosts { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.boosts .boost.down { color: var(--danger); }
+
+/* ---- Scheduled tasks: each automation with a switch and its dedicated compute ---- */
+.panel-tasks { display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+.panel-tasks[hidden] { display: none; }
+.task-total { font: 600 0.7rem var(--font-mono); color: var(--primary); text-align: right; }
+.task-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
+.task { display: grid; gap: 6px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 6px; background: linear-gradient(180deg, var(--bg-2), var(--bg)); }
+.task[hidden] { display: none; }
+.task.off { opacity: 0.6; }
+.task-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.task-name { font: 700 0.84rem var(--font-display); letter-spacing: 0.04em; }
+.task-name::before { content: "⏱ "; color: var(--primary); font-weight: 400; }
+.task-laps .task-name::before { content: "↻ "; color: var(--success); }
+.task-rate { font: 600 0.74rem var(--font-mono); color: var(--success); }
+.task.off .task-rate { color: var(--muted); }
+.task-always { font: 600 0.62rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.task-toggle { min-width: 46px; min-height: 24px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); font: 700 0.66rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
+.task-toggle[aria-checked="false"] { border-color: var(--border); background: transparent; color: var(--muted); }
+.task-budget { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.task-share { font: 600 0.7rem var(--font-mono); color: var(--muted); white-space: nowrap; }
+.task-share.capped { color: var(--warning); }
+/* The slider's track: the share it holds, then what it could take, then (hatched) what other tasks hold. */
+/* A 24 px hit area (WCAG 2.2 target size) around the same 6 px track: the track paints in the padding box
+   inside 9 px transparent borders (the clip comes after the shorthand, which would reset it). */
+.task-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 24px; border: 9px solid transparent; margin: 0; border-radius: 12px; cursor: pointer; background:
+    linear-gradient(90deg, var(--primary) 0 var(--pct, 0%), transparent var(--pct, 0%)),
+    linear-gradient(90deg, var(--border) 0 var(--reach, 100%), transparent var(--reach, 100%)),
+    repeating-linear-gradient(135deg, color-mix(in srgb, var(--danger) 40%, transparent) 0 3px, var(--panel-2) 3px 6px);
+    background-clip: padding-box; }
+.task-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--primary); border: 2px solid var(--bg); box-shadow: 0 0 8px color-mix(in srgb, var(--primary) 70%, transparent); }
+.task-slider::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--primary); border: 2px solid var(--bg); }
+.task-slider:disabled { cursor: default; opacity: 0.5; }
+
+/* ---- Training Cluster: a trail you can read, a tree that fills the bay ----
+   The run view is a centred screen (capped width and height) rather than the whole bay; the dev
+   screen (the skill tree) still fills it. */
+.run-view { align-items: center; justify-content: center; }
+.run-view > .canvas-wrap { flex: none; width: min(100%, 1360px); height: clamp(280px, calc(56dvh / var(--zoom)), 600px); min-height: 0; }
+.run-view > .path-controls, .run-view > .path-status { width: min(100%, 1360px); }
+
+/* Replays: which leg a run starts on. */
+.leg-pick { display: flex; align-items: center; gap: 8px; }
+.leg-pick[hidden] { display: none; }
+.leg-pick select { max-width: 230px; text-overflow: ellipsis; padding: 7px 8px; font: 600 0.8rem var(--font-body); color: var(--text); background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; }
+.leg-tag { position: absolute; left: 12px; bottom: 20px; z-index: 2; display: flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border: 1px solid color-mix(in srgb, var(--success) 45%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--bg) 88%, transparent); font: 600 0.72rem var(--font-mono); color: var(--success); }
+.leg-tag[hidden] { display: none; }
+.leg-tag-clear { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 0.95rem; line-height: 1; padding: 0 4px; }
+@media (hover: hover) { .leg-tag-clear:hover { color: var(--text); } }
+/* Cleared lanes on the rack are buttons into a replay of that leg. */
+.bay[data-bay="training"]:not(.sealed) .bay-art .lane.cleared { cursor: pointer; transition: box-shadow 0.15s ease; }
+@media (hover: hover) { .bay[data-bay="training"]:not(.sealed) .bay-art .lane.cleared:hover { box-shadow: inset 0 0 0 1px var(--success), 0 0 10px color-mix(in srgb, var(--success) 35%, transparent); } }
+
+/* Top-bar numbers keep their width as they grow, so the chips beside them don't jitter. */
+.chip [data-bind^="res."], .chip [data-bind^="attr."] { display: inline-block; min-width: 5ch; text-align: right; }
+.chip small { display: inline-block; min-width: 6.5ch; }
+
+/* The training bonus sits under the label, over the sparkline's corner, so the label never wraps. */
+.supply-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* Phones: the bay's bar keeps to one line (⌂, ← Rack, Skills, XP) so it never widens the page. */
+@media (max-width: 640px) {
+    .module-bar { gap: 6px 8px; flex-wrap: wrap; }
+    .module-bar #moduleTitle, .module-bar .crumb-sep, .module-bar .home-label { display: none; }
+    /* The crumbs keep their room; once the Auto-Trainer and Restart join, the buttons wrap to a second row
+       (they used to crush the crumbs to nothing and push Upgrades off a 390 px screen). */
+    .module-bar .crumbs { flex: 1 1 auto; min-width: 8.5em; }
+    .module-bar .ghost-button, .module-bar .auto-switch { flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+    /* ...but a button wearing the "XP to spend" badge lets it out: clipped, only a 11 × 11 px sliver showed. */
+    .module-bar .ghost-button[data-ready] { overflow: visible; }
+    /* The server room's bar too: with the Auto-Trainer switch and Upgrades, Upgrades ran off the right edge. */
+    .hub .room-bar { flex-wrap: wrap; gap: 6px 8px; }
+    .hub .room-bar .crumbs { flex: 1 1 auto; min-width: 8.5em; }
+    .hub .room-bar .ghost-button, .hub .room-bar .auto-switch { flex: none; }
+}
+
+/* ---- Luck: special-looking moments ---- */
+/* Breakthrough take-off jolts the trail. */
+.path-canvas.jolt { animation: jolt 0.32s ease-out; }
+@keyframes jolt {
+    20% { transform: translate(-5px, 3px); }
+    40% { transform: translate(5px, -3px); }
+    60% { transform: translate(-3px, 2px); }
+    80% { transform: translate(2px, -1px); }
+}
+/* Crunch: the sprint button burns. */
+.push-button.crunch {
+    color: #fff;
+    background: linear-gradient(90deg, var(--danger), var(--warning), var(--danger));
+    background-size: 200% 100%;
+    box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 65%, transparent);
+    animation: crunch-burn 0.8s linear infinite;
+}
+@keyframes crunch-burn { to { background-position: -200% 0; } }
+/* Max Effort: the meter turns gold and shimmers; the next press goes all out. */
+.charge.effort .charge-track {
+    border-color: var(--warning);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--warning) 15%, transparent), rgba(255, 220, 140, 0.45), color-mix(in srgb, var(--warning) 15%, transparent));
+    background-size: 200% 100%;
+    box-shadow: 0 0 16px color-mix(in srgb, var(--warning) 55%, transparent);
+    animation: flow-shimmer 1.2s linear infinite;
+}
+.charge.effort .charge-fill { background: var(--warning); }
+.push-button.effort { color: #1a1206; background: linear-gradient(90deg, #b8860b, #ffe08a, #b8860b); background-size: 200% 100%; animation: crunch-burn 1.2s linear infinite;
+    box-shadow: 0 0 22px rgba(255, 215, 120, 0.7); }
+/* Bullet Time: the button goes cold blue while time is stopped. */
+.push-button.frozen { color: #fff; background: linear-gradient(90deg, #2a4f8f, #6fb3ff, #2a4f8f); background-size: 200% 100%; animation: crunch-burn 2.4s linear infinite;
+    box-shadow: 0 0 22px rgba(111, 179, 255, 0.6); }
+/* The system prompt: a white-hot sliver inside the super prompt spot. */
+.charge-system { position: absolute; top: 0; bottom: 0; background: #fff; box-shadow: 0 0 10px #fff, 0 0 18px #ff7ab6; z-index: 3; }
+.charge-fill.in-zone.system { background: linear-gradient(90deg, #ff7ab6, #fff); box-shadow: 0 0 22px #ff7ab6; }
+@keyframes flow-shimmer { to { background-position: -200% 0; } }
+/* Viral run: an animated rainbow edge and a stamp. */
+.roll-result.viral { border: 2px solid transparent; background:
+    linear-gradient(color-mix(in srgb, var(--bg-2) 97%, transparent), color-mix(in srgb, var(--bg-2) 97%, transparent)) padding-box,
+    linear-gradient(120deg, #ff7ab6, var(--research), var(--primary), var(--warning), #ff7ab6) border-box;
+    background-size: 100% 100%, 300% 300%; animation: viral-edge 2.4s linear infinite; box-shadow: 0 0 30px color-mix(in srgb, var(--research) 45%, transparent); }
+.roll-result.viral::before {
+    content: attr(data-viral);
+    /* Inside the card: it scrolls (overflow: auto), so anything hanging over its edge was clipped. */
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    z-index: 1;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #ff7ab6, var(--research));
+    color: #fff;
+    font: 800 0.72rem var(--font-display);
+    letter-spacing: 0.12em;
+    transform: rotate(4deg);
+    box-shadow: 0 4px 14px rgba(255, 122, 182, 0.5);
+}
+@keyframes viral-edge { to { background-position: 0 0, 300% 0; } }
+@media (prefers-reduced-motion: reduce) {
+    .push-button.crunch, .push-button.effort, .push-button.frozen, .charge.effort .charge-track, .roll-result.viral, .path-canvas.jolt { animation: none; }
+}
+
+/* Live yield on hardware and click cards: the numbers, so descriptions don't need them. */
+.upgrade-yield { font: 600 0.74rem var(--font-mono); color: var(--success); }
+.station-terminal .upgrade-yield { color: var(--terminal-hi); }
+
+/* Lab log under the Workbench: the last few installs and automation jobs, green-screen, fixed height. */
+.lab-log[hidden] { display: none; }
+.lab-log { gap: 6px; padding: 12px 14px; }
+.lab-log .terminal-log { height: calc(4 * 1.35em); min-height: 0; margin: 0; padding: 6px 10px; justify-content: flex-end; overflow: hidden; border-radius: 6px; background: var(--bg); font-family: var(--font-mono); line-height: 1.35; }
+
+/* A finished one-time card: green flash and an "Installed ✓" stamp, then it folds away (retireCard). */
+.upgrade.completing { position: relative; overflow: hidden; animation: card-done 0.8s ease-out; }
+.upgrade.completing::after {
+    content: "Installed ✓";
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    white-space: nowrap;
+    display: grid;
+    place-items: center;
+    font: 800 1.1rem var(--font-display);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--success);
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    text-shadow: 0 0 14px color-mix(in srgb, var(--success) 70%, transparent);
+    animation: stamp-in 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+@keyframes card-done { 0% { box-shadow: inset 0 0 0 2px var(--success), 0 0 24px color-mix(in srgb, var(--success) 50%, transparent); } 100% { box-shadow: none; } }
+@keyframes stamp-in { from { transform: scale(1.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* Compact cards in every station: the price (and on the hardware bench, the rack part) sit in the
+   title row, so the text gets the full width and several cards fit in a station at once. */
+.station .upgrade { grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 1px 8px; padding: 8px 2px; }
+.station .upgrade-info, .station .upgrade-side { display: contents; }
+.station .upgrade h3 { grid-column: 1; grid-row: 1; min-width: 0; }
+/* A full card's title column is narrow: its Lv badge drops under the name rather than under the cabinet part. */
+.station .upgrade:has(.upgrade-button.full) h3 { flex-wrap: wrap; row-gap: 2px; }
+.station .upgrade:has(.upgrade-button.full) h3 > span:first-of-type { flex: 1 1 0; }
+.station .upgrade-part { grid-column: 2; grid-row: 1; width: 64px; height: 26px; padding: 3px 5px; }
+
+.station .upgrade-part-label { display: none; }
+.station .upgrade-button { grid-column: 3; grid-row: 1; min-width: 0; padding: 4px 9px; font-size: 0.72rem; white-space: nowrap; }
+/* A full card's note wraps under "Full n/n" instead of running 211 px wide: on one line it squeezed the
+   title column to 66 px at 1920 (3 px on a phone), wrapping every name and hiding the Lv badge under the part. */
+.station .upgrade-button.full { white-space: normal; max-width: 10em; line-height: 1.15; text-align: center; }
+.station .upgrade-button.full .eta { margin-top: 1px; }
+.station .upgrade p { grid-column: 1 / -1; margin: 0; line-height: 1.35; }
+.station .upgrade-flavor { font-size: 0.74rem; }
+.station-terminal .station-art, .station-terminal .station-list { border-left-width: 5px; border-right-width: 5px; }
+.station-terminal .station-list { padding: 0 10px 8px; }
+.station-terminal .upgrade h3 { font-size: 0.82rem; }
+.station-terminal .upgrade .muted, .station-terminal .upgrade-flavor { font-size: 0.74rem; }
+
+/* Use the floor: open stations share the width, and a wide station flows its cards into columns. */
+.lab-stations { grid-template-columns: repeat(var(--open-stations-mid, 2), minmax(0, 1fr)); }
+.lab-stations .station-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); column-gap: 18px; align-content: start; }
+.lab-stations .station-list > .empty-hint { grid-column: 1 / -1; }
+@media (min-width: 1800px) {
+    .lab-stations { grid-template-columns: repeat(var(--open-stations, 4), minmax(0, 1fr)); }
+}
+@media (max-width: 960px) {
+    .lab-stations { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* The run's stats sit right above the trail, at its width. */
+.run-view > .run-stats { width: min(100%, 1360px); display: flex; align-items: center; gap: 10px; min-width: 0; }
+.run-stats .run-goal { flex: 1; padding-left: 0; border-left: 0; font-size: 0.82rem; }
+/* The Auto-Trainer's gate: muted status, like the Workbench's automation lines before they're met. */
+.run-stats .auto-gate { flex: none; font-size: 0.74rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32ch; }
+.module-bar #treeButton { margin-left: auto; }
+
+/* The minimap's holder is square: the title on top, the chip filling the rest, "You are in" under it. */
+@media (min-width: 641px) {
+    .minimap:not([hidden]) { display: flex; flex-direction: column; width: 212px; aspect-ratio: 1; }
+    .mm-chip { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; }
+    .mm-chip svg { flex: 1; min-height: 0; width: auto; height: 100%; max-width: 100%; }
+    .minimap:not([hidden]) { padding: 6px 6px 4px; }
+}
+
+/* ---- Navigation: where you are, as a file path (surveillance/server_room/training_cluster) ----
+   Every segment but the last is a link back up; the first (⌂ surveillance) is the way home. */
+.crumbs { display: flex; align-items: baseline; gap: 1px; min-width: 0; white-space: nowrap; font: 600 0.95rem var(--font-mono); }
+.crumbs .crumb { min-height: 24px; min-width: 24px; padding: 2px 5px; border: 0; border-radius: 4px; background: none; font: inherit; color: var(--success); cursor: pointer;
+    text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--success) 30%, transparent); text-underline-offset: 4px; }
+@media (hover: hover) { .crumbs .crumb:hover { background: color-mix(in srgb, var(--success) 12%, transparent); text-decoration-color: currentColor; } }
+.crumbs .crumb:focus-visible { outline: 2px solid var(--success); outline-offset: 1px; }
+.crumbs .crumb-home::before { content: "⌂ "; text-decoration: none; display: inline-block; margin-right: 2px; }
+.crumbs .crumb.ping { animation: crumb-ping 1.8s ease-in-out infinite; }
+@keyframes crumb-ping { 50% { background: color-mix(in srgb, var(--success) 25%, transparent); box-shadow: 0 0 14px color-mix(in srgb, var(--success) 45%, transparent); } }
+.crumbs .crumb-sep { padding: 0 1px; color: var(--secondary); font: inherit; }
+.crumbs .crumb-here { margin: 0; padding: 2px 5px; font: 700 0.95rem var(--font-mono); letter-spacing: 0; text-transform: none; color: var(--text); }
+.crumbs .crumb-root::before { content: "⌂ "; color: var(--success); }
+@media (prefers-reduced-motion: reduce) {
+    .crumbs .crumb.ping { animation: none; }
+}
+
+/* ---- Click effects, inside the server cabinets only ----
+   Compute clicks spark pieces, data clicks send signals along the tray and the looms, research clicks
+   flash pieces violet (clickGlow in game.js). */
+.cab-spark { position: absolute; z-index: 3; width: 4px; height: 4px; border-radius: 50%; pointer-events: none; background: #fff3c4; box-shadow: 0 0 5px var(--warning), 0 0 2px #fff; }
+.cab-signal { position: absolute; left: 0; top: 0; z-index: 4; width: var(--size, 5px); height: var(--size, 5px); border-radius: 50%; pointer-events: none;
+    background: #e6f6ff; box-shadow: 0 0 6px 2px #6fb3ff, 0 0 14px #2a9df4; }
+
+/* ---- Server cabinets: every kind of hardware mixed in the same racks ----
+   Racks of 4 × 6 cells, filled from the bottom in buy order; every piece is a rectangle in its
+   hardware's style, lit; four in a row of one kind and size merge (t1, t2, t3). New pieces pop in,
+   merges flash. */
+.cabinet-art { --cell: calc((var(--cabinet-art-h) - 38px) / 8); align-items: flex-end; gap: 14px; padding-top: 14px; position: relative;
+    /* Overhead cable tray running across the row of racks. */
+    background: linear-gradient(180deg, var(--panel-2) 0 3px, transparent 3px),
+        repeating-linear-gradient(90deg, #3b6cff 0 2px, #2a9df4 2px 4px, var(--warning) 4px 5px, var(--success) 5px 7px, #e0457b 7px 8px, #1f4fd1 8px 11px) 0 3px / 100% 4px no-repeat,
+        linear-gradient(0deg, color-mix(in srgb, var(--primary) 6%, transparent), transparent 60%); }
+/* A rack: a dark cabinet with rails, and colourful cable looms down both sides that grow as it fills. */
+.rack-block { position: relative; flex: none; overflow: clip; width: calc(7 * var(--cell) + 16px); height: calc(8 * var(--cell) + 10px); border: 2px solid var(--panel-2); border-top-width: 5px; border-bottom-width: 4px; border-radius: 3px;
+    background: linear-gradient(90deg, var(--bg-2) 0 4px, transparent 4px calc(100% - 4px), var(--bg-2) calc(100% - 4px)),
+    radial-gradient(circle, var(--border) 1px, transparent 1.4px) 1px 2px / 4px var(--cell), var(--bg);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.6), inset 0 0 18px rgba(0, 0, 0, 0.8); }
+.rack-block::before, .rack-block::after { content: ""; position: absolute; bottom: 0; width: 3px; height: calc(var(--fill, 0) * 100%); z-index: 2; pointer-events: none;
+    background: repeating-linear-gradient(90deg, #3b6cff 0 1px, var(--warning) 1px 2px, var(--success) 2px 3px); opacity: 0.85; filter: drop-shadow(0 0 2px rgba(59, 108, 255, 0.6)); transition: height 0.6s ease; }
+.rack-block::before { left: 1px; }
+.rack-block::after { right: 1px; background: repeating-linear-gradient(90deg, #e0457b 0 1px, #2a9df4 1px 2px, #ffd27a 2px 3px); }
+.hw { position: absolute; display: block; left: calc(7px + var(--x) * var(--cell)); bottom: calc(4px + var(--y) * var(--cell));
+    width: calc(var(--w) * var(--cell) - 2px); height: calc(var(--h) * var(--cell) - 2px); overflow: hidden; border-radius: 2px; }
+.hw i, .hw b { position: absolute; display: block; pointer-events: none; }
+.hw.fresh { animation: hw-in 0.6s cubic-bezier(0.2, 1.4, 0.4, 1); }
+.hw.merged { animation: hw-merge 0.9s ease-out; }
+@keyframes hw-in { from { transform: translateY(-14px) scale(0.6); opacity: 0; } }
+@keyframes hw-merge { 0% { transform: scale(0.5); filter: brightness(3); } 40% { transform: scale(1.08); filter: brightness(2); } }
+@keyframes hw-blink { 50% { opacity: 0.25; } }
+@keyframes hw-pulse { 50% { filter: brightness(1.45); } }
+@keyframes hw-flow { to { background-position: 60px 0, 0 0; } }
+/* Basic CPU: a green board with a chip on it and a status light. */
+.hw-cpu { background: radial-gradient(circle, var(--border) 0 30%, var(--panel-2) 31% 40%, transparent 41%) 0 0 / var(--cell) var(--cell), var(--panel); box-shadow: inset 0 0 0 1px var(--border); }
+.hw-cpu i { inset: 3px; border: 1px dashed color-mix(in srgb, var(--success) 35%, transparent); }
+.hw-cpu b { right: 2px; top: 2px; width: 3px; height: 3px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success); animation: hw-blink 1.3s steps(2) infinite; }
+/* Server: a rack-mount box, drive bays and a row of lights. */
+.hw-server { background: repeating-linear-gradient(90deg, var(--border) 0 5px, var(--bg-2) 5px 7px); box-shadow: inset 0 0 0 1px #2f5660, inset 0 -2px 0 var(--bg); }
+.hw-server i { right: 4px; top: 50%; width: 24%; height: 3px; transform: translateY(-50%);
+    background: repeating-linear-gradient(90deg, var(--success) 0 3px, transparent 3px 6px); box-shadow: 0 0 6px color-mix(in srgb, var(--success) 70%, transparent); animation: hw-blink 0.9s steps(3) infinite; }
+.hw-server b { left: 3px; top: 3px; bottom: 3px; width: 3px; background: var(--warning); opacity: 0.8; box-shadow: 0 0 5px var(--warning); }
+.hw-server.t2, .hw-server.t3 { background: repeating-linear-gradient(0deg, var(--border) 0 calc(var(--cell) - 2px), var(--bg) calc(var(--cell) - 2px) var(--cell)),
+    repeating-linear-gradient(90deg, transparent 0 5px, rgba(0, 0, 0, 0.35) 5px 7px); }
+/* Quantum: a gold-trimmed cryostat cabinet with a blue core window. */
+.hw-quantum { background: linear-gradient(180deg, #c9a04a 0 3px, transparent 3px), repeating-linear-gradient(0deg, transparent 0 7px, rgba(201, 160, 74, 0.35) 7px 8px), var(--panel);
+    box-shadow: inset 0 0 0 1px #6d5420; }
+.hw-quantum i { left: 22%; right: 22%; top: 30%; bottom: 12%; border-radius: 2px; background: radial-gradient(ellipse at 50% 65%, #e6f6ff 0 10%, #6fb3ff 28%, rgba(111, 179, 255, 0.15) 70%), var(--bg-2); }
+.hw-quantum b { inset: 0; box-shadow: inset 0 0 10px rgba(111, 179, 255, 0.45); animation: hw-pulse 1.6s ease-in-out infinite; }
+/* Neural chip: a violet board with a glowing grid of synapses. */
+.hw-neural { background: radial-gradient(circle, #e0b8ff 1px, transparent 1.6px) 0 0 / 6px 6px, radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--research) 50%, transparent), transparent 70%), #22163a;
+    box-shadow: inset 0 0 0 1px #5b3f7a; animation: hw-pulse 2.2s ease-in-out infinite; }
+.hw-neural i { inset: 28%; border: 1px solid rgba(224, 184, 255, 0.7); border-radius: 2px; }
+/* Datacenter: a hall with a roof line, cooling fans and lit windows. */
+.hw-datacenter { background: radial-gradient(circle, #31585f 0 30%, var(--bg) 32% 40%, transparent 42%) 0 4px / calc(var(--cell) * 0.75) calc(var(--cell) * 0.75),
+    linear-gradient(180deg, var(--border) 0 4px, var(--panel-2) 4px); box-shadow: inset 0 0 0 1px #34616a; }
+.hw-datacenter i { left: 6%; right: 6%; bottom: 3px; height: 4px; background: repeating-linear-gradient(90deg, #ffd27a 0 4px, transparent 4px 8px); opacity: 0.85; box-shadow: 0 0 8px rgba(255, 210, 122, 0.5); animation: hw-blink 3s steps(4) infinite; }
+/* Optical: a dark module with a beam split into a moving spectrum. */
+.hw-optical { background: linear-gradient(90deg, transparent 0 20%, var(--accent), var(--warning), var(--success), var(--primary), var(--research), transparent 80% 100%) 0 50% / 200% 30% repeat-x,
+    linear-gradient(180deg, var(--border), var(--panel)); box-shadow: inset 0 0 0 1px var(--secondary); animation: hw-flow 2.4s linear infinite; }
+.hw-optical i { left: 0; top: 50%; width: 30%; height: 2px; margin-top: -1px; background: #fff; box-shadow: 0 0 6px #fff; }
+/* Merged pieces glow a little brighter, the bigger they are. */
+.hw.t1 { filter: brightness(1.08); }
+.hw.t2 { filter: brightness(1.16) drop-shadow(0 0 4px color-mix(in srgb, var(--success) 35%, transparent)); }
+.hw.t3 { filter: brightness(1.24) drop-shadow(0 0 6px color-mix(in srgb, var(--success) 50%, transparent)); }
+/* The piece on a hardware card. */
+.upgrade-part { --cell: 13px; position: relative; display: grid; place-items: center; }
+.upgrade-part .hw { position: relative; left: auto; bottom: auto; }
+@media (prefers-reduced-motion: reduce) {
+    .hw, .hw i, .hw b { animation: none !important; }
+}
+.station .upgrade-part { --cell: 7px; height: 28px; }
+
+/* ---- Reveals: new sections boot up instead of popping in ----
+   A scan wipe from the left with a bright leading edge, a short flicker, then a glow that fades. */
+.reveal-in { animation: reveal-boot 1.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@keyframes reveal-boot {
+    0% { clip-path: inset(0 100% 0 0); opacity: 0.4; filter: brightness(2.2) saturate(0.4); box-shadow: 0 0 0 1px color-mix(in srgb, var(--success) 90%, transparent), 0 0 24px color-mix(in srgb, var(--success) 60%, transparent); }
+    45% { clip-path: inset(0 0 0 0); opacity: 1; filter: brightness(1.7) saturate(0.6); }
+    55% { opacity: 0.55; }
+    62% { opacity: 1; }
+    70% { opacity: 0.75; }
+    78% { opacity: 1; filter: brightness(1.25); box-shadow: 0 0 0 1px color-mix(in srgb, var(--success) 60%, transparent), 0 0 18px color-mix(in srgb, var(--success) 35%, transparent); }
+    100% { clip-path: inset(0 0 0 0); opacity: 1; filter: none; }
+}
+/* The scan line itself, riding the wipe's edge (on elements whose ::before is free). */
+.supply-cell.reveal-in::before, .action-button.reveal-in::before, .task.reveal-in::before, .upgrade.reveal-in::before {
+    content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background: #c8ffe9; box-shadow: 0 0 12px 3px color-mix(in srgb, var(--success) 80%, transparent);
+    animation: reveal-scan 0.68s linear both; animation-delay: inherit; animation-play-state: inherit; pointer-events: none; z-index: 2;
+}
+.action-button.reveal-in, .task.reveal-in, .upgrade.reveal-in { position: relative; }
+@keyframes reveal-scan { from { left: 0; opacity: 1; } 90% { opacity: 1; } to { left: 100%; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+    .reveal-in, .reveal-in::before { animation: none !important; }
+}
+
+/* The minimap sits inside the big frame around every screen (20 px margin + 14 px padding), lined up
+   with the content's bottom-right corner, not over the frame's edge. */
+@media (min-width: 641px) {
+    .minimap { right: calc(34px + env(safe-area-inset-right, 0px)); bottom: calc(34px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* Every piece carries rows of status LEDs, like a real rack face (blue and green, a few blinking). */
+.hw::after { content: ""; position: absolute; left: 3px; right: 3px; top: 3px; height: 2px; pointer-events: none;
+    background: radial-gradient(circle, #6fb3ff 0 1px, transparent 1.3px) 0 0 / 5px 2px repeat-x; opacity: 0.8; animation: hw-blink 2.6s steps(3) infinite; }
+.hw-cpu::after, .hw-neural::after { background: radial-gradient(circle, var(--success) 0 1px, transparent 1.3px) 0 0 / 4px 2px repeat-x; }
+.hw.t1::after, .hw.t2::after, .hw.t3::after { height: calc(100% - 6px); background: radial-gradient(circle, rgba(111, 179, 255, 0.9) 0 0.8px, transparent 1.2px) 0 0 / 6px var(--cell) repeat; opacity: 0.45; }
+.hw.t0 { border-radius: 2px; }
+@media (prefers-reduced-motion: reduce) {
+    .rack-block::before, .rack-block::after { transition: none; }
+}
+
+/* ---- Scheduled tasks: progress bars, one row per learned skill, and the log at the foot ---- */
+.task-bar { position: relative; display: block; height: 5px; border-radius: 3px; background: var(--panel-2); overflow: hidden; }
+.task-fill { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 3px; background: linear-gradient(90deg, var(--secondary), var(--success)); box-shadow: 0 0 8px color-mix(in srgb, var(--success) 60%, transparent); transition: width 0.1s linear; }
+.task-autoCollector .task-fill { background: linear-gradient(90deg, var(--secondary), var(--primary)); box-shadow: 0 0 8px color-mix(in srgb, var(--primary) 60%, transparent); }
+.task-researchAssistant .task-fill { background: linear-gradient(90deg, var(--research-deep), var(--research)); box-shadow: 0 0 8px color-mix(in srgb, var(--research) 60%, transparent); }
+.task-skill .task-name::before { content: "↻ "; color: var(--success); }
+.task.off .task-fill { opacity: 0.3; }
+.task.task-linked { animation: task-linked 1.6s ease-out; }
+@keyframes task-linked { 0% { box-shadow: 0 0 0 1px #9ff3cf, 0 0 26px color-mix(in srgb, var(--success) 80%, transparent); } 100% { box-shadow: none; } }
+.task-log { flex: none; display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px dashed var(--border); }
+.task-log[hidden] { display: none; }
+.task-log-title { font: 700 0.62rem var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.task-log .terminal-log { display: flex; flex-direction: column; gap: 1px; font: 0.68rem var(--font-mono); color: var(--terminal-hi); }
+.task-log .terminal-out { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.7; }
+.task-log .terminal-out.fresh { opacity: 1; }
+
+/* ---- Connections: a glowing signal line from what started a task to the task, behind the panels ---- */
+.room-lab { position: relative; }
+.room-lab > :not(.signal-line):not(.lab-stations), .lab-stations > .station { position: relative; }
+.signal-line { position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none; overflow: visible; }
+.signal-line path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.signal-glow { stroke: color-mix(in srgb, var(--success) 55%, transparent); stroke-width: 12; filter: blur(5px); }
+.signal-core { stroke: #b8ffe0; stroke-width: 3; filter: drop-shadow(0 0 6px var(--success)) drop-shadow(0 0 2px #fff); }
+.signal-pulse { stroke: #ffffff; stroke-width: 5; filter: drop-shadow(0 0 8px #fff) drop-shadow(0 0 14px var(--success)); }
+.signal-end { fill: #ffffff; filter: drop-shadow(0 0 8px var(--success)); }
+
+/* ---- Minimap: open by default, minimizable to a "Surveillance room" pill ----
+   Open, the chip sits above the pill bar (the pill and its – button stay put at the bottom). Minimized
+   (.min, remembered) it's just the pill, so it never covers a trail, a meter or a station; hover,
+   keyboard focus or a callout (.open) still open it. A small tooltip names the room under the pointer. */
+.minimap:not([hidden]) { display: flex; flex-direction: column-reverse; width: auto; aspect-ratio: auto; padding: 4px; gap: 4px; }
+.mm-bar { display: flex; gap: 4px; align-items: stretch; }
+.minimap .mm-title { margin: 0; white-space: nowrap; flex: 1; }
+.minimap .mm-min { flex: none; width: 26px; min-height: 24px; border: 1px solid color-mix(in srgb, var(--success) 50%, transparent); border-radius: 999px; background: transparent; color: var(--success); font: 700 0.8rem var(--font-mono); cursor: pointer; line-height: 1; }
+@media (hover: hover) { .minimap .mm-min:hover, .minimap .mm-min:focus-visible { background: color-mix(in srgb, var(--success) 18%, transparent); outline: none; } }
+.minimap .mm-chip { display: none; }
+@media (min-width: 641px) {
+    .minimap:not([hidden]):not(.min), .minimap.min:not([hidden]):is(:hover, :focus-within, .open) { width: 212px; height: 212px; padding: 6px 6px 4px; }
+    .minimap:not(.min) .mm-chip, .minimap.min:is(:hover, :focus-within, .open) .mm-chip { display: flex; }
+    .minimap.min:is(:hover, :focus-within, .open) .mm-chip { animation: mm-open 0.18s ease-out; }
+}
+@media (max-width: 640px) { .minimap .mm-min { display: none; } }
+@keyframes mm-open { from { opacity: 0; transform: translateY(8px); } }
+.mm-tip { position: absolute; z-index: 2; transform: translate(-50%, -100%); padding: 3px 8px; border-radius: 6px; pointer-events: none; white-space: nowrap;
+    background: var(--bg-2); border: 1px solid var(--success); color: var(--terminal-hi); font: 600 0.68rem var(--font-mono); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); }
+.mm-tip[hidden] { display: none; }
+.mm-block.ping rect { fill: rgba(111, 179, 255, 0.35); stroke: #6fb3ff; stroke-width: 1.4; animation: mm-ping 0.9s ease-in-out infinite; }
+/* A room you haven't been in yet pulses green on the map (the first visit to the server room is steered there). */
+.mm-block.room.fresh rect { stroke: var(--success); stroke-width: 1.6; animation: mm-fresh 1.4s ease-in-out infinite; }
+@keyframes mm-fresh { 50% { fill: color-mix(in srgb, var(--success) 30%, transparent); } }
+@keyframes mm-ping { 50% { fill: rgba(111, 179, 255, 0.1); } }
+
+/* Contextual callouts sit beside what they point at (fixed, placed by showCallout in game.js). */
+.toast.callout { position: fixed; z-index: 60; min-width: 0; width: 320px; max-width: calc(100vw / var(--zoom, 1) - 16px); cursor: pointer; }
+.toast.callout-side { transform: translateX(-12px); }
+.toast.callout-map { transform: translateY(10px); }
+.toast.callout.show { transform: none; }
+/* A tip's spotlight: everything but its target dims (a hole cut by a huge shadow); clicks pass through. */
+.tip-spot { position: fixed; left: 0; top: 0; z-index: 59; border-radius: 10px; pointer-events: none; opacity: 0; transition: opacity 0.35s ease;
+    box-shadow: 0 0 0 200vmax color-mix(in srgb, var(--bg) 62%, transparent), 0 0 0 2px color-mix(in srgb, var(--success) 70%, transparent); }
+.tip-spot.show { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .tip-spot { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .minimap .mm-chip { animation: none !important; } .mm-block.ping rect, .mm-block.room.fresh rect { animation: none; } }
+
+/* ---- Legacy upgrades: their own screen between versions (and from R&D) ----
+   Four branch columns of cards bought with Insight; violet, like Insight everywhere. */
+.legacy-screen { position: fixed; z-index: 45; inset: calc(var(--topbar-h, 53px) + 20px) 20px 20px; display: flex; flex-direction: column; gap: 16px;
+    padding: 20px 24px; background: var(--bg); border: 1px solid color-mix(in srgb, var(--research) 45%, transparent); border-radius: 12px; overflow: auto;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 40px color-mix(in srgb, var(--research) 12%, transparent); }
+.legacy-screen[hidden] { display: none; }
+.legacy-screen:focus { outline: none; }
+.legacy-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.legacy-head h2 { font: 700 1.1rem var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--research); margin: 0; }
+.legacy-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; align-items: start; }
+@media (max-width: 960px) { .legacy-grid { grid-template-columns: minmax(0, 1fr); } }
+.legacy-col { display: flex; flex-direction: column; gap: 10px; }
+.legacy-branch { font: 700 0.78rem var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin: 0 0 2px; }
+.legacy-card { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 4px 12px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+.legacy-card.owned { border-color: color-mix(in srgb, var(--research) 55%, transparent); box-shadow: 0 0 16px color-mix(in srgb, var(--research) 12%, transparent); }
+.legacy-card[hidden] { display: none; }
+.legacy-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; color: var(--research); border: 1px solid color-mix(in srgb, var(--research) 50%, transparent); background: color-mix(in srgb, var(--research) 10%, transparent); }
+.legacy-icon svg { width: 20px; height: 20px; }
+.legacy-info h4 { display: flex; justify-content: space-between; gap: 8px; margin: 0; font: 700 0.9rem var(--font-display); }
+.legacy-level { font: 600 0.72rem var(--font-mono); color: var(--muted); }
+.legacy-tag { margin-right: auto; padding: 1px 6px; border-radius: 999px; font: 600 0.66rem var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 45%, transparent); align-self: center; }
+.legacy-effect { margin: 4px 0 0; font-size: 0.82rem; }
+.legacy-flavor { margin: 2px 0 0; font-size: 0.75rem; font-style: italic; color: var(--muted); }
+.legacy-buy { grid-column: 2; justify-self: start; margin-top: 6px; }
+#legacyOpen { margin-top: 8px; }
+
+/* Auto-Trainer: one switch in the server room's bar and the bay's bar (both stay in step). */
+.auto-switch { display: inline-flex; align-items: center; gap: 8px; flex: none; padding: 5px 12px 5px 6px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); font: 700 0.72rem var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; white-space: nowrap; }
+.auto-switch[hidden] { display: none; }
+.auto-switch-knob { position: relative; width: 26px; height: 14px; border-radius: 999px; background: color-mix(in srgb, var(--muted) 25%, transparent); transition: background 0.2s; }
+.auto-switch-knob::after { content: ''; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); transition: transform 0.2s, background 0.2s; }
+.auto-switch[aria-checked="true"] { border-color: color-mix(in srgb, var(--success) 60%, transparent); color: var(--success); background: color-mix(in srgb, var(--success) 8%, transparent); }
+.auto-switch[aria-checked="true"] .auto-switch-knob { background: color-mix(in srgb, var(--success) 35%, transparent); }
+.auto-switch[aria-checked="true"] .auto-switch-knob::after { transform: translateX(12px); background: var(--success); box-shadow: 0 0 8px var(--success); }
+@media (hover: hover) { .auto-switch:hover, .auto-switch:focus-visible { border-color: var(--success); outline: none; } }
+.room-bar .auto-switch { margin-left: auto; }
+/* The live monitor on the upgrades screen while the Auto-Trainer runs: click it to watch. */
+.dev-live { display: flex; flex-direction: column; gap: 4px; padding: 6px; border: 1px solid color-mix(in srgb, var(--success) 35%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--bg) 70%, transparent); cursor: pointer; }
+.dev-live[hidden] { display: none; }
+@media (hover: hover) { .dev-live:hover { border-color: var(--success); } }
+.dev-lane { display: block; width: 100%; height: 56px; }
+.dev-live-text { font: 600 0.68rem var(--font-mono); color: var(--success); }
+.dev-actions:has(.dev-live:not([hidden])) { flex-wrap: wrap; max-width: 420px; }
+.dev-actions .dev-live { flex-basis: 100%; }
+
+/* Upgrades buttons wear a badge while XP can buy a skill-tree node (data-ready: how many). */
+#hubUpgrades, #treeButton, .roll-result [data-next="dev"], .run-stats .module-supply { position: relative; }
+/* The badge on Lab supply sat over the end of its "/s": leave it room. */
+.run-stats .module-supply[data-ready] { padding-right: 16px; }
+/* A mail toast is a way in: click it to read. Only with a mouse: on a touch screen it sat over the Workbench's
+   first job and the Training Cluster bay, so a tap meant for them opened the inbox (the envelope still does). */
+@media (hover: hover) and (pointer: fine) { .toast-mail { pointer-events: auto; cursor: pointer; } }
+/* Investor offers ready to claim (the Lab tile is already positioned). */
+.facility-room[data-ready]::after, .module-supply[data-ready]::after { background: var(--success); color: var(--bg); box-shadow: 0 0 0 2px var(--bg), 0 0 12px rgba(80, 220, 160, 0.5); }
+.facility-room[data-ready]::after { top: 8px; right: 8px; z-index: 2; }
+[data-ready]::after {
+    content: attr(data-ready);
+    position: absolute; top: -7px; right: -7px;
+    min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
+    border-radius: 999px; background: var(--warning); color: #1a1205;
+    font: 700 0.68rem/18px var(--font-mono); text-align: center;
+    box-shadow: 0 0 0 2px var(--bg), 0 0 12px color-mix(in srgb, var(--warning) 50%, transparent);
+    pointer-events: none;
+}
+
+/* Surveillance fits the window on desktop: the frame takes the height left under the top bar, and the plan's
+   rows shrink to share it (at 1280 × 800 its rows' minimums ran 16 px past the window and showed a scrollbar).
+   Very short windows still scroll, from 520 px down. */
+@media (min-width: 961px) {
+    .facility { height: calc(100dvh / var(--zoom) - var(--topbar-h, 53px) - 40px); min-height: 520px; box-sizing: border-box; }
+    .facility-plan { min-height: 0; grid-template-rows: minmax(70px, 0.7fr) minmax(110px, 1.2fr) minmax(90px, 1fr); }
+}
+
+/* A scrolling list that overflows by only a few pixels clips them instead (game.js nearlyFits): no scrollbar
+   pops up for a card's bottom padding. */
+.nearly-fits { overflow-y: hidden !important; }
+.making-room .station-list, .making-room .action-row, .making-room .task-list { overflow: hidden !important; }
+
+/* Reduce animations (Settings): the in-game version of the system's reduced-motion preference. */
+body.calm *, body.calm *::before, body.calm *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+/* Idle (a minute without input, or the window in the background): decorative loops pause. Callouts and
+   toasts keep playing, so one arriving meanwhile still shows. */
+/* Idle pauses the decorative loops only: one-off animations (a card booting in, a gain rising, dialogs, callouts)
+   still finish, or a card revealed while idle stayed clipped invisible until the mouse moved. */
+body.idle :not(.toast, .toast *, .reveal-in, .reveal-in *, .float-gain, dialog *, .callout, .callout *, .tip-spot),
+body.idle :not(.toast, .toast *, .reveal-in, .reveal-in *, .float-gain, dialog *, .callout, .callout *, .tip-spot)::before,
+body.idle :not(.toast, .toast *, .reveal-in, .reveal-in *, .float-gain, dialog *, .callout, .callout *, .tip-spot)::after { animation-play-state: paused !important; }
+/* Scrolling something into view (a tip's target) keeps it clear of the sticky top bar. */
+* { scroll-margin-top: calc(var(--topbar-h, 53px) + 12px); }
+/* Small desktops (1280–1440 px): the top bar keeps to one row in the late game (rates on every resource and
+   the phase bar wrapped it to two at 1280). */
+@media (min-width: 961px) and (max-width: 1440px) {
+    .topbar-inner { gap: 8px 12px; padding: 10px 16px; }
+    .brand { letter-spacing: 0.08em; }
+    .chip { padding: 4px 8px; gap: 5px; }
+    .phase { min-width: 110px; flex-basis: 110px; }
+}
+@media (hover: hover) { .push-button[aria-disabled="true"]:hover, .push-button[aria-disabled="true"]:active { filter: none; transform: none; box-shadow: none; } }
+body.charging .minimap { pointer-events: none; }
+/* Keyboard focus shows on the lab's buttons too (the browser default was lost under their own styles). */
+.action-button:focus-visible, .upgrade-button:focus-visible, .ghost-button:focus-visible, .tree-node:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* Short desktop screens (800 px tall laptops): the reserved station rows shrink, so Scheduled tasks and the
+   server cabinets (where clicks show) come up above the fold; station lists scroll inside as before. */
+@media (min-width: 961px) and (max-width: 1799px) and (max-height: 900px) {
+    :root { --station-row: 330px; --station-row-2: 290px; --projects-h: 260px; }
+}
+
+/* (After the base rules, so it wins: see "The panel floats" above.) */
+@media (max-width: 1440px) {
+    .tree-area { flex-direction: column; gap: 8px; }
+    .dev-actions { position: static; flex-direction: row; justify-content: flex-end; align-self: stretch; padding: 6px 8px 6px 14px; }
+    .dev-actions .dev-xp { display: flex; align-items: baseline; gap: 8px; margin-right: auto; }
+    .dev-actions .dev-xp .chip-label { display: inline; margin: 0; }
+    .dev-actions .start-run { padding: 8px 16px; }
+    .dev-actions:has(.dev-live:not([hidden])) { flex-wrap: nowrap; max-width: none; }
+    .dev-actions .dev-live { flex-basis: 260px; }
+    .dev-actions .leg-pick select { max-width: 340px; }
+}
+
+/* ---- Touch: no tap flash, no stray text selection or long-press menus on the game's controls ----
+   (Hover effects only apply where a pointer really hovers, @media (hover: hover): on a phone a tap left
+   them stuck on.) Text you might copy (the Journal's log, dialogs, inputs) stays selectable. */
+html { -webkit-tap-highlight-color: transparent; }
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+input, textarea, select, .dialog, .journal-log, .log { -webkit-user-select: text; user-select: text; }
+button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-action: manipulation; }
+.path-canvas { touch-action: none; }
+
+/* Touch screens and narrow ones: the meter sits above a centred sprint button, so a thumb on the button
+   never covers it. */
+@media (max-width: 960px), (pointer: coarse) {
+    /* The meter on its own line, then Sprint and (once found) Hop side by side: Hop on a row of its own ran an
+       upright phone's page past the fold. */
+    .run-view > .path-controls { display: flex; flex-flow: row wrap; justify-content: center; align-items: stretch; gap: 10px; }
+    .path-controls .charge { order: -1; width: 100%; flex: none; }
+    .path-controls .push-button { flex: 1 1 auto; width: auto; max-width: 340px; min-width: 0; min-height: 56px; font-size: 1.05rem; }
+    .path-controls .exploit-button { flex: none; min-height: 56px; }
+    .run-view > .path-status { text-align: center; }
+}
+
+/* ---- Phones ---- */
+@media (max-width: 640px) {
+    /* The top bar: three short rows (name and Journal; resources, scrolling sideways if they must;
+       attributes beside the phase) instead of five. */
+    .topbar-inner { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "brand buttons" "res res" "attr phase";
+        padding: 8px 12px; gap: 6px 8px; }
+    .brand { grid-area: brand; font-size: 0.86rem; letter-spacing: 0.08em; min-width: 0; }
+    .topbar-buttons { grid-area: buttons; min-width: 0; justify-content: flex-end; }
+    .topbar-buttons .ghost-button { padding: 4px 10px; font-size: 0.78rem; }
+    .chips { grid-area: res; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .chips::-webkit-scrollbar { display: none; }
+    /* The attribute row shares its grid column with the name, and the buttons share theirs with the phase:
+       three chips (Int, Cre, Awa: 247 px) grew that column until the Journal button ran 29 px off a
+       390 px screen and the phase bar shrank to 2–56 px. The row is capped at what the buttons leave
+       (153 px plus the bar's paddings and gap) and scrolls sideways inside it, like the resources. */
+    .chips-attr { grid-area: attr; max-width: calc(100vw - 188px); gap: 4px; }
+    .chip { padding: 3px 8px; font-size: 0.78rem; gap: 4px; }
+    .chips-attr .chip { padding: 3px 5px; font-size: 0.74rem; }
+    .phase { grid-area: phase; min-width: 0; flex: none; gap: 6px; }
+    .phase-name { font-size: 0.72rem; }
+
+    /* Room bars: the home crumb is just ⌂, so three levels fit beside a button. */
+    .crumbs { font-size: 0.74rem; flex-shrink: 0; }
+    .crumbs .crumb-home { font-size: 0; }
+    .crumbs .crumb-home::before { font-size: 0.95rem; margin-right: 0; }
+
+    /* The minimap is just a round ⌂ in the corner (the pill covered cards), with room left for it under every
+       screen's content. Callouts about another room still point at it. */
+    .stage { padding-bottom: 52px; }
+    .minimap { padding: 0; border-radius: 50%; }
+    .minimap .mm-bar { gap: 0; }
+    .minimap .mm-title { width: 42px; height: 42px; padding: 0; margin: 0; border-radius: 50%; font-size: 0; display: flex; align-items: center; justify-content: center; }
+    .minimap .mm-title::before { content: "⌂"; font-size: 1.15rem; letter-spacing: 0; }
+    .minimap .mm-min, .minimap .mm-here { display: none; }
+
+    /* Lab: a compact status line and supply cells. */
+    .lab-status { font-size: 0.66rem; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; display: block; }
+    /* One column of cards (the lists' 300 px minimum ran the terminal's prices off its edge). */
+    .lab-stations .station-list { grid-template-columns: minmax(0, 1fr); }
+    .lab-supply { grid-auto-rows: 60px; gap: 8px; }
+
+    /* The run: a trail that fits the screen with the controls under it. */
+    .run-view > .canvas-wrap { height: clamp(220px, 40dvh, 340px); }
+    .run-view { gap: 8px; justify-content: flex-start; }
+
+    /* The skill tree's bar wraps rather than squeezing. */
+    .dev-actions { flex-wrap: wrap; justify-content: space-between; }
+    .dev-actions .leg-pick { flex: 1 1 100%; min-width: 0; }
+    .dev-actions .leg-pick select { max-width: none; flex: 1; min-width: 0; }
+    /* With a run in flight, the Auto-Trainer's monitor takes its own full row under XP and Start (the wide-screen
+       rule kept them on one row, squeezing the monitor to a word a line and pushing Start at off the screen). */
+    .dev-actions:has(.dev-live:not([hidden])) { flex-wrap: wrap; }
+    .dev-actions .dev-live { flex: 1 1 100%; order: 4; min-width: 0; }
+
+    /* The live XP pill sits under the trail's top labels (the next skill, top right), not over them. */
+    .live-xp { top: 40px; padding: 3px 10px; gap: 6px; max-width: calc(100% - 20px); }
+    .live-xp-value { font-size: 0.92rem; }
+    .live-xp-label { display: none; }
+}
+
+/* ---- Notches and system bars (an artifact's frame runs edge to edge on phones: viewport-fit=cover) ----
+   The sticky top bar sits under the top inset and paints the band above itself (a copy of its own background
+   shifted up), and everything fixed to an edge clears that edge's inset. */
+.topbar { top: env(safe-area-inset-top, 0px); box-shadow: 0 calc(-1 * env(safe-area-inset-top, 0px)) 0 0 var(--bg); }
+.topbar-inner { padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+.toasts { top: calc(var(--topbar-h, 53px) + 64px + env(safe-area-inset-top, 0px)); }
+.debug-panel { top: calc(72px + env(safe-area-inset-top, 0px)); right: calc(12px + env(safe-area-inset-right, 0px)); }
+.legacy-screen { inset: calc(var(--topbar-h, 53px) + 20px + env(safe-area-inset-top, 0px)) calc(20px + env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) calc(20px + env(safe-area-inset-left, 0px)); }
+
+/* Touch: no zoom-in when a field takes focus (iOS zooms anything under 16 px), and no pull-to-refresh or
+   rubber-banding when a drag on the trail or the tree runs past the edge. */
+@media (pointer: coarse) {
+    input:not([type="range"]):not([type="checkbox"]), select, textarea { font-size: 16px; }
+    html, body { overscroll-behavior: none; }
+}
+@media (max-width: 640px) {
+    .topbar-inner { padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
+    .debug-panel { top: auto; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); right: calc(8px + env(safe-area-inset-right, 0px)); left: calc(8px + env(safe-area-inset-left, 0px));
+        width: auto; max-height: 62dvh; }
+}
+
+/* ---- Phones held sideways (touch, 500 px tall or less): everything for a run fits on one screen ----
+   A one-row top bar (the logo without the name, the phase bar without its label), tight frames, the trail
+   sized to what's left with the meter and the sprint button in one row under it (the thumb sits on the
+   button at the right, clear of the meter), and the minimap as the round ⌂ the phone layout uses. */
+@media (pointer: coarse) and (max-height: 500px) {
+    .topbar-inner { flex-wrap: nowrap; padding-top: 4px; padding-bottom: 4px; gap: 6px 10px; }
+    .brand { font-size: 0; gap: 0; }
+    .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip { padding: 2px 7px; font-size: 0.74rem; gap: 4px; }
+    .phase { min-width: 60px; flex: 1 1 60px; }
+    .phase-name { display: none; }
+    .topbar-buttons .ghost-button { padding: 3px 9px; font-size: 0.76rem; }
+    .layout { padding: 6px max(8px, env(safe-area-inset-left, 0px)) 8px max(8px, env(safe-area-inset-right, 0px)); }
+    .room-frame { padding: 8px 10px; }
+    .module { gap: 6px; }
+    .run-view { gap: 6px; justify-content: flex-start; }
+    /* The chrome around the trail measures 213 px (top bar, paddings, the bay bar, stats, controls, status);
+       at 222 the page scrolled 43–45 px on every sideways size from 667 × 375 to 932 × 430. */
+    .run-view > .canvas-wrap { height: clamp(120px, calc(100dvh - 214px), 600px); }
+    .run-view > .run-stats { font-size: 0.8rem; }
+    /* Inside a bay the ⌂ crumb is the way home; the floating ⌂ only covered the trail's end, and the room
+       the stage keeps for it isn't needed there either. */
+    body:has(#moduleView:not([hidden])) .minimap { display: none; }
+    body:has(#moduleView:not([hidden])) .stage { padding-bottom: 0; }
+    .run-view > .path-controls { flex-direction: row; align-items: center; gap: 12px; }
+    .path-controls .charge { order: 0; flex: 1 1 auto; width: auto; }
+    .path-controls .push-button { width: 210px; min-height: 48px; flex: none; }
+    .path-controls .exploit-button { min-height: 48px; }
+    .stage { padding-bottom: 52px; }
+    .minimap { padding: 0; border-radius: 50%; width: auto; }
+    .minimap .mm-chip { display: none; }
+    .minimap .mm-bar { gap: 0; }
+    .minimap .mm-title { width: 42px; height: 42px; padding: 0; margin: 0; border-radius: 50%; font-size: 0; display: flex; align-items: center; justify-content: center; }
+    .minimap .mm-title::before { content: "⌂"; font-size: 1.15rem; letter-spacing: 0; }
+    .minimap .mm-min { display: none; }
+    .tree-viewport { min-height: 0; }
+}
+
+/* ---- Resources in the lab (placeResources): the supply cells carry the amounts (the bank, its rate and a
+   sparkline in one place: a chip and a cell showed two different rates), so the top bar's resource chips sit
+   hidden in the lab's bar and the lab's status line takes their place up top. Each currency has its colour
+   (compute amber like CP prices, data blue, research violet like its cabinet flashes, XP gold). */
+.room-bar .chips-res { display: none; }
+.topbar-inner .lab-status { margin-left: 0; white-space: nowrap; }
+/* The rate sits right after the amount, on its baseline: at the far end of a full-width cell it was 800-1800 px
+   from the number it describes (3,500 at 4K). */
+.supply-cell { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "label label" "bank value" "spark spark"; grid-template-rows: auto auto minmax(0, 1fr); align-items: baseline; --res: var(--success); }
+.supply-cell .supply-value { justify-self: start; white-space: nowrap; }
+.supply-bank { grid-area: bank; font: 700 1.35rem/1.1 var(--font-mono); color: var(--res); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.supply-value { font-size: 0.8rem; color: var(--muted); }
+.supply-label { color: var(--res); }
+.cell-cp { --res: var(--warning); border-color: color-mix(in srgb, var(--warning) 40%, transparent); }
+.cell-dp { --res: var(--primary); border-color: color-mix(in srgb, var(--primary) 40%, transparent); }
+.cell-rp { --res: var(--research); border-color: color-mix(in srgb, var(--research) 40%, transparent); }
+.cell-xp { --res: #ffd27a; border-color: rgba(255, 210, 122, 0.4); }
+@media (max-width: 640px) {
+    .topbar-inner .lab-status { grid-area: res; font-size: 0.72rem; display: flex; }
+    .lab-supply { grid-auto-rows: 80px; }
+    .supply-cell { padding: 8px 10px 6px; gap: 2px 8px; }
+    .supply-bank { font-size: 1.1rem; }
+    .supply-value { font-size: 0.72rem; }
+}
+
+/* ---- Phones, portrait: screens use the height they have ----
+   Inside a bay the bay is the screen: no ⌂ in the corner (the crumb's ⌂ goes home; callouts about another
+   room wait until you're out) and no room kept for it. The trail and the skill tree take the height their
+   controls leave, so the result card fits on the trail and the page doesn't scroll. */
+@media (max-width: 640px) and (min-height: 501px) {
+    body:has(#moduleView:not([hidden])) .minimap { display: none; }
+    body:has(#moduleView:not([hidden])) .stage { padding-bottom: 0; }
+    body:has(#moduleView:not([hidden])) .room-servers .viewport { min-height: calc(100dvh - var(--topbar-h, 100px) - 31px); }
+    /* The run view keeps the rows it needs mid-run from the start: the bay bar's second row (Restart joins it
+       with the first sprint, the Auto-Trainer switch in act two) and a second line under the meter (act two's
+       "Fuel … per second"). Sized for one row and one line, the first sprint pushed the trail down 37 px and
+       the sprint button 8 px under the fold, and act two's Hold to thrust 34 px under (22 of 56 px showing). */
+    /* (Restart keeps its place in the bar before the first sprint, game.js, so the bar's height never changes
+       mid-run; a fixed two-row reserve left an empty band when everything fit on one row.) The trail takes
+       what the bar really leaves (--bay-bar-h, measured). */
+    .run-view .charge-labels { min-height: calc(2 * 1.25em + 4px); align-content: flex-start; line-height: 1.25; }
+    .run-view > .canvas-wrap { height: max(260px, calc(100dvh - var(--topbar-h, 100px) - var(--bay-bar-h, 39px) - 273px)); }
+    .dev-view .tree-viewport { flex: none; min-height: 0; height: max(280px, calc(100dvh - var(--topbar-h, 100px) - 210px)); }
+
+    /* XP to spend and Start run share a row; Start at goes under them. */
+    .dev-actions { flex-direction: row; align-items: center; gap: 8px 12px; padding: 10px 12px; }
+    .dev-actions .dev-xp { text-align: left; font-size: 1.15rem; }
+    .dev-actions .dev-xp .chip-label { display: inline; margin: 0 6px 0 0; }
+    .dev-actions .leg-pick { order: 3; }
+    .dev-actions .start-run { padding: 10px 18px; font-size: 0.98rem; }
+
+    /* A compact result card: it has to fit on the trail with its buttons. */
+    .roll-result { padding: 12px 14px; width: calc(100% - 20px); max-height: calc(100% - 12px); }
+    .result-xp { margin-top: 4px; font-size: 1.5rem; }
+    .result-lines { margin-top: 6px; font-size: 0.76rem; gap: 1px; }
+    .result-flavor { font-size: 0.8rem; margin: 6px 0 0; }
+    .result-actions { margin-top: 8px; }
+
+    /* Callouts: a little smaller, so one under the result card stays on screen. */
+    .toast.callout { padding: 9px 12px 9px 10px; gap: 10px; }
+    .toast.callout .toast-icon { width: 28px; height: 28px; }
+    .toast.callout .toast-text span { font-size: 0.86rem; line-height: 1.3; }
+}
+
+/* The bay bar clips long crumbs (overflow: hidden), which cut off the Upgrades badge: room for it inside the box. */
+.module-bar { padding: 8px 8px 0 0; margin: -8px -8px 0 0; }
+
+/* Settings: per-group sound volumes, folded under one line */
+.sound-groups { padding: 2px 0 4px; }
+.sound-groups summary { cursor: pointer; padding: 6px 0; color: var(--muted); font-weight: 600; }
+.sound-groups .setting-row { display: grid; grid-template-columns: 9.5em 160px auto; padding: 4px 0 4px 14px; }
+
+/* Themes (Settings → Theme; every role keeps its own hue within a theme (data, progress, the ball, alerts,
+   research, the terminal), so nothing reads as one wash; by default they follow the beat: Dark → Red, Soft → Soft pink). Every colour
+   above that was one of these tokens reads the token (directly or through color-mix), so a theme is just a
+   new set of tokens. Resource colours (research violet, the ball's amber) stay. */
+:root[data-theme="red"] {
+    --bg: #120708;
+    --bg-2: #18090b;
+    --panel: #1f0c0f;
+    --panel-2: #2a1014;
+    --border: #4a1b21;
+    --text: #f4e4e4;
+    --muted: #b98c8f;
+    --primary: #ff4d5e;
+    --secondary: #8f1d2c;
+    --accent: #ffcc66;
+    --success: #ff9f45;
+    --warning: #ffd447;
+    --danger: #ff1f3d;
+    --terminal: #ff8a5c;
+    --terminal-hi: #ffc4a3;
+    --terminal-dim: #a35a3c;
+    --research: #c77dff;
+    --research-deep: #6f3aa6;
+    --owned: var(--research);   /* violet: ember and gold were too close to tell bought from buyable */
+}
+:root[data-theme="pink"] {
+    --bg: #19111a;
+    --bg-2: #1f1520;
+    --panel: #261a27;
+    --panel-2: #302133;
+    --border: #4b3350;
+    --text: #fbecf3;
+    --muted: #c2a3b8;
+    --primary: #f6a8cf;
+    --secondary: #8a5f86;
+    --accent: #ffcfa3;
+    --success: #8fe3c8;
+    --warning: #ffe08a;
+    --danger: #ff7a95;
+    --terminal: #8fe3c8;
+    --terminal-hi: #c8f5e6;
+    --terminal-dim: #5f9c88;
+    --research: #b9a4ff;
+    --research-deep: #6f5cb0;
+}
+/* Void (with the Ominous beat): near-black indigo, cold violet light. */
+:root[data-theme="void"] {
+    --bg: #07070c;
+    --bg-2: #0b0b13;
+    --panel: #10101a;
+    --panel-2: #161624;
+    --border: #2a2840;
+    --text: #dcd8e8;
+    --muted: #8a84a3;
+    --primary: #7b6cff;
+    --secondary: #3d3470;
+    --accent: #c9b6ff;
+    --success: #5fe0c8;
+    --warning: #e8b04a;
+    --danger: #ff4b6e;
+    --terminal: #6fe3d0;
+    --terminal-hi: #b5f5ea;
+    --terminal-dim: #3f8f84;
+    --research: #b07cff;
+    --research-deep: #5e3aa6;
+}
+/* Arcade (with the Retro beat): synthwave neon on deep navy. */
+:root[data-theme="arcade"] {
+    --bg: #0b0820;
+    --bg-2: #100b2b;
+    --panel: #160f36;
+    --panel-2: #1e1545;
+    --border: #3a2a78;
+    --text: #f2ecff;
+    --muted: #9c8fd1;
+    --primary: #00e5ff;
+    --secondary: #ff2bd6;
+    --accent: #ffe14d;
+    --success: #39ff88;
+    --warning: #ffb000;
+    --danger: #ff3860;
+    --terminal: #39ff88;
+    --terminal-hi: #b8ffd4;
+    --terminal-dim: #2f9a63;
+    --research: #ff2bd6;
+    --research-deep: #9a1684;
+}
+/* Settings: the music's parts, indented under Music */
+.music-parts .setting-row { display: grid; grid-template-columns: 9.5em 160px auto; padding: 4px 0 4px 14px; }
+
+/* Restart before a run is under way: invisible, but keeping its place in the bay's bar (game.js). */
+#restartButton.reserve { visibility: hidden; }
+
+/* ---- Phones: owner's playtest on an iPhone ---- */
+@media (max-width: 640px) {
+    /* Toasts dock over the top bar, compact and full width: below it there is no free space, and they covered
+       the trail's goal line and the skill tree's controls. */
+    .toasts { top: calc(env(safe-area-inset-top, 0px) + 6px); left: 12px; right: 12px; transform: none; max-width: none; z-index: 70; }
+    .toast { min-width: 0; width: 100%; box-sizing: border-box; padding: 8px 12px 8px 8px; gap: 10px; }
+    .toast .toast-icon { width: 28px; height: 28px; font-size: 0.9rem; }
+    /* The live XP pill wraps its multipliers onto a second line instead of running off the trail. */
+    .live-xp { flex-direction: column; align-items: center; gap: 0; white-space: normal; border-radius: 14px; text-align: center; }
+    /* Branch names sit behind the nodes (pinned to the edges, they covered nodes on a narrow view). */
+    .tree-viewport .tree { z-index: 1; }
+    .tree-branch { z-index: 0; opacity: 0.8; }
+    /* The round ⌂ slides away while you scroll down a screen (it covered card prices) and comes back on the
+       way up, at the top and at the bottom. */
+    .minimap { transition: translate 0.25s ease, opacity 0.25s ease; }
+    body.fab-away .minimap:not(.open) { translate: 0 160%; opacity: 0; pointer-events: none; }
+}
+@media (max-width: 640px) {
+    /* The Auto-Trainer's gate line shares the row with the XP pill: it gives way (clipped with an ellipsis),
+       never the pill, which it pushed off the screen's edge. */
+    .run-stats .auto-gate { flex: 0 1 auto; min-width: 0; max-width: none; }
+    .run-stats .module-xp { flex: none; }
+}
+
+/* ---- Phones: a denser lab (owner's playtest: "more things visible on screen"; each supply cell took half the
+   screen's width and 80 px for a sparkline, and the lab scrolled a long way). ---- */
+@media (max-width: 640px) {
+    /* The supply cells share one row; the sparkline sits behind the words. */
+    .lab-supply { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: minmax(0, 1fr); grid-auto-rows: auto; gap: 6px; }
+    .supply-cell { grid-template-columns: minmax(0, 1fr); grid-template-areas: "label" "bank" "value"; grid-template-rows: auto auto auto;
+        gap: 1px; padding: 6px 8px 6px; height: auto; }
+    .supply-label { font-size: 0.58rem; letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .supply-bank { font-size: 1rem; }
+    .supply-value { justify-self: start; font-size: 0.64rem; white-space: nowrap; }
+    /* The sparkline fills the cell behind the words (owner's call), faint so the numbers stay readable. */
+    .supply-cell .spark { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.45; pointer-events: none; }
+    .supply-cell > :not(.spark) { position: relative; z-index: 1; }
+    /* Lab cards: tighter rows, no cabinet piece (the cabinets below show the hardware), and a full card says
+       just "Full n/n" (the "more room with the next skill" line made it three lines tall). */
+    .station .upgrade { padding: 5px 2px; }
+    .station .upgrade-part { display: none; }
+    .station .upgrade-button.full .eta { display: none; }
+    .station .upgrade-button.full { max-width: none; white-space: nowrap; }
+    .station { padding-top: 12px; padding-bottom: 12px; }
+}
+@media (max-width: 640px) {
+    /* Scheduled tasks: tighter rows (each was ~85 px for a name, a rate and a bar). */
+    .task { gap: 3px; padding: 6px 9px; }
+    .task-bar { height: 4px; }
+}
+@media (max-width: 640px) {
+    /* Workbench jobs two to a row, compact (one per row they took ~100 px each). The gate line keeps its two
+       lines (its progress can need both). */
+    .action-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .action-button { padding: 8px 10px; font-size: 0.82rem; }
+    .action-button .action-gain { font-size: 0.72rem; }
+    .action-auto { font-size: 0.62rem; margin-top: 2px; padding-top: 3px; }
+}
+@media (max-width: 640px) {
+    /* The replay tag sits in the sky under the live XP pill, on one line (at the foot it wrapped over the ground). */
+    .leg-tag { top: 84px; bottom: auto; left: 50%; transform: translateX(-50%); max-width: calc(100% - 20px); font-size: 0.64rem; padding: 2px 3px 2px 8px; }
+    #legTagText { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+}
+
+/* ---- In-place notifications (the owner's call: no floating toasts) ----
+   A phase, a shipped version, a challenge or a skill learned elsewhere shows for a moment in the top bar's phase
+   area (the phase bar steps aside and the slot grows in); an achievement counts on the Journal button with a star
+   burst; mail bumps the envelope. */
+.topbar .phase { position: relative; }
+.top-news { position: absolute; inset: -4px 0; z-index: 2; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0 10px;
+    border-radius: 8px; border: 1px solid color-mix(in srgb, var(--success) 55%, transparent);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--success) 18%, var(--panel)), var(--panel));
+    font: 600 0.78rem var(--font-body); white-space: nowrap; overflow: hidden; animation: news-in 0.35s cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+.top-news[hidden] { display: none; }
+.top-news strong { flex: none; font: 700 0.74rem var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--success); }
+.top-news span { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.top-news[data-kind="version"] { border-color: color-mix(in srgb, var(--research) 55%, transparent); background: linear-gradient(90deg, color-mix(in srgb, var(--research) 18%, var(--panel)), var(--panel)); }
+.top-news[data-kind="version"] strong { color: var(--research); }
+.top-news[data-kind="skill"] strong { color: var(--warning); }
+@keyframes news-in { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }
+.topbar .phase.pulse { animation: phase-pulse 1.2s ease-out; }
+@keyframes phase-pulse { 0% { filter: brightness(1.8) drop-shadow(0 0 10px var(--success)); } 100% { filter: none; } }
+.journal-button { position: relative; }
+.journal-new { background: #ffd27a; color: #1a1406; }
+.journal-button.burst { animation: star-burst 1.2s ease-out; }
+@keyframes star-burst { 0% { box-shadow: 0 0 0 0 rgba(255, 210, 122, 0.7); border-color: #ffd27a; } 100% { box-shadow: 0 0 0 14px rgba(255, 210, 122, 0); } }
+.mail-button.bump { animation: mail-bump 0.9s ease-out; }
+@keyframes mail-bump { 0%, 100% { transform: none; } 20% { transform: translateY(-4px) rotate(-6deg); } 45% { transform: translateY(0) rotate(4deg); } 70% { transform: rotate(-2deg); } }
+@media (prefers-reduced-motion: reduce) { .top-news, .topbar .phase.pulse, .journal-button.burst, .mail-button.bump { animation: none; } }
+body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.burst, body.calm .mail-button.bump { animation: none; }
+@media (max-width: 640px) {
+    /* The phase row is narrow on phones: the news title sits over its message, two small lines. */
+    .top-news { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding: 0 8px; inset: -6px 0; line-height: 1.15; }
+    .top-news strong { font-size: 0.62rem; }
+    .top-news span { max-width: 100%; font-size: 0.68rem; text-overflow: ellipsis; }
+}
+
+/* The Auto-Trainer's ghost run: a faint live lane in the run view's sky, top-left (the live XP pill is top
+   centre, the leg tag bottom left, the result card centred over the trail), never taking clicks. */
+.ghost-lane { position: absolute; left: 12px; top: 10px; width: 190px; padding: 4px 6px 3px; border: 1px dashed color-mix(in srgb, var(--success) 35%, transparent);
+    border-radius: 6px; background: color-mix(in srgb, var(--bg) 55%, transparent); opacity: 0.55; pointer-events: none; z-index: 1; }
+.ghost-lane canvas { display: block; width: 100%; height: 36px; }
+.ghost-lane-text { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 600 0.62rem var(--font-mono); color: var(--success); letter-spacing: 0.03em; }
+@media (max-width: 640px) { .ghost-lane { width: 130px; left: 8px; top: 54px; } .ghost-lane canvas { height: 24px; } }
+
+/* A tip closes only with its Got it button (accidental clicks closed tips unread), live after a short beat. */
+.callout .tip-ok { align-self: flex-end; margin-top: 8px; min-height: 28px; padding: 4px 14px; border: 1px solid var(--success); border-radius: 999px;
+    background: color-mix(in srgb, var(--success) 18%, transparent); color: var(--text); font: 600 0.78rem var(--font-body); cursor: pointer; }
+.callout .tip-ok:disabled { opacity: 0.45; cursor: default; }
+@media (hover: hover) { .callout .tip-ok:not(:disabled):hover { background: color-mix(in srgb, var(--success) 30%, transparent); } }
+.callout .tip-ok:focus-visible { outline: 2px solid var(--success); outline-offset: 2px; }
+
+/* The run card's Lab button shows only with news in the lab, its count on the lab's green badge (the owner's call:
+   like the Upgrades button's badge; after the warm-up there was nothing new to go back for). */
+.result-lab[data-ready] { position: relative; overflow: visible; border-color: var(--success); color: var(--success); }
+.result-lab[data-ready]::after { background: var(--success); color: var(--bg); }

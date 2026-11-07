@@ -1,0 +1,24 @@
+{
+  "build": "58728e8",
+  "reviewVersion": 1,
+  "reviewer": "release-gate (smoke) + systems/UX (accessibility, analytics, onboarding)",
+  "hardGatesPassed": true,
+  "scores": { "economy": null, "progression": null, "upgrades": null, "prestige": null, "offline": null, "performance": null,
+              "saveRestore": null, "architecture": null, "accessibility": 7, "analytics": 6, "visualDesign": null,
+              "onboarding": 6, "retention": null },
+  "overall": 7,
+  "regressions": [],
+  "unresolvedRisks": [
+    "Server-room gate needs a HELD stockpile (100 CP + 40 DP); two naive greedy policies drained it and stalled 24-28 min",
+    "Most playtest events carry no game version; the funnel depends on event order, which breaks once the 15k cap drops old events",
+    "Minimap focus-visible styles are inside @media (hover: hover)",
+    "label-content-name-mismatch (WCAG 2.5.3) on the Journal button and facility tiles",
+    "Inbox to Pattern Matching not reached by the naive bot; in-browser time to first skill not measured"
+  ],
+  "artifacts": {
+    "smoke": "smoke.js, smoke-results.json, g8-scan.json, g10-*.png",
+    "a11y": "axe.js, axe-before.json, axe-*.png, a11y2.js, a11y2.json",
+    "analytics": "analytics.js, analytics-before.json, analytics.json, analytics-log.json",
+    "onboarding": "onboard.js, onboard-run1.json, onboard.json, onboard*.log, onboard-*final.png"
+  }
+}

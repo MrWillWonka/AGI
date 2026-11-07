@@ -1,0 +1,79 @@
+{
+ "cmp": {
+  "mail": {
+   "expected": 3,
+   "logged": 12
+  },
+  "mailRead": {
+   "expected": 3,
+   "logged": 3
+  },
+  "mailAccepted": {
+   "expected": 1,
+   "logged": 1
+  },
+  "buy": {
+   "expected": 5,
+   "logged": 5
+  },
+  "setting": {
+   "expected": 1,
+   "logged": 1
+  },
+  "run": {
+   "expected": 4,
+   "logged": 5
+  },
+  "skill": {
+   "expected": 1,
+   "logged": 1
+  },
+  "phase": {
+   "expected": 1,
+   "logged": 2
+  },
+  "ship": {
+   "expected": 1,
+   "logged": 1
+  },
+  "transcend": {
+   "expected": 1,
+   "logged": 1
+  }
+ },
+ "total": 82,
+ "counts": {
+  "view": 14,
+  "session": 1,
+  "sample": 2,
+  "mail": 12,
+  "mailRead": 3,
+  "mailAccepted": 1,
+  "achievement": 13,
+  "buy": 5,
+  "tip": 2,
+  "setting": 1,
+  "unlock": 8,
+  "tipClosed": 2,
+  "startAt": 1,
+  "sprint": 5,
+  "run": 5,
+  "skill": 1,
+  "phase": 2,
+  "ship": 1,
+  "ending": 1,
+  "transcend": 1,
+  "hidden": 1
+ },
+ "missing": 0,
+ "dups": 0,
+ "withVersion": [
+  "session",
+  "ship"
+ ],
+ "crash": {
+  "generated": 6,
+  "survived": 6
+ },
+ "errs": []
+}
