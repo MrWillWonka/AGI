@@ -1640,8 +1640,10 @@ test('mail: the story by email, the spam first, then one message per story beat'
         ids.add(m.id);
         assert.ok(m.from && m.subject && Array.isArray(m.body) && m.body.length, `${m.id} has a sender, subject and body`);
     }
-    assert.equal(E.MAIL[0].id, 'welcome');
-    assert.deepEqual(E.MAIL.filter(m => m.when(s)).map(m => m.id), ['welcome'], 'a new game has only the spam');
+    assert.deepEqual(E.MAIL.filter(m => m.intro).map(m => m.id), ['parcel', 'prize', 'welcome'], 'the opening: two junk mails, then the offer');
+    assert.ok(E.MAIL.find(m => m.id === 'welcome').reply, 'the offer is the one with a reply');
+    assert.deepEqual(E.MAIL.filter(m => m.when(s) && !m.intro).map(m => m.id), [], 'a new game has only the opening');
+    assert.ok(E.WELCOME_NAGS.length >= 2 && E.WELCOME_NAGS.every(n => n.subject && n.body.length && n.reply), 'the offer comes back, every time with a reply');
     s.unlocked['module:path'] = true;
     s.path.learned = 2;
     assert.ok(E.MAIL.find(m => m.id === 'serverRoom').when(s) && E.MAIL.find(m => m.id === 'firstSkill').when(s));

@@ -1266,7 +1266,15 @@ h1, h2, h3, p { margin: 0; }
 .inbox-row.unread .inbox-open { color: var(--text); font-weight: 700; background: color-mix(in srgb, var(--primary) 7%, transparent); }
 .inbox-row.unread .inbox-from::before { content: '● '; color: var(--primary); }
 /* Junk rows read quieter than the bold unread one, but still at AA: at 0.45 their text measured 2.42:1 (round D). */
-.inbox-row.junk .inbox-open { cursor: default; opacity: 0.8; }
+.inbox-empty { padding: 22px 16px; color: var(--muted); font-size: 0.86rem; text-align: center; }
+/* The opening's mails arrive one at a time: the new row slides in from the top and glows once. */
+.inbox-row.arrive { animation: mail-arrive 700ms ease-out; }
+@keyframes mail-arrive {
+    from { opacity: 0; transform: translateY(-10px); background: color-mix(in srgb, var(--primary) 30%, transparent); }
+    to { opacity: 1; transform: none; background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .inbox-row.arrive { animation: none; } }
+body.calm .inbox-row.arrive { animation: none; }
 @media (hover: hover) { button.inbox-open:hover { background: color-mix(in srgb, var(--primary) 12%, transparent); } }
 .inbox-message { padding: 14px 18px 16px; max-height: min(72vh, 560px); overflow: auto; }
 .inbox-back { border: 0; background: none; color: var(--primary); font: 600 0.8rem var(--font-mono); cursor: pointer; padding: 0 0 10px; }

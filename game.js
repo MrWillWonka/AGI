@@ -7361,18 +7361,24 @@ window.AGI = (function () {
         buildMail();
     }
 
-    // Mail (E.MAIL): the story by email. A brand-new game opens on the inbox with one unread spam email to click
-    // open (someone you don't know wants an AI built: start with the desk); later ones arrive at story beats with
-    // a toast and a badge on the top bar's envelope. The clicker start is on purpose: the AI isn't strong yet.
-    // Arrivals and reads live in `intro` (mail:id, mailRead:id), so they carry across versions.
-    const JUNK = [['Parcel Services', 'Your parcel could not be delivered (action required)'], ['Prize Desk', 'You\'ve WON a free cruise!! Claim now']];
+    // Mail (E.MAIL): the story by email. A brand-new game opens on an empty inbox that fills one unread mail at a
+    // time (`introStep`): two junk mails, then the offer (someone you don't know wants an AI built: start with the
+    // desk). There's no way out of the inbox (no ×, no Escape) until the offer's Reply: close it unanswered and it
+    // arrives again (`WELCOME_NAGS`), a little pushier each time. Later mail arrives at story beats with a bump and
+    // a count on the top bar's envelope. The clicker start is on purpose: the AI isn't strong yet.
+    // Arrivals and reads live in `intro` (mail:id, mailRead:id, mailAccepted:welcome), so they carry across versions.
     const mailArrived = () => E.MAIL.filter(m => state.intro['mail:' + m.id]);
     const mailUnread = () => mailArrived().filter(m => !state.intro['mailRead:' + m.id]).length;
-    let mailReady = false;   // buildMail (the end of init) delivers the first, so a new game opens on it
+    const introDone = () => !!state.intro['mailAccepted:welcome'];
+    let mailReady = false;   // buildMail (the end of init) starts the opening, so a new game opens on it
+    let mailOpen = null;     // the message on screen
+    let welcomeNag = 0;      // times the offer was closed unanswered (screen state)
+    let introTimer = 0;
+    let arrived = null;      // the row that just arrived, animated in
     function deliverMail(silent) {
         if (!mailReady) return;
         for (const m of E.MAIL) {
-            if (state.intro['mail:' + m.id] || !m.when(state)) continue;
+            if (state.intro['mail:' + m.id] || m.intro || !m.when(state)) continue;
             state.intro['mail:' + m.id] = true;
             if (silent) continue;
             pt('mail', { id: m.id });
@@ -7388,47 +7394,94 @@ window.AGI = (function () {
         // The count badge is decorative for assistive tech (aria-hidden); the name carries it instead.
         $('mailButton').setAttribute('aria-label', n ? `Inbox, ${n} unread` : 'Inbox');
     }
+    const welcomeText = m => m.id === 'welcome' && welcomeNag > 0 && !introDone()
+        ? { ...m, ...[...E.WELCOME_NAGS, {}][(welcomeNag - 1) % (E.WELCOME_NAGS.length + 1)] } : m;
     function renderInbox() {
+        mailOpen = null;
         const rows = mailArrived().slice().reverse().map(m => {
             const read = !!state.intro['mailRead:' + m.id];
-            const row = el('li', { class: `inbox-row${read ? '' : ' unread'}` }, [
+            const shown = welcomeText(m);
+            const row = el('li', { class: `inbox-row${read ? '' : ' unread'}${m.id === arrived ? ' arrive' : ''}` }, [
                 el('button', { type: 'button', class: 'inbox-open' }, [
-                    el('span', { class: 'inbox-from', text: m.from.replace(/\s*<.*$/, '') }),
-                    el('span', { class: 'inbox-subject', text: m.subject })])]);
+                    el('span', { class: 'inbox-from', text: shown.from.replace(/\s*<.*$/, '') }),
+                    el('span', { class: 'inbox-subject', text: shown.subject })])]);
             row.firstChild.addEventListener('click', () => openMail(m));
             return row;
         });
-        // Two junk mails sit at the bottom, read and inert: it's an inbox, not a quest log.
-        const junk = JUNK.map(([from, subject]) => el('li', { class: 'inbox-row junk' }, [
-            el('span', { class: 'inbox-open' }, [el('span', { class: 'inbox-from', text: from }), el('span', { class: 'inbox-subject', text: subject })])]));
-        $('inboxList').replaceChildren(...rows, ...junk);
+        arrived = null;
+        $('inboxList').replaceChildren(...(rows.length ? rows : [el('li', { class: 'inbox-empty', text: 'No messages' })]));
         setHidden($('inboxList'), false);
         setHidden($('inboxMessage'), true);
+        setHidden($('inboxClose'), !introDone());
+        renderMailButton();
+        introStep();
+    }
+    // The opening: once every mail so far is read and you're back on the list, the next one arrives a beat later.
+    function introStep() {
+        clearTimeout(introTimer);
+        if (introDone() || !$('inbox').open) return;
+        const next = E.MAIL.find(m => m.intro && !state.intro['mail:' + m.id]);
+        if (!next || mailUnread()) return;
+        introTimer = setTimeout(() => {
+            if (mailOpen || !$('inbox').open) return;
+            state.intro['mail:' + next.id] = true;
+            pt('mail', { id: next.id });
+            arrived = next.id;
+            sfx('ui');
+            renderInbox();
+            $('inboxList').querySelector('.inbox-open')?.focus({ preventScroll: true });
+            save();
+        }, mailArrived().length ? 1100 : 700);
     }
     function openMail(m) {
+        clearTimeout(introTimer);
+        mailOpen = m;
         state.intro['mailRead:' + m.id] = true;
-        pt('mailRead', { id: m.id });
-        setText($('mailSubject'), m.subject);
-        setText($('mailFrom'), m.from);
-        $('mailBody').replaceChildren(...m.body.map(p => el('p', { text: p })));
+        pt('mailRead', { id: m.id, nag: m.id === 'welcome' ? welcomeNag : undefined });
+        const shown = welcomeText(m);
+        setText($('mailSubject'), shown.subject);
+        setText($('mailFrom'), shown.from);
+        $('mailBody').replaceChildren(...shown.body.map(p => el('p', { text: p })));
         const footer = $('mailFooter');
-        footer.replaceChildren(...(m.footer ? [document.createTextNode(m.footer + ' ')] : []));
-        if (m.unsubscribe) {
+        footer.replaceChildren(...(shown.footer ? [document.createTextNode(shown.footer + ' ')] : []));
+        if (shown.unsubscribe) {
             const link = el('button', { type: 'button', class: 'mail-unsub', text: 'Unsubscribe' });
             link.addEventListener('click', () => setText(link, 'Unsubscribe failed. We\'ll be in touch.'));
             footer.append(link);
         }
-        setHidden(footer, !m.footer && !m.unsubscribe);
-        setText($('mailReply'), m.reply || 'Close');
+        setHidden(footer, !shown.footer && !shown.unsubscribe);
+        // In the opening a mail without a reply goes back to the list; the offer's reply is the only way out.
+        setText($('mailReply'), shown.reply || (introDone() ? 'Close' : 'Back to inbox'));
         setHidden($('inboxList'), true);
         setHidden($('inboxMessage'), false);
+        setHidden($('inboxClose'), !introDone());
         renderMailButton();
         save();
         $('mailReply').focus({ preventScroll: true });
     }
+    // Leaving the offer without replying: it comes straight back, unread, a little different.
+    function leaveMail() {
+        const m = mailOpen;
+        if (m?.id === 'welcome' && !introDone()) {
+            welcomeNag++;
+            delete state.intro['mailRead:welcome'];
+            pt('mailNag', { n: welcomeNag });
+            arrived = 'welcome';
+            renderInbox();
+            clearTimeout(introTimer);
+            introTimer = setTimeout(() => {
+                if (mailOpen || !$('inbox').open) return;
+                sfx('ui');
+                openMail(m);
+            }, 900);
+            return;
+        }
+        renderInbox();
+    }
     function openInbox() {
         renderInbox();
-        $('inbox').showModal();
+        if (!$('inbox').open) $('inbox').showModal();
+        introStep();
         // The same `v` field as every other view (it was `at`, which the report's time-by-screen read as "undefined").
         ptView('inbox');
         $('inboxList').querySelector('.inbox-open')?.focus({ preventScroll: true });
@@ -7436,19 +7489,35 @@ window.AGI = (function () {
     function buildMail() {
         const dialog = $('inbox');
         $('mailButton').addEventListener('click', openInbox);
-        $('inboxClose').addEventListener('click', () => dialog.close());
-        $('inboxBack').addEventListener('click', renderInbox);
-        $('mailReply').addEventListener('click', () => dialog.close());
+        $('inboxClose').addEventListener('click', () => { if (introDone()) dialog.close(); });
+        $('inboxBack').addEventListener('click', leaveMail);
+        $('mailReply').addEventListener('click', () => {
+            if (mailOpen?.reply) {
+                state.intro['mailAccepted:' + mailOpen.id] = true;
+                pt('mailAccepted', { id: mailOpen.id, nags: welcomeNag });
+            }
+            if (introDone()) dialog.close();
+            else leaveMail();
+        });
+        // No way out of the opening but the offer's reply (Escape included).
+        dialog.addEventListener('cancel', e => { if (!introDone()) e.preventDefault(); });
         dialog.addEventListener('close', () => {
+            clearTimeout(introTimer);
+            mailOpen = null;
             save();
             ptView(ptPlace());   // back on the room under the inbox, so its time isn't counted as the inbox's
             if (state.stats.clicks === 0) ui.actions.compute?.button?.focus({ preventScroll: true });
         });
-        // Older saves get the story so far quietly (it waits in the inbox); a brand-new game opens on the first.
-        const fresh = state.stats.clicks === 0 && state.stats.rolls === 0 && state.prestige.count === 0 && !state.intro['mail:welcome'];
+        // Older saves have been through the opening: its mails wait in the inbox, read. A game that hasn't accepted
+        // the offer yet (a brand-new one, or reloaded mid-opening) opens on the inbox.
+        const played = state.stats.clicks > 0 || state.stats.rolls > 0 || state.prestige.count > 0;
+        if (played && !introDone()) for (const m of E.MAIL.filter(m => m.intro)) {
+            state.intro['mail:' + m.id] = state.intro['mailRead:' + m.id] = true;
+            state.intro['mailAccepted:welcome'] = true;
+        }
         mailReady = true;
         deliverMail(true);
-        if (fresh) openInbox();
+        if (!introDone()) openInbox();
     }
 
     // Keep screen on (touch devices, per device): an active game earns nothing while the screen sleeps, so on a

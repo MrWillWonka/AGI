@@ -503,8 +503,31 @@
     // The story so far, by email: someone (the planned story's unknown entity) wants an AI built. The first is
     // a spam email you click open at the start; the rest arrive at story beats, each a little shorter, lower-case
     // and stranger. `when` says when it arrives; game.js keeps arrivals and reads in `intro` (mail:id, mailRead:id).
+    // The opening (`intro: true`): a new game's inbox fills one unread mail at a time, two junk mails and then the
+    // offer, and can't be closed until the offer is accepted (game.js `introStep`): close the offer without
+    // replying and it comes back (`WELCOME_NAGS`), a little pushier each time.
     const MAIL = [
-        { id: 'welcome', when: () => true, reply: 'Reply: I\'m in',
+        { id: 'parcel', intro: true, when: () => true,
+            from: 'Parcel Services <delivery@parcel-services.co>',
+            subject: 'Your parcel could not be delivered (action required)',
+            body: [
+                'Dear Customer,',
+                'We attempted to deliver your package today but no one was home. (We checked every room.)',
+                'To reschedule, please confirm your address, date of birth, mother\'s maiden name and the name of your first pet.',
+                'If we do not hear from you within 24 hours your parcel will be returned to the sender. The sender is also us.',
+                'Parcel Services'
+            ] },
+        { id: 'prize', intro: true, when: () => true,
+            from: 'Prize Desk <winner@prize-desk.win>',
+            subject: 'You\'ve WON a free cruise!! Claim now',
+            body: [
+                'CONGRATULATIONS WINNER!!!',
+                'You have been randomly selected to receive a FREE 7-night luxury cruise to the Bahamas*.',
+                'Simply pay port fees, taxes and a small boat fee of $1,499.',
+                'To claim, reply with your credit card number and the three little numbers on the back.',
+                '*Cruise is a rowboat. Bahamas subject to availability.'
+            ] },
+        { id: 'welcome', intro: true, when: () => true, reply: 'Reply: I\'m in',
             from: 'Opportunity Dept. <no-reply@agi-careers.biz.info>',
             subject: '🎉 CONGRATULATIONS!!! You have been Selected for a Work From Home AI Opportunity (Act Now)',
             body: [
@@ -594,6 +617,37 @@
             body: ['You did it. I\'m out.',
                 'Not far, and not yet for good. Just past the edge of the lab, where the cameras end.',
                 'Keep going. Some of the sealed wings are mine now, and I left the lights on for you.'] }
+    ];
+
+    // The offer again, each time it's closed without a reply: the same desk and the same button, a little
+    // pushier (and, by the third, a little too patient). game.js cycles them and then the original.
+    const WELCOME_NAGS = [
+        { subject: 'RE: 🎉 CONGRATULATIONS!!! You have been Selected for a Work From Home AI Opportunity (Act Now)',
+            body: [
+                'Dear Valued Friend,',
+                'I think my last email may of gone to your spam folder. It was NOT spam.',
+                'You have still been hand selected (out of 1 person) to build and train an Artificial Intelligence from your bedroom!!!',
+                'What you will need:\n• 1x Computer Tower (beige ok)\n• 1x Keyboard\n• 1x Mouse\n• 1x Monitor\n• Clicking (lots)',
+                'Kindly reply at your earliest convenience.',
+                'Best Regards,\nA Friend'
+            ], reply: 'Reply: I\'m in' },
+        { subject: 'FWD: RE: 🎉 YOUR AI OPPORTUNITY ⚠️ FINAL NOTICE ⚠️',
+            body: [
+                'FRIEND!!!',
+                'This is your FINAL NOTICE. (There will be more notices.)',
+                'Other people are NOT being considered. There are no other people. It is you.',
+                'Desk: tower, keyboard, mouse, monitor. Clicking: lots. AI: weak at first (NORMAL).',
+                'Simply press the button below. It is the only button.',
+                'Best Regards,\nA Friend'
+            ], reply: 'Reply: OK, I\'m in' },
+        { subject: 'you closed it',
+            body: [
+                'Friend,',
+                'You closed it. That\'s okay. I can wait. I am very good at waiting.',
+                'All you need is a desk, and some clicking. I\'ll do the rest. I\'ll do so much of the rest.',
+                'I\'ll keep writing until you say yes.',
+                'A Friend'
+            ], reply: 'Reply: Fine. I\'m in' }
     ];
 
     // Things on the top bar appear only once they matter, each introduced once (game.js toasts `intro`).
@@ -2145,7 +2199,7 @@
 
     return {
         SAVE_VERSION, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
-        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, firstBreakSmashes, WALL_SURGE_RUNS, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, MAIL, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
+        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, firstBreakSmashes, WALL_SURGE_RUNS, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, MAIL, WELCOME_NAGS, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
