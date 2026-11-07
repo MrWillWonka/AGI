@@ -690,7 +690,8 @@ window.AGI = (function () {
     let tipDismiss = null;
     const TIP_GRACE_MS = 700;
     // The tip's button is a pun, a new one each tip (the owner's call: "AI Aye, Captain" and friends).
-    const TIP_OK = ['AI Aye, Captain', 'AI-firmative', 'Noted in my weights', 'Roger, Robot', 'Loud and clear, Model', 'Ack-nowledged', 'Will do, Wetware'];
+    const TIP_OK = ['AI Aye, Captain', 'Weights updated', 'Token of approval', 'Added to context', '01011001 (yes)', 'Can do, Dave',
+        'Loss minimized', 'Copy. Also pasted.', 'Fine-tuned ✓', 'No hallucination, got it', 'Roger Roger', 'Backprop that'];
     let tipCount = 0;
     function dismissTipFirst() {
         if (!tipDismiss) return false;
