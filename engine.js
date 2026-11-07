@@ -1834,7 +1834,10 @@
     function pushBonusXp(s, kind, leg = s.path.learned, charge) {
         if (!kind) return 0;
         const d = derive(s);
-        return stretchXpAt(s.path.learned) * (leg < s.path.learned ? PATH.replayXp : 1) * PATH.cleanXp * d.cleanMult * cleanUnits(kind, s) * chargeFactor(charge);
+        // Times the XP multipliers (Insight, the tree's and the algorithms' XP, investor boosts), like every other
+        // training XP: without them a prompt paid 1/xpMult of what "+X% XP from every run" promised, and recordLegs
+        // (which divides a run's XP by xpMult) recorded the prompts in a leg's best run below their worth.
+        return stretchXpAt(s.path.learned) * (leg < s.path.learned ? PATH.replayXp : 1) * PATH.cleanXp * d.cleanMult * cleanUnits(kind, s) * chargeFactor(charge) * d.xpMult;
     }
 
     // An XP token taken in flight: a flat share of the frontier's stretch (the replay share on a cleared leg),

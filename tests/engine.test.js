@@ -1846,3 +1846,22 @@ test('Procurement reports its buys from tick() and keeps them out of the save, s
     assert.deepEqual(E.tick(s, 0), [], 'a tick that does nothing reports nothing');
     assert.deepEqual(E.tick(s, NaN), []);
 });
+
+test('Clean-prompt XP follows the XP multipliers like every other training XP (they read "+X% XP from every run")', () => {
+    const s = fresh();
+    s.path.learned = 5;
+    s.unlocked['module:path'] = true;
+    const base = E.pushBonusXp(s, 'clean');
+    assert.ok(base > 0);
+    s.levels.bigDatasets = 2;
+    s.levels.machineLearning = 1;
+    s.prestige.total = 9;
+    s.projects.boosts = [{ stat: 'xp', mult: 2, until: 1e9 }];
+    const m = E.derive(s).xpMult;
+    assert.ok(m > 2);
+    assert.ok(Math.abs(E.pushBonusXp(s, 'clean') / base - m) < 1e-9);
+    // so a run made of prompts records the same base XP for its leg whatever the multiplier
+    const xp = E.grantPushBonus(s, 'clean');
+    E.recordLegs(s, 4, [], xp);
+    assert.ok(Math.abs(s.path.legBest[4] - base) < 1e-9);
+});
