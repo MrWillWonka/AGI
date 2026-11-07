@@ -40,7 +40,7 @@ Open the debug panel with the terminal icon beside Journal, `#debug`, or the bac
 | `game.js`, `sfx.js`, `index.html`, `styles.css` | The UI, the synthesised sound and music, the shell and styles |
 | `playtest.js`, `playtests/` | The playtest recorder and real players' logs (read each against its build) |
 | `tools/` | The balance sim and the log calibrator |
-| `design/` | Design notes (exploits, leg characters, act two) |
+| `design/` | Design notes (exploits, leg characters, act two, the second minigame) |
 | `review/` | The latest design-review round's reports (older rounds are in git history) |
 | `tests/` | `node:test` suites |
 
