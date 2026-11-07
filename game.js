@@ -651,11 +651,12 @@ window.AGI = (function () {
         const shownAt = Date.now();
         pt('tip', { key: c.key, at: onScreen ? 'beside' : 'map' });
         let done = false;
-        // A tip closes only with its own button (AI Captain, the owner's pun), and not in its first moments (the owner's playtest: tips closed in
+        // A tip closes only with its own button (a pun from TIP_OK), and not in its first moments (the owner's playtest: tips closed in
         // 0.1-0.3 s by the click or sprint that was already under way, unread). A press on the trail meanwhile is
         // swallowed rather than sprinting under the tip.
         if (tip) {
-            const ok = el('button', { type: 'button', class: 'tip-ok', text: 'AI Captain', 'aria-label': 'AI Captain: got it', disabled: '' });
+            const label = TIP_OK[tipCount++ % TIP_OK.length];
+            const ok = el('button', { type: 'button', class: 'tip-ok', text: label, 'aria-label': `${label}: got it`, disabled: '' });
             box.querySelector('.toast-text')?.append(ok);
             setTimeout(() => { ok.disabled = false; }, TIP_GRACE_MS);
             ok.addEventListener('click', e => { e.stopPropagation(); close('clicked'); });
@@ -688,6 +689,9 @@ window.AGI = (function () {
     // so tapping the trail to clear the first-run tip fired a sprint).
     let tipDismiss = null;
     const TIP_GRACE_MS = 700;
+    // The tip's button is a pun, a new one each tip (the owner's call: "AI Aye, Captain" and friends).
+    const TIP_OK = ['AI Aye, Captain', 'AI-firmative', 'Noted in my weights', 'Roger, Robot', 'Loud and clear, Model', 'Ack-nowledged', 'Will do, Wetware'];
+    let tipCount = 0;
     function dismissTipFirst() {
         if (!tipDismiss) return false;
         return tipDismiss();
