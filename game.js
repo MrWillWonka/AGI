@@ -882,6 +882,11 @@ window.AGI = (function () {
     // on show counts as seen while you're in the lab, and on the first look (no sudden badge for older saves).
     const LAB_SEEN_KEY = 'agiLabSeen';
     let labSeen;
+    // What's waiting in the lab: finished investor offers to claim and cards revealed since your last visit (the
+    // lab's badge, and the result card's Lab button).
+    function labNewsCount() {
+        return state.projects.offers.filter(o => E.projectProgress(state, o) >= o.target).length + labUnseen().length;
+    }
     function labUnseen() {
         // Not before the load has settled: the first render runs before evaluate() restores the save's unlocks,
         // and cards it restored then counted as new.
@@ -2348,10 +2353,10 @@ window.AGI = (function () {
         }
         // Finished investor offers wait to be claimed: a badge on the Lab's tile and the run view's lab supply,
         // where most of the time is spent (status, like the Upgrades badge, not a hint).
-        const claimable = state.projects.offers.filter(o => E.projectProgress(state, o) >= o.target).length;
         // Lab cards revealed while you were elsewhere count too: training opens lab upgrades you'd otherwise miss.
+        const claimable = state.projects.offers.filter(o => E.projectProgress(state, o) >= o.target).length;
         const unseen = labUnseen();
-        const waiting = claimable + unseen.length;
+        const waiting = labNewsCount();
         for (const b of [document.querySelector('.facility-room[data-room-id="lab"]'), document.querySelector('.run-stats .module-supply')]) {
             if (!b) continue;
             if (waiting) b.dataset.ready = waiting > 9 ? '9+' : String(waiting);
@@ -5933,7 +5938,7 @@ window.AGI = (function () {
     // warm-up is a formality, and explaining replays then was too early (owner's playtest). The lab tip points at
     // the card's Lab button the first time a skill makes room there.
     function skillTips() {
-        if (!state.intro['hint:labAfterSkill'] && state.path.learned > E.FIRST_REAL_SKILL) {
+        if (!state.intro['hint:labAfterSkill'] && state.path.learned > E.FIRST_REAL_SKILL && labNewsCount()) {
             state.intro['hint:labAfterSkill'] = true;
             callout('hint:labAfterSkill', 'Check the lab', 'Every skill makes room in the lab: more hardware fits and new upgrades open. Head back after each one.');
             return;
@@ -6254,9 +6259,10 @@ window.AGI = (function () {
             path.done
                 ? el('div', { class: 'result-actions' }, [
                     el('button', { type: 'button', class: 'ghost-button', 'data-next': 'again', text: 'Train again' }),
-                    // After a skill (or with news waiting in the lab) the lab is one click away.
-                    // It pulses after a skill: the lab has room for more.
-                    ...(skill || labUnseen().length ? [el('button', { type: 'button', class: `ghost-button result-lab${skill ? ' pulse' : ''}`, 'data-next': 'lab', text: 'Lab →' })] : []),
+                    // With news waiting in the lab (new cards, more room, offers to claim) the lab is one click away,
+                    // its count on a badge like the Upgrades button's (the owner's call: after the warm-up there was
+                    // nothing new, and the button sent you back to an unchanged lab).
+                    ...(labNewsCount() ? [el('button', { type: 'button', class: 'ghost-button result-lab', 'data-next': 'lab', 'data-ready': labNewsCount() > 9 ? '9+' : String(labNewsCount()), text: 'Lab →' })] : []),
                     el('button', { type: 'button', class: 'button', 'data-next': 'dev', text: 'Upgrades →' })])
                 : el('div', { class: 'result-hint', text: 'Next run starting…' })
         ].filter(Boolean));

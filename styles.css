@@ -3292,11 +3292,7 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 @media (hover: hover) { .callout .tip-ok:not(:disabled):hover { background: color-mix(in srgb, var(--success) 30%, transparent); } }
 .callout .tip-ok:focus-visible { outline: 2px solid var(--success); outline-offset: 2px; }
 
-/* The run card's Lab button pulses after a skill: the lab has room for more (the owner's call). */
-.result-lab.pulse { border-color: var(--success); color: var(--success); animation: lab-pulse 1.4s ease-in-out infinite; }
-@keyframes lab-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 0%, transparent); }
-    50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--success) 28%, transparent); }
-}
-@media (prefers-reduced-motion: reduce) { .result-lab.pulse { animation: none; } }
-body.calm .result-lab.pulse { animation: none; }
+/* The run card's Lab button shows only with news in the lab, its count on the lab's green badge (the owner's call:
+   like the Upgrades button's badge; after the warm-up there was nothing new to go back for). */
+.result-lab[data-ready] { position: relative; overflow: visible; border-color: var(--success); color: var(--success); }
+.result-lab[data-ready]::after { background: var(--success); color: var(--bg); }
