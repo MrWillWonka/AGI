@@ -3092,24 +3092,12 @@ window.AGI = (function () {
             list.append(row);
             taskUi[t.id] = { row, toggle, slider, rate, share, fill: progress?.firstChild };
         }
-        taskUi.skills = [];
         // The log lives at the foot of the same panel (installs, payouts).
         ui.termLines = el('span', { class: 'terminal-log' });
         $('taskPanel').append(el('div', { class: 'task-log', hidden: true }, [el('span', { class: 'task-log-title', text: 'Log' }), ui.termLines]));
     }
 
     // One row per learned skill: its cleared leg laps on its own, adding compute and XP.
-    function skillTaskRow(k) {
-        const fill = el('span', { class: 'task-fill' });
-        const rate = el('span', { class: 'task-rate' });
-        const row = el('li', { class: 'task task-skill' }, [
-            el('div', { class: 'task-head' }, [el('span', { class: 'task-name', text: E.skillAt(k).name }), el('span', { class: 'task-always', text: `leg ${k + 1}` })]),
-            rate,
-            el('span', { class: 'task-bar' }, [fill])
-        ]);
-        $('taskList').append(row);
-        return { row, fill, rate };
-    }
 
     // Advance the job bars (called every tick with the game time that passed).
     function advanceTasks(dt) {
@@ -3138,14 +3126,14 @@ window.AGI = (function () {
         const owned = id => E.level(state, TASK_UPGRADES[id]) > 0;
         const learned = state.path.learned;
         const logged = lab.lines.length > 0 && !!state.unlocked['seen:dp'];
-        const any = E.TASKS.some(t => owned(t.id)) || learned > 0;
+        const any = E.TASKS.some(t => owned(t.id));
         setHidden($('taskPanel'), !any);
         if (!any) return;
         setHidden($('taskPanel').querySelector('.task-log'), !logged);
         // The first time you're in the lab after the first skill, point out where automations show.
-        if (learned > 0 && view === 'lab' && !state.intro['hint:tasks']) {
+        if (any && view === 'lab' && !state.intro['hint:tasks']) {
             state.intro['hint:tasks'] = true;
-            callout('hint:tasks', 'Scheduled tasks', 'Every automation running for you is listed here, along with the XP each cleared leg earns by itself.');
+            callout('hint:tasks', 'Scheduled tasks', 'Every machine working for you is listed here, with its switch and the share of compute it may use.');
         }
         const shares = E.taskShares(state);
         let dedicated = 0;
@@ -3189,25 +3177,8 @@ window.AGI = (function () {
             u.share.classList.toggle('capped', on && task.speed < 1);
         }
         setText($('taskTotal'), dedicated ? `${Math.round(dedicated * 100)}% of compute${dedicated > 1.001 ? ' · drawing on the stockpile' : ''}` : '');
-        // Skill rows: added as skills are learned (in order), removed if the run resets.
-        while (taskUi.skills.length > learned) taskUi.skills.pop().row.remove();
-        // One new skill gets its reveal and connection; a burst (a load, a debug jump) just appears.
-        const single = learned - taskUi.skills.length === 1;
-        while (taskUi.skills.length < learned) {
-            const k = taskUi.skills.length;
-            const r = skillTaskRow(k);
-            taskUi.skills.push(r);
-            if (revealReady && single) {
-                revealIn(r.row);
-                connect($('labRoom').querySelector('.cell-xp:not([hidden])') || $('labRoom').querySelector('.cell-cp'), r.row);
-            }
-        }
-        for (let k = 0; k < learned; k++) {
-            const r = taskUi.skills[k];
-            const laps = state.path.auto[k] || 0;
-            setText(r.rate, `lap ${Math.floor(laps)} · +${f(E.legXpRate(state, k), 2)} XP/s`);
-            r.fill.style.width = `${(laps % 1) * 100}%`;
-        }
+        // Cleared legs' laps used to be rows here too; they live on their lanes in the server room now (the owner's
+        // call: nothing here to interact with), drawn by drawClearedLane.
     }
 
     // Connections: when something new starts working for you, a glowing signal line draws from what
@@ -7383,11 +7354,48 @@ window.AGI = (function () {
     const LANE_SCAN_SECONDS = 4;   // one sweep of the monitor across the stretch (before automation)
 
     // A cleared stretch training itself: its whole terrain, with a ball crawling along it on a loop.
-    const clearedTerrains = new Map();
+    // A cleared leg's lane plays back a run on it (the owner's call: the even crawl said nothing): the real physics,
+    // at the strength you had the last time you ran that leg yourself (E.legPower), sprinting at your usual charge
+    // (your last 20) from rest and up climbs it won't make, thrusting in act two the same way, until it crests the
+    // leg's skill hill or stops. Simulated once and cached (the ball's x and height 30 times a second), again only
+    // when that strength changes. What the Auto-Trainer's ghost and the passive XP replicate, made visible.
+    const legReplays = new Map();
+    const REPLAY_FPS = 30;
+    function legReplay(k) {
+        const power = E.legPower(state, k);
+        const key = `${k}:${power.toFixed(3)}`;
+        const hit = legReplays.get(k);
+        if (hit && hit.key === key) return hit;
+        const d = E.derive(state);
+        const roll = T.createRoll(k, 9973 * (k + 1), { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, strips: d.strips, last: k });
+        const h = path.handCharges;
+        const charge = h.length ? Math.max(E.PATH.minCharge, Math.min(1, h.reduce((a, b) => a + b, 0) / h.length)) : 0.9;
+        const share = E.sprintStrength(state, charge, null, false, false) / E.sprintStrength(state, 1, null, false, false);
+        const xs = [], ys = [];
+        const dt = 1 / REPLAY_FPS;
+        for (let i = 0; i < REPLAY_FPS * 90 && !roll.over; i++) {
+            roll.thrust = 0;
+            if (k >= T.LATE_LEG) {
+                const want = !roll.launched || (!roll.airborne && roll.ball.v < AUTO_THRUST_SPEED) || wontClear(roll) || (roll.airborne && roll.vy < 0);
+                if (want && roll.pushesLeft > 0) roll.thrust = E.PATH.thrustEfficiency * power * power / T.BURN_SECONDS;
+            } else if (roll.ball.cooldown <= 0 && !roll.airborne && roll.pushesLeft > 0 && (!roll.launched || roll.atRest || wontClear(roll))) {
+                roll.push(power * share);
+            }
+            const evs = roll.step(dt);
+            xs.push(roll.ball.x);
+            ys.push(roll.height);
+            if (evs.some(e => e.type === 'crest' || e.type === 'end')) break;
+        }
+        // A beat at the end before it loops.
+        for (let i = 0; i < REPLAY_FPS; i++) { xs.push(xs[xs.length - 1]); ys.push(ys[ys.length - 1]); }
+        const r = { key, ground: roll.ground, xs, ys };
+        legReplays.set(k, r);
+        return r;
+    }
     function drawClearedLane(ctx, w, h, k, lane) {
         if (k < 0) return;
-        if (!clearedTerrains.has(k)) clearedTerrains.set(k, T.terrain(k, 9973 * (k + 1)));
-        const g = clearedTerrains.get(k);
+        const replay = legReplay(k);
+        const g = replay.ground;
         const c = path.colors;
         const from = g.start;
         const span = g.goal.end + 0.3 - from;
@@ -7405,15 +7413,34 @@ window.AGI = (function () {
         ctx.strokeStyle = hexAlpha(c.primary, 0.85);
         ctx.lineWidth = 1;
         ctx.stroke();
-        // Very slow: the engine's automated laps (one every 40 s or so, longer for later stretches),
-        // eased between ticks. Each lap adds a little compute.
-        const laps = (state.path.auto[k] || 0) + Math.min(0.2, (Date.now() - lastTick) / 1000) * debugSpeed / E.clearedPeriod(k);
-        const t = laps % 1;
-        const bx = from + t * span;
+        // The run, played back on a loop (each leg a little out of step with the others).
+        const i = Math.floor((performance.now() / 1000 * REPLAY_FPS + k * 37) % replay.xs.length);
+        const bx = replay.xs[i];
         ctx.fillStyle = c.text;
         ctx.beginPath();
-        ctx.arc(t * w, y(g.height(bx)), 2.2, 0, Math.PI * 2);
+        ctx.arc(((bx - from) / span) * w, Math.max(3, y(replay.ys[i])), 2.2, 0, Math.PI * 2);
         ctx.fill();
+        // The leg's own task line (it used to be a Scheduled tasks row in the lab): its name, the XP it trains by
+        // itself and its laps. Small lanes (phones, camera copies) keep just the rate.
+        if (lane !== hoverLane && w >= 40) {
+            const rate = `+${E.format(E.legXpRate(state, k), 2)} XP/s`;
+            const big = w >= 90 && h >= 70;
+            ctx.textAlign = 'left';
+            ctx.font = `600 ${big ? 10 : 8}px "JetBrains Mono", ui-monospace, monospace`;
+            const pad = big ? 5 : 3;
+            if (big) {
+                ctx.fillStyle = 'rgba(3, 12, 10, 0.62)';
+                ctx.fillRect(0, 0, w, 15);
+                ctx.fillStyle = c.text;
+                ctx.font = `600 10px "Chakra Petch", system-ui, sans-serif`;
+                let name = E.skillAt(k).name;
+                while (name.length > 3 && ctx.measureText(name).width > w - 2 * pad) name = name.slice(0, -2) + '…';
+                ctx.fillText(name, pad, 11);
+                ctx.font = `600 9px "JetBrains Mono", ui-monospace, monospace`;
+            }
+            ctx.fillStyle = c.success;
+            ctx.fillText(big ? `${rate} · ×${Math.floor(state.path.auto[k] || 0)}` : rate, pad, big ? 25 : 9);
+        }
         if (lane === hoverLane && ctx.canvas.closest('#bays')) {
             ctx.fillStyle = 'rgba(3, 12, 10, 0.72)';
             ctx.fillRect(0, 0, w, h);
