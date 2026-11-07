@@ -2311,7 +2311,13 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .panel-projects[hidden] { display: none; }
 .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .panel-projects .station-title { color: var(--warning); }
-.panel-projects .project-list { flex: 1; grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(0, 1fr); }
+.panel-projects .project-list { flex: 1; grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(min-content, 1fr); }
+/* The head stays one line: a boost or two (the dilemmas add their own) wrapped it and the fixed-height panel
+   squeezed the three offers into each other. Long lists clip, the full list is the tooltip. */
+.panel-projects .panel-head { flex-wrap: nowrap; min-width: 0; }
+.panel-projects .station-title { white-space: nowrap; flex: none; }
+.panel-projects .boosts { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.boosts .boost.down { color: var(--danger); }
 
 /* ---- Scheduled tasks: each automation with a switch and its dedicated compute ---- */
 .panel-tasks { display: flex; flex-direction: column; gap: 10px; overflow: hidden; }

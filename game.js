@@ -2939,7 +2939,11 @@ window.AGI = (function () {
         const left = secs => (secs >= 60 ? `${Math.ceil(secs / 60)} min` : `${Math.ceil(secs)} s`);
         // Active boosts by stat (older saves may still hold compute, data, XP or sprint boosts).
         const BOOST_NAMES = { rp: 'research', cp: 'compute', dp: 'data', xp: 'XP', push: 'sprints' };
-        setText($('boosts'), p.boosts.map(b => `+${Math.round((b.mult - 1) * 100)}% ${BOOST_NAMES[b.stat] || b.stat} · ${left(b.until - t)}`).join('  ·  '));
+        // One line (it wrapped and squeezed the offers into each other); penalties from the dilemmas read −n% in red.
+        const boostEls = p.boosts.slice().sort((a, b) => (a.mult < 1 ? 0 : 1) - (b.mult < 1 ? 0 : 1)).map(b => el('span', { class: b.mult < 1 ? 'boost down' : 'boost',
+            text: `${b.mult < 1 ? '−' : '+'}${Math.round(Math.abs(b.mult - 1) * 100)}% ${BOOST_NAMES[b.stat] || b.stat} · ${left(b.until - t)}` }));
+        $('boosts').replaceChildren(...boostEls.flatMap((x, i) => i ? [document.createTextNode(' · '), x] : [x]));
+        $('boosts').title = boostEls.map(x => x.textContent).join('\n');
         // Fixed slots: an offer keeps its slot until it's claimed or expires; new ones take the first free
         // slot. Nothing shuffles up when one goes, so the Claim you were aiming for stays put.
         const ids = new Set(p.offers.map(o => o.id));
