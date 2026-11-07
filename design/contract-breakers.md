@@ -26,7 +26,21 @@ Already broken: Paradigm Shift (1), Bullet Time and Lucid Dream (2), Max Effort 
 The owner wants every rule-break to be **the player's move, tied to skill**: a button they choose when to press, a timing check,
 not a dice roll that happens to them. So the new mechanics are **abilities** on a second verb, and each is a skill check.
 
-**The Ability button.** A second button beside Sprint (left of it on phones, so the two thumbs split the verbs; on keyboards ↑, W
+**The fiction: you're hacking the rewards** (the owner's framing). The trail is the training environment, and every ability is
+an **exploit** the model has found in it: a bug in the physics, a hole in the reward function. So the button is **Exploit**, the
+abilities are its exploits, and the whole system speaks in glitch: a press tears the screen along a scanline, the hill or bridge it
+touches draws as raw wireframe and hex, and the sound is a bit-crushed stab. Pressing well is getting away with it:
+
+- **Perfect = undetected** ("CLEAN EXPLOIT"), good = it works, a miss = **flagged**. Each run has a **detection meter** under the
+  pips: every flagged exploit fills it a third, and full means the run is **audited**: it ends where it is and pays half. Skill is
+  what lets you exploit often; mashing gets you caught.
+- **It's the story too:** the model learning to game its own training is the AI escaping. Clean exploits add to its hidden freedom
+  (a little, capped per version), the mail notices ("you found the gap in the bridge collision. so did i."), and the real-IT
+  dilemmas can **patch** an exploit for a few minutes (greyed out with "Patched", a timer), which is a reason to care which side
+  of those emails you take.
+- **Reward hack**, the old rare proc, becomes the capstone exploit (late, one per run): clipping through a skill hill's seam.
+
+**The Exploit button.** A second button beside Sprint (left of it on phones, so the two thumbs split the verbs; on keyboards E (for Exploit), ↑ or W
 or E, since Space and Enter sprint). It holds **charges per run**, like sprints (1 to start, more from tree nodes), shown as pips.
 It does whatever ability is **equipped**: from the second ability on, the dev screen has a loadout slot (one equipped, later two,
 the second on ↓/S). Each ability's first node is a mechanic hexagon with its demo, as now.
@@ -43,7 +57,7 @@ the second on ↓/S). Each ability's first node is a mechanic hexagon with its d
 | Summarization (10) | **Early stop** | on a crest, press to end the run and cash out | only on a crest (a pulsing ring); the higher and nearer its top, the more it pays (×1.2 to ×2) | dead on the crest's top: ×2 and a "TL;DR" stamp |
 | In-Context Learning (12) | **Slingshot** | your best run races as a ghost; ride its draft (less drag) and press to slingshot past | press while in the draft (within 1.5 m behind it) | at the edge of the draft: the slingshot doubles |
 
-Later abilities on the same button: **Rewind** (press while rolling back off a failed climb: 3 s back, the sprint refunded; the
+Later exploits on the same button: **Rewind** (press while rolling back off a failed climb: 3 s back, the sprint refunded; the
 skill check is how soon you press), **Gradient flip** (hold: gravity flips, draining a gauge; let go before you crest or you're
 pulled back), **Reward hack** (at a skill hill's foot a seam flickers on its face; a press exactly on the seam clips through and
 learns the skill unearned, the AI gloats by email and gains freedom; miss and you bounce off; rare, late, one per run).
@@ -180,7 +194,7 @@ Every leg today is one recipe: random small bumps, a length on one smooth curve.
 
 ## Recommended order
 
-1. **The Ability button and Hop** (M, leg 2): the verb everything else rides on, with cliffs to use it on. Then **Dropout** (S, leg 4) and **Temperature** (S, leg 8).
+1. **The Exploit button and Hop** (M, leg 2): the verb everything else rides on, with cliffs to use it on. Then **Dropout** (S, leg 4) and **Temperature** (S, leg 8).
 2. **Wormholes** (S–M, leg 2) and **Early stopping** (S, leg 10).
 3. **Hallucinated bridges** (M, leg 6) and **Ghost of your best run** (M, leg 12): the signature ones.
 4. Later, as rare rewards: **Reward hacking** (story), **Rewind**, **Gradient flip**, **Carried context**, then **Forks** and
