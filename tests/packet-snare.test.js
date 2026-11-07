@@ -452,11 +452,12 @@ test('a loose loop round a core does not quarantine it', () => {
 });
 
 
-test('a curvy stroke is not a wall', () => {
-    const s = rogueField({ rogueFirst: 1e9 });
-    for (let a = 0; a <= Math.PI; a += 0.1) s.addPoint(5 + 2 * Math.cos(a), 3.3 + 2 * Math.sin(a) * 0.5);
+test('the lasso never builds a wall: walls come only from the Firewall tool', () => {
+    const s = rogueField({ rogueFirst: 1e9, firewalls: 2 });
+    for (let x = 2; x <= 8; x += 0.1) s.addPoint(x, 3.3);
     s.liftPen();
-    assert.ok(!s.takeEvents().some(e => e.type === 'wall'));
+    assert.equal(s.walls.length, 0, 'a straight stroke is just a wire');
+    assert.ok(!s.takeEvents().some(e => e.type === 'place'));
 });
 
 test('corrupt packets swim toward the schools', () => {
@@ -589,7 +590,7 @@ test('the Containment Field turns good packets back at the edges; corrupt ones s
     assert.ok([...ids].some(id => !c.packets.some(p => p.id === id)), 'a corrupt one left the field');
 });
 
-test('Herders round good packets up toward the middle (or the net) and shoo corrupt ones away', () => {
+test('Herders round good packets up toward the middle and shoo corrupt ones away', () => {
     const spread = herders => {
         const s = P.createSnare({ seed: 5, w: 14, h: 14, density: 0.08, corruptShare: 0, antivirus: [], idleDrain: 0, contain: 1, herders, schooling: 0 });
         for (let i = 0; i < 60 * 12; i++) s.step(1 / 60);

@@ -135,3 +135,33 @@ through) and decoys, fewer red stars (and red packets instead of stars), and bos
 4. **The Rogue AI's story beats (leaving a core alone as a deliberate
    freedom choice, never a missed loop).
 5. **The sim** plays it (built: `SNARE`; next, a better bot) (a time share and a simple loop policy, from the first log with `snare` events).
+
+## Built: the eighth pass (review round 3 and the owner's calls)
+
+Round 3 averaged 7.25 / 6.25 / 7.5 / 6.75 / 7.0 / 7.0 (accuracy, bugs, implementation, visual clarity, consistency, polish). The owner's replies set the direction:
+
+- **Active play first, idle play much later.** The tree's inner rings are verbs (Garbage Collection on the first ring, Packet Spoofing, Parry and Slash, Race Condition, Firewalls, Freeze); lasers, turrets, towers and herders sit further out and cost far more (Turrets 12.5K, Rapid Fire 100K a level).
+- **The exploits** (rule-breaking, framed like the trail's Hop): flicks (quick straight strokes) spoof corrupt packets and parry or slash the boss, and a flick that hits nothing is flagged, with an IDS alert at three. Then Garbage Collection, Race Condition (the owner's version: hold the pen still after closing and the multiplier grows), Hijack, and Collusion (the owner's version: a quarantined core may turn partner and collect for you, and Antivirus hunt it). Left out at the owner's call: Buffer Overflow, Backflow, Ctrl+Z, the Seam.
+- **Bigger loops, said plainly.** The corrupt lure eases while you draw, and a loop at ×2 or more reads HIGH RISK · HIGH REWARD with the red packets near it.
+- **Scale with the screen, lean to readability.** The field is capped at 20 px a unit, and a capped field's packets are worth the difference. Firehose and Floodgate make three times the packets, and Checksums and Error Correction cut red packets to a quarter.
+- **Bosses grow** with the sector (and the field), so later ones need bigger loops round all of them. Hazards come from the sector, never the field's size. A slot more per tool at the top of Megasprawl and Hyperscale. Replayable sectors at half the bounty.
+- **Kept as they were:** the sector 1 boss, the research cap, no boss damage carried between runs.
+- **Herders** are stunned by Antivirus they touch, and Evasive Herders dodge them. Lasers reach only part of the field, and Laser Array adds emitters on more edges. The enemy sweep is now a **Full Scan**.
+- **Round 3's fixes:**
+  - Core shadows clipped right.
+  - Freeze stops the field's clock and allows no boss hits.
+  - Walls that go down free their slot, and saved walls are re-trimmed.
+  - Retraced wires restart.
+  - The decoy weight is fixed, and the boss smashes a decoy it sits on.
+  - Tags show as an outline that cools down.
+  - Distinct amber or white silhouettes for everything you own, and notched Antivirus.
+  - The boss's hits shown as a ring.
+  - Pops that stack instead of overlapping.
+  - Stat icons shared with the tool bar.
+  - A remembered tree camera.
+  - Plain-language previews.
+  - 15 new sounds.
+  - Keys in Settings.
+  - First-meeting cards for tools and gestures.
+  - Log fields and a build stamp checked by a test.
+  - `tools/snare-boss.js`.
