@@ -409,8 +409,10 @@
 
         // ---- The boss Antivirus --------------------------------------------------------------------------
         // `enraged`: an IDS alert booted it early, faster and charging sooner.
+        // Its size grows with the field (to the ¾ power: a big field's boss stays a big target on screen, and its loop
+        // can still close) and with the sector (engine.js).
         function bootBoss(enraged) {
-            const r = o.bossR, c = Math.floor(rand() * 4);
+            const r = o.bossR * Math.pow(grow, 0.75), c = Math.floor(rand() * 4);
             const x = c % 2 ? w - r : r, y = c < 2 ? r : h - r;
             s.boss = { x, y, vx: 0, vy: 0, r, hp: o.boss, maxHp: o.boss, stunned: 0, hunting: false, immune: null, charge: null, chargeAt: s.time + (enraged ? 1 : 3), enraged, smash: null };
             s.events.push({ type: 'boss', x, y, hp: o.boss, enraged });

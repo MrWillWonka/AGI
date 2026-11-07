@@ -363,6 +363,44 @@
             : (tone({ f0: NOTE(93), f1: NOTE(81), dur: 0.6, type: 'sine', gain: 0.05 }), noise({ dur: 0.7, gain: 0.08, f0: 5000, f1: 300, type: 'lowpass' }), sub(45, 33, 0.6, 0.12)),
         snareZap: () => { tone({ f0: NOTE(88), f1: NOTE(64), dur: 0.05, type: 'square', gain: 0.035, cutoff: 3000 }); noise({ dur: 0.04, gain: 0.05, f0: 6000, type: 'highpass' }); },
         snareDecoy: () => { noise({ dur: 0.08, gain: 0.07, f0: 6000, type: 'highpass' }); tone({ f0: NOTE(84), dur: 0.08, type: 'triangle', gain: 0.045 }); tone({ f0: NOTE(76), dur: 0.1, type: 'triangle', gain: 0.04, at: S() / 2 }); },
+        // The second wave: the Rogue AI's cores, Firewalls stunning Antivirus, the flicks against the boss, the IDS.
+        snareQuarantine: ({ partner = false } = {}) => {
+            noise({ dur: 0.02, gain: 0.08, f0: 5200, q: 6 }); noise({ dur: 0.025, gain: 0.08, f0: 3600, q: 6, at: S() / 4 });
+            tone({ f0: NOTE(45), dur: 0.1, type: 'triangle', gain: 0.13, at: S() / 4 });
+            if (partner) [64, 67, 72].forEach((n, i) => tone({ f0: NOTE(n), dur: 0.2, type: 'triangle', gain: 0.05, cutoff: 1600, detune: -8, at: (1 + i) * S() / 2 }));
+            else { blip(69, { gain: 0.05, dur: 0.07, cutoff: 1800, at: S() / 2 }); blip(57, { gain: 0.055, dur: 0.14, cutoff: 1200, at: S() }); }
+        },
+        snareStun: ({ down = false } = {}) => {
+            noise({ dur: 0.05, gain: 0.08, f0: 1200, q: 3 }); tone({ f0: NOTE(52), dur: 0.08, type: 'triangle', gain: 0.12 });
+            [88, 84, 88].forEach((n, i) => tone({ f0: NOTE(n), dur: 0.05, type: 'sine', gain: 0.022, at: (1 + i) * S() / 2 }));
+            if (down) { noise({ dur: 0.05, gain: 0.12, f0: 4500, type: 'highpass', at: S() / 4 }); noise({ dur: 0.12, gain: 0.06, f0: 2500, f1: 600, q: 4, at: S() / 4 }); tone({ f0: NOTE(46), dur: 0.16, type: 'square', gain: 0.035, cutoff: 900, at: S() / 4 }); }
+        },
+        snareCore: () => { tone({ f0: NOTE(45), dur: 0.7, type: 'sine', gain: 0.1, attack: 0.3 }); tone({ f0: NOTE(58), dur: 0.6, type: 'triangle', gain: 0.03, cutoff: 900, detune: -15, attack: 0.3 }); blip(82, { gain: 0.02, dur: 0.08, cutoff: 3000, at: 2 * S(), echo: 0.4 }); },
+        snareBossDown: () => {
+            sub(33, 33, 0.3, 0.25); stab([57, 64, 69], { gain: 0.045, dur: 0.25, cutoff: 2000 });
+            [76, 79, 81].forEach((n, i) => blip(n, { gain: 0.055, dur: 0.08, cutoff: 3200, at: (1 + i) * S() }));
+            stab([60, 67, 72, 76], { gain: 0.045, dur: 0.8, cutoff: 2800, at: 4 * S() }); tone({ f0: NOTE(88), dur: 0.9, type: 'sine', gain: 0.06, at: 4 * S() }); sub(33, 33, 0.9, 0.22, 4 * S());
+            noise({ dur: 0.7, gain: 0.07, f0: 7000, f1: 2000, type: 'highpass', at: 4 * S() });
+        },
+        snareParry: () => { noise({ dur: 0.05, gain: 0.1, f0: 6500, q: 12 }); tone({ f0: NOTE(81), f1: NOTE(93), dur: 0.06, type: 'square', gain: 0.035, cutoff: 5000 }); tone({ f0: NOTE(81) * 2.76, dur: 0.25, type: 'sine', gain: 0.018, raw: true }); },
+        snareSlash: () => { noise({ dur: 0.1, gain: 0.12, f0: 1500, f1: 9000, q: 3, attack: 0.06 }); tone({ f0: NOTE(64), dur: 0.08, type: 'sawtooth', gain: 0.035, cutoff: 2000, at: S() / 2 }); },
+        snareSpoof: () => {
+            tone({ f0: NOTE(52), f1: NOTE(76), dur: 0.12, type: 'square', gain: 0.035, cutoff: 3000 });
+            [76, 75, 76].forEach((n, i) => blip(n, { gain: 0.03, dur: 0.03, cutoff: 4000, at: S() / 2 + i * S() / 4 }));
+            tone({ f0: NOTE(69), dur: 0.1, type: 'triangle', gain: 0.05, at: 1.5 * S() });
+        },
+        snareGarbage: () => { noise({ dur: 0.15, gain: 0.12, f0: 3000, f1: 200, type: 'lowpass' }); tone({ f0: NOTE(45), f1: NOTE(40), dur: 0.14, type: 'square', gain: 0.04, cutoff: 900 }); tone({ f0: NOTE(76), f1: NOTE(81), dur: 0.1, type: 'sine', gain: 0.05, at: 2 * S() }); },
+        snareRace: ({ step = 0 } = {}) => { tone({ f0: NOTE(raceNote(step)), dur: 0.045, type: 'triangle', gain: 0.05, cutoff: 3000 }); noise({ dur: 0.01, gain: 0.025, f0: 7000, q: 4 }); },
+        snareHijack: () => { tone({ f0: NOTE(76), f1: NOTE(88), dur: 0.05, type: 'sine', gain: 0.045 }); tone({ f0: NOTE(76), f1: NOTE(88), dur: 0.05, type: 'sine', gain: 0.04, at: S() / 2 }); tone({ f0: NOTE(57), dur: 0.1, type: 'triangle', gain: 0.07, at: S() }); },
+        snareTaken: () => tone({ f0: NOTE(79), f1: NOTE(84), dur: 0.04, type: 'triangle', gain: 0.035, cutoff: 4000 }),
+        snareFlag: ({ flags = 1, limit = 3 } = {}) => {
+            const k = Math.min(1, flags / Math.max(1, limit));
+            blip(70, { gain: 0.045, dur: 0.05, cutoff: 1400 + 1600 * k }); blip(69, { gain: 0.04, dur: 0.06, cutoff: 1400 + 1600 * k, at: S() / 2 });
+            if (flags >= limit - 1) blip(70, { gain: 0.035, dur: 0.04, cutoff: 3000, at: S() });
+        },
+        snareIds: () => { [76, 70, 76, 70, 76, 70].forEach((n, i) => blip(n, { gain: 0.045, dur: 0.05, cutoff: 3000, at: i * S() / 2 })); sub(33, 33, 0.15, 0.2); noise({ dur: 0.35, gain: 0.05, f0: 2000, f1: 5000, q: 3 }); },
+        snareRebuild: () => { [0, 1, 2, 3].forEach(i => noise({ dur: 0.015, gain: 0.05, f0: 1200 + 600 * i, q: 3, at: i * S() / 4 })); tone({ f0: NOTE(45), dur: 0.1, type: 'triangle', gain: 0.11, at: S() }); blip(64, { gain: 0.035, dur: 0.06, cutoff: 1600, at: S() }); },
+        snareHerdStun: () => { tone({ f0: NOTE(72), f1: NOTE(52), dur: 0.22, type: 'square', gain: 0.035, cutoff: 1200 }); noise({ dur: 0.03, gain: 0.04, f0: 6000, type: 'highpass' }); },
         // An investor's reward claimed: a bright figure, varied.
         claim: () => [
             () => arp([76, 81, 84, 88, 93], S() / 2, { type: 'triangle', gain: 0.06, cutoff: 5000 }),
@@ -451,6 +489,10 @@
     // Packet Snare: a catch's notes, two to six by the loop's multiplier, low down (a pocket, not a prompt).
     const catchNotes = mult => [57, 60, 62, 64, 67, 69].slice(0, 2 + Math.min(4, Math.round((mult - 1) * 1.5)));
     const lastAt = notes => (notes.length - 1) * S() / 2;
+    // A held-open loop's ticks climb the scale, a degree a step (snareRace, never varied, so the climb holds).
+    const raceNote = step => degShift(69, Math.max(0, Math.min(8, Math.round(Number(step) || 0))));
+    // An inharmonic partial `mult` times a note (a metal ring), kept in the play's variation and the track's key.
+    const ping = (n, mult, o = {}) => tone({ f0: NOTE(mapNote(degShift(n, varDeg))) * mult, type: 'sine', dur: 0.2, gain: 0.02, ...o, raw: true });
 
     // Each track's sound set, levelled to Classic's loudness (measured with a K-weighted meter, like the music).
     const SFX_TRIM = { classic: 1, dark: 1.29, soft: 1.21, ominous: 0.81, retro: 2.1 };
@@ -460,18 +502,22 @@
     // K-weighted (the peak 100 ms, averaged over four plays, against the mean of 17 existing effects): a catch, a
     // placement and a broken decoy at the clicks' level, a spoil, a snap and a hit on the boss 1.5 dB over, your
     // laser, a turret's zap and a chain 3.5 dB under (they come often, by themselves), the sweep's warning 3.5 dB
-    // over, the boss locking on and the powers 4 dB over and the boss 5.5 dB over. Keys `name` or `name:kind`.
+    // over, the boss locking on and the powers 4 dB over and the boss 5.5 dB over. The second wave the same way: a sloppy
+    // flick's flag at the clicks' level; a quarantine, a stun, a core appearing, a parry, a slash, a spoof, a garbage
+    // collection, a hijack, a rebuild and a herder knocked out 1.5 dB over; a hijacked Antivirus or partner taking packets
+    // and a held loop's ticks 3.5 dB under; the IDS alarm 3.5 dB over and the boss beaten 5.5 dB over (an option's
+    // variations, partner, down, step, flags, averaged). Keys `name` or `name:kind`.
     const SNARE_TRIM = {
-        classic: { snareCatch: 1.81, snareSpoil: 1.55, snareSnap: 0.95, snareLaser: 1.49, snareChain: 3.39, snareSweep: 2.47, snareCharge: 2.21, snareBoss: 1.02, snareHit: 2.24, 'snarePlace:wall': 0.87, 'snarePlace:decoy': 2.35, 'snarePlace:turret': 2.05, 'snarePlace:tower': 0.58, snareRemove: 2.07, 'snarePower:freeze': 0.5, 'snarePower:purge': 1.64, snareZap: 1.73, snareDecoy: 1.54 },
-        dark: { snareCatch: 1.39, snareSpoil: 0.68, snareSnap: 0.86, snareLaser: 1.55, snareChain: 5.41, snareSweep: 1.21, snareCharge: 0.48, snareBoss: 0.67, snareHit: 2.11, 'snarePlace:wall': 0.54, 'snarePlace:decoy': 3.05, 'snarePlace:turret': 2.13, 'snarePlace:tower': 0.77, snareRemove: 1.4, 'snarePower:freeze': 0.41, 'snarePower:purge': 1.05, snareZap: 1.79, snareDecoy: 1.88 },
-        soft: { snareCatch: 1.37, snareSpoil: 0.6, snareSnap: 1.16, snareLaser: 1.77, snareChain: 1.77, snareSweep: 1.59, snareCharge: 2.67, snareBoss: 0.97, snareHit: 1.22, 'snarePlace:wall': 0.74, 'snarePlace:decoy': 1.59, 'snarePlace:turret': 2.01, 'snarePlace:tower': 0.96, snareRemove: 1.53, 'snarePower:freeze': 1.05, 'snarePower:purge': 1.39, snareZap: 2, snareDecoy: 1.72 },
-        ominous: { snareCatch: 1.58, snareSpoil: 2.14, snareSnap: 1.86, snareLaser: 1.64, snareChain: 8.85, snareSweep: 1.39, snareCharge: 3.01, snareBoss: 0.88, snareHit: 1.27, 'snarePlace:wall': 0.96, 'snarePlace:decoy': 1.96, 'snarePlace:turret': 1.81, 'snarePlace:tower': 0.79, snareRemove: 1.54, 'snarePower:freeze': 0.86, 'snarePower:purge': 1.22, snareZap: 2.3, snareDecoy: 1.59 },
-        retro: { snareCatch: 0.71, snareSpoil: 0.91, snareSnap: 0.7, snareLaser: 1.48, snareChain: 1.31, snareSweep: 2.33, snareCharge: 1.37, snareBoss: 0.99, snareHit: 0.82, 'snarePlace:wall': 0.55, 'snarePlace:decoy': 2.77, 'snarePlace:turret': 2.03, 'snarePlace:tower': 0.49, snareRemove: 1.73, 'snarePower:freeze': 0.46, 'snarePower:purge': 0.91, snareZap: 1.3, snareDecoy: 1.01 },
-        's:classic': { snareCatch: 1.06, snareSpoil: 1.02, snareSnap: 1.52, snareLaser: 3.42, snareChain: 2.01, snareSweep: 2.69, snareCharge: 1.41, snareBoss: 1.24, snareHit: 1.04, 'snarePlace:wall': 1.34, 'snarePlace:decoy': 1.32, 'snarePlace:turret': 1.37, 'snarePlace:tower': 1.36, snareRemove: 1.25, 'snarePower:freeze': 1.05, 'snarePower:purge': 1.26, snareZap: 1.55, snareDecoy: 1.54 },
-        's:dark': { snareCatch: 0.98, snareSpoil: 1.03, snareSnap: 2.08, snareLaser: 2.2, snareChain: 1.82, snareSweep: 2.46, snareCharge: 1.31, snareBoss: 1.43, snareHit: 0.98, 'snarePlace:wall': 1.3, 'snarePlace:decoy': 1.29, 'snarePlace:turret': 1.26, 'snarePlace:tower': 1.32, snareRemove: 1.23, 'snarePower:freeze': 1.06, 'snarePower:purge': 1.35, snareZap: 1.63, snareDecoy: 1.5 },
-        's:soft': { snareCatch: 0.98, snareSpoil: 0.9, snareSnap: 1.65, snareLaser: 1.94, snareChain: 1.69, snareSweep: 2.5, snareCharge: 1.25, snareBoss: 1.36, snareHit: 0.9, 'snarePlace:wall': 1.19, 'snarePlace:decoy': 1.3, 'snarePlace:turret': 1.25, 'snarePlace:tower': 1.29, snareRemove: 1.19, 'snarePower:freeze': 1.03, 'snarePower:purge': 1.37, snareZap: 1.66, snareDecoy: 1.55 },
-        's:ominous': { snareCatch: 0.9, snareSpoil: 1.06, snareSnap: 2.48, snareLaser: 2.17, snareChain: 1.8, snareSweep: 2.25, snareCharge: 1.23, snareBoss: 2.28, snareHit: 0.88, 'snarePlace:wall': 1.16, 'snarePlace:decoy': 1.24, 'snarePlace:turret': 1.14, 'snarePlace:tower': 1.18, snareRemove: 1.09, 'snarePower:freeze': 1.18, 'snarePower:purge': 1.4, snareZap: 1.68, snareDecoy: 1.49 },
-        's:retro': { snareCatch: 1.06, snareSpoil: 1.05, snareSnap: 1.5, snareLaser: 2.02, snareChain: 1.68, snareSweep: 2.71, snareCharge: 1.43, snareBoss: 1.21, snareHit: 1.06, 'snarePlace:wall': 1.37, 'snarePlace:decoy': 1.3, 'snarePlace:turret': 1.38, 'snarePlace:tower': 1.35, snareRemove: 1.25, 'snarePower:freeze': 0.95, 'snarePower:purge': 1.28, snareZap: 1.65, snareDecoy: 1.53 }
+        classic: { snareCatch: 1.81, snareSpoil: 1.55, snareSnap: 0.95, snareLaser: 1.49, snareChain: 3.39, snareSweep: 2.47, snareCharge: 2.21, snareBoss: 1.02, snareHit: 2.24, 'snarePlace:wall': 0.87, 'snarePlace:decoy': 2.35, 'snarePlace:turret': 2.05, 'snarePlace:tower': 0.58, snareRemove: 2.07, 'snarePower:freeze': 0.5, 'snarePower:purge': 1.64, snareZap: 1.73, snareDecoy: 1.54, snareQuarantine: 1.17, snareStun: 1.27, snareCore: 0.5, snareBossDown: 0.58, snareParry: 2.4, snareSlash: 3.13, snareSpoof: 2.66, snareGarbage: 1.56, snareRace: 2.67, snareHijack: 2.07, snareTaken: 4.32, snareFlag: 2.14, snareIds: 1.23, snareRebuild: 1.43, snareHerdStun: 2.09 },
+        dark: { snareCatch: 1.39, snareSpoil: 0.68, snareSnap: 0.86, snareLaser: 1.55, snareChain: 5.41, snareSweep: 1.21, snareCharge: 0.48, snareBoss: 0.67, snareHit: 2.11, 'snarePlace:wall': 0.54, 'snarePlace:decoy': 3.05, 'snarePlace:turret': 2.13, 'snarePlace:tower': 0.77, snareRemove: 1.4, 'snarePower:freeze': 0.41, 'snarePower:purge': 1.05, snareZap: 1.79, snareDecoy: 1.88, snareQuarantine: 0.69, snareStun: 0.63, snareCore: 0.55, snareBossDown: 0.48, snareParry: 1.82, snareSlash: 2.08, snareSpoof: 1.98, snareGarbage: 0.48, snareRace: 3.8, snareHijack: 2.12, snareTaken: 3.14, snareFlag: 1.81, snareIds: 0.77, snareRebuild: 0.71, snareHerdStun: 1.79 },
+        soft: { snareCatch: 1.37, snareSpoil: 0.6, snareSnap: 1.16, snareLaser: 1.77, snareChain: 1.77, snareSweep: 1.59, snareCharge: 2.67, snareBoss: 0.97, snareHit: 1.22, 'snarePlace:wall': 0.74, 'snarePlace:decoy': 1.59, 'snarePlace:turret': 2.01, 'snarePlace:tower': 0.96, snareRemove: 1.53, 'snarePower:freeze': 1.05, 'snarePower:purge': 1.39, snareZap: 2, snareDecoy: 1.72, snareQuarantine: 0.85, snareStun: 0.8, snareCore: 0.54, snareBossDown: 0.71, snareParry: 1.43, snareSlash: 2.27, snareSpoof: 1.68, snareGarbage: 1.11, snareRace: 3.14, snareHijack: 1.27, snareTaken: 4.12, snareFlag: 2.3, snareIds: 1.11, snareRebuild: 0.76, snareHerdStun: 1.57 },
+        ominous: { snareCatch: 1.58, snareSpoil: 2.14, snareSnap: 1.86, snareLaser: 1.64, snareChain: 8.85, snareSweep: 1.39, snareCharge: 3.01, snareBoss: 0.88, snareHit: 1.27, 'snarePlace:wall': 0.96, 'snarePlace:decoy': 1.96, 'snarePlace:turret': 1.81, 'snarePlace:tower': 0.79, snareRemove: 1.54, 'snarePower:freeze': 0.86, 'snarePower:purge': 1.22, snareZap: 2.3, snareDecoy: 1.59, snareQuarantine: 1.14, snareStun: 1.32, snareCore: 0.9, snareBossDown: 0.59, snareParry: 1.87, snareSlash: 2.19, snareSpoof: 2.8, snareGarbage: 1.74, snareRace: 2.48, snareHijack: 2.64, snareTaken: 4.04, snareFlag: 2.27, snareIds: 0.93, snareRebuild: 1.79, snareHerdStun: 2.1 },
+        retro: { snareCatch: 0.71, snareSpoil: 0.91, snareSnap: 0.7, snareLaser: 1.48, snareChain: 1.31, snareSweep: 2.33, snareCharge: 1.37, snareBoss: 0.99, snareHit: 0.82, 'snarePlace:wall': 0.55, 'snarePlace:decoy': 2.77, 'snarePlace:turret': 2.03, 'snarePlace:tower': 0.49, snareRemove: 1.73, 'snarePower:freeze': 0.46, 'snarePower:purge': 0.91, snareZap: 1.3, snareDecoy: 1.01, snareQuarantine: 0.63, snareStun: 0.76, snareCore: 0.53, snareBossDown: 0.44, snareParry: 1.66, snareSlash: 0.92, snareSpoof: 1.93, snareGarbage: 0.54, snareRace: 3.43, snareHijack: 1.04, snareTaken: 3.23, snareFlag: 2.19, snareIds: 0.68, snareRebuild: 0.85, snareHerdStun: 1.53 },
+        's:classic': { snareCatch: 1.06, snareSpoil: 1.02, snareSnap: 1.52, snareLaser: 3.42, snareChain: 2.01, snareSweep: 2.69, snareCharge: 1.41, snareBoss: 1.24, snareHit: 1.04, 'snarePlace:wall': 1.34, 'snarePlace:decoy': 1.32, 'snarePlace:turret': 1.37, 'snarePlace:tower': 1.36, snareRemove: 1.25, 'snarePower:freeze': 1.05, 'snarePower:purge': 1.26, snareZap: 1.55, snareDecoy: 1.54, snareQuarantine: 1.2, snareStun: 1.15, snareCore: 0.76, snareBossDown: 0.61, snareParry: 2.67, snareSlash: 1.75, snareSpoof: 2.08, snareGarbage: 1.36, snareRace: 2.55, snareHijack: 2.1, snareTaken: 4.09, snareFlag: 1.75, snareIds: 2, snareRebuild: 1.57, snareHerdStun: 1.43 },
+        's:dark': { snareCatch: 0.98, snareSpoil: 1.03, snareSnap: 2.08, snareLaser: 2.2, snareChain: 1.82, snareSweep: 2.46, snareCharge: 1.31, snareBoss: 1.43, snareHit: 0.98, 'snarePlace:wall': 1.3, 'snarePlace:decoy': 1.29, 'snarePlace:turret': 1.26, 'snarePlace:tower': 1.32, snareRemove: 1.23, 'snarePower:freeze': 1.06, 'snarePower:purge': 1.35, snareZap: 1.63, snareDecoy: 1.5, snareQuarantine: 1.12, snareStun: 1.28, snareCore: 0.82, snareBossDown: 0.69, snareParry: 2.48, snareSlash: 1.66, snareSpoof: 1.97, snareGarbage: 1.87, snareRace: 2.53, snareHijack: 2.02, snareTaken: 3.88, snareFlag: 1.77, snareIds: 1.94, snareRebuild: 1.51, snareHerdStun: 1.38 },
+        's:soft': { snareCatch: 0.98, snareSpoil: 0.9, snareSnap: 1.65, snareLaser: 1.94, snareChain: 1.69, snareSweep: 2.5, snareCharge: 1.25, snareBoss: 1.36, snareHit: 0.9, 'snarePlace:wall': 1.19, 'snarePlace:decoy': 1.3, 'snarePlace:turret': 1.25, 'snarePlace:tower': 1.29, snareRemove: 1.19, 'snarePower:freeze': 1.03, 'snarePower:purge': 1.37, snareZap: 1.66, snareDecoy: 1.55, snareQuarantine: 1.13, snareStun: 1.17, snareCore: 0.88, snareBossDown: 0.68, snareParry: 2.45, snareSlash: 1.62, snareSpoof: 1.78, snareGarbage: 1.62, snareRace: 2.59, snareHijack: 2.15, snareTaken: 4.06, snareFlag: 1.66, snareIds: 1.92, snareRebuild: 1.56, snareHerdStun: 1.38 },
+        's:ominous': { snareCatch: 0.9, snareSpoil: 1.06, snareSnap: 2.48, snareLaser: 2.17, snareChain: 1.8, snareSweep: 2.25, snareCharge: 1.23, snareBoss: 2.28, snareHit: 0.88, 'snarePlace:wall': 1.16, 'snarePlace:decoy': 1.24, 'snarePlace:turret': 1.14, 'snarePlace:tower': 1.18, snareRemove: 1.09, 'snarePower:freeze': 1.18, 'snarePower:purge': 1.4, snareZap: 1.68, snareDecoy: 1.49, snareQuarantine: 1.04, snareStun: 1.38, snareCore: 1.44, snareBossDown: 0.83, snareParry: 2.41, snareSlash: 1.53, snareSpoof: 1.71, snareGarbage: 2.25, snareRace: 2.47, snareHijack: 2.06, snareTaken: 3.91, snareFlag: 1.53, snareIds: 1.8, snareRebuild: 1.4, snareHerdStun: 1.27 },
+        's:retro': { snareCatch: 1.06, snareSpoil: 1.05, snareSnap: 1.5, snareLaser: 2.02, snareChain: 1.68, snareSweep: 2.71, snareCharge: 1.43, snareBoss: 1.21, snareHit: 1.06, 'snarePlace:wall': 1.37, 'snarePlace:decoy': 1.3, 'snarePlace:turret': 1.38, 'snarePlace:tower': 1.35, snareRemove: 1.25, 'snarePower:freeze': 0.95, 'snarePower:purge': 1.28, snareZap: 1.65, snareDecoy: 1.53, snareQuarantine: 1.22, snareStun: 1.18, snareCore: 0.73, snareBossDown: 0.62, snareParry: 2.43, snareSlash: 1.78, snareSpoof: 2.11, snareGarbage: 1.34, snareRace: 2.58, snareHijack: 2.17, snareTaken: 4.03, snareFlag: 1.76, snareIds: 1.97, snareRebuild: 1.57, snareHerdStun: 1.43 }
     };
     // Packet Snare's sounds are written for every track (Classic included), in the stealth spirit: quiet ticks, muted
     // plucks, filtered noise, a heartbeat sub for the boss. Each effect keeps its idea across the tracks: a catch is
@@ -481,6 +527,15 @@
     // itself a heartbeat; placing a wall a clunk, a decoy a hollow note, a turret two ticks and a note, a tower a
     // low note and two up; taking one back a short fall; freeze a long fall with the world muffling, purge a
     // rising sweep into a chord; a turret's zap a fizz; a broken decoy a glassy shatter.
+    // The second wave: a core quarantined two lock clicks, a thud and a step down to the root (a partner a warm, sly
+    // rise instead); an Antivirus stunned on a Firewall a bonk and a few dizzy stars (a crack and a flat second when
+    // the wall breaks); a core appearing a low swell with a faint flat second over it and a drip; the boss beaten a
+    // chord, a run up and a bright major chord held over a sub; a parry a metal ping deflected upward; a slash a
+    // swish and a cut; a spoof a glitchy bend up into a stutter; garbage collected a crunch down and a small refund
+    // note rising; a held loop's ticks climbing the scale a degree a step (never varied); a hijack a reprogrammed
+    // chirp; a hijacked helper's take a tiny pop up; a flag a semitone fall (brighter with each flag, a third note on
+    // the last warning); the IDS a tritone siren; a Firewall rebuilding a ratchet and a clunk; a herder knocked out
+    // a short power-down.
     const TRACK_SOUNDS = {
         classic: {
             // Dub techno, quiet: muted saw plucks, filtered square blips, sub thumps, a delay throw.
@@ -505,7 +560,39 @@
                 else { T(93, { to: 81, type: 'sine', dur: 0.6, gain: 0.05 }); noise({ dur: 0.7, gain: 0.08, f0: 5000, f1: 300, type: 'lowpass' }); sub(45, 33, 0.6, 0.12); }
             },
             snareZap: () => { T(88, { to: 64, type: 'square', dur: 0.05, gain: 0.035, cutoff: 3000 }); noise({ dur: 0.04, gain: 0.05, f0: 6000, type: 'highpass' }); },
-            snareDecoy: () => { noise({ dur: 0.08, gain: 0.07, f0: 6000, type: 'highpass' }); T(84, { type: 'triangle', dur: 0.08, gain: 0.045 }); T(76, { type: 'triangle', dur: 0.1, gain: 0.04, at: S() / 2 }); }
+            snareDecoy: () => { noise({ dur: 0.08, gain: 0.07, f0: 6000, type: 'highpass' }); T(84, { type: 'triangle', dur: 0.08, gain: 0.045 }); T(76, { type: 'triangle', dur: 0.1, gain: 0.04, at: S() / 2 }); },
+            snareQuarantine: ({ partner = false }) => {
+                noise({ dur: 0.02, gain: 0.08, f0: 5200, q: 6 }); noise({ dur: 0.025, gain: 0.08, f0: 3600, q: 6, at: S() / 4 }); T(45, { type: 'triangle', dur: 0.1, gain: 0.13, at: S() / 4 });
+                if (partner) { seq([64, 67, 72], S() / 2, { type: 'sawtooth', dur: 0.2, gain: 0.03, cutoff: 1100, q: 3, detune: -8, at: S() / 2 }); T(76, { type: 'sine', dur: 0.3, gain: 0.025, at: 2 * S(), echo: 0.4 }); }
+                else { blip(69, { gain: 0.05, dur: 0.07, cutoff: 1800, at: S() / 2 }); blip(57, { gain: 0.055, dur: 0.14, cutoff: 1200, at: S() }); sub(33, 33, 0.12, 0.12, S()); }
+            },
+            snareStun: ({ down = false }) => {
+                noise({ dur: 0.05, gain: 0.08, f0: 1200, q: 3 }); T(52, { type: 'triangle', dur: 0.08, gain: 0.12 });
+                seq([88, 84, 88], S() / 2, { type: 'sine', dur: 0.05, gain: 0.022, at: S() / 2 });
+                if (down) { noise({ dur: 0.05, gain: 0.12, f0: 4500, type: 'highpass', at: S() / 4 }); noise({ dur: 0.12, gain: 0.06, f0: 2500, f1: 600, q: 4, at: S() / 4 }); T(46, { type: 'square', dur: 0.16, gain: 0.035, cutoff: 900, at: S() / 4 }); }
+            },
+            snareCore: () => { T(45, { type: 'sine', dur: 0.7, gain: 0.1, attack: 0.3 }); T(58, { type: 'sawtooth', dur: 0.6, gain: 0.02, cutoff: 800, q: 4, detune: -15, attack: 0.3 }); blip(82, { gain: 0.02, dur: 0.08, cutoff: 3000, at: 2 * S(), echo: 0.4 }); },
+            snareBossDown: () => {
+                sub(33, 33, 0.3, 0.25); stab([57, 64, 69], { gain: 0.045, dur: 0.25, cutoff: 2000 });
+                seq([76, 79, 81], S(), { type: 'square', dur: 0.08, gain: 0.055, cutoff: 3200, at: S() });
+                stab([60, 67, 72, 76], { gain: 0.045, dur: 0.8, cutoff: 2800, at: 4 * S(), echo: 0.3 }); T(88, { type: 'sine', dur: 0.9, gain: 0.06, at: 4 * S() }); sub(33, 33, 0.9, 0.22, 4 * S());
+                noise({ dur: 0.7, gain: 0.07, f0: 7000, f1: 2000, type: 'highpass', at: 4 * S() });
+            },
+            snareParry: () => { noise({ dur: 0.05, gain: 0.1, f0: 6500, q: 12 }); T(81, { to: 93, type: 'square', dur: 0.06, gain: 0.035, cutoff: 5000 }); ping(81, 2.76, { dur: 0.25, gain: 0.018 }); },
+            snareSlash: () => { noise({ dur: 0.1, gain: 0.12, f0: 1500, f1: 9000, q: 3, attack: 0.06 }); T(64, { type: 'sawtooth', dur: 0.08, gain: 0.035, cutoff: 2000, q: 5, at: S() / 2 }); },
+            snareSpoof: () => { T(52, { to: 76, type: 'square', dur: 0.12, gain: 0.035, cutoff: 3000 }); seq([76, 75, 76], S() / 4, { type: 'square', dur: 0.03, gain: 0.025, cutoff: 4000, at: S() / 2 }); T(69, { type: 'triangle', dur: 0.1, gain: 0.05, at: 1.5 * S(), echo: 0.35 }); },
+            snareGarbage: () => { noise({ dur: 0.15, gain: 0.12, f0: 3000, f1: 200, type: 'lowpass' }); T(45, { to: 40, type: 'square', dur: 0.14, gain: 0.04, cutoff: 900 }); T(76, { to: 81, type: 'sine', dur: 0.1, gain: 0.05, at: 2 * S() }); },
+            snareRace: ({ step = 0 }) => { T(raceNote(step), { type: 'triangle', dur: 0.045, gain: 0.05, cutoff: 3000 }); noise({ dur: 0.01, gain: 0.025, f0: 7000, q: 4 }); },
+            snareHijack: () => { T(76, { to: 88, type: 'sine', dur: 0.05, gain: 0.045 }); T(76, { to: 88, type: 'sine', dur: 0.05, gain: 0.04, at: S() / 2 }); blip(57, { gain: 0.05, dur: 0.1, cutoff: 1400, at: S() }); },
+            snareTaken: () => T(79, { to: 84, type: 'triangle', dur: 0.04, gain: 0.035, cutoff: 4000 }),
+            snareFlag: ({ flags = 1, limit = 3 }) => {
+                const k = Math.min(1, flags / Math.max(1, limit));
+                blip(70, { gain: 0.045, dur: 0.05, cutoff: 1400 + 1600 * k }); blip(69, { gain: 0.04, dur: 0.06, cutoff: 1400 + 1600 * k, at: S() / 2 });
+                if (flags >= limit - 1) blip(70, { gain: 0.035, dur: 0.04, cutoff: 3000, at: S() });
+            },
+            snareIds: () => { seq([76, 70, 76, 70, 76, 70], S() / 2, { type: 'square', dur: 0.05, gain: 0.045, cutoff: 3000 }); sub(33, 33, 0.15, 0.2); noise({ dur: 0.35, gain: 0.05, f0: 2000, f1: 5000, q: 3 }); },
+            snareRebuild: () => { [0, 1, 2, 3].forEach(i => noise({ dur: 0.015, gain: 0.05, f0: 1200 + 600 * i, q: 3, at: i * S() / 4 })); T(45, { type: 'triangle', dur: 0.1, gain: 0.11, at: S() }); blip(64, { gain: 0.035, dur: 0.06, cutoff: 1600, at: S() }); },
+            snareHerdStun: () => { T(72, { to: 52, type: 'square', dur: 0.22, gain: 0.035, cutoff: 1200 }); noise({ dur: 0.03, gain: 0.04, f0: 6000, type: 'highpass' }); }
         },
         dark: {
             // Compute a short saw with a tick, data a metal tick on a thin square, research a detuned triangle ping.
@@ -567,7 +654,38 @@
                 else { noise({ dur: 0.8, gain: 0.1, f0: 4000, f1: 200, type: 'lowpass' }); T(33, { to: 24, dur: 0.8, gain: 0.25, drive: true }); saw(81, { to: 69, dur: 0.6, gain: 0.025, cutoff: 1200 }); }
             },
             snareZap: () => { saw(88, { to: 64, type: 'square', dur: 0.05, gain: 0.03, cutoff: 4000 }); metal(0.05, 0, 7000); },
-            snareDecoy: () => { metal(0.07, 0, 6500); metal(0.05, S() / 4, 5000); saw(76, { to: 70, dur: 0.15, gain: 0.03, cutoff: 2000 }); }
+            snareDecoy: () => { metal(0.07, 0, 6500); metal(0.05, S() / 4, 5000); saw(76, { to: 70, dur: 0.15, gain: 0.03, cutoff: 2000 }); },
+            snareQuarantine: ({ partner = false }) => {
+                metal(0.08, 0, 6000); metal(0.08, S() / 4, 4200); T(33, { dur: 0.12, gain: 0.24, drive: true, at: S() / 4 });
+                if (partner) seq([57, 64, 67], S() / 2, { type: 'sawtooth', dur: 0.18, gain: 0.035, cutoff: 1100, q: 3, detune: -10, at: S() / 2 });
+                else { saw(64, { dur: 0.06, gain: 0.045, cutoff: 1800, at: S() / 2 }); saw(57, { dur: 0.14, gain: 0.05, cutoff: 1200, at: S() }); }
+            },
+            snareStun: ({ down = false }) => {
+                T(40, { dur: 0.1, gain: 0.2, drive: true }); metal(0.06, 0, 2600); saw(81, { to: 76, type: 'square', dur: 0.08, gain: 0.02, cutoff: 3000, at: S() / 2 });
+                if (down) { noise({ dur: 0.06, gain: 0.14, f0: 5000, type: 'highpass', at: S() / 4 }); metal(0.08, S() / 4, 1800); saw(46, { dur: 0.2, gain: 0.04, cutoff: 800, at: S() / 4 }); }
+            },
+            snareCore: () => { T(33, { dur: 0.8, gain: 0.18, attack: 0.35, drive: true }); saw(46, { dur: 0.7, gain: 0.025, cutoff: 600, attack: 0.3, detune: -12 }); metal(0.03, 2 * S(), 7000); },
+            snareBossDown: () => {
+                T(33, { to: 21, dur: 0.5, gain: 0.35, drive: true }); [45, 52, 57].forEach(n => saw(n, { dur: 0.3, gain: 0.04, cutoff: 1800 }));
+                seq([64, 69, 76], S(), { type: 'sawtooth', dur: 0.12, gain: 0.045, cutoff: 2600, drive: true, at: S() });
+                [57, 64, 69, 76].forEach(n => saw(n, { dur: 0.8, gain: 0.035, cutoff: 2200, detune: 8, at: 4 * S() })); T(33, { dur: 0.8, gain: 0.25, at: 4 * S() });
+                [0, 4].forEach(k => metal(0.07, k * S(), 4500)); noise({ dur: 0.8, gain: 0.1, f0: 6000, f1: 1500, type: 'highpass', at: 4 * S() });
+            },
+            snareParry: () => { metal(0.12, 0, 7500); saw(81, { to: 93, type: 'square', dur: 0.06, gain: 0.03, cutoff: 6000 }); ping(81, 2.76, { dur: 0.25, gain: 0.02 }); },
+            snareSlash: () => { noise({ dur: 0.09, gain: 0.14, f0: 2000, f1: 10000, q: 4, attack: 0.06 }); metal(0.06, S() / 2, 3000); saw(45, { dur: 0.08, gain: 0.04, cutoff: 900, at: S() / 2 }); },
+            snareSpoof: () => { T(52, { to: 76, type: 'square', dur: 0.12, gain: 0.03, cutoff: 3500, drive: true }); seq([76, 75, 76], S() / 4, { type: 'square', dur: 0.03, gain: 0.025, cutoff: 4000, at: S() / 2 }); saw(69, { dur: 0.1, gain: 0.035, at: 1.5 * S() }); },
+            snareGarbage: () => { noise({ dur: 0.18, gain: 0.14, f0: 3000, f1: 150, type: 'lowpass' }); T(40, { to: 33, dur: 0.15, gain: 0.2, drive: true }); metal(0.05, S() / 4, 2000); saw(76, { to: 81, type: 'square', dur: 0.08, gain: 0.03, cutoff: 3000, at: 2 * S() }); },
+            snareRace: ({ step = 0 }) => { T(raceNote(step), { type: 'square', dur: 0.035, gain: 0.02, cutoff: 3500 }); metal(0.025, 0, 6500); },
+            snareHijack: () => { seq([64, 69, 76], S() / 4, { type: 'square', dur: 0.04, gain: 0.03, cutoff: 4000, drive: true }); metal(0.05, 3 * S() / 4, 5500); saw(57, { dur: 0.1, gain: 0.035, at: S() }); },
+            snareTaken: () => T(76, { to: 81, type: 'square', dur: 0.035, gain: 0.025, cutoff: 4000 }),
+            snareFlag: ({ flags = 1, limit = 3 }) => {
+                const k = Math.min(1, flags / Math.max(1, limit));
+                saw(70, { type: 'square', dur: 0.05, gain: 0.035, cutoff: 1600 + 2000 * k }); saw(69, { type: 'square', dur: 0.06, gain: 0.03, cutoff: 1600 + 2000 * k, at: S() / 2 });
+                if (flags >= limit - 1) metal(0.05, S(), 4000);
+            },
+            snareIds: () => { seq([76, 70, 76, 70, 76, 70], S() / 2, { type: 'square', dur: 0.05, gain: 0.035, cutoff: 3000, drive: true }); T(33, { dur: 0.15, gain: 0.25, drive: true }); metal(0.07, 0, 3000); metal(0.07, 1.5 * S(), 3000); },
+            snareRebuild: () => { [0, 1, 2, 3].forEach(i => metal(0.04, i * S() / 4, 1500 + 700 * i)); T(40, { dur: 0.1, gain: 0.18, drive: true, at: S() }); saw(64, { dur: 0.06, gain: 0.035, cutoff: 1800, at: S() }); },
+            snareHerdStun: () => { saw(72, { to: 52, dur: 0.22, gain: 0.035, cutoff: 1400 }); metal(0.04, 0, 6000); }
         },
         soft: {
             // Compute a marimba, data a glassy kalimba, research a bell.
@@ -624,7 +742,37 @@
                 else { T(93, { to: 81, type: 'sine', dur: 0.8, gain: 0.045 }); noise({ dur: 0.8, gain: 0.06, f0: 3000, f1: 200, type: 'lowpass' }); padChord([57, 64, 72], { dur: 1.2, gain: 0.022, cutoff: 800 }); }
             },
             snareZap: () => { T(84, { to: 72, type: 'sine', dur: 0.06, gain: 0.045 }); noise({ dur: 0.03, gain: 0.03, f0: 6000, type: 'highpass' }); },
-            snareDecoy: () => { noise({ dur: 0.08, gain: 0.04, f0: 7000, type: 'highpass' }); T(88, { type: 'sine', dur: 0.1, gain: 0.035 }); T(81, { type: 'sine', dur: 0.12, gain: 0.035, at: S() / 2 }); }
+            snareDecoy: () => { noise({ dur: 0.08, gain: 0.04, f0: 7000, type: 'highpass' }); T(88, { type: 'sine', dur: 0.1, gain: 0.035 }); T(81, { type: 'sine', dur: 0.12, gain: 0.035, at: S() / 2 }); },
+            snareQuarantine: ({ partner = false }) => {
+                noise({ dur: 0.025, gain: 0.04, f0: 4000, q: 4 }); noise({ dur: 0.025, gain: 0.04, f0: 3000, q: 4, at: S() / 4 }); marimba(45, { gain: 0.1, at: S() / 4 });
+                if (partner) { padChord([60, 64, 67], { dur: 0.7, gain: 0.025, at: S() / 2 }); T(76, { type: 'sine', dur: 0.3, gain: 0.03, at: S() }); }
+                else { softBell(69, { gain: 0.04, dur: 0.3, at: S() / 2 }); marimba(57, { gain: 0.08, at: S() }); }
+            },
+            snareStun: ({ down = false }) => {
+                marimba(52, { gain: 0.09 }); T(88, { type: 'sine', dur: 0.08, gain: 0.02, at: S() / 2 }); T(84, { type: 'sine', dur: 0.08, gain: 0.02, at: S() });
+                if (down) { noise({ dur: 0.05, gain: 0.05, f0: 5000, type: 'highpass', at: S() / 4 }); T(46, { type: 'triangle', dur: 0.2, gain: 0.05, cutoff: 700, at: S() / 4 }); }
+            },
+            snareCore: () => { T(45, { type: 'sine', dur: 0.8, gain: 0.1, attack: 0.3 }); T(58, { type: 'sine', dur: 0.6, gain: 0.02, attack: 0.3, detune: -10 }); softBell(82, { gain: 0.015, dur: 0.5, at: 2 * S() }); },
+            snareBossDown: () => {
+                T(45, { type: 'sine', dur: 0.3, gain: 0.15 }); padChord([57, 64, 69], { dur: 0.5, gain: 0.03 });
+                [64, 69, 72].forEach((n, i) => marimba(n, { gain: 0.07, at: (1 + i) * S() }));
+                softBell(76, { gain: 0.06, dur: 1, at: 4 * S() }); padChord([60, 64, 67, 72], { dur: 1.2, gain: 0.03, at: 4 * S() }); T(45, { type: 'sine', dur: 0.6, gain: 0.12, at: 4 * S() });
+            },
+            snareParry: () => { softBell(88, { gain: 0.04, dur: 0.4 }); T(81, { to: 93, type: 'sine', dur: 0.05, gain: 0.03 }); noise({ dur: 0.03, gain: 0.04, f0: 7000, q: 8 }); },
+            snareSlash: () => { noise({ dur: 0.1, gain: 0.06, f0: 1500, f1: 8000, q: 3, attack: 0.06 }); T(64, { type: 'sine', dur: 0.12, gain: 0.05, at: S() / 2 }); },
+            snareSpoof: () => { T(52, { to: 76, type: 'triangle', dur: 0.12, gain: 0.05, cutoff: 2400 }); seq([76, 75, 76], S() / 4, { type: 'sine', dur: 0.04, gain: 0.03, at: S() / 2 }); marimba(69, { gain: 0.05, at: 1.5 * S() }); },
+            snareGarbage: () => { noise({ dur: 0.18, gain: 0.06, f0: 2500, f1: 200, type: 'lowpass' }); T(45, { to: 40, type: 'sine', dur: 0.15, gain: 0.12 }); T(76, { to: 81, type: 'sine', dur: 0.1, gain: 0.045, at: 2 * S() }); },
+            snareRace: ({ step = 0 }) => T(raceNote(step) + 12, { type: 'sine', dur: 0.05, gain: 0.03 }),
+            snareHijack: () => { T(76, { to: 88, type: 'sine', dur: 0.05, gain: 0.04 }); T(76, { to: 88, type: 'sine', dur: 0.05, gain: 0.035, at: S() / 2 }); marimba(57, { gain: 0.06, at: S() }); },
+            snareTaken: () => T(79, { to: 84, type: 'sine', dur: 0.04, gain: 0.03 }),
+            snareFlag: ({ flags = 1, limit = 3 }) => {
+                const k = Math.min(1, flags / Math.max(1, limit));
+                T(70, { type: 'triangle', dur: 0.07, gain: 0.05, cutoff: 1200 + 1500 * k }); T(69, { type: 'triangle', dur: 0.09, gain: 0.045, cutoff: 1200 + 1500 * k, at: S() / 2 });
+                if (flags >= limit - 1) T(82, { type: 'sine', dur: 0.06, gain: 0.025, at: S() });
+            },
+            snareIds: () => { [76, 70, 76, 70].forEach((n, i) => softBell(n, { gain: 0.045, dur: 0.22, at: i * S() })); T(45, { type: 'sine', dur: 0.15, gain: 0.12 }); },
+            snareRebuild: () => { [57, 62, 64, 69].forEach((n, i) => marimba(n, { gain: 0.04 + 0.01 * i, at: i * S() / 4 })); noise({ dur: 0.02, gain: 0.03, f0: 3000, q: 3, at: S() }); },
+            snareHerdStun: () => { T(72, { to: 52, type: 'sine', dur: 0.28, gain: 0.05 }); noise({ dur: 0.04, gain: 0.03, f0: 5000, type: 'highpass' }); }
         },
         ominous: {
             // Compute a knock, data a ghostly ping with its echo, research a short toll.
@@ -687,7 +835,37 @@
                 else { T(93, { to: 69, type: 'sine', dur: 1, gain: 0.035, detune: -15 }); noise({ dur: 1, gain: 0.07, f0: 2500, f1: 100, type: 'lowpass' }); T(33, { dur: 1, gain: 0.15, attack: 0.2 }); }
             },
             snareZap: () => { T(81, { to: 64, type: 'triangle', dur: 0.08, gain: 0.04, cutoff: 2000 }); noise({ dur: 0.04, gain: 0.04, f0: 5000, q: 4 }); },
-            snareDecoy: () => { noise({ dur: 0.12, gain: 0.05, f0: 6000, type: 'highpass' }); T(82, { type: 'sine', dur: 0.4, gain: 0.025, detune: -15 }); T(76, { type: 'sine', dur: 0.4, gain: 0.025, detune: -15, at: S() }); }
+            snareDecoy: () => { noise({ dur: 0.12, gain: 0.05, f0: 6000, type: 'highpass' }); T(82, { type: 'sine', dur: 0.4, gain: 0.025, detune: -15 }); T(76, { type: 'sine', dur: 0.4, gain: 0.025, detune: -15, at: S() }); },
+            snareQuarantine: ({ partner = false }) => {
+                noise({ dur: 0.03, gain: 0.07, f0: 4000, q: 8 }); knock(45, { gain: 0.1, cutoff: 700, at: S() / 4 });
+                if (partner) { toll(64, { gain: 0.035, dur: 0.9, at: S() / 2 }); T(67, { type: 'triangle', dur: 0.6, gain: 0.03, cutoff: 900, detune: -15, at: S() }); }
+                else { knock(57, { gain: 0.07, at: S() / 2 }); toll(45, { gain: 0.045, dur: 0.8, at: S() }); }
+            },
+            snareStun: ({ down = false }) => {
+                knock(52, { gain: 0.1 }); T(88, { type: 'sine', dur: 0.25, gain: 0.015, detune: -15, at: S() / 2 }); T(82, { type: 'sine', dur: 0.25, gain: 0.012, detune: -15, at: S() });
+                if (down) { noise({ dur: 0.06, gain: 0.07, f0: 3000, q: 5, at: S() / 4 }); toll(46, { gain: 0.04, dur: 0.6, at: S() / 4 }); }
+            },
+            snareCore: () => { swellUp(4 * S(), 0.05); T(33, { dur: 1, gain: 0.15, attack: 0.4 }); toll(58, { gain: 0.025, dur: 1.2, at: 4 * S() }); },
+            snareBossDown: () => {
+                T(33, { to: 28, dur: 0.4, gain: 0.3 }); toll(57, { gain: 0.05, dur: 1 });
+                seq([64, 67, 69], S(), { type: 'triangle', dur: 0.2, gain: 0.05, cutoff: 1400, detune: -10, at: S() });
+                toll(69, { gain: 0.06, dur: 1.4, at: 4 * S() }); [45, 52, 57].forEach(n => T(n, { type: 'triangle', dur: 1.2, gain: 0.035, cutoff: 900, attack: 0.05, at: 4 * S() })); T(33, { dur: 1, gain: 0.22, at: 4 * S() });
+            },
+            snareParry: () => { noise({ dur: 0.04, gain: 0.09, f0: 6000, q: 12 }); toll(81, { gain: 0.03, dur: 0.5 }); T(76, { to: 88, type: 'triangle', dur: 0.06, gain: 0.03, cutoff: 3000 }); },
+            snareSlash: () => { noise({ dur: 0.12, gain: 0.1, f0: 1200, f1: 7000, q: 3, attack: 0.08 }); knock(45, { gain: 0.07, at: S() / 2 }); },
+            snareSpoof: () => { T(52, { to: 76, type: 'triangle', dur: 0.15, gain: 0.04, cutoff: 2000, detune: -15 }); seq([76, 75, 76], S() / 4, { type: 'sine', dur: 0.04, gain: 0.025, detune: -15, at: S() / 2 }); T(69, { type: 'sine', dur: 0.3, gain: 0.03, detune: -15, at: 1.5 * S() }); },
+            snareGarbage: () => { noise({ dur: 0.25, gain: 0.08, f0: 2000, f1: 100, type: 'lowpass' }); knock(40, { gain: 0.1, cutoff: 500 }); T(76, { to: 81, type: 'sine', dur: 0.2, gain: 0.03, detune: -15, at: 2 * S() }); },
+            snareRace: ({ step = 0 }) => knock(raceNote(step), { gain: 0.035, cutoff: 1600 }),
+            snareHijack: () => { T(64, { to: 76, type: 'triangle', dur: 0.12, gain: 0.04, cutoff: 1800, detune: -10 }); T(76, { to: 88, type: 'sine', dur: 0.08, gain: 0.025, at: S() / 2 }); knock(57, { gain: 0.06, at: S() }); },
+            snareTaken: () => T(79, { to: 84, type: 'sine', dur: 0.06, gain: 0.025, detune: -15 }),
+            snareFlag: ({ flags = 1, limit = 3 }) => {
+                const k = Math.min(1, flags / Math.max(1, limit));
+                T(70, { type: 'triangle', dur: 0.1, gain: 0.045, cutoff: 1000 + 1500 * k, detune: -10 }); T(69, { type: 'triangle', dur: 0.12, gain: 0.04, cutoff: 1000 + 1500 * k, detune: -10, at: S() / 2 });
+                if (flags >= limit - 1) knock(70, { gain: 0.04, at: S() });
+            },
+            snareIds: () => { toll(70, { gain: 0.04, dur: 0.6 }); seq([76, 70, 76, 70], S(), { type: 'triangle', dur: 0.12, gain: 0.045, cutoff: 1800 }); T(33, { dur: 0.2, gain: 0.2 }); },
+            snareRebuild: () => { [45, 52, 57, 64].forEach((n, i) => knock(n, { gain: 0.05, at: i * S() / 4 })); T(69, { type: 'sine', dur: 0.3, gain: 0.025, detune: -15, at: S() }); },
+            snareHerdStun: () => { T(72, { to: 48, type: 'triangle', dur: 0.35, gain: 0.04, cutoff: 1200, detune: -12 }); noise({ dur: 0.05, gain: 0.03, f0: 4000, q: 4 }); }
         },
         retro: {
             // Compute a triangle blip with a noise tick, data a two-step square, research a square jumping up the scale.
@@ -745,7 +923,33 @@
                 else { T(93, { to: 69, type: 'square', dur: 0.6, gain: 0.02, steps: true }); chipNoise(0.3, 0.04); tri(45, { dur: 0.5, gain: 0.08 }); }
             },
             snareZap: () => { T(84, { to: 64, type: 'square', dur: 0.05, gain: 0.024, steps: true }); chipNoise(0.02, 0.04); },
-            snareDecoy: () => { chipNoise(0.08, 0.06); seq([81, 76], S() / 2, { type: 'square', dur: 0.04, gain: 0.022 }); }
+            snareDecoy: () => { chipNoise(0.08, 0.06); seq([81, 76], S() / 2, { type: 'square', dur: 0.04, gain: 0.022 }); },
+            snareQuarantine: ({ partner = false }) => {
+                chipNoise(0.015, 0.05); chipNoise(0.015, 0.05, S() / 4); tri(45, { dur: 0.08, gain: 0.12, at: S() / 4 });
+                if (partner) seq([64, 67, 72], S() / 2, { type: 'square', dur: 0.06, gain: 0.022, at: S() / 2 });
+                else { seq([69, 57], S() / 2, { type: 'square', dur: 0.06, gain: 0.026, at: S() / 2 }); tri(45, { dur: 0.1, gain: 0.1, at: S() }); }
+            },
+            snareStun: ({ down = false }) => {
+                tri(52, { dur: 0.06, gain: 0.1 }); chipNoise(0.03, 0.05); seq([88, 84, 88], S() / 4, { type: 'square', dur: 0.025, gain: 0.014, at: S() / 2 });
+                if (down) { chipNoise(0.08, 0.09, S() / 4); T(58, { to: 46, type: 'square', dur: 0.15, gain: 0.022, steps: true, at: S() / 4 }); }
+            },
+            snareCore: () => { tri(33, { dur: 0.5, gain: 0.12, attack: 0.2 }); sq(58, { dur: 0.3, gain: 0.012, attack: 0.15 }); sq(82, { dur: 0.03, gain: 0.012, at: 2 * S() }); },
+            snareBossDown: () => {
+                seq([64, 69, 72, 76], S() / 2, { type: 'square', dur: 0.05, gain: 0.028 }); seq([45, 0, 52, 57], S() / 2, { type: 'triangle', dur: 0.06, gain: 0.08 });
+                sq(81, { dur: 0.12, gain: 0.032, at: 2 * S() }); sq(79, { dur: 0.06, gain: 0.03, at: 3 * S() }); sq(81, { dur: 0.5, gain: 0.032, at: 4 * S() }); sq(88, { dur: 0.4, gain: 0.02, at: 4 * S() });
+                tri(45, { dur: 0.5, gain: 0.1, at: 4 * S() }); chipNoise(0.1, 0.06, 4 * S());
+            },
+            snareParry: () => { chipNoise(0.02, 0.07); T(81, { to: 93, type: 'square', dur: 0.05, gain: 0.025, steps: true }); sq(100, { dur: 0.03, gain: 0.012, at: S() / 2 }); },
+            snareSlash: () => { chipNoise(0.05, 0.09); sq(93, { dur: 0.02, gain: 0.015 }); tri(57, { dur: 0.05, gain: 0.08, at: S() / 2 }); },
+            snareSpoof: () => { T(52, { to: 76, type: 'square', dur: 0.12, gain: 0.022, steps: true }); seq([76, 75, 76], S() / 4, { type: 'square', dur: 0.025, gain: 0.018, at: S() / 2 }); sq(69, { dur: 0.06, gain: 0.022, at: 1.5 * S() }); },
+            snareGarbage: () => { chipNoise(0.12, 0.08); tri(45, { to: 33, dur: 0.12, gain: 0.1, steps: true }); seq([76, 81], S() / 4, { type: 'square', dur: 0.04, gain: 0.022, at: 2 * S() }); },
+            snareRace: ({ step = 0 }) => sq(raceNote(step), { dur: 0.025, gain: 0.016 }),
+            snareHijack: () => { seq([64, 69, 76, 88], S() / 4, { type: 'square', dur: 0.03, gain: 0.02 }); tri(57, { dur: 0.08, gain: 0.08, at: S() }); },
+            snareTaken: () => { sq(79, { dur: 0.02, gain: 0.014 }); sq(84, { dur: 0.02, gain: 0.012, at: 0.025 }); },
+            snareFlag: ({ flags = 1, limit = 3 }) => { sq(70, { dur: 0.04, gain: 0.022 }); sq(69, { dur: 0.05, gain: 0.02, at: S() / 2 }); if (flags >= limit - 1) sq(70, { dur: 0.03, gain: 0.018, at: S() }); },
+            snareIds: () => { seq([76, 70, 76, 70, 76, 70], S() / 2, { type: 'square', dur: 0.05, gain: 0.028 }); chipNoise(0.05, 0.07); tri(45, { dur: 0.15, gain: 0.1 }); },
+            snareRebuild: () => { [0, 1, 2, 3].forEach(i => chipNoise(0.012, 0.04, i * S() / 4)); tri(45, { dur: 0.08, gain: 0.1, at: S() }); sq(69, { dur: 0.04, gain: 0.022, at: S() }); },
+            snareHerdStun: () => { T(72, { to: 48, type: 'square', dur: 0.25, gain: 0.02, steps: true }); chipNoise(0.02, 0.03); }
         }
     };
 
@@ -755,8 +959,10 @@
         buys: ['buy', 'buyBig', 'claim'],
         training: ['sprint', 'clean', 'perfect', 'system', 'breakthrough', 'smash', 'windup', 'launch', 'land', 'nearMiss', 'crunch', 'flow', 'freeze', 'release',
             'snareCatch', 'snareSpoil', 'snareSnap', 'snareLaser', 'snareChain', 'snareSweep', 'snareBoss', 'snareHit',
-            'snareCharge', 'snarePlace', 'snareRemove', 'snarePower', 'snareZap', 'snareDecoy'],
-        events: ['summit', 'runEnd', 'record', 'viral', 'achievement', 'phase', 'ship'],
+            'snareCharge', 'snarePlace', 'snareRemove', 'snarePower', 'snareZap', 'snareDecoy', 'snareQuarantine', 'snareStun', 'snareCore',
+            'snareParry', 'snareSlash', 'snareSpoof', 'snareGarbage', 'snareRace', 'snareHijack', 'snareTaken', 'snareFlag', 'snareIds', 'snareRebuild',
+            'snareHerdStun'],
+        events: ['summit', 'runEnd', 'record', 'viral', 'achievement', 'phase', 'ship', 'snareBossDown'],
         ui: ['ui', 'error']
     };
     const GROUP_OF = Object.fromEntries(Object.entries(GROUPS).flatMap(([g, names]) => names.map(n => [n, g])));
@@ -804,6 +1010,21 @@
         snarePower: ({ kind = 'freeze' } = {}) => kind === 'purge' ? (sb(69, 0.08, 0.06), sb(81, 0.08, 0.06, 0.12), sb(88, 0.18, 0.06, 0.24)) : sb(93, 0.4, 0.05, 0, 76),
         snareZap: () => sb(88, 0.04, 0.045, 0, 72),
         snareDecoy: () => { sb(84, 0.04, 0.045); sb(76, 0.06, 0.045, 0.06); },
+        snareQuarantine: ({ partner = false } = {}) => partner ? (sb(57, 0.05, 0.07), sb(64, 0.06, 0.06, 0.06), sb(67, 0.1, 0.06, 0.12)) : (sb(45, 0.05, 0.08), sb(69, 0.04, 0.05, 0.05), sb(57, 0.1, 0.07, 0.1)),
+        snareStun: ({ down = false } = {}) => { sb(52, 0.06, 0.08); if (down) sb(46, 0.15, 0.06, 0.06, 40); else sb(88, 0.03, 0.025, 0.06); },
+        snareCore: () => { sb(45, 0.4, 0.06); sb(58, 0.3, 0.025, 0.1); },
+        snareBossDown: () => { sb(69, 0.08); sb(76, 0.08, 0.07, 0.08); sb(81, 0.3, 0.08, 0.16); sb(45, 0.3, 0.1, 0.16); },
+        snareParry: () => { sb(81, 0.04, 0.05, 0, 93); sb(100, 0.03, 0.025, 0.05); },
+        snareSlash: () => { sb(64, 0.03, 0.06, 0, 93); sb(57, 0.05, 0.06, 0.05); },
+        snareSpoof: () => { sb(52, 0.08, 0.05, 0, 76); sb(75, 0.03, 0.04, 0.09); sb(69, 0.06, 0.05, 0.13); },
+        snareGarbage: () => { sb(45, 0.08, 0.08, 0, 33); sb(76, 0.06, 0.05, 0.12, 81); },
+        snareRace: ({ step = 0 } = {}) => sb(raceNote(step), 0.03, 0.035),
+        snareHijack: () => { sb(64, 0.04, 0.05, 0, 76); sb(88, 0.04, 0.04, 0.06); },
+        snareTaken: () => sb(79, 0.025, 0.025, 0, 84),
+        snareFlag: ({ flags = 1, limit = 3 } = {}) => { sb(70, 0.04, 0.05); sb(69, 0.05, 0.045, 0.06); if (flags >= limit - 1) sb(70, 0.03, 0.035, 0.12); },
+        snareIds: () => [76, 70, 76, 70].forEach((n, i) => sb(n, 0.05, 0.06, i * 0.07)),
+        snareRebuild: () => { sb(57, 0.03, 0.05); sb(64, 0.03, 0.05, 0.04); sb(69, 0.06, 0.06, 0.08); },
+        snareHerdStun: () => sb(72, 0.2, 0.045, 0, 52),
         error: () => { sb(64, 0.14, 0.05, 0, 57); sb(65, 0.14, 0.035, 0, 58); },
         ui: () => sb(93, 0.03, 0.03),
         sprint: ({ charge = 1 } = {}) => sb(57, 0.12, 0.05 + 0.06 * charge, 0, 64),
@@ -831,11 +1052,14 @@
     };
 
     // Stingers wait for the grid: steps to quantize to (1 = the next 16th, 2 = the next 8th).
-    const QUANT = { buy: 1, buyBig: 1, claim: 1, summit: 2, record: 1, runEnd: 1, viral: 1, achievement: 1, phase: 2, ship: 2 };
+    const QUANT = { buy: 1, buyBig: 1, claim: 1, summit: 2, record: 1, runEnd: 1, viral: 1, achievement: 1, phase: 2, ship: 2, snareBossDown: 2 };
     // Minimum seconds between two plays of the same sound (clicks and dust can come in floods).
     const GAP = { click: 0.045, land: 0.08, launch: 0.15, buy: 0.05, ui: 0.05, error: 0.2, clean: 0.05,
-        snareCatch: 0.05, snareChain: 0.06, snareLaser: 0.06, snareZap: 0.06, snareSnap: 0.1, snareHit: 0.06 };
+        snareCatch: 0.05, snareChain: 0.06, snareLaser: 0.06, snareZap: 0.06, snareSnap: 0.1, snareHit: 0.06,
+        snareTaken: 0.07, snareRace: 0.2, snareStun: 0.08, snareSpoof: 0.1, snareRebuild: 0.1, snareHerdStun: 0.1, snareFlag: 0.1, snareQuarantine: 0.08 };
 
+    // The generate clicks and a held loop's climbing ticks already play a figure: they don't vary.
+    const NO_VARY = { click: true, snareRace: true };
     function play(name, opts) {
         const gv = mix[GROUP_OF[name] || 'ui'];
         if (volume <= 0 || gv <= 0 || !SOUNDS[name] || !ensure() || ctx.state !== 'running') return;
@@ -852,7 +1076,7 @@
         gmul = gv * ((simple ? SIMPLE_TRIM : SFX_TRIM)[style] || 1);
         const st = SNARE_TRIM[(simple ? 's:' : '') + style];
         if (st && name.startsWith('snare')) gmul *= st[name + ':' + (opts?.kind ?? { snarePlace: 'wall', snarePower: 'freeze' }[name])] ?? st[name] ?? 1;
-        if (name !== 'click') [varDeg, varNoise] = VARIANTS[vary('v:' + name, VARIANTS.length)];
+        if (!NO_VARY[name]) [varDeg, varNoise] = VARIANTS[vary('v:' + name, VARIANTS.length)];
         // A track's own version of the sound if it has one (TRACK_SOUNDS), else the shared one in its profile.
         const own = !simple && TRACK_SOUNDS[style]?.[name === 'buyBig' ? 'buy' : name];
         ownSound = !!own;

@@ -558,9 +558,10 @@ function snareStep(dt) {
     if (snareSim.plan.length) { r.addPoint(...snareSim.plan.shift()); if (!snareSim.plan.length) r.liftPen(); }
     else if (r.cooldown <= 0 && (snareSim.wait -= dt) <= 0) {
         snareSim.wait = 0.4;
-        let target = null, rad = 1.3;
-        // The boss when it's there (a tight ring: a loop no bigger than the sector allows), else the best clean cluster.
-        if (r.boss && rng() < 0.7) { target = r.boss; rad = Math.min(1.1, Math.sqrt(r.opts.bossLoop * r.w * r.h / Math.PI) * 0.95); }
+        let target = null, rad = Math.max(1.3, r.closeR);
+        // The boss when it's there (a ring round all of it, no bigger than its loop allows: tools/snare-boss.js plays this
+        // alone, sector by sector), else the best clean cluster.
+        if (r.boss && rng() < 0.7) { target = r.boss; rad = Math.min(r.opts.bossLoop * 0.95, 1.35) * r.boss.r; snareSim.wait = 0.15; }
         else {
             let best = 0;
             for (const p of r.packets) {
@@ -577,7 +578,7 @@ function snareStep(dt) {
     }
     r.step(dt);
     for (const e of r.takeEvents()) {
-        if (e.type === 'catch' || e.type === 'laser' || e.type === 'quarantine') snareSim.haul += E.snareCatch(s, e.units, snareSim.sector);
+        if (e.type === 'catch' || e.type === 'laser' || e.type === 'quarantine' || e.type === 'taken') snareSim.haul += E.snareCatch(s, e.units, snareSim.sector);
         if (e.type === 'bossDown') snareSim.haul += E.snareBossDown(s, snareSim.sector);
     }
 }
