@@ -3569,7 +3569,7 @@ window.AGI = (function () {
         pointer: null, done: null, tree: false, pick: null, treeKey: '' };
     const SNARE_FX = 1.1;        // seconds a catch's loop and pop stay on the field
     const SNARE_ICONS = { snareFocus: '◔', snareBandwidth: '⇕', snareSprawl: '⤢', snareGold: '◆', snareSchools: '≋', snareObfuscation: '◌',
-        snareChain: 'ϟ', snareScanner: '◎', snareScrubbers: '✚', snareLaser: '⌖', snareEmitters: '⋔' };
+        snareChain: 'ϟ', snareScanner: '◎', snareScrubbers: '✚', snareLaser: '⌖', snareEmitters: '⋔', snareAnchors: '⚓', snareOverclock: '⟳' };
 
     function snareStatus() {
         if (snare.run && !snare.run.over && !snare.preview) return 'Snaring…';
@@ -3605,11 +3605,13 @@ window.AGI = (function () {
             if (!run || run.over || snare.preview || snare.pointer !== null) return;
             e.preventDefault();
             snare.pointer = e.pointerId;
+            snare.down = { x: e.clientX, y: e.clientY, t: performance.now(), far: false };
             canvas.setPointerCapture?.(e.pointerId);
             run.addPoint(...toWorld(e));
         });
         canvas.addEventListener('pointermove', e => {
             if (e.pointerId !== snare.pointer || !snare.run) return;
+            if (snare.down && Math.hypot(e.clientX - snare.down.x, e.clientY - snare.down.y) > 10) snare.down.far = true;
             const list = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
             for (const ev of (list.length ? list : [e])) {
                 // After a snap the pen waits out its cooldown, then a fresh wire starts where it is.
@@ -3620,6 +3622,10 @@ window.AGI = (function () {
             if (e.pointerId !== snare.pointer) return;
             snare.pointer = null;
             snare.run?.liftPen();
+            // A tap (no drag, quick) places an anchor, or takes one back.
+            const d = snare.down;
+            snare.down = null;
+            if (d && !d.far && performance.now() - d.t < 350 && snare.run?.opts.anchors) snare.run.tapAt(...toWorld(e));
         };
         canvas.addEventListener('pointerup', lift);
         canvas.addEventListener('pointercancel', lift);
@@ -3654,7 +3660,7 @@ window.AGI = (function () {
 
     function snarePreview() {
         const o = E.snareOpts(state);
-        snare.run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area), seed: 5, firewalls: [], idleDrain: 0, laser: 0 });
+        snare.run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area), seed: 5, firewalls: [], idleDrain: 0, laser: 0, rogue: 0 });
         snare.preview = true;
         snareFit();
         snare.last = performance.now();
@@ -3686,7 +3692,10 @@ window.AGI = (function () {
         snareFit();
         setHidden($('snareCard'), true);
         setHidden($('snareHud'), false);
-        setText($('snareStatus'), 'Draw a loop round the packets. Come back near the start to close it.');
+        setText($('snareStatus'), o.anchors && !state.intro['snare:anchors']
+            ? 'Tap to place anchors: three or more join into a net that catches by itself. Tap one to move it.'
+            : 'Draw a loop round the packets. Come back near the start to close it.');
+        if (o.anchors) state.intro['snare:anchors'] = true;
         sfx('ui');
         snare.last = performance.now();
         cancelAnimationFrame(snare.raf);
@@ -3746,20 +3755,52 @@ window.AGI = (function () {
                 if (state.settings.shake && !reducedMotion()) snare.fx.push({ kind: 'shake', t: 0, life: 0.25 });
             } else if (e.type === 'firewall') {
                 snare.fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.8 });
+            } else if (e.type === 'core') {
+                snare.fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.8 });
+                sfx('windup');
+                // The first time the Rogue AI shows up, the status line says what to do about it.
+                if (!state.intro['snare:rogue']) {
+                    state.intro['snare:rogue'] = true;
+                    setText($('snareStatus'), 'The Rogue AI is taking data. Loop its core tight to quarantine it, or draw a straight line to wall it off.');
+                }
+            } else if (e.type === 'stolen') {
+                snare.fx.push({ kind: 'stolen', core: e.core, packets: e.packets, t: 0, life: 0.45 });
+            } else if (e.type === 'coreGone') {
+                snare.fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: e.r, t: 0, life: 0.6 });
+            } else if (e.type === 'quarantine') {
+                const dp = E.snareCatch(state, e.units);
+                snare.haul += dp;
+                snare.fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: e.r, t: 0, life: 0.9, text: `QUARANTINED +${E.format(dp)}`, big: true });
+                sfx('perfect');
+                if (state.settings.shake && !reducedMotion()) snare.fx.push({ kind: 'shake', t: 0, life: 0.2 });
+            } else if (e.type === 'wall') {
+                snare.fx.push({ kind: 'wallUp', a: e.a, b: e.b, t: 0, life: 0.4 });
+                sfx('ui');
+            } else if (e.type === 'anchor') {
+                sfx('ui');
+            } else if (e.type === 'net') {
+                const dp = E.snareCatch(state, e.units);
+                snare.haul += dp;
+                snare.fx.push({ kind: 'netPulse', poly: e.poly, x: e.x, y: e.y, t: 0, life: 0.6, text: `+${E.format(dp)}`, packets: e.packets });
+                sfx('clean');
+            } else if (e.type === 'netBreak') {
+                snare.fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.6 });
+                sfx('error');
             } else if (e.type === 'end') {
-                endSnare(e.stats);
+                endSnare(e.stats, e.layout);
             }
         }
     }
 
-    function endSnare(stats) {
-        const res = E.finishSnare(state, snare.haul);
+    function endSnare(stats, layout) {
+        const res = E.finishSnare(state, snare.haul, layout);
         snare.done = { stats, haul: snare.haul, record: res.record, first: res.first, prev: res.prev };
         snare.pointer = null;
         setHidden($('snareHud'), true);
         setText($('snareStatus'), '');
         pt('snare', { haul: Math.round(snare.haul), catches: stats.catches, caught: stats.caught, gold: stats.gold, corrupted: stats.corrupted,
             snaps: stats.snaps, empty: stats.empty, bestMult: r2(stats.bestMult), chained: stats.chained, lasered: stats.lasered, scrubbed: stats.scrubbed,
+            cores: stats.cores, stolen: stats.stolen, quarantined: stats.quarantined, walls: stats.walls, netCaught: stats.netCaught, netBreaks: stats.netBreaks,
             area: Math.round(snare.run.w * snare.run.h), secs: Math.round(snare.run.time), record: res.record, seed: snare.seed });
         log(`Packet Snare: +${E.format(snare.haul)} DP from ${stats.caught} packet${stats.caught === 1 ? '' : 's'}${res.record ? ' · new record' : ''}.`, res.record ? 'success' : 'info');
         sfx(res.record ? 'record' : 'runEnd');
@@ -3797,6 +3838,9 @@ window.AGI = (function () {
                     s.bestMult >= 1.05 ? line('Biggest loop', `×${s.bestMult.toFixed(1)}`) : null,
                     s.chained ? line('Chain lightning', `${s.chained}`) : null,
                     s.lasered ? line('Lasered', `${s.lasered}`) : null,
+                    s.netCaught ? line('Caught by the net', `${s.netCaught}`) : null,
+                    s.stolen ? line('Stolen by the Rogue AI', `${s.stolen}`) : null,
+                    s.quarantined ? line('Cores quarantined', `${s.quarantined}`) : null,
                     s.gold ? line('Gold packets', `${s.gold}`) : null,
                     s.corrupted ? line('Corrupted catches', `${s.corrupted}`) : null,
                     s.snaps ? line('Wires snapped', `${s.snaps}`) : null,
@@ -3814,7 +3858,7 @@ window.AGI = (function () {
         const fill = $('snareFocusFill');
         fill.style.transform = `scaleX(${share})`;
         fill.classList.toggle('low', share < 0.25);
-        setText($('snareFocusText'), run.cooldown > 0 ? 'Wire snapped…' : `Focus ${Math.ceil(run.focus)}`);
+        setText($('snareFocusText'), run.cooldown > 0 ? 'Wire snapped…' : `Focus ${Math.ceil(run.focus)}${run.opts.anchors ? ` · ⚓ ${run.anchors.length}/${run.opts.anchors}` : ''}`);
         setText($('snareHaul'), `+${E.format(snare.haul)} DP`);
     }
 
@@ -3977,11 +4021,106 @@ window.AGI = (function () {
             }
             ctx.globalAlpha = 1;
         }
+        // The Rogue AI's cores: a red circle growing from each, cut off by any wall between (each wall clips its circle to
+        // the core's side of the line), and a spinning core at the centre.
+        for (const c of run.cores) {
+            const cx = c.x * k, cy = c.y * k, r = c.r * k;
+            ctx.save();
+            for (const wl of run.walls) {
+                const dx = wl.b.x - wl.a.x, dy = wl.b.y - wl.a.y;
+                let nx = -dy, ny = dx;
+                if ((c.x - wl.a.x) * nx + (c.y - wl.a.y) * ny < 0) { nx = -nx; ny = -ny; }
+                const L = 1000 / Math.hypot(nx, ny);
+                ctx.beginPath();
+                ctx.moveTo(wl.a.x * k, wl.a.y * k);
+                ctx.lineTo(wl.b.x * k, wl.b.y * k);
+                ctx.lineTo((wl.b.x + nx * L) * k, (wl.b.y + ny * L) * k);
+                ctx.lineTo((wl.a.x + nx * L) * k, (wl.a.y + ny * L) * k);
+                ctx.closePath();
+                ctx.clip();
+            }
+            const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(1, r));
+            g.addColorStop(0, 'transparent');
+            g.addColorStop(1, C.danger);
+            ctx.globalAlpha = 0.28;
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 0.85;
+            ctx.strokeStyle = C.danger;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            // rings rippling outward inside it
+            for (let i = 0; i < 2; i++) {
+                const rr = ((t * 0.8 + i * 0.5) % 1) * r;
+                ctx.globalAlpha = 0.3 * (1 - rr / Math.max(1, r));
+                ctx.beginPath();
+                ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            ctx.restore();
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(t * 2.5);
+            ctx.fillStyle = C.danger;
+            ctx.shadowColor = C.danger;
+            ctx.shadowBlur = 14;
+            const cs = Math.max(6, 0.28 * k);
+            ctx.fillRect(-cs / 2, -cs / 2, cs, cs);
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = C.bg || '#0a1416';
+            ctx.fillRect(-cs / 5, -cs / 5, cs / 2.5, cs / 2.5);
+            ctx.restore();
+        }
+        ctx.globalAlpha = 1;
+        // The net: anchors joined by lasers into a loop; dim and dashed while a Firewall has broken it.
+        const anchorsNow = run.anchors;
+        if (anchorsNow.length) {
+            const broken = run.time < run.net.brokenUntil;
+            if (anchorsNow.length >= 3) {
+                ctx.beginPath();
+                anchorsNow.forEach((a, i) => (i ? ctx.lineTo(a.x * k, a.y * k) : ctx.moveTo(a.x * k, a.y * k)));
+                ctx.closePath();
+                ctx.globalAlpha = broken ? 0.03 : 0.07;
+                ctx.fillStyle = C.warning;
+                ctx.fill();
+                ctx.globalAlpha = broken ? 0.35 : 0.85;
+                ctx.strokeStyle = broken ? C.danger : C.warning;
+                ctx.lineWidth = broken ? 1 : 2;
+                if (broken) ctx.setLineDash([3, 6]);
+                else { ctx.shadowColor = C.warning; ctx.shadowBlur = 8; }
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.shadowBlur = 0;
+            } else if (anchorsNow.length === 2) {
+                ctx.globalAlpha = 0.35;
+                ctx.strokeStyle = C.warning;
+                ctx.setLineDash([2, 6]);
+                ctx.beginPath();
+                ctx.moveTo(anchorsNow[0].x * k, anchorsNow[0].y * k);
+                ctx.lineTo(anchorsNow[1].x * k, anchorsNow[1].y * k);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            ctx.globalAlpha = 1;
+            for (const a of anchorsNow) {
+                ctx.save();
+                ctx.translate(a.x * k, a.y * k);
+                ctx.rotate(Math.PI / 4);
+                ctx.fillStyle = C.bg || '#0a1416';
+                ctx.strokeStyle = C.warning;
+                ctx.lineWidth = 2;
+                ctx.fillRect(-6, -6, 12, 12);
+                ctx.strokeRect(-6, -6, 12, 12);
+                ctx.restore();
+            }
+        }
         // Catches, spoils and empty loops: the loop flashes and fades.
         for (const f of snare.fx) {
             if (!f.poly) continue;
             const a = 1 - f.t / (f.life || SNARE_FX);
-            const col = f.kind === 'catch' ? C.primary : f.kind === 'corrupt' ? C.danger : C.muted;
+            const col = f.kind === 'catch' ? C.primary : f.kind === 'netPulse' ? C.warning : f.kind === 'corrupt' ? C.danger : C.muted;
             ctx.beginPath();
             f.poly.forEach((p, i) => (i ? ctx.lineTo(p.x * k, p.y * k) : ctx.moveTo(p.x * k, p.y * k)));
             ctx.closePath();
@@ -4184,6 +4323,65 @@ window.AGI = (function () {
                 ctx.fillText(label, lx, ly);
             }
         }
+        // Shield walls: a bright line edge to edge, fading out in its last second and a half.
+        for (const wl of run.walls) {
+            const left = wl.until - run.time;
+            const a = Math.min(1, left / 1.5);
+            ctx.globalAlpha = 0.25 * a;
+            ctx.strokeStyle = C.primary;
+            ctx.lineWidth = 10;
+            ctx.beginPath();
+            ctx.moveTo(wl.a.x * k, wl.a.y * k);
+            ctx.lineTo(wl.b.x * k, wl.b.y * k);
+            ctx.stroke();
+            ctx.globalAlpha = 0.95 * a;
+            ctx.lineWidth = 2;
+            ctx.shadowColor = C.primary;
+            ctx.shadowBlur = 12;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+        ctx.globalAlpha = 1;
+        for (const f of snare.fx) {
+            const a = 1 - f.t / f.life;
+            if (f.kind === 'stolen') {
+                // stolen packets pulled into the core, turning red
+                const m = Math.min(1, f.t / f.life);
+                ctx.fillStyle = C.danger;
+                for (const p of f.packets) {
+                    ctx.globalAlpha = a;
+                    ctx.beginPath();
+                    ctx.arc((p.x + (f.core.x - p.x) * m) * k, (p.y + (f.core.y - p.y) * m) * k, Math.max(2, 0.25 * k * a), 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (f.kind === 'coreGone' || f.kind === 'quarantine') {
+                // the circle collapses (burnt out) or shatters outward (quarantined)
+                ctx.globalAlpha = a;
+                ctx.strokeStyle = f.kind === 'quarantine' ? C.primary : C.danger;
+                ctx.lineWidth = f.kind === 'quarantine' ? 3 : 1.5;
+                const rr = f.kind === 'quarantine' ? (f.r + f.t * 4) * k : f.r * k * a;
+                ctx.beginPath();
+                ctx.arc(f.x * k, f.y * k, Math.max(1, rr), 0, Math.PI * 2);
+                ctx.stroke();
+                if (f.kind === 'quarantine') {
+                    for (let i = 0; i < 8; i++) {
+                        const ang = i * Math.PI / 4 + 0.3;
+                        const d = (0.3 + f.t * 3) * k;
+                        ctx.fillStyle = C.danger;
+                        ctx.fillRect(f.x * k + Math.cos(ang) * d - 2, f.y * k + Math.sin(ang) * d - 2, 4, 4);
+                    }
+                }
+            } else if (f.kind === 'wallUp') {
+                ctx.globalAlpha = a;
+                ctx.strokeStyle = C.text;
+                ctx.lineWidth = 4 + 10 * a;
+                ctx.beginPath();
+                ctx.moveTo(f.a.x * k, f.a.y * k);
+                ctx.lineTo(f.b.x * k, f.b.y * k);
+                ctx.stroke();
+            }
+        }
+        ctx.globalAlpha = 1;
         // Snapped wires fall apart.
         for (const f of snare.fx) {
             if (f.kind !== 'snap') continue;
@@ -4238,7 +4436,7 @@ window.AGI = (function () {
             const y = f.y * k - 10 - f.t * 26;
             ctx.globalAlpha = a;
             ctx.font = `700 ${f.small ? 11 : f.big ? 18 : 15}px ${snare.mono}`;
-            ctx.fillStyle = f.kind === 'catch' || f.kind === 'laser' ? (f.big || f.gold ? C.warning : C.text) : C.danger;
+            ctx.fillStyle = f.kind === 'quarantine' ? C.primary : f.kind === 'catch' || f.kind === 'laser' || f.kind === 'netPulse' ? (f.big || f.gold ? C.warning : C.text) : C.danger;
             ctx.fillText(f.text, f.x * k, y);
             if (f.sub) {
                 ctx.font = `600 12px ${snare.mono}`;
@@ -9036,6 +9234,8 @@ window.AGI = (function () {
                 afterChange();
             },
             // Learn the next skill instantly; the next roll starts at the new checkpoint.
+            // The Packet Snare run in play (tests and the debug view; read it, don't change it).
+            snareRun: () => snare.run,
             // Packet Snare at once: the server room open, skills learned up to Edge Detection, then into the bay.
             openSnare() {
                 state.intro['mailAccepted:welcome'] = true;

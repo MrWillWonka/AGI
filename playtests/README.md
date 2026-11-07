@@ -50,6 +50,7 @@ What each build had, newest first (artifact publish times, UTC). A log played on
 
 | Published | Build | What changed |
 |---|---|---|
+| unpublished (3) | branch `claude/optimistic-hamilton-ey00uj` | **Packet Snare 3**: a short, hard start (Focus 26, faster packets, corrupt ones hiding in the schools); the Rogue AI from the third run (Infection Cores, the Chokehold, the Wall); Anchors and nets |
 | unpublished (2) | branch `claude/optimistic-hamilton-ey00uj` | **Packet Snare 2**: loops close near their start, a live loop preview, a small quick start, schools, and its own skill tree (Chain Lightning, Scanner, Targeted Laser, Scrubbers, Sprawl) |
 | unpublished | branch `claude/optimistic-hamilton-ey00uj` | **Packet Snare**: the Data Pipeline bay opens at Edge Detection (draw loops round data packets for DP; corrupt packets and Firewalls); save v19 |
 | 11-07 15:50 | `93424e9` | **Hop reworked**: hold to aim (slow motion, the view leans in, a ring closes on the lip), let go to hop; floaty, clean landings; windows of at least 0.12 s and a 70 ms grace |

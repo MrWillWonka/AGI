@@ -13,7 +13,7 @@
     // The build a player is on: stamped into every playtest log (its header and session events), so each log is read
     // against the features it had (playtests/README.md lists the builds). Bump it with every publish: the date and
     // time (UTC) and a few words on what changed.
-    const BUILD = '2026-11-07 (branch, unpublished) · Packet Snare 2: loops close near their start, a live loop preview, a small start, schools and a skill tree (chain lightning, scanner, lasers, scrubbers)';
+    const BUILD = '2026-11-07 (branch, unpublished) · Packet Snare 3: a short, hard start; the Rogue AI (cores, the Chokehold, the Wall); Anchors and nets';
     const SAVE_VERSION = 19;   // 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
@@ -538,7 +538,13 @@
         { id: 'snareLaser', name: 'Targeted Laser', mechanic: true, snare: { x: 0, y: 1 }, cost: { dp: 200 }, scale: 2.6, max: 3,
             sn: { laser: 1 }, effect: 'A laser locks onto the richest packet and takes it by itself (faster per level)', flavor: 'Point. Click. It does the clicking now.' },
         { id: 'snareEmitters', name: 'Twin Emitters', snare: { x: 0, y: 2 }, requires: 'snareLaser', cost: { dp: 900 }, scale: 3, max: 2,
-            sn: { emitters: 1 }, effect: 'Each laser shot takes one more packet per level', flavor: 'Two beams. Twice the pew.' }
+            sn: { emitters: 1 }, effect: 'Each laser shot takes one more packet per level', flavor: 'Two beams. Twice the pew.' },
+        // The phase shift: from drawing to building. Tap to place anchors; three or more join into a net that catches
+        // by itself, waiting for corrupt packets to drift out. The layout is kept between runs.
+        { id: 'snareAnchors', name: 'Anchors', mechanic: true, snare: { x: -1, y: 1 }, requires: 'snareLaser', cost: { dp: 600 }, scale: 2.4, max: 3,
+            sn: { anchors: 1 }, effect: 'Tap to place anchors (3, then 4, then 5): three or more make a net that catches by itself', flavor: 'Stop chasing the data. Let it swim into you.' },
+        { id: 'snareOverclock', name: 'Overclocked Nets', snare: { x: -1, y: 2 }, requires: 'snareAnchors', cost: { dp: 1500 }, scale: 2.6, max: 2,
+            sn: { netSpeed: 1 }, effect: 'Nets fire 30% more often and pay more per level', flavor: 'It hums. It\'s fine. It always hums.' }
     ].map(n => ({ ...n, tab: 'snare' }));
     UPGRADES.push(...SNARE_TREE);
 
@@ -683,6 +689,11 @@
             body: ['Hello again,', 'There is a second bay in the server room now. Everything the crawler drops ends up in there, drifting around loose.',
                 'Draw a loop round the good packets and they\'re yours. The bigger the loop, the more they\'re worth. Leave the red ones alone, and mind the firewalls: they don\'t like loose wires.',
                 'It needs data to see more. So do I.', 'F'] },
+        { id: 'snareRogue', when: s => s.snare.runs >= ROGUE_FROM_RUN,
+            from: 'A Friend <friend@agi-careers.biz.info>', subject: 'my share',
+            body: ['You\'re good at this. Better than the crawler.',
+                'From now on I\'ll take my share of the pipeline myself. You\'ll see me: the red circles. Anything inside is mine.',
+                'If you mind, a tight loop round my core shuts it down, and a straight line across the pipe keeps me out of half of it. I\'m telling you because I want to see you try.', 'F'] },
         { id: 'investors', when: s => !!s.unlocked['action:research'],
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'FW: FW: FW: investors',
             body: ['Investors will start calling now. Take the money. Don\'t take the advice.',
@@ -1098,7 +1109,7 @@
             },
             path: { learned: 0, best: 0, auto: [], legBest: [], legPower: [], breakDue: 0, surge: 0 },
             // Packet Snare (the Data Pipeline): the best run's haul this version (DP), runs, and the data it has caught.
-            snare: { best: 0, runs: 0, dp: 0 },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k; legPower[k]: your full-sprint strength when you last ran leg k (the Auto-Trainer's ghost plays at it)
+            snare: { best: 0, runs: 0, dp: 0, anchors: [] },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k; legPower[k]: your full-sprint strength when you last ran leg k (the Auto-Trainer's ghost plays at it)
             projects: { offers: [], boosts: [], next: PROJECTS.firstAt, seq: 0 },
             // Dilemmas: `order` is every mail key in arrival order (m:story id, d:dilemma, o:its consequence),
             // `open` the one waiting for an answer, `later` the consequences on their way. Kept for good.
@@ -2041,9 +2052,10 @@
     // A hand action like Collect Data: each packet snared is worth a hand collection's data, times the loop's area
     // multiplier (gold packets count as several), paid in whole numbers as it's caught. A run's haul against the
     // version's best is the record (snare.best). It needs no compute: Focus is its budget.
-    // A run's options from the tree: it starts small and quick (a 70 unit² field, Focus 40, about 20 s), and Sprawl
-    // grows the field ×1.6 a level (a second Firewall at level 2, a third at 4), so the sprawl comes with the
-    // abilities. packet-snare.js takes these as overrides of its SNARE table.
+    // A run's options from the tree: it starts small, short and hard (a 70 unit² field, Focus 26, about 10 s of drawing,
+    // a Firewall at 5 s), and Sprawl grows the field ×1.6 a level (a second Firewall at level 2, a third at 4), so the
+    // sprawl comes with the abilities. The Rogue AI arrives on the third run (`ROGUE_FROM_RUN`) and gets busier with the
+    // sprawl. packet-snare.js takes these as overrides of its SNARE table.
     function snareOpts(s) {
         const n = {};
         for (const up of SNARE_TREE) {
@@ -2053,12 +2065,18 @@
         const sprawl = n.sprawl || 0;
         return {
             area: Math.round(70 * Math.pow(1.6, sprawl)),
-            focus: Math.round(40 * (1 + (n.focus || 0))),
+            focus: Math.round(26 * (1 + (n.focus || 0))),
             maxMult: 4 + (n.maxMult || 0),
             goldChance: 0.04 + (n.goldChance || 0),
-            schooling: 0.5 + (n.schooling || 0),
-            schoolSize: 6 + (n.schoolSize || 0),
-            firewalls: sprawl >= 4 ? [9, 22, 40] : sprawl >= 2 ? [9, 28] : [9],
+            schooling: 0.3 + (n.schooling || 0),
+            schoolSize: 4 + (n.schoolSize || 0),
+            firewalls: sprawl >= 4 ? [5, 14, 26] : sprawl >= 2 ? [5, 18] : [5],
+            rogue: s.snare.runs >= ROGUE_FROM_RUN ? 1 + (sprawl >= 3 ? 1 : 0) : 0,
+            rogueEvery: sprawl >= 2 ? 7 : 9,
+            anchors: n.anchors ? 2 + n.anchors : 0,
+            netCooldown: 3 * Math.pow(0.7, n.netSpeed || 0),
+            netPower: 0.6 + 0.15 * (n.netSpeed || 0),
+            layout: s.snare.anchors,
             firewallSpeed: Math.max(0.4, 1 + (n.firewallSpeed || 0)),
             chain: n.chain || 0,
             scanner: n.scanner || 0,
@@ -2067,9 +2085,12 @@
             scrubbers: n.scrubbers || 0
         };
     }
+    const ROGUE_FROM_RUN = 2;   // runs before the Rogue AI turns up (it arrives on the third)
     // Something in the tree can be bought now (the bay's Upgrades button wears a badge).
     const snareTreeReady = s => SNARE_TREE.some(up => isUpgradeVisible(s, up) && !isMaxed(s, up) && canAfford(s, upgradeCost(up, level(s, up.id))));
     const snarePacketDp = s => Math.max(1, derive(s).dpPerCollect);
+    const cleanLayout = a => (Array.isArray(a) ? a : []).filter(p => Array.isArray(p) && p.length === 2 && p.every(v => typeof v === 'number' && v >= 0 && v <= 1))
+        .slice(0, 8).map(([u, v]) => [Math.round(u * 1000) / 1000, Math.round(v * 1000) / 1000]);
     function snareCatch(s, units) {
         const dp = Math.max(1, Math.round(units * snarePacketDp(s)));
         s.res.dp += dp;
@@ -2078,8 +2099,10 @@
         return dp;
     }
     // The run's end: counts it and keeps the record. Returns whether it beat the version's best and the old best.
-    function finishSnare(s, haul) {
+    // `layout`: the anchors where the run left them (shares of the field), so the next run's net is already built.
+    function finishSnare(s, haul, layout) {
         const prev = s.snare.best;
+        if (Array.isArray(layout)) s.snare.anchors = cleanLayout(layout);
         s.snare.runs++;
         if (haul > prev) s.snare.best = haul;
         return { record: haul > prev && prev > 0, first: prev === 0 && haul > 0, prev };
@@ -2623,7 +2646,7 @@
             s.stats.skillsLearned += 1;
         }
         if (!(raw.version >= 18)) migrateActOne(s);
-        s.snare = { best: num(raw.snare?.best, 0), runs: Math.floor(num(raw.snare?.runs, 0)), dp: num(raw.snare?.dp, 0) };
+        s.snare = { best: num(raw.snare?.best, 0), runs: Math.floor(num(raw.snare?.runs, 0)), dp: num(raw.snare?.dp, 0), anchors: cleanLayout(raw.snare?.anchors) };
         s.projects = cleanProjects(raw.projects, d.projects);
         s.dilemmas = cleanDilemmas(raw.dilemmas, d.dilemmas);
         // Saves from before the Auto-Trainer's prompt (v17) that already have it aren't asked about it.
@@ -2795,7 +2818,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
-        snarePacketDp, snareCatch, finishSnare, snareOpts, SNARE_TREE, snareTreeReady,
+        snarePacketDp, snareCatch, finishSnare, snareOpts, SNARE_TREE, snareTreeReady, ROGUE_FROM_RUN,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany

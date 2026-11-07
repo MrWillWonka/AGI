@@ -60,13 +60,24 @@ incrementals (schools, chain lightning, scanners, targeted lasers), with its own
 - **The tree** (bought with data): Attention Span, Bandwidth, Sprawl, Gold Rush, Schooling, Obfuscation, and the abilities:
   Chain Lightning, Scanner, Scrubbers, Targeted Laser and Twin Emitters.
 
+## Built: the third pass (the owner: "still way too easy, and too much Focus"; add the Rogue AI and Anchors)
+
+- **A short, hard start:** Focus 26 (about 10 s of drawing), faster packets in loose schools of four, a corrupt packet for
+  every three that **swims toward the schools** (it hides in the crowd), a bigger loop per multiplier, a Firewall at 5 s.
+- **The Rogue AI** (from the third run, with its mail "my share"): Infection Cores drop beside the schools and grow red
+  circles that steal what they reach. **The Chokehold**: a tight loop round a core quarantines it (half its haul back).
+  **The Wall**: a long straight stroke becomes a shield across the field that no circle can take a packet through.
+- **Anchors** (the phase shift, off the Targeted Laser): tap to place 3–5 anchors; three or more make a net of lasers that
+  catches by itself whenever it holds good packets and no corrupt one. Firewalls stalk and break nets. The layout carries to
+  the next run. **Overclocked Nets** fire faster and pay more.
+
 ## Next slices
 
 1. **Playtest the second pass:** does closing feel easy, does the preview make big loops a decision, is the first run
    short enough, do the abilities change how you play? Tune `SNARE` and the tree's prices from the log.
 2. **The record links to the lab:** the best haul raises the Data crawler's yield per collection (the rule: automation
    converts, never creates).
-4. **The Rogue AI:** Infection Cores, the Chokehold and the Wall; its story beats (it steals data you'd have caught; leaving a
-   core alone is a deliberate freedom choice, never a missed loop).
-5. **Anchors:** the phase shift to nets; the best net becomes the passive rate.
+4. **Active defense:** slash through a Firewall with a quick stroke before it breaks your net.
+5. **The best net as passive income** between visits, and the Rogue AI's story beats (leaving a core alone as a deliberate
+   freedom choice, never a missed loop).
 6. **The sim** plays it (a time share and a simple loop policy, from the first log with `snare` events).

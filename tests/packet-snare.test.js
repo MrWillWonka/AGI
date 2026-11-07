@@ -8,11 +8,11 @@ const NOW = 1_700_000_000_000;
 
 // A field with nothing moving and no Firewalls, packets placed by hand.
 function still(over = {}) {
-    const s = P.createSnare({ seed: 7, density: 0, firewalls: [], idleDrain: 0, drawBase: 0, drawDrain: 0, respawn: 1e9, ...over });
+    const s = P.createSnare({ seed: 7, density: 0, firewalls: [], idleDrain: 0, drawBase: 0, drawDrain: 0, respawn: 1e9, corruptLure: 0, ...over });
     s.packets = [];
     return s;
 }
-const packet = (s, kind, x, y) => s.packets.push({ id: s.nextId++, kind, x, y, vx: 0, vy: 0, r: P.PACKET_R, age: 0 });
+const packet = (s, kind, x, y) => s.packets.push({ id: s.nextId++, kind, x, y, vx: 0, vy: 0, v: 0, r: P.PACKET_R, age: 0, school: 0, tag: 0 });
 // Draw a square loop round (cx, cy) with half-side r, crossing back over the start to close it.
 function drawSquare(s, cx, cy, r) {
     const pts = [[cx - r, cy - r - 0.3], [cx - r, cy + r], [cx + r, cy + r], [cx + r, cy - r], [cx - r - 0.5, cy - r]];
@@ -320,21 +320,22 @@ test('the Data Pipeline opens with Edge Detection once the server room is open',
 
 test('saves before v19 get an empty snare record; a save keeps it', () => {
     const old = E.migrate({ version: 18 }, NOW);
-    assert.deepEqual(old.snare, { best: 0, runs: 0, dp: 0 });
+    assert.deepEqual(old.snare, { best: 0, runs: 0, dp: 0, anchors: [] });
     const s = E.defaultState(NOW);
-    s.snare = { best: 120, runs: 4, dp: 300 };
+    s.snare = { best: 120, runs: 4, dp: 300, anchors: [[0.25, 0.5], [0.75, 0.5], [0.5, 0.9]] };
     const back = E.migrate(JSON.parse(JSON.stringify(s)), NOW);
     assert.deepEqual(back.snare, s.snare);
-    assert.deepEqual(E.migrate({ version: 19, snare: { best: 'x', runs: -3 } }, NOW).snare, { best: 0, runs: 0, dp: 0 });
+    assert.deepEqual(E.migrate({ version: 19, snare: { best: 'x', runs: -3, anchors: [[0.5, 2], 'x', [0.1, 0.2]] } }, NOW).snare, { best: 0, runs: 0, dp: 0, anchors: [[0.1, 0.2]] });
 });
 
-test('a first run is small and quick; the tree grows the field, Focus and abilities', () => {
+test('a first run is small, short and hard; the tree grows the field, Focus and abilities', () => {
     const s = E.defaultState(NOW);
     const o = E.snareOpts(s);
     assert.equal(o.area, 70);
-    assert.equal(o.focus, 40);
-    assert.deepEqual(o.firewalls, [9]);
-    assert.equal(o.chain + o.scanner + o.laser + o.scrubbers, 0, 'no abilities yet');
+    assert.equal(o.focus, 26);
+    assert.deepEqual(o.firewalls, [5]);
+    assert.equal(o.rogue, 0, 'no Rogue AI on the first runs');
+    assert.equal(o.chain + o.scanner + o.laser + o.scrubbers + o.anchors, 0, 'no abilities yet');
     s.levels.snareSprawl = 2;
     s.levels.snareFocus = 1;
     s.levels.snareChain = 1;
@@ -342,7 +343,7 @@ test('a first run is small and quick; the tree grows the field, Focus and abilit
     const g = E.snareOpts(s);
     assert.ok(g.area > 170 && g.area < 190, 'two levels of Sprawl: ×1.6²');
     assert.equal(g.firewalls.length, 2, 'a second Firewall with the sprawl');
-    assert.equal(g.focus, 54);
+    assert.equal(g.focus, 35);
     assert.equal(g.chain, 2);
     assert.ok(g.laser > 0 && g.laser < 4, 'faster with its second level');
     // and a run built from them is bigger, with lasers firing
@@ -369,4 +370,146 @@ test('Packet Snare\'s tree opens with the bay, grows node by node, and is bought
         assert.ok(up.cost.dp > 0 && !up.cost.cp && !up.cost.xp, `${up.id} costs data`);
         if (up.requires) assert.equal(E.UPGRADE_BY_ID[up.requires].tab, 'snare', `${up.id} grows inside the tree`);
     }
+});
+
+// ---- The Rogue AI ----
+
+function rogueField(over = {}) {
+    // a core right away, growing fast, no corrupt packets and no Firewalls
+    return still({ rogue: 1, rogueFirst: 0, rogueEvery: 1e9, rogueGrow: 4, rogueLife: 1e9, ...over });
+}
+
+test('an Infection Core spawns and its circle steals the good packets it reaches', () => {
+    const s = rogueField();
+    packet(s, 'good', 5, 3.3);
+    s.step(1 / 60);
+    const core = s.cores[0];
+    assert.ok(core, 'a core');
+    core.x = 5.4; core.y = 3.3;
+    for (let i = 0; i < 30; i++) s.step(1 / 60);
+    assert.equal(s.stats.stolen, 1);
+    assert.ok(s.takeEvents().some(e => e.type === 'stolen'));
+    assert.equal(s.packets.length, 0);
+});
+
+test('the Chokehold: a tight loop round a core quarantines it and pays back half of what it stole', () => {
+    const s = rogueField({ rogueGrow: 0 });
+    s.step(1 / 60);
+    const core = s.cores[0];
+    core.x = 5; core.y = 3.3; core.stole = 4;
+    arc(s, 5, 3.3, 0.9, 0.95);
+    const q = s.takeEvents().find(e => e.type === 'quarantine');
+    assert.ok(q, 'quarantined');
+    assert.equal(q.units, 2 + 0.5 * 4);
+    assert.equal(s.cores.length, 0);
+    assert.equal(s.stats.quarantined, 1);
+});
+
+test('a loose loop round a core does not quarantine it', () => {
+    const s = rogueField({ rogueGrow: 0 });
+    s.step(1 / 60);
+    const core = s.cores[0];
+    core.x = 5; core.y = 3.3;
+    arc(s, 5, 3.3, 2.6, 0.95);   // about 21 units²: well past a tight loop on a 70 unit² field
+    assert.ok(!s.takeEvents().some(e => e.type === 'quarantine'));
+    assert.equal(s.cores.length, 1);
+});
+
+test('the Wall: a long straight stroke stands across the field, and no circle grows past it', () => {
+    const s = rogueField({ rogueFirst: 1e9 });
+    // a straight vertical stroke at x = 5
+    for (let y = 0.5; y <= 6; y += 0.2) s.addPoint(5, y);
+    s.liftPen();
+    const ev = s.takeEvents().find(e => e.type === 'wall');
+    assert.ok(ev, 'a wall');
+    assert.ok(Math.abs(ev.a.y) < 1e-6 && Math.abs(ev.b.y - s.h) < 1e-6, 'edge to edge');
+    // a core left of the wall, a packet right of it within its reach: shielded
+    s.cores.push({ id: 999, x: 4.2, y: 3.3, r: 0, age: 0, stole: 0 });
+    packet(s, 'good', 5.6, 3.3);
+    packet(s, 'good', 3.6, 3.3);   // same side as the core: taken
+    for (let i = 0; i < 60; i++) s.step(1 / 60);
+    assert.equal(s.stats.stolen, 1);
+    assert.equal(s.packets[0].x, 5.6);
+});
+
+test('a curvy stroke is not a wall', () => {
+    const s = rogueField({ rogueFirst: 1e9 });
+    for (let a = 0; a <= Math.PI; a += 0.1) s.addPoint(5 + 2 * Math.cos(a), 3.3 + 2 * Math.sin(a) * 0.5);
+    s.liftPen();
+    assert.ok(!s.takeEvents().some(e => e.type === 'wall'));
+});
+
+test('corrupt packets swim toward the schools', () => {
+    const s = still({ corruptLure: 2 });
+    packet(s, 'good', 5, 3.3);
+    s.packets.push({ id: s.nextId++, kind: 'corrupt', x: 2.5, y: 3.3, vx: 0, vy: 1, v: 1, r: P.PACKET_R, age: 0, school: 0, tag: 0 });
+    for (let i = 0; i < 90; i++) s.step(1 / 60);
+    const c = s.packets.find(p => p.kind === 'corrupt');
+    assert.ok(c.x > 3.3, `it headed for the school (${c.x})`);
+});
+
+// ---- Anchors and nets ----
+
+test('tapping places anchors up to the limit, and tapping one takes it back', () => {
+    const s = still({ anchors: 3 });
+    assert.ok(s.tapAt(2, 2) && s.tapAt(8, 2) && s.tapAt(5, 5.5));
+    assert.equal(s.tapAt(1, 5), false, 'no more');
+    assert.ok(s.tapAt(8.1, 2.1), 'took one back');
+    assert.equal(s.anchors.length, 2);
+    assert.equal(still().tapAt(2, 2), false, 'no anchors without the node');
+});
+
+test('three anchors make a net that catches the good packets inside, and waits while a corrupt one is in', () => {
+    const s = still({ anchors: 3, netCooldown: 1 });
+    s.tapAt(2, 1); s.tapAt(9, 1); s.tapAt(5.5, 6);
+    packet(s, 'good', 5.5, 2.5);
+    packet(s, 'corrupt', 5, 2.4);
+    s.step(1 / 60);
+    assert.equal(s.stats.netPulses, 0, 'held: a corrupt packet is inside');
+    s.packets = s.packets.filter(p => p.kind !== 'corrupt');
+    s.step(1 / 60);
+    const net = s.takeEvents().find(e => e.type === 'net');
+    assert.ok(net, 'fired');
+    assert.equal(net.count, 1);
+    assert.ok(net.mult >= 1);
+    packet(s, 'good', 5.5, 2.5);
+    s.step(1 / 60);
+    assert.equal(s.stats.netPulses, 1, 'cooling down');
+    for (let i = 0; i < 70; i++) s.step(1 / 60);
+    assert.equal(s.stats.netPulses, 2);
+});
+
+test('a Firewall that touches the net breaks it for a while', () => {
+    const s = still({ anchors: 3, firewalls: [0], netRepair: 2 });
+    s.tapAt(2, 1); s.tapAt(9, 1); s.tapAt(5.5, 6);
+    s.step(1 / 60);
+    const f = s.firewalls[0];
+    f.x = 5.5; f.y = 1; f.vx = 0; f.vy = 0;
+    s.step(1 / 60);
+    assert.ok(s.takeEvents().some(e => e.type === 'netBreak'));
+    packet(s, 'good', 5.5, 2.5);
+    f.x = 0.5; f.y = 6;
+    s.step(1 / 60);
+    assert.equal(s.stats.netPulses, 0, 'down');
+});
+
+test('the anchors carry over: a run starts with the last run\'s layout', () => {
+    const s = still({ anchors: 3, layout: [[0.2, 0.2], [0.8, 0.2], [0.5, 0.8], [0.1, 0.9]] });
+    assert.equal(s.anchors.length, 3, 'up to the limit');
+    assert.ok(Math.abs(s.anchors[0].x - 0.2 * s.w) < 1e-9);
+    s.stop();
+    const end = s.takeEvents().find(e => e.type === 'end');
+    assert.equal(end.layout.length, 3);
+    const st = E.defaultState(NOW);
+    E.finishSnare(st, 10, end.layout);
+    assert.equal(st.snare.anchors.length, 3);
+    assert.deepEqual(E.snareOpts(st).layout, st.snare.anchors);
+});
+
+test('the Rogue AI arrives on the third run', () => {
+    const s = E.defaultState(NOW);
+    s.snare.runs = E.ROGUE_FROM_RUN - 1;
+    assert.equal(E.snareOpts(s).rogue, 0);
+    s.snare.runs = E.ROGUE_FROM_RUN;
+    assert.equal(E.snareOpts(s).rogue, 1);
 });

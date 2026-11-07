@@ -3,9 +3,13 @@
 // **snares** everything inside: the bigger the loop, the bigger the multiplier, but a corrupt packet inside spoils the
 // whole catch, a longer wire burns Focus faster, and Firewalls hunt the wire and snap it before it closes. The run
 // ends when Focus runs out.
-// It starts small (a little field, a short run) and grows with its own skill tree (engine.js `snareOpts`): a wider
-// field, more Focus, chain lightning off every catch, a scanner sweep that tags packets, targeted lasers that take
-// packets by themselves, scrubbers that forgive a corrupt packet.
+// It starts small, short and hard (a little field, a few seconds of Focus, corrupt packets hiding in the schools) and grows
+// with its own skill tree (engine.js `snareOpts`): a wider field, more Focus, chain lightning off every catch, a scanner
+// sweep that tags packets, targeted lasers that take packets by themselves, scrubbers that forgive a corrupt packet, and
+// Anchors: tap to place them and lasers join them into a net that catches by itself.
+// From the third run the **Rogue AI** fights for the same field: it drops Infection Cores whose red circles grow and steal
+// the data inside. A tight loop round a core quarantines it (the Chokehold); a straight stroke becomes a shield wall
+// across the field that no circle can grow past (the Wall).
 // Pure and deterministic: no DOM, no clock, no Math.random (a seeded generator). The field is in world units
 // (`w` × `h`); game.js maps the pointer onto it and draws it. Loaded in the browser as window.PacketSnare and in
 // Node (tests) via require().
@@ -26,30 +30,31 @@
     // overridden through createSnare's options (the skill tree's levels arrive that way, from engine.js snareOpts).
     const SNARE = {
         area: FIELD_AREA,
-        focus: 40,                  // the run's budget: a first run is short (about 20 s)
-        idleDrain: 1.4,             // Focus per second, always: an idle run still ends
-        drawBase: 1.2,              // extra per second while the pen is down
-        drawDrain: 0.35,            // and per second per unit of wire held: long wires burn faster
+        focus: 26,                  // the run's budget: a first run is short (about 10 s of drawing), hard and quick
+        idleDrain: 1.0,             // Focus per second, always: an idle run still ends
+        drawBase: 1.6,              // extra per second while the pen is down
+        drawDrain: 0.5,             // and per second per unit of wire held: long wires burn faster
         maxWire: 36,                // units: past this the wire's tail is dropped (it trails behind you)
         minGap: 0.1,                // the wire records a point every this far
-        closeRadius: 0.09,          // × √area: bring the pen back this close to the start and the loop closes
-        areaUnit: 0.17,             // × area: a catch's multiplier is 1 + loop area / (areaUnit × field area)…
+        closeRadius: 0.085,         // × √area: bring the pen back this close to the start and the loop closes
+        areaUnit: 0.22,             // × area: a catch's multiplier is 1 + loop area / (areaUnit × field area)…
         maxMult: 4,                 // …up to this (Bandwidth raises it)
-        corruptPenalty: 8,          // Focus lost when a corrupt packet spoils a catch
+        corruptPenalty: 6,          // Focus lost when a corrupt packet spoils a catch
         snapPenalty: 4,             // Focus lost when a Firewall snaps the wire
         snapCooldown: 1.0,          // seconds before you can draw again after a snap
         respawn: 1.2,               // seconds before a caught packet's replacement swims in
         density: 0.13,              // good packets per unit² of field
-        corruptShare: 0.2,          // corrupt packets per good one
+        corruptShare: 0.35,         // corrupt packets per good one
+        corruptLure: 0.6,           // how strongly corrupt packets swim toward the nearest school (they hide in the crowd)
         goldChance: 0.04,           // a new good packet is gold this often (worth GOLD_VALUE)
-        firewalls: [9],             // seconds into the run each Firewall boots
+        firewalls: [5],             // seconds into the run each Firewall boots
         firewallSpeed: 1,           // × their speeds (Obfuscation slows them)
-        packetSpeed: [0.6, 1.2],    // units per second
-        goldSpeed: 1.8,
-        schooling: 0.5,             // how strongly good packets swim together (0 = each alone)
-        schoolSize: 6,              // packets per school at the start
+        packetSpeed: [0.8, 1.5],    // units per second
+        goldSpeed: 2.1,
+        schooling: 0.3,             // how strongly good packets swim together (0 = each alone)
+        schoolSize: 4,              // packets per school at the start
         firewallPatrol: 1.0,        // drifting while there's no wire
-        firewallHunt: 2.1,          // homing on the wire (a moving pointer is much faster)
+        firewallHunt: 2.4,          // homing on the wire (a moving pointer is much faster)
         firewallTurn: 3.0,          // how quickly it steers (per second)
         chain: 0,                   // Chain Lightning: packets outside a loop each catch arcs to…
         chainRange: 1.6,            // …within this of a snared packet
@@ -57,7 +62,26 @@
         scannerSpeed: 1.1,          // radians per second
         laser: 0,                   // Targeted Laser: seconds between shots (0 = none)
         emitters: 1,                // packets each shot takes
-        scrubbers: 0                // corrupt packets a loop forgives
+        scrubbers: 0,               // corrupt packets a loop forgives
+        // The Rogue AI: Infection Cores, one every `rogueEvery` s from `rogueFirst` (0 = no Rogue AI this run).
+        rogue: 0,
+        rogueFirst: 4,
+        rogueEvery: 9,
+        rogueGrow: 0.9,             // units per second the circle grows…
+        rogueMax: 0.32,             // …to this share of the field's shorter side
+        rogueLife: 11,              // seconds before a core burns out on its own
+        chokeArea: 0.08,            // × field area: a loop round a core no bigger than this quarantines it
+        wallSeconds: 8,             // how long a shield wall stands
+        maxWalls: 2,
+        wallMin: 0.4,               // × the field's shorter side: the shortest stroke that counts as a wall…
+        wallStraight: 0.07,         // …and how far (× its length) any point may stray from the straight line
+        // Anchors: up to `anchors` placed by tapping; three or more join into a net that pulses to catch the good packets
+        // inside, whenever none is corrupt, every `netCooldown` s, at `netPower` of a loop's multiplier.
+        anchors: 0,
+        netCooldown: 3,
+        netPower: 0.6,
+        netRepair: 4,               // seconds a net is down after a Firewall breaks it
+        layout: []                  // anchors carried over from the last run, as shares of the field [[u, v], …]
     };
     const GOLD_VALUE = 5;
     const TAG_VALUE = 2;
@@ -156,11 +180,20 @@
             locks: [],              // targeted lasers: { id, t } brackets closing on a packet
             laserAt: o.laser ? o.laser * 0.6 : Infinity,
             events: [],
-            stats: { catches: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0 },
+            cores: [],              // the Rogue AI's Infection Cores: { id, x, y, r, age, stole }
+            walls: [],              // shield walls, across the field: { a, b, until }
+            anchors: [],            // { id, x, y }: three or more make a net
+            net: { next: 0, brokenUntil: 0, flash: 0 },
+            rogueAt: o.rogue ? o.rogueFirst : Infinity,
+            penAt: 0,               // when the pen went down (a wall is a quick straight stroke)
+            stats: { catches: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
+                stolen: 0, cores: 0, quarantined: 0, walls: 0, netCaught: 0, netPulses: 0, netBreaks: 0 },
             acc: 0,
             nextId: 1
         };
         for (let i = 0; i < o.scanner; i++) s.beams.push(i * Math.PI * 2 / o.scanner);
+        // Anchors carried over from the last run (the net you built stays built).
+        for (const [u, v] of (o.layout || []).slice(0, o.anchors)) s.anchors.push({ id: s.nextId++, x: u * w, y: v * h });
 
         const speedFor = kind => (kind === 'gold' ? o.goldSpeed : kind === 'corrupt' ? o.packetSpeed[1] * 1.1 : o.packetSpeed[0] + rand() * (o.packetSpeed[1] - o.packetSpeed[0]));
         const inField = (x, y) => ({ x: Math.max(PACKET_R, Math.min(w - PACKET_R, x)), y: Math.max(PACKET_R, Math.min(h - PACKET_R, y)) });
@@ -234,6 +267,26 @@
         // Schools: each good packet steers with the others of its school nearby (heading and centre), keeping its own
         // speed; corrupt packets go their own way, straight through.
         function flock(dt) {
+            // Corrupt packets swim toward the nearest school: they hide in the crowd, so a big loop round a school is a gamble.
+            if (o.corruptLure > 0) {
+                const kc = Math.min(1, o.corruptLure * dt);
+                for (const p of s.packets) {
+                    if (p.kind !== 'corrupt') continue;
+                    let best = null, bd = 9;
+                    for (const q of s.packets) {
+                        if (q.kind === 'corrupt') continue;
+                        const d2 = (q.x - p.x) ** 2 + (q.y - p.y) ** 2;
+                        if (d2 < bd && d2 > 0.25) { bd = d2; best = q; }
+                    }
+                    if (!best) continue;
+                    const ang = Math.atan2(best.y - p.y, best.x - p.x);
+                    p.vx += (Math.cos(ang) * p.v - p.vx) * kc;
+                    p.vy += (Math.sin(ang) * p.v - p.vy) * kc;
+                    const vl = Math.hypot(p.vx, p.vy) || 1;
+                    p.vx = p.vx / vl * p.v;
+                    p.vy = p.vy / vl * p.v;
+                }
+            }
             if (!(o.schooling > 0)) return;
             const R2 = 1.8 * 1.8;
             const k = Math.min(1, o.schooling * 2.4 * dt);
@@ -341,6 +394,115 @@
             }
         }
 
+        // ---- The Rogue AI -----------------------------------------------------------------------------
+        const shortSide = Math.min(w, h);
+        // A wall shields a packet from a core when it stands between them.
+        const shielded = (core, p) => s.walls.some(wl => segIntersect(core, p, wl.a, wl.b));
+        function spawnCore() {
+            // Where the data is: next to a random good packet (the schools draw it), kept off the edges.
+            const goods = s.packets.filter(p => p.kind !== 'corrupt');
+            const near = goods.length ? goods[Math.floor(rand() * goods.length)] : { x: w / 2, y: h / 2 };
+            const ang = rand() * Math.PI * 2;
+            const at = { x: Math.max(1, Math.min(w - 1, near.x + Math.cos(ang))), y: Math.max(1, Math.min(h - 1, near.y + Math.sin(ang))) };
+            s.cores.push({ id: s.nextId++, x: at.x, y: at.y, r: 0, age: 0, stole: 0 });
+            s.stats.cores++;
+            s.events.push({ type: 'core', x: at.x, y: at.y });
+        }
+        function rogueStep(dt) {
+            if (!o.rogue) return;
+            if (s.time >= s.rogueAt) {
+                s.rogueAt = s.time + o.rogueEvery;
+                for (let i = 0; i < o.rogue; i++) spawnCore();
+            }
+            const rMax = o.rogueMax * shortSide;
+            for (const c of s.cores) {
+                c.age += dt;
+                c.r = Math.min(rMax, c.r + o.rogueGrow * dt);
+                // Every good packet the circle reaches is stolen, unless a wall stands between them.
+                const taken = s.packets.filter(p => p.kind !== 'corrupt' && Math.hypot(p.x - c.x, p.y - c.y) <= c.r && !shielded(c, p));
+                if (taken.length) {
+                    c.stole += taken.length;
+                    s.stats.stolen += taken.length;
+                    s.events.push({ type: 'stolen', core: { x: c.x, y: c.y }, packets: taken.map(p => ({ x: p.x, y: p.y, kind: p.kind })) });
+                    remove(taken);
+                }
+            }
+            for (const c of s.cores.filter(c => c.age >= o.rogueLife)) s.events.push({ type: 'coreGone', x: c.x, y: c.y, r: c.r });
+            s.cores = s.cores.filter(c => c.age < o.rogueLife);
+            s.walls = s.walls.filter(wl => wl.until > s.time);
+        }
+
+        // A straight line through the field, edge to edge, along the stroke from a to b.
+        function acrossField(a, b) {
+            const dx = b.x - a.x, dy = b.y - a.y;
+            const ts = [];
+            if (Math.abs(dx) > 1e-9) for (const X of [0, w]) ts.push((X - a.x) / dx);
+            if (Math.abs(dy) > 1e-9) for (const Y of [0, h]) ts.push((Y - a.y) / dy);
+            const pts = ts.map(t => ({ x: a.x + dx * t, y: a.y + dy * t })).filter(p => p.x >= -1e-6 && p.x <= w + 1e-6 && p.y >= -1e-6 && p.y <= h + 1e-6);
+            pts.sort((p, q) => (p.x - q.x) * dx + (p.y - q.y) * dy);
+            return pts.length >= 2 ? { a: pts[0], b: pts[pts.length - 1] } : null;
+        }
+        // The stroke just lifted, if it's a wall: long enough and straight.
+        function wallFrom(pts) {
+            if (!o.rogue || pts.length < 3) return null;
+            const a = pts[0], b = pts[pts.length - 1];
+            const L = Math.hypot(b.x - a.x, b.y - a.y);
+            if (L < o.wallMin * shortSide) return null;
+            if (pts.some(p => segDist(p, a, b) > o.wallStraight * L)) return null;
+            return acrossField(a, b);
+        }
+
+        // ---- Anchors and the net -----------------------------------------------------------------------
+        const netPoly = () => (s.anchors.length >= 3 ? s.anchors : null);
+        // Tap an empty spot to place an anchor (while any are left); tap an anchor to take it back.
+        function tapAt(x, y) {
+            if (!o.anchors || s.over) return false;
+            const hit = s.anchors.find(a => Math.hypot(a.x - x, a.y - y) <= Math.max(0.5, closeR * 0.8));
+            if (hit) {
+                s.anchors = s.anchors.filter(a => a !== hit);
+                s.events.push({ type: 'anchor', x: hit.x, y: hit.y, removed: true });
+                return true;
+            }
+            if (s.anchors.length >= o.anchors) return false;
+            const p = inField(x, y);
+            s.anchors.push({ id: s.nextId++, x: p.x, y: p.y });
+            s.events.push({ type: 'anchor', x: p.x, y: p.y });
+            return true;
+        }
+        function netStep() {
+            const poly = netPoly();
+            if (!poly) return;
+            // Firewalls break the net's lasers.
+            if (s.time >= s.net.brokenUntil) {
+                for (const f of s.firewalls) {
+                    for (let i = 0; i < poly.length; i++) {
+                        if (segDist(f, poly[i], poly[(i + 1) % poly.length]) < f.r) {
+                            s.net.brokenUntil = s.time + o.netRepair;
+                            s.stats.netBreaks++;
+                            s.events.push({ type: 'netBreak', x: f.x, y: f.y });
+                            break;
+                        }
+                    }
+                    if (s.time < s.net.brokenUntil) break;
+                }
+            }
+            if (s.time < s.net.brokenUntil || s.time < s.net.next) return;
+            const j = judge(poly);
+            // It waits for corrupt packets to drift out, and fires when it holds good ones.
+            if (j.spoiled || !j.good.length) return;
+            const mult = 1 + (j.mult - 1) * o.netPower;
+            const units = j.value * mult;
+            s.net.next = s.time + o.netCooldown;
+            s.net.flash = s.time;
+            remove(j.inside);
+            s.stats.netPulses++;
+            s.stats.netCaught += j.good.length;
+            s.stats.caught += j.good.length;
+            s.stats.scrubbed += j.corrupt.length;
+            s.stats.units += units;
+            s.events.push({ type: 'net', poly: poly.map(a => ({ x: a.x, y: a.y })), count: j.good.length, units, mult, packets: j.inside, ...centroid(poly) });
+        }
+
         function stepOnce(dt) {
             s.time += dt;
             if (s.cooldown > 0) s.cooldown = Math.max(0, s.cooldown - dt);
@@ -353,11 +515,16 @@
             }
             scannerStep(dt);
             laserStep(dt);
+            rogueStep(dt);
+            netStep();
             while (firewallsDue.length && s.time >= firewallsDue[0]) { firewallsDue.shift(); bootFirewall(); }
             for (const f of s.firewalls) {
-                const target = s.wire.length > 1 ? nearestWire(f.x, f.y) : null;
-                f.hunting = !!target;
-                const speed = (target ? o.firewallHunt : o.firewallPatrol) * o.firewallSpeed;
+                // The open wire first; failing that, the net's nearest anchor (slower: it stalks the net).
+                const wireTarget = s.wire.length > 1 ? nearestWire(f.x, f.y) : null;
+                const net = !wireTarget && netPoly() && s.time >= s.net.brokenUntil ? s.anchors.reduce((b, a) => (!b || (a.x - f.x) ** 2 + (a.y - f.y) ** 2 < (b.x - f.x) ** 2 + (b.y - f.y) ** 2 ? a : b), null) : null;
+                const target = wireTarget || net;
+                f.hunting = !!wireTarget;
+                const speed = (wireTarget ? o.firewallHunt : net ? o.firewallHunt * 0.6 : o.firewallPatrol) * o.firewallSpeed;
                 if (target) {
                     const ang = Math.atan2(target.y - f.y, target.x - f.x);
                     const k = Math.min(1, o.firewallTurn * dt);
@@ -401,7 +568,7 @@
             s.wire = [];
             s.drawing = false;
             s.locks = [];
-            s.events.push({ type: 'end', stats: { ...s.stats } });
+            s.events.push({ type: 'end', stats: { ...s.stats }, layout: s.anchors.map(a => [a.x / w, a.y / h]) });
         }
 
         // What a loop would catch: the packets inside, how many are corrupt beyond what the scrubbers forgive, its
@@ -422,6 +589,19 @@
             const j = judge(poly);
             const at = centroid(poly);
             s.leftStart = false;
+            // The Chokehold: a tight loop round a core quarantines it; what it stole comes back, half of it, as a bonus.
+            if (s.cores.length && j.area <= o.chokeArea * fieldArea) {
+                const caught = s.cores.filter(c => pointInPolygon(c, poly));
+                if (caught.length) {
+                    s.cores = s.cores.filter(c => !caught.includes(c));
+                    for (const c of caught) {
+                        const units = 2 + 0.5 * c.stole;
+                        s.stats.quarantined++;
+                        s.stats.units += units;
+                        s.events.push({ type: 'quarantine', x: c.x, y: c.y, r: c.r, units, poly });
+                    }
+                }
+            }
             if (!j.inside.length) {
                 s.stats.empty++;
                 s.events.push({ type: 'empty', x: at.x, y: at.y, poly, area: j.area });
@@ -527,6 +707,18 @@
         // The pen lifts: near the start the loop closes, else an open wire is let go.
         function liftPen() {
             const start = s.wire[0], head = s.wire[s.wire.length - 1];
+            // The Wall: a long straight stroke stands as a shield across the field.
+            const wl = wallFrom(s.wire);
+            if (wl) {
+                s.walls.push({ ...wl, until: s.time + o.wallSeconds });
+                if (s.walls.length > o.maxWalls) s.walls.shift();
+                s.stats.walls++;
+                s.events.push({ type: 'wall', a: wl.a, b: wl.b });
+                s.wire = [];
+                s.drawing = false;
+                s.leftStart = false;
+                return;
+            }
             if (start && s.leftStart && Math.hypot(head.x - start.x, head.y - start.y) <= closeR * 1.6) {
                 const poly = openLoop();
                 if (poly) {
@@ -570,7 +762,7 @@
             return e;
         }
 
-        return Object.assign(s, { step, addPoint, liftPen, stop, takeEvents, preview, valueOf });
+        return Object.assign(s, { step, addPoint, liftPen, stop, takeEvents, preview, valueOf, tapAt, netPoly });
     }
 
     return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, FIREWALL_R, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };
