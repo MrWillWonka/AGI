@@ -140,7 +140,26 @@
     // a 15-minute wall.
     const actOneLength = p => 0.8 * Math.min(1.15, 0.4 + 0.13 * p);
     const ACT_TWO_EASE = [0.7, 0.76, 0.88];
-    const lengthScale = k => (k < LATE_LEG ? actOneLength(legPos(k)) : ACT_TWO_EASE[k - LATE_LEG] ?? 1);
+    // Leg characters (the owner's call: every stretch felt the same distance and shape). Each act-one leg after
+    // Pattern Matching has a character, fixed per leg so a leg is known by it, with its rolling hills still random
+    // inside it: Rolling (the classic), Sprint (short, a breather), Long flats (long low swells: momentum bleeds
+    // away to drag), Marathon (long and sparse: endurance, spending sprints late) and Cliffs (short, a few tall
+    // steep faces: climbed on the speed you bring; Inertia keeps it). Length is the character's multiplier; the
+    // engine pays a leg's metres at 1/length (`legEase`), so XP and pacing follow the leg's step on the curve,
+    // not its length. Walls keep their skill hills (Image Recognition and Translation are Cliffs). The engine
+    // mirrors the table (`LEG_CHARACTERS`; a test keeps them equal). Act two keeps its swells.
+    const LEG_CHARACTERS = {
+        rolling: { name: 'Rolling', length: 1 },
+        sprint: { name: 'Sprint', length: 0.65 },
+        flats: { name: 'Long flats', length: 0.85 },
+        marathon: { name: 'Marathon', length: 1.4 },
+        cliffs: { name: 'Cliffs', length: 0.8 }
+    };
+    const ACT_ONE_CHARACTERS = [null, 'rolling', 'sprint', 'rolling', 'flats', 'cliffs', 'marathon',
+        'rolling', 'flats', 'marathon', 'sprint', 'cliffs', 'marathon'];
+    const legCharacter = k => (k > 0 && k < LATE_LEG ? ACT_ONE_CHARACTERS[k] || 'rolling' : null);
+    const characterLength = k => LEG_CHARACTERS[legCharacter(k)]?.length ?? 1;
+    const lengthScale = k => (k < LATE_LEG ? actOneLength(legPos(k)) * characterLength(k) : ACT_TWO_EASE[k - LATE_LEG] ?? 1);
     const stretchLength = k => (k === 0 ? TUTORIAL.length : k === 1 ? 9 : (10 * Math.pow(1.4, legPos(k) - 1) + 3 * (legPos(k) - 1)) * lengthScale(k));
 
     const checkpoints = [0];    // checkpoints[k] = x where stretch k starts
@@ -172,6 +191,18 @@
     }
 
 
+    // Each character's rolling hills: half-width (a share of the skill hill's, from + random), the gap after
+    // each, the chance of a medium hill and the sizes (shares of the skill hill's height) of medium and small
+    // ones. Rolling is the original; Long flats are wide and low (gentle slopes, little rise: drag decides how
+    // far you coast); Marathon spreads normal hills out; Cliffs are narrow and tall (steep faces, slope drag bites).
+    const HILL_SHAPES = {
+        rolling: { w: [0.25, 0.55], gap: [0.1, 0.5], medium: 0.12, big: [0.35, 0.2], small: [0.05, 0.2] },
+        sprint: { w: [0.25, 0.5], gap: [0.2, 0.6], medium: 0.1, big: [0.3, 0.15], small: [0.05, 0.15] },
+        flats: { w: [1.3, 1.1], gap: [0.05, 0.25], medium: 0, big: [0, 0], small: [0.06, 0.12] },
+        marathon: { w: [0.25, 0.55], gap: [0.5, 1.3], medium: 0.12, big: [0.35, 0.2], small: [0.05, 0.2] },
+        cliffs: { w: [0.18, 0.14], gap: [0.35, 0.8], medium: 0.7, big: [0.3, 0.25], small: [0.1, 0.15] }
+    };
+
     // Rolling hills for stretch k: mostly small, sometimes medium, growing toward the skill hill.
     // `hillScale` (< 1 from upgrades) makes them less steep; the random layout stays the same.
     function rollingHills(k, seed, hillScale = 1) {
@@ -182,14 +213,15 @@
         const to = skillHill(k).start - 0.25;
         const big = skillHeight(k);
         const hills = [];
+        const shape = HILL_SHAPES[legCharacter(k)] || HILL_SHAPES.rolling;
         let x = from;
         while (true) {
-            const w = skillHalfWidth(k) * (0.25 + r() * 0.55);
-            const gap = 0.1 + r() * 0.5;
+            const w = skillHalfWidth(k) * (shape.w[0] + r() * shape.w[1]);
+            const gap = shape.gap[0] + r() * shape.gap[1];
             if (x + 2 * w > to) break;
             const along = (x - from) / (to - from);              // 0 near the checkpoint, 1 near the wall
             const roll = r();
-            const size = roll < 0.12 ? 0.35 + r() * 0.2 : 0.05 + r() * 0.2;   // occasional medium hill
+            const size = roll < shape.medium ? shape.big[0] + r() * shape.big[1] : shape.small[0] + r() * shape.small[1];
             const h = Math.min(0.65 * skillHeight(k), big * size * (0.6 + 0.6 * along)) * hillScale;
             hills.push({ start: x, peak: x + w, end: x + 2 * w, height: h, halfWidth: w, skill: null });
             x += 2 * w + gap;
@@ -395,6 +427,7 @@
         const { pushes, cooldown } = opts;
         const friction = opts.friction ?? 1;
         const slopeDrag = SLOPE_DRAG * (opts.slopeDrag ?? 1);
+        const inertia = Math.max(0, Math.min(0.8, opts.inertia ?? 0));   // share of drag waived at top speed
         const ground = terrain(k, seed, opts.hillScale ?? 1, opts.last ?? k, opts.strips);
         let nextClear = k;          // the next earlier-leg skill hill still to crest
         let crestedGoal = -1;       // with onward: the last skill hill already announced
@@ -531,7 +564,13 @@
                 const late = lateLeg ? LATE_DRAG : 1;
                 // Semi-implicit drag: dividing instead of subtracting can't flip the ball's direction at
                 // huge speeds (a stacked breakthrough or Bullet Time release reversed it into a roll-back).
-                ball.v /= 1 + (friction * (DAMPING + late * DRAG * Math.abs(ball.v)) + late * slopeDrag * Math.abs(dy)) * STEP;
+                // Inertia (the Momentum branch, never shown as a number): speed you've built is harder to lose. A share
+                // of the quadratic and slope drag is waived in proportion to how fast the ball is going against the
+                // run's top speed so far, so a ball that arrives at a steep face fast keeps most of it up the climb,
+                // and a slow one gets no help.
+                ball.top = Math.max(ball.top || 0, Math.abs(ball.v));
+                const keep = inertia > 0 ? 1 - inertia * Math.min(1, Math.abs(ball.v) / Math.max(0.3, ball.top)) : 1;
+                ball.v /= 1 + (friction * (DAMPING + keep * late * DRAG * Math.abs(ball.v)) + keep * late * slopeDrag * Math.abs(dy)) * STEP;
                 // Momentum while there is somewhere to go; once the ball lacks the energy to clear either
                 // neighbouring hill, it is stuck in this dip, so let it settle instead of sloshing for long.
                 const { left, right } = ground.walls(ball.x);
@@ -919,7 +958,7 @@
     }
 
     return {
-        STEP, GRAVITY, BUMPER, lengthScale, TUCK_GRAVITY, AIR_DIVE, TOKEN_PULL, BURN_SECONDS, THRUST_LIFT, features, KICKERS, KICK_SLOPE, bumpAt, bumpSlope,
+        STEP, GRAVITY, BUMPER, lengthScale, LEG_CHARACTERS, legCharacter, characterLength, HILL_SHAPES, TUCK_GRAVITY, AIR_DIVE, TOKEN_PULL, BURN_SECONDS, THRUST_LIFT, features, KICKERS, KICK_SLOPE, bumpAt, bumpSlope,
         LATE_LEG, legPos, maxAbove, checkpoint, skillHill, skillHeight, WALL_EVERY, WALL_HEIGHT, AFTER_WALL, isWallLeg, wallMult, rollingHills, terrain, createRoll, rng, STRIP_PUSH, STRIP_BRAKE
     };
 });

@@ -89,7 +89,7 @@ function newRoll(auto) {
     const replay = auto && s.path.learned > 0;
     const first = replay ? s.path.learned - 1 : s.path.learned;
     run.roll = T.createRoll(first, E.rollSeed(s), { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction,
-        hillScale: d.hillScale, strips: d.strips, onward: true, last: s.path.learned });
+        hillScale: d.hillScale, strips: d.strips, inertia: d.inertia, onward: true, last: s.path.learned });
     run.roll.frontier = s.path.learned;
     run.roll.auto = replay;
     run.autoAt = 0;
@@ -102,7 +102,7 @@ function newRoll(auto) {
 
 function firstSummitStrength(roll, d) {
     const crests = strength => {
-        const t = T.createRoll(0, roll.ground.seed, { pushes: 1, cooldown: 1, friction: d.friction, hillScale: d.hillScale, strips: d.strips, last: 0 });
+        const t = T.createRoll(0, roll.ground.seed, { pushes: 1, cooldown: 1, friction: d.friction, hillScale: d.hillScale, strips: d.strips, inertia: d.inertia, last: 0 });
         t.push(strength);
         for (let i = 0; i < 1200 && !t.over; i++) if (t.step(0.05).some(e => e.type === 'crest')) return true;
         return false;
@@ -259,7 +259,7 @@ function ghostTrain(dt) {
         const d = d0();
         ghost.first = s.path.learned - 1;
         ghost.roll = T.createRoll(ghost.first, (E.rollSeed(s) * 31 + 977) >>> 0, { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction,
-            hillScale: d.hillScale, strips: d.strips, last: s.path.learned });
+            hillScale: d.hillScale, strips: d.strips, inertia: d.inertia, last: s.path.learned });
         ghost.roll.frontier = s.path.learned;
         ghost.legs = 0; ghost.at = 0; ghost.broke = 0;
     }

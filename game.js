@@ -2489,8 +2489,9 @@ window.AGI = (function () {
             const k = E.skillAt(state.path.learned);
             if (E.actTwoLocked(state)) return 'Act one complete · Act II: Terminal Velocity · Not available in the demo';
             const ch = state.challenge ? ` · challenge: ${challengeName(state.challenge.id)}` : '';
-            // A wall leg says so (status: its skill hill stands taller, and its skill pays big).
-            const wall = E.isWallLeg(state.path.learned) ? ' (wall)' : '';
+            // The leg's character and a wall say so (status: what kind of stretch it is; a wall's skill pays big).
+            const kind = [T.LEG_CHARACTERS[T.legCharacter(state.path.learned)]?.name, E.isWallLeg(state.path.learned) && 'wall'].filter(Boolean).join(', ');
+            const wall = kind ? ` (${kind})` : '';
             const surge = state.path.surge > 0 ? ` · surge start ×${state.path.surge}` : '';
             return `Next skill: ${k.name}${wall} · best run ${Math.round(state.path.best * 100)}%${surge}${ch}`;
         }
@@ -3578,7 +3579,7 @@ window.AGI = (function () {
     // Each kind of upgrade has its own symbol, picked from what the node boosts (its first stat), so a
     // strength node never looks like a wait node. The seed and the Auto-Trainer keep theirs.
     const STAT_ICON = {
-        push: 'gpu', pushMult: 'gpu', pushes: 'plus', cooldown: 'timer', charge: 'bolt', friction: 'gauge', slope: 'mountain', xp: 'stack',
+        push: 'gpu', pushMult: 'gpu', pushes: 'plus', cooldown: 'timer', charge: 'bolt', friction: 'gauge', inertia: 'gauge', slope: 'mountain', xp: 'stack',
         clean: 'coin', rollBonus: 'db', zone: 'target', cleanPower: 'target', cleanSize: 'target', zoneBias: 'target',
         perfect: 'star', perfectPower: 'star', perfectUnits: 'star', perfectSize: 'star', system: 'terminal',
         critChance: 'dice', critPower: 'dice', superCrit: 'dice', windfallChance: 'spark', windfallPower: 'spark',
@@ -4287,9 +4288,9 @@ window.AGI = (function () {
             // The frontier first (the usual run), then replays from the newest cleared leg back to the warm-up.
             // "Leg 1: Tokenization ✓" read as "start from the beginning" in a playtest and sent a run to the warm-up.
             select.replaceChildren(
-                el('option', { value: '', text: E.actTwoLocked(state) ? 'Act II: not available in the demo' : `Frontier: ${E.skillAt(learned).name} (leg ${learned + 1})` }),
+                el('option', { value: '', text: E.actTwoLocked(state) ? 'Act II: not available in the demo' : `Frontier: ${E.skillAt(learned).name} (leg ${learned + 1}${characterTag(learned, ', ')})` }),
                 ...Array.from({ length: learned }, (_, i) => learned - 1 - i).map(k =>
-                    el('option', { value: k, text: `Replay leg ${k + 1}: ${E.skillAt(k).name}${k === 0 ? ' (warm-up)' : ''}` })));
+                    el('option', { value: k, text: `Replay leg ${k + 1}: ${E.skillAt(k).name}${k === 0 ? ' (warm-up)' : characterTag(k, ' · ')}` })));
         }
         const want = startLeg() < learned ? String(startLeg()) : '';
         if (select.value !== want) select.value = want;
@@ -4545,14 +4546,14 @@ window.AGI = (function () {
     function currentRoll() {
         const d = E.derive(state, debugRates);
         const first = startLeg();
-        const key = [state.stats.runStart, state.path.learned, first, E.rollSeed(state), d.pushesPerRoll, d.pushCooldown, d.friction, d.hillScale, d.stripFront, d.stripBack, d.stripMore].join(':');
+        const key = [state.stats.runStart, state.path.learned, first, E.rollSeed(state), d.pushesPerRoll, d.pushCooldown, d.friction, d.hillScale, d.stripFront, d.stripBack, d.stripMore, d.inertia].join(':');
         // A finished run stays on screen (path.done) until you click through to the dev screen.
         const stale = !path.roll || path.stateRef !== state || (path.roll.over && !path.done) || (!path.roll.launched && path.rollKey !== key);
         if (stale && path.pause <= 0) {
             // A run from a cleared leg rolls on through every later leg up to the frontier, and past it: cresting
             // the frontier's skill hill learns the skill and lays the next leg (onward), so nothing cuts a run short.
             path.roll = T.createRoll(first, E.rollSeed(state),
-                { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, strips: d.strips, onward: true, last: E.frontierLeg(state),
+                { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, strips: d.strips, inertia: d.inertia, onward: true, last: E.frontierLeg(state),
                     holdOpen: crunching, endAt: E.ACT_TWO_LOCKED ? demoGateX() : null });
             path.roll.frontier = state.path.learned;   // where the frontier was when the run started
             // A new run is a cut, not a zoom across from wherever the last one left the camera.
@@ -4992,7 +4993,7 @@ window.AGI = (function () {
     const FIRST_SUMMIT_MARGIN = 1.01;
     function firstSummitStrength(roll, d) {
         const crests = strength => {
-            const t = T.createRoll(0, roll.ground.seed, { pushes: 1, cooldown: 1, friction: d.friction, hillScale: d.hillScale, strips: d.strips, last: 0 });
+            const t = T.createRoll(0, roll.ground.seed, { pushes: 1, cooldown: 1, friction: d.friction, hillScale: d.hillScale, strips: d.strips, inertia: d.inertia, last: 0 });
             t.push(strength);
             for (let i = 0; i < 1200 && !t.over; i++) if (t.step(0.05).some(e => e.type === 'crest')) return true;
             return false;
@@ -5480,7 +5481,7 @@ window.AGI = (function () {
         const d = E.derive(state, debugRates);
         const first = state.path.learned - 1;
         ghost.roll = T.createRoll(first, (E.rollSeed(state) * 31 + 977 + ghost.legs) >>> 0,
-            { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, strips: d.strips, last: state.path.learned });
+            { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, strips: d.strips, inertia: d.inertia, last: state.path.learned });
         ghost.first = first;
         ghost.legs = 0;
         ghost.xp = 0;
@@ -5829,6 +5830,9 @@ window.AGI = (function () {
         log('Act II · Terminal Velocity is not available in the demo. Thanks for playing this far: replays, versions and the lab carry on.', 'special');
         pt('demoGate', {});
     }
+
+    // A leg's character as a short tag ("Marathon"), for the goal line and Start at; none for the warm-up and act two.
+    const characterTag = (k, sep) => { const c = T.LEG_CHARACTERS[T.legCharacter(k)]; return c ? sep + c.name : ''; };
 
     // Tips a skill's card can bring, once each. Passive XP waits for the first real skill (Pattern Matching): the
     // warm-up is a formality, and explaining replays then was too early (owner's playtest). The lab tip points at
@@ -7465,7 +7469,7 @@ window.AGI = (function () {
         const hit = legReplays.get(k);
         if (hit && hit.key === key) return hit;
         const d = E.derive(state);
-        const roll = T.createRoll(k, 9973 * (k + 1), { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, strips: d.strips, last: k });
+        const roll = T.createRoll(k, 9973 * (k + 1), { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, strips: d.strips, inertia: d.inertia, last: k });
         const h = path.handCharges;
         const charge = h.length ? Math.max(E.PATH.minCharge, Math.min(1, h.reduce((a, b) => a + b, 0) / h.length)) : 0.9;
         const share = E.sprintStrength(state, charge, null, false, false) / E.sprintStrength(state, 1, null, false, false);
@@ -8194,7 +8198,7 @@ window.AGI = (function () {
                 if (path.done) runAgain();
                 const r = currentRoll();
                 const d = E.derive(state, debugRates);
-                const opts = { pushes: 1, cooldown: 1, friction: d.friction, hillScale: d.hillScale, strips: d.strips, last: r.ground.last };
+                const opts = { pushes: 1, cooldown: 1, friction: d.friction, hillScale: d.hillScale, strips: d.strips, inertia: d.inertia, last: r.ground.last };
                 const h = r.ground.goal;
                 const x = h.peak - h.halfWidth * 0.7;
                 const crests = v => {

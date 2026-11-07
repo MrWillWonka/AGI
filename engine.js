@@ -368,6 +368,10 @@
         { id: 'promptTuning', tab: 'training', tree: { x: 3, y: 1 }, icon: 'target', name: 'Prompt Tuning', effect: 'Clean prompt zones sit higher on the meter (stronger sprints), per level', flavor: 'Aim higher. Literally, the zone moved.', cost: { xp: 110 }, scale: 1.6, max: 2, requires: 'benchmarkPrizes', boost: { zoneBias: 1 } },
         { id: 'perfectCalibration', tab: 'training', tree: { x: 4, y: 1 }, icon: 'star', name: 'Prompt Engineering', effect: 'Adds a tiny super prompt spot: +30% strength, worth 3 clean prompts', flavor: 'A bullseye inside the bullseye.', cost: { xp: 300 }, max: 1,
             requires: 'promptTuning', boost: { perfect: 1 } },
+        // Inertia (the owner's call: no numbers on hills; steep faces are climbed on the speed you bring): speed
+        // you've built up is harder to lose. Hidden, like drag: the effect says how it feels, not by how much.
+        { id: 'residualConnections', tab: 'training', tree: { x: -2, y: -2 }, icon: 'gauge', name: 'Residual Connections', effect: 'Speed you have built up is harder to lose', flavor: 'Let the signal skip the parts that slow it down.', cost: { xp: 650 }, scale: 1.8, max: 2, requires: 'smarterAlgorithms', boost: { inertia: 1 } },
+        { id: 'highwayNetworks', tab: 'training', tree: { x: -3, y: -2 }, icon: 'gauge', name: 'Highway Networks', effect: 'Top speed holds much longer, even up steep faces', flavor: 'Gates that only open when you are going fast.', cost: { xp: 10000 }, scale: 1.8, max: 2, requires: 'neuralCompression', boost: { inertia: 1 } },
         { id: 'highResSensors', tab: 'training', tree: { x: -1, y: -2 }, icon: 'code', name: 'Liquid Cooling', effect: '-5% drag per level', flavor: 'Runs cooler, coasts further.', cost: { xp: 90 }, scale: 1.6, max: 2, requires: 'gpuCluster2', boost: { friction: 1 } },
         { id: 'handLabelled', tab: 'training', tree: { x: 4, y: -1 }, icon: 'coin', name: 'Hand-Labeled Data', effect: '+40% XP per clean prompt, per level', flavor: 'Interns. So many interns.', cost: { xp: 200 }, scale: 1.7, max: 3, requires: 'curatedData', boost: { clean: 0.4 } },
         { id: 'fineCalibration', tab: 'training', tree: { x: 5, y: 1 }, icon: 'star', name: 'Few-Shot Examples', effect: 'Super prompts +20% strength and worth +1 clean prompt, per level', flavor: 'Here are three examples. Do it like that.', cost: { xp: 450 }, scale: 1.6, max: 3, requires: 'perfectCalibration', boost: { perfectPower: 0.2, perfectUnits: 1 } },
@@ -1070,7 +1074,7 @@
     const TREE_STATS = ['zone', 'push', 'pushes', 'cooldown', 'perfect', 'clean', 'cleanPower', 'perfectPower', 'rollBonus', 'charge',
         'critChance', 'critPower', 'windfallChance', 'windfallPower', 'crunchChance', 'crunchTime', 'maxEffortChance', 'maxEffortPower',
         'flowChance', 'flowTime', 'flowSpeed', 'superCrit', 'superCrunch', 'superFlow', 'system', 'cleanSize', 'zoneBias', 'perfectSize', 'perfectUnits',
-        'friction', 'slope', 'xp', 'pushMult', 'stripFront', 'stripBack', 'stripMore'];
+        'friction', 'slope', 'xp', 'pushMult', 'stripFront', 'stripBack', 'stripMore', 'inertia'];
     function treeBoosts(s) {
         const out = Object.fromEntries(TREE_STATS.map(k => [k, 0]));
         for (const up of UPGRADES) {
@@ -1302,7 +1306,9 @@
             critChance, critMult, windfallChance, windfallMult, crunchChance, crunchSeconds, maxEffortChance, maxEffortMult, flowChance, flowSeconds, flowSpeed,
             superCritChance, superCrunchChance, superFlowChance, friction, hillScale, xpMult, xpPerSec,
             // Boost strips bought in the Momentum branch, as levels (training-path.js reads them via createRoll's `strips`).
-            strips: { front: tb.stripFront, back: tb.stripBack, more: tb.stripMore }, stripFront: tb.stripFront, stripBack: tb.stripBack, stripMore: tb.stripMore };
+            strips: { front: tb.stripFront, back: tb.stripBack, more: tb.stripMore }, stripFront: tb.stripFront, stripBack: tb.stripBack, stripMore: tb.stripMore,
+            // Inertia (training-path.js `inertia`): the share of drag waived at the run's top speed, +15% a level.
+            inertia: Math.min(0.8, INERTIA_PER_LEVEL * tb.inertia) };
     }
 
     function meetsPhase(s, phase) {
@@ -1840,12 +1846,21 @@
     // Act two's first legs are shorter (training-path.js ACT_TWO_EASE, mirrored here) but pay what their full
     // length did: their metres pay at 1/ease (shortening them alone cut the XP the tree needed, and the wall stayed).
     const ACT_TWO_EASE = [0.7, 0.76, 0.88];
-    const legEase = k => (k >= ACT_TWO_LEG ? ACT_TWO_EASE[k - ACT_TWO_LEG] ?? 1 : 1);
+    // Leg characters (training-path.js LEG_CHARACTERS and ACT_ONE_CHARACTERS; a test keeps them equal): each act-one
+    // leg's length multiplier. Its metres pay at 1/length, like act two's eased legs, so a Sprint leg pays as much as
+    // a Rolling one at the same step and a Marathon no more: the character changes how a leg plays, not what it's worth.
+    const INERTIA_PER_LEVEL = 0.15;
+    const LEG_CHARACTERS = { rolling: 1, sprint: 0.65, flats: 0.85, marathon: 1.4, cliffs: 0.8 };
+    const ACT_ONE_CHARACTERS = [null, 'rolling', 'sprint', 'rolling', 'flats', 'cliffs', 'marathon',
+        'rolling', 'flats', 'marathon', 'sprint', 'cliffs', 'marathon'];
+    const legCharacter = k => (k > 0 && k < ACT_TWO_LEG ? ACT_ONE_CHARACTERS[k] || 'rolling' : null);
+    const characterLength = k => LEG_CHARACTERS[legCharacter(k)] ?? 1;
+    const legEase = k => (k >= ACT_TWO_LEG ? ACT_TWO_EASE[k - ACT_TWO_LEG] ?? 1 : characterLength(k));
     const actOneLength = p => 0.8 * Math.min(1.15, 0.4 + 0.13 * p);   // training-path.js actOneLength
     const legMetres = k => {
         if (k === 0) return 2 + 0.45 - 0.2;   // the warm-up leg
         const p = legPos(k);
-        return (k === 1 ? 9 : (10 * Math.pow(1.4, p - 1) + 3 * (p - 1)) * (k < ACT_TWO_LEG ? actOneLength(p) : legEase(k))) + 0.55 * Math.pow(1.14, p - 1) * (k >= ACT_TWO_LEG ? 8 : 1) - 0.2;
+        return (k === 1 ? 9 : (10 * Math.pow(1.4, p - 1) + 3 * (p - 1)) * (k < ACT_TWO_LEG ? actOneLength(p) * characterLength(k) : legEase(k))) + 0.55 * Math.pow(1.14, p - 1) * (k >= ACT_TWO_LEG ? 8 : 1) - 0.2;
     };
     // What reaching leg k's peak pays by distance (before cresting and bonuses): the yardstick for
     // everything sized "per stretch" (clean-sprint XP, replays, passive XP, investor payouts).
@@ -2658,7 +2673,7 @@
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
-        prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, ACT_TWO_LEG, ACT_TWO_LOCKED, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
+        prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany

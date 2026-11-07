@@ -85,8 +85,9 @@ test('saving pushes for stalls beats firing them all at once', () => {
 });
 
 test('upgrades that cut friction let the same push roll further', () => {
-    const normal = crestRate(2, 2, { pushes: 1, cooldown: 2 }, launchOnly);
-    const slick = crestRate(2, 2, { pushes: 1, cooldown: 2, friction: 0.6, slopeDrag: 0.5 }, launchOnly);
+    // On a Rolling leg (on a short Sprint leg a slick ball that misses the skill hill rolls back over the start).
+    const normal = crestRate(3, 2, { pushes: 1, cooldown: 2 }, launchOnly);
+    const slick = crestRate(3, 2, { pushes: 1, cooldown: 2, friction: 0.6, slopeDrag: 0.5 }, launchOnly);
     assert.ok(slick.progress > normal.progress, `${slick.progress} vs ${normal.progress}`);
 });
 
@@ -882,7 +883,9 @@ test('act one has twelve real skills: one difficulty curve, read at half steps, 
     assert.equal(T.skillHill(1).start - T.checkpoint(1), 9, 'Pattern Matching\'s leg is as it was');
     assert.equal(T.skillHill(0).start - T.checkpoint(0), 2, 'and the warm-up');
     // After Embeddings, act one's legs grow steadily.
-    for (let k = 3; k < T.LATE_LEG; k++) assert.ok(T.skillHill(k).start - T.checkpoint(k) > T.skillHill(k - 1).start - T.checkpoint(k - 1), `leg ${k} is longer`);
+    // Each leg is longer than the last on the curve; its character then stretches or shortens it (a Sprint leg is short).
+    const nominal = k => (T.skillHill(k).start - T.checkpoint(k)) / T.characterLength(k);
+    for (let k = 3; k < T.LATE_LEG; k++) assert.ok(nominal(k) > nominal(k - 1), `leg ${k} is longer`);
     // The skills: twelve real ones in act one, the new ones between the old.
     assert.deepEqual(Array.from({ length: 14 }, (_, i) => E.skillAt(i).name), ['Tokenization', 'Pattern Matching', 'Embeddings', 'Edge Detection',
         'Feature Extraction', 'Image Recognition', 'Optical Character Recognition', 'Speech Recognition', 'Sentiment Analysis', 'Language Modeling',
@@ -981,4 +984,66 @@ test('demo: act two is locked behind a gate past In-Context Learning', () => {
     assert.ok(roll.ball.x <= gate + 0.5, 'at the gate, not past it');
     assert.equal(end.leg, 12);
     assert.equal(end.progress, 1, 'paid as the whole last leg');
+});
+
+test('leg characters: one table in the physics and the engine, and each shapes its hills', () => {
+    for (let k = 0; k <= 14; k++) {
+        assert.equal(E.legCharacter(k), T.legCharacter(k), `leg ${k}`);
+        assert.equal(E.characterLength(k), T.characterLength(k), `leg ${k}`);
+    }
+    for (const [id, c] of Object.entries(T.LEG_CHARACTERS)) assert.equal(E.LEG_CHARACTERS[id], c.length, id);
+    assert.equal(T.legCharacter(0), null, 'the warm-up has none');
+    assert.equal(T.legCharacter(T.LATE_LEG), null, 'act two keeps its swells');
+    assert.equal(T.legCharacter(1), 'rolling', "Pattern Matching's leg is as it was");
+    // Every character appears in act one, and the walls are cliffs.
+    const used = new Set(Array.from({ length: T.LATE_LEG - 1 }, (_, i) => T.legCharacter(i + 1)));
+    for (const id of Object.keys(T.LEG_CHARACTERS)) assert.ok(used.has(id), id);
+    for (let k = 1; k < T.LATE_LEG; k++) if (T.isWallLeg(k)) assert.equal(T.legCharacter(k), 'cliffs', `wall ${k}`);
+    // Shapes, averaged over seeds: steepness (height over half-width) and spacing.
+    const stats = k => {
+        let steep = 0, n = 0, gaps = 0;
+        for (let seed = 1; seed <= 30; seed++) {
+            const hs = T.rollingHills(k, seed);
+            hs.forEach((h, i) => { steep += h.height / h.halfWidth; n++; if (i) gaps += h.start - hs[i - 1].end; });
+        }
+        return { steep: steep / n, gap: gaps / n };
+    };
+    const rolling = stats(7), flats = stats(8), cliffs = stats(11), marathon = stats(9);
+    assert.ok(flats.steep < rolling.steep * 0.4, `flats are gentle: ${flats.steep} vs ${rolling.steep}`);
+    assert.ok(cliffs.steep > rolling.steep * 2, `cliffs are steep: ${cliffs.steep} vs ${rolling.steep}`);
+    assert.ok(marathon.gap > rolling.gap * 2, 'marathons are sparse');
+});
+
+test('a leg is worth what its step on the curve is worth, whatever its character', () => {
+    // XP for reaching the peak, per nominal metre: a Sprint leg pays the same rate as its neighbours.
+    const perStep = k => E.stretchXpAt(k) / (E.legMetres(k) / E.characterLength(k));
+    for (let k = 2; k < T.LATE_LEG; k++) assert.ok(perStep(k) > perStep(k - 1) * 0.95, `leg ${k}`);
+    // And the engine's metres match the physics on every character.
+    for (let k = 1; k < T.LATE_LEG; k++) {
+        const h = T.skillHill(k);
+        assert.ok(Math.abs(E.legMetres(k) - (h.peak - T.checkpoint(k) - 0.3)) < 0.35, `leg ${k}`);
+    }
+});
+
+test('Inertia: speed you have built is harder to lose, and a slow ball gets no help', () => {
+    // A flat run-out: the same launch keeps more speed with Inertia.
+    const coast = inertia => {
+        const roll = T.createRoll(9, 3, { pushes: 1, cooldown: 0, inertia });
+        roll.push(3);
+        for (let i = 0; i < 40; i++) roll.step(0.05);
+        return roll.ball.maxX - roll.ground.start;
+    };
+    assert.ok(coast(0.45) > coast(0) * 1.03, `${coast(0.45)} vs ${coast(0)}`);
+    // Capped, and nothing at 0.
+    assert.equal(coast(0), coast(undefined));
+    // A crawling ball near its top speed is helped; one far below its top speed barely is.
+    const helped = (v, top) => {
+        const roll = T.createRoll(9, 3, { pushes: 1, cooldown: 0, inertia: 0.6 });
+        roll.push(1); roll.ball.top = top; roll.ball.v = v;
+        const plain = T.createRoll(9, 3, { pushes: 1, cooldown: 0 });
+        plain.push(1); plain.ball.v = v;
+        roll.step(0.2); plain.step(0.2);
+        return roll.ball.v - plain.ball.v;
+    };
+    assert.ok(helped(3, 3) > helped(3, 30) * 3, 'help scales with speed against the run\'s top');
 });

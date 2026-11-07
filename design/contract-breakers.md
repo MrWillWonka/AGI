@@ -172,7 +172,9 @@ Effort: S = a day or less, M = a few days, L = a week or more (physics, drawing,
   Sticky (holds the line on steep faces). One key or a tap cycles them.
 - **Build:** mode parameters in `step` (mass, drag, bounce, grip). Effort M.
 
-## Leg characters: not every stretch the same (the owner's call)
+## Leg characters: not every stretch the same (the owner's call) · built
+
+Built with Inertia (see CLAUDE.md, Leg characters, for the tuned lengths: Sprint 0.65, Long flats 0.85, Marathon 1.4, Cliffs 0.8).
 
 Every leg today is one recipe: random small bumps, a length on one smooth curve. Give each leg a **character**, fixed per leg (so
 "the OCR leg" means something and replays know it), with the rolling hills still random inside it:
