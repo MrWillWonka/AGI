@@ -7373,6 +7373,7 @@ window.AGI = (function () {
         const share = E.sprintStrength(state, charge, null, false, false) / E.sprintStrength(state, 1, null, false, false);
         const xs = [], ys = [];
         const dt = 1 / REPLAY_FPS;
+        let crested = false;
         for (let i = 0; i < REPLAY_FPS * 90 && !roll.over; i++) {
             roll.thrust = 0;
             if (k >= T.LATE_LEG) {
@@ -7384,11 +7385,28 @@ window.AGI = (function () {
             const evs = roll.step(dt);
             xs.push(roll.ball.x);
             ys.push(roll.height);
-            if (evs.some(e => e.type === 'crest' || e.type === 'end')) break;
+            if (evs.some(e => e.type === 'crest')) { crested = true; break; }
+            if (evs.some(e => e.type === 'end')) break;
         }
-        // A beat at the end before it loops.
-        for (let i = 0; i < REPLAY_FPS; i++) { xs.push(xs[xs.length - 1]); ys.push(ys[ys.length - 1]); }
-        const r = { key, ground: roll.ground, xs, ys };
+        const g = roll.ground;
+        if (crested) {
+            // Over the top it rolls down the far side and out of view (the owner's call: it used to stop on the crest).
+            // The physics ends a run at its crest, so the roll-out is carried on here: its speed, gaining downhill.
+            let x = roll.ball.x, v = Math.max(1, Math.abs(roll.ball.v));
+            const out = g.goal.end + 1.5;
+            for (let i = 0; i < REPLAY_FPS * 6 && x < out; i++) {
+                const slope = (g.height(x + 0.02) - g.height(x)) / 0.02;
+                v = Math.max(0.8, v - T.GRAVITY * slope * dt);
+                x += v * dt;
+                xs.push(x);
+                ys.push(g.height(Math.min(x, g.goal.end)));
+            }
+            for (let i = 0; i < REPLAY_FPS / 2; i++) { xs.push(Infinity); ys.push(0); }
+        } else {
+            // A run that stopped: a beat where it rests before it loops.
+            for (let i = 0; i < REPLAY_FPS; i++) { xs.push(xs[xs.length - 1]); ys.push(ys[ys.length - 1]); }
+        }
+        const r = { key, ground: g, xs, ys };
         legReplays.set(k, r);
         return r;
     }
@@ -7416,10 +7434,13 @@ window.AGI = (function () {
         // The run, played back on a loop (each leg a little out of step with the others).
         const i = Math.floor((performance.now() / 1000 * REPLAY_FPS + k * 37) % replay.xs.length);
         const bx = replay.xs[i];
-        ctx.fillStyle = c.text;
-        ctx.beginPath();
-        ctx.arc(((bx - from) / span) * w, Math.max(3, y(replay.ys[i])), 2.2, 0, Math.PI * 2);
-        ctx.fill();
+        // Off the lane's right edge (rolled out past the crest): nothing to draw until it loops.
+        if (Number.isFinite(bx) && bx <= from + span + 0.05) {
+            ctx.fillStyle = c.text;
+            ctx.beginPath();
+            ctx.arc(((bx - from) / span) * w, Math.max(3, y(replay.ys[i])), 2.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
         // The leg's own task line (it used to be a Scheduled tasks row in the lab): its name, the XP it trains by
         // itself and its laps. Small lanes (phones, camera copies) keep just the rate.
         if (lane !== hoverLane && w >= 40) {
