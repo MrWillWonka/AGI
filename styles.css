@@ -3298,3 +3298,27 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
    like the Upgrades button's badge; after the warm-up there was nothing new to go back for). */
 .result-lab[data-ready] { position: relative; overflow: visible; border-color: var(--success); color: var(--success); }
 .result-lab[data-ready]::after { background: var(--success); color: var(--bg); }
+
+/* ---- Packet Snare (the Data Pipeline bay): draw a wire, close a loop round the packets ---- */
+.snare-canvas { touch-action: none; cursor: crosshair; }
+.snare-view > .canvas-wrap { user-select: none; -webkit-user-select: none; }
+.snare-stats .snare-dp { border-color: color-mix(in srgb, var(--primary) 50%, transparent); color: var(--primary); }
+.snare-stats { min-height: 28px; }
+.snare-hud { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; font: 600 0.78rem var(--font-mono); }
+.snare-stats .snare-dp { margin-left: auto; }
+.snare-hud[hidden] { display: none; }
+.snare-focus { flex: 1; max-width: 320px; height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--border) 80%, transparent); overflow: hidden; }
+.snare-focus-fill { height: 100%; width: 100%; border-radius: inherit; background: var(--primary); transform-origin: left; transition: background 0.2s; }
+.snare-focus-fill.low { background: var(--danger); }
+.snare-focus-text { color: var(--muted); white-space: nowrap; }
+.snare-haul { margin-left: auto; color: var(--primary); white-space: nowrap; }
+.snare-card[hidden] { display: none; }
+.snare-card .result-xp { color: var(--primary); }
+.snare-card .result-actions .button { flex: 1; }
+/* No sprint controls under the field: on upright phones it takes the height the trail's controls would. */
+@media (max-width: 640px) and (min-height: 501px) {
+    .snare-view > .canvas-wrap { height: max(260px, calc(100dvh - var(--topbar-h, 100px) - var(--bay-bar-h, 39px) - 150px)); }
+}
+@media (pointer: coarse) and (max-height: 500px) {
+    .snare-view > .canvas-wrap { height: clamp(120px, calc(100dvh - 150px), 600px); }
+}

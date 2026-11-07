@@ -937,7 +937,7 @@ test('saves before v18 move onto the doubled act one: the same frontier skill, l
     const s = E.migrate({ version: 17, attr: { intelligence: 4 }, path: { learned: 3, best: 0.6, auto: [5, 6, 7], legBest: [10, 20, 30, 40], legPower: [1, 2, 3, 4] },
         stats: { skillsLearned: 3 } }, NOW);
     assert.equal(s.version, E.SAVE_VERSION);
-    assert.equal(E.SAVE_VERSION, 18);
+    assert.ok(E.SAVE_VERSION >= 18);
     assert.equal(s.path.learned, 5, 'Embeddings and Feature Extraction count as learned');
     assert.equal(E.skillAt(s.path.learned).name, 'Image Recognition', 'the same frontier skill');
     assert.equal(s.path.best, 0, 'a record on the old, longer leg doesn\'t carry over');

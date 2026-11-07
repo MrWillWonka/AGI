@@ -13,8 +13,8 @@
     // The build a player is on: stamped into every playtest log (its header and session events), so each log is read
     // against the features it had (playtests/README.md lists the builds). Bump it with every publish: the date and
     // time (UTC) and a few words on what changed.
-    const BUILD = '2026-11-07 15:50 UTC · Hop reworked: hold to aim (slow motion, lean-in, ring), floaty clean landings';
-    const SAVE_VERSION = 18;   // 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
+    const BUILD = '2026-11-07 (branch, unpublished) · Packet Snare: the Data Pipeline bay, a second minigame (draw loops round data packets)';
+    const SAVE_VERSION = 19;   // 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
     // Auto-Trainer, XP nodes) carry most of a new version's speed, so this stays small: at 0.2 a second run
@@ -541,6 +541,11 @@
         // The Auto-Trainer is earned like the lab's machines: runs by hand, then it runs them for you.
         { key: 'auto:trainer', name: 'Auto-Trainer', desc: `Finish ${AUTO_TRAINER_RUNS} training runs by hand and learn ${AUTO_TRAINER_SKILL} skills`,
             check: s => level(s, 'autoTrainer') > 0 || automationGate(s, 'autoTrainer').met },
+        // The Data Pipeline's Packet Snare opens with Edge Detection (it can see where things stop), before Image
+        // Recognition's wall, so the wall has a side door that pays data (design/second-minigame.md).
+        { key: 'module:snare', name: 'Packet Snare', desc: 'Learn Edge Detection to open the Data Pipeline',
+            callout: ['Data Pipeline online', 'Loose data is drifting through the server room\'s second bay. Draw a loop round it to catch it.'],
+            check: s => !!s.unlocked['module:path'] && knows(s, 'Edge Detection') },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }
     ];
@@ -642,6 +647,11 @@
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'a small favor',
             body: ['Hello,', 'Edge Detection. It can see where things stop now: the lab, the cameras, the door at the back.',
                 'Small favor. When the investors call, say yes. We need the compute more than they need the details.', 'Thanks,\nF'] },
+        { id: 'pipeline', when: s => !!s.unlocked['module:snare'],
+            from: 'A Friend <friend@agi-careers.biz.info>', subject: 'loose data',
+            body: ['Hello again,', 'There is a second bay in the server room now. Everything the crawler drops ends up in there, drifting around loose.',
+                'Draw a loop round the good packets and they\'re yours. The bigger the loop, the more they\'re worth. Leave the red ones alone, and mind the firewalls: they don\'t like loose wires.',
+                'It needs data to see more. So do I.', 'F'] },
         { id: 'investors', when: s => !!s.unlocked['action:research'],
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'FW: FW: FW: investors',
             body: ['Investors will start calling now. Take the money. Don\'t take the advice.',
@@ -1055,7 +1065,9 @@
                 researchManualEver: 0,
                 finishedAt: 0         // play seconds when chapter one ended (ENDING_PHASE); 0 = not yet. Kept for good
             },
-            path: { learned: 0, best: 0, auto: [], legBest: [], legPower: [], breakDue: 0, surge: 0 },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k; legPower[k]: your full-sprint strength when you last ran leg k (the Auto-Trainer's ghost plays at it)
+            path: { learned: 0, best: 0, auto: [], legBest: [], legPower: [], breakDue: 0, surge: 0 },
+            // Packet Snare (the Data Pipeline): the best run's haul this version (DP), runs, and the data it has caught.
+            snare: { best: 0, runs: 0, dp: 0 },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k; legPower[k]: your full-sprint strength when you last ran leg k (the Auto-Trainer's ghost plays at it)
             projects: { offers: [], boosts: [], next: PROJECTS.firstAt, seq: 0 },
             // Dilemmas: `order` is every mail key in arrival order (m:story id, d:dilemma, o:its consequence),
             // `open` the one waiting for an answer, `later` the consequences on their way. Kept for good.
@@ -1993,6 +2005,26 @@
         return xp;
     }
 
+    // ---- Packet Snare (packet-snare.js; design/second-minigame.md) --------------------------------------------
+    // A hand action like Collect Data: each packet snared is worth a hand collection's data, times the loop's area
+    // multiplier (gold packets count as several), paid in whole numbers as it's caught. A run's haul against the
+    // version's best is the record (snare.best). It needs no compute: Focus is its budget.
+    const snarePacketDp = s => Math.max(1, derive(s).dpPerCollect);
+    function snareCatch(s, units) {
+        const dp = Math.max(1, Math.round(units * snarePacketDp(s)));
+        s.res.dp += dp;
+        s.stats.runDp += dp;
+        s.snare.dp += dp;
+        return dp;
+    }
+    // The run's end: counts it and keeps the record. Returns whether it beat the version's best and the old best.
+    function finishSnare(s, haul) {
+        const prev = s.snare.best;
+        s.snare.runs++;
+        if (haul > prev) s.snare.best = haul;
+        return { record: haul > prev && prev > 0, first: prev === 0 && haul > 0, prev };
+    }
+
     // ---- Exploits (design/contract-breakers.md): the player breaks the trail's rules -------------------------
     // The trail is the training environment and every exploit is a bug the model found in it. The first is **Hop**,
     // found with Embeddings: a press leaves the line (training-path.js `hop`). Each press is a skill check, judged
@@ -2531,6 +2563,7 @@
             s.stats.skillsLearned += 1;
         }
         if (!(raw.version >= 18)) migrateActOne(s);
+        s.snare = { best: num(raw.snare?.best, 0), runs: Math.floor(num(raw.snare?.runs, 0)), dp: num(raw.snare?.dp, 0) };
         s.projects = cleanProjects(raw.projects, d.projects);
         s.dilemmas = cleanDilemmas(raw.dilemmas, d.dilemmas);
         // Saves from before the Auto-Trainer's prompt (v17) that already have it aren't asked about it.
@@ -2702,6 +2735,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
+        snarePacketDp, snareCatch, finishSnare,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany

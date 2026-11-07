@@ -266,10 +266,8 @@ Workbench so far that clicking in the lab dies.
 least once in 20 minutes and can say why; a dataset is used against a wall; the first transformation changes behaviour;
 no run pays twice across a reload or a held input; the Training Cluster's numbers barely move for players who never dig.
 
-## 6. Open questions for the owner
+## 6. Decision
 
-- Build **Core Cooling, rebuilt** (section 3b) as the second game, or another?
-- Its board: **your own server cabinets** (grows with hardware; ties in the rack puzzle) or a fresh grid each run?
-- Its chain: the **heat cascade** (tip an overloaded line), or **Pointers** (arrows you reroute)?
-- For the third room, which ghost game: **Self-Play** (rule cards), **Build the Brain** (tap-wired net) or **Mirror Match**
-  (breeding)?
+**The owner chose Packet Snare** (a lasso game: draw loops round drifting data packets, avoid corrupt ones and Firewalls; later
+the Rogue AI's Infection Cores, Scrubbers and Anchor nets). It keeps what all three reviews asked for: it pays data, it opens
+before Image Recognition's wall, the AI is in it, and its act two turns drawing into building nets. See `packet-snare.md`.

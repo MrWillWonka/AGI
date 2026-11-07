@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="styles.css">
     <script defer src="engine.js"></script>
     <script defer src="training-path.js"></script>
+    <script defer src="packet-snare.js"></script>
     <script defer src="sfx.js"></script>
     <script defer src="playtest.js"></script>
     <script defer src="game.js"></script>
@@ -196,6 +197,25 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- The Data Pipeline: Packet Snare. Draw a wire; cross it to close a loop round the packets inside. -->
+                    <div class="module" data-module="pipeline" id="snarePanel" hidden>
+                        <div class="run-view snare-view">
+                            <div class="run-stats snare-stats">
+                                <div class="snare-hud" id="snareHud" hidden>
+                                    <div class="snare-focus" aria-hidden="true"><div class="snare-focus-fill" id="snareFocusFill"></div></div>
+                                    <span class="snare-focus-text" id="snareFocusText">Focus</span>
+                                    <span class="snare-haul" id="snareHaul">+0 DP</span>
+                                </div>
+                                <span class="module-xp snare-dp" title="Data"><span class="chip-label">DP</span> <strong data-bind="res.dp">0</strong></span>
+                            </div>
+                            <div class="canvas-wrap">
+                                <canvas id="snareCanvas" class="path-canvas snare-canvas" aria-label="Packet Snare. Draw a wire and cross it to close a loop round the data packets inside." aria-describedby="snareStatus"></canvas>
+                                <div class="roll-result snare-card" id="snareCard" role="status"></div>
+                            </div>
+                            <p class="small path-status" id="snareStatus" aria-live="polite"></p>
                         </div>
                     </div>
 

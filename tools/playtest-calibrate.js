@@ -47,7 +47,7 @@ const median = a => {
     return b.length % 2 ? b[(b.length - 1) / 2] : (b[b.length / 2 - 1] + b[b.length / 2]) / 2;
 };
 const r2 = x => (x == null ? null : Math.round(x * 100) / 100);
-const place = v => (v === 'lab' ? 'lab' : v === 'bay:training' ? 'train' : v === 'tree' ? 'tree' : 'other');
+const place = v => (v === 'lab' ? 'lab' : v === 'bay:training' ? 'train' : v === 'tree' ? 'tree' : v === 'bay:pipeline' ? 'snare' : 'other');
 
 function profileOf(events) {
     events = events.filter(e => e && typeof e.t === 'number').sort((a, b) => a.t - b.t || a.w - b.w);
@@ -55,7 +55,7 @@ function profileOf(events) {
     const start = events.find(e => e.e === 'mailAccepted' || (e.e === 'achievement' && e.id === 'firstClick'))?.t ?? 0;
     const end = events.length ? events[events.length - 1].t : 0;
     // Time by place: each view lasts until the next view (or the end), after the opening.
-    const time = { lab: 0, train: 0, tree: 0, other: 0 };
+    const time = { lab: 0, train: 0, tree: 0, snare: 0, other: 0 };   // snare: Packet Snare (the Data Pipeline bay)
     let at = null, since = start;
     for (const e of events) {
         if (e.e !== 'view') continue;
@@ -107,7 +107,7 @@ function profileOf(events) {
     return {
         playMinutes: r2((end - start) / 60),
         openingSeconds: Math.round(start),
-        share: { lab: r2(time.lab / total), train: r2(time.train / total), tree: r2(time.tree / total), other: r2(time.other / total) },
+        share: { lab: r2(time.lab / total), train: r2(time.train / total), tree: r2(time.tree / total), snare: r2(time.snare / total), other: r2(time.other / total) },
         labClicksPerSecond: r2(labSpan ? labClicks / labSpan : null),
         handSprints: hand.length,
         promptRate: r2(withZone.length ? prompts / withZone.length : null),
@@ -149,7 +149,7 @@ if (JSON_OUT) {
     for (const p of profiles) {
         console.log(`${p.file}: ${p.playMinutes} min after a ${p.openingSeconds} s opening`);
         console.log(`  build: ${readBuild(p.file)}`);
-        console.log(`  time: lab ${p.share.lab}, training ${p.share.train}, tree ${p.share.tree}, other ${p.share.other}`);
+        console.log(`  time: lab ${p.share.lab}, training ${p.share.train}, tree ${p.share.tree}${p.share.snare ? `, packet snare ${p.share.snare}` : ''}, other ${p.share.other}`);
         console.log(`  lab clicks/s ${p.labClicksPerSecond}; sprints by hand ${p.handSprints}: prompts ${p.promptRate} (once they exist), full ${p.fullChargeRate}, income-capped ${p.incomeCappedRate}`);
         console.log(`  run ${p.runSeconds} s, pause before the next ${p.runPauseSeconds} s; Collect Data at ${p.minutesFromStart.collect} min, server room ${p.minutesFromStart.serverRoom}, Research ${p.minutesFromStart.research}`);
         console.log(`  skills: ${p.skills.map(s => `${s.n} ${s.name} ${s.fromStart}m/run ${s.runs}`).join(', ')}`);

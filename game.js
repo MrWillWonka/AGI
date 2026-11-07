@@ -471,6 +471,7 @@ window.AGI = (function () {
     // callout or what it points at dismisses it.
     const CALLOUTS = {
         'module:path': { map: 'servers' },
+        'module:snare': { map: 'servers' },
         'action:research': { anchor: () => ui.actions.research?.button, map: 'lab' },
         'room:rnd': { map: 'rnd' },
         // Earned on the trail: beside its switch in the bay's bar, else above the map's server room.
@@ -3370,7 +3371,8 @@ window.AGI = (function () {
     const BAYS = {
         training: { name: 'Training Cluster', built: true, unlocked: () => !!state.unlocked['module:path'],
             lockedText: () => 'Locked' },
-        pipeline: { name: 'Data Pipeline', phase: 1 },
+        // The Data Pipeline's Packet Snare (packet-snare.js): opens with Edge Detection (engine milestone module:snare).
+        pipeline: { name: 'Packet Snare', built: true, unlocked: () => !!state.unlocked['module:snare'] },
         architecture: { name: 'Architecture Lab', phase: 2 },
         core: { name: 'The Core', phase: 3 }
     };
@@ -3390,6 +3392,7 @@ window.AGI = (function () {
     function bayStatus(id) {
         const bay = BAYS[id];
         if (!bayUnlocked(id)) return id === 'training' && bay.lockedText ? bay.lockedText() : 'Sealed';
+        if (id === 'pipeline') return snareStatus();
         const learned = state.path.learned;
         const record = Math.round(state.path.best * 100);
         return `${learned} skill${learned === 1 ? '' : 's'} · next: ${E.skillAt(learned).name}${record ? ` · record ${record}%` : ''}`;
@@ -3488,6 +3491,7 @@ window.AGI = (function () {
         if (bay.built) {
             document.querySelector(`.module[data-module="${id}"]`).hidden = false;
             if (id === 'training') showTrainingView(state.stats.rolls > 0 && !(path.roll && path.roll.launched && !path.roll.over) ? 'dev' : 'run');
+            if (id === 'pipeline') openSnare();
         } else {
             document.querySelector('.module[data-module="soon"]').hidden = false;
             setText($('soonText'), 'Being built.');
@@ -3498,7 +3502,7 @@ window.AGI = (function () {
         view.hidden = false;
         const done = () => {
             hub.hidden = true;
-            (id === 'training' ? (path.view === 'dev' ? $('startRunButton') : $('pushButton')) : $('backButton')).focus({ preventScroll: true });
+            (id === 'training' ? (path.view === 'dev' ? $('startRunButton') : $('pushButton')) : id === 'pipeline' ? ($('snareCard').querySelector('button') || $('backButton')) : $('backButton')).focus({ preventScroll: true });
             startPathLoop();
         };
         if (reducedMotion()) return done();
@@ -3516,6 +3520,7 @@ window.AGI = (function () {
         const hub = $('hub');
         const view = $('moduleView');
         hub.hidden = false;
+        if (openBay === 'pipeline') closeSnare();
         // Closed at once, so another Escape during the animation goes on to the facility.
         openBay = null;
         const done = () => {
@@ -3549,6 +3554,425 @@ window.AGI = (function () {
             node.setAttribute('aria-label', blank ? 'Blank panel' : `${unlocked ? BAYS[id].name : 'Sealed section'}: ${bayStatus(id)}`);
         }
         $('bayTrainingMeter').style.width = `${Math.round(state.path.best * 100)}%`;
+    }
+
+
+    // ---- Packet Snare (the Data Pipeline bay) -------------------------------------------------------------
+    // packet-snare.js runs the field; this draws it and turns the pointer into the wire. Packets snared pay data
+    // as they're caught (E.snareCatch, a hand collection a packet times the loop's multiplier); the run ends when
+    // Focus runs out, and its haul against the version's best is the record (E.finishSnare).
+    const snare = { preview: false, run: null, raf: 0, last: 0, haul: 0, seed: 1, fx: [], scale: 1, ox: 0, oy: 0, cw: 0, ch: 0, ctx: null, canvas: null, pointer: null, done: null };
+    const SNARE_FX = 1.1;        // seconds a catch's loop and pop stay on the field
+
+    function snareStatus() {
+        if (snare.run && !snare.run.over) return 'Snaring…';
+        return state.snare.best > 0 ? `best haul +${E.format(state.snare.best)} DP` : 'Loose data drifting';
+    }
+
+    function buildSnare() {
+        const canvas = $('snareCanvas');
+        snare.canvas = canvas;
+        snare.ctx = canvas.getContext('2d');
+        new ResizeObserver(() => {
+            const dpr = (window.devicePixelRatio || 1) * uiScale();
+            const wrap = canvas.parentElement;
+            snare.cw = wrap.clientWidth;
+            snare.ch = Math.max(120, wrap.clientHeight);
+            canvas.style.height = snare.ch + 'px';
+            canvas.width = Math.round(snare.cw * dpr);
+            canvas.height = Math.round(snare.ch * dpr);
+            // The preview takes the canvas's shape (it was first built before the bay had a size).
+            if (snare.preview && openBay === 'pipeline') snarePreview();
+            snareFit();
+            drawSnare();
+        }).observe(canvas.parentElement);
+        // The pen: down starts a wire, moving draws it, up lets an open wire go. One pointer at a time.
+        const toWorld = e => {
+            const r = canvas.getBoundingClientRect();
+            const z = uiScale();
+            return [((e.clientX - r.left) / z - snare.ox) / snare.scale, ((e.clientY - r.top) / z - snare.oy) / snare.scale];
+        };
+        canvas.addEventListener('pointerdown', e => {
+            const run = snare.run;
+            if (!run || run.over || snare.preview || snare.pointer !== null) return;
+            e.preventDefault();
+            snare.pointer = e.pointerId;
+            canvas.setPointerCapture?.(e.pointerId);
+            run.addPoint(...toWorld(e));
+        });
+        canvas.addEventListener('pointermove', e => {
+            if (e.pointerId !== snare.pointer || !snare.run) return;
+            const list = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+            for (const ev of (list.length ? list : [e])) {
+                // After a snap the pen waits out its cooldown, then a fresh wire starts where it is.
+                if (!snare.run.addPoint(...toWorld(ev))) break;
+            }
+        });
+        const lift = e => {
+            if (e.pointerId !== snare.pointer) return;
+            snare.pointer = null;
+            snare.run?.liftPen();
+        };
+        canvas.addEventListener('pointerup', lift);
+        canvas.addEventListener('pointercancel', lift);
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
+    }
+
+    // The field keeps its shape for the run; the view letterboxes it into the canvas.
+    function snareFit() {
+        const run = snare.run;
+        const w = run ? run.w : Math.sqrt(window.PacketSnare.FIELD_AREA * (snare.cw / snare.ch || 1.6));
+        const h = run ? run.h : window.PacketSnare.FIELD_AREA / w;
+        snare.scale = Math.min(snare.cw / w, snare.ch / h);
+        snare.ox = (snare.cw - w * snare.scale) / 2;
+        snare.oy = (snare.ch - h * snare.scale) / 2;
+    }
+
+    function openSnare() {
+        // A run left by another route (the map's jump) ended when you left: settle it now.
+        if (snare.run && !snare.run.over && !snare.preview) { snare.run.stop(); snareEvents(); }
+        showSnareCard(snare.done ? 'end' : 'start');
+        // Before the first run, the field drifts behind the card: no Firewalls, no Focus spent.
+        if (!snare.done) snarePreview();
+        drawSnare();
+    }
+
+    // The field shaped to the canvas (portrait on an upright phone), within sane limits.
+    function snareField() {
+        const P = window.PacketSnare;
+        const w = Math.sqrt(P.FIELD_AREA * Math.min(3.2, Math.max(0.4, snare.cw / snare.ch || 1.6)));
+        return { w, h: P.FIELD_AREA / w };
+    }
+
+    function snarePreview() {
+        snare.run = window.PacketSnare.createSnare({ ...snareField(), seed: 5, firewalls: [], idleDrain: 0 });
+        snare.preview = true;
+        snareFit();
+        snare.last = performance.now();
+        cancelAnimationFrame(snare.raf);
+        snare.raf = 0;
+        if (!reducedMotion() && openBay === 'pipeline') snare.raf = requestAnimationFrame(snareFrame);
+    }
+
+    // Leaving the bay ends a run in progress (what it caught is already paid).
+    function closeSnare() {
+        if (snare.run && !snare.run.over && !snare.preview) {
+            snare.run.stop();
+            snareEvents();
+        }
+        cancelAnimationFrame(snare.raf);
+        snare.raf = 0;
+    }
+
+    function startSnare() {
+        snare.seed = (state.snare.runs * 7919 + Math.floor(state.stats.playTime * 1000)) >>> 0;
+        snare.run = window.PacketSnare.createSnare({ ...snareField(), seed: snare.seed });
+        snare.haul = 0;
+        snare.fx = [];
+        snare.done = null;
+        snare.preview = false;
+        snare.pointer = null;
+        snareFit();
+        setHidden($('snareCard'), true);
+        setHidden($('snareHud'), false);
+        setText($('snareStatus'), 'Draw a wire. Cross it to close a loop.');
+        sfx('ui');
+        snare.last = performance.now();
+        cancelAnimationFrame(snare.raf);
+        snare.raf = requestAnimationFrame(snareFrame);
+    }
+
+    function snareFrame(now) {
+        const run = snare.run;
+        if (!run || openBay !== 'pipeline') {
+            // Left the bay without exitBay (a jump from the map): the run ends where it is.
+            if (run && !run.over && !snare.preview) { run.stop(); snareEvents(); }
+            snare.raf = 0;
+            return;
+        }
+        if (snare.preview) {
+            run.step(Math.min(0.1, (now - snare.last) / 1000));
+            snare.last = now;
+            run.takeEvents();
+            drawSnare();
+            snare.raf = requestAnimationFrame(snareFrame);
+            return;
+        }
+        const dt = Math.min(0.1, (now - snare.last) / 1000);
+        snare.last = now;
+        if (!document.hidden) run.step(dt);
+        for (const f of snare.fx) f.t += dt;
+        snare.fx = snare.fx.filter(f => f.t < (f.life || SNARE_FX));
+        snareEvents();
+        drawSnare();
+        renderSnareHud();
+        if (run.over && !snare.fx.length) { snare.raf = 0; return; }
+        snare.raf = requestAnimationFrame(snareFrame);
+    }
+
+    function snareEvents() {
+        const run = snare.run;
+        if (!run) return;
+        for (const e of run.takeEvents()) {
+            if (e.type === 'catch') {
+                const dp = E.snareCatch(state, e.units);
+                snare.haul += dp;
+                const big = e.mult >= 3 || e.gold > 0;
+                snare.fx.push({ kind: 'catch', poly: e.poly, x: e.x, y: e.y, t: 0, text: `+${E.format(dp)} DP`, sub: e.mult >= 1.15 ? `×${e.mult.toFixed(1)}` : '', big, packets: e.packets });
+                sfx(big ? 'perfect' : 'clean');
+            } else if (e.type === 'corrupt') {
+                snare.fx.push({ kind: 'corrupt', poly: e.poly, x: e.x, y: e.y, t: 0, text: 'CORRUPTED', packets: e.packets });
+                sfx('error');
+            } else if (e.type === 'empty') {
+                snare.fx.push({ kind: 'empty', poly: e.poly, x: e.x, y: e.y, t: 0, life: 0.5 });
+            } else if (e.type === 'snap') {
+                snare.fx.push({ kind: 'snap', wire: e.wire, x: e.x, y: e.y, t: 0, text: 'SNAPPED', life: 0.9 });
+                sfx('nearMiss');
+                if (state.settings.shake && !reducedMotion()) snare.fx.push({ kind: 'shake', t: 0, life: 0.25 });
+            } else if (e.type === 'firewall') {
+                snare.fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.8 });
+            } else if (e.type === 'end') {
+                endSnare(e.stats);
+            }
+        }
+    }
+
+    function endSnare(stats) {
+        const res = E.finishSnare(state, snare.haul);
+        snare.done = { stats, haul: snare.haul, record: res.record, first: res.first, prev: res.prev };
+        snare.pointer = null;
+        setHidden($('snareHud'), true);
+        setText($('snareStatus'), '');
+        pt('snare', { haul: Math.round(snare.haul), catches: stats.catches, caught: stats.caught, gold: stats.gold, corrupted: stats.corrupted,
+            snaps: stats.snaps, empty: stats.empty, bestMult: r2(stats.bestMult), secs: Math.round(snare.run.time), record: res.record, seed: snare.seed });
+        log(`Packet Snare: +${E.format(snare.haul)} DP from ${stats.caught} packet${stats.caught === 1 ? '' : 's'}${res.record ? ' · new record' : ''}.`, res.record ? 'success' : 'info');
+        sfx(res.record ? 'record' : 'runEnd');
+        if (openBay === 'pipeline') showSnareCard('end');
+        save();
+    }
+
+    function showSnareCard(kind) {
+        const card = $('snareCard');
+        const best = state.snare.best;
+        if (kind === 'start') {
+            card.replaceChildren(...[
+                el('div', { class: 'result-title', text: 'Data Pipeline' }),
+                el('div', { class: 'result-main', text: 'Packet Snare' }),
+                best > 0 ? el('ul', { class: 'result-lines' }, [el('li', {}, [el('span', { text: 'Best haul' }), el('span', { text: `+${E.format(best)} DP` })])]) : null,
+                el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: 'Start', onclick: startSnare })])].filter(Boolean));
+        } else {
+            const d = snare.done;
+            const s = d.stats;
+            const line = (label, value) => el('li', {}, [el('span', { text: label }), el('span', { text: value })]);
+            card.replaceChildren(...[
+                el('div', { class: 'result-title', text: 'Focus spent' }),
+                el('div', { class: 'result-main', text: s.caught ? `${s.caught} packet${s.caught === 1 ? '' : 's'} snared` : 'Nothing snared' }),
+                el('div', { class: 'result-xp', text: `+${E.format(d.haul)} DP` }),
+                d.record ? el('span', { class: 'result-badge', text: `New record · was +${E.format(d.prev)}` }) : null,
+                el('ul', { class: 'result-lines' }, [
+                    line('Loops closed', `${s.catches}`),
+                    s.bestMult >= 1.05 ? line('Biggest loop', `×${s.bestMult.toFixed(1)}`) : null,
+                    s.gold ? line('Gold packets', `${s.gold}`) : null,
+                    s.corrupted ? line('Corrupted catches', `${s.corrupted}`) : null,
+                    s.snaps ? line('Wires snapped', `${s.snaps}`) : null,
+                    line('Best haul', `+${E.format(Math.max(best, d.haul))} DP`)
+                ].filter(Boolean)),
+                el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: 'Snare again', onclick: startSnare })])].filter(Boolean));
+        }
+        setHidden(card, false);
+    }
+
+    function renderSnareHud() {
+        const run = snare.run;
+        if (!run || run.over) return;
+        const share = run.focus / run.maxFocus;
+        const fill = $('snareFocusFill');
+        fill.style.transform = `scaleX(${share})`;
+        fill.classList.toggle('low', share < 0.25);
+        setText($('snareFocusText'), run.cooldown > 0 ? 'Wire snapped…' : `Focus ${Math.ceil(run.focus)}`);
+        setText($('snareHaul'), `+${E.format(snare.haul)} DP`);
+    }
+
+    function drawSnare() {
+        const ctx = snare.ctx;
+        if (!ctx || !snare.cw) return;
+        ensurePathColors();
+        const C = path.colors;
+        const dpr = snare.canvas.width / snare.cw;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, snare.cw, snare.ch);
+        const run = snare.run;
+        const k = snare.scale;
+        const shake = snare.fx.find(f => f.kind === 'shake');
+        const jx = shake ? (Math.random() - 0.5) * 6 * (1 - shake.t / shake.life) : 0;
+        ctx.save();
+        ctx.translate(snare.ox + jx, snare.oy);
+        const W = run ? run.w : snare.cw / k, H = run ? run.h : snare.ch / k;
+        // The field: a faint grid, like a scope.
+        ctx.strokeStyle = C.border || '#21393f';
+        ctx.globalAlpha = 0.45;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = 0; x <= W + 1e-6; x += 1) { ctx.moveTo(x * k, 0); ctx.lineTo(x * k, H * k); }
+        for (let y = 0; y <= H + 1e-6; y += 1) { ctx.moveTo(0, y * k); ctx.lineTo(W * k, y * k); }
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        if (!run) { ctx.restore(); return; }
+        const t = run.time;
+        // Catches, spoils and empty loops: the loop flashes and fades.
+        for (const f of snare.fx) {
+            if (!f.poly) continue;
+            const a = 1 - f.t / (f.life || SNARE_FX);
+            const col = f.kind === 'catch' ? C.primary : f.kind === 'corrupt' ? C.danger : C.muted;
+            ctx.beginPath();
+            f.poly.forEach((p, i) => (i ? ctx.lineTo(p.x * k, p.y * k) : ctx.moveTo(p.x * k, p.y * k)));
+            ctx.closePath();
+            ctx.globalAlpha = 0.28 * a;
+            ctx.fillStyle = col;
+            ctx.fill();
+            ctx.globalAlpha = 0.9 * a;
+            ctx.strokeStyle = col;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            // the snared packets fly to the loop's middle and vanish
+            if (f.packets) {
+                const m = Math.min(1, f.t / 0.35);
+                for (const p of f.packets) {
+                    const x = p.x + (f.x - p.x) * m, y = p.y + (f.y - p.y) * m;
+                    ctx.globalAlpha = a;
+                    ctx.fillStyle = p.kind === 'corrupt' ? C.danger : p.kind === 'gold' ? C.warning : C.primary;
+                    ctx.beginPath();
+                    ctx.arc(x * k, y * k, p.r * k * (1 - 0.6 * m), 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+        ctx.globalAlpha = 1;
+        // Packets: blue diamonds, gold ones spinning, corrupt ones red and jagged.
+        for (const p of run.packets) {
+            const r = p.r * k;
+            const x = p.x * k, y = p.y * k;
+            const fade = Math.min(1, p.age / 0.4);
+            ctx.globalAlpha = fade;
+            ctx.save();
+            ctx.translate(x, y);
+            if (p.kind === 'corrupt') {
+                ctx.rotate(t * 1.5 + p.id);
+                ctx.fillStyle = C.danger;
+                ctx.shadowColor = C.danger;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                for (let i = 0; i < 10; i++) {
+                    const rr = i % 2 ? r * 0.55 : r * 1.05;
+                    const a = i * Math.PI / 5;
+                    i ? ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+                }
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                const gold = p.kind === 'gold';
+                ctx.rotate(gold ? t * 3 + p.id : Math.PI / 4 + Math.sin(t + p.id) * 0.2);
+                ctx.fillStyle = gold ? C.warning : C.primary;
+                ctx.shadowColor = ctx.fillStyle;
+                ctx.shadowBlur = gold ? 16 : 9;
+                const s = gold ? r * 1.15 : r * 0.85;
+                ctx.fillRect(-s, -s, 2 * s, 2 * s);
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = C.bg || '#0a1416';
+                ctx.globalAlpha = fade * 0.55;
+                ctx.fillRect(-s * 0.35, -s * 0.35, s * 0.7, s * 0.7);
+            }
+            ctx.restore();
+        }
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+        // The wire: bright at the pen, fading toward its tail; tinted danger while a Firewall hunts it.
+        const hunted = run.firewalls.some(f => f.hunting);
+        if (run.wire.length > 1) {
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            const n = run.wire.length;
+            for (let i = 1; i < n; i++) {
+                const a = 0.25 + 0.75 * (i / n);
+                ctx.globalAlpha = a;
+                ctx.strokeStyle = hunted ? C.accent : C.success;
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(run.wire[i - 1].x * k, run.wire[i - 1].y * k);
+                ctx.lineTo(run.wire[i].x * k, run.wire[i].y * k);
+                ctx.stroke();
+            }
+            const head = run.wire[n - 1];
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = C.text;
+            ctx.beginPath();
+            ctx.arc(head.x * k, head.y * k, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        // Snapped wires fall apart.
+        for (const f of snare.fx) {
+            if (f.kind !== 'snap') continue;
+            const a = 1 - f.t / f.life;
+            ctx.globalAlpha = a;
+            ctx.strokeStyle = C.danger;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([3, 5]);
+            ctx.beginPath();
+            f.wire.forEach((p, i) => (i ? ctx.lineTo(p.x * k, (p.y + f.t * 0.8) * k) : ctx.moveTo(p.x * k, (p.y + f.t * 0.8) * k)));
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        ctx.globalAlpha = 1;
+        // Firewalls: a red ring with a sweeping scan line, brighter while hunting.
+        for (const f of run.firewalls) {
+            const x = f.x * k, y = f.y * k, r = f.r * k;
+            ctx.strokeStyle = C.danger;
+            ctx.fillStyle = C.danger;
+            ctx.shadowColor = C.danger;
+            ctx.shadowBlur = f.hunting ? 18 : 8;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.globalAlpha = f.hunting ? 0.35 : 0.18;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.arc(x, y, r, t * 4, t * 4 + 1.2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
+            ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+        }
+        for (const f of snare.fx) {
+            if (f.kind !== 'boot') continue;
+            ctx.globalAlpha = 1 - f.t / f.life;
+            ctx.strokeStyle = C.danger;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(f.x * k, f.y * k, (0.4 + f.t * 2.5) * k, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        // Pops: what a loop paid, rising.
+        ctx.textAlign = 'center';
+        snare.mono ||= getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'monospace';
+        for (const f of snare.fx) {
+            if (!f.text) continue;
+            const a = Math.min(1, 2 * (1 - f.t / (f.life || SNARE_FX)));
+            const y = f.y * k - 10 - f.t * 26;
+            ctx.globalAlpha = a;
+            ctx.font = `700 ${f.big ? 18 : 15}px ${snare.mono}`;
+            ctx.fillStyle = f.kind === 'catch' ? (f.big ? C.warning : C.text) : C.danger;
+            ctx.fillText(f.text, f.x * k, y);
+            if (f.sub) {
+                ctx.font = `600 12px ${snare.mono}`;
+                ctx.fillStyle = C.primary;
+                ctx.fillText(f.sub, f.x * k, y + 15);
+            }
+        }
+        ctx.globalAlpha = 1;
+        ctx.restore();
     }
 
 
@@ -7932,6 +8356,7 @@ window.AGI = (function () {
         DESKTOP.addEventListener('change', () => render());
         buildHub();
         buildPath();
+        buildSnare();
         buildTree();
         buildLegacy();
         buildRnd();

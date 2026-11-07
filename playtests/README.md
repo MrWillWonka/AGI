@@ -41,7 +41,8 @@ What each build had, newest first (artifact publish times, UTC). A log played on
 
 | Published | Build | What changed |
 |---|---|---|
-| 11-07 15:50 | this build | **Hop reworked**: hold to aim (slow motion, the view leans in, a ring closes on the lip), let go to hop; floaty, clean landings; windows of at least 0.12 s and a 70 ms grace |
+| unpublished | branch `claude/optimistic-hamilton-ey00uj` | **Packet Snare**: the Data Pipeline bay opens at Edge Detection (draw loops round data packets for DP; corrupt packets and Firewalls); save v19 |
+| 11-07 15:50 | `93424e9` | **Hop reworked**: hold to aim (slow motion, the view leans in, a ring closes on the lip), let go to hop; floaty, clean landings; windows of at least 0.12 s and a 70 ms grace |
 | 11-07 15:08 | `2bbdfe2` | Playtest logs carry their build (`E.BUILD`) |
 | 11-07 15:02 | `0f83076` | Exploits: the Exploit button and **Hop**; the run card's Lab button only with news, with a count badge |
 | 11-07 14:32 | `2b8eafe` | Server Cluster and the Training Data Pipeline wait for Pattern Matching |
