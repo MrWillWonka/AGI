@@ -964,6 +964,19 @@ h1, h2, h3, p { margin: 0; }
 .result-lines { margin: 10px 0 0; padding: 0; list-style: none; font: 0.88rem var(--font-mono); color: var(--muted); display: grid; gap: 2px; }
 .result-lines li { display: flex; justify-content: space-between; gap: 12px; }
 .result-lines .good { color: var(--success); }
+.result-lines .bad { color: var(--danger); }
+
+/* Exploits (game.js "Exploits"): the second verb beside Sprint, in the glitch's colours: the research violet on a
+   terminal-dark face, its charges and flags on a small second line. */
+.exploit-button { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 96px;
+    font-family: var(--font-display); letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--research); background: color-mix(in srgb, var(--research) 12%, var(--bg)); border: 1px solid color-mix(in srgb, var(--research) 55%, transparent); }
+.exploit-button .exploit-name { font-weight: 700; }
+.exploit-button .exploit-meta { font: 0.68rem var(--font-mono); letter-spacing: 0; text-transform: none; color: var(--muted); }
+.exploit-button[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+.exploit-button.flagged .exploit-meta { color: var(--danger); }
+.exploit-button.armed { box-shadow: 0 0 0 1px var(--research), 0 0 14px color-mix(in srgb, var(--research) 45%, transparent); }
+@media (hover: hover) { .exploit-button:not([aria-disabled="true"]):hover { background: color-mix(in srgb, var(--research) 22%, var(--bg)); } }
 .result-details { margin-top: 4px; font: 0.8rem var(--font-mono); color: var(--muted); }
 .result-details summary { cursor: pointer; width: max-content; padding: 2px 0; color: var(--primary); list-style: none; }
 .result-details summary::-webkit-details-marker { display: none; }
@@ -2873,9 +2886,12 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
 /* Touch screens and narrow ones: the meter sits above a centred sprint button, so a thumb on the button
    never covers it. */
 @media (max-width: 960px), (pointer: coarse) {
-    .run-view > .path-controls { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    /* The meter on its own line, then Sprint and (once found) Hop side by side: Hop on a row of its own ran an
+       upright phone's page past the fold. */
+    .run-view > .path-controls { display: flex; flex-flow: row wrap; justify-content: center; align-items: stretch; gap: 10px; }
     .path-controls .charge { order: -1; width: 100%; flex: none; }
-    .path-controls .push-button { width: min(100%, 340px); min-height: 56px; font-size: 1.05rem; }
+    .path-controls .push-button { flex: 1 1 auto; width: auto; max-width: 340px; min-width: 0; min-height: 56px; font-size: 1.05rem; }
+    .path-controls .exploit-button { flex: none; min-height: 56px; }
     .run-view > .path-status { text-align: center; }
 }
 
@@ -2988,6 +3004,7 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
     .run-view > .path-controls { flex-direction: row; align-items: center; gap: 12px; }
     .path-controls .charge { order: 0; flex: 1 1 auto; width: auto; }
     .path-controls .push-button { width: 210px; min-height: 48px; flex: none; }
+    .path-controls .exploit-button { min-height: 48px; }
     .stage { padding-bottom: 52px; }
     .minimap { padding: 0; border-radius: 50%; width: auto; }
     .minimap .mm-chip { display: none; }

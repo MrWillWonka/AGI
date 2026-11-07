@@ -494,7 +494,8 @@ window.AGI = (function () {
         // The first time on the trail: what a training run is (over the trail's sky, before the first sprint).
         'hint:train': { anchor: () => $('pathCanvas'), kind: 'tip', place: 'inside' },
         // The first run with a zone on the meter: what a prompt is, without telling anyone to take them.
-        'hint:prompt': { anchor: () => $('charge'), kind: 'tip', place: 'above' }
+        'hint:prompt': { anchor: () => $('charge'), kind: 'tip', place: 'above' },
+        'hint:exploit': { anchor: () => $('exploitButton'), kind: 'tip', place: 'above' }
     };
     function labPointer() {
         return [document.querySelector('.run-stats .module-supply'), document.querySelector('.facility-room[data-room-id="lab"]')]
@@ -509,7 +510,7 @@ window.AGI = (function () {
     // Tips about the run (and the lab, which feeds it) show before a run can start, and a run can't start
     // while one is on its way: the owner pressed sprint and a tip landed on top, blocking the run and getting
     // closed unread. They show fast in the bay, and the press waits for them (`runTipPending`, `pressHold`).
-    const RUN_TIPS = new Set(['hint:train', 'hint:prompt', 'hint:lab', 'hint:offer']);
+    const RUN_TIPS = new Set(['hint:train', 'hint:prompt', 'hint:lab', 'hint:offer', 'hint:exploit']);
     function runTipPending() {
         const c = calloutLive;
         return !!c && RUN_TIPS.has(c.key) && Date.now() - (c.since || 0) < 6000;
@@ -2373,6 +2374,12 @@ window.AGI = (function () {
             && state.path.learned > E.FIRST_REAL_SKILL && !$('legPick').hidden) {
             state.intro['hint:rerun'] = true;
             callout('hint:rerun', 'Raise your passive XP', 'Run a cleared leg again with better upgrades and its passive XP goes up. Pick the leg here.');
+        }
+        // The first exploit (Hop, with Embeddings): what it is and the skill check, once, before a run.
+        if (!state.intro['hint:exploit'] && openBay === 'training' && path.view === 'run' && E.exploitCharges(state) > 0 && path.roll && !thrustLeg(path.roll)) {
+            state.intro['hint:exploit'] = true;
+            log('Exploit found: Hop. The model found a bug in its training environment.', 'special');
+            callout('hint:exploit', 'Exploit found: Hop', 'Press E (or tap Hop) to jump off the line. Time it on a hill\'s glowing lip for a clean exploit: undetected, faster, bonus XP. Sloppy hops get flagged, and three flags get the run audited.');
         }
         if (!state.intro['hint:prompt'] && openBay === 'training' && path.view === 'run' && E.derive(state).zoneWidth > 0) {
             state.intro['hint:prompt'] = true;
@@ -4458,7 +4465,7 @@ window.AGI = (function () {
     function freshFx() {
         return { windup: null, boost: 0, trail: [], shocks: [], sparks: [], shake: 0, crunch: 0, crunchMax: 0, maxEffort: false, reactions: [],
             flowMax: 0, lift: 0, lights: [], freeze: 0, freezeMax: 0, bank: 0, banked: 0, debris: [],
-            shards: [], breach: null, flash: null, motes: [], streaks: [], flight: [], pops: [] };
+            shards: [], breach: null, flash: null, motes: [], streaks: [], flight: [], pops: [], tear: 0 };
     }
     const crunching = () => path.fx.crunch > 0;
     // Bullet Time: the run is frozen and sprints bank their power.
@@ -4646,12 +4653,99 @@ window.AGI = (function () {
             e.preventDefault();
             letGo();
         });
+        // Exploits: E, W or ↑ (Space and Enter sprint), or the button beside Sprint.
+        document.addEventListener('keydown', e => {
+            if (!['e', 'E', 'w', 'W', 'ArrowUp'].includes(e.key) || e.repeat || openBay !== 'training' || path.view !== 'run') return;
+            if (document.querySelector('dialog[open]') || e.target.closest?.('input, select, textarea')) return;
+            e.preventDefault();
+            if (!dismissTipFirst()) useExploit();
+        });
+        $('exploitButton').addEventListener('pointerdown', e => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            if (!dismissTipFirst()) useExploit();
+        });
+        $('exploitButton').addEventListener('click', e => { if (e.detail === 0) useExploit(); });   // keyboard activation
         canvas.addEventListener('contextmenu', e => e.preventDefault());
         $('rollResult').addEventListener('click', e => {
             const go = e.target.closest('[data-next]');
             if (go) go.dataset.next === 'dev' ? toDevScreen() : go.dataset.next === 'lab' ? jumpTo('lab') : runAgain();
         });
         $('pushButton').addEventListener('contextmenu', e => e.preventDefault());
+    }
+
+    // ---- Exploits (design/contract-breakers.md) ----
+    // The player breaks the trail's rules, on purpose and with timing: every exploit is a skill check. The first is
+    // Hop (found with Embeddings): pressed on a crest's lip (the glowing window drawn on the hills ahead) it's
+    // perfect: undetected, +30% speed and a super prompt's XP; high on any hill it's good; anywhere else a weak hop,
+    // and the run is flagged. Three flags (E.AUDIT_FLAGS) and the run is audited: it ends there and pays half. The
+    // Auto-Trainer never exploits (it's what a hand run does better). Act two (thrust) has none yet.
+    const HOP_PERFECT = 1.3;   // speed on a clean hop
+    const HOP_LIP = 0.3;       // the perfect window: from this share of a hill's half-width before its crest…
+    const HOP_PAST = 0.12;     // …to this share past it
+    const HOP_POWER = { perfect: 1, good: 0.85, miss: 0.45 };
+    const exploitsLeft = roll => Math.max(0, E.exploitCharges(state) - (roll.exploitsUsed || 0));
+    const exploitOpen = roll => !!roll && E.exploitCharges(state) > 0 && !thrustLeg(roll);
+    function exploitReady(roll) {
+        return exploitOpen(roll) && exploitsLeft(roll) > 0 && roll.launched && !roll.over && !roll.crested && !path.done
+            && !roll.airborne && !frozen() && !flowing() && !path.fx.windup;
+    }
+    // The hill the ball is on and where on it: perfect on the lip, good high on the hill, else a miss.
+    function hopQuality(roll) {
+        const g = roll.ground, x = roll.ball.x;
+        if (roll.ball.v < 0.3) return 'miss';
+        const b = g.bumps.find(h => x >= h.start && x <= h.end);
+        if (!b) return 'miss';
+        if (x >= b.peak - HOP_LIP * b.halfWidth && x <= b.peak + HOP_PAST * b.halfWidth) return 'perfect';
+        return g.height(x) >= 0.5 * b.height ? 'good' : 'miss';
+    }
+    const EXPLOIT_TEXT = { perfect: 'CLEAN EXPLOIT', good: 'EXPLOIT', miss: 'FLAGGED' };
+    function useExploit() {
+        const roll = path.roll;
+        if (!exploitReady(roll) || path.charging) return;
+        const q = hopQuality(roll);
+        if (!roll.hop(HOP_POWER[q])) return;
+        roll.exploitsUsed = (roll.exploitsUsed || 0) + 1;
+        if (q === 'perfect') roll.ball.v *= HOP_PERFECT;
+        const xp = E.grantExploit(state, q, ballLeg());
+        if (xp) roll.bonusXp = (roll.bonusXp || 0) + xp;
+        roll.exploitClean = (roll.exploitClean || 0) + (q === 'perfect' ? 1 : 0);
+        const h = roll.ground.height(roll.ball.x);
+        path.fx.pops.push({ wx: roll.ball.x, wh: h, age: 0, life: 1.3, big: q === 'perfect', text: q === 'perfect' ? `${EXPLOIT_TEXT[q]} +${xpText(xp)}` : EXPLOIT_TEXT[q] });
+        path.fx.tear = q === 'miss' ? 0.18 : 0.3;
+        if (q === 'perfect') { path.fx.boost = Math.max(path.fx.boost, 0.25); trailSfx('clean'); }
+        trailSfx(q === 'miss' ? 'error' : 'launch');
+        pt('exploit', { kind: 'hop', q, leg: ballLeg() + 1, v: r2(roll.ball.v), x: r2(roll.ball.x) });
+        if (q === 'miss') {
+            roll.flags = (roll.flags || 0) + 1;
+            if (roll.flags >= E.AUDIT_FLAGS) {
+                // Audited: the run ends where it is and pays half (finishRoll).
+                roll.audited = true;
+                state.stats.audits++;
+                path.legFlash = { age: 0, text: 'AUDITED · three flagged exploits', tone: 'danger' };
+                finishRoll(roll.end());
+            }
+        }
+        startPathLoop();
+    }
+
+    // An exploit tears the screen along a few scanlines for a moment (the glitch's look): bands of the frame
+    // shifted sideways and tinted. Not under reduced motion or with screen shake off.
+    function drawTear(ctx) {
+        const tear = path.fx.tear || 0;
+        if (tear <= 0 || !shakeOn()) return;
+        const cv = ctx.canvas;
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        for (let i = 0; i < 4; i++) {
+            const h = Math.max(2, Math.round(cv.height * (0.015 + Math.random() * 0.04)));
+            const y = Math.floor(Math.random() * (cv.height - h));
+            const dx = Math.round((Math.random() - 0.5) * cv.width * 0.06 * (tear / 0.3));
+            ctx.drawImage(cv, 0, y, cv.width, h, dx, y, cv.width, h);
+            ctx.fillStyle = hexAlpha(path.colors.research, 0.18);
+            ctx.fillRect(0, y, cv.width, h);
+        }
+        ctx.restore();
     }
 
     // ---- Charging a push ----
@@ -5201,6 +5295,7 @@ window.AGI = (function () {
         fx.pops = fx.pops.filter(p => p.age < (p.life || 1.1));
         fx.boost = Math.max(0, fx.boost - dt);
         fx.shake = Math.max(0, fx.shake - dt);
+        fx.tear = Math.max(0, (fx.tear || 0) - dt);
         for (const sh of fx.shocks) sh.age += dt;
         fx.shocks = fx.shocks.filter(sh => sh.age < 0.9);
         for (const p of fx.sparks) {
@@ -5947,6 +6042,12 @@ window.AGI = (function () {
         path.fx.forceViral = false;
         const plainXp = E.rollXp(state, ev.progress, crested, 0, metres, leg);
         const result = E.finishRoll(state, ev.progress, crested, units, metres, leg, viral, legs);
+        // An audited run (three flagged exploits) pays only part of its XP, and sets no best for passive XP.
+        if (roll.audited) {
+            const cut = result.xp * (1 - E.AUDIT_PAY);
+            state.res.xp -= cut;
+            result.xp -= cut;
+        }
         // Cleared legs replicate their best run for passive XP: a better replay raises it.
         // Every cleared leg the run ran through is credited with what it earned from there on (`E.recordLegs`).
         const passiveBefore = E.derive(state).xpPerSec;
@@ -5973,6 +6074,8 @@ window.AGI = (function () {
         const runMult = viralMult * E.chainMult(legs);
         const lines = xpLines(plainXp * runMult, result.xp - plainXp * runMult, clean, roll.bonusXp || 0, crested, roll.slips || 0);
         if (roll.tokens) lines.push([`${roll.tokens} XP token${roll.tokens === 1 ? '' : 's'}`, `+${xpText(roll.tokenXp)} XP`, 'good']);
+        if (roll.audited) lines.unshift(['Audited: three flagged exploits · paid half', '', 'bad key']);
+        else if (roll.exploitClean) lines.push([`Clean exploit${roll.exploitClean === 1 ? '' : 's'} ×${roll.exploitClean}`, '', 'good']);
         if (legs) lines.unshift([`Chain ×${E.chainMult(legs)} on the distance`, '', 'good']);
         if (viral) {
             lines.unshift([`Went viral! ×${viralMult.toFixed(2)} run XP`, '', 'good']);
@@ -6166,10 +6269,28 @@ window.AGI = (function () {
         return `Out of ${short} · make more in the lab`;
     }
 
+    // The Exploit button: shown once one is found, with its charges and the run's flags; it glows while the ball
+    // is in a perfect window (status, like the meter's zone).
+    function renderExploit(roll) {
+        const b = $('exploitButton');
+        const open = exploitOpen(roll);
+        setHidden(b, !open);
+        if (!open) return;
+        const ready = exploitReady(roll);
+        b.setAttribute('aria-disabled', String(!ready));
+        const flags = roll.flags || 0;
+        const left = exploitsLeft(roll);
+        setText($('exploitMeta'), `${left} left${flags ? ` · ${'⚑'.repeat(flags)}${'·'.repeat(Math.max(0, E.AUDIT_FLAGS - flags))}` : ''}`);
+        b.classList.toggle('flagged', flags > 0);
+        b.classList.toggle('armed', ready && hopQuality(roll) === 'perfect');
+        b.setAttribute('aria-label', `Hop (E): ${left} left${flags ? `, ${flags} of ${E.AUDIT_FLAGS} flags` : ''}`);
+    }
+
     function updatePathControls() {
         const roll = path.roll;
         const button = $('pushButton');
         if (!roll) return;
+        renderExploit(roll);
         // One message at a time: charging reads "Release to sprint", and the wait counts down on the button
         // (the meter greys out and won't charge until it's over).
         const thrustMode = thrustLeg(roll) && !path.charging && !frozen();
@@ -6470,11 +6591,41 @@ window.AGI = (function () {
     // Boost strips glow along the line (brighter under the ball): front strips (hill faces) in blue with chevrons
     // running forward, back strips (hill backs, they brake a backward roll) in green with still brake bars. XP
     // tokens hang as small diamonds that bob; a taken one pops with its XP.
+    // Hop's perfect windows: each crest's lip on the hill the ball is on and the next two, glowing in the exploit's
+    // violet while a charge is left (a skill check you can see coming, like the meter's zone), drawn as a run of
+    // short glitchy dashes along the ground.
+    function drawHopWindows(ctx, roll, X, Y, t, left, right) {
+        if (!exploitOpen(roll) || exploitsLeft(roll) <= 0 || roll.over || path.done) return;
+        const g = roll.ground;
+        const c = path.colors;
+        const ahead = g.bumps.filter(b => b.end >= roll.ball.x && b.peak > left && b.peak < right).slice(0, 3);
+        ctx.save();
+        ctx.lineCap = 'round';
+        for (const b of ahead) {
+            const from = b.peak - HOP_LIP * b.halfWidth, to = b.peak + HOP_PAST * b.halfWidth;
+            const on = roll.ball.x >= from && roll.ball.x <= to && !roll.airborne;
+            const pulse = reducedMotion() ? 0.8 : 0.6 + 0.3 * Math.sin(t * 6 + b.peak);
+            ctx.strokeStyle = hexAlpha(c.research, on ? 1 : pulse);
+            ctx.lineWidth = on ? 6 : 4;
+            ctx.setLineDash([5, 3]);
+            ctx.lineDashOffset = reducedMotion() ? 0 : -t * 20;
+            ctx.beginPath();
+            for (let i = 0; i <= 10; i++) {
+                const x = from + (to - from) * i / 10;
+                const px = X(x), py = Y(g.height(x)) - 3;
+                i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+            }
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
     function drawFeatures(ctx, roll, X, Y, t) {
         const c = path.colors;
         const g = roll.ground;
         const { left, right } = path.cam;
         const still = reducedMotion();
+        drawHopWindows(ctx, roll, X, Y, t, left, right);
         ctx.save();
         for (const st of g.strips) {
             if (st.to < left || st.from > right) continue;
@@ -7086,6 +7237,7 @@ window.AGI = (function () {
             ctx.fillText('HOLD ▼', bx, by - BALL - 26);
         }
         drawLuckOver(ctx, bx, by, wind);
+        drawTear(ctx);
         ctx.restore();
 
         // Skill hill label, kept on screen as an arrow when the hill is still ahead of the view. On a replay

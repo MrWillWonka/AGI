@@ -40,6 +40,8 @@ touches draws as raw wireframe and hex, and the sound is a bit-crushed stab. Pre
   of those emails you take.
 - **Reward hack**, the old rare proc, becomes the capstone exploit (late, one per run): clipping through a skill hill's seam.
 
+**Built: the Exploit button and Hop** (see CLAUDE.md, Exploits; 3 charges a run for now, since no tree node adds charges yet and an audit needs three flags).
+
 **The Exploit button.** A second button beside Sprint (left of it on phones, so the two thumbs split the verbs; on keyboards E (for Exploit), ↑ or W
 or E, since Space and Enter sprint). It holds **charges per run**, like sprints (1 to start, more from tree nodes), shown as pips.
 It does whatever ability is **equipped**: from the second ability on, the dev screen has a loadout slot (one equipped, later two,

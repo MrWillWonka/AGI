@@ -1020,6 +1020,9 @@
             stats: {
                 clicks: 0,
                 breakthroughs: 0,     // all time, for the mid-game achievements
+                exploits: 0,          // exploits used (Hop…), all time
+                cleanExploits: 0,     // of them, perfect (undetected)
+                audits: 0,            // runs ended by an audit (three flagged exploits)
                 superPrompts: 0,
                 lifetimeCp: 0,
                 runCp: 0,
@@ -1986,6 +1989,25 @@
         return xp;
     }
 
+    // ---- Exploits (design/contract-breakers.md): the player breaks the trail's rules -------------------------
+    // The trail is the training environment and every exploit is a bug the model found in it. The first is **Hop**,
+    // found with Embeddings: a press leaves the line (training-path.js `hop`). Each press is a skill check, judged
+    // in game.js like a prompt: perfect (on a crest's lip: undetected, +30% speed, pays like a super prompt), good
+    // (high on a hill) or a miss (anywhere else: a weak hop, and the run is flagged). `AUDIT_FLAGS` flags and the
+    // run is audited: it ends where it is and pays `AUDIT_PAY` of its XP. The Auto-Trainer never exploits.
+    const EXPLOIT_CHARGES = 3;   // per run
+    const AUDIT_FLAGS = 3;
+    const AUDIT_PAY = 0.5;
+    const exploitCharges = s => (knows(s, 'Embeddings') ? EXPLOIT_CHARGES : 0);
+    function grantExploit(s, quality, leg = s.path.learned) {
+        s.stats.exploits++;
+        if (quality !== 'perfect') return 0;
+        s.stats.cleanExploits++;
+        const xp = pushBonusXp(s, 'perfect', leg);
+        s.res.xp += xp;
+        return xp;
+    }
+
     function grantPushBonus(s, kind, leg = s.path.learned, charge) {
         const xp = pushBonusXp(s, kind, leg, charge);
         s.res.xp += xp;
@@ -2675,7 +2697,7 @@
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
-        prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
+        prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany

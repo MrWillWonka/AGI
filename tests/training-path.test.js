@@ -1047,3 +1047,29 @@ test('Inertia: speed you have built is harder to lose, and a slow ball gets no h
     };
     assert.ok(helped(3, 3) > helped(3, 30) * 3, 'help scales with speed against the run\'s top');
 });
+
+test('Hop: an act-one exploit that leaves the line, falls naturally, and can never clear a skill hill alone', () => {
+    const roll = T.createRoll(5, 3, { pushes: 3, cooldown: 0 });
+    roll.push(3);
+    for (let i = 0; i < 20; i++) roll.step(0.05);
+    assert.equal(roll.hop(1), true);
+    assert.ok(roll.airborne);
+    assert.equal(roll.hop(1), false, 'not again in the air');
+    let land = null;
+    for (let i = 0; i < 80 && !land; i++) land = roll.step(0.05).find(e => e.type === 'land');
+    assert.ok(land && land.flight > 0.2 && land.flight < 3, `a hop, not a launch: ${land && land.flight}`);
+    // The ceiling stays under the leg's skill hill, however fast the ball.
+    for (const k of [2, 5, 11]) {
+        const r = T.createRoll(k, 1, { pushes: 1, cooldown: 0 });
+        r.ball.x = T.skillHill(k).start - 0.05;
+        r.ball.v = 40;
+        r.hop(1);
+        let top = 0;
+        for (let i = 0; i < 400 && r.airborne; i++) { r.step(0.01); top = Math.max(top, r.height); }
+        assert.ok(top < T.skillHill(k).height, `leg ${k}: ${top} < ${T.skillHill(k).height}`);
+    }
+    // Act two has none.
+    const late = T.createRoll(T.LATE_LEG, 1, { pushes: 1, cooldown: 0 });
+    late.push(1);
+    assert.equal(late.hop(1), false);
+});

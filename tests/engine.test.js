@@ -1921,3 +1921,19 @@ test('the server room opens on CP and DP earned this version, not held (a spende
     const old = E.migrate({ ...JSON.parse(E.serialize(t)), stats: { collects: 12 }, res: { dp: 30 } });
     assert.equal(old.stats.runDp, 42, 'older saves count what they hold and collected');
 });
+
+test('exploits: Hop is found with Embeddings, three charges a run; a clean one pays like a super prompt', () => {
+    const s = fresh();
+    s.path.learned = E.SKILL_INDEX['Embeddings'];
+    assert.equal(E.exploitCharges(s), 0, 'not before Embeddings');
+    s.path.learned++;
+    assert.equal(E.exploitCharges(s), E.EXPLOIT_CHARGES);
+    const xp0 = s.res.xp;
+    assert.equal(E.grantExploit(s, 'good'), 0);
+    assert.equal(s.res.xp, xp0);
+    const xp = E.grantExploit(s, 'perfect');
+    assert.ok(xp > 0 && Math.abs(xp - E.pushBonusXp(s, 'perfect')) < 1e-9);
+    assert.equal(s.stats.exploits, 2);
+    assert.equal(s.stats.cleanExploits, 1);
+    assert.ok(E.AUDIT_FLAGS === 3 && E.AUDIT_PAY === 0.5);
+});

@@ -43,6 +43,11 @@
     // A flight rises at most this far above the ground it left (half that leg's skill hill, at least 4 m), so it
     // comes back within a couple of seconds whatever boosts it.
     const maxAbove = k => Math.max(4, 0.5 * skillHeight(k));
+    // Hop (an exploit, act one): upward speed HOP_BASE + HOP_SPEED × the ball's speed (m/s), under a ceiling of
+    // HOP_CEIL of the leg's skill hill above where it left (and never that hill's top).
+    const HOP_BASE = 0.7;
+    const HOP_SPEED = 0.45;
+    const HOP_CEIL = 0.45;
     const SETTLE_TIME = 0.4;    // seconds before touchdown it starts lining its path up with the slope it lands on
     // A crest throws the ball once the ground curves away faster than 0.6 of a flight's fall: crests pop from act
     // two's first leg (at 1 the sim's player barely flew before leg 10), and the landing planner turns the short
@@ -773,7 +778,7 @@
                 ball.x += ball.v * STEP;
                 a.y += a.vy * STEP;
             }
-            if (a.vy <= 0 && !a.apex && !a.plan && !a.thrust) {
+            if (a.vy <= 0 && !a.apex && !a.plan && !a.thrust && !a.hop) {
                 a.apex = true;
                 planLanding();
             }
@@ -811,7 +816,7 @@
                 a.peak = gh;
                 a.from = ball.x;
                 a.plan = null;
-                planLanding();
+                if (!a.hop) planLanding();
             } else {
                 // Stick: roll on with the speed along the ground (as dx/dt).
                 ball.air = null;
@@ -917,6 +922,25 @@
             end,
             // Lay the next leg past the last one (after an onward crest).
             extend: () => ground.extend(),
+            // Hop (the first exploit, act one): the ball leaves the line with upward speed from its own speed (more
+            // off a rising slope), `power` 0–1 by how well it was timed. It falls naturally (no landing planner: that
+            // looks 2 m ahead, five act-one hills) and settles onto what it meets; a landing on a face carries its
+            // speed up the slope, so a hop just before a cliff lands high on it. Its ceiling is a share of the leg's
+            // skill hill and never that hill's top, so a hop can't clear a skill hill on its own.
+            hop(power = 1) {
+                const k = ground.legAt(ball.x);
+                if (over || ball.air || flow.left > 0 || k >= (opts.lateLeg ?? LATE_LEG)) return false;
+                const v = Math.max(0, ball.v);
+                const y0 = ground.height(ball.x);
+                const vy = (HOP_BASE + HOP_SPEED * v) * power + Math.max(0, ground.slope(ball.x)) * v;
+                const top = skillHeight(k) * wallMult(k);
+                ball.air = { y: y0, vy, peak: y0, from: ball.x, hop: true, ceil: Math.min(y0 + HOP_CEIL * top, 0.92 * top) };
+                capClimb();
+                ball.trapped = false;
+                ball.still = 0;
+                launched = true;
+                return true;
+            },
             // Throw the ball into the air (the debug fling), under the same ceiling as a take-off.
             fly(vx, vy) {
                 if (over) return;
@@ -958,7 +982,7 @@
     }
 
     return {
-        STEP, GRAVITY, BUMPER, lengthScale, LEG_CHARACTERS, legCharacter, characterLength, HILL_SHAPES, TUCK_GRAVITY, AIR_DIVE, TOKEN_PULL, BURN_SECONDS, THRUST_LIFT, features, KICKERS, KICK_SLOPE, bumpAt, bumpSlope,
+        STEP, GRAVITY, BUMPER, HOP_BASE, HOP_SPEED, HOP_CEIL, lengthScale, LEG_CHARACTERS, legCharacter, characterLength, HILL_SHAPES, TUCK_GRAVITY, AIR_DIVE, TOKEN_PULL, BURN_SECONDS, THRUST_LIFT, features, KICKERS, KICK_SLOPE, bumpAt, bumpSlope,
         LATE_LEG, legPos, maxAbove, checkpoint, skillHill, skillHeight, WALL_EVERY, WALL_HEIGHT, AFTER_WALL, isWallLeg, wallMult, rollingHills, terrain, createRoll, rng, STRIP_PUSH, STRIP_BRAKE
     };
 });
