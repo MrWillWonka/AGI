@@ -25,7 +25,7 @@ test('the balance sim uses the run loop\'s constants', () => {
 test('the balance sim makes the run loop\'s economy calls (crunches and flows, legacy only, are known gaps)', () => {
     // Every engine call that pays for, rolls the luck of or settles a run in game.js.
     const RUN_ECONOMY = ['payPush', 'payBurn', 'grantPushBonus', 'crestSkill', 'clearLeg', 'collectToken', 'finishRoll', 'settleBreakCountdown',
-        'settleSurge', 'recordLegs', 'nearMiss', 'surgeSprint', 'breakthroughHit', 'breakGuaranteed', 'firstBreakSmashes', 'superHit',
+        'settleSurge', 'recordLegs', 'nearMiss', 'surgeSprint', 'breakthroughHit', 'breakGuaranteed', 'superHit',
         'maxEffortHit', 'windfallHit', 'crunchHit', 'flowHit'];
     const KNOWN_GAPS = new Set(['crunchHit', 'flowHit']);
     const g = calls(game), s = calls(sim);

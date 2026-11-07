@@ -3262,3 +3262,10 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 .ghost-lane canvas { display: block; width: 100%; height: 36px; }
 .ghost-lane-text { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 600 0.62rem var(--font-mono); color: var(--success); letter-spacing: 0.03em; }
 @media (max-width: 640px) { .ghost-lane { width: 130px; left: 8px; top: 54px; } .ghost-lane canvas { height: 24px; } }
+
+/* A tip closes only with its Got it button (accidental clicks closed tips unread), live after a short beat. */
+.callout .tip-ok { align-self: flex-end; margin-top: 8px; min-height: 28px; padding: 4px 14px; border: 1px solid var(--success); border-radius: 999px;
+    background: color-mix(in srgb, var(--success) 18%, transparent); color: var(--text); font: 600 0.78rem var(--font-body); cursor: pointer; }
+.callout .tip-ok:disabled { opacity: 0.45; cursor: default; }
+@media (hover: hover) { .callout .tip-ok:not(:disabled):hover { background: color-mix(in srgb, var(--success) 30%, transparent); } }
+.callout .tip-ok:focus-visible { outline: 2px solid var(--success); outline-offset: 2px; }

@@ -457,6 +457,12 @@ window.AGI = (function () {
         'hint:replay': { anchor: () => $('rollResult').querySelector('.passive-line') || $('rollResult'), kind: 'tip' },
         'hint:rerun': { anchor: () => $('legPick'), kind: 'tip' },
         'hint:tasks': { anchor: () => $('taskPanel'), kind: 'tip', ms: 12000 },
+        // Each machine that works for you, introduced beside its Scheduled tasks row the first time it appears.
+        'hint:task:autoCollector': { anchor: () => taskUi.autoCollector?.row, kind: 'tip' },
+        'hint:task:researchAssistant': { anchor: () => taskUi.researchAssistant?.row, kind: 'tip' },
+        'hint:task:procurement': { anchor: () => taskUi.procurement?.row, kind: 'tip' },
+        // After the first real skill, on the run's card: the way back to the lab.
+        'hint:labAfterSkill': { anchor: () => $('rollResult').querySelector('.result-lab') || $('rollResult'), kind: 'tip' },
         // While you train: the first time the lab has something new, or an investor's task is done. Beside the
         // run view's Lab supply (a way there), else the Lab's tile on Surveillance (phones hide the chip).
         'hint:lab': { anchor: () => labPointer(), kind: 'tip', place: 'below', ms: 12000 },
@@ -625,7 +631,16 @@ window.AGI = (function () {
         const shownAt = Date.now();
         pt('tip', { key: c.key, at: onScreen ? 'beside' : 'map' });
         let done = false;
-        if (tip) tipDismiss = () => close('clicked');
+        // A tip closes only with its own button (AI Captain, the owner's pun), and not in its first moments (the owner's playtest: tips closed in
+        // 0.1-0.3 s by the click or sprint that was already under way, unread). A press on the trail meanwhile is
+        // swallowed rather than sprinting under the tip.
+        if (tip) {
+            const ok = el('button', { type: 'button', class: 'tip-ok', text: 'AI Captain', 'aria-label': 'AI Captain: got it', disabled: '' });
+            box.querySelector('.toast-text')?.append(ok);
+            setTimeout(() => { ok.disabled = false; }, TIP_GRACE_MS);
+            ok.addEventListener('click', e => { e.stopPropagation(); close('clicked'); });
+            tipDismiss = () => true;
+        }
         const close = by => {
             if (done) return;
             done = true;
@@ -643,18 +658,19 @@ window.AGI = (function () {
         };
         // Tips stay until they're clicked (or their target goes); other callouts leave on their own.
         const timer = tip ? null : setTimeout(() => close('timeout'), where.ms || 10000);
-        const onTarget = () => close('target');
-        box.addEventListener('click', () => close('clicked'));
+        // Other callouts close on a click on them or their target; tips only with Got it (above).
+        const onTarget = () => { if (!tip) close('target'); };
+        box.addEventListener('click', () => { if (!tip) close('clicked'); });
         anchor.addEventListener('click', onTarget);
     }
 
     // While a tip is up, the press that dismisses it never also sprints (the spotlight lets clicks through,
     // so tapping the trail to clear the first-run tip fired a sprint).
     let tipDismiss = null;
+    const TIP_GRACE_MS = 700;
     function dismissTipFirst() {
         if (!tipDismiss) return false;
-        tipDismiss();
-        return true;
+        return tipDismiss();
     }
 
     // Gains while a job is held merge into the pop still rising from the same button (counting up), rather than
@@ -2437,7 +2453,7 @@ window.AGI = (function () {
             const ch = state.challenge ? ` · challenge: ${challengeName(state.challenge.id)}` : '';
             // A wall leg says so (status: its skill hill stands taller, and its skill pays big).
             const wall = E.isWallLeg(state.path.learned) ? ' (wall)' : '';
-            const surge = state.path.surge > 0 ? ` · smash start ×${state.path.surge}` : '';
+            const surge = state.path.surge > 0 ? ` · surge start ×${state.path.surge}` : '';
             return `Next skill: ${k.name}${wall} · best run ${Math.round(state.path.best * 100)}%${surge}${ch}`;
         }
         if (place === 'rnd') {
@@ -3007,9 +3023,14 @@ window.AGI = (function () {
 
     // ---- Scheduled tasks ----------------------------------------------------
     // Every automation is a scheduled task with its own switch; the converters (crawler, research) also
-    // get a slider: the share of each second's compute dedicated to them (engine taskShares). Shares
-    // never add up to more than 100%, so the part a slider can't reach is hatched. Cleared legs lapping
+    // get a slider: the share of each second's compute dedicated to them (engine taskShares). Each goes to
+    // 100% on its own; together past 100% they draw on the stockpile (said in the total). Cleared legs lapping
     // on the rack are listed too (they need no compute).
+    const TASK_INTROS = {
+        autoCollector: ['Data crawler', 'It collects data for you, paying compute at the hand price. Its slider sets how much of each second\'s compute it may spend, up to 100%: push it up for data now, pull it back to grow compute.'],
+        researchAssistant: ['Research Assistant', 'It researches for you, paying compute and data like a research run by hand. Its slider works like the crawler\'s.'],
+        procurement: ['Procurement Bot', 'It saves its share of compute into a fund and buys the hardware that pays best whenever the fund covers it. More share, faster buying; less, more compute left for you.']
+    };
     const TASK_UPGRADES = { autoCollector: 'autoCollector', researchAssistant: 'researchAssistant', autoTrainer: 'autoTrainer', procurement: 'procurement' };
     const taskUi = {};
 
@@ -3115,6 +3136,12 @@ window.AGI = (function () {
             if (!owned(t.id)) continue;
             // A new automation draws its connection from the card that bought it.
             if (!was && revealReady && ui.upgrades[t.id] && !ui.upgrades[t.id].card.hidden) connect(ui.upgrades[t.id].card, u.row);
+            // The first time a machine starts working for you, say what it does and what its slider means.
+            const intro = TASK_INTROS[t.id];
+            if (intro && view === 'lab' && !state.intro['hint:task:' + t.id]) {
+                state.intro['hint:task:' + t.id] = true;
+                callout('hint:task:' + t.id, intro[0], intro[1]);
+            }
             const on = E.taskOn(state, t.id);
             u.row.classList.toggle('off', !on);
             u.toggle.setAttribute('aria-checked', String(on));
@@ -3123,7 +3150,7 @@ window.AGI = (function () {
             if (t.id === 'researchAssistant') setText(u.rate, on ? `${f(d.researchPerSec, 2)}/s → +${f(d.rpPerSec)} RP/s` : 'Paused');
             if (t.id === 'autoTrainer') {
                 const lv = E.level(state, 'autoTrainer');
-                setText(u.rate, on ? `Level ${lv} · ${['', 'replays cleared legs the way you sprint', 'replays cleared legs, aiming at clean prompts', 'replays cleared legs, aiming at super prompts'][Math.min(3, lv)]}` : 'Paused');
+                setText(u.rate, on ? `Level ${lv} · replays your newest cleared leg in the background` : 'Paused');
             }
             if (t.id === 'procurement') {
                 const p = d.tasks.procurement;
@@ -3132,18 +3159,16 @@ window.AGI = (function () {
             if (u.fill) u.fill.style.width = `${(on ? taskProgress[t.id] : 0) * 100}%`;
             if (!u.slider) continue;
             const pct = Math.round((state.tasks[t.id].share ?? 0) * 100);
-            const others = Math.round(E.TASKS.filter(o => o.budget && o.id !== t.id && E.taskOn(state, o.id) && owned(o.id))
-                .reduce((a, o) => a + shares[o.id], 0) * 100);
             if (document.activeElement !== u.slider) u.slider.value = pct;
             u.slider.disabled = !on;
-            u.slider.style.setProperty('--reach', `${100 - others}%`);
+            u.slider.style.setProperty('--reach', '100%');
             u.slider.style.setProperty('--pct', `${u.slider.value}%`);
             const task = d.tasks[t.id];
             dedicated += on ? shares[t.id] : 0;
             setText(u.share, on ? `${pct}% · ${f(task.cp)} CP/s${task.speed < 1 ? ' · capped' : ''}` : `${pct}%`);
             u.share.classList.toggle('capped', on && task.speed < 1);
         }
-        setText($('taskTotal'), dedicated ? `${Math.round(dedicated * 100)}% of compute` : '');
+        setText($('taskTotal'), dedicated ? `${Math.round(dedicated * 100)}% of compute${dedicated > 1.001 ? ' · drawing on the stockpile' : ''}` : '');
         // Skill rows: added as skills are learned (in order), removed if the run resets.
         while (taskUi.skills.length > learned) taskUi.skills.pop().row.remove();
         // One new skill gets its reveal and connection; a burst (a load, a debug jump) just appears.
@@ -4333,7 +4358,7 @@ window.AGI = (function () {
         pt('tip', { id: 'prompt:autoTrainer' });
         openDialog({
             title: 'Auto-Trainer ready',
-            message: 'Your AI can train itself now. Switched on, it replays the newest leg you\'ve cleared in the background while you play, earning XP and spending compute and data on its sprints. It\'s an early model: about half as strong as you, and it fumbles a lot of sprints. It gets better as it levels up and as you learn skills. Your own runs stay yours. Turn it on?',
+            message: 'Your AI can train itself now. Switched on, it replays the newest leg you\'ve cleared in the background while you play, earning XP. Its sprints cost nothing, at the strength you had the last time you ran that leg yourself. It\'s an early model: about half that strength, and it fumbles a lot of sprints. It gets better as it levels up and as you learn skills. Your own runs stay yours. Turn it on?',
             okLabel: 'Turn it on', cancelLabel: 'Not now'
         }).then(r => {
             E.setTaskOn(state, 'autoTrainer', r.ok);
@@ -4494,6 +4519,7 @@ window.AGI = (function () {
                 { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, strips: d.strips, onward: true, last: state.path.learned,
                     holdOpen: crunching });
             path.roll.frontier = state.path.learned;   // where the frontier was when the run started
+            path.roll.capBefore = labCapacities();      // the lab's room when it started, to say what a skill opened
             path.autoAt = 0;
             path.rollPushes = d.pushesPerRoll;
             path.burnUnit = null;
@@ -4583,7 +4609,7 @@ window.AGI = (function () {
         canvas.addEventListener('contextmenu', e => e.preventDefault());
         $('rollResult').addEventListener('click', e => {
             const go = e.target.closest('[data-next]');
-            if (go) go.dataset.next === 'dev' ? toDevScreen() : runAgain();
+            if (go) go.dataset.next === 'dev' ? toDevScreen() : go.dataset.next === 'lab' ? jumpTo('lab') : runAgain();
         });
         $('pushButton').addEventListener('contextmenu', e => e.preventDefault());
     }
@@ -4650,10 +4676,11 @@ window.AGI = (function () {
         path.fx.forceLuck = null;
         const effort = !!path.fx.maxEffort;
         path.fx.maxEffort = false;
+        // A wall's surge makes the run's first unit of fuel burn hotter (E.surgeSprint); only luck breaks through.
         const surge = E.surgeSprint(state, index);
-        const breakthrough = forced === 'breakthrough' || forced === 'superBreakthrough' || surge || E.breakthroughHit(state, seed, index);
-        const superBreak = breakthrough && (forced === 'superBreakthrough' || surge || E.firstBreakSmashes(state) || E.superHit(state, 'breakthrough', seed, index));
-        path.burnStrength = E.sprintStrength(state, 1, null, breakthrough, effort);
+        const breakthrough = forced === 'breakthrough' || forced === 'superBreakthrough' || E.breakthroughHit(state, seed, index);
+        const superBreak = breakthrough && (forced === 'superBreakthrough' || E.superHit(state, 'breakthrough', seed, index));
+        path.burnStrength = E.sprintStrength(state, 1, null, breakthrough, effort) * (surge ? E.SURGE_POWER : 1);
         if (breakthrough) {
             roll.breakthroughs = (roll.breakthroughs || 0) + 1;
             state.stats.breakthroughs = (state.stats.breakthroughs || 0) + 1;
@@ -4975,17 +5002,18 @@ window.AGI = (function () {
         const d = E.derive(state);
         const forced = path.fx.forceLuck;
         path.fx.forceLuck = null;
-        // Lucky Break's guarantee: one of the 1-3 runs after buying it has a breakthrough (E.breakGuaranteed).
-        // A wall's surge: the run's first sprint is a smash (E.surgeSprint), like the first one after Lucky Break.
+        // Lucky Break's guarantee: one of the 5 hand sprints after buying it breaks through (E.breakGuaranteed, settled
+        // every sprint). A wall's surge: the run's first sprint hits harder (E.surgeSprint), never a breakthrough.
         const surge = !free && E.surgeSprint(state, pushIndex(roll));
-        const breakthrough = forced === 'breakthrough' || forced === 'superBreakthrough' || surge || E.breakthroughHit(state, seed, index)
-            || (!free && E.breakGuaranteed(state, pushIndex(roll), roll.pushesLeft));
-        const superBreak = breakthrough && (forced === 'superBreakthrough' || surge || E.firstBreakSmashes(state) || E.superHit(state, 'breakthrough', seed, index));
+        const breakthrough = forced === 'breakthrough' || forced === 'superBreakthrough' || E.breakthroughHit(state, seed, index)
+            || (!free && !auto && E.breakGuaranteed(state));
+        if (!free && !auto) E.settleBreakCountdown(state, breakthrough);
+        const superBreak = breakthrough && (forced === 'superBreakthrough' || E.superHit(state, 'breakthrough', seed, index));
         // The warm-up's sprint always crests Tokenization, only just, whatever the charge: the first summit is
         // guaranteed and a nail-biter (slow motion, "Will it learn…?") rather than a hop over a 3 cm bump.
         const strength = !roll.launched && state.path.learned === 0 && roll.ground.stretch === 0
             ? firstSummitStrength(roll, d)
-            : E.sprintStrength(state, fraction, kind, breakthrough, effort);
+            : E.sprintStrength(state, fraction, kind, breakthrough, effort) * (surge ? E.SURGE_POWER : 1);
         if (free) roll.freePushes = (roll.freePushes || 0) + 1;
         if (!roll.launched) roll.ptStart = state.stats.playTime;
         pt('sprint', { leg: leg + 1, ch: r2(fraction), cap: r2(capBefore), ...(kind ? { k: kind } : {}), ...(auto ? { auto: true } : {}),
@@ -5740,8 +5768,23 @@ window.AGI = (function () {
         afterChange();
     }
 
-    // A wall broken: the next runs open with a smash (E.surgeSprint), said on its card.
-    const surgeLine = wall => (wall ? [[`Your next ${E.WALL_SURGE_RUNS} runs open with a smash`, '', 'good key']] : []);
+    // Tips a skill's card can bring, once each. Passive XP waits for the first real skill (Pattern Matching): the
+    // warm-up is a formality, and explaining replays then was too early (owner's playtest). The lab tip points at
+    // the card's Lab button the first time a skill makes room there.
+    function skillTips() {
+        if (!state.intro['hint:labAfterSkill'] && state.path.learned > E.FIRST_REAL_SKILL) {
+            state.intro['hint:labAfterSkill'] = true;
+            callout('hint:labAfterSkill', 'Check the lab', 'Every skill makes room in the lab: more hardware fits and new upgrades open. Head back after each one.');
+            return;
+        }
+        if (!state.intro['hint:replay'] && state.path.learned > E.FIRST_REAL_SKILL + 1) {
+            state.intro['hint:replay'] = true;
+            callout('hint:replay', 'Passive XP', 'Each cleared leg (a stretch of trail you\'ve crested) now replays your best run on its own, earning XP while you play.');
+        }
+    }
+
+    // A wall broken: the next runs open with a surge (E.surgeSprint), said on its card.
+    const surgeLine = wall => (wall ? [[`Your next ${E.WALL_SURGE_RUNS} runs open with a surge: first sprint ×${E.SURGE_POWER}`, '', 'good key']] : []);
 
     // The model's own voice: each skill it learns, it says something (first-person, a little less innocent
     // each time), on the Skill learned card, in the Journal and on the lab's terminal.
@@ -5841,7 +5884,6 @@ window.AGI = (function () {
         // Cleared legs replicate their best run for passive XP: a better replay raises it.
         // Every cleared leg the run ran through is credited with what it earned from there on (`E.recordLegs`).
         const passiveBefore = E.derive(state).xpPerSec;
-        E.settleBreakCountdown(state, (roll.breakthroughs || 0) > 0);
         if (roll.launched) E.settleSurge(state);
         // Only your own runs set a leg's best (its passive XP): the Auto-Trainer's replays earn, but don't raise it,
         // so going back to optimise a leg by hand stays the way to speed it up (owner's playtest).
@@ -5895,11 +5937,8 @@ window.AGI = (function () {
             path.overview = OVERVIEW_SECONDS + path.pause;
             showResult({ skill: true, title: learned.length > 1 ? `${learned.length} skills learned` : last.wall ? 'Wall broken · skill learned' : 'Skill learned', main: names,
                 flavor: last.flavor, voice: last.voice, xp: result.xp + banked,
-                lines: [...learned.map(l => [l.skill.effect, '']), ...(grants ? [[grants, '']] : []), ...surgeLine(learned.some(l => l.skill.wall)), ...lines, ...(pct > 0 ? [[`Then ${pct}% of the way to ${target}`, '']] : [])], record: result.record });
-            if (!state.intro['hint:replay']) {
-                state.intro['hint:replay'] = true;
-                callout('hint:replay', 'Passive XP', 'Each cleared leg (a stretch of trail you\'ve crested) now replays your best run on its own, earning XP while you play.');
-            }
+                lines: [...learned.map(l => [l.skill.effect, '']), ...(grants ? [[grants, '']] : []), ...labRoomLines(roll.capBefore), ...surgeLine(learned.some(l => l.skill.wall)), ...lines, ...(pct > 0 ? [[`Then ${pct}% of the way to ${target}`, '']] : [])], record: result.record });
+            skillTips();
         } else if (result.skill) {
             const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
             log(`Learned ${result.skill.name}: ${result.skill.effect} (${grants ? grants + ', ' : ''}+${xpText(result.xp + banked)} XP). ${result.skill.flavor}`, 'special');
@@ -5909,11 +5948,8 @@ window.AGI = (function () {
             path.glow = { skill: state.path.learned - 1, age: 0 };
             path.overview = OVERVIEW_SECONDS + path.pause;
             showResult({ skill: true, title: result.skill.wall ? 'Wall broken · skill learned' : 'Skill learned', main: result.skill.name, flavor: result.skill.flavor, voice: result.skill.voice, xp: result.xp + banked,
-                lines: [[result.skill.effect, ''], ...(grants ? [[grants, '']] : []), ...surgeLine(result.skill.wall), ...lines] });
-            if (!state.intro['hint:replay']) {
-                state.intro['hint:replay'] = true;
-                callout('hint:replay', 'Passive XP', 'Each cleared leg (a stretch of trail you\'ve crested) now replays your best run on its own, earning XP while you play.');
-            }
+                lines: [[result.skill.effect, ''], ...(grants ? [[grants, '']] : []), ...labRoomLines(roll.capBefore), ...surgeLine(result.skill.wall), ...lines] });
+            skillTips();
         } else {
             // So close: stopped on the frontier's climb near the top. A consolation share and how much more speed
             // it needed (status, not a recipe).
@@ -6014,6 +6050,23 @@ window.AGI = (function () {
         return [el('ul', { class: 'result-lines' }, shown.map(row)), details];
     }
 
+    // The lab's room for each card it shows (capped cards only): skills raise it (E.capacity).
+    function labCapacities() {
+        const out = {};
+        for (const u of E.UPGRADES) if (E.CAPACITY[u.id] && isLabUpgrade(u) && E.isUpgradeVisible(state, u)) out[u.id] = E.capacity(state, u);
+        return out;
+    }
+    // A skill made room in the lab: say where, on the run's card, so going back to the lab after a skill is the
+    // obvious next move (the owner's playtest: nothing said to check the lab after a skill hill).
+    function labRoomLines(before) {
+        if (!before) return [];
+        const now = labCapacities();
+        const grew = Object.keys(now).filter(id => before[id] != null && now[id] > before[id]);
+        if (!grew.length) return [];
+        const parts = grew.slice(0, 3).map(id => `${E.upgradeName(state, E.UPGRADE_BY_ID[id])} ${before[id]} → ${now[id]}`);
+        return [[`Room in the lab: ${parts.join(', ')}${grew.length > 3 ? ` +${grew.length - 3}` : ''}`, '', 'good key lab-line']];
+    }
+
     function showResult({ title, main, flavor, voice, xp, lines, record, skill }) {
         const card = $('rollResult');
         if (record) trailSfx('record');
@@ -6032,6 +6085,8 @@ window.AGI = (function () {
             path.done
                 ? el('div', { class: 'result-actions' }, [
                     el('button', { type: 'button', class: 'ghost-button', 'data-next': 'again', text: 'Train again' }),
+                    // After a skill (or with news waiting in the lab) the lab is one click away.
+                    ...(skill || labUnseen().length ? [el('button', { type: 'button', class: 'ghost-button result-lab', 'data-next': 'lab', text: 'Lab →' })] : []),
                     el('button', { type: 'button', class: 'button', 'data-next': 'dev', text: 'Upgrades →' })])
                 : el('div', { class: 'result-hint', text: 'Next run starting…' })
         ].filter(Boolean));
@@ -7741,6 +7796,8 @@ window.AGI = (function () {
                 afterChange();
             },
             // Wipe the save and start a brand-new game, no questions asked.
+            // Lab cards that count as news on the lab's badge (new, or a capped card with more room).
+            labNews: () => labUnseen().map(u => u.id),
             // The Auto-Trainer's ghost run, for the panel and tests.
             ghost() {
                 const r = ghost.roll;

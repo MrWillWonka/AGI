@@ -174,32 +174,32 @@
 
     // The share of each second's CP (and, for research, DP) a task may use: its slider, if it is on, and
     // never more than the earlier tasks left over.
+    // Each task's slider goes to 100% on its own (the owner's call: players push one up for a short-term gain, or to
+    // learn where they like it; capping each at what the others left made the crawler and the Procurement Bot feel
+    // like limits). Past 100% together they spend more compute than comes in, and the rest comes out of the
+    // stockpile: players see the bank fall and feel it (the owner's call). Each spend stops at an empty bank.
     function taskShares(s) {
-        let left = 1;
-        const out = {};
+        const want = {};
         for (const t of TASKS) {
             if (!t.budget) continue;
-            const want = taskClaims(s, t.id) ? Math.min(1, Math.max(0, s.tasks?.[t.id]?.share ?? TASK_DEFAULTS[t.id])) : 0;
-            out[t.id] = Math.min(want, left);
-            left -= out[t.id];
+            want[t.id] = taskClaims(s, t.id) ? Math.min(1, Math.max(0, s.tasks?.[t.id]?.share ?? TASK_DEFAULTS[t.id])) : 0;
         }
-        return out;
+        return want;
     }
+    // What the tasks ask for together (can pass 1: then each is scaled back).
+    const taskDemand = s => TASKS.filter(t => t.budget && taskClaims(s, t.id))
+        .reduce((a, t) => a + Math.min(1, Math.max(0, s.tasks?.[t.id]?.share ?? TASK_DEFAULTS[t.id])), 0);
 
-    // Set a task's share, capped by what the other tasks leave free.
+    // Set a task's share, 0-100%.
     function setTaskShare(s, id, share) {
-        const others = TASKS.filter(t => t.budget && t.id !== id && taskClaims(s, t.id))
-            .reduce((a, t) => a + (s.tasks[t.id]?.share ?? TASK_DEFAULTS[t.id]), 0);
         // A non-number (NaN from a bad input) counts as 0: it used to be stored and made derive()'s data rate NaN.
         const want = Number.isFinite(share) ? Math.max(0, share) : 0;
-        s.tasks[id].share = Math.round(Math.min(Math.max(0, 1 - others), want) * 100) / 100;
+        s.tasks[id].share = Math.round(Math.min(1, want) * 100) / 100;
         return s.tasks[id].share;
     }
 
     function setTaskOn(s, id, on) {
         s.tasks[id].on = !!on;
-        // Switching a task back on never takes more than is free.
-        if (on && TASKS.find(t => t.id === id)?.budget) setTaskShare(s, id, s.tasks[id].share);
     }
 
     // The Auto-Trainer's level, or 0 while its task is switched off.
@@ -379,11 +379,12 @@
         { id: 'lucidDream', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Lucid Dream', effect: 'Super flows: 25% of flows per level condense time: the flow covers 4× the ground', flavor: 'It knows it\'s dreaming. It redecorated.', cost: { insight: 8 }, scale: 2, max: 3, requires: 'deepFocus', boost: { superFlow: 0.25 } },
         { id: 'researchAssistant', tab: 'algorithms', name: 'Research Assistant', shows: 'autoResearch', effect: 'Researches for you, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.55,
             unlock: s => !!s.unlocked['action:research'] && automationGate(s, 'researchAssistant').met, hint: 'Language Modeling, and 25 research runs by hand' },
-        // The crawler's upgrades: it reads text, then images, so it collects faster. (Data per collection
-        // grows only through the Data Processor; Intelligence comes from training, not from data.)
-        { id: 'nlp', tab: 'software', name: 'Natural Language Processing', shows: 'autoCollect', effect: 'Data crawler 50% faster', flavor: 'It reads now. Mostly forum posts, sadly.', cost: { cp: 2500, dp: 250 }, max: 1,
+        // What the software learns does what its name says (the owner's call: both used to make the crawler
+        // faster). Reading text gets more out of every collection; seeing what matters skips the rest, so a sprint
+        // needs less compute. (Intelligence comes from training, not from data.)
+        { id: 'nlp', tab: 'software', name: 'Natural Language Processing', shows: 'collect', effect: '+2 data per collection, by hand and by the crawler', flavor: 'It reads now. Mostly forum posts, sadly.', cost: { cp: 2500, dp: 250 }, max: 1,
             requires: 'autoCollector' },
-        { id: 'computerVision', tab: 'software', name: 'Computer Vision', shows: 'autoCollect', effect: 'Data crawler twice as fast', flavor: 'It sees now. It has opinions about your photos.', cost: { cp: 8000, dp: 600 }, max: 1,
+        { id: 'computerVision', tab: 'software', name: 'Computer Vision', effect: 'Training sprints use 30% less compute', flavor: 'It sees now. It has opinions about your photos.', cost: { cp: 8000, dp: 600 }, max: 1,
             requires: 'nlp' },
 
         // Algorithms
@@ -1100,7 +1101,7 @@
         // times versions); the skills' percentage bonuses go to the automation that does the job for you,
         // so a click never reads 2.3 DP.
         // An investor boost rounds by hand (+50% on 1 RP pays 2) and applies exactly to automation.
-        const dpBase = (1 + L('dataProcessor') + sk.collect) * bo.dp;
+        const dpBase = (1 + L('dataProcessor') + 2 * L('nlp') + sk.collect) * bo.dp;
         const rpBase = (1 + L('machineLearning') + 2 * L('deepLearning') + 3 * L('reinforcementLearning')
             + 5 * L('transferLearning') + sk.research) * bo.rp;
         const dpPerCollect = Math.round(dpBase);
@@ -1116,7 +1117,7 @@
         const shares = taskShares(s);
         const ch = challengeMods(s);
         const autoOn = ch.noAuto ? 0 : ch.autoSpeed;
-        const wantCollects = 0.2 * L('autoCollector') * (1 + 0.5 * L('nlp')) * (1 + L('computerVision')) * r.dp * autoOn;
+        const wantCollects = 0.2 * L('autoCollector') * r.dp * autoOn;
         const wantResearch = 0.1 * L('researchAssistant') * r.rp * autoOn;
         const collectScale = wantCollects > 0 ? Math.min(1, shares.autoCollector * cpPerSec / (wantCollects * collectCost.cp)) : 1;
         const collectsPerSec = wantCollects * collectScale;
@@ -1588,7 +1589,9 @@
         const early = Math.min(n, PATH.pushCostRampFrom);
         const factor = Math.pow(PATH.pushCostScale, early) * Math.pow(PATH.pushCostLate, n - early) * charge * charge * challengeMods(s).costMult;
         const cost = {};
-        for (const [k, v] of Object.entries(PATH.pushCost)) cost[k] = Math.max(1, Math.ceil(v * factor));
+        // Computer Vision sees what matters and skips the rest: sprints need 30% less compute.
+        const use = { cp: level(s, 'computerVision') ? 0.7 : 1 };
+        for (const [k, v] of Object.entries(PATH.pushCost)) cost[k] = Math.max(1, Math.ceil(v * factor * (use[k] || 1)));
         return cost;
     }
 
@@ -1672,29 +1675,29 @@
     const breakthroughHit = (s, seed, index) => luck(seed, index, 0xb7e15163) < derive(s).critChance;
 
     // The breakthrough guarantee: Lucky Break's chance is small, so its first breakthrough could take 20+ sprints and
-    // players didn't connect the two (playtest 2). Buying its first level starts a countdown of 1-3 runs; if none of
-    // them has a breakthrough by itself, the last one's second sprint is one (its first, if it has just one sprint).
-    // Not the very next sprint, and only once per version.
-    const BREAK_WINDOW = 3;
+    // players didn't connect the two (playtest 2). Buying its first level picks one of the next BREAK_WINDOW hand
+    // sprints at random (`path.breakDue`, sprints to go) and that one is a breakthrough, unless a natural one comes
+    // first. Once per version. (It used to count runs and also made that first breakthrough smash the hills, and
+    // the owner's playtest saw breakthroughs far more often than their chance and smashes with no Paradigm Shift.)
+    const BREAK_WINDOW = 5;
     function startBreakCountdown(s) {
-        s.path.breakDue = 1 + (s.stats.rolls * 7 + 3) % BREAK_WINDOW;
+        s.path.breakDue = 1 + Math.floor(luck(s.stats.rolls, Math.floor(s.stats.playTime), 0x51ed2701) * BREAK_WINDOW);
     }
-    // Is this sprint the guaranteed breakthrough? `index` counts the run's sprints from 0.
-    const breakGuaranteed = (s, index, pushesLeft) => s.path.breakDue === 1 && (index >= 1 || pushesLeft <= 1);
-    // The first breakthrough after buying Lucky Break (while its countdown runs) is a super one: it smashes the
-    // hills ahead flat, a screen-clearing moment long before Paradigm Shift makes them a habit.
-    const firstBreakSmashes = s => s.path.breakDue > 0;
-    // The wall's power spurt, felt: breaking a wall (a wall skill) makes the first sprint (or burn) of each of the
-    // next WALL_SURGE_RUNS runs a breakthrough that smashes the hills ahead (`path.surge`, save v15).
-    const WALL_SURGE_RUNS = 3;
-    const surgeSprint = (s, index) => s.path.surge > 0 && index === 0;
-    function settleSurge(s) {
-        if (s.path.surge > 0) s.path.surge--;
-    }
-    // At a run's end: a breakthrough (natural or guaranteed) ends the countdown, else one run fewer to go.
+    // Is this sprint the guaranteed breakthrough?
+    const breakGuaranteed = s => s.path.breakDue === 1;
+    // After every paid hand sprint: a breakthrough (natural or guaranteed) ends the countdown, else one sprint fewer.
     function settleBreakCountdown(s, hadBreakthrough) {
         if (!s.path.breakDue) return;
         s.path.breakDue = hadBreakthrough ? 0 : s.path.breakDue - 1;
+    }
+    // The wall's power spurt, felt: breaking a wall (a wall skill) makes the first sprint (or burn) of each of the
+    // next WALL_SURGE_RUNS runs hit SURGE_POWER times harder (`path.surge`, save v15). Only a strength surge: it used
+    // to be a breakthrough that smashed the hills, which read as luck firing back to back and Paradigm Shift without it.
+    const WALL_SURGE_RUNS = 3;
+    const SURGE_POWER = 1.5;
+    const surgeSprint = (s, index) => s.path.surge > 0 && index === 0;
+    function settleSurge(s) {
+        if (s.path.surge > 0) s.path.surge--;
     }
     const windfallHit = (s, seed) => luck(seed, 0, 0x5bd1e995) < derive(s).windfallChance;
     // A sprint can set off a crunch (free sprints for a few seconds), Max Effort (the next sprint goes all
@@ -2501,8 +2504,8 @@
     }
 
     return {
-        SAVE_VERSION, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
-        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, firstBreakSmashes, WALL_SURGE_RUNS, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, ENDINGS, ending, recordLegPower, legPower, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
+        SAVE_VERSION, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
+        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, startBreakCountdown, WALL_SURGE_RUNS, SURGE_POWER, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, ENDINGS, ending, recordLegPower, legPower, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,

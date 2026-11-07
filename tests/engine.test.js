@@ -109,16 +109,22 @@ test('one-time upgrades cannot be bought twice and grant attributes once', () =>
     assert.equal(s.attr.intelligence, 1);
 });
 
-test('data per collection grows only through the Data Processor; NLP and Computer Vision speed up the crawler, no Intelligence', () => {
+test('NLP reads more out of every collection, Computer Vision makes sprints need less compute, and neither grants Intelligence', () => {
     const s = fresh();
     s.levels.cpu = 200;
     s.levels.autoCollector = 1;
+    s.path.learned = 3;
     const before = E.derive(s);
+    const costBefore = E.pushCost(s, 1);
     s.levels.nlp = 1;
+    const mid = E.derive(s);
+    assert.equal(mid.dpPerCollect, before.dpPerCollect + 2, 'two more data per collection by hand, a whole number');
+    assert.ok(mid.dpPerSec > before.dpPerSec, 'and the crawler brings more');
+    assert.ok(Math.abs(mid.collectsPerSec - before.collectsPerSec) < 1e-9, 'not faster');
     s.levels.computerVision = 1;
-    const after = E.derive(s);
-    assert.equal(after.dpPerCollect, before.dpPerCollect);
-    assert.ok(Math.abs(after.collectsPerSec - 3 * before.collectsPerSec) < 1e-9);
+    const cost = E.pushCost(s, 1);
+    assert.ok(cost.cp < costBefore.cp && cost.cp >= Math.floor(costBefore.cp * 0.7), 'sprints use about 30% less compute');
+    assert.equal(cost.dp, costBefore.dp, 'and the same data');
     assert.ok(!E.UPGRADE_BY_ID.nlp.grants && !E.UPGRADE_BY_ID.computerVision.grants);
 });
 
@@ -281,7 +287,7 @@ test('automation converts resources instead of creating them', () => {
     assert.equal(r.res.rp, 0);
 });
 
-test('automation never spends more than its budget of production', () => {
+test('automation spends its share of production; past 100% together it draws on the stockpile, never below empty', () => {
     for (const budget of [0, 0.5, 1]) {
         const s = fresh();
         s.tasks.autoCollector.share = budget;
@@ -290,25 +296,31 @@ test('automation never spends more than its budget of production', () => {
         s.levels.autoCollector = 20;
         s.levels.researchAssistant = 20;
         const d = E.derive(s);
-        // Shares are taken in order and never add up to more than everything.
-        assert.ok(d.cpUsePerSec <= Math.min(1, 2 * budget) * d.cpPerSec + 1e-9, `cp at ${budget}`);
-        assert.ok(d.cpNet >= -1e-9, 'compute never falls');
+        assert.ok(d.cpUsePerSec <= 2 * budget * d.cpPerSec + 1e-9, `cp at ${budget}`);
         assert.ok(d.dpUsePerSec <= budget * d.dpPerSec + 1e-9, `dp at ${budget}`);
         assert.equal(d.autoThrottled, true, 'demand far above production');
-        const cp = s.res.cp;
+        // Within 100% compute still climbs; past it (two tasks at 100%) the stockpile pays, down to zero at most.
+        s.res.cp = 1000;
         E.tick(s, 60);
-        assert.ok(s.res.cp >= cp, 'compute still climbs');
+        if (budget <= 0.5) assert.ok(s.res.cp >= 1000, 'compute still climbs');
+        else assert.ok(s.res.cp < 1000 && s.res.cp >= 0, 'drawing on the stockpile, never below empty');
+        E.tick(s, 6000);
+        assert.ok(s.res.cp >= 0 && s.res.dp >= 0);
     }
 });
 
-test('scheduled tasks: each has its own share and switch, saved and clamped, never over 100% in total', () => {
+test('scheduled tasks: each has its own share and switch, saved and clamped to 0-100% each', () => {
     const m = tasks => E.migrate({ version: E.SAVE_VERSION, tasks }, NOW).tasks;
     assert.equal(m({ autoCollector: { on: true, share: 0.3 } }).autoCollector.share, 0.3);
-    assert.equal(m({ autoCollector: { share: 5 } }).autoCollector.share, 0.7, 'capped by what the research assistant leaves free');
+    assert.equal(m({ autoCollector: { share: 5 } }).autoCollector.share, 1, 'each slider goes to 100% on its own');
     assert.equal(m({ autoCollector: { share: 'x' } }).autoCollector.share, 0.4, 'the default');
     assert.equal(m({ researchAssistant: { on: false } }).researchAssistant.on, false);
     const both = m({ autoCollector: { share: 0.8 }, researchAssistant: { share: 0.8 } });
-    assert.ok(both.autoCollector.share + both.researchAssistant.share <= 1 + 1e-9, 'shares fit in 100%');
+    assert.equal(both.autoCollector.share + both.researchAssistant.share, 1.6, 'asked for, they can pass 100%');
+    const st = fresh();
+    st.tasks.autoCollector.share = 0.8; st.tasks.researchAssistant.share = 0.8;
+    const sh = E.taskShares(st);
+    assert.equal(sh.autoCollector + sh.researchAssistant, 1.6, 'past 100%, the rest comes out of the stockpile');
     // Older saves had one budget for everything: each task starts from it.
     const old = E.migrate({ version: 4, settings: { autoBudget: 0.3 } }, NOW).tasks;
     assert.equal(old.autoCollector.share, 0.3);
@@ -321,7 +333,7 @@ test('scheduled tasks: each has its own share and switch, saved and clamped, nev
     assert.equal(E.derive(s).collectsPerSec, 0);
     assert.equal(E.setTaskShare(s, 'researchAssistant', 1), 1, 'all of it is free');
     E.setTaskOn(s, 'autoCollector', true);
-    assert.equal(E.taskShares(s).autoCollector + E.taskShares(s).researchAssistant, 1);
+    assert.equal(E.taskShares(s).autoCollector + E.taskShares(s).researchAssistant, 1.4);
     assert.equal(E.migrate({ version: E.SAVE_VERSION, settings: {} }, NOW).settings.autosave, true);
 });
 
@@ -1469,7 +1481,7 @@ test('a viral run records its luck-free XP: its luck only ever multiplied the di
     assert.ok(Math.abs(old.path.legBest[1] - 700 / E.derive(old).xpMult) < 1e-9);
 });
 
-test('Lucky Break guarantees a breakthrough within 1-3 runs of buying it, not on the next sprint', () => {
+test('Lucky Break guarantees a breakthrough on one of the next 5 hand sprints, picked at random', () => {
     const s = fresh();
     s.path.learned = 4;
     s.res.xp = 1e6;
@@ -1479,25 +1491,27 @@ test('Lucky Break guarantees a breakthrough within 1-3 runs of buying it, not on
     E.evaluate(s);
     assert.equal(E.buy(s, 'scoutingData').ok, true);
     const due = s.path.breakDue;
-    assert.ok(due >= 1 && due <= E.BREAK_WINDOW, `countdown ${due}`);
-    // Runs without a breakthrough count down; only the last one forces it, on its second sprint.
+    assert.ok(due >= 1 && due <= 5, `sprint ${due} of 5`);
+    // Each sprint without one counts down; the picked sprint is guaranteed.
     for (let r = due; r > 1; r--) {
-        assert.equal(E.breakGuaranteed(s, 1, 3), false);
+        assert.equal(E.breakGuaranteed(s), false);
         E.settleBreakCountdown(s, false);
     }
-    assert.equal(E.breakGuaranteed(s, 0, 3), false, 'not the first sprint');
-    assert.equal(E.breakGuaranteed(s, 1, 2), true);
-    assert.equal(E.breakGuaranteed(s, 0, 1), true, 'a one-sprint run gets it on its only sprint');
+    assert.equal(E.breakGuaranteed(s), true);
     E.settleBreakCountdown(s, true);
     assert.equal(s.path.breakDue, 0, 'done after one');
     assert.equal(E.buy(s, 'scoutingData').ok, true);
     assert.equal(s.path.breakDue, 0, 'the second level starts nothing');
-    // A natural breakthrough in the window ends it too, and the countdown survives a save.
+    // A natural breakthrough first ends it, and the countdown survives a save.
     const t = fresh();
-    t.path.breakDue = 2;
-    assert.equal(E.migrate(JSON.parse(E.serialize(t)), NOW).path.breakDue, 2);
+    t.path.breakDue = 4;
+    assert.equal(E.migrate(JSON.parse(E.serialize(t)), NOW).path.breakDue, 4);
     E.settleBreakCountdown(t, true);
     assert.equal(t.path.breakDue, 0);
+    // The pick lands anywhere in the five.
+    const picks = new Set();
+    for (let r = 0; r < 25; r++) { const u = fresh(); u.stats.rolls = r; u.stats.playTime = r * 13; E.startBreakCountdown?.(u); picks.add(u.path.breakDue); }
+    if (E.startBreakCountdown) assert.equal(picks.size, 5);
 });
 
 test('lab capacity grows with skills: compute and data scale in steps, data sinks never cap', () => {
@@ -1553,15 +1567,6 @@ test('super prompts start tight and stay a fixed share smaller as they widen; sy
     s.prestige.levels.systemPrompt = 1;
     const d2 = E.derive(s);
     assert.ok(d2.systemWidth <= d2.perfectWidth && d2.systemWidth >= 0.6 * d2.perfectWidth, 'about as hard as a new super prompt, a little harder');
-});
-
-test('the first breakthrough after Lucky Break smashes through: only while its countdown runs', () => {
-    const s = fresh();
-    assert.equal(E.firstBreakSmashes(s), false, 'no countdown, no smash');
-    s.path.breakDue = 2;
-    assert.equal(E.firstBreakSmashes(s), true);
-    E.settleBreakCountdown(s, true);
-    assert.equal(E.firstBreakSmashes(s), false, 'once it has broken through, breakthroughs are ordinary again');
 });
 
 test('do it once, then delegate: at full capacity, hardware out-earns a held button from the third skill', () => {
@@ -1623,7 +1628,8 @@ test('breaking a wall: the next runs open with a smash, counted down per run, an
     const skill = E.learnSkill(s, 3);
     assert.ok(skill.wall);
     assert.equal(s.path.surge, E.WALL_SURGE_RUNS);
-    assert.equal(E.surgeSprint(s, 0), true, 'the first sprint smashes');
+    assert.equal(E.surgeSprint(s, 0), true, 'the first sprint surges');
+    assert.equal(E.SURGE_POWER, 1.5);
     assert.equal(E.surgeSprint(s, 1), false, 'only the first');
     assert.equal(E.deserialize(E.serialize(s), NOW).path.surge, E.WALL_SURGE_RUNS);
     for (let i = 0; i < E.WALL_SURGE_RUNS; i++) E.settleSurge(s);

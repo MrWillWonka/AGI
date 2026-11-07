@@ -132,11 +132,12 @@ function pushBall(auto, fraction, kind, effort) {
     const index = pushIndex(roll);
     const seed = roll.ground.seed;
     const surge = !!E.surgeSprint?.(s, pushIndex(roll));
-    const breakthrough = surge || E.breakthroughHit(s, seed, index) || E.breakGuaranteed(s, pushIndex(roll), roll.pushesLeft);
-    const superBreak = breakthrough && (surge || !!E.firstBreakSmashes?.(s) || E.superHit(s, 'breakthrough', seed, index));
+    const breakthrough = E.breakthroughHit(s, seed, index) || E.breakGuaranteed(s);
+    E.settleBreakCountdown(s, breakthrough);
+    const superBreak = breakthrough && E.superHit(s, 'breakthrough', seed, index);
     const strength = !roll.launched && s.path.learned === 0 && roll.ground.stretch === 0
         ? firstSummitStrength(roll, d0())
-        : E.sprintStrength(s, fraction, kind, breakthrough, effort);
+        : E.sprintStrength(s, fraction, kind, breakthrough, effort) * (surge ? E.SURGE_POWER : 1);
     roll.push(strength, false);
     if (breakthrough) {
         roll.breakthroughs = (roll.breakthroughs || 0) + 1;
@@ -302,9 +303,9 @@ function lightBurn(roll) {
     const effort = run.maxEffort;
     run.maxEffort = false;
     const surge = !!E.surgeSprint?.(s, index);
-    const breakthrough = surge || E.breakthroughHit(s, seed, index);
-    const superBreak = breakthrough && (surge || !!E.firstBreakSmashes?.(s) || E.superHit(s, 'breakthrough', seed, index));
-    run.burnStrength = E.sprintStrength(s, 1, null, breakthrough, effort);
+    const breakthrough = E.breakthroughHit(s, seed, index);
+    const superBreak = breakthrough && E.superHit(s, 'breakthrough', seed, index);
+    run.burnStrength = E.sprintStrength(s, 1, null, breakthrough, effort) * (surge ? E.SURGE_POWER : 1);
     if (breakthrough) {
         roll.breakthroughs = (roll.breakthroughs || 0) + 1;
         s.stats.breakthroughs = (s.stats.breakthroughs || 0) + 1;
@@ -393,7 +394,6 @@ function finishRoll(ev) {
     const before = s.path.learned;
     const result = E.finishRoll(s, ev.progress, crested, units, metres, leg, viral, legs);
     xpBy.distance += result.xp;
-    E.settleBreakCountdown(s, (roll.breakthroughs || 0) > 0);
     if (roll.launched) E.settleSurge?.(s);
     E.recordLegPower(s, roll.ground.stretch, leg);
     if (!roll.auto) E.recordLegs(s, roll.ground.stretch, roll.legEntries, result.xp + banked, viral ? d0().windfallMult : 1, result.xp);
