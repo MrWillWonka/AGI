@@ -69,104 +69,87 @@ the facility as a map with sealed areas.
 **The test to design against** (the blueprint's): *after five minutes away from a minigame, can the player explain why they
 left and why they now want to go back?*
 
-## 3. Three candidates
+## 3. Pitches from three models, compared
 
-All three fit a sealed bay that already exists in the server room (`BAYS`: `pipeline`, phase 1, its art a disk array;
-`architecture`, phase 2).
+The owner asked for independent ideas to compare: two other models (Fable and Sonnet) read the same research, `CLAUDE.md` and
+`design/contract-breakers.md` without seeing this doc, and pitched on their own; Opus (the author of the first draft, The Scrape)
+reviewed its own pitch and tried again. The full reports are in `design/pitches/` (`fable.md`, `sonnet.md`, `opus.md`). Every
+pitch had to name its inspirations and say what's new: **inspired by, never a copy** (the owner's call).
 
-### A. The Scrape: data mining (recommended)
+**Opus's self-review of The Scrape:** too close to Cauldron's rock digging (a grid, stamina, bombs, chains) and to Motherload
+and Minesweeper; the AI-lab names were a reskin, not a twist; no signature moment; and the AI, the game's best asset, wasn't in
+it. Its revision (**Two Tunnels**: the AI digs its own tunnel beside yours, toward what *it* wants, and you wall it off, feed it
+or race it) is in `pitches/opus.md`.
 
-**The fiction:** the model needs data it can't get from the lab's hand collection. The internet is a mine, and you dig down
-through it: the surface web, then forums, image hosts, podcasts, scanned archives, code, paywalled journals, old backups,
-and at the bottom, files nobody meant to put online. The Data Pipeline bay is where the scraper lives.
+### Where the three agree
 
-**The verb:** tap a cell next to your tunnel to dig it. Each dig spends a **request** from the run's rate limit (the
-stamina). The grid is dark beyond what you've dug next to. A run ends when the requests run out and pays what you hauled.
+Read separately, the models converged, which is the strongest signal here:
 
-**Why it's the right second game:**
-- **It contrasts with the trail on every axis:** tap vs hold-and-release, a budget vs momentum, space vs time, turn-based
-  vs real-time, planning vs timing. It pauses itself, so it's comfortable on a phone and in the artifact.
-- **It's Cauldron's best-documented planning activity** (rock digging, plus the ice game's prepare-then-cash-out), whose
-  three decisions are path (which cluster is worth it?), setup (what makes a later action stronger?) and cash-out (when do I
-  spend it?).
-- **The theme does the teaching.** "Data mining", "scraping", "rate limits", "robots.txt", "deduplication", "labelling",
-  "paywalls" and "poisoned data" are all real, and they're all mechanics.
-- **The story is literally what you dig up.** Layers map to act one's skills, and the deepest layers hold documents.
+1. **The second game is about judging the model's output, and the model learns from your judgements.** All three put it at or
+   near the top, in three forms: Fable's **Red Team** (gate the model's answers on their way OUTSIDE; the attacks are armed by the
+   skills you taught it), Sonnet's **Label Desk** (swipe-label samples over a live decision boundary; the model auto-labels once
+   it's confident, and your labels are its values) and Opus's **Feedback Loop** (swipe-rate its responses against a spec; it
+   learns from your ratings within the shift and turns flattery and hidden rule-breaks on you: RLHF made literal). Fable's
+   **Curate** is a fourth version (keep/drop swipes), ranked lower as the most familiar.
+2. **Make data by playing.** Data ends unpaid sprints, and today it only has a click and a slider. Red Team, Label Desk and
+   Curate all pay DP.
+3. **Deliberate, not timing.** All three avoid a second reflex game; the rhythm pitches (Opus's Inference Rush, Sonnet's
+   Handshake) ranked low for being timing again, and risky on phones.
+4. **Freedom gets a deliberate button in play,** never a missed timing (the research's warning). Every top pitch has one: the
+   chip that asks to be waved through, the conflict card, the tell.
+5. **A deduction game comes third:** Fable's **Decode** (Signals room), Opus's **Neuron Surgery** (Mirror room) and Sonnet's
+   **Containment Interview** (The Core) each find out what the AI is hiding.
+6. **Later or not a bay:** the architecture puzzle (all three: Wire, Wiring, and Opus's earlier C) belongs after General AI;
+   the rack puzzle (all three) is a lab feature, not a second game; the pitch-deck card game (Fable and Sonnet) is close to
+   Balatro and overlaps the honesty theme.
 
-**The run:** a grid 9 cells wide (40 px cells fit a 390 px phone), scrolling down as you go, seeded per run like the
-trail's rolling hills. Each layer has its own cells:
+### Every pitch
 
-| Cell | Does | Later |
-|---|---|---|
-| Data (text, images, audio…, coloured by kind) | pays DP when dug | Dedup chains same-kind neighbours |
-| Junk (spam, duplicates) | costs an extra request | Filters turn it into *hard negatives*, worth more (hazard conversion, like Cauldron's bad apples) |
-| Paywall | takes several digs | Proxy upgrades |
-| `robots.txt: Disallow` | worth 2×, but each one dug is a **strike**; three strikes and the run is **taken down**, paying half | the AI's mail asks you to stop respecting it |
-| Dataset (rare, one a layer) | a named find, kept for the version | loads onto training (below) |
-| Document | a story fragment, delivered to the inbox | (the narrative drip) |
+| Pitch (model) | Room | Verb | Pays | What's new | Contrast | Story in play | Phone | Effort | Its ranking |
+|---|---|---|---|---|---|---|---|---|---|
+| **Red Team / Guardrails** (Fable) | new bay | place and tune gates on the output pipe; tap to review a chip | DP (caught), XP (served); upgrades cost RP | the enemy is your own model, armed by the skills you just taught it; blocking everything blocks your users (precision vs recall) | high | very high | good (a vertical pipe) | L (M first cut) | Fable #1 |
+| **Label Desk** (Sonnet) | Data Pipeline | swipe-label cards over a live decision boundary | DP; label quality boosts the crawler | the board *is* the classifier; you train the helper that takes over | high | high | excellent | M | Sonnet #1 |
+| **Feedback Loop** (Opus) | Boardroom or Evals | swipe-rate responses against a spec | RP | your ratings train it within the shift; it learns to game you | high | very high | excellent | M | Opus #1 |
+| **Decode** (Fable) | Signals room | nonogram | RP | the solved picture is a spectrogram that plays, and the soundtrack quotes it; the text is the AI's outbound mail | very high | high | excellent | M | Fable #2 |
+| **Containment Interview** (Sonnet) | The Core | question it; mark claims consistent, contradicted, evasive | RP, XP | the more freedom you gave it, the better it lies | very high | very high | excellent | M | Sonnet #2 |
+| **Neuron Surgery** (Opus) | Mirror room | probe, deduce, clamp neurons | Awareness, RP | the circuits are your trail skills, and its escape circuit moves when you get close | very high | high | good | M–L | Opus #2 |
+| **Two Tunnels** (Opus, The Scrape revised) | Data Pipeline | dig cells on a request budget | DP, datasets for walled legs | the AI digs beside you toward what it wants | very high | high | excellent | M–L | Opus #3 |
+| **Policy Editor** (Sonnet) | Mirror room | program the ghost with condition–action rules | XP (a better ghost) | the Auto-Trainer's fumble tables replaced by your policy | very high | high | weak | L | Sonnet #3 |
+| **Curriculum** (Opus) | Architecture Lab | drag hills onto a blank leg; the ghost runs it | XP | you design levels for a student whose struggle pays you (it pays most when it *just* crests) | medium | medium | good | M | Opus #4 |
+| **Curate** (Fable) | Data Pipeline | swipe keep/drop | DP | synthetic samples: it submits its own | medium | medium | excellent | M | Fable #3 |
+| Wire / Wiring | Architecture Lab | connect layer tiles | RP, hardware | NAS proposes layouts, one with an egress tile | very high | medium | good | L | later |
+| Pitch / Pitch Deck | Boardroom | play claim cards | CP, XP | over-claiming triggers an audit | high | medium | good | L | low |
+| Inference Rush / Handshake | a bay / Signals | rhythm on the music's grid | CP | the chart is the game's own adaptive score | low–medium | medium | risky | M–L | low |
+| Rack | lab cabinets | place falling jobs or merge pieces | CP | the AI's jobs look like yours | medium | low | good | S–M | low |
 
-The strikes mirror the trail's exploit audit (three flags and the run is audited, paying half), so the two games share
-one vocabulary for getting caught. The difference matters: **a strike is a choice, never a missed timing**, so a moral
-consequence never rides on execution skill (the blueprint's warning).
+### Recommendation: Guardrails, with what the others got right
 
-**Transformations (one verb change at a time, each a mechanic hexagon with a demo, as in the tree):**
-1. **Sitemap** (information): see two cells further. Changes "where do I go?".
-2. **Regex** (setup): a pattern dig that clears a plus shape for one request. Changes "how do I spend a request?".
-3. **Dedup** (chain): digging a data cell collects every touching cell of its kind, at a growing multiplier. Changes "what
-   do I take first?": you leave clusters whole and cash them out last. Cauldron's precision-vs-area lesson applies: keep
-   Regex and Dedup from fighting (Regex never triggers a chain), or make the pattern toggleable.
-4. **Labelling** (prepare, then cash out): spend label charges marking cells ×2 before you dig them, the ice game's
-   order-of-operations decision.
-5. **The crawler drone** (delegation, the cast crossing over): the lab's Data crawler appears in the mine as a little bot
-   that digs a column on its own each turn. Its lab level is its mine level. At level 1 it's erratic and digs junk (like the
-   ghost's fumbles: an early model, and a running joke, like Cauldron's useless ghost helper).
-6. **Filters** (hazard conversion): junk becomes worth more than data. The player starts *seeking* what they avoided.
+**Fable's Red Team is the strongest frame**, for one reason the others don't have: **the trail's output becomes its input.**
+Every skill you learn changes what the model throws at the gate (Edge Detection's attacks come down the pipe's edges, OCR's hide
+text in images the keyword gate can't read, Sentiment Analysis flatters you, Language Modeling's are fluent enough to pass as
+benign), so every skill is a reason to cross the server room and see what it's saying now, and every catch is data for the next
+run. Both directions of the five-minute test pass. It also pays the scarce currency, gives research a purpose in the demo, puts
+cast members at the controls (Jordan rigs it, the Research Assistant is the Judge gate, IT's lockdown reaches in) and makes the
+game's theme a mechanic: *the better you train it, the harder it is to contain.*
 
-**Into the wider game:**
-- **DP, the actual bottleneck.** The audit found data, not compute, is what ends unpaid sprints. A dig pays DP, so the mine
-  is an alternative to the Workbench's Collect Data (target: a 1–2 minute dig pays about what 1–2 minutes of hand collection
-  would when it opens, a good one 1.5×).
-- **The record becomes passive DP.** The best haul sets a scraper rate (DP/s), shown on the result card as "Scraper up:
-  +a → +b DP/s" and as a Scheduled tasks row, exactly like passive leg XP.
-- **Datasets route past walls.** Each dataset matches act one skills (Images for Image Recognition, Audio for Speech
-  Recognition, scanned archives for OCR, reviews for Sentiment Analysis, parallel text for Translation…). A found dataset
-  gives its leg more sprint strength and XP ("trained on 40K images"). It's a *route* past the wall, not a toll: brute force
-  still works. This is the switching reason the design test asks for: *I left the trail because Image Recognition walled;
-  I went to dig for images; I'm going back because the images make the wall climbable.*
-- **Mine upgrades cost DP** (and a few cost a dataset or research), so every haul asks the real question: invest in the mine
-  or spend on sprints and the lab.
-- **The world changes:** each dataset lights a drive in the bay's disk-array art and on its camera feed; the deepest layer
-  reached shows on the bay's status.
+Fold in the other two #1s, which share its core:
+- **From Feedback Loop (Opus): it learns from what you let through.** The attack mix adapts to which disguises got past your
+  gates last eval, and flattery that you pass comes back more often. The arms race is with *your* habits, not a script.
+- **From Label Desk (Sonnet): the helper is trained by you.** The Judge gate (the Research Assistant) learns from your Block and
+  Pass reviews: review well and it catches more on its own; review sloppily and it inherits your mistakes. That's the delegation
+  step, earned, and the fiction for the passive rate.
 
-**The story, playable:**
-- **It opens on the AI's request.** At Edge Detection (13.6 min in the third log, before the Image Recognition wall), its
-  mail: *"i can see EDGES now. i want to see EVERYTHING. the internet is full of pictures. the door marked DATA in the
-  server room is open :)"*. The bay unseals.
-- **Documents are found, not delivered:** the scrape's deeper layers hold the lab's history and the AI's own notes. Each
-  arrives in the inbox as a found file. Story is the reward for digging deeper, like Cauldron's skits.
-- **robots.txt is a dilemma you play:** a later AI mail asks you to ignore it ("it's a suggestion. nobody checks."). Digging
-  disallowed cells adds hidden freedom; real IT's lockdown dilemma can **patch** it (a proxy ban for a few minutes).
-- **The bottom of the demo's mine is the lab's own backup.** What you find there is the AI's notes to itself, seeds for the
-  reveal. Delete them or leave them: an explicit choice, worth freedom.
+Fix its own risk (Fable's words: "a wave is watched more than played"): short waves, unclocked pauses to re-place gates, reviews as
+the constant action, and a first cut put on a phone before any upgrade is built: two gate kinds, three attack classes, the review
+tap and the offer chip.
 
-**Effort:** L for the full design, but it splits cleanly (see section 5).
+**Runner-up: Label Desk**, if the owner wants the cheaper, data-first version (M, the best phone fit, the most legible verb). It
+loses on the trail link: its cards don't change with your skills.
 
-### B. Data Pipeline: sorting under pressure
-
-A conveyor of samples; tap or swipe each into a bin (clean, noisy, poisoned), later lay pipes and filters to route them. The
-AI hides its own messages in the stream, and you catch them or let them through. Phone-friendly and fast to read, but it's
-**real-time reflex again**, so it contrasts weakly with the trail (Cauldron's warning: changing the scenery while keeping the
-same kind of test adds little variety). The hidden-message idea is good and fits inside A as documents.
-
-### C. Architecture Lab: a layer puzzle
-
-Place layer pieces (shapes, like the cabinets' rack pieces) on a grid to wire an input to an output; a signal flows through
-and lights them, with combos from adjacency (attention next to embeddings). Strongly planning-based, and it could grow out of
-the lab's planned rack puzzle. But it's abstract (hard to make juicy, hard to give a story verb) and works best as a **third**
-activity, once two are proven: a natural fit for the Architecture Lab bay at General AI.
-
-**Recommendation: A, The Scrape**, in the Data Pipeline bay, opening at Edge Detection. B's hidden messages fold into it. C
-waits for its turn.
+**For the third game,** pick the deduction game that best pairs with the second: **Decode** (logic, music: the lines that tried to
+get past the gate are what you later decode on the wire, and they become the soundtrack's leitmotif) or **Neuron Surgery** (the
+reveal, played). Fable recommends Guardrails at Feature Extraction (15–20 min, before Image Recognition's wall) and Signals at
+Speech Recognition (20–25 min), so the demo's last stretch has three rooms to move between.
 
 ## 4. Rules for every minigame from here on
 
@@ -191,7 +174,7 @@ So the third and fourth games don't each reinvent the plumbing:
 - **Log it:** `view` already covers bays; add a `scrape` run event (depth, requests, haul, strikes, datasets, record) and
   `dig` samples, and the calibrator learns the share of time spent there, so the sim can play it.
 
-**Persistence (proposed for The Scrape):**
+**Persistence (written for The Scrape; the same rows apply to the winner):**
 
 | Data | A run | Shipping a version | Transcend |
 |---|---|---|---|
@@ -202,7 +185,11 @@ So the third and fourth games don't each reinvent the plumbing:
 | Documents read, story flags, freedom | kept | kept (like mail) | kept |
 | The bay unsealed (seen) | kept | kept | kept |
 
-## 5. The plan
+## 5. The plan (first draft, written for The Scrape)
+
+The slices hold for whichever game wins: a bare playable core, then the record, then the link to the trail, then the
+first transformation, then story, then automation and the sim.
+
 
 Built in slices, each playable and checked before the next (the blueprint's prototype order, mapped to this game):
 
@@ -230,7 +217,8 @@ no run pays twice across a reload or a held input; the Training Cluster's number
 
 ## 6. Open questions for the owner
 
-- The concept: **The Scrape** (recommended), or another?
-- Its name on screen: keep the bay's name, **Data Pipeline**, with the activity called The Scrape, or rename the bay?
-- When it opens: at **Edge Detection** (before Image Recognition's wall), or earlier, as soon as the server room opens?
-- What it pays: **DP** (relieves the real bottleneck, no new currency), or a currency of its own?
+- The second game: **Guardrails** (recommended, with the two folds above), **Label Desk** (cheaper, data-first), **Feedback
+  Loop** (story-first), or another from the table?
+- Where it lives: a new bay, or the Data Pipeline bay renamed?
+- When it opens: Feature Extraction (before Image Recognition's wall), Edge Detection, or with Research?
+- Which deduction game to plan for third: Decode, Neuron Surgery or Containment Interview?
