@@ -520,7 +520,7 @@
                 s.boss = null;
                 s.events.push({ type: 'bossDown', x: b.x, y: b.y });
             } else {
-                s.events.push({ type: 'bossHit', x: b.x, y: b.y, hp: b.hp, maxHp: b.maxHp, how });
+                s.events.push({ type: 'bossHit', x: b.x, y: b.y, r: b.r, hp: b.hp, maxHp: b.maxHp, how });
             }
         }
 
@@ -696,6 +696,14 @@
             return out;
         }
 
+        // A tag lasts `tagSeconds` and isn't refreshed; once it's gone, the packet can't be tagged again for as long (round
+        // 3: with towers and the beam, every packet on a maxed field stayed tagged, and a tag meant nothing).
+        function tag(p) {
+            if (p.tag > s.time || p.tagCool > s.time) return;
+            s.stats.tagged++;
+            p.tag = s.time + o.tagSeconds;
+            p.tagCool = s.time + 2 * o.tagSeconds;
+        }
         function scannerStep(dt) {
             if (!s.beams.length) return;
             const cx = w / 2, cy = h / 2;
@@ -709,10 +717,7 @@
                     // the angle swept this step, in [a0, a1] modulo a turn
                     let d = (a - a0) % (Math.PI * 2);
                     if (d < 0) d += Math.PI * 2;
-                    if (d <= a1 - a0 + 1e-9) {
-                        if (!(p.tag > s.time)) s.stats.tagged++;
-                        p.tag = s.time + o.tagSeconds;
-                    }
+                    if (d <= a1 - a0 + 1e-9) tag(p);
                 }
             }
         }
@@ -904,10 +909,7 @@
                     if (p.kind === 'corrupt' || Math.hypot(p.x - t.x, p.y - t.y) > o.towerRange) continue;
                     let d = (Math.atan2(p.y - t.y, p.x - t.x) - a0) % (Math.PI * 2);
                     if (d < 0) d += Math.PI * 2;
-                    if (d <= a1 - a0 + 1e-9) {
-                        if (!(p.tag > s.time)) s.stats.tagged++;
-                        p.tag = s.time + o.tagSeconds;
-                    }
+                    if (d <= a1 - a0 + 1e-9) tag(p);
                 }
             }
         }
@@ -1527,5 +1529,5 @@
         return Object.assign(s, { step, addPoint, liftPen, stop, takeEvents, preview, valueOf, isGood, placeWall, placeAt, removeAt, usePower, wallsUp, frozen, layoutOf, emitterSpots });
     }
 
-    return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, AV_R, BOSS_R, BOSS_WARN, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };
+    return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, AV_R, BOSS_R, BOSS_WARN, BOSS_DASH, BOSS_DASH_SPEED, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };
 });

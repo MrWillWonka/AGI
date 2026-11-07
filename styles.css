@@ -3339,7 +3339,7 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 .snare-tree-title { margin-right: auto; font: 700 0.85rem var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .snare-intro-line { margin: 6px 0 2px; font-size: 0.86rem; }
 .snare-card .demo { margin: 6px auto 0; width: 240px; max-width: 100%; }
-.snare-tree-grid { position: relative; min-height: 0; overflow: hidden; --cell: 96px; touch-action: none; cursor: grab; }
+.snare-tree-grid { position: relative; min-height: 0; overflow: hidden; --cell: 112px; touch-action: none; cursor: grab; }
 .snare-tree-inner { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-origin: 0 0; }
 .snare-tree-grid .tree-links line { stroke-width: 2.5; }
 .snare-tree-grid .tree-node { width: calc(var(--cell) * 0.56); }
@@ -3375,7 +3375,13 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 .snare-tool.power { border-style: dashed; }
 .snare-tool.spent { opacity: 0.45; }
 @media (hover: hover) { .snare-tool:hover { border-color: var(--warning); } }
-@media (max-width: 640px) { .snare-tool-name { display: none; } .snare-tool { padding: 4px 8px; } }
+/* Phones show icons only, but the tool in hand says its name (round 3: Turret and Tower looked alike). */
+@media (max-width: 640px) { .snare-tool-name { display: none; } .snare-tool.on .snare-tool-name { display: inline; } .snare-tool { padding: 4px 8px; } }
+/* The start card's sector picker (once a sector is cleared): the frontier, or a cleared one to replay. */
+.snare-sector-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 6px 0 2px; font-size: 0.85rem; color: var(--muted); }
+.snare-sector-pick { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; max-width: 100%; }
+/* The Upgrades badge sits over the button's corner: the card's buttons leave room for it (round 3: clipped). */
+.snare-card .result-actions { padding-top: 10px; padding-right: 10px; }
 /* The tree's popup docks along the foot of a narrow tree, its buy button always in view. */
 .snare-tree-grid .node-detail.docked { left: 6px; right: 6px; bottom: 6px; top: auto; width: auto; max-height: 62%; }
 .snare-tree-grid .node-detail .detail-buy { position: sticky; bottom: -14px; }

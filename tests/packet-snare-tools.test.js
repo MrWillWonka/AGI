@@ -122,8 +122,9 @@ test('scanner towers tag what passes their beam', () => {
     packet(s, 'good', 6, 3.5);
     packet(s, 'good', 9.5, 6);
     for (let i = 0; i < 150; i++) s.step(1 / 60);
-    assert.ok(s.packets[0].tag > s.time, 'tagged in reach');
-    assert.ok(!(s.packets[1].tag > s.time), 'not out of reach');
+    assert.ok(s.packets[0].tagCool > 0, 'tagged in reach');
+    assert.ok(!(s.packets[1].tagCool > 0), 'not out of reach');
+    assert.equal(s.stats.tagged, 1, 'and not tagged again while its tag lasts or cools down');
 });
 
 test('freeze stops the field and Focus while you draw; purge wipes the corrupt packets', () => {
