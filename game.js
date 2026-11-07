@@ -3569,7 +3569,7 @@ window.AGI = (function () {
         pointer: null, done: null, tree: false, pick: null, treeKey: '' };
     const SNARE_FX = 1.1;        // seconds a catch's loop and pop stay on the field
     const SNARE_ICONS = { snareFocus: '◔', snareBandwidth: '⇕', snareSprawl: '⤢', snareGold: '◆', snareSchools: '≋', snareObfuscation: '◌',
-        snareChain: 'ϟ', snareScanner: '◎', snareScrubbers: '✚', snareLaser: '⌖', snareEmitters: '⋔', snareAnchors: '⚓', snareOverclock: '⟳', snareContain: '▣', snareHerders: '⟴' };
+        snareChain: 'ϟ', snareScanner: '◎', snareScrubbers: '✚', snareLaser: '⌖', snareEmitters: '⋔', snareAnchors: '⚓', snareHardened: '⛨', snareContain: '▣', snareHerders: '⟴' };
 
     function snareStatus() {
         if (snare.run && !snare.run.over && !snare.preview) return 'Snaring…';
@@ -3660,7 +3660,7 @@ window.AGI = (function () {
 
     function snarePreview() {
         const o = E.snareOpts(state);
-        snare.run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area), seed: 5, firewalls: [], idleDrain: 0, laser: 0, rogue: 0 });
+        snare.run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area), seed: 5, antivirus: [], sweepFirst: Infinity, idleDrain: 0, laser: 0, rogue: 0 });
         snare.preview = true;
         snareFit();
         snare.last = performance.now();
@@ -3693,7 +3693,7 @@ window.AGI = (function () {
         setHidden($('snareCard'), true);
         setHidden($('snareHud'), false);
         setText($('snareStatus'), o.anchors && !state.intro['snare:anchors']
-            ? 'Tap to place anchors: three or more join into a net that catches by itself. Tap one to move it.'
+            ? 'Tap to place anchors: each joins the last with your own Firewall. Good packets bounce off it, and an Antivirus that hits one is stunned. Tap an anchor to move it.'
             : 'Draw a loop round the packets. Come back near the start to close it.');
         if (o.anchors) state.intro['snare:anchors'] = true;
         sfx('ui');
@@ -3753,7 +3753,7 @@ window.AGI = (function () {
                 snare.fx.push({ kind: 'snap', wire: e.wire, x: e.x, y: e.y, t: 0, text: 'SNAPPED', life: 0.9 });
                 sfx('nearMiss');
                 if (state.settings.shake && !reducedMotion()) snare.fx.push({ kind: 'shake', t: 0, life: 0.25 });
-            } else if (e.type === 'firewall') {
+            } else if (e.type === 'antivirus') {
                 snare.fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.8 });
             } else if (e.type === 'core') {
                 snare.fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.8 });
@@ -3778,14 +3778,13 @@ window.AGI = (function () {
                 sfx('ui');
             } else if (e.type === 'anchor') {
                 sfx('ui');
-            } else if (e.type === 'net') {
-                const dp = E.snareCatch(state, e.units);
-                snare.haul += dp;
-                snare.fx.push({ kind: 'netPulse', poly: e.poly, x: e.x, y: e.y, t: 0, life: 0.6, text: `+${E.format(dp)}`, packets: e.packets });
-                sfx('clean');
-            } else if (e.type === 'netBreak') {
-                snare.fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.6 });
-                sfx('error');
+            } else if (e.type === 'stun') {
+                // Your Firewall stuns an Antivirus; at its last hit it goes down, breaking apart.
+                snare.fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'STUNNED', small: true });
+                if (e.down) snare.fx.push({ kind: 'fwDown', a: e.a, b: e.b, t: 0, life: 0.7 });
+                sfx(e.down ? 'nearMiss' : 'clean');
+            } else if (e.type === 'sweep') {
+                sfx('windup');
             } else if (e.type === 'end') {
                 endSnare(e.stats, e.layout);
             }
@@ -3800,7 +3799,7 @@ window.AGI = (function () {
         setText($('snareStatus'), '');
         pt('snare', { haul: Math.round(snare.haul), catches: stats.catches, caught: stats.caught, gold: stats.gold, corrupted: stats.corrupted,
             snaps: stats.snaps, empty: stats.empty, bestMult: r2(stats.bestMult), chained: stats.chained, lasered: stats.lasered, scrubbed: stats.scrubbed,
-            cores: stats.cores, stolen: stats.stolen, quarantined: stats.quarantined, walls: stats.walls, netCaught: stats.netCaught, netBreaks: stats.netBreaks,
+            cores: stats.cores, stolen: stats.stolen, quarantined: stats.quarantined, walls: stats.walls, bounces: stats.bounces, stuns: stats.stuns, fwLost: stats.fwLost, sweeps: stats.sweeps,
             area: Math.round(snare.run.w * snare.run.h), secs: Math.round(snare.run.time), record: res.record, seed: snare.seed });
         log(`Packet Snare: +${E.format(snare.haul)} DP from ${stats.caught} packet${stats.caught === 1 ? '' : 's'}${res.record ? ' · new record' : ''}.`, res.record ? 'success' : 'info');
         sfx(res.record ? 'record' : 'runEnd');
@@ -3838,7 +3837,7 @@ window.AGI = (function () {
                     s.bestMult >= 1.05 ? line('Biggest loop', `×${s.bestMult.toFixed(1)}`) : null,
                     s.chained ? line('Chain lightning', `${s.chained}`) : null,
                     s.lasered ? line('Lasered', `${s.lasered}`) : null,
-                    s.netCaught ? line('Caught by the net', `${s.netCaught}`) : null,
+                    s.stuns ? line('Antivirus stunned', `${s.stuns}`) : null,
                     s.stolen ? line('Stolen by the Rogue AI', `${s.stolen}`) : null,
                     s.quarantined ? line('Cores quarantined', `${s.quarantined}`) : null,
                     s.gold ? line('Gold packets', `${s.gold}`) : null,
@@ -4107,34 +4106,39 @@ window.AGI = (function () {
             ctx.restore();
         }
         ctx.globalAlpha = 1;
-        // The net: anchors joined by lasers into a loop; dim and dashed while a Firewall has broken it.
+        // Your Firewalls: green laser lines between the anchors (each joins the last; three or more close a pen, faintly
+        // filled). A line an Antivirus has taken down is gone; its anchors stay, ready to be moved.
         const anchorsNow = run.anchors;
         if (anchorsNow.length) {
-            const broken = run.time < run.net.brokenUntil;
-            if (anchorsNow.length >= 3) {
+            const fws = run.firewallsUp();
+            if (anchorsNow.length >= 3 && fws.length === anchorsNow.length) {
                 ctx.beginPath();
                 anchorsNow.forEach((a, i) => (i ? ctx.lineTo(a.x * k, a.y * k) : ctx.moveTo(a.x * k, a.y * k)));
                 ctx.closePath();
-                ctx.globalAlpha = broken ? 0.03 : 0.07;
-                ctx.fillStyle = C.warning;
+                ctx.globalAlpha = 0.06;
+                ctx.fillStyle = C.success;
                 ctx.fill();
-                ctx.globalAlpha = broken ? 0.35 : 0.85;
-                ctx.strokeStyle = broken ? C.danger : C.warning;
-                ctx.lineWidth = broken ? 1 : 2;
-                if (broken) ctx.setLineDash([3, 6]);
-                else { ctx.shadowColor = C.warning; ctx.shadowBlur = 8; }
-                ctx.stroke();
-                ctx.setLineDash([]);
-                ctx.shadowBlur = 0;
-            } else if (anchorsNow.length === 2) {
-                ctx.globalAlpha = 0.35;
-                ctx.strokeStyle = C.warning;
-                ctx.setLineDash([2, 6]);
+            }
+            ctx.globalAlpha = 0.9;
+            ctx.strokeStyle = C.success;
+            ctx.lineWidth = 3;
+            ctx.shadowColor = C.success;
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            for (const f of fws) {
+                ctx.moveTo(f.a.x * k, f.a.y * k);
+                ctx.lineTo(f.b.x * k, f.b.y * k);
+            }
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            // a light pulse running along each line
+            ctx.globalAlpha = 0.9;
+            ctx.fillStyle = C.text;
+            for (const f of fws) {
+                const u = (run.time * 0.8 + (f.a.id % 7) / 7) % 1;
                 ctx.beginPath();
-                ctx.moveTo(anchorsNow[0].x * k, anchorsNow[0].y * k);
-                ctx.lineTo(anchorsNow[1].x * k, anchorsNow[1].y * k);
-                ctx.stroke();
-                ctx.setLineDash([]);
+                ctx.arc((f.a.x + (f.b.x - f.a.x) * u) * k, (f.a.y + (f.b.y - f.a.y) * u) * k, 2, 0, Math.PI * 2);
+                ctx.fill();
             }
             ctx.globalAlpha = 1;
             for (const a of anchorsNow) {
@@ -4142,18 +4146,68 @@ window.AGI = (function () {
                 ctx.translate(a.x * k, a.y * k);
                 ctx.rotate(Math.PI / 4);
                 ctx.fillStyle = C.bg || '#0a1416';
-                ctx.strokeStyle = C.warning;
+                ctx.strokeStyle = C.success;
                 ctx.lineWidth = 2;
                 ctx.fillRect(-6, -6, 12, 12);
                 ctx.strokeRect(-6, -6, 12, 12);
                 ctx.restore();
             }
         }
+        // A firewall going down breaks apart.
+        for (const f of snare.fx) {
+            if (f.kind !== 'fwDown') continue;
+            const a = 1 - f.t / f.life;
+            ctx.globalAlpha = a;
+            ctx.strokeStyle = C.success;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 6]);
+            ctx.lineDashOffset = -f.t * 40;
+            ctx.beginPath();
+            ctx.moveTo(f.a.x * k, (f.a.y + f.t) * k);
+            ctx.lineTo(f.b.x * k, (f.b.y + f.t) * k);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.lineDashOffset = 0;
+        }
+        ctx.globalAlpha = 1;
+        // System Firewalls: the edge they start from flashes while they warn, then a red line sweeps across the field.
+        for (const sw of run.sweeps) {
+            const warn = run.opts.sweepWarn;
+            const vertical = sw.axis === 'x';   // sweeping along x: a vertical line
+            if (sw.t < warn) {
+                const on = Math.floor(sw.t * 8) % 2 === 0;
+                ctx.globalAlpha = on ? 0.8 : 0.25;
+                ctx.fillStyle = C.danger;
+                const th = 6;
+                if (vertical) ctx.fillRect(sw.pos * k - (sw.dir > 0 ? 0 : th), 0, th, H * k);
+                else ctx.fillRect(0, sw.pos * k - (sw.dir > 0 ? 0 : th), W * k, th);
+                continue;
+            }
+            const p = sw.pos * k;
+            const trail = 26 * -sw.dir;
+            const g = vertical ? ctx.createLinearGradient(p, 0, p + trail, 0) : ctx.createLinearGradient(0, p, 0, p + trail);
+            g.addColorStop(0, C.danger);
+            g.addColorStop(1, 'transparent');
+            ctx.globalAlpha = 0.35;
+            ctx.fillStyle = g;
+            if (vertical) ctx.fillRect(Math.min(p, p + trail), 0, Math.abs(trail), H * k);
+            else ctx.fillRect(0, Math.min(p, p + trail), W * k, Math.abs(trail));
+            ctx.globalAlpha = 1;
+            ctx.strokeStyle = C.danger;
+            ctx.lineWidth = 2.5;
+            ctx.shadowColor = C.danger;
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            if (vertical) { ctx.moveTo(p, 0); ctx.lineTo(p, H * k); } else { ctx.moveTo(0, p); ctx.lineTo(W * k, p); }
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+        ctx.globalAlpha = 1;
         // Catches, spoils and empty loops: the loop flashes and fades.
         for (const f of snare.fx) {
             if (!f.poly) continue;
             const a = 1 - f.t / (f.life || SNARE_FX);
-            const col = f.kind === 'catch' ? C.primary : f.kind === 'netPulse' ? C.warning : f.kind === 'corrupt' ? C.danger : C.muted;
+            const col = f.kind === 'catch' ? C.primary : f.kind === 'corrupt' ? C.danger : C.muted;
             ctx.beginPath();
             f.poly.forEach((p, i) => (i ? ctx.lineTo(p.x * k, p.y * k) : ctx.moveTo(p.x * k, p.y * k)));
             ctx.closePath();
@@ -4326,7 +4380,7 @@ window.AGI = (function () {
         ctx.globalAlpha = 1;
         // The wire: bright at the pen, fading toward its tail; tinted while a Firewall hunts it. Its start wears a ring
         // that lights up when the pen is close enough to close the loop.
-        const hunted = run.firewalls.some(f => f.hunting);
+        const hunted = run.antivirus.some(f => f.hunting);
         if (run.wire.length > 1) {
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
@@ -4455,24 +4509,39 @@ window.AGI = (function () {
         }
         ctx.globalAlpha = 1;
         // Firewalls: a red ring with a sweeping scan line, brighter while hunting.
-        for (const f of run.firewalls) {
+        // Antivirus: a red ring with a sweeping scan line, brighter while hunting; grey and still while stunned.
+        for (const f of run.antivirus) {
             const x = f.x * k, y = f.y * k, r = Math.max(9, f.r * k);
-            ctx.strokeStyle = C.danger;
-            ctx.fillStyle = C.danger;
-            ctx.shadowColor = C.danger;
-            ctx.shadowBlur = f.hunting ? 18 : 8;
+            const stunned = f.stunned > t;
+            const col = stunned ? C.muted : C.danger;
+            ctx.strokeStyle = col;
+            ctx.fillStyle = col;
+            ctx.shadowColor = col;
+            ctx.shadowBlur = stunned ? 0 : f.hunting ? 18 : 8;
             ctx.lineWidth = 2;
+            if (stunned) ctx.setLineDash([3, 4]);
             ctx.beginPath();
             ctx.arc(x, y, r, 0, Math.PI * 2);
             ctx.stroke();
-            ctx.globalAlpha = f.hunting ? 0.35 : 0.18;
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.arc(x, y, r, t * 4, t * 4 + 1.2);
-            ctx.closePath();
-            ctx.fill();
+            ctx.setLineDash([]);
+            if (!stunned) {
+                ctx.globalAlpha = f.hunting ? 0.35 : 0.18;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.arc(x, y, r, t * 4, t * 4 + 1.2);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                // sparks orbiting a stunned one
+                ctx.fillStyle = C.success;
+                for (let i = 0; i < 3; i++) {
+                    const ang = t * 6 + i * 2.1;
+                    ctx.fillRect(x + Math.cos(ang) * (r + 4) - 1.5, y + Math.sin(ang) * (r + 4) - 1.5, 3, 3);
+                }
+            }
             ctx.globalAlpha = 1;
             ctx.shadowBlur = 0;
+            ctx.fillStyle = col;
             ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
         }
         for (const f of snare.fx) {
@@ -4494,7 +4563,7 @@ window.AGI = (function () {
             const y = f.y * k - 10 - f.t * 26;
             ctx.globalAlpha = a;
             ctx.font = `700 ${f.small ? 11 : f.big ? 18 : 15}px ${snare.mono}`;
-            ctx.fillStyle = f.kind === 'quarantine' ? C.primary : f.kind === 'catch' || f.kind === 'laser' || f.kind === 'netPulse' ? (f.big || f.gold ? C.warning : C.text) : C.danger;
+            ctx.fillStyle = f.kind === 'quarantine' ? C.primary : f.kind === 'stun' ? C.success : f.kind === 'catch' || f.kind === 'laser' ? (f.big || f.gold ? C.warning : C.text) : C.danger;
             ctx.fillText(f.text, f.x * k, y);
             if (f.sub) {
                 ctx.font = `600 12px ${snare.mono}`;

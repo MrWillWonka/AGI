@@ -8,7 +8,7 @@ const NOW = 1_700_000_000_000;
 
 // A field with nothing moving and no Firewalls, packets placed by hand.
 function still(over = {}) {
-    const s = P.createSnare({ seed: 7, density: 0, firewalls: [], idleDrain: 0, drawBase: 0, drawDrain: 0, respawn: 1e9, corruptLure: 0, ...over });
+    const s = P.createSnare({ seed: 7, density: 0, antivirus: [], idleDrain: 0, drawBase: 0, drawDrain: 0, respawn: 1e9, corruptLure: 0, sweepFirst: Infinity, ...over });
     s.packets = [];
     return s;
 }
@@ -41,7 +41,7 @@ test('a run is deterministic from its seed', () => {
     const b = P.createSnare({ seed: 42, w: 16, h: 10 });
     for (let i = 0; i < 300; i++) { a.step(1 / 30); b.step(1 / 30); }
     assert.deepEqual(a.packets.map(p => [p.x, p.y, p.kind]), b.packets.map(p => [p.x, p.y, p.kind]));
-    assert.deepEqual(a.firewalls.map(f => [f.x, f.y]), b.firewalls.map(f => [f.x, f.y]));
+    assert.deepEqual(a.antivirus.map(f => [f.x, f.y]), b.antivirus.map(f => [f.x, f.y]));
     const c = P.createSnare({ seed: 43, w: 16, h: 10 });
     assert.notDeepEqual(a.packets.slice(0, 3).map(p => p.x), c.packets.slice(0, 3).map(p => p.x));
 });
@@ -50,7 +50,8 @@ test('packets stay on the field and the field fills to its size', () => {
     const s = P.createSnare({ seed: 3, w: 10, h: 16 });
     assert.ok(s.packets.length >= Math.round(P.SNARE.density * 160), 'a good packet per … of field, and corrupt ones');
     for (let i = 0; i < 600; i++) s.step(1 / 60);
-    for (const p of s.packets) assert.ok(p.x >= 0 && p.x <= s.w && p.y >= 0 && p.y <= s.h);
+    // (a packet on its way out may be just past the edge, within its own size, until it's gone)
+    for (const p of s.packets) assert.ok(p.x >= -p.r && p.x <= s.w + p.r && p.y >= -p.r && p.y <= s.h + p.r);
 });
 
 test('a wire that crosses itself closes a loop and snares what is inside, at the area multiplier', () => {
@@ -95,10 +96,10 @@ test('gold packets are worth several', () => {
     assert.equal(c.units, P.GOLD_VALUE * c.mult);
 });
 
-test('a Firewall that touches the wire snaps it, costs Focus and stops the pen for a moment', () => {
-    const s = still({ firewalls: [0] });
+test('an Antivirus that touches the wire snaps it, costs Focus and stops the pen for a moment', () => {
+    const s = still({ antivirus: [0] });
     s.step(1 / 60);
-    const f = s.firewalls[0];
+    const f = s.antivirus[0];
     f.x = 5; f.y = 5; f.vx = 0; f.vy = 0;
     s.addPoint(3, 5);
     s.addPoint(4, 5);
@@ -112,10 +113,10 @@ test('a Firewall that touches the wire snaps it, costs Focus and stops the pen f
     assert.equal(s.stats.snaps, 1);
 });
 
-test('Firewalls hunt the wire', () => {
-    const s = still({ firewalls: [0] });
+test('Antivirus hunts the wire', () => {
+    const s = still({ antivirus: [0] });
     s.step(1 / 60);
-    const f = s.firewalls[0];
+    const f = s.antivirus[0];
     f.x = 1; f.y = 1;
     s.addPoint(8, 6);
     s.addPoint(8.5, 6);
@@ -127,7 +128,7 @@ test('Firewalls hunt the wire', () => {
 
 test('a longer wire burns Focus faster, and an empty Focus ends the run', () => {
     const drained = len => {
-        const s = P.createSnare({ seed: 1, density: 0, firewalls: [] });
+        const s = P.createSnare({ seed: 1, density: 0, antivirus: [] });
         s.packets = [];
         s.addPoint(0.5, 0.5);
         for (let x = 0.5; x <= 0.5 + len; x += 0.1) s.addPoint(x, 0.5);
@@ -136,7 +137,7 @@ test('a longer wire burns Focus faster, and an empty Focus ends the run', () => 
         return f0 - s.focus;
     };
     assert.ok(drained(8) > drained(2) + 1.5);
-    const s = P.createSnare({ seed: 1, firewalls: [] });
+    const s = P.createSnare({ seed: 1, antivirus: [] });
     for (let i = 0; i < 1000 && !s.over; i++) s.step(0.25);
     assert.ok(s.over, 'an idle run still ends');
     assert.ok(s.takeEvents().some(e => e.type === 'end'));
@@ -215,7 +216,7 @@ test('the preview says what the open loop would catch, its multiplier, and a spo
 
 test('schools: packets of a school stay together; without schooling they drift apart', () => {
     const spread = schooling => {
-        const s = P.createSnare({ seed: 11, w: 30, h: 30, density: 0.05, corruptShare: 0, firewalls: [], schooling, idleDrain: 0, flow: false });
+        const s = P.createSnare({ seed: 11, w: 30, h: 30, density: 0.05, corruptShare: 0, antivirus: [], schooling, idleDrain: 0, flow: false });
         for (let i = 0; i < 300; i++) s.step(1 / 30);
         const bySchool = {};
         for (const p of s.packets) (bySchool[p.school] ||= []).push(p);
@@ -333,7 +334,7 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     const o = E.snareOpts(s);
     assert.equal(o.area, 70);
     assert.equal(o.focus, 26);
-    assert.deepEqual(o.firewalls, [5]);
+    assert.deepEqual(o.antivirus, [5]);
     assert.equal(o.rogue, 0, 'no Rogue AI on the first runs');
     assert.equal(o.chain + o.scanner + o.laser + o.scrubbers + o.anchors, 0, 'no abilities yet');
     s.levels.snareSprawl = 2;
@@ -342,7 +343,7 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     s.levels.snareLaser = 2;
     const g = E.snareOpts(s);
     assert.ok(g.area > 170 && g.area < 190, 'two levels of Sprawl: ×1.6²');
-    assert.equal(g.firewalls.length, 2, 'a second Firewall with the sprawl');
+    assert.equal(g.antivirus.length, 2, 'a second Antivirus with the sprawl');
     assert.equal(g.focus, 33);
     assert.equal(g.chain, 2);
     assert.ok(g.laser > 0 && g.laser < 4, 'faster with its second level');
@@ -459,38 +460,58 @@ test('tapping places anchors up to the limit, and tapping one takes it back', ()
     assert.equal(still().tapAt(2, 2), false, 'no anchors without the node');
 });
 
-test('three anchors make a net that catches the good packets inside, and waits while a corrupt one is in', () => {
-    const s = still({ anchors: 3, netCooldown: 1 });
-    s.tapAt(2, 1); s.tapAt(9, 1); s.tapAt(5.5, 6);
-    packet(s, 'good', 5.5, 2.5);
-    packet(s, 'corrupt', 5, 2.4);
-    s.step(1 / 60);
-    assert.equal(s.stats.netPulses, 0, 'held: a corrupt packet is inside');
-    s.packets = s.packets.filter(p => p.kind !== 'corrupt');
-    s.step(1 / 60);
-    const net = s.takeEvents().find(e => e.type === 'net');
-    assert.ok(net, 'fired');
-    assert.equal(net.count, 1);
-    assert.ok(net.mult >= 1);
-    packet(s, 'good', 5.5, 2.5);
-    s.step(1 / 60);
-    assert.equal(s.stats.netPulses, 1, 'cooling down');
-    for (let i = 0; i < 70; i++) s.step(1 / 60);
-    assert.equal(s.stats.netPulses, 2);
+test('your Firewalls: good packets bounce off them, corrupt ones pass through', () => {
+    const s = still({ anchors: 2 });
+    s.tapAt(5, 0.5); s.tapAt(5, 6.1);   // a vertical firewall at x = 5
+    s.packets.push({ id: s.nextId++, kind: 'good', x: 4.6, y: 3.3, vx: 1, vy: 0, v: 1, r: P.PACKET_R, age: 0, school: 0, tag: 0 });
+    s.packets.push({ id: s.nextId++, kind: 'corrupt', x: 4.6, y: 2.3, vx: 1, vy: 0, v: 1, r: P.PACKET_R, age: 0, school: 0, tag: 0 });
+    for (let i = 0; i < 60; i++) s.step(1 / 60);
+    const g = s.packets.find(p => p.kind === 'good'), c = s.packets.find(p => p.kind === 'corrupt');
+    assert.ok(g.x < 5 && g.vx < 0, 'bounced back');
+    assert.ok(c.x > 5, 'passed through');
+    assert.ok(s.stats.bounces >= 1);
 });
 
-test('a Firewall that touches the net breaks it for a while', () => {
-    const s = still({ anchors: 3, firewalls: [0], netRepair: 2 });
+test('three anchors close a pen', () => {
+    const s = still({ anchors: 3 });
     s.tapAt(2, 1); s.tapAt(9, 1); s.tapAt(5.5, 6);
+    assert.equal(s.firewallsUp().length, 3);
+    assert.ok(s.penPoly());
+});
+
+test('an Antivirus that hits your Firewall is stunned (it can\'t snap the wire), and the firewall goes down', () => {
+    const s = still({ anchors: 2, antivirus: [0], avStun: 2 });
+    s.tapAt(5, 0.5); s.tapAt(5, 6.1);
     s.step(1 / 60);
-    const f = s.firewalls[0];
-    f.x = 5.5; f.y = 1; f.vx = 0; f.vy = 0;
+    const v = s.antivirus[0];
+    v.x = 5; v.y = 3.3; v.vx = 0; v.vy = 0;
     s.step(1 / 60);
-    assert.ok(s.takeEvents().some(e => e.type === 'netBreak'));
-    packet(s, 'good', 5.5, 2.5);
-    f.x = 0.5; f.y = 6;
+    const ev = s.takeEvents().find(e => e.type === 'stun');
+    assert.ok(ev && ev.down, 'stunned, firewall down');
+    assert.equal(s.firewallsUp().length, 0);
+    // stunned: a wire right on it doesn't snap
+    s.addPoint(4.5, 3.3); s.addPoint(5.5, 3.3);
     s.step(1 / 60);
-    assert.equal(s.stats.netPulses, 0, 'down');
+    assert.equal(s.stats.snaps, 0);
+    const h = still({ anchors: 2, antivirus: [0], fwHits: 2 });
+    h.tapAt(5, 0.5); h.tapAt(5, 6.1);
+    h.step(1 / 60);
+    h.antivirus[0].x = 5; h.antivirus[0].y = 3.3;
+    h.step(1 / 60);
+    assert.equal(h.firewallsUp().length, 1, 'a hardened firewall takes another hit');
+});
+
+test('a system Firewall flashes its edge, then sweeps across and snaps an open wire it crosses', () => {
+    const s = still({ sweepFirst: 0, sweepEvery: 1e9, sweepWarn: 0.5, sweepTime: 1 });
+    s.step(1 / 60);
+    assert.equal(s.sweeps.length, 1);
+    const sw = s.sweeps[0];
+    // a wire across the whole field, both ways, so any sweep crosses it
+    for (let x = 0.5; x < s.w - 0.5; x += 0.3) s.addPoint(x, 3.3);
+    for (let i = 0; i < 20; i++) s.step(1 / 60);
+    assert.equal(s.stats.snaps, 0, 'still warning');
+    for (let i = 0; i < 70; i++) s.step(1 / 60);
+    assert.equal(s.stats.snaps, 1, `swept (${sw.axis})`);
 });
 
 test('the anchors carry over: a run starts with the last run\'s layout', () => {
@@ -517,7 +538,7 @@ test('the Rogue AI arrives on the third run', () => {
 // ---- The current, the Containment Field and Herders ----
 
 test('the pipeline flows: packets leave the field downstream and new schools swim in upstream', () => {
-    const s = P.createSnare({ seed: 21, firewalls: [], idleDrain: 0, corruptLure: 0 });
+    const s = P.createSnare({ seed: 21, antivirus: [], idleDrain: 0, corruptLure: 0 });
     const n0 = s.packets.length;
     for (let i = 0; i < 60 * 20; i++) s.step(1 / 60);
     assert.ok(s.stats.escaped > 0, 'some left');
@@ -529,11 +550,11 @@ test('the pipeline flows: packets leave the field downstream and new schools swi
 });
 
 test('the Containment Field turns good packets back at the edges; corrupt ones still leave', () => {
-    const s = P.createSnare({ seed: 21, firewalls: [], idleDrain: 0, contain: 1, corruptLure: 0, schooling: 0 });
+    const s = P.createSnare({ seed: 21, antivirus: [], idleDrain: 0, contain: 1, corruptLure: 0, schooling: 0 });
     for (let i = 0; i < 60 * 20; i++) s.step(1 / 60);
     assert.equal(s.stats.escaped, 0, 'no good packet escaped');
     for (const p of s.packets) if (p.kind !== 'corrupt') assert.ok(p.x >= 0 && p.x <= s.w && p.y >= 0 && p.y <= s.h);
-    const c = P.createSnare({ seed: 21, firewalls: [], idleDrain: 0, contain: 1, corruptLure: 0, density: 0.01, corruptShare: 3 });
+    const c = P.createSnare({ seed: 21, antivirus: [], idleDrain: 0, contain: 1, corruptLure: 0, density: 0.01, corruptShare: 3 });
     const ids = new Set(c.packets.filter(p => p.kind === 'corrupt').map(p => p.id));
     for (let i = 0; i < 60 * 30; i++) c.step(1 / 60);
     assert.ok([...ids].some(id => !c.packets.some(p => p.id === id)), 'a corrupt one left the field');
@@ -541,7 +562,7 @@ test('the Containment Field turns good packets back at the edges; corrupt ones s
 
 test('Herders round good packets up toward the middle (or the net) and shoo corrupt ones away', () => {
     const spread = herders => {
-        const s = P.createSnare({ seed: 5, w: 14, h: 14, density: 0.08, corruptShare: 0, firewalls: [], idleDrain: 0, contain: 1, herders, schooling: 0 });
+        const s = P.createSnare({ seed: 5, w: 14, h: 14, density: 0.08, corruptShare: 0, antivirus: [], idleDrain: 0, contain: 1, herders, schooling: 0 });
         for (let i = 0; i < 60 * 12; i++) s.step(1 / 60);
         const g = s.packets.filter(p => p.kind !== 'corrupt');
         return g.reduce((a, p) => a + Math.hypot(p.x - 7, p.y - 7), 0) / g.length;

@@ -1,15 +1,17 @@
 // packet-snare.js — Packet Snare, the Data Pipeline's minigame: data packets swim in schools around a field, and the
 // player draws a trailing wire. Bringing the pen back near where it started (or crossing the wire) closes a loop and
 // **snares** everything inside: the bigger the loop, the bigger the multiplier, but a corrupt packet inside spoils the
-// whole catch, a longer wire burns Focus faster, and Firewalls hunt the wire and snap it before it closes. The run
+// whole catch, a longer wire burns Focus faster, Antivirus programs hunt the wire and snap it before it closes, and
+// system Firewalls sweep across the field from side to side, ending any loop they cross. The run
 // ends when Focus runs out.
 // It starts small, short and hard (a little field, a few seconds of Focus, corrupt packets hiding in the schools) and grows
 // with its own skill tree (engine.js `snareOpts`): a wider field, more Focus, chain lightning off every catch, a scanner
 // sweep that tags packets, targeted lasers that take packets by themselves, scrubbers that forgive a corrupt packet, and
-// Anchors: tap to place them and lasers join them into a net that catches by itself.
+// Anchors: tap to place them and lasers join them into your own Firewalls: good packets bounce off them (pens and
+// funnels), corrupt ones pass through, and an Antivirus that runs into one is stunned while that firewall goes down.
 // The pipeline flows: each run has a current, schools swim in from upstream and leave downstream (the owner's call:
 // packets go on off the field the way they're heading). A Containment Field makes the edges hold the good ones (corrupt
-// ones still leave), and Herders, drones that round strays up toward your net, shoo corrupt ones out.
+// ones still leave), and Herders, drones that round strays up toward your pen, shoo corrupt ones out.
 // From the third run the **Rogue AI** fights for the same field: it drops Infection Cores whose red circles grow and steal
 // the data inside. A tight loop round a core quarantines it (the Chokehold); a straight stroke becomes a shield wall
 // across the field that no circle can grow past (the Wall).
@@ -43,22 +45,29 @@
         areaUnit: 0.22,             // × area: a catch's multiplier is 1 + loop area / (areaUnit × field area)…
         maxMult: 4,                 // …up to this (Bandwidth raises it)
         corruptPenalty: 6,          // Focus lost when a corrupt packet spoils a catch
-        snapPenalty: 4,             // Focus lost when a Firewall snaps the wire
+        snapPenalty: 4,             // Focus lost when an Antivirus or a Firewall snaps the wire
         snapCooldown: 1.0,          // seconds before you can draw again after a snap
         respawn: 1.2,               // seconds before a caught packet's replacement swims in
         density: 0.13,              // good packets per unit² of field
         corruptShare: 0.35,         // corrupt packets per good one
         corruptLure: 0.6,           // how strongly corrupt packets swim toward the nearest school (they hide in the crowd)
         goldChance: 0.04,           // a new good packet is gold this often (worth GOLD_VALUE)
-        firewalls: [5],             // seconds into the run each Firewall boots
-        firewallSpeed: 1,           // × their speeds (Obfuscation slows them)
+        antivirus: [5],             // seconds into the run each Antivirus boots
+        avSpeed: 1,                 // × their speeds (Obfuscation slows them)
+        // System Firewalls: a line across the whole field, sweeping from one side to the other after a warning; any open
+        // wire it crosses snaps.
+        sweepFirst: 7,
+        sweepEvery: 8,
+        sweepWarn: 0.9,             // seconds its edge flashes before it moves
+        sweepTime: 2.6,             // seconds to cross the field
         packetSpeed: [0.8, 1.5],    // units per second
         goldSpeed: 2.1,
         schooling: 0.3,             // how strongly good packets swim together (0 = each alone)
         schoolSize: 4,              // packets per school at the start
-        firewallPatrol: 1.0,        // drifting while there's no wire
-        firewallHunt: 2.4,          // homing on the wire (a moving pointer is much faster)
-        firewallTurn: 3.0,          // how quickly it steers (per second)
+        avPatrol: 1.0,              // drifting while there's no wire
+        avHunt: 2.4,                // homing on the wire (a moving pointer is much faster)
+        avTurn: 3.0,                // how quickly it steers (per second)
+        avStun: 3,                  // seconds an Antivirus is stunned by your Firewall
         chain: 0,                   // Chain Lightning: packets outside a loop each catch arcs to…
         chainRange: 1.6,            // …within this of a snared packet
         scanner: 0,                 // Scanner: beams sweeping from the middle, tagging packets ×TAG_VALUE for TAG_SECONDS
@@ -78,17 +87,16 @@
         maxWalls: 2,
         wallMin: 0.4,               // × the field's shorter side: the shortest stroke that counts as a wall…
         wallStraight: 0.07,         // …and how far (× its length) any point may stray from the straight line
-        // Anchors: up to `anchors` placed by tapping; three or more join into a net that pulses to catch the good packets
-        // inside, whenever none is corrupt, every `netCooldown` s, at `netPower` of a loop's multiplier.
+        // Anchors: up to `anchors` placed by tapping; each joins the last with a Firewall of your own (and three or more
+        // close into a pen): good packets bounce off it, corrupt ones pass; an Antivirus that hits it is stunned and
+        // that firewall goes down after `fwHits` hits.
         anchors: 0,
-        netCooldown: 3,
-        netPower: 0.6,
-        netRepair: 4,               // seconds a net is down after a Firewall breaks it
+        fwHits: 1,
         layout: [],                 // anchors carried over from the last run, as shares of the field [[u, v], …]
         flow: true,                 // a current: packets enter upstream and leave the field downstream (false: they bounce)
         flowSpread: 0.5,            // how far (radians) a school's heading strays from the current
         contain: 0,                 // Containment Field: the edges turn good packets back (corrupt ones still leave)
-        herders: 0,                 // Herders: drones that round strays up toward the net (or the middle)
+        herders: 0,                 // Herders: drones that round strays up toward your pen (or the middle)
         herdRadius: 1.7,            // units: how near a herder must be to move a packet
         herdSpeed: 2.8,
         herdPull: 2.6               // how quickly a herded packet turns (per second)
@@ -98,7 +106,7 @@
     const TAG_SECONDS = 4;
     const LOCK_SECONDS = 0.6;       // a laser holds its brackets on the target this long before it fires
     const PACKET_R = 0.3;
-    const FIREWALL_R = 0.45;
+    const AV_R = 0.45;
 
     // Mulberry32: small, fast, seeded.
     function rng(seed) {
@@ -185,24 +193,25 @@
             leftStart: false,       // the pen has been out of the start's closing radius since it went down
             wire: [],
             packets: [],
-            firewalls: [],
+            antivirus: [],          // the hunters
+            sweeps: [],             // system Firewalls sweeping across: { axis: 'x'|'y', dir, pos, t }
             beams: [],              // the scanner's angles
             locks: [],              // targeted lasers: { id, t } brackets closing on a packet
             laserAt: o.laser ? o.laser * 0.6 : Infinity,
             events: [],
             cores: [],              // the Rogue AI's Infection Cores: { id, x, y, r, age, stole }
             walls: [],              // shield walls, across the field: { a, b, until }
-            anchors: [],            // { id, x, y }: three or more make a net
-            net: { next: 0, brokenUntil: 0, flash: 0 },
+            anchors: [],            // { id, x, y }: each joins the last with a Firewall, three or more close a pen
+            fwHits: {},             // hits each of your Firewalls has taken, by its key (`${a.id}-${b.id}`)
             rogueAt: o.rogue ? o.rogueFirst : Infinity,
             penAt: 0,               // when the pen went down (a wall is a quick straight stroke)
             stats: { catches: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
-                stolen: 0, cores: 0, quarantined: 0, walls: 0, netCaught: 0, netPulses: 0, netBreaks: 0, escaped: 0 },
+                stolen: 0, cores: 0, quarantined: 0, walls: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0 },
             acc: 0,
             nextId: 1
         };
         for (let i = 0; i < o.scanner; i++) s.beams.push(i * Math.PI * 2 / o.scanner);
-        // Anchors carried over from the last run (the net you built stays built).
+        // Anchors carried over from the last run (the firewalls you built stay built).
         for (const [u, v] of (o.layout || []).slice(0, o.anchors)) s.anchors.push({ id: s.nextId++, x: u * w, y: v * h });
 
         // The current: one direction for the whole run.
@@ -275,7 +284,8 @@
         const goodCount = () => s.packets.filter(p => p.kind !== 'corrupt').length;
         const corruptCount = () => s.packets.filter(p => p.kind === 'corrupt').length;
         let refillAt = Infinity;
-        const firewallsDue = [...o.firewalls];
+        const avDue = [...o.antivirus];
+        let sweepAt = o.sweepFirst ?? Infinity;
         // Herders start spread round the middle.
         s.herders = [];
         for (let i = 0; i < o.herders; i++) {
@@ -283,15 +293,15 @@
             s.herders.push({ id: s.nextId++, x: w / 2 + Math.cos(a) * 1.5, y: h / 2 + Math.sin(a) * 1.5, vx: 0, vy: 0, target: null });
         }
 
-        function bootFirewall() {
+        function bootAntivirus() {
             // From a corner, so it never lands on the pen.
             const c = Math.floor(rand() * 4);
-            const x = c % 2 ? w - FIREWALL_R : FIREWALL_R;
-            const y = c < 2 ? FIREWALL_R : h - FIREWALL_R;
+            const x = c % 2 ? w - AV_R : AV_R;
+            const y = c < 2 ? AV_R : h - AV_R;
             const ang = Math.atan2(h / 2 - y, w / 2 - x);
-            const v = o.firewallPatrol * o.firewallSpeed;
-            s.firewalls.push({ id: s.nextId++, x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, r: FIREWALL_R, hunting: false });
-            s.events.push({ type: 'firewall', x, y });
+            const v = o.avPatrol * o.avSpeed;
+            s.antivirus.push({ id: s.nextId++, x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, r: AV_R, hunting: false, stunned: 0 });
+            s.events.push({ type: 'antivirus', x, y });
         }
 
         function bounce(e) {
@@ -489,8 +499,21 @@
             return acrossField(a, b);
         }
 
-        // ---- Anchors and the net -----------------------------------------------------------------------
-        const netPoly = () => (s.anchors.length >= 3 ? s.anchors : null);
+        // ---- Anchors and your Firewalls ------------------------------------------------------------------
+        // Each anchor joins the one before it; three or more close the loop into a pen. A firewall that has taken its
+        // hits is down (until its anchors are moved).
+        const fwKey = (a, b) => `${a.id}-${b.id}`;
+        function firewallsUp() {
+            const A = s.anchors, out = [];
+            if (A.length < 2) return out;
+            const n = A.length >= 3 ? A.length : 1;
+            for (let i = 0; i < n; i++) {
+                const a = A[i], b = A[(i + 1) % A.length];
+                if ((s.fwHits[fwKey(a, b)] || 0) < o.fwHits) out.push({ a, b, key: fwKey(a, b) });
+            }
+            return out;
+        }
+        const penPoly = () => (s.anchors.length >= 3 ? s.anchors : null);
         // Tap an empty spot to place an anchor (while any are left); tap an anchor to take it back.
         function tapAt(x, y) {
             if (!o.anchors || s.over) return false;
@@ -506,43 +529,69 @@
             s.events.push({ type: 'anchor', x: p.x, y: p.y });
             return true;
         }
-        function netStep() {
-            const poly = netPoly();
-            if (!poly) return;
-            // Firewalls break the net's lasers.
-            if (s.time >= s.net.brokenUntil) {
-                for (const f of s.firewalls) {
-                    for (let i = 0; i < poly.length; i++) {
-                        if (segDist(f, poly[i], poly[(i + 1) % poly.length]) < f.r) {
-                            s.net.brokenUntil = s.time + o.netRepair;
-                            s.stats.netBreaks++;
-                            s.events.push({ type: 'netBreak', x: f.x, y: f.y });
-                            break;
-                        }
-                    }
-                    if (s.time < s.net.brokenUntil) break;
+        // A good packet that would cross one of your firewalls this step bounces off it instead.
+        function bounceOffFirewalls(p, px, py, fws) {
+            for (const f of fws) {
+                if (!segIntersect({ x: px, y: py }, p, f.a, f.b)) continue;
+                const dx = f.b.x - f.a.x, dy = f.b.y - f.a.y, L = Math.hypot(dx, dy) || 1;
+                const nx = -dy / L, ny = dx / L;
+                const vn = p.vx * nx + p.vy * ny;
+                p.vx -= 2 * vn * nx;
+                p.vy -= 2 * vn * ny;
+                p.x = px;
+                p.y = py;
+                s.stats.bounces++;
+                return;
+            }
+        }
+        // An Antivirus that runs into one of your firewalls is stunned, and the firewall takes a hit (down at `fwHits`).
+        function antivirusVsFirewalls() {
+            const fws = firewallsUp();
+            if (!fws.length) return;
+            for (const v of s.antivirus) {
+                if (v.stunned > s.time) continue;
+                const f = fws.find(f => segDist(v, f.a, f.b) < v.r);
+                if (!f) continue;
+                v.stunned = s.time + o.avStun;
+                v.vx *= 0.2;
+                v.vy *= 0.2;
+                s.fwHits[f.key] = (s.fwHits[f.key] || 0) + 1;
+                s.stats.stuns++;
+                const down = s.fwHits[f.key] >= o.fwHits;
+                if (down) s.stats.fwLost++;
+                s.events.push({ type: 'stun', x: v.x, y: v.y, down, a: { x: f.a.x, y: f.a.y }, b: { x: f.b.x, y: f.b.y } });
+            }
+        }
+
+        // ---- System Firewalls: lines sweeping across the field -------------------------------------------
+        function sweepStep(dt) {
+            if (s.time >= sweepAt) {
+                sweepAt = s.time + o.sweepEvery;
+                const axis = rand() < 0.5 ? 'x' : 'y', dir = rand() < 0.5 ? 1 : -1;
+                const span = axis === 'x' ? w : h;
+                s.sweeps.push({ id: s.nextId++, axis, dir, pos: dir > 0 ? 0 : span, t: 0 });
+                s.stats.sweeps++;
+                s.events.push({ type: 'sweep', axis, dir });
+            }
+            for (const sw of s.sweeps) {
+                sw.t += dt;
+                if (sw.t < o.sweepWarn) continue;
+                const span = sw.axis === 'x' ? w : h;
+                const before = sw.pos;
+                sw.pos += sw.dir * span / o.sweepTime * dt;
+                // Any open wire it passes over snaps.
+                if (s.wire.length > 1) {
+                    const lo = Math.min(before, sw.pos), hi = Math.max(before, sw.pos);
+                    const hitAt = s.wire.find(p => { const c = sw.axis === 'x' ? p.x : p.y; return c >= lo && c <= hi; });
+                    if (hitAt) snap({ x: hitAt.x, y: hitAt.y });
                 }
             }
-            if (s.time < s.net.brokenUntil || s.time < s.net.next) return;
-            const j = judge(poly);
-            // It waits for corrupt packets to drift out, and fires when it holds good ones.
-            if (j.spoiled || !j.good.length) return;
-            const mult = 1 + (j.mult - 1) * o.netPower;
-            const units = j.value * mult;
-            s.net.next = s.time + o.netCooldown;
-            s.net.flash = s.time;
-            remove(j.inside);
-            s.stats.netPulses++;
-            s.stats.netCaught += j.good.length;
-            s.stats.caught += j.good.length;
-            s.stats.scrubbed += j.corrupt.length;
-            s.stats.units += units;
-            s.events.push({ type: 'net', poly: poly.map(a => ({ x: a.x, y: a.y })), count: j.good.length, units, mult, packets: j.inside, ...centroid(poly) });
+            s.sweeps = s.sweeps.filter(sw => sw.pos >= -0.01 && sw.pos <= (sw.axis === 'x' ? w : h) + 0.01);
         }
 
         // ---- Herders --------------------------------------------------------------------------------------
-        // Where the herders drive the data: into the net if there is one, else the middle.
-        const gatherPoint = () => (netPoly() && s.time >= s.net.brokenUntil ? centroid(s.anchors) : { x: w / 2, y: h / 2 });
+        // Where the herders drive the data: into your pen if there is one, else the middle.
+        const gatherPoint = () => (penPoly() ? centroid(s.anchors) : { x: w / 2, y: h / 2 });
         function herdStep(dt) {
             if (!s.herders.length) return;
             const g = gatherPoint();
@@ -582,9 +631,12 @@
             if (s.cooldown > 0) s.cooldown = Math.max(0, s.cooldown - dt);
             flock(dt);
             const out = [];
+            const fws = firewallsUp();
             for (const p of s.packets) {
+                const px = p.x, py = p.y;
                 p.x += p.vx * dt;
                 p.y += p.vy * dt;
+                if (fws.length && p.kind !== 'corrupt') bounceOffFirewalls(p, px, py, fws);
                 p.age += dt;
                 // The pipeline flows on: off the field and gone, unless the Containment Field turns good ones back.
                 if (!o.flow || (o.contain && p.kind !== 'corrupt')) bounce(p);
@@ -598,18 +650,28 @@
             scannerStep(dt);
             laserStep(dt);
             rogueStep(dt);
-            netStep();
-            while (firewallsDue.length && s.time >= firewallsDue[0]) { firewallsDue.shift(); bootFirewall(); }
-            for (const f of s.firewalls) {
-                // The open wire first; failing that, the net's nearest anchor (slower: it stalks the net).
+            sweepStep(dt);
+            while (avDue.length && s.time >= avDue[0]) { avDue.shift(); bootAntivirus(); }
+            for (const f of s.antivirus) {
+                // Stunned: it drifts to a stop and can't snap anything.
+                if (f.stunned > s.time) {
+                    f.x += f.vx * dt;
+                    f.y += f.vy * dt;
+                    f.vx *= 1 - Math.min(1, 3 * dt);
+                    f.vy *= 1 - Math.min(1, 3 * dt);
+                    bounce(f);
+                    f.hunting = false;
+                    continue;
+                }
+                // The open wire first; failing that, your firewalls' nearest anchor (slower: it stalks them).
                 const wireTarget = s.wire.length > 1 ? nearestWire(f.x, f.y) : null;
-                const net = !wireTarget && netPoly() && s.time >= s.net.brokenUntil ? s.anchors.reduce((b, a) => (!b || (a.x - f.x) ** 2 + (a.y - f.y) ** 2 < (b.x - f.x) ** 2 + (b.y - f.y) ** 2 ? a : b), null) : null;
-                const target = wireTarget || net;
+                const fwTarget = !wireTarget && firewallsUp().length ? s.anchors.reduce((b, a) => (!b || (a.x - f.x) ** 2 + (a.y - f.y) ** 2 < (b.x - f.x) ** 2 + (b.y - f.y) ** 2 ? a : b), null) : null;
+                const target = wireTarget || fwTarget;
                 f.hunting = !!wireTarget;
-                const speed = (wireTarget ? o.firewallHunt : net ? o.firewallHunt * 0.6 : o.firewallPatrol) * o.firewallSpeed;
+                const speed = (wireTarget ? o.avHunt : fwTarget ? o.avHunt * 0.6 : o.avPatrol) * o.avSpeed;
                 if (target) {
                     const ang = Math.atan2(target.y - f.y, target.x - f.x);
-                    const k = Math.min(1, o.firewallTurn * dt);
+                    const k = Math.min(1, o.avTurn * dt);
                     f.vx += (Math.cos(ang) * speed - f.vx) * k;
                     f.vy += (Math.sin(ang) * speed - f.vy) * k;
                 } else {
@@ -626,6 +688,7 @@
                     }
                 }
             }
+            antivirusVsFirewalls();
             // Refills: schools of the missing good packets swim in from an edge, corrupt ones one at a time.
             if (s.time >= refillAt) {
                 refillAt = Infinity;
@@ -844,8 +907,8 @@
             return e;
         }
 
-        return Object.assign(s, { step, addPoint, liftPen, stop, takeEvents, preview, valueOf, tapAt, netPoly });
+        return Object.assign(s, { step, addPoint, liftPen, stop, takeEvents, preview, valueOf, tapAt, firewallsUp, penPoly });
     }
 
-    return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, FIREWALL_R, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };
+    return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, AV_R, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };
 });

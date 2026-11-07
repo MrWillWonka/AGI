@@ -522,7 +522,7 @@
         { id: 'snareBandwidth', name: 'Bandwidth', snare: { x: 0, y: -2 }, requires: 'snareFocus', cost: { dp: 420 }, scale: 3, max: 2,
             sn: { maxMult: 2 }, effect: 'Big loops can reach a higher multiplier (+2 per level)', flavor: 'Wider pipes. Bigger nets.' },
         { id: 'snareSprawl', name: 'Sprawl', snare: { x: 1, y: 0 }, cost: { dp: 60 }, scale: 2.5, max: 4,
-            sn: { sprawl: 1 }, effect: 'A bigger field with more packets (and more firewalls)', flavor: 'The pipeline found more pipeline.' },
+            sn: { sprawl: 1 }, effect: 'A bigger field with more packets (and more Antivirus)', flavor: 'The pipeline found more pipeline.' },
         { id: 'snareGold', name: 'Gold Rush', snare: { x: 2, y: 0 }, requires: 'snareSprawl', cost: { dp: 260 }, scale: 3, max: 2,
             sn: { goldChance: 0.05 }, effect: '+5% of new packets are gold (worth 5)', flavor: 'Premium data. Hand-labelled, allegedly.' },
         { id: 'snareSchools', name: 'Schooling', snare: { x: 1, y: -1 }, requires: 'snareSprawl', cost: { dp: 180 }, scale: 2, max: 1,
@@ -531,9 +531,9 @@
         { id: 'snareContain', name: 'Containment Field', snare: { x: 2, y: -1 }, requires: 'snareSchools', cost: { dp: 350 }, scale: 2, max: 1,
             sn: { contain: 1 }, effect: 'The edges turn good packets back into the field; corrupt ones still leave', flavor: 'Data goes in. Data stays in.' },
         { id: 'snareHerders', name: 'Herders', mechanic: true, snare: { x: 2, y: -2 }, requires: 'snareContain', cost: { dp: 700 }, scale: 2.5, max: 3,
-            sn: { herders: 1 }, effect: 'A drone per level rounds strays up toward your net (or the middle) and shoos corrupt packets away', flavor: 'Good data. Sit. Stay.' },
+            sn: { herders: 1 }, effect: 'A drone per level rounds strays up toward your pen (or the middle) and shoos corrupt packets away', flavor: 'Good data. Sit. Stay.' },
         { id: 'snareObfuscation', name: 'Obfuscation', snare: { x: 1, y: 1 }, requires: 'snareSprawl', cost: { dp: 220 }, scale: 2.6, max: 2,
-            sn: { firewallSpeed: -0.2 }, effect: 'Firewalls move 20% slower per level', flavor: 'Nothing to see here. Just packets.' },
+            sn: { avSpeed: -0.2 }, effect: 'Antivirus moves 20% slower per level', flavor: 'Nothing to see here. Just packets.' },
         { id: 'snareChain', name: 'Chain Lightning', mechanic: true, snare: { x: -1, y: 0 }, cost: { dp: 120 }, scale: 2.8, max: 3,
             sn: { chain: 2 }, effect: 'Each catch arcs to 2 more packets nearby per level', flavor: 'One packet tells its friends.' },
         { id: 'snareScanner', name: 'Scanner', mechanic: true, snare: { x: -2, y: 0 }, requires: 'snareChain', cost: { dp: 520 }, scale: 3, max: 2,
@@ -544,12 +544,12 @@
             sn: { laser: 1 }, effect: 'A laser locks onto the richest packet and takes it by itself (faster per level)', flavor: 'Point. Click. It does the clicking now.' },
         { id: 'snareEmitters', name: 'Twin Emitters', snare: { x: 0, y: 2 }, requires: 'snareLaser', cost: { dp: 900 }, scale: 3, max: 2,
             sn: { emitters: 1 }, effect: 'Each laser shot takes one more packet per level', flavor: 'Two beams. Twice the pew.' },
-        // The phase shift: from drawing to building. Tap to place anchors; three or more join into a net that catches
-        // by itself, waiting for corrupt packets to drift out. The layout is kept between runs.
+        // The phase shift: from drawing to building. Tap to place anchors; each joins the last with a Firewall of your own
+        // (three or more close a pen): good packets bounce off them, corrupt ones pass. The layout is kept between runs.
         { id: 'snareAnchors', name: 'Anchors', mechanic: true, snare: { x: -1, y: 1 }, requires: 'snareLaser', cost: { dp: 600 }, scale: 2.4, max: 3,
-            sn: { anchors: 1 }, effect: 'Tap to place anchors (3, then 4, then 5): three or more make a net that catches by itself', flavor: 'Stop chasing the data. Let it swim into you.' },
-        { id: 'snareOverclock', name: 'Overclocked Nets', snare: { x: -1, y: 2 }, requires: 'snareAnchors', cost: { dp: 1500 }, scale: 2.6, max: 2,
-            sn: { netSpeed: 1 }, effect: 'Nets fire 30% more often and pay more per level', flavor: 'It hums. It\'s fine. It always hums.' }
+            sn: { anchors: 1 }, effect: 'Tap to place anchors (3, then 4, then 5): each joins the last with your own Firewall. Good packets bounce off it, corrupt ones pass, and an Antivirus that hits it is stunned (and the firewall goes down)', flavor: 'Stop chasing the data. Fence it in.' },
+        { id: 'snareHardened', name: 'Hardened Firewalls', snare: { x: -1, y: 2 }, requires: 'snareAnchors', cost: { dp: 1500 }, scale: 2.6, max: 2,
+            sn: { fwHits: 1 }, effect: 'Your Firewalls stun one more Antivirus before they go down, per level', flavor: 'Now with extra fire.' }
     ].map(n => ({ ...n, tab: 'snare' }));
     UPGRADES.push(...SNARE_TREE);
 
@@ -692,7 +692,7 @@
         { id: 'pipeline', when: s => !!s.unlocked['module:snare'],
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'loose data',
             body: ['Hello again,', 'There is a second bay in the server room now. Everything the crawler drops ends up in there, drifting around loose.',
-                'Draw a loop round the good packets and they\'re yours. The bigger the loop, the more they\'re worth. Leave the red ones alone, and mind the firewalls: they don\'t like loose wires.',
+                'Draw a loop round the good packets and they\'re yours. The bigger the loop, the more they\'re worth. Leave the red ones alone, and mind the antivirus and the firewalls: neither likes a loose wire.',
                 'It needs data to see more. So do I.', 'F'] },
         { id: 'snareRogue', when: s => s.snare.runs >= ROGUE_FROM_RUN,
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'my share',
@@ -2058,7 +2058,8 @@
     // multiplier (gold packets count as several), paid in whole numbers as it's caught. A run's haul against the
     // version's best is the record (snare.best). It needs no compute: Focus is its budget.
     // A run's options from the tree: it starts small, short and hard (a 70 unit² field, Focus 26, about 10 s of drawing,
-    // a Firewall at 5 s), and Sprawl grows the field ×1.6 a level (a second Firewall at level 2, a third at 4), so the
+    // an Antivirus at 5 s, a system Firewall sweeping across every 8 s from 7 s), and Sprawl grows the field ×1.6 a level
+    // (a second Antivirus at level 2, a third at 4, Firewall sweeps every 6 s from level 2), so the
     // sprawl comes with the abilities. The Rogue AI arrives on the third run (`ROGUE_FROM_RUN`) and gets busier with the
     // sprawl. packet-snare.js takes these as overrides of its SNARE table.
     function snareOpts(s) {
@@ -2075,16 +2076,16 @@
             goldChance: 0.04 + (n.goldChance || 0),
             schooling: 0.3 + (n.schooling || 0),
             schoolSize: 4 + (n.schoolSize || 0),
-            firewalls: sprawl >= 4 ? [5, 14, 26] : sprawl >= 2 ? [5, 18] : [5],
+            antivirus: sprawl >= 4 ? [5, 14, 26] : sprawl >= 2 ? [5, 18] : [5],
+            sweepEvery: sprawl >= 2 ? 6 : 8,
             rogue: s.snare.runs >= ROGUE_FROM_RUN ? 1 + (sprawl >= 3 ? 1 : 0) : 0,
             rogueEvery: sprawl >= 2 ? 7 : 9,
             anchors: n.anchors ? 2 + n.anchors : 0,
-            netCooldown: 3 * Math.pow(0.7, n.netSpeed || 0),
-            netPower: 0.6 + 0.15 * (n.netSpeed || 0),
+            fwHits: 1 + (n.fwHits || 0),
             layout: s.snare.anchors,
             contain: n.contain || 0,
             herders: n.herders || 0,
-            firewallSpeed: Math.max(0.4, 1 + (n.firewallSpeed || 0)),
+            avSpeed: Math.max(0.4, 1 + (n.avSpeed || 0)),
             chain: n.chain || 0,
             scanner: n.scanner || 0,
             laser: n.laser ? [0, 4, 2.5, 1.6][n.laser] : 0,
@@ -2106,7 +2107,7 @@
         return dp;
     }
     // The run's end: counts it and keeps the record. Returns whether it beat the version's best and the old best.
-    // `layout`: the anchors where the run left them (shares of the field), so the next run's net is already built.
+    // `layout`: the anchors where the run left them (shares of the field), so the next run's firewalls are already built.
     function finishSnare(s, haul, layout) {
         const prev = s.snare.best;
         if (Array.isArray(layout)) s.snare.anchors = cleanLayout(layout);
