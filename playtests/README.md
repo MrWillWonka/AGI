@@ -41,6 +41,7 @@ What each build had, newest first (artifact publish times, UTC). A log played on
 
 | Published | Build | What changed |
 |---|---|---|
+| 11-07 15:08 | this build | Playtest logs carry their build (`E.BUILD`) |
 | 11-07 15:02 | `0f83076` | Exploits: the Exploit button and **Hop**; the run card's Lab button only with news, with a count badge |
 | 11-07 14:32 | `2b8eafe` | Server Cluster and the Training Data Pipeline wait for Pattern Matching |
 | 11-07 14:29 | `f4abec2` | **Leg characters** (Rolling, Sprint, Long flats, Marathon, Cliffs) and **Inertia** |
