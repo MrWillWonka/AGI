@@ -1406,18 +1406,20 @@
 
     // ---- Simulation -----------------------------------------------------
 
+    // Returns the ids of the hardware Procurement bought during the tick (for the lab log). It's an event, not
+    // state: it used to be queued in s.tasks.procurement.bought, inside the save, which migrate() then dropped,
+    // so a save never loaded back identical (and a headless caller's queue grew without bound).
     function tick(s, dt, rates) {
         // Finite only: tick(Infinity) (a bad debug input or a broken clock) made every balance Infinity or NaN for good.
-        if (!(dt > 0) || !Number.isFinite(dt)) return;
+        if (!(dt > 0) || !Number.isFinite(dt)) return [];
         // A timed boost ends mid-tick on long gaps (offline, a hidden tab): split there, so one
         // second of ×2 left doesn't double eight hours.
         const ends = (s.projects?.boosts || []).map(b => b.until - s.stats.playTime).filter(t => t > 0 && t < dt);
         if (ends.length) {
             const first = Math.min(...ends);
-            tick(s, first, rates);
-            tick(s, dt - first, rates);
-            return;
+            return [...tick(s, first, rates), ...tick(s, dt - first, rates)];
         }
+        const bought = [];
         tickProjects(s);
         tickDilemmas(s);
         for (let k = 0; k < s.path.learned; k++) s.path.auto[k] = (s.path.auto[k] || 0) + dt / clearedPeriod(k);
@@ -1451,10 +1453,11 @@
                 s.res.cp += pick.cost;
                 if (!buy(s, pick.id).ok) { s.res.cp -= pick.cost; break; }
                 s.tasks.procurement.fund -= pick.cost;
-                (s.tasks.procurement.bought = s.tasks.procurement.bought || []).push(pick.id);
+                bought.push(pick.id);
             }
         }
         s.stats.playTime += dt;
+        return bought;
     }
 
     // Returns arrays of newly unlocked milestone keys, upgrade ids, achievement ids and phase change.
@@ -2152,7 +2155,7 @@
             levels: { keyboard: CPU_AFTER_CLICK_LEVEL, ...headStartKit(kitLevel(s)), ...keptAutomation(s) },
             prestige: { points: s.prestige.points + gain, total: s.prestige.total + gain, count: s.prestige.count + 1,
                 major: v.major, minor: v.minor, levels: { ...s.prestige.levels } },
-            tasks: { ...JSON.parse(JSON.stringify(s.tasks)), procurement: { ...s.tasks.procurement, fund: 0, bought: [] } },
+            tasks: { ...JSON.parse(JSON.stringify(s.tasks)), procurement: { on: s.tasks.procurement.on, share: s.tasks.procurement.share, fund: 0 } },
             settings: s.settings,
             challengesDone: { ...s.challengesDone },
             transcend: { ...s.transcend, perks: { ...s.transcend.perks } },
@@ -2191,7 +2194,7 @@
             intro: { ...s.intro },
             // The desk stays built, as after shipping (and Starter Lab's kit with it).
             levels: { keyboard: CPU_AFTER_CLICK_LEVEL, ...headStartKit(perkLevel(s, 'starterLab') ? HEAD_START.length : 0), ...keptAutomation(s) },
-            tasks: { ...JSON.parse(JSON.stringify(s.tasks)), procurement: { ...s.tasks.procurement, fund: 0, bought: [] } },
+            tasks: { ...JSON.parse(JSON.stringify(s.tasks)), procurement: { on: s.tasks.procurement.on, share: s.tasks.procurement.share, fund: 0 } },
             settings: s.settings,
             challengesDone: { ...s.challengesDone },
             dilemmas: JSON.parse(JSON.stringify(s.dilemmas)),

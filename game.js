@@ -2075,11 +2075,12 @@ window.AGI = (function () {
             log(`Paused for ${E.formatDuration(dt)} while you were away.`, 'info');
             pt('gap', { s: Math.round(dt) });
         } else {
-            E.tick(state, dt * debugSpeed, debugRates);
+            const bought = E.tick(state, dt * debugSpeed, debugRates);
             addDebugIncome(dt * debugSpeed);
             sampleLab(dt * debugSpeed);
             advanceTasks(dt * debugSpeed);
             ghostTrain(dt * debugSpeed);
+            logProcurement(bought);
         }
         afterChange();
         musicTick();
@@ -3072,16 +3073,17 @@ window.AGI = (function () {
         // Procurement's bar is its fund against the next buy.
         const p = d.tasks.procurement;
         taskProgress.procurement = p.need ? Math.min(1, p.fund / p.need) : 0;
-        // What it bought since the last tick goes to the log (the cabinets pick the new pieces up by themselves).
-        const bought = state.tasks.procurement?.bought;
-        if (bought?.length) {
-            const n = {};
-            for (const id of bought) n[id] = (n[id] || 0) + 1;
-            for (const [id, k] of Object.entries(n)) {
-                termLog(`procurement bought ${k > 1 ? k + '× ' : ''}${E.UPGRADE_BY_ID[id].name}`);
-                pt('buy', { id, lvl: E.level(state, id), ...(k > 1 ? { n: k } : {}), auto: true });
-            }
-            bought.length = 0;
+    }
+
+    // What Procurement bought in a tick (E.tick returns it) goes to the log; the cabinets pick the new pieces up
+    // by themselves.
+    function logProcurement(bought) {
+        if (!bought?.length) return;
+        const n = {};
+        for (const id of bought) n[id] = (n[id] || 0) + 1;
+        for (const [id, k] of Object.entries(n)) {
+            termLog(`procurement bought ${k > 1 ? k + '× ' : ''}${E.UPGRADE_BY_ID[id].name}`);
+            pt('buy', { id, lvl: E.level(state, id), ...(k > 1 ? { n: k } : {}), auto: true });
         }
     }
 
@@ -7981,7 +7983,7 @@ window.AGI = (function () {
                 startPathLoop();
             },
             simulate(seconds) {
-                E.tick(state, seconds, debugRates);
+                logProcurement(E.tick(state, seconds, debugRates));
                 addDebugIncome(seconds);
                 afterChange();
             },

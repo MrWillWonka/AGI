@@ -1822,3 +1822,27 @@ test('chapter one ends three ways, by how much you let the AI out, locked in whe
     assert.equal(E.ending(s).id, 'contained', 'locked in');
     assert.equal(E.migrate(JSON.parse(E.serialize(s))).dilemmas.ending, 'contained');
 });
+
+test('Procurement reports its buys from tick() and keeps them out of the save, so a save round-trips exactly', () => {
+    const s = fresh();
+    s.path.learned = 3;
+    s.unlocked['up:cpu'] = true;
+    s.unlocked['up:server'] = true;
+    s.levels.cpu = 15;
+    s.levels.server = 5;
+    E.evaluate(s);
+    s.res.cp = 1e6;
+    assert.equal(E.buy(s, 'procurement').ok, true);
+    s.res.cp = 0;
+    const before = s.levels.cpu + s.levels.server;
+    const bought = [];
+    for (let i = 0; i < 600; i++) bought.push(...E.tick(s, 1));
+    assert.ok(bought.length > 0, 'it bought hardware');
+    assert.equal(s.levels.cpu + s.levels.server - before, bought.length, 'tick() reports every buy');
+    assert.ok(bought.every(id => id === 'cpu' || id === 'server'));
+    assert.equal('bought' in s.tasks.procurement, false, 'no event queue in the saved state');
+    const json = E.serialize(s);
+    assert.equal(E.serialize(E.deserialize(json, NOW)), json, 'save -> load -> save is identical');
+    assert.deepEqual(E.tick(s, 0), [], 'a tick that does nothing reports nothing');
+    assert.deepEqual(E.tick(s, NaN), []);
+});
