@@ -18,6 +18,7 @@ Open the debug panel (`debug-panel.js`, which talks only to `AGI.debug`) by tapp
 - **Progress:** learn the next skill, reach a phase, or unlock everything.
 - **Versions:** add a version without resetting (+10 Insight; opens R&D and the legacy nodes), ship the next version now, or max every legacy node; open the challenges, beat the running one, or make Transcend ready (the Singularity).
 - **Lab:** fill, finish or clear investor offers; meet every automation's "by hand" gate; +10 of every hardware tier (watch the cabinets merge); +1 of every visible lab upgrade; a test line in the lab log.
+- **Packet Snare:** **Open Packet Snare** (on any save: the server room opened, skills learned up to Edge Detection, straight into the bay; the panel closes so the field is clear on a phone).
 - **Server room:** +50 automated laps on every cleared leg; set the frontier record to 90%; reset room visits and the cabinets' order.
 - **Music:** what's playing (area, song, section, bar), **Next song** (the area's other one) and **Next section**, on the next downbeat.
 - **Power-ups:** Breakthrough and Paradigm Shift (on your next sprint), Max Effort, Crunch, Bullet Time, Flow and Lucid Dream (on the ball in flight, else your next sprint), System prompt (your next release), Viral (the next run's end).

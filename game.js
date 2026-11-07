@@ -2817,6 +2817,7 @@ window.AGI = (function () {
 
     function closeBayNow() {
         if (!openBay) return;
+        if (openBay === 'pipeline') closeSnare();
         openBay = null;
         $('moduleView').hidden = true;
         $('hub').hidden = false;
@@ -8761,6 +8762,17 @@ window.AGI = (function () {
                 afterChange();
             },
             // Learn the next skill instantly; the next roll starts at the new checkpoint.
+            // Packet Snare at once: the server room open, skills learned up to Edge Detection, then into the bay.
+            openSnare() {
+                state.intro['mailAccepted:welcome'] = true;
+                if ($('inbox').open) $('inbox').close();
+                state.unlocked['module:path'] = true;
+                for (let i = 0; i < 20 && !E.knows(state, 'Edge Detection'); i++) E.learnSkill(state, state.path.learned);
+                Object.assign(path, { roll: null, done: false });
+                dismissResult();
+                afterChange();
+                setTimeout(() => jumpTo('bay:pipeline'), 50);
+            },
             learnSkill() {
                 if (E.actTwoLocked(state)) return;   // the demo's gate
                 E.learnSkill(state, state.path.learned);
