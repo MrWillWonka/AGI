@@ -1660,8 +1660,13 @@ test('mail: the story by email, the spam first, then one message per story beat'
     assert.ok(E.MAIL.find(m => m.id === 'welcome').reply, 'the offer is the one with a reply');
     assert.deepEqual(E.MAIL.filter(m => m.when(s) && !m.intro).map(m => m.id), [], 'a new game has only the opening');
     assert.ok(E.WELCOME_NAGS.length >= 2 && E.WELCOME_NAGS.every(n => n.subject && n.body.length && n.reply), 'the offer comes back, every time with a reply');
-    assert.equal(E.WELCOME_NAGS.length, 5, 'five copies after the original');
-    assert.ok(E.WELCOME_NAGS.at(-1).final && E.WELCOME_NAGS.filter(n => n.final).length === 1, 'the last one is the one you can\'t close');
+    assert.equal(E.WELCOME_NAGS.length, 20, 'twenty spam variants');
+    assert.equal(new Set(E.WELCOME_NAGS.map(n => n.subject)).size, 20, 'each its own');
+    const st = E.defaultState(0);
+    E.WELCOME_NAGS.forEach((_, i) => { if (i < 19) st.intro['nag:' + i] = true; });
+    assert.ok(!E.evaluate(st).achievements.some(a => a.id === 'itsFavorite'), 'nineteen is not enough');
+    st.intro['nag:19'] = true;
+    assert.ok(E.evaluate(st).achievements.some(a => a.id === 'itsFavorite'), 'all twenty: IT\'s Favorite');
     s.unlocked['module:path'] = true;
     s.path.learned = 2;
     assert.ok(E.MAIL.find(m => m.id === 'serverRoom').when(s) && E.MAIL.find(m => m.id === 'firstSkill').when(s));

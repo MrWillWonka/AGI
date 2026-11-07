@@ -343,7 +343,7 @@ window.AGI = (function () {
         tip: { icon: '↻', ms: 10000 },
         mail: { icon: '✉', ms: 7000 }
     };
-    const toastCard = (title, message, kind) => el('div', { class: `toast toast-${kind}`, role: 'status' }, [
+    const toastCard = (title, message, kind) => el('div', { class: `toast toast-${kind}`, 'aria-hidden': 'true' }, [
         el('i', { class: 'toast-icon', text: (TOAST_KINDS[kind] || TOAST_KINDS.achievement).icon, 'aria-hidden': 'true' }),
         el('div', { class: 'toast-text' }, [el('strong', { text: title }), el('span', { text: message })])
     ]);
@@ -351,15 +351,16 @@ window.AGI = (function () {
     // One at a time, each getting its moment: the next waits until the last has left.
     const toastQueue = [];
     let toastBusy = false;
-    // Events land in place, not in pop-ups (the owner's call: the floating cards kept covering the game). An
-    // achievement counts on the Journal button with a star burst; mail bumps the envelope (it carries its own
+    // Events land in place, not in pop-ups (the owner's call: the floating cards kept covering the game), except
+    // achievements, which got their toast back (the owner's call: earning one deserves a moment) and still count
+    // on the Journal button with a star burst; mail bumps the envelope (it carries its own
     // count); a phase, a shipped version, a challenge or a skill learned elsewhere shows for a moment in the top
     // bar's news slot, beside the phase bar, which pulses. Each is also read out by the hidden live region.
     let journalNew = 0;
     const newsQueue = [];
     let newsBusy = false;
     function toast(title, message, kind = 'achievement') {
-        const say = $('toasts');
+        const say = $('announce');
         if (say) say.textContent = `${title}. ${message || ''}`;
         if (kind === 'mail') {
             sfx('ui');
@@ -367,12 +368,13 @@ window.AGI = (function () {
             return;
         }
         if (kind === 'achievement') {
-            sfx('achievement');
             journalNew++;
             const badge = $('journalNew');
             if (badge) { badge.textContent = journalNew > 9 ? '9+' : String(journalNew); badge.hidden = false; }
             $('journalButton').setAttribute('aria-label', `Journal, ${journalNew} new achievement${journalNew === 1 ? '' : 's'}`);
             pulseOnce($('journalButton'), 'burst');
+            toastQueue.push({ title, message, kind });
+            if (!toastBusy) nextToast();
             return;
         }
         newsQueue.push({ title, message, kind });
@@ -435,7 +437,8 @@ window.AGI = (function () {
     // The summit celebration (the SUMMIT banner, its confetti) keeps the screen to itself: a toast waits for it.
     const summitOnScreen = () => !!path.summit && openBay === 'training' && path.view === 'run' && !document.hidden;
     function nextToast() {
-        if (toastQueue.length && summitOnScreen()) { toastBusy = true; setTimeout(nextToast, 300); return; }
+        // ...and so does an open dialog (the inbox, the Journal): a modal sits over the toasts, so they'd play unseen.
+        if (toastQueue.length && (summitOnScreen() || document.querySelector('dialog[open]'))) { toastBusy = true; setTimeout(nextToast, 300); return; }
         const t = toastQueue.shift();
         toastBusy = !!t;
         toastLive = null;
@@ -7654,12 +7657,20 @@ window.AGI = (function () {
     let arrived = null;      // the key of the row that just arrived, animated in
     let orderSeen = -1;      // how much of state.dilemmas.order has been announced
     const DILEMMA_TAG = 'Decision';
-    // Copy n of the offer (0 the original; each refusal sends the next nag, up to the last, which stays and can't
-    // be closed: the owner's call, the opening ends with only "I'm in" left).
-    const welcomeText = (m, n) => m.id === 'welcome' && n > 0
-        ? { ...m, ...E.WELCOME_NAGS[Math.min(n, E.WELCOME_NAGS.length) - 1] } : m;
-    // The last copy is open: no ×, no Escape, only the reply.
-    const lockedIn = () => mailOpen?.key === 'm:welcome' && !!mailOpen.final && !introDone();
+    // Copy n of the offer (0 the original): each refusal sends a spam variant (`E.WELCOME_NAGS`), the ones not
+    // seen yet first, in order, then at random (never the same twice running) until you say yes. Each one seen is
+    // remembered (`nag:i` in intro), so all twenty earn IT's Favorite (the owner's Easter egg).
+    const nagSeq = [];
+    function nextNag() {
+        const n = E.WELCOME_NAGS.length;
+        let i = E.WELCOME_NAGS.findIndex((_, k) => !state.intro['nag:' + k]);
+        if (i < 0) { const last = nagSeq.at(-1) ?? -1; i = Math.floor(Math.random() * (n - 1)); if (i >= last && last >= 0) i++; }
+        nagSeq.push(i);
+        state.intro['nag:' + i] = true;
+        return i;
+    }
+    const welcomeText = (m, n) => m.id === 'welcome' && n > 0 && nagSeq[n - 1] != null
+        ? { ...m, ...E.WELCOME_NAGS[nagSeq[n - 1]] } : m;
     function storyArrive(m) {
         state.intro['mail:' + m.id] = true;
         E.mailArrive(state, 'm:' + m.id);
@@ -7731,7 +7742,7 @@ window.AGI = (function () {
     const deciding = () => !!mailOpen?.dilemma && state.dilemmas.answered[mailOpen.dilemma.id] === undefined;
     function renderInboxClose() {
         const onMail = !!mailOpen;
-        setHidden($('inboxClose'), (!onMail && !introDone()) || deciding() || lockedIn());
+        setHidden($('inboxClose'), (!onMail && !introDone()) || deciding());
         $('inboxClose').setAttribute('aria-label', onMail ? 'Close this email' : 'Close the inbox');
     }
     function renderInbox() {
@@ -7836,9 +7847,11 @@ window.AGI = (function () {
         clearTimeout(introTimer);
         introTimer = setTimeout(() => {
             if (mailOpen || !$('inbox').open || introDone()) return;
+            const nag = nextNag();
             welcomeNag++;
             delete state.intro['mailRead:welcome'];
-            pt('mailNag', { n: welcomeNag });
+            pt('mailNag', { n: welcomeNag, nag });
+            afterChange();   // IT's Favorite, on the twentieth
             arrived = 'm:welcome';
             sfx('ui');
             renderInbox();
@@ -7860,7 +7873,7 @@ window.AGI = (function () {
     function buildMail() {
         const dialog = $('inbox');
         $('mailButton').addEventListener('click', openInbox);
-        $('inboxClose').addEventListener('click', () => { if (deciding() || lockedIn()) return; if (mailOpen) leaveMail(); else if (introDone()) dialog.close(); });
+        $('inboxClose').addEventListener('click', () => { if (deciding()) return; if (mailOpen) leaveMail(); else if (introDone()) dialog.close(); });
         $('mailReply').addEventListener('click', () => {
             if (mailOpen?.reply && mailOpen.key === 'm:welcome') {
                 state.intro['mailAccepted:welcome'] = true;
@@ -7871,7 +7884,7 @@ window.AGI = (function () {
         });
         // Escape does what the × does: back to the list from an email; no way out of the opening but the reply.
         dialog.addEventListener('cancel', e => {
-            if (deciding() || lockedIn()) e.preventDefault();
+            if (deciding()) e.preventDefault();
             else if (mailOpen) { e.preventDefault(); leaveMail(); } else if (!introDone()) e.preventDefault();
         });
         dialog.addEventListener('close', () => {

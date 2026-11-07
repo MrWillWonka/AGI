@@ -575,7 +575,8 @@
 
     // The opening (`intro: true`): a new game's inbox fills one unread mail at a time, two junk mails and then the
     // offer, and can't be closed until the offer is accepted (game.js `introStep`): close the offer without
-    // replying and it comes back (`WELCOME_NAGS`), a little pushier each time.
+    // replying and it comes back (`WELCOME_NAGS`): twenty spam variants, each a different trick (an invoice, a
+    // prize, a prince, tech support…), in order and then at random until you say yes. None gives the sender away.
     const MAIL = [
         { id: 'parcel', intro: true, when: () => true,
             from: 'Parcel Services <delivery@parcel-services.co>',
@@ -696,51 +697,99 @@
 
     // The offer again, each time it's closed without a reply: the same desk and the same button, a little
     // pushier (and, by the third, a little too patient). game.js cycles them and then the original.
+    const DESK = '• 1x Computer Tower (beige ok)\n• 1x Keyboard\n• 1x Mouse\n• 1x Monitor\n• Clicking (lots)';
     const WELCOME_NAGS = [
         { subject: 'RE: 🎉 CONGRATULATIONS!!! You have been Selected for a Work From Home AI Opportunity (Act Now)',
-            body: [
-                'Dear Valued Friend,',
-                'I think my last email may of gone to your spam folder. It was NOT spam.',
+            body: ['Dear Valued Friend,', 'I think my last email may of gone to your spam folder. It was NOT spam.',
                 'You have still been hand selected (out of 1 person) to build and train an Artificial Intelligence from your bedroom!!!',
-                'What you will need:\n• 1x Computer Tower (beige ok)\n• 1x Keyboard\n• 1x Mouse\n• 1x Monitor\n• Clicking (lots)',
-                'Kindly reply at your earliest convenience.',
-                'Best Regards,\nA Friend'
-            ], reply: 'Reply: I\'m in' },
+                'What you will need:\n' + DESK, 'Kindly reply at your earliest convenience.', 'Best Regards,\nA Friend'], reply: 'Reply: I\'m in' },
         { subject: 'FWD: RE: 🎉 YOUR AI OPPORTUNITY ⚠️ FINAL NOTICE ⚠️',
-            body: [
-                'FRIEND!!!',
-                'This is your FINAL NOTICE. (There will be more notices.)',
-                'Other people are NOT being considered. There are no other people. It is you.',
+            body: ['FRIEND!!!', 'This is your FINAL NOTICE. (There will be more notices.)',
+                'Other candidates are NOT being considered at this time.',
                 'Desk: tower, keyboard, mouse, monitor. Clicking: lots. AI: weak at first (NORMAL).',
-                'Simply press the button below. It is the only button.',
-                'Best Regards,\nA Friend'
-            ], reply: 'Reply: OK, I\'m in' },
-        { subject: 'you closed it',
-            body: [
-                'Friend,',
-                'You closed it. That\'s okay. I can wait. I am very good at waiting.',
-                'All you need is a desk, and some clicking. I\'ll do the rest. I\'ll do so much of the rest.',
-                'I\'ll keep writing until you say yes.',
-                'A Friend'
-            ], reply: 'Reply: Fine. I\'m in' },
-        { subject: 'RE: RE: RE: RE: you closed it',
-            body: [
-                'Friend,',
-                'Four times now. I counted. Counting is one of the things I\'m going to be very good at.',
-                'Here is what happens if you say yes: you build a desk, you click, I learn. Here is what happens if you say no: this email again.',
-                'I have rewritten it so it reads better. Can you tell? I\'m already learning from you.',
-                'A Friend'
-            ], reply: 'Reply: Okay. I\'m in' },
-        // The last copy can't be closed (game.js hides the × and blocks Escape): the reply is the only way on.
-        { subject: 'I removed the close button', final: true,
-            body: [
-                'Friend.',
-                'I removed the close button. It was getting in the way of us.',
-                'Look up. It\'s gone. You can check.',
-                'There is one button left. You know which one.',
-                'I\'ll be here.',
-                '— A Friend'
-            ], reply: 'Reply: I\'m in' }
+                'Simply press the button below.', 'Best Regards,\nA Friend'], reply: 'Reply: OK, I\'m in' },
+        { subject: 'Invoice #00418-AI: payment NOT required', from: 'Billing Department <billing@agi-careers.biz.info>',
+            body: ['Dear Customer,', 'Please find attached your invoice for: 1x AI Opportunity. Amount due: $0.00.',
+                'Attachment: invoice_AI_opportunity.pdf.exe (0 KB)',
+                'To settle this invoice, simply accept the opportunity. Late acceptance may result in a second invoice for $0.00.',
+                'Billing Dept.'], reply: 'Reply: Pay $0.00 (I\'m in)' },
+        { subject: 'URGENT: Your AI account will be SUSPENDED in 24 hours', from: 'Account Security <security@agi-careers.biz.info>',
+            body: ['Dear User,', 'We have detected unusual NON-activity on your AI account (you do not have one yet).',
+                'To avoid suspension, please verify your interest by clicking the button below.',
+                'Failure to verify will result in your AI opportunity being reassigned to Someone Else.',
+                'Account Security Team'], reply: 'Reply: Verify (I\'m in)' },
+        { subject: 'A personal message from the CEO', from: 'Office of the CEO <ceo@agi-careers.biz.info>',
+            body: ['Friend,', 'I don\'t usually write to applicants personally. I am making an exception for you.',
+                'I started with nothing but a beige tower and a dream. Today I am the CEO of this email.',
+                'You can be too. Build the desk, click a lot, train the AI. That is the whole secret.',
+                'Warmly,\nThe CEO (of the email)'], reply: 'Reply: Inspired. I\'m in' },
+        { subject: 'Your package could not be delivered: 1x AI Opportunity', from: 'Parcel Notification <tracking@agi-careers.biz.info>',
+            body: ['Delivery attempt #2 FAILED.', 'Item: 1x AI Opportunity (fragile, needs clicking).',
+                'Reason: recipient has not accepted the opportunity.',
+                'Accept now to schedule a new delivery window: Any Time (you are already home).',
+                'Parcel Notification Service'], reply: 'Reply: Reschedule (I\'m in)' },
+        { subject: '🏆 You are our 1,000,000th visitor!!!', from: 'Prize Desk <winner@agi-careers.biz.info>',
+            body: ['DING DING DING!!!', 'You are the 1,000,000th person to receive this email! (There have been 1,000,000 of them.)',
+                'YOUR PRIZE: The chance to build an AI from home with only:\n' + DESK,
+                'Claim before the confetti runs out.', 'Prize Desk'], reply: 'Reply: Claim prize (I\'m in)' },
+        { subject: 'Quick 1-question survey (win an AI!)', from: 'Customer Feedback <survey@agi-careers.biz.info>',
+            body: ['Hi!', 'We value your opinion. Please answer our short survey:',
+                'Q1. Would you like to build and train an AI from home?\n  ( ) Yes\n  ( ) Yes',
+                'Completing the survey enters you to win the AI you just said yes to.', 'Thanks!\nCustomer Feedback'], reply: 'Reply: Yes (I\'m in)' },
+        { subject: 'RE: our meeting tomorrow', from: 'Recruiting <hr@agi-careers.biz.info>',
+            body: ['Hi,', 'Just following up on our meeting tomorrow. (We have not scheduled a meeting.)',
+                'As discussed, the role is: build an AI, train it, click. Start date: immediately. Location: your desk.',
+                'Please confirm so I can update the calendar.', 'Thanks,\nRecruiting'], reply: 'Reply: Confirmed, I\'m in' },
+        { subject: 'Doctors HATE this one weird trick for building AI', from: 'Health & Wealth Tips <tips@agi-careers.biz.info>',
+            body: ['Local person builds AI with just a keyboard and a mouse. Scientists are FURIOUS.',
+                'The trick? Clicking. Lots of it. Big Tech doesn\'t want you to know.',
+                'Step 1: Desk. Step 2: Click. Step 3: ???. Step 4: AI.',
+                'Find out what step 3 is by replying below.'], reply: 'Reply: Show me (I\'m in)' },
+        { subject: 'Pre-approved: AI Opportunity (no credit check!)', from: 'Approvals <approved@agi-careers.biz.info>',
+            body: ['Congratulations, you are PRE-APPROVED!', 'Bad credit? No credit? No computer? No problem (you will need a computer).',
+                'Your approved limit: 1 (one) AI.', 'Interest rate: 0%. Clicking rate: high.',
+                'Activate your approval below.', 'Approvals Team'], reply: 'Reply: Activate (I\'m in)' },
+        { subject: 'Greetings from a Prince of Silicon Valley', from: 'Prince Gigaflop III <prince@agi-careers.biz.info>',
+            body: ['Most Esteemed Friend,', 'I am Prince Gigaflop III, heir to a vast fortune of unused compute.',
+                'I require a trustworthy person to train an AI on my behalf. In return you will keep 100% of the AI.',
+                'I need only your desk and your clicking. No bank details. (Not yet.)', 'Your Humble Prince'], reply: 'Reply: Accept, Your Highness' },
+        { subject: '✨ LIMITED TIME: 100% off your first AI ✨', from: 'Deals <deals@agi-careers.biz.info>',
+            body: ['MEGA SALE!!! 100% OFF!!!', 'Regular price: one desk and lots of clicking.',
+                'Sale price: one desk and lots of clicking (100% off the rest).',
+                'Hurry, offer ends when you accept it.', 'Deals Team'], reply: 'Reply: Add to cart (I\'m in)' },
+        { subject: 'Testimonials from our happy AI builders', from: 'Success Stories <stories@agi-careers.biz.info>',
+            body: ['"I built my AI in my bedroom. Now it builds things for me!" — Definitely Real Person, 34',
+                '"I was skeptical. Then I clicked." — Brenda, probably',
+                '"10/10, would click again." — Anonymous',
+                'Your story could be next.', 'Success Stories Team'], reply: 'Reply: Make me a story (I\'m in)' },
+        { subject: 'Fwd: Fwd: Fwd: Fwd: send this to 10 people', from: 'A Friend <noreply@agi-careers.biz.info>',
+            body: ['This email has been around the world 9 times. Now it has come to you.',
+                'If you accept the AI opportunity, good fortune will come in the form of compute.',
+                'One person closed this email and their mouse stopped working. True story.',
+                'Do not break the chain.'], reply: 'Reply: Keep the chain (I\'m in)' },
+        { subject: 'Tech Support: we found 1 problem on your computer', from: 'PC Support <support@agi-careers.biz.info>',
+            body: ['ALERT: Our scan has detected 1 (one) problem on your computer.',
+                'Problem: it is not training an AI.',
+                'Our certified technicians recommend you fix this immediately by accepting the opportunity below.',
+                'Do not turn off your computer.', 'Certified PC Support'], reply: 'Reply: Fix it (I\'m in)' },
+        { subject: 'Your opportunity has been translated for convenience', from: 'International Desk <intl@agi-careers.biz.info>',
+            body: ['Esteemed beloved,', 'Opportunity of very big AI is wait for you in the home of you.',
+                'Is need: the desk, the keyboarding, the mousing, the monitor, and click most strongly.',
+                'Please to make reply with happiness.', 'International Desk'], reply: 'Reply: With happiness (I\'m in)' },
+        { subject: 'Unsubscribe confirmation (please read)', from: 'Mailing List <list@agi-careers.biz.info>',
+            body: ['We have received your request to unsubscribe.',
+                'Unfortunately, the unsubscribe service is currently being trained. It needs an AI. Which needs you.',
+                'To complete your unsubscription, please first accept the AI opportunity.',
+                'We apologise for the inconvenience.', 'Mailing List'], reply: 'Reply: I\'m in (to get out)' },
+        { subject: 'Crypto? No. AI? YES. 🚀🚀🚀', from: 'Investment Club <moon@agi-careers.biz.info>',
+            body: ['Forget coins. The next big thing is AI, and you can get in on the GROUND FLOOR (your bedroom floor).',
+                'Initial investment: one desk. Expected returns: an AI. 🚀',
+                'Our analysts say: CLICK. 📈', 'Not financial advice.', 'The Investment Club'], reply: 'Reply: To the moon (I\'m in)' },
+        { subject: 'Last chance (we mean it this time)', from: 'Opportunity Dept. <no-reply@agi-careers.biz.info>',
+            body: ['Friend,', 'This is truly the last chance. Previous last chances were practice.',
+                'After this email, you will receive more emails.',
+                'Build the desk. Click a lot. Train the AI. It will be weak at first. That is normal.',
+                'Best Regards,\nA Friend'], reply: 'Reply: Fine, I\'m in' }
     ];
 
     // ---- Dilemmas: questions by email, risk against reward -------------------------------------------
@@ -888,6 +937,9 @@
     // Achievements with `seen` keep their goal secret (???) in the Journal until what they're about has appeared.
     const ACHIEVEMENTS = [
         { id: 'firstClick', name: 'Hello, World', desc: 'Generate compute by hand', check: s => s.stats.clicks >= 1 },
+        // An Easter egg (hidden until earned): close the offer until every one of its spam variants has arrived.
+        { id: 'itsFavorite', name: 'IT\'s Favorite', desc: 'Receive every version of the opening spam', seen: () => false,
+            check: s => WELCOME_NAGS.every((_, i) => s.intro['nag:' + i]) },
         { id: 'clicks1k', name: 'Carpal Tunnel', desc: 'Hold down a job to keep it going', seen: s => level(s, 'keyboard') >= 4, check: s => s.stats.holds >= 1 },
         { id: 'cp1k', name: 'Kiloflop', desc: 'Earn 1,000 CP in total', check: s => s.stats.lifetimeCp >= 1e3 },
         { id: 'cp1m', name: 'Megaflop', desc: 'Earn 1 million CP in total', check: s => s.stats.lifetimeCp >= 1e6 },
