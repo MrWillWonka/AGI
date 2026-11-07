@@ -7394,25 +7394,38 @@ window.AGI = (function () {
         // The count badge is decorative for assistive tech (aria-hidden); the name carries it instead.
         $('mailButton').setAttribute('aria-label', n ? `Inbox, ${n} unread` : 'Inbox');
     }
-    const welcomeText = m => m.id === 'welcome' && welcomeNag > 0 && !introDone()
-        ? { ...m, ...[...E.WELCOME_NAGS, {}][(welcomeNag - 1) % (E.WELCOME_NAGS.length + 1)] } : m;
+    // Copy n of the offer (0 the original; each refusal sends a new one, cycling the nags and then the original).
+    const welcomeText = (m, n) => m.id === 'welcome' && n > 0
+        ? { ...m, ...[...E.WELCOME_NAGS, {}][(n - 1) % (E.WELCOME_NAGS.length + 1)] } : m;
+    // The × closes the email on screen (back to the list), or the inbox from the list once the offer's accepted.
+    function renderInboxClose() {
+        // Only the opening is locked: once the offer's accepted the × always closes the inbox.
+        const onMail = !!mailOpen && !introDone();
+        setHidden($('inboxClose'), !onMail && !introDone());
+        $('inboxClose').setAttribute('aria-label', onMail ? 'Close this email' : 'Close the inbox');
+    }
     function renderInbox() {
         mailOpen = null;
-        const rows = mailArrived().slice().reverse().map(m => {
-            const read = !!state.intro['mailRead:' + m.id];
-            const shown = welcomeText(m);
-            const row = el('li', { class: `inbox-row${read ? '' : ' unread'}${m.id === arrived ? ' arrive' : ''}` }, [
-                el('button', { type: 'button', class: 'inbox-open' }, [
-                    el('span', { class: 'inbox-from', text: shown.from.replace(/\s*<.*$/, '') }),
-                    el('span', { class: 'inbox-subject', text: shown.subject })])]);
-            row.firstChild.addEventListener('click', () => openMail(m));
-            return row;
-        });
+        const rows = [];
+        for (const m of mailArrived().slice().reverse()) {
+            // Every refusal of the offer is its own email in the list, newest on top; older copies are read.
+            const copies = m.id === 'welcome' ? welcomeNag : 0;
+            for (let n = copies; n >= 0; n--) {
+                const read = n < copies || !!state.intro['mailRead:' + m.id];
+                const shown = welcomeText(m, n);
+                const row = el('li', { class: `inbox-row${read ? '' : ' unread'}${m.id === arrived && n === copies ? ' arrive' : ''}` }, [
+                    el('button', { type: 'button', class: 'inbox-open' }, [
+                        el('span', { class: 'inbox-from', text: shown.from.replace(/\s*<.*$/, '') }),
+                        el('span', { class: 'inbox-subject', text: shown.subject })])]);
+                row.firstChild.addEventListener('click', () => openMail(m, n));
+                rows.push(row);
+            }
+        }
         arrived = null;
         $('inboxList').replaceChildren(...(rows.length ? rows : [el('li', { class: 'inbox-empty', text: 'No messages' })]));
         setHidden($('inboxList'), false);
         setHidden($('inboxMessage'), true);
-        setHidden($('inboxClose'), !introDone());
+        renderInboxClose();
         renderMailButton();
         introStep();
     }
@@ -7433,12 +7446,12 @@ window.AGI = (function () {
             save();
         }, mailArrived().length ? 1100 : 700);
     }
-    function openMail(m) {
+    function openMail(m, n = m.id === 'welcome' ? welcomeNag : 0) {
         clearTimeout(introTimer);
         mailOpen = m;
-        state.intro['mailRead:' + m.id] = true;
-        pt('mailRead', { id: m.id, nag: m.id === 'welcome' ? welcomeNag : undefined });
-        const shown = welcomeText(m);
+        if (n === (m.id === 'welcome' ? welcomeNag : 0)) state.intro['mailRead:' + m.id] = true;
+        pt('mailRead', { id: m.id, nag: m.id === 'welcome' ? n : undefined });
+        const shown = welcomeText(m, n);
         setText($('mailSubject'), shown.subject);
         setText($('mailFrom'), shown.from);
         $('mailBody').replaceChildren(...shown.body.map(p => el('p', { text: p })));
@@ -7451,32 +7464,30 @@ window.AGI = (function () {
         }
         setHidden(footer, !shown.footer && !shown.unsubscribe);
         // In the opening a mail without a reply goes back to the list; the offer's reply is the only way out.
-        setText($('mailReply'), shown.reply || (introDone() ? 'Close' : 'Back to inbox'));
+        setText($('mailReply'), shown.reply || 'Close');
         setHidden($('inboxList'), true);
         setHidden($('inboxMessage'), false);
-        setHidden($('inboxClose'), !introDone());
+        renderInboxClose();
         renderMailButton();
         save();
         $('mailReply').focus({ preventScroll: true });
     }
-    // Leaving the offer without replying: it comes straight back, unread, a little different.
+    // Closing the offer without replying: a new copy arrives a beat later, a little different, and pops open.
     function leaveMail() {
         const m = mailOpen;
-        if (m?.id === 'welcome' && !introDone()) {
+        renderInbox();
+        if (m?.id !== 'welcome' || introDone()) return;
+        clearTimeout(introTimer);
+        introTimer = setTimeout(() => {
+            if (mailOpen || !$('inbox').open || introDone()) return;
             welcomeNag++;
             delete state.intro['mailRead:welcome'];
             pt('mailNag', { n: welcomeNag });
             arrived = 'welcome';
+            sfx('ui');
             renderInbox();
-            clearTimeout(introTimer);
-            introTimer = setTimeout(() => {
-                if (mailOpen || !$('inbox').open) return;
-                sfx('ui');
-                openMail(m);
-            }, 900);
-            return;
-        }
-        renderInbox();
+            introTimer = setTimeout(() => { if (!mailOpen && $('inbox').open) openMail(m); }, 900);
+        }, 1000);
     }
     function openInbox() {
         renderInbox();
@@ -7489,7 +7500,7 @@ window.AGI = (function () {
     function buildMail() {
         const dialog = $('inbox');
         $('mailButton').addEventListener('click', openInbox);
-        $('inboxClose').addEventListener('click', () => { if (introDone()) dialog.close(); });
+        $('inboxClose').addEventListener('click', () => { if (introDone()) dialog.close(); else if (mailOpen) leaveMail(); });
         $('inboxBack').addEventListener('click', leaveMail);
         $('mailReply').addEventListener('click', () => {
             if (mailOpen?.reply) {
