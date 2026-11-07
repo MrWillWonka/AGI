@@ -71,6 +71,18 @@ incrementals (schools, chain lightning, scanners, targeted lasers), with its own
   catches by itself whenever it holds good packets and no corrupt one. Firewalls stalk and break nets. The layout carries to
   the next run. **Overclocked Nets** fire faster and pay more.
 
+## Built: the fourth pass (the owner's second log, and "packets should continue off screen")
+
+The second log (Packet Snare 2, `playtests/snare/2026-11-07-owner-snare-1-2.txt`): Attention Span ×3 went first (the
+cheapest node), then the Laser, Chain Lightning and Sprawl; runs caught 114–116 packets (from 30–50) and the best
+multiplier fell to ×1.8–1.95, so abilities did the work and big loops stopped mattering.
+
+- **The pipeline flows:** each run has a current; schools enter upstream and leave downstream. Data has to be caught as it
+  passes, which brings back timing and position.
+- **Containment Field** (off Schooling): the edges hold good packets in, corrupt ones still leave.
+- **Herders** (off Containment, 1–3): drones round strays up toward your net (or the middle) and shoo corrupt ones away.
+- **Attention Span** dearer and weaker: +25% a level from 90 DP ×3 (it was +35% from 40 ×2.4).
+
 ## Next slices
 
 1. **Playtest the second pass:** does closing feel easy, does the preview make big loops a decision, is the first run

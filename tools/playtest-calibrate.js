@@ -47,7 +47,7 @@ const median = a => {
     return b.length % 2 ? b[(b.length - 1) / 2] : (b[b.length / 2 - 1] + b[b.length / 2]) / 2;
 };
 const r2 = x => (x == null ? null : Math.round(x * 100) / 100);
-const place = v => (v === 'lab' ? 'lab' : v === 'bay:training' ? 'train' : v === 'tree' ? 'tree' : v === 'bay:pipeline' ? 'snare' : 'other');
+const place = v => (v === 'lab' ? 'lab' : v === 'bay:training' ? 'train' : v === 'tree' ? 'tree' : v === 'bay:pipeline' || v === 'snareTree' ? 'snare' : 'other');
 
 function profileOf(events) {
     events = events.filter(e => e && typeof e.t === 'number').sort((a, b) => a.t - b.t || a.w - b.w);

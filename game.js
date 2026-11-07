@@ -3569,7 +3569,7 @@ window.AGI = (function () {
         pointer: null, done: null, tree: false, pick: null, treeKey: '' };
     const SNARE_FX = 1.1;        // seconds a catch's loop and pop stay on the field
     const SNARE_ICONS = { snareFocus: '◔', snareBandwidth: '⇕', snareSprawl: '⤢', snareGold: '◆', snareSchools: '≋', snareObfuscation: '◌',
-        snareChain: 'ϟ', snareScanner: '◎', snareScrubbers: '✚', snareLaser: '⌖', snareEmitters: '⋔', snareAnchors: '⚓', snareOverclock: '⟳' };
+        snareChain: 'ϟ', snareScanner: '◎', snareScrubbers: '✚', snareLaser: '⌖', snareEmitters: '⋔', snareAnchors: '⚓', snareOverclock: '⟳', snareContain: '▣', snareHerders: '⟴' };
 
     function snareStatus() {
         if (snare.run && !snare.run.over && !snare.preview) return 'Snaring…';
@@ -3870,13 +3870,14 @@ window.AGI = (function () {
         setHidden($('snareCard'), true);
         setHidden($('snareTree'), false);
         renderSnareTree();
-        pt('view', { v: 'snareTree' });
+        ptView('snareTree');
     }
 
     function closeSnareTree() {
         if (!snare.tree) return;
         snare.tree = false;
         setHidden($('snareTree'), true);
+        if (openBay === 'pipeline') ptView('bay:pipeline');
         if (openBay === 'pipeline' && (!snare.run || snare.run.over || snare.preview)) showSnareCard(snare.done ? 'end' : 'start');
     }
 
@@ -3997,6 +3998,38 @@ window.AGI = (function () {
         ctx.globalAlpha = 1;
         if (!run) { ctx.restore(); return; }
         const t = run.time;
+        // The current: faint streaks drifting the way the data flows, so it's clear where packets come from and go.
+        if (run.flow) {
+            const fx = run.flow.x, fy = run.flow.y;
+            ctx.strokeStyle = C.primary;
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.12;
+            ctx.beginPath();
+            const n = Math.round(W * H / 6);
+            for (let i = 0; i < n; i++) {
+                // fixed scattered lanes, each streak sliding along the current and wrapping round the field
+                const u = ((i * 0.618034) % 1), v = ((i * 0.381966 + 0.21) % 1);
+                const travel = (t * 0.9 + i * 0.37) % (W + H);
+                let x = (u * W + fx * travel) % W, y = (v * H + fy * travel) % H;
+                if (x < 0) x += W;
+                if (y < 0) y += H;
+                ctx.moveTo(x * k, y * k);
+                ctx.lineTo((x - fx * 0.7) * k, (y - fy * 0.7) * k);
+            }
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+        // The Containment Field: the field's edge glows.
+        if (run.opts.contain) {
+            ctx.strokeStyle = C.primary;
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.55 + 0.2 * Math.sin(t * 3);
+            ctx.shadowColor = C.primary;
+            ctx.shadowBlur = 10;
+            ctx.strokeRect(1, 1, W * k - 2, H * k - 2);
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1;
+        }
         // The scanner: beams sweeping from the middle, each with a fading wedge behind it.
         if (run.beams.length) {
             const cx = W / 2 * k, cy = H / 2 * k, R = Math.hypot(W, H) / 2 * k;
@@ -4210,6 +4243,31 @@ window.AGI = (function () {
             ctx.restore();
         }
         ctx.globalAlpha = 1;
+        // Herders: little drones with their reach drawn faintly round them.
+        for (const hd of run.herders || []) {
+            const x = hd.x * k, y = hd.y * k;
+            ctx.globalAlpha = 0.1;
+            ctx.fillStyle = C.success;
+            ctx.beginPath();
+            ctx.arc(x, y, run.opts.herdRadius * k, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(Math.atan2(hd.vy, hd.vx));
+            ctx.fillStyle = C.success;
+            ctx.strokeStyle = C.bg || '#0a1416';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(9, 0);
+            ctx.lineTo(-6, 6);
+            ctx.lineTo(-3, 0);
+            ctx.lineTo(-6, -6);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        }
         // Laser locks: brackets closing in on the target.
         for (const l of run.locks) {
             const p = run.packets.find(q => q.id === l.id);

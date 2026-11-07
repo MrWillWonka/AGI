@@ -1,20 +1,22 @@
 The Path to AGI · playtest log
-Log v1 · began 2026-11-07T18:25:41.232Z · exported 2026-11-07T18:38:53.384Z
-build: 2026-11-07 (branch, unpublished) · Packet Snare: the Data Pipeline bay, a second minigame (draw loops round data packets)
+Log v1 · began 2026-11-07T18:25:41.232Z · exported 2026-11-07T18:52:35.157Z
+build: 2026-11-07 (branch, unpublished) · Packet Snare 2: loops close near their start, a live loop preview, a small start, schools and a skill tree (chain lightning, scanner, lasers, scrubbers)
 save: v19, v1.0, 4 skills
 screen: 440×820, touch
 browser: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Claude/1.261030.19
 
-Play time 6.0 min over 2 sessions, 50 events, 13.2 min on the clock.
+Play time 8.1 min over 3 sessions, 74 events, 26.9 min on the clock.
+Skill-tree and legacy buys: 8; 38% the cheapest affordable, the rest dearer picks.
 
 Tips and callouts (how they closed, seconds shown):
   module:snare       left     0.3 s
 
 Time by screen:
-  bay:pipeline    5.6 min  94%
-  inbox           0.2 min  3%
+  bay:pipeline    5.7 min  71%
+  snareTree       1.9 min  24%
+  inbox           0.2 min  2%
+  servers         0.1 min  2%
   lab             0.1 min  2%
-  servers         0.1 min  1%
 
 --- events (t = play seconds, w = wall seconds) ---
 {"t":0,"w":0,"e":"view","v":"lab"}
@@ -67,3 +69,27 @@ Time by screen:
 {"t":327.8,"w":760,"e":"snare","haul":34,"catches":2,"caught":9,"gold":0,"corrupted":2,"snaps":0,"empty":0,"bestMult":4.3,"secs":17,"record":false,"seed":357806}
 {"t":355.8,"w":789,"e":"sample","cp":0,"dp":799,"rp":0,"xp":103,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
 {"t":359.4,"w":792,"e":"sample","cp":0,"dp":799,"rp":0,"xp":103,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
+{"t":360.7,"w":793,"e":"snare","haul":118,"catches":5,"caught":31,"gold":1,"corrupted":2,"snaps":0,"empty":0,"bestMult":5,"secs":30,"record":false,"seed":385799}
+{"t":362.1,"w":795,"e":"hidden"}
+{"t":362.1,"w":1492,"e":"view","v":"servers"}
+{"t":362.1,"w":1492,"e":"session","build":"2026-11-07 (branch, unpublished) · Packet Snare 2: loops close near their start, a live loop preview, a small start, schools and a skill tree (chain lightning, scanner, lasers, scrubbers)","save":19,"skills":4,"version":"v1.0","screen":"440x820","touch":true,"at":"servers"}
+{"t":362.1,"w":1492,"e":"sample","cp":0,"dp":799,"rp":0,"xp":104,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"servers","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
+{"t":364.5,"w":1494,"e":"view","v":"bay:pipeline"}
+{"t":367.5,"w":1497,"e":"view","v":"snareTree"}
+{"t":371.4,"w":1501,"e":"buy","id":"snareFocus","lvl":1,"held":799,"price":40,"cheapest":"snareFocus","cheapestCost":40,"affordable":4,"rank":1}
+{"t":375.8,"w":1505,"e":"buy","id":"snareLaser","lvl":1,"held":759,"price":200,"cheapest":"snareSprawl","cheapestCost":60,"affordable":5,"rank":4}
+{"t":379.1,"w":1509,"e":"buy","id":"snareChain","lvl":1,"held":559,"price":120,"cheapest":"snareSprawl","cheapestCost":60,"affordable":5,"rank":3}
+{"t":381.7,"w":1511,"e":"buy","id":"snareFocus","lvl":2,"held":439,"price":96,"cheapest":"snareSprawl","cheapestCost":60,"affordable":5,"rank":2}
+{"t":382.3,"w":1512,"e":"buy","id":"snareFocus","lvl":3,"held":343,"price":231,"cheapest":"snareSprawl","cheapestCost":60,"affordable":4,"rank":3}
+{"t":383.7,"w":1513,"e":"buy","id":"snareSprawl","lvl":1,"held":112,"price":60,"cheapest":"snareSprawl","cheapestCost":60,"affordable":1,"rank":1}
+{"t":392.1,"w":1522,"e":"sample","cp":0,"dp":95,"rp":0,"xp":113,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
+{"t":416.9,"w":1546,"e":"snare","haul":211,"catches":14,"caught":114,"gold":5,"corrupted":0,"snaps":0,"empty":0,"bestMult":1.95,"chained":8,"lasered":4,"scrubbed":0,"area":112,"secs":32,"record":true,"seed":448207}
+{"t":418.9,"w":1548,"e":"view","v":"snareTree"}
+{"t":422.2,"w":1552,"e":"sample","cp":0,"dp":263,"rp":0,"xp":122,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
+{"t":433.5,"w":1563,"e":"buy","id":"snareSprawl","lvl":2,"held":263,"price":150,"cheapest":"snareSprawl","cheapestCost":150,"affordable":5,"rank":1}
+{"t":452.2,"w":1582,"e":"sample","cp":0,"dp":188,"rp":0,"xp":131,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
+{"t":466.9,"w":1596,"e":"snare","haul":195,"catches":12,"caught":116,"gold":4,"corrupted":1,"snaps":0,"empty":0,"bestMult":1.8,"chained":9,"lasered":7,"scrubbed":0,"area":179,"secs":32,"record":false,"seed":505943}
+{"t":468.3,"w":1598,"e":"view","v":"snareTree"}
+{"t":474.6,"w":1604,"e":"buy","id":"snareGold","lvl":1,"held":308,"price":260,"cheapest":"snareScrubbers","cheapestCost":160,"affordable":4,"rank":4}
+{"t":482.3,"w":1612,"e":"sample","cp":0,"dp":48,"rp":0,"xp":140,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}
+{"t":484.4,"w":1614,"e":"sample","cp":0,"dp":48,"rp":0,"xp":141,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":2,"offers":0,"offersDone":0,"treeReady":1}

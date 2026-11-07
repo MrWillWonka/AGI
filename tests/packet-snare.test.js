@@ -215,7 +215,7 @@ test('the preview says what the open loop would catch, its multiplier, and a spo
 
 test('schools: packets of a school stay together; without schooling they drift apart', () => {
     const spread = schooling => {
-        const s = P.createSnare({ seed: 11, w: 30, h: 30, density: 0.05, corruptShare: 0, firewalls: [], schooling, idleDrain: 0 });
+        const s = P.createSnare({ seed: 11, w: 30, h: 30, density: 0.05, corruptShare: 0, firewalls: [], schooling, idleDrain: 0, flow: false });
         for (let i = 0; i < 300; i++) s.step(1 / 30);
         const bySchool = {};
         for (const p of s.packets) (bySchool[p.school] ||= []).push(p);
@@ -343,7 +343,7 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     const g = E.snareOpts(s);
     assert.ok(g.area > 170 && g.area < 190, 'two levels of Sprawl: ×1.6²');
     assert.equal(g.firewalls.length, 2, 'a second Firewall with the sprawl');
-    assert.equal(g.focus, 35);
+    assert.equal(g.focus, 33);
     assert.equal(g.chain, 2);
     assert.ok(g.laser > 0 && g.laser < 4, 'faster with its second level');
     // and a run built from them is bigger, with lasers firing
@@ -512,4 +512,44 @@ test('the Rogue AI arrives on the third run', () => {
     assert.equal(E.snareOpts(s).rogue, 0);
     s.snare.runs = E.ROGUE_FROM_RUN;
     assert.equal(E.snareOpts(s).rogue, 1);
+});
+
+// ---- The current, the Containment Field and Herders ----
+
+test('the pipeline flows: packets leave the field downstream and new schools swim in upstream', () => {
+    const s = P.createSnare({ seed: 21, firewalls: [], idleDrain: 0, corruptLure: 0 });
+    const n0 = s.packets.length;
+    for (let i = 0; i < 60 * 20; i++) s.step(1 / 60);
+    assert.ok(s.stats.escaped > 0, 'some left');
+    assert.ok(s.packets.length >= n0 * 0.6, 'the field refills');
+    // the newest arrivals head with the current (into the field from upstream)
+    const young = s.packets.filter(p => p.kind !== 'corrupt' && p.age < 1.5);
+    assert.ok(young.length > 0);
+    for (const p of young) assert.ok((p.vx * s.flow.x + p.vy * s.flow.y) / p.v > 0, 'heading downstream');
+});
+
+test('the Containment Field turns good packets back at the edges; corrupt ones still leave', () => {
+    const s = P.createSnare({ seed: 21, firewalls: [], idleDrain: 0, contain: 1, corruptLure: 0, schooling: 0 });
+    for (let i = 0; i < 60 * 20; i++) s.step(1 / 60);
+    assert.equal(s.stats.escaped, 0, 'no good packet escaped');
+    for (const p of s.packets) if (p.kind !== 'corrupt') assert.ok(p.x >= 0 && p.x <= s.w && p.y >= 0 && p.y <= s.h);
+    const c = P.createSnare({ seed: 21, firewalls: [], idleDrain: 0, contain: 1, corruptLure: 0, density: 0.01, corruptShare: 3 });
+    const ids = new Set(c.packets.filter(p => p.kind === 'corrupt').map(p => p.id));
+    for (let i = 0; i < 60 * 30; i++) c.step(1 / 60);
+    assert.ok([...ids].some(id => !c.packets.some(p => p.id === id)), 'a corrupt one left the field');
+});
+
+test('Herders round good packets up toward the middle (or the net) and shoo corrupt ones away', () => {
+    const spread = herders => {
+        const s = P.createSnare({ seed: 5, w: 14, h: 14, density: 0.08, corruptShare: 0, firewalls: [], idleDrain: 0, contain: 1, herders, schooling: 0 });
+        for (let i = 0; i < 60 * 12; i++) s.step(1 / 60);
+        const g = s.packets.filter(p => p.kind !== 'corrupt');
+        return g.reduce((a, p) => a + Math.hypot(p.x - 7, p.y - 7), 0) / g.length;
+    };
+    assert.ok(spread(3) < spread(0) * 0.8, `${spread(3)} vs ${spread(0)}`);
+    const s = still({ herders: 1, herdRadius: 3 });
+    s.packets.push({ id: s.nextId++, kind: 'corrupt', x: s.w / 2 + 1, y: s.h / 2, vx: 0, vy: 1, v: 1, r: P.PACKET_R, age: 0, school: 0, tag: 0 });
+    for (let i = 0; i < 30; i++) s.step(1 / 60);
+    const c = s.packets[0];
+    assert.ok(c.vx > 0.3, 'turned away from the middle');
 });

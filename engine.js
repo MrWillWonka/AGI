@@ -13,7 +13,7 @@
     // The build a player is on: stamped into every playtest log (its header and session events), so each log is read
     // against the features it had (playtests/README.md lists the builds). Bump it with every publish: the date and
     // time (UTC) and a few words on what changed.
-    const BUILD = '2026-11-07 (branch, unpublished) · Packet Snare 3: a short, hard start; the Rogue AI (cores, the Chokehold, the Wall); Anchors and nets';
+    const BUILD = '2026-11-07 (branch, unpublished) · Packet Snare 4: the pipeline flows (packets leave the field), Containment Field and Herders, Attention Span trimmed';
     const SAVE_VERSION = 19;   // 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
@@ -517,8 +517,8 @@
     // more Focus and field, then the abilities, each a hexagon (`mechanic`): Chain Lightning, the Scanner and the
     // Targeted Laser (the delegation: it takes packets by itself).
     const SNARE_TREE = [
-        { id: 'snareFocus', name: 'Attention Span', snare: { x: 0, y: -1 }, cost: { dp: 40 }, scale: 2.4, max: 3,
-            sn: { focus: 0.35 }, effect: '+35% Focus per level: longer runs', flavor: 'It can sit still for a whole minute now.' },
+        { id: 'snareFocus', name: 'Attention Span', snare: { x: 0, y: -1 }, cost: { dp: 90 }, scale: 3, max: 3,
+            sn: { focus: 0.25 }, effect: '+25% Focus per level: longer runs', flavor: 'It can sit still for a whole minute now.' },
         { id: 'snareBandwidth', name: 'Bandwidth', snare: { x: 0, y: -2 }, requires: 'snareFocus', cost: { dp: 420 }, scale: 3, max: 2,
             sn: { maxMult: 2 }, effect: 'Big loops can reach a higher multiplier (+2 per level)', flavor: 'Wider pipes. Bigger nets.' },
         { id: 'snareSprawl', name: 'Sprawl', snare: { x: 1, y: 0 }, cost: { dp: 60 }, scale: 2.5, max: 4,
@@ -527,6 +527,11 @@
             sn: { goldChance: 0.05 }, effect: '+5% of new packets are gold (worth 5)', flavor: 'Premium data. Hand-labelled, allegedly.' },
         { id: 'snareSchools', name: 'Schooling', snare: { x: 1, y: -1 }, requires: 'snareSprawl', cost: { dp: 180 }, scale: 2, max: 1,
             sn: { schooling: 0.5, schoolSize: 4 }, effect: 'Packets swim in bigger, tighter schools', flavor: 'Data of a feather.' },
+        // The pipeline flows past you: hold the good data in, then herd it.
+        { id: 'snareContain', name: 'Containment Field', snare: { x: 2, y: -1 }, requires: 'snareSchools', cost: { dp: 350 }, scale: 2, max: 1,
+            sn: { contain: 1 }, effect: 'The edges turn good packets back into the field; corrupt ones still leave', flavor: 'Data goes in. Data stays in.' },
+        { id: 'snareHerders', name: 'Herders', mechanic: true, snare: { x: 2, y: -2 }, requires: 'snareContain', cost: { dp: 700 }, scale: 2.5, max: 3,
+            sn: { herders: 1 }, effect: 'A drone per level rounds strays up toward your net (or the middle) and shoos corrupt packets away', flavor: 'Good data. Sit. Stay.' },
         { id: 'snareObfuscation', name: 'Obfuscation', snare: { x: 1, y: 1 }, requires: 'snareSprawl', cost: { dp: 220 }, scale: 2.6, max: 2,
             sn: { firewallSpeed: -0.2 }, effect: 'Firewalls move 20% slower per level', flavor: 'Nothing to see here. Just packets.' },
         { id: 'snareChain', name: 'Chain Lightning', mechanic: true, snare: { x: -1, y: 0 }, cost: { dp: 120 }, scale: 2.8, max: 3,
@@ -2077,6 +2082,8 @@
             netCooldown: 3 * Math.pow(0.7, n.netSpeed || 0),
             netPower: 0.6 + 0.15 * (n.netSpeed || 0),
             layout: s.snare.anchors,
+            contain: n.contain || 0,
+            herders: n.herders || 0,
             firewallSpeed: Math.max(0.4, 1 + (n.firewallSpeed || 0)),
             chain: n.chain || 0,
             scanner: n.scanner || 0,

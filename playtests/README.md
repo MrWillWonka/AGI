@@ -42,7 +42,7 @@ the player profile. Read them with `node tools/playtest-calibrate.js playtests/s
 
 | Log | Played (UTC) | Build | Who | Notes |
 |---|---|---|---|---|
-| `snare/2026-11-07-owner-snare-1.txt` | 18:25 to 18:38 | Packet Snare's first cut (before the second pass) | the owner, iPhone, 6 min, a fresh game via the debug shortcut | 7 runs of 15–34 s (25 on average), 38 loops of 4.6 packets each, a best multiplier of 3.2–4.8 every run (big loops tempted); 7 of 38 loops spoiled by a corrupt packet (18%), and runs with a spoil earned 2.9 DP/s against 4.6 clean; 8 snaps in 7 runs; 4.0 DP/s at 1 DP a packet (no Data Processor). Led to the second pass: closing near the start, the live preview (which shows a corrupt packet before it spoils the loop), a smaller, quicker start and the tree |
+| `snare/2026-11-07-owner-snare-1-2.txt` | 18:25 to 18:52 (three sessions) | sessions 1–2 on Packet Snare's first cut; session 3 (from 6 min) on Packet Snare 2 | the owner, iPhone, 8 min, a fresh game via the debug shortcut | one log continued (it replaces `owner-snare-1`). First cut: 7 runs of 15–34 s, 38 loops of 4.6 packets, a best multiplier of 3.2–4.8 every run; 18% of loops spoiled by a corrupt packet, runs with a spoil earning 2.9 DP/s against 4.6 clean. Packet Snare 2: Attention Span ×3 bought first (the cheapest node: 40, 96, 231 DP), then the Laser, Chain Lightning, Sprawl ×2 and Gold Rush; runs of 32 s caught 114–116 packets (from 30–50), 8–9 by chain lightning and 4–7 by laser, and the best multiplier fell to ×1.8–1.95: abilities did the work and big loops stopped mattering. Led to the third pass (a short, hard start) and the fourth (Attention Span dearer and weaker, packets leaving the field on a current) |
 
 ## Builds
 
@@ -50,6 +50,7 @@ What each build had, newest first (artifact publish times, UTC). A log played on
 
 | Published | Build | What changed |
 |---|---|---|
+| unpublished (4) | branch `claude/optimistic-hamilton-ey00uj` | **Packet Snare 4**: the pipeline flows (a current; packets leave the field downstream), Containment Field and Herders, Attention Span dearer and weaker (+25%, from 90 DP) |
 | unpublished (3) | branch `claude/optimistic-hamilton-ey00uj` | **Packet Snare 3**: a short, hard start (Focus 26, faster packets, corrupt ones hiding in the schools); the Rogue AI from the third run (Infection Cores, the Chokehold, the Wall); Anchors and nets |
 | unpublished (2) | branch `claude/optimistic-hamilton-ey00uj` | **Packet Snare 2**: loops close near their start, a live loop preview, a small quick start, schools, and its own skill tree (Chain Lightning, Scanner, Targeted Laser, Scrubbers, Sprawl) |
 | unpublished | branch `claude/optimistic-hamilton-ey00uj` | **Packet Snare**: the Data Pipeline bay opens at Edge Detection (draw loops round data packets for DP; corrupt packets and Firewalls); save v19 |

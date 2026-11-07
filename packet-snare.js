@@ -7,6 +7,9 @@
 // with its own skill tree (engine.js `snareOpts`): a wider field, more Focus, chain lightning off every catch, a scanner
 // sweep that tags packets, targeted lasers that take packets by themselves, scrubbers that forgive a corrupt packet, and
 // Anchors: tap to place them and lasers join them into a net that catches by itself.
+// The pipeline flows: each run has a current, schools swim in from upstream and leave downstream (the owner's call:
+// packets go on off the field the way they're heading). A Containment Field makes the edges hold the good ones (corrupt
+// ones still leave), and Herders, drones that round strays up toward your net, shoo corrupt ones out.
 // From the third run the **Rogue AI** fights for the same field: it drops Infection Cores whose red circles grow and steal
 // the data inside. A tight loop round a core quarantines it (the Chokehold); a straight stroke becomes a shield wall
 // across the field that no circle can grow past (the Wall).
@@ -81,7 +84,14 @@
         netCooldown: 3,
         netPower: 0.6,
         netRepair: 4,               // seconds a net is down after a Firewall breaks it
-        layout: []                  // anchors carried over from the last run, as shares of the field [[u, v], …]
+        layout: [],                 // anchors carried over from the last run, as shares of the field [[u, v], …]
+        flow: true,                 // a current: packets enter upstream and leave the field downstream (false: they bounce)
+        flowSpread: 0.5,            // how far (radians) a school's heading strays from the current
+        contain: 0,                 // Containment Field: the edges turn good packets back (corrupt ones still leave)
+        herders: 0,                 // Herders: drones that round strays up toward the net (or the middle)
+        herdRadius: 1.7,            // units: how near a herder must be to move a packet
+        herdSpeed: 2.8,
+        herdPull: 2.6               // how quickly a herded packet turns (per second)
     };
     const GOLD_VALUE = 5;
     const TAG_VALUE = 2;
@@ -187,7 +197,7 @@
             rogueAt: o.rogue ? o.rogueFirst : Infinity,
             penAt: 0,               // when the pen went down (a wall is a quick straight stroke)
             stats: { catches: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
-                stolen: 0, cores: 0, quarantined: 0, walls: 0, netCaught: 0, netPulses: 0, netBreaks: 0 },
+                stolen: 0, cores: 0, quarantined: 0, walls: 0, netCaught: 0, netPulses: 0, netBreaks: 0, escaped: 0 },
             acc: 0,
             nextId: 1
         };
@@ -195,6 +205,20 @@
         // Anchors carried over from the last run (the net you built stays built).
         for (const [u, v] of (o.layout || []).slice(0, o.anchors)) s.anchors.push({ id: s.nextId++, x: u * w, y: v * h });
 
+        // The current: one direction for the whole run.
+        const flowAng = rand() * Math.PI * 2;
+        const fx = Math.cos(flowAng), fy = Math.sin(flowAng);
+        s.flow = o.flow ? { x: fx, y: fy } : null;
+        // A point just inside an upstream edge (the current carries packets in from it), weighted by how squarely
+        // the current crosses it.
+        function upstream() {
+            const sides = [{ n: [-1, 0], L: h }, { n: [1, 0], L: h }, { n: [0, -1], L: w }, { n: [0, 1], L: w }]
+                .map(sd => ({ ...sd, wt: Math.max(0, -(sd.n[0] * fx + sd.n[1] * fy)) * sd.L }));
+            let r = rand() * sides.reduce((a, sd) => a + sd.wt, 0);
+            const sd = sides.find(x => (r -= x.wt) <= 0) || sides[0];
+            const along = 0.5 + rand() * ((sd.n[0] ? h : w) - 1);
+            return sd.n[0] ? { x: sd.n[0] < 0 ? 0.4 : w - 0.4, y: along } : { x: along, y: sd.n[1] < 0 ? 0.4 : h - 0.4 };
+        }
         const speedFor = kind => (kind === 'gold' ? o.goldSpeed : kind === 'corrupt' ? o.packetSpeed[1] * 1.1 : o.packetSpeed[0] + rand() * (o.packetSpeed[1] - o.packetSpeed[0]));
         const inField = (x, y) => ({ x: Math.max(PACKET_R, Math.min(w - PACKET_R, x)), y: Math.max(PACKET_R, Math.min(h - PACKET_R, y)) });
 
@@ -208,7 +232,11 @@
         // A school: a few packets around a point, heading the same way give or take.
         function school(n, fromEdge) {
             let cx, cy, ang;
-            if (fromEdge) {
+            if (o.flow) {
+                const at = fromEdge ? upstream() : { x: 1 + rand() * (w - 2), y: 1 + rand() * (h - 2) };
+                cx = at.x; cy = at.y;
+                ang = flowAng + (rand() - 0.5) * 2 * o.flowSpread;
+            } else if (fromEdge) {
                 const side = Math.floor(rand() * 4);
                 cx = side === 0 ? 0.5 : side === 1 ? w - 0.5 : 0.5 + rand() * (w - 1);
                 cy = side === 2 ? 0.5 : side === 3 ? h - 0.5 : 0.5 + rand() * (h - 1);
@@ -223,7 +251,10 @@
         }
 
         function corrupt(fromEdge) {
-            if (fromEdge) {
+            if (o.flow) {
+                const at = fromEdge ? upstream() : { x: 1 + rand() * (w - 2), y: 1 + rand() * (h - 2) };
+                add('corrupt', at.x, at.y, flowAng + (rand() - 0.5) * 2 * o.flowSpread, 0);
+            } else if (fromEdge) {
                 const side = Math.floor(rand() * 4);
                 const x = side === 0 ? 0.5 : side === 1 ? w - 0.5 : 0.5 + rand() * (w - 1);
                 const y = side === 2 ? 0.5 : side === 3 ? h - 0.5 : 0.5 + rand() * (h - 1);
@@ -245,6 +276,12 @@
         const corruptCount = () => s.packets.filter(p => p.kind === 'corrupt').length;
         let refillAt = Infinity;
         const firewallsDue = [...o.firewalls];
+        // Herders start spread round the middle.
+        s.herders = [];
+        for (let i = 0; i < o.herders; i++) {
+            const a = i * Math.PI * 2 / Math.max(1, o.herders);
+            s.herders.push({ id: s.nextId++, x: w / 2 + Math.cos(a) * 1.5, y: h / 2 + Math.sin(a) * 1.5, vx: 0, vy: 0, target: null });
+        }
 
         function bootFirewall() {
             // From a corner, so it never lands on the pen.
@@ -503,16 +540,61 @@
             s.events.push({ type: 'net', poly: poly.map(a => ({ x: a.x, y: a.y })), count: j.good.length, units, mult, packets: j.inside, ...centroid(poly) });
         }
 
+        // ---- Herders --------------------------------------------------------------------------------------
+        // Where the herders drive the data: into the net if there is one, else the middle.
+        const gatherPoint = () => (netPoly() && s.time >= s.net.brokenUntil ? centroid(s.anchors) : { x: w / 2, y: h / 2 });
+        function herdStep(dt) {
+            if (!s.herders.length) return;
+            const g = gatherPoint();
+            // Each herder takes one of the strays furthest from the gather point and goes round behind it.
+            const strays = s.packets.filter(p => p.kind !== 'corrupt').map(p => ({ p, d: Math.hypot(p.x - g.x, p.y - g.y) })).sort((a, b) => b.d - a.d);
+            s.herders.forEach((hd, i) => {
+                const st = strays[i];
+                let tx = g.x, ty = g.y;
+                if (st && st.d > 0.8) {
+                    tx = st.p.x + (st.p.x - g.x) / st.d * 0.9;
+                    ty = st.p.y + (st.p.y - g.y) / st.d * 0.9;
+                }
+                hd.target = st ? st.p.id : null;
+                const ang = Math.atan2(ty - hd.y, tx - hd.x);
+                const k = Math.min(1, 4 * dt);
+                hd.vx += (Math.cos(ang) * o.herdSpeed - hd.vx) * k;
+                hd.vy += (Math.sin(ang) * o.herdSpeed - hd.vy) * k;
+                hd.x = Math.max(0.2, Math.min(w - 0.2, hd.x + hd.vx * dt));
+                hd.y = Math.max(0.2, Math.min(h - 0.2, hd.y + hd.vy * dt));
+            });
+            // Packets near a herder turn: good ones toward the gather point, corrupt ones away from it.
+            const kp = Math.min(1, o.herdPull * dt);
+            for (const p of s.packets) {
+                if (!s.herders.some(hd => Math.hypot(hd.x - p.x, hd.y - p.y) <= o.herdRadius)) continue;
+                let ang = Math.atan2(g.y - p.y, g.x - p.x);
+                if (p.kind === 'corrupt') ang += Math.PI;
+                p.vx += (Math.cos(ang) * p.v - p.vx) * kp;
+                p.vy += (Math.sin(ang) * p.v - p.vy) * kp;
+                const vl = Math.hypot(p.vx, p.vy) || 1;
+                p.vx = p.vx / vl * p.v;
+                p.vy = p.vy / vl * p.v;
+            }
+        }
+
         function stepOnce(dt) {
             s.time += dt;
             if (s.cooldown > 0) s.cooldown = Math.max(0, s.cooldown - dt);
             flock(dt);
+            const out = [];
             for (const p of s.packets) {
                 p.x += p.vx * dt;
                 p.y += p.vy * dt;
                 p.age += dt;
-                bounce(p);
+                // The pipeline flows on: off the field and gone, unless the Containment Field turns good ones back.
+                if (!o.flow || (o.contain && p.kind !== 'corrupt')) bounce(p);
+                else if (p.x < -p.r || p.x > w + p.r || p.y < -p.r || p.y > h + p.r) out.push(p);
             }
+            if (out.length) {
+                s.stats.escaped += out.filter(p => p.kind !== 'corrupt').length;
+                remove(out);
+            }
+            herdStep(dt);
             scannerStep(dt);
             laserStep(dt);
             rogueStep(dt);
