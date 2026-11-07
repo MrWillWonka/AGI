@@ -1,0 +1,242 @@
+{
+ "res": {
+  "1": {
+   "pass": true,
+   "ev": {
+    "errors": []
+   }
+  },
+  "2": {
+   "pass": true,
+   "ev": {
+    "res": {
+     "cp": 0,
+     "dp": 0,
+     "rp": 0,
+     "xp": 0
+    },
+    "bad": []
+   }
+  },
+  "3": {
+   "pass": true,
+   "ev": {
+    "before": {
+     "cp": 0,
+     "clicks": 0,
+     "cpw": 1
+    },
+    "after": {
+     "cp": 1,
+     "clicks": 1,
+     "dp": 0
+    }
+   }
+  },
+  "4": {
+   "pass": true,
+   "ev": {
+    "b4": {
+     "cp": 21,
+     "lvl": 0,
+     "cpw": 1
+    },
+    "a4": {
+     "cp": 6,
+     "lvl": 1,
+     "cpw": 1.25
+    }
+   }
+  },
+  "5": {
+   "pass": true,
+   "ev": {
+    "bought": 10,
+    "cpPerSec": 5,
+    "cpNet": 5,
+    "dt": 5.000000000000018,
+    "expected": 25.00000000000009,
+    "actual": 25
+   }
+  },
+  "6": {
+   "pass": true,
+   "ev": {
+    "diffs": [
+     "s.res.cp: 4723 vs 4724.005",
+     "s.stats.lifetimeCp: 5046 vs 5047.005",
+     "s.stats.runCp: 5046 vs 5047.005"
+    ]
+   }
+  },
+  "7": {
+   "pass": true,
+   "ev": {
+    "hidden": {
+     "h0": {
+      "cp": 4724.005,
+      "t": 18.900999999999996
+     },
+     "h1": {
+      "cp": 4724.005,
+      "t": 18.900999999999996
+     }
+    },
+    "gap": {
+     "cpDelta": 5.5,
+     "finite": true,
+     "gapEvent": [],
+     "logText": true
+    }
+   }
+  },
+  "8": {
+   "pass": true,
+   "ev": {
+    "bad8": [
+     [
+      "finishOffers",
+      {
+       "bad": [
+        "state.projects.offers.0.start=-4",
+        "state.projects.offers.1.start=-10",
+        "state.projects.offers.2.start=-23741204.7486"
+       ]
+      }
+     ],
+     [
+      "simulate",
+      {
+       "bad": [
+        "state.projects.offers.0.start=-4",
+        "state.projects.offers.1.start=-10",
+        "state.projects.offers.2.start=-23741204.7486"
+       ]
+      }
+     ]
+    ],
+    "errors": []
+   }
+  },
+  "9": {
+   "pass": true,
+   "ev": {
+    "steps": [
+     {
+      "isRow": false,
+      "isReply": false,
+      "open": true,
+      "focus": "inbox",
+      "text": "Inbox\n            ×\n        \n        No "
+     },
+     {
+      "isRow": true,
+      "isReply": false,
+      "open": true,
+      "focus": "inbox-open",
+      "text": "Parcel ServicesYour parcel could not be "
+     },
+     {
+      "isRow": false,
+      "isReply": true,
+      "open": true,
+      "focus": "mailReply",
+      "text": "Back to inbox"
+     },
+     {
+      "isRow": false,
+      "isReply": false,
+      "open": true,
+      "focus": "mm-min res-in-lab",
+      "text": "The Path to AGI\n\n            \n          "
+     },
+     {
+      "isRow": false,
+      "isReply": false,
+      "open": true,
+      "focus": "inbox-open",
+      "text": "Parcel ServicesYour parcel could not be "
+     },
+     {
+      "isRow": false,
+      "isReply": false,
+      "open": true,
+      "focus": "mm-min res-in-lab idle",
+      "text": "The Path to AGI\n\n            \n          "
+     },
+     {
+      "isRow": true,
+      "isReply": false,
+      "open": true,
+      "focus": "inbox-open",
+      "text": "Prize DeskYou've WON a free cruise!! Cla"
+     },
+     {
+      "isRow": false,
+      "isReply": true,
+      "open": true,
+      "focus": "mailReply",
+      "text": "Back to inbox"
+     },
+     {
+      "isRow": false,
+      "isReply": false,
+      "open": true,
+      "focus": "mm-min res-in-lab",
+      "text": "The Path to AGI\n\n            \n          "
+     },
+     {
+      "isRow": false,
+      "isReply": false,
+      "open": true,
+      "focus": "inbox-open",
+      "text": "Prize DeskYou've WON a free cruise!! Cla"
+     },
+     {
+      "isRow": false,
+      "isReply": false,
+      "open": true,
+      "focus": "inbox-open",
+      "text": "Parcel ServicesYour parcel could not be "
+     },
+     {
+      "isRow": true,
+      "isReply": false,
+      "open": true,
+      "focus": "inbox-open",
+      "text": "Opportunity Dept.🎉 CONGRATULATIONS!!! Y"
+     },
+     {
+      "isRow": false,
+      "isReply": true,
+      "open": true,
+      "focus": "mailReply",
+      "text": "Reply: I'm in"
+     }
+    ],
+    "inboxClosed": true,
+    "focusAfter": "Generate Compute+1 CPAutomatio",
+    "clicks": 20,
+    "tabsToBuy": true,
+    "lvl": 1,
+    "focusVisible": {
+     "outline": "solid 2px rgb(111, 179, 217)",
+     "shadow": "none"
+    }
+   }
+  },
+  "10": {
+   "pass": true,
+   "ev": {
+    "perr": [],
+    "hscroll": false,
+    "shots": [
+     "g10-inbox-1280.png",
+     "g10-desktop-late-1280.png",
+     "g10-phone-inbox.png"
+    ]
+   }
+  }
+ },
+ "errors": []
+}

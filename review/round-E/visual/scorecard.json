@@ -1,0 +1,30 @@
+{
+  "build": "58728e8",
+  "reviewVersion": 1,
+  "reviewer": "UI art-direction and interaction-design (visual design / UI/UX)",
+  "hardGatesPassed": true,
+  "scores": { "economy": null, "progression": null, "upgrades": null, "prestige": null, "offline": null, "performance": null,
+              "saveRestore": null, "architecture": null, "accessibility": null, "analytics": null, "visualDesign": 6,
+              "onboarding": null, "retention": null },
+  "scoreNotes": "visualDesign 6 on 58728e8; 7 with the four patches in worktree branch worktree-agent-a256263962a95fcf2 (7351ad8, 14e37a9, c50353a, aaf760d).",
+  "overall": 6,
+  "regressions": [
+    "Opening inbox (new in 58728e8): the offer's Reply, the only way out, is below the mail's scroll fold at 5/5 viewports (50-286 px hidden) while it holds focus; the centred dialog jumps 55-409 px on every list/mail switch (CLS incl. input 0.26/0.77/2.08 at 1920/1280/390). Fixed in 7351ad8."
+  ],
+  "unresolvedRisks": [
+    "Early desktop lab is mostly empty floor: content covers 12.3% of the lab at 1920 fresh, 16.3% once Collect Data opens (23-27% at 1280).",
+    "Hill labels are still cut at the canvas edge on phones ('Tokenizatio' at 390x844).",
+    "R&D's Ship it uses --accent coral, visually the same family as the danger (Erase) button; the confirm dialog then uses the amber primary.",
+    "Number suffix 'Oc' reads as '0c' in JetBrains Mono ('77.00Oc' looks like '77.000c').",
+    "Legacy screen prices are solid amber when affordable, lab prices are tinted outline pills: two affordance languages for 'you can buy this'.",
+    "Phones hide the current screen's name in the bay bar (only '⌂ server_room' shows inside the Training Cluster).",
+    "R&D room at 1920: the three slots take the top 30% of the frame; the rest is backdrop.",
+    "844x390: the pinned reply leaves about 150 px of mail text visible above it (acceptable, but tight)."
+  ],
+  "artifacts": {
+    "folder": "/tmp/claude-0/-home-user/0f1158a2-f868-5c40-8aa1-2529913decec/scratchpad/roundE/visual/",
+    "screenshots": "shots/58728e8-{d1920,d1280,m390,m844,d4k}-NN-*.png (before), shots/c50353a-{d1920,d1280,m390}-NN-*.png (after patches 1-3), compare-*.png",
+    "measurements": "measure-58728e8-*.json, measure-c50353a-*.json, inbox-before.json, inbox-after.json, more-pill-before.json, more-pill-after.json, supply-58728e8-p2.json, supply-58728e8-p3.json, cls-floor-58728e8.json, cls-floor-58728e8-p2.json",
+    "scripts": "lib.js, matrix.js, inbox-check.js, more-pill.js, supply.js, cls-floor.js, crumbs.js, afford.js, kbd.js, motion.js"
+  }
+}
