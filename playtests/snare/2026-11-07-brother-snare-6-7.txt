@@ -1,0 +1,63 @@
+The Path to AGI · playtest log
+Log v1 · began 2026-11-07T22:25:09.248Z · exported 2026-11-07T22:41:38.065Z
+build: 2026-11-07 (branch) · Packet Snare 6: Signal, sectors and boss Antivirus, the tree on the Training tree's parts, first-meeting demos (review round 1)
+save: v21, v1.0, 4 skills
+screen: 440×840, touch
+browser: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Claude/1.261030.19
+
+Play time 16.5 min over 3 sessions, 154 events, 16.5 min on the clock.
+Skill-tree and legacy buys: 9; 33% the cheapest affordable, the rest dearer picks.
+
+Time by screen:
+  inbox           9.4 min  57%
+  bay:pipeline    4.4 min  27%
+  snareTree       1.7 min  11%
+  lab             0.8 min  5%
+  servers         0.1 min  1%
+
+(Filed trimmed: the opening's 23 inbox mailNag/mailRead pairs and the 30 s samples, which only repeat dp 4000 (debug) and xp
+rising 0.3/s, are left out; everything from the bay is kept. The artifact was republished mid-session: the session at
+t 762.7 (save v21) is on Packet Snare 7, everything before it on Packet Snare 6.)
+
+--- events (t = play seconds, w = wall seconds) ---
+{"t":1.9,"w":0,"e":"session","cleared":true,"build":"2026-11-07 (branch) · Packet Snare 6: Signal, sectors and boss Antivirus, the tree on the Training tree's parts, first-meeting demos (review round 1)","skills":0,"at":"lab"}
+{"t":4.4,"w":4,"e":"session","build":"2026-11-07 (branch) · Packet Snare 6: Signal, sectors and boss Antivirus, the tree on the Training tree's parts, first-meeting demos (review round 1)","save":20,"skills":0,"version":"v1.0","screen":"440x840","touch":true,"at":"lab"}
+{"t":530.4,"w":530,"e":"achievement","id":"itsFavorite"}
+{"t":567.2,"w":567,"e":"mailAccepted","id":"welcome","nags":23}
+{"t":601,"w":601,"e":"unlock","key":"action:collect"}
+{"t":610.9,"w":611,"e":"unlock","key":"module:snare"}
+{"t":610.9,"w":611,"e":"mail","id":"pipeline"}
+{"t":611.2,"w":611,"e":"view","v":"bay:pipeline"}
+{"t":639.4,"w":639,"e":"achievement","id":"snareFirst"}
+{"t":642.5,"w":642,"e":"tip","id":"snare:intro:antivirus"}
+{"t":648.3,"w":648,"e":"tip","id":"snare:intro:sweep"}
+{"t":662.9,"w":663,"e":"tip","id":"snare:intro:boss"}
+{"t":673.2,"w":673,"e":"snare","haul":22,"sector":1,"bosses":0,"bossHits":1,"wiped":0,"catches":4,"caught":12,"gold":1,"corrupted":0,"snaps":0,"empty":0,"bestMult":1.42,"chained":0,"lasered":0,"scrubbed":0,"cores":0,"stolen":0,"quarantined":0,"walls":0,"bounces":0,"stuns":0,"fwLost":0,"sweeps":2,"area":70,"secs":19,"record":false,"seed":637411}
+{"t":684.3,"w":684,"e":"view","v":"snareTree"}
+{"t":688.4,"w":688,"e":"buy","id":"snareSprawl","lvl":1,"held":22,"price":15,"cheapest":"snareSprawl","cheapestCost":15,"affordable":1,"rank":1}
+{"t":690.6,"w":690,"e":"view","v":"bay:pipeline"}
+{"t":708,"w":708,"e":"snare","haul":54,"sector":1,"bosses":0,"bossHits":0,"wiped":5,"catches":10,"caught":37,"gold":2,"corrupted":0,"snaps":0,"empty":0,"bestMult":1.34,"chained":0,"lasered":0,"scrubbed":0,"cores":0,"stolen":0,"quarantined":0,"walls":0,"bounces":0,"stuns":0,"fwLost":0,"sweeps":2,"area":112,"secs":18,"record":true,"seed":698474}
+{"t":728.5,"w":728,"e":"buy","id":"snareLaser","lvl":1,"held":61,"price":50,"cheapest":"snareFocus","cheapestCost":25,"affordable":4,"rank":4}
+{"t":745.5,"w":745,"e":"snare","haul":39,"sector":1,"bosses":0,"bossHits":0,"wiped":2,"catches":7,"caught":25,"gold":2,"corrupted":0,"snaps":1,"empty":0,"bestMult":1.35,"chained":0,"lasered":2,"scrubbed":0,"cores":0,"stolen":0,"quarantined":0,"walls":0,"bounces":0,"stuns":0,"fwLost":0,"sweeps":1,"area":112,"secs":14,"record":false,"seed":747681}
+{"t":751.7,"w":752,"e":"buy","id":"snareSprawl","lvl":2,"held":50,"price":38,"cheapest":"snareFocus","cheapestCost":25,"affordable":3,"rank":3}
+{"t":762.7,"w":763,"e":"session","build":"2026-11-07 (branch) · Packet Snare 6: Signal, sectors and boss Antivirus, the tree on the Training tree's parts, first-meeting demos (review round 1)","save":21,"skills":4,"version":"v1.0","screen":"440x840","touch":true,"at":"servers"}
+{"t":770.6,"w":770,"e":"view","v":"bay:pipeline"}
+{"t":775.6,"w":775,"e":"buy","id":"snareChain","lvl":1,"held":44,"price":30,"cheapest":"snareFocus","cheapestCost":25,"affordable":2,"rank":2}
+{"t":788.3,"w":788,"e":"snare","haul":24,"sector":1,"bosses":0,"bossHits":0,"wiped":4,"catches":5,"caught":18,"gold":1,"corrupted":1,"snaps":1,"empty":0,"bestMult":1.19,"chained":3,"lasered":2,"scrubbed":0,"cores":0,"stolen":0,"quarantined":0,"walls":0,"bounces":0,"stuns":0,"fwLost":0,"sweeps":0,"area":179,"secs":11,"record":false,"seed":801512}
+{"t":800.7,"w":801,"e":"snareBoss","sector":1,"secs":9}
+{"t":800.8,"w":801,"e":"achievement","id":"snareBoss"}
+{"t":800.8,"w":801,"e":"mail","id":"snareBoss"}
+{"t":801.3,"w":801,"e":"snare","haul":29,"sector":1,"bosses":1,"bossHits":1,"wiped":1,"catches":4,"caught":18,"gold":0,"corrupted":1,"snaps":1,"empty":0,"bestMult":1.17,"chained":1,"lasered":2,"scrubbed":0,"cores":0,"stolen":0,"quarantined":0,"walls":0,"bounces":0,"stuns":0,"fwLost":0,"sweeps":0,"area":179,"secs":9,"record":false,"seed":823783}
+{"t":817.3,"w":817,"e":"snareBoss","sector":2,"secs":13}
+{"t":818.1,"w":818,"e":"snare","haul":66,"sector":2,"bosses":1,"bossHits":2,"wiped":4,"catches":4,"caught":20,"gold":2,"corrupted":0,"snaps":1,"empty":0,"bestMult":1.39,"chained":3,"lasered":2,"scrubbed":0,"cores":0,"stolen":0,"quarantined":0,"walls":0,"bounces":0,"stuns":0,"fwLost":0,"sweeps":1,"area":179,"secs":14,"record":true,"seed":844186}
+{"t":846.3,"w":846,"e":"buy","id":"snareLaser","lvl":2,"held":133,"price":100,"cheapest":"snareFocus","cheapestCost":25,"affordable":10,"rank":6}
+{"t":854.6,"w":855,"e":"buy","id":"snareFocus","lvl":1,"held":33,"price":25,"cheapest":"snareFocus","cheapestCost":25,"affordable":1,"rank":1}
+{"t":869.4,"w":869,"e":"snare","haul":48,"sector":3,"bosses":0,"bossHits":3,"wiped":11,"catches":4,"caught":19,"gold":2,"corrupted":0,"snaps":2,"empty":0,"bestMult":1.29,"chained":4,"lasered":4,"scrubbed":0,"cores":0,"stolen":0,"quarantined":0,"walls":0,"bounces":0,"stuns":0,"fwLost":0,"sweeps":1,"area":179,"secs":14,"record":false,"seed":903273}
+{"t":885.8,"w":886,"e":"snare","haul":37,"sector":3,"bosses":0,"bossHits":1,"wiped":7,"catches":2,"caught":17,"gold":1,"corrupted":2,"snaps":1,"empty":0,"bestMult":1.25,"chained":0,"lasered":3,"scrubbed":0,"cores":0,"stolen":0,"quarantined":0,"walls":0,"bounces":0,"stuns":0,"fwLost":0,"sweeps":1,"area":179,"secs":11,"record":false,"seed":929704}
+{"t":897.2,"w":897,"e":"snare","haul":41,"sector":3,"bosses":0,"bossHits":2,"wiped":7,"catches":3,"caught":19,"gold":1,"corrupted":1,"snaps":2,"empty":0,"bestMult":1.37,"chained":4,"lasered":1,"scrubbed":0,"cores":0,"stolen":0,"quarantined":0,"walls":0,"bounces":0,"stuns":0,"fwLost":0,"sweeps":1,"area":179,"secs":10,"record":false,"seed":950727}
+{"t":901.6,"w":902,"e":"buy","id":"snareScrubbers","lvl":1,"held":134,"price":100,"cheapest":"snareFocus","cheapestCost":75,"affordable":9,"rank":7}
+{"t":915.4,"w":915,"e":"snare","haul":56,"sector":3,"bosses":0,"bossHits":0,"wiped":6,"catches":3,"caught":24,"gold":1,"corrupted":1,"snaps":2,"empty":0,"bestMult":1.42,"chained":2,"lasered":4,"scrubbed":2,"cores":0,"stolen":0,"quarantined":0,"walls":0,"bounces":0,"stuns":0,"fwLost":0,"sweeps":1,"area":179,"secs":10,"record":false,"seed":976536}
+{"t":918.4,"w":918,"e":"buy","id":"snareChain","lvl":2,"held":90,"price":90,"cheapest":"snareFocus","cheapestCost":75,"affordable":2,"rank":2}
+{"t":932.4,"w":932,"e":"snare","haul":44,"sector":3,"bosses":0,"bossHits":1,"wiped":6,"catches":4,"caught":17,"gold":2,"corrupted":0,"snaps":2,"empty":0,"bestMult":1.42,"chained":1,"lasered":3,"scrubbed":0,"cores":0,"stolen":0,"quarantined":0,"walls":0,"bounces":0,"stuns":0,"fwLost":0,"sweeps":1,"area":179,"secs":13,"record":false,"seed":998700}
+{"t":951.2,"w":951,"e":"snare","haul":115,"sector":3,"bosses":0,"bossHits":1,"wiped":16,"catches":5,"caught":47,"gold":3,"corrupted":0,"snaps":2,"empty":0,"bestMult":1.61,"chained":0,"lasered":3,"scrubbed":2,"cores":0,"stolen":0,"quarantined":0,"walls":0,"bounces":0,"stuns":0,"fwLost":0,"sweeps":2,"area":179,"secs":17,"record":true,"seed":1021595}
+{"t":972.7,"w":972,"e":"buy","id":"snareFocus","lvl":2,"held":159,"price":75,"cheapest":"snareFocus","cheapestCost":75,"affordable":4,"rank":1}
