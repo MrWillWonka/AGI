@@ -7505,9 +7505,10 @@ window.AGI = (function () {
         // The count badge is decorative for assistive tech (aria-hidden); the name carries it instead.
         $('mailButton').setAttribute('aria-label', n ? `Inbox, ${n} unread` : 'Inbox');
     }
-    // The × closes the email on screen during the opening (back to the list); otherwise it closes the inbox.
+    // The × is the only close (owner's call): on an email it goes back to the list, on the list it closes the
+    // inbox (not during the opening, which only the offer's reply ends).
     function renderInboxClose() {
-        const onMail = !!mailOpen && !introDone();
+        const onMail = !!mailOpen;
         setHidden($('inboxClose'), !onMail && !introDone());
         $('inboxClose').setAttribute('aria-label', onMail ? 'Close this email' : 'Close the inbox');
     }
@@ -7566,8 +7567,6 @@ window.AGI = (function () {
                     log(`${x.subject}: ${c.label}. ${r.msg}`, 'info');
                     sfx(r.text.length ? 'claim' : 'ui');
                     renderChoices(item);
-                    setText($('mailReply'), 'Close');
-                    $('mailReply').className = 'button';
                     renderMailButton();
                     afterChange();
                     save();
@@ -7594,16 +7593,16 @@ window.AGI = (function () {
         }
         setHidden(footer, !item.footer && !item.unsubscribe);
         renderChoices(item);
-        // A question waiting for its answer keeps Close quiet, so the choices lead.
-        const waiting = !!item.dilemma && state.dilemmas.answered[item.dilemma.id] === undefined;
-        setText($('mailReply'), item.reply || (waiting ? 'Decide later' : 'Close'));
-        $('mailReply').className = waiting ? 'ghost-button' : 'button';
+        // Only a reply (the offer's, until you've given it) gets a button: closing is the ×.
+        const reply = item.reply && !state.intro['mailAccepted:welcome'] ? item.reply : '';
+        setText($('mailReply'), reply);
+        setHidden($('mailReply').parentElement, !reply);
         setHidden($('inboxList'), true);
         setHidden($('inboxMessage'), false);
         renderInboxClose();
         renderMailButton();
         save();
-        ($('mailChoices').querySelector('button') || $('mailReply')).focus({ preventScroll: true });
+        ($('mailChoices').querySelector('button') || (reply ? $('mailReply') : $('inboxClose'))).focus({ preventScroll: true });
     }
     // Closing the offer without replying: a new copy arrives a beat later, a little different, and pops open.
     function leaveMail() {
@@ -7637,8 +7636,7 @@ window.AGI = (function () {
     function buildMail() {
         const dialog = $('inbox');
         $('mailButton').addEventListener('click', openInbox);
-        $('inboxClose').addEventListener('click', () => { if (introDone()) dialog.close(); else if (mailOpen) leaveMail(); });
-        $('inboxBack').addEventListener('click', leaveMail);
+        $('inboxClose').addEventListener('click', () => { if (mailOpen) leaveMail(); else if (introDone()) dialog.close(); });
         $('mailReply').addEventListener('click', () => {
             if (mailOpen?.reply && mailOpen.key === 'm:welcome') {
                 state.intro['mailAccepted:welcome'] = true;
@@ -7647,8 +7645,10 @@ window.AGI = (function () {
             if (introDone()) dialog.close();
             else leaveMail();
         });
-        // No way out of the opening but the offer's reply (Escape included).
-        dialog.addEventListener('cancel', e => { if (!introDone()) e.preventDefault(); });
+        // Escape does what the × does: back to the list from an email; no way out of the opening but the reply.
+        dialog.addEventListener('cancel', e => {
+            if (mailOpen) { e.preventDefault(); leaveMail(); } else if (!introDone()) e.preventDefault();
+        });
         dialog.addEventListener('close', () => {
             clearTimeout(introTimer);
             mailOpen = null;

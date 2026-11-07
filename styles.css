@@ -1277,7 +1277,6 @@ h1, h2, h3, p { margin: 0; }
 body.calm .inbox-row.arrive { animation: none; }
 @media (hover: hover) { button.inbox-open:hover { background: color-mix(in srgb, var(--primary) 12%, transparent); } }
 .inbox-message { padding: 14px 18px 16px; max-height: min(72vh, 560px); overflow: auto; }
-.inbox-back { border: 0; background: none; color: var(--primary); font: 600 0.8rem var(--font-mono); cursor: pointer; padding: 0 0 10px; }
 .mail-subject { font: 700 1.02rem/1.35 var(--font-body); }
 .mail-from { margin: 6px 0 12px; font: 0.78rem/1.5 var(--font-mono); }
 .mail-body { display: grid; gap: 10px; font: 0.92rem/1.5 'Times New Roman', Georgia, serif; color: var(--text); white-space: pre-line; }
