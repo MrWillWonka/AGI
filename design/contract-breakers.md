@@ -118,6 +118,30 @@ Effort: S = a day or less, M = a few days, L = a week or more (physics, drawing,
   Sticky (holds the line on steep faces). One key or a tap cycles them.
 - **Build:** mode parameters in `step` (mass, drag, bounce, grip). Effort M.
 
+## Leg characters: not every stretch the same (the owner's call)
+
+Every leg today is one recipe: random small bumps, a length on one smooth curve. Give each leg a **character**, fixed per leg (so
+"the OCR leg" means something and replays know it), with the rolling hills still random inside it:
+
+| Character | Length | Hills | What it tests |
+|---|---|---|---|
+| **Rolling** (today's) | normal | many small and medium bumps | the all-round run |
+| **Sprint** | ~0.5× | a few short bumps | a quick leg, a breather after a wall |
+| **Long flats** (drag test) | ~0.7× | long, low, smooth swells (2–4× wider, a third the height) | drag: momentum bleeds away on the flat; Liquid Cooling and Momentum nodes shine |
+| **Marathon** | ~1.8–2× | sparse rolling hills | sprint timing and spending sprints late: endurance |
+| **Cliffs** | ~0.6× | few, tall, steep faces (slope over 1) | raw strength: a cliff has a **strength rating** drawn on its face; a sprint fired on it climbs only if your sprint strength meets the rating, else it slips. Momentum carried in still climbs it. Strength upgrades become keys |
+
+- **Act one (12 skills):** 1 Rolling · 2 Sprint · 3 Rolling · 4 Long flats · 5 Cliffs (wall) · 6 Marathon · 7 Rolling · 8 Long flats ·
+  9 Marathon · 10 Sprint · 11 Cliffs (wall) · 12 Marathon (the run to General AI). Act two gets its own: long low glides, rampart
+  legs of tall steep kickers, and marathon legs of many swells.
+- **Steepness and strength:** slope drag already makes steep faces cost more. Cliffs add the rating (from the face's steepness ×
+  height, `cliffRating`), so the relationship is visible: the steeper and taller, the more strength it asks for.
+- **Pacing stays smooth:** XP and the skill hill are sized from the leg's nominal difficulty, not its length, so a sprint leg pays
+  more per metre and a marathon less, and no single leg becomes a 15-minute wall (checked with the human-profile sims: each
+  leg's clear time within a band of its neighbours).
+- **Readable:** the bay's goal line and the leg's lane caption name the character ("Cliffs · needs 4.2 strength"), and the trail's
+  colours tint by it.
+
 ## Recommended order
 
 1. **Dropout** (S, leg 4) and **Temperature** (S, leg 8): cheap, early, and each changes every run.
