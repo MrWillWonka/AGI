@@ -1660,6 +1660,8 @@ test('mail: the story by email, the spam first, then one message per story beat'
     assert.ok(E.MAIL.find(m => m.id === 'welcome').reply, 'the offer is the one with a reply');
     assert.deepEqual(E.MAIL.filter(m => m.when(s) && !m.intro).map(m => m.id), [], 'a new game has only the opening');
     assert.ok(E.WELCOME_NAGS.length >= 2 && E.WELCOME_NAGS.every(n => n.subject && n.body.length && n.reply), 'the offer comes back, every time with a reply');
+    assert.equal(E.WELCOME_NAGS.length, 5, 'five copies after the original');
+    assert.ok(E.WELCOME_NAGS.at(-1).final && E.WELCOME_NAGS.filter(n => n.final).length === 1, 'the last one is the one you can\'t close');
     s.unlocked['module:path'] = true;
     s.path.learned = 2;
     assert.ok(E.MAIL.find(m => m.id === 'serverRoom').when(s) && E.MAIL.find(m => m.id === 'firstSkill').when(s));

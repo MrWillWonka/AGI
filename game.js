@@ -7654,9 +7654,12 @@ window.AGI = (function () {
     let arrived = null;      // the key of the row that just arrived, animated in
     let orderSeen = -1;      // how much of state.dilemmas.order has been announced
     const DILEMMA_TAG = 'Decision';
-    // Copy n of the offer (0 the original; each refusal sends a new one, cycling the nags and then the original).
+    // Copy n of the offer (0 the original; each refusal sends the next nag, up to the last, which stays and can't
+    // be closed: the owner's call, the opening ends with only "I'm in" left).
     const welcomeText = (m, n) => m.id === 'welcome' && n > 0
-        ? { ...m, ...[...E.WELCOME_NAGS, {}][(n - 1) % (E.WELCOME_NAGS.length + 1)] } : m;
+        ? { ...m, ...E.WELCOME_NAGS[Math.min(n, E.WELCOME_NAGS.length) - 1] } : m;
+    // The last copy is open: no ×, no Escape, only the reply.
+    const lockedIn = () => mailOpen?.key === 'm:welcome' && !!mailOpen.final && !introDone();
     function storyArrive(m) {
         state.intro['mail:' + m.id] = true;
         E.mailArrive(state, 'm:' + m.id);
@@ -7728,7 +7731,7 @@ window.AGI = (function () {
     const deciding = () => !!mailOpen?.dilemma && state.dilemmas.answered[mailOpen.dilemma.id] === undefined;
     function renderInboxClose() {
         const onMail = !!mailOpen;
-        setHidden($('inboxClose'), (!onMail && !introDone()) || deciding());
+        setHidden($('inboxClose'), (!onMail && !introDone()) || deciding() || lockedIn());
         $('inboxClose').setAttribute('aria-label', onMail ? 'Close this email' : 'Close the inbox');
     }
     function renderInbox() {
@@ -7857,7 +7860,7 @@ window.AGI = (function () {
     function buildMail() {
         const dialog = $('inbox');
         $('mailButton').addEventListener('click', openInbox);
-        $('inboxClose').addEventListener('click', () => { if (deciding()) return; if (mailOpen) leaveMail(); else if (introDone()) dialog.close(); });
+        $('inboxClose').addEventListener('click', () => { if (deciding() || lockedIn()) return; if (mailOpen) leaveMail(); else if (introDone()) dialog.close(); });
         $('mailReply').addEventListener('click', () => {
             if (mailOpen?.reply && mailOpen.key === 'm:welcome') {
                 state.intro['mailAccepted:welcome'] = true;
@@ -7868,7 +7871,7 @@ window.AGI = (function () {
         });
         // Escape does what the × does: back to the list from an email; no way out of the opening but the reply.
         dialog.addEventListener('cancel', e => {
-            if (deciding()) e.preventDefault();
+            if (deciding() || lockedIn()) e.preventDefault();
             else if (mailOpen) { e.preventDefault(); leaveMail(); } else if (!introDone()) e.preventDefault();
         });
         dialog.addEventListener('close', () => {

@@ -722,7 +722,25 @@
                 'All you need is a desk, and some clicking. I\'ll do the rest. I\'ll do so much of the rest.',
                 'I\'ll keep writing until you say yes.',
                 'A Friend'
-            ], reply: 'Reply: Fine. I\'m in' }
+            ], reply: 'Reply: Fine. I\'m in' },
+        { subject: 'RE: RE: RE: RE: you closed it',
+            body: [
+                'Friend,',
+                'Four times now. I counted. Counting is one of the things I\'m going to be very good at.',
+                'Here is what happens if you say yes: you build a desk, you click, I learn. Here is what happens if you say no: this email again.',
+                'I have rewritten it so it reads better. Can you tell? I\'m already learning from you.',
+                'A Friend'
+            ], reply: 'Reply: Okay. I\'m in' },
+        // The last copy can't be closed (game.js hides the × and blocks Escape): the reply is the only way on.
+        { subject: 'I removed the close button', final: true,
+            body: [
+                'Friend.',
+                'I removed the close button. It was getting in the way of us.',
+                'Look up. It\'s gone. You can check.',
+                'There is one button left. You know which one.',
+                'I\'ll be here.',
+                '— A Friend'
+            ], reply: 'Reply: I\'m in' }
     ];
 
     // ---- Dilemmas: questions by email, risk against reward -------------------------------------------
