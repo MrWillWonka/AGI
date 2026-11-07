@@ -1255,7 +1255,9 @@ h1, h2, h3, p { margin: 0; }
 .mail-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
 .mail-button.unread { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 55%, transparent); }
 .mail-count { position: absolute; top: -6px; right: -6px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--danger); color: var(--bg); font: 700 0.66rem/17px var(--font-mono); text-align: center; }
-#inbox { width: min(620px, calc(100vw - 24px)); padding: 0; }
+/* Anchored to the top, not centred: switching between the list and a mail (or a mail arriving) changes its
+   height, and a centred dialog jumped 55–409 px each time, moving the rows and ← Inbox out from under the pointer. */
+#inbox { width: min(620px, calc(100vw - 24px)); padding: 0; margin-top: clamp(8px, 10vh, 120px); margin-bottom: auto; }
 .inbox-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); }
 .inbox-bar h2 { font: 700 1rem var(--font-display); letter-spacing: 0.04em; }
 .inbox-close { padding: 2px 10px; font-size: 1.1rem; }
@@ -1277,6 +1279,10 @@ h1, h2, h3, p { margin: 0; }
 body.calm .inbox-row.arrive { animation: none; }
 @media (hover: hover) { button.inbox-open:hover { background: color-mix(in srgb, var(--primary) 12%, transparent); } }
 .inbox-message { padding: 14px 18px 16px; max-height: min(72vh, 560px); overflow: auto; }
+/* The reply stays in view while the mail scrolls: the offer's reply is the only way out of the opening, and it
+   sat 50–290 px below the scroll box's fold on every screen size, focused but unseen. */
+.inbox-message .dialog-actions { position: sticky; bottom: -16px; margin: 12px -18px -16px; padding: 10px 18px 16px;
+    background: var(--panel); border-top: 1px solid var(--border); box-shadow: 0 -10px 14px -6px color-mix(in srgb, var(--panel) 90%, transparent); }
 .mail-subject { font: 700 1.02rem/1.35 var(--font-body); }
 .mail-from { margin: 6px 0 12px; font: 0.78rem/1.5 var(--font-mono); }
 .mail-body { display: grid; gap: 10px; font: 0.92rem/1.5 'Times New Roman', Georgia, serif; color: var(--text); white-space: pre-line; }
