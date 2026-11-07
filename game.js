@@ -7658,13 +7658,19 @@ window.AGI = (function () {
     let orderSeen = -1;      // how much of state.dilemmas.order has been announced
     const DILEMMA_TAG = 'Decision';
     // Copy n of the offer (0 the original): each refusal sends a spam variant (`E.WELCOME_NAGS`), the ones not
-    // seen yet first, in order, then at random (never the same twice running) until you say yes. Each one seen is
-    // remembered (`nag:i` in intro), so all twenty earn IT's Favorite (the owner's Easter egg).
+    // seen yet first, in order, then at random (never one of the last five again) until you say yes. Each one seen is
+    // remembered (`nag:i` in intro), so all twenty earn The IT Department's Favorite (the owner's Easter egg).
     const nagSeq = [];
+    const NAG_GAP = 5;
     function nextNag() {
         const n = E.WELCOME_NAGS.length;
         let i = E.WELCOME_NAGS.findIndex((_, k) => !state.intro['nag:' + k]);
-        if (i < 0) { const last = nagSeq.at(-1) ?? -1; i = Math.floor(Math.random() * (n - 1)); if (i >= last && last >= 0) i++; }
+        // Once all are seen, at random, but none comes back until at least NAG_GAP others have (the owner's call).
+        if (i < 0) {
+            const recent = new Set(nagSeq.slice(-NAG_GAP));
+            const pool = E.WELCOME_NAGS.map((_, k) => k).filter(k => !recent.has(k));
+            i = pool[Math.floor(Math.random() * pool.length)];
+        }
         nagSeq.push(i);
         state.intro['nag:' + i] = true;
         return i;
@@ -7851,7 +7857,7 @@ window.AGI = (function () {
             welcomeNag++;
             delete state.intro['mailRead:welcome'];
             pt('mailNag', { n: welcomeNag, nag });
-            afterChange();   // IT's Favorite, on the twentieth
+            afterChange();   // The IT Department's Favorite, on the twentieth
             arrived = 'm:welcome';
             sfx('ui');
             renderInbox();
