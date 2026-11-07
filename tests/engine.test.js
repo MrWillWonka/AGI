@@ -1967,3 +1967,11 @@ test('exploits: Hop is found with Embeddings, three charges a run; a clean one p
     assert.equal(s.stats.cleanExploits, 1);
     assert.ok(E.AUDIT_FLAGS === 3 && E.AUDIT_PAY === 0.5);
 });
+
+test('the build stamp has its row in playtests/README.md\'s Builds table (bump BUILD with every publish)', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const label = E.BUILD.split('·')[1].split(':')[0].trim();
+    const readme = fs.readFileSync(path.join(__dirname, '..', 'playtests', 'README.md'), 'utf8');
+    assert.ok(readme.includes(`**${label}**`), `a Builds row for "${label}"`);
+});

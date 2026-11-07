@@ -204,10 +204,15 @@ test('the research trickle is capped, and Overclock raises every catch', () => {
 test('the tree thins the corrupt packets and grows the field to a datacentre', () => {
     const s = E.defaultState(NOW);
     const base = E.snareOpts(s);
-    s.levels.snareChecksums = 3;
+    s.levels.snareChecksums = 3; s.levels.snareErrorCorrection = 2;
     s.levels.snareSprawl = 3; s.levels.snareMegasprawl = 3; s.levels.snareHyperscale = 3;
+    s.levels.snareFirehose = 3; s.levels.snareFloodgate = 2; s.levels.snareFirewalls = 1;
     const o = E.snareOpts(s, E.AV_SECTOR);
-    assert.ok(o.corruptShare < E.snareOpts(E.defaultState(NOW), E.AV_SECTOR).corruptShare * 0.5);
+    assert.ok(o.corruptShare <= E.snareOpts(E.defaultState(NOW), E.AV_SECTOR).corruptShare * 0.25 + 1e-9, 'a quarter of the corrupt packets');
     assert.ok(o.area > 70 * 60, 'nine Sprawl levels');
-    assert.ok(o.antivirus.length >= 5, 'and the hazards grow with it');
+    assert.ok(Math.abs(o.density / base.density - 3) < 1e-9 && o.maxGood === base.maxGood * 3, 'three times the packets');
+    assert.deepEqual(o.antivirus, E.snareOpts(E.defaultState(NOW), E.AV_SECTOR).antivirus, 'the hazards come from the sector, not the field');
+    assert.equal(o.firewalls, 3, 'a slot more for each tool from Megasprawl\'s and Hyperscale\'s last levels');
+    assert.equal(o.decoys, 0, 'none for tools you don\'t own');
+    assert.ok(E.snareOpts(s, 6).bossR > E.snareOpts(s, 0).bossR * 1.8, 'the boss grows with the sector');
 });

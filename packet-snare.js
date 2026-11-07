@@ -52,7 +52,8 @@
         maxGood: 340,               // …up to this many (Firehose and Floodgate raise it)
         corruptShare: 0.35,         // corrupt packets per good one
         corruptLure: 0.6,           // how strongly corrupt packets swim toward the nearest school (they hide in the crowd)
-        goldChance: 0.04,           // a new good packet is gold this often (worth GOLD_VALUE)
+        goldChance: 0.04,           // a new good packet is gold this often…
+        goldValue: 5,               // …worth this many (Mother Lode adds to it)
         antivirus: [5],             // seconds into the run each Antivirus boots
         avSpeed: 1,                 // × their speeds (Obfuscation slows them)
         // Full Scans (system Firewalls in the code: `sweep`): a line across the whole field, sweeping from one side to
@@ -71,6 +72,7 @@
         avStun: 3,                  // seconds an Antivirus is stunned by your Firewall
         chain: 0,                   // Chain Lightning: packets outside a loop each catch arcs to…
         chainRange: 1.6,            // …within this of a snared packet
+        chainHops: 0,               // Chain Storm: arcs jump on from the packets they reach, this many times
         scanner: 0,                 // Scanner: beams sweeping from the middle, tagging packets ×TAG_VALUE for TAG_SECONDS
         scannerSpeed: 1.1,          // radians per second
         tagSeconds: 1.5,            // how long a tag lasts: catch what the beam just lit
@@ -94,6 +96,7 @@
         wallLength: 4,
         wallMinLength: 0.8,
         fwHits: 1,
+        wallRebuild: 0,             // Great Wall: seconds before a wall that went down builds itself again (0: never)
         // Things you place with a tap: decoys (corrupt packets and idle Antivirus go to them; an Antivirus that reaches
         // one breaks it), turrets (each takes the richest good packet in reach every `turretEvery` s; Purifier rounds
         // also wipe a corrupt one) and scanner towers (a beam turning round each tags what it passes).
@@ -290,6 +293,7 @@
             penAt: null,            // where the pen is
             race: null,             // Race Condition: a closed loop held open, { poly, at, t, mult }
             partners: [],           // Collusion: cores working for you, { id, x, y, r, age, at }
+            rebuild: [],            // Great Wall: walls that went down, building themselves again { a, b, at }
             rogueAt: o.rogue ? o.rogueFirst : Infinity,
             boss: null,             // the boss Antivirus once it boots: { x, y, vx, vy, r, hp, maxHp, stunned, hunting }
             bossDone: false,
@@ -634,7 +638,7 @@
 
         const spoofed = p => p.kind === 'corrupt' && p.spoof > s.time;
         const isGood = p => p.kind !== 'corrupt' || spoofed(p);
-        const valueOf = p => (p.kind === 'gold' ? GOLD_VALUE : 1) * (p.tag > s.time ? o.tagValue : 1) * (spoofed(p) ? o.spoofValue : 1) * o.worth;
+        const valueOf = p => (p.kind === 'gold' ? o.goldValue : 1) * (p.tag > s.time ? o.tagValue : 1) * (spoofed(p) ? o.spoofValue : 1) * o.worth;
 
         // Taken packets leave the field; a school refills from an edge once enough are gone, corrupt ones one by one.
         function remove(list) {
@@ -766,7 +770,7 @@
         }
         // Draw a wall from a to b (trimmed to the longest a wall may be). Returns the wall, or null (too short, no slot).
         function placeWall(a, b) {
-            if (s.over || s.walls.length >= o.firewalls) return null;
+            if (s.over || s.walls.length + s.rebuild.length >= o.firewalls) return null;
             a = inField(a.x, a.y);
             b = inField(b.x, b.y);
             let L = Math.hypot(b.x - a.x, b.y - a.y);
@@ -858,7 +862,13 @@
             s.stats.stuns++;
             const down = f.hits >= o.fwHits;
             // A wall that goes down leaves the field and frees its slot.
-            if (down) { s.stats.fwLost++; s.walls = s.walls.filter(g => g !== f); wallsNow = wallsUp(); }
+            if (down) {
+                s.stats.fwLost++;
+                s.walls = s.walls.filter(g => g !== f);
+                wallsNow = wallsUp();
+                // Great Wall: it builds itself again (its slot held for it meanwhile).
+                if (o.wallRebuild) s.rebuild.push({ a: f.a, b: f.b, at: s.time + o.wallRebuild });
+            }
             s.events.push({ type: 'stun', x: v.x, y: v.y, down, boss: isBoss, a: { x: f.a.x, y: f.a.y }, b: { x: f.b.x, y: f.b.y } });
         }
         // Turrets take the richest good packet in reach on their beat; Purifier rounds wipe a corrupt one too.
@@ -1145,6 +1155,11 @@
             laserStep(dt);
             rogueStep(dt);
             partnerStep(dt);
+            for (const r of s.rebuild.filter(r => s.time >= r.at)) {
+                s.walls.push({ id: s.nextId++, a: r.a, b: r.b, hits: 0 });
+                s.events.push({ type: 'rebuilt', x: (r.a.x + r.b.x) / 2, y: (r.a.y + r.b.y) / 2 });
+            }
+            s.rebuild = s.rebuild.filter(r => s.time < r.at);
             bossStep(dt);
             sweepStep(dt);
             while (avDue.length && s.time >= avDue[0]) { avDue.shift(); bootAntivirus(); }
@@ -1354,6 +1369,22 @@
                 }
                 cands.sort((a, b) => a.d - b.d || a.q.id - b.q.id);
                 for (const c of cands.slice(0, o.chain)) chained.push({ packet: c.q, from: { x: c.from.x, y: c.from.y } });
+                // Chain Storm: each hop arcs on from the packets the last one reached, to as many again.
+                let front = chained.map(c => c.packet);
+                for (let hop = 0; hop < o.chainHops && front.length; hop++) {
+                    const taken = new Set([...j.inside, ...chained.map(c => c.packet)]);
+                    const next = [];
+                    for (const q of s.packets) {
+                        if (!isGood(q) || taken.has(q)) continue;
+                        let best = null, bd = o.chainRange;
+                        for (const p of front) { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= bd) { bd = d; best = p; } }
+                        if (best) next.push({ q, from: best, d: bd });
+                    }
+                    next.sort((a, b) => a.d - b.d || a.q.id - b.q.id);
+                    const add = next.slice(0, o.chain);
+                    for (const c of add) chained.push({ packet: c.q, from: { x: c.from.x, y: c.from.y } });
+                    front = add.map(c => c.q);
+                }
             }
             const chainValue = chained.reduce((a, c) => a + valueOf(c.packet), 0);
             const units = (j.value + chainValue) * j.mult;
