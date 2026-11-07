@@ -691,7 +691,7 @@ window.AGI = (function () {
     const TIP_GRACE_MS = 700;
     // The tip's button is a pun, a new one each tip (the owner's call: "AI Aye, Captain" and friends).
     const TIP_OK = ['AI Aye, Captain', 'Weights updated', 'Token of approval', 'Added to context', '01011001 (yes)', 'Can do, Dave',
-        'Loss minimized', 'Copy. Also pasted.', 'Fine-tuned ✓', 'No hallucination, got it', 'Roger Roger', 'Backprop that'];
+        'Loss minimized', 'Copy. Also pasted.', 'Fine-tuned ✓', 'No hallucination, got it', 'Roger Roger', 'Understood, human'];
     let tipCount = 0;
     function dismissTipFirst() {
         if (!tipDismiss) return false;
@@ -996,7 +996,7 @@ window.AGI = (function () {
         const after = key => {
             if (E.isMaxed(state, up)) return '';
             const next = E.derive({ ...state, levels: { ...state.levels, [up.id]: lvl + 1 } }, debugRates)[key];
-            return next > d[key] * 1.0001 ? ` → ${f(next, key === 'hardwareMult' || key.endsWith('PerSec') ? 2 : undefined)}` : '';
+            return next > d[key] * 1.0001 ? ` → ${f(next, key === 'hardwareMult' || key.endsWith('PerSec') || key.startsWith('auto') ? 2 : undefined)}` : '';
         };
         switch (up.shows) {
             case 'click': {
@@ -1012,8 +1012,9 @@ window.AGI = (function () {
             case 'collect': return `Collect: ${f(d.dpPerCollect)}${after('dpPerCollect')} DP`;
             case 'research': return `Research: ${f(d.rpPerResearch)}${after('rpPerResearch')} RP`;
             case 'hardwareMult': return `Hardware ×${f(d.hardwareMult, 2)}${after('hardwareMult')}`;
-            case 'autoCollect': return `Crawler: ${f(d.collectsPerSec, 2)}${after('collectsPerSec')} collections/s`;
-            case 'autoResearch': return `Assistant: ${f(d.researchPerSec, 2)}${after('researchPerSec')} research/s`;
+            // Their share sets their speed (the slider); a level raises what each run of the job yields.
+            case 'autoCollect': return `Crawler: ${f(d.autoDpPerCollect, 2)}${after('autoDpPerCollect')} DP per collection`;
+            case 'autoResearch': return `Assistant: ${f(d.autoRpPerResearch, 2)}${after('autoRpPerResearch')} RP per research`;
             case 'procurement': return `Buys hardware with ${Math.round((state.tasks.procurement?.share ?? 0) * 100)}% of compute`;
         }
         // Attribute upgrades: where those attributes stand, now → after the next level, like every other card.
@@ -3292,7 +3293,10 @@ window.AGI = (function () {
             if (has.sw || has.cs) cols.push([has.sw ? 'sw' : 'cs', has.cs ? 'cs' : 'sw']);
             if (has.rs || has.proj) cols.push([has.rs ? 'rs' : 'proj', has.proj ? 'proj' : 'rs']);
             if (has.tasks) cols.push(['tasks', 'tasks']);
-            const bottom = cols.map(() => 'cab');
+            // The bottom row: the cabinets under the Workbench and the hardware bench (they're only as wide as their
+            // racks), and the middle columns grow down into the rest instead of leaving it bare (the owner's call).
+            // The last column's foot stays free: the minimap sits there.
+            const bottom = cols.map((c, i) => (i < 2 ? 'cab' : i === cols.length - 1 && c[0] === 'tasks' ? '.' : c[1]));
             const split = cols.some(c => c[0] !== c[1]);
             // A station column is as wide as its fullest station asks; the upper and lower rows split by what's in them.
             const area = { hw: w.hw, sw: has.sw ? w.sw : 0, cs: has.cs ? w.cs : 0, rs: has.rs ? w.rs : 0, proj: has.proj ? w.proj : 0 };
@@ -3321,7 +3325,9 @@ window.AGI = (function () {
                 sizes.push('var(--projects-h)');
             }
         }
-        rows.push(['cab', 'cab', 'cab']);
+        // The cabinets under the first two columns; the third grows down beside them (the owner's call: no bare floor).
+        const last = rows[rows.length - 1][2];
+        rows.push(['cab', 'cab', last === 'bench' || last === 'hw' ? '.' : last]);
         sizes.push('auto');
         // The two station columns weigh what they hold (the hardware bench and the software terminal on top, the
         // research wall and the Isolation chamber under them).
@@ -6104,7 +6110,8 @@ window.AGI = (function () {
                 ? el('div', { class: 'result-actions' }, [
                     el('button', { type: 'button', class: 'ghost-button', 'data-next': 'again', text: 'Train again' }),
                     // After a skill (or with news waiting in the lab) the lab is one click away.
-                    ...(skill || labUnseen().length ? [el('button', { type: 'button', class: 'ghost-button result-lab', 'data-next': 'lab', text: 'Lab →' })] : []),
+                    // It pulses after a skill: the lab has room for more.
+                    ...(skill || labUnseen().length ? [el('button', { type: 'button', class: `ghost-button result-lab${skill ? ' pulse' : ''}`, 'data-next': 'lab', text: 'Lab →' })] : []),
                     el('button', { type: 'button', class: 'button', 'data-next': 'dev', text: 'Upgrades →' })])
                 : el('div', { class: 'result-hint', text: 'Next run starting…' })
         ].filter(Boolean));

@@ -2323,7 +2323,8 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .panel-projects[hidden] { display: none; }
 .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .panel-projects .station-title { color: var(--warning); }
-.panel-projects .project-list { flex: 1; grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(min-content, 1fr); }
+.panel-projects .project-list { flex: 1; grid-template-columns: minmax(0, 1fr); grid-auto-rows: min-content; align-content: start; }
+/* (Offers keep their own height when the panel grows down into free floor: stretched, they read as empty boxes.) */
 /* The head stays one line: a boost or two (the dilemmas add their own) wrapped it and the fixed-height panel
    squeezed the three offers into each other. Long lists clip, the full list is the tooltip. */
 .panel-projects .panel-head { flex-wrap: nowrap; min-width: 0; }
@@ -3269,3 +3270,12 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 .callout .tip-ok:disabled { opacity: 0.45; cursor: default; }
 @media (hover: hover) { .callout .tip-ok:not(:disabled):hover { background: color-mix(in srgb, var(--success) 30%, transparent); } }
 .callout .tip-ok:focus-visible { outline: 2px solid var(--success); outline-offset: 2px; }
+
+/* The run card's Lab button pulses after a skill: the lab has room for more (the owner's call). */
+.result-lab.pulse { border-color: var(--success); color: var(--success); animation: lab-pulse 1.4s ease-in-out infinite; }
+@keyframes lab-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 0%, transparent); }
+    50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--success) 28%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) { .result-lab.pulse { animation: none; } }
+body.calm .result-lab.pulse { animation: none; }

@@ -271,11 +271,11 @@ test('automation converts resources instead of creating them', () => {
     s.levels.cpu = 200;                     // plenty of production: automation runs at full speed
     s.levels.autoCollector = 1;
     const d = E.derive(s);
-    assert.equal(d.autoThrottled, false);
-    assert.equal(d.collectsPerSec, 0.2);
+    // It spends exactly its share of compute at the hand price (10 CP a collection).
+    assert.ok(Math.abs(d.collectsPerSec - s.tasks.autoCollector.share * d.cpPerSec / 10) < 1e-9);
     E.tick(s, 10);
-    assert.ok(Math.abs(s.res.cp - (1000 + 10 * d.cpPerSec - 20)) < 1e-6);
-    assert.ok(Math.abs(s.res.dp - 2 * d.dpPerCollect) < 1e-9);
+    assert.ok(Math.abs(s.res.cp - (1000 + 10 * d.cpPerSec - 10 * d.collectsPerSec * 10)) < 1e-6);
+    assert.ok(Math.abs(s.res.dp - 10 * d.collectsPerSec * d.autoDpPerCollect) < 1e-6);
 
     const r = fresh();
     r.res.dp = 1000;
@@ -298,11 +298,10 @@ test('automation spends its share of production; past 100% together it draws on 
         const d = E.derive(s);
         assert.ok(d.cpUsePerSec <= 2 * budget * d.cpPerSec + 1e-9, `cp at ${budget}`);
         assert.ok(d.dpUsePerSec <= budget * d.dpPerSec + 1e-9, `dp at ${budget}`);
-        assert.equal(d.autoThrottled, true, 'demand far above production');
-        // Within 100% compute still climbs; past it (two tasks at 100%) the stockpile pays, down to zero at most.
+        // Within 100% compute still climbs (or holds); past it (two tasks at 100%) the stockpile pays, down to zero at most.
         s.res.cp = 1000;
         E.tick(s, 60);
-        if (budget <= 0.5) assert.ok(s.res.cp >= 1000, 'compute still climbs');
+        if (budget <= 0.5) assert.ok(s.res.cp >= 1000 - 1e-3, 'compute still climbs (or holds at 100% together)');
         else assert.ok(s.res.cp < 1000 && s.res.cp >= 0, 'drawing on the stockpile, never below empty');
         E.tick(s, 6000);
         assert.ok(s.res.cp >= 0 && s.res.dp >= 0);
@@ -313,7 +312,7 @@ test('scheduled tasks: each has its own share and switch, saved and clamped to 0
     const m = tasks => E.migrate({ version: E.SAVE_VERSION, tasks }, NOW).tasks;
     assert.equal(m({ autoCollector: { on: true, share: 0.3 } }).autoCollector.share, 0.3);
     assert.equal(m({ autoCollector: { share: 5 } }).autoCollector.share, 1, 'each slider goes to 100% on its own');
-    assert.equal(m({ autoCollector: { share: 'x' } }).autoCollector.share, 0.4, 'the default');
+    assert.equal(m({ autoCollector: { share: 'x' } }).autoCollector.share, 0.25, 'the default');
     assert.equal(m({ researchAssistant: { on: false } }).researchAssistant.on, false);
     const both = m({ autoCollector: { share: 0.8 }, researchAssistant: { share: 0.8 } });
     assert.equal(both.autoCollector.share + both.researchAssistant.share, 1.6, 'asked for, they can pass 100%');
@@ -333,7 +332,7 @@ test('scheduled tasks: each has its own share and switch, saved and clamped to 0
     assert.equal(E.derive(s).collectsPerSec, 0);
     assert.equal(E.setTaskShare(s, 'researchAssistant', 1), 1, 'all of it is free');
     E.setTaskOn(s, 'autoCollector', true);
-    assert.equal(E.taskShares(s).autoCollector + E.taskShares(s).researchAssistant, 1.4);
+    assert.equal(E.taskShares(s).autoCollector + E.taskShares(s).researchAssistant, 1.25);
     assert.equal(E.migrate({ version: E.SAVE_VERSION, settings: {} }, NOW).settings.autosave, true);
 });
 
@@ -517,7 +516,11 @@ test('automation is earned: a skill and proof of doing the job by hand', () => {
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.autoCollector), true);
     s.levels.autoCollector = 1;
-    assert.ok(Math.abs(E.derive(s).collectsPerSec - 0.2) < 1e-9 || E.derive(s).autoThrottled, 'starts slow');
+    const one = E.derive(s);
+    s.levels.autoCollector = 2;
+    const two = E.derive(s);
+    assert.ok(Math.abs(two.collectsPerSec - one.collectsPerSec) < 1e-9, 'its share sets its speed');
+    assert.ok(Math.abs(two.autoDpPerCollect / one.autoDpPerCollect - 1.25) < 1e-9, 'a level yields 25% more a collection');
 });
 
 test('top-bar resources and attributes are revealed once they matter', () => {

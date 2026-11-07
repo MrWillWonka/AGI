@@ -163,7 +163,7 @@
         // every CP, and hardware stopped growing; round-two design review).
         { id: 'procurement', name: 'Procurement', budget: true, owned: true, does: 'buys hardware' }   // claims a share only once bought
     ];
-    const TASK_DEFAULTS = { autoCollector: 0.4, researchAssistant: 0.3, procurement: 0.2 };
+    const TASK_DEFAULTS = { autoCollector: 0.25, researchAssistant: 0.2, procurement: 0.2 };   // each spends all of its share now, so less by default
 
     function taskOn(s, id) {
         return s.tasks?.[id]?.on !== false;
@@ -267,7 +267,7 @@
             unlock: s => s.path.learned >= FIRST_REAL_SKILL, boost: { push: 0.08 } },   // from the warm-up: data had no use until Pattern Matching
         { id: 'procurement', tab: 'hardware', name: 'Procurement Bot', shows: 'procurement', effect: 'Buys the best hardware for you with its share of compute', flavor: 'It reads every spec sheet. It haggles. It wins.', cost: { cp: 400 }, max: 1,
             unlock: s => automationGate(s, 'procurement').met, hint: 'Edge Detection, and 20 hardware bought by hand' },
-        { id: 'autoCollector', tab: 'software', name: 'Data Crawler', shows: 'autoCollect', effect: 'Collects data for you, 10 CP each', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 800, dp: 80 }, scale: 1.5,
+        { id: 'autoCollector', tab: 'software', name: 'Data Crawler', shows: 'autoCollect', effect: 'Collects data for you with its share of compute, 10 CP a collection; each level +25% data a collection', flavor: 'A crawler that never sleeps, paid for in compute.', cost: { cp: 800, dp: 80 }, scale: 1.5,
             unlock: s => automationGate(s, 'autoCollector').met, hint: 'Pattern Matching, and 40 data collections by hand' },
         // Training skill tree (bought with XP from the Training Path). `tree` is the node's grid
         // position around the seed at (0, 0); `requires` is the node it grows from. `icon` names a glyph
@@ -377,7 +377,7 @@
         { id: 'flowState', mechanic: 'flow', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Flow State', effect: '+3% chance a sprint starts a flow: fly high over the hills, 3 s (+1 s/level)', flavor: 'The loss curve and you are one.', cost: { insight: 3 }, scale: 2, max: 3, boost: { flowChance: 0.03, flowTime: 1 } },
         { id: 'deepFocus', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Deep Focus', effect: 'Flows coast 25% faster, per level', flavor: 'Notifications off. Phone in a drawer. In another room.', cost: { insight: 3 }, scale: 2, max: 3, requires: 'flowState', boost: { flowSpeed: 0.25 } },
         { id: 'lucidDream', tab: 'legacy', legacy: true, branch: 'momentum', icon: 'wave', name: 'Lucid Dream', effect: 'Super flows: 25% of flows per level condense time: the flow covers 4× the ground', flavor: 'It knows it\'s dreaming. It redecorated.', cost: { insight: 8 }, scale: 2, max: 3, requires: 'deepFocus', boost: { superFlow: 0.25 } },
-        { id: 'researchAssistant', tab: 'algorithms', name: 'Research Assistant', shows: 'autoResearch', effect: 'Researches for you, paying CP and DP', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.55,
+        { id: 'researchAssistant', tab: 'algorithms', name: 'Research Assistant', shows: 'autoResearch', effect: 'Researches for you with its share of compute and data; each level +25% research a run', flavor: 'Reads papers all night. Takes notes. Never complains.', cost: { cp: 6000, dp: 500, rp: 40 }, scale: 1.55,
             unlock: s => !!s.unlocked['action:research'] && automationGate(s, 'researchAssistant').met, hint: 'Language Modeling, and 25 research runs by hand' },
         // What the software learns does what its name says (the owner's call: both used to make the crawler
         // faster). Reading text gets more out of every collection; seeing what matters skips the rest, so a sprint
@@ -1106,8 +1106,13 @@
             + 5 * L('transferLearning') + sk.research) * bo.rp;
         const dpPerCollect = Math.round(dpBase);
         const rpPerResearch = Math.round(rpBase);
-        const autoDpPerCollect = dpBase * (1 + sk.dp) * mult;
-        const autoRpPerResearch = rpBase * (1 + sk.rp) * mult;
+        // The crawler and the assistant spend all of their share at the hand price (the owner's call: at 100% the
+        // crawler took 2 CP/s, its level's speed limit, while the slider said everything); their levels make each
+        // collection or research run yield more (+25% a level past the first) instead of going faster.
+        const ch0 = challengeMods(s);
+        const autoEff = lv => (lv > 0 ? 1 + 0.25 * (lv - 1) : 0) * (ch0.noAuto ? 0 : ch0.autoSpeed);
+        const autoDpPerCollect = dpBase * (1 + sk.dp) * mult * autoEff(L('autoCollector')) * r.dp;
+        const autoRpPerResearch = rpBase * (1 + sk.rp) * mult * autoEff(L('researchAssistant')) * r.rp;
         // Automation converts at the action prices: collections spend CP, research spends CP and DP.
         // It may only use the automation budget (a share of what is produced each second) and never
         // touches the stockpile, so compute always keeps climbing. Over budget, both slow down evenly.
@@ -1117,15 +1122,12 @@
         const shares = taskShares(s);
         const ch = challengeMods(s);
         const autoOn = ch.noAuto ? 0 : ch.autoSpeed;
-        const wantCollects = 0.2 * L('autoCollector') * r.dp * autoOn;
-        const wantResearch = 0.1 * L('researchAssistant') * r.rp * autoOn;
-        const collectScale = wantCollects > 0 ? Math.min(1, shares.autoCollector * cpPerSec / (wantCollects * collectCost.cp)) : 1;
-        const collectsPerSec = wantCollects * collectScale;
+        const collectsPerSec = L('autoCollector') > 0 && autoOn > 0 ? shares.autoCollector * cpPerSec / collectCost.cp : 0;
         const dpPerSec = collectsPerSec * autoDpPerCollect;
-        const researchCpScale = wantResearch > 0 ? Math.min(1, shares.researchAssistant * cpPerSec / (wantResearch * researchCost.cp)) : 1;
-        const dpWanted = wantResearch * researchCpScale * researchCost.dp;
-        const researchDpScale = dpWanted > 0 ? Math.min(1, shares.researchAssistant * dpPerSec / dpWanted) : 1;
-        const researchPerSec = wantResearch * researchCpScale * researchDpScale;
+        // Research pays CP and DP: its share of each, whichever runs out first.
+        const researchPerSec = L('researchAssistant') > 0 && autoOn > 0
+            ? Math.min(shares.researchAssistant * cpPerSec / researchCost.cp, shares.researchAssistant * dpPerSec / researchCost.dp) : 0;
+        const collectScale = 1, researchCpScale = 1, researchDpScale = 1, wantCollects = collectsPerSec, wantResearch = researchPerSec;
         const rpPerSec = researchPerSec * autoRpPerResearch;
         // Procurement: its share goes into a fund while there's hardware it can buy (none at capacity: it rests).
         const procPick = L('procurement') > 0 && taskOn(s, 'procurement') && !ch.noAuto ? procurementPick(s, hardwareRates) : null;
@@ -1446,6 +1448,9 @@
             s.res.rp += research * d.autoRpPerResearch;
             s.stats.researchDone += research;
         }
+        // Spending the bank exactly to empty leaves floating dust (-1e-13): a balance is never below zero.
+        if (s.res.cp < 0) s.res.cp = 0;
+        if (s.res.dp < 0) s.res.dp = 0;
         // Procurement saves its share and buys whenever the fund covers the best buy (never the stockpile).
         const proc = d.tasks.procurement;
         if (proc.cp > 0) {
