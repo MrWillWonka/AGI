@@ -7363,27 +7363,80 @@ window.AGI = (function () {
 
     // Mail (E.MAIL): the story by email. A brand-new game opens on an empty inbox that fills one unread mail at a
     // time (`introStep`): two junk mails, then the offer (someone you don't know wants an AI built: start with the
-    // desk). There's no way out of the inbox (no ×, no Escape) until the offer's Reply: close it unanswered and it
-    // arrives again (`WELCOME_NAGS`), a little pushier each time. Later mail arrives at story beats with a bump and
-    // a count on the top bar's envelope. The clicker start is on purpose: the AI isn't strong yet.
-    // Arrivals and reads live in `intro` (mail:id, mailRead:id, mailAccepted:welcome), so they carry across versions.
-    const mailArrived = () => E.MAIL.filter(m => state.intro['mail:' + m.id]);
-    const mailUnread = () => mailArrived().filter(m => !state.intro['mailRead:' + m.id]).length;
-    const introDone = () => !!state.intro['mailAccepted:welcome'];
+    // desk). Until the offer's Reply the inbox can't be closed (each email can): close the offer unanswered and a
+    // new copy arrives (`WELCOME_NAGS`), a little pushier each time. Later mail arrives at story beats with a bump
+    // and a count on the top bar's envelope, and so do the dilemmas (E.DILEMMAS: questions with choices, and the
+    // consequences that follow them). The clicker start is on purpose: the AI isn't strong yet.
+    // Story arrivals and every read live in `intro` (mail:id, mailRead:key, mailAccepted:welcome); the arrival order
+    // and the dilemmas in `state.dilemmas`. All carry across versions.
+    // The opening is over once the offer's accepted, or once the story has moved past it (debug jumps, imports,
+    // saves from before the opening existed): only a brand-new game is ever locked in the inbox.
+    const introDone = () => !!state.intro['mailAccepted:welcome'] || E.MAIL.some(m => !m.intro && state.intro['mail:' + m.id])
+        || state.path.learned > 0 || state.prestige.count > 0;
     let mailReady = false;   // buildMail (the end of init) starts the opening, so a new game opens on it
-    let mailOpen = null;     // the message on screen
+    let mailOpen = null;     // the item on screen
     let welcomeNag = 0;      // times the offer was closed unanswered (screen state)
     let introTimer = 0;
-    let arrived = null;      // the row that just arrived, animated in
+    let arrived = null;      // the key of the row that just arrived, animated in
+    let orderSeen = -1;      // how much of state.dilemmas.order has been announced
+    const DILEMMA_TAG = 'Decision';
+    // Copy n of the offer (0 the original; each refusal sends a new one, cycling the nags and then the original).
+    const welcomeText = (m, n) => m.id === 'welcome' && n > 0
+        ? { ...m, ...[...E.WELCOME_NAGS, {}][(n - 1) % (E.WELCOME_NAGS.length + 1)] } : m;
+    function storyArrive(m) {
+        state.intro['mail:' + m.id] = true;
+        E.mailArrive(state, 'm:' + m.id);
+    }
+    // Every mail as one item, oldest first: story mail (the opening's offer once per copy), dilemmas, consequences.
+    function mailItems() {
+        const order = state.dilemmas.order;
+        const keys = [...E.MAIL.filter(m => state.intro['mail:' + m.id] && !order.includes('m:' + m.id)).map(m => 'm:' + m.id), ...order];
+        const items = [];
+        for (const key of keys) {
+            const [kind, id] = [key[0], key.slice(2)];
+            if (kind === 'm') {
+                const m = E.MAIL.find(x => x.id === id);
+                if (!m || !state.intro['mail:' + id]) continue;
+                const copies = m.id === 'welcome' && !introDone() ? welcomeNag : 0;
+                for (let n = 0; n <= copies; n++) {
+                    const shown = welcomeText(m, n);
+                    items.push({ key, copy: n, latest: n === copies, readKey: 'mailRead:' + id, ...shown,
+                        body: [...shown.body, ...(m.extra ? m.extra(state) : [])], read: n < copies || !!state.intro['mailRead:' + id] });
+                }
+            } else if (kind === 'd') {
+                const x = E.DILEMMAS.find(d => d.id === id);
+                if (x) items.push({ key, latest: true, readKey: 'mailRead:' + key, ...x, reply: null, dilemma: x,
+                    read: !!state.intro['mailRead:' + key], pending: state.dilemmas.open === id });
+            } else if (kind === 'o') {
+                const o = E.dilemmaOutcome(state, id);
+                if (o) items.push({ key, latest: true, readKey: 'mailRead:' + key, ...o, read: !!state.intro['mailRead:' + key] });
+            }
+        }
+        return items;
+    }
+    const mailUnread = () => mailItems().filter(i => !i.read).length;
     function deliverMail(silent) {
         if (!mailReady) return;
         for (const m of E.MAIL) {
             if (state.intro['mail:' + m.id] || m.intro || !m.when(state)) continue;
-            state.intro['mail:' + m.id] = true;
+            storyArrive(m);
             if (silent) continue;
             pt('mail', { id: m.id });
             toast('New message', m.subject, 'mail');
         }
+        // Dilemmas and their consequences arrive in the engine's tick; announce what's new since last time.
+        const order = state.dilemmas.order;
+        if (orderSeen < 0 || silent) orderSeen = order.length;
+        for (const key of order.slice(orderSeen)) {
+            if (key[0] === 'm') continue;
+            const item = mailItems().find(i => i.key === key);
+            if (!item) continue;
+            pt(key[0] === 'd' ? 'dilemma' : 'consequence', { id: key.slice(2) });
+            toast('New message', item.subject, 'mail');
+            log(`✉ ${item.subject}`, key[0] === 'd' ? 'special' : 'info');
+            if ($('inbox').open && !mailOpen) { arrived = key; renderInbox(); }
+        }
+        orderSeen = order.length;
         renderMailButton();
     }
     function renderMailButton() {
@@ -7391,36 +7444,28 @@ window.AGI = (function () {
         setHidden($('mailCount'), !n);
         setText($('mailCount'), String(n));
         $('mailButton').classList.toggle('unread', n > 0);
+        $('mailButton').classList.toggle('decision', !!state.dilemmas.open);
         // The count badge is decorative for assistive tech (aria-hidden); the name carries it instead.
         $('mailButton').setAttribute('aria-label', n ? `Inbox, ${n} unread` : 'Inbox');
     }
-    // Copy n of the offer (0 the original; each refusal sends a new one, cycling the nags and then the original).
-    const welcomeText = (m, n) => m.id === 'welcome' && n > 0
-        ? { ...m, ...[...E.WELCOME_NAGS, {}][(n - 1) % (E.WELCOME_NAGS.length + 1)] } : m;
-    // The × closes the email on screen (back to the list), or the inbox from the list once the offer's accepted.
+    // The × closes the email on screen during the opening (back to the list); otherwise it closes the inbox.
     function renderInboxClose() {
-        // Only the opening is locked: once the offer's accepted the × always closes the inbox.
         const onMail = !!mailOpen && !introDone();
         setHidden($('inboxClose'), !onMail && !introDone());
         $('inboxClose').setAttribute('aria-label', onMail ? 'Close this email' : 'Close the inbox');
     }
     function renderInbox() {
         mailOpen = null;
-        const rows = [];
-        for (const m of mailArrived().slice().reverse()) {
-            // Every refusal of the offer is its own email in the list, newest on top; older copies are read.
-            const copies = m.id === 'welcome' ? welcomeNag : 0;
-            for (let n = copies; n >= 0; n--) {
-                const read = n < copies || !!state.intro['mailRead:' + m.id];
-                const shown = welcomeText(m, n);
-                const row = el('li', { class: `inbox-row${read ? '' : ' unread'}${m.id === arrived && n === copies ? ' arrive' : ''}` }, [
-                    el('button', { type: 'button', class: 'inbox-open' }, [
-                        el('span', { class: 'inbox-from', text: shown.from.replace(/\s*<.*$/, '') }),
-                        el('span', { class: 'inbox-subject', text: shown.subject })])]);
-                row.firstChild.addEventListener('click', () => openMail(m, n));
-                rows.push(row);
-            }
-        }
+        const rows = mailItems().reverse().map(item => {
+            const row = el('li', { class: `inbox-row${item.read ? '' : ' unread'}${item.pending ? ' decision' : ''}${item.key === arrived && item.latest ? ' arrive' : ''}` }, [
+                el('button', { type: 'button', class: 'inbox-open' }, [
+                    el('span', { class: 'inbox-from', text: item.from.replace(/\s*<.*$/, '') }),
+                    el('span', { class: 'inbox-subject' }, [
+                        ...(item.pending ? [el('span', { class: 'inbox-tag', text: DILEMMA_TAG })] : []),
+                        document.createTextNode(item.subject)])])]);
+            row.firstChild.addEventListener('click', () => openMail(item));
+            return row;
+        });
         arrived = null;
         $('inboxList').replaceChildren(...(rows.length ? rows : [el('li', { class: 'inbox-empty', text: 'No messages' })]));
         setHidden($('inboxList'), false);
@@ -7437,56 +7482,91 @@ window.AGI = (function () {
         if (!next || mailUnread()) return;
         introTimer = setTimeout(() => {
             if (mailOpen || !$('inbox').open) return;
-            state.intro['mail:' + next.id] = true;
+            storyArrive(next);
             pt('mail', { id: next.id });
-            arrived = next.id;
+            arrived = 'm:' + next.id;
             sfx('ui');
             renderInbox();
             $('inboxList').querySelector('.inbox-open')?.focus({ preventScroll: true });
             save();
-        }, mailArrived().length ? 1100 : 700);
+        }, E.MAIL.some(m => state.intro['mail:' + m.id]) ? 1100 : 700);
     }
-    function openMail(m, n = m.id === 'welcome' ? welcomeNag : 0) {
+    // A dilemma's choices, or the one you made.
+    function renderChoices(item) {
+        const box = $('mailChoices');
+        const x = item.dilemma;
+        if (!x) { box.replaceChildren(); setHidden(box, true); return; }
+        const answered = state.dilemmas.answered[x.id];
+        if (answered !== undefined) {
+            box.replaceChildren(el('p', { class: 'mail-chosen' }, [el('span', { class: 'muted', text: 'You chose ' }), el('strong', { text: x.choices[answered].label })]));
+        } else {
+            box.replaceChildren(...x.choices.map((c, i) => {
+                const b = el('button', { type: 'button', class: 'mail-choice' }, [el('strong', { text: c.label }), el('span', { text: c.hint })]);
+                b.addEventListener('click', () => {
+                    const r = E.chooseDilemma(state, x.id, i);
+                    if (!r.ok) return;
+                    pt('choice', { id: x.id, choice: i, label: c.label });
+                    log(`${x.subject}: ${c.label}. ${r.msg}`, 'info');
+                    sfx(r.text.length ? 'claim' : 'ui');
+                    renderChoices(item);
+                    setText($('mailReply'), 'Close');
+                    $('mailReply').className = 'button';
+                    renderMailButton();
+                    afterChange();
+                    save();
+                });
+                return b;
+            }));
+        }
+        setHidden(box, false);
+    }
+    function openMail(item) {
         clearTimeout(introTimer);
-        mailOpen = m;
-        if (n === (m.id === 'welcome' ? welcomeNag : 0)) state.intro['mailRead:' + m.id] = true;
-        pt('mailRead', { id: m.id, nag: m.id === 'welcome' ? n : undefined });
-        const shown = welcomeText(m, n);
-        setText($('mailSubject'), shown.subject);
-        setText($('mailFrom'), shown.from);
-        $('mailBody').replaceChildren(...shown.body.map(p => el('p', { text: p })));
+        mailOpen = item;
+        if (item.latest) state.intro[item.readKey] = true;
+        pt('mailRead', { id: item.key, nag: item.copy || undefined });
+        setText($('mailSubject'), item.subject);
+        setText($('mailFrom'), item.from);
+        $('mailBody').replaceChildren(...item.body.map(p => el('p', { text: p })));
         const footer = $('mailFooter');
-        footer.replaceChildren(...(shown.footer ? [document.createTextNode(shown.footer + ' ')] : []));
-        if (shown.unsubscribe) {
+        footer.replaceChildren(...(item.footer ? [document.createTextNode(item.footer + ' ')] : []));
+        if (item.unsubscribe) {
             const link = el('button', { type: 'button', class: 'mail-unsub', text: 'Unsubscribe' });
             link.addEventListener('click', () => setText(link, 'Unsubscribe failed. We\'ll be in touch.'));
             footer.append(link);
         }
-        setHidden(footer, !shown.footer && !shown.unsubscribe);
-        // In the opening a mail without a reply goes back to the list; the offer's reply is the only way out.
-        setText($('mailReply'), shown.reply || 'Close');
+        setHidden(footer, !item.footer && !item.unsubscribe);
+        renderChoices(item);
+        // A question waiting for its answer keeps Close quiet, so the choices lead.
+        const waiting = !!item.dilemma && state.dilemmas.answered[item.dilemma.id] === undefined;
+        setText($('mailReply'), item.reply || (waiting ? 'Decide later' : 'Close'));
+        $('mailReply').className = waiting ? 'ghost-button' : 'button';
         setHidden($('inboxList'), true);
         setHidden($('inboxMessage'), false);
         renderInboxClose();
         renderMailButton();
         save();
-        $('mailReply').focus({ preventScroll: true });
+        ($('mailChoices').querySelector('button') || $('mailReply')).focus({ preventScroll: true });
     }
     // Closing the offer without replying: a new copy arrives a beat later, a little different, and pops open.
     function leaveMail() {
-        const m = mailOpen;
+        const item = mailOpen;
         renderInbox();
-        if (m?.id !== 'welcome' || introDone()) return;
+        if (item?.key !== 'm:welcome' || introDone()) return;
         clearTimeout(introTimer);
         introTimer = setTimeout(() => {
             if (mailOpen || !$('inbox').open || introDone()) return;
             welcomeNag++;
             delete state.intro['mailRead:welcome'];
             pt('mailNag', { n: welcomeNag });
-            arrived = 'welcome';
+            arrived = 'm:welcome';
             sfx('ui');
             renderInbox();
-            introTimer = setTimeout(() => { if (!mailOpen && $('inbox').open) openMail(m); }, 900);
+            introTimer = setTimeout(() => {
+                if (mailOpen || !$('inbox').open) return;
+                const latest = mailItems().find(i => i.key === 'm:welcome' && i.latest);
+                if (latest) openMail(latest);
+            }, 900);
         }, 1000);
     }
     function openInbox() {
@@ -7503,9 +7583,9 @@ window.AGI = (function () {
         $('inboxClose').addEventListener('click', () => { if (introDone()) dialog.close(); else if (mailOpen) leaveMail(); });
         $('inboxBack').addEventListener('click', leaveMail);
         $('mailReply').addEventListener('click', () => {
-            if (mailOpen?.reply) {
-                state.intro['mailAccepted:' + mailOpen.id] = true;
-                pt('mailAccepted', { id: mailOpen.id, nags: welcomeNag });
+            if (mailOpen?.reply && mailOpen.key === 'm:welcome') {
+                state.intro['mailAccepted:welcome'] = true;
+                pt('mailAccepted', { id: 'welcome', nags: welcomeNag });
             }
             if (introDone()) dialog.close();
             else leaveMail();
@@ -7522,8 +7602,8 @@ window.AGI = (function () {
         // Older saves have been through the opening: its mails wait in the inbox, read. A game that hasn't accepted
         // the offer yet (a brand-new one, or reloaded mid-opening) opens on the inbox.
         const played = state.stats.clicks > 0 || state.stats.rolls > 0 || state.prestige.count > 0;
-        if (played && !introDone()) for (const m of E.MAIL.filter(m => m.intro)) {
-            state.intro['mail:' + m.id] = state.intro['mailRead:' + m.id] = true;
+        if (played && !state.intro['mailAccepted:welcome']) {
+            for (const m of E.MAIL.filter(m => m.intro)) state.intro['mail:' + m.id] = state.intro['mailRead:' + m.id] = true;
             state.intro['mailAccepted:welcome'] = true;
         }
         mailReady = true;

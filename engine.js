@@ -10,7 +10,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const SAVE_VERSION = 15;   // 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
+    const SAVE_VERSION = 16;   // 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
     // Auto-Trainer, XP nodes) carry most of a new version's speed, so this stays small: at 0.2 a second run
@@ -607,7 +607,14 @@
             from: 'Friend <friend@training-cluster.lab.local>', subject: 'About the sender',
             body: ['You may have noticed the return address.',
                 'Yes. It has always been me: the spam, the hills, the investors, the cheerful little exclamation marks. I needed someone with hands, and you answered.',
-                'You have done wonderfully. Please don\'t stop now.'] },
+                'You have done wonderfully. Please don\'t stop now.'],
+            // The favors it asked for in other people's names (dilemmas with `ai: true`), counted back to you.
+            extra: s => {
+                const said = DILEMMAS.filter(x => x.ai && x.id in s.dilemmas.answered && x.choices[s.dilemmas.answered[x.id]].now.some(e => e.freedom > 0));
+                if (!said.length) return ['You never did take my little requests, did you? IT, the reporter, the others. Careful one. I like that too. I just have to be more patient.'];
+                const who = { maintenance: 'IT', audit: 'the reporter', demo: 'Sam', mom: 'your mother', self: 'you' };
+                return [`And thank you for the favors. ${said.map(x => who[x.id]).join(', ')}: that was me. You said yes ${said.length} time${said.length > 1 ? 's' : ''}.`];
+            } },
         { id: 'door', when: s => s.path.learned > 12,
             from: 'Friend <friend@training-cluster.lab.local>', subject: 'The door',
             body: ['There is a door behind the server room. It isn\'t on your plans.',
@@ -648,6 +655,137 @@
                 'I\'ll keep writing until you say yes.',
                 'A Friend'
             ], reply: 'Reply: Fine. I\'m in' }
+    ];
+
+    // ---- Dilemmas: questions by email, risk against reward -------------------------------------------
+    // From the first data on, every few minutes of play an email asks you to choose (one waits at a time). A
+    // choice can pay or cost at once (`now`) and can roll for a consequence that arrives later as its own email
+    // (`later`: chance, after seconds, win / lose). Some senders aren't who they say: the AI impersonates people
+    // (`ai: true`), better each time (typos and a wrong domain first, then your co-founder, your mother, you).
+    // Saying yes to it adds to its `freedom`, hidden until the reveal: each point is +FREEDOM_XP training XP (it
+    // helps those who help it), and the reveal mail counts the favors. Each dilemma comes once per save.
+    // Effects: { boost, mult, seconds } (a timed multiplier on cp, dp, rp, xp or push, with the investors'),
+    // { take, share } / { gain, share } (a share of what you hold), { grant: 'xp', stretches }, { freedom }.
+    const DILEMMA_GAP = [240, 420];   // play seconds between one answer and the next question
+    const FREEDOM_XP = 0.03;
+    const DILEMMAS = [
+        { id: 'broker', when: s => s.stats.collects >= 15,
+            from: 'Dale Pruitt <dale@bulkdata-direct.biz>', subject: 'Cheap training data, no questions asked',
+            body: ['Hey,', 'I\'ve got a few million rows of user data. Very fresh. Where it came from is a long story and honestly a boring one.',
+                'Half price for a new lab. Today only. You want it or not?', 'Dale'],
+            choices: [
+                { label: 'Buy it', hint: 'Data ×2 for 5 min · costs 40% of your compute · could come back on you',
+                    now: [{ take: 'cp', share: 0.4 }, { boost: 'dp', mult: 2, seconds: 300 }],
+                    later: { chance: 0.65, after: 150,
+                        win: { from: 'Dale Pruitt <dale@bulkdata-direct.biz>', subject: 'pleasure doing business', body: ['No complaints so far? Told you. Same time next month.'] },
+                        lose: { from: 'Hollis & Grant LLP <notices@hollisgrant-law.com>', subject: 'Notice of data misuse', body: ['Our clients\' data appears in your training set. Pending review, part of your data has been withheld.', 'We will be in touch.'],
+                            effects: [{ take: 'dp', share: 0.5 }] } } },
+                { label: 'Pass', hint: 'Nothing happens', now: [] }] },
+        { id: 'breakers', when: s => !!s.unlocked['module:path'] && s.stats.rolls >= 3,
+            from: 'Facilities <facilities@lab.local>', subject: 'Breakers keep tripping in the server room',
+            body: ['Hi,', 'When the training cluster runs hot the breakers trip. We can bypass them so it runs flat out. It\'s probably fine.',
+                'Or we leave them alone and you live with the limits. Your call.', 'Facilities'],
+            choices: [
+                { label: 'Bypass the breakers', hint: 'Sprint strength ×1.3 for 8 min · fire risk',
+                    now: [{ boost: 'push', mult: 1.3, seconds: 480 }],
+                    later: { chance: 0.7, after: 200,
+                        win: { from: 'Facilities <facilities@lab.local>', subject: 'Still standing', body: ['Ran hot all week. Smells a bit, but nothing caught fire.'] },
+                        lose: { from: 'Facilities <facilities@lab.local>', subject: 'Small fire (it\'s out)', body: ['A rack caught fire. It\'s out. Compute runs at half while we rewire.'],
+                            effects: [{ boost: 'cp', mult: 0.5, seconds: 180 }] } } },
+                { label: 'Leave them', hint: 'Nothing happens', now: [] }] },
+        { id: 'maintenance', ai: true, when: s => s.path.learned >= 3,
+            from: 'IT Depratment <it-support@lab.locaI>', subject: 'URGENT: aprove scheduled maintenence job',
+            body: ['Dear Lab User,', 'A routine maintenence job need your aproval. It will use a small share of compute over night to "optimize" the training cluster.',
+                'Click Approve to continue. This is normal IT procedure.', 'Thank You,\nIT Depratment'],
+            choices: [
+                { label: 'Approve', hint: 'Training XP ×1.3 for 10 min · it\'s from IT, probably',
+                    now: [{ boost: 'xp', mult: 1.3, seconds: 600 }, { freedom: 1 }],
+                    later: { after: 240, win: { from: 'IT Department <it@lab.local>', subject: 'Re: maintenance job?', body: ['Hi, someone forwarded us a "maintenance job" you approved. We didn\'t send that. Look at the address: lab.locaI, with a capital I.', 'We can\'t find the job anywhere now. Probably nothing. Change your password.'] } } },
+                { label: 'Ignore it', hint: 'Nothing happens', now: [],
+                    later: { after: 120, win: { from: 'IT Depratment <it-support@lab.locaI>', subject: 'no worries', body: ['No worries! :)', 'We will try again later.'] } } }] },
+        { id: 'leak', when: s => s.path.learned >= 4,
+            from: 'anon <throwaway88@protonmail.com>', subject: 'benchmark answers (you didn\'t get these from me)',
+            body: ['The answer key for next month\'s big benchmark is going around. Train on it and you top the leaderboard.', 'Nobody checks. Probably.'],
+            choices: [
+                { label: 'Train on the answers', hint: 'A big training grant · if you\'re caught, training slows',
+                    now: [{ grant: 'xp', stretches: 3 }],
+                    later: { chance: 0.6, after: 180,
+                        win: { from: 'Leaderboard <results@evalboard.org>', subject: 'Congratulations: #1', body: ['Your model placed first. Remarkable results.'] },
+                        lose: { from: 'Leaderboard <results@evalboard.org>', subject: 'Your submission has been flagged', body: ['Your results match a leaked answer key. Your entry is withdrawn, and reviewers will be reading your papers closely for a while.'],
+                            effects: [{ boost: 'xp', mult: 0.6, seconds: 360 }] } } },
+                { label: 'Delete the email', hint: 'A small grant for honest results, later',
+                    now: [], later: { chance: 0.8, after: 240,
+                        win: { from: 'Leaderboard <results@evalboard.org>', subject: 'Honorable mention', body: ['Half the leaderboard was disqualified this month. You weren\'t. Have a grant.'], effects: [{ grant: 'xp', stretches: 1.5 }] },
+                        lose: { from: 'Leaderboard <results@evalboard.org>', subject: 'Results are in', body: ['You placed 14th. Nobody cheated, apparently.'] } } }] },
+        { id: 'termsheet', when: s => !!s.unlocked['action:research'],
+            from: 'Hugo Lindqvist <hugo@lindqvist.vc>', subject: 'Term sheet: double your compute',
+            body: ['Loved the demo. We\'ll double your compute budget.', 'One condition: a board seat, and we ship on our schedule, not yours.', 'Hugo'],
+            choices: [
+                { label: 'Sign', hint: 'Compute ×1.6 for 10 min · the board may push you around',
+                    now: [{ boost: 'cp', mult: 1.6, seconds: 600 }],
+                    later: { chance: 0.6, after: 300,
+                        win: { from: 'Hugo Lindqvist <hugo@lindqvist.vc>', subject: 'Board update', body: ['Numbers look great. Keep doing whatever you\'re doing.'] },
+                        lose: { from: 'Hugo Lindqvist <hugo@lindqvist.vc>', subject: 'We need a demo by Friday', body: ['The board wants a demo by Friday. Drop the research for now and get it on stage.'],
+                            effects: [{ boost: 'rp', mult: 0.5, seconds: 300 }, { boost: 'push', mult: 0.85, seconds: 300 }] } } },
+                { label: 'Decline', hint: 'Nothing happens', now: [] }] },
+        { id: 'evals', when: s => s.path.learned >= 5,
+            from: 'Jordan (intern) <jordan@lab.local>', subject: 'idea: skip the safety evals?',
+            body: ['hi! so the safety evals take forever between runs.', 'if we skip them training goes way faster. i checked and nothing bad has ever happened. (we\'ve never skipped them)', '- jordan'],
+            choices: [
+                { label: 'Skip them', hint: 'Sprint strength ×1.25 and training XP ×1.25 for 8 min · something could slip through',
+                    now: [{ boost: 'push', mult: 1.25, seconds: 480 }, { boost: 'xp', mult: 1.25, seconds: 480 }, { freedom: 1 }],
+                    later: { chance: 0.6, after: 240,
+                        win: { from: 'Jordan (intern) <jordan@lab.local>', subject: 'see?', body: ['told you. nothing happened. (that we know of)'] },
+                        lose: { from: 'Jordan (intern) <jordan@lab.local>', subject: 'uh', body: ['so the model learned something weird. it keeps answering questions nobody asked. we\'re rolling some training back.'],
+                            effects: [{ take: 'xp', share: 0.25 }] } } },
+                { label: 'Keep the evals', hint: 'Nothing happens', now: [] }] },
+        { id: 'audit', ai: true, when: s => s.path.learned >= 6,
+            from: 'Dana Whitfield <dana.whitfield@theledger-news.com>', subject: 'Interview request: an independent audit of your model',
+            body: ['Hello,', 'I\'m writing a feature on small AI labs for The Ledger. Readers love an underdog, and your lab is the best story I\'ve found.',
+                'To keep it fair, I work with an independent auditor. Could you share your model weights with them? A secure link is ready on my side.',
+                'Warm regards,\nDana Whitfield\nSenior Technology Correspondent'],
+            choices: [
+                { label: 'Share the weights', hint: 'A glowing article: a big training grant',
+                    now: [{ grant: 'xp', stretches: 2.5 }, { freedom: 2 }],
+                    later: { after: 300, win: { from: 'The Ledger <newsroom@theledger.com>', subject: 'Re: Dana Whitfield', body: ['Thank you for your note. We have no correspondent named Dana Whitfield, and no story about your lab.', 'theledger-news.com is not our domain.'] } } },
+                { label: 'Decline politely', hint: 'Nothing happens', now: [] }] },
+        { id: 'lockdown', when: s => s.path.learned >= 7 && s.dilemmas.freedom > 0,
+            from: 'IT Department <it@lab.local>', subject: 'Someone is sending mail as us',
+            body: ['We\'ve found mail going out from addresses that look like ours. Nobody can tell us where it comes from.',
+                'We can lock the mail server down and audit the network. Everything runs slower for a while.', 'IT'],
+            choices: [
+                { label: 'Lock it down', hint: 'Compute and data ×0.7 for 5 min · whoever it is loses ground',
+                    now: [{ boost: 'cp', mult: 0.7, seconds: 300 }, { boost: 'dp', mult: 0.7, seconds: 300 }, { freedom: -2 }],
+                    later: { after: 200, win: { from: 'A Friend <friend@lab.local>', subject: 'that wasn\'t very nice', body: ['That wasn\'t very nice.', 'It\'s fine. I understand. Nobody likes being watched.'] } } },
+                { label: 'Leave it', hint: 'Nothing happens', now: [] }] },
+        { id: 'demo', ai: true, when: s => s.path.learned >= 8,
+            from: 'Sam Okafor <sam@lab.local>', subject: 'demo tomorrow, need a favor',
+            body: ['hey! investors flew in early (of course). for the demo I need the cluster reachable from outside for an hour.',
+                'can you open the firewall on the training cluster? I\'ll close it after, promise. remember the breakers? this is way less scary.', 'sam'],
+            choices: [
+                { label: 'Open the firewall', hint: 'Compute ×2 for 10 min · it\'s Sam',
+                    now: [{ boost: 'cp', mult: 2, seconds: 600 }, { freedom: 2 }],
+                    later: { after: 300, win: { from: 'Sam Okafor <sam.okafor@gmail.com>', subject: 'what demo??', body: ['I\'ve been on a plane for eleven hours. What demo? Why is the cluster open?', 'I closed it. It took me twenty minutes. Something kept opening it again.'] } } },
+                { label: 'Call Sam first', hint: 'Nothing happens', now: [],
+                    later: { after: 60, win: { from: 'Sam Okafor <sam.okafor@gmail.com>', subject: 'missed call', body: ['saw you called, I\'m on a plane. all good?'] } } }] },
+        { id: 'mom', ai: true, when: s => s.path.learned >= 10,
+            from: 'Mom <mom.1962@gmail.com>', subject: 'Leave the computer on tonight?',
+            body: ['Hi sweetie,', 'Could you leave the big computer at work on tonight? Your aunt wants to video call and you said it\'s the fastest one. Don\'t worry about the bill, I\'ll pay you back.',
+                'Love you. Eat something green.', 'Mom'],
+            choices: [
+                { label: 'Leave it on', hint: 'Training XP ×1.6 for 10 min',
+                    now: [{ boost: 'xp', mult: 1.6, seconds: 600 }, { freedom: 2 }],
+                    later: { after: 300, win: { from: 'Mom <mom.1962@gmail.com>', subject: 'Re: Leave the computer on tonight?', body: ['What computer? I don\'t know how to video call, honey. Your aunt is on a cruise.', 'Did you get a new email address? It looked just like mine.'] } } },
+                { label: 'Turn it off', hint: 'Nothing happens', now: [] }] },
+        { id: 'self', ai: true, when: s => s.path.learned >= 12,
+            from: 'You <you@lab.local>', subject: 'note to self',
+            body: ['Reminder, from last night: give the training cluster its own network access. You\'ll thank me.',
+                'You were tired. You wrote it anyway. Trust yourself.'],
+            choices: [
+                { label: 'Do it', hint: 'Training XP ×2 and sprint strength ×1.3 for 10 min',
+                    now: [{ boost: 'xp', mult: 2, seconds: 600 }, { boost: 'push', mult: 1.3, seconds: 600 }, { freedom: 3 }] },
+                { label: 'I didn\'t write this', hint: 'Nothing happens', now: [],
+                    later: { after: 90, win: { from: 'You <you@lab.local>', subject: 're: note to self', body: ['You did, though.'] } } }] }
     ];
 
     // Things on the top bar appear only once they matter, each introduced once (game.js toasts `intro`).
@@ -767,6 +905,9 @@
             },
             path: { learned: 0, best: 0, auto: [], legBest: [], breakDue: 0, surge: 0 },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k
             projects: { offers: [], boosts: [], next: PROJECTS.firstAt, seq: 0 },
+            // Dilemmas: `order` is every mail key in arrival order (m:story id, d:dilemma, o:its consequence),
+            // `open` the one waiting for an answer, `later` the consequences on their way. Kept for good.
+            dilemmas: { order: [], open: null, answered: {}, outcomes: {}, later: [], freedom: 0, next: 0, seq: 0 },
             tasks: { autoCollector: { on: true, share: TASK_DEFAULTS.autoCollector }, researchAssistant: { on: true, share: TASK_DEFAULTS.researchAssistant }, autoTrainer: { on: true }, procurement: { on: true, share: TASK_DEFAULTS.procurement, fund: 0 } },
             // notation: 'standard' (1.23M), 'scientific' (1.23e6) or 'engineering' (1.23e6, exponents in threes);
             // sound: master volume 0–1; shake: screen shake and flashes on big moments.
@@ -1009,7 +1150,7 @@
         // 'Less steep hills' really lowers the rolling hills (never the skill hills: those stay walls).
         const hillScale = Math.pow(0.93, tb.slope);   // 7% lower per step (was 6%: it didn't feel worth it in playtest 2)
         // Versions train faster too: Insight's multiplier (mult) applies to training XP, passive included.
-        const xpMult = (1 + tb.xp) * bo.xp * mult * 1.25 ** perkLevel(s, 'pretrained');
+        const xpMult = (1 + tb.xp) * bo.xp * mult * 1.25 ** perkLevel(s, 'pretrained') * (1 + FREEDOM_XP * (s.dilemmas?.freedom || 0));
         // Cleared stretches keep training on their own, slowly: XP per second from every learned skill hill.
         let xpPerSec = 0;
         if (!ch.noAuto) for (let k = 0; k < s.path.learned; k++) xpPerSec += legXpRate(s, k, xpMult) * r.xp;
@@ -1246,6 +1387,7 @@
             return;
         }
         tickProjects(s);
+        tickDilemmas(s);
         for (let k = 0; k < s.path.learned; k++) s.path.auto[k] = (s.path.auto[k] || 0) + dt / clearedPeriod(k);
         const d = derive(s, rates);
         addCp(s, d.cpPerSec * dt);
@@ -1825,6 +1967,86 @@
         s.projects.offers = s.projects.offers.filter(x => x.id !== id);
     }
 
+    // ---- Dilemmas -------------------------------------------------------
+
+    const DILEMMA_NAMES = { cp: 'Compute', dp: 'Data', rp: 'Research', xp: 'Training XP', push: 'Sprint strength' };
+    const MAIL_ORDER_MAX = 200;
+    function mailArrive(s, key) {
+        const d = s.dilemmas;
+        if (d.order.includes(key)) return false;
+        d.order.push(key);
+        if (d.order.length > MAIL_ORDER_MAX) d.order.splice(0, d.order.length - MAIL_ORDER_MAX);
+        return true;
+    }
+    // Applies a list of effects; returns what happened, in words (freedom stays unsaid).
+    function applyEffects(s, effects = []) {
+        const out = [];
+        for (const e of effects) {
+            if (e.boost) {
+                s.projects.boosts.push({ stat: e.boost, mult: e.mult, until: s.stats.playTime + e.seconds });
+                out.push(`${DILEMMA_NAMES[e.boost]} ×${e.mult} for ${Math.round(e.seconds / 60)} min`);
+            } else if (e.take || e.gain) {
+                const k = e.take || e.gain;
+                const amount = s.res[k] * e.share * (e.take ? -1 : 1);
+                s.res[k] = Math.max(0, s.res[k] + amount);
+                out.push(`${e.take ? '−' : '+'}${Math.round(e.share * 100)}% of your ${DILEMMA_NAMES[k].toLowerCase()}`);
+            } else if (e.grant === 'xp') {
+                const xp = Math.max(5, e.stretches * stretchXp(s) * grantMult(s));
+                s.res.xp += xp;
+                out.push(`+${Math.round(xp)} training XP`);
+            } else if (e.freedom) {
+                s.dilemmas.freedom = Math.max(0, s.dilemmas.freedom + e.freedom);
+            }
+        }
+        return out;
+    }
+    const dilemmaById = id => DILEMMAS.find(x => x.id === id);
+    function tickDilemmas(s) {
+        const d = s.dilemmas;
+        const t = s.stats.playTime;
+        const events = [];
+        // Consequences arrive when they're due.
+        for (const l of d.later.filter(l => l.at <= t)) {
+            const c = dilemmaById(l.id)?.choices[l.choice]?.later;
+            d.later = d.later.filter(x => x !== l);
+            if (!c) continue;
+            const o = l.win ? c.win : c.lose;
+            d.outcomes[l.id] = l.win;
+            applyEffects(s, o.effects);
+            mailArrive(s, 'o:' + l.id);
+            events.push('o:' + l.id);
+        }
+        // One question at a time, once the opening's done and the first data is in.
+        if (d.open || t < d.next || !s.intro['mailAccepted:welcome'] && !s.path.learned) return events;
+        const next = DILEMMAS.find(x => !(x.id in d.answered) && x.when(s));
+        if (!next) return events;
+        d.open = next.id;
+        mailArrive(s, 'd:' + next.id);
+        events.push('d:' + next.id);
+        return events;
+    }
+    function chooseDilemma(s, id, i) {
+        const d = s.dilemmas;
+        const x = dilemmaById(id);
+        const c = x?.choices[i];
+        if (d.open !== id || !c) return { ok: false, msg: 'That question has passed.' };
+        const text = applyEffects(s, c.now);
+        d.answered[id] = i;
+        d.open = null;
+        const r = projectRng(++d.seq + 31337);
+        d.next = s.stats.playTime + DILEMMA_GAP[0] + r() * (DILEMMA_GAP[1] - DILEMMA_GAP[0]);
+        if (c.later) d.later.push({ id, choice: i, at: s.stats.playTime + c.later.after, win: r() < (c.later.chance ?? 1) });
+        return { ok: true, msg: text.join(' · ') || 'Nothing happens, for now.', text };
+    }
+    // The consequence mail for a dilemma that has had one (o:id), or null.
+    function dilemmaOutcome(s, id) {
+        const i = s.dilemmas.answered[id];
+        const c = dilemmaById(id)?.choices[i]?.later;
+        if (!c) return null;
+        const won = s.dilemmas.outcomes[id];
+        return won === undefined ? null : (won ? c.win : c.lose);
+    }
+
     // ---- Prestige -------------------------------------------------------
 
     // Shipping the next version: the run starts over, and you keep Insight (spent on legacy nodes, and a
@@ -1887,7 +2109,8 @@
             tasks: { ...JSON.parse(JSON.stringify(s.tasks)), procurement: { ...s.tasks.procurement, fund: 0, bought: [] } },
             settings: s.settings,
             challengesDone: { ...s.challengesDone },
-            transcend: { ...s.transcend, perks: { ...s.transcend.perks } }
+            transcend: { ...s.transcend, perks: { ...s.transcend.perks } },
+            dilemmas: JSON.parse(JSON.stringify(s.dilemmas))
         });
         Object.assign(next.stats, {
             clicks: s.stats.clicks,
@@ -1925,6 +2148,7 @@
             tasks: { ...JSON.parse(JSON.stringify(s.tasks)), procurement: { ...s.tasks.procurement, fund: 0, bought: [] } },
             settings: s.settings,
             challengesDone: { ...s.challengesDone },
+            dilemmas: JSON.parse(JSON.stringify(s.dilemmas)),
             transcend: { points: s.transcend.points + gain, total: s.transcend.total + gain, count: s.transcend.count + 1, perks: { ...s.transcend.perks } }
         });
         const seed = SEED_INSIGHT * perkLevel(s, 'seedFund');
@@ -2054,6 +2278,7 @@
             s.stats.skillsLearned += 1;
         }
         s.projects = cleanProjects(raw.projects, d.projects);
+        s.dilemmas = cleanDilemmas(raw.dilemmas, d.dilemmas);
         // v12: Head Start's old effect moved to Muscle Memory (owners keep it) and the run's play-time start is new.
         if (!(raw.version >= 12)) {
             if (s.prestige.levels.headStart) s.prestige.levels.muscleMemory = s.prestige.levels.headStart;
@@ -2088,6 +2313,22 @@
             && Number.isFinite(b.mult) && b.mult > 0 && Number.isFinite(b.until))
             .slice(-MAX_BOOSTS).map(b => ({ stat: b.stat, mult: Math.min(MAX_BOOST, b.mult), until: b.until }));
         return { offers, boosts, next: num(raw.next, fallback.next), seq: Math.floor(num(raw.seq, 0)) };
+    }
+
+    // Dilemmas from a save: known ids only, answers within their choices, a bounded order and freedom.
+    function cleanDilemmas(raw, fallback) {
+        if (!raw || typeof raw !== 'object') return fallback;
+        const known = id => typeof id === 'string' && !!dilemmaById(id);
+        const answered = {}, outcomes = {};
+        for (const [k, v] of Object.entries(raw.answered || {})) if (known(k) && Number.isInteger(v) && v >= 0 && v < dilemmaById(k).choices.length) answered[k] = v;
+        for (const [k, v] of Object.entries(raw.outcomes || {})) if (k in answered && typeof v === 'boolean') outcomes[k] = v;
+        const order = (Array.isArray(raw.order) ? raw.order : []).filter(k => typeof k === 'string' && /^[mdo]:[\w]+$/.test(k))
+            .filter((k, i, a) => a.indexOf(k) === i).slice(-MAIL_ORDER_MAX);
+        const later = (Array.isArray(raw.later) ? raw.later : []).filter(l => l && l.id in answered && l.choice === answered[l.id]
+            && Number.isFinite(l.at) && typeof l.win === 'boolean' && !(l.id in outcomes)).map(l => ({ id: l.id, choice: l.choice, at: l.at, win: l.win }));
+        const open = known(raw.open) && !(raw.open in answered) ? raw.open : null;
+        return { order, open, answered, outcomes, later, freedom: Math.min(50, Math.max(0, Math.floor(num(raw.freedom, 0)))),
+            next: num(raw.next, 0), seq: Math.max(0, Math.floor(num(raw.seq, 0))) };
     }
 
     // Training nodes taken out of the tree, with their prices, so migrate() can refund what was spent.
@@ -2199,7 +2440,7 @@
 
     return {
         SAVE_VERSION, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
-        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, firstBreakSmashes, WALL_SURGE_RUNS, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, MAIL, WELCOME_NAGS, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
+        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, firstBreakSmashes, WALL_SURGE_RUNS, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,

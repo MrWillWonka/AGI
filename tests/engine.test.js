@@ -1739,3 +1739,56 @@ test('tick ignores a non-finite time step, and a task share that is not a number
     E.tick(s, 1);
     assert.ok([s.res.cp, s.res.dp].every(Number.isFinite));
 });
+
+test('dilemmas: one question at a time, choices pay now, consequences arrive later, freedom helps the AI', () => {
+    const ids = new Set();
+    for (const x of E.DILEMMAS) {
+        assert.ok(!ids.has(x.id), 'unique ids'); ids.add(x.id);
+        assert.ok(x.from && x.subject && x.body.length && x.choices.length >= 2, `${x.id} has a sender, body and choices`);
+        for (const c of x.choices) {
+            assert.ok(c.label && c.hint && Array.isArray(c.now), `${x.id}: every choice says what it does`);
+            if (c.later) assert.ok(c.later.after > 0 && c.later.win && (c.later.chance === undefined || c.later.lose), `${x.id}: a risky choice has both outcomes`);
+        }
+    }
+    const s = fresh();
+    E.tickDilemmas(s);
+    assert.equal(s.dilemmas.open, null, 'nothing before the opening is done');
+    s.intro['mailAccepted:welcome'] = true;
+    s.stats.collects = 20;
+    s.res.cp = 1000;
+    E.tickDilemmas(s);
+    assert.equal(s.dilemmas.open, 'broker');
+    assert.deepEqual(s.dilemmas.order, ['d:broker']);
+    s.unlocked['module:path'] = true; s.stats.rolls = 5;
+    E.tickDilemmas(s);
+    assert.equal(s.dilemmas.order.length, 1, 'one question waits at a time');
+    const r = E.chooseDilemma(s, 'broker', 0);
+    assert.ok(r.ok);
+    assert.equal(s.res.cp, 600, 'buying costs 40% of compute');
+    assert.ok(s.projects.boosts.some(b => b.stat === 'dp' && b.mult === 2));
+    assert.ok(!E.chooseDilemma(s, 'broker', 1).ok, 'answered once');
+    E.tickDilemmas(s);
+    assert.equal(s.dilemmas.open, null, 'the next waits its gap');
+    s.stats.playTime += E.DILEMMA_GAP[1] + 1;
+    E.tickDilemmas(s);
+    assert.ok(s.dilemmas.order.includes('o:broker'), 'the consequence arrived');
+    assert.ok(E.dilemmaOutcome(s, 'broker').subject);
+    assert.equal(s.dilemmas.open, 'breakers');
+    // Helping the AI (an impersonation) raises freedom, and freedom raises training XP.
+    const before = E.derive(s).xpMult;
+    s.dilemmas.open = 'maintenance';
+    E.chooseDilemma(s, 'maintenance', 0);
+    assert.equal(s.dilemmas.freedom, 1);
+    assert.ok(E.derive(s).xpMult > before * 1.3, 'the boost and freedom both apply');
+    // It all survives a save and a new version.
+    const loaded = E.migrate(JSON.parse(E.serialize(s)));
+    assert.deepEqual(loaded.dilemmas.answered, s.dilemmas.answered);
+    assert.equal(loaded.dilemmas.freedom, 1);
+    s.path.learned = 9; s.attr.intelligence = 30;
+    const next = E.prestige(s, NOW).state;
+    if (next) assert.equal(next.dilemmas.freedom, 1, 'kept across versions');
+    const bad = E.migrate({ ...JSON.parse(E.serialize(s)), dilemmas: { answered: { nope: 0, broker: 9 }, freedom: 1e9, order: ['x', 5, 'd:broker'] } });
+    assert.deepEqual(bad.dilemmas.answered, {});
+    assert.equal(bad.dilemmas.freedom, 50);
+    assert.deepEqual(bad.dilemmas.order, ['d:broker']);
+});
