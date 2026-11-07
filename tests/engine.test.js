@@ -52,21 +52,24 @@ test('Packet Snare\'s tree follows the Training tree\'s rules: priced past its p
     const total = (up, n) => { let c = 0; for (let l = 0; l < n; l++) c = E.upgradeCost(up, l).signal; return c; };
     const seen = new Set(['0,0']);   // the Lasso takes the centre
     for (const n of nodes) {
-        assert.ok(n.max >= 1 && n.max <= 3, `${n.id} has 1–3 levels`);
+        if (n.endless) assert.equal(n.max, undefined, `${n.id}: the endless node has no cap`);
+        else assert.ok(n.max >= 1 && n.max <= 3, `${n.id} has 1–3 levels`);
         assert.ok(n.cost.signal > 0 && Object.keys(n.cost).length === 1, `${n.id} is bought with Signal`);
         assert.ok(n.effect && n.effect.length <= 80, `${n.id}: a short, plain effect`);
         assert.ok(n.flavor && n.flavor.length <= 70, `${n.id}: a short quip`);
         const key = `${n.snare.x},${n.snare.y}`;
         assert.ok(!seen.has(key), `${n.id} overlaps another node`);
         seen.add(key);
-        assert.ok(Math.abs(n.snare.x) <= 2 && Math.abs(n.snare.y) <= 2, `${n.id} sits on the 5 × 5 grid`);
+        assert.ok(Math.abs(n.snare.x) <= 4 && Math.abs(n.snare.y) <= 4, `${n.id} sits on the 9 × 9 grid`);
         const parent = n.requires ? E.UPGRADE_BY_ID[n.requires] : null;
         const at = parent ? parent.snare : { x: 0, y: 0 };
         assert.equal(Math.abs(at.x - n.snare.x) + Math.abs(at.y - n.snare.y), 1, `${n.id} is adjacent to what it grows from`);
         if (parent) assert.ok(n.cost.signal > total(parent, parent.max), `${n.id}'s first level costs more than ${parent.id}'s last`);
     }
     // Every node that brings a new rule is a hexagon.
-    for (const id of ['snareChain', 'snareScanner', 'snareScrubbers', 'snareLaser', 'snareAnchors', 'snareContain', 'snareHerders']) {
+    assert.ok(nodes.length >= 40, 'a big tree');
+    assert.equal(nodes.filter(n => n.endless).length, 1, 'one endless sink');
+    for (const id of ['snareChain', 'snareScanner', 'snareScrubbers', 'snareLaser', 'snareFirewalls', 'snareDecoys', 'snareTurrets', 'snareTowers', 'snareFreeze', 'snarePurge', 'snareContain', 'snareHerders']) {
         assert.ok(E.UPGRADE_BY_ID[id].mechanic, `${id} is a mechanic`);
     }
 });

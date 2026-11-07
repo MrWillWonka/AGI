@@ -2,19 +2,18 @@
 // player draws a trailing wire. Bringing the pen back near where it started (or crossing the wire) closes a loop and
 // **snares** everything inside: the bigger the loop, the bigger the multiplier, but a corrupt packet inside spoils the
 // whole catch, a longer wire burns Focus faster, Antivirus programs hunt the wire and snap it before it closes, and
-// system Firewalls sweep across the field from side to side, ending any loop they cross. The run
-// ends when Focus runs out.
-// It starts small, short and hard (a little field, a few seconds of Focus, corrupt packets hiding in the schools) and grows
-// with its own skill tree (engine.js `snareOpts`): a wider field, more Focus, chain lightning off every catch, a scanner
-// sweep that tags packets, targeted lasers that take packets by themselves, scrubbers that forgive a corrupt packet, and
-// Anchors: tap to place them and lasers join them into your own Firewalls: good packets bounce off them (pens and
-// funnels), corrupt ones pass through, and an Antivirus that runs into one is stunned while that firewall goes down.
-// The pipeline flows: each run has a current, schools swim in from upstream and leave downstream (the owner's call:
-// packets go on off the field the way they're heading). A Containment Field makes the edges hold the good ones (corrupt
-// ones still leave), and Herders, drones that round strays up toward your pen, shoo corrupt ones out.
-// From the third run the **Rogue AI** fights for the same field: it drops Infection Cores whose red circles grow and steal
-// the data inside. A tight loop round a core quarantines it (the Chokehold); a straight stroke becomes a shield wall
-// across the field that no circle can grow past (the Wall).
+// system Firewalls sweep across the field from side to side, ending any loop they cross. The run ends when Focus runs
+// out. Each run is on a sector with a boss Antivirus; tight loops round it beat it and clear the sector.
+// It starts small, short and hard and grows with its own skill tree (engine.js `snareOpts`) into a crowded field full of
+// things you place and use: **your Firewalls**, walls you draw (corrupt packets bounce off them, good ones pass, an
+// Antivirus that hits one is stunned, a core's circle can't reach through one), **decoys** that pull corrupt packets and
+// Antivirus away, **turrets** that pick packets off where they stand, **scanner towers** that tag what passes them,
+// chain lightning, a scanner beam, targeted lasers, herders and scrubbers, and powers: **freeze** stops the field while you
+// draw, **purge** wipes the corrupt packets off it. The pipeline flows: schools swim in upstream and leave downstream; a
+// Containment Field holds the good ones in.
+// From sector 4 the **Rogue AI** fights for the same field: Infection Cores whose red circles grow and steal the data
+// inside. A tight loop round a core quarantines it (the Chokehold); a Firewall between a core and the data is a wall it
+// can't take through.
 // Pure and deterministic: no DOM, no clock, no Math.random (a seeded generator). The field is in world units
 // (`w` × `h`); game.js maps the pointer onto it and draws it. Loaded in the browser as window.PacketSnare and in
 // Node (tests) via require().
@@ -74,6 +73,8 @@
         scanner: 0,                 // Scanner: beams sweeping from the middle, tagging packets ×TAG_VALUE for TAG_SECONDS
         scannerSpeed: 1.1,          // radians per second
         tagSeconds: 1.5,            // how long a tag lasts: catch what the beam just lit
+        tagValue: 2,                // what a tag multiplies a packet's worth by (Prospector: 3)
+        focusBack: 0,               // Second Wind: Focus a loop at ×2 or more gives back
         laser: 0,                   // Targeted Laser: seconds between shots (0 = none)
         emitters: 1,                // packets each shot takes
         scrubbers: 0,               // corrupt packets a loop forgives
@@ -85,16 +86,32 @@
         rogueMax: 0.32,             // …to this share of the field's shorter side
         rogueLife: 11,              // seconds before a core burns out on its own
         chokeArea: 0.08,            // × field area: a loop round a core no bigger than this quarantines it
-        wallSeconds: 8,             // how long a shield wall stands
-        maxWalls: 2,
-        wallMin: 0.4,               // × the field's shorter side: the shortest stroke that counts as a wall…
-        wallStraight: 0.07,         // …and how far (× its length) any point may stray from the straight line
-        // Anchors: up to `anchors` placed by tapping; each joins the last with a Firewall of your own (and three or more
-        // close into a pen): good packets bounce off it, corrupt ones pass; an Antivirus that hits it is stunned and
-        // that firewall goes down after `fwHits` hits.
-        anchors: 0,
+        // Your Firewalls: up to `firewalls` walls, each drawn as a straight line up to `wallLength` units long (× √ of
+        // the field's growth). Corrupt packets bounce off them, good ones pass; an Antivirus or the boss that hits one is
+        // stunned and the wall takes a hit (down after `fwHits`); a core's circle can't take a packet through one.
+        firewalls: 0,
+        wallLength: 4,
+        wallMinLength: 0.8,
         fwHits: 1,
-        layout: [],                 // anchors carried over from the last run, as shares of the field [[u, v], …]
+        // Things you place with a tap: decoys (corrupt packets and idle Antivirus go to them; an Antivirus that reaches
+        // one breaks it), turrets (each takes the richest good packet in reach every `turretEvery` s; Purifier rounds
+        // also wipe a corrupt one) and scanner towers (a beam turning round each tags what it passes).
+        decoys: 0,
+        decoyLure: 4,
+        turrets: 0,
+        turretRange: 1.7,
+        turretEvery: 2.6,
+        turretPurge: 0,
+        towers: 0,
+        towerRange: 2.6,
+        towerSpeed: 1.8,
+        // Powers, charges a run: freeze stops the field (packets, hazards, Focus) for `freezeSeconds` while you draw;
+        // purge wipes every corrupt packet off the field (they swim back in later).
+        freeze: 0,
+        freezeSeconds: 3,
+        purge: 0,
+        // Everything you placed, carried over from the last run as shares of the field.
+        layout: { walls: [], decoys: [], turrets: [], towers: [] },
         flow: true,                 // a current: packets enter upstream and leave the field downstream (false: they bounce)
         flowSpread: 0.5,            // how far (radians) a school's heading strays from the current
         contain: 0,                 // Containment Field: the edges turn good packets back (corrupt ones still leave)
@@ -112,7 +129,8 @@
         bossLoop: 0.12,
         bossSpeed: 1,               // × an Antivirus's roaming speed
         bossCharge: 5,              // seconds between its charges at the pen
-        bossStun: 1.5               // seconds it reels after each hit
+        bossStun: 1.5,              // seconds it reels after each hit
+        bossMinions: 0              // Antivirus it boots each time it's hit (later sectors)
     };
     const GOLD_VALUE = 5;
     const TAG_VALUE = 2;
@@ -218,20 +236,27 @@
             laserAt: o.laser ? o.laser * 0.6 : Infinity,
             events: [],
             cores: [],              // the Rogue AI's Infection Cores: { id, x, y, r, age, stole }
-            walls: [],              // shield walls, across the field: { a, b, until }
-            anchors: [],            // { id, x, y }: each joins the last with a Firewall, three or more close a pen
-            fwHits: {},             // hits each of your Firewalls has taken, by its key (`${a.id}-${b.id}`)
+            walls: [],              // your Firewalls: { id, a, b, hits }
+            decoys: [],             // { id, x, y }
+            turrets: [],            // { id, x, y, at }: next shot at `at`
+            towers: [],             // { id, x, y, ang }
+            charges: { freeze: o.freeze, purge: o.purge },
+            frozenUntil: 0,
             rogueAt: o.rogue ? o.rogueFirst : Infinity,
             boss: null,             // the boss Antivirus once it boots: { x, y, vx, vy, r, hp, maxHp, stunned, hunting }
             bossDone: false,
             stats: { catches: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
-                stolen: 0, cores: 0, quarantined: 0, walls: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0 },
+                stolen: 0, cores: 0, quarantined: 0, walls: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0 },
             acc: 0,
             nextId: 1
         };
         for (let i = 0; i < o.scanner; i++) s.beams.push(i * Math.PI * 2 / o.scanner);
-        // Anchors carried over from the last run (the firewalls you built stay built).
-        for (const [u, v] of (o.layout || []).slice(0, o.anchors)) s.anchors.push({ id: s.nextId++, x: u * w, y: v * h });
+        // What you placed last run stays placed (as far as this run's slots go).
+        const L0 = o.layout || {};
+        for (const [u1, v1, u2, v2] of (L0.walls || []).slice(0, o.firewalls)) s.walls.push({ id: s.nextId++, a: { x: u1 * w, y: v1 * h }, b: { x: u2 * w, y: v2 * h }, hits: 0 });
+        for (const [u, v] of (L0.decoys || []).slice(0, o.decoys)) s.decoys.push({ id: s.nextId++, x: u * w, y: v * h });
+        for (const [u, v] of (L0.turrets || []).slice(0, o.turrets)) s.turrets.push({ id: s.nextId++, x: u * w, y: v * h, at: o.turretEvery * 0.5 });
+        for (const [u, v] of (L0.towers || []).slice(0, o.towers)) s.towers.push({ id: s.nextId++, x: u * w, y: v * h, ang: 0 });
 
         // The current: one direction for the whole run.
         const flowAng = rand() * Math.PI * 2;
@@ -358,9 +383,9 @@
                     s.events.push({ type: 'bossCharge', x: b.x, y: b.y });
                 }
                 let best = null, bd = Infinity;
-                for (const p of s.packets) {
+                for (const p of [...s.decoys, ...s.packets]) {
                     if (p.kind === 'corrupt') continue;
-                    const d = (p.x - b.x) ** 2 + (p.y - b.y) ** 2;
+                    const d = (p.x - b.x) ** 2 + (p.y - b.y) ** 2 * (p.kind ? 1 : 0.5);
                     if (d < bd) { bd = d; best = p; }
                 }
                 const target = best || { x: w / 2, y: h / 2 };
@@ -386,18 +411,7 @@
                 }
             }
             // Your Firewalls stun it too, once per approach, like the others (it shrugs the stun off sooner).
-            const fws = firewallsUp();
-            if (b.immune) b.immune = b.immune.filter(key => { const f = fws.find(f => f.key === key); return f && segDist(b, f.a, f.b) <= b.r * 2; });
-            const f = fws.find(f => !b.immune?.includes(f.key) && segDist(b, f.a, f.b) < b.r);
-            if (f) {
-                b.immune = fws.filter(g => segDist(b, g.a, g.b) <= b.r * 2).map(g => g.key);
-                b.stunned = s.time + o.avStun * 0.6;
-                s.fwHits[f.key] = (s.fwHits[f.key] || 0) + 1;
-                s.stats.stuns++;
-                const down = s.fwHits[f.key] >= o.fwHits;
-                if (down) s.stats.fwLost++;
-                s.events.push({ type: 'stun', x: b.x, y: b.y, down, boss: true, a: { x: f.a.x, y: f.a.y }, b: { x: f.b.x, y: f.b.y } });
-            }
+            stunOnWalls(b, o.avStun * 0.6, true);
         }
         // A tight loop round the boss takes a hit off it.
         function bossLooped(poly, area) {
@@ -405,6 +419,7 @@
             if (!b || area > o.bossLoop * fieldArea || !pointInPolygon(b, poly)) return false;
             b.hp--;
             s.stats.bossHits++;
+            for (let i = 0; i < o.bossMinions && b.hp > 0; i++) bootAntivirus();
             b.stunned = s.time + o.bossStun;
             const ang = rand() * Math.PI * 2;
             b.vx = Math.cos(ang) * 3;
@@ -444,14 +459,17 @@
             // Corrupt packets swim toward the nearest school: they hide in the crowd, so a big loop round a school is a gamble.
             if (o.corruptLure > 0 && !(o.cleanStart && s.time < 5)) {
                 const kc = Math.min(1, o.corruptLure * dt);
-                // A closed pen hides what's in it: corrupt packets aren't drawn to a school behind your Firewalls.
-                const pen = penPoly();
-                const hidden = pen && firewallsUp().length === s.anchors.length ? q => pointInPolygon(q, pen) : () => false;
                 for (const p of s.packets) {
                     if (p.kind !== 'corrupt') continue;
+                    // A decoy in reach outbids the schools.
                     let best = null, bd = 9;
-                    for (const q of s.packets) {
-                        if (q.kind === 'corrupt' || hidden(q)) continue;
+                    for (const dc of s.decoys) {
+                        const d2 = (dc.x - p.x) ** 2 + (dc.y - p.y) ** 2;
+                        if (d2 < o.decoyLure ** 2 && (!best || d2 < bd)) { bd = d2; best = dc; }
+                    }
+                    if (best) { bd = -1; }
+                    for (const q of best ? [] : s.packets) {
+                        if (q.kind === 'corrupt') continue;
                         const d2 = (q.x - p.x) ** 2 + (q.y - p.y) ** 2;
                         if (d2 < bd && d2 > 0.25) { bd = d2; best = q; }
                     }
@@ -508,7 +526,7 @@
             s.stats.snaps++;
         }
 
-        const valueOf = p => (p.kind === 'gold' ? GOLD_VALUE : 1) * (p.tag > s.time ? TAG_VALUE : 1);
+        const valueOf = p => (p.kind === 'gold' ? GOLD_VALUE : 1) * (p.tag > s.time ? o.tagValue : 1);
 
         // Taken packets leave the field; a school refills from an edge once enough are gone, corrupt ones one by one.
         function remove(list) {
@@ -573,9 +591,8 @@
 
         // ---- The Rogue AI -----------------------------------------------------------------------------
         const shortSide = Math.min(w, h);
-        // A wall shields a packet from a core when it stands between them.
-        // So do your Firewalls: a core's circle can't take a packet through one.
-        const shielded = (core, p) => s.walls.some(wl => segIntersect(core, p, wl.a, wl.b)) || firewallsUp().some(f => segIntersect(core, p, f.a, f.b));
+        // A Firewall of yours between a core and a packet shields it: the circle can't take it through.
+        const shielded = (core, p) => wallsNow.some(f => segIntersect(core, p, f.a, f.b));
         function spawnCore() {
             // Where the data is: next to a random good packet (the schools draw it), kept off the edges.
             const goods = s.packets.filter(p => p.kind !== 'corrupt');
@@ -607,77 +624,85 @@
             }
             for (const c of s.cores.filter(c => c.age >= o.rogueLife)) s.events.push({ type: 'coreGone', x: c.x, y: c.y, r: c.r });
             s.cores = s.cores.filter(c => c.age < o.rogueLife);
-            s.walls = s.walls.filter(wl => wl.until > s.time);
         }
 
-        // A straight line through the field, edge to edge, along the stroke from a to b.
-        function acrossField(a, b) {
-            const dx = b.x - a.x, dy = b.y - a.y;
-            const ts = [];
-            if (Math.abs(dx) > 1e-9) for (const X of [0, w]) ts.push((X - a.x) / dx);
-            if (Math.abs(dy) > 1e-9) for (const Y of [0, h]) ts.push((Y - a.y) / dy);
-            const pts = ts.map(t => ({ x: a.x + dx * t, y: a.y + dy * t })).filter(p => p.x >= -1e-6 && p.x <= w + 1e-6 && p.y >= -1e-6 && p.y <= h + 1e-6);
-            pts.sort((p, q) => (p.x - q.x) * dx + (p.y - q.y) * dy);
-            return pts.length >= 2 ? { a: pts[0], b: pts[pts.length - 1] } : null;
-        }
-        // The stroke just lifted, if it's a wall: long enough and straight.
-        function wallFrom(pts) {
-            if (!o.rogue || pts.length < 3) return null;
-            const a = pts[0], b = pts[pts.length - 1];
-            const L = Math.hypot(b.x - a.x, b.y - a.y);
-            if (L < o.wallMin * shortSide) return null;
-            if (pts.some(p => segDist(p, a, b) > o.wallStraight * L)) return null;
-            return acrossField(a, b);
-        }
-
-        // ---- Anchors and your Firewalls ------------------------------------------------------------------
-        // Each anchor joins the one before it; three or more close the loop into a pen. A firewall that has taken its
-        // hits is down (until its anchors are moved).
-        const fwKey = (a, b) => `${a.id}-${b.id}`;
-        function firewallsUp() {
-            const A = s.anchors, out = [];
-            if (A.length < 2) return out;
-            const n = A.length >= 3 ? A.length : 1;
-            for (let i = 0; i < n; i++) {
-                const a = A[i], b = A[(i + 1) % A.length];
-                if ((s.fwHits[fwKey(a, b)] || 0) < o.fwHits) out.push({ a, b, key: fwKey(a, b) });
-            }
-            return out;
-        }
-        const penPoly = () => (s.anchors.length >= 3 ? s.anchors : null);
-        // What the wire costs: its length, less the stretches drawn along your Firewalls (they're wire you already built),
-        // so a loop round your pen only pays for the side you draw.
+        // ---- Your Firewalls, decoys, turrets, towers and powers -----------------------------------------
+        // The walls standing this step (worked out once a step: the hot paths below use it).
+        let wallsNow = [];
+        const wallsUp = () => s.walls.filter(f => f.hits < o.fwHits);
+        // What the wire costs: its length, less the stretches drawn along your Firewalls (wire you already built).
         const ALONG = 0.35;
         function segCost(a, b) {
             const L = Math.hypot(b.x - a.x, b.y - a.y);
-            if (s.anchors.length < 2) return L;
-            const fws = firewallsUp();
-            return fws.some(f => segDist(a, f.a, f.b) < ALONG && segDist(b, f.a, f.b) < ALONG) ? 0 : L;
+            return wallsNow.some(f => segDist(a, f.a, f.b) < ALONG && segDist(b, f.a, f.b) < ALONG) ? 0 : L;
         }
         function wireCost(pts) {
             let L = 0;
             for (let i = 1; i < pts.length; i++) L += segCost(pts[i - 1], pts[i]);
             return L;
         }
-        // Tap an empty spot to place an anchor (while any are left); tap an anchor to take it back. `reach`: how near a
-        // tap must be to an anchor to take it (the UI passes a fixed size on screen, so a sprawled field doesn't grow it).
-        function tapAt(x, y, reach = 0.5) {
-            if (!o.anchors || s.over) return false;
-            const hit = s.anchors.find(a => Math.hypot(a.x - x, a.y - y) <= reach);
-            if (hit) {
-                s.anchors = s.anchors.filter(a => a !== hit);
-                s.events.push({ type: 'anchor', x: hit.x, y: hit.y, removed: true });
-                return true;
-            }
-            if (s.anchors.length >= o.anchors) return false;
+        // Draw a wall from a to b (trimmed to the longest a wall may be). Returns the wall, or null (too short, no slot).
+        function placeWall(a, b) {
+            if (s.over || s.walls.length >= o.firewalls) return null;
+            a = inField(a.x, a.y);
+            b = inField(b.x, b.y);
+            let L = Math.hypot(b.x - a.x, b.y - a.y);
+            if (L < o.wallMinLength) return null;
+            const max = o.wallLength * grow;
+            if (L > max) { b = { x: a.x + (b.x - a.x) * max / L, y: a.y + (b.y - a.y) * max / L }; L = max; }
+            const wl = { id: s.nextId++, a, b, hits: 0 };
+            s.walls.push(wl);
+            wallsNow = wallsUp();
+            s.events.push({ type: 'place', kind: 'wall', x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+            return wl;
+        }
+        const LISTS = { decoy: 'decoys', turret: 'turrets', tower: 'towers' };
+        // Place a decoy, turret or tower at (x, y) while a slot is free.
+        function placeAt(kind, x, y) {
+            const list = LISTS[kind];
+            if (!list || s.over || s[list].length >= o[list]) return null;
             const p = inField(x, y);
-            s.anchors.push({ id: s.nextId++, x: p.x, y: p.y });
-            s.events.push({ type: 'anchor', x: p.x, y: p.y });
+            const it = { id: s.nextId++, x: p.x, y: p.y };
+            if (kind === 'turret') it.at = s.time + o.turretEvery * 0.5;
+            if (kind === 'tower') it.ang = 0;
+            s[list].push(it);
+            s.events.push({ type: 'place', kind, x: p.x, y: p.y });
+            return it;
+        }
+        // Take back the nearest of a kind within `reach` of (x, y) (the UI passes a fixed size on screen).
+        function removeAt(kind, x, y, reach = 0.5) {
+            if (s.over) return false;
+            const at = { x, y };
+            const list = kind === 'wall' ? 'walls' : LISTS[kind];
+            if (!list) return false;
+            const d = it => (kind === 'wall' ? segDist(at, it.a, it.b) : Math.hypot(it.x - x, it.y - y));
+            const hit = s[list].filter(it => d(it) <= reach).sort((a, b) => d(a) - d(b))[0];
+            if (!hit) return false;
+            s[list] = s[list].filter(it => it !== hit);
+            if (kind === 'wall') wallsNow = wallsUp();
+            s.events.push({ type: 'remove', kind, x, y });
             return true;
         }
-        // A good packet that would cross one of your firewalls this step bounces off it instead.
-        function bounceOffFirewalls(p, px, py, fws) {
-            for (const f of fws) {
+        // Use a power (a charge a run).
+        function usePower(kind) {
+            if (s.over || !(s.charges[kind] > 0)) return false;
+            s.charges[kind]--;
+            if (kind === 'freeze') {
+                s.frozenUntil = s.time + o.freezeSeconds;
+                s.stats.freezes++;
+            } else if (kind === 'purge') {
+                const bad = s.packets.filter(p => p.kind === 'corrupt');
+                s.stats.purged += bad.length;
+                s.events.push({ type: 'purge', packets: bad.map(p => ({ x: p.x, y: p.y })) });
+                remove(bad);
+            } else return false;
+            s.events.push({ type: 'power', kind });
+            return true;
+        }
+        const frozen = () => s.time < s.frozenUntil;
+        // A corrupt packet that would cross one of your Firewalls this step bounces off it (good ones pass).
+        function bounceOffWalls(p, px, py) {
+            for (const f of wallsNow) {
                 if (!segIntersect({ x: px, y: py }, p, f.a, f.b)) continue;
                 const dx = f.b.x - f.a.x, dy = f.b.y - f.a.y, L = Math.hypot(dx, dy) || 1;
                 const nx = -dy / L, ny = dx / L;
@@ -690,31 +715,66 @@
                 return;
             }
         }
-        // An Antivirus that runs into one of your firewalls is stunned, and the firewall takes a hit (down at `fwHits`).
-        function antivirusVsFirewalls() {
-            const fws = firewallsUp();
-            if (!fws.length) return;
-            for (const v of s.antivirus) {
-                if (v.stunned > s.time) continue;
-                // A firewall stuns an Antivirus once per approach: it has to get clear of that line before it can hit it again
-                // (stunned, it drifts to a stop on the line, and used to be stunned again the moment it woke).
-                const clear = v.r * 2.5;
-                if (v.immune) v.immune = v.immune.filter(k => { const f = fws.find(f => f.key === k); return f && segDist(v, f.a, f.b) <= clear; });
-                const f = fws.find(f => !v.immune?.includes(f.key) && segDist(v, f.a, f.b) < v.r);
-                if (!f) continue;
-                // Immune to every line it's touching (at a corner, two), and knocked back off the one it hit.
-                v.immune = fws.filter(g => segDist(v, g.a, g.b) <= clear).map(g => g.key);
-                v.stunned = s.time + o.avStun;
-                const dx = f.b.x - f.a.x, dy = f.b.y - f.a.y, L = Math.hypot(dx, dy) || 1;
-                let nx = -dy / L, ny = dx / L;
-                if ((v.x - f.a.x) * nx + (v.y - f.a.y) * ny < 0) { nx = -nx; ny = -ny; }
-                v.vx = nx * 4;   // drifts about 1.3 units off the line as it stops: clear of it
-                v.vy = ny * 4;
-                s.fwHits[f.key] = (s.fwHits[f.key] || 0) + 1;
-                s.stats.stuns++;
-                const down = s.fwHits[f.key] >= o.fwHits;
-                if (down) s.stats.fwLost++;
-                s.events.push({ type: 'stun', x: v.x, y: v.y, down, a: { x: f.a.x, y: f.a.y }, b: { x: f.b.x, y: f.b.y } });
+        // An Antivirus (or the boss) that runs into one of your Firewalls is stunned, once per approach: knocked clear and
+        // immune to the lines it's touching until it's away from them; the wall takes a hit (down at `fwHits`).
+        function stunOnWalls(v, seconds, isBoss = false) {
+            if (!wallsNow.length || v.stunned > s.time) return;
+            const clear = v.r * 2.5;
+            if (v.immune) v.immune = v.immune.filter(id => { const f = wallsNow.find(f => f.id === id); return f && segDist(v, f.a, f.b) <= clear; });
+            const f = wallsNow.find(f => !v.immune?.includes(f.id) && segDist(v, f.a, f.b) < v.r);
+            if (!f) return;
+            v.immune = wallsNow.filter(g => segDist(v, g.a, g.b) <= clear).map(g => g.id);
+            v.stunned = s.time + seconds;
+            const dx = f.b.x - f.a.x, dy = f.b.y - f.a.y, L = Math.hypot(dx, dy) || 1;
+            let nx = -dy / L, ny = dx / L;
+            if ((v.x - f.a.x) * nx + (v.y - f.a.y) * ny < 0) { nx = -nx; ny = -ny; }
+            v.vx = nx * 4;   // drifts about 1.3 units off the line as it stops: clear of it
+            v.vy = ny * 4;
+            if (v.charge) v.charge = null;
+            f.hits++;
+            s.stats.stuns++;
+            const down = f.hits >= o.fwHits;
+            if (down) { s.stats.fwLost++; wallsNow = wallsUp(); }
+            s.events.push({ type: 'stun', x: v.x, y: v.y, down, boss: isBoss, a: { x: f.a.x, y: f.a.y }, b: { x: f.b.x, y: f.b.y } });
+        }
+        // Turrets take the richest good packet in reach on their beat; Purifier rounds wipe a corrupt one too.
+        function turretStep() {
+            for (const t of s.turrets) {
+                if (s.time < t.at) continue;
+                t.at = s.time + o.turretEvery;
+                const near = s.packets.filter(p => Math.hypot(p.x - t.x, p.y - t.y) <= o.turretRange);
+                const good = near.filter(p => p.kind !== 'corrupt').sort((a, b) => valueOf(b) - valueOf(a) || a.id - b.id)[0];
+                if (good) {
+                    const units = valueOf(good);
+                    s.stats.turreted++;
+                    s.stats.caught++;
+                    s.stats.units += units;
+                    if (good.kind === 'gold') s.stats.gold++;
+                    s.events.push({ type: 'laser', x: good.x, y: good.y, from: { x: t.x, y: t.y }, units, kind: good.kind, turret: true });
+                    remove([good]);
+                }
+                const bad = o.turretPurge ? near.find(p => p.kind === 'corrupt') : null;
+                if (bad) {
+                    s.stats.purged++;
+                    s.events.push({ type: 'zap', x: bad.x, y: bad.y, from: { x: t.x, y: t.y } });
+                    remove([bad]);
+                }
+            }
+        }
+        // Scanner towers: a short beam turning round each, tagging the good packets it passes.
+        function towerStep(dt) {
+            for (const t of s.towers) {
+                const a0 = t.ang, a1 = a0 + o.towerSpeed * dt;
+                t.ang = a1 % (Math.PI * 2);
+                for (const p of s.packets) {
+                    if (p.kind === 'corrupt' || Math.hypot(p.x - t.x, p.y - t.y) > o.towerRange) continue;
+                    let d = (Math.atan2(p.y - t.y, p.x - t.x) - a0) % (Math.PI * 2);
+                    if (d < 0) d += Math.PI * 2;
+                    if (d <= a1 - a0 + 1e-9) {
+                        if (!(p.tag > s.time)) s.stats.tagged++;
+                        p.tag = s.time + o.tagSeconds;
+                    }
+                }
             }
         }
 
@@ -735,18 +795,22 @@
                 const before = sw.pos;
                 sw.pos += sw.dir * span / o.sweepTime * dt;
                 // Any open wire it passes over snaps.
+                // Any open wire it passes over snaps: a segment straddling the band counts, not only its points.
                 if (s.wire.length > 1) {
                     const lo = Math.min(before, sw.pos), hi = Math.max(before, sw.pos);
-                    const hitAt = s.wire.find(p => { const c = sw.axis === 'x' ? p.x : p.y; return c >= lo && c <= hi; });
-                    if (hitAt) snap({ x: hitAt.x, y: hitAt.y });
+                    const c = q => (sw.axis === 'x' ? q.x : q.y);
+                    for (let i = 0; i < s.wire.length; i++) {
+                        const a = s.wire[i], b = s.wire[i + 1] || a;
+                        if (Math.max(c(a), c(b)) >= lo && Math.min(c(a), c(b)) <= hi) { snap({ x: a.x, y: a.y }); break; }
+                    }
                 }
             }
             s.sweeps = s.sweeps.filter(sw => sw.pos >= -0.01 && sw.pos <= (sw.axis === 'x' ? w : h) + 0.01);
         }
 
         // ---- Herders --------------------------------------------------------------------------------------
-        // Where the herders drive the data: into your pen if there is one, else the middle.
-        const gatherPoint = () => (penPoly() ? centroid(s.anchors) : { x: w / 2, y: h / 2 });
+        // Where the herders drive the data: the middle of the field.
+        const gatherPoint = () => ({ x: w / 2, y: h / 2 });
         function herdStep(dt) {
             if (!s.herders.length) return;
             const g = gatherPoint();
@@ -784,14 +848,16 @@
         function stepOnce(dt) {
             s.time += dt;
             if (s.cooldown > 0) s.cooldown = Math.max(0, s.cooldown - dt);
+            wallsNow = wallsUp();
+            // Frozen: nothing on the field moves and Focus holds; only your pen works.
+            if (frozen()) return;
             flock(dt);
             const out = [];
-            const fws = firewallsUp();
             for (const p of s.packets) {
                 const px = p.x, py = p.y;
                 p.x += p.vx * dt;
                 p.y += p.vy * dt;
-                if (fws.length && p.kind !== 'corrupt') bounceOffFirewalls(p, px, py, fws);
+                if (wallsNow.length && p.kind === 'corrupt') bounceOffWalls(p, px, py);
                 p.age += dt;
                 // The pipeline flows on: off the field and gone, unless the Containment Field turns good ones back.
                 if (!o.flow || (o.contain && p.kind !== 'corrupt')) bounce(p);
@@ -803,6 +869,8 @@
             }
             herdStep(dt);
             scannerStep(dt);
+            towerStep(dt);
+            turretStep();
             laserStep(dt);
             rogueStep(dt);
             bossStep(dt);
@@ -819,12 +887,12 @@
                     f.hunting = false;
                     continue;
                 }
-                // The open wire first; failing that, your firewalls' nearest anchor (slower: it stalks them).
+                // The open wire first; failing that, your nearest decoy (it goes for decoys, not your Firewalls).
                 const wireTarget = s.wire.length > 1 ? nearestWire(f.x, f.y) : null;
-                const fwTarget = !wireTarget && firewallsUp().length ? s.anchors.reduce((b, a) => (!b || (a.x - f.x) ** 2 + (a.y - f.y) ** 2 < (b.x - f.x) ** 2 + (b.y - f.y) ** 2 ? a : b), null) : null;
-                const target = wireTarget || fwTarget;
+                const decoy = !wireTarget && s.decoys.length ? s.decoys.reduce((b, a) => (!b || (a.x - f.x) ** 2 + (a.y - f.y) ** 2 < (b.x - f.x) ** 2 + (b.y - f.y) ** 2 ? a : b), null) : null;
+                const target = wireTarget || decoy;
                 f.hunting = !!wireTarget;
-                const speed = (wireTarget ? o.avHunt : fwTarget ? o.avHunt * 0.6 : o.avPatrol) * o.avSpeed;
+                const speed = (wireTarget ? o.avHunt : decoy ? o.avPatrol * 1.4 : o.avPatrol) * o.avSpeed;
                 if (target) {
                     const ang = Math.atan2(target.y - f.y, target.x - f.x);
                     const k = Math.min(1, o.avTurn * dt);
@@ -843,8 +911,15 @@
                         if (segDist(f, s.wire[i - 1], s.wire[i]) < f.r) { snap(f); break; }
                     }
                 }
+                // It breaks a decoy it reaches.
+                const hit = s.decoys.find(dc => Math.hypot(dc.x - f.x, dc.y - f.y) < f.r + 0.25);
+                if (hit) {
+                    s.decoys = s.decoys.filter(dc => dc !== hit);
+                    s.stats.decoysLost++;
+                    s.events.push({ type: 'decoyGone', x: hit.x, y: hit.y });
+                }
+                stunOnWalls(f, o.avStun);
             }
-            antivirusVsFirewalls();
             // Refills: schools of the missing good packets swim in from an edge, corrupt ones one at a time.
             if (s.time >= refillAt) {
                 refillAt = Infinity;
@@ -869,7 +944,18 @@
             s.wire = [];
             s.drawing = false;
             s.locks = [];
-            s.events.push({ type: 'end', stats: { ...s.stats }, layout: s.anchors.map(a => [a.x / w, a.y / h]) });
+            s.events.push({ type: 'end', stats: { ...s.stats }, layout: layoutOf() });
+        }
+
+        // Everything you placed, as shares of the field (the next run puts it back).
+        const r3 = v => Math.round(v * 1000) / 1000;
+        function layoutOf() {
+            return {
+                walls: s.walls.filter(f => f.hits < o.fwHits).map(f => [r3(f.a.x / w), r3(f.a.y / h), r3(f.b.x / w), r3(f.b.y / h)]),
+                decoys: s.decoys.map(d => [r3(d.x / w), r3(d.y / h)]),
+                turrets: s.turrets.map(t => [r3(t.x / w), r3(t.y / h)]),
+                towers: s.towers.map(t => [r3(t.x / w), r3(t.y / h)])
+            };
         }
 
         // What a loop would catch: the packets inside, how many are corrupt beyond what the scrubbers forgive, its
@@ -949,6 +1035,8 @@
             s.stats.units += units;
             s.stats.bestCatch = Math.max(s.stats.bestCatch, units);
             s.stats.bestMult = Math.max(s.stats.bestMult, j.mult);
+            // Second Wind: a big loop gives Focus back.
+            if (o.focusBack && j.mult >= 2) s.focus = Math.min(s.maxFocus, s.focus + o.focusBack);
             s.events.push({ type: 'catch', x: at.x, y: at.y, poly, area: j.area, count, gold, mult: j.mult, units, packets: j.inside,
                 chained: chained.map(c => ({ x: c.packet.x, y: c.packet.y, from: c.from, kind: c.packet.kind })), scrubbed: j.corrupt.length });
         }
@@ -1012,18 +1100,6 @@
         // The pen lifts: near the start the loop closes, else an open wire is let go.
         function liftPen() {
             const start = s.wire[0], head = s.wire[s.wire.length - 1];
-            // The Wall: a long straight stroke stands as a shield across the field.
-            const wl = wallFrom(s.wire);
-            if (wl) {
-                s.walls.push({ ...wl, until: s.time + o.wallSeconds });
-                if (s.walls.length > o.maxWalls) s.walls.shift();
-                s.stats.walls++;
-                s.events.push({ type: 'wall', a: wl.a, b: wl.b });
-                s.wire = [];
-                s.drawing = false;
-                s.leftStart = false;
-                return;
-            }
             if (start && s.leftStart && Math.hypot(head.x - start.x, head.y - start.y) <= closeR * 1.6) {
                 const poly = openLoop();
                 if (poly) {
@@ -1067,7 +1143,7 @@
             return e;
         }
 
-        return Object.assign(s, { step, addPoint, liftPen, stop, takeEvents, preview, valueOf, tapAt, firewallsUp, penPoly });
+        return Object.assign(s, { step, addPoint, liftPen, stop, takeEvents, preview, valueOf, placeWall, placeAt, removeAt, usePower, wallsUp, frozen, layoutOf });
     }
 
     return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, AV_R, BOSS_R, BOSS_WARN, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };

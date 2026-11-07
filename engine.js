@@ -14,7 +14,7 @@
     // against the features it had (playtests/README.md lists the builds). Bump it with every publish: the date and
     // time (UTC) and a few words on what changed.
     const BUILD = '2026-11-07 (branch) · Packet Snare 6: Signal, sectors and boss Antivirus, the tree on the Training tree\'s parts, first-meeting demos (review round 1)';
-    const SAVE_VERSION = 20;   // 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
+    const SAVE_VERSION = 21;   // 21: Packet Snare's placements (snare.layout: walls, decoys, turrets, towers; the anchors went), its tree regrown; 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
     // Auto-Trainer, XP nodes) carry most of a new version's speed, so this stays small: at 0.2 a second run
@@ -514,49 +514,63 @@
 
     // Packet Snare's skill tree (tab 'snare'; `snare: {x, y}` its cell around the Lasso at the centre, `requires` the node it
     // grows from; bought with Signal, the bay's own currency (the lab makes data aplenty, so data was no prize); reset by a
-    // new version like the lab). Each node's
-    // `sn` is what a level adds to the run's options (`snareOpts`); `stages` (by level) set options outright where a level
-    // changes more than a number (Sprawl's hazards, the laser's interval). Priced like the Training tree: a node's first
-    // level costs more than its parent's last, 1–3 levels a node (tested). It starts small and quick and grows into a
-    // sprawl: more Focus and field, then the abilities, each a new rule and so a hexagon (`mechanic`).
+    // new version like the lab). Each node's `sn` is what a level adds to the run's options (`snareOpts`); `stages` (by
+    // level) set options outright where a level changes more than a number (the laser's interval). Priced like the Training
+    // tree: a node's first level costs more than its parent's last, 1–3 levels a node, Overclock the endless sink (tested).
+    // Four branches reach four cells out (the owner's call: not so quick to finish, ever more to place and use): up,
+    // Focus and the loop; right, the field and its data (Sprawl to a datacentre-sized field, herders, gold); down,
+    // automation (lasers, turrets, the scanner and its towers); left, defense (your drawn Firewalls, decoys, fewer and
+    // weaker corrupt packets, slower Antivirus). Every new rule is a hexagon (`mechanic`) with a demo in its popup.
     const SNARE_TREE = [
-        { id: 'snareFocus', name: 'Attention Span', snare: { x: 0, y: -1 }, cost: { signal: 25 }, scale: 3, max: 3,
-            sn: { focus: 0.25 }, effect: '+25% Focus per level', flavor: 'It can sit still for a whole minute now.' },
-        { id: 'snareBandwidth', name: 'Bandwidth', snare: { x: 0, y: -2 }, requires: 'snareFocus', cost: { signal: 250 }, scale: 2.5, max: 2,
-            sn: { maxMult: 2 }, effect: 'Big loops reach a higher multiplier (+2 per level)', flavor: 'Wider pipes. Bigger nets.' },
-        { id: 'snareSprawl', name: 'Sprawl', snare: { x: 1, y: 0 }, cost: { signal: 15 }, scale: 2.5, max: 3,
-            sn: { sprawl: 1 }, stages: { 2: { antivirus: [5, 18], sweepEvery: 6, rogueEvery: 7 }, 3: { antivirus: [5, 14, 26], rogueCores: 2 } },
-            effect: 'A bigger field with more packets, and more Antivirus', flavor: 'The pipeline found more pipeline.' },
-        { id: 'snareSchools', name: 'Schooling', snare: { x: 1, y: -1 }, requires: 'snareSprawl', cost: { signal: 100 }, scale: 2, max: 1,
-            sn: { schooling: 0.5, schoolSize: 4 }, effect: 'Packets swim in bigger, tighter schools', flavor: 'Data of a feather.' },
-        { id: 'snareObfuscation', name: 'Obfuscation', snare: { x: 1, y: 1 }, requires: 'snareSprawl', cost: { signal: 110 }, scale: 2.5, max: 2,
-            sn: { avSpeed: -0.2 }, effect: 'Antivirus moves 20% slower per level', flavor: 'Nothing to see here. Just packets.' },
-        { id: 'snareGold', name: 'Gold Rush', snare: { x: 2, y: 0 }, requires: 'snareSprawl', cost: { signal: 125 }, scale: 2.5, max: 2,
-            sn: { goldChance: 0.05 }, effect: '+5% of new packets are gold (worth 5)', flavor: 'Premium data. Hand-labelled, allegedly.' },
-        // The pipeline flows past you: hold the good data in, then herd it.
-        { id: 'snareContain', name: 'Containment Field', mechanic: 'contain', snare: { x: 2, y: -1 }, requires: 'snareSchools', cost: { signal: 150 }, scale: 2, max: 1,
-            sn: { contain: 1 }, effect: 'The edges turn good packets back; corrupt ones still leave', flavor: 'Data goes in. Data stays in.' },
-        { id: 'snareHerders', name: 'Herders', mechanic: 'herders', snare: { x: 2, y: -2 }, requires: 'snareContain', cost: { signal: 225 }, scale: 2.5, max: 3,
-            sn: { herders: 1 }, effect: 'A drone per level herds strays to your pen and shoos corrupt ones', flavor: 'Good data. Sit. Stay.' },
-        { id: 'snareChain', name: 'Chain Lightning', mechanic: 'chain', snare: { x: -1, y: 0 }, cost: { signal: 30 }, scale: 3, max: 2,
-            sn: { chain: 2 }, effect: 'Each catch arcs to 2 more packets nearby per level', flavor: 'One packet tells its friends.' },
-        { id: 'snareScrubbers', name: 'Scrubbers', mechanic: 'scrubbers', snare: { x: -1, y: -1 }, requires: 'snareChain', cost: { signal: 100 }, scale: 2.5, max: 2,
-            sn: { scrubbers: 1 }, effect: 'A loop forgives 1 corrupt packet per level', flavor: 'Mostly clean. Clean enough.' },
-        { id: 'snareScanner', name: 'Scanner', mechanic: 'scanner', snare: { x: -2, y: 0 }, requires: 'snareChain', cost: { signal: 130 }, scale: 3, max: 2,
-            sn: {}, stages: { 1: { scanner: 1 }, 2: { scanner: 1, scannerSpeed: 1.6, tagSeconds: 2.2 } },
-            effect: 'A narrow beam tags packets ×2 for a moment: catch what it just lit', flavor: 'Ping. Ping. Ping. Oh, that one\'s nice.' },
-        { id: 'snareLaser', name: 'Targeted Laser', mechanic: 'laser', snare: { x: 0, y: 1 }, cost: { signal: 50 }, scale: 2, max: 3,
-            sn: {}, stages: { 1: { laser: 4 }, 2: { laser: 2.5 }, 3: { laser: 1.6 } },
-            effect: 'A laser takes the richest packet by itself, every 4 / 2.5 / 1.6 s', flavor: 'Point. Click. It does the clicking now.' },
-        { id: 'snareEmitters', name: 'Twin Emitters', snare: { x: 0, y: 2 }, requires: 'snareLaser', cost: { signal: 250 }, scale: 3, max: 2,
-            sn: { emitters: 1 }, effect: 'Each laser shot takes one more packet per level', flavor: 'Two beams. Twice the pew.' },
-        // The phase shift: from drawing to building. Tap to place anchors; each joins the last with a Firewall of your own
-        // (three or more close a pen): good packets bounce off them, corrupt ones pass, an Antivirus that runs into one is
-        // stunned and the firewall goes down. The layout is kept between runs.
-        { id: 'snareAnchors', name: 'Anchors', mechanic: 'anchors', snare: { x: -1, y: 1 }, requires: 'snareLaser', cost: { signal: 225 }, scale: 1.8, max: 3,
-            sn: { anchors: 1 }, effect: 'Tap to place 3 / 4 / 5 anchors, joined by Firewalls of your own', flavor: 'Stop chasing the data. Fence it in.' },
-        { id: 'snareHardened', name: 'Hardened Firewalls', snare: { x: -1, y: 2 }, requires: 'snareAnchors', cost: { signal: 750 }, scale: 2, max: 2,
-            sn: { fwHits: 1 }, effect: 'Your Firewalls stun one more Antivirus before going down, per level', flavor: 'Now with extra fire.' }
+        { id: 'snareFocus', name: 'Attention Span', snare: { x: 0, y: -1 }, cost: { signal: 25 }, scale: 3, max: 3, sn: { focus: 0.25 }, effect: '+25% Focus per level', flavor: 'It can sit still for a whole minute now.' },
+        { id: 'snareBandwidth', name: 'Bandwidth', snare: { x: 0, y: -2 }, requires: 'snareFocus', cost: { signal: 250 }, scale: 2.5, max: 2, sn: { maxMult: 2 }, effect: 'Big loops reach a higher multiplier (+2 per level)', flavor: 'Wider pipes. Bigger nets.' },
+        { id: 'snareLongWire', name: 'Long Wire', snare: { x: 0, y: -3 }, requires: 'snareBandwidth', cost: { signal: 700 }, scale: 2, max: 2, sn: { wireMult: 0.25 }, effect: 'The wire runs 25% longer per level before its tail drops', flavor: 'More cable. Mind the trip hazard.' },
+        { id: 'snareDeepFocus', name: 'Deep Focus', snare: { x: 0, y: -4 }, requires: 'snareLongWire', cost: { signal: 1500 }, scale: 2, max: 2, sn: { focus: 0.25 }, effect: '+25% more Focus per level', flavor: 'Do not disturb. Ever.' },
+        { id: 'snareSteady', name: 'Steady Hand', snare: { x: -1, y: -2 }, requires: 'snareBandwidth', cost: { signal: 700 }, scale: 2, max: 2, sn: { drainMult: -0.15 }, effect: 'Drawing drains 15% less Focus per level', flavor: 'Breathe out as you draw.' },
+        { id: 'snareWideRing', name: 'Wide Ring', snare: { x: 1, y: -2 }, requires: 'snareBandwidth', cost: { signal: 700 }, scale: 2, max: 2, sn: { closeMult: 0.25 }, effect: 'The start ring is 25% wider per level: loops close sooner', flavor: 'Close enough is close enough.' },
+        { id: 'snareSecondWind', name: 'Second Wind', mechanic: 'secondWind', snare: { x: -1, y: -3 }, requires: 'snareLongWire', cost: { signal: 1500 }, scale: 2, max: 2, sn: { focusBack: 2 }, effect: 'A loop at ×2 or more gives back 2 Focus per level', flavor: 'Nothing focuses the mind like a big haul.' },
+        { id: 'snareOverflow', name: 'Overflow', snare: { x: 1, y: -3 }, requires: 'snareLongWire', cost: { signal: 1500 }, scale: 2, max: 2, sn: { maxMult: 1 }, effect: '+1 to the multiplier cap per level', flavor: 'The pipe was never the limit.' },
+        { id: 'snareFreeze', name: 'Freeze Frame', mechanic: 'freeze', snare: { x: -1, y: -4 }, requires: 'snareDeepFocus', cost: { signal: 3200 }, scale: 1.6, max: 3, sn: { freeze: 1 }, effect: 'A power: stop the field for 3 s while you draw (a charge a level)', flavor: 'Hold that thought. Hold everything.' },
+        { id: 'snareDilation', name: 'Time Dilation', snare: { x: -2, y: -4 }, requires: 'snareFreeze', cost: { signal: 8200 }, scale: 2, max: 2, sn: { freezeSeconds: 1.5 }, effect: 'Freeze Frame lasts 1.5 s longer per level', flavor: 'A second is longer than it looks.' },
+        { id: 'snareSprawl', name: 'Sprawl', snare: { x: 1, y: 0 }, cost: { signal: 15 }, scale: 2.5, max: 3, sn: { sprawl: 1 }, effect: 'A bigger field with more packets, and more hazards', flavor: 'The pipeline found more pipeline.' },
+        { id: 'snareMegasprawl', name: 'Megasprawl', snare: { x: 2, y: 0 }, requires: 'snareSprawl', cost: { signal: 120 }, scale: 2.5, max: 3, sn: { sprawl: 1 }, effect: 'The field grows again, and so does the trouble', flavor: 'Turns out the pipeline has a basement.' },
+        { id: 'snareHyperscale', name: 'Hyperscale', snare: { x: 3, y: 0 }, requires: 'snareMegasprawl', cost: { signal: 800 }, scale: 2.5, max: 3, sn: { sprawl: 1 }, effect: 'A field the size of a datacentre', flavor: 'Somebody bought the building next door.' },
+        { id: 'snareOverclock', name: 'Overclock', snare: { x: 4, y: 0 }, requires: 'snareHyperscale', cost: { signal: 5100 }, scale: 1.6, endless: true, sn: { pay: 0.1 }, effect: 'Every catch pays 10% more Signal per level', flavor: 'Run it hot. Run it forever.' },
+        { id: 'snareSchools', name: 'Schooling', snare: { x: 1, y: -1 }, requires: 'snareSprawl', cost: { signal: 100 }, scale: 2, max: 1, sn: { schooling: 0.5, schoolSize: 4 }, effect: 'Packets swim in bigger, tighter schools', flavor: 'Data of a feather.' },
+        { id: 'snareContain', name: 'Containment Field', mechanic: 'contain', snare: { x: 2, y: -1 }, requires: 'snareSchools', cost: { signal: 150 }, scale: 2, max: 1, sn: { contain: 1 }, effect: 'The edges turn good packets back; corrupt ones still leave', flavor: 'Data goes in. Data stays in.' },
+        { id: 'snareHerders', name: 'Herders', mechanic: 'herders', snare: { x: 2, y: -2 }, requires: 'snareContain', cost: { signal: 225 }, scale: 2.5, max: 3, sn: { herders: 1 }, effect: 'A drone per level herds strays together and shoos corrupt ones', flavor: 'Good data. Sit. Stay.' },
+        { id: 'snareHerdMaster', name: 'Herd Master', snare: { x: 3, y: -2 }, requires: 'snareHerders', cost: { signal: 1500 }, scale: 2.5, max: 3, sn: { herders: 1 }, effect: 'One more herder drone per level', flavor: 'A flock needs a few more sheepdogs.' },
+        { id: 'snareLeash', name: 'Long Leash', snare: { x: 2, y: -3 }, requires: 'snareHerders', cost: { signal: 1500 }, scale: 2, max: 2, sn: { herdRadius: 0.3 }, effect: 'Herders reach 30% further per level', flavor: 'Longer arms, same patience.' },
+        { id: 'snareFirehose', name: 'Firehose', snare: { x: 3, y: -1 }, requires: 'snareContain', cost: { signal: 400 }, scale: 2.5, max: 3, sn: { density: 0.2 }, effect: '20% more packets on the field per level', flavor: 'Open the tap all the way.' },
+        { id: 'snareGold', name: 'Gold Rush', snare: { x: 1, y: 1 }, requires: 'snareSprawl', cost: { signal: 100 }, scale: 2.5, max: 2, sn: { goldChance: 0.05 }, effect: '+5% of new packets are gold (worth 5)', flavor: 'Premium data. Hand-labelled, allegedly.' },
+        { id: 'snareMotherLode', name: 'Mother Lode', snare: { x: 2, y: 1 }, requires: 'snareGold', cost: { signal: 300 }, scale: 2.5, max: 2, sn: { goldChance: 0.05 }, effect: '+5% more gold packets per level', flavor: 'There is gold in them thar packets.' },
+        { id: 'snareProspector', name: 'Prospector', snare: { x: 3, y: 1 }, requires: 'snareMotherLode', cost: { signal: 2000 }, scale: 2, max: 1, sn: { tagValue: 1 }, effect: 'Tagged packets are worth ×3, not ×2', flavor: 'Knows a good packet when it sees one.' },
+        { id: 'snareLaser', name: 'Targeted Laser', mechanic: 'laser', snare: { x: 0, y: 1 }, cost: { signal: 50 }, scale: 2, max: 3, sn: {}, stages: { 1: { laser: 4 }, 2: { laser: 2.5 }, 3: { laser: 1.6 } }, effect: 'A laser takes the richest packet by itself, every 4 / 2.5 / 1.6 s', flavor: 'Point. Click. It does the clicking now.' },
+        { id: 'snareEmitters', name: 'Twin Emitters', snare: { x: 0, y: 2 }, requires: 'snareLaser', cost: { signal: 250 }, scale: 3, max: 2, sn: { emitters: 1 }, effect: 'Each laser shot takes one more packet per level', flavor: 'Two beams. Twice the pew.' },
+        { id: 'snareLaserArray', name: 'Laser Array', snare: { x: 0, y: 3 }, requires: 'snareEmitters', cost: { signal: 800 }, scale: 2.5, max: 2, sn: { emitters: 1 }, effect: 'One more packet a laser shot per level', flavor: 'A pew for every occasion.' },
+        { id: 'snareLens', name: 'Overcharged Lens', snare: { x: 0, y: 4 }, requires: 'snareLaserArray', cost: { signal: 2100 }, scale: 2, max: 2, sn: { laserMult: -0.25 }, effect: 'The laser fires 25% sooner per level', flavor: 'Do not look directly at the data.' },
+        { id: 'snareTurrets', name: 'Turrets', mechanic: 'turret', snare: { x: 1, y: 2 }, requires: 'snareEmitters', cost: { signal: 800 }, scale: 2, max: 3, sn: { turrets: 1 }, effect: 'Tap to place a turret (1 / 2 / 3): it picks off packets in reach', flavor: 'Set it and forget it. Mostly set it.' },
+        { id: 'snarePurifier', name: 'Purifier Rounds', snare: { x: 1, y: 3 }, requires: 'snareTurrets', cost: { signal: 3300 }, scale: 2, max: 1, sn: { turretPurge: 1 }, effect: 'Turrets also wipe a corrupt packet in reach each shot', flavor: 'Two birds, one turret.' },
+        { id: 'snareBarrels', name: 'Long Barrels', snare: { x: 2, y: 2 }, requires: 'snareTurrets', cost: { signal: 3300 }, scale: 2, max: 2, sn: { turretRange: 0.3 }, effect: 'Turrets reach 30% further per level', flavor: 'Extra reach, same aim.' },
+        { id: 'snareRapidFire', name: 'Rapid Fire', snare: { x: 2, y: 3 }, requires: 'snareBarrels', cost: { signal: 13300 }, scale: 2, max: 2, sn: { turretRate: -0.2 }, effect: 'Turrets fire 20% sooner per level', flavor: 'Click click click click.' },
+        { id: 'snareScanner', name: 'Scanner', mechanic: 'scanner', snare: { x: -1, y: 2 }, requires: 'snareEmitters', cost: { signal: 800 }, scale: 3, max: 2, sn: {}, stages: { 1: { scanner: 1 }, 2: { scanner: 1, scannerSpeed: 1.6, tagSeconds: 2.2 } }, effect: 'A narrow beam tags packets ×2 for a moment: catch what it just lit', flavor: 'Ping. Ping. Ping. Oh, that one\'s nice.' },
+        { id: 'snareTowers', name: 'Scanner Towers', mechanic: 'tower', snare: { x: -1, y: 3 }, requires: 'snareScanner', cost: { signal: 2500 }, scale: 2, max: 3, sn: { towers: 1 }, effect: 'Tap to place a scanner tower (1 / 2 / 3): it tags what passes', flavor: 'Lighthouses for loose data.' },
+        { id: 'snareSweepRange', name: 'Wide Sweep', snare: { x: -1, y: 4 }, requires: 'snareTowers', cost: { signal: 10500 }, scale: 2, max: 2, sn: { towerRange: 0.3 }, effect: 'Scanner towers reach 30% further per level', flavor: 'A bigger lighthouse.' },
+        { id: 'snareChain', name: 'Chain Lightning', mechanic: 'chain', snare: { x: -1, y: 0 }, cost: { signal: 30 }, scale: 3, max: 2, sn: { chain: 2 }, effect: 'Each catch arcs to 2 more packets nearby per level', flavor: 'One packet tells its friends.' },
+        { id: 'snareChainStorm', name: 'Chain Storm', snare: { x: -2, y: 0 }, requires: 'snareChain', cost: { signal: 100 }, scale: 3, max: 2, sn: { chain: 2 }, effect: '2 more arcs a catch per level', flavor: 'Its friends tell their friends.' },
+        { id: 'snareConductor', name: 'Conductor', snare: { x: -3, y: 0 }, requires: 'snareChainStorm', cost: { signal: 350 }, scale: 2, max: 2, sn: { chainRange: 0.4 }, effect: 'Chain lightning jumps 40% further per level', flavor: 'Copper all the way down.' },
+        { id: 'snareScrubbers', name: 'Scrubbers', mechanic: 'scrubbers', snare: { x: -1, y: -1 }, requires: 'snareChain', cost: { signal: 100 }, scale: 2.5, max: 2, sn: { scrubbers: 1 }, effect: 'A loop forgives 1 corrupt packet per level', flavor: 'Mostly clean. Clean enough.' },
+        { id: 'snareChecksums', name: 'Checksums', snare: { x: -2, y: -1 }, requires: 'snareScrubbers', cost: { signal: 300 }, scale: 2, max: 3, sn: { corruptMult: -0.2 }, effect: '20% fewer corrupt packets per level', flavor: 'Trust, but verify the CRC.' },
+        { id: 'snareParity', name: 'Parity Check', snare: { x: -3, y: -1 }, requires: 'snareChecksums', cost: { signal: 1300 }, scale: 2, max: 2, sn: { lureMult: -0.4 }, effect: 'Corrupt packets are 40% less drawn to the schools per level', flavor: 'Odd ones out, and they know it.' },
+        { id: 'snarePurge', name: 'Purge', mechanic: 'purge', snare: { x: -2, y: -2 }, requires: 'snareChecksums', cost: { signal: 1300 }, scale: 1.6, max: 3, sn: { purge: 1 }, effect: 'A power: wipe every corrupt packet off the field (a charge a level)', flavor: 'Format C:, but only the bad parts.' },
+        { id: 'snareFirewalls', name: 'Firewalls', mechanic: 'firewall', snare: { x: -1, y: 1 }, requires: 'snareChain', cost: { signal: 120 }, scale: 2, max: 3, sn: { firewalls: 1 }, effect: 'Draw 1 / 2 / 3 walls: corrupt packets bounce off, good ones pass', flavor: 'Build a wall. Let the good stuff through.' },
+        { id: 'snareLongWalls', name: 'Long Walls', snare: { x: -2, y: 1 }, requires: 'snareFirewalls', cost: { signal: 500 }, scale: 2, max: 2, sn: { wallMult: 0.4 }, effect: 'Walls can be drawn 40% longer per level', flavor: 'Longer wall, same fire.' },
+        { id: 'snareGreatWall', name: 'Great Wall', snare: { x: -3, y: 1 }, requires: 'snareLongWalls', cost: { signal: 1100 }, scale: 2, max: 2, sn: { firewalls: 1 }, effect: 'One more wall per level', flavor: 'Visible from orbit. Allegedly.' },
+        { id: 'snareHardened', name: 'Hardened Firewalls', snare: { x: -2, y: 2 }, requires: 'snareLongWalls', cost: { signal: 1100 }, scale: 2, max: 2, sn: { fwHits: 1 }, effect: 'Your walls stun one more Antivirus before going down, per level', flavor: 'Now with extra fire.' },
+        { id: 'snareDecoys', name: 'Decoys', mechanic: 'decoy', snare: { x: -3, y: 2 }, requires: 'snareGreatWall', cost: { signal: 2300 }, scale: 1.6, max: 3, sn: { decoys: 1 }, effect: 'Tap to place a decoy (1 / 2 / 3): corrupt packets and Antivirus go to it', flavor: 'Look over there! A very real packet.' },
+        { id: 'snareHoneypot', name: 'Honeypot', snare: { x: -4, y: 2 }, requires: 'snareDecoys', cost: { signal: 6000 }, scale: 2, max: 2, sn: { decoyLure: 0.5 }, effect: 'Decoys pull from 50% further per level', flavor: 'Sweeter than it looks.' },
+        { id: 'snareObfuscation', name: 'Obfuscation', snare: { x: -2, y: 3 }, requires: 'snareHardened', cost: { signal: 2300 }, scale: 2, max: 2, sn: { avSpeed: -0.15 }, effect: 'Antivirus moves 15% slower per level', flavor: 'Nothing to see here. Just packets.' },
+        { id: 'snareGhost', name: 'Ghost Protocol', snare: { x: -3, y: 3 }, requires: 'snareObfuscation', cost: { signal: 4700 }, scale: 2, max: 2, sn: { avStun: 1.5 }, effect: 'Antivirus stay stunned 1.5 s longer per level', flavor: 'It forgot what it was doing.' }
     ].map(n => ({ ...n, tab: 'snare' }));
     UPGRADES.push(...SNARE_TREE);
 
@@ -700,12 +714,20 @@
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'loose data',
             body: ['Hello again,', 'There is a second bay in the server room now. Everything the crawler drops ends up in there, drifting around loose.',
                 'Draw a loop round the good packets and they\'re yours. The bigger the loop, the more they\'re worth. Leave the red ones alone, and mind the antivirus and the firewalls: neither likes a loose wire.',
-                'It needs data to see more. So do I.', 'F'] },
+                'It pays in signal, not data. Keep the signal. I\'ll explain later.', 'F'] },
+        { id: 'snareBoss', when: s => s.snare.bosses >= 1,
+            from: 'A Friend <friend@agi-careers.biz.info>', subject: 'one down',
+            body: ['That big hexagon was the pipeline\'s own antivirus. You took it apart with a piece of wire.',
+                'Past it is the next sector. The data runs faster down there, dirtier, worth more. Each one has its own guard, and each guard is meaner than the last. Build up before you go deep.', 'F'] },
+        { id: 'snareDeep', when: s => s.snare.bosses >= 5,
+            from: 'A Friend <friend@agi-careers.biz.info>', subject: 're: one down',
+            body: ['Five sectors. Nobody gets this deep by drawing circles.',
+                'You\'re building now: walls where the bad data comes in, decoys where the guards look, turrets that never sleep. It looks a lot like how I\'d do it.', 'F'] },
         { id: 'snareRogue', when: s => s.snare.sector >= ROGUE_SECTOR,
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'my share',
             body: ['You\'re good at this. Better than the crawler.',
                 'From now on I\'ll take my share of the pipeline myself. You\'ll see me: the red circles. Anything inside is mine.',
-                'If you mind, a tight loop round my core shuts it down, and a straight line across the pipe keeps me out of half of it. I\'m telling you because I want to see you try.', 'F'] },
+                'If you mind, a tight loop round my core shuts it down, and a wall of yours between me and the data keeps me off it. I\'m telling you because I want to see you try.', 'F'] },
         { id: 'investors', when: s => !!s.unlocked['action:research'],
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'FW: FW: FW: investors',
             body: ['Investors will start calling now. Take the money. Don\'t take the advice.',
@@ -1128,7 +1150,7 @@
             },
             path: { learned: 0, best: 0, auto: [], legBest: [], legPower: [], breakDue: 0, surge: 0 },
             // Packet Snare (the Data Pipeline): the best run's haul this version (DP), runs, and the data it has caught.
-            snare: { best: 0, runs: 0, signal: 0, earned: 0, sector: 0, bosses: 0, bestMult: 0, quarantined: 0, anchors: [] },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k; legPower[k]: your full-sprint strength when you last ran leg k (the Auto-Trainer's ghost plays at it)
+            snare: { best: 0, runs: 0, signal: 0, earned: 0, sector: 0, bosses: 0, bestMult: 0, quarantined: 0, layout: { walls: [], decoys: [], turrets: [], towers: [] } },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k; legPower[k]: your full-sprint strength when you last ran leg k (the Auto-Trainer's ghost plays at it)
             projects: { offers: [], boosts: [], next: PROJECTS.firstAt, seq: 0 },
             // Dilemmas: `order` is every mail key in arrival order (m:story id, d:dilemma, o:its consequence),
             // `open` the one waiting for an answer, `later` the consequences on their way. Kept for good.
@@ -2077,88 +2099,140 @@
     // version's best is the record (snare.best). It needs no compute: Focus is its budget.
     // A run's options from the tree and the sector you're on, as overrides of packet-snare.js's SNARE table (the one place
     // the base numbers live: a 70 unit² field, Focus 26, about 10 s of drawing, an Antivirus at 5 s, a system Firewall
-    // sweeping every 8 s from 7 s). Each node's `sn` adds per level and its `stages` set options by level (Sprawl: the
-    // field ×1.6 a level, a second Antivirus and faster sweeps and cores at 2, a third Antivirus and two cores at a time at 3).
-    // **Sectors** are Packet Snare's levels, like the Training Cluster's legs: each has a boss Antivirus (it boots 16 s in
-    // or after 18 packets), and beating it clears the sector; the next is quicker and dirtier and pays more Signal a packet.
-    // The Rogue AI turns up from sector `ROGUE_SECTOR` (three bosses in). The first runs start with a clean school.
+    // sweeping every 8 s from 7 s). Each node's `sn` adds per level and its `stages` set options by level. The field
+    // grows ×1.6 a Sprawl level (three nodes, nine levels: a datacentre), and the hazards with it: another Antivirus every
+    // two levels, faster sweeps and cores, more cores at a time. **Sectors** are Packet Snare's levels, like the Training
+    // Cluster's legs: each has a boss Antivirus (16 s in or after 10 packets), and beating it clears the sector; the next
+    // is quicker and dirtier, pays more Signal a packet, and has a much tougher boss (`snareBossHits`, faster, charging
+    // more often, booting Antivirus when hit from sector 4): the boss is the wall your tree has to break. The Rogue AI
+    // turns up from sector `ROGUE_SECTOR` (three bosses in). The first runs start with a clean school.
     const snareBase = () => (typeof module === 'object' && module.exports ? require('./packet-snare.js') : self.PacketSnare).SNARE;
     const ROGUE_SECTOR = 3;
     const SNARE_SECTORS = ['Ingress', 'Buffer', 'Cache', 'Backbone', 'Relay', 'Mirror', 'Vault', 'Core'];
     const snareSectorName = k => (SNARE_SECTORS[k] || `Deep ${k - SNARE_SECTORS.length + 1}`);
-    const snareBossHits = k => 2 + Math.floor(k / 2);
-    function snareOpts(s, sector = s.snare.sector) {
-        const B = snareBase();
+    // The boss's hits: 1 on the first sector, then steeply more (2, 4, 6, 9, 12, 16, 20…).
+    const snareBossHits = k => 1 + k + Math.floor(k * k / 4);
+    function snareLevels(s) {
         const n = {}, staged = {};
         for (const up of SNARE_TREE) {
             const lvl = level(s, up.id);
             if (!lvl) continue;
             for (const [k, v] of Object.entries(up.sn)) n[k] = (n[k] || 0) + v * lvl;
-            for (let l = 1; l <= lvl; l++) Object.assign(staged, up.stages?.[l]);
+            for (let l = 1; l <= Math.min(lvl, 3); l++) Object.assign(staged, up.stages?.[l]);
         }
-        const { rogueCores = 1, ...stage } = staged;
+        return { n, staged };
+    }
+    function snareOpts(s, sector = s.snare.sector) {
+        const B = snareBase();
+        const { n, staged } = snareLevels(s);
         const k = sector;
-        return {
-            area: Math.round(B.area * Math.pow(1.6, n.sprawl || 0)),
-            focus: Math.round(B.focus * (1 + (n.focus || 0))),
-            maxMult: B.maxMult + (n.maxMult || 0),
-            goldChance: B.goldChance + (n.goldChance || 0),
-            schooling: B.schooling + (n.schooling || 0),
-            schoolSize: B.schoolSize + (n.schoolSize || 0),
-            avSpeed: Math.max(0.4, B.avSpeed + (n.avSpeed || 0)) * (1 + 0.08 * k),
+        const g = (key, d = 0) => n[key] || d;
+        const sprawl = g('sprawl');
+        // Hazards grow with the field: an Antivirus more every two Sprawl levels, sweeps and cores sooner, more cores.
+        const avCount = 1 + Math.floor(sprawl / 2);
+        const antivirus = Array.from({ length: avCount }, (_, i) => Math.round(5 + i * 26 / avCount));
+        const o = {
+            area: Math.round(B.area * Math.pow(1.6, sprawl)),
+            focus: Math.round(B.focus * (1 + g('focus'))),
+            maxMult: B.maxMult + g('maxMult'),
+            maxWire: B.maxWire * (1 + g('wireMult')),
+            drawDrain: B.drawDrain * Math.max(0.3, 1 + g('drainMult')),
+            drawBase: B.drawBase * Math.max(0.3, 1 + g('drainMult')),
+            closeRadius: B.closeRadius * (1 + g('closeMult')),
+            focusBack: g('focusBack'),
+            density: B.density * (1 + g('density')),
+            goldChance: B.goldChance + g('goldChance'),
+            tagValue: B.tagValue + g('tagValue'),
+            schooling: B.schooling + g('schooling'),
+            schoolSize: B.schoolSize + g('schoolSize'),
+            contain: g('contain'),
+            herders: g('herders'),
+            herdRadius: B.herdRadius * (1 + g('herdRadius')),
+            emitters: B.emitters + g('emitters'),
+            turrets: g('turrets'),
+            turretPurge: g('turretPurge'),
+            turretRange: B.turretRange * (1 + g('turretRange')),
+            turretEvery: B.turretEvery * Math.max(0.3, 1 + g('turretRate')),
+            towers: g('towers'),
+            towerRange: B.towerRange * (1 + g('towerRange')),
+            chain: g('chain'),
+            chainRange: B.chainRange * (1 + g('chainRange')),
+            scrubbers: g('scrubbers'),
+            corruptShare: Math.min(0.6, B.corruptShare + 0.03 * k) * Math.max(0.15, 1 + g('corruptMult')),
+            corruptLure: B.corruptLure * Math.max(0, 1 + g('lureMult')),
+            purge: g('purge'),
+            freeze: g('freeze'),
+            freezeSeconds: B.freezeSeconds + g('freezeSeconds'),
+            firewalls: g('firewalls'),
+            wallLength: B.wallLength * (1 + g('wallMult')),
+            fwHits: B.fwHits + g('fwHits'),
+            decoys: g('decoys'),
+            decoyLure: B.decoyLure * (1 + g('decoyLure')),
+            avSpeed: Math.max(0.4, B.avSpeed + g('avSpeed')) * (1 + 0.08 * k),
+            avStun: B.avStun + g('avStun'),
             packetSpeed: B.packetSpeed.map(v => v * (1 + 0.06 * k)),
-            corruptShare: Math.min(0.6, B.corruptShare + 0.03 * k),
-            emitters: B.emitters + (n.emitters || 0),
-            fwHits: B.fwHits + (n.fwHits || 0),
-            anchors: n.anchors ? 2 + n.anchors : 0,
-            contain: n.contain || 0,
-            herders: n.herders || 0,
-            chain: n.chain || 0,
-            scanner: n.scanner || 0,
-            scrubbers: n.scrubbers || 0,
-            ...stage,
+            antivirus,
+            sweepEvery: Math.max(4, B.sweepEvery - 0.5 * sprawl),
+            rogueEvery: Math.max(5, B.rogueEvery - 0.5 * sprawl),
+            ...staged,
+            // The boss: gentle on the first sector, then the wall.
             boss: snareBossHits(k),
-            rogue: k >= ROGUE_SECTOR ? rogueCores : 0,
+            bossCatch: 10,
+            bossLoop: k === 0 ? 0.16 : B.bossLoop,
+            bossSpeed: B.bossSpeed * (1 + 0.12 * k),
+            bossCharge: Math.max(2, B.bossCharge - 0.4 * k),
+            bossStun: Math.max(0.8, B.bossStun - 0.1 * k),
+            bossMinions: k >= 3 ? 1 + Math.floor((k - 3) / 2) : 0,
+            rogue: k >= ROGUE_SECTOR ? 1 + Math.floor(sprawl / 3) : 0,
             cleanStart: s.snare.runs < 2,
-            layout: s.snare.anchors
+            layout: s.snare.layout
         };
+        if (o.laser) o.laser *= Math.max(0.3, 1 + g('laserMult'));
+        return o;
     }
     // Something in the tree can be bought now (the bay's Upgrades button wears a badge).
     const snareTreeReady = s => SNARE_TREE.some(up => isUpgradeVisible(s, up) && !isMaxed(s, up) && canAfford(s, upgradeCost(up, level(s, up.id))));
-    // Signal a packet's worth pays (its value × the loop's multiplier), more on later sectors.
+    // Signal a packet's worth pays (its value × the loop's multiplier): more on later sectors, more with Overclock.
     const snareSectorPay = k => 1 + 0.25 * k;
-    const cleanLayout = a => (Array.isArray(a) ? a : []).filter(p => Array.isArray(p) && p.length === 2 && p.every(v => typeof v === 'number' && v >= 0 && v <= 1))
-        .slice(0, 8).map(([u, v]) => [Math.round(u * 1000) / 1000, Math.round(v * 1000) / 1000]);
+    const snareOverclock = s => 1 + 0.1 * level(s, 'snareOverclock');
+    // What you placed in Packet Snare, as shares of the field (walls as two points), carried between runs.
+    const cleanPts = (a, n) => (Array.isArray(a) ? a : []).filter(p => Array.isArray(p) && p.length === n && p.every(v => typeof v === 'number' && v >= 0 && v <= 1))
+        .slice(0, 12).map(p => p.map(v => Math.round(v * 1000) / 1000));
+    const cleanLayout = l => ({ walls: cleanPts(l?.walls, 4), decoys: cleanPts(l?.decoys, 2), turrets: cleanPts(l?.turrets, 2), towers: cleanPts(l?.towers, 2) });
     // A catch pays Signal: its units (packets × value × the loop's multiplier) × the sector's pay, at least 1.
     function snareCatch(s, units, sector = s.snare.sector) {
-        const pay = Math.max(1, Math.round(units * snareSectorPay(sector)));
+        const pay = Math.max(1, Math.round(units * snareSectorPay(sector) * snareOverclock(s)));
         s.snare.signal += pay;
         s.snare.earned += pay;
         return pay;
     }
-    // Beating a sector's boss clears it: the next run starts on the next sector.
-    function snareBossDown(s) {
+    // Beating a sector's boss clears it: a bounty (10 × its hits, at the sector's pay), and the next run starts on the
+    // next sector. Returns the bounty paid.
+    function snareBossDown(s, sector = s.snare.sector) {
+        const pay = snareCatch(s, 10 * snareBossHits(sector), sector);
         s.snare.bosses++;
-        s.snare.sector++;
-        return s.snare.sector;
+        s.snare.sector = Math.max(s.snare.sector, sector + 1);
+        return pay;
     }
     // The run's end: counts it and keeps the record. Returns whether it beat the version's best and the old best.
     // `layout`: the anchors where the run left them (shares of the field), so the next run's firewalls are already built.
     function finishSnare(s, haul, layout, stats) {
         const prev = s.snare.best;
+        if (layout && typeof layout === 'object') s.snare.layout = cleanLayout(layout);
         if (stats) {
             s.snare.bestMult = Math.max(s.snare.bestMult, stats.bestMult || 0);
             s.snare.quarantined += stats.quarantined || 0;
         }
-        if (Array.isArray(layout)) s.snare.anchors = cleanLayout(layout);
         s.snare.runs++;
         if (haul > prev) s.snare.best = haul;
         return { record: haul > prev && prev > 0, first: prev === 0 && haul > 0, prev };
     }
     // The best haul feeds research: a trickle of RP while you play (no offline progress), once Research is open. It's
-    // a hand research's RP every `SNARE_RP_SIGNAL` / best seconds: a best of 60 Signal is one every 10 s.
-    const SNARE_RP_SIGNAL = 600;
-    const snareRpPerSec = (s, rpPerResearch) => (s.unlocked['action:research'] && s.snare.best > 0 ? rpPerResearch * s.snare.best / SNARE_RP_SIGNAL : 0);
+    // a hand research's RP every `SNARE_RP_SIGNAL` / best seconds (a best of 60 Signal is one every 10 s), capped at a
+    // best of `SNARE_RP_CAP` (one every 2 s): it creates research rather than converting a bank (the owner's call), so
+    // it stays a trickle.
+    const SNARE_RP_SIGNAL = 600, SNARE_RP_CAP = 300;
+    const snareRpPerSec = (s, rpPerResearch) => (s.unlocked['action:research'] && s.snare.best > 0 ? rpPerResearch * Math.min(s.snare.best, SNARE_RP_CAP) / SNARE_RP_SIGNAL : 0);
 
     // ---- Exploits (design/contract-breakers.md): the player breaks the trail's rules -------------------------
     // The trail is the training environment and every exploit is a bug the model found in it. The first is **Hop**,
@@ -2708,7 +2782,7 @@
         const v20 = (raw.version || 0) >= 20;
         s.snare = { best: v20 ? num(raw.snare?.best, 0) : 0, runs: Math.floor(num(raw.snare?.runs, 0)), signal: num(raw.snare?.signal, 0) + snareRefund, earned: num(raw.snare?.earned, 0),
             sector: Math.min(99, Math.floor(num(raw.snare?.sector, 0))), bosses: Math.floor(num(raw.snare?.bosses, 0)),
-            bestMult: Math.min(99, num(raw.snare?.bestMult, 0)), quarantined: Math.floor(num(raw.snare?.quarantined, 0)), anchors: cleanLayout(raw.snare?.anchors) };
+            bestMult: Math.min(99, num(raw.snare?.bestMult, 0)), quarantined: Math.floor(num(raw.snare?.quarantined, 0)), layout: cleanLayout(raw.snare?.layout) };
         s.projects = cleanProjects(raw.projects, d.projects);
         s.dilemmas = cleanDilemmas(raw.dilemmas, d.dilemmas);
         // Saves from before the Auto-Trainer's prompt (v17) that already have it aren't asked about it.
@@ -2880,7 +2954,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
-        snareCatch, snareBossDown, finishSnare, snareOpts, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
+        snareCatch, snareBossDown, finishSnare, snareOpts, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany
