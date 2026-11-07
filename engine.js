@@ -480,12 +480,13 @@
     const MILESTONES = [
         // Data waits until passive compute reaches 5 CP/s (older saves that already collected keep it).
         { key: 'action:collect', name: 'Data Collection', desc: 'Reach 5 CP/s to start collecting data', check: s => derive(s).cpPerSec >= 5 || s.stats.collects > 0 || s.res.dp > 0 },
-        // The server room opens once you can actually train: data collected by hand, and enough CP and DP
-        // in stock for a couple of full sprints (older saves that already train keep it).
-        { key: 'module:path', name: 'Training Path', desc: 'Collect data 40 times and hold 100 CP and 40 DP to start training your model',
+        // The server room opens once you can actually train: data collected by hand 40 times, and 100 CP and
+        // 40 DP earned this version (it asked for them held at once, and each obvious play drained one: simple
+        // players stalled there 24–28 min in round E's smoke review). Older saves that already train keep it.
+        { key: 'module:path', name: 'Training Path', desc: 'Collect data 40 times and earn 100 CP and 40 DP to start training your model',
             callout: ['Server room online', 'Your AI can start training. Click the server room, or open the map to see every area.'],
             // Anyone who has trained before (older saves, later versions) gets it back once data flows again.
-            check: s => (s.stats.collects >= 40 && s.res.cp >= 100 && s.res.dp >= 40) || ((s.stats.rolls > 0 || s.path.learned > 0) && s.res.dp + s.stats.collects > 0) },
+            check: s => (s.stats.collects >= 40 && s.stats.runCp >= 100 && s.stats.runDp >= 40) || ((s.stats.rolls > 0 || s.path.learned > 0) && s.res.dp + s.stats.collects > 0) },
         // Research is for bigger projects: it opens once training is well under way, and brings the investors
         // (and with them the road to the next version).
         { key: 'action:research', name: 'Basic Research', desc: `Learn a skill, then run ${RESEARCH_SPRINTS} training sprints to unlock Research`,
@@ -911,6 +912,7 @@
                 superPrompts: 0,
                 lifetimeCp: 0,
                 runCp: 0,
+                runDp: 0,             // data collected this version (by hand and by the crawler): the server room's gate
                 researchDone: 0,
                 collects: 0,          // data collected by hand
                 cleanSprints: 0,
@@ -1387,6 +1389,7 @@
                 return { ok: true, gained: d.clickPower, resource: 'cp' };
             case 'collect':
                 s.res.dp += d.dpPerCollect;
+                s.stats.runDp += d.dpPerCollect;
                 s.stats.collects++;
                 return { ok: true, gained: d.dpPerCollect, resource: 'dp' };
             case 'research':
@@ -1432,6 +1435,7 @@
         if (collects > 0) {
             s.res.cp -= collects * collectCost.cp;
             s.res.dp += collects * d.autoDpPerCollect;
+            s.stats.runDp += collects * d.autoDpPerCollect;
         }
         const researchCost = actionById('research').cost;
         const research = Math.min(d.researchPerSec * dt, s.res.cp / researchCost.cp, s.res.dp / researchCost.dp);
@@ -2296,6 +2300,8 @@
             if (raw.unlocked?.['up:flowState']) s.unlocked['up:maxEffort'] = true;
         }
         for (const k of Object.keys(s.stats)) s.stats[k] = num(raw.stats?.[k], s.stats[k]);
+        // Data earned this version is new: older saves start from what they hold and what they collected by hand.
+        if (raw.stats && raw.stats.runDp === undefined) s.stats.runDp = num(raw.res?.dp, 0) + s.stats.collects;
         // Sprints weren't counted before; older saves past the first skill get an estimate (about 2 per run).
         if (raw.stats && raw.stats.skilledSprints === undefined && num(raw.path?.learned, 0) >= 1) s.stats.skilledSprints = s.stats.rolls * 2;
         for (const k of ['autosave', 'shake', 'calm']) s.settings[k] = bool(raw.settings?.[k], s.settings[k]);

@@ -919,8 +919,8 @@ window.AGI = (function () {
         }
         // (A later version reopens it with the first data, so only a brand-new lab counts collections.)
         if (actionId === 'collect' && !state.unlocked['module:path'] && !state.stats.rolls) {
-            const held = (v, need) => `${E.format(Math.min(need, Math.floor(v)))}/${need}`;
-            return st.collects < 40 ? `Server room: ${st.collects}/40 collections` : `Server room: hold ${held(state.res.cp, 100)} CP · ${held(state.res.dp, 40)} DP`;
+            const earned = (v, need) => `${E.format(Math.min(need, Math.floor(v)))}/${need}`;
+            return st.collects < 40 ? `Server room: ${st.collects}/40 collections` : `Server room: earn ${earned(st.runCp, 100)} CP · ${earned(st.runDp, 40)} DP`;
         }
         const g = E.automationGate(state, AUTOMATES[actionId]);
         if (!g) return '';

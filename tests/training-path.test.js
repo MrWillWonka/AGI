@@ -127,6 +127,8 @@ test('engine: pushes cost CP and DP by charge; XP rewards distance, records and 
     s.res.dp = 40;
     assert.equal(E.payPush(s, 1), false, 'locked until the milestone');
     s.stats.collects = 40;
+    s.stats.runCp = 100;
+    s.stats.runDp = 40;
     E.evaluate(s);
     const full = E.pushCost(s, 1);
     const half = E.pushCost(s, 0.5);

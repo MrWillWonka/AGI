@@ -166,11 +166,11 @@ test('phases require every attribute minimum and never skip', () => {
 
 test('unlocks persist even after the triggering resource is spent', () => {
     const s = fresh();
-    s.res.cp = 100;
-    s.res.dp = 40;
+    s.stats.runCp = 100;
+    s.stats.runDp = 40;
     s.stats.collects = 40;
     E.evaluate(s);
-    s.res.cp = s.res.dp = 0;
+    s.stats.runCp = s.stats.runDp = 0;
     E.evaluate(s);
     assert.equal(s.unlocked['module:path'], true);
 });
@@ -827,17 +827,17 @@ test('the click tool starts with your desk, one item each, then grows per level;
     assert.equal(E.derive(f).mult, 1);
 });
 
-test('the server room waits until you can train: data collected by hand and a stockpile built', () => {
+test('the server room waits until you can train: data collected by hand, and compute and data earned', () => {
     const s = fresh();
     s.stats.runCp = 1e4;
     s.res.cp = 1000;
     E.evaluate(s);
     assert.equal(!!s.unlocked['module:path'], false, 'compute alone is not enough');
     s.stats.collects = 40;
-    s.res.dp = 39;
+    s.stats.runDp = 39;
     E.evaluate(s);
-    assert.equal(!!s.unlocked['module:path'], false, 'a stockpile of data comes first');
-    s.res.dp = 40;
+    assert.equal(!!s.unlocked['module:path'], false, 'data earned comes first');
+    s.stats.runDp = 40;
     E.evaluate(s);
     assert.equal(s.unlocked['module:path'], true);
 });
@@ -1864,4 +1864,24 @@ test('Clean-prompt XP follows the XP multipliers like every other training XP (t
     const xp = E.grantPushBonus(s, 'clean');
     E.recordLegs(s, 4, [], xp);
     assert.ok(Math.abs(s.path.legBest[4] - base) < 1e-9);
+});
+
+test('the server room opens on CP and DP earned this version, not held (a spender isn\'t locked out)', () => {
+    const s = fresh();
+    s.levels.keyboard = 5;
+    s.unlocked['action:collect'] = true;
+    s.res.cp = 1e6;
+    for (let i = 0; i < 40; i++) assert.ok(E.act(s, 'collect').ok);
+    s.stats.runCp = 500;
+    s.res.cp = 0;           // spent every CP on the lab
+    s.res.dp = 0;           // and every DP
+    E.evaluate(s);
+    assert.ok(s.unlocked['module:path'], 'opens with nothing held');
+    assert.ok(s.stats.runDp >= 40, 'data earned is counted');
+    const t = fresh();
+    t.stats.collects = 40; t.stats.runCp = 99; t.stats.runDp = 40;
+    E.evaluate(t);
+    assert.ok(!t.unlocked['module:path'], 'still needs 100 CP earned');
+    const old = E.migrate({ ...JSON.parse(E.serialize(t)), stats: { collects: 12 }, res: { dp: 30 } });
+    assert.equal(old.stats.runDp, 42, 'older saves count what they hold and collected');
 });
