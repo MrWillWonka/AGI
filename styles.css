@@ -2280,6 +2280,13 @@ body.has-minimap.mm-min .room-rnd { padding-bottom: 60px; }
 .station-more { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); min-height: 24px; padding: 4px 12px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--warning) 50%, transparent); background: color-mix(in srgb, var(--bg) 94%, transparent); font: 600 0.7rem var(--font-mono); color: var(--warning); cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); }
 @media (hover: hover) { .station-more:hover { background: color-mix(in srgb, var(--warning) 15%, transparent); } }
 .station-more[hidden] { display: none; }
+/* While the pill shows, the list fades out under it, so the line it sits on doesn't read as text broken by a
+   button ("+2 RP per research, +2 [▾ 5 more] +15% sprint strength"). Only while there's more below: scrolled
+   to the end, the pill hides and the last card shows in full. */
+.station:has(> .station-more:not([hidden])) > .station-list {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 46px), transparent calc(100% - 4px));
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 46px), transparent calc(100% - 4px));
+}
 /* Installed upgrades keep their place, dimmed, with a check instead of a price. */
 .upgrade.owned h3, .upgrade.owned p { opacity: 0.55; }
 .upgrade.owned .upgrade-button:disabled, .upgrade.owned .upgrade-button[aria-disabled="true"] { color: var(--success); border-color: color-mix(in srgb, var(--success) 35%, transparent); }
