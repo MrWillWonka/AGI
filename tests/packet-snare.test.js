@@ -364,7 +364,8 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     const o = { ...P.SNARE, ...E.snareOpts(s) };
     assert.equal(o.area, P.SNARE.area);
     assert.equal(o.focus, 26);
-    assert.deepEqual(o.antivirus, [5]);
+    assert.deepEqual(o.antivirus, [], 'sector 1: only the packets');
+    assert.equal(o.sweepFirst, Infinity);
     assert.equal(o.rogue, 0, 'no Rogue AI on the first runs');
     assert.equal(o.chain + o.scanner + o.laser + o.scrubbers + o.firewalls + o.decoys + o.turrets + o.towers + o.freeze + o.purge, 0, 'no abilities yet');
     s.levels.snareSprawl = 2;
@@ -373,7 +374,10 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     s.levels.snareLaser = 2;
     const g = { ...P.SNARE, ...E.snareOpts(s) };
     assert.ok(g.area > 170 && g.area < 190, 'two levels of Sprawl: ×1.6²');
-    assert.equal(g.antivirus.length, 2, 'a second Antivirus with the sprawl');
+    assert.equal(g.antivirus.length, 0, 'still no Antivirus on sector 1');
+    s.snare.sector = E.AV_SECTOR;
+    assert.equal(E.snareOpts(s).antivirus.length, 2, 'from its sector, a second one with the sprawl');
+    s.snare.sector = 0;
     assert.equal(g.focus, 33);
     assert.equal(g.chain, 2);
     assert.ok(g.laser > 0 && g.laser < 4, 'faster with its second level');
@@ -597,4 +601,17 @@ test('Herders round good packets up toward the middle (or the net) and shoo corr
     for (let i = 0; i < 30; i++) s.step(1 / 60);
     const c = s.packets[0];
     assert.ok(c.vx > 0.3, 'turned away from the middle');
+});
+
+test('the hazards arrive one sector at a time: packets, then sweeps, then Antivirus, then the Rogue AI, then minions', () => {
+    const s = E.defaultState(NOW);
+    const at = k => { s.snare.sector = k; return E.snareOpts(s); };
+    const o0 = at(0);
+    assert.ok(o0.sweepFirst === Infinity && o0.antivirus.length === 0 && o0.rogue === 0 && o0.boss >= 1, 'packets and the boss only');
+    assert.ok(at(E.SWEEP_SECTOR).sweepFirst < Infinity && at(E.SWEEP_SECTOR).antivirus.length === 0, 'sweeps next');
+    assert.ok(at(E.AV_SECTOR).antivirus.length >= 1 && at(E.AV_SECTOR).rogue === 0, 'then Antivirus');
+    assert.ok(at(E.ROGUE_SECTOR).rogue >= 1 && at(E.ROGUE_SECTOR).bossMinions === 0, 'then the Rogue AI');
+    assert.ok(at(E.MINION_SECTOR).bossMinions >= 1, 'then the boss calls for help');
+    assert.ok(at(E.FAST_SWEEP_SECTOR).sweepEvery < at(E.MINION_SECTOR).sweepEvery, 'then sweeps come twice as often');
+    assert.deepEqual(E.SNARE_STAGES.map(x => x.sector), [...E.SNARE_STAGES.map(x => x.sector)].sort((a, b) => a - b));
 });

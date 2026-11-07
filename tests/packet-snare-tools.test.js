@@ -206,8 +206,8 @@ test('the tree thins the corrupt packets and grows the field to a datacentre', (
     const base = E.snareOpts(s);
     s.levels.snareChecksums = 3;
     s.levels.snareSprawl = 3; s.levels.snareMegasprawl = 3; s.levels.snareHyperscale = 3;
-    const o = E.snareOpts(s);
-    assert.ok(o.corruptShare < base.corruptShare * 0.5);
+    const o = E.snareOpts(s, E.AV_SECTOR);
+    assert.ok(o.corruptShare < E.snareOpts(E.defaultState(NOW), E.AV_SECTOR).corruptShare * 0.5);
     assert.ok(o.area > 70 * 60, 'nine Sprawl levels');
     assert.ok(o.antivirus.length >= 5, 'and the hazards grow with it');
 });

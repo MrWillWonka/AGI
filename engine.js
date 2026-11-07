@@ -713,7 +713,8 @@
         { id: 'pipeline', when: s => !!s.unlocked['module:snare'],
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'loose data',
             body: ['Hello again,', 'There is a second bay in the server room now. Everything the crawler drops ends up in there, drifting around loose.',
-                'Draw a loop round the good packets and they\'re yours. The bigger the loop, the more they\'re worth. Leave the red ones alone, and mind the antivirus and the firewalls: neither likes a loose wire.',
+                'Draw a loop round the good packets and they\'re yours. The bigger the loop, the more they\'re worth. Leave the red ones alone.',
+                'It\'s quiet near the door. The deeper you go, the more the pipeline fights back.',
                 'It pays in signal, not data. Keep the signal. I\'ll explain later.', 'F'] },
         { id: 'snareBoss', when: s => s.snare.bosses >= 1,
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'one down',
@@ -2107,7 +2108,14 @@
     // more often, booting Antivirus when hit from sector 4): the boss is the wall your tree has to break. The Rogue AI
     // turns up from sector `ROGUE_SECTOR` (three bosses in). The first runs start with a clean school.
     const snareBase = () => (typeof module === 'object' && module.exports ? require('./packet-snare.js') : self.PacketSnare).SNARE;
-    const ROGUE_SECTOR = 3;
+    // The hazards arrive one sector at a time (the owner's call: start with only the packets and learn each threat on its
+    // own): system Firewall sweeps from sector 2, Antivirus from 3, the Rogue AI from 4, the boss booting Antivirus when
+    // hit from 5, sweeps twice as often from 6. Every sector has its boss (the gate to the next).
+    const SWEEP_SECTOR = 1, AV_SECTOR = 2, ROGUE_SECTOR = 3, MINION_SECTOR = 4, FAST_SWEEP_SECTOR = 5;
+    const SNARE_STAGES = [
+        { sector: 0, adds: 'packets' }, { sector: SWEEP_SECTOR, adds: 'sweeps' }, { sector: AV_SECTOR, adds: 'antivirus' },
+        { sector: ROGUE_SECTOR, adds: 'rogue' }, { sector: MINION_SECTOR, adds: 'minions' }, { sector: FAST_SWEEP_SECTOR, adds: 'fastSweeps' }
+    ];
     const SNARE_SECTORS = ['Ingress', 'Buffer', 'Cache', 'Backbone', 'Relay', 'Mirror', 'Vault', 'Core'];
     const snareSectorName = k => (SNARE_SECTORS[k] || `Deep ${k - SNARE_SECTORS.length + 1}`);
     // The boss's hits: 1 on the first sector, then steeply more (2, 4, 6, 9, 12, 16, 20…).
@@ -2129,7 +2137,7 @@
         const g = (key, d = 0) => n[key] || d;
         const sprawl = g('sprawl');
         // Hazards grow with the field: an Antivirus more every two Sprawl levels, sweeps and cores sooner, more cores.
-        const avCount = 1 + Math.floor(sprawl / 2);
+        const avCount = k >= AV_SECTOR ? 1 + Math.floor(sprawl / 2) : 0;
         const antivirus = Array.from({ length: avCount }, (_, i) => Math.round(5 + i * 26 / avCount));
         const o = {
             area: Math.round(B.area * Math.pow(1.6, sprawl)),
@@ -2172,7 +2180,8 @@
             avStun: B.avStun + g('avStun'),
             packetSpeed: B.packetSpeed.map(v => v * (1 + 0.06 * k)),
             antivirus,
-            sweepEvery: Math.max(4, B.sweepEvery - 0.5 * sprawl),
+            sweepFirst: k >= SWEEP_SECTOR ? B.sweepFirst : Infinity,
+            sweepEvery: Math.max(3, (B.sweepEvery - 0.5 * sprawl) * (k >= FAST_SWEEP_SECTOR ? 0.5 : 1)),
             rogueEvery: Math.max(5, B.rogueEvery - 0.5 * sprawl),
             ...staged,
             // The boss: gentle on the first sector, then the wall.
@@ -2182,7 +2191,7 @@
             bossSpeed: B.bossSpeed * (1 + 0.12 * k),
             bossCharge: Math.max(2, B.bossCharge - 0.4 * k),
             bossStun: Math.max(0.8, B.bossStun - 0.1 * k),
-            bossMinions: k >= 3 ? 1 + Math.floor((k - 3) / 2) : 0,
+            bossMinions: k >= MINION_SECTOR ? 1 + Math.floor((k - MINION_SECTOR) / 2) : 0,
             rogue: k >= ROGUE_SECTOR ? 1 + Math.floor(sprawl / 3) : 0,
             cleanStart: s.snare.runs < 2,
             layout: s.snare.layout
@@ -2954,7 +2963,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
-        snareCatch, snareBossDown, finishSnare, snareOpts, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
+        snareCatch, snareBossDown, finishSnare, snareOpts, SNARE_STAGES, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany
