@@ -938,7 +938,7 @@
     const ACHIEVEMENTS = [
         { id: 'firstClick', name: 'Hello, World', desc: 'Generate compute by hand', check: s => s.stats.clicks >= 1 },
         // An Easter egg (hidden until earned): close the offer until every one of its spam variants has arrived.
-        { id: 'itsFavorite', name: 'IT\'s Favorite', desc: 'Receive every version of the opening spam', seen: () => false,
+        { id: 'itsFavorite', name: 'IT\'s Favorite', desc: 'You probably read all the terms and conditions too, don\'t you…', seen: () => false,
             check: s => WELCOME_NAGS.every((_, i) => s.intro['nag:' + i]) },
         { id: 'clicks1k', name: 'Carpal Tunnel', desc: 'Hold down a job to keep it going', seen: s => level(s, 'keyboard') >= 4, check: s => s.stats.holds >= 1 },
         { id: 'cp1k', name: 'Kiloflop', desc: 'Earn 1,000 CP in total', check: s => s.stats.lifetimeCp >= 1e3 },
