@@ -1270,7 +1270,8 @@
     // track gone stealthy (sparse, muted, suspended chords that don't resolve, a hushed kick of their own and a
     // ticking clock: see `kickLevel`) until you're spotted and the beat drops in. `lvl` trims each song's pitched
     // voices so every song measures the same (K-weighted, the tones 2 dB over the beat); a stealth song's `rest`
-    // lifts its tones while it's hushed (fading out as you're spotted), so it measures the same then too.
+    // lifts its tones while it's hushed (fading out as you're spotted), so it measures the same then too
+    // (`slvl`/`srest`: the same for its simple version).
     const SONGS = {
         classic: {
             lab: [
@@ -1303,13 +1304,13 @@
             ],
             snare: [
                 {   // Packet Sniffer: dub techno gone quiet: Am9 and Dm9 hanging on an unresolved Esus4, one muted stab a bar.
-                    lvl: 1.62, rest: 1.40, scale: AEOL, chords: ['Am9', 'Am9', 'Fmaj7', 'Fmaj7', 'Dm9', 'Dm9', 'Esus4', 'Esus4'],
+                    lvl: 1.62, rest: 1.40, slvl: 0.82, srest: 1.34, scale: AEOL, chords: ['Am9', 'Am9', 'Fmaj7', 'Fmaj7', 'Dm9', 'Dm9', 'Esus4', 'Esus4'],
                     bass: 'r..r......r.....', comp: [10], kick: 'x.........x.....', hush: 0.45, tick: '..o..x..o.o..x..', cut: 0.75,
                     melA: "5, . . 1 . . 3 . | 1 - - - . . . . | 5 . . . 1' . . . | 5 - - - . . . .",
                     melB: "1 . 1 . 3 . 5 . | 7 - - - 5 . 3 . | 1 . 1 . 3 . 5 . | 1' - - - 5 - - - | 6 . 4 . 3 . 1 . | 3 - - - 5 - - - | 5 . 4 . 5 . 1' . | 2' - - - 1' - - -"
                 },
                 {   // Dead Drop: i – v – VI – VII held on sus chords, a bass that steps and stops.
-                    lvl: 1.37, rest: 1.36, scale: AEOL, chords: ['Am7', 'Am7', 'Em7', 'Em7', 'Fmaj7', 'Fmaj7', 'Gsus4', 'Gsus4'],
+                    lvl: 1.37, rest: 1.36, slvl: 0.85, srest: 1.30, scale: AEOL, chords: ['Am7', 'Am7', 'Em7', 'Em7', 'Fmaj7', 'Fmaj7', 'Gsus4', 'Gsus4'],
                     bass: 'r..r..r.....r...', comp: [6], kick: 'x......x........', hush: 0.45, tick: 'o..x..o...o..x..', cut: 0.75,
                     melA: ". . 3 . . . 1 . | 5, - - - . . . . | . . 5 . . . 4 . | 5 - - - . . . .",
                     melB: "1 . . 3 . . 5 . | 3 - - - 1 - - - | 5 . . 7 . . 2' . | 7 - - - 5 - - - | 6 . . 1' . . 3' . | 1' - - - 5 - - - | 4 . . 5 . . 1' . | 4 - - - 5 - - -"
@@ -1343,13 +1344,13 @@
             ],
             snare: [
                 {   // Black Box: the warehouse held back: the acid line low and closed, the kick a pulse, the flat second waiting.
-                    lvl: 1.30, rest: 1.41, scale: PHRY, chords: ['Am', 'Am', 'Bb', 'Bb', 'Am', 'Am', 'Gm', 'Gm'], comp: [0], acid: 0.3, rumble: 0.6,
+                    lvl: 0.91, rest: 2.01, slvl: 0.80, srest: 1.39, scale: PHRY, chords: ['Am', 'Am', 'Bb', 'Bb', 'Am', 'Am', 'Gm', 'Gm'], comp: [0], acid: 0.3, rumble: 0.6,
                     kick: 'x.......x.......', hush: 0.5, tick: 'x.o.x.o.x.o.x.oo', cut: 0.7,
                     melA: "1 - - - . . . . | . . 5, - 1 - - . | 4 - - - . . 2 . | 2 - - - . . . .",
                     melB: "1 . 1 . 2 . 1 . | 5, - - - . . . . | 4 . 4 . 6 . 4 . | 2 - - - . . . . | 1 . 3 . 5 . 3 . | 1 - - - 2 - 1 - | 7, . 2 . 4 . 2 . | 7, - - - 5, - - -"
                 },
                 {   // Tripwire: A against B flat, a hoover creeping up the D minor, never home.
-                    lvl: 1.39, rest: 1.41, scale: PHRY, chords: ['Am', 'Bb', 'Am', 'Bb', 'Dm', 'C', 'Dm', 'Bb'], comp: [0], acid: 0.25, rumble: 0.5,
+                    lvl: 0.89, rest: 2.20, slvl: 0.82, srest: 1.32, scale: PHRY, chords: ['Am', 'Bb', 'Am', 'Bb', 'Dm', 'C', 'Dm', 'Bb'], comp: [0], acid: 0.25, rumble: 0.5,
                     kick: 'x.........x.....', hush: 0.5, tick: '..x...x...x..xx.', cut: 0.7,
                     melA: "1 . . . . . 3 . | 4 - - - . . . . | 1 . . 4 . . . . | 2 - - - . . . .",
                     melB: "1 - - - 5, - - - | 2 - - - 4 - - - | 1 . 1 . 3 . 5 . | 4 - - - 2 - - - | 4 . 6 . 1' . 6 . | 5 - - - 3 - - - | 4 . 1 . 6, . 4 . | 4 - - - - - . ."
@@ -1387,13 +1388,13 @@
             ],
             snare: [
                 {   // Tiptoe: minor ninths and sus chords, a mallet whispering low, the bass on one and the and of three.
-                    lvl: 1.14, rest: 1.32, scale: AEOL, chords: ['Am9', 'Am9', 'Gsus2', 'Gsus2', 'Fmaj7', 'Fmaj7', 'Esus4', 'Esus4'],
+                    lvl: 1.14, rest: 1.32, slvl: 0.85, srest: 1.31, scale: AEOL, chords: ['Am9', 'Am9', 'Gsus2', 'Gsus2', 'Fmaj7', 'Fmaj7', 'Esus4', 'Esus4'],
                     bass: 'r.......f.......', comp: [6, 14], kick: 'x.......x.......', hush: 0.5, tick: '...o...x...o..o.', cut: 0.8,
                     melA: "5 . . . 3 . . . | 1 - - - . . . . | 2 . . . 1 . . . | 5, - - - . . . .",
                     melB: "1 . 3 . 5 . 7 . | 5 - - - 3 - - - | 4 . 5 . 2 . 1 . | 2 - - - . . . . | 6 . 5 . 3 . 1 . | 3 - - - 5 - - - | 5 . 4 . 2 . 1 . | 2 - - - 1 - - -"
                 },
                 {   // Hushed Channel: F major sevenths drifting to a Gsus4 that never lands, a kalimba line kept low.
-                    lvl: 1.27, rest: 1.26, scale: ION, tonic: 3, oct: -1, chords: ['Fmaj7', 'Fmaj7', 'Dm9', 'Dm9', 'Am7', 'Am7', 'Gsus4', 'Gsus4'],
+                    lvl: 1.27, rest: 1.26, slvl: 0.85, srest: 1.31, scale: ION, tonic: 3, oct: -1, chords: ['Fmaj7', 'Fmaj7', 'Dm9', 'Dm9', 'Am7', 'Am7', 'Gsus4', 'Gsus4'],
                     bass: 'r.....r.........', comp: [10], kick: 'x.....x.........', hush: 0.5, tick: '.o...o...o...x..', cut: 0.8,
                     melA: "3 . . . . . 1 . | 6, - - - . . . . | 2 . . . 1 . . . | 2 - - - . . . .",
                     melB: "6 . 5 . 3 . 1 . | 3 - - - 5 - - - | 4 . 3 . 2 . 6, . | 1 - - - . . . . | 3 . 5 . 6 . 1' . | 5 - - - 3 - - - | 5 . 4 . 2 . 1 . | 2 - - - 5 - - -"
@@ -1427,13 +1428,13 @@
             ],
             snare: [
                 {   // Crawlspace: a heartbeat for a kick, A against B flat, the bell far off.
-                    lvl: 0.93, rest: 1.14, scale: HARM, oct: -1, chords: ['Am', 'Bb', 'Am', 'Bb', 'Dm', 'Bb', 'E', 'E'], comp: [0],
+                    lvl: 0.93, rest: 1.14, slvl: 0.96, srest: 1.14, scale: HARM, oct: -1, chords: ['Am', 'Bb', 'Am', 'Bb', 'Dm', 'Bb', 'E', 'E'], comp: [0],
                     kick: 'x.o.....x.o.....', hush: 0.6, tick: 'x.......o.......', cut: 0.8,
                     melA: "1 - - - . . . . | b2 - - - . . . . | 5 - - - . . . . | 4 - - - . . . .",
                     melB: "5 - - - 3 - - - | 4 - - - b2 - - - | 1 - - - 3 - 5 - | 4 - - - - - . . | 6 - - - 4 - - - | 4 - - - b2 - - - | 7, - - - 2 - - - | 5 - - - - - . ."
                 },
                 {   // Lights Out: Am – F – Dm – E, the line stepping down and stopping to listen.
-                    lvl: 0.89, rest: 1.22, scale: HARM, oct: -1, chords: ['Am', 'F', 'Dm', 'E', 'Am', 'F', 'Bb', 'E7'], comp: [0],
+                    lvl: 0.89, rest: 1.22, slvl: 0.93, srest: 1.24, scale: HARM, oct: -1, chords: ['Am', 'F', 'Dm', 'E', 'Am', 'F', 'Bb', 'E7'], comp: [0],
                     kick: 'x..o............', hush: 0.6, tick: '....x.......o...', cut: 0.8,
                     melA: "5 - - - . . 3 . | 1 - - - . . . . | 4 - - - . . . . | 2 - - - . . . .",
                     melB: "1 - - - - - . . | 1 - - - 3 - - - | 4 - - - 6 - - - | 5 - - - 7, - - - | 3 - - - 5 - - - | 6 - - - 1' - - - | b2' - - - 6 - - - | 7 - - - - - . ."
@@ -1467,13 +1468,13 @@
             ],
             snare: [
                 {   // Sneaking Mission: an 8-bit infiltration: a triangle bass tiptoeing, a pulse creeping up the A minor.
-                    lvl: 1.39, rest: 1.29, scale: AEOL, chords: ['Am', 'Am', 'F', 'G', 'Am', 'Am', 'F', 'Esus4'],
+                    lvl: 1.39, rest: 1.29, slvl: 0.91, srest: 1.27, scale: AEOL, chords: ['Am', 'Am', 'F', 'G', 'Am', 'Am', 'F', 'Esus4'],
                     bass: 'r...f...r...f.o.', walk: true, kick: 'x.......x.......', hush: 0.5, tick: '..x...x...x...x.', cut: 0.85,
                     melA: "1 . 1 . . . 3 . | 5, . . . . . . . | 6 . 6 . . . 1' . | 5 - - - . . . .",
                     melB: "1 . 3 . 5 . 1' . | 7 . 5 . 3 . 5 . | 6 . 1' . 3' . 1' . | 2' - - - 7 - - - | 1' . 1' . 7 . 5 . | 3 . 5 . 1' - - - | 6 . 4 . 6 . 1' . | 2' - - - 1' - - -"
                 },
                 {   // Hide and Seek: A minor seen from C, sus chords that never land, a pulse peeking out and back.
-                    lvl: 1.44, rest: 1.51, scale: ION, tonic: 3, chords: ['Am', 'Am', 'Fmaj7', 'Fmaj7', 'Dm7', 'Dm7', 'Gsus4', 'Gsus4'],
+                    lvl: 1.44, rest: 1.51, slvl: 0.85, srest: 1.29, scale: ION, tonic: 3, chords: ['Am', 'Am', 'Fmaj7', 'Fmaj7', 'Dm7', 'Dm7', 'Gsus4', 'Gsus4'],
                     bass: 'r.....r...o.....', walk: true, kick: 'x.....x.........', hush: 0.5, tick: 'o...x...o...x.o.', cut: 0.85,
                     melA: "6, . . 1 . . . . | 2 - - - . . . . | 6, . . 1 . . . . | 2 - - - 5, . . .",
                     melB: "3 . 1 . 6, . 1 . | 3 - - - 2 - - - | 1 . 3 . 5 . 3 . | 6, - - - . . . . | 4 . 6 . 1' . 6 . | 4 - - - 2 - - - | 1 . 2 . 5 . 2 . | 1 - - - 5, - - -"
@@ -1541,14 +1542,16 @@
             simpleMix: { gain: 1, beat: 1.032, tones: 3.515 }, simpleVoice: 'sawtooth',   // the simple version (simpleStep)
             step(t, s, k, len, L, c) {
                 const ch = c.chord, song = c.song;
+                // A stealth song's acid line and rumble start held back and open up once you're spotted.
+                const spot = song.kick ? c.spot : 0, acid = song.acid + (1 - song.acid) * 0.6 * spot, rumble = (song.rumble ?? 1) + (1 - (song.rumble ?? 1)) * spot;
                 const kg = kickLevel(c, s, s % 4 === 0);
                 if (kg) kick(t, 0.6 * kg, 170, 42, 0.32);
                 // The rumble: a low saw on the three 16ths after each kick, fading, its filter opening with speed.
-                if (c.bassOn && s % 4) synth(t, ch.root, len * 0.95, [0, 0.12, 0.09, 0.06][s % 4] * (song.rumble ?? 1), 'sawtooth', 240 + 260 * k, 1, 0);   // bright enough for small speakers
+                if (c.bassOn && s % 4) synth(t, ch.root, len * 0.95, [0, 0.12, 0.09, 0.06][s % 4] * rumble, 'sawtooth', 240 + 260 * k, 1, 0);   // bright enough for small speakers
                 const B = c.bar % 4 >= 2;
                 const off = (B ? DARK_ACID_B : DARK_ACID)[s], acc = (B ? DARK_ACCENT_B : DARK_ACCENT)[s];
                 // Always there (quieter at rest and in the lab's songs), opening up with speed.
-                if (off != null && c.bassOn) synth(t, snap(song, ch.root + 12 + off), len * (acc ? 1.4 : 0.8), (acc ? 0.08 : 0.055) * (0.6 + 0.4 * L.off) * song.acid, 'sawtooth', 600 + 2200 * k, 12, acc ? 5 : 2.5);
+                if (off != null && c.bassOn) synth(t, snap(song, ch.root + 12 + off), len * (acc ? 1.4 : 0.8), (acc ? 0.08 : 0.055) * (0.6 + 0.4 * L.off) * acid, 'sawtooth', 600 + 2200 * k, 12, acc ? 5 : 2.5);
                 if (L.off > 0.02 && s % 4 === 2) hat(t, (0.09 + 0.05 * k) * L.off, 0.11);
                 if (L.clap > 0.02 && c.drums && (s === 4 || s === 12)) { clap(t, 0.2 * L.clap); hat(t, 0.08 * L.clap, 0.05); }
                 if (L.sixteenth > 0.02) hat(t, (s % 4 === 2 ? 0 : s % 2 ? 0.045 : 0.025) * L.sixteenth, 0.02);
@@ -1782,7 +1785,8 @@
             if (s === 0) { (music.chordLog ||= []).push({ t, ch: c.chord }); if (music.chordLog.length > 3) music.chordLog.shift(); }
             // A stealth song's tones stand a little forward while its drums are hushed (`rest`), so it keeps the level.
             c.spot = L.clap;
-            songLvl = c.song.lvl * (c.song.rest ? 1 + (c.song.rest - 1) * (1 - c.spot) : 1);
+            const lvl = simple ? c.song.slvl ?? c.song.lvl : c.song.lvl, rest = simple ? c.song.srest ?? c.song.rest : c.song.rest;
+            songLvl = lvl * (rest ? 1 + (rest - 1) * (1 - c.spot) : 1);
             // The melody waits for its layer; the A2 harmony for its own.
             if (c.mel && L.mel <= 0.02) c.mel = null;
             if (c.mel) { c.melGain *= L.mel; if (L.harm < 0.5) c.mel.harm = 0; }
