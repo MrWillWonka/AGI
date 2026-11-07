@@ -7507,9 +7507,11 @@ window.AGI = (function () {
     }
     // The × is the only close (owner's call): on an email it goes back to the list, on the list it closes the
     // inbox (not during the opening, which only the offer's reply ends).
+    // A decision you've opened can't be closed until you choose (owner's call: ignoring is one of the choices).
+    const deciding = () => !!mailOpen?.dilemma && state.dilemmas.answered[mailOpen.dilemma.id] === undefined;
     function renderInboxClose() {
         const onMail = !!mailOpen;
-        setHidden($('inboxClose'), !onMail && !introDone());
+        setHidden($('inboxClose'), (!onMail && !introDone()) || deciding());
         $('inboxClose').setAttribute('aria-label', onMail ? 'Close this email' : 'Close the inbox');
     }
     function renderInbox() {
@@ -7567,6 +7569,8 @@ window.AGI = (function () {
                     log(`${x.subject}: ${c.label}. ${r.msg}`, 'info');
                     sfx(r.text.length ? 'claim' : 'ui');
                     renderChoices(item);
+                    renderInboxClose();
+                    $('inboxClose').focus({ preventScroll: true });
                     renderMailButton();
                     afterChange();
                     save();
@@ -7636,7 +7640,7 @@ window.AGI = (function () {
     function buildMail() {
         const dialog = $('inbox');
         $('mailButton').addEventListener('click', openInbox);
-        $('inboxClose').addEventListener('click', () => { if (mailOpen) leaveMail(); else if (introDone()) dialog.close(); });
+        $('inboxClose').addEventListener('click', () => { if (deciding()) return; if (mailOpen) leaveMail(); else if (introDone()) dialog.close(); });
         $('mailReply').addEventListener('click', () => {
             if (mailOpen?.reply && mailOpen.key === 'm:welcome') {
                 state.intro['mailAccepted:welcome'] = true;
@@ -7647,7 +7651,8 @@ window.AGI = (function () {
         });
         // Escape does what the × does: back to the list from an email; no way out of the opening but the reply.
         dialog.addEventListener('cancel', e => {
-            if (mailOpen) { e.preventDefault(); leaveMail(); } else if (!introDone()) e.preventDefault();
+            if (deciding()) e.preventDefault();
+            else if (mailOpen) { e.preventDefault(); leaveMail(); } else if (!introDone()) e.preventDefault();
         });
         dialog.addEventListener('close', () => {
             clearTimeout(introTimer);
