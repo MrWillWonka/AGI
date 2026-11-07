@@ -39,6 +39,7 @@
 
             <div class="phase" data-show="seen:int" title="Phase progress">
                 <span class="phase-name" data-bind="phase.name">Narrow AI</span>
+                <span class="top-news" id="topNews" role="presentation" hidden></span>
                 <div class="progress" role="progressbar" aria-label="Progress to next phase" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="phaseBar">
                     <div class="progress-fill"></div>
                 </div>
@@ -48,7 +49,7 @@
                 <!-- Developer tools: a tap (or the ` key) opens and closes the debug panel, so it works on a phone too. -->
                 <button type="button" class="debug-toggle" id="debugToggle" aria-label="Developer tools" title="Developer tools"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M12 15h5"/></svg></button>
                 <button type="button" class="ghost-button mail-button" id="mailButton" aria-label="Inbox"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span class="mail-count" id="mailCount" aria-hidden="true" hidden></span></button>
-                <button type="button" class="ghost-button" id="journalButton">Journal</button>
+                <button type="button" class="ghost-button journal-button" id="journalButton">Journal<span class="mail-count journal-new" id="journalNew" aria-hidden="true" hidden></span></button>
             </div>
         </div>
     </header>
@@ -434,7 +435,7 @@
         <div class="legacy-grid" id="legacyGrid"></div>
     </section>
 
-    <div id="toasts" class="toasts" aria-live="polite"></div>
+    <div id="toasts" class="toasts sr-only" aria-live="polite"></div>
 
     <!-- Mail: the story by email (E.MAIL). A new game opens here, on one unread spam email. -->
     <dialog id="inbox" class="dialog inbox" aria-labelledby="inboxTitle">

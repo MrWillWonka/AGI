@@ -325,9 +325,61 @@ window.AGI = (function () {
     // One at a time, each getting its moment: the next waits until the last has left.
     const toastQueue = [];
     let toastBusy = false;
+    // Events land in place, not in pop-ups (the owner's call: the floating cards kept covering the game). An
+    // achievement counts on the Journal button with a star burst; mail bumps the envelope (it carries its own
+    // count); a phase, a shipped version, a challenge or a skill learned elsewhere shows for a moment in the top
+    // bar's news slot, beside the phase bar, which pulses. Each is also read out by the hidden live region.
+    let journalNew = 0;
+    const newsQueue = [];
+    let newsBusy = false;
     function toast(title, message, kind = 'achievement') {
-        toastQueue.push({ title, message, kind });
-        if (!toastBusy) nextToast();
+        const say = $('toasts');
+        if (say) say.textContent = `${title}. ${message || ''}`;
+        if (kind === 'mail') {
+            sfx('ui');
+            pulseOnce($('mailButton'), 'bump');
+            return;
+        }
+        if (kind === 'achievement') {
+            sfx('achievement');
+            journalNew++;
+            const badge = $('journalNew');
+            if (badge) { badge.textContent = journalNew > 9 ? '9+' : String(journalNew); badge.hidden = false; }
+            $('journalButton').setAttribute('aria-label', `Journal, ${journalNew} new achievement${journalNew === 1 ? '' : 's'}`);
+            pulseOnce($('journalButton'), 'burst');
+            return;
+        }
+        newsQueue.push({ title, message, kind });
+        if (!newsBusy) nextNews();
+    }
+    function pulseOnce(node, cls) {
+        if (!node || reducedMotion()) return;
+        node.classList.remove(cls);
+        void node.offsetWidth;
+        node.classList.add(cls);
+        setTimeout(() => node.classList.remove(cls), 1400);
+    }
+    function nextNews() {
+        const n = newsQueue.shift();
+        newsBusy = !!n;
+        const slot = $('topNews');
+        const phase = document.querySelector('.topbar .phase');
+        if (!n) { if (slot) slot.hidden = true; phase?.classList.remove('news'); return; }
+        sfx({ phase: 'phase', version: 'ship', skill: 'achievement' }[n.kind] || 'achievement');
+        if (slot) {
+            slot.replaceChildren(el('strong', { text: n.title }), el('span', { text: n.message || '' }));
+            slot.dataset.kind = n.kind;
+            slot.hidden = false;
+        }
+        phase?.classList.add('news');
+        pulseOnce(phase, 'pulse');
+        setTimeout(nextNews, (TOAST_KINDS[n.kind] || TOAST_KINDS.achievement).ms - 1500);
+    }
+    function clearJournalNew() {
+        journalNew = 0;
+        const badge = $('journalNew');
+        if (badge) badge.hidden = true;
+        $('journalButton').removeAttribute('aria-label');
     }
     let toastLive = null;
     // Toasts sit top middle, but never over a screen's status line: below the run's stats, the lab's supply cells
@@ -382,6 +434,7 @@ window.AGI = (function () {
     function dropStaleToasts() {
         for (let i = toastQueue.length - 1; i >= 0; i--) if (toastQueue[i].kind !== 'achievement') toastQueue.splice(i, 1);
         if (toastLive && toastLive.kind !== 'achievement') toastLive.done();
+        newsQueue.length = 0;
     }
 
     // Contextual callouts appear beside what they're about: the Research job, or the minimap when the
@@ -1375,7 +1428,7 @@ window.AGI = (function () {
         };
         tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.section)));
         show('log');
-        $('journalButton').addEventListener('click', () => journal.showModal());
+        $('journalButton').addEventListener('click', () => { clearJournalNew(); journal.showModal(); });
         $('journalClose').addEventListener('click', () => journal.close());
         // Click on the backdrop closes it too.
         journal.addEventListener('click', e => { if (e.target === journal) journal.close(); });
@@ -1951,7 +2004,7 @@ window.AGI = (function () {
                 state.intro[seenPhase] = true;
                 // The chapter's ending card is the announcement for this phase.
                 // What it means for you first (where to go next), then a line of mood.
-                if (!changes.ending) toast(`${changes.phase.name} reached`, [PHASE_NEWS[changes.phase.name], changes.phase.note].filter(Boolean).join(' ') || 'A new phase for your AI', 'phase');
+                if (!changes.ending) toast(`${changes.phase.name} reached`, PHASE_NEWS[changes.phase.name] || changes.phase.note || 'A new phase for your AI', 'phase');
             }
         }
         if (changes.ending) showEnding();

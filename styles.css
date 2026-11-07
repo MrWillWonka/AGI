@@ -3178,3 +3178,36 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
     .leg-tag { top: 84px; bottom: auto; left: 50%; transform: translateX(-50%); max-width: calc(100% - 20px); font-size: 0.64rem; padding: 2px 3px 2px 8px; }
     #legTagText { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 }
+
+/* ---- In-place notifications (the owner's call: no floating toasts) ----
+   A phase, a shipped version, a challenge or a skill learned elsewhere shows for a moment in the top bar's phase
+   area (the phase bar steps aside and the slot grows in); an achievement counts on the Journal button with a star
+   burst; mail bumps the envelope. */
+.topbar .phase { position: relative; }
+.top-news { position: absolute; inset: -4px 0; z-index: 2; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0 10px;
+    border-radius: 8px; border: 1px solid color-mix(in srgb, var(--success) 55%, transparent);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--success) 18%, var(--panel)), var(--panel));
+    font: 600 0.78rem var(--font-body); white-space: nowrap; overflow: hidden; animation: news-in 0.35s cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+.top-news[hidden] { display: none; }
+.top-news strong { flex: none; font: 700 0.74rem var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--success); }
+.top-news span { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.top-news[data-kind="version"] { border-color: color-mix(in srgb, var(--research) 55%, transparent); background: linear-gradient(90deg, color-mix(in srgb, var(--research) 18%, var(--panel)), var(--panel)); }
+.top-news[data-kind="version"] strong { color: var(--research); }
+.top-news[data-kind="skill"] strong { color: var(--warning); }
+@keyframes news-in { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }
+.topbar .phase.pulse { animation: phase-pulse 1.2s ease-out; }
+@keyframes phase-pulse { 0% { filter: brightness(1.8) drop-shadow(0 0 10px var(--success)); } 100% { filter: none; } }
+.journal-button { position: relative; }
+.journal-new { background: #ffd27a; color: #1a1406; }
+.journal-button.burst { animation: star-burst 1.2s ease-out; }
+@keyframes star-burst { 0% { box-shadow: 0 0 0 0 rgba(255, 210, 122, 0.7); border-color: #ffd27a; } 100% { box-shadow: 0 0 0 14px rgba(255, 210, 122, 0); } }
+.mail-button.bump { animation: mail-bump 0.9s ease-out; }
+@keyframes mail-bump { 0%, 100% { transform: none; } 20% { transform: translateY(-4px) rotate(-6deg); } 45% { transform: translateY(0) rotate(4deg); } 70% { transform: rotate(-2deg); } }
+@media (prefers-reduced-motion: reduce) { .top-news, .topbar .phase.pulse, .journal-button.burst, .mail-button.bump { animation: none; } }
+body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.burst, body.calm .mail-button.bump { animation: none; }
+@media (max-width: 640px) {
+    /* The phase row is narrow on phones: the news title sits over its message, two small lines. */
+    .top-news { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding: 0 8px; inset: -6px 0; line-height: 1.15; }
+    .top-news strong { font-size: 0.62rem; }
+    .top-news span { max-width: 100%; font-size: 0.68rem; text-overflow: ellipsis; }
+}
