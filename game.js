@@ -1561,8 +1561,8 @@ window.AGI = (function () {
 
     // The choice behind a skill-tree or legacy buy: currency held, the price paid, and the affordable options.
     function playtestChoice(up) {
-        const cur = up.tab === 'legacy' ? 'insight' : up.tab === 'snare' ? 'dp' : 'xp';
-        const held = cur === 'insight' ? state.prestige.points : state.res[cur];
+        const cur = up.tab === 'legacy' ? 'insight' : up.tab === 'snare' ? 'signal' : 'xp';
+        const held = cur === 'insight' ? state.prestige.points : cur === 'signal' ? state.snare.signal : state.res[cur];
         const options = E.UPGRADES.filter(u => u.tab === up.tab && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u))
             .map(u => ({ id: u.id, cost: E.upgradeCost(u, E.level(state, u.id))[cur] }))
             .filter(o => o.cost != null && o.cost <= held).sort((a, b) => a.cost - b.cost);
@@ -2253,6 +2253,7 @@ window.AGI = (function () {
         switch (key) {
             case 'res.cp': return f(state.res.cp);
             case 'res.dp': return f(state.res.dp);
+            case 'snare.signal': return f(state.snare.signal);
             case 'res.rp': return f(state.res.rp);
             // Net rates: production minus what automation converts away.
             case 'rate.cp': return d.cpPerSec ? `${d.cpNet < 0 ? '−' : '+'}${f(Math.abs(d.cpNet))}/s` : '';
@@ -2304,6 +2305,7 @@ window.AGI = (function () {
             case 'stats.skills': return f(state.stats.skillsLearned);
             case 'stats.clean': return f(state.stats.cleanSprints);
             case 'stats.topSpeed': return state.stats.topSpeed ? `${state.stats.topSpeed.toFixed(1)} m/s` : '—';
+            case 'stats.snare': return state.snare.runs ? `${snareSector(state.snare.sector)} · best +${f(state.snare.best)} Signal · ${f(state.snare.earned)} earned · ${state.snare.bosses} boss${state.snare.bosses === 1 ? '' : 'es'}` : '—';
             case 'stats.bestFlight': return state.stats.bestFlight ? `${Math.round(state.stats.bestFlight)} m (${state.stats.bestHeight.toFixed(1)} m up)` : '—';
             case 'bay.training': return bayStatus('training');
             case 'bay.pipeline': return bayStatus('pipeline');
@@ -3407,6 +3409,45 @@ window.AGI = (function () {
         return `${learned} skill${learned === 1 ? '' : 's'} · next: ${E.skillAt(learned).name}${record ? ` · record ${record}%` : ''}`;
     }
 
+    // Packet Snare's bay: a live lane for each sector you've cleared (the last four), its data streaming past while your
+    // laser picks at it, like the Training Cluster's lanes; the rest is the disk array.
+    const SNARE_LANES = 4;
+    let snareLanes = [];
+    function buildSnareArt() {
+        const art = $('bays').querySelector('.bay[data-bay="pipeline"] .bay-art');
+        if (!state) return;   // built again once the save is loaded (renderHub)
+        const n = Math.min(state.snare.sector, SNARE_LANES);
+        const key = `${state.snare.sector}`;
+        if (art.dataset.key === key) return;
+        art.dataset.key = key;
+        art.replaceChildren();
+        snareLanes = [];
+        for (let i = 0; i < n; i++) {
+            const k = state.snare.sector - n + i;
+            const canvas = el('canvas', { class: 'snare-lane', title: `${E.snareSectorName(k)}: cleared` });
+            const run = window.PacketSnare.createSnare({ seed: 101 + k, w: 5.2, h: 2.2, density: 0.6, antivirus: [], sweepFirst: Infinity, idleDrain: 0, focus: 1e9,
+                laser: 1.6 - 0.1 * Math.min(k, 6), corruptShare: 0.2 });
+            snareLanes.push({ k, canvas, run, fx: [] });
+            art.append(canvas);
+        }
+        for (let i = 0; i < BAY_ART.pipeline - 6 * n; i++) art.append(el('i'));
+    }
+    function drawSnareLanes() {
+        for (const lane of snareLanes) {
+            const c = lane.canvas;
+            if (!c.isConnected || !c.clientWidth) continue;
+            const dpr = Math.min(2, window.devicePixelRatio || 1);
+            const w = c.clientWidth, h = c.clientHeight;
+            if (c.width !== Math.round(w * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
+            lane.run.step(0.05);
+            for (const f of lane.fx) f.t += 0.05;
+            lane.fx = lane.fx.filter(f => f.t < f.life);
+            for (const e of lane.run.takeEvents()) if (e.type === 'laser') lane.fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.4 });
+            const k = Math.min(w / lane.run.w, h / lane.run.h);
+            drawSnareView(c.getContext('2d'), { run: lane.run, effects: lane.fx, k, ox: (w - lane.run.w * k) / 2, oy: (h - lane.run.h * k) / 2, cw: w, ch: h, dpr, field: lane.run, minR: 2 });
+        }
+    }
+
     // How many art pieces each bay's hardware drawing uses (styled per bay in styles.css).
     const BAY_ART = { training: 20, pipeline: 24, architecture: 10, core: 3 };
     // Lanes on the Training Cluster, drawn by drawLanes():
@@ -3435,8 +3476,9 @@ window.AGI = (function () {
     }
 
     function buildHub() {
+        buildSnareArt();
         for (const node of $('bays').querySelectorAll('.bay')) {
-            if (node.dataset.bay === 'training') continue;
+            if (node.dataset.bay === 'training' || node.dataset.bay === 'pipeline') continue;
             const art = node.querySelector('.bay-art');
             for (let i = 0; i < BAY_ART[node.dataset.bay]; i++) art.append(el('i'));
         }
@@ -3546,6 +3588,7 @@ window.AGI = (function () {
 
     function renderHub() {
         if (Number($('bay-training').querySelector('.bay-art').dataset.learned) !== state.path.learned) buildTrainingArt();
+        buildSnareArt();
         const sealed = nextSealedBay();
         for (const node of $('bays').querySelectorAll('.bay')) {
             const id = node.dataset.bay;
@@ -3571,11 +3614,13 @@ window.AGI = (function () {
 
 
     // ---- Packet Snare (the Data Pipeline bay) -------------------------------------------------------------
-    // packet-snare.js runs the field; this draws it and turns the pointer into the wire. Packets snared pay data
-    // as they're caught (E.snareCatch, a hand collection a packet times the loop's multiplier); the run ends when
-    // Focus runs out, and its haul against the version's best is the record (E.finishSnare). The bay's own skill
-    // tree (E.SNARE_TREE, bought with data) grows the run from a small quick field into a sprawl with abilities;
-    // its options reach the run through E.snareOpts.
+    // packet-snare.js runs the field; this draws it and turns the pointer into the wire. Packets snared pay Signal, the
+    // bay's own currency, as they're caught (E.snareCatch: a packet's worth times the loop's multiplier, more on later
+    // sectors); the run ends when Focus runs out, and its haul against the version's best is the record (E.finishSnare),
+    // which trickles research while you play. Each sector has a boss Antivirus: beat it and the next run is on the next
+    // sector. The bay's own skill tree (E.SNARE_TREE, bought with Signal) grows the run from a small quick field into a
+    // sprawl with abilities; its options reach the run through E.snareOpts. A mechanic is introduced, once, with a demo
+    // the moment it first turns up (the run pauses for it).
     const snare = { preview: false, run: null, raf: 0, last: 0, haul: 0, seed: 1, fx: [], scale: 1, ox: 0, oy: 0, cw: 0, ch: 0, ctx: null, canvas: null,
         pointer: null, done: null, tree: false, pick: null, treeKey: '' };
     const SNARE_FX = 1.1;        // seconds a catch's loop and pop stay on the field
@@ -3583,8 +3628,9 @@ window.AGI = (function () {
         snareChain: 'ϟ', snareScanner: '◎', snareScrubbers: '✚', snareLaser: '⌖', snareEmitters: '⋔', snareAnchors: '⚓', snareHardened: '⛨', snareContain: '▣', snareHerders: '⟴' };
 
     function snareStatus() {
-        if (snare.run && !snare.run.over && !snare.preview) return 'Snaring…';
-        return state.snare.best > 0 ? `best haul +${E.format(state.snare.best)} DP` : 'Loose data drifting';
+        const sector = `Sector ${state.snare.sector + 1}: ${E.snareSectorName(state.snare.sector)}`;
+        if (snare.run && !snare.run.over && !snare.preview) return `${sector} · snaring…`;
+        return state.snare.best > 0 ? `${sector} · best haul +${E.format(state.snare.best)} Signal` : 'Loose data drifting';
     }
 
     function buildSnare() {
@@ -3674,7 +3720,7 @@ window.AGI = (function () {
 
     // The field shaped to the canvas (portrait on an upright phone), within sane limits, at the tree's size.
     function snareField(area = E.snareOpts(state).area) {
-        const w = Math.sqrt(area * Math.min(3.2, Math.max(0.4, snare.cw / snare.ch || 1.6)));
+        const w = Math.sqrt(area * Math.min(2, Math.max(0.5, snare.cw / snare.ch || 1.6)));
         return { w, h: area / w };
     }
 
@@ -3704,6 +3750,8 @@ window.AGI = (function () {
         const o = E.snareOpts(state);
         snare.seed = (state.snare.runs * 7919 + Math.floor(state.stats.playTime * 1000)) >>> 0;
         snare.run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area), seed: snare.seed });
+        snare.sector = state.snare.sector;
+        snare.intro = null;
         snare.haul = 0;
         snare.fx = [];
         snare.done = null;
@@ -3717,6 +3765,7 @@ window.AGI = (function () {
         snare.last = performance.now();
         cancelAnimationFrame(snare.raf);
         snare.raf = requestAnimationFrame(snareFrame);
+        if (o.anchors) snareIntro('anchors');
     }
 
     function snareFrame(now) {
@@ -3737,7 +3786,7 @@ window.AGI = (function () {
             return;
         }
         // Paused while the page is hidden, a dialog (the Journal, the inbox) is open, or the tree is up mid-run.
-        const paused = document.hidden || snare.tree || !!document.querySelector('dialog[open]') || !$('legacyScreen').hidden;
+        const paused = document.hidden || snare.tree || !!snare.intro || !!document.querySelector('dialog[open]') || !$('legacyScreen').hidden;
         if (paused) {
             snare.raf = requestAnimationFrame(snareFrame);
             return;
@@ -3752,21 +3801,26 @@ window.AGI = (function () {
         snare.raf = requestAnimationFrame(snareFrame);
     }
 
+    // Pays a catch in Signal at the sector the run started on.
+    const snarePay = units => {
+        const pay = E.snareCatch(state, units, snare.sector);
+        snare.haul += pay;
+        return pay;
+    };
+
     function snareEvents() {
         const run = snare.run;
         if (!run) return;
         for (const e of run.takeEvents()) {
             if (e.type === 'catch') {
-                const dp = E.snareCatch(state, e.units);
-                snare.haul += dp;
+                const pay = snarePay(e.units);
                 const big = e.mult >= 2.5 || e.gold > 0 || e.chained.length > 2;
-                snare.fx.push({ kind: 'catch', poly: e.poly, x: e.x, y: e.y, t: 0, text: `+${E.format(dp)} DP`, sub: e.mult >= 1.15 ? `×${e.mult.toFixed(1)}` : '', big, packets: e.packets });
+                snare.fx.push({ kind: 'catch', poly: e.poly, x: e.x, y: e.y, t: 0, text: `+${E.format(pay)}`, sub: e.mult >= 1.15 ? `×${e.mult.toFixed(1)}` : '', big, packets: e.packets });
                 if (e.chained.length) snare.fx.push({ kind: 'chain', arcs: e.chained, t: 0, life: 0.5, seed: Math.random() });
                 sfx(big ? 'perfect' : 'clean');
             } else if (e.type === 'laser') {
-                const dp = E.snareCatch(state, e.units);
-                snare.haul += dp;
-                snare.fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.45, text: `+${E.format(dp)}`, small: true, gold: e.kind === 'gold' });
+                const pay = snarePay(e.units);
+                snare.fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.45, text: `+${E.format(pay)}`, small: true, gold: e.kind === 'gold' });
             } else if (e.type === 'corrupt') {
                 snare.fx.push({ kind: 'corrupt', poly: e.poly, x: e.x, y: e.y, t: 0, text: 'CORRUPTED', packets: e.packets });
                 sfx('error');
@@ -3778,17 +3832,18 @@ window.AGI = (function () {
                 if (state.settings.shake && !reducedMotion()) snare.fx.push({ kind: 'shake', t: 0, life: 0.25 });
             } else if (e.type === 'antivirus') {
                 snare.fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.8 });
+                snareIntro('antivirus');
             } else if (e.type === 'core') {
                 snare.fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.8 });
                 sfx('windup');
-            } else if (e.type === 'stolen') {
-                snare.fx.push({ kind: 'stolen', core: e.core, packets: e.packets, t: 0, life: 0.45 });
+                snareIntro('rogue');
+            } else if (e.type === 'stolen' || e.type === 'wiped') {
+                snare.fx.push({ kind: 'stolen', core: e.core || { x: e.x, y: e.y }, packets: e.packets, t: 0, life: 0.45, wiped: e.type === 'wiped' });
             } else if (e.type === 'coreGone') {
                 snare.fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: e.r, t: 0, life: 0.6 });
             } else if (e.type === 'quarantine') {
-                const dp = E.snareCatch(state, e.units);
-                snare.haul += dp;
-                snare.fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: e.r, t: 0, life: 0.9, text: `QUARANTINED +${E.format(dp)}`, big: true });
+                const pay = snarePay(e.units);
+                snare.fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: e.r, t: 0, life: 0.9, text: `QUARANTINED +${E.format(pay)}`, big: true });
                 sfx('perfect');
                 if (state.settings.shake && !reducedMotion()) snare.fx.push({ kind: 'shake', t: 0, life: 0.2 });
             } else if (e.type === 'wall') {
@@ -3803,29 +3858,87 @@ window.AGI = (function () {
                 sfx(e.down ? 'nearMiss' : 'clean');
             } else if (e.type === 'sweep') {
                 sfx('windup');
+                snareIntro('sweep');
+            } else if (e.type === 'boss') {
+                snare.fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 1.2, big: true });
+                sfx('windup');
+                snareIntro('boss');
+            } else if (e.type === 'bossCharge') {
+                sfx('ui');
+            } else if (e.type === 'bossHit') {
+                snare.fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: window.PacketSnare.BOSS_R, t: 0, life: 0.7, text: `HIT · ${e.hp} left`, big: true });
+                sfx('perfect');
+                if (state.settings.shake && !reducedMotion()) snare.fx.push({ kind: 'shake', t: 0, life: 0.25 });
+            } else if (e.type === 'bossDown') {
+                // The sector is cleared: a bonus, and the next run is on the next sector.
+                const cleared = snare.sector;
+                const pay = snarePay(10 * E.snareBossHits(cleared));
+                E.snareBossDown(state);
+                snare.bossDown = cleared;
+                snare.fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 2, t: 0, life: 1.4, text: `SECTOR CLEARED +${E.format(pay)}`, big: true });
+                sfx('record');
+                if (state.settings.shake && !reducedMotion()) snare.fx.push({ kind: 'shake', t: 0, life: 0.4 });
+                log(`Packet Snare: the boss of sector ${cleared + 1} (${E.snareSectorName(cleared)}) is down. Next: ${E.snareSectorName(cleared + 1)}.`, 'success');
+                pt('snareBoss', { sector: cleared + 1, secs: Math.round(run.time) });
+                buildSnareArt();
+                save();
             } else if (e.type === 'end') {
                 endSnare(e.stats, e.layout);
             }
         }
     }
 
+    // ---- First meetings: each mechanic is introduced once, with a demo, the moment it turns up (the run pauses) ----
+    const SNARE_INTROS = {
+        lasso: ['Packet Snare', 'Draw round the data and bring the wire back to its start to close the loop. Bigger loops pay more; a red packet inside spoils the lot.'],
+        antivirus: ['Antivirus', 'It hunts your open wire. If it touches it, the wire snaps and you lose Focus.'],
+        sweep: ['System Firewall', 'Its edge flashes, then it sweeps the whole field. Any wire it crosses snaps.'],
+        boss: ['Boss Antivirus', 'It wipes the data it touches and charges your pen. Loop it tight to hit it; beat it to clear the sector.'],
+        rogue: ['The Rogue AI', 'Its cores grow and take the data they reach. Loop a core tight to quarantine it, or draw a straight line to wall it off.'],
+        anchors: ['Anchors', 'Tap to place an anchor; each joins the last with your own Firewall. Tap one to take it back.']
+    };
+    function snareIntro(kind) {
+        const key = `snare:intro:${kind}`;
+        if (state.intro[key] || snare.preview || !SNARE_INTROS[kind]) return;
+        state.intro[key] = true;
+        if (snare.pointer !== null) { snare.pointer = null; snare.run?.liftPen(); }
+        snare.intro = kind;
+        const [title, line] = SNARE_INTROS[kind];
+        const card = $('snareCard');
+        const ok = el('button', { type: 'button', class: 'button', text: TIP_OK[tipCount++ % TIP_OK.length], 'aria-label': `${TIP_OK[(tipCount - 1) % TIP_OK.length]}: got it` });
+        ok.addEventListener('click', () => {
+            snare.intro = null;
+            setHidden(card, true);
+            snare.last = performance.now();
+            $('snareCanvas').focus?.({ preventScroll: true });
+        });
+        card.replaceChildren(el('div', { class: 'result-title', text: 'New' }), el('div', { class: 'result-main', text: title }),
+            snareDemo(kind), el('p', { class: 'snare-intro-line', text: line }), el('div', { class: 'result-actions' }, [ok]));
+        setHidden(card, false);
+        pt('tip', { id: key });
+        ok.disabled = true;
+        setTimeout(() => { ok.disabled = false; }, 700);
+    }
+
     function endSnare(stats, layout) {
-        const res = E.finishSnare(state, snare.haul, layout);
-        snare.done = { stats, haul: snare.haul, record: res.record, first: res.first, prev: res.prev };
+        const res = E.finishSnare(state, snare.haul, layout, stats);
+        snare.done = { stats, haul: snare.haul, record: res.record, first: res.first, prev: res.prev, sector: snare.sector, cleared: snare.bossDown ?? null };
+        snare.bossDown = null;
         snare.pointer = null;
         setHidden($('snareHud'), true);
         setText($('snareStatus'), '');
-        pt('snare', { haul: Math.round(snare.haul), catches: stats.catches, caught: stats.caught, gold: stats.gold, corrupted: stats.corrupted,
+        pt('snare', { haul: Math.round(snare.haul), sector: snare.sector + 1, bosses: stats.bosses, bossHits: stats.bossHits, wiped: stats.wiped,
+            catches: stats.catches, caught: stats.caught, gold: stats.gold, corrupted: stats.corrupted,
             snaps: stats.snaps, empty: stats.empty, bestMult: r2(stats.bestMult), chained: stats.chained, lasered: stats.lasered, scrubbed: stats.scrubbed,
             cores: stats.cores, stolen: stats.stolen, quarantined: stats.quarantined, walls: stats.walls, bounces: stats.bounces, stuns: stats.stuns, fwLost: stats.fwLost, sweeps: stats.sweeps,
             area: Math.round(snare.run.w * snare.run.h), secs: Math.round(snare.run.time), record: res.record, seed: snare.seed });
-        log(`Packet Snare: +${E.format(snare.haul)} DP from ${stats.caught} packet${stats.caught === 1 ? '' : 's'}${res.record ? ' · new record' : ''}.`, res.record ? 'success' : 'info');
+        log(`Packet Snare: +${E.format(snare.haul)} Signal from ${stats.caught} packet${stats.caught === 1 ? '' : 's'}${res.record ? ' · new record' : ''}.`, res.record ? 'success' : 'info');
         sfx(res.record ? 'record' : 'runEnd');
         if (openBay === 'pipeline') showSnareCard('end');
         save();
     }
 
-    // How many tree nodes data can buy now: the badge on every Packet Snare Upgrades button, the rack's bay and the map.
+    // How many tree nodes Signal can buy now: the badge on every Packet Snare Upgrades button, the rack's bay and the map.
     const snareReadyCount = () => E.SNARE_TREE.filter(up => E.isUpgradeVisible(state, up) && !E.isMaxed(state, up) && E.canAfford(state, E.upgradeCost(up, E.level(state, up.id)))).length;
 
     function snareUpgradesButton() {
@@ -3835,37 +3948,48 @@ window.AGI = (function () {
         return b;
     }
 
+    const snareSector = k => `Sector ${k + 1}: ${E.snareSectorName(k)}`;
+
     function showSnareCard(kind) {
         const card = $('snareCard');
         const best = state.snare.best;
         if (kind === 'start') {
+            // The first visit: what to do, shown (the AI's mail says why).
+            const first = state.snare.runs === 0;
+            if (first) state.intro['snare:intro:lasso'] = true;
             card.replaceChildren(...[
-                el('div', { class: 'result-title', text: 'Data Pipeline' }),
+                el('div', { class: 'result-title', text: snareSector(state.snare.sector) }),
                 el('div', { class: 'result-main', text: 'Packet Snare' }),
-                best > 0 ? el('ul', { class: 'result-lines' }, [el('li', {}, [el('span', { text: 'Best haul' }), el('span', { text: `+${E.format(best)} DP` })])]) : null,
-                el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: 'Start', onclick: startSnare }), state.snare.runs > 0 ? snareUpgradesButton() : null])].filter(Boolean));
+                first ? snareDemo('lasso') : null,
+                first ? el('p', { class: 'snare-intro-line', text: SNARE_INTROS.lasso[1] }) : null,
+                best > 0 ? el('ul', { class: 'result-lines' }, [el('li', {}, [el('span', { text: 'Best haul' }), el('span', { text: `+${E.format(best)} Signal` })])]) : null,
+                el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: 'Start', onclick: startSnare }), state.snare.runs > 0 ? snareUpgradesButton() : null].filter(Boolean))].filter(Boolean));
         } else {
             const d = snare.done;
             const s = d.stats;
-            const line = (label, value) => el('li', {}, [el('span', { text: label }), el('span', { text: value })]);
+            // Folded like the trail's card: the first lines and the key ones show, the rest under Details.
+            const lines = [
+                d.cleared != null ? ['Sector cleared', `${E.snareSectorName(d.cleared)} → ${E.snareSectorName(d.cleared + 1)}`, 'key'] : null,
+                ['Loops closed', `${s.catches}`],
+                s.bestMult >= 1.05 ? ['Biggest loop', `×${s.bestMult.toFixed(1)}`] : null,
+                s.corrupted ? ['Corrupted catches', `${s.corrupted}`] : null,
+                s.snaps ? ['Wires snapped', `${s.snaps}`] : null,
+                s.bossHits && d.cleared == null ? ['Boss hits', `${s.bossHits}`] : null,
+                s.chained ? ['Chain lightning', `${s.chained}`] : null,
+                s.lasered ? ['Lasered', `${s.lasered}`] : null,
+                s.stuns ? ['Antivirus stunned', `${s.stuns}`] : null,
+                s.stolen ? ['Stolen by the Rogue AI', `${s.stolen}`] : null,
+                s.wiped ? ['Wiped by the boss', `${s.wiped}`] : null,
+                s.quarantined ? ['Cores quarantined', `${s.quarantined}`] : null,
+                s.gold ? ['Gold packets', `${s.gold}`] : null,
+                ['Best haul', `+${E.format(Math.max(best, d.haul))} Signal`]
+            ].filter(Boolean);
             card.replaceChildren(...[
-                el('div', { class: 'result-title', text: 'Focus spent' }),
+                el('div', { class: 'result-title', text: `${snareSector(d.sector)} · Focus spent` }),
                 el('div', { class: 'result-main', text: s.caught ? `${s.caught} packet${s.caught === 1 ? '' : 's'} snared` : 'Nothing snared' }),
-                el('div', { class: 'result-xp', text: `+${E.format(d.haul)} DP` }),
+                el('div', { class: 'result-xp', text: `+${E.format(d.haul)} Signal` }),
                 d.record ? el('span', { class: 'result-badge', text: `New record · was +${E.format(d.prev)}` }) : null,
-                el('ul', { class: 'result-lines' }, [
-                    line('Loops closed', `${s.catches}`),
-                    s.bestMult >= 1.05 ? line('Biggest loop', `×${s.bestMult.toFixed(1)}`) : null,
-                    s.chained ? line('Chain lightning', `${s.chained}`) : null,
-                    s.lasered ? line('Lasered', `${s.lasered}`) : null,
-                    s.stuns ? line('Antivirus stunned', `${s.stuns}`) : null,
-                    s.stolen ? line('Stolen by the Rogue AI', `${s.stolen}`) : null,
-                    s.quarantined ? line('Cores quarantined', `${s.quarantined}`) : null,
-                    s.gold ? line('Gold packets', `${s.gold}`) : null,
-                    s.corrupted ? line('Corrupted catches', `${s.corrupted}`) : null,
-                    s.snaps ? line('Wires snapped', `${s.snaps}`) : null,
-                    line('Best haul', `+${E.format(Math.max(best, d.haul))} DP`)
-                ].filter(Boolean)),
+                ...resultLines(lines),
                 el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: 'Snare again', onclick: startSnare }), snareUpgradesButton()])].filter(Boolean));
         }
         setHidden(card, false);
@@ -3879,7 +4003,7 @@ window.AGI = (function () {
         fill.style.transform = `scaleX(${share})`;
         fill.classList.toggle('low', share < 0.25);
         setText($('snareFocusText'), run.cooldown > 0 ? 'Wire snapped…' : `Focus ${Math.ceil(run.focus)}${run.opts.anchors ? ` · anchors ${run.anchors.length}/${run.opts.anchors}` : ''}`);
-        setText($('snareHaul'), `+${E.format(snare.haul)} DP`);
+        setText($('snareHaul'), `+${E.format(snare.haul)} Signal`);
     }
 
     // ---- Packet Snare's skill tree: nodes on a small grid around the Lasso, bought with data -------------------
@@ -3976,7 +4100,6 @@ window.AGI = (function () {
 
     function renderSnareTree() {
         if (!snare.tree || !snareUi.built) return;
-        setText($('snareTreeDp'), E.format(state.res.dp));
         const states = Object.fromEntries(E.SNARE_TREE.map(up => [up.id, nodeState(up)]));
         if (snare.pick && states[snare.pick] === 'hidden') snare.pick = null;
         for (const up of E.SNARE_TREE) {
@@ -4127,6 +4250,16 @@ window.AGI = (function () {
             packets: [['good', 3, 1.3, 1.1, 0.4], ['good', 2.8, 1.6, -0.9, 0.5], ['corrupt', 4.9, 0.6, -0.8, 0.5]], taps: [[0.2, 1.4, 0.4], [0.5, 4.6, 0.4], [0.8, 3, 2.5]] },
         contain: { text: 'The edges turn good packets back; corrupt ones leave', opts: { contain: 1, flow: true },
             packets: [['good', 4.4, 0.8, 1.5, 0.2], ['good', 4.8, 1.6, 1.4, -0.1], ['corrupt', 4.6, 2.2, 1.4, 0.1], ['good', 4.1, 1.3, 1.6, 0]] },
+        lasso: { text: 'Loop the data; back at the start, it closes', opts: {},
+            packets: [['good', 2.6, 1.2], ['good', 3.1, 1.5], ['good', 2.7, 1.8], ['good', 4.9, 0.7], ['corrupt', 5, 2.2]], wire: [0.3, 1.6, ringPts(2.8, 1.5, 0.85, 0.8)] },
+        antivirus: { text: 'It hunts the open wire and snaps it', opts: { antivirus: [0], avPatrol: 2 },
+            packets: [['good', 3, 1.4], ['good', 3.4, 1.6]], wire: [0.6, 3.0, ringPts(3.2, 1.5, 1.1, 0.9, 40)] },
+        sweep: { text: 'Its edge flashes, then it sweeps: wires snap', opts: { sweepFirst: 0.4, sweepEvery: 99, sweepWarn: 0.7, sweepTime: 1.6 },
+            packets: [['good', 3, 1.4]], wire: [0.2, 3.0, ringPts(3, 1.4, 1.4, 0.9, 40)] },
+        boss: { text: 'Loop it tight while it reels to hit it', opts: { boss: 2, bossAt: 0, bossStun: 1.2 },
+            packets: [['good', 1, 0.6], ['good', 5.2, 2.3]], wire: [0.5, 1.5, ringPts(3, 1.4, 1.05, 1)], hold: { boss: [3, 1.4] } },
+        rogue: { text: 'Loop a core tight to quarantine it', opts: { rogue: 1, rogueFirst: 0.1, rogueEvery: 99, rogueGrow: 0.5 },
+            packets: [['good', 3.6, 1.4], ['good', 1.2, 0.7], ['good', 5, 2.1]], wire: [0.8, 1.9, ringPts(3, 1.4, 0.8, 0.75)], hold: { core: [3, 1.4] } },
         herders: { text: 'Drones herd strays together', opts: { herders: 1 },
             packets: [['good', 0.7, 0.5, 0.2, 0], ['good', 5.3, 2.3, -0.2, 0], ['good', 0.8, 2.3, 0.1, 0], ['good', 5.2, 0.5, 0, 0.1], ['corrupt', 3, 1.4, 0, 0]] }
     };
@@ -4153,6 +4286,9 @@ window.AGI = (function () {
         }
         while (S.taps && sim.taps < S.taps.length && sim.t >= S.taps[sim.taps][0]) { const [, x, y] = S.taps[sim.taps++]; sim.run.tapAt(x, y); }
         sim.run.step(dt);
+        // Some demos pin the thing they show (the boss reeling, a core) where the scripted loop goes.
+        if (S.hold?.boss && sim.run.boss) Object.assign(sim.run.boss, { x: S.hold.boss[0], y: S.hold.boss[1], vx: 0, vy: 0, stunned: sim.run.time + 1, charge: null });
+        if (S.hold?.core) for (const c of sim.run.cores) Object.assign(c, { x: S.hold.core[0], y: S.hold.core[1] });
         for (const f of sim.fx) f.t += dt;
         sim.fx = sim.fx.filter(f => f.t < (f.life || SNARE_FX));
         for (const e of sim.run.takeEvents()) {
@@ -4161,6 +4297,10 @@ window.AGI = (function () {
                 if (e.chained.length) sim.fx.push({ kind: 'chain', arcs: e.chained, t: 0, life: 0.6, seed: 0.3 });
             } else if (e.type === 'laser') {
                 sim.fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.45, text: `+${e.units}`, small: true, gold: e.kind === 'gold' });
+            } else if (e.type === 'snap') {
+                sim.fx.push({ kind: 'snap', wire: e.wire, x: e.x, y: e.y, t: 0, text: 'SNAPPED', life: 0.9, small: true });
+            } else if (e.type === 'quarantine' || e.type === 'bossHit' || e.type === 'bossDown') {
+                sim.fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: e.r || window.PacketSnare.BOSS_R, t: 0, life: 0.9, text: e.type === 'quarantine' ? 'QUARANTINED' : 'HIT', small: true });
             }
         }
     }
@@ -4195,7 +4335,7 @@ window.AGI = (function () {
 
     // Drawn in layers, back to front, each a function of the view `d` (the context, colours, scale, run, effects), so the
     // field draws the same into the bay's canvas and a node's demo.
-    const SNARE_LAYERS = () => [drawSnareCurrent, drawSnareContain, drawSnareScanner, drawSnareCores, drawSnareFirewalls, drawSnareSweeps, drawSnareLoops, drawSnarePreview, drawSnarePackets, drawSnareHerders, drawSnareLasers, drawSnareChain, drawSnareWire, drawSnareWalls, drawSnareRogueFx, drawSnareSnaps, drawSnareAntivirus, drawSnarePops];
+    const SNARE_LAYERS = () => [drawSnareCurrent, drawSnareContain, drawSnareScanner, drawSnareCores, drawSnareFirewalls, drawSnareSweeps, drawSnareLoops, drawSnarePreview, drawSnarePackets, drawSnareHerders, drawSnareLasers, drawSnareChain, drawSnareWire, drawSnareWalls, drawSnareRogueFx, drawSnareSnaps, drawSnareAntivirus, drawSnareBoss, drawSnarePops];
     let snareMonoFont = '';
     const snareMono = () => (snareMonoFont ||= getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'monospace');
 
@@ -4227,7 +4367,7 @@ window.AGI = (function () {
         ctx.stroke();
         ctx.globalAlpha = 1;
         if (!run) { ctx.restore(); return; }
-        const d = { ctx, C, k, run, t: run.time, W, H, effects, cw: v.cw, ch: v.ch, ox: v.ox, oy: v.oy, touch: v.touch,
+        const d = { ctx, C, k, run, t: run.time, W, H, effects, cw: v.cw, ch: v.ch, ox: v.ox, oy: v.oy, touch: v.touch, minR: v.minR,
             pv: run.drawing && run.wire.length > 1 ? run.preview() : null };
         for (const layer of SNARE_LAYERS()) layer(d);
         ctx.restore();
@@ -4439,9 +4579,11 @@ window.AGI = (function () {
             const vertical = sw.axis === 'x';   // sweeping along x: a vertical line
             if (sw.t < warn) {
                 const on = Math.floor(sw.t * 8) % 2 === 0;
-                ctx.globalAlpha = on ? 0.8 : 0.25;
+                ctx.globalAlpha = on ? 0.1 : 0.04;
                 ctx.fillStyle = C.danger;
-                const th = 6;
+                ctx.fillRect(0, 0, W * k, H * k);
+                ctx.globalAlpha = on ? 0.9 : 0.3;
+                const th = 12;
                 if (vertical) ctx.fillRect(sw.pos * k - (sw.dir > 0 ? 0 : th), 0, th, H * k);
                 else ctx.fillRect(0, sw.pos * k - (sw.dir > 0 ? 0 : th), W * k, th);
                 continue;
@@ -4528,17 +4670,26 @@ window.AGI = (function () {
     }
 
     function drawSnarePackets(d) {
-        const { ctx, C, k, run, t, W, H, effects, cw, pv } = d;
-        // Packets: a school of arrowheads swimming the way they head; gold ones glowing; corrupt ones red and jagged;
-        // tagged ones (the scanner's) ringed in violet.
-        for (const p of run.packets) {
-            const r = p.r * k;
+        const { ctx, C, k, run, t } = d;
+        // Packets: a school of arrowheads swimming the way they head; gold ones glowing; tagged ones (the scanner's) lit
+        // violet; corrupt ones red and jagged, drawn last with a dark halo so they never hide inside a school. Never
+        // under 5 px across their middle, however big the field (a sprawl on a phone made them confetti).
+        const minR = d.minR ?? 5;
+        const order = [...run.packets.filter(p => p.kind !== 'corrupt'), ...run.packets.filter(p => p.kind === 'corrupt')];
+        for (const p of order) {
+            const r = Math.max(minR, p.r * k);
             const x = p.x * k, y = p.y * k;
             const fade = Math.min(1, p.age / 0.4);
             ctx.globalAlpha = fade;
             ctx.save();
             ctx.translate(x, y);
             if (p.kind === 'corrupt') {
+                ctx.fillStyle = C.bg;
+                ctx.globalAlpha = fade * 0.75;
+                ctx.beginPath();
+                ctx.arc(0, 0, r * 1.45, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = fade;
                 ctx.rotate(t * 1.5 + p.id);
                 ctx.fillStyle = C.danger;
                 ctx.beginPath();
@@ -4551,24 +4702,18 @@ window.AGI = (function () {
                 ctx.fill();
             } else {
                 const gold = p.kind === 'gold';
-                if (p.tag > t) {
-                    ctx.strokeStyle = C.research;
-                    ctx.lineWidth = 1.5;
+                const tagged = p.tag > t;
+                if (gold || tagged) {
+                    // a soft glow (a translucent disc: shadowBlur on every one was costly)
+                    ctx.fillStyle = gold ? C.warning : C.research;
+                    ctx.globalAlpha = fade * 0.25;
                     ctx.beginPath();
-                    ctx.arc(0, 0, r * 1.7, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-                if (gold) {
-                    // a soft glow (a translucent disc: shadowBlur on every gold packet was costly)
-                    ctx.fillStyle = C.warning;
-                    ctx.globalAlpha = fade * 0.22;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, r * 2.2, 0, Math.PI * 2);
+                    ctx.arc(0, 0, r * 2.1, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.globalAlpha = fade;
                 }
                 ctx.rotate(Math.atan2(p.vy, p.vx));
-                ctx.fillStyle = gold ? C.warning : C.primary;
+                ctx.fillStyle = gold ? C.warning : tagged ? C.research : C.primary;
                 const L = gold ? r * 1.5 : r * 1.25, Wd = gold ? r * 0.9 : r * 0.7;
                 ctx.beginPath();
                 ctx.moveTo(L, 0);
@@ -4581,6 +4726,50 @@ window.AGI = (function () {
             ctx.restore();
         }
         ctx.globalAlpha = 1;
+    }
+
+    // The boss Antivirus: a big red hexagon with its hits left as pips, a dashed line where it's about to charge, grey
+    // while it reels.
+    function drawSnareBoss(d) {
+        const { ctx, C, k, run, t } = d;
+        const b = run.boss;
+        if (!b) return;
+        const x = b.x * k, y = b.y * k, r = Math.max(16, b.r * k);
+        const reeling = b.stunned > t;
+        const col = reeling ? C.muted : C.danger;
+        if (b.charge && b.charge.t < window.PacketSnare.BOSS_WARN) {
+            ctx.globalAlpha = 0.5 + 0.4 * Math.sin(t * 30);
+            ctx.strokeStyle = C.danger;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 6]);
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + b.charge.dx * 5 * k, y + b.charge.dy * 5 * k);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(t * (reeling ? 4 : 0.8));
+        ctx.globalAlpha = 0.18;
+        ctx.fillStyle = col;
+        const hex = rr => { ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; i ? ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); } ctx.closePath(); };
+        hex(r);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 3;
+        hex(r);
+        ctx.stroke();
+        ctx.lineWidth = 1.5;
+        hex(r * 0.55);
+        ctx.stroke();
+        ctx.restore();
+        // its hits left
+        for (let i = 0; i < b.maxHp; i++) {
+            ctx.fillStyle = i < b.hp ? C.danger : C.border;
+            ctx.fillRect(x - b.maxHp * 5 + i * 10, y - r - 10, 7, 4);
+        }
         ctx.globalAlpha = 1;
     }
 
@@ -4589,8 +4778,8 @@ window.AGI = (function () {
         // Herders: little drones with their reach drawn faintly round them.
         for (const hd of run.herders || []) {
             const x = hd.x * k, y = hd.y * k;
-            ctx.globalAlpha = 0.1;
-            ctx.fillStyle = C.success;
+            ctx.globalAlpha = 0.05;
+            ctx.fillStyle = C.research;
             ctx.beginPath();
             ctx.arc(x, y, run.opts.herdRadius * k, 0, Math.PI * 2);
             ctx.fill();
@@ -4598,7 +4787,7 @@ window.AGI = (function () {
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(Math.atan2(hd.vy, hd.vx));
-            ctx.fillStyle = C.success;
+            ctx.fillStyle = C.research;
             ctx.strokeStyle = C.bg;
             ctx.lineWidth = 1.5;
             ctx.beginPath();
@@ -4616,14 +4805,27 @@ window.AGI = (function () {
 
     function drawSnareLasers(d) {
         const { ctx, C, k, run, t, W, H, effects, cw, pv } = d;
-        // Laser locks: brackets closing in on the target.
+        // Your Targeted Laser (amber, like the main action: yours, never a hazard's red): its emitters on the bottom
+        // edge, then brackets closing in on the target.
+        if (run.opts.laser) {
+            ctx.fillStyle = C.warning;
+            for (let i = 0; i < run.opts.emitters; i++) {
+                const ex = W * (i + 1) / (run.opts.emitters + 1) * k, ey = H * k;
+                ctx.beginPath();
+                ctx.moveTo(ex - 8, ey);
+                ctx.lineTo(ex, ey - 9);
+                ctx.lineTo(ex + 8, ey);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
         for (const l of run.locks) {
             const p = run.packets.find(q => q.id === l.id);
             if (!p) continue;
             const m = Math.min(1, l.t / window.PacketSnare.LOCK_SECONDS);
             const s = (p.r * 3.2 - p.r * 1.6 * m) * k, len = s * 0.45;
             const x = p.x * k, y = p.y * k;
-            ctx.strokeStyle = m >= 0.95 ? C.danger : C.text;
+            ctx.strokeStyle = m >= 0.95 ? C.warning : C.text;
             ctx.lineWidth = 1.5;
             ctx.beginPath();
             for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
@@ -4638,7 +4840,7 @@ window.AGI = (function () {
             if (f.kind !== 'laser') continue;
             const a = 1 - f.t / f.life;
             ctx.globalAlpha = a;
-            ctx.strokeStyle = f.gold ? C.warning : C.danger;
+            ctx.strokeStyle = C.warning;
             ctx.shadowColor = ctx.strokeStyle;
             ctx.shadowBlur = 10;
             ctx.lineWidth = 3 * a + 1;
@@ -4750,26 +4952,28 @@ window.AGI = (function () {
     }
 
     function drawSnareWalls(d) {
-        const { ctx, C, k, run, t, W, H, effects, cw, pv } = d;
-        // Shield walls: a bright line edge to edge, fading out in its last second and a half.
+        const { ctx, C, k, run } = d;
+        // Shield walls: a white band hatched across, edge to edge, fading out in its last second and a half (in the
+        // packets' blue it read as part of the stream).
         for (const wl of run.walls) {
-            const left = wl.until - run.time;
-            const a = Math.min(1, left / 1.5);
-            ctx.globalAlpha = 0.25 * a;
-            ctx.strokeStyle = C.primary;
-            ctx.lineWidth = 10;
+            const a = Math.min(1, (wl.until - run.time) / 1.5);
+            const ax = wl.a.x * k, ay = wl.a.y * k, bx = wl.b.x * k, by = wl.b.y * k;
+            const L = Math.hypot(bx - ax, by - ay) || 1, ux = (bx - ax) / L, uy = (by - ay) / L, nx = -uy * 6, ny = ux * 6;
+            ctx.globalAlpha = 0.16 * a;
+            ctx.fillStyle = C.text;
             ctx.beginPath();
-            ctx.moveTo(wl.a.x * k, wl.a.y * k);
-            ctx.lineTo(wl.b.x * k, wl.b.y * k);
+            ctx.moveTo(ax + nx, ay + ny); ctx.lineTo(bx + nx, by + ny); ctx.lineTo(bx - nx, by - ny); ctx.lineTo(ax - nx, ay - ny);
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 0.8 * a;
+            ctx.strokeStyle = C.text;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            for (let u = 0; u < L; u += 9) { ctx.moveTo(ax + ux * u - nx, ay + uy * u - ny); ctx.lineTo(ax + ux * (u + 6) + nx, ay + uy * (u + 6) + ny); }
+            ctx.moveTo(ax + nx, ay + ny); ctx.lineTo(bx + nx, by + ny);
+            ctx.moveTo(ax - nx, ay - ny); ctx.lineTo(bx - nx, by - ny);
             ctx.stroke();
-            ctx.globalAlpha = 0.95 * a;
-            ctx.lineWidth = 2;
-            ctx.shadowColor = C.primary;
-            ctx.shadowBlur = 12;
-            ctx.stroke();
-            ctx.shadowBlur = 0;
         }
-        ctx.globalAlpha = 1;
         ctx.globalAlpha = 1;
     }
 
@@ -9003,6 +9207,7 @@ window.AGI = (function () {
     // graph of the whole stretch with your best run marked; with the Auto-Trainer it goes live and
     // follows the ball. Drawn every frame the run loop runs, and after each camera refresh.
     function drawLanes() {
+        drawSnareLanes();
         // The static graph needs a stretch to draw even before the bay has been opened.
         // With the Auto-Trainer on, the live lanes follow its ghost run; otherwise they monitor your frontier.
         const live = ghostOn();
@@ -9670,6 +9875,8 @@ window.AGI = (function () {
                 if (key === 'insight') {
                     state.prestige.points += amount;
                     state.prestige.total += amount;
+                } else if (key === 'signal') {
+                    state.snare.signal += amount;
                 } else {
                     state[group][key] += amount;
                     // Debug CP counts as earned, so it moves this run's shipping progress (R&D) too.
@@ -9705,9 +9912,16 @@ window.AGI = (function () {
                 log('Started over (debug).', 'warning');
                 afterChange();
             },
-            // Learn the next skill instantly; the next roll starts at the new checkpoint.
             // The Packet Snare run in play (tests and the debug view; read it, don't change it).
             snareRun: () => snare.run,
+            // Packet Snare's boss: bring it into the run in play now, or clear the sector outright.
+            snareBoss() {
+                const r = snare.run;
+                if (r && !r.over && !snare.preview && r.opts.boss && !r.boss && !r.bossDone) { r.opts.bossAt = 0; return; }
+                E.snareBossDown(state);
+                buildSnareArt();
+                afterChange();
+            },
             // Packet Snare at once: the server room open, skills learned up to Edge Detection, then into the bay.
             openSnare() {
                 state.intro['mailAccepted:welcome'] = true;

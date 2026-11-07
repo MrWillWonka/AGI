@@ -38,8 +38,9 @@
         focus: 26,                  // the run's budget: a first run is short (about 10 s of drawing), hard and quick
         idleDrain: 1.0,             // Focus per second, always: an idle run still ends
         drawBase: 1.6,              // extra per second while the pen is down
-        drawDrain: 0.5,             // and per second per unit of wire held: long wires burn faster
-        maxWire: 36,                // units: past this the wire's tail is dropped (it trails behind you)
+        drawDrain: 0.5,             // and per second per unit of wire held (÷ √ of the field's growth, so a loop the same share
+                                    // of any field costs the same): long wires burn faster; wire along your Firewalls is free
+        maxWire: 36,                // units on the starting field (× √ of the field's growth): past this the tail drops
         minGap: 0.1,                // the wire records a point every this far
         closeRadius: 0.085,         // × √area: bring the pen back this close to the start and the loop closes
         areaUnit: 0.22,             // × area: a catch's multiplier is 1 + loop area / (areaUnit × field area)…
@@ -72,6 +73,7 @@
         chainRange: 1.6,            // …within this of a snared packet
         scanner: 0,                 // Scanner: beams sweeping from the middle, tagging packets ×TAG_VALUE for TAG_SECONDS
         scannerSpeed: 1.1,          // radians per second
+        tagSeconds: 1.5,            // how long a tag lasts: catch what the beam just lit
         laser: 0,                   // Targeted Laser: seconds between shots (0 = none)
         emitters: 1,                // packets each shot takes
         scrubbers: 0,               // corrupt packets a loop forgives
@@ -99,14 +101,27 @@
         herders: 0,                 // Herders: drones that round strays up toward your pen (or the middle)
         herdRadius: 1.7,            // units: how near a herder must be to move a packet
         herdSpeed: 2.8,
-        herdPull: 2.6               // how quickly a herded packet turns (per second)
+        herdPull: 2.6,              // how quickly a herded packet turns (per second)
+        cleanStart: false,          // the first runs: one school starts clear of corrupt packets, and the lure waits
+        // The boss Antivirus: it boots `bossAt` s in, or once `bossCatch` packets are caught (0 = none this run). Bigger,
+        // it hunts the wire like the others; a tight loop round it (no bigger than `bossLoop` × the field) takes a hit off
+        // it, and at 0 it's beaten (the sector is cleared). Your Firewalls stun it as they stun the others.
+        boss: 0,                    // its hits (0 = no boss)
+        bossAt: 16,
+        bossCatch: 18,
+        bossLoop: 0.12,
+        bossSpeed: 1,               // × an Antivirus's roaming speed
+        bossCharge: 5,              // seconds between its charges at the pen
+        bossStun: 1.5               // seconds it reels after each hit
     };
     const GOLD_VALUE = 5;
     const TAG_VALUE = 2;
-    const TAG_SECONDS = 4;
+    const TAG_SECONDS = 1.5;   // the default `tagSeconds`
     const LOCK_SECONDS = 0.6;       // a laser holds its brackets on the target this long before it fires
     const PACKET_R = 0.3;
     const AV_R = 0.45;
+    const BOSS_R = 0.8;
+    const BOSS_WARN = 0.7, BOSS_DASH = 0.45, BOSS_DASH_SPEED = 5;   // a charge: its warning, its dash and its speed
 
     // Mulberry32: small, fast, seeded.
     function rng(seed) {
@@ -182,6 +197,9 @@
         const fieldArea = w * h;
         const rand = rng(opts.seed ?? 1);
         const closeR = o.closeRadius * Math.sqrt(fieldArea);
+        const grow = Math.sqrt(fieldArea / FIELD_AREA);   // how much bigger than the starting field (1 at the start)
+        const maxWire = o.maxWire * grow;
+        const drawDrain = o.drawDrain / grow;
         const s = {
             w, h, opts: o, closeR,
             time: 0,
@@ -204,8 +222,10 @@
             anchors: [],            // { id, x, y }: each joins the last with a Firewall, three or more close a pen
             fwHits: {},             // hits each of your Firewalls has taken, by its key (`${a.id}-${b.id}`)
             rogueAt: o.rogue ? o.rogueFirst : Infinity,
+            boss: null,             // the boss Antivirus once it boots: { x, y, vx, vy, r, hp, maxHp, stunned, hunting }
+            bossDone: false,
             stats: { catches: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
-                stolen: 0, cores: 0, quarantined: 0, walls: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0 },
+                stolen: 0, cores: 0, quarantined: 0, walls: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0 },
             acc: 0,
             nextId: 1
         };
@@ -279,7 +299,16 @@
             school(n, false);
             left -= n;
         }
-        for (let i = 0; i < corruptTarget; i++) corrupt(false);
+        const firstSchool = s.packets.length ? centroid(s.packets.filter(p => p.school === s.packets[0].school)) : null;
+        for (let i = 0; i < corruptTarget; i++) {
+            corrupt(false);
+            // The first runs: the first school starts clean (its corrupt neighbours placed well away from it).
+            const c = s.packets[s.packets.length - 1];
+            for (let tries = 0; o.cleanStart && firstSchool && tries < 12 && Math.hypot(c.x - firstSchool.x, c.y - firstSchool.y) < 3; tries++) {
+                c.x = 1 + rand() * (w - 2);
+                c.y = 1 + rand() * (h - 2);
+            }
+        }
         const goodCount = () => s.packets.filter(p => p.kind !== 'corrupt').length;
         const corruptCount = () => s.packets.filter(p => p.kind === 'corrupt').length;
         let refillAt = Infinity;
@@ -290,6 +319,105 @@
         for (let i = 0; i < o.herders; i++) {
             const a = i * Math.PI * 2 / Math.max(1, o.herders);
             s.herders.push({ id: s.nextId++, x: w / 2 + Math.cos(a) * 1.5, y: h / 2 + Math.sin(a) * 1.5, vx: 0, vy: 0, target: null });
+        }
+
+        // ---- The boss Antivirus --------------------------------------------------------------------------
+        function bossStep(dt) {
+            if (!o.boss || s.bossDone) return;
+            if (!s.boss) {
+                if (s.time < o.bossAt && s.stats.caught < o.bossCatch) return;
+                const c = Math.floor(rand() * 4);
+                const x = c % 2 ? w - BOSS_R : BOSS_R, y = c < 2 ? BOSS_R : h - BOSS_R;
+                s.boss = { x, y, vx: 0, vy: 0, r: BOSS_R, hp: o.boss, maxHp: o.boss, stunned: 0, hunting: false, immune: null, charge: null, chargeAt: s.time + 3 };
+                s.events.push({ type: 'boss', x, y, hp: o.boss });
+                return;
+            }
+            const b = s.boss;
+            if (b.stunned > s.time) {
+                b.x += b.vx * dt;
+                b.y += b.vy * dt;
+                b.vx *= 1 - Math.min(1, 3 * dt);
+                b.vy *= 1 - Math.min(1, 3 * dt);
+                bounce(b);
+                b.hunting = false;
+                return;
+            }
+            // It roams to the nearest school and wipes the data it touches; every few seconds, while you draw, it locks
+            // on to the pen (a warning) and charges it. Loop it while it roams or reels.
+            if (b.charge) {
+                b.charge.t += dt;
+                if (b.charge.t < BOSS_WARN) { b.vx *= 0.8; b.vy *= 0.8; }
+                else if (b.charge.t < BOSS_WARN + BOSS_DASH) { b.vx = b.charge.dx * BOSS_DASH_SPEED * o.avSpeed; b.vy = b.charge.dy * BOSS_DASH_SPEED * o.avSpeed; }
+                else { b.charge = null; b.chargeAt = s.time + o.bossCharge; }
+                b.hunting = !!b.charge;
+            } else {
+                if (s.drawing && s.wire.length > 1 && s.time >= (b.chargeAt ?? 0)) {
+                    const head = s.wire[s.wire.length - 1];
+                    const L = Math.hypot(head.x - b.x, head.y - b.y) || 1;
+                    b.charge = { t: 0, dx: (head.x - b.x) / L, dy: (head.y - b.y) / L };
+                    s.events.push({ type: 'bossCharge', x: b.x, y: b.y });
+                }
+                let best = null, bd = Infinity;
+                for (const p of s.packets) {
+                    if (p.kind === 'corrupt') continue;
+                    const d = (p.x - b.x) ** 2 + (p.y - b.y) ** 2;
+                    if (d < bd) { bd = d; best = p; }
+                }
+                const target = best || { x: w / 2, y: h / 2 };
+                const speed = o.avPatrol * o.bossSpeed * o.avSpeed;
+                const ang = Math.atan2(target.y - b.y, target.x - b.x);
+                const k = Math.min(1, o.avTurn * 0.6 * dt);
+                b.vx += (Math.cos(ang) * speed - b.vx) * k;
+                b.vy += (Math.sin(ang) * speed - b.vy) * k;
+                b.hunting = false;
+            }
+            b.x += b.vx * dt;
+            b.y += b.vy * dt;
+            const wiped = s.packets.filter(p => p.kind !== 'corrupt' && Math.hypot(p.x - b.x, p.y - b.y) < b.r);
+            if (wiped.length) {
+                s.stats.wiped += wiped.length;
+                s.events.push({ type: 'wiped', x: b.x, y: b.y, packets: wiped.map(p => ({ x: p.x, y: p.y, kind: p.kind })) });
+                remove(wiped);
+            }
+            bounce(b);
+            if (s.wire.length > 1) {
+                for (let i = 1; i < s.wire.length; i++) {
+                    if (segDist(b, s.wire[i - 1], s.wire[i]) < b.r) { snap(b); s.focus = Math.max(0, s.focus - o.snapPenalty * 0.5); break; }
+                }
+            }
+            // Your Firewalls stun it too, once per approach, like the others (it shrugs the stun off sooner).
+            const fws = firewallsUp();
+            if (b.immune) b.immune = b.immune.filter(key => { const f = fws.find(f => f.key === key); return f && segDist(b, f.a, f.b) <= b.r * 2; });
+            const f = fws.find(f => !b.immune?.includes(f.key) && segDist(b, f.a, f.b) < b.r);
+            if (f) {
+                b.immune = fws.filter(g => segDist(b, g.a, g.b) <= b.r * 2).map(g => g.key);
+                b.stunned = s.time + o.avStun * 0.6;
+                s.fwHits[f.key] = (s.fwHits[f.key] || 0) + 1;
+                s.stats.stuns++;
+                const down = s.fwHits[f.key] >= o.fwHits;
+                if (down) s.stats.fwLost++;
+                s.events.push({ type: 'stun', x: b.x, y: b.y, down, boss: true, a: { x: f.a.x, y: f.a.y }, b: { x: f.b.x, y: f.b.y } });
+            }
+        }
+        // A tight loop round the boss takes a hit off it.
+        function bossLooped(poly, area) {
+            const b = s.boss;
+            if (!b || area > o.bossLoop * fieldArea || !pointInPolygon(b, poly)) return false;
+            b.hp--;
+            s.stats.bossHits++;
+            b.stunned = s.time + o.bossStun;
+            const ang = rand() * Math.PI * 2;
+            b.vx = Math.cos(ang) * 3;
+            b.vy = Math.sin(ang) * 3;
+            if (b.hp <= 0) {
+                s.stats.bosses++;
+                s.bossDone = true;
+                s.boss = null;
+                s.events.push({ type: 'bossDown', x: b.x, y: b.y });
+            } else {
+                s.events.push({ type: 'bossHit', x: b.x, y: b.y, hp: b.hp, maxHp: b.maxHp });
+            }
+            return true;
         }
 
         function bootAntivirus() {
@@ -314,13 +442,16 @@
         // speed; corrupt packets go their own way, straight through.
         function flock(dt) {
             // Corrupt packets swim toward the nearest school: they hide in the crowd, so a big loop round a school is a gamble.
-            if (o.corruptLure > 0) {
+            if (o.corruptLure > 0 && !(o.cleanStart && s.time < 5)) {
                 const kc = Math.min(1, o.corruptLure * dt);
+                // A closed pen hides what's in it: corrupt packets aren't drawn to a school behind your Firewalls.
+                const pen = penPoly();
+                const hidden = pen && firewallsUp().length === s.anchors.length ? q => pointInPolygon(q, pen) : () => false;
                 for (const p of s.packets) {
                     if (p.kind !== 'corrupt') continue;
                     let best = null, bd = 9;
                     for (const q of s.packets) {
-                        if (q.kind === 'corrupt') continue;
+                        if (q.kind === 'corrupt' || hidden(q)) continue;
                         const d2 = (q.x - p.x) ** 2 + (q.y - p.y) ** 2;
                         if (d2 < bd && d2 > 0.25) { bd = d2; best = q; }
                     }
@@ -434,7 +565,7 @@
                     if (d < 0) d += Math.PI * 2;
                     if (d <= a1 - a0 + 1e-9) {
                         if (!(p.tag > s.time)) s.stats.tagged++;
-                        p.tag = s.time + TAG_SECONDS;
+                        p.tag = s.time + o.tagSeconds;
                     }
                 }
             }
@@ -443,7 +574,8 @@
         // ---- The Rogue AI -----------------------------------------------------------------------------
         const shortSide = Math.min(w, h);
         // A wall shields a packet from a core when it stands between them.
-        const shielded = (core, p) => s.walls.some(wl => segIntersect(core, p, wl.a, wl.b));
+        // So do your Firewalls: a core's circle can't take a packet through one.
+        const shielded = (core, p) => s.walls.some(wl => segIntersect(core, p, wl.a, wl.b)) || firewallsUp().some(f => segIntersect(core, p, f.a, f.b));
         function spawnCore() {
             // Where the data is: next to a random good packet (the schools draw it), kept off the edges.
             const goods = s.packets.filter(p => p.kind !== 'corrupt');
@@ -513,6 +645,20 @@
             return out;
         }
         const penPoly = () => (s.anchors.length >= 3 ? s.anchors : null);
+        // What the wire costs: its length, less the stretches drawn along your Firewalls (they're wire you already built),
+        // so a loop round your pen only pays for the side you draw.
+        const ALONG = 0.35;
+        function segCost(a, b) {
+            const L = Math.hypot(b.x - a.x, b.y - a.y);
+            if (s.anchors.length < 2) return L;
+            const fws = firewallsUp();
+            return fws.some(f => segDist(a, f.a, f.b) < ALONG && segDist(b, f.a, f.b) < ALONG) ? 0 : L;
+        }
+        function wireCost(pts) {
+            let L = 0;
+            for (let i = 1; i < pts.length; i++) L += segCost(pts[i - 1], pts[i]);
+            return L;
+        }
         // Tap an empty spot to place an anchor (while any are left); tap an anchor to take it back. `reach`: how near a
         // tap must be to an anchor to take it (the UI passes a fixed size on screen, so a sprawled field doesn't grow it).
         function tapAt(x, y, reach = 0.5) {
@@ -659,6 +805,7 @@
             scannerStep(dt);
             laserStep(dt);
             rogueStep(dt);
+            bossStep(dt);
             sweepStep(dt);
             while (avDue.length && s.time >= avDue[0]) { avDue.shift(); bootAntivirus(); }
             for (const f of s.antivirus) {
@@ -711,7 +858,7 @@
             for (let i = pendingCorrupt.length - 1; i >= 0; i--) {
                 if (s.time >= pendingCorrupt[i] && corruptCount() < corruptTarget) { corrupt(true); pendingCorrupt.splice(i, 1); }
             }
-            const drain = o.idleDrain + (s.drawing ? o.drawBase + o.drawDrain * wireLength(s.wire) : 0);
+            const drain = o.idleDrain + (s.drawing ? o.drawBase + drawDrain * wireCost(s.wire) : 0);
             s.focus = Math.max(0, s.focus - drain * dt);
             if (s.focus <= 0) end();
         }
@@ -758,6 +905,7 @@
                     }
                 }
             }
+            if (bossLooped(poly, j.area)) quarantined = true;
             if (!j.inside.length) {
                 if (quarantined) return;
                 s.stats.empty++;
@@ -853,9 +1001,9 @@
                 }
             }
             // A wire past its length drops its tail (and its start moves with it).
-            let L = wireLength(s.wire);
-            while (L > o.maxWire && s.wire.length > 2) {
-                L -= Math.hypot(s.wire[1].x - s.wire[0].x, s.wire[1].y - s.wire[0].y);
+            let L = wireCost(s.wire);
+            while (L > maxWire && s.wire.length > 2) {
+                L -= segCost(s.wire[0], s.wire[1]);
                 s.wire.shift();
             }
             return true;
@@ -922,5 +1070,5 @@
         return Object.assign(s, { step, addPoint, liftPen, stop, takeEvents, preview, valueOf, tapAt, firewallsUp, penPoly });
     }
 
-    return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, AV_R, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };
+    return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, AV_R, BOSS_R, BOSS_WARN, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };
 });

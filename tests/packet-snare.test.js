@@ -146,8 +146,10 @@ test('a longer wire burns Focus faster, and an empty Focus ends the run', () => 
 
 test('the wire trails: past its length it drops its tail', () => {
     const s = still({ maxWire: 5, w: 16, h: 10 });
-    for (let x = 0.2; x < 12; x += 0.1) s.addPoint(x, 1);
-    assert.ok(P.wireLength(s.wire) <= 5 + 0.2);
+    for (let x = 0.2; x < 15; x += 0.1) s.addPoint(x, 1);
+    // the length grows with the field: √(160 / 70) of 5 here
+    assert.ok(P.wireLength(s.wire) <= 5 * Math.sqrt(160 / P.FIELD_AREA) + 0.2);
+    assert.ok(P.wireLength(s.wire) >= 5 * Math.sqrt(160 / P.FIELD_AREA) - 0.3);
 });
 
 test('one scribble can snare loop after loop', () => {
@@ -288,15 +290,40 @@ test('a bigger field takes a bigger loop for the same multiplier', () => {
 
 // ---- The economy (engine.js) ----
 
-test('snared data pays whole numbers at a hand collection per packet, times the multiplier', () => {
+test('a catch pays Signal in whole numbers, more on later sectors, and no data', () => {
     const s = E.defaultState(NOW);
-    const per = E.snarePacketDp(s);
-    assert.equal(per, Math.max(1, E.derive(s).dpPerCollect));
-    const dp = E.snareCatch(s, 2.7);
-    assert.equal(dp, Math.round(2.7 * per));
-    assert.ok(Number.isInteger(s.res.dp));
-    assert.equal(s.stats.runDp, dp, 'counts as data earned this version');
-    assert.equal(s.snare.dp, dp);
+    const pay = E.snareCatch(s, 2.7);
+    assert.equal(pay, 3);
+    assert.equal(s.snare.signal, 3);
+    assert.equal(s.res.dp, 0, 'the lab makes the data');
+    s.snare.sector = 2;
+    assert.equal(E.snareCatch(s, 4), Math.round(4 * 1.5));
+    assert.equal(E.snareCatch(s, 0.1), 1, 'at least 1');
+});
+
+test('the best haul trickles research while Research is open', () => {
+    const s = E.defaultState(NOW);
+    s.snare.best = 120;
+    assert.equal(E.derive(s).snareRp, 0, 'not before Research');
+    s.unlocked['action:research'] = true;
+    const d = E.derive(s);
+    assert.ok(Math.abs(d.snareRp - d.rpPerResearch * 120 / E.SNARE_RP_SIGNAL) < 1e-9);
+    const rp = s.res.rp;
+    E.tick(s, 10);
+    assert.ok(s.res.rp - rp > 9 * d.snareRp, 'paid as you play');
+});
+
+test('beating a boss clears the sector; the Rogue AI comes three sectors in', () => {
+    const s = E.defaultState(NOW);
+    assert.equal(E.snareOpts(s).boss, E.snareBossHits(0));
+    assert.equal(E.snareOpts(s).rogue, 0);
+    for (let i = 0; i < E.ROGUE_SECTOR; i++) E.snareBossDown(s);
+    assert.equal(s.snare.sector, E.ROGUE_SECTOR);
+    assert.equal(s.snare.bosses, E.ROGUE_SECTOR);
+    const o = E.snareOpts(s);
+    assert.equal(o.rogue, 1);
+    assert.ok(o.avSpeed > 1 && o.corruptShare > P.SNARE.corruptShare, 'later sectors are harder');
+    assert.ok(E.snareBossHits(4) > E.snareBossHits(0));
 });
 
 test('a run\'s haul sets the version\'s record', () => {
@@ -321,12 +348,14 @@ test('the Data Pipeline opens with Edge Detection once the server room is open',
 
 test('saves before v19 get an empty snare record; a save keeps it', () => {
     const old = E.migrate({ version: 18 }, NOW);
-    assert.deepEqual(old.snare, { best: 0, runs: 0, dp: 0, anchors: [] });
+    assert.deepEqual(old.snare, { best: 0, runs: 0, signal: 0, earned: 0, sector: 0, bosses: 0, bestMult: 0, quarantined: 0, anchors: [] });
+    // v19 paid data: its record starts over in Signal
+    assert.equal(E.migrate({ version: 19, snare: { best: 400, runs: 3, dp: 900, anchors: [] } }, NOW).snare.best, 0);
     const s = E.defaultState(NOW);
-    s.snare = { best: 120, runs: 4, dp: 300, anchors: [[0.25, 0.5], [0.75, 0.5], [0.5, 0.9]] };
+    s.snare = { best: 120, runs: 4, signal: 300, earned: 500, sector: 2, bosses: 2, bestMult: 3.2, quarantined: 1, anchors: [[0.25, 0.5], [0.75, 0.5], [0.5, 0.9]] };
     const back = E.migrate(JSON.parse(JSON.stringify(s)), NOW);
     assert.deepEqual(back.snare, s.snare);
-    assert.deepEqual(E.migrate({ version: 19, snare: { best: 'x', runs: -3, anchors: [[0.5, 2], 'x', [0.1, 0.2]] } }, NOW).snare, { best: 0, runs: 0, dp: 0, anchors: [[0.1, 0.2]] });
+    assert.deepEqual(E.migrate({ version: 20, snare: { best: 'x', runs: -3, sector: 'y', anchors: [[0.5, 2], 'x', [0.1, 0.2]] } }, NOW).snare, { best: 0, runs: 0, signal: 0, earned: 0, sector: 0, bosses: 0, bestMult: 0, quarantined: 0, anchors: [[0.1, 0.2]] });
 });
 
 test('a first run is small, short and hard; the tree grows the field, Focus and abilities', () => {
@@ -355,7 +384,7 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     assert.ok(run.stats.lasered > 0);
 });
 
-test('Packet Snare\'s tree opens with the bay, grows node by node, and is bought with data', () => {
+test('Packet Snare\'s tree opens with the bay, grows node by node, and is bought with Signal', () => {
     const s = E.defaultState(NOW);
     E.evaluate(s);
     assert.ok(!E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareSprawl));
@@ -363,13 +392,13 @@ test('Packet Snare\'s tree opens with the bay, grows node by node, and is bought
     E.evaluate(s);
     assert.ok(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareSprawl), 'the first ring shows');
     assert.ok(!E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareGold), 'its children wait');
-    s.res.dp = 1000;
+    s.snare.signal = 1000;
     assert.ok(E.buy(s, 'snareSprawl').ok);
-    assert.equal(s.res.dp, 1000 - 60);
+    assert.equal(s.snare.signal, 1000 - E.UPGRADE_BY_ID.snareSprawl.cost.signal);
     E.evaluate(s);
     assert.ok(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareGold));
     for (const up of E.SNARE_TREE) {
-        assert.ok(up.cost.dp > 0 && !up.cost.cp && !up.cost.xp, `${up.id} costs data`);
+        assert.ok(up.cost.signal > 0 && Object.keys(up.cost).length === 1, `${up.id} costs Signal`);
         if (up.requires) assert.equal(E.UPGRADE_BY_ID[up.requires].tab, 'snare', `${up.id} grows inside the tree`);
     }
 });
@@ -543,6 +572,88 @@ test('a Chokehold round a core with nothing else inside is not an empty loop', (
     assert.equal(s.stats.empty, 0);
 });
 
+test('the wire grows with the field: a loop at the multiplier cap can be drawn on every Sprawl', () => {
+    for (let lv = 0; lv <= 3; lv++) {
+        const area = 70 * Math.pow(1.6, lv);
+        const o = { ...P.SNARE, area };
+        // a circle whose area gives the cap: area = (maxMult − 1) × areaUnit × field
+        const r = Math.sqrt((o.maxMult - 1) * o.areaUnit * area / Math.PI);
+        assert.ok(2 * Math.PI * r < o.maxWire * Math.sqrt(area / P.FIELD_AREA), `Sprawl ${lv}: ×${o.maxMult} is drawable`);
+    }
+});
+
+test('wire drawn along your Firewalls is free', () => {
+    const s = still({ anchors: 2, drawBase: 0, drawDrain: 1, w: 10, h: 7 });
+    s.tapAt(2, 2); s.tapAt(8, 2);
+    const f0 = s.focus;
+    for (let x = 2.5; x < 7.5; x += 0.1) s.addPoint(x, 2.1);
+    for (let i = 0; i < 60; i++) s.step(1 / 60);
+    assert.ok(f0 - s.focus < 0.2, 'no drain for wire along the firewall');
+    const t = still({ anchors: 2, drawBase: 0, drawDrain: 1, w: 10, h: 7 });
+    t.tapAt(2, 2); t.tapAt(8, 2);
+    for (let x = 2.5; x < 7.5; x += 0.1) t.addPoint(x, 4);
+    for (let i = 0; i < 60; i++) t.step(1 / 60);
+    assert.ok(t.maxFocus - t.focus > 3, 'wire elsewhere drains');
+});
+
+test('your Firewalls shield packets from a core, and a closed pen hides its school from corrupt packets', () => {
+    const s = still({ anchors: 2, rogue: 1, rogueFirst: 0, rogueEvery: 1e9, rogueGrow: 50, w: 10, h: 7 });
+    s.tapAt(5, 0.2); s.tapAt(5, 6.8);
+    packet(s, 'good', 6, 3.5);
+    s.step(1 / 60);
+    s.cores[0].x = 4; s.cores[0].y = 3.5;
+    for (let i = 0; i < 30; i++) s.step(1 / 60);
+    assert.equal(s.stats.stolen, 0, 'the firewall stands between them');
+    const pen = still({ anchors: 3, corruptLure: 5, w: 10, h: 7 });
+    pen.tapAt(1, 1); pen.tapAt(4, 1); pen.tapAt(2.5, 4);
+    packet(pen, 'good', 2.5, 2);
+    pen.packets.push({ id: pen.nextId++, kind: 'corrupt', x: 8, y: 2, vx: 0, vy: 1, v: 1, r: P.PACKET_R, age: 1, school: 0, tag: 0 });
+    pen.step(0.5);
+    const c = pen.packets.find(p => p.kind === 'corrupt');
+    assert.ok(Math.abs(c.vx) < 0.05, 'not drawn toward the penned school');
+});
+
+test('the boss Antivirus boots on time or on catches, and tight loops round it beat it', () => {
+    const s = still({ boss: 2, bossAt: 0.1, bossStun: 1 });
+    s.step(0.2);
+    const ev = s.takeEvents();
+    assert.ok(ev.some(e => e.type === 'boss') && s.boss, 'it boots');
+    const hit = () => {
+        const b = s.boss;
+        b.vx = b.vy = 0; b.x = 6; b.y = 3.5; b.stunned = s.time + 5; b.charge = null;
+        drawSquare(s, 6, 3.5, 1.1);
+        s.liftPen();
+    };
+    hit();
+    assert.equal(s.boss.hp, 1);
+    assert.ok(s.takeEvents().some(e => e.type === 'bossHit'));
+    hit();
+    assert.equal(s.boss, null);
+    assert.equal(s.stats.bosses, 1);
+    assert.ok(s.takeEvents().some(e => e.type === 'bossDown'));
+    // a loose loop round it doesn't count
+    const t = still({ boss: 2, bossAt: 0 });
+    t.step(0.1);
+    Object.assign(t.boss, { x: 5, y: 3.3, vx: 0, vy: 0, stunned: 99 });
+    drawSquare(t, 5, 3.3, 2.6);
+    assert.equal(t.boss.hp, 2);
+    // or after enough catches
+    const u = still({ boss: 1, bossAt: 1e9, bossCatch: 1 });
+    packet(u, 'good', 4, 4);
+    drawSquare(u, 4, 4, 1);
+    u.step(0.1);
+    assert.ok(u.boss, 'boots after the catch');
+});
+
+test('a clean start keeps corrupt packets away from the first school', () => {
+    for (let seed = 1; seed <= 10; seed++) {
+        const s = P.createSnare({ seed, cleanStart: true, flow: false });
+        const first = s.packets.filter(p => p.school === s.packets[0].school);
+        const cx = first.reduce((a, p) => a + p.x, 0) / first.length, cy = first.reduce((a, p) => a + p.y, 0) / first.length;
+        for (const c of s.packets.filter(p => p.kind === 'corrupt')) assert.ok(Math.hypot(c.x - cx, c.y - cy) >= 2.9, `seed ${seed}`);
+    }
+});
+
 test('a system Firewall flashes its edge, then sweeps across and snaps an open wire it crosses', () => {
     const s = still({ sweepFirst: 0, sweepEvery: 1e9, sweepWarn: 0.5, sweepTime: 1 });
     s.step(1 / 60);
@@ -569,12 +680,11 @@ test('the anchors carry over: a run starts with the last run\'s layout', () => {
     assert.deepEqual(E.snareOpts(st).layout, st.snare.anchors);
 });
 
-test('the Rogue AI arrives on the third run', () => {
+test('the first two runs start with a clean school', () => {
     const s = E.defaultState(NOW);
-    s.snare.runs = E.ROGUE_FROM_RUN - 1;
-    assert.equal(E.snareOpts(s).rogue, 0);
-    s.snare.runs = E.ROGUE_FROM_RUN;
-    assert.equal(E.snareOpts(s).rogue, 1);
+    assert.equal(E.snareOpts(s).cleanStart, true);
+    s.snare.runs = 2;
+    assert.equal(E.snareOpts(s).cleanStart, false);
 });
 
 // ---- The current, the Containment Field and Herders ----
