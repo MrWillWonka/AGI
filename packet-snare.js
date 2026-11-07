@@ -49,14 +49,14 @@
         snapCooldown: 1.0,          // seconds before you can draw again after a snap
         respawn: 1.2,               // seconds before a caught packet's replacement swims in
         density: 0.13,              // good packets per unit² of field…
-        maxGood: 340,               // …up to this many (a datacentre's field would hold a thousand: crowded, and slow)
+        maxGood: 340,               // …up to this many (Firehose and Floodgate raise it)
         corruptShare: 0.35,         // corrupt packets per good one
         corruptLure: 0.6,           // how strongly corrupt packets swim toward the nearest school (they hide in the crowd)
         goldChance: 0.04,           // a new good packet is gold this often (worth GOLD_VALUE)
         antivirus: [5],             // seconds into the run each Antivirus boots
         avSpeed: 1,                 // × their speeds (Obfuscation slows them)
-        // System Firewalls: a line across the whole field, sweeping from one side to the other after a warning; any open
-        // wire it crosses snaps.
+        // Full Scans (system Firewalls in the code: `sweep`): a line across the whole field, sweeping from one side to
+        // the other after a warning; any open wire it crosses snaps.
         sweepFirst: 7,
         sweepEvery: 8,
         sweepWarn: 0.9,             // seconds its edge flashes before it moves
@@ -127,11 +127,51 @@
         boss: 0,                    // its hits (0 = no boss)
         bossAt: 16,
         bossCatch: 18,
-        bossLoop: 0.12,
+        bossLoop: 2.6,              // a hit's loop may be no bigger than a circle this many times the boss's radius
         bossSpeed: 1,               // × an Antivirus's roaming speed
         bossCharge: 5,              // seconds between its charges at the pen
         bossStun: 1.5,              // seconds it reels after each hit
-        bossMinions: 0              // Antivirus it boots each time it's hit (later sectors)
+        bossMinions: 0,             // Antivirus it boots each time it's hit (later sectors)
+        bossR: 0.8,                 // its size: it grows sector by sector, so later bosses need bigger loops
+        bossSmash: 2,               // seconds it sits on a decoy before smashing it
+        // Lasers reach only part of the field: each emitter takes the richest packet within `laserReach` × the field's
+        // shorter side of it; Laser Array adds emitters on more sides (bottom, top, left, right).
+        laserReach: 0.5,
+        laserSides: 1,
+        // Herders an Antivirus touches are stunned for `herdStun` s; Evasive Herders steer clear of them.
+        herdStun: 2.5,
+        herdEvade: 0,
+        // What a packet is worth on top of its kind and tags: the screen caps the field's size for readability, and a
+        // field smaller than the tree's makes each packet worth the difference (game.js sets it).
+        worth: 1,
+        // ---- Exploits: the rules the player breaks (each a skill check; a sloppy one is flagged) -----------------
+        // A **flick** is a quick straight stroke (pen down, `flickTime` s at most, `flickLength` units at least, nearly
+        // straight). Parry and Slash: a flick across the boss's charge line while it warns turns the charge back on it
+        // (a hit); a flick through it while it reels is another hit. Packet Spoofing: a flick through a corrupt packet
+        // spoofs it, good and worth ×`spoofValue` for `spoofSeconds`. A flick that hits nothing is flagged.
+        parry: 0,
+        spoof: 0,
+        spoofSeconds: 5,
+        spoofValue: 2,
+        flickTime: 0.35,
+        flickLength: 1.2,
+        flagLimit: 3,               // flags and an IDS alert: the boss boots now, enraged (or another Antivirus)
+        // Garbage Collection: a loop of nothing but corrupt packets deletes them and gives `gcFocus` Focus each.
+        gc: 0,
+        gcFocus: 1.5,
+        // Race Condition: close a loop and keep the pen still, and the loop stays open, its multiplier growing
+        // `raceRate` a second (up to `raceMax` more) and taking what swims in, until you move, lift, or a corrupt packet
+        // gets in (spoiling it).
+        race: 0,
+        raceRate: 0.25,
+        raceMax: 1,
+        // Hijack: a loop round a stunned Antivirus turns it for `hijackSeconds`: it hunts good packets for you.
+        hijack: 0,
+        hijackSeconds: 8,
+        // Collusion: a quarantined core may turn partner (`collude` chance): it collects good packets in its circle for
+        // you, once a second, for `partnerLife` s; Antivirus go for it and break it.
+        collude: 0,
+        partnerLife: 12
     };
     const GOLD_VALUE = 5;
     const TAG_VALUE = 2;
@@ -217,11 +257,13 @@
         const rand = rng(opts.seed ?? 1);
         const closeR = o.closeRadius * Math.sqrt(fieldArea);
         const grow = Math.sqrt(fieldArea / FIELD_AREA);   // how much bigger than the starting field (1 at the start)
+        const shortSide = Math.min(w, h);
         const maxWire = o.maxWire * grow;
         const drawDrain = o.drawDrain / grow;
         const s = {
             w, h, opts: o, closeR,
-            time: 0,
+            time: 0,                // the field's clock (it stops while frozen)
+            real: 0,                // the run's own clock (it doesn't)
             focus: o.focus,
             maxFocus: o.focus,
             over: false,
@@ -242,19 +284,33 @@
             turrets: [],            // { id, x, y, at }: next shot at `at`
             towers: [],             // { id, x, y, ang }
             charges: { freeze: o.freeze, purge: o.purge },
-            frozenUntil: 0,
+            frozenLeft: 0,          // Freeze Frame: seconds of freeze left (the field's clock stops meanwhile)
+            flags: 0,               // sloppy exploits this run (an IDS alert at `flagLimit`)
+            stroke: null,           // the pen's stroke so far: { t0, pts }, for flicks
+            penAt: null,            // where the pen is
+            race: null,             // Race Condition: a closed loop held open, { poly, at, t, mult }
+            partners: [],           // Collusion: cores working for you, { id, x, y, r, age, at }
             rogueAt: o.rogue ? o.rogueFirst : Infinity,
             boss: null,             // the boss Antivirus once it boots: { x, y, vx, vy, r, hp, maxHp, stunned, hunting }
             bossDone: false,
             stats: { catches: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
-                stolen: 0, cores: 0, quarantined: 0, walls: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0 },
+                stolen: 0, cores: 0, quarantined: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0,
+                herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0 },
             acc: 0,
             nextId: 1
         };
         for (let i = 0; i < o.scanner; i++) s.beams.push(i * Math.PI * 2 / o.scanner);
         // What you placed last run stays placed (as far as this run's slots go).
         const L0 = o.layout || {};
-        for (const [u1, v1, u2, v2] of (L0.walls || []).slice(0, o.firewalls)) s.walls.push({ id: s.nextId++, a: { x: u1 * w, y: v1 * h }, b: { x: u2 * w, y: v2 * h }, hits: 0 });
+        // Walls are trimmed again to this field's longest (a field of another shape stretches them).
+        for (const [u1, v1, u2, v2] of (L0.walls || []).slice(0, o.firewalls)) {
+            const a = { x: u1 * w, y: v1 * h };
+            let b = { x: u2 * w, y: v2 * h };
+            const L = Math.hypot(b.x - a.x, b.y - a.y), max = o.wallLength * grow;
+            if (L < o.wallMinLength) continue;
+            if (L > max) b = { x: a.x + (b.x - a.x) * max / L, y: a.y + (b.y - a.y) * max / L };
+            s.walls.push({ id: s.nextId++, a, b, hits: 0 });
+        }
         for (const [u, v] of (L0.decoys || []).slice(0, o.decoys)) s.decoys.push({ id: s.nextId++, x: u * w, y: v * h });
         for (const [u, v] of (L0.turrets || []).slice(0, o.turrets)) s.turrets.push({ id: s.nextId++, x: u * w, y: v * h, at: o.turretEvery * 0.5 });
         for (const [u, v] of (L0.towers || []).slice(0, o.towers)) s.towers.push({ id: s.nextId++, x: u * w, y: v * h, ang: 0 });
@@ -348,14 +404,18 @@
         }
 
         // ---- The boss Antivirus --------------------------------------------------------------------------
+        // `enraged`: an IDS alert booted it early, faster and charging sooner.
+        function bootBoss(enraged) {
+            const r = o.bossR, c = Math.floor(rand() * 4);
+            const x = c % 2 ? w - r : r, y = c < 2 ? r : h - r;
+            s.boss = { x, y, vx: 0, vy: 0, r, hp: o.boss, maxHp: o.boss, stunned: 0, hunting: false, immune: null, charge: null, chargeAt: s.time + (enraged ? 1 : 3), enraged, smash: null };
+            s.events.push({ type: 'boss', x, y, hp: o.boss, enraged });
+        }
         function bossStep(dt) {
             if (!o.boss || s.bossDone) return;
             if (!s.boss) {
                 if (s.time < o.bossAt && s.stats.caught < o.bossCatch) return;
-                const c = Math.floor(rand() * 4);
-                const x = c % 2 ? w - BOSS_R : BOSS_R, y = c < 2 ? BOSS_R : h - BOSS_R;
-                s.boss = { x, y, vx: 0, vy: 0, r: BOSS_R, hp: o.boss, maxHp: o.boss, stunned: 0, hunting: false, immune: null, charge: null, chargeAt: s.time + 3 };
-                s.events.push({ type: 'boss', x, y, hp: o.boss });
+                bootBoss(false);
                 return;
             }
             const b = s.boss;
@@ -374,7 +434,7 @@
                 b.charge.t += dt;
                 if (b.charge.t < BOSS_WARN) { b.vx *= 0.8; b.vy *= 0.8; }
                 else if (b.charge.t < BOSS_WARN + BOSS_DASH) { b.vx = b.charge.dx * BOSS_DASH_SPEED * o.avSpeed; b.vy = b.charge.dy * BOSS_DASH_SPEED * o.avSpeed; }
-                else { b.charge = null; b.chargeAt = s.time + o.bossCharge; }
+                else { b.charge = null; b.chargeAt = s.time + o.bossCharge * (b.enraged ? 0.6 : 1); }
                 b.hunting = !!b.charge;
             } else {
                 if (s.drawing && s.wire.length > 1 && s.time >= (b.chargeAt ?? 0)) {
@@ -383,14 +443,15 @@
                     b.charge = { t: 0, dx: (head.x - b.x) / L, dy: (head.y - b.y) / L };
                     s.events.push({ type: 'bossCharge', x: b.x, y: b.y });
                 }
+                // Decoys count as half as far away as packets (it falls for them).
                 let best = null, bd = Infinity;
                 for (const p of [...s.decoys, ...s.packets]) {
-                    if (p.kind === 'corrupt') continue;
-                    const d = (p.x - b.x) ** 2 + (p.y - b.y) ** 2 * (p.kind ? 1 : 0.5);
+                    if (p.kind === 'corrupt' && !(p.spoof > s.time)) continue;
+                    const d = ((p.x - b.x) ** 2 + (p.y - b.y) ** 2) * (p.kind ? 1 : 0.5);
                     if (d < bd) { bd = d; best = p; }
                 }
                 const target = best || { x: w / 2, y: h / 2 };
-                const speed = o.avPatrol * o.bossSpeed * o.avSpeed;
+                const speed = o.avPatrol * o.bossSpeed * o.avSpeed * (b.enraged ? 1.3 : 1);
                 const ang = Math.atan2(target.y - b.y, target.x - b.x);
                 const k = Math.min(1, o.avTurn * 0.6 * dt);
                 b.vx += (Math.cos(ang) * speed - b.vx) * k;
@@ -399,6 +460,18 @@
             }
             b.x += b.vx * dt;
             b.y += b.vy * dt;
+            // A decoy it sits on lasts `bossSmash` s, then it smashes it.
+            const onDecoy = s.decoys.find(dc => Math.hypot(dc.x - b.x, dc.y - b.y) < b.r + 0.3);
+            if (onDecoy) {
+                b.smash = b.smash?.id === onDecoy.id ? b.smash : { id: onDecoy.id, t: 0 };
+                b.smash.t += dt;
+                if (b.smash.t >= o.bossSmash) {
+                    s.decoys = s.decoys.filter(dc => dc !== onDecoy);
+                    s.stats.decoysLost++;
+                    s.events.push({ type: 'decoyGone', x: onDecoy.x, y: onDecoy.y, boss: true });
+                    b.smash = null;
+                }
+            } else b.smash = null;
             const wiped = s.packets.filter(p => p.kind !== 'corrupt' && Math.hypot(p.x - b.x, p.y - b.y) < b.r);
             if (wiped.length) {
                 s.stats.wiped += wiped.length;
@@ -408,20 +481,32 @@
             bounce(b);
             if (s.wire.length > 1) {
                 for (let i = 1; i < s.wire.length; i++) {
+                    // Its snap costs half again what an Antivirus's does.
                     if (segDist(b, s.wire[i - 1], s.wire[i]) < b.r) { snap(b); s.focus = Math.max(0, s.focus - o.snapPenalty * 0.5); break; }
                 }
             }
             // Your Firewalls stun it too, once per approach, like the others (it shrugs the stun off sooner).
             stunOnWalls(b, o.avStun * 0.6, true);
         }
-        // A tight loop round the boss takes a hit off it.
+        // A tight loop round the boss takes a hit off it: all of it inside (a bigger boss needs a bigger loop), no bigger
+        // than a circle `bossLoop` times its radius. Never while the field is frozen (Freeze Frame stops the clock, not
+        // the boss's guard).
+        const bossLimit = b => Math.PI * (o.bossLoop * b.r) ** 2;
         function bossLooped(poly, area) {
             const b = s.boss;
-            if (!b || area > o.bossLoop * fieldArea || !pointInPolygon(b, poly)) return false;
+            if (!b || frozen() || area > bossLimit(b) || !pointInPolygon(b, poly)) return false;
+            for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) if (segDist(b, poly[j], poly[i]) < b.r * 0.85) return false;
+            hitBoss(b, 'loop');
+            return true;
+        }
+        // A hit, from a loop, a parry or a slash.
+        function hitBoss(b, how) {
             b.hp--;
             s.stats.bossHits++;
             for (let i = 0; i < o.bossMinions && b.hp > 0; i++) bootAntivirus();
             b.stunned = s.time + o.bossStun;
+            b.charge = null;
+            b.slashable = how !== 'slash';   // a slash lands on a boss reeling from a loop or a parry, not from a slash
             const ang = rand() * Math.PI * 2;
             b.vx = Math.cos(ang) * 3;
             b.vy = Math.sin(ang) * 3;
@@ -431,9 +516,8 @@
                 s.boss = null;
                 s.events.push({ type: 'bossDown', x: b.x, y: b.y });
             } else {
-                s.events.push({ type: 'bossHit', x: b.x, y: b.y, hp: b.hp, maxHp: b.maxHp });
+                s.events.push({ type: 'bossHit', x: b.x, y: b.y, hp: b.hp, maxHp: b.maxHp, how });
             }
-            return true;
         }
 
         function bootAntivirus() {
@@ -459,7 +543,8 @@
         function flock(dt) {
             // Corrupt packets swim toward the nearest school: they hide in the crowd, so a big loop round a school is a gamble.
             if (o.corruptLure > 0 && !(o.cleanStart && s.time < 5)) {
-                const kc = Math.min(1, o.corruptLure * dt);
+                // While you draw a loop the lure eases off (big loops are a gamble, not a certainty).
+                const kc = Math.min(1, o.corruptLure * (s.drawing ? 0.4 : 1) * dt);
                 // Good packets on a grid of 3-unit cells: a corrupt one only looks in the cells round it (a datacentre's
                 // field holds hundreds of packets; all against all was most of a frame).
                 const grid = new Map();
@@ -475,7 +560,7 @@
                     return out;
                 };
                 for (const p of s.packets) {
-                    if (p.kind !== 'corrupt') continue;
+                    if (p.kind !== 'corrupt' || p.spoof > s.time) continue;
                     // A decoy in reach outbids the schools.
                     let best = null, bd = 9;
                     for (const dc of s.decoys) {
@@ -547,7 +632,9 @@
             s.stats.snaps++;
         }
 
-        const valueOf = p => (p.kind === 'gold' ? GOLD_VALUE : 1) * (p.tag > s.time ? o.tagValue : 1);
+        const spoofed = p => p.kind === 'corrupt' && p.spoof > s.time;
+        const isGood = p => p.kind !== 'corrupt' || spoofed(p);
+        const valueOf = p => (p.kind === 'gold' ? GOLD_VALUE : 1) * (p.tag > s.time ? o.tagValue : 1) * (spoofed(p) ? o.spoofValue : 1) * o.worth;
 
         // Taken packets leave the field; a school refills from an edge once enough are gone, corrupt ones one by one.
         function remove(list) {
@@ -578,15 +665,31 @@
             s.locks = s.locks.filter(l => l.t < LOCK_SECONDS);
             if (s.time < s.laserAt) return;
             s.laserAt = s.time + o.laser;
-            // The richest packets not already locked: gold first, then tagged, then anything good.
+            // Each emitter takes the richest packet in its reach not already locked: gold first, then tagged.
             const taken = new Set(s.locks.map(l => l.id));
-            const pool = s.packets.filter(p => p.kind !== 'corrupt' && !taken.has(p.id))
-                .sort((a, b) => valueOf(b) - valueOf(a) || a.id - b.id);
-            for (let i = 0; i < o.emitters && i < pool.length; i++) {
-                // Emitters sit along the bottom edge, spread out.
-                const from = { x: w * (i + 1) / (o.emitters + 1), y: h };
-                s.locks.push({ id: pool[i].id, t: 0, from });
+            const reach = o.laserReach * shortSide;
+            for (const from of emitterSpots()) {
+                let best = null;
+                for (const p of s.packets) {
+                    if (p.kind === 'corrupt' || taken.has(p.id) || Math.hypot(p.x - from.x, p.y - from.y) > reach) continue;
+                    if (!best || valueOf(p) > valueOf(best) || (valueOf(p) === valueOf(best) && p.id < best.id)) best = p;
+                }
+                if (!best) continue;
+                taken.add(best.id);
+                s.locks.push({ id: best.id, t: 0, from });
             }
+        }
+        // Where the lasers' emitters stand: `emitters` along each of `laserSides` edges (bottom, top, left, right).
+        function emitterSpots() {
+            const out = [];
+            const sides = [[0, 1], [0, -1], [-1, 0], [1, 0]].slice(0, Math.max(1, Math.min(4, o.laserSides)));
+            for (const [sx, sy] of sides) {
+                for (let i = 0; i < o.emitters; i++) {
+                    const f = (i + 1) / (o.emitters + 1);
+                    out.push(sy ? { x: w * f, y: sy > 0 ? h : 0 } : { x: sx > 0 ? w : 0, y: h * f });
+                }
+            }
+            return out;
         }
 
         function scannerStep(dt) {
@@ -611,7 +714,6 @@
         }
 
         // ---- The Rogue AI -----------------------------------------------------------------------------
-        const shortSide = Math.min(w, h);
         // A Firewall of yours between a core and a packet shields it: the circle can't take it through.
         const shielded = (core, p) => wallsNow.some(f => segIntersect(core, p, f.a, f.b));
         function spawnCore() {
@@ -709,7 +811,7 @@
             if (s.over || !(s.charges[kind] > 0)) return false;
             s.charges[kind]--;
             if (kind === 'freeze') {
-                s.frozenUntil = s.time + o.freezeSeconds;
+                s.frozenLeft = o.freezeSeconds;
                 s.stats.freezes++;
             } else if (kind === 'purge') {
                 const bad = s.packets.filter(p => p.kind === 'corrupt');
@@ -720,7 +822,7 @@
             s.events.push({ type: 'power', kind });
             return true;
         }
-        const frozen = () => s.time < s.frozenUntil;
+        const frozen = () => s.frozenLeft > 0;
         // A corrupt packet that would cross one of your Firewalls this step bounces off it (good ones pass).
         function bounceOffWalls(p, px, py) {
             for (const f of wallsNow) {
@@ -755,7 +857,8 @@
             f.hits++;
             s.stats.stuns++;
             const down = f.hits >= o.fwHits;
-            if (down) { s.stats.fwLost++; wallsNow = wallsUp(); }
+            // A wall that goes down leaves the field and frees its slot.
+            if (down) { s.stats.fwLost++; s.walls = s.walls.filter(g => g !== f); wallsNow = wallsUp(); }
             s.events.push({ type: 'stun', x: v.x, y: v.y, down, boss: isBoss, a: { x: f.a.x, y: f.a.y }, b: { x: f.b.x, y: f.b.y } });
         }
         // Turrets take the richest good packet in reach on their beat; Purifier rounds wipe a corrupt one too.
@@ -837,7 +940,22 @@
             const g = gatherPoint();
             // Each herder takes one of the strays furthest from the gather point and goes round behind it.
             const strays = s.packets.filter(p => p.kind !== 'corrupt').map(p => ({ p, d: Math.hypot(p.x - g.x, p.y - g.y) })).sort((a, b) => b.d - a.d);
+            const hostile = s.antivirus.filter(f => !(f.ally > s.time) && !(f.stunned > s.time));
+            if (s.boss) hostile.push(s.boss);
             s.herders.forEach((hd, i) => {
+                // An Antivirus that touches a herder stuns it (Evasive Herders steer clear of them).
+                if (!(hd.stunned > s.time) && hostile.some(f => Math.hypot(f.x - hd.x, f.y - hd.y) < f.r + 0.25)) {
+                    hd.stunned = s.time + o.herdStun;
+                    s.stats.herdStuns++;
+                    s.events.push({ type: 'herdStun', x: hd.x, y: hd.y });
+                }
+                if (hd.stunned > s.time) {
+                    hd.vx *= 1 - Math.min(1, 3 * dt);
+                    hd.vy *= 1 - Math.min(1, 3 * dt);
+                    hd.x = Math.max(0.2, Math.min(w - 0.2, hd.x + hd.vx * dt));
+                    hd.y = Math.max(0.2, Math.min(h - 0.2, hd.y + hd.vy * dt));
+                    return;
+                }
                 const st = strays[i];
                 let tx = g.x, ty = g.y;
                 if (st && st.d > 0.8) {
@@ -845,17 +963,27 @@
                     ty = st.p.y + (st.p.y - g.y) / st.d * 0.9;
                 }
                 hd.target = st ? st.p.id : null;
-                const ang = Math.atan2(ty - hd.y, tx - hd.x);
+                let ax = Math.cos(Math.atan2(ty - hd.y, tx - hd.x)), ay = Math.sin(Math.atan2(ty - hd.y, tx - hd.x));
+                if (o.herdEvade) {
+                    for (const f of hostile) {
+                        const dx = hd.x - f.x, dy = hd.y - f.y, d = Math.hypot(dx, dy) || 1;
+                        const reach = 1.4 + 0.6 * o.herdEvade + f.r;
+                        if (d < reach) { ax += dx / d * (reach - d) * 2 * o.herdEvade; ay += dy / d * (reach - d) * 2 * o.herdEvade; }
+                    }
+                    const al = Math.hypot(ax, ay) || 1;
+                    ax /= al; ay /= al;
+                }
                 const k = Math.min(1, 4 * dt);
-                hd.vx += (Math.cos(ang) * o.herdSpeed - hd.vx) * k;
-                hd.vy += (Math.sin(ang) * o.herdSpeed - hd.vy) * k;
+                hd.vx += (ax * o.herdSpeed - hd.vx) * k;
+                hd.vy += (ay * o.herdSpeed - hd.vy) * k;
                 hd.x = Math.max(0.2, Math.min(w - 0.2, hd.x + hd.vx * dt));
                 hd.y = Math.max(0.2, Math.min(h - 0.2, hd.y + hd.vy * dt));
             });
-            // Packets near a herder turn: good ones toward the gather point, corrupt ones away from it.
+            // Packets near a working herder turn: good ones toward the gather point, corrupt ones away from it.
             const kp = Math.min(1, o.herdPull * dt);
+            const working = s.herders.filter(hd => !(hd.stunned > s.time));
             for (const p of s.packets) {
-                if (!s.herders.some(hd => Math.hypot(hd.x - p.x, hd.y - p.y) <= o.herdRadius)) continue;
+                if (!working.some(hd => Math.hypot(hd.x - p.x, hd.y - p.y) <= o.herdRadius)) continue;
                 let ang = Math.atan2(g.y - p.y, g.x - p.x);
                 if (p.kind === 'corrupt') ang += Math.PI;
                 p.vx += (Math.cos(ang) * p.v - p.vx) * kp;
@@ -866,12 +994,134 @@
             }
         }
 
+        // ---- Hijack, Collusion and Race Condition -------------------------------------------------------------
+        // A hijacked Antivirus hunts the richest good packet near it and takes what it touches, for you.
+        function allyStep(f, dt) {
+            let best = null, bd = Infinity;
+            for (const p of s.packets) {
+                if (!isGood(p)) continue;
+                const d = Math.hypot(p.x - f.x, p.y - f.y) / valueOf(p);
+                if (d < bd) { bd = d; best = p; }
+            }
+            const speed = o.avHunt * o.avSpeed;
+            if (best) {
+                const ang = Math.atan2(best.y - f.y, best.x - f.x);
+                const k = Math.min(1, o.avTurn * dt);
+                f.vx += (Math.cos(ang) * speed - f.vx) * k;
+                f.vy += (Math.sin(ang) * speed - f.vy) * k;
+            }
+            f.x += f.vx * dt;
+            f.y += f.vy * dt;
+            bounce(f);
+            f.hunting = false;
+            const got = s.packets.filter(p => isGood(p) && Math.hypot(p.x - f.x, p.y - f.y) < f.r + p.r);
+            if (got.length) takeFor(got, f, 'hijack');
+        }
+        // Packets taken for you outside a loop (a hijacked Antivirus, a partner core): paid at ×1.
+        function takeFor(list, from, by) {
+            const units = list.reduce((a, p) => a + valueOf(p), 0);
+            s.stats.caught += list.length;
+            s.stats.units += units;
+            s.stats.gold += list.filter(p => p.kind === 'gold').length;
+            if (by === 'partner') s.stats.partnered += list.length;
+            s.events.push({ type: 'taken', by, x: from.x, y: from.y, units, packets: list.map(p => ({ x: p.x, y: p.y, kind: p.kind })) });
+            remove(list);
+        }
+        // Partner cores collect the good packets in their circle once a second, for you, until they burn out.
+        function partnerStep(dt) {
+            for (const c of s.partners) {
+                c.age += dt;
+                c.at -= dt;
+                if (c.at > 0) continue;
+                c.at = 1;
+                const got = s.packets.filter(p => isGood(p) && Math.hypot(p.x - c.x, p.y - c.y) <= c.r && !shielded(c, p));
+                if (got.length) takeFor(got, c, 'partner');
+            }
+            for (const c of s.partners.filter(c => c.age >= o.partnerLife)) s.events.push({ type: 'partnerGone', x: c.x, y: c.y, r: c.r, done: true });
+            s.partners = s.partners.filter(c => c.age < o.partnerLife);
+        }
+        // Race Condition: the held loop's multiplier grows; a corrupt packet getting in (past the scrubbers) spoils it.
+        function raceStep(dt) {
+            const r = s.race;
+            if (!r) return;
+            r.t += dt;
+            r.bonus = Math.min(o.raceMax, o.raceRate * r.t);
+            const bad = s.packets.filter(p => p.kind === 'corrupt' && !spoofed(p) && pointInPolygon(p, r.poly)).length;
+            if (bad > o.scrubbers) settleRace();
+        }
+        function settleRace() {
+            const r = s.race;
+            if (!r) return;
+            s.race = null;
+            if (r.bonus > 0) s.stats.raced++;
+            payLoop(r.poly, r.bonus);
+        }
+
+        // ---- Flicks: Parry and Slash, Packet Spoofing --------------------------------------------------------
+        // A quick straight stroke, judged when the pen lifts. Returns true if it was a flick (it isn't a wire).
+        function flick() {
+            const st = s.stroke;
+            if (!st || !(o.parry || o.spoof) || st.pts.length < 2) return false;
+            const a = st.pts[0], b = st.pts[st.pts.length - 1];
+            const chord = Math.hypot(b.x - a.x, b.y - a.y), path = wireLength(st.pts);
+            if (s.real - st.t0 > o.flickTime || chord < o.flickLength || chord < path * 0.85) return false;
+            let hit = false;
+            const boss = s.boss;
+            if (boss && o.parry) {
+                // A parry: across its charge line while it warns, the charge turns back on it.
+                if (boss.charge && boss.charge.t < BOSS_WARN) {
+                    const L = BOSS_DASH_SPEED * BOSS_DASH * o.avSpeed + boss.r;
+                    const end = { x: boss.x + boss.charge.dx * L, y: boss.y + boss.charge.dy * L };
+                    if (segIntersect(a, b, boss, end) || segDist(boss, a, b) < boss.r) {
+                        const { dx, dy } = boss.charge;
+                        s.stats.parries++;
+                        s.events.push({ type: 'parry', x: boss.x, y: boss.y, a, b });
+                        hitBoss(boss, 'parry');
+                        if (s.boss) { boss.vx = -dx * 4; boss.vy = -dy * 4; }
+                        hit = true;
+                    }
+                } else if (boss.stunned > s.time && boss.slashable && segDist(boss, a, b) < boss.r) {
+                    // A slash: through it while it reels from a loop or a parry.
+                    s.stats.slashes++;
+                    s.events.push({ type: 'slash', x: boss.x, y: boss.y, a, b });
+                    hitBoss(boss, 'slash');
+                    hit = true;
+                }
+            }
+            if (o.spoof) {
+                const cut = s.packets.filter(p => p.kind === 'corrupt' && !spoofed(p) && segDist(p, a, b) < p.r + 0.15);
+                if (cut.length) {
+                    for (const p of cut) p.spoof = s.time + o.spoofSeconds;
+                    s.stats.spoofed += cut.length;
+                    s.events.push({ type: 'spoof', a, b, packets: cut.map(p => ({ x: p.x, y: p.y })) });
+                    hit = true;
+                }
+            }
+            if (!hit) flag(a, b);
+            return true;
+        }
+        // A sloppy exploit is flagged; `flagLimit` flags and an IDS alert goes off.
+        function flag(a, b) {
+            s.flags++;
+            s.stats.flags++;
+            s.events.push({ type: 'flag', a, b, flags: s.flags, limit: o.flagLimit });
+            if (s.flags < o.flagLimit) return;
+            s.flags = 0;
+            s.stats.ids++;
+            if (o.boss && !s.bossDone && !s.boss) bootBoss(true);
+            else if (s.boss) { s.boss.enraged = true; s.boss.chargeAt = Math.min(s.boss.chargeAt ?? 0, s.time + 1); }
+            else bootAntivirus();
+            s.events.push({ type: 'ids', boss: !!s.boss });
+        }
+
         function stepOnce(dt) {
-            s.time += dt;
+            s.real += dt;
             if (s.cooldown > 0) s.cooldown = Math.max(0, s.cooldown - dt);
             wallsNow = wallsUp();
-            // Frozen: nothing on the field moves and Focus holds; only your pen works.
-            if (frozen()) return;
+            // Frozen: the field's clock stops (nothing moves, nothing comes due, tags hold, Focus holds); only your pen works.
+            if (frozen()) { s.frozenLeft = Math.max(0, s.frozenLeft - dt); return; }
+            s.time += dt;
+            raceStep(dt);
             flock(dt);
             const out = [];
             for (const p of s.packets) {
@@ -894,10 +1144,18 @@
             turretStep();
             laserStep(dt);
             rogueStep(dt);
+            partnerStep(dt);
             bossStep(dt);
             sweepStep(dt);
             while (avDue.length && s.time >= avDue[0]) { avDue.shift(); bootAntivirus(); }
             for (const f of s.antivirus) {
+                // Hijacked: it works for you until its time is up, then reboots (stunned a moment) and turns back.
+                if (f.ally) {
+                    if (f.ally > s.time) { allyStep(f, dt); continue; }
+                    f.ally = 0;
+                    f.stunned = s.time + 1;
+                    s.events.push({ type: 'hijackEnd', x: f.x, y: f.y });
+                }
                 // Stunned: it drifts to a stop and can't snap anything.
                 if (f.stunned > s.time) {
                     f.x += f.vx * dt;
@@ -908,9 +1166,10 @@
                     f.hunting = false;
                     continue;
                 }
-                // The open wire first; failing that, your nearest decoy (it goes for decoys, not your Firewalls).
+                // The open wire first; failing that, your nearest decoy or partner core (not your Firewalls).
                 const wireTarget = s.wire.length > 1 ? nearestWire(f.x, f.y) : null;
-                const decoy = !wireTarget && s.decoys.length ? s.decoys.reduce((b, a) => (!b || (a.x - f.x) ** 2 + (a.y - f.y) ** 2 < (b.x - f.x) ** 2 + (b.y - f.y) ** 2 ? a : b), null) : null;
+                const lures = [...s.decoys, ...s.partners];
+                const decoy = !wireTarget && lures.length ? lures.reduce((b, a) => (!b || (a.x - f.x) ** 2 + (a.y - f.y) ** 2 < (b.x - f.x) ** 2 + (b.y - f.y) ** 2 ? a : b), null) : null;
                 const target = wireTarget || decoy;
                 f.hunting = !!wireTarget;
                 const speed = (wireTarget ? o.avHunt : decoy ? o.avPatrol * 1.4 : o.avPatrol) * o.avSpeed;
@@ -939,6 +1198,12 @@
                     s.stats.decoysLost++;
                     s.events.push({ type: 'decoyGone', x: hit.x, y: hit.y });
                 }
+                // And a partner core it reaches.
+                const pc = s.partners.find(c => Math.hypot(c.x - f.x, c.y - f.y) < f.r + 0.4);
+                if (pc) {
+                    s.partners = s.partners.filter(c => c !== pc);
+                    s.events.push({ type: 'partnerGone', x: pc.x, y: pc.y, r: pc.r });
+                }
                 stunOnWalls(f, o.avStun);
             }
             // Refills: schools of the missing good packets swim in from an edge, corrupt ones one at a time.
@@ -961,6 +1226,7 @@
 
         function end() {
             if (s.over) return;
+            settleRace();
             s.over = true;
             s.wire = [];
             s.drawing = false;
@@ -981,19 +1247,23 @@
 
         // What a loop would catch: the packets inside, how many are corrupt beyond what the scrubbers forgive, its
         // multiplier and its worth. Used to close a loop and, on the open wire, for the live preview.
-        function judge(poly) {
+        function judge(poly, bonus = 0) {
             const area = polygonArea(poly);
             const inside = s.packets.filter(p => pointInPolygon(p, poly));
-            const corrupt = inside.filter(p => p.kind === 'corrupt');
-            const good = inside.filter(p => p.kind !== 'corrupt');
-            const spoiled = corrupt.length > o.scrubbers;
-            const mult = areaMult(area, o, fieldArea);
+            const corrupt = inside.filter(p => !isGood(p));
+            const good = inside.filter(isGood);
+            // Garbage Collection: a loop of nothing but corrupt packets is collected, not spoiled.
+            const garbage = !!o.gc && !good.length && corrupt.length > 0;
+            const spoiled = !garbage && corrupt.length > o.scrubbers;
+            const mult = areaMult(area, o, fieldArea) * (1 + bonus);
             const value = good.reduce((a, p) => a + valueOf(p), 0);
-            return { area, inside, corrupt, good, spoiled, mult, value, units: spoiled ? 0 : value * mult };
+            return { area, inside, corrupt, good, spoiled, garbage, mult, value, units: spoiled ? 0 : value * mult };
         }
 
-        // Close a loop: everything inside is snared, or spoiled if anything corrupt (past the scrubbers) is in there.
-        function close(poly) {
+        // Close a loop: a core, the boss or a stunned Antivirus inside is dealt with at once; the packets are snared,
+        // or spoiled if anything corrupt (past the scrubbers) is in there. `held`: the pen is still down (it closed by
+        // crossing or coming back to the start), so Race Condition can hold the loop open.
+        function close(poly, held = false) {
             const j = judge(poly);
             const at = centroid(poly);
             s.leftStart = false;
@@ -1005,18 +1275,60 @@
                     quarantined = true;
                     s.cores = s.cores.filter(c => !caught.includes(c));
                     for (const c of caught) {
-                        const units = 2 + 0.5 * c.stole;
+                        const units = (2 + 0.5 * c.stole) * o.worth;
                         s.stats.quarantined++;
                         s.stats.units += units;
-                        s.events.push({ type: 'quarantine', x: c.x, y: c.y, r: c.r, units, poly });
+                        // Collusion: it may offer to work for you instead.
+                        const partner = o.collude > 0 && rand() < o.collude;
+                        if (partner) {
+                            s.partners.push({ id: s.nextId++, x: c.x, y: c.y, r: Math.max(1, Math.min(c.r, o.rogueMax * shortSide * 0.6)), age: 0, at: 1 });
+                            s.stats.partners++;
+                        }
+                        s.events.push({ type: 'quarantine', x: c.x, y: c.y, r: c.r, units, poly, partner });
                     }
                 }
             }
             if (bossLooped(poly, j.area)) quarantined = true;
+            // Hijack: a loop round a stunned Antivirus turns it.
+            if (o.hijack) {
+                for (const f of s.antivirus) {
+                    if (f.ally || !(f.stunned > s.time) || !pointInPolygon(f, poly)) continue;
+                    f.ally = s.time + o.hijackSeconds;
+                    f.stunned = 0;
+                    s.stats.hijacked++;
+                    s.events.push({ type: 'hijack', x: f.x, y: f.y });
+                    quarantined = true;
+                }
+            }
             if (!j.inside.length) {
                 if (quarantined) return;
                 s.stats.empty++;
                 s.events.push({ type: 'empty', x: at.x, y: at.y, poly, area: j.area });
+                return;
+            }
+            // Race Condition: a clean loop closed with the pen still down stays open while the pen holds still.
+            if (o.race && held && !j.spoiled && !j.garbage && j.good.length) {
+                s.race = { poly, at: s.penAt, t: 0, bonus: 0 };
+                s.events.push({ type: 'raceStart', x: at.x, y: at.y, poly });
+                return;
+            }
+            payLoop(poly, 0, j);
+        }
+
+        // Pay a closed loop (at once, or when a held Race Condition loop lets go, `bonus` its growth).
+        function payLoop(poly, bonus, j = judge(poly, bonus)) {
+            const at = centroid(poly);
+            if (!j.inside.length) {
+                s.stats.empty++;
+                s.events.push({ type: 'empty', x: at.x, y: at.y, poly, area: j.area });
+                return;
+            }
+            if (j.garbage) {
+                const back = o.gcFocus * j.corrupt.length;
+                s.focus = Math.min(s.maxFocus, s.focus + back);
+                s.stats.collected += j.corrupt.length;
+                s.events.push({ type: 'garbage', x: at.x, y: at.y, poly, count: j.corrupt.length, focus: back, packets: j.inside.map(p => ({ x: p.x, y: p.y })) });
+                remove(j.corrupt);
                 return;
             }
             if (j.spoiled) {
@@ -1030,7 +1342,7 @@
             // Chain Lightning: arcs from the snared packets to good ones outside the loop, nearest first.
             const chained = [];
             if (o.chain > 0) {
-                const outside = s.packets.filter(p => p.kind !== 'corrupt' && !j.inside.includes(p));
+                const outside = s.packets.filter(p => isGood(p) && !j.inside.includes(p));
                 const cands = [];
                 for (const q of outside) {
                     let best = null, bd = o.chainRange;
@@ -1058,7 +1370,7 @@
             s.stats.bestMult = Math.max(s.stats.bestMult, j.mult);
             // Second Wind: a big loop gives Focus back.
             if (o.focusBack && j.mult >= 2) s.focus = Math.min(s.maxFocus, s.focus + o.focusBack);
-            s.events.push({ type: 'catch', x: at.x, y: at.y, poly, area: j.area, count, gold, mult: j.mult, units, packets: j.inside,
+            s.events.push({ type: 'catch', x: at.x, y: at.y, poly, area: j.area, count, gold, mult: j.mult, units, packets: j.inside, race: bonus,
                 chained: chained.map(c => ({ x: c.packet.x, y: c.packet.y, from: c.from, kind: c.packet.kind })), scrubbed: j.corrupt.length });
         }
 
@@ -1078,19 +1390,25 @@
             x = Math.max(0, Math.min(w, x));
             y = Math.max(0, Math.min(h, y));
             const p = { x, y };
+            s.penAt = p;
+            // A held Race Condition loop lets go as soon as the pen moves on.
+            if (s.race && Math.hypot(x - s.race.at.x, y - s.race.at.y) > closeR * 1.6) settleRace();
             if (!s.drawing) {
                 s.drawing = true;
                 s.leftStart = false;
                 s.wire = [p];
+                s.stroke = { t0: s.real, pts: [p] };
                 return true;
             }
             const last = s.wire[s.wire.length - 1];
             if (Math.hypot(x - last.x, y - last.y) < o.minGap) return true;
+            if (s.stroke && s.stroke.pts.length < 400) s.stroke.pts.push(p);
             // The new segment against every earlier one but its neighbour: the newest crossing closes the loop.
             for (let i = s.wire.length - 3; i >= 0; i--) {
                 const q = segIntersect(last, p, s.wire[i], s.wire[i + 1]);
                 if (q) {
-                    close([q, ...s.wire.slice(i + 1)]);
+                    s.stroke = null;
+                    close([q, ...s.wire.slice(i + 1)], true);
                     // Keep drawing from here: one scribble can snare loop after loop.
                     s.wire = s.over ? [] : [p];
                     return true;
@@ -1100,14 +1418,15 @@
             const start = s.wire[0];
             const fromStart = Math.hypot(x - start.x, y - start.y);
             if (fromStart > closeR * 1.5) s.leftStart = true;
-            // Back near the start: the loop snaps shut.
+            // Back near the start: the loop snaps shut (a wire that only went out and back along itself, too thin to be a
+            // loop, starts again from here rather than growing on).
             if (s.leftStart && fromStart <= closeR) {
                 const poly = openLoop();
-                if (poly) {
-                    close(poly);
-                    s.wire = s.over ? [] : [p];
-                    return true;
-                }
+                s.stroke = null;
+                if (poly) close(poly, true);
+                s.wire = s.over ? [] : [p];
+                s.leftStart = false;
+                return true;
             }
             // A wire past its length drops its tail (and its start moves with it).
             let L = wireCost(s.wire);
@@ -1120,17 +1439,21 @@
 
         // The pen lifts: near the start the loop closes, else an open wire is let go.
         function liftPen() {
+            if (s.race) settleRace();
             const start = s.wire[0], head = s.wire[s.wire.length - 1];
-            if (start && s.leftStart && Math.hypot(head.x - start.x, head.y - start.y) <= closeR * 1.6) {
+            const isFlick = !s.over && flick();
+            s.stroke = null;
+            if (!isFlick && start && s.leftStart && Math.hypot(head.x - start.x, head.y - start.y) <= closeR * 1.6) {
                 const poly = openLoop();
                 if (poly) {
                     close(poly);
                     s.wire = [];
                     s.drawing = false;
+                    s.leftStart = false;
                     return;
                 }
             }
-            if (s.wire.length > 1) s.events.push({ type: 'release', wire: s.wire.slice() });
+            if (!isFlick && s.wire.length > 1) s.events.push({ type: 'release', wire: s.wire.slice() });
             s.wire = [];
             s.drawing = false;
             s.leftStart = false;
@@ -1143,7 +1466,13 @@
             if (!poly) return null;
             const j = judge(poly);
             const head = s.wire[s.wire.length - 1], start = s.wire[0];
-            return { ...j, near: s.leftStart && Math.hypot(head.x - start.x, head.y - start.y) <= closeR * 1.6 };
+            // The risk: corrupt packets just outside it (they can swim in before it closes).
+            let risk = 0;
+            for (const p of s.packets) {
+                if (spoofed(p) || p.kind !== 'corrupt' || j.inside.includes(p)) continue;
+                for (let i = 1; i < poly.length; i++) if (segDist(p, poly[i - 1], poly[i]) < 1) { risk++; break; }
+            }
+            return { ...j, risk, scrub: Math.min(j.corrupt.length, o.scrubbers), near: s.leftStart && Math.hypot(head.x - start.x, head.y - start.y) <= closeR * 1.6 };
         }
 
         function step(dt) {
@@ -1164,7 +1493,7 @@
             return e;
         }
 
-        return Object.assign(s, { step, addPoint, liftPen, stop, takeEvents, preview, valueOf, placeWall, placeAt, removeAt, usePower, wallsUp, frozen, layoutOf });
+        return Object.assign(s, { step, addPoint, liftPen, stop, takeEvents, preview, valueOf, isGood, placeWall, placeAt, removeAt, usePower, wallsUp, frozen, layoutOf, emitterSpots });
     }
 
     return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, AV_R, BOSS_R, BOSS_WARN, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };
