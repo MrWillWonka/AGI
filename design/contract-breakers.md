@@ -21,7 +21,43 @@ play every couple of skills, and the skill tree's existing nodes and mechanic he
 
 Already broken: Paradigm Shift (1), Bullet Time and Lucid Dream (2), Max Effort and prompts (4), crunches (sprint limits).
 
-## Proposals
+## Revision: the player breaks the rules (the owner's call)
+
+The owner wants every rule-break to be **the player's move, tied to skill**: a button they choose when to press, a timing check,
+not a dice roll that happens to them. So the new mechanics are **abilities** on a second verb, and each is a skill check.
+
+**The Ability button.** A second button beside Sprint (left of it on phones, so the two thumbs split the verbs; on keyboards ↑, W
+or E, since Space and Enter sprint). It holds **charges per run**, like sprints (1 to start, more from tree nodes), shown as pips.
+It does whatever ability is **equipped**: from the second ability on, the dev screen has a loadout slot (one equipped, later two,
+the second on ↓/S). Each ability's first node is a mechanic hexagon with its demo, as now.
+
+**Every ability is a skill check**, judged like prompts are: early, good, **perfect**. A perfect press is the reward players chase
+(it pays like a super prompt, and the result card counts them). A bad one wastes the charge, or worse, so the press is a decision.
+
+| Skill (leg) | Ability | The press | The skill check | Perfect |
+|---|---|---|---|---|
+| Embeddings (2) | **Hop** (the base verb: a jump in act one) | tap: the ball leaves the line with upward speed from your current speed | when: hop at a crest's lip to fly the dip, or just before a cliff's face to land high on it | pressed in the lip's glowing window: +30% speed, a ring burst |
+| Feature Extraction (4) | **Dropout** | press as you reach a hill: it turns wireframe and you pass through on the flat | press inside the window at the hill's foot; too early drops nothing, too late you're already climbing (it drops under you and you fall) | the foot exactly: you keep the speed you'd have gained going down its back |
+| OCR (6) | **Hallucinate a bridge** | hold at a crest: a bridge grows forward; release to make it solid | longer reaches further, but past the meter's red edge it's a hallucination and dissolves under you (the sprint meter's risk, in space) | released at the edge: a gold bridge that boosts |
+| Sentiment Analysis (8) | **Temperature** | press during a sprint charge: a needle sweeps cold → hot (×0.5 … ×2.2); press again to stop it | stopping it on the narrow hot band | ×2.2 and a heat burst; a miss on the cold end weakens the sprint |
+| Summarization (10) | **Early stop** | on a crest, press to end the run and cash out | only on a crest (a pulsing ring); the higher and nearer its top, the more it pays (×1.2 to ×2) | dead on the crest's top: ×2 and a "TL;DR" stamp |
+| In-Context Learning (12) | **Slingshot** | your best run races as a ghost; ride its draft (less drag) and press to slingshot past | press while in the draft (within 1.5 m behind it) | at the edge of the draft: the slingshot doubles |
+
+Later abilities on the same button: **Rewind** (press while rolling back off a failed climb: 3 s back, the sprint refunded; the
+skill check is how soon you press), **Gradient flip** (hold: gravity flips, draining a gauge; let go before you crest or you're
+pulled back), **Reward hack** (at a skill hill's foot a seam flickers on its face; a press exactly on the seam clips through and
+learns the skill unearned, the AI gloats by email and gains freedom; miss and you bounce off; rare, late, one per run).
+
+**Cliffs and strength** fit this: a cliff's rating is what a sprint on its face needs, and a Hop before the face is the skilled way
+over a cliff you're not strong enough for yet. The leg characters give each ability terrain where it shines: Hop on Cliffs, Dropout
+on Rolling, Bridges on Marathons' wide valleys, Slingshot on Long flats.
+
+**The Auto-Trainer** never uses abilities: they're what the hand run does better than the ghost (so playing yourself stays worth it).
+The sim models them with the playtest profile's accuracy (perfect about as often as super prompts, a share of misses).
+
+The proposals below are the first draft; where they say a mechanic fires by chance, read the table above instead.
+
+## Proposals (first draft)
 
 Effort: S = a day or less, M = a few days, L = a week or more (physics, drawing, demo, sound, sim, tests).
 
@@ -144,7 +180,7 @@ Every leg today is one recipe: random small bumps, a length on one smooth curve.
 
 ## Recommended order
 
-1. **Dropout** (S, leg 4) and **Temperature** (S, leg 8): cheap, early, and each changes every run.
+1. **The Ability button and Hop** (M, leg 2): the verb everything else rides on, with cliffs to use it on. Then **Dropout** (S, leg 4) and **Temperature** (S, leg 8).
 2. **Wormholes** (S–M, leg 2) and **Early stopping** (S, leg 10).
 3. **Hallucinated bridges** (M, leg 6) and **Ghost of your best run** (M, leg 12): the signature ones.
 4. Later, as rare rewards: **Reward hacking** (story), **Rewind**, **Gradient flip**, **Carried context**, then **Forks** and
