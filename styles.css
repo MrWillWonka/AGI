@@ -2991,7 +2991,10 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
    (compute amber like CP prices, data blue, research violet like its cabinet flashes, XP gold). */
 .room-bar .chips-res { display: none; }
 .topbar-inner .lab-status { margin-left: 0; white-space: nowrap; }
-.supply-cell { grid-template-areas: "label value" "bank bank" "spark spark"; grid-template-rows: auto auto minmax(0, 1fr); --res: var(--success); }
+/* The rate sits right after the amount, on its baseline: at the far end of a full-width cell it was 800-1800 px
+   from the number it describes (3,500 at 4K). */
+.supply-cell { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "label label" "bank value" "spark spark"; grid-template-rows: auto auto minmax(0, 1fr); align-items: baseline; --res: var(--success); }
+.supply-cell .supply-value { justify-self: start; white-space: nowrap; }
 .supply-bank { grid-area: bank; font: 700 1.35rem/1.1 var(--font-mono); color: var(--res); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .supply-value { font-size: 0.8rem; color: var(--muted); }
 .supply-label { color: var(--res); }
