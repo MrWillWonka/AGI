@@ -3281,12 +3281,24 @@ window.AGI = (function () {
     const WIDE = window.matchMedia('(min-width: 1800px)');
     const DESKTOP = window.matchMedia('(min-width: 961px)');
 
+    // Layout rules (the owner's): things stay where they are (the areas keep their places and order), but fill the
+    // space they can and give the most room to whatever holds the most right now. A station's column is weighted by
+    // the cards it shows, in steps of two (`weightOf`), so one card more doesn't jiggle the floor; the rows split
+    // the same way. A change of weights re-lays the floor through makeRoom, so panels slide rather than jump.
+    const weightOf = n => Math.max(2, Math.min(10, 2 * Math.ceil(n / 2)));
+    const STATION_MIN = 380;   // a card's name, level and price fit (the software terminal, inside its monitor, cut prices off below)
+    function labCounts() {
+        const cards = id => ui.stations[id].list.querySelectorAll('.upgrade:not([hidden])').length;
+        return { hw: cards('hardware'), sw: cards('software'), rs: cards('algorithms'), cs: cards('consciousness'), proj: 3 };
+    }
     function layoutLab() {
         const shown = id => !$(id).hidden;
         const tab = id => !ui.stations[id].node.hidden;
         const has = { sw: tab('software'), rs: tab('algorithms'), cs: tab('consciousness'), proj: shown('projectPanel'), tasks: shown('taskPanel') };
         const tier = WIDE.matches ? 'wide' : DESKTOP.matches ? 'desktop' : 'narrow';
-        const key = `${tier}:${Object.values(has).map(Number).join('')}`;
+        const n = labCounts();
+        const w = Object.fromEntries(Object.entries(n).map(([k, v]) => [k, weightOf(v)]));
+        const key = `${tier}:${Object.values(has).map(Number).join('')}:${Object.values(w).join('.')}`;
         if (key === labLayoutKey) return;
         labLayoutKey = key;
         const room = $('labRoom');
@@ -3304,11 +3316,17 @@ window.AGI = (function () {
             if (has.sw || has.cs) cols.push([has.sw ? 'sw' : 'cs', has.cs ? 'cs' : 'sw']);
             if (has.rs || has.proj) cols.push([has.rs ? 'rs' : 'proj', has.proj ? 'proj' : 'rs']);
             if (has.tasks) cols.push(['tasks', 'tasks']);
-            const n = cols.length;
             const bottom = cols.map(() => 'cab');
             const split = cols.some(c => c[0] !== c[1]);
-            room.style.gridTemplateColumns = cols.map(c => (c[0] === 'bench' || c[0] === 'tasks' ? 'minmax(260px, 300px)' : 'minmax(0, 1fr)')).join(' ');
-            room.style.gridTemplateRows = `auto var(--supply-h) minmax(0, 1.5fr) ${split ? 'minmax(0, 1fr)' : '0px'} var(--bottom-h)`;
+            // A station column is as wide as its fullest station asks; the upper and lower rows split by what's in them.
+            const area = { hw: w.hw, sw: has.sw ? w.sw : 0, cs: has.cs ? w.cs : 0, rs: has.rs ? w.rs : 0, proj: has.proj ? w.proj : 0 };
+            const colWeight = c => Math.max(area[c[0]] || 2, area[c[1]] || 2);
+            room.style.gridTemplateColumns = cols.map(c => (c[0] === 'bench' || c[0] === 'tasks' ? 'minmax(260px, 300px)' : `minmax(${STATION_MIN}px, ${colWeight(c)}fr)`)).join(' ');
+            const splitCols = cols.filter(c => c[0] !== c[1]);
+            const top = splitCols.reduce((a, c) => a + (area[c[0]] || 0), 0);
+            const low = splitCols.reduce((a, c) => a + (area[c[1]] || 0), 0);
+            const ratio = split ? Math.max(0.8, Math.min(2.5, top / Math.max(1, low))) : 1;
+            room.style.gridTemplateRows = `auto var(--supply-h) minmax(0, ${ratio.toFixed(2)}fr) ${split ? 'minmax(0, 1fr)' : '0px'} var(--bottom-h)`;
             room.style.gridTemplateAreas = q([cols.map(() => 'bar'), cols.map(() => 'supply'), cols.map(c => c[0]), cols.map(c => c[1]), bottom]);
             return;
         }
@@ -3329,7 +3347,11 @@ window.AGI = (function () {
         }
         rows.push(['cab', 'cab', 'cab']);
         sizes.push('auto');
-        room.style.gridTemplateColumns = 'minmax(250px, 290px) minmax(0, 1fr) minmax(0, 1fr)';
+        // The two station columns weigh what they hold (the hardware bench and the software terminal on top, the
+        // research wall and the Isolation chamber under them).
+        const mid = Math.max(w.hw, has.rs ? w.rs : 0);
+        const right = has.sw ? Math.max(w.sw, has.cs ? w.cs : 0) : mid;
+        room.style.gridTemplateColumns = `minmax(250px, 290px) minmax(${STATION_MIN}px, ${mid}fr) minmax(${STATION_MIN}px, ${right}fr)`;
         room.style.gridTemplateRows = sizes.join(' ');
         room.style.gridTemplateAreas = q(rows);
     }
