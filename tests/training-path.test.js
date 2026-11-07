@@ -263,7 +263,10 @@ test('engine: the Auto-Trainer\'s first level is earned in the first version by 
     s.stats.rolls = E.AUTO_TRAINER_RUNS;
     const out = E.evaluate(s);
     assert.ok(out.milestones.some(m => m.key === 'auto:trainer'), 'announced once');
-    assert.equal(E.autoTrainerLevel(s), 1, 'level 1, no Insight spent');
+    assert.equal(E.level(s, 'autoTrainer'), 1, 'level 1, no Insight spent');
+    assert.equal(E.autoTrainerLevel(s), 0, 'it starts switched off: the player is asked to turn it on');
+    E.setTaskOn(s, 'autoTrainer', true);
+    assert.equal(E.autoTrainerLevel(s), 1);
     assert.equal(s.prestige.count, 0);
     // It's kept for good: a new version starts with it.
     s.attr.intelligence = 30;

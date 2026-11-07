@@ -215,6 +215,70 @@ function autoSprint(roll, lvl) {
     pushBall(true, Math.max(E.PATH.minCharge, Math.min(budget, usual + gauss() * err)));
 }
 
+// The ghost (game.js ghostTrain): the Auto-Trainer's own run beside yours, from the newest cleared leg to the last
+// cleared hill, at GHOST_POWER of your strength with GHOST_FUMBLE of its sprints fumbled, stepped every tick.
+const GHOST_POWER = [0.5, 0.7, 0.85];
+const GHOST_FUMBLE = [0.35, 0.2, 0.1];
+const GHOST_PAUSE = 1.5;
+const ghost = { roll: null, pause: 0, at: 0, legs: 0, first: 0, thrusting: false, broke: 0 };
+let ghostXp = 0, ghostRuns = 0;
+function ghostReady(want, react) {
+    if (!want) { ghost.at = 0; return false; }
+    if (!ghost.at) ghost.at = s.stats.playTime + react * rng();
+    return s.stats.playTime >= ghost.at;
+}
+function finishGhost(ev, done) {
+    const leg = Math.min(ev.leg ?? ghost.first, s.path.learned - 1);
+    ghostXp += E.finishRoll(s, done ? 0 : ev.progress || 0, false, 0, done ? 0 : ev.metres || 0, leg, false, ghost.legs).xp;
+    ghostRuns++;
+    ghost.roll = null;
+    ghost.pause = GHOST_PAUSE;
+}
+function ghostTrain(dt, training) {
+    const lvl = E.autoTrainerLevel(s);
+    if (!lvl || !s.path.learned || process.env.GHOST === '0') { ghost.roll = null; return; }
+    if (ghost.pause > 0) { ghost.pause -= dt; return; }
+    if (!ghost.roll || ghost.roll.frontier !== s.path.learned) {
+        const d = d0();
+        ghost.first = s.path.learned - 1;
+        ghost.roll = T.createRoll(ghost.first, (E.rollSeed(s) * 31 + 977) >>> 0, { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction,
+            hillScale: d.hillScale, strips: d.strips, last: s.path.learned });
+        ghost.roll.frontier = s.path.learned;
+        ghost.legs = 0; ghost.at = 0; ghost.broke = 0;
+    }
+    const roll = ghost.roll;
+    const l = Math.max(1, Math.min(3, lvl));
+    const trained = Math.max(0, s.path.learned - 3);
+    const power = Math.min(1, GHOST_POWER[l - 1] * (1 + 0.03 * trained));
+    const fumble = GHOST_FUMBLE[l - 1] * Math.max(0.5, 1 - 0.04 * trained);
+    const { err, react } = autoSkill(lvl);
+    const leg = Math.min(roll.leg, s.path.learned - 1);
+    roll.thrust = 0;
+    if (roll.leg >= T.LATE_LEG && !roll.over && roll.pushesLeft > 0) {
+        const want = !roll.launched || (!roll.airborne && roll.ball.v < AUTO_THRUST_SPEED) || wontClear(roll) || (roll.airborne && roll.vy < 0);
+        ghost.thrusting = want && (ghost.thrusting || ghostReady(want, react));
+        if (ghost.thrusting) {
+            const st = E.legPower(s, leg) * power;
+            roll.thrust = E.PATH.thrustEfficiency * st * st / T.BURN_SECONDS;
+        }
+    } else if (!roll.over && roll.ball.cooldown <= 0 && !roll.airborne && roll.pushesLeft > 0
+        && ghostReady(!roll.launched || roll.atRest || wontClear(roll), react)) {
+        ghost.at = 0;
+        const h = run.handCharges;
+        const usual = h.length ? h.reduce((a, b) => a + b, 0) / h.length : 0.8;
+        const fraction = rng() < fumble ? 0.1 + 0.25 * rng() : Math.max(E.PATH.minCharge, Math.min(1, usual + gauss() * err));
+        roll.push(E.legPower(s, leg) * E.sprintStrength(s, fraction, null, false, false) / E.sprintStrength(s, 1, null, false, false) * power);
+    }
+    for (const ev of roll.step(dt)) {
+        if (ev.type === 'clear') {
+            ghostXp += E.clearLeg(s, ev.skill, ghost.legs);
+            ghost.legs++;
+            if (ev.skill >= s.path.learned - 1) { finishGhost(roll.end(), true); return; }
+        } else if (ev.type === 'token') ghostXp += E.collectToken(s, ev.leg, ghost.legs);
+        else if (ev.type === 'end') { finishGhost(ev, false); return; }
+    }
+}
+
 // Act two: thrust (game.js updateThrust / lightBurn / slipstream).
 function lightBurn(roll) {
     const index = pushIndex(roll);
@@ -315,6 +379,7 @@ function finishRoll(ev) {
     xpBy.distance += result.xp;
     E.settleBreakCountdown(s, (roll.breakthroughs || 0) > 0);
     if (roll.launched) E.settleSurge?.(s);
+    E.recordLegPower(s, roll.ground.stretch, leg);
     if (!roll.auto) E.recordLegs(s, roll.ground.stretch, roll.legEntries, result.xp + banked, viral ? d0().windfallMult : 1, result.xp);
     if (!crested && !replay && !legs && !ev.rolledBack && leg === before) {
         const goal = roll.ground.goal;
@@ -326,7 +391,7 @@ function finishRoll(ev) {
     }
     if (result.skill) onSkill(result.skill);
     runs++;
-    run.pause = E.autoTrainerLevel(s) > 0 ? AUTO_PAUSE : HUMAN_PAUSE;
+    run.pause = HUMAN_PAUSE;
     buyTree();
 }
 
@@ -339,18 +404,17 @@ function onSkill(skill) {
 
 function stepRun(dt, inLab) {
     if (!s.unlocked['module:path']) return;
-    const autoNow = HYBRID && !inLab ? 0 : E.autoTrainerLevel(s);
+    // Your runs are always yours (the Auto-Trainer runs its own ghost, ghostTrain below). With HYBRID=0 the
+    // player never trains by hand: only the ghost does.
+    if (!HYBRID) return;
     if (!run.roll || run.roll.over) {
-        if (inLab && autoNow === 0) return;   // Train again is a click: not while in the lab
+        if (inLab) return;   // Train again is a click: not while in the lab
         if ((run.pause -= dt) > 0) return;
-        newRoll(autoNow > 0);
+        newRoll(false);
     }
     const roll = run.roll;
-    // The Auto-Trainer plays only its own replays; a frontier run you started waits for you.
-    // A replay still waiting at the start when you come back to train is yours to rebuild as a frontier run.
-    if (!inLab && HYBRID && roll.auto && !roll.launched) { newRoll(false); return; }
-    const lvl = roll.auto ? autoNow : 0;
-    const acting = lvl > 0 || !inLab;
+    const lvl = 0;
+    const acting = !inLab;
     if (thrustLeg(roll)) updateThrust(roll, acting && wantThrust(roll, lvl), dt);
     else {
         roll.thrust = 0;
@@ -457,6 +521,9 @@ while (s.stats.playTime < MINUTES * 60 && s.path.learned <= MAXSKILL) {
         while (clickAcc >= 1) { clickAcc--; labClick(); }
     }
     stepRun(DT, inLab);
+    // Earning the Auto-Trainer asks first (game.js promptAutoTrainer): the sim always says yes.
+    if (E.level(s, 'autoTrainer') > 0 && !s.intro['prompt:autoTrainer']) { s.intro['prompt:autoTrainer'] = true; E.setTaskOn(s, 'autoTrainer', true); }
+    ghostTrain(DT, !inLab);
     const before = s.res.xp;
     const xps = d0().xpPerSec;
     E.tick(s, DT);

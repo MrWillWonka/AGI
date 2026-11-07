@@ -3231,3 +3231,11 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
     .top-news strong { font-size: 0.62rem; }
     .top-news span { max-width: 100%; font-size: 0.68rem; text-overflow: ellipsis; }
 }
+
+/* The Auto-Trainer's ghost run: a faint live lane in the run view's sky, top-left (the live XP pill is top
+   centre, the leg tag bottom left, the result card centred over the trail), never taking clicks. */
+.ghost-lane { position: absolute; left: 12px; top: 10px; width: 190px; padding: 4px 6px 3px; border: 1px dashed color-mix(in srgb, var(--success) 35%, transparent);
+    border-radius: 6px; background: color-mix(in srgb, var(--bg) 55%, transparent); opacity: 0.55; pointer-events: none; z-index: 1; }
+.ghost-lane canvas { display: block; width: 100%; height: 36px; }
+.ghost-lane-text { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 600 0.62rem var(--font-mono); color: var(--success); letter-spacing: 0.03em; }
+@media (max-width: 640px) { .ghost-lane { width: 130px; left: 8px; top: 54px; } .ghost-lane canvas { height: 24px; } }

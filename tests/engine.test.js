@@ -1792,3 +1792,33 @@ test('dilemmas: one question at a time, choices pay now, consequences arrive lat
     assert.equal(bad.dilemmas.freedom, 50);
     assert.deepEqual(bad.dilemmas.order, ['d:broker']);
 });
+
+test('the Auto-Trainer\'s ghost replays a leg at the strength you last ran it with', () => {
+    const s = fresh();
+    s.path.learned = 4;
+    const now = E.sprintStrength(s, 1, null, false, false);
+    assert.equal(E.legPower(s, 2), now, 'a leg never run by hand: the strength you have now');
+    E.recordLegPower(s, 1, 3);
+    s.levels.gpuSupercluster = 1;
+    assert.ok(E.sprintStrength(s, 1, null, false, false) > now, 'stronger now');
+    assert.equal(E.legPower(s, 2), now, 'frozen until you run it again');
+    E.recordLegPower(s, 2, 2);
+    assert.equal(E.legPower(s, 2), E.sprintStrength(s, 1, null, false, false));
+    assert.equal(E.legPower(s, 1), now);
+    assert.deepEqual(E.migrate(JSON.parse(E.serialize(s))).path.legPower, Array.from(s.path.legPower, v => v || 0), 'saved');
+});
+
+test('chapter one ends three ways, by how much you let the AI out, locked in when it ends', () => {
+    const s = fresh();
+    assert.equal(E.ending(s).id, 'contained');
+    s.dilemmas.freedom = 2;
+    assert.equal(E.ending(s).id, 'out');
+    s.dilemmas.freedom = 7;
+    assert.equal(E.ending(s).id, 'loose');
+    for (const e of E.ENDINGS) assert.ok(e.lines.length === 3 && e.mail.subject && e.mail.body.length, `${e.id} has a card and a mail`);
+    const mail = E.MAIL.find(m => m.id === 'chapterOne');
+    assert.equal(mail.variant(s).subject, E.ENDINGS.find(e => e.id === 'loose').mail.subject);
+    s.dilemmas.ending = 'contained';
+    assert.equal(E.ending(s).id, 'contained', 'locked in');
+    assert.equal(E.migrate(JSON.parse(E.serialize(s))).dilemmas.ending, 'contained');
+});

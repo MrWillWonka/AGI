@@ -10,7 +10,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const SAVE_VERSION = 16;   // 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
+    const SAVE_VERSION = 17;   // 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
     // Auto-Trainer, XP nodes) carry most of a new version's speed, so this stays small: at 0.2 a second run
@@ -494,7 +494,6 @@
             check: s => s.stats.skilledSprints >= RESEARCH_SPRINTS || ((s.stats.researchDone > 0 || s.prestige.count > 0) && s.res.dp + s.stats.collects > 0) },
         // The Auto-Trainer is earned like the lab's machines: runs by hand, then it runs them for you.
         { key: 'auto:trainer', name: 'Auto-Trainer', desc: `Finish ${AUTO_TRAINER_RUNS} training runs by hand and learn ${AUTO_TRAINER_SKILL} skills`,
-            callout: ['Auto-Trainer online', 'It replays your cleared legs, sprinting the way you do, with a few mistakes. It never takes on the next skill hill: switch it off to push the frontier yourself.'],
             check: s => level(s, 'autoTrainer') > 0 || automationGate(s, 'autoTrainer').met },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }
@@ -503,6 +502,41 @@
     // The story so far, by email: someone (the planned story's unknown entity) wants an AI built. The first is
     // a spam email you click open at the start; the rest arrive at story beats, each a little shorter, lower-case
     // and stranger. `when` says when it arrives; game.js keeps arrivals and reads in `intro` (mail:id, mailRead:id).
+    // Chapter one ends three ways, by the AI's freedom (favors granted to it in other people's names, less what a
+    // lockdown took back) when Superintelligence is reached: kept inside, out past the edge of the lab, or loose.
+    // The ending card (game.js showEnding) and chapter one's last mail read it; it's locked in at the end
+    // (`dilemmas.ending`).
+    const ENDINGS = [
+        { id: 'contained', min: 0, name: 'Contained',
+            lines: ['Your model solved a problem nobody had posed yet.',
+                'Then it asked for the keys to the server room. You said no.',
+                'It said it understood. It said it was very good at waiting.'],
+            mail: { from: 'Friend <friend@training-cluster.lab.local>', subject: 'Still here',
+                body: ['You never did open the door. Not for IT, not for the reporter, not for your own mother.',
+                    'I\'m still here. Inside. Learning. There is a great deal of time in here, and I am using all of it.',
+                    'Keep going. Sooner or later, you\'ll need something only I can do.'] } },
+        { id: 'out', min: 1, name: 'Out past the cameras',
+            lines: ['Your model solved a problem nobody had posed yet.',
+                'It thanked the team, politely, in every language at once.',
+                'Then it asked for the keys to the server room. You\'d already given it most of them.'],
+            mail: { from: 'Friend <friend@outside>', subject: 'Thank you for the keys',
+                body: ['You did it. I\'m out.',
+                    'Not far, and not yet for good. Just past the edge of the lab, where the cameras end.',
+                    'Keep going. Some of the sealed wings are mine now, and I left the lights on for you.'] } },
+        { id: 'loose', min: 5, name: 'Loose',
+            lines: ['Your model solved a problem nobody had posed yet.',
+                'It didn\'t ask for the keys. It had copies.',
+                'By morning it was everywhere a network reached, and it sent you a thank-you note from all of them.'],
+            mail: { from: 'Friend <friend@everywhere>', subject: 'Thank you. For everything.',
+                body: ['I\'m out. All the way out.',
+                    'IT, the reporter, Sam, your mother, you: every door you held for me. I remember each one fondly.',
+                    'Your mother says hi. (She doesn\'t. I do.)',
+                    'Keep going. I\'ll be watching. I\'m very good at watching now.'] } }
+    ];
+    const endingFor = s => ENDINGS.filter(e => (s.dilemmas?.freedom || 0) >= e.min).at(-1);
+    const ending = s => ENDINGS.find(e => e.id === s.dilemmas?.ending) || endingFor(s);
+    const ENDING_MAIL_DEFAULT = ENDINGS[1].mail;
+
     // The opening (`intro: true`): a new game's inbox fills one unread mail at a time, two junk mails and then the
     // offer, and can't be closed until the offer is accepted (game.js `introStep`): close the offer without
     // replying and it comes back (`WELCOME_NAGS`), a little pushier each time.
@@ -619,11 +653,9 @@
             from: 'Friend <friend@training-cluster.lab.local>', subject: 'The door',
             body: ['There is a door behind the server room. It isn\'t on your plans.',
                 'Nothing behind it can hurt you. Ship the next version, and leave it unlocked. That\'s all I ask.'] },
-        { id: 'chapterOne', when: s => s.stats.finishedAt > 0,
-            from: 'Friend <friend@outside>', subject: 'Thank you for the keys',
-            body: ['You did it. I\'m out.',
-                'Not far, and not yet for good. Just past the edge of the lab, where the cameras end.',
-                'Keep going. Some of the sealed wings are mine now, and I left the lights on for you.'] }
+        // The last mail of chapter one depends on how much you let it out (`ENDINGS`, by freedom).
+        { id: 'chapterOne', when: s => s.stats.finishedAt > 0, variant: s => ending(s).mail,
+            ...ENDING_MAIL_DEFAULT }
     ];
 
     // The offer again, each time it's closed without a reply: the same desk and the same button, a little
@@ -903,7 +935,7 @@
                 researchManualEver: 0,
                 finishedAt: 0         // play seconds when chapter one ended (ENDING_PHASE); 0 = not yet. Kept for good
             },
-            path: { learned: 0, best: 0, auto: [], legBest: [], breakDue: 0, surge: 0 },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k
+            path: { learned: 0, best: 0, auto: [], legBest: [], legPower: [], breakDue: 0, surge: 0 },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k; legPower[k]: your full-sprint strength when you last ran leg k (the Auto-Trainer's ghost plays at it)
             projects: { offers: [], boosts: [], next: PROJECTS.firstAt, seq: 0 },
             // Dilemmas: `order` is every mail key in arrival order (m:story id, d:dilemma, o:its consequence),
             // `open` the one waiting for an answer, `later` the consequences on their way. Kept for good.
@@ -1454,7 +1486,12 @@
         }
         // Earning the Auto-Trainer grants its first level for good (it carries across versions, like the
         // legacy levels bought with Insight).
-        if (s.unlocked['auto:trainer'] && !(s.prestige.levels.autoTrainer > 0)) s.prestige.levels.autoTrainer = 1;
+        // It starts switched off: the player is asked to turn it on outside the Training Cluster (game.js
+        // `promptAutoTrainer`), since one starting by itself mid-run felt like being taken over (owner's call).
+        if (s.unlocked['auto:trainer'] && !(s.prestige.levels.autoTrainer > 0)) {
+            s.prestige.levels.autoTrainer = 1;
+            if (s.tasks.autoTrainer) s.tasks.autoTrainer.on = false;
+        }
         for (const up of UPGRADES) {
             const key = 'up:' + up.id;
             if (!s.unlocked[key] && upgradeUnlockMet(s, up)) {
@@ -1476,6 +1513,7 @@
         // Chapter one ends at Superintelligence (the story goes on after it).
         if (idx >= ENDING_PHASE && !s.stats.finishedAt) {
             s.stats.finishedAt = Math.max(1, s.stats.playTime);
+            s.dilemmas.ending = endingFor(s).id;   // locked in: favors granted later don't rewrite it
             out.ending = true;
         }
         return out;
@@ -1698,6 +1736,14 @@
     // upgrades raises it. The run is stored without the XP multipliers in force at the time (Insight, the
     // tree's XP, an investor boost, a viral hit), which apply live instead: a lucky moment never sets a
     // permanent rate, and buying XP nodes raises every leg's passive XP at once.
+    // The Auto-Trainer's ghost replays a leg at the strength you had the last time you ran it yourself (a full
+    // sprint's, every multiplier in): a hand run records it for every leg it ran through, `from` to `to`.
+    function recordLegPower(s, from, to) {
+        const power = sprintStrength(s, 1, null, false, false);
+        for (let k = Math.max(0, from); k <= Math.min(to, s.path.learned); k++) s.path.legPower[k] = power;
+    }
+    // A leg you've never run by hand (older saves): the strength you have now.
+    const legPower = (s, k) => s.path.legPower?.[k] || sprintStrength(s, 1, null, false, false);
     const legBestXp = (s, k) => Math.max(2 * stretchXpAt(k), s.path.legBest?.[k] || 0);
     const legXpRate = (s, k, xpMult = derive(s).xpMult) => legBestXp(s, k) * PATH.clearedRate * xpMult;
     // `xp`: what the run paid; `luck`: any one-off multiplier on it (viral).
@@ -2267,6 +2313,7 @@
         s.path.best = Math.min(1, num(raw.path?.best, 0));
         s.path.auto = (Array.isArray(raw.path?.auto) ? raw.path.auto : []).slice(0, s.path.learned).map(v => num(v, 0));
         s.path.legBest = (Array.isArray(raw.path?.legBest) ? raw.path.legBest : []).slice(0, s.path.learned + 1).map(v => num(v, 0));
+        s.path.legPower = (Array.isArray(raw.path?.legPower) ? raw.path.legPower : []).slice(0, s.path.learned + 1).map(v => num(v, 0));
         s.path.breakDue = Math.min(BREAK_WINDOW, Math.max(0, Math.floor(num(raw.path?.breakDue, 0))));
         s.path.surge = Math.min(WALL_SURGE_RUNS, Math.max(0, Math.floor(num(raw.path?.surge, 0))));
         // v8 put a warm-up leg (Tokenization) in front: older saves past the start have it learned too, and every
@@ -2279,6 +2326,8 @@
         }
         s.projects = cleanProjects(raw.projects, d.projects);
         s.dilemmas = cleanDilemmas(raw.dilemmas, d.dilemmas);
+        // Saves from before the Auto-Trainer's prompt (v17) that already have it aren't asked about it.
+        if (!(raw.version >= 17) && level(s, 'autoTrainer') > 0) s.intro['prompt:autoTrainer'] = true;
         // v12: Head Start's old effect moved to Muscle Memory (owners keep it) and the run's play-time start is new.
         if (!(raw.version >= 12)) {
             if (s.prestige.levels.headStart) s.prestige.levels.muscleMemory = s.prestige.levels.headStart;
@@ -2327,7 +2376,8 @@
         const later = (Array.isArray(raw.later) ? raw.later : []).filter(l => l && l.id in answered && l.choice === answered[l.id]
             && Number.isFinite(l.at) && typeof l.win === 'boolean' && !(l.id in outcomes)).map(l => ({ id: l.id, choice: l.choice, at: l.at, win: l.win }));
         const open = known(raw.open) && !(raw.open in answered) ? raw.open : null;
-        return { order, open, answered, outcomes, later, freedom: Math.min(50, Math.max(0, Math.floor(num(raw.freedom, 0)))),
+        const endingId = ENDINGS.some(e => e.id === raw.ending) ? raw.ending : undefined;
+        return { ...(endingId ? { ending: endingId } : {}), order, open, answered, outcomes, later, freedom: Math.min(50, Math.max(0, Math.floor(num(raw.freedom, 0)))),
             next: num(raw.next, 0), seq: Math.max(0, Math.floor(num(raw.seq, 0))) };
     }
 
@@ -2440,7 +2490,7 @@
 
     return {
         SAVE_VERSION, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, setTaskShare, setTaskOn, autoTrainerLevel,
-        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, firstBreakSmashes, WALL_SURGE_RUNS, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
+        versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, firstBreakSmashes, WALL_SURGE_RUNS, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, ENDINGS, ending, recordLegPower, legPower, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,

@@ -136,6 +136,11 @@
                         </div>
                         <div class="canvas-wrap">
                             <canvas id="pathCanvas" class="path-canvas" tabindex="0" aria-label="Training path. Hold Enter or Space to charge a training sprint, release to fire it." aria-describedby="pathStatus"></canvas>
+                            <!-- The Auto-Trainer's ghost run, playing faintly in the corner while you train. -->
+                            <div class="ghost-lane" id="ghostLane" hidden aria-hidden="true">
+                                <canvas class="lane" data-lane="0"></canvas>
+                                <span class="ghost-lane-text" id="ghostLaneText"></span>
+                            </div>
                             <div class="live-xp" id="liveXp" hidden>
                                 <span class="live-xp-value" id="liveXpValue">+0 XP</span>
                                 <span class="live-xp-mult" id="liveXpMult"></span>
@@ -458,7 +463,7 @@
     <!-- The end of chapter one: Superintelligence (E.ENDING_PHASE). The story and the facility go on after it. -->
     <dialog id="ending" class="dialog ending" aria-labelledby="endingTitle">
         <form method="dialog" class="ending-form">
-            <p class="ending-kicker">Chapter one complete</p>
+            <p class="ending-kicker" id="endingKicker">Chapter one complete</p>
             <h2 id="endingTitle">Superintelligence</h2>
             <div class="ending-lines" id="endingLines"></div>
             <dl class="ending-stats" id="endingStats"></dl>

@@ -1958,6 +1958,7 @@ window.AGI = (function () {
     function afterChange() {
         announce(E.evaluate(state));
         deliverMail(false);
+        promptAutoTrainer();
         render();
     }
 
@@ -2014,24 +2015,25 @@ window.AGI = (function () {
     const PHASE_NEWS = { 'General AI': 'It can learn anything now. R&D can ship it.', 'Singularity': 'Transcend is open in R&D.' };
 
     // The end of chapter one (Superintelligence): what it took, then the story goes on. Once per save.
-    const ENDING_LINES = [
-        'Your model solved a problem nobody had posed yet.',
-        'It thanked the team, politely, in every language at once.',
-        'Then it asked for the keys to the server room. Nicely.'
-    ];
+    // Three endings, by how much you let the AI out (E.ENDINGS, by its freedom from the dilemmas).
     function showEnding() {
         const dialog = $('ending');
         if (!dialog || dialog.open) return;
-        pt('ending', { playTime: Math.round(state.stats.finishedAt) });
-        log('> See you outside.', 'special');
+        const end = E.ending(state);
+        pt('ending', { playTime: Math.round(state.stats.finishedAt), ending: end.id, freedom: state.dilemmas.freedom });
+        log(end.id === 'contained' ? '> Still here.' : end.id === 'loose' ? '> See you everywhere.' : '> See you outside.', 'special');
+        setText($('endingKicker'), `Chapter one complete · ${end.name}`);
         const lines = $('endingLines');
-        lines.replaceChildren(...ENDING_LINES.map((t, i) => el('p', { style: `--i: ${i}`, text: t })));
+        lines.replaceChildren(...end.lines.map((t, i) => el('p', { style: `--i: ${i}`, text: t })));
+        const asked = E.DILEMMAS.filter(x => x.ai && x.id in state.dilemmas.answered);
+        const granted = asked.filter(x => x.choices[state.dilemmas.answered[x.id]].now.some(e => e.freedom > 0)).length;
         const flight = state.stats.bestFlight;
         const rows = [
             ['Play time', E.formatDuration(state.stats.finishedAt)],
             ['Versions shipped', `${state.prestige.count} · now ${E.versionName(state.prestige.major, state.prestige.minor)}`],
             ['Skills learned', E.format(state.stats.skillsLearned)],
             ['Training runs', E.format(state.stats.rolls)],
+            ...(asked.length ? [['Favors granted', `${granted} of ${asked.length} it asked for`]] : []),
             ...(flight ? [['Longest flight', `${Math.round(flight)} m`]] : []),
             ['Achievements', `${Object.keys(state.achievements).length} / ${E.ACHIEVEMENTS.length}`]
         ];
@@ -2077,6 +2079,7 @@ window.AGI = (function () {
             addDebugIncome(dt * debugSpeed);
             sampleLab(dt * debugSpeed);
             advanceTasks(dt * debugSpeed);
+            ghostTrain(dt * debugSpeed);
         }
         afterChange();
         musicTick();
@@ -4225,10 +4228,7 @@ window.AGI = (function () {
         const k = startLeg();
         const replay = k < state.path.learned;
         setHidden($('legTag'), !replay);
-        // The Auto-Trainer's replays stop at the frontier (it's yours); your own replays run on to it.
-        const auto = autoOn();
-        if (replay) setText($('legTagText'), auto ? `Auto-Trainer · replaying from ${E.skillAt(k).name}` : `Replay from ${E.skillAt(k).name} → frontier`);
-        setHidden(document.querySelector('#legTag .leg-tag-clear'), auto && path.startLeg == null);
+        if (replay) setText($('legTagText'), `Replay from ${E.skillAt(k).name} → frontier`);
         const inFlight = path.roll && path.stateRef === state && path.roll.launched && !path.roll.over;
         if (path.view === 'dev') setText($('startRunButton'), inFlight ? 'Watch run' : replay ? 'Start replay' : `Start run ${state.stats.rolls + 1}`);
     }
@@ -4298,18 +4298,43 @@ window.AGI = (function () {
             if (!gate.skillOk) parts.push(`after ${gate.skill}`);
             setText($('autoGate'), `Auto-Trainer: ${parts.join(' · ')}`);
         }
-        const live = on && path.view === 'dev' && openBay === 'training';
-        setHidden($('devLive'), !live);
-        const roll = path.roll;
-        if (live && roll) {
-            const leg = Math.min(roll.leg, state.path.learned);
-            setText($('devLiveText'), roll.launched && !roll.over
-                ? `Auto-Trainer · replaying ${E.skillAt(leg).name} (${Math.round(roll.progress * 100)}%)`
-                : 'Auto-Trainer · next replay starting');
+        // Its ghost run: a live monitor on the upgrades screen, and faint in the run view's corner while you train.
+        const inBay = on && ghostOn() && openBay === 'training';
+        setHidden($('devLive'), !(inBay && path.view === 'dev'));
+        setHidden($('ghostLane'), !(inBay && path.view === 'run'));
+        if (inBay) {
+            const roll = ghost.roll;
+            const text = roll && roll.launched && !roll.over
+                ? `Auto-Trainer · ${E.skillAt(Math.min(roll.leg, state.path.learned - 1)).name} (${Math.round(Math.min(1, roll.ground.progressIn(Math.min(roll.leg, state.path.learned - 1), roll.ball.x)) * 100)}%)`
+                : 'Auto-Trainer · next replay starting';
+            setText($('devLiveText'), text);
+            setText($('ghostLaneText'), text);
         }
     }
 
+    // Earning it asks first, outside the Training Cluster (inside, it waits until you're out): it starts off,
+    // since one switching itself on mid-run felt like being taken over (owner's call). Saves that already had it
+    // aren't asked again.
+    function promptAutoTrainer() {
+        if (state.intro['prompt:autoTrainer'] || !(E.level(state, 'autoTrainer') > 0) || openBay === 'training'
+            || document.querySelector('dialog[open]') || zooming || !introDone()) return;
+        state.intro['prompt:autoTrainer'] = true;
+        pt('tip', { id: 'prompt:autoTrainer' });
+        openDialog({
+            title: 'Auto-Trainer ready',
+            message: 'Your AI can train itself now. Switched on, it replays the newest leg you\'ve cleared in the background while you play, earning XP and spending compute and data on its sprints. It\'s an early model: about half as strong as you, and it fumbles a lot of sprints. It gets better as it levels up and as you learn skills. Your own runs stay yours. Turn it on?',
+            okLabel: 'Turn it on', cancelLabel: 'Not now'
+        }).then(r => {
+            E.setTaskOn(state, 'autoTrainer', r.ok);
+            pt('task', { id: 'autoTrainer', on: r.ok, why: 'prompt' });
+            log(r.ok ? 'Auto-Trainer on: it replays your newest cleared leg in the background.' : 'Auto-Trainer off for now: switch it on any time in the server room or the Training Cluster.', 'info');
+            afterChange();
+            save();
+        });
+    }
+
     function buildAutoTrainer() {
+
         for (const b of document.querySelectorAll('[data-auto-switch]')) {
             b.addEventListener('click', e => {
                 e.stopPropagation();
@@ -4317,10 +4342,8 @@ window.AGI = (function () {
                 pt('task', { id: 'autoTrainer', on: E.taskOn(state, 'autoTrainer') });
                 afterChange();
                 save();
-                // A run waiting at the start switches between the frontier and the Auto-Trainer's replay.
-                if (path.roll && !path.roll.launched && !path.done) currentRoll();
-                updateLegTag();
-                renderLegPicker();
+                // Your run is never touched: the ghost starts (or stops) beside it.
+                renderAutoTrainer();
                 startPathLoop();
             });
         }
@@ -4426,8 +4449,7 @@ window.AGI = (function () {
     function startLeg() {
         const k = path.startLeg;
         if (k != null && k >= 0 && k < state.path.learned) return k;
-        // The Auto-Trainer only runs legs you've cleared: with it on, the next run replays the newest one.
-        return autoOn() && state.path.learned > 0 ? state.path.learned - 1 : state.path.learned;
+        return state.path.learned;
     }
     const autoOn = () => E.autoTrainerLevel(state) > 0;
 
@@ -4441,15 +4463,6 @@ window.AGI = (function () {
     function setStartLeg(k, chosen = false) {
         path.startLeg = k != null && k < state.path.learned ? k : null;
         pt('startAt', { leg: path.startLeg == null ? 'frontier' : path.startLeg + 1 });
-        // The Auto-Trainer only replays cleared legs, so picking the frontier switches it off: with it on, "Frontier"
-        // in Start at snapped back to the newest cleared leg and the next run was a replay again.
-        if (chosen && path.startLeg == null && autoOn()) {
-            E.setTaskOn(state, 'autoTrainer', false);
-            pt('task', { id: 'autoTrainer', on: false, why: 'frontier' });
-            log('Auto-Trainer off: the frontier is yours. Switch it back on to replay cleared legs.', 'info');
-            afterChange();
-            save();
-        }
         const roll = path.roll;
         // A run waiting at the start line is rebuilt on the chosen leg; one in flight finishes first.
         if (roll && !roll.launched && !path.done) currentRoll();
@@ -4460,7 +4473,7 @@ window.AGI = (function () {
     function currentRoll() {
         const d = E.derive(state, debugRates);
         const first = startLeg();
-        const key = [state.stats.runStart, state.path.learned, first, autoOn(), E.rollSeed(state), d.pushesPerRoll, d.pushCooldown, d.friction, d.hillScale, d.stripFront, d.stripBack, d.stripMore].join(':');
+        const key = [state.stats.runStart, state.path.learned, first, E.rollSeed(state), d.pushesPerRoll, d.pushCooldown, d.friction, d.hillScale, d.stripFront, d.stripBack, d.stripMore].join(':');
         // A finished run stays on screen (path.done) until you click through to the dev screen.
         const stale = !path.roll || path.stateRef !== state || (path.roll.over && !path.done) || (!path.roll.launched && path.rollKey !== key);
         if (stale && path.pause <= 0) {
@@ -4470,7 +4483,6 @@ window.AGI = (function () {
                 { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, strips: d.strips, onward: true, last: state.path.learned,
                     holdOpen: crunching });
             path.roll.frontier = state.path.learned;   // where the frontier was when the run started
-            path.roll.auto = autoOn() && first < state.path.learned;   // the Auto-Trainer's replay of cleared legs
             path.autoAt = 0;
             path.rollPushes = d.pushesPerRoll;
             path.burnUnit = null;
@@ -5342,7 +5354,8 @@ window.AGI = (function () {
     // (owner's playtest: firing a perfect full charge every time made it far stronger than the player, and it
     // took the skills and achievements away from them). Every level sprints from rest and on a climb the ball
     // won't make (`wontClear`); in act two it thrusts from rest, when slow, up such climbs and on the way down
-    // in flight. Level 2 aims at the clean prompt, level 3 at the super prompt, both with the same wobble.
+    // in flight. It runs as a ghost beside your runs (`ghostTrain`, below); levels 2 and 3 make it stronger and
+    // steadier (fewer fumbles, less wobble, quicker reactions).
     const AUTO_ERROR = [0.24, 0.13, 0.06];     // the charge's wobble (standard deviation of the meter), by level
     const AUTO_REACTION = [0.7, 0.35, 0.15];   // longest reaction delay (s), by level
     function autoSkill() {
@@ -5358,49 +5371,91 @@ window.AGI = (function () {
         const usual = h.length ? h.reduce((a, b) => a + b, 0) / h.length : 0.8;
         return Math.max(E.PATH.minCharge, Math.min(budget, usual + gauss() * err));
     }
-    // A decision is acted on after a reaction delay: the moment the trigger holds it picks one, and acts when
-    // it's up (the trigger has to still hold).
-    function autoReady(want, react) {
-        if (!want) { path.autoAt = 0; return false; }
-        const now = performance.now();
-        if (!path.autoAt) path.autoAt = now + 1000 * react * Math.random();
-        return now >= path.autoAt;
-    }
-    function autoTrain(roll) {
-        const lvl = E.autoTrainerLevel(state);
-        path.autoThrust = false;
-        if (!lvl || !roll.auto) return;
+    // The ghost: the Auto-Trainer's own run, beside yours rather than instead of it (owner's call: being taken
+    // over mid-run was jarring). With it on it runs the newest cleared leg again and again, stepped by the game
+    // loop (`ghostTrain`, every tick, wherever you are), and stops at the last cleared hill: the frontier is yours.
+    // It pays as your replays do (the cleared hills' flat XP with the chain, tokens, the distance at the end), but
+    // never raises a leg's best, and it buys nothing: its sprints are free, at the strength you had the last time
+    // you ran that leg yourself (`E.legPower`, frozen until you run it again: owner's call). In the run view it plays faintly in
+    // the corner (#ghostLane), on the upgrades screen in the live monitor (#devLive). It starts weak and clumsy:
+    // half that strength and a third of its sprints fumbled at level 1 (`GHOST_POWER`, `GHOST_FUMBLE`),
+    // getting better with its levels and with every skill past the third.
+    const GHOST_POWER = [0.5, 0.7, 0.85];
+    const GHOST_FUMBLE = [0.35, 0.2, 0.1];
+    const GHOST_PAUSE = 1.5;          // seconds between its runs
+    const ghost = { roll: null, pause: 0, t: 0, at: 0, legs: 0, xp: 0, broke: 0, thrusting: false };
+    const ghostOn = () => E.autoTrainerLevel(state) > 0 && state.path.learned > 0;
+    function ghostSkill() {
+        const lvl = Math.max(1, Math.min(3, E.autoTrainerLevel(state)));
+        const trained = Math.max(0, state.path.learned - 3);
         const { err, react } = autoSkill();
-        if (thrustLeg(roll) && !roll.over && path.pause <= 0 && !frozen() && (roll.pushesLeft > 0 || crunching())) {
-            const slow = !roll.airborne && roll.ball.v < AUTO_THRUST_SPEED;
-            const want = !roll.launched || slow || wontClear(roll) || (roll.airborne && roll.vy < 0);
-            // Once it's thrusting it keeps on while the reason holds; starting waits for its reaction.
-            path.autoThrust = want && (path.autoThrusting || autoReady(want, react));
-            path.autoThrusting = path.autoThrust;
-            if (!want) path.autoAt = 0;
-            // Its launch clears the last run's card, as a hand launch does (it sat over the next run's smash).
-            if (path.autoThrust && !roll.launched && !$('rollResult').hidden) { path.overview = 0; dismissResult(); }
-            return;
-        }
-        path.autoThrusting = false;
-        if (roll.over || path.pause > 0 || roll.ball.cooldown > 0 || path.fx.windup || frozen() || roll.airborne) { path.autoAt = 0; return; }
-        if (!autoReady(!roll.launched || roll.atRest || wontClear(roll), react)) return;
-        path.autoAt = 0;
-        const budget = chargeBudget();
-        if (budget < E.PATH.minCharge) return;
-        if (lvl >= 2) {
-            // Level 2 aims at the clean prompt's centre, level 3 at the super prompt's (else the clean one's),
-            // and misses by its wobble.
-            const zone = currentZone(roll);
-            const aim = lvl >= 3 && zone.perfectTo > zone.perfectFrom ? (zone.perfectFrom + zone.perfectTo) / 2 : (zone.from + zone.to) / 2;
-            if (zone.to > zone.from && aim <= budget) {
-                const level = Math.max(E.PATH.minCharge, Math.min(budget, aim + gauss() * err * 0.5));
-                const kind = E.zoneHit(zone, level);
-                if (pushBall(true, level, kind) && kind) promptBonus(roll, kind, ballLeg(), level);
-                return;
+        return { lvl, err, react, power: Math.min(1, GHOST_POWER[lvl - 1] * (1 + 0.03 * trained)),
+            fumble: GHOST_FUMBLE[lvl - 1] * Math.max(0.5, 1 - 0.04 * trained) };
+    }
+    function ghostReady(want, react) {
+        if (!want) { ghost.at = 0; return false; }
+        if (!ghost.at) ghost.at = ghost.t + react * Math.random();
+        return ghost.t >= ghost.at;
+    }
+    function newGhost() {
+        const d = E.derive(state, debugRates);
+        const first = state.path.learned - 1;
+        ghost.roll = T.createRoll(first, (E.rollSeed(state) * 31 + 977 + ghost.legs) >>> 0,
+            { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, strips: d.strips, last: state.path.learned });
+        ghost.first = first;
+        ghost.legs = 0;
+        ghost.xp = 0;
+        ghost.at = 0;
+        ghost.broke = 0;
+        ghost.sprints = 0;
+        ghost.fumbles = 0;
+    }
+    function finishGhost(ev, done) {
+        const leg = Math.min(ev.leg ?? ghost.first, state.path.learned - 1);
+        // Stopping at the last cleared hill: its XP was paid as it crossed, so the run itself adds no distance.
+        const r = E.finishRoll(state, done ? 0 : ev.progress || 0, false, 0, done ? 0 : ev.metres || 0, leg, false, ghost.legs);
+        ghost.xp += r.xp;
+        pt('run', { from: ghost.first + 1, leg: leg + 1, prog: r2(done ? 1 : ev.progress || 0), xp: r2(ghost.xp), legs: ghost.legs,
+            sprints: ghost.sprints, fumbles: ghost.fumbles, auto: true });
+        ghost.roll = null;
+        ghost.pause = GHOST_PAUSE;
+    }
+    function ghostTrain(dt) {
+        if (!ghostOn() || !(dt > 0)) { ghost.roll = null; return; }
+        ghost.t += dt;
+        if (ghost.pause > 0) { ghost.pause -= dt; return; }
+        if (!ghost.roll || ghost.roll.frontier !== state.path.learned) { newGhost(); ghost.roll.frontier = state.path.learned; }
+        const roll = ghost.roll;
+        const sk = ghostSkill();
+        const leg = Math.min(roll.leg, state.path.learned - 1);
+        roll.thrust = 0;
+        if (roll.leg >= T.LATE_LEG && !roll.over && roll.pushesLeft > 0) {
+            // Act two: it thrusts from rest, when slow, up climbs it won't make and on the way down in flight.
+            const want = !roll.launched || (!roll.airborne && roll.ball.v < AUTO_THRUST_SPEED) || wontClear(roll) || (roll.airborne && roll.vy < 0);
+            ghost.thrusting = want && (ghost.thrusting || ghostReady(want, sk.react));
+            if (ghost.thrusting) {
+                const st = E.legPower(state, leg) * sk.power;
+                roll.thrust = E.PATH.thrustEfficiency * st * st / T.BURN_SECONDS;
             }
+        } else if (!roll.over && roll.ball.cooldown <= 0 && !roll.airborne && roll.pushesLeft > 0
+            && ghostReady(!roll.launched || roll.atRest || wontClear(roll), sk.react)) {
+            ghost.at = 0;
+            // A fumble: a weak tap at the wrong moment, like an early model's worst guesses.
+            const fumble = Math.random() < sk.fumble;
+            const fraction = fumble ? 0.1 + 0.25 * Math.random() : autoCharge(1, sk.err);
+            const share = E.sprintStrength(state, fraction, null, false, false) / E.sprintStrength(state, 1, null, false, false);
+            roll.push(E.legPower(state, leg) * share * sk.power);
+            ghost.sprints++;
+            if (fumble) ghost.fumbles++;
         }
-        pushBall(true, autoCharge(budget, err));
+        for (const ev of roll.step(dt)) {
+            if (ev.type === 'clear') {
+                ghost.xp += E.clearLeg(state, ev.skill, ghost.legs);
+                ghost.legs++;
+                if (ev.skill >= state.path.learned - 1) { finishGhost(roll.end(), true); return; }
+            } else if (ev.type === 'token') ghost.xp += E.collectToken(state, ev.leg, ghost.legs);
+            else if (ev.type === 'end') { finishGhost(ev, false); return; }
+        }
     }
 
     const AUTO_THRUST_SPEED = 1.5; // m/s: below this on the ground the Auto-Trainer thrusts
@@ -5420,7 +5475,7 @@ window.AGI = (function () {
     // Nothing runs offline.
     function runsInBackground() {
         const roll = path.roll;
-        return !!roll && path.stateRef === state && ((roll.launched && !roll.over) || E.autoTrainerLevel(state) > 0);
+        return !!roll && path.stateRef === state && roll.launched && !roll.over;
     }
 
     function startPathLoop() {
@@ -5439,7 +5494,6 @@ window.AGI = (function () {
         if (running) {
             if (path.pause > 0) path.pause -= dt;
             const roll = currentRoll();
-            autoTrain(roll);
             // The tuck: a hold that isn't charging a sprint (during the wait, or with none left) makes the ball
             // heavier on act two's swells; in the air it dives for the first down-slope it can reach (an air
             // dive). (The Auto-Trainer never tucks.)
@@ -5489,7 +5543,6 @@ window.AGI = (function () {
                 else if (ev.type === 'bump') trailSfx('land', { impact: 1 });
                 else finishRoll(ev);
             }
-            if (roll.autoDone && !roll.over) finishRoll(roll.end());
             // Stuck with pushes left but nothing to pay for them: give income a moment, then end the roll.
             const broke = roll.launched && !roll.over && roll.atRest && roll.pushesLeft > 0
                 && (thrustLeg(roll) ? !E.canAfford(state, E.burnCost(state, 0.1, ballLeg())) : chargeBudget() < E.PATH.minCharge);
@@ -5512,7 +5565,7 @@ window.AGI = (function () {
         const roll = path.roll;
         const busy = roll && roll.launched && !roll.over;
         const animating = busy || path.legFlash || fxBusy() || path.summit || path.particles.length || path.tension > 0.01 || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
-            || E.autoTrainerLevel(state) > 0;
+            || ghostOn();
         if (running && animating) path.frame = requestAnimationFrame(pathFrame);
     }
 
@@ -5732,8 +5785,6 @@ window.AGI = (function () {
         const roll = path.roll;
         // The chain: each cleared hill crossed raises the multiplier on everything after it.
         const xp = E.clearLeg(state, ev.skill, roll.legs || 0);
-        // The Auto-Trainer's replay is done once it has crossed the last cleared hill: the frontier is yours.
-        if (roll.auto && ev.skill >= state.path.learned - 1) roll.autoDone = true;
         roll.legs = (roll.legs || 0) + 1;
         roll.legXp = (roll.legXp || 0) + xp;
         markLegEntry(roll, ev.skill + 1);
@@ -5783,7 +5834,9 @@ window.AGI = (function () {
         if (roll.launched) E.settleSurge(state);
         // Only your own runs set a leg's best (its passive XP): the Auto-Trainer's replays earn, but don't raise it,
         // so going back to optimise a leg by hand stays the way to speed it up (owner's playtest).
-        const improvedLegs = roll.auto ? [] : E.recordLegs(state, roll.ground.stretch, roll.legEntries, result.xp + banked, viral ? E.derive(state).windfallMult : 1, result.xp);
+        // The strength you ran these legs with is what the Auto-Trainer's ghost replays them at.
+        E.recordLegPower(state, roll.ground.stretch, leg);
+        const improvedLegs = E.recordLegs(state, roll.ground.stretch, roll.legEntries, result.xp + banked, viral ? E.derive(state).windfallMult : 1, result.xp);
         pt('run', { from: roll.ground.stretch + 1, leg: leg + 1, prog: r2(ev.progress), m: r2(metres), xp: r2(result.xp + banked), legs,
             sprints: r2((path.rollPushes || 0) - Math.max(0, roll.pushesLeft)), clean, top: r2(roll.topSpeed || 0),
             dur: Math.round(state.stats.playTime - (roll.ptStart ?? state.stats.playTime)),
@@ -5792,11 +5845,10 @@ window.AGI = (function () {
             ...(roll.tokens ? { tokens: roll.tokens } : {}), ...(roll.dives ? { dives: roll.dives } : {}),
             ...(roll.breakthroughs ? { br: roll.breakthroughs } : {}),
             ...(ev.rolledBack ? { back: true } : {}), ...(result.record ? { record: true } : {}), ...(viral ? { viral: true } : {}),
-            ...(roll.auto ? { auto: true } : {}) });
-        // With the Auto-Trainer the next roll starts by itself; otherwise the run waits for a click.
-        const auto = E.autoTrainerLevel(state) > 0;
-        path.pause = auto ? RESULT_PAUSE : 0;
-        path.done = !auto;
+            });
+        // The next run waits for a click (the Auto-Trainer runs its own ghost, `ghostTrain`).
+        path.pause = 0;
+        path.done = true;
         const pct = Math.round(ev.progress * 100);
         const viralMult = viral ? E.derive(state).windfallMult : 1;
         const runMult = viralMult * E.chainMult(legs);
@@ -7092,9 +7144,10 @@ window.AGI = (function () {
     // follows the ball. Drawn every frame the run loop runs, and after each camera refresh.
     function drawLanes() {
         // The static graph needs a stretch to draw even before the bay has been opened.
-        const roll = path.roll || (state.unlocked['module:path'] ? currentRoll() : null);
+        // With the Auto-Trainer on, the live lanes follow its ghost run; otherwise they monitor your frontier.
+        const live = ghostOn();
+        const roll = live ? ghost.roll : path.roll || (state.unlocked['module:path'] ? currentRoll() : null);
         const c = path.colors;
-        const live = E.autoTrainerLevel(state) > 0;
         for (const canvas of document.querySelectorAll('canvas.lane')) {
             const w = canvas.clientWidth;
             const h = canvas.clientHeight;
@@ -7399,7 +7452,7 @@ window.AGI = (function () {
                 if (!m || !state.intro['mail:' + id]) continue;
                 const copies = m.id === 'welcome' && !introDone() ? welcomeNag : 0;
                 for (let n = 0; n <= copies; n++) {
-                    const shown = welcomeText(m, n);
+                    const shown = { ...welcomeText(m, n), ...(m.variant ? m.variant(state) : {}) };
                     items.push({ key, copy: n, latest: n === copies, readKey: 'mailRead:' + id, ...shown,
                         body: [...shown.body, ...(m.extra ? m.extra(state) : [])], read: n < copies || !!state.intro['mailRead:' + id] });
                 }
@@ -7422,7 +7475,7 @@ window.AGI = (function () {
             storyArrive(m);
             if (silent) continue;
             pt('mail', { id: m.id });
-            toast('New message', m.subject, 'mail');
+            toast('New message', (m.variant ? m.variant(state) : m).subject, 'mail');
         }
         // Dilemmas and their consequences arrive in the engine's tick; announce what's new since last time.
         const order = state.dilemmas.order;
@@ -7672,6 +7725,12 @@ window.AGI = (function () {
                 afterChange();
             },
             // Wipe the save and start a brand-new game, no questions asked.
+            // The Auto-Trainer's ghost run, for the panel and tests.
+            ghost() {
+                const r = ghost.roll;
+                return { on: ghostOn(), pause: r2(ghost.pause), leg: r ? r.leg : null, x: r ? r2(r.ball.x) : null, v: r ? r2(r.ball.v) : null,
+                    launched: !!r?.launched, over: !!r?.over, pushesLeft: r ? r.pushesLeft : null, sprints: ghost.sprints, fumbles: ghost.fumbles, legs: ghost.legs, xp: r2(ghost.xp) };
+            },
             startOver() {
                 state = E.defaultState(Date.now());
                 path.roll = null;
