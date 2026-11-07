@@ -3325,7 +3325,7 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
     .snare-view > .canvas-wrap { height: max(260px, calc(100dvh - var(--topbar-h, 100px) - var(--bay-bar-h, 39px) - 150px)); }
 }
 @media (pointer: coarse) and (max-height: 500px) {
-    .snare-view > .canvas-wrap { height: clamp(120px, calc(100dvh - 158px), 600px); }
+    .snare-view > .canvas-wrap { height: clamp(120px, calc(100dvh - 162px), 600px); }
 }
 
 /* Packet Snare's skill tree, over the field: the Training tree's nodes, links and popup on a fixed 5 × 5 grid. */
@@ -3341,6 +3341,8 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 .snare-tree-grid .tree-node { width: calc(var(--cell) * 0.56); }
 .snare-tree-grid .tree-node.seed { width: calc(var(--cell) * 0.5); pointer-events: none; }
 .snare-tree-grid .tree-level { font-size: 0.58rem; }
+.snare-tree-grid.tiny .tree-level { display: none; }
+.snare-tree-grid.tiny .tree-node { width: calc(var(--cell) * 0.64); }
 .snare-tree-grid .node-detail { width: 250px; max-height: calc(100% - 8px); }
 .snare-upgrades { position: relative; overflow: visible; }
 @media (max-width: 640px) {

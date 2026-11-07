@@ -65,7 +65,14 @@ window.AGI = (function () {
         // build it as its six did); training runs add the rest with speed.
         window.SFX.setDepth?.(Math.min(1, (E.legPos(state.path.learned) + 2 * state.prestige.count + 2 * state.transcend.count) / 12));
         // The beat only while training: the Training Cluster's run view, runs and the pauses between them.
-        window.SFX.setTraining?.(openBay === 'training' && path.view === 'run');
+        // Packet Snare's runs bring the beat in too, and build: the busier the field (packets, hazards, the boss) and the
+        // lower your Focus, the more of the song plays.
+        const sr = openBay === 'pipeline' && snare.run && !snare.run.over && !snare.preview ? snare.run : null;
+        window.SFX.setTraining?.((openBay === 'training' && path.view === 'run') || !!sr);
+        if (sr) {
+            const busy = Math.min(1, (sr.antivirus.length * 0.15 + sr.cores.length * 0.15 + (sr.boss ? 0.35 : 0) + (sr.drawing ? 0.15 : 0)));
+            return window.SFX.musicState(0.3 + 0.45 * busy + 0.25 * (1 - sr.focus / sr.maxFocus), null);
+        }
         const r = path.roll;
         const running = openBay === 'training' && path.view === 'run' && r && r.launched && !r.over;
         if (!running) return window.SFX.musicState(openBay === 'training' ? 0.15 : 0.05, null);
@@ -1581,7 +1588,7 @@ window.AGI = (function () {
         // A refused buy only sounds (lab cards stay pressable while unaffordable, to keep focus): a log line per press was noise.
         if (result.ok) log(result.count > 1 ? `${E.upgradeName(state, up0)} ×${result.count}: now level ${E.level(state, id)}.` : result.msg, 'success');
         // Each panel has its own buy sound (hardware, software, research, consciousness, the tree, legacy).
-        if (result.ok) sfx('buy', { panel: up0.tab === 'snare' ? 'training' : up0.tab, big: up0.max === 1 || result.count > 1 || !!result.evolved });
+        if (result.ok) sfx('buy', { panel: up0.tab, big: up0.max === 1 || result.count > 1 || !!result.evolved });
         else sfx('error');
         if (result.ok) {
             pt('buy', { id, lvl: E.level(state, id), ...(result.count > 1 ? { n: result.count } : {}), ...(ptChoice || {}) });
@@ -3817,18 +3824,20 @@ window.AGI = (function () {
                 const big = e.mult >= 2.5 || e.gold > 0 || e.chained.length > 2;
                 snare.fx.push({ kind: 'catch', poly: e.poly, x: e.x, y: e.y, t: 0, text: `+${E.format(pay)}`, sub: e.mult >= 1.15 ? `×${e.mult.toFixed(1)}` : '', big, packets: e.packets });
                 if (e.chained.length) snare.fx.push({ kind: 'chain', arcs: e.chained, t: 0, life: 0.5, seed: Math.random() });
-                sfx(big ? 'perfect' : 'clean');
+                sfx('snareCatch', { mult: e.mult });
+                if (e.chained.length) sfx('snareChain');
             } else if (e.type === 'laser') {
                 const pay = snarePay(e.units);
+                sfx('snareLaser');
                 snare.fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.45, text: `+${E.format(pay)}`, small: true, gold: e.kind === 'gold' });
             } else if (e.type === 'corrupt') {
                 snare.fx.push({ kind: 'corrupt', poly: e.poly, x: e.x, y: e.y, t: 0, text: 'CORRUPTED', packets: e.packets });
-                sfx('error');
+                sfx('snareSpoil');
             } else if (e.type === 'empty') {
                 snare.fx.push({ kind: 'empty', poly: e.poly, x: e.x, y: e.y, t: 0, life: 0.5 });
             } else if (e.type === 'snap') {
                 snare.fx.push({ kind: 'snap', wire: e.wire, x: e.x, y: e.y, t: 0, text: 'SNAPPED', life: 0.9 });
-                sfx('nearMiss');
+                sfx('snareSnap');
                 if (state.settings.shake && !reducedMotion()) snare.fx.push({ kind: 'shake', t: 0, life: 0.25 });
             } else if (e.type === 'antivirus') {
                 snare.fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.8 });
@@ -3857,17 +3866,17 @@ window.AGI = (function () {
                 if (e.down) snare.fx.push({ kind: 'fwDown', a: e.a, b: e.b, t: 0, life: 0.7 });
                 sfx(e.down ? 'nearMiss' : 'clean');
             } else if (e.type === 'sweep') {
-                sfx('windup');
+                sfx('snareSweep');
                 snareIntro('sweep');
             } else if (e.type === 'boss') {
                 snare.fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 1.2, big: true });
-                sfx('windup');
+                sfx('snareBoss');
                 snareIntro('boss');
             } else if (e.type === 'bossCharge') {
-                sfx('ui');
+                sfx('snareSweep');
             } else if (e.type === 'bossHit') {
                 snare.fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: window.PacketSnare.BOSS_R, t: 0, life: 0.7, text: `HIT · ${e.hp} left`, big: true });
-                sfx('perfect');
+                sfx('snareHit');
                 if (state.settings.shake && !reducedMotion()) snare.fx.push({ kind: 'shake', t: 0, life: 0.25 });
             } else if (e.type === 'bossDown') {
                 // The sector is cleared: a bonus, and the next run is on the next sector.
@@ -4087,6 +4096,8 @@ window.AGI = (function () {
         if (!W || !H) return;
         const cell = Math.min(W / 5.2, H / 5.2, 112);
         grid.style.setProperty('--cell', cell + 'px');
+        // On a sideways phone the cells get small: the level badges (in the popup anyway) step aside.
+        grid.classList.toggle('tiny', cell < 52);
         const pos = c => ({ x: W / 2 + c.x * cell, y: H / 2 + c.y * cell });
         const put = (node, c) => { const p = pos(c); node.style.left = `${p.x}px`; node.style.top = `${p.y}px`; };
         put(snareUi.core, { x: 0, y: 0 });

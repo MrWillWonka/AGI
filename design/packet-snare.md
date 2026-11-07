@@ -91,13 +91,31 @@ multiplier fell to ×1.8–1.95, so abilities did the work and big loops stopped
   Antivirus that hits one is stunned and the firewall goes down (Hardened Firewalls take more hits). Herders feed the pen.
 - **System Firewalls:** a red line sweeps the field from side to side after its edge flashes, snapping any open wire.
 
+## Built: the sixth pass (a two-model review, round 1, and the owner's calls)
+
+Two reviewers (Opus, Fable) scored it: accuracy 7.5, bugs 6, implementation 7, clarity 6.5, consistency 5, polish 6.25.
+Fixed: the phone tree, Hardened Firewalls (a stunned Antivirus is knocked clear and needs a new approach), the Chokehold's
+empty flash, the preview label, emoji glyphs, input (left button, no tap on a cancelled touch, a 22 px tap reach), pausing
+under dialogs, toasts over the field, the old card after a version. The tree now uses the Training tree's nodes, icons,
+popup ("now → after"), demos and reveals, priced by its rules; the base numbers live only in packet-snare.js.
+
+The owner's calls:
+- **Signal**, its own currency (data was no prize: the lab makes plenty); the best haul trickles research.
+- **Sectors and boss Antivirus**: the boss roams to the schools, wipes data and charges the pen; tight loops beat it and
+  clear the sector (harder, better paid; a live lane on the server-room tile). The Rogue AI waits for sector 4.
+- The wire grows with the field; the Scanner is one narrow beam; your Firewalls shield packets from cores, a closed pen
+  hides its school from corrupt packets, and wire along a Firewall is free; the first two runs start clean.
+- No instruction lines: demo cards the first time each mechanic turns up.
+- Your tools amber, enemies red, the Wall a white hatched shield; its own sounds; music that builds; six achievements.
+- The Rogue AI stays as hard as it was (the owner likes the challenge).
+
 ## Next slices
 
 1. **Playtest the second pass:** does closing feel easy, does the preview make big loops a decision, is the first run
    short enough, do the abilities change how you play? Tune `SNARE` and the tree's prices from the log.
 2. **The record links to the lab:** the best haul raises the Data crawler's yield per collection (the rule: automation
    converts, never creates).
-4. **Active defense:** slash through an Antivirus with a quick stroke before it reaches your Firewalls.
-5. **The best net as passive income** between visits, and the Rogue AI's story beats (leaving a core alone as a deliberate
+3. **Active defense:** slash through an Antivirus with a quick stroke before it reaches your Firewalls.
+4. **The Rogue AI's story beats (leaving a core alone as a deliberate
    freedom choice, never a missed loop).
-6. **The sim** plays it (a time share and a simple loop policy, from the first log with `snare` events).
+5. **The sim** plays it (built: `SNARE`; next, a better bot) (a time share and a simple loop policy, from the first log with `snare` events).

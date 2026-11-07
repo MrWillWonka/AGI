@@ -296,6 +296,12 @@
             g => run(pluck, [60, 67, 72, 76], S() / 2, g),
             g => run(pluck, [57, 62, 64, 69], S() / 2, g)
         ],
+        // Packet Snare's tree: glassy triangle runs going up, in the packets' register.
+        snare: [
+            g => run((n, o) => tone({ f0: NOTE(n), dur: 0.1, type: 'triangle', cutoff: 5200, ...o }), [72, 76, 81, 88], S() / 2, g),
+            g => run((n, o) => tone({ f0: NOTE(n), dur: 0.1, type: 'triangle', cutoff: 5200, ...o }), [76, 79, 84, 91], S() / 2, g),
+            g => run((n, o) => tone({ f0: NOTE(n), dur: 0.1, type: 'triangle', cutoff: 5200, ...o }), [69, 76, 79, 88], S() / 2, g)
+        ],
         legacy: [
             g => { stab([57, 64, 69, 72, 76], { gain: 0.045 * g, dur: 0.7, cutoff: 2600 }); sub(33, 33, 0.8, 0.2 * g); },
             g => { stab([55, 62, 67, 71, 74], { gain: 0.045 * g, dur: 0.7, cutoff: 2600 }); sub(31, 31, 0.8, 0.2 * g); },
@@ -328,6 +334,21 @@
             if (big) { sub(45, 45, 0.3, 0.12); blip(93, { gain: 0.035, at: 3 * S() / 2 + S() * 0.5, dur: 0.16 }); }
         },
         buyBig: (o = {}) => SOUNDS.buy({ ...o, big: true }),
+        // Packet Snare's own (every track re-voices them through its profile, like any shared sound): a catch is a
+        // rising glassy run, longer the bigger the loop; a spoil a low crunch; a snap a short static crack and a fall;
+        // your laser a quick downward zap; chain lightning a crackle; a system Firewall's warning a two-note alarm;
+        // the boss a low stab with a sub; a hit on it a metal knock.
+        snareCatch: ({ mult = 1 } = {}) => {
+            const notes = [76, 79, 81, 84, 88, 91, 93].slice(0, 2 + Math.min(5, Math.round((mult - 1) * 1.7)));
+            run((n, o) => tone({ f0: NOTE(n), dur: 0.09, type: 'triangle', cutoff: 5200, ...o }), notes, S() / 2, 0.9);
+        },
+        snareSpoil: () => { tone({ f0: NOTE(52), f1: NOTE(45), dur: 0.25, type: 'sawtooth', gain: 0.05, cutoff: 900, detune: 18 }); noise({ dur: 0.18, gain: 0.08, f0: 400, q: 1.5 }); },
+        snareSnap: () => { noise({ dur: 0.07, gain: 0.12, f0: 5200, q: 3 }); tone({ f0: NOTE(69), f1: NOTE(57), dur: 0.16, type: 'square', gain: 0.03, cutoff: 2000 }); },
+        snareLaser: () => tone({ f0: NOTE(100), f1: NOTE(81), dur: 0.08, type: 'square', gain: 0.025, cutoff: 6000 }),
+        snareChain: () => { for (let i = 0; i < 4; i++) noise({ dur: 0.025, gain: 0.07, f0: 3000 + 1500 * i, q: 6, at: i * 0.035 }); },
+        snareSweep: () => { tone({ f0: NOTE(76), dur: 0.12, type: 'square', gain: 0.03, cutoff: 2400 }); tone({ f0: NOTE(72), dur: 0.12, type: 'square', gain: 0.03, cutoff: 2400, at: S() }); },
+        snareBoss: () => { stab([45, 52, 57, 60], { gain: 0.04, dur: 0.5, cutoff: 1100 }); sub(33, 28, 0.6, 0.16); },
+        snareHit: () => { tone({ f0: NOTE(57), dur: 0.2, type: 'square', gain: 0.04, cutoff: 1400 }); tone({ f0: NOTE(57 + 17), dur: 0.12, type: 'sine', gain: 0.03 }); noise({ dur: 0.05, gain: 0.08, f0: 2500, q: 4 }); },
         // An investor's reward claimed: a bright figure, varied.
         claim: () => [
             () => arp([76, 81, 84, 88, 93], S() / 2, { type: 'triangle', gain: 0.06, cutoff: 5000 }),
@@ -391,8 +412,8 @@
     // instrument (PANEL_INST) and register (PANEL_OCT).
     const T = (n, o = {}) => tone({ f0: NOTE(n), ...o, ...(o.to != null ? { f1: NOTE(o.to) } : {}) });
     const seq = (notes, step, o = {}) => notes.forEach((n, i) => { if (n) T(n, { ...o, at: (o.at || 0) + i * step }); });
-    const PANEL_INST = { hardware: 0, legacy: 0, software: 1, consciousness: 1, algorithms: 2, training: 2 };
-    const PANEL_OCT = { hardware: 0, software: 12, algorithms: 12, consciousness: -12, training: 0, legacy: -12 };
+    const PANEL_INST = { hardware: 0, legacy: 0, software: 1, consciousness: 1, algorithms: 2, training: 2, snare: 1 };
+    const PANEL_OCT = { hardware: 0, software: 12, algorithms: 12, consciousness: -12, training: 0, legacy: -12, snare: 12 };
     const phone = g => g * (PHONE ? 0.6 : 1);
 
     // Dark: industrial: distorted saws, metal hits, sub drops, flat seconds (E Phrygian).
@@ -572,7 +593,8 @@
     const GROUPS = {
         clicks: ['click'],
         buys: ['buy', 'buyBig', 'claim'],
-        training: ['sprint', 'clean', 'perfect', 'system', 'breakthrough', 'smash', 'windup', 'launch', 'land', 'nearMiss', 'crunch', 'flow', 'freeze', 'release'],
+        training: ['sprint', 'clean', 'perfect', 'system', 'breakthrough', 'smash', 'windup', 'launch', 'land', 'nearMiss', 'crunch', 'flow', 'freeze', 'release',
+            'snareCatch', 'snareSpoil', 'snareSnap', 'snareLaser', 'snareChain', 'snareSweep', 'snareBoss', 'snareHit'],
         events: ['summit', 'runEnd', 'record', 'viral', 'achievement', 'phase', 'ship'],
         ui: ['ui', 'error']
     };
@@ -606,6 +628,14 @@
         buy: () => { sb(76, 0.07); sb(81, 0.09, 0.07, 0.06); },
         buyBig: () => { sb(76, 0.07); sb(81, 0.07, 0.07, 0.06); sb(88, 0.1, 0.07, 0.12); },
         claim: () => { sb(81, 0.07); sb(88, 0.1, 0.07, 0.07); },
+        snareCatch: ({ mult = 1 } = {}) => { sb(81, 0.06); sb(mult >= 2.5 ? 93 : 88, 0.08, 0.07, 0.05); },
+        snareSpoil: () => sb(52, 0.2, 0.06, 0, 45),
+        snareSnap: () => sb(69, 0.12, 0.05, 0, 57),
+        snareLaser: () => sb(100, 0.04, 0.03, 0, 88),
+        snareChain: () => { sb(93, 0.03, 0.03); sb(96, 0.03, 0.03, 0.04); },
+        snareSweep: () => { sb(76, 0.08, 0.04); sb(72, 0.08, 0.04, 0.1); },
+        snareBoss: () => sb(45, 0.5, 0.1, 0, 33),
+        snareHit: () => sb(57, 0.15, 0.08),
         error: () => { sb(64, 0.14, 0.05, 0, 57); sb(65, 0.14, 0.035, 0, 58); },
         ui: () => sb(93, 0.03, 0.03),
         sprint: ({ charge = 1 } = {}) => sb(57, 0.12, 0.05 + 0.06 * charge, 0, 64),
