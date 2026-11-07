@@ -1,19 +1,74 @@
 {
   "sim": {
-    "CLICKS": 1.35,
-    "LABSHARE": 0.24,
-    "IDLE": 0.32,
-    "CLEAN": 0.72,
-    "PAUSE": 3.4
+    "CLICKS": 2.05,
+    "LABSHARE": 0.44,
+    "IDLE": 0.22,
+    "CLEAN": 0.48,
+    "PAUSE": 4.3
   },
   "simMedian": {
-    "CLICKS": 1.35,
-    "LABSHARE": 0.24,
-    "IDLE": 0.32,
-    "CLEAN": 0.72,
-    "PAUSE": 3.4
+    "CLICKS": 2.05,
+    "LABSHARE": 0.44,
+    "IDLE": 0.22,
+    "CLEAN": 0.48,
+    "PAUSE": 4.3
   },
   "logs": [
+    {
+      "file": "playtests/2026-11-07-owner-2.txt",
+      "playMinutes": 19.68,
+      "openingSeconds": 5,
+      "share": {
+        "lab": 0.64,
+        "train": 0.24,
+        "tree": 0.09,
+        "other": 0.03
+      },
+      "labClicksPerSecond": 2.75,
+      "handSprints": 42,
+      "promptRate": 0.23,
+      "fullChargeRate": 0.79,
+      "incomeCappedRate": 0,
+      "runPauseSeconds": 5.2,
+      "runSeconds": 13,
+      "minutesFromStart": {
+        "collect": 1.08,
+        "serverRoom": 2.94,
+        "research": null
+      },
+      "skills": [
+        {
+          "n": 1,
+          "name": "Tokenization",
+          "min": 3.52,
+          "fromStart": 3.44,
+          "runs": 1
+        },
+        {
+          "n": 2,
+          "name": "Pattern Matching",
+          "min": 7.56,
+          "fromStart": 7.48,
+          "runs": 6
+        },
+        {
+          "n": 3,
+          "name": "Edge Detection",
+          "min": 8.25,
+          "fromStart": 8.17,
+          "runs": 7
+        }
+      ],
+      "phases": [],
+      "debugJumps": [],
+      "sim": {
+        "CLICKS": 2.75,
+        "LABSHARE": 0.64,
+        "IDLE": 0.12,
+        "CLEAN": 0.23,
+        "PAUSE": 5.2
+      }
+    },
     {
       "file": "playtests/2026-11-07-owner.txt",
       "playMinutes": 39.34,

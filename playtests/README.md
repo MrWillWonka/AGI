@@ -27,3 +27,4 @@ still count for behaviour, but their banks and timings after the jump aren't the
 | Log | Who | Notes |
 |---|---|---|
 | `2026-11-07-owner.txt` | the owner, desktop, 43 min, v1.0 to Reasoning | ~11.9K CP added by debug at 7 min; a 6 min pause on the server room |
+| `2026-11-07-owner-2.txt` | the owner, desktop, 20 min, a fresh game to Edge Detection | no debug; 70% of the time in the lab, 2.75 clicks/s, prompts only 23% |
