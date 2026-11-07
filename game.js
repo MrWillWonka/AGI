@@ -214,6 +214,9 @@ window.AGI = (function () {
         // Something new in the lab: remember where everything is first, so it can make room smoothly.
         if (!hidden && revealReady && node.closest?.('#labRoom') && view === 'lab') makeRoom();
         node.hidden = hidden;
+        // A reveal held while the lab made room clips its node inline until it runs; a node hidden and shown again
+        // meanwhile must never stay clipped away.
+        if (!hidden && node.style?.clipPath) node.style.clipPath = '';
         if (!hidden) revealIn(node);
     }
 
@@ -253,8 +256,16 @@ window.AGI = (function () {
             n.animate([{ transform: `translate(${dx}px, ${dy}px)`, ...size(r.width, r.height) }, { transform: 'none', ...size(q.width, q.height) }],
                 { duration: MAKE_ROOM_MS, easing: 'cubic-bezier(0.25, 0.8, 0.25, 1)' });
         }
-        // The new section waits (invisible) until the others have made room.
-        if (moved) for (const n of fresh) n.style.animationDelay = `${MAKE_ROOM_MS + 80}ms`;
+        // The new section waits (invisible) until the others have made room, then boots in once. It was held
+        // paused at its first frame since revealIn: starting it there and adding the delay a frame later
+        // restarted it, so a new card wiped in, vanished for most of a second and wiped in again.
+        for (const n of fresh) {
+            n.style.animationDelay = moved ? `${MAKE_ROOM_MS + 80}ms` : '';
+            n.style.animationPlayState = '';
+            // The inline clip stays until the animation is really running (it takes over from there).
+            const go = e => { if (e.target === n && e.animationName === 'reveal-boot') { n.style.clipPath = ''; n.removeEventListener('animationstart', go); } };
+            n.addEventListener('animationstart', go);
+        }
         // Panels resize while they make room, so their lists clip rather than flash a scrollbar meanwhile.
         if (moved) {
             document.body.classList.add('making-room');
@@ -278,11 +289,20 @@ window.AGI = (function () {
         node.style.animationDelay = '';
         void node.offsetWidth;
         node.classList.add('reveal-in');
-        if (roomBefore) freshReveals.push(node);
+        // While the lab is making room, hold it at its first (invisible) frame: playMakeRoom starts it.
+        // (A paused animation isn't applied on its first frame, so it's also clipped away inline meanwhile: without
+        // that the card showed for a frame before the wait.)
+        if (roomBefore) {
+            node.style.animationPlayState = 'paused';
+            node.style.clipPath = 'inset(0 100% 0 0)';
+            freshReveals.push(node);
+        }
         const done = e => {
             if (e.target !== node || e.animationName !== 'reveal-boot') return;
             node.classList.remove('reveal-in');
             node.style.animationDelay = '';
+            node.style.animationPlayState = '';
+            node.style.clipPath = '';
             node.removeEventListener('animationend', done);
         };
         node.addEventListener('animationend', done);
