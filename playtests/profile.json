@@ -1,17 +1,17 @@
 {
   "sim": {
-    "CLICKS": 2.05,
-    "LABSHARE": 0.44,
-    "IDLE": 0.22,
-    "CLEAN": 0.48,
-    "PAUSE": 4.3
+    "CLICKS": 2.21,
+    "LABSHARE": 0.39,
+    "IDLE": 0.23,
+    "CLEAN": 0.43,
+    "PAUSE": 3.8
   },
   "simMedian": {
-    "CLICKS": 2.05,
-    "LABSHARE": 0.44,
-    "IDLE": 0.22,
-    "CLEAN": 0.48,
-    "PAUSE": 4.3
+    "CLICKS": 2.52,
+    "LABSHARE": 0.3,
+    "IDLE": 0.25,
+    "CLEAN": 0.35,
+    "PAUSE": 3.4
   },
   "logs": [
     {
@@ -67,6 +67,103 @@
         "IDLE": 0.12,
         "CLEAN": 0.23,
         "PAUSE": 5.2
+      }
+    },
+    {
+      "file": "playtests/2026-11-07-owner-3.txt",
+      "playMinutes": 22.24,
+      "openingSeconds": 5,
+      "share": {
+        "lab": 0.3,
+        "train": 0.45,
+        "tree": 0.19,
+        "other": 0.06
+      },
+      "labClicksPerSecond": 2.52,
+      "handSprints": 100,
+      "promptRate": 0.35,
+      "fullChargeRate": 0.63,
+      "incomeCappedRate": 0,
+      "runPauseSeconds": 2.8,
+      "runSeconds": 19,
+      "minutesFromStart": {
+        "collect": 0.89,
+        "serverRoom": 2.54,
+        "research": 19.26
+      },
+      "skills": [
+        {
+          "n": 1,
+          "name": "Tokenization",
+          "min": 2.94,
+          "fromStart": 2.86,
+          "runs": 1
+        },
+        {
+          "n": 2,
+          "name": "Pattern Matching",
+          "min": 6.53,
+          "fromStart": 6.45,
+          "runs": 10
+        },
+        {
+          "n": 3,
+          "name": "Embeddings",
+          "min": 13.49,
+          "fromStart": 13.41,
+          "runs": 11
+        },
+        {
+          "n": 4,
+          "name": "Edge Detection",
+          "min": 13.6,
+          "fromStart": 13.53,
+          "runs": 11
+        },
+        {
+          "n": 5,
+          "name": "Feature Extraction",
+          "min": 16.87,
+          "fromStart": 16.79,
+          "runs": 16
+        },
+        {
+          "n": 6,
+          "name": "Image Recognition",
+          "min": 18.27,
+          "fromStart": 18.19,
+          "runs": 18
+        },
+        {
+          "n": 7,
+          "name": "Optical Character Recognition",
+          "min": 18.81,
+          "fromStart": 18.73,
+          "runs": 19
+        },
+        {
+          "n": 8,
+          "name": "Speech Recognition",
+          "min": 19.3,
+          "fromStart": 19.23,
+          "runs": 20
+        },
+        {
+          "n": 9,
+          "name": "Sentiment Analysis",
+          "min": 19.95,
+          "fromStart": 19.87,
+          "runs": 21
+        }
+      ],
+      "phases": [],
+      "debugJumps": [],
+      "sim": {
+        "CLICKS": 2.52,
+        "LABSHARE": 0.3,
+        "IDLE": 0.25,
+        "CLEAN": 0.35,
+        "PAUSE": 2.8
       }
     },
     {

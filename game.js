@@ -1799,7 +1799,7 @@ window.AGI = (function () {
     function exportPlaytest() {
         if (!playtest) return;
         playtestSample(true);
-        const text = playtest.report({ save: `v${E.SAVE_VERSION}, ${E.currentVersion(state)}, ${state.path.learned} skills`,
+        const text = playtest.report({ build: E.BUILD, save: `v${E.SAVE_VERSION}, ${E.currentVersion(state)}, ${state.path.learned} skills`,
             screen: `${innerWidth}×${innerHeight}${matchMedia('(pointer: coarse)').matches ? ', touch' : ''}`,
             browser: navigator.userAgent });
         openDialog({
@@ -1824,7 +1824,7 @@ window.AGI = (function () {
         const { ok } = await openDialog({ title: 'Clear the playtest log?', message: 'Every recorded event on this device is deleted. Your game is not touched.', okLabel: 'Clear log', danger: true });
         if (!ok) return;
         playtest.clear();
-        pt('session', { cleared: true, skills: state.path.learned, at: playtestView = ptPlace() });
+        pt('session', { cleared: true, build: E.BUILD, skills: state.path.learned, at: playtestView = ptPlace() });
         playtestSample(true);
         log('Playtest log cleared.', 'info');
     }
@@ -7812,7 +7812,7 @@ window.AGI = (function () {
             pt(document.hidden ? 'hidden' : 'shown');
             if (document.hidden) playtest?.flush();
         });
-        pt('session', { save: E.SAVE_VERSION, skills: state.path.learned, version: E.currentVersion(state),
+        pt('session', { build: E.BUILD, save: E.SAVE_VERSION, skills: state.path.learned, version: E.currentVersion(state),
             screen: `${innerWidth}x${innerHeight}`, touch: matchMedia('(pointer: coarse)').matches, at: playtestView = ptPlace() });
         playtestSample(true);
         watchIdle();

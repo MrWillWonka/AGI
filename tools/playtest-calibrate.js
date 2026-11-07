@@ -17,6 +17,17 @@ if (!files.length) {
     process.exit(1);
 }
 
+// The build a log was played on: its header's build line (logs from 2026-11-07 15:02 UTC on), else the session events'
+// build, else the time it began, to read against playtests/README.md's list of builds.
+function readBuild(file) {
+    const text = fs.readFileSync(file, 'utf8');
+    const head = text.match(/^build: (.+)$/m);
+    if (head) return head[1].trim();
+    const session = text.match(/"build":"([^"]+)"/);
+    if (session) return session[1];
+    const began = text.match(/began (\S+)/);
+    return began ? `unstamped, began ${began[1]} (see playtests/README.md)` : 'unknown';
+}
 function readEvents(file) {
     const text = fs.readFileSync(file, 'utf8').trim();
     // The raw stored log ({ v, started, events }), a JSON array of events, or the copied report (one JSON line each).
@@ -137,6 +148,7 @@ if (JSON_OUT) {
 } else {
     for (const p of profiles) {
         console.log(`${p.file}: ${p.playMinutes} min after a ${p.openingSeconds} s opening`);
+        console.log(`  build: ${readBuild(p.file)}`);
         console.log(`  time: lab ${p.share.lab}, training ${p.share.train}, tree ${p.share.tree}, other ${p.share.other}`);
         console.log(`  lab clicks/s ${p.labClicksPerSecond}; sprints by hand ${p.handSprints}: prompts ${p.promptRate} (once they exist), full ${p.fullChargeRate}, income-capped ${p.incomeCappedRate}`);
         console.log(`  run ${p.runSeconds} s, pause before the next ${p.runPauseSeconds} s; Collect Data at ${p.minutesFromStart.collect} min, server room ${p.minutesFromStart.serverRoom}, Research ${p.minutesFromStart.research}`);
