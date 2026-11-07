@@ -48,7 +48,8 @@
         snapPenalty: 4,             // Focus lost when an Antivirus or a Firewall snaps the wire
         snapCooldown: 1.0,          // seconds before you can draw again after a snap
         respawn: 1.2,               // seconds before a caught packet's replacement swims in
-        density: 0.13,              // good packets per unit² of field
+        density: 0.13,              // good packets per unit² of field…
+        maxGood: 340,               // …up to this many (a datacentre's field would hold a thousand: crowded, and slow)
         corruptShare: 0.35,         // corrupt packets per good one
         corruptLure: 0.6,           // how strongly corrupt packets swim toward the nearest school (they hide in the crowd)
         goldChance: 0.04,           // a new good packet is gold this often (worth GOLD_VALUE)
@@ -317,7 +318,7 @@
             }
         }
 
-        const goodTarget = Math.max(4, Math.round(o.density * fieldArea));
+        const goodTarget = Math.max(4, Math.min(o.maxGood, Math.round(o.density * fieldArea)));
         const corruptTarget = Math.max(1, Math.round(goodTarget * o.corruptShare));
         for (let left = goodTarget; left > 0;) {
             const n = Math.min(left, Math.max(2, Math.round(o.schoolSize * (0.6 + rand() * 0.8))));
@@ -459,6 +460,20 @@
             // Corrupt packets swim toward the nearest school: they hide in the crowd, so a big loop round a school is a gamble.
             if (o.corruptLure > 0 && !(o.cleanStart && s.time < 5)) {
                 const kc = Math.min(1, o.corruptLure * dt);
+                // Good packets on a grid of 3-unit cells: a corrupt one only looks in the cells round it (a datacentre's
+                // field holds hundreds of packets; all against all was most of a frame).
+                const grid = new Map();
+                for (const q of s.packets) {
+                    if (q.kind === 'corrupt') continue;
+                    const key = Math.floor(q.x / 3) * 4096 + Math.floor(q.y / 3);
+                    const cell = grid.get(key);
+                    if (cell) cell.push(q); else grid.set(key, [q]);
+                }
+                const near = p => {
+                    const out = [], cx = Math.floor(p.x / 3), cy = Math.floor(p.y / 3);
+                    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const c = grid.get((cx + i) * 4096 + cy + j); if (c) out.push(...c); }
+                    return out;
+                };
                 for (const p of s.packets) {
                     if (p.kind !== 'corrupt') continue;
                     // A decoy in reach outbids the schools.
@@ -468,8 +483,7 @@
                         if (d2 < o.decoyLure ** 2 && (!best || d2 < bd)) { bd = d2; best = dc; }
                     }
                     if (best) { bd = -1; }
-                    for (const q of best ? [] : s.packets) {
-                        if (q.kind === 'corrupt') continue;
+                    for (const q of best ? [] : near(p)) {
                         const d2 = (q.x - p.x) ** 2 + (q.y - p.y) ** 2;
                         if (d2 < bd && d2 > 0.25) { bd = d2; best = q; }
                     }
@@ -485,11 +499,18 @@
             if (!(o.schooling > 0)) return;
             const R2 = 1.8 * 1.8;
             const k = Math.min(1, o.schooling * 2.4 * dt);
+            // Each packet only steers with its own school: grouped once a step.
+            const schools = new Map();
+            for (const p of s.packets) {
+                if (p.kind === 'corrupt') continue;
+                const sc = schools.get(p.school);
+                if (sc) sc.push(p); else schools.set(p.school, [p]);
+            }
             for (const p of s.packets) {
                 if (p.kind === 'corrupt') continue;
                 let ax = 0, ay = 0, cx = 0, cy = 0, sx = 0, sy = 0, n = 0;
-                for (const q of s.packets) {
-                    if (q === p || q.school !== p.school) continue;
+                for (const q of schools.get(p.school)) {
+                    if (q === p) continue;
                     const dx = q.x - p.x, dy = q.y - p.y, d2 = dx * dx + dy * dy;
                     if (d2 > R2) continue;
                     ax += q.vx; ay += q.vy; cx += dx; cy += dy; n++;

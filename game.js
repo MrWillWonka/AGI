@@ -59,7 +59,7 @@ window.AGI = (function () {
     function musicTick() {
         if (!window.SFX?.musicState) return;
         // The lab (with Surveillance and R&D) and the server room (with its bays) each have their own songs.
-        window.SFX.setArea?.(openBay || view === 'servers' ? 'server' : 'lab');
+        window.SFX.setArea?.(openBay === 'pipeline' ? 'snare' : openBay || view === 'servers' ? 'server' : 'lab');
         // How much of the arrangement the game has earned: a new game is a kick and a bass, and every skill
         // (and every shipped version) adds to it, by step on the difficulty curve (`legPos`: act one's twelve skills
         // build it as its six did); training runs add the rest with speed.
@@ -1993,8 +1993,10 @@ window.AGI = (function () {
     // Shipping a version keeps them, so first-time flashes and badges don't come back.
     function resetView(full = true) {
         syncSettings();
+        // Packet Snare's last card and run belong to the old game (a new version, Start over, an import): a run in play is
+        // dropped without settling it (settling wrote the old run into the new save).
+        snare.run = null;
         if (openBay === 'pipeline') closeSnare();
-        // Packet Snare's last card and run belong to the old game (a new version, or Start over).
         Object.assign(snare, { run: null, done: null, fx: [], haul: 0, preview: false, pointer: null, pick: null, treeKey: '' });
         if (openBay) {
             openBay = null;
@@ -3424,18 +3426,22 @@ window.AGI = (function () {
         const art = $('bays').querySelector('.bay[data-bay="pipeline"] .bay-art');
         if (!state) return;   // built again once the save is loaded (renderHub)
         const n = Math.min(state.snare.sector, SNARE_LANES);
-        const key = `${state.snare.sector}`;
+        // Rebuilt when a sector is cleared or the tree changes: each lane plays your build on that sector.
+        const key = `${state.snare.sector}|${E.SNARE_TREE.map(u => E.level(state, u.id)).join('')}`;
         if (art.dataset.key === key) return;
         art.dataset.key = key;
         art.replaceChildren();
         snareLanes = [];
         for (let i = 0; i < n; i++) {
             const k = state.snare.sector - n + i;
-            const canvas = el('canvas', { class: 'snare-lane', title: `${E.snareSectorName(k)}: cleared` });
-            const run = window.PacketSnare.createSnare({ seed: 101 + k, w: 5.2, h: 2.2, density: 0.6, antivirus: [], sweepFirst: Infinity, idleDrain: 0, focus: 1e9,
-                laser: 1.6 - 0.1 * Math.min(k, 6), corruptShare: 0.2 });
+            const o = E.snareOpts(state, k);
+            // Your build on a little field: what runs by itself (lasers, turrets, towers, herders, the scanner), no hazards.
+            const run = window.PacketSnare.createSnare({ ...o, seed: 101 + k, w: 5.2, h: 2.2, density: 0.6, antivirus: [], sweepFirst: Infinity, idleDrain: 0, focus: 1e9,
+                boss: 0, rogue: 0, laser: o.laser || 1.6, corruptShare: o.corruptShare });
+            const canvas = el('canvas', { 'aria-hidden': 'true' });
+            const wrap = el('span', { class: 'snare-lane', title: `${E.snareSectorName(k)}: cleared` }, [canvas, el('span', { class: 'snare-lane-cap', text: E.snareSectorName(k) })]);
             snareLanes.push({ k, canvas, run, fx: [] });
-            art.append(canvas);
+            art.append(wrap);
         }
         for (let i = 0; i < BAY_ART.pipeline - 6 * n; i++) art.append(el('i'));
     }
@@ -3448,8 +3454,8 @@ window.AGI = (function () {
             if (c.width !== Math.round(w * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
             lane.run.step(0.05);
             for (const f of lane.fx) f.t += 0.05;
-            lane.fx = lane.fx.filter(f => f.t < f.life);
-            for (const e of lane.run.takeEvents()) if (e.type === 'laser') lane.fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.4 });
+            lane.fx = lane.fx.filter(f => f.t < (f.life || SNARE_FX));
+            for (const e of lane.run.takeEvents()) snareFxFor(e, lane.fx);
             const k = Math.min(w / lane.run.w, h / lane.run.h);
             drawSnareView(c.getContext('2d'), { run: lane.run, effects: lane.fx, k, ox: (w - lane.run.w * k) / 2, oy: (h - lane.run.h * k) / 2, cw: w, ch: h, dpr, field: lane.run, minR: 2 });
         }
@@ -3511,6 +3517,8 @@ window.AGI = (function () {
         document.addEventListener('keydown', e => {
             if (e.key !== 'Escape' || document.querySelector('dialog[open]')) return;
             if (!$('legacyScreen').hidden) { closeLegacy(); return; }
+            // Packet Snare backs out one level at a time: the popup, then the tree, then the bay (never a run on one press).
+            if (openBay === 'pipeline' && snareEscape()) return;
             if (openBay && view === 'servers') exitBay();
             else zoomOut();
         });
@@ -3637,7 +3645,8 @@ window.AGI = (function () {
     function snareStatus() {
         const sector = `Sector ${state.snare.sector + 1}: ${E.snareSectorName(state.snare.sector)}`;
         if (snare.run && !snare.run.over && !snare.preview) return `${sector} · snaring…`;
-        return state.snare.best > 0 ? `${sector} · best haul +${E.format(state.snare.best)} Signal` : 'Loose data drifting';
+        const rp = E.derive(state).snareRp;
+        return state.snare.best > 0 ? `${sector} · best +${E.format(state.snare.best)} Signal${rp > 0 ? ` · +${E.format(rp, 2)} RP/s` : ''}` : 'Loose data drifting';
     }
 
     function buildSnare() {
@@ -3645,7 +3654,7 @@ window.AGI = (function () {
         snare.canvas = canvas;
         snare.ctx = canvas.getContext('2d');
         new ResizeObserver(() => {
-            const dpr = (window.devicePixelRatio || 1) * uiScale();
+            const dpr = Math.min(2, (window.devicePixelRatio || 1) * uiScale());
             const wrap = canvas.parentElement;
             snare.cw = wrap.clientWidth;
             snare.ch = Math.max(120, wrap.clientHeight);
@@ -3665,18 +3674,27 @@ window.AGI = (function () {
         };
         canvas.addEventListener('pointerdown', e => {
             const run = snare.run;
-            if (!run || run.over || snare.preview || snare.pointer !== null || snare.tree) return;
+            // Nothing on the field takes a press under a first-meeting card (the run is paused) or the tree.
+            if (!run || run.over || snare.preview || snare.pointer !== null || snare.tree || snare.intro) return;
             if (e.pointerType === 'mouse' && e.button !== 0) return;   // the left button draws; others do nothing
             e.preventDefault();
             snare.pointer = e.pointerId;
             snare.touch = e.pointerType !== 'mouse';
             snare.down = { x: e.clientX, y: e.clientY, t: performance.now(), far: false };
             canvas.setPointerCapture?.(e.pointerId);
-            run.addPoint(...toWorld(e));
+            const [x, y] = toWorld(e);
+            // The tool in hand: the lasso draws a wire, the Firewall tool a straight wall, the others place on a tap.
+            if (snare.tool === 'lasso') run.addPoint(x, y);
+            else if (snare.tool === 'wall') snare.wallFrom = { x, y, to: { x, y } };
         });
         canvas.addEventListener('pointermove', e => {
             if (e.pointerId !== snare.pointer || !snare.run) return;
             if (snare.down && Math.hypot(e.clientX - snare.down.x, e.clientY - snare.down.y) > 10) snare.down.far = true;
+            if (snare.tool === 'wall') {
+                if (snare.wallFrom) { const [x, y] = toWorld(e); snare.wallFrom.to = { x, y }; }
+                return;
+            }
+            if (snare.tool !== 'lasso') return;
             const list = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
             for (const ev of (list.length ? list : [e])) {
                 // After a snap the pen waits out its cooldown, then a fresh wire starts where it is.
@@ -3686,14 +3704,26 @@ window.AGI = (function () {
         const lift = e => {
             if (e.pointerId !== snare.pointer) return;
             snare.pointer = null;
-            snare.run?.liftPen();
-            // A tap (no drag, quick) places an anchor, or takes one back: within 22 px on screen of it, whatever the
-            // field's size. A cancelled touch (a palm, the browser taking the gesture) is no tap.
+            const run = snare.run;
             const d = snare.down;
             snare.down = null;
-            if (e.type === 'pointerup' && d && !d.far && performance.now() - d.t < 350 && snare.run?.opts.anchors) {
-                snare.run.tapAt(...toWorld(e), 22 / snare.scale);
+            const tap = e.type === 'pointerup' && d && !d.far && performance.now() - d.t < 350;
+            // A tap's reach: 22 px on screen, whatever the field's size.
+            const reach = 22 / snare.scale;
+            const [x, y] = toWorld(e);
+            if (snare.tool === 'lasso') run?.liftPen();
+            else if (snare.tool === 'wall') {
+                const w = snare.wallFrom;
+                snare.wallFrom = null;
+                // A tap on a wall takes it back; a drag draws one (a cancelled touch does nothing).
+                if (run && e.type === 'pointerup') {
+                    if (tap) run.removeAt('wall', x, y, reach);
+                    else if (w && !run.placeWall({ x: w.x, y: w.y }, w.to)) sfx('error');
+                }
+            } else if (run && tap) {
+                if (!run.removeAt(snare.tool, x, y, reach) && !run.placeAt(snare.tool, x, y)) sfx('error');
             }
+            renderSnareTools();
         };
         canvas.addEventListener('pointerup', lift);
         canvas.addEventListener('pointercancel', lift);
@@ -3705,6 +3735,11 @@ window.AGI = (function () {
         });
         $('snareTreeClose').addEventListener('click', closeSnareTree);
         buildSnareTree();
+        document.addEventListener('keydown', snareKeys);
+        $('snareTools').addEventListener('click', e => {
+            const b = e.target.closest('[data-tool]');
+            if (b) pickSnareTool(b.dataset.tool);
+        });
     }
 
     // The field keeps its shape for the run; the view letterboxes it into the canvas.
@@ -3733,7 +3768,8 @@ window.AGI = (function () {
 
     function snarePreview() {
         const o = E.snareOpts(state);
-        snare.run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area), seed: 5, antivirus: [], sweepFirst: Infinity, idleDrain: 0, laser: 0, rogue: 0 });
+        // The field drifts behind the card with what you placed, but nothing that hunts, sweeps, steals or fires.
+        snare.run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area), seed: 5, antivirus: [], sweepFirst: Infinity, idleDrain: 0, laser: 0, rogue: 0, boss: 0, turrets: 0 });
         snare.preview = true;
         snareFit();
         snare.last = performance.now();
@@ -3745,6 +3781,7 @@ window.AGI = (function () {
     // Leaving the bay ends a run in progress (what it caught is already paid).
     function closeSnare() {
         if (snare.run && !snare.run.over && !snare.preview) {
+            snare.walked = true;
             snare.run.stop();
             snareEvents();
         }
@@ -3772,7 +3809,10 @@ window.AGI = (function () {
         snare.last = performance.now();
         cancelAnimationFrame(snare.raf);
         snare.raf = requestAnimationFrame(snareFrame);
-        if (o.anchors) snareIntro('anchors');
+        snare.tool = 'lasso';
+        snare.wallFrom = null;
+        snare.walked = false;
+        renderSnareTools();
     }
 
     function snareFrame(now) {
@@ -3818,81 +3858,51 @@ window.AGI = (function () {
     function snareEvents() {
         const run = snare.run;
         if (!run) return;
+        const shake = life => { if (state.settings.shake && !reducedMotion()) snare.fx.push({ kind: 'shake', t: 0, life }); };
         for (const e of run.takeEvents()) {
-            if (e.type === 'catch') {
-                const pay = snarePay(e.units);
-                const big = e.mult >= 2.5 || e.gold > 0 || e.chained.length > 2;
-                snare.fx.push({ kind: 'catch', poly: e.poly, x: e.x, y: e.y, t: 0, text: `+${E.format(pay)}`, sub: e.mult >= 1.15 ? `×${e.mult.toFixed(1)}` : '', big, packets: e.packets });
-                if (e.chained.length) snare.fx.push({ kind: 'chain', arcs: e.chained, t: 0, life: 0.5, seed: Math.random() });
+            const t = e.type;
+            if (t === 'catch') {
+                snareFxFor(e, snare.fx, `+${E.format(snarePay(e.units))}`);
                 sfx('snareCatch', { mult: e.mult });
                 if (e.chained.length) sfx('snareChain');
-            } else if (e.type === 'laser') {
-                const pay = snarePay(e.units);
+            } else if (t === 'laser') {
+                snareFxFor(e, snare.fx, `+${E.format(snarePay(e.units))}`);
                 sfx('snareLaser');
-                snare.fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.45, text: `+${E.format(pay)}`, small: true, gold: e.kind === 'gold' });
-            } else if (e.type === 'corrupt') {
-                snare.fx.push({ kind: 'corrupt', poly: e.poly, x: e.x, y: e.y, t: 0, text: 'CORRUPTED', packets: e.packets });
-                sfx('snareSpoil');
-            } else if (e.type === 'empty') {
-                snare.fx.push({ kind: 'empty', poly: e.poly, x: e.x, y: e.y, t: 0, life: 0.5 });
-            } else if (e.type === 'snap') {
-                snare.fx.push({ kind: 'snap', wire: e.wire, x: e.x, y: e.y, t: 0, text: 'SNAPPED', life: 0.9 });
-                sfx('snareSnap');
-                if (state.settings.shake && !reducedMotion()) snare.fx.push({ kind: 'shake', t: 0, life: 0.25 });
-            } else if (e.type === 'antivirus') {
-                snare.fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.8 });
-                snareIntro('antivirus');
-            } else if (e.type === 'core') {
-                snare.fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.8 });
-                sfx('windup');
-                snareIntro('rogue');
-            } else if (e.type === 'stolen' || e.type === 'wiped') {
-                snare.fx.push({ kind: 'stolen', core: e.core || { x: e.x, y: e.y }, packets: e.packets, t: 0, life: 0.45, wiped: e.type === 'wiped' });
-            } else if (e.type === 'coreGone') {
-                snare.fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: e.r, t: 0, life: 0.6 });
-            } else if (e.type === 'quarantine') {
-                const pay = snarePay(e.units);
-                snare.fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: e.r, t: 0, life: 0.9, text: `QUARANTINED +${E.format(pay)}`, big: true });
+            } else if (t === 'quarantine') {
+                snareFxFor(e, snare.fx, `QUARANTINED +${E.format(snarePay(e.units))}`);
                 sfx('perfect');
-                if (state.settings.shake && !reducedMotion()) snare.fx.push({ kind: 'shake', t: 0, life: 0.2 });
-            } else if (e.type === 'wall') {
-                snare.fx.push({ kind: 'wallUp', a: e.a, b: e.b, t: 0, life: 0.4 });
-                sfx('ui');
-            } else if (e.type === 'anchor') {
-                sfx('ui');
-            } else if (e.type === 'stun') {
-                // Your Firewall stuns an Antivirus; at its last hit it goes down, breaking apart.
-                snare.fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'STUNNED', small: true });
-                if (e.down) snare.fx.push({ kind: 'fwDown', a: e.a, b: e.b, t: 0, life: 0.7 });
-                sfx(e.down ? 'nearMiss' : 'clean');
-            } else if (e.type === 'sweep') {
-                sfx('snareSweep');
-                snareIntro('sweep');
-            } else if (e.type === 'boss') {
-                snare.fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 1.2, big: true });
-                sfx('snareBoss');
-                snareIntro('boss');
-            } else if (e.type === 'bossCharge') {
-                sfx('snareSweep');
-            } else if (e.type === 'bossHit') {
-                snare.fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: window.PacketSnare.BOSS_R, t: 0, life: 0.7, text: `HIT · ${e.hp} left`, big: true });
-                sfx('snareHit');
-                if (state.settings.shake && !reducedMotion()) snare.fx.push({ kind: 'shake', t: 0, life: 0.25 });
-            } else if (e.type === 'bossDown') {
-                // The sector is cleared: a bonus, and the next run is on the next sector.
+                shake(0.2);
+            } else if (t === 'bossDown') {
+                // The sector is cleared: the engine pays the bounty, and the next run is on the next sector.
                 const cleared = snare.sector;
-                const pay = snarePay(10 * E.snareBossHits(cleared));
-                E.snareBossDown(state);
+                const pay = E.snareBossDown(state, cleared);
+                snare.haul += pay;
                 snare.bossDown = cleared;
                 snare.fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 2, t: 0, life: 1.4, text: `SECTOR CLEARED +${E.format(pay)}`, big: true });
                 sfx('record');
-                if (state.settings.shake && !reducedMotion()) snare.fx.push({ kind: 'shake', t: 0, life: 0.4 });
+                shake(0.4);
                 log(`Packet Snare: the boss of sector ${cleared + 1} (${E.snareSectorName(cleared)}) is down. Next: ${E.snareSectorName(cleared + 1)}.`, 'success');
                 pt('snareBoss', { sector: cleared + 1, secs: Math.round(run.time) });
                 buildSnareArt();
                 save();
-            } else if (e.type === 'end') {
+            } else if (t === 'end') {
                 endSnare(e.stats, e.layout);
+            } else {
+                snareFxFor(e, snare.fx);
+                if (t === 'corrupt') sfx('snareSpoil');
+                else if (t === 'snap') { sfx('snareSnap'); shake(0.25); }
+                else if (t === 'antivirus') snareIntro('antivirus');
+                else if (t === 'core') { sfx('windup'); snareIntro('rogue'); }
+                else if (t === 'stun') sfx(e.down ? 'nearMiss' : 'clean');
+                else if (t === 'sweep') { sfx('snareSweep'); snareIntro('sweep'); }
+                else if (t === 'boss') { sfx('snareBoss'); snareIntro('boss'); }
+                else if (t === 'bossCharge') sfx('snareCharge');
+                else if (t === 'bossHit') { sfx('snareHit'); shake(0.25); }
+                else if (t === 'place') sfx('snarePlace', { kind: e.kind });
+                else if (t === 'remove') sfx('snareRemove');
+                else if (t === 'power') sfx('snarePower', { kind: e.kind });
+                else if (t === 'zap') sfx('snareZap');
+                else if (t === 'decoyGone') sfx('snareDecoy');
             }
         }
     }
@@ -3902,26 +3912,32 @@ window.AGI = (function () {
         lasso: ['Packet Snare', 'Draw round the data and bring the wire back to its start to close the loop. Bigger loops pay more; a red packet inside spoils the lot.'],
         antivirus: ['Antivirus', 'It hunts your open wire. If it touches it, the wire snaps and you lose Focus.'],
         sweep: ['System Firewall', 'Its edge flashes, then it sweeps the whole field. Any wire it crosses snaps.'],
-        boss: ['Boss Antivirus', 'It wipes the data it touches and charges your pen. Loop it tight to hit it; beat it to clear the sector.'],
-        rogue: ['The Rogue AI', 'Its cores grow and take the data they reach. Loop a core tight to quarantine it, or draw a straight line to wall it off.'],
-        anchors: ['Anchors', 'Tap to place an anchor; each joins the last with your own Firewall. Tap one to take it back.']
+        boss: ['Boss Antivirus', 'It wipes the data it touches and charges your pen. Loop it tight while it reels; each sector\'s boss is tougher.'],
+        rogue: ['The Rogue AI', 'Its cores grow and take the data they reach. Loop a core tight to quarantine it; your walls keep it off the data behind them.']
     };
     function snareIntro(kind) {
         const key = `snare:intro:${kind}`;
         if (state.intro[key] || snare.preview || !SNARE_INTROS[kind]) return;
         state.intro[key] = true;
-        if (snare.pointer !== null) { snare.pointer = null; snare.run?.liftPen(); }
+        // Two at once (an Antivirus and a sweep on the same frame): the second waits for the first.
+        if (snare.intro) { (snare.introQueue ||= []).push(kind); return; }
+        if (snare.pointer !== null) { snare.pointer = null; snare.run?.liftPen(); snare.wallFrom = null; }
         snare.intro = kind;
         const [title, line] = SNARE_INTROS[kind];
         const card = $('snareCard');
-        const ok = el('button', { type: 'button', class: 'button', text: TIP_OK[tipCount++ % TIP_OK.length], 'aria-label': `${TIP_OK[(tipCount - 1) % TIP_OK.length]}: got it` });
+        const label = TIP_OK[tipCount++ % TIP_OK.length];
+        const ok = el('button', { type: 'button', class: 'button tip-ok', text: label, 'aria-label': `${label}: got it` });
         ok.addEventListener('click', () => {
             snare.intro = null;
+            card.classList.remove('snare-intro');
             setHidden(card, true);
             snare.last = performance.now();
-            $('snareCanvas').focus?.({ preventScroll: true });
+            const next = snare.introQueue?.shift();
+            if (next) { state.intro[`snare:intro:${next}`] = false; snareIntro(next); }
         });
-        card.replaceChildren(el('div', { class: 'result-title', text: 'New' }), el('div', { class: 'result-main', text: title }),
+        // A tip, not a run's card: the green ↻ header like every tip in the game.
+        card.classList.add('snare-intro');
+        card.replaceChildren(el('div', { class: 'result-title', text: '↻ New' }), el('div', { class: 'result-main', text: title }),
             snareDemo(kind), el('p', { class: 'snare-intro-line', text: line }), el('div', { class: 'result-actions' }, [ok]));
         setHidden(card, false);
         pt('tip', { id: key });
@@ -3931,7 +3947,8 @@ window.AGI = (function () {
 
     function endSnare(stats, layout) {
         const res = E.finishSnare(state, snare.haul, layout, stats);
-        snare.done = { stats, haul: snare.haul, record: res.record, first: res.first, prev: res.prev, sector: snare.sector, cleared: snare.bossDown ?? null };
+        snare.done = { stats, haul: snare.haul, record: res.record, first: res.first, prev: res.prev, sector: snare.sector, cleared: snare.bossDown ?? null, walked: !!snare.walked };
+        snare.walked = false;
         snare.bossDown = null;
         snare.pointer = null;
         setHidden($('snareHud'), true);
@@ -3958,6 +3975,11 @@ window.AGI = (function () {
     }
 
     const snareSector = k => `Sector ${k + 1}: ${E.snareSectorName(k)}`;
+    // What the best haul feeds: research, a trickle while you play.
+    const snareRpLine = () => {
+        const rp = E.derive(state).snareRp;
+        return rp > 0 ? ['Research from your best haul', `+${E.format(rp, 2)} RP/s`, 'key'] : null;
+    };
 
     function showSnareCard(kind) {
         const card = $('snareCard');
@@ -3971,7 +3993,8 @@ window.AGI = (function () {
                 el('div', { class: 'result-main', text: 'Packet Snare' }),
                 first ? snareDemo('lasso') : null,
                 first ? el('p', { class: 'snare-intro-line', text: SNARE_INTROS.lasso[1] }) : null,
-                best > 0 ? el('ul', { class: 'result-lines' }, [el('li', {}, [el('span', { text: 'Best haul' }), el('span', { text: `+${E.format(best)} Signal` })])]) : null,
+                best > 0 ? el('ul', { class: 'result-lines' }, [['Best haul', `+${E.format(best)} Signal`], snareRpLine()].filter(Boolean)
+                    .map(([a, b]) => el('li', {}, [el('span', { text: a }), el('span', { text: b })]))) : null,
                 el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: 'Start', onclick: startSnare }), state.snare.runs > 0 ? snareUpgradesButton() : null].filter(Boolean))].filter(Boolean));
         } else {
             const d = snare.done;
@@ -3991,10 +4014,11 @@ window.AGI = (function () {
                 s.wiped ? ['Wiped by the boss', `${s.wiped}`] : null,
                 s.quarantined ? ['Cores quarantined', `${s.quarantined}`] : null,
                 s.gold ? ['Gold packets', `${s.gold}`] : null,
-                ['Best haul', `+${E.format(Math.max(best, d.haul))} Signal`]
+                Math.max(best, d.haul) > 0 ? ['Best haul', `+${E.format(Math.max(best, d.haul))} Signal`] : null,
+                snareRpLine()
             ].filter(Boolean);
             card.replaceChildren(...[
-                el('div', { class: 'result-title', text: `${snareSector(d.sector)} · Focus spent` }),
+                el('div', { class: 'result-title', text: `${snareSector(d.sector)} · ${d.walked ? 'Left the bay' : 'Focus spent'}` }),
                 el('div', { class: 'result-main', text: s.caught ? `${s.caught} packet${s.caught === 1 ? '' : 's'} snared` : 'Nothing snared' }),
                 el('div', { class: 'result-xp', text: `+${E.format(d.haul)} Signal` }),
                 d.record ? el('span', { class: 'result-badge', text: `New record · was +${E.format(d.prev)}` }) : null,
@@ -4004,6 +4028,83 @@ window.AGI = (function () {
         setHidden(card, false);
     }
 
+    // Escape inside Packet Snare: a first-meeting card waits for its button; then the popup, then the tree close.
+    function snareEscape() {
+        if (snare.intro) return true;
+        if (snare.tree && snareUi.popup) { snareUi.popup = false; placeSnarePopup(); return true; }
+        if (snare.tree) { closeSnareTree(); return true; }
+        return false;
+    }
+    // Packet Snare's keys, like the Training Cluster's: 1–7 pick a tool (or fire a power), U the tree, R, Space or Enter
+    // the next run from a card.
+    function snareKeys(e) {
+        if (openBay !== 'pipeline' || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+        if (document.querySelector('dialog[open]') || e.target.closest?.('input, textarea, select')) return;
+        const key = e.key.toLowerCase();
+        const live = snare.run && !snare.run.over && !snare.preview;
+        if (/^[1-7]$/.test(key) && live) {
+            const t = snareToolsOwned(snare.run)[Number(key) - 1];
+            if (t) pickSnareTool(t.id);
+        } else if (key === 'u' && state.snare.runs > 0 && !snare.intro) {
+            if (snare.tree) closeSnareTree(); else openSnareTree();
+        } else if ((key === 'r' || ((key === ' ' || key === 'enter') && !e.target.closest?.('button'))) && !live && !snare.tree && !snare.intro) {
+            startSnare();
+        } else return;
+        e.preventDefault();
+    }
+
+    // ---- The tool bar: the lasso, what you place, and powers -----------------------------------------------
+    // Under the field once the tree gives you anything to place or use. Keys 1–7 pick a tool; a power fires at once.
+    const SNARE_TOOLS = [
+        { id: 'lasso', name: 'Lasso', icon: 'lasso' },
+        { id: 'wall', name: 'Firewall', icon: 'bricks', slots: 'firewalls', list: 'walls' },
+        { id: 'decoy', name: 'Decoy', icon: 'ghost', slots: 'decoys', list: 'decoys' },
+        { id: 'turret', name: 'Turret', icon: 'target', slots: 'turrets', list: 'turrets' },
+        { id: 'tower', name: 'Tower', icon: 'radar', slots: 'towers', list: 'towers' },
+        { id: 'freeze', name: 'Freeze', icon: 'timer', power: true },
+        { id: 'purge', name: 'Purge', icon: 'filter', power: true }
+    ];
+    const snareToolsOwned = run => SNARE_TOOLS.filter(t => t.id === 'lasso' || (t.power ? run.opts[t.id] > 0 : run.opts[t.slots] > 0));
+    function pickSnareTool(id) {
+        const run = snare.run;
+        if (!run || run.over || snare.preview || snare.intro || snare.tree) return;
+        const t = SNARE_TOOLS.find(x => x.id === id);
+        if (!t || !snareToolsOwned(run).includes(t)) return;
+        if (t.power) {
+            if (!run.usePower(id)) sfx('error');
+        } else {
+            if (snare.pointer !== null) { snare.pointer = null; run.liftPen(); snare.wallFrom = null; }
+            snare.tool = id;
+            sfx('ui');
+        }
+        renderSnareTools();
+    }
+    function renderSnareTools() {
+        const bar = $('snareTools');
+        const run = snare.run;
+        const live = run && !run.over && !snare.preview;
+        const owned = live ? snareToolsOwned(run) : [];
+        setHidden(bar, owned.length < 2);
+        if (owned.length < 2) return;
+        const key = owned.map(t => t.id).join(',');
+        if (bar.dataset.key !== key) {
+            bar.dataset.key = key;
+            bar.replaceChildren(...owned.map((t, i) => {
+                const b = el('button', { type: 'button', class: `snare-tool${t.power ? ' power' : ''}`, 'data-tool': t.id, title: `${t.name} (${i + 1})` });
+                b.innerHTML = `<span class="snare-tool-icon">${icon(t.icon)}</span><span class="snare-tool-name">${t.name}</span><span class="snare-tool-count"></span>`;
+                return b;
+            }));
+        }
+        for (const b of bar.querySelectorAll('[data-tool]')) {
+            const t = SNARE_TOOLS.find(x => x.id === b.dataset.tool);
+            b.classList.toggle('on', snare.tool === t.id);
+            b.setAttribute('aria-pressed', String(snare.tool === t.id));
+            const n = t.power ? `×${run.charges[t.id]}` : t.slots ? `${run[t.list].length}/${run.opts[t.slots]}` : '';
+            setText(b.querySelector('.snare-tool-count'), n);
+            b.classList.toggle('spent', !!t.power && !(run.charges[t.id] > 0));
+        }
+    }
+
     function renderSnareHud() {
         const run = snare.run;
         if (!run || run.over) return;
@@ -4011,7 +4112,8 @@ window.AGI = (function () {
         const fill = $('snareFocusFill');
         fill.style.transform = `scaleX(${share})`;
         fill.classList.toggle('low', share < 0.25);
-        setText($('snareFocusText'), run.cooldown > 0 ? 'Wire snapped…' : `Focus ${Math.ceil(run.focus)}${run.opts.anchors ? ` · anchors ${run.anchors.length}/${run.opts.anchors}` : ''}`);
+        setText($('snareFocusText'), run.cooldown > 0 ? 'Wire snapped…' : run.frozen() ? `Frozen · ${(run.frozenUntil - run.time).toFixed(1)} s` : `Focus ${Math.ceil(run.focus)}`);
+        renderSnareTools();
         setText($('snareHaul'), `+${E.format(snare.haul)} Signal`);
     }
 
@@ -4019,19 +4121,34 @@ window.AGI = (function () {
     // Built from the Training tree's parts: the same nodes (.tree-node: circles, mechanic hexagons, the seed's diamond,
     // can-buy, owned, maxed, selected), line icons, links, the popup beside the node with its "now → after" line and,
     // for a new rule, a demo of it, and reveals as nodes appear. Its cells are fixed on a 5 × 5 grid sized to the bay.
-    const SNARE_ICON = { snareFocus: 'eye', snareBandwidth: 'pipes', snareSprawl: 'expand', snareSchools: 'school', snareObfuscation: 'ghost',
-        snareGold: 'coin', snareContain: 'shield', snareHerders: 'drone', snareChain: 'bolt', snareScrubbers: 'filter', snareScanner: 'radar',
-        snareLaser: 'target', snareEmitters: 'beams', snareAnchors: 'anchor', snareHardened: 'bricks' };
-    const snareUi = { built: false, nodes: {}, links: [], popup: false, detailKey: '', fresh: false };
+    const SNARE_ICON = { snareFocus: 'eye', snareBandwidth: 'pipes', snareLongWire: 'strip', snareDeepFocus: 'eye', snareSteady: 'gauge', snareWideRing: 'target',
+        snareSecondWind: 'wave', snareOverflow: 'pipes', snareFreeze: 'timer', snareDilation: 'timer', snareSprawl: 'expand', snareMegasprawl: 'expand',
+        snareHyperscale: 'expand', snareOverclock: 'boost', snareSchools: 'school', snareContain: 'shield', snareHerders: 'drone', snareHerdMaster: 'drone',
+        snareLeash: 'drone', snareFirehose: 'stack', snareGold: 'coin', snareMotherLode: 'coin', snareProspector: 'star', snareLaser: 'target',
+        snareEmitters: 'beams', snareLaserArray: 'beams', snareLens: 'spark', snareTurrets: 'chip', snarePurifier: 'flame', snareBarrels: 'chip',
+        snareRapidFire: 'boost', snareScanner: 'radar', snareTowers: 'radar', snareSweepRange: 'radar', snareChain: 'bolt', snareChainStorm: 'bolt',
+        snareConductor: 'bolt', snareScrubbers: 'filter', snareChecksums: 'terminal', snareParity: 'code', snarePurge: 'flame', snareFirewalls: 'bricks',
+        snareLongWalls: 'bricks', snareGreatWall: 'bricks', snareHardened: 'shield', snareDecoys: 'ghost', snareHoneypot: 'ghost', snareObfuscation: 'ghost',
+        snareGhost: 'dice' };
+    const snareUi = { built: false, nodes: {}, links: [], popup: false, detailKey: '', fresh: false, cam: { x: 0, y: 0, z: 1 }, drag: null, pointers: new Map(), moved: false };
+    // Fixed cells (like the Training tree's --cell): the tree grows four cells out from the Lasso, and you pan and zoom it.
+    const snareCell = () => (window.matchMedia('(max-width: 640px)').matches ? 76 : 96);
+    const SNARE_ZOOM = { min: 0.5, max: 1.6, step: 1.25 };
 
     function buildSnareTree() {
         const grid = $('snareTreeGrid');
+        // Everything that pans and zooms sits in one layer, its origin at the grid's middle.
+        const inner = el('div', { class: 'snare-tree-inner', id: 'snareTreeInner' });
+        inner.append($('snareTreeLinks'));
+        grid.prepend(inner);
+        snareUi.inner = inner;
         const core = el('div', { class: 'tree-node seed owned snare-core', 'aria-hidden': 'true' });
         core.innerHTML = `<span class="tree-icon">${icon('lasso')}</span>`;
-        grid.append(core);
+        inner.append(core);
         snareUi.core = core;
         for (const up of E.SNARE_TREE) {
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('vector-effect', 'non-scaling-stroke');
             $('snareTreeLinks').append(line);
             snareUi.links.push({ up, line });
             const b = el('button', { type: 'button', class: 'tree-node', hidden: true });
@@ -4042,18 +4159,106 @@ window.AGI = (function () {
                 snareUi.popup = true;
                 renderSnareTree();
             });
-            grid.append(b);
+            inner.append(b);
             snareUi.nodes[up.id] = b;
         }
-        // A click on empty space closes the popup, as in the Training tree.
+        // Zoom buttons (the keyboard's way in), like the Training tree's.
+        const zoom = el('div', { class: 'tree-zoom snare-tree-zoom', role: 'group', 'aria-label': 'Zoom the Packet Snare tree' }, [
+            el('button', { type: 'button', class: 'ghost-button', 'aria-label': 'Zoom in', text: '+', onclick: () => zoomSnareTree(snareUi.cam.z * SNARE_ZOOM.step) }),
+            el('button', { type: 'button', class: 'ghost-button', 'aria-label': 'Zoom out', text: '−', onclick: () => zoomSnareTree(snareUi.cam.z / SNARE_ZOOM.step) }),
+            el('button', { type: 'button', class: 'ghost-button', 'aria-label': 'Fit the tree', text: '⟲', onclick: fitSnareTree })]);
+        grid.append(zoom);
+        // Drag to pan, wheel or pinch to zoom; a drag never selects a node; a click on empty space closes the popup.
+        const point = e => { const r = grid.getBoundingClientRect(), z = uiScale(); return { x: (e.clientX - r.left) / z, y: (e.clientY - r.top) / z }; };
+        grid.addEventListener('pointerdown', e => {
+            if (e.target.closest('.node-detail, .tree-zoom') || (e.pointerType === 'mouse' && e.button !== 0)) return;
+            snareUi.pointers.set(e.pointerId, point(e));
+            snareUi.moved = false;
+            snareUi.drag = { x: snareUi.cam.x, y: snareUi.cam.y, start: point(e) };
+            if (snareUi.pointers.size === 2) {
+                const [a, b] = [...snareUi.pointers.values()];
+                snareUi.pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y), z: snareUi.cam.z };
+            }
+        });
+        grid.addEventListener('pointermove', e => {
+            if (!snareUi.pointers.has(e.pointerId)) return;
+            const p = point(e);
+            snareUi.pointers.set(e.pointerId, p);
+            if (snareUi.pointers.size === 2 && snareUi.pinch) {
+                const [a, b] = [...snareUi.pointers.values()];
+                snareUi.moved = true;
+                zoomSnareTree(snareUi.pinch.z * Math.hypot(a.x - b.x, a.y - b.y) / snareUi.pinch.dist, (a.x + b.x) / 2, (a.y + b.y) / 2);
+                return;
+            }
+            const d = snareUi.drag;
+            if (!d) return;
+            const dx = p.x - d.start.x, dy = p.y - d.start.y;
+            if (!snareUi.moved && Math.hypot(dx, dy) < 5) return;
+            if (!snareUi.moved) grid.setPointerCapture(e.pointerId);
+            snareUi.moved = true;
+            snareUi.cam.x = d.x + dx;
+            snareUi.cam.y = d.y + dy;
+            applySnareCam();
+        });
+        const end = e => {
+            snareUi.pointers.delete(e.pointerId);
+            if (snareUi.pointers.size < 2) snareUi.pinch = null;
+            if (!snareUi.pointers.size) snareUi.drag = null;
+        };
+        grid.addEventListener('pointerup', end);
+        grid.addEventListener('pointercancel', end);
         grid.addEventListener('click', e => {
-            if (e.target.closest('.tree-node, .node-detail')) return;
+            if (snareUi.moved) { e.stopPropagation(); e.preventDefault(); snareUi.moved = false; }
+        }, true);
+        grid.addEventListener('click', e => {
+            if (e.target.closest('.tree-node, .node-detail, .tree-zoom')) return;
             snareUi.popup = false;
             placeSnarePopup();
         });
+        grid.addEventListener('wheel', e => {
+            if (e.target.closest('.node-detail')) return;
+            e.preventDefault();
+            const p = point(e);
+            zoomSnareTree(snareUi.cam.z * Math.exp(-e.deltaY * 0.0015), p.x, p.y);
+        }, { passive: false });
         new ResizeObserver(() => { if (snare.tree) layoutSnareTree(); }).observe(grid);
         $('snareTreeButton').addEventListener('click', openSnareTree);
         snareUi.built = true;
+    }
+
+    function applySnareCam() {
+        const c = snareUi.cam;
+        snareUi.inner.style.transform = `translate(${c.x}px, ${c.y}px) scale(${c.z})`;
+        placeSnarePopup();
+    }
+    // Zoom to `z` keeping the point (px, py) of the grid still (the middle by default).
+    function zoomSnareTree(z, px, py) {
+        const grid = $('snareTreeGrid');
+        const c = snareUi.cam;
+        px ??= grid.clientWidth / 2;
+        py ??= grid.clientHeight / 2;
+        z = Math.min(SNARE_ZOOM.max, Math.max(SNARE_ZOOM.min, z));
+        // the inner layer's origin sits at the grid's middle
+        const ox = grid.clientWidth / 2 + c.x, oy = grid.clientHeight / 2 + c.y;
+        const wx = (px - ox) / c.z, wy = (py - oy) / c.z;
+        c.z = z;
+        c.x = px - grid.clientWidth / 2 - wx * z;
+        c.y = py - grid.clientHeight / 2 - wy * z;
+        applySnareCam();
+    }
+    // Frame what's on the tree now (the nodes you can see), as close as fits, never under half size.
+    function fitSnareTree() {
+        const grid = $('snareTreeGrid');
+        const W = grid.clientWidth, H = grid.clientHeight;
+        if (!W || !H) return;
+        const cell = snareCell();
+        const shown = [{ x: 0, y: 0 }, ...E.SNARE_TREE.filter(up => !snareUi.nodes[up.id].hidden).map(up => up.snare)];
+        const xs = shown.map(c => c.x), ys = shown.map(c => c.y);
+        const bw = (Math.max(...xs) - Math.min(...xs) + 1.4) * cell, bh = (Math.max(...ys) - Math.min(...ys) + 1.4) * cell;
+        const z = Math.min(SNARE_ZOOM.max, Math.max(SNARE_ZOOM.min, Math.min(W / bw, H / bh)));
+        const cx = (Math.max(...xs) + Math.min(...xs)) / 2 * cell, cy = (Math.max(...ys) + Math.min(...ys)) / 2 * cell;
+        Object.assign(snareUi.cam, { z, x: -cx * z, y: -cy * z });
+        applySnareCam();
     }
 
     function openSnareTree() {
@@ -4081,6 +4286,8 @@ window.AGI = (function () {
     // The bay bar's Upgrades button (once a run has been made), with the tree's badge; mid-run the tree pauses the run.
     function renderSnareBar() {
         const b = $('snareTreeButton');
+        // The Training Cluster's Upgrades and Restart live in the same bar: never here.
+        if (openBay === 'pipeline') { setHidden($('treeButton'), true); setHidden($('restartButton'), true); }
         setHidden(b, openBay !== 'pipeline' || snare.tree || state.snare.runs < 1);
         const n = snareReadyCount();
         if (n) b.dataset.ready = n > 9 ? '9+' : String(n); else delete b.dataset.ready;
@@ -4089,23 +4296,21 @@ window.AGI = (function () {
         setHidden($('snareTreeClose'), !!inRun);
     }
 
-    // Cells: a 5 × 5 grid around the Lasso, sized to the grid's own box (it never depends on the popup).
+    // Cells: fixed, around the Lasso at the inner layer's origin; links from each node to what it grows from.
     function layoutSnareTree() {
         const grid = $('snareTreeGrid');
-        const W = grid.clientWidth, H = grid.clientHeight;
-        if (!W || !H) return;
-        const cell = Math.min(W / 5.2, H / 5.2, 112);
+        if (!grid.clientWidth || !snareUi.inner) return;
+        const cell = snareCell();
         grid.style.setProperty('--cell', cell + 'px');
-        // On a sideways phone the cells get small: the level badges (in the popup anyway) step aside.
-        grid.classList.toggle('tiny', cell < 52);
-        const pos = c => ({ x: W / 2 + c.x * cell, y: H / 2 + c.y * cell });
-        const put = (node, c) => { const p = pos(c); node.style.left = `${p.x}px`; node.style.top = `${p.y}px`; };
+        const put = (node, c) => { node.style.left = `${c.x * cell}px`; node.style.top = `${c.y * cell}px`; };
         put(snareUi.core, { x: 0, y: 0 });
         for (const up of E.SNARE_TREE) put(snareUi.nodes[up.id], up.snare);
         for (const { up, line } of snareUi.links) {
-            const a = pos(up.snare), b = pos(up.requires ? E.UPGRADE_BY_ID[up.requires].snare : { x: 0, y: 0 });
-            for (const [k, v] of Object.entries({ x1: b.x, y1: b.y, x2: a.x, y2: a.y })) line.setAttribute(k, v);
+            const b = up.requires ? E.UPGRADE_BY_ID[up.requires].snare : { x: 0, y: 0 };
+            for (const [k, v] of Object.entries({ x1: b.x * cell, y1: b.y * cell, x2: up.snare.x * cell, y2: up.snare.y * cell })) line.setAttribute(k, v);
         }
+        // A narrow tree (a phone) docks the popup along its foot instead of beside the node.
+        $('snareTreeDetail').classList.toggle('docked', grid.clientWidth < 560);
         placeSnarePopup();
     }
 
@@ -4131,6 +4336,7 @@ window.AGI = (function () {
         if (snareUi.fresh) {
             snareUi.fresh = false;
             layoutSnareTree();
+            fitSnareTree();
         }
         renderSnareDetail();
         placeSnarePopup();
@@ -4138,26 +4344,36 @@ window.AGI = (function () {
 
     // What the next level does to a run, "now → after", from the run's options with and without it (the Training
     // tree's nodePreview, for Packet Snare).
-    const SNARE_PREVIEW = {
-        snareFocus: ['focus', 'Focus', v => String(v)], snareBandwidth: ['maxMult', 'Multiplier cap', v => `×${v}`],
-        snareSprawl: ['area', 'Field', v => `${v} units²`], snareSchools: ['schoolSize', 'School size', v => String(v)],
-        snareObfuscation: ['avSpeed', 'Antivirus speed', v => `${Math.round(v * 100)}%`], snareGold: ['goldChance', 'Gold packets', v => `${Math.round(v * 100)}%`],
-        snareContain: ['contain', 'Edges', v => (v ? 'hold good packets' : 'let packets go')], snareHerders: ['herders', 'Herder drones', v => String(v)],
-        snareChain: ['chain', 'Arcs per catch', v => String(v)], snareScrubbers: ['scrubbers', 'Corrupt packets forgiven', v => String(v)],
-        snareScanner: ['scanner', 'Scanner beams', v => String(v)], snareLaser: ['laser', 'Laser', v => (v ? `every ${v} s` : 'none')],
-        snareEmitters: ['emitters', 'Packets per shot', v => String(v)], snareAnchors: ['anchors', 'Anchors', v => String(v)],
-        snareHardened: ['fwHits', 'Hits a Firewall takes', v => String(v)]
-    };
+    // What the next level does, "now → after", from the run's options with and without it: the first option it moves.
+    const pct = v => `${Math.round(v * 100)}%`;
+    const num1 = v => (Math.round(v * 10) / 10).toString();
+    const SNARE_OPT_LABEL = [
+        ['area', 'Field', v => `${Math.round(v)} units²`], ['focus', 'Focus', String], ['maxMult', 'Multiplier cap', v => `×${v}`],
+        ['maxWire', 'Wire length', v => `${Math.round(v)} units`], ['drawDrain', 'Drawing drain', v => `${num1(v)}/unit`], ['closeRadius', 'Start ring', pct],
+        ['focusBack', 'Focus back from a big loop', String], ['freeze', 'Freeze charges', String], ['freezeSeconds', 'Freeze', v => `${num1(v)} s`],
+        ['density', 'Packets', v => `${num1(v * 100)} per 100 units²`], ['goldChance', 'Gold packets', pct], ['tagValue', 'A tag', v => `×${v}`],
+        ['schoolSize', 'School size', String], ['contain', 'Edges', v => (v ? 'hold good packets' : 'let packets go')], ['herders', 'Herder drones', String],
+        ['herdRadius', 'Herder reach', v => `${num1(v)} units`], ['laser', 'Laser', v => (v ? `every ${num1(v)} s` : 'none')], ['emitters', 'Packets per shot', String],
+        ['turrets', 'Turrets', String], ['turretPurge', 'Turrets', v => (v ? 'also wipe corrupt packets' : 'take good packets')],
+        ['turretRange', 'Turret reach', v => `${num1(v)} units`], ['turretEvery', 'Turrets fire every', v => `${num1(v)} s`], ['scanner', 'Scanner beam', v => (v ? 'on' : 'none')],
+        ['scannerSpeed', 'Scanner sweep', v => `${num1(v)} rad/s`], ['towers', 'Scanner towers', String], ['towerRange', 'Tower reach', v => `${num1(v)} units`],
+        ['chain', 'Arcs per catch', String], ['chainRange', 'Arc reach', v => `${num1(v)} units`], ['scrubbers', 'Corrupt packets forgiven', String],
+        ['corruptShare', 'Corrupt packets', v => `${Math.round(v * 100)} per 100 good`], ['corruptLure', 'Corrupt pull to schools', pct], ['purge', 'Purge charges', String],
+        ['firewalls', 'Walls', String], ['wallLength', 'Longest wall', v => `${num1(v)} units`], ['fwHits', 'Hits a wall takes', String], ['decoys', 'Decoys', String],
+        ['decoyLure', 'Decoy pull', v => `${num1(v)} units`], ['avSpeed', 'Antivirus speed', pct], ['avStun', 'Antivirus stunned for', v => `${num1(v)} s`]
+    ];
     function snareNodePreview(up, lvl) {
-        const p = SNARE_PREVIEW[up.id];
-        if (!p) return null;
-        const opts = () => ({ ...window.PacketSnare.SNARE, ...E.snareOpts(state) });
-        const now = opts()[p[0]];
+        if (up.id === 'snareOverclock') return `Pay: ×${E.snareOverclock(state).toFixed(1)} → ×${(E.snareOverclock(state) + 0.1).toFixed(1)}`;
+        const now = E.snareOpts(state);
         const had = state.levels[up.id];
         state.levels[up.id] = lvl + 1;
-        const next = opts()[p[0]];
+        const next = E.snareOpts(state);
         if (had === undefined) delete state.levels[up.id]; else state.levels[up.id] = had;
-        return now === next ? null : `${p[1]}: ${p[2](now)} → ${p[2](next)}`;
+        for (const [key, label, f] of SNARE_OPT_LABEL) {
+            if (JSON.stringify(now[key]) === JSON.stringify(next[key])) continue;
+            return `${label}: ${f(now[key] ?? 0)} → ${f(next[key] ?? 0)}`;
+        }
+        return null;
     }
 
     // The popup, rebuilt only when its node, state or level changes (a rebuild between pointerdown and pointerup would
@@ -4215,126 +4431,80 @@ window.AGI = (function () {
         box.querySelector('.detail-icon').innerHTML = icon(SNARE_ICON[up.id] || 'spark');
     }
 
-    // Beside its node, flipping sides near the grid's edge, kept inside the grid.
+    // Beside its node, flipping sides near the grid's edge, kept inside the grid; docked along the foot on a phone.
     function placeSnarePopup() {
         const box = $('snareTreeDetail');
         const node = snare.pick && snareUi.nodes[snare.pick];
         const show = !!snareUi.popup && !!node && !node.hidden && snare.tree;
         box.hidden = !show;
-        if (!show) return;
+        if (!show || box.classList.contains('docked')) { box.style.left = box.style.top = ''; return; }
         const grid = $('snareTreeGrid');
+        const z = uiScale();
+        const g = grid.getBoundingClientRect(), r = node.getBoundingClientRect();
         const W = grid.clientWidth, H = grid.clientHeight;
-        const nx = parseFloat(node.style.left) || 0, ny = parseFloat(node.style.top) || 0;
-        const half = node.offsetWidth / 2;
-        const w = box.offsetWidth || 240, h = box.offsetHeight || 160;
-        // With room beside the whole grid (wide screens), the popup sits there, on the side away from the node, so it
-        // never covers the nodes next to it; otherwise beside the node, flipping near the edge.
-        const cell = parseFloat(grid.style.getPropertyValue('--cell')) || 80;
-        const gridHalf = 2.6 * cell;
-        let left;
-        if (W / 2 - gridHalf >= w + 8) left = nx <= W / 2 ? W / 2 + gridHalf + 4 : W / 2 - gridHalf - w - 4;
-        else {
-            left = nx + half + 12;
-            if (left + w > W - 4) left = nx - half - 12 - w;
-        }
+        const w = box.offsetWidth || 250, h = box.offsetHeight || 160;
+        let left = (r.right - g.left) / z + 12;
+        if (left + w > W - 4) left = (r.left - g.left) / z - w - 12;
         left = Math.max(4, Math.min(W - w - 4, left));
         box.style.left = `${left}px`;
-        box.style.top = `${Math.max(4, Math.min(H - h - 4, ny - h / 2))}px`;
+        box.style.top = `${Math.max(4, Math.min(H - h - 4, (r.top - g.top + r.height / 2) / z - h / 2))}px`;
     }
 
     // ---- Packet Snare's mechanic demos ---------------------------------------------------------------------
     // Like the Training tree's: a node that brings a new rule plays three seconds of the real thing in its popup before
-    // it's bought (packet-snare.js on a small still field, packets placed by hand, a scripted pen), drawn by the same
-    // layers as the bay.
-    const SNARE_DEMO = { w: 240, h: 112, fw: 6, fh: 2.8, period: 3.2 };
-    const ringPts = (cx, cy, rx, ry, n = 28) => Array.from({ length: n + 3 }, (_, i) => [cx + Math.cos(-Math.PI / 2 + i / n * Math.PI * 2) * rx, cy + Math.sin(-Math.PI / 2 + i / n * Math.PI * 2) * ry]);
-    const SNARE_DEMOS = {
-        chain: { text: 'Each catch arcs to good packets nearby', opts: { chain: 2 },
-            packets: [['good', 2, 1.3], ['good', 2.3, 1.6], ['good', 1.8, 1.7], ['good', 3.3, 1.2], ['good', 3.4, 1.9], ['good', 5, 1.4]], wire: [0.3, 1.4, ringPts(2.05, 1.5, 0.75, 0.7)] },
-        scrubbers: { text: 'A loop forgives a corrupt packet', opts: { scrubbers: 1 },
-            packets: [['good', 2.7, 1.2], ['good', 3.3, 1.3], ['corrupt', 3, 1.6], ['good', 2.8, 1.9], ['good', 3.3, 1.9]], wire: [0.3, 1.5, ringPts(3, 1.55, 0.95, 0.85)] },
-        scanner: { text: 'Packets the beam passes are worth ×2', opts: { scanner: 1, scannerSpeed: 2.2 },
-            packets: [['good', 1, 0.6], ['good', 4.6, 0.7], ['good', 1.5, 2.2], ['good', 4.2, 2.1], ['good', 3.6, 0.5], ['good', 2.2, 1.2]] },
-        laser: { text: 'A laser takes the richest packet by itself', opts: { laser: 0.9 },
-            packets: [['good', 1.2, 0.7], ['gold', 4.4, 1.0], ['good', 2.6, 1.6], ['good', 3.6, 2.0], ['good', 5.1, 0.6]] },
-        anchors: { text: 'Tap to place anchors: packets bounce off your Firewalls', opts: { anchors: 3 },
-            packets: [['good', 3, 1.3, 1.1, 0.4], ['good', 2.8, 1.6, -0.9, 0.5], ['corrupt', 4.9, 0.6, -0.8, 0.5]], taps: [[0.2, 1.4, 0.4], [0.5, 4.6, 0.4], [0.8, 3, 2.5]] },
-        contain: { text: 'The edges turn good packets back; corrupt ones leave', opts: { contain: 1, flow: true },
-            packets: [['good', 4.4, 0.8, 1.5, 0.2], ['good', 4.8, 1.6, 1.4, -0.1], ['corrupt', 4.6, 2.2, 1.4, 0.1], ['good', 4.1, 1.3, 1.6, 0]] },
-        lasso: { text: 'Loop the data; back at the start, it closes', opts: {},
-            packets: [['good', 2.6, 1.2], ['good', 3.1, 1.5], ['good', 2.7, 1.8], ['good', 4.9, 0.7], ['corrupt', 5, 2.2]], wire: [0.3, 1.6, ringPts(2.8, 1.5, 0.85, 0.8)] },
-        antivirus: { text: 'It hunts the open wire and snaps it', opts: { antivirus: [0], avPatrol: 2 },
-            packets: [['good', 3, 1.4], ['good', 3.4, 1.6]], wire: [0.6, 3.0, ringPts(3.2, 1.5, 1.1, 0.9, 40)] },
-        sweep: { text: 'Its edge flashes, then it sweeps: wires snap', opts: { sweepFirst: 0.4, sweepEvery: 99, sweepWarn: 0.7, sweepTime: 1.6 },
-            packets: [['good', 3, 1.4]], wire: [0.2, 3.0, ringPts(3, 1.4, 1.4, 0.9, 40)] },
-        boss: { text: 'Loop it tight while it reels to hit it', opts: { boss: 2, bossAt: 0, bossStun: 1.2 },
-            packets: [['good', 1, 0.6], ['good', 5.2, 2.3]], wire: [0.5, 1.5, ringPts(3, 1.4, 1.05, 1)], hold: { boss: [3, 1.4] } },
-        rogue: { text: 'Loop a core tight to quarantine it', opts: { rogue: 1, rogueFirst: 0.1, rogueEvery: 99, rogueGrow: 0.5 },
-            packets: [['good', 3.6, 1.4], ['good', 1.2, 0.7], ['good', 5, 2.1]], wire: [0.8, 1.9, ringPts(3, 1.4, 0.8, 0.75)], hold: { core: [3, 1.4] } },
-        herders: { text: 'Drones herd strays together', opts: { herders: 1 },
-            packets: [['good', 0.7, 0.5, 0.2, 0], ['good', 5.3, 2.3, -0.2, 0], ['good', 0.8, 2.3, 0.1, 0], ['good', 5.2, 0.5, 0, 0.1], ['corrupt', 3, 1.4, 0, 0]] }
-    };
-
-    function snareDemoStart(kind) {
-        const S = SNARE_DEMOS[kind];
-        const run = window.PacketSnare.createSnare({ seed: 11, w: SNARE_DEMO.fw, h: SNARE_DEMO.fh, density: 0, antivirus: [], idleDrain: 0, drawBase: 0, drawDrain: 0,
-            respawn: 1e9, corruptLure: 0, sweepFirst: Infinity, flow: false, schooling: 0, focus: 100, ...S.opts });
-        run.packets = [];
-        for (const [k, x, y, vx = 0, vy = 0] of S.packets) {
-            run.packets.push({ id: run.nextId++, kind: k, x, y, vx, vy, v: Math.hypot(vx, vy), r: window.PacketSnare.PACKET_R, age: 1, school: 0, tag: 0 });
-        }
-        return { kind, run, t: 0, fx: [], fed: 0, taps: 0 };
-    }
-
-    function snareDemoStep(sim, dt) {
-        const S = SNARE_DEMOS[sim.kind];
-        sim.t += dt;
-        if (S.wire) {
-            const [t0, t1, pts] = S.wire;
-            const upto = Math.min(pts.length, Math.floor((sim.t - t0) / (t1 - t0) * pts.length));
-            while (sim.fed < upto) sim.run.addPoint(...pts[sim.fed++]);
-            if (sim.fed >= pts.length && sim.run.drawing) sim.run.liftPen();
-        }
-        while (S.taps && sim.taps < S.taps.length && sim.t >= S.taps[sim.taps][0]) { const [, x, y] = S.taps[sim.taps++]; sim.run.tapAt(x, y); }
-        sim.run.step(dt);
-        // Some demos pin the thing they show (the boss reeling, a core) where the scripted loop goes.
-        if (S.hold?.boss && sim.run.boss) Object.assign(sim.run.boss, { x: S.hold.boss[0], y: S.hold.boss[1], vx: 0, vy: 0, stunned: sim.run.time + 1, charge: null });
-        if (S.hold?.core) for (const c of sim.run.cores) Object.assign(c, { x: S.hold.core[0], y: S.hold.core[1] });
-        for (const f of sim.fx) f.t += dt;
-        sim.fx = sim.fx.filter(f => f.t < (f.life || SNARE_FX));
-        for (const e of sim.run.takeEvents()) {
-            if (e.type === 'catch') {
-                sim.fx.push({ kind: 'catch', poly: e.poly, x: e.x, y: e.y, t: 0, text: `+${e.units.toFixed(e.units % 1 ? 1 : 0)}`, packets: e.packets, small: true });
-                if (e.chained.length) sim.fx.push({ kind: 'chain', arcs: e.chained, t: 0, life: 0.6, seed: 0.3 });
-            } else if (e.type === 'laser') {
-                sim.fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.45, text: `+${e.units}`, small: true, gold: e.kind === 'gold' });
-            } else if (e.type === 'snap') {
-                sim.fx.push({ kind: 'snap', wire: e.wire, x: e.x, y: e.y, t: 0, text: 'SNAPPED', life: 0.9, small: true });
-            } else if (e.type === 'quarantine' || e.type === 'bossHit' || e.type === 'bossDown') {
-                sim.fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: e.r || window.PacketSnare.BOSS_R, t: 0, life: 0.9, text: e.type === 'quarantine' ? 'QUARANTINED' : 'HIT', small: true });
-            }
-        }
+    // it's bought, and each hazard's first-meeting card plays its own. The scripts live in snare-demos.js (pure, and
+    // tested: each demo must show its payoff); drawn by the same layers as the bay.
+    const SNARE_DEMO = { w: 240, h: 112 };
+    // A run's event as an effect on the field (the bay and the demos share these).
+    function snareFxFor(e, fx, text = '') {
+        if (e.type === 'catch') {
+            fx.push({ kind: 'catch', poly: e.poly, x: e.x, y: e.y, t: 0, text, sub: e.mult >= 1.15 ? `×${e.mult.toFixed(1)}` : '', big: e.mult >= 2.5 || e.gold > 0 || e.chained.length > 2, packets: e.packets });
+            if (e.chained.length) fx.push({ kind: 'chain', arcs: e.chained, t: 0, life: 0.5, seed: e.x * 13.7 % 1 });
+        } else if (e.type === 'laser') fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.45, text, small: true, gold: e.kind === 'gold', turret: !!e.turret });
+        else if (e.type === 'zap') fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.4, text: 'WIPED', small: true, zap: true });
+        else if (e.type === 'corrupt') fx.push({ kind: 'corrupt', poly: e.poly, x: e.x, y: e.y, t: 0, text: 'CORRUPTED', packets: e.packets });
+        else if (e.type === 'empty') fx.push({ kind: 'empty', poly: e.poly, x: e.x, y: e.y, t: 0, life: 0.5 });
+        else if (e.type === 'snap') fx.push({ kind: 'snap', wire: e.wire, x: e.x, y: e.y, t: 0, text: 'SNAPPED', life: 0.9 });
+        else if (e.type === 'antivirus' || e.type === 'core') fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.8 });
+        else if (e.type === 'boss') fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 1.2, big: true });
+        else if (e.type === 'stolen' || e.type === 'wiped') fx.push({ kind: 'stolen', core: e.core || { x: e.x, y: e.y }, packets: e.packets, t: 0, life: 0.45 });
+        else if (e.type === 'coreGone') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: e.r, t: 0, life: 0.6 });
+        else if (e.type === 'quarantine') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: e.r, t: 0, life: 0.9, text: text || 'QUARANTINED', big: true });
+        else if (e.type === 'bossHit') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: window.PacketSnare.BOSS_R, t: 0, life: 0.7, text: `HIT · ${e.hp} left`, big: true });
+        else if (e.type === 'stun') {
+            fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'STUNNED', small: true });
+            if (e.down) fx.push({ kind: 'fwDown', a: e.a, b: e.b, t: 0, life: 0.7 });
+        } else if (e.type === 'purge') fx.push({ kind: 'purge', packets: e.packets, t: 0, life: 0.6 });
+        else if (e.type === 'decoyGone') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: 0.5, t: 0, life: 0.5 });
+        else if (e.type === 'place') fx.push({ kind: 'placed', x: e.x, y: e.y, t: 0, life: 0.5 });
     }
 
     function snareDemo(kind) {
-        if (!SNARE_DEMOS[kind]) return null;
+        const D = window.SnareDemos;
+        if (!D?.DEMOS[kind]) return null;
         const canvas = el('canvas', { class: 'mechanic-demo', 'aria-hidden': 'true' });
-        const wrap = el('figure', { class: 'demo' }, [canvas, el('figcaption', { text: SNARE_DEMOS[kind].text })]);
+        const wrap = el('figure', { class: 'demo' }, [canvas, el('figcaption', { text: D.DEMOS[kind].text })]);
         const dpr = Math.min(3, (window.devicePixelRatio || 1) * uiScale());
         canvas.width = SNARE_DEMO.w * dpr;
         canvas.height = SNARE_DEMO.h * dpr;
         const ctx = canvas.getContext('2d');
-        const k = Math.min(SNARE_DEMO.w / SNARE_DEMO.fw, SNARE_DEMO.h / SNARE_DEMO.fh);
-        let sim = null;
+        const k = Math.min(SNARE_DEMO.w / D.FIELD.w, SNARE_DEMO.h / D.FIELD.h);
+        let sim = null, fx = [];
         let last = performance.now();
+        const advance = dt => {
+            for (const e of D.step(sim, dt)) snareFxFor(e, fx, e.units ? `+${Math.round(e.units)}` : '');
+            for (const f of fx) f.t += dt;
+            fx = fx.filter(f => f.t < (f.life || SNARE_FX));
+        };
         const frame = now => {
+            // Gone from the page (its popup or card rebuilt): stop for good; hidden: look again in a while.
             if (!canvas.isConnected) return;
-            if (!canvas.offsetParent) return void setTimeout(() => requestAnimationFrame(frame), 500);
+            if (!canvas.offsetParent) return void setTimeout(() => canvas.isConnected && requestAnimationFrame(frame), 800);
             const dt = Math.min(0.05, (now - last) / 1000);
             last = now;
-            if (!sim || sim.t >= SNARE_DEMO.period) sim = snareDemoStart(kind);
-            if (reducedMotion()) { while (sim.t < 1.6) snareDemoStep(sim, 1 / 60); } else snareDemoStep(sim, dt);
-            drawSnareView(ctx, { run: sim.run, effects: sim.fx, k, ox: (SNARE_DEMO.w - SNARE_DEMO.fw * k) / 2, oy: (SNARE_DEMO.h - SNARE_DEMO.fh * k) / 2,
+            if (!sim || sim.t >= D.PERIOD) { sim = D.start(window.PacketSnare, kind); fx = []; }
+            if (reducedMotion()) { while (sim.t < 1.6) advance(1 / 60); } else advance(dt);
+            drawSnareView(ctx, { run: sim.run, effects: fx, k, ox: (SNARE_DEMO.w - D.FIELD.w * k) / 2, oy: (SNARE_DEMO.h - D.FIELD.h * k) / 2,
                 cw: SNARE_DEMO.w, ch: SNARE_DEMO.h, dpr, field: sim.run });
             if (!reducedMotion()) requestAnimationFrame(frame);
         };
@@ -4346,14 +4516,14 @@ window.AGI = (function () {
 
     // Drawn in layers, back to front, each a function of the view `d` (the context, colours, scale, run, effects), so the
     // field draws the same into the bay's canvas and a node's demo.
-    const SNARE_LAYERS = () => [drawSnareCurrent, drawSnareContain, drawSnareScanner, drawSnareCores, drawSnareFirewalls, drawSnareSweeps, drawSnareLoops, drawSnarePreview, drawSnarePackets, drawSnareHerders, drawSnareLasers, drawSnareChain, drawSnareWire, drawSnareWalls, drawSnareRogueFx, drawSnareSnaps, drawSnareAntivirus, drawSnareBoss, drawSnarePops];
+    const SNARE_LAYERS = () => [drawSnareCurrent, drawSnareContain, drawSnareScanner, drawSnareCores, drawSnareFirewalls, drawSnareSweeps, drawSnareLoops, drawSnarePreview, drawSnarePackets, drawSnareHerders, drawSnareLasers, drawSnareChain, drawSnareWire, drawSnareRogueFx, drawSnareSnaps, drawSnareAntivirus, drawSnareBoss, drawSnareFrozen, drawSnarePops];
     let snareMonoFont = '';
     const snareMono = () => (snareMonoFont ||= getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'monospace');
 
     function drawSnare() {
         if (!snare.ctx || !snare.cw) return;
         drawSnareView(snare.ctx, { run: snare.run, effects: snare.fx, k: snare.scale, ox: snare.ox, oy: snare.oy, cw: snare.cw, ch: snare.ch,
-            dpr: snare.canvas.width / snare.cw, field: snare.run || snareField(), touch: snare.touch });
+            dpr: snare.canvas.width / snare.cw, field: snare.run || snareField(), touch: snare.touch, wallFrom: snare.wallFrom });
     }
 
     function drawSnareView(ctx, v) {
@@ -4368,7 +4538,7 @@ window.AGI = (function () {
         ctx.translate(v.ox + jx, v.oy);
         const W = v.field.w, H = v.field.h;
         // The field: a faint grid, like a scope (a cell every unit, or every two on a big field).
-        const gstep = W * H > 200 ? 2 : 1;
+        const gstep = Math.max(1, Math.round(Math.sqrt(W * H) / 8));
         ctx.strokeStyle = C.border;
         ctx.globalAlpha = 0.4;
         ctx.lineWidth = 1;
@@ -4377,10 +4547,22 @@ window.AGI = (function () {
         for (let y = 0; y <= H + 1e-6; y += gstep) { ctx.moveTo(0, y * k); ctx.lineTo(W * k, y * k); }
         ctx.stroke();
         ctx.globalAlpha = 1;
+        // Its edge, always: packets leave over it (it used to show only with the Containment Field).
+        ctx.strokeStyle = C.border;
+        ctx.globalAlpha = 0.9;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(0.75, 0.75, W * k - 1.5, H * k - 1.5);
+        ctx.globalAlpha = 1;
         if (!run) { ctx.restore(); return; }
-        const d = { ctx, C, k, run, t: run.time, W, H, effects, cw: v.cw, ch: v.ch, ox: v.ox, oy: v.oy, touch: v.touch, minR: v.minR,
+        const d = { ctx, C, k, run, t: run.time, W, H, effects, cw: v.cw, ch: v.ch, ox: v.ox, oy: v.oy, touch: v.touch, minR: v.minR, wallFrom: v.wallFrom,
             pv: run.drawing && run.wire.length > 1 ? run.preview() : null };
+        // Everything stays on the field: circles, beams and wedges near an edge used to spill into the letterbox.
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, W * k, H * k);
+        ctx.clip();
         for (const layer of SNARE_LAYERS()) layer(d);
+        ctx.restore();
         ctx.restore();
     }
 
@@ -4393,7 +4575,7 @@ window.AGI = (function () {
             ctx.lineWidth = 1;
             ctx.globalAlpha = 0.12;
             ctx.beginPath();
-            const n = Math.round(W * H / 6);
+            const n = Math.min(200, Math.round(W * H / 6));
             for (let i = 0; i < n; i++) {
                 // fixed scattered lanes, each streak sliding along the current and wrapping round the field
                 const u = ((i * 0.618034) % 1), v = ((i * 0.381966 + 0.21) % 1);
@@ -4417,8 +4599,7 @@ window.AGI = (function () {
             ctx.strokeStyle = C.primary;
             ctx.lineWidth = 2;
             ctx.globalAlpha = 0.55 + 0.2 * Math.sin(t * 3);
-            ctx.shadowColor = C.primary;
-            ctx.shadowBlur = 10;
+            ctx.lineWidth = 3;
             ctx.strokeRect(1, 1, W * k - 2, H * k - 2);
             ctx.shadowBlur = 0;
             ctx.globalAlpha = 1;
@@ -4500,8 +4681,6 @@ window.AGI = (function () {
             ctx.translate(cx, cy);
             ctx.rotate(t * 2.5);
             ctx.fillStyle = C.danger;
-            ctx.shadowColor = C.danger;
-            ctx.shadowBlur = 14;
             const cs = Math.max(6, 0.28 * k);
             ctx.fillRect(-cs / 2, -cs / 2, cs, cs);
             ctx.shadowBlur = 0;
@@ -4514,71 +4693,139 @@ window.AGI = (function () {
     }
 
     function drawSnareFirewalls(d) {
-        const { ctx, C, k, run, t, W, H, effects, cw, pv } = d;
-        // Your Firewalls: green laser lines between the anchors (each joins the last; three or more close a pen, faintly
-        // filled). A line an Antivirus has taken down is gone; its anchors stay, ready to be moved.
-        const anchorsNow = run.anchors;
-        if (anchorsNow.length) {
-            const fws = run.firewallsUp();
-            if (anchorsNow.length >= 3 && fws.length === anchorsNow.length) {
-                ctx.beginPath();
-                anchorsNow.forEach((a, i) => (i ? ctx.lineTo(a.x * k, a.y * k) : ctx.moveTo(a.x * k, a.y * k)));
-                ctx.closePath();
-                ctx.globalAlpha = 0.06;
-                ctx.fillStyle = C.success;
-                ctx.fill();
-            }
-            ctx.globalAlpha = 0.9;
-            ctx.strokeStyle = C.success;
-            ctx.lineWidth = 3;
-            ctx.shadowColor = C.success;
-            ctx.shadowBlur = 10;
-            ctx.beginPath();
-            for (const f of fws) {
-                ctx.moveTo(f.a.x * k, f.a.y * k);
-                ctx.lineTo(f.b.x * k, f.b.y * k);
-            }
-            ctx.stroke();
-            ctx.shadowBlur = 0;
-            // a light pulse running along each line
-            ctx.globalAlpha = 0.9;
+        const { ctx, C, k, run, t, effects } = d;
+        // Your Firewalls: a white hatched band (a shield) between two amber posts (yours), its hits left as notches. A wall
+        // taken down breaks apart (fwDown).
+        const wallBand = (ax, ay, bx, by, alpha, dashed) => {
+            const L = Math.hypot(bx - ax, by - ay) || 1, ux = (bx - ax) / L, uy = (by - ay) / L, nx = -uy * 5, ny = ux * 5;
+            ctx.globalAlpha = 0.14 * alpha;
             ctx.fillStyle = C.text;
-            for (const f of fws) {
-                const u = (run.time * 0.8 + (f.a.id % 7) / 7) % 1;
-                ctx.beginPath();
-                ctx.arc((f.a.x + (f.b.x - f.a.x) * u) * k, (f.a.y + (f.b.y - f.a.y) * u) * k, 2, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.globalAlpha = 1;
-            for (const a of anchorsNow) {
-                ctx.save();
-                ctx.translate(a.x * k, a.y * k);
-                ctx.rotate(Math.PI / 4);
-                ctx.fillStyle = C.bg;
-                ctx.strokeStyle = C.success;
-                ctx.lineWidth = 2;
-                ctx.fillRect(-6, -6, 12, 12);
-                ctx.strokeRect(-6, -6, 12, 12);
-                ctx.restore();
-            }
-        }
-        // A firewall going down breaks apart.
-        for (const f of effects) {
-            if (f.kind !== 'fwDown') continue;
-            const a = 1 - f.t / f.life;
-            ctx.globalAlpha = a;
-            ctx.strokeStyle = C.success;
-            ctx.lineWidth = 2;
-            ctx.setLineDash([4, 6]);
-            ctx.lineDashOffset = -f.t * 40;
             ctx.beginPath();
-            ctx.moveTo(f.a.x * k, (f.a.y + f.t) * k);
-            ctx.lineTo(f.b.x * k, (f.b.y + f.t) * k);
+            ctx.moveTo(ax + nx, ay + ny); ctx.lineTo(bx + nx, by + ny); ctx.lineTo(bx - nx, by - ny); ctx.lineTo(ax - nx, ay - ny);
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 0.85 * alpha;
+            ctx.strokeStyle = C.text;
+            ctx.lineWidth = 1.5;
+            if (dashed) ctx.setLineDash([6, 5]);
+            ctx.beginPath();
+            for (let u = 0; u < L; u += 8) { ctx.moveTo(ax + ux * u - nx, ay + uy * u - ny); ctx.lineTo(ax + ux * Math.min(L, u + 5) + nx, ay + uy * Math.min(L, u + 5) + ny); }
+            ctx.moveTo(ax + nx, ay + ny); ctx.lineTo(bx + nx, by + ny);
+            ctx.moveTo(ax - nx, ay - ny); ctx.lineTo(bx - nx, by - ny);
             ctx.stroke();
             ctx.setLineDash([]);
-            ctx.lineDashOffset = 0;
+            ctx.fillStyle = C.warning;
+            ctx.globalAlpha = alpha;
+            for (const [px, py] of [[ax, ay], [bx, by]]) { ctx.beginPath(); ctx.arc(px, py, 4.5, 0, Math.PI * 2); ctx.fill(); }
+        };
+        for (const f of run.walls) {
+            if (f.hits >= run.opts.fwHits) continue;
+            wallBand(f.a.x * k, f.a.y * k, f.b.x * k, f.b.y * k, 1, false);
+            // hits left: amber notches by its first post
+            ctx.fillStyle = C.warning;
+            for (let i = 0; i < run.opts.fwHits - f.hits && run.opts.fwHits > 1; i++) ctx.fillRect(f.a.x * k - 6 + i * 5, f.a.y * k - 12, 3, 4);
+        }
+        // the wall being drawn: dashed, trimmed to the longest a wall may be
+        const w = d.wallFrom;
+        if (w) {
+            let bx = w.to.x, by = w.to.y;
+            const L = Math.hypot(bx - w.x, by - w.y), max = run.opts.wallLength * Math.sqrt(run.w * run.h / window.PacketSnare.FIELD_AREA);
+            if (L > max) { bx = w.x + (bx - w.x) * max / L; by = w.y + (by - w.y) * max / L; }
+            const full = run.walls.length >= run.opts.firewalls;
+            wallBand(w.x * k, w.y * k, bx * k, by * k, full ? 0.35 : 0.8, true);
+        }
+        // decoys: a hollow amber arrowhead with a pulse
+        for (const dc of run.decoys) {
+            const x = dc.x * k, y = dc.y * k, r = Math.max(6, 0.32 * k);
+            ctx.globalAlpha = 0.35 * (1 - ((t * 0.8) % 1));
+            ctx.strokeStyle = C.warning;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(x, y, r * (1 + 2 * ((t * 0.8) % 1)), 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x + r * 1.3, y); ctx.lineTo(x - r * 0.9, y + r * 0.9); ctx.lineTo(x - r * 0.45, y); ctx.lineTo(x - r * 0.9, y - r * 0.9);
+            ctx.closePath();
+            ctx.stroke();
+        }
+        // turrets: an amber base, its reach drawn faintly
+        for (const tu of run.turrets) {
+            const x = tu.x * k, y = tu.y * k, r = Math.max(7, 0.3 * k);
+            ctx.globalAlpha = 0.07;
+            ctx.fillStyle = C.warning;
+            ctx.beginPath();
+            ctx.arc(x, y, run.opts.turretRange * k, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = C.bg;
+            ctx.strokeStyle = C.warning;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; i ? ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r) : ctx.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r); }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = C.warning;
+            ctx.beginPath();
+            ctx.arc(x, y, r * 0.35, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        // scanner towers: a violet post with its short beam turning round it
+        for (const tw of run.towers) {
+            const x = tw.x * k, y = tw.y * k, R = run.opts.towerRange * k;
+            ctx.globalAlpha = 0.14;
+            ctx.fillStyle = C.research;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.arc(x, y, R, tw.ang - 0.45, tw.ang);
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 0.8;
+            ctx.strokeStyle = C.research;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + Math.cos(tw.ang) * R, y + Math.sin(tw.ang) * R);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = C.research;
+            ctx.fillRect(x - 4, y - 4, 8, 8);
         }
         ctx.globalAlpha = 1;
+        // a wall going down breaks apart; something placed flashes; a purge burns the corrupt packets away
+        for (const f of effects) {
+            const a = 1 - f.t / f.life;
+            if (f.kind === 'fwDown') {
+                ctx.globalAlpha = a;
+                ctx.strokeStyle = C.text;
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 6]);
+                ctx.lineDashOffset = -f.t * 40;
+                ctx.beginPath();
+                ctx.moveTo(f.a.x * k, (f.a.y + f.t) * k);
+                ctx.lineTo(f.b.x * k, (f.b.y + f.t) * k);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.lineDashOffset = 0;
+            } else if (f.kind === 'placed') {
+                ctx.globalAlpha = a;
+                ctx.strokeStyle = C.warning;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(f.x * k, f.y * k, (0.3 + f.t * 2) * k, 0, Math.PI * 2);
+                ctx.stroke();
+            } else if (f.kind === 'purge') {
+                ctx.fillStyle = C.danger;
+                for (const p of f.packets) {
+                    ctx.globalAlpha = a;
+                    ctx.beginPath();
+                    ctx.arc(p.x * k, (p.y - f.t * 0.8) * k, Math.max(2, 0.3 * k * a), 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
         ctx.globalAlpha = 1;
     }
 
@@ -4682,60 +4929,63 @@ window.AGI = (function () {
 
     function drawSnarePackets(d) {
         const { ctx, C, k, run, t } = d;
-        // Packets: a school of arrowheads swimming the way they head; gold ones glowing; tagged ones (the scanner's) lit
-        // violet; corrupt ones red and jagged, drawn last with a dark halo so they never hide inside a school. Never
-        // under 5 px across their middle, however big the field (a sprawl on a phone made them confetti).
+        // Packets: arrowheads swimming the way they head, in four batches (one path a colour: a datacentre's field holds
+        // hundreds, and a save/rotate/fill each was most of a frame): data blue, tagged violet (the scanner's), gold amber,
+        // corrupt red with a dark edge, drawn last so it never hides inside a school. Gold and tagged ones glow (a soft
+        // disc, capped in px). Never under 5 px across their middle, however big the field.
         const minR = d.minR ?? 5;
-        const order = [...run.packets.filter(p => p.kind !== 'corrupt'), ...run.packets.filter(p => p.kind === 'corrupt')];
-        for (const p of order) {
+        const paths = { good: new Path2D(), tag: new Path2D(), gold: new Path2D(), bad: new Path2D() };
+        const glow = { tag: new Path2D(), gold: new Path2D() };
+        const arrow = (path, x, y, ang, L, Wd) => {
+            const c = Math.cos(ang), sn = Math.sin(ang);
+            const pt = (u, v) => [x + u * c - v * sn, y + u * sn + v * c];
+            path.moveTo(...pt(L, 0)); path.lineTo(...pt(-L * 0.7, Wd)); path.lineTo(...pt(-L * 0.35, 0)); path.lineTo(...pt(-L * 0.7, -Wd)); path.closePath();
+        };
+        for (const p of run.packets) {
             const r = Math.max(minR, p.r * k);
-            const x = p.x * k, y = p.y * k;
-            const fade = Math.min(1, p.age / 0.4);
-            ctx.globalAlpha = fade;
-            ctx.save();
-            ctx.translate(x, y);
-            if (p.kind === 'corrupt') {
-                ctx.fillStyle = C.bg;
-                ctx.globalAlpha = fade * 0.75;
-                ctx.beginPath();
-                ctx.arc(0, 0, r * 1.45, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.globalAlpha = fade;
-                ctx.rotate(t * 1.5 + p.id);
-                ctx.fillStyle = C.danger;
-                ctx.beginPath();
-                for (let i = 0; i < 10; i++) {
-                    const rr = i % 2 ? r * 0.55 : r * 1.1;
-                    const a = i * Math.PI / 5;
-                    i ? ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
-                }
-                ctx.closePath();
-                ctx.fill();
-            } else {
-                const gold = p.kind === 'gold';
-                const tagged = p.tag > t;
-                if (gold || tagged) {
-                    // a soft glow (a translucent disc: shadowBlur on every one was costly)
-                    ctx.fillStyle = gold ? C.warning : C.research;
-                    ctx.globalAlpha = fade * 0.25;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, r * 2.1, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.globalAlpha = fade;
-                }
-                ctx.rotate(Math.atan2(p.vy, p.vx));
-                ctx.fillStyle = gold ? C.warning : tagged ? C.research : C.primary;
-                const L = gold ? r * 1.5 : r * 1.25, Wd = gold ? r * 0.9 : r * 0.7;
-                ctx.beginPath();
-                ctx.moveTo(L, 0);
-                ctx.lineTo(-L * 0.7, Wd);
-                ctx.lineTo(-L * 0.35, 0);
-                ctx.lineTo(-L * 0.7, -Wd);
-                ctx.closePath();
-                ctx.fill();
+            const x = p.x * k, y = p.y * k, ang = Math.atan2(p.vy, p.vx);
+            if (p.kind === 'corrupt') { arrow(paths.bad, x, y, ang, r * 1.25, r * 0.75); continue; }
+            const gold = p.kind === 'gold', tagged = p.tag > t;
+            const key = gold ? 'gold' : tagged ? 'tag' : 'good';
+            if (gold || tagged) {
+                const gr = Math.min(r * (gold ? 2.1 : 1.6), gold ? 18 : 10);
+                glow[key].moveTo(x + gr, y);
+                glow[key].arc(x, y, gr, 0, Math.PI * 2);
             }
-            ctx.restore();
+            arrow(paths[key], x, y, ang, gold ? r * 1.5 : r * 1.25, gold ? r * 0.9 : r * 0.7);
         }
+        ctx.globalAlpha = 0.14;
+        ctx.fillStyle = C.research;
+        ctx.fill(glow.tag);
+        ctx.globalAlpha = 0.25;
+        ctx.fillStyle = C.warning;
+        ctx.fill(glow.gold);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = C.primary;
+        ctx.fill(paths.good);
+        ctx.fillStyle = C.research;
+        ctx.fill(paths.tag);
+        ctx.fillStyle = C.warning;
+        ctx.fill(paths.gold);
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = C.bg;
+        ctx.stroke(paths.bad);
+        ctx.fillStyle = C.danger;
+        ctx.fill(paths.bad);
+    }
+
+    // Frozen: the field goes cold and still, a faint frost over it.
+    function drawSnareFrozen(d) {
+        const { ctx, C, k, run, W, H } = d;
+        if (!run.frozen?.()) return;
+        const left = (run.frozenUntil - run.time) / Math.max(0.1, run.opts.freezeSeconds);
+        ctx.globalAlpha = 0.12 + 0.08 * left;
+        ctx.fillStyle = C.primary;
+        ctx.fillRect(0, 0, W * k, H * k);
+        ctx.globalAlpha = 0.7;
+        ctx.strokeStyle = C.primary;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(1.5, 1.5, W * k - 3, H * k - 3);
         ctx.globalAlpha = 1;
     }
 
@@ -4851,9 +5101,7 @@ window.AGI = (function () {
             if (f.kind !== 'laser') continue;
             const a = 1 - f.t / f.life;
             ctx.globalAlpha = a;
-            ctx.strokeStyle = C.warning;
-            ctx.shadowColor = ctx.strokeStyle;
-            ctx.shadowBlur = 10;
+            ctx.strokeStyle = f.zap ? C.text : C.warning;
             ctx.lineWidth = 3 * a + 1;
             ctx.beginPath();
             ctx.moveTo(f.from.x * k, f.from.y * k);
@@ -4872,8 +5120,6 @@ window.AGI = (function () {
             const a = 1 - f.t / f.life;
             ctx.globalAlpha = a;
             ctx.strokeStyle = C.text;
-            ctx.shadowColor = C.primary;
-            ctx.shadowBlur = 8;
             ctx.lineWidth = 2;
             let seed = Math.floor(f.seed * 1e6) + Math.floor(f.t * 30);
             const jit = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280 - 0.5; };
@@ -4903,8 +5149,9 @@ window.AGI = (function () {
             ctx.lineJoin = 'round';
             const n = run.wire.length;
             // In five bands, each one path, fading toward the tail (a stroke per segment was up to 360 strokes a frame).
-            ctx.strokeStyle = hunted ? C.accent : C.success;
-            ctx.lineWidth = 2.5;
+            // White (your Firewalls are white and amber, catches blue): while an Antivirus hunts it, it pulses.
+            ctx.strokeStyle = C.text;
+            ctx.lineWidth = hunted ? 2.5 + Math.sin(d.t * 18) : 2.5;
             const bands = 5;
             for (let band = 0; band < bands; band++) {
                 const from = Math.floor(band * (n - 1) / bands), to = Math.floor((band + 1) * (n - 1) / bands);
@@ -4958,32 +5205,6 @@ window.AGI = (function () {
                 ctx.fillStyle = pv.spoiled ? C.danger : C.success;
                 ctx.fillText(label, lx, ly);
             }
-        }
-        ctx.globalAlpha = 1;
-    }
-
-    function drawSnareWalls(d) {
-        const { ctx, C, k, run } = d;
-        // Shield walls: a white band hatched across, edge to edge, fading out in its last second and a half (in the
-        // packets' blue it read as part of the stream).
-        for (const wl of run.walls) {
-            const a = Math.min(1, (wl.until - run.time) / 1.5);
-            const ax = wl.a.x * k, ay = wl.a.y * k, bx = wl.b.x * k, by = wl.b.y * k;
-            const L = Math.hypot(bx - ax, by - ay) || 1, ux = (bx - ax) / L, uy = (by - ay) / L, nx = -uy * 6, ny = ux * 6;
-            ctx.globalAlpha = 0.16 * a;
-            ctx.fillStyle = C.text;
-            ctx.beginPath();
-            ctx.moveTo(ax + nx, ay + ny); ctx.lineTo(bx + nx, by + ny); ctx.lineTo(bx - nx, by - ny); ctx.lineTo(ax - nx, ay - ny);
-            ctx.closePath();
-            ctx.fill();
-            ctx.globalAlpha = 0.8 * a;
-            ctx.strokeStyle = C.text;
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            for (let u = 0; u < L; u += 9) { ctx.moveTo(ax + ux * u - nx, ay + uy * u - ny); ctx.lineTo(ax + ux * (u + 6) + nx, ay + uy * (u + 6) + ny); }
-            ctx.moveTo(ax + nx, ay + ny); ctx.lineTo(bx + nx, by + ny);
-            ctx.moveTo(ax - nx, ay - ny); ctx.lineTo(bx - nx, by - ny);
-            ctx.stroke();
         }
         ctx.globalAlpha = 1;
     }

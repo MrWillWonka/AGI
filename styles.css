@@ -1585,6 +1585,9 @@ body.calm .ending-lines p { animation: none; opacity: 1; }
 /* Data Pipeline: a disk array of drive caddies. */
 .bay[data-bay="pipeline"] .bay-art { grid-template-columns: repeat(8, 1fr); grid-auto-rows: 16px; }
 .bay[data-bay="pipeline"] .bay-art .snare-lane { grid-column: span 2; grid-row: span 3; width: 100%; height: 100%; border-radius: 3px; background: color-mix(in srgb, var(--bg) 80%, black); border: 1px solid var(--border); }
+.bay[data-bay="pipeline"] .bay-art .snare-lane { position: relative; overflow: hidden; }
+.snare-lane canvas { display: block; width: 100%; height: 100%; }
+.snare-lane-cap { position: absolute; left: 4px; top: 2px; font: 600 0.55rem var(--font-mono); color: var(--muted); letter-spacing: 0.04em; pointer-events: none; }
 .bay[data-bay="pipeline"] .bay-art i {
     background: linear-gradient(90deg, var(--panel-2) 70%, var(--bg) 70%);
     box-shadow: inset -4px 0 0 -2px var(--primary), inset 0 0 0 1px var(--border);
@@ -3304,7 +3307,7 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 /* ---- Packet Snare (the Data Pipeline bay): draw a wire, close a loop round the packets ---- */
 .snare-canvas { touch-action: none; cursor: crosshair; }
 .snare-view > .canvas-wrap { user-select: none; -webkit-user-select: none; }
-.snare-stats .snare-signal { border-color: color-mix(in srgb, var(--warning) 50%, transparent); color: var(--warning); }
+.snare-stats .snare-signal { border-color: color-mix(in srgb, var(--signal) 50%, transparent); color: var(--signal); }
 /* The data shows once: during a run the HUD carries the haul, so the bank waits. */
 .snare-hud:not([hidden]) ~ .snare-signal { display: none; }
 .snare-stats { min-height: 28px; }
@@ -3315,10 +3318,10 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 .snare-focus-fill { height: 100%; width: 100%; border-radius: inherit; background: var(--primary); transform-origin: left; transition: background 0.2s; }
 .snare-focus-fill.low { background: var(--danger); }
 .snare-focus-text { color: var(--muted); white-space: nowrap; }
-.snare-haul { margin-left: auto; color: var(--warning); white-space: nowrap; }
+.snare-haul { margin-left: auto; color: var(--signal); white-space: nowrap; }
 .snare-card[hidden] { display: none; }
 .snare-card { max-height: calc(100% - 16px); overflow-y: auto; overscroll-behavior: contain; }
-.snare-card .result-xp { color: var(--primary); }
+.snare-card .result-xp { color: var(--signal); }
 .snare-card .result-actions .button { flex: 1; }
 /* No sprint controls under the field: on upright phones it takes the height the trail's controls would. */
 @media (max-width: 640px) and (min-height: 501px) {
@@ -3336,13 +3339,12 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 .snare-tree-title { margin-right: auto; font: 700 0.85rem var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .snare-intro-line { margin: 6px 0 2px; font-size: 0.86rem; }
 .snare-card .demo { margin: 6px auto 0; width: 240px; max-width: 100%; }
-.snare-tree-grid { position: relative; min-height: 0; overflow: hidden; --cell: 80px; }
+.snare-tree-grid { position: relative; min-height: 0; overflow: hidden; --cell: 96px; touch-action: none; cursor: grab; }
+.snare-tree-inner { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-origin: 0 0; }
 .snare-tree-grid .tree-links line { stroke-width: 2.5; }
 .snare-tree-grid .tree-node { width: calc(var(--cell) * 0.56); }
 .snare-tree-grid .tree-node.seed { width: calc(var(--cell) * 0.5); pointer-events: none; }
 .snare-tree-grid .tree-level { font-size: 0.58rem; }
-.snare-tree-grid.tiny .tree-level { display: none; }
-.snare-tree-grid.tiny .tree-node { width: calc(var(--cell) * 0.64); }
 .snare-tree-grid .node-detail { width: 250px; max-height: calc(100% - 8px); }
 .snare-upgrades { position: relative; overflow: visible; }
 @media (max-width: 640px) {
@@ -3358,4 +3360,41 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
     .snare-card .demo figcaption { display: none; }
     .snare-card .snare-intro-line { font-size: 0.78rem; margin: 2px 0; }
     .snare-card .result-main { font-size: 1rem; }
+}
+
+/* Packet Snare 7. Signal has one colour everywhere (the chip, the HUD, the card). */
+:root { --signal: var(--warning); }
+/* The tool bar under the field: the lasso, what you place (count used / slots) and powers (charges left). */
+.snare-tools { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; width: min(100%, 1360px); margin: 6px auto 0; }
+.snare-tools[hidden] { display: none; }
+.snare-tool { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--text); font: 600 0.8rem var(--font-body); cursor: pointer; }
+.snare-tool-icon svg { width: 18px; height: 18px; display: block; }
+.snare-tool-count { font: 600 0.72rem var(--font-mono); color: var(--muted); }
+.snare-tool.on { border-color: var(--warning); box-shadow: 0 0 0 1px var(--warning) inset; color: var(--warning); }
+.snare-tool.power { border-style: dashed; }
+.snare-tool.spent { opacity: 0.45; }
+@media (hover: hover) { .snare-tool:hover { border-color: var(--warning); } }
+@media (max-width: 640px) { .snare-tool-name { display: none; } .snare-tool { padding: 4px 8px; } }
+/* The tree's popup docks along the foot of a narrow tree, its buy button always in view. */
+.snare-tree-grid .node-detail.docked { left: 6px; right: 6px; bottom: 6px; top: auto; width: auto; max-height: 62%; }
+.snare-tree-grid .node-detail .detail-buy { position: sticky; bottom: -14px; }
+.snare-tree-grid .tree-zoom { z-index: 3; }
+/* First-meeting cards are tips (the green ↻ header), not a run's card; their button stays in view on short screens. */
+.snare-card.snare-intro { border-color: color-mix(in srgb, var(--success) 70%, transparent); }
+.snare-card.snare-intro .result-title { color: var(--success); }
+.snare-card .result-actions { position: sticky; bottom: -18px; padding: 8px 0 2px; background: color-mix(in srgb, var(--bg) 95%, transparent); }
+/* The rack's Packet Snare badge sits inside the tile (it was clipped by the bay's edge). */
+.bay[data-ready]::after { top: 8px; right: 8px; z-index: 3; }
+/* The field uses the bay's height on desktop (it sat in a 448 px strip with empty floor under it). */
+@media (min-width: 961px) {
+    .snare-view > .canvas-wrap { height: clamp(300px, calc(100dvh / var(--zoom, 1) - var(--topbar-h, 60px) - 215px), 820px); }
+}
+@media (max-width: 640px) and (min-height: 501px) {
+    .snare-view > .canvas-wrap { height: max(240px, calc(100dvh - var(--topbar-h, 100px) - var(--bay-bar-h, 39px) - 196px)); }
+}
+@media (pointer: coarse) and (max-height: 500px) {
+    .snare-view > .canvas-wrap { height: clamp(120px, calc(100dvh - 204px), 600px); }
+    .snare-tools { margin-top: 2px; }
+    .snare-tool { min-height: 30px; }
 }
