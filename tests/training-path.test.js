@@ -957,3 +957,28 @@ test('saves before v18 move onto the doubled act one: the same frontier skill, l
     assert.equal(E.migrate({ version: 17, path: { learned: 0 } }, NOW).path.learned, 0);
     assert.equal(E.migrate({ version: 18, path: { learned: 3 } }, NOW).path.learned, 3);
 });
+
+test('demo: act two is locked behind a gate past In-Context Learning', () => {
+    const s = E.defaultState(0);
+    assert.equal(E.ACT_TWO_LOCKED, true, 'the demo build locks act two (set false to open it)');
+    s.path.learned = 12;
+    assert.equal(E.frontierLeg(s), 12, 'In-Context Learning is still the frontier');
+    assert.equal(E.actTwoLocked(s), false);
+    s.path.learned = 13;
+    assert.equal(E.frontierLeg(s), 12, 'once learned, runs stay on its leg');
+    assert.equal(E.actTwoLocked(s), true);
+    assert.equal(E.endingPhase(), 1, 'the demo ends at General AI');
+    // A run that passes the gate ends there, paid as the whole last leg.
+    const gate = T.checkpoint(13) + 0.6;
+    const roll = T.createRoll(12, 7, { pushes: 50, cooldown: 0, onward: true, last: 12, endAt: gate });
+    roll.ball.x = T.skillHill(12).end;
+    let end = null;
+    for (let i = 0; i < 4000 && !end; i++) {
+        roll.push(4);
+        end = roll.step(0.05).find(e => e.type === 'end');
+    }
+    assert.ok(end, 'the run ends');
+    assert.ok(roll.ball.x <= gate + 0.5, 'at the gate, not past it');
+    assert.equal(end.leg, 12);
+    assert.equal(end.progress, 1, 'paid as the whole last leg');
+});

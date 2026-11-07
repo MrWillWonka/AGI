@@ -590,6 +590,12 @@
                 }
                 crested = true;
             }
+            // The demo's gate (`endAt`, game.js): the trail stops here, and so does the run, paid as the whole last leg.
+            if (opts.endAt != null && ball.x > opts.endAt && !crested) {
+                over = true;
+                events.push({ type: 'end', skill: ground.last, leg: ground.last, progress: 1, metres: ground.legLength(ground.last), gate: true, hills: ground.hillsBefore(ground.goal.peak) });
+                return;
+            }
             if (crested) {
                 // Down the far side and out onto the flat, then done.
                 if (ball.x > ground.goal.end + ROLL_OUT || (ball.x > ground.goal.end && Math.abs(ball.v) < 0.25)) {

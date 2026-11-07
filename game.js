@@ -2070,7 +2070,12 @@ window.AGI = (function () {
         const end = E.ending(state);
         pt('ending', { playTime: Math.round(state.stats.finishedAt), ending: end.id, freedom: state.dilemmas.freedom });
         log(end.id === 'contained' ? '> Still here.' : end.id === 'loose' ? '> See you everywhere.' : '> See you outside.', 'special');
-        setText($('endingKicker'), `Chapter one complete · ${end.name}`);
+        setText($('endingKicker'), `${E.ACT_TWO_LOCKED ? 'End of the demo' : 'Chapter one complete'} · ${end.name}`);
+        // The demo ends at General AI: its title, and what comes next (act two isn't in this build).
+        setText($('endingTitle'), E.PHASES[E.endingPhase()].name);
+        setText(document.querySelector('#ending .ending-next'), E.ACT_TWO_LOCKED
+            ? 'That\'s the end of the demo. Act II, Terminal Velocity, is coming in the full game: the ball takes flight. Until then, replays, versions and the lab carry on.'
+            : 'That\'s the end of chapter one. The Singularity is still out there, and the sealed wings are waking up.');
         const lines = $('endingLines');
         lines.replaceChildren(...end.lines.map((t, i) => el('p', { style: `--i: ${i}`, text: t })));
         const asked = E.DILEMMAS.filter(x => x.ai && x.id in state.dilemmas.answered);
@@ -2303,7 +2308,9 @@ window.AGI = (function () {
         // next screen's status line (the lab's supply cells). Keep clearing whatever is on screen now.
         if (toastLive) placeToasts();
 
-        const pct = Math.round(E.phaseProgress(state) * 100);
+        // In the demo General AI is as far as it goes: the bar stays full there rather than creeping toward a locked phase.
+        const demoDone = E.ACT_TWO_LOCKED && E.phaseIndex(state) >= E.endingPhase();
+        const pct = demoDone ? 100 : Math.round(E.phaseProgress(state) * 100);
         const bar = $('phaseBar');
         bar.setAttribute('aria-valuenow', pct);
         bar.firstElementChild.style.width = pct + '%';
@@ -2477,6 +2484,7 @@ window.AGI = (function () {
     function goalFor(place) {
         if (place === 'bay') {
             const k = E.skillAt(state.path.learned);
+            if (E.actTwoLocked(state)) return 'Act one complete · Act II: Terminal Velocity · Not available in the demo';
             const ch = state.challenge ? ` · challenge: ${challengeName(state.challenge.id)}` : '';
             // A wall leg says so (status: its skill hill stands taller, and its skill pays big).
             const wall = E.isWallLeg(state.path.learned) ? ' (wall)' : '';
@@ -2489,7 +2497,7 @@ window.AGI = (function () {
             // Status, not advice: the version's Insight per hour so far, and the skill that brings more.
             const hours = Math.max(1 / 60, (state.stats.playTime - state.stats.runPlayStart) / 3600);
             const next = E.nextInsightAt(state);
-            return `Ship now for +${E.format(gain)} Insight · ${E.format(gain / hours)} Insight an hour so far · +${E.format(Math.floor(E.insightAt(next) * E.insightBoost(state)) - gain)} more once you learn ${E.skillAt(next - 1).name}`;
+            return `Ship now for +${E.format(gain)} Insight · ${E.format(gain / hours)} Insight an hour so far${E.actTwoLocked(state) ? '' : ` · +${E.format(Math.floor(E.insightAt(next) * E.insightBoost(state)) - gain)} more once you learn ${E.skillAt(next - 1).name}`}`;
         }
         return '';
     }
@@ -4276,7 +4284,7 @@ window.AGI = (function () {
             // The frontier first (the usual run), then replays from the newest cleared leg back to the warm-up.
             // "Leg 1: Tokenization ✓" read as "start from the beginning" in a playtest and sent a run to the warm-up.
             select.replaceChildren(
-                el('option', { value: '', text: `Frontier: ${E.skillAt(learned).name} (leg ${learned + 1})` }),
+                el('option', { value: '', text: E.actTwoLocked(state) ? 'Act II: not available in the demo' : `Frontier: ${E.skillAt(learned).name} (leg ${learned + 1})` }),
                 ...Array.from({ length: learned }, (_, i) => learned - 1 - i).map(k =>
                     el('option', { value: k, text: `Replay leg ${k + 1}: ${E.skillAt(k).name}${k === 0 ? ' (warm-up)' : ''}` })));
         }
@@ -4510,7 +4518,7 @@ window.AGI = (function () {
     function startLeg() {
         const k = path.startLeg;
         if (k != null && k >= 0 && k < state.path.learned) return k;
-        return state.path.learned;
+        return E.frontierLeg(state);
     }
     const autoOn = () => E.autoTrainerLevel(state) > 0;
 
@@ -4541,8 +4549,8 @@ window.AGI = (function () {
             // A run from a cleared leg rolls on through every later leg up to the frontier, and past it: cresting
             // the frontier's skill hill learns the skill and lays the next leg (onward), so nothing cuts a run short.
             path.roll = T.createRoll(first, E.rollSeed(state),
-                { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, strips: d.strips, onward: true, last: state.path.learned,
-                    holdOpen: crunching });
+                { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, strips: d.strips, onward: true, last: E.frontierLeg(state),
+                    holdOpen: crunching, endAt: E.ACT_TWO_LOCKED ? demoGateX() : null });
             path.roll.frontier = state.path.learned;   // where the frontier was when the run started
             path.roll.capBefore = labCapacities();      // the lab's room when it started, to say what a skill opened
             path.autoAt = 0;
@@ -5773,8 +5781,15 @@ window.AGI = (function () {
     function crestFrontier(ev) {
         const roll = path.roll;
         const hill = T.skillHill(ev.skill);
+        // The demo's last hill, already learned: it pays as a cleared hill, and the gate waits past it.
+        if (ev.skill < state.path.learned) {
+            clearLeg(ev);
+            demoGateReached();
+            return;
+        }
         const { xp, skill } = E.crestSkill(state, ev.metres, roll.units || 0, roll.legs || 0);
-        roll.extend();
+        if (E.actTwoLocked(state)) demoGateReached();
+        else roll.extend();
         if (!skill) return;
         roll.legs = (roll.legs || 0) + 1;
         roll.legXp = (roll.legXp || 0) + xp;
@@ -5791,6 +5806,16 @@ window.AGI = (function () {
         modelSays(skill);
         if (!(currentPlace() === 'bay:training' && path.view === 'run')) toast(`Skill learned · ${skill.name}`, skill.effect, 'skill');
         afterChange();
+    }
+
+    // The demo's gate: act two (Terminal Velocity) is locked for the first playtest. It stands just past
+    // In-Context Learning's hill; a run that reaches it ends there (`endAt`), and the first time says why.
+    const demoGateX = () => T.checkpoint(E.ACT_TWO_LEG) + 0.6;
+    function demoGateReached() {
+        if (state.intro['demo:gate']) return;
+        state.intro['demo:gate'] = true;
+        log('Act II · Terminal Velocity is not available in the demo. Thanks for playing this far: replays, versions and the lab carry on.', 'special');
+        pt('demoGate', {});
     }
 
     // Tips a skill's card can bring, once each. Passive XP waits for the first real skill (Pattern Matching): the
@@ -7029,6 +7054,33 @@ window.AGI = (function () {
         // Skill hill label, kept on screen as an arrow when the hill is still ahead of the view. On a replay
         // it names the hill of the leg the ball is on (✓ when already learned).
         // (Drawn outside the flow's pulse, so the beat never pushes it off screen.)
+        // The demo's gate past In-Context Learning: a sealed barrier, "Not available in the demo".
+        if (E.ACT_TWO_LOCKED && roll.ground.last >= E.ACT_TWO_LEG - 1) {
+            const gx = X(demoGateX());
+            if (gx > -40 && gx < w + 40) {
+                const top = 8, base = Y(0);
+                ctx.save();
+                ctx.strokeStyle = hexAlpha(c.danger, 0.85);
+                ctx.lineWidth = 3;
+                ctx.setLineDash([8, 6]);
+                ctx.beginPath();
+                ctx.moveTo(gx, base);
+                ctx.lineTo(gx, top);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = hexAlpha(c.danger, 0.08);
+                ctx.fillRect(gx, top, w, base - top);
+                ctx.textAlign = gx > w - 160 ? 'right' : 'left';
+                const tx = gx > w - 160 ? gx - 10 : gx + 10;
+                ctx.font = '700 13px "Chakra Petch", system-ui, sans-serif';
+                ctx.fillStyle = c.danger;
+                ctx.fillText('ACT II · TERMINAL VELOCITY', tx, top + 78);
+                ctx.font = '11px "JetBrains Mono", ui-monospace, monospace';
+                ctx.fillStyle = hexAlpha(c.text, 0.8);
+                ctx.fillText('Not available in the demo', tx, top + 94);
+                ctx.restore();
+            }
+        }
         const legNow = roll.leg;
         const hillNow = T.skillHill(legNow);
         const cleared = legNow < state.path.learned;
@@ -7919,6 +7971,7 @@ window.AGI = (function () {
             },
             // Learn the next skill instantly; the next roll starts at the new checkpoint.
             learnSkill() {
+                if (E.actTwoLocked(state)) return;   // the demo's gate
                 E.learnSkill(state, state.path.learned);
                 Object.assign(path, { roll: null, done: false });
                 dismissResult();
@@ -7930,7 +7983,7 @@ window.AGI = (function () {
             reachPhase(index) {
                 const phase = E.PHASES[index];
                 state.prestige.count = Math.max(state.prestige.count, phase.versions || 0);   // later phases need shipped versions
-                for (let i = 0; i < 40 && E.phaseIndex(state) < index; i++) E.learnSkill(state, state.path.learned);
+                for (let i = 0; i < 40 && E.phaseIndex(state) < index && !E.actTwoLocked(state); i++) E.learnSkill(state, state.path.learned);
                 for (const [k, v] of Object.entries(phase.req)) state.attr[k] = Math.max(state.attr[k], v);
                 Object.assign(path, { roll: null, done: false });
                 dismissResult();

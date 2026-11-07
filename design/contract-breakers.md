@@ -55,16 +55,20 @@ the second on ↓/S). Each ability's first node is a mechanic hexagon with its d
 | OCR (6) | **Hallucinate a bridge** | hold at a crest: a bridge grows forward; release to make it solid | longer reaches further, but past the meter's red edge it's a hallucination and dissolves under you (the sprint meter's risk, in space) | released at the edge: a gold bridge that boosts |
 | Sentiment Analysis (8) | **Temperature** | press during a sprint charge: a needle sweeps cold → hot (×0.5 … ×2.2); press again to stop it | stopping it on the narrow hot band | ×2.2 and a heat burst; a miss on the cold end weakens the sprint |
 | Summarization (10) | **Early stop** | on a crest, press to end the run and cash out | only on a crest (a pulsing ring); the higher and nearer its top, the more it pays (×1.2 to ×2) | dead on the crest's top: ×2 and a "TL;DR" stamp |
-| In-Context Learning (12) | **Slingshot** | your best run races as a ghost; ride its draft (less drag) and press to slingshot past | press while in the draft (within 1.5 m behind it) | at the edge of the draft: the slingshot doubles |
+| In-Context Learning (12) | **Copy-paste** (learning from the example in front of it) | press on a downhill to copy its slope; press again at the foot of a climb to paste it there: the climb becomes that downhill | copy at the steepest point of the descent (the steeper the copy, the faster the paste); paste at the climb's foot, not halfway up | copied at the very steepest point: the pasted slope gains a boost strip |
 
 Later exploits on the same button: **Rewind** (press while rolling back off a failed climb: 3 s back, the sprint refunded; the
 skill check is how soon you press), **Gradient flip** (hold: gravity flips, draining a gauge; let go before you crest or you're
 pulled back), **Reward hack** (at a skill hill's foot a seam flickers on its face; a press exactly on the seam clips through and
 learns the skill unearned, the AI gloats by email and gains freedom; miss and you bounce off; rare, late, one per run).
 
-**Cliffs and strength** fit this: a cliff's rating is what a sprint on its face needs, and a Hop before the face is the skilled way
-over a cliff you're not strong enough for yet. The leg characters give each ability terrain where it shines: Hop on Cliffs, Dropout
-on Rolling, Bridges on Marathons' wide valleys, Slingshot on Long flats.
+**Cliffs** fit this: a Hop before the face is the skilled way over a cliff you can't yet power up. The leg characters give each ability terrain where it shines: Hop on Cliffs, Dropout
+on Rolling, Bridges on Marathons' wide valleys, Copy-paste on Marathons and walls (copy a long descent, paste it over the climb that matters).
+
+*Slingshot* (racing your best run's ghost, drafting and passing it) was the first idea for In-Context Learning; the owner wasn't
+sure about it, so it's parked. Other candidates for that slot: **Few-shot echo** (press on the beat of your last sprint's release
+to repeat it free) or **Prompt injection** (press as the ball crosses a hill's crest to rewrite the next hill's height: hold to set
+it, like a sprint meter).
 
 **The Auto-Trainer** never uses abilities: they're what the hand run does better than the ghost (so playing yourself stays worth it).
 The sim models them with the playtest profile's accuracy (perfect about as often as super prompts, a share of misses).
@@ -179,18 +183,30 @@ Every leg today is one recipe: random small bumps, a length on one smooth curve.
 | **Sprint** | ~0.5× | a few short bumps | a quick leg, a breather after a wall |
 | **Long flats** (drag test) | ~0.7× | long, low, smooth swells (2–4× wider, a third the height) | drag: momentum bleeds away on the flat; Liquid Cooling and Momentum nodes shine |
 | **Marathon** | ~1.8–2× | sparse rolling hills | sprint timing and spending sprints late: endurance |
-| **Cliffs** | ~0.6× | few, tall, steep faces (slope over 1) | raw strength: a cliff has a **strength rating** drawn on its face; a sprint fired on it climbs only if your sprint strength meets the rating, else it slips. Momentum carried in still climbs it. Strength upgrades become keys |
+| **Cliffs** | ~0.6× | few, tall, steep faces (slope over 1) | carried momentum: steep faces sap speed hard (slope drag), so you climb them on the speed you bring, and Inertia (below) is what keeps it |
 
 - **Act one (12 skills):** 1 Rolling · 2 Sprint · 3 Rolling · 4 Long flats · 5 Cliffs (wall) · 6 Marathon · 7 Rolling · 8 Long flats ·
-  9 Marathon · 10 Sprint · 11 Cliffs (wall) · 12 Marathon (the run to General AI). Act two gets its own: long low glides, rampart
-  legs of tall steep kickers, and marathon legs of many swells.
-- **Steepness and strength:** slope drag already makes steep faces cost more. Cliffs add the rating (from the face's steepness ×
-  height, `cliffRating`), so the relationship is visible: the steeper and taller, the more strength it asks for.
+  9 Marathon · 10 Sprint · 11 Cliffs (wall) · 12 Marathon (the run to General AI).
+- **No numbers on the hills** (the owner's call): nothing on screen says what a hill needs. Steepness is felt: slope drag already
+  grows with steepness, so a cliff eats speed. The answer is a hidden stat beside drag and hills: **Inertia** (carried momentum),
+  new Momentum-branch nodes that make speed you've built up harder to lose: a share of slope and quadratic drag is waived in
+  proportion to how fast you're going against the run's top speed so far, so a ball that arrives at a cliff fast keeps most of it
+  up the face, while a slow one gets no help. Drag nodes take the edge off everywhere; Inertia rewards building speed and holding it.
+- **Act two** is out of this table: it's being reimagined (see below).
 - **Pacing stays smooth:** XP and the skill hill are sized from the leg's nominal difficulty, not its length, so a sprint leg pays
   more per metre and a marathon less, and no single leg becomes a 15-minute wall (checked with the human-profile sims: each
   leg's clear time within a band of its neighbours).
-- **Readable:** the bay's goal line and the leg's lane caption name the character ("Cliffs · needs 4.2 strength"), and the trail's
-  colours tint by it.
+- **Readable:** the bay's goal line and the leg's lane caption name the character ("Cliffs", "Long flats"), and the trail's
+  colours tint by it. No requirements shown.
+
+## Act two: Terminal Velocity (reimagined, locked for the demo)
+
+The owner's direction: act two is a grand departure from the training before it. The rolling ball becomes a **flying** one; the
+whole look and feel change, and fuel is what keeps you **airborne above the old training hills below** (act one's terrain, far
+underneath, like the ground from a plane). The current launcher (giant swells, kickers, the tuck) is a stepping stone, not the
+design. It needs its own design pass and more time, so for the first playtest it is **locked**: the trail ends just past In-Context
+Learning at a sealed gate ("ACT II · TERMINAL VELOCITY · Not available in the demo", `ACT_TWO_LOCKED` in engine.js), and the demo's
+chapter card plays at General AI. Flip the flag to open it again.
 
 ## Recommended order
 

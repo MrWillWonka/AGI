@@ -25,6 +25,17 @@
     // after In-Context Learning, whose Intelligence reaches General AI on skills alone (and the algorithms' +8
     // can't reach it a skill sooner), so the trail changes exactly when the model generalises. Tested.
     const ACT_TWO_LEG = 13;
+    // The demo (the owner's call, for the first playtest): act two is being reimagined ("terminal velocity": the
+    // ball takes flight over the old hills, fuel keeping it airborne), so it is locked. The trail ends at
+    // In-Context Learning behind a sealed "Not available in the demo" gate (game.js builds no run past it; the
+    // rules here stay whole, so the tests and the sim still cover act two), and chapter one ends at General AI (Superintelligence needs act two's Intelligence). Set false to open it.
+    const ACT_TWO_LOCKED = true;
+    // The leg frontier runs are built on: the next skill, or In-Context Learning once act one is done in the demo.
+    const frontierLeg = s => (ACT_TWO_LOCKED ? Math.min(s.path.learned, ACT_TWO_LEG - 1) : s.path.learned);
+    // Act one is done and the demo's gate stands: nothing more to learn on the trail.
+    const actTwoLocked = s => ACT_TWO_LOCKED && s.path.learned >= ACT_TWO_LEG;
+    // The phase that ends chapter one in this build (General AI in the demo).
+    const endingPhase = () => (ACT_TWO_LOCKED ? 1 : ENDING_PHASE);
     // A leg's position on the difficulty curve (training-path.js legPos; a test keeps them equal): act one has
     // twelve real skills on the curve written for six, so its legs sit at half steps ((k + 1) / 2: Pattern
     // Matching 1, Embeddings 1.5, Edge Detection 2 … In-Context Learning 6.5), and act two's where they were (k − 6).
@@ -1546,8 +1557,8 @@
             s.stats.highestPhase = idx;
             out.phase = PHASES[idx];
         }
-        // Chapter one ends at Superintelligence (the story goes on after it).
-        if (idx >= ENDING_PHASE && !s.stats.finishedAt) {
+        // Chapter one ends at Superintelligence (General AI in the demo; the story goes on after it).
+        if (idx >= endingPhase() && !s.stats.finishedAt) {
             s.stats.finishedAt = Math.max(1, s.stats.playTime);
             s.dilemmas.ending = endingFor(s).id;   // locked in: favors granted later don't rewrite it
             out.ending = true;
@@ -2577,7 +2588,7 @@
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
-        prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, ACT_TWO_LEG, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
+        prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, ACT_TWO_LEG, ACT_TWO_LOCKED, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany
