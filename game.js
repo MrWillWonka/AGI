@@ -76,8 +76,13 @@ window.AGI = (function () {
     // Playtest recorder (playtest.js): events stamped with play time, kept on this device, copied out from Settings.
     const playtest = window.Playtest?.create({ get: storageGet, set: storageSet }) || null;
     let playtestSampleAt = 0;
+    // Rare progression events are written at once: the log is otherwise flushed every 30 s of play and on
+    // hide, so a crash or a killed tab lost the funnel's steps since the last sample.
+    const PT_FLUSH = new Set(['skill', 'unlock', 'phase', 'ship', 'transcend', 'challenge', 'perk', 'ending', 'mailAccepted', 'setting', 'save']);
     function pt(type, data) {
-        if (playtest && state) playtest.event(state.stats.playTime, type, data);
+        if (!playtest || !state) return;
+        playtest.event(state.stats.playTime, type, data);
+        if (PT_FLUSH.has(type)) playtest.flush();
     }
     const r2 = x => Math.round(x * 100) / 100;
     let playtestView = null;
@@ -116,7 +121,7 @@ window.AGI = (function () {
         const r = state.res;
         pt('sample', { cp: Math.round(r.cp), dp: Math.round(r.dp), rp: Math.round(r.rp), xp: Math.round(r.xp),
             cpNet: r2(d.cpNet), dpNet: r2(d.dpNet), rpRate: r2(d.rpPerSec), xpRate: r2(d.xpPerSec),
-            int: r2(state.attr.intelligence), skills: state.path.learned, phase: E.phaseIndex(state), at: ptPlace(),
+            int: r2(state.attr.intelligence), skills: state.path.learned, phase: E.phaseIndex(state), ver: E.currentVersion(state), at: ptPlace(),
             // What the badges said: new lab cards, investor offers (open / done), skill-tree nodes you could buy.
             labNew: labUnseen().length, offers: state.projects.offers.length,
             offersDone: state.projects.offers.filter(o => E.projectProgress(state, o) >= o.target).length, treeReady: treeReady(),
