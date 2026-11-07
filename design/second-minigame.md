@@ -151,6 +151,57 @@ get past the gate are what you later decode on the wire, and they become the sou
 reveal, played). Fable recommends Guardrails at Feature Extraction (15–20 min, before Image Recognition's wall) and Signals at
 Speech Recognition (20–25 min), so the demo's last stretch has three rooms to move between.
 
+## 3b. Round two: the owner's picks, reviewed by all three
+
+The owner liked three of Sonnet's pitches best (**Wiring**, **Handshake**, **Policy Editor**) and added a pitch of their own,
+**Data Extraction / Core Cooling** (a grid of server nodes under a stamina or heat limit, evolving from planned clicks into chain
+reactions: Cauldron's bombs, detonators, magnet and pointers, as logic bombs, routing scripts and data loops). Each model reviewed
+all four, improved each and offered an alternative. The reviews are in `design/pitches/review-{opus,fable,sonnet}.md`.
+
+### The owner's taste, read by all three
+
+Every model's first-round #1 was a **judging** game (rate, label or gate the model's output); the owner picked none of them. All
+three picks are **authoring** games: you make something that keeps running after you leave (a network, a loop in the soundtrack,
+a policy for the ghost), and each is about the AI itself (its body, its voice, its mind), using the game's own machinery (the rack,
+the music clock, the ghost). The owner's own pitch names **pace** as the reason: a calm, untimed, planned game against the trail's
+reflexes. So the second game should be a **workshop, not an arcade**: untimed, one finger, with runs (so it doesn't collapse to
+build-once), and something of yours that outlasts the run.
+
+### Where they agree
+
+| Pitch | The problem all three found | The fix all three reached | Their improved versions |
+|---|---|---|---|
+| **Core Cooling** (the owner's) | as written it's Cauldron's rock game plus its ice game's upgrade list by name (and Minesweeper, Candy Crush's line clears); a visible board is solved greedily; no AI in it | **no bomb items: the chain comes from the board's own rule**; heat is a real mechanic, not a renamed stamina bar; the AI's processes sit on the board with a deliberate freedom choice | Opus **Pointers** (nodes point at neighbours; extraction follows the arrows; reroute, logic bomb, defrag, data loops); Sonnet **Core Cooling** (heat diffuses; overheated nodes dump onto neighbours; a controlled meltdown is the chain); Fable **Core Cooling** on **your own cabinets** (heat spreads along rails and looms; load a line to just under its limit and tip one: a failover cascade) |
+| **Policy Editor** | dragging rule blocks on a phone; watching more than playing; a strong ghost undercuts hand play; close to FFXII's gambits, Gladiabots, Robocode | **rules as a few tap cards in three slots; the policy sets the ghost's skill (fumbles, charge error), never its strength past `legPower`; reward hacking is the story** | Opus **Build the Brain** (tap-wire sensors to actions: a tiny neural net drives the ghost); Fable **Self-Play** (imitation first, then rule cards, then reward shaping; raced against yesterday's policy); Sonnet **Mirror Match** (breed eight students over generations) |
+| **Handshake** | it judges tap timing on an iPhone (touch and Bluetooth latency; the owner's Hop log) and is a second timing game; Simon with a skin | **a step sequencer: you compose on a 16-step grid, nothing is judged against your thumb; what you make joins the soundtrack** | Opus (rebuild a transmission by ear, Mastermind-style feedback); Fable (deduce the session's cipher: echo, reversed, transposed; pays data); Sonnet **Carrier** (compose a layer for the lab's music, or smuggle the AI's payload in ghost notes) |
+| **Wiring** | shape-snapping is homework; "accuracy per parameter" is invisible; puzzles are a generator treadmill; build-once | **ground it in the trail: skills unlock tiles, and the build visibly does something** | Fable **The Body** (the architecture is the ball you train: its shape sets inertia, strength, drag; raced on the frontier leg); Sonnet **Bottleneck** (a picture squeezes through your stack and comes out sharper or blurred); Opus (deployed lab models) |
+
+Two pairs merge: **Wiring + Policy Editor** (Fable and Opus: build the mind, then race it), and **Core Cooling + the rack puzzle**
+(Fable: the board is your cabinets). Handshake stands alone.
+
+One economy catch (Sonnet): CLAUDE.md's rule is that automation **converts, never creates** data. A record that mints passive
+DP/s breaks it and out-earns the Workbench, so the best run should **raise the crawler's yield per collection** (or let it run
+your best plan at the hand price), not pay data from nothing.
+
+### Recommendation after round two
+
+**All three now pick the owner's Core Cooling, rebuilt, as the second game** (Sonnet changed its pick to it; Fable on condition
+of the substitutions; Opus's Pointers is the same game with arrows instead of heat). Combined:
+- **The board is your server cabinets** (Fable): the hardware you bought, in buy order, merged pieces and all. Buying hardware
+  grows the board, and the planned rack puzzle gets its reason.
+- **Heat is a field** (Sonnet, Fable): pulling a node's data heats it; heat spreads to neighbours and bleeds off at the edges; an
+  overheated node throttles (its data lost, its heat dumped onward). Where you click matters, not how often. Three throttles or
+  the breakers trip, else you **Flush** and bank the haul: a cash-out, never "failed".
+- **The chain is the physics** (all three): no bombs. Overclock a line of nodes to just under their limit and tip one: the
+  cascade pays at a chain multiplier. Pointers' arrows are the fallback if the heat field proves hard to read.
+- **The AI is on the board** (all three): its processes (or copies) sit on the richest, warmest nodes, spreading between visits.
+  Quarantine them for the data, or leave them running: hidden freedom, never decided by a missed click.
+- **Pays data** (DP, the bottleneck), and the best haul raises the crawler's yield (the convert-not-create rule).
+- **Opens at Edge Detection**, before the Image Recognition wall.
+
+**Then**, as the third room: the ghost game (Self-Play, Build the Brain or Mirror Match: one to choose); **fourth**, the
+sequencer in the Signals room; the body/architecture tiles after General AI.
+
 ## 4. Rules for every minigame from here on
 
 So the third and fourth games don't each reinvent the plumbing:
@@ -217,8 +268,8 @@ no run pays twice across a reload or a held input; the Training Cluster's number
 
 ## 6. Open questions for the owner
 
-- The second game: **Guardrails** (recommended, with the two folds above), **Label Desk** (cheaper, data-first), **Feedback
-  Loop** (story-first), or another from the table?
-- Where it lives: a new bay, or the Data Pipeline bay renamed?
-- When it opens: Feature Extraction (before Image Recognition's wall), Edge Detection, or with Research?
-- Which deduction game to plan for third: Decode, Neuron Surgery or Containment Interview?
+- Build **Core Cooling, rebuilt** (section 3b) as the second game, or another?
+- Its board: **your own server cabinets** (grows with hardware; ties in the rack puzzle) or a fresh grid each run?
+- Its chain: the **heat cascade** (tip an overloaded line), or **Pointers** (arrows you reroute)?
+- For the third room, which ghost game: **Self-Play** (rule cards), **Build the Brain** (tap-wired net) or **Mirror Match**
+  (breeding)?
