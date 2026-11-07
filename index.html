@@ -214,6 +214,16 @@
                             <div class="canvas-wrap">
                                 <canvas id="snareCanvas" class="path-canvas snare-canvas" aria-label="Packet Snare. Draw a wire and cross it to close a loop round the data packets inside." aria-describedby="snareStatus"></canvas>
                                 <div class="roll-result snare-card" id="snareCard" role="status"></div>
+                                <!-- Packet Snare's skill tree: nodes around the Lasso, bought with data. -->
+                                <div class="snare-tree" id="snareTree" hidden>
+                                    <div class="snare-tree-bar">
+                                        <span class="snare-tree-dp"><span class="chip-label">DP to spend</span> <strong id="snareTreeDp">0</strong></span>
+                                        <button type="button" class="ghost-button" id="snareTreeClose">Back</button>
+                                        <button type="button" class="button" id="snareTreeStart">Start run</button>
+                                    </div>
+                                    <div class="snare-tree-grid" id="snareTreeGrid"><svg class="snare-tree-links" id="snareTreeLinks" aria-hidden="true"></svg></div>
+                                    <div class="snare-tree-detail" id="snareTreeDetail" aria-live="polite"></div>
+                                </div>
                             </div>
                             <p class="small path-status" id="snareStatus" aria-live="polite"></p>
                         </div>

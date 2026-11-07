@@ -40,14 +40,25 @@ wire; area multiplier 1 + area/12, max ×5; corrupt −10 Focus, snap −5 and 1
 field; 5% of new packets gold (×5); Firewalls at 6 s and 32 s. A packet pays one hand collection's data (`dpPerCollect`, about 7
 around Edge Detection, where a full sprint costs about 5–6 DP).
 
+## Built: the second pass (the owner's first playtest)
+
+The owner played the first cut on the test artifact: loops were hard to close, it wasn't clear when a big loop was worth it,
+and runs were long to start; it should start small and quick and grow into a sprawl of abilities, like the fish-tank
+incrementals (schools, chain lightning, scanners, targeted lasers), with its own skill tree.
+
+- **Closing:** back near the start closes the loop (a ring there lights up); lifting the pen near it closes it too.
+- **The preview:** the open loop shows what it would catch (ringed packets, "×mult · count", red when a corrupt packet is in).
+- **A small start:** a 70 unit² field, about 9 packets, Focus 40 (about 20 s), one Firewall.
+- **Schools:** good packets swim in schools; corrupt ones cut through them.
+- **The tree** (bought with data): Attention Span, Bandwidth, Sprawl, Gold Rush, Schooling, Obfuscation, and the abilities:
+  Chain Lightning, Scanner, Scrubbers, Targeted Laser and Twin Emitters.
+
 ## Next slices
 
-1. **Playtest the first cut** on a phone and a desktop: is the loop readable, do big loops tempt, do Firewalls feel fair?
-   Tune `SNARE` from the log.
+1. **Playtest the second pass:** does closing feel easy, does the preview make big loops a decision, is the first run
+   short enough, do the abilities change how you play? Tune `SNARE` and the tree's prices from the log.
 2. **The record links to the lab:** the best haul raises the Data crawler's yield per collection (the rule: automation
    converts, never creates).
-3. **Upgrades, bought with DP** (a short card list on the dev side of the bay): Scrubbers first (visible on the next run), more
-   Focus, slower Firewalls.
 4. **The Rogue AI:** Infection Cores, the Chokehold and the Wall; its story beats (it steals data you'd have caught; leaving a
    core alone is a deliberate freedom choice, never a missed loop).
 5. **Anchors:** the phase shift to nets; the best net becomes the passive rate.

@@ -53,6 +53,9 @@ test('every upgrade has a valid tab, cost and dependency', () => {
         if (up.tab === 'training') {
             assert.ok(up.tree && Number.isInteger(up.tree.x) && Number.isInteger(up.tree.y), `${up.id} tree position`);
             assert.ok(up.icon, `${up.id} icon`);
+        } else if (up.tab === 'snare') {
+            assert.ok(up.snare && Number.isInteger(up.snare.x) && Number.isInteger(up.snare.y), `${up.id} snare tree position`);
+            assert.ok(up.sn && up.effect && up.flavor, `${up.id} effect`);
         } else if (up.tab === 'legacy') {
             assert.ok(up.legacy && ['power', 'precision', 'recursion', 'momentum'].includes(up.branch), `${up.id} legacy branch`);
             assert.ok(!up.requires || E.UPGRADE_BY_ID[up.requires].legacy, `${up.id} grows only from another legacy upgrade`);

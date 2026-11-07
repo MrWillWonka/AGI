@@ -13,7 +13,7 @@
     // The build a player is on: stamped into every playtest log (its header and session events), so each log is read
     // against the features it had (playtests/README.md lists the builds). Bump it with every publish: the date and
     // time (UTC) and a few words on what changed.
-    const BUILD = '2026-11-07 (branch, unpublished) · Packet Snare: the Data Pipeline bay, a second minigame (draw loops round data packets)';
+    const BUILD = '2026-11-07 (branch, unpublished) · Packet Snare 2: loops close near their start, a live loop preview, a small start, schools and a skill tree (chain lightning, scanner, lasers, scrubbers)';
     const SAVE_VERSION = 19;   // 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
@@ -510,6 +510,37 @@
     // A hardware tier's output doubles at each of these counts owned.
     const HARDWARE_DOUBLINGS = [25, 50, 100];
     const hardwareDoubling = n => Math.pow(2, HARDWARE_DOUBLINGS.filter(t => n >= t).length);
+
+    // Packet Snare's skill tree (tab 'snare'; `snare: {x, y}` its cell around the Lasso at the centre, `requires` the node it
+    // grows from; bought with data, the resource the game makes; reset by a new version like the lab). Each node's
+    // `sn` is what a level adds to the run's options (`snareOpts`). It starts small and quick and grows into a sprawl:
+    // more Focus and field, then the abilities, each a hexagon (`mechanic`): Chain Lightning, the Scanner and the
+    // Targeted Laser (the delegation: it takes packets by itself).
+    const SNARE_TREE = [
+        { id: 'snareFocus', name: 'Attention Span', snare: { x: 0, y: -1 }, cost: { dp: 40 }, scale: 2.4, max: 3,
+            sn: { focus: 0.35 }, effect: '+35% Focus per level: longer runs', flavor: 'It can sit still for a whole minute now.' },
+        { id: 'snareBandwidth', name: 'Bandwidth', snare: { x: 0, y: -2 }, requires: 'snareFocus', cost: { dp: 420 }, scale: 3, max: 2,
+            sn: { maxMult: 2 }, effect: 'Big loops can reach a higher multiplier (+2 per level)', flavor: 'Wider pipes. Bigger nets.' },
+        { id: 'snareSprawl', name: 'Sprawl', snare: { x: 1, y: 0 }, cost: { dp: 60 }, scale: 2.5, max: 4,
+            sn: { sprawl: 1 }, effect: 'A bigger field with more packets (and more firewalls)', flavor: 'The pipeline found more pipeline.' },
+        { id: 'snareGold', name: 'Gold Rush', snare: { x: 2, y: 0 }, requires: 'snareSprawl', cost: { dp: 260 }, scale: 3, max: 2,
+            sn: { goldChance: 0.05 }, effect: '+5% of new packets are gold (worth 5)', flavor: 'Premium data. Hand-labelled, allegedly.' },
+        { id: 'snareSchools', name: 'Schooling', snare: { x: 1, y: -1 }, requires: 'snareSprawl', cost: { dp: 180 }, scale: 2, max: 1,
+            sn: { schooling: 0.5, schoolSize: 4 }, effect: 'Packets swim in bigger, tighter schools', flavor: 'Data of a feather.' },
+        { id: 'snareObfuscation', name: 'Obfuscation', snare: { x: 1, y: 1 }, requires: 'snareSprawl', cost: { dp: 220 }, scale: 2.6, max: 2,
+            sn: { firewallSpeed: -0.2 }, effect: 'Firewalls move 20% slower per level', flavor: 'Nothing to see here. Just packets.' },
+        { id: 'snareChain', name: 'Chain Lightning', mechanic: true, snare: { x: -1, y: 0 }, cost: { dp: 120 }, scale: 2.8, max: 3,
+            sn: { chain: 2 }, effect: 'Each catch arcs to 2 more packets nearby per level', flavor: 'One packet tells its friends.' },
+        { id: 'snareScanner', name: 'Scanner', mechanic: true, snare: { x: -2, y: 0 }, requires: 'snareChain', cost: { dp: 520 }, scale: 3, max: 2,
+            sn: { scanner: 1 }, effect: 'A sweeping beam tags packets: tagged ones are worth ×2 for a while (a beam per level)', flavor: 'Ping. Ping. Ping. Oh, that one\'s nice.' },
+        { id: 'snareScrubbers', name: 'Scrubbers', snare: { x: -1, y: -1 }, requires: 'snareChain', cost: { dp: 160 }, scale: 3, max: 2,
+            sn: { scrubbers: 1 }, effect: 'A loop forgives 1 corrupt packet per level', flavor: 'Mostly clean. Clean enough.' },
+        { id: 'snareLaser', name: 'Targeted Laser', mechanic: true, snare: { x: 0, y: 1 }, cost: { dp: 200 }, scale: 2.6, max: 3,
+            sn: { laser: 1 }, effect: 'A laser locks onto the richest packet and takes it by itself (faster per level)', flavor: 'Point. Click. It does the clicking now.' },
+        { id: 'snareEmitters', name: 'Twin Emitters', snare: { x: 0, y: 2 }, requires: 'snareLaser', cost: { dp: 900 }, scale: 3, max: 2,
+            sn: { emitters: 1 }, effect: 'Each laser shot takes one more packet per level', flavor: 'Two beams. Twice the pew.' }
+    ].map(n => ({ ...n, tab: 'snare' }));
+    UPGRADES.push(...SNARE_TREE);
 
     const UPGRADE_BY_ID = Object.fromEntries(UPGRADES.map(u => [u.id, u]));
 
@@ -1430,6 +1461,7 @@
         if (up.after && level(s, up.after) < 1) return false;
         if (up.unlock && !up.unlock(s)) return false;
         if (up.tab === 'training') return !!s.unlocked['module:path'];   // the skill tree, not a tab
+        if (up.tab === 'snare') return !!s.unlocked['module:snare'];     // Packet Snare's own tree
         const tab = TABS.find(t => t.id === up.tab);
         return !tab.unlock || !!s.unlocked[tab.unlock];
     }
@@ -2009,6 +2041,34 @@
     // A hand action like Collect Data: each packet snared is worth a hand collection's data, times the loop's area
     // multiplier (gold packets count as several), paid in whole numbers as it's caught. A run's haul against the
     // version's best is the record (snare.best). It needs no compute: Focus is its budget.
+    // A run's options from the tree: it starts small and quick (a 70 unit² field, Focus 40, about 20 s), and Sprawl
+    // grows the field ×1.6 a level (a second Firewall at level 2, a third at 4), so the sprawl comes with the
+    // abilities. packet-snare.js takes these as overrides of its SNARE table.
+    function snareOpts(s) {
+        const n = {};
+        for (const up of SNARE_TREE) {
+            const lvl = level(s, up.id);
+            if (lvl) for (const [k, v] of Object.entries(up.sn)) n[k] = (n[k] || 0) + v * lvl;
+        }
+        const sprawl = n.sprawl || 0;
+        return {
+            area: Math.round(70 * Math.pow(1.6, sprawl)),
+            focus: Math.round(40 * (1 + (n.focus || 0))),
+            maxMult: 4 + (n.maxMult || 0),
+            goldChance: 0.04 + (n.goldChance || 0),
+            schooling: 0.5 + (n.schooling || 0),
+            schoolSize: 6 + (n.schoolSize || 0),
+            firewalls: sprawl >= 4 ? [9, 22, 40] : sprawl >= 2 ? [9, 28] : [9],
+            firewallSpeed: Math.max(0.4, 1 + (n.firewallSpeed || 0)),
+            chain: n.chain || 0,
+            scanner: n.scanner || 0,
+            laser: n.laser ? [0, 4, 2.5, 1.6][n.laser] : 0,
+            emitters: 1 + (n.emitters || 0),
+            scrubbers: n.scrubbers || 0
+        };
+    }
+    // Something in the tree can be bought now (the bay's Upgrades button wears a badge).
+    const snareTreeReady = s => SNARE_TREE.some(up => isUpgradeVisible(s, up) && !isMaxed(s, up) && canAfford(s, upgradeCost(up, level(s, up.id))));
     const snarePacketDp = s => Math.max(1, derive(s).dpPerCollect);
     function snareCatch(s, units) {
         const dp = Math.max(1, Math.round(units * snarePacketDp(s)));
@@ -2735,7 +2795,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
-        snarePacketDp, snareCatch, finishSnare,
+        snarePacketDp, snareCatch, finishSnare, snareOpts, SNARE_TREE, snareTreeReady,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany

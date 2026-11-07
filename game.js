@@ -878,7 +878,7 @@ window.AGI = (function () {
     // ---- Build static UI ------------------------------------------------
 
     // Lab cards: everything but the skill tree and the legacy upgrades (their own screen).
-    const isLabUpgrade = up => up.tab !== 'training' && up.tab !== 'legacy';
+    const isLabUpgrade = up => up.tab !== 'training' && up.tab !== 'legacy' && up.tab !== 'snare';
 
     // Lab cards you haven't seen: revealed while you were out of the lab (screen state, per device). Everything
     // on show counts as seen while you're in the lab, and on the first look (no sudden badge for older saves).
@@ -1559,8 +1559,8 @@ window.AGI = (function () {
 
     // The choice behind a skill-tree or legacy buy: currency held, the price paid, and the affordable options.
     function playtestChoice(up) {
-        const cur = up.tab === 'legacy' ? 'insight' : 'xp';
-        const held = cur === 'insight' ? state.prestige.points : state.res.xp;
+        const cur = up.tab === 'legacy' ? 'insight' : up.tab === 'snare' ? 'dp' : 'xp';
+        const held = cur === 'insight' ? state.prestige.points : state.res[cur];
         const options = E.UPGRADES.filter(u => u.tab === up.tab && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u))
             .map(u => ({ id: u.id, cost: E.upgradeCost(u, E.level(state, u.id))[cur] }))
             .filter(o => o.cost != null && o.cost <= held).sort((a, b) => a.cost - b.cost);
@@ -1579,7 +1579,7 @@ window.AGI = (function () {
         // A refused buy only sounds (lab cards stay pressable while unaffordable, to keep focus): a log line per press was noise.
         if (result.ok) log(result.count > 1 ? `${E.upgradeName(state, up0)} ×${result.count}: now level ${E.level(state, id)}.` : result.msg, 'success');
         // Each panel has its own buy sound (hardware, software, research, consciousness, the tree, legacy).
-        if (result.ok) sfx('buy', { panel: up0.tab, big: up0.max === 1 || result.count > 1 || !!result.evolved });
+        if (result.ok) sfx('buy', { panel: up0.tab === 'snare' ? 'training' : up0.tab, big: up0.max === 1 || result.count > 1 || !!result.evolved });
         else sfx('error');
         if (result.ok) {
             pt('buy', { id, lvl: E.level(state, id), ...(result.count > 1 ? { n: result.count } : {}), ...(ptChoice || {}) });
@@ -2315,6 +2315,7 @@ window.AGI = (function () {
 
         for (const b of ui.binds) setText(b.node, bindValue(b.key, d));
         renderLegacy();
+        if (snare.tree) renderSnareTree();
         // A toast outlives a zoom (6–7.5 s against 0.5 s): placed for the screen it arrived on, it sat over the
         // next screen's status line (the lab's supply cells). Keep clearing whatever is on screen now.
         if (toastLive) placeToasts();
@@ -3561,12 +3562,17 @@ window.AGI = (function () {
     // ---- Packet Snare (the Data Pipeline bay) -------------------------------------------------------------
     // packet-snare.js runs the field; this draws it and turns the pointer into the wire. Packets snared pay data
     // as they're caught (E.snareCatch, a hand collection a packet times the loop's multiplier); the run ends when
-    // Focus runs out, and its haul against the version's best is the record (E.finishSnare).
-    const snare = { preview: false, run: null, raf: 0, last: 0, haul: 0, seed: 1, fx: [], scale: 1, ox: 0, oy: 0, cw: 0, ch: 0, ctx: null, canvas: null, pointer: null, done: null };
+    // Focus runs out, and its haul against the version's best is the record (E.finishSnare). The bay's own skill
+    // tree (E.SNARE_TREE, bought with data) grows the run from a small quick field into a sprawl with abilities;
+    // its options reach the run through E.snareOpts.
+    const snare = { preview: false, run: null, raf: 0, last: 0, haul: 0, seed: 1, fx: [], scale: 1, ox: 0, oy: 0, cw: 0, ch: 0, ctx: null, canvas: null,
+        pointer: null, done: null, tree: false, pick: null, treeKey: '' };
     const SNARE_FX = 1.1;        // seconds a catch's loop and pop stay on the field
+    const SNARE_ICONS = { snareFocus: '◔', snareBandwidth: '⇕', snareSprawl: '⤢', snareGold: '◆', snareSchools: '≋', snareObfuscation: '◌',
+        snareChain: 'ϟ', snareScanner: '◎', snareScrubbers: '✚', snareLaser: '⌖', snareEmitters: '⋔' };
 
     function snareStatus() {
-        if (snare.run && !snare.run.over) return 'Snaring…';
+        if (snare.run && !snare.run.over && !snare.preview) return 'Snaring…';
         return state.snare.best > 0 ? `best haul +${E.format(state.snare.best)} DP` : 'Loose data drifting';
     }
 
@@ -3586,8 +3592,9 @@ window.AGI = (function () {
             if (snare.preview && openBay === 'pipeline') snarePreview();
             snareFit();
             drawSnare();
+            if (snare.tree) layoutSnareTree();
         }).observe(canvas.parentElement);
-        // The pen: down starts a wire, moving draws it, up lets an open wire go. One pointer at a time.
+        // The pen: down starts a wire, moving draws it, up closes it near its start or lets it go. One pointer at a time.
         const toWorld = e => {
             const r = canvas.getBoundingClientRect();
             const z = uiScale();
@@ -3617,16 +3624,17 @@ window.AGI = (function () {
         canvas.addEventListener('pointerup', lift);
         canvas.addEventListener('pointercancel', lift);
         canvas.addEventListener('contextmenu', e => e.preventDefault());
+        $('snareTreeStart').addEventListener('click', () => { closeSnareTree(); startSnare(); });
+        $('snareTreeClose').addEventListener('click', closeSnareTree);
     }
 
     // The field keeps its shape for the run; the view letterboxes it into the canvas.
     function snareFit() {
         const run = snare.run;
-        const w = run ? run.w : Math.sqrt(window.PacketSnare.FIELD_AREA * (snare.cw / snare.ch || 1.6));
-        const h = run ? run.h : window.PacketSnare.FIELD_AREA / w;
-        snare.scale = Math.min(snare.cw / w, snare.ch / h);
-        snare.ox = (snare.cw - w * snare.scale) / 2;
-        snare.oy = (snare.ch - h * snare.scale) / 2;
+        const f = run ? run : snareField();
+        snare.scale = Math.min(snare.cw / f.w, snare.ch / f.h);
+        snare.ox = (snare.cw - f.w * snare.scale) / 2;
+        snare.oy = (snare.ch - f.h * snare.scale) / 2;
     }
 
     function openSnare() {
@@ -3638,15 +3646,15 @@ window.AGI = (function () {
         drawSnare();
     }
 
-    // The field shaped to the canvas (portrait on an upright phone), within sane limits.
-    function snareField() {
-        const P = window.PacketSnare;
-        const w = Math.sqrt(P.FIELD_AREA * Math.min(3.2, Math.max(0.4, snare.cw / snare.ch || 1.6)));
-        return { w, h: P.FIELD_AREA / w };
+    // The field shaped to the canvas (portrait on an upright phone), within sane limits, at the tree's size.
+    function snareField(area = E.snareOpts(state).area) {
+        const w = Math.sqrt(area * Math.min(3.2, Math.max(0.4, snare.cw / snare.ch || 1.6)));
+        return { w, h: area / w };
     }
 
     function snarePreview() {
-        snare.run = window.PacketSnare.createSnare({ ...snareField(), seed: 5, firewalls: [], idleDrain: 0 });
+        const o = E.snareOpts(state);
+        snare.run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area), seed: 5, firewalls: [], idleDrain: 0, laser: 0 });
         snare.preview = true;
         snareFit();
         snare.last = performance.now();
@@ -3663,11 +3671,13 @@ window.AGI = (function () {
         }
         cancelAnimationFrame(snare.raf);
         snare.raf = 0;
+        closeSnareTree();
     }
 
     function startSnare() {
+        const o = E.snareOpts(state);
         snare.seed = (state.snare.runs * 7919 + Math.floor(state.stats.playTime * 1000)) >>> 0;
-        snare.run = window.PacketSnare.createSnare({ ...snareField(), seed: snare.seed });
+        snare.run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area), seed: snare.seed });
         snare.haul = 0;
         snare.fx = [];
         snare.done = null;
@@ -3676,7 +3686,7 @@ window.AGI = (function () {
         snareFit();
         setHidden($('snareCard'), true);
         setHidden($('snareHud'), false);
-        setText($('snareStatus'), 'Draw a wire. Cross it to close a loop.');
+        setText($('snareStatus'), 'Draw a loop round the packets. Come back near the start to close it.');
         sfx('ui');
         snare.last = performance.now();
         cancelAnimationFrame(snare.raf);
@@ -3691,16 +3701,15 @@ window.AGI = (function () {
             snare.raf = 0;
             return;
         }
+        const dt = Math.min(0.1, (now - snare.last) / 1000);
+        snare.last = now;
         if (snare.preview) {
-            run.step(Math.min(0.1, (now - snare.last) / 1000));
-            snare.last = now;
+            run.step(dt);
             run.takeEvents();
             drawSnare();
             snare.raf = requestAnimationFrame(snareFrame);
             return;
         }
-        const dt = Math.min(0.1, (now - snare.last) / 1000);
-        snare.last = now;
         if (!document.hidden) run.step(dt);
         for (const f of snare.fx) f.t += dt;
         snare.fx = snare.fx.filter(f => f.t < (f.life || SNARE_FX));
@@ -3718,9 +3727,14 @@ window.AGI = (function () {
             if (e.type === 'catch') {
                 const dp = E.snareCatch(state, e.units);
                 snare.haul += dp;
-                const big = e.mult >= 3 || e.gold > 0;
+                const big = e.mult >= 2.5 || e.gold > 0 || e.chained.length > 2;
                 snare.fx.push({ kind: 'catch', poly: e.poly, x: e.x, y: e.y, t: 0, text: `+${E.format(dp)} DP`, sub: e.mult >= 1.15 ? `×${e.mult.toFixed(1)}` : '', big, packets: e.packets });
+                if (e.chained.length) snare.fx.push({ kind: 'chain', arcs: e.chained, t: 0, life: 0.5, seed: Math.random() });
                 sfx(big ? 'perfect' : 'clean');
+            } else if (e.type === 'laser') {
+                const dp = E.snareCatch(state, e.units);
+                snare.haul += dp;
+                snare.fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.45, text: `+${E.format(dp)}`, small: true, gold: e.kind === 'gold' });
             } else if (e.type === 'corrupt') {
                 snare.fx.push({ kind: 'corrupt', poly: e.poly, x: e.x, y: e.y, t: 0, text: 'CORRUPTED', packets: e.packets });
                 sfx('error');
@@ -3745,11 +3759,19 @@ window.AGI = (function () {
         setHidden($('snareHud'), true);
         setText($('snareStatus'), '');
         pt('snare', { haul: Math.round(snare.haul), catches: stats.catches, caught: stats.caught, gold: stats.gold, corrupted: stats.corrupted,
-            snaps: stats.snaps, empty: stats.empty, bestMult: r2(stats.bestMult), secs: Math.round(snare.run.time), record: res.record, seed: snare.seed });
+            snaps: stats.snaps, empty: stats.empty, bestMult: r2(stats.bestMult), chained: stats.chained, lasered: stats.lasered, scrubbed: stats.scrubbed,
+            area: Math.round(snare.run.w * snare.run.h), secs: Math.round(snare.run.time), record: res.record, seed: snare.seed });
         log(`Packet Snare: +${E.format(snare.haul)} DP from ${stats.caught} packet${stats.caught === 1 ? '' : 's'}${res.record ? ' · new record' : ''}.`, res.record ? 'success' : 'info');
         sfx(res.record ? 'record' : 'runEnd');
         if (openBay === 'pipeline') showSnareCard('end');
         save();
+    }
+
+    function snareUpgradesButton() {
+        const b = el('button', { type: 'button', class: 'ghost-button snare-upgrades', text: 'Upgrades', onclick: openSnareTree });
+        const n = E.SNARE_TREE.filter(up => E.isUpgradeVisible(state, up) && !E.isMaxed(state, up) && E.canAfford(state, E.upgradeCost(up, E.level(state, up.id)))).length;
+        if (n) b.dataset.ready = String(n);
+        return b;
     }
 
     function showSnareCard(kind) {
@@ -3760,7 +3782,7 @@ window.AGI = (function () {
                 el('div', { class: 'result-title', text: 'Data Pipeline' }),
                 el('div', { class: 'result-main', text: 'Packet Snare' }),
                 best > 0 ? el('ul', { class: 'result-lines' }, [el('li', {}, [el('span', { text: 'Best haul' }), el('span', { text: `+${E.format(best)} DP` })])]) : null,
-                el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: 'Start', onclick: startSnare })])].filter(Boolean));
+                el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: 'Start', onclick: startSnare }), state.snare.runs > 0 ? snareUpgradesButton() : null])].filter(Boolean));
         } else {
             const d = snare.done;
             const s = d.stats;
@@ -3773,12 +3795,14 @@ window.AGI = (function () {
                 el('ul', { class: 'result-lines' }, [
                     line('Loops closed', `${s.catches}`),
                     s.bestMult >= 1.05 ? line('Biggest loop', `×${s.bestMult.toFixed(1)}`) : null,
+                    s.chained ? line('Chain lightning', `${s.chained}`) : null,
+                    s.lasered ? line('Lasered', `${s.lasered}`) : null,
                     s.gold ? line('Gold packets', `${s.gold}`) : null,
                     s.corrupted ? line('Corrupted catches', `${s.corrupted}`) : null,
                     s.snaps ? line('Wires snapped', `${s.snaps}`) : null,
                     line('Best haul', `+${E.format(Math.max(best, d.haul))} DP`)
                 ].filter(Boolean)),
-                el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: 'Snare again', onclick: startSnare })])].filter(Boolean));
+                el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: 'Snare again', onclick: startSnare }), snareUpgradesButton()])].filter(Boolean));
         }
         setHidden(card, false);
     }
@@ -3794,6 +3818,113 @@ window.AGI = (function () {
         setText($('snareHaul'), `+${E.format(snare.haul)} DP`);
     }
 
+    // ---- Packet Snare's skill tree: nodes on a small grid around the Lasso, bought with data -------------------
+
+    function openSnareTree() {
+        snare.tree = true;
+        snare.treeKey = '';
+        setHidden($('snareCard'), true);
+        setHidden($('snareTree'), false);
+        renderSnareTree();
+        pt('view', { v: 'snareTree' });
+    }
+
+    function closeSnareTree() {
+        if (!snare.tree) return;
+        snare.tree = false;
+        setHidden($('snareTree'), true);
+        if (openBay === 'pipeline' && (!snare.run || snare.run.over || snare.preview)) showSnareCard(snare.done ? 'end' : 'start');
+    }
+
+    // Cells: a 5 × 5 grid around the Lasso, sized to the bay.
+    function layoutSnareTree() {
+        const grid = $('snareTreeGrid');
+        const W = grid.clientWidth, H = grid.clientHeight;
+        if (!W || !H) return;
+        const cell = Math.min(W / 5.2, H / 5, 104);
+        grid.style.setProperty('--snare-cell', cell + 'px');
+        const pos = n => ({ x: W / 2 + n.x * cell, y: H / 2 + n.y * cell });
+        for (const node of grid.querySelectorAll('.snare-node')) {
+            const p = pos(node.dataset.id === 'core' ? { x: 0, y: 0 } : E.UPGRADE_BY_ID[node.dataset.id].snare);
+            node.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
+        }
+        const svg = $('snareTreeLinks');
+        svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+        svg.replaceChildren();
+        for (const up of E.SNARE_TREE) {
+            if (!E.isUpgradeVisible(state, up)) continue;
+            const a = pos(up.snare), b = pos(up.requires ? E.UPGRADE_BY_ID[up.requires].snare : { x: 0, y: 0 });
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            for (const [k, v] of Object.entries({ x1: a.x, y1: a.y, x2: b.x, y2: b.y })) line.setAttribute(k, v);
+            if (E.level(state, up.id) > 0) line.setAttribute('class', 'owned');
+            svg.append(line);
+        }
+    }
+
+    function renderSnareTree() {
+        if (!snare.tree) return;
+        const grid = $('snareTreeGrid');
+        const visible = E.SNARE_TREE.filter(up => E.isUpgradeVisible(state, up));
+        const key = visible.map(up => `${up.id}:${E.level(state, up.id)}`).join(',') + '|' + snare.pick;
+        setText($('snareTreeDp'), E.format(state.res.dp));
+        if (key !== snare.treeKey) {
+            snare.treeKey = key;
+            const nodes = [el('button', { type: 'button', class: 'snare-node core', 'data-id': 'core', 'aria-label': 'Lasso: the core of Packet Snare', text: '◇' })];
+            for (const up of visible) {
+                const lvl = E.level(state, up.id);
+                const b = el('button', { type: 'button', class: `snare-node${up.mechanic ? ' mechanic' : ''}${lvl ? ' owned' : ''}${E.isMaxed(state, up) ? ' maxed' : ''}${snare.pick === up.id ? ' picked' : ''}`,
+                    'data-id': up.id, 'aria-label': `${up.name}, level ${lvl}${up.max ? ` of ${up.max}` : ''}` }, [
+                    el('span', { class: 'snare-node-icon', text: SNARE_ICONS[up.id] || '•', 'aria-hidden': 'true' }),
+                    lvl ? el('span', { class: 'snare-node-level', text: up.max ? `${lvl}/${up.max}` : `${lvl}` }) : null
+                ]);
+                b.addEventListener('click', () => { snare.pick = up.id; renderSnareTree(); });
+                nodes.push(b);
+            }
+            grid.querySelectorAll('.snare-node').forEach(n => n.remove());
+            grid.append(...nodes);
+            layoutSnareTree();
+            renderSnareDetail();
+        }
+        // Affordable now: a ring (data changes every second, so this runs on every render).
+        for (const b of grid.querySelectorAll('.snare-node[data-id^="snare"]')) {
+            const up = E.UPGRADE_BY_ID[b.dataset.id];
+            b.classList.toggle('affordable', !E.isMaxed(state, up) && E.canAfford(state, E.upgradeCost(up, E.level(state, up.id))));
+        }
+        const buy = $('snareTreeDetail').querySelector('.snare-buy');
+        if (buy && snare.pick) {
+            const up = E.UPGRADE_BY_ID[snare.pick];
+            buy.setAttribute('aria-disabled', String(E.isMaxed(state, up) || !E.canAfford(state, E.upgradeCost(up, E.level(state, up.id)))));
+        }
+    }
+
+    function renderSnareDetail() {
+        const box = $('snareTreeDetail');
+        const up = snare.pick && E.UPGRADE_BY_ID[snare.pick];
+        if (!up) {
+            box.replaceChildren(el('p', { class: 'muted', text: 'Pick a node.' }));
+            return;
+        }
+        const lvl = E.level(state, up.id);
+        const maxed = E.isMaxed(state, up);
+        const cost = E.upgradeCost(up, lvl);
+        const buy = el('button', { type: 'button', class: 'button snare-buy', text: maxed ? 'Owned' : `Buy · ${E.formatCost(cost)}` });
+        buy.addEventListener('click', e => {
+            e.stopPropagation();
+            if (buy.getAttribute('aria-disabled') === 'true') return void sfx('error');
+            doBuy(up.id);
+            snare.treeKey = '';
+            renderSnareTree();
+            if (snare.preview) snarePreview();
+        });
+        box.replaceChildren(
+            el('div', { class: 'snare-detail-head' }, [el('strong', { text: up.name }), el('span', { class: 'muted', text: `${lvl}${up.max ? ` / ${up.max}` : ''}` })]),
+            el('p', { text: up.effect }),
+            el('p', { class: 'flavor', text: up.flavor }),
+            buy);
+    }
+
+    // ---- Drawing the field --------------------------------------------------------------------------------
+
     function drawSnare() {
         const ctx = snare.ctx;
         if (!ctx || !snare.cw) return;
@@ -3808,18 +3939,44 @@ window.AGI = (function () {
         const jx = shake ? (Math.random() - 0.5) * 6 * (1 - shake.t / shake.life) : 0;
         ctx.save();
         ctx.translate(snare.ox + jx, snare.oy);
-        const W = run ? run.w : snare.cw / k, H = run ? run.h : snare.ch / k;
-        // The field: a faint grid, like a scope.
+        const f0 = run || snareField();
+        const W = f0.w, H = f0.h;
+        // The field: a faint grid, like a scope (a cell every unit, or every two on a big field).
+        const gstep = W * H > 200 ? 2 : 1;
         ctx.strokeStyle = C.border || '#21393f';
-        ctx.globalAlpha = 0.45;
+        ctx.globalAlpha = 0.4;
         ctx.lineWidth = 1;
         ctx.beginPath();
-        for (let x = 0; x <= W + 1e-6; x += 1) { ctx.moveTo(x * k, 0); ctx.lineTo(x * k, H * k); }
-        for (let y = 0; y <= H + 1e-6; y += 1) { ctx.moveTo(0, y * k); ctx.lineTo(W * k, y * k); }
+        for (let x = 0; x <= W + 1e-6; x += gstep) { ctx.moveTo(x * k, 0); ctx.lineTo(x * k, H * k); }
+        for (let y = 0; y <= H + 1e-6; y += gstep) { ctx.moveTo(0, y * k); ctx.lineTo(W * k, y * k); }
         ctx.stroke();
         ctx.globalAlpha = 1;
         if (!run) { ctx.restore(); return; }
         const t = run.time;
+        // The scanner: beams sweeping from the middle, each with a fading wedge behind it.
+        if (run.beams.length) {
+            const cx = W / 2 * k, cy = H / 2 * k, R = Math.hypot(W, H) / 2 * k;
+            for (const a of run.beams) {
+                const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+                g.addColorStop(0, C.research);
+                g.addColorStop(1, 'transparent');
+                ctx.fillStyle = g;
+                ctx.globalAlpha = 0.16;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, R, a - 0.5, a);
+                ctx.closePath();
+                ctx.fill();
+                ctx.globalAlpha = 0.7;
+                ctx.strokeStyle = C.research;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R);
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+        }
         // Catches, spoils and empty loops: the loop flashes and fades.
         for (const f of snare.fx) {
             if (!f.poly) continue;
@@ -3849,7 +4006,28 @@ window.AGI = (function () {
             }
         }
         ctx.globalAlpha = 1;
-        // Packets: blue diamonds, gold ones spinning, corrupt ones red and jagged.
+        // The open loop's preview: its shape filled faintly, a dashed line back to the start, the packets it would
+        // take ringed, and what it's worth by the pen ("×2.4 · 7", or red when a corrupt packet would spoil it).
+        const pv = run.drawing && run.wire.length > 1 ? run.preview() : null;
+        if (pv) {
+            const col = pv.spoiled ? C.danger : C.success;
+            ctx.beginPath();
+            run.wire.forEach((p, i) => (i ? ctx.lineTo(p.x * k, p.y * k) : ctx.moveTo(p.x * k, p.y * k)));
+            ctx.closePath();
+            ctx.globalAlpha = pv.near ? 0.2 : 0.09;
+            ctx.fillStyle = col;
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.lineWidth = 1.5;
+            for (const p of pv.inside) {
+                ctx.strokeStyle = p.kind === 'corrupt' ? C.danger : C.success;
+                ctx.beginPath();
+                ctx.arc(p.x * k, p.y * k, p.r * k + 4, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+        // Packets: a school of arrowheads swimming the way they head; gold ones glowing; corrupt ones red and jagged;
+        // tagged ones (the scanner's) ringed in violet.
         for (const p of run.packets) {
             const r = p.r * k;
             const x = p.x * k, y = p.y * k;
@@ -3860,11 +4038,9 @@ window.AGI = (function () {
             if (p.kind === 'corrupt') {
                 ctx.rotate(t * 1.5 + p.id);
                 ctx.fillStyle = C.danger;
-                ctx.shadowColor = C.danger;
-                ctx.shadowBlur = 10;
                 ctx.beginPath();
                 for (let i = 0; i < 10; i++) {
-                    const rr = i % 2 ? r * 0.55 : r * 1.05;
+                    const rr = i % 2 ? r * 0.55 : r * 1.1;
                     const a = i * Math.PI / 5;
                     i ? ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
                 }
@@ -3872,30 +4048,94 @@ window.AGI = (function () {
                 ctx.fill();
             } else {
                 const gold = p.kind === 'gold';
-                ctx.rotate(gold ? t * 3 + p.id : Math.PI / 4 + Math.sin(t + p.id) * 0.2);
+                if (p.tag > t) {
+                    ctx.strokeStyle = C.research;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, r * 1.7, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.rotate(Math.atan2(p.vy, p.vx));
                 ctx.fillStyle = gold ? C.warning : C.primary;
-                ctx.shadowColor = ctx.fillStyle;
-                ctx.shadowBlur = gold ? 16 : 9;
-                const s = gold ? r * 1.15 : r * 0.85;
-                ctx.fillRect(-s, -s, 2 * s, 2 * s);
+                if (gold) { ctx.shadowColor = C.warning; ctx.shadowBlur = 12; }
+                const L = gold ? r * 1.5 : r * 1.25, Wd = gold ? r * 0.9 : r * 0.7;
+                ctx.beginPath();
+                ctx.moveTo(L, 0);
+                ctx.lineTo(-L * 0.7, Wd);
+                ctx.lineTo(-L * 0.35, 0);
+                ctx.lineTo(-L * 0.7, -Wd);
+                ctx.closePath();
+                ctx.fill();
                 ctx.shadowBlur = 0;
-                ctx.fillStyle = C.bg || '#0a1416';
-                ctx.globalAlpha = fade * 0.55;
-                ctx.fillRect(-s * 0.35, -s * 0.35, s * 0.7, s * 0.7);
             }
             ctx.restore();
         }
         ctx.globalAlpha = 1;
-        ctx.shadowBlur = 0;
-        // The wire: bright at the pen, fading toward its tail; tinted danger while a Firewall hunts it.
+        // Laser locks: brackets closing in on the target.
+        for (const l of run.locks) {
+            const p = run.packets.find(q => q.id === l.id);
+            if (!p) continue;
+            const m = Math.min(1, l.t / window.PacketSnare.LOCK_SECONDS);
+            const s = (p.r * 3.2 - p.r * 1.6 * m) * k, len = s * 0.45;
+            const x = p.x * k, y = p.y * k;
+            ctx.strokeStyle = m >= 0.95 ? C.danger : C.text;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+                ctx.moveTo(x + sx * s, y + sy * s - sy * len);
+                ctx.lineTo(x + sx * s, y + sy * s);
+                ctx.lineTo(x + sx * s - sx * len, y + sy * s);
+            }
+            ctx.stroke();
+        }
+        // Laser shots: a bright beam from its emitter, fading.
+        for (const f of snare.fx) {
+            if (f.kind !== 'laser') continue;
+            const a = 1 - f.t / f.life;
+            ctx.globalAlpha = a;
+            ctx.strokeStyle = f.gold ? C.warning : C.danger;
+            ctx.shadowColor = ctx.strokeStyle;
+            ctx.shadowBlur = 10;
+            ctx.lineWidth = 3 * a + 1;
+            ctx.beginPath();
+            ctx.moveTo(f.from.x * k, f.from.y * k);
+            ctx.lineTo(f.x * k, f.y * k);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+        // Chain lightning: jagged arcs from a snared packet to each one it took.
+        for (const f of snare.fx) {
+            if (f.kind !== 'chain') continue;
+            const a = 1 - f.t / f.life;
+            ctx.globalAlpha = a;
+            ctx.strokeStyle = C.text;
+            ctx.shadowColor = C.primary;
+            ctx.shadowBlur = 8;
+            ctx.lineWidth = 2;
+            let seed = Math.floor(f.seed * 1e6) + Math.floor(f.t * 30);
+            const jit = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280 - 0.5; };
+            for (const c of f.arcs) {
+                ctx.beginPath();
+                ctx.moveTo(c.from.x * k, c.from.y * k);
+                for (let i = 1; i < 6; i++) {
+                    const u = i / 6;
+                    ctx.lineTo((c.from.x + (c.x - c.from.x) * u) * k + jit() * 10, (c.from.y + (c.y - c.from.y) * u) * k + jit() * 10);
+                }
+                ctx.lineTo(c.x * k, c.y * k);
+                ctx.stroke();
+            }
+            ctx.shadowBlur = 0;
+        }
+        ctx.globalAlpha = 1;
+        // The wire: bright at the pen, fading toward its tail; tinted while a Firewall hunts it. Its start wears a ring
+        // that lights up when the pen is close enough to close the loop.
         const hunted = run.firewalls.some(f => f.hunting);
         if (run.wire.length > 1) {
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             const n = run.wire.length;
             for (let i = 1; i < n; i++) {
-                const a = 0.25 + 0.75 * (i / n);
-                ctx.globalAlpha = a;
+                ctx.globalAlpha = 0.25 + 0.75 * (i / n);
                 ctx.strokeStyle = hunted ? C.accent : C.success;
                 ctx.lineWidth = 2.5;
                 ctx.beginPath();
@@ -3903,12 +4143,46 @@ window.AGI = (function () {
                 ctx.lineTo(run.wire[i].x * k, run.wire[i].y * k);
                 ctx.stroke();
             }
-            const head = run.wire[n - 1];
+            const head = run.wire[n - 1], start = run.wire[0];
+            if (pv) {
+                ctx.globalAlpha = pv.near ? 0.9 : 0.4;
+                ctx.setLineDash([4, 5]);
+                ctx.strokeStyle = pv.spoiled ? C.danger : C.success;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(head.x * k, head.y * k);
+                ctx.lineTo(start.x * k, start.y * k);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
             ctx.globalAlpha = 1;
+            ctx.strokeStyle = pv?.near ? (pv.spoiled ? C.danger : C.success) : C.muted;
+            ctx.lineWidth = pv?.near ? 2.5 : 1.5;
+            ctx.beginPath();
+            ctx.arc(start.x * k, start.y * k, run.closeR * k, 0, Math.PI * 2);
+            ctx.stroke();
+            if (pv?.near) {
+                ctx.globalAlpha = 0.18;
+                ctx.fillStyle = pv.spoiled ? C.danger : C.success;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
             ctx.fillStyle = C.text;
             ctx.beginPath();
             ctx.arc(head.x * k, head.y * k, 3.5, 0, Math.PI * 2);
             ctx.fill();
+            if (pv && pv.inside.length) {
+                snare.mono ||= getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'monospace';
+                ctx.font = `700 13px ${snare.mono}`;
+                ctx.textAlign = head.x * k > snare.cw * 0.7 ? 'right' : 'left';
+                const label = pv.spoiled ? 'CORRUPT ✕' : `×${pv.mult.toFixed(1)} · ${pv.good.length}`;
+                const lx = head.x * k + (ctx.textAlign === 'right' ? -12 : 12), ly = head.y * k - 12;
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = C.bg || '#0a1416';
+                ctx.strokeText(label, lx, ly);
+                ctx.fillStyle = pv.spoiled ? C.danger : C.success;
+                ctx.fillText(label, lx, ly);
+            }
         }
         // Snapped wires fall apart.
         for (const f of snare.fx) {
@@ -3926,7 +4200,7 @@ window.AGI = (function () {
         ctx.globalAlpha = 1;
         // Firewalls: a red ring with a sweeping scan line, brighter while hunting.
         for (const f of run.firewalls) {
-            const x = f.x * k, y = f.y * k, r = f.r * k;
+            const x = f.x * k, y = f.y * k, r = Math.max(9, f.r * k);
             ctx.strokeStyle = C.danger;
             ctx.fillStyle = C.danger;
             ctx.shadowColor = C.danger;
@@ -3963,8 +4237,8 @@ window.AGI = (function () {
             const a = Math.min(1, 2 * (1 - f.t / (f.life || SNARE_FX)));
             const y = f.y * k - 10 - f.t * 26;
             ctx.globalAlpha = a;
-            ctx.font = `700 ${f.big ? 18 : 15}px ${snare.mono}`;
-            ctx.fillStyle = f.kind === 'catch' ? (f.big ? C.warning : C.text) : C.danger;
+            ctx.font = `700 ${f.small ? 11 : f.big ? 18 : 15}px ${snare.mono}`;
+            ctx.fillStyle = f.kind === 'catch' || f.kind === 'laser' ? (f.big || f.gold ? C.warning : C.text) : C.danger;
             ctx.fillText(f.text, f.x * k, y);
             if (f.sub) {
                 ctx.font = `600 12px ${snare.mono}`;
