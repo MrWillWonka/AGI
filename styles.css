@@ -2391,6 +2391,8 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
        (they used to crush the crumbs to nothing and push Upgrades off a 390 px screen). */
     .module-bar .crumbs { flex: 1 1 auto; min-width: 8.5em; }
     .module-bar .ghost-button, .module-bar .auto-switch { flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+    /* ...but a button wearing the "XP to spend" badge lets it out: clipped, only a 11 × 11 px sliver showed. */
+    .module-bar .ghost-button[data-ready] { overflow: visible; }
 }
 
 /* ---- Luck: special-looking moments ---- */
