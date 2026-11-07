@@ -495,7 +495,8 @@ window.AGI = (function () {
         'hint:train': { anchor: () => $('pathCanvas'), kind: 'tip', place: 'inside' },
         // The first run with a zone on the meter: what a prompt is, without telling anyone to take them.
         'hint:prompt': { anchor: () => $('charge'), kind: 'tip', place: 'above' },
-        'hint:exploit': { anchor: () => $('exploitButton'), kind: 'tip', place: 'above' }
+        'hint:exploit': { anchor: () => $('exploitButton'), kind: 'tip', place: 'above' },
+        'hint:hopAim': { anchor: () => $('exploitButton'), kind: 'tip', place: 'above' }
     };
     function labPointer() {
         return [document.querySelector('.run-stats .module-supply'), document.querySelector('.facility-room[data-room-id="lab"]')]
@@ -510,7 +511,7 @@ window.AGI = (function () {
     // Tips about the run (and the lab, which feeds it) show before a run can start, and a run can't start
     // while one is on its way: the owner pressed sprint and a tip landed on top, blocking the run and getting
     // closed unread. They show fast in the bay, and the press waits for them (`runTipPending`, `pressHold`).
-    const RUN_TIPS = new Set(['hint:train', 'hint:prompt', 'hint:lab', 'hint:offer', 'hint:exploit']);
+    const RUN_TIPS = new Set(['hint:train', 'hint:prompt', 'hint:lab', 'hint:offer', 'hint:exploit', 'hint:hopAim']);
     function runTipPending() {
         const c = calloutLive;
         return !!c && RUN_TIPS.has(c.key) && Date.now() - (c.since || 0) < 6000;
@@ -2381,10 +2382,10 @@ window.AGI = (function () {
             callout('hint:rerun', 'Raise your passive XP', 'Run a cleared leg again with better upgrades and its passive XP goes up. Pick the leg here.');
         }
         // The first exploit (Hop, with Embeddings): what it is and the skill check, once, before a run.
-        if (!state.intro['hint:exploit'] && openBay === 'training' && path.view === 'run' && E.exploitCharges(state) > 0 && path.roll && !thrustLeg(path.roll)) {
-            state.intro['hint:exploit'] = true;
+        if (!state.intro['hint:hopAim'] && openBay === 'training' && path.view === 'run' && E.exploitCharges(state) > 0 && path.roll && !thrustLeg(path.roll)) {
+            state.intro['hint:hopAim'] = true;
             log('Exploit found: Hop. The model found a bug in its training environment.', 'special');
-            callout('hint:exploit', 'Exploit found: Hop', 'Press E (or tap Hop) to jump off the line. Time it on a hill\'s glowing lip for a clean exploit: undetected, faster, bonus XP. Sloppy hops get flagged, and three flags get the run audited.');
+            callout('hint:hopAim', 'Exploit found: Hop', 'Hold Hop (or E) to set a breakpoint: time slows and the view leans in. Let go as the ring closes on a hill\'s glowing lip for a clean exploit: the ball floats over the next dip with no speed lost. Sloppy hops get flagged, and three flags get the run audited.');
         }
         if (!state.intro['hint:prompt'] && openBay === 'training' && path.view === 'run' && E.derive(state).zoneWidth > 0) {
             state.intro['hint:prompt'] = true;
@@ -4658,18 +4659,33 @@ window.AGI = (function () {
             e.preventDefault();
             letGo();
         });
-        // Exploits: E, W or ↑ (Space and Enter sprint), or the button beside Sprint.
+        // Exploits: E, W or ↑ (Space and Enter sprint), or the button beside Sprint. Pressing aims (slow motion),
+        // letting go hops.
+        const exploitKey = e => ['e', 'E', 'w', 'W', 'ArrowUp'].includes(e.key) && openBay === 'training' && path.view === 'run'
+            && !document.querySelector('dialog[open]') && !e.target.closest?.('input, select, textarea');
         document.addEventListener('keydown', e => {
-            if (!['e', 'E', 'w', 'W', 'ArrowUp'].includes(e.key) || e.repeat || openBay !== 'training' || path.view !== 'run') return;
-            if (document.querySelector('dialog[open]') || e.target.closest?.('input, select, textarea')) return;
+            if (!exploitKey(e)) return;
             e.preventDefault();
-            if (!dismissTipFirst()) useExploit();
+            if (e.repeat || dismissTipFirst()) return;
+            startAim();
         });
-        $('exploitButton').addEventListener('pointerdown', e => {
+        document.addEventListener('keyup', e => {
+            if (!exploitKey(e)) return;
+            e.preventDefault();
+            releaseAim();
+        });
+        const hopButton = $('exploitButton');
+        hopButton.addEventListener('pointerdown', e => {
             if (e.button !== 0) return;
             e.preventDefault();
-            if (!dismissTipFirst()) useExploit();
+            if (dismissTipFirst()) return;
+            hopButton.setPointerCapture?.(e.pointerId);
+            startAim();
         });
+        hopButton.addEventListener('pointerup', () => releaseAim());
+        hopButton.addEventListener('pointercancel', () => releaseAim());
+        hopButton.addEventListener('contextmenu', e => e.preventDefault());
+        window.addEventListener('blur', () => releaseAim());
         $('exploitButton').addEventListener('click', e => { if (e.detail === 0) useExploit(); });   // keyboard activation
         canvas.addEventListener('contextmenu', e => e.preventDefault());
         $('rollResult').addEventListener('click', e => {
@@ -4685,15 +4701,37 @@ window.AGI = (function () {
     // perfect: undetected, +30% speed and a super prompt's XP; high on any hill it's good; anywhere else a weak hop,
     // and the run is flagged. Three flags (E.AUDIT_FLAGS) and the run is audited: it ends there and pays half. The
     // Auto-Trainer never exploits (it's what a hand run does better). Act two (thrust) has none yet.
-    const HOP_PERFECT = 1.3;   // speed on a clean hop
+    // Timing it (the owner's playtest: on a phone the window was 4–12 px and 25–135 ms, under touch latency):
+    // holding Hop sets a breakpoint: the run slows to HOP_AIM_SCALE, the camera leans in on the hills ahead and
+    // a ring closes on the ball as the next lip comes up; letting go hops. A quick tap still hops at once. The
+    // window lasts at least HOP_MIN_WINDOW of game time at the ball's speed, and a release up to HOP_GRACE_MS
+    // after leaving it still counts (touch latency).
+    const HOP_PERFECT = 1.1;   // speed on a clean hop (1.3 with a lossy landing; the landing is clean now)
     const HOP_LIP = 0.3;       // the perfect window: from this share of a hill's half-width before its crest…
     const HOP_PAST = 0.12;     // …to this share past it
+    const HOP_MIN_WINDOW = 0.12;
+    const HOP_REACH = 0.55;    // …but never further from the crest than this share of the half-width   // seconds of game time the window lasts at least, at the ball's speed
+    const HOP_GRACE_MS = 70;   // a release this soon after leaving the window still counts
+    const HOP_AIM_SCALE = 0.35;    // time while aiming
+    const HOP_AIM_MAX = 2.5;   // real seconds of slow motion per press (then time runs on; letting go still hops)
+    const HOP_AIM_RING = 0.5;  // seconds of game time ahead that the ring starts closing
     const HOP_POWER = { perfect: 1, good: 0.85, miss: 0.45 };
+    const HOP_KEEP = { perfect: 1, good: 0.92, miss: 0.8 };   // speed kept through the landing
     const exploitsLeft = roll => Math.max(0, E.exploitCharges(state) - (roll.exploitsUsed || 0));
     const exploitOpen = roll => !!roll && E.exploitCharges(state) > 0 && !thrustLeg(roll);
     function exploitReady(roll) {
         return exploitOpen(roll) && exploitsLeft(roll) > 0 && roll.launched && !roll.over && !roll.crested && !path.done
             && !roll.airborne && !frozen() && !flowing() && !path.fx.windup;
+    }
+    // A hill's perfect window: its lip, stretched (mostly before the crest) to last HOP_MIN_WINDOW at speed `v`,
+    // never past the hill itself.
+    function hopWindow(b, v) {
+        let from = b.peak - HOP_LIP * b.halfWidth, to = b.peak + HOP_PAST * b.halfWidth;
+        const short = Math.max(0, Math.abs(v) * HOP_MIN_WINDOW - (to - from));
+        // Kept to the hill's top (stretched down a cliff's face, a hop went straight up it).
+        from = Math.max(b.peak - HOP_REACH * b.halfWidth, from - short * 0.7);
+        to = Math.min(b.peak + HOP_REACH * b.halfWidth * 0.6, to + short * 0.3);
+        return { from, to };
     }
     // The hill the ball is on and where on it: perfect on the lip, good high on the hill, else a miss.
     function hopQuality(roll) {
@@ -4701,15 +4739,52 @@ window.AGI = (function () {
         if (roll.ball.v < 0.3) return 'miss';
         const b = g.bumps.find(h => x >= h.start && x <= h.end);
         if (!b) return 'miss';
-        if (x >= b.peak - HOP_LIP * b.halfWidth && x <= b.peak + HOP_PAST * b.halfWidth) return 'perfect';
+        const w = hopWindow(b, roll.ball.v);
+        if (x >= w.from && x <= w.to) return 'perfect';
         return g.height(x) >= 0.5 * b.height ? 'good' : 'miss';
+    }
+    // The next window ahead of the ball (the one it's in counts), for the aiming ring.
+    function nextHopWindow(roll) {
+        const x = roll.ball.x, v = roll.ball.v;
+        for (const b of roll.ground.bumps) {
+            if (b.end < x) continue;
+            const w = hopWindow(b, v);
+            if (w.to >= x) return { ...w, bump: b };
+        }
+        return null;
+    }
+    // Aiming: hold to slow down, let go to hop.
+    function startAim() {
+        const roll = path.roll;
+        if (!exploitReady(roll) || path.charging || path.hopAim) return;
+        path.hopAim = { at: performance.now(), roll };
+        startPathLoop();
+    }
+    function releaseAim() {
+        if (!path.hopAim) return;
+        const roll = path.hopAim.roll;
+        path.hopAim = null;
+        if (roll === path.roll) useExploit();
+    }
+    // Is the slow motion on (held, within its budget, and still a hop to be had)?
+    function aiming() {
+        const a = path.hopAim;
+        if (!a) return false;
+        if (a.roll !== path.roll || !exploitReady(path.roll)) { path.hopAim = null; return false; }
+        return performance.now() - a.at < HOP_AIM_MAX * 1000;
+    }
+    // Every frame: remember when the ball was last in a perfect window (the grace for a late release).
+    function trackHopWindow(roll) {
+        if (roll && exploitReady(roll) && hopQuality(roll) === 'perfect') path.hopSeen = performance.now();
     }
     const EXPLOIT_TEXT = { perfect: 'CLEAN EXPLOIT', good: 'EXPLOIT', miss: 'FLAGGED' };
     function useExploit() {
         const roll = path.roll;
         if (!exploitReady(roll) || path.charging) return;
-        const q = hopQuality(roll);
-        if (!roll.hop(HOP_POWER[q])) return;
+        let q = hopQuality(roll);
+        // Let go a moment after the lip passed: still clean (touch latency). Not on a hill's foot: that's a miss.
+        if (q === 'good' && performance.now() - (path.hopSeen || 0) < HOP_GRACE_MS) q = 'perfect';
+        if (!roll.hop(HOP_POWER[q], HOP_KEEP[q])) return;
         roll.exploitsUsed = (roll.exploitsUsed || 0) + 1;
         if (q === 'perfect') roll.ball.v *= HOP_PERFECT;
         const xp = E.grantExploit(state, q, ballLeg());
@@ -4958,6 +5033,7 @@ window.AGI = (function () {
         const roll = path.roll;
         // A tip about to show (before the run): the press waits for it rather than launching under it.
         if (roll && !roll.launched && path.view === 'run' && runTipPending()) return;
+        if (path.hopAim) return;   // aiming a hop: one thing at a time
         path.held = true;
         // Act two: hold to thrust while there's fuel (or a crunch makes it free); empty, a hold is a tuck.
         if (roll && thrustLeg(roll) && path.view === 'run' && !path.done && !roll.over) {
@@ -5857,7 +5933,11 @@ window.AGI = (function () {
             path.focus = null;
             path.focusClose = null;
         }
-        const target = celebrating ? 0.35 : focus ? 0.3 : 1;
+        const aim = aiming();
+        const target = Math.min(celebrating ? 0.35 : focus ? 0.3 : 1, aim ? HOP_AIM_SCALE : 1);
+        // Aiming eases the camera in on the hills ahead (cameraTarget) and back out after.
+        path.aimT = Math.max(0, Math.min(1, (path.aimT || 0) + (aim ? 1 : -1) * dt * (aim ? 6 : 3)));
+        if (path.roll) trackHopWindow(path.roll);
         path.timeScale += (target - path.timeScale) * Math.min(1, dt * (target < path.timeScale ? 10 : 3));
         if (path.summit && (path.summit.age += dt) > SUMMIT_SECONDS) path.summit = null;
         for (const p of path.particles) {
@@ -6289,7 +6369,8 @@ window.AGI = (function () {
         setText($('exploitMeta'), `${left} left${flags ? ` · ${'⚑'.repeat(flags)}${'·'.repeat(Math.max(0, E.AUDIT_FLAGS - flags))}` : ''}`);
         b.classList.toggle('flagged', flags > 0);
         b.classList.toggle('armed', ready && hopQuality(roll) === 'perfect');
-        b.setAttribute('aria-label', `Hop (E): ${left} left${flags ? `, ${flags} of ${E.AUDIT_FLAGS} flags` : ''}`);
+        b.classList.toggle('aiming', !!path.hopAim);
+        b.setAttribute('aria-label', `Hop (hold E, let go to hop): ${left} left${flags ? `, ${flags} of ${E.AUDIT_FLAGS} flags` : ''}`);
     }
 
     function updatePathControls() {
@@ -6573,6 +6654,7 @@ window.AGI = (function () {
         const left = leftOf(view);
         // Act one draws hills at the trail's own scale. (Stretching them up to 2× taller to fill the height made
         // slopes look far steeper than the ball felt them, so it no longer read as having weight.)
+        if (path.aimT > 0 && !(path.tension > 0)) return aimView(roll, left, view, condense);
         if (!(path.tension > 0) || !path.focus) return { left, right: left + view, bottom: 0, condense };
         // Nail-biter: push in on the ball and the crest, lifting the view so both stay in frame.
         const area = drawArea();
@@ -6586,6 +6668,26 @@ window.AGI = (function () {
         const l = left + (closeLeft - left) * t;
         return { left: l, right: l + view + (close - view) * t, bottom: closeBottom * t, };
     }
+
+    // Aiming a hop (camera language's fifth move, the owner's playtest: at the follow zoom a lip was a few pixels):
+    // lean in on the ball and the rolling hills just ahead, as close as their height allows (the skill hill can
+    // go off the top, with its arrow), wide enough to show the next lip coming. Eased by `path.aimT`.
+    function aimView(roll, left, view, condense) {
+        const x = roll.ball.x;
+        const next = nextHopWindow(roll);
+        let close = Math.max(AIM_VIEW_MIN, next ? (next.to - x) / 0.65 : 0);
+        for (let i = 0; i < 3; i++) {
+            let h = 0;
+            for (const b of roll.ground.bumps) if (b.end > x - close * 0.3 && b.start < x + close * 0.7) h = Math.max(h, b.height);
+            close = Math.max(AIM_VIEW_MIN, close, widthToFit(h));
+        }
+        close = Math.min(view, close);
+        const k = path.aimT;
+        const closeLeft = Math.max(roll.ground.start - 0.4, x - close * 0.3);
+        const l = left + (closeLeft - left) * k;
+        return { left: l, right: l + view + (close - view) * k, bottom: 0, condense };
+    }
+    const AIM_VIEW_MIN = 2.2;   // metres: the aim zoom never goes closer
 
     function cameraMoving() {
         if (!path.roll || !path.cam) return true;
@@ -6608,7 +6710,7 @@ window.AGI = (function () {
         ctx.save();
         ctx.lineCap = 'round';
         for (const b of ahead) {
-            const from = b.peak - HOP_LIP * b.halfWidth, to = b.peak + HOP_PAST * b.halfWidth;
+            const { from, to } = hopWindow(b, roll.ball.v);
             const on = roll.ball.x >= from && roll.ball.x <= to && !roll.airborne;
             const pulse = reducedMotion() ? 0.8 : 0.6 + 0.3 * Math.sin(t * 6 + b.peak);
             ctx.strokeStyle = hexAlpha(c.research, on ? 1 : pulse);
@@ -6623,6 +6725,54 @@ window.AGI = (function () {
             }
             ctx.stroke();
         }
+        ctx.restore();
+    }
+
+    // While aiming a hop: a ring closes on the ball as the next lip comes up (HOP_AIM_RING seconds out, at the
+    // ball's speed), locking on and filling while it's in the window, like a rhythm game's approach circle: it
+    // reads the timing whatever the zoom. And the frame shows the breakpoint: a violet edge and a tag.
+    function drawHopAim(ctx, roll, X, Y) {
+        const k = path.aimT || 0;
+        if (k <= 0 || !exploitReady(roll)) return;
+        const c = path.colors;
+        const bx = X(roll.ball.x), by = Y(roll.ground.height(roll.ball.x));
+        const next = nextHopWindow(roll);
+        ctx.save();
+        if (next && roll.ball.v > 0.3) {
+            const inside = roll.ball.x >= next.from;
+            const t = inside ? 0 : (next.from - roll.ball.x) / roll.ball.v;
+            if (t < HOP_AIM_RING) {
+                const r = BALL + 5 + (t / HOP_AIM_RING) * 46;
+                ctx.globalAlpha = k * (inside ? 1 : 0.35 + 0.65 * (1 - t / HOP_AIM_RING));
+                ctx.strokeStyle = c.research;
+                ctx.lineWidth = inside ? 4 : 2.5;
+                ctx.shadowColor = c.research;
+                ctx.shadowBlur = inside ? 18 : 6;
+                ctx.beginPath();
+                ctx.arc(bx, by, r, 0, Math.PI * 2);
+                ctx.stroke();
+                if (inside) {
+                    ctx.fillStyle = hexAlpha(c.research, 0.25);
+                    ctx.fill();
+                }
+            }
+        }
+        ctx.restore();
+    }
+
+    function drawBreakpoint(ctx) {
+        const k = path.aimT || 0;
+        if (k <= 0) return;
+        const c = path.colors;
+        ctx.save();
+        ctx.globalAlpha = k;
+        ctx.strokeStyle = hexAlpha(c.research, 0.55);
+        ctx.lineWidth = 3;
+        ctx.strokeRect(2, 2, path.width - 4, path.height - 4);
+        ctx.fillStyle = c.research;
+        ctx.font = '600 12px "JetBrains Mono", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText('❚❚ BREAKPOINT', 14, 44);   // under the sprint pips, clear of the goal line
         ctx.restore();
     }
 
@@ -7220,6 +7370,7 @@ window.AGI = (function () {
                 ctx.stroke();
             }
         }
+        drawHopAim(ctx, roll, X, Y);
         ctx.fillStyle = c.text;
         ctx.beginPath();
         ctx.arc(bx, by, BALL, 0, Math.PI * 2);
@@ -7243,6 +7394,7 @@ window.AGI = (function () {
             ctx.fillText('HOLD ▼', bx, by - BALL - 26);
         }
         drawLuckOver(ctx, bx, by, wind);
+        drawBreakpoint(ctx);
         drawTear(ctx);
         ctx.restore();
 

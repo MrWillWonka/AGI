@@ -1073,3 +1073,32 @@ test('Hop: an act-one exploit that leaves the line, falls naturally, and can nev
     late.push(1);
     assert.equal(late.hop(1), false);
 });
+
+test('Hop floats and lands clean: it keeps its speed and carries a run further than rolling the same hills', () => {
+    // Fire at the first crest's lip after a launch, as a timed hop would; compare with the same run untouched.
+    const go = (hopIt, seed = 3) => {
+        const r = T.createRoll(7, seed, { pushes: 1, cooldown: 0 });
+        r.push(1.7);
+        let hopped = false, flight = null, vBefore = 0;
+        for (let i = 0; i < 6000 && !r.over; i++) {
+            const ev = r.step(1 / 60);
+            const land = ev.find(e => e.type === 'land');
+            if (land && hopped && flight === null) flight = { len: land.flight, v: r.ball.v, vBefore };
+            if (hopIt && !hopped && !r.airborne && r.ball.v > 1) {
+                const b = r.ground.bumps.find(h => r.ball.x >= h.start && r.ball.x <= h.end);
+                if (b && r.ball.x >= b.peak - 0.3 * b.halfWidth && r.ball.x <= b.peak) {
+                    vBefore = r.ball.v;
+                    hopped = r.hop(1, 1);
+                }
+            }
+        }
+        return { x: r.ball.x, flight };
+    };
+    const plain = go(false), hop = go(true);
+    assert.ok(hop.flight && hop.flight.len > 0.6, `floats over the dip: ${hop.flight && hop.flight.len}`);
+    assert.ok(hop.flight.v > 0.97 * hop.flight.vBefore, `lands clean: ${hop.flight.v} vs ${hop.flight.vBefore}`);
+    // On average over runs (one run can still settle in the same dip).
+    let gain = 0;
+    for (let seed = 1; seed <= 10; seed++) gain += go(true, seed).x - go(false, seed).x;
+    assert.ok(gain / 10 > 0.15, `carries further: ${gain / 10} m a run`);
+});

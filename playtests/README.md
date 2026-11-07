@@ -33,7 +33,7 @@ publish), and the calibrator prints it. Older logs are placed below by when they
 |---|---|---|---|---|
 | `2026-11-07-owner.txt` | 11-06 23:59 to 11-07 00:42 | before the playtest fixes (save v16, about commit `6622041`) | the owner, desktop, 43 min, v1.0 to Reasoning | six-skill act one; ~11.9K CP added by debug at 7 min; a 6 min pause on the server room |
 | `2026-11-07-owner-2.txt` | 01:55 to 02:15 | after the earned server-room gate (save v17, about `570fa76`) | the owner, desktop, 20 min, a fresh game to Edge Detection | no debug; six-skill act one; 70% of the time in the lab, 2.75 clicks/s, prompts only 23% |
-| `2026-11-07-owner-3.txt` | 14:33 to 15:02 | leg characters, Inertia, Server Cluster after Pattern Matching (save v18, `2b8eafe`, published 14:32) | the owner, iPhone, 22 min, a fresh game to Sentiment Analysis | no debug; twelve-skill act one with leg characters; **no Hop** (live 15:02, after this log); 6 min with the lab never visited again and a finished investor offer unclaimed |
+| `2026-11-07-owner-3-4.txt` | 14:33 to 15:33 (four sessions) | sessions 1–2 (to 22 min) on leg characters (`2b8eafe`, 14:32); session 3 (22–35 min, from 15:03) on Hop + the lab badge (`0f83076`, 15:02); session 4 (from 15:17) on the build stamp (15:08) | the owner, iPhone, 52 min, a fresh game to General AI (37.1 min) | no debug; the third log continued (the same game, so one file: it replaces `owner-3`). Hop used 17 times from 22 min: 6 clean, 4 good, 7 flagged; the owner found the timing practically impossible (on a phone the window was 4–12 px and 25–135 ms), which the 15:50 build reworks. The sim as this player reaches General AI at 49–58 min (real 37): it neither replays legs nor hops, and its lab share is 58% |
 
 ## Builds
 
@@ -41,7 +41,8 @@ What each build had, newest first (artifact publish times, UTC). A log played on
 
 | Published | Build | What changed |
 |---|---|---|
-| 11-07 15:08 | this build | Playtest logs carry their build (`E.BUILD`) |
+| 11-07 15:50 | this build | **Hop reworked**: hold to aim (slow motion, the view leans in, a ring closes on the lip), let go to hop; floaty, clean landings; windows of at least 0.12 s and a 70 ms grace |
+| 11-07 15:08 | `2bbdfe2` | Playtest logs carry their build (`E.BUILD`) |
 | 11-07 15:02 | `0f83076` | Exploits: the Exploit button and **Hop**; the run card's Lab button only with news, with a count badge |
 | 11-07 14:32 | `2b8eafe` | Server Cluster and the Training Data Pipeline wait for Pattern Matching |
 | 11-07 14:29 | `f4abec2` | **Leg characters** (Rolling, Sprint, Long flats, Marathon, Cliffs) and **Inertia** |

@@ -976,6 +976,8 @@ h1, h2, h3, p { margin: 0; }
 .exploit-button[aria-disabled="true"] { opacity: 0.5; cursor: default; }
 .exploit-button.flagged .exploit-meta { color: var(--danger); }
 .exploit-button.armed { box-shadow: 0 0 0 1px var(--research), 0 0 14px color-mix(in srgb, var(--research) 45%, transparent); }
+.exploit-button.aiming { background: color-mix(in srgb, var(--research) 28%, var(--bg)); touch-action: none; }
+.exploit-button { touch-action: none; -webkit-touch-callout: none; }
 @media (hover: hover) { .exploit-button:not([aria-disabled="true"]):hover { background: color-mix(in srgb, var(--research) 22%, var(--bg)); } }
 .result-details { margin-top: 4px; font: 0.8rem var(--font-mono); color: var(--muted); }
 .result-details summary { cursor: pointer; width: max-content; padding: 2px 0; color: var(--primary); list-style: none; }
