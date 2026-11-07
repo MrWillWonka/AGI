@@ -536,12 +536,13 @@ const snareSim = { run: null, plan: [], wait: 0, runs: 0, haul: 0, signal: 0 };
 function snareStep(dt) {
     if (!snareSim.run || snareSim.run.over) {
         if (snareSim.run) {
-            E.finishSnare(s, snareSim.haul, null, snareSim.run.stats);
+            E.finishSnare(s, snareSim.haul, snareSim.run.layoutOf(), snareSim.run.stats);
             snareSim.runs++;
             // the cheapest node it can buy
             for (;;) {
+                // Attention Span first (longer runs reach the boss), then the cheapest.
                 const c = E.SNARE_TREE.filter(u => E.isUpgradeVisible(s, u) && !E.isMaxed(s, u) && E.canAfford(s, E.upgradeCost(u, E.level(s, u.id))))
-                    .sort((a, b) => E.upgradeCost(a, E.level(s, a.id)).signal - E.upgradeCost(b, E.level(s, b.id)).signal)[0];
+                    .sort((a, b) => (b.id === 'snareFocus') - (a.id === 'snareFocus') || E.upgradeCost(a, E.level(s, a.id)).signal - E.upgradeCost(b, E.level(s, b.id)).signal)[0];
                 if (!c || !E.buy(s, c.id).ok) break;
                 E.evaluate(s);
             }
@@ -558,7 +559,8 @@ function snareStep(dt) {
     else if (r.cooldown <= 0 && (snareSim.wait -= dt) <= 0) {
         snareSim.wait = 0.4;
         let target = null, rad = 1.3;
-        if (r.boss && rng() < 0.5) { target = r.boss; rad = 1.25; }
+        // The boss when it's there (a tight ring: a loop no bigger than the sector allows), else the best clean cluster.
+        if (r.boss && rng() < 0.7) { target = r.boss; rad = Math.min(1.1, Math.sqrt(r.opts.bossLoop * r.w * r.h / Math.PI) * 0.95); }
         else {
             let best = 0;
             for (const p of r.packets) {
@@ -576,7 +578,7 @@ function snareStep(dt) {
     r.step(dt);
     for (const e of r.takeEvents()) {
         if (e.type === 'catch' || e.type === 'laser' || e.type === 'quarantine') snareSim.haul += E.snareCatch(s, e.units, snareSim.sector);
-        if (e.type === 'bossDown') { snareSim.haul += E.snareCatch(s, 10 * E.snareBossHits(snareSim.sector), snareSim.sector); E.snareBossDown(s); }
+        if (e.type === 'bossDown') snareSim.haul += E.snareBossDown(s, snareSim.sector);
     }
 }
 

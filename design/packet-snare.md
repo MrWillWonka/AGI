@@ -109,12 +109,28 @@ The owner's calls:
 - Your tools amber, enemies red, the Wall a white hatched shield; its own sounds; music that builds; six achievements.
 - The Rogue AI stays as hard as it was (the owner likes the challenge).
 
+## Built: the seventh pass (review round 2, the owner's sixth-build log and calls)
+
+Round 2 scored accuracy 7.5, bugs 5.5, implementation 7.5, clarity 6.75, consistency 7, polish 6.75. The owner's log: the
+tree was bought out by 16 minutes, bosses fell easily, lasers did the work. The owner asked for a tree that isn't quick to
+finish, a far bigger field with far more to place and manipulate, walls you draw (to keep the bad out and let the good
+through) and decoys, fewer red stars (and red packets instead of stars), and bosses that scale into the wall.
+
+- **Your Firewalls are walls you draw** (corrupt packets bounce, good ones pass, they stun Antivirus and the boss and keep
+  the Rogue AI's cores off the data). Anchors and pens are gone, and so is the edge-to-edge Wall.
+- **A tool bar**: decoys, turrets, scanner towers, freeze and purge, beside the lasso and the wall.
+- **A 49-node tree** in four branches reaching four cells out (about 300K Signal and an endless Overclock), panning and
+  zooming like the Training tree; nine Sprawl levels to a datacentre-sized field; Checksums and Parity Check thin the
+  corrupt packets.
+- **Bosses as the wall**: 1, 2, 4, 6, 9, 12, 16, 20 hits, faster, charging more often, booting Antivirus when hit.
+- Round 2's fixes (input under cards, saves, the bay bar, Escape, phones, colours, speed: 216 → 33 ms a frame on a
+  throttled phone at full build), tested demos, stealth music.
+
 ## Next slices
 
 1. **Playtest the second pass:** does closing feel easy, does the preview make big loops a decision, is the first run
    short enough, do the abilities change how you play? Tune `SNARE` and the tree's prices from the log.
-2. **The record links to the lab:** the best haul raises the Data crawler's yield per collection (the rule: automation
-   converts, never creates).
+2. **Rule-breaking mechanics and power-ups** from review rounds 3 and 4.
 3. **Active defense:** slash through an Antivirus with a quick stroke before it reaches your Firewalls.
 4. **The Rogue AI's story beats (leaving a core alone as a deliberate
    freedom choice, never a missed loop).
