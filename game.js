@@ -4555,6 +4555,10 @@ window.AGI = (function () {
                 { pushes: d.pushesPerRoll, cooldown: d.pushCooldown, friction: d.friction, hillScale: d.hillScale, strips: d.strips, onward: true, last: E.frontierLeg(state),
                     holdOpen: crunching, endAt: E.ACT_TWO_LOCKED ? demoGateX() : null });
             path.roll.frontier = state.path.learned;   // where the frontier was when the run started
+            // A new run is a cut, not a zoom across from wherever the last one left the camera.
+            path.cam = null;
+            path.camView = null;
+            path.lateView = null;
             path.roll.capBefore = labCapacities();      // the lab's room when it started, to say what a skill opened
             path.autoAt = 0;
             path.rollPushes = d.pushesPerRoll;
@@ -4562,7 +4566,6 @@ window.AGI = (function () {
             path.burnStrength = null;
             path.autoThrust = false;
             path.rollKey = key;
-            if (path.stateRef !== state) path.cam = null;
             path.stateRef = state;
         }
         return path.roll;
@@ -4808,6 +4811,7 @@ window.AGI = (function () {
     function runAgain() {
         if (!path.done) return;
         path.done = false;
+        path.overview = 0;   // the next run opens on its own framing (a cut), not on the overview
         dismissResult();
         currentRoll();
         render();
@@ -5627,7 +5631,9 @@ window.AGI = (function () {
                 finishRoll(roll.end());
             }
         }
-        if (path.overview > 0) path.overview -= dt;
+        // The overview after a skill holds while the result card waits (it used to zoom back in to the stopped ball
+        // after 3 s, a move with nothing behind it); Train again cuts to the next run.
+        if (path.overview > 0 && !path.done) path.overview -= dt;
         if (path.glow && (path.glow.age += dt) > 2.5) path.glow = null;
         path.pushFlash = Math.max(0, path.pushFlash - dt);
         path.cleanFlash = Math.max(0, path.cleanFlash - dt);
@@ -5639,7 +5645,7 @@ window.AGI = (function () {
         updateLiveXp();
         const roll = path.roll;
         const busy = roll && roll.launched && !roll.over;
-        const animating = busy || path.legFlash || fxBusy() || path.summit || path.particles.length || path.tension > 0.01 || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || path.overview > 0 || path.glow || path.pushFlash || cameraMoving()
+        const animating = busy || path.legFlash || fxBusy() || path.summit || path.particles.length || path.tension > 0.01 || path.brokeFor > 0 || path.charging || path.cleanFlash > 0 || path.pause > 0 || (path.overview > 0 && !path.done) || path.glow || path.pushFlash || cameraMoving()
             || ghostOn();
         if (running && animating) path.frame = requestAnimationFrame(pathFrame);
     }
@@ -5718,8 +5724,10 @@ window.AGI = (function () {
         const g = roll.ground;
         const x = roll.ball.x;
         const hill = g.bumps.find(b => x >= b.start && x < b.peak);
-        // Only big hills: the skill hill, or a rolling hill at least 60% of its height.
-        if (!hill || (hill.skill === null && hill.height < 0.6 * g.goal.height)) return null;
+        // Only where a skill is at stake: the frontier's skill hill (the owner's call: the camera moves for what
+        // matters). Big rolling hills and cleared hills on a replay used to push in too, so a run could zoom
+        // two or three times before the hill that counted.
+        if (!hill || hill.skill === null || hill.skill < state.path.learned) return null;
         // Once it starts, it lasts until the ball crests or turns back on this hill.
         if (path.focus === hill && path.tension > 0) return hill;
         // Rare on purpose: not again for a while after the last one.
@@ -5746,6 +5754,7 @@ window.AGI = (function () {
         if (path.tension < 0.01 && !focus) {
             path.tension = 0;
             path.focus = null;
+            path.focusClose = null;
         }
         const target = celebrating ? 0.35 : focus ? 0.3 : 1;
         path.timeScale += (target - path.timeScale) * Math.min(1, dt * (target < path.timeScale ? 10 : 3));
@@ -6313,6 +6322,7 @@ window.AGI = (function () {
     // Taller canvases exaggerate more, so the hills use the height instead of leaving empty sky.
     let RELIEF = RELIEF_BASE;
     const HEADROOM = 1.45;      // space above the tallest hill in view
+    const PUSH_IN = 0.5;        // the nail-biter's and summit's push-in goes at most 2× closer
 
     function drawArea() {
         const a = { w: path.width - PAD_X * 2, h: path.height - PAD_TOP - PAD_BOTTOM };
@@ -6321,12 +6331,20 @@ window.AGI = (function () {
     }
 
     function tallestIn(roll, from, to) {
-        let tallest = 0;
+        return tallestAt(roll, from, to).h;
+    }
+    // The tallest ground in a window and where it peaks, so the camera knows when the thing that made it pull
+    // back is behind the ball.
+    function tallestAt(roll, from, to) {
+        let h = 0, x = from;
         for (let i = 0; i <= 160; i++) {
-            const x = from + (to - from) * i / 160;
-            if (x > -0.05 && x <= roll.ground.goal.end) tallest = Math.max(tallest, groundAt(roll, x));
+            const at = from + (to - from) * i / 160;
+            if (at > -0.05 && at <= roll.ground.goal.end) {
+                const y = groundAt(roll, at);
+                if (y > h) { h = y; x = at; }
+            }
         }
-        return tallest;
+        return { h, x };
     }
 
     // World width needed so a height of `tallest` fits under the headroom at this exaggeration.
@@ -6383,7 +6401,7 @@ window.AGI = (function () {
             if (!(path.tension > 0) || !path.focus) return { left, right: left + view, bottom, condense, relief: LATE_RELIEF };
             // Nail-biter (and the summit): push in on the ball and the crest, with the crest high in the frame.
             const f = path.focus;
-            const close = Math.min(view, Math.max(LATE_VIEW * 0.6, (f.peak - roll.ball.x) / 0.6 + 4));
+            const close = Math.min(view, Math.max(view * PUSH_IN, LATE_VIEW * 0.6, (f.peak - roll.ball.x) / 0.6 + 4));
             const closeLeft = roll.ball.x - close * 0.3;
             const closeBottom = Math.max(0, f.height - 0.75 * fitH(close));
             const k = path.tension;
@@ -6393,21 +6411,31 @@ window.AGI = (function () {
         const span = T.skillHill(leg).end - g.legStart(leg);
         const base = Math.min(span + 0.6, Math.max(3, span * 0.25));
         const leftOf = view => Math.max(g.start - 0.4, roll.ball.x - view * 0.3);
+        // Rolling forward, only what's ahead sizes the zoom: the hill just crested no longer counts (after a summit
+        // the push-in released out to frame it and zoomed straight back in a second later). Rolling back, all of it.
+        const from = view => (roll.ball.v > 0 ? Math.max(leftOf(view), roll.ball.x) : leftOf(view));
         // Look at the base window (not the widened one) to decide the zoom, so it can't feed on itself.
-        const ahead = tallestIn(roll, leftOf(base), leftOf(base) + base);
+        const ahead = tallestIn(roll, from(base), leftOf(base) + base);
         // Hysteresis: zoom out at once when something tall needs it, but only zoom back in once the view
         // could be 30% tighter, so it doesn't keep breathing in and out over every bump.
         let view = Math.max(base, widthToFit(ahead));
         // A tall hill already in the widened view (a skill hill at its right edge) counts too: it was drawn off
         // the top with an arrow (owner's playtest). A few passes, since widening can show more.
+        let cause = tallestAt(roll, from(view), leftOf(view) + view);
         for (let i = 0; i < 3; i++) {
-            const need = widthToFit(tallestIn(roll, leftOf(view), leftOf(view) + view));
+            const need = widthToFit(cause.h);
             if (need <= view * 1.001) break;
             view = need;
+            cause = tallestAt(roll, from(view), leftOf(view) + view);
         }
+        // Camera language (the owner's call: too much movement, and it pumped in and out near skill hills): the
+        // follow zoom pulls back at once when something tall needs it, but only comes back in once that thing is
+        // behind a ball rolling forward (past its top), and could be 30% tighter. A ball rocking in the dip before a skill hill
+        // used to take the hill in and out of the window, and the zoom breathed with every swing.
         const held = path.camView;
-        if (held && held.roll === roll && view <= held.width && view > held.width / 1.3) view = held.width;
-        else path.camView = { roll, width: view };
+        if (held && held.roll === roll && view < held.width
+            && !(roll.ball.x > held.causeX && roll.ball.v > 0 && view <= held.width / 1.3)) view = held.width;
+        else if (!held || held.roll !== roll || view !== held.width) path.camView = { roll, width: view, causeX: cause.x };
         // Lucid Dream: the timeline condenses. The view squeezes wider while heights keep their scale
         // (drawPath divides the vertical scale back out by the same factor).
         if (condense > 1) view *= condense;
@@ -6417,7 +6445,9 @@ window.AGI = (function () {
         if (!(path.tension > 0) || !path.focus) return { left, right: left + view, bottom: 0, condense };
         // Nail-biter: push in on the ball and the crest, lifting the view so both stay in frame.
         const area = drawArea();
-        const close = Math.min(view, Math.max(1.2, path.focus.halfWidth * 1.6));
+        // A lean-in, not a lunge: at most twice as close (it went from a 9 m view to 1.2 m, 7×, and back out).
+        // Set once per moment, so easing out of it never dips in further as the follow view changes underneath.
+        const close = path.focusClose ??= Math.min(view, Math.max(view * PUSH_IN, 1.2, path.focus.halfWidth * 1.6));
         const closeLeft = roll.ball.x - close * 0.45;
         const visibleH = area.h * close / (area.w * RELIEF);
         const closeBottom = Math.max(0, roll.ground.height(roll.ball.x) - visibleH * 0.35);
