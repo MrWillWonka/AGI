@@ -1,9 +1,9 @@
 // Runs the balance sim as several human players measured from real playtest logs, so balance is checked against a
 // spread of real players rather than one bot: each log's own player, the pooled mean and the pooled median
 // (tools/playtest-calibrate.js), and the old default bot for comparison.
-// Usage: node tools/sim-variants.js [profile.json] [--seeds 1,2,3,42] [--minutes 90] [--maxskill 9] [--jobs 4]
+// Usage: node tools/sim-variants.js [profile.json] [--seeds 1,2,3,42] [--minutes 90] [--maxskill 15] [--jobs 4]
 //   profile.json: `node tools/playtest-calibrate.js playtests/*.txt --json > playtests/profile.json` (the default).
-// Prints, per variant: Pattern Matching (run and minute), General AI and skill 8 (median and range over the seeds),
+// Prints, per variant: Pattern Matching (run and minute), General AI and the second act-two skill (Planning) (median and range over the seeds),
 // and the share of sprints short of a full charge for lack of income.
 'use strict';
 const path = require('path');
@@ -15,7 +15,10 @@ const opt = (name, fallback) => { const i = argv.indexOf('--' + name); return i 
 const profileFile = argv.find(a => a.endsWith('.json')) || path.join(__dirname, '..', 'playtests', 'profile.json');
 const SEEDS = opt('seeds', '1,2,3,42').split(',').map(Number);
 const MINUTES = opt('minutes', '90');
-const MAXSKILL = opt('maxskill', '9');
+const E = require(path.join(__dirname, '..', 'engine.js'));
+// The skill after General AI's first act-two skill (Planning: it was 'skill 8' when act two began at leg 7).
+const S8 = E.ACT_TWO_LEG + 1;
+const MAXSKILL = opt('maxskill', String(S8 + 1));
 const JOBS = +opt('jobs', '4');
 
 const prof = JSON.parse(fs.readFileSync(profileFile, 'utf8'));
@@ -35,7 +38,7 @@ function runSim(knobs, seed) {
             const skill = n => { const m = out.match(new RegExp(`skill\\s+${n}\\s+.*?([0-9.]+) min\\s+run (\\d+)`)); return m ? { min: +m[1], run: +m[2] } : null; };
             const general = out.match(/General AI at ([0-9.]+) min/);
             const short = out.match(/sprints \d+ \((\d+)% below full charge\)/);
-            resolve({ pm: skill(1), s8: skill(8), general: general ? +general[1] : null, short: short ? +short[1] : null });
+            resolve({ pm: skill(1), s8: skill(S8), general: general ? +general[1] : null, short: short ? +short[1] : null });
         });
     });
 }
@@ -65,7 +68,7 @@ async function main() {
         console.log(`\n${v.name}  (${knobs})`);
         console.log(`  Pattern Matching  run ${med(rs.map(r => r.pm?.run))}, ${med(rs.map(r => r.pm?.min))?.toFixed(1)} min (${span(rs.map(r => r.pm?.min))})`);
         console.log(`  General AI        ${med(rs.map(r => r.general))?.toFixed(1) ?? 'never'} min (${span(rs.map(r => r.general))})`);
-        console.log(`  skill 8           ${med(rs.map(r => r.s8?.min))?.toFixed(1) ?? 'never'} min (${span(rs.map(r => r.s8?.min))})`);
+        console.log(`  skill ${String(S8).padEnd(12)}${med(rs.map(r => r.s8?.min))?.toFixed(1) ?? 'never'} min (${span(rs.map(r => r.s8?.min))})`);
         console.log(`  sprints short     ${med(rs.map(r => r.short))}% (${span(rs.map(r => r.short))})`);
     }
     // Real players, to read the variants against (minutes from the first click, as the sim counts).

@@ -89,42 +89,59 @@
     // ---- Skill hills (fixed) -----------------------------------------------
 
     // Leg 0 is a warm-up: a short flat run to a small hill most first runs crest with their two sprints, so the
-    // first skill (and a summit) comes in the first few runs. Every later leg k is the old leg k − 1 (`j`).
+    // first skill (and a summit) comes in the first few runs.
     const TUTORIAL = { length: 2, height: 0.03, halfWidth: 0.45 };
-    // Each skill hill is a bigger wall than the last: ×1.25 a leg through act one (so General AI, the first
-    // version worth shipping, comes about 30 minutes in), ×1.5 a leg in act two, from where it always was.
-    const ACT_ONE_GROWTH = 1.25;
-    const skillHeight = k => (k === 0 ? TUTORIAL.height : 0.3 * Math.pow(k < LATE_LEG ? ACT_ONE_GROWTH : 1.5, k - 1));
-    // The teeter-totter: every third leg's skill hill is a wall (WALL_HEIGHT taller), and the leg after it eases
-    // off (AFTER_WALL), so progress swings between a slow, deliberate climb and a stretch you cut through. The
-    // skills learned on walls pay big (the engine's SKILLS), which is the power spurt. Only the skill hill moves:
-    // the leg's rolling hills keep the smooth curve. The engine mirrors WALL_EVERY (`isWallLeg`; a test keeps them equal).
-    const WALL_EVERY = 3;
-    const WALL_HEIGHT = 1.3;
-    const AFTER_WALL = 0.85;
-    const isWallLeg = k => k >= WALL_EVERY && k % WALL_EVERY === 0;
-    // Act two's hills already grow ×1.5 a leg: its walls stand a little less proud (WALL_HEIGHT_LATE), or each took
-    // 25–75 minutes in the sim.
-    const WALL_HEIGHT_LATE = 1.15;
-    const wallMult = k => (isWallLeg(k) ? (k >= LATE_LEG ? WALL_HEIGHT_LATE : WALL_HEIGHT) : k > WALL_EVERY && isWallLeg(k - 1) ? AFTER_WALL : 1);
-    // Act two (from leg 7, `LATE_LEG`: the leg after Translation, the skill that reaches General AI) is a
+    // Act two (from leg 13, `LATE_LEG`: the leg after In-Context Learning, the skill that reaches General AI) is a
     // launcher: each leg is a handful of huge swells, far wider than the view, and the ball can fly off
     // their crests and bounce (see createRoll). Before that, legs are many small rolling hills. The engine
     // mirrors this as ACT_TWO_LEG (a test keeps them in step).
-    const LATE_LEG = 7;           // (skillHalfWidth widens its hills from here too)
+    const LATE_LEG = 13;          // (skillHalfWidth widens its hills from here too)
+    // Act one has twelve real skills on legs 1–12 (the owner's call: twice the six it had, so its tree nodes get
+    // more use and each new skill is a slot for a new mechanic). The difficulty curves were written for six, so
+    // they read a leg's *position* on the old curve: the warm-up 0, act one's legs at half steps (leg k at
+    // (k + 1) / 2: 1, 1.5, 2 … 6.5; the old legs keep their whole numbers, the new ones fall between), and act
+    // two's legs where they were (k − 6), so its geometry is exactly what it was. The engine mirrors it (`legPos`;
+    // a test keeps the two equal).
+    const legPos = k => (k <= 0 ? 0 : k < LATE_LEG ? (k + 1) / 2 : k - (LATE_LEG - 7));
+    // Each skill hill is a bigger wall than the last: ×1.25 a step through act one (so General AI, the first
+    // version worth shipping, comes about 40 minutes in), ×1.5 a step in act two, from where it always was.
+    const ACT_ONE_GROWTH = 1.25;
+    const skillHeight = k => (k === 0 ? TUTORIAL.height : 0.3 * Math.pow(k < LATE_LEG ? ACT_ONE_GROWTH : 1.5, legPos(k) - 1));
+    // The teeter-totter: every third step's skill hill is a wall (WALL_HEIGHT taller), and the leg or two after it
+    // ease off (AFTER_WALL), so progress swings between a slow, deliberate climb and a stretch you cut through. The
+    // skills learned on walls pay big (the engine's SKILLS), which is the power spurt. Only the skill hill moves:
+    // the leg's rolling hills keep the smooth curve. Walls stand where they did: Image Recognition (leg 5),
+    // Translation (11), then act two's 15, 18, 21… The engine mirrors it (`isWallLeg`; a test keeps them equal).
+    const WALL_EVERY = 3;
+    const WALL_HEIGHT = 1.3;
+    const AFTER_WALL = 0.85;
+    const wallPos = p => Number.isInteger(p) && p >= WALL_EVERY && p % WALL_EVERY === 0;
+    const isWallLeg = k => k > 0 && wallPos(legPos(k));
+    // Act two's hills already grow ×1.5 a leg: its walls stand a little less proud (WALL_HEIGHT_LATE), or each took
+    // 25–75 minutes in the sim.
+    const WALL_HEIGHT_LATE = 1.15;
+    // After a wall: every leg up to one step on (act one's in-between leg and the next old one; act two's next leg).
+    const afterWall = k => legPos(k) > WALL_EVERY && wallPos(Math.ceil(legPos(k)) - 1);
+    const wallMult = k => (isWallLeg(k) ? (k >= LATE_LEG ? WALL_HEIGHT_LATE : WALL_HEIGHT) : afterWall(k) ? AFTER_WALL : 1);
     // From act two (LATE_LEG) skill hills are 8× wider, in scale with the giant swells around them.
-    const skillHalfWidth = k => (k === 0 ? TUTORIAL.halfWidth : 0.55 * Math.pow(1.14, k - 1) * (k >= LATE_LEG ? 8 : 1));
-    // Checkpoint to the foot of skill hill k (after the warm-up): 10, 17, 26, 36, 50, 69, 93, 124, 166 … Gentle early (no wall
-    // at the second skill), then much longer each stretch, so the distance itself becomes the challenge
-    // and strength (and later launches and bounces) matters more than the hill count.
+    const skillHalfWidth = k => (k === 0 ? TUTORIAL.halfWidth : 0.55 * Math.pow(1.14, legPos(k) - 1) * (k >= LATE_LEG ? 8 : 1));
+    // Checkpoint to the foot of skill hill k, from its position p: 10·1.4^(p − 1) + 3(p − 1) (10, 17, 26, 36, 50,
+    // 69, 93, 124, 166 … at whole steps). Gentle early (no wall at the second skill), then much longer each
+    // stretch, so the distance itself becomes the challenge and strength (and later launches and bounces)
+    // matters more than the hill count.
     // Pattern Matching's leg is 9 m (10 by the formula): with the warm-up skill in hand, it lands about 15 runs in.
-    // Act one's legs after Pattern Matching's are a fifth shorter (ACT_ONE_LENGTH), for the same 30 minutes, and
-    // act two's first three ease back up to full length (ACT_TWO_EASE): reached 20 minutes sooner, its first leg
-    // had become a 15-minute wall.
-    const ACT_ONE_LENGTH = 0.8;
+    // Act one's legs after Pattern Matching's are shorter (`actOneLength`): there are twice as many of them, each a
+    // half step of the old curve. They start at about 60% of an old leg (Embeddings at 0.6 of the old curve's 80%) and
+    // grow 13% of it a step, past the old length from Language Modeling (step 5) to 115% at Translation and
+    // In-Context Learning: the early ones go quickly, the wall at Image Recognition is the slow climb, and the gaps
+    // between act one's last skills grow (the sim's pooled player: General AI at about 41 minutes, 42 before; a flat
+    // 60% made it 29–38 and the legs after Image Recognition fell in a run each).
+    // Act two's first three ease back up to full length (ACT_TWO_EASE): reached sooner, its first leg had become
+    // a 15-minute wall.
+    const actOneLength = p => 0.8 * Math.min(1.15, 0.4 + 0.13 * p);
     const ACT_TWO_EASE = [0.7, 0.76, 0.88];
-    const lengthScale = k => (k < LATE_LEG ? ACT_ONE_LENGTH : ACT_TWO_EASE[k - LATE_LEG] ?? 1);
-    const stretchLength = k => (k === 0 ? TUTORIAL.length : k === 1 ? 9 : (10 * Math.pow(1.4, k - 1) + 3 * (k - 1)) * lengthScale(k));
+    const lengthScale = k => (k < LATE_LEG ? actOneLength(legPos(k)) : ACT_TWO_EASE[k - LATE_LEG] ?? 1);
+    const stretchLength = k => (k === 0 ? TUTORIAL.length : k === 1 ? 9 : (10 * Math.pow(1.4, legPos(k) - 1) + 3 * (legPos(k) - 1)) * lengthScale(k));
 
     const checkpoints = [0];    // checkpoints[k] = x where stretch k starts
     function checkpoint(k) {
@@ -897,6 +914,6 @@
 
     return {
         STEP, GRAVITY, BUMPER, lengthScale, TUCK_GRAVITY, AIR_DIVE, TOKEN_PULL, BURN_SECONDS, THRUST_LIFT, features, KICKERS, KICK_SLOPE, bumpAt, bumpSlope,
-        LATE_LEG, maxAbove, checkpoint, skillHill, skillHeight, WALL_EVERY, WALL_HEIGHT, AFTER_WALL, isWallLeg, wallMult, rollingHills, terrain, createRoll, rng, STRIP_PUSH, STRIP_BRAKE
+        LATE_LEG, legPos, maxAbove, checkpoint, skillHill, skillHeight, WALL_EVERY, WALL_HEIGHT, AFTER_WALL, isWallLeg, wallMult, rollingHills, terrain, createRoll, rng, STRIP_PUSH, STRIP_BRAKE
     };
 });

@@ -203,7 +203,7 @@ test('research waits for a good stretch of training, not a data stockpile', () =
     // Older saves past the first skill estimate their sprints from their runs.
     const old = E.migrate({ version: 5, stats: { rolls: 40 }, path: { learned: 2 } });
     assert.equal(old.stats.skilledSprints, 80);
-    assert.equal(old.path.learned, 3, 'and gain the warm-up skill in front');
+    assert.equal(old.path.learned, 5, 'and gain the warm-up skill in front, then the skills act one inserted before its frontier, Image Recognition (v18)');
 });
 
 test('skill-tree nodes open once their parent has its first level', () => {
@@ -343,9 +343,10 @@ test('XP is paid by distance: per metre, more per metre further along, and more 
     assert.ok(E.rollXp(s, 0.6, false, 0, 6) > 2 * E.rollXp(s, 0.3, false, 0, 3));
     // Per metre: 1 + progress.
     assert.ok(Math.abs(E.rollXp(s, 0.5, false, 0, 5) - E.PATH.xpPerMetre * 5 * 1.5) < 1e-9);
-    // A metre is worth a little more on a later leg.
+    // A metre is worth a little more on a later leg (by its step on the difficulty curve: leg 3 is step 2).
     s.path.learned = 3;
-    assert.ok(Math.abs(E.rollXp(s, 0.5, false, 0, 5) / (E.PATH.xpPerMetre * 5 * 1.5) - Math.pow(E.PATH.metreScale, 3)) < 1e-9);
+    assert.equal(E.legPos(3), 2);
+    assert.ok(Math.abs(E.rollXp(s, 0.5, false, 0, 5) / (E.PATH.xpPerMetre * 5 * 1.5) - Math.pow(E.PATH.metreScale, 2)) < 1e-9);
 });
 
 test('an active game: there is no offline progress (loading a save adds nothing, whenever it was saved)', () => {
@@ -360,7 +361,7 @@ test('an active game: there is no offline progress (loading a save adds nothing,
 test('prestige keeps achievements and points, resets the run', () => {
     const s = fresh();
     s.attr.intelligence = 10;
-    s.path.learned = 6;
+    s.path.learned = 11;   // through Translation: step 6 on the curve
     s.res.cp = 123;
     s.levels.cpu = 5;
     s.achievements.cp1k = true;
@@ -378,7 +379,7 @@ test('prestige keeps achievements and points, resets the run', () => {
 test('a new version remembers first-time intros, trains faster, and starts with the desk built', () => {
     const s = fresh();
     s.attr.intelligence = 10;
-    s.path.learned = 5;
+    s.path.learned = 9;
     s.intro['module:path'] = true;
     const t = E.prestige(s, NOW).state;
     assert.equal(t.intro['module:path'], true, 'callouts and tips stay seen');
@@ -477,13 +478,16 @@ test('cleared legs replicate their best run: a better replay raises passive XP, 
     assert.equal(E.derive(s).xpPerSec, better);
     const old = E.migrate({ version: 8, path: { learned: 2 } });
     assert.deepEqual(old.path.legBest, []);
-    assert.equal(E.derive(old).xpPerSec, base, 'older saves start from a plain cresting run');
+    assert.equal(old.path.learned, 3, 'v18: Embeddings inserted before Edge Detection');
+    const plain = fresh();
+    plain.path.learned = 3;
+    assert.equal(E.derive(old).xpPerSec, E.derive(plain).xpPerSec, 'older saves start from a plain cresting run');
 });
 
 test('skills add pushes and glide as well as strength', () => {
     const s = fresh();
     const base = E.derive(s);
-    s.path.learned = 12;
+    s.path.learned = 18;
     const d = E.derive(s);
     assert.ok(d.pushesPerRoll >= base.pushesPerRoll + 3);
     assert.ok(d.friction < base.friction);
@@ -581,7 +585,7 @@ test('project boosts multiply production while they last', () => {
 test('v2 saves load with empty projects; bad project data is dropped', () => {
     const v2 = E.migrate({ version: 2, res: { cp: 50 }, path: { learned: 2 } });
     assert.equal(v2.res.cp, 50);
-    assert.equal(v2.path.learned, 3, 'with the warm-up leg in front');
+    assert.equal(v2.path.learned, 5, 'with the warm-up leg in front, then act one\'s inserted skills (v18)');
     assert.deepEqual(v2.projects.offers, []);
     const bad = E.migrate({ version: 3, projects: { offers: [{ id: 1, task: 'nope' }, 'x'], boosts: [{ stat: 'cp', mult: -1, until: 5 }] } });
     assert.deepEqual(bad.projects.offers, []);
@@ -603,7 +607,7 @@ test('cleared stretches add no compute: their laps only train (XP/s)', () => {
 test('v3 saves load with no automated laps', () => {
     const v3 = E.migrate({ version: 3, path: { learned: 2, best: 0.3 } });
     assert.deepEqual(v3.path.auto, [0], 'the warm-up leg in front, no laps yet');
-    assert.equal(v3.path.learned, 3);
+    assert.equal(v3.path.learned, 5);
 });
 
 test('replays: cleared legs push cheaper, pay a share of their XP, and never teach or set records', () => {
@@ -747,7 +751,7 @@ test('luck is earned: the branch opens after the first real skill; crunches (leg
 
 test('the engine\'s leg lengths match the physics, so "a full stretch" of XP is what reaching its peak pays', () => {
     const T = require('../training-path.js');
-    for (let k = 0; k < 12; k++) {
+    for (let k = 0; k < 20; k++) {
         const g = T.terrain(k, 1);
         assert.ok(Math.abs(E.legMetres(k) - g.legLength(k)) < 1e-9, `leg ${k}`);
         const s = fresh();
@@ -888,7 +892,7 @@ test('chains: each cleared hill crossed in a run multiplies what the run earns a
 test('versions: shipping one keeps Insight, legacy nodes and their effects; numbering follows the jump', () => {
     const s = fresh();
     s.attr.intelligence = 10;
-    s.path.learned = 9;
+    s.path.learned = 15;
     s.levels.gpuCluster2 = 1;
     assert.equal(E.currentVersion(s), 'v1.0');
     assert.equal(E.nextVersion(s).isMajor, true, 'the first release with 3+ Insight is a major one');
@@ -908,7 +912,7 @@ test('versions: shipping one keeps Insight, legacy nodes and their effects; numb
     assert.ok(E.derive(t).cleanPower > before);
     assert.ok(Math.abs(E.derive(t).mult - E.insightMult(gain)) < 1e-9, 'spending Insight keeps its production bonus');
     t.attr.intelligence = 10;
-    t.path.learned = 5;
+    t.path.learned = 9;
     const small = E.prestige(t, NOW);
     assert.equal(small.version, 'v2.1', 'a small gain is a point release');
     const u = small.state;
@@ -1085,9 +1089,9 @@ test('Scale Up: the endless node multiplies sprint strength, with a geometric pr
 test('Insight comes from skills learned and its bonus diminishes', () => {
     const s = fresh();
     s.attr.intelligence = 50;
-    s.path.learned = 7;
-    assert.equal(E.prestigeGain(s), 5, 'General AI (6 skills past the warm-up) ships for 5');
-    s.path.learned = 11;
+    s.path.learned = 13;
+    assert.equal(E.prestigeGain(s), 5, 'General AI (12 skills past the warm-up, step 7 on the curve) ships for 5, as six did');
+    s.path.learned = 17;
     assert.equal(E.prestigeGain(s), 12);
     s.stats.runCp = 1e15;
     assert.equal(E.prestigeGain(s), 12, 'compute earned no longer counts');
@@ -1275,7 +1279,7 @@ test('Transcend: only at the Singularity; versions and Insight start over, Trans
 });
 
 test('act two\'s first legs are shorter but pay what their full length did', () => {
-    const full = k => E.PATH.xpPerMetre * Math.pow(E.PATH.metreScale, k) * ((10 * Math.pow(1.4, k - 1) + 3 * (k - 1)) + 0.55 * Math.pow(1.14, k - 1) * 8 - 0.2) * 2;
+    const full = leg => { const k = E.legPos(leg); return E.PATH.xpPerMetre * Math.pow(E.PATH.metreScale, k) * ((10 * Math.pow(1.4, k - 1) + 3 * (k - 1)) + 0.55 * Math.pow(1.14, k - 1) * 8 - 0.2) * 2; };
     for (const k of [E.ACT_TWO_LEG, E.ACT_TWO_LEG + 1, E.ACT_TWO_LEG + 2]) {
         const short = E.stretchXpAt(k);
         assert.ok(short > 0.9 * full(k) && short < 1.15 * full(k), `leg ${k}: ${short.toFixed(1)} vs ${full(k).toFixed(1)}`);
@@ -1285,7 +1289,7 @@ test('act two\'s first legs are shorter but pay what their full length did', () 
 test('Head Start racks hardware at the start of each version; Compute Moat compounds strength without limit', () => {
     const s = fresh();
     s.attr.intelligence = 30;
-    s.path.learned = 8;
+    s.path.learned = 14;
     s.prestige.levels.headStart = 2;
     const t = E.prestige(s, NOW).state;
     assert.equal(t.levels.cpu, 10);
@@ -1537,7 +1541,9 @@ test('lab capacity grows with skills: compute and data scale in steps, data sink
     s.path.learned = 2;
     assert.ok(E.capacity(s, cpu) > cap0);
     assert.equal(E.buy(s, 'cpu').ok, true);
-    assert.equal(E.capacity(s, E.UPGRADE_BY_ID.autoCollector), 2, 'the crawler scales with skills too');
+    assert.equal(E.capacity(s, E.UPGRADE_BY_ID.autoCollector), 1, 'the crawler scales with skills too, half as much per act-one skill (twelve on the curve written for six)');
+    s.path.learned = 3;
+    assert.equal(E.capacity(s, E.UPGRADE_BY_ID.autoCollector), 2, 'what one old skill gave by Edge Detection');
     s.path.learned = 1;
     assert.equal(E.capacity(s, E.UPGRADE_BY_ID.autoCollector), 0);
     // The Training Data Pipeline (data's sink) and one-time upgrades have no cap.
@@ -1553,7 +1559,7 @@ test('mid-game achievements: runs, skills, prompts, breakthroughs, replays and t
     s.stats.breakthroughs = 1;
     s.stats.superPrompts = 1;
     s.stats.legsCleared = 1;
-    s.path.learned = 4;
+    s.path.learned = 6;   // through Image Recognition
     for (const u of E.UPGRADES.filter(x => x.tab === 'training').slice(0, 10)) s.levels[u.id] = 1;
     const got = E.evaluate(s).achievements.map(a => a.id);
     for (const id of ['runs10', 'skills3', 'clean1', 'break1', 'super1', 'replay1', 'tree10']) assert.ok(got.includes(id), id);
@@ -1582,13 +1588,14 @@ test('do it once, then delegate: at full capacity, hardware out-earns a held but
         return d.cpPerSec / (d.clickPower * HOLD_CLICKS_PER_SEC);
     };
     assert.ok(ratio(1) < 1, 'early on, clicking is the hook');
-    assert.ok(ratio(3) > 2.5, `third skill: ${ratio(3).toFixed(2)}×`);
-    assert.ok(ratio(5) > 4, `fifth skill: ${ratio(5).toFixed(2)}×`);
+    // By step on the curve: leg 5 (Image Recognition) is the old third skill, leg 9 (Language Modeling) the fifth.
+    assert.ok(ratio(5) > 2.5, `third step: ${ratio(5).toFixed(2)}×`);
+    assert.ok(ratio(9) > 4, `fifth step: ${ratio(9).toFixed(2)}×`);
 });
 
 test('Procurement: earned by buying hardware by hand (20), then buys the best CP/s per CP with its share, never past capacity', () => {
     const s = fresh();
-    s.path.learned = 3;
+    s.path.learned = 4;   // through Edge Detection
     s.unlocked['up:cpu'] = true;
     s.unlocked['up:server'] = true;
     s.levels.cpu = 15;
@@ -1617,7 +1624,7 @@ test('Procurement: earned by buying hardware by hand (20), then buys the best CP
     s.tasks.procurement.fund = 123;
     assert.equal(E.deserialize(E.serialize(s), NOW).tasks.procurement.fund, 123);
     s.attr.intelligence = 30;
-    s.path.learned = 7;
+    s.path.learned = 13;
     assert.equal(E.prestige(s, NOW + 1).state.tasks.procurement.fund, 0);
     // Switched off, it takes nothing.
     E.setTaskOn(s, 'procurement', false);
@@ -1626,9 +1633,9 @@ test('Procurement: earned by buying hardware by hand (20), then buys the best CP
 
 test('breaking a wall: the next runs open with a smash, counted down per run, and saved', () => {
     const s = fresh();
-    s.path.learned = 3;   // the next skill (Image Recognition) is learned on a wall
+    s.path.learned = 5;   // the next skill (Image Recognition) is learned on a wall
     assert.equal(E.surgeSprint(s, 0), false);
-    const skill = E.learnSkill(s, 3);
+    const skill = E.learnSkill(s, 5);
     assert.ok(skill.wall);
     assert.equal(s.path.surge, E.WALL_SURGE_RUNS);
     assert.equal(E.surgeSprint(s, 0), true, 'the first sprint surges');
@@ -1637,7 +1644,7 @@ test('breaking a wall: the next runs open with a smash, counted down per run, an
     assert.equal(E.deserialize(E.serialize(s), NOW).path.surge, E.WALL_SURGE_RUNS);
     for (let i = 0; i < E.WALL_SURGE_RUNS; i++) E.settleSurge(s);
     assert.equal(E.surgeSprint(s, 0), false, 'used up');
-    E.learnSkill(s, 4);
+    E.learnSkill(s, 6);
     assert.equal(s.path.surge, 0, 'an ordinary skill brings none');
 });
 
@@ -1834,7 +1841,7 @@ test('chapter one ends three ways, by how much you let the AI out, locked in whe
 
 test('Procurement reports its buys from tick() and keeps them out of the save, so a save round-trips exactly', () => {
     const s = fresh();
-    s.path.learned = 3;
+    s.path.learned = 4;   // through Edge Detection
     s.unlocked['up:cpu'] = true;
     s.unlocked['up:server'] = true;
     s.levels.cpu = 15;

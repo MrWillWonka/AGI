@@ -3,7 +3,7 @@
 //   PROFILE (default playtests/profile.json, the real players' pooled mean; 'none' for the old bot) sets the player:
 //   env LABSHARE (bot 0.2): share of each minute in the lab; CLICKS (bot 3): clicks/s in the lab; IDLE (bot 0): share
 //   neither in the lab nor training; PAUSE (bot 2): seconds between runs;
-//   MINUTES (default 150), MAXSKILL (default 14, warm-up = skill 0), CLEAN (bot 0.5): clean-prompt hit rate,
+//   MINUTES (default 150), MAXSKILL (default 20, warm-up = skill 0), CLEAN (bot 0.5): clean-prompt hit rate,
 //   HYBRID (default 1): the Auto-Trainer drives only while the player is in the lab (HYBRID=0: it drives every run,
 //   and since it only replays cleared legs the bot then stops at the skill it earned it on); LABDBG=1: hardware against capacity.
 // Mirrors game.js's run loop (pushBall, fireSprint/promptBonus, updateThrust/lightBurn, crestFrontier,
@@ -47,7 +47,7 @@ const CLICKS = knob('CLICKS', 3);
 // tree, mail, other rooms, reading, away. Runs in flight roll on; nothing is clicked, bought or sprinted.
 const IDLE = knob('IDLE', 0);
 const MINUTES = +(process.env.MINUTES ?? 150);
-const MAXSKILL = +(process.env.MAXSKILL ?? 14);
+const MAXSKILL = +(process.env.MAXSKILL ?? 20);
 const CLEAN = knob('CLEAN', 0.5);
 const DT = 0.05;
 const RESERVE = +(process.env.RESERVE ?? 0);
@@ -200,7 +200,7 @@ const AUTO_ERROR = [0.24, 0.13, 0.06];
 const AUTO_REACTION = [0.7, 0.35, 0.15];
 function autoSkill(lvl) {
     const l = Math.max(1, Math.min(3, lvl));
-    const learn = Math.max(0.5, 1 - 0.04 * Math.max(0, s.path.learned - 3));
+    const learn = Math.max(0.5, 1 - 0.04 * Math.max(0, E.legPos(s.path.learned) - 3));
     return { err: AUTO_ERROR[l - 1] * learn, react: AUTO_REACTION[l - 1] * learn };
 }
 const gauss = () => Math.sqrt(-2 * Math.log(1 - rng())) * Math.cos(2 * Math.PI * rng());
@@ -265,7 +265,7 @@ function ghostTrain(dt) {
     }
     const roll = ghost.roll;
     const l = Math.max(1, Math.min(3, lvl));
-    const trained = Math.max(0, s.path.learned - 3);
+    const trained = Math.max(0, E.legPos(s.path.learned) - 3);
     const power = Math.min(1, GHOST_POWER[l - 1] * (1 + 0.03 * trained));
     const fumble = GHOST_FUMBLE[l - 1] * Math.max(0.5, 1 - 0.04 * trained);
     const { err, react } = autoSkill(lvl);

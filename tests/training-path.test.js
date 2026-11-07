@@ -227,7 +227,7 @@ test('engine: path progress and XP save; prestige resets the run but keeps lifet
     assert.equal(loaded.res.xp, s.res.xp);
     assert.equal(E.migrate({ version: E.SAVE_VERSION, path: { learned: -2, best: 7 } }, NOW).path.best, 1);
     s.attr.intelligence = 10;
-    s.path.learned = 5;
+    s.path.learned = 9;
     const next = E.prestige(s, NOW + 1).state;
     assert.deepEqual([next.path.learned, next.res.xp, next.stats.rolls, next.stats.skillsLearned], [0, 0, 2, 1]);
 });
@@ -522,12 +522,12 @@ test('onward: cresting the last skill hill emits crest once and the ball rolls o
 
 test('act one is many small hills; act two (from General AI) a few giant swells, many times wider', () => {
     const before = T.rollingHills(T.LATE_LEG - 1, 9);
-    assert.ok(before.length > 30);
+    assert.ok(before.length > 15);
     const widest = Math.max(...before.map(h => 2 * h.halfWidth));
     for (const k of [T.LATE_LEG, T.LATE_LEG + 4]) {
         const late = T.rollingHills(k, 9);
         assert.ok(late.length >= 4 && late.length <= 8, `${late.length}`);
-        for (const h of late) assert.ok(2 * h.halfWidth > 4 * widest && h.height < 0.7 * T.skillHeight(k));
+        for (const h of late) assert.ok(2 * h.halfWidth > 3.5 * widest && h.height < 0.7 * T.skillHeight(k));
     }
     // The engine's copy of the boundary, and General AI arriving exactly with it on skills alone.
     assert.equal(E.ACT_TWO_LEG, T.LATE_LEG);
@@ -559,7 +559,7 @@ test('late legs: a fast ball flies off a crest, lands, bounces and rolls on; ear
 
 test('a super flow condenses time: the ball covers warp times the ground', () => {
     const run = warp => {
-        const roll = T.createRoll(2, 21, { pushes: 2, cooldown: 0.1 });
+        const roll = T.createRoll(6, 21, { pushes: 2, cooldown: 0.1 });
         roll.push(2);
         const x0 = roll.ball.x;
         roll.coast(2, 1, 0, 1, warp);
@@ -841,15 +841,119 @@ test('act two thrust keeps a flight up: thrust in the air stays aloft longer and
 
 test('power pacing: every third skill hill is a wall, the next one eases off, and wall skills pay big', () => {
     assert.equal(T.WALL_EVERY, E.WALL_EVERY, 'the engine mirrors the physics');
-    for (let k = 1; k <= 16; k++) assert.equal(T.isWallLeg(k), E.isWallLeg(k), `leg ${k}`);
-    assert.ok(!T.isWallLeg(0) && !T.isWallLeg(1) && !T.isWallLeg(2) && T.isWallLeg(3));
-    assert.ok(T.skillHill(3).height > T.skillHeight(3) * 1.2, 'a wall stands taller than the curve');
-    assert.ok(T.skillHill(4).height < T.skillHeight(4), 'the leg after a wall eases off');
-    assert.equal(T.skillHill(5).height, T.skillHeight(5));
+    for (let k = 0; k <= 30; k++) assert.equal(T.isWallLeg(k), E.isWallLeg(k), `leg ${k}`);
+    // Walls stand where they did on the old six-skill act one: Image Recognition (5), Translation (11), then
+    // act two's every third leg (old 9, 12, 15 → 15, 18, 21).
+    assert.deepEqual(Array.from({ length: 25 }, (_, k) => k).filter(T.isWallLeg), [5, 11, 15, 18, 21, 24]);
+    assert.equal(E.skillAt(5).name, 'Image Recognition');
+    assert.equal(E.skillAt(11).name, 'Translation');
+    assert.ok(T.skillHill(5).height > T.skillHeight(5) * 1.2, 'a wall stands taller than the curve');
+    assert.ok(T.skillHill(6).height < T.skillHeight(6) && T.skillHill(7).height < T.skillHeight(7), 'the legs up to a step after a wall ease off');
+    assert.equal(T.skillHill(8).height, T.skillHeight(8));
+    assert.ok(T.skillHill(16).height < T.skillHeight(16) && T.skillHill(17).height === T.skillHeight(17), 'act two: the next leg eases off');
     // A wall's skill gives more sprint strength than its neighbours' (the power spurt).
-    for (const k of [3, 6, 9, 12, 15]) {
+    for (const k of [5, 11, 15, 18, 21]) {
         const push = i => E.skillAt(i).bonus.push || 0;
         assert.ok(E.skillAt(k).wall, `skill ${k} is a wall skill`);
         assert.ok(push(k) > push(k - 1) && push(k) > push(k + 1), `skill ${k} pays more than its neighbours`);
     }
+});
+
+test('act one has twelve real skills: one difficulty curve, read at half steps, mirrored in the engine', () => {
+    // The engine's copy of each leg's position on the curve, and the boundary.
+    for (let k = 0; k <= 30; k++) assert.equal(E.legPos(k), T.legPos(k), `leg ${k}`);
+    assert.deepEqual([0, 1, 2, 3, 11, 12, 13, 14, 19].map(T.legPos), [0, 1, 1.5, 2, 6, 6.5, 7, 8, 13]);
+    assert.equal(T.LATE_LEG, 13);
+    // Old act-one leg n is new leg 2n − 1, old act-two leg m is new leg m + 6: the old legs keep their heights and
+    // widths (act one's legs are shorter now, the warm-up's and Pattern Matching's unchanged), and act two's
+    // geometry is exactly what it was.
+    const old = { height: n => 0.3 * Math.pow(n < 7 ? 1.25 : 1.5, n - 1), half: n => 0.55 * Math.pow(1.14, n - 1) * (n >= 7 ? 8 : 1),
+        length: n => (10 * Math.pow(1.4, n - 1) + 3 * (n - 1)) * ([0.7, 0.76, 0.88][n - 7] ?? 1) };
+    for (let n = 1; n < 7; n++) {
+        assert.ok(Math.abs(T.skillHeight(2 * n - 1) - old.height(n)) < 1e-12, `old leg ${n}'s height`);
+        assert.ok(Math.abs(T.skillHill(2 * n - 1).halfWidth - old.half(n)) < 1e-12, `old leg ${n}'s width`);
+    }
+    for (let m = 7; m < 16; m++) {
+        const h = T.skillHill(m + 6);
+        assert.ok(Math.abs(h.height / T.wallMult(m + 6) - old.height(m)) < 1e-9 && Math.abs(h.halfWidth - old.half(m)) < 1e-9, `act two leg ${m}`);
+        assert.ok(Math.abs(h.start - T.checkpoint(m + 6) - old.length(m)) < 1e-9, `act two leg ${m}'s length`);
+        assert.equal(T.rollingHills(m + 6, 5).length, 5 + Math.floor(T.rng(5)() * 3) + Math.floor((m - 7) / 3), `act two leg ${m}'s swells`);
+    }
+    assert.equal(T.skillHill(1).start - T.checkpoint(1), 9, 'Pattern Matching\'s leg is as it was');
+    assert.equal(T.skillHill(0).start - T.checkpoint(0), 2, 'and the warm-up');
+    // After Embeddings, act one's legs grow steadily.
+    for (let k = 3; k < T.LATE_LEG; k++) assert.ok(T.skillHill(k).start - T.checkpoint(k) > T.skillHill(k - 1).start - T.checkpoint(k - 1), `leg ${k} is longer`);
+    // The skills: twelve real ones in act one, the new ones between the old.
+    assert.deepEqual(Array.from({ length: 14 }, (_, i) => E.skillAt(i).name), ['Tokenization', 'Pattern Matching', 'Embeddings', 'Edge Detection',
+        'Feature Extraction', 'Image Recognition', 'Optical Character Recognition', 'Speech Recognition', 'Sentiment Analysis', 'Language Modeling',
+        'Summarization', 'Translation', 'In-Context Learning', 'Reasoning']);
+    for (let i = 0; i < 13; i++) {
+        const k = E.skillAt(i);
+        assert.ok(k.voice && k.effect && k.flavor.length <= 70 && k.bonus, `${k.name} has a voice, an effect, a quip and a bonus`);
+    }
+});
+
+test('Intelligence adds up to General AI exactly at In-Context Learning, the last act-one skill', () => {
+    const total = n => Array.from({ length: n }, (_, i) => E.skillAt(i).grants.intelligence || 0).reduce((a, b) => a + b, 0);
+    assert.equal(total(T.LATE_LEG), 25, 'through In-Context Learning');
+    assert.ok(total(T.LATE_LEG - 1) + 8 < 25, 'Translation plus every algorithm falls short');
+    for (let n = 2; n <= T.LATE_LEG; n++) assert.ok(E.skillAt(n - 1).grants.intelligence > 0, `skill ${n - 1} grants Intelligence`);
+    const grants = Array.from({ length: T.LATE_LEG }, (_, i) => E.skillAt(i).grants.intelligence || 0);
+    assert.equal(grants[T.LATE_LEG - 1], Math.max(...grants), 'the last one carries the big step');
+    // Where the old six-skill act one stood at each old skill, the new one stands there or below.
+    const OLD = [0, 1, 3, 6, 10, 16];
+    for (let n = 1; n < 6; n++) assert.ok(total(2 * n) <= OLD[n], `old skill ${n}`);
+});
+
+test('gates follow the skill they name, wherever the trail puts it', () => {
+    const s = E.defaultState(NOW);
+    const at = name => { s.path.learned = E.SKILL_INDEX[name]; const before = E.knows(s, name); s.path.learned++; return !before && E.knows(s, name); };
+    for (const name of ['Pattern Matching', 'Edge Detection', 'Image Recognition', 'Language Modeling', 'Translation', 'In-Context Learning', 'Reasoning']) assert.ok(at(name), name);
+    // Automation gates count skills learned, the warm-up's included, and name the skill.
+    assert.equal(E.AUTO_TRAINER_SKILL, E.SKILL_INDEX['Edge Detection'] + 1);
+    s.path.learned = E.SKILL_INDEX['Edge Detection'];
+    assert.equal(E.automationGate(s, 'autoTrainer').skill, 'Edge Detection');
+    assert.equal(E.automationGate(s, 'autoTrainer').skillOk, false);
+    s.path.learned++;
+    assert.equal(E.automationGate(s, 'autoTrainer').skillOk, true);
+    s.path.learned = E.SKILL_INDEX['Language Modeling'];
+    assert.equal(E.automationGate(s, 'researchAssistant').skillOk, false);
+    s.path.learned++;
+    assert.equal(E.automationGate(s, 'researchAssistant').skillOk, true);
+    // Story mail and dilemmas wait for their skill.
+    const mail = id => E.MAIL.find(m => m.id === id).when(s);
+    s.path.learned = E.SKILL_INDEX['Self-Modeling'];
+    assert.equal(mail('reveal'), false);
+    s.path.learned++;
+    assert.equal(mail('reveal'), true);
+});
+
+test('saves before v18 move onto the doubled act one: the same frontier skill, legs re-indexed, Intelligence re-spread', () => {
+    // An old act-one save on Image Recognition (old leg 3), with laps, best runs and strengths on old legs 0–3, and
+    // Intelligence from the old grants through Edge Detection (0 + 1 + 2) plus Machine Learning's 1.
+    const s = E.migrate({ version: 17, attr: { intelligence: 4 }, path: { learned: 3, best: 0.6, auto: [5, 6, 7], legBest: [10, 20, 30, 40], legPower: [1, 2, 3, 4] },
+        stats: { skillsLearned: 3 } }, NOW);
+    assert.equal(s.version, E.SAVE_VERSION);
+    assert.equal(E.SAVE_VERSION, 18);
+    assert.equal(s.path.learned, 5, 'Embeddings and Feature Extraction count as learned');
+    assert.equal(E.skillAt(s.path.learned).name, 'Image Recognition', 'the same frontier skill');
+    assert.equal(s.path.best, 0, 'a record on the old, longer leg doesn\'t carry over');
+    assert.deepEqual(s.path.auto, [5, 6, 0, 7]);
+    assert.deepEqual(s.path.legPower, [1, 2, 0, 3, 0, 4]);
+    assert.equal(s.path.legBest[0], 10);
+    assert.equal(s.path.legBest[2], 0);
+    assert.ok(Math.abs(s.path.legBest[1] - 20) < 1e-9, 'Pattern Matching\'s leg is the same length');
+    assert.ok(s.path.legBest[3] > 0 && s.path.legBest[3] < 30 && s.path.legBest[5] < 40, 'later ones rescaled to the shorter legs');
+    assert.equal(s.attr.intelligence, 1 + 1 + 1 + 1 + 1, 'the new grants through Feature Extraction, plus Machine Learning\'s');
+    assert.equal(s.stats.skillsLearned, 5);
+    // Act two: old frontier m is m + 6, and Intelligence is unchanged (both acts add up to 25 by General AI).
+    const late = E.migrate({ version: 17, attr: { intelligence: 40 }, path: { learned: 9, legBest: Array(10).fill(100) } }, NOW);
+    assert.equal(late.path.learned, 15);
+    assert.equal(E.skillAt(late.path.learned).name, 'Analogy', 'the same frontier skill');
+    assert.equal(late.attr.intelligence, 40);
+    assert.equal(late.path.legBest[15], 100, 'act two\'s legs are the same length: kept as they were');
+    assert.equal(late.path.legBest[12], 0, 'In-Context Learning\'s leg starts empty');
+    // A new game, and a current save, are untouched.
+    assert.equal(E.migrate({ version: 17, path: { learned: 0 } }, NOW).path.learned, 0);
+    assert.equal(E.migrate({ version: 18, path: { learned: 3 } }, NOW).path.learned, 3);
 });

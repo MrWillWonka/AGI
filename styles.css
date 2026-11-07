@@ -1557,7 +1557,7 @@ body.calm .ending-lines p { animation: none; opacity: 1; }
 .bay-art i { display: block; border-radius: 2px; }
 
 /* Training Cluster: a row of GPU blades. */
-.bay[data-bay="training"] .bay-art { grid-template-columns: repeat(16, 1fr); }
+.bay[data-bay="training"] .bay-art { grid-template-columns: repeat(20, 1fr); }   /* 3 for the frontier, 2 per cleared lane (8 at most), the rest blades */
 .bay[data-bay="training"] .bay-art i {
     background: linear-gradient(180deg, var(--panel-2), var(--bg-2) 30%, var(--bg-2));
     box-shadow: inset 0 3px 0 color-mix(in srgb, var(--success) 85%, transparent), inset 0 0 0 1px var(--border);

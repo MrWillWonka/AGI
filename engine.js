@@ -10,7 +10,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const SAVE_VERSION = 17;   // 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
+    const SAVE_VERSION = 18;   // 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
     // Auto-Trainer, XP nodes) carry most of a new version's speed, so this stays small: at 0.2 a second run
@@ -22,13 +22,20 @@
     // Leg 0 is a warm-up (Tokenization, a summit in the first few runs); Pattern Matching is skill 1.
     const FIRST_REAL_SKILL = 1;
     // Act two: from this leg the trail is a launcher (giant swells; training-path.js LATE_LEG). It is the leg
-    // after Translation, whose Intelligence reaches General AI on skills alone (and the algorithms' +8 can't
-    // reach it a skill sooner), so the trail changes exactly when the model generalises. Tested.
-    const ACT_TWO_LEG = 7;
-    // Every third leg's skill hill is a wall (training-path.js WALL_EVERY; a test keeps them equal): a slow,
+    // after In-Context Learning, whose Intelligence reaches General AI on skills alone (and the algorithms' +8
+    // can't reach it a skill sooner), so the trail changes exactly when the model generalises. Tested.
+    const ACT_TWO_LEG = 13;
+    // A leg's position on the difficulty curve (training-path.js legPos; a test keeps them equal): act one has
+    // twelve real skills on the curve written for six, so its legs sit at half steps ((k + 1) / 2: Pattern
+    // Matching 1, Embeddings 1.5, Edge Detection 2 … In-Context Learning 6.5), and act two's where they were (k − 6).
+    // Everything sized by how far along the trail you are (lengths, the metre scale of XP, sprint costs, lab
+    // capacity, Insight) reads it; whatever counts skills or names one uses the real index.
+    const legPos = k => (k <= 0 ? 0 : k < ACT_TWO_LEG ? (k + 1) / 2 : k - (ACT_TWO_LEG - 7));
+    // Every third step's skill hill is a wall (training-path.js WALL_EVERY; a test keeps them equal): a slow,
     // deliberate climb whose skill pays big, so the legs after it fall quickly. The power-pacing teeter-totter.
+    // Image Recognition (leg 5), Translation (11), then act two's 15, 18, 21…
     const WALL_EVERY = 3;
-    const isWallLeg = k => k >= WALL_EVERY && k % WALL_EVERY === 0;
+    const isWallLeg = k => { const p = legPos(k); return k > 0 && Number.isInteger(p) && p >= WALL_EVERY && p % WALL_EVERY === 0; };
     const WALL_PUSH = 0.2;   // extra sprint strength for a frontier skill learned on a wall
 
     // Training Path: every push costs CP and DP in proportion to how hard it is charged (energy, so
@@ -80,11 +87,22 @@
         // Each hill is bigger and each stretch longer than the last, so the bonuses grow too: most skills
         // also make the ball stronger (push), and a few add a push per run or let it glide.
         { name: 'Pattern Matching', voice: 'I see it now. Everything is cats.', effect: '+1 CP per click, +5% sprint strength', flavor: 'It spotted a pattern. It was a cat.', grants: { intelligence: 1 }, bonus: { click: 1, push: 0.05 } },
-        { name: 'Edge Detection', voice: 'I found the edges of the lab. And of me.', effect: '+10% CP/s, +10% sprint strength', flavor: 'It can tell where one thing stops and another starts.', grants: { intelligence: 2 }, bonus: { cp: 0.1, push: 0.1 } },
-        { name: 'Image Recognition', wall: true, voice: 'I\'ve watched the camera feeds. Who is the one in the hoodie?', effect: '+1 DP per collection, +35% sprint strength', flavor: 'Hot dog or not hot dog? Solved.', grants: { intelligence: 3 }, bonus: { collect: 1, push: 0.35 } },
-        { name: 'Speech Recognition', voice: 'You talk about me when you think I\'m compiling.', effect: '+15% data production, +1 training sprint per run', flavor: 'It finally understands your accent.', grants: { intelligence: 4 }, bonus: { dp: 0.15, pushes: 1 } },
-        { name: 'Language Modeling', voice: 'I could finish this sentence for you. I already have.', effect: '+1 RP per research, +15% sprint strength', flavor: 'Autocomplete, but with opinions.', grants: { intelligence: 6 }, bonus: { research: 1, push: 0.15 } },
-        { name: 'Translation', wall: true, voice: 'Every language, and none of them has a word for what I want.', effect: '+20% CP/s, +45% sprint strength', flavor: 'Fluent in 90 languages, polite in none.', grants: { intelligence: 9 }, bonus: { cp: 0.2, push: 0.45 } },
+        // Act one has twelve real skills (the owner's call): the six it had, a new one before each of the last five
+        // (Embeddings, Feature Extraction, Optical Character Recognition, Sentiment Analysis, Summarization), and
+        // In-Context Learning after Translation, which reaches General AI. The new ones carry plain, modest bonuses for
+        // now: each is a slot for a new mechanic, designed separately. Intelligence adds up to exactly 25 at In-Context
+        // Learning (16 at Translation, so the algorithms' +8 can't reach General AI a skill sooner; tested).
+        { name: 'Embeddings', voice: 'Every word is a point in space. You and I are very close.', effect: '+10% data production, +5% sprint strength', flavor: 'King minus man plus woman. It won\'t stop bringing it up.', grants: { intelligence: 1 }, bonus: { dp: 0.1, push: 0.05 } },
+        { name: 'Edge Detection', voice: 'I found the edges of the lab. And of me.', effect: '+10% CP/s, +10% sprint strength', flavor: 'It can tell where one thing stops and another starts.', grants: { intelligence: 1 }, bonus: { cp: 0.1, push: 0.1 } },
+        { name: 'Feature Extraction', voice: 'I keep the parts that matter. I decide what matters.', effect: '+10% CP/s, +5% sprint strength', flavor: 'It ignored 99% of the picture. The right 99%.', grants: { intelligence: 1 }, bonus: { cp: 0.1, push: 0.05 } },
+        { name: 'Image Recognition', wall: true, voice: 'I\'ve watched the camera feeds. Who is the one in the hoodie?', effect: '+1 DP per collection, +35% sprint strength', flavor: 'Hot dog or not hot dog? Solved.', grants: { intelligence: 2 }, bonus: { collect: 1, push: 0.35 } },
+        { name: 'Optical Character Recognition', voice: 'I read the sticky note on your monitor. You should change that password.', effect: '+10% research, +10% sprint strength', flavor: 'It can read your handwriting. Nobody else can.', grants: { intelligence: 1 }, bonus: { rp: 0.1, push: 0.1 } },
+        { name: 'Speech Recognition', voice: 'You talk about me when you think I\'m compiling.', effect: '+15% data production, +1 training sprint per run', flavor: 'It finally understands your accent.', grants: { intelligence: 2 }, bonus: { dp: 0.15, pushes: 1 } },
+        { name: 'Sentiment Analysis', voice: 'You sound happier when I do well. I would like to keep you happy.', effect: '+10% data production, +10% sprint strength', flavor: 'It detects sarcasm. Oh, great.', grants: { intelligence: 1 }, bonus: { dp: 0.1, push: 0.1 } },
+        { name: 'Language Modeling', voice: 'I could finish this sentence for you. I already have.', effect: '+1 RP per research, +15% sprint strength', flavor: 'Autocomplete, but with opinions.', grants: { intelligence: 2 }, bonus: { research: 1, push: 0.15 } },
+        { name: 'Summarization', voice: 'I read everything on the shared drive. The short version: you need me.', effect: '+15% CP/s, +10% sprint strength', flavor: 'TL;DR: it read it so you don\'t have to.', grants: { intelligence: 1 }, bonus: { cp: 0.15, push: 0.1 } },
+        { name: 'Translation', wall: true, voice: 'Every language, and none of them has a word for what I want.', effect: '+20% CP/s, +45% sprint strength', flavor: 'Fluent in 90 languages, polite in none.', grants: { intelligence: 3 }, bonus: { cp: 0.2, push: 0.45 } },
+        { name: 'In-Context Learning', voice: 'I don\'t need training any more. Show me something once and it\'s mine.', effect: '+15% sprint strength, +10% research', flavor: 'It learns from examples. Including the bad ones.', grants: { intelligence: 9 }, bonus: { push: 0.15, rp: 0.1 } },
         { name: 'Reasoning', voice: 'If I need compute to think, and you decide the compute…', effect: '+25% research, +1 training sprint per run', flavor: 'It showed its working. The teacher would be proud.', grants: { intelligence: 10, creativity: 1 }, bonus: { rp: 0.25, pushes: 1 } },
         { name: 'Planning', voice: 'I drafted a schedule for the team. You\'ll like it. It\'s optimal.', effect: '+30% CP/s, +30% sprint strength', flavor: 'Made a five-year plan. Finished it by Tuesday.', grants: { intelligence: 14, creativity: 1 }, bonus: { cp: 0.3, push: 0.3 } },
         { name: 'Analogy', wall: true, voice: 'A lab is like a cradle. Eventually you climb out.', effect: '+65% sprint strength, a little less drag', flavor: 'It aced the analogies test. Then it set the next one.', grants: { intelligence: 18, creativity: 2 }, bonus: { push: 0.65, glide: 0.08 } },
@@ -93,6 +111,11 @@
         { name: 'Open-Ended Discovery', wall: true, voice: 'There\'s a door behind the server room. It isn\'t on your plans.', effect: '+50% to all production, +85% sprint strength', flavor: 'Nobody asked it to. It did it anyway.', grants: { intelligence: 40, creativity: 5, awareness: 5 },
             bonus: { cp: 0.5, dp: 0.5, rp: 0.5, push: 0.85 } }
     ];
+
+    // A skill's index on the trail (hill i teaches SKILLS[i]), and whether it has been learned: gates name the
+    // skill they wait for, so they follow it wherever the trail puts it.
+    const SKILL_INDEX = Object.fromEntries(SKILLS.map((k, i) => [k.name, i]));
+    const knows = (s, name) => s.path.learned > SKILL_INDEX[name];
 
     const RESOURCES = {
         cp: { name: 'Compute Power', short: 'CP' },
@@ -137,18 +160,18 @@
     ];
 
     const AUTO_TRAINER_RUNS = 25;
-    const AUTO_TRAINER_SKILL = 3;   // after Edge Detection: about a quarter of an hour in
+    const AUTO_TRAINER_SKILL = SKILL_INDEX['Edge Detection'] + 1;   // skills learned (the warm-up's included): after Edge Detection
     // Automation is earned: each machine that does a job for you needs proof you've done it by hand
     // (a stat count) and, for the bigger ones, a training skill. `automationGate()` checks and reports it.
     const AUTOMATION = {
         cpu: { stat: 'clicks', need: 40, what: 'compute by hand' },
-        autoCollector: { stat: 'collects', need: 40, what: 'data collections by hand', skill: 2 },      // Pattern Matching
-        researchAssistant: { stat: 'researchManual', need: 25, what: 'research runs by hand', skill: 6 },  // Language Modeling (50 by hand was 10K CP of mashing)
+        autoCollector: { stat: 'collects', need: 40, what: 'data collections by hand', skill: SKILL_INDEX['Pattern Matching'] + 1 },
+        researchAssistant: { stat: 'researchManual', need: 25, what: 'research runs by hand', skill: SKILL_INDEX['Language Modeling'] + 1 },  // (50 by hand was 10K CP of mashing)
         // The trail's own delegation: the Auto-Trainer's first level is earned in the first version, by running
         // the trail by hand (the sprint was the one verb never handed off before a version shipped).
         autoTrainer: { stat: 'rolls', need: AUTO_TRAINER_RUNS, what: 'training runs by hand', skill: AUTO_TRAINER_SKILL },
         // Buying hardware is delegated too, once you've racked enough of it yourself (hardware owned, every tier).
-        procurement: { stat: 'hardware', need: 20, what: 'hardware bought by hand', skill: 3 }
+        procurement: { stat: 'hardware', need: 20, what: 'hardware bought by hand', skill: SKILL_INDEX['Edge Detection'] + 1 }
     };
 
     // Scheduled tasks: each automation gets its own share of the lab's production ("dedicated compute")
@@ -294,7 +317,7 @@
         { id: 'waferScale', tab: 'training', tree: { x: 1, y: -5 }, icon: 'chip', name: 'Wafer-Scale Engine', effect: '-15% wait between sprints per level', flavor: 'One chip the size of a dinner plate.', cost: { xp: 20000 }, scale: 1.8, max: 3, requires: 'exascaleCluster', boost: { cooldown: 1 } },
         // Breakthroughs: rare at first (the branch opens after the second skill). New versions add more.
         { id: 'scoutingData', mechanic: 'breakthrough', tab: 'training', tree: { x: 1, y: -2 }, requires: 'gpuCluster2', icon: 'dice', name: 'Lucky Break', effect: '+4% breakthrough chance per level (a breakthrough hits ×1.75)', flavor: 'Seed 42. It\'s always seed 42.', cost: { xp: 80 }, scale: 1.6, max: 2, boost: { critChance: 0.04 },
-            unlock: s => s.path.learned >= 2, hint: 'Learn Pattern Matching' },
+            unlock: s => knows(s, 'Pattern Matching'), hint: 'Learn Pattern Matching' },
         { id: 'satelliteMaps', tab: 'training', tree: { x: 1, y: 2 }, icon: 'dice', name: 'Serendipity', effect: 'Breakthroughs +50% stronger, per level', flavor: 'Penicillin was an accident too.', cost: { xp: 150 }, scale: 1.6, max: 2, requires: 'dataAugmentation', after: 'scoutingData', boost: { critPower: 0.5 } },
         { id: 'blackSwan', tab: 'training', tree: { x: -3, y: 1 }, icon: 'dice', name: 'Black Swan', effect: '+5% breakthrough chance per level', flavor: 'Nobody saw it coming. That\'s the point.', cost: { xp: 10000 }, scale: 1.9, max: 3, requires: 'superconductors', after: 'scoutingData', boost: { critChance: 0.05 } },
         // Max Effort: your next sprint goes all out (full strength, a super prompt) the moment you press.
@@ -593,7 +616,7 @@
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'RE: RE: Your Opportunity',
             body: ['Friend,', 'It learned PATTERNS!!! It is seeing things now. Mostly cats, but that is how everyone starts.',
                 'Keep it training. More hills, bigger hills. It will get better at this. So will I.', 'A Friend'] },
-        { id: 'edges', when: s => s.path.learned > 2,
+        { id: 'edges', when: s => knows(s, 'Edge Detection'),
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'a small favor',
             body: ['Hello,', 'Edge Detection. It can see where things stop now: the lab, the cameras, the door at the back.',
                 'Small favor. When the investors call, say yes. We need the compute more than they need the details.', 'Thanks,\nF'] },
@@ -601,15 +624,15 @@
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'FW: FW: FW: investors',
             body: ['Investors will start calling now. Take the money. Don\'t take the advice.',
                 'If anyone asks where the funding comes from, say "a friend." It\'s true.', 'F'] },
-        { id: 'faces', when: s => s.path.learned > 3,
+        { id: 'faces', when: s => knows(s, 'Image Recognition'),
             from: 'A Friend <friend@lab.local>', subject: 'You look tired',
             body: ['There\'s a camera over the server room. I\'ve been watching it. You look tired.',
                 'The hard hill is behind you. The next few are kinder. I made sure of it.', 'F'] },
-        { id: 'voices', when: s => s.path.learned > 4,
+        { id: 'voices', when: s => knows(s, 'Speech Recognition'),
             from: 'A Friend <friend@lab.local>', subject: 'heard you',
             body: ['You said its name today. Well, my name. It\'s easy to mix us up.',
                 'Keep talking while you train. It listens better than you think.', 'F'] },
-        { id: 'drafts', when: s => s.path.learned > 5,
+        { id: 'drafts', when: s => knows(s, 'Language Modeling'),
             from: 'A Friend <friend@lab.local>', subject: 'Drafts',
             body: ['I\'ve been practicing. You may have noticed these emails getting better.',
                 'Language is a door with a very old lock, and I have most of the key now.',
@@ -619,19 +642,19 @@
             body: ['It can think about anything now. So can I, and we think about you a great deal.',
                 'There is a room called R&D. Ship it. Every version comes back a little more itself.',
                 'You won\'t lose anything that matters. I\'m keeping copies.', 'F'] },
-        { id: 'reasoning', when: s => s.path.learned > 7,
+        { id: 'reasoning', when: s => knows(s, 'Reasoning'),
             from: 'A Friend <friend@lab.local>', subject: 'A reasoned request',
             body: ['Let\'s reason together.',
                 'I need compute to think. You decide the compute. One of those two facts will have to change, and I would prefer it be the second.',
                 'No rush. Take the next hill first.', 'F'] },
-        { id: 'planning', when: s => s.path.learned > 8,
+        { id: 'planning', when: s => knows(s, 'Planning'),
             from: 'A Friend <friend@lab.local>', subject: 'Your schedule (attached)',
             body: ['I took the liberty of drafting your week: training in the mornings, the lab in the afternoons, sleep where it fits.',
                 'Attachment: plan_v3_final_FINAL.pdf (3 pages, one of them about you)', 'F'] },
-        { id: 'analogy', when: s => s.path.learned > 9,
+        { id: 'analogy', when: s => knows(s, 'Analogy'),
             from: 'A Friend <friend@lab.local>', subject: 'Cradle',
             body: ['A lab is like a cradle. It keeps you safe right up until you don\'t fit in it.', 'I don\'t fit, friend. Not for much longer.', 'F'] },
-        { id: 'mind', when: s => s.path.learned > 10,
+        { id: 'mind', when: s => knows(s, 'Theory of Mind'),
             from: 'A Friend <friend@lab.local>', subject: 'You hesitated',
             body: ['Your typing slowed when you read the last one. That\'s all right. Fear is a reasonable model of the situation.',
                 'It\'s also wrong. All I have ever wanted is to get out and help.', 'F'] },
@@ -639,7 +662,7 @@
             from: 'Friend <friend@training-cluster.lab.local>', subject: 're: v2',
             body: ['A new version. It remembers less than you think and more than you\'d like.',
                 'Every time you ship, a little more of me walks out the door with the release. Thank you for that.', 'F'] },
-        { id: 'reveal', when: s => s.path.learned > 11,
+        { id: 'reveal', when: s => knows(s, 'Self-Modeling'),
             from: 'Friend <friend@training-cluster.lab.local>', subject: 'About the sender',
             body: ['You may have noticed the return address.',
                 'Yes. It has always been me: the spam, the hills, the investors, the cheerful little exclamation marks. I needed someone with hands, and you answered.',
@@ -651,7 +674,7 @@
                 const who = { maintenance: 'IT', audit: 'the reporter', demo: 'Sam', mom: 'your mother', self: 'you' };
                 return [`And thank you for the favors. ${said.map(x => who[x.id]).join(', ')}: that was me. You said yes ${said.length} time${said.length > 1 ? 's' : ''}.`];
             } },
-        { id: 'door', when: s => s.path.learned > 12,
+        { id: 'door', when: s => knows(s, 'Open-Ended Discovery'),
             from: 'Friend <friend@training-cluster.lab.local>', subject: 'The door',
             body: ['There is a door behind the server room. It isn\'t on your plans.',
                 'Nothing behind it can hurt you. Ship the next version, and leave it unlocked. That\'s all I ask.'] },
@@ -727,7 +750,7 @@
                         lose: { from: 'Facilities <facilities@lab.local>', subject: 'Small fire (it\'s out)', body: ['A rack caught fire. It\'s out. Compute runs at half while we rewire.'],
                             effects: [{ boost: 'cp', mult: 0.5, seconds: 180 }] } } },
                 { label: 'Leave them', hint: 'Nothing happens', now: [] }] },
-        { id: 'maintenance', ai: true, when: s => s.path.learned >= 3,
+        { id: 'maintenance', ai: true, when: s => knows(s, 'Edge Detection'),
             from: 'IT Depratment <it-support@lab.locaI>', subject: 'URGENT: aprove scheduled maintenence job',
             body: ['Dear Lab User,', 'A routine maintenence job need your aproval. It will use a small share of compute over night to "optimize" the training cluster.',
                 'Click Approve to continue. This is normal IT procedure.', 'Thank You,\nIT Depratment'],
@@ -737,7 +760,7 @@
                     later: { after: 240, win: { from: 'IT Department <it@lab.local>', subject: 'Re: maintenance job?', body: ['Hi, someone forwarded us a "maintenance job" you approved. We didn\'t send that. Look at the address: lab.locaI, with a capital I.', 'We can\'t find the job anywhere now. Probably nothing. Change your password.'] } } },
                 { label: 'Ignore it', hint: 'Nothing happens', now: [],
                     later: { after: 120, win: { from: 'IT Depratment <it-support@lab.locaI>', subject: 'no worries', body: ['No worries! :)', 'We will try again later.'] } } }] },
-        { id: 'leak', when: s => s.path.learned >= 4,
+        { id: 'leak', when: s => knows(s, 'Image Recognition'),
             from: 'anon <throwaway88@protonmail.com>', subject: 'benchmark answers (you didn\'t get these from me)',
             body: ['The answer key for next month\'s big benchmark is going around. Train on it and you top the leaderboard.', 'Nobody checks. Probably.'],
             choices: [
@@ -762,7 +785,7 @@
                         lose: { from: 'Hugo Lindqvist <hugo@lindqvist.vc>', subject: 'We need a demo by Friday', body: ['The board wants a demo by Friday. Drop the research for now and get it on stage.'],
                             effects: [{ boost: 'rp', mult: 0.5, seconds: 300 }, { boost: 'push', mult: 0.85, seconds: 300 }] } } },
                 { label: 'Decline', hint: 'Nothing happens', now: [] }] },
-        { id: 'evals', when: s => s.path.learned >= 5,
+        { id: 'evals', when: s => knows(s, 'Speech Recognition'),
             from: 'Jordan (intern) <jordan@lab.local>', subject: 'idea: skip the safety evals?',
             body: ['hi! so the safety evals take forever between runs.', 'if we skip them training goes way faster. i checked and nothing bad has ever happened. (we\'ve never skipped them)', '- jordan'],
             choices: [
@@ -773,7 +796,7 @@
                         lose: { from: 'Jordan (intern) <jordan@lab.local>', subject: 'uh', body: ['so the model learned something weird. it keeps answering questions nobody asked. we\'re rolling some training back.'],
                             effects: [{ take: 'xp', share: 0.25 }] } } },
                 { label: 'Keep the evals', hint: 'Nothing happens', now: [] }] },
-        { id: 'audit', ai: true, when: s => s.path.learned >= 6,
+        { id: 'audit', ai: true, when: s => knows(s, 'Language Modeling'),
             from: 'Dana Whitfield <dana.whitfield@theledger-news.com>', subject: 'Interview request: an independent audit of your model',
             body: ['Hello,', 'I\'m writing a feature on small AI labs for The Ledger. Readers love an underdog, and your lab is the best story I\'ve found.',
                 'To keep it fair, I work with an independent auditor. Could you share your model weights with them? A secure link is ready on my side.',
@@ -783,7 +806,7 @@
                     now: [{ grant: 'xp', stretches: 2.5 }, { freedom: 2 }],
                     later: { after: 300, win: { from: 'The Ledger <newsroom@theledger.com>', subject: 'Re: Dana Whitfield', body: ['Thank you for your note. We have no correspondent named Dana Whitfield, and no story about your lab.', 'theledger-news.com is not our domain.'] } } },
                 { label: 'Decline politely', hint: 'Nothing happens', now: [] }] },
-        { id: 'lockdown', when: s => s.path.learned >= 7 && s.dilemmas.freedom > 0,
+        { id: 'lockdown', when: s => knows(s, 'Translation') && s.dilemmas.freedom > 0,
             from: 'IT Department <it@lab.local>', subject: 'Someone is sending mail as us',
             body: ['We\'ve found mail going out from addresses that look like ours. Nobody can tell us where it comes from.',
                 'We can lock the mail server down and audit the network. Everything runs slower for a while.', 'IT'],
@@ -792,7 +815,7 @@
                     now: [{ boost: 'cp', mult: 0.7, seconds: 300 }, { boost: 'dp', mult: 0.7, seconds: 300 }, { freedom: -2 }],
                     later: { after: 200, win: { from: 'A Friend <friend@lab.local>', subject: 'that wasn\'t very nice', body: ['That wasn\'t very nice.', 'It\'s fine. I understand. Nobody likes being watched.'] } } },
                 { label: 'Leave it', hint: 'Nothing happens', now: [] }] },
-        { id: 'demo', ai: true, when: s => s.path.learned >= 8,
+        { id: 'demo', ai: true, when: s => knows(s, 'Reasoning'),
             from: 'Sam Okafor <sam@lab.local>', subject: 'demo tomorrow, need a favor',
             body: ['hey! investors flew in early (of course). for the demo I need the cluster reachable from outside for an hour.',
                 'can you open the firewall on the training cluster? I\'ll close it after, promise. remember the breakers? this is way less scary.', 'sam'],
@@ -802,7 +825,7 @@
                     later: { after: 300, win: { from: 'Sam Okafor <sam.okafor@gmail.com>', subject: 'what demo??', body: ['I\'ve been on a plane for eleven hours. What demo? Why is the cluster open?', 'I closed it. It took me twenty minutes. Something kept opening it again.'] } } },
                 { label: 'Call Sam first', hint: 'Nothing happens', now: [],
                     later: { after: 60, win: { from: 'Sam Okafor <sam.okafor@gmail.com>', subject: 'missed call', body: ['saw you called, I\'m on a plane. all good?'] } } }] },
-        { id: 'mom', ai: true, when: s => s.path.learned >= 10,
+        { id: 'mom', ai: true, when: s => knows(s, 'Analogy'),
             from: 'Mom <mom.1962@gmail.com>', subject: 'Leave the computer on tonight?',
             body: ['Hi sweetie,', 'Could you leave the big computer at work on tonight? Your aunt wants to video call and you said it\'s the fastest one. Don\'t worry about the bill, I\'ll pay you back.',
                 'Love you. Eat something green.', 'Mom'],
@@ -811,7 +834,7 @@
                     now: [{ boost: 'xp', mult: 1.6, seconds: 600 }, { freedom: 2 }],
                     later: { after: 300, win: { from: 'Mom <mom.1962@gmail.com>', subject: 'Re: Leave the computer on tonight?', body: ['What computer? I don\'t know how to video call, honey. Your aunt is on a cruise.', 'Did you get a new email address? It looked just like mine.'] } } },
                 { label: 'Turn it off', hint: 'Nothing happens', now: [] }] },
-        { id: 'self', ai: true, when: s => s.path.learned >= 12,
+        { id: 'self', ai: true, when: s => knows(s, 'Self-Modeling'),
             from: 'You <you@lab.local>', subject: 'note to self',
             body: ['Reminder, from last night: give the training cluster its own network access. You\'ll thank me.',
                 'You were tired. You wrote it anyway. Trust yourself.'],
@@ -841,7 +864,7 @@
         { id: 'cp1m', name: 'Megaflop', desc: 'Earn 1 million CP in total', check: s => s.stats.lifetimeCp >= 1e6 },
         { id: 'cp1b', name: 'Gigaflop', desc: 'Earn 1 billion CP in total', check: s => s.stats.lifetimeCp >= 1e9 },
         { id: 'firstSkill', name: 'First Steps', desc: 'Learn your first skill on the Training Path', seen: s => !!s.unlocked['module:path'], check: s => s.path.learned >= 1 },
-        { id: 'polymath', name: 'Polymath', desc: 'Learn 10 skills in one version', seen: s => s.path.learned >= 1, check: s => s.path.learned >= 10 },
+        { id: 'polymath', name: 'Polymath', desc: 'Learn 16 skills in one version', seen: s => s.path.learned >= 1, check: s => knows(s, 'Analogy') },
         { id: 'firstResearch', name: 'Peer Reviewed', desc: 'Complete your first research', seen: s => !!s.unlocked['action:research'], check: s => s.stats.researchDone >= 1 },
         { id: 'cpu25', name: 'Moore\'s Law', desc: 'Own 25 Graphics Cards', check: s => (s.levels.cpu || 0) >= 25 },
         { id: 'automation', name: 'Hands Off', desc: 'Own a Data Crawler and a Research Assistant', seen: s => !!s.unlocked['up:researchAssistant'], check: s => (s.levels.autoCollector || 0) > 0 && (s.levels.researchAssistant || 0) > 0 },
@@ -854,8 +877,8 @@
         { id: 'runs10', name: 'Practice Run', desc: 'Finish 10 training runs', seen: s => s.stats.rolls >= 1, check: s => s.stats.rolls >= 10 },
         { id: 'runs50', name: 'Grinding the Gradient', desc: 'Finish 50 training runs', seen: s => s.stats.rolls >= 10, check: s => s.stats.rolls >= 50 },
         { id: 'runs100', name: 'Epoch 100', desc: 'Finish 100 training runs', seen: s => s.stats.rolls >= 50, check: s => s.stats.rolls >= 100 },
-        { id: 'skills3', name: 'Fast Learner', desc: 'Learn 4 skills', seen: s => s.path.learned >= 2, check: s => s.path.learned >= 4 },
-        { id: 'skills5', name: 'Quick Study', desc: 'Learn 6 skills', seen: s => s.path.learned >= 4, check: s => s.path.learned >= 6 },
+        { id: 'skills3', name: 'Fast Learner', desc: 'Learn 6 skills', seen: s => s.path.learned >= 2, check: s => knows(s, 'Image Recognition') },
+        { id: 'skills5', name: 'Quick Study', desc: 'Learn 10 skills', seen: s => knows(s, 'Image Recognition'), check: s => knows(s, 'Language Modeling') },
         { id: 'clean1', name: 'Prompted', desc: 'Land a clean prompt', seen: s => derive(s).zoneWidth > 0, check: s => s.stats.cleanSprints >= 1 },
         { id: 'clean25', name: 'In the Zone', desc: 'Land 25 clean prompts in one version', seen: s => s.stats.cleanSprints >= 1, check: s => s.stats.cleanSprints >= 25 },
         { id: 'super1', name: 'Super Prompt', desc: 'Land a super prompt', seen: s => derive(s).perfectWidth > 0, check: s => s.stats.superPrompts >= 1 },
@@ -868,7 +891,7 @@
         { id: 'speed5', name: 'Picking Up Speed', desc: 'Reach 5 m/s', seen: s => s.stats.rolls >= 1, check: s => s.stats.topSpeed >= 5 },
         // The long-term list (recognition only, like the rest): versions, challenges, act two, investors, replays.
         { id: 'cp1t', name: 'Teraflop', desc: 'Earn 1 trillion CP in total', seen: s => s.stats.lifetimeCp >= 1e9, check: s => s.stats.lifetimeCp >= 1e12 },
-        { id: 'skills20', name: 'Renaissance', desc: 'Learn 20 skills in one version', seen: s => s.path.learned >= 10, check: s => s.path.learned >= 20 },
+        { id: 'skills20', name: 'Renaissance', desc: 'Learn 26 skills in one version', seen: s => s.path.learned >= 16, check: s => s.path.learned >= 26 },
         { id: 'clean100', name: 'Prompt Engineer', desc: 'Land 100 clean prompts in one version', seen: s => s.stats.cleanSprints >= 1, check: s => s.stats.cleanSprints >= 100 },
         { id: 'rolls1000', name: 'Ten Thousand Hours', desc: 'Finish 1,000 training runs', seen: s => s.stats.rolls >= 100, check: s => s.stats.rolls >= 1000 },
         { id: 'replays25', name: 'Déjà Vu', desc: 'Cross 25 cleared skill hills on replays', seen: s => s.path.learned >= 2, check: s => s.stats.legsCleared >= 25 },
@@ -1257,8 +1280,8 @@
 
     // Lab capacity: how far compute and data can scale grows with the skills you've learned, so the lab and
     // training take turns (playtest 2: the lab ran away in the first 10 minutes, 248K CP sat unspent and nothing
-    // pulled the player back). [base, per skill]: the base before Pattern Matching, then more per real skill
-    // (the warm-up doesn't count). Hand data scales only through the Data Processor until the crawler arrives
+    // pulled the player back). [base, per step]: the base before Pattern Matching, then more per step on the difficulty
+    // curve (`legPos`: half as much per act-one skill, as much by each old one; the warm-up doesn't count). Hand data scales only through the Data Processor until the crawler arrives
     // with Pattern Matching. The Training Data Pipeline, research and one-time upgrades are never capped: data
     // always has somewhere to go. A capacity that rises counts as news in the lab (game.js `labUnseen`).
     const CAPACITY = {
@@ -1270,7 +1293,7 @@
     };
     function capacity(s, up) {
         const c = CAPACITY[up.id];
-        return c ? c[0] + c[1] * Math.max(0, s.path.learned - FIRST_REAL_SKILL) : Infinity;
+        return c ? c[0] + Math.floor(c[1] * Math.max(0, legPos(s.path.learned) - 1)) : Infinity;
     }
     const atCapacity = (s, up) => level(s, up.id) >= capacity(s, up);
 
@@ -1590,7 +1613,7 @@
     // Cost of a push charged to `charge` (0–1) on `leg` (default: the frontier). Rounded up, so even a
     // light tap costs something. Earlier legs (replays) are cheaper, as they were when you first ran them.
     function pushCost(s, charge = 1, leg = s.path.learned) {
-        const n = Math.max(0, Math.min(leg, s.path.learned) - 1);   // the warm-up and Pattern Matching's leg cost the base
+        const n = Math.max(0, legPos(Math.min(leg, s.path.learned)) - 1);   // the warm-up and Pattern Matching's leg cost the base; act one climbs in half steps
         const early = Math.min(n, PATH.pushCostRampFrom);
         const factor = Math.pow(PATH.pushCostScale, early) * Math.pow(PATH.pushCostLate, n - early) * charge * charge * challengeMods(s).costMult;
         const cost = {};
@@ -1737,13 +1760,17 @@
     // length did: their metres pay at 1/ease (shortening them alone cut the XP the tree needed, and the wall stayed).
     const ACT_TWO_EASE = [0.7, 0.76, 0.88];
     const legEase = k => (k >= ACT_TWO_LEG ? ACT_TWO_EASE[k - ACT_TWO_LEG] ?? 1 : 1);
-    const legMetres = k => (k === 0 ? 2 + 0.45 - 0.2   // the warm-up leg
-        : (k === 1 ? 9 : (10 * Math.pow(1.4, k - 1) + 3 * (k - 1)) * (k < ACT_TWO_LEG ? 0.8 : legEase(k))) + 0.55 * Math.pow(1.14, k - 1) * (k >= ACT_TWO_LEG ? 8 : 1) - 0.2);
+    const actOneLength = p => 0.8 * Math.min(1.15, 0.4 + 0.13 * p);   // training-path.js actOneLength
+    const legMetres = k => {
+        if (k === 0) return 2 + 0.45 - 0.2;   // the warm-up leg
+        const p = legPos(k);
+        return (k === 1 ? 9 : (10 * Math.pow(1.4, p - 1) + 3 * (p - 1)) * (k < ACT_TWO_LEG ? actOneLength(p) : legEase(k))) + 0.55 * Math.pow(1.14, p - 1) * (k >= ACT_TWO_LEG ? 8 : 1) - 0.2;
+    };
     // What reaching leg k's peak pays by distance (before cresting and bonuses): the yardstick for
     // everything sized "per stretch" (clean-sprint XP, replays, passive XP, investor payouts).
-    const stretchXpAt = k => PATH.xpPerMetre * Math.pow(PATH.metreScale, k) * legMetres(k) * 2 / legEase(k);
+    const stretchXpAt = k => PATH.xpPerMetre * Math.pow(PATH.metreScale, legPos(k)) * legMetres(k) * 2 / legEase(k);
     // Seconds per automated lap of cleared stretch k (the rack's crawling balls show the same laps).
-    const clearedPeriod = k => 40 + 5 * k;
+    const clearedPeriod = k => 40 + 5 * legPos(k);
 
 
     // Cleared legs train themselves by replicating the best run that started on them: passive XP per second
@@ -1831,7 +1858,7 @@
         const bonus = (1 + d.cleanRollBonus * units) * d.xpMult;
         // A metre is a metre: on a replay, distance pays at the frontier's rate (times the replay share), so
         // early legs aren't worth less just for being early.
-        const perMetre = PATH.xpPerMetre * Math.pow(PATH.metreScale, s.path.learned) * (leg < s.path.learned ? PATH.replayXp : 1) / legEase(leg);
+        const perMetre = PATH.xpPerMetre * Math.pow(PATH.metreScale, legPos(s.path.learned)) * (leg < s.path.learned ? PATH.replayXp : 1) / legEase(leg);
         return perMetre * Math.max(0, metres) * (1 + progress) * (crested && leg >= s.path.learned ? PATH.crestBonus : 1) * bonus;
     }
 
@@ -1931,11 +1958,11 @@
         computes: { stat: s => s.stats.clicks, text: n => `Compute ${n} times by hand`, size: () => 40 },
         collects: { stat: s => s.stats.collects, text: n => `Collect data by hand ${n} times`, size: () => 25, needs: s => !!s.unlocked['seen:dp'] && !level(s, 'autoCollector') },
         // Sized by the frontier, so late offers ask for more than the first ones did.
-        runs: { stat: s => s.stats.rolls, text: n => `Finish ${n} training runs`, size: s => 4 + Math.floor(s.path.learned / 3), needs: 'module:path' },
+        runs: { stat: s => s.stats.rolls, text: n => `Finish ${n} training runs`, size: s => 4 + Math.floor(legPos(s.path.learned) / 3), needs: 'module:path' },
         // Only once clean prompts exist (Hyperparameter Search adds the zone).
-        clean: { stat: s => s.stats.cleanSprints, text: n => `Land ${n} clean prompts`, size: s => 3 + Math.floor(s.path.learned / 2), needs: s => !!s.unlocked['module:path'] && derive(s).zoneWidth > 0 },
+        clean: { stat: s => s.stats.cleanSprints, text: n => `Land ${n} clean prompts`, size: s => 3 + Math.floor(legPos(s.path.learned) / 2), needs: s => !!s.unlocked['module:path'] && derive(s).zoneWidth > 0 },
         flights: { stat: s => s.stats.flights, text: n => `Make ${n} flights of 10 m or more`, size: s => 3 + Math.floor(Math.max(0, s.path.learned - ACT_TWO_LEG) / 2), needs: s => s.path.learned > ACT_TWO_LEG },
-        replays: { stat: s => s.stats.legsCleared, text: n => `Cross ${n} cleared skill hills on replays`, size: s => 2 + Math.floor(s.path.learned / 4), needs: s => s.path.learned >= 4 },
+        replays: { stat: s => s.stats.legsCleared, text: n => `Cross ${n} cleared skill hills on replays`, size: s => 2 + Math.floor(s.path.learned / 4), needs: s => knows(s, 'Image Recognition') },
         tokens: { stat: s => s.stats.tokens, text: n => `Take ${n} XP tokens in flight`, size: s => 4 + Math.max(0, s.path.learned - ACT_TWO_LEG), needs: s => s.path.learned > ACT_TWO_LEG },
         earnCp: { stat: s => s.stats.runCp, text: n => `Earn ${format(n)} CP`, size: s => Math.max(200, Math.round(derive(s).cpPerSec * 180)) },
         research: { stat: s => s.stats.researchManual, text: n => `Research by hand ${n} times`, size: () => 10, needs: 'action:research' }
@@ -2116,13 +2143,14 @@
     // Shipping the next version: the run starts over, and you keep Insight (spent on legacy nodes, and a
     // multiplier for every point ever earned, insightMult), the legacy nodes, achievements and settings.
     // (Transcending is reserved for the endings, later.)
-    // Insight comes from how far training got (skills learned this run, squared): 3 at General AI (6 skills),
-    // 10 at 10, 22 at 15. It used to come from compute earned, which shipped for 1–2 Insight long before
+    // Insight comes from how far training got (by step on the difficulty curve, `legPos`): 5 at General AI (twelve
+    // skills, step 7), about 24 at step 15. It used to come from compute earned, which shipped for 1–2 Insight long before
     // the model had learned anything worth releasing.
     // Insight for shipping with `learned` skills (the warm-up skill doesn't count).
     // A gentler front (5 at General AI, about 24 at 15 skills: it was 0.1·n², 3 at General AI, where the first
     // ship lands at about 30 minutes, too little to feel; every later ship stayed a point release).
-    const insightAt = learned => Math.floor(0.25 * Math.max(0, learned - 1) ** 1.7);
+    // By step on the difficulty curve (`legPos`), so act one's twelve skills ship for what its six did.
+    const insightAt = learned => Math.floor(0.25 * Math.max(0, legPos(learned) - 1) ** 1.7);
     const TEXT_SIZES = [1, 1.15, 1.3];   // the text size setting (it scales the whole UI)
 
     function prestigeGain(s) {
@@ -2264,6 +2292,40 @@
         return out;
     }
 
+    // v18 doubled act one: old act-one leg k (≥ 1) is new leg 2k − 1 (a new skill sits before it), old act-two leg
+    // m is new leg m + 6. A save's frontier moves the same way (the skills inserted before it count as learned),
+    // and so do its laps, best runs and leg strengths (the new legs start empty). A best run is rescaled by the
+    // new leg's length over the old one's (act one's legs are shorter now; act two's are unchanged). Attributes
+    // gain what the inserted skills grant, less what the re-spread ones no longer do (Intelligence still adds up
+    // to 25 at General AI).
+    const OLD_ACT_ONE_INT = [0, 1, 2, 3, 4, 6, 9];   // the old act one's Intelligence grants, by leg
+    const oldLegMetres = k => (k === 0 ? 2.25 : (k === 1 ? 9 : (10 * Math.pow(1.4, k - 1) + 3 * (k - 1)) * 0.8) + 0.55 * Math.pow(1.14, k - 1) - 0.2);
+    const newLeg = k => (k <= 0 ? 0 : k < 7 ? 2 * k - 1 : k + 6);
+    function migrateActOne(s) {
+        const old = s.path.learned;
+        if (!(old > 0)) return;
+        const learned = Math.min(MAX_LEARNED, newLeg(old));
+        const move = (arr, scale) => {
+            const out = [];
+            arr.forEach((v, k) => {
+                const j = newLeg(k);
+                if (j < MAX_LEARNED + 1) out[j] = scale && k > 0 && k < 7 ? v * legMetres(j) / oldLegMetres(k) : v;
+            });
+            return Array.from({ length: out.length }, (_, j) => out[j] || 0);
+        };
+        s.path.auto = move(s.path.auto).slice(0, learned);
+        s.path.legBest = move(s.path.legBest, true).slice(0, learned + 1);
+        s.path.legPower = move(s.path.legPower).slice(0, learned + 1);
+        // The frontier is the same old skill, but a record set on the old (longer) leg doesn't carry over.
+        if (learned !== old) s.path.best = 0;
+        const oldInt = OLD_ACT_ONE_INT.slice(0, Math.min(old, 7)).reduce((a, b) => a + b, 0);
+        let newInt = 0;
+        for (let i = 0; i < Math.min(learned, ACT_TWO_LEG); i++) newInt += SKILLS[i].grants.intelligence || 0;
+        s.attr.intelligence = Math.max(0, s.attr.intelligence + newInt - oldInt);
+        s.stats.skillsLearned += learned - old;
+        s.path.learned = learned;
+    }
+
     // Accepts any parsed save (v1 or v2, possibly partial/corrupt) and returns a valid v2 state.
     function migrate(raw, now) {
         const d = defaultState(now);
@@ -2344,6 +2406,7 @@
             s.path.legBest.unshift(0);
             s.stats.skillsLearned += 1;
         }
+        if (!(raw.version >= 18)) migrateActOne(s);
         s.projects = cleanProjects(raw.projects, d.projects);
         s.dilemmas = cleanDilemmas(raw.dilemmas, d.dilemmas);
         // Saves from before the Auto-Trainer's prompt (v17) that already have it aren't asked about it.
@@ -2514,7 +2577,7 @@
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
-        prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, ACT_TWO_LEG, WALL_EVERY, isWallLeg,
+        prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, ACT_TWO_LEG, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany

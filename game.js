@@ -61,8 +61,9 @@ window.AGI = (function () {
         // The lab (with Surveillance and R&D) and the server room (with its bays) each have their own songs.
         window.SFX.setArea?.(openBay || view === 'servers' ? 'server' : 'lab');
         // How much of the arrangement the game has earned: a new game is a kick and a bass, and every skill
-        // (and every shipped version) adds to it; training runs add the rest with speed.
-        window.SFX.setDepth?.(Math.min(1, (state.path.learned + 2 * state.prestige.count + 2 * state.transcend.count) / 12));
+        // (and every shipped version) adds to it, by step on the difficulty curve (`legPos`: act one's twelve skills
+        // build it as its six did); training runs add the rest with speed.
+        window.SFX.setDepth?.(Math.min(1, (E.legPos(state.path.learned) + 2 * state.prestige.count + 2 * state.transcend.count) / 12));
         // The beat only while training: the Training Cluster's run view, runs and the pauses between them.
         window.SFX.setTraining?.(openBay === 'training' && path.view === 'run');
         const r = path.roll;
@@ -3370,13 +3371,13 @@ window.AGI = (function () {
     }
 
     // How many art pieces each bay's hardware drawing uses (styled per bay in styles.css).
-    const BAY_ART = { training: 16, pipeline: 24, architecture: 10, core: 3 };
+    const BAY_ART = { training: 20, pipeline: 24, architecture: 10, core: 3 };
     // Lanes on the Training Cluster, drawn by drawLanes():
     // - lane 0 (three blade columns) is the current stretch;
     // - then one lane (two columns) per cleared stretch, newest first, up to MAX_CLEARED_LANES: that
     //   section now trains itself, slowly, and its ball crawls along it (E.derive().xpPerSec).
     // Concurrent runs (planned) will add live lanes the same way.
-    const MAX_CLEARED_LANES = 6;
+    const MAX_CLEARED_LANES = 8;   // act one has twelve skills: the rack (20 columns) shows the last eight
     let hoverLane = null;       // cleared lane under the pointer on the rack (shows "Replay")
     const clearedLanes = () => Math.min(state.path.learned, MAX_CLEARED_LANES);
 
@@ -5423,8 +5424,8 @@ window.AGI = (function () {
     const AUTO_REACTION = [0.7, 0.35, 0.15];   // longest reaction delay (s), by level
     function autoSkill() {
         const lvl = Math.max(1, Math.min(3, E.autoTrainerLevel(state)));
-        // Trained further with every skill past the third: about half the mistakes by the fifteenth.
-        const learn = Math.max(0.5, 1 - 0.04 * Math.max(0, state.path.learned - 3));
+        // Trained further with every step past the third (`legPos`: old act-one skills): about half the mistakes by the fifteenth.
+        const learn = Math.max(0.5, 1 - 0.04 * Math.max(0, E.legPos(state.path.learned) - 3));
         return { err: AUTO_ERROR[lvl - 1] * learn, react: AUTO_REACTION[lvl - 1] * learn };
     }
     const gauss = () => Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random());
@@ -5450,7 +5451,7 @@ window.AGI = (function () {
     const ghostOn = () => E.autoTrainerLevel(state) > 0 && state.path.learned > 0;
     function ghostSkill() {
         const lvl = Math.max(1, Math.min(3, E.autoTrainerLevel(state)));
-        const trained = Math.max(0, state.path.learned - 3);
+        const trained = Math.max(0, E.legPos(state.path.learned) - 3);
         const { err, react } = autoSkill();
         return { lvl, err, react, power: Math.min(1, GHOST_POWER[lvl - 1] * (1 + 0.03 * trained)),
             fumble: GHOST_FUMBLE[lvl - 1] * Math.max(0.5, 1 - 0.04 * trained) };
@@ -5801,7 +5802,7 @@ window.AGI = (function () {
             callout('hint:labAfterSkill', 'Check the lab', 'Every skill makes room in the lab: more hardware fits and new upgrades open. Head back after each one.');
             return;
         }
-        if (!state.intro['hint:replay'] && state.path.learned > E.FIRST_REAL_SKILL + 1) {
+        if (!state.intro['hint:replay'] && E.knows(state, 'Edge Detection')) {
             state.intro['hint:replay'] = true;
             callout('hint:replay', 'Passive XP', 'Each cleared leg (a stretch of trail you\'ve crested) now replays your best run on its own, earning XP while you play.');
         }
