@@ -365,3 +365,30 @@ The owner's call: "there are still nodes one after the other that do the same th
 Elsewhere: Second Wind 2.2K → 5.5K, Overcharged Lens 55K → 20K, Laser Array 12.5K → 45K, Ghost Protocol 2.3K → 4.5K, Parity Check 4.3K → 2.6K, Signature Database 8.7K → 15K.
 
 **Saves:** save v24 refunds the tree and clears its reveals.
+
+### 11.5: Focus is a clock; a smoother pen
+
+The owner's calls: "I don't like that the focus drains faster when drawing … a regular timed drain"; Clean Sweep "lower the add time to 0.5 and 1 after upgrade"; "smooth out the line drawing … allow loops to close a bit closer on desktops"; and a toggle for the closing ring.
+
+**Focus is a clock.** It runs down a second a second whatever you do, so it reads in seconds. Before, drawing burned about two thirds of a run's Focus.
+
+- **Start:** a first run gets 14 s. In the logs, first runs lasted 10–20 s.
+- **Penalties:** a spoiled catch costs 3 s, and a snapped wire 2 s.
+- **Time back:** Garbage Collection gives 0.8 s per red packet deleted, and Second Wind 1 s a level.
+- **Nodes reworked:** Steady Hand and Summarization used to cut the drawing drain. They now add Focus.
+- **Clean Sweep:** a clean loop now stops the clock for 0.5 s (1 s at level 2), instead of making drawing free.
+- **Measured with the bot, at the same draw share:**
+
+  | Build | Run before | Run now |
+  |---|---|---|
+  | First run | 8 s | 12.5 s |
+  | Attention Span 3 | 15 s | 31 s |
+  | The Focus branch | 26 s | 40 s |
+
+- **Unchanged:** `tools/snare-boss.js`'s boss walls.
+
+**The pen:**
+- **Smoothing:** a One Euro filter on the pen's screen position. It is steady when the pen moves slowly and barely lags when it moves fast. A quick stroke ends at the real lift point, so flicks keep their length.
+- **The wire** is drawn through its midpoints as curves.
+- **The closing ring** is 26 px on a desktop (a mouse is precise) and stays 36 px on touch.
+- **A new setting** hides the ring.

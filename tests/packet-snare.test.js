@@ -126,7 +126,7 @@ test('Antivirus hunts the wire', () => {
     assert.ok(Math.hypot(f.x - 8, f.y - 6) < d0 - 0.8, 'closer after a second');
 });
 
-test('a longer wire burns Focus faster, and an empty Focus ends the run', () => {
+test('Focus is a clock: drawing, long or short, costs nothing more, and an empty Focus ends the run', () => {
     const drained = len => {
         const s = P.createSnare({ seed: 1, density: 0, antivirus: [] });
         s.packets = [];
@@ -136,10 +136,12 @@ test('a longer wire burns Focus faster, and an empty Focus ends the run', () => 
         for (let i = 0; i < 4; i++) s.step(0.25);   // step() takes at most a quarter second at a time
         return f0 - s.focus;
     };
-    assert.ok(drained(8) > drained(2) + 1.5);
+    assert.ok(Math.abs(drained(8) - drained(0)) < 0.01, 'a long wire costs no more than none');
+    assert.ok(Math.abs(drained(0) - P.SNARE.idleDrain) < 0.01, 'a second a second');
     const s = P.createSnare({ seed: 1, antivirus: [] });
     for (let i = 0; i < 1000 && !s.over; i++) s.step(0.25);
     assert.ok(s.over, 'an idle run still ends');
+    assert.ok(Math.abs(s.time - P.SNARE.focus / P.SNARE.idleDrain) < 0.3, 'after its Focus in seconds');
     assert.ok(s.takeEvents().some(e => e.type === 'end'));
     assert.equal(s.addPoint(3, 3), false);
 });
@@ -395,7 +397,7 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     // snareOpts overrides packet-snare.js's SNARE table: that table is the one place the base numbers live
     const o = { ...P.SNARE, ...E.snareOpts(s) };
     assert.equal(o.area, P.SNARE.area);
-    assert.equal(o.focus, 26);
+    assert.equal(o.focus, 14, 'a first run is about 14 s');
     assert.deepEqual(o.antivirus, [], 'sector 1: only the packets');
     assert.equal(o.sweepFirst, Infinity);
     assert.equal(o.rogue, 0, 'no Rogue AI on the first runs');
@@ -411,7 +413,7 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     assert.equal(E.snareOpts(s).antivirus.length, 1, 'from its sector (the field\'s size adds none)');
     assert.equal(E.snareOpts(s, E.AV_SECTOR + 4).antivirus.length, 2, 'a second four sectors on');
     s.snare.sector = 0;
-    assert.equal(g.focus, 33);
+    assert.equal(g.focus, 18);
     assert.equal(g.chain, 2);
     assert.ok(g.laser > 0 && g.laser < 4, 'faster with its second level');
     // and a run built from them is bigger, with lasers firing

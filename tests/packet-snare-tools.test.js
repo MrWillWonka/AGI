@@ -64,17 +64,16 @@ test('an Antivirus can\'t get into a section: it presses on the side and wears i
     assert.equal(s.stats.fwLost, 1);
 });
 
-test('wire drawn inside a section is free', () => {
-    const s = still({ firewalls: 1, drawBase: 0, drawDrain: 1, w: 10, h: 7 });
+test('wire drawn inside a section doesn\'t count against the wire\'s length', () => {
+    const s = still({ firewalls: 1, maxWire: 2, w: 10, h: 7 });
     s.placeZone(5, 3.5);
-    for (let x = 4.2; x < 5.8; x += 0.1) s.addPoint(x, 3.5);
-    for (let i = 0; i < 60; i++) s.step(1 / 60);
-    assert.ok(s.maxFocus - s.focus < 0.2);
-    const t = still({ firewalls: 1, drawBase: 0, drawDrain: 1, w: 10, h: 7 });
+    for (let x = 4.2; x < 5.8; x += 0.05) s.addPoint(x, 3.5);
+    for (let x = 5.8; x < 7.2; x += 0.05) s.addPoint(x, 3.5);
+    assert.ok(s.wire[0].x < 4.3, 'the part inside the section is free, so the tail stays');
+    const t = still({ firewalls: 1, maxWire: 2, w: 10, h: 7 });
     t.placeZone(5, 3.5);
-    for (let x = 2.5; x < 6; x += 0.1) t.addPoint(x, 6.5);
-    for (let i = 0; i < 60; i++) t.step(1 / 60);
-    assert.ok(t.maxFocus - t.focus > 2);
+    for (let x = 2.5; x < 6; x += 0.05) t.addPoint(x, 6.5);
+    assert.ok(t.wire[0].x > 2.6, 'outside it, the tail drops');
 });
 
 test('a core can\'t take packets inside a section', () => {

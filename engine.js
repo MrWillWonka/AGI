@@ -13,7 +13,7 @@
     // The build a player is on: stamped into every playtest log (its header and session events), so each log is read
     // against the features it had (playtests/README.md lists the builds). Bump it with every publish: the date and
     // time (UTC) and a few words on what changed.
-    const BUILD = '2026-11-08 16:40 (branch) · Packet Snare 11.4: the tree rearranged so no node does the same thing as the one it grows from (Sprawl, Megasprawl and Hyperscale apart), levels refunded';
+    const BUILD = '2026-11-08 17:20 (branch) · Packet Snare 11.5: Focus is a clock in seconds (drawing costs nothing more), a smoothed pen, a tighter closing ring on desktop and a setting to hide it';
     const SAVE_VERSION = 24;   // 24: Packet Snare's tree rearranged so no node does the same thing as the one it grows from, every level refunded; 23: Packet Snare's Firewalls became sections (layout.zones; drawn walls dropped), its tree regrown again with every level refunded; 22: Packet Snare's tree regrown (Snare 10: four wedges, capstones), every level refunded; 21: Packet Snare's placements (snare.layout: walls, decoys, turrets, towers; the anchors went), its tree regrown; 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
@@ -534,15 +534,15 @@
         { id: 'snareInputValidation', name: 'Input Validation', snare: { x: -1, y: -2 }, requires: 'snarePacketStream', cost: { signal: 150 }, scale: 2, max: 2, sn: { cleaner: 1 }, effect: '15% fewer corrupt packets per level', flavor: 'Never trust input. Especially yours.' },
         { id: 'snareChain', name: 'Chain Lightning', mechanic: 'chain', snare: { x: 1, y: -2 }, requires: 'snarePacketStream', cost: { signal: 150 }, scale: 3, max: 2, sn: { chain: 2 }, effect: 'Each catch arcs to 2 more packets nearby per level', flavor: 'One packet tells its friends.' },
         { id: 'snareBandwidth', name: 'Bandwidth', snare: { x: 0, y: -3 }, requires: 'snarePacketStream', cost: { signal: 250 }, scale: 2.5, max: 2, sn: { maxMult: 2 }, effect: 'Big loops reach a higher multiplier (+2 per level)', flavor: 'Wider pipes. Bigger nets.' },
-        { id: 'snareSteady', name: 'Steady Hand', snare: { x: -1, y: -3 }, requires: 'snareBandwidth', cost: { signal: 900 }, scale: 2, max: 2, sn: { drainMult: -0.15, closeMult: 0.25 }, effect: 'Drawing drains 15% less Focus and loops close 25% sooner, per level', flavor: 'Breathe out as you draw.' },
+        { id: 'snareSteady', name: 'Steady Hand', snare: { x: -1, y: -3 }, requires: 'snareBandwidth', cost: { signal: 900 }, scale: 2, max: 2, sn: { focus: 0.1, closeMult: 0.25 }, effect: '+10% Focus and loops close 25% sooner, per level', flavor: 'Breathe out as you draw.' },
         { id: 'snareChainStorm', name: 'Chain Storm', snare: { x: 1, y: -3 }, requires: 'snareChain', cost: { signal: 900 }, scale: 1.8, max: 3, sn: { chainHops: 1, chainRange: 0.3 }, effect: 'Each arc hops on once more and reaches 30% further, per level', flavor: 'Its friends tell their friends.' },
-        { id: 'snareSecondWind', name: 'Second Wind', mechanic: 'secondWind', snare: { x: -1, y: -5 }, requires: 'snareFreeze', cost: { signal: 5500 }, scale: 2, max: 2, sn: { focusBack: 2 }, effect: 'A loop at ×2 or more gives back 2 Focus per level', flavor: 'Nothing focuses the mind like a big haul.' },
+        { id: 'snareSecondWind', name: 'Second Wind', mechanic: 'secondWind', snare: { x: -1, y: -5 }, requires: 'snareFreeze', cost: { signal: 5500 }, scale: 2, max: 2, sn: { focusBack: 1 }, effect: 'A loop at ×2 or more gives back 1 s of Focus per level', flavor: 'Nothing focuses the mind like a big haul.' },
         { id: 'snareRace', name: 'Race Condition', mechanic: 'race', snare: { x: 2, y: -3 }, requires: 'snareChainStorm', cost: { signal: 3200 }, scale: 2, max: 2, sn: { race: 1 }, stages: { 2: { raceMax: 2 } }, effect: 'Close a loop and hold still: it stays open, its multiplier growing', flavor: 'Lock it. Wait for it. Wait for it.' },
         { id: 'snareLongWire', name: 'Long Wire', snare: { x: 0, y: -4 }, requires: 'snareBandwidth', cost: { signal: 1400 }, scale: 2, max: 2, sn: { wireMult: 0.25 }, effect: 'The wire runs 25% longer per level before its tail drops', flavor: 'More cable. Mind the trip hazard.' },
         { id: 'snareFreeze', name: 'Freeze Frame', mechanic: 'freeze', snare: { x: -1, y: -4 }, requires: 'snareSteady', cost: { signal: 2000 }, scale: 1.6, max: 3, sn: { freeze: 1 }, effect: 'A power: stop the field for 3 s while you draw (a charge a level)', flavor: 'Hold that thought. Hold everything.' },
         { id: 'snareFork', name: 'Fork Bomb', mechanic: 'fork', snare: { x: 1, y: -4 }, requires: 'snareLongWire', cost: { signal: 6000 }, scale: 2, max: 1, sn: { fork: 1 }, effect: 'A figure eight pays both loops, their multipliers multiplied', flavor: ':(){ :|:& };: but for data.' },
         { id: 'snareDilation', name: 'Time Dilation', snare: { x: -2, y: -4 }, requires: 'snareFreeze', cost: { signal: 6000 }, scale: 2, max: 2, sn: { freezeSeconds: 1.5 }, effect: 'Freeze Frame lasts 1.5 s longer per level', flavor: 'A second is longer than it looks.' },
-        { id: 'snareCleanSweep', name: 'Clean Sweep', mechanic: 'cleanSweep', snare: { x: -2, y: -5 }, requires: 'snareDilation', cost: { signal: 13000 }, scale: 2, max: 2, sn: { cleanSweep: 1 }, effect: 'A loop with no red inside makes drawing free of Focus for 1.5 s a level', flavor: 'Clean desk, clear mind, free ink.' },
+        { id: 'snareCleanSweep', name: 'Clean Sweep', mechanic: 'cleanSweep', snare: { x: -2, y: -5 }, requires: 'snareDilation', cost: { signal: 13000 }, scale: 2, max: 2, sn: { cleanSweep: 1 }, effect: 'A loop with no red inside stops the clock for 0.5 s (1 s at level 2)', flavor: 'Clean desk, clear mind, time to spare.' },
         { id: 'snareRateLimit', name: 'Rate Limiter', snare: { x: 2, y: -4 }, requires: 'snareRace', cost: { signal: 7000 }, scale: 2, max: 2, sn: { cleaner: 1, density: 0.2 }, effect: '15% fewer corrupt packets and 20% more packets, per level', flavor: 'One bad idea per second, max.' },
         { id: 'snareOverflow', name: 'Overflow', snare: { x: 0, y: -5 }, requires: 'snareLongWire', cost: { signal: 4000 }, scale: 2, max: 2, sn: { maxMult: 1, focus: 0.15 }, effect: '+1 to the multiplier cap and +15% Focus, per level', flavor: 'The pipe was never the limit.' },
         { id: 'snareStar', name: 'Starburst', mechanic: 'star', snare: { x: -2, y: -3 }, requires: 'snareSteady', after: 'snareFreeze', cost: { signal: 12000 }, scale: 2, max: 2, sn: { star: 1 }, stages: { 2: { starMult: 3 } }, effect: 'Draw a star while frozen: all inside it ×2 (×3 at 2), corrupt deleted', flavor: 'Make a wish. It is "more data".' },
@@ -2194,7 +2194,7 @@
         'Speech Recognition': { sn: { avOff: 1 }, text: 'It hears them coming: Antivirus update 1 s longer' },
         'Sentiment Analysis': { sn: { bossStun: 0.25 }, text: 'It reads the boss\'s mood: a parried boss reels 0.25 s longer' },
         'Language Modeling': { sn: { focus: 0.1 }, text: 'It predicts what comes next: +10% Focus' },
-        'Summarization': { sn: { drainMult: -0.1 }, text: 'It keeps it short: drawing drains 10% less Focus' },
+        'Summarization': { sn: { focus: 0.1 }, text: 'It keeps it short: +10% Focus' },
         'Translation': { sn: { slashDamage: 1 }, text: 'It speaks the boss\'s language: slashes take 1 more health' },
         'In-Context Learning': { sn: { maxMult: 0.5 }, text: 'It learns the loop on the fly: +0.5 to the multiplier cap' },
         'Reasoning': { sn: { parryDamage: 1 }, text: 'It thinks a move ahead: a parry takes 1 health' },
@@ -2235,8 +2235,6 @@
             focus: Math.round(B.focus * (1 + g('focus'))),
             maxMult: B.maxMult + g('maxMult'),
             maxWire: B.maxWire * (1 + g('wireMult')),
-            drawDrain: B.drawDrain * Math.max(0.3, 1 + g('drainMult')),
-            drawBase: B.drawBase * Math.max(0.3, 1 + g('drainMult')),
             closeRadius: B.closeRadius * (1 + g('closeMult')),
             focusBack: g('focusBack'),
             density: B.density * (1 + g('density')),
@@ -2312,7 +2310,7 @@
             // Backpressure.
             pulse: g('pulse'),
             broadband: g('broadband'),
-            cleanSweep: 1.5 * g('cleanSweep'),
+            cleanSweep: 0.5 * g('cleanSweep'),
             relay: g('relay'),
             backpressure: g('backpressure'),
             netTime: B.netTime + g('defuse'),

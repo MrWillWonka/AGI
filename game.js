@@ -3695,6 +3695,23 @@ window.AGI = (function () {
             if (snare.turned && snare.run) return [sy / snare.scale, snare.run.h - sx / snare.scale];
             return [sx / snare.scale, sy / snare.scale];
         };
+        // The pen is smoothed as it draws (Snare 11.5, the owner's call): a One Euro filter on the screen position,
+        // steady when the pen moves slowly (no shaky wire) and barely behind when it moves fast (a flick stays sharp).
+        const PEN_MIN_CUTOFF = 2.5, PEN_BETA = 0.012;   // Hz, and Hz more per px/s of pen speed
+        const penAlpha = (cutoff, dt) => 1 / (1 + 1 / (2 * Math.PI * cutoff * dt));
+        const smoothPen = ev => {
+            const f = snare.pen;
+            if (!f) return ev;
+            const dt = Math.max(0.001, (ev.timeStamp - f.t) / 1000);
+            f.t = ev.timeStamp;
+            const a = penAlpha(1, dt);
+            f.dx += a * ((ev.clientX - f.x) / dt - f.dx);
+            f.dy += a * ((ev.clientY - f.y) / dt - f.dy);
+            const k = penAlpha(PEN_MIN_CUTOFF + PEN_BETA * Math.hypot(f.dx, f.dy), dt);
+            f.x += k * (ev.clientX - f.x);
+            f.y += k * (ev.clientY - f.y);
+            return { clientX: f.x, clientY: f.y };
+        };
         canvas.addEventListener('pointerdown', e => {
             const run = snare.run;
             // Nothing on the field takes a press under a first-meeting card (the run is paused) or the tree.
@@ -3704,6 +3721,7 @@ window.AGI = (function () {
             snare.pointer = e.pointerId;
             snare.touch = e.pointerType !== 'mouse';
             snare.down = { x: e.clientX, y: e.clientY, t: performance.now(), far: false };
+            snare.pen = { x: e.clientX, y: e.clientY, dx: 0, dy: 0, t: e.timeStamp };
             try { canvas.setPointerCapture?.(e.pointerId); } catch { /* a pointer the browser no longer tracks */ }
             const [x, y] = toWorld(e);
             // The tool in hand: the lasso draws a wire, the Firewall tool drags a section (a new one, or one already down:
@@ -3730,7 +3748,7 @@ window.AGI = (function () {
             const list = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
             for (const ev of (list.length ? list : [e])) {
                 // After a snap the pen waits out its cooldown, then a fresh wire starts where it is.
-                if (!snare.run.addPoint(...toWorld(ev))) break;
+                if (!snare.run.addPoint(...toWorld(smoothPen(ev)))) break;
             }
         });
         const lift = e => {
@@ -3743,6 +3761,9 @@ window.AGI = (function () {
             // A tap's reach: 22 px on screen, whatever the field's size.
             const reach = 22 / snare.scale;
             const [x, y] = toWorld(e);
+            // A quick stroke (a flick) ends where the pen really lifted, so smoothing never shortens it.
+            if (snare.tool === 'lasso' && run && d && performance.now() - d.t < 450 && e.type === 'pointerup') run.addPoint(x, y);
+            snare.pen = null;
             if (snare.tool === 'lasso') run?.liftPen();
             else if (snare.tool === 'wall') {
                 const w = snare.wallFrom;
@@ -3806,6 +3827,13 @@ window.AGI = (function () {
     // `densityCap` a unit², so it stays readable. A flick is `SNARE_FLICK` px long, and the loop's closing ring
     // `SNARE_CLOSE` px across, on any field.
     const SNARE_PPU = 20, SNARE_FLICK = 48, SNARE_CLOSE = 36;
+    // A mouse is precise, so on a desktop the pen has to come closer to the start before a loop closes (the owner's
+    // call: a 36 px ring shut loops early there); fingers keep the 36 px.
+    const SNARE_CLOSE_FINE = 26;
+    const snareClosePx = () => (matchMedia('(pointer: fine)').matches ? SNARE_CLOSE_FINE : SNARE_CLOSE);
+    // The closing ring can be hidden (Settings, per device).
+    const SNARE_RING_KEY = 'agiSnareRing';
+    const snareRingOn = () => storageGet(SNARE_RING_KEY) !== '0';
     function snareField(area = E.snareOpts(state).area, o = null) {
         const aspect = Math.min(3.5, Math.max(0.5, snare.cw / snare.ch || 1.6));
         const cap = snare.cw > 0 && snare.ch > 0 ? Math.max(window.PacketSnare.FIELD_AREA, snare.cw * snare.ch / SNARE_PPU ** 2) : area;
@@ -3815,7 +3843,7 @@ window.AGI = (function () {
         const out = { w, h, flickLength: SNARE_FLICK / scale };
         // The closing ring in screen px (round 4: as a share of the field, on a big field small loops never left it).
         const B = window.PacketSnare.SNARE;
-        if (snare.cw > 0) out.closeRadius = SNARE_CLOSE * ((o?.closeRadius ?? B.closeRadius) / B.closeRadius) / scale / Math.sqrt(a);
+        if (snare.cw > 0) out.closeRadius = snareClosePx() * ((o?.closeRadius ?? B.closeRadius) / B.closeRadius) / scale / Math.sqrt(a);
         if (o) {
             // The packets a unit² would hold: a field the screen caps holds them more densely, up to `densityCap`.
             const want = o.density * area / a;
@@ -4349,7 +4377,7 @@ window.AGI = (function () {
             // A sector with no boss: how far along its goal is (cleared once it's reached).
             : run.bossDone ? ' · Boss down ✓'
             : run.opts.goal > 0 ? ` · ${run.goalDone ? 'Cleared ✓' : `Goal ${Math.min(run.stats.caught - run.sectorCaught, run.opts.goal)}/${run.opts.goal}`}` : '';
-        setText($('snareFocusText'), run.cooldown > 0 ? 'Wire snapped…' : run.frozen() ? `Frozen · ${run.frozenLeft.toFixed(1)} s` : `Focus ${Math.ceil(run.focus)}${run.freeDrawUntil > run.time ? ' · FREE DRAW' : ''}${run.flags ? ` · ⚑ ${run.flags}/${run.opts.flagLimit}` : ''}${boss}`);
+        setText($('snareFocusText'), run.cooldown > 0 ? 'Wire snapped…' : run.frozen() ? `Frozen · ${run.frozenLeft.toFixed(1)} s` : `Focus ${Math.ceil(run.focus)} s${run.freeDrawUntil > run.time ? ' · ⏸' : ''}${run.flags ? ` · ⚑ ${run.flags}/${run.opts.flagLimit}` : ''}${boss}`);
         // A held Race Condition loop ticks up every half second.
         if (run.race) {
             const step = Math.min(8, Math.floor(run.race.t / 0.5));
@@ -4621,9 +4649,9 @@ window.AGI = (function () {
     // In plain words, against where a first run starts (round 3: "4,810 units²" and "0.4/unit" meant nothing).
     const snareX = key => v => `×${num1(v / window.PacketSnare.SNARE[key])}`;
     const SNARE_OPT_LABEL = [
-        ['area', 'Field', snareX('area')], ['focus', 'Focus', String], ['maxMult', 'Multiplier cap', v => `×${v}`],
-        ['maxWire', 'Wire length', snareX('maxWire')], ['drawDrain', 'Drawing drain', v => pct(v / window.PacketSnare.SNARE.drawDrain)],
-        ['closeRadius', 'Start ring', snareX('closeRadius')], ['focusBack', 'Focus back from a ×2 loop', String],
+        ['area', 'Field', snareX('area')], ['focus', 'Focus', v => `${v} s`], ['maxMult', 'Multiplier cap', v => `×${v}`],
+        ['maxWire', 'Wire length', snareX('maxWire')], 
+        ['closeRadius', 'Start ring', snareX('closeRadius')], ['focusBack', 'Focus back from a ×2 loop', v => `${v} s`],
         ['race', 'Held loops', v => (v ? 'grow while you hold' : 'off')], ['raceMax', 'A held loop grows to', v => `×${num1(1 + v)}`],
         ['freeze', 'Freeze charges', String], ['freezeSeconds', 'Freeze', v => `${num1(v)} s`],
         ['density', 'Packets', snareX('density')], ['goldChance', 'Gold packets', pct], ['goldValue', 'A gold packet is worth', String],
@@ -4653,7 +4681,7 @@ window.AGI = (function () {
         ['netTime', 'Mines link into nets in', v => `${num1(v)} s`], ['defuseChain', 'Looping a mine', v => (v ? 'clears its neighbour too' : 'clears just that one')],
         ['pulse', 'A clean loop', v => (v ? `sends in ${2 * v} packets` : 'sends in none')],
         ['broadband', 'Each turret or tower placed', v => (v ? `brings packets back ${Math.round(v * 100)}% sooner` : 'does nothing for refills')],
-        ['cleanSweep', 'After a clean loop, drawing is free for', v => `${num1(v)} s`],
+        ['cleanSweep', 'After a clean loop, the clock stops for', v => `${num1(v)} s`],
         ['relay', 'Red packets your walls bounce', v => (v ? 'swim to your decoy' : 'swim on')],
         ['backpressure', 'A catch', v => (v ? 'turns the packets round it back' : 'leaves the packets round it be')],
         ['cleanBots', 'Cleaner bots', String], ['spoofBots', 'Spoofer bots', String],
@@ -4808,7 +4836,7 @@ window.AGI = (function () {
         else if (e.type === 'gilded') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'GOLD', small: true });
         else if (e.type === 'autoZone') fx.push({ kind: 'placed', x: e.x, y: e.y, t: 0, life: 0.6 });
         else if (e.type === 'raceBroken') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.9, text: e.by === 'boss' ? 'HOLD BROKEN · the boss' : 'HOLD BROKEN · scanned', small: true });
-        else if (e.type === 'cleanSweep') fx.push({ kind: 'stun', x: e.x, y: e.y + 0.9, t: 0, life: 0.8, text: 'FREE DRAW', small: true });
+        else if (e.type === 'cleanSweep') fx.push({ kind: 'stun', x: e.x, y: e.y + 0.9, t: 0, life: 0.8, text: 'CLOCK STOPPED', small: true });
         else if (e.type === 'backpressure') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: e.r, t: 0, life: 0.5 });
         else if (e.type === 'bossBlock') fx.push({ kind: 'flag', x: e.x, y: e.y - 1, t: 0, life: 0.9, text: e.reason === 'shield' ? 'SHIELDED · loop its mines' : 'GUARD UP · parry its charge', small: true });
         else if (e.type === 'mine') fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.6 });
@@ -5974,8 +6002,11 @@ window.AGI = (function () {
                 if (to <= from) continue;
                 ctx.globalAlpha = 0.25 + 0.75 * ((band + 1) / bands);
                 ctx.beginPath();
-                ctx.moveTo(run.wire[from].x * k, run.wire[from].y * k);
-                for (let i = from + 1; i <= to; i++) ctx.lineTo(run.wire[i].x * k, run.wire[i].y * k);
+                // Through the midpoints, each point a control: a smooth curve rather than a polyline's corners.
+                const wp = run.wire;
+                ctx.moveTo(wp[from].x * k, wp[from].y * k);
+                for (let i = from + 1; i < to; i++) ctx.quadraticCurveTo(wp[i].x * k, wp[i].y * k, (wp[i].x + wp[i + 1].x) / 2 * k, (wp[i].y + wp[i + 1].y) / 2 * k);
+                ctx.lineTo(wp[to].x * k, wp[to].y * k);
                 ctx.stroke();
             }
             const head = run.wire[n - 1], start = run.wire[0];
@@ -5991,12 +6022,15 @@ window.AGI = (function () {
                 ctx.setLineDash([]);
             }
             ctx.globalAlpha = 1;
+            // The closing ring round the start (Settings can hide it: some find it in the way).
+            if (snareRingOn()) {
             ctx.strokeStyle = pv?.near ? (pv.spoiled ? C.danger : C.success) : C.muted;
             ctx.lineWidth = pv?.near ? 2.5 : 1.5;
             ctx.beginPath();
             ctx.arc(start.x * k, start.y * k, run.closeR * k, 0, Math.PI * 2);
             ctx.stroke();
-            if (pv?.near) {
+            }
+            if (pv?.near && snareRingOn()) {
                 ctx.globalAlpha = 0.18;
                 ctx.fillStyle = pv.spoiled ? C.danger : C.success;
                 ctx.fill();
@@ -10719,6 +10753,7 @@ window.AGI = (function () {
         // across (load() prefers it), so an update mid-session loses nothing.
         try { window.claude?.hot?.snapshot?.(() => { save(); return { save: E.serialize(state) }; }); } catch { /* not in a viewer */ }
         keepAwake();
+        snareRingSetting();
         buildMail();
     }
 
@@ -11008,6 +11043,15 @@ window.AGI = (function () {
             wakeLock = await navigator.wakeLock.request('screen');
             wakeLock.addEventListener('release', () => { wakeLock = null; });
         } catch { wakeLock = null; }
+    }
+    function snareRingSetting() {
+        const box = $('settingSnareRing');
+        if (!box) return;
+        box.checked = snareRingOn();
+        box.addEventListener('change', () => {
+            storageSet(SNARE_RING_KEY, box.checked ? '1' : '0');
+            pt('setting', { key: 'snareRing', value: box.checked });
+        });
     }
     function keepAwake() {
         const box = $('settingAwake');

@@ -34,18 +34,18 @@
     // overridden through createSnare's options (the skill tree's levels arrive that way, from engine.js snareOpts).
     const SNARE = {
         area: FIELD_AREA,
-        focus: 26,                  // the run's budget: a first run is short (about 10 s of drawing), hard and quick
-        idleDrain: 1.0,             // Focus per second, always: an idle run still ends
-        drawBase: 1.6,              // extra per second while the pen is down
-        drawDrain: 0.5,             // and per second per unit of wire held (÷ √ of the field's growth, so a loop the same share
-                                    // of any field costs the same): long wires burn faster; wire along your Firewalls is free
+        // Focus is the run's clock (Snare 11.5, the owner's call: drawing used to drain it faster, which punished the fun
+        // part): it runs down `idleDrain` a second whatever you do, so it reads in seconds. A first run is about 14 s
+        // (the logs' first runs were 10–20 s); mistakes cost seconds, and good play gives some back.
+        focus: 14,
+        idleDrain: 1.0,
         maxWire: 36,                // units on the starting field (× √ of the field's growth): past this the tail drops
         minGap: 0.1,                // the wire records a point every this far
         closeRadius: 0.085,         // × √area: bring the pen back this close to the start and the loop closes
         areaUnit: 0.22,             // × area: a catch's multiplier is 1 + loop area / (areaUnit × field area)…
         maxMult: 4,                 // …up to this (Bandwidth raises it)
-        corruptPenalty: 6,          // Focus lost when a corrupt packet spoils a catch
-        snapPenalty: 4,             // Focus lost when an Antivirus or a Firewall snaps the wire
+        corruptPenalty: 3,          // seconds of Focus lost when a corrupt packet spoils a catch
+        snapPenalty: 2,             // seconds of Focus lost when an Antivirus or a Firewall snaps the wire
         snapCooldown: 1.0,          // seconds before you can draw again after a snap
         respawn: 1.2,               // seconds before a caught packet's replacement swims in
         density: 0.13,              // good packets per unit² of field…
@@ -77,7 +77,7 @@
         scannerSpeed: 1.1,          // radians per second
         tagSeconds: 1.5,            // how long a tag lasts: catch what the beam just lit
         tagValue: 2,                // what a tag multiplies a packet's worth by (Prospector: 3)
-        focusBack: 0,               // Second Wind: Focus a loop at ×2 or more gives back
+        focusBack: 0,               // Second Wind: seconds of Focus a loop at ×2 or more gives back
         laser: 0,                   // Targeted Laser: seconds between shots (0 = none)
         emitters: 1,                // packets each shot takes
         scrubbers: 0,               // corrupt packets a loop forgives
@@ -202,7 +202,7 @@
         flagNear: 1.2,              // units: how near a flick must pass to something it could hit to be flagged
         // Garbage Collection: a loop of nothing but corrupt packets deletes them and gives `gcFocus` Focus each.
         gc: 0,
-        gcFocus: 1.5,
+        gcFocus: 0.8,
         // Race Condition: close a loop and keep the pen still, and the loop stays open, its multiplier growing
         // `raceRate` a second (up to `raceMax` more) and taking what swims in, until you move, lift, or a corrupt packet
         // gets in (spoiling it).
@@ -271,7 +271,7 @@
         pulse: 0,
         // Broadband: each turret or scanner tower you've placed makes caught packets come back `broadband` sooner.
         broadband: 0,
-        // Clean Sweep: a clean loop makes drawing free of Focus for `cleanSweep` s.
+        // Clean Sweep: a clean loop (no red inside) stops the clock for `cleanSweep` s.
         cleanSweep: 0,
         // Quarantine Relay: a red packet that bounces off your Firewall swims to your nearest decoy for `relaySeconds` s.
         relay: 0,
@@ -374,12 +374,11 @@
         }
         const shortSide = Math.min(w, h);
         const maxWire = o.maxWire * grow;
-        const drawDrain = o.drawDrain / grow;
         const s = {
             w, h, opts: o, closeR,
             echoes: [],             // Infinite Loop: loops waiting to catch again ({ poly, at, mult })
             streak: 0,              // clean catches in a row (Floodgate's surge)
-            freeDrawUntil: 0,       // Clean Sweep: drawing costs no Focus until then
+            freeDrawUntil: 0,       // Clean Sweep: the clock is stopped until then
             surgeAt: 0,             // when the next surge may come
             stormAt: o.storm ? o.stormFirst : Infinity,   // Packet Storm's next school of gold
             time: 0,                // the field's clock (it stops while frozen)
@@ -1728,7 +1727,7 @@
             for (let i = pendingCorrupt.length - 1; i >= 0; i--) {
                 if (s.time >= pendingCorrupt[i] && corruptCount() < corruptTarget) { corrupt(true); pendingCorrupt.splice(i, 1); }
             }
-            const drain = o.idleDrain + (s.drawing && s.time >= s.freeDrawUntil ? o.drawBase + drawDrain * wireCost(s.wire) : 0);
+            const drain = s.time >= s.freeDrawUntil ? o.idleDrain : 0;
             s.focus = Math.max(0, s.focus - drain * dt);
             if (s.focus <= 0) end();
         }
