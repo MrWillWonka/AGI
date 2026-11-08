@@ -31,7 +31,8 @@
     };
 
     // Each demo: options for the run, packets [kind, x, y, vx, vy], a wire [from s, to s, points], taps or walls or
-    // powers at times, things pinned in place (`hold`), and `expect`, what the run must show by its end.
+    // powers, Firewall sections dropped (`zones`: [at s, x, y]) at times, things pinned in place (`hold`), and `expect`, what
+    // the run must show by its end.
     const DEMOS = {
         lasso: { text: 'Loop the data; back at the start, it closes', opts: {},
             packets: [['good', 2.6, 1.2], ['good', 3.1, 1.5], ['good', 2.7, 1.8], ['good', 4.9, 0.7], ['corrupt', 5, 2.2]],
@@ -54,9 +55,9 @@
         herders: { text: 'Drones herd strays together and shoo the corrupt ones', opts: { herders: 2, herdSpeed: 3.5, herdPull: 4 },
             packets: [['good', 0.6, 0.5, -0.6, 0], ['good', 5.4, 2.3, 0.6, 0], ['good', 0.7, 2.3, -0.5, 0.2], ['good', 5.3, 0.5, 0.5, -0.2], ['corrupt', 3, 1.5, 0.4, 0]],
             expect: (r, sim) => spread(r) < sim.spread0 * 0.8 },
-        firewall: { text: 'Draw a wall: corrupt packets bounce off, good ones pass', opts: { firewalls: 1 },
-            packets: [['good', 1.4, 0.9, 1.3, 0], ['corrupt', 1.2, 1.7, 1.3, 0], ['good', 0.8, 2.3, 1.3, 0]],
-            walls: [[0.2, [3.2, 0.2], [3.2, 2.6]]], expect: r => r.stats.bounces >= 1 && r.packets.some(p => p.kind === 'good' && p.x > 3.3) },
+        firewall: { text: 'Drop a section: red packets can\'t get in, so you can loop safely', opts: { firewalls: 1, zoneSize: 2 },
+            packets: [['good', 1.6, 1.3, 1.2, 0], ['corrupt', 1.4, 1.6, 1.2, 0], ['good', 1.2, 1.1, 1.2, 0]],
+            zones: [[0.15, 3.6, 1.4]], expect: r => r.stats.bounces >= 1 && r.packets.some(p => p.kind === 'good' && p.x > 2.8) },
         decoy: { text: 'Tap to place a decoy: corrupt packets and Antivirus go to it', opts: { decoys: 1, corruptLure: 5 },
             packets: [['corrupt', 1.5, 1.4, 0, 0.8], ['corrupt', 1.2, 0.6, 0, -0.8], ['good', 3, 2.3]],
             taps: [[0.2, 'decoy', 5, 1.4]], expect: (r, sim) => r.packets.filter(p => p.kind === 'corrupt').every(p => p.x > 2.6) },
@@ -136,9 +137,9 @@
             strokes: [[0.2, 0.9, ring(1.7, 1.45, 0.6, 0.6)], [1.2, 1.9, ring(4.3, 1.45, 0.6, 0.6)]],
             tick: (r, sim) => { if (sim.t >= 1.1 && sim.f1 === undefined) sim.f1 = r.focus; },
             expect: (r, sim) => r.stats.sweepsClean >= 1 && r.focus > sim.f1 - 0.05 },
-        relay: { text: 'Red packets your wall turns back go to your decoy', opts: { firewalls: 1, decoys: 1, relay: 1 },
-            packets: [['corrupt', 1.4, 1.0, 1.4, 0], ['good', 0.8, 2.3, 1.3, 0]],
-            walls: [[0.1, [3.0, 0.2], [3.0, 2.6]]], taps: [[0.15, 'decoy', 0.8, 2.4]],
+        relay: { text: 'Red packets your Firewall turns back go to your decoy', opts: { firewalls: 1, decoys: 1, relay: 1, zoneSize: 2 },
+            packets: [['corrupt', 1.4, 1.4, 1.4, 0], ['good', 0.8, 2.3, 1.3, 0]],
+            zones: [[0.1, 3.8, 1.4]], taps: [[0.15, 'decoy', 0.8, 2.4]],
             expect: r => r.stats.relayed >= 1 && r.packets.some(p => p.kind === 'corrupt' && p.x < 2.4 && p.y > 1.4) },
         backpressure: { text: 'A catch turns the packets round it back: they bunch up', opts: { backpressure: 4, backSeconds: 1.4 },
             packets: [['good', 2.8, 1.4], ['good', 3.1, 1.6], ['good', 3.62, 1.45, 0.03, 0], ['good', 3.6, 1.75, 0.03, 0], ['good', 2.3, 1.3, -0.03, 0]],
@@ -153,9 +154,25 @@
             packets: [['good', 5.5, 2.5]], hold: { boss: [3, 1.4] },
             strokes: [[0.4, 0.47, line(2.2, 0.4, 3.8, 2.4, 6)], [0.9, 0.97, line(3.8, 0.4, 2.2, 2.4, 6)], [1.4, 1.47, line(2.2, 1.4, 3.8, 1.4, 6)]],
             expect: r => r.stats.crashes >= 1 },
-        zeroTrust: { text: 'Corrupt packets your Firewall turns back come back good', opts: { firewalls: 1, zeroTrust: 1 },
-            packets: [['corrupt', 1.4, 0.9, 1.3, 0], ['corrupt', 1.2, 1.7, 1.3, 0], ['good', 0.8, 2.3, 1.3, 0]],
-            walls: [[0.2, [3.2, 0.2], [3.2, 2.6]]], expect: r => r.stats.converted >= 1 },
+        zeroTrust: { text: 'Red packets your Firewall turns back come back good', opts: { firewalls: 1, zeroTrust: 1, zoneSize: 2 },
+            packets: [['corrupt', 1.4, 1.2, 1.3, 0], ['corrupt', 1.2, 1.6, 1.3, 0], ['good', 0.8, 2.3, 1.3, 0]],
+            zones: [[0.15, 3.6, 1.4]], expect: r => r.stats.converted >= 1 },
+        // Snare 11: the bots and the Firewall sections' later tricks.
+        cleaner: { text: 'A drone seeks red packets and cleans them', opts: { cleanBots: 1, botSpeed: 4 },
+            packets: [['corrupt', 4.6, 0.8], ['corrupt', 1.4, 2.1], ['good', 3, 1.4], ['good', 2.2, 0.9]],
+            expect: r => r.stats.cleaned >= 2 },
+        spoofer: { text: 'A drone seeks red packets and spoofs them: good, ×2', opts: { spoofBots: 1, botSpeed: 4 },
+            packets: [['corrupt', 4.6, 0.8], ['corrupt', 1.4, 2.1], ['good', 3, 1.4]],
+            expect: r => r.stats.botSpoofed >= 2 },
+        goldPlate: { text: 'Cleaner bots turn regular packets gold', opts: { cleanBots: 1, goldPlate: 2, goldEvery: 1.6, botSpeed: 3 },
+            packets: [['good', 3, 1.2], ['good', 3.4, 1.6], ['good', 2.6, 1.7]],
+            expect: r => r.stats.gilded >= 2 },
+        pen: { text: 'Good packets that come into a section can\'t get out', opts: { firewalls: 1, pen: 1, zoneSize: 2 },
+            packets: [['good', 1.2, 1.3, 1.3, 0], ['good', 1.0, 1.6, 1.3, 0], ['good', 0.6, 1.4, 1.3, 0]],
+            zones: [[0.1, 3.4, 1.4]], expect: r => r.packets.filter(p => p.x > 2.3 && p.x < 4.5).length >= 3 },
+        autoZone: { text: 'A free section places itself where the packets gather', opts: { firewalls: 1, autoZone: 1, autoZoneEvery: 0.6, zoneSize: 2 },
+            packets: [['good', 4.3, 1.6], ['good', 4.5, 1.8], ['good', 4.4, 1.5], ['good', 4.6, 1.7], ['good', 1.2, 0.8]],
+            expect: r => r.stats.autoZones >= 1 && r.walls.some(z => Math.abs(z.x - 4.45) < 1) },
         spoof: { text: 'Flick through corrupt packets: they count as good, ×2', opts: { spoof: 1 },
             packets: [['corrupt', 2.2, 1.3], ['corrupt', 3, 1.45], ['corrupt', 3.8, 1.6], ['good', 1, 0.5]], wire: [0.6, 0.75, line(1.6, 1.2, 4.4, 1.7, 6)],
             expect: r => r.stats.spoofed >= 2 },
@@ -219,12 +236,12 @@
             sim.fedAt[i] = upto;
             if (upto >= pts.length) { r.liftPen(); sim.fedAt[i] = pts.length + 1; }
         }
-        const acts = [...(S.taps || []).map(a => ['tap', ...a]), ...(S.walls || []).map(a => ['wall', ...a]), ...(S.powers || []).map(a => ['power', ...a])]
+        const acts = [...(S.taps || []).map(a => ['tap', ...a]), ...(S.zones || []).map(a => ['zone', ...a]), ...(S.powers || []).map(a => ['power', ...a])]
             .sort((a, b) => a[1] - b[1]);
         while (sim.acts < acts.length && sim.t >= acts[sim.acts][1]) {
             const [type, , a, b, c] = acts[sim.acts++];
             if (type === 'tap') r.placeAt(a, b, c);
-            else if (type === 'wall') r.placeWall({ x: a[0], y: a[1] }, { x: b[0], y: b[1] });
+            else if (type === 'zone') r.placeZone(a, b);
             else r.usePower(a);
         }
         S.tick?.(r, sim);

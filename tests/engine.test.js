@@ -2008,7 +2008,7 @@ test('Packet Snare (Snare 10): four wedges, verbs inside, automation and a capst
     assert.ok(Math.pow(0.85, units - 2) > 0.03 && Math.pow(0.85, units + 1) <= 0.03, `${units} red-packet units land on the 3% floor`);
 });
 
-test('a save from before Snare 10 gets every Packet Snare level back as Signal', () => {
+test('a save from before Snare 11 gets every Packet Snare level back as Signal (the tree regrown twice)', () => {
     const s = E.defaultState(Date.now());
     const raw = JSON.parse(JSON.stringify({ ...s, version: 21 }));
     raw.levels.snareFocus = 3; raw.levels.snareJumbo = 2; raw.levels.snareSprawl = 2;
@@ -2017,7 +2017,7 @@ test('a save from before Snare 10 gets every Packet Snare level back as Signal',
     assert.equal(m.levels.snareFocus, undefined);
     assert.equal(m.levels.snareSprawl, undefined);
     assert.equal(m.snare.signal, 5000, 'everything it earned this version, back to spend');
-    const fresh = E.migrate({ ...raw, version: 22, levels: { snareFocus: 2 }, snare: { ...raw.snare, signal: 1200 } }, Date.now());
+    const fresh = E.migrate({ ...raw, version: 23, levels: { snareFocus: 2 }, snare: { ...raw.snare, signal: 1200 } }, Date.now());
     assert.equal(fresh.levels.snareFocus, 2, 'a current save keeps its levels');
     assert.equal(fresh.snare.signal, 1200);
 });

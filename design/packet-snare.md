@@ -249,3 +249,16 @@ The owner asked for what was left:
   - **Clean Sweep** (Loops): drawing is free of Focus for a moment after a clean loop.
   - **Backpressure** (Flow): a catch turns the packets around it back, so they bunch up for the next loop.
   - **Quarantine Relay** (Countermeasures): red packets your wall turns back swim to your decoy, so a wall and a decoy make a lane.
+
+## Snare 11: Firewall sections, bots, fewer red packets
+
+The owner's calls:
+- **Red packets are 15% of all packets at the start, about 10% after the first cheap buys.** They were 26% at the start.
+- **Two early bots.** A Cleaner Bot in Intrusion seeks red packets and cleans them into regular ones; Gold Plating, later, has it turn regular packets gold. A Spoofer Bot in Countermeasures spoofs red packets instead.
+- **Firewalls weren't felt, so they're no longer lines you draw.** They are sections you drag and drop that start small and grow:
+  - They are safe places to loop: red packets can't get in, and those inside are pushed out.
+  - Antivirus and the boss are held at the side and wear the section's health down.
+  - Later, Holding Pen makes them pens that keep the good packets that wander or are herded in.
+  - Late game, Auto-Deploy has the AI place them where the packets gather.
+
+Honeypot folded into Decoys to make room. Save v23 refunds the tree and drops the drawn walls from the saved layout.

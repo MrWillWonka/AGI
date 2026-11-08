@@ -40,21 +40,21 @@ test('Freeze Frame stops the field\'s clock: nothing comes due or piles up while
     assert.equal(s.antivirus.length, 1, 'it boots once the field moves again');
 });
 
-test('a Firewall that goes down frees its slot', () => {
-    const s = still({ firewalls: 1, fwHits: 1, antivirus: [0] });
-    s.placeWall({ x: 5, y: 0.5 }, { x: 5, y: 5 });
+test('a Firewall section worn to nothing frees its slot', () => {
+    const s = still({ firewalls: 1, zoneHp: 0.5, antivirus: [0], avOn: 99 });
+    s.placeZone(6, 4);
     run(s, 0.05);
-    Object.assign(s.antivirus[0], { x: 4.4, y: 3, vx: 2, vy: 0 });
-    run(s, 0.5);
+    Object.assign(s.antivirus[0], { x: 3, y: 4, vx: 2, vy: 0 });
+    run(s, 2);
     assert.equal(s.stats.fwLost, 1);
     assert.equal(s.walls.length, 0);
-    assert.ok(s.placeWall({ x: 2, y: 1 }, { x: 2, y: 4 }), 'a new wall can go down');
+    assert.ok(s.placeZone(2, 2), 'a new section can go down');
 });
 
-test('saved walls are trimmed to the new field\'s longest', () => {
-    const s = still({ firewalls: 1, wallLength: 2, layout: { walls: [[0.1, 0.5, 0.9, 0.5]] } });
+test('saved sections come back inside the field', () => {
+    const s = still({ firewalls: 1, layout: { zones: [[0.99, 0.01]] } });
     const f = s.walls[0];
-    assert.ok(Math.hypot(f.b.x - f.a.x, f.b.y - f.a.y) <= 2 * Math.sqrt(70 / P.FIELD_AREA) + 1e-9);
+    assert.ok(f.x + f.hw <= s.w + 1e-9 && f.y - f.hh >= -1e-9, 'kept inside');
 });
 
 test('a wire that only goes out and back along itself starts again at the start', () => {

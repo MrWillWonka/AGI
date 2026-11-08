@@ -353,14 +353,14 @@ test('the Data Pipeline opens with Edge Detection once the server room is open (
 
 test('saves before v19 get an empty snare record; a save keeps it', () => {
     const old = E.migrate({ version: 18 }, NOW);
-    assert.deepEqual(old.snare, { best: 0, runs: 0, signal: 0, earned: 0, sector: 0, bosses: 0, bestMult: 0, quarantined: 0, layout: { walls: [], decoys: [], turrets: [], towers: [] } });
+    assert.deepEqual(old.snare, { best: 0, runs: 0, signal: 0, earned: 0, sector: 0, bosses: 0, bestMult: 0, quarantined: 0, layout: { zones: [], decoys: [], turrets: [], towers: [] } });
     // v19 paid data: its record starts over in Signal
     assert.equal(E.migrate({ version: 19, snare: { best: 400, runs: 3, dp: 900, anchors: [] } }, NOW).snare.best, 0);
     const s = E.defaultState(NOW);
-    s.snare = { best: 120, runs: 4, signal: 300, earned: 500, sector: 2, bosses: 2, bestMult: 3.2, quarantined: 1, layout: { walls: [[0.1, 0.1, 0.5, 0.1]], decoys: [[0.25, 0.5]], turrets: [[0.75, 0.5]], towers: [[0.5, 0.9]] } };
+    s.snare = { best: 120, runs: 4, signal: 300, earned: 500, sector: 2, bosses: 2, bestMult: 3.2, quarantined: 1, layout: { zones: [[0.1, 0.1]], decoys: [[0.25, 0.5]], turrets: [[0.75, 0.5]], towers: [[0.5, 0.9]] } };
     const back = E.migrate(JSON.parse(JSON.stringify(s)), NOW);
     assert.deepEqual(back.snare, s.snare);
-    assert.deepEqual(E.migrate({ version: 21, snare: { best: 'x', runs: -3, sector: 'y', layout: { decoys: [[0.5, 2], 'x', [0.1, 0.2]], walls: 'no' } } }, NOW).snare, { best: 0, runs: 0, signal: 0, earned: 0, sector: 0, bosses: 0, bestMult: 0, quarantined: 0, layout: { walls: [], decoys: [[0.1, 0.2]], turrets: [], towers: [] } });
+    assert.deepEqual(E.migrate({ version: 21, snare: { best: 'x', runs: -3, sector: 'y', layout: { decoys: [[0.5, 2], 'x', [0.1, 0.2]], walls: [[0.1, 0.1, 0.5, 0.1]], zones: 'no' } } }, NOW).snare, { best: 0, runs: 0, signal: 0, earned: 0, sector: 0, bosses: 0, bestMult: 0, quarantined: 0, layout: { zones: [], decoys: [[0.1, 0.2]], turrets: [], towers: [] } }, 'drawn walls are dropped (Snare 11 made Firewalls sections)');
 });
 
 test('a first run is small, short and hard; the tree grows the field, Focus and abilities', () => {

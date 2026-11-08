@@ -3706,15 +3706,24 @@ window.AGI = (function () {
             snare.down = { x: e.clientX, y: e.clientY, t: performance.now(), far: false };
             try { canvas.setPointerCapture?.(e.pointerId); } catch { /* a pointer the browser no longer tracks */ }
             const [x, y] = toWorld(e);
-            // The tool in hand: the lasso draws a wire, the Firewall tool a straight wall, the others place on a tap.
+            // The tool in hand: the lasso draws a wire, the Firewall tool drags a section (a new one, or one already down:
+            // drag and drop), the others place on a tap.
             if (snare.tool === 'lasso') run.addPoint(x, y);
-            else if (snare.tool === 'wall') snare.wallFrom = { x, y, to: { x, y } };
+            else if (snare.tool === 'wall') {
+                const z = run.zoneAt(x, y, 8 / snare.scale);
+                snare.wallFrom = z ? { id: z.id, dx: x - z.x, dy: y - z.y, x: z.x, y: z.y } : { x, y };
+            }
         });
         canvas.addEventListener('pointermove', e => {
             if (e.pointerId !== snare.pointer || !snare.run) return;
             if (snare.down && Math.hypot(e.clientX - snare.down.x, e.clientY - snare.down.y) > 10) snare.down.far = true;
             if (snare.tool === 'wall') {
-                if (snare.wallFrom) { const [x, y] = toWorld(e); snare.wallFrom.to = { x, y }; }
+                const w = snare.wallFrom;
+                if (w) {
+                    const [x, y] = toWorld(e);
+                    w.x = x - (w.dx || 0); w.y = y - (w.dy || 0);
+                    if (w.id && snare.down?.far) snare.run.moveZone(w.id, w.x, w.y);
+                }
                 return;
             }
             if (snare.tool !== 'lasso') return;
@@ -3738,10 +3747,11 @@ window.AGI = (function () {
             else if (snare.tool === 'wall') {
                 const w = snare.wallFrom;
                 snare.wallFrom = null;
-                // A tap on a wall takes it back; a drag draws one (a cancelled touch does nothing).
-                if (run && e.type === 'pointerup') {
-                    if (tap) run.removeAt('wall', x, y, reach);
-                    else if (w && !run.placeWall({ x: w.x, y: w.y }, w.to)) sfx('error');
+                // A tap on a section takes it back; a drag moves it; a press elsewhere drops a new one where you let go
+                // (a cancelled touch does nothing).
+                if (run && e.type === 'pointerup' && w) {
+                    if (w.id) { if (tap) run.removeAt('wall', x, y, reach); else sfx('snarePlace', { kind: 'wall' }); }
+                    else if (!run.placeZone(w.x, w.y)) sfx('error');
                 }
             } else if (run && tap) {
                 if (!run.removeAt(snare.tool, x, y, reach) && !run.placeAt(snare.tool, x, y)) sfx('error');
@@ -3998,6 +4008,11 @@ window.AGI = (function () {
                 else if (t === 'relay') sfx('snareDecoy');
                 else if (t === 'backpressure') sfx('snareZap');
                 else if (t === 'raceBroken') { sfx('snareSnap'); shake(0.25); }
+                else if (t === 'zoneDown') { sfx('snareStun', { down: true }); shake(0.2); }
+                else if (t === 'cleaned') sfx('snareGarbage');
+                else if (t === 'botSpoof') sfx('snareSpoof');
+                else if (t === 'gilded') sfx('snareCatch', { mult: 3 });
+                else if (t === 'autoZone') sfx('snarePlace', { kind: 'wall' });
                 else if (t === 'convert') sfx('snareSpoof');
                 else if (t === 'spoof') sfx('snareSpoof');
                 else if (t === 'flag') sfx('snareFlag', { flags: e.flags, limit: e.limit });
@@ -4026,7 +4041,7 @@ window.AGI = (function () {
         mines: ['Mines', 'The boss lays mines. Two near each other grow a net that wipes the data it crosses, and while any mine stands the boss is shielded. Loop a mine to clear it.'],
         nets: ['Nets', 'Three mines now: once their nets join up, everything inside the triangle is wiped. Loop the mines before the nets close.'],
         rogue: ['The Rogue AI', 'Its cores grow and take the data they reach. Loop a core tight to quarantine it; your walls keep it off the data behind them.'],
-        firewall: ['Firewalls', 'Pick the Firewall tool and drag a straight wall. Corrupt packets bounce off it, good ones pass, and an Antivirus that runs into it is stunned. Tap a wall to take it back.'],
+        firewall: ['Firewalls', 'Pick the Firewall tool and drag a section onto the field. Red packets can\'t get in, and Antivirus can\'t either: loop inside it safely. Antivirus wear it down. Drag it to move it; tap it to take it back.'],
         decoy: ['Decoys', 'Pick the Decoy tool and tap the field. Corrupt packets and idle Antivirus go to it; the boss smashes one it sits on.'],
         turret: ['Turrets', 'Pick the Turret tool and tap the field. On its beat it shoots an Antivirus in reach (three hits and it\'s down for a while), else a red packet.'],
         tower: ['Scanner towers', 'Pick the Tower tool and tap the field. Its beam tags what passes: tagged packets are worth more for a moment.'],
@@ -4091,7 +4106,8 @@ window.AGI = (function () {
             // The field as it played (Snare 10; the outside review's audit): packets a unit², how soon they came back, their
             // size, red per good packet, and the capstones at work.
             density: r2(snare.run.opts.density), respawn: r2(snare.run.opts.respawn), packetR: r2(snare.run.opts.packetR), redPerGood: r2(snare.run.opts.corruptShare),
-            echoes: stats.echoes, storms: stats.storms, surges: stats.surges, pulses: stats.pulses, sweepsClean: stats.sweepsClean,
+            echoes: stats.echoes, storms: stats.storms, surges: stats.surges, cleaned: stats.cleaned, botSpoofed: stats.botSpoofed, gilded: stats.gilded,
+            pushedOut: stats.pushedOut, autoZones: stats.autoZones, pulses: stats.pulses, sweepsClean: stats.sweepsClean,
             relayed: stats.relayed, pushedBack: stats.pushedBack, raceBroken: stats.raceBroken, crashes: stats.crashes, converted: stats.converted, spent: Math.round(state.snare.earned - state.snare.signal),
             area: Math.round(snare.run.w * snare.run.h), replay: !!snare.replay, secs: Math.round(snare.run.time), record: res.record, seed: snare.seed });
         log(`Packet Snare: +${E.format(snare.haul)} Signal from ${stats.caught} packet${stats.caught === 1 ? '' : 's'}${res.record ? ' · new record' : ''}.`, res.record ? 'success' : 'info');
@@ -4320,7 +4336,8 @@ window.AGI = (function () {
         firewalls: 'bricks', wallMult: 'bricks', wallRebuild: 'bricks', fwHits: 'shield', decoys: 'diamond', decoyLure: 'diamond',
         avSpeed: 'ghost', avStun: 'ghost', hijack: 'robot', collude: 'core', respawnMult: 'refresh', flagLimit: 'flag', spoofValue: 'mask',
         echo: 'loop', storm: 'cloud', crash: 'crash', zeroTrust: 'check', surge: 'surge', defuse: 'cut',
-        pulse: 'surge', broadband: 'turret', cleanSweep: 'sweep', relay: 'route', backpressure: 'back' };
+        pulse: 'surge', broadband: 'turret', cleanSweep: 'sweep', relay: 'route', backpressure: 'back',
+        cleanBots: 'sweep', spoofBots: 'mask', goldPlate: 'coin', pen: 'pen', autoZone: 'deploy' };
     const snareIcon = up => SNARE_STAT_ICON[Object.keys(up.sn || {})[0] || Object.keys(up.stages?.[1] || {})[0]] || 'spark';
     const snareUi = { built: false, nodes: {}, links: [], popup: false, detailKey: '', fresh: false, cam: { x: 0, y: 0, z: 1 }, drag: null, pointers: new Map(), moved: false };
     // Fixed cells (like the Training tree's --cell): the tree grows six cells out from the Lasso, and you pan and zoom it.
@@ -4586,8 +4603,8 @@ window.AGI = (function () {
         ['chain', 'Arcs per catch', String], ['chainHops', 'Arc hops', String], ['chainRange', 'Arc reach', snareX('chainRange')],
         ['scrubbers', 'Corrupt packets forgiven', String], ['corruptShare', 'Corrupt packets', v => `${Math.round(v * 100)} per 100 good`],
         ['corruptLure', 'Corrupt pull to schools', pct], ['purge', 'Purge charges', String],
-        ['firewalls', 'Walls', String], ['wallLength', 'Longest wall', snareX('wallLength')], ['wallRebuild', 'Walls rebuild', v => (v ? `after ${v} s` : 'never')],
-        ['fwHits', 'Hits a wall takes', String], ['decoys', 'Decoys', String], ['decoyLure', 'Decoy pull', snareX('decoyLure')],
+        ['firewalls', 'Firewall sections', String], ['zoneSize', 'Firewall section size', snareX('zoneSize')], ['wallRebuild', 'Sections rebuild', v => (v ? `after ${v} s` : 'never')],
+        ['fwHits', 'Firewall section health', v => `${6 * v} (Antivirus wear 1 a second)`], ['decoys', 'Decoys', String], ['decoyLure', 'Decoy pull', snareX('decoyLure')],
         ['avSpeed', 'Antivirus speed', pct], ['avStun', 'Antivirus stunned for', v => `${num1(v)} s`],
         ['hijack', 'Stunned Antivirus', v => (v ? 'can be hijacked' : 'stay hostile')], ['collude', 'A core turns partner', pct],
         ['flagLimit', 'Flags before an IDS alert', String], ['spoofValue', 'A spoofed packet is worth', v => `×${v}`],
@@ -4599,7 +4616,11 @@ window.AGI = (function () {
         ['broadband', 'Each turret or tower placed', v => (v ? `brings packets back ${Math.round(v * 100)}% sooner` : 'does nothing for refills')],
         ['cleanSweep', 'After a clean loop, drawing is free for', v => `${num1(v)} s`],
         ['relay', 'Red packets your walls bounce', v => (v ? 'swim to your decoy' : 'swim on')],
-        ['backpressure', 'A catch', v => (v ? 'turns the packets round it back' : 'leaves the packets round it be')]
+        ['backpressure', 'A catch', v => (v ? 'turns the packets round it back' : 'leaves the packets round it be')],
+        ['cleanBots', 'Cleaner bots', String], ['spoofBots', 'Spoofer bots', String],
+        ['goldPlate', 'Cleaner bots gild a packet every', v => (v ? `${num1(6 / v)} s` : 'never')],
+        ['pen', 'Good packets in a section', v => (v ? 'stay in' : 'come and go')],
+        ['autoZone', 'Free sections', v => (v ? 'place themselves' : 'wait for you')]
     ];
     // How many packets a field of these options holds on this screen, against a first run (a field the screen caps
     // fills more densely instead of growing).
@@ -4744,6 +4765,9 @@ window.AGI = (function () {
         else if (e.type === 'quarantine') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: e.r, t: 0, life: 0.9, text: text || 'QUARANTINED', big: true });
         else if (e.type === 'bossHit') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: e.r || window.PacketSnare.BOSS_R, t: 0, life: 0.7, text: `${e.how === 'ram' ? 'RAMMED' : e.how === 'parry' ? 'RIPOSTE' : e.how === 'crash' ? 'BLUE SCREEN' : 'SLASH'} −${e.dmg} · ${e.hp} left`, big: true });
         else if (e.type === 'convert') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'TRUSTED', small: true });
+        else if (e.type === 'zoneDown') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: Math.max(e.hw, e.hh), t: 0, life: 0.7 });
+        else if (e.type === 'gilded') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'GOLD', small: true });
+        else if (e.type === 'autoZone') fx.push({ kind: 'placed', x: e.x, y: e.y, t: 0, life: 0.6 });
         else if (e.type === 'raceBroken') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.9, text: e.by === 'boss' ? 'HOLD BROKEN · the boss' : 'HOLD BROKEN · scanned', small: true });
         else if (e.type === 'cleanSweep') fx.push({ kind: 'stun', x: e.x, y: e.y + 0.9, t: 0, life: 0.8, text: 'FREE DRAW', small: true });
         else if (e.type === 'backpressure') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: e.r, t: 0, life: 0.5 });
@@ -4770,7 +4794,7 @@ window.AGI = (function () {
         else if (e.type === 'rebuilt') fx.push({ kind: 'placed', x: e.x, y: e.y, t: 0, life: 0.5 });
         else if (e.type === 'stun') {
             fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'STUNNED', small: true });
-            if (e.down) fx.push({ kind: 'fwDown', a: e.a, b: e.b, t: 0, life: 0.7 });
+            if (e.down && e.a) fx.push({ kind: 'fwDown', a: e.a, b: e.b, t: 0, life: 0.7 });
         } else if (e.type === 'purge') fx.push({ kind: 'purge', packets: e.packets, t: 0, life: 0.6 });
         else if (e.type === 'decoyGone') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: 0.5, t: 0, life: 0.5 });
         else if (e.type === 'place') fx.push({ kind: 'placed', x: e.x, y: e.y, t: 0, life: 0.5 });
@@ -4960,18 +4984,11 @@ window.AGI = (function () {
             const cx = c.x * k, cy = c.y * k, r = c.r * k;
             const col = c.partner ? C.warning : C.danger;
             ctx.save();
-            for (const wl of run.walls) {
-                if (snareSegDist(c, wl.a, wl.b) > c.r) continue;
-                const far = 60 * Math.max(W, H);
-                const ax = wl.a.x - c.x, ay = wl.a.y - c.y, bx = wl.b.x - c.x, by = wl.b.y - c.y;
-                const la = Math.hypot(ax, ay) || 1, lb = Math.hypot(bx, by) || 1;
+            for (const z of run.walls) {
+                if (Math.abs(c.x - z.x) > c.r + z.hw || Math.abs(c.y - z.y) > c.r + z.hh) continue;
                 ctx.beginPath();
                 ctx.rect(-10, -10, W * k + 20, H * k + 20);
-                ctx.moveTo(wl.a.x * k, wl.a.y * k);
-                ctx.lineTo((c.x + ax / la * far) * k, (c.y + ay / la * far) * k);
-                ctx.lineTo((c.x + bx / lb * far) * k, (c.y + by / lb * far) * k);
-                ctx.lineTo(wl.b.x * k, wl.b.y * k);
-                ctx.closePath();
+                ctx.rect((z.x - z.hw) * k, (z.y - z.hh) * k, z.hw * 2 * k, z.hh * 2 * k);
                 ctx.clip('evenodd');
             }
             const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(1, r));
@@ -5045,27 +5062,58 @@ window.AGI = (function () {
             ctx.globalAlpha = alpha;
             for (const [px, py] of [[ax, ay], [bx, by]]) { ctx.beginPath(); ctx.arc(px, py, 4.5, 0, Math.PI * 2); ctx.fill(); }
         };
-        for (const f of run.walls) {
-            if (f.hits >= run.opts.fwHits) continue;
-            wallBand(f.a.x * k, f.a.y * k, f.b.x * k, f.b.y * k, 1, false);
-            // hits left: amber notches by its first post
+        // Your Firewall sections (Snare 11): a faint white field with a hatched white border and amber corner posts
+        // (yours), green inside with Holding Pen; a health bar along the top once it's been worn, and a red flash on
+        // the side an Antivirus is pressing.
+        const section = (x, y, hw, hh, alpha, dashed, pen) => {
+            const x0 = (x - hw) * k, y0 = (y - hh) * k, W2 = hw * 2 * k, H2 = hh * 2 * k;
+            ctx.globalAlpha = (pen ? 0.12 : 0.07) * alpha;
+            ctx.fillStyle = pen ? C.success : C.text;
+            ctx.fillRect(x0, y0, W2, H2);
+            ctx.globalAlpha = 0.85 * alpha;
+            ctx.strokeStyle = C.text;
+            ctx.lineWidth = 2;
+            ctx.setLineDash(dashed ? [6, 5] : [10, 4]);
+            ctx.strokeRect(x0, y0, W2, H2);
+            ctx.setLineDash([]);
             ctx.fillStyle = C.warning;
-            for (let i = 0; i < run.opts.fwHits - f.hits && run.opts.fwHits > 1; i++) ctx.fillRect(f.a.x * k - 6 + i * 5, f.a.y * k - 12, 3, 4);
+            ctx.globalAlpha = alpha;
+            for (const [px, py] of [[x0, y0], [x0 + W2, y0], [x0, y0 + H2], [x0 + W2, y0 + H2]]) ctx.fillRect(px - 3.5, py - 3.5, 7, 7);
+        };
+        for (const f of run.walls) {
+            if (f.hp <= 0) continue;
+            section(f.x, f.y, f.hw, f.hh, 1, false, run.opts.pen > 0);
+            if (f.hitAt > t - 0.15) {
+                ctx.globalAlpha = 0.5;
+                ctx.strokeStyle = C.danger;
+                ctx.lineWidth = 3;
+                ctx.strokeRect((f.x - f.hw) * k, (f.y - f.hh) * k, f.hw * 2 * k, f.hh * 2 * k);
+            }
+            if (f.hp < f.max) {
+                const bw = f.hw * 2 * k - 12, bx = (f.x - f.hw) * k + 6, by = (f.y - f.hh) * k + 5;
+                ctx.globalAlpha = 0.9;
+                ctx.fillStyle = C.bg;
+                ctx.fillRect(bx, by, bw, 4);
+                ctx.fillStyle = f.hp / f.max > 0.35 ? C.warning : C.danger;
+                ctx.fillRect(bx, by, bw * Math.max(0, f.hp / f.max), 4);
+            }
+            ctx.globalAlpha = 1;
         }
-        // the wall being drawn: dashed, trimmed to the longest a wall may be
+        // the section being dragged in: dashed where it will land (faint when no slot is free)
         const w = d.wallFrom;
-        if (w) {
-            let bx = w.to.x, by = w.to.y;
-            const L = Math.hypot(bx - w.x, by - w.y), max = run.opts.wallLength * Math.sqrt(run.w * run.h / window.PacketSnare.FIELD_AREA);
-            if (L > max) { bx = w.x + (bx - w.x) * max / L; by = w.y + (by - w.y) * max / L; }
+        if (w && !w.id) {
+            const grow = Math.sqrt(run.w * run.h / window.PacketSnare.FIELD_AREA);
+            const hw = Math.min(run.opts.zoneSize * grow, run.w * 0.45), hh = Math.min(run.opts.zoneSize * grow * 0.7, run.h * 0.45);
             const full = run.walls.length + run.rebuild.length >= run.opts.firewalls;
-            wallBand(w.x * k, w.y * k, bx * k, by * k, full ? 0.35 : 0.8, true);
+            section(Math.max(hw, Math.min(run.w - hw, w.x)), Math.max(hh, Math.min(run.h - hh, w.y)), hw, hh, full ? 0.3 : 0.75, true, false);
         }
-        // walls building themselves again (Great Wall): a faint dashed band filling in
+        // sections building themselves again (Great Wall): a dashed outline filling in
         for (const rb of run.rebuild) {
+            const z = run.walls[0] || { hw: 1, hh: 0.7 };
             const left = Math.max(0, rb.at - run.time) / Math.max(0.1, run.opts.wallRebuild);
-            wallBand(rb.a.x * k, rb.a.y * k, (rb.a.x + (rb.b.x - rb.a.x) * (1 - left)) * k, (rb.a.y + (rb.b.y - rb.a.y) * (1 - left)) * k, 0.3, true);
+            section(rb.x, rb.y, z.hw * (1 - left * 0.6), z.hh * (1 - left * 0.6), 0.3, true, false);
         }
+        ctx.globalAlpha = 1;
         // Everything you own is amber or white and has its own silhouette (round 3: decoys read as gold packets, turrets
         // as the boss's hexagon). Decoys: a hollow amber diamond with a pulse.
         for (const dc of run.decoys) {
@@ -5707,6 +5755,27 @@ window.AGI = (function () {
 
     function drawSnareHerders(d) {
         const { ctx, C, k, run, t, W, H, effects, cw, pv } = d;
+        // Bots (Snare 11): small round drones of yours. A Cleaner bot white with an amber ring and a sweep across it; a
+        // Spoofer bot amber with a dashed white ring.
+        for (const b of run.bots || []) {
+            const x = b.x * k, y = b.y * k, r = 6.5;
+            ctx.globalAlpha = 1;
+            ctx.lineWidth = 2;
+            if (b.kind === 'clean') {
+                ctx.fillStyle = C.text;
+                ctx.strokeStyle = C.warning;
+                ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.strokeStyle = C.bg;
+                ctx.beginPath(); ctx.moveTo(x - 3.5, y + 2.5); ctx.lineTo(x + 3.5, y - 2.5); ctx.stroke();
+            } else {
+                ctx.fillStyle = C.warning;
+                ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = C.text;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath(); ctx.arc(x, y, r + 3, 0, Math.PI * 2); ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
         // Herders: amber quadcopter drones (yours: round 3's violet arrowheads read as tagged packets), their reach drawn
         // faintly round them; grey and still, with sparks, while an Antivirus has them stunned.
         for (const hd of run.herders || []) {
@@ -6159,6 +6228,8 @@ window.AGI = (function () {
         cut: '<circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M8 15 18 4M16 15 6 4"/>',
         route: '<circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h8a3 3 0 0 0 0-6H8a3 3 0 0 1 0-6h8"/>',
         back: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+        pen: '<rect x="4" y="5" width="16" height="14" rx="1"/><circle cx="9" cy="11" r="1.5"/><circle cx="15" cy="13" r="1.5"/>',
+        deploy: '<rect x="4" y="11" width="16" height="9" rx="1"/><path d="M12 3v7M9 7l3 3 3-3"/>',
         sweep: '<path d="M14 3 21 10M12 5l7 7-7 7-7-7z"/><path d="M3 21l4-4"/>',
         bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
         code: '<path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/>',

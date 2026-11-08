@@ -23,73 +23,96 @@ function drawSquare(s, cx, cy, r) {
     }
 }
 
-test('your Firewalls are walls you draw: corrupt packets bounce off them, good ones pass', () => {
+test('your Firewalls are sections you drop: red packets can\'t get in and are pushed out, good ones pass', () => {
     const s = still({ firewalls: 2, w: 10, h: 7 });
-    assert.ok(s.placeWall({ x: 5, y: 0.5 }, { x: 5, y: 6.5 }), 'a wall goes down');
-    assert.equal(s.placeWall({ x: 1, y: 1 }, { x: 1.2, y: 1 }), null, 'too short to count');
-    packet(s, 'good', 4, 3, 1, 0);
-    packet(s, 'corrupt', 4, 4, 1, 0);
-    for (let i = 0; i < 120; i++) s.step(1 / 60);
-    assert.ok(s.packets.find(p => p.kind === 'good').x > 5, 'the good packet went through');
-    assert.ok(s.packets.find(p => p.kind === 'corrupt').x < 5, 'the corrupt one bounced back');
-    const t = still({ firewalls: 1, wallLength: 3 });
-    const wl = t.placeWall({ x: 1, y: 1 }, { x: 9, y: 1 });
-    assert.ok(Math.abs(Math.hypot(wl.b.x - wl.a.x, wl.b.y - wl.a.y) - 3 * Math.sqrt(t.w * t.h / P.FIELD_AREA)) < 1e-9, 'trimmed to its longest');
-    assert.equal(t.placeWall({ x: 1, y: 3 }, { x: 4, y: 3 }), null, 'no slot left');
-    assert.ok(t.removeAt('wall', 2, 1.1, 0.3), 'a tap on it takes it back');
+    const z = s.placeZone(6, 3.5);
+    assert.ok(z && z.hw > 1 && z.hh < z.hw, 'a section goes down, wider than tall');
+    packet(s, 'good', 3, 3, 1, 0);
+    packet(s, 'corrupt', 3, 4, 1, 0);
+    const inside = packet(s, 'corrupt', 6, 3.5, 0.2, 0);
+    for (let i = 0; i < 180; i++) s.step(1 / 60);
+    const left = s.packets.filter(p => p.kind === 'corrupt');
+    assert.ok(s.packets.find(p => p.kind === 'good').x > z.x - z.hw, 'the good packet went in');
+    assert.ok(left.every(p => !(Math.abs(p.x - z.x) < z.hw && Math.abs(p.y - z.y) < z.hh)), 'no red inside: one bounced off, one was pushed out');
+    assert.ok(s.stats.bounces >= 1 && s.stats.pushedOut >= 1);
+    assert.ok(inside, 'the one dropped inside');
+    const t = still({ firewalls: 1 });
+    assert.ok(t.placeZone(3, 3));
+    assert.equal(t.placeZone(8, 3), null, 'no slot left');
+    assert.ok(t.moveZone(t.walls[0].id, 7, 4) && t.walls[0].x === 7, 'drag and drop moves it');
+    assert.ok(t.removeAt('wall', 7.2, 4.1, 0.3), 'a tap on it takes it back');
     assert.equal(t.walls.length, 0);
+    const big = still({ firewalls: 1, zoneSize: 2.6 });
+    assert.ok(big.placeZone(6, 4).hw > z.hw * 1.5, 'Wider Sections make it bigger');
 });
 
-test('a wall stuns an Antivirus once per approach and takes a hit; at its last hit it goes down', () => {
-    const s = still({ firewalls: 1, antivirus: [0], fwHits: 2, avStun: 3 });
-    s.placeWall({ x: 5, y: 0.5 }, { x: 5, y: 6.1 });
+test('an Antivirus can\'t get into a section: it presses on the side and wears its health down', () => {
+    const s = still({ firewalls: 1, antivirus: [0], avOn: 99, zoneHp: 2 });
+    const z = s.placeZone(6, 4);
     s.step(1 / 60);
     const v = s.antivirus[0];
-    Object.assign(v, { x: 5.2, y: 3.3, vx: 0, vy: 0 });
-    // a wire to hunt, beyond the wall, keeps it coming back
-    const stuns = [];
-    let farthest = 0;
-    for (let t = 0; t < 14; t += 1 / 60) {
-        s.step(1 / 60);
-        for (const e of s.takeEvents()) if (e.type === 'stun') stuns.push({ t, far: farthest, down: e.down });
-        farthest = Math.max(farthest, Math.abs(v.x - 5));
-        if (!s.drawing && t > 0.5) { s.addPoint(2, 3.3); s.addPoint(2.2, 3.4); }
-    }
-    assert.ok(stuns.length >= 2, 'it comes back for another try');
-    assert.ok(stuns[1].t - stuns[0].t > 3.3, 'not the moment its stun ends');
-    assert.ok(stuns[1].far > 0.45 * 2.5, 'only after it got clear of the line');
-    assert.ok(stuns[1].down && s.wallsUp().length === 0, 'two hits and the wall is down');
-    const t = still({ firewalls: 1, antivirus: [0], avStun: 5 });
-    t.placeWall({ x: 5, y: 0.5 }, { x: 5, y: 6.1 });
-    t.step(1 / 60);
-    Object.assign(t.antivirus[0], { x: 5.1, y: 3.3, vx: 0, vy: 0 });
-    t.step(1 / 60);
-    t.addPoint(4.5, 3.3); t.addPoint(5.6, 3.3);
-    t.step(1 / 60);
-    assert.equal(t.stats.snaps, 0, 'stunned, it can\'t snap the wire');
+    // a wire inside the section, for it to hunt
+    s.addPoint(5.6, 3.8); s.addPoint(6.2, 4.2);
+    Object.assign(v, { x: 3, y: 4, vx: 2, vy: 0 });
+    let deepest = Infinity;
+    for (let i = 0; i < 60; i++) { s.step(1 / 60); deepest = Math.min(deepest, Math.abs(v.x - z.x) - z.hw); }
+    assert.ok(deepest >= v.r - 0.05, 'held at the side');
+    assert.equal(s.stats.snaps, 0, 'the wire inside is safe');
+    assert.ok(z.hp < 2, 'its health went down');
+    for (let i = 0; i < 240 && s.walls.length; i++) s.step(1 / 60);
+    assert.equal(s.walls.length, 0, 'worn to nothing, it\'s down');
+    assert.equal(s.stats.fwLost, 1);
 });
 
-test('wire drawn along your Firewalls is free', () => {
+test('wire drawn inside a section is free', () => {
     const s = still({ firewalls: 1, drawBase: 0, drawDrain: 1, w: 10, h: 7 });
-    s.placeWall({ x: 2, y: 2 }, { x: 8, y: 2 });
-    for (let x = 2.5; x < 6; x += 0.1) s.addPoint(x, 2.1);
+    s.placeZone(5, 3.5);
+    for (let x = 4.2; x < 5.8; x += 0.1) s.addPoint(x, 3.5);
     for (let i = 0; i < 60; i++) s.step(1 / 60);
     assert.ok(s.maxFocus - s.focus < 0.2);
     const t = still({ firewalls: 1, drawBase: 0, drawDrain: 1, w: 10, h: 7 });
-    t.placeWall({ x: 2, y: 2 }, { x: 8, y: 2 });
-    for (let x = 2.5; x < 6; x += 0.1) t.addPoint(x, 4);
+    t.placeZone(5, 3.5);
+    for (let x = 2.5; x < 6; x += 0.1) t.addPoint(x, 6.5);
     for (let i = 0; i < 60; i++) t.step(1 / 60);
     assert.ok(t.maxFocus - t.focus > 2);
 });
 
-test('your Firewalls shield packets from a core', () => {
+test('a core can\'t take packets inside a section', () => {
     const s = still({ firewalls: 1, rogue: 1, rogueFirst: 0, rogueEvery: 1e9, rogueGrow: 50, w: 10, h: 7 });
-    s.placeWall({ x: 5, y: 0.2 }, { x: 5, y: 6.8 });
+    s.placeZone(6, 3.5);
     packet(s, 'good', 6, 3.5);
     s.step(1 / 60);
     Object.assign(s.cores[0], { x: 4, y: 3.5 });
     for (let i = 0; i < 30; i++) s.step(1 / 60);
     assert.equal(s.stats.stolen, 0);
+});
+
+test('Holding Pen: good packets that come into a section stay; Auto-Deploy drops sections where they gather', () => {
+    const s = still({ firewalls: 1, pen: 1, w: 10, h: 7 });
+    const z = s.placeZone(5, 3.5);
+    packet(s, 'good', 3, 3.5, 1.2, 0);
+    for (let i = 0; i < 300; i++) s.step(1 / 60);
+    const g = s.packets[0];
+    assert.ok(Math.abs(g.x - z.x) <= z.hw + 0.05 && Math.abs(g.y - z.y) <= z.hh + 0.05, 'penned in');
+    const a = still({ firewalls: 1, autoZone: 1, w: 10, h: 7 });
+    for (let i = 0; i < 6; i++) packet(a, 'good', 7.5 + (i % 3) * 0.3, 2 + Math.floor(i / 3) * 0.3);
+    for (let i = 0; i < 90; i++) a.step(1 / 60);
+    assert.equal(a.walls.length, 1, 'a section placed itself');
+    assert.ok(Math.abs(a.walls[0].x - 7.8) < 2 && Math.abs(a.walls[0].y - 2.2) < 2, 'where the packets gather');
+});
+
+test('bots: a Cleaner bot cleans red packets, Gold Plating gilds regular ones; a Spoofer bot spoofs them', () => {
+    const c = still({ cleanBots: 1, goldPlate: 1, goldEvery: 1, w: 10, h: 7 });
+    packet(c, 'corrupt', 6, 3.5);
+    packet(c, 'good', 4, 3.5);
+    for (let i = 0; i < 240; i++) c.step(1 / 60);
+    assert.ok(c.stats.cleaned >= 1 && !c.packets.some(p => p.kind === 'corrupt'), 'cleaned');
+    assert.ok(c.stats.gilded >= 1 && c.packets.some(p => p.kind === 'gold'), 'gilded');
+    const sp = still({ spoofBots: 1, w: 10, h: 7 });
+    packet(sp, 'corrupt', 6, 3.5);
+    const r = sp.packets[0];
+    for (let i = 0; i < 240; i++) sp.step(1 / 60);
+    assert.ok(sp.stats.botSpoofed >= 1 && r.spoof > sp.time && sp.isGood(r), 'spoofed: it counts as good for a while');
 });
 
 test('decoys draw corrupt packets and idle Antivirus, and an Antivirus breaks the one it reaches', () => {
@@ -160,7 +183,7 @@ test('freeze stops the field and Focus while you draw; purge wipes the corrupt p
 
 test('what you place carries over to the next run, as far as its slots go', () => {
     const s = still({ firewalls: 2, decoys: 1, turrets: 1, towers: 1 });
-    s.placeWall({ x: 2, y: 2 }, { x: 6, y: 2 });
+    s.placeZone(4, 2);
     s.placeAt('decoy', 3, 4); s.placeAt('turret', 5, 4); s.placeAt('tower', 7, 3);
     s.stop();
     const end = s.takeEvents().find(e => e.type === 'end');
@@ -171,7 +194,7 @@ test('what you place carries over to the next run, as far as its slots go', () =
     assert.equal(next.towers.length, 0);
     const st = E.defaultState(NOW);
     E.finishSnare(st, 10, end.layout);
-    assert.equal(st.snare.layout.walls.length, 1);
+    assert.equal(st.snare.layout.zones.length, 1);
     assert.deepEqual(E.snareOpts(st).layout, st.snare.layout);
 });
 
