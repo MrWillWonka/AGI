@@ -35,15 +35,16 @@ function play(sector, levels = {}, seed = 7) {
     return { need: o.boss, hits: s.stats.bossDamage, done: s.bossDone, signal: Math.round(signal), parries: s.stats.parries, secs: Math.round(s.time) };
 }
 
-const FOCUS = { snareFocus: 3, snareBandwidth: 2, snareLongWire: 2, snareDeepFocus: 2, snareSteady: 2 };
+const FOCUS = { snareFocus: 3, snareBandwidth: 2, snareLongWire: 2, snareOverflow: 2, snareSteady: 2 };
 const BUILDS = [
     ['a first run', {}],
     ['Attention Span 3', { snareFocus: 3 }],
     ['the Focus branch', FOCUS],
-    ['Focus + Obfuscation + Ghost', { ...FOCUS, snareChain: 1, snareFirewalls: 1, snareLongWalls: 1, snareHardened: 1, snareObfuscation: 2, snareGhost: 2 }],
+    ['Focus + Ghost Protocol', { ...FOCUS, snareScrubbers: 1, snareFirewalls: 1, snareDecoys: 1, snareHijack: 1, snareGhost: 3 }],
     ['Focus + a datacentre', { ...FOCUS, snareSprawl: 3, snareMegasprawl: 3, snareHyperscale: 3 }],
     ['Focus + Root Access 3', { ...FOCUS, snareGc: 1, snareSpoof: 2, snareParry: 3 }],
-    ['Focus + Root, Riposte, Panic', { ...FOCUS, snareGc: 1, snareSpoof: 2, snareParry: 3, snareRiposte: 2, snareKernelPanic: 2 }]
+    ['Focus + Root, Riposte, Panic', { ...FOCUS, snareGc: 1, snareSpoof: 2, snareParry: 3, snareRiposte: 2, snareKernelPanic: 2 }],
+    ['Focus + the boss line + Blue Screen', { ...FOCUS, snareGc: 1, snareSpoof: 2, snareParry: 3, snareRiposte: 2, snareKernelPanic: 2, snareBlueScreen: 1 }]
 ];
 const [lo, hi] = (process.env.SECTORS || '1-10').split('-').map(Number);
 for (const [name, lv] of BUILDS) {

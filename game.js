@@ -3805,9 +3805,20 @@ window.AGI = (function () {
         // The closing ring in screen px (round 4: as a share of the field, on a big field small loops never left it).
         const B = window.PacketSnare.SNARE;
         if (snare.cw > 0) out.closeRadius = SNARE_CLOSE * ((o?.closeRadius ?? B.closeRadius) / B.closeRadius) / scale / Math.sqrt(a);
-        if (o && area > a) {
-            out.density = Math.min(B.densityCap, o.density * area / a);
-            out.maxGood = Math.max(o.maxGood, Math.round(out.density * a));
+        if (o) {
+            // The packets a unit² would hold: a field the screen caps holds them more densely, up to `densityCap`.
+            const want = o.density * area / a;
+            const cap = Math.min(B.densityCap, B.maxOnScreen / a);
+            const dens = Math.min(cap, want);
+            if (area > a || want > cap) {
+                out.density = dens;
+                out.maxGood = Math.max(o.maxGood, Math.round(dens * a));
+            }
+            // Past the cap, the packets it can't hold come back sooner instead (the owner's call, Snare 10: packet
+            // nodes never stop doing something), up to four times as fast…
+            if (want > cap) out.respawn = (o.respawn ?? B.respawn) / Math.min(4, want / cap);
+            // …and a fuller field draws its packets smaller (never under 0.55 of their size), so it stays readable.
+            out.packetR = B.packetR * Math.max(0.55, Math.min(1, Math.sqrt(0.3 / dens)));
         }
         return out;
     }
@@ -3980,6 +3991,8 @@ window.AGI = (function () {
                 else if (t === 'netted') sfx('snareZap');
                 else if (t === 'star') { sfx('snarePower', { kind: 'freeze' }); shake(0.3); }
                 else if (t === 'escalate') sfx('snareHijack');
+                else if (t === 'storm') sfx('snarePower', { kind: 'freeze' });
+                else if (t === 'convert') sfx('snareSpoof');
                 else if (t === 'spoof') sfx('snareSpoof');
                 else if (t === 'flag') sfx('snareFlag', { flags: e.flags, limit: e.limit });
                 else if (t === 'ids') { sfx('snareIds'); shake(0.35); snareIntro('ids'); }
@@ -4284,7 +4297,7 @@ window.AGI = (function () {
     // ---- Packet Snare's skill tree: nodes on a small grid around the Lasso, bought with data -------------------
     // Built from the Training tree's parts: the same nodes (.tree-node: circles, mechanic hexagons, the seed's diamond,
     // can-buy, owned, maxed, selected), line icons, links, the popup beside the node with its "now → after" line and,
-    // for a new rule, a demo of it, and reveals as nodes appear. Its cells are fixed on an 11 × 11 grid that pans and zooms.
+    // for a new rule, a demo of it, and reveals as nodes appear. Its cells are fixed on a 13 × 13 grid that pans and zooms.
     // One symbol per kind of upgrade, like the Training tree's (round 3: ghosts, targets and dice meant three things each):
     // a node's icon comes from the first stat it changes, and the tool bar uses the same ones.
     const SNARE_STAT_ICON = { focus: 'eye', maxMult: 'pipes', wireMult: 'strip', drainMult: 'gauge', closeMult: 'target', focusBack: 'wave',
@@ -4294,10 +4307,11 @@ window.AGI = (function () {
         turrets: 'turret', turretPurge: 'turret', turretRange: 'turret', turretRate: 'turret', scanner: 'radar', towers: 'mast', towerRange: 'mast',
         chain: 'bolt', chainHops: 'bolt', chainRange: 'bolt', scrubbers: 'filter', corruptMult: 'terminal', lureMult: 'code', purge: 'flame',
         firewalls: 'bricks', wallMult: 'bricks', wallRebuild: 'bricks', fwHits: 'shield', decoys: 'diamond', decoyLure: 'diamond',
-        avSpeed: 'ghost', avStun: 'ghost', hijack: 'robot', collude: 'core' };
+        avSpeed: 'ghost', avStun: 'ghost', hijack: 'robot', collude: 'core', respawnMult: 'refresh', flagLimit: 'flag', spoofValue: 'mask',
+        echo: 'loop', storm: 'cloud', crash: 'crash', zeroTrust: 'check' };
     const snareIcon = up => SNARE_STAT_ICON[Object.keys(up.sn || {})[0] || Object.keys(up.stages?.[1] || {})[0]] || 'spark';
     const snareUi = { built: false, nodes: {}, links: [], popup: false, detailKey: '', fresh: false, cam: { x: 0, y: 0, z: 1 }, drag: null, pointers: new Map(), moved: false };
-    // Fixed cells (like the Training tree's --cell): the tree grows five cells out from the Lasso, and you pan and zoom it.
+    // Fixed cells (like the Training tree's --cell): the tree grows six cells out from the Lasso, and you pan and zoom it.
     const snareCell = () => (window.matchMedia('(max-width: 640px)').matches ? 84 : 112);   // the Training tree's --cell
     const SNARE_ZOOM = { min: 0.4, max: 1.6, step: 1.25 };
 
@@ -4535,6 +4549,7 @@ window.AGI = (function () {
     // What the next level does, "now → after", from the run's options with and without it: the first option it moves.
     const pct = v => `${Math.round(v * 100)}%`;
     const num1 = v => (Math.round(v * 10) / 10).toString();
+    const num2 = v => (Math.round(v * 100) / 100).toString();
     // In plain words, against where a first run starts (round 3: "4,810 units²" and "0.4/unit" meant nothing).
     const snareX = key => v => `×${num1(v / window.PacketSnare.SNARE[key])}`;
     const SNARE_OPT_LABEL = [
@@ -4562,7 +4577,10 @@ window.AGI = (function () {
         ['firewalls', 'Walls', String], ['wallLength', 'Longest wall', snareX('wallLength')], ['wallRebuild', 'Walls rebuild', v => (v ? `after ${v} s` : 'never')],
         ['fwHits', 'Hits a wall takes', String], ['decoys', 'Decoys', String], ['decoyLure', 'Decoy pull', snareX('decoyLure')],
         ['avSpeed', 'Antivirus speed', pct], ['avStun', 'Antivirus stunned for', v => `${num1(v)} s`],
-        ['hijack', 'Stunned Antivirus', v => (v ? 'can be hijacked' : 'stay hostile')], ['collude', 'A core turns partner', pct]
+        ['hijack', 'Stunned Antivirus', v => (v ? 'can be hijacked' : 'stay hostile')], ['collude', 'A core turns partner', pct],
+        ['flagLimit', 'Flags before an IDS alert', String], ['spoofValue', 'A spoofed packet is worth', v => `×${v}`],
+        ['echo', 'A closed loop', v => (v ? 'catches again a second later' : 'catches once')], ['storm', 'Packet Storms', v => (v ? 'ten gold every 15 s' : 'none')],
+        ['crash', 'Every third slash', v => (v ? 'crashes it: ×3 damage' : 'a slash like the others')], ['zeroTrust', 'Red packets your walls bounce', v => (v ? 'come back good' : 'stay red')]
     ];
     // How many packets a field of these options holds on this screen, against a first run (a field the screen caps
     // fills more densely instead of growing).
@@ -4576,10 +4594,14 @@ window.AGI = (function () {
         // The next level on a copy of the levels (round 3: it borrowed the live save's).
         const next = E.snareOpts({ ...state, levels: { ...state.levels, [up.id]: lvl + 1 } });
         // Field and packet nodes say what changes on this screen (round 4: "Field ×4.1 → ×6.6" where the field was capped).
-        if (now.area !== next.area || now.density !== next.density) {
+        if (now.area !== next.area || now.density !== next.density || now.respawn !== next.respawn) {
             const a = snarePacketsX(now), b = snarePacketsX(next);
-            const capped = snareField(next.area, next).w * snareField(next.area, next).h < next.area - 1;
-            return `Packets on the field: ×${num1(a)} → ×${num1(b)}${capped && now.area !== next.area ? ' (it fills your screen)' : ''}`;
+            const back = o => snareField(o.area, o).respawn ?? o.respawn;
+            const ra = back(now), rb = back(next);
+            const sooner = rb < ra - 0.005 ? ` · back in ${num2(ra)} → ${num2(rb)} s` : '';
+            if (b > a * 1.005) return `Packets on the field: ×${num1(a)} → ×${num1(b)}${sooner}`;
+            // Past the screen's cap a packet node makes them come back sooner (Snare 10).
+            if (sooner) return `Packets come back: ${num2(ra)} s → ${num2(rb)} s (your screen is full)`;
         }
         for (const [key, label, f] of SNARE_OPT_LABEL) {
             if (JSON.stringify(now[key]) === JSON.stringify(next[key])) continue;
@@ -4701,7 +4723,8 @@ window.AGI = (function () {
         else if (e.type === 'stolen' || e.type === 'wiped') fx.push({ kind: 'stolen', core: e.core || { x: e.x, y: e.y }, packets: e.packets, t: 0, life: 0.45 });
         else if (e.type === 'coreGone') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: e.r, t: 0, life: 0.6 });
         else if (e.type === 'quarantine') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: e.r, t: 0, life: 0.9, text: text || 'QUARANTINED', big: true });
-        else if (e.type === 'bossHit') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: e.r || window.PacketSnare.BOSS_R, t: 0, life: 0.7, text: `${e.how === 'ram' ? 'RAMMED' : e.how === 'parry' ? 'RIPOSTE' : 'SLASH'} −${e.dmg} · ${e.hp} left`, big: true });
+        else if (e.type === 'bossHit') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: e.r || window.PacketSnare.BOSS_R, t: 0, life: 0.7, text: `${e.how === 'ram' ? 'RAMMED' : e.how === 'parry' ? 'RIPOSTE' : e.how === 'crash' ? 'BLUE SCREEN' : 'SLASH'} −${e.dmg} · ${e.hp} left`, big: true });
+        else if (e.type === 'convert') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'TRUSTED', small: true });
         else if (e.type === 'bossBlock') fx.push({ kind: 'flag', x: e.x, y: e.y - 1, t: 0, life: 0.9, text: e.reason === 'shield' ? 'SHIELDED · loop its mines' : 'GUARD UP · parry its charge', small: true });
         else if (e.type === 'mine') fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.6 });
         else if (e.type === 'mineDown') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 0.6, t: 0, life: 0.6, text: e.boss ? '' : 'MINE CLEARED', small: true });
@@ -5320,7 +5343,7 @@ window.AGI = (function () {
         // drawn last so it never hides inside a school. A tagged packet keeps its colour with a violet edge (round 3: a
         // violet fill saturated the field and read as a herder), and a spoofed corrupt one passes as blue with a dashed
         // red edge. Gold ones glow (a soft disc, capped in px). Never under 5 px across their middle.
-        const minR = d.minR ?? 5;
+        const minR = (d.minR ?? 5) * Math.min(1, (run.opts?.packetR ?? window.PacketSnare.PACKET_R) / window.PacketSnare.PACKET_R);
         const paths = { good: new Path2D(), gold: new Path2D(), bad: new Path2D(), tagEdge: new Path2D(), spoofEdge: new Path2D() };
         const glow = { gold: new Path2D() };
         const arrow = (path, x, y, ang, L, Wd) => {
@@ -5344,7 +5367,7 @@ window.AGI = (function () {
             }
             const L = gold ? r * 1.5 : r * 1.25, Wd = gold ? r * 0.9 : r * 0.7;
             arrow(gold ? paths.gold : paths.good, x, y, ang, L, Wd);
-            if (tagged) arrow(paths.tagEdge, x, y, ang, L + 2, Wd + 1.5);
+            if (tagged) arrow(paths.tagEdge, x, y, ang, L + Math.min(2, r * 0.35), Wd + Math.min(1.5, r * 0.25));
         }
         ctx.globalAlpha = 0.25;
         ctx.fillStyle = C.warning;
@@ -6090,6 +6113,12 @@ window.AGI = (function () {
 
     // Line glyphs for skill-tree nodes (24×24, stroked with currentColor).
     const ICONS = {
+        loop: '<path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3"/><path d="M18 3v4h-4M6 21v-4h4"/>',
+        cloud: '<path d="M7 16a4 4 0 1 1 1-7.9A5 5 0 0 1 18 9a3.5 3.5 0 0 1 0 7z"/><path d="m11 18-2 3M15 18l-2 3"/>',
+        crash: '<rect x="3" y="4" width="18" height="13" rx="1"/><path d="M8 21h8M8 8l2 2m0-2-2 2M14 8l2 2m0-2-2 2M9 14h6"/>',
+        check: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+        refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
+        flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
         bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
         code: '<path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/>',
         mountain: '<path d="m2 20 7-12 4 6 2-3 7 9z"/>',

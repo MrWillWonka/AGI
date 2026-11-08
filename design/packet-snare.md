@@ -192,3 +192,30 @@ Round 4 averaged 6.75 / 6.0 / 7.5 / 6.5 / 7.5 / 6.75. The owner's replies:
 ### 9.5: packets and red packets all through the early tree
 
 The owner: the 9.2 front-loading only repriced the packet and red-packet nodes at the far ends of the Field and Defense branches, so the tree looked the same. Now they sit in between the other nodes, in every branch: each opens with a cheap packet node on its spine (Packet Stream 240, Schooling 100, Open Ports 60, Mirror Port 95) with a red-packet node beside it (Input Validation 300, Spam Filter 280, Sanitizer 180, Checksums 260), the rest of each branch pushed a cell further out (the grid now reaches six cells, 13 × 13), and more in the middle rings (Jumbo Frames, Port Scan, Load Balancer, Reputation Check, Traffic Shaping, Rate Limiter, Bulk Transfer). The inner rings alone (about 9K Signal) give ×6.5 the packets and 14% of the red ones; the whole tree ×11.8 packets and red down to the 5% floor.
+
+## Snare 10: the tree regrown from three reviews
+
+The owner felt the tree's distribution, layout and diversity were still off. Three reviewers (Opus at medium effort, Fable at high, and the session's own model) agreed on:
+
+- **The screen cap made late packet nodes dead.** A phone's field filled at about 330 packets by 5–10K Signal; after that, about 100K Signal of packet and field levels changed nothing on screen.
+- **Red packets bottomed out early.** They hit the 5% floor at 19 of the tree's 29 units, so 10 red-packet levels (about 100K Signal) did nothing.
+- **A third of the tree was the same two percentages.** The tree broke the house style 13 times: a node repeating its parent's stat, or siblings sharing one.
+- **Verbs and automation sat the wrong way round.** Scanner, Herders and Laser were close in, while Freeze, Race, Hijack, Fork Bomb and Starburst were far out.
+- **The branches bled into each other, and their names didn't fit their contents.**
+- **The boss answer was gated deep and dear.** Riposte cost 16K and Kernel Panic 70K, on one spine.
+- **There were no capstones,** and the prices formed a cliff at ring 4.
+
+The owner's calls:
+- **Past the cap:** packets draw smaller, the cap goes up, and caught packets respawn faster.
+- **Automation** goes at the branch tips.
+- **Capstones** are pure upgrades.
+- **Size:** a mix of keeping the cheap early pairs and Fable's trim.
+
+The result:
+- **73 nodes in four wedges,** with gutters on the diagonals.
+- **Every branch opens with a cheap + and − pair.**
+- **The four capstones:** Infinite Loop, Packet Storm, Blue Screen and Zero Trust.
+- **Hot Swap,** IDS Evasion and Forged Headers are new.
+- **The red floor is 3%,** reached at about the tree's last red-packet level.
+- **`densityCap` is 1.5**, with `maxOnScreen` 1,400. The total budget was measured: 2,400 packets drew a 1280 px desktop at 30 fps, and 1,400 hold 60. Past the budget, `respawn` divides by the overflow, up to 4×.
+- **Save v22 refunds** every level of the old tree.

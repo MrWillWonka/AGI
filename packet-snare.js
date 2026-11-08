@@ -215,7 +215,28 @@
         avOff: 5,
         // Most good packets a field holds per unit² (the screen caps the field's size; packets past it fill it denser, up
         // to this, so it stays readable).
-        densityCap: 0.75
+        densityCap: 1.5,
+        // …and never more than this many good packets on the field in all (big screens: drawing time grows with the count,
+        // and 2,400 ran a 1280 px desktop at 30 fps), past which they come back sooner instead (game.js snareField).
+        maxOnScreen: 1400,
+        // Packets' size (units): game.js shrinks them as a capped field fills (the owner's call, Snare 10: smaller, more
+        // of them, coming back sooner), never under 0.55 of this.
+        packetR: 0.3,
+        // ---- The branch capstones (Snare 10; pure upgrades, the owner's call) -----------------------------------
+        // Infinite Loop: a loop you close catches again `echoDelay` s later, whatever good has swum inside (red stays).
+        echo: 0,
+        echoDelay: 1,
+        // Packet Storm: every `stormEvery` s (the first at `stormFirst`) a school of `stormSize` gold packets swims in.
+        storm: 0,
+        stormFirst: 6,
+        stormEvery: 15,
+        stormSize: 10,
+        // Blue Screen: every `crashEvery`th slash on a boss crashes it: ×`crashMult` damage.
+        crash: 0,
+        crashEvery: 3,
+        crashMult: 3,
+        // Zero Trust: a corrupt packet that bounces off your Firewall comes back good.
+        zeroTrust: 0
     };
     const GOLD_VALUE = 5;
     const TAG_VALUE = 2;
@@ -307,6 +328,8 @@
         const drawDrain = o.drawDrain / grow;
         const s = {
             w, h, opts: o, closeR,
+            echoes: [],             // Infinite Loop: loops waiting to catch again ({ poly, at, mult })
+            stormAt: o.storm ? o.stormFirst : Infinity,   // Packet Storm's next school of gold
             time: 0,                // the field's clock (it stops while frozen)
             real: 0,                // the run's own clock (it doesn't)
             focus: o.focus,
@@ -343,7 +366,7 @@
             rogueAt: o.rogue ? o.rogueFirst : Infinity,
             boss: null,             // the boss Antivirus once it boots: { x, y, vx, vy, r, hp, maxHp, stunned, charge, shielded }
             bossDone: false,
-            stats: { catches: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
+            stats: { catches: 0, echoes: 0, storms: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
                 stolen: 0, cores: 0, quarantined: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0,
                 herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0,
                 bossDamage: 0, avDown: 0, glanced: 0, mines: 0, minesCleared: 0, netted: 0, escalations: 0, forks: 0, stars: 0 },
@@ -387,7 +410,7 @@
             if (kind === 'good' && rand() < o.goldChance) kind = 'gold';
             const v = speedFor(kind);
             const p = inField(x, y);
-            s.packets.push({ id: s.nextId++, kind, x: p.x, y: p.y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, v, r: PACKET_R, age: 0, school, tag: 0 });
+            s.packets.push({ id: s.nextId++, kind, x: p.x, y: p.y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, v, r: o.packetR, age: 0, school, tag: 0 });
         }
 
         // A school: a few packets around a point, heading the same way give or take.
@@ -1019,6 +1042,12 @@
                 p.x = px;
                 p.y = py;
                 s.stats.bounces++;
+                // Zero Trust: verified at the wall, it comes back good.
+                if (o.zeroTrust) {
+                    p.kind = 'good';
+                    s.stats.converted++;
+                    s.events.push({ type: 'convert', x: p.x, y: p.y });
+                }
                 return;
             }
         }
@@ -1293,8 +1322,12 @@
                     if (s.real - boss.slashAt >= o.slashGap) {
                         boss.slashAt = s.real;
                         s.stats.slashes++;
-                        s.events.push({ type: 'slash', x: boss.x, y: boss.y, a, b, shielded: boss.shielded });
-                        if (damageBoss(boss, o.slashDamage, 'slash') && s.boss) { boss.vx += (b.x - a.x) / chord * 1.5; boss.vy += (b.y - a.y) / chord * 1.5; }
+                        // Blue Screen: every `crashEvery`th slash on this boss crashes it.
+                        boss.slashCount = (boss.slashCount || 0) + 1;
+                        const crash = o.crash > 0 && !boss.shielded && boss.slashCount % o.crashEvery === 0;
+                        if (crash) s.stats.crashes++;
+                        s.events.push({ type: 'slash', x: boss.x, y: boss.y, a, b, shielded: boss.shielded, crash });
+                        if (damageBoss(boss, o.slashDamage * (crash ? o.crashMult : 1), crash ? 'crash' : 'slash') && s.boss) { boss.vx += (b.x - a.x) / chord * 1.5; boss.vy += (b.y - a.y) / chord * 1.5; }
                     }
                     hit = true;
                 } else if (through) {
@@ -1451,6 +1484,30 @@
                     s.events.push({ type: 'partnerGone', x: pc.x, y: pc.y, r: pc.r });
                 }
                 stunOnWalls(f, o.avStun);
+            }
+            // Infinite Loop: a closed loop catches again what good has swum inside it since (red is left where it is).
+            for (const e of s.echoes.filter(e => s.time >= e.at)) {
+                s.echoes = s.echoes.filter(x => x !== e);
+                const got = s.packets.filter(p => isGood(p) && pointInPolygon(p, e.poly));
+                if (!got.length) continue;
+                const units = got.reduce((a, p) => a + valueOf(p), 0) * e.mult;
+                const gold = got.filter(p => p.kind === 'gold').length;
+                remove(got);
+                s.stats.echoes++;
+                s.stats.caught += got.length;
+                s.stats.gold += gold;
+                s.stats.units += units;
+                const at = centroid(e.poly);
+                s.events.push({ type: 'catch', echo: true, x: at.x, y: at.y, poly: e.poly, area: polygonArea(e.poly), count: got.length, gold, mult: e.mult, units, packets: got, chained: [], scrubbed: 0 });
+            }
+            // Packet Storm: a school of gold swims in.
+            if (s.time >= s.stormAt) {
+                s.stormAt = s.time + o.stormEvery;
+                const before = s.packets.length;
+                school(o.stormSize, true);
+                for (const p of s.packets.slice(before)) p.kind = 'gold';
+                s.stats.storms++;
+                s.events.push({ type: 'storm', count: o.stormSize });
             }
             // Refills: schools of the missing good packets swim in from an edge, corrupt ones one at a time.
             if (s.time >= refillAt) {
@@ -1670,6 +1727,8 @@
             s.stats.units += units;
             s.stats.bestCatch = Math.max(s.stats.bestCatch, units);
             s.stats.bestMult = Math.max(s.stats.bestMult, j.mult);
+            // Infinite Loop: the loop catches again in a moment.
+            if (o.echo) s.echoes.push({ poly: poly.map(q => ({ x: q.x, y: q.y })), at: s.time + o.echoDelay, mult: j.mult });
             // Second Wind: a big loop gives Focus back.
             if (o.focusBack && j.mult >= 2) s.focus = Math.min(s.maxFocus, s.focus + o.focusBack);
             s.events.push({ type: 'catch', x: at.x, y: at.y, poly, area: j.area, count, gold, mult: j.mult, units, packets: j.inside, race: bonus, fork: j.fork || null, star: j.star || null,

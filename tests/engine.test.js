@@ -1979,11 +1979,45 @@ test('the build stamp has its row in playtests/README.md\'s Builds table (bump B
 test('Packet Snare: every branch opens with cheap packet and red-packet nodes (the owner\'s call: spread through the early tree)', () => {
     const root = up => { while (up.requires) up = E.UPGRADE_BY_ID[up.requires]; return up.id; };
     const ring = up => Math.abs(up.snare.x) + Math.abs(up.snare.y);
-    for (const r of ['snareFocus', 'snareSprawl', 'snareGc', 'snareChain']) {
+    for (const r of ['snareFocus', 'snareSprawl', 'snareGc', 'snareScrubbers']) {
         const early = E.SNARE_TREE.filter(up => root(up) === r && ring(up) <= 3 && up.cost.signal <= 300);
         assert.ok(early.some(up => up.sn.density), `${r}'s branch has a packet node in its first rings`);
         assert.ok(early.some(up => up.sn.cleaner), `${r}'s branch has a red-packet node in its first rings`);
     }
     const n = key => E.SNARE_TREE.filter(up => up.sn[key]).length;
-    assert.ok(n('density') >= 15 && n('cleaner') >= 10, 'many of them, all through the tree');
+    assert.ok(n('density') >= 10 && n('cleaner') >= 8, 'many of them, all through the tree');
+});
+
+test('Packet Snare (Snare 10): four wedges, verbs inside, automation and a capstone at each tip', () => {
+    const ring = up => Math.abs(up.snare.x) + Math.abs(up.snare.y);
+    const by = id => E.UPGRADE_BY_ID[id];
+    // The automation sits far out (the owner's call: idle play comes much later), the active verbs nearer the centre.
+    for (const id of ['snareHerders', 'snareScanner', 'snareTowers', 'snareLaser', 'snareTurrets']) assert.ok(ring(by(id)) >= 5, `${id} is out at the tip`);
+    for (const id of ['snareChain', 'snareFreeze', 'snareRace', 'snarePurge', 'snareDecoys', 'snareSpoof', 'snareRiposte']) assert.ok(ring(by(id)) <= 5, `${id} is a verb on the inner rings`);
+    // A capstone on each axis, six cells out, each a new rule with a demo.
+    for (const [id, x, y] of [['snareEcho', 0, -6], ['snareStorm', 6, 0], ['snareBlueScreen', 1, 4], ['snareZeroTrust', -6, 0]]) {
+        assert.ok(by(id).mechanic, `${id} is a capstone hexagon`);
+        assert.deepEqual([by(id).snare.x, by(id).snare.y], [x, y]);
+    }
+    // The diagonals between the wedges stay empty, so the branches read apart.
+    for (const [x, y] of [[2, 2], [-2, 2], [2, -2], [-2, -2], [3, 3], [-3, 3], [3, -3], [-3, -3]]) {
+        assert.ok(!E.SNARE_TREE.some(up => up.snare.x === x && up.snare.y === y), `(${x}, ${y}) is a gutter`);
+    }
+    // No red-packet level is wasted: the floor comes at about the tree's last one.
+    const units = E.SNARE_TREE.reduce((a, up) => a + (up.sn.cleaner || 0) * (up.max || 0), 0);
+    assert.ok(Math.pow(0.85, units - 2) > 0.03 && Math.pow(0.85, units + 1) <= 0.03, `${units} red-packet units land on the 3% floor`);
+});
+
+test('a save from before Snare 10 gets every Packet Snare level back as Signal', () => {
+    const s = E.defaultState(Date.now());
+    const raw = JSON.parse(JSON.stringify({ ...s, version: 21 }));
+    raw.levels.snareFocus = 3; raw.levels.snareJumbo = 2; raw.levels.snareSprawl = 2;
+    raw.snare.earned = 5000; raw.snare.signal = 1200;
+    const m = E.migrate(raw, Date.now());
+    assert.equal(m.levels.snareFocus, undefined);
+    assert.equal(m.levels.snareSprawl, undefined);
+    assert.equal(m.snare.signal, 5000, 'everything it earned this version, back to spend');
+    const fresh = E.migrate({ ...raw, version: 22, levels: { snareFocus: 2 }, snare: { ...raw.snare, signal: 1200 } }, Date.now());
+    assert.equal(fresh.levels.snareFocus, 2, 'a current save keeps its levels');
+    assert.equal(fresh.snare.signal, 1200);
 });
