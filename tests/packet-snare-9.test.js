@@ -250,10 +250,12 @@ test('training skills power you up in Packet Snare, each by its name', () => {
         assert.ok(E.SKILL_INDEX[name] !== undefined, `${name} is a skill`);
         assert.ok(b.text.length <= 80, `${name}: a short line`);
     }
-    // The field's hazards every three sectors, the boss's gates every four, never on one sector.
+    // The field's hazards every three sectors, the boss's gates on its sectors (every fifth, from the second boss),
+    // never on one sector.
     const field = E.SNARE_STAGES.filter(x => !x.gate && x.sector).map(x => x.sector);
     const gates = E.SNARE_STAGES.filter(x => x.gate).map(x => x.sector);
     assert.deepEqual(field.map((k, i) => (i ? k - field[i - 1] : 3)), field.map(() => 3));
-    assert.deepEqual(gates.map((k, i) => (i ? k - gates[i - 1] : 4)), gates.map(() => 4));
+    assert.deepEqual(gates.map((k, i) => (i ? k - gates[i - 1] : 5)), gates.map(() => 5));
+    assert.ok(gates.every(E.isSnareBossSector) && gates[0] > 4, 'gates are boss sectors, after the first boss');
     assert.ok(!gates.some(k => field.includes(k)));
 });

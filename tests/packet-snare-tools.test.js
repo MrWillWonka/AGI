@@ -224,19 +224,22 @@ test('a sweep snaps a fast stroke whose segment straddles its line', () => {
     assert.equal(s.stats.snaps, 1);
 });
 
-test('the boss is the wall: 3 health on the first sector, steeply more after, and its bounty is paid by the engine', () => {
-    assert.equal(E.snareBossHp(0), 3);
-    assert.ok(E.snareBossHp(4) >= 15 && E.snareBossHp(7) >= 30, 'later bosses take far more');
+test('the boss is the wall: every fifth sector, gentle the first time, steeply more after, and its bounty is paid by the engine', () => {
+    const first = E.SNARE_BOSS_EVERY - 1;
+    assert.equal(E.snareBossHealth(0), 0, 'no boss on the first sector');
+    assert.equal(E.snareBossHealth(first), 7, 'the first boss on sector 5');
+    assert.ok(E.snareBossHealth(9) >= 30 && E.snareBossHealth(14) >= 60, 'later bosses take far more');
     const s = E.defaultState(NOW);
-    const pay = E.snareBossDown(s, 0);
-    assert.equal(pay, 6 * E.snareBossHp(0));
+    s.snare.sector = first;
+    const pay = E.snareBossDown(s, first);
+    assert.equal(pay, Math.round(10 * E.snareBossHealth(first) * E.snareSectorPay(first)));
     assert.equal(s.snare.signal, pay);
-    assert.equal(s.snare.sector, 1);
+    assert.equal(s.snare.sector, first + 1);
     const late = E.snareOpts({ ...s, snare: { ...s.snare, sector: E.MINION_SECTOR } });
     assert.ok(late.bossMinions > 0 && late.bossCharge < 5 && late.bossSpeed > 1 && late.bossWarn < 1.6);
-    assert.equal(E.snareOpts(s, 0).bossMines, 0, 'no mines on the first sector');
+    assert.equal(E.snareOpts(s, first).bossMines, 0, 'no mines on the first boss');
     assert.equal(E.snareOpts(s, E.MINE_SECTOR).bossMines, 2, 'two from the second');
-    assert.equal(E.snareOpts(s, E.NET_SECTOR).bossMines, 3, 'a ring of three from the fourth');
+    assert.equal(E.snareOpts(s, E.NET_SECTOR).bossMines, 3, 'a ring of three from the third');
     s.levels.snareParry = 2; s.levels.snareRiposte = 1; s.levels.snareKernelPanic = 1;
     const o = E.snareOpts(s, 0);
     assert.equal(o.slashDamage, 3);

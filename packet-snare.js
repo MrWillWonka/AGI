@@ -154,6 +154,7 @@
         // mine stands it's **shielded** (slashes glance off), and a loop round a mine clears it. It keeps to the middle
         // of the field (`bossEdge` of the shorter side clear of the edges), so it can be fought most of the time.
         boss: 0,                    // its health (0 = no boss)
+        goal: 0,                    // a sector with no boss is cleared by catching this many packets in one run (0 = none)
         bossAt: 16,
         bossCatch: 18,
         bossSpeed: 1,               // × an Antivirus's roaming speed
@@ -416,6 +417,7 @@
             rogueAt: o.rogue ? o.rogueFirst : Infinity,
             boss: null,             // the boss Antivirus once it boots: { x, y, vx, vy, r, hp, maxHp, stunned, charge, shielded }
             bossDone: false,
+            goalDone: false,        // the sector's goal reached (a `goal` event, once)
             stats: { catches: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
                 stolen: 0, cores: 0, quarantined: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0,
                 herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0,
@@ -1603,6 +1605,11 @@
             }
             s.rebuild = s.rebuild.filter(r => s.time < r.at);
             autoZoneStep();
+            // A sector with no boss: catching its goal of packets clears it (the run goes on).
+            if (o.goal > 0 && !s.goalDone && s.stats.caught >= o.goal) {
+                s.goalDone = true;
+                s.events.push({ type: 'goal', x: w / 2, y: h / 2, caught: s.stats.caught });
+            }
             bossStep(dt);
             sweepStep(dt);
             while (avDue.length && s.time >= avDue[0]) { avDue.shift(); bootAntivirus(); }

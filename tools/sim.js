@@ -563,6 +563,7 @@ function snareStep(dt) {
     for (const e of r.takeEvents()) {
         if (e.type === 'catch' || e.type === 'laser' || e.type === 'quarantine' || e.type === 'taken') snareSim.haul += E.snareCatch(s, e.units, snareSim.sector);
         if (e.type === 'bossDown') snareSim.haul += E.snareBossDown(s, snareSim.sector);
+        if (e.type === 'goal') snareSim.haul += E.snareGoalMet(s, snareSim.sector);
     }
 }
 

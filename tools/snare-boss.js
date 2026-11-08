@@ -46,10 +46,12 @@ const BUILDS = [
     ['Focus + Root, Riposte, Panic', { ...FOCUS, snareGc: 1, snareSpoof: 2, snareParry: 3, snareRiposte: 2, snareKernelPanic: 2 }],
     ['Focus + the boss line + Blue Screen', { ...FOCUS, snareGc: 1, snareSpoof: 2, snareParry: 3, snareRiposte: 2, snareKernelPanic: 2, snareBlueScreen: 1 }]
 ];
-const [lo, hi] = (process.env.SECTORS || '1-10').split('-').map(Number);
+// Only boss sectors (every fifth): the others are cleared by a goal of packets.
+const [lo, hi] = (process.env.SECTORS || '1-25').split('-').map(Number);
 for (const [name, lv] of BUILDS) {
     const cells = [];
     for (let k = lo - 1; k <= hi - 1; k++) {
+        if (!E.isSnareBossSector(k)) continue;
         const r = [1, 2, 3].map(seed => play(k, lv, seed));
         cells.push(`s${k + 1}(${r[0].need}):${r.map(x => x.hits).join('/')}${r.every(x => x.done) ? '✓' : r.some(x => x.done) ? '~' : ''}`);
     }

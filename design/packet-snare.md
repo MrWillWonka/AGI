@@ -262,3 +262,27 @@ The owner's calls:
   - Late game, Auto-Deploy has the AI place them where the packets gather.
 
 Honeypot folded into Decoys to make room. Save v23 refunds the tree and drops the drawn walls from the saved layout.
+
+### 11.1: a boss every fifth sector
+
+The owner's call: "Let's not introduce a boss until 5 and every 5 after."
+- **Bosses:** only on sectors 5, 10, 15… (`isSnareBossSector`, `SNARE_BOSS_EVERY` 5).
+- **Goals:** every other sector clears by catching a **goal** of packets in one run (`snareGoal`). It starts at 25 on sector 1 and rises a quarter each sector, rounded to fives: 30, 40, 50, then 75, 95, 120, 150, then 235…
+  - The logs set it: first runs catch 10–30 packets and sector 4's runs 45–125.
+  - The run goes on after the goal. The sector is paid the goal's packets again at its pay, half on a replay (`E.snareGoalMet`).
+  - The start and end cards name what clears the next sector, and the HUD reads Goal n/m, then Cleared ✓.
+- **Boss health by boss:** it reads the old every-sector curve three steps a boss, giving 7, 20, 43, 74, 115. The gates' half again makes that 7, 30, 64, 111, 172.
+- **Boss bounty:** 10 × its health (it was 6).
+- **The gates** sit on boss sectors from the second boss on: mines at 10, nets at 15, booted Antivirus at 20, four mines laid faster at 25.
+- **Field hazards** still arrive every three sectors.
+- **The boss mails:** "one down" at the first boss, "Ten sectors" at the second.
+- **"Deep Packet Inspection"** now counts sectors cleared.
+- **`tools/snare-boss.js`** plays only boss sectors:
+
+  | Build | Sector 5 | Sector 10 | Sector 15 | Sector 20 |
+  |---|---|---|---|---|
+  | A first run | 3–7 of 7 | | | |
+  | Attention Span 3 | ✓ | 10–14 of 30 | | |
+  | Root Access 3 | ✓ | ✓ | 20–48 of 64 | |
+  | Riposte and Kernel Panic | ✓ | ✓ | 28–34 of 64 | |
+  | Blue Screen | ✓ | ✓ | 44–50 of 64 | up to 72 of 111 |

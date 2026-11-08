@@ -3980,6 +3980,20 @@ window.AGI = (function () {
                 pt('snareBoss', { sector: cleared + 1, secs: Math.round(run.time), replay });
                 buildSnareArt();
                 save();
+            } else if (t === 'goal') {
+                // A sector with no boss: its goal of packets is caught, so it's cleared (the run goes on).
+                const cleared = snare.sector;
+                const replay = cleared < state.snare.sector;
+                const pay = E.snareGoalMet(state, cleared);
+                snare.haul += pay;
+                snare.bossDown = cleared;
+                snare.fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 2, t: 0, life: 1.4, text: `${replay ? 'GOAL MET' : 'SECTOR CLEARED'} +${E.format(pay)}`, big: true });
+                sfx('snareBossDown');
+                shake(0.3);
+                if (!replay) log(`Packet Snare: sector ${cleared + 1} (${E.snareSectorName(cleared)}) cleared, ${run.opts.goal} packets caught. Next: ${E.snareSectorName(cleared + 1)}.`, 'success');
+                pt('snareGoal', { sector: cleared + 1, secs: Math.round(run.time), replay });
+                buildSnareArt();
+                save();
             } else if (t === 'end') {
                 endSnare(e.stats, e.layout);
             } else {
@@ -4101,7 +4115,7 @@ window.AGI = (function () {
             turreted: stats.turreted, purged: stats.purged, freezes: stats.freezes, decoysLost: stats.decoysLost, tagged: stats.tagged, escaped: stats.escaped,
             herdStuns: stats.herdStuns, avDown: stats.avDown, flags: stats.flags, ids: stats.ids, parries: stats.parries, slashes: stats.slashes, spoofed: stats.spoofed, collected: stats.collected,
             raced: stats.raced, hijacked: stats.hijacked, partners: stats.partners, partnered: stats.partnered,
-            bossDamage: stats.bossDamage, bossHp: snare.run?.opts.boss || 0, glanced: stats.glanced, mines: stats.mines, minesCleared: stats.minesCleared, netted: stats.netted,
+            bossDamage: stats.bossDamage, bossHp: snare.run?.opts.boss || 0, goal: snare.run?.opts.goal || 0, goalDone: !!snare.run?.goalDone, glanced: stats.glanced, mines: stats.mines, minesCleared: stats.minesCleared, netted: stats.netted,
             escalations: stats.escalations, forks: stats.forks, stars: stats.stars, packets: snare.run.packets.length,
             // The field as it played (Snare 10; the outside review's audit): packets a unit², how soon they came back, their
             // size, red per good packet, and the capstones at work.
@@ -4135,6 +4149,8 @@ window.AGI = (function () {
         return b.length ? ['From your training', `${b.length} skill${b.length === 1 ? '' : 's'} · ${b.at(-1).text}`] : null;
     };
     const snareSector = k => `Sector ${k + 1}: ${E.snareSectorName(k)}${E.SNARE_GATES.includes(k) ? ' · Gate' : ''}`;
+    // What clears a sector: its boss every fifth sector, else a goal of packets in one run.
+    const snareGoalText = k => (E.isSnareBossSector(k) ? 'Boss sector: beat the boss Antivirus to clear it' : `Clear it: catch ${E.snareGoal(k)} packets in one run`);
     // What the best haul feeds: research, a trickle while you play.
     const snareRpLine = () => {
         const rp = E.derive(state).snareRp;
@@ -4156,6 +4172,8 @@ window.AGI = (function () {
             pt('snareSector', { sector: Number(pick.value) + 1 });
             const title = $('snareCard').querySelector('.result-title');
             if (title && !snare.done) title.textContent = snareSector(snareNextSector());
+            const goal = $('snareCard').querySelector('.snare-goal-line');
+            if (goal) goal.textContent = snareGoalText(snareNextSector());
         });
         return el('label', { class: 'snare-sector-row' }, [el('span', { text: 'Start at' }), pick]);
     }
@@ -4171,6 +4189,7 @@ window.AGI = (function () {
                 el('div', { class: 'result-title', text: snareSector(snareNextSector()) }),
                 el('div', { class: 'result-main', text: 'Packet Snare' }),
                 snareSectorPicker(),
+                el('p', { class: 'snare-intro-line snare-goal-line', text: snareGoalText(snareNextSector()) }),
                 first ? snareDemo('lasso') : null,
                 first ? el('p', { class: 'snare-intro-line', text: SNARE_INTROS.lasso[1] }) : null,
                 best > 0 ? el('ul', { class: 'result-lines' }, [['Best haul', `+${E.format(best)} Signal`], snareRpLine(), snareTrainingLine()].filter(Boolean)
@@ -4220,6 +4239,7 @@ window.AGI = (function () {
                 d.record ? el('span', { class: 'result-badge', text: `New record · was +${E.format(d.prev)}` }) : null,
                 ...resultLines(lines),
                 snareSectorPicker(),
+                el('p', { class: 'snare-intro-line snare-goal-line', text: snareGoalText(snareNextSector()) }),
                 el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: 'Snare again', onclick: startSnare }), snareUpgradesButton()])].filter(Boolean));
         }
         setHidden(card, false);
@@ -4310,7 +4330,9 @@ window.AGI = (function () {
         fill.style.transform = `scaleX(${share})`;
         fill.classList.toggle('low', share < 0.25);
         // The boss's health and an IDS alert's rage stay in the HUD while they last (round 4: the rage showed only as a glow).
-        const boss = run.boss ? ` · Boss ${run.boss.hp}/${run.boss.maxHp}${run.boss.enraged ? ' ⚠ ENRAGED' : ''}${run.boss.shielded ? ' · shield' : ''}` : '';
+        const boss = run.boss ? ` · Boss ${run.boss.hp}/${run.boss.maxHp}${run.boss.enraged ? ' ⚠ ENRAGED' : ''}${run.boss.shielded ? ' · shield' : ''}`
+            // A sector with no boss: how far along its goal is (cleared once it's reached).
+            : run.opts.goal > 0 ? ` · ${run.goalDone ? 'Cleared ✓' : `Goal ${Math.min(run.stats.caught, run.opts.goal)}/${run.opts.goal}`}` : '';
         setText($('snareFocusText'), run.cooldown > 0 ? 'Wire snapped…' : run.frozen() ? `Frozen · ${run.frozenLeft.toFixed(1)} s` : `Focus ${Math.ceil(run.focus)}${run.freeDrawUntil > run.time ? ' · FREE DRAW' : ''}${run.flags ? ` · ⚑ ${run.flags}/${run.opts.flagLimit}` : ''}${boss}`);
         // A held Race Condition loop ticks up every half second.
         if (run.race) {
@@ -11036,7 +11058,8 @@ window.AGI = (function () {
             snareBoss() {
                 const r = snare.run;
                 if (r && !r.over && !snare.preview && r.opts.boss && !r.boss && !r.bossDone) { r.opts.bossAt = 0; return; }
-                E.snareBossDown(state);
+                if (E.isSnareBossSector(state.snare.sector)) E.snareBossDown(state);
+                else E.snareGoalMet(state);
                 buildSnareArt();
                 afterChange();
             },

@@ -313,17 +313,44 @@ test('the best haul trickles research while Research is open', () => {
     assert.ok(s.res.rp - rp > 9 * d.snareRp, 'paid as you play');
 });
 
-test('beating a boss clears the sector; the Rogue AI comes three sectors in', () => {
+test('a sector clears by its goal or, every fifth, its boss; the Rogue AI comes three sectors in', () => {
     const s = E.defaultState(NOW);
-    assert.equal(E.snareOpts(s).boss, E.snareBossHits(0));
+    assert.equal(E.snareOpts(s).boss, 0, 'no boss on the first sector');
+    assert.equal(E.snareOpts(s).goal, E.snareGoal(0));
     assert.equal(E.snareOpts(s).rogue, 0);
-    for (let i = 0; i < E.ROGUE_SECTOR; i++) E.snareBossDown(s);
-    assert.equal(s.snare.sector, E.ROGUE_SECTOR);
-    assert.equal(s.snare.bosses, E.ROGUE_SECTOR);
+    for (let k = 0; k < 15; k++) assert.equal(E.isSnareBossSector(k), k === 4 || k === 9 || k === 14, `sector ${k + 1}`);
+    for (let k = 0; k < 15; k++) {
+        const o = E.snareOpts(s, k);
+        assert.ok((o.boss > 0) !== (o.goal > 0), `sector ${k + 1}: a boss or a goal, never both`);
+    }
+    // A goal pays its packets again at the sector's pay and moves the frontier on; a replay pays half.
+    const pay = E.snareGoalMet(s, 0);
+    assert.equal(pay, Math.round(E.snareGoal(0) * E.snareSectorPay(0)));
+    assert.equal(s.snare.sector, 1);
+    assert.equal(s.snare.bosses, 0, 'a goal isn\'t a boss');
+    assert.equal(E.snareGoalMet(s, 0), Math.round(0.5 * E.snareGoal(0) * E.snareSectorPay(0)));
+    assert.equal(s.snare.sector, 1, 'a replay keeps the frontier');
+    while (s.snare.sector < E.ROGUE_SECTOR) {
+        if (E.isSnareBossSector(s.snare.sector)) E.snareBossDown(s); else E.snareGoalMet(s);
+    }
+    assert.equal(s.snare.bosses, 1);
     const o = E.snareOpts(s);
     assert.equal(o.rogue, 1);
     assert.ok(o.avSpeed > 1 && o.corruptShare > P.SNARE.corruptShare, 'later sectors are harder');
-    assert.ok(E.snareBossHits(4) > E.snareBossHits(0));
+    assert.ok(E.snareGoal(7) > E.snareGoal(0) && E.snareBossHealth(9) > E.snareBossHealth(4));
+});
+
+test('a run on a sector with no boss emits its goal once its packets are caught', () => {
+    const r = P.createSnare({ seed: 3, goal: 3, cleanStart: true });
+    r.stats.caught = 2;
+    r.step(1 / 60);
+    assert.ok(!r.goalDone);
+    r.stats.caught = 3;
+    r.step(1 / 60);
+    r.step(1 / 60);
+    assert.equal(r.takeEvents().filter(e => e.type === 'goal').length, 1, 'once');
+    assert.ok(r.goalDone && !r.over, 'the run goes on');
+    assert.equal(r.boss, null);
 });
 
 test('a run\'s haul sets the version\'s record', () => {
@@ -606,14 +633,14 @@ test('the hazards arrive one sector at a time: packets, then sweeps, then Antivi
     const s = E.defaultState(NOW);
     const at = k => { s.snare.sector = k; return E.snareOpts(s); };
     const o0 = at(0);
-    assert.ok(o0.sweepFirst === Infinity && o0.antivirus.length === 0 && o0.rogue === 0 && o0.boss >= 1, 'packets and the boss only');
+    assert.ok(o0.sweepFirst === Infinity && o0.antivirus.length === 0 && o0.rogue === 0 && o0.boss === 0 && o0.goal > 0, 'packets and a goal only');
     assert.ok(at(E.SWEEP_SECTOR).sweepFirst < Infinity && at(E.SWEEP_SECTOR).antivirus.length === 0, 'sweeps next');
     assert.ok(at(E.AV_SECTOR).antivirus.length >= 1 && at(E.AV_SECTOR).rogue === 0, 'then Antivirus');
     assert.ok(at(E.ROGUE_SECTOR).rogue >= 1 && at(E.ROGUE_SECTOR).bossMinions === 0, 'then the Rogue AI');
     assert.ok(at(E.FAST_SWEEP_SECTOR).sweepEvery < at(E.ROGUE_SECTOR).sweepEvery, 'then sweeps come twice as often');
     // The boss's own tricks are gates, much later, each with a tougher boss.
     assert.equal(at(E.MINE_SECTOR - 1).bossMines, 0);
-    assert.ok(E.MINE_SECTOR >= 5 && at(E.MINE_SECTOR).bossMines === 2, 'its mines are a later gate');
+    assert.ok(E.MINE_SECTOR > 4 && at(E.MINE_SECTOR).bossMines === 2, 'its mines are a later gate');
     assert.ok(at(E.NET_SECTOR).bossMines === 3 && at(E.MINION_SECTOR).bossMinions >= 1 && at(E.MINION_SECTOR - 1).bossMinions === 0, 'then nets, then minions');
     assert.equal(at(E.MINE_SECTOR).boss, Math.floor(E.snareBossHp(E.MINE_SECTOR) * 1.5), 'a gate\'s boss is tougher');
     assert.deepEqual(E.SNARE_STAGES.map(x => x.sector), [...E.SNARE_STAGES.map(x => x.sector)].sort((a, b) => a - b));
