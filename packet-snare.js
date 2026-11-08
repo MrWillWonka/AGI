@@ -90,6 +90,7 @@
         rogueEvery: 9,
         rogueGrow: 0.9,             // units per second the circle grows…
         rogueMax: 0.32,             // …to this share of the field's shorter side
+        rogueEdge: 1.5,             // × the closing ring: how far a core spawns from any edge, room to loop round it
         rogueLife: 11,              // seconds before a core burns out on its own
         chokeArea: 0.08,            // × field area: a loop round a core no bigger than this quarantines it
         // Your Firewalls (Snare 11, the owner's call: drawn lines didn't feel like much): up to `firewalls` sections you
@@ -1117,7 +1118,10 @@
             const goods = s.packets.filter(p => p.kind !== 'corrupt');
             const near = goods.length ? goods[Math.floor(rand() * goods.length)] : { x: w / 2, y: h / 2 };
             const ang = rand() * Math.PI * 2;
-            const at = { x: Math.max(1, Math.min(w - 1, near.x + Math.cos(ang))), y: Math.max(1, Math.min(h - 1, near.y + Math.sin(ang))) };
+            // Room to loop round it (Snare 12.8, the owner: a core by the edge couldn't be circled): its centre stays at
+            // least `rogueEdge` × the closing ring from every side, or 12% of the shorter side, whichever is more.
+            const m = Math.min(Math.max(o.rogueEdge * closeR, 0.12 * shortSide, 1), w / 2, h / 2);
+            const at = { x: Math.max(m, Math.min(w - m, near.x + Math.cos(ang))), y: Math.max(m, Math.min(h - m, near.y + Math.sin(ang))) };
             s.cores.push({ id: s.nextId++, x: at.x, y: at.y, r: 0, age: 0, stole: 0 });
             s.stats.cores++;
             s.events.push({ type: 'core', x: at.x, y: at.y });

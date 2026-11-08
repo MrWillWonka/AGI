@@ -91,3 +91,18 @@ test('the boss takes two loops to stun (Snare 12.7), and the count starts again 
     assert.ok(b.stunned > s.time, 'two in a row: stunned');
     assert.equal(s.stats.loopStuns, 1);
 });
+
+test('Rogue AI cores spawn far enough from the edges to loop round (Snare 12.8)', () => {
+    const s = P.createSnare({ seed: 3, density: 0, antivirus: [], idleDrain: 0, respawn: 1e9, sweepFirst: Infinity, w: 22, h: 14, rogue: 3, rogueEvery: 0.5, rogueLife: 99 });
+    s.packets = [];
+    // good packets hugging every edge, where cores used to land
+    for (let i = 0; i < 40; i++) {
+        const side = i % 4, u = (i * 0.37) % 1;
+        const [x, y] = side === 0 ? [0.3, u * 14] : side === 1 ? [21.7, u * 14] : side === 2 ? [u * 22, 0.3] : [u * 22, 13.7];
+        s.packets.push({ id: s.nextId++, kind: 'good', x, y, vx: 0, vy: 0, v: 0, r: P.PACKET_R, age: 1, school: 0, tag: 0 });
+    }
+    for (let i = 0; i < 60 * 5; i++) s.step(1 / 60);
+    assert.ok(s.cores.length >= 6, 'cores spawned');
+    const m = Math.max(1.5 * s.closeR, 0.12 * 14);
+    for (const c of s.cores) assert.ok(c.x >= m - 1e-9 && c.x <= 22 - m + 1e-9 && c.y >= m - 1e-9 && c.y <= 14 - m + 1e-9, `core at ${c.x.toFixed(2)}, ${c.y.toFixed(2)} keeps ${m.toFixed(2)} from the edges`);
+});
