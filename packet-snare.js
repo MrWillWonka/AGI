@@ -110,6 +110,16 @@
         autoZoneEvery: 4,           // …checking this often
         autoZoneMax: 2,             // at most this many of its sections stand at once (on top of your own slots)
         autoZoneLife: 10,           // and each lasts this long before it moves on
+        // Bubbles (a prototype behind a setting, the owner's idea): hold the pen still and an AI bubble grows there; let
+        // go and it catches what's inside, at the loop's area multiplier, spoiled by red inside as a loop is. Loops then
+        // only stun, quarantine, hijack, clear mines and collect garbage. Antivirus, the boss and scans pop a bubble as
+        // they snap a wire.
+        bubble: 0,
+        bubbleDelay: 0.18,          // held still this long before it starts growing (a stroke that moves first is a wire)
+        bubbleSlop: 0.3,            // × the closing ring's radius: how far the pen may wander before it's a wire
+        bubbleTime: 3,              // seconds to grow to its full size…
+        bubblePow: 1.4,             // …slowly at first, then faster (radius ∝ t^pow)
+        bubbleMax: 0.4,             // its full radius, × the field's shorter side
         // Bots (Snare 11, the owner's call): small drones that seek red packets by themselves. A Cleaner bot (Intrusion)
         // turns a red packet it reaches into a regular one; with Gold Plating it also turns a regular packet into gold
         // every `goldEvery` s. A Spoofer bot (Countermeasures) spoofs the red packet it reaches (good, worth ×`spoofValue`,
@@ -448,7 +458,7 @@
             goalBonus: 0,           // half of what its loops were worth past their packets (counts toward the goal)
             lastLoopAt: -1e9,       // when the last loop paid (a loop moments after it is rushed)
             clears: 0,              // sectors cleared this run (each clear's Focus bonus is half the last's)
-            stats: { catches: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
+            stats: { catches: 0, bubbles: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
                 stolen: 0, cores: 0, quarantined: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0,
                 herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0,
                 bossDamage: 0, avDown: 0, glanced: 0, mines: 0, minesCleared: 0, netted: 0, escalations: 0, forks: 0, stars: 0 },
@@ -993,7 +1003,8 @@
 
         function snap(fw) {
             settleFork();
-            s.events.push({ type: 'snap', x: fw.x, y: fw.y, wire: s.wire.slice() });
+            s.events.push({ type: 'snap', x: fw.x, y: fw.y, wire: s.wire.slice(), bubble: !!s.bubble?.growing });
+            s.bubble = null;
             s.wire = [];
             s.drawing = false;
             s.leftStart = false;
@@ -1646,6 +1657,7 @@
         function stepOnce(dt) {
             s.real += dt;
             if (s.cooldown > 0) s.cooldown = Math.max(0, s.cooldown - dt);
+            bubbleStep();
             wallsNow = wallsUp();
             if (s.fork && s.real - s.fork.t > o.forkTime) settleFork();
             // A first lobe closed at the start with the pen held still turns into a Race Condition loop instead.
@@ -1959,6 +1971,12 @@
                     quarantined = true;
                 }
             }
+            // Bubbles: a loop only stuns, quarantines, hijacks, clears mines and collects garbage; catching is the bubble's.
+            if (o.bubble) {
+                if (j.garbage) { payLoop(poly, 0, j); return; }
+                if (!quarantined) s.events.push({ type: 'loopOnly', x: at.x, y: at.y, poly });
+                return;
+            }
             if (!j.inside.length) {
                 if (second) settleFork();
                 if (quarantined) return;
@@ -2130,6 +2148,45 @@
                 chained: chained.map(c => ({ x: c.packet.x, y: c.packet.y, from: c.from, kind: c.packet.kind })), scrubbed: j.corrupt.length });
         }
 
+        // ---- Bubbles (a prototype) --------------------------------------------------------------------------
+        // While a bubble grows its outline is the wire, so whatever hunts or snaps a wire pops it.
+        const bubbleMaxR = o.bubbleMax * shortSide;
+        function circle(x, y, r, n = 32) {
+            const pts = [];
+            for (let i = 0; i < n; i++) pts.push({ x: x + r * Math.cos(i / n * 2 * Math.PI), y: y + r * Math.sin(i / n * 2 * Math.PI) });
+            return pts;
+        }
+        function bubbleStep() {
+            const b = s.bubble;
+            if (!b || s.over) return;
+            if (!b.growing) {
+                if (s.real - b.t0 < o.bubbleDelay) return;
+                b.growing = true;
+                b.t1 = s.real;
+                s.stroke = null;     // it's no flick
+                s.events.push({ type: 'bubbleStart', x: b.x, y: b.y });
+            }
+            const t = Math.min(1, (s.real - b.t1) / o.bubbleTime);
+            b.r = Math.max(0.05, bubbleMaxR * Math.pow(t, o.bubblePow));
+            b.full = t >= 1;
+            s.wire = circle(b.x, b.y, b.r);
+        }
+        const bubblePoly = () => (s.bubble?.growing ? circle(s.bubble.x, s.bubble.y, s.bubble.r) : null);
+        // Let go of a bubble: it catches what's inside, as a loop would (too small, it fizzles).
+        function popBubble() {
+            const poly = bubblePoly();
+            s.bubble = null;
+            s.wire = [];
+            s.drawing = false;
+            s.leftStart = false;
+            s.stroke = null;
+            if (!poly) return;
+            const at = centroid(poly);
+            if (polygonArea(poly) < minLoopArea) { s.events.push({ type: 'fizzle', x: at.x, y: at.y, bubble: true }); return; }
+            s.stats.bubbles++;
+            payLoop(poly, 0);
+        }
+
         // The loop the open wire would make if it closed now (back to where it started), or null while it's too
         // small to count.
         // The smallest loop that closes: a circle of `minLoop` × the closing ring's radius.
@@ -2156,7 +2213,14 @@
                 s.leftStart = false;
                 s.wire = [p];
                 s.stroke = { t0: s.real, pts: [p] };
+                if (o.bubble) s.bubble = { x, y, t0: s.real, r: 0, growing: false };
                 return true;
+            }
+            // Bubbles: once one grows it owns the stroke; a pen that wanders off before then draws a wire after all.
+            if (s.bubble) {
+                if (s.bubble.growing) return true;
+                if (Math.hypot(x - s.bubble.x, y - s.bubble.y) <= o.bubbleSlop * closeR) return true;
+                s.bubble = null;
             }
             const last = s.wire[s.wire.length - 1];
             if (Math.hypot(x - last.x, y - last.y) < o.minGap) return true;
@@ -2207,6 +2271,8 @@
 
         // The pen lifts: near the start the loop closes, else an open wire is let go.
         function liftPen() {
+            if (s.bubble?.growing) { popBubble(); return; }
+            s.bubble = null;
             if (s.race) settleRace();
             const start = s.wire[0], head = s.wire[s.wire.length - 1];
             const isFlick = !s.over && flick();
@@ -2235,6 +2301,7 @@
         // The pen is taken away (a card came up mid-stroke): the open wire is dropped without being judged (no loop, no
         // flick, no flag); a held Race Condition loop stays held, and a figure eight's first lobe is paid.
         function cancelPen() {
+            s.bubble = null;
             settleFork();
             s.wire = [];
             s.stroke = null;
@@ -2294,7 +2361,8 @@
         // The live preview of the open wire: what closing it now would catch, and whether the pen is near enough to
         // the start to close it.
         function preview() {
-            const poly = openLoop();
+            const bub = bubblePoly();
+            const poly = bub || (o.bubble ? null : openLoop());
             if (!poly) return null;
             const j = judge(poly);
             const head = s.wire[s.wire.length - 1], start = s.wire[0];
@@ -2304,6 +2372,7 @@
                 if (spoofed(p) || p.kind !== 'corrupt' || j.inside.includes(p)) continue;
                 for (let i = 1; i < poly.length; i++) if (segDist(p, poly[i - 1], poly[i]) < 1) { risk++; break; }
             }
+            if (bub) return { ...j, risk, scrub: Math.min(j.corrupt.length, o.scrubbers), near: true, bubble: true, full: !!s.bubble.full };
             return { ...j, risk, scrub: Math.min(j.corrupt.length, o.scrubbers), near: s.leftStart && Math.hypot(head.x - start.x, head.y - start.y) <= closeR * 1.6 };
         }
 

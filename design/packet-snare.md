@@ -474,3 +474,14 @@ over between runs, so none was ever free. Its sections are now free, at most two
 Open: the verbs a player bought and never used (Fork Bomb, Starburst, Packet Spoofing, Garbage Collection, Privilege
 Escalation: about 70K Signal), and two long stretches with no input (24 min before the first run, 10 min on the tree),
 which the log now records as `idle`.
+
+## Snare 12.2: bubbles (a prototype)
+
+The owner: "Phone tracing a circle is easier than desktop but I wonder what if we switched to growing AI 'Bubbles' to
+capture the packets and then circling was just for stuns or quarantines." Built as a per-device Settings toggle, off by
+default, so both can be played on the same build. Hold still and a bubble grows (slowly, then faster, to 0.4 of the
+field's shorter side in 3 s); let go to catch at the same area multiplier, spoiled by red inside. Its outline counts as
+the wire while it grows, so Antivirus, the boss and Full Scans pop it. A pen that moves first draws a wire, and loops
+only stun, quarantine, hijack, clear mines and collect garbage. Holding costs Focus time, so the tension is "hold for
+×2, or let go before that red packet drifts in?". Not converted yet (only if bubbles win): the wire nodes (Long Wire,
+Steady Hand, Fork Bomb, Race Condition, Starburst, Firewall sections' free wire), the demos and the bot.
