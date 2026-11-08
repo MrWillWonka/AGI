@@ -1,6 +1,7 @@
 // tools/snare-bot.js — a Packet Snare player for the tools (tools/snare-boss.js, tools/sim.js): it loops clean clusters,
-// clears the boss's mines with a loop round each, parries the boss's charge with a flick across its warning line (after a
-// human reaction time) and slashes it while it reels, a flick at a time. It never uses walls, decoys, powers or the other
+// clears the boss's mines with a loop round each, stuns the boss with a loop round it while it stands to charge (after a
+// human reaction time; with Riposte it parries the charge with a flick across its line instead) and slashes it while it
+// reels, a flick at a time. It never uses walls, decoys, powers or the other
 // exploits, so it's a floor: a player with the tools does better.
 //   const bot = createBot(run, { react: 0.3, slashEvery: 0.22 }); each frame: bot.step(dt); run.step(dt);
 'use strict';
@@ -32,8 +33,15 @@ function createBot(s, opt = {}) {
         }
         if (plan.length || s.cooldown > 0) return;
         const b = s.boss;
-        // The boss's charge: parry once the reaction time is up, if the warning hasn't run out.
-        if (b && b.charge && b.charge.t >= react && b.charge.t < b.charge.warn - 0.05 && parried !== b.charge) {
+        // The boss's charge, without Riposte: it stands still to charge, the moment to loop round it (if there's time).
+        if (b && !s.opts.parry && b.charge && b.charge.t >= react && b.charge.warn - b.charge.t > 0.6 && parried !== b.charge && !(b.stunned > s.time)) {
+            parried = b.charge;
+            if (s.drawing) s.liftPen();
+            ring(b.x, b.y, b.r + Math.max(0.6, s.closeR));
+            return;
+        }
+        // With Riposte: parry once the reaction time is up, if the warning hasn't run out.
+        if (b && s.opts.parry && b.charge && b.charge.t >= react && b.charge.t < b.charge.warn - 0.05 && parried !== b.charge) {
             parried = b.charge;
             const d = 1.4, mx = b.x + b.charge.dx * d, my = b.y + b.charge.dy * d, h = L() / 2;
             if (s.drawing) s.liftPen();

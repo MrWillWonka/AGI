@@ -160,10 +160,16 @@
         bossAt: 16,
         bossCatch: 18,
         bossSpeed: 1,               // × an Antivirus's roaming speed
-        bossCharge: 5,              // seconds between its charges
-        bossWarn: 1.6,              // seconds its warning line shows before it dashes (the parry window; 1.1 was too
-                                    // short to read and hit on a phone)
-        bossStun: 1.6,              // seconds it reels after a parry (the slash window)
+        // Snare 12 (the owner's call: the fights felt rushed): a slower rhythm. It charges every `bossCharge` s, its
+        // warning line shows `bossWarn` s (it stands still, the moment to loop it), and a stun lasts `bossStun` s.
+        bossCharge: 7,              // seconds between its charges
+        bossWarn: 2,                // seconds its warning line shows before it dashes
+        bossStun: 2.5,              // seconds it reels once stunned (the slash window)
+        chargeReach: 0.6,           // × the field's longer side: how far its charge line reaches (the dash covers it all)
+        // **Loop it to stun it** (Snare 12, the owner's call: circling the boss makes more sense than a parry): a closed
+        // loop round it, the wire never touching it, stuns it. The parry (a flick across its charge line) comes later, as
+        // a tree unlock (`parry`, Riposte).
+        parry: 0,
         bossMinions: 0,             // Antivirus it boots each time it's parried (later sectors), at most `minionCap` alive
         minionCap: 2,
         bossR: 0.8,                 // its size: it grows sector by sector
@@ -196,6 +202,10 @@
         spoof: 0,
         spoofSeconds: 5,
         spoofValue: 2,
+        spoofCap: 4,                // corrupt packets one flick spoofs at most (the nearest the stroke's middle)
+        spoofCooldown: 1.5,         // seconds before the next flick spoofs (scribbled flicks turned every red packet good)
+        minLoop: 0.8,               // a loop must enclose at least a circle of this × the closing ring's radius: smaller ones
+                                    // (a scribble's slivers) don't close (Snare 12: scribbling caught at no risk)
         flickTime: 0.45,            // (0.35 missed real thumbs)
         flickLength: 1.2,
         flagLimit: 3,               // flags and an IDS alert: the boss boots now, enraged (or another Antivirus)
@@ -288,7 +298,7 @@
     const PACKET_R = 0.3;
     const AV_R = 0.45;
     const BOSS_R = 0.8;
-    const BOSS_WARN = 1.1, BOSS_DASH = 0.45, BOSS_DASH_SPEED = 5;   // a charge: its warning (the default), its dash and its speed
+    const BOSS_WARN = 1.1, BOSS_DASH = 0.8, BOSS_DASH_SPEED = 5;   // a charge: its warning (the default), its dash and its speed
     const MINE_R = 0.32;
 
     // Mulberry32: small, fast, seeded.
@@ -421,7 +431,7 @@
             goalDone: false,        // the sector's goal reached (a `goal` event, once)
             sectorAt: 0,            // when the run reached the sector it's on (a cleared sector carries the run into the next)
             sectorCaught: 0,        // packets caught before it (the goal counts from here)
-            stats: { catches: 0, sectors: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
+            stats: { catches: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
                 stolen: 0, cores: 0, quarantined: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0,
                 herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0,
                 bossDamage: 0, avDown: 0, glanced: 0, mines: 0, minesCleared: 0, netted: 0, escalations: 0, forks: 0, stars: 0 },
@@ -580,12 +590,19 @@
         // It keeps to the middle: `edge` clear of every side, so it can be fought most of the time (it used to spend
         // its time along the edges, wiping the packets that swam in).
         const bossEdge = r => Math.min(r + o.bossEdge * shortSide, shortSide * 0.45);
-        function keepCentral(b) {
-            const e = bossEdge(b.r);
-            if (b.x < e) { b.x = e; b.vx = Math.abs(b.vx); }
-            if (b.x > w - e) { b.x = w - e; b.vx = -Math.abs(b.vx); }
-            if (b.y < e) { b.y = e; b.vy = Math.abs(b.vy); }
-            if (b.y > h - e) { b.y = h - e; b.vy = -Math.abs(b.vy); }
+        // Its long dash can carry it out of the middle: it never leaves the field, and walks back in (no jump).
+        function keepCentral(b, dashing = false) {
+            const r = b.r;
+            if (b.x < r) { b.x = r; b.vx = Math.abs(b.vx); }
+            if (b.x > w - r) { b.x = w - r; b.vx = -Math.abs(b.vx); }
+            if (b.y < r) { b.y = r; b.vy = Math.abs(b.vy); }
+            if (b.y > h - r) { b.y = h - r; b.vy = -Math.abs(b.vy); }
+            if (dashing) return;
+            const e = bossEdge(b.r), back = 1.5;
+            if (b.x < e) b.vx = Math.max(b.vx, Math.min(back, (e - b.x) * 3));
+            if (b.x > w - e) b.vx = Math.min(b.vx, -Math.min(back, (b.x - (w - e)) * 3));
+            if (b.y < e) b.vy = Math.max(b.vy, Math.min(back, (e - b.y) * 3));
+            if (b.y > h - e) b.vy = Math.min(b.vy, -Math.min(back, (b.y - (h - e)) * 3));
         }
         function bootBoss(enraged) {
             const r = Math.min(o.bossR * Math.pow(grow, 0.75), 0.13 * shortSide);
@@ -615,7 +632,7 @@
         // How far a charge goes (its warning line is drawn this long).
         // It reaches well past its own body (the owner's playtest: with a big boss most of the line was inside it, and what
         // stuck out was too short to hit): at least a third of the field's shorter side beyond its edge.
-        const fullReach = b => Math.max(BOSS_DASH_SPEED * BOSS_DASH * o.avSpeed, 0.33 * shortSide) + b.r;
+        const fullReach = b => Math.max(BOSS_DASH_SPEED * BOSS_DASH * o.avSpeed, o.chargeReach * Math.max(w, h)) + b.r;
         // How far it can go from (x, y) along (dx, dy) before leaving the field.
         const room = (x, y, dx, dy) => Math.min(dx > 0 ? (w - x) / dx : dx < 0 ? -x / dx : Infinity, dy > 0 ? (h - y) / dy : dy < 0 ? -y / dy : Infinity);
         // The line it shows (and dashes along) stays on the field: never past an edge.
@@ -684,7 +701,7 @@
             }
             b.x += b.vx * dt;
             b.y += b.vy * dt;
-            keepCentral(b);
+            keepCentral(b, !!(b.charge && b.charge.t >= b.charge.warn));
             // A decoy it sits on lasts `bossSmash` s, then it smashes it.
             const onDecoy = s.decoys.find(dc => Math.hypot(dc.x - b.x, dc.y - b.y) < b.r + 0.3);
             if (onDecoy) {
@@ -740,16 +757,21 @@
             return true;
         }
         // A parry: the charge broken, the boss reeling (the slash window); later sectors' bosses boot Antivirus when it happens.
-        function parryBoss(b) {
-            const { dx, dy } = b.charge;
+        // Stunned (a loop round it, or a parry): its charge is broken and it reels (the slash window); later sectors'
+        // bosses boot Antivirus when it happens.
+        function stunBoss(b) {
             b.charge = null;
             b.stunned = s.time + o.bossStun;
             b.chargeAt = s.time + o.bossStun + o.bossCharge * 0.6;
+            const minions = s.antivirus.filter(f => f.minion && !f.ally).length;
+            for (let i = 0; i < o.bossMinions && minions + i < o.minionCap; i++) { bootAntivirus(); s.antivirus[s.antivirus.length - 1].minion = true; }
+        }
+        function parryBoss(b) {
+            const { dx, dy } = b.charge;
+            stunBoss(b);
             b.vx = -dx * 3;
             b.vy = -dy * 3;
             s.stats.parries++;
-            const minions = s.antivirus.filter(f => f.minion && !f.ally).length;
-            for (let i = 0; i < o.bossMinions && minions + i < o.minionCap; i++) { bootAntivirus(); s.antivirus[s.antivirus.length - 1].minion = true; }
             s.events.push({ type: 'parry', x: b.x, y: b.y });
             damageBoss(b, o.parryDamage, 'parry');
         }
@@ -1501,8 +1523,8 @@
                     s.events.push({ type: 'escalate', x: boss.x, y: boss.y, from: { x: rammer.x, y: rammer.y } });
                     if (damageBoss(boss, o.escalateDamage, 'ram')) boss.stunned = Math.max(boss.stunned, s.time + o.bossStun * 0.6);
                     hit = true;
-                } else if (boss.charge && boss.charge.t < boss.charge.warn) {
-                    // A parry: across its warning line, through the boss, or a flick that comes within reach of the line
+                } else if (o.parry && boss.charge && boss.charge.t < boss.charge.warn) {
+                    // A parry (Riposte): across its warning line, through the boss, or a flick that comes within reach of the line
                     // (forgiving: it's a quick gesture on a moving target, often a thumb).
                     const L = chargeReach(boss);
                     const end = { x: boss.x + boss.charge.dx * L, y: boss.y + boss.charge.dy * L };
@@ -1527,13 +1549,16 @@
                     }
                     hit = true;
                 } else if (through) {
-                    // Its guard is up: parry its charge first.
+                    // Its guard is up: loop it (or parry its charge) first.
                     s.events.push({ type: 'bossBlock', x: boss.x, y: boss.y, reason: 'guard' });
                 }
             }
-            if (o.spoof) {
-                const cut = s.packets.filter(p => p.kind === 'corrupt' && !spoofed(p) && segDist(p, a, b) < p.r + 0.15);
+            if (o.spoof && s.real >= (s.spoofReady || 0)) {
+                const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+                const cut = s.packets.filter(p => p.kind === 'corrupt' && !spoofed(p) && segDist(p, a, b) < p.r + 0.15)
+                    .sort((p, q) => Math.hypot(p.x - mid.x, p.y - mid.y) - Math.hypot(q.x - mid.x, q.y - mid.y)).slice(0, o.spoofCap);
                 if (cut.length) {
+                    s.spoofReady = s.real + o.spoofCooldown;
                     for (const p of cut) p.spoof = s.time + o.spoofSeconds;
                     s.stats.spoofed += cut.length;
                     s.events.push({ type: 'spoof', a, b, packets: cut.map(p => ({ x: p.x, y: p.y })) });
@@ -1840,6 +1865,13 @@
                 }
             }
             if (clearMines(poly)) quarantined = true;
+            // A loop round the boss stuns it (the wire never touched it, or it would have snapped).
+            if (s.boss && !(s.boss.stunned > s.time) && pointInPolygon(s.boss, poly)) {
+                stunBoss(s.boss);
+                s.stats.loopStuns++;
+                s.events.push({ type: 'bossLooped', x: s.boss.x, y: s.boss.y, poly });
+                quarantined = true;
+            }
             // Hijack: a loop round a stunned Antivirus turns it.
             if (o.hijack) {
                 for (const f of s.antivirus) {
@@ -2012,11 +2044,13 @@
 
         // The loop the open wire would make if it closed now (back to where it started), or null while it's too
         // small to count.
+        // The smallest loop that closes: a circle of `minLoop` × the closing ring's radius.
+        const minLoopArea = Math.PI * (o.minLoop * closeR) ** 2;
         function openLoop() {
             if (s.wire.length < 4) return null;
             if (wireLength(s.wire) < 3 * closeR) return null;
             const poly = s.wire.slice();
-            return polygonArea(poly) >= 0.5 * closeR * closeR ? poly : null;
+            return polygonArea(poly) >= minLoopArea ? poly : null;
         }
 
         // The pen moves to (x, y): extend the wire; crossing it, or coming back near its start, closes a loop.
@@ -2045,6 +2079,8 @@
             // The new segment against every earlier one but its neighbour: the newest crossing closes the loop.
             for (let i = s.wire.length - 3; i >= 0 && !starring; i--) {
                 const q = segIntersect(last, p, s.wire[i], s.wire[i + 1]);
+                // Too small a loop (a scribble's sliver) doesn't close: the wire runs on through the crossing.
+                if (q && polygonArea([q, ...s.wire.slice(i + 1)]) < minLoopArea) continue;
                 if (q) {
                     s.stroke = null;
                     const kept = s.wire.slice(0, i + 1);

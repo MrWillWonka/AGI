@@ -4015,6 +4015,7 @@ window.AGI = (function () {
                 else if (t === 'boss') { sfx('snareBoss'); snareIntro('boss'); if (e.enraged) shake(0.3); }
                 else if (t === 'bossCharge') sfx('snareCharge');
                 else if (t === 'parry') { sfx('snareParry'); shake(0.2); state.intro['snare:parried'] = true; }
+                else if (t === 'bossLooped') { sfx('snareParry'); shake(0.25); state.intro['snare:looped'] = true; snare.fx.push({ kind: 'stun', x: e.x, y: e.y - 1.2, t: 0, life: 1, text: 'STUNNED', small: true }); }
                 else if (t === 'slash' && e.shielded) sfx('snareStun', { down: false });
                 else if (t === 'bossHit') { sfx(e.how === 'ram' ? 'snareHit' : 'snareSlash'); shake(0.25); }
                 else if (t === 'bossBlock') sfx('snareFlag', { flags: 1, limit: 3 });
@@ -4059,7 +4060,7 @@ window.AGI = (function () {
         lasso: ['Packet Snare', 'Draw round the data and bring the wire back to its start to close the loop. Bigger loops pay more; a red packet inside spoils the lot.'],
         antivirus: ['Antivirus', 'It hunts your open wire. If it touches it, the wire snaps and you lose Focus.'],
         sweep: ['Full Scan', 'Its edge flashes, then it sweeps the whole field. Any wire it crosses snaps.'],
-        boss: ['Boss Antivirus', 'Every few seconds it locks on: a red zone shows where it will charge. Swipe across the red zone (a quick, short, straight swipe, like the amber arrow) to parry it. Then, while it spins and reads SLASH!, swipe through the boss itself: each swipe takes health off. Clear its health to clear the sector.'],
+        boss: ['Boss Antivirus', 'Every few seconds it stops and locks on: a red line shows where it will charge, all the way along. While it stands there, draw a loop round it (don\'t touch it, it cuts the wire) to stun it. Then, while it spins and reads SLASH!, swipe through it: each swipe takes health off. Clear its health to clear the sector.'],
         mines: ['Mines', 'The boss lays mines. Two near each other grow a net that wipes the data it crosses, and while any mine stands the boss is shielded. Loop a mine to clear it.'],
         nets: ['Nets', 'Three mines now: once their nets join up, everything inside the triangle is wiped. Loop the mines before the nets close.'],
         rogue: ['The Rogue AI', 'Its cores grow and take the data they reach. Loop a core tight to quarantine it; your walls keep it off the data behind them.'],
@@ -4397,7 +4398,7 @@ window.AGI = (function () {
     const SNARE_STAT_ICON = { focus: 'eye', maxMult: 'pipes', wireMult: 'strip', drainMult: 'gauge', closeMult: 'target', focusBack: 'wave',
         race: 'hourglass', freeze: 'timer', freezeSeconds: 'timer', sprawl: 'expand', pay: 'boost', schooling: 'school', contain: 'lock',
         herders: 'drone', herdEvade: 'drone', herdRadius: 'drone', density: 'stack', goldChance: 'coin', goldValue: 'coin', tagValue: 'star',
-        gc: 'trash', spoof: 'mask', slashDamage: 'sword', parryDamage: 'slash', bossStun: 'timer', fork: 'fork', star: 'burst', escalate: 'ram', cleaner: 'terminal', laser: 'beams', emitters: 'beams', laserSides: 'beams', laserMult: 'beams',
+        gc: 'trash', spoof: 'mask', slashDamage: 'sword', parryDamage: 'slash', parry: 'slash', bossStun: 'timer', fork: 'fork', star: 'burst', escalate: 'ram', cleaner: 'terminal', laser: 'beams', emitters: 'beams', laserSides: 'beams', laserMult: 'beams',
         turrets: 'turret', turretPurge: 'turret', turretRange: 'turret', turretRate: 'turret', scanner: 'radar', towers: 'mast', towerRange: 'mast',
         chain: 'bolt', chainHops: 'bolt', chainRange: 'bolt', scrubbers: 'filter', corruptMult: 'terminal', lureMult: 'code', purge: 'flame',
         firewalls: 'bricks', wallMult: 'bricks', wallRebuild: 'bricks', fwHits: 'shield', decoys: 'diamond', decoyLure: 'diamond',
@@ -4657,6 +4658,7 @@ window.AGI = (function () {
         ['density', 'Packets', snareX('density')], ['goldChance', 'Gold packets', pct], ['goldValue', 'A gold packet is worth', String],
         ['tagValue', 'A tag', v => `×${v}`], ['schoolSize', 'School size', String], ['contain', 'Edges', v => (v ? 'hold good packets' : 'let packets go')],
         ['herders', 'Herder drones', String], ['herdEvade', 'Herders', v => (v ? `dodge Antivirus (${v})` : 'don\'t dodge')], ['herdRadius', 'Herder reach', snareX('herdRadius')],
+        ['parry', 'The boss\'s charge', v => (v ? 'parried with a flick across its line' : 'dodge it, or loop the boss')],
         ['gc', 'Loops of only corrupt packets', v => (v ? 'deleted, Focus back' : 'spoil')], ['spoof', 'Flicks', v => (v ? 'spoof corrupt packets' : 'off')],
         ['spoofSeconds', 'Spoofed for', v => `${num1(v)} s`], ['slashDamage', 'A slash takes', v => `${v} health`], ['parryDamage', 'A parry takes', v => `${v} health`],
         ['bossStun', 'A parried boss reels', v => `${num1(v)} s`], ['fork', 'Figure eights', v => (v ? 'multiply both loops' : 'two catches')],
@@ -4838,7 +4840,7 @@ window.AGI = (function () {
         else if (e.type === 'raceBroken') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.9, text: e.by === 'boss' ? 'HOLD BROKEN · the boss' : 'HOLD BROKEN · scanned', small: true });
         else if (e.type === 'cleanSweep') fx.push({ kind: 'stun', x: e.x, y: e.y + 0.9, t: 0, life: 0.8, text: 'CLOCK STOPPED', small: true });
         else if (e.type === 'backpressure') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: e.r, t: 0, life: 0.5 });
-        else if (e.type === 'bossBlock') fx.push({ kind: 'flag', x: e.x, y: e.y - 1, t: 0, life: 0.9, text: e.reason === 'shield' ? 'SHIELDED · loop its mines' : 'GUARD UP · parry its charge', small: true });
+        else if (e.type === 'bossBlock') fx.push({ kind: 'flag', x: e.x, y: e.y - 1, t: 0, life: 0.9, text: e.reason === 'shield' ? 'SHIELDED · loop its mines' : 'GUARD UP · loop round it first', small: true });
         else if (e.type === 'mine') fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.6 });
         else if (e.type === 'mineDown') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 0.6, t: 0, life: 0.6, text: e.boss ? '' : 'MINE CLEARED', small: true });
         else if (e.type === 'netted') fx.push({ kind: 'purge', packets: e.packets, t: 0, life: 0.5 });
@@ -5694,41 +5696,67 @@ window.AGI = (function () {
             ctx.moveTo(sx0, sy0);
             ctx.lineTo(sx0 + (ex - sx0) * left, sy0 + (ey - sy0) * left);
             ctx.stroke();
-            // the gesture: an amber arrow sweeping across the line, again and again
-            const mx = sx0 + (ex - sx0) * 0.55, my = sy0 + (ey - sy0) * 0.55;
-            const span = band + 26, ph = (t * 2.2) % 1;
-            const from = -span, to = span, cur = from + (to - from) * Math.min(1, ph * 1.3);
-            ctx.strokeStyle = C.warning;
-            ctx.lineWidth = 4;
-            ctx.lineCap = 'round';
-            ctx.globalAlpha = 0.95 * (1 - Math.max(0, ph - 0.75) * 4);
-            ctx.beginPath();
-            ctx.moveTo(mx + nx * from, my + ny * from);
-            ctx.lineTo(mx + nx * cur, my + ny * cur);
-            ctx.stroke();
-            // its arrowhead
-            const hx = mx + nx * cur, hy = my + ny * cur;
-            ctx.beginPath();
-            ctx.moveTo(hx - nx * 9 + dx * 7, hy - ny * 9 + dy * 7);
-            ctx.lineTo(hx, hy);
-            ctx.lineTo(hx - nx * 9 - dx * 7, hy - ny * 9 - dy * 7);
-            ctx.stroke();
-            // what to do, in words, until you've parried once
-            const label = state.intro['snare:parried'] ? 'PARRY' : 'SWIPE ACROSS TO PARRY';
-            ctx.globalAlpha = 1;
-            ctx.font = `700 13px ${snareMono()}`;
-            ctx.textAlign = 'center';
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = C.bg;
-            // kept inside the field, on whichever side of the line has room
-            const tw = ctx.measureText(label).width, FW = run.w * k, FH = run.h * k;
-            let side = span + 16;
-            const fits = q => q.x > tw / 2 + 4 && q.x < FW - tw / 2 - 4 && q.y > 14 && q.y < FH - 6;
-            if (!fits({ x: mx + nx * side, y: my + ny * side + 4 }) && fits({ x: mx - nx * side, y: my - ny * side + 4 })) side = -side;
-            const lx = Math.max(tw / 2 + 4, Math.min(FW - tw / 2 - 4, mx + nx * side)), ly = Math.max(14, Math.min(FH - 6, my + ny * side + 4));
-            ctx.strokeText(label, lx, ly);
-            ctx.fillStyle = C.warning;
-            ctx.fillText(label, lx, ly);
+            // Snare 12: without Riposte the answer is a loop round it while it stands to charge (a dashed amber ring
+            // drawing itself round it, and the words until you've done it once); with Riposte, the parry's swipe.
+            if (!run.opts.parry) {
+                const lr = r + Math.max(18, run.closeR * k * 1.1), ph = (t * 0.9) % 1;
+                ctx.strokeStyle = C.warning;
+                ctx.lineWidth = 3;
+                ctx.setLineDash([8, 6]);
+                ctx.globalAlpha = 0.9;
+                ctx.beginPath();
+                ctx.arc(x, y, lr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, ph * 1.25));
+                ctx.stroke();
+                ctx.setLineDash([]);
+                if (!state.intro['snare:looped']) {
+                    const label = 'LOOP ROUND IT';
+                    ctx.font = `700 13px ${snareMono()}`;
+                    ctx.textAlign = 'center';
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = C.bg;
+                    const FW = run.w * k, tw = ctx.measureText(label).width;
+                    const lx = Math.max(tw / 2 + 4, Math.min(FW - tw / 2 - 4, x)), ly = Math.max(14, y - lr - 10);
+                    ctx.strokeText(label, lx, ly);
+                    ctx.fillStyle = C.warning;
+                    ctx.fillText(label, lx, ly);
+                }
+            } else {
+                // the gesture: an amber arrow sweeping across the line, again and again
+                const mx = sx0 + (ex - sx0) * 0.55, my = sy0 + (ey - sy0) * 0.55;
+                const span = band + 26, ph = (t * 2.2) % 1;
+                const from = -span, to = span, cur = from + (to - from) * Math.min(1, ph * 1.3);
+                ctx.strokeStyle = C.warning;
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.globalAlpha = 0.95 * (1 - Math.max(0, ph - 0.75) * 4);
+                ctx.beginPath();
+                ctx.moveTo(mx + nx * from, my + ny * from);
+                ctx.lineTo(mx + nx * cur, my + ny * cur);
+                ctx.stroke();
+                // its arrowhead
+                const hx = mx + nx * cur, hy = my + ny * cur;
+                ctx.beginPath();
+                ctx.moveTo(hx - nx * 9 + dx * 7, hy - ny * 9 + dy * 7);
+                ctx.lineTo(hx, hy);
+                ctx.lineTo(hx - nx * 9 - dx * 7, hy - ny * 9 - dy * 7);
+                ctx.stroke();
+                // what to do, in words, until you've parried once
+                const label = state.intro['snare:parried'] ? 'PARRY' : 'SWIPE ACROSS TO PARRY';
+                ctx.globalAlpha = 1;
+                ctx.font = `700 13px ${snareMono()}`;
+                ctx.textAlign = 'center';
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = C.bg;
+                // kept inside the field, on whichever side of the line has room
+                const tw = ctx.measureText(label).width, FW = run.w * k, FH = run.h * k;
+                let side = span + 16;
+                const fits = q => q.x > tw / 2 + 4 && q.x < FW - tw / 2 - 4 && q.y > 14 && q.y < FH - 6;
+                if (!fits({ x: mx + nx * side, y: my + ny * side + 4 }) && fits({ x: mx - nx * side, y: my - ny * side + 4 })) side = -side;
+                const lx = Math.max(tw / 2 + 4, Math.min(FW - tw / 2 - 4, mx + nx * side)), ly = Math.max(14, Math.min(FH - 6, my + ny * side + 4));
+                ctx.strokeText(label, lx, ly);
+                ctx.fillStyle = C.warning;
+                ctx.fillText(label, lx, ly);
+            }
             ctx.globalAlpha = 1;
         }
         if (b.enraged) {

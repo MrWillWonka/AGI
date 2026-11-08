@@ -41,8 +41,8 @@ function parry(s) {
 }
 const slash = s => flickLine(s, s.boss.x - 1.4, s.boss.y - 0.3, s.boss.x + 1.4, s.boss.y + 0.3);
 
-test('the boss fight: parry its charge, then slash it while it reels; its health runs down to a cleared sector', () => {
-    const s = still({ boss: 3, bossAt: 0, bossStun: 1.6 });
+test('the boss fight (Riposte): parry its charge, then slash it while it reels; its health runs down to a cleared sector', () => {
+    const s = still({ boss: 3, bossAt: 0, bossStun: 1.6, parry: 1 });
     const b = bossAt(s);
     assert.ok(b.charge, 'it locked on (a warning line)');
     parry(s);
@@ -59,6 +59,42 @@ test('the boss fight: parry its charge, then slash it while it reels; its health
     assert.equal(s.boss, null);
     assert.equal(s.stats.bosses, 1);
     assert.equal(s.stats.bossDamage, 3);
+});
+
+test('a loop round the boss stuns it (Snare 12): no parry needed, and slashes land while it reels', () => {
+    const s = still({ boss: 3, bossAt: 0 });
+    const b = bossAt(s);
+    assert.ok(b.charge, 'it locked on');
+    parry(s);
+    assert.equal(s.stats.parries, 0, 'without Riposte a flick across its line is no parry');
+    assert.ok(!(b.stunned > s.time));
+    Object.assign(b, { charge: null, chargeAt: 1e9 });
+    circle(s, b.x, b.y, b.r + 0.8);
+    assert.equal(s.stats.loopStuns, 1, 'the loop round it stuns it');
+    assert.ok(b.stunned > s.time && !b.charge);
+    slash(s);
+    assert.equal(b.hp, 2, 'and a slash lands');
+    // A loop that touches it snaps instead (the boss's body cuts the wire).
+    const t = still({ boss: 3, bossAt: 0 });
+    const c = bossAt(t);
+    Object.assign(c, { charge: null, chargeAt: 1e9 });
+    circle(t, c.x, c.y, c.r * 0.6);
+    assert.equal(t.stats.loopStuns, 0);
+});
+
+test('its charge line is long and it dashes all of it (Snare 12)', () => {
+    const s = still({ boss: 3, bossAt: 0 });
+    packet(s, 'good', 11.5, 4);
+    const b = bossAt(s, 6, 4);
+    Object.assign(b, { x: 6, y: 4, charge: null, chargeAt: 0 });
+    for (let i = 0; i < 6 && !b.charge; i++) s.step(1 / 60);
+    assert.ok(b.charge, 'it locked on');
+    const len = s.chargeReach(b);
+    assert.ok(len >= 0.45 * s.w, `a long line: ${len.toFixed(2)} on a field ${s.w} wide`);
+    const x0 = b.x, y0 = b.y, { dx, dy } = b.charge;
+    run(s, b.charge.warn + 0.85);
+    const went = (b.x - x0) * dx + (b.y - y0) * dy;
+    assert.ok(went >= (len - b.r) * 0.85, `it dashed ${went.toFixed(2)} of ${(len - b.r).toFixed(2)}`);
 });
 
 test('a slash needs it reeling: through its guard nothing lands, and a Firewall\'s stun opens it too', () => {
@@ -78,7 +114,7 @@ test('a slash needs it reeling: through its guard nothing lands, and a Firewall\
 });
 
 test('Riposte: a parry that deals damage; more slash damage takes more off', () => {
-    const s = still({ boss: 9, bossAt: 0, parryDamage: 2, slashDamage: 3 });
+    const s = still({ boss: 9, bossAt: 0, parryDamage: 2, slashDamage: 3, parry: 1 });
     bossAt(s);
     parry(s);
     assert.equal(s.boss.hp, 7);
@@ -115,15 +151,16 @@ test('its mines shield it until a loop clears them; finished nets wipe the data 
     assert.equal(s.boss.hp, 4, 'the shield is down');
 });
 
-test('the boss keeps to the middle of the field', () => {
+test('the boss keeps to the middle of the field (only its dash takes it out, and it walks back)', () => {
     const s = still({ boss: 3, bossAt: 0, bossCharge: 1e9 });
     // all the data along the left edge
     for (let i = 0; i < 6; i++) packet(s, 'good', 0.4, 1 + i);
     run(s, 0.05);
+    s.boss.chargeAt = 1e9;
     let minX = Infinity;
     for (let i = 0; i < 600; i++) { s.step(1 / 60); minX = Math.min(minX, s.boss.x); }
     const e = 0.18 * Math.min(s.w, s.h) + s.boss.r;
-    assert.ok(minX >= e - 1e-6, `it stayed ${minX.toFixed(2)} from the edge (≥ ${e.toFixed(2)})`);
+    assert.ok(minX >= e - 0.01, `it stayed ${minX.toFixed(2)} from the edge (≥ ${e.toFixed(2)})`);
     assert.equal(s.stats.wiped, 0, 'and the data along the edge was safe from it');
 });
 

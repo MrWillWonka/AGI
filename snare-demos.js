@@ -81,8 +81,15 @@
             packets: [['good', 3, 1.4], ['good', 3.4, 1.6]], wire: [0.6, 3.0, ring(3.2, 1.5, 1.1, 0.9, 40)], expect: r => r.stats.snaps >= 1 },
         sweep: { text: 'Its edge flashes, then it sweeps: wires snap', opts: { sweepFirst: 0.4, sweepEvery: 99, sweepWarn: 0.7, sweepTime: 1.6 },
             packets: [['good', 3, 1.4]], wire: [0.2, 3.0, ring(3, 1.4, 1.4, 0.9, 40)], expect: r => r.stats.snaps >= 1 },
-        // The boss fight: flick across its charge line (a parry), then flick through it while it reels (slashes).
-        boss: { text: 'Flick across its charge to parry, then slash it as it reels', opts: { boss: 4, bossAt: 0 },
+        // The boss fight: loop round it to stun it (the wire mustn't touch it), then flick through it while it reels.
+        boss: { text: 'Loop round it to stun it, then slash it as it reels', opts: { boss: 4, bossAt: 0 },
+            packets: [['good', 5.4, 1.4]],
+            wire: [0.2, 1.0, ring(2, 1.4, 0.85, 0.85, 32)],
+            strokes: [[1.35, 1.42, line(1.2, 0.3, 2.8, 2.5, 6)], [1.8, 1.87, line(2.8, 0.3, 1.2, 2.5, 6)]],
+            tick: (r, sim) => { if (r.boss) { Object.assign(r.boss, { x: 2, y: 1.4, vx: 0, vy: 0 }); if (!(r.boss.stunned > r.time)) { r.boss.chargeAt = r.time + 99; r.boss.charge = null; } } },
+            expect: r => r.stats.loopStuns >= 1 && r.stats.bossDamage >= 2 },
+        // Riposte: the parry, a flick across its charge line, a stun from range.
+        parry: { text: 'Flick across its charge line to parry it, then slash it', opts: { boss: 4, bossAt: 0, parry: 1 },
             packets: [['good', 5.4, 1.4]],
             strokes: [[0.75, 0.82, line(2.6, 0.3, 2.6, 2.5, 6)], [1.25, 1.32, line(1.2, 0.3, 1.2, 2.5, 6)], [1.7, 1.77, line(0.4, 0.6, 2.0, 2.2, 6)]],
             tick: (r, sim) => { if (r.boss) { if (!sim.armed) { sim.armed = true; r.boss.chargeAt = r.time + 0.3; } Object.assign(r.boss, { x: 1.2, y: 1.4, vx: 0, vy: 0 }); } },
@@ -224,7 +231,9 @@
             const [t0, t1, pts, liftAt = 0] = S.wire;
             const upto = Math.min(pts.length, Math.floor((sim.t - t0) / (t1 - t0) * pts.length));
             while (sim.fed < upto) r.addPoint(...pts[sim.fed++]);
-            if (sim.fed >= pts.length && r.drawing && sim.t >= liftAt) r.liftPen();
+            // Lifted once (a later stroke draws on its own).
+            if (sim.fed >= pts.length && r.drawing && sim.t >= liftAt && !sim.lifted) { r.liftPen(); sim.lifted = true; }
+            if (sim.fed >= pts.length && !r.drawing) sim.lifted = true;
         }
         // Several strokes, one after another (flicks): each [from s, to s, points], lifted when drawn.
         for (const [i, [t0, t1, pts]] of (S.strokes || []).entries()) {

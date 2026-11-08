@@ -197,8 +197,8 @@ test('what you place carries over to the next run, as far as its slots go', () =
     assert.deepEqual(E.snareOpts(st).layout, st.snare.layout);
 });
 
-test('a parry on a later sector boots Antivirus, never more than two alive', () => {
-    const s = still({ boss: 30, bossAt: 0, bossMinions: 1, w: 12, h: 8 });
+test('a parry (Riposte) on a later sector boots Antivirus, never more than two alive', () => {
+    const s = still({ boss: 30, bossAt: 0, bossMinions: 1, w: 12, h: 8, parry: 1 });
     s.step(0.1);
     for (let k = 0; k < 4; k++) {
         Object.assign(s.boss, { x: 6, y: 4, vx: 0, vy: 0, stunned: 0, chargeAt: 0, charge: null });
@@ -235,15 +235,16 @@ test('the boss is the wall: every fifth sector, gentle the first time, steeply m
     assert.equal(s.snare.signal, pay);
     assert.equal(s.snare.sector, first + 1);
     const late = E.snareOpts({ ...s, snare: { ...s.snare, sector: E.MINION_SECTOR } });
-    assert.ok(late.bossMinions > 0 && late.bossCharge < 5 && late.bossSpeed > 1 && late.bossWarn < 1.6);
+    assert.ok(late.bossMinions > 0 && late.bossCharge < 7 && late.bossSpeed > 1 && late.bossWarn < 2);
     assert.equal(E.snareOpts(s, first).bossMines, 0, 'no mines on the first boss');
     assert.equal(E.snareOpts(s, E.MINE_SECTOR).bossMines, 2, 'two from the second');
     assert.equal(E.snareOpts(s, E.NET_SECTOR).bossMines, 3, 'a ring of three from the third');
     s.levels.snareParry = 2; s.levels.snareRiposte = 1; s.levels.snareKernelPanic = 1;
     const o = E.snareOpts(s, 0);
     assert.equal(o.slashDamage, 3);
-    assert.equal(o.parryDamage, 1);
+    assert.equal(o.parry, 1, 'Riposte brings the parry');
     assert.ok(o.bossStun > E.snareOpts(E.defaultState(NOW), 0).bossStun);
+    assert.equal(E.snareOpts(E.defaultState(NOW), 0).parry, 0, 'a first boss is fought by looping it, not parrying');
 });
 
 test('the research trickle is capped, and Overclock raises every catch', () => {
