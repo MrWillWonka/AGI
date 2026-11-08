@@ -3993,6 +3993,11 @@ window.AGI = (function () {
                 else if (t === 'escalate') sfx('snareHijack');
                 else if (t === 'storm') sfx('snarePower', { kind: 'freeze' });
                 else if (t === 'surge') sfx('snarePower', { kind: 'purge' });
+                else if (t === 'pulse') sfx('snareChain');
+                else if (t === 'cleanSweep') sfx('snarePower', { kind: 'freeze' });
+                else if (t === 'relay') sfx('snareDecoy');
+                else if (t === 'backpressure') sfx('snareZap');
+                else if (t === 'raceBroken') { sfx('snareSnap'); shake(0.25); }
                 else if (t === 'convert') sfx('snareSpoof');
                 else if (t === 'spoof') sfx('snareSpoof');
                 else if (t === 'flag') sfx('snareFlag', { flags: e.flags, limit: e.limit });
@@ -4086,7 +4091,8 @@ window.AGI = (function () {
             // The field as it played (Snare 10; the outside review's audit): packets a unit², how soon they came back, their
             // size, red per good packet, and the capstones at work.
             density: r2(snare.run.opts.density), respawn: r2(snare.run.opts.respawn), packetR: r2(snare.run.opts.packetR), redPerGood: r2(snare.run.opts.corruptShare),
-            echoes: stats.echoes, storms: stats.storms, surges: stats.surges, crashes: stats.crashes, converted: stats.converted, spent: Math.round(state.snare.earned - state.snare.signal),
+            echoes: stats.echoes, storms: stats.storms, surges: stats.surges, pulses: stats.pulses, sweepsClean: stats.sweepsClean,
+            relayed: stats.relayed, pushedBack: stats.pushedBack, raceBroken: stats.raceBroken, crashes: stats.crashes, converted: stats.converted, spent: Math.round(state.snare.earned - state.snare.signal),
             area: Math.round(snare.run.w * snare.run.h), replay: !!snare.replay, secs: Math.round(snare.run.time), record: res.record, seed: snare.seed });
         log(`Packet Snare: +${E.format(snare.haul)} Signal from ${stats.caught} packet${stats.caught === 1 ? '' : 's'}${res.record ? ' · new record' : ''}.`, res.record ? 'success' : 'info');
         sfx(res.record ? 'record' : 'runEnd');
@@ -4289,7 +4295,7 @@ window.AGI = (function () {
         fill.classList.toggle('low', share < 0.25);
         // The boss's health and an IDS alert's rage stay in the HUD while they last (round 4: the rage showed only as a glow).
         const boss = run.boss ? ` · Boss ${run.boss.hp}/${run.boss.maxHp}${run.boss.enraged ? ' ⚠ ENRAGED' : ''}${run.boss.shielded ? ' · shield' : ''}` : '';
-        setText($('snareFocusText'), run.cooldown > 0 ? 'Wire snapped…' : run.frozen() ? `Frozen · ${run.frozenLeft.toFixed(1)} s` : `Focus ${Math.ceil(run.focus)}${run.flags ? ` · ⚑ ${run.flags}/${run.opts.flagLimit}` : ''}${boss}`);
+        setText($('snareFocusText'), run.cooldown > 0 ? 'Wire snapped…' : run.frozen() ? `Frozen · ${run.frozenLeft.toFixed(1)} s` : `Focus ${Math.ceil(run.focus)}${run.freeDrawUntil > run.time ? ' · FREE DRAW' : ''}${run.flags ? ` · ⚑ ${run.flags}/${run.opts.flagLimit}` : ''}${boss}`);
         // A held Race Condition loop ticks up every half second.
         if (run.race) {
             const step = Math.min(8, Math.floor(run.race.t / 0.5));
@@ -4313,7 +4319,8 @@ window.AGI = (function () {
         chain: 'bolt', chainHops: 'bolt', chainRange: 'bolt', scrubbers: 'filter', corruptMult: 'terminal', lureMult: 'code', purge: 'flame',
         firewalls: 'bricks', wallMult: 'bricks', wallRebuild: 'bricks', fwHits: 'shield', decoys: 'diamond', decoyLure: 'diamond',
         avSpeed: 'ghost', avStun: 'ghost', hijack: 'robot', collude: 'core', respawnMult: 'refresh', flagLimit: 'flag', spoofValue: 'mask',
-        echo: 'loop', storm: 'cloud', crash: 'crash', zeroTrust: 'check', surge: 'surge', defuse: 'cut' };
+        echo: 'loop', storm: 'cloud', crash: 'crash', zeroTrust: 'check', surge: 'surge', defuse: 'cut',
+        pulse: 'surge', broadband: 'turret', cleanSweep: 'sweep', relay: 'route', backpressure: 'back' };
     const snareIcon = up => SNARE_STAT_ICON[Object.keys(up.sn || {})[0] || Object.keys(up.stages?.[1] || {})[0]] || 'spark';
     const snareUi = { built: false, nodes: {}, links: [], popup: false, detailKey: '', fresh: false, cam: { x: 0, y: 0, z: 1 }, drag: null, pointers: new Map(), moved: false };
     // Fixed cells (like the Training tree's --cell): the tree grows six cells out from the Lasso, and you pan and zoom it.
@@ -4587,7 +4594,12 @@ window.AGI = (function () {
         ['echo', 'A closed loop', v => (v ? 'catches again a second later' : 'catches once')], ['storm', 'Packet Storms', v => (v ? 'ten gold every 15 s' : 'none')],
         ['crash', 'Every third slash', v => (v ? 'crashes it: ×3 damage' : 'a slash like the others')], ['zeroTrust', 'Red packets your walls bounce', v => (v ? 'come back good' : 'stay red')],
         ['surge', 'Three clean catches in a row', v => (v ? `a surge of ${6 + 6 * v} packets` : 'nothing more')],
-        ['netTime', 'Mines link into nets in', v => `${num1(v)} s`], ['defuseChain', 'Looping a mine', v => (v ? 'clears its neighbour too' : 'clears just that one')]
+        ['netTime', 'Mines link into nets in', v => `${num1(v)} s`], ['defuseChain', 'Looping a mine', v => (v ? 'clears its neighbour too' : 'clears just that one')],
+        ['pulse', 'A clean loop', v => (v ? `sends in ${2 * v} packets` : 'sends in none')],
+        ['broadband', 'Each turret or tower placed', v => (v ? `brings packets back ${Math.round(v * 100)}% sooner` : 'does nothing for refills')],
+        ['cleanSweep', 'After a clean loop, drawing is free for', v => `${num1(v)} s`],
+        ['relay', 'Red packets your walls bounce', v => (v ? 'swim to your decoy' : 'swim on')],
+        ['backpressure', 'A catch', v => (v ? 'turns the packets round it back' : 'leaves the packets round it be')]
     ];
     // How many packets a field of these options holds on this screen, against a first run (a field the screen caps
     // fills more densely instead of growing).
@@ -4732,6 +4744,9 @@ window.AGI = (function () {
         else if (e.type === 'quarantine') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: e.r, t: 0, life: 0.9, text: text || 'QUARANTINED', big: true });
         else if (e.type === 'bossHit') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: e.r || window.PacketSnare.BOSS_R, t: 0, life: 0.7, text: `${e.how === 'ram' ? 'RAMMED' : e.how === 'parry' ? 'RIPOSTE' : e.how === 'crash' ? 'BLUE SCREEN' : 'SLASH'} −${e.dmg} · ${e.hp} left`, big: true });
         else if (e.type === 'convert') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'TRUSTED', small: true });
+        else if (e.type === 'raceBroken') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.9, text: e.by === 'boss' ? 'HOLD BROKEN · the boss' : 'HOLD BROKEN · scanned', small: true });
+        else if (e.type === 'cleanSweep') fx.push({ kind: 'stun', x: e.x, y: e.y + 0.9, t: 0, life: 0.8, text: 'FREE DRAW', small: true });
+        else if (e.type === 'backpressure') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: e.r, t: 0, life: 0.5 });
         else if (e.type === 'bossBlock') fx.push({ kind: 'flag', x: e.x, y: e.y - 1, t: 0, life: 0.9, text: e.reason === 'shield' ? 'SHIELDED · loop its mines' : 'GUARD UP · parry its charge', small: true });
         else if (e.type === 'mine') fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.6 });
         else if (e.type === 'mineDown') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 0.6, t: 0, life: 0.6, text: e.boss ? '' : 'MINE CLEARED', small: true });
@@ -4798,7 +4813,7 @@ window.AGI = (function () {
 
     // Drawn in layers, back to front, each a function of the view `d` (the context, colours, scale, run, effects), so the
     // field draws the same into the bay's canvas and a node's demo.
-    const SNARE_LAYERS = () => [drawSnareCurrent, drawSnareContain, drawSnareScanner, drawSnareCores, drawSnareMines, drawSnareFirewalls, drawSnareSweeps, drawSnareLoops, drawSnarePreview, drawSnarePackets, drawSnareHerders, drawSnareLasers, drawSnareChain, drawSnareWire, drawSnareRogueFx, drawSnareSnaps, drawSnareAntivirus, drawSnareBoss, drawSnareFrozen, drawSnarePops];
+    const SNARE_LAYERS = () => [drawSnareCurrent, drawSnareContain, drawSnareScanner, drawSnareCores, drawSnareMines, drawSnareFirewalls, drawSnareSweeps, drawSnareLoops, drawSnarePreview, drawSnarePackets, drawSnareHerders, drawSnareLasers, drawSnareChain, drawSnareWire, drawSnareRaceLabel, drawSnareRogueFx, drawSnareSnaps, drawSnareAntivirus, drawSnareBoss, drawSnareFrozen, drawSnarePops];
     let snareMonoFont = '';
     const snareMono = () => (snareMonoFont ||= getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'monospace');
 
@@ -5287,11 +5302,9 @@ window.AGI = (function () {
                 }
             }
         }
-        // Race Condition: the loop you're holding open, pulsing faster as its multiplier grows, with what it's worth now.
+        // Race Condition: the loop you're holding open, pulsing faster as its multiplier grows (its label and meter: drawSnareRaceLabel).
         const r = run.race;
         if (r) {
-            const P = window.PacketSnare;
-            const mult = P.areaMult(P.polygonArea(r.poly), run.opts, run.w * run.h) * (1 + r.bonus);
             ctx.beginPath();
             r.poly.forEach((p, i) => (i ? ctx.lineTo(p.x * k, p.y * k) : ctx.moveTo(p.x * k, p.y * k)));
             ctx.closePath();
@@ -5306,17 +5319,33 @@ window.AGI = (function () {
             ctx.stroke();
             ctx.setLineDash([]);
             ctx.lineDashOffset = 0;
-            const c = r.poly.reduce((a, p) => ({ x: a.x + p.x / r.poly.length, y: a.y + p.y / r.poly.length }), { x: 0, y: 0 });
-            ctx.font = `700 15px ${snareMono()}`;
-            ctx.textAlign = 'center';
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = C.bg;
-            const text = `HOLD ×${mult.toFixed(1)}`;
-            ctx.strokeText(text, c.x * k, c.y * k);
-            ctx.fillStyle = C.success;
-            ctx.fillText(text, c.x * k, c.y * k);
         }
         ctx.globalAlpha = 1;
+    }
+
+    // Race Condition's label and meter, drawn over the packets so a busy field never hides them.
+    function drawSnareRaceLabel(d) {
+        const { ctx, C, k, run } = d;
+        const r = run.race;
+        if (!r) return;
+        const P = window.PacketSnare;
+        const mult = P.areaMult(P.polygonArea(r.poly), run.opts, run.w * run.h) * (1 + r.bonus);
+        const c = r.poly.reduce((a, p) => ({ x: a.x + p.x / r.poly.length, y: a.y + p.y / r.poly.length }), { x: 0, y: 0 });
+        ctx.font = `700 15px ${snareMono()}`;
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = C.bg;
+        const text = `HOLD ×${mult.toFixed(1)}`;
+        ctx.strokeText(text, c.x * k, c.y * k);
+        ctx.fillStyle = C.success;
+        ctx.fillText(text, c.x * k, c.y * k);
+        // The meter (review 1: make the growth readable): a ring under the label filling toward the hold's top.
+        const full = Math.min(1, r.bonus / Math.max(0.01, run.opts.raceMax)), cy = c.y * k + 16, rad = 9;
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = C.bg;
+        ctx.beginPath(); ctx.arc(c.x * k, cy, rad, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = C.success;
+        ctx.beginPath(); ctx.arc(c.x * k, cy, rad, -Math.PI / 2, -Math.PI / 2 + full * Math.PI * 2); ctx.stroke();
     }
 
     function drawSnarePreview(d) {
@@ -6128,6 +6157,9 @@ window.AGI = (function () {
         flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
         surge: '<path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/>',
         cut: '<circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M8 15 18 4M16 15 6 4"/>',
+        route: '<circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h8a3 3 0 0 0 0-6H8a3 3 0 0 1 0-6h8"/>',
+        back: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+        sweep: '<path d="M14 3 21 10M12 5l7 7-7 7-7-7z"/><path d="M3 21l4-4"/>',
         bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
         code: '<path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/>',
         mountain: '<path d="m2 20 7-12 4 6 2-3 7 9z"/>',

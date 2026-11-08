@@ -238,3 +238,14 @@ Measured, for a cheapest-first buyer:
 - **At 2K Signal:** red is 13%; it was 18%.
 
 The `snare` playtest event now records the field as it played, so the next log can check the screen-cap behaviour on a real phone.
+
+### 10.3: the rest of the outside reviews
+
+The owner asked for what was left:
+- **Firehose** sends a pulse of packets in after each clean loop (no red inside). It keeps +30% packets, so the early curve stays generous.
+- **Broadband** is tied to the automation: each turret or scanner tower you've placed brings caught packets back 6% sooner a level, on top of +20% packets.
+- **Race Condition gets review 1's timing rules.** A meter fills under HOLD ×n, and a Full Scan or the boss's dash through the held loop breaks it, so holding stays a risk.
+- **Three new mechanics,** each a hexagon with a demo:
+  - **Clean Sweep** (Loops): drawing is free of Focus for a moment after a clean loop.
+  - **Backpressure** (Flow): a catch turns the packets around it back, so they bunch up for the next loop.
+  - **Quarantine Relay** (Countermeasures): red packets your wall turns back swim to your decoy, so a wall and a decoy make a lane.

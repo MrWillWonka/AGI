@@ -127,6 +127,22 @@
                 if (sim.t > 0.05 && !sim.laid) { sim.laid = true; r.mines.push({ id: 900, x: 2.6, y: 1.4 }, { id: 901, x: 4.6, y: 1.4 }); r.links.push({ a: 900, b: 901, t: 0 }); }
             },
             wire: [1.0, 2.0, ring(4.6, 1.4, 0.5, 0.5)], expect: r => r.stats.minesCleared >= 2 },
+        // Snare 10.3: Firehose's pulse, Clean Sweep, Quarantine Relay, Backpressure.
+        pulse: { text: 'A clean loop: a pulse of new packets swims in', opts: { pulse: 2, flow: true, flowSpread: 0.2, schoolSize: 4 },
+            packets: [['good', 2.8, 1.3], ['good', 3.2, 1.6], ['good', 2.9, 1.7]],
+            wire: [0.3, 1.3, ring(3, 1.5, 0.75, 0.7)], expect: r => r.stats.pulses >= 1 && r.packets.length >= 4 },
+        cleanSweep: { text: 'A clean loop: drawing is free of Focus for a moment', opts: { cleanSweep: 2, drawBase: 4 },
+            packets: [['good', 1.6, 1.3], ['good', 1.8, 1.6], ['good', 4.2, 1.3], ['good', 4.4, 1.6]],
+            strokes: [[0.2, 0.9, ring(1.7, 1.45, 0.6, 0.6)], [1.2, 1.9, ring(4.3, 1.45, 0.6, 0.6)]],
+            tick: (r, sim) => { if (sim.t >= 1.1 && sim.f1 === undefined) sim.f1 = r.focus; },
+            expect: (r, sim) => r.stats.sweepsClean >= 1 && r.focus > sim.f1 - 0.05 },
+        relay: { text: 'Red packets your wall turns back go to your decoy', opts: { firewalls: 1, decoys: 1, relay: 1 },
+            packets: [['corrupt', 1.4, 1.0, 1.4, 0], ['good', 0.8, 2.3, 1.3, 0]],
+            walls: [[0.1, [3.0, 0.2], [3.0, 2.6]]], taps: [[0.15, 'decoy', 0.8, 2.4]],
+            expect: r => r.stats.relayed >= 1 && r.packets.some(p => p.kind === 'corrupt' && p.x < 2.4 && p.y > 1.4) },
+        backpressure: { text: 'A catch turns the packets round it back: they bunch up', opts: { backpressure: 4, backSeconds: 1.4 },
+            packets: [['good', 2.8, 1.4], ['good', 3.1, 1.6], ['good', 3.62, 1.45, 0.03, 0], ['good', 3.6, 1.75, 0.03, 0], ['good', 2.3, 1.3, -0.03, 0]],
+            wire: [0.3, 1.2, ring(2.95, 1.5, 0.55, 0.5)], expect: r => r.stats.pushedBack >= 2 },
         // The branch capstones (Snare 10).
         echo: { text: 'Each loop catches again a second later', opts: { echo: 1, echoDelay: 0.9 },
             packets: [['good', 2.8, 1.3], ['good', 3.2, 1.6], ['good', 0.6, 1.5, 1.6, 0], ['good', 0.4, 1.3, 1.7, 0]],

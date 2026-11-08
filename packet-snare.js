@@ -244,7 +244,21 @@
         surgeCooldown: 6,
         // Defuse's last level: a loop that clears one of the boss's mines clears the nearest other one too (its earlier
         // levels slow the nets: `netTime`, engine.js snareOpts).
-        defuseChain: 0
+        defuseChain: 0,
+        // ---- Snare 10.3 (review 1's other ideas, the owner's picks) ---------------------------------------
+        // Firehose: a clean loop (no red inside) sends a pulse of `pulse` × 2 packets in from upstream at once.
+        pulse: 0,
+        // Broadband: each turret or scanner tower you've placed makes caught packets come back `broadband` sooner.
+        broadband: 0,
+        // Clean Sweep: a clean loop makes drawing free of Focus for `cleanSweep` s.
+        cleanSweep: 0,
+        // Quarantine Relay: a red packet that bounces off your Firewall swims to your nearest decoy for `relaySeconds` s.
+        relay: 0,
+        relaySeconds: 4,
+        // Backpressure: a catch turns the packets round it back against their course for `backSeconds` s, within
+        // (0.12 + 0.04 a level) × the shorter side, so they bunch up near your loop.
+        backpressure: 0,
+        backSeconds: 1.2
     };
     const GOLD_VALUE = 5;
     const TAG_VALUE = 2;
@@ -338,6 +352,7 @@
             w, h, opts: o, closeR,
             echoes: [],             // Infinite Loop: loops waiting to catch again ({ poly, at, mult })
             streak: 0,              // clean catches in a row (Floodgate's surge)
+            freeDrawUntil: 0,       // Clean Sweep: drawing costs no Focus until then
             surgeAt: 0,             // when the next surge may come
             stormAt: o.storm ? o.stormFirst : Infinity,   // Packet Storm's next school of gold
             time: 0,                // the field's clock (it stops while frozen)
@@ -376,7 +391,7 @@
             rogueAt: o.rogue ? o.rogueFirst : Infinity,
             boss: null,             // the boss Antivirus once it boots: { x, y, vx, vy, r, hp, maxHp, stunned, charge, shielded }
             bossDone: false,
-            stats: { catches: 0, echoes: 0, storms: 0, surges: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
+            stats: { catches: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
                 stolen: 0, cores: 0, quarantined: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0,
                 herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0,
                 bossDamage: 0, avDown: 0, glanced: 0, mines: 0, minesCleared: 0, netted: 0, escalations: 0, forks: 0, stars: 0 },
@@ -756,6 +771,19 @@
         // Schools: each good packet steers with the others of its school nearby (heading and centre), keeping its own
         // speed; corrupt packets go their own way, straight through.
         function flock(dt) {
+            // Quarantine Relay: a red packet your Firewall turned back swims to your nearest decoy, wherever it is.
+            if (o.relay && s.decoys.length) {
+                for (const p of s.packets) {
+                    if (!(p.relay > s.time) || p.kind !== 'corrupt') continue;
+                    const dc = s.decoys.reduce((a, c) => (Math.hypot(c.x - p.x, c.y - p.y) < Math.hypot(a.x - p.x, a.y - p.y) ? c : a));
+                    const ang = Math.atan2(dc.y - p.y, dc.x - p.x), kr = Math.min(1, 6 * dt);
+                    p.vx += (Math.cos(ang) * p.v - p.vx) * kr;
+                    p.vy += (Math.sin(ang) * p.v - p.vy) * kr;
+                    const vl = Math.hypot(p.vx, p.vy) || 1;
+                    p.vx = p.vx / vl * p.v;
+                    p.vy = p.vy / vl * p.v;
+                }
+            }
             // Corrupt packets swim toward the nearest school: they hide in the crowd, so a big loop round a school is a gamble.
             if (o.corruptLure > 0 && !(o.cleanStart && s.time < 5)) {
                 // While you draw a loop the lure eases off (big loops are a gamble, not a certainty).
@@ -776,6 +804,7 @@
                 };
                 for (const p of s.packets) {
                     if (p.kind !== 'corrupt' || p.spoof > s.time) continue;
+                    if (p.relay > s.time) continue;   // on its way to a decoy (below)
                     // A decoy in reach outbids the schools.
                     let best = null, bd = 9;
                     for (const dc of s.decoys) {
@@ -854,12 +883,14 @@
         const valueOf = p => (p.kind === 'gold' ? o.goldValue : 1) * (p.tag > s.time ? o.tagValue : 1) * (spoofed(p) ? o.spoofValue : 1);
 
         // Taken packets leave the field; a school refills from an edge once enough are gone, corrupt ones one by one.
+        // Broadband: each placed turret or scanner tower brings caught packets back sooner.
+        const respawnNow = () => o.respawn / (1 + o.broadband * (s.turrets.length + s.towers.length));
         function remove(list) {
             s.packets = s.packets.filter(p => !list.includes(p));
             for (const p of list) {
-                if (p.kind === 'corrupt') pendingCorrupt.push(s.time + o.respawn * (0.6 + rand() * 0.8));
+                if (p.kind === 'corrupt') pendingCorrupt.push(s.time + respawnNow() * (0.6 + rand() * 0.8));
             }
-            if (refillAt === Infinity) refillAt = s.time + o.respawn;
+            if (refillAt === Infinity) refillAt = s.time + respawnNow();
         }
         const pendingCorrupt = [];
 
@@ -1063,6 +1094,11 @@
                     p.kind = 'good';
                     s.stats.converted++;
                     s.events.push({ type: 'convert', x: p.x, y: p.y });
+                } else if (o.relay && s.decoys.length && !(p.relay > s.time)) {
+                    // Quarantine Relay: sent down the lane to your decoy.
+                    p.relay = s.time + o.relaySeconds;
+                    s.stats.relayed++;
+                    s.events.push({ type: 'relay', x: p.x, y: p.y });
                 }
                 return;
             }
@@ -1286,6 +1322,19 @@
         function raceStep(dt) {
             const r = s.race;
             if (!r) return;
+            // Review 1's timing rule: the held loop is a risk. A Full Scan sweeping over it, or the boss dashing through
+            // it, breaks it: no catch, and the wire snaps.
+            const b = s.boss;
+            const dashing = b && b.charge && b.charge.t >= b.charge.warn && pointInPolygon(b, r.poly);
+            const scanned = s.sweeps.some(sw => sw.t >= o.sweepWarn && r.poly.some(q => Math.abs((sw.axis === 'x' ? q.x : q.y) - sw.pos) < 0.3));
+            if (dashing || scanned) {
+                s.race = null;
+                s.stats.raceBroken++;
+                const c = centroid(r.poly);
+                s.events.push({ type: 'raceBroken', x: c.x, y: c.y, by: dashing ? 'boss' : 'scan' });
+                snap(c);
+                return;
+            }
             r.t += dt;
             r.bonus = Math.min(o.raceMax, o.raceRate * r.t);
             const bad = s.packets.filter(p => p.kind === 'corrupt' && !spoofed(p) && pointInPolygon(p, r.poly)).length;
@@ -1396,6 +1445,8 @@
             if (frozen()) { s.frozenLeft = Math.max(0, s.frozenLeft - dt); return; }
             s.time += dt;
             raceStep(dt);
+            // Backpressure: packets turned back resume their course.
+            for (const p of s.packets) if (p.back && s.time >= p.back.until) { p.vx = p.back.vx; p.vy = p.back.vy; p.back = null; }
             flock(dt);
             const out = [];
             for (const p of s.packets) {
@@ -1538,7 +1589,7 @@
             for (let i = pendingCorrupt.length - 1; i >= 0; i--) {
                 if (s.time >= pendingCorrupt[i] && corruptCount() < corruptTarget) { corrupt(true); pendingCorrupt.splice(i, 1); }
             }
-            const drain = o.idleDrain + (s.drawing ? o.drawBase + drawDrain * wireCost(s.wire) : 0);
+            const drain = o.idleDrain + (s.drawing && s.time >= s.freeDrawUntil ? o.drawBase + drawDrain * wireCost(s.wire) : 0);
             s.focus = Math.max(0, s.focus - drain * dt);
             if (s.focus <= 0) end();
         }
@@ -1744,6 +1795,31 @@
             s.stats.units += units;
             s.stats.bestCatch = Math.max(s.stats.bestCatch, units);
             s.stats.bestMult = Math.max(s.stats.bestMult, j.mult);
+            const clean = j.corrupt.length === 0;
+            // Firehose: a clean loop sends a pulse of packets in from upstream.
+            if (o.pulse && clean) {
+                school(2 * o.pulse, true);
+                s.stats.pulses++;
+                s.events.push({ type: 'pulse', count: 2 * o.pulse });
+            }
+            // Clean Sweep: a clean loop, and drawing is free for a moment.
+            if (o.cleanSweep && clean) {
+                s.freeDrawUntil = s.time + o.cleanSweep;
+                s.stats.sweepsClean++;
+                s.events.push({ type: 'cleanSweep', x: at.x, y: at.y, until: s.freeDrawUntil });
+            }
+            // Backpressure: the packets round the loop turn back against their course for a moment.
+            if (o.backpressure) {
+                const R = shortSide * (0.12 + 0.04 * o.backpressure);
+                let n = 0;
+                for (const p of s.packets) {
+                    if (p.kind === 'corrupt' || p.back || Math.hypot(p.x - at.x, p.y - at.y) > R) continue;
+                    p.back = { until: s.time + o.backSeconds, vx: p.vx, vy: p.vy };
+                    p.vx = -p.vx * 0.6; p.vy = -p.vy * 0.6;
+                    n++;
+                }
+                if (n) { s.stats.pushedBack += n; s.events.push({ type: 'backpressure', x: at.x, y: at.y, r: R, count: n }); }
+            }
             // Floodgate: clean catches in a row set off a surge of packets.
             if (o.surge && ++s.streak >= o.surgeEvery && s.time >= s.surgeAt) {
                 s.streak = 0;

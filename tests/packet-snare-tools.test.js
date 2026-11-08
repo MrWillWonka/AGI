@@ -236,7 +236,7 @@ test('the tree thins the corrupt packets, fills the field with packets and grows
     const base = E.snareOpts(s);
     for (const id of ['snareChecksums', 'snareErrorCorrection', 'snareSignatures', 'snareInputValidation', 'snareSanitizer', 'snareSpamFilter', 'snareReputation']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
     s.levels.snareSprawl = 3; s.levels.snareMegasprawl = 3; s.levels.snareHyperscale = 3;
-    for (const id of ['snareSchools', 'snareFirehose', 'snareFloodgate', 'snareBroadband', 'snareTorrent', 'snarePacketStream', 'snareOpenPorts', 'snareLoadBalancer']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
+    for (const id of ['snareSchools', 'snareFirehose', 'snareBroadband', 'snareTorrent', 'snarePacketStream', 'snareOpenPorts', 'snareLoadBalancer', 'snareMirrorPort', 'snareRateLimit']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
     s.levels.snareFirewalls = 1;
     const o = E.snareOpts(s, E.AV_SECTOR);
     assert.ok(o.corruptShare <= E.snareOpts(E.defaultState(NOW), E.AV_SECTOR).corruptShare * 0.12, 'about a tenth of the corrupt packets');
