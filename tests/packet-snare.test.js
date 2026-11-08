@@ -695,3 +695,14 @@ test('a cleared sector tops Focus up and the run gathers on there; Go deeper tak
     for (let i = 0; i < 60 * 12 && !t.stats.sweeps; i++) t.step(1 / 60);
     assert.ok(t.stats.sweeps >= 1, 'a Full Scan comes');
 });
+
+test('sector 1 has no red packets at all, and going deeper brings them in', () => {
+    const s = E.defaultState(NOW);
+    const r = P.createSnare({ ...E.snareOpts(s, 0), seed: 9, idleDrain: 0 });
+    const reds = () => r.packets.filter(p => p.kind === 'corrupt').length;
+    for (let i = 0; i < 60 * 5; i++) r.step(1 / 60);
+    assert.equal(reds(), 0, 'not even one (the count had a floor of 1)');
+    r.nextSector(E.snareOpts(s, E.RED_SECTOR));
+    for (let i = 0; i < 60 * 6; i++) r.step(1 / 60);
+    assert.ok(reds() >= 1, 'red swims in on sector 2');
+});

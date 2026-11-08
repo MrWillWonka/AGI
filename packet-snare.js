@@ -574,7 +574,9 @@
         }
 
         const goodTarget = Math.max(4, Math.min(o.maxGood, Math.round(o.density * fieldArea)));
-        let corruptTarget = Math.max(1, Math.round(goodTarget * o.corruptShare));
+        // No red at all on a clean sector (Snare 14: sector 1); else at least one.
+        const redTarget = () => (o.corruptShare > 0 ? Math.max(1, Math.round(goodTarget * o.corruptShare)) : 0);
+        let corruptTarget = redTarget();
         for (let left = goodTarget; left > 0;) {
             const n = Math.min(left, Math.max(2, Math.round(o.schoolSize * (0.6 + rand() * 0.8))));
             school(n, false);
@@ -2053,7 +2055,9 @@
             if (s.over) return;
             const before = { av: o.antivirus.length, sweep: o.sweepFirst, rogue: o.rogue };
             for (const k of SECTOR_KEYS) if (next[k] !== undefined) o[k] = next[k];
-            corruptTarget = Math.max(1, Math.round(goodTarget * o.corruptShare));
+            corruptTarget = redTarget();
+            // Red the new sector adds swims in from upstream over the next few seconds (going deeper from a clean sector 1).
+            for (let i = corruptCount() + pendingCorrupt.length; i < corruptTarget; i++) pendingCorrupt.push(s.time + 1 + rand() * 3);
             // New hazards arrive from now: the Antivirus this sector adds, a first scan, the Rogue AI's first cores.
             for (let i = before.av; i < o.antivirus.length; i++) avDue.push(s.time + 3 + 2 * (i - before.av));
             avDue.sort((p, q) => p - q);

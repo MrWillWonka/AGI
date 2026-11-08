@@ -3472,3 +3472,37 @@ body.calm .snare-deeper { animation: none; }
 @media (pointer: coarse) and (max-height: 500px) {
     body.snare-live .snare-view > .canvas-wrap { height: max(140px, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - var(--snare-live-chrome, 60px))); }
 }
+
+/* ---- Phones upright: every screen gets the room a Packet Snare run does (the owner's screenshots: a 106 px top bar
+   and two frames of padding took a third of the lab, the server room and the snare tree) ----
+   One row of top bar: the logo without its name, the resources (scrolling sideways if they must), the attributes and
+   icon buttons (the Journal's name stays for screen readers), with the phase as a thin line along the bar's foot (its
+   name in the Journal; news still shows over the row for its few seconds). The lab's "Systems online" line goes (the
+   supply cells carry the amounts), and the frames and their bars tighten. */
+.journal-button svg { display: none; }
+@media (max-width: 640px) and (min-height: 501px) {
+    .topbar-inner { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "brand res attr buttons"; position: relative;
+        padding: 5px max(8px, env(safe-area-inset-right, 0px)) 8px max(8px, env(safe-area-inset-left, 0px)); gap: 6px; align-items: center; }
+    .brand { font-size: 0; gap: 0; }
+    .topbar-inner .lab-status { display: none; }
+    .chips-attr { max-width: 34vw; overflow-x: auto; scrollbar-width: none; }
+    .chips-attr::-webkit-scrollbar { display: none; }
+    .chip { padding: 2px 7px; font-size: 0.74rem; }
+    .topbar-buttons { gap: 4px; }
+    .topbar-buttons .ghost-button { padding: 5px 8px; min-height: 30px; }
+    .journal-button { display: inline-grid; place-items: center; }
+    .journal-button svg { display: block; width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+    .journal-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .topbar .phase { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; grid-area: auto; }
+    .topbar .phase-name { display: none; }
+    .topbar .phase .progress { height: 3px; border-radius: 0; background: color-mix(in srgb, var(--panel-2) 70%, transparent); }
+    .topbar .top-news { inset: auto max(8px, env(safe-area-inset-left, 0px)) 5px; height: 34px; pointer-events: none; }
+    .layout { padding: 6px max(6px, env(safe-area-inset-left, 0px)) 6px max(6px, env(safe-area-inset-right, 0px)); gap: 8px; }
+    .room-frame { padding: 8px; }
+    .room-frame > .room-bar { margin-bottom: 0; }
+    .hub { padding: 40px 10px 12px; gap: 10px; }
+    .hub > .room-bar { top: 8px; left: 8px; right: 8px; }
+    .module-view { padding: 6px; gap: 6px; }
+    .module { gap: 8px; }
+    .facility-head { min-height: 0; }
+}
