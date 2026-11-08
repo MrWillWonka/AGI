@@ -11444,6 +11444,41 @@ window.AGI = (function () {
                 if (openBay === 'pipeline' && !(snare.run && !snare.run.over && !snare.preview)) { snarePreview(); showSnareCard('start'); }
                 afterChange();
             },
+            // Packet Snare from scratch (the owner's call: replay a server-room game from its first level): Signal, the tree,
+            // sectors, records and the saved layout cleared, and its first-meeting cards shown again. The rest of the game
+            // stays where it is.
+            resetSnare() {
+                if (snare.run && !snare.run.over && !snare.preview) snare.run.stop();
+                cancelAnimationFrame(snare.raf);
+                snare.raf = 0;
+                closeSnareTree();
+                snareLive(false);
+                Object.assign(snare, { run: null, done: null, fx: [], haul: 0, preview: false, pointer: null, sectorPick: null, cleared: [] });
+                state.snare = E.defaultState().snare;
+                for (const up of E.SNARE_TREE) { delete state.levels[up.id]; delete state.unlocked['up:' + up.id]; }
+                for (const k of Object.keys(state.intro)) if (k.startsWith('snare:')) delete state.intro[k];
+                buildSnareArt();
+                if (openBay === 'pipeline') { snarePreview(); showSnareCard('start'); }
+                log('Debug: Packet Snare reset to its first sector.', 'warning');
+                afterChange();
+            },
+            // The Training Cluster from scratch: back to the warm-up with no skills, no XP and an empty skill tree (the
+            // skills' attributes taken back). Legacy nodes, the lab and Packet Snare stay.
+            resetTraining() {
+                for (let i = 0; i < state.path.learned; i++) {
+                    for (const [k, v] of Object.entries(E.skillAt(i).grants || {})) state.attr[k] = Math.max(0, state.attr[k] - v);
+                }
+                state.path = E.defaultState().path;
+                state.res.xp = 0;
+                Object.assign(state.stats, { rolls: 0, skillsLearned: 0, skilledSprints: 0 });
+                for (const up of E.UPGRADES) if (up.tab === 'training' && !up.legacy) { delete state.levels[up.id]; delete state.unlocked['up:' + up.id]; }
+                Object.assign(path, { roll: null, done: false, pause: 0, overview: 0, glow: null, summit: null, particles: [], tension: 0, focus: null, timeScale: 1, fx: freshFx(), startLeg: null });
+                path.view = 'run';
+                Object.assign(ghost, { roll: null, pause: 0 });
+                dismissResult();
+                log('Debug: the Training Cluster reset to the warm-up.', 'warning');
+                afterChange();
+            },
             snareSector(k) {
                 state.snare.sector = Math.max(0, Math.floor(k) || 0);
                 snare.sectorPick = null;

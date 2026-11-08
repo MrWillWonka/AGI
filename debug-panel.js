@@ -134,6 +134,8 @@
         // The sector to jump to (1-based on screen, as the game shows it).
         const sectorAmount = amountInput(4, 1);
         sectorAmount.min = 1;
+        // A reset that wipes one game's progress: red, like Start over.
+        const dangerButton = (label, fn) => { const b = button(label, fn); b.classList.add('danger'); return b; };
         const startOver = button('Start over (back to the inbox)', AGI.debug.startOver);
         startOver.classList.add('danger');
         const top = document.createElement('div');
@@ -146,12 +148,14 @@
             top,
             section('Packet Snare', button('Open Packet Snare', () => { AGI.debug.openSnare(); toggle(false); }),
                 button('Boss now / clear sector', () => AGI.debug.snareBoss()), button('Max snare tree', () => AGI.debug.snareMax()),
-                group('Go to sector', sectorAmount, button('Go', () => AGI.debug.snareSector(Math.max(1, Math.floor(Number(sectorAmount.value) || 1)) - 1)))),
+                group('Go to sector', sectorAmount, button('Go', () => AGI.debug.snareSector(Math.max(1, Math.floor(Number(sectorAmount.value) || 1)) - 1))),
+                dangerButton('Reset Packet Snare (sector 1, no Signal)', () => AGI.debug.resetSnare())),
             section('Jump ahead', button('Learn next skill', AGI.debug.learnSkill), ...phaseButtons,
                 button('Unlock everything', AGI.debug.unlockAll)),
             section('Training', button('Finish run', AGI.debug.finishRun), button('Test summit', () => AGI.debug.testSummit()),
                 button('Test near miss', () => AGI.debug.testNailBiter()), button('Fling the ball', () => AGI.debug.fling()), button('Max skill tree', AGI.debug.maxTree),
                 button('Toggle Auto-Trainer', AGI.debug.toggleAutoTrainer), button('Reset tree view', AGI.debug.resetTreeView),
+                dangerButton('Reset Training Cluster (warm-up, no XP)', () => AGI.debug.resetTraining()),
                 group('Power-ups', ...[['breakthrough', 'Breakthrough'], ['maxEffort', 'Max Effort'], ['crunch', 'Crunch'], ['flow', 'Flow'], ['viral', 'Viral'],
                     ['system', 'System prompt'], ['superBreakthrough', 'Paradigm Shift'], ['superCrunch', 'Bullet Time'], ['superFlow', 'Lucid Dream']]
                     .map(([k, label]) => button(label, () => AGI.debug.luck(k))))),
