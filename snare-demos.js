@@ -113,6 +113,20 @@
                 if (r.boss) Object.assign(r.boss, { x: 4.2, y: 1.4, vx: 0, vy: 0, chargeAt: 99, charge: null });
             },
             strokes: [[0.9, 0.97, line(1.2, 1.4, 4.6, 1.4, 6)]], expect: r => r.stats.escalations >= 1 },
+        // Floodgate: three clean catches in a row, and a surge of packets swims in.
+        surge: { text: 'Three clean catches in a row: a surge of packets', opts: { surge: 1, flow: true, flowSpread: 0.2, schoolSize: 4 },
+            packets: [['good', 1.2, 1.2], ['good', 1.4, 1.5], ['good', 3, 1.2], ['good', 3.2, 1.5], ['good', 4.8, 1.2], ['good', 5, 1.5]],
+            strokes: [[0.2, 0.7, ring(1.3, 1.35, 0.55, 0.55)], [0.9, 1.4, ring(3.1, 1.35, 0.55, 0.55)], [1.6, 2.1, ring(4.9, 1.35, 0.55, 0.55)]],
+            expect: r => r.stats.surges >= 1 },
+        // Defuse at its last level: loop one mine and the nearest other goes too.
+        defuse: { text: 'Loop a mine: its neighbour goes too, and nets link slower', opts: { boss: 4, bossAt: 0, bossMines: 2, defuseChain: 1, netTime: 5 },
+            packets: [['good', 5.5, 2.5]],
+            setup: r => { r.step(1 / 60); r.boss.mineAt = 99; r.mines = []; r.links = []; },
+            tick: (r, sim) => {
+                if (r.boss) Object.assign(r.boss, { x: 0.8, y: 1.4, vx: 0, vy: 0, chargeAt: 99 });
+                if (sim.t > 0.05 && !sim.laid) { sim.laid = true; r.mines.push({ id: 900, x: 2.6, y: 1.4 }, { id: 901, x: 4.6, y: 1.4 }); r.links.push({ a: 900, b: 901, t: 0 }); }
+            },
+            wire: [1.0, 2.0, ring(4.6, 1.4, 0.5, 0.5)], expect: r => r.stats.minesCleared >= 2 },
         // The branch capstones (Snare 10).
         echo: { text: 'Each loop catches again a second later', opts: { echo: 1, echoDelay: 0.9 },
             packets: [['good', 2.8, 1.3], ['good', 3.2, 1.6], ['good', 0.6, 1.5, 1.6, 0], ['good', 0.4, 1.3, 1.7, 0]],

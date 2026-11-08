@@ -219,3 +219,22 @@ The result:
 - **The red floor is 3%,** reached at about the tree's last red-packet level.
 - **`densityCap` is 1.5**, with `maxOnScreen` 1,400. The total budget was measured: 2,400 packets drew a 1280 px desktop at 30 fps, and 1,400 hold 60. Past the budget, `respawn` divides by the overflow, up to 4×.
 - **Save v22 refunds** every level of the old tree.
+
+### 10.1: two outside reviews
+
+Two outside reviews of the 9.5 tree arrived after Snare 10 shipped. Snare 10 had already addressed most of what they raised:
+- **Already addressed:** the stat bloat, the dead red levels, the cap killing packet nodes, the expensive automation and the branch themes.
+- **The first review's process:** keep the layout and measure first. It was measured on the new tree instead: visible packets on a phone and a desktop, and red share, at 500, 2K, 10K and 100K Signal across several buying styles.
+- **Still true after Snare 10:** red packets didn't drop in the first 500 Signal, and most packet nodes were flat +N%.
+
+The owner's picks:
+- **Sanitizer becomes the down branch's root** and Garbage Collection moves to ring 3 (review 2: an exploit at the very centre came before the player knew the base rules).
+- **Floodgate becomes a combo surge** (review 1: packet nodes should differ by behaviour).
+- **Defuse,** an early counter to the boss's mines that helps a little and grows at its last level (review 2's idea; the owner: early, small, stronger late).
+- **The branches are renamed** Loops, Flow, Intrusion, Countermeasures (review 1).
+
+Measured, for a cheapest-first buyer:
+- **At 500 Signal:** red is 20% of all packets; it was 25.9%.
+- **At 2K Signal:** red is 13%; it was 18%.
+
+The `snare` playtest event now records the field as it played, so the next log can check the screen-cap behaviour on a real phone.

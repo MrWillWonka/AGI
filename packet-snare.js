@@ -236,7 +236,15 @@
         crashEvery: 3,
         crashMult: 3,
         // Zero Trust: a corrupt packet that bounces off your Firewall comes back good.
-        zeroTrust: 0
+        zeroTrust: 0,
+        // Floodgate (Snare 10.1, an outside review's idea): `surgeEvery` clean catches in a row (no spoil or snap
+        // between) set off a surge, 6 + 6 a level packets swimming in at once, then `surgeCooldown` s before the next.
+        surge: 0,
+        surgeEvery: 3,
+        surgeCooldown: 6,
+        // Defuse's last level: a loop that clears one of the boss's mines clears the nearest other one too (its earlier
+        // levels slow the nets: `netTime`, engine.js snareOpts).
+        defuseChain: 0
     };
     const GOLD_VALUE = 5;
     const TAG_VALUE = 2;
@@ -329,6 +337,8 @@
         const s = {
             w, h, opts: o, closeR,
             echoes: [],             // Infinite Loop: loops waiting to catch again ({ poly, at, mult })
+            streak: 0,              // clean catches in a row (Floodgate's surge)
+            surgeAt: 0,             // when the next surge may come
             stormAt: o.storm ? o.stormFirst : Infinity,   // Packet Storm's next school of gold
             time: 0,                // the field's clock (it stops while frozen)
             real: 0,                // the run's own clock (it doesn't)
@@ -366,7 +376,7 @@
             rogueAt: o.rogue ? o.rogueFirst : Infinity,
             boss: null,             // the boss Antivirus once it boots: { x, y, vx, vy, r, hp, maxHp, stunned, charge, shielded }
             bossDone: false,
-            stats: { catches: 0, echoes: 0, storms: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
+            stats: { catches: 0, echoes: 0, storms: 0, surges: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
                 stolen: 0, cores: 0, quarantined: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0,
                 herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0,
                 bossDamage: 0, avDown: 0, glanced: 0, mines: 0, minesCleared: 0, netted: 0, escalations: 0, forks: 0, stars: 0 },
@@ -712,6 +722,11 @@
         function clearMines(poly) {
             const hit = s.mines.filter(m => pointInPolygon(m, poly));
             if (!hit.length) return false;
+            // Defuse at its last level: the nearest other mine goes too.
+            if (o.defuseChain) {
+                const rest = s.mines.filter(m => !hit.includes(m)).sort((a, c) => Math.hypot(a.x - hit[0].x, a.y - hit[0].y) - Math.hypot(c.x - hit[0].x, c.y - hit[0].y));
+                if (rest.length) hit.push(rest[0]);
+            }
             s.mines = s.mines.filter(m => !hit.includes(m));
             s.links = s.links.filter(l => mineById(l.a) && mineById(l.b));
             s.stats.minesCleared += hit.length;
@@ -831,6 +846,7 @@
             s.cooldown = o.snapCooldown;
             s.focus = Math.max(0, s.focus - o.snapPenalty);
             s.stats.snaps++;
+            s.streak = 0;
         }
 
         const spoofed = p => p.kind === 'corrupt' && p.spoof > s.time;
@@ -1674,6 +1690,7 @@
                 return;
             }
             if (j.spoiled) {
+                s.streak = 0;
                 remove(j.inside);
                 s.stats.corrupted++;
                 s.focus = Math.max(0, s.focus - o.corruptPenalty);
@@ -1727,6 +1744,15 @@
             s.stats.units += units;
             s.stats.bestCatch = Math.max(s.stats.bestCatch, units);
             s.stats.bestMult = Math.max(s.stats.bestMult, j.mult);
+            // Floodgate: clean catches in a row set off a surge of packets.
+            if (o.surge && ++s.streak >= o.surgeEvery && s.time >= s.surgeAt) {
+                s.streak = 0;
+                s.surgeAt = s.time + o.surgeCooldown;
+                let left = 6 + 6 * o.surge;
+                while (left > 0) { const n = Math.min(left, Math.max(3, o.schoolSize)); school(n, true); left -= n; }
+                s.stats.surges++;
+                s.events.push({ type: 'surge', count: 6 + 6 * o.surge });
+            }
             // Infinite Loop: the loop catches again in a moment.
             if (o.echo) s.echoes.push({ poly: poly.map(q => ({ x: q.x, y: q.y })), at: s.time + o.echoDelay, mult: j.mult });
             // Second Wind: a big loop gives Focus back.

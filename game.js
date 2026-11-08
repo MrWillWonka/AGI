@@ -3992,6 +3992,7 @@ window.AGI = (function () {
                 else if (t === 'star') { sfx('snarePower', { kind: 'freeze' }); shake(0.3); }
                 else if (t === 'escalate') sfx('snareHijack');
                 else if (t === 'storm') sfx('snarePower', { kind: 'freeze' });
+                else if (t === 'surge') sfx('snarePower', { kind: 'purge' });
                 else if (t === 'convert') sfx('snareSpoof');
                 else if (t === 'spoof') sfx('snareSpoof');
                 else if (t === 'flag') sfx('snareFlag', { flags: e.flags, limit: e.limit });
@@ -4082,6 +4083,10 @@ window.AGI = (function () {
             raced: stats.raced, hijacked: stats.hijacked, partners: stats.partners, partnered: stats.partnered,
             bossDamage: stats.bossDamage, bossHp: snare.run?.opts.boss || 0, glanced: stats.glanced, mines: stats.mines, minesCleared: stats.minesCleared, netted: stats.netted,
             escalations: stats.escalations, forks: stats.forks, stars: stats.stars, packets: snare.run.packets.length,
+            // The field as it played (Snare 10; the outside review's audit): packets a unit², how soon they came back, their
+            // size, red per good packet, and the capstones at work.
+            density: r2(snare.run.opts.density), respawn: r2(snare.run.opts.respawn), packetR: r2(snare.run.opts.packetR), redPerGood: r2(snare.run.opts.corruptShare),
+            echoes: stats.echoes, storms: stats.storms, surges: stats.surges, crashes: stats.crashes, converted: stats.converted, spent: Math.round(state.snare.earned - state.snare.signal),
             area: Math.round(snare.run.w * snare.run.h), replay: !!snare.replay, secs: Math.round(snare.run.time), record: res.record, seed: snare.seed });
         log(`Packet Snare: +${E.format(snare.haul)} Signal from ${stats.caught} packet${stats.caught === 1 ? '' : 's'}${res.record ? ' · new record' : ''}.`, res.record ? 'success' : 'info');
         sfx(res.record ? 'record' : 'runEnd');
@@ -4308,7 +4313,7 @@ window.AGI = (function () {
         chain: 'bolt', chainHops: 'bolt', chainRange: 'bolt', scrubbers: 'filter', corruptMult: 'terminal', lureMult: 'code', purge: 'flame',
         firewalls: 'bricks', wallMult: 'bricks', wallRebuild: 'bricks', fwHits: 'shield', decoys: 'diamond', decoyLure: 'diamond',
         avSpeed: 'ghost', avStun: 'ghost', hijack: 'robot', collude: 'core', respawnMult: 'refresh', flagLimit: 'flag', spoofValue: 'mask',
-        echo: 'loop', storm: 'cloud', crash: 'crash', zeroTrust: 'check' };
+        echo: 'loop', storm: 'cloud', crash: 'crash', zeroTrust: 'check', surge: 'surge', defuse: 'cut' };
     const snareIcon = up => SNARE_STAT_ICON[Object.keys(up.sn || {})[0] || Object.keys(up.stages?.[1] || {})[0]] || 'spark';
     const snareUi = { built: false, nodes: {}, links: [], popup: false, detailKey: '', fresh: false, cam: { x: 0, y: 0, z: 1 }, drag: null, pointers: new Map(), moved: false };
     // Fixed cells (like the Training tree's --cell): the tree grows six cells out from the Lasso, and you pan and zoom it.
@@ -4323,7 +4328,7 @@ window.AGI = (function () {
         grid.prepend(inner);
         snareUi.inner = inner;
         // Branch names on the view's edges, like the Training tree's (round 4: a maxed tree was 57 alike squares).
-        for (const [dir, name] of [['up', 'Loop'], ['right', 'Field'], ['down', 'Exploits'], ['left', 'Defense']]) {
+        for (const [dir, name] of [['up', 'Loops'], ['right', 'Flow'], ['down', 'Intrusion'], ['left', 'Countermeasures']]) {
             grid.append(el('div', { class: `tree-branch tree-branch-${dir}`, 'aria-hidden': 'true' }, [el('strong', { text: name })]));
         }
         const core = el('div', { class: 'tree-node seed owned snare-core', 'aria-hidden': 'true' });
@@ -4580,7 +4585,9 @@ window.AGI = (function () {
         ['hijack', 'Stunned Antivirus', v => (v ? 'can be hijacked' : 'stay hostile')], ['collude', 'A core turns partner', pct],
         ['flagLimit', 'Flags before an IDS alert', String], ['spoofValue', 'A spoofed packet is worth', v => `×${v}`],
         ['echo', 'A closed loop', v => (v ? 'catches again a second later' : 'catches once')], ['storm', 'Packet Storms', v => (v ? 'ten gold every 15 s' : 'none')],
-        ['crash', 'Every third slash', v => (v ? 'crashes it: ×3 damage' : 'a slash like the others')], ['zeroTrust', 'Red packets your walls bounce', v => (v ? 'come back good' : 'stay red')]
+        ['crash', 'Every third slash', v => (v ? 'crashes it: ×3 damage' : 'a slash like the others')], ['zeroTrust', 'Red packets your walls bounce', v => (v ? 'come back good' : 'stay red')],
+        ['surge', 'Three clean catches in a row', v => (v ? `a surge of ${6 + 6 * v} packets` : 'nothing more')],
+        ['netTime', 'Mines link into nets in', v => `${num1(v)} s`], ['defuseChain', 'Looping a mine', v => (v ? 'clears its neighbour too' : 'clears just that one')]
     ];
     // How many packets a field of these options holds on this screen, against a first run (a field the screen caps
     // fills more densely instead of growing).
@@ -6119,6 +6126,8 @@ window.AGI = (function () {
         check: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
         refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
         flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+        surge: '<path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/>',
+        cut: '<circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M8 15 18 4M16 15 6 4"/>',
         bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
         code: '<path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/>',
         mountain: '<path d="m2 20 7-12 4 6 2-3 7 9z"/>',

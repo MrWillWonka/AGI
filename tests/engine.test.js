@@ -1979,13 +1979,13 @@ test('the build stamp has its row in playtests/README.md\'s Builds table (bump B
 test('Packet Snare: every branch opens with cheap packet and red-packet nodes (the owner\'s call: spread through the early tree)', () => {
     const root = up => { while (up.requires) up = E.UPGRADE_BY_ID[up.requires]; return up.id; };
     const ring = up => Math.abs(up.snare.x) + Math.abs(up.snare.y);
-    for (const r of ['snareFocus', 'snareSprawl', 'snareGc', 'snareScrubbers']) {
+    for (const r of ['snareFocus', 'snareSprawl', 'snareSanitizer', 'snareScrubbers']) {
         const early = E.SNARE_TREE.filter(up => root(up) === r && ring(up) <= 3 && up.cost.signal <= 300);
         assert.ok(early.some(up => up.sn.density), `${r}'s branch has a packet node in its first rings`);
         assert.ok(early.some(up => up.sn.cleaner), `${r}'s branch has a red-packet node in its first rings`);
     }
     const n = key => E.SNARE_TREE.filter(up => up.sn[key]).length;
-    assert.ok(n('density') >= 10 && n('cleaner') >= 8, 'many of them, all through the tree');
+    assert.ok(n('density') >= 9 && n('cleaner') >= 8, 'many of them, all through the tree');
 });
 
 test('Packet Snare (Snare 10): four wedges, verbs inside, automation and a capstone at each tip', () => {
@@ -2020,4 +2020,21 @@ test('a save from before Snare 10 gets every Packet Snare level back as Signal',
     const fresh = E.migrate({ ...raw, version: 22, levels: { snareFocus: 2 }, snare: { ...raw.snare, signal: 1200 } }, Date.now());
     assert.equal(fresh.levels.snareFocus, 2, 'a current save keeps its levels');
     assert.equal(fresh.snare.signal, 1200);
+});
+
+test('Packet Snare (10.1): red packets drop from the first buys (two outside reviews)', () => {
+    // A buyer who always takes the cheapest node has fewer red packets before 500 Signal is spent.
+    const s = E.defaultState(Date.now());
+    const base = E.snareOpts(s, 0).corruptShare;
+    const price = up => E.upgradeCost(up, E.level(s, up.id)).signal;
+    let spent = 0;
+    for (;;) {
+        const open = E.SNARE_TREE.filter(up => up.max && E.level(s, up.id) < up.max && (!up.requires || E.level(s, up.requires) >= 1) && (!up.after || E.level(s, up.after) >= 1));
+        const up = open.reduce((a, b) => (price(b) < price(a) ? b : a));
+        if (spent + price(up) > 500) break;
+        spent += price(up);
+        s.levels[up.id] = E.level(s, up.id) + 1;
+    }
+    assert.ok(E.snareOpts(s, 0).corruptShare < base * 0.8, 'red packets cut by 500 Signal');
+    assert.equal(E.UPGRADE_BY_ID.snareSanitizer.requires, undefined, 'Sanitizer is a root');
 });
