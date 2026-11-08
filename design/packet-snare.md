@@ -300,3 +300,15 @@ A run used to stay on its sector after clearing it. It went on with nothing left
 - **When a run ends:** only when Focus runs out. A good run dives several sectors deep, and the next run starts at the frontier.
 - **The end card** lists the sectors the run went through: "Sectors 1–5", Ingress → Buffer → Cache → Backbone → Relay. "Boss health taken" shows only for a boss still standing.
 - **`tools/sim.js`** advances its runs the same way.
+
+### 11.3: gather on, then go deeper
+
+The owner's call: "After clearing the goal extra focus should let them keep gathering". They picked staying with a Focus bonus over moving on automatically.
+
+- **The bonus:** meeting a sector's goal, or beating its boss, tops Focus up by 40% of the bar ("SECTOR CLEARED +25 · +10 FOCUS").
+- **Staying:** the run stays on that sector to keep gathering at its pay.
+- **Go deeper:** **Go deeper →** appears in the HUD (key G). It takes the run on into the next sector when the player chooses.
+  - The next sector's hazards and its goal or boss start from that moment.
+  - Moving on adds no Focus of its own, so the choice is to farm the cleared sector or push on with what's left.
+- **If you don't go deeper,** the next run starts on the next sector.
+- **`tools/sim.js`'s bot** goes deeper at once.

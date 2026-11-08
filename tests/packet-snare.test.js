@@ -646,7 +646,7 @@ test('the hazards arrive one sector at a time: packets, then sweeps, then Antivi
     assert.deepEqual(E.SNARE_STAGES.map(x => x.sector), [...E.SNARE_STAGES.map(x => x.sector)].sort((a, b) => a - b));
 });
 
-test('a cleared sector carries the run on into the next: its hazards, its boss or goal, and Focus topped up', () => {
+test('a cleared sector tops Focus up and the run gathers on there; Go deeper takes it into the next sector', () => {
     const s = E.defaultState(NOW);
     s.snare.sector = 3;
     const r = P.createSnare({ ...E.snareOpts(s, 3), seed: 4 });
@@ -654,11 +654,16 @@ test('a cleared sector carries the run on into the next: its hazards, its boss o
     r.focus = r.maxFocus * 0.4;
     r.stats.caught = r.opts.goal;
     r.step(1 / 60);
-    assert.ok(r.takeEvents().some(e => e.type === 'goal'));
+    const goal = r.takeEvents().find(e => e.type === 'goal');
+    assert.ok(goal && goal.focus > 0, 'the goal pays Focus');
+    assert.ok(Math.abs(r.focus - r.maxFocus * (0.4 + r.opts.clearFocus)) < 1);
+    for (let i = 0; i < 60; i++) r.step(1 / 60);
+    assert.ok(!r.over && r.goalDone && r.opts.goal > 0, 'it stays on the cleared sector, gathering');
+    const f = r.focus;
     r.nextSector(E.snareOpts(s, 4));
     const ev = r.takeEvents().find(e => e.type === 'sector');
-    assert.ok(ev && ev.boss > 0 && ev.focus > 0, 'on to the boss sector, Focus topped up');
-    assert.ok(Math.abs(r.focus - r.maxFocus * (0.4 + r.opts.clearFocus)) < 1);
+    assert.ok(ev && ev.boss > 0, 'on to the boss sector');
+    assert.equal(r.focus, f, 'going deeper adds no Focus of its own');
     assert.equal(r.opts.goal, 0);
     assert.equal(r.opts.boss, E.snareBossHealth(4));
     assert.ok(!r.goalDone && !r.bossDone && !r.over, 'the run goes on');

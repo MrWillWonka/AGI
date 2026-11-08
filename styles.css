@@ -3335,6 +3335,12 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 .snare-focus-fill.low { background: var(--danger); }
 .snare-focus-text { color: var(--muted); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .snare-haul { margin-left: auto; color: var(--signal); white-space: nowrap; flex-shrink: 0; }
+/* Go deeper: once the sector is cleared, the run can move on into the next. */
+.snare-deeper { flex-shrink: 0; padding: 3px 10px; min-height: 24px; font: 600 0.74rem var(--font-mono); color: var(--success); border-color: color-mix(in srgb, var(--success) 55%, transparent); animation: snare-deeper-in 0.4s ease-out; }
+.snare-deeper[hidden] { display: none; }
+@keyframes snare-deeper-in { from { opacity: 0; transform: translateY(-3px); } }
+body.calm .snare-deeper { animation: none; }
+@media (prefers-reduced-motion: reduce) { .snare-deeper { animation: none; } }
 @media (max-width: 640px) { .snare-focus { min-width: 40px; } }
 .snare-card[hidden] { display: none; }
 .snare-card { max-height: calc(100% - 16px); overflow-y: auto; overscroll-behavior: contain; }

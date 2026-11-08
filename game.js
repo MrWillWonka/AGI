@@ -3769,6 +3769,7 @@ window.AGI = (function () {
         $('snareTreeClose').addEventListener('click', closeSnareTree);
         buildSnareTree();
         document.addEventListener('keydown', snareKeys);
+        $('snareDeeper').addEventListener('click', goDeeper);
         $('snareTools').addEventListener('click', e => {
             const b = e.target.closest('[data-tool]');
             if (b) pickSnareTool(b.dataset.tool);
@@ -3972,7 +3973,7 @@ window.AGI = (function () {
                 clearSnareSector(run, e, t === 'bossDown');
             } else if (t === 'sector') {
                 // The run goes on into the next sector: its hazards come in from now, and Focus is topped up.
-                snare.fx.push({ kind: 'quarantine', x: run.w / 2, y: run.h * 0.62, r: 1, t: 0, life: 1.6, text: `${snareSector(snare.sector).toUpperCase()}${e.boss ? ' · BOSS' : ''} · +${e.focus} FOCUS`, big: true });
+                snare.fx.push({ kind: 'quarantine', x: run.w / 2, y: run.h * 0.62, r: 1, t: 0, life: 1.6, text: `${snareSector(snare.sector).toUpperCase()}${e.boss ? ' · BOSS' : ''}`, big: true });
             } else if (t === 'end') {
                 endSnare(e.stats, e.layout);
             } else {
@@ -4076,25 +4077,37 @@ window.AGI = (function () {
         setTimeout(() => { ok.disabled = false; }, 700);
     }
 
-    // A sector cleared mid-run, by its boss or its goal: the engine pays the bounty and moves the frontier on, and the run
-    // carries straight on into the next sector (the owner's call: beating a boss shouldn't stop the run).
+    // A sector cleared mid-run, by its boss or its goal: the engine pays the bounty and moves the frontier on, the run
+    // tops Focus up, and you keep gathering there (the owner's call); Go deeper takes the run on into the next sector
+    // when you choose (`goDeeper`), else the next run starts there.
     function clearSnareSector(run, e, boss) {
         const cleared = snare.sector;
         const replay = cleared < state.snare.sector;
         const pay = boss ? E.snareBossDown(state, cleared) : E.snareGoalMet(state, cleared);
         snare.haul += pay;
         snare.cleared.push(cleared);
-        snare.fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 2, t: 0, life: 1.4, text: `${boss ? 'BOSS DOWN' : 'SECTOR CLEARED'} +${E.format(pay)}`, big: true });
+        snare.fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 2, t: 0, life: 1.6, text: `${boss ? 'BOSS DOWN' : 'SECTOR CLEARED'} +${E.format(pay)}${e.focus ? ` · +${e.focus} FOCUS` : ''}`, big: true });
         sfx('snareBossDown');
         if (shakeOn()) snare.fx.push({ kind: 'shake', t: 0, life: boss ? 0.4 : 0.3 });
-        if (!replay) log(boss ? `Packet Snare: the boss of sector ${cleared + 1} (${E.snareSectorName(cleared)}) is down. On to ${E.snareSectorName(cleared + 1)}.`
-            : `Packet Snare: sector ${cleared + 1} (${E.snareSectorName(cleared)}) cleared, ${run.opts.goal} packets caught. On to ${E.snareSectorName(cleared + 1)}.`, 'success');
+        if (!replay) log(boss ? `Packet Snare: the boss of sector ${cleared + 1} (${E.snareSectorName(cleared)}) is down. Next: ${E.snareSectorName(cleared + 1)}.`
+            : `Packet Snare: sector ${cleared + 1} (${E.snareSectorName(cleared)}) cleared, ${run.opts.goal} packets caught. Next: ${E.snareSectorName(cleared + 1)}.`, 'success');
         pt(boss ? 'snareBoss' : 'snareGoal', { sector: cleared + 1, secs: Math.round(run.time), replay });
-        snare.sector = cleared + 1;
         snare.sectorPick = null;
-        run.nextSector(E.snareOpts(state, snare.sector));
         buildSnareArt();
         save();
+        renderSnareHud();
+    }
+    // Go deeper: a cleared sector's run moves on into the next (its hazards from now, its goal or boss).
+    const snareCleared = run => !!run && !run.over && !snare.preview && (run.goalDone || run.bossDone);
+    function goDeeper() {
+        const run = snare.run;
+        if (!snareCleared(run) || snare.intro) return;
+        snare.sector++;
+        run.nextSector(E.snareOpts(state, snare.sector));
+        pt('snareDeeper', { sector: snare.sector + 1, secs: Math.round(run.time), focus: Math.round(run.focus) });
+        sfx('ui');
+        snareEvents();
+        renderSnareHud();
     }
 
     function endSnare(stats, layout) {
@@ -4199,7 +4212,8 @@ window.AGI = (function () {
             const s = d.stats;
             // Folded like the trail's card: the first lines and the key ones show, the rest under Details.
             const lines = [
-                d.cleared.length ? [d.cleared.length === 1 ? 'Sector cleared' : `${d.cleared.length} sectors cleared`, [...d.cleared, d.sector].map(E.snareSectorName).join(' → '), 'key'] : null,
+                d.cleared.length ? [d.cleared.length === 1 ? 'Sector cleared' : `${d.cleared.length} sectors cleared`,
+                    Array.from({ length: d.sector - d.startSector + 1 }, (_, i) => d.startSector + i).map(k => E.snareSectorName(k) + (d.cleared.includes(k) ? ' ✓' : '')).join(' → '), 'key'] : null,
                 ['Loops closed', `${s.catches}`],
                 s.bestMult >= 1.05 ? ['Biggest loop', `×${s.bestMult.toFixed(1)}`] : null,
                 s.corrupted ? ['Corrupted catches', `${s.corrupted}`] : null,
@@ -4232,7 +4246,7 @@ window.AGI = (function () {
                 snareTrainingLine()
             ].filter(Boolean);
             card.replaceChildren(...[
-                el('div', { class: 'result-title', text: `${d.cleared.length ? `Sectors ${d.startSector + 1}–${d.sector + 1}` : snareSector(d.sector)}${d.sector < state.snare.sector ? ' (replay)' : ''} · ${d.walked ? 'Left the bay' : 'Focus spent'}` }),
+                el('div', { class: 'result-title', text: `${d.sector > d.startSector ? `Sectors ${d.startSector + 1}–${d.sector + 1}` : snareSector(d.sector)}${d.sector < state.snare.sector ? ' (replay)' : ''} · ${d.walked ? 'Left the bay' : 'Focus spent'}` }),
                 el('div', { class: 'result-main', text: s.caught ? `${s.caught} packet${s.caught === 1 ? '' : 's'} snared` : 'Nothing snared' }),
                 el('div', { class: 'result-xp', text: `+${E.format(d.haul)} Signal` }),
                 d.record ? el('span', { class: 'result-badge', text: `New record · was +${E.format(d.prev)}` }) : null,
@@ -4251,8 +4265,8 @@ window.AGI = (function () {
         if (snare.tree) { closeSnareTree(); return true; }
         return false;
     }
-    // Packet Snare's keys, like the Training Cluster's: 1–7 pick a tool (or fire a power), U the tree, R, Space or Enter
-    // the next run from a card.
+    // Packet Snare's keys, like the Training Cluster's: 1–7 pick a tool (or fire a power), U the tree, G goes deeper once
+    // the sector is cleared, R, Space or Enter the next run from a card.
     function snareKeys(e) {
         if (openBay !== 'pipeline' || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
         if (document.querySelector('dialog[open]') || e.target.closest?.('input, textarea, select')) return;
@@ -4263,6 +4277,8 @@ window.AGI = (function () {
             if (t) pickSnareTool(t.id);
         } else if (key === 'u' && state.snare.runs > 0 && !snare.intro) {
             if (snare.tree) closeSnareTree(); else openSnareTree();
+        } else if (key === 'g' && live && snareCleared(snare.run) && !snare.tree) {
+            goDeeper();
         } else if ((key === 'r' || ((key === ' ' || key === 'enter') && !e.target.closest?.('button'))) && !live && !snare.tree && !snare.intro) {
             startSnare();
         } else return;
@@ -4331,7 +4347,8 @@ window.AGI = (function () {
         // The boss's health and an IDS alert's rage stay in the HUD while they last (round 4: the rage showed only as a glow).
         const boss = run.boss ? ` · Boss ${run.boss.hp}/${run.boss.maxHp}${run.boss.enraged ? ' ⚠ ENRAGED' : ''}${run.boss.shielded ? ' · shield' : ''}`
             // A sector with no boss: how far along its goal is (cleared once it's reached).
-            : run.opts.goal > 0 ? ` · ${run.goalDone ? 'Cleared ✓' : `Goal ${Math.min(run.stats.caught, run.opts.goal)}/${run.opts.goal}`}` : '';
+            : run.bossDone ? ' · Boss down ✓'
+            : run.opts.goal > 0 ? ` · ${run.goalDone ? 'Cleared ✓' : `Goal ${Math.min(run.stats.caught - run.sectorCaught, run.opts.goal)}/${run.opts.goal}`}` : '';
         setText($('snareFocusText'), run.cooldown > 0 ? 'Wire snapped…' : run.frozen() ? `Frozen · ${run.frozenLeft.toFixed(1)} s` : `Focus ${Math.ceil(run.focus)}${run.freeDrawUntil > run.time ? ' · FREE DRAW' : ''}${run.flags ? ` · ⚑ ${run.flags}/${run.opts.flagLimit}` : ''}${boss}`);
         // A held Race Condition loop ticks up every half second.
         if (run.race) {
@@ -4339,6 +4356,7 @@ window.AGI = (function () {
             if (step > (snare.raceStep || 0)) { snare.raceStep = step; sfx('snareRace', { step }); }
         } else snare.raceStep = 0;
         renderSnareTools();
+        setHidden($('snareDeeper'), !snareCleared(run));
         setText($('snareHaul'), `+${E.format(snare.haul)} Signal`);
     }
 

@@ -155,7 +155,8 @@
         // of the field (`bossEdge` of the shorter side clear of the edges), so it can be fought most of the time.
         boss: 0,                    // its health (0 = no boss)
         goal: 0,                    // a sector with no boss is cleared by catching this many packets in it (0 = none)
-        clearFocus: 0.3,            // a cleared sector tops Focus up by this share of the bar, and the run goes on into the next
+        clearFocus: 0.4,            // a cleared sector (its goal met or its boss beaten) tops Focus up by this share of the bar,
+                                    // so the run keeps gathering there (Go deeper takes it on into the next sector)
         bossAt: 16,
         bossCatch: 18,
         bossSpeed: 1,               // × an Antivirus's roaming speed
@@ -733,7 +734,7 @@
                 for (const m of s.mines) s.events.push({ type: 'mineDown', x: m.x, y: m.y, boss: true });
                 s.mines = [];
                 s.links = [];
-                s.events.push({ type: 'bossDown', x: b.x, y: b.y });
+                s.events.push({ type: 'bossDown', x: b.x, y: b.y, focus: clearBonus() });
             } else {
                 s.events.push({ type: 'bossHit', x: b.x, y: b.y, r: b.r, hp: b.hp, maxHp: b.maxHp, how, dmg });
             }
@@ -1611,7 +1612,7 @@
             // A sector with no boss: catching its goal of packets clears it (the run goes on).
             if (o.goal > 0 && !s.goalDone && s.stats.caught - s.sectorCaught >= o.goal) {
                 s.goalDone = true;
-                s.events.push({ type: 'goal', x: w / 2, y: h / 2, caught: s.stats.caught - s.sectorCaught });
+                s.events.push({ type: 'goal', x: w / 2, y: h / 2, caught: s.stats.caught - s.sectorCaught, focus: clearBonus() });
             }
             bossStep(dt);
             sweepStep(dt);
@@ -1732,10 +1733,16 @@
             if (s.focus <= 0) end();
         }
 
-        // A cleared sector carries the run on into the next (the owner's call: beating a boss shouldn't stop the run):
-        // `next` is that sector's options (engine.js snareOpts); only what depends on the sector is taken from it. Its
-        // hazards come in from now (a scan, Antivirus or the Rogue AI the last sector didn't have), its boss or goal
-        // starts over, and Focus is topped up by `clearFocus` of the bar.
+        // Go deeper: once a sector is cleared, the run can go on into the next (the owner's call: beating a boss shouldn't
+        // stop the run, and the player picks when to move on). `next` is that sector's options (engine.js snareOpts); only
+        // what depends on the sector is taken from it. Its hazards come in from now (a scan, Antivirus or the Rogue AI the
+        // last sector didn't have), and its boss or goal starts over.
+        // A cleared sector's reward: Focus, so the run keeps gathering there. Returns what it added.
+        function clearBonus() {
+            const before = s.focus;
+            s.focus = Math.min(s.maxFocus, s.focus + o.clearFocus * s.maxFocus);
+            return Math.round(s.focus - before);
+        }
         const SECTOR_KEYS = ['corruptShare', 'avSpeed', 'packetSpeed', 'antivirus', 'sweepFirst', 'sweepEvery', 'rogue', 'rogueFirst', 'rogueEvery',
             'boss', 'goal', 'bossAt', 'bossCatch', 'bossR', 'bossSpeed', 'bossCharge', 'bossWarn', 'bossStun', 'bossMines', 'mineEvery', 'bossMinions'];
         function nextSector(next = {}) {
@@ -1757,10 +1764,8 @@
             for (const m of s.mines) s.events.push({ type: 'mineDown', x: m.x, y: m.y, boss: true });
             s.mines = [];
             s.links = [];
-            const back = Math.round(o.clearFocus * s.maxFocus);
-            s.focus = Math.min(s.maxFocus, s.focus + back);
             s.stats.sectors++;
-            s.events.push({ type: 'sector', focus: back, boss: o.boss, goal: o.goal });
+            s.events.push({ type: 'sector', boss: o.boss, goal: o.goal });
         }
 
         function end() {
