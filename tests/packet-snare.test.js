@@ -416,11 +416,11 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     assert.equal(E.snareOpts(s, E.AV_SECTOR + 4).antivirus.length, 2, 'a second four sectors on');
     s.snare.sector = 0;
     assert.equal(g.focus, 18);
-    assert.equal(g.chain, 2);
+    assert.equal(g.chain, 5, 'Snare 14: five arcs a level');
     assert.ok(g.laser > 0 && g.laser < 4, 'faster with its second level');
     // and a run built from them is bigger, with lasers firing
     const run = P.createSnare({ ...g, seed: 3 });
-    assert.ok(run.packets.length > 18, `a bigger field: ${run.packets.length}`);
+    assert.ok(run.packets.length > 14, `a bigger field: ${run.packets.length}`);
     for (let i = 0; i < 60 * 8; i++) run.step(1 / 60);
     assert.ok(run.stats.lasered > 0);
 });
@@ -633,29 +633,25 @@ test('Herders round good packets up toward the middle and shoo corrupt ones away
     assert.ok(c.vx > 0.3, 'turned away from the middle');
 });
 
-test('hazards wait for runs played too (Snare 12): a fast climber meets them one at a time', () => {
+test('only the Rogue AI waits for runs played (Snare 14: scans and Antivirus come with their sector)', () => {
     const s = E.defaultState(NOW);
-    s.snare.runs = 3;
-    assert.equal(E.snareOpts(s, E.ROGUE_SECTOR).sweepFirst, Infinity, 'no scans before the 4th run, whatever the sector');
-    assert.equal(E.snareOpts(s, E.ROGUE_SECTOR).antivirus.length, 0);
-    s.snare.runs = E.SNARE_RUN_FLOORS.sweeps;
-    assert.ok(E.snareOpts(s, E.ROGUE_SECTOR).sweepFirst < Infinity, 'scans from the 4th');
-    assert.equal(E.snareOpts(s, E.ROGUE_SECTOR).antivirus.length, 0, 'Antivirus wait for the 10th');
-    s.snare.runs = E.SNARE_RUN_FLOORS.antivirus;
-    assert.ok(E.snareOpts(s, E.ROGUE_SECTOR).antivirus.length >= 1);
+    s.snare.runs = 0;
+    assert.ok(E.snareOpts(s, E.ROGUE_SECTOR).sweepFirst < Infinity, 'scans on a first run that far in');
+    assert.ok(E.snareOpts(s, E.AV_SECTOR).antivirus.length >= 1, 'an Antivirus on its sector, whatever the runs');
     assert.equal(E.snareOpts(s, E.ROGUE_SECTOR).rogue, 0, 'the Rogue AI waits for the 18th');
     s.snare.runs = E.SNARE_RUN_FLOORS.rogue;
     assert.ok(E.snareOpts(s, E.ROGUE_SECTOR).rogue >= 1);
 });
 
-test('the hazards arrive one sector at a time: packets, then sweeps, then Antivirus, then the Rogue AI, then minions', () => {
+test('the hazards arrive one sector at a time: packets, then red, then Antivirus, then sweeps, then the Rogue AI, then minions', () => {
     const s = E.defaultState(NOW);
     s.snare.runs = 30;
     const at = k => { s.snare.sector = k; return E.snareOpts(s); };
     const o0 = at(0);
-    assert.ok(o0.sweepFirst === Infinity && o0.antivirus.length === 0 && o0.rogue === 0 && o0.boss === 0 && o0.goal > 0, 'packets and a goal only');
-    assert.ok(at(E.SWEEP_SECTOR).sweepFirst < Infinity && at(E.SWEEP_SECTOR).antivirus.length === 0, 'sweeps next');
-    assert.ok(at(E.AV_SECTOR).antivirus.length >= 1 && at(E.AV_SECTOR).rogue === 0, 'then Antivirus');
+    assert.ok(o0.sweepFirst === Infinity && o0.antivirus.length === 0 && o0.rogue === 0 && o0.boss === 0 && o0.goal > 0 && o0.corruptShare === 0, 'packets and a goal only: not even red');
+    assert.ok(at(E.RED_SECTOR).corruptShare > 0 && at(E.RED_SECTOR).antivirus.length === 0, 'red packets next');
+    assert.ok(at(E.AV_SECTOR).antivirus.length >= 1 && at(E.AV_SECTOR).sweepFirst === Infinity, 'then Antivirus');
+    assert.ok(at(E.SWEEP_SECTOR).sweepFirst < Infinity && at(E.SWEEP_SECTOR).rogue === 0, 'then sweeps');
     assert.ok(at(E.ROGUE_SECTOR).rogue >= 1 && at(E.ROGUE_SECTOR).bossMinions === 0, 'then the Rogue AI');
     assert.ok(at(E.FAST_SWEEP_SECTOR).sweepEvery < at(E.ROGUE_SECTOR).sweepEvery, 'then sweeps come twice as often');
     // The boss's own tricks are gates, much later, each with a tougher boss.
@@ -695,7 +691,7 @@ test('a cleared sector tops Focus up and the run gathers on there; Go deeper tak
     // A sector that brings a new hazard brings it in from now.
     s.snare.runs = 30;
     const t = P.createSnare({ ...E.snareOpts(s, 1), seed: 4, idleDrain: 0 });
-    t.nextSector(E.snareOpts(s, E.SWEEP_SECTOR));
+    t.nextSector(E.snareOpts(s, E.SWEEP_SECTOR + 1));
     for (let i = 0; i < 60 * 12 && !t.stats.sweeps; i++) t.step(1 / 60);
     assert.ok(t.stats.sweeps >= 1, 'a Full Scan comes');
 });

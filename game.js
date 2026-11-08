@@ -4059,8 +4059,8 @@ window.AGI = (function () {
                 else if (t === 'netted') sfx('snareZap');
                 else if (t === 'star') { sfx('snarePower', { kind: 'freeze' }); shake(0.3); }
                 else if (t === 'escalate') sfx('snareHijack');
-                else if (t === 'storm') sfx('snarePower', { kind: 'freeze' });
-                else if (t === 'surge') sfx('snarePower', { kind: 'purge' });
+                else if (t === 'storm') { sfx('snarePower', { kind: 'freeze' }); shake(0.25); }
+                else if (t === 'surge') { sfx('snarePower', { kind: 'purge' }); shake(0.2); }
                 else if (t === 'pulse') sfx('snareChain');
                 else if (t === 'cleanSweep') sfx('snarePower', { kind: 'freeze' });
                 else if (t === 'relay') sfx('snareDecoy');
@@ -4150,7 +4150,7 @@ window.AGI = (function () {
         const pay = boss ? E.snareBossDown(state, cleared) : E.snareGoalMet(state, cleared);
         snare.haul += pay;
         snare.cleared.push(cleared);
-        snare.fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 2, t: 0, life: 1.6, text: `${boss ? 'BOSS DOWN' : 'SECTOR CLEARED'} +${E.format(pay)}${e.focus ? ` · +${e.focus} FOCUS` : ''}`, big: true });
+        snare.fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 2, t: 0, life: 1.6, text: `${boss ? 'BOSS DOWN' : 'SECTOR CLEARED'} +${E.format(pay)}${e.focus > 0 ? ` · +${e.focus} FOCUS` : ''}`, big: true });
         sfx('snareBossDown');
         if (shakeOn()) snare.fx.push({ kind: 'shake', t: 0, life: boss ? 0.4 : 0.3 });
         if (!replay) log(boss ? `Packet Snare: the boss of sector ${cleared + 1} (${E.snareSectorName(cleared)}) is down. Next: ${E.snareSectorName(cleared + 1)}.`
@@ -4198,7 +4198,7 @@ window.AGI = (function () {
             // The field as it played (Snare 10; the outside review's audit): packets a unit², how soon they came back, their
             // size, red per good packet, and the capstones at work.
             density: r2(snare.run.opts.density), respawn: r2(snare.run.opts.respawn), packetR: r2(snare.run.opts.packetR), redPerGood: r2(snare.run.opts.corruptShare),
-            echoes: stats.echoes, storms: stats.storms, surges: stats.surges, cleaned: stats.cleaned, botSpoofed: stats.botSpoofed, gilded: stats.gilded,
+            echoes: stats.echoes, storms: stats.storms, surges: stats.surges, cleaned: stats.cleaned, botSpoofed: stats.botSpoofed, botCollected: stats.botCollected, gilded: stats.gilded,
             pushedOut: stats.pushedOut, autoZones: stats.autoZones, pulses: stats.pulses, sweepsClean: stats.sweepsClean,
             relayed: stats.relayed, pushedBack: stats.pushedBack, raceBroken: stats.raceBroken, crashes: stats.crashes, converted: stats.converted,
             // the bubble prototype: on for this run, and how many bubbles caught
@@ -4450,7 +4450,7 @@ window.AGI = (function () {
         avSpeed: 'ghost', avStun: 'ghost', hijack: 'robot', collude: 'core', respawnMult: 'refresh', flagLimit: 'flag', spoofValue: 'mask',
         echo: 'loop', storm: 'cloud', crash: 'crash', zeroTrust: 'check', surge: 'surge', defuse: 'cut',
         pulse: 'surge', broadband: 'turret', cleanSweep: 'sweep', relay: 'route', backpressure: 'back',
-        cleanBots: 'sweep', spoofBots: 'mask', goldPlate: 'coin', pen: 'pen', autoZone: 'deploy' };
+        cleanBots: 'sweep', spoofBots: 'mask', collectBots: 'robot', goldPlate: 'coin', pen: 'pen', autoZone: 'deploy' };
     const snareIcon = up => SNARE_STAT_ICON[Object.keys(up.sn || {})[0] || Object.keys(up.stages?.[1] || {})[0]] || 'spark';
     const snareUi = { built: false, nodes: {}, links: [], popup: false, detailKey: '', fresh: false, cam: { x: 0, y: 0, z: 1 }, drag: null, pointers: new Map(), moved: false };
     // Fixed cells (like the Training tree's --cell): the tree grows six cells out from the Lasso, and you pan and zoom it.
@@ -4724,16 +4724,17 @@ window.AGI = (function () {
         ['avSpeed', 'Antivirus speed', pct], ['avStun', 'Antivirus stunned for', v => `${num1(v)} s`],
         ['hijack', 'Stunned Antivirus', v => (v ? 'can be hijacked' : 'stay hostile')], ['collude', 'A core turns partner', pct],
         ['flagLimit', 'Flags before an IDS alert', String], ['spoofValue', 'A spoofed packet is worth', v => `×${v}`],
-        ['echo', 'A closed loop', v => (v ? 'catches again a second later' : 'catches once')], ['storm', 'Packet Storms', v => (v ? 'ten gold every 15 s' : 'none')],
+        ['echo', 'A closed loop', v => (v === 1 ? 'catches again a second later' : v ? `catches again ${v} times, a second apart` : 'catches once')],
+        ['storm', 'Packet Storms', v => (v ? `${20 + 10 * (v - 1)} gold every ${Math.max(6, 15 - 2 * (v - 1))} s` : 'none')],
         ['crash', 'Every third slash', v => (v ? 'crashes it: ×3 damage' : 'a slash like the others')], ['zeroTrust', 'Red packets your walls bounce', v => (v ? 'come back good' : 'stay red')],
-        ['surge', 'Three clean catches in a row', v => (v ? `a surge of ${6 + 6 * v} packets` : 'nothing more')],
+        ['surge', 'Three clean catches in a row', v => (v ? `a surge of ${10 + 15 * v} packets` : 'nothing more')],
         ['netTime', 'Mines link into nets in', v => `${num1(v)} s`], ['defuseChain', 'Looping a mine', v => (v ? 'clears its neighbour too' : 'clears just that one')],
         ['pulse', 'A clean loop', v => (v ? `sends in ${2 * v} packets` : 'sends in none')],
         ['broadband', 'Each turret or tower placed', v => (v ? `brings packets back ${Math.round(v * 100)}% sooner` : 'does nothing for refills')],
         ['cleanSweep', 'After a clean loop, the clock stops for', v => `${num1(v)} s`],
         ['relay', 'Red packets your walls bounce', v => (v ? 'swim to your decoy' : 'swim on')],
         ['backpressure', 'A catch', v => (v ? 'turns the packets round it back' : 'leaves the packets round it be')],
-        ['cleanBots', 'Cleaner bots', String], ['spoofBots', 'Spoofer bots', String],
+        ['cleanBots', 'Cleaner bots', String], ['spoofBots', 'Spoofer bots', String], ['collectBots', 'Collector bots', String],
         ['goldPlate', 'Cleaner bots gild a packet every', v => (v ? `${num1(6 / v)} s` : 'never')],
         ['pen', 'Good packets in a section', v => (v ? 'stay in' : 'come and go')],
         ['autoZone', 'Free sections', v => (v ? 'place themselves' : 'wait for you')]
@@ -4863,7 +4864,15 @@ window.AGI = (function () {
             const sub = e.fork ? `FORK ×${e.fork.mults[0].toFixed(1)}·×${e.fork.mults[1].toFixed(1)}` : e.star ? `★ ×${e.mult.toFixed(1)}` : e.mult >= 1.15 ? `×${e.mult.toFixed(1)}` : '';
             fx.push({ kind: 'catch', poly: e.poly, x: e.x, y: e.y, t: 0, text, sub, big: e.mult >= 2.5 || e.gold > 0 || e.chained.length > 2 || !!e.fork || !!e.star, packets: e.packets });
             if (e.fork) fx.push({ kind: 'catch', poly: e.fork.a, x: e.x, y: e.y, t: 0, packets: [] });
-            if (e.chained.length) fx.push({ kind: 'chain', arcs: e.chained, t: 0, life: 0.5, seed: e.x * 13.7 % 1 });
+            // Snare 14 (the owner's call: the powers should feel like powers): longer, brighter arcs, and a big chain says so.
+            if (e.chained.length) fx.push({ kind: 'chain', arcs: e.chained, t: 0, life: 0.8, seed: e.x * 13.7 % 1 });
+            if (e.chained.length >= 6) {
+                fx.push({ kind: 'banner', x: e.x, y: e.y - 1.4, t: 0, life: 1.1, text: `⚡ CHAIN ×${e.chained.length}`, huge: e.chained.length >= 20 });
+                if (e.chained.length >= 12) fx.push({ kind: 'flash', t: 0, life: 0.3 });
+            }
+            if (e.echo) fx.push({ kind: 'banner', x: e.x, y: e.y - 1.2, t: 0, life: 0.8, text: `ECHO ${e.echo > 1 ? `×${e.echo}` : ''}`.trim(), small: true });
+            // Floodgate's combo: clean catches in a row count toward the next surge.
+            if (e.streak > 0) fx.push({ kind: 'banner', x: e.x, y: e.y + 1.1, t: 0, life: 0.9, text: `COMBO ${e.streak}/3`, small: true });
         } else if (e.type === 'laser') fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.45, text, small: true, gold: e.kind === 'gold', turret: !!e.turret });
         else if (e.type === 'zap') fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.4, text: e.av ? `HIT ${e.shots}/${e.of}` : 'WIPED', small: true, zap: true });
         else if (e.type === 'avDown') {
@@ -4883,6 +4892,14 @@ window.AGI = (function () {
         else if (e.type === 'convert') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'TRUSTED', small: true });
         else if (e.type === 'zoneDown') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: Math.max(e.hw, e.hh), t: 0, life: 0.7 });
         else if (e.type === 'gilded') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'GOLD', small: true });
+        // Snare 14: a surge and a storm are events (they used to pass unseen), a Collector bot's net a ring.
+        else if (e.type === 'surge') {
+            fx.push({ kind: 'banner', x: e.x ?? 0, y: (e.y ?? 0) - 1.6, t: 0, life: 1.4, text: `SURGE +${e.count}`, huge: true, centre: e.x === undefined });
+            fx.push({ kind: 'flash', t: 0, life: 0.35 });
+        } else if (e.type === 'storm') {
+            fx.push({ kind: 'banner', x: 0, y: 0, t: 0, life: 1.6, text: `PACKET STORM · ${e.count} GOLD`, huge: true, centre: true });
+            fx.push({ kind: 'flash', t: 0, life: 0.4, gold: true });
+        } else if (e.type === 'botNet') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: e.r, t: 0, life: 0.5 });
         else if (e.type === 'autoZone') fx.push({ kind: 'placed', x: e.x, y: e.y, t: 0, life: 0.6 });
         else if (e.type === 'raceBroken') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.9, text: e.by === 'boss' ? 'HOLD BROKEN · the boss' : 'HOLD BROKEN · scanned', small: true });
         else if (e.type === 'cleanSweep') fx.push({ kind: 'stun', x: e.x, y: e.y + 0.9, t: 0, life: 0.8, text: 'CLOCK STOPPED', small: true });
@@ -6062,6 +6079,24 @@ window.AGI = (function () {
                 ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
                 ctx.strokeStyle = C.bg;
                 ctx.beginPath(); ctx.moveTo(x - 3.5, y + 2.5); ctx.lineTo(x + 3.5, y - 2.5); ctx.stroke();
+            } else if (b.kind === 'collect') {
+                // A Collector bot (Snare 14): white with an amber net across it, its reach a faint ring that fills as it
+                // gets ready to net again.
+                const R = run.opts.collectR * Math.sqrt(run.grow || 1) * k;
+                const ready = Math.max(0, Math.min(1, 1 - (b.ready - t) / run.opts.collectEvery));
+                ctx.globalAlpha = 0.12 + 0.18 * ready;
+                ctx.strokeStyle = C.warning;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.arc(x, y, R, -Math.PI / 2, -Math.PI / 2 + ready * Math.PI * 2); ctx.stroke();
+                ctx.globalAlpha = 1;
+                ctx.lineWidth = 2;
+                ctx.fillStyle = C.text;
+                ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(x - 4, y - 2); ctx.lineTo(x + 4, y - 2); ctx.moveTo(x - 4, y + 2); ctx.lineTo(x + 4, y + 2);
+                ctx.moveTo(x - 2, y - 4.5); ctx.lineTo(x - 2, y + 4.5); ctx.moveTo(x + 2, y - 4.5); ctx.lineTo(x + 2, y + 4.5);
+                ctx.stroke();
             } else {
                 ctx.fillStyle = C.warning;
                 ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
@@ -6192,7 +6227,14 @@ window.AGI = (function () {
             const a = 1 - f.t / f.life;
             ctx.globalAlpha = a;
             ctx.strokeStyle = C.text;
-            ctx.lineWidth = 2;
+            // Snare 14: brighter and thicker, with an amber glow and a spark where each arc lands.
+            ctx.lineWidth = 2.5 + 1.5 * a;
+            ctx.shadowColor = C.warning;
+            ctx.shadowBlur = reducedMotion() ? 0 : 10;
+            for (const c of f.arcs) {
+                ctx.fillStyle = C.warning;
+                ctx.beginPath(); ctx.arc(c.x * k, c.y * k, 3 + 4 * a, 0, Math.PI * 2); ctx.fill();
+            }
             let seed = Math.floor(f.seed * 1e6) + Math.floor(f.t * 30);
             const jit = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280 - 0.5; };
             for (const c of f.arcs) {
@@ -6537,6 +6579,14 @@ window.AGI = (function () {
             ctx.lineTo(f.b.x * k, f.b.y * k);
             ctx.stroke();
         }
+        // A flash (Snare 14: a surge, a storm, a big chain): the whole field lights for a moment (not under reduced motion).
+        for (const f of effects) {
+            if (f.kind !== 'flash' || reducedMotion()) continue;
+            ctx.globalAlpha = 0.16 * (1 - f.t / f.life);
+            ctx.fillStyle = f.gold ? C.warning : C.text;
+            ctx.fillRect(0, 0, W * k, H * k);
+        }
+        ctx.globalAlpha = 1;
         // An IDS alert: the field's edge flashes red and the alert is named in the middle.
         const ids = effects.find(f => f.kind === 'ids');
         if (ids) {
@@ -6561,21 +6611,26 @@ window.AGI = (function () {
         for (const f of effects) {
             if (!f.text) continue;
             const a = Math.min(1, 2 * (1 - f.t / (f.life || SNARE_FX)));
-            let y = f.y * k - 10 - f.t * 26;
-            const x = f.x * k;
+            // A banner centred on the field (a surge or storm the run set off) stays put and swells in.
+            let y = f.centre ? H * k * 0.38 : f.y * k - 10 - f.t * 26;
+            const x = f.centre ? W * k / 2 : f.x * k;
             for (let i = 0; i < 5 && placed.some(p => Math.abs(p.x - x) < 70 && Math.abs(p.y - y) < 16); i++) y -= 16;
             placed.push({ x, y });
             ctx.globalAlpha = a;
-            ctx.font = `700 ${f.small ? 11 : f.big ? 18 : 15}px ${snareMono()}`;
-            ctx.fillStyle = f.kind === 'quarantine' ? C.primary : f.kind === 'stun' ? C.success : f.kind === 'catch' || f.kind === 'laser' || f.kind === 'star' ? (f.big || f.gold ? C.warning : C.text) : C.danger;
+            const pop = f.huge && !reducedMotion() ? 1 + 0.35 * Math.max(0, 1 - f.t / 0.18) : 1;
+            ctx.font = `700 ${Math.round((f.small ? 11 : f.huge ? 24 : f.big ? 18 : 15) * pop)}px ${snareMono()}`;
+            ctx.fillStyle = f.kind === 'banner' ? C.warning : f.kind === 'quarantine' ? C.primary : f.kind === 'stun' ? C.success : f.kind === 'catch' || f.kind === 'laser' || f.kind === 'star' ? (f.big || f.gold ? C.warning : C.text) : C.danger;
             ctx.lineWidth = 3;
             ctx.strokeStyle = C.bg;
-            ctx.strokeText(f.text, x, y);
-            ctx.fillText(f.text, x, y);
+            // Kept inside the field (Snare 14: a big CHAIN or SURGE by the edge ran off a phone's field).
+            const half = ctx.measureText(f.text).width / 2 + 4;
+            const tx = Math.max(half, Math.min(W * k - half, x));
+            ctx.strokeText(f.text, tx, y);
+            ctx.fillText(f.text, tx, y);
             if (f.sub) {
                 ctx.font = `600 12px ${snareMono()}`;
                 ctx.fillStyle = C.primary;
-                ctx.fillText(f.sub, x, y + 15);
+                ctx.fillText(f.sub, tx, y + 15);
             }
         }
         ctx.globalAlpha = 1;

@@ -279,10 +279,10 @@ test('IDS alerts say what they set off', () => {
 test('training skills power you up in Packet Snare, each by its name', () => {
     const E = require('../engine.js');
     const s = E.defaultState(1);
-    const base = E.snareOpts(s, 0);
+    const base = E.snareOpts(s, E.RED_SECTOR);
     assert.deepEqual(E.snareSkillBuffs(s), [], 'none before any skill');
     s.path.learned = E.SKILL_INDEX['Translation'] + 1;
-    const o = E.snareOpts(s, 0);
+    const o = E.snareOpts(s, E.RED_SECTOR);
     const names = E.snareSkillBuffs(s).map(b => b.name);
     assert.ok(names.includes('Image Recognition') && names.includes('Translation'));
     assert.equal(o.slashDamage, base.slashDamage + 2, 'the two walls add slash damage');
@@ -291,11 +291,12 @@ test('training skills power you up in Packet Snare, each by its name', () => {
         assert.ok(E.SKILL_INDEX[name] !== undefined, `${name} is a skill`);
         assert.ok(b.text.length <= 80, `${name}: a short line`);
     }
-    // The field's hazards every three sectors, the boss's gates on its sectors (every fifth, from the second boss),
+    // The field's hazards (Snare 14, the owner's call: red on sector 2, Antivirus on 3, Full Scans on 5, then the Rogue
+    // AI and faster scans every three sectors), the boss's gates on its sectors (every fifth, from the second boss),
     // never on one sector.
     const field = E.SNARE_STAGES.filter(x => !x.gate && x.sector).map(x => x.sector);
     const gates = E.SNARE_STAGES.filter(x => x.gate).map(x => x.sector);
-    assert.deepEqual(field.map((k, i) => (i ? k - field[i - 1] : 3)), field.map(() => 3));
+    assert.deepEqual(field, [1, 2, 4, 8, 11]);
     assert.deepEqual(gates.map((k, i) => (i ? k - gates[i - 1] : 5)), gates.map(() => 5));
     assert.ok(gates.every(E.isSnareBossSector) && gates[0] > 4, 'gates are boss sectors, after the first boss');
     assert.ok(!gates.some(k => field.includes(k)));

@@ -53,7 +53,8 @@ test('Packet Snare\'s tree follows the Training tree\'s rules: priced past its p
     const seen = new Set(['0,0']);   // the Lasso takes the centre
     for (const n of nodes) {
         if (n.endless) assert.equal(n.max, undefined, `${n.id}: the endless node has no cap`);
-        else assert.ok(n.max >= 1 && n.max <= 3, `${n.id} has 1–3 levels`);
+        // Snare 14 (the owner's call): the powers grow over five levels, like an incremental's; the rest keep 1–3.
+        else assert.ok(n.max >= 1 && n.max <= 5, `${n.id} has 1–5 levels`);
         assert.ok(n.cost.signal > 0 && Object.keys(n.cost).length === 1, `${n.id} is bought with Signal`);
         assert.ok(n.effect && n.effect.length <= 80, `${n.id}: a short, plain effect`);
         assert.ok(n.flavor && n.flavor.length <= 70, `${n.id}: a short quip`);
@@ -1985,14 +1986,15 @@ test('Packet Snare: every branch opens with cheap packet and red-packet nodes (t
         assert.ok(early.some(up => up.sn.cleaner), `${r}'s branch has a red-packet node in its first rings`);
     }
     const n = key => E.SNARE_TREE.filter(up => up.sn[key]).length;
-    assert.ok(n('density') >= 9 && n('cleaner') >= 8, 'many of them, all through the tree');
+    assert.ok(n('density') >= 8 && n('cleaner') >= 8, 'many of them, all through the tree');
 });
 
 test('Packet Snare (Snare 10): four wedges, verbs inside, automation and a capstone at each tip', () => {
     const ring = up => Math.abs(up.snare.x) + Math.abs(up.snare.y);
     const by = id => E.UPGRADE_BY_ID[id];
-    // The automation sits far out (the owner's call: idle play comes much later), the active verbs nearer the centre.
-    for (const id of ['snareHerders', 'snareScanner', 'snareTowers', 'snareLaser', 'snareTurrets']) assert.ok(ring(by(id)) >= 5, `${id} is out at the tip`);
+    // Snare 14 (the owner's call: a long gap between the first bots and the rest): every drone and turret is in reach by
+    // mid-game, its first level 4,000 Signal or less.
+    for (const id of ['snareHerders', 'snareTowers', 'snareLaser', 'snareTurrets', 'snareCleanerBot', 'snareSpooferBot', 'snareCollectorBot']) assert.ok(by(id).cost.signal <= 4000, `${id} comes by mid-game`);
     for (const id of ['snareChain', 'snareFreeze', 'snareRace', 'snarePurge', 'snareDecoys', 'snareSpoof', 'snareRiposte']) assert.ok(ring(by(id)) <= 5, `${id} is a verb on the inner rings`);
     // A capstone on each axis, six cells out, each a new rule with a demo.
     for (const [id, x, y] of [['snareEcho', 0, -6], ['snareStorm', 6, 0], ['snareBlueScreen', 1, 4], ['snareZeroTrust', -6, 0]]) {
@@ -2017,7 +2019,7 @@ test('a save from before Snare 11 gets every Packet Snare level back as Signal (
     assert.equal(m.levels.snareFocus, undefined);
     assert.equal(m.levels.snareSprawl, undefined);
     assert.equal(m.snare.signal, 5000, 'everything it earned this version, back to spend');
-    const fresh = E.migrate({ ...raw, version: 25, levels: { snareFocus: 2 }, snare: { ...raw.snare, signal: 1200 } }, Date.now());
+    const fresh = E.migrate({ ...raw, version: 26, levels: { snareFocus: 2 }, snare: { ...raw.snare, signal: 1200 } }, Date.now());
     assert.equal(fresh.levels.snareFocus, 2, 'a current save keeps its levels');
     assert.equal(fresh.snare.signal, 1200);
 });
@@ -2025,7 +2027,7 @@ test('a save from before Snare 11 gets every Packet Snare level back as Signal (
 test('Packet Snare (10.1): red packets drop from the first buys (two outside reviews)', () => {
     // A buyer who always takes the cheapest node has fewer red packets before 500 Signal is spent.
     const s = E.defaultState(Date.now());
-    const base = E.snareOpts(s, 0).corruptShare;
+    const base = E.snareOpts(s, E.RED_SECTOR).corruptShare;
     const price = up => E.upgradeCost(up, E.level(s, up.id)).signal;
     let spent = 0;
     for (;;) {
@@ -2035,7 +2037,7 @@ test('Packet Snare (10.1): red packets drop from the first buys (two outside rev
         spent += price(up);
         s.levels[up.id] = E.level(s, up.id) + 1;
     }
-    assert.ok(E.snareOpts(s, 0).corruptShare < base * 0.9, 'red packets cut by 500 Signal (gently: Snare 12 keeps red alive longer)');
+    assert.ok(E.snareOpts(s, E.RED_SECTOR).corruptShare < base * 0.9, 'red packets cut by 500 Signal (gently: Snare 12 keeps red alive longer)');
     assert.equal(E.UPGRADE_BY_ID.snareSanitizer.requires, undefined, 'Sanitizer is a root');
 });
 

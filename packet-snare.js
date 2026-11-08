@@ -53,7 +53,8 @@
         respawn: 1.2,               // seconds before a caught packet's replacement swims in
         density: 0.13,              // good packets per unit² of field…
         maxGood: 340,               // …up to this many (Firehose and Floodgate raise it)
-        corruptShare: 0.176,        // corrupt packets per good one: 15% of all packets (Snare 11, the owner's call; it was 26%)
+        corruptShare: 0.111,        // corrupt packets per good one: 10% of all packets (Snare 14, the owner's call: fewer red, an
+                                    // Antivirus sooner; it was 15%, 26% before that). None on the first sector (engine.js)
         corruptLure: 0.6,           // how strongly corrupt packets swim toward the nearest school (they hide in the crowd)
         goldChance: 0.04,           // a new good packet is gold this often…
         goldValue: 5,               // …worth this many (Mother Lode adds to it)
@@ -132,6 +133,13 @@
         // for `spoofSeconds`). Each works once every `botEvery` s, at `botSpeed` units a second (× √ of the growth).
         cleanBots: 0,
         spoofBots: 0,
+        // Collector bots (Snare 14, the owner's call: more drones by mid-game): each flies to good packets and every
+        // `collectEvery` s nets the good ones within `collectR` (× √ of the growth) of it, up to `collectCap`, paid at ×1;
+        // never while a red packet is that close (it moves on instead).
+        collectBots: 0,
+        collectEvery: 2,
+        collectR: 1.1,
+        collectCap: 8,
         goldPlate: 0,
         goldEvery: 6,
         botEvery: 3,
@@ -300,14 +308,18 @@
         // of them, coming back sooner), never under 0.55 of this.
         packetR: 0.3,
         // ---- The branch capstones (Snare 10; pure upgrades, the owner's call) -----------------------------------
-        // Infinite Loop: a loop you close catches again `echoDelay` s later, whatever good has swum inside (red stays).
+        // Infinite Loop: a loop you close catches again `echoDelay` s later, whatever good has swum inside (red stays);
+        // once more, a further `echoDelay` s on, for each level past the first (Snare 14).
         echo: 0,
         echoDelay: 1,
-        // Packet Storm: every `stormEvery` s (the first at `stormFirst`) a school of `stormSize` gold packets swims in.
+        // Packet Storm: every `stormEvery` s (the first at `stormFirst`) a school of `stormSize` gold packets swims in; each
+        // level past the first adds `stormGrow` and comes `stormFaster` s sooner (Snare 14: 2–3× what it was, five levels).
         storm: 0,
         stormFirst: 6,
         stormEvery: 15,
-        stormSize: 10,
+        stormSize: 20,
+        stormGrow: 10,
+        stormFaster: 2,
         // Blue Screen: every `crashEvery`th slash on a boss crashes it: ×`crashMult` damage.
         crash: 0,
         crashEvery: 3,
@@ -315,7 +327,10 @@
         // Zero Trust: a corrupt packet that bounces off your Firewall comes back good.
         zeroTrust: 0,
         // Floodgate (Snare 10.1, an outside review's idea): `surgeEvery` clean catches in a row (no spoil or snap
-        // between) set off a surge, 6 + 6 a level packets swimming in at once, then `surgeCooldown` s before the next.
+        // between) set off a surge, `surgeBase` + `surgeGrow` a level packets swimming in at once (Snare 14: 25, 40, 55…;
+        // it was 12, 18, 24), then `surgeCooldown` s before the next.
+        surgeBase: 10,
+        surgeGrow: 15,
         surge: 0,
         surgeEvery: 3,
         surgeCooldown: 6,
@@ -431,7 +446,7 @@
         const shortSide = Math.min(w, h);
         const maxWire = o.maxWire * grow;
         const s = {
-            w, h, opts: o, closeR,
+            w, h, opts: o, closeR, grow,
             echoes: [],             // Infinite Loop: loops waiting to catch again ({ poly, at, mult })
             streak: 0,              // clean catches in a row (Floodgate's surge)
             freeDrawUntil: 0,       // Clean Sweep: the clock is stopped until then
@@ -481,7 +496,7 @@
             goalBonus: 0,           // half of what its loops were worth past their packets (counts toward the goal)
             lastLoopAt: -1e9,       // when the last loop paid (a loop moments after it is rushed)
             clears: 0,              // sectors cleared this run (each clear's Focus bonus is half the last's)
-            stats: { catches: 0, bubbles: 0, spawned: 0, pickups: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
+            stats: { catches: 0, bubbles: 0, spawned: 0, pickups: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, botCollected: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
                 stolen: 0, cores: 0, quarantined: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0,
                 herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0,
                 bossDamage: 0, avDown: 0, glanced: 0, mines: 0, minesCleared: 0, netted: 0, escalations: 0, forks: 0, stars: 0 },
@@ -589,9 +604,11 @@
 
         // Bots start round the middle too.
         s.bots = [];
-        for (let i = 0; i < o.cleanBots + o.spoofBots; i++) {
-            const a = (i + 0.5) * Math.PI * 2 / Math.max(1, o.cleanBots + o.spoofBots);
-            s.bots.push({ id: s.nextId++, kind: i < o.cleanBots ? 'clean' : 'spoof', x: w / 2 + Math.cos(a) * 2, y: h / 2 + Math.sin(a) * 2, vx: 0, vy: 0, ready: 0, goldAt: o.goldEvery });
+        const nBots = o.cleanBots + o.spoofBots + (o.collectBots || 0);
+        for (let i = 0; i < nBots; i++) {
+            const a = (i + 0.5) * Math.PI * 2 / Math.max(1, nBots);
+            const kind = i < o.cleanBots ? 'clean' : i < o.cleanBots + o.spoofBots ? 'spoof' : 'collect';
+            s.bots.push({ id: s.nextId++, kind, x: w / 2 + Math.cos(a) * 2, y: h / 2 + Math.sin(a) * 2, vx: 0, vy: 0, ready: kind === 'collect' ? o.collectEvery * (0.5 + i * 0.2) : 0, goldAt: o.goldEvery, avoid: new Set() });
         }
         // Each bot heads for the nearest red packet (one no other bot is after) and works on it when it gets there; with
         // nothing to do it drifts back toward the middle. A Cleaner bot with Gold Plating gilds a regular packet now and then.
@@ -599,6 +616,7 @@
             if (!s.bots.length) return;
             const speed = o.botSpeed * grow, taken = new Set();
             for (const b of s.bots) {
+                if (b.kind === 'collect') { collectStep(b, dt, speed, taken); continue; }
                 const reds = s.packets.filter(p => p.kind === 'corrupt' && !spoofed(p) && !taken.has(p.id));
                 let target = null, bd = Infinity;
                 for (const p of reds) { const d = Math.hypot(p.x - b.x, p.y - b.y); if (d < bd) { bd = d; target = p; } }
@@ -634,6 +652,40 @@
                     }
                 }
             }
+        }
+
+        // A Collector bot: heads for the nearest good packet no other bot is after (skipping ones it gave up on, red too
+        // close) and, once there and ready, nets every good packet within its reach, paid at ×1 like a hijacked Antivirus.
+        function collectStep(b, dt, speed, taken) {
+            const R = o.collectR * Math.sqrt(grow);
+            let target = null, bd = Infinity;
+            for (const p of s.packets) {
+                if (!isGood(p) || taken.has(p.id) || b.avoid.has(p.id)) continue;
+                const d = (p.x - b.x) ** 2 + (p.y - b.y) ** 2;
+                if (d < bd) { bd = d; target = p; }
+            }
+            const aim = target || { x: w / 2, y: h / 2 };
+            if (target) taken.add(target.id);
+            const dx = aim.x - b.x, dy = aim.y - b.y, L = Math.hypot(dx, dy) || 1;
+            const want = target ? speed : Math.min(speed * 0.4, L);
+            b.vx += (dx / L * want - b.vx) * Math.min(1, 4 * dt);
+            b.vy += (dy / L * want - b.vy) * Math.min(1, 4 * dt);
+            b.x = Math.max(0.2, Math.min(w - 0.2, b.x + b.vx * dt));
+            b.y = Math.max(0.2, Math.min(h - 0.2, b.y + b.vy * dt));
+            if (!target || Math.sqrt(bd) > R * 0.6 || s.time < b.ready) return;
+            const near = s.packets.filter(p => Math.hypot(p.x - b.x, p.y - b.y) <= R);
+            if (near.some(p => p.kind === 'corrupt' && !spoofed(p))) {
+                b.avoid.add(target.id);
+                if (b.avoid.size > 40) b.avoid.clear();
+                return;
+            }
+            const got = near.filter(isGood).sort((p, q) => valueOf(q) - valueOf(p)).slice(0, o.collectCap);
+            if (!got.length) return;
+            b.ready = s.time + o.collectEvery;
+            b.avoid.clear();
+            s.stats.botCollected += got.length;
+            s.events.push({ type: 'botNet', x: b.x, y: b.y, r: R, count: got.length });
+            takeFor(got, b, 'collector');
         }
 
         // ---- The boss Antivirus --------------------------------------------------------------------------
@@ -1951,16 +2003,18 @@
                 s.stats.gold += gold;
                 s.stats.units += units;
                 const at = centroid(e.poly);
-                s.events.push({ type: 'catch', echo: true, x: at.x, y: at.y, poly: e.poly, area: polygonArea(e.poly), count: got.length, gold, mult: e.mult, units, packets: got, chained: [], scrubbed: 0 });
+                s.events.push({ type: 'catch', echo: e.n || 1, x: at.x, y: at.y, poly: e.poly, area: polygonArea(e.poly), count: got.length, gold, mult: e.mult, units, packets: got, chained: [], scrubbed: 0 });
             }
             // Packet Storm: a school of gold swims in.
             if (s.time >= s.stormAt) {
-                s.stormAt = s.time + o.stormEvery;
+                const lv = Math.max(0, o.storm - 1), size = o.stormSize + o.stormGrow * lv;
+                s.stormAt = s.time + Math.max(6, o.stormEvery - o.stormFaster * lv);
                 const before = s.packets.length;
-                school(o.stormSize, true);
+                let left = size;
+                while (left > 0) { const n = Math.min(left, 12); school(n, true); left -= n; }
                 for (const p of s.packets.slice(before)) p.kind = 'gold';
                 s.stats.storms++;
-                s.events.push({ type: 'storm', count: o.stormSize });
+                s.events.push({ type: 'storm', count: size });
             }
             // Refills: schools of the missing good packets swim in from an edge, corrupt ones one at a time.
             if (s.time >= refillAt) {
@@ -2214,8 +2268,9 @@
                     if (best) cands.push({ q, from: best, d: bd });
                 }
                 cands.sort((a, b) => a.d - b.d || a.q.id - b.q.id);
-                // Never more arcs than packets the loop itself caught (a scribble's one-packet loop arcs once).
-                const arcs = Math.min(o.chain, j.good.length);
+                // Never more than twice the packets the loop itself caught (a scribble's one-packet loop arcs twice; Snare 14
+                // loosened it from once, the owner's call: Chain Lightning had to feel like a power).
+                const arcs = Math.min(o.chain, 2 * j.good.length);
                 for (const c of cands.slice(0, arcs)) chained.push({ packet: c.q, from: { x: c.from.x, y: c.from.y } });
                 // Chain Storm: each hop arcs on from the packets the last one reached, to as many again.
                 let front = chained.map(c => c.packet);
@@ -2284,16 +2339,17 @@
             if (o.surge && !hasty && ++s.streak >= o.surgeEvery && s.time >= s.surgeAt) {
                 s.streak = 0;
                 s.surgeAt = s.time + o.surgeCooldown;
-                let left = 6 + 6 * o.surge;
+                const size = o.surgeBase + o.surgeGrow * o.surge;
+                let left = size;
                 while (left > 0) { const n = Math.min(left, Math.max(3, o.schoolSize)); school(n, true); left -= n; }
                 s.stats.surges++;
-                s.events.push({ type: 'surge', count: 6 + 6 * o.surge });
+                s.events.push({ type: 'surge', count: size, x: at.x, y: at.y });
             }
-            // Infinite Loop: the loop catches again in a moment.
-            if (o.echo && !hasty) s.echoes.push({ poly: poly.map(q => ({ x: q.x, y: q.y })), at: s.time + o.echoDelay, mult: j.mult });
+            // Infinite Loop: the loop catches again in a moment, once more for each level past the first.
+            if (o.echo && !hasty) for (let i = 1; i <= o.echo; i++) s.echoes.push({ poly: poly.map(q => ({ x: q.x, y: q.y })), at: s.time + o.echoDelay * i, mult: j.mult, n: i });
             // Second Wind: a big loop gives Focus back.
             if (o.focusBack && j.mult >= 2) s.focus = Math.min(s.maxFocus, s.focus + o.focusBack);
-            s.events.push({ type: 'catch', x: at.x, y: at.y, poly, area: j.area, count, gold, mult: j.mult, units, packets: j.inside, race: bonus, fork: j.fork || null, star: j.star || null, hasty, safe: !!j.safe,
+            s.events.push({ type: 'catch', x: at.x, y: at.y, poly, area: j.area, count, gold, mult: j.mult, units, packets: j.inside, race: bonus, streak: o.surge ? s.streak : 0, fork: j.fork || null, star: j.star || null, hasty, safe: !!j.safe,
                 chained: chained.map(c => ({ x: c.packet.x, y: c.packet.y, from: c.from, kind: c.packet.kind })), scrubbed: j.corrupt.length });
         }
 

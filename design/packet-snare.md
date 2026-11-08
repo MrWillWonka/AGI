@@ -553,3 +553,27 @@ was committed (0.22 s), then chased the pen at a capped speed (0.6 of the field'
 smoothing filter (meant for wires) ran under it too. Now it sticks to the pen from its first frame (`bubbleFollow`
 0.012 s), the slop and flick checks measure from where the pen went down, and bubbles take the raw pen position. In
 the browser a 900 px/s drag leaves it about 1 px behind.
+
+## Snare 14: harder early, bots by mid-game, powers that feel like powers
+
+The owner's log of 13.2 (a fresh run from the reset to sector 13: 55.6K Signal in about 17 minutes of play): "much
+better feel later on, but I wanted more bots roaming around by the time I got to where I stopped, and early game it
+wasn't as harrowing for a while, so lighten up on the red packets in favour of another Antivirus; too much space between
+the beginning and the other automations; a lot more power behind the fun things like Chain Lightning". The log showed
+three drones at the end (Cleaner ×2, Spoofer ×1), the first Antivirus on sector 7 (held by the 10-runs floor), and Chain
+Lightning arcing 22–48 packets a run against 300–700 caught. Asked four questions, the owner chose:
+
+- **Threats:** red packets on sector 2 at 10% (none on sector 1), Antivirus on sector 3, Full Scans on sector 5; the
+  runs-played floors for scans and Antivirus are gone (the Rogue AI keeps its own).
+- **The bot gap, both ways:** every drone and turret's first level is 4,000 Signal or less (Herders 3.5K, Targeted Laser
+  3.8K, Scanner Towers 4K, Turrets 4K), their parent chains flattened to keep the rule that a node's first level costs
+  more than its parent's last (Long Wire and Torrent one level, Overflow 2K, Decoys 2.5K over two levels; Turrets moved
+  in front of Hijack). Cleaner Bot and Spoofer Bot give four drones each, and a new **Collector Bot** (2.6K off Garbage
+  Collection, three drones) flies to good packets and nets small clusters every 2 s, never with red that close.
+- **Powers, bigger and more levels, louder:** Chain Lightning 5 arcs a level over five levels (and a loop may arc to
+  twice the packets it caught), Chain Storm five levels, Floodgate 25 + 15 a level over five, Packet Storm 20 gold over
+  five levels (10 more, 2 s sooner each), Infinite Loop three (an echo a second further on per level), the laser five
+  (2.5 s down to 0.6 s). Chains of 6 or more say ⚡ CHAIN ×n and big ones flash the field; surges and storms, which
+  passed unseen, get banners, a flash and a shake; arcs are thicker and glow. One test shot: a maxed chain took 81.
+
+Save v26 refunds the tree (its prices and shape changed).

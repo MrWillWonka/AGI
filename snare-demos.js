@@ -171,6 +171,10 @@
         spoofer: { text: 'A drone seeks red packets and spoofs them: good, ×2', opts: { spoofBots: 1, botSpeed: 4, botEvery: 1.2 },
             packets: [['corrupt', 4.6, 0.8], ['corrupt', 1.4, 2.1], ['good', 3, 1.4]],
             expect: r => r.stats.botSpoofed >= 2 },
+        // Snare 14: a drone that nets small clusters of good packets for you.
+        collector: { text: 'A drone nets small clusters of good packets for you', opts: { collectBots: 1, botSpeed: 4, collectEvery: 1 },
+            packets: [['good', 4.2, 0.9], ['good', 4.5, 1.1], ['good', 4.4, 0.7], ['good', 1.5, 2.2], ['good', 1.3, 2.0]],
+            expect: r => r.stats.botCollected >= 4 },
         goldPlate: { text: 'Cleaner bots turn regular packets gold', opts: { cleanBots: 1, goldPlate: 2, goldEvery: 1.6, botSpeed: 3 },
             packets: [['good', 3, 1.2], ['good', 3.4, 1.6], ['good', 2.6, 1.7]],
             expect: r => r.stats.gilded >= 2 },

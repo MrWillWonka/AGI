@@ -282,12 +282,12 @@ test('the tree thins the corrupt packets, fills the field with packets and grows
     const base = E.snareOpts(s);
     for (const id of ['snareChecksums', 'snareErrorCorrection', 'snareSignatures', 'snareInputValidation', 'snareSanitizer', 'snareSpamFilter', 'snareReputation']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
     s.levels.snareSprawl = 3; s.levels.snareMegasprawl = 3; s.levels.snareHyperscale = 3;
-    for (const id of ['snareSchools', 'snareFirehose', 'snareBroadband', 'snareTorrent', 'snarePacketStream', 'snareOpenPorts', 'snareLoadBalancer', 'snareMirrorPort', 'snareRateLimit']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
+    for (const id of ['snareSchools', 'snareFirehose', 'snareBroadband', 'snareTorrent', 'snarePacketStream', 'snareOpenPorts', 'snareMirrorPort', 'snareRateLimit']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
     s.levels.snareFirewalls = 1;
     const o = E.snareOpts(s, E.AV_SECTOR);
     assert.ok(o.corruptShare <= E.snareOpts(E.defaultState(NOW), E.AV_SECTOR).corruptShare * 0.4, 'well under half the corrupt packets');
     assert.ok(o.area > 70 * 30, 'nine Sprawl levels');
-    assert.ok(o.density / base.density >= 5, `five times the packets or more (${(o.density / base.density).toFixed(2)})`);
+    assert.ok(o.density / base.density >= 4.5, `four and a half times the packets or more (Snare 14: Load Balancer is Collector Bot now) (${(o.density / base.density).toFixed(2)})`);
     assert.deepEqual(o.antivirus, E.snareOpts(E.defaultState(NOW), E.AV_SECTOR).antivirus, 'the hazards come from the sector, not the field');
     assert.equal(o.firewalls, 3, 'a slot more for each tool from Megasprawl\'s and Hyperscale\'s last levels');
     assert.equal(o.decoys, 0, 'none for tools you don\'t own');
