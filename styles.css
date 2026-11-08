@@ -3399,8 +3399,17 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 @media (max-width: 640px) and (min-height: 501px) {
     .snare-view > .canvas-wrap { height: max(240px, calc(100dvh - var(--topbar-h, 100px) - var(--bay-bar-h, 39px) - var(--snare-tools-h, 52px) - 112px)); }
 }
+/* Phones sideways (the owner's screenshot: a 126 px strip of field under the bar, the HUD and the tool bar): the field and
+   the tool bar share one row, the tools a column at the right edge under the thumb, and the field takes the height the
+   bay's bar and the HUD leave; the tree's buttons stand in a column on its left so the tree keeps the height. */
 @media (pointer: coarse) and (max-height: 500px) {
-    .snare-view > .canvas-wrap { height: clamp(120px, calc(100dvh - 204px), 600px); }
-    .snare-tools { margin-top: 2px; }
-    .snare-tool { min-height: 30px; }
+    .snare-view { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr); gap: 4px 6px; align-items: stretch; justify-content: stretch; }
+    .snare-view > .run-stats { grid-column: 1 / -1; min-height: 22px; }
+    .snare-view > .canvas-wrap { grid-column: 1; grid-row: 2; width: auto; height: max(140px, calc(100dvh - var(--topbar-h, 44px) - 110px)); }
+    .snare-tools { grid-column: 2; grid-row: 2; flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; width: auto; margin: 0; overflow-y: auto; }
+    .snare-tool { min-height: 30px; padding: 3px 8px; }
+    .snare-tool-name { display: none; }
+    .snare-tree { grid-template: minmax(0, 1fr) / auto minmax(0, 1fr); padding: 6px; }
+    .snare-tree-bar { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 6px; }
+    .snare-tree-bar .button, .snare-tree-bar .ghost-button { padding: 5px 10px; font-size: 0.8rem; }
 }

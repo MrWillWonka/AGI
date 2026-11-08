@@ -3670,7 +3670,10 @@ window.AGI = (function () {
         const toWorld = e => {
             const r = canvas.getBoundingClientRect();
             const z = uiScale();
-            return [((e.clientX - r.left) / z - snare.ox) / snare.scale, ((e.clientY - r.top) / z - snare.oy) / snare.scale];
+            const sx = (e.clientX - r.left) / z - snare.ox, sy = (e.clientY - r.top) / z - snare.oy;
+            // A turned field (see snareFit): screen x runs down the field's height, screen y along its width.
+            if (snare.turned && snare.run) return [sy / snare.scale, snare.run.h - sx / snare.scale];
+            return [sx / snare.scale, sy / snare.scale];
         };
         canvas.addEventListener('pointerdown', e => {
             const run = snare.run;
@@ -3742,13 +3745,18 @@ window.AGI = (function () {
         });
     }
 
-    // The field keeps its shape for the run; the view letterboxes it into the canvas.
+    // The field keeps its shape for the run; the view letterboxes it into the canvas. A phone turned sideways mid-run (or
+    // back) would leave an upright field as a strip in a wide canvas (the owner's screenshot), so the view turns the field
+    // a quarter turn when that fits it much better (`snare.turned`: drawn rotated, text kept upright, the pen mapped back).
     function snareFit() {
         const run = snare.run;
         const f = run ? run : snareField();
-        snare.scale = Math.min(snare.cw / f.w, snare.ch / f.h);
-        snare.ox = (snare.cw - f.w * snare.scale) / 2;
-        snare.oy = (snare.ch - f.h * snare.scale) / 2;
+        const flat = Math.min(snare.cw / f.w, snare.ch / f.h), turned = Math.min(snare.cw / f.h, snare.ch / f.w);
+        snare.turned = !!run && !snare.preview && turned > flat * 1.15;
+        const fw = snare.turned ? f.h : f.w, fh = snare.turned ? f.w : f.h;
+        snare.scale = Math.min(snare.cw / fw, snare.ch / fh);
+        snare.ox = (snare.cw - fw * snare.scale) / 2;
+        snare.oy = (snare.ch - fh * snare.scale) / 2;
     }
 
     function openSnare() {
@@ -4662,7 +4670,7 @@ window.AGI = (function () {
     function drawSnare() {
         if (!snare.ctx || !snare.cw) return;
         drawSnareView(snare.ctx, { run: snare.run, effects: snare.fx, k: snare.scale, ox: snare.ox, oy: snare.oy, cw: snare.cw, ch: snare.ch,
-            dpr: snare.canvas.width / snare.cw, field: snare.run || snareField(), touch: snare.touch, wallFrom: snare.wallFrom });
+            dpr: snare.canvas.width / snare.cw, field: snare.run || snareField(), touch: snare.touch, wallFrom: snare.wallFrom, turned: snare.turned });
     }
 
     function drawSnareView(ctx, v) {
@@ -4676,6 +4684,15 @@ window.AGI = (function () {
         ctx.save();
         ctx.translate(v.ox + jx, v.oy);
         const W = v.field.w, H = v.field.h;
+        // A turned field: a quarter turn clockwise (world x down the screen, y right to left), with every label drawn
+        // upright where it lands.
+        if (v.turned) {
+            ctx.transform(0, 1, -1, 0, H * v.k, 0);
+            for (const m of ['fillText', 'strokeText']) {
+                const draw = CanvasRenderingContext2D.prototype[m];
+                ctx[m] = function (text, x, y, ...rest) { this.save(); this.translate(x, y); this.rotate(-Math.PI / 2); draw.call(this, text, 0, 0, ...rest); this.restore(); };
+            }
+        }
         // The field: a faint grid, like a scope (a cell every unit, or every two on a big field).
         const gstep = Math.max(1, Math.round(Math.sqrt(W * H) / 8));
         ctx.strokeStyle = C.border;
@@ -4703,6 +4720,7 @@ window.AGI = (function () {
         for (const layer of SNARE_LAYERS()) layer(d);
         ctx.restore();
         ctx.restore();
+        if (v.turned) { delete ctx.fillText; delete ctx.strokeText; }
     }
 
     // Distance from p to the segment ab (world units).
