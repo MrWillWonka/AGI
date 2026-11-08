@@ -60,7 +60,7 @@ test('Packet Snare\'s tree follows the Training tree\'s rules: priced past its p
         const key = `${n.snare.x},${n.snare.y}`;
         assert.ok(!seen.has(key), `${n.id} overlaps another node`);
         seen.add(key);
-        assert.ok(Math.abs(n.snare.x) <= 5 && Math.abs(n.snare.y) <= 5, `${n.id} sits on the 11 × 11 grid`);
+        assert.ok(Math.abs(n.snare.x) <= 6 && Math.abs(n.snare.y) <= 6, `${n.id} sits on the 13 × 13 grid`);
         const parent = n.requires ? E.UPGRADE_BY_ID[n.requires] : null;
         const at = parent ? parent.snare : { x: 0, y: 0 };
         assert.equal(Math.abs(at.x - n.snare.x) + Math.abs(at.y - n.snare.y), 1, `${n.id} is adjacent to what it grows from`);
@@ -1974,4 +1974,16 @@ test('the build stamp has its row in playtests/README.md\'s Builds table (bump B
     const label = E.BUILD.split('·')[1].split(':')[0].trim();
     const readme = fs.readFileSync(path.join(__dirname, '..', 'playtests', 'README.md'), 'utf8');
     assert.ok(readme.includes(`**${label}**`), `a Builds row for "${label}"`);
+});
+
+test('Packet Snare: every branch opens with cheap packet and red-packet nodes (the owner\'s call: spread through the early tree)', () => {
+    const root = up => { while (up.requires) up = E.UPGRADE_BY_ID[up.requires]; return up.id; };
+    const ring = up => Math.abs(up.snare.x) + Math.abs(up.snare.y);
+    for (const r of ['snareFocus', 'snareSprawl', 'snareGc', 'snareChain']) {
+        const early = E.SNARE_TREE.filter(up => root(up) === r && ring(up) <= 3 && up.cost.signal <= 300);
+        assert.ok(early.some(up => up.sn.density), `${r}'s branch has a packet node in its first rings`);
+        assert.ok(early.some(up => up.sn.cleaner), `${r}'s branch has a red-packet node in its first rings`);
+    }
+    const n = key => E.SNARE_TREE.filter(up => up.sn[key]).length;
+    assert.ok(n('density') >= 15 && n('cleaner') >= 10, 'many of them, all through the tree');
 });
