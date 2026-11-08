@@ -1,5 +1,5 @@
 // Playtest recorder: what happens in a real session, stamped with play time, kept on this device and copied out
-// as text (Journal → Settings → Playtest log). No DOM and no game rules: game.js calls it at its hook points.
+// as text (Settings → Playtest log). No DOM and no game rules: game.js calls it at its hook points.
 // UMD: window.Playtest in the browser, require() in Node (tests).
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory();

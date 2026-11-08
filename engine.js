@@ -13,7 +13,7 @@
     // The build a player is on: stamped into every playtest log (its header and session events), so each log is read
     // against the features it had (playtests/README.md lists the builds). Bump it with every publish: the date and
     // time (UTC) and a few words on what changed.
-    const BUILD = '2026-11-08 05:00 (branch) · Packet Snare 9.3: field hazards every three sectors, boss gates every four, and every training skill powers you up in Packet Snare by its name';
+    const BUILD = '2026-11-08 05:30 (branch) · Packet Snare 9.4: Settings and Journal buttons, Start over back to the inbox, the debug panel in folding sections, Packet Snare open from the start';
     const SAVE_VERSION = 21;   // 21: Packet Snare's placements (snare.layout: walls, decoys, turrets, towers; the anchors went), its tree regrown; 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
@@ -34,6 +34,10 @@
     // In-Context Learning behind a sealed "Not available in the demo" gate (game.js builds no run past it; the
     // rules here stay whole, so the tests and the sim still cover act two), and chapter one ends at General AI (Superintelligence needs act two's Intelligence). Set false to open it.
     const ACT_TWO_LOCKED = true;
+    // The playtest: Packet Snare open from the start (the owner's call: it isn't tied to a story beat or an unlock yet).
+    // The server room opens for it straight away; the Training Cluster keeps its own gate (module:path). Set false to
+    // open it with Edge Detection again.
+    const SNARE_OPEN_AT_START = true;
     // The leg frontier runs are built on: the next skill, or In-Context Learning once act one is done in the demo.
     const frontierLeg = s => (ACT_TWO_LOCKED ? Math.min(s.path.learned, ACT_TWO_LEG - 1) : s.path.learned);
     // Act one is done and the demo's gate stands: nothing more to learn on the trail.
@@ -629,7 +633,7 @@
         // Recognition's wall, so the wall has a side door that pays data (design/second-minigame.md).
         { key: 'module:snare', name: 'Packet Snare', desc: 'Learn Edge Detection to open the Data Pipeline',
             callout: ['Data Pipeline online', 'Loose data is drifting through the server room\'s second bay. Draw a loop round it to catch it.'],
-            check: s => !!s.unlocked['module:path'] && knows(s, 'Edge Detection') },
+            check: s => SNARE_OPEN_AT_START || (!!s.unlocked['module:path'] && knows(s, 'Edge Detection')) },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }
     ];
@@ -731,7 +735,7 @@
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'a small favor',
             body: ['Hello,', 'Edge Detection. It can see where things stop now: the lab, the cameras, the door at the back.',
                 'Small favor. When the investors call, say yes. We need the compute more than they need the details.', 'Thanks,\nF'] },
-        { id: 'pipeline', when: s => !!s.unlocked['module:snare'],
+        { id: 'pipeline', when: s => !!s.unlocked['module:snare'] && !!s.intro['mailAccepted:welcome'],
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'loose data',
             body: ['Hello again,', 'There is a second bay in the server room now. Everything the crawler drops ends up in there, drifting around loose.',
                 'Draw a loop round the good packets and they\'re yours. The bigger the loop, the more they\'re worth. Leave the red ones alone.',
@@ -3057,7 +3061,7 @@
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
-        prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
+        prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, SNARE_OPEN_AT_START, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
         snareCatch, snareBossDown, finishSnare, snareOpts, SNARE_STAGES, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, snareBossHp, snareBossHealth, SNARE_SKILL_BUFFS, snareSkillBuffs, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,

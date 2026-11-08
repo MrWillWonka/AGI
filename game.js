@@ -1497,8 +1497,17 @@ window.AGI = (function () {
             for (const sec of sections) sec.hidden = sec.dataset.section !== name;
         };
         tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.section)));
-        show('log');
-        $('journalButton').addEventListener('click', () => { clearJournalNew(); journal.showModal(); });
+        // Two doors into one dialog (the owner's call): Settings opens on the settings with the log beside them, the
+        // Journal on the achievements with the stats beside them.
+        const open = (mode, first) => {
+            for (const t of tabs) t.hidden = t.dataset.mode !== mode;
+            setText($('journalTitle'), mode === 'settings' ? 'Settings' : 'Journal');
+            $('journalClose').setAttribute('aria-label', `Close ${mode === 'settings' ? 'settings' : 'journal'}`);
+            show(first);
+            if (!journal.open) journal.showModal();
+        };
+        $('journalButton').addEventListener('click', () => { clearJournalNew(); open('journal', 'goals'); });
+        $('settingsButton').addEventListener('click', () => open('settings', 'settings'));
         $('journalClose').addEventListener('click', () => journal.close());
         // Click on the backdrop closes it too.
         journal.addEventListener('click', e => { if (e.target === journal) journal.close(); });
@@ -1966,21 +1975,31 @@ window.AGI = (function () {
         }
     }
 
+    // Settings → Start over (the owner's call: playtesters start over; a short warning, then Erase everything).
     async function hardReset() {
         const { ok } = await openDialog({
-            title: 'Erase all progress?',
-            message: 'This deletes everything, including shipped versions, Insight and achievements. It cannot be undone.',
+            title: 'Start over?',
+            message: 'Everything you\'ve done is erased for good.',
             okLabel: 'Erase everything',
             danger: true
         });
-        if (!ok) return;
-        pt('save', { op: 'erase', skills: state.path.learned, version: E.currentVersion(state) });
+        if (ok) startFresh('erase');
+    }
+    // A brand-new game, all the way back to the start (the inbox's opening and all): the save is replaced with a fresh
+    // one and the page reloads, so nothing from the old game is left on screen or in memory (debug's Start over used to
+    // reset the state in place and skip the opening). Per-device settings and the playtest log stay.
+    function startFresh(op) {
+        pt('save', { op, skills: state.path.learned, version: E.currentVersion(state) });
         state = E.defaultState(Date.now());
+        path.roll = null;
         resetView();
         resetBulk();
         save();
-        log('Game reset.', 'warning');
-        afterChange();
+        try { location.reload(); } catch {
+            $('gameLog').replaceChildren();
+            afterChange();
+            openInbox();
+        }
     }
 
     // A brand-new game (erase, debug start over) starts the ×1 / ×10 / Max switch at ×1 again.
@@ -2546,7 +2565,8 @@ window.AGI = (function () {
     // rooms are data: a new room is an entry here plus a `.room[data-room=id]` section (built: true).
     const ROOMS = {
         lab: { name: 'Lab', built: true },
-        servers: { name: 'Server room', built: true, unlocked: () => !!state.unlocked['module:path'] },
+        // Open with training, or with Packet Snare (open from the start in the playtest, E.SNARE_OPEN_AT_START).
+        servers: { name: 'Server room', built: true, unlocked: () => !!state.unlocked['module:path'] || !!state.unlocked['module:snare'] },
         rnd: { name: 'R&D', built: true,
             unlocked: () => E.prestigeGain(state) >= 1 || state.prestige.count > 0 || state.transcend.count > 0 },
         boardroom: { name: 'Boardroom', phase: 1 },
@@ -2883,7 +2903,7 @@ window.AGI = (function () {
     let mapAutoMin = null;   // set once the minimap is built: shrinks it to the pill where it would cover things
     function renderMinimap() {
         const nav = $('minimap');
-        const show = !!state.unlocked['module:path'];
+        const show = roomUnlocked('servers');
         nav.hidden = !show;
         document.body.classList.toggle('has-minimap', show);
         if (!show) return;
@@ -10867,16 +10887,8 @@ window.AGI = (function () {
                 return { on: ghostOn(), pause: r2(ghost.pause), leg: r ? r.leg : null, x: r ? r2(r.ball.x) : null, v: r ? r2(r.ball.v) : null,
                     launched: !!r?.launched, over: !!r?.over, pushesLeft: r ? r.pushesLeft : null, sprints: ghost.sprints, fumbles: ghost.fumbles, legs: ghost.legs, xp: r2(ghost.xp) };
             },
-            startOver() {
-                state = E.defaultState(Date.now());
-                path.roll = null;
-                resetView();
-                resetBulk();
-                save();
-                $('gameLog').replaceChildren();
-                log('Started over (debug).', 'warning');
-                afterChange();
-            },
+            // A brand-new game, from the inbox (no confirmation: the debug panel is the owner's).
+            startOver() { startFresh('debugStartOver'); },
             // The Packet Snare run in play (tests and the debug view; read it, don't change it).
             snareRun: () => snare.run,
             // Packet Snare's boss: bring it into the run in play now, or clear the sector outright.

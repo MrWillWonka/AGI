@@ -1460,7 +1460,17 @@ body.calm .ending-lines p { animation: none; opacity: 1; }
 .debug-panel.minimized .debug-body { display: none; }
 
 .debug-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
-.debug-body h4 { margin: 0 0 4px; font: 700 0.75rem var(--font-display); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.debug-body h4 { margin: 0 0 4px; font: 700 0.7rem var(--font-display); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+/* Folding sections: a summary bar each, the content under it. */
+.debug-section { border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--panel) 60%, transparent); }
+.debug-section > summary { cursor: pointer; padding: 7px 10px; font: 700 0.75rem var(--font-display); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text); list-style: none; display: flex; align-items: center; gap: 8px; }
+.debug-section > summary::-webkit-details-marker { display: none; }
+.debug-section > summary::before { content: '▸'; color: var(--muted); transition: transform 0.15s; }
+.debug-section[open] > summary::before { transform: rotate(90deg); }
+.debug-section > .debug-row { padding: 2px 10px 10px; }
+.debug-group { width: 100%; }
+.debug-group + .debug-group { margin-top: 6px; }
+.debug-top .danger { border-color: var(--danger); color: var(--danger); }
 .debug-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 
 .debug-row input {
@@ -3270,6 +3280,10 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
 .topbar .phase.pulse { animation: phase-pulse 1.2s ease-out; }
 @keyframes phase-pulse { 0% { filter: brightness(1.8) drop-shadow(0 0 10px var(--success)); } 100% { filter: none; } }
 .journal-button { position: relative; }
+/* Settings: a gear and its name (the name drops on phones, where the top bar is tight). */
+.settings-button { display: inline-flex; align-items: center; gap: 6px; }
+.settings-button svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 640px), (pointer: coarse) and (max-height: 500px) { .settings-label { display: none; } }
 .journal-new { background: #ffd27a; color: #1a1406; }
 .journal-button.burst { animation: star-burst 1.2s ease-out; }
 @keyframes star-burst { 0% { box-shadow: 0 0 0 0 rgba(255, 210, 122, 0.7); border-color: #ffd27a; } 100% { box-shadow: 0 0 0 14px rgba(255, 210, 122, 0); } }

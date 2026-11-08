@@ -335,8 +335,13 @@ test('a run\'s haul sets the version\'s record', () => {
     assert.equal(s.snare.runs, 3);
 });
 
-test('the Data Pipeline opens with Edge Detection once the server room is open', () => {
+test('the Data Pipeline opens with Edge Detection once the server room is open (or from the start in the playtest)', () => {
     const s = E.defaultState(NOW);
+    if (E.SNARE_OPEN_AT_START) {
+        E.evaluate(s);
+        assert.ok(s.unlocked['module:snare'], 'open from the start');
+        return;
+    }
     s.unlocked['module:path'] = true;
     s.path.learned = E.SKILL_INDEX['Edge Detection'];
     E.evaluate(s);
@@ -391,8 +396,10 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
 
 test('Packet Snare\'s tree opens with the bay, grows node by node, and is bought with Signal', () => {
     const s = E.defaultState(NOW);
-    E.evaluate(s);
-    assert.ok(!E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareSprawl));
+    if (!E.SNARE_OPEN_AT_START) {
+        E.evaluate(s);
+        assert.ok(!E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareSprawl));
+    }
     s.unlocked['module:snare'] = true;
     E.evaluate(s);
     assert.ok(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareSprawl), 'the first ring shows');

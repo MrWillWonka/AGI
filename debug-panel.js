@@ -24,15 +24,41 @@
         return b;
     }
 
+    // A collapsible section (the owner's call: quick to get to what you need); which are open is remembered per device.
+    const OPEN_KEY = 'agiDebugOpen';
+    let openSet = null;
+    function openSections() {
+        if (openSet) return openSet;
+        try { openSet = new Set(JSON.parse(localStorage.getItem(OPEN_KEY) || 'null') || ['Packet Snare', 'Jump ahead']); } catch { openSet = new Set(['Packet Snare', 'Jump ahead']); }
+        return openSet;
+    }
     function section(title, ...children) {
-        const s = document.createElement('section');
-        const h = document.createElement('h4');
+        const s = document.createElement('details');
+        s.className = 'debug-section';
+        s.open = openSections().has(title);
+        const h = document.createElement('summary');
         h.textContent = title;
         const body = document.createElement('div');
         body.className = 'debug-row';
         body.append(...children);
         s.append(h, body);
+        s.addEventListener('toggle', () => {
+            if (s.open) openSet.add(title); else openSet.delete(title);
+            try { localStorage.setItem(OPEN_KEY, JSON.stringify([...openSet])); } catch { /* storage unavailable */ }
+        });
         return s;
+    }
+    // A labelled group inside a section (a small heading over its own row).
+    function group(title, ...children) {
+        const g = document.createElement('div');
+        g.className = 'debug-group';
+        const h = document.createElement('h4');
+        h.textContent = title;
+        const row = document.createElement('div');
+        row.className = 'debug-row';
+        row.append(...children);
+        g.append(h, row);
+        return g;
     }
 
     function amountInput(value, step) {
@@ -105,35 +131,44 @@
         songLabel.className = 'debug-song';
         const phaseButtons = E.PHASES.slice(1).map((p, i) => button(`Reach ${p.name}`, () => AGI.debug.reachPhase(i + 1)));
 
+        // The sector to jump to (1-based on screen, as the game shows it).
+        const sectorAmount = amountInput(4, 1);
+        sectorAmount.min = 1;
+        const startOver = button('Start over (back to the inbox)', AGI.debug.startOver);
+        startOver.classList.add('danger');
+        const top = document.createElement('div');
+        top.className = 'debug-row debug-top';
+        top.append(startOver, button('Save now', AGI.save));
+
+        // Ordered by how often they're used (the owner's call): starting over and Packet Snare first, then jumping
+        // ahead, training, resources and time, then the rest; each section folds away.
         body.append(
-            section('Save', button('Save now', AGI.save), button('Start over', AGI.debug.startOver)),
-            section('Resources', resAmount, ...resButtons),
-            section('Attributes', attrAmount, ...attrButtons),
-            section('Per second', ...incomeInputs),
-            section('Rate multipliers', ...rateInputs),
-            section('Time', simAmount, button('Simulate seconds', () => AGI.debug.simulate(Number(simAmount.value) || 0))),
-            section('Game speed', ...speedButtons),
-            section('Progress', button('Learn next skill', AGI.debug.learnSkill), ...phaseButtons,
+            top,
+            section('Packet Snare', button('Open Packet Snare', () => { AGI.debug.openSnare(); toggle(false); }),
+                button('Boss now / clear sector', () => AGI.debug.snareBoss()), button('Max snare tree', () => AGI.debug.snareMax()),
+                group('Go to sector', sectorAmount, button('Go', () => AGI.debug.snareSector(Math.max(1, Math.floor(Number(sectorAmount.value) || 1)) - 1)))),
+            section('Jump ahead', button('Learn next skill', AGI.debug.learnSkill), ...phaseButtons,
                 button('Unlock everything', AGI.debug.unlockAll)),
-            section('Versions', button('Add a version (+10 Insight)', AGI.debug.addVersion), button('Ship next version now', AGI.debug.shipVersion),
-                button('Max legacy nodes', AGI.debug.maxLegacy), button('Open challenges', AGI.debug.openChallenges),
-                button('Beat the running challenge', AGI.debug.beatChallenge), button('Ready to transcend', AGI.debug.readyTranscend)),
+            section('Training', button('Finish run', AGI.debug.finishRun), button('Test summit', () => AGI.debug.testSummit()),
+                button('Test near miss', () => AGI.debug.testNailBiter()), button('Fling the ball', () => AGI.debug.fling()), button('Max skill tree', AGI.debug.maxTree),
+                button('Toggle Auto-Trainer', AGI.debug.toggleAutoTrainer), button('Reset tree view', AGI.debug.resetTreeView),
+                group('Power-ups', ...[['breakthrough', 'Breakthrough'], ['maxEffort', 'Max Effort'], ['crunch', 'Crunch'], ['flow', 'Flow'], ['viral', 'Viral'],
+                    ['system', 'System prompt'], ['superBreakthrough', 'Paradigm Shift'], ['superCrunch', 'Bullet Time'], ['superFlow', 'Lucid Dream']]
+                    .map(([k, label]) => button(label, () => AGI.debug.luck(k))))),
+            section('Resources', group('Add', resAmount, ...resButtons), group('Attributes', attrAmount, ...attrButtons),
+                group('Per second', ...incomeInputs), group('Rate multipliers', ...rateInputs)),
+            section('Time', group('Game speed', ...speedButtons),
+                group('Simulate', simAmount, button('Simulate seconds', () => AGI.debug.simulate(Number(simAmount.value) || 0)))),
             section('Lab', button('Fill investor offers', AGI.debug.fillOffers), button('Finish offers', AGI.debug.finishOffers),
                 button('Clear offers', AGI.debug.clearOffers), button('Meet automation gates', AGI.debug.meetAutomation),
                 button('+10 every hardware', () => AGI.debug.addHardware(10)), button('+1 every lab upgrade', AGI.debug.buyLabUpgrades),
                 button('Lab log line', () => AGI.debug.labLog())),
-            section('Packet Snare', button('Open Packet Snare', () => { AGI.debug.openSnare(); toggle(false); }),
-                button('Boss now / clear sector', () => AGI.debug.snareBoss()), button('Max snare tree', () => AGI.debug.snareMax()),
-                button('Sector 4', () => AGI.debug.snareSector(3)), button('Sector 8', () => AGI.debug.snareSector(7))),
             section('Server room', button('+50 laps per cleared leg', () => AGI.debug.addLaps(50)), button('Record 90%', () => AGI.debug.setRecord(0.9)),
                 button('Reset room visits', AGI.debug.resetVisits)),
-            section('Training', button('Finish run', AGI.debug.finishRun), button('Test summit', () => AGI.debug.testSummit()),
-                button('Test near miss', () => AGI.debug.testNailBiter()), button('Fling the ball', () => AGI.debug.fling()), button('Max skill tree', AGI.debug.maxTree),
-                button('Toggle Auto-Trainer', AGI.debug.toggleAutoTrainer), button('Reset tree view', AGI.debug.resetTreeView)),
+            section('Versions', button('Add a version (+10 Insight)', AGI.debug.addVersion), button('Ship next version now', AGI.debug.shipVersion),
+                button('Max legacy nodes', AGI.debug.maxLegacy), button('Open challenges', AGI.debug.openChallenges),
+                button('Beat the running challenge', AGI.debug.beatChallenge), button('Ready to transcend', AGI.debug.readyTranscend)),
             section('Music', songLabel, button('Next song', AGI.debug.nextSong), button('Next section', AGI.debug.nextSection)),
-            section('Power-ups', ...[['breakthrough', 'Breakthrough'], ['maxEffort', 'Max Effort'], ['crunch', 'Crunch'], ['flow', 'Flow'], ['viral', 'Viral'],
-                ['system', 'System prompt'], ['superBreakthrough', 'Paradigm Shift'], ['superCrunch', 'Bullet Time'], ['superFlow', 'Lucid Dream']]
-                .map(([k, label]) => button(label, () => AGI.debug.luck(k)))),
             section('State', stateView)
         );
         panel.append(header, body);
