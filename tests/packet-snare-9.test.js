@@ -70,7 +70,11 @@ test('a loop round the boss stuns it (Snare 12): no parry needed, and slashes la
     assert.ok(!(b.stunned > s.time));
     Object.assign(b, { charge: null, chargeAt: 1e9 });
     circle(s, b.x, b.y, b.r + 0.8);
-    assert.equal(s.stats.loopStuns, 1, 'the loop round it stuns it');
+    assert.equal(s.stats.loopStuns, 0, 'one loop isn\'t enough (Snare 12.7)');
+    assert.equal(b.loops, 1);
+    s.step(0.5);
+    circle(s, b.x, b.y, b.r + 0.8);
+    assert.equal(s.stats.loopStuns, 1, 'the second loop round it stuns it');
     assert.ok(b.stunned > s.time && !b.charge);
     slash(s);
     assert.equal(b.hp, 2, 'and a slash lands');

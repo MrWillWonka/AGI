@@ -19,6 +19,11 @@
     --terminal-hi: #9ff0c9;
     --terminal-dim: #5f9c80;
     --research: #c792ea;      /* research: the wall, its supply cell, legacy */
+    /* Packet Snare's packets (Snare 12.7, a theme audit): good, bad (corrupt) and a tag's edge, each set apart in every
+       theme by hue and lightness; themes override where their own palette put good and bad too close */
+    --snare-good: var(--primary);
+    --snare-bad: var(--danger);
+    --snare-tag: var(--research);
     --research-deep: #7a4fa6;
     --owned: var(--success);  /* what you've bought (the skill tree): set apart from what you can buy (--warning) */
     --font-display: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
@@ -3111,6 +3116,8 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
    above that was one of these tokens reads the token (directly or through color-mix), so a theme is just a
    new set of tokens. Resource colours (research violet, the ball's amber) stay. */
 :root[data-theme="red"] {
+    --snare-good: #9fd8ff;   /* ice blue: the theme's pinks sat beside the red packets */
+    --snare-bad: #ff2a2a;
     --bg: #120708;
     --bg-2: #18090b;
     --panel: #1f0c0f;
@@ -3132,6 +3139,8 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
     --owned: var(--research);   /* violet: ember and gold were too close to tell bought from buyable */
 }
 :root[data-theme="pink"] {
+    --snare-good: #8fe3c8;   /* mint: lavender-pink good packets beside pink-red bad ones */
+    --snare-bad: #ff3b3b;
     --bg: #19111a;
     --bg-2: #1f1520;
     --panel: #261a27;
@@ -3153,6 +3162,8 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
 }
 /* Void (with the Ominous beat): near-black indigo, cold violet light. */
 :root[data-theme="void"] {
+    --snare-tag: #5fe0c8;    /* teal: a violet tag edge vanished on indigo packets */
+    --snare-bad: #ff4646;
     --bg: #07070c;
     --bg-2: #0b0b13;
     --panel: #10101a;
@@ -3174,6 +3185,8 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
 }
 /* Arcade (with the Retro beat): synthwave neon on deep navy. */
 :root[data-theme="arcade"] {
+    --snare-tag: #b6ff3b;    /* lime: a magenta tag read as a red packet */
+    --snare-bad: #ff4a26;
     --bg: #0b0820;
     --bg-2: #100b2b;
     --panel: #160f36;
@@ -3333,6 +3346,11 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 .snare-focus { flex: 1; max-width: 320px; height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--border) 80%, transparent); overflow: hidden; }
 .snare-focus-fill { height: 100%; width: 100%; border-radius: inherit; background: var(--primary); transform-origin: left; transition: background 0.2s; }
 .snare-focus-fill.low { background: var(--danger); }
+/* the run's last seconds: the bar pulses red and glows (Snare 12.7) */
+.snare-focus.ending { box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 60%, transparent), 0 0 12px color-mix(in srgb, var(--danger) 55%, transparent); animation: snare-ending 0.5s ease-in-out infinite alternate; }
+@keyframes snare-ending { from { opacity: 1; } to { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .snare-focus.ending { animation: none; } }
+body.calm .snare-focus.ending { animation: none; }
 .snare-focus-text { color: var(--muted); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .snare-haul { margin-left: auto; color: var(--signal); white-space: nowrap; flex-shrink: 0; }
 /* Go deeper: once the sector is cleared, the run can move on into the next. */

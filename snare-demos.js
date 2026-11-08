@@ -12,7 +12,7 @@
     const FIELD = { w: 6, h: 2.8 };
     const PERIOD = 3.2;
     // A ring of points round (cx, cy), starting at its top and going a little past it, so the loop closes.
-    const ring = (cx, cy, rx, ry, n = 28) => Array.from({ length: n + 3 }, (_, i) => [cx + Math.cos(-Math.PI / 2 + i / n * Math.PI * 2) * rx, cy + Math.sin(-Math.PI / 2 + i / n * Math.PI * 2) * ry]);
+    const ring = (cx, cy, rx, ry, n = 28, turns = 1) => Array.from({ length: n * turns + 3 }, (_, i) => [cx + Math.cos(-Math.PI / 2 + i / n * Math.PI * 2) * rx, cy + Math.sin(-Math.PI / 2 + i / n * Math.PI * 2) * ry]);
 
     // Points along a straight line (a flick).
     const line = (x0, y0, x1, y1, n) => Array.from({ length: n }, (_, i) => [x0 + (x1 - x0) * i / (n - 1), y0 + (y1 - y0) * i / (n - 1)]);
@@ -82,9 +82,9 @@
         sweep: { text: 'Its edge flashes, then it sweeps: wires snap', opts: { sweepFirst: 0.4, sweepEvery: 99, sweepWarn: 0.7, sweepTime: 1.6 },
             packets: [['good', 3, 1.4]], wire: [0.2, 3.0, ring(3, 1.4, 1.4, 0.9, 40)], expect: r => r.stats.snaps >= 1 },
         // The boss fight: loop round it to stun it (the wire mustn't touch it), then flick through it while it reels.
-        boss: { text: 'Loop round it to stun it, then slash it as it reels', opts: { boss: 4, bossAt: 0 },
+        boss: { text: 'Loop round it twice to stun it, then slash it as it reels', opts: { boss: 4, bossAt: 0 },
             packets: [['good', 5.4, 1.4]],
-            wire: [0.2, 1.0, ring(2, 1.4, 0.85, 0.85, 32)],
+            wire: [0.2, 1.1, ring(2, 1.4, 0.85, 0.85, 32, 2)],
             strokes: [[1.35, 1.42, line(1.2, 0.3, 2.8, 2.5, 6)], [1.8, 1.87, line(2.8, 0.3, 1.2, 2.5, 6)]],
             tick: (r, sim) => { if (r.boss) { Object.assign(r.boss, { x: 2, y: 1.4, vx: 0, vy: 0 }); if (!(r.boss.stunned > r.time)) { r.boss.chargeAt = r.time + 99; r.boss.charge = null; } } },
             expect: r => r.stats.loopStuns >= 1 && r.stats.bossDamage >= 2 },

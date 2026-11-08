@@ -511,3 +511,13 @@ flick. A held left press still grows a bubble; the right button is for loops.
 The owner: "left can just be the slashes and swipes and drawing a quarantine while right click bubbles." With a mouse
 the left button is the wire (loops that stun and quarantine, flicks that slash, parry and spoof) and the right button
 holds a bubble. Touch is unchanged.
+
+## Snare 12.7: two loops, the last seconds, colours in every theme
+
+The owner: the boss "should have to be circled more than once to be stunned", "the end of a run should have a visual
+to help show the timer is ending", and every item's visuals checked across the themes. The boss now takes two loops,
+each within 3.5 s of the last (a spiral counts each turn), with two arcs round it showing the count. The last 5 s of
+Focus glow red at the field's edge, faster as it empties, with 3-2-1 large over the field and a tick each. A screenshot
+pass in all five themes on a maxed tree at a boss sector found good packets beside red ones in Red and Soft pink, and
+a tag's edge reading as red in Arcade; Packet Snare now has its own good, bad and tag colours per theme, and bad
+packets are bigger with a heavier edge.

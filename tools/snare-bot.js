@@ -10,10 +10,11 @@ function createBot(s, opt = {}) {
     const react = opt.react ?? 0.3;          // seconds from a charge's warning to the parry
     const slashEvery = opt.slashEvery ?? 0.22;
     let plan = [], wait = 0, nextSlash = 0, parried = null;
-    const ring = (cx, cy, rad) => {
+    // `turns` times round (the boss takes more than one loop to stun)
+    const ring = (cx, cy, rad, turns = 1) => {
         const n = Math.max(18, Math.ceil(2 * Math.PI * rad / 0.15));
         plan = [];
-        for (let i = 0; i <= n + 2; i++) { const a = -Math.PI / 2 + i / n * Math.PI * 2; plan.push([cx + Math.cos(a) * rad, cy + Math.sin(a) * rad]); }
+        for (let i = 0; i <= n * turns + 2; i++) { const a = -Math.PI / 2 + i / n * Math.PI * 2; plan.push([cx + Math.cos(a) * rad, cy + Math.sin(a) * rad]); }
         plan.push('lift');
     };
     // A flick: a straight stroke from a to b, fed over three frames.
@@ -37,7 +38,7 @@ function createBot(s, opt = {}) {
         if (b && !s.opts.parry && b.charge && b.charge.t >= react && b.charge.warn - b.charge.t > 0.6 && parried !== b.charge && !(b.stunned > s.time)) {
             parried = b.charge;
             if (s.drawing) s.liftPen();
-            ring(b.x, b.y, b.r + Math.max(0.6, s.closeR));
+            ring(b.x, b.y, b.r + Math.max(0.6, s.closeR), s.opts.bossLoops || 1);
             return;
         }
         // With Riposte: parry once the reaction time is up, if the warning hasn't run out.

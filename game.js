@@ -4027,6 +4027,7 @@ window.AGI = (function () {
                 else if (t === 'bossCharge') sfx('snareCharge');
                 else if (t === 'parry') { sfx('snareParry'); shake(0.2); state.intro['snare:parried'] = true; }
                 else if (t === 'fizzle') snare.fx.push({ kind: 'flag', x: e.x, y: e.y - 0.6, t: 0, life: 0.9, text: e.bubble ? 'HOLD LONGER' : 'TOO SMALL TO LOOP', small: true });
+                else if (t === 'bossLoop') { sfx('snareStun', { down: false }); snare.fx.push({ kind: 'stun', x: e.x, y: e.y - 1.2, t: 0, life: 0.9, text: `LOOP ${e.n}/${e.of} · AGAIN!`, small: true }); }
                 else if (t === 'bossLooped') { sfx('snareParry'); shake(0.25); state.intro['snare:looped'] = true; snare.fx.push({ kind: 'stun', x: e.x, y: e.y - 1.2, t: 0, life: 1, text: 'STUNNED', small: true }); }
                 else if (t === 'slash' && e.shielded) sfx('snareStun', { down: false });
                 else if (t === 'bossHit') { sfx(e.how === 'ram' ? 'snareHit' : 'snareSlash'); shake(0.25); }
@@ -4072,7 +4073,7 @@ window.AGI = (function () {
         lasso: ['Packet Snare', 'Draw round the data and bring the wire back to its start to close the loop. Bigger loops pay more; a red packet inside spoils the lot.'],
         antivirus: ['Antivirus', 'It hunts your open wire. If it touches it, the wire snaps and you lose Focus.'],
         sweep: ['Full Scan', 'Its edge flashes, then it sweeps the whole field. Any wire it crosses snaps.'],
-        boss: ['Boss Antivirus', 'Every few seconds it stops and locks on: a red line shows where it will charge, all the way along. While it stands there, draw a loop round it (don\'t touch it, it cuts the wire) to stun it. Then, while it spins and reads SLASH!, swipe through it: each swipe takes health off. Clear its health to clear the sector.'],
+        boss: ['Boss Antivirus', 'Every few seconds it stops and locks on: a red line shows where it will charge, all the way along. While it stands there, loop round it twice (don\'t touch it, it cuts the wire) to stun it. Then, while it spins and reads SLASH!, swipe through it: each swipe takes health off. Clear its health to clear the sector.'],
         mines: ['Mines', 'The boss lays mines. Two near each other grow a net that wipes the data it crosses, and while any mine stands the boss is shielded. Loop a mine to clear it.'],
         nets: ['Nets', 'Three mines now: once their nets join up, everything inside the triangle is wiped. Loop the mines before the nets close.'],
         rogue: ['The Rogue AI', 'Its cores grow and take the data they reach. Loop a core tight to quarantine it; your walls keep it off the data behind them.'],
@@ -4393,6 +4394,7 @@ window.AGI = (function () {
         const fill = $('snareFocusFill');
         fill.style.transform = `scaleX(${share})`;
         fill.classList.toggle('low', share < 0.25);
+        fill.parentElement.classList.toggle('ending', run.focus <= SNARE_END_WARN && !run.over);
         // The boss's health and an IDS alert's rage stay in the HUD while they last (round 4: the rage showed only as a glow).
         const boss = run.boss ? ` · Boss ${run.boss.hp}/${run.boss.maxHp}${run.boss.enraged ? ' ⚠ ENRAGED' : ''}${run.boss.shielded ? ' · shield' : ''}`
             // A sector with no boss: how far along its goal is (cleared once it's reached).
@@ -4934,6 +4936,55 @@ window.AGI = (function () {
         if (!snare.ctx || !snare.cw) return;
         drawSnareView(snare.ctx, { run: snare.run, effects: snare.fx, k: snare.scale, ox: snare.ox, oy: snare.oy, cw: snare.cw, ch: snare.ch,
             dpr: snare.canvas.width / snare.cw, field: snare.run || snareField(), touch: snare.touch, wallFrom: snare.wallFrom, turned: snare.turned });
+        drawSnareEnding(snare.ctx, snare);
+    }
+
+    // The run's last seconds (Snare 12.7, the owner: the end of a run needed a clearer sign the clock was running out): over
+    // the last `SNARE_END_WARN` seconds of Focus the field's edge glows red and pulses faster as it nears empty, and the last
+    // three count down large over the field, each with a tick.
+    const SNARE_END_WARN = 5;
+    function drawSnareEnding(ctx, sn) {
+        const run = sn.run;
+        if (!run || run.over || sn.preview || run.focus > SNARE_END_WARN) { sn.endTick = null; return; }
+        const C = path.colors, W = sn.cw, H = sn.ch, a = 1 - run.focus / SNARE_END_WARN;
+        const calm = reducedMotion();
+        const pulse = calm ? 0.6 : 0.5 + 0.5 * Math.sin(run.time * (5 + 10 * a));
+        ctx.save();
+        ctx.setTransform(sn.canvas.width / sn.cw, 0, 0, sn.canvas.width / sn.cw, 0, 0);
+        // the red edge: four gradients inward from the sides
+        const edge = Math.min(W, H) * (0.08 + 0.1 * a);
+        const alpha = (0.25 + 0.45 * a) * (0.55 + 0.45 * pulse);
+        const side = (x0, y0, x1, y1, rx, ry, rw, rh) => {
+            const g = ctx.createLinearGradient(x0, y0, x1, y1);
+            g.addColorStop(0, hexAlpha(C.danger, alpha));
+            g.addColorStop(1, hexAlpha(C.danger, 0));
+            ctx.fillStyle = g;
+            ctx.fillRect(rx, ry, rw, rh);
+        };
+        try {
+            side(0, 0, edge, 0, 0, 0, edge, H);
+            side(W, 0, W - edge, 0, W - edge, 0, edge, H);
+            side(0, 0, 0, edge, 0, 0, W, edge);
+            side(0, H, 0, H - edge, 0, H - edge, W, edge);
+        } catch { /* a colour the gradient can't take */ }
+        // the last three seconds, large and fading within each second
+        const left = Math.ceil(run.focus);
+        if (left <= 3 && left > 0) {
+            const frac = left - run.focus;            // 0 when the second begins, toward 1 as it ends
+            const size = Math.round(Math.min(W, H) * (0.28 - 0.06 * frac));
+            ctx.font = `700 ${size}px ${snareMono()}`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.globalAlpha = 0.6 * (1 - frac) + 0.3;
+            ctx.lineWidth = Math.max(3, size / 18);
+            ctx.strokeStyle = C.bg;
+            ctx.strokeText(String(left), W / 2, H / 2);
+            ctx.fillStyle = C.danger;
+            ctx.fillText(String(left), W / 2, H / 2);
+            ctx.textBaseline = 'alphabetic';
+            if (sn.endTick !== left) { sn.endTick = left; sfx('snareFlag', { flags: 4 - left, limit: 3 }); }
+        }
+        ctx.restore();
     }
 
     function drawSnareView(ctx, v) {
@@ -5530,7 +5581,8 @@ window.AGI = (function () {
             const x = p.x * k, y = p.y * k, ang = Math.atan2(p.vy, p.vx);
             if (p.kind === 'corrupt') {
                 if (p.spoof > t) { arrow(paths.good, x, y, ang, r * 1.25, r * 0.75); arrow(paths.spoofEdge, x, y, ang, r * 1.25, r * 0.75); }
-                else arrow(paths.bad, x, y, ang, r * 1.25, r * 0.75);
+                // a little bigger than a good one, with a heavier dark edge: a different silhouette, not only a colour
+                else arrow(paths.bad, x, y, ang, r * 1.45, r * 0.95);
                 continue;
             }
             const gold = p.kind === 'gold', tagged = p.tag > t;
@@ -5547,22 +5599,25 @@ window.AGI = (function () {
         ctx.fillStyle = C.warning;
         ctx.fill(glow.gold);
         ctx.globalAlpha = 1;
+        // the packets' own tokens (Snare 12.7, a theme audit: in Red and Soft pink good packets sat beside the red ones,
+        // and in Arcade a tag's magenta edge read as a red packet)
+        const good = C['snare-good'] || C.primary, bad = C['snare-bad'] || C.danger, tagCol = C['snare-tag'] || C.research;
         ctx.lineWidth = 1.25;
-        ctx.strokeStyle = C.research;
+        ctx.strokeStyle = tagCol;
         ctx.stroke(paths.tagEdge);
-        ctx.fillStyle = C.primary;
+        ctx.fillStyle = good;
         ctx.fill(paths.good);
         ctx.fillStyle = C.warning;
         ctx.fill(paths.gold);
         ctx.setLineDash([3, 2]);
         ctx.lineWidth = 1.5;
-        ctx.strokeStyle = C.danger;
+        ctx.strokeStyle = bad;
         ctx.stroke(paths.spoofEdge);
         ctx.setLineDash([]);
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = 3;
         ctx.strokeStyle = C.bg;
         ctx.stroke(paths.bad);
-        ctx.fillStyle = C.danger;
+        ctx.fillStyle = bad;
         ctx.fill(paths.bad);
     }
 
@@ -5730,7 +5785,7 @@ window.AGI = (function () {
                 ctx.stroke();
                 ctx.setLineDash([]);
                 if (!state.intro['snare:looped']) {
-                    const label = 'LOOP ROUND IT';
+                    const label = (run.opts.bossLoops || 1) > 1 ? `LOOP ROUND IT ×${run.opts.bossLoops}` : 'LOOP ROUND IT';
                     ctx.font = `700 13px ${snareMono()}`;
                     ctx.textAlign = 'center';
                     ctx.lineWidth = 3;
@@ -5865,6 +5920,24 @@ window.AGI = (function () {
             ctx.strokeText(label, x, y - ringR - 8);
             ctx.fillStyle = b.shielded ? C.danger : C.warning;
             ctx.fillText(label, x, y - ringR - 8);
+        }
+        // Loops taken toward a stun (Snare 12.7: it takes more than one): a pip each round it, counted ones lit, the lit
+        // ones fading as the window to loop it again runs out
+        const need = run.opts.bossLoops || 1;
+        if (!reeling && need > 1 && b.loops > 0) {
+            const left = Math.max(0, 1 - (run.time - (b.loopAt ?? 0)) / run.opts.bossLoopWindow);
+            if (left > 0) {
+                const pr = r + 12, gap = 0.22;
+                for (let i = 0; i < need; i++) {
+                    const a0 = -Math.PI / 2 + (i / need) * Math.PI * 2 + gap / 2, a1 = a0 + Math.PI * 2 / need - gap;
+                    ctx.globalAlpha = i < b.loops ? 0.35 + 0.6 * left : 0.3;
+                    ctx.strokeStyle = i < b.loops ? C.warning : C.muted;
+                    ctx.lineWidth = i < b.loops ? 5 : 2;
+                    ctx.beginPath();
+                    ctx.arc(x, y, pr, a0, a1);
+                    ctx.stroke();
+                }
+            }
         }
         ctx.globalAlpha = 1;
     }
@@ -7475,7 +7548,7 @@ window.AGI = (function () {
     // The trail's canvas colours come from the theme's tokens (read again when the theme changes).
     function readColorTokens() {
         const css = getComputedStyle(document.documentElement);
-        for (const name of ['primary', 'secondary', 'accent', 'success', 'warning', 'danger', 'muted', 'border', 'text', 'bg', 'research', 'terminal']) {
+        for (const name of ['primary', 'secondary', 'accent', 'success', 'warning', 'danger', 'muted', 'border', 'text', 'bg', 'research', 'terminal', 'snare-good', 'snare-bad', 'snare-tag']) {
             path.colors[name] = css.getPropertyValue('--' + name).trim();
         }
         return !!path.colors.primary;

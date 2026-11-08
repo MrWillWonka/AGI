@@ -69,3 +69,25 @@ test('a loop moments after the last pays half and doesn\'t count toward the goal
     ringAt(3, 6);
     assert.ok(!s.takeEvents().find(e => e.type === 'catch').hasty, 'after a breath it counts again');
 });
+
+test('the boss takes two loops to stun (Snare 12.7), and the count starts again if they\'re too far apart', () => {
+    const s = P.createSnare({ seed: 7, density: 0, antivirus: [], idleDrain: 0, respawn: 1e9, sweepFirst: Infinity, w: 12, h: 8, boss: 20, bossAt: 0, bossCatch: 0 });
+    s.packets = [];
+    for (let i = 0; i < 12; i++) s.step(1 / 60);
+    const b = s.boss;
+    const pin = () => Object.assign(b, { x: 6, y: 4, vx: 0, vy: 0, charge: null, chargeAt: s.time + 99 });
+    const loop = () => {
+        pin();
+        const r = b.r + 1, n = 60;
+        for (let i = 0; i <= n + 2; i++) s.addPoint(6 + Math.cos(i / n * Math.PI * 2) * r, 4 + Math.sin(i / n * Math.PI * 2) * r);
+        s.liftPen();
+    };
+    loop();
+    assert.ok(!(b.stunned > s.time) && b.loops === 1, 'one loop: not yet');
+    for (let i = 0; i < 60 * 4; i++) { pin(); s.step(1 / 60); }
+    loop();
+    assert.ok(!(b.stunned > s.time) && b.loops === 1, 'too long after the first: the count started again');
+    loop();
+    assert.ok(b.stunned > s.time, 'two in a row: stunned');
+    assert.equal(s.stats.loopStuns, 1);
+});

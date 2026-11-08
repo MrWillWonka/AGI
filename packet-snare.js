@@ -185,6 +185,8 @@
         bossCharge: 7,              // seconds between its charges
         bossWarn: 2,                // seconds its warning line shows before it dashes
         bossStun: 2.5,              // seconds it reels once stunned (the slash window)
+        bossLoops: 2,               // loops round it it takes to stun it (Snare 12.7, the owner's call: once was too easy)…
+        bossLoopWindow: 3.5,        // …each within this many seconds of the last, or the count starts again
         chargeReach: 0.6,           // × the field's longer side: how far its charge line reaches (the dash covers it all)
         // **Loop it to stun it** (Snare 12, the owner's call: circling the boss makes more sense than a parry): a closed
         // loop round it, the wire never touching it, stuns it. The parry (a flick across its charge line) comes later, as
@@ -1958,11 +1960,18 @@
                 }
             }
             if (clearMines(poly)) quarantined = true;
-            // A loop round the boss stuns it (the wire never touched it, or it would have snapped).
+            // Loops round the boss stun it (the wire never touched it, or it would have snapped): `bossLoops` of them, each
+            // within `bossLoopWindow` of the last; a spiral round it counts each turn.
             if (s.boss && !(s.boss.stunned > s.time) && pointInPolygon(s.boss, poly)) {
-                stunBoss(s.boss);
-                s.stats.loopStuns++;
-                s.events.push({ type: 'bossLooped', x: s.boss.x, y: s.boss.y, poly });
+                const b = s.boss;
+                b.loops = s.time - (b.loopAt ?? -1e9) <= o.bossLoopWindow ? (b.loops || 0) + 1 : 1;
+                b.loopAt = s.time;
+                if (b.loops >= o.bossLoops) {
+                    b.loops = 0;
+                    stunBoss(b);
+                    s.stats.loopStuns++;
+                    s.events.push({ type: 'bossLooped', x: b.x, y: b.y, poly });
+                } else s.events.push({ type: 'bossLoop', x: b.x, y: b.y, poly, n: b.loops, of: o.bossLoops });
                 quarantined = true;
             }
             // Hijack: a loop round a stunned Antivirus turns it.

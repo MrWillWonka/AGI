@@ -107,6 +107,8 @@ test('bubbles: loops no longer catch packets, but still stun the boss', () => {
     b.boss.next = b.time + 100;
     drawSquare(b, 6, 4, b.boss.r * 2.2);
     b.liftPen();
+    drawSquare(b, 6, 4, b.boss.r * 2.2);
+    b.liftPen();
     assert.ok(b.boss.stunned > b.time, 'stunned by the loop');
 });
 
