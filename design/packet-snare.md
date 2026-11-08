@@ -392,3 +392,71 @@ The owner's calls: "I don't like that the focus drains faster when drawing … a
 - **The wire** is drawn through its midpoints as curves.
 - **The closing ring** is 26 px on a desktop (a mouse is precise) and stays 36 px on touch.
 - **A new setting** hides the ring.
+
+## Snare 12: loop the boss, a slower ramp, no scribbling (the brother's playtest, three review rounds, a blind playtest)
+
+**The owner's calls**
+> "Many things are added at once and very quickly it gets out of hand. My brother resorted to scribbling back and forth because the slash would change the bad packets and incidental circles would capture with little risk. The bosses are better but they feel very rushed … meaningfully challenging but achievable … circling the boss to stun him makes more sense and the parry can come later. Let's have the parry line be much longer and the boss move to match."
+
+They also asked for a few review rounds with a Fable agent, and a blind review by an Opus agent with no context.
+
+**The boss**
+- **Loop it to stun it.** The wire must not touch it; there is a 0.85 r grace.
+- **The parry comes later,** as Riposte (1,800 Signal, after Kernel Panic).
+- **The charge:** the line reaches 0.6 of the field's longer side, and the boss dashes all of it in 0.8 s. It stops short of a wall, leaving room to loop it there, then rests 1.5 s.
+- **Timings:** it charges every 7 s, warns for 2 s and stays stunned for 2.5 s.
+- **An arena:**
+  - It boots 6 s in, or on the first catch.
+  - It adds 8 s of Focus, but not when an IDS alert boots it.
+  - While it stands, Antivirus hold their update, the Rogue AI lays no cores and no Full Scan starts. Its own minions still hunt.
+- **Health:** 10, 30, 64, 90, 130, 175, 230, 300, with no gate multiplier.
+- **Slashes:** 5 per stun, at least 0.3 s apart.
+- **Shield and mines:**
+  - The shield is up only while two or more mines stand; one mine halves slashes.
+  - Mines are laid close round it.
+  - At sectors 10–14 mines come every 16 s; from sector 15 nets link in 6 s; sector 20 has 2 mines.
+  - Clearing a mine during a stun adds 1 s to the stun.
+- **Size:** at most 10% of the field's shorter side.
+- **Swipes at the boss are never flagged.**
+
+**Pacing**
+- **Hazards also wait for runs played:** Full Scans from run 4, Antivirus from run 10, the Rogue AI from run 18.
+- **Goals:** 25, 45, 70 and 100, then ×1.4 a sector to sector 9 and ×1.3 after. A loop counts its packets plus half its worth past them.
+- **The clear bonus halves** with each clear in a run: 0.4, 0.2, 0.1 of the bar.
+- **The field grows more slowly:** Sprawl ×1.35, Megasprawl ×1.5 and Hyperscale ×1.6 a level. Schooling now adds 0.35 density and Packet Stream 0.25.
+- **The verbs cost a couple of minutes' income:** 400 to 6K, with every child dearer than its parent's last level.
+- **Root Access** grows from Open Ports at 1,100.
+- **Red fades 8% a unit,** down to a floor the tree's last unit reaches. The bots work every 3 s.
+
+**Greed against risk**
+- **The multiplier bends upward:** 1 + (area / 0.26 of the field)^1.4.
+
+**Scribbling and other low-risk exploits**
+- **Tiny loops don't close,** and the game says TOO SMALL TO LOOP.
+- **A loop within 0.5 s of the last pays half,** doesn't count toward the goal and sets off no clean-loop rewards.
+- **Spoof flicks** take at most 4 red packets, 1.5 s apart.
+- **Chain Lightning** never arcs to more packets than the loop caught.
+- **A loop inside a Firewall section** pays ×0.85, unless you own Holding Pen.
+- **Garbage Collection** gives Focus for at most 3 packets, and halves within 8 s of the last.
+- **Freeze** runs Focus at half speed.
+- **Race Condition** pays out at its cap.
+
+**The boss tool now** (`runs` = 30)
+
+| Sector | Health | Cleared by |
+|---|---|---|
+| 5 | 10 | Attention Span 3 |
+| 10 | 30 | Root Access 3 and Kernel Panic |
+| 15 | 64 | Riposte |
+| 20 | 90 | Blue Screen |
+| 25 | 130 | Not yet: the next wall |
+
+**Fable's pacing sim, round 3** (phone field, 30 minutes)
+- **Times:** the first scan comes at about 2.7 min, Antivirus at about 6 and the Rogue AI at about 11. The sector 10 wall lasts 1.5–2.5 min.
+- **Signal per minute:** about ×40 over 30 minutes, against ×300 in 15 before.
+- **Its verdict:** the first twelve minutes are in good shape.
+
+**The blind playtest** (an earlier build of Snare 12)
+- **Clear:** the first card and its demo.
+- **Fixed since or here:** the boss arriving late, stopping by walls, and alerts from flagged swipes; small loops failing with no word; the HUD and the end card counting the goal differently; "(REPLAY)" on a sector cleared mid-run.
+- **Kept:** the tip buttons' jokes (the owner's call) and farming a cleared sector (the owner chose Go deeper as a choice).

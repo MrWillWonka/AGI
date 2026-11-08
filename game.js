@@ -4016,6 +4016,7 @@ window.AGI = (function () {
                 else if (t === 'boss') { sfx('snareBoss'); snareIntro('boss'); if (e.enraged) shake(0.3); if (e.focus) snare.fx.push({ kind: 'stun', x: e.x, y: e.y + 1.2, t: 0, life: 1.4, text: `BOSS ONLINE · +${e.focus} s FOCUS`, small: true }); }
                 else if (t === 'bossCharge') sfx('snareCharge');
                 else if (t === 'parry') { sfx('snareParry'); shake(0.2); state.intro['snare:parried'] = true; }
+                else if (t === 'fizzle') snare.fx.push({ kind: 'flag', x: e.x, y: e.y - 0.6, t: 0, life: 0.9, text: 'TOO SMALL TO LOOP', small: true });
                 else if (t === 'bossLooped') { sfx('snareParry'); shake(0.25); state.intro['snare:looped'] = true; snare.fx.push({ kind: 'stun', x: e.x, y: e.y - 1.2, t: 0, life: 1, text: 'STUNNED', small: true }); }
                 else if (t === 'slash' && e.shielded) sfx('snareStun', { down: false });
                 else if (t === 'bossHit') { sfx(e.how === 'ram' ? 'snareHit' : 'snareSlash'); shake(0.25); }
@@ -4144,6 +4145,7 @@ window.AGI = (function () {
         snare.raceStep = 0;
         const res = E.finishSnare(state, snare.haul, layout, stats);
         snare.done = { stats, haul: snare.haul, record: res.record, first: res.first, prev: res.prev, sector: snare.sector, startSector: snare.startSector, cleared: snare.cleared.slice(), walked: !!snare.walked,
+            replay: !!snare.replay, goal: snare.run?.opts.goal || 0, goalDone: !!snare.run?.goalDone, goalAt: Math.floor(snare.run?.goalProgress?.() || 0),
             bossMax: snare.run?.boss?.maxHp || 0, bossLeft: snare.run?.boss?.hp ?? 0 };
         snare.walked = false;
         snare.pointer = null;
@@ -4192,7 +4194,7 @@ window.AGI = (function () {
     };
     const snareSector = k => `Sector ${k + 1}: ${E.snareSectorName(k)}${E.SNARE_GATES.includes(k) ? ' · Gate' : ''}`;
     // What clears a sector: its boss every fifth sector, else a goal of packets in one run.
-    const snareGoalText = k => (E.isSnareBossSector(k) ? 'Boss sector: beat the boss Antivirus to clear it' : `Clear it: catch ${E.snareGoal(k)} packets in one run`);
+    const snareGoalText = k => (E.isSnareBossSector(k) ? 'A boss guards this sector: beat it to clear it' : `Clear it: catch ${E.snareGoal(k)} in one run (big loops count extra)`);
     // What the best haul feeds: research, a trickle while you play.
     const snareRpLine = () => {
         const rp = E.derive(state).snareRp;
@@ -4242,6 +4244,8 @@ window.AGI = (function () {
             const s = d.stats;
             // Folded like the trail's card: the first lines and the key ones show, the rest under Details.
             const lines = [
+                // The goal as the HUD counted it (a blind playtest: "Goal 59/70" on the HUD, "36 packets snared" here).
+                d.goal && !d.goalDone ? ['Goal', `${Math.min(d.goalAt, d.goal)}/${d.goal} · big loops count extra`, d.goal - d.goalAt <= d.goal * 0.15 ? 'key' : ''] : null,
                 d.cleared.length ? [d.cleared.length === 1 ? 'Sector cleared' : `${d.cleared.length} sectors cleared`,
                     Array.from({ length: d.sector - d.startSector + 1 }, (_, i) => d.startSector + i).map(k => E.snareSectorName(k) + (d.cleared.includes(k) ? ' ✓' : '')).join(' → '), 'key'] : null,
                 ['Loops closed', `${s.catches}`],
@@ -4276,7 +4280,7 @@ window.AGI = (function () {
                 snareTrainingLine()
             ].filter(Boolean);
             card.replaceChildren(...[
-                el('div', { class: 'result-title', text: `${d.sector > d.startSector ? `Sectors ${d.startSector + 1}–${d.sector + 1}` : snareSector(d.sector)}${d.sector < state.snare.sector ? ' (replay)' : ''} · ${d.walked ? 'Left the bay' : 'Focus spent'}` }),
+                el('div', { class: 'result-title', text: `${d.sector > d.startSector ? `Sectors ${d.startSector + 1}–${d.sector + 1}` : snareSector(d.sector)}${d.replay ? ' (replay)' : ''} · ${d.walked ? 'Left the bay' : 'Focus spent'}` }),
                 el('div', { class: 'result-main', text: s.caught ? `${s.caught} packet${s.caught === 1 ? '' : 's'} snared` : 'Nothing snared' }),
                 el('div', { class: 'result-xp', text: `+${E.format(d.haul)} Signal` }),
                 d.record ? el('span', { class: 'result-badge', text: `New record · was +${E.format(d.prev)}` }) : null,

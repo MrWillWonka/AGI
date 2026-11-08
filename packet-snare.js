@@ -701,7 +701,9 @@
                         const cx = w / 2 - b.x, cy = h / 2 - b.y, cl = Math.hypot(cx, cy);
                         if (cl > 1e-6) { dx = cx / cl; dy = cy / cl; }
                     }
-                    const len = Math.max(b.r + 0.5, Math.min(fullReach(b), room(b.x, b.y, dx, dy) - 0.2));
+                    // It stops short of the wall, room enough to loop round it there (a blind playtest: it stopped where a loop
+                    // ran off the field).
+                    const len = Math.max(b.r + 0.5, Math.min(fullReach(b), room(b.x, b.y, dx, dy) - b.r - Math.max(1, 0.12 * shortSide)));
                     b.charge = { t: 0, warn: o.bossWarn * (b.enraged ? 0.8 : 1), dx, dy, len };
                     s.events.push({ type: 'bossCharge', x: b.x, y: b.y });
                 }
@@ -1366,6 +1368,8 @@
 
         // ---- System Firewalls: lines sweeping across the field -------------------------------------------
         function sweepStep(dt) {
+            // No new scan while the boss stands (its arena: a scan snapped swipes mid-stun).
+            if (s.boss && sweepAt - s.time < 2) sweepAt = s.time + 2;
             if (s.time >= sweepAt) {
                 sweepAt = s.time + o.sweepEvery;
                 const axis = rand() < 0.5 ? 'x' : 'y', dir = rand() < 0.5 ? 1 : -1;
@@ -1547,7 +1551,8 @@
             let hit = false, near = false;
             if (boss) {
                 const through = segDist(boss, a, b) < boss.r;
-                near = segDist(boss, a, b) < boss.r + o.flagNear;
+                // Swipes at the boss are never flagged (a blind playtest: a missed slash set off an alert it hadn't been
+                // taught about); flags are for spoofing.
                 const rammer = ally.find(f => Math.hypot(f.x - a.x, f.y - a.y) < f.r + 0.7);
                 if (rammer && through) {
                     // Privilege Escalation: the hijacked Antivirus rams it (no minions), and is spent.
@@ -1567,7 +1572,7 @@
                         s.events.push({ type: 'parryFlick', a, b });
                         parryBoss(boss);
                         hit = true;
-                    } else if (segDist(a, boss, end) < o.flagNear || segDist(b, boss, end) < o.flagNear) near = true;
+                    }
                 } else if (through && boss.stunned > s.time) {
                     // A slash: through it while it reels (a parry or one of your Firewalls), a flick at a time.
                     if (s.real - boss.slashAt >= o.slashGap) {
@@ -2190,6 +2195,10 @@
             const start = s.wire[0], head = s.wire[s.wire.length - 1];
             const isFlick = !s.over && flick();
             s.stroke = null;
+            // A loop too small to count, brought back to its start: say so (it used to vanish without a word).
+            if (!isFlick && start && s.wire.length > 4 && Math.hypot(head.x - start.x, head.y - start.y) <= closeR * 1.6 && polygonArea(s.wire) < minLoopArea && wireLength(s.wire) > closeR) {
+                s.events.push({ type: 'fizzle', x: head.x, y: head.y });
+            }
             if (!isFlick && start && s.leftStart && Math.hypot(head.x - start.x, head.y - start.y) <= closeR * 1.6) {
                 const poly = openLoop();
                 if (poly) {

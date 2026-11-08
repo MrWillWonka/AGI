@@ -90,7 +90,7 @@ test('its charge line is long and it dashes all of it (Snare 12)', () => {
     for (let i = 0; i < 6 && !b.charge; i++) s.step(1 / 60);
     assert.ok(b.charge, 'it locked on');
     const len = s.chargeReach(b);
-    assert.ok(len >= 0.45 * s.w, `a long line: ${len.toFixed(2)} on a field ${s.w} wide`);
+    assert.ok(len >= 0.35 * s.w, `a long line: ${len.toFixed(2)} on a field ${s.w} wide (it stops short of the wall)`);
     const x0 = b.x, y0 = b.y, { dx, dy } = b.charge;
     run(s, b.charge.warn + 0.85);
     const went = (b.x - x0) * dx + (b.y - y0) * dy;
