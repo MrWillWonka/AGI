@@ -67,7 +67,7 @@
         sweep: { text: 'Its edge flashes, then it sweeps: wires snap', opts: { sweepFirst: 0.4, sweepEvery: 99, sweepWarn: 0.7, sweepTime: 1.6 },
             packets: [['good', 3, 1.4]], wire: [0.2, 3.0, ring(3, 1.4, 1.4, 0.9, 40)], expect: r => r.stats.snaps >= 1 },
         boss: { text: 'Loop it tight while it reels to hit it', opts: { boss: 2, bossAt: 0, bossStun: 1.2 },
-            packets: [['good', 0.6, 0.5], ['good', 5.4, 2.4]], wire: [0.5, 1.5, ring(3, 1.4, 1.05, 1.05)], hold: { boss: [3, 1.4] },
+            packets: [['good', 0.6, 0.5], ['good', 5.4, 2.4]], wire: [0.5, 1.5, ring(3, 1.4, 0.62, 0.62)], hold: { boss: [3, 1.4] },
             expect: r => r.stats.bossHits >= 1 },
         parry: { text: 'Flick across its charge: it turns back on the boss', opts: { boss: 2, bossAt: 0, parry: 1 },
             packets: [['good', 0.6, 0.4], ['good', 5.4, 2.4]], wire: [0.7, 0.85, line(3.2, 0.3, 3.2, 2.5, 6)],

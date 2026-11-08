@@ -41,7 +41,7 @@ test('Freeze Frame stops the field\'s clock: nothing comes due or piles up while
 });
 
 test('no boss hits while the field is frozen', () => {
-    const s = still({ boss: 3, bossAt: 0, freeze: 1 });
+    const s = still({ boss: 3, bossAt: 0, freeze: 1, w: 12, h: 12 });
     run(s, 0.1);
     Object.assign(s.boss, { x: 5, y: 3.5, vx: 0, vy: 0, chargeAt: 1e9 });
     s.usePower('freeze');
@@ -54,7 +54,7 @@ test('no boss hits while the field is frozen', () => {
 });
 
 test('the boss grows with the sector: a hit needs the loop round all of it', () => {
-    const s = still({ boss: 3, bossAt: 0, bossR: 1.4 });
+    const s = still({ boss: 3, bossAt: 0, bossR: 1.4, w: 12, h: 12 });   // a field big enough for a boss this size (it's capped at 13% of the shorter side)
     run(s, 0.1);
     Object.assign(s.boss, { x: 5, y: 3.5, vx: 0, vy: 0, chargeAt: 1e9 });
     circle(s, 5, 3.5, 0.9);
