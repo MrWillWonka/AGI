@@ -2172,6 +2172,11 @@
             b.full = t >= 1;
             if (!b.growing) {
                 if (s.real - b.t0 < o.bubbleCommit) return;
+                // Snare 12.5 (the owner's call: slashes and parries on the left button): a left press that's moving fast
+                // is a flick on its way, so it waits out the flick's time before it's a bubble for good; let go by then and
+                // it's judged as a flick
+                const moved = b.pen && Math.hypot(b.pen.x - b.x, b.pen.y - b.y) > o.bubbleSlop * closeR;
+                if (b.locked && moved && s.real - b.t0 < o.flickTime) return;
                 b.growing = true;
                 s.stroke = null;     // it's no flick
                 s.events.push({ type: 'bubbleStart', x: b.x, y: b.y });

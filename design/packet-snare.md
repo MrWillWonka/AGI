@@ -499,3 +499,9 @@ stroke in that first moment (past 1.2 × the closing ring) draws a wire, so loop
 The owner: "let's split the two between left and right click." With bubbles on and a mouse, the left button holds a
 bubble (locked: no swipe turns it into a wire) and the right button draws the wire (loops, flicks and slashes; held
 still it grows nothing). Touch, with one kind of press, keeps deciding by how the stroke moves.
+
+### Snare 12.5: slashes on the left
+
+The owner: "let's swap." Slashes, parries and spoof flicks move to the left button with the bubble: a left press
+that's moving fast waits out the flick's 0.45 s before it commits to a bubble, and let go by then it's judged as a
+flick. A held left press still grows a bubble; the right button is for loops.

@@ -3716,8 +3716,8 @@ window.AGI = (function () {
             const run = snare.run;
             // Nothing on the field takes a press under a first-meeting card (the run is paused) or the tree.
             if (!run || run.over || snare.preview || snare.pointer !== null || snare.tree || snare.intro) return;
-            // The left button draws; with bubbles on (Snare 12.4, the owner's call) the left holds a bubble and the right
-            // draws the wire (loops, flicks, slashes); other buttons do nothing.
+            // The left button draws; with bubbles on (Snare 12.4–12.5, the owner's calls) the left holds a bubble or flicks
+            // (slashes, parries, spoofs) and the right draws the wire (loops); other buttons do nothing.
             const mouse = e.pointerType === 'mouse', bubbles = !!run.opts.bubble && snare.tool === 'lasso';
             if (mouse && !(e.button === 0 || (e.button === 2 && bubbles))) return;
             e.preventDefault();
@@ -4247,7 +4247,7 @@ window.AGI = (function () {
                 snareSectorPicker(),
                 el('p', { class: 'snare-intro-line snare-goal-line', text: snareGoalText(snareNextSector()) }),
                 snareBubbleOn() ? el('p', { class: 'snare-intro-line', text: matchMedia('(pointer: fine)').matches
-                    ? 'Prototype: left-click and hold to grow a bubble, let go to catch what\'s inside (no red!). Right-click draws loops and flicks: loops stun and quarantine. Settings turns it off.'
+                    ? 'Prototype: left-click and hold to grow a bubble, let go to catch what\'s inside (no red!); a quick left swipe slashes and parries. Right-click draws loops: they stun and quarantine. Settings turns it off.'
                     : 'Prototype: hold still on the field to grow a bubble, let go to catch what\'s inside (no red!). Loops only stun and quarantine. Settings turns it off.' }) : null,
                 first && !snareBubbleOn() ? snareDemo('lasso') : null,
                 first && !snareBubbleOn() ? el('p', { class: 'snare-intro-line', text: SNARE_INTROS.lasso[1] }) : null,

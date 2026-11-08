@@ -140,3 +140,18 @@ test('bubbles on a mouse: a left-click bubble never turns into a wire, a right-c
     w.liftPen();
     assert.equal(w.stats.bubbles, 0);
 });
+
+test('bubbles on a mouse: a quick left swipe is a flick (it slashes a reeling boss), not a bubble', () => {
+    const s = still({ boss: 20, bossAt: 0, bossCatch: 0 });
+    hold(s, 0.2);
+    const b = s.boss;
+    b.x = 6; b.y = 4; b.target = { x: 6, y: 4 }; b.next = s.time + 100;
+    b.stunned = s.time + 3;
+    const hp = b.hp;
+    s.setPen('bubble');
+    s.addPoint(4, 4);
+    for (let i = 1; i <= 8; i++) { s.addPoint(4 + i * 0.5, 4); s.step(1 / 60); }
+    s.liftPen();
+    assert.equal(s.stats.bubbles, 0, 'no bubble');
+    assert.ok(s.boss.hp < hp, 'slashed');
+});
