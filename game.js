@@ -3776,6 +3776,7 @@ window.AGI = (function () {
 
     function snarePreview() {
         const o = E.snareOpts(state);
+        if (snare.canvas) reserveSnareTools(o);
         // The field drifts behind the card with what you placed, but nothing that hunts, sweeps, steals or fires.
         snare.run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area), seed: 5, antivirus: [], sweepFirst: Infinity, idleDrain: 0, laser: 0, rogue: 0, boss: 0, turrets: 0 });
         snare.preview = true;
@@ -3801,9 +3802,20 @@ window.AGI = (function () {
     // The sector the next run is on: the frontier, or a cleared one picked on the start card (a replay pays its own
     // sector's rate and half the bounty).
     const snareNextSector = () => Math.min(state.snare.sector, snare.sectorPick ?? state.snare.sector);
+    // Upright phones size the field to what the tool bar leaves (round 3's owner screenshot: a fixed reserve for two rows
+    // left an empty band under one). Set before the run's field is shaped, and kept between runs so nothing jumps.
+    function reserveSnareTools(o) {
+        const n = 1 + ['firewalls', 'decoys', 'turrets', 'towers', 'freeze', 'purge'].filter(k => o[k] > 0).length;
+        const panel = $('snarePanel');
+        panel.style.setProperty('--snare-tools-h', `${n < 2 ? 0 : n <= 5 ? 50 : 96}px`);
+        const wrap = snare.canvas.parentElement;
+        snare.cw = wrap.clientWidth;
+        snare.ch = Math.max(120, wrap.clientHeight);
+    }
     function startSnare() {
         const sector = snareNextSector();
         const o = E.snareOpts(state, sector);
+        reserveSnareTools(o);
         snare.seed = (state.snare.runs * 7919 + Math.floor(state.stats.playTime * 1000)) >>> 0;
         snare.run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area), seed: snare.seed });
         snare.sector = sector;
@@ -4820,7 +4832,13 @@ window.AGI = (function () {
             ctx.translate(cx, cy);
             ctx.rotate(t * (c.partner ? -1.2 : 2.5));
             ctx.fillStyle = col;
-            const cs = Math.max(6, 0.28 * k);
+            // A core reads at a glance on any screen: never under 11 px, with a soft pulse round it.
+            const cs = Math.max(11, Math.min(18, 0.32 * k));
+            ctx.globalAlpha = 0.25 + 0.15 * Math.sin(t * 5);
+            ctx.beginPath();
+            ctx.arc(0, 0, cs * 1.1, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
             ctx.fillRect(-cs / 2, -cs / 2, cs, cs);
             ctx.shadowBlur = 0;
             ctx.fillStyle = C.bg;
@@ -5347,14 +5365,19 @@ window.AGI = (function () {
             for (const e of run.emitterSpots()) {
                 const ex = e.x * k, ey = e.y * k;
                 const inx = e.y === H ? 0 : e.y === 0 ? 0 : e.x === 0 ? 1 : -1, iny = e.y === H ? -1 : e.y === 0 ? 1 : 0;
-                ctx.globalAlpha = 0.22;
-                ctx.strokeStyle = C.warning;
-                ctx.lineWidth = 1;
-                ctx.setLineDash([3, 6]);
-                ctx.beginPath();
-                ctx.arc(ex, ey, reach, Math.atan2(iny, inx) - Math.PI / 2, Math.atan2(iny, inx) + Math.PI / 2);
-                ctx.stroke();
-                ctx.setLineDash([]);
+                // Its reach shows only as it fires (a dashed arc fading from the emitter): drawn always, a maxed tree's
+                // twelve arcs wove a web over the whole field on a phone.
+                const shot = effects.find(f => f.kind === 'laser' && !f.turret && !f.zap && f.from && Math.abs(f.from.x - e.x) < 1e-6 && Math.abs(f.from.y - e.y) < 1e-6);
+                if (shot) {
+                    ctx.globalAlpha = 0.35 * (1 - shot.t / shot.life);
+                    ctx.strokeStyle = C.warning;
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 6]);
+                    ctx.beginPath();
+                    ctx.arc(ex, ey, reach, Math.atan2(iny, inx) - Math.PI / 2, Math.atan2(iny, inx) + Math.PI / 2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
                 ctx.globalAlpha = 1;
                 ctx.fillStyle = C.warning;
                 ctx.save();
@@ -5373,7 +5396,8 @@ window.AGI = (function () {
             const p = run.packets.find(q => q.id === l.id);
             if (!p) continue;
             const m = Math.min(1, l.t / window.PacketSnare.LOCK_SECONDS);
-            const s = (p.r * 3.2 - p.r * 1.6 * m) * k, len = s * 0.45;
+            // In screen px (sized by the zoom they swelled to 45 px boxes on a phone and buried the packets they marked).
+            const s = Math.max(6, Math.min(p.r * k, 7)) * (2 - m), len = s * 0.45;
             const x = p.x * k, y = p.y * k;
             ctx.strokeStyle = m >= 0.95 ? C.warning : C.text;
             ctx.lineWidth = 1.5;

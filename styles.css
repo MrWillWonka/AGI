@@ -3397,7 +3397,7 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
     .snare-view > .canvas-wrap { height: clamp(300px, calc(100dvh / var(--zoom, 1) - var(--topbar-h, 60px) - 215px), 820px); }
 }
 @media (max-width: 640px) and (min-height: 501px) {
-    .snare-view > .canvas-wrap { height: max(240px, calc(100dvh - var(--topbar-h, 100px) - var(--bay-bar-h, 39px) - 196px)); }
+    .snare-view > .canvas-wrap { height: max(240px, calc(100dvh - var(--topbar-h, 100px) - var(--bay-bar-h, 39px) - var(--snare-tools-h, 52px) - 112px)); }
 }
 @media (pointer: coarse) and (max-height: 500px) {
     .snare-view > .canvas-wrap { height: clamp(120px, calc(100dvh - 204px), 600px); }

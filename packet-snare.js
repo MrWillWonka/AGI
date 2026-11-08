@@ -412,7 +412,8 @@
         // Its size grows with the field (to the ¾ power: a big field's boss stays a big target on screen, and its loop
         // can still close) and with the sector (engine.js).
         function bootBoss(enraged) {
-            const r = o.bossR * Math.pow(grow, 0.75), c = Math.floor(rand() * 4);
+            // …but never more than 13% of the field's shorter side (a phone's field is small, and a sector 5 boss filled a third of it).
+            const r = Math.min(o.bossR * Math.pow(grow, 0.75), 0.13 * shortSide), c = Math.floor(rand() * 4);
             const x = c % 2 ? w - r : r, y = c < 2 ? r : h - r;
             s.boss = { x, y, vx: 0, vy: 0, r, hp: o.boss, maxHp: o.boss, stunned: 0, hunting: false, immune: null, charge: null, chargeAt: s.time + (enraged ? 1 : 3), enraged, smash: null };
             s.events.push({ type: 'boss', x, y, hp: o.boss, enraged });
