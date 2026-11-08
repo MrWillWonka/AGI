@@ -4008,7 +4008,8 @@ window.AGI = (function () {
     function endSnare(stats, layout) {
         snare.raceStep = 0;
         const res = E.finishSnare(state, snare.haul, layout, stats);
-        snare.done = { stats, haul: snare.haul, record: res.record, first: res.first, prev: res.prev, sector: snare.sector, cleared: snare.bossDown ?? null, walked: !!snare.walked };
+        snare.done = { stats, haul: snare.haul, record: res.record, first: res.first, prev: res.prev, sector: snare.sector, cleared: snare.bossDown ?? null, walked: !!snare.walked,
+            bossMax: snare.run?.opts.boss || 0 };
         snare.walked = false;
         snare.bossDown = null;
         snare.pointer = null;
@@ -4091,7 +4092,8 @@ window.AGI = (function () {
                 s.bestMult >= 1.05 ? ['Biggest loop', `×${s.bestMult.toFixed(1)}`] : null,
                 s.corrupted ? ['Corrupted catches', `${s.corrupted}`] : null,
                 s.snaps ? ['Wires snapped', `${s.snaps}`] : null,
-                s.bossHits && d.cleared == null ? ['Boss hits', `${s.bossHits}`] : null,
+                // How close the boss came to falling (a log had 8 of 9, twice, and the card said only "8"): near the end it's a key line.
+                s.bossHits && d.cleared == null ? ['Boss hits', `${s.bossHits} of ${d.bossMax}`, d.bossMax - s.bossHits <= Math.max(1, d.bossMax * 0.25) ? 'key' : ''] : null,
                 s.chained ? ['Chain lightning', `${s.chained}`] : null,
                 s.lasered ? ['Lasered', `${s.lasered}`] : null,
                 s.stuns ? ['Antivirus stunned', `${s.stuns}`] : null,

@@ -1,0 +1,151 @@
+The Path to AGI · playtest log
+Log v1 · began 2026-11-07T22:25:09.248Z · exported 2026-11-07T23:50:50.671Z
+build: 2026-11-07 (branch) · Packet Snare 6: Signal, sectors and boss Antivirus, the tree on the Training tree's parts, first-meeting demos (review round 1)
+save: v21, v1.0, 4 skills
+screen: 440×840, touch
+browser: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Claude/1.261030.19
+
+The owner's husband, iPhone, Packet Snare only (opened with the debug panel's Open Packet Snare). The stamp says
+Packet Snare 6 because BUILD wasn't bumped: the first save (to w 4321) played Packet Snare 7 before the hazards were
+staged by sector (sweeps on sector 1), the second (after Erase everything) Packet Snare 7 with them staged (sweeps from
+sector 2, Antivirus from 3). Trimmed: samples, views, mail and the opening's 23 nags removed (he read all twenty
+variants for The IT Department's Favorite, 9.5 min in the inbox, then accepted). Its Time by screen read negative
+(play time restarts at 0 after an erase; fixed in playtest.js since).
+
+Play time 24.0 min over 6 sessions, 404 events, 85.7 min on the clock.
+Skill-tree and legacy buys: 44; 20% the cheapest affordable, the rest dearer picks.
+
+--- events (t = play seconds, w = wall seconds; trimmed) ---
+{"t":1.9,"w":0,"e":"session","cleared":true,"skills":0,"at":"lab"}
+{"t":530.4,"w":530,"e":"achievement","id":"itsFavorite"}
+{"t":567.2,"w":567,"e":"mailAccepted","id":"welcome","nags":23}
+{"t":610.9,"w":611,"e":"unlock","key":"module:snare"}
+{"t":639.4,"w":639,"e":"achievement","id":"snareFirst"}
+{"t":642.5,"w":642,"e":"tip","id":"snare:intro:antivirus"}
+{"t":648.3,"w":648,"e":"tip","id":"snare:intro:sweep"}
+{"t":662.9,"w":663,"e":"tip","id":"snare:intro:boss"}
+{"t":673.2,"w":673,"e":"snare","haul":22,"sector":1,"bosses":0,"bossHits":1,"wiped":0,"catches":4,"caught":12,"gold":1,"corrupted":0,"snaps":0,"empty":0,"bestMult":1.42,"chained":0,"lasered":0,"scrubbed":0,"cores":0,"stolen":0,"quarantined":0,"bounces":0,"stuns":0,"fwLost":0,"sweeps":2,"area":70,"secs":19}
+{"t":688.4,"w":688,"e":"buy","id":"snareSprawl","lvl":1,"held":22,"price":15,"rank":1}
+{"t":708,"w":708,"e":"snare","haul":54,"sector":1,"bosses":0,"bossHits":0,"wiped":5,"catches":10,"caught":37,"gold":2,"corrupted":0,"snaps":0,"bestMult":1.34,"sweeps":2,"area":112,"secs":18,"record":true}
+{"t":728.5,"w":728,"e":"buy","id":"snareLaser","lvl":1,"held":61,"price":50,"affordable":4,"rank":4}
+{"t":745.5,"w":745,"e":"snare","haul":39,"sector":1,"bossHits":0,"wiped":2,"catches":7,"caught":25,"snaps":1,"bestMult":1.35,"lasered":2,"sweeps":1,"area":112,"secs":14}
+{"t":751.7,"w":752,"e":"buy","id":"snareSprawl","lvl":2,"held":50,"price":38,"rank":3}
+{"t":775.6,"w":775,"e":"buy","id":"snareChain","lvl":1,"held":44,"price":30,"rank":2}
+{"t":788.3,"w":788,"e":"snare","haul":24,"sector":1,"bossHits":0,"wiped":4,"catches":5,"caught":18,"corrupted":1,"snaps":1,"bestMult":1.19,"chained":3,"lasered":2,"area":179,"secs":11}
+{"t":800.7,"w":801,"e":"snareBoss","sector":1,"secs":9}
+{"t":801.3,"w":801,"e":"snare","haul":29,"sector":1,"bosses":1,"bossHits":1,"wiped":1,"catches":4,"caught":18,"corrupted":1,"snaps":1,"bestMult":1.17,"chained":1,"lasered":2,"area":179,"secs":9}
+{"t":817.3,"w":817,"e":"snareBoss","sector":2,"secs":13}
+{"t":818.1,"w":818,"e":"snare","haul":66,"sector":2,"bosses":1,"bossHits":2,"wiped":4,"catches":4,"caught":20,"snaps":1,"bestMult":1.39,"chained":3,"lasered":2,"sweeps":1,"area":179,"secs":14,"record":true}
+{"t":846.3,"w":846,"e":"buy","id":"snareLaser","lvl":2,"held":133,"price":100,"affordable":10,"rank":6}
+{"t":854.6,"w":855,"e":"buy","id":"snareFocus","lvl":1,"held":33,"price":25,"rank":1}
+{"t":869.4,"w":869,"e":"snare","haul":48,"sector":3,"bossHits":3,"wiped":11,"catches":4,"caught":19,"snaps":2,"bestMult":1.29,"chained":4,"lasered":4,"sweeps":1,"area":179,"secs":14}
+{"t":885.8,"w":886,"e":"snare","haul":37,"sector":3,"bossHits":1,"wiped":7,"catches":2,"caught":17,"corrupted":2,"snaps":1,"bestMult":1.25,"lasered":3,"area":179,"secs":11}
+{"t":897.2,"w":897,"e":"snare","haul":41,"sector":3,"bossHits":2,"wiped":7,"catches":3,"caught":19,"corrupted":1,"snaps":2,"bestMult":1.37,"chained":4,"lasered":1,"area":179,"secs":10}
+{"t":901.6,"w":902,"e":"buy","id":"snareScrubbers","lvl":1,"held":134,"price":100,"affordable":9,"rank":7}
+{"t":915.4,"w":915,"e":"snare","haul":56,"sector":3,"bossHits":0,"wiped":6,"catches":3,"caught":24,"corrupted":1,"snaps":2,"bestMult":1.42,"chained":2,"lasered":4,"scrubbed":2,"area":179,"secs":10}
+{"t":918.4,"w":918,"e":"buy","id":"snareChain","lvl":2,"held":90,"price":90,"rank":2}
+{"t":932.4,"w":932,"e":"snare","haul":44,"sector":3,"bossHits":1,"wiped":6,"catches":4,"caught":17,"snaps":2,"bestMult":1.42,"chained":1,"lasered":3,"area":179,"secs":13}
+{"t":951.2,"w":951,"e":"snare","haul":115,"sector":3,"bossHits":1,"wiped":16,"catches":5,"caught":47,"snaps":2,"bestMult":1.61,"lasered":3,"scrubbed":2,"sweeps":2,"area":179,"secs":17,"record":true}
+{"t":972.7,"w":972,"e":"buy","id":"snareFocus","lvl":2,"held":159,"price":75,"rank":1}
+{"t":1073,"w":3759,"e":"snare","haul":67,"sector":3,"bossHits":2,"wiped":11,"catches":3,"caught":20,"gold":4,"snaps":1,"empty":1,"bestMult":1.55,"chained":2,"lasered":6,"scrubbed":1,"sweeps":3,"area":179,"secs":21}
+{"t":1088.8,"w":3775,"e":"snare","haul":85,"sector":3,"bossHits":2,"wiped":17,"catches":4,"caught":35,"corrupted":2,"bestMult":1.5,"chained":5,"lasered":3,"scrubbed":1,"area":179,"secs":14}
+{"t":1108.8,"w":3795,"e":"snare","haul":73,"sector":3,"bossHits":2,"wiped":2,"catches":3,"caught":22,"corrupted":1,"snaps":1,"bestMult":1.52,"chained":4,"lasered":5,"scrubbed":2,"area":179,"secs":16}
+{"t":1116.5,"w":3803,"e":"buy","id":"snareChecksums","lvl":1,"held":309,"price":300,"affordable":12,"rank":12}
+{"t":1142.3,"w":3828,"e":"snare","haul":127,"sector":3,"bossHits":2,"wiped":5,"catches":6,"caught":56,"bestMult":1.98,"chained":9,"lasered":5,"scrubbed":5,"area":179,"secs":18,"record":true}
+{"t":1148.3,"w":3834,"e":"buy","id":"snareSprawl","lvl":3,"held":136,"price":94,"rank":1}
+{"t":1163.4,"w":3850,"e":"snare","haul":130,"sector":3,"bossHits":2,"wiped":4,"catches":5,"caught":46,"gold":4,"corrupted":1,"snaps":2,"bestMult":1.55,"area":287,"secs":14,"record":true}
+{"t":1167,"w":3853,"e":"buy","id":"snareSchools","lvl":1,"held":172,"price":100,"rank":1}
+{"t":1178.2,"w":3864,"e":"snare","haul":162,"sector":3,"bossHits":0,"wiped":8,"catches":4,"caught":62,"bestMult":1.54,"area":287,"secs":10,"record":true}
+{"t":1190.7,"w":3877,"e":"snare","haul":53,"sector":3,"bossHits":0,"catches":2,"caught":26,"corrupted":2,"bestMult":1.21,"area":287,"secs":11}
+{"t":1207.9,"w":3894,"e":"snare","haul":150,"sector":3,"bossHits":2,"wiped":28,"catches":5,"caught":52,"bestMult":1.95,"area":287,"secs":16}
+{"t":1212.9,"w":3899,"e":"buy","id":"snareContain","lvl":1,"held":437,"price":150,"rank":5}
+{"t":1215.2,"w":3901,"e":"buy","id":"snareHerders","lvl":1,"held":287,"price":225,"rank":7}
+{"t":1234.2,"w":3920,"e":"snare","haul":233,"sector":3,"bossHits":0,"wiped":7,"catches":6,"caught":90,"bestMult":1.6,"area":287,"secs":17,"record":true}
+{"t":1237.7,"w":3924,"e":"buy","id":"snareFocus","lvl":3,"held":295,"price":225,"rank":6}
+{"t":1251.8,"w":3938,"e":"snare","haul":169,"sector":3,"bossHits":0,"wiped":14,"catches":4,"caught":60,"snaps":4,"bestMult":2.13,"area":287,"secs":13}
+{"t":1254.7,"w":3941,"e":"buy","id":"snareMegasprawl","lvl":1,"held":239,"price":120,"rank":3}
+{"t":1274.8,"w":3961,"e":"snare","haul":205,"sector":3,"bossHits":3,"wiped":19,"catches":7,"caught":97,"bestMult":1.41,"area":459,"secs":19}
+{"t":1293.7,"w":3980,"e":"snareBoss","sector":3,"secs":17}
+{"t":1295.7,"w":3982,"e":"snare","haul":257,"sector":3,"bosses":1,"bossHits":4,"wiped":5,"catches":4,"caught":79,"corrupted":3,"bestMult":1.3,"area":459,"secs":19,"record":true}
+{"t":1303.9,"w":3990,"e":"buy","id":"snareLaser","lvl":3,"held":581,"price":200,"rank":4}
+{"t":1309.4,"w":3996,"e":"buy","id":"snareFirewalls","lvl":1,"held":381,"price":120,"rank":3}
+{"t":1310.8,"w":3997,"e":"buy","id":"snareFirewalls","lvl":2,"held":261,"price":240,"rank":3}
+{"t":1316.6,"w":4003,"e":"tip","id":"snare:intro:rogue"}
+{"t":1350,"w":4036,"e":"snare","haul":174,"sector":4,"bossHits":0,"wiped":8,"catches":2,"caught":37,"gold":11,"bestMult":1.39,"lasered":16,"cores":8,"stolen":225,"quarantined":2,"bounces":1,"stuns":1,"fwLost":1,"sweeps":4,"area":459,"secs":28}
+{"t":1354.4,"w":4041,"e":"buy","id":"snareGold","lvl":1,"held":195,"price":100,"rank":1}
+{"t":1381.2,"w":4067,"e":"snare","haul":96,"sector":4,"bossHits":0,"wiped":24,"catches":0,"caught":13,"corrupted":2,"bestMult":0,"lasered":13,"cores":8,"stolen":222,"bounces":13,"stuns":1,"fwLost":1,"sweeps":4,"area":459,"secs":26}
+{"t":1384.4,"w":4071,"e":"buy","id":"snareChainStorm","lvl":1,"held":191,"price":100,"rank":1}
+{"t":1417.9,"w":4104,"e":"snare","haul":269,"sector":4,"bossHits":0,"wiped":16,"catches":3,"caught":69,"gold":14,"bestMult":1.42,"lasered":17,"cores":10,"stolen":78,"quarantined":2,"bounces":19,"stuns":2,"fwLost":2,"sweeps":5,"area":459,"secs":33,"record":true}
+{"t":1437.2,"w":4321,"e":"save","op":"erase","skills":4,"version":"v1.0"}
+{"t":21.7,"w":4344,"e":"mailAccepted","id":"welcome","nags":1}
+{"t":41.6,"w":4364,"e":"snare","haul":11,"sector":1,"catches":2,"caught":7,"corrupted":1,"empty":2,"bestMult":1.58,"area":70,"secs":9}
+{"t":53,"w":4376,"e":"tip","id":"snare:intro:boss"}
+{"t":60.5,"w":4383,"e":"snare","haul":30,"sector":1,"wiped":2,"catches":7,"caught":15,"bestMult":1.43,"area":70,"secs":15,"record":true}
+{"t":74.1,"w":4397,"e":"snare","haul":21,"sector":1,"catches":5,"caught":13,"corrupted":1,"bestMult":1.66,"area":70,"secs":12}
+{"t":90.7,"w":4413,"e":"snare","haul":40,"sector":1,"wiped":5,"catches":7,"caught":25,"bestMult":1.48,"area":70,"secs":15,"record":true}
+{"t":95.2,"w":4418,"e":"buy","id":"snareChain","lvl":1,"held":102,"price":30,"rank":3}
+{"t":96.5,"w":4419,"e":"buy","id":"snareFocus","lvl":1,"held":72,"price":25,"rank":2}
+{"t":97.6,"w":4420,"e":"buy","id":"snareSprawl","lvl":1,"held":47,"price":15,"rank":1}
+{"t":108.5,"w":4431,"e":"snareBoss","sector":1,"secs":7}
+{"t":115.5,"w":4438,"e":"snare","haul":56,"sector":1,"bosses":1,"bossHits":1,"catches":7,"caught":34,"bestMult":1.41,"area":112,"secs":14,"record":true}
+{"t":127,"w":4450,"e":"tip","id":"snare:intro:sweep"}
+{"t":132.2,"w":4455,"e":"snare","haul":14,"sector":2,"catches":1,"caught":8,"corrupted":3,"snaps":1,"bestMult":1.38,"sweeps":1,"area":112,"secs":8}
+{"t":154,"w":4477,"e":"snare","haul":66,"sector":2,"bossHits":1,"wiped":8,"catches":8,"caught":29,"bestMult":1.65,"sweeps":2,"area":112,"secs":21,"record":true}
+{"t":166,"w":4489,"e":"snareBoss","sector":2,"secs":11}
+{"t":166.1,"w":4489,"e":"snare","haul":81,"sector":2,"bosses":1,"bossHits":2,"wiped":4,"catches":4,"caught":29,"bestMult":1.72,"area":112,"secs":11,"record":true}
+{"t":171.9,"w":4494,"e":"tip","id":"snare:intro:antivirus"}
+{"t":184.7,"w":4507,"e":"snare","haul":36,"sector":3,"wiped":5,"catches":3,"caught":12,"snaps":1,"bestMult":1.62,"sweeps":2,"area":112,"secs":17}
+{"t":188.1,"w":4511,"e":"buy","id":"snareBandwidth","lvl":1,"held":285,"price":250,"affordable":11,"rank":11}
+{"t":201.1,"w":4524,"e":"snareBoss","sector":3,"secs":11}
+{"t":202.1,"w":4525,"e":"snare","haul":95,"sector":3,"bosses":1,"bossHits":4,"wiped":1,"catches":2,"caught":11,"bestMult":1.55,"area":112,"secs":11,"record":true}
+{"t":205,"w":4528,"e":"buy","id":"snareLaser","lvl":1,"held":130,"price":50,"rank":2}
+{"t":209.7,"w":4532,"e":"buy","id":"snareSprawl","lvl":2,"held":102,"price":38,"rank":1}
+{"t":212.9,"w":4535,"e":"tip","id":"snare:intro:rogue"}
+{"t":224.4,"w":4547,"e":"snare","haul":85,"sector":4,"catches":5,"caught":21,"gold":4,"snaps":2,"bestMult":1.8,"chained":4,"lasered":3,"cores":2,"stolen":8,"quarantined":1,"area":112,"secs":14}
+{"t":243.8,"w":4566,"e":"snare","haul":77,"sector":4,"bossHits":1,"catches":4,"caught":24,"bestMult":1.76,"cores":2,"stolen":81,"area":179,"secs":18}
+{"t":258.7,"w":4581,"e":"snare","haul":62,"sector":4,"bossHits":2,"wiped":12,"catches":4,"caught":25,"bestMult":1.34,"cores":2,"stolen":1,"area":179,"secs":14}
+{"t":275.6,"w":4598,"e":"buy","id":"snareScrubbers","lvl":1,"held":266,"price":100,"rank":8}
+{"t":301.9,"w":4624,"e":"snare","haul":62,"sector":4,"catches":5,"caught":24,"snaps":2,"bestMult":1.31,"scrubbed":1,"cores":2,"stolen":16,"area":179,"secs":15}
+{"t":314.7,"w":4637,"e":"snare","haul":66,"sector":4,"bossHits":2,"wiped":10,"catches":4,"caught":25,"snaps":3,"bestMult":1.51,"cores":1,"stolen":12,"area":179,"secs":11}
+{"t":329.1,"w":4652,"e":"snare","haul":128,"sector":4,"catches":3,"caught":24,"gold":5,"bestMult":1.45,"cores":2,"stolen":23,"quarantined":1,"area":179,"secs":14,"record":true}
+{"t":331.3,"w":4654,"e":"buy","id":"snareChecksums","lvl":1,"held":422,"price":300,"affordable":12,"rank":12}
+{"t":352.1,"w":4675,"e":"snare","haul":81,"sector":4,"bossHits":5,"wiped":17,"catches":6,"caught":24,"bestMult":1.39,"scrubbed":4,"cores":2,"stolen":14,"quarantined":1,"area":179,"secs":18}
+{"t":377.8,"w":4700,"e":"snare","haul":83,"sector":4,"bossHits":5,"wiped":3,"catches":8,"caught":32,"bestMult":1.47,"cores":3,"stolen":65,"area":179,"secs":21}
+{"t":381.1,"w":4704,"e":"buy","id":"snareScrubbers","lvl":2,"held":286,"price":250,"rank":11}
+{"t":395.6,"w":4718,"e":"snareBoss","sector":4,"secs":14}
+{"t":398.2,"w":4721,"e":"snare","haul":191,"sector":4,"bosses":1,"bossHits":6,"wiped":4,"catches":6,"caught":28,"bestMult":1.55,"cores":2,"stolen":43,"quarantined":1,"area":179,"secs":16,"record":true}
+{"t":424.6,"w":4747,"e":"snare","haul":300,"sector":5,"bossHits":2,"wiped":13,"catches":7,"caught":74,"bestMult":1.71,"cores":3,"stolen":47,"quarantined":1,"area":179,"secs":22,"record":true}
+{"t":442.5,"w":4765,"e":"snare","haul":84,"sector":5,"bossHits":2,"wiped":12,"catches":5,"caught":22,"bestMult":1.52,"cores":2,"stolen":6,"quarantined":1,"area":179,"secs":14}
+{"t":446.8,"w":4769,"e":"buy","id":"snareChecksums","lvl":2,"held":611,"price":600,"affordable":11,"rank":11}
+{"t":464,"w":4787,"e":"snare","haul":305,"sector":5,"bossHits":2,"wiped":6,"catches":8,"caught":86,"bestMult":1.8,"cores":2,"stolen":4,"quarantined":2,"area":179,"secs":16,"record":true}
+{"t":470.2,"w":4793,"e":"buy","id":"snareSprawl","lvl":3,"held":316,"price":94,"rank":3}
+{"t":473.8,"w":4796,"e":"buy","id":"snareSchools","lvl":1,"held":222,"price":100,"rank":3}
+{"t":476.1,"w":4799,"e":"buy","id":"snareMegasprawl","lvl":1,"held":122,"price":120,"rank":6}
+{"t":489.3,"w":4812,"e":"snare","haul":456,"sector":5,"wiped":14,"catches":9,"caught":131,"gold":12,"bestMult":1.38,"cores":4,"stolen":35,"area":459,"secs":12,"record":true}
+{"t":494.1,"w":4817,"e":"buy","id":"snareMegasprawl","lvl":2,"held":458,"price":300,"rank":9}
+{"t":496.2,"w":4819,"e":"buy","id":"snareContain","lvl":1,"held":158,"price":150,"rank":7}
+{"t":509,"w":4832,"e":"snare","haul":286,"sector":5,"bossHits":4,"wiped":15,"catches":5,"caught":89,"bestMult":1.54,"cores":4,"stolen":54,"area":734,"secs":12}
+{"t":513.6,"w":4836,"e":"buy","id":"snareHerders","lvl":1,"held":294,"price":225,"rank":7}
+{"t":524.8,"w":4847,"e":"snare","haul":188,"sector":5,"catches":3,"caught":65,"bestMult":1.3,"cores":2,"stolen":5,"quarantined":2,"area":734,"secs":10}
+{"t":537,"w":4859,"e":"snare","haul":186,"sector":5,"bossHits":5,"wiped":7,"catches":5,"caught":52,"bestMult":1.36,"cores":4,"stolen":29,"area":734,"secs":11}
+{"t":544.1,"w":4867,"e":"buy","id":"snareFirehose","lvl":1,"held":443,"price":400,"rank":8}
+{"t":552.7,"w":4875,"e":"snare","haul":154,"sector":5,"catches":4,"caught":55,"corrupted":3,"bestMult":1.23,"cores":2,"stolen":12,"area":734,"secs":8}
+{"t":561.2,"w":4884,"e":"snare","haul":142,"sector":5,"wiped":21,"catches":3,"caught":54,"corrupted":3,"bestMult":1.18,"cores":2,"stolen":26,"area":734,"secs":8}
+{"t":575.8,"w":4898,"e":"buy","id":"snareLaser","lvl":2,"held":339,"price":100,"rank":4}
+{"t":576.4,"w":4899,"e":"buy","id":"snareLaser","lvl":3,"held":239,"price":200,"rank":6}
+{"t":589.1,"w":4912,"e":"snare","haul":308,"sector":5,"wiped":19,"catches":7,"caught":99,"bestMult":1.4,"lasered":7,"cores":4,"stolen":95,"area":734,"secs":12}
+{"t":606.1,"w":4929,"e":"snare","haul":274,"sector":5,"bossHits":4,"wiped":16,"catches":9,"caught":88,"bestMult":1.27,"lasered":7,"cores":4,"stolen":54,"area":734,"secs":16}
+{"t":618.6,"w":4941,"e":"snare","haul":74,"sector":5,"bossHits":4,"catches":4,"caught":21,"snaps":2,"bestMult":1.2,"cores":4,"stolen":16,"area":734,"secs":12}
+{"t":639,"w":4962,"e":"snare","haul":203,"sector":5,"bossHits":8,"wiped":16,"catches":6,"caught":57,"bestMult":1.21,"lasered":7,"cores":6,"stolen":96,"sweeps":3,"area":734,"secs":20}
+{"t":644.9,"w":4967,"e":"buy","id":"snareMegasprawl","lvl":3,"held":898,"price":750,"rank":12}
+{"t":652.8,"w":4975,"e":"buy","id":"snareFirewalls","lvl":1,"held":148,"price":120,"rank":5}
+{"t":671.8,"w":4994,"e":"snare","haul":259,"sector":5,"bossHits":5,"wiped":6,"catches":9,"caught":53,"bestMult":1.22,"lasered":9,"cores":9,"stolen":205,"quarantined":2,"bounces":18,"sweeps":3,"area":1174,"secs":17}
+{"t":678.4,"w":5001,"e":"buy","id":"snareEmitters","lvl":1,"held":287,"price":250,"rank":6}
+{"t":694.5,"w":5017,"e":"snare","haul":182,"sector":5,"bossHits":4,"wiped":6,"catches":4,"caught":55,"bestMult":1.15,"lasered":14,"cores":6,"stolen":267,"bounces":16,"area":1174,"secs":14}
+{"t":715.9,"w":5038,"e":"snare","haul":349,"sector":5,"wiped":24,"catches":7,"caught":107,"gold":13,"bestMult":1.25,"lasered":16,"cores":6,"stolen":115,"bounces":9,"area":1174,"secs":13}
+{"t":731.6,"w":5054,"e":"snare","haul":350,"sector":5,"bossHits":1,"wiped":18,"catches":5,"caught":88,"gold":17,"bestMult":1.27,"lasered":14,"cores":6,"stolen":58,"quarantined":1,"bounces":9,"area":1174,"secs":13}
+{"t":754.1,"w":5077,"e":"snare","haul":443,"sector":5,"bossHits":8,"wiped":5,"catches":8,"caught":132,"gold":17,"bestMult":1.24,"lasered":22,"cores":9,"stolen":264,"bounces":12,"stuns":1,"fwLost":1,"sweeps":3,"area":1174,"secs":21}
+{"t":756.3,"w":5079,"e":"buy","id":"snareChecksums","lvl":3,"held":1361,"price":1200,"affordable":20,"rank":18}
+{"t":776.7,"w":5099,"e":"snare","haul":351,"sector":5,"bossHits":6,"wiped":1,"catches":4,"caught":81,"gold":21,"bestMult":1.33,"lasered":23,"cores":9,"stolen":408,"stuns":1,"fwLost":1,"sweeps":3,"area":1174,"secs":19}
+{"t":800.3,"w":5123,"e":"snare","haul":399,"sector":5,"bossHits":4,"wiped":18,"catches":7,"caught":76,"gold":13,"bestMult":1.25,"lasered":21,"cores":9,"stolen":327,"quarantined":4,"sweeps":3,"area":1174,"secs":20}
+{"t":816.8,"w":5141,"e":"sample","xp":238,"at":"bay:pipeline"}

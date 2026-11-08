@@ -157,14 +157,20 @@
 
         const views = {};
         let prev = null;
+        // Play time starts again at 0 after Erase everything (a husband's log read −23.5 min in the server room): a span
+        // that runs backwards ends there instead of counting.
+        const add = (v, a, b) => { if (b > a) views[v] = (views[v] || 0) + (b - a); };
+        let tail = null;
         for (const e of events) {
+            if (prev && e.t < prev.t) { add(prev.v, prev.t, tail ?? prev.t); prev = null; }
+            tail = e.t;
             // A session starts on the screen it opened on (its `at`); time between sessions isn't counted.
-            if (e.e === 'session') { if (prev) views[prev.v] = (views[prev.v] || 0) + (e.t - prev.t); prev = e.at ? { v: e.at, t: e.t } : null; continue; }
+            if (e.e === 'session') { if (prev) add(prev.v, prev.t, e.t); prev = e.at ? { v: e.at, t: e.t } : null; continue; }
             if (e.e !== 'view') continue;
-            if (prev) views[prev.v] = (views[prev.v] || 0) + (e.t - prev.t);
+            if (prev) add(prev.v, prev.t, e.t);
             prev = e;
         }
-        if (prev && last) views[prev.v] = (views[prev.v] || 0) + (last.t - prev.t);
+        if (prev && last) add(prev.v, prev.t, last.t);
         const total = Object.values(views).reduce((a, b) => a + b, 0);
         if (total > 0) {
             lines.push('', 'Time by screen:');
