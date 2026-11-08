@@ -120,3 +120,23 @@ test('bubbles: an Antivirus that touches a growing bubble pops it', () => {
     assert.equal(s.stats.snaps, 1, 'popped');
     assert.ok(!s.bubble);
 });
+
+test('bubbles on a mouse: a left-click bubble never turns into a wire, a right-click wire never grows a bubble', () => {
+    const s = still();
+    packet(s, 'good', 8, 4);
+    s.setPen('bubble');
+    s.addPoint(6, 4);
+    for (let i = 1; i <= 10; i++) s.addPoint(6 + i * 0.3, 4);   // a fast drag: still a bubble
+    assert.ok(s.bubble, 'locked as a bubble');
+    hold(s, 1);
+    assert.ok(s.bubble.growing && s.bubble.x > 6.3, 'grown and drifting after the pen');
+    s.liftPen();
+    assert.equal(s.stats.bubbles, 1);
+    const w = still();
+    w.setPen('wire');
+    w.addPoint(3, 3);
+    hold(w, 1);
+    assert.ok(!w.bubble, 'held still, a right-click grows nothing');
+    w.liftPen();
+    assert.equal(w.stats.bubbles, 0);
+});

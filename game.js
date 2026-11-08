@@ -3716,7 +3716,10 @@ window.AGI = (function () {
             const run = snare.run;
             // Nothing on the field takes a press under a first-meeting card (the run is paused) or the tree.
             if (!run || run.over || snare.preview || snare.pointer !== null || snare.tree || snare.intro) return;
-            if (e.pointerType === 'mouse' && e.button !== 0) return;   // the left button draws; others do nothing
+            // The left button draws; with bubbles on (Snare 12.4, the owner's call) the left holds a bubble and the right
+            // draws the wire (loops, flicks, slashes); other buttons do nothing.
+            const mouse = e.pointerType === 'mouse', bubbles = !!run.opts.bubble && snare.tool === 'lasso';
+            if (mouse && !(e.button === 0 || (e.button === 2 && bubbles))) return;
             e.preventDefault();
             snare.pointer = e.pointerId;
             snare.touch = e.pointerType !== 'mouse';
@@ -3726,8 +3729,10 @@ window.AGI = (function () {
             const [x, y] = toWorld(e);
             // The tool in hand: the lasso draws a wire, the Firewall tool drags a section (a new one, or one already down:
             // drag and drop), the others place on a tap.
-            if (snare.tool === 'lasso') run.addPoint(x, y);
-            else if (snare.tool === 'wall') {
+            if (snare.tool === 'lasso') {
+                run.setPen?.(bubbles && mouse ? (e.button === 2 ? 'wire' : 'bubble') : null);
+                run.addPoint(x, y);
+            } else if (snare.tool === 'wall') {
                 const z = run.zoneAt(x, y, 8 / snare.scale);
                 snare.wallFrom = z ? { id: z.id, dx: x - z.x, dy: y - z.y, x: z.x, y: z.y } : { x, y };
             }
@@ -4013,7 +4018,7 @@ window.AGI = (function () {
                 if (t === 'corrupt') sfx('snareSpoil');
                 else if (t === 'snap') { sfx('snareSnap'); shake(0.25); if (e.bubble) snare.fx.push({ kind: 'flag', x: e.x, y: e.y - 0.6, t: 0, life: 1, text: 'POPPED', small: true }); }
                 // Bubbles (the prototype): a loop that only snared packets says what loops are for now (a few times a page)
-                else if (t === 'loopOnly' && (snare.loopHints = (snare.loopHints || 0) + 1) <= 4) snare.fx.push({ kind: 'flag', x: e.x, y: e.y - 0.6, t: 0, life: 1.6, text: 'LOOPS STUN · HOLD STILL TO CATCH', small: true });
+                else if (t === 'loopOnly' && (snare.loopHints = (snare.loopHints || 0) + 1) <= 4) snare.fx.push({ kind: 'flag', x: e.x, y: e.y - 0.6, t: 0, life: 1.6, text: (matchMedia('(pointer: fine)').matches ? 'LOOPS STUN · LEFT-CLICK AND HOLD TO CATCH' : 'LOOPS STUN · HOLD STILL TO CATCH'), small: true });
                 else if (t === 'antivirus') snareIntro('antivirus');
                 else if (t === 'core') { sfx('snareCore'); snareIntro('rogue'); }
                 else if (t === 'stun') sfx('snareStun', { down: !!e.down });
@@ -4241,7 +4246,9 @@ window.AGI = (function () {
                 el('div', { class: 'result-main', text: 'Packet Snare' }),
                 snareSectorPicker(),
                 el('p', { class: 'snare-intro-line snare-goal-line', text: snareGoalText(snareNextSector()) }),
-                snareBubbleOn() ? el('p', { class: 'snare-intro-line', text: 'Prototype: hold still on the field to grow a bubble, let go to catch what\'s inside (no red!). Loops only stun and quarantine. Settings turns it off.' }) : null,
+                snareBubbleOn() ? el('p', { class: 'snare-intro-line', text: matchMedia('(pointer: fine)').matches
+                    ? 'Prototype: left-click and hold to grow a bubble, let go to catch what\'s inside (no red!). Right-click draws loops and flicks: loops stun and quarantine. Settings turns it off.'
+                    : 'Prototype: hold still on the field to grow a bubble, let go to catch what\'s inside (no red!). Loops only stun and quarantine. Settings turns it off.' }) : null,
                 first && !snareBubbleOn() ? snareDemo('lasso') : null,
                 first && !snareBubbleOn() ? el('p', { class: 'snare-intro-line', text: SNARE_INTROS.lasso[1] }) : null,
                 best > 0 ? el('ul', { class: 'result-lines' }, [['Best haul', `+${E.format(best)} Signal`], snareRpLine(), snareTrainingLine()].filter(Boolean)

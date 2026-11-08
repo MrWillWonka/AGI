@@ -493,3 +493,9 @@ and a start from nothing meant a school had swum off before a bubble was worth a
 into a wire. Now it appears at once, already able to catch (0.85 × the closing ring), grows to full size in 2.5 s, and
 after its first 0.22 s it follows the pen (0.6 of the shorter side a second) rather than breaking. Only a deliberate
 stroke in that first moment (past 1.2 × the closing ring) draws a wire, so loops and flicks still work.
+
+### Snare 12.4: left and right click
+
+The owner: "let's split the two between left and right click." With bubbles on and a mouse, the left button holds a
+bubble (locked: no swipe turns it into a wire) and the right button draws the wire (loops, flicks and slashes; held
+still it grows nothing). Touch, with one kind of press, keeps deciding by how the stroke moves.

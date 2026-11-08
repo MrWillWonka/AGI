@@ -2225,7 +2225,9 @@
                 s.leftStart = false;
                 s.wire = [p];
                 s.stroke = { t0: s.real, pts: [p] };
-                if (o.bubble) s.bubble = { x, y, t0: s.real, r: bubbleMinR(), growing: false, pen: p };
+                // the pen's kind (Snare 12.4, the owner: on a mouse, left holds a bubble and right draws the wire): 'bubble'
+                // never turns into a wire, 'wire' never grows a bubble, none (touch) decides by how the stroke moves
+                if (o.bubble && s.penKind !== 'wire') s.bubble = { x, y, t0: s.real, r: bubbleMinR(), growing: false, pen: p, locked: s.penKind === 'bubble' };
                 return true;
             }
             // Bubbles: once one grows it owns the stroke; a pen that wanders off before then draws a wire after all.
@@ -2233,7 +2235,7 @@
                 s.bubble.pen = p;
                 if (s.bubble.growing) return true;
                 // still deciding: the stroke is kept (a flick is judged from it); a deliberate stroke draws a wire after all
-                if (Math.hypot(x - s.bubble.x, y - s.bubble.y) <= o.bubbleSlop * closeR) {
+                if (s.bubble.locked || Math.hypot(x - s.bubble.x, y - s.bubble.y) <= o.bubbleSlop * closeR) {
                     if (s.stroke && s.stroke.pts.length < 400) s.stroke.pts.push(p);
                     return true;
                 }
@@ -2318,6 +2320,8 @@
         }
         // The pen is taken away (a card came up mid-stroke): the open wire is dropped without being judged (no loop, no
         // flick, no flag); a held Race Condition loop stays held, and a figure eight's first lobe is paid.
+        // The next stroke's kind: 'bubble', 'wire', or null to decide by how it moves (touch).
+        function setPen(kind) { s.penKind = kind || null; }
         function cancelPen() {
             s.bubble = null;
             settleFork();
@@ -2412,7 +2416,7 @@
             return e;
         }
 
-        return Object.assign(s, { step, nextSector, goalProgress, addPoint, liftPen, cancelPen, stop, netsDone, netAreas, chargeReach, isStar, takeEvents, preview, valueOf, isGood, placeZone, moveZone, zoneAt, placeAt, removeAt, usePower, wallsUp, frozen, layoutOf, emitterSpots });
+        return Object.assign(s, { step, nextSector, goalProgress, addPoint, liftPen, cancelPen, setPen, stop, netsDone, netAreas, chargeReach, isStar, takeEvents, preview, valueOf, isGood, placeZone, moveZone, zoneAt, placeAt, removeAt, usePower, wallsUp, frozen, layoutOf, emitterSpots });
     }
 
     return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, AV_R, BOSS_R, BOSS_WARN, BOSS_DASH, BOSS_DASH_SPEED, MINE_R, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };
