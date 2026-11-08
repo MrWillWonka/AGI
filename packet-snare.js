@@ -156,8 +156,23 @@
         freeze: 0,
         freezeSeconds: 3,
         purge: 0,
-        // Everything you placed, carried over from the last run as shares of the field.
+        // Everything you placed, carried over from the last run as shares of the field (only without `autoTools`).
         layout: { zones: [], decoys: [], turrets: [], towers: [] },
+        // Snare 13 (the owner's call: "the rest spawns so the process is automated over time"): your Firewall sections,
+        // decoys, turrets and towers place themselves. Each kind keeps up to its level standing (`firewalls`, `decoys`,
+        // `turrets`, `towers`), a new one arriving every `toolEvery` s where it's useful and lasting its life, then moving
+        // on. Freeze and purge are pickups instead of buttons: one drifts in now and then, and a tap or click grabs it.
+        autoTools: 1,
+        toolFirst: 2,               // seconds into a run before the first of each kind
+        toolEvery: 5,               // seconds between arrivals of a kind while it's under its count
+        zoneLife: 12,               // how long each lasts: a Firewall section…
+        decoyLife: 10,              // …a decoy…
+        turretLife: 14,             // …a turret…
+        towerLife: 14,              // …a scanner tower
+        pickupFirst: 4,             // seconds into a run before the first pickup of a power
+        pickupEvery: 16,            // seconds between pickups of a power at level 1 (÷ 1 + 0.6 a level past it)
+        pickupLife: 7,              // how long one waits to be grabbed
+        pickupReach: 0.9,           // its size, in units (the UI adds a finger's reach)
         flow: true,                 // a current: packets enter upstream and leave the field downstream (false: they bounce)
         flowSpread: 0.5,            // how far (radians) a school's heading strays from the current
         contain: 0,                 // Containment Field: the edges turn good packets back (corrupt ones still leave)
@@ -466,16 +481,19 @@
             goalBonus: 0,           // half of what its loops were worth past their packets (counts toward the goal)
             lastLoopAt: -1e9,       // when the last loop paid (a loop moments after it is rushed)
             clears: 0,              // sectors cleared this run (each clear's Focus bonus is half the last's)
-            stats: { catches: 0, bubbles: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
+            stats: { catches: 0, bubbles: 0, spawned: 0, pickups: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
                 stolen: 0, cores: 0, quarantined: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0,
                 herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0,
                 bossDamage: 0, avDown: 0, glanced: 0, mines: 0, minesCleared: 0, netted: 0, escalations: 0, forks: 0, stars: 0 },
             acc: 0,
+            toolAt: {},             // when each kind of tool next arrives (Snare 13)
+            pickups: [],            // freeze and purge waiting to be grabbed: { id, kind, x, y, until }
+            pickupAt: {},
             nextId: 1
         };
         for (let i = 0; i < o.scanner; i++) s.beams.push(i * Math.PI * 2 / o.scanner);
         // What you placed last run stays placed (as far as this run's slots go).
-        const L0 = o.layout || {};
+        const L0 = o.autoTools ? {} : (o.layout || {});
         for (const [u, v] of (L0.zones || []).slice(0, o.firewalls)) s.walls.push(makeZone(u * w, v * h));
         for (const [u, v] of (L0.decoys || []).slice(0, o.decoys)) s.decoys.push({ id: s.nextId++, x: u * w, y: v * h });
         for (const [u, v] of (L0.turrets || []).slice(0, o.turrets)) s.turrets.push({ id: s.nextId++, x: u * w, y: v * h, at: o.turretEvery * 0.5 });
@@ -1204,13 +1222,13 @@
             s.stats.fwLost++;
             s.walls = s.walls.filter(g => g !== f);
             wallsNow = wallsUp();
-            if (o.wallRebuild && !f.auto) s.rebuild.push({ x: f.x, y: f.y, at: s.time + o.wallRebuild });
+            if (o.wallRebuild && (!f.auto || o.autoTools)) s.rebuild.push({ x: f.x, y: f.y, at: s.time + o.wallRebuild });
             s.events.push({ type: 'zoneDown', x: f.x, y: f.y, hw: f.hw, hh: f.hh });
         }
         // Auto-Deploy: a free section goes where the good packets gather (the densest patch with the fewest red, clear
         // of your other sections).
         function autoZoneStep() {
-            if (!o.autoZone) return;
+            if (!o.autoZone || o.autoTools) return;     // with tools that place themselves, Auto-Deploy adds to them (toolStep)
             // its sections move on when their time is up (no rebuild, no slot freed: they never took one)
             const gone = s.walls.filter(f => f.auto && s.time >= f.until);
             if (gone.length) {
@@ -1269,9 +1287,9 @@
             return true;
         }
         // Use a power (a charge a run).
-        function usePower(kind) {
-            if (s.over || !(s.charges[kind] > 0)) return false;
-            s.charges[kind]--;
+        function usePower(kind, free = false) {
+            if (s.over || (!free && !(s.charges[kind] > 0))) return false;
+            if (!free) s.charges[kind]--;
             if (kind === 'freeze') {
                 s.frozenLeft = o.freezeSeconds;
                 s.stats.freezes++;
@@ -1283,6 +1301,115 @@
             } else return false;
             s.events.push({ type: 'power', kind });
             return true;
+        }
+        // ---- Tools that place themselves, and power pickups (Snare 13) ----------------------------------------
+        // The densest cell of the field by a weight a packet carries: where a tool is most use.
+        function bestCell(weight, min, clear) {
+            const cell = Math.max(2, 0.15 * shortSide), score = new Map();
+            for (const p of s.packets) {
+                const wt = weight(p);
+                if (!wt) continue;
+                const key = Math.floor(p.x / cell) * 4096 + Math.floor(p.y / cell);
+                score.set(key, (score.get(key) || 0) + wt);
+            }
+            let best = null, bs = min;
+            for (const [key, sc] of score) {
+                if (sc < bs) continue;
+                const at = { x: (Math.floor(key / 4096) + 0.5) * cell, y: ((key % 4096) + 0.5) * cell };
+                if (clear && !clear(at)) continue;
+                best = at; bs = sc;
+            }
+            return best;
+        }
+        const farFrom = (list, d) => at => !list.some(it => Math.hypot(it.x - at.x, it.y - at.y) < d);
+        const margin = () => Math.min(1, w / 4, h / 4);
+        const interior = at => at && { x: Math.max(margin(), Math.min(w - margin(), at.x)), y: Math.max(margin(), Math.min(h - margin(), at.y)) };
+        function toolSpot(kind) {
+            const red = p => p.kind === 'corrupt' && !spoofed(p);
+            if (kind === 'wall') return bestCell(p => (red(p) ? -2 : 1), 2, at => !s.walls.some(f => Math.abs(f.x - at.x) < f.hw * 2 && Math.abs(f.y - at.y) < f.hh * 2));
+            if (kind === 'tower') return interior(bestCell(p => (red(p) ? 0 : 1), 3, farFrom(s.towers, 2.5)));
+            if (kind === 'decoy') return interior(bestCell(p => (red(p) ? 1 : 0), 1, farFrom(s.decoys, 2)));
+            // a turret: within reach of a hunting Antivirus, a little toward the middle; else where the red packets are
+            const av = s.antivirus.filter(f => !(f.ally > s.time) && !f.off).sort((a, b) => Math.hypot(a.x - w / 2, a.y - h / 2) - Math.hypot(b.x - w / 2, b.y - h / 2))[0];
+            if (av) {
+                const dx = w / 2 - av.x, dy = h / 2 - av.y, d = Math.hypot(dx, dy) || 1, k = Math.min(d, o.turretRange * 0.6);
+                const at = interior({ x: av.x + dx / d * k, y: av.y + dy / d * k });
+                if (farFrom(s.turrets, 1.5)(at)) return at;
+            }
+            return interior(bestCell(p => (red(p) ? 1 : 0), 1, farFrom(s.turrets, 2)));
+        }
+        const TOOL_KINDS = [['wall', 'walls', 'firewalls', 'zoneLife'], ['decoy', 'decoys', 'decoys', 'decoyLife'], ['turret', 'turrets', 'turrets', 'turretLife'], ['tower', 'towers', 'towers', 'towerLife']];
+        function toolStep() {
+            if (!o.autoTools || s.over) return;
+            TOOL_KINDS.forEach(([kind, list, capKey, lifeKey], i) => {
+                // its time is up: it moves on (a section frees its place; Great Wall only rebuilds one worn down)
+                const gone = s[list].filter(it => it.auto && s.time >= it.until);
+                if (gone.length) {
+                    s[list] = s[list].filter(it => !gone.includes(it));
+                    if (kind === 'wall') wallsNow = wallsUp();
+                    for (const g of gone) s.events.push({ type: 'toolGone', kind, x: g.x, y: g.y });
+                }
+                // Auto-Deploy: sections come sooner, and more of them stand
+                const cap = (o[capKey] || 0) + (kind === 'wall' && o.autoZone ? o.autoZoneMax : 0);
+                if (!cap) return;
+                if (s.toolAt[kind] === undefined) s.toolAt[kind] = o.toolFirst + i * 0.8;
+                if (s.time < s.toolAt[kind]) return;
+                s.toolAt[kind] = s.time + (kind === 'wall' && o.autoZone ? Math.min(o.toolEvery, o.autoZoneEvery) : o.toolEvery);
+                if (s[list].length + (kind === 'wall' ? s.rebuild.length : 0) >= cap) return;
+                const at = toolSpot(kind);
+                if (!at) return;
+                let it;
+                if (kind === 'wall') { it = makeZone(at.x, at.y); s.walls.push(it); wallsNow = wallsUp(); }
+                else {
+                    it = { id: s.nextId++, x: at.x, y: at.y };
+                    if (kind === 'turret') it.at = s.time + o.turretEvery * 0.5;
+                    if (kind === 'tower') it.ang = 0;
+                    s[list].push(it);
+                }
+                it.auto = true; it.until = s.time + o[lifeKey]; it.born = s.time;
+                s.stats.spawned++;
+                if (kind === 'wall' && o.autoZone) s.stats.autoZones++;
+                s.events.push({ type: 'spawn', kind, x: it.x, y: it.y });
+            });
+        }
+        // Freeze and purge drift in as pickups (one of each at most), more often a level; a tap grabs one.
+        function pickupStep(dt) {
+            if (!o.autoTools || s.over) return;
+            s.pickups = s.pickups.filter(pk => {
+                if (s.time < pk.until) return true;
+                s.events.push({ type: 'pickupGone', kind: pk.kind, x: pk.x, y: pk.y });
+                return false;
+            });
+            for (const kind of ['freeze', 'purge']) {
+                const lv = o[kind] || 0;
+                if (!lv) continue;
+                if (s.pickupAt[kind] === undefined) s.pickupAt[kind] = o.pickupFirst + (kind === 'purge' ? 3 : 0);
+                if (s.time < s.pickupAt[kind] || s.pickups.some(pk => pk.kind === kind)) continue;
+                s.pickupAt[kind] = s.time + o.pickupEvery / (1 + 0.6 * (lv - 1)) * (0.8 + 0.4 * rand());
+                // purge comes where the red packets are; freeze anywhere well inside the field
+                const m = Math.max(o.pickupReach * 1.5, 0.15 * shortSide);
+                const near = kind === 'purge' ? bestCell(p => (p.kind === 'corrupt' ? 1 : 0), 1) : null;
+                const x = Math.max(m, Math.min(w - m, near ? near.x : m + rand() * (w - 2 * m)));
+                const y = Math.max(m, Math.min(h - m, near ? near.y : m + rand() * (h - 2 * m)));
+                s.pickups.push({ id: s.nextId++, kind, x, y, born: s.time, until: s.time + o.pickupLife });
+                s.events.push({ type: 'pickupHere', kind, x, y });
+            }
+            // they drift a little with the current
+            if (s.flow) for (const pk of s.pickups) {
+                pk.x = Math.max(0.5, Math.min(w - 0.5, pk.x + s.flow.x * 0.25 * dt));
+                pk.y = Math.max(0.5, Math.min(h - 0.5, pk.y + s.flow.y * 0.25 * dt));
+            }
+        }
+        // A tap or click at (x, y): grab the pickup under it (`reach` is the UI's finger, in units). Returns its kind.
+        function grab(x, y, reach = 0) {
+            if (s.over) return null;
+            const pk = s.pickups.find(q => Math.hypot(q.x - x, q.y - y) <= o.pickupReach + reach);
+            if (!pk) return null;
+            s.pickups = s.pickups.filter(q => q !== pk);
+            s.stats.pickups++;
+            s.events.push({ type: 'pickup', kind: pk.kind, x: pk.x, y: pk.y });
+            usePower(pk.kind, true);
+            return pk.kind;
         }
         const frozen = () => s.frozenLeft > 0;
         // Packets and your Firewall sections: a red packet can't get in (it bounces off the side it hit) and one inside is
@@ -1714,11 +1841,15 @@
             rogueStep(dt);
             partnerStep(dt);
             for (const r of s.rebuild.filter(r => s.time >= r.at)) {
-                s.walls.push(makeZone(r.x, r.y));
+                const z = makeZone(r.x, r.y);
+                if (o.autoTools) { z.auto = true; z.until = s.time + o.zoneLife; }
+                s.walls.push(z);
                 s.events.push({ type: 'rebuilt', x: r.x, y: r.y });
             }
             s.rebuild = s.rebuild.filter(r => s.time < r.at);
             autoZoneStep();
+            toolStep();
+            pickupStep(dt);
             // A sector with no boss: catching its goal of packets clears it (the run goes on).
             if (o.goal > 0 && !s.goalDone && goalProgress() >= o.goal) {
                 s.goalDone = true;
@@ -2434,7 +2565,7 @@
             return e;
         }
 
-        return Object.assign(s, { step, nextSector, goalProgress, addPoint, liftPen, cancelPen, setPen, stop, netsDone, netAreas, chargeReach, isStar, takeEvents, preview, valueOf, isGood, placeZone, moveZone, zoneAt, placeAt, removeAt, usePower, wallsUp, frozen, layoutOf, emitterSpots });
+        return Object.assign(s, { step, nextSector, goalProgress, addPoint, liftPen, cancelPen, setPen, stop, netsDone, netAreas, chargeReach, isStar, takeEvents, preview, valueOf, isGood, placeZone, moveZone, zoneAt, placeAt, removeAt, usePower, grab, wallsUp, frozen, layoutOf, emitterSpots });
     }
 
     return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, AV_R, BOSS_R, BOSS_WARN, BOSS_DASH, BOSS_DASH_SPEED, MINE_R, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };

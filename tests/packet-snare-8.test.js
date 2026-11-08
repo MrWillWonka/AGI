@@ -52,7 +52,7 @@ test('a Firewall section worn to nothing frees its slot', () => {
 });
 
 test('saved sections come back inside the field', () => {
-    const s = still({ firewalls: 1, layout: { zones: [[0.99, 0.01]] } });
+    const s = still({ firewalls: 1, autoTools: 0, layout: { zones: [[0.99, 0.01]] } });   // the old hand-placed mode
     const f = s.walls[0];
     assert.ok(f.x + f.hw <= s.w + 1e-9 && f.y - f.hh >= -1e-9, 'kept inside');
 });

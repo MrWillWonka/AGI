@@ -3720,6 +3720,11 @@ window.AGI = (function () {
             // stun and quarantine, flicks to slash, parry and spoof) and the right holds a bubble; other buttons do nothing.
             const mouse = e.pointerType === 'mouse', bubbles = !!run.opts.bubble && snare.tool === 'lasso';
             if (mouse && !(e.button === 0 || (e.button === 2 && bubbles))) return;
+            // A freeze or purge pickup under the tap or click is grabbed (Snare 13), and nothing is drawn
+            if (run.pickups?.length) {
+                const [gx, gy] = toWorld(e);
+                if (run.grab(gx, gy, (snare.touch || e.pointerType !== 'mouse' ? 18 : 8) / snare.scale)) { e.preventDefault(); return; }
+            }
             e.preventDefault();
             snare.pointer = e.pointerId;
             snare.touch = e.pointerType !== 'mouse';
@@ -3900,8 +3905,10 @@ window.AGI = (function () {
     const snareNextSector = () => Math.min(state.snare.sector, snare.sectorPick ?? state.snare.sector);
     // Upright phones size the field to what the tool bar leaves (round 3's owner screenshot: a fixed reserve for two rows
     // left an empty band under one). Set before the run's field is shaped, and kept between runs so nothing jumps.
+    // Snare 13: tools place themselves and powers are pickups, so the tool bar is only the lasso (hidden)
+    const snareAutoTools = o => (o.autoTools ?? window.PacketSnare.SNARE.autoTools) !== 0;
     function reserveSnareTools(o) {
-        const n = 1 + ['firewalls', 'decoys', 'turrets', 'towers', 'freeze', 'purge'].filter(k => o[k] > 0).length;
+        const n = snareAutoTools(o) ? 1 : 1 + ['firewalls', 'decoys', 'turrets', 'towers', 'freeze', 'purge'].filter(k => o[k] > 0).length;
         const panel = $('snarePanel');
         panel.style.setProperty('--snare-tools-h', `${n < 2 ? 0 : n <= 5 ? 50 : 96}px`);
         const wrap = snare.canvas.parentElement;
@@ -4016,6 +4023,9 @@ window.AGI = (function () {
             } else {
                 snareFxFor(e, snare.fx);
                 if (t === 'corrupt') sfx('snareSpoil');
+                else if (t === 'spawn') snare.fx.push({ kind: 'placed', x: e.x, y: e.y, t: 0, life: 0.6 });
+                else if (t === 'pickupHere') sfx('snarePlace', { kind: 'decoy' });
+                else if (t === 'pickup') { snare.fx.push({ kind: 'stun', x: e.x, y: e.y - 0.8, t: 0, life: 1, text: e.kind === 'freeze' ? 'FROZEN' : 'PURGED', small: true }); }
                 else if (t === 'snap') { sfx('snareSnap'); shake(0.25); if (e.bubble) snare.fx.push({ kind: 'flag', x: e.x, y: e.y - 0.6, t: 0, life: 1, text: 'POPPED', small: true }); }
                 // Bubbles (the prototype): a loop that only snared packets says what loops are for now (a few times a page)
                 else if (t === 'loopOnly' && (snare.loopHints = (snare.loopHints || 0) + 1) <= 4) snare.fx.push({ kind: 'flag', x: e.x, y: e.y - 0.6, t: 0, life: 1.6, text: (matchMedia('(pointer: fine)').matches ? 'LOOPS STUN · RIGHT-CLICK AND HOLD TO CATCH' : 'LOOPS STUN · HOLD STILL TO CATCH'), small: true });
@@ -4077,12 +4087,12 @@ window.AGI = (function () {
         mines: ['Mines', 'The boss lays mines. Two near each other grow a net that wipes the data it crosses, and while any mine stands the boss is shielded. Loop a mine to clear it.'],
         nets: ['Nets', 'Three mines now: once their nets join up, everything inside the triangle is wiped. Loop the mines before the nets close.'],
         rogue: ['The Rogue AI', 'Its cores grow and take the data they reach. Loop a core tight to quarantine it; your walls keep it off the data behind them.'],
-        firewall: ['Firewalls', 'Pick the Firewall tool and drag a section onto the field. Red packets can\'t get in, and Antivirus can\'t either: loop inside it safely. Antivirus wear it down. Drag it to move it; tap it to take it back.'],
-        decoy: ['Decoys', 'Pick the Decoy tool and tap the field. Corrupt packets and idle Antivirus go to it; the boss smashes one it sits on.'],
-        turret: ['Turrets', 'Pick the Turret tool and tap the field. On its beat it shoots an Antivirus in reach (three hits and it\'s down for a while), else a red packet.'],
-        tower: ['Scanner towers', 'Pick the Tower tool and tap the field. Its beam tags what passes: tagged packets are worth more for a moment.'],
-        freeze: ['Freeze Frame', 'A power: the field stops while you draw. Nothing moves and nothing comes due, but the boss can\'t be hit while it holds.'],
-        purge: ['Purge', 'A power: every corrupt packet on the field is wiped. More swim in later.'],
+        firewall: ['Firewalls', 'Sections now place themselves where the good packets gather. Red packets can\'t get in, and Antivirus can\'t either: loop inside one safely. Each stands a while, then moves on.'],
+        decoy: ['Decoys', 'Decoys now appear by themselves near the red packets. Corrupt packets and idle Antivirus go to them; the boss smashes one it sits on.'],
+        turret: ['Turrets', 'Turrets now appear by themselves where Antivirus hunt. On its beat each shoots an Antivirus in reach (three hits and it\'s down for a while), else a red packet.'],
+        tower: ['Scanner towers', 'Towers now appear by themselves in the busiest currents. Their beam tags what passes: tagged packets are worth more for a moment.'],
+        freeze: ['Freeze Frame', 'Now and then a Freeze pickup drifts in: tap or click it and the field stops. Nothing moves and nothing comes due, but the boss can\'t be hit while it holds.'],
+        purge: ['Purge', 'Now and then a Purge pickup drifts in, near the red packets: tap or click it and every corrupt packet on the field is wiped.'],
         gc: ['Garbage Collection', 'A loop round nothing but corrupt packets deletes them and gives Focus back.'],
         ids: ['IDS alert', 'Three flagged exploits: the intrusion detection system noticed. A flick that goes near something and misses it is flagged; one through empty field isn\'t.']
     };
@@ -4346,7 +4356,7 @@ window.AGI = (function () {
         { id: 'freeze', name: 'Freeze', icon: 'timer', power: true },
         { id: 'purge', name: 'Purge', icon: 'flame', power: true }
     ];
-    const snareToolsOwned = run => SNARE_TOOLS.filter(t => t.id === 'lasso' || (t.power ? run.opts[t.id] > 0 : run.opts[t.slots] > 0));
+    const snareToolsOwned = run => SNARE_TOOLS.filter(t => t.id === 'lasso' || (!snareAutoTools(run.opts) && (t.power ? run.opts[t.id] > 0 : run.opts[t.slots] > 0)));
     function pickSnareTool(id) {
         const run = snare.run;
         if (!run || run.over || snare.preview || snare.intro || snare.tree) return;
@@ -4676,7 +4686,7 @@ window.AGI = (function () {
         ['maxWire', 'Wire length', snareX('maxWire')], 
         ['closeRadius', 'Start ring', snareX('closeRadius')], ['focusBack', 'Focus back from a ×2 loop', v => `${v} s`],
         ['race', 'Held loops', v => (v ? 'grow while you hold' : 'off')], ['raceMax', 'A held loop grows to', v => `×${num1(1 + v)}`],
-        ['freeze', 'Freeze charges', String], ['freezeSeconds', 'Freeze', v => `${num1(v)} s`],
+        ['freeze', 'Freeze pickups', v => (v ? `one every ~${Math.round(16 / (1 + 0.6 * (v - 1)))} s` : 'none')], ['freezeSeconds', 'Freeze', v => `${num1(v)} s`],
         ['density', 'Packets', snareX('density')], ['goldChance', 'Gold packets', pct], ['goldValue', 'A gold packet is worth', String],
         ['tagValue', 'A tag', v => `×${v}`], ['schoolSize', 'School size', String], ['contain', 'Edges', v => (v ? 'hold good packets' : 'let packets go')],
         ['herders', 'Herder drones', String], ['herdEvade', 'Herders', v => (v ? `dodge Antivirus (${v})` : 'don\'t dodge')], ['herdRadius', 'Herder reach', snareX('herdRadius')],
@@ -4688,14 +4698,14 @@ window.AGI = (function () {
         ['escalate', 'Your hijacked Antivirus', v => (v ? 'can ram the boss' : 'only takes packets')], ['escalateDamage', 'A ram takes', v => `${v} health`],
         ['laser', 'Laser', v => (v ? `every ${num1(v)} s` : 'none')], ['emitters', 'Emitters per edge', String], ['laserSides', 'Edges with lasers', String],
         ['laserReach', 'Laser reach', snareX('laserReach')],
-        ['turrets', 'Turrets', String], ['turretPurge', 'Red packets a turret shot wipes', v => String(1 + v)],
+        ['turrets', 'Turrets at once', String], ['turretPurge', 'Red packets a turret shot wipes', v => String(1 + v)],
         ['turretRange', 'Turret reach', snareX('turretRange')], ['turretEvery', 'Turrets fire every', v => `${num1(v)} s`], ['scanner', 'Scanner beam', v => (v ? 'on' : 'none')],
-        ['scannerSpeed', 'Scanner sweep', snareX('scannerSpeed')], ['towers', 'Scanner towers', String], ['towerRange', 'Tower reach', snareX('towerRange')],
+        ['scannerSpeed', 'Scanner sweep', snareX('scannerSpeed')], ['towers', 'Scanner towers at once', String], ['towerRange', 'Tower reach', snareX('towerRange')],
         ['chain', 'Arcs per catch', String], ['chainHops', 'Arc hops', String], ['chainRange', 'Arc reach', snareX('chainRange')],
         ['scrubbers', 'Corrupt packets forgiven', String], ['corruptShare', 'Corrupt packets', v => `${Math.round(v * 100)} per 100 good`],
-        ['corruptLure', 'Corrupt pull to schools', pct], ['purge', 'Purge charges', String],
-        ['firewalls', 'Firewall sections', String], ['zoneSize', 'Firewall section size', snareX('zoneSize')], ['wallRebuild', 'Sections rebuild', v => (v ? `after ${v} s` : 'never')],
-        ['fwHits', 'Firewall section health', v => `${6 * v} (Antivirus wear 1 a second)`], ['decoys', 'Decoys', String], ['decoyLure', 'Decoy pull', snareX('decoyLure')],
+        ['corruptLure', 'Corrupt pull to schools', pct], ['purge', 'Purge pickups', v => (v ? `one every ~${Math.round(16 / (1 + 0.6 * (v - 1)))} s` : 'none')],
+        ['firewalls', 'Firewall sections at once', String], ['zoneSize', 'Firewall section size', snareX('zoneSize')], ['wallRebuild', 'Sections rebuild', v => (v ? `after ${v} s` : 'never')],
+        ['fwHits', 'Firewall section health', v => `${6 * v} (Antivirus wear 1 a second)`], ['decoys', 'Decoys at once', String], ['decoyLure', 'Decoy pull', snareX('decoyLure')],
         ['avSpeed', 'Antivirus speed', pct], ['avStun', 'Antivirus stunned for', v => `${num1(v)} s`],
         ['hijack', 'Stunned Antivirus', v => (v ? 'can be hijacked' : 'stay hostile')], ['collude', 'A core turns partner', pct],
         ['flagLimit', 'Flags before an IDS alert', String], ['spoofValue', 'A spoofed packet is worth', v => `×${v}`],
@@ -4928,7 +4938,7 @@ window.AGI = (function () {
 
     // Drawn in layers, back to front, each a function of the view `d` (the context, colours, scale, run, effects), so the
     // field draws the same into the bay's canvas and a node's demo.
-    const SNARE_LAYERS = () => [drawSnareCurrent, drawSnareContain, drawSnareScanner, drawSnareCores, drawSnareMines, drawSnareFirewalls, drawSnareSweeps, drawSnareLoops, drawSnarePreview, drawSnarePackets, drawSnareHerders, drawSnareLasers, drawSnareChain, drawSnareWire, drawSnareRaceLabel, drawSnareRogueFx, drawSnareSnaps, drawSnareAntivirus, drawSnareBoss, drawSnareFrozen, drawSnarePops];
+    const SNARE_LAYERS = () => [drawSnareCurrent, drawSnareContain, drawSnareScanner, drawSnareCores, drawSnareMines, drawSnareFirewalls, drawSnareToolLife, drawSnareSweeps, drawSnareLoops, drawSnarePreview, drawSnarePackets, drawSnareHerders, drawSnareLasers, drawSnareChain, drawSnareWire, drawSnareRaceLabel, drawSnareRogueFx, drawSnareSnaps, drawSnareAntivirus, drawSnareBoss, drawSnarePickups, drawSnareFrozen, drawSnarePops];
     let snareMonoFont = '';
     const snareMono = () => (snareMonoFont ||= getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'monospace');
 
@@ -5622,6 +5632,87 @@ window.AGI = (function () {
     }
 
     // Frozen: the field goes cold and still, a faint frost over it.
+    // Tools that placed themselves (Snare 13): a thin amber arc round each, running down its life, blinking at the end.
+    function drawSnareToolLife(d) {
+        const { ctx, C, k, run, t } = d;
+        for (const list of [run.decoys, run.turrets, run.towers]) {
+            for (const it of list || []) {
+                if (!it.auto || !it.until) continue;
+                const life = Math.max(0, (it.until - run.time) / Math.max(0.1, it.until - (it.born ?? it.until - 10)));
+                const r = Math.max(12, 0.5 * k);
+                ctx.globalAlpha = it.until - run.time < 2 ? 0.35 + 0.35 * Math.sin(t * 14) : 0.55;
+                ctx.strokeStyle = C.warning;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(it.x * k, it.y * k, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * life);
+                ctx.stroke();
+            }
+        }
+        ctx.globalAlpha = 1;
+    }
+    // Freeze and purge pickups (Snare 13): a disc that bobs and pulses, a glyph (a snowflake's six spokes; a crossed-out
+    // red arrowhead), its name, and a ring running down the time left to grab it.
+    function drawSnarePickups(d) {
+        const { ctx, C, k, run, t } = d;
+        for (const pk of run.pickups || []) {
+            const x = pk.x * k, y = pk.y * k + Math.sin(t * 3 + pk.id) * 2;
+            const r = Math.max(14, (run.opts.pickupReach || 0.9) * k * 0.75);
+            const col = pk.kind === 'freeze' ? (C['snare-good'] || C.primary) : C.warning;
+            const left = Math.max(0, (pk.until - run.time) / Math.max(0.1, pk.until - pk.born));
+            // its glow, pulsing
+            ctx.globalAlpha = 0.18 + 0.12 * Math.sin(t * 6);
+            ctx.fillStyle = col;
+            ctx.beginPath();
+            ctx.arc(x, y, r * 1.6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 0.95;
+            ctx.fillStyle = C.bg;
+            ctx.strokeStyle = col;
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // time left
+            ctx.lineWidth = 3;
+            ctx.globalAlpha = left < 0.3 ? 0.5 + 0.5 * Math.sin(t * 16) : 0.9;
+            ctx.beginPath();
+            ctx.arc(x, y, r + 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            ctx.lineWidth = 2;
+            if (pk.kind === 'freeze') {
+                for (let i = 0; i < 3; i++) {
+                    const a = i * Math.PI / 3;
+                    ctx.beginPath();
+                    ctx.moveTo(x - Math.cos(a) * r * 0.6, y - Math.sin(a) * r * 0.6);
+                    ctx.lineTo(x + Math.cos(a) * r * 0.6, y + Math.sin(a) * r * 0.6);
+                    ctx.stroke();
+                }
+            } else {
+                const bad = C['snare-bad'] || C.danger, a = r * 0.45;
+                ctx.fillStyle = bad;
+                ctx.beginPath();
+                ctx.moveTo(x + a, y); ctx.lineTo(x - a * 0.7, y + a * 0.6); ctx.lineTo(x - a * 0.35, y); ctx.lineTo(x - a * 0.7, y - a * 0.6);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = col;
+                ctx.beginPath();
+                ctx.moveTo(x - r * 0.6, y + r * 0.6); ctx.lineTo(x + r * 0.6, y - r * 0.6);
+                ctx.stroke();
+            }
+            ctx.font = `700 11px ${snareMono()}`;
+            ctx.textAlign = 'center';
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = C.bg;
+            const label = pk.kind === 'freeze' ? 'FREEZE' : 'PURGE';
+            ctx.strokeText(label, x, y + r + 18);
+            ctx.fillStyle = col;
+            ctx.fillText(label, x, y + r + 18);
+            ctx.textAlign = 'left';
+        }
+    }
+
     function drawSnareFrozen(d) {
         const { ctx, C, k, run, W, H } = d;
         if (!run.frozen?.()) return;

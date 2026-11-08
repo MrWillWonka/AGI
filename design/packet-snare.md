@@ -521,3 +521,18 @@ Focus glow red at the field's edge, faster as it empties, with 3-2-1 large over 
 pass in all five themes on a maxed tree at a boss sector found good packets beside red ones in Red and Soft pink, and
 a tag's edge reading as red in Arcade; Packet Snare now has its own good, bad and tag colours per theme, and bad
 packets are bigger with a heavier edge.
+
+## Snare 13: tools that place themselves, powers you grab
+
+The owner, going through every item for chance against active deployment: "Freeze and purge can be a tap or click to
+grab and the rest spawns so the process is automated over time". So the pen is for loops and flicks only, and the tool
+bar is gone (`autoTools`, on by default; `autoTools: 0` keeps the old hand-placed mode for tests). Firewall sections,
+decoys, turrets and scanner towers now arrive by themselves (`toolStep`): one every `toolEvery` 5 s, the first kinds
+staggered from `toolFirst` 2 s, as many of each at once as its tree levels allow (Auto-Deploy adds two sections and
+brings them sooner). A section lands where the good packets gather, a decoy and a turret by the red ones, a tower on the
+current, never on top of another; each stands `zoneLife` 12 s, `decoyLife` 10, `turretLife` and `towerLife` 14, fading
+in its last seconds (a ring drains round it). Great Wall rebuilds a spawned section with a fresh life. Freeze and Purge
+float in as **pickups** (`pickupStep`): the first at 4 s (Purge 3 s later), then about every `pickupEvery` 16 s,
+quicker with more levels, drifting on the current and gone after `pickupLife` 7 s; Purge shows up among the red packets.
+A tap or click on one grabs it and fires the power (`grab`, a generous touch reach); it never starts a wire. The saved
+layout is ignored in this mode. Tree texts now read "… at once" for the placeables and "one every ~N s" for the powers.

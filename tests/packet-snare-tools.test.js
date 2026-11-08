@@ -93,7 +93,7 @@ test('Holding Pen: good packets that come into a section stay; Auto-Deploy drops
     for (let i = 0; i < 300; i++) s.step(1 / 60);
     const g = s.packets[0];
     assert.ok(Math.abs(g.x - z.x) <= z.hw + 0.05 && Math.abs(g.y - z.y) <= z.hh + 0.05, 'penned in');
-    const a = still({ firewalls: 1, autoZone: 1, w: 10, h: 7 });
+    const a = still({ firewalls: 1, autoZone: 1, w: 10, h: 7, autoTools: 0 });   // the old hand-placed mode
     for (let i = 0; i < 6; i++) packet(a, 'good', 7.5 + (i % 3) * 0.3, 2 + Math.floor(i / 3) * 0.3);
     for (let i = 0; i < 90; i++) a.step(1 / 60);
     assert.equal(a.walls.length, 1, 'a section placed itself');
@@ -102,7 +102,7 @@ test('Holding Pen: good packets that come into a section stay; Auto-Deploy drops
 
 test('Auto-Deploy: its sections are free (your slots full), at most two at once, and they move on', () => {
     // the owner's log: sections carry over between runs, so every slot was full and Auto-Deploy never placed one
-    const a = still({ firewalls: 1, autoZone: 1, w: 12, h: 8 });
+    const a = still({ firewalls: 1, autoZone: 1, w: 12, h: 8, autoTools: 0 });   // the old hand-placed mode
     const mine = a.placeZone(2, 2);
     assert.ok(mine, 'your own section');
     for (let i = 0; i < 6; i++) packet(a, 'good', 9 + (i % 3) * 0.3, 5 + Math.floor(i / 3) * 0.3);
@@ -198,13 +198,13 @@ test('freeze stops the field (Focus at half speed) while you draw; purge wipes t
     assert.equal(s.stats.purged, 1);
 });
 
-test('what you place carries over to the next run, as far as its slots go', () => {
-    const s = still({ firewalls: 2, decoys: 1, turrets: 1, towers: 1 });
+test('what you place carries over to the next run, as far as its slots go (the old hand-placed mode)', () => {
+    const s = still({ firewalls: 2, decoys: 1, turrets: 1, towers: 1, autoTools: 0 });
     s.placeZone(4, 2);
     s.placeAt('decoy', 3, 4); s.placeAt('turret', 5, 4); s.placeAt('tower', 7, 3);
     s.stop();
     const end = s.takeEvents().find(e => e.type === 'end');
-    const next = still({ firewalls: 2, decoys: 1, turrets: 1, towers: 0, layout: end.layout });
+    const next = still({ firewalls: 2, decoys: 1, turrets: 1, towers: 0, layout: end.layout, autoTools: 0 });
     assert.equal(next.walls.length, 1);
     assert.equal(next.decoys.length, 1);
     assert.equal(next.turrets.length, 1);
