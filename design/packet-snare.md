@@ -536,3 +536,12 @@ float in as **pickups** (`pickupStep`): the first at 4 s (Purge 3 s later), then
 quicker with more levels, drifting on the current and gone after `pickupLife` 7 s; Purge shows up among the red packets.
 A tap or click on one grabs it and fires the power (`grab`, a generous touch reach); it never starts a wire. The saved
 layout is ignored in this mode. Tree texts now read "… at once" for the placeables and "one every ~N s" for the powers.
+
+### Snare 13.1: a run takes the phone's screen
+
+The owner's screenshot circled the top bar (title, CP, Intelligence, the phase) and the bay's bar (Upgrades, Signal):
+"These sections can also be completely hidden or super condensed during a run so the space on mobile goes almost
+entirely to the run space". On phones, upright and sideways, both fold away while a run is in play (`body.snare-live`),
+the frame's padding tightens, and the HUD's single row (Focus, the goal, the haul) gains a ❚❚ button that opens the
+upgrades, pausing the run. The bars come back on the end card, in the tree and when you leave the bay, so the way out
+is always one tap away. At 390 × 727 the field grew from 470 to 667 px tall; at 844 × 390 from 245 to 330.

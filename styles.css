@@ -3454,3 +3454,21 @@ body.calm .snare-deeper { animation: none; }
     .snare-tree-bar { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 6px; }
     .snare-tree-bar .button, .snare-tree-bar .ghost-button { padding: 5px 10px; font-size: 0.8rem; }
 }
+
+/* A Packet Snare run takes a phone's screen (the owner's screenshot): while a run is in play (`body.snare-live`, game.js
+   `snareLive`) the top bar and the bay's bar fold away and the field takes their height, the HUD's one row left over it
+   with a pause button (❚❚, the upgrades: the tree pauses the run). They come back on the end card and in the tree. */
+.snare-pause { display: none; }
+@media (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
+    body.snare-live .topbar, body.snare-live #moduleView .module-bar { display: none; }
+    body.snare-live main.layout { padding-top: 4px; padding-bottom: 4px; }
+    body.snare-live #moduleView { padding: 6px; gap: 0; }
+    body.snare-live .snare-view { gap: 6px; }
+    body.snare-live .snare-pause { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: 34px; min-height: 28px; padding: 2px 8px; font-size: 0.72rem; letter-spacing: -1px; }
+}
+@media (max-width: 640px) and (min-height: 501px) {
+    body.snare-live .snare-view > .canvas-wrap { height: max(240px, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - var(--snare-live-chrome, 60px))); }
+}
+@media (pointer: coarse) and (max-height: 500px) {
+    body.snare-live .snare-view > .canvas-wrap { height: max(140px, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - var(--snare-live-chrome, 60px))); }
+}

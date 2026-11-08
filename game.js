@@ -3801,6 +3801,7 @@ window.AGI = (function () {
         buildSnareTree();
         document.addEventListener('keydown', snareKeys);
         $('snareDeeper').addEventListener('click', goDeeper);
+        $('snarePause').addEventListener('click', openSnareTree);
         $('snareTools').addEventListener('click', e => {
             const b = e.target.closest('[data-tool]');
             if (b) pickSnareTool(b.dataset.tool);
@@ -3898,6 +3899,7 @@ window.AGI = (function () {
         cancelAnimationFrame(snare.raf);
         snare.raf = 0;
         closeSnareTree();
+        snareLive(false);
     }
 
     // The sector the next run is on: the frontier, or a cleared one picked on the start card (a replay pays its own
@@ -3915,9 +3917,16 @@ window.AGI = (function () {
         snare.cw = wrap.clientWidth;
         snare.ch = Math.max(120, wrap.clientHeight);
     }
+    // On a phone a run takes the screen (the owner's screenshot): the top bar and the bay's bar fold away while a run is
+    // in play (`body.snare-live`, styles.css), leaving the HUD's one row (with a pause button) over the field. They come
+    // back on the end card, in the tree and when you leave. Set before the field is shaped, so it takes the room.
+    function snareLive(on = !!(openBay === 'pipeline' && snare.run && !snare.run.over && !snare.preview && !snare.tree)) {
+        document.body.classList.toggle('snare-live', on);
+    }
     function startSnare() {
         const sector = snareNextSector();
         const o = E.snareOpts(state, sector);
+        snareLive(true);
         reserveSnareTools(o);
         snare.seed = (state.snare.runs * 7919 + Math.floor(state.stats.playTime * 1000)) >>> 0;
         snare.run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area, o), seed: snare.seed, bubble: snareBubbleOn() ? 1 : 0 });
@@ -4170,6 +4179,7 @@ window.AGI = (function () {
             bossMax: snare.run?.boss?.maxHp || 0, bossLeft: snare.run?.boss?.hp ?? 0 };
         snare.walked = false;
         snare.pointer = null;
+        snareLive(false);
         setHidden($('snareHud'), true);
         setText($('snareStatus'), '');
         renderSnareTools();
@@ -4596,6 +4606,7 @@ window.AGI = (function () {
         snareUi.detailKey = '';
         setHidden($('snareCard'), true);
         setHidden($('snareTree'), false);
+        snareLive();
         renderSnareBar();
         renderSnareTree();
         ptView('snareTree');
@@ -4606,6 +4617,7 @@ window.AGI = (function () {
         snare.tree = false;
         snareUi.popup = false;
         setHidden($('snareTree'), true);
+        snareLive();
         renderSnareBar();
         if (openBay === 'pipeline') ptView('bay:pipeline');
         if (openBay === 'pipeline' && (!snare.run || snare.run.over || snare.preview)) showSnareCard(snare.done ? 'end' : 'start');
