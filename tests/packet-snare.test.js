@@ -377,7 +377,7 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     assert.equal(g.antivirus.length, 0, 'still no Antivirus on sector 1');
     s.snare.sector = E.AV_SECTOR;
     assert.equal(E.snareOpts(s).antivirus.length, 1, 'from its sector (the field\'s size adds none)');
-    assert.equal(E.snareOpts(s, E.AV_SECTOR + 3).antivirus.length, 2, 'a second three sectors on');
+    assert.equal(E.snareOpts(s, E.AV_SECTOR + 4).antivirus.length, 2, 'a second four sectors on');
     s.snare.sector = 0;
     assert.equal(g.focus, 33);
     assert.equal(g.chain, 2);

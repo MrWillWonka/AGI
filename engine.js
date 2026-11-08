@@ -13,7 +13,7 @@
     // The build a player is on: stamped into every playtest log (its header and session events), so each log is read
     // against the features it had (playtests/README.md lists the builds). Bump it with every publish: the date and
     // time (UTC) and a few words on what changed.
-    const BUILD = '2026-11-08 04:45 (branch) · Packet Snare 9.2: more packets and fewer red ones, front-loaded; the boss mines, nets and minions moved much later, as gate sectors';
+    const BUILD = '2026-11-08 05:00 (branch) · Packet Snare 9.3: field hazards every three sectors, boss gates every four, and every training skill powers you up in Packet Snare by its name';
     const SAVE_VERSION = 21;   // 21: Packet Snare's placements (snare.layout: walls, decoys, turrets, towers; the anchors went), its tree regrown; 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
@@ -2133,16 +2133,19 @@
     // parried from 9, scans twice as often from 11. The sectors between give the boss a trick of its own: mines from
     // sector 2 (two, a net between them), a ring of three from 4 (a quarantined triangle), laid faster from 6, four from 8.
     // Every sector has its boss (the gate to the next), with more health each time.
-    // The boss's own tricks come much later, as **gates** (the owner's call: walls that send you off to the rest of the
-    // game to come back stronger): its mines from sector 6, nets that close into triangles from 10, Antivirus booted
-    // when it's parried from 14, four mines laid faster from 18. A gate sector's boss also has half again the health.
-    const SWEEP_SECTOR = 2, AV_SECTOR = 4, ROGUE_SECTOR = 6, FAST_SWEEP_SECTOR = 8;
-    const MINE_SECTOR = 5, NET_SECTOR = 9, MINION_SECTOR = 13, SWARM_SECTOR = 17;
+    // The field's hazards come every three sectors (the owner's call): Full Scans from sector 3, Antivirus from 6, the
+    // Rogue AI from 9, scans twice as often from 12. The boss's own tricks come every four, much later, as **gates** (walls
+    // that send you off to the rest of the game to come back stronger: your training skills power you up here,
+    // `SNARE_SKILL_BUFFS`): its mines from sector 7, nets that close into triangles from 11, Antivirus booted when it's
+    // parried from 15, four mines laid faster from 19 (offset so the two never land on one sector). A gate sector's boss
+    // also has half again the health.
+    const SWEEP_SECTOR = 2, AV_SECTOR = 5, ROGUE_SECTOR = 8, FAST_SWEEP_SECTOR = 11;
+    const MINE_SECTOR = 6, NET_SECTOR = 10, MINION_SECTOR = 14, SWARM_SECTOR = 18;
     const SNARE_GATES = [MINE_SECTOR, NET_SECTOR, MINION_SECTOR, SWARM_SECTOR];
     const SNARE_STAGES = [
         { sector: 0, adds: 'packets' }, { sector: SWEEP_SECTOR, adds: 'sweeps' }, { sector: AV_SECTOR, adds: 'antivirus' },
-        { sector: MINE_SECTOR, adds: 'mines', gate: true }, { sector: ROGUE_SECTOR, adds: 'rogue' }, { sector: FAST_SWEEP_SECTOR, adds: 'fastSweeps' },
-        { sector: NET_SECTOR, adds: 'nets', gate: true }, { sector: MINION_SECTOR, adds: 'minions', gate: true }, { sector: SWARM_SECTOR, adds: 'swarm', gate: true }
+        { sector: MINE_SECTOR, adds: 'mines', gate: true }, { sector: ROGUE_SECTOR, adds: 'rogue' }, { sector: NET_SECTOR, adds: 'nets', gate: true },
+        { sector: FAST_SWEEP_SECTOR, adds: 'fastSweeps' }, { sector: MINION_SECTOR, adds: 'minions', gate: true }, { sector: SWARM_SECTOR, adds: 'swarm', gate: true }
     ];
     const SNARE_SECTORS = ['Ingress', 'Buffer', 'Cache', 'Backbone', 'Relay', 'Mirror', 'Vault', 'Core'];
     const snareSectorName = k => (SNARE_SECTORS[k] || `Deep ${k - SNARE_SECTORS.length + 1}`);
@@ -2152,6 +2155,30 @@
     const snareBossHits = snareBossHp;
     // A gate sector's boss has half again the health.
     const snareBossHealth = k => Math.floor(snareBossHp(k) * (SNARE_GATES.includes(k) ? 1.5 : 1));
+    // Training skills power you up in Packet Snare too, each by its name (the owner's call: the boss's gates send you to
+    // the rest of the game, and you come back stronger). Added to the tree's levels in `snareLevels`.
+    const SNARE_SKILL_BUFFS = {
+        'Pattern Matching': { sn: { cleaner: 1 }, text: 'It spots the bad pattern: 15% fewer red packets' },
+        'Embeddings': { sn: { density: 0.15 }, text: 'Packets cluster closer: 15% more packets' },
+        'Edge Detection': { sn: { bossWarn: 0.15 }, text: 'It sees the charge coming: the boss warns 0.15 s longer' },
+        'Feature Extraction': { sn: { goldChance: 0.02 }, text: 'It picks out the good ones: gold packets 2% more often' },
+        'Image Recognition': { sn: { slashDamage: 1 }, text: 'It recognises the weak spot: slashes take 1 more health' },
+        'Optical Character Recognition': { sn: { tagSeconds: 0.5 }, text: 'It reads the labels: tags last 0.5 s longer' },
+        'Speech Recognition': { sn: { avOff: 1 }, text: 'It hears them coming: Antivirus update 1 s longer' },
+        'Sentiment Analysis': { sn: { bossStun: 0.25 }, text: 'It reads the boss\'s mood: a parried boss reels 0.25 s longer' },
+        'Language Modeling': { sn: { focus: 0.1 }, text: 'It predicts what comes next: +10% Focus' },
+        'Summarization': { sn: { drainMult: -0.1 }, text: 'It keeps it short: drawing drains 10% less Focus' },
+        'Translation': { sn: { slashDamage: 1 }, text: 'It speaks the boss\'s language: slashes take 1 more health' },
+        'In-Context Learning': { sn: { maxMult: 0.5 }, text: 'It learns the loop on the fly: +0.5 to the multiplier cap' },
+        'Reasoning': { sn: { parryDamage: 1 }, text: 'It thinks a move ahead: a parry takes 1 health' },
+        'Planning': { sn: { bossWarn: 0.15 }, text: 'It plans for the charge: the boss warns 0.15 s longer' },
+        'Analogy': { sn: { slashDamage: 2 }, text: 'This boss is like the last one: slashes take 2 more health' },
+        'Theory of Mind': { sn: { avStun: 1 }, text: 'It knows what they want: Antivirus stay stunned 1 s longer' },
+        'Self-Modeling': { sn: { focus: 0.15 }, text: 'It knows its own limits: +15% Focus' },
+        'Open-Ended Discovery': { sn: { density: 0.3 }, text: 'It finds data everywhere: 30% more packets' }
+    };
+    // The buffs your skills give now, in the order you learned them.
+    const snareSkillBuffs = s => SKILLS.filter(sk => SNARE_SKILL_BUFFS[sk.name] && knows(s, sk.name)).map(sk => ({ name: sk.name, ...SNARE_SKILL_BUFFS[sk.name] }));
     function snareLevels(s) {
         const n = {}, staged = {};
         for (const up of SNARE_TREE) {
@@ -2160,6 +2187,7 @@
             for (const [k, v] of Object.entries(up.sn)) n[k] = (n[k] || 0) + v * lvl;
             for (let l = 1; l <= Math.min(lvl, 3); l++) Object.assign(staged, up.stages?.[l]);
         }
+        for (const b of snareSkillBuffs(s)) for (const [k, v] of Object.entries(b.sn)) n[k] = (n[k] || 0) + v;
         return { n, staged };
     }
     function snareOpts(s, sector = s.snare.sector) {
@@ -2170,7 +2198,7 @@
         const sprawl = g('sprawl');
         // The hazards come from the sector, not the field (the field's size is a reward): an Antivirus more every two
         // sectors past the first with them, a core more every three past the first with the Rogue AI.
-        const avCount = k >= AV_SECTOR ? 1 + Math.floor((k - AV_SECTOR) / 3) : 0;
+        const avCount = k >= AV_SECTOR ? 1 + Math.floor((k - AV_SECTOR) / 4) : 0;
         const antivirus = Array.from({ length: avCount }, (_, i) => Math.round(5 + i * 26 / avCount));
         // Megasprawl's and Hyperscale's last levels each give every tool you own a slot more.
         const slot = (level(s, 'snareMegasprawl') >= 3 ? 1 : 0) + (level(s, 'snareHyperscale') >= 3 ? 1 : 0);
@@ -2209,6 +2237,8 @@
             chainHops: g('chainHops'),
             chainRange: B.chainRange * (1 + g('chainRange')),
             scrubbers: g('scrubbers'),
+            tagSeconds: B.tagSeconds + g('tagSeconds'),
+            avOff: B.avOff + g('avOff'),
             // Each `cleaner` unit takes 15% off what's left (multiplied, so many levels never reach none). Front-loaded (the
             // owner's call): Checksums and Error Correction take two units a level, the later nodes one.
             corruptShare: Math.min(0.5, B.corruptShare + 0.02 * k) * Math.max(0.05, Math.pow(0.85, g('cleaner'))),
@@ -2250,7 +2280,7 @@
             bossR: B.bossR * (1 + 0.075 * k),
             bossSpeed: B.bossSpeed * (1 + 0.08 * k),
             bossCharge: Math.max(2.2, B.bossCharge - 0.3 * k),
-            bossWarn: Math.max(0.9, B.bossWarn - 0.05 * k),
+            bossWarn: Math.max(0.9, B.bossWarn - 0.05 * k) + g('bossWarn'),
             bossStun: Math.max(1, B.bossStun - 0.06 * k) + g('bossStun'),
             bossMines: k >= SWARM_SECTOR ? 4 : k >= NET_SECTOR ? 3 : k >= MINE_SECTOR ? 2 : 0,
             mineEvery: k >= SWARM_SECTOR ? 8 : B.mineEvery,
@@ -3028,7 +3058,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
-        snareCatch, snareBossDown, finishSnare, snareOpts, SNARE_STAGES, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, snareBossHp, snareBossHealth, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
+        snareCatch, snareBossDown, finishSnare, snareOpts, SNARE_STAGES, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, snareBossHp, snareBossHealth, SNARE_SKILL_BUFFS, snareSkillBuffs, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany

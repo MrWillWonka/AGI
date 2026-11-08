@@ -234,3 +234,26 @@ test('IDS alerts say what they set off', () => {
     flickLine(t, 1, 1, 4, 1);
     assert.equal(t.takeEvents().find(e => e.type === 'ids').what, 'antivirus');
 });
+
+test('training skills power you up in Packet Snare, each by its name', () => {
+    const E = require('../engine.js');
+    const s = E.defaultState(1);
+    const base = E.snareOpts(s, 0);
+    assert.deepEqual(E.snareSkillBuffs(s), [], 'none before any skill');
+    s.path.learned = E.SKILL_INDEX['Translation'] + 1;
+    const o = E.snareOpts(s, 0);
+    const names = E.snareSkillBuffs(s).map(b => b.name);
+    assert.ok(names.includes('Image Recognition') && names.includes('Translation'));
+    assert.equal(o.slashDamage, base.slashDamage + 2, 'the two walls add slash damage');
+    assert.ok(o.bossWarn > base.bossWarn && o.focus > base.focus && o.corruptShare < base.corruptShare && o.density > base.density);
+    for (const [name, b] of Object.entries(E.SNARE_SKILL_BUFFS)) {
+        assert.ok(E.SKILL_INDEX[name] !== undefined, `${name} is a skill`);
+        assert.ok(b.text.length <= 80, `${name}: a short line`);
+    }
+    // The field's hazards every three sectors, the boss's gates every four, never on one sector.
+    const field = E.SNARE_STAGES.filter(x => !x.gate && x.sector).map(x => x.sector);
+    const gates = E.SNARE_STAGES.filter(x => x.gate).map(x => x.sector);
+    assert.deepEqual(field.map((k, i) => (i ? k - field[i - 1] : 3)), field.map(() => 3));
+    assert.deepEqual(gates.map((k, i) => (i ? k - gates[i - 1] : 4)), gates.map(() => 4));
+    assert.ok(!gates.some(k => field.includes(k)));
+});

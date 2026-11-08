@@ -4067,6 +4067,13 @@ window.AGI = (function () {
     }
 
     // A gate sector (the boss's new trick and half again its health) says so.
+    // A skill's Packet Snare buff, on its Skill learned card once the bay is open (it never names the bay before).
+    const snareSkillLine = skill => (state.unlocked['module:snare'] && E.SNARE_SKILL_BUFFS[skill.name] ? [[`Packet Snare: ${E.SNARE_SKILL_BUFFS[skill.name].text}`, 'key']] : []);
+    // What your training gives you here, on the start card: how many skills, and the newest.
+    const snareTrainingLine = () => {
+        const b = E.snareSkillBuffs(state);
+        return b.length ? ['From your training', `${b.length} skill${b.length === 1 ? '' : 's'} · ${b.at(-1).text}`] : null;
+    };
     const snareSector = k => `Sector ${k + 1}: ${E.snareSectorName(k)}${E.SNARE_GATES.includes(k) ? ' · Gate' : ''}`;
     // What the best haul feeds: research, a trickle while you play.
     const snareRpLine = () => {
@@ -4106,7 +4113,7 @@ window.AGI = (function () {
                 snareSectorPicker(),
                 first ? snareDemo('lasso') : null,
                 first ? el('p', { class: 'snare-intro-line', text: SNARE_INTROS.lasso[1] }) : null,
-                best > 0 ? el('ul', { class: 'result-lines' }, [['Best haul', `+${E.format(best)} Signal`], snareRpLine()].filter(Boolean)
+                best > 0 ? el('ul', { class: 'result-lines' }, [['Best haul', `+${E.format(best)} Signal`], snareRpLine(), snareTrainingLine()].filter(Boolean)
                     .map(([a, b]) => el('li', {}, [el('span', { text: a }), el('span', { text: b })]))) : null,
                 el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: 'Start', onclick: startSnare }), state.snare.runs > 0 ? snareUpgradesButton() : null].filter(Boolean))].filter(Boolean));
         } else {
@@ -4143,7 +4150,8 @@ window.AGI = (function () {
                 s.partners ? ['Partner cores', `${s.partners} · ${s.partnered} packets`] : null,
                 s.flags ? ['Exploits flagged', `${s.flags}${s.ids ? ` · ${s.ids} IDS alert${s.ids === 1 ? '' : 's'}` : ''}`] : null,
                 Math.max(best, d.haul) > 0 ? ['Best haul', `+${E.format(Math.max(best, d.haul))} Signal`] : null,
-                snareRpLine()
+                snareRpLine(),
+                snareTrainingLine()
             ].filter(Boolean);
             card.replaceChildren(...[
                 el('div', { class: 'result-title', text: `${snareSector(d.sector)}${d.sector < state.snare.sector && d.cleared == null ? ' (replay)' : ''} · ${d.walked ? 'Left the bay' : 'Focus spent'}` }),
@@ -8721,7 +8729,7 @@ window.AGI = (function () {
             path.overview = OVERVIEW_SECONDS + path.pause;
             showResult({ skill: true, title: learned.length > 1 ? `${learned.length} skills learned` : last.wall ? 'Wall broken · skill learned' : 'Skill learned', main: names,
                 flavor: last.flavor, voice: last.voice, xp: result.xp + banked,
-                lines: [...learned.map(l => [l.skill.effect, '']), ...(grants ? [[grants, '']] : []), ...labRoomLines(roll.capBefore), ...surgeLine(learned.some(l => l.skill.wall)), ...lines, ...(pct > 0 ? [[`Then ${pct}% of the way to ${target}`, '']] : [])], record: result.record });
+                lines: [...learned.flatMap(l => [[l.skill.effect, ''], ...snareSkillLine(l.skill)]), ...(grants ? [[grants, '']] : []), ...labRoomLines(roll.capBefore), ...surgeLine(learned.some(l => l.skill.wall)), ...lines, ...(pct > 0 ? [[`Then ${pct}% of the way to ${target}`, '']] : [])], record: result.record });
             skillTips();
         } else if (result.skill) {
             const grants = Object.entries(result.skill.grants).map(([k, v]) => `+${v} ${E.ATTRIBUTES[k].short}`).join(', ');
@@ -8732,7 +8740,7 @@ window.AGI = (function () {
             path.glow = { skill: state.path.learned - 1, age: 0 };
             path.overview = OVERVIEW_SECONDS + path.pause;
             showResult({ skill: true, title: result.skill.wall ? 'Wall broken · skill learned' : 'Skill learned', main: result.skill.name, flavor: result.skill.flavor, voice: result.skill.voice, xp: result.xp + banked,
-                lines: [[result.skill.effect, ''], ...(grants ? [[grants, '']] : []), ...labRoomLines(roll.capBefore), ...surgeLine(result.skill.wall), ...lines] });
+                lines: [[result.skill.effect, ''], ...snareSkillLine(result.skill), ...(grants ? [[grants, '']] : []), ...labRoomLines(roll.capBefore), ...surgeLine(result.skill.wall), ...lines] });
             skillTips();
         } else {
             // So close: stopped on the frontier's climb near the top. A consolation share and how much more speed
