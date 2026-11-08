@@ -16,6 +16,19 @@
 
     // Points along a straight line (a flick).
     const line = (x0, y0, x1, y1, n) => Array.from({ length: n }, (_, i) => [x0 + (x1 - x0) * i / (n - 1), y0 + (y1 - y0) * i / (n - 1)]);
+    // A figure eight on its side round (cx, cy): from the middle, round the left lobe, through the middle, round the right.
+    const eight = (cx, cy, rx, ry, n = 56) => Array.from({ length: n + 2 }, (_, i) => {
+        const t = i / n * Math.PI * 2 + Math.PI / 2;
+        return [cx + Math.cos(t) * rx * 1.15, cy + Math.sin(2 * t) * ry * 0.9];
+    });
+    // A five-pointed star (a pentagram drawn in one stroke) round (cx, cy), back to its first point and a little past.
+    const star = (cx, cy, r, per = 6) => {
+        const tips = Array.from({ length: 6 }, (_, i) => { const a = -Math.PI / 2 + i * 4 * Math.PI / 5; return [cx + Math.cos(a) * r * 1.3, cy + Math.sin(a) * r]; });
+        const out = [];
+        for (let i = 0; i < 5; i++) for (let k = 0; k < per; k++) out.push([tips[i][0] + (tips[i + 1][0] - tips[i][0]) * k / per, tips[i][1] + (tips[i + 1][1] - tips[i][1]) * k / per]);
+        out.push(tips[5], [tips[5][0] + (tips[1][0] - tips[5][0]) * 0.06, tips[5][1] + (tips[1][1] - tips[5][1]) * 0.06]);
+        return out;
+    };
 
     // Each demo: options for the run, packets [kind, x, y, vx, vy], a wire [from s, to s, points], taps or walls or
     // powers at times, things pinned in place (`hold`), and `expect`, what the run must show by its end.
@@ -47,9 +60,10 @@
         decoy: { text: 'Tap to place a decoy: corrupt packets and Antivirus go to it', opts: { decoys: 1, corruptLure: 5 },
             packets: [['corrupt', 1.5, 1.4, 0, 0.8], ['corrupt', 1.2, 0.6, 0, -0.8], ['good', 3, 2.3]],
             taps: [[0.2, 'decoy', 5, 1.4]], expect: (r, sim) => r.packets.filter(p => p.kind === 'corrupt').every(p => p.x > 2.6) },
-        turret: { text: 'Tap to place a turret: it picks off packets in reach', opts: { turrets: 1, turretEvery: 0.6 },
-            packets: [['good', 2.6, 1.2], ['gold', 3.4, 1.6], ['good', 3.1, 0.8], ['good', 5.4, 2.4]],
-            taps: [[0.2, 'turret', 3, 1.4]], expect: r => r.stats.turreted >= 2 },
+        turret: { text: 'Tap to place a turret: it shoots Antivirus and red packets in reach', opts: { turrets: 1, turretEvery: 0.45, antivirus: [0.3], avPatrol: 0.8 },
+            packets: [['corrupt', 2.5, 1.0], ['corrupt', 3.5, 1.9], ['good', 3.1, 0.8], ['good', 5.4, 2.4]],
+            taps: [[0.2, 'turret', 3, 1.4]], tick: (r, sim) => { const f = r.antivirus[0]; if (f && sim.t < 0.6) Object.assign(f, { x: 4.4, y: 1.4, vx: -0.6, vy: 0 }); },
+            expect: r => r.stats.purged >= 2 && r.stats.turreted >= 3 },
         tower: { text: 'Tap to place a scanner tower: it tags what passes', opts: { towers: 1, towerSpeed: 3 },
             packets: [['good', 2.2, 1.0], ['good', 3.8, 1.9], ['good', 3.6, 0.7], ['good', 2.4, 2.1]],
             taps: [[0.2, 'tower', 3, 1.4]], expect: r => r.stats.tagged >= 3 },
@@ -66,13 +80,39 @@
             packets: [['good', 3, 1.4], ['good', 3.4, 1.6]], wire: [0.6, 3.0, ring(3.2, 1.5, 1.1, 0.9, 40)], expect: r => r.stats.snaps >= 1 },
         sweep: { text: 'Its edge flashes, then it sweeps: wires snap', opts: { sweepFirst: 0.4, sweepEvery: 99, sweepWarn: 0.7, sweepTime: 1.6 },
             packets: [['good', 3, 1.4]], wire: [0.2, 3.0, ring(3, 1.4, 1.4, 0.9, 40)], expect: r => r.stats.snaps >= 1 },
-        boss: { text: 'Loop it tight while it reels to hit it', opts: { boss: 2, bossAt: 0, bossStun: 1.2 },
-            packets: [['good', 0.6, 0.5], ['good', 5.4, 2.4]], wire: [0.5, 1.5, ring(3, 1.4, 0.62, 0.62)], hold: { boss: [3, 1.4] },
-            expect: r => r.stats.bossHits >= 1 },
-        parry: { text: 'Flick across its charge: it turns back on the boss', opts: { boss: 2, bossAt: 0, parry: 1 },
-            packets: [['good', 0.6, 0.4], ['good', 5.4, 2.4]], wire: [0.7, 0.85, line(3.2, 0.3, 3.2, 2.5, 6)],
-            tick: (r, sim) => { if (r.boss && sim.t < 0.7) Object.assign(r.boss, { x: 1.2, y: 1.4, vx: 0, vy: 0, chargeAt: 0, charge: null }); },
-            expect: r => r.stats.parries >= 1 },
+        // The boss fight: flick across its charge line (a parry), then flick through it while it reels (slashes).
+        boss: { text: 'Flick across its charge to parry, then slash it as it reels', opts: { boss: 4, bossAt: 0 },
+            packets: [['good', 5.4, 1.4]],
+            strokes: [[0.75, 0.82, line(2.6, 0.3, 2.6, 2.5, 6)], [1.25, 1.32, line(1.2, 0.3, 1.2, 2.5, 6)], [1.7, 1.77, line(0.4, 0.6, 2.0, 2.2, 6)]],
+            tick: (r, sim) => { if (r.boss) { if (!sim.armed) { sim.armed = true; r.boss.chargeAt = r.time + 0.3; } Object.assign(r.boss, { x: 1.2, y: 1.4, vx: 0, vy: 0 }); } },
+            expect: r => r.stats.parries >= 1 && r.stats.bossDamage >= 2 },
+        // Its mines: while one stands, the boss is shielded; a loop round a mine clears it.
+        mines: { text: 'Its mines shield it and net the data: loop them to clear them', opts: { boss: 4, bossAt: 0, bossMines: 2, netTime: 1.2, netRange: 1 },
+            packets: [['good', 2.5, 1.0], ['good', 3.6, 1.8], ['good', 3.1, 1.5]],
+            setup: r => { r.step(1 / 60); r.boss.mineAt = 99; r.mines = []; r.links = []; },
+            tick: (r, sim) => {
+                if (r.boss) Object.assign(r.boss, { x: 0.8, y: 1.4, vx: 0, vy: 0, chargeAt: 99 });
+                if (sim.t > 0.05 && !sim.laid) { sim.laid = true; r.mines.push({ id: 900, x: 2.3, y: 1.4 }, { id: 901, x: 4.4, y: 1.4 }); r.links.push({ a: 900, b: 901, t: 0 }); }
+            },
+            wire: [1.2, 2.2, ring(4.4, 1.4, 0.5, 0.5)], expect: r => r.stats.minesCleared >= 1 },
+        // Fork Bomb: a figure eight pays both lobes at their multipliers multiplied.
+        fork: { text: 'Draw a figure eight: both loops, their multipliers multiplied', opts: { fork: 1 },
+            packets: [['good', 1.9, 1.4], ['good', 2.2, 1.2], ['good', 3.9, 1.5], ['good', 4.1, 1.3]],
+            wire: [0.3, 2.3, eight(3, 1.4, 1.3, 0.75)], expect: r => r.stats.forks >= 1 },
+        // A star drawn while the field is frozen.
+        star: { text: 'Freeze, then draw a star: all inside it ×2, corrupt ones deleted', opts: { freeze: 1, freezeSeconds: 3, star: 1 },
+            packets: [['good', 3, 1.4], ['good', 2.6, 1.7], ['corrupt', 3.3, 1.2], ['good', 3.4, 1.8], ['good', 2.7, 1.1]],
+            powers: [[0.2, 'freeze']], wire: [0.3, 2.4, star(3, 1.45, 1.25)], expect: r => r.stats.stars >= 1 && r.stats.caught >= 3 },
+        // Privilege Escalation: flick from your hijacked Antivirus into the boss.
+        escalate: { text: 'Flick from your hijacked Antivirus into the boss: a ram', opts: { boss: 9, bossAt: 0, hijack: 1, escalate: 1, antivirus: [0] },
+            packets: [['good', 5.5, 2.5]],
+            tick: (r, sim) => {
+                const f = r.antivirus[0];
+                if (f && !f.ally) Object.assign(f, { ally: r.time + 8, x: 1.2, y: 1.4, vx: 0, vy: 0 });
+                else if (f && sim.t < 0.9) Object.assign(f, { x: 1.2, y: 1.4, vx: 0, vy: 0 });
+                if (r.boss) Object.assign(r.boss, { x: 4.2, y: 1.4, vx: 0, vy: 0, chargeAt: 99, charge: null });
+            },
+            strokes: [[0.9, 0.97, line(1.2, 1.4, 4.6, 1.4, 6)]], expect: r => r.stats.escalations >= 1 },
         spoof: { text: 'Flick through corrupt packets: they count as good, ×2', opts: { spoof: 1 },
             packets: [['corrupt', 2.2, 1.3], ['corrupt', 3, 1.45], ['corrupt', 3.8, 1.6], ['good', 1, 0.5]], wire: [0.6, 0.75, line(1.6, 1.2, 4.4, 1.7, 6)],
             expect: r => r.stats.spoofed >= 2 },
@@ -80,8 +120,8 @@
             packets: [['corrupt', 2.8, 1.2], ['corrupt', 3.2, 1.6], ['corrupt', 2.9, 1.8], ['good', 5, 0.5]],
             wire: [0.3, 1.5, ring(3, 1.5, 0.8, 0.75)], expect: r => r.stats.collected >= 2 && r.focus > 50 },
         race: { text: 'Close it and hold still: it stays open and grows', opts: { race: 1, raceRate: 0.6 },
-            packets: [['good', 2.9, 1.4], ['good', 3.1, 1.6], ['good', 1, 1.5, 1.3, 0], ['good', 0.6, 1.3, 1.3, 0]],
-            wire: [0.2, 0.9, ring(3, 1.45, 0.9, 0.85), 2.9], expect: r => r.stats.raced >= 1 && r.stats.caught >= 3 },
+            packets: [['good', 2.9, 1.4], ['good', 3.1, 1.6], ['good', 1, 1.5, 0.6, 0], ['good', 0.6, 1.3, 0.6, 0]],
+            wire: [0.2, 0.9, ring(3, 1.45, 0.9, 0.85).slice(0, -2), 2.9], expect: r => r.stats.raced >= 1 && r.stats.caught >= 3 },
         hijack: { text: 'Loop a stunned Antivirus: it works for you', opts: { hijack: 1, antivirus: [0] },
             packets: [['good', 0.8, 0.6], ['good', 5.2, 2.2], ['gold', 4.8, 0.6], ['good', 1.2, 2.3]], wire: [0.4, 1.5, ring(3, 1.4, 0.75, 0.7)],
             tick: (r, sim) => { const f = r.antivirus[0]; if (f && sim.t < 1.5 && !f.ally) Object.assign(f, { x: 3, y: 1.4, vx: 0, vy: 0, stunned: r.time + 1 }); },
@@ -125,6 +165,16 @@
             const upto = Math.min(pts.length, Math.floor((sim.t - t0) / (t1 - t0) * pts.length));
             while (sim.fed < upto) r.addPoint(...pts[sim.fed++]);
             if (sim.fed >= pts.length && r.drawing && sim.t >= liftAt) r.liftPen();
+        }
+        // Several strokes, one after another (flicks): each [from s, to s, points], lifted when drawn.
+        for (const [i, [t0, t1, pts]] of (S.strokes || []).entries()) {
+            sim.fedAt = sim.fedAt || [];
+            const done = sim.fedAt[i] || 0;
+            if (done >= pts.length + 1 || sim.t < t0) continue;
+            const upto = Math.min(pts.length, Math.ceil((sim.t - t0) / (t1 - t0) * pts.length));
+            for (let k = done; k < upto; k++) r.addPoint(...pts[k]);
+            sim.fedAt[i] = upto;
+            if (upto >= pts.length) { r.liftPen(); sim.fedAt[i] = pts.length + 1; }
         }
         const acts = [...(S.taps || []).map(a => ['tap', ...a]), ...(S.walls || []).map(a => ['wall', ...a]), ...(S.powers || []).map(a => ['power', ...a])]
             .sort((a, b) => a[1] - b[1]);

@@ -2808,7 +2808,7 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 .dev-actions .dev-live { flex-basis: 100%; }
 
 /* Upgrades buttons wear a badge while XP can buy a skill-tree node (data-ready: how many). */
-#hubUpgrades, #treeButton, .roll-result [data-next="dev"], .run-stats .module-supply { position: relative; }
+#hubUpgrades, #treeButton, #snareTreeButton, .roll-result [data-next="dev"], .run-stats .module-supply { position: relative; }
 /* The badge on Lab supply sat over the end of its "/s": leave it room. */
 .run-stats .module-supply[data-ready] { padding-right: 16px; }
 /* A mail toast is a way in: click it to read. Only with a mouse: on a touch screen it sat over the Workbench's
@@ -3185,7 +3185,7 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
 .music-parts .setting-row { display: grid; grid-template-columns: 9.5em 160px auto; padding: 4px 0 4px 14px; }
 
 /* Restart before a run is under way: invisible, but keeping its place in the bay's bar (game.js). */
-#restartButton.reserve { visibility: hidden; }
+#restartButton.reserve, #snareTreeButton.reserve { visibility: hidden; }
 
 /* ---- Phones: owner's playtest on an iPhone ---- */
 @media (max-width: 640px) {
@@ -3317,8 +3317,9 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 .snare-focus { flex: 1; max-width: 320px; height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--border) 80%, transparent); overflow: hidden; }
 .snare-focus-fill { height: 100%; width: 100%; border-radius: inherit; background: var(--primary); transform-origin: left; transition: background 0.2s; }
 .snare-focus-fill.low { background: var(--danger); }
-.snare-focus-text { color: var(--muted); white-space: nowrap; }
-.snare-haul { margin-left: auto; color: var(--signal); white-space: nowrap; }
+.snare-focus-text { color: var(--muted); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.snare-haul { margin-left: auto; color: var(--signal); white-space: nowrap; flex-shrink: 0; }
+@media (max-width: 640px) { .snare-focus { min-width: 40px; } }
 .snare-card[hidden] { display: none; }
 .snare-card { max-height: calc(100% - 16px); overflow-y: auto; overscroll-behavior: contain; }
 .snare-card .result-xp { color: var(--signal); }
@@ -3331,7 +3332,7 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
     .snare-view > .canvas-wrap { height: clamp(120px, calc(100dvh - 162px), 600px); }
 }
 
-/* Packet Snare's skill tree, over the field: the Training tree's nodes, links and popup on a fixed 5 × 5 grid. */
+/* Packet Snare's skill tree, over the field: the Training tree's nodes, links and popup on a fixed 11 × 11 grid. */
 .snare-tree { position: absolute; inset: 0; z-index: 4; display: grid; grid-template: auto minmax(0, 1fr) / minmax(0, 1fr); gap: 8px; padding: 10px; border-radius: 10px;
     background: color-mix(in srgb, var(--bg) 96%, transparent); border: 1px solid var(--border); }
 .snare-tree[hidden] { display: none; }
@@ -3345,7 +3346,7 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 .snare-tree-grid .tree-node { width: calc(var(--cell) * 0.56); }
 .snare-tree-grid .tree-node.seed { width: calc(var(--cell) * 0.5); pointer-events: none; }
 .snare-tree-grid .tree-level { font-size: 0.58rem; }
-.snare-tree-grid .node-detail { width: 250px; max-height: calc(100% - 8px); }
+.snare-tree-grid .node-detail { width: 250px; max-height: calc(100% - 8px); z-index: 6; background: var(--bg-2); }
 .snare-upgrades { position: relative; overflow: visible; }
 @media (max-width: 640px) {
     .snare-tree { padding: 8px; gap: 6px; }

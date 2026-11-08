@@ -377,7 +377,7 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     assert.equal(g.antivirus.length, 0, 'still no Antivirus on sector 1');
     s.snare.sector = E.AV_SECTOR;
     assert.equal(E.snareOpts(s).antivirus.length, 1, 'from its sector (the field\'s size adds none)');
-    assert.equal(E.snareOpts(s, E.AV_SECTOR + 2).antivirus.length, 2, 'a second two sectors on');
+    assert.equal(E.snareOpts(s, E.AV_SECTOR + 3).antivirus.length, 2, 'a second three sectors on');
     s.snare.sector = 0;
     assert.equal(g.focus, 33);
     assert.equal(g.chain, 2);
@@ -503,38 +503,28 @@ test('the wire grows with the field: a loop at the multiplier cap can be drawn o
 
 
 
-test('the boss Antivirus boots on time or on catches, and tight loops round it beat it', () => {
-    const s = still({ boss: 2, bossAt: 0.1, bossStun: 1 });
+test('the boss Antivirus boots on time or on hand catches, and a loop round it does nothing to it', () => {
+    const s = still({ boss: 2, bossAt: 0.1 });
     s.step(0.2);
     const ev = s.takeEvents();
     assert.ok(ev.some(e => e.type === 'boss') && s.boss, 'it boots');
-    const hit = () => {
-        const b = s.boss;
-        b.vx = b.vy = 0; b.x = 6; b.y = 3.5; b.stunned = s.time + 5; b.charge = null;
-        drawSquare(s, 6, 3.5, 1.1);
-        s.liftPen();
-    };
-    hit();
-    assert.equal(s.boss.hp, 1);
-    assert.ok(s.takeEvents().some(e => e.type === 'bossHit'));
-    hit();
-    assert.equal(s.boss, null);
-    assert.equal(s.stats.bosses, 1);
-    assert.ok(s.takeEvents().some(e => e.type === 'bossDown'));
-    // a loose loop round it doesn't count
-    const t = still({ boss: 2, bossAt: 0 });
-    t.step(0.1);
-    Object.assign(t.boss, { x: 5, y: 3.3, vx: 0, vy: 0, stunned: 99 });
-    drawSquare(t, 5, 3.3, 2.6);
-    assert.equal(t.boss.hp, 2);
-    // or after enough catches
+    Object.assign(s.boss, { x: 6, y: 3.5, vx: 0, vy: 0, stunned: s.time + 5, charge: null });
+    drawSquare(s, 6, 3.5, 1.1);
+    s.liftPen();
+    assert.equal(s.boss.hp, 2, 'it is fought with flicks now, not loops');
+    // or after enough catches by hand
     const u = still({ boss: 1, bossAt: 1e9, bossCatch: 1 });
     packet(u, 'good', 4, 4);
     drawSquare(u, 4, 4, 1);
     u.step(0.1);
     assert.ok(u.boss, 'boots after the catch');
+    // a laser's catches don't count
+    const v = still({ boss: 1, bossAt: 1e9, bossCatch: 1, laser: 0.2, laserReach: 2 });
+    packet(v, 'gold', 5, 6.5);
+    for (let i = 0; i < 120; i++) v.step(1 / 60);
+    assert.equal(v.stats.lasered, 1);
+    assert.ok(!v.boss, 'automated catches don\'t summon it');
 });
-
 test('a clean start keeps corrupt packets away from the first school', () => {
     for (let seed = 1; seed <= 10; seed++) {
         const s = P.createSnare({ seed, cleanStart: true, flow: false });

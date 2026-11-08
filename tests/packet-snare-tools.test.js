@@ -103,17 +103,33 @@ test('decoys draw corrupt packets and idle Antivirus, and an Antivirus breaks th
     assert.equal(s.stats.decoysLost, 1);
 });
 
-test('turrets pick off good packets in reach; Purifier rounds wipe a corrupt one too', () => {
-    const s = still({ turrets: 1, turretEvery: 0.5, turretPurge: 1 });
+test('turrets are defence: they shoot Antivirus (three hits and it\'s down until it reboots) and red packets, never good ones', () => {
+    const s = still({ turrets: 1, turretEvery: 0.5, turretStun: 0.2, avShots: 3, avReboot: 2, antivirus: [0] });
     s.placeAt('turret', 5, 3);
     packet(s, 'good', 5.5, 3);
-    packet(s, 'corrupt', 4.5, 3);
-    packet(s, 'good', 9, 3);
+    packet(s, 'corrupt', 4.5, 3.2);
+    packet(s, 'corrupt', 4.6, 2.8);
+    packet(s, 'corrupt', 9, 3);
     for (let i = 0; i < 40; i++) s.step(1 / 60);
-    assert.equal(s.stats.turreted, 1);
-    assert.equal(s.stats.purged, 1);
-    assert.equal(s.packets.length, 1, 'the far one is out of reach');
+    assert.equal(s.stats.purged, 1, 'one red packet a shot');
+    assert.ok(s.packets.some(p => p.kind === 'good'), 'the good packet is left alone');
+    for (let i = 0; i < 40; i++) s.step(1 / 60);
+    assert.equal(s.stats.purged, 2);
+    assert.ok(s.packets.some(p => p.x === 9), 'the far one is out of reach');
+    // an Antivirus walking into reach is shot first, and goes down at its third hit
+    const f = s.antivirus[0];
+    for (let i = 0; i < 200 && s.stats.avDown === 0; i++) { if (s.antivirus.includes(f)) Object.assign(f, { x: 5.8, y: 3, vx: 0, vy: 0 }); s.step(1 / 60); }
+    assert.equal(s.stats.avDown, 1);
+    assert.ok(!s.antivirus.includes(f));
+    for (let i = 0; i < 150; i++) s.step(1 / 60);
+    assert.equal(s.antivirus.length, 1, 'it reboots');
     assert.equal(s.placeAt('turret', 2, 2), null, 'one slot');
+    const pur = still({ turrets: 1, turretEvery: 0.5, turretPurge: 1 });
+    pur.placeAt('turret', 5, 3);
+    packet(pur, 'corrupt', 4.5, 3.2);
+    packet(pur, 'corrupt', 4.6, 2.8);
+    for (let i = 0; i < 40; i++) pur.step(1 / 60);
+    assert.equal(pur.stats.purged, 2, 'Purifier Rounds wipe two a shot');
 });
 
 test('scanner towers tag what passes their beam', () => {
@@ -159,16 +175,21 @@ test('what you place carries over to the next run, as far as its slots go', () =
     assert.deepEqual(E.snareOpts(st).layout, st.snare.layout);
 });
 
-test('the boss boots Antivirus when it is hit (later sectors)', () => {
-    const s = still({ boss: 3, bossAt: 0, bossMinions: 1 });
+test('a parry on a later sector boots Antivirus, never more than two alive', () => {
+    const s = still({ boss: 30, bossAt: 0, bossMinions: 1, w: 12, h: 8 });
     s.step(0.1);
-    Object.assign(s.boss, { x: 6, y: 3.5, vx: 0, vy: 0, stunned: 99 });
-    drawSquare(s, 6, 3.5, 1.1);
-    s.liftPen();
-    assert.equal(s.boss.hp, 2);
-    assert.equal(s.antivirus.length, 1);
+    for (let k = 0; k < 4; k++) {
+        Object.assign(s.boss, { x: 6, y: 4, vx: 0, vy: 0, stunned: 0, chargeAt: 0, charge: null });
+        s.step(1 / 60);
+        const { dx, dy } = s.boss.charge;
+        // across the warning line, a little ahead of it
+        const mx = 6 + dx * 1.6, my = 4 + dy * 1.6;
+        for (let i = 0; i <= 8; i++) s.addPoint(mx - dy * 1.2 + dy * 2.4 * i / 8, my + dx * 1.2 - dx * 2.4 * i / 8);
+        s.liftPen();
+    }
+    assert.equal(s.stats.parries, 4);
+    assert.equal(s.antivirus.length, 2, 'the minions are capped at two alive');
 });
-
 test('a sweep snaps a fast stroke whose segment straddles its line', () => {
     const s = still({ sweepFirst: 0, sweepEvery: 1e9, sweepWarn: 0, sweepTime: 2 });
     s.step(1 / 60);
@@ -180,16 +201,24 @@ test('a sweep snaps a fast stroke whose segment straddles its line', () => {
     assert.equal(s.stats.snaps, 1);
 });
 
-test('the boss is the wall: one hit on the first sector, steeply more after, and its bounty is paid by the engine', () => {
-    assert.equal(E.snareBossHits(0), 1);
-    assert.ok(E.snareBossHits(4) >= 8 && E.snareBossHits(7) >= 18, 'later bosses take far more');
+test('the boss is the wall: 3 health on the first sector, steeply more after, and its bounty is paid by the engine', () => {
+    assert.equal(E.snareBossHp(0), 3);
+    assert.ok(E.snareBossHp(4) >= 15 && E.snareBossHp(7) >= 30, 'later bosses take far more');
     const s = E.defaultState(NOW);
     const pay = E.snareBossDown(s, 0);
-    assert.equal(pay, 10 * E.snareBossHits(0));
+    assert.equal(pay, 6 * E.snareBossHp(0));
     assert.equal(s.snare.signal, pay);
     assert.equal(s.snare.sector, 1);
-    const late = E.snareOpts({ ...s, snare: { ...s.snare, sector: 5 } });
-    assert.ok(late.bossMinions > 0 && late.bossCharge < 5 && late.bossSpeed > 1);
+    const late = E.snareOpts({ ...s, snare: { ...s.snare, sector: E.MINION_SECTOR } });
+    assert.ok(late.bossMinions > 0 && late.bossCharge < 5 && late.bossSpeed > 1 && late.bossWarn < 1.1);
+    assert.equal(E.snareOpts(s, 0).bossMines, 0, 'no mines on the first sector');
+    assert.equal(E.snareOpts(s, E.MINE_SECTOR).bossMines, 2, 'two from the second');
+    assert.equal(E.snareOpts(s, E.NET_SECTOR).bossMines, 3, 'a ring of three from the fourth');
+    s.levels.snareParry = 2; s.levels.snareRiposte = 1; s.levels.snareKernelPanic = 1;
+    const o = E.snareOpts(s, 0);
+    assert.equal(o.slashDamage, 3);
+    assert.equal(o.parryDamage, 1);
+    assert.ok(o.bossStun > E.snareOpts(E.defaultState(NOW), 0).bossStun);
 });
 
 test('the research trickle is capped, and Overclock raises every catch', () => {
@@ -202,18 +231,20 @@ test('the research trickle is capped, and Overclock raises every catch', () => {
     assert.equal(E.snareCatch(s, 10), 13);
 });
 
-test('the tree thins the corrupt packets and grows the field to a datacentre', () => {
+test('the tree thins the corrupt packets, fills the field with packets and grows it to a datacentre', () => {
     const s = E.defaultState(NOW);
     const base = E.snareOpts(s);
-    s.levels.snareChecksums = 3; s.levels.snareErrorCorrection = 2;
+    for (const id of ['snareChecksums', 'snareErrorCorrection', 'snareSignatures', 'snareHeuristics', 'snareBlocklist', 'snareSandbox']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
     s.levels.snareSprawl = 3; s.levels.snareMegasprawl = 3; s.levels.snareHyperscale = 3;
-    s.levels.snareFirehose = 3; s.levels.snareFloodgate = 2; s.levels.snareFirewalls = 1;
+    for (const id of ['snareSchools', 'snareFirehose', 'snareFloodgate', 'snareBurst', 'snareBroadband', 'snareMulticast', 'snareTorrent']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
+    s.levels.snareFirewalls = 1;
     const o = E.snareOpts(s, E.AV_SECTOR);
-    assert.ok(o.corruptShare <= E.snareOpts(E.defaultState(NOW), E.AV_SECTOR).corruptShare * 0.25 + 1e-9, 'a quarter of the corrupt packets');
+    assert.ok(o.corruptShare <= E.snareOpts(E.defaultState(NOW), E.AV_SECTOR).corruptShare * 0.12, 'about a tenth of the corrupt packets');
     assert.ok(o.area > 70 * 60, 'nine Sprawl levels');
-    assert.ok(Math.abs(o.density / base.density - 3) < 1e-9 && o.maxGood === base.maxGood * 3, 'three times the packets');
+    assert.ok(o.density / base.density >= 6, `six times the packets or more (${(o.density / base.density).toFixed(2)})`);
     assert.deepEqual(o.antivirus, E.snareOpts(E.defaultState(NOW), E.AV_SECTOR).antivirus, 'the hazards come from the sector, not the field');
     assert.equal(o.firewalls, 3, 'a slot more for each tool from Megasprawl\'s and Hyperscale\'s last levels');
     assert.equal(o.decoys, 0, 'none for tools you don\'t own');
-    assert.ok(E.snareOpts(s, 6).bossR > E.snareOpts(s, 0).bossR * 1.8, 'the boss grows with the sector');
+    assert.ok(E.snareOpts(s, 8).bossR > E.snareOpts(s, 0).bossR * 1.5, 'the boss grows with the sector');
+    assert.ok(E.snareOpts(s, 8).bossR < E.snareOpts(s, 0).bossR * 1.7, 'half as fast as it did');
 });

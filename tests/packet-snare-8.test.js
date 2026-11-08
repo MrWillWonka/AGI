@@ -1,7 +1,7 @@
 'use strict';
 // Packet Snare 8: round 3's fixes (Freeze's clock, walls that go down, retraced wires, decoys the boss smashes, lasers
 // with a reach) and the rule-breaking mechanics (flicks: Parry and Slash, Packet Spoofing; Garbage Collection, Race
-// Condition, Hijack, Collusion), the boss growing with the sector, and the screen's cap on the field (`worth`).
+// Condition, Hijack, Collusion). Snare 9's boss fight (parry and slash) is tested in packet-snare-9.test.js.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const P = require('../packet-snare.js');
@@ -38,30 +38,6 @@ test('Freeze Frame stops the field\'s clock: nothing comes due or piles up while
     assert.equal(s.focus, 30, 'Focus held');
     run(s, 1.6);
     assert.equal(s.antivirus.length, 1, 'it boots once the field moves again');
-});
-
-test('no boss hits while the field is frozen', () => {
-    const s = still({ boss: 3, bossAt: 0, freeze: 1, w: 12, h: 12 });
-    run(s, 0.1);
-    Object.assign(s.boss, { x: 5, y: 3.5, vx: 0, vy: 0, chargeAt: 1e9 });
-    s.usePower('freeze');
-    circle(s, 5, 3.5, 1.3);
-    assert.equal(s.stats.bossHits, 0);
-    run(s, 3.5);
-    Object.assign(s.boss, { x: 5, y: 3.5, vx: 0, vy: 0, chargeAt: 1e9 });
-    circle(s, 5, 3.5, 1.3);
-    assert.equal(s.stats.bossHits, 1, 'after it thaws, a loop hits');
-});
-
-test('the boss grows with the sector: a hit needs the loop round all of it', () => {
-    const s = still({ boss: 3, bossAt: 0, bossR: 1.4, w: 12, h: 12 });   // a field big enough for a boss this size (it's capped at 13% of the shorter side)
-    run(s, 0.1);
-    Object.assign(s.boss, { x: 5, y: 3.5, vx: 0, vy: 0, chargeAt: 1e9 });
-    circle(s, 5, 3.5, 0.9);
-    assert.equal(s.stats.bossHits, 0, 'a loop smaller than it misses');
-    Object.assign(s.boss, { x: 5, y: 3.5, vx: 0, vy: 0, stunned: 0, chargeAt: 1e9 });
-    circle(s, 5, 3.5, 1.9);
-    assert.equal(s.stats.bossHits, 1, 'a loop round all of it hits');
 });
 
 test('a Firewall that goes down frees its slot', () => {
@@ -119,13 +95,16 @@ test('an Antivirus that touches a herder stuns it', () => {
     assert.equal(s.stats.herdStuns, 1);
 });
 
-test('a flick that hits nothing is flagged; three flags set off an IDS alert that boots the boss', () => {
+test('a flick that misses something it went near is flagged; three flags set off an IDS alert that boots the boss', () => {
     const s = still({ spoof: 1, boss: 2, bossAt: 1e9, bossCatch: 1e9 });
+    for (const y of [1, 3, 5]) packet(s, 'corrupt', 2.5, y + 0.6);
     flickLine(s, 1, 1, 4, 1);
     assert.equal(s.flags, 1);
     assert.ok(!s.boss);
-    flickLine(s, 1, 2, 4, 2);
+    flickLine(s, 6, 2, 9, 2);
+    assert.equal(s.flags, 1, 'a flick through empty field is just a stroke');
     flickLine(s, 1, 3, 4, 3);
+    flickLine(s, 1, 5, 4, 5);
     assert.equal(s.stats.ids, 1);
     assert.ok(s.boss && s.boss.enraged, 'the boss booted early, enraged');
     const slow = still({ spoof: 1 });
@@ -144,26 +123,6 @@ test('Packet Spoofing: a flick through corrupt packets makes them good, worth ×
     circle(s, 3.15, 3.15, 0.9);
     assert.equal(s.stats.catches, 1, 'the spoofed packet doesn\'t spoil the loop');
     assert.equal(s.stats.corrupted, 0);
-});
-
-test('Parry: a flick across the boss\'s charge while it warns lands a hit; Slash: one through it while it reels', () => {
-    const s = still({ parry: 1, boss: 4, bossAt: 0 });
-    run(s, 0.05);
-    Object.assign(s.boss, { x: 2, y: 3.5, vx: 0, vy: 0, chargeAt: 0 });
-    s.addPoint(6, 1);
-    s.addPoint(6, 1.2);
-    s.step(1 / 60);
-    assert.ok(s.boss.charge, 'it locked on');
-    s.liftPen();
-    flickLine(s, 4, 1, 4, 6);
-    assert.equal(s.stats.parries, 1);
-    assert.equal(s.boss.hp, 3);
-    const b = s.boss;
-    flickLine(s, b.x - 1.5, b.y, b.x + 1.5, b.y);
-    assert.equal(s.stats.slashes, 1, 'a slash while it reels');
-    assert.equal(s.boss.hp, 2);
-    flickLine(s, s.boss.x - 1.5, s.boss.y, s.boss.x + 1.5, s.boss.y);
-    assert.equal(s.stats.slashes, 1, 'but not a second slash on the stun from a slash');
 });
 
 test('Garbage Collection: a loop of only corrupt packets deletes them and gives Focus back', () => {
@@ -221,10 +180,4 @@ test('Collusion: a quarantined core may turn partner, collecting for you until a
     packet(s, 'good', 5.9, 3.5);
     run(s, 1.2);
     assert.equal(s.stats.partnered, 1);
-});
-
-test('the field\'s worth: a packet on a field the screen capped is worth the difference', () => {
-    const s = still({ worth: 2.5 });
-    const p = packet(s, 'good', 5, 3);
-    assert.equal(s.valueOf(p), 2.5);
 });

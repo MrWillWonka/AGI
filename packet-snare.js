@@ -98,14 +98,17 @@
         fwHits: 1,
         wallRebuild: 0,             // Great Wall: seconds before a wall that went down builds itself again (0: never)
         // Things you place with a tap: decoys (corrupt packets and idle Antivirus go to them; an Antivirus that reaches
-        // one breaks it), turrets (each takes the richest good packet in reach every `turretEvery` s; Purifier rounds
-        // also wipe a corrupt one) and scanner towers (a beam turning round each tags what it passes).
+        // one breaks it), turrets (defence: every `turretEvery` s each shoots an Antivirus or a corrupt packet in reach)
+        // and scanner towers (a beam turning round each tags what it passes).
         decoys: 0,
         decoyLure: 4,
         turrets: 0,
         turretRange: 1.7,
         turretEvery: 2.6,
-        turretPurge: 0,
+        turretPurge: 0,             // Purifier Rounds: corrupt packets more a shot wipes
+        turretStun: 1.5,            // seconds a turret's hit stuns an Antivirus…
+        avShots: 3,                 // …and hits that take one down…
+        avReboot: 8,                // …until it reboots from a corner this long after
         towers: 0,
         towerRange: 2.6,
         towerSpeed: 1.8,
@@ -124,19 +127,37 @@
         herdSpeed: 2.8,
         herdPull: 2.6,              // how quickly a herded packet turns (per second)
         cleanStart: false,          // the first runs: one school starts clear of corrupt packets, and the lure waits
-        // The boss Antivirus: it boots `bossAt` s in, or once `bossCatch` packets are caught (0 = none this run). Bigger,
-        // it hunts the wire like the others; a tight loop round it (no bigger than `bossLoop` × the field) takes a hit off
-        // it, and at 0 it's beaten (the sector is cleared). Your Firewalls stun it as they stun the others.
-        boss: 0,                    // its hits (0 = no boss)
+        // The boss Antivirus: it boots `bossAt` s in, or once `bossCatch` packets are caught by hand (0 = none this run).
+        // It has health (`boss`, more each sector) and is fought with flicks (the owner's design): every `bossCharge` s
+        // it locks on to the pen (or the richest school) and, after a `bossWarn` s warning line, charges along it. A flick
+        // across the warning line **parries** it: it reels for `bossStun` s, and every flick through it while it reels is
+        // a **slash** for `slashDamage`. Your Firewalls stun it too (a slash window as well). From sector 2 it lays
+        // **mines** that link up into nets (a net quarantines the field inside it: the data there is wiped); while a
+        // mine stands it's **shielded** (slashes glance off), and a loop round a mine clears it. It keeps to the middle
+        // of the field (`bossEdge` of the shorter side clear of the edges), so it can be fought most of the time.
+        boss: 0,                    // its health (0 = no boss)
         bossAt: 16,
         bossCatch: 18,
-        bossLoop: 2.6,              // a hit's loop may be no bigger than a circle this many times the boss's radius
         bossSpeed: 1,               // × an Antivirus's roaming speed
-        bossCharge: 5,              // seconds between its charges at the pen
-        bossStun: 1.5,              // seconds it reels after each hit
-        bossMinions: 0,             // Antivirus it boots each time it's hit (later sectors)
-        bossR: 0.8,                 // its size: it grows sector by sector, so later bosses need bigger loops
+        bossCharge: 5,              // seconds between its charges
+        bossWarn: 1.1,              // seconds its warning line shows before it dashes (the parry window)
+        bossStun: 1.6,              // seconds it reels after a parry (the slash window)
+        bossMinions: 0,             // Antivirus it boots each time it's parried (later sectors), at most `minionCap` alive
+        minionCap: 2,
+        bossR: 0.8,                 // its size: it grows sector by sector
         bossSmash: 2,               // seconds it sits on a decoy before smashing it
+        bossEdge: 0.18,             // × the shorter side: how far its edge keeps from the field's
+        slashDamage: 1,             // health a slash takes off
+        parryDamage: 0,             // health a parry takes off (Riposte)
+        slashGap: 0.12,             // seconds between slashes (one flick, one slash)
+        // Mines: from the boss's second sector, `bossMines` at a time, laid every `mineEvery` s; mines within `netRange`
+        // × the shorter side of each other link up over `netTime` s, and a finished net wipes the good data along it (two
+        // mines) or inside it (three or more round a triangle) every `netEvery` s.
+        bossMines: 0,
+        mineEvery: 12,
+        netRange: 0.45,
+        netTime: 4,
+        netEvery: 1,
         // Lasers reach only part of the field: each emitter takes the richest packet within `laserReach` × the field's
         // shorter side of it; Laser Array adds emitters on more sides (bottom, top, left, right).
         laserReach: 0.5,
@@ -144,21 +165,19 @@
         // Herders an Antivirus touches are stunned for `herdStun` s; Evasive Herders steer clear of them.
         herdStun: 2.5,
         herdEvade: 0,
-        // What a packet is worth on top of its kind and tags: the screen caps the field's size for readability, and a
-        // field smaller than the tree's makes each packet worth the difference (game.js sets it).
-        worth: 1,
         // ---- Exploits: the rules the player breaks (each a skill check; a sloppy one is flagged) -----------------
         // A **flick** is a quick straight stroke (pen down, `flickTime` s at most, `flickLength` units at least, nearly
-        // straight). Parry and Slash: a flick across the boss's charge line while it warns turns the charge back on it
-        // (a hit); a flick through it while it reels is another hit. Packet Spoofing: a flick through a corrupt packet
-        // spoofs it, good and worth ×`spoofValue` for `spoofSeconds`. A flick that hits nothing is flagged.
-        parry: 0,
+        // straight). It's how the boss is fought (parry and slash, above, always on). Packet Spoofing: a flick through a
+        // corrupt packet spoofs it, good and worth ×`spoofValue` for `spoofSeconds`. A flick that went near something
+        // (the boss, its warning line, a corrupt packet you could spoof) but hit nothing is flagged; one through empty
+        // field is just a stroke.
         spoof: 0,
         spoofSeconds: 5,
         spoofValue: 2,
         flickTime: 0.35,
         flickLength: 1.2,
         flagLimit: 3,               // flags and an IDS alert: the boss boots now, enraged (or another Antivirus)
+        flagNear: 1.2,              // units: how near a flick must pass to something it could hit to be flagged
         // Garbage Collection: a loop of nothing but corrupt packets deletes them and gives `gcFocus` Focus each.
         gc: 0,
         gcFocus: 1.5,
@@ -174,7 +193,28 @@
         // Collusion: a quarantined core may turn partner (`collude` chance): it collects good packets in its circle for
         // you, once a second, for `partnerLife` s; Antivirus go for it and break it.
         collude: 0,
-        partnerLife: 12
+        partnerLife: 12,
+        // Privilege Escalation: a flick from a hijacked Antivirus at the boss rams it for `escalateDamage` (a shield still
+        // holds it off), boots no minion, and spends the ally.
+        escalate: 0,
+        escalateDamage: 4,
+        // Fork Bomb: a figure eight (one stroke, two loops either side of the point where it crosses itself, or of where
+        // it started) pays both lobes at their multipliers multiplied, up to `forkMax` × the cap; a red packet in either
+        // spoils both. The first lobe waits up to `forkTime` s for the second (it's judged when that closes).
+        fork: 0,
+        forkMax: 1.5,
+        forkTime: 4,                // seconds the first lobe waits for its second
+        // Star: drawn while the field is frozen, a five-pointed star (a closed stroke crossing itself five times) catches
+        // everything good inside its outline at ×`starMult` on top of the multiplier and deletes the corrupt packets there.
+        star: 0,
+        starMult: 2,
+        // Antivirus work in shifts (safe windows): `avOn` s hunting, then `avOff` s updating their definitions (harmless,
+        // drifting slowly, drawn dim); each starts its first shift when it boots.
+        avOn: 11,
+        avOff: 5,
+        // Most good packets a field holds per unit² (the screen caps the field's size; packets past it fill it denser, up
+        // to this, so it stays readable).
+        densityCap: 0.75
     };
     const GOLD_VALUE = 5;
     const TAG_VALUE = 2;
@@ -183,7 +223,8 @@
     const PACKET_R = 0.3;
     const AV_R = 0.45;
     const BOSS_R = 0.8;
-    const BOSS_WARN = 0.7, BOSS_DASH = 0.45, BOSS_DASH_SPEED = 5;   // a charge: its warning, its dash and its speed
+    const BOSS_WARN = 1.1, BOSS_DASH = 0.45, BOSS_DASH_SPEED = 5;   // a charge: its warning (the default), its dash and its speed
+    const MINE_R = 0.32;
 
     // Mulberry32: small, fast, seeded.
     function rng(seed) {
@@ -294,12 +335,17 @@
             race: null,             // Race Condition: a closed loop held open, { poly, at, t, mult }
             partners: [],           // Collusion: cores working for you, { id, x, y, r, age, at }
             rebuild: [],            // Great Wall: walls that went down, building themselves again { a, b, at }
+            mines: [],              // the boss's mines: { id, x, y }
+            links: [],              // nets growing between mines: { a, b, t } (mine ids; done at t ≥ netTime)
+            fork: null,             // Fork Bomb: a figure eight's first lobe, waiting for its second { q, poly, t, at }
+            handCaught: 0,          // packets caught by hand (loops): what boots the boss early
             rogueAt: o.rogue ? o.rogueFirst : Infinity,
-            boss: null,             // the boss Antivirus once it boots: { x, y, vx, vy, r, hp, maxHp, stunned, hunting }
+            boss: null,             // the boss Antivirus once it boots: { x, y, vx, vy, r, hp, maxHp, stunned, charge, shielded }
             bossDone: false,
             stats: { catches: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
                 stolen: 0, cores: 0, quarantined: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0,
-                herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0 },
+                herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0,
+                bossDamage: 0, avDown: 0, glanced: 0, mines: 0, minesCleared: 0, netted: 0, escalations: 0, forks: 0, stars: 0 },
             acc: 0,
             nextId: 1
         };
@@ -409,45 +455,75 @@
 
         // ---- The boss Antivirus --------------------------------------------------------------------------
         // `enraged`: an IDS alert booted it early, faster and charging sooner.
-        // Its size grows with the field (to the ¾ power: a big field's boss stays a big target on screen, and its loop
-        // can still close) and with the sector (engine.js).
+        // Its size grows with the field (to the ¾ power: a big field's boss stays a big target on screen) and with the
+        // sector (engine.js), never past 13% of the field's shorter side (a phone's field is small).
+        // It keeps to the middle: `edge` clear of every side, so it can be fought most of the time (it used to spend
+        // its time along the edges, wiping the packets that swam in).
+        const bossEdge = r => Math.min(r + o.bossEdge * shortSide, shortSide * 0.45);
+        function keepCentral(b) {
+            const e = bossEdge(b.r);
+            if (b.x < e) { b.x = e; b.vx = Math.abs(b.vx); }
+            if (b.x > w - e) { b.x = w - e; b.vx = -Math.abs(b.vx); }
+            if (b.y < e) { b.y = e; b.vy = Math.abs(b.vy); }
+            if (b.y > h - e) { b.y = h - e; b.vy = -Math.abs(b.vy); }
+        }
         function bootBoss(enraged) {
-            // …but never more than 13% of the field's shorter side (a phone's field is small, and a sector 5 boss filled a third of it).
-            const r = Math.min(o.bossR * Math.pow(grow, 0.75), 0.13 * shortSide), c = Math.floor(rand() * 4);
-            const x = c % 2 ? w - r : r, y = c < 2 ? r : h - r;
-            s.boss = { x, y, vx: 0, vy: 0, r, hp: o.boss, maxHp: o.boss, stunned: 0, hunting: false, immune: null, charge: null, chargeAt: s.time + (enraged ? 1 : 3), enraged, smash: null };
+            const r = Math.min(o.bossR * Math.pow(grow, 0.75), 0.13 * shortSide);
+            // In from the middle of an edge, moving in.
+            const side = Math.floor(rand() * 4), e = bossEdge(r);
+            const x = side === 0 ? e : side === 1 ? w - e : w / 2, y = side === 2 ? e : side === 3 ? h - e : h / 2;
+            s.boss = { x, y, vx: 0, vy: 0, r, hp: o.boss, maxHp: o.boss, stunned: 0, immune: null, charge: null, chargeAt: s.time + (enraged ? 1 : 2.5),
+                enraged, smash: null, slashAt: -1, shielded: false, mineAt: s.time + 1.5 };
             s.events.push({ type: 'boss', x, y, hp: o.boss, enraged });
         }
+        // Where its charges aim: the pen while you draw, else the nearest good packet (so it charges all the same, and
+        // there's always a parry to make).
+        function chargeTarget(b) {
+            if (s.drawing && s.wire.length) return s.wire[s.wire.length - 1];
+            let best = null, bd = Infinity;
+            for (const p of s.packets) {
+                if (!isGood(p)) continue;
+                const d = (p.x - b.x) ** 2 + (p.y - b.y) ** 2;
+                if (d > 0.5 && d < bd) { bd = d; best = p; }
+            }
+            if (best) return best;
+            // Nothing to aim at: where the pen was last, or somewhere across the middle.
+            if (s.penAt && Math.hypot(s.penAt.x - b.x, s.penAt.y - b.y) > 1) return s.penAt;
+            const ang = rand() * Math.PI * 2;
+            return { x: b.x + Math.cos(ang) * 3, y: b.y + Math.sin(ang) * 3 };
+        }
+        // How far a charge goes (its warning line is drawn this long).
+        const chargeReach = b => BOSS_DASH_SPEED * BOSS_DASH * o.avSpeed + b.r;
         function bossStep(dt) {
             if (!o.boss || s.bossDone) return;
             if (!s.boss) {
-                if (s.time < o.bossAt && s.stats.caught < o.bossCatch) return;
+                if (s.time < o.bossAt && s.handCaught < o.bossCatch) return;
                 bootBoss(false);
                 return;
             }
             const b = s.boss;
+            mineStep(b, dt);
+            b.shielded = s.mines.length > 0;
             if (b.stunned > s.time) {
                 b.x += b.vx * dt;
                 b.y += b.vy * dt;
                 b.vx *= 1 - Math.min(1, 3 * dt);
                 b.vy *= 1 - Math.min(1, 3 * dt);
-                bounce(b);
-                b.hunting = false;
+                keepCentral(b);
                 return;
             }
-            // It roams to the nearest school and wipes the data it touches; every few seconds, while you draw, it locks
-            // on to the pen (a warning) and charges it. Loop it while it roams or reels.
+            // It roams toward the nearest school (kept to the middle) and wipes the data it touches; every few seconds it
+            // locks on (a warning line: the parry window) and charges.
             if (b.charge) {
                 b.charge.t += dt;
-                if (b.charge.t < BOSS_WARN) { b.vx *= 0.8; b.vy *= 0.8; }
-                else if (b.charge.t < BOSS_WARN + BOSS_DASH) { b.vx = b.charge.dx * BOSS_DASH_SPEED * o.avSpeed; b.vy = b.charge.dy * BOSS_DASH_SPEED * o.avSpeed; }
+                if (b.charge.t < b.charge.warn) { b.vx *= 0.8; b.vy *= 0.8; }
+                else if (b.charge.t < b.charge.warn + BOSS_DASH) { b.vx = b.charge.dx * BOSS_DASH_SPEED * o.avSpeed; b.vy = b.charge.dy * BOSS_DASH_SPEED * o.avSpeed; }
                 else { b.charge = null; b.chargeAt = s.time + o.bossCharge * (b.enraged ? 0.6 : 1); }
-                b.hunting = !!b.charge;
             } else {
-                if (s.drawing && s.wire.length > 1 && s.time >= (b.chargeAt ?? 0)) {
-                    const head = s.wire[s.wire.length - 1];
-                    const L = Math.hypot(head.x - b.x, head.y - b.y) || 1;
-                    b.charge = { t: 0, dx: (head.x - b.x) / L, dy: (head.y - b.y) / L };
+                const aim = s.time >= (b.chargeAt ?? 0) ? chargeTarget(b) : null;
+                if (aim) {
+                    const L = Math.hypot(aim.x - b.x, aim.y - b.y) || 1;
+                    b.charge = { t: 0, warn: o.bossWarn * (b.enraged ? 0.8 : 1), dx: (aim.x - b.x) / L, dy: (aim.y - b.y) / L };
                     s.events.push({ type: 'bossCharge', x: b.x, y: b.y });
                 }
                 // Decoys count as half as far away as packets (it falls for them).
@@ -457,16 +533,20 @@
                     const d = ((p.x - b.x) ** 2 + (p.y - b.y) ** 2) * (p.kind ? 1 : 0.5);
                     if (d < bd) { bd = d; best = p; }
                 }
-                const target = best || { x: w / 2, y: h / 2 };
+                // Its target is held inside the middle too, so data along the edges is safe from it.
+                const e = bossEdge(b.r);
+                const target = best ? { x: Math.max(e, Math.min(w - e, best.x)), y: Math.max(e, Math.min(h - e, best.y)) } : { x: w / 2, y: h / 2 };
                 const speed = o.avPatrol * o.bossSpeed * o.avSpeed * (b.enraged ? 1.3 : 1);
                 const ang = Math.atan2(target.y - b.y, target.x - b.x);
                 const k = Math.min(1, o.avTurn * 0.6 * dt);
-                b.vx += (Math.cos(ang) * speed - b.vx) * k;
-                b.vy += (Math.sin(ang) * speed - b.vy) * k;
-                b.hunting = false;
+                const near = Math.hypot(target.x - b.x, target.y - b.y);
+                const sp = speed * Math.min(1, near / 0.6);
+                b.vx += (Math.cos(ang) * sp - b.vx) * k;
+                b.vy += (Math.sin(ang) * sp - b.vy) * k;
             }
             b.x += b.vx * dt;
             b.y += b.vy * dt;
+            keepCentral(b);
             // A decoy it sits on lasts `bossSmash` s, then it smashes it.
             const onDecoy = s.decoys.find(dc => Math.hypot(dc.x - b.x, dc.y - b.y) < b.r + 0.3);
             if (onDecoy) {
@@ -485,46 +565,117 @@
                 s.events.push({ type: 'wiped', x: b.x, y: b.y, packets: wiped.map(p => ({ x: p.x, y: p.y, kind: p.kind })) });
                 remove(wiped);
             }
-            bounce(b);
-            if (s.wire.length > 1) {
+            // A quick stroke (a flick on its way) isn't snapped: flicks are how it's fought.
+            const flicking = s.stroke && s.real - s.stroke.t0 < o.flickTime;
+            if (s.wire.length > 1 && !flicking) {
                 for (let i = 1; i < s.wire.length; i++) {
                     // Its snap costs half again what an Antivirus's does.
                     if (segDist(b, s.wire[i - 1], s.wire[i]) < b.r) { snap(b); s.focus = Math.max(0, s.focus - o.snapPenalty * 0.5); break; }
                 }
             }
-            // Your Firewalls stun it too, once per approach, like the others (it shrugs the stun off sooner).
+            // Your Firewalls stun it too, once per approach, like the others (it shrugs the stun off sooner): a slash window.
             stunOnWalls(b, o.avStun * 0.6, true);
         }
-        // A tight loop round the boss takes a hit off it: all of it inside (a bigger boss needs a bigger loop), no bigger
-        // than a circle `bossLoop` times its radius. Never while the field is frozen (Freeze Frame stops the clock, not
-        // the boss's guard).
-        const bossLimit = b => Math.PI * (o.bossLoop * b.r) ** 2;
-        function bossLooped(poly, area) {
-            const b = s.boss;
-            if (!b || frozen() || area > bossLimit(b) || !pointInPolygon(b, poly)) return false;
-            for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) if (segDist(b, poly[j], poly[i]) < b.r * 0.85) return false;
-            hitBoss(b, 'loop');
-            return true;
-        }
-        // A hit, from a loop, a parry or a slash.
-        function hitBoss(b, how) {
-            b.hp--;
+        // Health off the boss (a slash, a parry with Riposte, a ram). Returns whether it landed.
+        function damageBoss(b, dmg, how) {
+            if (b.shielded) {
+                s.stats.glanced++;
+                s.events.push({ type: 'bossBlock', x: b.x, y: b.y, reason: 'shield', how });
+                return false;
+            }
+            if (!(dmg > 0)) return true;
+            b.hp = Math.max(0, b.hp - dmg);
             s.stats.bossHits++;
-            for (let i = 0; i < o.bossMinions && b.hp > 0; i++) bootAntivirus();
-            b.stunned = s.time + o.bossStun;
-            b.charge = null;
-            b.slashable = how !== 'slash';   // a slash lands on a boss reeling from a loop or a parry, not from a slash
-            const ang = rand() * Math.PI * 2;
-            b.vx = Math.cos(ang) * 3;
-            b.vy = Math.sin(ang) * 3;
+            s.stats.bossDamage += dmg;
             if (b.hp <= 0) {
                 s.stats.bosses++;
                 s.bossDone = true;
                 s.boss = null;
+                // Its mines and nets go down with it.
+                for (const m of s.mines) s.events.push({ type: 'mineDown', x: m.x, y: m.y, boss: true });
+                s.mines = [];
+                s.links = [];
                 s.events.push({ type: 'bossDown', x: b.x, y: b.y });
             } else {
-                s.events.push({ type: 'bossHit', x: b.x, y: b.y, r: b.r, hp: b.hp, maxHp: b.maxHp, how });
+                s.events.push({ type: 'bossHit', x: b.x, y: b.y, r: b.r, hp: b.hp, maxHp: b.maxHp, how, dmg });
             }
+            return true;
+        }
+        // A parry: the charge broken, the boss reeling (the slash window); later sectors' bosses boot Antivirus when it happens.
+        function parryBoss(b) {
+            const { dx, dy } = b.charge;
+            b.charge = null;
+            b.stunned = s.time + o.bossStun;
+            b.chargeAt = s.time + o.bossStun + o.bossCharge * 0.6;
+            b.vx = -dx * 3;
+            b.vy = -dy * 3;
+            s.stats.parries++;
+            const minions = s.antivirus.filter(f => f.minion && !f.ally).length;
+            for (let i = 0; i < o.bossMinions && minions + i < o.minionCap; i++) { bootAntivirus(); s.antivirus[s.antivirus.length - 1].minion = true; }
+            s.events.push({ type: 'parry', x: b.x, y: b.y });
+            damageBoss(b, o.parryDamage, 'parry');
+        }
+
+        // ---- The boss's mines and nets -----------------------------------------------------------------
+        // It lays them round itself, inside the middle; mines near enough link up (a net growing between them); a
+        // finished net wipes the good data along it, and a ring of three finished nets the data inside it too.
+        function layMines(b, n) {
+            const e = Math.max(1, o.bossEdge * shortSide * 0.6);
+            const spread = o.netRange * shortSide * 0.55;
+            const a0 = rand() * Math.PI * 2;
+            for (let i = 0; i < n; i++) {
+                const ang = a0 + i * Math.PI * 2 / n + (rand() - 0.5) * 0.5;
+                const x = Math.max(e, Math.min(w - e, b.x + Math.cos(ang) * spread)), y = Math.max(e, Math.min(h - e, b.y + Math.sin(ang) * spread));
+                const m = { id: s.nextId++, x, y };
+                for (const q of s.mines) if (Math.hypot(q.x - x, q.y - y) <= o.netRange * shortSide) s.links.push({ a: q.id, b: m.id, t: 0 });
+                s.mines.push(m);
+                s.stats.mines++;
+                s.events.push({ type: 'mine', x, y });
+            }
+        }
+        const mineById = id => s.mines.find(m => m.id === id);
+        const netsDone = () => s.links.filter(l => l.t >= o.netTime).map(l => [mineById(l.a), mineById(l.b)]).filter(([a, c]) => a && c);
+        // The triangles of finished nets (the quarantined areas).
+        function netAreas() {
+            const done = netsDone(), key = (a, c) => (a.id < c.id ? `${a.id}:${c.id}` : `${c.id}:${a.id}`);
+            const has = new Set(done.map(([a, c]) => key(a, c)));
+            const out = [];
+            for (let i = 0; i < s.mines.length; i++) for (let j = i + 1; j < s.mines.length; j++) for (let k = j + 1; k < s.mines.length; k++) {
+                const A = s.mines[i], B = s.mines[j], C = s.mines[k];
+                if (has.has(key(A, B)) && has.has(key(B, C)) && has.has(key(A, C))) out.push([A, B, C]);
+            }
+            return out;
+        }
+        let netAt = 0;
+        function mineStep(b, dt) {
+            if (!o.bossMines) return;
+            if (s.time >= b.mineAt && s.mines.length < o.bossMines) {
+                layMines(b, o.bossMines - s.mines.length);
+                b.mineAt = s.time + o.mineEvery;
+            }
+            for (const l of s.links) l.t += dt;
+            if (s.time < netAt) return;
+            netAt = s.time + o.netEvery;
+            const lines = netsDone();
+            if (!lines.length) return;
+            const areas = netAreas();
+            const caught = s.packets.filter(p => isGood(p) && (lines.some(([a, c]) => segDist(p, a, c) < 0.35) || areas.some(t => pointInPolygon(p, t))));
+            if (caught.length) {
+                s.stats.netted += caught.length;
+                s.events.push({ type: 'netted', packets: caught.map(p => ({ x: p.x, y: p.y, kind: p.kind })) });
+                remove(caught);
+            }
+        }
+        // A loop round a mine clears it (and its nets).
+        function clearMines(poly) {
+            const hit = s.mines.filter(m => pointInPolygon(m, poly));
+            if (!hit.length) return false;
+            s.mines = s.mines.filter(m => !hit.includes(m));
+            s.links = s.links.filter(l => mineById(l.a) && mineById(l.b));
+            s.stats.minesCleared += hit.length;
+            for (const m of hit) s.events.push({ type: 'mineDown', x: m.x, y: m.y });
+            if (s.boss && !s.mines.length) s.boss.mineAt = Math.max(s.boss.mineAt, s.time + o.mineEvery * 0.75);
+            return true;
         }
 
         function bootAntivirus() {
@@ -534,7 +685,7 @@
             const y = c < 2 ? AV_R : h - AV_R;
             const ang = Math.atan2(h / 2 - y, w / 2 - x);
             const v = o.avPatrol * o.avSpeed;
-            s.antivirus.push({ id: s.nextId++, x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, r: AV_R, hunting: false, stunned: 0 });
+            s.antivirus.push({ id: s.nextId++, x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, r: AV_R, hunting: false, stunned: 0, off: false, shift: s.time + o.avOn });
             s.events.push({ type: 'antivirus', x, y });
         }
 
@@ -630,6 +781,7 @@
         }
 
         function snap(fw) {
+            settleFork();
             s.events.push({ type: 'snap', x: fw.x, y: fw.y, wire: s.wire.slice() });
             s.wire = [];
             s.drawing = false;
@@ -641,7 +793,7 @@
 
         const spoofed = p => p.kind === 'corrupt' && p.spoof > s.time;
         const isGood = p => p.kind !== 'corrupt' || spoofed(p);
-        const valueOf = p => (p.kind === 'gold' ? o.goldValue : 1) * (p.tag > s.time ? o.tagValue : 1) * (spoofed(p) ? o.spoofValue : 1) * o.worth;
+        const valueOf = p => (p.kind === 'gold' ? o.goldValue : 1) * (p.tag > s.time ? o.tagValue : 1) * (spoofed(p) ? o.spoofValue : 1);
 
         // Taken packets leave the field; a school refills from an edge once enough are gone, corrupt ones one by one.
         function remove(list) {
@@ -837,6 +989,7 @@
         const frozen = () => s.frozenLeft > 0;
         // A corrupt packet that would cross one of your Firewalls this step bounces off it (good ones pass).
         function bounceOffWalls(p, px, py) {
+            if (spoofed(p)) return;   // a spoofed packet passes as good
             for (const f of wallsNow) {
                 if (!segIntersect({ x: px, y: py }, p, f.a, f.b)) continue;
                 const dx = f.b.x - f.a.x, dy = f.b.y - f.a.y, L = Math.hypot(dx, dy) || 1;
@@ -879,28 +1032,38 @@
             }
             s.events.push({ type: 'stun', x: v.x, y: v.y, down, boss: isBoss, a: { x: f.a.x, y: f.a.y }, b: { x: f.b.x, y: f.b.y } });
         }
-        // Turrets take the richest good packet in reach on their beat; Purifier rounds wipe a corrupt one too.
+        // Turrets are defence (the owner's call): on their beat each shoots the nearest hunting Antivirus in reach (stunned
+        // `turretStun` s; `avShots` hits and it's down, rebooting from a corner `avReboot` s later), else the nearest
+        // corrupt packet in reach (wiped; Purifier Rounds wipe `turretPurge` more). They never take good packets.
         function turretStep() {
             for (const t of s.turrets) {
                 if (s.time < t.at) continue;
-                t.at = s.time + o.turretEvery;
-                const near = s.packets.filter(p => Math.hypot(p.x - t.x, p.y - t.y) <= o.turretRange);
-                const good = near.filter(p => p.kind !== 'corrupt').sort((a, b) => valueOf(b) - valueOf(a) || a.id - b.id)[0];
-                if (good) {
-                    const units = valueOf(good);
+                const dist = q => Math.hypot(q.x - t.x, q.y - t.y);
+                const av = s.antivirus.filter(f => !(f.ally > s.time) && !f.off && !(f.stunned > s.time) && dist(f) <= o.turretRange + f.r).sort((p, q) => dist(p) - dist(q))[0];
+                if (av) {
+                    t.at = s.time + o.turretEvery;
+                    av.shot = (av.shot || 0) + 1;
                     s.stats.turreted++;
-                    s.stats.caught++;
-                    s.stats.units += units;
-                    if (good.kind === 'gold') s.stats.gold++;
-                    s.events.push({ type: 'laser', x: good.x, y: good.y, from: { x: t.x, y: t.y }, units, kind: good.kind, turret: true });
-                    remove([good]);
+                    if (av.shot >= o.avShots) {
+                        s.antivirus = s.antivirus.filter(f => f !== av);
+                        s.stats.avDown++;
+                        avDue.push(s.time + o.avReboot);
+                        avDue.sort((p, q) => p - q);
+                        s.events.push({ type: 'avDown', x: av.x, y: av.y, from: { x: t.x, y: t.y } });
+                    } else {
+                        av.stunned = s.time + o.turretStun;
+                        av.charge = null;
+                        s.events.push({ type: 'zap', x: av.x, y: av.y, from: { x: t.x, y: t.y }, av: true, shots: av.shot, of: o.avShots });
+                    }
+                    continue;
                 }
-                const bad = o.turretPurge ? near.find(p => p.kind === 'corrupt') : null;
-                if (bad) {
-                    s.stats.purged++;
-                    s.events.push({ type: 'zap', x: bad.x, y: bad.y, from: { x: t.x, y: t.y } });
-                    remove([bad]);
-                }
+                const bad = s.packets.filter(p => p.kind === 'corrupt' && !spoofed(p) && dist(p) <= o.turretRange).sort((p, q) => dist(p) - dist(q)).slice(0, 1 + o.turretPurge);
+                if (!bad.length) continue;
+                t.at = s.time + o.turretEvery;
+                s.stats.turreted++;
+                s.stats.purged += bad.length;
+                for (const p of bad) s.events.push({ type: 'zap', x: p.x, y: p.y, from: { x: t.x, y: t.y } });
+                remove(bad);
             }
         }
         // Scanner towers: a short beam turning round each, tagging the good packets it passes.
@@ -955,7 +1118,7 @@
             const g = gatherPoint();
             // Each herder takes one of the strays furthest from the gather point and goes round behind it.
             const strays = s.packets.filter(p => p.kind !== 'corrupt').map(p => ({ p, d: Math.hypot(p.x - g.x, p.y - g.y) })).sort((a, b) => b.d - a.d);
-            const hostile = s.antivirus.filter(f => !(f.ally > s.time) && !(f.stunned > s.time));
+            const hostile = s.antivirus.filter(f => !(f.ally > s.time) && !(f.stunned > s.time) && !f.off);
             if (s.boss) hostile.push(s.boss);
             s.herders.forEach((hd, i) => {
                 // An Antivirus that touches a herder stuns it (Evasive Herders steer clear of them).
@@ -1068,39 +1231,53 @@
             const r = s.race;
             if (!r) return;
             s.race = null;
-            if (r.bonus > 0) s.stats.raced++;
+            if (r.t >= 0.3) s.stats.raced++;
             payLoop(r.poly, r.bonus);
         }
 
-        // ---- Flicks: Parry and Slash, Packet Spoofing --------------------------------------------------------
+        // ---- Flicks: the boss fight (parry, slash), Packet Spoofing, Privilege Escalation --------------------------
         // A quick straight stroke, judged when the pen lifts. Returns true if it was a flick (it isn't a wire).
         function flick() {
             const st = s.stroke;
-            if (!st || !(o.parry || o.spoof) || st.pts.length < 2) return false;
+            if (!st || st.pts.length < 2) return false;
+            const boss = s.boss, ally = o.escalate ? s.antivirus.filter(f => f.ally > s.time) : [];
+            if (!boss && !o.spoof) return false;
             const a = st.pts[0], b = st.pts[st.pts.length - 1];
             const chord = Math.hypot(b.x - a.x, b.y - a.y), path = wireLength(st.pts);
             if (s.real - st.t0 > o.flickTime || chord < o.flickLength || chord < path * 0.85) return false;
-            let hit = false;
-            const boss = s.boss;
-            if (boss && o.parry) {
-                // A parry: across its charge line while it warns, the charge turns back on it.
-                if (boss.charge && boss.charge.t < BOSS_WARN) {
-                    const L = BOSS_DASH_SPEED * BOSS_DASH * o.avSpeed + boss.r;
-                    const end = { x: boss.x + boss.charge.dx * L, y: boss.y + boss.charge.dy * L };
-                    if (segIntersect(a, b, boss, end) || segDist(boss, a, b) < boss.r) {
-                        const { dx, dy } = boss.charge;
-                        s.stats.parries++;
-                        s.events.push({ type: 'parry', x: boss.x, y: boss.y, a, b });
-                        hitBoss(boss, 'parry');
-                        if (s.boss) { boss.vx = -dx * 4; boss.vy = -dy * 4; }
-                        hit = true;
-                    }
-                } else if (boss.stunned > s.time && boss.slashable && segDist(boss, a, b) < boss.r) {
-                    // A slash: through it while it reels from a loop or a parry.
-                    s.stats.slashes++;
-                    s.events.push({ type: 'slash', x: boss.x, y: boss.y, a, b });
-                    hitBoss(boss, 'slash');
+            let hit = false, near = false;
+            if (boss) {
+                const through = segDist(boss, a, b) < boss.r;
+                near = segDist(boss, a, b) < boss.r + o.flagNear;
+                const rammer = ally.find(f => Math.hypot(f.x - a.x, f.y - a.y) < f.r + 0.7);
+                if (rammer && through) {
+                    // Privilege Escalation: the hijacked Antivirus rams it (no minions), and is spent.
+                    s.antivirus = s.antivirus.filter(f => f !== rammer);
+                    s.stats.escalations++;
+                    s.events.push({ type: 'escalate', x: boss.x, y: boss.y, from: { x: rammer.x, y: rammer.y } });
+                    if (damageBoss(boss, o.escalateDamage, 'ram')) boss.stunned = Math.max(boss.stunned, s.time + o.bossStun * 0.6);
                     hit = true;
+                } else if (boss.charge && boss.charge.t < boss.charge.warn) {
+                    // A parry: across its warning line (or through it) while it warns.
+                    const L = chargeReach(boss);
+                    const end = { x: boss.x + boss.charge.dx * L, y: boss.y + boss.charge.dy * L };
+                    if (segIntersect(a, b, boss, end) || through) {
+                        s.events.push({ type: 'parryFlick', a, b });
+                        parryBoss(boss);
+                        hit = true;
+                    } else if (segDist(a, boss, end) < o.flagNear || segDist(b, boss, end) < o.flagNear) near = true;
+                } else if (through && boss.stunned > s.time) {
+                    // A slash: through it while it reels (a parry or one of your Firewalls), a flick at a time.
+                    if (s.real - boss.slashAt >= o.slashGap) {
+                        boss.slashAt = s.real;
+                        s.stats.slashes++;
+                        s.events.push({ type: 'slash', x: boss.x, y: boss.y, a, b, shielded: boss.shielded });
+                        if (damageBoss(boss, o.slashDamage, 'slash') && s.boss) { boss.vx += (b.x - a.x) / chord * 1.5; boss.vy += (b.y - a.y) / chord * 1.5; }
+                    }
+                    hit = true;
+                } else if (through) {
+                    // Its guard is up: parry its charge first.
+                    s.events.push({ type: 'bossBlock', x: boss.x, y: boss.y, reason: 'guard' });
                 }
             }
             if (o.spoof) {
@@ -1110,9 +1287,12 @@
                     s.stats.spoofed += cut.length;
                     s.events.push({ type: 'spoof', a, b, packets: cut.map(p => ({ x: p.x, y: p.y })) });
                     hit = true;
-                }
+                } else if (!near && s.packets.some(p => p.kind === 'corrupt' && !spoofed(p) && segDist(p, a, b) < o.flagNear * 0.6)) near = true;
             }
-            if (!hit) flag(a, b);
+            // A flick that went near something it could hit and missed is flagged; one through empty field is a stroke.
+            if (hit) return true;
+            if (!near) return false;
+            flag(a, b);
             return true;
         }
         // A sloppy exploit is flagged; `flagLimit` flags and an IDS alert goes off.
@@ -1123,16 +1303,24 @@
             if (s.flags < o.flagLimit) return;
             s.flags = 0;
             s.stats.ids++;
-            if (o.boss && !s.bossDone && !s.boss) bootBoss(true);
-            else if (s.boss) { s.boss.enraged = true; s.boss.chargeAt = Math.min(s.boss.chargeAt ?? 0, s.time + 1); }
+            let what = 'antivirus';
+            if (o.boss && !s.bossDone && !s.boss) { bootBoss(true); what = 'boss'; }
+            else if (s.boss) { s.boss.enraged = true; s.boss.chargeAt = Math.min(s.boss.chargeAt ?? 0, s.time + 1); what = 'enraged'; }
             else bootAntivirus();
-            s.events.push({ type: 'ids', boss: !!s.boss });
+            s.events.push({ type: 'ids', boss: !!s.boss, what });
         }
 
         function stepOnce(dt) {
             s.real += dt;
             if (s.cooldown > 0) s.cooldown = Math.max(0, s.cooldown - dt);
             wallsNow = wallsUp();
+            if (s.fork && s.real - s.fork.t > o.forkTime) settleFork();
+            // A first lobe closed at the start with the pen held still turns into a Race Condition loop instead.
+            if (s.fork && o.race && s.drawing && s.penAt && s.real - s.fork.t >= 0.35 && Math.hypot(s.penAt.x - s.fork.at.x, s.penAt.y - s.fork.at.y) <= closeR * 1.6) {
+                s.race = { poly: s.fork.poly, at: s.fork.at, t: 0, bonus: 0 };
+                s.events.push({ type: 'raceStart', x: centroid(s.fork.poly).x, y: centroid(s.fork.poly).y, poly: s.fork.poly });
+                s.fork = null;
+            }
             // Frozen: the field's clock stops (nothing moves, nothing comes due, tags hold, Focus holds); only your pen works.
             if (frozen()) { s.frozenLeft = Math.max(0, s.frozenLeft - dt); return; }
             s.time += dt;
@@ -1175,6 +1363,22 @@
                     f.ally = 0;
                     f.stunned = s.time + 1;
                     s.events.push({ type: 'hijackEnd', x: f.x, y: f.y });
+                }
+                // Its shift: `avOn` s hunting, `avOff` s updating (harmless and slow: a safe window).
+                if (o.avOff > 0 && s.time >= f.shift) {
+                    f.off = !f.off;
+                    f.shift = s.time + (f.off ? o.avOff : o.avOn);
+                    s.events.push({ type: f.off ? 'avOff' : 'avOn', x: f.x, y: f.y });
+                }
+                if (f.off && !(f.stunned > s.time)) {
+                    const v = Math.hypot(f.vx, f.vy) || 1, slow = o.avPatrol * 0.25;
+                    f.vx += (f.vx / v * slow - f.vx) * Math.min(1, 2 * dt);
+                    f.vy += (f.vy / v * slow - f.vy) * Math.min(1, 2 * dt);
+                    f.x += f.vx * dt;
+                    f.y += f.vy * dt;
+                    bounce(f);
+                    f.hunting = false;
+                    continue;
                 }
                 // Stunned: it drifts to a stop and can't snap anything.
                 if (f.stunned > s.time) {
@@ -1247,6 +1451,7 @@
         function end() {
             if (s.over) return;
             settleRace();
+            settleFork();
             s.over = true;
             s.wire = [];
             s.drawing = false;
@@ -1258,7 +1463,8 @@
         const r3 = v => Math.round(v * 1000) / 1000;
         function layoutOf() {
             return {
-                walls: s.walls.filter(f => f.hits < o.fwHits).map(f => [r3(f.a.x / w), r3(f.a.y / h), r3(f.b.x / w), r3(f.b.y / h)]),
+                // A wall Great Wall is rebuilding counts as standing (it holds its slot).
+                walls: [...s.walls.filter(f => f.hits < o.fwHits), ...s.rebuild].map(f => [r3(f.a.x / w), r3(f.a.y / h), r3(f.b.x / w), r3(f.b.y / h)]),
                 decoys: s.decoys.map(d => [r3(d.x / w), r3(d.y / h)]),
                 turrets: s.turrets.map(t => [r3(t.x / w), r3(t.y / h)]),
                 towers: s.towers.map(t => [r3(t.x / w), r3(t.y / h)])
@@ -1280,11 +1486,17 @@
             return { area, inside, corrupt, good, spoiled, garbage, mult, value, units: spoiled ? 0 : value * mult };
         }
 
-        // Close a loop: a core, the boss or a stunned Antivirus inside is dealt with at once; the packets are snared,
+        // Close a loop: a core, a mine or a stunned Antivirus inside is dealt with at once; the packets are snared,
         // or spoiled if anything corrupt (past the scrubbers) is in there. `held`: the pen is still down (it closed by
-        // crossing or coming back to the start), so Race Condition can hold the loop open.
-        function close(poly, held = false) {
+        // crossing or coming back to the start), so Race Condition can hold the loop open. `cross`: the point it closed
+        // at with the pen down (the crossing, or the start), where Fork Bomb's second lobe must come back through.
+        // Returns 'fork' when the loop waits as a first lobe.
+        function close(poly, held = false, cross = null) {
             const j = judge(poly);
+            // Fork Bomb: the second lobe of a figure eight passes through the first's crossing, on the other side of it.
+            const f = s.fork, reach = closeR * 1.6;
+            const second = !!(f && poly.some(v => Math.hypot(v.x - f.q.x, v.y - f.q.y) <= reach) && !pointInPolygon(centroid(poly), f.poly));
+            if (f && !second) settleFork();
             const at = centroid(poly);
             s.leftStart = false;
             // The Chokehold: a tight loop round a core quarantines it; what it stole comes back, half of it, as a bonus.
@@ -1295,7 +1507,7 @@
                     quarantined = true;
                     s.cores = s.cores.filter(c => !caught.includes(c));
                     for (const c of caught) {
-                        const units = (2 + 0.5 * c.stole) * o.worth;
+                        const units = 2 + 0.5 * c.stole;
                         s.stats.quarantined++;
                         s.stats.units += units;
                         // Collusion: it may offer to work for you instead.
@@ -1308,7 +1520,7 @@
                     }
                 }
             }
-            if (bossLooped(poly, j.area)) quarantined = true;
+            if (clearMines(poly)) quarantined = true;
             // Hijack: a loop round a stunned Antivirus turns it.
             if (o.hijack) {
                 for (const f of s.antivirus) {
@@ -1321,13 +1533,21 @@
                 }
             }
             if (!j.inside.length) {
+                if (second) settleFork();
                 if (quarantined) return;
                 s.stats.empty++;
                 s.events.push({ type: 'empty', x: at.x, y: at.y, poly, area: j.area });
                 return;
             }
+            if (second) { payFork(poly, j); return; }
+            // Fork Bomb: a clean loop closed with the pen down waits for its second lobe (both are judged when it closes).
+            if (o.fork && cross && !j.spoiled && !j.garbage && j.good.length) {
+                s.fork = { q: { x: cross.x, y: cross.y }, poly, t: s.real, at: s.penAt || cross };
+                s.events.push({ type: 'forkLobe', x: at.x, y: at.y, poly, mult: j.mult });
+                return 'fork';
+            }
             // Race Condition: a clean loop closed with the pen still down stays open while the pen holds still.
-            if (o.race && held && !j.spoiled && !j.garbage && j.good.length) {
+            if (o.race && held && !o.fork && !j.spoiled && !j.garbage && j.good.length) {
                 s.race = { poly, at: s.penAt, t: 0, bonus: 0 };
                 s.events.push({ type: 'raceStart', x: at.x, y: at.y, poly });
                 return;
@@ -1335,6 +1555,29 @@
             payLoop(poly, 0, j);
         }
 
+        // Fork Bomb: the waiting first lobe paid on its own (no second came, or the second didn't close through it).
+        function settleFork() {
+            const f = s.fork;
+            if (!f) return;
+            s.fork = null;
+            payLoop(f.poly, 0);
+        }
+        // Both lobes: their multipliers multiplied (up to `forkMax` × the cap); a red packet in either spoils both.
+        function payFork(poly, jB) {
+            const f = s.fork;
+            s.fork = null;
+            const jA = judge(f.poly);
+            const inside = [...new Set([...jA.inside, ...jB.inside])];
+            if (jA.spoiled || jB.spoiled || jB.garbage) {
+                payLoop(poly, 0, { ...jB, inside, corrupt: [...jA.corrupt, ...jB.corrupt], spoiled: true, garbage: false });
+                return;
+            }
+            const good = [...new Set([...jA.good, ...jB.good])];
+            const mult = Math.min(o.maxMult * o.forkMax, jA.mult * jB.mult);
+            const value = good.reduce((a, p) => a + valueOf(p), 0);
+            s.stats.forks++;
+            payLoop(poly, 0, { ...jB, area: jA.area + jB.area, inside, good, corrupt: [...jA.corrupt, ...jB.corrupt], mult, value, units: value * mult, fork: { a: f.poly, mults: [jA.mult, jB.mult] } });
+        }
         // Pay a closed loop (at once, or when a held Race Condition loop lets go, `bonus` its growth).
         function payLoop(poly, bonus, j = judge(poly, bonus)) {
             const at = centroid(poly);
@@ -1398,6 +1641,7 @@
             const count = j.good.length + chained.length;
             s.stats.catches++;
             s.stats.caught += count;
+            s.handCaught += count;
             s.stats.gold += gold;
             s.stats.chained += chained.length;
             s.stats.scrubbed += j.corrupt.length;
@@ -1406,7 +1650,7 @@
             s.stats.bestMult = Math.max(s.stats.bestMult, j.mult);
             // Second Wind: a big loop gives Focus back.
             if (o.focusBack && j.mult >= 2) s.focus = Math.min(s.maxFocus, s.focus + o.focusBack);
-            s.events.push({ type: 'catch', x: at.x, y: at.y, poly, area: j.area, count, gold, mult: j.mult, units, packets: j.inside, race: bonus,
+            s.events.push({ type: 'catch', x: at.x, y: at.y, poly, area: j.area, count, gold, mult: j.mult, units, packets: j.inside, race: bonus, fork: j.fork || null, star: j.star || null,
                 chained: chained.map(c => ({ x: c.packet.x, y: c.packet.y, from: c.from, kind: c.packet.kind })), scrubbed: j.corrupt.length });
         }
 
@@ -1439,14 +1683,20 @@
             const last = s.wire[s.wire.length - 1];
             if (Math.hypot(x - last.x, y - last.y) < o.minGap) return true;
             if (s.stroke && s.stroke.pts.length < 400) s.stroke.pts.push(p);
+            // A star while the field is frozen: crossings don't close loops (the whole stroke is judged when it's back
+            // at its start).
+            const starring = o.star && frozen();
             // The new segment against every earlier one but its neighbour: the newest crossing closes the loop.
-            for (let i = s.wire.length - 3; i >= 0; i--) {
+            for (let i = s.wire.length - 3; i >= 0 && !starring; i--) {
                 const q = segIntersect(last, p, s.wire[i], s.wire[i + 1]);
                 if (q) {
                     s.stroke = null;
-                    close([q, ...s.wire.slice(i + 1)], true);
-                    // Keep drawing from here: one scribble can snare loop after loop.
-                    s.wire = s.over ? [] : [p];
+                    const kept = s.wire.slice(0, i + 1);
+                    const r = close([q, ...s.wire.slice(i + 1)], true, q);
+                    // Keep drawing from here: one scribble can snare loop after loop. A figure eight's first lobe keeps the
+                    // wire up to the crossing, so the second lobe can close through it.
+                    s.wire = s.over ? [] : r === 'fork' ? [...kept, q, p] : [p];
+                    if (r !== 'fork') s.leftStart = false;
                     return true;
                 }
             }
@@ -1459,14 +1709,16 @@
             if (s.leftStart && fromStart <= closeR) {
                 const poly = openLoop();
                 s.stroke = null;
-                if (poly) close(poly, true);
+                if (poly && starring && isStar(poly)) payStar(poly);
+                else if (poly) close(poly, true, start);
                 s.wire = s.over ? [] : [p];
                 s.leftStart = false;
                 return true;
             }
-            // A wire past its length drops its tail (and its start moves with it).
+            // A wire past its length drops its tail (and its start moves with it), but never the crossing a figure eight's
+            // first lobe waits on.
             let L = wireCost(s.wire);
-            while (L > maxWire && s.wire.length > 2) {
+            while (L > maxWire && s.wire.length > 2 && !(s.fork && s.wire[0] === s.fork.q)) {
                 L -= segCost(s.wire[0], s.wire[1]);
                 s.wire.shift();
             }
@@ -1482,17 +1734,77 @@
             if (!isFlick && start && s.leftStart && Math.hypot(head.x - start.x, head.y - start.y) <= closeR * 1.6) {
                 const poly = openLoop();
                 if (poly) {
-                    close(poly);
+                    if (o.star && frozen() && isStar(poly)) payStar(poly);
+                    else close(poly);
                     s.wire = [];
                     s.drawing = false;
                     s.leftStart = false;
                     return;
                 }
             }
+            settleFork();
             if (!isFlick && s.wire.length > 1) s.events.push({ type: 'release', wire: s.wire.slice() });
             s.wire = [];
             s.drawing = false;
             s.leftStart = false;
+        }
+        // The pen is taken away (a card came up mid-stroke): the open wire is dropped without being judged (no loop, no
+        // flick, no flag); a held Race Condition loop stays held, and a figure eight's first lobe is paid.
+        function cancelPen() {
+            settleFork();
+            s.wire = [];
+            s.stroke = null;
+            s.drawing = false;
+            s.leftStart = false;
+        }
+
+        // ---- Star: a five-pointed star drawn while the field is frozen ---------------------------------------
+        // A closed stroke that crosses itself at least five times, with at least four sharp points.
+        function isStar(pts) {
+            if (pts.length < 10) return false;
+            let crossings = 0;
+            for (let i = 0; i < pts.length - 1; i++) {
+                for (let j = i + 2; j < pts.length - 1; j++) {
+                    if (i === 0 && j === pts.length - 2) continue;
+                    if (segIntersect(pts[i], pts[i + 1], pts[j], pts[j + 1])) crossings++;
+                }
+            }
+            if (crossings < 5) return false;
+            // Sharp points: the heading turns more than 100° within about half a unit.
+            let points = 0, lastAt = -Infinity, run = 0;
+            for (let i = 1; i < pts.length - 1; i++) {
+                run += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+                const back = pts[Math.max(0, i - 3)], fwd = pts[Math.min(pts.length - 1, i + 3)];
+                const a1 = Math.atan2(pts[i].y - back.y, pts[i].x - back.x), a2 = Math.atan2(fwd.y - pts[i].y, fwd.x - pts[i].x);
+                let d = Math.abs(a2 - a1) % (Math.PI * 2);
+                if (d > Math.PI) d = Math.PI * 2 - d;
+                if (d > 100 * Math.PI / 180 && run - lastAt > 0.6) { points++; lastAt = run; }
+            }
+            return points >= 4;
+        }
+        function hull(pts) {
+            const ps = pts.map(p => ({ x: p.x, y: p.y })).sort((a, b) => a.x - b.x || a.y - b.y);
+            const cr = (o2, a, b) => (a.x - o2.x) * (b.y - o2.y) - (a.y - o2.y) * (b.x - o2.x);
+            const lo = [], up = [];
+            for (const p of ps) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+            for (const p of ps.reverse()) { while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+            return lo.slice(0, -1).concat(up.slice(0, -1));
+        }
+        // Everything inside the star's outline: the good packets caught at ×`starMult` on top of the multiplier, the
+        // corrupt ones deleted (a star never spoils), mines inside cleared.
+        function payStar(stroke) {
+            const poly = hull(stroke);
+            clearMines(poly);
+            const j = judge(poly);
+            if (j.corrupt.length) {
+                s.stats.scrubbed += j.corrupt.length;
+                remove(j.corrupt);
+            }
+            s.stats.stars++;
+            s.events.push({ type: 'star', stroke, poly, x: centroid(poly).x, y: centroid(poly).y });
+            if (!j.good.length) return;
+            const mult = j.mult * o.starMult;
+            payLoop(poly, 0, { ...j, inside: j.good, corrupt: [], spoiled: false, garbage: false, mult, units: j.value * mult, star: true });
         }
 
         // The live preview of the open wire: what closing it now would catch, and whether the pen is near enough to
@@ -1529,8 +1841,8 @@
             return e;
         }
 
-        return Object.assign(s, { step, addPoint, liftPen, stop, takeEvents, preview, valueOf, isGood, placeWall, placeAt, removeAt, usePower, wallsUp, frozen, layoutOf, emitterSpots });
+        return Object.assign(s, { step, addPoint, liftPen, cancelPen, stop, netsDone, netAreas, chargeReach, isStar, takeEvents, preview, valueOf, isGood, placeWall, placeAt, removeAt, usePower, wallsUp, frozen, layoutOf, emitterSpots });
     }
 
-    return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, AV_R, BOSS_R, BOSS_WARN, BOSS_DASH, BOSS_DASH_SPEED, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };
+    return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, AV_R, BOSS_R, BOSS_WARN, BOSS_DASH, BOSS_DASH_SPEED, MINE_R, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };
 });

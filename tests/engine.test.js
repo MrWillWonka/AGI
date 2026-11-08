@@ -60,7 +60,7 @@ test('Packet Snare\'s tree follows the Training tree\'s rules: priced past its p
         const key = `${n.snare.x},${n.snare.y}`;
         assert.ok(!seen.has(key), `${n.id} overlaps another node`);
         seen.add(key);
-        assert.ok(Math.abs(n.snare.x) <= 4 && Math.abs(n.snare.y) <= 4, `${n.id} sits on the 9 × 9 grid`);
+        assert.ok(Math.abs(n.snare.x) <= 5 && Math.abs(n.snare.y) <= 5, `${n.id} sits on the 11 × 11 grid`);
         const parent = n.requires ? E.UPGRADE_BY_ID[n.requires] : null;
         const at = parent ? parent.snare : { x: 0, y: 0 };
         assert.equal(Math.abs(at.x - n.snare.x) + Math.abs(at.y - n.snare.y), 1, `${n.id} is adjacent to what it grows from`);

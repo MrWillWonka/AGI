@@ -47,10 +47,12 @@ const CLICKS = knob('CLICKS', 3);
 // tree, mail, other rooms, reading, away. Runs in flight roll on; nothing is clicked, bought or sprinted.
 const IDLE = knob('IDLE', 0);
 // SNARE (default 0): the share of each minute, once the Data Pipeline is open, spent in Packet Snare, played by a simple
-// bot (it loops the biggest clean cluster it can find, tries a tight loop round the boss, and buys the cheapest node).
+// bot (tools/snare-bot.js: it loops the biggest clean cluster it can find, parries and slashes the boss, loops its mines)
+// that buys Attention Span and Root Access first, then the cheapest node.
 // Packet Snare pays Signal (its own tree) and its best haul trickles research, so its only pull on the pacing is RP.
 const SNARE = Number(process.env.SNARE || 0);
 const P = SNARE > 0 ? require(path.join(dir, 'packet-snare.js')) : null;
+const createSnareBot = SNARE > 0 ? require(path.join(__dirname, 'snare-bot.js')).createBot : null;
 const MINUTES = +(process.env.MINUTES ?? 150);
 const MAXSKILL = +(process.env.MAXSKILL ?? 20);
 const CLEAN = knob('CLEAN', 0.5);
@@ -532,7 +534,7 @@ function buyTree() {
 }
 
 // ---- Packet Snare's bot ----
-const snareSim = { run: null, plan: [], wait: 0, runs: 0, haul: 0, signal: 0 };
+const snareSim = { run: null, bot: null, runs: 0, haul: 0, signal: 0 };
 function snareStep(dt) {
     if (!snareSim.run || snareSim.run.over) {
         if (snareSim.run) {
@@ -540,9 +542,10 @@ function snareStep(dt) {
             snareSim.runs++;
             // the cheapest node it can buy
             for (;;) {
-                // Attention Span first (longer runs reach the boss), then the cheapest.
+                // Attention Span and Root Access first (longer runs reach the boss, and slashes take more off it), then the cheapest.
+                const first = u => (u.id === 'snareFocus' || u.id === 'snareParry' ? 1 : 0);
                 const c = E.SNARE_TREE.filter(u => E.isUpgradeVisible(s, u) && !E.isMaxed(s, u) && E.canAfford(s, E.upgradeCost(u, E.level(s, u.id))))
-                    .sort((a, b) => (b.id === 'snareFocus') - (a.id === 'snareFocus') || E.upgradeCost(a, E.level(s, a.id)).signal - E.upgradeCost(b, E.level(s, b.id)).signal)[0];
+                    .sort((a, b) => first(b) - first(a) || E.upgradeCost(a, E.level(s, a.id)).signal - E.upgradeCost(b, E.level(s, b.id)).signal)[0];
                 if (!c || !E.buy(s, c.id).ok) break;
                 E.evaluate(s);
             }
@@ -550,32 +553,12 @@ function snareStep(dt) {
         const o = E.snareOpts(s);
         snareSim.sector = s.snare.sector;
         snareSim.run = P.createSnare({ ...o, seed: Math.floor(rng() * 1e9) });
+        snareSim.bot = createSnareBot(snareSim.run);
         snareSim.haul = 0;
-        snareSim.plan = [];
     }
     const r = snareSim.run;
-    // feed the planned loop a point a frame; a new plan once it's done and the pen's free
-    if (snareSim.plan.length) { r.addPoint(...snareSim.plan.shift()); if (!snareSim.plan.length) r.liftPen(); }
-    else if (r.cooldown <= 0 && (snareSim.wait -= dt) <= 0) {
-        snareSim.wait = 0.4;
-        let target = null, rad = Math.max(1.3, r.closeR);
-        // The boss when it's there (a ring round all of it, no bigger than its loop allows: tools/snare-boss.js plays this
-        // alone, sector by sector), else the best clean cluster.
-        if (r.boss && rng() < 0.7) { target = r.boss; rad = Math.min(r.opts.bossLoop * 0.95, 1.35) * r.boss.r; snareSim.wait = 0.15; }
-        else {
-            let best = 0;
-            for (const p of r.packets) {
-                if (p.kind === 'corrupt') continue;
-                const near = r.packets.filter(q => Math.hypot(q.x - p.x, q.y - p.y) < 1.7);
-                if (near.some(q => q.kind === 'corrupt')) continue;
-                if (near.length > best) { best = near.length; target = p; }
-            }
-        }
-        if (target) {
-            const n = 36, cx = target.x + target.vx * 0.3, cy = target.y + target.vy * 0.3;
-            for (let i = 0; i <= n + 2; i++) { const a = -Math.PI / 2 + i / n * Math.PI * 2; snareSim.plan.push([cx + Math.cos(a) * rad, cy + Math.sin(a) * rad]); }
-        }
-    }
+    // The tools' bot (tools/snare-bot.js): parries and slashes the boss, loops its mines, else the best clean cluster.
+    snareSim.bot.step(dt);
     r.step(dt);
     for (const e of r.takeEvents()) {
         if (e.type === 'catch' || e.type === 'laser' || e.type === 'quarantine' || e.type === 'taken') snareSim.haul += E.snareCatch(s, e.units, snareSim.sector);
@@ -625,6 +608,7 @@ const share = o => { const tot = Object.values(o).reduce((a, b) => a + b, 0) || 
 if (xpAtGeneral) say('  XP to General AI: ' + share(xpAtGeneral));
 say('  XP (whole sim): ' + Object.entries(xpBy).filter(([, v]) => v > 0).map(([k, v]) => `${k} ${Math.round(100 * v / total)}%`).join(', '));
 say('  skills (min): ' + skills.map(k => `${k.i}:${k.min.toFixed(0)}`).join(' '));
+if (SNARE > 0 && process.env.SNARE_LEVELS) say(JSON.stringify(Object.fromEntries(E.SNARE_TREE.filter(u => E.level(s, u.id)).map(u => [u.id, E.level(s, u.id)]))));
 if (SNARE > 0) say(`  Packet Snare: ${snareSim.runs} runs, best haul ${Math.round(s.snare.best)} Signal, sector ${s.snare.sector + 1}, ${E.SNARE_TREE.filter(u => E.level(s, u.id)).length} nodes, research trickle ${E.format(E.derive(s).snareRp)} RP/s`);
 console.log(out.join('\n'));
 module.exports = { skills, generalAt, pmRuns };
