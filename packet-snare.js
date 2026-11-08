@@ -443,6 +443,7 @@
             sectorAt: 0,            // when the run reached the sector it's on (a cleared sector carries the run into the next)
             sectorCaught: 0,        // packets caught before it (the goal counts from here)
             goalSkip: 0,            // packets caught in it by rushed loops (they don't count toward the goal)
+            goalBonus: 0,           // half of what its loops were worth past their packets (counts toward the goal)
             lastLoopAt: -1e9,       // when the last loop paid (a loop moments after it is rushed)
             clears: 0,              // sectors cleared this run (each clear's Focus bonus is half the last's)
             stats: { catches: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
@@ -1101,6 +1102,8 @@
         }
         function rogueStep(dt) {
             if (!o.rogue) return;
+            // No new cores while the boss stands (its arena).
+            if (s.boss && s.time >= s.rogueAt) s.rogueAt = s.time + 1;
             if (s.time >= s.rogueAt) {
                 s.rogueAt = s.time + o.rogueEvery;
                 for (let i = 0; i < o.rogue; i++) spawnCore();
@@ -1673,9 +1676,9 @@
             s.rebuild = s.rebuild.filter(r => s.time < r.at);
             autoZoneStep();
             // A sector with no boss: catching its goal of packets clears it (the run goes on).
-            if (o.goal > 0 && !s.goalDone && s.stats.caught - s.sectorCaught - s.goalSkip >= o.goal) {
+            if (o.goal > 0 && !s.goalDone && goalProgress() >= o.goal) {
                 s.goalDone = true;
-                s.events.push({ type: 'goal', x: w / 2, y: h / 2, caught: s.stats.caught - s.sectorCaught - s.goalSkip, focus: clearBonus() });
+                s.events.push({ type: 'goal', x: w / 2, y: h / 2, caught: Math.round(goalProgress()), focus: clearBonus() });
             }
             bossStep(dt);
             sweepStep(dt);
@@ -1688,8 +1691,14 @@
                     f.stunned = s.time + 1;
                     s.events.push({ type: 'hijackEnd', x: f.x, y: f.y });
                 }
+                // A boss arena (Snare 12, a review's call: from sector 15 the fight was decided by the hazard pile before
+                // it began): while the boss stands, the field's Antivirus hold their update (its own minions still hunt).
+                if (s.boss && !f.minion && o.avOff > 0) {
+                    if (!f.off) { f.off = true; s.events.push({ type: 'avOff', x: f.x, y: f.y }); }
+                    f.shift = s.time + o.avOff;
+                }
                 // Its shift: `avOn` s hunting, `avOff` s updating (harmless and slow: a safe window).
-                if (o.avOff > 0 && s.time >= f.shift) {
+                else if (o.avOff > 0 && s.time >= f.shift) {
                     f.off = !f.off;
                     f.shift = s.time + (f.off ? o.avOff : o.avOn);
                     s.events.push({ type: f.off ? 'avOff' : 'avOn', x: f.x, y: f.y });
@@ -1800,6 +1809,8 @@
         // stop the run, and the player picks when to move on). `next` is that sector's options (engine.js snareOpts); only
         // what depends on the sector is taken from it. Its hazards come in from now (a scan, Antivirus or the Rogue AI the
         // last sector didn't have), and its boss or goal starts over.
+        // How far the sector's goal is: packets caught in it (not by rushed loops), and half of what loops were worth past them.
+        const goalProgress = () => s.stats.caught - s.sectorCaught - s.goalSkip + s.goalBonus;
         // A cleared sector's reward: Focus, so the run keeps gathering there. Returns what it added.
         function clearBonus() {
             const before = s.focus;
@@ -1826,6 +1837,7 @@
             s.sectorAt = s.time;
             s.sectorCaught = s.stats.caught;
             s.goalSkip = 0;
+            s.goalBonus = 0;
             for (const m of s.mines) s.events.push({ type: 'mineDown', x: m.x, y: m.y, boss: true });
             s.mines = [];
             s.links = [];
@@ -2046,6 +2058,8 @@
             s.stats.catches++;
             s.stats.caught += count;
             if (hasty) s.goalSkip += count;
+            // A big clean loop counts toward the goal at half its worth past its packets (late goals outran the field).
+            else s.goalBonus += Math.max(0, units - count) / 2;
             s.handCaught += count;
             s.stats.gold += gold;
             s.stats.chained += chained.length;
@@ -2286,7 +2300,7 @@
             return e;
         }
 
-        return Object.assign(s, { step, nextSector, addPoint, liftPen, cancelPen, stop, netsDone, netAreas, chargeReach, isStar, takeEvents, preview, valueOf, isGood, placeZone, moveZone, zoneAt, placeAt, removeAt, usePower, wallsUp, frozen, layoutOf, emitterSpots });
+        return Object.assign(s, { step, nextSector, goalProgress, addPoint, liftPen, cancelPen, stop, netsDone, netAreas, chargeReach, isStar, takeEvents, preview, valueOf, isGood, placeZone, moveZone, zoneAt, placeAt, removeAt, usePower, wallsUp, frozen, layoutOf, emitterSpots });
     }
 
     return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, AV_R, BOSS_R, BOSS_WARN, BOSS_DASH, BOSS_DASH_SPEED, MINE_R, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };
