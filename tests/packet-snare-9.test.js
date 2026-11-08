@@ -51,10 +51,10 @@ test('the boss fight (Riposte): parry its charge, then slash it while it reels; 
     assert.equal(b.hp, 3, 'a parry alone does no damage');
     slash(s);
     assert.equal(b.hp, 2);
-    run(s, 0.15);
+    run(s, 0.32);
     slash(s);
     assert.equal(b.hp, 1, 'every flick through it while it reels is a slash');
-    run(s, 0.15);
+    run(s, 0.32);
     slash(s);
     assert.equal(s.boss, null);
     assert.equal(s.stats.bosses, 1);
@@ -145,7 +145,7 @@ test('its mines shield it until a loop clears them; finished nets wipe the data 
     for (const m of [...s.mines]) { Object.assign(s.boss, { x: 6, y: 4, vx: 0, vy: 0, stunned: s.time + 2, chargeAt: 1e9, charge: null }); circle(s, m.x, m.y, 0.8); }
     assert.equal(s.mines.length, 0);
     assert.equal(s.links.length, 0, 'their nets go with them');
-    run(s, 0.2);
+    run(s, 0.35);
     assert.ok(!s.boss.shielded);
     slash(s);
     assert.equal(s.boss.hp, 4, 'the shield is down');

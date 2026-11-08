@@ -317,6 +317,7 @@ test('the best haul trickles research while Research is open', () => {
 
 test('a sector clears by its goal or, every fifth, its boss; the Rogue AI comes three sectors in', () => {
     const s = E.defaultState(NOW);
+    s.snare.runs = 30;
     assert.equal(E.snareOpts(s).boss, 0, 'no boss on the first sector');
     assert.equal(E.snareOpts(s).goal, E.snareGoal(0));
     assert.equal(E.snareOpts(s).rogue, 0);
@@ -407,9 +408,10 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     s.levels.snareChain = 1;
     s.levels.snareLaser = 2;
     const g = { ...P.SNARE, ...E.snareOpts(s) };
-    assert.ok(g.area > 170 && g.area < 190, 'two levels of Sprawl: ×1.6²');
+    assert.ok(g.area > 120 && g.area < 135, 'two levels of Sprawl: ×1.35²');
     assert.equal(g.antivirus.length, 0, 'still no Antivirus on sector 1');
     s.snare.sector = E.AV_SECTOR;
+    s.snare.runs = 30;
     assert.equal(E.snareOpts(s).antivirus.length, 1, 'from its sector (the field\'s size adds none)');
     assert.equal(E.snareOpts(s, E.AV_SECTOR + 4).antivirus.length, 2, 'a second four sectors on');
     s.snare.sector = 0;
@@ -418,7 +420,7 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     assert.ok(g.laser > 0 && g.laser < 4, 'faster with its second level');
     // and a run built from them is bigger, with lasers firing
     const run = P.createSnare({ ...g, seed: 3 });
-    assert.ok(run.packets.length > 25);
+    assert.ok(run.packets.length > 18, `a bigger field: ${run.packets.length}`);
     for (let i = 0; i < 60 * 8; i++) run.step(1 / 60);
     assert.ok(run.stats.lasered > 0);
 });
@@ -631,8 +633,24 @@ test('Herders round good packets up toward the middle and shoo corrupt ones away
     assert.ok(c.vx > 0.3, 'turned away from the middle');
 });
 
+test('hazards wait for runs played too (Snare 12): a fast climber meets them one at a time', () => {
+    const s = E.defaultState(NOW);
+    s.snare.runs = 3;
+    assert.equal(E.snareOpts(s, E.ROGUE_SECTOR).sweepFirst, Infinity, 'no scans before the 4th run, whatever the sector');
+    assert.equal(E.snareOpts(s, E.ROGUE_SECTOR).antivirus.length, 0);
+    s.snare.runs = E.SNARE_RUN_FLOORS.sweeps;
+    assert.ok(E.snareOpts(s, E.ROGUE_SECTOR).sweepFirst < Infinity, 'scans from the 4th');
+    assert.equal(E.snareOpts(s, E.ROGUE_SECTOR).antivirus.length, 0, 'Antivirus wait for the 10th');
+    s.snare.runs = E.SNARE_RUN_FLOORS.antivirus;
+    assert.ok(E.snareOpts(s, E.ROGUE_SECTOR).antivirus.length >= 1);
+    assert.equal(E.snareOpts(s, E.ROGUE_SECTOR).rogue, 0, 'the Rogue AI waits for the 18th');
+    s.snare.runs = E.SNARE_RUN_FLOORS.rogue;
+    assert.ok(E.snareOpts(s, E.ROGUE_SECTOR).rogue >= 1);
+});
+
 test('the hazards arrive one sector at a time: packets, then sweeps, then Antivirus, then the Rogue AI, then minions', () => {
     const s = E.defaultState(NOW);
+    s.snare.runs = 30;
     const at = k => { s.snare.sector = k; return E.snareOpts(s); };
     const o0 = at(0);
     assert.ok(o0.sweepFirst === Infinity && o0.antivirus.length === 0 && o0.rogue === 0 && o0.boss === 0 && o0.goal > 0, 'packets and a goal only');
@@ -675,6 +693,7 @@ test('a cleared sector tops Focus up and the run gathers on there; Go deeper tak
     for (let i = 0; i < 60 * 2 && !r.boss; i++) r.step(1 / 60);
     assert.ok(r.boss || r.over, 'its boss boots');
     // A sector that brings a new hazard brings it in from now.
+    s.snare.runs = 30;
     const t = P.createSnare({ ...E.snareOpts(s, 1), seed: 4, idleDrain: 0 });
     t.nextSector(E.snareOpts(s, E.SWEEP_SECTOR));
     for (let i = 0; i < 60 * 12 && !t.stats.sweeps; i++) t.step(1 / 60);

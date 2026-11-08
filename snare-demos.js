@@ -165,10 +165,10 @@
             packets: [['corrupt', 1.4, 1.2, 1.3, 0], ['corrupt', 1.2, 1.6, 1.3, 0], ['good', 0.8, 2.3, 1.3, 0]],
             zones: [[0.15, 3.6, 1.4]], expect: r => r.stats.converted >= 1 },
         // Snare 11: the bots and the Firewall sections' later tricks.
-        cleaner: { text: 'A drone seeks red packets and cleans them', opts: { cleanBots: 1, botSpeed: 4 },
+        cleaner: { text: 'A drone seeks red packets and cleans them', opts: { cleanBots: 1, botSpeed: 4, botEvery: 1.2 },
             packets: [['corrupt', 4.6, 0.8], ['corrupt', 1.4, 2.1], ['good', 3, 1.4], ['good', 2.2, 0.9]],
             expect: r => r.stats.cleaned >= 2 },
-        spoofer: { text: 'A drone seeks red packets and spoofs them: good, ×2', opts: { spoofBots: 1, botSpeed: 4 },
+        spoofer: { text: 'A drone seeks red packets and spoofs them: good, ×2', opts: { spoofBots: 1, botSpeed: 4, botEvery: 1.2 },
             packets: [['corrupt', 4.6, 0.8], ['corrupt', 1.4, 2.1], ['good', 3, 1.4]],
             expect: r => r.stats.botSpoofed >= 2 },
         goldPlate: { text: 'Cleaner bots turn regular packets gold', opts: { cleanBots: 1, goldPlate: 2, goldEvery: 1.6, botSpeed: 3 },

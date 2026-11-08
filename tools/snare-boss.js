@@ -15,7 +15,7 @@ const CAP = Number(process.env.CAP || 1600);   // units²: a desktop's canvas at
 function play(sector, levels = {}, seed = 7) {
     const st = E.defaultState(1);
     st.snare.sector = sector;
-    st.snare.runs = 5;
+    st.snare.runs = 30;   // a player on a boss sector has played a while: every hazard due is in
     Object.assign(st.levels, levels);
     const o = E.snareOpts(st, sector);
     // The field as a 1280 × 800 screen shows it (game.js snareField: at least 20 px a unit; a capped field is denser).

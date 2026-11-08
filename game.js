@@ -3981,7 +3981,8 @@ window.AGI = (function () {
         for (const e of run.takeEvents()) {
             const t = e.type;
             if (t === 'catch') {
-                snareFxFor(e, snare.fx, `+${E.format(snarePay(e.units))}`);
+                // A scribbled loop (closed moments after the last on the same stroke) pays half, and says so.
+                snareFxFor(e, snare.fx, `+${E.format(snarePay(e.units))}${e.hasty ? ' · RUSHED ×½' : e.safe ? ' · SAFE' : ''}`);
                 sfx('snareCatch', { mult: e.mult });
                 if (e.chained.length) sfx('snareChain');
             } else if (t === 'laser') {
@@ -4012,7 +4013,7 @@ window.AGI = (function () {
                 else if (t === 'core') { sfx('snareCore'); snareIntro('rogue'); }
                 else if (t === 'stun') sfx('snareStun', { down: !!e.down });
                 else if (t === 'sweep') { sfx('snareSweep'); snareIntro('sweep'); }
-                else if (t === 'boss') { sfx('snareBoss'); snareIntro('boss'); if (e.enraged) shake(0.3); }
+                else if (t === 'boss') { sfx('snareBoss'); snareIntro('boss'); if (e.enraged) shake(0.3); if (e.focus) snare.fx.push({ kind: 'stun', x: e.x, y: e.y + 1.2, t: 0, life: 1.4, text: `BOSS ONLINE · +${e.focus} s FOCUS`, small: true }); }
                 else if (t === 'bossCharge') sfx('snareCharge');
                 else if (t === 'parry') { sfx('snareParry'); shake(0.2); state.intro['snare:parried'] = true; }
                 else if (t === 'bossLooped') { sfx('snareParry'); shake(0.25); state.intro['snare:looped'] = true; snare.fx.push({ kind: 'stun', x: e.x, y: e.y - 1.2, t: 0, life: 1, text: 'STUNNED', small: true }); }
@@ -6074,7 +6075,7 @@ window.AGI = (function () {
                 const x0 = head.x * k + d.ox, y0 = head.y * k + d.oy;
                 ctx.textAlign = x0 > cw * 0.65 ? 'right' : 'left';
                 const label = pv.spoiled ? 'CORRUPT ✕' : pv.garbage ? `GARBAGE · +${Math.round(run.opts.gcFocus * pv.corrupt.length)} Focus`
-                    : `×${pv.mult.toFixed(1)} · ${pv.good.length}${pv.scrub ? ` · ${pv.scrub} scrubbed` : ''}`;
+                    : `×${pv.mult.toFixed(1)} · ${pv.good.length}${pv.scrub ? ` · ${pv.scrub} scrubbed` : ''}${pv.safe ? ' · SAFE' : ''}`;
                 const lift = d.touch ? 46 : 12;
                 const lx = head.x * k + (ctx.textAlign === 'right' ? -12 : 12);
                 const ly = (y0 - lift < 34 ? y0 + lift + 10 : y0 - lift) - d.oy;

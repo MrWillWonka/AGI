@@ -42,7 +42,10 @@
         maxWire: 36,                // units on the starting field (× √ of the field's growth): past this the tail drops
         minGap: 0.1,                // the wire records a point every this far
         closeRadius: 0.085,         // × √area: bring the pen back this close to the start and the loop closes
-        areaUnit: 0.22,             // × area: a catch's multiplier is 1 + loop area / (areaUnit × field area)…
+        areaUnit: 0.26,             // × area: a catch's multiplier is 1 + (loop area / (areaUnit × field area))^multCurve…
+        multCurve: 1.4,             // …bent upward (Snare 12, a review's call: it was linear while the red risk grows with the
+                                    // area too, so a big loop was never worth more than several small ones): ×1.26 at 10% of
+                                    // the field, ×1.8 at 22%, ×2.2 at 30%, ×3.5 at half
         maxMult: 4,                 // …up to this (Bandwidth raises it)
         corruptPenalty: 3,          // seconds of Focus lost when a corrupt packet spoils a catch
         snapPenalty: 2,             // seconds of Focus lost when an Antivirus or a Firewall snaps the wire
@@ -113,7 +116,7 @@
         spoofBots: 0,
         goldPlate: 0,
         goldEvery: 6,
-        botEvery: 1.2,
+        botEvery: 3,
         botSpeed: 2.4,
         // Things you place with a tap: decoys (corrupt packets and idle Antivirus go to them; an Antivirus that reaches
         // one breaks it), turrets (defence: every `turretEvery` s each shoots an Antivirus or a corrupt packet in reach)
@@ -177,7 +180,7 @@
         bossEdge: 0.18,             // × the shorter side: how far its edge keeps from the field's
         slashDamage: 1,             // health a slash takes off
         parryDamage: 0,             // health a parry takes off (Riposte)
-        slashGap: 0.12,             // seconds between slashes (one flick, one slash)
+        slashGap: 0.3,              // seconds between slashes (Snare 12: at 0.12 a bot landed twice what a thumb does)
         // Mines: from the boss's second sector, `bossMines` at a time, laid every `mineEvery` s; mines within `netRange`
         // × the shorter side of each other link up over `netTime` s, and a finished net wipes the good data along it (two
         // mines) or inside it (three or more round a triangle) every `netEvery` s.
@@ -204,6 +207,14 @@
         spoofValue: 2,
         spoofCap: 4,                // corrupt packets one flick spoofs at most (the nearest the stroke's middle)
         spoofCooldown: 1.5,         // seconds before the next flick spoofs (scribbled flicks turned every red packet good)
+        scribbleGap: 0.5,           // a loop closed this soon after the last on the same stroke pays ×scribblePay
+        scribblePay: 0.5,
+        safeLoop: 0.75,             // a loop wholly inside one of your Firewall sections pays ×this (it's safe)
+        bossFocus: 8,               // seconds of Focus the boss's arrival adds (the fight shouldn't race the clock)
+        slashCap: 5,                // slashes a stun allows: then it shakes it off
+        bossRest: 1.5,              // seconds it stands after a dash (a second moment to loop it)
+        gcCap: 3,                   // Garbage Collection: Focus back for at most this many red packets a loop…
+        gcRepeat: 8,                // …and half of it within this many seconds of the last
         minLoop: 0.8,               // a loop must enclose at least a circle of this × the closing ring's radius: smaller ones
                                     // (a scribble's slivers) don't close (Snare 12: scribbling caught at no risk)
         flickTime: 0.45,            // (0.35 missed real thumbs)
@@ -363,7 +374,7 @@
 
     // The multiplier a loop of this area earns on a field of `fieldArea` (bigger fields need bigger loops for the
     // same share, so a loop's worth reads the same at every size).
-    const areaMult = (area, o = SNARE, fieldArea = o.area) => Math.min(o.maxMult, 1 + area / (o.areaUnit * fieldArea));
+    const areaMult = (area, o = SNARE, fieldArea = o.area) => Math.min(o.maxMult, 1 + Math.pow(area / (o.areaUnit * fieldArea), o.multCurve ?? 1));
 
     // ---- A run -------------------------------------------------------------------------------------------
 
@@ -605,13 +616,16 @@
             if (b.y > h - e) b.vy = Math.min(b.vy, -Math.min(back, (b.y - (h - e)) * 3));
         }
         function bootBoss(enraged) {
-            const r = Math.min(o.bossR * Math.pow(grow, 0.75), 0.13 * shortSide);
+            const r = Math.min(o.bossR * Math.pow(grow, 0.75), 0.1 * shortSide);
             // In from the middle of an edge, moving in.
             const side = Math.floor(rand() * 4), e = bossEdge(r);
             const x = side === 0 ? e : side === 1 ? w - e : w / 2, y = side === 2 ? e : side === 3 ? h - e : h / 2;
             s.boss = { x, y, vx: 0, vy: 0, r, hp: o.boss, maxHp: o.boss, stunned: 0, immune: null, charge: null, chargeAt: s.time + (enraged ? 1 : 2.5),
                 enraged, smash: null, slashAt: -1, shielded: false, mineAt: s.time + 1.5 };
-            s.events.push({ type: 'boss', x, y, hp: o.boss, enraged });
+            // Its arrival adds Focus (the fight shouldn't race the clock), above the bar if it must.
+            s.focus += o.bossFocus;
+            s.maxFocus = Math.max(s.maxFocus, s.focus);
+            s.events.push({ type: 'boss', x, y, hp: o.boss, enraged, focus: o.bossFocus });
         }
         // Where its charges aim: the pen while you draw, else the nearest good packet (so it charges all the same, and
         // there's always a parry to make).
@@ -646,7 +660,8 @@
             }
             const b = s.boss;
             mineStep(b, dt);
-            b.shielded = s.mines.length > 0;
+            // Shielded while two or more mines stand (one mine halves its slashes).
+            b.shielded = s.mines.length >= 2;
             if (b.stunned > s.time) {
                 b.x += b.vx * dt;
                 b.y += b.vy * dt;
@@ -665,7 +680,10 @@
                     const v = (chargeReach(b) - b.r) / BOSS_DASH;
                     b.vx = b.charge.dx * v; b.vy = b.charge.dy * v;
                 }
-                else { b.charge = null; b.chargeAt = s.time + o.bossCharge * (b.enraged ? 0.6 : 1); }
+                else { b.charge = null; b.chargeAt = s.time + o.bossCharge * (b.enraged ? 0.6 : 1); b.restUntil = s.time + o.bossRest; }
+            } else if (b.restUntil > s.time) {
+                // After a dash it stands a moment (another chance to loop it).
+                b.vx *= 0.8; b.vy *= 0.8;
             } else {
                 const aim = s.time >= (b.chargeAt ?? 0) ? chargeTarget(b) : null;
                 if (aim) {
@@ -725,7 +743,7 @@
             if (s.wire.length > 1 && !flicking) {
                 for (let i = 1; i < s.wire.length; i++) {
                     // Its snap costs half again what an Antivirus's does.
-                    if (segDist(b, s.wire[i - 1], s.wire[i]) < b.r) { snap(b); s.focus = Math.max(0, s.focus - o.snapPenalty * 0.5); break; }
+                    if (segDist(b, s.wire[i - 1], s.wire[i]) < b.r * 0.85) { snap(b); s.focus = Math.max(0, s.focus - o.snapPenalty * 0.5); break; }
                 }
             }
             // Your Firewall sections hold it off, and the first touch each approach stuns it: a slash window.
@@ -739,6 +757,7 @@
                 return false;
             }
             if (!(dmg > 0)) return true;
+            if (s.mines.length === 1) dmg = Math.ceil(dmg / 2);
             b.hp = Math.max(0, b.hp - dmg);
             s.stats.bossHits++;
             s.stats.bossDamage += dmg;
@@ -761,6 +780,7 @@
         // bosses boot Antivirus when it happens.
         function stunBoss(b) {
             b.charge = null;
+            b.stunSlashes = 0;
             b.stunned = s.time + o.bossStun;
             b.chargeAt = s.time + o.bossStun + o.bossCharge * 0.6;
             const minions = s.antivirus.filter(f => f.minion && !f.ally).length;
@@ -781,7 +801,7 @@
         // finished net wipes the good data along it, and a ring of three finished nets the data inside it too.
         function layMines(b, n) {
             const e = Math.max(1, o.bossEdge * shortSide * 0.6);
-            const spread = o.netRange * shortSide * 0.55;
+            const spread = o.netRange * shortSide * 0.35;   // close round it, so one loop can take a mine and the boss
             const a0 = rand() * Math.PI * 2;
             for (let i = 0; i < n; i++) {
                 const ang = a0 + i * Math.PI * 2 / n + (rand() - 0.5) * 0.5;
@@ -840,6 +860,8 @@
             s.stats.minesCleared += hit.length;
             for (const m of hit) s.events.push({ type: 'mineDown', x: m.x, y: m.y });
             if (s.boss && !s.mines.length) s.boss.mineAt = Math.max(s.boss.mineAt, s.time + o.mineEvery * 0.75);
+            // Cleared while it reels: the stun lasts a second longer.
+            if (s.boss && s.boss.stunned > s.time) s.boss.stunned += 1;
             return true;
         }
 
@@ -1277,6 +1299,7 @@
                 if (isBoss && !v.immune?.includes(f.id) && !(v.stunned > s.time)) {
                     v.immune = [...(v.immune || []), f.id];
                     v.stunned = s.time + o.avStun * 0.6;
+                    v.stunSlashes = 0;
                     if (v.charge) v.charge = null;
                     v.vx = n.x * 4; v.vy = n.y * 4;
                     s.stats.stuns++;
@@ -1490,6 +1513,8 @@
             }
             r.t += dt;
             r.bonus = Math.min(o.raceMax, o.raceRate * r.t);
+            // Held to its cap, it pays out (holding is a timing call, not a farm).
+            if (r.bonus >= o.raceMax) { settleRace(); return; }
             const bad = s.packets.filter(p => p.kind === 'corrupt' && !spoofed(p) && pointInPolygon(p, r.poly)).length;
             if (bad > o.scrubbers) settleRace();
         }
@@ -1539,6 +1564,9 @@
                     // A slash: through it while it reels (a parry or one of your Firewalls), a flick at a time.
                     if (s.real - boss.slashAt >= o.slashGap) {
                         boss.slashAt = s.real;
+                        // A stun allows `slashCap` slashes; the last one ends it.
+                        boss.stunSlashes = (boss.stunSlashes || 0) + 1;
+                        if (boss.stunSlashes >= o.slashCap) boss.stunned = Math.min(boss.stunned, s.time + 0.1);
                         s.stats.slashes++;
                         // Blue Screen: every `crashEvery`th slash on this boss crashes it.
                         boss.slashCount = (boss.slashCount || 0) + 1;
@@ -1598,7 +1626,13 @@
                 s.fork = null;
             }
             // Frozen: the field's clock stops (nothing moves, nothing comes due, tags hold, Focus holds); only your pen works.
-            if (frozen()) { s.frozenLeft = Math.max(0, s.frozenLeft - dt); return; }
+            // Focus runs at half speed while frozen (it used to hold: up to 18 s of risk-free drawing a run).
+            if (frozen()) {
+                s.frozenLeft = Math.max(0, s.frozenLeft - dt);
+                s.focus = Math.max(0, s.focus - o.idleDrain * 0.5 * dt);
+                if (s.focus <= 0) end();
+                return;
+            }
             s.time += dt;
             raceStep(dt);
             // Backpressure: packets turned back resume their course.
@@ -1825,9 +1859,11 @@
             // Garbage Collection: a loop of nothing but corrupt packets is collected, not spoiled.
             const garbage = !!o.gc && !good.length && corrupt.length > 0;
             const spoiled = !garbage && corrupt.length > o.scrubbers;
-            const mult = areaMult(area, o, fieldArea) * (1 + bonus);
+            // A loop wholly inside one of your Firewall sections is safe (red can't get in), so it pays less.
+            const safe = wallsNow.some(f => poly.every(v => inZone(v, f, 0.05)));
+            const mult = areaMult(area, o, fieldArea) * (1 + bonus) * (safe ? o.safeLoop : 1);
             const value = good.reduce((a, p) => a + valueOf(p), 0);
-            return { area, inside, corrupt, good, spoiled, garbage, mult, value, units: spoiled ? 0 : value * mult };
+            return { area, inside, corrupt, good, spoiled, garbage, mult, value, safe, units: spoiled ? 0 : value * mult };
         }
 
         // Close a loop: a core, a mine or a stunned Antivirus inside is dealt with at once; the packets are snared,
@@ -1938,7 +1974,10 @@
                 return;
             }
             if (j.garbage) {
-                const back = o.gcFocus * j.corrupt.length;
+                // Focus back for a few at most, and half of it if the last collection was only moments ago (a decoy
+                // piling red up made it a Focus engine).
+                const back = o.gcFocus * Math.min(j.corrupt.length, o.gcCap) * (s.real - (s.gcAt ?? -1e9) < o.gcRepeat ? 0.5 : 1);
+                s.gcAt = s.real;
                 s.focus = Math.min(s.maxFocus, s.focus + back);
                 s.stats.collected += j.corrupt.length;
                 s.events.push({ type: 'garbage', x: at.x, y: at.y, poly, count: j.corrupt.length, focus: back, packets: j.inside.map(p => ({ x: p.x, y: p.y })) });
@@ -1968,7 +2007,9 @@
                     if (best) cands.push({ q, from: best, d: bd });
                 }
                 cands.sort((a, b) => a.d - b.d || a.q.id - b.q.id);
-                for (const c of cands.slice(0, o.chain)) chained.push({ packet: c.q, from: { x: c.from.x, y: c.from.y } });
+                // Never more arcs than packets the loop itself caught (a scribble's one-packet loop arcs once).
+                const arcs = Math.min(o.chain, j.good.length);
+                for (const c of cands.slice(0, arcs)) chained.push({ packet: c.q, from: { x: c.from.x, y: c.from.y } });
                 // Chain Storm: each hop arcs on from the packets the last one reached, to as many again.
                 let front = chained.map(c => c.packet);
                 for (let hop = 0; hop < o.chainHops && front.length; hop++) {
@@ -1981,13 +2022,17 @@
                         if (best) next.push({ q, from: best, d: bd });
                     }
                     next.sort((a, b) => a.d - b.d || a.q.id - b.q.id);
-                    const add = next.slice(0, o.chain);
+                    const add = next.slice(0, arcs);
                     for (const c of add) chained.push({ packet: c.q, from: { x: c.from.x, y: c.from.y } });
                     front = add.map(c => c.q);
                 }
             }
             const chainValue = chained.reduce((a, c) => a + valueOf(c.packet), 0);
-            const units = (j.value + chainValue) * j.mult;
+            // A loop closed moments after the last on the same stroke (a scribble) pays half.
+            const hasty = s.pen === s.lastLoopPen && s.real - s.lastLoopAt < o.scribbleGap;
+            s.lastLoopPen = s.pen;
+            s.lastLoopAt = s.real;
+            const units = (j.value + chainValue) * j.mult * (hasty ? o.scribblePay : 1);
             const gold = j.good.filter(p => p.kind === 'gold').length + chained.filter(c => c.packet.kind === 'gold').length;
             remove([...j.inside, ...chained.map(c => c.packet)]);
             const count = j.good.length + chained.length;
@@ -2038,7 +2083,7 @@
             if (o.echo) s.echoes.push({ poly: poly.map(q => ({ x: q.x, y: q.y })), at: s.time + o.echoDelay, mult: j.mult });
             // Second Wind: a big loop gives Focus back.
             if (o.focusBack && j.mult >= 2) s.focus = Math.min(s.maxFocus, s.focus + o.focusBack);
-            s.events.push({ type: 'catch', x: at.x, y: at.y, poly, area: j.area, count, gold, mult: j.mult, units, packets: j.inside, race: bonus, fork: j.fork || null, star: j.star || null,
+            s.events.push({ type: 'catch', x: at.x, y: at.y, poly, area: j.area, count, gold, mult: j.mult, units, packets: j.inside, race: bonus, fork: j.fork || null, star: j.star || null, hasty, safe: !!j.safe,
                 chained: chained.map(c => ({ x: c.packet.x, y: c.packet.y, from: c.from, kind: c.packet.kind })), scrubbed: j.corrupt.length });
         }
 
@@ -2065,6 +2110,7 @@
             if (s.race && Math.hypot(x - s.race.at.x, y - s.race.at.y) > closeR * 1.6) settleRace();
             if (!s.drawing) {
                 s.drawing = true;
+                s.pen = (s.pen || 0) + 1;   // each stroke (pen down to up) counts once
                 s.leftStart = false;
                 s.wire = [p];
                 s.stroke = { t0: s.real, pts: [p] };

@@ -29,13 +29,13 @@ function flickLine(s, x0, y0, x1, y1) {
     s.liftPen();
 }
 
-test('Freeze Frame stops the field\'s clock: nothing comes due or piles up while it holds', () => {
+test('Freeze Frame stops the field\'s clock: nothing comes due or piles up while it holds (Focus at half speed)', () => {
     const s = still({ freeze: 1, freezeSeconds: 3, antivirus: [1], idleDrain: 1, focus: 30 });
     s.usePower('freeze');
     run(s, 2.5);
     assert.equal(s.time, 0, 'the field\'s clock stood still');
     assert.equal(s.antivirus.length, 0, 'the Antivirus due at 1 s hasn\'t booted');
-    assert.equal(s.focus, 30, 'Focus held');
+    assert.ok(Math.abs(s.focus - 28.75) < 0.05, 'Focus ran at half speed');
     run(s, 1.6);
     assert.equal(s.antivirus.length, 1, 'it boots once the field moves again');
 });

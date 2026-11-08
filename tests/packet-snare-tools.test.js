@@ -165,7 +165,7 @@ test('scanner towers tag what passes their beam', () => {
     assert.equal(s.stats.tagged, 1, 'and not tagged again while its tag lasts or cools down');
 });
 
-test('freeze stops the field and Focus while you draw; purge wipes the corrupt packets', () => {
+test('freeze stops the field (Focus at half speed) while you draw; purge wipes the corrupt packets', () => {
     const s = still({ freeze: 1, purge: 1, freezeSeconds: 2, idleDrain: 1 });
     packet(s, 'good', 3, 3, 1, 0);
     packet(s, 'corrupt', 6, 3);
@@ -173,7 +173,7 @@ test('freeze stops the field and Focus while you draw; purge wipes the corrupt p
     const f0 = s.focus;
     for (let i = 0; i < 60; i++) s.step(1 / 60);
     assert.equal(s.packets[0].x, 3, 'nothing moves');
-    assert.equal(s.focus, f0, 'Focus holds');
+    assert.ok(Math.abs(s.focus - (f0 - 0.5)) < 0.05, 'Focus runs at half speed');
     assert.ok(!s.usePower('freeze'), 'one charge');
     assert.ok(s.usePower('purge'));
     assert.equal(s.packets.filter(p => p.kind === 'corrupt').length, 0);
@@ -236,6 +236,7 @@ test('the boss is the wall: every fifth sector, gentle the first time, steeply m
     assert.equal(s.snare.sector, first + 1);
     const late = E.snareOpts({ ...s, snare: { ...s.snare, sector: E.MINION_SECTOR } });
     assert.ok(late.bossMinions > 0 && late.bossCharge < 7 && late.bossSpeed > 1 && late.bossWarn < 2);
+    s.snare.runs = 30;
     assert.equal(E.snareOpts(s, first).bossMines, 0, 'no mines on the first boss');
     assert.equal(E.snareOpts(s, E.MINE_SECTOR).bossMines, 2, 'two from the second');
     assert.equal(E.snareOpts(s, E.NET_SECTOR).bossMines, 3, 'a ring of three from the third');
@@ -265,9 +266,9 @@ test('the tree thins the corrupt packets, fills the field with packets and grows
     for (const id of ['snareSchools', 'snareFirehose', 'snareBroadband', 'snareTorrent', 'snarePacketStream', 'snareOpenPorts', 'snareLoadBalancer', 'snareMirrorPort', 'snareRateLimit']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
     s.levels.snareFirewalls = 1;
     const o = E.snareOpts(s, E.AV_SECTOR);
-    assert.ok(o.corruptShare <= E.snareOpts(E.defaultState(NOW), E.AV_SECTOR).corruptShare * 0.12, 'about a tenth of the corrupt packets');
-    assert.ok(o.area > 70 * 60, 'nine Sprawl levels');
-    assert.ok(o.density / base.density >= 6, `six times the packets or more (${(o.density / base.density).toFixed(2)})`);
+    assert.ok(o.corruptShare <= E.snareOpts(E.defaultState(NOW), E.AV_SECTOR).corruptShare * 0.4, 'well under half the corrupt packets');
+    assert.ok(o.area > 70 * 30, 'nine Sprawl levels');
+    assert.ok(o.density / base.density >= 5, `five times the packets or more (${(o.density / base.density).toFixed(2)})`);
     assert.deepEqual(o.antivirus, E.snareOpts(E.defaultState(NOW), E.AV_SECTOR).antivirus, 'the hazards come from the sector, not the field');
     assert.equal(o.firewalls, 3, 'a slot more for each tool from Megasprawl\'s and Hyperscale\'s last levels');
     assert.equal(o.decoys, 0, 'none for tools you don\'t own');

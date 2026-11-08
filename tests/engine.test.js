@@ -1981,7 +1981,7 @@ test('Packet Snare: every branch opens with cheap packet and red-packet nodes (t
     const ring = up => Math.abs(up.snare.x) + Math.abs(up.snare.y);
     for (const r of ['snareFocus', 'snareSprawl', 'snareSanitizer', 'snareScrubbers']) {
         const early = E.SNARE_TREE.filter(up => root(up) === r && ring(up) <= 3 && up.cost.signal <= 300);
-        assert.ok(early.some(up => up.sn.density), `${r}'s branch has a packet node in its first rings`);
+        assert.ok(early.some(up => up.sn.density || up.sn.sprawl), `${r}'s branch has a packet node in its first rings`);
         assert.ok(early.some(up => up.sn.cleaner), `${r}'s branch has a red-packet node in its first rings`);
     }
     const n = key => E.SNARE_TREE.filter(up => up.sn[key]).length;
@@ -2005,7 +2005,7 @@ test('Packet Snare (Snare 10): four wedges, verbs inside, automation and a capst
     }
     // No red-packet level is wasted: the floor comes at about the tree's last one.
     const units = E.SNARE_TREE.reduce((a, up) => a + (up.sn.cleaner || 0) * (up.max || 0), 0);
-    assert.ok(Math.pow(0.85, units - 2) > 0.03 && Math.pow(0.85, units + 1) <= 0.03, `${units} red-packet units land on the 3% floor`);
+    assert.ok(Math.pow(E.SNARE_RED_UNIT, units - 2) > E.SNARE_RED_FLOOR && Math.pow(E.SNARE_RED_UNIT, units + 1) <= E.SNARE_RED_FLOOR, `${units} red-packet units land on the floor`);
 });
 
 test('a save from before Snare 11 gets every Packet Snare level back as Signal (the tree regrown twice)', () => {
@@ -2035,7 +2035,7 @@ test('Packet Snare (10.1): red packets drop from the first buys (two outside rev
         spent += price(up);
         s.levels[up.id] = E.level(s, up.id) + 1;
     }
-    assert.ok(E.snareOpts(s, 0).corruptShare < base * 0.8, 'red packets cut by 500 Signal');
+    assert.ok(E.snareOpts(s, 0).corruptShare < base * 0.9, 'red packets cut by 500 Signal (gently: Snare 12 keeps red alive longer)');
     assert.equal(E.UPGRADE_BY_ID.snareSanitizer.requires, undefined, 'Sanitizer is a root');
 });
 
