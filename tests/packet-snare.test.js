@@ -645,3 +645,31 @@ test('the hazards arrive one sector at a time: packets, then sweeps, then Antivi
     assert.equal(at(E.MINE_SECTOR).boss, Math.floor(E.snareBossHp(E.MINE_SECTOR) * 1.5), 'a gate\'s boss is tougher');
     assert.deepEqual(E.SNARE_STAGES.map(x => x.sector), [...E.SNARE_STAGES.map(x => x.sector)].sort((a, b) => a - b));
 });
+
+test('a cleared sector carries the run on into the next: its hazards, its boss or goal, and Focus topped up', () => {
+    const s = E.defaultState(NOW);
+    s.snare.sector = 3;
+    const r = P.createSnare({ ...E.snareOpts(s, 3), seed: 4 });
+    assert.ok(r.opts.goal > 0 && !r.opts.boss);
+    r.focus = r.maxFocus * 0.4;
+    r.stats.caught = r.opts.goal;
+    r.step(1 / 60);
+    assert.ok(r.takeEvents().some(e => e.type === 'goal'));
+    r.nextSector(E.snareOpts(s, 4));
+    const ev = r.takeEvents().find(e => e.type === 'sector');
+    assert.ok(ev && ev.boss > 0 && ev.focus > 0, 'on to the boss sector, Focus topped up');
+    assert.ok(Math.abs(r.focus - r.maxFocus * (0.4 + r.opts.clearFocus)) < 1);
+    assert.equal(r.opts.goal, 0);
+    assert.equal(r.opts.boss, E.snareBossHealth(4));
+    assert.ok(!r.goalDone && !r.bossDone && !r.over, 'the run goes on');
+    // The boss boots as it would at the start of a run: bossAt seconds into the sector.
+    for (let i = 0; i < 60 * (r.opts.bossAt - 1); i++) r.step(1 / 60);
+    assert.equal(r.boss, null, 'not yet');
+    for (let i = 0; i < 60 * 2 && !r.boss; i++) r.step(1 / 60);
+    assert.ok(r.boss || r.over, 'its boss boots');
+    // A sector that brings a new hazard brings it in from now.
+    const t = P.createSnare({ ...E.snareOpts(s, 1), seed: 4, idleDrain: 0 });
+    t.nextSector(E.snareOpts(s, E.SWEEP_SECTOR));
+    for (let i = 0; i < 60 * 12 && !t.stats.sweeps; i++) t.step(1 / 60);
+    assert.ok(t.stats.sweeps >= 1, 'a Full Scan comes');
+});

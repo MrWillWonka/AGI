@@ -286,3 +286,17 @@ The owner's call: "Let's not introduce a boss until 5 and every 5 after."
   | Root Access 3 | ✓ | ✓ | 20–48 of 64 | |
   | Riposte and Kernel Panic | ✓ | ✓ | 28–34 of 64 | |
   | Blue Screen | ✓ | ✓ | 44–50 of 64 | up to 72 of 111 |
+
+### 11.2: a cleared sector carries the run on
+
+The owner's call: "Also don't want the run to end when a boss is beaten so need to rethink this".
+
+A run used to stay on its sector after clearing it. It went on with nothing left to chase until Focus ran out, and the next sector only came with the next run. Now:
+
+- **Into the next sector:** clearing a sector, by its goal or its boss, carries the run on into the next one at once (`nextSector`, `clearSnareSector`).
+  - The run takes on the next sector's red share, speeds, hazards, pay, and its goal or boss. A hazard the last sector didn't have comes in from then.
+  - The boss's timer and the goal's count start over for the new sector.
+  - Focus is topped up by 30% of the bar. A banner names the sector ("SECTOR 5: RELAY · BOSS · +8 FOCUS").
+- **When a run ends:** only when Focus runs out. A good run dives several sectors deep, and the next run starts at the frontier.
+- **The end card** lists the sectors the run went through: "Sectors 1–5", Ingress → Buffer → Cache → Backbone → Relay. "Boss health taken" shows only for a boss still standing.
+- **`tools/sim.js`** advances its runs the same way.

@@ -154,7 +154,8 @@
         // mine stands it's **shielded** (slashes glance off), and a loop round a mine clears it. It keeps to the middle
         // of the field (`bossEdge` of the shorter side clear of the edges), so it can be fought most of the time.
         boss: 0,                    // its health (0 = no boss)
-        goal: 0,                    // a sector with no boss is cleared by catching this many packets in one run (0 = none)
+        goal: 0,                    // a sector with no boss is cleared by catching this many packets in it (0 = none)
+        clearFocus: 0.3,            // a cleared sector tops Focus up by this share of the bar, and the run goes on into the next
         bossAt: 16,
         bossCatch: 18,
         bossSpeed: 1,               // × an Antivirus's roaming speed
@@ -418,7 +419,9 @@
             boss: null,             // the boss Antivirus once it boots: { x, y, vx, vy, r, hp, maxHp, stunned, charge, shielded }
             bossDone: false,
             goalDone: false,        // the sector's goal reached (a `goal` event, once)
-            stats: { catches: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
+            sectorAt: 0,            // when the run reached the sector it's on (a cleared sector carries the run into the next)
+            sectorCaught: 0,        // packets caught before it (the goal counts from here)
+            stats: { catches: 0, sectors: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
                 stolen: 0, cores: 0, quarantined: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0,
                 herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0,
                 bossDamage: 0, avDown: 0, glanced: 0, mines: 0, minesCleared: 0, netted: 0, escalations: 0, forks: 0, stars: 0 },
@@ -493,7 +496,7 @@
         }
 
         const goodTarget = Math.max(4, Math.min(o.maxGood, Math.round(o.density * fieldArea)));
-        const corruptTarget = Math.max(1, Math.round(goodTarget * o.corruptShare));
+        let corruptTarget = Math.max(1, Math.round(goodTarget * o.corruptShare));
         for (let left = goodTarget; left > 0;) {
             const n = Math.min(left, Math.max(2, Math.round(o.schoolSize * (0.6 + rand() * 0.8))));
             school(n, false);
@@ -620,7 +623,7 @@
         function bossStep(dt) {
             if (!o.boss || s.bossDone) return;
             if (!s.boss) {
-                if (s.time < o.bossAt && s.handCaught < o.bossCatch) return;
+                if (s.time - s.sectorAt < o.bossAt && s.handCaught < o.bossCatch) return;
                 bootBoss(false);
                 return;
             }
@@ -1606,9 +1609,9 @@
             s.rebuild = s.rebuild.filter(r => s.time < r.at);
             autoZoneStep();
             // A sector with no boss: catching its goal of packets clears it (the run goes on).
-            if (o.goal > 0 && !s.goalDone && s.stats.caught >= o.goal) {
+            if (o.goal > 0 && !s.goalDone && s.stats.caught - s.sectorCaught >= o.goal) {
                 s.goalDone = true;
-                s.events.push({ type: 'goal', x: w / 2, y: h / 2, caught: s.stats.caught });
+                s.events.push({ type: 'goal', x: w / 2, y: h / 2, caught: s.stats.caught - s.sectorCaught });
             }
             bossStep(dt);
             sweepStep(dt);
@@ -1727,6 +1730,37 @@
             const drain = o.idleDrain + (s.drawing && s.time >= s.freeDrawUntil ? o.drawBase + drawDrain * wireCost(s.wire) : 0);
             s.focus = Math.max(0, s.focus - drain * dt);
             if (s.focus <= 0) end();
+        }
+
+        // A cleared sector carries the run on into the next (the owner's call: beating a boss shouldn't stop the run):
+        // `next` is that sector's options (engine.js snareOpts); only what depends on the sector is taken from it. Its
+        // hazards come in from now (a scan, Antivirus or the Rogue AI the last sector didn't have), its boss or goal
+        // starts over, and Focus is topped up by `clearFocus` of the bar.
+        const SECTOR_KEYS = ['corruptShare', 'avSpeed', 'packetSpeed', 'antivirus', 'sweepFirst', 'sweepEvery', 'rogue', 'rogueFirst', 'rogueEvery',
+            'boss', 'goal', 'bossAt', 'bossCatch', 'bossR', 'bossSpeed', 'bossCharge', 'bossWarn', 'bossStun', 'bossMines', 'mineEvery', 'bossMinions'];
+        function nextSector(next = {}) {
+            if (s.over) return;
+            const before = { av: o.antivirus.length, sweep: o.sweepFirst, rogue: o.rogue };
+            for (const k of SECTOR_KEYS) if (next[k] !== undefined) o[k] = next[k];
+            corruptTarget = Math.max(1, Math.round(goodTarget * o.corruptShare));
+            // New hazards arrive from now: the Antivirus this sector adds, a first scan, the Rogue AI's first cores.
+            for (let i = before.av; i < o.antivirus.length; i++) avDue.push(s.time + 3 + 2 * (i - before.av));
+            avDue.sort((p, q) => p - q);
+            if (!Number.isFinite(before.sweep) && Number.isFinite(o.sweepFirst)) sweepAt = s.time + o.sweepFirst;
+            if (!before.rogue && o.rogue) s.rogueAt = s.time + o.rogueFirst;
+            s.boss = null;
+            s.bossDone = false;
+            s.goalDone = false;
+            s.handCaught = 0;
+            s.sectorAt = s.time;
+            s.sectorCaught = s.stats.caught;
+            for (const m of s.mines) s.events.push({ type: 'mineDown', x: m.x, y: m.y, boss: true });
+            s.mines = [];
+            s.links = [];
+            const back = Math.round(o.clearFocus * s.maxFocus);
+            s.focus = Math.min(s.maxFocus, s.focus + back);
+            s.stats.sectors++;
+            s.events.push({ type: 'sector', focus: back, boss: o.boss, goal: o.goal });
         }
 
         function end() {
@@ -2159,7 +2193,7 @@
             return e;
         }
 
-        return Object.assign(s, { step, addPoint, liftPen, cancelPen, stop, netsDone, netAreas, chargeReach, isStar, takeEvents, preview, valueOf, isGood, placeZone, moveZone, zoneAt, placeAt, removeAt, usePower, wallsUp, frozen, layoutOf, emitterSpots });
+        return Object.assign(s, { step, nextSector, addPoint, liftPen, cancelPen, stop, netsDone, netAreas, chargeReach, isStar, takeEvents, preview, valueOf, isGood, placeZone, moveZone, zoneAt, placeAt, removeAt, usePower, wallsUp, frozen, layoutOf, emitterSpots });
     }
 
     return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, AV_R, BOSS_R, BOSS_WARN, BOSS_DASH, BOSS_DASH_SPEED, MINE_R, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };

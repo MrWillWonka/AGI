@@ -562,8 +562,12 @@ function snareStep(dt) {
     r.step(dt);
     for (const e of r.takeEvents()) {
         if (e.type === 'catch' || e.type === 'laser' || e.type === 'quarantine' || e.type === 'taken') snareSim.haul += E.snareCatch(s, e.units, snareSim.sector);
-        if (e.type === 'bossDown') snareSim.haul += E.snareBossDown(s, snareSim.sector);
-        if (e.type === 'goal') snareSim.haul += E.snareGoalMet(s, snareSim.sector);
+        // A cleared sector carries the run on into the next.
+        if (e.type === 'bossDown' || e.type === 'goal') {
+            snareSim.haul += e.type === 'bossDown' ? E.snareBossDown(s, snareSim.sector) : E.snareGoalMet(s, snareSim.sector);
+            snareSim.sector++;
+            r.nextSector(E.snareOpts(s, snareSim.sector));
+        }
     }
 }
 
