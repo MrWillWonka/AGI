@@ -485,3 +485,11 @@ the wire while it grows, so Antivirus, the boss and Full Scans pop it. A pen tha
 only stun, quarantine, hijack, clear mines and collect garbage. Holding costs Focus time, so the tension is "hold for
 ×2, or let go before that red packet drifts in?". Not converted yet (only if bubbles win): the wire nodes (Long Wire,
 Steady Hand, Fork Bomb, Race Condition, Starburst, Firewall sections' free wire), the demos and the bot.
+
+### Snare 12.3: bubbles that hold
+
+The owner: "the delay to grow bubbles makes it too hard to catch and any movement seems to break it." The 0.18 s wait
+and a start from nothing meant a school had swum off before a bubble was worth anything, and 10 px of wobble turned it
+into a wire. Now it appears at once, already able to catch (0.85 × the closing ring), grows to full size in 2.5 s, and
+after its first 0.22 s it follows the pen (0.6 of the shorter side a second) rather than breaking. Only a deliberate
+stroke in that first moment (past 1.2 × the closing ring) draws a wire, so loops and flicks still work.

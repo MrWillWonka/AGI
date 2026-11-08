@@ -4967,7 +4967,7 @@ window.AGI = (function () {
         ctx.globalAlpha = 1;
         if (!run) { ctx.restore(); return; }
         const d = { ctx, C, k, run, t: run.time, W, H, effects, cw: v.cw, ch: v.ch, ox: v.ox, oy: v.oy, touch: v.touch, minR: v.minR, wallFrom: v.wallFrom,
-            pv: run.drawing && (run.wire.length > 1 || run.bubble?.growing) ? run.preview() : null };
+            pv: run.drawing && (run.wire.length > 1 || run.bubble) ? run.preview() : null };
         // Everything stays on the field: circles, beams and wedges near an edge used to spill into the letterbox.
         ctx.save();
         ctx.beginPath();
@@ -6032,19 +6032,7 @@ window.AGI = (function () {
         const hunted = run.antivirus.some(f => f.hunting);
         // Bubbles (the prototype): an orb grows under the pen, green while clean, red once a corrupt packet is in it.
         const bub = run.bubble;
-        if (bub?.growing) { drawSnareBubble(d, bub, hunted); return; }
-        if (bub && run.drawing && run.wire[0]) {
-            // held, about to grow: a small pulse under the pen
-            const a = Math.min(1, (run.real - bub.t0) / Math.max(0.01, run.opts.bubbleDelay));
-            ctx.globalAlpha = 0.25 + 0.4 * a;
-            ctx.strokeStyle = C.text;
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.arc(bub.x * k, bub.y * k, 4 + 6 * a, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.globalAlpha = 1;
-            return;
-        }
+        if (bub) { drawSnareBubble(d, bub, hunted); return; }
         if (run.wire.length > 1) {
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
@@ -6153,10 +6141,12 @@ window.AGI = (function () {
         ctx.fillStyle = fill;
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.globalAlpha = fill === col ? 0.2 : 1;
+        // fainter for its first moment, until it's a bubble for good (a stroke then would still draw a wire)
+        const firm = b.growing ? 1 : 0.55;
+        ctx.globalAlpha = (fill === col ? 0.2 : 1) * firm;
         ctx.fill();
         // its skin: white, pulsing while an Antivirus hunts it, brighter once it's full
-        ctx.globalAlpha = b.full ? 0.95 : 0.75;
+        ctx.globalAlpha = (b.full ? 0.95 : 0.75) * firm;
         ctx.strokeStyle = hunted ? C.danger : C.text;
         ctx.lineWidth = (b.full ? 3 : 2) + (hunted ? Math.sin(d.t * 18) : 0);
         ctx.stroke();

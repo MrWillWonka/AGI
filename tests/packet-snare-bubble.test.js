@@ -23,17 +23,16 @@ function drawSquare(s, cx, cy, r) {
     }
 }
 
-test('bubbles: hold still and a bubble grows, slowly then faster; let go and it catches what is inside', () => {
+test('bubbles: it appears the moment the pen goes down, big enough to catch, and grows; let go and it catches', () => {
     const s = still();
     for (let i = 0; i < 5; i++) packet(s, 'good', 6 + (i - 2) * 0.3, 4);
     s.addPoint(6, 4);
-    hold(s, 0.1);
-    assert.ok(!s.bubble.growing, 'not before the delay');
-    hold(s, 0.6);
+    hold(s, 1 / 60);
+    assert.ok(s.bubble.r >= 0.8 * s.closeR, 'already a catching size (no wait)');
+    hold(s, 0.5);
     const early = s.bubble.r;
-    hold(s, 0.6);
-    const mid = s.bubble.r;
-    assert.ok(mid - early > early * 0.5, 'growing faster');
+    hold(s, 0.8);
+    assert.ok(s.bubble.r > early * 1.4, 'growing');
     assert.ok(s.preview()?.bubble && s.preview().good.length === 5, 'the preview shows what it would catch');
     s.liftPen();
     assert.equal(s.stats.caught, 5);
@@ -42,12 +41,28 @@ test('bubbles: hold still and a bubble grows, slowly then faster; let go and it 
     assert.ok(!s.bubble && !s.wire.length);
 });
 
+test('bubbles: a wobbling finger never breaks one: it follows the pen once committed', () => {
+    const s = still();
+    packet(s, 'good', 7, 4);
+    s.addPoint(6, 4);
+    hold(s, 0.05);
+    s.addPoint(6.2, 4.15);       // a wobble before it's committed: still a bubble
+    assert.ok(s.bubble);
+    hold(s, 0.3);
+    assert.ok(s.bubble.growing);
+    for (let i = 1; i <= 20; i++) { s.addPoint(6 + i * 0.05, 4 + (i % 2) * 0.2); s.step(1 / 60); }
+    assert.ok(s.bubble && s.bubble.growing, 'still a bubble after moving');
+    hold(s, 0.6);
+    assert.ok(s.bubble.x > 6.5, 'it drifted after the pen');
+    s.liftPen();
+    assert.equal(s.stats.caught, 1);
+});
 test('bubbles: a bigger bubble pays a bigger multiplier, and red inside spoils it', () => {
     const size = secs => {
         const s = still();
         packet(s, 'good', 6, 4);
         s.addPoint(6, 4);
-        hold(s, 0.18 + secs);
+        hold(s, secs);
         s.liftPen();
         return s.stats.bestMult;
     };
@@ -62,19 +77,19 @@ test('bubbles: a bigger bubble pays a bigger multiplier, and red inside spoils i
     assert.equal(r.stats.corrupted, 1);
 });
 
-test('bubbles: a pen that moves before the delay draws a wire; a tap grows nothing', () => {
+test('bubbles: a deliberate stroke in its first moment draws a wire; a quick tap catches nothing', () => {
     const s = still();
     s.addPoint(3, 3);
-    s.addPoint(4, 3);
-    hold(s, 0.5);
+    for (let i = 1; i <= 10; i++) s.addPoint(3 + i * 0.4, 3);
     assert.ok(!s.bubble, 'a wire after all');
+    assert.ok(s.wire.length > 3);
     s.liftPen();
     const t = still();
     packet(t, 'good', 6, 4);
     t.addPoint(6, 4);
-    hold(t, 0.05);
+    hold(t, 0.1);
     t.liftPen();
-    assert.equal(t.stats.caught, 0);
+    assert.equal(t.stats.caught, 0, 'a tap is no catch');
     assert.equal(t.stats.bubbles, 0);
 });
 

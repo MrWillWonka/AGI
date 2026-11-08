@@ -115,11 +115,16 @@
         // only stun, quarantine, hijack, clear mines and collect garbage. Antivirus, the boss and scans pop a bubble as
         // they snap a wire.
         bubble: 0,
-        bubbleDelay: 0.18,          // held still this long before it starts growing (a stroke that moves first is a wire)
-        bubbleSlop: 0.3,            // × the closing ring's radius: how far the pen may wander before it's a wire
-        bubbleTime: 3,              // seconds to grow to its full size…
-        bubblePow: 1.4,             // …slowly at first, then faster (radius ∝ t^pow)
+        // Snare 12.3 (the owner: "the delay makes it too hard to catch and any movement seems to break it"): a bubble
+        // appears the moment the pen goes down, already big enough to catch, and once it's committed it follows the pen
+        // instead of breaking; only a deliberate stroke in its first moment draws a wire.
+        bubbleCommit: 0.22,         // held this long, it's a bubble for good (let go sooner: a tap or a flick, no catch)
+        bubbleSlop: 1.2,            // × the closing ring's radius: a pen that goes this far before then draws a wire
+        bubbleMin: 0.85,            // × the closing ring's radius: its size the moment it appears
+        bubbleTime: 2.5,            // seconds to grow to its full size…
+        bubblePow: 1.15,            // …a little faster as it goes (radius ∝ t^pow)
         bubbleMax: 0.4,             // its full radius, × the field's shorter side
+        bubbleDrift: 0.6,           // how fast it follows the pen, × the shorter side a second
         // Bots (Snare 11, the owner's call): small drones that seek red packets by themselves. A Cleaner bot (Intrusion)
         // turns a red packet it reaches into a regular one; with Gold Plating it also turns a regular packet into gold
         // every `goldEvery` s. A Spoofer bot (Countermeasures) spoofs the red packet it reaches (good, worth ×`spoofValue`,
@@ -1657,7 +1662,7 @@
         function stepOnce(dt) {
             s.real += dt;
             if (s.cooldown > 0) s.cooldown = Math.max(0, s.cooldown - dt);
-            bubbleStep();
+            bubbleStep(dt);
             wallsNow = wallsUp();
             if (s.fork && s.real - s.fork.t > o.forkTime) settleFork();
             // A first lobe closed at the start with the pen held still turns into a Race Condition loop instead.
@@ -2156,25 +2161,32 @@
             for (let i = 0; i < n; i++) pts.push({ x: x + r * Math.cos(i / n * 2 * Math.PI), y: y + r * Math.sin(i / n * 2 * Math.PI) });
             return pts;
         }
-        function bubbleStep() {
+        const bubbleMinR = () => Math.min(bubbleMaxR, o.bubbleMin * closeR);
+        function bubbleStep(dt) {
             const b = s.bubble;
             if (!b || s.over) return;
+            // it grows from the moment the pen went down
+            const t = Math.min(1, (s.real - b.t0) / o.bubbleTime);
+            const r0 = bubbleMinR();
+            b.r = r0 + (bubbleMaxR - r0) * Math.pow(t, o.bubblePow);
+            b.full = t >= 1;
             if (!b.growing) {
-                if (s.real - b.t0 < o.bubbleDelay) return;
+                if (s.real - b.t0 < o.bubbleCommit) return;
                 b.growing = true;
-                b.t1 = s.real;
                 s.stroke = null;     // it's no flick
                 s.events.push({ type: 'bubbleStart', x: b.x, y: b.y });
             }
-            const t = Math.min(1, (s.real - b.t1) / o.bubbleTime);
-            b.r = Math.max(0.05, bubbleMaxR * Math.pow(t, o.bubblePow));
-            b.full = t >= 1;
+            // committed: it drifts after the pen (a finger's wobble moves it a little, never breaks it)
+            if (b.pen) {
+                const dx = b.pen.x - b.x, dy = b.pen.y - b.y, d = Math.hypot(dx, dy), step = o.bubbleDrift * shortSide * dt;
+                if (d > 1e-6) { const m = Math.min(1, step / d); b.x += dx * m; b.y += dy * m; }
+            }
             s.wire = circle(b.x, b.y, b.r);
         }
-        const bubblePoly = () => (s.bubble?.growing ? circle(s.bubble.x, s.bubble.y, s.bubble.r) : null);
+        const bubblePoly = () => (s.bubble ? circle(s.bubble.x, s.bubble.y, s.bubble.r || bubbleMinR()) : null);
         // Let go of a bubble: it catches what's inside, as a loop would (too small, it fizzles).
         function popBubble() {
-            const poly = bubblePoly();
+            const poly = s.bubble?.growing ? bubblePoly() : null;
             s.bubble = null;
             s.wire = [];
             s.drawing = false;
@@ -2213,14 +2225,20 @@
                 s.leftStart = false;
                 s.wire = [p];
                 s.stroke = { t0: s.real, pts: [p] };
-                if (o.bubble) s.bubble = { x, y, t0: s.real, r: 0, growing: false };
+                if (o.bubble) s.bubble = { x, y, t0: s.real, r: bubbleMinR(), growing: false, pen: p };
                 return true;
             }
             // Bubbles: once one grows it owns the stroke; a pen that wanders off before then draws a wire after all.
             if (s.bubble) {
+                s.bubble.pen = p;
                 if (s.bubble.growing) return true;
-                if (Math.hypot(x - s.bubble.x, y - s.bubble.y) <= o.bubbleSlop * closeR) return true;
+                // still deciding: the stroke is kept (a flick is judged from it); a deliberate stroke draws a wire after all
+                if (Math.hypot(x - s.bubble.x, y - s.bubble.y) <= o.bubbleSlop * closeR) {
+                    if (s.stroke && s.stroke.pts.length < 400) s.stroke.pts.push(p);
+                    return true;
+                }
                 s.bubble = null;
+                if (s.stroke) s.wire = s.stroke.pts.slice();
             }
             const last = s.wire[s.wire.length - 1];
             if (Math.hypot(x - last.x, y - last.y) < o.minGap) return true;
