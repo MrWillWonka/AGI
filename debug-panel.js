@@ -1,5 +1,5 @@
-// debug-panel.js — developer tools. Opened by tapping the small terminal icon by the Journal, ?debug
-// or #debug in the URL, or the ` (backtick) key; remembered per device. The panel's × closes it.
+// debug-panel.js — developer tools. Hidden: opened by three taps on the title in a row, ?debug or #debug in
+// the URL, or the ` (backtick) key; remembered per device. The panel's × (or three more taps) closes it.
 (function () {
     'use strict';
 
@@ -187,13 +187,23 @@
         if (!panel) build();
         panel.hidden = !show;
         flag(show);
-        document.getElementById('debugToggle').classList.toggle('on', show);
     }
 
 
     document.addEventListener('DOMContentLoaded', () => {
-        const toggleButton = document.getElementById('debugToggle');
-        toggleButton.addEventListener('click', () => toggle(!panel || panel.hidden));
+        // Hidden (the owner's call: no icon in the top bar): three taps on the title in a row, each within half a second
+        // of the last, open and close it, on a phone too (pointerup: iOS sends no click to a plain heading).
+        const brand = document.querySelector('.topbar .brand');
+        let taps = [];
+        brand?.addEventListener('pointerup', e => {
+            if (e.button > 0) return;
+            const now = performance.now();
+            taps = taps.filter(t => now - t < 500 * (taps.length + 1)).concat(now);
+            if (taps.length >= 3 && taps[taps.length - 1] - taps[taps.length - 3] < 1000) {
+                taps = [];
+                toggle(!panel || panel.hidden);
+            }
+        });
 
         // ?debug only reaches a standalone page; inside an artifact only a #hash passes through.
         if (new URLSearchParams(location.search).has('debug') || location.hash === '#debug' || flag()) toggle(true);

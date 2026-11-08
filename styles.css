@@ -186,11 +186,7 @@ h1, h2, h3, p { margin: 0; }
 
 .topbar-buttons { display: flex; gap: 6px; margin-left: auto; }
 /* Developer tools: a small, quiet icon by the Journal (a tap opens or closes the debug panel). */
-.debug-toggle { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid transparent;
     border-radius: 8px; background: none; color: var(--muted); opacity: 0.55; cursor: pointer; align-self: center; }
-.debug-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.debug-toggle.on { opacity: 1; color: var(--primary); border-color: var(--border); }
-.debug-toggle:focus-visible { opacity: 1; outline: 2px solid var(--primary); outline-offset: 2px; }
 
 /* ---- Layout ---- */
 
@@ -1261,6 +1257,12 @@ h1, h2, h3, p { margin: 0; }
 .setting-row select { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; font: inherit; }
 .toggle input { accent-color: var(--warning); width: 16px; height: 16px; }
 [data-section="settings"] .button-row { margin-top: 14px; }
+/* Saves and the playtest log come first in Settings (the owner's call), set apart from the rest. */
+[data-section="settings"] .settings-saves { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+[data-section="settings"] .settings-saves > .button-row:first-child { margin-top: 0; }
+[data-section="settings"] .settings-saves > .toggle:last-child { margin-top: 10px; }
+/* Three taps on the title open the debug panel: no double-tap zoom or text selection on it. */
+.topbar .brand { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
 
 #dialog { width: min(440px, calc(100vw - 32px)); }
 
