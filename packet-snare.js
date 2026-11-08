@@ -108,6 +108,8 @@
         pen: 0,                     // Holding Pen: good packets that come into a section can't leave it
         autoZone: 0,                // Auto-Deploy: a free section places itself where the good packets gather…
         autoZoneEvery: 4,           // …checking this often
+        autoZoneMax: 2,             // at most this many of its sections stand at once (on top of your own slots)
+        autoZoneLife: 10,           // and each lasts this long before it moves on
         // Bots (Snare 11, the owner's call): small drones that seek red packets by themselves. A Cleaner bot (Intrusion)
         // turns a red packet it reaches into a regular one; with Gold Plating it also turns a regular packet into gold
         // every `goldEvery` s. A Spoofer bot (Countermeasures) spoofs the red packet it reaches (good, worth ×`spoofValue`,
@@ -1154,9 +1156,11 @@
             for (let i = 1; i < pts.length; i++) L += segCost(pts[i - 1], pts[i]);
             return L;
         }
+        // Your own sections (Auto-Deploy's free ones don't take a slot).
+        const ownZones = () => s.walls.reduce((n, f) => n + (f.auto ? 0 : 1), 0);
         // Drop a Firewall section with its middle at (x, y) while a slot is free. Returns it, or null.
         function placeZone(x, y) {
-            if (s.over || s.walls.length + s.rebuild.length >= o.firewalls) return null;
+            if (s.over || ownZones() + s.rebuild.length >= o.firewalls) return null;
             const z = makeZone(x, y);
             s.walls.push(z);
             wallsNow = wallsUp();
@@ -1178,15 +1182,23 @@
             s.stats.fwLost++;
             s.walls = s.walls.filter(g => g !== f);
             wallsNow = wallsUp();
-            if (o.wallRebuild) s.rebuild.push({ x: f.x, y: f.y, at: s.time + o.wallRebuild });
+            if (o.wallRebuild && !f.auto) s.rebuild.push({ x: f.x, y: f.y, at: s.time + o.wallRebuild });
             s.events.push({ type: 'zoneDown', x: f.x, y: f.y, hw: f.hw, hh: f.hh });
         }
         // Auto-Deploy: a free section goes where the good packets gather (the densest patch with the fewest red, clear
         // of your other sections).
         function autoZoneStep() {
-            if (!o.autoZone || s.time < s.autoZoneAt) return;
+            if (!o.autoZone) return;
+            // its sections move on when their time is up (no rebuild, no slot freed: they never took one)
+            const gone = s.walls.filter(f => f.auto && s.time >= f.until);
+            if (gone.length) {
+                s.walls = s.walls.filter(f => !gone.includes(f));
+                wallsNow = wallsUp();
+                for (const f of gone) s.events.push({ type: 'autoZoneGone', x: f.x, y: f.y });
+            }
+            if (s.time < s.autoZoneAt) return;
             s.autoZoneAt = s.time + o.autoZoneEvery;
-            if (s.walls.length + s.rebuild.length >= o.firewalls) return;
+            if (s.over || s.walls.length - ownZones() >= o.autoZoneMax) return;
             const cell = Math.max(zoneHw, zoneHh) * 1.4, score = new Map();
             for (const p of s.packets) {
                 const key = Math.floor(p.x / cell) * 4096 + Math.floor(p.y / cell);
@@ -1200,8 +1212,12 @@
                 best = { x, y }; bs = sc;
             }
             if (!best) return;
-            const z = placeZone(best.x, best.y);
-            if (z) { s.stats.autoZones++; s.events.push({ type: 'autoZone', x: z.x, y: z.y }); }
+            const z = makeZone(best.x, best.y);
+            z.auto = true; z.until = s.time + o.autoZoneLife;
+            s.walls.push(z);
+            wallsNow = wallsUp();
+            s.stats.autoZones++;
+            s.events.push({ type: 'autoZone', x: z.x, y: z.y });
         }
         const LISTS = { decoy: 'decoys', turret: 'turrets', tower: 'towers' };
         // Place a decoy, turret or tower at (x, y) while a slot is free.
@@ -1866,7 +1882,7 @@
         function layoutOf() {
             return {
                 // A section Great Wall is rebuilding counts as standing (it holds its slot).
-                zones: [...s.walls.filter(f => f.hp > 0), ...s.rebuild].map(f => [r3(f.x / w), r3(f.y / h)]),
+                zones: [...s.walls.filter(f => f.hp > 0 && !f.auto), ...s.rebuild].map(f => [r3(f.x / w), r3(f.y / h)]),
                 decoys: s.decoys.map(d => [r3(d.x / w), r3(d.y / h)]),
                 turrets: s.turrets.map(t => [r3(t.x / w), r3(t.y / h)]),
                 towers: s.towers.map(t => [r3(t.x / w), r3(t.y / h)])

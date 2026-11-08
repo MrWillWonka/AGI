@@ -460,3 +460,17 @@ They also asked for a few review rounds with a Fable agent, and a blind review b
 - **Clear:** the first card and its demo.
 - **Fixed since or here:** the boss arriving late, stopping by walls, and alerts from flagged swipes; small loops failing with no word; the HUD and the end card counting the goal differently; "(REPLAY)" on a sector cleared mid-run.
 - **Kept:** the tip buttons' jokes (the owner's call) and farming a cleared sector (the owner chose Go deeper as a choice).
+
+## Snare 12.1 (a phone log of 11.5)
+
+An iPhone log of 11.5 (79 min of play, Packet Snare only; `playtests/snare/2026-11-08-phone-snare-11-5.txt`), read
+against Snare 12. Already answered by 12: red at 1–2% per good packet by sector 10 (12's floor is about five times that
+deep in), scribbling with Chain Lightning (31 catches, 30 of them empty, 495 chained; 12 caps the chain at the packets
+caught and halves rushed loops), a replay chaining 17 sectors on a full Focus bar each clear (12 halves the clear bonus
+per clear), and sector 10's boss holding 18 runs with most runs never reaching it (12's arena boots it 6 s in with
++8 s of Focus). Fixed in 12.1: **Auto-Deploy never placed a section**: it only used a free slot, and your sections carry
+over between runs, so none was ever free. Its sections are now free, at most two at once, each standing 10 s.
+
+Open: the verbs a player bought and never used (Fork Bomb, Starburst, Packet Spoofing, Garbage Collection, Privilege
+Escalation: about 70K Signal), and two long stretches with no input (24 min before the first run, 10 min on the tree),
+which the log now records as `idle`.

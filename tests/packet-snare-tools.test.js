@@ -100,6 +100,24 @@ test('Holding Pen: good packets that come into a section stay; Auto-Deploy drops
     assert.ok(Math.abs(a.walls[0].x - 7.8) < 2 && Math.abs(a.walls[0].y - 2.2) < 2, 'where the packets gather');
 });
 
+test('Auto-Deploy: its sections are free (your slots full), at most two at once, and they move on', () => {
+    // the owner's log: sections carry over between runs, so every slot was full and Auto-Deploy never placed one
+    const a = still({ firewalls: 1, autoZone: 1, w: 12, h: 8 });
+    const mine = a.placeZone(2, 2);
+    assert.ok(mine, 'your own section');
+    for (let i = 0; i < 6; i++) packet(a, 'good', 9 + (i % 3) * 0.3, 5 + Math.floor(i / 3) * 0.3);
+    for (let i = 0; i < 90; i++) a.step(1 / 60);
+    const auto = a.walls.filter(f => f.auto);
+    assert.equal(auto.length, 1, 'a free section placed itself with your slot full');
+    assert.equal(a.placeZone(6, 6), null, 'and it took none of your slots: still full');
+    for (let i = 0; i < 60 * 9; i++) a.step(1 / 60);
+    assert.ok(a.walls.filter(f => f.auto).length <= 2, 'at most two at once');
+    for (let i = 0; i < 60 * 12; i++) a.step(1 / 60);
+    assert.ok(!a.walls.includes(auto[0]), 'the first moved on');
+    assert.ok(a.walls.includes(mine), 'yours stays');
+    assert.ok(a.stats.autoZones >= 2);
+});
+
 test('bots: a Cleaner bot cleans red packets, Gold Plating gilds regular ones; a Spoofer bot spoofs them', () => {
     const c = still({ cleanBots: 1, goldPlate: 1, goldEvery: 1, w: 10, h: 7 });
     packet(c, 'corrupt', 6, 3.5);

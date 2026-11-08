@@ -1,0 +1,61 @@
+The Path to AGI · playtest log (filed condensed: the header, the summary, and one line a run; the samples, views and buys left out)
+Log v1 · began 2026-11-08T16:51:01.711Z · exported 2026-11-08T18:54:49.514Z
+build: 2026-11-08 17:20 (branch) · Packet Snare 11.5: Focus is a clock in seconds (drawing costs nothing more), a smoothed pen, a tighter closing ring on desktop and a setting to hide it
+save: v24, v1.0, 0 skills
+screen: 440×820, touch
+browser: iPhone, iOS 18.7, the Claude app
+
+Play time 79.1 min over 5 sessions, 574 events, 123.8 min on the clock.
+Skill-tree and legacy buys: 177; 12% the cheapest affordable, the rest dearer picks.
+Time by screen: bay:pipeline 56.6 min 72%, snareTree 20.8 min 26%, inbox 1.3 min 2%.
+Packet Snare only (open from the start); no lab, no training.
+
+Gaps with no run: entered the bay at t 41, first run at t 1477 (24 min; the log can't say idle or stuck); 10 min on the tree
+from t 2271 to 2883 before the next buy; 4 min from t 3871 to 4098.
+
+--- runs: t (end), sectors, haul, caught, corrupted, empty loops, chained, boss damage/health, red per good, seconds ---
+1492  1 ✓             111      39  1  0    0   -       0.18  17
+1529  2 ✓ → 3         263      77  0  0    0   -       0.18  25
+1594  3 ✓ → 4 ✓ → 5   598     117  0  0    0   0/7     0.18  32
+1620  5               233      44  0  0    0   4/7     0.13  15
+1643  5               331      84  1  0    0   4/7     0.13  15
+1667  5               337      78  2  0    0   0/7     0.10  15
+1696  5 ✓ boss        1514    247  1  0    0   7/7     0.10  27
+1734  6 ✓             1631    209  3  0    0   -       0.05  13
+1758  7 ✓             2687    395  0  0    0   -       0.06  21
+1791  8 ✓             6402    493  2  0    0   -       0.04  19
+1850  9 ✓             10068   821  4  0   96   -       0.03  17   (the Rogue AI: 113 stolen)
+1885  10              681      69  2  0   36   15/30   0.04  20   (mines)
+1973  10              6079    434  0  0   60   7/30    0.04  22   (an IDS alert)
+2071  10              2751    252  0  1   96   10/30   0.04  24
+2088  10              1389    143  5  0   64   0/30    0.04  10
+2127  10              6043    595  1  0   96   2/30    0.04  19
+2203  10              5792    864  0 30  495   0/30    0.04  19   (31 catches, 30 empty: scribbling with Chain Lightning)
+2229  10              6760    966  1 17  544   0/30    0.04  19   (34 catches, 17 empty)
+2269  10              14625   960  0  0   80   2/30    0.03  22
+2911  10              28446  1558  0  9  336   4/30    0.03  24
+2947  10              12938   867  2  1  112   12/30   0.02  21
+3009  10              14541  1127  0  0  128   0/30    0.02  25
+3041  10              17906  1361  0  1  128   22/30   0.02  22
+3134  10              24313  2050  0  1  304   0/30    0.02  28
+3185  10              43220  2221  0  0  136   6/30    0.02  27
+3233  10              69631  3731  0  0  157   0/30    0.02  27
+3267  10              38965  2310  1  1  220   0/30    0.02  23
+3332  10              28088  1032  0  0  112   26/30   0.02  26
+3383  10 ✓ boss       128972 3482  2  0  176   32/30   0.02  42   (sector 10's boss: 18 runs over 25 min)
+3426  11 ✓            118580 3426  1  1  205   -       0.02  28
+3482  12 ✓            199895 3203  0  2  128   -       0.02  31
+3544  13 ✓ → 14 ✓     210924 5933  1  0  319   -       0.02  44
+3606  15              150350 3885  1  1  192   50/64   0.02  31   (nets)
+3708  15 ✓ boss       505583 9652  0  0  394   64/64   0.02  64
+3807  16 ✓            296511 4269  0  2  321   -       0.01  57
+3871  17 ✓            251743 3772  0  1  176   -       0.01  47
+4154  18 ✓            194870 2626  0  1  192   -       0.02  44
+4325  19 ✓ → 20 ✓ boss 1041544 13116 0 1  617   120/111 0.02  114
+4485  21 ✓            1557936 14993 0 5  448   -       0.02  64
+4536  22              157812 1953  0  1  208   -       0.02  37   (goal 2,710 not met)
+4715  1 → 17 (replay, 17 cleared, Focus back to 32 at every Go deeper) 2317303 28173 0 0 882 - 0.01 163
+
+Bought and never (or barely) used: Fork Bomb (0 figure eights), Starburst ×2 (0 stars), Packet Spoofing ×2 (1 spoof),
+Garbage Collection (0), Race Condition ×2 (2 held), Privilege Escalation ×2 (0 rams). Auto-Deploy (22K) placed 0
+sections in every run after it was bought (a bug: it only used a free slot, and sections carry over, so none was free).

@@ -4365,7 +4365,7 @@ window.AGI = (function () {
             const t = SNARE_TOOLS.find(x => x.id === b.dataset.tool);
             b.classList.toggle('on', snare.tool === t.id);
             b.setAttribute('aria-pressed', String(snare.tool === t.id));
-            const n = t.power ? `×${run.charges[t.id]}` : t.slots ? `${run[t.list].length}/${run.opts[t.slots]}` : '';
+            const n = t.power ? `×${run.charges[t.id]}` : t.slots ? `${run[t.list].filter(f => !f.auto).length}/${run.opts[t.slots]}` : '';
             setText(b.querySelector('.snare-tool-count'), n);
             b.classList.toggle('spent', !!t.power && !(run.charges[t.id] > 0));
         }
@@ -5156,7 +5156,8 @@ window.AGI = (function () {
         };
         for (const f of run.walls) {
             if (f.hp <= 0) continue;
-            section(f.x, f.y, f.hw, f.hh, 1, false, run.opts.pen > 0);
+            // Auto-Deploy's sections are dashed and fade out over their last two seconds
+            section(f.x, f.y, f.hw, f.hh, f.auto ? Math.min(0.8, Math.max(0.15, (f.until - run.time) / 2)) : 1, !!f.auto, run.opts.pen > 0);
             if (f.hitAt > t - 0.15) {
                 ctx.globalAlpha = 0.5;
                 ctx.strokeStyle = C.danger;
@@ -5178,7 +5179,7 @@ window.AGI = (function () {
         if (w && !w.id) {
             const grow = Math.sqrt(run.w * run.h / window.PacketSnare.FIELD_AREA);
             const hw = Math.min(run.opts.zoneSize * grow, run.w * 0.45), hh = Math.min(run.opts.zoneSize * grow * 0.7, run.h * 0.45);
-            const full = run.walls.length + run.rebuild.length >= run.opts.firewalls;
+            const full = run.walls.filter(f => !f.auto).length + run.rebuild.length >= run.opts.firewalls;
             section(Math.max(hw, Math.min(run.w - hw, w.x)), Math.max(hh, Math.min(run.h - hh, w.y)), hw, hh, full ? 0.3 : 0.75, true, false);
         }
         // sections building themselves again (Great Wall): a dashed outline filling in
@@ -10708,12 +10709,21 @@ window.AGI = (function () {
             const now = Date.now();
             if (now - lastWake < 1000 && !document.body.classList.contains('idle')) return;
             lastWake = now;
+            // the playtest log notes a stretch with no input (a 24-minute gap in a log couldn't say: away, or stuck?)
+            if (idleSince && !document.hidden) pt('idle', { s: Math.round((now - idleSince) / 1000), at: ptPlace() });
+            idleSince = 0;
             document.body.classList.remove('idle');
             clearTimeout(idleTimer);
-            idleTimer = setTimeout(() => document.body.classList.add('idle'), IDLE_MS);
+            idleTimer = setTimeout(goIdle, IDLE_MS);
         };
+        // idle since the last input (a blur counts from now)
+        const goIdle = (from = lastWake) => {
+            document.body.classList.add('idle');
+            if (!idleSince) idleSince = from;
+        };
+        let idleSince = 0;
         for (const t of ['pointermove', 'pointerdown', 'keydown', 'wheel', 'focus']) window.addEventListener(t, wake, { passive: true });
-        window.addEventListener('blur', () => document.body.classList.add('idle'));
+        window.addEventListener('blur', () => goIdle(Date.now()));
         wake();
     }
     const idle = () => document.body.classList.contains('idle');
