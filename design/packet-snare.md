@@ -312,3 +312,56 @@ The owner's call: "After clearing the goal extra focus should let them keep gath
   - Moving on adds no Focus of its own, so the choice is to farm the cleared sector or push on with what's left.
 - **If you don't go deeper,** the next run starts on the next sector.
 - **`tools/sim.js`'s bot** goes deeper at once.
+
+### 11.4: nothing twice in a row
+
+The owner's call: "there are still nodes one after the other that do the same thing, sprawl and mega sprawl are a good example; we want to avoid this as much as possible, ideally all the time".
+
+**The rule:** a node never shares a theme with the node it grows from, or with a node beside it on the same parent. A theme is what the player reads, not the stat's name:
+
+| Theme | Stats it covers |
+|---|---|
+| More packets | field size, density, school size, packets back sooner, Broadband, the surge, the pulse |
+| Fewer red | cleaners, the lure |
+| Gold | gold chance, gold value, Gold Plating, Packet Storm |
+| Focus | Focus, drain, Focus back, Clean Sweep |
+| The multiplier cap | the cap |
+| Boss damage | slashes, parries, Blue Screen, the ram |
+| Laser emitters | emitters per edge, lasered edges |
+
+**Eleven breaks fixed:**
+- **Flow:** Sprawl → Megasprawl → Hyperscale, Sprawl → Schooling, Hyperscale → Hot Swap → Broadband, and Schooling beside Megasprawl. Flow now alternates its packet nodes with others:
+
+  ```
+  Sprawl → Containment → Schooling → Reputation → Firehose
+                                                → Backpressure → Floodgate
+         → Gold Rush → Megasprawl → Mother Lode → Torrent → Scanner Towers
+         → Spam Filter → Hyperscale → Overclock → Hot Swap
+                        (after                  → Scanner → Prospector, Broadband, Packet Storm
+                         Megasprawl)
+  ```
+- **Loops:** Steady Hand → Second Wind (Focus twice). Starburst moves to Steady Hand's side, and stays behind Freeze Frame. Second Wind grows from Freeze Frame.
+- **Intrusion:**
+  - Root Access → Blue Screen (boss damage twice): Blue Screen now grows from Kernel Panic.
+  - Twin Emitters and Laser Array were both "more lasers" on one parent: Laser Array now grows from Overcharged Lens.
+- **Countermeasures:** Error Correction → Parity Check → Signature Database (red three times). Ghost Protocol now sits between Error Correction and Signature Database. Parity Check grows from Hijack.
+
+**Prices:** a child's first level must still cost more than its parent's last, so some Flow nodes changed price with their new places:
+
+| Node | Before | Now |
+|---|---|---|
+| Schooling | 100 | 180 |
+| Megasprawl | 120 | 260 |
+| Reputation Check | 1.1K | 450 |
+| Firehose | 250 | 1K |
+| Mother Lode | 300 | 1.7K |
+| Torrent | 1.1K | 3.5K |
+| Floodgate | 2.4K | 5.5K |
+| Hot Swap | 4K | 9.5K |
+| Scanner | 4.5K | 10K |
+| Prospector | 14K | 22K |
+| Broadband | 4.2K | 22K |
+
+Elsewhere: Second Wind 2.2K → 5.5K, Overcharged Lens 55K → 20K, Laser Array 12.5K → 45K, Ghost Protocol 2.3K → 4.5K, Parity Check 4.3K → 2.6K, Signature Database 8.7K → 15K.
+
+**Saves:** save v24 refunds the tree and clears its reveals.

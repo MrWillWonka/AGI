@@ -2017,7 +2017,7 @@ test('a save from before Snare 11 gets every Packet Snare level back as Signal (
     assert.equal(m.levels.snareFocus, undefined);
     assert.equal(m.levels.snareSprawl, undefined);
     assert.equal(m.snare.signal, 5000, 'everything it earned this version, back to spend');
-    const fresh = E.migrate({ ...raw, version: 23, levels: { snareFocus: 2 }, snare: { ...raw.snare, signal: 1200 } }, Date.now());
+    const fresh = E.migrate({ ...raw, version: 24, levels: { snareFocus: 2 }, snare: { ...raw.snare, signal: 1200 } }, Date.now());
     assert.equal(fresh.levels.snareFocus, 2, 'a current save keeps its levels');
     assert.equal(fresh.snare.signal, 1200);
 });
@@ -2037,4 +2037,27 @@ test('Packet Snare (10.1): red packets drop from the first buys (two outside rev
     }
     assert.ok(E.snareOpts(s, 0).corruptShare < base * 0.8, 'red packets cut by 500 Signal');
     assert.equal(E.UPGRADE_BY_ID.snareSanitizer.requires, undefined, 'Sanitizer is a root');
+});
+
+test('Packet Snare: no node does the same thing as the node it grows from, or as a node beside it on the same parent (the owner\'s call)', () => {
+    // Stats that read the same to the player count as one: a bigger field, denser packets, packets back sooner and
+    // packets swimming in are all "more packets"; fewer red and less lure are "fewer red"; and so on.
+    const THEMES = { packets: ['sprawl', 'density', 'schoolSize', 'respawnMult', 'broadband', 'surge', 'pulse'], red: ['cleaner', 'lureMult'],
+        gold: ['goldChance', 'goldValue', 'goldPlate', 'storm'], focus: ['focus', 'drainMult', 'focusBack', 'cleanSweep'], cap: ['maxMult'],
+        boss: ['slashDamage', 'parryDamage', 'crash', 'escalate', 'escalateDamage'], emitters: ['emitters', 'laserSides'] };
+    const stats = up => [...new Set([...Object.keys(up.sn || {}), ...Object.values(up.stages || {}).flatMap(Object.keys)])];
+    const themes = up => new Set(stats(up).map(k => Object.keys(THEMES).find(t => THEMES[t].includes(k)) || k));
+    const shared = (a, b) => [...themes(a)].filter(t => themes(b).has(t));
+    const kids = {};
+    for (const up of E.SNARE_TREE) {
+        if (!up.requires) continue;
+        const parent = E.UPGRADE_BY_ID[up.requires];
+        assert.deepEqual(shared(parent, up), [], `${parent.name} → ${up.name}`);
+        (kids[up.requires] = kids[up.requires] || []).push(up);
+    }
+    for (const list of Object.values(kids)) {
+        for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) assert.deepEqual(shared(list[i], list[j]), [], `${list[i].name} and ${list[j].name}`);
+    }
+    // The field still grows in order: Hyperscale waits for Megasprawl.
+    assert.equal(E.UPGRADE_BY_ID.snareHyperscale.after, 'snareMegasprawl');
 });
