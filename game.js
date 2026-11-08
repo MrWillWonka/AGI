@@ -4378,7 +4378,7 @@ window.AGI = (function () {
         const boss = run.boss ? ` · Boss ${run.boss.hp}/${run.boss.maxHp}${run.boss.enraged ? ' ⚠ ENRAGED' : ''}${run.boss.shielded ? ' · shield' : ''}`
             // A sector with no boss: how far along its goal is (cleared once it's reached).
             : run.bossDone ? ' · Boss down ✓'
-            : run.opts.goal > 0 ? ` · ${run.goalDone ? 'Cleared ✓' : `Goal ${Math.min(run.stats.caught - run.sectorCaught, run.opts.goal)}/${run.opts.goal}`}` : '';
+            : run.opts.goal > 0 ? ` · ${run.goalDone ? 'Cleared ✓' : `Goal ${Math.min(run.stats.caught - run.sectorCaught - run.goalSkip, run.opts.goal)}/${run.opts.goal}`}` : '';
         setText($('snareFocusText'), run.cooldown > 0 ? 'Wire snapped…' : run.frozen() ? `Frozen · ${run.frozenLeft.toFixed(1)} s` : `Focus ${Math.ceil(run.focus)} s${run.freeDrawUntil > run.time ? ' · ⏸' : ''}${run.flags ? ` · ⚑ ${run.flags}/${run.opts.flagLimit}` : ''}${boss}`);
         // A held Race Condition loop ticks up every half second.
         if (run.race) {
@@ -11149,7 +11149,7 @@ window.AGI = (function () {
                 const r = snare.run;
                 if (r && !r.over && !snare.preview && r.opts.boss && !r.boss && !r.bossDone) { r.opts.bossAt = 0; return; }
                 // A goal sector in a run: its goal is met now (the run carries on into the next sector).
-                if (r && !r.over && !snare.preview && r.opts.goal && !r.goalDone) { r.sectorCaught = r.stats.caught - r.opts.goal; return; }
+                if (r && !r.over && !snare.preview && r.opts.goal && !r.goalDone) { r.sectorCaught = r.stats.caught - r.opts.goal - r.goalSkip; return; }
                 if (E.isSnareBossSector(state.snare.sector)) E.snareBossDown(state);
                 else E.snareGoalMet(state);
                 buildSnareArt();

@@ -50,3 +50,22 @@ test('a spoofing flick takes at most a few red packets, and the next waits a mom
     flick();
     assert.ok(s.stats.spoofed > P.SNARE.spoofCap, 'after the wait it spoofs again');
 });
+
+test('a loop moments after the last pays half and doesn\'t count toward the goal, lifted between or not', () => {
+    const s = still({ goal: 50 });
+    const ringAt = (cx, cy) => {
+        for (let i = 0; i < 4; i++) packet(s, 'good', cx - 0.3 + i * 0.2, cy);
+        const n = 40;
+        for (let i = 0; i <= n + 2; i++) s.addPoint(cx + Math.cos(i / n * Math.PI * 2) * 1.1, cy + Math.sin(i / n * Math.PI * 2) * 1.1);
+        s.liftPen();
+    };
+    ringAt(3, 3);
+    const first = s.takeEvents().find(e => e.type === 'catch');
+    ringAt(8, 3);   // straight after, a new stroke
+    const second = s.takeEvents().find(e => e.type === 'catch');
+    assert.ok(!first.hasty && second.hasty, 'the second is rushed');
+    assert.equal(s.goalSkip, second.count, 'and doesn\'t count toward the goal');
+    for (let i = 0; i < 60; i++) s.step(1 / 60);
+    ringAt(3, 6);
+    assert.ok(!s.takeEvents().find(e => e.type === 'catch').hasty, 'after a breath it counts again');
+});

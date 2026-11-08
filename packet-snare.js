@@ -209,7 +209,7 @@
         spoofCooldown: 1.5,         // seconds before the next flick spoofs (scribbled flicks turned every red packet good)
         scribbleGap: 0.5,           // a loop closed this soon after the last on the same stroke pays ×scribblePay
         scribblePay: 0.5,
-        safeLoop: 0.75,             // a loop wholly inside one of your Firewall sections pays ×this (it's safe)
+        safeLoop: 0.85,             // a loop wholly inside one of your Firewall sections pays ×this (it's safe; not with a pen)
         bossFocus: 8,               // seconds of Focus the boss's arrival adds (the fight shouldn't race the clock)
         slashCap: 5,                // slashes a stun allows: then it shakes it off
         bossRest: 1.5,              // seconds it stands after a dash (a second moment to loop it)
@@ -442,6 +442,9 @@
             goalDone: false,        // the sector's goal reached (a `goal` event, once)
             sectorAt: 0,            // when the run reached the sector it's on (a cleared sector carries the run into the next)
             sectorCaught: 0,        // packets caught before it (the goal counts from here)
+            goalSkip: 0,            // packets caught in it by rushed loops (they don't count toward the goal)
+            lastLoopAt: -1e9,       // when the last loop paid (a loop moments after it is rushed)
+            clears: 0,              // sectors cleared this run (each clear's Focus bonus is half the last's)
             stats: { catches: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
                 stolen: 0, cores: 0, quarantined: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0,
                 herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0,
@@ -623,9 +626,11 @@
             s.boss = { x, y, vx: 0, vy: 0, r, hp: o.boss, maxHp: o.boss, stunned: 0, immune: null, charge: null, chargeAt: s.time + (enraged ? 1 : 2.5),
                 enraged, smash: null, slashAt: -1, shielded: false, mineAt: s.time + 1.5 };
             // Its arrival adds Focus (the fight shouldn't race the clock), above the bar if it must.
-            s.focus += o.bossFocus;
+            // (Not when an IDS alert booted it: flags shouldn't pay.)
+            const extra = enraged ? 0 : o.bossFocus;
+            s.focus += extra;
             s.maxFocus = Math.max(s.maxFocus, s.focus);
-            s.events.push({ type: 'boss', x, y, hp: o.boss, enraged, focus: o.bossFocus });
+            s.events.push({ type: 'boss', x, y, hp: o.boss, enraged, focus: extra });
         }
         // Where its charges aim: the pen while you draw, else the nearest good packet (so it charges all the same, and
         // there's always a parry to make).
@@ -1668,9 +1673,9 @@
             s.rebuild = s.rebuild.filter(r => s.time < r.at);
             autoZoneStep();
             // A sector with no boss: catching its goal of packets clears it (the run goes on).
-            if (o.goal > 0 && !s.goalDone && s.stats.caught - s.sectorCaught >= o.goal) {
+            if (o.goal > 0 && !s.goalDone && s.stats.caught - s.sectorCaught - s.goalSkip >= o.goal) {
                 s.goalDone = true;
-                s.events.push({ type: 'goal', x: w / 2, y: h / 2, caught: s.stats.caught - s.sectorCaught, focus: clearBonus() });
+                s.events.push({ type: 'goal', x: w / 2, y: h / 2, caught: s.stats.caught - s.sectorCaught - s.goalSkip, focus: clearBonus() });
             }
             bossStep(dt);
             sweepStep(dt);
@@ -1798,7 +1803,8 @@
         // A cleared sector's reward: Focus, so the run keeps gathering there. Returns what it added.
         function clearBonus() {
             const before = s.focus;
-            s.focus = Math.min(s.maxFocus, s.focus + o.clearFocus * s.maxFocus);
+            // Each clear in a run gives half the last's (0.4, 0.2, 0.1 of the bar): going deeper chained sectors for free.
+            s.focus = Math.min(s.maxFocus, s.focus + o.clearFocus * Math.pow(0.5, s.clears++) * s.maxFocus);
             return Math.round(s.focus - before);
         }
         const SECTOR_KEYS = ['corruptShare', 'avSpeed', 'packetSpeed', 'antivirus', 'sweepFirst', 'sweepEvery', 'rogue', 'rogueFirst', 'rogueEvery',
@@ -1819,6 +1825,7 @@
             s.handCaught = 0;
             s.sectorAt = s.time;
             s.sectorCaught = s.stats.caught;
+            s.goalSkip = 0;
             for (const m of s.mines) s.events.push({ type: 'mineDown', x: m.x, y: m.y, boss: true });
             s.mines = [];
             s.links = [];
@@ -1861,7 +1868,7 @@
             const spoiled = !garbage && corrupt.length > o.scrubbers;
             // A loop wholly inside one of your Firewall sections is safe (red can't get in), so it pays less.
             const safe = wallsNow.some(f => poly.every(v => inZone(v, f, 0.05)));
-            const mult = areaMult(area, o, fieldArea) * (1 + bonus) * (safe ? o.safeLoop : 1);
+            const mult = areaMult(area, o, fieldArea) * (1 + bonus) * (safe && !o.pen ? o.safeLoop : 1);
             const value = good.reduce((a, p) => a + valueOf(p), 0);
             return { area, inside, corrupt, good, spoiled, garbage, mult, value, safe, units: spoiled ? 0 : value * mult };
         }
@@ -2028,9 +2035,9 @@
                 }
             }
             const chainValue = chained.reduce((a, c) => a + valueOf(c.packet), 0);
-            // A loop closed moments after the last on the same stroke (a scribble) pays half.
-            const hasty = s.pen === s.lastLoopPen && s.real - s.lastLoopAt < o.scribbleGap;
-            s.lastLoopPen = s.pen;
+            // A loop closed moments after the last (a scribble, lifted or not) pays half, doesn't count toward the
+            // sector's goal and sets off none of the clean-loop rewards.
+            const hasty = s.real - s.lastLoopAt < o.scribbleGap;
             s.lastLoopAt = s.real;
             const units = (j.value + chainValue) * j.mult * (hasty ? o.scribblePay : 1);
             const gold = j.good.filter(p => p.kind === 'gold').length + chained.filter(c => c.packet.kind === 'gold').length;
@@ -2038,6 +2045,7 @@
             const count = j.good.length + chained.length;
             s.stats.catches++;
             s.stats.caught += count;
+            if (hasty) s.goalSkip += count;
             s.handCaught += count;
             s.stats.gold += gold;
             s.stats.chained += chained.length;
@@ -2045,7 +2053,7 @@
             s.stats.units += units;
             s.stats.bestCatch = Math.max(s.stats.bestCatch, units);
             s.stats.bestMult = Math.max(s.stats.bestMult, j.mult);
-            const clean = j.corrupt.length === 0;
+            const clean = j.corrupt.length === 0 && !hasty;
             // Firehose: a clean loop sends a pulse of packets in from upstream.
             if (o.pulse && clean) {
                 school(2 * o.pulse, true);
@@ -2071,7 +2079,7 @@
                 if (n) { s.stats.pushedBack += n; s.events.push({ type: 'backpressure', x: at.x, y: at.y, r: R, count: n }); }
             }
             // Floodgate: clean catches in a row set off a surge of packets.
-            if (o.surge && ++s.streak >= o.surgeEvery && s.time >= s.surgeAt) {
+            if (o.surge && !hasty && ++s.streak >= o.surgeEvery && s.time >= s.surgeAt) {
                 s.streak = 0;
                 s.surgeAt = s.time + o.surgeCooldown;
                 let left = 6 + 6 * o.surge;
@@ -2080,7 +2088,7 @@
                 s.events.push({ type: 'surge', count: 6 + 6 * o.surge });
             }
             // Infinite Loop: the loop catches again in a moment.
-            if (o.echo) s.echoes.push({ poly: poly.map(q => ({ x: q.x, y: q.y })), at: s.time + o.echoDelay, mult: j.mult });
+            if (o.echo && !hasty) s.echoes.push({ poly: poly.map(q => ({ x: q.x, y: q.y })), at: s.time + o.echoDelay, mult: j.mult });
             // Second Wind: a big loop gives Focus back.
             if (o.focusBack && j.mult >= 2) s.focus = Math.min(s.maxFocus, s.focus + o.focusBack);
             s.events.push({ type: 'catch', x: at.x, y: at.y, poly, area: j.area, count, gold, mult: j.mult, units, packets: j.inside, race: bonus, fork: j.fork || null, star: j.star || null, hasty, safe: !!j.safe,
@@ -2110,7 +2118,6 @@
             if (s.race && Math.hypot(x - s.race.at.x, y - s.race.at.y) > closeR * 1.6) settleRace();
             if (!s.drawing) {
                 s.drawing = true;
-                s.pen = (s.pen || 0) + 1;   // each stroke (pen down to up) counts once
                 s.leftStart = false;
                 s.wire = [p];
                 s.stroke = { t0: s.real, pts: [p] };

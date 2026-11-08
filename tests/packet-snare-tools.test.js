@@ -226,7 +226,8 @@ test('a sweep snaps a fast stroke whose segment straddles its line', () => {
 test('the boss is the wall: every fifth sector, gentle the first time, steeply more after, and its bounty is paid by the engine', () => {
     const first = E.SNARE_BOSS_EVERY - 1;
     assert.equal(E.snareBossHealth(0), 0, 'no boss on the first sector');
-    assert.equal(E.snareBossHealth(first), 7, 'the first boss on sector 5');
+    assert.equal(E.snareBossHealth(first), 10, 'the first boss on sector 5: two stuns');
+    assert.deepEqual([9, 14, 19].map(E.snareBossHealth), [30, 64, 90], 'then 30, 64, 90');
     assert.ok(E.snareBossHealth(9) >= 30 && E.snareBossHealth(14) >= 60, 'later bosses take far more');
     const s = E.defaultState(NOW);
     s.snare.sector = first;
