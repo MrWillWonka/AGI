@@ -505,3 +505,9 @@ still it grows nothing). Touch, with one kind of press, keeps deciding by how th
 The owner: "let's swap." Slashes, parries and spoof flicks move to the left button with the bubble: a left press
 that's moving fast waits out the flick's 0.45 s before it commits to a bubble, and let go by then it's judged as a
 flick. A held left press still grows a bubble; the right button is for loops.
+
+### Snare 12.6: bubbles on the right
+
+The owner: "left can just be the slashes and swipes and drawing a quarantine while right click bubbles." With a mouse
+the left button is the wire (loops that stun and quarantine, flicks that slash, parry and spoof) and the right button
+holds a bubble. Touch is unchanged.
