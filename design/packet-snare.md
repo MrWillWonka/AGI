@@ -545,3 +545,11 @@ entirely to the run space". On phones, upright and sideways, both fold away whil
 the frame's padding tightens, and the HUD's single row (Focus, the goal, the haul) gains a ❚❚ button that opens the
 upgrades, pausing the run. The bars come back on the end card, in the tree and when you leave the bay, so the way out
 is always one tap away. At 390 × 727 the field grew from 470 to 667 px tall; at 844 × 390 from 245 to 330.
+
+### Snare 13.2: bubbles without lag
+
+The owner: "there is a slight delay for movement on the bubble". Three delays stacked: the bubble stood still until it
+was committed (0.22 s), then chased the pen at a capped speed (0.6 of the field's shorter side a second), and the pen's
+smoothing filter (meant for wires) ran under it too. Now it sticks to the pen from its first frame (`bubbleFollow`
+0.012 s), the slop and flick checks measure from where the pen went down, and bubbles take the raw pen position. In
+the browser a 900 px/s drag leaves it about 1 px behind.

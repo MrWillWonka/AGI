@@ -125,7 +125,7 @@
         bubbleTime: 2.5,            // seconds to grow to its full size…
         bubblePow: 1.15,            // …a little faster as it goes (radius ∝ t^pow)
         bubbleMax: 0.4,             // its full radius, × the field's shorter side
-        bubbleDrift: 0.6,           // how fast it follows the pen, × the shorter side a second
+        bubbleFollow: 0.012,        // s: how closely it sticks to the pen (Snare 13.2, the owner: it lagged; it was a capped drift)
         // Bots (Snare 11, the owner's call): small drones that seek red packets by themselves. A Cleaner bot (Intrusion)
         // turns a red packet it reaches into a regular one; with Gold Plating it also turns a regular packet into gold
         // every `goldEvery` s. A Spoofer bot (Countermeasures) spoofs the red packet it reaches (good, worth ×`spoofValue`,
@@ -2311,6 +2311,13 @@
             if (!b || s.over) return;
             // it grows from the moment the pen went down
             const t = Math.min(1, (s.real - b.t0) / o.bubbleTime);
+            // it sticks to the pen from the first frame (Snare 13.2: it stood still until committed, then drifted at a capped
+            // speed, so it trailed a quick move); whether the pen has wandered off is measured from where it went down
+            if (b.pen) {
+                const k = 1 - Math.exp(-dt / o.bubbleFollow);
+                b.x += (b.pen.x - b.x) * k;
+                b.y += (b.pen.y - b.y) * k;
+            }
             const r0 = bubbleMinR();
             b.r = r0 + (bubbleMaxR - r0) * Math.pow(t, o.bubblePow);
             b.full = t >= 1;
@@ -2319,17 +2326,13 @@
                 // Snare 12.5 (the owner's call: slashes and parries on the left button): a left press that's moving fast
                 // is a flick on its way, so it waits out the flick's time before it's a bubble for good; let go by then and
                 // it's judged as a flick
-                const moved = b.pen && Math.hypot(b.pen.x - b.x, b.pen.y - b.y) > o.bubbleSlop * closeR;
+                const moved = b.pen && Math.hypot(b.pen.x - b.ox, b.pen.y - b.oy) > o.bubbleSlop * closeR;
                 if (b.locked && moved && s.real - b.t0 < o.flickTime) return;
                 b.growing = true;
                 s.stroke = null;     // it's no flick
                 s.events.push({ type: 'bubbleStart', x: b.x, y: b.y });
             }
-            // committed: it drifts after the pen (a finger's wobble moves it a little, never breaks it)
-            if (b.pen) {
-                const dx = b.pen.x - b.x, dy = b.pen.y - b.y, d = Math.hypot(dx, dy), step = o.bubbleDrift * shortSide * dt;
-                if (d > 1e-6) { const m = Math.min(1, step / d); b.x += dx * m; b.y += dy * m; }
-            }
+            // committed: it goes where the pen goes (a finger's wobble moves it, never breaks it)
             s.wire = circle(b.x, b.y, b.r);
         }
         const bubblePoly = () => (s.bubble ? circle(s.bubble.x, s.bubble.y, s.bubble.r || bubbleMinR()) : null);
@@ -2376,7 +2379,7 @@
                 s.stroke = { t0: s.real, pts: [p] };
                 // the pen's kind (Snare 12.4, the owner: on a mouse, left holds a bubble and right draws the wire): 'bubble'
                 // never turns into a wire, 'wire' never grows a bubble, none (touch) decides by how the stroke moves
-                if (o.bubble && s.penKind !== 'wire') s.bubble = { x, y, t0: s.real, r: bubbleMinR(), growing: false, pen: p, locked: s.penKind === 'bubble' };
+                if (o.bubble && s.penKind !== 'wire') s.bubble = { x, y, ox: x, oy: y, t0: s.real, r: bubbleMinR(), growing: false, pen: p, locked: s.penKind === 'bubble' };
                 return true;
             }
             // Bubbles: once one grows it owns the stroke; a pen that wanders off before then draws a wire after all.
@@ -2384,7 +2387,7 @@
                 s.bubble.pen = p;
                 if (s.bubble.growing) return true;
                 // still deciding: the stroke is kept (a flick is judged from it); a deliberate stroke draws a wire after all
-                if (s.bubble.locked || Math.hypot(x - s.bubble.x, y - s.bubble.y) <= o.bubbleSlop * closeR) {
+                if (s.bubble.locked || Math.hypot(x - s.bubble.ox, y - s.bubble.oy) <= o.bubbleSlop * closeR) {
                     if (s.stroke && s.stroke.pts.length < 400) s.stroke.pts.push(p);
                     return true;
                 }

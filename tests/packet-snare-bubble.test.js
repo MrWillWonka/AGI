@@ -157,3 +157,21 @@ test('bubbles on a mouse: a quick left swipe is a flick (it slashes a reeling bo
     assert.equal(s.stats.bubbles, 0, 'no bubble');
     assert.ok(s.boss.hp < hp, 'slashed');
 });
+
+test('bubbles stick to the pen: a fast move never leaves one trailing, from its first frame (Snare 13.2)', () => {
+    const s = still();
+    s.setPen('bubble');
+    s.addPoint(2, 4);
+    let worst = 0;
+    for (let i = 1; i <= 60; i++) {        // 9 units a second, from the moment the pen goes down
+        s.addPoint(2 + i * 0.15, 4);
+        s.step(1 / 60);
+        worst = Math.max(worst, Math.hypot(s.bubble.x - (2 + i * 0.15), s.bubble.y - 4));
+    }
+    assert.ok(s.bubble.growing, 'still a bubble');
+    assert.ok(worst < 9 * 0.017, `it keeps within a frame of the pen (worst ${worst.toFixed(3)})`);
+    const t = still();                     // touch: a wobble inside the slop is measured from where it went down
+    t.addPoint(6, 4);
+    for (let i = 1; i <= 10; i++) { t.addPoint(6 + (i % 2) * 0.3, 4); t.step(1 / 60); }
+    assert.ok(t.bubble, 'still a bubble after wobbling');
+});

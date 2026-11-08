@@ -3704,6 +3704,9 @@ window.AGI = (function () {
             if (!f) return ev;
             const dt = Math.max(0.001, (ev.timeStamp - f.t) / 1000);
             f.t = ev.timeStamp;
+            // A bubble takes the pen as it is (Snare 13.2, the owner: it lagged behind); the filter keeps up so a stroke
+            // that turns into a wire carries on from here without a jump.
+            if (snare.run?.bubble) { f.dx = 0; f.dy = 0; f.x = ev.clientX; f.y = ev.clientY; return ev; }
             const a = penAlpha(1, dt);
             f.dx += a * ((ev.clientX - f.x) / dt - f.dx);
             f.dy += a * ((ev.clientY - f.y) / dt - f.dy);
