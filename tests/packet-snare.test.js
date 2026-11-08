@@ -603,7 +603,11 @@ test('the hazards arrive one sector at a time: packets, then sweeps, then Antivi
     assert.ok(at(E.SWEEP_SECTOR).sweepFirst < Infinity && at(E.SWEEP_SECTOR).antivirus.length === 0, 'sweeps next');
     assert.ok(at(E.AV_SECTOR).antivirus.length >= 1 && at(E.AV_SECTOR).rogue === 0, 'then Antivirus');
     assert.ok(at(E.ROGUE_SECTOR).rogue >= 1 && at(E.ROGUE_SECTOR).bossMinions === 0, 'then the Rogue AI');
-    assert.ok(at(E.MINION_SECTOR).bossMinions >= 1, 'then the boss calls for help');
-    assert.ok(at(E.FAST_SWEEP_SECTOR).sweepEvery < at(E.MINION_SECTOR).sweepEvery, 'then sweeps come twice as often');
+    assert.ok(at(E.FAST_SWEEP_SECTOR).sweepEvery < at(E.ROGUE_SECTOR).sweepEvery, 'then sweeps come twice as often');
+    // The boss's own tricks are gates, much later, each with a tougher boss.
+    assert.equal(at(E.MINE_SECTOR - 1).bossMines, 0);
+    assert.ok(E.MINE_SECTOR >= 5 && at(E.MINE_SECTOR).bossMines === 2, 'its mines are a later gate');
+    assert.ok(at(E.NET_SECTOR).bossMines === 3 && at(E.MINION_SECTOR).bossMinions >= 1 && at(E.MINION_SECTOR - 1).bossMinions === 0, 'then nets, then minions');
+    assert.equal(at(E.MINE_SECTOR).boss, Math.floor(E.snareBossHp(E.MINE_SECTOR) * 1.5), 'a gate\'s boss is tougher');
     assert.deepEqual(E.SNARE_STAGES.map(x => x.sector), [...E.SNARE_STAGES.map(x => x.sector)].sort((a, b) => a - b));
 });

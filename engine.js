@@ -13,7 +13,7 @@
     // The build a player is on: stamped into every playtest log (its header and session events), so each log is read
     // against the features it had (playtests/README.md lists the builds). Bump it with every publish: the date and
     // time (UTC) and a few words on what changed.
-    const BUILD = '2026-11-08 04:10 (branch) · Packet Snare 9.1: the parry made readable and forgiving (a longer warning, a wide zone that stays on the field, an animated swipe hint, looser flicks)';
+    const BUILD = '2026-11-08 04:45 (branch) · Packet Snare 9.2: more packets and fewer red ones, front-loaded; the boss mines, nets and minions moved much later, as gate sectors';
     const SAVE_VERSION = 21;   // 21: Packet Snare's placements (snare.layout: walls, decoys, turrets, towers; the anchors went), its tree regrown; 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
@@ -539,14 +539,14 @@
         { id: 'snareMegasprawl', name: 'Megasprawl', snare: { x: 2, y: 0 }, requires: 'snareSprawl', cost: { signal: 120 }, scale: 2.5, max: 3, sn: { sprawl: 1 }, effect: 'The field grows again; at its last level, a slot more for each tool', flavor: 'Turns out the pipeline has a basement.' },
         { id: 'snareHyperscale', name: 'Hyperscale', snare: { x: 3, y: 0 }, requires: 'snareMegasprawl', cost: { signal: 800 }, scale: 2.5, max: 3, sn: { sprawl: 1 }, effect: 'A field the size of a datacentre; at its last level, another slot', flavor: 'Somebody bought the building next door.' },
         { id: 'snareOverclock', name: 'Overclock', snare: { x: 4, y: 0 }, requires: 'snareHyperscale', cost: { signal: 5100 }, scale: 1.6, endless: true, sn: { pay: 0.1 }, effect: 'Every catch pays 10% more Signal per level', flavor: 'Run it hot. Run it forever.' },
-        { id: 'snareSchools', name: 'Schooling', snare: { x: 1, y: -1 }, requires: 'snareSprawl', cost: { signal: 100 }, scale: 2, max: 1, sn: { schooling: 0.5, schoolSize: 4, density: 0.25 }, effect: 'Bigger, tighter schools, and 25% more packets', flavor: 'Data of a feather.' },
+        { id: 'snareSchools', name: 'Schooling', snare: { x: 1, y: -1 }, requires: 'snareSprawl', cost: { signal: 100 }, scale: 2, max: 1, sn: { schooling: 0.5, schoolSize: 4, density: 0.75 }, effect: 'Bigger, tighter schools, and 75% more packets', flavor: 'Data of a feather.' },
         { id: 'snareContain', name: 'Containment Field', mechanic: 'contain', snare: { x: 2, y: -1 }, requires: 'snareSchools', cost: { signal: 150 }, scale: 2, max: 1, sn: { contain: 1 }, effect: 'The edges turn good packets back; corrupt ones still leave', flavor: 'Data goes in. Data stays in.' },
-        { id: 'snareFirehose', name: 'Firehose', snare: { x: 3, y: -1 }, requires: 'snareContain', cost: { signal: 400 }, scale: 2.5, max: 3, sn: { density: 0.4 }, effect: '40% more packets on the field per level', flavor: 'Open the tap all the way.' },
-        { id: 'snareFloodgate', name: 'Floodgate', snare: { x: 4, y: -1 }, requires: 'snareFirehose', cost: { signal: 2600 }, scale: 2.5, max: 2, sn: { density: 0.4 }, effect: '40% more packets again per level', flavor: 'The tap was a suggestion.' },
-        { id: 'snareBurst', name: 'Packet Burst', snare: { x: 5, y: -1 }, requires: 'snareFloodgate', cost: { signal: 17000 }, scale: 2, max: 3, sn: { density: 0.5 }, effect: '50% more packets per level', flavor: 'All of it. At once. Now.' },
-        { id: 'snareBroadband', name: 'Broadband', snare: { x: 4, y: -2 }, requires: 'snareFloodgate', cost: { signal: 17000 }, scale: 2, max: 2, sn: { density: 0.5 }, effect: '50% more packets per level', flavor: 'Fibre to the field.' },
-        { id: 'snareMulticast', name: 'Multicast', snare: { x: 4, y: -3 }, requires: 'snareBroadband', cost: { signal: 70000 }, scale: 2, max: 2, sn: { density: 0.5 }, effect: '50% more packets per level: six times the start, all told', flavor: 'One send, everyone gets one.' },
-        { id: 'snareTorrent', name: 'Torrent', snare: { x: 4, y: 1 }, requires: 'snareProspector', cost: { signal: 13000 }, scale: 2, max: 2, sn: { density: 0.25, schoolSize: 3 }, effect: '25% more packets per level, in bigger schools', flavor: 'Seeding. Leeching. Mostly seeding.' },
+        { id: 'snareFirehose', name: 'Firehose', snare: { x: 3, y: -1 }, requires: 'snareContain', cost: { signal: 250 }, scale: 2, max: 3, sn: { density: 0.6 }, effect: '60% more packets on the field per level', flavor: 'Open the tap all the way.' },
+        { id: 'snareFloodgate', name: 'Floodgate', snare: { x: 4, y: -1 }, requires: 'snareFirehose', cost: { signal: 1200 }, scale: 2, max: 2, sn: { density: 0.5 }, effect: '50% more packets again per level', flavor: 'The tap was a suggestion.' },
+        { id: 'snareBurst', name: 'Packet Burst', snare: { x: 5, y: -1 }, requires: 'snareFloodgate', cost: { signal: 3000 }, scale: 2, max: 3, sn: { density: 0.4 }, effect: '40% more packets per level', flavor: 'All of it. At once. Now.' },
+        { id: 'snareBroadband', name: 'Broadband', snare: { x: 4, y: -2 }, requires: 'snareFloodgate', cost: { signal: 3000 }, scale: 2, max: 2, sn: { density: 0.4 }, effect: '40% more packets per level', flavor: 'Fibre to the field.' },
+        { id: 'snareMulticast', name: 'Multicast', snare: { x: 4, y: -3 }, requires: 'snareBroadband', cost: { signal: 7000 }, scale: 2, max: 2, sn: { density: 0.3 }, effect: '30% more packets per level: over seven times the start, all told', flavor: 'One send, everyone gets one.' },
+        { id: 'snareTorrent', name: 'Torrent', snare: { x: 4, y: 1 }, requires: 'snareProspector', cost: { signal: 2500 }, scale: 2, max: 2, sn: { density: 0.25, schoolSize: 3 }, effect: '25% more packets per level, in bigger schools', flavor: 'Seeding. Leeching. Mostly seeding.' },
         { id: 'snareHerders', name: 'Herders', mechanic: 'herders', snare: { x: 2, y: -2 }, requires: 'snareContain', cost: { signal: 2500 }, scale: 2, max: 3, sn: { herders: 1 }, effect: 'A drone per level herds strays together; Antivirus stun them', flavor: 'Good data. Sit. Stay.' },
         { id: 'snareHerdMaster', name: 'Evasive Herders', snare: { x: 3, y: -2 }, requires: 'snareHerders', cost: { signal: 10100 }, scale: 2, max: 2, sn: { herdEvade: 1 }, effect: 'Herders steer clear of Antivirus (wider berth per level)', flavor: 'Sheepdogs that read the room.' },
         { id: 'snareLeash', name: 'Long Leash', snare: { x: 2, y: -3 }, requires: 'snareHerders', cost: { signal: 10100 }, scale: 2, max: 2, sn: { herdRadius: 0.3 }, effect: 'Herders reach 30% further per level', flavor: 'Longer arms, same patience.' },
@@ -573,13 +573,13 @@
         { id: 'snareChainStorm', name: 'Chain Storm', snare: { x: -2, y: 0 }, requires: 'snareChain', cost: { signal: 100 }, scale: 3, max: 2, sn: { chainHops: 1 }, effect: 'Arcs jump on from the packets they reach (a hop per level)', flavor: 'Its friends tell their friends.' },
         { id: 'snareConductor', name: 'Conductor', snare: { x: -3, y: 0 }, requires: 'snareChainStorm', cost: { signal: 350 }, scale: 2, max: 2, sn: { chainRange: 0.4 }, effect: 'Chain lightning jumps 40% further per level', flavor: 'Copper all the way down.' },
         { id: 'snareScrubbers', name: 'Scrubbers', mechanic: 'scrubbers', snare: { x: -1, y: -1 }, requires: 'snareChain', cost: { signal: 100 }, scale: 2.5, max: 2, sn: { scrubbers: 1 }, effect: 'A loop forgives 1 corrupt packet per level', flavor: 'Mostly clean. Clean enough.' },
-        { id: 'snareChecksums', name: 'Checksums', snare: { x: -2, y: -1 }, requires: 'snareScrubbers', cost: { signal: 300 }, scale: 2, max: 3, sn: { cleaner: 1 }, effect: '15% fewer corrupt packets per level', flavor: 'Trust, but verify the CRC.' },
+        { id: 'snareChecksums', name: 'Checksums', snare: { x: -2, y: -1 }, requires: 'snareScrubbers', cost: { signal: 260 }, scale: 2, max: 3, sn: { cleaner: 2 }, effect: '28% fewer corrupt packets per level', flavor: 'Trust, but verify the CRC.' },
         { id: 'snareParity', name: 'Parity Check', snare: { x: -3, y: -1 }, requires: 'snareChecksums', cost: { signal: 1300 }, scale: 2, max: 2, sn: { lureMult: -0.4 }, effect: 'Corrupt packets are 40% less drawn to the schools per level', flavor: 'Odd ones out, and they know it.' },
-        { id: 'snareErrorCorrection', name: 'Error Correction', snare: { x: -4, y: -1 }, requires: 'snareParity', cost: { signal: 2700 }, scale: 2, max: 2, sn: { cleaner: 1 }, effect: '15% fewer corrupt packets again per level', flavor: 'Fixed it before it broke.' },
-        { id: 'snareSignatures', name: 'Signature Database', snare: { x: -5, y: -1 }, requires: 'snareErrorCorrection', cost: { signal: 11000 }, scale: 2, max: 3, sn: { cleaner: 1 }, effect: '15% fewer corrupt packets per level', flavor: 'It knows every bad packet by name.' },
-        { id: 'snareHeuristics', name: 'Heuristics', snare: { x: -4, y: -2 }, requires: 'snareErrorCorrection', cost: { signal: 11000 }, scale: 2, max: 2, sn: { cleaner: 1 }, effect: '15% fewer corrupt packets per level', flavor: 'It looks like malware. It walks like malware.' },
-        { id: 'snareBlocklist', name: 'Blocklist', snare: { x: -3, y: -2 }, requires: 'snareParity', cost: { signal: 5300 }, scale: 2, max: 2, sn: { cleaner: 1 }, effect: '15% fewer corrupt packets per level', flavor: 'You are not on the list.' },
-        { id: 'snareSandbox', name: 'Sandboxing', snare: { x: -2, y: -3 }, requires: 'snarePurge', cost: { signal: 7000 }, scale: 2, max: 2, sn: { cleaner: 1 }, effect: '15% fewer corrupt packets per level: a tenth of the start, all told', flavor: 'Play nicely in there.' },
+        { id: 'snareErrorCorrection', name: 'Error Correction', snare: { x: -4, y: -1 }, requires: 'snareParity', cost: { signal: 2700 }, scale: 2, max: 2, sn: { cleaner: 2 }, effect: '28% fewer corrupt packets again per level', flavor: 'Fixed it before it broke.' },
+        { id: 'snareSignatures', name: 'Signature Database', snare: { x: -5, y: -1 }, requires: 'snareErrorCorrection', cost: { signal: 6000 }, scale: 2, max: 3, sn: { cleaner: 1 }, effect: '15% fewer corrupt packets per level', flavor: 'It knows every bad packet by name.' },
+        { id: 'snareHeuristics', name: 'Heuristics', snare: { x: -4, y: -2 }, requires: 'snareErrorCorrection', cost: { signal: 6000 }, scale: 2, max: 2, sn: { cleaner: 1 }, effect: '15% fewer corrupt packets per level', flavor: 'It looks like malware. It walks like malware.' },
+        { id: 'snareBlocklist', name: 'Blocklist', snare: { x: -3, y: -2 }, requires: 'snareParity', cost: { signal: 3000 }, scale: 2, max: 2, sn: { cleaner: 1 }, effect: '15% fewer corrupt packets per level', flavor: 'You are not on the list.' },
+        { id: 'snareSandbox', name: 'Sandboxing', snare: { x: -2, y: -3 }, requires: 'snarePurge', cost: { signal: 3500 }, scale: 2, max: 2, sn: { cleaner: 1 }, effect: '15% fewer corrupt packets per level: about a twentieth of the start, all told', flavor: 'Play nicely in there.' },
         { id: 'snarePurge', name: 'Purge', mechanic: 'purge', snare: { x: -2, y: -2 }, requires: 'snareChecksums', cost: { signal: 1300 }, scale: 1.6, max: 3, sn: { purge: 1 }, effect: 'A power: wipe every corrupt packet off the field (a charge a level)', flavor: 'Format C:, but only the bad parts.' },
         { id: 'snareFirewalls', name: 'Firewalls', mechanic: 'firewall', snare: { x: -1, y: 1 }, requires: 'snareChain', cost: { signal: 120 }, scale: 2, max: 3, sn: { firewalls: 1 }, effect: 'Draw 1 / 2 / 3 walls: corrupt packets bounce off, good ones pass', flavor: 'Build a wall. Let the good stuff through.' },
         { id: 'snareLongWalls', name: 'Long Walls', snare: { x: -2, y: 1 }, requires: 'snareFirewalls', cost: { signal: 500 }, scale: 2, max: 2, sn: { wallMult: 0.4 }, effect: 'Walls can be drawn 40% longer per level', flavor: 'Longer wall, same fire.' },
@@ -2133,10 +2133,16 @@
     // parried from 9, scans twice as often from 11. The sectors between give the boss a trick of its own: mines from
     // sector 2 (two, a net between them), a ring of three from 4 (a quarantined triangle), laid faster from 6, four from 8.
     // Every sector has its boss (the gate to the next), with more health each time.
-    const MINE_SECTOR = 1, SWEEP_SECTOR = 2, NET_SECTOR = 3, AV_SECTOR = 4, ROGUE_SECTOR = 6, MINION_SECTOR = 8, FAST_SWEEP_SECTOR = 10;
+    // The boss's own tricks come much later, as **gates** (the owner's call: walls that send you off to the rest of the
+    // game to come back stronger): its mines from sector 6, nets that close into triangles from 10, Antivirus booted
+    // when it's parried from 14, four mines laid faster from 18. A gate sector's boss also has half again the health.
+    const SWEEP_SECTOR = 2, AV_SECTOR = 4, ROGUE_SECTOR = 6, FAST_SWEEP_SECTOR = 8;
+    const MINE_SECTOR = 5, NET_SECTOR = 9, MINION_SECTOR = 13, SWARM_SECTOR = 17;
+    const SNARE_GATES = [MINE_SECTOR, NET_SECTOR, MINION_SECTOR, SWARM_SECTOR];
     const SNARE_STAGES = [
-        { sector: 0, adds: 'packets' }, { sector: MINE_SECTOR, adds: 'mines' }, { sector: SWEEP_SECTOR, adds: 'sweeps' }, { sector: NET_SECTOR, adds: 'nets' },
-        { sector: AV_SECTOR, adds: 'antivirus' }, { sector: ROGUE_SECTOR, adds: 'rogue' }, { sector: MINION_SECTOR, adds: 'minions' }, { sector: FAST_SWEEP_SECTOR, adds: 'fastSweeps' }
+        { sector: 0, adds: 'packets' }, { sector: SWEEP_SECTOR, adds: 'sweeps' }, { sector: AV_SECTOR, adds: 'antivirus' },
+        { sector: MINE_SECTOR, adds: 'mines', gate: true }, { sector: ROGUE_SECTOR, adds: 'rogue' }, { sector: FAST_SWEEP_SECTOR, adds: 'fastSweeps' },
+        { sector: NET_SECTOR, adds: 'nets', gate: true }, { sector: MINION_SECTOR, adds: 'minions', gate: true }, { sector: SWARM_SECTOR, adds: 'swarm', gate: true }
     ];
     const SNARE_SECTORS = ['Ingress', 'Buffer', 'Cache', 'Backbone', 'Relay', 'Mirror', 'Vault', 'Core'];
     const snareSectorName = k => (SNARE_SECTORS[k] || `Deep ${k - SNARE_SECTORS.length + 1}`);
@@ -2144,6 +2150,8 @@
     // and Privilege Escalation take more off a flick, so the tree keeps up.
     const snareBossHp = k => 3 + k + Math.floor(k * k / 2);
     const snareBossHits = snareBossHp;
+    // A gate sector's boss has half again the health.
+    const snareBossHealth = k => Math.floor(snareBossHp(k) * (SNARE_GATES.includes(k) ? 1.5 : 1));
     function snareLevels(s) {
         const n = {}, staged = {};
         for (const up of SNARE_TREE) {
@@ -2201,8 +2209,9 @@
             chainHops: g('chainHops'),
             chainRange: B.chainRange * (1 + g('chainRange')),
             scrubbers: g('scrubbers'),
-            // Each level of the red-thinning nodes takes 15% off what's left (multiplied, so many levels never reach none).
-            corruptShare: Math.min(0.5, B.corruptShare + 0.02 * k) * Math.max(0.08, Math.pow(0.85, g('cleaner'))),
+            // Each `cleaner` unit takes 15% off what's left (multiplied, so many levels never reach none). Front-loaded (the
+            // owner's call): Checksums and Error Correction take two units a level, the later nodes one.
+            corruptShare: Math.min(0.5, B.corruptShare + 0.02 * k) * Math.max(0.05, Math.pow(0.85, g('cleaner'))),
             corruptLure: B.corruptLure * Math.max(0, 1 + g('lureMult')),
             purge: g('purge'),
             freeze: g('freeze'),
@@ -2236,15 +2245,15 @@
             ...staged,
             // The boss: gentle on the first sector, then the wall. It grows a little each sector (half what it did when
             // loops hit it), charges more often with a shorter warning, and reels a little less.
-            boss: snareBossHp(k),
+            boss: snareBossHealth(k),
             bossCatch: 10,
             bossR: B.bossR * (1 + 0.075 * k),
             bossSpeed: B.bossSpeed * (1 + 0.08 * k),
             bossCharge: Math.max(2.2, B.bossCharge - 0.3 * k),
             bossWarn: Math.max(0.9, B.bossWarn - 0.05 * k),
             bossStun: Math.max(1, B.bossStun - 0.06 * k) + g('bossStun'),
-            bossMines: k >= 7 ? 4 : k >= NET_SECTOR ? 3 : k >= MINE_SECTOR ? 2 : 0,
-            mineEvery: k >= 5 ? 8 : B.mineEvery,
+            bossMines: k >= SWARM_SECTOR ? 4 : k >= NET_SECTOR ? 3 : k >= MINE_SECTOR ? 2 : 0,
+            mineEvery: k >= SWARM_SECTOR ? 8 : B.mineEvery,
             bossMinions: k >= MINION_SECTOR ? 1 + Math.floor((k - MINION_SECTOR) / 2) : 0,
             rogue: k >= ROGUE_SECTOR ? 1 + Math.floor((k - ROGUE_SECTOR) / 3) : 0,
             cleanStart: s.snare.runs < 2,
@@ -2274,7 +2283,7 @@
     // the bounty paid.
     function snareBossDown(s, sector = s.snare.sector) {
         const replay = sector < s.snare.sector;
-        const pay = snareCatch(s, (replay ? 3 : 6) * snareBossHp(sector), sector);
+        const pay = snareCatch(s, (replay ? 3 : 6) * snareBossHealth(sector), sector);
         s.snare.bosses++;
         s.snare.sector = Math.max(s.snare.sector, sector + 1);
         return pay;
@@ -3019,7 +3028,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
-        snareCatch, snareBossDown, finishSnare, snareOpts, SNARE_STAGES, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, snareBossHp, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
+        snareCatch, snareBossDown, finishSnare, snareOpts, SNARE_STAGES, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, snareBossHp, snareBossHealth, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany

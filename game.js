@@ -4066,7 +4066,8 @@ window.AGI = (function () {
         return b;
     }
 
-    const snareSector = k => `Sector ${k + 1}: ${E.snareSectorName(k)}`;
+    // A gate sector (the boss's new trick and half again its health) says so.
+    const snareSector = k => `Sector ${k + 1}: ${E.snareSectorName(k)}${E.SNARE_GATES.includes(k) ? ' · Gate' : ''}`;
     // What the best haul feeds: research, a trickle while you play.
     const snareRpLine = () => {
         const rp = E.derive(state).snareRp;
