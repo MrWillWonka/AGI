@@ -1,0 +1,60 @@
+The Path to AGI · playtest log
+Log v1 · began 2026-11-08T01:14:44.967Z · exported 2026-11-08T01:40:35.229Z
+build: 2026-11-07 (branch) · Packet Snare 8: rule-breaking flicks (Parry and Slash, Spoofing), Garbage Collection, Race Condition, Hijack, Collusion; active nodes first, automation later; the field fits the screen; replayable sectors (review round 3)
+save: v21, v1.0, 4 skills
+screen: 440×840, touch
+browser: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Claude/1.261030.19
+
+The owner's brother, iPhone, Packet Snare only (debug Open Packet Snare), a fresh save on Packet Snare 8. "Hit a haaard
+wall he couldn't go past": sector 6. Filed trimmed: samples and views removed, each run's fields cut to the ones that
+moved (t, sector, haul, bossHits, catches, caught, empty, bestMult, chained, wiped, stolen, lasered, turreted, purged,
+tagged, flags, parries, area, worth, secs).
+
+Play time 25.9 min over 1 session, 322 events, 25.8 min on the clock.
+Skill-tree and legacy buys: 90; 13% the cheapest affordable, the rest dearer picks.
+Time by screen: bay:pipeline 19.1 min (74%), snareTree 6.6 min (25%).
+
+Runs (t, sector, haul, boss hits, catches/caught, empty loops, best ×, chained, wiped, stolen, auto: lasered/turreted/purged, tagged, flags/parries, area, worth, secs):
+  44 s1 58 hits1 (boss down 35) 6/28 e0 ×1.75 area70 16s
+  95 s2 29 hits1 2/13 e0 ×1.83 11s | 111 s2 34 hits0 5/19 e0 ×1.26 14s | 157 s2 82 hits1 7/43 e1 ×1.26 ch6 area179 14s
+  172 s2 39 hits0 4/28 e0 ×1.13 9s | 199 s2 142 hits2 (boss down 191) 11/70 ×1.37 ch10 16s
+  212 s3 31 hits1 1/11 snaps4 9s | 225 s3 17 hits1 2/10 12s | 246 s3 79 hits1 5/39 ×1.82 12s | 263 s3 52 hits0 area287 12s
+  281 s3 67 hits0 4/27 ×1.75 11s | 298 s3 58 hits2 wiped23 13s | 317 s3 94 hits0 wiped28 17s
+  353 s3 413 hits4 (boss down 343) 12/156 ×1.48 ch15 23s
+  381 s4 35 hits0 e3 cores1 quarantined1 7s | 402 s4 91 hits3 16s | 478 s4 0 hits0 stolen78 28s
+  500 s4 505 hits0 15/174 ch38 20s | 541 s4 373 hits1 wiped35 stolen97 23s | 573 s4 439 hits6 (boss down 571) 23s
+  595 s5 144 hits0 e19 11s | 604 s5 186 hits0 e22 7s | 615 s5 435 hits9 (boss down 614) e29 ×2.16 9s
+  633 s6 240 hits1 e11 7s | 644 s6 215 hits8 e8 10s | 665 s6 399 hits6 e8 ×2.36 flags1 11s | 684 s6 470 hits0 wiped68 e4 12s
+  700 s6 567 hits1 e22 area511 worth1.44 10s | 716 s6 448 hits10 e15 13s | 735 s6 1105 hits0 e20 11s | 755 s6 817 hits0 e15 12s
+  774 s6 136 hits1 e9 parries1 snaps4 7s | 786 s6 735 hits1 e34 10s | 801 s6 361 hits1 e19 flags2 parries1 spoofed1 10s
+  818 s6 877 hits0 e26 11s | 837 s6 1681 hits0 e32 worth2.3 12s | 857 s6 1802 hits0 e20 worth3.68 13s | 874 s6 833 hits7 e6 10s
+  907 s6 2868 hits10 e17 11s | 939 s6 3326 hits0 e23 12s | 963 s6 3415 hits1 e22 10s | 971 s6 2403 hits8 e7 7s
+  998 s6 10728 hits4 e17 ×2.01 worth5.88 16s | 1016 s6 14851 hits0 e20 worth9.41 11s | 1036 s6 19478 hits0 e25 tagged304 11s
+  1062 s6 18464 hits9 e15 lasered2 12s | 1080 s6 8358 hits0 wiped97 e10 11s | 1102 s6 18184 hits4 e15 14s | 1125 s6 11250 hits2 e13 13s
+  1145 s6 21826 hits0 e12 12s | 1170 s6 20424 hits2 e20 13s | 1221 s6 49943 hits5 turreted10 purged102 18s
+  1255 s6 107529 hits0 wiped100 stolen384 ×2.96 19s | 1280 s6 7264 hits0 catches0 15s | 1319 s6 18355 hits2 freezes3 bounces15 29s
+  1341 s6 19946 hits5 bounces88 22s | 1363 s6 7787 hits5 19s | 1416 s6 30461 hits2 e17 raced4 21s
+  1502 s6 152225 hits0 wiped468 cores8 stolen492 lasered73 turreted50 purged197 tagged1979 sweeps16 ×4.12 67s
+
+Bosses: sector 1 at 35 s (7 s in), 2 at 191 (8 s in), 3 at 343 (12 s in), 4 at 571 (21 s in), 5 at 614 (9 s in, 9 hits in
+one run). Sector 6 (12 hits): 30 runs over 15 min, best 10 of 12 (twice), most runs 0–5.
+
+Buys (t id lvl price): 124 Chain 1 30 · 141 Sprawl 1 15 · 142 Sprawl 2 38 · 177 ChainStorm 1 100 · 182 Focus 1 25 ·
+231 Chain 2 90 · 233 Scrubbers 1 100 · 250 Sprawl 3 94 · 267 Gc 1 40 · 285 Focus 2 75 · 325 Schools 1 100 ·
+366 ChainStorm 2 300 · 370 Contain 1 150 · 432 Gold 1 100 · 513 Conductor 1 350 · 515 Firewalls 1 120 ·
+549 Scrubbers 2 250 · 582 Spoof 1 300 · 620 Conductor 2 700 · 625 Checksums 1 300 · 651 Focus 3 225 · 653 Gold 2 250 ·
+669 Bandwidth 1 250 · 671 Firewalls 2 240 · 688 Megasprawl 1 120 · 689 Megasprawl 2 300 · 721 Spoof 2 750 ·
+722 MotherLode 1 300 · 764 Parry 1 1900 · 790 Checksums 2 600 · 806 Bandwidth 2 625 · 823 Hyperscale 1 800 ·
+840 Megasprawl 3 750 · 843 Firehose 1 400 · 892 Prospector 1 2000 · 893 MotherLode 2 750 · 895 Firewalls 3 480 ·
+925 LongWire 1 1600 · 926 Firehose 2 1000 · 948 Firehose 3 2500 · 976 Floodgate 1 2600 · 977 Hyperscale 2 2000 ·
+981 WideRing 1 1600 · 1003 Overclock 1 5100 · 1004 Hyperscale 3 5000 · 1020 Herders 1–2 2500/5000 · 1022 Floodgate 2 6500 ·
+1024 Scanner 1 2000 · 1040 Herders 3 10000 · 1045 WideRing 2 3200 · 1049 Laser 1 3000 · 1067 Laser 2–3 6000/12000 ·
+1084 HerdMaster 1 10100 · 1087 Steady 1 1600 · 1106 LongWire 2 3200 · 1108 Overclock 2 8160 · 1111 Scanner 2 6000 ·
+1130 Turrets 1 12500 · 1156 HerdMaster 2 20200 · 1180 Purge 1–3 · 1189 SecondWind 1–2 · 1196 Parity 1–2 · 1197 Checksums 3 ·
+1229 DeepFocus 1–2 · 1231 Freeze 1–3 · 1233 Steady 2 · 1367 Leash 1–2 · 1370 Dilation 1–2 · 1372 Race 1–2 ·
+1375 Overflow 1–2 · 1385 Purifier 1 50500 · 1387 LongWalls 1 500 · 1420 Emitters 1 12500 · 1422 Overclock 3 ·
+1426 Hardened 1–2 · 1427 Obfuscation 1 2300
+
+Tips: boss 29, sweep 90, antivirus 205, gc 268, rogue 375, firewall 516, spoof 583, parry 770, turret 1132,
+purge 1201, freeze 1235, race 1392. Achievements: snareFirst, snareBoss, snareQuarantine, snareHaul, snareSectors,
+snareBigLoop (×4.12 at 1502).
