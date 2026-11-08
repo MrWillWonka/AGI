@@ -140,7 +140,8 @@
         bossCatch: 18,
         bossSpeed: 1,               // × an Antivirus's roaming speed
         bossCharge: 5,              // seconds between its charges
-        bossWarn: 1.1,              // seconds its warning line shows before it dashes (the parry window)
+        bossWarn: 1.6,              // seconds its warning line shows before it dashes (the parry window; 1.1 was too
+                                    // short to read and hit on a phone)
         bossStun: 1.6,              // seconds it reels after a parry (the slash window)
         bossMinions: 0,             // Antivirus it boots each time it's parried (later sectors), at most `minionCap` alive
         minionCap: 2,
@@ -174,7 +175,7 @@
         spoof: 0,
         spoofSeconds: 5,
         spoofValue: 2,
-        flickTime: 0.35,
+        flickTime: 0.45,            // (0.35 missed real thumbs)
         flickLength: 1.2,
         flagLimit: 3,               // flags and an IDS alert: the boss boots now, enraged (or another Antivirus)
         flagNear: 1.2,              // units: how near a flick must pass to something it could hit to be flagged
@@ -493,7 +494,13 @@
             return { x: b.x + Math.cos(ang) * 3, y: b.y + Math.sin(ang) * 3 };
         }
         // How far a charge goes (its warning line is drawn this long).
-        const chargeReach = b => BOSS_DASH_SPEED * BOSS_DASH * o.avSpeed + b.r;
+        // It reaches well past its own body (the owner's playtest: with a big boss most of the line was inside it, and what
+        // stuck out was too short to hit): at least a third of the field's shorter side beyond its edge.
+        const fullReach = b => Math.max(BOSS_DASH_SPEED * BOSS_DASH * o.avSpeed, 0.33 * shortSide) + b.r;
+        // How far it can go from (x, y) along (dx, dy) before leaving the field.
+        const room = (x, y, dx, dy) => Math.min(dx > 0 ? (w - x) / dx : dx < 0 ? -x / dx : Infinity, dy > 0 ? (h - y) / dy : dy < 0 ? -y / dy : Infinity);
+        // The line it shows (and dashes along) stays on the field: never past an edge.
+        const chargeReach = b => (b.charge?.len ?? fullReach(b));
         function bossStep(dt) {
             if (!o.boss || s.bossDone) return;
             if (!s.boss) {
@@ -517,13 +524,25 @@
             if (b.charge) {
                 b.charge.t += dt;
                 if (b.charge.t < b.charge.warn) { b.vx *= 0.8; b.vy *= 0.8; }
-                else if (b.charge.t < b.charge.warn + BOSS_DASH) { b.vx = b.charge.dx * BOSS_DASH_SPEED * o.avSpeed; b.vy = b.charge.dy * BOSS_DASH_SPEED * o.avSpeed; }
+                else if (b.charge.t < b.charge.warn + BOSS_DASH) {
+                    // The dash covers the warning line.
+                    const v = (chargeReach(b) - b.r) / BOSS_DASH;
+                    b.vx = b.charge.dx * v; b.vy = b.charge.dy * v;
+                }
                 else { b.charge = null; b.chargeAt = s.time + o.bossCharge * (b.enraged ? 0.6 : 1); }
             } else {
                 const aim = s.time >= (b.chargeAt ?? 0) ? chargeTarget(b) : null;
                 if (aim) {
                     const L = Math.hypot(aim.x - b.x, aim.y - b.y) || 1;
-                    b.charge = { t: 0, warn: o.bossWarn * (b.enraged ? 0.8 : 1), dx: (aim.x - b.x) / L, dy: (aim.y - b.y) / L };
+                    let dx = (aim.x - b.x) / L, dy = (aim.y - b.y) / L;
+                    // Aimed at a wall it would barely show (the owner's playtest: the zone ran off the field): it turns
+                    // toward the middle instead.
+                    if (room(b.x, b.y, dx, dy) - b.r < 0.25 * shortSide) {
+                        const cx = w / 2 - b.x, cy = h / 2 - b.y, cl = Math.hypot(cx, cy);
+                        if (cl > 1e-6) { dx = cx / cl; dy = cy / cl; }
+                    }
+                    const len = Math.max(b.r + 0.5, Math.min(fullReach(b), room(b.x, b.y, dx, dy) - 0.2));
+                    b.charge = { t: 0, warn: o.bossWarn * (b.enraged ? 0.8 : 1), dx, dy, len };
                     s.events.push({ type: 'bossCharge', x: b.x, y: b.y });
                 }
                 // Decoys count as half as far away as packets (it falls for them).
@@ -1244,7 +1263,7 @@
             if (!boss && !o.spoof) return false;
             const a = st.pts[0], b = st.pts[st.pts.length - 1];
             const chord = Math.hypot(b.x - a.x, b.y - a.y), path = wireLength(st.pts);
-            if (s.real - st.t0 > o.flickTime || chord < o.flickLength || chord < path * 0.85) return false;
+            if (s.real - st.t0 > o.flickTime || chord < o.flickLength || chord < path * 0.75) return false;
             let hit = false, near = false;
             if (boss) {
                 const through = segDist(boss, a, b) < boss.r;
@@ -1258,10 +1277,13 @@
                     if (damageBoss(boss, o.escalateDamage, 'ram')) boss.stunned = Math.max(boss.stunned, s.time + o.bossStun * 0.6);
                     hit = true;
                 } else if (boss.charge && boss.charge.t < boss.charge.warn) {
-                    // A parry: across its warning line (or through it) while it warns.
+                    // A parry: across its warning line, through the boss, or a flick that comes within reach of the line
+                    // (forgiving: it's a quick gesture on a moving target, often a thumb).
                     const L = chargeReach(boss);
                     const end = { x: boss.x + boss.charge.dx * L, y: boss.y + boss.charge.dy * L };
-                    if (segIntersect(a, b, boss, end) || through) {
+                    const reach = Math.max(0.5, 0.04 * shortSide);
+                    const close = segDist(a, boss, end) < reach || segDist(b, boss, end) < reach || segDist({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, boss, end) < reach;
+                    if (segIntersect(a, b, boss, end) || segDist(boss, a, b) < boss.r * 1.4 || close) {
                         s.events.push({ type: 'parryFlick', a, b });
                         parryBoss(boss);
                         hit = true;

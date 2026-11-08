@@ -210,7 +210,7 @@ test('the boss is the wall: 3 health on the first sector, steeply more after, an
     assert.equal(s.snare.signal, pay);
     assert.equal(s.snare.sector, 1);
     const late = E.snareOpts({ ...s, snare: { ...s.snare, sector: E.MINION_SECTOR } });
-    assert.ok(late.bossMinions > 0 && late.bossCharge < 5 && late.bossSpeed > 1 && late.bossWarn < 1.1);
+    assert.ok(late.bossMinions > 0 && late.bossCharge < 5 && late.bossSpeed > 1 && late.bossWarn < 1.6);
     assert.equal(E.snareOpts(s, 0).bossMines, 0, 'no mines on the first sector');
     assert.equal(E.snareOpts(s, E.MINE_SECTOR).bossMines, 2, 'two from the second');
     assert.equal(E.snareOpts(s, E.NET_SECTOR).bossMines, 3, 'a ring of three from the fourth');

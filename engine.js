@@ -13,7 +13,7 @@
     // The build a player is on: stamped into every playtest log (its header and session events), so each log is read
     // against the features it had (playtests/README.md lists the builds). Bump it with every publish: the date and
     // time (UTC) and a few words on what changed.
-    const BUILD = '2026-11-08 03:30 (branch) · Packet Snare 9: the boss fought with flicks (parry, slash, health), mines and nets, hazards every other sector, many more packets and fewer red ones, no phone bonus, defensive turrets, Fork Bomb, Starburst, Privilege Escalation (review round 4)';
+    const BUILD = '2026-11-08 04:10 (branch) · Packet Snare 9.1: the parry made readable and forgiving (a longer warning, a wide zone that stays on the field, an animated swipe hint, looser flicks)';
     const SAVE_VERSION = 21;   // 21: Packet Snare's placements (snare.layout: walls, decoys, turrets, towers; the anchors went), its tree regrown; 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
@@ -2241,7 +2241,7 @@
             bossR: B.bossR * (1 + 0.075 * k),
             bossSpeed: B.bossSpeed * (1 + 0.08 * k),
             bossCharge: Math.max(2.2, B.bossCharge - 0.3 * k),
-            bossWarn: Math.max(0.6, B.bossWarn - 0.05 * k),
+            bossWarn: Math.max(0.9, B.bossWarn - 0.05 * k),
             bossStun: Math.max(1, B.bossStun - 0.06 * k) + g('bossStun'),
             bossMines: k >= 7 ? 4 : k >= NET_SECTOR ? 3 : k >= MINE_SECTOR ? 2 : 0,
             mineEvery: k >= 5 ? 8 : B.mineEvery,

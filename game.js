@@ -3774,7 +3774,7 @@ window.AGI = (function () {
     // a phone's ×15 `worth` is gone); the packets a bigger field would hold fill a capped one more densely instead, up to
     // `densityCap` a unit², so it stays readable. A flick is `SNARE_FLICK` px long, and the loop's closing ring
     // `SNARE_CLOSE` px across, on any field.
-    const SNARE_PPU = 20, SNARE_FLICK = 64, SNARE_CLOSE = 36;
+    const SNARE_PPU = 20, SNARE_FLICK = 48, SNARE_CLOSE = 36;
     function snareField(area = E.snareOpts(state).area, o = null) {
         const aspect = Math.min(3.5, Math.max(0.5, snare.cw / snare.ch || 1.6));
         const cap = snare.cw > 0 && snare.ch > 0 ? Math.max(window.PacketSnare.FIELD_AREA, snare.cw * snare.ch / SNARE_PPU ** 2) : area;
@@ -3951,7 +3951,7 @@ window.AGI = (function () {
                 else if (t === 'sweep') { sfx('snareSweep'); snareIntro('sweep'); }
                 else if (t === 'boss') { sfx('snareBoss'); snareIntro('boss'); if (e.enraged) shake(0.3); }
                 else if (t === 'bossCharge') sfx('snareCharge');
-                else if (t === 'parry') { sfx('snareParry'); shake(0.2); }
+                else if (t === 'parry') { sfx('snareParry'); shake(0.2); state.intro['snare:parried'] = true; }
                 else if (t === 'slash' && e.shielded) sfx('snareStun', { down: false });
                 else if (t === 'bossHit') { sfx(e.how === 'ram' ? 'snareHit' : 'snareSlash'); shake(0.25); }
                 else if (t === 'bossBlock') sfx('snareFlag', { flags: 1, limit: 3 });
@@ -3983,7 +3983,7 @@ window.AGI = (function () {
         lasso: ['Packet Snare', 'Draw round the data and bring the wire back to its start to close the loop. Bigger loops pay more; a red packet inside spoils the lot.'],
         antivirus: ['Antivirus', 'It hunts your open wire. If it touches it, the wire snaps and you lose Focus.'],
         sweep: ['Full Scan', 'Its edge flashes, then it sweeps the whole field. Any wire it crosses snaps.'],
-        boss: ['Boss Antivirus', 'It wipes the data it touches, and every few seconds it locks on and charges. Flick across its red warning line (a quick straight stroke) to parry it, then flick through it while it reels: each slash takes health off. Clear its health to clear the sector.'],
+        boss: ['Boss Antivirus', 'Every few seconds it locks on: a red zone shows where it will charge. Swipe across the red zone (a quick, short, straight swipe, like the amber arrow) to parry it. Then, while it spins and reads SLASH!, swipe through the boss itself: each swipe takes health off. Clear its health to clear the sector.'],
         mines: ['Mines', 'The boss lays mines. Two near each other grow a net that wipes the data it crosses, and while any mine stands the boss is shielded. Loop a mine to clear it.'],
         nets: ['Nets', 'Three mines now: once their nets join up, everything inside the triangle is wiped. Loop the mines before the nets close.'],
         rogue: ['The Rogue AI', 'Its cores grow and take the data they reach. Loop a core tight to quarantine it; your walls keep it off the data behind them.'],
@@ -5461,38 +5461,71 @@ window.AGI = (function () {
         const reeling = b.stunned > t;
         const col = reeling ? C.warning : C.danger;
         if (b.charge && b.charge.t < b.charge.warn) {
+            // The warning: a wide red zone along where it will charge, a countdown filling it, and a hand-drawn swipe
+            // across it showing the gesture (the owner couldn't tell what to do, and the old thin line was mostly
+            // hidden inside a big boss).
             const L = run.chargeReach(b) * k;
-            const ex = x + b.charge.dx * L, ey = y + b.charge.dy * L;
+            const dx = b.charge.dx, dy = b.charge.dy, nx = -dy, ny = dx;
+            const sx0 = x + dx * r, sy0 = y + dy * r, ex = x + dx * L, ey = y + dy * L;
             const left = 1 - b.charge.t / b.charge.warn;
-            ctx.globalAlpha = 0.55 + 0.35 * Math.sin(t * 30);
-            ctx.strokeStyle = C.danger;
-            ctx.lineWidth = 2;
-            ctx.setLineDash([6, 6]);
+            const band = Math.max(14, Math.max(0.5, 0.04 * Math.min(run.w, run.h)) * k);
+            ctx.globalAlpha = 0.16 + 0.08 * Math.sin(t * 20);
+            ctx.fillStyle = C.danger;
             ctx.beginPath();
-            ctx.moveTo(x, y);
+            ctx.moveTo(sx0 + nx * band, sy0 + ny * band); ctx.lineTo(ex + nx * band, ey + ny * band);
+            ctx.lineTo(ex - nx * band, ey - ny * band); ctx.lineTo(sx0 - nx * band, sy0 - ny * band);
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 0.9;
+            ctx.strokeStyle = C.danger;
+            ctx.lineWidth = 3;
+            ctx.setLineDash([8, 6]);
+            ctx.beginPath();
+            ctx.moveTo(sx0, sy0);
             ctx.lineTo(ex, ey);
             ctx.stroke();
             ctx.setLineDash([]);
-            // ticks across the line, where a flick parries it; they close in as the warning runs out
-            ctx.strokeStyle = C.warning;
-            ctx.lineWidth = 2.5;
-            ctx.globalAlpha = 0.95;
+            // the time left: the solid part of the line shrinks back toward the boss
+            ctx.lineWidth = 5;
             ctx.beginPath();
-            const span = 6 + 8 * left;
-            for (let u = 0.35; u <= 0.95; u += 0.2) {
-                const px = x + (ex - x) * u, py = y + (ey - y) * u, nx = -b.charge.dy * span, ny = b.charge.dx * span;
-                ctx.moveTo(px - nx, py - ny);
-                ctx.lineTo(px + nx, py + ny);
-            }
+            ctx.moveTo(sx0, sy0);
+            ctx.lineTo(sx0 + (ex - sx0) * left, sy0 + (ey - sy0) * left);
             ctx.stroke();
-            ctx.font = `700 12px ${snareMono()}`;
+            // the gesture: an amber arrow sweeping across the line, again and again
+            const mx = sx0 + (ex - sx0) * 0.55, my = sy0 + (ey - sy0) * 0.55;
+            const span = band + 26, ph = (t * 2.2) % 1;
+            const from = -span, to = span, cur = from + (to - from) * Math.min(1, ph * 1.3);
+            ctx.strokeStyle = C.warning;
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.globalAlpha = 0.95 * (1 - Math.max(0, ph - 0.75) * 4);
+            ctx.beginPath();
+            ctx.moveTo(mx + nx * from, my + ny * from);
+            ctx.lineTo(mx + nx * cur, my + ny * cur);
+            ctx.stroke();
+            // its arrowhead
+            const hx = mx + nx * cur, hy = my + ny * cur;
+            ctx.beginPath();
+            ctx.moveTo(hx - nx * 9 + dx * 7, hy - ny * 9 + dy * 7);
+            ctx.lineTo(hx, hy);
+            ctx.lineTo(hx - nx * 9 - dx * 7, hy - ny * 9 - dy * 7);
+            ctx.stroke();
+            // what to do, in words, until you've parried once
+            const label = state.intro['snare:parried'] ? 'PARRY' : 'SWIPE ACROSS TO PARRY';
+            ctx.globalAlpha = 1;
+            ctx.font = `700 13px ${snareMono()}`;
             ctx.textAlign = 'center';
             ctx.lineWidth = 3;
             ctx.strokeStyle = C.bg;
-            const mx = x + (ex - x) * 0.65 - b.charge.dy * 22, my = y + (ey - y) * 0.65 + b.charge.dx * 22;
-            ctx.strokeText('PARRY', mx, my);
+            // kept inside the field, on whichever side of the line has room
+            const tw = ctx.measureText(label).width, FW = run.w * k, FH = run.h * k;
+            let side = span + 16;
+            const fits = q => q.x > tw / 2 + 4 && q.x < FW - tw / 2 - 4 && q.y > 14 && q.y < FH - 6;
+            if (!fits({ x: mx + nx * side, y: my + ny * side + 4 }) && fits({ x: mx - nx * side, y: my - ny * side + 4 })) side = -side;
+            const lx = Math.max(tw / 2 + 4, Math.min(FW - tw / 2 - 4, mx + nx * side)), ly = Math.max(14, Math.min(FH - 6, my + ny * side + 4));
+            ctx.strokeText(label, lx, ly);
             ctx.fillStyle = C.warning;
-            ctx.fillText('PARRY', mx, my);
+            ctx.fillText(label, lx, ly);
             ctx.globalAlpha = 1;
         }
         if (b.enraged) {
