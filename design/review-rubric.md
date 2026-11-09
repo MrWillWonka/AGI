@@ -3,6 +3,12 @@
 Seven categories, each scored 1–10 (whole or half points) by playing the build, not by reading about it. Each category
 lists what to measure and how; a score must cite what was observed (numbers, screenshots, moments).
 
+**Two scores per category** (from round 9): **Early** (the first twenty minutes: sectors 1–5, the first boss) and
+**Late** (after it: later sectors and bosses, the late tree, a full field). A round's score in a category is the mean of
+its Early and Late averages, and both are reported, so gains in the early game aren't hidden by the late one.
+
+**For every category you score, also give the one change that would raise it by a point** (one line, concrete).
+
 **Anchors, for every category:** 10 = best in class, as good as the best-loved games of its kind; 9 = excellent, hard to
 fault; 8 = strong and polished, only small nitpicks; 7 = good with a few clear problems; 6 = decent but problems a player
 would notice and mind; 5 = mixed, as much wrong as right; 4 = significant problems; 3 = poor; 2 = barely works; 1 = broken.

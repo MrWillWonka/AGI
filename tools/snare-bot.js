@@ -5,12 +5,19 @@
 // and slashes it while it reels, a flick at a time. It never uses walls, decoys, powers or the other exploits, so it's a
 // floor: a player with the tools does better.
 //   const bot = createBot(run, { react: 0.3, slashEvery: 0.22 }); each frame: bot.step(dt); run.step(dt);
+// `createBot(run, HUMAN)` plays at a person's pace (tools/review: calibrated to the owner's phone log of 2026-11-09): a
+// pause between bubbles (`gap`), a longer hold, a slower slash, an aim that's off by up to `aim` units, and a little
+// carelessness about red (`careless`: the share of bubbles let go late).
 'use strict';
 
 function createBot(s, opt = {}) {
     const react = opt.react ?? 0.3;          // seconds from a charge's warning to the parry
     const slashEvery = opt.slashEvery ?? 0.22;
     const holdFor = opt.hold ?? 1.2;         // seconds a catching bubble is held
+    const gap = opt.gap ?? 0.35;             // seconds between bubbles
+    const aim = opt.aim ?? 0;                // units a bubble lands off where it's meant to
+    const careless = opt.careless ?? 0;      // share of bubbles that ignore red coming in
+    const rand = opt.rand || (() => 0.5);
     let plan = [], wait = 0, nextSlash = 0, parried = null, hold = null;
     // `turns` times round (the boss takes more than one loop to stun)
     const ring = (cx, cy, rad, turns = 1) => {
@@ -89,7 +96,7 @@ function createBot(s, opt = {}) {
             return;
         }
         // The biggest clean cluster, held until it's grown or red comes near.
-        wait = 0.35;
+        wait = gap;
         let best = 0, target = null;
         const rad = Math.max(1.3, s.closeR * 1.2), reach = rad + 0.4;
         for (const p of s.packets) {
@@ -103,8 +110,11 @@ function createBot(s, opt = {}) {
             if (!bad && n > best) { best = n; target = p; }
         }
         if (target && (!b || Math.hypot(target.x - b.x, target.y - b.y) > b.r + 2)) {
-            const x = target.x + target.vx * 0.3, y = target.y + target.vy * 0.3;
-            bubble(x, y, holdFor, () => {
+            const off = aim * rand(), ang = rand() * Math.PI * 2;
+            const x = target.x + target.vx * 0.3 + Math.cos(off ? ang : 0) * off, y = target.y + target.vy * 0.3 + Math.sin(off ? ang : 0) * off;
+            const blind = rand() < careless;
+            bubble(x, y, holdFor * (0.8 + 0.4 * rand()), () => {
+                if (blind) return false;
                 const bb = s.bubble;
                 if (!bb?.growing) return false;
                 return s.packets.some(q => q.kind === 'corrupt' && !(q.spoof > s.time) && Math.hypot(q.x - bb.x, q.y - bb.y) < bb.r + 0.25);
@@ -114,4 +124,8 @@ function createBot(s, opt = {}) {
     return { step };
 }
 
-module.exports = { createBot };
+// A person's pace (the owner's phone log of 2026-11-09: 5–9 catches in a 12–18 s run, about 7 packets a catch, two spoils
+// in 18 runs); `tools/review/pacing.js` checks it against that log.
+const HUMAN = { react: 0.4, slashEvery: 0.25, hold: 2.0, gap: 0.3, aim: 0.15, careless: 0.2 };
+
+module.exports = { createBot, HUMAN };

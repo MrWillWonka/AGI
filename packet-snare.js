@@ -1015,7 +1015,7 @@
             if (s.wire.length > 1 && !flicking && !(s.bubble && s.time - (b.born ?? -9) < 1.5)) {
                 for (let i = 1; i < s.wire.length; i++) {
                     // Its snap costs half again what an Antivirus's does.
-                    if (segDist(b, s.wire[i - 1], s.wire[i]) < b.r * 0.85) { const pop = !!s.bubble?.growing; snap(b); if (!pop) s.focus = Math.max(0, s.focus - o.snapPenalty * 0.5); break; }
+                    if (segDist(b, s.wire[i - 1], s.wire[i]) < b.r * 0.85) { const pop = !!s.bubble?.growing; snap(b, 'boss'); if (!pop) s.focus = Math.max(0, s.focus - o.snapPenalty * 0.5); break; }
                 }
             }
             // Your Firewall sections hold it off, and the first touch each approach stuns it: a slash window.
@@ -1288,9 +1288,10 @@
             return best;
         }
 
-        function snap(fw) {
+        // `by`: what did it (the boss, an Antivirus, a scan, a core), for the playtest log
+        function snap(fw, by = '') {
             const popped = !!s.bubble?.growing;
-            s.events.push({ type: 'snap', x: fw.x, y: fw.y, wire: s.wire.slice(), bubble: popped });
+            s.events.push({ type: 'snap', x: fw.x, y: fw.y, wire: s.wire.slice(), bubble: popped, by, boss: !!s.boss });
             s.bubble = null;
             s.wire = [];
             s.drawing = false;
@@ -1819,7 +1820,7 @@
                     const c = q => (sw.axis === 'x' ? q.x : q.y);
                     for (let i = 0; i < s.wire.length; i++) {
                         const a = s.wire[i], b = s.wire[i + 1] || a;
-                        if (Math.max(c(a), c(b)) >= lo && Math.min(c(a), c(b)) <= hi) { snap({ x: a.x, y: a.y }); break; }
+                        if (Math.max(c(a), c(b)) >= lo && Math.min(c(a), c(b)) <= hi) { snap({ x: a.x, y: a.y }, 'scan'); break; }
                     }
                 }
             }
@@ -1948,7 +1949,7 @@
                 s.stats.raceBroken++;
                 const c = centroid(r.poly);
                 s.events.push({ type: 'raceBroken', x: c.x, y: c.y, by: dashing ? 'boss' : 'scan' });
-                snap(c);
+                snap(c, dashing ? 'boss' : 'scan');
                 return;
             }
             r.t += dt;
@@ -2199,7 +2200,7 @@
                 bounce(f);
                 if (s.wire.length > 1) {
                     for (let i = 1; i < s.wire.length; i++) {
-                        if (segDist(f, s.wire[i - 1], s.wire[i]) < f.r) { snap(f); break; }
+                        if (segDist(f, s.wire[i - 1], s.wire[i]) < f.r) { snap(f, 'antivirus'); break; }
                     }
                 }
                 // It breaks a decoy it reaches.
@@ -2373,6 +2374,7 @@
         function loopBoss(poly) {
             if (!s.boss || s.boss.stunned > s.time || !pointInPolygon(s.boss, poly)) return false;
             const b = s.boss;
+            const late = (b.loops || 0) > 0 && s.time - (b.loopAt ?? -1e9) > o.bossLoopWindow;
             b.loops = s.time - (b.loopAt ?? -1e9) <= o.bossLoopWindow ? (b.loops || 0) + 1 : 1;
             b.loopAt = s.time;
             if (b.loops >= o.bossLoops) {
@@ -2380,7 +2382,7 @@
                 stunBoss(b);
                 s.stats.loopStuns++;
                 s.events.push({ type: 'bossLooped', x: b.x, y: b.y, poly });
-            } else s.events.push({ type: 'bossLoop', x: b.x, y: b.y, poly, n: b.loops, of: o.bossLoops });
+            } else s.events.push({ type: 'bossLoop', x: b.x, y: b.y, poly, n: b.loops, of: o.bossLoops, late });
             return true;
         }
         // Hijack: a stunned Antivirus inside turns.

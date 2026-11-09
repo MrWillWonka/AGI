@@ -3972,6 +3972,7 @@ window.AGI = (function () {
         // A run that brings a threat not yet met starts from a card that shows it (from an end card's Snare again too).
         if (snareMeetNext().length && snare.done) { snare.done = null; showSnareCard('start'); return; }
         snare.meeting = null;
+        snare.why = {};
         snareLive(true);
         reserveSnareTools(o);
         snare.seed = (state.snare.runs * 7919 + Math.floor(state.stats.playTime * 1000)) >>> 0;
@@ -4015,6 +4016,9 @@ window.AGI = (function () {
         const [hx, hy] = snare.toWorld({ clientX: at.clientX ?? at.x, clientY: at.clientY ?? at.y });
         snare.fx.push({ kind: 'flag', x: hx, y: hy - 0.6, t: 0, life: 1.6, text: 'HOLD THE RIGHT BUTTON FOR A BUBBLE' });
     }
+    // Why things went wrong in a run, counted for the playtest log (pops and snaps by what did them, boss loops too late or
+    // that missed it): the questions the review rounds couldn't answer from a log.
+    function snareWhy(key) { (snare.why ||= {})[key] = (snare.why[key] || 0) + 1; return true; }
     function snareFrame(now) {
         const run = snare.run;
         if (!run || openBay !== 'pipeline') {
@@ -4095,11 +4099,14 @@ window.AGI = (function () {
                 endSnare(e.stats, e.layout);
             } else {
                 snareFxFor(e, snare.fx);
+                // why things failed, for the playtest log (`why` on the run's `snare` event)
+                if (t === 'bossLoop' && e.late) snareWhy('loopTooLate');
+                if (t === 'loopOnly' && run.boss) snareWhy('loopMissedBoss');
                 if (t === 'corrupt') sfx('snareSpoil');
                 else if (t === 'spawn') snare.fx.push({ kind: 'placed', x: e.x, y: e.y, t: 0, life: 0.6 });
                 else if (t === 'pickupHere') sfx('snarePlace', { kind: 'decoy' });
                 else if (t === 'pickup') { snare.fx.push({ kind: 'stun', x: e.x, y: e.y - 0.8, t: 0, life: 1, text: e.kind === 'freeze' ? 'FROZEN' : 'PURGED', small: true }); }
-                else if (t === 'snap') { sfx('snareSnap'); shake(0.25); snareFxFor(e, snare.fx); }
+                else if (t === 'snap') { sfx('snareSnap'); shake(0.25); snareFxFor(e, snare.fx); snareWhy(`${e.bubble ? 'pop' : 'snap'}:${e.by || 'wire'}`); }
                 // Bubbles (the prototype): a loop that only snared packets says what loops are for now (a few times a page)
                 else if (t === 'loopOnly' && (snare.loopHints = (snare.loopHints || 0) + 1) <= 4) snare.fx.push({ kind: 'flag', x: e.x, y: e.y - 0.6, t: 0, life: 1.6, text: 'LOOPS ARE FOR THE BOSS · HOLD STILL TO CATCH', small: true });
                 else if (t === 'antivirus') snareIntro('antivirus');
@@ -4183,12 +4190,14 @@ window.AGI = (function () {
     // The first threat the next run brings that hasn't been met, to show on its start card.
     // Look out cards (the owner's call after the review rounds): every threat a sector brings that hasn't been met is
     // shown before the run (or the Go deeper) that brings it, never mid-run.
-    function snareMeetFor(sector) {
+    // The threats a sector brings, and those not met yet.
+    function snareBrings(sector) {
         const o = E.snareOpts(state, sector);
         const brings = { red: o.teachRed > 0 || o.corruptShare > 0, antivirus: o.antivirus?.length > 0, sweep: o.sweepFirst < Infinity, boss: o.boss > 0,
             mines: o.bossMines > 0, nets: o.bossMines >= 3, rogue: o.rogue > 0 };
-        return ['red', 'antivirus', 'sweep', 'boss', 'mines', 'nets', 'rogue'].filter(k => brings[k] && !state.intro[`snare:intro:${k}`]);
+        return ['red', 'antivirus', 'sweep', 'boss', 'mines', 'nets', 'rogue'].filter(k => brings[k]);
     }
+    const snareMeetFor = sector => snareBrings(sector).filter(k => !state.intro[`snare:intro:${k}`]);
     const snareMeetNext = () => snareMeetFor(snareNextSector());
     // The threats on a look out card: each its line and demo.
     // a tip's text (some read the pointer: round 6 of the review, a phone was told to drag with the left button)
@@ -4329,6 +4338,8 @@ window.AGI = (function () {
             herdStuns: stats.herdStuns, avDown: stats.avDown, flags: stats.flags, ids: stats.ids, parries: stats.parries, slashes: stats.slashes, spoofed: stats.spoofed, collected: stats.collected,
             raced: stats.raced, hijacked: stats.hijacked, partners: stats.partners, partnered: stats.partnered,
             bossDamage: stats.bossDamage, bossHp: snare.run?.opts.boss || 0, goal: snare.run?.opts.goal || 0, goalDone: !!snare.run?.goalDone, glanced: stats.glanced, mines: stats.mines, minesCleared: stats.minesCleared, netted: stats.netted,
+            // the helpers' work and why things failed (the review rounds' open questions)
+            bounced: stats.bounced || 0, helpers: snare.run.bots?.length || 0, why: snare.why || {},
             escalations: stats.escalations, forks: stats.forks, stars: stats.stars, packets: snare.run.packets.length,
             // The field as it played (Snare 10; the outside review's audit): packets a unit², how soon they came back, their
             // size, red per good packet, and the capstones at work.
@@ -12090,6 +12101,8 @@ window.AGI = (function () {
                 log('Debug: the Training Cluster reset to the warm-up.', 'warning');
                 afterChange();
             },
+            // the threats a player has met before sector k (0-based): tools/review/kit.js `scenario`
+            snareMetBefore(k) { return [...new Set(Array.from({ length: Math.max(0, k) }, (_, j) => snareBrings(j)).flat())]; },
             snareSector(k) {
                 state.snare.sector = Math.max(0, Math.floor(k) || 0);
                 snare.sectorPick = null;
