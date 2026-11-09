@@ -4119,7 +4119,7 @@ window.AGI = (function () {
         red: ['Red packets', 'They\'re corrupt. Let go of a bubble with one inside and the whole catch spoils, and you lose Focus. Catch round them.'],
         antivirus: ['Antivirus', 'It hunts your bubbles. If it touches one, it pops and you lose Focus.'],
         sweep: ['Full Scan', 'Its edge flashes, then it sweeps the whole field. Any bubble it crosses pops.'],
-        boss: ['Boss Antivirus', '1. Wait for its red line: it stands still to charge. 2. Draw a loop round it twice without touching it: it\'s stunned. 3. While it reads SLASH!, swipe through it. Clear its health to clear the sector.'],
+        boss: ['Boss Antivirus', '1. Draw a loop round it twice without touching it (easiest while it stands still to charge, behind its red line): it\'s stunned. 2. While it reads SLASH!, swipe through it, again and again. Clear its health to clear the sector.'],
         mines: ['Mines', 'The boss lays mines. Two near each other grow a net that wipes the data it crosses, and while two stand the boss is shielded. Let a bubble go over a mine to grab it, then flick from it at the boss: a big hit, even through its guard.'],
         nets: ['Nets', 'Three mines now: once their nets join up, everything inside the triangle is wiped. Grab the mines with bubbles before the nets close, and throw them back.'],
         rogue: ['The Rogue AI', 'Its cores grow and take the data they reach. Let a bubble go over a core to quarantine it; your Firewall sections keep it off the data inside them.'],
