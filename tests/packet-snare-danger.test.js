@@ -106,3 +106,17 @@ test('Freeze Frame and Clean Sweep only save drain while the cap allows it', () 
     // 2 s could be saved (0.2 × 10), then it drains: 5 − 2 = 3 s gone
     assert.ok(Math.abs(s.focus - 7) < 0.05, `focus ${s.focus.toFixed(2)}`);
 });
+
+test('Antivirus grow with the field (avArea): a field 16× the starting one boots twice as many at ^0.25, the starting field the same', () => {
+    const booted = (over) => { const s = field({ antivirus: [5, 18], focus: 1e9, ...over }); hold(s, 34); return s.antivirus.length; };
+    // 70 units is the starting field: no change whatever avArea is
+    assert.equal(booted({ w: Math.sqrt(70 * 1.6), h: 70 / Math.sqrt(70 * 1.6), avArea: 0.25 }), 2, 'the starting field keeps its 2');
+    const big = { w: Math.sqrt(1120 * 1.6), h: 1120 / Math.sqrt(1120 * 1.6) };   // 16× the starting field
+    assert.equal(booted({ ...big, avArea: 0 }), 2, 'off: still 2 on a big field');
+    assert.equal(booted({ ...big, avArea: 0.25 }), 4, 'x16^0.25 = x2: 4 on a big field');
+    // going deeper scales the next sector's list the same way
+    const s = field({ ...big, antivirus: [5], focus: 1e9, avArea: 0.25 });
+    s.nextSector({ antivirus: [5, 18] });
+    hold(s, 34);
+    assert.equal(s.antivirus.length, 4, 'Go deeper: the new sector\'s 2 become 4 on a big field');
+});

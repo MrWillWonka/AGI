@@ -65,6 +65,8 @@
         // Full Scans (system Firewalls in the code: `sweep`): a line across the whole field, sweeping from one side to
         // the other after a warning; any open wire it crosses snaps.
         sweepFirst: 7,
+        avArea: 0,                  // Antivirus grow with the field: × (its area / the starting field's)^avArea, at least ×1 (the owner's
+                                    // Snare 17 log: 2 Antivirus on an 8× field barely found the pen; engine.js sets it, 0 here keeps the rules' tests)
         sweepEvery: 8,
         sweepWarn: 0.9,             // seconds its edge flashes before it moves
         sweepTime: 2.6,             // seconds to cross the field
@@ -653,6 +655,14 @@
         const goodCount = () => s.packets.filter(p => p.kind !== 'corrupt').length;
         const corruptCount = () => s.packets.filter(p => p.kind === 'corrupt').length;
         let refillAt = Infinity;
+        // A bigger field brings more Antivirus (avArea), booted across the same stretch of the run as the sector's own.
+        const avScaled = list => {
+            const n = list ? list.length : 0, k = Math.max(1, (w * h / FIELD_AREA) ** (o.avArea || 0));
+            if (!n || k === 1) return list;
+            const m = Math.round(n * k);
+            return Array.from({ length: m }, (_, i) => Math.round(list[0] + i * 26 / m));
+        };
+        o.antivirus = avScaled(o.antivirus);
         const avDue = [...o.antivirus];
         let sweepAt = o.sweepFirst ?? Infinity;
         // Herders start spread round the middle.
@@ -2264,7 +2274,7 @@
         function nextSector(next = {}) {
             if (s.over) return;
             const before = { av: o.antivirus.length, sweep: o.sweepFirst, rogue: o.rogue };
-            for (const k of SECTOR_KEYS) if (next[k] !== undefined) o[k] = next[k];
+            for (const k of SECTOR_KEYS) if (next[k] !== undefined) o[k] = k === 'antivirus' ? avScaled(next[k]) : next[k];
             corruptTarget = redTarget();
             // Red the new sector adds swims in from upstream over the next few seconds (going deeper from a clean sector 1).
             for (let i = corruptCount() + pendingCorrupt.length; i < corruptTarget; i++) pendingCorrupt.push(s.time + 1 + rand() * 3);

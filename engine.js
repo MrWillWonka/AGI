@@ -13,7 +13,7 @@
     // The build a player is on: stamped into every playtest log (its header and session events), so each log is read
     // against the features it had (playtests/README.md lists the builds). Bump it with every publish: the date and
     // time (UTC) and a few words on what changed.
-    const BUILD = '2026-11-09 22:55 (review branch) · Packet Snare 17.1: sector 2 opens at 22% red (about 17% of the field), and a mouse plays a harder field (25% more red, threats 20% faster, a shorter boss warning)';
+    const BUILD = '2026-11-09 23:20 (review branch) · Packet Snare 17.2: Antivirus grow with the field (×area^0.25: 2 become 3 on an 8× field), on top of 17.1 (sector 2 at 22% red, a mouse plays a harder field)';
     const SAVE_VERSION = 30;   // 30: Packet Snare's red-packet nodes back (Sanitizer, Checksums, Spam Filter, Reputation Check, Rate Limiter, Error Correction, Parity Check, Signature Database), the Cleaner Bot later, the Bouncer and Escort bots and both towers gone, the tree refunded again; 29: Packet Snare's red-packet nodes became helpers (Cleaner Bot at the root, Bouncer and Escort bots, Checksum and Jammer towers), the packet and red nodes folded into the early ones, the tree refunded again; 28: Packet Snare's tree after the review rounds (Input Validation and Mirror Port folded in, Chain Lightning at 250), refunded again; 27: Packet Snare 15 (bubbles are the way to catch: Split, Supernova, Bigger Buffers, mines grabbed), the tree refunded again; 26: Packet Snare 14 (bots earlier, powers with five levels, Collector Bot), the tree refunded again; 25: Packet Snare 12 (the boss looped, the tree repriced and Root Access moved), the tree refunded again; 24: Packet Snare's tree rearranged so no node does the same thing as the one it grows from, every level refunded; 23: Packet Snare's Firewalls became sections (layout.zones; drawn walls dropped), its tree regrown again with every level refunded; 22: Packet Snare's tree regrown (Snare 10: four wedges, capstones), every level refunded; 21: Packet Snare's placements (snare.layout: walls, decoys, turrets, towers; the anchors went), its tree regrown; 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
@@ -2254,6 +2254,9 @@
     // The owner's call on the Snare 17 log: a mouse made runs much easier than a thumb (the right button holds a bubble, the
     // left draws the wire, aim is exact), so a fine pointer gets 25% more red and faster threats: Antivirus and the boss
     // move 20% faster and the boss's charge warning is 0.3 s shorter. game.js applies it to a run's options on a desktop.
+    // The owner's Snare 17 log: Sprawl and Packet Stream made the field 8× bigger by sector 7, and its 2 Antivirus barely found
+    // the pen (red gone by design), so the chase, the later game's danger, thinned out: Antivirus grow with the field's area.
+    const SNARE_AV_AREA = 0.25;   // the owner's pick after the sweep (0.35, 0.5 and 0.7 tried): 2 Antivirus on an 8× field → 3
     const SNARE_DESKTOP = { red: 1.25, speed: 1.2, warn: 0.3 };
     const snareDesktop = o => ({ ...o, corruptShare: (o.corruptShare || 0) * SNARE_DESKTOP.red, avSpeed: (o.avSpeed ?? 1) * SNARE_DESKTOP.speed,
         bossWarn: Math.max(0.9, (o.bossWarn ?? 2) - SNARE_DESKTOP.warn) });
@@ -2345,7 +2348,7 @@
             avSpeed: Math.max(0.4, B.avSpeed + g('avSpeed')) * (1 + 0.08 * k),
             avStun: B.avStun + g('avStun'),
             packetSpeed: B.packetSpeed.map(v => v * (1 + 0.06 * k)),
-            antivirus,
+            antivirus, avArea: SNARE_AV_AREA,
             sweepFirst: k >= SWEEP_SECTOR && floor('sweeps') ? B.sweepFirst : Infinity,
             // A breather between scans that grows a little with the sector, so they come regularly, with room to loop.
             sweepEvery: Math.max(3, B.sweepEvery * (k >= FAST_SWEEP_SECTOR ? 0.5 : 1)),
