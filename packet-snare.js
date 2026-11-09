@@ -237,7 +237,7 @@
         bossWarn: 2.5,              // seconds its warning line shows before it dashes (round 2 of the review: 2 left no time for two loops)
         bossStun: 2.5,              // seconds it reels once stunned (the slash window)
         bossLoops: 2,               // loops round it it takes to stun it (Snare 12.7, the owner's call: once was too easy)…
-        bossLoopWindow: 3.5,        // …each within this many seconds of the last, or the count starts again
+        bossLoopWindow: 5,          // …each within this many seconds of the last, or the count starts again (3.5 before round 4)
         chargeReach: 0.6,           // × the field's longer side: how far its charge line reaches (the dash covers it all)
         // **Loop it to stun it** (Snare 12, the owner's call: circling the boss makes more sense than a parry): a closed
         // loop round it, the wire never touching it, stuns it. The parry (a flick across its charge line) comes later, as
@@ -790,6 +790,10 @@
                 return;
             }
             const b = s.boss;
+            // Where it's been over the last 0.6 s: a loop round any of it counts (round 4 of the review: a loop drawn round
+            // it that closed just after it stepped out didn't).
+            (b.trail ||= []).push({ x: b.x, y: b.y, t: s.time });
+            while (b.trail.length && s.time - b.trail[0].t > 0.6) b.trail.shift();
             mineStep(b, dt);
             // Shielded while two or more mines stand (one mine halves its slashes).
             b.shielded = s.mines.length >= 2;
@@ -2232,7 +2236,12 @@
         // Loops round the boss stun it (the wire never touched it, or it would have snapped): `bossLoops` of them, each
         // within `bossLoopWindow` of the last; a spiral round it counts each turn.
         function loopBoss(poly) {
-            if (!s.boss || s.boss.stunned > s.time || !pointInPolygon(s.boss, poly)) return false;
+            if (!s.boss || s.boss.stunned > s.time) return false;
+            if (!pointInPolygon(s.boss, poly) && !(s.boss.trail || []).some(q => pointInPolygon(q, poly))) {
+                // round the boss's way but not round it: say so (not "loops are for the boss")
+                s.events.push({ type: 'bossMissed', x: s.boss.x, y: s.boss.y });
+                return true;
+            }
             const b = s.boss;
             b.loops = s.time - (b.loopAt ?? -1e9) <= o.bossLoopWindow ? (b.loops || 0) + 1 : 1;
             b.loopAt = s.time;

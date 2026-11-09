@@ -3540,3 +3540,7 @@ body.calm .snare-deeper.lit, body.idle .snare-deeper.lit { animation: none; }
 /* Packet Snare's tree: branch names sit behind the nodes and their names, faint (review round 3: LOOPS sat on a node's name). */
 .snare-tree-grid .tree-branch { z-index: 0; opacity: 0.7; }
 .snare-tree-inner { z-index: 1; }
+/* End-card rows with a long value: the label above it, full width (review round 4: "What / helps" wrapped). */
+.snare-card .result-lines li.wide { display: block; }
+.snare-card .result-lines li.wide > span:first-child { display: block; }
+.snare-card .result-lines li.wide > span:last-child { display: block; text-align: left; }

@@ -84,9 +84,9 @@ test('the boss takes two loops to stun (Snare 12.7), and the count starts again 
     };
     loop();
     assert.ok(!(b.stunned > s.time) && b.loops === 1, 'one loop: not yet');
-    for (let i = 0; i < 60 * 4; i++) { pin(); s.step(1 / 60); }
+    for (let i = 0; i < 60 * 6; i++) { pin(); s.step(1 / 60); }
     loop();
-    assert.ok(!(b.stunned > s.time) && b.loops === 1, 'too long after the first: the count started again');
+    assert.ok(!(b.stunned > s.time) && b.loops === 1, 'too long after the first (5 s, round 4 of the review): the count started again');
     loop();
     assert.ok(b.stunned > s.time, 'two in a row: stunned');
     assert.equal(s.stats.loopStuns, 1);

@@ -662,3 +662,13 @@ Round 3 (15.2): gameplay 7.0, clarity 6.7, pacing 6.7, design 6.5, visuals 6.8, 
   to its node; the goal line says what big bubbles added; a lost boss suggests a replay for Signal.
 - **Tree layout**: branch names behind the nodes, fit leaves room for names, the phone dock is smaller.
 - **Clutter and words**: POPPED for bubbles, SNAPPED for wires; HIGH RISK only with red near; chains capped at 40 arcs.
+
+Round 4 (15.3): gameplay 7.0, clarity 6.8, pacing 7.3, design 6.7, visuals 7.0, tutorials 6.7, engagement 7.3. What 15.4 did:
+
+- **Tips after the hit, again (all three)**: a threat's tip now shows the instant it appears; a bubble held then is let
+  go and pays. Only non-threat tips wait for the pen.
+- **Boss loops misfired**: a loop round where the boss was in the last 0.6 s counts, loops may be 5 s apart, a miss says
+  MISSED · KEEP IT INSIDE THE LOOP (not "loops are for the boss"), and STUNNED clears the loop count's pops.
+- **Sector 3 was a wall**: goals 20, 35, 45, 70, then ×1.25; a missed goal's card says what helps.
+- **Clutter**: the same label nearby shows once (SHIELDED ×4), banners shrink to fit, catch ghosts shrink as they fade,
+  mines get eight spikes. The Loops branch is called Bubbles; the first card teaches only the bubble.
