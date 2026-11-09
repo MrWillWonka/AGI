@@ -7,3 +7,5 @@ node's popup, a boss fight (`K.scenario(page, 5)`). Count layout problems (overl
 under something), unreadable labels, and moments where the field doesn't say what's happening.
 
 Focus on **visuals, design (interface) and clarity**. Score all seven categories, **Early** and **Late** separately.
+
+Run the kit's tours on each screen size first (`K.tour.firstRun`, `sector`, `boss`, `tree`): the same moments every round, so screenshots compare.

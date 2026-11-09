@@ -1,6 +1,13 @@
 // tools/review/pacing.js — Packet Snare's pacing in a minute, no browser: a campaign played at a person's pace from a new
 // save, buying as a person does, reported against the owner's own log.
 //   node tools/review/pacing.js [--screen phone|desktop] [--seeds 1,2,3] [--minutes 20] [--json out.json] [--scenarios out.json]
+//     [--until-sector n] [--until-tree] [--run-cap 120] [--step 60] [--no-cache] [--workers n]
+// Fast by default (the owner's call): each seed is its own process, as many at once as the machine has cores; results are
+// cached in review-out/.cache by the contents of the files a campaign depends on (the engine, the rules, the bot, this
+// file) and its settings, so a report after a change that didn't touch them reuses them; a campaign can stop once it's
+// answered (--until-sector n: once sector n is cleared; --until-tree: once the tree is bought out); a run still going after
+// --run-cap s of play is ended there (late runs on full fields ran to 300 s and were most of the time; the report counts
+// them); --step sets the simulation's steps a second (packet-snare.js `simStep`, tools only; the game runs 60).
 // The player is tools/snare-bot.js's HUMAN profile (calibrated against the owner's phone log of 2026-11-09, see OWNER
 // below: the check at the top of the report says how close it plays); the field is the size the game gives that screen
 // (game.js `snareField`: capped at SNARE_PPU px a unit, the packets a bigger field would hold packed in); each run is
@@ -21,6 +28,10 @@ const MINUTES = Number(arg('minutes', 20));
 const TARGETS = JSON.parse(fs.readFileSync(path.join(root, 'design', 'review', 'targets.json'), 'utf8'));
 const runsTarget = k => TARGETS.runsPerSector[k] || (E.isSnareBossSector(k - 1) ? TARGETS.runsPerSector.boss : TARGETS.runsPerSector.later);
 const OVERHEAD = 12;
+const RUN_CAP = Number(arg('run-cap', 120));
+const STEPS = Number(arg('step', 60));
+const UNTIL_SECTOR = Number(arg('until-sector', 0));
+const UNTIL_TREE = process.argv.includes('--until-tree');
 // Bots are worse than people at the boss's loops (the owner beat the first boss on the first try, this bot does 0–4 damage a
 // run), so after BOSS_TRIES failed runs the boss counts as beaten (`assisted` in the report): judge the boss by hand.
 const BOSS_TRIES = Number(arg('boss-tries', 2));   // s of cards, tree and reading after each run (the owner's log: 590 s of wall time for 362 s of runs)
@@ -59,7 +70,9 @@ function field(o, scr) {
     return out;
 }
 
-function campaign(seed, scr, { pace = PACE, minutes = MINUTES } = {}) {
+function campaign(seed, scr, { pace = PACE, minutes = MINUTES, runCap = RUN_CAP, steps = STEPS, untilSector = UNTIL_SECTOR, untilTree = UNTIL_TREE } = {}) {
+    if (typeof scr === 'string') scr = SCREENS[scr];
+    const dt = 1 / steps;
     let rs = seed * 9301 + 49297;
     const rand = () => (rs = (rs * 233280 + 49297) % 2147483647) / 2147483647;
     const s = E.defaultState(1);
@@ -70,13 +83,13 @@ function campaign(seed, scr, { pace = PACE, minutes = MINUTES } = {}) {
         const k = s.snare.sector;
         if (!scenarios[k + 1]) scenarios[k + 1] = { levels: Object.fromEntries(E.SNARE_TREE.filter(u => E.level(s, u.id)).map(u => [u.id, E.level(s, u.id)])), signal: Math.round(s.snare.signal), runs: s.snare.runs, minute: +(clock / 60).toFixed(1) };
         const o = E.snareOpts(s, k);
-        const run = P.createSnare({ ...o, ...field(o, scr), seed: Math.floor(rand() * 1e9) });
+        const run = P.createSnare({ ...o, ...field(o, scr), seed: Math.floor(rand() * 1e9), simStep: dt });
         const bot = createBot(run, { ...pace, rand });
         let haul = 0, cleared = false, t = 0, mine = 0, helped = 0;
-        while (!run.over && t < 300) {
-            t += 1 / 60;
-            bot.step(1 / 60);
-            run.step(1 / 60);
+        while (!run.over && t < runCap) {
+            t += dt;
+            bot.step(dt);
+            run.step(dt);
             for (const e of run.takeEvents()) {
                 if (e.type === 'catch' || e.type === 'laser' || e.type === 'quarantine' || e.type === 'taken') {
                     const pay = E.snareCatch(s, e.units, k);
@@ -98,7 +111,7 @@ function campaign(seed, scr, { pace = PACE, minutes = MINUTES } = {}) {
         clock += t + OVERHEAD;
         sectorRuns++;
         const st = run.stats;
-        runs.push({ sector: k + 1, secs: +t.toFixed(1), haul, mine, helped, bubbles: st.bubbles || 0, bossHp: o.boss || 0, catches: st.catches, caught: st.caught, spoiled: st.corrupted, popped: st.snaps, cleaned: st.cleaned, bounced: st.bounced || 0,
+        runs.push({ sector: k + 1, secs: +t.toFixed(1), capped: !run.over, haul, mine, helped, bubbles: st.bubbles || 0, bossHp: o.boss || 0, catches: st.catches, caught: st.caught, spoiled: st.corrupted, popped: st.snaps, cleaned: st.cleaned, bounced: st.bounced || 0,
             reds: run.packets.filter(p => p.kind === 'corrupt').length, packets: run.packets.length, boss: o.boss || 0, bossDamage: st.bossDamage, cleared });
         if (cleared) { sectors.push({ sector: k + 1, runs: sectorRuns, minute: +(clock / 60).toFixed(2), signalPerRun: Math.round(haul), assisted }); sectorRuns = 0; }
         // buy (the tree's reveals first)
@@ -113,13 +126,50 @@ function campaign(seed, scr, { pace = PACE, minutes = MINUTES } = {}) {
         }
         runs[runs.length - 1].bought = bought;
         if (!treeDone && E.SNARE_TREE.every(u => u.endless || E.isMaxed(s, u))) treeDone = +(clock / 60).toFixed(1);
+        if ((untilSector && s.snare.sector >= untilSector) || (untilTree && treeDone)) break;
     }
     return { sectors, runs, treeDone, scenarios, nodes: E.SNARE_TREE.filter(u => E.level(s, u.id)).length };
 }
 
-function main() {
-const scr = SCREENS[SCREEN];
-const all = SEEDS.map(seed => campaign(seed, scr));
+// Campaigns in parallel, cached. A job: { seed, screen, minutes, pace, runCap, steps, untilSector, untilTree, engineDir }.
+const crypto = require('crypto');
+const os = require('os');
+const CACHE = path.join(root, 'review-out', '.cache');
+function cacheKey(job) {
+    const dir = job.engineDir || root;
+    const h = crypto.createHash('sha1');
+    for (const f of ['engine.js', 'packet-snare.js', path.join('tools', 'snare-bot.js'), path.join('tools', 'review', 'pacing.js')]) h.update(fs.readFileSync(path.join(dir, f)));
+    h.update(JSON.stringify(job));
+    return h.digest('hex').slice(0, 20);
+}
+function runCampaigns(jobs, { cache = !process.argv.includes('--no-cache'), workers = Number(arg('workers', os.cpus().length)) } = {}) {
+    const { spawn } = require('child_process');
+    const out = new Array(jobs.length);
+    let next = 0;
+    const one = i => new Promise(res => {
+        const job = jobs[i], key = cacheKey(job), file = path.join(CACHE, key + '.json');
+        if (cache && fs.existsSync(file)) { out[i] = JSON.parse(fs.readFileSync(file, 'utf8')); return res(); }
+        const p = spawn(process.execPath, [path.join(job.engineDir || root, 'tools', 'review', 'pacing.js'), '--worker', JSON.stringify(job)], { stdio: ['ignore', 'pipe', 'inherit'] });
+        let buf = '';
+        p.stdout.on('data', d => { buf += d; });
+        p.on('close', () => {
+            out[i] = JSON.parse(buf);
+            if (cache) { fs.mkdirSync(CACHE, { recursive: true }); fs.writeFileSync(file, buf); }
+            res();
+        });
+    });
+    const lane = async () => { while (next < jobs.length) await one(next++); };
+    return Promise.all(Array.from({ length: Math.max(1, Math.min(workers, jobs.length)) }, lane)).then(() => out);
+}
+// a worker: one campaign, its result as JSON on stdout
+if (process.argv.includes('--worker')) {
+    const job = JSON.parse(arg('worker'));
+    process.stdout.write(JSON.stringify(campaign(job.seed, job.screen, job)));
+}
+const jobOf = seed => ({ seed, screen: SCREEN, minutes: MINUTES, pace: PACE, runCap: RUN_CAP, steps: STEPS, untilSector: UNTIL_SECTOR, untilTree: UNTIL_TREE });
+
+async function main() {
+const all = await runCampaigns(SEEDS.map(jobOf));
 const med = a => { const b = [...a].sort((x, y) => x - y); return b.length ? b[Math.floor((b.length - 1) / 2)] : NaN; };
 const lines = [];
 const say = x => lines.push(x);
@@ -147,7 +197,8 @@ for (let k = 1; k <= maxSector; k++) {
     say(`| ${k} | ${goal}${done.some(x => x.assisted) ? ' (assisted)' : ''} | ${done.length ? m : '—'} (${per.map(x => (x ? x.runs : '✗')).join('/')}) | ${lo}–${hi} ${done.length ? (ok ? '✓' : '✗') : ''} | ${OWNER.runs[k - 1] ?? ''} | ${done.length ? med(done.map(x => x.minute)) : '—'} | ${OWNER.minute[k - 1] ?? ''} | ${done.length ? med(done.map(x => x.signalPerRun)).toLocaleString('en-US') : '—'} | ${rr.length ? `${Math.round(share * 100)}% / ${Math.round((1 - share) * 100)}%` : ''} | ${rr.length ? med(rr.map(r => r.reds)) : ''} | ${rr.length ? (rr.reduce((a, r) => a + r.spoiled, 0) / rr.length).toFixed(2) : ''} | ${bossDmg} |`);
 }
 say('');
-say(`nodes owned at the end: ${all.map(c => c.nodes).join('/')}; runs played: ${all.map(c => c.runs.length).join('/')}`);
+const capped = all.flatMap(c => c.runs).filter(r => r.capped).length;
+say(`nodes owned at the end: ${all.map(c => c.nodes).join('/')}; runs played: ${all.map(c => c.runs.length).join('/')}${capped ? `; ${capped} run${capped === 1 ? '' : 's'} still going at the ${RUN_CAP} s cap (ended there)` : ''}`);
 // the rest of the targets (design/review/targets.json, ${TARGETS.status})
 const s5 = all.map(c => c.sectors.find(x => x.sector === 5)?.minute).filter(x => x !== undefined);
 const t5 = TARGETS.minutesToSector5, m5 = med(s5);
@@ -169,5 +220,5 @@ console.log(lines.join('\n'));
 if (arg('json')) fs.writeFileSync(arg('json'), JSON.stringify({ build: E.BUILD, screen: SCREEN, seeds: SEEDS, campaigns: all.map(c => ({ sectors: c.sectors, runs: c.runs })) }, null, 1));
 if (arg('scenarios')) fs.writeFileSync(arg('scenarios'), JSON.stringify(all[0].scenarios, null, 1));
 }
-if (require.main === module) main();
-module.exports = { field, campaign, SCREENS, OWNER };
+if (require.main === module && !process.argv.includes('--worker')) main();
+module.exports = { field, campaign, runCampaigns, jobOf, SCREENS, OWNER, PACE };

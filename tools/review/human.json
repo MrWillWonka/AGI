@@ -5,7 +5,7 @@
  "react": 0.4,
  "slashEvery": 0.25,
  "hold": 2.2,
- "gap": 0.2,
- "aim": 0.1,
+ "gap": 0.35,
+ "aim": 0.25,
  "careless": 0.1
 }

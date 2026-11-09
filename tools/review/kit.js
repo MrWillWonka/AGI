@@ -9,6 +9,8 @@
 //   await K.shot(page, '/abs/path.png')
 //   await K.scenario(page, k)    // sector k as a person reaches it: the build tools/review/pacing.js's campaign had there
 //                                  (tools/review/scenarios.json), every threat met that a player would have met by then
+//   await K.tour.firstRun(page, dir), K.tour.sector(page, k, dir), K.tour.boss(page, dir, k), K.tour.tree(page, dir, k):
+//                                  the standard moments, played the same way every round, screenshots as they go
 // The field is in field units (state().w × state().h); the server is REVIEW_URL (the round's frozen build, see
 // tools/review/freeze.sh), default http://localhost:8123/.
 // AGI.debug in the page (debug-panel.js) can jump ahead: snareSector(k) (0-based), snareMax(), snareBoss(),
@@ -163,4 +165,93 @@ async function scenario(page, k) {
     return sc;
 }
 
-module.exports = { launch, fresh, cards, start, bubble, loop, flick, stroke, state, bestSpot, shot, screen, scenario };
+// Tours: the standard moments, played the same way every round, each taking screenshots as it goes (reviewers start
+// from these instead of scripting their own play). Each returns [{ file, what }] for the screenshots it took in `dir`.
+const path = require('path');
+const fs = require('fs');
+function taker(page, dir, prefix) {
+    fs.mkdirSync(dir, { recursive: true });
+    const shots = [];
+    return Object.assign(async (name, what) => { const file = path.join(dir, `${prefix}-${name}.png`); await shot(page, file); shots.push({ file, what }); }, { shots });
+}
+// A bubble on the best clean cluster, for `n` catches or until the run ends.
+async function play(page, n = 12, hold = 1300) {
+    for (let i = 0; i < n; i++) {
+        const s = await state(page);
+        if (!s || s.over) return;
+        const b = await bestSpot(page);
+        if (b) await bubble(page, b.x, b.y, hold); else await page.waitForTimeout(300);
+    }
+}
+const tour = {
+    // A new player's first visit: the first card, a catch, the run, its end card.
+    async firstRun(page, dir) {
+        const take = taker(page, dir, 'first');
+        await fresh(page);
+        await take('card', 'the first card a new player sees');
+        await start(page);
+        const b = await bestSpot(page);
+        if (b) await bubble(page, b.x, b.y, 900);
+        await take('catch', 'the first catch');
+        await play(page);
+        await page.waitForTimeout(900);
+        await take('end', 'the first run\'s end card');
+        return take.shots;
+    },
+    // Sector k as a player reaches it: its card (and look out card), a run in the middle, the end card.
+    async sector(page, k, dir) {
+        const take = taker(page, dir, `sector${k}`);
+        await scenario(page, k);
+        await take('card', `sector ${k}'s card with the build a player has there`);
+        await start(page);
+        const inRun = () => page.evaluate(() => { const r = AGI.debug.snareRun(); return !!(r && !r.over && document.getElementById('snareCard').hidden); });
+        if (!(await inRun())) { await take('lookout', `sector ${k}'s look out card`); await start(page); }
+        await play(page, 3);
+        await take('mid', `sector ${k} mid-run`);
+        await play(page, 20);
+        await page.waitForTimeout(900);
+        await take('end', `sector ${k}'s end card`);
+        return take.shots;
+    },
+    // The boss on sector k (5 by default): waits for it, loops round it twice while it charges, slashes while it reels.
+    async boss(page, dir, k = 5) {
+        const take = taker(page, dir, `boss${k}`);
+        await scenario(page, k);
+        await start(page);
+        if (!(await page.evaluate(() => { const r = AGI.debug.snareRun(); return !!(r && !r.over); }))) await start(page);
+        for (let i = 0; i < 40; i++) { const s = await state(page); if (s?.boss) break; await page.waitForTimeout(250); }
+        await take('arrives', 'the boss on the field');
+        for (let tries = 0; tries < 4; tries++) {
+            let s = null;
+            for (let i = 0; i < 40; i++) { s = await state(page); if (!s || s.over || s.boss?.charge) break; await page.waitForTimeout(150); }
+            if (!s?.boss || s.over) break;
+            await take(`charge${tries}`, 'it stops to charge: the moment to loop it');
+            await loop(page, s.boss.x, s.boss.y, s.boss.r + 0.9, 2);
+            await page.waitForTimeout(150);
+            s = await state(page);
+            await take(`looped${tries}`, 'after two loops round it');
+            for (let i = 0; i < 6 && s?.boss?.stunned; i++) {
+                await flick(page, s.boss.x - s.boss.r * 1.4, s.boss.y - s.boss.r * 0.4, s.boss.x + s.boss.r * 1.4, s.boss.y + s.boss.r * 0.4);
+                await page.waitForTimeout(240);
+                s = await state(page);
+            }
+            await take(`slashed${tries}`, 'after slashing it while it reels');
+        }
+        await page.waitForTimeout(600);
+        return take.shots;
+    },
+    // The tree with the build a player has at sector k: the whole tree, then a node's popup.
+    async tree(page, dir, k = 9) {
+        const take = taker(page, dir, `tree${k}`);
+        await scenario(page, k);
+        await page.keyboard.press('u');
+        await page.waitForTimeout(700);
+        await take('whole', `the tree with sector ${k}'s build`);
+        const node = await page.$('.snare-tree-grid .tree-node:not(.seed)');
+        if (node) { await node.click(); await page.waitForTimeout(400); await take('popup', 'a node\'s popup'); }
+        await page.keyboard.press('Escape');
+        return take.shots;
+    }
+};
+
+module.exports = { launch, fresh, cards, start, bubble, loop, flick, stroke, state, bestSpot, shot, screen, scenario, play, tour };

@@ -56,13 +56,13 @@ console.log(`owner: runs per sector ${profile.runs.join('/')}, minutes ${profile
 
 // The fit: short campaigns (9 minutes, two seeds) for each pace, scored by how far their catches a run and packets a
 // catch (sectors 1–3) are from the owner's, and their runs to clear sectors 1–3.
-const { campaign, SCREENS } = require('./pacing.js');
+const { runCampaigns, SCREENS } = require('./pacing.js');
 const bot = require(path.join(root, 'tools', 'snare-bot.js'));
-const scr = SCREENS[desk ? 'desktop' : profile.touch ? 'phone' : 'desktop'];
-let best = null;
-for (const hold of [1.4, 1.8, 2.2, 2.6]) for (const gap of [0.2, 0.35, 0.55]) for (const aim of [0.1, 0.25, 0.45]) for (const careless of [0.1, 0.25]) {
-    const pace = { ...bot.HUMAN, hold, gap, aim, careless };
-    const res = [1, 2].map(seed => campaign(seed, scr, { pace, minutes: 9 }));
+const screen = desk ? 'desktop' : profile.touch ? 'phone' : 'desktop';
+(async () => {
+// two stages, each one batch across the cores, every campaign stopping once sector 3 is cleared (all the fit looks at):
+// hold × gap first (aim and carelessness middling), then aim × carelessness around the best hold and gap
+const score = (pace, res) => {
     const runs = res.flatMap(c => c.runs.filter(r => r.sector <= 3));
     const c = runs.reduce((a, r) => a + r.catches, 0);
     const cpr = c / Math.max(1, runs.length), ppc = runs.reduce((a, r) => a + r.caught, 0) / Math.max(1, c);
@@ -70,8 +70,16 @@ for (const hold of [1.4, 1.8, 2.2, 2.6]) for (const gap of [0.2, 0.35, 0.55]) fo
     const clears = [1, 2, 3].map(k => res.map(x => x.sectors.find(s => s.sector === k)?.runs ?? 12).reduce((a, b) => a + b, 0) / res.length);
     const err = ((cpr - profile.catchesPerRun) / profile.catchesPerRun) ** 2 + ((ppc - profile.packetsPerCatch) / profile.packetsPerCatch) ** 2
         + 4 * (spoil - profile.spoilShare) ** 2 + clears.reduce((a, r, i) => a + (profile.runs[i] ? ((r - profile.runs[i]) / Math.max(2, profile.runs[i])) ** 2 : 0), 0) / 3;
-    if (!best || err < best.err) best = { err, pace, cpr, ppc, spoil, clears };
-}
+    return { err, pace, cpr, ppc, spoil, clears };
+};
+const stage = async paces => {
+    const jobs = paces.flatMap(pace => [1, 2].map(seed => ({ seed, screen, minutes: 9, pace, runCap: 120, steps: 60, untilSector: 3, untilTree: false })));
+    const results = await runCampaigns(jobs);
+    return paces.map((pace, i) => score(pace, [results[i * 2], results[i * 2 + 1]])).sort((a, b) => a.err - b.err)[0];
+};
+const first = await stage([1.4, 1.8, 2.2, 2.6].flatMap(hold => [0.2, 0.35, 0.55].map(gap => ({ ...bot.HUMAN, hold, gap, aim: 0.25, careless: 0.1 }))));
+const best = await stage([0.1, 0.25, 0.45].flatMap(aim => [0.1, 0.25].map(careless => ({ ...first.pace, aim, careless }))));
 const out = { from: profile.logs.map(l => l.file), react: best.pace.react, slashEvery: best.pace.slashEvery, hold: best.pace.hold, gap: best.pace.gap, aim: best.pace.aim, careless: best.pace.careless };
 fs.writeFileSync(path.join(__dirname, desk ? 'human-desktop.json' : 'human.json'), JSON.stringify(out, null, 1) + '\n');
 console.log(`bot: hold ${out.hold} s, gap ${out.gap} s, aim ${out.aim}, careless ${out.careless} → ${best.cpr.toFixed(1)} catches a run, ${best.ppc.toFixed(1)} packets a catch, ${(best.spoil * 100).toFixed(1)}% spoiled, runs to clear 1–3 ${best.clears.map(x => x.toFixed(1)).join('/')} (fit error ${best.err.toFixed(3)})`);
+})();

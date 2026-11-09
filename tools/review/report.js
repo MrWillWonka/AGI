@@ -214,7 +214,8 @@ async function diffs() {
     const [t, pPhone, pDesk] = await Promise.all([
         run('node', ['--test'], { SLOW: '1' }),
         run('node', ['tools/review/pacing.js', '--screen', 'phone', '--minutes', minutes]),
-        run('node', ['tools/review/pacing.js', '--screen', 'desktop', '--minutes', minutes]),
+        // one desktop seed: the phone campaign carries the targets, desktop is a check (and its field the slowest)
+        run('node', ['tools/review/pacing.js', '--screen', 'desktop', '--minutes', minutes, '--seeds', '1']),
         upright(false), upright(true), sideways()
     ]);
     const pass = /# pass (\d+)/.exec(t)?.[1], fail = /# fail (\d+)/.exec(t)?.[1];

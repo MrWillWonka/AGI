@@ -12,3 +12,5 @@ sector k with the tree the pacing campaign had when it got there (not a maxed tr
 Play on desktop 1280 × 800, with one boss fight and one late field on phone 390 × 727.
 
 Score all seven categories as **Late** (what you played). Don't score Early.
+
+Start from the kit's tours (`K.tour.boss(page, dir, 5)` and `(…, 10)`, `K.tour.sector(page, k, dir)` for 6–12, `K.tour.tree(page, dir, 12)`); then play on by hand where they leave questions.

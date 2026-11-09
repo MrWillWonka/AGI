@@ -9,14 +9,15 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 
-// Slow (about 20 s): runs with SLOW=1 (tools/review/report.js always sets it), skipped in the quick inner loop.
-test('Packet Snare: sectors 2–4 take their target runs for a person-paced player (design/review/targets.json)', { skip: !process.env.SLOW && 'slow: SLOW=1 runs it (the report always does)' }, () => {
+// Slow (about 8 s, the campaigns at once; instant when cached): runs with SLOW=1 (tools/review/report.js always sets it), skipped in the quick inner loop.
+test('Packet Snare: sectors 2–4 take their target runs for a person-paced player (design/review/targets.json)', { skip: !process.env.SLOW && 'slow: SLOW=1 runs it (the report always does)' }, async () => {
     const argv = process.argv;
     process.argv = [argv[0], 'pacing.js', '--minutes', '11'];
-    const { campaign, SCREENS } = require('../tools/review/pacing.js');
+    const { runCampaigns, PACE } = require('../tools/review/pacing.js');
     process.argv = argv;
     const targets = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'design', 'review', 'targets.json'), 'utf8'));
-    const runs = [1, 2, 3, 4, 5].map(seed => campaign(seed, SCREENS.phone, { minutes: 13 }));
+    // the five campaigns at once (and cached while the rules don't change)
+    const runs = await runCampaigns([1, 2, 3, 4, 5].map(seed => ({ seed, screen: 'phone', minutes: 13, pace: PACE, runCap: 120, steps: 60, untilSector: 5, untilTree: false })));
     for (const k of [2, 3, 4]) {
         const per = runs.map(c => c.sectors.find(x => x.sector === k)?.runs ?? 99).sort((a, b) => a - b);
         const m = per[2];

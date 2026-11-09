@@ -2865,9 +2865,11 @@
         function step(dt) {
             if (s.over) return;
             s.acc += Math.min(dt, 0.25);
-            while (s.acc >= STEP && !s.over) {
-                s.acc -= STEP;
-                stepOnce(STEP);
+            // `simStep`: the tools may simulate in coarser steps (tools/review/pacing.js --step); the game always uses STEP
+            const h = o.simStep || STEP;
+            while (s.acc >= h && !s.over) {
+                s.acc -= h;
+                stepOnce(h);
             }
         }
 
