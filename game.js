@@ -4335,7 +4335,7 @@ window.AGI = (function () {
         setText($('snareStatus'), '');
         renderSnareTools();
         pt('snare', { haul: Math.round(snare.haul), sector: snare.sector + 1, startSector: snare.startSector + 1, sectorsCleared: snare.cleared.length, bosses: stats.bosses, bossHits: stats.bossHits, wiped: stats.wiped,
-            catches: stats.catches, caught: stats.caught, gold: stats.gold, corrupted: stats.corrupted, hunt: snare.run?.opts?.redHunt > 0 ? 1 : 0,
+            catches: stats.catches, caught: stats.caught, gold: stats.gold, corrupted: stats.corrupted, hunt: snare.run?.opts?.redHunt > 0 ? 1 : 0, focusEarned: Math.round(snare.run?.focusEarned ?? 0),
             snaps: stats.snaps, empty: stats.empty, bestMult: r2(stats.bestMult), chained: stats.chained, lasered: stats.lasered, scrubbed: stats.scrubbed,
             cores: stats.cores, stolen: stats.stolen, quarantined: stats.quarantined, bounces: stats.bounces, stuns: stats.stuns, fwLost: stats.fwLost, sweeps: stats.sweeps,
             turreted: stats.turreted, purged: stats.purged, freezes: stats.freezes, decoysLost: stats.decoysLost, tagged: stats.tagged, escaped: stats.escaped,
@@ -5166,6 +5166,8 @@ window.AGI = (function () {
         else if (e.type === 'autoZone') fx.push({ kind: 'placed', x: e.x, y: e.y, t: 0, life: 0.6 });
         else if (e.type === 'raceBroken') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.9, text: e.by === 'boss' ? 'HOLD BROKEN · the boss' : 'HOLD BROKEN · scanned', small: true });
         else if (e.type === 'cleanSweep') fx.push({ kind: 'stun', x: e.x, y: e.y + 0.9, t: 0, life: 0.8, text: 'CLOCK STOPPED', small: true });
+        // the run has earned back all the Focus it can (packet-snare.js focusEarnCap): said once, at the top
+        else if (e.type === 'focusCap') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 2.2, text: 'NO MORE FOCUS BACK THIS RUN', small: true });
         else if (e.type === 'backpressure') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: e.r, t: 0, life: 0.5 });
         else if (e.type === 'bossBlock') fx.push({ kind: 'flag', x: e.x, y: e.y - 1, t: 0, life: 0.9, text: e.reason === 'shield' ? 'SHIELDED' : 'GUARD UP · loop round it first', small: true });
         else if (e.type === 'mine') fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.6 });

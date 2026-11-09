@@ -413,6 +413,11 @@
         broadband: 0,
         // Clean Sweep: a clean loop (no red inside) stops the clock for `cleanSweep` s.
         cleanSweep: 0,
+        // A run earns back at most `focusEarnCap` × the Focus it started with (the owner's call on a phone log: Second Wind
+        // at ×4–8 bubbles, Freeze Frame and Clean Sweep kept a boss run going 110 s for 13× the best haul, which bought half
+        // the tree in a minute). Counted: Second Wind, cleared sectors, Garbage Collection, and the drain Clean Sweep's stopped
+        // clock and Freeze Frame's half drain save. Not counted: the boss's arrival (the fight shouldn't race the clock).
+        focusEarnCap: 1,
         // Quarantine Relay: a red packet that bounces off your Firewall swims to your nearest decoy for `relaySeconds` s.
         relay: 0,
         relaySeconds: 4,
@@ -525,6 +530,7 @@
             real: 0,                // the run's own clock (it doesn't)
             focus: o.focus,
             maxFocus: o.focus,
+            focusEarned: 0,         // Focus earned back so far (refills and drain saved), against the cap
             over: false,
             cooldown: 0,
             drawing: false,
@@ -2176,7 +2182,8 @@
             // Focus runs at half speed while frozen (it used to hold: up to 18 s of risk-free drawing a run).
             if (frozen()) {
                 s.frozenLeft = Math.max(0, s.frozenLeft - dt);
-                s.focus = Math.max(0, s.focus - o.idleDrain * 0.5 * dt);
+                // half the drain is saved, while the cap allows it
+                s.focus = Math.max(0, s.focus - (o.idleDrain * dt - earnFocus(o.idleDrain * 0.5 * dt)));
                 if (s.focus <= 0) end();
                 return;
             }
@@ -2352,8 +2359,9 @@
             for (let i = pendingCorrupt.length - 1; i >= 0; i--) {
                 if (s.time >= pendingCorrupt[i] && corruptCount() < corruptTarget) { corrupt(true); pendingCorrupt.splice(i, 1); }
             }
-            const drain = s.time >= s.freeDrawUntil ? o.idleDrain : 0;
-            s.focus = Math.max(0, s.focus - drain * dt);
+            // Clean Sweep's stopped clock saves the drain, while the cap allows it.
+            const saved = s.time < s.freeDrawUntil ? earnFocus(o.idleDrain * dt) : 0;
+            s.focus = Math.max(0, s.focus - (o.idleDrain * dt - saved));
             if (s.focus <= 0) end();
         }
 
@@ -2363,12 +2371,27 @@
         // last sector didn't have), and its boss or goal starts over.
         // How far the sector's goal is: packets caught in it (not by rushed loops), and half of what loops were worth past them.
         const goalProgress = () => s.stats.caught - s.sectorCaught - s.goalSkip + s.goalBonus;
+        // What's left of the run's Focus to earn back (`focusEarnCap`).
+        const earnLeft = () => Math.max(0, o.focusEarnCap * o.focus - s.focusEarned);
+        // Focus earned back (a refill or drain saved), up to the cap; returns what it allowed. The first time the cap is
+        // reached a `focusCap` event says so.
+        function earnFocus(amount) {
+            const got = Math.max(0, Math.min(amount, earnLeft()));
+            s.focusEarned += got;
+            if (amount > 0 && earnLeft() <= 0 && !s.focusCapped) { s.focusCapped = true; s.events.push({ type: 'focusCap', x: w / 2, y: Math.min(h * 0.2, 2) }); }
+            return got;
+        }
+        // Focus back, kept under the bar and the cap.
+        function refill(amount) {
+            const room = Math.max(0, s.maxFocus - s.focus);
+            const got = earnFocus(Math.min(room, amount));
+            s.focus += got;
+            return got;
+        }
         // A cleared sector's reward: Focus, so the run keeps gathering there. Returns what it added.
         function clearBonus() {
-            const before = s.focus;
             // Each clear in a run gives half the last's (0.4, 0.2, 0.1 of the bar): going deeper chained sectors for free.
-            s.focus = Math.min(s.maxFocus, s.focus + o.clearFocus * Math.pow(0.5, s.clears++) * s.maxFocus);
-            return Math.round(s.focus - before);
+            return Math.round(refill(o.clearFocus * Math.pow(0.5, s.clears++) * s.maxFocus));
         }
         const SECTOR_KEYS = ['corruptShare', 'avSpeed', 'packetSpeed', 'antivirus', 'sweepFirst', 'sweepEvery', 'rogue', 'rogueFirst', 'rogueEvery',
             'teachRed', 'boss', 'goal', 'bossAt', 'bossCatch', 'bossR', 'bossSpeed', 'bossCharge', 'bossWarn', 'bossStun', 'bossMines', 'mineEvery', 'bossMinions'];
@@ -2598,9 +2621,9 @@
                 // piling red up made it a Focus engine).
                 const back = o.gcFocus * Math.min(j.corrupt.length, o.gcCap) * (s.real - (s.gcAt ?? -1e9) < o.gcRepeat ? 0.5 : 1);
                 s.gcAt = s.real;
-                s.focus = Math.min(s.maxFocus, s.focus + back);
+                const got = refill(back);
                 s.stats.collected += j.corrupt.length;
-                s.events.push({ type: 'garbage', x: at.x, y: at.y, poly, count: j.corrupt.length, focus: back, packets: j.inside.map(p => ({ x: p.x, y: p.y })) });
+                s.events.push({ type: 'garbage', x: at.x, y: at.y, poly, count: j.corrupt.length, focus: got, packets: j.inside.map(p => ({ x: p.x, y: p.y })) });
                 remove(j.corrupt);
                 return;
             }
@@ -2712,7 +2735,7 @@
             // Infinite Loop: the loop catches again in a moment, once more for each level past the first.
             if (o.echo && !hasty) for (let i = 1; i <= o.echo; i++) s.echoes.push({ poly: poly.map(q => ({ x: q.x, y: q.y })), at: s.time + o.echoDelay * i, mult: j.mult, n: i });
             // Second Wind: a big loop gives Focus back.
-            if (o.focusBack && j.mult >= 2) s.focus = Math.min(s.maxFocus, s.focus + o.focusBack);
+            if (o.focusBack && j.mult >= 2) refill(o.focusBack);
             s.events.push({ type: 'catch', x: at.x, y: at.y, poly, area: j.area, count, gold, mult: j.mult, units, packets: j.inside, race: bonus, streak: o.surge ? s.streak : 0, cleanRun: run, split: !!j.split, star: j.star || null, hasty, safe: !!j.safe,
                 chained: chained.map(c => ({ x: c.packet.x, y: c.packet.y, from: c.from, kind: c.packet.kind })), scrubbed: j.corrupt.length });
         }

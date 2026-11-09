@@ -8,6 +8,8 @@ Tag every issue in your review: `[new]`, `[known K#]` or `[regression]`. Issues 
 Update this file with every fix batch (move fixed ones to *fixed: verify*, drop them after a review confirms them).
 
 ## Open
+- **K11 Red doesn't matter early:** about 2 red in sector 2, and the Cleaner Bot (the first buy) cleans them in seconds;
+  no spoil before sector 7 in the Snare 16 log, hunt or not. The owner is testing the hunt longer (D10).
 - **K3 Sideways phone page scrolls 9 px** (report rule check).
 - **K5 The boss's two loops are hard to read:** LOOP 1/2 is easy to miss mid-fight, and a loop that fails doesn't say why
   (touched it, too late, missed it) (rounds 7–9).
@@ -19,6 +21,8 @@ Update this file with every fix batch (move fixed ones to *fixed: verify*, drop 
 - **K10 The phone tree popup can cover its own "now → after" line** behind the buy button (round 7).
 
 ## Fixed: verify
+- **F12 Runs that never ended** (the Snare 16 log: 110 s, 2.06M Signal, half the tree in a minute): a run earns back at
+  most the Focus it started with; NO MORE FOCUS BACK THIS RUN when it's spent.
 - **F10 The boss could be ignored** (the owner's phone log: they gathered on its far side): it now eats the packets in a
   growing reach, packets near it flee and schools break up while it stands; a stun stops it.
 - **F11 Red didn't feel dangerous** (no spoil in 15 runs): red can hunt a held bubble, a testing toggle (off by default).

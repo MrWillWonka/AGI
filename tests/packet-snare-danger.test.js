@@ -73,3 +73,36 @@ test('the longer the boss stands, the further it reaches', () => {
 test('red hunting is off by default (a testing toggle for now, the owner\'s call)', () => {
     assert.equal(P.SNARE.redHunt, 0);
 });
+
+// A big clean bubble (×2 or more) on a fresh school, with the Focus set low enough to refill.
+const bigCatch = s => {
+    s.focus = 2;
+    for (let k = 0; k < 40; k++) packet(s, 'good', 6 + (k % 8 - 4) * 0.3, 4 + (Math.floor(k / 8) - 2) * 0.3);
+    s.addPoint(6, 4);
+    hold(s, 2.6);
+    s.liftPen();
+    s.packets = [];
+};
+
+test('a run earns back at most the Focus it started with (Second Wind, clears, Clean Sweep, Freeze Frame), and says so once', () => {
+    const s = field({ focus: 10, idleDrain: 0, focusBack: 2, areaUnit: 0.15 });
+    for (let i = 0; i < 8; i++) bigCatch(s);
+    assert.ok(Math.abs(s.focusEarned - 10) < 1e-6, `earned ${s.focusEarned}`);
+    assert.equal(s.focus, 2, 'the last catches gave nothing back');
+    assert.equal(s.takeEvents().filter(e => e.type === 'focusCap').length, 1, 'said once');
+});
+
+test('the cap off (focusEarnCap large) leaves Second Wind as it was', () => {
+    const s = field({ focus: 10, idleDrain: 0, focusBack: 2, areaUnit: 0.15, focusEarnCap: 1e9 });
+    for (let i = 0; i < 8; i++) bigCatch(s);
+    assert.equal(s.focus, 4, '+2 s back every time');
+    assert.equal(s.focusEarned, 16);
+});
+
+test('Freeze Frame and Clean Sweep only save drain while the cap allows it', () => {
+    const s = field({ focus: 10, idleDrain: 1, focusEarnCap: 0.2 });
+    s.freeDrawUntil = 999;   // the clock stopped for good
+    hold(s, 5);
+    // 2 s could be saved (0.2 × 10), then it drains: 5 − 2 = 3 s gone
+    assert.ok(Math.abs(s.focus - 7) < 0.05, `focus ${s.focus.toFixed(2)}`);
+});
