@@ -42,7 +42,8 @@
         maxWire: 36,                // units on the starting field (× √ of the field's growth): past this the tail drops
         minGap: 0.1,                // the wire records a point every this far
         closeRadius: 0.085,         // × √area: bring the pen back this close to the start and the loop closes
-        areaUnit: 0.26,             // × area: a catch's multiplier is 1 + (loop area / (areaUnit × field area))^multCurve…
+        areaUnit: 0.2,              // × area: a catch's multiplier is 1 + (loop area / (areaUnit × field area))^multCurve… (0.26 before
+                                    // review round 6: with a full bubble 0.2 of the field it paid ×1.69, and quick taps out-earned holding)
         multCurve: 1.4,             // …bent upward (Snare 12, a review's call: it was linear while the red risk grows with the
                                     // area too, so a big loop was never worth more than several small ones): ×1.26 at 10% of
                                     // the field, ×1.8 at 22%, ×2.2 at 30%, ×3.5 at half
@@ -1880,7 +1881,10 @@
                     }
                 } else if (through && boss.stunned > s.time) {
                     // A slash: through it while it reels (a parry or one of your Firewalls), a flick at a time.
-                    if (s.real - boss.slashAt >= o.slashGap) {
+                    if (s.real - boss.slashAt < o.slashGap) {
+                        // too soon after the last: said on the field (round 6 of the review: swallowed silently)
+                        s.events.push({ type: 'slashSoon', x: boss.x, y: boss.y });
+                    } else {
                         boss.slashAt = s.real;
                         // A stun allows `slashCap` slashes; the last one ends it.
                         boss.stunSlashes = (boss.stunSlashes || 0) + 1;

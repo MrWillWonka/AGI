@@ -529,7 +529,7 @@
     // hexagon (`mechanic`) with a demo in its popup.
     const SNARE_TREE = [
         // LOOP (up): the pen and the loop; Chain Lightning on its right arm; the herders and Infinite Loop at its tip.
-        { id: 'snareFocus', name: 'Attention Span', snare: { x: 0, y: -1 }, cost: { signal: 25 }, scale: 2, max: 3, sn: { focus: 0.25 }, effect: '+25% Focus per level', flavor: 'It can sit still for almost a minute now.' },
+        { id: 'snareFocus', name: 'Attention Span', snare: { x: 0, y: -1 }, cost: { signal: 25 }, scale: 2, max: 3, sn: { focus: 0.25 }, effect: '+25% Focus per level', flavor: 'It can sit still a little longer now.' },
         { id: 'snarePacketStream', name: 'Packet Stream', snare: { x: 0, y: -2 }, requires: 'snareFocus', cost: { signal: 110 }, scale: 2, max: 2, sn: { density: 0.25 }, effect: '25% more packets on the field per level', flavor: 'Open the tap. Then open it more.' },
         { id: 'snareChain', name: 'Chain Lightning', mechanic: 'chain', snare: { x: 1, y: -2 }, requires: 'snarePacketStream', cost: { signal: 250 }, scale: 1.55, max: 5, sn: { chain: 5 }, effect: 'Each catch arcs to 5 more packets nearby per level', flavor: 'One packet tells its friends.' },
         { id: 'snareBandwidth', name: 'Bandwidth', snare: { x: 0, y: -3 }, requires: 'snarePacketStream', cost: { signal: 250 }, scale: 2.5, max: 2, sn: { maxMult: 2, fullMult: 0.25 }, effect: 'A full bubble pays ×1.25 more, and the multiplier cap +2, per level', flavor: 'Wider pipes. Bigger nets.' },

@@ -3390,6 +3390,8 @@ body.calm .snare-deeper { animation: none; }
 .snare-tree-title { margin-right: auto; font: 700 0.85rem var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .snare-intro-line { margin: 6px 0 2px; font-size: 0.86rem; }
 .snare-card .demo { margin: 6px auto 0; width: 240px; max-width: 100%; }
+/* two demos on one card (the first run's bubble and red packet): smaller, so the second isn't under the button (round 6) */
+.snare-card:has(.demo ~ .demo) .demo { width: 190px; }
 .snare-tree-grid { position: relative; min-height: 0; overflow: hidden; --cell: 112px; touch-action: none; cursor: grab; }
 .snare-tree-inner { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-origin: 0 0; }
 .snare-tree-grid .tree-links line { stroke-width: 2.5; }
@@ -3438,6 +3440,8 @@ body.calm .snare-deeper { animation: none; }
 /* Its demo smaller there, so the buy button never sits on it (review round 2). */
 .snare-tree-grid .node-detail.docked .demo { width: 160px; margin-inline: auto; }
 .snare-tree-grid .node-detail.docked .demo figcaption { display: none; }
+/* round 6 of the review: on a phone the flavour line pushed the preview and the demo out of the docked popup */
+.snare-tree-grid .node-detail.docked .detail-flavor { display: none; }
 .snare-tree-grid .node-detail .detail-buy { position: sticky; bottom: -14px; }
 .snare-tree-grid .tree-zoom { z-index: 3; }
 /* First-meeting cards are tips (the green ↻ header), not a run's card; their button stays in view on short screens. */
