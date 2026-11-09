@@ -3506,3 +3506,9 @@ body.calm .snare-deeper { animation: none; }
     .module { gap: 8px; }
     .facility-head { min-height: 0; }
 }
+
+/* The tree takes the bay (the owner's screenshot): the run's Focus, goal and haul mean nothing while it's open (the run
+   is paused), so the row above the field goes and the Signal you hold to spend sits in the tree's own bar. */
+.snare-tree-bar .snare-tree-title { margin-right: 0; }
+.snare-tree-bar .snare-tree-signal { margin-right: auto; border-color: color-mix(in srgb, var(--signal) 50%, transparent); color: var(--signal); }
+#snarePanel.tree-open .snare-stats { display: none; }

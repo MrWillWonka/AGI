@@ -4609,6 +4609,7 @@ window.AGI = (function () {
         snareUi.detailKey = '';
         setHidden($('snareCard'), true);
         setHidden($('snareTree'), false);
+        $('snarePanel').classList.add('tree-open');
         snareLive();
         renderSnareBar();
         renderSnareTree();
@@ -4620,6 +4621,7 @@ window.AGI = (function () {
         snare.tree = false;
         snareUi.popup = false;
         setHidden($('snareTree'), true);
+        $('snarePanel').classList.remove('tree-open');
         snareLive();
         renderSnareBar();
         if (openBay === 'pipeline') ptView('bay:pipeline');
