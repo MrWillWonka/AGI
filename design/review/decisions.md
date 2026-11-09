@@ -22,6 +22,10 @@ When answered: the change, `settled.md` (or `targets.json`) and this file are up
   (no red at all: 7; a goal of 60 moved the wall to sector 3, 12–22 runs). Judge sector 2 by hand: the owner took 6.
 
 ## Open
+- **D15 (watching)**: sector 3 on desktop. 10 runs on 17, 4 on 17.1, not cleared in 5 on 17.2 (best 100 of 185 packets,
+  4–6 catches a run, Antivirus popping 0–2 bubbles). The owner's call: play more first, no change; judge it on the next
+  desktop log (sector 3 runs, catches a run, Antivirus pops). Levers if it stays a wall: the desktop's extras from
+  sector 4, or sector 3's goal 185 → 150.
 
 ## Parked ideas (not to build until the owner picks them up)
 - **Training lowers red**: red packets are data the model can't read yet; finishing runs in the Training Cluster could
