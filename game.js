@@ -4599,7 +4599,7 @@ window.AGI = (function () {
         avSpeed: 'ghost', avStun: 'ghost', hijack: 'robot', collude: 'core', respawnMult: 'refresh', flagLimit: 'flag', spoofValue: 'mask',
         echo: 'loop', storm: 'cloud', crash: 'crash', zeroTrust: 'check', surge: 'surge', defuse: 'cut',
         pulse: 'surge', broadband: 'turret', cleanSweep: 'sweep', relay: 'route', backpressure: 'back',
-        cleanBots: 'sweep', spoofBots: 'mask', collectBots: 'robot', goldPlate: 'coin', pen: 'pen', autoZone: 'deploy' };
+        decay: 'hourglass', checksum: 'check', vouch: 'school', cleanBots: 'sweep', spoofBots: 'mask', collectBots: 'robot', goldPlate: 'coin', pen: 'pen', autoZone: 'deploy' };
     const snareIcon = up => SNARE_STAT_ICON[Object.keys(up.sn || {})[0] || Object.keys(up.stages?.[1] || {})[0]] || 'spark';
     const snareUi = { built: false, nodes: {}, links: [], popup: false, detailKey: '', fresh: false, cam: { x: 0, y: 0, z: 1 }, drag: null, pointers: new Map(), moved: false };
     // Fixed cells (like the Training tree's --cell): the tree grows six cells out from the Lasso, and you pan and zoom it.
@@ -4889,7 +4889,9 @@ window.AGI = (function () {
         ['scannerSpeed', 'Scanner sweep', snareX('scannerSpeed')], ['towers', 'Scanner towers at once', String], ['towerRange', 'Tower reach', snareX('towerRange')],
         ['chain', 'Arcs per catch', String], ['chainHops', 'Arc hops', String], ['chainRange', 'Arc reach', snareX('chainRange')],
         ['scrubbers', 'Corrupt packets forgiven', v => (v > 0 ? `${v}, +1 per 20 packets in the bubble` : '0')], ['corruptShare', 'Corrupt packets', v => `${(v * 100).toFixed(1)} per 100 good ones`],
-        ['corruptLure', 'Corrupt pull to schools', pct], ['purge', 'Purge pickups', v => (v ? `one every ~${Math.round(16 / (1 + 0.6 * (v - 1)))} s` : 'none')],
+        ['corruptLure', 'Red packets', v => (v < 0 ? `pushed from schools (${pct(-v)})` : `drawn to schools (${pct(v)})`)],
+        ['redDecay', 'Red packets turn regular', v => (v ? `after ${v} s` : 'never')], ['checksum', 'A clean catch cleans', v => `${v} red beside it`],
+        ['vouch', 'Red in a school turns regular', v => (v ? `after ${num1(4 / v)} s` : 'never')], ['purge', 'Purge pickups', v => (v ? `one every ~${Math.round(16 / (1 + 0.6 * (v - 1)))} s` : 'none')],
         ['firewalls', 'Firewall sections at once', String], ['zoneSize', 'Firewall section size', snareX('zoneSize')], ['wallRebuild', 'Sections rebuild', v => (v ? `after ${v} s` : 'never')],
         ['fwHits', 'Firewall section health', v => `${6 * v} (Antivirus wear 1 a second)`], ['decoys', 'Decoys at once', String], ['decoyLure', 'Decoy pull', snareX('decoyLure')],
         ['avSpeed', 'Antivirus speed', pct], ['avStun', 'Antivirus stunned for', v => `${num1(v)} s`],
@@ -5100,6 +5102,11 @@ window.AGI = (function () {
         // a slash too soon after the last (round 6: it was swallowed without a word); at most one a half second
         else if (e.type === 'slashSoon') {
             if (!fx.some(f => f.soon && f.t < 0.5)) fx.push({ kind: 'stun', soon: true, x: e.x, y: e.y + 1.2, t: 0, life: 0.6, text: 'TOO FAST', small: true });
+        }
+        // a red packet turned regular (a Cleaner bot, Sanitizer, Reputation Check, Checksums: a line from the catch)
+        else if (e.type === 'cleaned') {
+            if (e.from) fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.4, small: true });
+            fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'CLEANED', small: true });
         }
         else if (e.type === 'convert') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'TRUSTED', small: true });
         else if (e.type === 'zoneDown') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: Math.max(e.hw, e.hh), t: 0, life: 0.7 });
@@ -5860,6 +5867,10 @@ window.AGI = (function () {
         const minR = (d.minR ?? 5) * Math.min(1, (run.opts?.packetR ?? window.PacketSnare.PACKET_R) / window.PacketSnare.PACKET_R);
         const paths = { good: new Path2D(), gold: new Path2D(), bad: new Path2D(), tagEdge: new Path2D(), spoofEdge: new Path2D() };
         const glow = { gold: new Path2D(), bad: new Path2D() };
+        // A red packet on its way to turning regular (Sanitizer's decay, Reputation Check's vouching) wears a ring in the
+        // good colour that fills as it gets there.
+        const turnRing = new Path2D(), o = run.opts || {};
+        const turnOf = p => Math.max(o.redDecay > 0 ? p.age / o.redDecay : 0, o.vouch > 0 ? (p.vouch || 0) / (o.vouchTime / o.vouch) : 0);
         // Red keeps its size however full the field (round 1 of the review: on a maxed field red packets shrank with the
         // rest and vanished), and on a crowded one wears a red halo.
         const redMin = Math.max(minR, d.minR ?? 6.5), crowded = run.packets.length > 120;
@@ -5880,6 +5891,12 @@ window.AGI = (function () {
                     const rr = Math.max(redMin, r);
                     arrow(paths.bad, x, y, ang, rr * 1.45, rr * 0.95);
                     if (crowded) { const hr = Math.min(rr * 2.4, 16); glow.bad.moveTo(x + hr, y); glow.bad.arc(x, y, hr, 0, Math.PI * 2); }
+                    const turn = Math.min(1, turnOf(p));
+                    if (turn > 0.02) {
+                        const tr = rr * 1.9, a0 = -Math.PI / 2;
+                        turnRing.moveTo(x + tr * Math.cos(a0), y + tr * Math.sin(a0));
+                        turnRing.arc(x, y, tr, a0, a0 + Math.PI * 2 * turn);
+                    }
                 }
                 continue;
             }
@@ -5924,6 +5941,11 @@ window.AGI = (function () {
         ctx.stroke(paths.bad);
         ctx.fillStyle = bad;
         ctx.fill(paths.bad);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = good;
+        ctx.globalAlpha = 0.85;
+        ctx.stroke(turnRing);
+        ctx.globalAlpha = 1;
     }
 
     // Frozen: the field goes cold and still, a faint frost over it.

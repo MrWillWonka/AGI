@@ -161,6 +161,16 @@
         // every `goldEvery` s. A Spoofer bot (Countermeasures) spoofs the red packet it reaches (good, worth ×`spoofValue`,
         // for `spoofSeconds`). Each works once every `botEvery` s, at `botSpeed` units a second (× √ of the growth).
         cleanBots: 0,
+        // Red packets on the field change over time (the owner's call on the 15.5 log: the nodes that kept red from
+        // spawning emptied the field of it by sector 4, so they act on red already swimming instead): Sanitizer's red
+        // packets turn regular `redDecay` s after they appear (0: never); Checksums' clean catch cleans up to `checksum` red
+        // packets beside it (within twice its radius); Reputation Check's red packet swimming in a school (3 good within
+        // 1.2 units) turns regular after `vouchTime` / `vouch` s there. Each cleaned one is replaced from upstream, so the
+        // red keeps coming and keeps turning.
+        redDecay: 0,
+        checksum: 0,
+        vouch: 0,
+        vouchTime: 4,
         spoofBots: 0,
         // Collector bots (Snare 14, the owner's call: more drones by mid-game): each flies to good packets and every
         // `collectEvery` s nets the good ones within `collectR` (× √ of the growth) of it, up to `collectCap`, paid at ×1;
@@ -636,6 +646,36 @@
             s.herders.push({ id: s.nextId++, x: w / 2 + Math.cos(a) * 1.5, y: h / 2 + Math.sin(a) * 1.5, vx: 0, vy: 0, target: null });
         }
 
+        // A red packet turns regular (Sanitizer's decay, Reputation Check's vouching, Checksums' clean catch).
+        function cleanRed(p, how, from) {
+            p.kind = 'good';
+            p.vouch = 0;
+            s.stats.cleaned++;
+            s.events.push({ type: 'cleaned', x: p.x, y: p.y, how, from });
+        }
+        let vouchAt = 0;
+        function redStep(dt) {
+            if (!(o.redDecay > 0) && !(o.vouch > 0)) return;
+            vouchAt -= dt;
+            const look = o.vouch > 0 && vouchAt <= 0;
+            if (look) vouchAt = 0.25;
+            for (const p of s.packets) {
+                if (p.kind !== 'corrupt' || spoofed(p)) continue;
+                if (look) {
+                    let n = 0;
+                    for (const q of s.packets) {
+                        if (q.kind === 'corrupt' || (q.x - p.x) ** 2 + (q.y - p.y) ** 2 > 1.44) continue;
+                        if (++n >= 3) break;
+                    }
+                    p.vouch = Math.max(0, (p.vouch || 0) + (n >= 3 ? 0.25 : -0.25));
+                }
+                if (o.redDecay > 0 && p.age >= o.redDecay) cleanRed(p, 'decay');
+                else if (o.vouch > 0 && p.vouch >= o.vouchTime / o.vouch) cleanRed(p, 'vouch');
+            }
+        }
+        // How far along a red packet is to turning regular (0–1), for the drawing.
+        const redTurn = p => (p.kind !== 'corrupt' ? 0 : Math.max(o.redDecay > 0 ? p.age / o.redDecay : 0, o.vouch > 0 ? (p.vouch || 0) / (o.vouchTime / o.vouch) : 0));
+
         // Bots start round the middle too.
         s.bots = [];
         const nBots = o.cleanBots + o.spoofBots + (o.collectBots || 0);
@@ -1070,7 +1110,7 @@
                 }
             }
             // Corrupt packets swim toward the nearest school: they hide in the crowd, so a big loop round a school is a gamble.
-            if (o.corruptLure > 0 && !(o.cleanStart && s.time < 5)) {
+            if (o.corruptLure !== 0 && !(o.cleanStart && s.time < 5)) {
                 // While you draw a loop the lure eases off (big loops are a gamble, not a certainty).
                 const kc = Math.min(1, o.corruptLure * (s.drawing ? 0.4 : 1) * dt);
                 // Good packets on a grid of 3-unit cells: a corrupt one only looks in the cells round it (a datacentre's
@@ -1973,6 +2013,7 @@
             }
             herdStep(dt);
             botStep(dt);
+            redStep(dt);
             scannerStep(dt);
             towerStep(dt);
             turretStep();
@@ -2376,6 +2417,13 @@
                 s.events.push({ type: 'corrupt', x: at.x, y: at.y, poly, area: j.area, count: j.inside.length, corrupt: j.corrupt.length, packets: j.inside });
                 if (s.focus <= 0) end();
                 return;
+            }
+            // Checksums: a clean catch cleans the red packets just outside it, nearest first.
+            if (o.checksum > 0) {
+                const reach = 2 * Math.sqrt(Math.max(j.area, 0) / Math.PI);
+                const near = s.packets.filter(p => p.kind === 'corrupt' && !spoofed(p) && !j.inside.includes(p) && Math.hypot(p.x - at.x, p.y - at.y) <= reach)
+                    .sort((p, q) => Math.hypot(p.x - at.x, p.y - at.y) - Math.hypot(q.x - at.x, q.y - at.y) || p.id - q.id);
+                for (const p of near.slice(0, o.checksum)) cleanRed(p, 'checksum', { x: at.x, y: at.y });
             }
             // Chain Lightning: arcs from the snared packets to good ones outside the loop, nearest first.
             const chained = [];

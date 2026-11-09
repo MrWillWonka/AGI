@@ -244,7 +244,7 @@ test('a sweep snaps a fast stroke whose segment straddles its line', () => {
 test('the boss is the wall: every fifth sector, gentle the first time, steeply more after, and its bounty is paid by the engine', () => {
     const first = E.SNARE_BOSS_EVERY - 1;
     assert.equal(E.snareBossHealth(0), 0, 'no boss on the first sector');
-    assert.equal(E.snareBossHealth(first), 10, 'the first boss on sector 5: two stuns');
+    assert.equal(E.snareBossHealth(first), 15, 'the first boss on sector 5 (15: the owner\'s call on the 15.5 log, it fell first try at 10)');
     assert.deepEqual([9, 14, 19].map(E.snareBossHealth), [30, 64, 90], 'then 30, 64, 90');
     assert.ok(E.snareBossHealth(9) >= 30 && E.snareBossHealth(14) >= 60, 'later bosses take far more');
     const s = E.defaultState(NOW);
@@ -277,7 +277,7 @@ test('the research trickle is capped, and Overclock raises every catch', () => {
     assert.equal(E.snareCatch(s, 10), 13);
 });
 
-test('the tree thins the corrupt packets, fills the field with packets and grows it to a datacentre', () => {
+test('the tree turns red on the field regular, fills the field with packets and grows it to a datacentre', () => {
     const s = E.defaultState(NOW);
     const base = E.snareOpts(s);
     for (const id of ['snareChecksums', 'snareErrorCorrection', 'snareSignatures', 'snareSanitizer', 'snareSpamFilter', 'snareReputation']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
@@ -285,7 +285,9 @@ test('the tree thins the corrupt packets, fills the field with packets and grows
     for (const id of ['snareSchools', 'snareFirehose', 'snareBroadband', 'snareTorrent', 'snarePacketStream', 'snareOpenPorts', 'snareRateLimit']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
     s.levels.snareFirewalls = 1;
     const o = E.snareOpts(s, E.AV_SECTOR);
-    assert.ok(o.corruptShare <= E.snareOpts(E.defaultState(NOW), E.AV_SECTOR).corruptShare * 0.4, 'well under half the corrupt packets');
+    // the owner's call on the 15.5 log: red keeps spawning (only the sqrt of the extra packets), and the tree turns it
+    assert.ok(o.redDecay > 0 && o.checksum >= 3 && o.vouch >= 2 && o.corruptLure < 0, 'red decays, is cleaned by catches, vouched for and pushed out');
+    assert.equal(o.corruptShare, E.snareOpts(E.defaultState(NOW), E.AV_SECTOR).corruptShare, 'as much red spawning');
     assert.ok(o.area > 70 * 30, 'nine Sprawl levels');
     assert.ok(o.density / base.density >= 4.5, `four and a half times the packets or more (Snare 14: Load Balancer is Collector Bot now) (${(o.density / base.density).toFixed(2)})`);
     assert.deepEqual(o.antivirus, E.snareOpts(E.defaultState(NOW), E.AV_SECTOR).antivirus, 'the hazards come from the sector, not the field');

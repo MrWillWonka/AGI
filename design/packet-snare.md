@@ -694,3 +694,12 @@ pops, not HUD text; red nodes made to do 15% / 28%; Input Validation and Mirror 
 Bandwidth a full-bubble multiplier; effects uncapped and the drawing made faster instead; mines and the shield pulse red in
 place of extra words. Reverted: the boss fight's helps (14 s, no drain while stunned, 2.5 s warning, 5 s loops, loose loops,
 MISSED), the five-health boss (10), left-click bubbles, the buzzer catch, the end card's lines (BOSS DOWN kept), node names.
+
+## After the owner's 15.5 log (not yet published)
+
+The log (iPhone, 10 min, sectors 1–6): sector 2 took 6 runs and sector 3 six, while the boss on 5 and the goal on 6 fell first
+try; hauls grew 2–2.5× a run from sector 4; red was 1% of the field by sector 4 (2 spoils in 18 runs). The owner's calls:
+sectors 1–4 stay at 25/100/200/400; goals grow ×2.25 a sector from sector 5 (sector 6: 2,025); the first boss has 15 health;
+a full bubble pays ×2.0 (`areaUnit` 0.2, round 6); and the nodes that cut red at spawn now act on red already on the field:
+Sanitizer's decay, Checksums' clean catches, Reputation Check's vouching schools and Spam Filter's push (Rate Limiter, Error
+Correction and Signature Database grow them). Save v29 refunds their levels.

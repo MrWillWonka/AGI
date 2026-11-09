@@ -656,7 +656,7 @@ test('the hazards arrive one sector at a time: packets, then red, then Antivirus
     assert.equal(at(E.MINE_SECTOR - 1).bossMines, 0);
     assert.ok(E.MINE_SECTOR > 4 && at(E.MINE_SECTOR).bossMines === 2, 'its mines are a later gate');
     assert.ok(at(E.NET_SECTOR).bossMines === 3 && at(E.MINION_SECTOR).bossMinions >= 1 && at(E.MINION_SECTOR - 1).bossMinions === 0, 'then nets, then minions');
-    assert.ok(at(E.MINE_SECTOR).boss > at(E.MINE_SECTOR - 5).boss * 2, 'a gate\'s boss is much tougher');
+    assert.ok(at(E.MINE_SECTOR).boss >= at(E.MINE_SECTOR - 5).boss * 2, 'a gate\'s boss is much tougher');
     assert.deepEqual(E.SNARE_STAGES.map(x => x.sector), [...E.SNARE_STAGES.map(x => x.sector)].sort((a, b) => a - b));
 });
 
