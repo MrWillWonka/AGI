@@ -3941,6 +3941,7 @@ window.AGI = (function () {
         const o = E.snareOpts(state, sector);
         // A run that brings a threat not yet met starts from a card that shows it (from an end card's Snare again too).
         if (snareMeetNext() && snare.done) { snare.done = null; showSnareCard('start'); return; }
+        snare.meeting = null;
         snareLive(true);
         reserveSnareTools(o);
         snare.seed = (state.snare.runs * 7919 + Math.floor(state.stats.playTime * 1000)) >>> 0;
@@ -4341,7 +4342,10 @@ window.AGI = (function () {
             if (first) state.intro['snare:intro:lasso'] = true;
             // A threat the next run brings is met on its card first (round 2 of the review: as a tip in the run, red came
             // too soon or too late; round 3: three tips stacked at a boss sector's start). One a card; others as tips.
-            const meet = first ? null : snareMeetNext();
+            // the same one again if the card is rebuilt before a run starts (round 5 of the review: closing the tree
+            // rebuilt the card and moved on to the next threat, so that one was never shown)
+            const meet = first ? null : (snare.meeting || snareMeetNext());
+            snare.meeting = meet;
             const meetRed = !!meet;
             if (meet) state.intro[`snare:intro:${meet}`] = true;
             card.replaceChildren(...[

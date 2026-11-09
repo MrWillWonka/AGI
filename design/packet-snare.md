@@ -672,3 +672,12 @@ Round 4 (15.3): gameplay 7.0, clarity 6.8, pacing 7.3, design 6.7, visuals 7.0, 
 - **Sector 3 was a wall**: goals 20, 35, 45, 70, then ×1.25; a missed goal's card says what helps.
 - **Clutter**: the same label nearby shows once (SHIELDED ×4), banners shrink to fit, catch ghosts shrink as they fade,
   mines get eight spikes. The Loops branch is called Bubbles; the first card teaches only the bubble.
+
+Round 5 (15.4), the last: gameplay 6.7, clarity 7.0, pacing 5.7, design 6.5, visuals 7.0, tutorials 7.5, engagement 6.3.
+The loop stopped after five rounds without reaching 8 in every category. Round 4's easing overshot: sectors 1–5 now fall in
+2–4 minutes and the five-health first boss in one stun, then sector 10 (the mines gate) is a cliff. One regression was
+fixed after the round (a start card rebuilt by closing the tree moved on to the next threat, so that one was never met).
+Open, from all three: the first ring sells "more packets" and "fewer red" ten times (merge them, a verb under 300 Signal);
+Bandwidth's ×4 cap is never reached by a ×2.2 full bubble (raise the bubble's area or the curve instead); the boss moves
+while you loop it; Antivirus pops, not red, are the real punishment, and the bubble doesn't say what's coming; the late
+field is noise and big catches drop frames; the tree still clips at its edges; the phone HUD truncates.
