@@ -8,7 +8,7 @@ but put any suggestion that goes against one of them in a separate section of yo
 not in your top issues. Your top issues should be things the owner hasn't ruled on.
 
 **The run**
-- A first run is a small field (about 15 packets) with 10 s of Focus. Focus drains at 1 s a second whatever you do.
+- A first run is a small field (about 15 packets) with 10 s of Focus, its goal 25 (confirmed again after the review rounds). Focus drains at 1 s a second whatever you do.
 - A popped bubble costs no Focus (a snapped wire and a spoiled catch do). A bubble still held when Focus runs out is lost.
 - Desktop: the right mouse button holds a bubble, the left draws a line (for the boss). Touch: hold still for a bubble.
 - A full bubble is 20% of the field; a full one pays about ×2.
@@ -27,6 +27,7 @@ not in your top issues. Your top issues should be things the owner hasn't ruled 
 
 **Interface**
 - The tree's nodes have no names on them (icons; the popup names them). The up branch is called Bubbles.
+- Achievement toasts show in the bay, the tree included (swipe or click them away).
 - The packet and red-packet nodes are folded into a few early nodes with many levels.
 - The HUD shows only Focus and the goal (or the boss's health); everything else pops on the field where it happens.
 - Effects are never capped or dropped for speed.

@@ -1,6 +1,6 @@
 {
   "_note": "Pacing targets for Packet Snare, checked by tools/review/pacing.js (pass/fail per sector) and, for sectors 1-4, by tests/pacing-targets.test.js. PROPOSED by Claude from the owner's 15.5 log and calls; the owner confirms or changes them (status: proposed).",
-  "status": "proposed",
+  "status": "confirmed by the owner 2026-11-09 (the tree to last at least 60 minutes)",
   "runsPerSector": {
     "1": [
       1,
@@ -31,7 +31,7 @@
     7,
     14
   ],
-  "treeDoneMinuteAtLeast": 45,
+  "treeDoneMinuteAtLeast": 60,
   "helperShareOfHaulAtMost": {
     "before10": 0.5
   },
