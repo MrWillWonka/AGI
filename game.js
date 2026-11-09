@@ -3758,7 +3758,8 @@ window.AGI = (function () {
             // A freeze or purge pickup under the tap or click is grabbed (Snare 13), and nothing is drawn
             if (run.pickups?.length) {
                 const [gx, gy] = toWorld(e);
-                if (run.grab(gx, gy, (snare.touch || e.pointerType !== 'mouse' ? 18 : 8) / snare.scale)) { e.preventDefault(); return; }
+                // grabbed, and the press goes on to start a bubble (round 7 of the review: on a busy field pickups ate presses)
+                run.grab(gx, gy, (snare.touch || e.pointerType !== 'mouse' ? 18 : 8) / snare.scale);
             }
             e.preventDefault();
             snare.pointer = e.pointerId;
@@ -4367,7 +4368,7 @@ window.AGI = (function () {
     // goals with thousands separators, and the loop bonus in plain words (round 7 of the review: "catch 35185" and
     // "(a ×2 bubble counts its packets 1.5×)" didn't read)
     const goalNum = n => Math.round(n).toLocaleString('en-US');
-    const snareGoalText = k => (E.isSnareBossSector(k) ? 'A boss guards this sector: beat it to clear it' : `Clear it: catch ${goalNum(E.snareGoal(k))} in one run${k >= 2 ? ' (big bubbles count extra toward it)' : ''}`);
+    const snareGoalText = k => (E.isSnareBossSector(k) ? 'A boss guards this sector: beat it to clear it' : `Clear it: catch ${goalNum(E.snareGoal(k))} in one run${' (big bubbles count extra toward it)'}`);
     // What the best haul feeds: research, a trickle while you play.
     const snareRpLine = () => {
         const rp = E.derive(state).snareRp;
@@ -4752,7 +4753,7 @@ window.AGI = (function () {
         const shown = [{ x: 0, y: 0 }, ...E.SNARE_TREE.filter(up => !snareUi.nodes[up.id].hidden).map(up => up.snare)];
         const xs = shown.map(c => c.x), ys = shown.map(c => c.y);
         // room for the branch names on the edges (round 3 of the review: fit cut rows off)
-        const bw = (Math.max(...xs) - Math.min(...xs) + 2.2) * cell, bh = (Math.max(...ys) - Math.min(...ys) + 2.6) * cell;
+        const bw = (Math.max(...xs) - Math.min(...xs) + 2.4) * cell, bh = (Math.max(...ys) - Math.min(...ys) + 3) * cell;
         const z = Math.min(SNARE_ZOOM.max, Math.max(SNARE_ZOOM.min, Math.min(W / bw, H / bh)));
         const cx = (Math.max(...xs) + Math.min(...xs)) / 2 * cell, cy = (Math.max(...ys) + Math.min(...ys)) / 2 * cell;
         Object.assign(snareUi.cam, { z, x: -cx * z, y: -cy * z });
@@ -4849,7 +4850,11 @@ window.AGI = (function () {
         }
         // A node that just appeared is panned into view, clear of the branch names on the edges (round 1 of the review:
         // Packet Stream came up under LOOPS).
-        if (revealed.length && !snareUi.drag) {
+        // A node revealed while the tree was closed has no place on screen yet; it waits for the tree to open (round 7
+        // of the review: Packet Stream turned up under the tree's bar).
+        if (revealed.length && !$('snareTreeGrid').clientHeight) (snareUi.pendingReveal ||= []).push(...revealed);
+        else if (snareUi.pendingReveal?.length) { revealed.push(...snareUi.pendingReveal); snareUi.pendingReveal = []; }
+        if (revealed.length && !snareUi.drag && $('snareTreeGrid').clientHeight) {
             const grid = $('snareTreeGrid'), z = uiScale(), g = grid.getBoundingClientRect(), M = 46;
             let dx = 0, dy = 0;
             for (const n of revealed) {
