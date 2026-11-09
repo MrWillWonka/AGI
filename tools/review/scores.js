@@ -1,6 +1,7 @@
 // tools/review/scores.js [out.svg] — the review rounds' scores over time (design/review/scores.csv): a table of each
 // round's averages by category, Early and Late apart, with the commit it reviewed; with a path, also a small SVG chart.
-// Add a round's rows to the CSV when its reviews come in (one row per reviewer and phase, or the round's average).
+// Add a round's rows to the CSV when its reviews come in (one row per reviewer and phase, or the round's average), and a
+// row to rounds.csv: its minutes, the new issues it found, known ones it repeated and false alarms.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -22,6 +23,16 @@ for (const [key, list] of Object.entries(groups)) {
     lines.push(`| ${round} | ${phase} | ${list[0].commit} | ${avg.map(v => (v === null ? '' : v.toFixed(1))).join(' | ')} | ${mean.toFixed(2)} |`);
 }
 console.log(lines.join('\n'));
+// the rounds themselves (design/review/rounds.csv): what each cost and what it found, so the process can be tuned for
+// valid new issues an hour
+const rr = fs.readFileSync(path.join(__dirname, '..', '..', 'design', 'review', 'rounds.csv'), 'utf8').trim().split('\n');
+const rh = rr.shift().split(',');
+console.log('\n| round | kind | roles | minutes | new issues | known repeats | false alarms | new an hour |\n|---|---|---|---|---|---|---|---|');
+for (const line of rr) {
+    const c = Object.fromEntries(rh.map((h, i) => [h, line.split(',')[i]]));
+    const mins = parseFloat(String(c.minutes).replace('~', '')), n = parseFloat(c.new_issues);
+    console.log(`| ${c.round} | ${c.kind} | ${c.roles} | ${c.minutes} | ${c.new_issues || ''} | ${c.known_repeats || ''} | ${c.false_alarms || ''} | ${Number.isFinite(n) && mins ? (n / mins * 60).toFixed(0) : ''} |`);
+}
 const out = process.argv[2];
 if (out) {
     const W = 520, H = 220, P = 36, rs = points.map(p => p.round), r0 = Math.min(...rs), r1 = Math.max(...rs);

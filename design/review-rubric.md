@@ -9,6 +9,12 @@ its Early and Late averages, and both are reported, so gains in the early game a
 
 **For every category you score, also give the one change that would raise it by a point** (one line, concrete).
 
+**Side by side** (when a round serves the previous build too): for every category, say whether this build is better, the
+same or worse than the previous one, and why. A change of a point between rounds is within the noise of different
+reviewers; a reviewer who played both and says *better* is the stronger signal.
+
+**Anchors for this game:** `design/review/anchors.md` describes what a 6 and an 8 look like in each category.
+
 **Anchors, for every category:** 10 = best in class, as good as the best-loved games of its kind; 9 = excellent, hard to
 fault; 8 = strong and polished, only small nitpicks; 7 = good with a few clear problems; 6 = decent but problems a player
 would notice and mind; 5 = mixed, as much wrong as right; 4 = significant problems; 3 = poor; 2 = barely works; 1 = broken.

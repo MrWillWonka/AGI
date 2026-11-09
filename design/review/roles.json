@@ -1,0 +1,7 @@
+{
+  "_note": "The same model on the same role every round, so scores compare between rounds (tools/review/prompt.js prints it).",
+  "early": "fable",
+  "late": "opus",
+  "screens": "sonnet",
+  "verify": "sonnet"
+}

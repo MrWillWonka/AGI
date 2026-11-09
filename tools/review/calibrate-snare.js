@@ -11,13 +11,18 @@
 const fs = require('fs');
 const path = require('path');
 const root = path.join(__dirname, '..', '..');
-const logs = process.argv.slice(2).filter(a => !a.startsWith('--'));
+const logs = process.argv.slice(2).filter(a => !a.startsWith('--') && !/^(phone|desktop)$/.test(a));
+// --screen phone|desktop: fit to the logs played on that kind of screen only (each log's header says touch or not); one
+// profile a screen, owner-profile.json (phone) and owner-profile-desktop.json, human.json and human-desktop.json
+const SCREEN_ARG = process.argv.includes('--screen') ? process.argv[process.argv.indexOf('--screen') + 1] : null;
 if (!logs.length) { console.error('usage: calibrate-snare.js <log.txt> [more logs…]'); process.exit(1); }
 
 const profile = { logs: [], runs: [], minute: [], catchesPerRun: 0, packetsPerCatch: 0, spoilShare: 0, touch: false };
 let early = [];
 for (const file of logs) {
     const text = fs.readFileSync(file, 'utf8');
+    const touch = /touch/.test(/^screen: (.*)$/m.exec(text)?.[1] || '');
+    if (SCREEN_ARG && (SCREEN_ARG === 'phone') !== touch) continue;
     const build = /^build: (.*)$/m.exec(text)?.[1] || '?';
     profile.touch ||= /touch/.test(/^screen: (.*)$/m.exec(text)?.[1] || '');
     profile.logs.push({ file: path.relative(root, path.resolve(file)), build });
@@ -44,14 +49,16 @@ profile.catchesPerRun = +(catches / Math.max(1, early.length)).toFixed(1);
 profile.packetsPerCatch = +(early.reduce((a, e) => a + (e.caught || 0), 0) / Math.max(1, catches)).toFixed(1);
 profile.spoilShare = +(early.reduce((a, e) => a + (e.corrupted || 0), 0) / Math.max(1, catches)).toFixed(3);
 profile.build = profile.logs.map(l => l.build).join(' | ');
-fs.writeFileSync(path.join(root, 'design', 'review', 'owner-profile.json'), JSON.stringify(profile, null, 1) + '\n');
+const desk = SCREEN_ARG === 'desktop';
+if (!profile.logs.length) { console.error(`no ${SCREEN_ARG} logs among them`); process.exit(1); }
+fs.writeFileSync(path.join(root, 'design', 'review', desk ? 'owner-profile-desktop.json' : 'owner-profile.json'), JSON.stringify(profile, null, 1) + '\n');
 console.log(`owner: runs per sector ${profile.runs.join('/')}, minutes ${profile.minute.join('/')}, ${profile.catchesPerRun} catches a run, ${profile.packetsPerCatch} packets a catch, ${(profile.spoilShare * 100).toFixed(1)}% spoiled (${early.length} early runs)`);
 
 // The fit: short campaigns (9 minutes, two seeds) for each pace, scored by how far their catches a run and packets a
 // catch (sectors 1–3) are from the owner's, and their runs to clear sectors 1–3.
 const { campaign, SCREENS } = require('./pacing.js');
 const bot = require(path.join(root, 'tools', 'snare-bot.js'));
-const scr = SCREENS[profile.touch ? 'phone' : 'desktop'];
+const scr = SCREENS[desk ? 'desktop' : profile.touch ? 'phone' : 'desktop'];
 let best = null;
 for (const hold of [1.4, 1.8, 2.2, 2.6]) for (const gap of [0.2, 0.35, 0.55]) for (const aim of [0.1, 0.25, 0.45]) for (const careless of [0.1, 0.25]) {
     const pace = { ...bot.HUMAN, hold, gap, aim, careless };
@@ -66,5 +73,5 @@ for (const hold of [1.4, 1.8, 2.2, 2.6]) for (const gap of [0.2, 0.35, 0.55]) fo
     if (!best || err < best.err) best = { err, pace, cpr, ppc, spoil, clears };
 }
 const out = { from: profile.logs.map(l => l.file), react: best.pace.react, slashEvery: best.pace.slashEvery, hold: best.pace.hold, gap: best.pace.gap, aim: best.pace.aim, careless: best.pace.careless };
-fs.writeFileSync(path.join(__dirname, 'human.json'), JSON.stringify(out, null, 1) + '\n');
+fs.writeFileSync(path.join(__dirname, desk ? 'human-desktop.json' : 'human.json'), JSON.stringify(out, null, 1) + '\n');
 console.log(`bot: hold ${out.hold} s, gap ${out.gap} s, aim ${out.aim}, careless ${out.careless} → ${best.cpr.toFixed(1)} catches a run, ${best.ppc.toFixed(1)} packets a catch, ${(best.spoil * 100).toFixed(1)}% spoiled, runs to clear 1–3 ${best.clears.map(x => x.toFixed(1)).join('/')} (fit error ${best.err.toFixed(3)})`);

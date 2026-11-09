@@ -1,0 +1,4 @@
+round,date,kind,roles,minutes,new_issues,known_repeats,false_alarms,fixes_verified,notes
+6,2026-11-09,full,3 generalists,~60,,,,,before the review kit
+7,2026-11-09,full,3 generalists,~75,,,,,usage limit hit mid-round
+9,2026-11-09,partial,screens,6,8,2,1,,early and late stopped; first round with the report and briefs

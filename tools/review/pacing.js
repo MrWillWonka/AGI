@@ -32,9 +32,11 @@ const PPU = 20, FLICK = 48;
 // The owner's numbers (tools/review/calibrate-snare.js writes design/review/owner-profile.json from their logs; the
 // phone log of 2026-11-09, build 15.5, until then) and the bot's pace fitted to them (tools/review/human.json).
 const readJson = f => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return null; } };
-const OWNER = readJson(path.join(root, 'design', 'review', 'owner-profile.json'))
+// a desktop campaign uses the desktop fit when there is one
+const DESK = SCREEN === 'desktop';
+const OWNER = (DESK && readJson(path.join(root, 'design', 'review', 'owner-profile-desktop.json'))) || readJson(path.join(root, 'design', 'review', 'owner-profile.json'))
     || { build: '15.5', runs: [1, 6, 6, 3, 1, 1], minute: [0.15, 2.65, 5.7, 7.5, 8.6, 9.6], catchesPerRun: 6.3, packetsPerCatch: 7.1, spoilShare: 2 / 113 };
-const PACE = { ...HUMAN, ...(readJson(path.join(__dirname, 'human.json')) || {}) };
+const PACE = { ...HUMAN, ...((DESK && readJson(path.join(__dirname, 'human-desktop.json'))) || readJson(path.join(__dirname, 'human.json')) || {}) };
 delete PACE.from;
 
 // Buys like the owner did (Attention Span and the field first, then the red-packet helpers, more packets, gold, the

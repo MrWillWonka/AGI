@@ -9,7 +9,8 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 
-test('Packet Snare: sectors 2–4 take their target runs for a person-paced player (design/review/targets.json)', () => {
+// Slow (about 20 s): runs with SLOW=1 (tools/review/report.js always sets it), skipped in the quick inner loop.
+test('Packet Snare: sectors 2–4 take their target runs for a person-paced player (design/review/targets.json)', { skip: !process.env.SLOW && 'slow: SLOW=1 runs it (the report always does)' }, () => {
     const argv = process.argv;
     process.argv = [argv[0], 'pacing.js', '--minutes', '11'];
     const { campaign, SCREENS } = require('../tools/review/pacing.js');

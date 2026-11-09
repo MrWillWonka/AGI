@@ -39,7 +39,10 @@ not in your top issues. Your top issues should be things the owner hasn't ruled 
   would have. Don't report what only a debug jump causes.
 
 **Process**
+- `known-issues.md` lists what's open and what's fixed and waiting to be verified; `decisions.md` is the queue of
+  questions for the owner (asked as question cards at each check-in, nothing built on one until it's answered).
 - After every batch of fixes: `node tools/review/report.js` (tests, pacing against targets, rule checks, screenshots).
-  A reviewer round only when the owner asks for one.
+  A reviewer round only when the owner asks for one: a quick verification (`brief-verify.md`, about ten minutes) after a
+  fix batch, a full round (early, late, screens; side by side with the last round's build) as a checkpoint.
 - Pacing targets live in `design/review/targets.json` (*proposed* until the owner confirms them); a target missed and
   waiting on the owner goes in its `knownMisses`, which the tests hold from getting worse.
