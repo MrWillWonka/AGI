@@ -1,0 +1,29 @@
+{
+ "logs": [
+  {
+   "file": "playtests/snare/2026-11-09-owner-snare-17.txt",
+   "build": "2026-11-09 22:25 (review branch) · Packet Snare 17: red packets are unreadable data, red the early fight (15% on sector 2, 30% on 3, 5% by 10) with the red nodes back and one Decoder Bot, a run earns back at most its starting Focus, the far ring dearer (the tree about 40 min)"
+  }
+ ],
+ "runs": [
+  1,
+  4,
+  10,
+  1,
+  2,
+  1
+ ],
+ "minute": [
+  0.51,
+  2.01,
+  9.4,
+  10,
+  11.26,
+  11.9
+ ],
+ "catchesPerRun": 6,
+ "packetsPerCatch": 10,
+ "spoilShare": 0.056,
+ "touch": false,
+ "build": "2026-11-09 22:25 (review branch) · Packet Snare 17: red packets are unreadable data, red the early fight (15% on sector 2, 30% on 3, 5% by 10) with the red nodes back and one Decoder Bot, a run earns back at most its starting Focus, the far ring dearer (the tree about 40 min)"
+}

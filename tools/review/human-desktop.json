@@ -1,0 +1,11 @@
+{
+ "from": [
+  "playtests/snare/2026-11-09-owner-snare-17.txt"
+ ],
+ "react": 0.4,
+ "slashEvery": 0.25,
+ "hold": 1.4,
+ "gap": 0.2,
+ "aim": 0.25,
+ "careless": 0.1
+}
