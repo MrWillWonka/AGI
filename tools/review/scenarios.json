@@ -17,31 +17,31 @@
  "3": {
   "levels": {
    "snareFocus": 3,
-   "snarePacketStream": 1,
+   "snarePacketStream": 2,
    "snareSprawl": 4,
-   "snareGold": 1,
    "snareSanitizer": 3,
-   "snareScrubbers": 2,
-   "snareChecksums": 1
+   "snareScrubbers": 1
   },
-  "signal": 146,
-  "runs": 15,
-  "minute": 6.8
+  "signal": 23,
+  "runs": 11,
+  "minute": 5.1
  },
  "4": {
   "levels": {
    "snareFocus": 3,
-   "snarePacketStream": 2,
+   "snarePacketStream": 3,
+   "snareChain": 1,
+   "snareBandwidth": 1,
    "snareSprawl": 5,
    "snareGold": 2,
-   "snareContain": 1,
+   "snareSpamFilter": 1,
    "snareSanitizer": 3,
    "snareScrubbers": 2,
-   "snareChecksums": 2
+   "snareChecksums": 3
   },
-  "signal": 208,
-  "runs": 20,
-  "minute": 9.4
+  "signal": 298,
+  "runs": 22,
+  "minute": 10.7
  },
  "5": {
   "levels": {
@@ -50,6 +50,7 @@
    "snareChain": 1,
    "snareBandwidth": 1,
    "snareSprawl": 6,
+   "snareSchools": 1,
    "snareGold": 2,
    "snareContain": 1,
    "snareSpamFilter": 1,
@@ -57,49 +58,51 @@
    "snareScrubbers": 2,
    "snareChecksums": 3
   },
-  "signal": 299,
+  "signal": 68,
   "runs": 23,
-  "minute": 11.1
+  "minute": 11.4
  },
  "6": {
   "levels": {
    "snareFocus": 3,
-   "snarePacketStream": 5,
-   "snareChain": 3,
+   "snarePacketStream": 4,
+   "snareChain": 2,
    "snareBandwidth": 2,
    "snareSprawl": 7,
    "snareSchools": 1,
    "snareGold": 2,
    "snareContain": 1,
    "snareSpamFilter": 1,
-   "snareReputation": 1,
    "snareSanitizer": 3,
    "snareScrubbers": 2,
    "snareChecksums": 3
   },
-  "signal": 106,
+  "signal": 406,
   "runs": 25,
-  "minute": 12.3
+  "minute": 12.6
  },
  "7": {
   "levels": {
    "snareFocus": 3,
    "snarePacketStream": 6,
-   "snareChain": 4,
+   "snareChain": 5,
    "snareBandwidth": 2,
    "snareSprawl": 7,
    "snareSchools": 1,
    "snareGold": 2,
    "snareContain": 1,
    "snareSpamFilter": 1,
-   "snareReputation": 1,
+   "snareReputation": 2,
+   "snareCleanerBot": 3,
    "snareSanitizer": 3,
+   "snareKernelPanic": 1,
    "snareScrubbers": 2,
-   "snareChecksums": 3
+   "snareChecksums": 3,
+   "snareFirewalls": 1
   },
-  "signal": 201,
-  "runs": 26,
-  "minute": 12.9
+  "signal": 663,
+  "runs": 30,
+  "minute": 15.2
  },
  "8": {
   "levels": {
@@ -107,7 +110,7 @@
    "snarePacketStream": 6,
    "snareChain": 5,
    "snareBandwidth": 2,
-   "snareSteady": 2,
+   "snareSteady": 1,
    "snareLongWire": 1,
    "snareOverflow": 2,
    "snareSprawl": 8,
@@ -115,21 +118,20 @@
    "snareGold": 2,
    "snareContain": 1,
    "snareSpamFilter": 1,
-   "snareFirehose": 2,
+   "snareFirehose": 1,
    "snareMotherLode": 1,
    "snareReputation": 2,
-   "snareBroadband": 1,
    "snareCleanerBot": 4,
    "snareSanitizer": 3,
    "snareKernelPanic": 1,
-   "snareParry": 1,
+   "snareParry": 2,
    "snareScrubbers": 2,
    "snareChecksums": 3,
    "snareFirewalls": 1
   },
-  "signal": 186,
-  "runs": 32,
-  "minute": 16.1
+  "signal": 525,
+  "runs": 33,
+  "minute": 16.9
  },
  "9": {
   "levels": {
@@ -149,19 +151,18 @@
    "snareFirehose": 3,
    "snareMotherLode": 2,
    "snareReputation": 2,
-   "snareBroadband": 2,
+   "snareBroadband": 1,
    "snareCleanerBot": 4,
    "snareSanitizer": 3,
    "snareKernelPanic": 1,
    "snareRiposte": 1,
    "snareParry": 3,
-   "snareGoldPlate": 1,
    "snareScrubbers": 2,
    "snareChecksums": 3,
-   "snareFirewalls": 2
+   "snareFirewalls": 1
   },
-  "signal": 991,
-  "runs": 34,
-  "minute": 17.5
+  "signal": 282,
+  "runs": 35,
+  "minute": 18.2
  }
 }
