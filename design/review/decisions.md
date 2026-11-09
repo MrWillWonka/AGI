@@ -18,3 +18,8 @@ When answered: the change, `settled.md` (or `targets.json`) and this file are up
 - **D8** → built: the tree's branch names in a frame round the view, level pills about 10 px at any zoom.
 
 ## Open
+
+## Parked ideas (not to build until the owner picks them up)
+- **Training lowers red**: red packets are data the model can't read yet; finishing runs in the Training Cluster could
+  make fewer of them unreadable, a reason to go back and forth. The owner isn't sold: Packet Snare must stay fun and
+  not gated behind training. Only the words are in (2026-11-09).

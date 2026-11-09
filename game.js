@@ -3893,8 +3893,8 @@ window.AGI = (function () {
     // Bubbles (a prototype, per device, off by default): hold still to grow a bubble that catches; loops only stun.
     // How to catch (Snare 15, the owner's call: bubbles are the way to catch), for the first card and the first tip.
     const snareHowTo = () => (matchMedia('(pointer: fine)').matches
-        ? 'Hold the RIGHT mouse button on the field: a bubble grows, and follows the mouse. Let go to catch what\'s inside. Bigger bubbles pay more; a red packet inside spoils the lot. (The left button draws a line: that\'s for the boss.)'
-        : 'Hold still on the field: a bubble grows, and follows your finger. Let go to catch what\'s inside. Bigger bubbles pay more; a red packet inside spoils the lot.');
+        ? 'Hold the RIGHT mouse button on the field: a bubble grows, and follows the mouse. Let go to catch what\'s inside. Bigger bubbles pay more; one red packet inside garbles the lot. (The left button draws a line: that\'s for the boss.)'
+        : 'Hold still on the field: a bubble grows, and follows your finger. Let go to catch what\'s inside. Bigger bubbles pay more; one red packet inside garbles the lot.');
     function snareField(area = E.snareOpts(state).area, o = null) {
         const aspect = Math.min(3.5, Math.max(0.5, snare.cw / snare.ch || 1.6));
         const cap = snare.cw > 0 && snare.ch > 0 ? Math.max(window.PacketSnare.FIELD_AREA, snare.cw * snare.ch / SNARE_PPU ** 2) : area;
@@ -4173,8 +4173,8 @@ window.AGI = (function () {
     // ---- First meetings: each mechanic is introduced once, with a demo, the moment it turns up (the run pauses) ----
     // Keyed by the demo they show (snare-demos.js).
     const SNARE_INTROS = {
-        lasso: ['Packet Snare', 'Hold still on the field: a bubble grows. Let go to catch what\'s inside. Bigger bubbles pay more; a red packet inside spoils the lot.'],
-        red: ['Red packets', () => (snareHuntOn() ? 'They\'re corrupt, and they hunt your bubble: hold it near one and it comes for you. Let go with one inside and the whole catch spoils, and you lose Focus. Catch round them, or let go before they get in.' : 'They\'re corrupt. Let go of a bubble with one inside and the whole catch spoils, and you lose Focus. Catch round them.')],
+        lasso: ['Packet Snare', 'Hold still on the field: a bubble grows. Let go to catch what\'s inside. Bigger bubbles pay more; one red packet inside garbles the lot.'],
+        red: ['Unreadable packets', () => (snareHuntOn() ? 'The red ones are data your model can\'t read yet: it isn\'t trained enough. And they hunt your bubble: hold it near one and it comes for you. Let go with one inside and the batch comes through garbled: lost, and Focus with it. Catch round them, or let go before they get in.' : 'The red ones are data your model can\'t read yet: it isn\'t trained enough. Let go of a bubble with one inside and the batch comes through garbled: lost, and Focus with it. Catch round them.')],
         antivirus: ['Antivirus', 'It hunts your bubbles. If it touches one, it pops and you lose the catch. Let go before it reaches you.'],
         sweep: ['Full Scan', 'Its edge flashes, then it sweeps the whole field. Any bubble it crosses pops.'],
         boss: ['Boss Antivirus', () => `1. Draw a loop round it twice without touching it (${snareFinePointer() ? 'drag with the left button; ' : ''}easiest while it stands still to charge): it's stunned. 2. While it reads SLASH!, swipe through it, again and again. Clear its health to clear the sector. While it stands it eats the packets near it and scatters the rest, more the longer it lives.`],
@@ -4182,12 +4182,12 @@ window.AGI = (function () {
         nets: ['Nets', 'Three mines now: once their nets join up, everything inside the triangle is wiped. Grab the mines with bubbles before the nets close, and throw them back.'],
         rogue: ['The Rogue AI', 'Its cores grow and take the data they reach. Let a bubble go over a core to quarantine it; your Firewall sections keep it off the data inside them.'],
         firewall: ['Firewalls', 'Sections now place themselves where the good packets gather. Red packets can\'t get in, and Antivirus can\'t either: bubble inside one safely. Each stands a while, then moves on.'],
-        decoy: ['Decoys', 'Decoys now appear by themselves near the red packets. Corrupt packets and idle Antivirus go to them; the boss smashes one it sits on.'],
+        decoy: ['Decoys', 'Decoys now appear by themselves near the red packets. Unreadable packets and idle Antivirus go to them; the boss smashes one it sits on.'],
         turret: ['Turrets', 'Turrets now appear by themselves where Antivirus hunt. On its beat each shoots an Antivirus in reach (three hits and it\'s down for a while), else a red packet.'],
         tower: ['Scanner towers', 'Towers now appear by themselves in the busiest currents. Their beam tags what passes: tagged packets are worth more for a moment.'],
         freeze: ['Freeze Frame', 'Now and then a Freeze pickup drifts in: tap or click it and the field stops. Nothing moves and nothing comes due, but the boss can\'t be hit while it holds.'],
-        purge: ['Purge', 'Now and then a Purge pickup drifts in, near the red packets: tap or click it and every corrupt packet on the field is wiped.'],
-        gc: ['Garbage Collection', 'A bubble round nothing but corrupt packets deletes them and gives Focus back.'],
+        purge: ['Purge', 'Now and then a Purge pickup drifts in, near the red packets: tap or click it and every unreadable packet on the field is wiped.'],
+        gc: ['Garbage Collection', 'A bubble round nothing but unreadable packets deletes them and gives Focus back.'],
         ids: ['IDS alert', 'Three flagged exploits: the intrusion detection system noticed. A flick that goes near something and misses it is flagged; one through empty field isn\'t.']
     };
     // The first threat the next run brings that hasn't been met, to show on its start card.
@@ -4451,7 +4451,7 @@ window.AGI = (function () {
                     Array.from({ length: d.sector - d.startSector + 1 }, (_, i) => d.startSector + i).map(k => E.snareSectorName(k) + (d.cleared.includes(k) ? ' ✓' : '')).join(' → '), 'key'] : null,
                 [s.bubbles ? 'Catches' : 'Loops closed', `${s.catches}`],
                 s.bestMult >= 1.05 ? [s.bubbles ? 'Biggest catch' : 'Biggest loop', `×${s.bestMult.toFixed(1)}`] : null,
-                s.corrupted ? ['Corrupted catches', `${s.corrupted}`] : null,
+                s.corrupted ? ['Garbled catches', `${s.corrupted}`] : null,
                 s.snaps ? [snare.run?.opts.bubble ? 'Popped or snapped' : 'Wires snapped', `${s.snaps}`] : null,
                 // How close the boss came to falling (a log had 8 of 9, twice, and the card said only "8"): near the end it's a key line.
                 d.bossMax && d.bossLeft < d.bossMax ? ['Boss health taken', `${d.bossMax - d.bossLeft} of ${d.bossMax}`, d.bossLeft <= Math.max(1, d.bossMax * 0.25) ? 'key' : ''] : null,
@@ -4487,7 +4487,7 @@ window.AGI = (function () {
                 d.cleared.some(k => E.isSnareBossSector(k)) ? el('div', { class: 'result-main snare-boss-down', text: `Boss down · ${s.slashes || 0} slash${s.slashes === 1 ? '' : 'es'}${s.mineThrows ? ` · ${s.mineThrows} mine${s.mineThrows === 1 ? '' : 's'} thrown` : ''}` }) : null,
                 el('div', { class: 'result-main', text: s.caught ? `${s.caught} packet${s.caught === 1 ? '' : 's'} snared` : 'Nothing snared' }),
                 // nothing caught: why, in plain words, first (round 9 of the review: "Corrupted catches 1" didn't say it)
-                !s.caught ? el('p', { class: 'snare-intro-line snare-red-line', text: s.corrupted ? 'A red packet got into your bubble: the catch spoiled. Let go before red swims in.'
+                !s.caught ? el('p', { class: 'snare-intro-line snare-red-line', text: s.corrupted ? 'An unreadable packet got into your bubble: the batch came through garbled. Let go before red swims in.'
                     : s.snaps ? 'Your bubble was popped before you let go.' : 'Hold still on the field to grow a bubble, then let go to catch what\'s inside.' }) : null,
                 el('div', { class: 'result-xp', text: `+${E.format(d.haul)} Signal` }),
                 d.record ? el('span', { class: 'result-badge', text: `New record · was +${E.format(d.prev)}` }) : null,
@@ -4911,7 +4911,7 @@ window.AGI = (function () {
         ['tagValue', 'A tag', v => `×${v}`], ['schoolSize', 'School size', String], ['contain', 'Edges', v => (v ? 'hold good packets' : 'let packets go')],
         ['herders', 'Herder drones', String], ['herdEvade', 'Herders', v => (v ? `dodge Antivirus (${v})` : 'don\'t dodge')], ['herdRadius', 'Herder reach', snareX('herdRadius')],
         ['parry', 'The boss\'s charge', v => (v ? 'parried with a flick across its line' : 'dodge it, or loop the boss')],
-        ['gc', 'Bubbles of only corrupt packets', v => (v ? 'deleted, Focus back' : 'spoil')], ['spoof', 'Flicks', v => (v ? 'spoof corrupt packets' : 'off')],
+        ['gc', 'Bubbles of only unreadable packets', v => (v ? 'deleted, Focus back' : 'garble')], ['spoof', 'Flicks', v => (v ? 'spoof unreadable packets' : 'off')],
         ['spoofSeconds', 'Spoofed for', v => `${num1(v)} s`], ['slashDamage', 'A slash takes', v => `${v} health`], ['parryDamage', 'A parry takes', v => `${v} health`],
         ['bossStun', 'A stunned boss reels', v => `${num1(v)} s`], ['fork', 'A full bubble let go', v => (v ? `splits into ${v + 1}` : 'stays whole')],
         ['star', 'A bubble let go while frozen', v => (v ? 'goes supernova' : 'nothing special')], ['starMult', 'A supernova pays', v => `×${v} more`],
@@ -4922,8 +4922,8 @@ window.AGI = (function () {
         ['turretRange', 'Turret reach', snareX('turretRange')], ['turretEvery', 'Turrets fire every', v => `${num1(v)} s`], ['scanner', 'Scanner beam', v => (v ? 'on' : 'none')],
         ['scannerSpeed', 'Scanner sweep', snareX('scannerSpeed')], ['towers', 'Scanner towers at once', String], ['towerRange', 'Tower reach', snareX('towerRange')],
         ['chain', 'Arcs per catch', String], ['chainHops', 'Arc hops', String], ['chainRange', 'Arc reach', snareX('chainRange')],
-        ['scrubbers', 'Corrupt packets forgiven', v => (v > 0 ? `${v}, +1 per 20 packets in the bubble` : '0')], ['corruptShare', 'Corrupt packets', v => `${(v * 100).toFixed(1)} per 100 good ones`],
-        ['corruptLure', 'Corrupt pull to schools', pct],
+        ['scrubbers', 'Unreadable packets forgiven', v => (v > 0 ? `${v}, +1 per 20 packets in the bubble` : '0')], ['corruptShare', 'Unreadable packets', v => `${(v * 100).toFixed(1)} per 100 good ones`],
+        ['corruptLure', 'Unreadable pull to schools', pct],
  ['purge', 'Purge pickups', v => (v ? `one every ~${Math.round(16 / (1 + 0.6 * (v - 1)))} s` : 'none')],
         ['firewalls', 'Firewall sections at once', String], ['zoneSize', 'Firewall section size', snareX('zoneSize')], ['wallRebuild', 'Sections rebuild', v => (v ? `after ${v} s` : 'never')],
         ['fwHits', 'Firewall section health', v => `${6 * v} (Antivirus wear 1 a second)`], ['decoys', 'Decoys at once', String], ['decoyLure', 'Decoy pull', snareX('decoyLure')],
@@ -4940,8 +4940,8 @@ window.AGI = (function () {
         ['cleanSweep', 'After a clean loop, the clock stops for', v => `${num1(v)} s`],
         ['relay', 'Red packets your walls bounce', v => (v ? 'swim to your decoy' : 'swim on')],
         ['backpressure', 'A catch', v => (v ? 'turns the packets round it back' : 'leaves the packets round it be')],
-        ['cleanBots', 'Cleaner bots', String], ['spoofBots', 'Spoofer bots', String], ['collectBots', 'Collector bots', String],
-        ['goldPlate', 'Cleaner bots gild a packet every', v => (v ? `${num1(6 / v)} s` : 'never')],
+        ['cleanBots', 'Decoder bots', String], ['spoofBots', 'Spoofer bots', String], ['collectBots', 'Collector bots', String],
+        ['goldPlate', 'Decoder bots gild a packet every', v => (v ? `${num1(6 / v)} s` : 'never')],
         ['pen', 'Good packets in a section', v => (v ? 'stay in' : 'come and go')],
         ['autoZone', 'Free sections', v => (v ? 'place themselves' : 'wait for you')]
     ];
@@ -5116,7 +5116,7 @@ window.AGI = (function () {
             fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: 0.6, t: 0, life: 0.6 });
             fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.9, text: 'ANTIVIRUS DOWN', small: true });
         }
-        else if (e.type === 'corrupt') fx.push({ kind: 'corrupt', poly: e.poly, x: e.x, y: e.y, t: 0, text: 'CORRUPTED', packets: e.packets });
+        else if (e.type === 'corrupt') fx.push({ kind: 'corrupt', poly: e.poly, x: e.x, y: e.y, t: 0, text: 'GARBLED', packets: e.packets });
         else if (e.type === 'empty') fx.push({ kind: 'empty', poly: e.poly, x: e.x, y: e.y, t: 0, life: 0.5 });
         // a bubble pops, a wire snaps (round 3 of the review: a popped bubble said both)
         else if (e.type === 'snap') fx.push({ kind: 'snap', wire: e.wire, x: e.x, y: e.y, t: 0, text: e.bubble ? 'POPPED' : 'SNAPPED', life: 0.9 });
@@ -5169,7 +5169,7 @@ window.AGI = (function () {
         else if (e.type === 'netted') fx.push({ kind: 'purge', packets: e.packets, t: 0, life: 0.5 });
         else if (e.type === 'nova') { fx.push({ kind: 'nova', x: e.x, y: e.y, r: e.r, t: 0, life: 0.9 }); fx.push({ kind: 'flash', t: 0, life: 0.35, warn: false }); }
         else if (e.type === 'split') for (const kd of e.kids) fx.push({ kind: 'splitKid', x: kd.x, y: kd.y, r: kd.r, from: { x: e.x, y: e.y }, t: 0, life: 0.5 });
-        else if (e.type === 'splitSpoiled') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: 0.9, text: 'SPLIT SPOILED', small: true });
+        else if (e.type === 'splitSpoiled') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: 0.9, text: 'SPLIT GARBLED', small: true });
         else if (e.type === 'mineGrab') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 0.6, t: 0, life: 0.8, text: state.intro['snare:thrown'] ? 'GRABBED' : 'GRABBED · FLICK IT AT THE BOSS', small: true });
         else if (e.type === 'mineThrow') { fx.push({ kind: 'throw', x: e.x, y: e.y, from: e.from, t: 0, life: 0.45 }); fx.push({ kind: 'stun', x: e.x, y: e.y - 1.2, t: 0, life: 1, text: 'MINE THROWN', small: true }); state.intro['snare:thrown'] = true; }
         else if (e.type === 'mineLive') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: 0.9, text: 'LIVE AGAIN', small: true });
@@ -6743,7 +6743,7 @@ window.AGI = (function () {
                 // Kept inside the canvas, and on a touch screen lifted clear of the finger drawing the wire.
                 const x0 = head.x * k + d.ox, y0 = head.y * k + d.oy;
                 ctx.textAlign = x0 > cw * 0.65 ? 'right' : 'left';
-                const label = pv.spoiled ? 'CORRUPT ✕' : pv.garbage ? `GARBAGE · +${Math.round(run.opts.gcFocus * pv.corrupt.length)} Focus`
+                const label = pv.spoiled ? 'UNREADABLE ✕' : pv.garbage ? `GARBAGE · +${Math.round(run.opts.gcFocus * pv.corrupt.length)} Focus`
                     : `×${pv.mult.toFixed(1)} · ${pv.good.length}${pv.scrub ? ` · ${pv.scrub} scrubbed` : ''}${pv.safe ? ' · SAFE' : ''}`;
                 const lift = d.touch ? 46 : 12;
                 const lx = head.x * k + (ctx.textAlign === 'right' ? -12 : 12);
@@ -6759,7 +6759,7 @@ window.AGI = (function () {
                 // A big loop says plainly what it is (the owner's call): the multiplier is high, and so is the chance a
                 // red packet swims in before it closes.
                 // A pill of its own (round 4: amber text on an amber-heavy field didn't stand out), kept while the loop
-                // reads CORRUPT too: that's when the risk landed.
+                // reads UNREADABLE too: that's when the risk landed.
                 if (pv.mult >= 2) {
                     ctx.font = `700 11px ${snareMono()}`;
                     const text = `HIGH RISK · HIGH REWARD${pv.risk ? ` · ${pv.risk} red near` : ''}`;
@@ -6815,7 +6815,7 @@ window.AGI = (function () {
         // what letting go now would pay, above it (kept inside the canvas, clear of the finger)
         ctx.font = `700 13px ${snareMono()}`;
         ctx.textAlign = 'center';
-        const label = pv.spoiled ? 'CORRUPT ✕ · it spoils' : pv.inside.length ? `×${pv.mult.toFixed(1)} · ${pv.good.length}${pv.scrub ? ` · ${pv.scrub} scrubbed` : ''}${pv.safe ? ' · SAFE' : ''}${b.full ? ' · FULL' : ''}`
+        const label = pv.spoiled ? 'UNREADABLE ✕ · it garbles' : pv.inside.length ? `×${pv.mult.toFixed(1)} · ${pv.good.length}${pv.scrub ? ` · ${pv.scrub} scrubbed` : ''}${pv.safe ? ' · SAFE' : ''}${b.full ? ' · FULL' : ''}`
             : `×${pv.mult.toFixed(1)}${b.full ? ' · FULL' : ''}`;
         const half = ctx.measureText(label).width / 2 + 8;
         const lx = Math.max(half, Math.min(cw - half, x + d.ox)) - d.ox;

@@ -20,7 +20,7 @@ Update this file with every fix batch (move fixed ones to *fixed: verify*, drop 
 
 ## Fixed: verify
 - **F13 (K11) Red didn't matter early:** red is 30% of sector 2 tapering to 5% by sector 10, the red nodes cut it, and the
-  Cleaner Bot (later, the one bot for red) takes about a second a packet (D13).
+  Cleaner Bot (now the Decoder Bot; later, the one bot for red) takes about a second a packet (D13).
 - **F12 Runs that never ended** (the Snare 16 log: 110 s, 2.06M Signal, half the tree in a minute): a run earns back at
   most the Focus it started with; NO MORE FOCUS BACK THIS RUN when it's spent.
 - **F10 The boss could be ignored** (the owner's phone log: they gathered on its far side): it now eats the packets in a

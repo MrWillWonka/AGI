@@ -50,3 +50,6 @@ not in your top issues. Your top issues should be things the owner hasn't ruled 
   fix batch, a full round (early, late, screens; side by side with the last round's build) as a checkpoint.
 - Pacing targets live in `design/review/targets.json` (*proposed* until the owner confirms them); a target missed and
   waiting on the owner goes in its `knownMisses`, which the tests hold from getting worse.
+- Red packets are **unreadable data** (the owner's call, 2026-11-09): data the model can't read yet because it isn't
+  trained enough; one in a bubble garbles the batch. The drone that turns them is the Decoder Bot. Review the words for
+  clarity, not the framing.
