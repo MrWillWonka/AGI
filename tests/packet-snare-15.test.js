@@ -212,3 +212,16 @@ test('new threats wait for the pen to lift (a tip card never lands mid-bubble), 
     bubble(scan, 6, 4, 1, true);
     assert.equal(scan.stats.sweeps, 0);
 });
+
+test('a bubble let go as Focus runs out pays, and if it reaches the goal the sector clears (review round 3)', () => {
+    const r = still({ focus: 0.6, idleDrain: 1, goal: 3 });
+    for (let i = 0; i < 4; i++) packet(r, 'good', 6 + (i % 2) * 0.2, 4 + (i > 1 ? 0.2 : 0));
+    let goal = false;
+    r.setPen('bubble');
+    r.addPoint(6.1, 4.1);
+    for (let i = 0; i < 120 && !r.over; i++) { r.addPoint(6.1, 4.1); r.step(1 / 60); }
+    for (const e of r.takeEvents()) if (e.type === 'goal') goal = true;
+    assert.ok(r.over, 'the run ended');
+    assert.ok(r.stats.caught >= 3, 'the held bubble paid');
+    assert.ok(goal && r.goalDone, 'and the goal it reached cleared the sector');
+});

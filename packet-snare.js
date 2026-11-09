@@ -247,7 +247,7 @@
         minionCap: 2,
         bossR: 0.8,                 // its size: it grows sector by sector
         bossSmash: 2,               // seconds it sits on a decoy before smashing it
-        bossEdge: 0.18,             // × the shorter side: how far its edge keeps from the field's
+        bossEdge: 0.24,             // × the shorter side: how far its edge keeps from the field's (0.18 before round 3 of the review)
         slashDamage: 1,             // health a slash takes off
         parryDamage: 0,             // health a parry takes off (Riposte)
         slashGap: 0.3,              // seconds between slashes (Snare 12: at 0.12 a bot landed twice what a thumb does)
@@ -2165,6 +2165,11 @@
             // A bubble held when Focus runs out is let go, and pays (round 1 of the review: it froze behind the end card).
             if (s.bubble?.growing) popBubble();
             settleRace();
+            // …and if that catch reached the sector's goal, it clears (round 3 of the review: "Goal 55/55" and not cleared).
+            if (o.goal > 0 && !s.goalDone && goalProgress() >= o.goal) {
+                s.goalDone = true;
+                s.events.push({ type: 'goal', x: w / 2, y: h / 2, caught: Math.round(goalProgress()), focus: 0 });
+            }
             s.splits = [];
             s.over = true;
             s.wire = [];
@@ -2476,7 +2481,8 @@
 
         // ---- Bubbles (the way to catch, Snare 15) --------------------------------------------------------------
         // While a bubble grows its outline is the wire, so whatever hunts or snaps a wire pops it.
-        const bubbleMaxR = Math.min(o.bubbleMax * shortSide, Math.sqrt(o.bubbleShare * w * h / Math.PI)) * (1 + o.bubbleSize);
+        // never past half the field however big Bigger Buffers makes it (round 3: a maxed bubble covered a third and aiming stopped mattering)
+        const bubbleMaxR = Math.min(Math.min(o.bubbleMax * shortSide, Math.sqrt(o.bubbleShare * w * h / Math.PI)) * (1 + o.bubbleSize), Math.sqrt(w * h / 2 / Math.PI), 0.6 * shortSide);
         const bubbleTime = o.bubbleTime / (1 + o.bubbleGrow);
         function circle(x, y, r, n = 32) {
             const pts = [];

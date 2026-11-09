@@ -3432,7 +3432,7 @@ body.calm .snare-deeper { animation: none; }
 /* The Upgrades badge sits over the button's corner: the card's buttons leave room for it (round 3: clipped). */
 .snare-card .result-actions { padding-top: 10px; padding-right: 10px; }
 /* The tree's popup docks along the foot of a narrow tree, its buy button always in view. */
-.snare-tree-grid .node-detail.docked { left: 6px; right: 6px; bottom: 6px; top: auto; width: auto; max-height: 50%; }
+.snare-tree-grid .node-detail.docked { left: 6px; right: 6px; bottom: 6px; top: auto; width: auto; max-height: 42%; }
 /* Its demo smaller there, so the buy button never sits on it (review round 2). */
 .snare-tree-grid .node-detail.docked .demo { width: 160px; margin-inline: auto; }
 .snare-tree-grid .node-detail.docked .demo figcaption { display: none; }
@@ -3529,3 +3529,14 @@ body.calm .snare-deeper { animation: none; }
 .snare-node-name { position: absolute; width: calc(var(--cell) * 0.98); transform: translate(-50%, calc(var(--cell) * 0.37)); text-align: center; font: 600 10px/1.15 var(--font-body); color: var(--muted); pointer-events: none; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 1px 2px var(--bg); z-index: 1; }
 .snare-node-name[hidden] { display: none; }
 .snare-tree-grid.names-off .snare-node-name { display: none; }
+/* Go deeper once a sector is cleared: lit, so the choice is seen (review round 3). */
+.snare-deeper.lit { color: var(--bg); background: var(--success); border-color: var(--success); font-weight: 700; box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 60%, transparent); animation: snare-deeper-in 0.4s ease-out, snare-deeper-pulse 1.6s ease-in-out 0.4s infinite; }
+@keyframes snare-deeper-pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--success) 0%, transparent); } 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 55%, transparent); } }
+body.calm .snare-deeper.lit, body.idle .snare-deeper.lit { animation: none; }
+@media (prefers-reduced-motion: reduce) { .snare-deeper.lit { animation: none; } }
+/* The end card's next buy: a button straight to its node. */
+.snare-card .snare-buy-link { all: unset; cursor: pointer; color: var(--success); text-decoration: underline; text-underline-offset: 2px; }
+.snare-card .snare-buy-link:focus-visible { outline: 2px solid var(--success); outline-offset: 2px; }
+/* Packet Snare's tree: branch names sit behind the nodes and their names, faint (review round 3: LOOPS sat on a node's name). */
+.snare-tree-grid .tree-branch { z-index: 0; opacity: 0.7; }
+.snare-tree-inner { z-index: 1; }

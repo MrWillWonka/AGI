@@ -13,7 +13,7 @@
     // The build a player is on: stamped into every playtest log (its header and session events), so each log is read
     // against the features it had (playtests/README.md lists the builds). Bump it with every publish: the date and
     // time (UTC) and a few words on what changed.
-    const BUILD = '2026-11-09 06:20 (review branch) · Packet Snare 15.2: review round 2 (tips the moment a threat appears, red met on a card, node names, a docked popup, the same full bubble on every screen, clean streaks, no scans with the first boss)';
+    const BUILD = '2026-11-09 07:40 (review branch) · Packet Snare 15.3: review round 3 (a catch at the buzzer clears, threats met on start cards, a five-health first boss, node links, louder sector clears)';
     const SAVE_VERSION = 27;   // 27: Packet Snare 15 (bubbles are the way to catch: Split, Supernova, Bigger Buffers, mines grabbed), the tree refunded again; 26: Packet Snare 14 (bots earlier, powers with five levels, Collector Bot), the tree refunded again; 25: Packet Snare 12 (the boss looped, the tree repriced and Root Access moved), the tree refunded again; 24: Packet Snare's tree rearranged so no node does the same thing as the one it grows from, every level refunded; 23: Packet Snare's Firewalls became sections (layout.zones; drawn walls dropped), its tree regrown again with every level refunded; 22: Packet Snare's tree regrown (Snare 10: four wedges, capstones), every level refunded; 21: Packet Snare's placements (snare.layout: walls, decoys, turrets, towers; the anchors went), its tree regrown; 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
@@ -2173,7 +2173,8 @@
     const snareSectorName = k => (SNARE_SECTORS[k] || `Deep ${k - SNARE_SECTORS.length + 1}`);
     // The boss's health, by boss (Snare 12, two review rounds): 10 on sector 5 (two stuns: a first boss you have to
     // learn), 30 on 10, 64 on 15, 90 on 20 (with its minions it was a wall at 111), then about a third more each boss.
-    const SNARE_BOSS_HEALTH = [10, 30, 64, 90, 130, 175, 230, 300];
+    // The first boss is a lesson (round 3 of the review: 10 took two clean stuns): one clean stun and its five slashes.
+    const SNARE_BOSS_HEALTH = [5, 30, 64, 90, 130, 175, 230, 300];
     const snareBossHp = k => {
         const n = Math.max(0, Math.round((k + 1) / SNARE_BOSS_EVERY) - 1);
         return n < SNARE_BOSS_HEALTH.length ? SNARE_BOSS_HEALTH[n] : Math.round(SNARE_BOSS_HEALTH[SNARE_BOSS_HEALTH.length - 1] * Math.pow(1.3, n - SNARE_BOSS_HEALTH.length + 1));
@@ -2188,7 +2189,8 @@
     // came every 90 s): Full Scans from the 4th run, Antivirus from the 10th, the Rogue AI from the 18th (the
     // boss's tricks come with its sector).
     // Snare 14 (the owner's call): scans and Antivirus no longer wait for runs played, only the Rogue AI does.
-    const SNARE_RUN_FLOORS = { sweeps: 0, antivirus: 0, rogue: 18 };
+    // Round 3 of the review: the Rogue AI waited 18 runs, so a quick player met it far past its sector; now only 6.
+    const SNARE_RUN_FLOORS = { sweeps: 0, antivirus: 0, rogue: 6 };
     // The first four (20, 35, 55, 80; round 1 of the review: 25, 45, 70, 100 took ten runs a sector) put the first boss after the first scan; then ×1.4 a sector to 9, ×1.3 after.
     const SNARE_FIRST_GOALS = [20, 35, 55, 80];
     // After the first four, ×1.25 a sector from the fourth's 80 (round 2 of the review: ×1.4 asked 370 at sector 9, a cliff).

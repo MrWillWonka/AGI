@@ -651,3 +651,14 @@ Round 2 (15.1): gameplay 6.7, clarity 6.3, pacing 6.5, design 6.7, visuals 6.7, 
 - **The tree**: nodes carry their names; the popup docks to the right edge (desktop) or the foot (phone) instead of
   covering neighbours; packet nodes preview counts. Pops stack or drop instead of piling; a beaten boss heads its card;
   a shielded boss says GRAB A MINE.
+
+Round 3 (15.2): gameplay 7.0, clarity 6.7, pacing 6.7, design 6.5, visuals 6.8, tutorials 7.2, engagement 7.0. What 15.3 did:
+
+- **A bug all three hit**: a bubble let go at the buzzer reached the goal and didn't clear it. It does now (tested).
+- **Tips stacking at boss sectors**: each new threat is met on the start card of the run that brings it; in-run threat
+  tips wait 2.5 s after the last and 0.8 s after a catch. Achievement toasts in the bay wait for the tree.
+- **The first boss**: five health (one clean stun), kept further from the edges.
+- **Moments**: a cleared sector is a big banner with a gold flash; Go deeper lights up; the end card's next buy is a link
+  to its node; the goal line says what big bubbles added; a lost boss suggests a replay for Signal.
+- **Tree layout**: branch names behind the nodes, fit leaves room for names, the phone dock is smaller.
+- **Clutter and words**: POPPED for bubbles, SNAPPED for wires; HIGH RISK only with red near; chains capped at 40 arcs.
