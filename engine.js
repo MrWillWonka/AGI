@@ -624,7 +624,7 @@
     // D14 (the owner's call): ring 4 and out costs SNARE_FAR_PRICE more on top (the tree was bought out at 28–32 min, the
     // target is about 40), except the drones' and turrets' first levels and every node on the way to them, kept at 4,000
     // or less so automation comes by mid-game.
-    const SNARE_FAR_PRICE = 1;
+    const SNARE_FAR_PRICE = 1.6;   // the sweep (phone, 5 seeds): ×1 bought out at 31–33 min, ×1.43 35–37, ×1.6 37.5–40 (desktop 35–36)
     {
         const byId = Object.fromEntries(SNARE_TREE.map(n => [n.id, n]));
         const keep = new Set();

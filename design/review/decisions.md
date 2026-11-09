@@ -16,6 +16,10 @@ When answered: the change, `settled.md` (or `targets.json`) and this file are up
 - **D6** → the first run stays 25 in 10 s.
 - **D7** → achievement toasts stay as they are (they show in the tree; swipe or click away).
 - **D8** → built: the tree's branch names in a frame round the view, level pills about 10 px at any zoom.
+- **D14** → red ramps in (15% on sector 2, 30% on sector 3, 5% by sector 10), and the far ring costs ×1.6 more
+  (`SNARE_FAR_PRICE`; the automation's first levels and the nodes on the way to them kept). The sweep: the tree bought
+  out at 37.5–40 min on a phone (31–33 before), 35–36 on desktop; sector 2 still 9 runs, because red isn't what paces it
+  (no red at all: 7; a goal of 60 moved the wall to sector 3, 12–22 runs). Judge sector 2 by hand: the owner took 6.
 
 ## Open
 
