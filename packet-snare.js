@@ -84,7 +84,8 @@
         focusBack: 0,               // Second Wind: seconds of Focus a loop at ×2 or more gives back
         laser: 0,                   // Targeted Laser: seconds between shots (0 = none)
         emitters: 1,                // packets each shot takes
-        scrubbers: 0,               // corrupt packets a loop forgives
+        scrubbers: 0,               // corrupt packets a loop forgives…
+        scrubPer: 20,               // …and, with any Scrubbers, one more per this many good packets inside (Snare 14.3)
         // The Rogue AI: Infection Cores, one every `rogueEvery` s from `rogueFirst` (0 = no Rogue AI this run).
         rogue: 0,
         rogueFirst: 4,
@@ -575,7 +576,13 @@
 
         const goodTarget = Math.max(4, Math.min(o.maxGood, Math.round(o.density * fieldArea)));
         // No red at all on a clean sector (Snare 14: sector 1); else at least one.
-        const redTarget = () => (o.corruptShare > 0 ? Math.max(1, Math.round(goodTarget * o.corruptShare)) : 0);
+        // Red grows with the square root of the packets, not with them (Snare 14.3, the owner's log: packet nodes on a
+        // big field brought ~45 red, and a loop worth drawing always held more than Scrubbers forgave): the share is of
+        // the geometric mean of what the field would hold at the base density and what it holds now, so a field five
+        // times as full has about 2.2 times the red, and Open Ports, Firehose and the like mostly add good packets.
+        const plainGood = Math.max(4, Math.round(SNARE.density * fieldArea));
+        const redBase = Math.round(Math.sqrt(plainGood * Math.max(plainGood, goodTarget)));
+        const redTarget = () => (o.corruptShare > 0 ? Math.max(1, Math.round(redBase * o.corruptShare)) : 0);
         let corruptTarget = redTarget();
         for (let left = goodTarget; left > 0;) {
             const n = Math.min(left, Math.max(2, Math.round(o.schoolSize * (0.6 + rand() * 0.8))));
@@ -1746,8 +1753,9 @@
             r.bonus = Math.min(o.raceMax, o.raceRate * r.t);
             // Held to its cap, it pays out (holding is a timing call, not a farm).
             if (r.bonus >= o.raceMax) { settleRace(); return; }
-            const bad = s.packets.filter(p => p.kind === 'corrupt' && !spoofed(p) && pointInPolygon(p, r.poly)).length;
-            if (bad > o.scrubbers) settleRace();
+            const inLoop = s.packets.filter(p => pointInPolygon(p, r.poly));
+            const bad = inLoop.filter(p => p.kind === 'corrupt' && !spoofed(p)).length;
+            if (bad > forgives(inLoop.length - bad)) settleRace();
         }
         function settleRace() {
             const r = s.race;
@@ -2103,6 +2111,9 @@
 
         // What a loop would catch: the packets inside, how many are corrupt beyond what the scrubbers forgive, its
         // multiplier and its worth. Used to close a loop and, on the open wire, for the live preview.
+        // How many corrupt packets a loop forgives: a flat one per Scrubbers level, plus one per `scrubPer` good packets
+        // inside once you own any (Snare 14.3: a flat count spoiled every big loop on a packed field).
+        function forgives(good) { return o.scrubbers > 0 ? o.scrubbers + Math.floor(good / o.scrubPer) : 0; }
         function judge(poly, bonus = 0) {
             const area = polygonArea(poly);
             const inside = s.packets.filter(p => pointInPolygon(p, poly));
@@ -2110,7 +2121,7 @@
             const good = inside.filter(isGood);
             // Garbage Collection: a loop of nothing but corrupt packets is collected, not spoiled.
             const garbage = !!o.gc && !good.length && corrupt.length > 0;
-            const spoiled = !garbage && corrupt.length > o.scrubbers;
+            const spoiled = !garbage && corrupt.length > forgives(good.length);
             // A loop wholly inside one of your Firewall sections is safe (red can't get in), so it pays less.
             const safe = wallsNow.some(f => poly.every(v => inZone(v, f, 0.05)));
             const mult = areaMult(area, o, fieldArea) * (1 + bonus) * (safe && !o.pen ? o.safeLoop : 1);
@@ -2606,8 +2617,8 @@
                 if (spoofed(p) || p.kind !== 'corrupt' || j.inside.includes(p)) continue;
                 for (let i = 1; i < poly.length; i++) if (segDist(p, poly[i - 1], poly[i]) < 1) { risk++; break; }
             }
-            if (bub) return { ...j, risk, scrub: Math.min(j.corrupt.length, o.scrubbers), near: true, bubble: true, full: !!s.bubble.full };
-            return { ...j, risk, scrub: Math.min(j.corrupt.length, o.scrubbers), near: s.leftStart && Math.hypot(head.x - start.x, head.y - start.y) <= closeR * 1.6 };
+            if (bub) return { ...j, risk, scrub: Math.min(j.corrupt.length, forgives(j.good.length)), near: true, bubble: true, full: !!s.bubble.full };
+            return { ...j, risk, scrub: Math.min(j.corrupt.length, forgives(j.good.length)), near: s.leftStart && Math.hypot(head.x - start.x, head.y - start.y) <= closeR * 1.6 };
         }
 
         function step(dt) {

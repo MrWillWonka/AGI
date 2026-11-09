@@ -577,3 +577,15 @@ Lightning arcing 22–48 packets a run against 300–700 caught. Asked four ques
   passed unseen, get banners, a flash and a shake; arcs are thicker and glow. One test shot: a maxed chain took 81.
 
 Save v26 refunds the tree (its prices and shape changed).
+
+### Snare 14.3: a packed field stays catchable
+
+The owner's next log (14.2, a phone, bubbles, 18 minutes to sector 12): "several things increase the size and number of
+packets but that brings in enough reds that ruin the catch, because players can only ignore 2 or so and the scrubbers
+aren't enough". The last runs had 432 and then 700 packets on the field, and catches fell to 2 and then 1 a run. Red was
+a share of every packet, so each packet node added red too, and Scrubbers forgave a flat 1–2 per loop. Measured on that
+build (every node the log bought, sector 12, the phone's 751-unit² field): 44 red, and a full bubble spoiled 41% of the
+time. The owner chose both fixes: red now grows with the square root of the packets (the share is of the geometric mean
+of what the field holds at the base density and what it holds now), and owning Scrubbers also forgives one more corrupt
+packet per 20 good ones inside. On the same build: 15 red, a full bubble spoiled 1% of the time with Scrubbers 2 and
+54% without, so red still matters and Scrubbers answer it. Early sectors are unchanged (about 2 red at sector 3).

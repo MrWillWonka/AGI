@@ -706,3 +706,29 @@ test('sector 1 has no red packets at all, and going deeper brings them in', () =
     for (let i = 0; i < 60 * 6; i++) r.step(1 / 60);
     assert.ok(reds() >= 1, 'red swims in on sector 2');
 });
+
+test('packet nodes add red only by the square root, and Scrubbers forgive one more per 20 good packets inside', () => {
+    const s = E.defaultState(NOW);
+    const o = { ...E.snareOpts(s, E.RED_SECTOR), idleDrain: 0, antivirus: [], sweepFirst: Infinity };
+    const reds = r => r.packets.filter(p => p.kind === 'corrupt').length;
+    const goods = r => r.packets.filter(p => p.kind !== 'corrupt').length;
+    const plain = P.createSnare({ ...o, seed: 3 });
+    const packed = P.createSnare({ ...o, seed: 3, density: o.density * 4, maxGood: o.maxGood * 4 });
+    assert.ok(goods(packed) >= goods(plain) * 3.5, 'four times the density holds about four times the packets');
+    const ratio = reds(packed) / Math.max(1, reds(plain));
+    assert.ok(ratio >= 1.5 && ratio <= 2.6, `red grows by about the square root (×${ratio.toFixed(2)}), not ×4`);
+});
+
+test('Scrubbers forgive one more corrupt packet per 20 good packets in the loop', () => {
+    const run = n => {
+        const s = still({ scrubbers: 1 });
+        for (let i = 0; i < n; i++) packet(s, 'good', 4.5 + (i % 5) * 0.2, 2.9 + Math.floor(i / 5) * 0.2);
+        packet(s, 'corrupt', 5.4, 3.2);
+        packet(s, 'corrupt', 4.6, 3.4);
+        arc(s, 5, 3.3, 1.6, 0.95);
+        return s.takeEvents();
+    };
+    assert.ok(run(5).some(e => e.type === 'corrupt'), 'a small loop: one forgiven, two spoil it');
+    const c = run(20).find(e => e.type === 'catch');
+    assert.ok(c && c.scrubbed === 2 && c.count === 20, '20 good packets inside forgive one more');
+});

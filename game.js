@@ -4197,7 +4197,7 @@ window.AGI = (function () {
             escalations: stats.escalations, forks: stats.forks, stars: stats.stars, packets: snare.run.packets.length,
             // The field as it played (Snare 10; the outside review's audit): packets a unit², how soon they came back, their
             // size, red per good packet, and the capstones at work.
-            density: r2(snare.run.opts.density), respawn: r2(snare.run.opts.respawn), packetR: r2(snare.run.opts.packetR), redPerGood: r2(snare.run.opts.corruptShare),
+            density: r2(snare.run.opts.density), respawn: r2(snare.run.opts.respawn), packetR: r2(snare.run.opts.packetR), redPerGood: r2(snare.run.opts.corruptShare), reds: snare.run.packets.filter(p => p.kind === 'corrupt').length,
             echoes: stats.echoes, storms: stats.storms, surges: stats.surges, cleaned: stats.cleaned, botSpoofed: stats.botSpoofed, botCollected: stats.botCollected, gilded: stats.gilded,
             pushedOut: stats.pushedOut, autoZones: stats.autoZones, pulses: stats.pulses, sweepsClean: stats.sweepsClean,
             relayed: stats.relayed, pushedBack: stats.pushedBack, raceBroken: stats.raceBroken, crashes: stats.crashes, converted: stats.converted,
@@ -4719,7 +4719,7 @@ window.AGI = (function () {
         ['turretRange', 'Turret reach', snareX('turretRange')], ['turretEvery', 'Turrets fire every', v => `${num1(v)} s`], ['scanner', 'Scanner beam', v => (v ? 'on' : 'none')],
         ['scannerSpeed', 'Scanner sweep', snareX('scannerSpeed')], ['towers', 'Scanner towers at once', String], ['towerRange', 'Tower reach', snareX('towerRange')],
         ['chain', 'Arcs per catch', String], ['chainHops', 'Arc hops', String], ['chainRange', 'Arc reach', snareX('chainRange')],
-        ['scrubbers', 'Corrupt packets forgiven', String], ['corruptShare', 'Corrupt packets', v => `${Math.round(v * 100)} per 100 good`],
+        ['scrubbers', 'Corrupt packets forgiven', v => (v > 0 ? `${v}, +1 per 20 packets in the loop` : '0')], ['corruptShare', 'Corrupt packets', v => `${Math.round(v * 100)} per 100 (more packets add none)`],
         ['corruptLure', 'Corrupt pull to schools', pct], ['purge', 'Purge pickups', v => (v ? `one every ~${Math.round(16 / (1 + 0.6 * (v - 1)))} s` : 'none')],
         ['firewalls', 'Firewall sections at once', String], ['zoneSize', 'Firewall section size', snareX('zoneSize')], ['wallRebuild', 'Sections rebuild', v => (v ? `after ${v} s` : 'never')],
         ['fwHits', 'Firewall section health', v => `${6 * v} (Antivirus wear 1 a second)`], ['decoys', 'Decoys at once', String], ['decoyLure', 'Decoy pull', snareX('decoyLure')],
