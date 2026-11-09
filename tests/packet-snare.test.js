@@ -398,7 +398,7 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     // snareOpts overrides packet-snare.js's SNARE table: that table is the one place the base numbers live
     const o = { ...P.SNARE, ...E.snareOpts(s) };
     assert.equal(o.area, P.SNARE.area);
-    assert.equal(o.focus, 14, 'a first run is about 14 s');
+    assert.equal(o.focus, 18, 'a first run is about 18 s');
     assert.deepEqual(o.antivirus, [], 'sector 1: only the packets');
     assert.equal(o.sweepFirst, Infinity);
     assert.equal(o.rogue, 0, 'no Rogue AI on the first runs');
@@ -415,7 +415,7 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     assert.equal(E.snareOpts(s).antivirus.length, 1, 'from its sector (the field\'s size adds none)');
     assert.equal(E.snareOpts(s, E.AV_SECTOR + 4).antivirus.length, 2, 'a second four sectors on');
     s.snare.sector = 0;
-    assert.equal(g.focus, 18);
+    assert.equal(g.focus, 23);
     assert.equal(g.chain, 5, 'Snare 14: five arcs a level');
     assert.ok(g.laser > 0 && g.laser < 4, 'faster with its second level');
     // and a run built from them is bigger, with lasers firing

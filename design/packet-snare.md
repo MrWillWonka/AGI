@@ -615,3 +615,24 @@ Every demo plays bubbles; the first card and a red-packet tip teach them. New th
 cores, the boss) wait for the pen to lift, for at most 4 s of holding. The tools' bot plays bubbles too: it beats the boss
 line about a sector later than the loop bot did, since holding a bubble catches less per second of Focus than a quick
 loop; real players with the tree's Focus nodes are well clear of it. Save v27 refunds the tree.
+
+## Review rounds (Snare 15.1 onward)
+
+Three blind reviewers a round (Fable, Opus, Sonnet) play the build and score it against `design/review-rubric.md`.
+Round 1 (Snare 15): gameplay 6.3, clarity 6.2, pacing 5.5, design 6.7, visuals 6.8, tutorials 6.3, engagement 6.2. Their
+shared complaints and what 15.1 did about them:
+
+- **Sector 1 was nearly empty** (9 packets, many drifting off): density 0.13 → 0.2 (16 on a first field), Focus 14 → 18 s,
+  the first goals 20 / 35 / 55 / 80.
+- **Antivirus pops took 2 s each from a 14 s clock, unannounced**: a popped bubble costs 1 s; a hunting Antivirus closing on
+  your bubble draws a dashed red line and a !.
+- **The first boss was lost to the clock**: its arrival adds 14 s (8), Focus doesn't drain while it reels, and the end card
+  names what helps (Attention Span, Kernel Panic, Root Access). The boss tip is three numbered steps.
+- **Tips at bad moments** (the red tip a second after Start, tips over a catch's pop, three in 8 s): tips wait 1 s after a
+  catch and 3 s after the last one closed; the red packet's waits for your first catch.
+- **Tree text that didn't match** (Checksums "28%" did 15%, previews that rounded to no change or showed none on sector 1,
+  Overclock "of undefined"): the red-packet nodes say 8% / 15% a unit, previews read a sector with red to one decimal,
+  endless nodes say so, and a buy button says what's still needed.
+- **Desktop**: a still left-click hold grows a bubble (the right button always does); toasts in the bay sit at the foot of
+  the screen; the field dims under cards; a bubble held at the end is let go and pays; red packets keep their size and wear
+  a halo on a full field; a bubble's rings stop at 40 good packets; at most 8 laser numbers at once.

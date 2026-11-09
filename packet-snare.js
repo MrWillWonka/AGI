@@ -37,7 +37,7 @@
         // Focus is the run's clock (Snare 11.5, the owner's call: drawing used to drain it faster, which punished the fun
         // part): it runs down `idleDrain` a second whatever you do, so it reads in seconds. A first run is about 14 s
         // (the logs' first runs were 10–20 s); mistakes cost seconds, and good play gives some back.
-        focus: 14,
+        focus: 18,
         idleDrain: 1.0,
         maxWire: 36,                // units on the starting field (× √ of the field's growth): past this the tail drops
         minGap: 0.1,                // the wire records a point every this far
@@ -51,7 +51,7 @@
         snapPenalty: 2,             // seconds of Focus lost when an Antivirus or a Firewall snaps the wire
         snapCooldown: 1.0,          // seconds before you can draw again after a snap
         respawn: 1.2,               // seconds before a caught packet's replacement swims in
-        density: 0.13,              // good packets per unit² of field…
+        density: 0.2,               // good packets per unit² of field… (round 1 of the review: 0.13 left 9 on a first field)
         maxGood: 340,               // …up to this many (Firehose and Floodgate raise it)
         corruptShare: 0.111,        // corrupt packets per good one: 10% of all packets (Snare 14, the owner's call: fewer red, an
                                     // Antivirus sooner; it was 15%, 26% before that). None on the first sector (engine.js)
@@ -276,7 +276,7 @@
         scribbleGap: 0.5,           // a loop closed this soon after the last on the same stroke pays ×scribblePay
         scribblePay: 0.5,
         safeLoop: 0.85,             // a loop wholly inside one of your Firewall sections pays ×this (it's safe; not with a pen)
-        bossFocus: 8,               // seconds of Focus the boss's arrival adds (the fight shouldn't race the clock)
+        bossFocus: 14,              // seconds of Focus the boss's arrival adds (the fight shouldn't race the clock; round 1 of the review: 8)
         slashCap: 5,                // slashes a stun allows: then it shakes it off
         bossRest: 1.5,              // seconds it stands after a dash (a second moment to loop it)
         gcCap: 3,                   // Garbage Collection: Focus back for at most this many red packets a loop…
@@ -1144,13 +1144,15 @@
         }
 
         function snap(fw) {
-            s.events.push({ type: 'snap', x: fw.x, y: fw.y, wire: s.wire.slice(), bubble: !!s.bubble?.growing });
+            const popped = !!s.bubble?.growing;
+            s.events.push({ type: 'snap', x: fw.x, y: fw.y, wire: s.wire.slice(), bubble: popped });
             s.bubble = null;
             s.wire = [];
             s.drawing = false;
             s.leftStart = false;
             s.cooldown = o.snapCooldown;
-            s.focus = Math.max(0, s.focus - o.snapPenalty);
+            // A popped bubble costs half (round 1 of the review: Antivirus pops took 2 s each from a 14 s clock).
+            s.focus = Math.max(0, s.focus - o.snapPenalty * (popped ? 0.5 : 1));
             s.stats.snaps++;
             s.streak = 0;
         }
@@ -2102,7 +2104,8 @@
             for (let i = pendingCorrupt.length - 1; i >= 0; i--) {
                 if (s.time >= pendingCorrupt[i] && corruptCount() < corruptTarget) { corrupt(true); pendingCorrupt.splice(i, 1); }
             }
-            const drain = s.time >= s.freeDrawUntil ? o.idleDrain : 0;
+            // No drain while the boss reels (round 1 of the review: the first boss was lost to the clock, not the fight).
+            const drain = s.time >= s.freeDrawUntil && !(s.boss && s.boss.stunned > s.time) ? o.idleDrain : 0;
             s.focus = Math.max(0, s.focus - drain * dt);
             if (s.focus <= 0) end();
         }
@@ -2152,6 +2155,8 @@
 
         function end() {
             if (s.over) return;
+            // A bubble held when Focus runs out is let go, and pays (round 1 of the review: it froze behind the end card).
+            if (s.bubble?.growing) popBubble();
             settleRace();
             s.splits = [];
             s.over = true;

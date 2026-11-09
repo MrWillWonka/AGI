@@ -1376,6 +1376,11 @@ body.calm .ending-lines p { animation: none; opacity: 1; }
     max-width: min(380px, calc(100vw - 68px));
     pointer-events: none;
 }
+/* Packet Snare: at the foot of the screen, clear of its cards, the bay's bar and the tree's header (game.js placeToasts). */
+.toasts.dock-low { top: auto; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); flex-direction: column-reverse; }
+@media (max-width: 640px) {
+    .toasts.dock-low { top: auto; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+}
 
 .toast {
     display: flex;
@@ -3363,6 +3368,9 @@ body.calm .snare-deeper { animation: none; }
 .snare-card[hidden] { display: none; }
 .snare-card { max-height: calc(100% - 16px); overflow-y: auto; overscroll-behavior: contain; }
 .snare-card .result-xp { color: var(--signal); }
+/* Opaque (round 1 of the review: the field's labels showed through), and a record in green, not the danger red. */
+.snare-card { background: var(--bg); }
+.snare-card .result-badge { background: color-mix(in srgb, var(--success) 16%, transparent); color: var(--success); }
 .snare-card .result-actions .button { flex: 1; }
 /* No sprint controls under the field: on upright phones it takes the height the trail's controls would. */
 @media (max-width: 640px) and (min-height: 501px) {
