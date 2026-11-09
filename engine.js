@@ -2196,9 +2196,10 @@
     const SNARE_RED_UNIT = 0.85, SNARE_RED_FLOOR = 0.035;
     // Red's share of the field by sector (k from 0): none on sector 1, 30% on sector 2, down in even steps to 5% on sector
     // 10 and after (the owner's call on the Snare 16 log: an early struggle that becomes manageable).
-    // D14 (the owner's call): red ramps in: 15% on sector 2, where you meet it, 30% on sector 3, then 5% by sector 10
+    // D14 (the owner's call): red ramps in: 22% on sector 2 (15% until the Snare 17 log: where the owner stopped, about 17% of
+    // the field was red, and that's how sector 2 should open; it read 11%), 30% on sector 3, 30% on sector 3, then 5% by sector 10
     // (30% on sector 2 took 12 runs on desktop in the pacing campaign, against a target of 2–7).
-    const SNARE_RED_FIRST = 0.15, SNARE_RED_START = 0.3, SNARE_RED_END = 0.05, SNARE_RED_UNTIL = 9;
+    const SNARE_RED_FIRST = 0.22, SNARE_RED_START = 0.3, SNARE_RED_END = 0.05, SNARE_RED_UNTIL = 9;
     const snareRedShare = k => (k < RED_SECTOR ? 0 : k === RED_SECTOR ? SNARE_RED_FIRST
         : Math.max(SNARE_RED_END, SNARE_RED_START - (SNARE_RED_START - SNARE_RED_END) * (k - RED_SECTOR - 1) / (SNARE_RED_UNTIL - RED_SECTOR - 1)));   // 15% a unit (the owner's call after the review rounds: the nodes do what they said)
     // Hazards wait for runs played as well as the sector (Snare 12, a review's call: sectors fell in minutes, so a new hazard
@@ -2250,6 +2251,12 @@
         for (const b of snareSkillBuffs(s)) for (const [k, v] of Object.entries(b.sn)) n[k] = (n[k] || 0) + v;
         return { n, staged };
     }
+    // The owner's call on the Snare 17 log: a mouse made runs much easier than a thumb (the right button holds a bubble, the
+    // left draws the wire, aim is exact), so a fine pointer gets 25% more red and faster threats: Antivirus and the boss
+    // move 20% faster and the boss's charge warning is 0.3 s shorter. game.js applies it to a run's options on a desktop.
+    const SNARE_DESKTOP = { red: 1.25, speed: 1.2, warn: 0.3 };
+    const snareDesktop = o => ({ ...o, corruptShare: (o.corruptShare || 0) * SNARE_DESKTOP.red, avSpeed: (o.avSpeed ?? 1) * SNARE_DESKTOP.speed,
+        bossWarn: Math.max(0.9, (o.bossWarn ?? 2) - SNARE_DESKTOP.warn) });
     function snareOpts(s, sector = s.snare.sector) {
         const B = snareBase();
         const { n, staged } = snareLevels(s);
@@ -3193,7 +3200,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, SNARE_OPEN_AT_START, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
-        SNARE_RED_UNIT, SNARE_RED_FLOOR, snareRedShare, SNARE_RUN_FLOORS, snareCatch, snareBossDown, snareGoalMet, snareGoal, isSnareBossSector, SNARE_BOSS_EVERY, finishSnare, snareOpts, SNARE_STAGES, RED_SECTOR, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, snareBossHp, snareBossHealth, SNARE_SKILL_BUFFS, snareSkillBuffs, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
+        SNARE_RED_UNIT, SNARE_RED_FLOOR, snareRedShare, SNARE_DESKTOP, snareDesktop, SNARE_RUN_FLOORS, snareCatch, snareBossDown, snareGoalMet, snareGoal, isSnareBossSector, SNARE_BOSS_EVERY, finishSnare, snareOpts, SNARE_STAGES, RED_SECTOR, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, snareBossHp, snareBossHealth, SNARE_SKILL_BUFFS, snareSkillBuffs, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany

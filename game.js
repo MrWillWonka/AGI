@@ -3970,9 +3970,11 @@ window.AGI = (function () {
     function snareLive(on = !!(openBay === 'pipeline' && snare.run && !snare.run.over && !snare.preview && !snare.tree)) {
         document.body.classList.toggle('snare-live', on);
     }
+    // A run's options for this screen: a mouse gets the desktop's harder field (E.snareDesktop, the owner's call).
+    const snareRunOpts = sector => (snareFinePointer() ? E.snareDesktop : o => o)(E.snareOpts(state, sector));
     function startSnare() {
         const sector = snareNextSector();
-        const o = E.snareOpts(state, sector);
+        const o = snareRunOpts(sector);
         // A run that brings a threat not yet met starts from a card that shows it (from an end card's Snare again too).
         if (snareMeetNext().length && snare.done) { snare.done = null; showSnareCard('start'); return; }
         snare.meeting = null;
@@ -4314,7 +4316,7 @@ window.AGI = (function () {
         const meet = snareMeetFor(snare.sector + 1);
         if (meet.length) { snareLookOut(meet, goDeeper); return; }
         snare.sector++;
-        run.nextSector(E.snareOpts(state, snare.sector));
+        run.nextSector(snareRunOpts(snare.sector));
         pt('snareDeeper', { sector: snare.sector + 1, secs: Math.round(run.time), focus: Math.round(run.focus) });
         sfx('ui');
         snareEvents();

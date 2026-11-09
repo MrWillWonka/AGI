@@ -2027,11 +2027,11 @@ test('a save from before Snare 11 gets every Packet Snare level back as Signal (
     assert.equal(fresh.snare.signal, 1200);
 });
 
-test('Packet Snare: red is the early fight (15% on sector 2, 30% on sector 3, down to 5% by sector 10), the red nodes cut it, and the Cleaner Bot comes later (the owner\'s calls on the Snare 16 log)', () => {
+test('Packet Snare: red is the early fight (22% on sector 2, 30% on sector 3, down to 5% by sector 10), the red nodes cut it, and the Cleaner Bot comes later (the owner\'s calls on the Snare 16 log)', () => {
     const s = E.defaultState(Date.now());
     const share = k => { const r = E.snareOpts(s, k).corruptShare; return r / (1 + r); };
     assert.equal(share(0), 0, 'none on sector 1');
-    assert.ok(Math.abs(share(1) - 0.15) < 1e-9, '15% on sector 2, where you meet it');
+    assert.ok(Math.abs(share(1) - 0.22) < 1e-9, '22% on sector 2, where you meet it (about 17% of the field on screen)');
     assert.ok(Math.abs(share(2) - 0.3) < 1e-9, '30% on sector 3');
     for (let k = 3; k <= 9; k++) assert.ok(share(k) < share(k - 1) + 1e-12, `tapering at sector ${k + 1}`);
     assert.ok(Math.abs(share(9) - 0.05) < 1e-9 && Math.abs(share(14) - 0.05) < 1e-9, '5% from sector 10');
@@ -2067,4 +2067,16 @@ test('Packet Snare: no node does the same thing as the node it grows from, or as
     }
     // The field grows in one node now (Megasprawl and Hyperscale folded into Sprawl).
     assert.equal(E.UPGRADE_BY_ID.snareSprawl.max, 9);
+});
+
+test('Packet Snare on a mouse: 25% more red, threats 20% faster and the boss warns 0.3 s sooner (the owner\'s call on the Snare 17 log)', () => {
+    const s = E.defaultState(Date.now());
+    for (const k of [1, 4, 9]) {
+        const o = E.snareOpts(s, k), d = E.snareDesktop(o);
+        assert.ok(Math.abs(d.corruptShare - o.corruptShare * 1.25) < 1e-12, `more red on sector ${k + 1}`);
+        assert.ok(Math.abs(d.avSpeed - (o.avSpeed ?? 1) * 1.2) < 1e-12, `faster threats on sector ${k + 1}`);
+        assert.ok(d.bossWarn < (o.bossWarn ?? 2) && d.bossWarn >= 0.9, `a shorter warning on sector ${k + 1}`);
+        assert.equal(d.goal, o.goal, 'the goals stay the same');
+    }
+    assert.equal(E.snareDesktop(E.snareOpts(s, 0)).corruptShare, 0, 'sector 1 still teaches with its one red packet');
 });

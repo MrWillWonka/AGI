@@ -53,3 +53,5 @@ not in your top issues. Your top issues should be things the owner hasn't ruled 
 - Red packets are **unreadable data** (the owner's call, 2026-11-09): data the model can't read yet because it isn't
   trained enough; one in a bubble garbles the batch. The drone that turns them is the Decoder Bot. Review the words for
   clarity, not the framing.
+- A mouse plays a harder field than a thumb (the owner's call, 2026-11-09): 25% more red, threats 20% faster, the boss's
+  warning 0.3 s shorter. Judge desktop and phone difficulty against each other, not the numbers.
