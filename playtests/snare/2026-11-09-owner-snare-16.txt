@@ -1,17 +1,18 @@
 The Path to AGI · playtest log
-Log v1 · began 2026-11-09T19:55:21.596Z · exported 2026-11-09T20:21:29.290Z
+Log v1 · began 2026-11-09T19:55:21.596Z · exported 2026-11-09T20:24:56.369Z
 build: 2026-11-09 19:45 (review branch) · Packet Snare 16: the boss feeds while it stands, red can hunt your bubble (a testing toggle), helper bots for red, a folded tree, goals and pay from the pacing sweep, the tree names in a frame
 save: v29, v1.0, 4 skills
 screen: 440×820, touch
 browser: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Claude/1.261104.19
 
-Play time 24.9 min over 1 session, 310 events, 26.1 min on the clock.
-Skill-tree and legacy buys: 130; 10% the cheapest affordable, the rest dearer picks.
+Play time 25.3 min over 4 sessions, 372 events, 29.6 min on the clock.
+Skill-tree and legacy buys: 139; 11% the cheapest affordable, the rest dearer picks.
 
 Time by screen:
-  bay:pipeline   17.9 min  72%
-  snareTree       7.0 min  28%
+  bay:pipeline   19.5 min  72%
+  snareTree       7.7 min  28%
   lab             0.0 min  0%
+  servers         0.0 min  0%
 
 --- events (t = play seconds, w = wall seconds) ---
 {"t":0,"w":0,"e":"view","v":"lab"}
@@ -324,3 +325,65 @@ Time by screen:
 {"t":1488.6,"w":1560,"e":"snareGoal","sector":11,"secs":29,"replay":false}
 {"t":1493.8,"w":1565,"e":"view","v":"snareTree"}
 {"t":1496.4,"w":1568,"e":"sample","cp":0,"dp":0,"rp":0,"xp":451,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
+{"t":1502.3,"w":1574,"e":"hidden"}
+{"t":1502.3,"w":1644,"e":"view","v":"lab"}
+{"t":1502.3,"w":1644,"e":"session","build":"2026-11-09 19:45 (review branch) · Packet Snare 16: the boss feeds while it stands, red can hunt your bubble (a testing toggle), helper bots for red, a folded tree, goals and pay from the pacing sweep, the tree names in a frame","save":29,"skills":4,"version":"v1.0","screen":"440x820","touch":true,"at":"lab"}
+{"t":1502.3,"w":1644,"e":"sample","cp":0,"dp":0,"rp":0,"xp":453,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
+{"t":1502.5,"w":1644,"e":"view","v":"servers"}
+{"t":1502.5,"w":1644,"e":"view","v":"bay:pipeline"}
+{"t":1517.5,"w":1659,"e":"save","op":"erase","skills":4,"version":"v1.0"}
+{"t":0,"w":1659,"e":"view","v":"lab"}
+{"t":0.1,"w":1659,"e":"unlock","key":"module:snare"}
+{"t":0.2,"w":1659,"e":"hidden"}
+{"t":0.2,"w":1659,"e":"view","v":"servers"}
+{"t":0.2,"w":1659,"e":"session","build":"2026-11-09 19:45 (review branch) · Packet Snare 16: the boss feeds while it stands, red can hunt your bubble (a testing toggle), helper bots for red, a folded tree, goals and pay from the pacing sweep, the tree names in a frame","save":29,"skills":0,"version":"v1.0","screen":"440x820","touch":true,"at":"servers"}
+{"t":0.2,"w":1659,"e":"sample","cp":0,"dp":0,"rp":0,"xp":0,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0,"int":0,"skills":0,"phase":0,"ver":"v1.0","at":"servers","labNew":0,"offers":0,"offersDone":0,"treeReady":0}
+{"t":0.2,"w":1659,"e":"achievement","id":"firstSkill"}
+{"t":0.2,"w":1659,"e":"mail","id":"serverRoom"}
+{"t":0.2,"w":1659,"e":"mail","id":"firstSkill"}
+{"t":0.2,"w":1659,"e":"mail","id":"edges"}
+{"t":0.3,"w":1659,"e":"dilemma","id":"maintenance"}
+{"t":0.4,"w":1659,"e":"view","v":"bay:pipeline"}
+{"t":5.1,"w":1664,"e":"view","v":"snareTree"}
+{"t":8.4,"w":1667,"e":"setting","key":"snareHunt","value":true}
+{"t":11,"w":1670,"e":"save","op":"erase","skills":4,"version":"v1.0"}
+{"t":0,"w":1670,"e":"view","v":"bay:pipeline"}
+{"t":0,"w":1670,"e":"view","v":"lab"}
+{"t":0.1,"w":1670,"e":"unlock","key":"module:snare"}
+{"t":0.2,"w":1670,"e":"hidden"}
+{"t":0.2,"w":1670,"e":"view","v":"servers"}
+{"t":0.2,"w":1670,"e":"session","build":"2026-11-09 19:45 (review branch) · Packet Snare 16: the boss feeds while it stands, red can hunt your bubble (a testing toggle), helper bots for red, a folded tree, goals and pay from the pacing sweep, the tree names in a frame","save":29,"skills":0,"version":"v1.0","screen":"440x820","touch":true,"at":"servers"}
+{"t":0.2,"w":1670,"e":"sample","cp":0,"dp":0,"rp":0,"xp":0,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0,"int":0,"skills":0,"phase":0,"ver":"v1.0","at":"servers","labNew":0,"offers":0,"offersDone":0,"treeReady":0}
+{"t":0.2,"w":1670,"e":"achievement","id":"firstSkill"}
+{"t":0.2,"w":1670,"e":"mail","id":"serverRoom"}
+{"t":0.2,"w":1670,"e":"mail","id":"firstSkill"}
+{"t":0.2,"w":1670,"e":"mail","id":"edges"}
+{"t":0.3,"w":1670,"e":"dilemma","id":"maintenance"}
+{"t":0.4,"w":1670,"e":"view","v":"bay:pipeline"}
+{"t":6.4,"w":1676,"e":"achievement","id":"snareFirst"}
+{"t":12.7,"w":1683,"e":"snareGoal","sector":1,"secs":9,"replay":false}
+{"t":18,"w":1688,"e":"snare","haul":87,"sector":1,"startSector":1,"sectorsCleared":1,"bosses":0,"bossHits":0,"wiped":0,"catches":5,"caught":31,"gold":1,"corrupted":0,"hunt":1,"snaps":0,"empty":0,"bestMult":1.91,"chained":0,"lasered":0,"scrubbed":0,"cores":0,"stolen":0,"quarantined":0,"bounces":0,"stuns":0,"fwLost":0,"sweeps":0,"turreted":0,"purged":0,"freezes":0,"decoysLost":0,"tagged":0,"escaped":23,"herdStuns":0,"avDown":0,"flags":0,"ids":0,"parries":0,"slashes":0,"spoofed":0,"collected":0,"raced":0,"hijacked":0,"partners":0,"partnered":0,"bossDamage":0,"bossHp":0,"goal":25,"goalDone":true,"glanced":0,"mines":0,"minesCleared":0,"netted":0,"bounced":0,"helpers":0,"why":{},"escalations":0,"forks":0,"stars":0,"packets":18,"density":0.25,"respawn":1.2,"packetR":0.3,"redPerGood":0,"reds":1,"echoes":0,"storms":0,"surges":0,"cleaned":0,"botSpoofed":0,"botCollected":0,"gilded":0,"pushedOut":0,"autoZones":0,"pulses":0,"sweepsClean":0,"relayed":0,"pushedBack":0,"raceBroken":0,"crashes":0,"converted":0,"bubbles":5,"minesGrabbed":0,"mineThrows":0,"spent":0,"area":70,"replay":false,"secs":14,"record":false,"seed":4009}
+{"t":19.7,"w":1690,"e":"view","v":"snareTree"}
+{"t":25.7,"w":1696,"e":"buy","id":"snareCleanerBot","lvl":1,"held":87,"price":40,"cheapest":"snareSprawl","cheapestCost":15,"affordable":4,"rank":4}
+{"t":27.9,"w":1698,"e":"buy","id":"snareFocus","lvl":1,"held":47,"price":25,"cheapest":"snareSprawl","cheapestCost":15,"affordable":3,"rank":2}
+{"t":29.1,"w":1699,"e":"buy","id":"snareSprawl","lvl":1,"held":22,"price":15,"cheapest":"snareSprawl","cheapestCost":15,"affordable":1,"rank":1}
+{"t":29.8,"w":1700,"e":"view","v":"bay:pipeline"}
+{"t":30.2,"w":1700,"e":"sample","cp":0,"dp":0,"rp":0,"xp":9,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
+{"t":42.8,"w":1713,"e":"snare","haul":130,"sector":2,"startSector":2,"sectorsCleared":0,"bosses":0,"bossHits":0,"wiped":0,"catches":5,"caught":47,"gold":4,"corrupted":0,"hunt":1,"snaps":0,"empty":0,"bestMult":1.99,"chained":0,"lasered":0,"scrubbed":0,"cores":0,"stolen":0,"quarantined":0,"bounces":0,"stuns":0,"fwLost":0,"sweeps":0,"turreted":0,"purged":0,"freezes":0,"decoysLost":0,"tagged":0,"escaped":29,"herdStuns":0,"avDown":0,"flags":0,"ids":0,"parries":0,"slashes":0,"spoofed":0,"collected":0,"raced":0,"hijacked":0,"partners":0,"partnered":0,"bossDamage":0,"bossHp":0,"goal":100,"goalDone":false,"glanced":0,"mines":0,"minesCleared":0,"netted":0,"bounced":0,"helpers":1,"why":{},"escalations":0,"forks":0,"stars":0,"packets":22,"density":0.25,"respawn":1.2,"packetR":0.3,"redPerGood":0.09,"reds":0,"echoes":0,"storms":0,"surges":0,"cleaned":2,"botSpoofed":0,"botCollected":0,"gilded":0,"pushedOut":0,"autoZones":0,"pulses":0,"sweepsClean":0,"relayed":0,"pushedBack":0,"raceBroken":0,"crashes":0,"converted":0,"bubbles":5,"minesGrabbed":0,"mineThrows":0,"spent":80,"area":95,"replay":false,"secs":13,"record":true,"seed":37719}
+{"t":44.9,"w":1715,"e":"view","v":"snareTree"}
+{"t":46.4,"w":1717,"e":"buy","id":"snareSprawl","lvl":2,"held":137,"price":38,"cheapest":"snareScrubbers","cheapestCost":30,"affordable":6,"rank":2}
+{"t":47.3,"w":1717,"e":"buy","id":"snareFocus","lvl":2,"held":99,"price":50,"cheapest":"snareScrubbers","cheapestCost":30,"affordable":4,"rank":2}
+{"t":50.6,"w":1721,"e":"buy","id":"snareScrubbers","lvl":1,"held":49,"price":30,"cheapest":"snareScrubbers","cheapestCost":30,"affordable":1,"rank":1}
+{"t":51.4,"w":1722,"e":"view","v":"bay:pipeline"}
+{"t":60.3,"w":1730,"e":"sample","cp":0,"dp":0,"rp":0,"xp":18,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
+{"t":66.5,"w":1737,"e":"snare","haul":149,"sector":2,"startSector":2,"sectorsCleared":0,"bosses":0,"bossHits":0,"wiped":0,"catches":5,"caught":58,"gold":4,"corrupted":0,"hunt":1,"snaps":0,"empty":0,"bestMult":1.99,"chained":0,"lasered":0,"scrubbed":1,"cores":0,"stolen":0,"quarantined":0,"bounces":0,"stuns":0,"fwLost":0,"sweeps":0,"turreted":0,"purged":0,"freezes":0,"decoysLost":0,"tagged":0,"escaped":45,"herdStuns":0,"avDown":0,"flags":0,"ids":0,"parries":0,"slashes":0,"spoofed":0,"collected":0,"raced":0,"hijacked":0,"partners":0,"partnered":0,"bossDamage":0,"bossHp":0,"goal":100,"goalDone":false,"glanced":0,"mines":0,"minesCleared":0,"netted":0,"bounced":0,"helpers":1,"why":{},"escalations":0,"forks":0,"stars":0,"packets":32,"density":0.25,"respawn":1.2,"packetR":0.3,"redPerGood":0.09,"reds":0,"echoes":0,"storms":0,"surges":0,"cleaned":3,"botSpoofed":0,"botCollected":0,"gilded":0,"pushedOut":0,"autoZones":0,"pulses":0,"sweepsClean":0,"relayed":0,"pushedBack":0,"raceBroken":0,"crashes":0,"converted":0,"bubbles":5,"minesGrabbed":0,"mineThrows":0,"spent":198,"area":128,"replay":false,"secs":15,"record":true,"seed":67270}
+{"t":68.2,"w":1738,"e":"view","v":"snareTree"}
+{"t":70.3,"w":1740,"e":"buy","id":"snareFocus","lvl":3,"held":168,"price":100,"cheapest":"snareScrubbers","cheapestCost":75,"affordable":7,"rank":4}
+{"t":71.5,"w":1742,"e":"view","v":"bay:pipeline"}
+{"t":87.2,"w":1757,"e":"snareGoal","sector":2,"secs":16,"replay":false}
+{"t":90.3,"w":1760,"e":"sample","cp":0,"dp":0,"rp":0,"xp":27,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
+{"t":96.7,"w":1767,"e":"snare","haul":414,"sector":2,"startSector":2,"sectorsCleared":1,"bosses":0,"bossHits":0,"wiped":0,"catches":8,"caught":83,"gold":9,"corrupted":0,"hunt":1,"snaps":0,"empty":0,"bestMult":1.99,"chained":0,"lasered":0,"scrubbed":0,"cores":0,"stolen":0,"quarantined":0,"bounces":0,"stuns":0,"fwLost":0,"sweeps":0,"turreted":0,"purged":0,"freezes":0,"decoysLost":0,"tagged":0,"escaped":76,"herdStuns":0,"avDown":0,"flags":0,"ids":0,"parries":0,"slashes":0,"spoofed":0,"collected":0,"raced":0,"hijacked":0,"partners":0,"partnered":0,"bossDamage":0,"bossHp":0,"goal":100,"goalDone":true,"glanced":0,"mines":0,"minesCleared":0,"netted":0,"bounced":0,"helpers":1,"why":{},"escalations":0,"forks":0,"stars":0,"packets":16,"density":0.25,"respawn":1.2,"packetR":0.3,"redPerGood":0.09,"reds":0,"echoes":0,"storms":0,"surges":0,"cleaned":3,"botSpoofed":0,"botCollected":0,"gilded":0,"pushedOut":0,"autoZones":0,"pulses":0,"sweepsClean":0,"relayed":0,"pushedBack":0,"raceBroken":0,"crashes":0,"converted":0,"bubbles":8,"minesGrabbed":0,"mineThrows":0,"spent":298,"area":128,"replay":false,"secs":25,"record":true,"seed":95262}
+{"t":98.1,"w":1768,"e":"view","v":"snareTree"}
+{"t":99.9,"w":1770,"e":"buy","id":"snarePacketStream","lvl":1,"held":482,"price":110,"cheapest":"snareScrubbers","cheapestCost":75,"affordable":8,"rank":6}
+{"t":100.3,"w":1770,"e":"buy","id":"snarePacketStream","lvl":2,"held":372,"price":243,"cheapest":"snareScrubbers","cheapestCost":75,"affordable":10,"rank":6}
+{"t":104.7,"w":1775,"e":"sample","cp":0,"dp":0,"rp":0,"xp":31,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"bay:pipeline","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
