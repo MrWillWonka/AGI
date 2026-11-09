@@ -1,0 +1,5 @@
+round,build,commit,role,phase,gameplay,clarity,pacing,design,visuals,tutorials,engagement,notes
+6,15.5,f6e948b,avg3,all,6.33,7.0,5.83,6.83,7.5,7.0,6.83,three generalists; build as published (15.5)
+7,15.5+r6,782aa18,avg3,all,6.67,6.5,5.83,6.5,7.0,7.17,6.5,three generalists; round 6 fixes
+9,15.5+helpers,7ace32b,screens,early,6.5,7,,6,7.5,7,,screens reviewer only (the early and late reviewers were stopped)
+9,15.5+helpers,7ace32b,screens,late,6.5,6,,5.5,7,6,,

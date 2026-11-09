@@ -1,0 +1,29 @@
+{
+ "logs": [
+  {
+   "file": "playtests/snare/2026-11-09-owner-snare-15-5.txt",
+   "build": "2026-11-09 12:30 (review branch) · Packet Snare 15.5: the owner's calls on the review rounds"
+  }
+ ],
+ "runs": [
+  1,
+  6,
+  6,
+  3,
+  1,
+  1
+ ],
+ "minute": [
+  0.15,
+  2.65,
+  5.66,
+  7.49,
+  8.57,
+  9.63
+ ],
+ "catchesPerRun": 6.2,
+ "packetsPerCatch": 12.9,
+ "spoilShare": 0.025,
+ "touch": true,
+ "build": "2026-11-09 12:30 (review branch) · Packet Snare 15.5: the owner's calls on the review rounds"
+}

@@ -149,6 +149,9 @@
             section('Packet Snare', button('Open Packet Snare', () => { AGI.debug.openSnare(); toggle(false); }),
                 button('Boss now / clear sector', () => AGI.debug.snareBoss()), button('Max snare tree', () => AGI.debug.snareMax()),
                 group('Go to sector', sectorAmount, button('Go', () => AGI.debug.snareSector(Math.max(1, Math.floor(Number(sectorAmount.value) || 1)) - 1))),
+                // a focused playtest: the sector with the build a person has there (tools/review/scenarios.json), threats
+                // before it met, marked in the playtest log (`preset`)
+                button('Playtest from this sector', () => { AGI.debug.snarePreset(Math.max(1, Math.floor(Number(sectorAmount.value) || 1))); toggle(false); }),
                 dangerButton('Reset Packet Snare (sector 1, no Signal)', () => AGI.debug.resetSnare())),
             section('Jump ahead', button('Learn next skill', AGI.debug.learnSkill), ...phaseButtons,
                 button('Unlock everything', AGI.debug.unlockAll)),

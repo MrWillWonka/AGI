@@ -1,0 +1,68 @@
+The Path to AGI · playtest log
+Log v1 · began 2026-11-09T13:41:38.863Z · exported 2026-11-09T13:51:40.043Z
+build: 2026-11-09 12:30 (review branch) · Packet Snare 15.5: the owner's calls on the review rounds
+save: v28, v1.0, 4 skills
+screen: 440×820, touch (iPhone, the claude.ai app)
+TRIMMED: the owner pasted this log into the session; kept here are the fields the calibrators read (each run's snare
+event: haul, sector, catches, caught, corrupted, snaps, goal, bubbles, best multiplier, Signal spent, seconds; the goal
+and boss events; the buys). The views, samples and mail events are left out.
+
+--- events (t = play seconds) ---
+{"t":9,"e":"snareGoal","sector":1}
+{"t":16.3,"e":"snare","haul":101,"sector":1,"startSector":1,"catches":7,"caught":42,"corrupted":0,"snaps":0,"goalDone":true,"bubbles":7,"bestMult":1.69,"spent":0,"secs":14}
+{"t":28.9,"e":"buy","id":"snareFocus","lvl":1,"price":25}
+{"t":29.4,"e":"buy","id":"snareFocus","lvl":2,"price":50}
+{"t":31.4,"e":"buy","id":"snareSprawl","lvl":1,"price":15}
+{"t":44.3,"e":"snare","haul":38,"sector":2,"startSector":2,"catches":2,"caught":14,"corrupted":1,"snaps":0,"goalDone":false,"bubbles":3,"bestMult":1.69,"spent":90,"secs":12}
+{"t":48.6,"e":"buy","id":"snareSanitizer","lvl":1,"price":40}
+{"t":64.6,"e":"snare","haul":125,"sector":2,"startSector":2,"catches":5,"caught":48,"corrupted":0,"snaps":0,"goalDone":false,"bubbles":5,"bestMult":1.69,"spent":130,"secs":15}
+{"t":81.3,"e":"buy","id":"snarePacketStream","lvl":1,"price":110}
+{"t":95.8,"e":"snare","haul":41,"sector":2,"startSector":2,"catches":4,"caught":19,"corrupted":1,"snaps":0,"goalDone":false,"bubbles":5,"bestMult":1.69,"spent":240,"secs":12}
+{"t":112.1,"e":"snare","haul":110,"sector":2,"startSector":2,"catches":7,"caught":47,"corrupted":0,"snaps":0,"goalDone":false,"bubbles":7,"bestMult":1.69,"spent":240,"secs":15}
+{"t":117.4,"e":"buy","id":"snareSanitizer","lvl":2,"price":80}
+{"t":118.6,"e":"buy","id":"snareSprawl","lvl":2,"price":38}
+{"t":134.4,"e":"snare","haul":147,"sector":2,"startSector":2,"catches":6,"caught":51,"corrupted":0,"snaps":0,"goalDone":false,"bubbles":6,"bestMult":1.69,"spent":358,"secs":15}
+{"t":140.4,"e":"buy","id":"snareFocus","lvl":3,"price":100}
+{"t":142.7,"e":"buy","id":"snareGold","lvl":1,"price":100}
+{"t":159.1,"e":"snareGoal","sector":2}
+{"t":169.1,"e":"snare","haul":417,"sector":2,"startSector":2,"catches":9,"caught":95,"corrupted":0,"snaps":0,"goalDone":true,"bubbles":9,"bestMult":1.69,"spent":558,"secs":25}
+{"t":176.3,"e":"buy","id":"snarePacketStream","lvl":2,"price":220}
+{"t":178.5,"e":"buy","id":"snareSanitizer","lvl":3,"price":160}
+{"t":180.1,"e":"buy","id":"snareScrubbers","lvl":1,"price":30}
+{"t":200.9,"e":"snare","haul":226,"sector":3,"startSector":3,"catches":7,"caught":80,"corrupted":0,"snaps":0,"goalDone":false,"bubbles":7,"bestMult":1.69,"spent":968,"secs":18}
+{"t":206.4,"e":"buy","id":"snareChecksums","lvl":1,"price":100}
+{"t":207.7,"e":"buy","id":"snareScrubbers","lvl":2,"price":75}
+{"t":227,"e":"snare","haul":308,"sector":3,"startSector":3,"catches":7,"caught":82,"corrupted":0,"snaps":0,"goalDone":false,"bubbles":7,"bestMult":1.69,"spent":1143,"secs":18}
+{"t":248.8,"e":"buy","id":"snareContain","lvl":1,"price":350}
+{"t":268.3,"e":"snare","haul":289,"sector":3,"startSector":3,"catches":7,"caught":101,"corrupted":0,"snaps":0,"goalDone":false,"bubbles":7,"bestMult":1.69,"spent":1493,"secs":18}
+{"t":275.3,"e":"buy","id":"snareMegasprawl","lvl":1,"price":260}
+{"t":298.2,"e":"snare","haul":331,"sector":3,"startSector":3,"catches":6,"caught":84,"corrupted":0,"snaps":0,"goalDone":false,"bubbles":6,"bestMult":1.69,"spent":1753,"secs":18}
+{"t":304.6,"e":"buy","id":"snareBandwidth","lvl":1,"price":250}
+{"t":306,"e":"buy","id":"snareSprawl","lvl":3,"price":94}
+{"t":324.8,"e":"snare","haul":418,"sector":3,"startSector":3,"catches":5,"caught":114,"corrupted":0,"snaps":1,"goalDone":false,"bubbles":5,"bestMult":2.11,"spent":2097,"secs":18}
+{"t":331.7,"e":"buy","id":"snareSchools","lvl":1,"price":390}
+{"t":339.7,"e":"snareGoal","sector":3}
+{"t":357.7,"e":"snare","haul":1301,"sector":3,"startSector":3,"catches":8,"caught":257,"corrupted":0,"snaps":0,"goalDone":true,"bubbles":8,"bestMult":2.11,"spent":2487,"secs":24}
+{"t":363.7,"e":"buy","id":"snareSpamFilter","lvl":1,"price":280}
+{"t":365.3,"e":"buy","id":"snareReputation","lvl":1,"price":450}
+{"t":370.5,"e":"buy","id":"snareChecksums","lvl":2,"price":200}
+{"t":371.2,"e":"buy","id":"snareChecksums","lvl":3,"price":400}
+{"t":394.5,"e":"snare","haul":942,"sector":4,"startSector":4,"catches":5,"caught":177,"corrupted":0,"snaps":0,"goalDone":false,"bubbles":5,"bestMult":2.11,"spent":3817,"secs":18}
+{"t":403.6,"e":"buy","id":"snareReputation","lvl":2,"price":900}
+{"t":422.9,"e":"snare","haul":1004,"sector":4,"startSector":4,"catches":5,"caught":164,"corrupted":0,"snaps":0,"goalDone":false,"bubbles":5,"bestMult":2.11,"spent":4717,"secs":18}
+{"t":433.5,"e":"buy","id":"snareMegasprawl","lvl":2,"price":650}
+{"t":435.5,"e":"buy","id":"snareChain","lvl":1,"price":250}
+{"t":437.9,"e":"buy","id":"snareOpenPorts","lvl":1,"price":180}
+{"t":449.3,"e":"snareGoal","sector":4}
+{"t":464.1,"e":"snare","haul":2829,"sector":4,"startSector":4,"catches":7,"caught":426,"corrupted":0,"snaps":1,"goalDone":true,"bubbles":7,"bestMult":2.11,"spent":5797,"secs":25}
+{"t":473.4,"e":"buy","id":"snareFirehose","lvl":1,"price":1000}
+{"t":478.6,"e":"buy","id":"snareLongWire","lvl":1,"price":1400}
+{"t":482.4,"e":"buy","id":"snareChain","lvl":2,"price":388}
+{"t":514.5,"e":"snareBoss","sector":5}
+{"t":532.2,"e":"snare","haul":4394,"sector":5,"startSector":5,"catches":8,"caught":702,"corrupted":0,"snaps":0,"goalDone":false,"bubbles":8,"bestMult":2.85,"spent":8585,"secs":35}
+{"t":550.7,"e":"buy","id":"snareBandwidth","lvl":2,"price":625}
+{"t":553.1,"e":"buy","id":"snareOverflow","lvl":1,"price":2000}
+{"t":557.3,"e":"buy","id":"snareSteady","lvl":1,"price":900}
+{"t":558.9,"e":"buy","id":"snareChain","lvl":3,"price":601}
+{"t":577.5,"e":"snareGoal","sector":6}
+{"t":590.5,"e":"snare","haul":10794,"sector":6,"startSector":6,"catches":11,"caught":919,"corrupted":0,"snaps":0,"goalDone":true,"bubbles":11,"bestMult":3.42,"spent":12711,"secs":28}

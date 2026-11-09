@@ -12,17 +12,19 @@
 
 function createBot(s, opt = {}) {
     const react = opt.react ?? 0.3;          // seconds from a charge's warning to the parry
-    const slashEvery = opt.slashEvery ?? 0.22;
+    // never quicker than the game takes slashes (a slash inside `slashGap` of the last is ignored: TOO FAST)
+    const slashEvery = Math.max(opt.slashEvery ?? 0.22, (s.opts.slashGap ?? 0) + 0.03);
     const holdFor = opt.hold ?? 1.2;         // seconds a catching bubble is held
     const gap = opt.gap ?? 0.35;             // seconds between bubbles
     const aim = opt.aim ?? 0;                // units a bubble lands off where it's meant to
     const careless = opt.careless ?? 0;      // share of bubbles that ignore red coming in
     const rand = opt.rand || (() => 0.5);
-    let plan = [], wait = 0, nextSlash = 0, parried = null, hold = null;
+    let plan = [], wait = 0, nextSlash = 0, parried = null, hold = null, ringing = false;
     // `turns` times round (the boss takes more than one loop to stun)
     const ring = (cx, cy, rad, turns = 1) => {
         const n = Math.max(18, Math.ceil(2 * Math.PI * rad / 0.15));
-        plan = [{ pen: 'wire' }];
+        plan = [{ pen: 'wire', ring: true }];
+        ringing = true;
         for (let i = 0; i <= n * turns + 2; i++) { const a = -Math.PI / 2 + i / n * Math.PI * 2; plan.push([cx + Math.cos(a) * rad, cy + Math.sin(a) * rad]); }
         plan.push('lift');
     };
@@ -49,6 +51,9 @@ function createBot(s, opt = {}) {
             } else s.addPoint(hold.x, hold.y);
             return;
         }
+        // Stunned mid-loop: the rest of the loop is wasted time, lift and slash (the stun's seconds are the fight)
+        if (ringing && plan.length && s.boss && s.boss.stunned > s.time) { plan = []; if (s.drawing) s.liftPen(); s.setPen(null); ringing = false; }
+        if (!plan.length) ringing = false;
         // Feed the plan: two points a frame on a first run's field, more on a bigger one (a hand crosses the screen at
         // the same speed whatever the field's size), a flick in three frames.
         const per = plan.length && plan[plan.length - 1] === 'lift' && plan.length <= 9 ? 3 : Math.max(2, Math.round(1.2 * Math.sqrt(s.w * s.h / 70)));

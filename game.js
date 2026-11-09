@@ -12111,6 +12111,26 @@ window.AGI = (function () {
                 log('Debug: the Training Cluster reset to the warm-up.', 'warning');
                 afterChange();
             },
+            // A focused playtest from sector k (1-based): the build the person-paced campaign had there
+            // (tools/review/scenarios.json, made by tools/review/report.js; served beside the game in a review build), the
+            // threats of earlier sectors met, the bay opened, and a `preset` line in the playtest log so the log says where
+            // the session started. Without the file, the sector alone.
+            async snarePreset(k) {
+                let sc = null;
+                try { const all = await (await fetch('tools/review/scenarios.json', { cache: 'no-store' })).json(); const keys = Object.keys(all).map(Number).filter(n => n <= k); sc = all[Math.max(...keys)]; } catch { sc = null; }
+                if (sc) {
+                    for (const id of Object.keys(state.levels)) if (id.startsWith('snare')) delete state.levels[id];
+                    Object.assign(state.levels, sc.levels);
+                    state.snare.signal = sc.signal;
+                    state.snare.earned = Math.max(state.snare.earned, sc.signal);
+                    state.snare.runs = Math.max(2, sc.runs);
+                }
+                for (const kind of this.snareMetBefore(k - 1)) state.intro['snare:intro:' + kind] = true;
+                pt('preset', { sector: k, build: sc ? Object.keys(sc.levels).length : 0, signal: sc?.signal ?? state.snare.signal });
+                if (openBay !== 'pipeline') straightToSnare();
+                this.snareSector(k - 1);
+                log(`Debug: playtest from sector ${k}${sc ? ` with the campaign's build (${Object.keys(sc.levels).length} nodes)` : ''}.`, 'warning');
+            },
             // the threats a player has met before sector k (0-based): tools/review/kit.js `scenario`
             snareMetBefore(k) { return [...new Set(Array.from({ length: Math.max(0, k) }, (_, j) => snareBrings(j)).flat())]; },
             snareSector(k) {
