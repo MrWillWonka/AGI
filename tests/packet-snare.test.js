@@ -299,7 +299,7 @@ test('a catch pays Signal in whole numbers, more on later sectors, and no data',
     assert.equal(s.snare.signal, 3);
     assert.equal(s.res.dp, 0, 'the lab makes the data');
     s.snare.sector = 2;
-    assert.equal(E.snareCatch(s, 4), Math.round(4 * 1.5));
+    assert.equal(E.snareCatch(s, 4), Math.round(4 * 1.3));
     assert.equal(E.snareCatch(s, 0.1), 1, 'at least 1');
 });
 

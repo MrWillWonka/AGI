@@ -73,10 +73,13 @@ test('the helpers are bought in the tree: Cleaner Bot at Intrusion\'s root, the 
     assert.ok(E.UPGRADE_BY_ID.snareCleanerBot.cost.signal <= 50, 'the first helper is the first buy');
 });
 
-test('goals grow ×2.25 a sector from sector 5 (the owner\'s call on the 15.5 log); the first four stay', () => {
-    assert.deepEqual([0, 1, 2, 3].map(E.snareGoal), [25, 100, 200, 400]);
-    assert.equal(E.snareGoal(5), 2025, 'sector 6');
-    assert.equal(E.snareGoal(6), 5 * Math.round(400 * 2.25 ** 3 / 5));
+test('goals: 25, 100, 185, 400, then 1,300 at sector 6 growing ×2.25 a sector (the owner\'s calls on the pacing sweep)', () => {
+    assert.deepEqual([0, 1, 2, 3].map(E.snareGoal), [25, 100, 185, 400]);
+    assert.equal(E.snareGoal(4), 0, 'sector 5 is a boss');
+    assert.equal(E.snareGoal(5), 1300, 'sector 6');
+    assert.equal(E.snareGoal(6), 5 * Math.round(1300 * 2.25 / 5));
+    assert.equal(E.snareGoal(8), 5 * Math.round(1300 * 2.25 ** 3 / 5));
+    assert.equal(E.snareSectorPay(4), 1.6, '+15% a sector');
 });
 
 test('a save from before v29 gets its Packet Snare tree refunded (the red nodes reworked, the packet and red nodes folded)', () => {

@@ -3397,7 +3397,6 @@ body.calm .snare-deeper { animation: none; }
 .snare-tree-grid .tree-links line { stroke-width: 2.5; }
 .snare-tree-grid .tree-node { width: calc(var(--cell) * 0.56); }
 .snare-tree-grid .tree-node.seed { width: calc(var(--cell) * 0.5); pointer-events: none; }
-.snare-tree-grid .tree-level { font-size: 0.58rem; }
 .snare-tree-grid .node-detail { width: 250px; max-height: calc(100% - 8px); z-index: 6; background: var(--bg-2); }
 .snare-upgrades { position: relative; overflow: visible; }
 @media (max-width: 640px) {
@@ -3538,9 +3537,22 @@ body.calm .snare-deeper { animation: none; }
 @keyframes snare-deeper-pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--success) 0%, transparent); } 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 55%, transparent); } }
 body.calm .snare-deeper.lit, body.idle .snare-deeper.lit { animation: none; }
 @media (prefers-reduced-motion: reduce) { .snare-deeper.lit { animation: none; } }
-/* Packet Snare's tree: branch names sit behind the nodes and their names, faint (review round 3: LOOPS sat on a node's name). */
-.snare-tree-grid .tree-branch { z-index: 0; opacity: 0.7; }
+/* Packet Snare's tree: the branch names pinned in a frame round the view, outside the nodes (D8, the owner's call: behind
+   the nodes, FLOW read as a stray letter on a phone). The frame is opaque, so a node panned under it is hidden; it lets
+   the pointer through (a box takes hits across its clear middle too). */
+.snare-tree-grid { --gutter: 22px; }
+.snare-tree-grid::after { content: ''; position: absolute; inset: 0; z-index: 2; border: var(--gutter) solid var(--bg-2); border-radius: 8px;
+    box-shadow: inset 0 0 0 1px var(--border); pointer-events: none; }
+.snare-tree-grid .tree-branch { z-index: 3; opacity: 1; padding: 0; border: 0; background: none; }
+.snare-tree-grid .tree-branch strong { font-size: 0.7rem; }
+.snare-tree-grid .tree-branch-up { top: calc(var(--gutter) / 2); transform: translate(-50%, -50%); }
+.snare-tree-grid .tree-branch-down { bottom: calc(var(--gutter) / 2); transform: translate(-50%, 50%); }
+.snare-tree-grid .tree-branch-left { left: calc(var(--gutter) / 2); }
+.snare-tree-grid .tree-branch-right { right: calc(var(--gutter) / 2); }
 .snare-tree-inner { z-index: 1; }
+/* Level pills about 10 px on screen whatever the zoom (D8: 7 px on a phone's zoomed-out tree). */
+.snare-tree-grid .tree-level { font-size: calc(0.66rem / var(--snare-z, 1)); padding: 0 calc(5px / var(--snare-z, 1)); bottom: calc(-10px / var(--snare-z, 1)); }
+@media (max-width: 640px) { .snare-tree-grid { --gutter: 18px; } .snare-tree-grid .tree-branch strong { font-size: 0.62rem; } }
 /* End-card rows with a long value: the label above it, full width (review round 4: "What / helps" wrapped). */
 .snare-card .result-lines li.wide { display: block; }
 .snare-card .result-lines li.wide > span:first-child { display: block; }

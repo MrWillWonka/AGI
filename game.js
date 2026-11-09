@@ -4627,7 +4627,7 @@ window.AGI = (function () {
     const snareUi = { built: false, nodes: {}, links: [], popup: false, detailKey: '', fresh: false, cam: { x: 0, y: 0, z: 1 }, drag: null, pointers: new Map(), moved: false };
     // Fixed cells (like the Training tree's --cell): the tree grows six cells out from the Lasso, and you pan and zoom it.
     const snareCell = () => (window.matchMedia('(max-width: 640px)').matches ? 84 : 112);   // the Training tree's --cell
-    const SNARE_ZOOM = { min: 0.4, max: 1.6, step: 1.25 };
+    const SNARE_ZOOM = { min: 0.3, max: 1.6, step: 1.25 };   // 0.3: a grown tree fits a 1280 × 800 view (D8's frame)
 
     function buildSnareTree() {
         const grid = $('snareTreeGrid');
@@ -4736,6 +4736,7 @@ window.AGI = (function () {
     function applySnareCam() {
         const c = snareUi.cam;
         snareUi.inner.style.transform = `translate(${c.x}px, ${c.y}px) scale(${c.z})`;
+        snareUi.inner.style.setProperty('--snare-z', c.z);   // the level pills keep their size on screen at any zoom (D8)
         placeSnarePopup();
         clearTimeout(snareUi.camSave);
         snareUi.camSave = setTimeout(() => storageSet(SNARE_CAM_KEY, JSON.stringify({ x: Math.round(c.x), y: Math.round(c.y), z: +c.z.toFixed(3) })), 300);
@@ -4764,13 +4765,14 @@ window.AGI = (function () {
     // Frame what's on the tree now (the nodes you can see), as close as fits, never under half size.
     function fitSnareTree() {
         const grid = $('snareTreeGrid');
-        const W = grid.clientWidth, H = grid.clientHeight;
-        if (!W || !H) return;
+        const gutter = 2 * (parseFloat(getComputedStyle(grid).getPropertyValue('--gutter')) || 0);   // the names' frame (D8)
+        const W = grid.clientWidth - gutter, H = grid.clientHeight - gutter;
+        if (W <= 0 || H <= 0) return;
         const cell = snareCell();
         const shown = [{ x: 0, y: 0 }, ...E.SNARE_TREE.filter(up => !snareUi.nodes[up.id].hidden).map(up => up.snare)];
         const xs = shown.map(c => c.x), ys = shown.map(c => c.y);
-        // room for the branch names on the edges (round 3 of the review: fit cut rows off)
-        const bw = (Math.max(...xs) - Math.min(...xs) + 2.4) * cell, bh = (Math.max(...ys) - Math.min(...ys) + 3) * cell;
+        // a cell's margin round the nodes and their level pills (the names sit in the frame, outside W and H)
+        const bw = (Math.max(...xs) - Math.min(...xs) + 1.6) * cell, bh = (Math.max(...ys) - Math.min(...ys) + 1.8) * cell;
         const z = Math.min(SNARE_ZOOM.max, Math.max(SNARE_ZOOM.min, Math.min(W / bw, H / bh)));
         const cx = (Math.max(...xs) + Math.min(...xs)) / 2 * cell, cy = (Math.max(...ys) + Math.min(...ys)) / 2 * cell;
         Object.assign(snareUi.cam, { z, x: -cx * z, y: -cy * z });

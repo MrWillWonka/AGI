@@ -1,6 +1,6 @@
 {
   "_note": "Pacing targets for Packet Snare, checked by tools/review/pacing.js (pass/fail per sector) and, for sectors 1-4, by tests/pacing-targets.test.js. PROPOSED by Claude from the owner's 15.5 log and calls; the owner confirms or changes them (status: proposed).",
-  "status": "confirmed by the owner 2026-11-09 (the tree to last at least 60 minutes)",
+  "status": "confirmed by the owner 2026-11-09 (the tree bought out at about 40 minutes, the owner's call on the pacing sweep)",
   "runsPerSector": {
     "1": [
       1,
@@ -31,7 +31,7 @@
     7,
     14
   ],
-  "treeDoneMinuteAtLeast": 60,
+  "treeDoneMinuteAtLeast": 40,
   "helperShareOfHaulAtMost": {
     "before10": 0.5
   },
@@ -39,7 +39,7 @@
   "knownMisses": {
     "3": {
       "atMost": 10,
-      "why": "With the bot fitted to the owner's 15.5 log, sector 3 takes a median 10 runs on today's build (the owner took 6 on 15.5): after the helpers and the folded tree. Owner to decide; the test fails if it gets worse than 10."
+      "why": "Sector 3's goal is 185 (the owner's call: between 175's 3 runs and 200's 8-10); the person-paced bot takes a median 8 runs (the owner took 6 on 15.5). Kept on purpose; the test fails if it gets worse than 10."
     }
   }
 }

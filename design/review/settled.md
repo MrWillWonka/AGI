@@ -14,7 +14,10 @@ not in your top issues. Your top issues should be things the owner hasn't ruled 
 - A full bubble is 20% of the field; a full one pays about ×2.
 
 **Sectors and goals**
-- Sectors 1–4 ask for 25, 100, 200 and 400 packets in one run. From sector 5 goals grow ×2.25 a sector *(trial)*.
+- Sectors 1–4 ask for 25, 100, 185 and 400 packets in one run; sector 6 asks 1,300 and each goal after grows ×2.25.
+- A catch pays +15% Signal a sector. Nodes on ring 4 and out cost ×1.75 their old price (the drones' and turrets' first
+  levels and the nodes on the way to them excepted, at 4,000 or less), so the tree lasts about 40 minutes.
+- The tree's branch names sit in a frame round the view, outside the nodes; level pills about 10 px.
 - A boss every fifth sector. Two loops round it within 3.5 s stun it; slashes (quick swipes through it) damage it while
   it reels. The first boss has 15 health *(trial)*.
 - A cleared sector tops Focus up and the run carries on there; Go deeper is the player's choice.

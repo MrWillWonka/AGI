@@ -8,12 +8,7 @@ Tag every issue in your review: `[new]`, `[known K#]` or `[regression]`. Issues 
 Update this file with every fix batch (move fixed ones to *fixed: verify*, drop them after a review confirms them).
 
 ## Open
-- **K1 Late-game snowball.** Pacing campaign: sectors 7–12 each fall in 1–3 runs, Signal into the millions, every node
-  bought by about minute 25 (`tools/review/pacing.js`). Waiting on the owner (D2).
-- **K2 Sector 3 slower than the owner's log.** About 10 runs for a person-paced bot fitted to the owner, against their 6
-  on 15.5 (`targets.json` known miss). Waiting on the owner (D1).
 - **K3 Sideways phone page scrolls 9 px** (report rule check).
-- **K4 The tree at 1280 × 800 opens small, Fit can clip a row, branch names collide with nodes** (rounds 7–9).
 - **K5 The boss's two loops are hard to read:** LOOP 1/2 is easy to miss mid-fight, and a loop that fails doesn't say why
   (touched it, too late, missed it) (rounds 7–9).
 - **K6 A maxed field is cluttered:** 1,400 small packets, helpers, lasers and labels; the player's own bubble is hard to
@@ -24,6 +19,13 @@ Update this file with every fix batch (move fixed ones to *fixed: verify*, drop 
 - **K10 The phone tree popup can cover its own "now → after" line** behind the buy button (round 7).
 
 ## Fixed: verify
+- **F7 (K1) Late-game snowball:** sector pay +15% a sector (was +25%), sector 6's goal 1,300 with later goals ×2.25 from
+  it, nodes on ring 4 and out ×1.75 (the drones' and turrets' first levels and the nodes on the way kept). The pacing
+  sweep: sectors 6–12 take 5, 5, 5, 6, 1 (boss), 7 runs; the tree is bought out at 35–38 minutes (was 25–28).
+- **F8 (K2) Sector 3's goal 185** (was 200): a median 8 runs for the person-paced bot (was 9–10); kept above the 2–7
+  target on purpose (`targets.json` known miss, at most 10).
+- **F9 (K4) The tree's branch names sit in a frame round the view**, outside the nodes, and level pills keep about 10 px
+  on screen at any zoom; Fit leaves the frame out and zooms out to 0.3, so a grown tree fits 1280 × 800 (D8).
 - **F1 Sideways cards** float their demos beside the words (round 9).
 - **F2 An empty end card says why** (spoiled, popped, or how to bubble) (round 9).
 - **F3 Helper labels (CLEANED, SHOVED) stay off the boss** (round 9).
