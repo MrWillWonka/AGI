@@ -24,6 +24,8 @@ Open the debug panel (`debug-panel.js`, which talks only to `AGI.debug`) by **ta
 - **Training:** finish the run; **Fling the ball** (throws it into the air: flights, bounces and the late-leg camera); **Test summit** and **Test near miss**, which put the ball on the skill hill's climb just above or below the exact speed needed (found by simulating a copy of the run); max the skill tree; toggle the Auto-Trainer; reset the tree view; **Reset Training Cluster** (`AGI.debug.resetTraining()`: back to the warm-up, no skills (their attributes taken back), no XP, an empty skill tree, records, laps and runs cleared; legacy nodes, the lab and Packet Snare stay).
 - A live state view.
 
+**Review builds open straight into Packet Snare** (the owner's call): `window.AGI_SNARE_DIRECT = true` before the scripts, or `#snare` in the URL, skips the opening (its mails marked read, the offer accepted) and opens the bay as Open Packet Snare does (`straightToSnare`), on every load. `node tools/review-index.js <out.html>` writes the review artifact's index.html with the flag set; the game's own index.html stays as it is.
+
 ## Layout
 
 | File | Role |

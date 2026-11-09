@@ -3,6 +3,8 @@ window.AGI = (function () {
     'use strict';
 
     const E = window.AGIEngine;
+    // Review builds open straight into Packet Snare (see straightToSnare).
+    const SNARE_DIRECT = window.AGI_SNARE_DIRECT === true || location.hash === '#snare';
     const SAVE_KEY = 'agiGame';
     const BACKUP_KEY = 'agiGame.bak';         // the last good save (refreshed every BACKUP_MS, and kept before an import)
     const CORRUPT_KEY = 'agiGame.corrupt';    // a save that couldn't be read, kept as it was
@@ -11787,8 +11789,28 @@ window.AGI = (function () {
             state.intro['mailAccepted:welcome'] = true;
         }
         mailReady = true;
+        // Review builds open straight into Packet Snare (the owner's call): the opening skipped, the bay opened as the
+        // debug panel's Open Packet Snare does. Set by `window.AGI_SNARE_DIRECT` (the review artifact's index.html) or `#snare`.
+        if (SNARE_DIRECT) {
+            for (const m of E.MAIL.filter(m => m.intro)) state.intro['mail:' + m.id] = state.intro['mailRead:' + m.id] = true;
+            state.intro['mailAccepted:welcome'] = true;
+            deliverMail(true);
+            straightToSnare();
+            return;
+        }
         deliverMail(true);
         if (!introDone()) openInbox();
+    }
+    // Packet Snare at once: the server room open, skills learned up to Edge Detection, then into the bay.
+    function straightToSnare() {
+        state.intro['mailAccepted:welcome'] = true;
+        if ($('inbox').open) $('inbox').close();
+        state.unlocked['module:path'] = true;
+        for (let i = 0; i < 20 && !E.knows(state, 'Edge Detection'); i++) E.learnSkill(state, state.path.learned);
+        Object.assign(path, { roll: null, done: false });
+        dismissResult();
+        afterChange();
+        setTimeout(() => jumpTo('bay:pipeline'), 50);
     }
 
     // Keep screen on (touch devices, per device): an active game earns nothing while the screen sleeps, so on a
@@ -11943,17 +11965,7 @@ window.AGI = (function () {
                 if (openBay === 'pipeline' && !(snare.run && !snare.run.over && !snare.preview)) showSnareCard(snare.done ? 'end' : 'start');
                 afterChange();
             },
-            // Packet Snare at once: the server room open, skills learned up to Edge Detection, then into the bay.
-            openSnare() {
-                state.intro['mailAccepted:welcome'] = true;
-                if ($('inbox').open) $('inbox').close();
-                state.unlocked['module:path'] = true;
-                for (let i = 0; i < 20 && !E.knows(state, 'Edge Detection'); i++) E.learnSkill(state, state.path.learned);
-                Object.assign(path, { roll: null, done: false });
-                dismissResult();
-                afterChange();
-                setTimeout(() => jumpTo('bay:pipeline'), 50);
-            },
+            openSnare: () => straightToSnare(),
             learnSkill() {
                 if (E.actTwoLocked(state)) return;   // the demo's gate
                 E.learnSkill(state, state.path.learned);
