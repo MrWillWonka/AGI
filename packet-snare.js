@@ -310,6 +310,24 @@
         scribblePay: 0.5,
         safeLoop: 0.85,             // a loop wholly inside one of your Firewall sections pays ×this (it's safe; not with a pen)
         bossFocus: 8,               // seconds of Focus the boss's arrival adds (the fight shouldn't race the clock)
+        // Red hunts your bubble (the owner's call on a phone log: no catch spoiled in 15 runs, red was easy to keep out):
+        // while a bubble is held, red packets within `redHuntReach` × a full bubble's radius of its edge swim at it, harder
+        // the bigger it has grown, so holding on for a bigger multiplier is a real risk. Spoofed red, red a Bouncer shoved and red
+        // on its way to a decoy don't hunt; your Firewall sections still keep it out.
+        redHunt: 0,                 // how hard (0 = off): steering a second at a full bubble. Off by default, a testing toggle
+                                    // for now (the owner's call): Settings turns it on at 0.6 (1 made sector 3 a 9-run wall)
+        redHuntReach: 0.5,
+        redHuntSpeed: 1.35,         // × its own speed while it hunts
+        // The boss feeds (the same log: the owner gathered on its far side and left it alone): while it stands, unstunned,
+        // it pulls the good packets within its reach in and eats them (the reach grows the longer it stands), packets
+        // a little further out flee it, and schools across the field break up in panic, so the longer it lives, the
+        // thinner and smaller every catch. Stunning it stops all of it for the stun.
+        bossPull: 0.16,             // its reach past its body at first, × the field's shorter side…
+        bossPullGrow: 0.008,        // …growing this much a second it stands…
+        bossPullMax: 0.3,           // …up to this
+        bossPullSpeed: 2.2,         // × a packet's own speed, at its body
+        bossFlee: 1.8,              // packets within this × its reach flee it
+        bossPanic: 0.25,            // schooling × this while it stands
         slashCap: 5,                // slashes a stun allows: then it shakes it off
         bossRest: 1.5,              // seconds it stands after a dash (a second moment to loop it)
         gcCap: 3,                   // Garbage Collection: Focus back for at most this many red packets a loop…
@@ -1216,6 +1234,54 @@
             if (e.y > h - e.r) { e.y = h - e.r; e.vy = -Math.abs(e.vy); }
         }
 
+        // The boss stands, unstunned: it feeds (`feedStep`) and the schools panic (`flock`).
+        const bossFeeding = () => !!(s.boss && !(s.boss.stunned > s.time) && !s.bossDone);
+        // Its reach past its body: `bossPull` of the shorter side, growing `bossPullGrow` a second it has stood.
+        const bossReach = b => Math.min(o.bossPullMax, o.bossPull + o.bossPullGrow * Math.max(0, s.time - (b.born ?? s.time))) * shortSide;
+        function steerAt(p, ang, speed, k) {
+            p.vx += (Math.cos(ang) * speed - p.vx) * k;
+            p.vy += (Math.sin(ang) * speed - p.vy) * k;
+            const vl = Math.hypot(p.vx, p.vy) || 1;
+            p.vx = p.vx / vl * speed;
+            p.vy = p.vy / vl * speed;
+        }
+        function feedStep(dt) {
+            const b = s.boss;
+            if (!bossFeeding()) { if (b) b.reach = 0; return; }
+            const reach = b.reach = bossReach(b);
+            const pullR = b.r + reach, fleeR = b.r + reach * o.bossFlee;
+            for (const p of s.packets) {
+                if (p.kind === 'corrupt' && !(p.spoof > s.time)) continue;
+                const dx = b.x - p.x, dy = b.y - p.y, d = Math.hypot(dx, dy);
+                if (d >= fleeR || d < 1e-6) { p.feeding = 0; continue; }
+                const ang = Math.atan2(dy, dx);
+                if (d < pullR) {
+                    // pulled in, faster the closer it gets
+                    const near = 1 - (d - b.r) / reach;
+                    steerAt(p, ang, p.v * (1 + (o.bossPullSpeed - 1) * Math.max(0, near)), Math.min(1, 5 * dt));
+                    p.feeding = 1;
+                } else {
+                    steerAt(p, ang + Math.PI, p.v * 1.3, Math.min(1, 2.5 * dt));
+                    p.feeding = -1;
+                }
+            }
+        }
+        function huntStep(dt) {
+            const bb = s.bubble;
+            if (!(o.redHunt > 0) || !bb?.growing) { for (const p of s.packets) p.hunting = 0; return; }
+            const grown = Math.min(1, bb.r / bubbleMaxR);
+            const reach = bb.r + o.redHuntReach * bubbleMaxR;   // a band past its edge, as wide whatever its size
+            const k = Math.min(1, o.redHunt * 3 * grown * dt);
+            for (const p of s.packets) {
+                p.hunting = 0;
+                if (p.kind !== 'corrupt' || p.spoof > s.time || p.shoved > s.time || p.relay > s.time) continue;
+                const d = Math.hypot(bb.x - p.x, bb.y - p.y);
+                if (d > reach) continue;
+                steerAt(p, Math.atan2(bb.y - p.y, bb.x - p.x), p.v * o.redHuntSpeed, k);
+                p.hunting = 1;
+            }
+        }
+
         // Schools: each good packet steers with the others of its school nearby (heading and centre), keeping its own
         // speed; corrupt packets go their own way, straight through.
         function flock(dt) {
@@ -1276,7 +1342,7 @@
             }
             if (!(o.schooling > 0)) return;
             const R2 = 1.8 * 1.8;
-            const k = Math.min(1, o.schooling * 2.4 * dt);
+            const k = Math.min(1, o.schooling * 2.4 * (bossFeeding() ? o.bossPanic : 1) * dt);
             // Each packet only steers with its own school: grouped once a step.
             const schools = new Map();
             for (const p of s.packets) {
@@ -2121,6 +2187,8 @@
             // Backpressure: packets turned back resume their course.
             for (const p of s.packets) if (p.back && s.time >= p.back.until) { p.vx = p.back.vx; p.vy = p.back.vy; p.back = null; }
             flock(dt);
+            huntStep(dt);
+            feedStep(dt);
             const out = [];
             for (const p of s.packets) {
                 const px = p.x, py = p.y;

@@ -3886,6 +3886,10 @@ window.AGI = (function () {
     // The closing ring can be hidden (Settings, per device).
     const SNARE_RING_KEY = 'agiSnareRing';
     const snareRingOn = () => storageGet(SNARE_RING_KEY) !== '0';
+    // Red packets hunt your bubble: a testing toggle for now (the owner's call), off by default, per device. When on,
+    // runs start with packet-snare.js's `redHunt` at SNARE_HUNT (1 made sector 3 a 9-run wall in the pacing sweep).
+    const SNARE_HUNT_KEY = 'agiSnareHunt', SNARE_HUNT = 0.6;
+    const snareHuntOn = () => storageGet(SNARE_HUNT_KEY) === '1';
     // Bubbles (a prototype, per device, off by default): hold still to grow a bubble that catches; loops only stun.
     // How to catch (Snare 15, the owner's call: bubbles are the way to catch), for the first card and the first tip.
     const snareHowTo = () => (matchMedia('(pointer: fine)').matches
@@ -3976,7 +3980,7 @@ window.AGI = (function () {
         snareLive(true);
         reserveSnareTools(o);
         snare.seed = (state.snare.runs * 7919 + Math.floor(state.stats.playTime * 1000)) >>> 0;
-        snare.run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area, o), seed: snare.seed });
+        snare.run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area, o), seed: snare.seed, redHunt: snareHuntOn() ? SNARE_HUNT : 0 });
         snare.sector = sector;
         snare.startSector = sector;
         snare.cleared = [];
@@ -4171,10 +4175,10 @@ window.AGI = (function () {
     // Keyed by the demo they show (snare-demos.js).
     const SNARE_INTROS = {
         lasso: ['Packet Snare', 'Hold still on the field: a bubble grows. Let go to catch what\'s inside. Bigger bubbles pay more; a red packet inside spoils the lot.'],
-        red: ['Red packets', 'They\'re corrupt. Let go of a bubble with one inside and the whole catch spoils, and you lose Focus. Catch round them.'],
+        red: ['Red packets', () => (snareHuntOn() ? 'They\'re corrupt, and they hunt your bubble: hold it near one and it comes for you. Let go with one inside and the whole catch spoils, and you lose Focus. Catch round them, or let go before they get in.' : 'They\'re corrupt. Let go of a bubble with one inside and the whole catch spoils, and you lose Focus. Catch round them.')],
         antivirus: ['Antivirus', 'It hunts your bubbles. If it touches one, it pops and you lose the catch. Let go before it reaches you.'],
         sweep: ['Full Scan', 'Its edge flashes, then it sweeps the whole field. Any bubble it crosses pops.'],
-        boss: ['Boss Antivirus', () => `1. Draw a loop round it twice without touching it (${snareFinePointer() ? 'drag with the left button; ' : ''}easiest while it stands still to charge): it's stunned. 2. While it reads SLASH!, swipe through it, again and again. Clear its health to clear the sector.`],
+        boss: ['Boss Antivirus', () => `1. Draw a loop round it twice without touching it (${snareFinePointer() ? 'drag with the left button; ' : ''}easiest while it stands still to charge): it's stunned. 2. While it reads SLASH!, swipe through it, again and again. Clear its health to clear the sector. While it stands it eats the packets near it and scatters the rest, more the longer it lives.`],
         mines: ['Mines', 'The boss lays mines. Two near each other grow a net that wipes the data it crosses, and while two stand the boss is shielded. Let a bubble go over a mine to grab it, then flick from it at the boss: a big hit, even through its guard.'],
         nets: ['Nets', 'Three mines now: once their nets join up, everything inside the triangle is wiped. Grab the mines with bubbles before the nets close, and throw them back.'],
         rogue: ['The Rogue AI', 'Its cores grow and take the data they reach. Let a bubble go over a core to quarantine it; your Firewall sections keep it off the data inside them.'],
@@ -4331,7 +4335,7 @@ window.AGI = (function () {
         setText($('snareStatus'), '');
         renderSnareTools();
         pt('snare', { haul: Math.round(snare.haul), sector: snare.sector + 1, startSector: snare.startSector + 1, sectorsCleared: snare.cleared.length, bosses: stats.bosses, bossHits: stats.bossHits, wiped: stats.wiped,
-            catches: stats.catches, caught: stats.caught, gold: stats.gold, corrupted: stats.corrupted,
+            catches: stats.catches, caught: stats.caught, gold: stats.gold, corrupted: stats.corrupted, hunt: snare.run?.opts?.redHunt > 0 ? 1 : 0,
             snaps: stats.snaps, empty: stats.empty, bestMult: r2(stats.bestMult), chained: stats.chained, lasered: stats.lasered, scrubbed: stats.scrubbed,
             cores: stats.cores, stolen: stats.stolen, quarantined: stats.quarantined, bounces: stats.bounces, stuns: stats.stuns, fwLost: stats.fwLost, sweeps: stats.sweeps,
             turreted: stats.turreted, purged: stats.purged, freezes: stats.freezes, decoysLost: stats.decoysLost, tagged: stats.tagged, escaped: stats.escaped,
@@ -5909,6 +5913,8 @@ window.AGI = (function () {
         const glow = { gold: new Path2D(), bad: new Path2D() };
         // A red packet an Escort bot is turning regular wears a ring in the good colour that fills as it gets there.
         const turnRing = new Path2D(), o = run.opts || {};
+        // A red packet hunting your bubble streaks behind (the owner's call: red should feel dangerous).
+        const huntTrail = new Path2D();
         const turnOf = p => (p.vouch > 0 && o.escortTime ? p.vouch / o.escortTime : 0);
         // Red keeps its size however full the field (round 1 of the review: on a maxed field red packets shrank with the
         // rest and vanished), and on a crowded one wears a red halo.
@@ -5929,6 +5935,7 @@ window.AGI = (function () {
                 else {
                     const rr = Math.max(redMin, r);
                     arrow(paths.bad, x, y, ang, rr * 1.45, rr * 0.95);
+                    if (p.hunting) { const c = Math.cos(ang), sn = Math.sin(ang); huntTrail.moveTo(x - c * rr * 0.6, y - sn * rr * 0.6); huntTrail.lineTo(x - c * rr * 4, y - sn * rr * 4); }
                     if (crowded) { const hr = Math.min(rr * 2.4, 16); glow.bad.moveTo(x + hr, y); glow.bad.arc(x, y, hr, 0, Math.PI * 2); }
                     const turn = Math.min(1, turnOf(p));
                     if (turn > 0.02) {
@@ -5974,6 +5981,12 @@ window.AGI = (function () {
         ctx.globalAlpha = 0.28;
         ctx.fillStyle = bad;
         ctx.fill(glow.bad);
+        ctx.globalAlpha = 0.6;
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = bad;
+        ctx.stroke(huntTrail);
+        ctx.lineCap = 'butt';
         ctx.globalAlpha = 1;
         ctx.lineWidth = 3;
         ctx.strokeStyle = C.bg;
@@ -6246,6 +6259,25 @@ window.AGI = (function () {
         const x = b.x * k, y = b.y * k, r = Math.max(16, b.r * k);
         const reeling = b.stunned > t;
         const col = reeling ? C.warning : C.danger;
+        // Its feeding reach (the owner's call: it eats the field while it stands): a dashed ring turning inward, growing the
+        // longer it stands, faint inside; gone while it reels.
+        if (b.reach > 0 && !reeling) {
+            const rr = (b.r + b.reach) * k;
+            ctx.globalAlpha = 0.07;
+            ctx.fillStyle = C.danger;
+            ctx.beginPath();
+            ctx.arc(x, y, rr, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 0.45;
+            ctx.strokeStyle = C.danger;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 8]);
+            ctx.lineDashOffset = reducedMotion() ? 0 : -t * 30;
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.lineDashOffset = 0;
+            ctx.globalAlpha = 1;
+        }
         if (b.charge && b.charge.t < b.charge.warn) {
             // The warning: a wide red zone along where it will charge, a countdown filling it, and a hand-drawn swipe
             // across it showing the gesture (the owner couldn't tell what to do, and the old thin line was mostly
@@ -11988,6 +12020,13 @@ window.AGI = (function () {
         box.addEventListener('change', () => {
             storageSet(SNARE_RING_KEY, box.checked ? '1' : '0');
             pt('setting', { key: 'snareRing', value: box.checked });
+        });
+        const hunt = $('settingSnareHunt');
+        if (!hunt) return;
+        hunt.checked = snareHuntOn();
+        hunt.addEventListener('change', () => {
+            storageSet(SNARE_HUNT_KEY, hunt.checked ? '1' : '0');
+            pt('setting', { key: 'snareHunt', value: hunt.checked });
         });
     }
     function keepAwake() {

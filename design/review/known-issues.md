@@ -19,6 +19,9 @@ Update this file with every fix batch (move fixed ones to *fixed: verify*, drop 
 - **K10 The phone tree popup can cover its own "now → after" line** behind the buy button (round 7).
 
 ## Fixed: verify
+- **F10 The boss could be ignored** (the owner's phone log: they gathered on its far side): it now eats the packets in a
+  growing reach, packets near it flee and schools break up while it stands; a stun stops it.
+- **F11 Red didn't feel dangerous** (no spoil in 15 runs): red can hunt a held bubble, a testing toggle (off by default).
 - **F7 (K1) Late-game snowball:** sector pay +15% a sector (was +25%), sector 6's goal 1,300 with later goals ×2.25 from
   it, nodes on ring 4 and out ×1.75 (the drones' and turrets' first levels and the nodes on the way kept). The pacing
   sweep: sectors 6–12 take 5, 5, 5, 6, 1 (boss), 7 runs; the tree is bought out at 35–38 minutes (was 25–28).
