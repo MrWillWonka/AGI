@@ -29,7 +29,7 @@ test('a held Race Condition loop grows while nothing touches it', () => {
 });
 
 test('a Full Scan sweeping over a held Race Condition loop breaks it: no catch, the wire snaps', () => {
-    const s = still({ race: 1, sweepFirst: 0.2, sweepEvery: 99, sweepWarn: 0.1, sweepTime: 1 });
+    const s = still({ race: 1, sweepFirst: 0.2, sweepEvery: 99, sweepWarn: 0.1, sweepTime: 1, threatWait: 0 });
     packet(s, 'good', 6, 4);
     hold(s, 6, 4, 1.2);
     run(s, 1.5);

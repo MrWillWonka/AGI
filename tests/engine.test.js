@@ -2019,7 +2019,7 @@ test('a save from before Snare 11 gets every Packet Snare level back as Signal (
     assert.equal(m.levels.snareFocus, undefined);
     assert.equal(m.levels.snareSprawl, undefined);
     assert.equal(m.snare.signal, 5000, 'everything it earned this version, back to spend');
-    const fresh = E.migrate({ ...raw, version: 26, levels: { snareFocus: 2 }, snare: { ...raw.snare, signal: 1200 } }, Date.now());
+    const fresh = E.migrate({ ...raw, version: 27, levels: { snareFocus: 2 }, snare: { ...raw.snare, signal: 1200 } }, Date.now());
     assert.equal(fresh.levels.snareFocus, 2, 'a current save keeps its levels');
     assert.equal(fresh.snare.signal, 1200);
 });

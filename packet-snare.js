@@ -113,10 +113,12 @@
         autoZoneEvery: 4,           // …checking this often
         autoZoneMax: 2,             // at most this many of its sections stand at once (on top of your own slots)
         autoZoneLife: 10,           // and each lasts this long before it moves on
-        // Bubbles (a prototype behind a setting, the owner's idea): hold the pen still and an AI bubble grows there; let
-        // go and it catches what's inside, at the loop's area multiplier, spoiled by red inside as a loop is. Loops then
-        // only stun, quarantine, hijack, clear mines and collect garbage. Antivirus, the boss and scans pop a bubble as
-        // they snap a wire.
+        // Bubbles (Snare 15, the owner's call: the way to catch; the game always plays them, `bubble: 0` is the old wire
+        // catch the tests still use): hold the pen still and a bubble grows there; let go and it catches what's inside,
+        // at the area multiplier, spoiled by red inside past the scrubbers. Let go over a Rogue AI core, it's quarantined;
+        // over a stunned Antivirus, hijacked; over a boss mine, grabbed (flick it at the boss); over only red, collected
+        // (Garbage Collection). A drawn wire only circles the boss (two loops stun it) and flicks. Antivirus, the boss
+        // and scans pop a bubble as they snap a wire.
         bubble: 0,
         // Snare 12.3 (the owner: "the delay makes it too hard to catch and any movement seems to break it"): a bubble
         // appears the moment the pen goes down, already big enough to catch, and once it's committed it follows the pen
@@ -128,6 +130,26 @@
         bubblePow: 1.15,            // …a little faster as it goes (radius ∝ t^pow)
         bubbleMax: 0.4,             // its full radius, × the field's shorter side
         bubbleFollow: 0.012,        // s: how closely it sticks to the pen (Snare 13.2, the owner: it lagged; it was a capped drift)
+        bubbleSize: 0,              // Bigger Buffers: + this share of its full size
+        bubbleGrow: 0,              // Steady Hand: it grows this much faster
+        raceStill: 0.6,             // Race Condition: a full bubble held within this × the closing ring of where it filled grows
+        // Split (Fork Bomb, Snare 15): a full bubble let go forks into `fork` + 1 smaller ones (`splitR` × its radius,
+        // `splitDist` × its radius out) that catch `splitDelay` s later, each at its own multiplier times the first's (up to
+        // `forkMax` × the cap); red in one spoils only that one, and costs nothing.
+        splitDelay: 0.5,
+        splitR: 0.6,
+        splitDist: 1.3,
+        // Supernova (Starburst, Snare 15): a bubble let go while the field is frozen bursts to `novaRing` × its size:
+        // everything good in that at ×`starMult` on top of the bubble's multiplier, red there deleted, mines cleared.
+        novaRing: 1.35,
+        // Boss mines (Snare 15, the owner's call): a bubble let go over one grabs it for `mineHold` s (it stops linking and
+        // shielding); a flick from it at the boss throws it for `mineThrow` damage, through the guard, and the boss reels
+        // `mineReel` s. Not thrown in time, it goes live again.
+        mineHold: 5,
+        mineThrow: 3,
+        mineReel: 1,
+        threatWait: 4,              // s: a new threat waits this long at most for the pen to lift (Snare 15)
+        teachRed: 0,                // sector 1 (no red share): this many red packets anyway, to meet them (Snare 15)
         // Bots (Snare 11, the owner's call): small drones that seek red packets by themselves. A Cleaner bot (Intrusion)
         // turns a red packet it reaches into a regular one; with Gold Plating it also turns a regular packet into gold
         // every `goldEvery` s. A Spoofer bot (Countermeasures) spoofs the red packet it reaches (good, worth ×`spoofValue`,
@@ -285,14 +307,9 @@
         // holds it off), boots no minion, and spends the ally.
         escalate: 0,
         escalateDamage: 4,
-        // Fork Bomb: a figure eight (one stroke, two loops either side of the point where it crosses itself, or of where
-        // it started) pays both lobes at their multipliers multiplied, up to `forkMax` × the cap; a red packet in either
-        // spoils both. The first lobe waits up to `forkTime` s for the second (it's judged when that closes).
+        // Fork Bomb is now Split and Starburst Supernova (Snare 15: both were drawn shapes; see the bubbles above).
         fork: 0,
         forkMax: 1.5,
-        forkTime: 4,                // seconds the first lobe waits for its second
-        // Star: drawn while the field is frozen, a five-pointed star (a closed stroke crossing itself five times) catches
-        // everything good inside its outline at ×`starMult` on top of the multiplier and deletes the corrupt packets there.
         star: 0,
         starMult: 2,
         // Antivirus work in shifts (safe windows): `avOn` s hunting, then `avOff` s updating their definitions (harmless,
@@ -485,7 +502,8 @@
             rebuild: [],            // Great Wall: walls that went down, building themselves again { a, b, at }
             mines: [],              // the boss's mines: { id, x, y }
             links: [],              // nets growing between mines: { a, b, t } (mine ids; done at t ≥ netTime)
-            fork: null,             // Fork Bomb: a figure eight's first lobe, waiting for its second { q, poly, t, at }
+            splits: [],             // Split: bubbles a full one forked into, waiting to catch { x, y, r, at, mult }
+            held: [],               // boss mines grabbed by a bubble { id, x, y, until }
             handCaught: 0,          // packets caught by hand (loops): what boots the boss early
             rogueAt: o.rogue ? o.rogueFirst : Infinity,
             boss: null,             // the boss Antivirus once it boots: { x, y, vx, vy, r, hp, maxHp, stunned, charge, shielded }
@@ -500,7 +518,7 @@
             stats: { catches: 0, bubbles: 0, spawned: 0, pickups: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, botCollected: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
                 stolen: 0, cores: 0, quarantined: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0,
                 herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0,
-                bossDamage: 0, avDown: 0, glanced: 0, mines: 0, minesCleared: 0, netted: 0, escalations: 0, forks: 0, stars: 0 },
+                bossDamage: 0, avDown: 0, glanced: 0, mines: 0, minesCleared: 0, netted: 0, escalations: 0, forks: 0, stars: 0, minesGrabbed: 0, mineThrows: 0 },
             acc: 0,
             toolAt: {},             // when each kind of tool next arrives (Snare 13)
             pickups: [],            // freeze and purge waiting to be grabbed: { id, kind, x, y, until }
@@ -582,7 +600,7 @@
         // times as full has about 2.2 times the red, and Open Ports, Firehose and the like mostly add good packets.
         const plainGood = Math.max(4, Math.round(SNARE.density * fieldArea));
         const redBase = Math.round(Math.sqrt(plainGood * Math.max(plainGood, goodTarget)));
-        const redTarget = () => (o.corruptShare > 0 ? Math.max(1, Math.round(redBase * o.corruptShare)) : 0);
+        const redTarget = () => (o.corruptShare > 0 ? Math.max(1, Math.round(redBase * o.corruptShare)) : (o.teachRed || 0));
         let corruptTarget = redTarget();
         for (let left = goodTarget; left > 0;) {
             const n = Math.min(left, Math.max(2, Math.round(o.schoolSize * (0.6 + rand() * 0.8))));
@@ -760,6 +778,9 @@
             if (!o.boss || s.bossDone) return;
             if (!s.boss) {
                 if (s.time - s.sectorAt < o.bossAt && s.handCaught < o.bossCatch) return;
+                // New threats wait for the pen to lift (Snare 15, the owner's call: a bubble shouldn't be punished by one
+                // turning up, or by its tip card, mid-hold).
+                if (penBusy()) return;
                 bootBoss(false);
                 return;
             }
@@ -857,14 +878,14 @@
             zoneBlock(b, dt, true);
         }
         // Health off the boss (a slash, a parry with Riposte, a ram). Returns whether it landed.
-        function damageBoss(b, dmg, how) {
-            if (b.shielded) {
+        function damageBoss(b, dmg, how, pierce = false) {
+            if (b.shielded && !pierce) {
                 s.stats.glanced++;
                 s.events.push({ type: 'bossBlock', x: b.x, y: b.y, reason: 'shield', how });
                 return false;
             }
             if (!(dmg > 0)) return true;
-            if (s.mines.length === 1) dmg = Math.ceil(dmg / 2);
+            if (s.mines.length === 1 && !pierce) dmg = Math.ceil(dmg / 2);
             b.hp = Math.max(0, b.hp - dmg);
             s.stats.bossHits++;
             s.stats.bossDamage += dmg;
@@ -873,8 +894,9 @@
                 s.bossDone = true;
                 s.boss = null;
                 // Its mines and nets go down with it.
-                for (const m of s.mines) s.events.push({ type: 'mineDown', x: m.x, y: m.y, boss: true });
+                for (const m of [...s.mines, ...s.held]) s.events.push({ type: 'mineDown', x: m.x, y: m.y, boss: true });
                 s.mines = [];
+                s.held = [];
                 s.links = [];
                 s.events.push({ type: 'bossDown', x: b.x, y: b.y, focus: clearBonus() });
             } else {
@@ -971,6 +993,39 @@
             if (s.boss && s.boss.stunned > s.time) s.boss.stunned += 1;
             return true;
         }
+
+        // A bubble let go over a mine grabs it (Snare 15): it leaves the field's mines (no nets, no shield) and waits,
+        // glowing, to be flicked at the boss; Defuse at its last level grabs the nearest other too.
+        function grabMines(poly) {
+            const hit = s.mines.filter(m => pointInPolygon(m, poly));
+            if (!hit.length) return false;
+            if (o.defuseChain) {
+                const rest = s.mines.filter(m => !hit.includes(m)).sort((a, c) => Math.hypot(a.x - hit[0].x, a.y - hit[0].y) - Math.hypot(c.x - hit[0].x, c.y - hit[0].y));
+                if (rest.length) hit.push(rest[0]);
+            }
+            s.mines = s.mines.filter(m => !hit.includes(m));
+            s.links = s.links.filter(l => mineById(l.a) && mineById(l.b));
+            for (const m of hit) {
+                s.held.push({ id: m.id, x: m.x, y: m.y, until: s.time + o.mineHold });
+                s.stats.minesGrabbed++;
+                s.events.push({ type: 'mineGrab', x: m.x, y: m.y });
+            }
+            if (s.boss && !s.mines.length) s.boss.mineAt = Math.max(s.boss.mineAt, s.time + o.mineEvery * 0.75);
+            return true;
+        }
+        // Not thrown in time, a grabbed mine goes live again where it was.
+        function heldStep() {
+            for (const m of s.held.filter(q => s.time >= q.until)) {
+                s.held = s.held.filter(q => q !== m);
+                if (!s.boss) continue;
+                for (const q of s.mines) if (Math.hypot(q.x - m.x, q.y - m.y) <= o.netRange * shortSide) s.links.push({ a: q.id, b: m.id, t: 0 });
+                s.mines.push({ id: m.id, x: m.x, y: m.y });
+                s.events.push({ type: 'mineLive', x: m.x, y: m.y });
+            }
+        }
+
+        // The pen is down (a bubble held, a wire drawn): new threats wait, up to `threatWait` s of it.
+        const penBusy = () => s.drawing && s.real - (s.penDownAt ?? s.real) < o.threatWait;
 
         function bootAntivirus() {
             // From a corner, so it never lands on the pen.
@@ -1089,7 +1144,6 @@
         }
 
         function snap(fw) {
-            settleFork();
             s.events.push({ type: 'snap', x: fw.x, y: fw.y, wire: s.wire.slice(), bubble: !!s.bubble?.growing });
             s.bubble = null;
             s.wire = [];
@@ -1209,7 +1263,7 @@
             if (!o.rogue) return;
             // No new cores while the boss stands (its arena).
             if (s.boss && s.time >= s.rogueAt) s.rogueAt = s.time + 1;
-            if (s.time >= s.rogueAt) {
+            if (s.time >= s.rogueAt && !penBusy()) {
                 s.rogueAt = s.time + o.rogueEvery;
                 for (let i = 0; i < o.rogue; i++) spawnCore();
             }
@@ -1596,7 +1650,7 @@
         function sweepStep(dt) {
             // No new scan while the boss stands (its arena: a scan snapped swipes mid-stun).
             if (s.boss && sweepAt - s.time < 2) sweepAt = s.time + 2;
-            if (s.time >= sweepAt) {
+            if (s.time >= sweepAt && !penBusy()) {
                 sweepAt = s.time + o.sweepEvery;
                 const axis = rand() < 0.5 ? 'x' : 'y', dir = rand() < 0.5 ? 1 : -1;
                 const span = axis === 'x' ? w : h;
@@ -1776,6 +1830,20 @@
             const chord = Math.hypot(b.x - a.x, b.y - a.y), path = wireLength(st.pts);
             if (s.real - st.t0 > o.flickTime || chord < o.flickLength || chord < path * 0.75) return false;
             let hit = false, near = false;
+            // A grabbed mine flicked at the boss (Snare 15): from the mine, in the boss's direction (it needn't reach it).
+            const mine = boss && s.held.find(m => Math.hypot(m.x - a.x, m.y - a.y) < MINE_R + Math.max(0.6, closeR * 0.6));
+            if (mine) {
+                const dx = (b.x - a.x) / chord, dy = (b.y - a.y) / chord;
+                const along = (boss.x - mine.x) * dx + (boss.y - mine.y) * dy;
+                const off = Math.abs((boss.x - mine.x) * dy - (boss.y - mine.y) * dx);
+                if (along > 0 && off < boss.r * 1.6) {
+                    s.held = s.held.filter(m => m !== mine);
+                    s.stats.mineThrows++;
+                    s.events.push({ type: 'mineThrow', x: boss.x, y: boss.y, from: { x: mine.x, y: mine.y } });
+                    if (damageBoss(boss, o.mineThrow, 'mine', true) && s.boss) boss.stunned = Math.max(boss.stunned, s.time + o.mineReel);
+                    return true;
+                }
+            }
             if (boss) {
                 const through = segDist(boss, a, b) < boss.r;
                 // Swipes at the boss are never flagged (a blind playtest: a missed slash set off an alert it hadn't been
@@ -1859,13 +1927,6 @@
             if (s.cooldown > 0) s.cooldown = Math.max(0, s.cooldown - dt);
             bubbleStep(dt);
             wallsNow = wallsUp();
-            if (s.fork && s.real - s.fork.t > o.forkTime) settleFork();
-            // A first lobe closed at the start with the pen held still turns into a Race Condition loop instead.
-            if (s.fork && o.race && s.drawing && s.penAt && s.real - s.fork.t >= 0.35 && Math.hypot(s.penAt.x - s.fork.at.x, s.penAt.y - s.fork.at.y) <= closeR * 1.6) {
-                s.race = { poly: s.fork.poly, at: s.fork.at, t: 0, bonus: 0 };
-                s.events.push({ type: 'raceStart', x: centroid(s.fork.poly).x, y: centroid(s.fork.poly).y, poly: s.fork.poly });
-                s.fork = null;
-            }
             // Frozen: the field's clock stops (nothing moves, nothing comes due, tags hold, Focus holds); only your pen works.
             // Focus runs at half speed while frozen (it used to hold: up to 18 s of risk-free drawing a run).
             if (frozen()) {
@@ -1876,6 +1937,8 @@
             }
             s.time += dt;
             raceStep(dt);
+            splitStep();
+            heldStep();
             // Backpressure: packets turned back resume their course.
             for (const p of s.packets) if (p.back && s.time >= p.back.until) { p.vx = p.back.vx; p.vy = p.back.vy; p.back = null; }
             flock(dt);
@@ -1919,7 +1982,7 @@
             }
             bossStep(dt);
             sweepStep(dt);
-            while (avDue.length && s.time >= avDue[0]) { avDue.shift(); bootAntivirus(); }
+            while (avDue.length && s.time >= avDue[0] && !penBusy()) { avDue.shift(); bootAntivirus(); }
             for (const f of s.antivirus) {
                 // Hijacked: it works for you until its time is up, then reboots (stunned a moment) and turns back.
                 if (f.ally) {
@@ -2058,7 +2121,7 @@
             return Math.round(s.focus - before);
         }
         const SECTOR_KEYS = ['corruptShare', 'avSpeed', 'packetSpeed', 'antivirus', 'sweepFirst', 'sweepEvery', 'rogue', 'rogueFirst', 'rogueEvery',
-            'boss', 'goal', 'bossAt', 'bossCatch', 'bossR', 'bossSpeed', 'bossCharge', 'bossWarn', 'bossStun', 'bossMines', 'mineEvery', 'bossMinions'];
+            'teachRed', 'boss', 'goal', 'bossAt', 'bossCatch', 'bossR', 'bossSpeed', 'bossCharge', 'bossWarn', 'bossStun', 'bossMines', 'mineEvery', 'bossMinions'];
         function nextSector(next = {}) {
             if (s.over) return;
             const before = { av: o.antivirus.length, sweep: o.sweepFirst, rogue: o.rogue };
@@ -2079,8 +2142,9 @@
             s.sectorCaught = s.stats.caught;
             s.goalSkip = 0;
             s.goalBonus = 0;
-            for (const m of s.mines) s.events.push({ type: 'mineDown', x: m.x, y: m.y, boss: true });
+            for (const m of [...s.mines, ...s.held]) s.events.push({ type: 'mineDown', x: m.x, y: m.y, boss: true });
             s.mines = [];
+            s.held = [];
             s.links = [];
             s.stats.sectors++;
             s.events.push({ type: 'sector', boss: o.boss, goal: o.goal });
@@ -2089,7 +2153,7 @@
         function end() {
             if (s.over) return;
             settleRace();
-            settleFork();
+            s.splits = [];
             s.over = true;
             s.wire = [];
             s.drawing = false;
@@ -2129,88 +2193,79 @@
             return { area, inside, corrupt, good, spoiled, garbage, mult, value, safe, units: spoiled ? 0 : value * mult };
         }
 
-        // Close a loop: a core, a mine or a stunned Antivirus inside is dealt with at once; the packets are snared,
-        // or spoiled if anything corrupt (past the scrubbers) is in there. `held`: the pen is still down (it closed by
-        // crossing or coming back to the start), so Race Condition can hold the loop open. `cross`: the point it closed
-        // at with the pen down (the crossing, or the start), where Fork Bomb's second lobe must come back through.
-        // Returns 'fork' when the loop waits as a first lobe.
-        function close(poly, held = false, cross = null) {
-            const j = judge(poly);
-            // Fork Bomb: the second lobe of a figure eight passes through the first's crossing, on the other side of it.
-            const f = s.fork, reach = closeR * 1.6;
-            const second = !!(f && poly.some(v => Math.hypot(v.x - f.q.x, v.y - f.q.y) <= reach) && !pointInPolygon(centroid(poly), f.poly));
-            if (f && !second) settleFork();
+        // The Chokehold: a core inside is quarantined; what it stole comes back, half of it, as a bonus.
+        function quarantineIn(poly) {
+            const caught = s.cores.filter(c => pointInPolygon(c, poly));
+            if (!caught.length) return false;
+            s.cores = s.cores.filter(c => !caught.includes(c));
+            for (const c of caught) {
+                const units = 2 + 0.5 * c.stole;
+                s.stats.quarantined++;
+                s.stats.units += units;
+                // Collusion: it may offer to work for you instead.
+                const partner = o.collude > 0 && rand() < o.collude;
+                if (partner) {
+                    s.partners.push({ id: s.nextId++, x: c.x, y: c.y, r: Math.max(1, Math.min(c.r, o.rogueMax * shortSide * 0.6)), age: 0, at: 1 });
+                    s.stats.partners++;
+                }
+                s.events.push({ type: 'quarantine', x: c.x, y: c.y, r: c.r, units, poly, partner });
+            }
+            return true;
+        }
+        // Loops round the boss stun it (the wire never touched it, or it would have snapped): `bossLoops` of them, each
+        // within `bossLoopWindow` of the last; a spiral round it counts each turn.
+        function loopBoss(poly) {
+            if (!s.boss || s.boss.stunned > s.time || !pointInPolygon(s.boss, poly)) return false;
+            const b = s.boss;
+            b.loops = s.time - (b.loopAt ?? -1e9) <= o.bossLoopWindow ? (b.loops || 0) + 1 : 1;
+            b.loopAt = s.time;
+            if (b.loops >= o.bossLoops) {
+                b.loops = 0;
+                stunBoss(b);
+                s.stats.loopStuns++;
+                s.events.push({ type: 'bossLooped', x: b.x, y: b.y, poly });
+            } else s.events.push({ type: 'bossLoop', x: b.x, y: b.y, poly, n: b.loops, of: o.bossLoops });
+            return true;
+        }
+        // Hijack: a stunned Antivirus inside turns.
+        function hijackIn(poly) {
+            if (!o.hijack) return false;
+            let any = false;
+            for (const f of s.antivirus) {
+                if (f.ally || !(f.stunned > s.time) || !pointInPolygon(f, poly)) continue;
+                f.ally = s.time + o.hijackSeconds;
+                f.stunned = 0;
+                s.stats.hijacked++;
+                s.events.push({ type: 'hijack', x: f.x, y: f.y });
+                any = true;
+            }
+            return any;
+        }
+
+        // Close a loop. With bubbles (the game) a drawn loop only circles the boss; the old wire catch (`bubble: 0`):
+        // a core, a mine or a stunned Antivirus inside is dealt with at once, and the packets are snared, or spoiled if
+        // anything corrupt (past the scrubbers) is in there. `held`: the pen is still down, so Race Condition can hold
+        // the loop open.
+        function close(poly, held = false) {
             const at = centroid(poly);
             s.leftStart = false;
-            // The Chokehold: a tight loop round a core quarantines it; what it stole comes back, half of it, as a bonus.
-            let quarantined = false;
-            if (s.cores.length && j.area <= o.chokeArea * fieldArea) {
-                const caught = s.cores.filter(c => pointInPolygon(c, poly));
-                if (caught.length) {
-                    quarantined = true;
-                    s.cores = s.cores.filter(c => !caught.includes(c));
-                    for (const c of caught) {
-                        const units = 2 + 0.5 * c.stole;
-                        s.stats.quarantined++;
-                        s.stats.units += units;
-                        // Collusion: it may offer to work for you instead.
-                        const partner = o.collude > 0 && rand() < o.collude;
-                        if (partner) {
-                            s.partners.push({ id: s.nextId++, x: c.x, y: c.y, r: Math.max(1, Math.min(c.r, o.rogueMax * shortSide * 0.6)), age: 0, at: 1 });
-                            s.stats.partners++;
-                        }
-                        s.events.push({ type: 'quarantine', x: c.x, y: c.y, r: c.r, units, poly, partner });
-                    }
-                }
-            }
-            if (clearMines(poly)) quarantined = true;
-            // Loops round the boss stun it (the wire never touched it, or it would have snapped): `bossLoops` of them, each
-            // within `bossLoopWindow` of the last; a spiral round it counts each turn.
-            if (s.boss && !(s.boss.stunned > s.time) && pointInPolygon(s.boss, poly)) {
-                const b = s.boss;
-                b.loops = s.time - (b.loopAt ?? -1e9) <= o.bossLoopWindow ? (b.loops || 0) + 1 : 1;
-                b.loopAt = s.time;
-                if (b.loops >= o.bossLoops) {
-                    b.loops = 0;
-                    stunBoss(b);
-                    s.stats.loopStuns++;
-                    s.events.push({ type: 'bossLooped', x: b.x, y: b.y, poly });
-                } else s.events.push({ type: 'bossLoop', x: b.x, y: b.y, poly, n: b.loops, of: o.bossLoops });
-                quarantined = true;
-            }
-            // Hijack: a loop round a stunned Antivirus turns it.
-            if (o.hijack) {
-                for (const f of s.antivirus) {
-                    if (f.ally || !(f.stunned > s.time) || !pointInPolygon(f, poly)) continue;
-                    f.ally = s.time + o.hijackSeconds;
-                    f.stunned = 0;
-                    s.stats.hijacked++;
-                    s.events.push({ type: 'hijack', x: f.x, y: f.y });
-                    quarantined = true;
-                }
-            }
-            // Bubbles: a loop only stuns, quarantines, hijacks, clears mines and collects garbage; catching is the bubble's.
             if (o.bubble) {
-                if (j.garbage) { payLoop(poly, 0, j); return; }
-                if (!quarantined) s.events.push({ type: 'loopOnly', x: at.x, y: at.y, poly });
+                if (!loopBoss(poly)) s.events.push({ type: 'loopOnly', x: at.x, y: at.y, poly });
                 return;
             }
+            const j = judge(poly);
+            let acted = s.cores.length && j.area <= o.chokeArea * fieldArea ? quarantineIn(poly) : false;
+            if (clearMines(poly)) acted = true;
+            if (loopBoss(poly)) acted = true;
+            if (hijackIn(poly)) acted = true;
             if (!j.inside.length) {
-                if (second) settleFork();
-                if (quarantined) return;
+                if (acted) return;
                 s.stats.empty++;
                 s.events.push({ type: 'empty', x: at.x, y: at.y, poly, area: j.area });
                 return;
             }
-            if (second) { payFork(poly, j); return; }
-            // Fork Bomb: a clean loop closed with the pen down waits for its second lobe (both are judged when it closes).
-            if (o.fork && cross && !j.spoiled && !j.garbage && j.good.length) {
-                s.fork = { q: { x: cross.x, y: cross.y }, poly, t: s.real, at: s.penAt || cross };
-                s.events.push({ type: 'forkLobe', x: at.x, y: at.y, poly, mult: j.mult });
-                return 'fork';
-            }
             // Race Condition: a clean loop closed with the pen still down stays open while the pen holds still.
-            if (o.race && held && !o.fork && !j.spoiled && !j.garbage && j.good.length) {
+            if (o.race && held && !j.spoiled && !j.garbage && j.good.length) {
                 s.race = { poly, at: s.penAt, t: 0, bonus: 0 };
                 s.events.push({ type: 'raceStart', x: at.x, y: at.y, poly });
                 return;
@@ -2218,28 +2273,62 @@
             payLoop(poly, 0, j);
         }
 
-        // Fork Bomb: the waiting first lobe paid on its own (no second came, or the second didn't close through it).
-        function settleFork() {
-            const f = s.fork;
-            if (!f) return;
-            s.fork = null;
-            payLoop(f.poly, 0);
-        }
-        // Both lobes: their multipliers multiplied (up to `forkMax` × the cap); a red packet in either spoils both.
-        function payFork(poly, jB) {
-            const f = s.fork;
-            s.fork = null;
-            const jA = judge(f.poly);
-            const inside = [...new Set([...jA.inside, ...jB.inside])];
-            if (jA.spoiled || jB.spoiled || jB.garbage) {
-                payLoop(poly, 0, { ...jB, inside, corrupt: [...jA.corrupt, ...jB.corrupt], spoiled: true, garbage: false });
+        // Let go of a bubble (Snare 15): a core inside is quarantined, a mine grabbed, a stunned Antivirus hijacked; then
+        // it catches (Supernova if the field is frozen, Race Condition's growth on top), and a full one splits.
+        function releaseBubble(poly, b) {
+            const at = { x: b.x, y: b.y };
+            let acted = quarantineIn(poly);
+            if (grabMines(poly)) acted = true;
+            if (hijackIn(poly)) acted = true;
+            if (o.star && frozen()) { payNova(b, poly); return; }
+            const j = judge(poly, b.bonus);
+            if (!j.inside.length) {
+                if (acted) return;
+                s.stats.empty++;
+                s.events.push({ type: 'empty', x: at.x, y: at.y, poly, area: j.area });
                 return;
             }
-            const good = [...new Set([...jA.good, ...jB.good])];
-            const mult = Math.min(o.maxMult * o.forkMax, jA.mult * jB.mult);
-            const value = good.reduce((a, p) => a + valueOf(p), 0);
-            s.stats.forks++;
-            payLoop(poly, 0, { ...jB, area: jA.area + jB.area, inside, good, corrupt: [...jA.corrupt, ...jB.corrupt], mult, value, units: value * mult, fork: { a: f.poly, mults: [jA.mult, jB.mult] } });
+            if (b.bonus > 0) s.stats.raced++;
+            payLoop(poly, b.bonus, j);
+            if (o.fork && b.full && !j.spoiled && !j.garbage && j.good.length && !s.over) split(b, j.mult);
+        }
+        // Split: the full bubble forks into smaller ones round it, which catch a moment later.
+        function split(b, mult) {
+            const n = 1 + o.fork, a0 = rand() * Math.PI * 2, kids = [];
+            for (let i = 0; i < n; i++) {
+                const ang = a0 + i * Math.PI * 2 / n, r = b.r * o.splitR, d = b.r * o.splitDist;
+                const x = Math.max(r * 0.5, Math.min(w - r * 0.5, b.x + Math.cos(ang) * d)), y = Math.max(r * 0.5, Math.min(h - r * 0.5, b.y + Math.sin(ang) * d));
+                kids.push({ x, y, r, at: s.time + o.splitDelay, mult });
+            }
+            s.splits.push(...kids);
+            s.events.push({ type: 'split', x: b.x, y: b.y, kids: kids.map(k => ({ x: k.x, y: k.y, r: k.r })) });
+        }
+        function splitStep() {
+            for (const k of s.splits.filter(q => s.time >= q.at)) {
+                s.splits = s.splits.filter(q => q !== k);
+                const poly = circle(k.x, k.y, k.r), j = judge(poly);
+                if (!j.good.length) continue;
+                if (j.spoiled) { s.events.push({ type: 'splitSpoiled', x: k.x, y: k.y, r: k.r }); continue; }
+                const mult = Math.min(o.maxMult * o.forkMax, j.mult * k.mult);
+                s.stats.forks++;
+                payLoop(poly, 0, { ...j, mult, units: j.value * mult, split: true });
+            }
+        }
+        // Supernova: let go while the field is frozen, it bursts to `novaRing` × its size; everything good in that at
+        // ×`starMult` on top of the bubble's multiplier, red there deleted, mines there cleared.
+        function payNova(b, poly) {
+            const big = circle(b.x, b.y, b.r * o.novaRing);
+            clearMines(big);
+            const j = judge(big), inner = judge(poly, b.bonus);
+            if (j.corrupt.length) {
+                s.stats.scrubbed += j.corrupt.length;
+                remove(j.corrupt);
+            }
+            s.stats.stars++;
+            s.events.push({ type: 'nova', x: b.x, y: b.y, r: b.r * o.novaRing });
+            if (!j.good.length) return;
+            const mult = inner.mult * o.starMult;
+            payLoop(big, 0, { ...j, inside: j.good, corrupt: [], spoiled: false, garbage: false, mult, units: j.value * mult, star: true });
         }
         // Pay a closed loop (at once, or when a held Race Condition loop lets go, `bonus` its growth).
         function payLoop(poly, bonus, j = judge(poly, bonus)) {
@@ -2364,13 +2453,14 @@
             if (o.echo && !hasty) for (let i = 1; i <= o.echo; i++) s.echoes.push({ poly: poly.map(q => ({ x: q.x, y: q.y })), at: s.time + o.echoDelay * i, mult: j.mult, n: i });
             // Second Wind: a big loop gives Focus back.
             if (o.focusBack && j.mult >= 2) s.focus = Math.min(s.maxFocus, s.focus + o.focusBack);
-            s.events.push({ type: 'catch', x: at.x, y: at.y, poly, area: j.area, count, gold, mult: j.mult, units, packets: j.inside, race: bonus, streak: o.surge ? s.streak : 0, fork: j.fork || null, star: j.star || null, hasty, safe: !!j.safe,
+            s.events.push({ type: 'catch', x: at.x, y: at.y, poly, area: j.area, count, gold, mult: j.mult, units, packets: j.inside, race: bonus, streak: o.surge ? s.streak : 0, split: !!j.split, star: j.star || null, hasty, safe: !!j.safe,
                 chained: chained.map(c => ({ x: c.packet.x, y: c.packet.y, from: c.from, kind: c.packet.kind })), scrubbed: j.corrupt.length });
         }
 
-        // ---- Bubbles (a prototype) --------------------------------------------------------------------------
+        // ---- Bubbles (the way to catch, Snare 15) --------------------------------------------------------------
         // While a bubble grows its outline is the wire, so whatever hunts or snaps a wire pops it.
-        const bubbleMaxR = o.bubbleMax * shortSide;
+        const bubbleMaxR = o.bubbleMax * (1 + o.bubbleSize) * shortSide;
+        const bubbleTime = o.bubbleTime / (1 + o.bubbleGrow);
         function circle(x, y, r, n = 32) {
             const pts = [];
             for (let i = 0; i < n; i++) pts.push({ x: x + r * Math.cos(i / n * 2 * Math.PI), y: y + r * Math.sin(i / n * 2 * Math.PI) });
@@ -2381,7 +2471,7 @@
             const b = s.bubble;
             if (!b || s.over) return;
             // it grows from the moment the pen went down
-            const t = Math.min(1, (s.real - b.t0) / o.bubbleTime);
+            const t = Math.min(1, (s.real - b.t0) / bubbleTime);
             // it sticks to the pen from the first frame (Snare 13.2: it stood still until committed, then drifted at a capped
             // speed, so it trailed a quick move); whether the pen has wandered off is measured from where it went down
             if (b.pen) {
@@ -2405,11 +2495,27 @@
             }
             // committed: it goes where the pen goes (a finger's wobble moves it, never breaks it)
             s.wire = circle(b.x, b.y, b.r);
+            // Race Condition (Snare 15): a full bubble held still keeps growing its multiplier, `raceRate` a second up to
+            // `raceMax` more; moving it starts the count again.
+            if (o.race && b.full && b.pen && !frozen()) {
+                if (!b.still || Math.hypot(b.pen.x - b.still.x, b.pen.y - b.still.y) > o.raceStill * closeR) {
+                    if (b.bonus > 0) s.events.push({ type: 'raceReset', x: b.x, y: b.y });
+                    b.still = { x: b.pen.x, y: b.pen.y };
+                    b.raceT = 0;
+                    b.bonus = 0;
+                } else {
+                    const before = Math.floor((b.bonus || 0) / 0.125);
+                    b.raceT += dt;
+                    b.bonus = Math.min(o.raceMax, o.raceRate * b.raceT);
+                    if (Math.floor(b.bonus / 0.125) > before) s.events.push({ type: 'raceTick', x: b.x, y: b.y, bonus: b.bonus, max: o.raceMax });
+                }
+            }
         }
         const bubblePoly = () => (s.bubble ? circle(s.bubble.x, s.bubble.y, s.bubble.r || bubbleMinR()) : null);
         // Let go of a bubble: it catches what's inside, as a loop would (too small, it fizzles).
         function popBubble() {
-            const poly = s.bubble?.growing ? bubblePoly() : null;
+            const b = s.bubble;
+            const poly = b?.growing ? bubblePoly() : null;
             s.bubble = null;
             s.wire = [];
             s.drawing = false;
@@ -2419,7 +2525,7 @@
             const at = centroid(poly);
             if (polygonArea(poly) < minLoopArea) { s.events.push({ type: 'fizzle', x: at.x, y: at.y, bubble: true }); return; }
             s.stats.bubbles++;
-            payLoop(poly, 0);
+            releaseBubble(poly, { x: b.x, y: b.y, r: b.r, full: !!b.full, bonus: b.bonus || 0 });
         }
 
         // The loop the open wire would make if it closed now (back to where it started), or null while it's too
@@ -2445,6 +2551,7 @@
             if (s.race && Math.hypot(x - s.race.at.x, y - s.race.at.y) > closeR * 1.6) settleRace();
             if (!s.drawing) {
                 s.drawing = true;
+                s.penDownAt = s.real;
                 s.leftStart = false;
                 s.wire = [p];
                 s.stroke = { t0: s.real, pts: [p] };
@@ -2468,22 +2575,17 @@
             const last = s.wire[s.wire.length - 1];
             if (Math.hypot(x - last.x, y - last.y) < o.minGap) return true;
             if (s.stroke && s.stroke.pts.length < 400) s.stroke.pts.push(p);
-            // A star while the field is frozen: crossings don't close loops (the whole stroke is judged when it's back
-            // at its start).
-            const starring = o.star && frozen();
             // The new segment against every earlier one but its neighbour: the newest crossing closes the loop.
-            for (let i = s.wire.length - 3; i >= 0 && !starring; i--) {
+            for (let i = s.wire.length - 3; i >= 0; i--) {
                 const q = segIntersect(last, p, s.wire[i], s.wire[i + 1]);
                 // Too small a loop (a scribble's sliver) doesn't close: the wire runs on through the crossing.
                 if (q && polygonArea([q, ...s.wire.slice(i + 1)]) < minLoopArea) continue;
                 if (q) {
                     s.stroke = null;
-                    const kept = s.wire.slice(0, i + 1);
-                    const r = close([q, ...s.wire.slice(i + 1)], true, q);
-                    // Keep drawing from here: one scribble can snare loop after loop. A figure eight's first lobe keeps the
-                    // wire up to the crossing, so the second lobe can close through it.
-                    s.wire = s.over ? [] : r === 'fork' ? [...kept, q, p] : [p];
-                    if (r !== 'fork') s.leftStart = false;
+                    close([q, ...s.wire.slice(i + 1)], true);
+                    // Keep drawing from here: one stroke can circle the boss again (a spiral counts each turn).
+                    s.wire = s.over ? [] : [p];
+                    s.leftStart = false;
                     return true;
                 }
             }
@@ -2496,16 +2598,14 @@
             if (s.leftStart && fromStart <= closeR) {
                 const poly = openLoop();
                 s.stroke = null;
-                if (poly && starring && isStar(poly)) payStar(poly);
-                else if (poly) close(poly, true, start);
+                if (poly) close(poly, true);
                 s.wire = s.over ? [] : [p];
                 s.leftStart = false;
                 return true;
             }
-            // A wire past its length drops its tail (and its start moves with it), but never the crossing a figure eight's
-            // first lobe waits on.
+            // A wire past its length drops its tail (and its start moves with it).
             let L = wireCost(s.wire);
-            while (L > maxWire && s.wire.length > 2 && !(s.fork && s.wire[0] === s.fork.q)) {
+            while (L > maxWire && s.wire.length > 2) {
                 L -= segCost(s.wire[0], s.wire[1]);
                 s.wire.shift();
             }
@@ -2527,80 +2627,28 @@
             if (!isFlick && start && s.leftStart && Math.hypot(head.x - start.x, head.y - start.y) <= closeR * 1.6) {
                 const poly = openLoop();
                 if (poly) {
-                    if (o.star && frozen() && isStar(poly)) payStar(poly);
-                    else close(poly);
+                    close(poly);
                     s.wire = [];
                     s.drawing = false;
                     s.leftStart = false;
                     return;
                 }
             }
-            settleFork();
             if (!isFlick && s.wire.length > 1) s.events.push({ type: 'release', wire: s.wire.slice() });
             s.wire = [];
             s.drawing = false;
             s.leftStart = false;
         }
         // The pen is taken away (a card came up mid-stroke): the open wire is dropped without being judged (no loop, no
-        // flick, no flag); a held Race Condition loop stays held, and a figure eight's first lobe is paid.
+        // flick, no flag); a held Race Condition loop stays held.
         // The next stroke's kind: 'bubble', 'wire', or null to decide by how it moves (touch).
         function setPen(kind) { s.penKind = kind || null; }
         function cancelPen() {
             s.bubble = null;
-            settleFork();
             s.wire = [];
             s.stroke = null;
             s.drawing = false;
             s.leftStart = false;
-        }
-
-        // ---- Star: a five-pointed star drawn while the field is frozen ---------------------------------------
-        // A closed stroke that crosses itself at least five times, with at least four sharp points.
-        function isStar(pts) {
-            if (pts.length < 10) return false;
-            let crossings = 0;
-            for (let i = 0; i < pts.length - 1; i++) {
-                for (let j = i + 2; j < pts.length - 1; j++) {
-                    if (i === 0 && j === pts.length - 2) continue;
-                    if (segIntersect(pts[i], pts[i + 1], pts[j], pts[j + 1])) crossings++;
-                }
-            }
-            if (crossings < 5) return false;
-            // Sharp points: the heading turns more than 100° within about half a unit.
-            let points = 0, lastAt = -Infinity, run = 0;
-            for (let i = 1; i < pts.length - 1; i++) {
-                run += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
-                const back = pts[Math.max(0, i - 3)], fwd = pts[Math.min(pts.length - 1, i + 3)];
-                const a1 = Math.atan2(pts[i].y - back.y, pts[i].x - back.x), a2 = Math.atan2(fwd.y - pts[i].y, fwd.x - pts[i].x);
-                let d = Math.abs(a2 - a1) % (Math.PI * 2);
-                if (d > Math.PI) d = Math.PI * 2 - d;
-                if (d > 100 * Math.PI / 180 && run - lastAt > 0.6) { points++; lastAt = run; }
-            }
-            return points >= 4;
-        }
-        function hull(pts) {
-            const ps = pts.map(p => ({ x: p.x, y: p.y })).sort((a, b) => a.x - b.x || a.y - b.y);
-            const cr = (o2, a, b) => (a.x - o2.x) * (b.y - o2.y) - (a.y - o2.y) * (b.x - o2.x);
-            const lo = [], up = [];
-            for (const p of ps) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
-            for (const p of ps.reverse()) { while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
-            return lo.slice(0, -1).concat(up.slice(0, -1));
-        }
-        // Everything inside the star's outline: the good packets caught at ×`starMult` on top of the multiplier, the
-        // corrupt ones deleted (a star never spoils), mines inside cleared.
-        function payStar(stroke) {
-            const poly = hull(stroke);
-            clearMines(poly);
-            const j = judge(poly);
-            if (j.corrupt.length) {
-                s.stats.scrubbed += j.corrupt.length;
-                remove(j.corrupt);
-            }
-            s.stats.stars++;
-            s.events.push({ type: 'star', stroke, poly, x: centroid(poly).x, y: centroid(poly).y });
-            if (!j.good.length) return;
-            const mult = j.mult * o.starMult;
-            payLoop(poly, 0, { ...j, inside: j.good, corrupt: [], spoiled: false, garbage: false, mult, units: j.value * mult, star: true });
         }
 
         // The live preview of the open wire: what closing it now would catch, and whether the pen is near enough to
@@ -2609,7 +2657,7 @@
             const bub = bubblePoly();
             const poly = bub || (o.bubble ? null : openLoop());
             if (!poly) return null;
-            const j = judge(poly);
+            const j = judge(poly, bub ? (s.bubble.bonus || 0) : 0);
             const head = s.wire[s.wire.length - 1], start = s.wire[0];
             // The risk: corrupt packets just outside it (they can swim in before it closes).
             let risk = 0;
@@ -2639,7 +2687,7 @@
             return e;
         }
 
-        return Object.assign(s, { step, nextSector, goalProgress, addPoint, liftPen, cancelPen, setPen, stop, netsDone, netAreas, chargeReach, isStar, takeEvents, preview, valueOf, isGood, placeZone, moveZone, zoneAt, placeAt, removeAt, usePower, grab, wallsUp, frozen, layoutOf, emitterSpots });
+        return Object.assign(s, { step, nextSector, goalProgress, addPoint, liftPen, cancelPen, setPen, stop, netsDone, netAreas, chargeReach, takeEvents, preview, valueOf, isGood, placeZone, moveZone, zoneAt, placeAt, removeAt, usePower, grab, wallsUp, frozen, layoutOf, emitterSpots });
     }
 
     return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, AV_R, BOSS_R, BOSS_WARN, BOSS_DASH, BOSS_DASH_SPEED, MINE_R, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };

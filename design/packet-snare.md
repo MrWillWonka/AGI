@@ -589,3 +589,29 @@ time. The owner chose both fixes: red now grows with the square root of the pack
 of what the field holds at the base density and what it holds now), and owning Scrubbers also forgives one more corrupt
 packet per 20 good ones inside. On the same build: 15 red, a full bubble spoiled 1% of the time with Scrubbers 2 and
 54% without, so red still matters and Scrubbers answer it. Early sectors are unchanged (about 2 red at sector 3).
+
+## Snare 15: bubbles are the way to catch
+
+The owner, after playing the bubble prototype: "I want to move forward with the bubbles, so we need to adjust all the skills
+to align with the change; make sure all references and mechanics are aligned", plus two calls: sector 1 has one red packet
+to teach red, and tips and new threats wait until a bubble is let go, so a tip card never costs a held bubble. Asked how
+each loop-only mechanic should become a bubble one, the owner chose:
+
+- **The wire stays for the boss**: two loops round it still stun it, and flicks still slash, parry, spoof and ram. Every
+  other loop job is the bubble's: let go over a Rogue AI core to quarantine it, over a stunned Antivirus to hijack it, over
+  only red for Garbage Collection.
+- **Boss mines are bubbled, then flicked**: a bubble let go over a mine grabs it (it stops linking and shielding) for 5 s;
+  a flick from it at the boss throws it for 3 damage through the guard and the shield, and the boss reels 1 s. Not thrown
+  in time, it goes live again. Defuse at its last level grabs the nearest other too.
+- **Fork Bomb → Split**: a full bubble let go forks into two smaller ones (three at level 2) that catch half a second later
+  at their own multiplier times the first's; red in one spoils only that one, at no Focus cost.
+- **Starburst → Supernova**: a bubble let go while the field is frozen bursts 35% wider: everything good in it ×2 (×3 at 2)
+  on top of the bubble's multiplier, red there deleted, mines cleared.
+- **The wire-only stats became bubble stats**: Long Wire is Bigger Buffers (full bubbles 25% bigger), Steady Hand's loops
+  closing sooner is bubbles growing 25% faster, and Race Condition is a full bubble held still, its multiplier climbing
+  until you let go (moving it starts the count again).
+
+Every demo plays bubbles; the first card and a red-packet tip teach them. New threats (Antivirus, Full Scans, Rogue AI
+cores, the boss) wait for the pen to lift, for at most 4 s of holding. The tools' bot plays bubbles too: it beats the boss
+line about a sector later than the loop bot did, since holding a bubble catches less per second of Focus than a quick
+loop; real players with the tree's Focus nodes are well clear of it. Save v27 refunds the tree.

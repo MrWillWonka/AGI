@@ -551,13 +551,13 @@ test('the boss Antivirus boots on time or on hand catches, and a loop round it d
     s.liftPen();
     assert.equal(s.boss.hp, 2, 'it is fought with flicks now, not loops');
     // or after enough catches by hand
-    const u = still({ boss: 1, bossAt: 1e9, bossCatch: 1 });
+    const u = still({ boss: 1, bossAt: 1e9, bossCatch: 1, threatWait: 0 });
     packet(u, 'good', 4, 4);
     drawSquare(u, 4, 4, 1);
     u.step(0.1);
     assert.ok(u.boss, 'boots after the catch');
     // a laser's catches don't count
-    const v = still({ boss: 1, bossAt: 1e9, bossCatch: 1, laser: 0.2, laserReach: 2 });
+    const v = still({ boss: 1, bossAt: 1e9, bossCatch: 1, laser: 0.2, laserReach: 2, threatWait: 0 });
     packet(v, 'gold', 5, 6.5);
     for (let i = 0; i < 120; i++) v.step(1 / 60);
     assert.equal(v.stats.lasered, 1);
@@ -696,15 +696,19 @@ test('a cleared sector tops Focus up and the run gathers on there; Go deeper tak
     assert.ok(t.stats.sweeps >= 1, 'a Full Scan comes');
 });
 
-test('sector 1 has no red packets at all, and going deeper brings them in', () => {
+test('sector 1 has one red packet to meet, and going deeper brings the rest in', () => {
     const s = E.defaultState(NOW);
-    const r = P.createSnare({ ...E.snareOpts(s, 0), seed: 9, idleDrain: 0 });
+    const o = E.snareOpts(s, 0);
+    assert.equal(o.corruptShare, 0);
+    assert.equal(o.teachRed, 1);
+    const r = P.createSnare({ ...o, seed: 9, idleDrain: 0 });
     const reds = () => r.packets.filter(p => p.kind === 'corrupt').length;
     for (let i = 0; i < 60 * 5; i++) r.step(1 / 60);
-    assert.equal(reds(), 0, 'not even one (the count had a floor of 1)');
+    assert.equal(reds(), 1, 'exactly one');
     r.nextSector(E.snareOpts(s, E.RED_SECTOR));
     for (let i = 0; i < 60 * 6; i++) r.step(1 / 60);
     assert.ok(reds() >= 1, 'red swims in on sector 2');
+    assert.equal(E.snareOpts(s, E.RED_SECTOR).teachRed, 0);
 });
 
 test('packet nodes add red only by the square root, and Scrubbers forgive one more per 20 good packets inside', () => {

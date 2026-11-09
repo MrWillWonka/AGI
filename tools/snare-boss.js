@@ -1,5 +1,6 @@
 // tools/snare-boss.js — Packet Snare's boss wall, measured: the tools' bot (tools/snare-bot.js: it parries the boss's
-// charge after a 0.3 s reaction, slashes it while it reels, loops its mines and otherwise loops clean clusters), played on
+// charge after a 0.3 s reaction, slashes it while it reels, grabs its mines with a bubble and throws them, and otherwise
+// holds bubbles on clean clusters), played on
 // each sector with a few tree builds, three seeds each. Prints health taken / health and ✓ when all three seeds beat it
 // (~ when some did). It never uses walls, powers or the other exploits, so it's a floor.
 //   node tools/snare-boss.js            (the default builds)

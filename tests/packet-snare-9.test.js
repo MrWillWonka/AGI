@@ -181,50 +181,6 @@ test('Antivirus work in shifts: while they update they can\'t snap your wire', (
     assert.ok(!f.off, 'back on shift');
 });
 
-test('Fork Bomb: a figure eight pays both lobes at their multipliers multiplied; one red packet spoils both', () => {
-    const eight = (s, cx, cy, rx, ry) => {
-        const n = 80;
-        for (let i = 0; i <= n + 2; i++) { const t = i / n * Math.PI * 2 + Math.PI / 2; s.addPoint(cx + Math.cos(t) * rx, cy + Math.sin(2 * t) * ry); }
-        s.liftPen();
-    };
-    const plain = still();
-    packet(plain, 'good', 4.5, 4); packet(plain, 'good', 7.5, 4);
-    eight(plain, 6, 4, 2.5, 1.2);
-    const s = still({ fork: 1 });
-    packet(s, 'good', 4.5, 4); packet(s, 'good', 7.5, 4);
-    eight(s, 6, 4, 2.5, 1.2);
-    assert.equal(s.stats.forks, 1);
-    assert.equal(s.stats.catches, 1, 'one catch for both lobes');
-    assert.ok(s.stats.units > plain.stats.units * 1.05, `${s.stats.units.toFixed(2)} > ${plain.stats.units.toFixed(2)}`);
-    const bad = still({ fork: 1 });
-    packet(bad, 'good', 4.5, 4); packet(bad, 'corrupt', 7.5, 4);
-    eight(bad, 6, 4, 2.5, 1.2);
-    assert.equal(bad.stats.corrupted, 1);
-    assert.equal(bad.stats.caught, 0, 'the clean lobe is lost too');
-});
-
-test('a star drawn while frozen catches everything inside its outline ×2 and deletes the corrupt packets there', () => {
-    const star = (s, cx, cy, r) => {
-        const tips = Array.from({ length: 6 }, (_, i) => { const a = -Math.PI / 2 + i * 4 * Math.PI / 5; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r]; });
-        for (let i = 0; i < 5; i++) for (let k = 0; k < 8; k++) s.addPoint(tips[i][0] + (tips[i + 1][0] - tips[i][0]) * k / 8, tips[i][1] + (tips[i + 1][1] - tips[i][1]) * k / 8);
-        s.addPoint(...tips[5]);
-        s.addPoint(tips[5][0] + 0.05, tips[5][1] + 0.12);
-        s.liftPen();
-    };
-    const s = still({ freeze: 1, star: 1 });
-    packet(s, 'good', 6, 4); packet(s, 'good', 6.8, 3.6); packet(s, 'corrupt', 5.4, 4.3);
-    s.usePower('freeze');
-    star(s, 6, 4, 2);
-    assert.equal(s.stats.stars, 1);
-    assert.equal(s.stats.caught, 2);
-    assert.equal(s.stats.corrupted, 0, 'a star never spoils');
-    assert.ok(!s.packets.some(p => p.kind === 'corrupt'), 'the corrupt packet inside is gone');
-    const thawed = still({ freeze: 1, star: 1 });
-    packet(thawed, 'good', 6, 4);
-    star(thawed, 6, 4, 2);
-    assert.equal(thawed.stats.stars, 0, 'only while frozen');
-});
-
 test('Privilege Escalation: a flick from your hijacked Antivirus into the boss rams it, and spends the ally', () => {
     const s = still({ boss: 9, bossAt: 0, hijack: 1, escalate: 1, escalateDamage: 4, antivirus: [0] });
     run(s, 0.05);
