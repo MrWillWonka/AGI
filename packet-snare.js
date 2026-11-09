@@ -128,7 +128,11 @@
         bubbleMin: 0.85,            // × the closing ring's radius: its size the moment it appears
         bubbleTime: 2.5,            // seconds to grow to its full size…
         bubblePow: 1.15,            // …a little faster as it goes (radius ∝ t^pow)
-        bubbleMax: 0.4,             // its full radius, × the field's shorter side
+        bubbleMax: 0.48,            // its full radius at most, × the field's shorter side…
+        bubbleShare: 0.3,           // …and a full bubble is this share of the field whatever its shape (round 2 of the review: a full
+                                    // bubble was ×1.75 on a wide desktop field, ×2.07 on an upright phone's)
+        streakPay: 0.05,            // each clean catch in a row pays this much more, up to streakMax (round 2: careful play hardly
+        streakMax: 10,              // beat blind holds); a spoil or a pop starts the count again
         bubbleFollow: 0.012,        // s: how closely it sticks to the pen (Snare 13.2, the owner: it lagged; it was a capped drift)
         bubbleSize: 0,              // Bigger Buffers: + this share of its full size
         bubbleGrow: 0,              // Steady Hand: it grows this much faster
@@ -230,7 +234,7 @@
         // Snare 12 (the owner's call: the fights felt rushed): a slower rhythm. It charges every `bossCharge` s, its
         // warning line shows `bossWarn` s (it stands still, the moment to loop it), and a stun lasts `bossStun` s.
         bossCharge: 7,              // seconds between its charges
-        bossWarn: 2,                // seconds its warning line shows before it dashes
+        bossWarn: 2.5,              // seconds its warning line shows before it dashes (round 2 of the review: 2 left no time for two loops)
         bossStun: 2.5,              // seconds it reels once stunned (the slash window)
         bossLoops: 2,               // loops round it it takes to stun it (Snare 12.7, the owner's call: once was too easy)…
         bossLoopWindow: 3.5,        // …each within this many seconds of the last, or the count starts again
@@ -321,7 +325,7 @@
         densityCap: 1.5,
         // …and never more than this many good packets on the field in all (big screens: drawing time grows with the count,
         // and 2,400 ran a 1280 px desktop at 30 fps), past which they come back sooner instead (game.js snareField).
-        maxOnScreen: 1400,
+        maxOnScreen: 1100,          // round 2 of the review: 1,400 drew a 1280 px desktop at ~40 fps
         // Packets' size (units): game.js shrinks them as a capped field fills (the owner's call, Snare 10: smaller, more
         // of them, coming back sooner), never under 0.55 of this.
         packetR: 0.3,
@@ -511,6 +515,7 @@
             goalDone: false,        // the sector's goal reached (a `goal` event, once)
             sectorAt: 0,            // when the run reached the sector it's on (a cleared sector carries the run into the next)
             sectorCaught: 0,        // packets caught before it (the goal counts from here)
+            cleanRun: 0,            // clean catches in a row (the streak's pay)
             goalSkip: 0,            // packets caught in it by rushed loops (they don't count toward the goal)
             goalBonus: 0,           // half of what its loops were worth past their packets (counts toward the goal)
             lastLoopAt: -1e9,       // when the last loop paid (a loop moments after it is rushed)
@@ -742,7 +747,7 @@
             const side = Math.floor(rand() * 4), e = bossEdge(r);
             const x = side === 0 ? e : side === 1 ? w - e : w / 2, y = side === 2 ? e : side === 3 ? h - e : h / 2;
             s.boss = { x, y, vx: 0, vy: 0, r, hp: o.boss, maxHp: o.boss, stunned: 0, immune: null, charge: null, chargeAt: s.time + (enraged ? 1 : 2.5),
-                enraged, smash: null, slashAt: -1, shielded: false, mineAt: s.time + 1.5 };
+                enraged, smash: null, slashAt: -1, shielded: false, mineAt: s.time + 1.5, born: s.time };
             // Its arrival adds Focus (the fight shouldn't race the clock), above the bar if it must.
             // (Not when an IDS alert booted it: flags shouldn't pay.)
             const extra = enraged ? 0 : o.bossFocus;
@@ -868,7 +873,8 @@
             }
             // A quick stroke (a flick on its way) isn't snapped: flicks are how it's fought.
             const flicking = s.stroke && s.real - s.stroke.t0 < o.flickTime;
-            if (s.wire.length > 1 && !flicking) {
+            // Nor a bubble in its first 1.5 s on the field (round 2 of the review: it booted into a held bubble and popped it).
+            if (s.wire.length > 1 && !flicking && !(s.bubble && s.time - (b.born ?? -9) < 1.5)) {
                 for (let i = 1; i < s.wire.length; i++) {
                     // Its snap costs half again what an Antivirus's does.
                     if (segDist(b, s.wire[i - 1], s.wire[i]) < b.r * 0.85) { snap(b); s.focus = Math.max(0, s.focus - o.snapPenalty * 0.5); break; }
@@ -1155,6 +1161,7 @@
             s.focus = Math.max(0, s.focus - o.snapPenalty * (popped ? 0.5 : 1));
             s.stats.snaps++;
             s.streak = 0;
+            s.cleanRun = 0;
         }
 
         const spoofed = p => p.kind === 'corrupt' && p.spoof > s.time;
@@ -2356,6 +2363,7 @@
             }
             if (j.spoiled) {
                 s.streak = 0;
+                s.cleanRun = 0;
                 remove(j.inside);
                 s.stats.corrupted++;
                 s.focus = Math.max(0, s.focus - o.corruptPenalty);
@@ -2401,9 +2409,12 @@
             const chainValue = chained.reduce((a, c) => a + valueOf(c.packet), 0);
             // A loop closed moments after the last (a scribble, lifted or not) pays half, doesn't count toward the
             // sector's goal and sets off none of the clean-loop rewards.
-            const hasty = s.real - s.lastLoopAt < o.scribbleGap;
+            // (Bubbles aren't rushed: they already cost the time they're held; round 2 of the review.)
+            const hasty = !o.bubble && s.real - s.lastLoopAt < o.scribbleGap;
             s.lastLoopAt = s.real;
-            const units = (j.value + chainValue) * j.mult * (hasty ? o.scribblePay : 1);
+            // A clean streak: each clean catch in a row before this one adds `streakPay` (careful play pays).
+            const run = Math.min(s.cleanRun, o.streakMax);
+            const units = (j.value + chainValue) * j.mult * (hasty ? o.scribblePay : 1) * (1 + o.streakPay * run);
             const gold = j.good.filter(p => p.kind === 'gold').length + chained.filter(c => c.packet.kind === 'gold').length;
             remove([...j.inside, ...chained.map(c => c.packet)]);
             const count = j.good.length + chained.length;
@@ -2420,6 +2431,7 @@
             s.stats.bestCatch = Math.max(s.stats.bestCatch, units);
             s.stats.bestMult = Math.max(s.stats.bestMult, j.mult);
             const clean = j.corrupt.length === 0 && !hasty;
+            s.cleanRun = clean ? s.cleanRun + 1 : 0;
             // Firehose: a clean loop sends a pulse of packets in from upstream.
             if (o.pulse && clean) {
                 school(2 * o.pulse, true);
@@ -2458,13 +2470,13 @@
             if (o.echo && !hasty) for (let i = 1; i <= o.echo; i++) s.echoes.push({ poly: poly.map(q => ({ x: q.x, y: q.y })), at: s.time + o.echoDelay * i, mult: j.mult, n: i });
             // Second Wind: a big loop gives Focus back.
             if (o.focusBack && j.mult >= 2) s.focus = Math.min(s.maxFocus, s.focus + o.focusBack);
-            s.events.push({ type: 'catch', x: at.x, y: at.y, poly, area: j.area, count, gold, mult: j.mult, units, packets: j.inside, race: bonus, streak: o.surge ? s.streak : 0, split: !!j.split, star: j.star || null, hasty, safe: !!j.safe,
+            s.events.push({ type: 'catch', x: at.x, y: at.y, poly, area: j.area, count, gold, mult: j.mult, units, packets: j.inside, race: bonus, streak: o.surge ? s.streak : 0, cleanRun: run, split: !!j.split, star: j.star || null, hasty, safe: !!j.safe,
                 chained: chained.map(c => ({ x: c.packet.x, y: c.packet.y, from: c.from, kind: c.packet.kind })), scrubbed: j.corrupt.length });
         }
 
         // ---- Bubbles (the way to catch, Snare 15) --------------------------------------------------------------
         // While a bubble grows its outline is the wire, so whatever hunts or snaps a wire pops it.
-        const bubbleMaxR = o.bubbleMax * (1 + o.bubbleSize) * shortSide;
+        const bubbleMaxR = Math.min(o.bubbleMax * shortSide, Math.sqrt(o.bubbleShare * w * h / Math.PI)) * (1 + o.bubbleSize);
         const bubbleTime = o.bubbleTime / (1 + o.bubbleGrow);
         function circle(x, y, r, n = 32) {
             const pts = [];

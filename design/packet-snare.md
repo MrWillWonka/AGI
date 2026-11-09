@@ -636,3 +636,18 @@ shared complaints and what 15.1 did about them:
 - **Desktop**: a still left-click hold grows a bubble (the right button always does); toasts in the bay sit at the foot of
   the screen; the field dims under cards; a bubble held at the end is let go and pays; red packets keep their size and wear
   a halo on a full field; a bubble's rings stop at 40 good packets; at most 8 laser numbers at once.
+
+Round 2 (15.1): gameplay 6.7, clarity 6.3, pacing 6.5, design 6.7, visuals 6.7, tutorials 6.7, engagement 6.7. What 15.2 did:
+
+- **Tips came after the damage** (the boss tip 9 s after it popped a bubble, the red tip after a spoil): threats' tips show at
+  once (only the pen holds them), the boss pops nothing in its first 1.5 s, and red packets are met on the card before the
+  run that brings the first.
+- **The core reward depended on the screen** (a full bubble ×1.75 on desktop, ×2.07 on a phone): a full bubble is 0.3 of
+  the field's area anywhere (about ×2.2).
+- **Careful play hardly beat blind holds**: a clean streak pays 5% more a catch, up to 50%; the scribble tax no longer
+  touches bubbles (RUSHED ×½ was never explained).
+- **The first boss came with Full Scans**: scans start on sector 6. The boss warns 2.5 s (2), room for two loops.
+- **A goal cliff at sector 9** (370): goals grow ×1.25 a sector after 80.
+- **The tree**: nodes carry their names; the popup docks to the right edge (desktop) or the foot (phone) instead of
+  covering neighbours; packet nodes preview counts. Pops stack or drop instead of piling; a beaten boss heads its card;
+  a shielded boss says GRAB A MINE.

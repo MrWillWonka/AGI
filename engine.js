@@ -13,7 +13,7 @@
     // The build a player is on: stamped into every playtest log (its header and session events), so each log is read
     // against the features it had (playtests/README.md lists the builds). Bump it with every publish: the date and
     // time (UTC) and a few words on what changed.
-    const BUILD = '2026-11-09 05:05 (review branch) · Packet Snare 15.1: review round 1 (fuller first sectors, gentler first goals, the boss fight off the clock, tips that wait, honest tree text)';
+    const BUILD = '2026-11-09 06:20 (review branch) · Packet Snare 15.2: review round 2 (tips the moment a threat appears, red met on a card, node names, a docked popup, the same full bubble on every screen, clean streaks, no scans with the first boss)';
     const SAVE_VERSION = 27;   // 27: Packet Snare 15 (bubbles are the way to catch: Split, Supernova, Bigger Buffers, mines grabbed), the tree refunded again; 26: Packet Snare 14 (bots earlier, powers with five levels, Collector Bot), the tree refunded again; 25: Packet Snare 12 (the boss looped, the tree repriced and Root Access moved), the tree refunded again; 24: Packet Snare's tree rearranged so no node does the same thing as the one it grows from, every level refunded; 23: Packet Snare's Firewalls became sections (layout.zones; drawn walls dropped), its tree regrown again with every level refunded; 22: Packet Snare's tree regrown (Snare 10: four wedges, capstones), every level refunded; 21: Packet Snare's placements (snare.layout: walls, decoys, turrets, towers; the anchors went), its tree regrown; 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
@@ -2160,8 +2160,8 @@
     const SNARE_BOSS_EVERY = 5;
     const isSnareBossSector = k => (k + 1) % SNARE_BOSS_EVERY === 0;
     // Snare 14 (the owner's call: the early game wasn't harrowing): red packets from sector 2, Antivirus from 3, Full Scans
-    // from 5 (the first boss's sector).
-    const RED_SECTOR = 1, SWEEP_SECTOR = 4, AV_SECTOR = 2, ROGUE_SECTOR = 8, FAST_SWEEP_SECTOR = 11;
+    // from 6 (round 2 of the review: on 5 they came with the first boss, two new things at once).
+    const RED_SECTOR = 1, SWEEP_SECTOR = 5, AV_SECTOR = 2, ROGUE_SECTOR = 8, FAST_SWEEP_SECTOR = 11;
     const MINE_SECTOR = 9, NET_SECTOR = 14, MINION_SECTOR = 19, SWARM_SECTOR = 24;
     const SNARE_GATES = [MINE_SECTOR, NET_SECTOR, MINION_SECTOR, SWARM_SECTOR];
     const SNARE_STAGES = [
@@ -2191,7 +2191,8 @@
     const SNARE_RUN_FLOORS = { sweeps: 0, antivirus: 0, rogue: 18 };
     // The first four (20, 35, 55, 80; round 1 of the review: 25, 45, 70, 100 took ten runs a sector) put the first boss after the first scan; then ×1.4 a sector to 9, ×1.3 after.
     const SNARE_FIRST_GOALS = [20, 35, 55, 80];
-    const snareGoal = k => (isSnareBossSector(k) ? 0 : k < SNARE_FIRST_GOALS.length ? SNARE_FIRST_GOALS[k] : 5 * Math.round(5 * Math.pow(1.4, Math.min(k, 9)) * Math.pow(1.3, Math.max(0, k - 9))));
+    // After the first four, ×1.25 a sector from the fourth's 80 (round 2 of the review: ×1.4 asked 370 at sector 9, a cliff).
+    const snareGoal = k => (isSnareBossSector(k) ? 0 : k < SNARE_FIRST_GOALS.length ? SNARE_FIRST_GOALS[k] : 5 * Math.round(SNARE_FIRST_GOALS[3] * Math.pow(1.25, k - 3) / 5));
     // Training skills power you up in Packet Snare too, each by its name (the owner's call: the boss's gates send you to
     // the rest of the game, and you come back stronger). Added to the tree's levels in `snareLevels`.
     const SNARE_SKILL_BUFFS = {
@@ -2254,7 +2255,8 @@
             bubbleSize: g('bubbleSize'),
             bubbleGrow: g('bubbleGrow'),
             // Sector 1 has no red share, but one red packet to meet (the owner's call: it's how the player learns red).
-            teachRed: k < RED_SECTOR ? 1 : 0,
+            // From the second run (round 2 of the review: the first run teaches the bubble, the second card the red packet).
+            teachRed: k < RED_SECTOR && s.snare.runs > 0 ? 1 : 0,
             focusBack: g('focusBack'),
             density: B.density * (1 + g('density')),
             maxGood: Math.round(B.maxGood * (1 + g('density'))),

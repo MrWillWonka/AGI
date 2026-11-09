@@ -698,6 +698,8 @@ test('a cleared sector tops Focus up and the run gathers on there; Go deeper tak
 
 test('sector 1 has one red packet to meet, and going deeper brings the rest in', () => {
     const s = E.defaultState(NOW);
+    assert.equal(E.snareOpts(s, 0).teachRed, 0, 'not on the very first run (it teaches the bubble)');
+    s.snare.runs = 1;
     const o = E.snareOpts(s, 0);
     assert.equal(o.corruptShare, 0);
     assert.equal(o.teachRed, 1);
