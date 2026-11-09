@@ -42,7 +42,7 @@ const BUILDS = [
     ['Attention Span 3', { snareFocus: 3 }],
     ['the Focus branch', FOCUS],
     ['Focus + Ghost Protocol', { ...FOCUS, snareScrubbers: 1, snareFirewalls: 1, snareDecoys: 1, snareHijack: 1, snareGhost: 3 }],
-    ['Focus + a datacentre', { ...FOCUS, snareSprawl: 3, snareMegasprawl: 3, snareHyperscale: 3 }],
+    ['Focus + a datacentre', { ...FOCUS, snareSprawl: 9 }],
     ['Focus + Root Access 3', { ...FOCUS, snareGc: 1, snareSpoof: 2, snareParry: 3 }],
     ['Focus + Root Access 3, Kernel Panic', { ...FOCUS, snareGc: 1, snareSpoof: 2, snareParry: 3, snareKernelPanic: 2 }],
     ['… + Riposte (the parry)', { ...FOCUS, snareGc: 1, snareSpoof: 2, snareParry: 3, snareKernelPanic: 2, snareRiposte: 1 }],

@@ -79,14 +79,11 @@ test('goals grow ×2.25 a sector from sector 5 (the owner\'s call on the 15.5 lo
     assert.equal(E.snareGoal(6), 5 * Math.round(400 * 2.25 ** 3 / 5));
 });
 
-test('a save from before v29 gets its old red-packet node levels back as Signal', () => {
+test('a save from before v29 gets its Packet Snare tree refunded (the red nodes reworked, the packet and red nodes folded)', () => {
     const s = E.defaultState(Date.now());
-    s.levels.snareSanitizer = 2; s.levels.snareChecksums = 1; s.levels.snareSprawl = 1;
-    s.snare.signal = 5;
-    const raw = JSON.parse(JSON.stringify({ ...s, version: 28 }));
-    const m = E.migrate(raw);
-    const up = E.UPGRADE_BY_ID;
-    assert.equal(m.snare.signal, 5 + E.upgradeCost(up.snareSanitizer, 0).signal + E.upgradeCost(up.snareSanitizer, 1).signal + E.upgradeCost(up.snareChecksums, 0).signal);
-    assert.ok(!m.levels.snareSanitizer && !m.levels.snareChecksums, 'their levels cleared');
-    assert.equal(m.levels.snareSprawl, 1, 'the rest kept');
+    s.levels.snareSanitizer = 2; s.levels.snareMegasprawl = 1; s.levels.snareFocus = 1;
+    s.snare.signal = 5; s.snare.earned = 900;
+    const m = E.migrate(JSON.parse(JSON.stringify({ ...s, version: 28 })));
+    assert.equal(m.snare.signal, 900, 'what it earned, to spend again');
+    assert.ok(!Object.keys(m.levels).some(id => id.startsWith('snare')), 'every Packet Snare level cleared');
 });

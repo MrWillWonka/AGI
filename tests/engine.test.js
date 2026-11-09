@@ -54,7 +54,8 @@ test('Packet Snare\'s tree follows the Training tree\'s rules: priced past its p
     for (const n of nodes) {
         if (n.endless) assert.equal(n.max, undefined, `${n.id}: the endless node has no cap`);
         // Snare 14 (the owner's call): the powers grow over five levels, like an incremental's; the rest keep 1–3.
-        else assert.ok(n.max >= 1 && n.max <= 5, `${n.id} has 1–5 levels`);
+        // the owner's call on the 15.5 log: the packet and red nodes folded into the early ones (`deep`), up to 9 levels
+        else assert.ok(n.max >= 1 && n.max <= (n.deep ? 9 : 5), `${n.id} has 1–5 levels (a folded node up to 9)`);
         assert.ok(n.cost.signal > 0 && Object.keys(n.cost).length === 1, `${n.id} is bought with Signal`);
         assert.ok(n.effect && n.effect.length <= 80, `${n.id}: a short, plain effect`);
         assert.ok(n.flavor && n.flavor.length <= 70, `${n.id}: a short quip`);
@@ -65,7 +66,8 @@ test('Packet Snare\'s tree follows the Training tree\'s rules: priced past its p
         const parent = n.requires ? E.UPGRADE_BY_ID[n.requires] : null;
         const at = parent ? parent.snare : { x: 0, y: 0 };
         assert.equal(Math.abs(at.x - n.snare.x) + Math.abs(at.y - n.snare.y), 1, `${n.id} is adjacent to what it grows from`);
-        if (parent) assert.ok(n.cost.signal > total(parent, parent.max), `${n.id}'s first level costs more than ${parent.id}'s last`);
+        // a folded node's children are priced past its second level (it goes on growing beside them)
+        if (parent) assert.ok(n.cost.signal > total(parent, parent.deep ? Math.min(2, parent.max) : parent.max), `${n.id}'s first level costs more than ${parent.id}'s last`);
     }
     // Every node that brings a new rule is a hexagon.
     assert.ok(nodes.length >= 40, 'a big tree');
@@ -1985,7 +1987,9 @@ test('Packet Snare: every branch opens with a cheap packet or red-packet node (a
         assert.ok(early.some(up => up.sn.density || up.sn.sprawl || (up.sn.decay || up.sn.checksum || up.sn.vouch || up.sn.lureMult)), `${r}'s branch has a packet or red-packet node in its first rings`);
     }
     const n = key => E.SNARE_TREE.filter(up => up.sn[key]).length;
-    assert.ok(n('density') >= 6 && E.SNARE_TREE.filter(up => (up.sn.decay || up.sn.checksum || up.sn.vouch || up.sn.lureMult)).length >= 6, 'many of them, all through the tree');
+    // the owner's call on the 15.5 log: folded into a few early nodes with many levels, so the rest show sooner
+    assert.ok(n('density') >= 3 && E.SNARE_TREE.filter(up => (up.sn.decay || up.sn.checksum || up.sn.vouch || up.sn.lureMult)).length >= 4, 'a few of each');
+    for (const id of ['snareSprawl', 'snarePacketStream', 'snareSanitizer', 'snareChecksums']) assert.ok(E.UPGRADE_BY_ID[id].deep && E.UPGRADE_BY_ID[id].max >= 5, `${id} holds the folded levels`);
     assert.ok(E.UPGRADE_BY_ID.snareChain.cost.signal < 300, 'a real ability under 300 Signal');
 });
 
@@ -2061,6 +2065,6 @@ test('Packet Snare: no node does the same thing as the node it grows from, or as
     for (const list of Object.values(kids)) {
         for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) assert.deepEqual(shared(list[i], list[j]), [], `${list[i].name} and ${list[j].name}`);
     }
-    // The field still grows in order: Hyperscale waits for Megasprawl.
-    assert.equal(E.UPGRADE_BY_ID.snareHyperscale.after, 'snareMegasprawl');
+    // The field grows in one node now (Megasprawl and Hyperscale folded into Sprawl).
+    assert.equal(E.UPGRADE_BY_ID.snareSprawl.max, 9);
 });
