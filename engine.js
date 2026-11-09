@@ -621,6 +621,20 @@
         { name: 'Recursion', dir: 'down' },
         { name: 'Momentum', dir: 'left' }
     ];
+    // D14 (the owner's call): ring 4 and out costs SNARE_FAR_PRICE more on top (the tree was bought out at 28–32 min, the
+    // target is about 40), except the drones' and turrets' first levels and every node on the way to them, kept at 4,000
+    // or less so automation comes by mid-game.
+    const SNARE_FAR_PRICE = 1;
+    {
+        const byId = Object.fromEntries(SNARE_TREE.map(n => [n.id, n]));
+        const keep = new Set();
+        for (let id of ['snareHerders', 'snareTowers', 'snareLaser', 'snareTurrets', 'snareCleanerBot', 'snareSpooferBot', 'snareCollectorBot']) {
+            for (; id && byId[id]; id = byId[id].requires) keep.add(id);
+        }
+        for (const n of SNARE_TREE) {
+            if (Math.abs(n.snare.x) + Math.abs(n.snare.y) >= 4 && !keep.has(n.id)) n.cost = { signal: Math.round(n.cost.signal * SNARE_FAR_PRICE / 50) * 50 || n.cost.signal };
+        }
+    }
 
     // Milestones: persistent per-run unlocks for actions and tabs. Once unlocked they stay unlocked.
     const MILESTONES = [
@@ -2182,8 +2196,11 @@
     const SNARE_RED_UNIT = 0.85, SNARE_RED_FLOOR = 0.035;
     // Red's share of the field by sector (k from 0): none on sector 1, 30% on sector 2, down in even steps to 5% on sector
     // 10 and after (the owner's call on the Snare 16 log: an early struggle that becomes manageable).
-    const SNARE_RED_START = 0.3, SNARE_RED_END = 0.05, SNARE_RED_UNTIL = 9;
-    const snareRedShare = k => (k < RED_SECTOR ? 0 : Math.max(SNARE_RED_END, SNARE_RED_START - (SNARE_RED_START - SNARE_RED_END) * (k - RED_SECTOR) / (SNARE_RED_UNTIL - RED_SECTOR)));   // 15% a unit (the owner's call after the review rounds: the nodes do what they said)
+    // D14 (the owner's call): red ramps in: 15% on sector 2, where you meet it, 30% on sector 3, then 5% by sector 10
+    // (30% on sector 2 took 12 runs on desktop in the pacing campaign, against a target of 2–7).
+    const SNARE_RED_FIRST = 0.15, SNARE_RED_START = 0.3, SNARE_RED_END = 0.05, SNARE_RED_UNTIL = 9;
+    const snareRedShare = k => (k < RED_SECTOR ? 0 : k === RED_SECTOR ? SNARE_RED_FIRST
+        : Math.max(SNARE_RED_END, SNARE_RED_START - (SNARE_RED_START - SNARE_RED_END) * (k - RED_SECTOR - 1) / (SNARE_RED_UNTIL - RED_SECTOR - 1)));   // 15% a unit (the owner's call after the review rounds: the nodes do what they said)
     // Hazards wait for runs played as well as the sector (Snare 12, a review's call: sectors fell in minutes, so a new hazard
     // came every 90 s): Full Scans from the 4th run, Antivirus from the 10th, the Rogue AI from the 18th (the
     // boss's tricks come with its sector).

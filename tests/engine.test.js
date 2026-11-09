@@ -2027,12 +2027,13 @@ test('a save from before Snare 11 gets every Packet Snare level back as Signal (
     assert.equal(fresh.snare.signal, 1200);
 });
 
-test('Packet Snare: red is the early fight (30% of sector 2, down to 5% by sector 10), the red nodes cut it, and the Cleaner Bot comes later (the owner\'s calls on the Snare 16 log)', () => {
+test('Packet Snare: red is the early fight (15% on sector 2, 30% on sector 3, down to 5% by sector 10), the red nodes cut it, and the Cleaner Bot comes later (the owner\'s calls on the Snare 16 log)', () => {
     const s = E.defaultState(Date.now());
     const share = k => { const r = E.snareOpts(s, k).corruptShare; return r / (1 + r); };
     assert.equal(share(0), 0, 'none on sector 1');
-    assert.ok(Math.abs(share(1) - 0.3) < 1e-9, '30% on sector 2');
-    for (let k = 2; k <= 9; k++) assert.ok(share(k) < share(k - 1) + 1e-12, `tapering at sector ${k + 1}`);
+    assert.ok(Math.abs(share(1) - 0.15) < 1e-9, '15% on sector 2, where you meet it');
+    assert.ok(Math.abs(share(2) - 0.3) < 1e-9, '30% on sector 3');
+    for (let k = 3; k <= 9; k++) assert.ok(share(k) < share(k - 1) + 1e-12, `tapering at sector ${k + 1}`);
     assert.ok(Math.abs(share(9) - 0.05) < 1e-9 && Math.abs(share(14) - 0.05) < 1e-9, '5% from sector 10');
     // the first red node cuts it at spawn
     const before = E.snareOpts(s, 1).corruptShare;
