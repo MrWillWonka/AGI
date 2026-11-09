@@ -20,82 +20,86 @@
    "snarePacketStream": 1,
    "snareSprawl": 4,
    "snareGold": 1,
-   "snareCleanerBot": 2,
-   "snareScrubbers": 2
+   "snareSanitizer": 3,
+   "snareScrubbers": 2,
+   "snareChecksums": 1
   },
-  "signal": 34,
-  "runs": 9,
-  "minute": 4.3
+  "signal": 146,
+  "runs": 15,
+  "minute": 6.8
  },
  "4": {
   "levels": {
    "snareFocus": 3,
    "snarePacketStream": 2,
-   "snareBandwidth": 1,
    "snareSprawl": 5,
    "snareGold": 2,
-   "snareCleanerBot": 4,
+   "snareContain": 1,
+   "snareSanitizer": 3,
    "snareScrubbers": 2,
-   "snareChecksumTowers": 2
+   "snareChecksums": 2
   },
-  "signal": 33,
-  "runs": 18,
-  "minute": 8.9
+  "signal": 208,
+  "runs": 20,
+  "minute": 9.4
  },
  "5": {
   "levels": {
    "snareFocus": 3,
    "snarePacketStream": 3,
+   "snareChain": 1,
    "snareBandwidth": 1,
    "snareSprawl": 6,
    "snareGold": 2,
-   "snareBouncerBot": 1,
-   "snareCleanerBot": 4,
+   "snareContain": 1,
+   "snareSpamFilter": 1,
+   "snareSanitizer": 3,
    "snareScrubbers": 2,
-   "snareChecksumTowers": 3
+   "snareChecksums": 3
   },
-  "signal": 35,
-  "runs": 21,
-  "minute": 10.6
+  "signal": 299,
+  "runs": 23,
+  "minute": 11.1
  },
  "6": {
   "levels": {
    "snareFocus": 3,
-   "snarePacketStream": 3,
-   "snareChain": 1,
-   "snareBandwidth": 1,
-   "snareSprawl": 7,
-   "snareSchools": 1,
-   "snareGold": 2,
-   "snareContain": 1,
-   "snareBouncerBot": 1,
-   "snareCleanerBot": 5,
-   "snareScrubbers": 2,
-   "snareChecksumTowers": 3
-  },
-  "signal": 202,
-  "runs": 23,
-  "minute": 11.8
- },
- "7": {
-  "levels": {
-   "snareFocus": 3,
-   "snarePacketStream": 6,
+   "snarePacketStream": 5,
    "snareChain": 3,
    "snareBandwidth": 2,
    "snareSprawl": 7,
    "snareSchools": 1,
    "snareGold": 2,
    "snareContain": 1,
-   "snareBouncerBot": 3,
-   "snareCleanerBot": 5,
-   "snareKernelPanic": 1,
+   "snareSpamFilter": 1,
+   "snareReputation": 1,
+   "snareSanitizer": 3,
    "snareScrubbers": 2,
-   "snareChecksumTowers": 4
+   "snareChecksums": 3
   },
-  "signal": 138,
-  "runs": 27,
-  "minute": 13.9
+  "signal": 106,
+  "runs": 25,
+  "minute": 12.3
+ },
+ "7": {
+  "levels": {
+   "snareFocus": 3,
+   "snarePacketStream": 6,
+   "snareChain": 4,
+   "snareBandwidth": 2,
+   "snareSprawl": 7,
+   "snareSchools": 1,
+   "snareGold": 2,
+   "snareContain": 1,
+   "snareSpamFilter": 1,
+   "snareReputation": 1,
+   "snareSanitizer": 3,
+   "snareScrubbers": 2,
+   "snareChecksums": 3
+  },
+  "signal": 201,
+  "runs": 26,
+  "minute": 12.9
  },
  "8": {
   "levels": {
@@ -110,20 +114,22 @@
    "snareSchools": 1,
    "snareGold": 2,
    "snareContain": 1,
-   "snareBouncerBot": 3,
+   "snareSpamFilter": 1,
    "snareFirehose": 2,
    "snareMotherLode": 1,
-   "snareEscortBot": 3,
-   "snareJammer": 1,
-   "snareCleanerBot": 5,
+   "snareReputation": 2,
+   "snareBroadband": 1,
+   "snareCleanerBot": 4,
+   "snareSanitizer": 3,
    "snareKernelPanic": 1,
+   "snareParry": 1,
    "snareScrubbers": 2,
-   "snareChecksumTowers": 4,
+   "snareChecksums": 3,
    "snareFirewalls": 1
   },
-  "signal": 201,
+  "signal": 186,
   "runs": 32,
-  "minute": 16.6
+  "minute": 16.1
  },
  "9": {
   "levels": {
@@ -132,29 +138,30 @@
    "snareChain": 5,
    "snareBandwidth": 2,
    "snareSteady": 2,
-   "snareChainStorm": 5,
+   "snareChainStorm": 1,
    "snareLongWire": 1,
    "snareOverflow": 2,
    "snareSprawl": 9,
    "snareSchools": 1,
    "snareGold": 2,
    "snareContain": 1,
-   "snareBouncerBot": 3,
+   "snareSpamFilter": 1,
    "snareFirehose": 3,
    "snareMotherLode": 2,
-   "snareEscortBot": 3,
-   "snareBroadband": 3,
-   "snareJammer": 3,
-   "snareCleanerBot": 5,
+   "snareReputation": 2,
+   "snareBroadband": 2,
+   "snareCleanerBot": 4,
+   "snareSanitizer": 3,
    "snareKernelPanic": 1,
    "snareRiposte": 1,
    "snareParry": 3,
+   "snareGoldPlate": 1,
    "snareScrubbers": 2,
-   "snareChecksumTowers": 4,
+   "snareChecksums": 3,
    "snareFirewalls": 2
   },
-  "signal": 1410,
-  "runs": 35,
-  "minute": 18.4
+  "signal": 991,
+  "runs": 34,
+  "minute": 17.5
  }
 }

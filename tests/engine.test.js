@@ -1982,14 +1982,13 @@ test('the build stamp has its row in playtests/README.md\'s Builds table (bump B
 test('Packet Snare: every branch opens with a cheap packet or red-packet node (after the review rounds the repeats were folded)', () => {
     const root = up => { while (up.requires) up = E.UPGRADE_BY_ID[up.requires]; return up.id; };
     const ring = up => Math.abs(up.snare.x) + Math.abs(up.snare.y);
-    for (const r of ['snareFocus', 'snareSprawl', 'snareCleanerBot', 'snareScrubbers']) {
+    for (const r of ['snareFocus', 'snareSprawl', 'snareSanitizer', 'snareScrubbers']) {
         const early = E.SNARE_TREE.filter(up => root(up) === r && ring(up) <= 3 && up.cost.signal <= 300);
-        assert.ok(early.some(up => up.sn.density || up.sn.sprawl || (up.sn.cleanBots || up.sn.bounceBots || up.sn.escortBots || up.sn.checkTowers)), `${r}'s branch has a packet or red-packet node in its first rings`);
+        assert.ok(early.some(up => up.sn.density || up.sn.sprawl || up.sn.cleaner || up.sn.scrubbers), `${r}'s branch has a packet or red-packet node in its first rings`);
     }
     const n = key => E.SNARE_TREE.filter(up => up.sn[key]).length;
-    // the owner's call on the 15.5 log: folded into a few early nodes with many levels, so the rest show sooner
-    assert.ok(n('density') >= 3 && E.SNARE_TREE.filter(up => (up.sn.cleanBots || up.sn.bounceBots || up.sn.escortBots || up.sn.checkTowers)).length >= 4, 'a few of each');
-    for (const id of ['snareSprawl', 'snarePacketStream', 'snareCleanerBot', 'snareChecksumTowers']) assert.ok(E.UPGRADE_BY_ID[id].deep && E.UPGRADE_BY_ID[id].max >= 4, `${id} holds the folded levels`);
+    assert.ok(n('density') >= 3 && n('cleaner') >= 6, 'a few packet nodes, and the red nodes back (the owner\'s call on the Snare 16 log)');
+    for (const id of ['snareSprawl', 'snarePacketStream']) assert.ok(E.UPGRADE_BY_ID[id].deep && E.UPGRADE_BY_ID[id].max >= 4, `${id} holds the folded levels`);
     assert.ok(E.UPGRADE_BY_ID.snareChain.cost.signal < 300, 'a real ability under 300 Signal');
 });
 
@@ -2009,8 +2008,9 @@ test('Packet Snare (Snare 10): four wedges, verbs inside, automation and a capst
     for (const [x, y] of [[2, 2], [-2, 2], [2, -2], [-2, -2], [3, 3], [-3, 3], [3, -3], [-3, -3]]) {
         assert.ok(!E.SNARE_TREE.some(up => up.snare.x === x && up.snare.y === y), `(${x}, ${y}) is a gutter`);
     }
-    // The owner's call on the 15.5 log: no node keeps red from spawning any more; they act on red already on the field.
-    assert.ok(!E.SNARE_TREE.some(up => up.sn.cleaner), 'no node cuts red at spawn');
+    // The owner's call on the Snare 16 log: the red nodes are back, and the Cleaner Bot is the only bot for red; the
+    // Bouncer and Escort bots and the Checksum and Jammer towers are gone.
+    for (const k of ['bounceBots', 'escortBots', 'checkTowers', 'jamTowers']) assert.ok(!E.SNARE_TREE.some(up => up.sn[k]), `no ${k}`);
 });
 
 test('a save from before Snare 11 gets every Packet Snare level back as Signal (the tree regrown twice)', () => {
@@ -2027,23 +2027,22 @@ test('a save from before Snare 11 gets every Packet Snare level back as Signal (
     assert.equal(fresh.snare.signal, 1200);
 });
 
-test('Packet Snare: the first buys bring helpers that deal with red, and leave it spawning (the owner\'s calls on the 15.5 log)', () => {
-    // A buyer who always takes the cheapest node has red turning regular before 500 Signal is spent, and as much red coming.
+test('Packet Snare: red is the early fight (30% of sector 2, down to 5% by sector 10), the red nodes cut it, and the Cleaner Bot comes later (the owner\'s calls on the Snare 16 log)', () => {
     const s = E.defaultState(Date.now());
-    const base = E.snareOpts(s, E.RED_SECTOR).corruptShare;
-    const price = up => E.upgradeCost(up, E.level(s, up.id)).signal;
-    let spent = 0;
-    for (;;) {
-        const open = E.SNARE_TREE.filter(up => up.max && E.level(s, up.id) < up.max && (!up.requires || E.level(s, up.requires) >= 1) && (!up.after || E.level(s, up.after) >= 1));
-        const up = open.reduce((a, b) => (price(b) < price(a) ? b : a));
-        if (spent + price(up) > 500) break;
-        spent += price(up);
-        s.levels[up.id] = E.level(s, up.id) + 1;
-    }
-    const o = E.snareOpts(s, E.RED_SECTOR);
-    assert.equal(o.corruptShare, base, 'as much red spawning');
-    assert.ok(o.cleanBots > 0 || o.checkTowers > 0, 'a helper dealing with red by 500 Signal');
-    assert.equal(E.UPGRADE_BY_ID.snareCleanerBot.requires, undefined, 'Cleaner Bot is a root (the owner\'s call: helpers early)');
+    const share = k => { const r = E.snareOpts(s, k).corruptShare; return r / (1 + r); };
+    assert.equal(share(0), 0, 'none on sector 1');
+    assert.ok(Math.abs(share(1) - 0.3) < 1e-9, '30% on sector 2');
+    for (let k = 2; k <= 9; k++) assert.ok(share(k) < share(k - 1) + 1e-12, `tapering at sector ${k + 1}`);
+    assert.ok(Math.abs(share(9) - 0.05) < 1e-9 && Math.abs(share(14) - 0.05) < 1e-9, '5% from sector 10');
+    // the first red node cuts it at spawn
+    const before = E.snareOpts(s, 1).corruptShare;
+    s.levels.snareSanitizer = 1;
+    assert.ok(E.snareOpts(s, 1).corruptShare < before * 0.9, 'Sanitizer: fewer red');
+    // the Cleaner Bot is no first buy: it grows from Kernel Panic, off the Sanitizer, and costs 700
+    const cb = E.UPGRADE_BY_ID.snareCleanerBot;
+    assert.ok(cb.requires && cb.cost.signal >= 500, 'later than the first buys');
+    assert.equal(E.UPGRADE_BY_ID.snareGoldPlate.requires, 'snareCleanerBot', 'Gold Plating right after it: good to gold');
+    assert.ok(E.UPGRADE_BY_ID.snareGoldPlate.cost.signal <= 10000, 'mid-tree');
 });
 
 test('Packet Snare: no node does the same thing as the node it grows from, or as a node beside it on the same parent (the owner\'s call)', () => {

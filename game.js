@@ -4146,7 +4146,6 @@ window.AGI = (function () {
                 else if (t === 'zoneDown') { sfx('snareStun', { down: true }); shake(0.2); }
                 else if (t === 'cleaned') sfx('snareGarbage');
                 else if (t === 'botSpoof') sfx('snareSpoof');
-                else if (t === 'shoved') sfx('snareHit');
                 else if (t === 'gilded') sfx('snareCatch', { mult: 3 });
                 else if (t === 'autoZone') sfx('snarePlace', { kind: 'wall' });
                 else if (t === 'convert') sfx('snareSpoof');
@@ -4626,7 +4625,7 @@ window.AGI = (function () {
         avSpeed: 'ghost', avStun: 'ghost', hijack: 'robot', collude: 'core', respawnMult: 'refresh', flagLimit: 'flag', spoofValue: 'mask',
         echo: 'loop', storm: 'cloud', crash: 'crash', zeroTrust: 'check', surge: 'surge', defuse: 'cut',
         pulse: 'surge', broadband: 'turret', cleanSweep: 'sweep', relay: 'route', backpressure: 'back',
-        bounceBots: 'back', escortBots: 'shield', checkTowers: 'check', jamTowers: 'radar', cleanBots: 'sweep', spoofBots: 'mask', collectBots: 'robot', goldPlate: 'coin', pen: 'pen', autoZone: 'deploy' };
+        cleanBots: 'sweep', spoofBots: 'mask', collectBots: 'robot', goldPlate: 'coin', pen: 'pen', autoZone: 'deploy' };
     const snareIcon = up => SNARE_STAT_ICON[Object.keys(up.sn || {})[0] || Object.keys(up.stages?.[1] || {})[0]] || 'spark';
     const snareUi = { built: false, nodes: {}, links: [], popup: false, detailKey: '', fresh: false, cam: { x: 0, y: 0, z: 1 }, drag: null, pointers: new Map(), moved: false };
     // Fixed cells (like the Training tree's --cell): the tree grows six cells out from the Lasso, and you pan and zoom it.
@@ -4942,7 +4941,6 @@ window.AGI = (function () {
         ['relay', 'Red packets your walls bounce', v => (v ? 'swim to your decoy' : 'swim on')],
         ['backpressure', 'A catch', v => (v ? 'turns the packets round it back' : 'leaves the packets round it be')],
         ['cleanBots', 'Cleaner bots', String], ['spoofBots', 'Spoofer bots', String], ['collectBots', 'Collector bots', String],
-        ['bounceBots', 'Bouncer bots', String], ['escortBots', 'Escort bots', String], ['checkTowers', 'Checksum towers', String], ['jamTowers', 'Jammer towers', String],
         ['goldPlate', 'Cleaner bots gild a packet every', v => (v ? `${num1(6 / v)} s` : 'never')],
         ['pen', 'Good packets in a section', v => (v ? 'stay in' : 'come and go')],
         ['autoZone', 'Free sections', v => (v ? 'place themselves' : 'wait for you')]
@@ -5143,14 +5141,10 @@ window.AGI = (function () {
         else if (e.type === 'slashSoon') {
             if (!fx.some(f => f.soon && f.t < 0.5)) fx.push({ kind: 'stun', soon: true, x: e.x, y: e.y + 1.2, t: 0, life: 0.6, text: 'TOO FAST', small: true });
         }
-        // a red packet turned regular (a Cleaner or Escort bot, a Checksum tower: a line from the helper)
+        // a red packet turned regular (a Cleaner bot: a line from it)
         else if (e.type === 'cleaned') {
             if (e.from) fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.4, small: true });
             if (!nearBoss(e)) fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'CLEANED', small: true });
-        }
-        else if (e.type === 'shoved') {
-            fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.3, small: true });
-            if (!nearBoss(e)) fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.5, text: 'SHOVED', small: true });
         }
         else if (e.type === 'convert') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'TRUSTED', small: true });
         else if (e.type === 'zoneDown') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: Math.max(e.hw, e.hh), t: 0, life: 0.7 });
@@ -5913,11 +5907,11 @@ window.AGI = (function () {
         const minR = (d.minR ?? 5) * Math.min(1, (run.opts?.packetR ?? window.PacketSnare.PACKET_R) / window.PacketSnare.PACKET_R);
         const paths = { good: new Path2D(), gold: new Path2D(), bad: new Path2D(), tagEdge: new Path2D(), spoofEdge: new Path2D() };
         const glow = { gold: new Path2D(), bad: new Path2D() };
-        // A red packet an Escort bot is turning regular wears a ring in the good colour that fills as it gets there.
+        // A red packet a Cleaner bot is turning regular wears a ring in the good colour that fills as it gets there.
         const turnRing = new Path2D(), o = run.opts || {};
         // A red packet hunting your bubble streaks behind (the owner's call: red should feel dangerous).
         const huntTrail = new Path2D();
-        const turnOf = p => (p.vouch > 0 && o.escortTime ? p.vouch / o.escortTime : 0);
+        const turnOf = p => p.turn || 0;
         // Red keeps its size however full the field (round 1 of the review: on a maxed field red packets shrank with the
         // rest and vanished), and on a crowded one wears a red halo.
         const redMin = Math.max(minR, d.minR ?? 6.5), crowded = run.packets.length > 120;
@@ -6522,53 +6516,6 @@ window.AGI = (function () {
                 ctx.moveTo(x - 4, y - 2); ctx.lineTo(x + 4, y - 2); ctx.moveTo(x - 4, y + 2); ctx.lineTo(x + 4, y + 2);
                 ctx.moveTo(x - 2, y - 4.5); ctx.lineTo(x - 2, y + 4.5); ctx.moveTo(x + 2, y - 4.5); ctx.lineTo(x + 2, y + 4.5);
                 ctx.stroke();
-            } else if (b.kind === 'bounce') {
-                // A Bouncer bot: amber, with a white chevron (it shoves).
-                ctx.fillStyle = C.warning;
-                ctx.strokeStyle = C.text;
-                ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-                const a = Math.atan2(b.vy, b.vx) || 0, c = Math.cos(a), sn = Math.sin(a);
-                ctx.strokeStyle = C.bg;
-                ctx.beginPath();
-                ctx.moveTo(x - 2.5 * c + 3 * sn, y - 2.5 * sn - 3 * c); ctx.lineTo(x + 2.5 * c, y + 2.5 * sn); ctx.lineTo(x - 2.5 * c - 3 * sn, y - 2.5 * sn + 3 * c);
-                ctx.stroke();
-            } else if (b.kind === 'escort') {
-                // An Escort bot: white with a ring in the good colour, its reach a faint disc round it.
-                const R = run.opts.escortR * Math.sqrt(run.grow || 1) * k, good = C['snare-good'] || C.primary;
-                ctx.globalAlpha = 0.08;
-                ctx.fillStyle = good;
-                ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.fill();
-                ctx.globalAlpha = 0.35;
-                ctx.strokeStyle = good;
-                ctx.lineWidth = 1.2;
-                ctx.setLineDash([4, 4]);
-                ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.stroke();
-                ctx.setLineDash([]);
-                ctx.globalAlpha = 1;
-                ctx.lineWidth = 2.5;
-                ctx.fillStyle = C.text;
-                ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            } else if (b.tower) {
-                // Towers: a white mast on an amber base; a Checksum tower's reach a ring in the good colour that fills as
-                // it gets ready, a Jammer's a slow violet pulse.
-                const check = b.kind === 'check';
-                const R = (check ? run.opts.checkR : run.opts.jamR) * Math.sqrt(run.grow || 1) * k;
-                const col = check ? (C['snare-good'] || C.primary) : C.research;
-                const ready = check ? Math.max(0, Math.min(1, 1 - (b.ready - t) / run.opts.checkEvery)) : 0.5 + 0.5 * Math.sin(t * 3);
-                ctx.globalAlpha = check ? 0.25 + 0.2 * ready : 0.07 + 0.06 * ready;
-                ctx.strokeStyle = col;
-                ctx.fillStyle = col;
-                ctx.lineWidth = 1.5;
-                if (check) { ctx.beginPath(); ctx.arc(x, y, R, -Math.PI / 2, -Math.PI / 2 + ready * Math.PI * 2); ctx.stroke(); }
-                else { ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.fill(); }
-                ctx.globalAlpha = 1;
-                ctx.fillStyle = C.warning;
-                ctx.fillRect(x - 6, y + 4, 12, 3);
-                ctx.strokeStyle = C.text;
-                ctx.lineWidth = 2.5;
-                ctx.beginPath(); ctx.moveTo(x, y + 4); ctx.lineTo(x, y - 8); ctx.stroke();
-                ctx.fillStyle = col;
-                ctx.beginPath(); ctx.arc(x, y - 9, 3.5, 0, Math.PI * 2); ctx.fill();
             } else {
                 ctx.fillStyle = C.warning;
                 ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
@@ -7012,17 +6959,6 @@ window.AGI = (function () {
                     const ang = t * 6 + i * 2.1;
                     ctx.fillRect(x + Math.cos(ang) * (r + 4) - 1.5, y + Math.sin(ang) * (r + 4) - 1.5, 3, 3);
                 }
-            }
-            // jammed by a Jammer tower: violet static round it
-            if (f.jammed && !stunned) {
-                ctx.globalAlpha = 0.7;
-                ctx.strokeStyle = C.research;
-                ctx.lineWidth = 1.5;
-                ctx.setLineDash([2, 3]);
-                ctx.lineDashOffset = t * 20;
-                ctx.beginPath(); ctx.arc(x, y, r + 5, 0, Math.PI * 2); ctx.stroke();
-                ctx.setLineDash([]);
-                ctx.lineDashOffset = 0;
             }
             ctx.globalAlpha = 1;
             ctx.shadowBlur = 0;

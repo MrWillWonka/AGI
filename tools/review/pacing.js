@@ -50,11 +50,11 @@ const OWNER = (DESK && readJson(path.join(root, 'design', 'review', 'owner-profi
 const PACE = { ...HUMAN, ...((DESK && readJson(path.join(__dirname, 'human-desktop.json'))) || readJson(path.join(__dirname, 'human.json')) || {}) };
 delete PACE.from;
 
-// Buys like the owner did (Attention Span and the field first, then the red-packet helpers, more packets, gold, the
-// abilities), the first affordable in this order, else the cheapest.
-const ORDER = ['snareFocus', 'snareSprawl', 'snareCleanerBot', 'snarePacketStream', 'snareScrubbers', 'snareGold', 'snareChecksumTowers', 'snareContain',
-    'snareBandwidth', 'snareBouncerBot', 'snareSchools', 'snareChain', 'snareEscortBot', 'snareKernelPanic', 'snareLongWire', 'snareOverflow', 'snareSteady',
-    'snareFirehose', 'snareMotherLode', 'snareParry', 'snareRiposte', 'snareJammer', 'snareChainStorm', 'snareBroadband'];
+// Buys like the owner did (Attention Span and the field first, then the red-packet nodes, more packets, gold, the
+// abilities, the Cleaner Bot once it shows), the first affordable in this order, else the cheapest.
+const ORDER = ['snareFocus', 'snareSprawl', 'snareSanitizer', 'snarePacketStream', 'snareScrubbers', 'snareGold', 'snareChecksums', 'snareContain',
+    'snareBandwidth', 'snareSpamFilter', 'snareSchools', 'snareChain', 'snareReputation', 'snareKernelPanic', 'snareCleanerBot', 'snareLongWire', 'snareOverflow',
+    'snareSteady', 'snareFirehose', 'snareMotherLode', 'snareGoldPlate', 'snareParry', 'snareRiposte', 'snareChainStorm', 'snareBroadband'];
 const rank = id => { const i = ORDER.indexOf(id); return i < 0 ? 99 : i; };
 
 function field(o, scr) {

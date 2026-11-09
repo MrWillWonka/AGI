@@ -161,33 +161,8 @@
         // every `goldEvery` s. A Spoofer bot (Countermeasures) spoofs the red packet it reaches (good, worth ×`spoofValue`,
         // for `spoofSeconds`). Each works once every `botEvery` s, at `botSpeed` units a second (× √ of the growth).
         cleanBots: 0,
-        // Helpers on the field (the owner's calls on the 15.5 log: the nodes that kept red from spawning emptied the field
-        // of it by sector 4, and red changing by itself felt disconnected, so red is dealt with by helpers you buy, each
-        // its own kind; cleaned red is replaced from upstream, so it keeps coming):
-        // a Bouncer bot flies to a red packet hiding in a school (`bounceCrowd` good within 1.5 units) and shoves it out,
-        // away from the school, at `bounceKick` × its speed; it keeps clear of schools for `bounceSeconds` (one every
-        // `bounceEvery` s);
-        bounceBots: 0,
-        bounceEvery: 1.5,
-        bounceKick: 2.2,
-        bounceSeconds: 2.5,
-        bounceCrowd: 2,
-        // an Escort bot rides the biggest school it can find; a red packet within `escortR` of it (× √ growth) for
-        // `escortTime` s turns regular (a ring fills round it);
-        escortBots: 0,
-        escortR: 1.6,
-        escortTime: 2,
-        // a Checksum tower stands where red swims and every `checkEvery` s cleans the nearest red packet within `checkR`
-        // (× √ growth); every `towerHop` s it moves to where the red is now;
-        checkTowers: 0,
-        checkEvery: 2.5,
-        checkR: 2.2,
-        // a Jammer tower stands by the biggest school (moving every `towerHop` s): Antivirus within `jamR` (× √ growth) of
-        // it move at `jamSlow` of their speed.
-        jamTowers: 0,
-        jamR: 2.6,
-        jamSlow: 0.5,
-        towerHop: 14,
+        cleanTime: 1,               // s a Cleaner bot takes to turn a red packet regular (a ring fills round it)
+        cleanRest: 1,               // s it rests after
         spoofBots: 0,
         // Collector bots (Snare 14, the owner's call: more drones by mid-game): each flies to good packets and every
         // `collectEvery` s nets the good ones within `collectR` (× √ of the growth) of it, up to `collectCap`, paid at ×1;
@@ -312,7 +287,7 @@
         bossFocus: 8,               // seconds of Focus the boss's arrival adds (the fight shouldn't race the clock)
         // Red hunts your bubble (the owner's call on a phone log: no catch spoiled in 15 runs, red was easy to keep out):
         // while a bubble is held, red packets within `redHuntReach` × a full bubble's radius of its edge swim at it, harder
-        // the bigger it has grown, so holding on for a bigger multiplier is a real risk. Spoofed red, red a Bouncer shoved and red
+        // the bigger it has grown, so holding on for a bigger multiplier is a real risk. Spoofed red and red
         // on its way to a decoy don't hunt; your Firewall sections still keep it out.
         redHunt: 0,                 // how hard (0 = off): steering a second at a full bubble. Off by default, a testing toggle
                                     // for now (the owner's call): Settings turns it on at 0.6 (1 made sector 3 a 9-run wall)
@@ -687,162 +662,58 @@
             s.herders.push({ id: s.nextId++, x: w / 2 + Math.cos(a) * 1.5, y: h / 2 + Math.sin(a) * 1.5, vx: 0, vy: 0, target: null });
         }
 
-        // A red packet turns regular (Sanitizer's decay, Reputation Check's vouching, Checksums' clean catch).
+        // A red packet turns regular (a Cleaner bot's work).
         function cleanRed(p, how, from) {
             p.kind = 'good';
-            p.vouch = 0;
+            p.turn = 0;
             s.stats.cleaned++;
             s.events.push({ type: 'cleaned', x: p.x, y: p.y, how, from });
         }
-        // Where the good packets crowd most: a sample of them, each scored by the good ones within 2 units (cheap on a full
-        // field), kept for a second.
-        let crowdAt = -1, crowd = null;
-        function crowdSpot() {
-            if (s.time - crowdAt < 1 && crowd) return crowd;
-            crowdAt = s.time;
-            const goods = s.packets.filter(isGood);
-            let best = null, bn = -1;
-            for (let i = 0; i < Math.min(40, goods.length); i++) {
-                const p = goods[Math.floor(rand() * goods.length)];
-                let n = 0;
-                for (const q of goods) if ((q.x - p.x) ** 2 + (q.y - p.y) ** 2 < 4) n++;
-                if (n > bn) { bn = n; best = p; }
-            }
-            crowd = best ? { x: best.x, y: best.y } : { x: w / 2, y: h / 2 };
-            return crowd;
-        }
-        const steer = (b, aim, speed, dt, slow = false) => {
-            const dx = aim.x - b.x, dy = aim.y - b.y, L = Math.hypot(dx, dy) || 1;
-            const want = slow ? Math.min(speed, L * 2) : speed;
-            b.vx += (dx / L * want - b.vx) * Math.min(1, 4 * dt);
-            b.vy += (dy / L * want - b.vy) * Math.min(1, 4 * dt);
-            b.x = Math.max(0.2, Math.min(w - 0.2, b.x + b.vx * dt));
-            b.y = Math.max(0.2, Math.min(h - 0.2, b.y + b.vy * dt));
-        };
-        // A Bouncer bot: to the nearest red packet hiding in a school, and shoves it out, away from the school. It picks
-        // its target five times a second, counting the good packets round each red on a grid of 1.5-unit cells (all
-        // against all was a quarter of a full field's frame).
-        let goodGrid = null, goodGridAt = -1;
-        function goodsNear(p) {
-            if (goodGridAt !== s.time) {
-                goodGridAt = s.time;
-                goodGrid = new Map();
-                for (const q of s.packets) {
-                    if (q.kind === 'corrupt') continue;
-                    const key = Math.floor(q.x / 1.5) * 4096 + Math.floor(q.y / 1.5);
-                    const c = goodGrid.get(key);
-                    if (c) c.push(q); else goodGrid.set(key, [q]);
-                }
-            }
-            let n = 0, cx = 0, cy = 0;
-            const gx = Math.floor(p.x / 1.5), gy = Math.floor(p.y / 1.5);
-            for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
-                for (const q of goodGrid.get((gx + i) * 4096 + gy + j) || []) {
-                    if ((q.x - p.x) ** 2 + (q.y - p.y) ** 2 > 2.25) continue;
-                    n++; cx += q.x; cy += q.y;
-                }
-            }
-            return { n, cx, cy };
-        }
-        function bounceStep(b, dt, speed, taken) {
-            let target = null, bd = Infinity, from = null;
-            const keep = b.aim && b.aimUntil > s.time && b.aim.kind === 'corrupt' && !(b.aim.shoved > s.time) && s.packets.includes(b.aim);
-            if (keep) { target = b.aim; from = b.aimFrom; bd = Math.hypot(target.x - b.x, target.y - b.y); }
-            else {
-                for (const p of s.packets) {
-                    if (p.kind !== 'corrupt' || spoofed(p) || taken.has(p.id) || p.shoved > s.time) continue;
-                    const d = Math.hypot(p.x - b.x, p.y - b.y);
-                    if (d >= bd) continue;
-                    const g = goodsNear(p);
-                    if (g.n < o.bounceCrowd) continue;
-                    bd = d; target = p; from = { x: g.cx / g.n, y: g.cy / g.n };
-                }
-                b.aim = target; b.aimFrom = from; b.aimUntil = s.time + 0.2;
-            }
-            if (target) taken.add(target.id);
-            steer(b, target || crowdSpot(), target ? speed : speed * 0.4, dt, !target);
-            if (target && bd < 0.5 && s.time >= b.ready) {
-                b.ready = s.time + o.bounceEvery;
-                const ang = Math.atan2(target.y - from.y, target.x - from.x) || rand() * Math.PI * 2;
-                const v = Math.max(target.v, 0.5) * o.bounceKick;
-                target.vx = Math.cos(ang) * v; target.vy = Math.sin(ang) * v;
-                target.shoved = s.time + o.bounceSeconds;
-                s.stats.bounced = (s.stats.bounced || 0) + 1;
-                s.events.push({ type: 'shoved', x: target.x, y: target.y, from: { x: b.x, y: b.y } });
-            }
-        }
-        // An Escort bot: rides the biggest school; red packets that stay near it turn regular.
-        function escortStep(b, dt, speed) {
-            steer(b, crowdSpot(), speed * 0.8, dt, true);
-            const R2 = (o.escortR * Math.sqrt(grow)) ** 2;
-            for (const p of s.packets) {
-                if (p.kind !== 'corrupt' || spoofed(p)) continue;
-                if ((p.x - b.x) ** 2 + (p.y - b.y) ** 2 > R2) continue;
-                p.vouch = (p.vouch || 0) + dt;
-                p.vouchAt = s.time;
-                if (p.vouch >= o.escortTime) cleanRed(p, 'escort', { x: b.x, y: b.y });
-            }
-        }
-        // Red that's left an escort's reach loses what it built up (half a second's grace).
-        function vouchDecay(dt) {
-            for (const p of s.packets) if (p.vouch > 0 && s.time - (p.vouchAt ?? 0) > 0.5) p.vouch = Math.max(0, p.vouch - dt);
-        }
-        // Towers: stand still, hop every `towerHop` s (a Checksum tower to the red, a Jammer to the crowd); a Checksum tower
-        // cleans the nearest red in reach every `checkEvery` s.
-        function helperTowerStep(b, dt) {
-            if (s.time >= b.hopAt) {
-                b.hopAt = s.time + o.towerHop;
-                let to = null;
-                if (b.kind === 'check') {
-                    const reds = s.packets.filter(p => p.kind === 'corrupt' && !spoofed(p));
-                    if (reds.length) { const p = reds[Math.floor(rand() * reds.length)]; to = { x: p.x, y: p.y }; }
-                } else to = crowdSpot();
-                if (to) {
-                    b.x = Math.max(0.6, Math.min(w - 0.6, to.x)); b.y = Math.max(0.6, Math.min(h - 0.6, to.y));
-                    s.events.push({ type: 'towerHop', x: b.x, y: b.y, kind: b.kind });
-                }
-            }
-            if (b.kind !== 'check' || s.time < b.ready) return;
-            const R = o.checkR * Math.sqrt(grow);
-            let target = null, bd = R;
-            for (const p of s.packets) {
-                if (p.kind !== 'corrupt' || spoofed(p)) continue;
-                const d = Math.hypot(p.x - b.x, p.y - b.y);
-                if (d <= bd) { bd = d; target = p; }
-            }
-            if (target) { b.ready = s.time + o.checkEvery; cleanRed(target, 'check', { x: b.x, y: b.y }); }
-        }
-        // How much an Antivirus is slowed by Jammer towers.
-        const jamAt = f => (s.bots.some(b => b.kind === 'jam' && (b.x - f.x) ** 2 + (b.y - f.y) ** 2 < (o.jamR * Math.sqrt(grow)) ** 2) ? o.jamSlow : 1);
-
         // Bots start round the middle too.
         s.bots = [];
-        const kinds = [['clean', o.cleanBots], ['spoof', o.spoofBots], ['collect', o.collectBots], ['bounce', o.bounceBots], ['escort', o.escortBots], ['check', o.checkTowers], ['jam', o.jamTowers]]
+        const kinds = [['clean', o.cleanBots], ['spoof', o.spoofBots], ['collect', o.collectBots]]
             .flatMap(([kind, n]) => Array.from({ length: Math.max(0, Math.floor(n || 0)) }, () => kind));
         kinds.forEach((kind, i) => {
             const a = (i + 0.5) * Math.PI * 2 / Math.max(1, kinds.length);
-            // towers stand spread over the field and settle where they're needed (their first hop staggered)
-            const tower = kind === 'check' || kind === 'jam';
-            const x = tower ? w * (0.2 + 0.6 * rand()) : w / 2 + Math.cos(a) * 2, y = tower ? h * (0.2 + 0.6 * rand()) : h / 2 + Math.sin(a) * 2;
-            s.bots.push({ id: s.nextId++, kind, tower, x, y, vx: 0, vy: 0, ready: kind === 'collect' ? o.collectEvery * (0.5 + i * 0.2) : kind === 'check' ? o.checkEvery * (0.5 + 0.2 * i) : 0,
-                hopAt: 2 + i * 1.3, goldAt: o.goldEvery, avoid: new Set() });
+            s.bots.push({ id: s.nextId++, kind, x: w / 2 + Math.cos(a) * 2, y: h / 2 + Math.sin(a) * 2, vx: 0, vy: 0, ready: kind === 'collect' ? o.collectEvery * (0.5 + i * 0.2) : 0,
+                goldAt: o.goldEvery, avoid: new Set(), work: null });
         });
         // Each bot heads for the nearest red packet (one no other bot is after) and works on it when it gets there; with
-        // nothing to do it drifts back toward the middle. A Cleaner bot with Gold Plating gilds a regular packet now and then.
+        // nothing to do it drifts back toward the middle. A Cleaner bot takes `cleanTime` s to turn a red packet regular,
+        // riding along with it while a ring fills round it (the owner's call on the Snare 16 log: bots that change red
+        // with a little time to change), then rests `cleanRest` s; with Gold Plating, when no red is near, it gilds a
+        // regular packet now and then (red to good, then good to gold).
         function botStep(dt) {
             if (!s.bots.length) return;
             const speed = o.botSpeed * grow, taken = new Set();
             const allReds = s.packets.filter(p => p.kind === 'corrupt' && !spoofed(p));
+            for (const b of s.bots) if (b.work) taken.add(b.work.p.id);
             for (const b of s.bots) {
                 if (b.kind === 'collect') { collectStep(b, dt, speed, taken); continue; }
-                if (b.kind === 'bounce') { bounceStep(b, dt, speed, taken); continue; }
-                if (b.kind === 'escort') { escortStep(b, dt, speed); continue; }
-                if (b.tower) { helperTowerStep(b, dt); continue; }
+                // A Cleaner bot at work: it stays on the packet until it has turned it, or loses it.
+                if (b.work) {
+                    const p = b.work.p;
+                    if (p.kind !== 'corrupt' || spoofed(p) || !s.packets.includes(p) || Math.hypot(p.x - b.x, p.y - b.y) > 0.9) {
+                        p.turn = 0;
+                        b.work = null;
+                    } else {
+                        b.x = p.x; b.y = p.y; b.vx = p.vx; b.vy = p.vy;
+                        b.work.t += dt;
+                        p.turn = Math.min(1, b.work.t / o.cleanTime);
+                        if (b.work.t >= o.cleanTime) {
+                            p.turn = 0;
+                            cleanRed(p, 'clean', { x: b.x, y: b.y });
+                            b.work = null;
+                            b.ready = s.time + o.cleanRest;
+                        }
+                        continue;
+                    }
+                }
                 const reds = allReds.filter(p => !taken.has(p.id) && p.kind === 'corrupt' && !spoofed(p));
                 let target = null, bd = Infinity;
                 for (const p of reds) { const d = Math.hypot(p.x - b.x, p.y - b.y); if (d < bd) { bd = d; target = p; } }
-                if (b.kind === 'clean' && o.goldPlate && s.time >= b.goldAt) {
-                    // Gold Plating: the nearest regular packet turns gold.
+                if (b.kind === 'clean' && o.goldPlate && s.time >= b.goldAt && !(target && bd < 2.5 * Math.sqrt(grow))) {
+                    // Gold Plating: with no red near, the nearest regular packet turns gold.
                     let g = null, gd = Infinity;
                     for (const p of s.packets) { if (p.kind !== 'good') continue; const d = Math.hypot(p.x - b.x, p.y - b.y); if (d < gd) { gd = d; g = p; } }
                     if (g && gd < 3 * grow) {
@@ -861,12 +732,11 @@
                 b.x = Math.max(0.2, Math.min(w - 0.2, b.x + b.vx * dt));
                 b.y = Math.max(0.2, Math.min(h - 0.2, b.y + b.vy * dt));
                 if (target && bd < 0.45 && s.time >= b.ready) {
-                    b.ready = s.time + o.botEvery;
                     if (b.kind === 'clean') {
-                        target.kind = 'good';
-                        s.stats.cleaned++;
-                        s.events.push({ type: 'cleaned', x: target.x, y: target.y });
+                        b.work = { p: target, t: 0 };
+                        s.events.push({ type: 'cleanStart', x: target.x, y: target.y });
                     } else {
+                        b.ready = s.time + o.botEvery;
                         target.spoof = s.time + o.spoofSeconds;
                         s.stats.botSpoofed++;
                         s.events.push({ type: 'botSpoof', x: target.x, y: target.y });
@@ -1280,7 +1150,7 @@
             const k = Math.min(1, o.redHunt * 3 * grown * dt);
             for (const p of s.packets) {
                 p.hunting = 0;
-                if (p.kind !== 'corrupt' || p.spoof > s.time || p.shoved > s.time || p.relay > s.time) continue;
+                if (p.kind !== 'corrupt' || p.spoof > s.time || p.relay > s.time) continue;
                 const d = Math.hypot(bb.x - p.x, bb.y - p.y);
                 if (d > reach) continue;
                 steerAt(p, Math.atan2(bb.y - p.y, bb.x - p.x), p.v * o.redHuntSpeed, k);
@@ -1325,7 +1195,6 @@
                 for (const p of s.packets) {
                     if (p.kind !== 'corrupt' || p.spoof > s.time) continue;
                     if (p.relay > s.time) continue;   // on its way to a decoy (below)
-                    if (p.shoved > s.time) continue;  // shoved out of a school by a Bouncer bot
                     // A decoy in reach outbids the schools.
                     let best = null, bd = 9;
                     for (const dc of s.decoys) {
@@ -2213,7 +2082,6 @@
             }
             herdStep(dt);
             botStep(dt);
-            vouchDecay(dt);
             scannerStep(dt);
             towerStep(dt);
             turretStep();
@@ -2295,10 +2163,8 @@
                     f.vx += (f.vx / v * speed - f.vx) * Math.min(1, dt);
                     f.vy += (f.vy / v * speed - f.vy) * Math.min(1, dt);
                 }
-                const jam = s.bots.length ? jamAt(f) : 1;   // Jammer towers
-                f.jammed = jam < 1;
-                f.x += f.vx * dt * jam;
-                f.y += f.vy * dt * jam;
+                f.x += f.vx * dt;
+                f.y += f.vy * dt;
                 bounce(f);
                 if (s.wire.length > 1) {
                     for (let i = 1; i < s.wire.length; i++) {

@@ -339,7 +339,8 @@ test('a sector clears by its goal or, every fifth, its boss; the Rogue AI comes 
     assert.equal(s.snare.bosses, 1);
     const o = E.snareOpts(s);
     assert.equal(o.rogue, 1);
-    assert.ok(o.avSpeed > 1 && o.corruptShare > P.SNARE.corruptShare, 'later sectors are harder');
+    assert.ok(o.avSpeed > 1, 'later sectors are harder');
+    assert.ok(o.corruptShare < E.snareOpts(E.defaultState(NOW), 1).corruptShare, 'red tapers once the other threats are in (the owner\'s call on the Snare 16 log)');
     assert.ok(E.snareGoal(7) > E.snareGoal(0) && E.snareBossHealth(9) > E.snareBossHealth(4));
 });
 

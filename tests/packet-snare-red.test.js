@@ -1,7 +1,6 @@
 'use strict';
-// Red on the field is dealt with by helpers you buy (the owner's calls on the 15.5 log: the nodes that kept red from
-// spawning emptied the field of it by sector 4, and red changing by itself felt disconnected): Cleaner, Bouncer and Escort
-// bots, Checksum and Jammer towers. Also the later goals (×2.25 from sector 5).
+// Red packets (the owner's calls on the Snare 16 log): the early fight, cut at spawn by the red nodes, and the Cleaner
+// Bot, the one bot for red, which takes about a second to turn a red packet regular. Also the later goals.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const P = require('../packet-snare.js');
@@ -19,58 +18,35 @@ const packet = (s, kind, x, y) => {
 };
 const run = (s, seconds) => { for (let i = 0; i < seconds * 60; i++) s.step(1 / 60); };
 
-test('a Bouncer bot shoves a red packet out of the school it hides in', () => {
-    const s = still({ bounceBots: 1, botSpeed: 4 });
-    for (const [dx, dy] of [[0.3, 0], [-0.3, 0], [0, 0.3]]) packet(s, 'good', 6 + dx, 4 + dy);
-    const red = packet(s, 'corrupt', 6, 4);
-    run(s, 3);
-    assert.ok(s.stats.bounced >= 1, 'shoved');
-    assert.ok(s.takeEvents().some(e => e.type === 'shoved'));
-    assert.ok(Math.hypot(red.x - 6, red.y - 4) > 1, 'out of the school');
+test('a Cleaner bot rides a red packet for about a second, a ring filling, then turns it regular', () => {
+    const s = still({ cleanBots: 1, botSpeed: 4, cleanTime: 1, cleanRest: 1 });
+    const red = packet(s, 'corrupt', 7, 4);
+    run(s, 0.6);   // it flies there
+    assert.equal(red.kind, 'corrupt', 'not at once');
+    run(s, 0.6);
+    assert.ok(red.turn > 0.2 && red.kind === 'corrupt', `turning (${red.turn?.toFixed(2)})`);
+    run(s, 1);
+    assert.equal(red.kind, 'good', 'turned');
+    assert.equal(s.stats.cleaned, 1);
+    assert.ok(!red.turn, 'the ring cleared');
 });
 
-test('an Escort bot rides the school: red near it turns regular; red far off stays red', () => {
-    const s = still({ escortBots: 1, botSpeed: 3, escortTime: 1 });
-    for (const [dx, dy] of [[0.3, 0], [-0.3, 0], [0, 0.3], [0, -0.3]]) packet(s, 'good', 4 + dx, 4 + dy);
-    const near = packet(s, 'corrupt', 4.1, 4.1), far = packet(s, 'corrupt', 11, 1);
-    run(s, 4);
-    assert.equal(near.kind, 'good');
-    assert.equal(far.kind, 'corrupt');
-});
-
-test('a Checksum tower cleans red within its reach, one every few seconds, and moves to the red', () => {
-    const s = still({ checkTowers: 1, checkEvery: 1, towerHop: 99 });
-    Object.assign(s.bots[0], { x: 6, y: 4, ready: 0 });
-    const a = packet(s, 'corrupt', 6.5, 4), b = packet(s, 'corrupt', 5.5, 4.5), far = packet(s, 'corrupt', 11.5, 0.5);
-    run(s, 0.1);
-    assert.equal([a, b].filter(p => p.kind === 'good').length, 1, 'one at once');
+test('a Cleaner bot loses a red packet that\'s caught or spoofed from under it, and the ring clears', () => {
+    const s = still({ cleanBots: 1, botSpeed: 4, cleanTime: 2 });
+    const red = packet(s, 'corrupt', 7, 4);
     run(s, 1.2);
-    assert.ok(a.kind === 'good' && b.kind === 'good');
-    assert.equal(far.kind, 'corrupt', 'out of reach');
-    assert.ok(s.takeEvents().some(e => e.type === 'cleaned' && e.how === 'check' && e.from));
+    assert.ok(red.turn > 0, 'at work');
+    red.spoof = s.time + 9;
+    run(s, 0.1);
+    assert.ok(!red.turn, 'let go');
+    assert.equal(s.bots[0].work, null);
 });
 
-test('a Jammer tower halves the speed of Antivirus near it', () => {
-    const go = jam => {
-        const s = still({ jamTowers: jam, towerHop: 99, antivirus: [0], avPatrol: 1.5 });
-        if (jam) Object.assign(s.bots[0], { x: 6, y: 4 });
-        s.step(1 / 60);   // the Antivirus boots on the first step
-        const f = s.antivirus[0];
-        f.updateAt = Infinity; f.offAt = Infinity;
-        Object.assign(f, { x: 5, y: 4, vx: 1.5, vy: 0 });
-        run(s, 0.5);
-        return { d: Math.hypot(f.x - 5, f.y - 4), jammed: f.jammed };
-    };
-    const slow = go(1), fast = go(0);
-    assert.ok(slow.jammed && slow.d < fast.d * 0.7, `${slow.d.toFixed(2)} against ${fast.d.toFixed(2)}`);
-});
-
-test('the helpers are bought in the tree: Cleaner Bot at Intrusion\'s root, the others in their branches', () => {
-    const s = E.defaultState(Date.now());
-    Object.assign(s.levels, { snareCleanerBot: 2, snareBouncerBot: 1, snareEscortBot: 1, snareChecksumTowers: 3, snareJammer: 1 });
-    const o = E.snareOpts(s, 3);
-    assert.deepEqual([o.cleanBots, o.bounceBots, o.escortBots, o.checkTowers, o.jamTowers], [2, 1, 1, 3, 1]);
-    assert.ok(E.UPGRADE_BY_ID.snareCleanerBot.cost.signal <= 50, 'the first helper is the first buy');
+test('Gold Plating: a Cleaner bot with no red near turns a regular packet gold', () => {
+    const s = still({ cleanBots: 1, goldPlate: 1, goldEvery: 0.5 });
+    for (let i = 0; i < 5; i++) packet(s, 'good', 6 + i * 0.2, 4);
+    run(s, 2);
+    assert.ok(s.stats.gilded >= 1 && s.packets.some(p => p.kind === 'gold'));
 });
 
 test('goals: 25, 100, 185, 400, then 1,300 at sector 6 growing ×2.25 a sector (the owner\'s calls on the pacing sweep)', () => {
@@ -82,11 +58,11 @@ test('goals: 25, 100, 185, 400, then 1,300 at sector 6 growing ×2.25 a sector (
     assert.equal(E.snareSectorPay(4), 1.6, '+15% a sector');
 });
 
-test('a save from before v29 gets its Packet Snare tree refunded (the red nodes reworked, the packet and red nodes folded)', () => {
+test('a save from before v30 gets its Packet Snare tree refunded (the red nodes back, the Cleaner Bot later)', () => {
     const s = E.defaultState(Date.now());
     s.levels.snareCleanerBot = 2; s.levels.snareMegasprawl = 1; s.levels.snareFocus = 1;
     s.snare.signal = 5; s.snare.earned = 900;
-    const m = E.migrate(JSON.parse(JSON.stringify({ ...s, version: 28 })));
+    const m = E.migrate(JSON.parse(JSON.stringify({ ...s, version: 29 })));
     assert.equal(m.snare.signal, 900, 'what it earned, to spend again');
     assert.ok(!Object.keys(m.levels).some(id => id.startsWith('snare')), 'every Packet Snare level cleared');
 });
