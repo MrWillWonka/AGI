@@ -681,3 +681,16 @@ Open, from all three: the first ring sells "more packets" and "fewer red" ten ti
 Bandwidth's ×4 cap is never reached by a ×2.2 full bubble (raise the bubble's area or the curve instead); the boss moves
 while you loop it; Antivirus pops, not red, are the real punishment, and the bubble doesn't say what's coming; the late
 field is noise and big catches drop frames; the tree still clips at its edges; the phone HUD truncates.
+
+### The owner's calls on the rounds (15.5)
+
+Every fix was put to the owner as keep, change or revert. Kept: the clean streak, no rushing for bubbles, the lock-on line,
+scans from sector 6, tip spacing and the numbered boss tip, the dimmed field, opaque cards, the green record, toasts that
+wait in the bay, the docked tree popup, the Bubbles branch, the honest tree text, the label clean-up, red's size and halo,
+the shrinking catch ghost. Changed: goals 25 / 100 / 200 / 400 then ×1.75; a first field of 15 packets and 10 s; a full
+bubble 0.2 of the field; pops free; threats by sector alone; look out cards before the run or Go deeper, red on the first
+card; the right button teaches itself; a golden tech wave on a clear; toasts swiped or clicked away anywhere; states as field
+pops, not HUD text; red nodes made to do 15% / 28%; Input Validation and Mirror Port folded, Chain Lightning at 250,
+Bandwidth a full-bubble multiplier; effects uncapped and the drawing made faster instead; mines and the shield pulse red in
+place of extra words. Reverted: the boss fight's helps (14 s, no drain while stunned, 2.5 s warning, 5 s loops, loose loops,
+MISSED), the five-health boss (10), left-click bubbles, the buzzer catch, the end card's lines (BOSS DOWN kept), node names.

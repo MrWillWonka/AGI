@@ -213,15 +213,18 @@ test('new threats wait for the pen to lift (a tip card never lands mid-bubble), 
     assert.equal(scan.stats.sweeps, 0);
 });
 
-test('a bubble let go as Focus runs out pays, and if it reaches the goal the sector clears (review round 3)', () => {
-    const r = still({ focus: 0.6, idleDrain: 1, goal: 3 });
-    for (let i = 0; i < 4; i++) packet(r, 'good', 6 + (i % 2) * 0.2, 4 + (i > 1 ? 0.2 : 0));
-    let goal = false;
-    r.setPen('bubble');
-    r.addPoint(6.1, 4.1);
-    for (let i = 0; i < 120 && !r.over; i++) { r.addPoint(6.1, 4.1); r.step(1 / 60); }
-    for (const e of r.takeEvents()) if (e.type === 'goal') goal = true;
-    assert.ok(r.over, 'the run ended');
-    assert.ok(r.stats.caught >= 3, 'the held bubble paid');
-    assert.ok(goal && r.goalDone, 'and the goal it reached cleared the sector');
+
+test('Bandwidth: a full bubble pays more (its cap was never reached by a bubble; the owner\'s call after the review rounds)', () => {
+    const catchAt = fullMult => {
+        const s = still({ fullMult, bubbleTime: 0.5 });
+        for (let i = 0; i < 6; i++) packet(s, 'good', 6 + (i % 3) * 0.3, 4 + Math.floor(i / 3) * 0.3);
+        bubble(s, 6.3, 4.15, 0.8);
+        return s.takeEvents().find(e => e.type === 'catch');
+    };
+    const plain = catchAt(0), wide = catchAt(0.25);
+    assert.ok(plain && wide, 'both caught');
+    assert.ok(Math.abs(wide.mult / plain.mult - 1.25) < 0.01, `×1.25 on a full bubble (${plain.mult} → ${wide.mult})`);
+    const s = E.defaultState(Date.now());
+    s.levels.snareBandwidth = 2;
+    assert.equal(E.snareOpts(s).fullMult, 0.5);
 });

@@ -37,7 +37,7 @@
         // Focus is the run's clock (Snare 11.5, the owner's call: drawing used to drain it faster, which punished the fun
         // part): it runs down `idleDrain` a second whatever you do, so it reads in seconds. A first run is about 14 s
         // (the logs' first runs were 10–20 s); mistakes cost seconds, and good play gives some back.
-        focus: 18,
+        focus: 10,                  // the owner's call after the review rounds (18 in them, 14 before)
         idleDrain: 1.0,
         maxWire: 36,                // units on the starting field (× √ of the field's growth): past this the tail drops
         minGap: 0.1,                // the wire records a point every this far
@@ -47,11 +47,12 @@
                                     // area too, so a big loop was never worth more than several small ones): ×1.26 at 10% of
                                     // the field, ×1.8 at 22%, ×2.2 at 30%, ×3.5 at half
         maxMult: 4,                 // …up to this (Bandwidth raises it)
+        fullMult: 0,                // Bandwidth: a full bubble's multiplier × (1 + this) (its cap was never reached by a bubble)
         corruptPenalty: 3,          // seconds of Focus lost when a corrupt packet spoils a catch
         snapPenalty: 2,             // seconds of Focus lost when an Antivirus or a Firewall snaps the wire
         snapCooldown: 1.0,          // seconds before you can draw again after a snap
         respawn: 1.2,               // seconds before a caught packet's replacement swims in
-        density: 0.2,               // good packets per unit² of field… (round 1 of the review: 0.13 left 9 on a first field)
+        density: 0.215,             // good packets per unit² of field… (15 on a first field, the owner's call after the review rounds)
         maxGood: 340,               // …up to this many (Firehose and Floodgate raise it)
         corruptShare: 0.111,        // corrupt packets per good one: 10% of all packets (Snare 14, the owner's call: fewer red, an
                                     // Antivirus sooner; it was 15%, 26% before that). None on the first sector (engine.js)
@@ -129,7 +130,7 @@
         bubbleTime: 2.5,            // seconds to grow to its full size…
         bubblePow: 1.15,            // …a little faster as it goes (radius ∝ t^pow)
         bubbleMax: 0.48,            // its full radius at most, × the field's shorter side…
-        bubbleShare: 0.3,           // …and a full bubble is this share of the field whatever its shape (round 2 of the review: a full
+        bubbleShare: 0.2,           // …and a full bubble is this share of the field whatever its shape (round 2 of the review: a full
                                     // bubble was ×1.75 on a wide desktop field, ×2.07 on an upright phone's)
         streakPay: 0.05,            // each clean catch in a row pays this much more, up to streakMax (round 2: careful play hardly
         streakMax: 10,              // beat blind holds); a spoil or a pop starts the count again
@@ -234,10 +235,10 @@
         // Snare 12 (the owner's call: the fights felt rushed): a slower rhythm. It charges every `bossCharge` s, its
         // warning line shows `bossWarn` s (it stands still, the moment to loop it), and a stun lasts `bossStun` s.
         bossCharge: 7,              // seconds between its charges
-        bossWarn: 2.5,              // seconds its warning line shows before it dashes (round 2 of the review: 2 left no time for two loops)
+        bossWarn: 2,                // seconds its warning line shows before it dashes
         bossStun: 2.5,              // seconds it reels once stunned (the slash window)
         bossLoops: 2,               // loops round it it takes to stun it (Snare 12.7, the owner's call: once was too easy)…
-        bossLoopWindow: 5,          // …each within this many seconds of the last, or the count starts again (3.5 before round 4)
+        bossLoopWindow: 3.5,        // …each within this many seconds of the last, or the count starts again
         chargeReach: 0.6,           // × the field's longer side: how far its charge line reaches (the dash covers it all)
         // **Loop it to stun it** (Snare 12, the owner's call: circling the boss makes more sense than a parry): a closed
         // loop round it, the wire never touching it, stuns it. The parry (a flick across its charge line) comes later, as
@@ -280,7 +281,7 @@
         scribbleGap: 0.5,           // a loop closed this soon after the last on the same stroke pays ×scribblePay
         scribblePay: 0.5,
         safeLoop: 0.85,             // a loop wholly inside one of your Firewall sections pays ×this (it's safe; not with a pen)
-        bossFocus: 14,              // seconds of Focus the boss's arrival adds (the fight shouldn't race the clock; round 1 of the review: 8)
+        bossFocus: 8,               // seconds of Focus the boss's arrival adds (the fight shouldn't race the clock)
         slashCap: 5,                // slashes a stun allows: then it shakes it off
         bossRest: 1.5,              // seconds it stands after a dash (a second moment to loop it)
         gcCap: 3,                   // Garbage Collection: Focus back for at most this many red packets a loop…
@@ -325,7 +326,7 @@
         densityCap: 1.5,
         // …and never more than this many good packets on the field in all (big screens: drawing time grows with the count,
         // and 2,400 ran a 1280 px desktop at 30 fps), past which they come back sooner instead (game.js snareField).
-        maxOnScreen: 1100,          // round 2 of the review: 1,400 drew a 1280 px desktop at ~40 fps
+        maxOnScreen: 1400,
         // Packets' size (units): game.js shrinks them as a capped field fills (the owner's call, Snare 10: smaller, more
         // of them, coming back sooner), never under 0.55 of this.
         packetR: 0.3,
@@ -790,10 +791,6 @@
                 return;
             }
             const b = s.boss;
-            // Where it's been over the last 0.6 s: a loop round any of it counts (round 4 of the review: a loop drawn round
-            // it that closed just after it stepped out didn't).
-            (b.trail ||= []).push({ x: b.x, y: b.y, t: s.time });
-            while (b.trail.length && s.time - b.trail[0].t > 0.6) b.trail.shift();
             mineStep(b, dt);
             // Shielded while two or more mines stand (one mine halves its slashes).
             b.shielded = s.mines.length >= 2;
@@ -881,7 +878,7 @@
             if (s.wire.length > 1 && !flicking && !(s.bubble && s.time - (b.born ?? -9) < 1.5)) {
                 for (let i = 1; i < s.wire.length; i++) {
                     // Its snap costs half again what an Antivirus's does.
-                    if (segDist(b, s.wire[i - 1], s.wire[i]) < b.r * 0.85) { snap(b); s.focus = Math.max(0, s.focus - o.snapPenalty * 0.5); break; }
+                    if (segDist(b, s.wire[i - 1], s.wire[i]) < b.r * 0.85) { const pop = !!s.bubble?.growing; snap(b); if (!pop) s.focus = Math.max(0, s.focus - o.snapPenalty * 0.5); break; }
                 }
             }
             // Your Firewall sections hold it off, and the first touch each approach stuns it: a slash window.
@@ -1161,8 +1158,8 @@
             s.drawing = false;
             s.leftStart = false;
             s.cooldown = o.snapCooldown;
-            // A popped bubble costs half (round 1 of the review: Antivirus pops took 2 s each from a 14 s clock).
-            s.focus = Math.max(0, s.focus - o.snapPenalty * (popped ? 0.5 : 1));
+            // A popped bubble costs no Focus (the owner's call after the review rounds); a snapped wire costs `snapPenalty`.
+            if (!popped) s.focus = Math.max(0, s.focus - o.snapPenalty);
             s.stats.snaps++;
             s.streak = 0;
             s.cleanRun = 0;
@@ -2115,8 +2112,7 @@
             for (let i = pendingCorrupt.length - 1; i >= 0; i--) {
                 if (s.time >= pendingCorrupt[i] && corruptCount() < corruptTarget) { corrupt(true); pendingCorrupt.splice(i, 1); }
             }
-            // No drain while the boss reels (round 1 of the review: the first boss was lost to the clock, not the fight).
-            const drain = s.time >= s.freeDrawUntil && !(s.boss && s.boss.stunned > s.time) ? o.idleDrain : 0;
+            const drain = s.time >= s.freeDrawUntil ? o.idleDrain : 0;
             s.focus = Math.max(0, s.focus - drain * dt);
             if (s.focus <= 0) end();
         }
@@ -2166,14 +2162,9 @@
 
         function end() {
             if (s.over) return;
-            // A bubble held when Focus runs out is let go, and pays (round 1 of the review: it froze behind the end card).
-            if (s.bubble?.growing) popBubble();
+            // A bubble held when Focus runs out is lost (the owner's call after the review rounds).
+            s.bubble = null;
             settleRace();
-            // …and if that catch reached the sector's goal, it clears (round 3 of the review: "Goal 55/55" and not cleared).
-            if (o.goal > 0 && !s.goalDone && goalProgress() >= o.goal) {
-                s.goalDone = true;
-                s.events.push({ type: 'goal', x: w / 2, y: h / 2, caught: Math.round(goalProgress()), focus: 0 });
-            }
             s.splits = [];
             s.over = true;
             s.wire = [];
@@ -2236,12 +2227,7 @@
         // Loops round the boss stun it (the wire never touched it, or it would have snapped): `bossLoops` of them, each
         // within `bossLoopWindow` of the last; a spiral round it counts each turn.
         function loopBoss(poly) {
-            if (!s.boss || s.boss.stunned > s.time) return false;
-            if (!pointInPolygon(s.boss, poly) && !(s.boss.trail || []).some(q => pointInPolygon(q, poly))) {
-                // round the boss's way but not round it: say so (not "loops are for the boss")
-                s.events.push({ type: 'bossMissed', x: s.boss.x, y: s.boss.y });
-                return true;
-            }
+            if (!s.boss || s.boss.stunned > s.time || !pointInPolygon(s.boss, poly)) return false;
             const b = s.boss;
             b.loops = s.time - (b.loopAt ?? -1e9) <= o.bossLoopWindow ? (b.loops || 0) + 1 : 1;
             b.loopAt = s.time;
@@ -2307,7 +2293,7 @@
             if (grabMines(poly)) acted = true;
             if (hijackIn(poly)) acted = true;
             if (o.star && frozen()) { payNova(b, poly); return; }
-            const j = judge(poly, b.bonus);
+            const j = judge(poly, bubbleBonus(b));
             if (!j.inside.length) {
                 if (acted) return;
                 s.stats.empty++;
@@ -2318,6 +2304,8 @@
             payLoop(poly, b.bonus, j);
             if (o.fork && b.full && !j.spoiled && !j.garbage && j.good.length && !s.over) split(b, j.mult);
         }
+        // What a bubble's multiplier is raised by: Race Condition's growth, and Bandwidth on a full one.
+        const bubbleBonus = b => (1 + (b.bonus || 0)) * (1 + (b.full ? o.fullMult : 0)) - 1;
         // Split: the full bubble forks into smaller ones round it, which catch a moment later.
         function split(b, mult) {
             const n = 1 + o.fork, a0 = rand() * Math.PI * 2, kids = [];
@@ -2689,7 +2677,7 @@
             const bub = bubblePoly();
             const poly = bub || (o.bubble ? null : openLoop());
             if (!poly) return null;
-            const j = judge(poly, bub ? (s.bubble.bonus || 0) : 0);
+            const j = judge(poly, bub ? bubbleBonus(s.bubble) : 0);
             const head = s.wire[s.wire.length - 1], start = s.wire[0];
             // The risk: corrupt packets just outside it (they can swim in before it closes).
             let risk = 0;

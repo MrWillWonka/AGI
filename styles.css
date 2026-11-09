@@ -2836,6 +2836,8 @@ body:not(.has-minimap) .room-lab[data-tier="wide"] .cabinet-panel { margin-right
 /* A mail toast is a way in: click it to read. Only with a mouse: on a touch screen it sat over the Workbench's
    first job and the Training Cluster bay, so a tap meant for them opened the inbox (the envelope still does). */
 @media (hover: hover) and (pointer: fine) { .toast-mail { pointer-events: auto; cursor: pointer; } }
+/* Any toast can be swiped or clicked away (the owner's call); the box around them still lets clicks through. */
+#toasts .toast { pointer-events: auto; cursor: pointer; touch-action: pan-y; }
 /* Investor offers ready to claim (the Lab tile is already positioned). */
 .facility-room[data-ready]::after, .module-supply[data-ready]::after { background: var(--success); color: var(--bg); box-shadow: 0 0 0 2px var(--bg), 0 0 12px rgba(80, 220, 160, 0.5); }
 .facility-room[data-ready]::after { top: 8px; right: 8px; z-index: 2; }
@@ -3525,18 +3527,11 @@ body.calm .snare-deeper { animation: none; }
 #snarePanel.tree-open .snare-stats { display: none; }
 /* Packet Snare: a boss beaten leads its end card (review round 2). */
 .snare-card .snare-boss-down { color: var(--warning); text-transform: uppercase; letter-spacing: 0.06em; font-size: 1.05rem; }
-/* Packet Snare's tree: each node's name under it (review round 2), hidden when zoomed out too far to read. */
-.snare-node-name { position: absolute; width: calc(var(--cell) * 0.98); transform: translate(-50%, calc(var(--cell) * 0.37)); text-align: center; font: 600 10px/1.15 var(--font-body); color: var(--muted); pointer-events: none; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 1px 2px var(--bg); z-index: 1; }
-.snare-node-name[hidden] { display: none; }
-.snare-tree-grid.names-off .snare-node-name { display: none; }
 /* Go deeper once a sector is cleared: lit, so the choice is seen (review round 3). */
 .snare-deeper.lit { color: var(--bg); background: var(--success); border-color: var(--success); font-weight: 700; box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 60%, transparent); animation: snare-deeper-in 0.4s ease-out, snare-deeper-pulse 1.6s ease-in-out 0.4s infinite; }
 @keyframes snare-deeper-pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--success) 0%, transparent); } 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 55%, transparent); } }
 body.calm .snare-deeper.lit, body.idle .snare-deeper.lit { animation: none; }
 @media (prefers-reduced-motion: reduce) { .snare-deeper.lit { animation: none; } }
-/* The end card's next buy: a button straight to its node. */
-.snare-card .snare-buy-link { all: unset; cursor: pointer; color: var(--success); text-decoration: underline; text-underline-offset: 2px; }
-.snare-card .snare-buy-link:focus-visible { outline: 2px solid var(--success); outline-offset: 2px; }
 /* Packet Snare's tree: branch names sit behind the nodes and their names, faint (review round 3: LOOPS sat on a node's name). */
 .snare-tree-grid .tree-branch { z-index: 0; opacity: 0.7; }
 .snare-tree-inner { z-index: 1; }

@@ -398,7 +398,7 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     // snareOpts overrides packet-snare.js's SNARE table: that table is the one place the base numbers live
     const o = { ...P.SNARE, ...E.snareOpts(s) };
     assert.equal(o.area, P.SNARE.area);
-    assert.equal(o.focus, 18, 'a first run is about 18 s');
+    assert.equal(o.focus, 10, 'a first run is 10 s');
     assert.deepEqual(o.antivirus, [], 'sector 1: only the packets');
     assert.equal(o.sweepFirst, Infinity);
     assert.equal(o.rogue, 0, 'no Rogue AI on the first runs');
@@ -415,7 +415,7 @@ test('a first run is small, short and hard; the tree grows the field, Focus and 
     assert.equal(E.snareOpts(s).antivirus.length, 1, 'from its sector (the field\'s size adds none)');
     assert.equal(E.snareOpts(s, E.AV_SECTOR + 4).antivirus.length, 2, 'a second four sectors on');
     s.snare.sector = 0;
-    assert.equal(g.focus, 23);
+    assert.equal(g.focus, 13);
     assert.equal(g.chain, 5, 'Snare 14: five arcs a level');
     assert.ok(g.laser > 0 && g.laser < 4, 'faster with its second level');
     // and a run built from them is bigger, with lasers firing
@@ -633,14 +633,12 @@ test('Herders round good packets up toward the middle and shoo corrupt ones away
     assert.ok(c.vx > 0.3, 'turned away from the middle');
 });
 
-test('only the Rogue AI waits for runs played (Snare 14: scans and Antivirus come with their sector)', () => {
+test('no threat waits for runs played: each comes with its sector (the owner\'s call after the review rounds)', () => {
     const s = E.defaultState(NOW);
     s.snare.runs = 0;
     assert.ok(E.snareOpts(s, E.ROGUE_SECTOR).sweepFirst < Infinity, 'scans on a first run that far in');
     assert.ok(E.snareOpts(s, E.AV_SECTOR).antivirus.length >= 1, 'an Antivirus on its sector, whatever the runs');
-    assert.equal(E.snareOpts(s, E.ROGUE_SECTOR).rogue, 0, 'the Rogue AI waits for the 18th');
-    s.snare.runs = E.SNARE_RUN_FLOORS.rogue;
-    assert.ok(E.snareOpts(s, E.ROGUE_SECTOR).rogue >= 1);
+    assert.ok(E.snareOpts(s, E.ROGUE_SECTOR).rogue >= 1, 'the Rogue AI on its sector, whatever the runs');
 });
 
 test('the hazards arrive one sector at a time: packets, then red, then Antivirus, then sweeps, then the Rogue AI, then minions', () => {
@@ -698,8 +696,6 @@ test('a cleared sector tops Focus up and the run gathers on there; Go deeper tak
 
 test('sector 1 has one red packet to meet, and going deeper brings the rest in', () => {
     const s = E.defaultState(NOW);
-    assert.equal(E.snareOpts(s, 0).teachRed, 0, 'not on the very first run (it teaches the bubble)');
-    s.snare.runs = 1;
     const o = E.snareOpts(s, 0);
     assert.equal(o.corruptShare, 0);
     assert.equal(o.teachRed, 1);

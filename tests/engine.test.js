@@ -1977,16 +1977,16 @@ test('the build stamp has its row in playtests/README.md\'s Builds table (bump B
     assert.ok(readme.includes(`**${label}**`), `a Builds row for "${label}"`);
 });
 
-test('Packet Snare: every branch opens with cheap packet and red-packet nodes (the owner\'s call: spread through the early tree)', () => {
+test('Packet Snare: every branch opens with a cheap packet or red-packet node (after the review rounds the repeats were folded)', () => {
     const root = up => { while (up.requires) up = E.UPGRADE_BY_ID[up.requires]; return up.id; };
     const ring = up => Math.abs(up.snare.x) + Math.abs(up.snare.y);
     for (const r of ['snareFocus', 'snareSprawl', 'snareSanitizer', 'snareScrubbers']) {
         const early = E.SNARE_TREE.filter(up => root(up) === r && ring(up) <= 3 && up.cost.signal <= 300);
-        assert.ok(early.some(up => up.sn.density || up.sn.sprawl), `${r}'s branch has a packet node in its first rings`);
-        assert.ok(early.some(up => up.sn.cleaner), `${r}'s branch has a red-packet node in its first rings`);
+        assert.ok(early.some(up => up.sn.density || up.sn.sprawl || up.sn.cleaner), `${r}'s branch has a packet or red-packet node in its first rings`);
     }
     const n = key => E.SNARE_TREE.filter(up => up.sn[key]).length;
-    assert.ok(n('density') >= 8 && n('cleaner') >= 8, 'many of them, all through the tree');
+    assert.ok(n('density') >= 6 && n('cleaner') >= 6, 'many of them, all through the tree');
+    assert.ok(E.UPGRADE_BY_ID.snareChain.cost.signal < 300, 'a real ability under 300 Signal');
 });
 
 test('Packet Snare (Snare 10): four wedges, verbs inside, automation and a capstone at each tip', () => {
@@ -2019,7 +2019,7 @@ test('a save from before Snare 11 gets every Packet Snare level back as Signal (
     assert.equal(m.levels.snareFocus, undefined);
     assert.equal(m.levels.snareSprawl, undefined);
     assert.equal(m.snare.signal, 5000, 'everything it earned this version, back to spend');
-    const fresh = E.migrate({ ...raw, version: 27, levels: { snareFocus: 2 }, snare: { ...raw.snare, signal: 1200 } }, Date.now());
+    const fresh = E.migrate({ ...raw, version: E.SAVE_VERSION, levels: { snareFocus: 2 }, snare: { ...raw.snare, signal: 1200 } }, Date.now());
     assert.equal(fresh.levels.snareFocus, 2, 'a current save keeps its levels');
     assert.equal(fresh.snare.signal, 1200);
 });

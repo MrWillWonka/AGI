@@ -244,7 +244,7 @@ test('a sweep snaps a fast stroke whose segment straddles its line', () => {
 test('the boss is the wall: every fifth sector, gentle the first time, steeply more after, and its bounty is paid by the engine', () => {
     const first = E.SNARE_BOSS_EVERY - 1;
     assert.equal(E.snareBossHealth(0), 0, 'no boss on the first sector');
-    assert.equal(E.snareBossHealth(first), 5, 'the first boss on sector 5: one clean stun (round 3 of the review)');
+    assert.equal(E.snareBossHealth(first), 10, 'the first boss on sector 5: two stuns');
     assert.deepEqual([9, 14, 19].map(E.snareBossHealth), [30, 64, 90], 'then 30, 64, 90');
     assert.ok(E.snareBossHealth(9) >= 30 && E.snareBossHealth(14) >= 60, 'later bosses take far more');
     const s = E.defaultState(NOW);
@@ -280,9 +280,9 @@ test('the research trickle is capped, and Overclock raises every catch', () => {
 test('the tree thins the corrupt packets, fills the field with packets and grows it to a datacentre', () => {
     const s = E.defaultState(NOW);
     const base = E.snareOpts(s);
-    for (const id of ['snareChecksums', 'snareErrorCorrection', 'snareSignatures', 'snareInputValidation', 'snareSanitizer', 'snareSpamFilter', 'snareReputation']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
+    for (const id of ['snareChecksums', 'snareErrorCorrection', 'snareSignatures', 'snareSanitizer', 'snareSpamFilter', 'snareReputation']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
     s.levels.snareSprawl = 3; s.levels.snareMegasprawl = 3; s.levels.snareHyperscale = 3;
-    for (const id of ['snareSchools', 'snareFirehose', 'snareBroadband', 'snareTorrent', 'snarePacketStream', 'snareOpenPorts', 'snareMirrorPort', 'snareRateLimit']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
+    for (const id of ['snareSchools', 'snareFirehose', 'snareBroadband', 'snareTorrent', 'snarePacketStream', 'snareOpenPorts', 'snareRateLimit']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
     s.levels.snareFirewalls = 1;
     const o = E.snareOpts(s, E.AV_SECTOR);
     assert.ok(o.corruptShare <= E.snareOpts(E.defaultState(NOW), E.AV_SECTOR).corruptShare * 0.4, 'well under half the corrupt packets');
