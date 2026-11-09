@@ -1,7 +1,7 @@
 'use strict';
-// Red on the field changes (the owner's call on the 15.5 log: the nodes that kept red from spawning emptied the field of it
-// by sector 4, so they act on red already swimming): Sanitizer's decay, Checksums' clean catches, Reputation Check's
-// vouching schools and Spam Filter's push away from the schools. Also the later goals (×2.25 from sector 5).
+// Red on the field is dealt with by helpers you buy (the owner's calls on the 15.5 log: the nodes that kept red from
+// spawning emptied the field of it by sector 4, and red changing by itself felt disconnected): Cleaner, Bouncer and Escort
+// bots, Checksum and Jammer towers. Also the later goals (×2.25 from sector 5).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const P = require('../packet-snare.js');
@@ -19,58 +19,58 @@ const packet = (s, kind, x, y) => {
 };
 const run = (s, seconds) => { for (let i = 0; i < seconds * 60; i++) s.step(1 / 60); };
 
-test('Sanitizer: a red packet turns regular after its decay time', () => {
-    const s = still({ redDecay: 2 });
+test('a Bouncer bot shoves a red packet out of the school it hides in', () => {
+    const s = still({ bounceBots: 1, botSpeed: 4 });
+    for (const [dx, dy] of [[0.3, 0], [-0.3, 0], [0, 0.3]]) packet(s, 'good', 6 + dx, 4 + dy);
     const red = packet(s, 'corrupt', 6, 4);
-    run(s, 1.5);
-    assert.equal(red.kind, 'corrupt', 'not yet');
-    run(s, 0.7);
-    assert.equal(red.kind, 'good', 'turned regular');
-    assert.ok(s.takeEvents().some(e => e.type === 'cleaned' && e.how === 'decay'));
-    const off = still();
-    const stays = packet(off, 'corrupt', 6, 4);
-    run(off, 5);
-    assert.equal(stays.kind, 'corrupt', 'without it red stays red');
+    run(s, 3);
+    assert.ok(s.stats.bounced >= 1, 'shoved');
+    assert.ok(s.takeEvents().some(e => e.type === 'shoved'));
+    assert.ok(Math.hypot(red.x - 6, red.y - 4) > 1, 'out of the school');
 });
 
-test('Checksums: a clean catch cleans the red packets just outside it, nearest first, as many as its level', () => {
-    const s = still({ checksum: 1 });
-    for (let i = 0; i < 4; i++) packet(s, 'good', 6 + (i % 2) * 0.3, 4 + Math.floor(i / 2) * 0.3);
-    const near = packet(s, 'corrupt', 6, 6.2), far = packet(s, 'corrupt', 6, 7.5);
-    s.setPen('bubble');
-    for (let i = 0; i < 60; i++) { s.addPoint(6.15, 4.15); s.step(1 / 60); }
-    s.liftPen(); s.setPen(null);
-    s.step(1 / 60);
-    const ev = s.takeEvents();
-    assert.ok(ev.some(e => e.type === 'catch'), 'a clean catch');
-    assert.equal(near.kind, 'good', 'the nearest red beside it cleaned');
-    assert.equal(far.kind, 'corrupt', 'only one at level 1');
-    assert.ok(ev.some(e => e.type === 'cleaned' && e.how === 'checksum' && e.from));
+test('an Escort bot rides the school: red near it turns regular; red far off stays red', () => {
+    const s = still({ escortBots: 1, botSpeed: 3, escortTime: 1 });
+    for (const [dx, dy] of [[0.3, 0], [-0.3, 0], [0, 0.3], [0, -0.3]]) packet(s, 'good', 4 + dx, 4 + dy);
+    const near = packet(s, 'corrupt', 4.1, 4.1), far = packet(s, 'corrupt', 11, 1);
+    run(s, 4);
+    assert.equal(near.kind, 'good');
+    assert.equal(far.kind, 'corrupt');
 });
 
-test('Reputation Check: a red packet in a school turns regular after a while there; alone it stays red', () => {
-    const s = still({ vouch: 1, vouchTime: 2 });
-    const inSchool = packet(s, 'corrupt', 4, 4);
-    for (const [dx, dy] of [[0.4, 0], [-0.4, 0], [0, 0.4]]) packet(s, 'good', 4 + dx, 4 + dy);
-    const alone = packet(s, 'corrupt', 10, 2);
-    run(s, 2.6);
-    assert.equal(inSchool.kind, 'good');
-    assert.equal(alone.kind, 'corrupt');
+test('a Checksum tower cleans red within its reach, one every few seconds, and moves to the red', () => {
+    const s = still({ checkTowers: 1, checkEvery: 1, towerHop: 99 });
+    Object.assign(s.bots[0], { x: 6, y: 4, ready: 0 });
+    const a = packet(s, 'corrupt', 6.5, 4), b = packet(s, 'corrupt', 5.5, 4.5), far = packet(s, 'corrupt', 11.5, 0.5);
+    run(s, 0.1);
+    assert.equal([a, b].filter(p => p.kind === 'good').length, 1, 'one at once');
+    run(s, 1.2);
+    assert.ok(a.kind === 'good' && b.kind === 'good');
+    assert.equal(far.kind, 'corrupt', 'out of reach');
+    assert.ok(s.takeEvents().some(e => e.type === 'cleaned' && e.how === 'check' && e.from));
 });
 
-test('Spam Filter: red packets steer away from the schools instead of toward them', () => {
-    const near = lure => {
-        const s = still({ corruptLure: lure, packetSpeed: [0.6, 0.6] });
-        for (const [dx, dy] of [[0, 0], [0.3, 0], [0, 0.3]]) packet(s, 'good', 6 + dx, 4 + dy);
-        const red = packet(s, 'corrupt', 7.5, 4);
-        red.vx = 0; red.vy = 0.6; red.v = 0.6;
-        run(s, 1.5);
-        return Math.hypot(red.x - 6, red.y - 4);
+test('a Jammer tower halves the speed of Antivirus near it', () => {
+    const go = jam => {
+        const s = still({ jamTowers: jam, towerHop: 99, antivirus: [0], avPatrol: 1.5 });
+        if (jam) Object.assign(s.bots[0], { x: 6, y: 4 });
+        s.step(1 / 60);   // the Antivirus boots on the first step
+        const f = s.antivirus[0];
+        f.updateAt = Infinity; f.offAt = Infinity;
+        Object.assign(f, { x: 5, y: 4, vx: 1.5, vy: 0 });
+        run(s, 0.5);
+        return { d: Math.hypot(f.x - 5, f.y - 4), jammed: f.jammed };
     };
-    assert.ok(near(-0.6) > near(0.6) + 0.3, 'pushed away rather than drawn in');
+    const slow = go(1), fast = go(0);
+    assert.ok(slow.jammed && slow.d < fast.d * 0.7, `${slow.d.toFixed(2)} against ${fast.d.toFixed(2)}`);
+});
+
+test('the helpers are bought in the tree: Cleaner Bot at Intrusion\'s root, the others in their branches', () => {
     const s = E.defaultState(Date.now());
-    s.levels.snareSpamFilter = 1;
-    assert.ok(E.snareOpts(s, 3).corruptLure < 0, 'Spam Filter makes the lure a push');
+    Object.assign(s.levels, { snareCleanerBot: 2, snareBouncerBot: 1, snareEscortBot: 1, snareChecksumTowers: 3, snareJammer: 1 });
+    const o = E.snareOpts(s, 3);
+    assert.deepEqual([o.cleanBots, o.bounceBots, o.escortBots, o.checkTowers, o.jamTowers], [2, 1, 1, 3, 1]);
+    assert.ok(E.UPGRADE_BY_ID.snareCleanerBot.cost.signal <= 50, 'the first helper is the first buy');
 });
 
 test('goals grow ×2.25 a sector from sector 5 (the owner\'s call on the 15.5 log); the first four stay', () => {
@@ -81,7 +81,7 @@ test('goals grow ×2.25 a sector from sector 5 (the owner\'s call on the 15.5 lo
 
 test('a save from before v29 gets its Packet Snare tree refunded (the red nodes reworked, the packet and red nodes folded)', () => {
     const s = E.defaultState(Date.now());
-    s.levels.snareSanitizer = 2; s.levels.snareMegasprawl = 1; s.levels.snareFocus = 1;
+    s.levels.snareCleanerBot = 2; s.levels.snareMegasprawl = 1; s.levels.snareFocus = 1;
     s.snare.signal = 5; s.snare.earned = 900;
     const m = E.migrate(JSON.parse(JSON.stringify({ ...s, version: 28 })));
     assert.equal(m.snare.signal, 900, 'what it earned, to spend again');

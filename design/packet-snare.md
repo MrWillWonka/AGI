@@ -700,6 +700,7 @@ MISSED), the five-health boss (10), left-click bubbles, the buzzer catch, the en
 The log (iPhone, 10 min, sectors 1–6): sector 2 took 6 runs and sector 3 six, while the boss on 5 and the goal on 6 fell first
 try; hauls grew 2–2.5× a run from sector 4; red was 1% of the field by sector 4 (2 spoils in 18 runs). The owner's calls:
 sectors 1–4 stay at 25/100/200/400; goals grow ×2.25 a sector from sector 5 (sector 6: 2,025); the first boss has 15 health;
-a full bubble pays ×2.0 (`areaUnit` 0.2, round 6); and the nodes that cut red at spawn now act on red already on the field:
-Sanitizer's decay, Checksums' clean catches, Reputation Check's vouching schools and Spam Filter's push (Rate Limiter, Error
-Correction and Signature Database grow them). Save v29 refunds their levels.
+a full bubble pays ×2.0 (`areaUnit` 0.2, round 6); and the nodes that cut red at spawn became helpers you buy (red changing
+by itself felt disconnected): Cleaner Bot at Intrusion's root, Bouncer and Escort bots, Checksum and Jammer towers. The packet
+nodes folded into Sprawl (9 levels), Packet Stream (6) and Broadband, so the rest of the tree shows sooner. Save v29 refunds
+the tree.

@@ -1982,14 +1982,14 @@ test('the build stamp has its row in playtests/README.md\'s Builds table (bump B
 test('Packet Snare: every branch opens with a cheap packet or red-packet node (after the review rounds the repeats were folded)', () => {
     const root = up => { while (up.requires) up = E.UPGRADE_BY_ID[up.requires]; return up.id; };
     const ring = up => Math.abs(up.snare.x) + Math.abs(up.snare.y);
-    for (const r of ['snareFocus', 'snareSprawl', 'snareSanitizer', 'snareScrubbers']) {
+    for (const r of ['snareFocus', 'snareSprawl', 'snareCleanerBot', 'snareScrubbers']) {
         const early = E.SNARE_TREE.filter(up => root(up) === r && ring(up) <= 3 && up.cost.signal <= 300);
-        assert.ok(early.some(up => up.sn.density || up.sn.sprawl || (up.sn.decay || up.sn.checksum || up.sn.vouch || up.sn.lureMult)), `${r}'s branch has a packet or red-packet node in its first rings`);
+        assert.ok(early.some(up => up.sn.density || up.sn.sprawl || (up.sn.cleanBots || up.sn.bounceBots || up.sn.escortBots || up.sn.checkTowers)), `${r}'s branch has a packet or red-packet node in its first rings`);
     }
     const n = key => E.SNARE_TREE.filter(up => up.sn[key]).length;
     // the owner's call on the 15.5 log: folded into a few early nodes with many levels, so the rest show sooner
-    assert.ok(n('density') >= 3 && E.SNARE_TREE.filter(up => (up.sn.decay || up.sn.checksum || up.sn.vouch || up.sn.lureMult)).length >= 4, 'a few of each');
-    for (const id of ['snareSprawl', 'snarePacketStream', 'snareSanitizer', 'snareChecksums']) assert.ok(E.UPGRADE_BY_ID[id].deep && E.UPGRADE_BY_ID[id].max >= 5, `${id} holds the folded levels`);
+    assert.ok(n('density') >= 3 && E.SNARE_TREE.filter(up => (up.sn.cleanBots || up.sn.bounceBots || up.sn.escortBots || up.sn.checkTowers)).length >= 4, 'a few of each');
+    for (const id of ['snareSprawl', 'snarePacketStream', 'snareCleanerBot', 'snareChecksumTowers']) assert.ok(E.UPGRADE_BY_ID[id].deep && E.UPGRADE_BY_ID[id].max >= 4, `${id} holds the folded levels`);
     assert.ok(E.UPGRADE_BY_ID.snareChain.cost.signal < 300, 'a real ability under 300 Signal');
 });
 
@@ -2027,7 +2027,7 @@ test('a save from before Snare 11 gets every Packet Snare level back as Signal (
     assert.equal(fresh.snare.signal, 1200);
 });
 
-test('Packet Snare: the first buys turn red on the field regular, and leave it spawning (the owner\'s call on the 15.5 log)', () => {
+test('Packet Snare: the first buys bring helpers that deal with red, and leave it spawning (the owner\'s calls on the 15.5 log)', () => {
     // A buyer who always takes the cheapest node has red turning regular before 500 Signal is spent, and as much red coming.
     const s = E.defaultState(Date.now());
     const base = E.snareOpts(s, E.RED_SECTOR).corruptShare;
@@ -2042,14 +2042,14 @@ test('Packet Snare: the first buys turn red on the field regular, and leave it s
     }
     const o = E.snareOpts(s, E.RED_SECTOR);
     assert.equal(o.corruptShare, base, 'as much red spawning');
-    assert.ok(o.redDecay > 0 || o.checksum > 0, 'red on the field turns regular by 500 Signal');
-    assert.equal(E.UPGRADE_BY_ID.snareSanitizer.requires, undefined, 'Sanitizer is a root');
+    assert.ok(o.cleanBots > 0 || o.checkTowers > 0, 'a helper dealing with red by 500 Signal');
+    assert.equal(E.UPGRADE_BY_ID.snareCleanerBot.requires, undefined, 'Cleaner Bot is a root (the owner\'s call: helpers early)');
 });
 
 test('Packet Snare: no node does the same thing as the node it grows from, or as a node beside it on the same parent (the owner\'s call)', () => {
     // Stats that read the same to the player count as one: a bigger field, denser packets, packets back sooner and
     // packets swimming in are all "more packets"; fewer red and less lure are "fewer red"; and so on.
-    const THEMES = { packets: ['sprawl', 'density', 'schoolSize', 'respawnMult', 'broadband', 'surge', 'pulse'], red: ['cleaner', 'lureMult', 'decay', 'checksum', 'vouch'],
+    const THEMES = { packets: ['sprawl', 'density', 'schoolSize', 'respawnMult', 'broadband', 'surge', 'pulse'], red: ['cleaner', 'lureMult'],
         gold: ['goldChance', 'goldValue', 'goldPlate', 'storm'], focus: ['focus', 'drainMult', 'focusBack', 'cleanSweep'], cap: ['maxMult'],
         boss: ['slashDamage', 'parryDamage', 'crash', 'escalate', 'escalateDamage'], emitters: ['emitters', 'laserSides'] };
     const stats = up => [...new Set([...Object.keys(up.sn || {}), ...Object.values(up.stages || {}).flatMap(Object.keys)])];
