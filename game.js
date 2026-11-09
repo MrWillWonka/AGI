@@ -11560,6 +11560,13 @@ window.AGI = (function () {
             startOver() { startFresh('debugStartOver'); },
             // The Packet Snare run in play (tests and the debug view; read it, don't change it).
             snareRun: () => snare.run,
+            // Where a field point is on screen (client px), for scripted play (tools, reviews): a turned field included.
+            snareScreen: (x, y) => {
+                const c = snare.canvas?.getBoundingClientRect(), z = uiScale();
+                if (!c || !snare.run) return null;
+                const [sx, sy] = snare.turned ? [(snare.run.h - y) * snare.scale, x * snare.scale] : [x * snare.scale, y * snare.scale];
+                return { x: c.left + (sx + snare.ox) * z, y: c.top + (sy + snare.oy) * z };
+            },
             // Packet Snare's boss: bring it into the run in play now, or clear the sector outright.
             snareBoss() {
                 const r = snare.run;
