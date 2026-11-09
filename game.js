@@ -4372,7 +4372,7 @@ window.AGI = (function () {
     // What your training gives you here, on the start card: how many skills, and the newest.
     const snareTrainingLine = () => {
         const b = E.snareSkillBuffs(state);
-        return b.length ? ['From your training', `${b.length} skill${b.length === 1 ? '' : 's'} · ${b.at(-1).text}`] : null;
+        return b.length ? ['Training', `${b.length} skill${b.length === 1 ? '' : 's'} · ${b.at(-1).text}`] : null;
     };
     const snareSector = k => `Sector ${k + 1}: ${E.snareSectorName(k)}${E.SNARE_GATES.includes(k) ? ' · Gate' : ''}`;
     // What clears a sector: its boss every fifth sector, else a goal of packets in one run.
@@ -4483,6 +4483,9 @@ window.AGI = (function () {
                 // A boss beaten leads the card (round 2 of the review: it read like any other run).
                 d.cleared.some(k => E.isSnareBossSector(k)) ? el('div', { class: 'result-main snare-boss-down', text: `Boss down · ${s.slashes || 0} slash${s.slashes === 1 ? '' : 'es'}${s.mineThrows ? ` · ${s.mineThrows} mine${s.mineThrows === 1 ? '' : 's'} thrown` : ''}` }) : null,
                 el('div', { class: 'result-main', text: s.caught ? `${s.caught} packet${s.caught === 1 ? '' : 's'} snared` : 'Nothing snared' }),
+                // nothing caught: why, in plain words, first (round 9 of the review: "Corrupted catches 1" didn't say it)
+                !s.caught ? el('p', { class: 'snare-intro-line snare-red-line', text: s.corrupted ? 'A red packet got into your bubble: the catch spoiled. Let go before red swims in.'
+                    : s.snaps ? 'Your bubble was popped before you let go.' : 'Hold still on the field to grow a bubble, then let go to catch what\'s inside.' }) : null,
                 el('div', { class: 'result-xp', text: `+${E.format(d.haul)} Signal` }),
                 d.record ? el('span', { class: 'result-badge', text: `New record · was +${E.format(d.prev)}` }) : null,
                 ...resultLines(lines),
@@ -4774,6 +4777,8 @@ window.AGI = (function () {
         applySnareCam();
     }
 
+    // A phone turned with the tree open: frame it again (round 9 of the review: sideways it opened cut off).
+    matchMedia('(orientation: landscape)').addEventListener?.('change', () => { if (snare.tree) setTimeout(fitSnareTree, 120); });
     function openSnareTree() {
         if (!snareUi.built) return;
         snare.tree = true;
@@ -5084,6 +5089,8 @@ window.AGI = (function () {
     // it's bought, and each hazard's first-meeting card plays its own. The scripts live in snare-demos.js (pure, and
     // tested: each demo must show its payoff); drawn by the same layers as the bay.
     const SNARE_DEMO = { w: 240, h: 112 };
+    // The helpers' small labels stay off the boss (round 9 of the review: CLEANED sat on it mid-fight).
+    const nearBoss = e => { const b = snare.run?.boss; return !!b && Math.hypot(e.x - b.x, e.y - b.y) < b.r * 2.5; };
     // A run's event as an effect on the field (the bay and the demos share these).
     function snareFxFor(e, fx, text = '') {
         if (e.type === 'catch') {
@@ -5133,11 +5140,11 @@ window.AGI = (function () {
         // a red packet turned regular (a Cleaner or Escort bot, a Checksum tower: a line from the helper)
         else if (e.type === 'cleaned') {
             if (e.from) fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.4, small: true });
-            fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'CLEANED', small: true });
+            if (!nearBoss(e)) fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'CLEANED', small: true });
         }
         else if (e.type === 'shoved') {
             fx.push({ kind: 'laser', from: e.from, x: e.x, y: e.y, t: 0, life: 0.3, small: true });
-            fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.5, text: 'SHOVED', small: true });
+            if (!nearBoss(e)) fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.5, text: 'SHOVED', small: true });
         }
         else if (e.type === 'convert') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.6, text: 'TRUSTED', small: true });
         else if (e.type === 'zoneDown') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: Math.max(e.hw, e.hh), t: 0, life: 0.7 });

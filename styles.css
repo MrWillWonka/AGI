@@ -3545,3 +3545,11 @@ body.calm .snare-deeper.lit, body.idle .snare-deeper.lit { animation: none; }
 .snare-card .result-lines li.wide { display: block; }
 .snare-card .result-lines li.wide > span:first-child { display: block; }
 .snare-card .result-lines li.wide > span:last-child { display: block; text-align: left; }
+
+/* Sideways phones (round 9 of the review: a card's teaching sat below the fold behind Start): a wider card, its demos
+   floated to the left with the words beside them, Start across the foot. */
+@media (max-height: 500px) and (orientation: landscape) {
+    .snare-card:has(.demo) { width: min(720px, 92vw); max-width: min(720px, 92vw); }
+    .snare-card:has(.demo) > .demo { float: left; clear: left; width: 150px; margin: 2px 14px 6px 0; }
+    .snare-card:has(.demo) > .result-actions { clear: both; }
+}
