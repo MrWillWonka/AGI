@@ -6584,7 +6584,7 @@ window.AGI = (function () {
         // what letting go now would pay, above it (kept inside the canvas, clear of the finger)
         ctx.font = `700 13px ${snareMono()}`;
         ctx.textAlign = 'center';
-        const label = pv.spoiled ? 'CORRUPT ✕ · let go and it spoils' : pv.inside.length ? `×${pv.mult.toFixed(1)} · ${pv.good.length}${pv.scrub ? ` · ${pv.scrub} scrubbed` : ''}${pv.safe ? ' · SAFE' : ''}${b.full ? ' · FULL' : ''}`
+        const label = pv.spoiled ? 'CORRUPT ✕ · it spoils' : pv.inside.length ? `×${pv.mult.toFixed(1)} · ${pv.good.length}${pv.scrub ? ` · ${pv.scrub} scrubbed` : ''}${pv.safe ? ' · SAFE' : ''}${b.full ? ' · FULL' : ''}`
             : `×${pv.mult.toFixed(1)}${b.full ? ' · FULL' : ''}`;
         const half = ctx.measureText(label).width / 2 + 8;
         const lx = Math.max(half, Math.min(cw - half, x + d.ox)) - d.ox;
