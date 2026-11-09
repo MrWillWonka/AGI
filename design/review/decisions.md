@@ -3,8 +3,6 @@
 Claude brings these as question cards at each check-in, and builds nothing that depends on one until it's answered.
 When answered: the change, `settled.md` (or `targets.json`) and this file are updated in the same commit.
 
-- **D0 Keep, change or revert every change from review rounds 6–9** (the helpers, the folded tree, the goals, the boss,
-  the round fixes), before the next publish. The owner asked for this review before publishing.
 ## Answered and built (2026-11-09)
 - **D1** → sector 3's goal 185 (kept after the sweep: 8 runs, a known miss of the 2–7 target).
 - **D2 + D3** → sector pay +15% a sector (from +25%; +10% walled sectors 6, 9 and 11 in the sweep), goals ×2.25 a sector
@@ -19,4 +17,4 @@ When answered: the change, `settled.md` (or `targets.json`) and this file are up
 - **D7** → achievement toasts stay as they are (they show in the tree; swipe or click away).
 - **D8** → built: the tree's branch names in a frame round the view, level pills about 10 px at any zoom.
 
-## Open- Only D0, above.
+## Open
