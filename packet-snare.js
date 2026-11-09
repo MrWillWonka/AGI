@@ -695,19 +695,45 @@
             b.x = Math.max(0.2, Math.min(w - 0.2, b.x + b.vx * dt));
             b.y = Math.max(0.2, Math.min(h - 0.2, b.y + b.vy * dt));
         };
-        // A Bouncer bot: to the nearest red packet hiding in a school, and shoves it out, away from the school.
-        function bounceStep(b, dt, speed, taken) {
-            let target = null, bd = Infinity, from = null;
-            for (const p of s.packets) {
-                if (p.kind !== 'corrupt' || spoofed(p) || taken.has(p.id) || p.shoved > s.time) continue;
-                let n = 0, cx = 0, cy = 0;
+        // A Bouncer bot: to the nearest red packet hiding in a school, and shoves it out, away from the school. It picks
+        // its target five times a second, counting the good packets round each red on a grid of 1.5-unit cells (all
+        // against all was a quarter of a full field's frame).
+        let goodGrid = null, goodGridAt = -1;
+        function goodsNear(p) {
+            if (goodGridAt !== s.time) {
+                goodGridAt = s.time;
+                goodGrid = new Map();
                 for (const q of s.packets) {
-                    if (q.kind === 'corrupt' || (q.x - p.x) ** 2 + (q.y - p.y) ** 2 > 2.25) continue;
+                    if (q.kind === 'corrupt') continue;
+                    const key = Math.floor(q.x / 1.5) * 4096 + Math.floor(q.y / 1.5);
+                    const c = goodGrid.get(key);
+                    if (c) c.push(q); else goodGrid.set(key, [q]);
+                }
+            }
+            let n = 0, cx = 0, cy = 0;
+            const gx = Math.floor(p.x / 1.5), gy = Math.floor(p.y / 1.5);
+            for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+                for (const q of goodGrid.get((gx + i) * 4096 + gy + j) || []) {
+                    if ((q.x - p.x) ** 2 + (q.y - p.y) ** 2 > 2.25) continue;
                     n++; cx += q.x; cy += q.y;
                 }
-                if (n < o.bounceCrowd) continue;
-                const d = Math.hypot(p.x - b.x, p.y - b.y);
-                if (d < bd) { bd = d; target = p; from = { x: cx / n, y: cy / n }; }
+            }
+            return { n, cx, cy };
+        }
+        function bounceStep(b, dt, speed, taken) {
+            let target = null, bd = Infinity, from = null;
+            const keep = b.aim && b.aimUntil > s.time && b.aim.kind === 'corrupt' && !(b.aim.shoved > s.time) && s.packets.includes(b.aim);
+            if (keep) { target = b.aim; from = b.aimFrom; bd = Math.hypot(target.x - b.x, target.y - b.y); }
+            else {
+                for (const p of s.packets) {
+                    if (p.kind !== 'corrupt' || spoofed(p) || taken.has(p.id) || p.shoved > s.time) continue;
+                    const d = Math.hypot(p.x - b.x, p.y - b.y);
+                    if (d >= bd) continue;
+                    const g = goodsNear(p);
+                    if (g.n < o.bounceCrowd) continue;
+                    bd = d; target = p; from = { x: g.cx / g.n, y: g.cy / g.n };
+                }
+                b.aim = target; b.aimFrom = from; b.aimUntil = s.time + 0.2;
             }
             if (target) taken.add(target.id);
             steer(b, target || crowdSpot(), target ? speed : speed * 0.4, dt, !target);
@@ -782,12 +808,13 @@
         function botStep(dt) {
             if (!s.bots.length) return;
             const speed = o.botSpeed * grow, taken = new Set();
+            const allReds = s.packets.filter(p => p.kind === 'corrupt' && !spoofed(p));
             for (const b of s.bots) {
                 if (b.kind === 'collect') { collectStep(b, dt, speed, taken); continue; }
                 if (b.kind === 'bounce') { bounceStep(b, dt, speed, taken); continue; }
                 if (b.kind === 'escort') { escortStep(b, dt, speed); continue; }
                 if (b.tower) { helperTowerStep(b, dt); continue; }
-                const reds = s.packets.filter(p => p.kind === 'corrupt' && !spoofed(p) && !taken.has(p.id));
+                const reds = allReds.filter(p => !taken.has(p.id) && p.kind === 'corrupt' && !spoofed(p));
                 let target = null, bd = Infinity;
                 for (const p of reds) { const d = Math.hypot(p.x - b.x, p.y - b.y); if (d < bd) { bd = d; target = p; } }
                 if (b.kind === 'clean' && o.goldPlate && s.time >= b.goldAt) {

@@ -4417,8 +4417,11 @@ window.AGI = (function () {
             // Look out: every threat the next run brings that hasn't been met, with its demo (the owner's call after the
             // review rounds: threats are met before a run, never mid-run); the same ones again if the card is rebuilt
             // before the run starts. The first run's card has the bubble, then the red packet.
-            const meet = snare.meeting || snareMeetNext();
-            snare.meeting = meet;
+            // (kept for the sector it was made for: switching Start at between a replay and the frontier kept the replay's
+            // empty list, so the boss's tip came mid-fight; found by tools/review/report.js)
+            const at = snareNextSector();
+            const meet = snare.meeting?.sector === at ? snare.meeting.kinds : snareMeetNext();
+            snare.meeting = { sector: at, kinds: meet };
             const meetRed = meet.length > 0;
             for (const k of meet) state.intro[`snare:intro:${k}`] = true;
             card.replaceChildren(...[
