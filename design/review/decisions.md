@@ -7,7 +7,10 @@ When answered: the change, `settled.md` (or `targets.json`) and this file are up
   the round fixes), before the next publish. The owner asked for this review before publishing.
 ## Answered (2026-11-09), being checked with the pacing tool before the change
 - **D1** → sector 3's goal 185 (between 175's 3 runs and 200's 8).
-- **D2 + D3** → sector pay +10% a sector (from +25%) and goals ×2.75 a sector from sector 5 (from ×2.25).
+- **D2 + D3** → sector pay +10% a sector (from +25%), goals ×2.25 a sector from sector 5 (settled; ×2.75 made walls of
+  sectors 6 and 8 in the check), late nodes (ring 4 and out) dearer so the tree lasts 60 minutes, and sector 6's goal
+  eased (it was an 11–12-run wall after the first boss); the price multiple and sector 6's goal being found with the
+  pacing tool.
 - **D4** → the first boss's 15 health stays *(trial)* until the owner has fought it.
 - **D5** → the targets confirmed, the tree to last at least 60 minutes (not 45).
 - **D6** → the first run stays 25 in 10 s.
