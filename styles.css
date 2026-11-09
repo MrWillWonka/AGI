@@ -3447,7 +3447,9 @@ body.calm .snare-deeper { animation: none; }
 /* First-meeting cards are tips (the green ↻ header), not a run's card; their button stays in view on short screens. */
 .snare-card.snare-intro { border-color: color-mix(in srgb, var(--success) 70%, transparent); }
 .snare-card.snare-intro .result-title { color: var(--success); }
-.snare-card .result-actions { position: sticky; bottom: -18px; padding: 8px 0 2px; background: color-mix(in srgb, var(--bg) 95%, transparent); }
+/* opaque, with an edge (round 7 of the review: a card's text showed through its buttons as it scrolled) */
+.snare-card .result-actions { position: sticky; bottom: -18px; z-index: 2; padding: 8px 0 20px; margin-bottom: -18px; background: var(--bg); box-shadow: 0 -10px 12px -8px var(--bg); }
+.snare-card .demo canvas { max-height: 22vh; width: auto; max-width: 100%; }
 /* The rack's Packet Snare badge sits inside the tile (it was clipped by the bay's edge). */
 .bay[data-ready]::after { top: 8px; right: 8px; z-index: 3; }
 /* The field uses the bay's height on desktop (it sat in a 448 px strip with empty floor under it). */

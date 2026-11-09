@@ -4364,7 +4364,10 @@ window.AGI = (function () {
     };
     const snareSector = k => `Sector ${k + 1}: ${E.snareSectorName(k)}${E.SNARE_GATES.includes(k) ? ' · Gate' : ''}`;
     // What clears a sector: its boss every fifth sector, else a goal of packets in one run.
-    const snareGoalText = k => (E.isSnareBossSector(k) ? 'A boss guards this sector: beat it to clear it' : `Clear it: catch ${E.snareGoal(k)} in one run${k >= 2 ? ' (a ×2 bubble counts its packets 1.5×)' : ''}`);
+    // goals with thousands separators, and the loop bonus in plain words (round 7 of the review: "catch 35185" and
+    // "(a ×2 bubble counts its packets 1.5×)" didn't read)
+    const goalNum = n => Math.round(n).toLocaleString('en-US');
+    const snareGoalText = k => (E.isSnareBossSector(k) ? 'A boss guards this sector: beat it to clear it' : `Clear it: catch ${goalNum(E.snareGoal(k))} in one run${k >= 2 ? ' (big bubbles count extra toward it)' : ''}`);
     // What the best haul feeds: research, a trickle while you play.
     const snareRpLine = () => {
         const rp = E.derive(state).snareRp;
@@ -4425,7 +4428,7 @@ window.AGI = (function () {
             // Folded like the trail's card: the first lines and the key ones show, the rest under Details.
             const lines = [
                 // The goal as the HUD counted it (a blind playtest: "Goal 59/70" on the HUD, "36 packets snared" here).
-                d.goal && !d.goalDone ? ['Goal', `${Math.min(d.goalAt, d.goal)}/${d.goal}`, d.goal - d.goalAt <= d.goal * 0.15 ? 'key' : ''] : null,
+                d.goal && !d.goalDone ? ['Goal', `${goalNum(Math.min(d.goalAt, d.goal))}/${goalNum(d.goal)}`, d.goal - d.goalAt <= d.goal * 0.15 ? 'key' : ''] : null,
                 d.cleared.length ? [d.cleared.length === 1 ? 'Sector cleared' : `${d.cleared.length} sectors cleared`,
                     Array.from({ length: d.sector - d.startSector + 1 }, (_, i) => d.startSector + i).map(k => E.snareSectorName(k) + (d.cleared.includes(k) ? ' ✓' : '')).join(' → '), 'key'] : null,
                 [s.bubbles ? 'Catches' : 'Loops closed', `${s.catches}`],
@@ -4570,7 +4573,7 @@ window.AGI = (function () {
         const boss = run.boss ? ` · Boss ${run.boss.hp}/${run.boss.maxHp}`
             // A sector with no boss: how far along its goal is (cleared once it's reached).
             : run.bossDone ? ' · Boss down ✓'
-            : run.opts.goal > 0 ? ` · ${run.goalDone ? (snareNarrow() ? '✓' : 'Cleared ✓') : `${snareNarrow() ? '' : 'Goal '}${Math.min(Math.floor(run.goalProgress()), run.opts.goal)}/${run.opts.goal}`}` : '';
+            : run.opts.goal > 0 ? ` · ${run.goalDone ? (snareNarrow() ? '✓' : 'Cleared ✓') : `${snareNarrow() ? '' : 'Goal '}${goalNum(Math.min(Math.floor(run.goalProgress()), run.opts.goal))}/${goalNum(run.opts.goal)}`}` : '';
         setText($('snareFocusText'), `${snareNarrow() ? '' : 'Focus '}${Math.ceil(run.focus)} s${boss}`);
         // A held Race Condition loop ticks up every half second.
         if (run.race) {
@@ -4591,7 +4594,8 @@ window.AGI = (function () {
     // One symbol per kind of upgrade, like the Training tree's (round 3: ghosts, targets and dice meant three things each):
     // a node's icon comes from the first stat it changes, and the tool bar uses the same ones.
     const SNARE_STAT_ICON = { focus: 'eye', maxMult: 'pipes', wireMult: 'strip', bubbleSize: 'expand', bubbleGrow: 'target', drainMult: 'gauge', closeMult: 'target', focusBack: 'wave',
-        race: 'hourglass', freeze: 'timer', freezeSeconds: 'timer', sprawl: 'expand', pay: 'boost', schooling: 'school', contain: 'lock',
+        race: 'hourglass', freeze: 'timer', freezeSeconds: 'timer', sprawl: 'expand', pay: 'boost', schooling: 'school', contain: 'anchor',   // a padlock read as a locked node (round 7 of the review)
+       
         herders: 'drone', herdEvade: 'drone', herdRadius: 'drone', density: 'stack', goldChance: 'coin', goldValue: 'coin', tagValue: 'star',
         gc: 'trash', spoof: 'mask', slashDamage: 'sword', parryDamage: 'slash', parry: 'slash', bossStun: 'timer', fork: 'fork', star: 'burst', escalate: 'ram', cleaner: 'terminal', laser: 'beams', emitters: 'beams', laserSides: 'beams', laserMult: 'beams',
         turrets: 'turret', turretPurge: 'turret', turretRange: 'turret', turretRate: 'turret', scanner: 'radar', towers: 'mast', towerRange: 'mast',
@@ -5098,7 +5102,10 @@ window.AGI = (function () {
         else if (e.type === 'bossHit') {
             // round 6 of the review: a run of slashes stacked their labels into a column; the newest replaces the last
             for (let i = fx.length - 1; i >= 0; i--) if (fx[i].hit) fx.splice(i, 1);
-            fx.push({ kind: 'quarantine', hit: true, x: e.x, y: e.y, r: e.r || window.PacketSnare.BOSS_R, t: 0, life: 0.7, text: `${e.how === 'ram' ? 'RAMMED' : e.how === 'parry' ? 'RIPOSTE' : e.how === 'crash' ? 'BLUE SCREEN' : 'SLASH'} −${e.dmg} · ${e.hp} left`, big: true });
+            // the ring on the boss, the words under it (round 7 of the review: they sat on SLASH! over it)
+            const br = e.r || window.PacketSnare.BOSS_R;
+            fx.push({ kind: 'quarantine', hit: true, x: e.x, y: e.y, r: br, t: 0, life: 0.7 });
+            fx.push({ kind: 'stun', hit: true, x: e.x, y: e.y + br + 0.9, t: 0, life: 0.8, text: `${e.how === 'ram' ? 'RAMMED' : e.how === 'parry' ? 'RIPOSTE' : e.how === 'crash' ? 'BLUE SCREEN' : 'SLASH'} −${e.dmg} · ${e.hp} left` });
         }
         // a slash too soon after the last (round 6: it was swallowed without a word); at most one a half second
         else if (e.type === 'slashSoon') {
