@@ -434,9 +434,14 @@ test('Packet Snare\'s tree opens with the bay, grows node by node, and is bought
     }
     s.unlocked['module:snare'] = true;
     E.evaluate(s);
+    assert.ok(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareSeed), 'the seed shows');
+    assert.ok(!E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareSprawl), 'the roots wait for it');
+    s.snare.signal = 1000;
+    assert.ok(E.buy(s, 'snareSeed').ok);
+    s.snare.signal = 1000;
+    E.evaluate(s);
     assert.ok(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareSprawl), 'the first ring shows');
     assert.ok(!E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareGold), 'its children wait');
-    s.snare.signal = 1000;
     assert.ok(E.buy(s, 'snareSprawl').ok);
     assert.equal(s.snare.signal, 1000 - E.UPGRADE_BY_ID.snareSprawl.cost.signal);
     E.evaluate(s);

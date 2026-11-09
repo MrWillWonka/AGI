@@ -2576,9 +2576,9 @@
             s.cleanRun = clean ? s.cleanRun + 1 : 0;
             // Firehose: a clean loop sends a pulse of packets in from upstream.
             if (o.pulse && clean) {
-                school(2 * o.pulse, true);
+                school(Math.round(2 * o.pulse), true);
                 s.stats.pulses++;
-                s.events.push({ type: 'pulse', count: 2 * o.pulse });
+                s.events.push({ type: 'pulse', count: Math.round(2 * o.pulse) });
             }
             // Clean Sweep: a clean loop, and drawing is free for a moment.
             if (o.cleanSweep && clean) {

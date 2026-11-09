@@ -36,12 +36,12 @@ function play(sector, levels = {}, seed = 7) {
     return { need: o.boss, hits: s.stats.bossDamage, done: s.bossDone, signal: Math.round(signal), parries: s.stats.parries, secs: Math.round(s.time) };
 }
 
-const FOCUS = { snareFocus: 3, snareBandwidth: 2, snareLongWire: 2, snareOverflow: 2, snareSteady: 2 };
+const FOCUS = { snareSeed: 1, snareFocus: 9, snarePacketStream: 2, snareBandwidth: 2, snareLongWire: 1, snareSteady: 2 };
 const BUILDS = [
     ['a first run', {}],
-    ['Attention Span 3', { snareFocus: 3 }],
+    ['Attention Span 3', { snareSeed: 1, snareFocus: 3 }],
     ['the Focus branch', FOCUS],
-    ['Focus + Ghost Protocol', { ...FOCUS, snareScrubbers: 1, snareFirewalls: 1, snareDecoys: 1, snareHijack: 1, snareGhost: 3 }],
+    ['Focus + Ghost Protocol', { ...FOCUS, snareFirewalls: 1, snareDecoys: 1, snareHijack: 1, snareGhost: 3 }],
     ['Focus + a datacentre', { ...FOCUS, snareSprawl: 9 }],
     ['Focus + Root Access 3', { ...FOCUS, snareGc: 1, snareSpoof: 2, snareParry: 3 }],
     ['Focus + Root Access 3, Kernel Panic', { ...FOCUS, snareGc: 1, snareSpoof: 2, snareParry: 3, snareKernelPanic: 2 }],

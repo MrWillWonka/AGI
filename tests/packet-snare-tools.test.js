@@ -280,9 +280,9 @@ test('the research trickle is capped, and Overclock raises every catch', () => {
 test('the tree cuts red, fills the field with packets and grows it to a datacentre', () => {
     const s = E.defaultState(NOW);
     const base = E.snareOpts(s);
-    for (const id of ['snareSanitizer', 'snareChecksums', 'snareSpamFilter', 'snareReputation', 'snareCleanerBot']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
+    for (const id of ['snareSanitizer', 'snareCleanerBot']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
     s.levels.snareSprawl = 9;
-    for (const id of ['snareSchools', 'snareFirehose', 'snareBroadband', 'snarePacketStream']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
+    for (const id of ['snareSeed', 'snareSchools', 'snareFloodgate', 'snareTowers', 'snarePacketStream']) s.levels[id] = E.UPGRADE_BY_ID[id].max;
     s.levels.snareFirewalls = 1;
     const o = E.snareOpts(s, E.AV_SECTOR);
     // the owner's call on the Snare 16 log: the red nodes cut red at spawn again, and the Cleaner Bot turns what's left

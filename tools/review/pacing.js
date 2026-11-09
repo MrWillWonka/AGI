@@ -50,11 +50,12 @@ const OWNER = (DESK && readJson(path.join(root, 'design', 'review', 'owner-profi
 const PACE = { ...HUMAN, ...((DESK && readJson(path.join(__dirname, 'human-desktop.json'))) || readJson(path.join(__dirname, 'human.json')) || {}) };
 delete PACE.from;
 
-// Buys like the owner did (Attention Span and the field first, then the red-packet nodes, more packets, gold, the
-// abilities, the Cleaner Bot once it shows), the first affordable in this order, else the cheapest.
-const ORDER = ['snareFocus', 'snareSprawl', 'snareSanitizer', 'snarePacketStream', 'snareScrubbers', 'snareGold', 'snareChecksums', 'snareContain',
-    'snareBandwidth', 'snareSpamFilter', 'snareSchools', 'snareChain', 'snareReputation', 'snareKernelPanic', 'snareCleanerBot', 'snareLongWire', 'snareOverflow',
-    'snareSteady', 'snareFirehose', 'snareMotherLode', 'snareGoldPlate', 'snareParry', 'snareRiposte', 'snareChainStorm', 'snareBroadband'];
+// Buys like a person does: the cheapest affordable node on this list (the seed, the four roots coming back to over time,
+// the Decoder Bot, gold, the abilities; a tie goes to the earlier one), else the cheapest off it. The first affordable in
+// list order sank everything into Attention Span's nine levels before the first Sanitizer.
+const ORDER = ['snareSeed', 'snareFocus', 'snareSprawl', 'snareSanitizer', 'snarePacketStream', 'snareCleanerBot', 'snareGold', 'snareContain',
+    'snareBandwidth', 'snareSchools', 'snareChain', 'snareKernelPanic', 'snareLongWire', 'snareSteady', 'snareGoldPlate', 'snareParry',
+    'snareRiposte', 'snareChainStorm', 'snareTowers'];
 const rank = id => { const i = ORDER.indexOf(id); return i < 0 ? 99 : i; };
 
 function field(o, scr) {
@@ -119,7 +120,7 @@ function campaign(seed, scr, { pace = PACE, minutes = MINUTES, runCap = RUN_CAP,
         let bought = 0;
         for (let n = 0; n < 40; n++) {
             const c = E.SNARE_TREE.filter(u => E.isUpgradeVisible(s, u) && !E.isMaxed(s, u) && E.canAfford(s, E.upgradeCost(u, E.level(s, u.id))))
-                .sort((a, b) => rank(a.id) - rank(b.id) || E.upgradeCost(a, E.level(s, a.id)).signal - E.upgradeCost(b, E.level(s, b.id)).signal)[0];
+                .sort((a, b) => (rank(a.id) === 99) - (rank(b.id) === 99) || E.upgradeCost(a, E.level(s, a.id)).signal - E.upgradeCost(b, E.level(s, b.id)).signal || rank(a.id) - rank(b.id))[0];
             if (!c || !E.buy(s, c.id).ok) break;
             bought++;
             E.evaluate(s);

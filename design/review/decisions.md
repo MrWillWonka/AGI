@@ -21,6 +21,12 @@ When answered: the change, `settled.md` (or `targets.json`) and this file are up
   out at 37.5–40 min on a phone (31–33 before), 35–36 on desktop; sector 2 still 9 runs, because red isn't what paces it
   (no red at all: 7; a goal of 60 moved the wall to sector 3, 12–22 runs). Judge sector 2 by hand: the owner took 6.
 
+- **D16 (answered 2026-11-09)**: the tree's repeats. The owner's call: the four first nodes are ones you come back to
+  over time (nine levels each), each holding its theme alone: Attention Span every +Focus (moved to Countermeasures'
+  side), Packet Stream every more-packets-and-sooner (where Focus was), Sprawl the field, Sanitizer every fewer-red;
+  a cheap seed at the centre like the Training tree's (Handshake, 5 Signal, +15% packets); Scrubbers gone, the Decoder
+  Bot early (100 Signal off Sanitizer) as the way to scrub red. Twelve nodes folded or gone; save v31 refunds the tree.
+
 ## Open
 - **D15 (watching)**: sector 3 on desktop. 10 runs on 17, 4 on 17.1, not cleared in 5 on 17.2 (best 100 of 185 packets,
   4–6 catches a run, Antivirus popping 0–2 bubbles). The owner's call: play more first, no change; judge it on the next

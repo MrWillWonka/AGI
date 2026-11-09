@@ -4611,6 +4611,7 @@ window.AGI = (function () {
     }
 
     // ---- Packet Snare's skill tree: nodes on a small grid around the Lasso, bought with data -------------------
+    const snareSeedNode = up => !up.requires && up.snare.x === 0 && up.snare.y === 0;
     // Built from the Training tree's parts: the same nodes (.tree-node: circles, mechanic hexagons, the seed's diamond,
     // can-buy, owned, maxed, selected), line icons, links, the popup beside the node with its "now → after" line and,
     // for a new rule, a demo of it, and reveals as nodes appear. Its cells are fixed on a 13 × 13 grid that pans and zooms.
@@ -4628,7 +4629,7 @@ window.AGI = (function () {
         echo: 'loop', storm: 'cloud', crash: 'crash', zeroTrust: 'check', surge: 'surge', defuse: 'cut',
         pulse: 'surge', broadband: 'turret', cleanSweep: 'sweep', relay: 'route', backpressure: 'back',
         cleanBots: 'sweep', spoofBots: 'mask', collectBots: 'robot', goldPlate: 'coin', pen: 'pen', autoZone: 'deploy' };
-    const snareIcon = up => SNARE_STAT_ICON[Object.keys(up.sn || {})[0] || Object.keys(up.stages?.[1] || {})[0]] || 'spark';
+    const snareIcon = up => up.icon || SNARE_STAT_ICON[Object.keys(up.sn || {})[0] || Object.keys(up.stages?.[1] || {})[0]] || 'spark';
     const snareUi = { built: false, nodes: {}, links: [], popup: false, detailKey: '', fresh: false, cam: { x: 0, y: 0, z: 1 }, drag: null, pointers: new Map(), moved: false };
     // Fixed cells (like the Training tree's --cell): the tree grows six cells out from the Lasso, and you pan and zoom it.
     const snareCell = () => (window.matchMedia('(max-width: 640px)').matches ? 84 : 112);   // the Training tree's --cell
@@ -4645,9 +4646,11 @@ window.AGI = (function () {
         for (const [dir, name] of [['up', 'Bubbles'], ['right', 'Flow'], ['down', 'Intrusion'], ['left', 'Countermeasures']]) {
             grid.append(el('div', { class: `tree-branch tree-branch-${dir}`, 'aria-hidden': 'true' }, [el('strong', { text: name })]));
         }
+        // The centre is the seed node (Handshake, the owner's call: like the Training tree's Initial Weights); the inert
+        // Lasso diamond only stands there if no node does.
         const core = el('div', { class: 'tree-node seed owned snare-core', 'aria-hidden': 'true' });
         core.innerHTML = `<span class="tree-icon">${icon('lasso')}</span>`;
-        inner.append(core);
+        if (!E.SNARE_TREE.some(snareSeedNode)) inner.append(core);
         snareUi.core = core;
         for (const up of E.SNARE_TREE) {
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -4858,14 +4861,14 @@ window.AGI = (function () {
                 if (node.hidden && st !== 'hidden') revealed.push(node);
                 setHidden(node, st === 'hidden');
             }
-            node.className = `tree-node ${st}${up.mechanic ? ' mechanic' : ''}${snare.pick === up.id ? ' selected' : ''}${node.classList.contains('reveal-in') ? ' reveal-in' : ''}`;
+            node.className = `tree-node ${st}${snareSeedNode(up) ? ' seed' : ''}${up.mechanic ? ' mechanic' : ''}${snare.pick === up.id ? ' selected' : ''}${node.classList.contains('reveal-in') ? ' reveal-in' : ''}`;
             const lvl = E.level(state, up.id);
             node.querySelector('.tree-level').textContent = up.endless ? `${lvl}` : `${lvl}/${up.max}`;
             node.setAttribute('aria-label', up.endless ? `${up.name}: level ${lvl}` : `${up.name}: level ${lvl} of ${up.max}`);
             node.setAttribute('aria-pressed', String(snare.pick === up.id));
         }
         for (const { up, line } of snareUi.links) {
-            line.style.display = states[up.id] === 'hidden' ? 'none' : '';
+            line.style.display = states[up.id] === 'hidden' || snareSeedNode(up) ? 'none' : '';
             line.setAttribute('class', E.level(state, up.id) > 0 ? 'link-owned' : 'link-open');
         }
         if (snareUi.fresh) {
@@ -4881,7 +4884,16 @@ window.AGI = (function () {
         if (revealed.length && !$('snareTreeGrid').clientHeight) (snareUi.pendingReveal ||= []).push(...revealed);
         else if (snareUi.pendingReveal?.length) { revealed.push(...snareUi.pendingReveal); snareUi.pendingReveal = []; }
         if (revealed.length && !snareUi.drag && $('snareTreeGrid').clientHeight) {
-            const grid = $('snareTreeGrid'), z = uiScale(), g = grid.getBoundingClientRect(), M = 46;
+            const grid = $('snareTreeGrid'), z = uiScale(), M = 46;
+            // Nodes revealed on both sides wider than the view (Handshake's four roots on a phone) can't be panned
+            // in: zoom out about them first, so they all fit inside the margin.
+            const box = revealed.map(n => n.getBoundingClientRect()).reduce((b, r) => ({ l: Math.min(b.l, r.left), r: Math.max(b.r, r.right), t: Math.min(b.t, r.top), b: Math.max(b.b, r.bottom) }), { l: Infinity, r: -Infinity, t: Infinity, b: -Infinity });
+            const fit = Math.min((grid.clientWidth - 2 * M) * z / (box.r - box.l), (grid.clientHeight - 2 * M) * z / (box.b - box.t));
+            if (fit < 1) {
+                const g0 = grid.getBoundingClientRect();
+                zoomSnareTree(Math.max(SNARE_ZOOM.min, snareUi.cam.z * fit), ((box.l + box.r) / 2 - g0.left) / z, ((box.t + box.b) / 2 - g0.top) / z);
+            }
+            const g = grid.getBoundingClientRect();
             let dx = 0, dy = 0;
             for (const n of revealed) {
                 const r = n.getBoundingClientRect();

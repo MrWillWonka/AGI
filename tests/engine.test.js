@@ -50,7 +50,7 @@ test('skill-tree nodes do not overlap and grow from a neighbouring node', () => 
 test('Packet Snare\'s tree follows the Training tree\'s rules: priced past its parent, short text, no overlaps', () => {
     const nodes = E.SNARE_TREE;
     const total = (up, n) => { let c = 0; for (let l = 0; l < n; l++) c = E.upgradeCost(up, l).signal; return c; };
-    const seen = new Set(['0,0']);   // the Lasso takes the centre
+    const seen = new Set();   // the seed (Handshake) takes the centre
     for (const n of nodes) {
         if (n.endless) assert.equal(n.max, undefined, `${n.id}: the endless node has no cap`);
         // Snare 14 (the owner's call): the powers grow over five levels, like an incremental's; the rest keep 1–3.
@@ -65,14 +65,14 @@ test('Packet Snare\'s tree follows the Training tree\'s rules: priced past its p
         assert.ok(Math.abs(n.snare.x) <= 6 && Math.abs(n.snare.y) <= 6, `${n.id} sits on the 13 × 13 grid`);
         const parent = n.requires ? E.UPGRADE_BY_ID[n.requires] : null;
         const at = parent ? parent.snare : { x: 0, y: 0 };
-        assert.equal(Math.abs(at.x - n.snare.x) + Math.abs(at.y - n.snare.y), 1, `${n.id} is adjacent to what it grows from`);
+        if (parent || n.snare.x || n.snare.y) assert.equal(Math.abs(at.x - n.snare.x) + Math.abs(at.y - n.snare.y), 1, `${n.id} is adjacent to what it grows from`);
         // a folded node's children are priced past its second level (it goes on growing beside them)
         if (parent) assert.ok(n.cost.signal > total(parent, parent.deep ? Math.min(2, parent.max) : parent.max), `${n.id}'s first level costs more than ${parent.id}'s last`);
     }
     // Every node that brings a new rule is a hexagon.
     assert.ok(nodes.length >= 40, 'a big tree');
     assert.equal(nodes.filter(n => n.endless).length, 1, 'one endless sink');
-    for (const id of ['snareChain', 'snareScanner', 'snareScrubbers', 'snareLaser', 'snareFirewalls', 'snareDecoys', 'snareTurrets', 'snareTowers', 'snareFreeze', 'snarePurge', 'snareContain', 'snareHerders']) {
+    for (const id of ['snareChain', 'snareScanner', 'snareCleanerBot', 'snareLaser', 'snareFirewalls', 'snareDecoys', 'snareTurrets', 'snareTowers', 'snareFreeze', 'snarePurge', 'snareContain', 'snareHerders']) {
         assert.ok(E.UPGRADE_BY_ID[id].mechanic, `${id} is a mechanic`);
     }
 });
@@ -1982,13 +1982,18 @@ test('the build stamp has its row in playtests/README.md\'s Builds table (bump B
 test('Packet Snare: every branch opens with a cheap packet or red-packet node (after the review rounds the repeats were folded)', () => {
     const root = up => { while (up.requires) up = E.UPGRADE_BY_ID[up.requires]; return up.id; };
     const ring = up => Math.abs(up.snare.x) + Math.abs(up.snare.y);
-    for (const r of ['snareFocus', 'snareSprawl', 'snareSanitizer', 'snareScrubbers']) {
-        const early = E.SNARE_TREE.filter(up => root(up) === r && ring(up) <= 3 && up.cost.signal <= 300);
-        assert.ok(early.some(up => up.sn.density || up.sn.sprawl || up.sn.cleaner || up.sn.scrubbers), `${r}'s branch has a packet or red-packet node in its first rings`);
-    }
-    const n = key => E.SNARE_TREE.filter(up => up.sn[key]).length;
-    assert.ok(n('density') >= 3 && n('cleaner') >= 6, 'a few packet nodes, and the red nodes back (the owner\'s call on the Snare 16 log)');
-    for (const id of ['snareSprawl', 'snarePacketStream']) assert.ok(E.UPGRADE_BY_ID[id].deep && E.UPGRADE_BY_ID[id].max >= 4, `${id} holds the folded levels`);
+    // The owner's call: a cheap seed at the centre (like the Training tree's Initial Weights), and four roots round it that
+    // you come back to all game, each holding every node that did the same thing.
+    const seed = E.SNARE_TREE.filter(up => !up.requires);
+    assert.deepEqual(seed.map(up => up.id), ['snareSeed'], 'one seed, everything grows from it');
+    assert.ok(seed[0].cost.signal <= 10 && seed[0].max === 1 && seed[0].sn.density, 'a cheap one-level seed: more packets');
+    const roots = E.SNARE_TREE.filter(up => up.requires === 'snareSeed').map(up => up.id).sort();
+    assert.deepEqual(roots, ['snareFocus', 'snarePacketStream', 'snareSanitizer', 'snareSprawl']);
+    for (const r of roots) assert.ok(E.UPGRADE_BY_ID[r].deep && E.UPGRADE_BY_ID[r].max >= 9 && E.UPGRADE_BY_ID[r].cost.signal <= 60, `${r}: cheap to start, nine levels to come back to`);
+    // each root's stat lives only there: nothing else cuts red, adds Focus or thickens the field
+    const only = (key, id) => assert.deepEqual(E.SNARE_TREE.filter(up => up.sn[key] || up.perLevel?.some(l => l[key])).map(up => up.id).filter(x => x !== 'snareSeed'), [id], `${key} only on ${id}`);
+    only('cleaner', 'snareSanitizer'); only('focus', 'snareFocus'); only('density', 'snarePacketStream'); only('respawnMult', 'snarePacketStream'); only('sprawl', 'snareSprawl');
+    assert.ok(E.UPGRADE_BY_ID.snareScrubbers === undefined, 'Scrubbers gone (the owner\'s call: bots scrub red instead)');
     assert.ok(E.UPGRADE_BY_ID.snareChain.cost.signal < 300, 'a real ability under 300 Signal');
 });
 
@@ -2039,9 +2044,9 @@ test('Packet Snare: red is the early fight (22% on sector 2, 30% on sector 3, do
     const before = E.snareOpts(s, 1).corruptShare;
     s.levels.snareSanitizer = 1;
     assert.ok(E.snareOpts(s, 1).corruptShare < before * 0.9, 'Sanitizer: fewer red');
-    // the Cleaner Bot is no first buy: it grows from Kernel Panic, off the Sanitizer, and costs 700
+    // the owner's call (Snare 17): the Decoder Bot comes early, one step off the Sanitizer, in Scrubbers' place
     const cb = E.UPGRADE_BY_ID.snareCleanerBot;
-    assert.ok(cb.requires && cb.cost.signal >= 500, 'later than the first buys');
+    assert.ok(cb.requires === 'snareSanitizer' && cb.cost.signal <= 150, 'an early buy off the Sanitizer');
     assert.equal(E.UPGRADE_BY_ID.snareGoldPlate.requires, 'snareCleanerBot', 'Gold Plating right after it: good to gold');
     assert.ok(E.UPGRADE_BY_ID.snareGoldPlate.cost.signal <= 10000, 'mid-tree');
 });
@@ -2052,12 +2057,12 @@ test('Packet Snare: no node does the same thing as the node it grows from, or as
     const THEMES = { packets: ['sprawl', 'density', 'schoolSize', 'respawnMult', 'broadband', 'surge', 'pulse'], red: ['cleaner', 'lureMult'],
         gold: ['goldChance', 'goldValue', 'goldPlate', 'storm'], focus: ['focus', 'drainMult', 'focusBack', 'cleanSweep'], cap: ['maxMult'],
         boss: ['slashDamage', 'parryDamage', 'crash', 'escalate', 'escalateDamage'], emitters: ['emitters', 'laserSides'] };
-    const stats = up => [...new Set([...Object.keys(up.sn || {}), ...Object.values(up.stages || {}).flatMap(Object.keys)])];
+    const stats = up => [...new Set([...Object.keys(up.sn || {}), ...Object.values(up.stages || {}).flatMap(Object.keys), ...(up.perLevel || []).flatMap(Object.keys)])];
     const themes = up => new Set(stats(up).map(k => Object.keys(THEMES).find(t => THEMES[t].includes(k)) || k));
     const shared = (a, b) => [...themes(a)].filter(t => themes(b).has(t));
     const kids = {};
     for (const up of E.SNARE_TREE) {
-        if (!up.requires) continue;
+        if (!up.requires || up.requires === 'snareSeed') continue;   // the seed's roots are four branches, not siblings
         const parent = E.UPGRADE_BY_ID[up.requires];
         assert.deepEqual(shared(parent, up), [], `${parent.name} → ${up.name}`);
         (kids[up.requires] = kids[up.requires] || []).push(up);

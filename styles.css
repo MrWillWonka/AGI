@@ -730,7 +730,7 @@ h1, h2, h3, p { margin: 0; }
     pointer-events: none;
 }
 
-.tree-links { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; }
+.tree-links { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
 .tree-links line { stroke-width: 3; stroke-linecap: round; }
 .tree-links .link-owned { stroke: var(--owned); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--owned) 80%, transparent)); }
 .tree-links .link-open { stroke: #4a6a70; stroke-dasharray: 5 5; }
@@ -3396,7 +3396,7 @@ body.calm .snare-deeper { animation: none; }
 .snare-tree-inner { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-origin: 0 0; }
 .snare-tree-grid .tree-links line { stroke-width: 2.5; }
 .snare-tree-grid .tree-node { width: calc(var(--cell) * 0.56); }
-.snare-tree-grid .tree-node.seed { width: calc(var(--cell) * 0.5); pointer-events: none; }
+.snare-tree-grid .tree-node.snare-core { width: calc(var(--cell) * 0.5); pointer-events: none; }
 .snare-tree-grid .node-detail { width: 250px; max-height: calc(100% - 8px); z-index: 6; background: var(--bg-2); }
 .snare-upgrades { position: relative; overflow: visible; }
 @media (max-width: 640px) {
