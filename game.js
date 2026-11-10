@@ -6120,6 +6120,20 @@ window.AGI = (function () {
             const tip = pt(L, 0);
             path.moveTo(...tip); path.lineTo(...pt(-L * 0.7, Wd)); path.lineTo(...pt(-L * 0.35, 0)); path.lineTo(...pt(-L * 0.7, -Wd)); path.lineTo(...tip);
         };
+        // A tag's dotted edge (K21): small squares along the arrowhead's outline, starting at its tip, all in one path filled
+        // once (a dashed stroke cost a maxed field 5 fps with 800 packets tagged).
+        const DOT = 1.9, GAP = 3.4;
+        const tagDots = (path, x, y, ang, L, Wd) => {
+            const c = Math.cos(ang), sn = Math.sin(ang);
+            const pt = (u, v) => [x + u * c - v * sn, y + u * sn + v * c];
+            const pts = [pt(L, 0), pt(-L * 0.7, Wd), pt(-L * 0.35, 0), pt(-L * 0.7, -Wd), pt(L, 0)];
+            let carry = 0;
+            for (let i = 1; i < pts.length; i++) {
+                const [ax, ay] = pts[i - 1], [bx, by] = pts[i], len = Math.hypot(bx - ax, by - ay);
+                for (let d = carry; d <= len; d += GAP) { const f = d / len; path.rect(ax + (bx - ax) * f - DOT / 2, ay + (by - ay) * f - DOT / 2, DOT, DOT); }
+                carry = (GAP - ((len - carry) % GAP)) % GAP;
+            }
+        };
         for (const p of run.packets) {
             const r = Math.max(minR, p.r * k);
             const x = p.x * k, y = p.y * k, ang = Math.atan2(p.vy, p.vx);
@@ -6149,7 +6163,7 @@ window.AGI = (function () {
             }
             const L = gold ? r * 1.5 : r * 1.25, Wd = gold ? r * 0.9 : r * 0.7;
             arrow(gold ? paths.gold : paths.good, x, y, ang, L, Wd);
-            if (tagged) arrow(paths.tagEdge, x, y, ang, L + Math.min(2, r * 0.35), Wd + Math.min(1.5, r * 0.25));
+            if (tagged) tagDots(paths.tagEdge, x, y, ang, L + Math.min(2, r * 0.35), Wd + Math.min(1.5, r * 0.25));
         }
         ctx.globalAlpha = 0.25;
         ctx.fillStyle = C.warning;
@@ -6158,18 +6172,11 @@ window.AGI = (function () {
         // the packets' own tokens (Snare 12.7, a theme audit: in Red and Soft pink good packets sat beside the red ones,
         // and in Arcade a tag's magenta edge read as a red packet)
         const good = C['snare-good'] || C.primary, bad = C['snare-bad'] || C.danger, tagCol = C['snare-tag'] || C.research;
-        // a tag's edge is dotted (K21), round dots that start at the tip, so it meets there
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.setLineDash([0.01, 3.2]);
-        ctx.strokeStyle = tagCol;
+        // a tag's edge is dotted (K21), from the tip, so it meets there
+        ctx.fillStyle = tagCol;
         // fainter on a crowded field (round 2 of the review: with towers everywhere the whole field read violet)
         ctx.globalAlpha = crowded ? 0.55 : 1;
-        ctx.stroke(paths.tagEdge);
-        ctx.setLineDash([]);
-        ctx.lineCap = 'butt';
-        ctx.lineJoin = 'miter';
+        ctx.fill(paths.tagEdge);
         ctx.globalAlpha = 1;
         ctx.fillStyle = good;
         ctx.fill(paths.good);
