@@ -8,17 +8,24 @@ Tag every issue in your review: `[new]`, `[known K#]` or `[regression]`. Issues 
 Update this file with every fix batch (move fixed ones to *fixed: verify*, drop them after a review confirms them).
 
 ## Open
-- **K3 Sideways phone page scrolls 9 px** (report rule check).
 - **K5 The boss's two loops are hard to read:** LOOP 1/2 is easy to miss mid-fight, and a loop that fails doesn't say why
   (touched it, too late, missed it) (rounds 7–9).
 - **K6 A maxed field is cluttered:** 1,400 small packets, helpers, lasers and labels; the player's own bubble is hard to
   find (rounds 7–9).
 - **K7 Grabbing a mine with a quick bubble often misses** (the bubble starts small, the mine sits by the boss) (round 7).
-- **K8 Look out cards are running text:** the boss's steps inline, no list (round 9).
-- **K9 The Signal chip takes a row of its own** above the field on phone and desktop (round 9).
-- **K10 The phone tree popup can cover its own "now → after" line** behind the buy button (round 7).
 
 ## Fixed: verify
+- **F17 (K10) The phone tree popup covered its own "now → after" line:** the line and the buy button share a footer pinned
+  to the popup's foot, and a docked popup takes up to half the tree (was 42%). Checked: every visible node at sectors 3
+  and 9 on 360, 390 and 430 px phones, 0 of 36 popups with the line hidden (16 of 36 before).
+- **F16 (K9) The Signal chip took a row of its own:** the HUD and the Signal chip live in the bay's bar, so the field gains
+  38 px on every screen; the bar keeps its height when a run starts; on phones mid-run the bar is the HUD's row. Checked
+  at 360 to 3840 px wide with banks of 0 to 987.6B: one row, no overlap (a 360 px phone with a 987.6B bank wraps
+  Upgrades to a second row).
+- **F15 (K8) Look out cards were running text:** the boss's steps (and the mines': grab, then throw) are a numbered list
+  with the note after.
+- **F14 (K3) The sideways phone page scrolled 9 px:** the field's height there was 4 px too tall (and the HUD's row is
+  gone). 0 px at 844 × 390, 932 × 430 and 740 × 360; the report's rule passes.
 - **F13 (K11) Red didn't matter early:** red is 30% of sector 2 tapering to 5% by sector 10, the red nodes cut it, and the
   Cleaner Bot (now the Decoder Bot; later, the one bot for red) takes about a second a packet (D13).
 - **F12 Runs that never ended** (the Snare 16 log: 110 s, 2.06M Signal, half the tree in a minute): a run earns back at

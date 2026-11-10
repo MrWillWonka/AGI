@@ -21,7 +21,11 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
   which escaped twice at 61/80 and 70/80 damage; every mine grabbed was thrown).
 - **Watch in the next log:** sector 11's boss with bank shots; whether the faster Antivirus feel right (sector 3); the
   end card's "Mines grabbed · thrown · hit"; sector 9 and 10 run counts; D15 (desktop sector 3).
-- **Open decisions:** D15 only (`design/review/decisions.md`). Known issues K3, K5–K10 (`known-issues.md`).
+- **Open decisions:** D15 only (`design/review/decisions.md`). Known issues K5–K7 (`known-issues.md`).
+- **Unpublished on `claude/zen-turing-s9ycp8` (2026-11-10):** a layout batch the owner picked, no balance change: K3 (the
+  sideways page's 9 px scroll), K8 (the boss's and mines' steps as numbered lists), K9 (the HUD and Signal in the bay's
+  bar: the field 38 px taller everywhere) and K10 (the tree popup's now → after line pinned with its buy button). The live
+  artifact is still 17.7; publish (as 17.8) only on the owner's go-ahead.
 - **Pacing (bot, phone, 3 seeds, 20 min) on 17.7:** sector 3 takes 18 runs (15 on 17.6: faster Antivirus), sector 5 at
   16.6 min. The bot dodges far worse than the owner (owner: sector 3 in 6 runs), so this wasn't tuned away.
 

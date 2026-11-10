@@ -4205,8 +4205,12 @@ window.AGI = (function () {
         red: ['Unreadable packets', () => (snareHuntOn() ? 'The red ones are data your model can\'t read yet: it isn\'t trained enough. And they hunt your bubble: hold it near one and it comes for you. Let go with one inside and the batch comes through garbled: lost, and Focus with it. Catch round them, or let go before they get in.' : 'The red ones are data your model can\'t read yet: it isn\'t trained enough. Let go of a bubble with one inside and the batch comes through garbled: lost, and Focus with it. Catch round them.')],
         antivirus: ['Antivirus', 'It hunts your bubbles. If it touches one, it pops and you lose the catch. Let go before it reaches you.'],
         sweep: ['Full Scan', 'Its edge flashes, then it sweeps the whole field. Any bubble it crosses pops.'],
-        boss: ['Boss Antivirus', () => `1. Draw a loop round it twice without touching it (${snareFinePointer() ? 'drag with the left button; ' : ''}easiest while it stands still to charge): it's stunned. 2. While it reads SLASH!, swipe through it, again and again. Clear its health to clear the sector. While it stands it eats the packets near it and scatters the rest, more the longer it lives.`],
-        mines: ['Mines', 'The boss lays mines. Two near each other grow a net that wipes the data it crosses, and while two stand the boss is shielded. Let a bubble go over a mine to grab it, then flick from it at the boss: a big hit, even through its guard.'],
+        // A threat with steps reads as a list (K8: the boss's steps ran on inline): { lead, steps, note }.
+        boss: ['Boss Antivirus', () => ({ steps: [`Draw a loop round it twice without touching it (${snareFinePointer() ? 'drag with the left button; ' : ''}easiest while it stands still to charge): it's stunned.`,
+            'While it reads SLASH!, swipe through it, again and again.', 'Clear its health to clear the sector.'],
+            note: 'While it stands it eats the packets near it and scatters the rest, more the longer it lives.' })],
+        mines: ['Mines', { lead: 'The boss lays mines. Two near each other grow a net that wipes the data it crosses, and while two stand the boss is shielded.',
+            steps: ['Let a bubble go over a mine to grab it.', 'Flick from it at the boss: a big hit, even through its guard.'] }],
         nets: ['Nets', 'Three mines now: once their nets join up, everything inside the triangle is wiped. Grab the mines with bubbles before the nets close, and throw them back.'],
         rogue: ['The Rogue AI', 'Its cores grow and take the data they reach. Let a bubble go over a core to quarantine it; your Firewall sections keep it off the data inside them.'],
         firewall: ['Firewalls', 'Sections now place themselves where the good packets gather. Red packets can\'t get in, and Antivirus can\'t either: bubble inside one safely. Each stands a while, then moves on.'],
@@ -4233,7 +4237,15 @@ window.AGI = (function () {
     // The threats on a look out card: each its line and demo.
     // a tip's text (some read the pointer: round 6 of the review, a phone was told to drag with the left button)
     const snareIntroLine = k => (typeof SNARE_INTROS[k][1] === 'function' ? SNARE_INTROS[k][1]() : SNARE_INTROS[k][1]);
-    const snareMeetParts = (kinds, prefix = 'Look out · ') => kinds.flatMap(k => [el('p', { class: 'snare-intro-line snare-red-line', text: `${prefix}${SNARE_INTROS[k][0]}: ${snareIntroLine(k)}` }),
+    // A threat's words as paragraphs: a sentence, or a lead, its steps as a numbered list and a note after (K8).
+    function snareIntroBody(k, head, cls) {
+        const v = snareIntroLine(k);
+        if (typeof v === 'string') return [el('p', { class: cls, text: head ? `${head}: ${v}` : v })];
+        const lead = [head, v.lead].filter(Boolean).join(': ');
+        return [lead ? el('p', { class: cls, text: lead }) : null, el('ol', { class: 'snare-steps' }, v.steps.map(t => el('li', { text: t }))),
+            v.note ? el('p', { class: 'snare-intro-line', text: v.note }) : null].filter(Boolean);
+    }
+    const snareMeetParts = (kinds, prefix = 'Look out · ') => kinds.flatMap(k => [...snareIntroBody(k, `${prefix}${SNARE_INTROS[k][0]}`, 'snare-intro-line snare-red-line'),
         snareDemo(SNARE_INTRO_DEMO[k] || k)]).filter(Boolean);
     // Going deeper into a sector with a threat not yet met: its look out card first, then on (the run waits on it).
     function snareLookOut(kinds, then) {
@@ -4288,7 +4300,7 @@ window.AGI = (function () {
         // The pen is taken away without judging the stroke (a lift could close a half-loop or flag a flick).
         if (snare.pointer !== null) { snare.pointer = null; snare.run?.cancelPen(); snare.wallFrom = null; }
         snare.intro = kind;
-        const title = SNARE_INTROS[kind][0], line = snareIntroLine(kind);
+        const title = SNARE_INTROS[kind][0];
         const card = $('snareCard');
         const label = TIP_OK[tipCount++ % TIP_OK.length];
         const ok = el('button', { type: 'button', class: 'button tip-ok', text: label, 'aria-label': `${label}: got it` });
@@ -4304,7 +4316,7 @@ window.AGI = (function () {
         // A tip, not a run's card: the green ↻ header like every tip in the game.
         card.classList.add('snare-intro');
         card.replaceChildren(el('div', { class: 'result-title', text: '↻ New' }), el('div', { class: 'result-main', text: title }),
-            ...[snareDemo(SNARE_INTRO_DEMO[kind] || kind)].filter(Boolean), el('p', { class: 'snare-intro-line', text: line }), el('div', { class: 'result-actions' }, [ok]));
+            ...[snareDemo(SNARE_INTRO_DEMO[kind] || kind)].filter(Boolean), ...snareIntroBody(kind, '', 'snare-intro-line'), el('div', { class: 'result-actions' }, [ok]));
         setHidden(card, false);
         pt('tip', { id: key });
         ok.disabled = true;
@@ -5064,7 +5076,6 @@ window.AGI = (function () {
         } else {
             const cost = E.upgradeCost(up, lvl);
             const preview = snareNodePreview(up, lvl);
-            if (preview) parts.push(el('p', { class: 'detail-preview', text: preview }));
             const buy = el('button', { type: 'button', class: 'button detail-buy', text: buyText(cost) });
             buy.disabled = !E.canAfford(state, cost);
             buy.addEventListener('click', e => {
@@ -5079,7 +5090,8 @@ window.AGI = (function () {
                 if (snareUi.popup) box.querySelector('.detail-buy')?.focus({ preventScroll: true });
                 else snareUi.nodes[up.id].focus({ preventScroll: true });
             });
-            parts.push(buy);
+            // The "now → after" line rides with the buy button at the popup's foot, so the button never covers it (K10).
+            parts.push(el('div', { class: 'detail-foot' }, [preview ? el('p', { class: 'detail-preview', text: preview }) : null, buy]));
         }
         box.replaceChildren(...parts);
         box.querySelector('.detail-close').addEventListener('click', e => {

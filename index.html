@@ -121,6 +121,18 @@
                 <div class="module-view" id="moduleView" hidden>
                     <div class="module-bar">
                         <nav class="crumbs" aria-label="You are here"><button type="button" class="crumb crumb-home" data-jump="facility" aria-label="Straight back to Surveillance, the main screen">surveillance</button><span class="crumb-sep" aria-hidden="true">/</span><button type="button" class="crumb" id="backButton" aria-label="Back to the server room">server_room</button><span class="crumb-sep" aria-hidden="true">/</span><h2 class="crumb-here" id="moduleTitle">training_cluster</h2></nav>
+                        <!-- Packet Snare's run HUD and its Signal bank, in the bay's bar (shown only in its bay, styles.css):
+                             a row of their own over the field took its height (K9). -->
+                        <div class="snare-bar" id="snareBar">
+                            <div class="snare-hud" id="snareHud" hidden>
+                                <div class="snare-focus" aria-hidden="true"><div class="snare-focus-fill" id="snareFocusFill"></div></div>
+                                <span class="snare-focus-text" id="snareFocusText">Focus</span>
+                                <button type="button" class="ghost-button snare-deeper" id="snareDeeper" hidden>Go deeper →</button>
+                                <span class="snare-haul" id="snareHaul">+0 Signal</span>
+                                <button type="button" class="ghost-button snare-pause" id="snarePause" aria-label="Pause and open the upgrades">❚❚</button>
+                            </div>
+                            <span class="module-xp snare-signal" title="Signal: Packet Snare's own, spent on its tree"><span class="chip-label">Signal</span> <strong data-bind="snare.signal">0</strong></span>
+                        </div>
                         <button type="button" class="auto-switch" data-auto-switch role="switch" aria-checked="false" hidden><span class="auto-switch-knob" aria-hidden="true"></span><span class="auto-switch-label">Auto-Trainer</span></button>
                         <button type="button" class="ghost-button" id="restartButton" title="Abandon this run and start again, for half a full sprint (nothing it earned so far is paid)" hidden>Restart</button>
                     <button type="button" class="ghost-button" id="treeButton" hidden>Upgrades</button>
@@ -204,16 +216,6 @@
                     <!-- The Data Pipeline: Packet Snare. Draw a wire; cross it to close a loop round the packets inside. -->
                     <div class="module" data-module="pipeline" id="snarePanel" hidden>
                         <div class="run-view snare-view">
-                            <div class="run-stats snare-stats">
-                                <div class="snare-hud" id="snareHud" hidden>
-                                    <div class="snare-focus" aria-hidden="true"><div class="snare-focus-fill" id="snareFocusFill"></div></div>
-                                    <span class="snare-focus-text" id="snareFocusText">Focus</span>
-                                    <button type="button" class="ghost-button snare-deeper" id="snareDeeper" hidden>Go deeper →</button>
-                                    <span class="snare-haul" id="snareHaul">+0 Signal</span>
-                                    <button type="button" class="ghost-button snare-pause" id="snarePause" aria-label="Pause and open the upgrades">❚❚</button>
-                                </div>
-                                <span class="module-xp snare-signal" title="Signal: Packet Snare's own, spent on its tree"><span class="chip-label">Signal</span> <strong data-bind="snare.signal">0</strong></span>
-                            </div>
                             <div class="canvas-wrap">
                                 <canvas id="snareCanvas" class="path-canvas snare-canvas" aria-label="Packet Snare. Hold still on the field to grow a bubble round the data packets, and let go to catch them." aria-describedby="snareStatus"></canvas>
                                 <div class="roll-result snare-card" id="snareCard" role="status"></div>
