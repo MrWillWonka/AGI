@@ -8,23 +8,46 @@ Tag every issue in your review: `[new]`, `[known K#]` or `[regression]`. Issues 
 Update this file with every fix batch (move fixed ones to *fixed: verify*, drop them after a review confirms them).
 
 ## Open
-- **K3 Sideways phone page scrolls 9 px** (report rule check).
 - **K5 The boss's two loops are hard to read:** LOOP 1/2 is easy to miss mid-fight, and a loop that fails doesn't say why
-  (touched it, too late, missed it) (rounds 7–9).
+  (touched it, too late, missed it) (rounds 7–10; round 10: looping a boss that's already stunned says LOOPS ARE FOR THE
+  BOSS · HOLD STILL TO CATCH mid-fight).
 - **K6 A maxed field is cluttered:** 1,400 small packets, helpers, lasers and labels; the player's own bubble is hard to
   find (rounds 7–9).
-- **K7 Grabbing a mine with a quick bubble often misses** (the bubble starts small, the mine sits by the boss) (round 7).
-- **K8 Look out cards are running text:** the boss's steps inline, no list (round 9).
-- **K9 The Signal chip takes a row of its own** above the field on phone and desktop (round 9).
-- **K10 The phone tree popup can cover its own "now → after" line** behind the buy button (round 7).
+- **K7 Grabbing a mine with a quick bubble often misses** (round 7; round 10: mines now sit on a ring away from the boss,
+  but the boss walks onto them and pops the grab bubble, `pop:boss` 5 times in the owner's sector-11 runs).
+- **K11 [regression of F16] The bay bar's crumbs print over each other on sideways phones** (844 × 390, 740 × 360) now
+  that Signal and Upgrades share the row, and at 1280 px the crumb truncates to "packet_sna…" when Go deeper shows: the
+  HUD's slot and the crumbs split the bar's spare room (round 10: verify, screens, early, late).
+- **K12 Debug Boss now does nothing on a boss sector** since 17.5: it sets `bossAt`, but the boss waits for `bossArrive`
+  (round 10).
+- **K13 Focus isn't paused in the boss fight:** a wire the boss snaps still costs Focus while the HUD shows ❚❚ and BOSS
+  INCOMING says FOCUS PAUSED; most fights end on Focus with 5–20 s on the fight clock (early: 10 of 12, late: 5 of 8)
+  (round 10).
+- **K14 The boss's Look out card describes the pre-17.5 boss** (eats the packets near it; nothing on half Focus, the
+  swallow, the 30 s clock, escaping or the burst), its reach ring is drawn in the empty arena, and the mines card's demo
+  shows the old mine and nothing on throwing it as a puck (round 10). *The copy pass (merged 2026-11-10): the card's words
+  are one line now ("Loop it twice to stun it, then slash through it.", the owner's call: the demo teaches the rest), so
+  what's left is the boss and mines demos, which should show the 17.5–17.7 fight.*
+- **K15 A bank shot without Ricochet says BANK SHOT ×1 · −3** but adds no damage (`mineBank` is Ricochet's alone), while a
+  bounce risks a dud (9/12 hit against 12/12 straight) (round 10).
+- **K16 The fight's readouts:** the 30 s clock has no number until its last 10 s; the boss's health shows three times
+  (HUD, bar, label) and SLASH −1 · n left sits on its label; an escape's end card is titled "Focus spent" and can blame a
+  garbled bubble (round 10).
+- **K17 Sector 11's nets do nothing in the fight** (the field is swallowed, so a net has nothing to wipe: 0 netted in
+  every fight), and the mine shield (up 41% of sector 11's fight) glances every slash after a parry without saying so
+  (round 10).
+- **K18 The desktop tree can pan an unbought root out of view** (Packet Stream above the frame after buying Sanitizer;
+  the view is remembered), and boss nodes (Kernel Panic, Root Access) are sold from sector 3, before any boss (round 10).
+- **K19 Sector 12's goal (843K) is a wall** against a sector-11 build's 60–138K haul (round 10).
+- **K20 Screens, smaller:** the HUD is small and far from the field at 1920 and 4K; a sideways Look out card shows a line
+  or two before Start covers it; at 360 × 640 a tree popup can clip its effect line; an UPDATING label clips at the
+  field's edge (round 10).
 
 ## Fixed: verify
-- **F13 (K11) Red didn't matter early:** red is 30% of sector 2 tapering to 5% by sector 10, the red nodes cut it, and the
-  Cleaner Bot (now the Decoder Bot; later, the one bot for red) takes about a second a packet (D13).
-- **F12 Runs that never ended** (the Snare 16 log: 110 s, 2.06M Signal, half the tree in a minute): a run earns back at
-  most the Focus it started with; NO MORE FOCUS BACK THIS RUN when it's spent.
-- **F10 The boss could be ignored** (the owner's phone log: they gathered on its far side): it now eats the packets in a
-  growing reach, packets near it flee and schools break up while it stands; a stun stops it.
+- **F16 (K9, round 10: holds, but see K11) The Signal chip took a row of its own:** the HUD and the Signal chip live in the bay's bar, so the field gains
+  38 px on every screen; the bar keeps its height when a run starts; on phones mid-run the bar is the HUD's row. Checked
+  at 360 to 3840 px wide with banks of 0 to 987.6B: one row, no overlap (a 360 px phone with a 987.6B bank wraps
+  Upgrades to a second row).
 - **F11 Red didn't feel dangerous** (no spoil in 15 runs): red can hunt a held bubble, a testing toggle (off by default).
 - **F7 (K1) Late-game snowball:** sector pay +15% a sector (was +25%), sector 6's goal 1,300 with later goals ×2.25 from
   it, nodes on ring 4 and out ×1.75 (the drones' and turrets' first levels and the nodes on the way kept). The pacing

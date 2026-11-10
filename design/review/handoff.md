@@ -21,7 +21,13 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
   which escaped twice at 61/80 and 70/80 damage; every mine grabbed was thrown).
 - **Watch in the next log:** sector 11's boss with bank shots; whether the faster Antivirus feel right (sector 3); the
   end card's "Mines grabbed · thrown · hit"; sector 9 and 10 run counts; D15 (desktop sector 3).
-- **Open decisions:** D15 only (`design/review/decisions.md`). Known issues K3, K5–K10 (`known-issues.md`).
+- **Open decisions:** D15 only (`design/review/decisions.md`). Known issues K5–K7 (`known-issues.md`).
+- **Unpublished on `claude/zen-turing-s9ycp8` (2026-11-10):** a layout batch the owner picked, no balance change: K3 (the
+  sideways page's 9 px scroll), K8 (the boss's and mines' steps as numbered lists), K9 (the HUD and Signal in the bay's
+  bar: the field 38 px taller everywhere) and K10 (the tree popup's now → after line pinned with its buy button). The live
+  artifact is still 17.7; publish (as 17.8) only on the owner's go-ahead.
+- **Also unpublished, merged in from a local session (2026-11-10): the copy and colour pass.** See *Copy and colour pass*
+  below before touching any Packet Snare text or colour. It changes no rules or balance.
 - **Pacing (bot, phone, 3 seeds, 20 min) on 17.7:** sector 3 takes 18 runs (15 on 17.6: faster Antivirus), sector 5 at
   16.6 min. The bot dodges far worse than the owner (owner: sector 3 in 6 runs), so this wasn't tuned away.
 
@@ -39,6 +45,54 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
   with what it shows. Don't let `tools/review/calibrate-snare.js` overwrite `tools/review/human.json` /
   `design/review/owner-profile.json` from one log without asking (it moves every pacing number).
 - **Tone:** friendly, plain, short reports: what changed, what was checked, what to watch.
+
+## Copy and colour pass (merged 2026-11-10, from a local session)
+
+The owner wants Packet Snare's words to follow great game design and other incremental games, not the Training
+Cluster's copy rules, and every word and colour to read the same in all five themes (Night, Red, Soft pink, Void,
+Arcade). Their calls are in `settled.md` (**Copy**); `CLAUDE.md` has a line on it. What changed, and how it fits the
+review work:
+
+- **Node popups** (`SNARE_TREE` in `engine.js`, all 64 nodes): short rules text in the style of a card game (Slay the Spire,
+  Balatro): verb first, one level's numbers, no "per level", "(1 / 2 / 3)" or "twice / three times" (the level pill and
+  the now → after line already carry them). **No flavour quips on Snare nodes** (the `flavor` field is gone; the
+  Training tree keeps its own). `snareRules` in `game.js` sets the line: numbers bold, and "unreadable", "gold" and
+  "good packets" in the packets' own theme tokens. `tests/engine.test.js` fails a Snare node with a quip, a per-level
+  aside or a colour word.
+- **Look out cards and tool tips** (`SNARE_INTROS`): **one line each; the demo teaches the rest** (Nintendo-style show,
+  don't tell). This supersedes the numbered lists from K8 for the boss and mines: the merge kept the one-liners, and
+  `snareIntroBody` still renders either form, so nothing else changed. The first card's how-to (`snareHowTo`) is one
+  line too, and the end card's empty-run line now uses it, so a mouse is told to use the right button (it said "hold
+  still").
+- **Field callouts, three tiers** (`drawSnarePops`): rewards gold and number-first; losses one red word (BOSS ESCAPED and
+  −n STOLEN were gold, now `loss: true`); hints (`kind: 'hint'`: Hold longer, Too small to loop, Aim at the boss, No more
+  Focus back this run, Hold the right button for a bubble, and the on-field guides Flick at the boss, Loop round it,
+  Swipe across to parry) in normal case, the body font (`snareHintFont`) and the text colour.
+- **No colour words.** Themes colour packets differently, so bad packets are **unreadable**, never "red": in node text,
+  the now → after labels, demo captions, the end card, the "loose data" mail, the hunt setting and the risk callout
+  (HIGH RISK · HIGH REWARD · n UNREADABLE NEAR). A Firewall is a **Firewall**, never a "section". "Gold" is safe: gold
+  packets are `--warning`, amber to yellow in every theme. Code names (`corrupt`, `red` intro keys, `.snare-red-line`)
+  are unchanged.
+- **Colours** (measured: contrast against `--bg-2` and CIEDE2000 between roles that must be told apart, normal vision and
+  simulated protanopia and deuteranopia; every role is over 5:1):
+  - Snare drawing that used `--primary` (red in the Red theme, pink in Soft pink) now uses `--snare-good`: catch flashes,
+    packets flying into a catch or the boss, quarantine, the freeze tint, the containment edge, the current. In the
+    Red theme a good catch used to flash red and the freeze tint was red.
+  - **Focus bar** is `--snare-good` (red when low). It was `--primary`, so in the Red theme normal and low Focus were the
+    same red.
+  - **New `--snare-bubble` token** for the bubble, the wire and their preview (`--success` by default): Soft pink's pink
+    (its mint sat on the mint good packets), Void's lavender (its teal matched the tag edge), Arcade's magenta (its green
+    was close to the lime tag edge).
+  - **The scanner beam and towers draw `--snare-tag`**, the colour of the tag they give (they used `--research`: violet
+    beams gave teal tags in Void, magenta gave lime in Arcade).
+  - The popup's now → after line is `--success` (red in the Red theme read as a warning).
+- **Open from it:** colour-blind shape cues are a separate follow-up the owner chose (red-green colour blindness puts
+  unreadable red and gold amber close in every theme, and Night's violet tag edge nearly vanishes on blue packets).
+  The owner was offered hiding demo captions on Look out cards (a one-line card's caption partly repeats it); not decided.
+- **Against round 10's issues:** K14's card words no longer describe the pre-17.5 boss (one line: loop it twice, then
+  slash), but its demo and the mines demo still show the old fight; the new boss facts (half Focus, the swallow, the
+  30 s clock, escaping) belong in the demo, not the card. K20's clipped popup effect line should be rarer (effect lines
+  are shorter). Hints added for K5 should use `kind: 'hint'`; any new copy follows `settled.md` → Copy.
 
 ## Publishing the artifact
 

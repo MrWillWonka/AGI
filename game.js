@@ -4233,7 +4233,15 @@ window.AGI = (function () {
     // The threats on a look out card: each its line and demo.
     // a tip's text (some read the pointer: round 6 of the review, a phone was told to drag with the left button)
     const snareIntroLine = k => (typeof SNARE_INTROS[k][1] === 'function' ? SNARE_INTROS[k][1]() : SNARE_INTROS[k][1]);
-    const snareMeetParts = (kinds, prefix = 'Look out · ') => kinds.flatMap(k => [el('p', { class: 'snare-intro-line snare-red-line', text: `${prefix}${SNARE_INTROS[k][0]}: ${snareIntroLine(k)}` }),
+    // A threat's words as paragraphs: a sentence, or a lead, its steps as a numbered list and a note after (K8).
+    function snareIntroBody(k, head, cls) {
+        const v = snareIntroLine(k);
+        if (typeof v === 'string') return [el('p', { class: cls, text: head ? `${head}: ${v}` : v })];
+        const lead = [head, v.lead].filter(Boolean).join(': ');
+        return [lead ? el('p', { class: cls, text: lead }) : null, el('ol', { class: 'snare-steps' }, v.steps.map(t => el('li', { text: t }))),
+            v.note ? el('p', { class: 'snare-intro-line', text: v.note }) : null].filter(Boolean);
+    }
+    const snareMeetParts = (kinds, prefix = 'Look out · ') => kinds.flatMap(k => [...snareIntroBody(k, `${prefix}${SNARE_INTROS[k][0]}`, 'snare-intro-line snare-red-line'),
         snareDemo(SNARE_INTRO_DEMO[k] || k)]).filter(Boolean);
     // Going deeper into a sector with a threat not yet met: its look out card first, then on (the run waits on it).
     function snareLookOut(kinds, then) {
@@ -4288,7 +4296,7 @@ window.AGI = (function () {
         // The pen is taken away without judging the stroke (a lift could close a half-loop or flag a flick).
         if (snare.pointer !== null) { snare.pointer = null; snare.run?.cancelPen(); snare.wallFrom = null; }
         snare.intro = kind;
-        const title = SNARE_INTROS[kind][0], line = snareIntroLine(kind);
+        const title = SNARE_INTROS[kind][0];
         const card = $('snareCard');
         const label = TIP_OK[tipCount++ % TIP_OK.length];
         const ok = el('button', { type: 'button', class: 'button tip-ok', text: label, 'aria-label': `${label}: got it` });
@@ -4304,7 +4312,7 @@ window.AGI = (function () {
         // A tip, not a run's card: the green ↻ header like every tip in the game.
         card.classList.add('snare-intro');
         card.replaceChildren(el('div', { class: 'result-title', text: '↻ New' }), el('div', { class: 'result-main', text: title }),
-            ...[snareDemo(SNARE_INTRO_DEMO[kind] || kind)].filter(Boolean), el('p', { class: 'snare-intro-line', text: line }), el('div', { class: 'result-actions' }, [ok]));
+            ...[snareDemo(SNARE_INTRO_DEMO[kind] || kind)].filter(Boolean), ...snareIntroBody(kind, '', 'snare-intro-line'), el('div', { class: 'result-actions' }, [ok]));
         setHidden(card, false);
         pt('tip', { id: key });
         ok.disabled = true;
@@ -5063,7 +5071,6 @@ window.AGI = (function () {
         } else {
             const cost = E.upgradeCost(up, lvl);
             const preview = snareNodePreview(up, lvl);
-            if (preview) parts.push(el('p', { class: 'detail-preview', text: preview }));
             const buy = el('button', { type: 'button', class: 'button detail-buy', text: buyText(cost) });
             buy.disabled = !E.canAfford(state, cost);
             buy.addEventListener('click', e => {
@@ -5078,7 +5085,8 @@ window.AGI = (function () {
                 if (snareUi.popup) box.querySelector('.detail-buy')?.focus({ preventScroll: true });
                 else snareUi.nodes[up.id].focus({ preventScroll: true });
             });
-            parts.push(buy);
+            // The "now → after" line rides with the buy button at the popup's foot, so the button never covers it (K10).
+            parts.push(el('div', { class: 'detail-foot' }, [preview ? el('p', { class: 'detail-preview', text: preview }) : null, buy]));
         }
         box.replaceChildren(...parts);
         box.querySelector('.detail-close').addEventListener('click', e => {

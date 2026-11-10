@@ -3347,12 +3347,18 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 /* ---- Packet Snare (the Data Pipeline bay): draw a wire, close a loop round the packets ---- */
 .snare-canvas { touch-action: none; cursor: crosshair; }
 .snare-view > .canvas-wrap { user-select: none; -webkit-user-select: none; }
-.snare-stats .snare-signal { border-color: color-mix(in srgb, var(--signal) 50%, transparent); color: var(--signal); }
+/* The run's HUD and the Signal bank live in the bay's bar, only in Packet Snare's bay (K9: a row of their own over the
+   field took its height on every screen). The bar's height is the crumbs' and Upgrades', so nothing moves when a run
+   starts. */
+.snare-bar { display: none; }
+#moduleView:has(> #snarePanel:not([hidden])) .snare-bar { display: flex; flex: 1 1 auto; min-width: 0; align-items: center; gap: 10px; }
+/* On a phone the crumbs (⌂ server_room) keep their own width here, so ⌂, Signal and Upgrades share one row. */
+@media (max-width: 640px) { #moduleView:has(> #snarePanel:not([hidden])) .module-bar .crumbs { min-width: 0; } }
+#moduleView:has(> #snarePanel.tree-open) .snare-bar { visibility: hidden; }
+.snare-bar .snare-signal { margin-left: auto; flex: none; border-color: color-mix(in srgb, var(--signal) 50%, transparent); color: var(--signal); }
 /* The data shows once: during a run the HUD carries the haul, so the bank waits. */
 .snare-hud:not([hidden]) ~ .snare-signal { display: none; }
-.snare-stats { min-height: 28px; }
 .snare-hud { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; font: 600 0.78rem var(--font-mono); }
-.snare-stats .snare-signal { margin-left: auto; }
 .snare-hud[hidden] { display: none; }
 .snare-focus { flex: 1; max-width: 320px; height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--border) 80%, transparent); overflow: hidden; }
 .snare-focus-fill { height: 100%; width: 100%; border-radius: inherit; background: var(--snare-good); transform-origin: left; transition: background 0.2s; }
@@ -3380,7 +3386,7 @@ body.calm .snare-deeper { animation: none; }
 .snare-card .result-actions .button { flex: 1; }
 /* No sprint controls under the field: on upright phones it takes the height the trail's controls would. */
 @media (max-width: 640px) and (min-height: 501px) {
-    .snare-view > .canvas-wrap { height: max(260px, calc(100dvh - var(--topbar-h, 100px) - var(--bay-bar-h, 39px) - 150px)); }
+    .snare-view > .canvas-wrap { height: max(260px, calc(100dvh - var(--topbar-h, 100px) - var(--bay-bar-h, 39px) - 112px)); }
 }
 @media (pointer: coarse) and (max-height: 500px) {
     .snare-view > .canvas-wrap { height: clamp(120px, calc(100dvh - 162px), 600px); }
@@ -3393,6 +3399,9 @@ body.calm .snare-deeper { animation: none; }
 .snare-tree-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .snare-tree-title { margin-right: auto; font: 700 0.85rem var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .snare-intro-line { margin: 6px 0 2px; font-size: 0.86rem; }
+.snare-steps { display: flow-root; margin: 2px 0 4px; padding-left: 1.5em; font-size: 0.86rem; }
+.snare-steps li { margin: 2px 0; padding-left: 2px; }
+.snare-steps li::marker { color: var(--warning); font: 700 0.8rem var(--font-mono); }
 .snare-card .demo { margin: 6px auto 0; width: 240px; max-width: 100%; }
 /* two demos on one card (the first run's bubble and red packet): smaller, so the second isn't under the button (round 6) */
 .snare-card:has(.demo ~ .demo) .demo { width: 190px; }
@@ -3415,6 +3424,8 @@ body.calm .snare-deeper { animation: none; }
     .snare-card .demo { width: 170px; }
     .snare-card .demo figcaption { display: none; }
     .snare-card .snare-intro-line { font-size: 0.78rem; margin: 2px 0; }
+    .snare-card .snare-steps { font-size: 0.78rem; margin: 0 0 2px; }
+    .snare-card .snare-steps li { margin: 1px 0; }
     .snare-card .result-main { font-size: 1rem; }
 }
 
@@ -3439,7 +3450,7 @@ body.calm .snare-deeper { animation: none; }
 /* The Upgrades badge sits over the button's corner: the card's buttons leave room for it (round 3: clipped). */
 .snare-card .result-actions { padding-top: 10px; padding-right: 10px; }
 /* The tree's popup docks along the foot of a narrow tree, its buy button always in view. */
-.snare-tree-grid .node-detail.docked { left: 6px; right: 6px; bottom: 6px; top: auto; width: auto; max-height: 42%; }
+.snare-tree-grid .node-detail.docked { left: 6px; right: 6px; bottom: 6px; top: auto; width: auto; max-height: 50%; }
 /* Its demo smaller there, so the buy button never sits on it (review round 2). */
 .snare-tree-grid .node-detail.docked .demo { width: 160px; margin-inline: auto; }
 .snare-tree-grid .node-detail.docked .demo figcaption { display: none; }
@@ -3451,7 +3462,10 @@ body.calm .snare-deeper { animation: none; }
 .snare-rules .kw-good { color: var(--snare-good); font-weight: 700; }
 /* the now → after line in the theme's progress colour: --primary is red in the Red theme and read as a warning */
 .snare-tree-grid .node-detail .detail-preview { color: var(--success); }
-.snare-tree-grid .node-detail .detail-buy { position: sticky; bottom: -14px; }
+/* The buy button and its "now → after" line stay at the popup's foot together, the line never under the button (K10). */
+.snare-tree-grid .node-detail .detail-foot { position: sticky; bottom: -14px; display: flex; flex-direction: column; gap: 6px; margin: 0 -14px -14px; padding: 4px 14px 14px;
+    background: var(--bg-2); box-shadow: 0 -10px 10px -8px var(--bg-2); }
+.snare-tree-grid .node-detail .detail-foot .detail-preview { margin: 0; }
 .snare-tree-grid .tree-zoom { z-index: 3; }
 /* First-meeting cards are tips (the green ↻ header), not a run's card; their button stays in view on short screens. */
 .snare-card.snare-intro { border-color: color-mix(in srgb, var(--success) 70%, transparent); }
@@ -3463,19 +3477,18 @@ body.calm .snare-deeper { animation: none; }
 .bay[data-ready]::after { top: 8px; right: 8px; z-index: 3; }
 /* The field uses the bay's height on desktop (it sat in a 448 px strip with empty floor under it). */
 @media (min-width: 961px) {
-    .snare-view > .canvas-wrap { height: clamp(300px, calc(100dvh / var(--zoom, 1) - var(--topbar-h, 60px) - 215px), 820px); }
+    .snare-view > .canvas-wrap { height: clamp(300px, calc(100dvh / var(--zoom, 1) - var(--topbar-h, 60px) - 177px), 820px); }
 }
 @media (max-width: 640px) and (min-height: 501px) {
-    .snare-view > .canvas-wrap { height: max(240px, calc(100dvh - var(--topbar-h, 100px) - var(--bay-bar-h, 39px) - var(--snare-tools-h, 52px) - 112px)); }
+    .snare-view > .canvas-wrap { height: max(240px, calc(100dvh - var(--topbar-h, 100px) - var(--bay-bar-h, 39px) - var(--snare-tools-h, 52px) - 74px)); }
 }
 /* Phones sideways (the owner's screenshot: a 126 px strip of field under the bar, the HUD and the tool bar): the field and
    the tool bar share one row, the tools a column at the right edge under the thumb, and the field takes the height the
    bay's bar and the HUD leave; the tree's buttons stand in a column on its left so the tree keeps the height. */
 @media (pointer: coarse) and (max-height: 500px) {
-    .snare-view { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr); gap: 4px 6px; align-items: stretch; justify-content: stretch; }
-    .snare-view > .run-stats { grid-column: 1 / -1; min-height: 22px; }
-    .snare-view > .canvas-wrap { grid-column: 1; grid-row: 2; width: auto; height: max(140px, calc(100dvh - var(--topbar-h, 44px) - 110px)); }
-    .snare-tools { grid-column: 2; grid-row: 2; flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; width: auto; margin: 0; overflow-y: auto; }
+    .snare-view { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr); gap: 4px 6px; align-items: stretch; justify-content: stretch; }
+    .snare-view > .canvas-wrap { grid-column: 1; grid-row: 1; width: auto; height: max(140px, calc(100dvh - var(--topbar-h, 44px) - 88px)); }
+    .snare-tools { grid-column: 2; grid-row: 1; flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; width: auto; margin: 0; overflow-y: auto; }
     .snare-tool { min-height: 30px; padding: 3px 8px; }
     .snare-tool-name { display: none; }
     .snare-tree { grid-template: minmax(0, 1fr) / auto minmax(0, 1fr); padding: 6px; }
@@ -3488,7 +3501,10 @@ body.calm .snare-deeper { animation: none; }
    with a pause button (❚❚, the upgrades: the tree pauses the run). They come back on the end card and in the tree. */
 .snare-pause { display: none; }
 @media (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
-    body.snare-live .topbar, body.snare-live #moduleView .module-bar { display: none; }
+    /* The bay's bar stays as the HUD's row: everything else in it folds away. */
+    body.snare-live .topbar, body.snare-live #moduleView .module-bar > :not(.snare-bar) { display: none; }
+    body.snare-live #moduleView .module-bar { padding-top: 0; margin-top: 0; margin-bottom: 6px; }
+    body.snare-live #moduleView .snare-bar { flex: 1 1 100%; }
     body.snare-live main.layout { padding-top: 4px; padding-bottom: 4px; }
     body.snare-live #moduleView { padding: 6px; gap: 0; }
     body.snare-live .snare-view { gap: 6px; }
@@ -3539,7 +3555,6 @@ body.calm .snare-deeper { animation: none; }
    is paused), so the row above the field goes and the Signal you hold to spend sits in the tree's own bar. */
 .snare-tree-bar .snare-tree-title { margin-right: 0; }
 .snare-tree-bar .snare-tree-signal { margin-right: auto; border-color: color-mix(in srgb, var(--signal) 50%, transparent); color: var(--signal); }
-#snarePanel.tree-open .snare-stats { display: none; }
 /* Packet Snare: a boss beaten leads its end card (review round 2). */
 .snare-card .snare-boss-down { color: var(--warning); text-transform: uppercase; letter-spacing: 0.06em; font-size: 1.05rem; }
 /* Go deeper once a sector is cleared: lit, so the choice is seen (review round 3). */
