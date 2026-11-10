@@ -15,12 +15,15 @@ Update this file with every fix batch (move fixed ones to *fixed: verify*, drop 
 - **K20 Screens, smaller:** the HUD is small and far from the field at 1920 and 4K; a sideways Look out card shows a line
   or two before Start covers it; at 360 × 640 a tree popup can clip its effect line; an UPDATING label clips at the
   field's edge (round 10).
-- **K22 Demos are too short to read** (the owner, 2026-11-10): demos should run a bit longer and show a beat **before
-  and after** the action they teach, so the change is clear; a demo whose bubble should hold packets should grow it
-  **a bit bigger**, so it's plainly round them. Each demo can now set its own length (`period` in `snare-demos.js`,
-  default 3.2 s); the mines and Defuse demos already use it (4.6 s and 3.6 s). The rest wait for a demo pass.
 
 ## Fixed: verify
+- **F30 (K22) Demos were too short to read** (the owner, 2026-11-10: longer, a beat before and after, bubbles a bit
+  bigger round packets): every demo now opens on 0.8 s of its field as set up with nothing happening (the before), and
+  holds at least 1.2 s after its payoff lands (the after); each demo's length is measured from when its payoff lands
+  (4.0–5.0 s, was 3.2 for all). Bubbles meant to go round packets are held about half a second longer, so they end up
+  plainly round them (Lasso, Unreadable, Chain, Scrubbers, Freeze, Supernova, Floodgate's three, Pulse, Backpressure,
+  Infinite Loop, Collector). The mines and Defuse demos show their mines in the before. Under reduced motion a demo
+  shows a still of its after. A test holds every demo to the before and after.
 - **F29 (K7) Grabbing a mine with a quick bubble often missed, and the boss popped the grab bubble:** the owner's call
   (Snare 18.1): **a loop drawn round a mine disables it** (a bubble no longer takes one), and **a disabled mine is
   flung like a slingshot**: press on it, pull back away from where it should go, let go. The further the pull, the

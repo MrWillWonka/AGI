@@ -10,10 +10,11 @@
     'use strict';
 
     const FIELD = { w: 6, h: 2.8 };
-    const PERIOD = 3.2;
-    // A demo may run longer (`period` on it, s): the owner's call (2026-11-10), demos show a beat before and after the
-    // action so it reads.
-    const periodOf = kind => DEMOS[kind]?.period || PERIOD;
+    // The demo pass (K22, the owner's call, 2026-11-10: demos were too short to read): every demo opens on `LEAD` s of
+    // its field as set up, nothing happening yet (the before), plays its script (at least `PERIOD` s, or its own
+    // `period`), and holds `TAIL` s or more after its payoff lands (the after). A sim's script time `t` starts at
+    // -LEAD; `clock` counts from 0 to the demo's `period`, measured once per demo from when its payoff lands.
+    const PERIOD = 3.2, LEAD = 0.8, TAIL = 1.2;
     // A ring of points round (cx, cy), starting at its top and going a little past it, so the loop closes.
     const ring = (cx, cy, rx, ry, n = 28, turns = 1) => Array.from({ length: n * turns + 3 }, (_, i) => [cx + Math.cos(-Math.PI / 2 + i / n * Math.PI * 2) * rx, cy + Math.sin(-Math.PI / 2 + i / n * Math.PI * 2) * ry]);
 
@@ -26,17 +27,17 @@
     const DEMOS = {
         lasso: { text: 'Hold still: a bubble grows. Let go to catch what\'s inside', opts: {},
             packets: [['good', 2.6, 1.2], ['good', 3.1, 1.5], ['good', 2.7, 1.8], ['good', 4.9, 0.7], ['corrupt', 5, 2.2]],
-            bubbles: [[0.3, 1.6, 2.8, 1.5]], expect: r => r.stats.catches >= 1 },
+            bubbles: [[0.3, 2.1, 2.8, 1.5]], expect: r => r.stats.catches >= 1 },
         // Red packets (Snare 15: sector 1 has one to meet): one inside spoils the whole catch.
         spoil: { text: 'One unreadable packet garbles the whole catch', opts: {},
             packets: [['good', 2.7, 1.3], ['good', 3.2, 1.5], ['corrupt', 2.9, 1.7], ['good', 5, 0.7]],
-            bubbles: [[0.3, 1.6, 2.95, 1.5]], expect: r => r.stats.corrupted >= 1 },
+            bubbles: [[0.3, 2.1, 2.95, 1.5]], expect: r => r.stats.corrupted >= 1 },
         chain: { text: 'Each catch arcs to good packets nearby', opts: { chain: 2 },
             packets: [['good', 2, 1.3], ['good', 2.3, 1.6], ['good', 1.8, 1.7], ['good', 3.3, 1.2], ['good', 3.4, 1.9], ['good', 5, 1.4]],
-            bubbles: [[0.3, 1.4, 2.05, 1.5]], expect: r => r.stats.chained >= 1 },
+            bubbles: [[0.3, 1.9, 2.05, 1.5]], expect: r => r.stats.chained >= 1 },
         scrubbers: { text: 'A bubble forgives an unreadable packet', opts: { scrubbers: 1 },
             packets: [['good', 2.7, 1.2], ['good', 3.3, 1.3], ['corrupt', 3, 1.6], ['good', 2.8, 1.9], ['good', 3.3, 1.9]],
-            bubbles: [[0.3, 1.8, 3, 1.55]], expect: r => r.stats.scrubbed >= 1 && r.stats.catches >= 1 },
+            bubbles: [[0.3, 2.2, 3, 1.55]], expect: r => r.stats.scrubbed >= 1 && r.stats.catches >= 1 },
         scanner: { text: 'Packets the beam passes are worth ×2 for a moment', opts: { scanner: 1, scannerSpeed: 2.2 },
             packets: [['good', 1, 0.6], ['good', 4.6, 0.7], ['good', 1.5, 2.2], ['good', 4.2, 2.1], ['good', 3.6, 0.5], ['good', 2.2, 1.2]],
             expect: r => r.stats.tagged >= 3 },
@@ -64,7 +65,7 @@
             taps: [[0.2, 'tower', 3, 1.4]], expect: r => r.stats.tagged >= 3 },
         freeze: { text: 'Freeze the field: grow your bubble while nothing moves', opts: { freeze: 1, freezeSeconds: 2 },
             packets: [['good', 2.6, 1.2, 1.8, 0], ['good', 3, 1.6, 1.8, 0.3], ['good', 2.8, 1.9, 1.8, -0.2]],
-            powers: [[0.3, 'freeze']], bubbles: [[0.4, 1.7, 2.8, 1.55]], expect: r => r.stats.freezes === 1 && r.stats.catches >= 1 },
+            powers: [[0.3, 'freeze']], bubbles: [[0.4, 2.2, 2.8, 1.55]], expect: r => r.stats.freezes === 1 && r.stats.catches >= 1 },
         purge: { text: 'Purge: every unreadable packet wiped off the field', opts: { purge: 1 },
             packets: [['corrupt', 1.2, 0.8], ['corrupt', 3, 1.5], ['corrupt', 4.6, 2.1], ['good', 2.2, 2.0], ['good', 4, 0.8]],
             powers: [[0.9, 'purge']], expect: r => r.stats.purged >= 3 },
@@ -95,15 +96,12 @@
         // Its mines (Snare 18.1, K7, the owner's call: loop round a mine to disable it, pull it back and let go to fling it):
         // a mine out in the arena, looped, then pulled back like a slingshot; it flies, banks off the bottom edge into the
         // boss. 4.6 s: the armed mine first, the boss reeling after.
-        mines: { text: 'Loop a mine, pull it back, let go: it banks off the edge into the boss', period: 4.6, opts: { boss: 9, bossAt: 0, bossMines: 2, netTime: 9, netRange: 1, mineHold: 9 },
+        mines: { text: 'Loop a mine, pull it back, let go: it banks off the edge into the boss', opts: { boss: 9, bossAt: 0, bossMines: 2, netTime: 9, netRange: 1, mineHold: 9 },
             packets: [['good', 4.6, 0.6], ['good', 5.2, 2.2], ['good', 4.9, 1.6]],
-            setup: r => { r.step(1 / 60); r.boss.mineAt = 99; r.mines = []; r.links = []; },
-            tick: (r, sim) => {
-                if (r.boss) Object.assign(r.boss, { x: 1.0, y: 1.0, vx: 0, vy: 0, chargeAt: 99 });
-                if (sim.t > 0.05 && !sim.laid) { sim.laid = true; r.mines.push({ id: 900, x: 3.2, y: 1.0 }, { id: 901, x: 5.3, y: 0.5 }); r.links.push({ a: 900, b: 901, t: 0 }); }
-            },
-            // the loop round it (0.7–1.5 s), then the pull back away from where it should go (1.9–2.6 s), let go
-            strokes: [[0.7, 1.5, ring(3.2, 1.0, 0.45, 0.45).slice(0, 26)], [1.9, 2.6, line(3.2, 1.0, 3.2 + 0.36, 1.0 - 0.59, 10)]],
+            setup: r => { r.step(1 / 60); Object.assign(r.boss, { x: 1.0, y: 1.0, vx: 0, vy: 0, chargeAt: 99, mineAt: 99 }); r.mines = [{ id: 900, x: 3.2, y: 1.0 }, { id: 901, x: 5.3, y: 0.5 }]; r.links = [{ a: 900, b: 901, t: 0 }]; },
+            tick: r => { if (r.boss) Object.assign(r.boss, { x: 1.0, y: 1.0, vx: 0, vy: 0, chargeAt: 99 }); },
+            // the loop round it (0.2–1.0 s), then the pull back away from where it should go (1.4–2.1 s), let go
+            strokes: [[0.2, 1.0, ring(3.2, 1.0, 0.45, 0.45).slice(0, 26)], [1.4, 2.1, line(3.2, 1.0, 3.2 + 0.36, 1.0 - 0.59, 10)]],
             expect: r => r.stats.minesGrabbed >= 1 && r.stats.mineThrows >= 1 && r.stats.mineHits >= 1 && r.stats.mineBounces >= 1 },
         // Split (Fork Bomb): a full bubble let go forks into smaller ones round it, which catch a moment later.
         fork: { text: 'Let go a full bubble: it splits, and the halves catch too', opts: { fork: 1, bubbleTime: 1 },
@@ -112,7 +110,7 @@
         // Supernova (Starburst): a bubble let go while the field is frozen bursts wider, ×2, red deleted.
         star: { text: 'Let go while frozen: a supernova, ×2, unreadable packets deleted', opts: { freeze: 1, freezeSeconds: 3, star: 1 },
             packets: [['good', 3, 1.4], ['good', 2.6, 1.7], ['corrupt', 3.3, 1.2], ['good', 3.4, 1.8], ['good', 2.7, 1.1]],
-            powers: [[0.2, 'freeze']], bubbles: [[0.3, 1.6, 3, 1.45]], expect: r => r.stats.stars >= 1 && r.stats.caught >= 3 },
+            powers: [[0.2, 'freeze']], bubbles: [[0.3, 2.1, 3, 1.45]], expect: r => r.stats.stars >= 1 && r.stats.caught >= 3 },
         // Privilege Escalation: flick from your hijacked Antivirus into the boss.
         escalate: { text: 'Flick from your hijacked Antivirus into the boss: a ram', opts: { boss: 9, bossAt: 0, hijack: 1, escalate: 1, antivirus: [0] },
             packets: [['good', 5.5, 2.5]],
@@ -126,21 +124,18 @@
         // Floodgate: three clean catches in a row, and a surge of packets swims in.
         surge: { text: 'Three clean catches in a row: a surge of packets', opts: { surge: 1, flow: true, flowSpread: 0.2, schoolSize: 4 },
             packets: [['good', 1.2, 1.2], ['good', 1.4, 1.5], ['good', 3, 1.2], ['good', 3.2, 1.5], ['good', 4.8, 1.2], ['good', 5, 1.5]],
-            bubbles: [[0.2, 0.7, 1.3, 1.35], [0.9, 1.4, 3.1, 1.35], [1.6, 2.1, 4.9, 1.35]],
+            bubbles: [[0.2, 0.95, 1.3, 1.35], [1.15, 1.9, 3.1, 1.35], [2.1, 2.85, 4.9, 1.35]],
             expect: r => r.stats.surges >= 1 },
         // Defuse at its last level: grab one mine and the nearest other comes too.
-        defuse: { text: 'Loop a mine: its neighbour is disabled too, and nets link slower', period: 3.6, opts: { boss: 4, bossAt: 0, bossMines: 2, defuseChain: 1, netTime: 5 },
+        defuse: { text: 'Loop a mine: its neighbour is disabled too, and nets link slower', opts: { boss: 4, bossAt: 0, bossMines: 2, defuseChain: 1, netTime: 5 },
             packets: [['good', 5.5, 2.5]],
-            setup: r => { r.step(1 / 60); r.boss.mineAt = 99; r.mines = []; r.links = []; },
-            tick: (r, sim) => {
-                if (r.boss) Object.assign(r.boss, { x: 0.8, y: 1.4, vx: 0, vy: 0, chargeAt: 99 });
-                if (sim.t > 0.05 && !sim.laid) { sim.laid = true; r.mines.push({ id: 900, x: 2.6, y: 1.4 }, { id: 901, x: 4.6, y: 1.4 }); r.links.push({ a: 900, b: 901, t: 0 }); }
-            },
-            strokes: [[0.8, 1.6, ring(4.6, 1.4, 0.45, 0.45).slice(0, 26)]], expect: r => r.stats.minesGrabbed >= 2 },
+            setup: r => { r.step(1 / 60); Object.assign(r.boss, { x: 0.8, y: 1.4, vx: 0, vy: 0, chargeAt: 99, mineAt: 99 }); r.mines = [{ id: 900, x: 2.6, y: 1.4 }, { id: 901, x: 4.6, y: 1.4 }]; r.links = [{ a: 900, b: 901, t: 0 }]; },
+            tick: r => { if (r.boss) Object.assign(r.boss, { x: 0.8, y: 1.4, vx: 0, vy: 0, chargeAt: 99 }); },
+            strokes: [[0.3, 1.1, ring(4.6, 1.4, 0.45, 0.45).slice(0, 26)]], expect: r => r.stats.minesGrabbed >= 2 },
         // Snare 10.3: Firehose's pulse, Clean Sweep, Quarantine Relay, Backpressure.
         pulse: { text: 'A clean catch: a pulse of new packets swims in', opts: { pulse: 2, flow: true, flowSpread: 0.2, schoolSize: 4 },
             packets: [['good', 2.8, 1.3], ['good', 3.2, 1.6], ['good', 2.9, 1.7]],
-            bubbles: [[0.3, 1.4, 3, 1.5]], expect: r => r.stats.pulses >= 1 && r.packets.length >= 4 },
+            bubbles: [[0.3, 1.9, 3, 1.5]], expect: r => r.stats.pulses >= 1 && r.packets.length >= 4 },
         cleanSweep: { text: 'A clean catch stops the clock for a moment', opts: { cleanSweep: 1, idleDrain: 1 },
             packets: [['good', 1.6, 1.3], ['good', 1.8, 1.6], ['good', 4.2, 1.3], ['good', 4.4, 1.6]],
             bubbles: [[0.2, 0.9, 1.7, 1.45], [1.9, 2.6, 4.3, 1.45]],
@@ -152,11 +147,11 @@
             expect: r => r.stats.relayed >= 1 && r.packets.some(p => p.kind === 'corrupt' && p.x < 2.4 && p.y > 1.4) },
         backpressure: { text: 'A catch turns the packets round it back: they bunch up', opts: { backpressure: 4, backSeconds: 1.4 },
             packets: [['good', 2.8, 1.4], ['good', 3.1, 1.6], ['good', 3.62, 1.45, 0.03, 0], ['good', 3.6, 1.75, 0.03, 0], ['good', 2.3, 1.3, -0.03, 0]],
-            bubbles: [[0.3, 1.2, 2.95, 1.5]], expect: r => r.stats.pushedBack >= 2 },
+            bubbles: [[0.3, 1.7, 2.95, 1.5]], expect: r => r.stats.pushedBack >= 2 },
         // The branch capstones (Snare 10).
         echo: { text: 'Each bubble catches again a second later', opts: { echo: 1, echoDelay: 0.9 },
-            packets: [['good', 2.8, 1.3], ['good', 3.2, 1.6], ['good', 0.6, 1.5, 1.4, 0], ['good', 0.4, 1.3, 1.5, 0]],
-            bubbles: [[0.2, 1.0, 3, 1.45]], expect: r => r.stats.echoes >= 1 },
+            packets: [['good', 2.8, 1.3], ['good', 3.2, 1.6], ['good', 0.4, 1.5, 0.9, 0], ['good', 0.2, 1.3, 0.95, 0]],
+            bubbles: [[0.2, 1.5, 3, 1.45]], expect: r => r.stats.echoes >= 1 },
         storm: { text: 'Every so often a school of gold swims in', opts: { storm: 1, stormFirst: 0.4, stormSize: 8, flow: true, flowSpread: 0.2 },
             packets: [['good', 3, 1.4]], expect: r => r.stats.storms >= 1 && r.packets.filter(p => p.kind === 'gold').length >= 6 },
         crash: { text: 'Every third slash crashes it: triple damage', opts: { boss: 20, bossAt: 0, crash: 1 },
@@ -191,7 +186,7 @@
             expect: r => r.stats.spoofed >= 2 },
         gc: { text: 'Bubble only unreadable packets: deleted, and Focus back', opts: { gc: 1 }, setup: r => { r.focus = 50; },
             packets: [['corrupt', 2.8, 1.2], ['corrupt', 3.2, 1.6], ['corrupt', 2.9, 1.8], ['good', 5, 0.5]],
-            bubbles: [[0.3, 1.6, 3, 1.5]], expect: r => r.stats.collected >= 2 && r.focus > 50 },
+            bubbles: [[0.3, 2.1, 3, 1.5]], expect: r => r.stats.collected >= 2 && r.focus > 50 },
         race: { text: 'Hold a full bubble still: its multiplier keeps growing', opts: { race: 1, raceRate: 0.6, bubbleTime: 0.8 },
             packets: [['good', 2.9, 1.4], ['good', 3.1, 1.6], ['good', 1, 1.5, 0.6, 0], ['good', 0.6, 1.3, 0.6, 0]],
             bubbles: [[0.2, 2.9, 3, 1.45]], expect: r => r.stats.raced >= 1 && r.stats.caught >= 3 },
@@ -224,7 +219,20 @@
             run.packets.push({ id: run.nextId++, kind: k, x, y, vx, vy, v: Math.hypot(vx, vy), r: P.PACKET_R, age: 1, school: 0, tag: 0 });
         }
         S.setup?.(run);
-        return { kind, run, t: 0, fed: 0, acts: 0, spread0: spread(run) };
+        const sim = { kind, run, t: -LEAD, clock: 0, fed: 0, acts: 0, spread0: spread(run), period: 0 };
+        sim.period = periods[kind] ??= measure(P, kind);
+        return sim;
+    }
+    // A demo's length: the before, then its script, at least `PERIOD` s (or its own `period`) and `TAIL` s past the
+    // moment its payoff lands (played once, headless, and remembered).
+    const periods = {};
+    function measure(P, kind) {
+        const S = DEMOS[kind];
+        periods[kind] = Infinity;   // `start` inside measures nothing
+        const sim = start(P, kind);
+        let at = null;
+        for (let i = 0; i < 12 * 60 && at == null; i++) { step(sim, 1 / 60); if (sim.t >= 0 && S.expect(sim.run, sim)) at = sim.t; }
+        return LEAD + Math.max(S.period || PERIOD, (at ?? PERIOD) + TAIL);
     }
 
     // Step a demo: feed the scripted wire, taps, walls and powers, pin what it holds, and return the run's events.
@@ -232,6 +240,9 @@
         const S = DEMOS[sim.kind];
         const r = sim.run;
         sim.t += dt;
+        sim.clock += dt;
+        // the before: the field as set up, still
+        if (sim.t < 0) return [];
         // Bubbles: the pen goes down at (x, y), holds still, and lets go.
         for (const [i, [t0, t1, x, y]] of (S.bubbles || []).entries()) {
             sim.held = sim.held || [];
@@ -278,5 +289,5 @@
     // Did a demo show what it's for? (Played through once, in the tests.)
     const shows = (sim) => DEMOS[sim.kind].expect(sim.run, sim);
 
-    return { DEMOS, FIELD, PERIOD, periodOf, start, step, shows };
+    return { DEMOS, FIELD, PERIOD, LEAD, TAIL, start, step, shows };
 });

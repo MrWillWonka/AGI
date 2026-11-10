@@ -5310,8 +5310,10 @@ window.AGI = (function () {
             if (!canvas.offsetParent) return void setTimeout(() => canvas.isConnected && requestAnimationFrame(frame), 800);
             const dt = Math.min(0.05, (now - last) / 1000);
             last = now;
-            if (!sim || sim.t >= D.periodOf(kind)) { sim = D.start(window.PacketSnare, kind); fx = []; }
-            if (reducedMotion()) { while (sim.t < 1.6) advance(1 / 60); } else advance(dt);
+            // each demo has its own length (K22: a still beat before, a beat after its payoff); under reduced motion, a
+            // still of the after
+            if (!sim || sim.clock >= sim.period) { sim = D.start(window.PacketSnare, kind); fx = []; }
+            if (reducedMotion()) { while (sim.clock < sim.period - D.TAIL * 0.8) advance(1 / 60); } else advance(dt);
             drawSnareView(ctx, { run: sim.run, effects: fx, k, ox: (SNARE_DEMO.w - D.FIELD.w * k) / 2, oy: (SNARE_DEMO.h - D.FIELD.h * k) / 2,
                 cw: SNARE_DEMO.w, ch: SNARE_DEMO.h, dpr, field: sim.run });
             // the boss's demo plays its fight's overlay too: the warning, the health bar and its clock (K14)
