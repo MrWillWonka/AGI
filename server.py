@@ -15,11 +15,17 @@ class NoCacheHandler(SimpleHTTPRequestHandler):
         super().end_headers()
 
 
+class Server(ThreadingHTTPServer):
+    # The review report's browsers load the game at once; the default queue of 5 waiting connections made Windows
+    # refuse the rest (ERR_CONNECTION_REFUSED).
+    request_queue_size = 128
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     port = int(args[0]) if args else 8000
     handler = functools.partial(NoCacheHandler, directory=str(Path(__file__).parent))
-    with ThreadingHTTPServer(("127.0.0.1", port), handler) as httpd:
+    with Server(("127.0.0.1", port), handler) as httpd:
         url = f"http://localhost:{port}"
         print(f"Serving on {url} (Ctrl+C to stop)")
         if "--no-browser" not in sys.argv:
