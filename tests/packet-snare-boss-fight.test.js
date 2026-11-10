@@ -77,3 +77,49 @@ test('without the new options the old arena stands (bossAt, the clock running)',
     stepFor(s, 1);
     assert.ok(s.focus < f, 'the clock runs');
 });
+
+// Snare 17.8 (round 10, the owner's call): Focus really holds in the fight; a snap there costs the fight clock instead.
+// A slow stroke dragged through the boss (a flick isn't snapped: it's how the boss is fought); returns the snap's frame.
+function dragThrough(s) {
+    const b = s.boss;
+    s.addPoint(b.x - 4, b.y - 3);
+    stepFor(s, 0.6);
+    for (let i = 0; i < 60; i++) {
+        const before = { focus: s.focus, left: s.fight?.left };
+        const k = Math.min(8, i);
+        s.addPoint(i < 9 ? b.x - 4 + k : s.boss.x + 0.1 * (i % 2), i < 9 ? b.y - 3 + k * 0.375 : s.boss.y);
+        for (let j = 0; j < (i < 9 ? 4 : 1); j++) {
+            const pre = { focus: s.focus, left: s.fight?.left };
+            s.step(1 / 60);
+            const ev = s.takeEvents();
+            if (ev.some(e => e.type === 'snap' && e.by === 'boss')) return { ev, pre, before };
+        }
+    }
+    return null;
+}
+
+test('a wire the boss snaps in the fight costs the fight clock, not Focus', () => {
+    const s = fight({ fightPenalty: 2, bossCharge: 99 });
+    stepFor(s, 10);
+    assert.ok(s.boss && s.fight, 'the fight is on');
+    s.takeEvents();
+    const hit = dragThrough(s);
+    assert.ok(hit, 'the boss snapped it');
+    const cost = hit.ev.find(e => e.type === 'fightCost');
+    assert.ok(cost && cost.secs === 2, 'it says what it cost');
+    assert.ok(Math.abs(s.focus - hit.pre.focus) < 1e-9, 'Focus holds');
+    const drop = hit.pre.left - s.fight.left;
+    assert.ok(Math.abs(drop - (2 + 1 / 60)) < 1e-6, `2 s off the fight clock (${drop.toFixed(3)})`);
+});
+
+test('outside the fight (the old arena) a boss snap still costs Focus', () => {
+    const s = P.createSnare({ seed: 5, w: 14, h: 9, antivirus: [], sweepFirst: Infinity, boss: 20, bossAt: 0, bossFight: 0, fightPenalty: 2, bossCharge: 99, focus: 10 });
+    stepFor(s, 2);
+    assert.ok(s.boss && !s.fight, 'an arena boss, no fight clock');
+    s.takeEvents();
+    const hit = dragThrough(s);
+    assert.ok(hit, 'the boss snapped it');
+    assert.ok(!hit.ev.some(e => e.type === 'fightCost'));
+    const lost = hit.pre.focus - s.focus;
+    assert.ok(Math.abs(lost - (3 + 1 / 60)) < 1e-6, `Focus paid the snap and half again (${lost.toFixed(3)})`);
+});

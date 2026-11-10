@@ -316,6 +316,7 @@
         bossArrive: 0,
         bossIncoming: 2.5,
         bossFight: 0,
+        fightPenalty: 0,             // Snare 17.8 (round 10): s off the fight clock for a snap or a spoil while the boss fights (Focus holds)
         bossSwallow: 0,
         // Red hunts your bubble (the owner's call on a phone log: no catch spoiled in 15 runs, red was easy to keep out):
         // while a bubble is held, red packets within `redHuntReach` × a full bubble's radius of its edge swim at it, harder
@@ -918,7 +919,8 @@
                 s.fight.left = Math.max(0, s.fight.left - dt);
                 if (s.fight.left <= 0) {
                     s.stats.bossEscaped++;
-                    s.events.push({ type: 'bossEscape', x: b.x, y: b.y, packets: s.swallowed.length });
+                    s.stats.escapedHp = b.hp; s.stats.escapedMaxHp = b.maxHp;   // what it got away with, for the end card
+                    s.events.push({ type: 'bossEscape', x: b.x, y: b.y, packets: s.swallowed.length, hp: b.hp, maxHp: b.maxHp });
                     for (const m of [...s.mines, ...s.held]) s.events.push({ type: 'mineDown', x: m.x, y: m.y, boss: true });
                     s.mines = []; s.held = []; s.links = []; s.thrown = [];
                     s.boss = null; s.fight = null; s.swallowed = [];
@@ -928,7 +930,9 @@
             }
             mineStep(b, dt);
             // Shielded while two or more mines stand (one mine halves its slashes).
-            b.shielded = s.mines.length >= 2;
+            // A parry breaks it for its reel (Snare 17.8, round 10, the owner's call: the parry was followed by slashes
+            // that all glanced off a shield up 41% of sector 11's fight).
+            b.shielded = s.mines.length >= 2 && !(b.shieldBreak > s.time);
             if (b.stunned > s.time) {
                 b.x += b.vx * dt;
                 b.y += b.vy * dt;
@@ -1013,7 +1017,7 @@
             if (s.wire.length > 1 && !flicking && !(s.bubble && s.time - (b.born ?? -9) < 1.5)) {
                 for (let i = 1; i < s.wire.length; i++) {
                     // Its snap costs half again what an Antivirus's does.
-                    if (segDist(b, s.wire[i - 1], s.wire[i]) < b.r * 0.85) { const pop = !!s.bubble?.growing; snap(b, 'boss'); if (!pop) s.focus = Math.max(0, s.focus - o.snapPenalty * 0.5); break; }
+                    if (segDist(b, s.wire[i - 1], s.wire[i]) < b.r * 0.85) { const pop = !!s.bubble?.growing; snap(b, 'boss'); if (!pop && !bossHold()) s.focus = Math.max(0, s.focus - o.snapPenalty * 0.5); break; }
                 }
             }
             // Your Firewall sections hold it off, and the first touch each approach stuns it: a slash window.
@@ -1027,7 +1031,7 @@
                 return false;
             }
             if (!(dmg > 0)) return true;
-            if (s.mines.length === 1 && !pierce) dmg = Math.ceil(dmg / 2);
+            if (s.mines.length === 1 && !pierce && !(b.shieldBreak > s.time)) dmg = Math.ceil(dmg / 2);
             b.hp = Math.max(0, b.hp - dmg);
             s.stats.bossHits++;
             s.stats.bossDamage += dmg;
@@ -1083,6 +1087,7 @@
             b.vy = -dy * 3;
             s.stats.parries++;
             s.events.push({ type: 'parry', x: b.x, y: b.y });
+            if (s.mines.length) { b.shieldBreak = b.stunned; b.shielded = false; s.events.push({ type: 'shieldBreak', x: b.x, y: b.y, until: b.stunned }); }
             damageBoss(b, o.parryDamage, 'parry');
         }
 
@@ -1205,7 +1210,8 @@
                     s.thrown = s.thrown.filter(q => q !== m);
                     const damage = Math.round(o.mineThrow * (1 + o.mineBank * m.bounces));
                     s.stats.mineHits++;
-                    s.events.push({ type: 'mineThrow', x: boss.x, y: boss.y, from: { x: m.x, y: m.y }, bounces: m.bounces, damage });
+                    // `bank`: the bounces added damage (Ricochet's alone: without it a bounce is just a longer path, K15)
+                    s.events.push({ type: 'mineThrow', x: boss.x, y: boss.y, from: { x: m.x, y: m.y }, bounces: m.bounces, damage, bank: o.mineBank > 0 && m.bounces > 0 });
                     if (damageBoss(boss, damage, 'mine', true) && s.boss) boss.stunned = Math.max(boss.stunned, s.time + o.mineReel);
                     continue;
                 }
@@ -1391,6 +1397,17 @@
         }
 
         // `by`: what did it (the boss, an Antivirus, a scan, a core), for the playtest log
+        // What a snap or a spoil costs (Snare 17.8, round 10, the owner's call): while the boss is coming or fighting, Focus
+        // really holds (the HUD's ❚❚ said so, but a snapped loop took 3 s of it, and most fights ended on Focus with the
+        // fight clock barely run); a snap or a spoil takes `fightPenalty` s off the fight clock instead (nothing during the
+        // warning), so the 30 s clock decides the fight. Outside the fight it costs Focus, as ever.
+        function penalty(secs, at) {
+            if (!bossHold()) { s.focus = Math.max(0, s.focus - secs); return; }
+            if (!s.fight || !s.boss || !(o.fightPenalty > 0)) return;
+            s.fight.left = Math.max(0, s.fight.left - o.fightPenalty);
+            s.stats.fightCost = (s.stats.fightCost || 0) + o.fightPenalty;
+            s.events.push({ type: 'fightCost', x: at?.x ?? w / 2, y: at?.y ?? h / 2, secs: o.fightPenalty, left: s.fight.left });
+        }
         function snap(fw, by = '') {
             const popped = !!s.bubble?.growing;
             s.events.push({ type: 'snap', x: fw.x, y: fw.y, wire: s.wire.slice(), bubble: popped, by, boss: !!s.boss });
@@ -1400,7 +1417,7 @@
             s.leftStart = false;
             s.cooldown = o.snapCooldown;
             // A popped bubble costs no Focus (the owner's call after the review rounds); a snapped wire costs `snapPenalty`.
-            if (!popped) s.focus = Math.max(0, s.focus - o.snapPenalty);
+            if (!popped) penalty(o.snapPenalty, fw);
             s.stats.snaps++;
             s.streak = 0;
             s.cleanRun = 0;
@@ -2407,7 +2424,7 @@
             return Math.round(refill(o.clearFocus * Math.pow(0.5, s.clears++) * s.maxFocus));
         }
         const SECTOR_KEYS = ['corruptShare', 'avSpeed', 'packetSpeed', 'antivirus', 'sweepFirst', 'sweepEvery', 'rogue', 'rogueFirst', 'rogueEvery',
-            'teachRed', 'boss', 'goal', 'goalPay', 'bossAt', 'bossCatch', 'bossArrive', 'bossIncoming', 'bossFight', 'bossSwallow', 'bossFocus', 'bossR', 'bossSpeed', 'bossCharge', 'bossWarn', 'bossStun', 'bossMines', 'mineEvery', 'bossMinions'];
+            'teachRed', 'boss', 'goal', 'goalPay', 'bossAt', 'bossCatch', 'bossArrive', 'bossIncoming', 'bossFight', 'fightPenalty', 'bossSwallow', 'bossFocus', 'bossR', 'bossSpeed', 'bossCharge', 'bossWarn', 'bossStun', 'bossMines', 'mineEvery', 'bossMinions'];
         function nextSector(next = {}) {
             if (s.over) return;
             const before = { av: o.antivirus.length, sweep: o.sweepFirst, rogue: o.rogue };
@@ -2656,7 +2673,7 @@
                 s.cleanRun = 0;
                 remove(j.inside);
                 s.stats.corrupted++;
-                s.focus = Math.max(0, s.focus - o.corruptPenalty);
+                penalty(o.corruptPenalty, at);
                 s.events.push({ type: 'corrupt', x: at.x, y: at.y, poly, area: j.area, count: j.inside.length, corrupt: j.corrupt.length, packets: j.inside });
                 if (s.focus <= 0) end();
                 return;

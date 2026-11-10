@@ -3353,6 +3353,12 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 .snare-bar { display: none; }
 #moduleView:has(> #snarePanel:not([hidden])) .snare-bar { display: flex; flex: 1 1 auto; min-width: 0; align-items: center; gap: 10px; }
 /* On a phone the crumbs (⌂ server_room) keep their own width here, so ⌂, Signal and Upgrades share one row. */
+/* The crumbs keep their own width here and the HUD's slot takes what's left (K11: split evenly, the crumbs were squeezed
+   under their text, which printed over itself on sideways phones and cut "packet_snare" short at 1280 with Go deeper up);
+   on a tight bar only the last crumb gives way, with an ellipsis. */
+#moduleView:has(> #snarePanel:not([hidden])) .module-bar .crumbs { flex: 0 1 auto; }
+#moduleView:has(> #snarePanel:not([hidden])) .module-bar .crumbs > :not(.crumb-here) { flex-shrink: 0; }
+#moduleView:has(> #snarePanel:not([hidden])) .module-bar .crumb-here { flex: 0 1 auto; min-width: 3ch; }
 @media (max-width: 640px) { #moduleView:has(> #snarePanel:not([hidden])) .module-bar .crumbs { min-width: 0; } }
 #moduleView:has(> #snarePanel.tree-open) .snare-bar { visibility: hidden; }
 .snare-bar .snare-signal { margin-left: auto; flex: none; border-color: color-mix(in srgb, var(--signal) 50%, transparent); color: var(--signal); }

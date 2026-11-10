@@ -85,15 +85,17 @@
             strokes: [[0.75, 0.82, line(2.6, 0.3, 2.6, 2.5, 6)], [1.25, 1.32, line(1.2, 0.3, 1.2, 2.5, 6)], [1.7, 1.77, line(0.4, 0.6, 2.0, 2.2, 6)]],
             tick: (r, sim) => { if (r.boss) { if (!sim.armed) { sim.armed = true; r.boss.chargeAt = r.time + 0.3; } Object.assign(r.boss, { x: 1.2, y: 1.4, vx: 0, vy: 0 }); } },
             expect: r => r.stats.parries >= 1 && r.stats.bossDamage >= 2 },
-        // Its mines: while two stand, the boss is shielded; a bubble grabs one, and a flick from it throws it at the boss.
-        mines: { text: 'Bubble a mine to grab it, then flick it at the boss', opts: { boss: 9, bossAt: 0, bossMines: 2, netTime: 1.2, netRange: 1 },
-            packets: [['good', 2.5, 1.0], ['good', 3.6, 1.8], ['good', 3.1, 1.5]],
+        // Its mines (Snare 17.8, round 10: the demo showed the old mine sat against the boss): a mine out in the arena, a bubble
+        // grabs it, and a flick throws it as a puck that banks off the bottom edge into the boss.
+        mines: { text: 'Bubble a mine, flick it: it flies, banks off the edge, hits the boss', opts: { boss: 9, bossAt: 0, bossMines: 2, netTime: 9, netRange: 1 },
+            packets: [['good', 4.6, 0.6], ['good', 5.2, 2.2], ['good', 4.9, 1.6]],
             setup: r => { r.step(1 / 60); r.boss.mineAt = 99; r.mines = []; r.links = []; },
             tick: (r, sim) => {
-                if (r.boss) Object.assign(r.boss, { x: 0.8, y: 1.4, vx: 0, vy: 0, chargeAt: 99 });
-                if (sim.t > 0.05 && !sim.laid) { sim.laid = true; r.mines.push({ id: 900, x: 2.3, y: 1.4 }, { id: 901, x: 4.4, y: 1.4 }); r.links.push({ a: 900, b: 901, t: 0 }); }
+                if (r.boss) Object.assign(r.boss, { x: 1.0, y: 1.0, vx: 0, vy: 0, chargeAt: 99 });
+                if (sim.t > 0.05 && !sim.laid) { sim.laid = true; r.mines.push({ id: 900, x: 3.2, y: 1.0 }, { id: 901, x: 5.3, y: 0.5 }); r.links.push({ a: 900, b: 901, t: 0 }); }
             },
-            bubbles: [[0.4, 1.2, 2.3, 1.4]], strokes: [[1.5, 1.6, line(2.3, 1.4, 0.9, 1.4, 6)]], expect: r => r.stats.minesGrabbed >= 1 && r.stats.mineThrows >= 1 },
+            bubbles: [[0.3, 1.0, 3.2, 1.0]], strokes: [[1.25, 1.33, line(3.2, 1.0, 2.4, 2.3, 6)]],
+            expect: r => r.stats.minesGrabbed >= 1 && r.stats.mineThrows >= 1 && r.stats.mineHits >= 1 && r.stats.mineBounces >= 1 },
         // Split (Fork Bomb): a full bubble let go forks into smaller ones round it, which catch a moment later.
         fork: { text: 'Let go a full bubble: it splits, and the halves catch too', opts: { fork: 1, bubbleTime: 1 },
             packets: [['good', 3, 1.4], ['good', 3.2, 1.6], ...Array.from({ length: 12 }, (_, i) => ['good', 3 + Math.cos(i * Math.PI / 6) * 1.65, 1.4 + Math.sin(i * Math.PI / 6) * 1.2])],

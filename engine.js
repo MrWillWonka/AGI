@@ -567,10 +567,12 @@
         { id: 'snareGc', name: 'Garbage Collection', mechanic: 'gc', snare: { x: -1, y: 3 }, requires: 'snareParry', cost: { signal: 3000 }, scale: 2, max: 1, sn: { gc: 1 }, effect: 'A bubble of only unreadable packets deletes them and gives Focus back.' },
         { id: 'snareCleanerBot', name: 'Decoder Bot', mechanic: 'cleaner', snare: { x: -1, y: 1 }, requires: 'snareSanitizer', cost: { signal: 100 }, scale: 2, max: 4, sn: { cleanBots: 1 }, effect: 'A Decoder Bot rides an unreadable packet until your model can read it.' },
         { id: 'snareSanitizer', name: 'Sanitizer', snare: { x: 0, y: 1 }, requires: 'snareSeed', deep: true, cost: { signal: 40 }, scale: 2, max: 9, perLevel: [{ cleaner: 1 }, { cleaner: 1 }, { cleaner: 1 }, { cleaner: 2 }, { cleaner: 2, lureMult: -0.16 }, { cleaner: 3, lureMult: -0.16 }, { cleaner: 3, lureMult: -0.16 }, { cleaner: 4, lureMult: -0.16 }, { cleaner: 4, lureMult: -0.16 }], sn: { cleaner: 1 }, effect: 'Fewer unreadable packets. From level 5, they stop chasing schools.' },
-        { id: 'snareKernelPanic', name: 'Kernel Panic', snare: { x: 0, y: 2 }, requires: 'snareSanitizer', cost: { signal: 500 }, scale: 2, max: 1, sn: { bossStun: 1 }, effect: 'A stunned boss reels 1 s longer.' },
+        { id: 'snareKernelPanic', name: 'Kernel Panic', snare: { x: 0, y: 2 }, requires: 'snareSanitizer', cost: { signal: 500 }, scale: 2, max: 1, sn: { bossStun: 1 }, effect: 'A stunned boss reels 1 s longer.',
+            // the boss's nodes wait for the first boss (round 10: sold on sector 3, they took Signal the wall needed)
+            unlock: s => s.snare.sector >= SNARE_FIRST_BOSS },
         { id: 'snareSpoof', name: 'Packet Spoofing', mechanic: 'spoof', snare: { x: 0, y: 4 }, requires: 'snareParry', cost: { signal: 3000 }, scale: 1.2, max: 2, sn: { spoof: 1 }, stages: { 2: { spoofSeconds: 7 } }, effect: 'Flick through unreadable packets: they turn good, worth ×2, for 5 s.' },
         { id: 'snareCollectorBot', name: 'Collector Bot', mechanic: 'collector', snare: { x: -2, y: 3 }, requires: 'snareGc', cost: { signal: 3200 }, scale: 1.5, max: 3, sn: { collectBots: 1 }, effect: 'A Collector Bot nets small clusters of good packets.' },
-        { id: 'snareRiposte', name: 'Riposte', mechanic: 'parry', snare: { x: 1, y: 2 }, requires: 'snareKernelPanic', cost: { signal: 1800 }, scale: 2, max: 1, sn: { parry: 1 }, effect: 'Flick across the boss\'s charge line: parried and stunned.' },
+        { id: 'snareRiposte', name: 'Riposte', mechanic: 'parry', snare: { x: 1, y: 2 }, requires: 'snareKernelPanic', cost: { signal: 1800 }, scale: 2, max: 1, sn: { parry: 1 }, effect: 'Flick across the boss\'s charge line: parried, stunned, shield down.' },
         { id: 'snareRicochet', name: 'Ricochet', snare: { x: 1, y: 1 }, requires: 'snareRiposte', cost: { signal: 2500 }, scale: 2.2, max: 3, sn: { ricochet: 1 }, effect: 'Thrown mines bounce once more. +50% damage a bounce.' },
         { id: 'snareDefuse', name: 'Defuse', mechanic: 'defuse', snare: { x: 1, y: 3 }, requires: 'snareRiposte', cost: { signal: 8750 }, scale: 3, max: 3, sn: { defuse: 1 }, stages: { 3: { defuseChain: 1 } }, effect: 'Mines take 1 s longer to link. Level 3: grab two at once.' },
         { id: 'snareEscalate', name: 'Privilege Escalation', mechanic: 'escalate', snare: { x: -2, y: 5 }, requires: 'snareForged', after: 'snareHijack', cost: { signal: 18400 }, scale: 2.5, max: 2, sn: { escalate: 1 }, stages: { 2: { escalateDamage: 7 } }, effect: 'Flick from a hijacked Antivirus at the boss: it rams for 4.' },
@@ -2423,6 +2425,7 @@
             bossArrive: 0.5,
             bossIncoming: 2.5,
             bossFight: 30,
+            fightPenalty: 2,   // Snare 17.8 (round 10): a snap or a spoil in the fight costs the fight clock 2 s, not Focus
             bossSwallow: 1,
             bossFocus: 0,
             bossR: B.bossR * (1 + 0.075 * k),

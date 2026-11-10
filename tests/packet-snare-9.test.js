@@ -257,3 +257,35 @@ test('training skills power you up in Packet Snare, each by its name', () => {
     assert.ok(gates.every(E.isSnareBossSector) && gates[0] > 4, 'gates are boss sectors, after the first boss');
     assert.ok(!gates.some(k => field.includes(k)));
 });
+
+// Snare 17.8 (round 10, the owner's call): a parry breaks the mine shield for its reel.
+test('a parry breaks the mine shield while the boss reels, then it comes back', () => {
+    const s = still({ boss: 10, bossAt: 0, bossStun: 1.6, parry: 1, bossMines: 0 });
+    const b = bossAt(s);
+    s.mines.push({ id: s.nextId++, x: 1, y: 1 }, { id: s.nextId++, x: 11, y: 7 });
+    s.step(1 / 60);
+    assert.ok(b.shielded, 'two mines shield it');
+    assert.ok(b.charge, 'it locked on');
+    s.takeEvents();
+    parry(s);
+    const ev = s.takeEvents();
+    assert.ok(ev.some(e => e.type === 'shieldBreak'), 'the parry says SHIELD DOWN');
+    assert.ok(!b.shielded && b.stunned > s.time, 'unshielded while it reels');
+    const glancedBefore = s.stats.glanced;
+    slash(s);
+    assert.equal(b.hp, 9, 'a slash lands in full');
+    assert.equal(s.stats.glanced, glancedBefore);
+    run(s, 2);
+    assert.ok(b.stunned <= s.time && b.shielded, 'the shield is back once the reel ends');
+});
+
+test('without a parry, slashes on a stunned boss still glance off the shield', () => {
+    const s = still({ boss: 10, bossAt: 0, bossStun: 1.6, parry: 1, bossMines: 0 });
+    const b = bossAt(s);
+    s.mines.push({ id: s.nextId++, x: 1, y: 1 }, { id: s.nextId++, x: 11, y: 7 });
+    b.charge = null; b.stunned = s.time + 1.6;
+    s.step(1 / 60);
+    slash(s);
+    assert.equal(b.hp, 10, 'it glanced');
+    assert.ok(s.stats.glanced >= 1);
+});
