@@ -6,10 +6,10 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
 
 ## Where things stand
 
-- **Live review build:** Packet Snare **17.9**, published to the owner's artifact
+- **Live review build:** Packet Snare **18**, published to the owner's artifact
   <https://claude.ai/artifact/9Sc3mL6iQFeDVNmdnjtP5Q> (slug `445c4d6b-4414-4184-aa65-debc63cd7dcf`, version
-  `1794331539-3bb3` at publish; read: owner). `E.BUILD` in `engine.js` says
-  `2026-11-10 17:22 (review branch) · Packet Snare 17.9: …` (17.8 was `1794329790-1505`, 16:56).
+  `1794337885-40a0` at publish; read: owner). `E.BUILD` in `engine.js` says
+  `2026-11-10 19:06 (review branch) · Packet Snare 18: …` (17.9 was `1794331539-3bb3`, 17:25; 17.8 was `1794329790-1505`, 16:56).
 - **What 17.7 changed** (the owner's calls on the 17.6 log): boss mines laid on a ring 0.3 × the field's shorter side
   round the boss; a thrown mine is an air-hockey puck (flies the way it's flicked, bounces off edges up to 2 times, then
   a dud; hits for 3); **Ricochet** node off Riposte (+1 bounce and +50% damage a bounce per level); Antivirus hunt 25%
@@ -28,9 +28,10 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
   roots in view. Open: K5–K7, K17
   (nets), K20 (smaller screen issues), D15. **In 17.9 (published 17:25 UTC):** K21
   (shape cues: unreadable a hollow eye, gold a light rim, tags a dotted edge; the owner's picks) and K14 (the boss demo); the slow pacing ratchet held at sector 3's 18 bot runs and
-  sector 4's 7 (the owner's calls, `knownMisses` in `targets.json`). **Since (not published yet):** K19, the goal curve
+  sector 4's 7 (the owner's calls, `knownMisses` in `targets.json`). **In 18 (published 19:06 UTC):** K19, the goal curve
   skips boss sectors (sector 12 asks 140K, not 843K; the owner's pick of three in a sweep); D15 stays watching (no
-  desktop log since 17.2).
+  desktop log since 17.2). The owner's 17.9 log (`playtests/snare/2026-11-10-owner-snare-17-9.txt`, sectors 1–4 in 1,
+  3, 2, 7 runs, Antivirus snapping the wire in 6 of 9 runs on 3–4): sector 4 left as it is, the owner's call.
 - **Also in 17.8, merged in from a local session (2026-11-10): the copy and colour pass and the terminal voice.** See *Copy and colour pass*
   below before touching any Packet Snare text or colour. It changes no rules or balance.
 - **Pacing (bot, phone, 3 seeds, 20 min) on 17.7:** sector 3 takes 18 runs (15 on 17.6: faster Antivirus), sector 5 at
