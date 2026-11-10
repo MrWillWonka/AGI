@@ -38,8 +38,8 @@
   "bubblesPerSecondAtLeast": 0.25,
   "knownMisses": {
     "3": {
-      "atMost": 13,
-      "why": "Sector 3's goal is 185 (the owner's call: between 175's 3 runs and 200's 8-10). The person-paced bot took a median 8 runs before; 13 since 17.3's tree fold (Scrubbers' forgiving gone, Sanitizer front-loaded), which the owner saw and published to judge by hand (the owner took 6 on 15.5). The test fails if it gets worse than 13."
+      "atMost": 18,
+      "why": "Sector 3's goal is 330 Signal (17.4). The person-paced bot took a median 8 runs on 15.5, 13 after 17.3's tree fold, 18 since 17.7's faster Antivirus (avHunt x1.25, avTurn x1.2). The owner held the limit at 18 on 2026-11-10 (they took 6 runs on sector 3; D15, desktop, stays open for their desktop log). The test fails if it gets worse than 18."
     }
   }
 }
