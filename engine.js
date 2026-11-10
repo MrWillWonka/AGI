@@ -2269,7 +2269,7 @@
     const SNARE_AV_AREA = 0.25;   // the owner's pick after the sweep (0.35, 0.5 and 0.7 tried): 2 Antivirus on an 8× field → 3
     const SNARE_DESKTOP = { red: 1.25, speed: 1.2, warn: 0.3 };
     const snareDesktop = o => ({ ...o, corruptShare: (o.corruptShare || 0) * SNARE_DESKTOP.red, avSpeed: (o.avSpeed ?? 1) * SNARE_DESKTOP.speed,
-        bossWarn: Math.max(0.9, (o.bossWarn ?? 2) - SNARE_DESKTOP.warn) });
+        bossWarn: Math.max(0.9, (o.bossWarn ?? 2) - SNARE_DESKTOP.warn), loopCatch: 0 });
     function snareOpts(s, sector = s.snare.sector) {
         const B = snareBase();
         const { n, staged } = snareLevels(s);
@@ -2297,6 +2297,9 @@
             closeRadius: B.closeRadius * (1 + g('closeMult')),
             // Snare 15 (the owner's call): bubbles are the way to catch; the wire circles the boss and flicks.
             bubble: 1,
+            // Snare 17.6 (the owner's call): on a phone a drawn loop catches too (a mouse's left button keeps loops for the
+            // boss: `snareDesktop` turns it off)
+            loopCatch: 1,
             bubbleSize: g('bubbleSize'),
             bubbleGrow: g('bubbleGrow'),
             // Sector 1 has no red share, but one red packet to meet (the owner's call: it's how the player learns red).

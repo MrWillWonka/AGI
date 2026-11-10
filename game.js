@@ -3896,7 +3896,7 @@ window.AGI = (function () {
     // How to catch (Snare 15, the owner's call: bubbles are the way to catch), for the first card and the first tip.
     const snareHowTo = () => (matchMedia('(pointer: fine)').matches
         ? 'Hold the RIGHT mouse button on the field: a bubble grows, and follows the mouse. Let go to catch what\'s inside. Bigger bubbles pay more; one red packet inside garbles the lot. (The left button draws a line: that\'s for the boss.)'
-        : 'Hold still on the field: a bubble grows, and follows your finger. Let go to catch what\'s inside. Bigger bubbles pay more; one red packet inside garbles the lot.');
+        : 'Hold still on the field: a bubble grows, and follows your finger. Let go to catch what\'s inside. Or draw a circle round them: it catches when it closes. Bigger circles pay more; one red packet inside garbles the lot.');
     function snareField(area = E.snareOpts(state).area, o = null) {
         const aspect = Math.min(3.5, Math.max(0.5, snare.cw / snare.ch || 1.6));
         const cap = snare.cw > 0 && snare.ch > 0 ? Math.max(window.PacketSnare.FIELD_AREA, snare.cw * snare.ch / SNARE_PPU ** 2) : area;

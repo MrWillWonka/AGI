@@ -129,6 +129,13 @@
         // instead of breaking; only a deliberate stroke in its first moment draws a wire.
         bubbleCommit: 0.22,         // held this long, it's a bubble for good (let go sooner: a tap or a flick, no catch)
         bubbleSlop: 1.2,            // × the closing ring's radius: a pen that goes this far before then draws a wire
+        // Snare 17.6 (the owner's call: on a phone both drawn and held circles catch): a touch only becomes a bubble once
+        // the finger is still, moving less than `bubbleStill` × the closing ring in the last `bubbleStillTime` s (a slow
+        // circle used to become a bubble at `bubbleCommit` and drag round with the finger), and with `loopCatch` a drawn
+        // loop catches as the old wire did (game.js turns it off for a mouse, whose left button keeps loops for the boss)
+        bubbleStill: 0.5,
+        bubbleStillTime: 0.15,
+        loopCatch: 0,
         bubbleMin: 0.85,            // × the closing ring's radius: its size the moment it appears
         bubbleTime: 2.5,            // seconds to grow to its full size…
         bubblePow: 1.15,            // …a little faster as it goes (radius ∝ t^pow)
@@ -2481,13 +2488,15 @@
         function close(poly, held = false) {
             const at = centroid(poly);
             s.leftStart = false;
-            if (o.bubble) {
+            if (o.bubble && !o.loopCatch) {
                 if (!loopBoss(poly)) s.events.push({ type: 'loopOnly', x: at.x, y: at.y, poly });
                 return;
             }
             const j = judge(poly);
+            // with bubbles, a drawn loop is a wire catch (`wire`: it can be rushed); mines are a bubble's to grab
+            if (o.bubble) j.wire = true;
             let acted = s.cores.length && j.area <= o.chokeArea * fieldArea ? quarantineIn(poly) : false;
-            if (clearMines(poly)) acted = true;
+            if (!o.bubble && clearMines(poly)) acted = true;
             if (loopBoss(poly)) acted = true;
             if (hijackIn(poly)) acted = true;
             if (!j.inside.length) {
@@ -2497,7 +2506,7 @@
                 return;
             }
             // Race Condition: a clean loop closed with the pen still down stays open while the pen holds still.
-            if (o.race && held && !j.spoiled && !j.garbage && j.good.length) {
+            if (o.race && held && !o.bubble && !j.spoiled && !j.garbage && j.good.length) {
                 s.race = { poly, at: s.penAt, t: 0, bonus: 0 };
                 s.events.push({ type: 'raceStart', x: at.x, y: at.y, poly });
                 return;
@@ -2632,7 +2641,7 @@
             // A loop closed moments after the last (a scribble, lifted or not) pays half, doesn't count toward the
             // sector's goal and sets off none of the clean-loop rewards.
             // (Bubbles aren't rushed: they already cost the time they're held; round 2 of the review.)
-            const hasty = !o.bubble && s.real - s.lastLoopAt < o.scribbleGap;
+            const hasty = (!o.bubble || j.wire) && s.real - s.lastLoopAt < o.scribbleGap;
             s.lastLoopAt = s.real;
             // A clean streak: each clean catch in a row before this one adds `streakPay` (careful play pays).
             const run = Math.min(s.cleanRun, o.streakMax);
@@ -2720,12 +2729,23 @@
             b.r = r0 + (bubbleMaxR - r0) * Math.pow(t, o.bubblePow);
             b.full = t >= 1;
             if (!b.growing) {
+                // where the pen was over the last `bubbleStillTime` s (the oldest kept is the last one at least that old)
+                if (b.pen) {
+                    const hist = b.hist || (b.hist = []);
+                    hist.push({ x: b.pen.x, y: b.pen.y, t: s.real });
+                    while (hist.length > 1 && s.real - hist[1].t >= o.bubbleStillTime) hist.shift();
+                }
                 if (s.real - b.t0 < o.bubbleCommit) return;
                 // Snare 12.5 (the owner's call: slashes and parries on the left button): a left press that's moving fast
                 // is a flick on its way, so it waits out the flick's time before it's a bubble for good; let go by then and
                 // it's judged as a flick
                 const moved = b.pen && Math.hypot(b.pen.x - b.ox, b.pen.y - b.oy) > o.bubbleSlop * closeR;
                 if (b.locked && moved && s.real - b.t0 < o.flickTime) return;
+                // a finger still moving is drawing: it waits until it's still (or wanders off and draws a wire)
+                if (!b.locked && b.pen) {
+                    const old = b.hist[0];
+                    if (Math.hypot(b.pen.x - old.x, b.pen.y - old.y) > o.bubbleStill * closeR) return;
+                }
                 b.growing = true;
                 s.stroke = null;     // it's no flick
                 s.events.push({ type: 'bubbleStart', x: b.x, y: b.y });
@@ -2892,7 +2912,7 @@
         // the start to close it.
         function preview() {
             const bub = bubblePoly();
-            const poly = bub || (o.bubble ? null : openLoop());
+            const poly = bub || (o.bubble && !o.loopCatch ? null : openLoop());
             if (!poly) return null;
             const j = judge(poly, bub ? bubbleBonus(s.bubble) : 0);
             const head = s.wire[s.wire.length - 1], start = s.wire[0];
