@@ -6,10 +6,16 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
 
 ## Where things stand
 
-- **Live review build:** Packet Snare **18**, published to the owner's artifact
+- **Live review build:** Packet Snare **18.1**, published to the owner's artifact
   <https://claude.ai/artifact/9Sc3mL6iQFeDVNmdnjtP5Q> (slug `445c4d6b-4414-4184-aa65-debc63cd7dcf`, version
-  `1794337885-40a0` at publish; read: owner). `E.BUILD` in `engine.js` says
-  `2026-11-10 19:06 (review branch) · Packet Snare 18: …` (17.9 was `1794331539-3bb3`, 17:25; 17.8 was `1794329790-1505`, 16:56).
+  `1794349829-0fa7` at publish, 22:30 UTC, from the owner's Windows machine; read: owner). `E.BUILD` in `engine.js` says
+  `2026-11-10 22:25 (review branch) · Packet Snare 18.1: …` (18 was `1794337885-40a0`, 19:06; 17.9 was `1794331539-3bb3`,
+  17:25; 17.8 was `1794329790-1505`, 16:56). **18.1:** mines looped and slung (K7), the loop count readable (K5), the
+  demo pass (K22); see known-issues F28–F30. Watch in the next log: looping a mine on a phone, the sling's full pull
+  (a fifth of the shorter side), whether LOOP 1/2 reads mid-fight.
+- **Publishing from Windows:** export the changed files from git (`git show HEAD:<file>`, LF, as the artifact holds
+  them; the working tree is CRLF) and `index.html` from `review-out/<name>.html` with its CRs stripped, compare
+  sha256 with `list_files`, and publish only the ones that differ.
 - **What 17.7 changed** (the owner's calls on the 17.6 log): boss mines laid on a ring 0.3 × the field's shorter side
   round the boss; a thrown mine is an air-hockey puck (flies the way it's flicked, bounces off edges up to 2 times, then
   a dud; hits for 3); **Ricochet** node off Riposte (+1 bounce and +50% damage a bounce per level); Antivirus hunt 25%
