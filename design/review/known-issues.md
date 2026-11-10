@@ -17,6 +17,14 @@ Update this file with every fix batch (move fixed ones to *fixed: verify*, drop 
   field's edge (round 10).
 
 ## Fixed: verify
+- **F32 First actions weren't walked through in play** (the owner, 2026-11-10: slow the play, dim it, show the
+  process with a ghost): the first time an action comes up in a run, the field slows to 0.15 (your finger keeps real
+  time), dims round a spotlight, and a ghost finger plays the gesture with a one-line prompt until you do it: the
+  bubble, the red packet, (phones) the drawn loop, the boss's two loops and the slash, a mine's loop and sling,
+  Riposte's parry, Packet Spoofing, Privilege Escalation, the Freeze and Purge pickups. Each shows until done (twice at
+  most). Judge the feel: the owner's fallback is freezing instead of 0.15. `tools/review/coaches.js` plays them all.
+- **F31 Mines still sat too close to the boss:** their ring is 0.42 of the field's shorter side (0.3); still two on
+  sector 8 (the owner's call).
 - **F30 (K22) Demos were too short to read** (the owner, 2026-11-10: longer, a beat before and after, bubbles a bit
   bigger round packets): every demo now opens on 0.8 s of its field as set up with nothing happening (the before), and
   holds at least 1.2 s after its payoff lands (the after); each demo's length is measured from when its payoff lands

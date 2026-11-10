@@ -3985,6 +3985,8 @@ window.AGI = (function () {
         reserveSnareTools(o);
         snare.seed = (state.snare.runs * 7919 + Math.floor(state.stats.playTime * 1000)) >>> 0;
         snare.run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area, o), seed: snare.seed, redHunt: snareHuntOn() ? SNARE_HUNT : 0 });
+        snare.coach = null;
+        snare.coachCaught = 0;
         snare.sector = sector;
         snare.startSector = sector;
         snare.cleared = [];
@@ -4027,6 +4029,285 @@ window.AGI = (function () {
     // Why things went wrong in a run, counted for the playtest log (pops and snaps by what did them, boss loops too late or
     // that missed it): the questions the review rounds couldn't answer from a log.
     function snareWhy(key) { (snare.why ||= {})[key] = (snare.why[key] || 0) + 1; return true; }
+    // ---- Walkthroughs (Snare 18.2) ---------------------------------------------------------------------------------
+    // The owner's call: the first time an action comes up in a run, the field slows to SNARE_COACH_SLOW of its speed
+    // (your pen keeps real time: `setSlow` in packet-snare.js), dims round a spotlight on what to act on, and a ghost
+    // finger plays the gesture there with a one-line prompt, until you do it. Each is shown until it's done, or
+    // SNARE_COACH_TRIES times if it isn't (state.intro `snare:coach:<key>` once done, `snare:coachSeen:<key>` the times
+    // shown; Reset Packet Snare clears both). "If I don't like it we can go to freezing": SNARE_COACH_SLOW 0 would.
+    const SNARE_COACH_SLOW = 0.15, SNARE_COACH_MAX = 14, SNARE_COACH_TRIES = 2;
+    // The best clean group of good packets to bubble (ids), or null.
+    function snareCluster(run) {
+        const R = Math.max(1.1, run.closeR * 1.6);
+        const good = run.packets.filter(p => p.kind !== 'corrupt' && !p.burst).slice(0, 300), bad = run.packets.filter(p => p.kind === 'corrupt');
+        let best = null;
+        for (const p of good) {
+            if (p.x < R || p.y < R || p.x > run.w - R || p.y > run.h - R) continue;
+            if (bad.some(q => Math.hypot(q.x - p.x, q.y - p.y) < R * 1.5)) continue;
+            const near = good.filter(q => Math.hypot(q.x - p.x, q.y - p.y) < R);
+            if (!best || near.length > best.length) best = near;
+        }
+        return best && best.length >= 2 ? best.map(p => p.id) : null;
+    }
+    // Where a group of packets is now, and how big a circle takes them all.
+    function snareGroupAt(run, ids) {
+        const ps = run.packets.filter(p => ids.includes(p.id));
+        if (!ps.length) return null;
+        const x = ps.reduce((a, p) => a + p.x, 0) / ps.length, y = ps.reduce((a, p) => a + p.y, 0) / ps.length;
+        return { x, y, r: Math.max(run.closeR * 0.9, ...ps.map(p => Math.hypot(p.x - x, p.y - y) + 0.45)) };
+    }
+    const coachById = (list, id) => list.find(q => q.id === id) || null;
+    const coachTap = () => (snareFinePointer() ? 'click' : 'tap');
+    // Each walkthrough: `when` it can start (what it's about, or null), `aim` where it is now (null: it's gone), the
+    // `gesture` the ghost plays, the prompt, and `done`, the event that means you did it. `info`: nothing to do but see it
+    // (done when its time is up).
+    const SNARE_COACHES = [
+        { key: 'bubble', when: run => run.time > 0.6 && snareCluster(run),
+            aim: (run, ids) => { const g = snareGroupAt(run, ids); return g && { ...g, gesture: 'hold' }; },
+            text: () => (snareFinePointer() ? '> hold the right button · let go to catch' : '> hold still · let go to catch'),
+            done: e => e.type === 'catch' },
+        { key: 'red', after: 'bubble', info: 5, when: run => run.packets.find(p => p.kind === 'corrupt' && p.x > 0.5 && p.y > 0.5 && p.x < run.w - 0.5 && p.y < run.h - 0.5)?.id,
+            aim: (run, id) => { const p = coachById(run.packets, id); return p && { x: p.x, y: p.y, r: 0.7, gesture: 'mark' }; },
+            text: () => '> unreadable · keep it out of your bubble', done: e => e.type === 'catch' },
+        // Phones catch with a drawn loop too (Snare 17.5): shown once a bubble has caught (the owner's call: show the choice)
+        { key: 'loop', after: 'bubble', when: run => run.opts.loopCatch && !snareFinePointer() && performance.now() - (snare.coachCaught || Infinity) > 1500 && snareCluster(run),
+            aim: (run, ids) => { const g = snareGroupAt(run, ids); return g && { ...g, r: g.r + 0.3, gesture: 'loop' }; },
+            text: () => '> or draw a loop round them', done: e => e.type === 'catch' && e.drawn },
+        { key: 'bossLoop', when: run => run.boss && run.fight && !(run.boss.stunned > run.time) && !run.boss.charge,
+            aim: run => { const b = run.boss; return b && !(b.stunned > run.time) && { x: b.x, y: b.y, r: b.r + Math.max(0.9, run.closeR * 1.1), gesture: 'loop', turns: 2 }; },
+            text: () => (snareFinePointer() ? '> left button: loop round it twice' : '> loop round it twice'), done: e => e.type === 'bossLooped' },
+        { key: 'slash', after: 'bossLoop', when: run => run.boss && run.boss.stunned > run.time && !run.boss.shielded,
+            aim: run => { const b = run.boss; if (!b || !(b.stunned > run.time)) return null; const L = b.r + 1.4; return { x: b.x, y: b.y, r: L, gesture: 'flick', a: { x: b.x - L, y: b.y - L * 0.35 }, b: { x: b.x + L, y: b.y + L * 0.35 } }; },
+            text: () => "> swipe through it while it's stunned", done: e => e.type === 'slash' && !e.shielded },
+        { key: 'mineLoop', when: run => run.boss && run.mines.length && !run.held.length && !(run.boss.stunned > run.time) && [...run.mines].sort((m, q) => Math.hypot(m.x - run.boss.x, m.y - run.boss.y) - Math.hypot(q.x - run.boss.x, q.y - run.boss.y)).pop().id,
+            aim: (run, id) => { const m = coachById(run.mines, id); return m && { x: m.x, y: m.y, r: Math.max(0.9, run.closeR * 1.2), gesture: 'loop' }; },
+            text: () => '> loop a mine to disable it', done: e => e.type === 'mineGrab' },
+        { key: 'sling', when: run => run.boss && run.held[0]?.id,
+            aim: (run, id) => {
+                const m = coachById(run.held, id), b = run.boss;
+                if (!m || !b) return null;
+                const d = Math.hypot(b.x - m.x, b.y - m.y) || 1, pull = run.opts.slingPull * Math.min(run.w, run.h);
+                return { x: m.x, y: m.y, r: pull + 0.5, gesture: 'sling', a: { x: m.x, y: m.y }, b: { x: m.x - (b.x - m.x) / d * pull, y: m.y - (b.y - m.y) / d * pull }, to: { x: b.x, y: b.y } };
+            },
+            text: () => '> pull it back · let go at the boss', done: e => e.type === 'mineLaunch' },
+        // Unlocked moves, the first time each can be used
+        { key: 'parry', when: run => run.opts.parry && run.boss?.charge && run.boss.charge.t < run.boss.charge.warn - 0.3,
+            aim: run => {
+                const b = run.boss, c = b?.charge;
+                if (!c) return null;
+                const mx = b.x + c.dx * 1.6, my = b.y + c.dy * 1.6, h = 1.2;
+                return { x: mx, y: my, r: 2, gesture: 'flick', a: { x: mx - c.dy * h, y: my + c.dx * h }, b: { x: mx + c.dy * h, y: my - c.dx * h } };
+            },
+            text: () => '> swipe across its line to parry', done: e => e.type === 'parry' },
+        { key: 'spoof', when: run => run.opts.spoof && !run.boss && run.packets.find(p => p.kind === 'corrupt' && p.x > 1.5 && p.x < run.w - 1.5 && p.y > 1 && p.y < run.h - 1)?.id,
+            aim: (run, id) => { const p = coachById(run.packets, id); return p && p.kind === 'corrupt' && { x: p.x, y: p.y, r: 1.6, gesture: 'flick', a: { x: p.x - 1.3, y: p.y - 0.4 }, b: { x: p.x + 1.3, y: p.y + 0.4 } }; },
+            text: () => '> flick through unreadable packets: they pass as good', done: e => e.type === 'spoof' },
+        { key: 'escalate', when: run => run.opts.escalate && run.boss && run.antivirus.find(f => f.ally > run.time)?.id,
+            aim: (run, id) => {
+                const f = coachById(run.antivirus, id), b = run.boss;
+                if (!f || !b || !(f.ally > run.time)) return null;
+                return { x: (f.x + b.x) / 2, y: (f.y + b.y) / 2, r: Math.hypot(b.x - f.x, b.y - f.y) / 2 + 0.8, gesture: 'flick', a: { x: f.x, y: f.y }, b: { x: b.x, y: b.y } };
+            },
+            text: () => '> flick from your Antivirus into the boss', done: e => e.type === 'escalate' },
+        ...['freeze', 'purge'].map(kind => ({ key: `pickup:${kind}`, when: run => run.pickups?.find(p => p.kind === kind)?.id,
+            aim: (run, id) => { const p = coachById(run.pickups || [], id); return p && { x: p.x, y: p.y, r: 1, gesture: 'tap' }; },
+            text: () => `> ${coachTap()} it: ${kind === 'freeze' ? 'the field freezes' : 'unreadable packets purged'}`,
+            done: e => e.type === 'pickup' && e.kind === kind }))
+    ];
+    const coachKey = (c, what) => `snare:${what}:${c.key}`;
+    // Start or keep up a walkthrough (each frame of a run in play). A walkthrough must never stop the game: one that
+    // throws is dropped and the field goes back to full speed (logged as snareCoachError).
+    function snareCoachStep(run) {
+        try { coachStep(run); } catch (err) {
+            snare.coach = null;
+            snare.coachOff = true;
+            run.setSlow?.(1);
+            pt('snareCoachError', { error: String(err).slice(0, 200) });
+        }
+    }
+    function coachStep(run) {
+        if (snare.coachOff) return;
+        const now = performance.now();
+        const c = snare.coach;
+        if (c) {
+            const def = SNARE_COACHES.find(x => x.key === c.key);
+            c.at = run.over ? null : def.aim(run, c.what);
+            const secs = (now - c.t0) / 1000;
+            if (!c.at || secs > (def.info || SNARE_COACH_MAX)) snareCoachEnd(!!def.info && !!c.at);
+            return;
+        }
+        if (run.over || run.drawing || now < (snare.coachNext || 0)) return;
+        snare.coachNext = now + 250;   // looking for one costs a little: four times a second is plenty
+        for (const def of SNARE_COACHES) {
+            if (state.intro[coachKey(def, 'coach')] || (state.intro[coachKey(def, 'coachSeen')] || 0) >= SNARE_COACH_TRIES) continue;
+            if (def.after && !state.intro[`snare:coach:${def.after}`]) continue;
+            const what = def.when(run);
+            if (!what) continue;   // ids start at 1, so anything falsy (0 from a switched-off option too) is "not now"
+            const at = def.aim(run, what);
+            if (!at) continue;
+            state.intro[coachKey(def, 'coachSeen')] = (state.intro[coachKey(def, 'coachSeen')] || 0) + 1;
+            snare.coach = { key: def.key, what, at, t0: now };
+            run.setSlow(SNARE_COACH_SLOW || 0.01);
+            return;
+        }
+    }
+    function snareCoachEnd(done) {
+        const c = snare.coach;
+        if (!c) return;
+        snare.coach = null;
+        snare.coachNext = performance.now() + 1200;   // a breath before the next one
+        snare.run?.setSlow(1);
+        if (done) state.intro[`snare:coach:${c.key}`] = true;
+        pt('snareCoach', { key: c.key, done: !!done, secs: Math.round((performance.now() - c.t0) / 100) / 10 });
+    }
+    // Each event of the run: did it finish the walkthrough up?
+    function snareCoachEvent(e) {
+        if (snare.coachOff) return;
+        if (e.type === 'catch') snare.coachCaught = performance.now();
+        const c = snare.coach;
+        if (!c) return;
+        const def = SNARE_COACHES.find(x => x.key === c.key);
+        if (!def.done(e)) return;
+        if (c.at) snare.fx.push({ kind: 'stun', x: c.at.x, y: c.at.y - (c.at.r || 1) - 0.4, t: 0, life: 0.9, text: '✓', small: true });
+        snareCoachEnd(true);
+    }
+    // The walkthrough on the field (a layer, in field units): the field dimmed round a spotlight, the ghost finger
+    // playing the gesture (hidden while your own pen is down), and the prompt.
+    function drawSnareCoach(d) {
+        const { ctx, C, k, run, W, H } = d;
+        const c = snare.coach;
+        if (!c || !c.at || run !== snare.run || snare.coachOff) return;
+        const at = c.at, def = SNARE_COACHES.find(x => x.key === c.key);
+        const real = (performance.now() - c.t0) / 1000, calm = reducedMotion();
+        const fade = Math.min(1, real / 0.35);
+        const sx = at.x * k, sy = at.y * k, sr = Math.max(1.2, at.r + 0.6) * k;
+        // the dim, with the spotlight cut out of it
+        ctx.save();
+        ctx.globalAlpha = 0.55 * fade;
+        ctx.fillStyle = C.bg;
+        ctx.beginPath();
+        ctx.rect(0, 0, W * k, H * k);
+        ctx.moveTo(sx + sr, sy);
+        ctx.arc(sx, sy, sr, 0, Math.PI * 2, true);
+        ctx.fill('evenodd');
+        ctx.globalAlpha = 0.7 * fade;
+        ctx.strokeStyle = C.text;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 7]);
+        ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+        const yours = run.drawing || run.bubble || run.sling;
+        if (!yours) drawSnareGhost(d, at, def, calm ? 0.55 : (real % (at.turns > 1 ? 2.8 : 2.1)) / (at.turns > 1 ? 2.8 : 2.1), fade);
+        // the prompt, under the spotlight (over it near the foot of the field)
+        const label = def.text();
+        ctx.save();
+        ctx.font = snareHintFont(16);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const below = sy + sr + 22 < H * k - 12;
+        const ly = below ? sy + sr + 22 : sy - sr - 18;
+        const tw = ctx.measureText(label).width, lx = Math.max(tw / 2 + 6, Math.min(W * k - tw / 2 - 6, sx));
+        ctx.globalAlpha = fade;
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = C.bg;
+        ctx.strokeText(label, lx, ly);
+        ctx.fillStyle = C.text;
+        ctx.fillText(label, lx, ly);
+        ctx.restore();
+    }
+    // The ghost finger at phase p (0–1) of its gesture.
+    function drawSnareGhost(d, at, def, p, fade) {
+        const { ctx, C, k } = d;
+        const finger = (x, y, down, a = 1) => {
+            ctx.globalAlpha = a * fade;
+            ctx.strokeStyle = C.text;
+            ctx.fillStyle = C.text;
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(x * k, y * k, down ? 11 : 14, 0, Math.PI * 2); ctx.stroke();
+            ctx.globalAlpha = a * fade * (down ? 0.55 : 0.2);
+            ctx.beginPath(); ctx.arc(x * k, y * k, down ? 9 : 12, 0, Math.PI * 2); ctx.fill();
+        };
+        const lerp = (a, b, f) => ({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f });
+        ctx.save();
+        ctx.lineCap = 'round';
+        if (at.gesture === 'hold') {
+            // press, a bubble growing round the group, let go
+            const minR = Math.max(0.3, at.r * 0.3);
+            const grow = Math.max(0, Math.min(1, (p - 0.12) / 0.62));
+            if (p > 0.12 && p < 0.8) {
+                ctx.globalAlpha = 0.6 * fade;
+                ctx.strokeStyle = C['snare-bubble'] || C.success;
+                ctx.lineWidth = 2.5;
+                ctx.setLineDash([6, 5]);
+                ctx.beginPath(); ctx.arc(at.x * k, at.y * k, (minR + (at.r - minR) * grow) * k, 0, Math.PI * 2); ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            if (p >= 0.8 && p < 0.95) {
+                ctx.globalAlpha = (1 - (p - 0.8) / 0.15) * fade;
+                ctx.strokeStyle = C['snare-bubble'] || C.success;
+                ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.arc(at.x * k, at.y * k, at.r * k, 0, Math.PI * 2); ctx.stroke();
+            }
+            if (p < 0.9) finger(at.x, at.y, p > 0.12 && p < 0.8, p < 0.12 ? p / 0.12 : 1);
+        } else if (at.gesture === 'loop') {
+            // a finger drawing round it (twice for the boss), the wire left behind it
+            const turns = at.turns || 1, f = Math.min(1, p / 0.85), n = 48 * turns;
+            const pt2 = i => ({ x: at.x + Math.cos(-Math.PI / 2 + i / 48 * Math.PI * 2) * at.r, y: at.y + Math.sin(-Math.PI / 2 + i / 48 * Math.PI * 2) * at.r });
+            const upto = Math.floor(n * f);
+            ctx.globalAlpha = 0.7 * fade * (p > 0.85 ? 1 - (p - 0.85) / 0.15 : 1);
+            ctx.strokeStyle = C.text;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            for (let i = 0; i <= upto; i++) { const q = pt2(i); i ? ctx.lineTo(q.x * k, q.y * k) : ctx.moveTo(q.x * k, q.y * k); }
+            ctx.stroke();
+            const q = pt2(upto);
+            if (p < 0.9) finger(q.x, q.y, true);
+        } else if (at.gesture === 'flick') {
+            // a quick straight swipe, a streak behind it
+            const f = Math.max(0, Math.min(1, (p - 0.25) / 0.2)), q = lerp(at.a, at.b, f);
+            if (f > 0) {
+                ctx.globalAlpha = 0.75 * fade * (p > 0.6 ? Math.max(0, 1 - (p - 0.6) / 0.3) : 1);
+                ctx.strokeStyle = C.warning;
+                ctx.lineWidth = 5;
+                ctx.beginPath(); ctx.moveTo(at.a.x * k, at.a.y * k); ctx.lineTo(q.x * k, q.y * k); ctx.stroke();
+            }
+            if (p < 0.6) finger(q.x, q.y, p > 0.18, p < 0.18 ? p / 0.18 : 1);
+        } else if (at.gesture === 'sling') {
+            // press on the mine, pull back, let go: it flies the other way
+            const pull = Math.max(0, Math.min(1, (p - 0.15) / 0.4)), q = lerp(at.a, at.b, pull);
+            if (p < 0.6) {
+                ctx.globalAlpha = 0.8 * fade;
+                ctx.strokeStyle = C.warning;
+                ctx.lineWidth = 2 + 3 * pull;
+                ctx.beginPath(); ctx.moveTo(at.a.x * k, at.a.y * k); ctx.lineTo(q.x * k, q.y * k); ctx.stroke();
+                finger(q.x, q.y, p > 0.12, p < 0.12 ? p / 0.12 : 1);
+            } else {
+                const fly = Math.min(1, (p - 0.6) / 0.3), end = lerp(at.a, at.to, 0.85 * fly);
+                ctx.globalAlpha = 0.8 * fade * (1 - Math.max(0, fly - 0.7) / 0.3);
+                ctx.strokeStyle = C.warning;
+                ctx.lineWidth = 3;
+                ctx.setLineDash([6, 6]);
+                ctx.beginPath(); ctx.moveTo(at.a.x * k, at.a.y * k); ctx.lineTo(end.x * k, end.y * k); ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        } else if (at.gesture === 'tap') {
+            const down = p > 0.3 && p < 0.45;
+            finger(at.x, at.y + (p < 0.3 ? (0.3 - p) * 2 : 0), down, Math.min(1, p / 0.15));
+            if (p > 0.3) {
+                ctx.globalAlpha = Math.max(0, 1 - (p - 0.3) / 0.5) * fade;
+                ctx.strokeStyle = C.text;
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(at.x * k, at.y * k, (0.4 + (p - 0.3) * 2) * k, 0, Math.PI * 2); ctx.stroke();
+            }
+        } else if (at.gesture === 'mark') {
+            ctx.globalAlpha = (0.6 + 0.4 * Math.sin(p * Math.PI * 2)) * fade;
+            ctx.strokeStyle = C.danger;
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(at.x * k, at.y * k, at.r * k, 0, Math.PI * 2); ctx.stroke();
+        }
+        ctx.restore();
+    }
     function snareFrame(now) {
         const run = snare.run;
         if (!run || openBay !== 'pipeline') {
@@ -4057,6 +4338,9 @@ window.AGI = (function () {
         for (const f of snare.fx) f.t += dt;
         snare.fx = snare.fx.filter(f => f.t < (f.life || SNARE_FX));
         snareEvents();
+        // after the events: a catch let go between frames takes its packets at once, so the walkthrough must hear the
+        // catch before it looks for them (it ended as "gone", not done, and showed again)
+        snareCoachStep(run);
         drawSnare();
         renderSnareHud();
         if (run.over && !snare.fx.length) { snare.raf = 0; return; }
@@ -4076,6 +4360,7 @@ window.AGI = (function () {
         const shake = life => { if (state.settings.shake && !reducedMotion()) snare.fx.push({ kind: 'shake', t: 0, life }); };
         for (const e of run.takeEvents()) {
             const t = e.type;
+            snareCoachEvent(e);
             if (t === 'catch') {
                 // A scribbled loop (closed moments after the last on the same stroke) pays half, and says so.
                 snareFxFor(e, snare.fx, `+${E.format(snarePay(e.units))}${e.hasty ? ' · RUSHED ×½' : e.safe ? ' · SAFE' : ''}${e.cleanRun >= 2 ? ` · STREAK ${e.cleanRun}` : ''}`);
@@ -5328,7 +5613,7 @@ window.AGI = (function () {
 
     // Drawn in layers, back to front, each a function of the view `d` (the context, colours, scale, run, effects), so the
     // field draws the same into the bay's canvas and a node's demo.
-    const SNARE_LAYERS = () => [drawSnareCurrent, drawSnareContain, drawSnareScanner, drawSnareCores, drawSnareMines, drawSnareFirewalls, drawSnareToolLife, drawSnareSweeps, drawSnareLoops, drawSnarePreview, drawSnarePackets, drawSnareHerders, drawSnareLasers, drawSnareChain, drawSnareWire, drawSnareRaceLabel, drawSnareRogueFx, drawSnareSnaps, drawSnareAntivirus, drawSnareBoss, drawSnarePickups, drawSnareFrozen, drawSnarePops];
+    const SNARE_LAYERS = () => [drawSnareCurrent, drawSnareContain, drawSnareScanner, drawSnareCores, drawSnareMines, drawSnareFirewalls, drawSnareToolLife, drawSnareSweeps, drawSnareLoops, drawSnarePreview, drawSnarePackets, drawSnareHerders, drawSnareLasers, drawSnareChain, drawSnareWire, drawSnareRaceLabel, drawSnareRogueFx, drawSnareSnaps, drawSnareAntivirus, drawSnareBoss, drawSnarePickups, drawSnareFrozen, drawSnarePops, drawSnareCoach];
     let snareMonoFont = '', snareHintFace = '';
     // Hints (how to do something) are the pipeline terminal's prompt: '> ' and lower case in its mono type, small and in the
     // text colour, so they never read as a payoff or a loss.
@@ -6355,7 +6640,7 @@ window.AGI = (function () {
         drawSnareSling(d, r);
         for (const m of run.held) {
             const x = m.x * k, y = m.y * k, left = Math.max(0, (m.until - run.time) / run.opts.mineHold);
-            if (run.boss && !run.sling && !state.intro['snare:slung']) drawSnareThrowHint(d, x, y, r);
+            if (run.boss && !run.sling && !state.intro['snare:slung'] && !snare.coach) drawSnareThrowHint(d, x, y, r);
             ctx.globalAlpha = 0.25 + 0.15 * Math.sin(t * 8);
             ctx.fillStyle = C.warning;
             ctx.beginPath(); ctx.arc(x, y, r * 1.9, 0, Math.PI * 2); ctx.fill();
@@ -6665,7 +6950,7 @@ window.AGI = (function () {
                 ctx.arc(x, y, lr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, ph * 1.25));
                 ctx.stroke();
                 ctx.setLineDash([]);
-                if (!state.intro['snare:looped']) {
+                if (!state.intro['snare:looped'] && !snare.coach) {
                     const label = (run.opts.bossLoops || 1) > 1 ? `> loop round it ×${run.opts.bossLoops}` : '> loop round it';
                     ctx.font = snareHintFont(14);
                     ctx.textAlign = 'center';
@@ -12462,6 +12747,8 @@ window.AGI = (function () {
             // Packet Snare from scratch (the owner's call: replay a server-room game from its first level): Signal, the tree,
             // sectors, records and the saved layout cleared, and its first-meeting cards shown again. The rest of the game
             // stays where it is.
+            // The walkthrough on the field (Snare 18.2), for the review tools: its key and where it's aimed, or null.
+            snareCoach() { return snare.coach ? { key: snare.coach.key, at: snare.coach.at, slow: snare.run?.slow } : null; },
             resetSnare() {
                 if (snare.run && !snare.run.over && !snare.preview) snare.run.stop();
                 cancelAnimationFrame(snare.raf);

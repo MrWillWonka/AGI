@@ -130,6 +130,7 @@ node tools/review/report.js review-out/<name> # tests, pacing on both screens, s
 node tools/review-index.js review-out/<name>.html
 node tools/review/artifact-files.js review-out/<name>.html   # what to publish (sha256 per file)
 node tools/review/serve.js 8123               # the game for the kit by hand (the report serves it itself)
+node tools/review/coaches.js                  # every in-run walkthrough on desktop and phone, with screenshots (~2 min)
 ```
 
 The report needs no server started first: it uses one already serving the game at its URL (port 8123, `--url` or

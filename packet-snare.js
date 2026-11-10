@@ -168,8 +168,9 @@
         // boss (they sat too close for the arena), and a thrown mine is a puck (air hockey): it flies the way it was flicked
         // at `mineSpeed` × the shorter side a second, slowing by `mineDrag` a second, bounces off the field's edges up to
         // `mineBounces` times (the next edge it meets, or too slow, and it's a dud) and hits the boss for `mineThrow`, each
-        // bounce before it adding `mineBank` × that (Ricochet).
-        mineSpread: 0.3,
+        // bounce before it adding `mineBank` × that (Ricochet). Snare 18.2 (the owner: they still felt too close): the ring is
+        // 0.42 of the shorter side (it was 0.3), room to loop a mine well clear of the boss, and longer bank shots.
+        mineSpread: 0.42,
         mineSpeed: 1.3,
         mineDrag: 0.35,
         mineBounces: 2,
@@ -541,6 +542,7 @@
             stormAt: o.storm ? o.stormFirst : Infinity,   // Packet Storm's next school of gold
             time: 0,                // the field's clock (it stops while frozen)
             real: 0,                // the run's own clock (it doesn't)
+            slow: 1,                // Snare 18.2: the field runs at this share of time (a walkthrough's slow motion); the pen doesn't
             focus: o.focus,
             maxFocus: o.focus,
             focusEarned: 0,         // Focus earned back so far (refills and drain saved), against the cap
@@ -2194,6 +2196,9 @@
             s.real += dt;
             if (s.cooldown > 0) s.cooldown = Math.max(0, s.cooldown - dt);
             bubbleStep(dt);
+            // Snare 18.2: in a walkthrough's slow motion the field runs at `s.slow` of time, while your pen (the bubble's
+            // growth, a flick's timing, the cooldown above) keeps real time, so your gesture feels as it always does.
+            dt *= s.slow;
             wallsNow = wallsUp();
             // Frozen: the field's clock stops (nothing moves, nothing comes due, tags hold, Focus holds); only your pen works.
             // Focus runs at half speed while frozen (it used to hold: up to 18 s of risk-free drawing a run).
@@ -2771,7 +2776,8 @@
             // Second Wind: a big loop gives Focus back.
             if (o.focusBack && j.mult >= 2) refill(o.focusBack);
             s.events.push({ type: 'catch', x: at.x, y: at.y, poly, area: j.area, count, gold, mult: j.mult, units, packets: j.inside, race: bonus, streak: o.surge ? s.streak : 0, cleanRun: run, split: !!j.split, star: j.star || null, hasty, safe: !!j.safe,
-                chained: chained.map(c => ({ x: c.packet.x, y: c.packet.y, from: c.from, kind: c.packet.kind })), scrubbed: j.corrupt.length });
+                chained: chained.map(c => ({ x: c.packet.x, y: c.packet.y, from: c.from, kind: c.packet.kind })), scrubbed: j.corrupt.length,
+                drawn: !!j.wire });   // a drawn loop's catch, not a bubble's (Snare 18.2: the phone's walkthrough of the two)
         }
 
         // ---- Bubbles (the way to catch, Snare 15) --------------------------------------------------------------
@@ -3037,6 +3043,8 @@
         // flick, no flag); a held Race Condition loop stays held.
         // The next stroke's kind: 'bubble', 'wire', or null to decide by how it moves (touch).
         function setPen(kind) { s.penKind = kind || null; }
+        // Slow the field (a walkthrough, Snare 18.2): 1 is full speed.
+        function setSlow(f) { s.slow = Math.max(0.01, Math.min(1, +f || 1)); }
         function cancelPen() {
             s.sling = null;
             s.bubble = null;
@@ -3084,7 +3092,7 @@
             return e;
         }
 
-        return Object.assign(s, { step, nextSector, goalProgress, addPoint, liftPen, cancelPen, setPen, slingAim, stop, netsDone, netAreas, chargeReach, takeEvents, preview, valueOf, isGood, placeZone, moveZone, zoneAt, placeAt, removeAt, usePower, grab, wallsUp, frozen, layoutOf, emitterSpots });
+        return Object.assign(s, { step, nextSector, goalProgress, addPoint, liftPen, cancelPen, setPen, setSlow, slingAim, stop, netsDone, netAreas, chargeReach, takeEvents, preview, valueOf, isGood, placeZone, moveZone, zoneAt, placeAt, removeAt, usePower, grab, wallsUp, frozen, layoutOf, emitterSpots });
     }
 
     return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, AV_R, BOSS_R, BOSS_WARN, BOSS_DASH, BOSS_DASH_SPEED, MINE_R, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };
