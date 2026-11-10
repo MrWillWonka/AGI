@@ -44,6 +44,7 @@ test('a thrown mine flies the way it was flicked, bounces off the edge and can b
     const hit = ev.find(e => e.type === 'mineThrow');
     assert.ok(hit && hit.bounces === 1, 'and banked into the boss');
     assert.equal(hit.damage, P.SNARE.mineThrow, 'no bonus without Ricochet');
+    assert.equal(hit.bank, false, 'so it isn\'t called a bank shot (round 10: BANK SHOT ×1 promised a bonus it didn\'t pay)');
 });
 
 test('Ricochet: each bounce before a hit adds damage; past its bounces a mine is a dud', () => {
@@ -55,6 +56,7 @@ test('Ricochet: each bounce before a hit adds damage; past its bounces a mine is
     const hit = ev.find(e => e.type === 'mineThrow');
     assert.ok(hit);
     assert.equal(hit.damage, Math.round(P.SNARE.mineThrow * 1.5));
+    assert.equal(hit.bank, true, 'with Ricochet it is a bank shot');
     // straight into a wall with no bounces allowed: a dud
     const d = arena({ mineBounces: 0 });
     hold(d, 17, 6);

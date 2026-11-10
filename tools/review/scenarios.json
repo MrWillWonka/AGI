@@ -56,15 +56,16 @@
    "snareBandwidth": 2,
    "snareSprawl": 5,
    "snareSchools": 1,
-   "snareGold": 2,
+   "snareGold": 3,
    "snareContain": 1,
    "snareCleanerBot": 3,
-   "snareSanitizer": 4,
-   "snareKernelPanic": 1
+   "snareSanitizer": 5,
+   "snareKernelPanic": 1,
+   "snareFirewalls": 1
   },
-  "signal": 435,
-  "runs": 31,
-  "minute": 14.3
+  "signal": 94,
+  "runs": 33,
+  "minute": 15.1
  },
  "6": {
   "levels": {
@@ -79,10 +80,11 @@
    "snareContain": 1,
    "snareCleanerBot": 4,
    "snareSanitizer": 5,
-   "snareKernelPanic": 1
+   "snareKernelPanic": 1,
+   "snareFirewalls": 1
   },
-  "signal": 343,
-  "runs": 33,
-  "minute": 16
+  "signal": 768,
+  "runs": 35,
+  "minute": 16.9
  }
 }

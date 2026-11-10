@@ -2089,3 +2089,20 @@ test('Packet Snare on a mouse: 25% more red, threats 20% faster and the boss war
     }
     assert.equal(E.snareDesktop(E.snareOpts(s, 0)).corruptShare, 0, 'sector 1 still teaches with its one red packet');
 });
+
+// Round 10: the boss's nodes (Kernel Panic, and Root Access and Riposte after it) wait for the first boss's sector.
+test('Packet Snare: the boss nodes show once the frontier reaches the first boss', () => {
+    const s = E.defaultState();
+    s.unlocked['module:snare'] = true;
+    s.levels.snareSeed = 1;
+    s.levels.snareSanitizer = 1;
+    s.snare.sector = E.SNARE_FIRST_BOSS - 1;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareKernelPanic), false, 'not before the first boss');
+    s.snare.sector = E.SNARE_FIRST_BOSS;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareKernelPanic), true, 'from its sector');
+    s.snare.sector = 0;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareKernelPanic), true, 'and it stays (a replay of sector 1 hides nothing)');
+});

@@ -38,6 +38,14 @@ When answered: the change, `settled.md` (or `targets.json`) and this file are up
   packets and the run ends; beat it: they burst back out); a bigger entrance and a harder, more spectacular fight.
   Red stays as it is for now ("leave it, keep playing").
 
+- **D19 (answered 2026-11-10)**: review round 10 (the first on the 17.5–17.7 boss). The owner's calls: every quick fix
+  (the sideways crumbs, debug Boss now, the boss's and mines' cards for 17.5–17.7 (the copy pass, merged the same day, made
+  the cards one line: the mines demo was redone, the boss demo is K14), the fight's readouts, the tree keeping
+  its roots in view and the boss's nodes waiting for the first boss); **a snap in the fight costs 2 s of the fight clock,
+  not Focus** (most fights ended on Focus with the clock barely run); **bank shots stay Ricochet's** (an honest MINE HIT
+  label without it); **a Riposte parry breaks the mine shield** for its reel. Not yet (after the next log): hits that
+  spill swallowed packets, nets that bite the jackpot.
+
 ## Open
 - **D15 (watching)**: sector 3 on desktop. 10 runs on 17, 4 on 17.1, not cleared in 5 on 17.2 (best 100 of 185 packets,
   4–6 catches a run, Antivirus popping 0–2 bubbles). The owner's call: play more first, no change; judge it on the next

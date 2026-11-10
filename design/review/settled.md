@@ -18,8 +18,12 @@ not in your top issues. Your top issues should be things the owner hasn't ruled 
 - A catch pays +15% Signal a sector. Nodes on ring 4 and out cost ×1.75 their old price (the drones' and turrets' first
   levels and the nodes on the way to them excepted, at 4,000 or less), so the tree lasts about 40 minutes.
 - The tree's branch names sit in a frame round the view, outside the nodes; level pills about 10 px.
-- A boss every fifth sector. Two loops round it within 3.5 s stun it; slashes (quick swipes through it) damage it while
-  it reels. The first boss has 15 health *(trial)*.
+- A boss every third sector from 5 (D18): it comes at half Focus after a warning, swallows the field and stops the Focus
+  clock; its fight has its own 30 s clock (beat it: the packets burst back out; run it out: it escapes and the run
+  ends). Health 30, 50, 80, 120… Two loops round it within 3.5 s stun it; slashes (quick swipes through it) damage it
+  while it reels. In the fight a loop it snaps costs 2 s of the fight clock, not Focus (D19).
+- Thrown mines fly as pucks and bounce off the edges; a bounce adds damage only with Ricochet, and the game says MINE
+  HIT, not BANK SHOT, when it adds none (D19). A Riposte parry breaks the mine shield while the boss reels (D19).
 - A cleared sector tops Focus up and the run carries on there; Go deeper is the player's choice.
 
 **Threats and teaching**

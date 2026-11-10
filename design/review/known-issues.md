@@ -15,29 +15,11 @@ Update this file with every fix batch (move fixed ones to *fixed: verify*, drop 
   find (rounds 7–9).
 - **K7 Grabbing a mine with a quick bubble often misses** (round 7; round 10: mines now sit on a ring away from the boss,
   but the boss walks onto them and pops the grab bubble, `pop:boss` 5 times in the owner's sector-11 runs).
-- **K11 [regression of F16] The bay bar's crumbs print over each other on sideways phones** (844 × 390, 740 × 360) now
-  that Signal and Upgrades share the row, and at 1280 px the crumb truncates to "packet_sna…" when Go deeper shows: the
-  HUD's slot and the crumbs split the bar's spare room (round 10: verify, screens, early, late).
-- **K12 Debug Boss now does nothing on a boss sector** since 17.5: it sets `bossAt`, but the boss waits for `bossArrive`
-  (round 10).
-- **K13 Focus isn't paused in the boss fight:** a wire the boss snaps still costs Focus while the HUD shows ❚❚ and BOSS
-  INCOMING says FOCUS PAUSED; most fights end on Focus with 5–20 s on the fight clock (early: 10 of 12, late: 5 of 8)
-  (round 10).
-- **K14 The boss's Look out card describes the pre-17.5 boss** (eats the packets near it; nothing on half Focus, the
-  swallow, the 30 s clock, escaping or the burst), its reach ring is drawn in the empty arena, and the mines card's demo
-  shows the old mine and nothing on throwing it as a puck (round 10). *The copy pass (merged 2026-11-10): the card's words
-  are one line now ("Loop it twice to stun it, then slash through it.", the owner's call: the demo teaches the rest), so
-  what's left is the boss and mines demos, which should show the 17.5–17.7 fight.*
-- **K15 A bank shot without Ricochet says BANK SHOT ×1 · −3** but adds no damage (`mineBank` is Ricochet's alone), while a
-  bounce risks a dud (9/12 hit against 12/12 straight) (round 10).
-- **K16 The fight's readouts:** the 30 s clock has no number until its last 10 s; the boss's health shows three times
-  (HUD, bar, label) and SLASH −1 · n left sits on its label; an escape's end card is titled "Focus spent" and can blame a
-  garbled bubble (round 10).
+- **K14 The boss's demo shows the old fight** (round 10; the card's words are one line since the copy pass, the owner's
+  call: the demo teaches the rest): it should show the 17.5 fight, the boss coming at half Focus, the swallow and the 30 s
+  clock. The mines demo was redone in 17.8 (F21).
 - **K17 Sector 11's nets do nothing in the fight** (the field is swallowed, so a net has nothing to wipe: 0 netted in
-  every fight), and the mine shield (up 41% of sector 11's fight) glances every slash after a parry without saying so
-  (round 10).
-- **K18 The desktop tree can pan an unbought root out of view** (Packet Stream above the frame after buying Sanitizer;
-  the view is remembered), and boss nodes (Kernel Panic, Root Access) are sold from sector 3, before any boss (round 10).
+  every fight) (round 10; the owner: after the next log).
 - **K19 Sector 12's goal (843K) is a wall** against a sector-11 build's 60–138K haul (round 10).
 - **K20 Screens, smaller:** the HUD is small and far from the field at 1920 and 4K; a sideways Look out card shows a line
   or two before Start covers it; at 360 × 640 a tree popup can clip its effect line; an UPDATING label clips at the
@@ -49,7 +31,22 @@ Update this file with every fix batch (move fixed ones to *fixed: verify*, drop 
   batching kept; ask the owner with cards which cues. Scheduled after round 10's fixes.
 
 ## Fixed: verify
-- **F16 (K9, round 10: holds, but see K11) The Signal chip took a row of its own:** the HUD and the Signal chip live in the bay's bar, so the field gains
+- **F24 (K18) The desktop tree panned an unbought root out of view:** a pan for a new node keeps every unbought root in
+  frame (zooming out if they don't fit), and a remembered view that hides one is corrected when the tree opens; Kernel
+  Panic (and Root Access and Riposte after it) waits for the frontier to reach the first boss's sector.
+- **F23 (K16) The fight's readouts:** the clock's seconds sit on the health bar's right the whole fight ("27 s LEFT");
+  the boss's health shows once (the bar: not in the HUD's row, not under the boss, not on SLASH pops); an escape's end
+  card is headed BOSS ESCAPED, says the health it left with, and no longer blames a garbled bubble.
+- **F22 (K15) A bank shot without Ricochet said BANK SHOT ×1:** it says MINE HIT unless the bounces added damage.
+- **F21 (K14, in part) The mines demo showed a mine sat against the boss:** a mine out in the arena, grabbed with a
+  bubble and thrown as a puck that banks off the bottom edge into the boss; no reach ring is drawn in the fight (the
+  cards are one line, the copy pass).
+- **F20 (K13) Focus drained in the "paused" fight:** while the boss comes and fights, a snap or a spoil costs 2 s of the
+  fight clock (−2 s CLOCK under the fight bar) and Focus holds; a parry breaks the mine shield while the boss reels (SHIELD DOWN).
+- **F19 (K12) Debug Boss now** brings the boss in now (its warning starts at once).
+- **F18 (K11) The bay bar's crumbs overlapped on sideways phones:** in Packet Snare's bay the crumbs keep their width and
+  the HUD's slot takes the rest; checked at 360 to 1920 px wide, between runs, in a run and with Go deeper up.
+- **F16 (K9, round 10: holds; its regression is F18) The Signal chip took a row of its own:** the HUD and the Signal chip live in the bay's bar, so the field gains
   38 px on every screen; the bar keeps its height when a run starts; on phones mid-run the bar is the HUD's row. Checked
   at 360 to 3840 px wide with banks of 0 to 987.6B: one row, no overlap (a 360 px phone with a 987.6B bank wraps
   Upgrades to a second row).

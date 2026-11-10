@@ -21,11 +21,14 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
   which escaped twice at 61/80 and 70/80 damage; every mine grabbed was thrown).
 - **Watch in the next log:** sector 11's boss with bank shots; whether the faster Antivirus feel right (sector 3); the
   end card's "Mines grabbed · thrown · hit"; sector 9 and 10 run counts; D15 (desktop sector 3).
-- **Open decisions:** D15 only (`design/review/decisions.md`). Known issues K5–K7 (`known-issues.md`).
-- **Unpublished on `claude/zen-turing-s9ycp8` (2026-11-10):** a layout batch the owner picked, no balance change: K3 (the
-  sideways page's 9 px scroll), K8 (the boss's and mines' steps as numbered lists), K9 (the HUD and Signal in the bay's
-  bar: the field 38 px taller everywhere) and K10 (the tree popup's now → after line pinned with its buy button). The live
-  artifact is still 17.7; publish (as 17.8) only on the owner's go-ahead.
+- **Unpublished on `claude/zen-turing-s9ycp8` (2026-11-10):** the K3/K8/K9/K10 layout batch, review round 10 (four
+  reviewers on it: scores in `scores.csv`, issues K11–K20) and the owner's calls on it (D19, "Snare 17.8" in CLAUDE.md):
+  the fight clock decides fights (a snap costs 2 s of it, not Focus), a parry breaks the mine shield, honest bank-shot
+  labels, the mines demo redone as a bank shot, the fight's readouts, the sideways crumbs, Boss now, the tree keeping its
+  roots in view. The live artifact is still 17.7; publish (as 17.8) only on the owner's go-ahead. Open: K5–K7, K14 (the
+  boss demo), K17
+  (nets), K19 (sector 12's goal), K20 (smaller screen issues), K21 (colour-blind cues), D15; the slow pacing ratchet fails since 17.7 (sector 3:
+  18 bot runs against 13).
 - **Also unpublished, merged in from a local session (2026-11-10): the copy and colour pass.** See *Copy and colour pass*
   below before touching any Packet Snare text or colour. It changes no rules or balance.
 - **Pacing (bot, phone, 3 seeds, 20 min) on 17.7:** sector 3 takes 18 runs (15 on 17.6: faster Antivirus), sector 5 at
