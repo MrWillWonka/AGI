@@ -2225,7 +2225,12 @@
     const SNARE_FIRST_GOALS = [40, 170, 330, 950];
     const SNARE_GOAL_SIX = 3900;
     const SNARE_GOAL_GROWTH = 2.45;
-    const snareGoal = k => (isSnareBossSector(k) ? 0 : k < SNARE_FIRST_GOALS.length ? SNARE_FIRST_GOALS[k] : 5 * Math.round(SNARE_GOAL_SIX * Math.pow(SNARE_GOAL_GROWTH, k - 5) / 5));
+    // Snare 18 (the owner's call on K19): the curve grows on goal sectors only. It was set when a boss came every fifth
+    // sector; with one every third (17.5) each boss took a step too, so the sector after it asked ×6 the one before (the
+    // bot: sector 9 in 22–27 runs, sector 12 in 42–45, asking 843K). Now 9 asks 23K, 10 57K, 12 140K, 13 344K, and the
+    // bot clears a sector every 8–10 minutes from 9 to 15.
+    const snareGoalSteps = k => { let n = 0; for (let i = 6; i <= k; i++) if (!isSnareBossSector(i)) n++; return n; };
+    const snareGoal = k => (isSnareBossSector(k) ? 0 : k < SNARE_FIRST_GOALS.length ? SNARE_FIRST_GOALS[k] : 5 * Math.round(SNARE_GOAL_SIX * Math.pow(SNARE_GOAL_GROWTH, snareGoalSteps(k)) / 5));
     // Training skills power you up in Packet Snare too, each by its name (the owner's call: the boss's gates send you to
     // the rest of the game, and you come back stronger). Added to the tree's levels in `snareLevels`.
     const SNARE_SKILL_BUFFS = {

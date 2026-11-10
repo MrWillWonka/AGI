@@ -54,7 +54,10 @@ test('goals are Signal: 40, 170, 330, 950, then 3,900 at sector 6 growing ×2.45
     assert.equal(E.snareGoal(4), 0, 'sector 5 is a boss');
     assert.equal(E.snareGoal(5), 3900, 'sector 6');
     assert.equal(E.snareGoal(6), 5 * Math.round(3900 * 2.45 / 5));
-    assert.equal(E.snareGoal(8), 5 * Math.round(3900 * 2.45 ** 3 / 5));
+    // boss sectors (5, 8, 11…) take no step of the curve (Snare 18, K19): sector 9 is the third goal sector from 6
+    assert.equal(E.snareGoal(8), 5 * Math.round(3900 * 2.45 ** 2 / 5));
+    assert.equal(E.snareGoal(11), 5 * Math.round(3900 * 2.45 ** 4 / 5), 'sector 12');
+    for (const k of [6, 8, 9, 11, 12]) assert.ok(E.snareGoal(k) / E.snareGoal(k - (E.isSnareBossSector(k - 1) ? 2 : 1)) < 2.5, `no jump past a boss into sector ${k + 1}`);
     // the goal counts Signal as the haul pays it: the sector's pay and Overclock
     const s = E.defaultState(Date.now());
     s.levels.snareOverclock = 3;

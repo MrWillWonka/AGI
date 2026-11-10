@@ -17,12 +17,14 @@ Update this file with every fix batch (move fixed ones to *fixed: verify*, drop 
   but the boss walks onto them and pops the grab bubble, `pop:boss` 5 times in the owner's sector-11 runs).
 - **K17 Sector 11's nets do nothing in the fight** (the field is swallowed, so a net has nothing to wipe: 0 netted in
   every fight) (round 10; the owner: after the next log).
-- **K19 Sector 12's goal (843K) is a wall** against a sector-11 build's 60–138K haul (round 10).
 - **K20 Screens, smaller:** the HUD is small and far from the field at 1920 and 4K; a sideways Look out card shows a line
   or two before Start covers it; at 360 × 640 a tree popup can clip its effect line; an UPDATING label clips at the
   field's edge (round 10).
 
 ## Fixed: verify
+- **F27 (K19) Sector 12's goal (843K) was a wall:** the goal curve (×2.45 a sector) took a step on boss sectors too, so
+  every sector after a boss asked ×6 the one before; boss sectors now take none: 9 asks 23K, 10 57K, 12 140K, 13 344K.
+  The bot clears a sector every 8–10 minutes from 9 to 15 (it took 42–45 runs on 12). Check sectors 9 and 12 by hand.
 - **F26 (K14) The boss's demo showed the old fight:** it plays the 17.5 fight (BOSS INCOMING, the swallow, two loops,
   the stun, slashes) with the fight's overlay (the warning, the health bar and its clock) drawn over it.
 - **F25 (K21) Colour-blind readability:** shape cues, always on: unreadable packets a hollow eye, gold a light rim, a tag

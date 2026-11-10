@@ -4,7 +4,8 @@
 // the seeds' noise but about 5% slow on catches, so compare variants with each other, not with the owner's log).
 // sweep.json: { "minutes": 45, "seeds": [1,2,3], "screen": "phone", "untilSector": 0, "steps": 30,
 //   "variants": { "name": { "engine.js": [["text to find", "replacement"], …] }, "base": {} } }
-// Prints a table: runs per sector (median), when the tree was bought out, the sectors on target.
+// Prints a table: runs per sector (median), when the tree was bought out, the sectors on target; then the minute each
+// sector was cleared (median).
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -49,6 +50,14 @@ const copy = (from, to) => {
         const cs = res.filter((_, i) => jobs[i].name === name);
         const cells = Array.from({ length: maxK }, (_, i) => { const r = cs.map(c => c.sectors.find(x => x.sector === i + 1)?.runs); return r.every(x => x === undefined) ? '—' : `${med(r.filter(x => x !== undefined))}${r.some(x => x === undefined) ? '*' : ''}`; });
         console.log(`| ${name} | ${cells.join(' | ')} | ${cs.map(c => c.treeDone ?? '—').join('/')} |`);
+    }
+    // and the minute each sector fell (median of the seeds that got there): where the time goes, not just the runs
+    console.log(`\n| variant (minute cleared) | ${Array.from({ length: maxK }, (_, i) => `s${i + 1}`).join(' | ')} |`);
+    console.log(`|---|${Array.from({ length: maxK }, () => '---|').join('')}`);
+    for (const name of names) {
+        const cs = res.filter((_, i) => jobs[i].name === name);
+        const cells = Array.from({ length: maxK }, (_, i) => { const r = cs.map(c => c.sectors.find(x => x.sector === i + 1)?.minute).filter(x => x !== undefined); return r.length ? `${Math.round(med(r))}` : '—'; });
+        console.log(`| ${name} | ${cells.join(' | ')} |`);
     }
     console.log(`\nmedian runs to clear each sector (* not every seed got there); ${jobs.length} campaigns in ${Math.round((Date.now() - t0) / 1000)} s; ${E.BUILD.split('·')[0].trim()}`);
 })();

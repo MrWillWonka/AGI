@@ -40,6 +40,10 @@
     "3": {
       "atMost": 18,
       "why": "Sector 3's goal is 330 Signal (17.4). The person-paced bot took a median 8 runs on 15.5, 13 after 17.3's tree fold, 18 since 17.7's faster Antivirus (avHunt x1.25, avTurn x1.2). The owner held the limit at 18 on 2026-11-10 (they took 6 runs on sector 3; D15, desktop, stays open for their desktop log). The test fails if it gets worse than 18."
+    },
+    "4": {
+      "atMost": 7,
+      "why": "Sector 4's goal is 950 Signal (17.4). The person-paced bot takes a median 7 runs over the test's five seeds (4/4/7/7/7) since 17.7's faster Antivirus; the report's three seeds give 4, and the owner took 3-6 on 17.4-17.6. The owner held it at 7 on 2026-11-10 (target still 2-6). The test fails if it gets worse than 7."
     }
   }
 }
