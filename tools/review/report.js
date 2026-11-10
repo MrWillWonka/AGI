@@ -16,8 +16,11 @@ const { execFile } = require('child_process');
 const root = path.join(__dirname, '..', '..');
 const out = path.resolve(process.argv[2] || 'review-out/report');
 const argv = process.argv;
-const URL = argv.includes('--url') ? argv[argv.indexOf('--url') + 1] : (process.env.REVIEW_URL || 'http://localhost:8123/');
+// The game's URL: --url, REVIEW_URL, or port 8123. If nothing serves the game there, the report serves it itself
+// (tools/review/serve.js), on that port or the next free one: no server.py, no Python, nothing to start first.
+let URL = argv.includes('--url') ? argv[argv.indexOf('--url') + 1] : (process.env.REVIEW_URL || 'http://localhost:8123/');
 process.env.REVIEW_URL = URL;
+const { ensureServer } = require('./serve.js');
 const QUICK = argv.includes('--quick');
 const PREV = argv.includes('--prev') ? path.resolve(argv[argv.indexOf('--prev') + 1]) : null;
 fs.mkdirSync(out, { recursive: true });
@@ -203,6 +206,9 @@ async function diffs() {
 
 (async () => {
     const t0 = Date.now();
+    const srv = await ensureServer(URL);
+    URL = process.env.REVIEW_URL = srv.url;
+    if (srv.own) console.log(`serving the repo at ${URL} for the report`);
     const E = require(path.join(root, 'engine.js'));
     say(`# Review report · ${E.BUILD}`);
     say(`Served from ${URL} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC`);
@@ -249,4 +255,5 @@ async function diffs() {
     say(`Report made in ${Math.round((Date.now() - t0) / 1000)} s.`);
     fs.writeFileSync(path.join(out, 'report.md'), md.join('\n') + '\n');
     console.log(`${path.join(out, 'report.md')} (${shots.length} screenshots, ${Math.round((Date.now() - t0) / 1000)} s)`);
+    await srv.close();
 })();

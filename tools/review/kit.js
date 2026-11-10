@@ -17,8 +17,13 @@
 // resetSnare(), openSnare(), and Resources → +Signal via AGI.state.snare.signal. Use it to reach later content, but judge
 // the early game as a new player meets it.
 'use strict';
-const { chromium } = require('playwright');
-const URL = process.env.REVIEW_URL || 'http://localhost:8123/';
+// Playwright: in the cloud sessions it's installed for any directory; on a machine without it, say how to get it.
+let chromium;
+try { ({ chromium } = require('playwright')); } catch {
+    throw new Error('Playwright is not installed here. From the repo: npm install --no-save playwright, then npx playwright install chromium (see design/review/handoff.md)');
+}
+// Read when a page opens, not when the kit loads: the report may serve the game itself, on a port it finds free.
+const url = () => process.env.REVIEW_URL || 'http://localhost:8123/';
 
 async function launch({ phone = false } = {}) {
     const browser = await chromium.launch();
@@ -30,7 +35,7 @@ async function launch({ phone = false } = {}) {
     page.on('pageerror', e => page.errors.push(String(e)));
     page.on('console', m => m.type() === 'error' && page.errors.push(m.text()));
     page.phone = phone;
-    await page.goto(URL);
+    await page.goto(url());
     await page.waitForTimeout(800);
     return { browser, page };
 }
@@ -38,7 +43,7 @@ async function launch({ phone = false } = {}) {
 // A new player's first visit: a fresh save, the bay opened the way the game opens it, Packet Snare reset.
 async function fresh(page) {
     await page.evaluate(() => { localStorage.clear(); });
-    await page.goto(URL);
+    await page.goto(url());
     await page.waitForTimeout(800);
     await page.evaluate(() => { AGI.debug.openSnare(); AGI.debug.resetSnare(); });
     await page.waitForTimeout(1200);

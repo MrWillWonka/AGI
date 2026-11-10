@@ -1,0 +1,6 @@
+# Text files are LF everywhere, Windows checkouts included: the artifact serves them LF, so the working files publish
+# as they are (a CRLF checkout differed from the live files in every byte count), and edits don't mix endings.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
