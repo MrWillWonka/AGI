@@ -290,6 +290,16 @@
         scribblePay: 0.5,
         safeLoop: 0.85,             // a loop wholly inside one of your Firewall sections pays ×this (it's safe; not with a pen)
         bossFocus: 8,               // seconds of Focus the boss's arrival adds (the fight shouldn't race the clock)
+        // Snare 17.5 (the owner's calls on the 17.4 log, "bosses felt absent"): the boss is the run's centrepiece. With
+        // `bossArrive`, it comes once Focus first falls to that share of the bar (you gather first), after `bossIncoming` s of
+        // warning; it swallows every packet on the field (`bossSwallow`: the good ones held inside it), and while it's
+        // coming and standing your Focus clock stops and nothing new swims in. The fight has its own clock (`bossFight` s):
+        // beat it and what it swallowed bursts back out over the field; run the clock out and it escapes with them, and the
+        // run is over. 0 keeps the old arena (it boots `bossAt` s in, the clock runs, `bossFocus` added).
+        bossArrive: 0,
+        bossIncoming: 2.5,
+        bossFight: 0,
+        bossSwallow: 0,
         // Red hunts your bubble (the owner's call on a phone log: no catch spoiled in 15 runs, red was easy to keep out):
         // while a bubble is held, red packets within `redHuntReach` × a full bubble's radius of its edge swim at it, harder
         // the bigger it has grown, so holding on for a bigger multiplier is a real risk. Spoofed red and red
@@ -549,10 +559,13 @@
             sectorAt: 0,            // when the run reached the sector it's on (a cleared sector carries the run into the next)
             sectorCaught: 0,        // packets caught before it
             sectorUnits: 0,         // worth earned before it (the goal counts from here)
+            bossDueAt: null,        // Snare 17.5: when the boss coming (its warning showing) arrives
+            fight: null,            // its fight clock: { left, total } while it stands
+            swallowed: [],          // the good packets it swallowed (kinds), burst back out when it's beaten
             cleanRun: 0,            // clean catches in a row (the streak's pay)
             lastLoopAt: -1e9,       // when the last loop paid (a loop moments after it is rushed)
             clears: 0,              // sectors cleared this run (each clear's Focus bonus is half the last's)
-            stats: { catches: 0, bubbles: 0, spawned: 0, pickups: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, botCollected: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
+            stats: { bossEscaped: 0, swallowed: 0, burst: 0, catches: 0, bubbles: 0, spawned: 0, pickups: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, botCollected: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
                 stolen: 0, cores: 0, quarantined: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0,
                 herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0,
                 bossDamage: 0, avDown: 0, glanced: 0, mines: 0, minesCleared: 0, netted: 0, escalations: 0, forks: 0, stars: 0, minesGrabbed: 0, mineThrows: 0 },
@@ -824,7 +837,16 @@
             const extra = enraged ? 0 : o.bossFocus;
             s.focus += extra;
             s.maxFocus = Math.max(s.maxFocus, s.focus);
-            s.events.push({ type: 'boss', x, y, hp: o.boss, enraged, focus: extra });
+            s.events.push({ type: 'boss', x, y, hp: o.boss, enraged, focus: extra, fight: o.bossFight });
+            if (o.bossFight > 0) s.fight = { left: o.bossFight, total: o.bossFight };
+            // It swallows the field: the good packets held inside it, the red gone (the draw streaks them in).
+            if (o.bossSwallow && s.packets.length) {
+                const all = s.packets.slice();
+                s.swallowed = all.filter(p => p.kind !== 'corrupt').map(p => p.kind);
+                s.stats.swallowed += s.swallowed.length;
+                s.events.push({ type: 'bossSwallow', x, y, packets: all.map(p => ({ x: p.x, y: p.y, kind: p.kind })) });
+                remove(all);
+            }
         }
         // Where its charges aim: the pen while you draw, else the nearest good packet (so it charges all the same, and
         // there's always a parry to make).
@@ -853,6 +875,18 @@
         function bossStep(dt) {
             if (!o.boss || s.bossDone) return;
             if (!s.boss) {
+                if (o.bossArrive > 0) {
+                    // Snare 17.5: it comes once Focus falls to its share of the bar, after a warning.
+                    if (s.bossDueAt == null) {
+                        if (s.focus > o.bossArrive * s.maxFocus || penBusy()) return;
+                        s.bossDueAt = s.time + o.bossIncoming;
+                        s.events.push({ type: 'bossIncoming', x: w / 2, y: h / 2, secs: o.bossIncoming, hp: o.boss, fight: o.bossFight });
+                        return;
+                    }
+                    if (s.time < s.bossDueAt) return;
+                    bootBoss(false);
+                    return;
+                }
                 if (s.time - s.sectorAt < o.bossAt && s.handCaught < o.bossCatch) return;
                 // New threats wait for the pen to lift (Snare 15, the owner's call: a bubble shouldn't be punished by one
                 // turning up, or by its tip card, mid-hold).
@@ -861,6 +895,19 @@
                 return;
             }
             const b = s.boss;
+            // Its fight clock: run it out and it escapes with what it swallowed, and the run is over.
+            if (s.fight) {
+                s.fight.left = Math.max(0, s.fight.left - dt);
+                if (s.fight.left <= 0) {
+                    s.stats.bossEscaped++;
+                    s.events.push({ type: 'bossEscape', x: b.x, y: b.y, packets: s.swallowed.length });
+                    for (const m of [...s.mines, ...s.held]) s.events.push({ type: 'mineDown', x: m.x, y: m.y, boss: true });
+                    s.mines = []; s.held = []; s.links = [];
+                    s.boss = null; s.fight = null; s.swallowed = [];
+                    end();
+                    return;
+                }
+            }
             mineStep(b, dt);
             // Shielded while two or more mines stand (one mine halves its slashes).
             b.shielded = s.mines.length >= 2;
@@ -975,6 +1022,24 @@
                 s.mines = [];
                 s.held = [];
                 s.links = [];
+                s.fight = null;
+                // What it swallowed bursts back out over the field (the jackpot).
+                if (s.swallowed.length) {
+                    const n = s.swallowed.length;
+                    s.swallowed.forEach((kind, i) => {
+                        const ang = (i / n) * Math.PI * 2 + rand() * 0.4;
+                        add(kind === 'gold' ? 'gold' : 'good', b.x + Math.cos(ang) * 0.3, b.y + Math.sin(ang) * 0.3, ang, 0);
+                        const p = s.packets[s.packets.length - 1];
+                        if (kind === 'gold') p.kind = 'gold';
+                        else if (p.kind === 'gold') p.kind = 'good';
+                        const fling = p.v * (2.5 + rand() * 2);
+                        p.vx = Math.cos(ang) * fling; p.vy = Math.sin(ang) * fling;
+                        p.burst = s.time + 0.8;
+                    });
+                    s.stats.burst += n;
+                    s.events.push({ type: 'bossBurst', x: b.x, y: b.y, count: n });
+                    s.swallowed = [];
+                }
                 s.events.push({ type: 'bossDown', x: b.x, y: b.y, focus: clearBonus() });
             } else {
                 s.events.push({ type: 'bossHit', x: b.x, y: b.y, r: b.r, hp: b.hp, maxHp: b.maxHp, how, dmg });
@@ -2054,6 +2119,8 @@
             s.events.push({ type: 'ids', boss: !!s.boss, what });
         }
 
+        // Snare 17.5: while the boss is coming or stands (the new fight), Focus holds and nothing new swims in.
+        const bossHold = () => o.bossFight > 0 && !s.bossDone && (s.boss || s.bossDueAt != null);
         function stepOnce(dt) {
             s.real += dt;
             if (s.cooldown > 0) s.cooldown = Math.max(0, s.cooldown - dt);
@@ -2064,7 +2131,7 @@
             if (frozen()) {
                 s.frozenLeft = Math.max(0, s.frozenLeft - dt);
                 // half the drain is saved, while the cap allows it
-                s.focus = Math.max(0, s.focus - (o.idleDrain * dt - earnFocus(o.idleDrain * 0.5 * dt)));
+                if (!bossHold()) s.focus = Math.max(0, s.focus - (o.idleDrain * dt - earnFocus(o.idleDrain * 0.5 * dt)));
                 if (s.focus <= 0) end();
                 return;
             }
@@ -2072,6 +2139,14 @@
             raceStep(dt);
             splitStep();
             heldStep();
+            // Burst out of a beaten boss: flung fast, they ease back to a swim (on a current they'd leave the field).
+            for (const p of s.packets) {
+                if (!p.burst) continue;
+                if (s.time >= p.burst) { p.burst = 0; continue; }
+                const sp = Math.hypot(p.vx, p.vy) || 1, k = Math.min(1, 3 * dt);
+                p.vx += (p.vx / sp * p.v - p.vx) * k;
+                p.vy += (p.vy / sp * p.v - p.vy) * k;
+            }
             // Backpressure: packets turned back resume their course.
             for (const p of s.packets) if (p.back && s.time >= p.back.until) { p.vx = p.back.vx; p.vy = p.back.vy; p.back = null; }
             flock(dt);
@@ -2214,7 +2289,7 @@
                 s.events.push({ type: 'catch', echo: e.n || 1, x: at.x, y: at.y, poly: e.poly, area: polygonArea(e.poly), count: got.length, gold, mult: e.mult, units, packets: got, chained: [], scrubbed: 0 });
             }
             // Packet Storm: a school of gold swims in.
-            if (s.time >= s.stormAt) {
+            if (s.time >= s.stormAt && !bossHold()) {
                 const lv = Math.max(0, o.storm - 1), size = o.stormSize + o.stormGrow * lv;
                 s.stormAt = s.time + Math.max(6, o.stormEvery - o.stormFaster * lv);
                 const before = s.packets.length;
@@ -2225,7 +2300,7 @@
                 s.events.push({ type: 'storm', count: size });
             }
             // Refills: schools of the missing good packets swim in from an edge, corrupt ones one at a time.
-            if (s.time >= refillAt) {
+            if (s.time >= refillAt && !bossHold()) {
                 refillAt = Infinity;
                 let missing = goodTarget - goodCount();
                 while (missing > 0) {
@@ -2235,11 +2310,11 @@
                 }
             }
             for (let i = pendingCorrupt.length - 1; i >= 0; i--) {
-                if (s.time >= pendingCorrupt[i] && corruptCount() < corruptTarget) { corrupt(true); pendingCorrupt.splice(i, 1); }
+                if (s.time >= pendingCorrupt[i] && corruptCount() < corruptTarget && !bossHold()) { corrupt(true); pendingCorrupt.splice(i, 1); }
             }
             // Clean Sweep's stopped clock saves the drain, while the cap allows it.
             const saved = s.time < s.freeDrawUntil ? earnFocus(o.idleDrain * dt) : 0;
-            s.focus = Math.max(0, s.focus - (o.idleDrain * dt - saved));
+            if (!bossHold()) s.focus = Math.max(0, s.focus - (o.idleDrain * dt - saved));
             if (s.focus <= 0) end();
         }
 
@@ -2273,7 +2348,7 @@
             return Math.round(refill(o.clearFocus * Math.pow(0.5, s.clears++) * s.maxFocus));
         }
         const SECTOR_KEYS = ['corruptShare', 'avSpeed', 'packetSpeed', 'antivirus', 'sweepFirst', 'sweepEvery', 'rogue', 'rogueFirst', 'rogueEvery',
-            'teachRed', 'boss', 'goal', 'goalPay', 'bossAt', 'bossCatch', 'bossR', 'bossSpeed', 'bossCharge', 'bossWarn', 'bossStun', 'bossMines', 'mineEvery', 'bossMinions'];
+            'teachRed', 'boss', 'goal', 'goalPay', 'bossAt', 'bossCatch', 'bossArrive', 'bossIncoming', 'bossFight', 'bossSwallow', 'bossFocus', 'bossR', 'bossSpeed', 'bossCharge', 'bossWarn', 'bossStun', 'bossMines', 'mineEvery', 'bossMinions'];
         function nextSector(next = {}) {
             if (s.over) return;
             const before = { av: o.antivirus.length, sweep: o.sweepFirst, rogue: o.rogue };
@@ -2293,6 +2368,9 @@
             s.sectorAt = s.time;
             s.sectorCaught = s.stats.caught;
             s.sectorUnits = s.stats.units;
+            s.bossDueAt = null;
+            s.fight = null;
+            s.swallowed = [];
             for (const m of [...s.mines, ...s.held]) s.events.push({ type: 'mineDown', x: m.x, y: m.y, boss: true });
             s.mines = [];
             s.held = [];

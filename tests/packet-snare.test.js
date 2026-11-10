@@ -315,13 +315,13 @@ test('the best haul trickles research while Research is open', () => {
     assert.ok(s.res.rp - rp > 9 * d.snareRp, 'paid as you play');
 });
 
-test('a sector clears by its goal or, every fifth, its boss; the Rogue AI comes three sectors in', () => {
+test('a sector clears by its goal or, every third from 5 (Snare 17.5), its boss; the Rogue AI comes three sectors in', () => {
     const s = E.defaultState(NOW);
     s.snare.runs = 30;
     assert.equal(E.snareOpts(s).boss, 0, 'no boss on the first sector');
     assert.equal(E.snareOpts(s).goal, E.snareGoal(0));
     assert.equal(E.snareOpts(s).rogue, 0);
-    for (let k = 0; k < 15; k++) assert.equal(E.isSnareBossSector(k), k === 4 || k === 9 || k === 14, `sector ${k + 1}`);
+    for (let k = 0; k < 15; k++) assert.equal(E.isSnareBossSector(k), [4, 7, 10, 13].includes(k), `sector ${k + 1}`);
     for (let k = 0; k < 15; k++) {
         const o = E.snareOpts(s, k);
         assert.ok((o.boss > 0) !== (o.goal > 0), `sector ${k + 1}: a boss or a goal, never both`);
@@ -336,12 +336,12 @@ test('a sector clears by its goal or, every fifth, its boss; the Rogue AI comes 
     while (s.snare.sector < E.ROGUE_SECTOR) {
         if (E.isSnareBossSector(s.snare.sector)) E.snareBossDown(s); else E.snareGoalMet(s);
     }
-    assert.equal(s.snare.bosses, 1);
+    assert.equal(s.snare.bosses, 2, 'two bosses on the way (sectors 5 and 8)');
     const o = E.snareOpts(s);
     assert.equal(o.rogue, 1);
     assert.ok(o.avSpeed > 1, 'later sectors are harder');
     assert.ok(o.corruptShare < E.snareOpts(E.defaultState(NOW), 1).corruptShare, 'red tapers once the other threats are in (the owner\'s call on the Snare 16 log)');
-    assert.ok(E.snareGoal(7) > E.snareGoal(0) && E.snareBossHealth(9) > E.snareBossHealth(4));
+    assert.ok(E.snareGoal(8) > E.snareGoal(0) && E.snareBossHealth(7) > E.snareBossHealth(4));
 });
 
 test('a run on a sector with no boss emits its goal once it has earned its Signal there (Snare 17.4)', () => {
@@ -662,7 +662,7 @@ test('the hazards arrive one sector at a time: packets, then red, then Antivirus
     assert.equal(at(E.MINE_SECTOR - 1).bossMines, 0);
     assert.ok(E.MINE_SECTOR > 4 && at(E.MINE_SECTOR).bossMines === 2, 'its mines are a later gate');
     assert.ok(at(E.NET_SECTOR).bossMines === 3 && at(E.MINION_SECTOR).bossMinions >= 1 && at(E.MINION_SECTOR - 1).bossMinions === 0, 'then nets, then minions');
-    assert.ok(at(E.MINE_SECTOR).boss >= at(E.MINE_SECTOR - 5).boss * 2, 'a gate\'s boss is much tougher');
+    assert.ok(at(E.MINE_SECTOR).boss > at(E.MINE_SECTOR - E.SNARE_BOSS_EVERY).boss, 'a gate\'s boss is tougher');
     assert.deepEqual(E.SNARE_STAGES.map(x => x.sector), [...E.SNARE_STAGES.map(x => x.sector)].sort((a, b) => a - b));
 });
 
@@ -687,11 +687,12 @@ test('a cleared sector tops Focus up and the run gathers on there; Go deeper tak
     assert.equal(r.opts.goal, 0);
     assert.equal(r.opts.boss, E.snareBossHealth(4));
     assert.ok(!r.goalDone && !r.bossDone && !r.over, 'the run goes on');
-    // The boss boots as it would at the start of a run: bossAt seconds into the sector.
-    for (let i = 0; i < 60 * (r.opts.bossAt - 1); i++) r.step(1 / 60);
-    assert.equal(r.boss, null, 'not yet');
-    for (let i = 0; i < 60 * 2 && !r.boss; i++) r.step(1 / 60);
-    assert.ok(r.boss || r.over, 'its boss boots');
+    // The boss comes as it would in a run (Snare 17.5): once Focus falls to half, after its warning.
+    for (let i = 0; i < 60; i++) r.step(1 / 60);
+    assert.equal(r.boss, null, 'not while Focus is above half');
+    r.focus = r.maxFocus * 0.45;
+    for (let i = 0; i < 60 * (r.opts.bossIncoming + 1) && !r.boss; i++) r.step(1 / 60);
+    assert.ok(r.boss || r.over, 'its boss comes');
     // A sector that brings a new hazard brings it in from now.
     s.snare.runs = 30;
     const t = P.createSnare({ ...E.snareOpts(s, 1), seed: 4, idleDrain: 0 });

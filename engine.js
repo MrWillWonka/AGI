@@ -765,7 +765,7 @@
         { id: 'snareBoss', when: s => s.snare.bosses >= 1,
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'one down',
             body: ['That big hexagon was the pipeline\'s own antivirus. You turned its own charge on it and cut it to pieces.',
-                'Past it is the next sector. The data runs faster down there, dirtier, worth more. Every fifth one has its own guard, and each guard is meaner than the last. Build up before you go deep.', 'F'] },
+                'Past it is the next sector. The data runs faster down there, dirtier, worth more. Every third one has its own guard, and each guard is meaner than the last. Build up before you go deep.', 'F'] },
         { id: 'snareDeep', when: s => s.snare.bosses >= 2,
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 're: one down',
             body: ['Ten sectors. Nobody gets this deep by drawing circles.',
@@ -2161,25 +2161,31 @@
     // Snare 11.1 (the owner's call): the boss only every fifth sector (5, 10, 15…); the sectors between are cleared by
     // catching a goal of packets in one run (`snareGoal`). Its tricks, the gates, sit on boss sectors: mines from
     // sector 10, nets from 15, booted Antivirus from 20, four mines laid faster from 25.
-    const SNARE_BOSS_EVERY = 5;
-    const isSnareBossSector = k => (k + 1) % SNARE_BOSS_EVERY === 0;
+    // Snare 17.5 (the owner's call on the 17.4 log, "bosses felt absent"): a boss every third sector from 5 (5, 8, 11,
+    // 14…); its tricks move with it, a boss each: mines on the second (sector 8), nets on the third (11), booted
+    // Antivirus on the fourth (14), four mines laid faster on the fifth (17).
+    const SNARE_BOSS_EVERY = 3, SNARE_FIRST_BOSS = 4;
+    const isSnareBossSector = k => k >= SNARE_FIRST_BOSS && (k - SNARE_FIRST_BOSS) % SNARE_BOSS_EVERY === 0;
+    const snareBossOrdinal = k => Math.max(0, Math.floor((k - SNARE_FIRST_BOSS) / SNARE_BOSS_EVERY));
     // Snare 14 (the owner's call: the early game wasn't harrowing): red packets from sector 2, Antivirus from 3, Full Scans
     // from 6 (round 2 of the review: on 5 they came with the first boss, two new things at once).
     const RED_SECTOR = 1, SWEEP_SECTOR = 5, AV_SECTOR = 2, ROGUE_SECTOR = 8, FAST_SWEEP_SECTOR = 11;
-    const MINE_SECTOR = 9, NET_SECTOR = 14, MINION_SECTOR = 19, SWARM_SECTOR = 24;
+    const MINE_SECTOR = 7, NET_SECTOR = 10, MINION_SECTOR = 13, SWARM_SECTOR = 16;
     const SNARE_GATES = [MINE_SECTOR, NET_SECTOR, MINION_SECTOR, SWARM_SECTOR];
     const SNARE_STAGES = [
         { sector: 0, adds: 'packets' }, { sector: RED_SECTOR, adds: 'red' }, { sector: AV_SECTOR, adds: 'antivirus' }, { sector: SWEEP_SECTOR, adds: 'sweeps' },
-        { sector: ROGUE_SECTOR, adds: 'rogue' }, { sector: MINE_SECTOR, adds: 'mines', gate: true }, { sector: FAST_SWEEP_SECTOR, adds: 'fastSweeps' },
-        { sector: NET_SECTOR, adds: 'nets', gate: true }, { sector: MINION_SECTOR, adds: 'minions', gate: true }, { sector: SWARM_SECTOR, adds: 'swarm', gate: true }
+        { sector: MINE_SECTOR, adds: 'mines', gate: true }, { sector: ROGUE_SECTOR, adds: 'rogue' }, { sector: NET_SECTOR, adds: 'nets', gate: true },
+        { sector: FAST_SWEEP_SECTOR, adds: 'fastSweeps' }, { sector: MINION_SECTOR, adds: 'minions', gate: true }, { sector: SWARM_SECTOR, adds: 'swarm', gate: true }
     ];
     const SNARE_SECTORS = ['Ingress', 'Buffer', 'Cache', 'Backbone', 'Relay', 'Mirror', 'Vault', 'Core'];
     const snareSectorName = k => (SNARE_SECTORS[k] || `Deep ${k - SNARE_SECTORS.length + 1}`);
     // The boss's health, by boss (Snare 12, two review rounds): 10 on sector 5 (two stuns: a first boss you have to
     // learn), 30 on 10, 64 on 15, 90 on 20 (with its minions it was a wall at 111), then about a third more each boss.
-    const SNARE_BOSS_HEALTH = [15, 30, 64, 90, 130, 175, 230, 300];
+    // Snare 17.5 (the owner's call: harder, a real fight on its own 30 s clock; the owner beat sector 5's 15 in about 11 s):
+    // 30, 50, 80, 120, 170, 230, 300, 390, then about a third more each boss.
+    const SNARE_BOSS_HEALTH = [30, 50, 80, 120, 170, 230, 300, 390];
     const snareBossHp = k => {
-        const n = Math.max(0, Math.round((k + 1) / SNARE_BOSS_EVERY) - 1);
+        const n = snareBossOrdinal(k);
         return n < SNARE_BOSS_HEALTH.length ? SNARE_BOSS_HEALTH[n] : Math.round(SNARE_BOSS_HEALTH[SNARE_BOSS_HEALTH.length - 1] * Math.pow(1.3, n - SNARE_BOSS_HEALTH.length + 1));
     };
     const snareBossHits = snareBossHp;
@@ -2400,6 +2406,13 @@
             // A boss arena: on its sector it boots 6 s in or on the first catch (it waited on hand catches in a hazard pile).
             bossAt: 6,
             bossCatch: 1,
+            // Snare 17.5: it comes at half Focus after a warning, swallows the field, stops the Focus clock, and the fight
+            // has its own 30 s clock (run it out and it escapes: the run is over).
+            bossArrive: 0.5,
+            bossIncoming: 2.5,
+            bossFight: 30,
+            bossSwallow: 1,
+            bossFocus: 0,
             bossR: B.bossR * (1 + 0.075 * k),
             bossSpeed: B.bossSpeed * (1 + 0.08 * k),
             bossCharge: Math.max(3.5, B.bossCharge - 0.15 * k),
@@ -2408,7 +2421,7 @@
             // Two on sector 20, whose gate is its minions (three mines as well made it a wall).
             bossMines: k >= SWARM_SECTOR ? 4 : k === MINION_SECTOR ? 2 : k >= NET_SECTOR ? 3 : k >= MINE_SECTOR ? 2 : 0,
             mineEvery: k >= SWARM_SECTOR ? 8 : k < NET_SECTOR ? 16 : B.mineEvery,
-            bossMinions: k >= MINION_SECTOR ? 1 + Math.floor((k - MINION_SECTOR) / 2) : 0,
+            bossMinions: k >= MINION_SECTOR ? 1 + Math.floor((k - MINION_SECTOR) / SNARE_BOSS_EVERY) : 0,
             rogue: k >= ROGUE_SECTOR && floor('rogue') ? 1 + Math.floor((k - ROGUE_SECTOR) / 3) : 0,
             cleanStart: s.snare.runs < 2,
             layout: s.snare.layout
@@ -3212,7 +3225,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, SNARE_OPEN_AT_START, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
-        SNARE_RED_UNIT, SNARE_RED_FLOOR, snareRedShare, SNARE_DESKTOP, snareDesktop, SNARE_RUN_FLOORS, snareCatch, snareBossDown, snareGoalMet, snareGoal, isSnareBossSector, SNARE_BOSS_EVERY, finishSnare, snareOpts, SNARE_STAGES, RED_SECTOR, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, snareBossHp, snareBossHealth, SNARE_SKILL_BUFFS, snareSkillBuffs, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
+        SNARE_RED_UNIT, SNARE_RED_FLOOR, snareRedShare, SNARE_DESKTOP, snareDesktop, SNARE_RUN_FLOORS, snareCatch, snareBossDown, snareGoalMet, snareGoal, isSnareBossSector, SNARE_BOSS_EVERY, SNARE_FIRST_BOSS, snareBossOrdinal, finishSnare, snareOpts, SNARE_STAGES, RED_SECTOR, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, snareBossHp, snareBossHealth, SNARE_SKILL_BUFFS, snareSkillBuffs, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany

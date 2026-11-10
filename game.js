@@ -72,6 +72,8 @@ window.AGI = (function () {
         const sr = openBay === 'pipeline' && snare.run && !snare.run.over && !snare.preview ? snare.run : null;
         window.SFX.setTraining?.((openBay === 'training' && path.view === 'run') || !!sr);
         if (sr) {
+            // Snare 17.5: the boss fight (and its warning) plays the whole song (Focus is paused, so it can't drive it).
+            if (sr.fight || (sr.bossDueAt != null && !sr.boss && !sr.bossDone)) return window.SFX.musicState(1, null);
             const busy = Math.min(1, (sr.antivirus.length * 0.15 + sr.cores.length * 0.15 + (sr.boss ? 0.35 : 0) + (sr.drawing ? 0.15 : 0)));
             return window.SFX.musicState(0.3 + 0.45 * busy + 0.25 * (1 - sr.focus / sr.maxFocus), null);
         }
@@ -4094,6 +4096,26 @@ window.AGI = (function () {
                 snareFxFor(e, snare.fx, `${e.partner ? 'PARTNER' : 'QUARANTINED'} +${E.format(snarePay(e.units))}`);
                 sfx('snareQuarantine', { partner: !!e.partner });
                 shake(0.2);
+            } else if (t === 'bossIncoming') {
+                // Snare 17.5: the warning (the overlay darkens the field and counts it in), the alarm and a jolt.
+                sfx('snareIds');
+                shake(0.4);
+                snareIntro('boss');
+            } else if (t === 'bossSwallow') {
+                // It swallows the field: every packet streaks into it.
+                snare.fx.push({ kind: 'swallow', x: e.x, y: e.y, packets: e.packets.slice(0, 400), t: 0, life: 0.9 });
+                sfx('snareZap');
+                shake(0.5);
+            } else if (t === 'bossBurst') {
+                // Beaten: what it swallowed bursts back out (the jackpot).
+                snare.fx.push({ kind: 'burst', x: e.x, y: e.y, t: 0, life: 1.2 });
+                snare.fx.push({ kind: 'banner', centre: true, x: run.w / 2, y: run.h / 2, t: 0, life: 2, text: `JACKPOT · ${e.count} PACKETS`, big: true });
+                if (!reducedMotion()) snare.fx.push({ kind: 'flash', gold: true, t: 0, life: 0.5 });
+                shake(0.6);
+            } else if (t === 'bossEscape') {
+                snare.fx.push({ kind: 'banner', centre: true, x: run.w / 2, y: run.h / 2, t: 0, life: 2.5, text: `BOSS ESCAPED${e.packets ? ` · ${e.packets} PACKETS GONE` : ''}`, big: true });
+                sfx('snareSpoil');
+                shake(0.5);
             } else if (t === 'bossDown' || t === 'goal') {
                 clearSnareSector(run, e, t === 'bossDown');
             } else if (t === 'sector') {
@@ -4119,7 +4141,8 @@ window.AGI = (function () {
                 else if (t === 'core') { sfx('snareCore'); snareIntro('rogue'); }
                 else if (t === 'stun') sfx('snareStun', { down: !!e.down });
                 else if (t === 'sweep') { sfx('snareSweep'); snareIntro('sweep'); }
-                else if (t === 'boss') { sfx('snareBoss'); snareIntro('boss'); if (e.enraged) shake(0.3); if (e.focus) snare.fx.push({ kind: 'banner', centre: true, x: e.x, y: e.y, t: 0, life: 1.6, text: `BOSS ONLINE · +${e.focus} s FOCUS`, big: true }); }
+                else if (t === 'boss') { sfx('snareBoss'); snareIntro('boss'); if (e.enraged) shake(0.3); if (e.focus) snare.fx.push({ kind: 'banner', centre: true, x: e.x, y: e.y, t: 0, life: 1.6, text: `BOSS ONLINE · +${e.focus} s FOCUS`, big: true });
+                    else if (e.fight) { shake(0.6); snare.fx.push({ kind: 'banner', centre: true, x: run.w / 2, y: run.h * 0.75, t: 0, life: 2, text: `BEAT IT IN ${e.fight} s`, big: true }); } }
                 else if (t === 'bossCharge') sfx('snareCharge');
                 else if (t === 'parry') { sfx('snareParry'); shake(0.2); state.intro['snare:parried'] = true; }
                 else if (t === 'fizzle') snare.fx.push({ kind: 'flag', x: e.x, y: e.y - 0.6, t: 0, life: 0.9, text: e.bubble ? 'HOLD LONGER' : 'TOO SMALL TO LOOP', small: true });
@@ -4335,7 +4358,7 @@ window.AGI = (function () {
         setHidden($('snareHud'), true);
         setText($('snareStatus'), '');
         renderSnareTools();
-        pt('snare', { haul: Math.round(snare.haul), sector: snare.sector + 1, startSector: snare.startSector + 1, sectorsCleared: snare.cleared.length, bosses: stats.bosses, bossHits: stats.bossHits, wiped: stats.wiped,
+        pt('snare', { haul: Math.round(snare.haul), sector: snare.sector + 1, startSector: snare.startSector + 1, sectorsCleared: snare.cleared.length, bosses: stats.bosses, bossEscaped: stats.bossEscaped || 0, swallowed: stats.swallowed || 0, burst: stats.burst || 0, bossHits: stats.bossHits, wiped: stats.wiped,
             catches: stats.catches, caught: stats.caught, gold: stats.gold, corrupted: stats.corrupted, hunt: snare.run?.opts?.redHunt > 0 ? 1 : 0, focusEarned: Math.round(snare.run?.focusEarned ?? 0),
             snaps: stats.snaps, empty: stats.empty, bestMult: r2(stats.bestMult), chained: stats.chained, lasered: stats.lasered, scrubbed: stats.scrubbed,
             cores: stats.cores, stolen: stats.stolen, quarantined: stats.quarantined, bounces: stats.bounces, stuns: stats.stuns, fwLost: stats.fwLost, sweeps: stats.sweeps,
@@ -4380,7 +4403,7 @@ window.AGI = (function () {
         return b.length ? ['Training', `${b.length} skill${b.length === 1 ? '' : 's'} · ${b.at(-1).text}`] : null;
     };
     const snareSector = k => `Sector ${k + 1}: ${E.snareSectorName(k)}${E.SNARE_GATES.includes(k) ? ' · Gate' : ''}`;
-    // What clears a sector: its boss every fifth sector, else a goal of Signal earned in it in one run (Snare 17.4).
+    // What clears a sector: its boss every third sector from 5 (Snare 17.5), else a goal of Signal earned in it in one run (Snare 17.4).
     // goals with thousands separators, and the loop bonus in plain words (round 7 of the review: "catch 35185" and
     // "(a ×2 bubble counts its packets 1.5×)" didn't read)
     const goalNum = n => Math.round(n).toLocaleString('en-US');
@@ -4486,6 +4509,8 @@ window.AGI = (function () {
             card.replaceChildren(...[
                 el('div', { class: 'result-title', text: `${d.sector > d.startSector ? `Sectors ${d.startSector + 1}–${d.sector + 1}` : snareSector(d.sector)}${d.replay ? ' (replay)' : ''} · ${d.walked ? 'Left the bay' : 'Focus spent'}` }),
                 // A boss beaten leads the card (round 2 of the review: it read like any other run).
+                // Snare 17.5: its fight clock ran out (the run ends with it).
+                s.bossEscaped ? el('div', { class: 'result-main snare-red-line', text: `The boss escaped${s.swallowed ? ` with ${s.swallowed} packets` : ''} · beat it in ${snare.run?.opts?.bossFight || 30} s next time` }) : null,
                 d.cleared.some(k => E.isSnareBossSector(k)) ? el('div', { class: 'result-main snare-boss-down', text: `Boss down · ${s.slashes || 0} slash${s.slashes === 1 ? '' : 'es'}${s.mineThrows ? ` · ${s.mineThrows} mine${s.mineThrows === 1 ? '' : 's'} thrown` : ''}` }) : null,
                 el('div', { class: 'result-main', text: s.caught ? `${s.caught} packet${s.caught === 1 ? '' : 's'} snared` : 'Nothing snared' }),
                 // nothing caught: why, in plain words, first (round 9 of the review: "Corrupted catches 1" didn't say it)
@@ -4597,7 +4622,8 @@ window.AGI = (function () {
             // A sector with no boss: how far along its goal is (cleared once it's reached).
             : run.bossDone ? ' · Boss down ✓'
             : run.opts.goal > 0 ? ` · ${run.goalDone ? (snareNarrow() ? '✓' : 'Cleared ✓') : `${snareNarrow() ? '' : 'Goal '}${goalNum(Math.min(Math.floor(run.goalProgress()), run.opts.goal))}/${goalNum(run.opts.goal)}`}` : '';
-        setText($('snareFocusText'), `${snareNarrow() ? '' : 'Focus '}${Math.ceil(run.focus)} s${boss}`);
+        const paused = run.fight || (run.bossDueAt != null && !run.boss && !run.bossDone) ? ' ❚❚' : '';
+        setText($('snareFocusText'), `${snareNarrow() ? '' : 'Focus '}${Math.ceil(run.focus)} s${paused}${boss}`);
         // A held Race Condition loop ticks up every half second.
         if (run.race) {
             const step = Math.min(8, Math.floor(run.race.t / 0.5));
@@ -5256,6 +5282,7 @@ window.AGI = (function () {
         drawSnareView(snare.ctx, { run: snare.run, effects: snare.fx, k: snare.scale, ox: snare.ox, oy: snare.oy, cw: snare.cw, ch: snare.ch,
             dpr: snare.canvas.width / snare.cw, field: snare.run || snareField(), touch: snare.touch, wallFrom: snare.wallFrom, turned: snare.turned });
         drawSnareEnding(snare.ctx, snare);
+        drawSnareBossFight(snare.ctx, snare);
         // Under a card (start, end or a tip) the field dims, so the card reads and the field's labels don't show through
         // (round 1 of the review).
         if (snareCardUp()) {
@@ -5274,6 +5301,90 @@ window.AGI = (function () {
     // three count down large over the field, each with a tick.
     const SNARE_END_WARN = 5;
     const snareEndWarn = run => Math.min(SNARE_END_WARN, 0.3 * (run.maxFocus || SNARE_END_WARN / 0.3));
+    // Snare 17.5 (the owner's calls: bosses as the run's centrepiece, a spectacle): while it's coming, the field darkens
+    // under a red, pulsing edge and BOSS INCOMING counts it in; while it stands, a health bar across the top with its fight
+    // clock under it (the run's Focus is paused: ⏸ on the HUD).
+    function drawSnareBossFight(ctx, sn) {
+        const run = sn.run;
+        if (!run || run.over || sn.preview || !(run.opts.bossFight > 0)) return;
+        const incoming = run.bossDueAt != null && !run.boss && !run.bossDone;
+        if (!incoming && !(run.boss && run.fight)) return;
+        const C = path.colors, W = sn.cw, H = sn.ch, calm = reducedMotion();
+        ctx.save();
+        ctx.setTransform(sn.canvas.width / sn.cw, 0, 0, sn.canvas.width / sn.cw, 0, 0);
+        const pulse = calm ? 0.6 : 0.5 + 0.5 * Math.sin(run.time * 9);
+        const edge = (alpha, size) => {
+            const side = (x0, y0, x1, y1, rx, ry, rw, rh) => {
+                const g = ctx.createLinearGradient(x0, y0, x1, y1);
+                g.addColorStop(0, hexAlpha(C.danger, alpha));
+                g.addColorStop(1, hexAlpha(C.danger, 0));
+                ctx.fillStyle = g;
+                ctx.fillRect(rx, ry, rw, rh);
+            };
+            try {
+                side(0, 0, size, 0, 0, 0, size, H); side(W, 0, W - size, 0, W - size, 0, size, H);
+                side(0, 0, 0, size, 0, 0, W, size); side(0, H, 0, H - size, 0, H - size, W, size);
+            } catch { /* a colour the gradient can't take */ }
+        };
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        if (incoming) {
+            const total = run.opts.bossIncoming || 2.5, p = Math.max(0, Math.min(1, 1 - (run.bossDueAt - run.time) / total));
+            ctx.fillStyle = hexAlpha(C.bg, 0.5 * p);
+            ctx.fillRect(0, 0, W, H);
+            edge((0.35 + 0.4 * p) * (0.5 + 0.5 * pulse), Math.min(W, H) * (0.1 + 0.12 * p));
+            let size = Math.round(Math.min(H / 7, 64));
+            ctx.font = `700 ${size}px ${snareMono()}`;
+            // fit the field's width (a phone's is narrow)
+            const tw = ctx.measureText('⚠ BOSS INCOMING').width;
+            if (tw > W * 0.9) { size = Math.floor(size * W * 0.9 / tw); ctx.font = `700 ${size}px ${snareMono()}`; }
+            ctx.lineWidth = Math.max(3, size / 12);
+            ctx.strokeStyle = C.bg;
+            ctx.fillStyle = C.danger;
+            ctx.globalAlpha = 0.7 + 0.3 * pulse;
+            ctx.strokeText('⚠ BOSS INCOMING', W / 2, H * 0.4);
+            ctx.fillText('⚠ BOSS INCOMING', W / 2, H * 0.4);
+            ctx.globalAlpha = 1;
+            let sub = Math.max(11, Math.round(size * 0.38));
+            ctx.font = `600 ${sub}px ${snareMono()}`;
+            const sw = ctx.measureText(`FOCUS PAUSED · BEAT IT IN ${run.opts.bossFight} s`).width;
+            if (sw > W * 0.92) { sub = Math.max(9, Math.floor(sub * W * 0.92 / sw)); ctx.font = `600 ${sub}px ${snareMono()}`; }
+            ctx.fillStyle = C.text;
+            ctx.fillText(`FOCUS PAUSED · BEAT IT IN ${run.opts.bossFight} s`, W / 2, H * 0.4 + size * 0.9);
+        } else {
+            const b = run.boss, f = run.fight, left = f.left / f.total;
+            // the arena: a faint darkening and a steady red edge, stronger as its clock runs out
+            ctx.fillStyle = hexAlpha(C.bg, 0.12);
+            ctx.fillRect(0, 0, W, H);
+            edge(0.18 + 0.3 * (1 - left) * (f.left < 10 ? pulse : 0.6), Math.min(W, H) * 0.08);
+            const bw = Math.min(W * 0.72, 560), bx = (W - bw) / 2, by = 10, bh = 14;
+            ctx.fillStyle = hexAlpha(C.bg, 0.85);
+            ctx.fillRect(bx - 3, by - 3, bw + 6, bh + 18);
+            ctx.fillStyle = hexAlpha(C.danger, 0.25);
+            ctx.fillRect(bx, by, bw, bh);
+            ctx.fillStyle = C.danger;
+            ctx.fillRect(bx, by, bw * (b.hp / b.maxHp), bh);
+            // its fight clock under the health
+            ctx.fillStyle = hexAlpha(C.warning, 0.2);
+            ctx.fillRect(bx, by + bh + 3, bw, 6);
+            ctx.fillStyle = f.left < 10 ? C.danger : C.warning;
+            ctx.fillRect(bx, by + bh + 3, bw * left, 6);
+            const size = 11;
+            ctx.font = `700 ${size}px ${snareMono()}`;
+            ctx.fillStyle = C.text;
+            ctx.fillText(`BOSS ${b.hp}/${b.maxHp}`, W / 2, by + bh / 2 + 1);
+            const big = Math.round(Math.min(W, H) * 0.06);
+            if (f.left < 10) {
+                ctx.font = `700 ${big}px ${snareMono()}`;
+                ctx.globalAlpha = 0.5 + 0.4 * pulse;
+                ctx.fillStyle = C.danger;
+                ctx.fillText(`${Math.ceil(f.left)} s`, W / 2, by + bh + 14 + big * 0.6);
+                ctx.globalAlpha = 1;
+            }
+        }
+        ctx.restore();
+    }
+
     function drawSnareEnding(ctx, sn) {
         const run = sn.run;
         // round 6 of the review: on a 10 s first run the warning took half of it; it's at most 30% of the bar
@@ -7027,7 +7138,39 @@ window.AGI = (function () {
         // A supernova's shockwave, a split's bubbles flying out, a thrown mine's streak.
         for (const f of effects) {
             const a = 1 - f.t / f.life, e = 1 - a;
-            if (f.kind === 'nova') {
+            if (f.kind === 'swallow') {
+                // Snare 17.5: every packet on the field streaks into the boss.
+                const q = Math.min(1, e * 1.3), qq = q * q;
+                ctx.globalAlpha = 0.9 * (1 - q * 0.6);
+                for (const p of f.packets) {
+                    const x = p.x + (f.x - p.x) * qq, y = p.y + (f.y - p.y) * qq;
+                    const tx = p.x + (f.x - p.x) * Math.max(0, qq - 0.15), ty = p.y + (f.y - p.y) * Math.max(0, qq - 0.15);
+                    ctx.strokeStyle = p.kind === 'corrupt' ? C.danger : p.kind === 'gold' ? C.warning : C.primary;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(tx * k, ty * k);
+                    ctx.lineTo(x * k, y * k);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+            } else if (f.kind === 'burst') {
+                // Beaten: a gold shockwave out of it, and rays.
+                ctx.globalAlpha = a;
+                ctx.strokeStyle = C.warning;
+                ctx.lineWidth = 4 + 8 * a;
+                ctx.beginPath();
+                ctx.arc(f.x * k, f.y * k, Math.min(W, H) * 0.5 * e * k, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                for (let i = 0; i < 16; i++) {
+                    const ang = i * Math.PI / 8;
+                    ctx.moveTo((f.x + Math.cos(ang) * 0.5) * k, (f.y + Math.sin(ang) * 0.5) * k);
+                    ctx.lineTo((f.x + Math.cos(ang) * (1 + 4 * e)) * k, (f.y + Math.sin(ang) * (1 + 4 * e)) * k);
+                }
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            } else if (f.kind === 'nova') {
                 // Supernova: a gold shockwave out to the burst's edge, and rays.
                 ctx.globalAlpha = a;
                 ctx.strokeStyle = C.warning;
