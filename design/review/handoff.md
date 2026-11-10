@@ -25,10 +25,9 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
   reviewers on it: scores in `scores.csv`, issues K11–K20) and the owner's calls on it (D19, "Snare 17.8" in CLAUDE.md):
   the fight clock decides fights (a snap costs 2 s of it, not Focus), a parry breaks the mine shield, honest bank-shot
   labels, the mines demo redone as a bank shot, the fight's readouts, the sideways crumbs, Boss now, the tree keeping its
-  roots in view. Open: K5–K7, K14 (the
-  boss demo), K17
-  (nets), K19 (sector 12's goal), K20 (smaller screen issues), K21 (colour-blind cues), D15. **Next (the owner's pick):** K21
-  and K14 as one batch, K21's cues asked with cards first; the slow pacing ratchet fails since 17.7 (sector 3:
+  roots in view. Open: K5–K7, K17
+  (nets), K19 (sector 12's goal), K20 (smaller screen issues), D15. **Done after 17.8, unpublished:** K21
+  (shape cues: unreadable a hollow eye, gold a light rim, tags a dotted edge; the owner's picks) and K14 (the boss demo); the slow pacing ratchet fails since 17.7 (sector 3:
   18 bot runs against 13).
 - **Also in 17.8, merged in from a local session (2026-11-10): the copy and colour pass and the terminal voice.** See *Copy and colour pass*
   below before touching any Packet Snare text or colour. It changes no rules or balance.

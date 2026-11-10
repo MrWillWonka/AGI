@@ -15,22 +15,18 @@ Update this file with every fix batch (move fixed ones to *fixed: verify*, drop 
   find (rounds 7–9).
 - **K7 Grabbing a mine with a quick bubble often misses** (round 7; round 10: mines now sit on a ring away from the boss,
   but the boss walks onto them and pops the grab bubble, `pop:boss` 5 times in the owner's sector-11 runs).
-- **K14 The boss's demo shows the old fight** (round 10; the card's words are one line since the copy pass, the owner's
-  call: the demo teaches the rest): it should show the 17.5 fight, the boss coming at half Focus, the swallow and the 30 s
-  clock. The mines demo was redone in 17.8 (F21).
 - **K17 Sector 11's nets do nothing in the fight** (the field is swallowed, so a net has nothing to wipe: 0 netted in
   every fight) (round 10; the owner: after the next log).
 - **K19 Sector 12's goal (843K) is a wall** against a sector-11 build's 60–138K haul (round 10).
 - **K20 Screens, smaller:** the HUD is small and far from the field at 1920 and 4K; a sideways Look out card shows a line
   or two before Start covers it; at 360 × 640 a tree popup can clip its effect line; an UPDATING label clips at the
   field's edge (round 10).
-- **K21 Colour-blind readability** (a simulated check in the copy and colour pass, 2026-11-10): for red-green colour
-  blindness, unreadable red and gold amber come out close in every theme (CIEDE2000 about 11–20), threats and your amber
-  things too, and Night's violet tag edge nearly vanishes on blue packets (3–8). The owner's call: shape cues, not new
-  colours (a mark on unreadable packets, a thicker tag edge, a distinct gold outline), in `drawSnarePackets` with its
-  batching kept; ask the owner with cards which cues. Scheduled after round 10's fixes.
 
 ## Fixed: verify
+- **F26 (K14) The boss's demo showed the old fight:** it plays the 17.5 fight (BOSS INCOMING, the swallow, two loops,
+  the stun, slashes) with the fight's overlay (the warning, the health bar and its clock) drawn over it.
+- **F25 (K21) Colour-blind readability:** shape cues, always on: unreadable packets a hollow eye, gold a light rim, a tag
+  a dotted edge that meets at the tip; checked in all five themes with simulated deuteranopia and protanopia.
 - **F24 (K18) The desktop tree panned an unbought root out of view:** a pan for a new node keeps every unbought root in
   frame (zooming out if they don't fit), and a remembered view that hides one is corrected when the tree opens; Kernel
   Panic (and Root Access and Riposte after it) waits for the frontier to reach the first boss's sector.

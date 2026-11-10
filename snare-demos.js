@@ -73,12 +73,16 @@
         sweep: { text: 'Its edge flashes, then it sweeps: bubbles pop', opts: { sweepFirst: 0.4, sweepEvery: 99, sweepWarn: 0.7, sweepTime: 1.6, threatWait: 0 },
             packets: [['good', 3, 1.4]], bubbles: [[0.2, 3.1, 3, 1.4]], expect: r => r.stats.snaps >= 1 },
         // The boss fight: loop round it to stun it (the wire mustn't touch it), then flick through it while it reels.
-        boss: { text: 'Loop round it twice to stun it, then slash it as it reels', opts: { boss: 4, bossAt: 0 },
-            packets: [['good', 5.4, 1.4]],
-            wire: [0.2, 1.1, ring(2, 1.4, 0.85, 0.85, 32, 2)],
-            strokes: [[1.35, 1.42, line(1.2, 0.3, 2.8, 2.5, 6)], [1.8, 1.87, line(2.8, 0.3, 1.2, 2.5, 6)]],
+        // The boss (K14, round 10: the demo showed the pre-17.5 boss): it comes in, swallows the field and its fight clock
+        // starts; two loops round it stun it, then slashes take its health. `fight`: game.js draws the fight's overlay
+        // (the warning, the health bar and its clock) over this demo.
+        boss: { text: 'It swallows the field. Loop it twice, then slash it before the clock runs out', fight: true,
+            opts: { boss: 4, bossArrive: 1, bossIncoming: 0.55, bossFight: 30, bossSwallow: 1, bossFocus: 0, bossCharge: 99 },
+            packets: [['good', 3.6, 0.7], ['good', 4.3, 1.9], ['good', 4.9, 1.0], ['gold', 4.4, 0.6], ['good', 0.6, 2.2], ['good', 3.4, 2.2]],
+            wire: [0.85, 1.75, ring(2, 1.4, 0.85, 0.85, 32, 2)],
+            strokes: [[2.0, 2.07, line(1.2, 0.3, 2.8, 2.5, 6)], [2.45, 2.52, line(2.8, 0.3, 1.2, 2.5, 6)]],
             tick: (r, sim) => { if (r.boss) { Object.assign(r.boss, { x: 2, y: 1.4, vx: 0, vy: 0 }); if (!(r.boss.stunned > r.time)) { r.boss.chargeAt = r.time + 99; r.boss.charge = null; } } },
-            expect: r => r.stats.loopStuns >= 1 && r.stats.bossDamage >= 2 },
+            expect: r => (r.stats.swallowed || 0) > 0 && r.stats.loopStuns >= 1 && r.stats.bossDamage >= 2 && !!r.fight },
         // Riposte: the parry, a flick across its charge line, a stun from range.
         parry: { text: 'Flick across its charge line to parry it, then slash it', opts: { boss: 4, bossAt: 0, parry: 1 },
             packets: [['good', 5.4, 1.4]],

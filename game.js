@@ -5216,7 +5216,7 @@ window.AGI = (function () {
             // the ring on the boss, the words under it (round 7 of the review: they sat on SLASH! over it)
             const br = e.r || window.PacketSnare.BOSS_R;
             fx.push({ kind: 'quarantine', hit: true, x: e.x, y: e.y, r: br, t: 0, life: 0.7 });
-            fx.push({ kind: 'stun', hit: true, x: e.x, y: e.y + br + 0.9, t: 0, life: 0.8, text: `${e.how === 'ram' ? 'RAMMED' : e.how === 'parry' ? 'RIPOSTE' : e.how === 'crash' ? 'BLUE SCREEN' : 'SLASH'} −${e.dmg}${snare.run?.fight ? '' : ` · ${e.hp} left`}` });
+            fx.push({ kind: 'stun', hit: true, x: e.x, y: e.y + br + 0.9, t: 0, life: 0.8, text: `${e.how === 'ram' ? 'RAMMED' : e.how === 'parry' ? 'RIPOSTE' : e.how === 'crash' ? 'BLUE SCREEN' : 'SLASH'} −${e.dmg}${e.fight ? '' : ` · ${e.hp} left`}` });
         }
         // a slash too soon after the last (round 6: it was swallowed without a word); at most one a half second
         else if (e.type === 'slashSoon') {
@@ -5309,6 +5309,8 @@ window.AGI = (function () {
             if (reducedMotion()) { while (sim.t < 1.6) advance(1 / 60); } else advance(dt);
             drawSnareView(ctx, { run: sim.run, effects: fx, k, ox: (SNARE_DEMO.w - D.FIELD.w * k) / 2, oy: (SNARE_DEMO.h - D.FIELD.h * k) / 2,
                 cw: SNARE_DEMO.w, ch: SNARE_DEMO.h, dpr, field: sim.run });
+            // the boss's demo plays its fight's overlay too: the warning, the health bar and its clock (K14)
+            if (D.DEMOS[kind].fight) drawSnareBossFight(ctx, { run: sim.run, cw: SNARE_DEMO.w, ch: SNARE_DEMO.h, canvas });
             if (!reducedMotion()) requestAnimationFrame(frame);
         };
         requestAnimationFrame(frame);
@@ -6098,7 +6100,10 @@ window.AGI = (function () {
         // violet fill saturated the field and read as a herder), and a spoofed corrupt one passes as blue with a dashed
         // red edge. Gold ones glow (a soft disc, capped in px). Never under 5 px across their middle.
         const minR = (d.minR ?? 5) * Math.min(1, (run.opts?.packetR ?? window.PacketSnare.PACKET_R) / window.PacketSnare.PACKET_R);
-        const paths = { good: new Path2D(), gold: new Path2D(), bad: new Path2D(), tagEdge: new Path2D(), spoofEdge: new Path2D() };
+        // K21 (the owner's picks, always on): shape cues that don't rely on colour, since for red-green colour blindness
+        // unreadable red and gold amber come out the same olive: unreadable packets carry a hollow eye, gold ones a light rim,
+        // and a tag is a dotted edge (it was a thin solid one).
+        const paths = { good: new Path2D(), gold: new Path2D(), bad: new Path2D(), tagEdge: new Path2D(), spoofEdge: new Path2D(), eyes: new Path2D() };
         const glow = { gold: new Path2D(), bad: new Path2D() };
         // A red packet a Cleaner bot is turning regular wears a ring in the good colour that fills as it gets there.
         const turnRing = new Path2D(), o = run.opts || {};
@@ -6124,6 +6129,7 @@ window.AGI = (function () {
                 else {
                     const rr = Math.max(redMin, r);
                     arrow(paths.bad, x, y, ang, rr * 1.45, rr * 0.95);
+                    { const er = Math.max(1.6, rr * 0.36), ex = x - Math.cos(ang) * rr * 0.12, ey = y - Math.sin(ang) * rr * 0.12; paths.eyes.moveTo(ex + er, ey); paths.eyes.arc(ex, ey, er, 0, Math.PI * 2); }
                     if (p.hunting) { const c = Math.cos(ang), sn = Math.sin(ang); huntTrail.moveTo(x - c * rr * 0.6, y - sn * rr * 0.6); huntTrail.lineTo(x - c * rr * 4, y - sn * rr * 4); }
                     if (crowded) { const hr = Math.min(rr * 2.4, 16); glow.bad.moveTo(x + hr, y); glow.bad.arc(x, y, hr, 0, Math.PI * 2); }
                     const turn = Math.min(1, turnOf(p));
@@ -6152,16 +6158,29 @@ window.AGI = (function () {
         // the packets' own tokens (Snare 12.7, a theme audit: in Red and Soft pink good packets sat beside the red ones,
         // and in Arcade a tag's magenta edge read as a red packet)
         const good = C['snare-good'] || C.primary, bad = C['snare-bad'] || C.danger, tagCol = C['snare-tag'] || C.research;
-        ctx.lineWidth = 1.25;
+        // a tag's edge is dotted (K21), round dots that start at the tip, so it meets there
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.setLineDash([0.01, 3.2]);
         ctx.strokeStyle = tagCol;
         // fainter on a crowded field (round 2 of the review: with towers everywhere the whole field read violet)
-        ctx.globalAlpha = crowded ? 0.45 : 1;
+        ctx.globalAlpha = crowded ? 0.55 : 1;
         ctx.stroke(paths.tagEdge);
+        ctx.setLineDash([]);
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
         ctx.globalAlpha = 1;
         ctx.fillStyle = good;
         ctx.fill(paths.good);
         ctx.fillStyle = C.warning;
         ctx.fill(paths.gold);
+        // gold's light rim (K21)
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = C.text || '#fff';
+        ctx.globalAlpha = 0.9;
+        ctx.stroke(paths.gold);
+        ctx.globalAlpha = 1;
         ctx.setLineDash([3, 2]);
         ctx.lineWidth = 1.5;
         ctx.strokeStyle = bad;
@@ -6182,6 +6201,9 @@ window.AGI = (function () {
         ctx.stroke(paths.bad);
         ctx.fillStyle = bad;
         ctx.fill(paths.bad);
+        // unreadable's hollow eye (K21)
+        ctx.fillStyle = C.bg;
+        ctx.fill(paths.eyes);
         ctx.lineWidth = 2;
         ctx.strokeStyle = good;
         ctx.globalAlpha = 0.85;

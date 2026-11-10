@@ -1065,7 +1065,7 @@
                 }
                 s.events.push({ type: 'bossDown', x: b.x, y: b.y, focus: clearBonus() });
             } else {
-                s.events.push({ type: 'bossHit', x: b.x, y: b.y, r: b.r, hp: b.hp, maxHp: b.maxHp, how, dmg });
+                s.events.push({ type: 'bossHit', x: b.x, y: b.y, r: b.r, hp: b.hp, maxHp: b.maxHp, how, dmg, fight: !!s.fight });
             }
             return true;
         }
