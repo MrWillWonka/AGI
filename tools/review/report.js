@@ -118,7 +118,7 @@ async function sideways() {
         const sv = await startVisible(page);
         rule('sideways: Start in full view on the first card', sv.ok, sv.why);
         const how = await page.evaluate(() => {
-            const p = [...document.querySelectorAll('#snareCard p')].find(x => /Hold still|RIGHT mouse/.test(x.textContent));
+            const p = [...document.querySelectorAll('#snareCard p')].find(x => /^CONTROLS:|hold still|right mouse/i.test(x.textContent));
             const b = document.querySelector('#snareCard .result-actions');
             return p && b ? { ok: p.getBoundingClientRect().top < b.getBoundingClientRect().top - 10 } : { ok: false };
         });
