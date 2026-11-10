@@ -1,6 +1,6 @@
 {
   "_note": "Pacing targets for Packet Snare, checked by tools/review/pacing.js (pass/fail per sector) and, for sectors 1-4, by tests/pacing-targets.test.js. PROPOSED by Claude from the owner's 15.5 log and calls; the owner confirms or changes them (status: proposed).",
-  "status": "confirmed by the owner 2026-11-09 (the tree bought out at about 40 minutes, the owner's call on the pacing sweep)",
+  "status": "confirmed by the owner 2026-11-10 (17.3 log: the tree should last a player at the owner's pace about 40 active minutes; the owner plays about 1.9x the bot's pace, so the bot's target is 70+)",
   "runsPerSector": {
     "1": [
       1,
@@ -31,7 +31,7 @@
     7,
     14
   ],
-  "treeDoneMinuteAtLeast": 40,
+  "treeDoneMinuteAtLeast": 70,
   "helperShareOfHaulAtMost": {
     "before10": 0.5
   },

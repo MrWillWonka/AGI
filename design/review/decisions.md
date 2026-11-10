@@ -27,6 +27,11 @@ When answered: the change, `settled.md` (or `targets.json`) and this file are up
   a cheap seed at the centre like the Training tree's (Handshake, 5 Signal, +15% packets); Scrubbers gone, the Decoder
   Bot early (100 Signal off Sanitizer) as the way to scrub red. Twelve nodes folded or gone; save v31 refunds the tree.
 
+- **D17 (answered 2026-11-10)**: the 17.3 log (sectors 1–11 in 1–4 runs each, sector 12 a wall on a capped phone
+  field, the tree bought out in about 22 active minutes, 3 spoiled catches). The owner's calls: every goal in Signal
+  ("so there is consistency": Overclock counts too), the tree about 40 active minutes at the owner's pace (the far ring
+  ×4), and red too easy throughout (35% on sectors 3–6, Sanitizer's front-loading undone).
+
 ## Open
 - **D15 (watching)**: sector 3 on desktop. 10 runs on 17, 4 on 17.1, not cleared in 5 on 17.2 (best 100 of 185 packets,
   4–6 catches a run, Antivirus popping 0–2 bubbles). The owner's call: play more first, no change; judge it on the next
