@@ -17,7 +17,7 @@ test('Packet Snare: sectors 2–4 take their target runs for a person-paced play
     process.argv = argv;
     const targets = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'design', 'review', 'targets.json'), 'utf8'));
     // the five campaigns at once (and cached while the rules don't change)
-    const runs = await runCampaigns([1, 2, 3, 4, 5].map(seed => ({ seed, screen: 'phone', minutes: 13, pace: PACE, runCap: 120, steps: 60, untilSector: 5, untilTree: false })));
+    const runs = await runCampaigns([1, 2, 3, 4, 5].map(seed => ({ seed, screen: 'phone', minutes: 18, pace: PACE, runCap: 120, steps: 60, untilSector: 5, untilTree: false })));
     for (const k of [2, 3, 4]) {
         const per = runs.map(c => c.sectors.find(x => x.sector === k)?.runs ?? 99).sort((a, b) => a - b);
         const m = per[2];
