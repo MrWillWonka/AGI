@@ -126,6 +126,12 @@ node tools/review/report.js review-out/<name> # tests, pacing on both screens, s
 node tools/review-index.js review-out/<name>.html
 ```
 
+**On the owner's Windows machine** (set up 2026-11-10, so the report and publishes can run locally): Python 3.12 is
+installed per user (run `python server.py 8123 --no-browser`: Windows has `python` and `py`, and `python3` is the Store's
+stub), and Playwright lives in the repo's git-ignored `node_modules` (`npm install --no-save playwright`, then
+`npx playwright install chromium`; redo both after a fresh clone). The report runs in about a minute there. The working
+tree is CRLF, and git has no identity set: commit with `-c user.name=Claude -c user.email=noreply@anthropic.com`.
+
 Browser checks use `tools/review/kit.js` (Playwright; `K.launch({ phone: true })`, `K.fresh`, `K.scenario(page, k)`,
 `K.start`, `K.cards`, `K.bubble`, `K.stroke`, `K.flick`, `K.state`); `AGI.debug.snareRun()` reads the run in play.
 

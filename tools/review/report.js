@@ -212,7 +212,7 @@ async function diffs() {
     // first, this build's scenarios (one seed: the builds the browser passes load), then everything else at once
     await run('node', ['tools/review/pacing.js', '--screen', 'phone', '--minutes', '20', '--seeds', '1', '--scenarios', path.join(__dirname, 'scenarios.json')]);
     const [t, pPhone, pDesk] = await Promise.all([
-        run('node', ['--test'], { SLOW: '1' }),
+        run('node', ['--test', '--test-reporter=tap'], { SLOW: '1' }),   // tap: newer Node prints its own summary (ℹ pass n), which the count below doesn't read
         run('node', ['tools/review/pacing.js', '--screen', 'phone', '--minutes', minutes]),
         // one desktop seed: the phone campaign carries the targets, desktop is a check (and its field the slowest)
         run('node', ['tools/review/pacing.js', '--screen', 'desktop', '--minutes', minutes, '--seeds', '1']),
