@@ -167,6 +167,9 @@ test('boss mines: a bubble grabs one (no shield, no nets); a flick from it at th
     const hp = s.boss.hp;
     flickLine(s, 8, 4, 6.4, 4);
     assert.equal(s.stats.mineThrows, 1);
+    // Snare 17.7: it flies as a puck; it lands on the boss a moment later
+    for (let i = 0; i < 60 && !s.stats.mineHits; i++) { Object.assign(s.boss, { vx: 0, vy: 0 }); s.step(1 / 60); }
+    assert.equal(s.stats.mineHits, 1, 'it hits');
     assert.equal(s.boss.hp, hp - P.SNARE.mineThrow, 'a big hit, through the guard and the shield');
     assert.ok(s.boss.stunned > s.time, 'it reels');
     assert.equal(s.held.length, 0);

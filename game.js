@@ -4159,7 +4159,9 @@ window.AGI = (function () {
                 else if (t === 'split') sfx('snareChain');
                 else if (t === 'raceTick') sfx('snareRace', { step: Math.min(8, Math.round(e.bonus / e.max * 8)) });
                 else if (t === 'mineGrab') { sfx('snareHijack'); state.intro['snare:grabbed'] = true; }
-                else if (t === 'mineThrow') { sfx('snareHit'); shake(0.35); }
+                else if (t === 'mineThrow') { sfx('snareHit'); shake(0.35 + 0.1 * Math.min(3, e.bounces || 0)); }
+                else if (t === 'mineLaunch') { sfx('snareSpoof'); state.intro['snare:thrown'] = true; }
+                else if (t === 'mineBounce') sfx('snareZap');
                 else if (t === 'mineLive') sfx('snareCore');
                 else if (t === 'escalate') sfx('snareHijack');
                 else if (t === 'storm') { sfx('snarePower', { kind: 'freeze' }); shake(0.25); }
@@ -4377,7 +4379,7 @@ window.AGI = (function () {
             pushedOut: stats.pushedOut, autoZones: stats.autoZones, pulses: stats.pulses, sweepsClean: stats.sweepsClean,
             relayed: stats.relayed, pushedBack: stats.pushedBack, raceBroken: stats.raceBroken, crashes: stats.crashes, converted: stats.converted,
             // the bubble prototype: on for this run, and how many bubbles caught
-            bubbles: stats.bubbles, minesGrabbed: stats.minesGrabbed, mineThrows: stats.mineThrows, spent: Math.round(state.snare.earned - state.snare.signal),
+            bubbles: stats.bubbles, minesGrabbed: stats.minesGrabbed, mineThrows: stats.mineThrows, mineHits: stats.mineHits, mineBounces: stats.mineBounces, mineDuds: stats.mineDuds, spent: Math.round(state.snare.earned - state.snare.signal),
             area: Math.round(snare.run.w * snare.run.h), replay: !!snare.replay, secs: Math.round(snare.run.time), record: res.record, seed: snare.seed });
         log(`Packet Snare: +${E.format(snare.haul)} Signal from ${stats.caught} packet${stats.caught === 1 ? '' : 's'}${res.record ? ' · new record' : ''}.`, res.record ? 'success' : 'info');
         sfx(res.record ? 'record' : 'runEnd');
@@ -4493,7 +4495,7 @@ window.AGI = (function () {
                 s.spoofed ? ['Packets spoofed', `${s.spoofed}`] : null,
                 s.parries || s.slashes ? ['Parries · slashes', `${s.parries} · ${s.slashes}`] : null,
                 s.glanced ? ['Slashes the shield stopped', `${s.glanced}`] : null,
-                s.minesGrabbed ? ['Mines grabbed · thrown', `${s.minesGrabbed} · ${s.mineThrows || 0}`] : null,
+                s.minesGrabbed ? ['Mines grabbed · thrown · hit', `${s.minesGrabbed} · ${s.mineThrows || 0} · ${s.mineHits || 0}`] : null,
                 s.minesCleared ? ['Mines cleared', `${s.minesCleared} of ${s.mines}`] : null,
                 s.netted ? ['Netted by the boss', `${s.netted}`] : null,
                 s.forks ? ['Split catches', `${s.forks}`] : null,
@@ -4653,7 +4655,7 @@ window.AGI = (function () {
         chain: 'bolt', chainHops: 'bolt', chainRange: 'bolt', scrubbers: 'filter', corruptMult: 'terminal', lureMult: 'code', purge: 'flame',
         firewalls: 'bricks', wallMult: 'bricks', wallRebuild: 'bricks', fwHits: 'shield', decoys: 'diamond', decoyLure: 'diamond',
         avSpeed: 'ghost', avStun: 'ghost', hijack: 'robot', collude: 'core', respawnMult: 'refresh', flagLimit: 'flag', spoofValue: 'mask',
-        echo: 'loop', storm: 'cloud', crash: 'crash', zeroTrust: 'check', surge: 'surge', defuse: 'cut',
+        echo: 'loop', storm: 'cloud', crash: 'crash', zeroTrust: 'check', surge: 'surge', defuse: 'cut', ricochet: 'surge',
         pulse: 'surge', broadband: 'turret', cleanSweep: 'sweep', relay: 'route', backpressure: 'back',
         cleanBots: 'sweep', spoofBots: 'mask', collectBots: 'robot', goldPlate: 'coin', pen: 'pen', autoZone: 'deploy' };
     const snareIcon = up => up.icon || SNARE_STAT_ICON[Object.keys(up.sn || {})[0] || Object.keys(up.stages?.[1] || {})[0]] || 'spark';
@@ -4975,7 +4977,7 @@ window.AGI = (function () {
         ['storm', 'Packet Storms', v => (v ? `${20 + 10 * (v - 1)} gold every ${Math.max(6, 15 - 2 * (v - 1))} s` : 'none')],
         ['crash', 'Every third slash', v => (v ? 'crashes it: ×3 damage' : 'a slash like the others')], ['zeroTrust', 'Red packets your walls bounce', v => (v ? 'come back good' : 'stay red')],
         ['surge', 'Three clean catches in a row', v => (v ? `a surge of ${10 + 15 * v} packets` : 'nothing more')],
-        ['netTime', 'Mines link into nets in', v => `${num1(v)} s`], ['defuseChain', 'Looping a mine', v => (v ? 'clears its neighbour too' : 'clears just that one')],
+        ['netTime', 'Mines link into nets in', v => `${num1(v)} s`], ['mineBounces', 'A thrown mine bounces', v => `${v} time${v === 1 ? '' : 's'}`], ['mineBank', 'Each bounce before a hit adds', v => `+${Math.round(v * 100)}% damage`], ['defuseChain', 'Looping a mine', v => (v ? 'clears its neighbour too' : 'clears just that one')],
         ['pulse', 'A clean loop', v => (v ? `sends in ${2 * v} packets` : 'sends in none')],
         ['broadband', 'Each turret or tower placed', v => (v ? `brings packets back ${Math.round(v * 100)}% sooner` : 'does nothing for refills')],
         ['cleanSweep', 'After a clean loop, the clock stops for', v => `${num1(v)} s`],
@@ -5212,7 +5214,10 @@ window.AGI = (function () {
         else if (e.type === 'split') for (const kd of e.kids) fx.push({ kind: 'splitKid', x: kd.x, y: kd.y, r: kd.r, from: { x: e.x, y: e.y }, t: 0, life: 0.5 });
         else if (e.type === 'splitSpoiled') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: 0.9, text: 'SPLIT GARBLED', small: true });
         else if (e.type === 'mineGrab') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 0.6, t: 0, life: 0.8, text: state.intro['snare:thrown'] ? 'GRABBED' : 'GRABBED · FLICK IT AT THE BOSS', small: true });
-        else if (e.type === 'mineThrow') { fx.push({ kind: 'throw', x: e.x, y: e.y, from: e.from, t: 0, life: 0.45 }); fx.push({ kind: 'stun', x: e.x, y: e.y - 1.2, t: 0, life: 1, text: 'MINE THROWN', small: true }); state.intro['snare:thrown'] = true; }
+        else if (e.type === 'mineThrow') { fx.push({ kind: 'throw', x: e.x, y: e.y, from: e.from, t: 0, life: 0.45 }); fx.push({ kind: 'stun', x: e.x, y: e.y - 1.2, t: 0, life: 1.2, text: e.bounces ? `BANK SHOT ×${e.bounces} · −${e.damage}` : `MINE HIT · −${e.damage ?? ''}`, small: !e.bounces }); state.intro['snare:thrown'] = true; }
+        // Snare 17.7: a thrown mine is a puck; a spark where it bounces, DUD where it gives out
+        else if (e.type === 'mineBounce') fx.push({ kind: 'placed', x: e.x, y: e.y, t: 0, life: 0.4 });
+        else if (e.type === 'mineDud') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: 0.9, text: 'DUD', small: true });
         else if (e.type === 'mineLive') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: state.intro['snare:thrown'] ? 0.9 : 1.6, text: state.intro['snare:thrown'] ? 'LIVE AGAIN' : 'LIVE AGAIN · FLICK IT SOONER', small: true });
         // a stroke from a held mine that didn't throw it says why, until the first throw
         else if (e.type === 'mineMiss' && !state.intro['snare:thrown']) fx.push({ kind: 'flag', x: e.x, y: e.y - 0.8, t: 0, life: 1.3, text: e.why === 'aim' ? 'AIM AT THE BOSS' : 'QUICKER · A FAST, STRAIGHT FLICK', small: true });
@@ -6235,6 +6240,7 @@ window.AGI = (function () {
     // dashed line to the boss until the first throw (flick from it at the boss).
     function drawSnareHeld(d) {
         const { ctx, C, k, run, t } = d;
+        drawSnareThrown(d);
         if (!run.held?.length) return;
         const P = window.PacketSnare, r = Math.max(8, P.MINE_R * k);
         for (const m of run.held) {
@@ -6256,6 +6262,41 @@ window.AGI = (function () {
             ctx.beginPath(); ctx.arc(x, y, r * 1.6, -Math.PI / 2, -Math.PI / 2 + left * Math.PI * 2); ctx.stroke();
         }
         ctx.globalAlpha = 1;
+    }
+
+    // Thrown mines in flight (Snare 17.7, a puck): an amber streak behind it, the diamond spinning, pips for its bounces.
+    function drawSnareThrown(d) {
+        const { ctx, C, k, run, t } = d;
+        if (!run.thrown?.length) return;
+        const P = window.PacketSnare, r = Math.max(8, P.MINE_R * k);
+        for (const m of run.thrown) {
+            const x = m.x * k, y = m.y * k, sp = Math.hypot(m.vx, m.vy) || 1, ux = m.vx / sp, uy = m.vy / sp;
+            const len = Math.min(90, sp * k * 0.12);
+            const g = ctx.createLinearGradient(x, y, x - ux * len, y - uy * len);
+            g.addColorStop(0, C.warning);
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.strokeStyle = g;
+            ctx.lineWidth = r * 1.2;
+            ctx.lineCap = 'round';
+            ctx.globalAlpha = 0.6;
+            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - ux * len, y - uy * len); ctx.stroke();
+            ctx.lineCap = 'butt';
+            ctx.globalAlpha = 1;
+            const a = t * 14;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(a);
+            ctx.fillStyle = C.warning;
+            ctx.strokeStyle = C.text;
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath();
+            ctx.fill(); ctx.stroke();
+            ctx.restore();
+            for (let i = 0; i < m.bounces; i++) {
+                ctx.fillStyle = C.text;
+                ctx.beginPath(); ctx.arc(x - r + i * 6, y + r * 1.7, 2, 0, Math.PI * 2); ctx.fill();
+            }
+        }
     }
 
     // Until your first throw (the owner's call on the 17.5 log: 12 mines grabbed, none thrown): a big amber swipe

@@ -147,7 +147,7 @@ test('a finger resting on a held mine and then flicking throws it (no bubble gro
     assert.equal(s.stats.mineThrows, 1, 'thrown: the flick is timed from when the finger moved');
 });
 
-test('a stroke from a held mine that misses says why (too slow, or aimed wide)', () => {
+test('a stroke from a held mine that is too slow says so; any quick flick launches it', () => {
     const slow = holding();
     for (let i = 0; i <= 30; i++) { slow.addPoint(8 - 0.07 * i, 4); slow.step(1 / 60); }    // half a second dragging
     slow.liftPen();
@@ -156,6 +156,6 @@ test('a stroke from a held mine that misses says why (too slow, or aimed wide)',
     const wide = holding();
     for (let i = 0; i <= 8; i++) { wide.addPoint(8, 4 + 0.25 * i); if (i % 3 === 0) wide.step(1 / 60); }   // straight down, away from it
     wide.liftPen();
-    assert.equal(wide.stats.mineThrows, 0);
-    assert.equal(wide.takeEvents().find(e => e.type === 'mineMiss')?.why, 'aim');
+    assert.equal(wide.stats.mineThrows, 1, 'launched the way it was flicked (Snare 17.7: a puck)');
+    assert.ok(wide.takeEvents().some(e => e.type === 'mineLaunch'));
 });

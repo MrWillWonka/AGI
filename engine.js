@@ -571,6 +571,7 @@
         { id: 'snareSpoof', name: 'Packet Spoofing', mechanic: 'spoof', snare: { x: 0, y: 4 }, requires: 'snareParry', cost: { signal: 3000 }, scale: 1.2, max: 2, sn: { spoof: 1 }, stages: { 2: { spoofSeconds: 7 } }, effect: 'Flick through unreadable packets: good, worth ×2, for 5 s (7 s at 2)', flavor: 'It says it\'s a friendly packet. Close enough.' },
         { id: 'snareCollectorBot', name: 'Collector Bot', mechanic: 'collector', snare: { x: -2, y: 3 }, requires: 'snareGc', cost: { signal: 3200 }, scale: 1.5, max: 3, sn: { collectBots: 1 }, effect: 'A drone a level nets small clusters of good packets for you (never near red)', flavor: 'It brought its own little net.' },
         { id: 'snareRiposte', name: 'Riposte', mechanic: 'parry', snare: { x: 1, y: 2 }, requires: 'snareKernelPanic', cost: { signal: 1800 }, scale: 2, max: 1, sn: { parry: 1 }, effect: 'Flick across the boss\'s charge line to parry it: a stun from range', flavor: 'Its own momentum, returned to sender.' },
+        { id: 'snareRicochet', name: 'Ricochet', snare: { x: 1, y: 1 }, requires: 'snareRiposte', cost: { signal: 2500 }, scale: 2.2, max: 3, sn: { ricochet: 1 }, effect: 'Thrown mines bounce once more; each bounce adds 50% damage, per level', flavor: 'Off the wall, off the other wall, nothing but boss.' },
         { id: 'snareDefuse', name: 'Defuse', mechanic: 'defuse', snare: { x: 1, y: 3 }, requires: 'snareRiposte', cost: { signal: 8750 }, scale: 3, max: 3, sn: { defuse: 1 }, stages: { 3: { defuseChain: 1 } }, effect: 'Mines link into nets 1 s slower per level; at 3, bubbling one grabs another', flavor: 'Cut the red wire. No, the other red wire.' },
         { id: 'snareEscalate', name: 'Privilege Escalation', mechanic: 'escalate', snare: { x: -2, y: 5 }, requires: 'snareForged', after: 'snareHijack', cost: { signal: 18400 }, scale: 2.5, max: 2, sn: { escalate: 1 }, stages: { 2: { escalateDamage: 7 } }, effect: 'Flick from a hijacked Antivirus into the boss: it rams for 4 (7 at 2)', flavor: 'It asked for admin. It got admin.' },
         { id: 'snareParry', name: 'Root Access', snare: { x: 0, y: 3 }, requires: 'snareKernelPanic', cost: { signal: 1100 }, scale: 1.6, max: 3, sn: { slashDamage: 1 }, effect: 'Slashes take 1 more health off the boss per level', flavor: 'sudo slash.' },
@@ -2390,6 +2391,14 @@
             relay: g('relay'),
             backpressure: g('backpressure'),
             netTime: (k >= NET_SECTOR ? 6 : B.netTime) + g('defuse'),
+            // Snare 17.7: a thrown mine is a puck; Ricochet gives it a bounce more a level, and each bounce before it hits
+            // the boss adds half its damage a level
+            mineBounces: B.mineBounces + g('ricochet'),
+            mineBank: 0.5 * g('ricochet'),
+            // Snare 17.7 (the owner's call on the 17.6 log: "still too easy to get away from the antiviruses"): they hunt
+            // 25% faster and steer 20% quicker (a mouse's field adds its own ×1.2 on top, snareDesktop)
+            avHunt: B.avHunt * 1.25,
+            avTurn: B.avTurn * 1.2,
             spoofValue: B.spoofValue + g('spoofValue'),
             // Caught packets come back sooner with Hot Swap (and, on a field the screen caps, with the packets it can't
             // hold: game.js snareField).

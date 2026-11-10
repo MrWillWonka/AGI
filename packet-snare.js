@@ -163,6 +163,16 @@
         mineHold: 5,
         mineThrow: 3,
         mineReel: 1,
+        // Snare 17.7 (the owner's calls on the 17.6 log): mines are laid on a ring `mineSpread` × the shorter side round the
+        // boss (they sat too close for the arena), and a thrown mine is a puck (air hockey): it flies the way it was flicked
+        // at `mineSpeed` × the shorter side a second, slowing by `mineDrag` a second, bounces off the field's edges up to
+        // `mineBounces` times (the next edge it meets, or too slow, and it's a dud) and hits the boss for `mineThrow`, each
+        // bounce before it adding `mineBank` × that (Ricochet).
+        mineSpread: 0.3,
+        mineSpeed: 1.3,
+        mineDrag: 0.35,
+        mineBounces: 2,
+        mineBank: 0,
         threatWait: 4,              // s: a new threat waits this long at most for the pen to lift (Snare 15)
         teachRed: 0,                // sector 1 (no red share): this many red packets anyway, to meet them (Snare 15)
         // Bots (Snare 11, the owner's call): small drones that seek red packets by themselves. A Cleaner bot (Intrusion)
@@ -558,6 +568,7 @@
             links: [],              // nets growing between mines: { a, b, t } (mine ids; done at t ≥ netTime)
             splits: [],             // Split: bubbles a full one forked into, waiting to catch { x, y, r, at, mult }
             held: [],               // boss mines grabbed by a bubble { id, x, y, until }
+            thrown: [],             // thrown mines in flight { id, x, y, vx, vy, bounces }
             handCaught: 0,          // packets caught by hand (loops): what boots the boss early
             rogueAt: o.rogue ? o.rogueFirst : Infinity,
             boss: null,             // the boss Antivirus once it boots: { x, y, vx, vy, r, hp, maxHp, stunned, charge, shielded }
@@ -575,7 +586,7 @@
             stats: { bossEscaped: 0, swallowed: 0, burst: 0, catches: 0, bubbles: 0, spawned: 0, pickups: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, botCollected: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
                 stolen: 0, cores: 0, quarantined: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0,
                 herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0,
-                bossDamage: 0, avDown: 0, glanced: 0, mines: 0, minesCleared: 0, netted: 0, escalations: 0, forks: 0, stars: 0, minesGrabbed: 0, mineThrows: 0 },
+                bossDamage: 0, avDown: 0, glanced: 0, mines: 0, minesCleared: 0, netted: 0, escalations: 0, forks: 0, stars: 0, minesGrabbed: 0, mineThrows: 0, mineHits: 0, mineBounces: 0, mineDuds: 0 },
             acc: 0,
             toolAt: {},             // when each kind of tool next arrives (Snare 13)
             pickups: [],            // freeze and purge waiting to be grabbed: { id, kind, x, y, until }
@@ -909,7 +920,7 @@
                     s.stats.bossEscaped++;
                     s.events.push({ type: 'bossEscape', x: b.x, y: b.y, packets: s.swallowed.length });
                     for (const m of [...s.mines, ...s.held]) s.events.push({ type: 'mineDown', x: m.x, y: m.y, boss: true });
-                    s.mines = []; s.held = []; s.links = [];
+                    s.mines = []; s.held = []; s.links = []; s.thrown = [];
                     s.boss = null; s.fight = null; s.swallowed = [];
                     end();
                     return;
@@ -1028,6 +1039,7 @@
                 for (const m of [...s.mines, ...s.held]) s.events.push({ type: 'mineDown', x: m.x, y: m.y, boss: true });
                 s.mines = [];
                 s.held = [];
+                s.thrown = [];
                 s.links = [];
                 s.fight = null;
                 // What it swallowed bursts back out over the field (the jackpot).
@@ -1077,15 +1089,17 @@
         // ---- The boss's mines and nets -----------------------------------------------------------------
         // It lays them round itself, inside the middle; mines near enough link up (a net growing between them); a
         // finished net wipes the good data along it, and a ring of three finished nets the data inside it too.
+        // Mines link into nets across their ring (the ring is wider than `netRange` alone would reach).
+        const linkR = () => Math.max(o.netRange, o.mineSpread * 2.1) * shortSide;
         function layMines(b, n) {
-            const e = Math.max(1, o.bossEdge * shortSide * 0.6);
-            const spread = o.netRange * shortSide * 0.35;   // close round it, so one loop can take a mine and the boss
+            const e = Math.max(1, MINE_R * 3);
+            const spread = o.mineSpread * shortSide;   // a ring round it, out in the arena (the owner: they sat too close)
             const a0 = rand() * Math.PI * 2;
             for (let i = 0; i < n; i++) {
                 const ang = a0 + i * Math.PI * 2 / n + (rand() - 0.5) * 0.5;
                 const x = Math.max(e, Math.min(w - e, b.x + Math.cos(ang) * spread)), y = Math.max(e, Math.min(h - e, b.y + Math.sin(ang) * spread));
                 const m = { id: s.nextId++, x, y };
-                for (const q of s.mines) if (Math.hypot(q.x - x, q.y - y) <= o.netRange * shortSide) s.links.push({ a: q.id, b: m.id, t: 0 });
+                for (const q of s.mines) if (Math.hypot(q.x - x, q.y - y) <= linkR()) s.links.push({ a: q.id, b: m.id, t: 0 });
                 s.mines.push(m);
                 s.stats.mines++;
                 s.events.push({ type: 'mine', x, y });
@@ -1162,12 +1176,48 @@
             if (s.boss && !s.mines.length) s.boss.mineAt = Math.max(s.boss.mineAt, s.time + o.mineEvery * 0.75);
             return true;
         }
+        // Thrown mines in flight (Snare 17.7): pucks that bounce off the field's edges and hit the boss.
+        function thrownStep(dt) {
+            if (!s.thrown.length) return;
+            const boss = s.boss, minV = 0.12 * shortSide;
+            for (const m of s.thrown.slice()) {
+                const k = Math.exp(-o.mineDrag * dt);
+                m.vx *= k; m.vy *= k;
+                m.x += m.vx * dt; m.y += m.vy * dt;
+                let hitWall = false;
+                if (m.x < MINE_R) { m.x = MINE_R; m.vx = Math.abs(m.vx); hitWall = true; }
+                if (m.x > w - MINE_R) { m.x = w - MINE_R; m.vx = -Math.abs(m.vx); hitWall = true; }
+                if (m.y < MINE_R) { m.y = MINE_R; m.vy = Math.abs(m.vy); hitWall = true; }
+                if (m.y > h - MINE_R) { m.y = h - MINE_R; m.vy = -Math.abs(m.vy); hitWall = true; }
+                const drop = why => {
+                    s.thrown = s.thrown.filter(q => q !== m);
+                    s.stats.mineDuds++;
+                    s.events.push({ type: 'mineDud', x: m.x, y: m.y, why });
+                };
+                if (hitWall) {
+                    if (m.bounces >= o.mineBounces) { drop('wall'); continue; }
+                    m.bounces++;
+                    s.stats.mineBounces++;
+                    s.events.push({ type: 'mineBounce', x: m.x, y: m.y, bounces: m.bounces });
+                }
+                if (!boss) { drop('gone'); continue; }
+                if (Math.hypot(boss.x - m.x, boss.y - m.y) < boss.r + MINE_R * 1.5) {
+                    s.thrown = s.thrown.filter(q => q !== m);
+                    const damage = Math.round(o.mineThrow * (1 + o.mineBank * m.bounces));
+                    s.stats.mineHits++;
+                    s.events.push({ type: 'mineThrow', x: boss.x, y: boss.y, from: { x: m.x, y: m.y }, bounces: m.bounces, damage });
+                    if (damageBoss(boss, damage, 'mine', true) && s.boss) boss.stunned = Math.max(boss.stunned, s.time + o.mineReel);
+                    continue;
+                }
+                if (Math.hypot(m.vx, m.vy) < minV) drop('slow');
+            }
+        }
         // Not thrown in time, a grabbed mine goes live again where it was.
         function heldStep() {
             for (const m of s.held.filter(q => s.time >= q.until)) {
                 s.held = s.held.filter(q => q !== m);
                 if (!s.boss) continue;
-                for (const q of s.mines) if (Math.hypot(q.x - m.x, q.y - m.y) <= o.netRange * shortSide) s.links.push({ a: q.id, b: m.id, t: 0 });
+                for (const q of s.mines) if (Math.hypot(q.x - m.x, q.y - m.y) <= linkR()) s.links.push({ a: q.id, b: m.id, t: 0 });
                 s.mines.push({ id: m.id, x: m.x, y: m.y });
                 s.events.push({ type: 'mineLive', x: m.x, y: m.y });
             }
@@ -2037,18 +2087,14 @@
                 return false;
             }
             let hit = false, near = false;
+            // Snare 17.7: it flies the way it was flicked, a puck off the field's edges (air hockey).
             if (mine) {
-                const dx = (b.x - a.x) / chord, dy = (b.y - a.y) / chord;
-                const along = (boss.x - mine.x) * dx + (boss.y - mine.y) * dy;
-                const off = Math.abs((boss.x - mine.x) * dy - (boss.y - mine.y) * dx);
-                if (along > 0 && off < boss.r * 1.6) {
-                    s.held = s.held.filter(m => m !== mine);
-                    s.stats.mineThrows++;
-                    s.events.push({ type: 'mineThrow', x: boss.x, y: boss.y, from: { x: mine.x, y: mine.y } });
-                    if (damageBoss(boss, o.mineThrow, 'mine', true) && s.boss) boss.stunned = Math.max(boss.stunned, s.time + o.mineReel);
-                    return true;
-                }
-                s.events.push({ type: 'mineMiss', why: 'aim', x: mine.x, y: mine.y });
+                const dx = (b.x - a.x) / chord, dy = (b.y - a.y) / chord, v = o.mineSpeed * shortSide;
+                s.held = s.held.filter(m => m !== mine);
+                s.thrown.push({ id: mine.id, x: mine.x, y: mine.y, vx: dx * v, vy: dy * v, bounces: 0 });
+                s.stats.mineThrows++;
+                s.events.push({ type: 'mineLaunch', x: mine.x, y: mine.y, vx: dx * v, vy: dy * v });
+                return true;
             }
             if (boss) {
                 const through = segDist(boss, a, b) < boss.r;
@@ -2151,6 +2197,7 @@
             raceStep(dt);
             splitStep();
             heldStep();
+            thrownStep(dt);
             // Burst out of a beaten boss: flung fast, they ease back to a swim (on a current they'd leave the field).
             for (const p of s.packets) {
                 if (!p.burst) continue;
@@ -2386,6 +2433,7 @@
             for (const m of [...s.mines, ...s.held]) s.events.push({ type: 'mineDown', x: m.x, y: m.y, boss: true });
             s.mines = [];
             s.held = [];
+            s.thrown = [];
             s.links = [];
             s.stats.sectors++;
             s.events.push({ type: 'sector', boss: o.boss, goal: o.goal });
