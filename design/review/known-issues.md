@@ -42,6 +42,11 @@ Update this file with every fix batch (move fixed ones to *fixed: verify*, drop 
 - **K20 Screens, smaller:** the HUD is small and far from the field at 1920 and 4K; a sideways Look out card shows a line
   or two before Start covers it; at 360 × 640 a tree popup can clip its effect line; an UPDATING label clips at the
   field's edge (round 10).
+- **K21 Colour-blind readability** (a simulated check in the copy and colour pass, 2026-11-10): for red-green colour
+  blindness, unreadable red and gold amber come out close in every theme (CIEDE2000 about 11–20), threats and your amber
+  things too, and Night's violet tag edge nearly vanishes on blue packets (3–8). The owner's call: shape cues, not new
+  colours (a mark on unreadable packets, a thicker tag edge, a distinct gold outline), in `drawSnarePackets` with its
+  batching kept; ask the owner with cards which cues. Scheduled after round 10's fixes.
 
 ## Fixed: verify
 - **F16 (K9, round 10: holds, but see K11) The Signal chip took a row of its own:** the HUD and the Signal chip live in the bay's bar, so the field gains

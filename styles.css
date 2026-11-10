@@ -3403,6 +3403,9 @@ body.calm .snare-deeper { animation: none; }
 .snare-steps li { margin: 2px 0; padding-left: 2px; }
 .snare-steps li::marker { color: var(--warning); font: 700 0.8rem var(--font-mono); }
 .snare-card .demo { margin: 6px auto 0; width: 240px; max-width: 100%; }
+/* Cards say it in one line and the demo shows it (the owner's call, 2026-11-10): no caption repeating the card. Node
+   popups keep theirs. */
+.snare-card .demo figcaption { display: none; }
 /* two demos on one card (the first run's bubble and red packet): smaller, so the second isn't under the button (round 6) */
 .snare-card:has(.demo ~ .demo) .demo { width: 190px; }
 .snare-tree-grid { position: relative; min-height: 0; overflow: hidden; --cell: 112px; touch-action: none; cursor: grab; }

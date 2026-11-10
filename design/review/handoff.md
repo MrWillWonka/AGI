@@ -86,9 +86,14 @@ review work:
   - **The scanner beam and towers draw `--snare-tag`**, the colour of the tag they give (they used `--research`: violet
     beams gave teal tags in Void, magenta gave lime in Arcade).
   - The popup's now → after line is `--success` (red in the Red theme read as a warning).
-- **Open from it:** colour-blind shape cues are a separate follow-up the owner chose (red-green colour blindness puts
-  unreadable red and gold amber close in every theme, and Night's violet tag edge nearly vanishes on blue packets).
-  The owner was offered hiding demo captions on Look out cards (a one-line card's caption partly repeats it); not decided.
+- **Closed out with the owner (2026-11-10):**
+  - Demo captions are hidden on every Packet Snare card (`.snare-card .demo figcaption`), so a one-line card isn't
+    repeated under its demo; node popups keep their captions.
+  - **Colour-blind shape cues (K21) go to the review agent once round 10's fixes are in**, not before, so two sessions
+    aren't editing `drawSnarePackets` at once.
+  - **17.8 is published by the review agent after round 10's fixes**, bundling them with K3, K8–K10 and this pass (the
+    publish report needs Playwright, which the owner's local machine doesn't have). Still only on the owner's go-ahead
+    at the time: confirm with them first.
 - **Against round 10's issues:** K14's card words no longer describe the pre-17.5 boss (one line: loop it twice, then
   slash), but its demo and the mines demo still show the old fight; the new boss facts (half Focus, the swallow, the
   30 s clock, escaping) belong in the demo, not the card. K20's clipped popup effect line should be rarer (effect lines
