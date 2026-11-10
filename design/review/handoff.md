@@ -6,10 +6,10 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
 
 ## Where things stand
 
-- **Live review build:** Packet Snare **17.7**, published to the owner's artifact
+- **Live review build:** Packet Snare **17.8**, published to the owner's artifact
   <https://claude.ai/artifact/9Sc3mL6iQFeDVNmdnjtP5Q> (slug `445c4d6b-4414-4184-aa65-debc63cd7dcf`, version
-  `1794288210-8673` at publish; read: owner). `E.BUILD` in `engine.js` says
-  `2026-11-10 05:14 (review branch) · Packet Snare 17.7: …`.
+  `1794329790-1505` at publish; read: owner). `E.BUILD` in `engine.js` says
+  `2026-11-10 16:55 (review branch) · Packet Snare 17.8: …`.
 - **What 17.7 changed** (the owner's calls on the 17.6 log): boss mines laid on a ring 0.3 × the field's shorter side
   round the boss; a thrown mine is an air-hockey puck (flies the way it's flicked, bounces off edges up to 2 times, then
   a dud; hits for 3); **Ricochet** node off Riposte (+1 bounce and +50% damage a bounce per level); Antivirus hunt 25%
@@ -21,15 +21,16 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
   which escaped twice at 61/80 and 70/80 damage; every mine grabbed was thrown).
 - **Watch in the next log:** sector 11's boss with bank shots; whether the faster Antivirus feel right (sector 3); the
   end card's "Mines grabbed · thrown · hit"; sector 9 and 10 run counts; D15 (desktop sector 3).
-- **Unpublished on `claude/zen-turing-s9ycp8` (2026-11-10):** the K3/K8/K9/K10 layout batch, review round 10 (four
+- **In 17.8 (published 2026-11-10 16:56 UTC):** the K3/K8/K9/K10 layout batch, review round 10 (four
   reviewers on it: scores in `scores.csv`, issues K11–K20) and the owner's calls on it (D19, "Snare 17.8" in CLAUDE.md):
   the fight clock decides fights (a snap costs 2 s of it, not Focus), a parry breaks the mine shield, honest bank-shot
   labels, the mines demo redone as a bank shot, the fight's readouts, the sideways crumbs, Boss now, the tree keeping its
-  roots in view. The live artifact is still 17.7; publish (as 17.8) only on the owner's go-ahead. Open: K5–K7, K14 (the
+  roots in view. Open: K5–K7, K14 (the
   boss demo), K17
-  (nets), K19 (sector 12's goal), K20 (smaller screen issues), K21 (colour-blind cues), D15; the slow pacing ratchet fails since 17.7 (sector 3:
+  (nets), K19 (sector 12's goal), K20 (smaller screen issues), K21 (colour-blind cues), D15. **Next (the owner's pick):** K21
+  and K14 as one batch, K21's cues asked with cards first; the slow pacing ratchet fails since 17.7 (sector 3:
   18 bot runs against 13).
-- **Also unpublished, merged in from a local session (2026-11-10): the copy and colour pass.** See *Copy and colour pass*
+- **Also in 17.8, merged in from a local session (2026-11-10): the copy and colour pass and the terminal voice.** See *Copy and colour pass*
   below before touching any Packet Snare text or colour. It changes no rules or balance.
 - **Pacing (bot, phone, 3 seeds, 20 min) on 17.7:** sector 3 takes 18 runs (15 on 17.6: faster Antivirus), sector 5 at
   16.6 min. The bot dodges far worse than the owner (owner: sector 3 in 6 runs), so this wasn't tuned away.
