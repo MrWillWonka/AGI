@@ -129,7 +129,7 @@
         // instead of breaking; only a deliberate stroke in its first moment draws a wire.
         bubbleCommit: 0.22,         // held this long, it's a bubble for good (let go sooner: a tap or a flick, no catch)
         bubbleSlop: 1.2,            // × the closing ring's radius: a pen that goes this far before then draws a wire
-        // Snare 17.6 (the owner's call: on a phone both drawn and held circles catch): a touch only becomes a bubble once
+        // Snare 17.5, phone fix (the owner's call: on a phone both drawn and held circles catch): a touch only becomes a bubble once
         // the finger is still, moving less than `bubbleStill` × the closing ring in the last `bubbleStillTime` s (a slow
         // circle used to become a bubble at `bubbleCommit` and drag round with the finger), and with `loopCatch` a drawn
         // loop catches as the old wire did (game.js turns it off for a mouse, whose left button keeps loops for the boss)

@@ -1,5 +1,5 @@
 'use strict';
-// Snare 17.6 (the owner's call: "make both drawn and held circles on mobile work"): on a touch screen a finger held still
+// Snare 17.5, phone fix (the owner's call: "make both drawn and held circles on mobile work"): on a touch screen a finger held still
 // grows a bubble, and a circle drawn round packets catches them when it closes (`loopCatch`), however slowly it's drawn;
 // a mouse keeps its split (the right button holds a bubble, a left-button loop is for the boss).
 const test = require('node:test');
