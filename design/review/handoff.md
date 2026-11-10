@@ -6,10 +6,10 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
 
 ## Where things stand
 
-- **Live review build:** Packet Snare **17.8**, published to the owner's artifact
+- **Live review build:** Packet Snare **17.9**, published to the owner's artifact
   <https://claude.ai/artifact/9Sc3mL6iQFeDVNmdnjtP5Q> (slug `445c4d6b-4414-4184-aa65-debc63cd7dcf`, version
-  `1794329790-1505` at publish; read: owner). `E.BUILD` in `engine.js` says
-  `2026-11-10 16:55 (review branch) · Packet Snare 17.8: …`.
+  `1794331539-3bb3` at publish; read: owner). `E.BUILD` in `engine.js` says
+  `2026-11-10 17:22 (review branch) · Packet Snare 17.9: …` (17.8 was `1794329790-1505`, 16:56).
 - **What 17.7 changed** (the owner's calls on the 17.6 log): boss mines laid on a ring 0.3 × the field's shorter side
   round the boss; a thrown mine is an air-hockey puck (flies the way it's flicked, bounces off edges up to 2 times, then
   a dud; hits for 3); **Ricochet** node off Riposte (+1 bounce and +50% damage a bounce per level); Antivirus hunt 25%
@@ -26,7 +26,7 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
   the fight clock decides fights (a snap costs 2 s of it, not Focus), a parry breaks the mine shield, honest bank-shot
   labels, the mines demo redone as a bank shot, the fight's readouts, the sideways crumbs, Boss now, the tree keeping its
   roots in view. Open: K5–K7, K17
-  (nets), K19 (sector 12's goal), K20 (smaller screen issues), D15. **Done after 17.8, unpublished:** K21
+  (nets), K19 (sector 12's goal), K20 (smaller screen issues), D15. **In 17.9 (published 17:25 UTC):** K21
   (shape cues: unreadable a hollow eye, gold a light rim, tags a dotted edge; the owner's picks) and K14 (the boss demo); the slow pacing ratchet fails since 17.7 (sector 3:
   18 bot runs against 13).
 - **Also in 17.8, merged in from a local session (2026-11-10): the copy and colour pass and the terminal voice.** See *Copy and colour pass*
