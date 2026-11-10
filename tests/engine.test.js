@@ -2032,14 +2032,14 @@ test('a save from before Snare 11 gets every Packet Snare level back as Signal (
     assert.equal(fresh.snare.signal, 1200);
 });
 
-test('Packet Snare: red is the early fight (22% on sector 2, 30% on sector 3, down to 5% by sector 10), the red nodes cut it, and the Cleaner Bot comes later (the owner\'s calls on the Snare 16 log)', () => {
+test('Packet Snare: red is the early fight (22% on sector 2, 35% on sectors 3–6, down to 5% by sector 12), the red nodes cut it, and the Decoder Bot comes early (the owner\'s calls on the Snare 16 and 17.3 logs)', () => {
     const s = E.defaultState(Date.now());
     const share = k => { const r = E.snareOpts(s, k).corruptShare; return r / (1 + r); };
     assert.equal(share(0), 0, 'none on sector 1');
     assert.ok(Math.abs(share(1) - 0.22) < 1e-9, '22% on sector 2, where you meet it (about 17% of the field on screen)');
-    assert.ok(Math.abs(share(2) - 0.3) < 1e-9, '30% on sector 3');
-    for (let k = 3; k <= 9; k++) assert.ok(share(k) < share(k - 1) + 1e-12, `tapering at sector ${k + 1}`);
-    assert.ok(Math.abs(share(9) - 0.05) < 1e-9 && Math.abs(share(14) - 0.05) < 1e-9, '5% from sector 10');
+    for (let k = 2; k <= 5; k++) assert.ok(Math.abs(share(k) - 0.35) < 1e-9, `35% on sector ${k + 1} (the owner\'s call on the 17.3 log: too easy throughout)`);
+    for (let k = 6; k <= 11; k++) assert.ok(share(k) < share(k - 1) - 1e-12, `tapering at sector ${k + 1}`);
+    assert.ok(Math.abs(share(11) - 0.05) < 1e-9 && Math.abs(share(14) - 0.05) < 1e-9, '5% from sector 12');
     // the first red node cuts it at spawn
     const before = E.snareOpts(s, 1).corruptShare;
     s.levels.snareSanitizer = 1;

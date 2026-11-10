@@ -231,7 +231,10 @@
         // mine stands it's **shielded** (slashes glance off), and a loop round a mine clears it. It keeps to the middle
         // of the field (`bossEdge` of the shorter side clear of the edges), so it can be fought most of the time.
         boss: 0,                    // its health (0 = no boss)
-        goal: 0,                    // a sector with no boss is cleared by catching this many packets in it (0 = none)
+        goal: 0,                    // a sector with no boss is cleared by earning this much Signal in it in one run (0 = none;
+                                    // Snare 17.4, the owner's call: packet goals stopped at a phone's capped field)
+        goalPay: 1,                 // Signal a unit of worth pays (the sector's pay × Overclock, from the engine), so the goal
+                                    // counts what the haul does: every catch, helper, echo and laser
         clearFocus: 0.4,            // a cleared sector (its goal met or its boss beaten) tops Focus up by this share of the bar,
                                     // so the run keeps gathering there (Go deeper takes it on into the next sector)
         bossAt: 16,
@@ -544,10 +547,9 @@
             bossDone: false,
             goalDone: false,        // the sector's goal reached (a `goal` event, once)
             sectorAt: 0,            // when the run reached the sector it's on (a cleared sector carries the run into the next)
-            sectorCaught: 0,        // packets caught before it (the goal counts from here)
+            sectorCaught: 0,        // packets caught before it
+            sectorUnits: 0,         // worth earned before it (the goal counts from here)
             cleanRun: 0,            // clean catches in a row (the streak's pay)
-            goalSkip: 0,            // packets caught in it by rushed loops (they don't count toward the goal)
-            goalBonus: 0,           // half of what its loops were worth past their packets (counts toward the goal)
             lastLoopAt: -1e9,       // when the last loop paid (a loop moments after it is rushed)
             clears: 0,              // sectors cleared this run (each clear's Focus bonus is half the last's)
             stats: { catches: 0, bubbles: 0, spawned: 0, pickups: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, botCollected: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
@@ -2246,7 +2248,8 @@
         // what depends on the sector is taken from it. Its hazards come in from now (a scan, Antivirus or the Rogue AI the
         // last sector didn't have), and its boss or goal starts over.
         // How far the sector's goal is: packets caught in it (not by rushed loops), and half of what loops were worth past them.
-        const goalProgress = () => s.stats.caught - s.sectorCaught - s.goalSkip + s.goalBonus;
+        // Signal earned in the sector this run (rushed loops already pay half, so they count half).
+        const goalProgress = () => (s.stats.units - s.sectorUnits) * o.goalPay;
         // What's left of the run's Focus to earn back (`focusEarnCap`).
         const earnLeft = () => Math.max(0, o.focusEarnCap * o.focus - s.focusEarned);
         // Focus earned back (a refill or drain saved), up to the cap; returns what it allowed. The first time the cap is
@@ -2270,7 +2273,7 @@
             return Math.round(refill(o.clearFocus * Math.pow(0.5, s.clears++) * s.maxFocus));
         }
         const SECTOR_KEYS = ['corruptShare', 'avSpeed', 'packetSpeed', 'antivirus', 'sweepFirst', 'sweepEvery', 'rogue', 'rogueFirst', 'rogueEvery',
-            'teachRed', 'boss', 'goal', 'bossAt', 'bossCatch', 'bossR', 'bossSpeed', 'bossCharge', 'bossWarn', 'bossStun', 'bossMines', 'mineEvery', 'bossMinions'];
+            'teachRed', 'boss', 'goal', 'goalPay', 'bossAt', 'bossCatch', 'bossR', 'bossSpeed', 'bossCharge', 'bossWarn', 'bossStun', 'bossMines', 'mineEvery', 'bossMinions'];
         function nextSector(next = {}) {
             if (s.over) return;
             const before = { av: o.antivirus.length, sweep: o.sweepFirst, rogue: o.rogue };
@@ -2289,8 +2292,7 @@
             s.handCaught = 0;
             s.sectorAt = s.time;
             s.sectorCaught = s.stats.caught;
-            s.goalSkip = 0;
-            s.goalBonus = 0;
+            s.sectorUnits = s.stats.units;
             for (const m of [...s.mines, ...s.held]) s.events.push({ type: 'mineDown', x: m.x, y: m.y, boss: true });
             s.mines = [];
             s.held = [];
@@ -2562,9 +2564,6 @@
             const count = j.good.length + chained.length;
             s.stats.catches++;
             s.stats.caught += count;
-            if (hasty) s.goalSkip += count;
-            // A big clean loop counts toward the goal at half its worth past its packets (late goals outran the field).
-            else s.goalBonus += Math.max(0, units - count) / 2;
             s.handCaught += count;
             s.stats.gold += gold;
             s.stats.chained += chained.length;

@@ -326,12 +326,12 @@ test('a sector clears by its goal or, every fifth, its boss; the Rogue AI comes 
         const o = E.snareOpts(s, k);
         assert.ok((o.boss > 0) !== (o.goal > 0), `sector ${k + 1}: a boss or a goal, never both`);
     }
-    // A goal pays its packets again at the sector's pay and moves the frontier on; a replay pays half.
+    // A goal pays half its Signal again and moves the frontier on; a replay pays a quarter.
     const pay = E.snareGoalMet(s, 0);
-    assert.equal(pay, Math.round(E.snareGoal(0) * E.snareSectorPay(0)));
+    assert.equal(pay, Math.round(E.snareGoal(0) / 2));
     assert.equal(s.snare.sector, 1);
     assert.equal(s.snare.bosses, 0, 'a goal isn\'t a boss');
-    assert.equal(E.snareGoalMet(s, 0), Math.round(0.5 * E.snareGoal(0) * E.snareSectorPay(0)));
+    assert.equal(E.snareGoalMet(s, 0), Math.round(E.snareGoal(0) / 4));
     assert.equal(s.snare.sector, 1, 'a replay keeps the frontier');
     while (s.snare.sector < E.ROGUE_SECTOR) {
         if (E.isSnareBossSector(s.snare.sector)) E.snareBossDown(s); else E.snareGoalMet(s);
@@ -344,12 +344,12 @@ test('a sector clears by its goal or, every fifth, its boss; the Rogue AI comes 
     assert.ok(E.snareGoal(7) > E.snareGoal(0) && E.snareBossHealth(9) > E.snareBossHealth(4));
 });
 
-test('a run on a sector with no boss emits its goal once its packets are caught', () => {
-    const r = P.createSnare({ seed: 3, goal: 3, cleanStart: true });
-    r.stats.caught = 2;
+test('a run on a sector with no boss emits its goal once it has earned its Signal there (Snare 17.4)', () => {
+    const r = P.createSnare({ seed: 3, goal: 30, goalPay: 1.5, cleanStart: true });
+    r.stats.units = 19;   // 28.5 Signal
     r.step(1 / 60);
     assert.ok(!r.goalDone);
-    r.stats.caught = 3;
+    r.stats.units = 20;   // 30
     r.step(1 / 60);
     r.step(1 / 60);
     assert.equal(r.takeEvents().filter(e => e.type === 'goal').length, 1, 'once');
@@ -672,7 +672,7 @@ test('a cleared sector tops Focus up and the run gathers on there; Go deeper tak
     const r = P.createSnare({ ...E.snareOpts(s, 3), seed: 4 });
     assert.ok(r.opts.goal > 0 && !r.opts.boss);
     r.focus = r.maxFocus * 0.4;
-    r.stats.caught = r.opts.goal;
+    r.stats.units = r.opts.goal / r.opts.goalPay;
     r.step(1 / 60);
     const goal = r.takeEvents().find(e => e.type === 'goal');
     assert.ok(goal && goal.focus > 0, 'the goal pays Focus');

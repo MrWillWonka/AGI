@@ -49,12 +49,16 @@ test('Gold Plating: a Cleaner bot with no red near turns a regular packet gold',
     assert.ok(s.stats.gilded >= 1 && s.packets.some(p => p.kind === 'gold'));
 });
 
-test('goals: 25, 100, 185, 400, then 1,300 at sector 6 growing ×2.25 a sector (the owner\'s calls on the pacing sweep)', () => {
-    assert.deepEqual([0, 1, 2, 3].map(E.snareGoal), [25, 100, 185, 400]);
+test('goals are Signal: 40, 170, 330, 950, then 3,900 at sector 6 growing ×2.45 a sector (the owner\'s call on the 17.3 log)', () => {
+    assert.deepEqual([0, 1, 2, 3].map(E.snareGoal), [40, 170, 330, 950]);
     assert.equal(E.snareGoal(4), 0, 'sector 5 is a boss');
-    assert.equal(E.snareGoal(5), 1300, 'sector 6');
-    assert.equal(E.snareGoal(6), 5 * Math.round(1300 * 2.25 / 5));
-    assert.equal(E.snareGoal(8), 5 * Math.round(1300 * 2.25 ** 3 / 5));
+    assert.equal(E.snareGoal(5), 3900, 'sector 6');
+    assert.equal(E.snareGoal(6), 5 * Math.round(3900 * 2.45 / 5));
+    assert.equal(E.snareGoal(8), 5 * Math.round(3900 * 2.45 ** 3 / 5));
+    // the goal counts Signal as the haul pays it: the sector's pay and Overclock
+    const s = E.defaultState(Date.now());
+    s.levels.snareOverclock = 3;
+    assert.ok(Math.abs(E.snareOpts(s, 6).goalPay - E.snareSectorPay(6) * E.snareOverclock(s)) < 1e-12);
     assert.equal(E.snareSectorPay(4), 1.6, '+15% a sector');
 });
 

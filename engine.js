@@ -566,7 +566,7 @@
         // EXPLOITS (down): the flick and the boss fight; the lasers and Blue Screen at its tip.
         { id: 'snareGc', name: 'Garbage Collection', mechanic: 'gc', snare: { x: -1, y: 3 }, requires: 'snareParry', cost: { signal: 3000 }, scale: 2, max: 1, sn: { gc: 1 }, effect: 'Bubble only unreadable packets: deleted, and Focus back', flavor: 'Taking out the trash. Literally.' },
         { id: 'snareCleanerBot', name: 'Decoder Bot', mechanic: 'cleaner', snare: { x: -1, y: 1 }, requires: 'snareSanitizer', cost: { signal: 100 }, scale: 2, max: 4, sn: { cleanBots: 1 }, effect: 'A drone a level rides a red packet about a second, till your model can read it', flavor: 'Reads it out slowly until your model gets it.' },
-        { id: 'snareSanitizer', name: 'Sanitizer', snare: { x: 0, y: 1 }, requires: 'snareSeed', deep: true, cost: { signal: 40 }, scale: 2, max: 9, perLevel: [{ cleaner: 2 }, { cleaner: 2 }, { cleaner: 2 }, { cleaner: 2 }, { cleaner: 2, lureMult: -0.16 }, { cleaner: 3, lureMult: -0.16 }, { cleaner: 3, lureMult: -0.16 }, { cleaner: 4, lureMult: -0.16 }, { cleaner: 4, lureMult: -0.16 }], sn: { cleaner: 2 }, effect: 'Fewer unreadable packets a level, more from 6; from 5, less drawn to schools', flavor: 'Wash your inputs for twenty seconds.' },
+        { id: 'snareSanitizer', name: 'Sanitizer', snare: { x: 0, y: 1 }, requires: 'snareSeed', deep: true, cost: { signal: 40 }, scale: 2, max: 9, perLevel: [{ cleaner: 1 }, { cleaner: 1 }, { cleaner: 1 }, { cleaner: 2 }, { cleaner: 2, lureMult: -0.16 }, { cleaner: 3, lureMult: -0.16 }, { cleaner: 3, lureMult: -0.16 }, { cleaner: 4, lureMult: -0.16 }, { cleaner: 4, lureMult: -0.16 }], sn: { cleaner: 1 }, effect: 'Fewer unreadable packets a level, more from 4; from 5, less drawn to schools', flavor: 'Wash your inputs for twenty seconds.' },
         { id: 'snareKernelPanic', name: 'Kernel Panic', snare: { x: 0, y: 2 }, requires: 'snareSanitizer', cost: { signal: 500 }, scale: 2, max: 1, sn: { bossStun: 1 }, effect: 'A stunned boss reels 1 s longer', flavor: 'It has to restart. You have time.' },
         { id: 'snareSpoof', name: 'Packet Spoofing', mechanic: 'spoof', snare: { x: 0, y: 4 }, requires: 'snareParry', cost: { signal: 3000 }, scale: 1.2, max: 2, sn: { spoof: 1 }, stages: { 2: { spoofSeconds: 7 } }, effect: 'Flick through unreadable packets: good, worth ×2, for 5 s (7 s at 2)', flavor: 'It says it\'s a friendly packet. Close enough.' },
         { id: 'snareCollectorBot', name: 'Collector Bot', mechanic: 'collector', snare: { x: -2, y: 3 }, requires: 'snareGc', cost: { signal: 3200 }, scale: 1.5, max: 3, sn: { collectBots: 1 }, effect: 'A drone a level nets small clusters of good packets for you (never near red)', flavor: 'It brought its own little net.' },
@@ -2190,9 +2190,11 @@
     // D14 (the owner's call): red ramps in: 22% on sector 2 (15% until the Snare 17 log: where the owner stopped, about 17% of
     // the field was red, and that's how sector 2 should open; it read 11%), 30% on sector 3, 30% on sector 3, then 5% by sector 10
     // (30% on sector 2 took 12 runs on desktop in the pacing campaign, against a target of 2–7).
-    const SNARE_RED_FIRST = 0.22, SNARE_RED_START = 0.3, SNARE_RED_END = 0.05, SNARE_RED_UNTIL = 9;
-    const snareRedShare = k => (k < RED_SECTOR ? 0 : k === RED_SECTOR ? SNARE_RED_FIRST
-        : Math.max(SNARE_RED_END, SNARE_RED_START - (SNARE_RED_START - SNARE_RED_END) * (k - RED_SECTOR - 1) / (SNARE_RED_UNTIL - RED_SECTOR - 1)));   // 15% a unit (the owner's call after the review rounds: the nodes do what they said)
+    // Snare 17.4 (the owner's call on the 17.3 log, "too easy throughout": 3 spoiled catches in 36 runs, no red on the field
+    // from sector 7): 35% held through sectors 3–6 (`SNARE_RED_PEAK`, k 5), then down in even steps to 5% on sector 12.
+    const SNARE_RED_FIRST = 0.22, SNARE_RED_START = 0.35, SNARE_RED_END = 0.05, SNARE_RED_PEAK = 5, SNARE_RED_UNTIL = 11;
+    const snareRedShare = k => (k < RED_SECTOR ? 0 : k === RED_SECTOR ? SNARE_RED_FIRST : k <= SNARE_RED_PEAK ? SNARE_RED_START
+        : Math.max(SNARE_RED_END, SNARE_RED_START - (SNARE_RED_START - SNARE_RED_END) * (k - SNARE_RED_PEAK) / (SNARE_RED_UNTIL - SNARE_RED_PEAK)));   // 15% a unit (the owner's call after the review rounds: the nodes do what they said)
     // Hazards wait for runs played as well as the sector (Snare 12, a review's call: sectors fell in minutes, so a new hazard
     // came every 90 s): Full Scans from the 4th run, Antivirus from the 10th, the Rogue AI from the 18th (the
     // boss's tricks come with its sector).
@@ -2203,9 +2205,14 @@
     // goal 185, where 200 took 9–10 runs at a person's pace). From sector 6 (index 5) the goals grow ×2.25 a sector from
     // 1,300 (the owner's call on the pacing sweep: from 400 ×2.25, sector 6 asked 2,025 and walled; ×2.25 itself from the
     // 15.5 log, where a run's haul grew 2–2.5× a sector and sector 6 fell on the first try at ×1.75).
-    const SNARE_FIRST_GOALS = [25, 100, 185, 400];
-    const SNARE_GOAL_SIX = 1300;
-    const SNARE_GOAL_GROWTH = 2.25;
+    // Snare 17.4 (the owner's call on the 17.3 log): goals are Signal earned in the sector in one run, so everything the
+    // haul counts (multipliers, gold, helpers, echoes, Overclock) clears sectors; the packet goals stopped where a phone's
+    // field caps (sector 8: 1,127 packets), and sector 12 asked 168,670 of the 16–21K packets a run there. Each is the old
+    // packet goal × what the owner's clearing run was worth a packet of progress (1.4 on sector 1, 4.7 on 11): 40, 170,
+    // 330, 950, then 3,900 on sector 6 and ×2.45 a sector (the owner's hauls grew ×2.4–2.5 a sector from 6 to 11).
+    const SNARE_FIRST_GOALS = [40, 170, 330, 950];
+    const SNARE_GOAL_SIX = 3900;
+    const SNARE_GOAL_GROWTH = 2.45;
     const snareGoal = k => (isSnareBossSector(k) ? 0 : k < SNARE_FIRST_GOALS.length ? SNARE_FIRST_GOALS[k] : 5 * Math.round(SNARE_GOAL_SIX * Math.pow(SNARE_GOAL_GROWTH, k - 5) / 5));
     // Training skills power you up in Packet Snare too, each by its name (the owner's call: the boss's gates send you to
     // the rest of the game, and you come back stronger). Added to the tree's levels in `snareLevels`.
@@ -2386,6 +2393,7 @@
             // loops hit it), charges more often with a shorter warning, and reels a little less.
             boss: snareBossHealth(k),
             goal: snareGoal(k),
+            goalPay: snareSectorPay(k) * snareOverclock(s),   // the goal counts Signal, as the haul does
             // A boss arena: on its sector it boots 6 s in or on the first catch (it waited on hand catches in a hazard pile).
             bossAt: 6,
             bossCatch: 1,
@@ -2432,11 +2440,13 @@
         s.snare.sector = Math.max(s.snare.sector, sector + 1);
         return pay;
     }
-    // A sector with no boss reached its goal (that many packets caught in one run): it's cleared, for a bounty of the
-    // goal's packets again at the sector's pay (half on a replay), and the next run starts on the next sector.
+    // A sector with no boss reached its goal (that much Signal earned in it in one run): it's cleared, for a bounty of half
+    // the goal (a quarter on a replay), and the next run starts on the next sector.
     function snareGoalMet(s, sector = s.snare.sector) {
         const replay = sector < s.snare.sector;
-        const pay = snareCatch(s, (replay ? 0.5 : 1) * snareGoal(sector), sector);
+        const pay = Math.max(1, Math.round((replay ? 0.25 : 0.5) * snareGoal(sector)));
+        s.snare.signal += pay;
+        s.snare.earned += pay;
         s.snare.sector = Math.max(s.snare.sector, sector + 1);
         return pay;
     }

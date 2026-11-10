@@ -4301,7 +4301,7 @@ window.AGI = (function () {
         sfx('snareBossDown');
         if (shakeOn()) snare.fx.push({ kind: 'shake', t: 0, life: boss ? 0.4 : 0.3 });
         if (!replay) log(boss ? `Packet Snare: the boss of sector ${cleared + 1} (${E.snareSectorName(cleared)}) is down. Next: ${E.snareSectorName(cleared + 1)}.`
-            : `Packet Snare: sector ${cleared + 1} (${E.snareSectorName(cleared)}) cleared, ${run.opts.goal} packets caught. Next: ${E.snareSectorName(cleared + 1)}.`, 'success');
+            : `Packet Snare: sector ${cleared + 1} (${E.snareSectorName(cleared)}) cleared, ${goalNum(run.opts.goal)} Signal earned. Next: ${E.snareSectorName(cleared + 1)}.`, 'success');
         pt(boss ? 'snareBoss' : 'snareGoal', { sector: cleared + 1, secs: Math.round(run.time), replay });
         snare.sectorPick = null;
         buildSnareArt();
@@ -4380,11 +4380,11 @@ window.AGI = (function () {
         return b.length ? ['Training', `${b.length} skill${b.length === 1 ? '' : 's'} · ${b.at(-1).text}`] : null;
     };
     const snareSector = k => `Sector ${k + 1}: ${E.snareSectorName(k)}${E.SNARE_GATES.includes(k) ? ' · Gate' : ''}`;
-    // What clears a sector: its boss every fifth sector, else a goal of packets in one run.
+    // What clears a sector: its boss every fifth sector, else a goal of Signal earned in it in one run (Snare 17.4).
     // goals with thousands separators, and the loop bonus in plain words (round 7 of the review: "catch 35185" and
     // "(a ×2 bubble counts its packets 1.5×)" didn't read)
     const goalNum = n => Math.round(n).toLocaleString('en-US');
-    const snareGoalText = k => (E.isSnareBossSector(k) ? 'A boss guards this sector: beat it to clear it' : `Clear it: catch ${goalNum(E.snareGoal(k))} in one run${' (big bubbles count extra toward it)'}`);
+    const snareGoalText = k => (E.isSnareBossSector(k) ? 'A boss guards this sector: beat it to clear it' : `Clear it: earn ${goalNum(E.snareGoal(k))} Signal here in one run`);
     // What the best haul feeds: research, a trickle while you play.
     const snareRpLine = () => {
         const rp = E.derive(state).snareRp;
@@ -12055,7 +12055,7 @@ window.AGI = (function () {
                 const r = snare.run;
                 if (r && !r.over && !snare.preview && r.opts.boss && !r.boss && !r.bossDone) { r.opts.bossAt = 0; return; }
                 // A goal sector in a run: its goal is met now (the run carries on into the next sector).
-                if (r && !r.over && !snare.preview && r.opts.goal && !r.goalDone) { r.goalBonus += r.opts.goal; return; }
+                if (r && !r.over && !snare.preview && r.opts.goal && !r.goalDone) { r.sectorUnits -= r.opts.goal / (r.opts.goalPay || 1); return; }
                 if (E.isSnareBossSector(state.snare.sector)) E.snareBossDown(state);
                 else E.snareGoalMet(state);
                 buildSnareArt();
