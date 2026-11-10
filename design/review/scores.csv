@@ -3,3 +3,7 @@ round,build,commit,role,phase,gameplay,clarity,pacing,design,visuals,tutorials,e
 7,15.5+r6,782aa18,avg3,all,6.67,6.5,5.83,6.5,7.0,7.17,6.5,three generalists; round 6 fixes
 9,15.5+helpers,7ace32b,screens,early,6.5,7,,6,7.5,7,,screens reviewer only (the early and late reviewers were stopped)
 9,15.5+helpers,7ace32b,screens,late,6.5,6,,5.5,7,6,,
+10,17.7+layout,5ee3198,early,early,7,6.5,5,6.5,7.5,7,6,fable; desktop 20 min from fresh + phone first visit; sector 3 took 29 runs; first boss 0 of 12 (scripted strokes slow)
+10,17.7+layout,5ee3198,late,late,6.5,5.5,5.5,6,7,6,7,opus; ~25 boss fights at the owner's 17.6 builds; sector 11 a coin flip; sector 12 goal a wall
+10,17.7+layout,5ee3198,screens,early,,7,,,7,7,,sonnet; its own categories mapped (clarity; visual design → visuals; teaching → tutorials); interface 6 mobile 7 feedback 8 polish 6
+10,17.7+layout,5ee3198,screens,late,,6,,,7,7,,sonnet; interface 5 mobile 6 feedback 8 polish 6
