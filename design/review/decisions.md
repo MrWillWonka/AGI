@@ -32,6 +32,12 @@ When answered: the change, `settled.md` (or `targets.json`) and this file are up
   ("so there is consistency": Overclock counts too), the tree about 40 active minutes at the owner's pace (the far ring
   ×4), and red too easy throughout (35% on sectors 3–6, Sanitizer's front-loading undone).
 
+- **D18 (answered 2026-11-10)**: the 17.4 log ("bosses felt absent": one boss in 14 minutes, dead 11 s after it came).
+  The owner's calls: a boss every third sector from 5; it arrives mid to late in a run (at half Focus), sucks up every
+  packet on the field and pauses the Focus clock; its fight has its own 30 s clock (run it out: it escapes with the
+  packets and the run ends; beat it: they burst back out); a bigger entrance and a harder, more spectacular fight.
+  Red stays as it is for now ("leave it, keep playing").
+
 ## Open
 - **D15 (watching)**: sector 3 on desktop. 10 runs on 17, 4 on 17.1, not cleared in 5 on 17.2 (best 100 of 185 packets,
   4–6 catches a run, Antivirus popping 0–2 bubbles). The owner's call: play more first, no change; judge it on the next
