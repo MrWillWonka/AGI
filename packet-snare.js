@@ -2029,10 +2029,14 @@
             if (!boss && !o.spoof) return false;
             const a = st.pts[0], b = st.pts[st.pts.length - 1];
             const chord = Math.hypot(b.x - a.x, b.y - a.y), path = wireLength(st.pts);
-            if (s.real - st.t0 > o.flickTime || chord < o.flickLength || chord < path * 0.75) return false;
-            let hit = false, near = false;
             // A grabbed mine flicked at the boss (Snare 15): from the mine, in the boss's direction (it needn't reach it).
             const mine = boss && s.held.find(m => Math.hypot(m.x - a.x, m.y - a.y) < MINE_R + Math.max(0.6, closeR * 0.6));
+            if (s.real - (mine && st.moveT != null ? st.moveT : st.t0) > o.flickTime || chord < o.flickLength || chord < path * 0.75) {
+                // a stroke from a held mine that was too slow, short or bent to be a flick says so (`mineMiss`)
+                if (mine && chord > closeR * 0.5) s.events.push({ type: 'mineMiss', why: 'quick', x: mine.x, y: mine.y });
+                return false;
+            }
+            let hit = false, near = false;
             if (mine) {
                 const dx = (b.x - a.x) / chord, dy = (b.y - a.y) / chord;
                 const along = (boss.x - mine.x) * dx + (boss.y - mine.y) * dy;
@@ -2044,6 +2048,7 @@
                     if (damageBoss(boss, o.mineThrow, 'mine', true) && s.boss) boss.stunned = Math.max(boss.stunned, s.time + o.mineReel);
                     return true;
                 }
+                s.events.push({ type: 'mineMiss', why: 'aim', x: mine.x, y: mine.y });
             }
             if (boss) {
                 const through = segDist(boss, a, b) < boss.r;
@@ -2416,7 +2421,11 @@
         // How many corrupt packets a loop forgives: a flat one per Scrubbers level, plus one per `scrubPer` good packets
         // inside once you own any (Snare 14.3: a flat count spoiled every big loop on a packed field).
         function forgives(good) { return o.scrubbers > 0 ? o.scrubbers + Math.floor(good / o.scrubPer) : 0; }
-        function judge(poly, bonus = 0) {
+        // A drawn loop (with bubbles, on a phone: `loopCatch`) pays at most what a full bubble would (the owner's call on the
+        // 17.5 phone log: a loop round half the field paid ×6, the cap, against a full bubble's ×1.8): quick, not bigger.
+        let fullCap = null;
+        const fullBubbleMult = () => fullCap ?? (fullCap = areaMult(polygonArea(circle(0, 0, bubbleMaxR)), o, fieldArea) * (1 + o.fullMult));
+        function judge(poly, bonus = 0, drawn = false) {
             const area = polygonArea(poly);
             const inside = s.packets.filter(p => pointInPolygon(p, poly));
             const corrupt = inside.filter(p => !isGood(p));
@@ -2426,9 +2435,11 @@
             const spoiled = !garbage && corrupt.length > forgives(good.length);
             // A loop wholly inside one of your Firewall sections is safe (red can't get in), so it pays less.
             const safe = wallsNow.some(f => poly.every(v => inZone(v, f, 0.05)));
-            const mult = areaMult(area, o, fieldArea) * (1 + bonus) * (safe && !o.pen ? o.safeLoop : 1);
+            let mult = areaMult(area, o, fieldArea) * (1 + bonus) * (safe && !o.pen ? o.safeLoop : 1);
+            const capped = drawn && o.bubble && mult > fullBubbleMult();
+            if (capped) mult = fullBubbleMult();
             const value = good.reduce((a, p) => a + valueOf(p), 0);
-            return { area, inside, corrupt, good, spoiled, garbage, mult, value, safe, units: spoiled ? 0 : value * mult };
+            return { area, inside, corrupt, good, spoiled, garbage, mult, capped, value, safe, units: spoiled ? 0 : value * mult };
         }
 
         // The Chokehold: a core inside is quarantined; what it stole comes back, half of it, as a bonus.
@@ -2492,7 +2503,7 @@
                 if (!loopBoss(poly)) s.events.push({ type: 'loopOnly', x: at.x, y: at.y, poly });
                 return;
             }
-            const j = judge(poly);
+            const j = judge(poly, 0, true);
             // with bubbles, a drawn loop is a wire catch (`wire`: it can be rushed); mines are a bubble's to grab
             if (o.bubble) j.wire = true;
             let acted = s.cores.length && j.area <= o.chokeArea * fieldArea ? quarantineIn(poly) : false;
@@ -2814,9 +2825,13 @@
                 s.stroke = { t0: s.real, pts: [p] };
                 // the pen's kind (Snare 12.4, the owner: on a mouse, left holds a bubble and right draws the wire): 'bubble'
                 // never turns into a wire, 'wire' never grows a bubble, none (touch) decides by how the stroke moves
-                if (o.bubble && s.penKind !== 'wire') s.bubble = { x, y, ox: x, oy: y, t0: s.real, r: bubbleMinR(), growing: false, pen: p, locked: s.penKind === 'bubble' };
+                // a press on a mine you're holding is a throw on its way (resting the finger there first must not grow a bubble)
+                const onMine = s.boss && s.held.some(m => Math.hypot(m.x - x, m.y - y) < MINE_R + Math.max(0.6, closeR * 0.6));
+                if (o.bubble && s.penKind !== 'wire' && !onMine) s.bubble = { x, y, ox: x, oy: y, t0: s.real, r: bubbleMinR(), growing: false, pen: p, locked: s.penKind === 'bubble' };
                 return true;
             }
+            // when the pen first moves off its start (a throw's flick is timed from here, not from the press)
+            if (s.stroke && s.stroke.moveT == null && Math.hypot(x - s.stroke.pts[0].x, y - s.stroke.pts[0].y) > closeR * 0.3) s.stroke.moveT = s.real;
             // Bubbles: once one grows it owns the stroke; a pen that wanders off before then draws a wire after all.
             if (s.bubble) {
                 s.bubble.pen = p;
@@ -2914,7 +2929,7 @@
             const bub = bubblePoly();
             const poly = bub || (o.bubble && !o.loopCatch ? null : openLoop());
             if (!poly) return null;
-            const j = judge(poly, bub ? bubbleBonus(s.bubble) : 0);
+            const j = judge(poly, bub ? bubbleBonus(s.bubble) : 0, !bub);
             const head = s.wire[s.wire.length - 1], start = s.wire[0];
             // The risk: corrupt packets just outside it (they can swim in before it closes).
             let risk = 0;

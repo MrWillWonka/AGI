@@ -4130,6 +4130,7 @@ window.AGI = (function () {
                 // why things failed, for the playtest log (`why` on the run's `snare` event)
                 if (t === 'bossLoop' && e.late) snareWhy('loopTooLate');
                 if (t === 'loopOnly' && run.boss) snareWhy('loopMissedBoss');
+                if (t === 'mineMiss') snareWhy(`mineMiss:${e.why}`);
                 if (t === 'corrupt') sfx('snareSpoil');
                 else if (t === 'spawn') snare.fx.push({ kind: 'placed', x: e.x, y: e.y, t: 0, life: 0.6 });
                 else if (t === 'pickupHere') sfx('snarePlace', { kind: 'decoy' });
@@ -5212,7 +5213,9 @@ window.AGI = (function () {
         else if (e.type === 'splitSpoiled') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: 0.9, text: 'SPLIT GARBLED', small: true });
         else if (e.type === 'mineGrab') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 0.6, t: 0, life: 0.8, text: state.intro['snare:thrown'] ? 'GRABBED' : 'GRABBED · FLICK IT AT THE BOSS', small: true });
         else if (e.type === 'mineThrow') { fx.push({ kind: 'throw', x: e.x, y: e.y, from: e.from, t: 0, life: 0.45 }); fx.push({ kind: 'stun', x: e.x, y: e.y - 1.2, t: 0, life: 1, text: 'MINE THROWN', small: true }); state.intro['snare:thrown'] = true; }
-        else if (e.type === 'mineLive') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: 0.9, text: 'LIVE AGAIN', small: true });
+        else if (e.type === 'mineLive') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: state.intro['snare:thrown'] ? 0.9 : 1.6, text: state.intro['snare:thrown'] ? 'LIVE AGAIN' : 'LIVE AGAIN · FLICK IT SOONER', small: true });
+        // a stroke from a held mine that didn't throw it says why, until the first throw
+        else if (e.type === 'mineMiss' && !state.intro['snare:thrown']) fx.push({ kind: 'flag', x: e.x, y: e.y - 0.8, t: 0, life: 1.3, text: e.why === 'aim' ? 'AIM AT THE BOSS' : 'QUICKER · A FAST, STRAIGHT FLICK', small: true });
         else if (e.type === 'escalate') fx.push({ kind: 'flick', a: e.from, b: { x: e.x, y: e.y }, hit: true, t: 0, life: 0.6 });
         else if (e.type === 'garbage') fx.push({ kind: 'catch', poly: e.poly, x: e.x, y: e.y, t: 0, text, packets: [] });
         else if (e.type === 'taken') fx.push({ kind: 'laser', from: { x: e.x, y: e.y }, x: e.packets[0]?.x ?? e.x, y: e.packets[0]?.y ?? e.y, t: 0, life: 0.35, text, small: true });
@@ -6236,16 +6239,7 @@ window.AGI = (function () {
         const P = window.PacketSnare, r = Math.max(8, P.MINE_R * k);
         for (const m of run.held) {
             const x = m.x * k, y = m.y * k, left = Math.max(0, (m.until - run.time) / run.opts.mineHold);
-            if (run.boss && !state.intro['snare:thrown']) {
-                ctx.globalAlpha = 0.5;
-                ctx.strokeStyle = C.warning;
-                ctx.lineWidth = 1.5;
-                ctx.setLineDash([4, 5]);
-                ctx.lineDashOffset = -t * 30;
-                ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(run.boss.x * k, run.boss.y * k); ctx.stroke();
-                ctx.setLineDash([]);
-                ctx.lineDashOffset = 0;
-            }
+            if (run.boss && !state.intro['snare:thrown']) drawSnareThrowHint(d, x, y, r);
             ctx.globalAlpha = 0.25 + 0.15 * Math.sin(t * 8);
             ctx.fillStyle = C.warning;
             ctx.beginPath(); ctx.arc(x, y, r * 1.9, 0, Math.PI * 2); ctx.fill();
@@ -6262,6 +6256,52 @@ window.AGI = (function () {
             ctx.beginPath(); ctx.arc(x, y, r * 1.6, -Math.PI / 2, -Math.PI / 2 + left * Math.PI * 2); ctx.stroke();
         }
         ctx.globalAlpha = 1;
+    }
+
+    // Until your first throw (the owner's call on the 17.5 log: 12 mines grabbed, none thrown): a big amber swipe
+    // sweeping from the held mine toward the boss again and again, the faint path to it, and FLICK AT THE BOSS on the mine.
+    function drawSnareThrowHint(d, x, y, r) {
+        const { ctx, C, k, run, t } = d;
+        const bx = run.boss.x * k, by = run.boss.y * k, dist = Math.hypot(bx - x, by - y);
+        if (dist < 1) return;
+        const nx = (bx - x) / dist, ny = (by - y) / dist, px = -ny, py = nx;
+        // the path to the boss
+        ctx.globalAlpha = 0.35;
+        ctx.strokeStyle = C.warning;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 6]);
+        ctx.lineDashOffset = -t * 30;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(bx - nx * run.boss.r * k, by - ny * run.boss.r * k); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.lineDashOffset = 0;
+        // the gesture: a thick stroke from the mine shooting toward the boss, its arrowhead leading
+        const reach = Math.max(40, Math.min(dist - run.boss.r * k, 150)), ph = (t * 1.8) % 1;
+        const head = r * 1.4 + reach * Math.min(1, ph * 1.4);
+        ctx.globalAlpha = 0.95 * (1 - Math.max(0, ph - 0.72) * 3.5);
+        ctx.strokeStyle = C.warning;
+        ctx.lineWidth = 6;
+        ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(x + nx * r * 1.4, y + ny * r * 1.4); ctx.lineTo(x + nx * head, y + ny * head); ctx.stroke();
+        const hx = x + nx * head, hy = y + ny * head;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(hx - nx * 14 + px * 11, hy - ny * 14 + py * 11);
+        ctx.lineTo(hx, hy);
+        ctx.lineTo(hx - nx * 14 - px * 11, hy - ny * 14 - py * 11);
+        ctx.stroke();
+        ctx.lineCap = 'butt';
+        // the words, on the mine's far side from the boss and kept inside the field
+        ctx.globalAlpha = 1;
+        const label = 'FLICK AT THE BOSS';
+        ctx.font = `700 14px ${snareMono()}`;
+        ctx.textAlign = 'center';
+        const tw = ctx.measureText(label).width, FW = run.w * k, FH = run.h * k;
+        const lx = Math.max(tw / 2 + 4, Math.min(FW - tw / 2 - 4, x - nx * (r * 2.6 + 10))), ly = Math.max(16, Math.min(FH - 8, y - ny * (r * 2.6 + 10) + 5));
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = C.bg;
+        ctx.strokeText(label, lx, ly);
+        ctx.fillStyle = C.warning;
+        ctx.fillText(label, lx, ly);
     }
 
     // The boss's mines and nets: red spiked diamonds, the nets growing between them as dashed lines that fill in, a
@@ -6869,7 +6909,7 @@ window.AGI = (function () {
                 const x0 = head.x * k + d.ox, y0 = head.y * k + d.oy;
                 ctx.textAlign = x0 > cw * 0.65 ? 'right' : 'left';
                 const label = pv.spoiled ? 'UNREADABLE ✕' : pv.garbage ? `GARBAGE · +${Math.round(run.opts.gcFocus * pv.corrupt.length)} Focus`
-                    : `×${pv.mult.toFixed(1)} · ${pv.good.length}${pv.scrub ? ` · ${pv.scrub} scrubbed` : ''}${pv.safe ? ' · SAFE' : ''}`;
+                    : `×${pv.mult.toFixed(1)}${pv.capped ? ' MAX' : ''} · ${pv.good.length}${pv.scrub ? ` · ${pv.scrub} scrubbed` : ''}${pv.safe ? ' · SAFE' : ''}`;
                 const lift = d.touch ? 46 : 12;
                 const lx = head.x * k + (ctx.textAlign === 'right' ? -12 : 12);
                 const ly = (y0 - lift < 34 ? y0 + lift + 10 : y0 - lift) - d.oy;

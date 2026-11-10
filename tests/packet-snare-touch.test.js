@@ -100,3 +100,62 @@ test('without loopCatch (a mouse) a drawn loop still only circles the boss', () 
     drawCircle(s, 6, 4, 1.6, 0.8);
     assert.equal(s.stats.caught, 0);
 });
+
+test('a drawn loop pays at most what a full bubble would (the owner\'s call: circles were overpowered)', () => {
+    const big = still({ w: 20, h: 12 });
+    for (let i = 0; i < 12; i++) packet(big, 'good', 10 + Math.cos(i) * 3, 6 + Math.sin(i) * 3);
+    drawCircle(big, 10, 6, 5.5, 1.5);           // round about 40% of the field
+    const ev = big.takeEvents().find(e => e.type === 'catch');
+    const held = still({ w: 20, h: 12 });
+    for (let i = 0; i < 12; i++) packet(held, 'good', 10 + Math.cos(i) * 1.5, 6 + Math.sin(i) * 1.5);
+    held.addPoint(10, 6);
+    for (let i = 0; i < 4 * 60; i++) { held.addPoint(10, 6); held.step(1 / 60); }
+    held.liftPen();
+    const hev = held.takeEvents().find(e => e.type === 'catch');
+    assert.ok(ev && hev, 'both caught');
+    assert.ok(Math.abs(ev.mult - hev.mult) < 0.02, `the loop's ×${ev.mult.toFixed(2)} is the full bubble's ×${hev.mult.toFixed(2)}`);
+    const small = still({ w: 20, h: 12 });
+    packet(small, 'good', 10, 6);
+    drawCircle(small, 10, 6, 1.4, 1);
+    assert.ok(small.takeEvents().find(e => e.type === 'catch').mult < hev.mult, 'a small loop pays less than the cap');
+});
+
+// A boss standing at (3, 4) and a mine held at (8, 4) (grabbed with a bubble), for the throw's teaching.
+function holding() {
+    const s = still({ boss: 20, bossAt: 0, bossMines: 1, mineEvery: 99 });
+    for (let i = 0; i < 3; i++) s.step(1 / 60);
+    Object.assign(s.boss, { x: 3, y: 4, vx: 0, vy: 0, chargeAt: 99, charge: null, mineAt: 99 });
+    s.mines.push({ id: 900, x: 8, y: 4 });
+    s.setPen('bubble');
+    s.addPoint(8, 4);
+    for (let i = 0; i < 30; i++) { s.addPoint(8, 4); s.step(1 / 60); }
+    s.liftPen();
+    s.setPen(null);
+    assert.equal(s.held.length, 1, 'grabbed');
+    Object.assign(s.boss, { x: 3, y: 4, vx: 0, vy: 0, stunned: 0 });
+    s.takeEvents();
+    return s;
+}
+
+test('a finger resting on a held mine and then flicking throws it (no bubble grows there)', () => {
+    const s = holding();
+    s.addPoint(8, 4);
+    for (let i = 0; i < 40; i++) { s.addPoint(8, 4); s.step(1 / 60); }     // two thirds of a second resting on it
+    assert.ok(!s.bubble, 'no bubble on a held mine');
+    for (let i = 1; i <= 8; i++) { s.addPoint(8 - 0.25 * i, 4); if (i % 3 === 0) s.step(1 / 60); }
+    s.liftPen();
+    assert.equal(s.stats.mineThrows, 1, 'thrown: the flick is timed from when the finger moved');
+});
+
+test('a stroke from a held mine that misses says why (too slow, or aimed wide)', () => {
+    const slow = holding();
+    for (let i = 0; i <= 30; i++) { slow.addPoint(8 - 0.07 * i, 4); slow.step(1 / 60); }    // half a second dragging
+    slow.liftPen();
+    assert.equal(slow.stats.mineThrows, 0);
+    assert.equal(slow.takeEvents().find(e => e.type === 'mineMiss')?.why, 'quick');
+    const wide = holding();
+    for (let i = 0; i <= 8; i++) { wide.addPoint(8, 4 + 0.25 * i); if (i % 3 === 0) wide.step(1 / 60); }   // straight down, away from it
+    wide.liftPen();
+    assert.equal(wide.stats.mineThrows, 0);
+    assert.equal(wide.takeEvents().find(e => e.type === 'mineMiss')?.why, 'aim');
+});
