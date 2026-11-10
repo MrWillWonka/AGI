@@ -3399,6 +3399,8 @@ body.calm .snare-deeper { animation: none; }
 .snare-tree-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .snare-tree-title { margin-right: auto; font: 700 0.85rem var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .snare-intro-line { margin: 6px 0 2px; font-size: 0.86rem; }
+/* The pipeline terminal speaks on the cards (the owner's call, 2026-11-10): its lines in the mono type, like a console. */
+.snare-card .snare-intro-line { font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.45; }
 .snare-steps { display: flow-root; margin: 2px 0 4px; padding-left: 1.5em; font-size: 0.86rem; }
 .snare-steps li { margin: 2px 0; padding-left: 2px; }
 .snare-steps li::marker { color: var(--warning); font: 700 0.8rem var(--font-mono); }
