@@ -3895,8 +3895,8 @@ window.AGI = (function () {
     // Bubbles (a prototype, per device, off by default): hold still to grow a bubble that catches; loops only stun.
     // How to catch (Snare 15, the owner's call: bubbles are the way to catch), for the first card and the first tip.
     const snareHowTo = () => (matchMedia('(pointer: fine)').matches
-        ? 'Hold the RIGHT mouse button on the field: a bubble grows, and follows the mouse. Let go to catch what\'s inside. Bigger bubbles pay more; one red packet inside garbles the lot. (The left button draws a line: that\'s for the boss.)'
-        : 'Hold still on the field: a bubble grows, and follows your finger. Let go to catch what\'s inside. Or draw a circle round them: it catches when it closes. Bigger circles pay more; one red packet inside garbles the lot.');
+        ? 'Hold the right mouse button to grow a bubble. Let go to catch what\'s inside.'
+        : 'Hold still to grow a bubble, or draw a circle. Let go to catch what\'s inside.');
     function snareField(area = E.snareOpts(state).area, o = null) {
         const aspect = Math.min(3.5, Math.max(0.5, snare.cw / snare.ch || 1.6));
         const cap = snare.cw > 0 && snare.ch > 0 ? Math.max(window.PacketSnare.FIELD_AREA, snare.cw * snare.ch / SNARE_PPU ** 2) : area;
@@ -4022,7 +4022,7 @@ window.AGI = (function () {
         if ((snare.leftHints = (snare.leftHints || 0) + 1) > 4) return;
         if (!snare.toWorld) return;
         const [hx, hy] = snare.toWorld({ clientX: at.clientX ?? at.x, clientY: at.clientY ?? at.y });
-        snare.fx.push({ kind: 'flag', x: hx, y: hy - 0.6, t: 0, life: 1.6, text: 'HOLD THE RIGHT BUTTON FOR A BUBBLE' });
+        snare.fx.push({ kind: 'hint', x: hx, y: hy - 0.6, t: 0, life: 1.6, text: 'Hold the right button for a bubble' });
     }
     // Why things went wrong in a run, counted for the playtest log (pops and snaps by what did them, boss loops too late or
     // that missed it): the questions the review rounds couldn't answer from a log.
@@ -4113,7 +4113,7 @@ window.AGI = (function () {
                 if (!reducedMotion()) snare.fx.push({ kind: 'flash', gold: true, t: 0, life: 0.5 });
                 shake(0.6);
             } else if (t === 'bossEscape') {
-                snare.fx.push({ kind: 'banner', centre: true, x: run.w / 2, y: run.h / 2, t: 0, life: 2.5, text: `BOSS ESCAPED${e.packets ? ` · ${e.packets} PACKETS GONE` : ''}`, big: true });
+                snare.fx.push({ kind: 'banner', centre: true, x: run.w / 2, y: run.h / 2, t: 0, life: 2.5, text: `BOSS ESCAPED${e.packets ? ` · ${e.packets} PACKETS GONE` : ''}`, big: true, loss: true });
                 sfx('snareSpoil');
                 shake(0.5);
             } else if (t === 'bossDown' || t === 'goal') {
@@ -4146,7 +4146,7 @@ window.AGI = (function () {
                     else if (e.fight) { shake(0.6); snare.fx.push({ kind: 'banner', centre: true, x: run.w / 2, y: run.h * 0.75, t: 0, life: 2, text: `BEAT IT IN ${e.fight} s`, big: true }); } }
                 else if (t === 'bossCharge') sfx('snareCharge');
                 else if (t === 'parry') { sfx('snareParry'); shake(0.2); state.intro['snare:parried'] = true; }
-                else if (t === 'fizzle') snare.fx.push({ kind: 'flag', x: e.x, y: e.y - 0.6, t: 0, life: 0.9, text: e.bubble ? 'HOLD LONGER' : 'TOO SMALL TO LOOP', small: true });
+                else if (t === 'fizzle') snare.fx.push({ kind: 'hint', x: e.x, y: e.y - 0.6, t: 0, life: 0.9, text: e.bubble ? 'Hold longer' : 'Too small to loop' });
                 else if (t === 'bossLoop') { sfx('snareStun', { down: false }); snare.fx.push({ kind: 'stun', x: e.x, y: e.y - 1.2, t: 0, life: 0.9, text: `LOOP ${e.n}/${e.of} · AGAIN!`, small: true }); }
                 else if (t === 'bossLooped') { sfx('snareParry'); shake(0.25); state.intro['snare:looped'] = true; snare.fx = snare.fx.filter(f => !/^LOOP \d/.test(f.text || '')); snare.fx.push({ kind: 'stun', x: e.x, y: e.y - 1.2, t: 0, life: 1, text: 'STUNNED', small: true }); }
                 else if (t === 'slash' && e.shielded) sfx('snareStun', { down: false });
@@ -4201,22 +4201,22 @@ window.AGI = (function () {
     // ---- First meetings: each mechanic is introduced once, with a demo, the moment it turns up (the run pauses) ----
     // Keyed by the demo they show (snare-demos.js).
     const SNARE_INTROS = {
-        lasso: ['Packet Snare', 'Hold still on the field: a bubble grows. Let go to catch what\'s inside. Bigger bubbles pay more; one red packet inside garbles the lot.'],
-        red: ['Unreadable packets', () => (snareHuntOn() ? 'The red ones are data your model can\'t read yet: it isn\'t trained enough. And they hunt your bubble: hold it near one and it comes for you. Let go with one inside and the batch comes through garbled: lost, and Focus with it. Catch round them, or let go before they get in.' : 'The red ones are data your model can\'t read yet: it isn\'t trained enough. Let go of a bubble with one inside and the batch comes through garbled: lost, and Focus with it. Catch round them.')],
-        antivirus: ['Antivirus', 'It hunts your bubbles. If it touches one, it pops and you lose the catch. Let go before it reaches you.'],
-        sweep: ['Full Scan', 'Its edge flashes, then it sweeps the whole field. Any bubble it crosses pops.'],
-        boss: ['Boss Antivirus', () => `1. Draw a loop round it twice without touching it (${snareFinePointer() ? 'drag with the left button; ' : ''}easiest while it stands still to charge): it's stunned. 2. While it reads SLASH!, swipe through it, again and again. Clear its health to clear the sector. While it stands it eats the packets near it and scatters the rest, more the longer it lives.`],
-        mines: ['Mines', 'The boss lays mines. Two near each other grow a net that wipes the data it crosses, and while two stand the boss is shielded. Let a bubble go over a mine to grab it, then flick from it at the boss: a big hit, even through its guard.'],
-        nets: ['Nets', 'Three mines now: once their nets join up, everything inside the triangle is wiped. Grab the mines with bubbles before the nets close, and throw them back.'],
-        rogue: ['The Rogue AI', 'Its cores grow and take the data they reach. Let a bubble go over a core to quarantine it; your Firewall sections keep it off the data inside them.'],
-        firewall: ['Firewalls', 'Sections now place themselves where the good packets gather. Red packets can\'t get in, and Antivirus can\'t either: bubble inside one safely. Each stands a while, then moves on.'],
-        decoy: ['Decoys', 'Decoys now appear by themselves near the red packets. Unreadable packets and idle Antivirus go to them; the boss smashes one it sits on.'],
-        turret: ['Turrets', 'Turrets now appear by themselves where Antivirus hunt. On its beat each shoots an Antivirus in reach (three hits and it\'s down for a while), else a red packet.'],
-        tower: ['Scanner towers', 'Towers now appear by themselves in the busiest currents. Their beam tags what passes: tagged packets are worth more for a moment.'],
-        freeze: ['Freeze Frame', 'Now and then a Freeze pickup drifts in: tap or click it and the field stops. Nothing moves and nothing comes due, but the boss can\'t be hit while it holds.'],
-        purge: ['Purge', 'Now and then a Purge pickup drifts in, near the red packets: tap or click it and every unreadable packet on the field is wiped.'],
-        gc: ['Garbage Collection', 'A bubble round nothing but unreadable packets deletes them and gives Focus back.'],
-        ids: ['IDS alert', 'Three flagged exploits: the intrusion detection system noticed. A flick that goes near something and misses it is flagged; one through empty field isn\'t.']
+        lasso: ['Packet Snare', 'Hold still to grow a bubble. Let go to catch what\'s inside.'],
+        red: ['Unreadable packets', () => (snareHuntOn() ? 'Your model can\'t read these yet. They chase your bubble: one inside garbles the catch.' : 'Your model can\'t read these yet. One inside your bubble garbles the catch.')],
+        antivirus: ['Antivirus', 'Let go before it touches your bubble.'],
+        sweep: ['Full Scan', 'Let go when its edge flashes: the sweep pops bubbles.'],
+        boss: ['Boss Antivirus', () => (snareFinePointer() ? 'Loop it twice with the left button to stun it, then slash through it.' : 'Loop it twice to stun it, then slash through it.')],
+        mines: ['Mines', 'Grab a mine with a bubble, then flick it at the boss.'],
+        nets: ['Nets', 'Grab the mines before their nets close the triangle.'],
+        rogue: ['The Rogue AI', 'Let a bubble go over a core to quarantine it.'],
+        firewall: ['Firewalls', 'Firewalls now place themselves. Unreadable packets and Antivirus can\'t get in.'],
+        decoy: ['Decoys', 'Decoys now place themselves. Unreadable packets and Antivirus go to them.'],
+        turret: ['Turrets', 'Turrets now place themselves. They shoot Antivirus and unreadable packets.'],
+        tower: ['Scanner Towers', 'Scanner Towers now place themselves. Packets they tag pay more.'],
+        freeze: ['Freeze Frame', 'Tap a Freeze pickup to stop the field.'],
+        purge: ['Purge', 'Tap a Purge pickup to wipe every unreadable packet.'],
+        gc: ['Garbage Collection', 'Bubble only unreadable packets: they\'re deleted and Focus comes back.'],
+        ids: ['IDS alert', 'Flicks that miss get flagged. Three flags trip an IDS alert.']
     };
     // The first threat the next run brings that hasn't been met, to show on its start card.
     // Look out cards (the owner's call after the review rounds): every threat a sector brings that hasn't been met is
@@ -4517,8 +4517,8 @@ window.AGI = (function () {
                 d.cleared.some(k => E.isSnareBossSector(k)) ? el('div', { class: 'result-main snare-boss-down', text: `Boss down · ${s.slashes || 0} slash${s.slashes === 1 ? '' : 'es'}${s.mineThrows ? ` · ${s.mineThrows} mine${s.mineThrows === 1 ? '' : 's'} thrown` : ''}` }) : null,
                 el('div', { class: 'result-main', text: s.caught ? `${s.caught} packet${s.caught === 1 ? '' : 's'} snared` : 'Nothing snared' }),
                 // nothing caught: why, in plain words, first (round 9 of the review: "Corrupted catches 1" didn't say it)
-                !s.caught ? el('p', { class: 'snare-intro-line snare-red-line', text: s.corrupted ? 'An unreadable packet got into your bubble: the batch came through garbled. Let go before red swims in.'
-                    : s.snaps ? 'Your bubble was popped before you let go.' : 'Hold still on the field to grow a bubble, then let go to catch what\'s inside.' }) : null,
+                !s.caught ? el('p', { class: 'snare-intro-line snare-red-line', text: s.corrupted ? 'An unreadable packet got in: the catch was garbled.'
+                    : s.snaps ? 'Your bubble was popped before you let go.' : snareHowTo() }) : null,
                 el('div', { class: 'result-xp', text: `+${E.format(d.haul)} Signal` }),
                 d.record ? el('span', { class: 'result-badge', text: `New record · was +${E.format(d.prev)}` }) : null,
                 ...resultLines(lines),
@@ -4961,32 +4961,32 @@ window.AGI = (function () {
         ['escalate', 'Your hijacked Antivirus', v => (v ? 'can ram the boss' : 'only takes packets')], ['escalateDamage', 'A ram takes', v => `${v} health`],
         ['laser', 'Laser', v => (v ? `every ${num1(v)} s` : 'none')], ['emitters', 'Emitters per edge', String], ['laserSides', 'Edges with lasers', String],
         ['laserReach', 'Laser reach', snareX('laserReach')],
-        ['turrets', 'Turrets at once', String], ['turretPurge', 'Red packets a turret shot wipes', v => String(1 + v)],
+        ['turrets', 'Turrets at once', String], ['turretPurge', 'Unreadable packets a Turret shot wipes', v => String(1 + v)],
         ['turretRange', 'Turret reach', snareX('turretRange')], ['turretEvery', 'Turrets fire every', v => `${num1(v)} s`], ['scanner', 'Scanner beam', v => (v ? 'on' : 'none')],
         ['scannerSpeed', 'Scanner sweep', snareX('scannerSpeed')], ['towers', 'Scanner towers at once', String], ['towerRange', 'Tower reach', snareX('towerRange')],
         ['chain', 'Arcs per catch', String], ['chainHops', 'Arc hops', String], ['chainRange', 'Arc reach', snareX('chainRange')],
         ['scrubbers', 'Unreadable packets forgiven', v => (v > 0 ? `${v}, +1 per 20 packets in the bubble` : '0')], ['corruptShare', 'Unreadable packets', v => `${(v * 100).toFixed(1)} per 100 good ones`],
         ['corruptLure', 'Unreadable pull to schools', pct],
  ['purge', 'Purge pickups', v => (v ? `one every ~${Math.round(16 / (1 + 0.6 * (v - 1)))} s` : 'none')],
-        ['firewalls', 'Firewall sections at once', String], ['zoneSize', 'Firewall section size', snareX('zoneSize')], ['wallRebuild', 'Sections rebuild', v => (v ? `after ${v} s` : 'never')],
-        ['fwHits', 'Firewall section health', v => `${6 * v} (Antivirus wear 1 a second)`], ['decoys', 'Decoys at once', String], ['decoyLure', 'Decoy pull', snareX('decoyLure')],
+        ['firewalls', 'Firewalls at once', String], ['zoneSize', 'Firewall size', snareX('zoneSize')], ['wallRebuild', 'Firewalls rebuild', v => (v ? `after ${v} s` : 'never')],
+        ['fwHits', 'Firewall health', v => `${6 * v} (Antivirus wear 1 a second)`], ['decoys', 'Decoys at once', String], ['decoyLure', 'Decoy pull', snareX('decoyLure')],
         ['avSpeed', 'Antivirus speed', pct], ['avStun', 'Antivirus stunned for', v => `${num1(v)} s`],
         ['hijack', 'Stunned Antivirus', v => (v ? 'can be hijacked' : 'stay hostile')], ['collude', 'A core turns partner', pct],
         ['flagLimit', 'Flags before an IDS alert', String], ['spoofValue', 'A spoofed packet is worth', v => `×${v}`],
         ['echo', 'A closed loop', v => (v === 1 ? 'catches again a second later' : v ? `catches again ${v} times, a second apart` : 'catches once')],
         ['storm', 'Packet Storms', v => (v ? `${20 + 10 * (v - 1)} gold every ${Math.max(6, 15 - 2 * (v - 1))} s` : 'none')],
-        ['crash', 'Every third slash', v => (v ? 'crashes it: ×3 damage' : 'a slash like the others')], ['zeroTrust', 'Red packets your walls bounce', v => (v ? 'come back good' : 'stay red')],
+        ['crash', 'Every third slash', v => (v ? 'crashes it: ×3 damage' : 'a slash like the others')], ['zeroTrust', 'Unreadable packets your Firewalls bounce', v => (v ? 'come back readable' : 'stay unreadable')],
         ['surge', 'Three clean catches in a row', v => (v ? `a surge of ${10 + 15 * v} packets` : 'nothing more')],
         ['netTime', 'Mines link into nets in', v => `${num1(v)} s`], ['mineBounces', 'A thrown mine bounces', v => `${v} time${v === 1 ? '' : 's'}`], ['mineBank', 'Each bounce before a hit adds', v => `+${Math.round(v * 100)}% damage`], ['defuseChain', 'Looping a mine', v => (v ? 'clears its neighbour too' : 'clears just that one')],
         ['pulse', 'A clean loop', v => (v ? `sends in ${2 * v} packets` : 'sends in none')],
         ['broadband', 'Each turret or tower placed', v => (v ? `brings packets back ${Math.round(v * 100)}% sooner` : 'does nothing for refills')],
         ['cleanSweep', 'After a clean loop, the clock stops for', v => `${num1(v)} s`],
-        ['relay', 'Red packets your walls bounce', v => (v ? 'swim to your decoy' : 'swim on')],
+        ['relay', 'Unreadable packets your Firewalls bounce', v => (v ? 'swim to your Decoy' : 'swim on')],
         ['backpressure', 'A catch', v => (v ? 'turns the packets round it back' : 'leaves the packets round it be')],
         ['cleanBots', 'Decoder bots', String], ['spoofBots', 'Spoofer bots', String], ['collectBots', 'Collector bots', String],
         ['goldPlate', 'Decoder bots gild a packet every', v => (v ? `${num1(6 / v)} s` : 'never')],
-        ['pen', 'Good packets in a section', v => (v ? 'stay in' : 'come and go')],
-        ['autoZone', 'Free sections', v => (v ? 'place themselves' : 'wait for you')]
+        ['pen', 'Good packets in a Firewall', v => (v ? 'stay in' : 'come and go')],
+        ['autoZone', 'Free Firewalls', v => (v ? 'place themselves' : 'wait for you')]
     ];
     // How many packets a field of these options holds on this screen, against a first run (a field the screen caps
     // fills more densely instead of growing).
@@ -5055,8 +5055,7 @@ window.AGI = (function () {
                 el('span', { class: 'detail-icon' }),
                 el('div', {}, [el('h3', { text: up.name }), el('p', { class: 'muted small', text: up.endless ? `Level ${lvl} · endless` : `Level ${lvl} of ${up.max}` })])
             ]),
-            el('p', { class: 'detail-effect', text: up.effect }),
-            el('p', { class: 'detail-flavor', text: up.flavor }),
+            snareRules(up.effect),
             up.mechanic && lvl === 0 ? snareDemo(up.mechanic) : null
         ].filter(Boolean);
         if (st === 'maxed') {
@@ -5131,6 +5130,23 @@ window.AGI = (function () {
         }
     }
 
+    // A node's rules text (the owner's call, the copy pass: short rules text like a card game's, no quip): numbers in bold
+    // and the packet words in the packets' own theme tokens (--snare-bad, --warning, --snare-good), never a colour word,
+    // so it reads the same in every theme. "level n" stays plain: it names a level, not an amount.
+    const SNARE_RULE_WORDS = /(levels? \d+(?: and \d+)?)|(unreadable(?: packets?| ones)?)|(gold)|(good packets?)|([+−-]?×?\d+(?:\.\d+)?(?:%| s\b)?)/gi;
+    function snareRules(text) {
+        const p = el('p', { class: 'detail-effect snare-rules' });
+        let at = 0;
+        for (const m of text.matchAll(SNARE_RULE_WORDS)) {
+            if (m.index > at) p.append(text.slice(at, m.index));
+            const cls = m[1] ? null : m[2] ? 'kw-bad' : m[3] ? 'kw-gold' : m[4] ? 'kw-good' : 'kw-num';
+            p.append(cls ? el('span', { class: cls, text: m[0] }) : m[0]);
+            at = m.index + m[0].length;
+        }
+        if (at < text.length) p.append(text.slice(at));
+        return p;
+    }
+
     // ---- Packet Snare's mechanic demos ---------------------------------------------------------------------
     // Like the Training tree's: a node that brings a new rule plays three seconds of the real thing in its popup before
     // it's bought, and each hazard's first-meeting card plays its own. The scripts live in snare-demos.js (pure, and
@@ -5168,7 +5184,7 @@ window.AGI = (function () {
         else if (e.type === 'stolen' || e.type === 'wiped') {
             fx.push({ kind: 'stolen', core: e.core || { x: e.x, y: e.y }, packets: e.packets, t: 0, life: 0.45 });
             // round 6 of the review: the Rogue AI took packets and nothing said so
-            if (e.type === 'stolen' && e.packets?.length) fx.push({ kind: 'banner', x: e.core.x, y: e.core.y - 1, t: 0, life: 0.8, text: `−${e.packets.length} STOLEN`, small: true });
+            if (e.type === 'stolen' && e.packets?.length) fx.push({ kind: 'banner', x: e.core.x, y: e.core.y - 1, t: 0, life: 0.8, text: `−${e.packets.length} STOLEN`, small: true, loss: true });
         }
         else if (e.type === 'coreGone') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: e.r, t: 0, life: 0.6 });
         else if (e.type === 'quarantine') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: e.r, t: 0, life: 0.9, text: text || 'QUARANTINED', big: true });
@@ -5204,7 +5220,7 @@ window.AGI = (function () {
         else if (e.type === 'raceBroken') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.9, text: e.by === 'boss' ? 'HOLD BROKEN · the boss' : 'HOLD BROKEN · scanned', small: true });
         else if (e.type === 'cleanSweep') fx.push({ kind: 'stun', x: e.x, y: e.y + 0.9, t: 0, life: 0.8, text: 'CLOCK STOPPED', small: true });
         // the run has earned back all the Focus it can (packet-snare.js focusEarnCap): said once, at the top
-        else if (e.type === 'focusCap') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 2.2, text: 'NO MORE FOCUS BACK THIS RUN', small: true });
+        else if (e.type === 'focusCap') fx.push({ kind: 'hint', x: e.x, y: e.y, t: 0, life: 2.2, text: 'No more Focus back this run' });
         else if (e.type === 'backpressure') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: e.r, t: 0, life: 0.5 });
         else if (e.type === 'bossBlock') fx.push({ kind: 'flag', x: e.x, y: e.y - 1, t: 0, life: 0.9, text: e.reason === 'shield' ? 'SHIELDED' : 'GUARD UP · loop round it first', small: true });
         else if (e.type === 'mine') fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.6 });
@@ -5220,7 +5236,7 @@ window.AGI = (function () {
         else if (e.type === 'mineDud') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: 0.9, text: 'DUD', small: true });
         else if (e.type === 'mineLive') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: state.intro['snare:thrown'] ? 0.9 : 1.6, text: state.intro['snare:thrown'] ? 'LIVE AGAIN' : 'LIVE AGAIN · FLICK IT SOONER', small: true });
         // a stroke from a held mine that didn't throw it says why, until the first throw
-        else if (e.type === 'mineMiss' && !state.intro['snare:thrown']) fx.push({ kind: 'flag', x: e.x, y: e.y - 0.8, t: 0, life: 1.3, text: e.why === 'aim' ? 'AIM AT THE BOSS' : 'QUICKER · A FAST, STRAIGHT FLICK', small: true });
+        else if (e.type === 'mineMiss' && !state.intro['snare:thrown']) fx.push({ kind: 'hint', x: e.x, y: e.y - 0.8, t: 0, life: 1.3, text: e.why === 'aim' ? 'Aim at the boss' : 'Quicker: a fast, straight flick' });
         else if (e.type === 'escalate') fx.push({ kind: 'flick', a: e.from, b: { x: e.x, y: e.y }, hit: true, t: 0, life: 0.6 });
         else if (e.type === 'garbage') fx.push({ kind: 'catch', poly: e.poly, x: e.x, y: e.y, t: 0, text, packets: [] });
         else if (e.type === 'taken') fx.push({ kind: 'laser', from: { x: e.x, y: e.y }, x: e.packets[0]?.x ?? e.x, y: e.packets[0]?.y ?? e.y, t: 0, life: 0.35, text, small: true });
@@ -5282,7 +5298,9 @@ window.AGI = (function () {
     // Drawn in layers, back to front, each a function of the view `d` (the context, colours, scale, run, effects), so the
     // field draws the same into the bay's canvas and a node's demo.
     const SNARE_LAYERS = () => [drawSnareCurrent, drawSnareContain, drawSnareScanner, drawSnareCores, drawSnareMines, drawSnareFirewalls, drawSnareToolLife, drawSnareSweeps, drawSnareLoops, drawSnarePreview, drawSnarePackets, drawSnareHerders, drawSnareLasers, drawSnareChain, drawSnareWire, drawSnareRaceLabel, drawSnareRogueFx, drawSnareSnaps, drawSnareAntivirus, drawSnareBoss, drawSnarePickups, drawSnareFrozen, drawSnarePops];
-    let snareMonoFont = '';
+    let snareMonoFont = '', snareBodyFont = '';
+    // Hints (how to do something) are set in the body font, normal case, so they never read as a payoff or a loss.
+    const snareHintFont = size => `600 ${size}px ${snareBodyFont ||= getComputedStyle(document.documentElement).getPropertyValue('--font-body').trim() || 'sans-serif'}`;
     const snareMono = () => (snareMonoFont ||= getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'monospace');
 
     function drawSnare() {
@@ -5503,7 +5521,7 @@ window.AGI = (function () {
         // The current: faint streaks drifting the way the data flows, so it's clear where packets come from and go.
         if (run.flow) {
             const fx = run.flow.x, fy = run.flow.y;
-            ctx.strokeStyle = C.primary;
+            ctx.strokeStyle = (C['snare-good'] || C.primary);
             ctx.lineWidth = 1;
             ctx.globalAlpha = 0.12;
             ctx.beginPath();
@@ -5528,7 +5546,7 @@ window.AGI = (function () {
         const { ctx, C, k, run, t, W, H, effects, cw, pv } = d;
         // The Containment Field: the field's edge glows.
         if (run.opts.contain) {
-            ctx.strokeStyle = C.primary;
+            ctx.strokeStyle = (C['snare-good'] || C.primary);
             ctx.lineWidth = 2;
             ctx.globalAlpha = 0.55 + 0.2 * Math.sin(t * 3);
             ctx.lineWidth = 3;
@@ -5546,7 +5564,7 @@ window.AGI = (function () {
             const cx = W / 2 * k, cy = H / 2 * k, R = Math.hypot(W, H) / 2 * k;
             for (const a of run.beams) {
                 const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
-                g.addColorStop(0, C.research);
+                g.addColorStop(0, (C['snare-tag'] || C.research));
                 g.addColorStop(1, 'transparent');
                 ctx.fillStyle = g;
                 ctx.globalAlpha = 0.16;
@@ -5556,7 +5574,7 @@ window.AGI = (function () {
                 ctx.closePath();
                 ctx.fill();
                 ctx.globalAlpha = 0.7;
-                ctx.strokeStyle = C.research;
+                ctx.strokeStyle = (C['snare-tag'] || C.research);
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
                 ctx.moveTo(cx, cy);
@@ -5762,14 +5780,14 @@ window.AGI = (function () {
         for (const tw of run.towers) {
             const x = tw.x * k, y = tw.y * k, R = run.opts.towerRange * k;
             ctx.globalAlpha = 0.14;
-            ctx.fillStyle = C.research;
+            ctx.fillStyle = (C['snare-tag'] || C.research);
             ctx.beginPath();
             ctx.moveTo(x, y);
             ctx.arc(x, y, R, tw.ang - 0.45, tw.ang);
             ctx.closePath();
             ctx.fill();
             ctx.globalAlpha = 0.8;
-            ctx.strokeStyle = C.research;
+            ctx.strokeStyle = (C['snare-tag'] || C.research);
             ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.moveTo(x, y);
@@ -5783,7 +5801,7 @@ window.AGI = (function () {
             ctx.moveTo(x, y - m); ctx.lineTo(x, y + m * 0.6);
             ctx.moveTo(x - m * 0.6, y + m); ctx.lineTo(x, y + m * 0.2); ctx.lineTo(x + m * 0.6, y + m);
             ctx.stroke();
-            ctx.fillStyle = C.research;
+            ctx.fillStyle = (C['snare-tag'] || C.research);
             ctx.beginPath();
             ctx.arc(x, y - m, 3, 0, Math.PI * 2);
             ctx.fill();
@@ -5895,7 +5913,7 @@ window.AGI = (function () {
         for (const f of effects) {
             if (!f.poly) continue;
             const a = 1 - f.t / (f.life || SNARE_FX);
-            const col = f.kind === 'catch' ? C.primary : f.kind === 'corrupt' ? C.danger : C.muted;
+            const col = f.kind === 'catch' ? (C['snare-good'] || C.primary) : f.kind === 'corrupt' ? C.danger : C.muted;
             // It shrinks into its middle as it fades, through its points' midpoints so a bubble reads round (round 4 of
             // the review: a released bubble's 32-sided ghost sat over a third of the field for a second).
             const sh = 1 - 0.45 * (1 - a), cx = f.x, cy = f.y, n = f.poly.length;
@@ -5919,7 +5937,7 @@ window.AGI = (function () {
                 for (const p of f.packets) {
                     const x = p.x + (f.x - p.x) * m, y = p.y + (f.y - p.y) * m;
                     ctx.globalAlpha = a;
-                    ctx.fillStyle = p.kind === 'corrupt' ? C.danger : p.kind === 'gold' ? C.warning : C.primary;
+                    ctx.fillStyle = p.kind === 'corrupt' ? C.danger : p.kind === 'gold' ? C.warning : (C['snare-good'] || C.primary);
                     ctx.beginPath();
                     ctx.arc(x * k, y * k, p.r * k * (1 - 0.6 * m), 0, Math.PI * 2);
                     ctx.fill();
@@ -5938,7 +5956,7 @@ window.AGI = (function () {
             ctx.stroke();
             ctx.setLineDash([]);
             ctx.globalAlpha = 0.12;
-            ctx.fillStyle = C.success;
+            ctx.fillStyle = (C['snare-bubble'] || C.success);
             ctx.fill();
         }
         ctx.lineDashOffset = 0;
@@ -5950,10 +5968,10 @@ window.AGI = (function () {
             r.poly.forEach((p, i) => (i ? ctx.lineTo(p.x * k, p.y * k) : ctx.moveTo(p.x * k, p.y * k)));
             ctx.closePath();
             ctx.globalAlpha = 0.16 + 0.1 * Math.sin(r.t * (6 + 6 * r.bonus));
-            ctx.fillStyle = C.success;
+            ctx.fillStyle = (C['snare-bubble'] || C.success);
             ctx.fill();
             ctx.globalAlpha = 1;
-            ctx.strokeStyle = C.success;
+            ctx.strokeStyle = (C['snare-bubble'] || C.success);
             ctx.lineWidth = 2.5;
             ctx.setLineDash([8, 4]);
             ctx.lineDashOffset = -r.t * 30;
@@ -5974,7 +5992,7 @@ window.AGI = (function () {
             ctx.lineWidth = 3;
             ctx.strokeStyle = C.bg;
             ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2); ctx.stroke();
-            ctx.strokeStyle = C.success;
+            ctx.strokeStyle = (C['snare-bubble'] || C.success);
             ctx.beginPath(); ctx.arc(cx, cy, rad, -Math.PI / 2, -Math.PI / 2 + full * Math.PI * 2); ctx.stroke();
         }
         const r = run.race;
@@ -5988,14 +6006,14 @@ window.AGI = (function () {
         ctx.strokeStyle = C.bg;
         const text = `HOLD ×${mult.toFixed(1)}`;
         ctx.strokeText(text, c.x * k, c.y * k);
-        ctx.fillStyle = C.success;
+        ctx.fillStyle = (C['snare-bubble'] || C.success);
         ctx.fillText(text, c.x * k, c.y * k);
         // The meter (review 1: make the growth readable): a ring under the label filling toward the hold's top.
         const full = Math.min(1, r.bonus / Math.max(0.01, run.opts.raceMax)), cy = c.y * k + 16, rad = 9;
         ctx.lineWidth = 3;
         ctx.strokeStyle = C.bg;
         ctx.beginPath(); ctx.arc(c.x * k, cy, rad, 0, Math.PI * 2); ctx.stroke();
-        ctx.strokeStyle = C.success;
+        ctx.strokeStyle = (C['snare-bubble'] || C.success);
         ctx.beginPath(); ctx.arc(c.x * k, cy, rad, -Math.PI / 2, -Math.PI / 2 + full * Math.PI * 2); ctx.stroke();
     }
 
@@ -6004,7 +6022,7 @@ window.AGI = (function () {
         // The open loop's preview: its shape filled faintly, a dashed line back to the start, the packets it would
         // take ringed, and what it's worth by the pen ("×2.4 · 7", or red when a corrupt packet would spoil it).
         if (pv) {
-            const col = pv.spoiled ? C.danger : C.success;
+            const col = pv.spoiled ? C.danger : (C['snare-bubble'] || C.success);
             ctx.beginPath();
             run.wire.forEach((p, i) => (i ? ctx.lineTo(p.x * k, p.y * k) : ctx.moveTo(p.x * k, p.y * k)));
             ctx.closePath();
@@ -6021,7 +6039,7 @@ window.AGI = (function () {
                 path.moveTo(p.x * k + rr, p.y * k);
                 path.arc(p.x * k, p.y * k, rr, 0, Math.PI * 2);
             }
-            ctx.strokeStyle = C.success;
+            ctx.strokeStyle = (C['snare-bubble'] || C.success);
             ctx.stroke(rings.good);
             ctx.lineWidth = 2;
             ctx.strokeStyle = C.danger;
@@ -6216,10 +6234,10 @@ window.AGI = (function () {
         if (!run.frozen?.()) return;
         const left = run.frozenLeft / Math.max(0.1, run.opts.freezeSeconds);
         ctx.globalAlpha = 0.12 + 0.08 * left;
-        ctx.fillStyle = C.primary;
+        ctx.fillStyle = (C['snare-good'] || C.primary);
         ctx.fillRect(0, 0, W * k, H * k);
         ctx.globalAlpha = 0.7;
-        ctx.strokeStyle = C.primary;
+        ctx.strokeStyle = (C['snare-good'] || C.primary);
         ctx.lineWidth = 3;
         ctx.strokeRect(1.5, 1.5, W * k - 3, H * k - 3);
         // what's left of it, on the field (it used to replace Focus in the HUD)
@@ -6230,7 +6248,7 @@ window.AGI = (function () {
         ctx.strokeStyle = C.bg;
         const txt = `FROZEN ${run.frozenLeft.toFixed(1)} s`;
         ctx.strokeText(txt, W * k / 2, 18);
-        ctx.fillStyle = C.primary;
+        ctx.fillStyle = (C['snare-good'] || C.primary);
         ctx.fillText(txt, W * k / 2, 18);
         ctx.textAlign = 'left';
         ctx.globalAlpha = 1;
@@ -6333,15 +6351,15 @@ window.AGI = (function () {
         ctx.lineCap = 'butt';
         // the words, on the mine's far side from the boss and kept inside the field
         ctx.globalAlpha = 1;
-        const label = 'FLICK AT THE BOSS';
-        ctx.font = `700 14px ${snareMono()}`;
+        const label = 'Flick at the boss';
+        ctx.font = snareHintFont(15);
         ctx.textAlign = 'center';
         const tw = ctx.measureText(label).width, FW = run.w * k, FH = run.h * k;
         const lx = Math.max(tw / 2 + 4, Math.min(FW - tw / 2 - 4, x - nx * (r * 2.6 + 10))), ly = Math.max(16, Math.min(FH - 8, y - ny * (r * 2.6 + 10) + 5));
         ctx.lineWidth = 3;
         ctx.strokeStyle = C.bg;
         ctx.strokeText(label, lx, ly);
-        ctx.fillStyle = C.warning;
+        ctx.fillStyle = C.text;
         ctx.fillText(label, lx, ly);
     }
 
@@ -6524,15 +6542,15 @@ window.AGI = (function () {
                 ctx.stroke();
                 ctx.setLineDash([]);
                 if (!state.intro['snare:looped']) {
-                    const label = (run.opts.bossLoops || 1) > 1 ? `LOOP ROUND IT ×${run.opts.bossLoops}` : 'LOOP ROUND IT';
-                    ctx.font = `700 13px ${snareMono()}`;
+                    const label = (run.opts.bossLoops || 1) > 1 ? `Loop round it ×${run.opts.bossLoops}` : 'Loop round it';
+                    ctx.font = snareHintFont(14);
                     ctx.textAlign = 'center';
                     ctx.lineWidth = 3;
                     ctx.strokeStyle = C.bg;
                     const FW = run.w * k, tw = ctx.measureText(label).width;
                     const lx = Math.max(tw / 2 + 4, Math.min(FW - tw / 2 - 4, x)), ly = Math.max(14, y - lr - 10);
                     ctx.strokeText(label, lx, ly);
-                    ctx.fillStyle = C.warning;
+                    ctx.fillStyle = C.text;
                     ctx.fillText(label, lx, ly);
                 }
             } else {
@@ -6556,9 +6574,9 @@ window.AGI = (function () {
                 ctx.lineTo(hx - nx * 9 - dx * 7, hy - ny * 9 - dy * 7);
                 ctx.stroke();
                 // what to do, in words, until you've parried once
-                const label = state.intro['snare:parried'] ? 'PARRY' : 'SWIPE ACROSS TO PARRY';
+                const label = state.intro['snare:parried'] ? 'Parry' : 'Swipe across to parry';
                 ctx.globalAlpha = 1;
-                ctx.font = `700 13px ${snareMono()}`;
+                ctx.font = snareHintFont(14);
                 ctx.textAlign = 'center';
                 ctx.lineWidth = 3;
                 ctx.strokeStyle = C.bg;
@@ -6569,7 +6587,7 @@ window.AGI = (function () {
                 if (!fits({ x: mx + nx * side, y: my + ny * side + 4 }) && fits({ x: mx - nx * side, y: my - ny * side + 4 })) side = -side;
                 const lx = Math.max(tw / 2 + 4, Math.min(FW - tw / 2 - 4, mx + nx * side)), ly = Math.max(14, Math.min(FH - 6, my + ny * side + 4));
                 ctx.strokeText(label, lx, ly);
-                ctx.fillStyle = C.warning;
+                ctx.fillStyle = C.text;
                 ctx.fillText(label, lx, ly);
             }
             ctx.globalAlpha = 1;
@@ -6917,7 +6935,7 @@ window.AGI = (function () {
             if (pv) {
                 ctx.globalAlpha = pv.near ? 0.9 : 0.4;
                 ctx.setLineDash([4, 5]);
-                ctx.strokeStyle = pv.spoiled ? C.danger : C.success;
+                ctx.strokeStyle = pv.spoiled ? C.danger : (C['snare-bubble'] || C.success);
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
                 ctx.moveTo(head.x * k, head.y * k);
@@ -6928,7 +6946,7 @@ window.AGI = (function () {
             ctx.globalAlpha = 1;
             // The closing ring round the start (Settings can hide it: some find it in the way).
             if (snareRingOn()) {
-            ctx.strokeStyle = pv?.near ? (pv.spoiled ? C.danger : C.success) : C.muted;
+            ctx.strokeStyle = pv?.near ? (pv.spoiled ? C.danger : (C['snare-bubble'] || C.success)) : C.muted;
             ctx.lineWidth = pv?.near ? 2.5 : 1.5;
             ctx.beginPath();
             ctx.arc(start.x * k, start.y * k, run.closeR * k, 0, Math.PI * 2);
@@ -6936,7 +6954,7 @@ window.AGI = (function () {
             }
             if (pv?.near && snareRingOn()) {
                 ctx.globalAlpha = 0.18;
-                ctx.fillStyle = pv.spoiled ? C.danger : C.success;
+                ctx.fillStyle = pv.spoiled ? C.danger : (C['snare-bubble'] || C.success);
                 ctx.fill();
                 ctx.globalAlpha = 1;
             }
@@ -6961,14 +6979,14 @@ window.AGI = (function () {
                     ctx.fillStyle = col;
                     ctx.fillText(text, lx, y);
                 };
-                say(label, ly, pv.spoiled ? C.danger : C.success);
+                say(label, ly, pv.spoiled ? C.danger : (C['snare-bubble'] || C.success));
                 // A big loop says plainly what it is (the owner's call): the multiplier is high, and so is the chance a
                 // red packet swims in before it closes.
                 // A pill of its own (round 4: amber text on an amber-heavy field didn't stand out), kept while the loop
                 // reads UNREADABLE too: that's when the risk landed.
                 if (pv.mult >= 2) {
                     ctx.font = `700 11px ${snareMono()}`;
-                    const text = `HIGH RISK · HIGH REWARD${pv.risk ? ` · ${pv.risk} red near` : ''}`;
+                    const text = `HIGH RISK · HIGH REWARD${pv.risk ? ` · ${pv.risk} UNREADABLE NEAR` : ''}`;
                     const tw = ctx.measureText(text).width, py = ly - 30;
                     const px = ctx.textAlign === 'right' ? lx - tw - 6 : lx - 6;
                     ctx.globalAlpha = 0.92;
@@ -6988,7 +7006,7 @@ window.AGI = (function () {
     function drawSnareBubble(d, b, hunted) {
         const { ctx, C, k, cw, pv } = d;
         const x = b.x * k, y = b.y * k, r = b.r * k;
-        const col = pv?.spoiled ? C.danger : C.success;
+        const col = pv?.spoiled ? C.danger : (C['snare-bubble'] || C.success);
         let fill = col;
         try {
             const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r);
@@ -7030,11 +7048,11 @@ window.AGI = (function () {
         ctx.lineWidth = 3;
         ctx.strokeStyle = C.bg;
         ctx.strokeText(label, lx, ly);
-        ctx.fillStyle = pv.spoiled ? C.danger : C.success;
+        ctx.fillStyle = pv.spoiled ? C.danger : (C['snare-bubble'] || C.success);
         ctx.fillText(label, lx, ly);
         if (pv.mult >= 2 && !pv.spoiled && pv.risk > 0) {
             ctx.font = `700 11px ${snareMono()}`;
-            const text = `HIGH RISK · HIGH REWARD${pv.risk ? ` · ${pv.risk} red near` : ''}`;
+            const text = `HIGH RISK · HIGH REWARD${pv.risk ? ` · ${pv.risk} UNREADABLE NEAR` : ''}`;
             const tw = ctx.measureText(text).width, py = ly - 30;
             ctx.globalAlpha = 0.92;
             ctx.fillStyle = C.warning;
@@ -7066,7 +7084,7 @@ window.AGI = (function () {
             } else if (f.kind === 'coreGone' || f.kind === 'quarantine') {
                 // the circle collapses (burnt out) or shatters outward (quarantined)
                 ctx.globalAlpha = a;
-                ctx.strokeStyle = f.kind === 'quarantine' ? C.primary : C.danger;
+                ctx.strokeStyle = f.kind === 'quarantine' ? (C['snare-good'] || C.primary) : C.danger;
                 ctx.lineWidth = f.kind === 'quarantine' ? 3 : 1.5;
                 const rr = f.kind === 'quarantine' ? (f.r + f.t * 4) * k : f.r * k * a;
                 ctx.beginPath();
@@ -7226,7 +7244,7 @@ window.AGI = (function () {
                 for (const p of f.packets) {
                     const x = p.x + (f.x - p.x) * qq, y = p.y + (f.y - p.y) * qq;
                     const tx = p.x + (f.x - p.x) * Math.max(0, qq - 0.15), ty = p.y + (f.y - p.y) * Math.max(0, qq - 0.15);
-                    ctx.strokeStyle = p.kind === 'corrupt' ? C.danger : p.kind === 'gold' ? C.warning : C.primary;
+                    ctx.strokeStyle = p.kind === 'corrupt' ? C.danger : p.kind === 'gold' ? C.warning : (C['snare-good'] || C.primary);
                     ctx.lineWidth = 2;
                     ctx.beginPath();
                     ctx.moveTo(tx * k, ty * k);
@@ -7370,14 +7388,15 @@ window.AGI = (function () {
             let y = f.centre ? H * k * 0.38 : f.y * k - 10 - f.t * 26;
             const x = f.centre ? W * k / 2 : f.x * k;
             const pop = f.huge && !reducedMotion() ? 1 + 0.35 * Math.max(0, 1 - f.t / 0.18) : 1;
-            const size = Math.round((f.small ? 11 : f.huge ? 24 : f.big ? 18 : 15) * pop);
-            ctx.font = `700 ${size}px ${snareMono()}`;
+            const size = Math.round((f.hint ? 13 : f.small ? 11 : f.huge ? 24 : f.big ? 18 : 15) * pop);
+            const fontAt = px => (f.hint ? snareHintFont(px) : `700 ${px}px ${snareMono()}`);
+            ctx.font = fontAt(size);
             // the same words already up nearby: once is enough (round 4 of the review: SHIELDED ×4 in a column)
             if (placed.some(p => p.text === f.text && Math.abs(p.x - x) < 160)) continue;
             // too wide for the field: smaller (round 4: SECTOR CLEARED ran off a phone's field)
             let fit = size;
             const room = W * k - 12;
-            if (ctx.measureText(f.text).width > room) { fit = Math.max(10, Math.floor(size * room / ctx.measureText(f.text).width)); ctx.font = `700 ${fit}px ${snareMono()}`; }
+            if (ctx.measureText(f.text).width > room) { fit = Math.max(10, Math.floor(size * room / ctx.measureText(f.text).width)); ctx.font = fontAt(fit); }
             const hw = ctx.measureText(f.text).width / 2 + 4, lh = fit + 4 + (f.sub ? 14 : 0);
             const hits = yy => placed.some(p => Math.abs(p.x - x) < p.hw + hw && yy - lh < p.y && p.y - p.lh < yy);
             let tries = 0;
@@ -7385,7 +7404,8 @@ window.AGI = (function () {
             if (hits(y) && !f.big && !f.huge) continue;
             placed.push({ x, y, hw, lh, text: f.text });
             ctx.globalAlpha = a;
-            ctx.fillStyle = f.kind === 'banner' ? C.warning : f.kind === 'quarantine' ? C.primary : f.kind === 'stun' ? C.success : f.kind === 'catch' || f.kind === 'laser' || f.kind === 'star' ? (f.big || f.gold ? C.warning : C.text) : C.danger;
+            // three tiers: hints in the text colour, losses red, rewards gold (the theme's own tokens)
+            ctx.fillStyle = f.kind === 'hint' ? C.text : f.loss ? C.danger : f.kind === 'banner' ? C.warning : f.kind === 'quarantine' ? (C['snare-good'] || C.primary) : f.kind === 'stun' ? C.success : f.kind === 'catch' || f.kind === 'laser' || f.kind === 'star' ? (f.big || f.gold ? C.warning : C.text) : C.danger;
             ctx.lineWidth = 3;
             ctx.strokeStyle = C.bg;
             // Kept inside the field (Snare 14: a big CHAIN or SURGE by the edge ran off a phone's field).
@@ -7395,7 +7415,7 @@ window.AGI = (function () {
             ctx.fillText(f.text, tx, y);
             if (f.sub) {
                 ctx.font = `600 12px ${snareMono()}`;
-                ctx.fillStyle = C.primary;
+                ctx.fillStyle = C.warning;   // a reward's multiplier: gold (--primary is red in the Red theme)
                 ctx.fillText(f.sub, tx, y + 15);
             }
         }
@@ -8475,7 +8495,7 @@ window.AGI = (function () {
     // The trail's canvas colours come from the theme's tokens (read again when the theme changes).
     function readColorTokens() {
         const css = getComputedStyle(document.documentElement);
-        for (const name of ['primary', 'secondary', 'accent', 'success', 'warning', 'danger', 'muted', 'border', 'text', 'bg', 'research', 'terminal', 'snare-good', 'snare-bad', 'snare-tag']) {
+        for (const name of ['primary', 'secondary', 'accent', 'success', 'warning', 'danger', 'muted', 'border', 'text', 'bg', 'research', 'terminal', 'snare-good', 'snare-bad', 'snare-tag', 'snare-bubble']) {
             path.colors[name] = css.getPropertyValue('--' + name).trim();
         }
         return !!path.colors.primary;

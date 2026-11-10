@@ -57,8 +57,12 @@ test('Packet Snare\'s tree follows the Training tree\'s rules: priced past its p
         // the owner's call on the 15.5 log: the packet and red nodes folded into the early ones (`deep`), up to 9 levels
         else assert.ok(n.max >= 1 && n.max <= (n.deep ? 9 : 5), `${n.id} has 1–5 levels (a folded node up to 9)`);
         assert.ok(n.cost.signal > 0 && Object.keys(n.cost).length === 1, `${n.id} is bought with Signal`);
+        // the copy pass (the owner's calls): short rules text, no quips, and no colour words (themes colour packets
+        // differently: bad packets are "unreadable", Firewalls are Firewalls, not "sections")
         assert.ok(n.effect && n.effect.length <= 80, `${n.id}: a short, plain effect`);
-        assert.ok(n.flavor && n.flavor.length <= 70, `${n.id}: a short quip`);
+        assert.ok(!/per level|a level\b|\(\d|\d \/ \d/.test(n.effect), `${n.id}: one level's rules, no per-level asides`);
+        assert.ok(!/\b(red|blue|green|amber)\b|\bsections?\b/i.test(n.effect), `${n.id}: no colour words`);
+        assert.equal(n.flavor, undefined, `${n.id}: no quip`);
         const key = `${n.snare.x},${n.snare.y}`;
         assert.ok(!seen.has(key), `${n.id} overlaps another node`);
         seen.add(key);
@@ -85,7 +89,7 @@ test('every upgrade has a valid tab, cost and dependency', () => {
             assert.ok(up.icon, `${up.id} icon`);
         } else if (up.tab === 'snare') {
             assert.ok(up.snare && Number.isInteger(up.snare.x) && Number.isInteger(up.snare.y), `${up.id} snare tree position`);
-            assert.ok(up.sn && up.effect && up.flavor, `${up.id} effect`);
+            assert.ok(up.sn && up.effect, `${up.id} effect`);   // Packet Snare's nodes carry no quip (the copy pass)
         } else if (up.tab === 'legacy') {
             assert.ok(up.legacy && ['power', 'precision', 'recursion', 'momentum'].includes(up.branch), `${up.id} legacy branch`);
             assert.ok(!up.requires || E.UPGRADE_BY_ID[up.requires].legacy, `${up.id} grows only from another legacy upgrade`);
@@ -532,7 +536,7 @@ test('skills and lab upgrades have a short quip and a plain effect too', () => {
         const k = E.skillAt(i);
         assert.ok(k.flavor && k.flavor.length <= 70 && k.effect, `skill ${i}`);
     }
-    for (const up of E.UPGRADES) assert.ok(up.flavor && up.flavor.length <= 70, `${up.id} has a quip`);
+    for (const up of E.UPGRADES.filter(u => u.tab !== 'snare')) assert.ok(up.flavor && up.flavor.length <= 70, `${up.id} has a quip`);
 });
 
 test('automation is earned: a skill and proof of doing the job by hand', () => {

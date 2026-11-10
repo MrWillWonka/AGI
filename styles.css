@@ -24,6 +24,7 @@
     --snare-good: var(--primary);
     --snare-bad: var(--danger);
     --snare-tag: var(--research);
+    --snare-bubble: var(--success);   /* the bubble you hold: themes move it where it sat on a packet or tag colour */
     --research-deep: #7a4fa6;
     --owned: var(--success);  /* what you've bought (the skill tree): set apart from what you can buy (--warning) */
     --font-display: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
@@ -3146,6 +3147,7 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
     --owned: var(--research);   /* violet: ember and gold were too close to tell bought from buyable */
 }
 :root[data-theme="pink"] {
+    --snare-bubble: var(--primary);   /* the theme's pink: mint sat on the mint good packets */
     --snare-good: #8fe3c8;   /* mint: lavender-pink good packets beside pink-red bad ones */
     --snare-bad: #ff3b3b;
     --bg: #19111a;
@@ -3169,6 +3171,7 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
 }
 /* Void (with the Ominous beat): near-black indigo, cold violet light. */
 :root[data-theme="void"] {
+    --snare-bubble: var(--accent);    /* lavender: teal sat on the teal tag edge */
     --snare-tag: #5fe0c8;    /* teal: a violet tag edge vanished on indigo packets */
     --snare-bad: #ff4646;
     --bg: #07070c;
@@ -3192,6 +3195,7 @@ button, .bay, .tree-node, .facility-room, .chip, .path-canvas, .minimap { touch-
 }
 /* Arcade (with the Retro beat): synthwave neon on deep navy. */
 :root[data-theme="arcade"] {
+    --snare-bubble: var(--research);  /* magenta (the beam now draws lime): green sat close to the lime tag edge */
     --snare-tag: #b6ff3b;    /* lime: a magenta tag read as a red packet */
     --snare-bad: #ff4a26;
     --bg: #0b0820;
@@ -3351,7 +3355,7 @@ body.calm .top-news, body.calm .topbar .phase.pulse, body.calm .journal-button.b
 .snare-stats .snare-signal { margin-left: auto; }
 .snare-hud[hidden] { display: none; }
 .snare-focus { flex: 1; max-width: 320px; height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--border) 80%, transparent); overflow: hidden; }
-.snare-focus-fill { height: 100%; width: 100%; border-radius: inherit; background: var(--primary); transform-origin: left; transition: background 0.2s; }
+.snare-focus-fill { height: 100%; width: 100%; border-radius: inherit; background: var(--snare-good); transform-origin: left; transition: background 0.2s; }
 .snare-focus-fill.low { background: var(--danger); }
 /* the run's last seconds: the bar pulses red and glows (Snare 12.7) */
 .snare-focus.ending { box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 60%, transparent), 0 0 12px color-mix(in srgb, var(--danger) 55%, transparent); animation: snare-ending 0.5s ease-in-out infinite alternate; }
@@ -3439,8 +3443,14 @@ body.calm .snare-deeper { animation: none; }
 /* Its demo smaller there, so the buy button never sits on it (review round 2). */
 .snare-tree-grid .node-detail.docked .demo { width: 160px; margin-inline: auto; }
 .snare-tree-grid .node-detail.docked .demo figcaption { display: none; }
-/* round 6 of the review: on a phone the flavour line pushed the preview and the demo out of the docked popup */
-.snare-tree-grid .node-detail.docked .detail-flavor { display: none; }
+/* a node's rules text (the copy pass): plain text, numbers bold, packet words in the packets' own theme tokens */
+.node-detail .detail-effect.snare-rules { color: var(--text); font: 500 0.9rem/1.4 var(--font-body); }
+.snare-rules .kw-num { font: 700 0.86rem var(--font-mono); }
+.snare-rules .kw-bad { color: var(--snare-bad); font-weight: 700; }
+.snare-rules .kw-gold { color: var(--warning); font-weight: 700; }
+.snare-rules .kw-good { color: var(--snare-good); font-weight: 700; }
+/* the now → after line in the theme's progress colour: --primary is red in the Red theme and read as a warning */
+.snare-tree-grid .node-detail .detail-preview { color: var(--success); }
 .snare-tree-grid .node-detail .detail-buy { position: sticky; bottom: -14px; }
 .snare-tree-grid .tree-zoom { z-index: 3; }
 /* First-meeting cards are tips (the green ↻ header), not a run's card; their button stays in view on short screens. */

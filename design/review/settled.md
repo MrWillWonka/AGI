@@ -36,6 +36,14 @@ not in your top issues. Your top issues should be things the owner hasn't ruled 
 - Effects are never capped or dropped for speed.
 - Toasts can be swiped or clicked away.
 
+**Copy** (the owner's calls, 2026-11-10: game-design and incremental-game standards, not the Training Cluster's rules)
+- Node popups are short rules text, like a card game's: verb first, one level's numbers, no "per level" or "(1 / 2 / 3)" (the level pill and the now → after line carry those). Numbers are bold; packet words take the packets' own theme colours.
+- Packet Snare's nodes have no flavour quips.
+- Look out cards are one line; the demo teaches the rest.
+- Field callouts come in three tiers: rewards gold and number-first, losses one red word, hints small and in normal case in the text colour.
+- No colour words, since themes colour packets differently: bad packets are **unreadable**, never "red"; a Firewall is a Firewall, not a "section". Highlights use theme tokens (`--snare-bad`, `--warning`, `--snare-good`), and no hint uses `--primary` (red in the Red theme).
+- Colours across themes (2026-11-10): the Focus bar is the good-packet colour (red when low, clear in every theme); the bubble has its own token, `--snare-bubble` (the progress colour; Soft pink's pink, Void's lavender, Arcade's magenta, where it sat on a packet or tag colour); the scanner beam and towers draw the tag colour they give. Colour-blind shape cues are a separate follow-up.
+
 **Not bugs (the review build)**
 - The review build opens straight into Packet Snare: an achievement for a training skill and unread mail on arrival are
   side effects of that skip.
