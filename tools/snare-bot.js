@@ -1,6 +1,6 @@
 // tools/snare-bot.js — a Packet Snare player for the tools (tools/snare-boss.js, tools/sim.js), playing the bubble game
 // (Snare 15): it holds a bubble on the biggest clean cluster and lets go when it's grown (or when red is about to swim
-// in), grabs the boss's mines with a bubble and flicks them at the boss, stuns the boss with loops round it while it
+// in), disables the boss's mines with a loop and slings them at the boss (Snare 18.1), stuns the boss with loops round it while it
 // stands to charge (after a human reaction time; with Riposte it parries the charge with a flick across its line instead)
 // and slashes it while it reels, a flick at a time. It never uses walls, decoys, powers or the other exploits, so it's a
 // floor: a player with the tools does better.
@@ -78,11 +78,14 @@ function createBot(s, opt = {}) {
             flick(mx - b.charge.dy * h, my + b.charge.dx * h, mx + b.charge.dy * h, my - b.charge.dx * h);
             return;
         }
-        // A grabbed mine: throw it at the boss (a flick from it, its way).
+        // A disabled mine: sling it at the boss (press on it, pull back the other way, let go; Snare 18.1).
         if (b && s.held.length && s.real >= nextSlash) {
             nextSlash = s.real + slashEvery;
-            const m = s.held[0], d = Math.hypot(b.x - m.x, b.y - m.y) || 1, len = Math.min(L(), d);
-            flick(m.x, m.y, m.x + (b.x - m.x) / d * len, m.y + (b.y - m.y) / d * len);
+            const m = s.held[0], d = Math.hypot(b.x - m.x, b.y - m.y) || 1, pull = (s.opts.slingPull ?? 0.2) * Math.min(s.w, s.h) * 1.05;
+            if (s.drawing) s.liftPen();
+            plan = [{ pen: 'wire' }];
+            for (let i = 0; i <= 8; i++) plan.push([m.x - (b.x - m.x) / d * pull * i / 8, m.y - (b.y - m.y) / d * pull * i / 8]);
+            plan.push('lift');
             return;
         }
         // While it reels: slash it, unless its mines shield it.
@@ -93,10 +96,12 @@ function createBot(s, opt = {}) {
             return;
         }
         if ((wait -= dt) > 0) return;
-        // Its mines: the nearest, grabbed with a quick bubble.
+        // Its mines: the nearest, disabled with a loop round it (Snare 18.1).
         if (s.mines.length) {
             const m = [...s.mines].sort((p, q) => Math.hypot(p.x - (b?.x ?? 0), p.y - (b?.y ?? 0)) - Math.hypot(q.x - (b?.x ?? 0), q.y - (b?.y ?? 0)))[0];
-            bubble(m.x, m.y, 0.4);
+            if (s.drawing) s.liftPen();
+            ring(m.x, m.y, Math.max(0.6, s.closeR * 1.1));
+            ringing = false;
             wait = 0.1;
             return;
         }

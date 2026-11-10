@@ -8,20 +8,31 @@ Tag every issue in your review: `[new]`, `[known K#]` or `[regression]`. Issues 
 Update this file with every fix batch (move fixed ones to *fixed: verify*, drop them after a review confirms them).
 
 ## Open
-- **K5 The boss's two loops are hard to read:** LOOP 1/2 is easy to miss mid-fight, and a loop that fails doesn't say why
-  (touched it, too late, missed it) (rounds 7–10; round 10: looping a boss that's already stunned says LOOPS ARE FOR THE
-  BOSS · HOLD STILL TO CATCH mid-fight).
 - **K6 A maxed field is cluttered:** 1,400 small packets, helpers, lasers and labels; the player's own bubble is hard to
   find (rounds 7–9).
-- **K7 Grabbing a mine with a quick bubble often misses** (round 7; round 10: mines now sit on a ring away from the boss,
-  but the boss walks onto them and pops the grab bubble, `pop:boss` 5 times in the owner's sector-11 runs).
 - **K17 Sector 11's nets do nothing in the fight** (the field is swallowed, so a net has nothing to wipe: 0 netted in
   every fight) (round 10; the owner: after the next log).
 - **K20 Screens, smaller:** the HUD is small and far from the field at 1920 and 4K; a sideways Look out card shows a line
   or two before Start covers it; at 360 × 640 a tree popup can clip its effect line; an UPDATING label clips at the
   field's edge (round 10).
+- **K22 Demos are too short to read** (the owner, 2026-11-10): demos should run a bit longer and show a beat **before
+  and after** the action they teach, so the change is clear; a demo whose bubble should hold packets should grow it
+  **a bit bigger**, so it's plainly round them. Each demo can now set its own length (`period` in `snare-demos.js`,
+  default 3.2 s); the mines and Defuse demos already use it (4.6 s and 3.6 s). The rest wait for a demo pass.
 
 ## Fixed: verify
+- **F29 (K7) Grabbing a mine with a quick bubble often missed, and the boss popped the grab bubble:** the owner's call
+  (Snare 18.1): **a loop drawn round a mine disables it** (a bubble no longer takes one), and **a disabled mine is
+  flung like a slingshot**: press on it, pull back away from where it should go, let go. The further the pull, the
+  faster it flies (full speed at a fifth of the field's shorter side), and while it's pulled a band and a dashed aim
+  line show where it will fly, bounces included (solid to the boss when it would hit). The mine's 5 s clock holds while
+  it's pulled; a pull too short says `> pull back further`. No wire is drawn while pulling, so nothing can snap it.
+  Until the first fling, `> pull back · let go` and a pull-back gesture show on a disabled mine. The bot (`snare-boss.js`)
+  does the same damage as before (same sectors fall). Check it on a phone: the loop round a mine, then the pull.
+- **F28 (K5) The boss's two loops were hard to read:** LOOP n/2 shows large over the boss until the 3.5 s window to
+  loop it again runs out, with a ring draining round it, and in the middle of the fight's health bar; a loop after the
+  window says `> too slow · back to loop 1/2`, and a loop round a boss that's already stunned says
+  `> it's stunned · slash it` (it said LOOPS ARE FOR THE BOSS mid-fight).
 - **F27 (K19) Sector 12's goal (843K) was a wall:** the goal curve (×2.45 a sector) took a step on boss sectors too, so
   every sector after a boss asked ×6 the one before; boss sectors now take none: 9 asks 23K, 10 57K, 12 140K, 13 344K.
   The bot clears a sector every 8–10 minutes from 9 to 15 (it took 42–45 runs on 12). Check sectors 9 and 12 by hand.

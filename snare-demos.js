@@ -11,6 +11,9 @@
 
     const FIELD = { w: 6, h: 2.8 };
     const PERIOD = 3.2;
+    // A demo may run longer (`period` on it, s): the owner's call (2026-11-10), demos show a beat before and after the
+    // action so it reads.
+    const periodOf = kind => DEMOS[kind]?.period || PERIOD;
     // A ring of points round (cx, cy), starting at its top and going a little past it, so the loop closes.
     const ring = (cx, cy, rx, ry, n = 28, turns = 1) => Array.from({ length: n * turns + 3 }, (_, i) => [cx + Math.cos(-Math.PI / 2 + i / n * Math.PI * 2) * rx, cy + Math.sin(-Math.PI / 2 + i / n * Math.PI * 2) * ry]);
 
@@ -89,16 +92,18 @@
             strokes: [[0.75, 0.82, line(2.6, 0.3, 2.6, 2.5, 6)], [1.25, 1.32, line(1.2, 0.3, 1.2, 2.5, 6)], [1.7, 1.77, line(0.4, 0.6, 2.0, 2.2, 6)]],
             tick: (r, sim) => { if (r.boss) { if (!sim.armed) { sim.armed = true; r.boss.chargeAt = r.time + 0.3; } Object.assign(r.boss, { x: 1.2, y: 1.4, vx: 0, vy: 0 }); } },
             expect: r => r.stats.parries >= 1 && r.stats.bossDamage >= 2 },
-        // Its mines (Snare 17.8, round 10: the demo showed the old mine sat against the boss): a mine out in the arena, a bubble
-        // grabs it, and a flick throws it as a puck that banks off the bottom edge into the boss.
-        mines: { text: 'Bubble a mine, flick it: it flies, banks off the edge, hits the boss', opts: { boss: 9, bossAt: 0, bossMines: 2, netTime: 9, netRange: 1 },
+        // Its mines (Snare 18.1, K7, the owner's call: loop round a mine to disable it, pull it back and let go to fling it):
+        // a mine out in the arena, looped, then pulled back like a slingshot; it flies, banks off the bottom edge into the
+        // boss. 4.6 s: the armed mine first, the boss reeling after.
+        mines: { text: 'Loop a mine, pull it back, let go: it banks off the edge into the boss', period: 4.6, opts: { boss: 9, bossAt: 0, bossMines: 2, netTime: 9, netRange: 1, mineHold: 9 },
             packets: [['good', 4.6, 0.6], ['good', 5.2, 2.2], ['good', 4.9, 1.6]],
             setup: r => { r.step(1 / 60); r.boss.mineAt = 99; r.mines = []; r.links = []; },
             tick: (r, sim) => {
                 if (r.boss) Object.assign(r.boss, { x: 1.0, y: 1.0, vx: 0, vy: 0, chargeAt: 99 });
                 if (sim.t > 0.05 && !sim.laid) { sim.laid = true; r.mines.push({ id: 900, x: 3.2, y: 1.0 }, { id: 901, x: 5.3, y: 0.5 }); r.links.push({ a: 900, b: 901, t: 0 }); }
             },
-            bubbles: [[0.3, 1.0, 3.2, 1.0]], strokes: [[1.25, 1.33, line(3.2, 1.0, 2.4, 2.3, 6)]],
+            // the loop round it (0.7–1.5 s), then the pull back away from where it should go (1.9–2.6 s), let go
+            strokes: [[0.7, 1.5, ring(3.2, 1.0, 0.45, 0.45).slice(0, 26)], [1.9, 2.6, line(3.2, 1.0, 3.2 + 0.36, 1.0 - 0.59, 10)]],
             expect: r => r.stats.minesGrabbed >= 1 && r.stats.mineThrows >= 1 && r.stats.mineHits >= 1 && r.stats.mineBounces >= 1 },
         // Split (Fork Bomb): a full bubble let go forks into smaller ones round it, which catch a moment later.
         fork: { text: 'Let go a full bubble: it splits, and the halves catch too', opts: { fork: 1, bubbleTime: 1 },
@@ -124,14 +129,14 @@
             bubbles: [[0.2, 0.7, 1.3, 1.35], [0.9, 1.4, 3.1, 1.35], [1.6, 2.1, 4.9, 1.35]],
             expect: r => r.stats.surges >= 1 },
         // Defuse at its last level: grab one mine and the nearest other comes too.
-        defuse: { text: 'Bubble a mine: its neighbour comes too, and nets link slower', opts: { boss: 4, bossAt: 0, bossMines: 2, defuseChain: 1, netTime: 5 },
+        defuse: { text: 'Loop a mine: its neighbour is disabled too, and nets link slower', period: 3.6, opts: { boss: 4, bossAt: 0, bossMines: 2, defuseChain: 1, netTime: 5 },
             packets: [['good', 5.5, 2.5]],
             setup: r => { r.step(1 / 60); r.boss.mineAt = 99; r.mines = []; r.links = []; },
             tick: (r, sim) => {
                 if (r.boss) Object.assign(r.boss, { x: 0.8, y: 1.4, vx: 0, vy: 0, chargeAt: 99 });
                 if (sim.t > 0.05 && !sim.laid) { sim.laid = true; r.mines.push({ id: 900, x: 2.6, y: 1.4 }, { id: 901, x: 4.6, y: 1.4 }); r.links.push({ a: 900, b: 901, t: 0 }); }
             },
-            bubbles: [[0.8, 1.8, 4.6, 1.4]], expect: r => r.stats.minesGrabbed >= 2 },
+            strokes: [[0.8, 1.6, ring(4.6, 1.4, 0.45, 0.45).slice(0, 26)]], expect: r => r.stats.minesGrabbed >= 2 },
         // Snare 10.3: Firehose's pulse, Clean Sweep, Quarantine Relay, Backpressure.
         pulse: { text: 'A clean catch: a pulse of new packets swims in', opts: { pulse: 2, flow: true, flowSpread: 0.2, schoolSize: 4 },
             packets: [['good', 2.8, 1.3], ['good', 3.2, 1.6], ['good', 2.9, 1.7]],
@@ -273,5 +278,5 @@
     // Did a demo show what it's for? (Played through once, in the tests.)
     const shows = (sim) => DEMOS[sim.kind].expect(sim.run, sim);
 
-    return { DEMOS, FIELD, PERIOD, start, step, shows };
+    return { DEMOS, FIELD, PERIOD, periodOf, start, step, shows };
 });

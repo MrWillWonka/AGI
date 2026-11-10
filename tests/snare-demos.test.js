@@ -11,7 +11,7 @@ const E = require('../engine.js');
 for (const kind of Object.keys(D.DEMOS)) {
     test(`the ${kind} demo shows its payoff`, () => {
         const sim = D.start(P, kind);
-        for (let t = 0; t < D.PERIOD; t += 1 / 60) D.step(sim, 1 / 60);
+        for (let t = 0; t < D.periodOf(sim.kind); t += 1 / 60) D.step(sim, 1 / 60);
         assert.ok(D.shows(sim), `${kind}: ${D.DEMOS[kind].text}`);
     });
 }

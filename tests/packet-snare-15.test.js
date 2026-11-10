@@ -152,20 +152,31 @@ test('a bubble quarantines a core, hijacks a stunned Antivirus and collects garb
     assert.equal(g.stats.collected, 2);
 });
 
-test('boss mines: a bubble grabs one (no shield, no nets); a flick from it at the boss throws it through the guard', () => {
+// Snare 18.1 (K7, the owner's call): a loop round a mine disables it; pulled back from and let go, it flies (a sling).
+function sling(s, x, y, dx, dy, steps = 8) {
+    s.setPen(null);
+    for (let i = 0; i <= steps; i++) { s.addPoint(x + dx * i / steps, y + dy * i / steps); s.step(1 / 60); }
+    s.liftPen();
+}
+
+test('boss mines: a loop round one disables it (no shield, no nets); pulled back and let go it flies through the guard', () => {
     const s = still({ boss: 20, bossAt: 0, bossMines: 2, mineEvery: 99 });
     run(s, 0.05);
     Object.assign(s.boss, { x: 3, y: 4, vx: 0, vy: 0, chargeAt: 99, charge: null, mineAt: 99 });
     s.mines.push({ id: 900, x: 8, y: 4 }, { id: 901, x: 8, y: 6.5 }, { id: 902, x: 9.5, y: 2 });
     run(s, 0.05);
     assert.ok(s.boss.shielded, 'shielded while two stand');
+    // a bubble no longer takes one
     bubble(s, 8, 4, 0.5);
-    assert.equal(s.held.length, 1);
+    assert.equal(s.held.length, 0, 'a bubble leaves it be');
+    circle(s, 8, 4, 0.9);
+    assert.equal(s.held.length, 1, 'the loop disabled it');
     assert.equal(s.mines.length, 2);
-    // flick from the held mine toward the boss (it needn't reach it); the guard is up and two mines still shield it
+    assert.ok(!s.takeEvents().some(e => e.type === 'loopOnly'), 'a loop round a mine is no wasted loop');
+    // pulled back away from the boss and let go: it flies at it; the guard is up and two mines still shield it
     Object.assign(s.boss, { x: 3, y: 4, vx: 0, vy: 0, stunned: 0 });
     const hp = s.boss.hp;
-    flickLine(s, 8, 4, 6.4, 4);
+    sling(s, 8, 4, 2.5, 0);
     assert.equal(s.stats.mineThrows, 1);
     // Snare 17.7: it flies as a puck; it lands on the boss a moment later
     for (let i = 0; i < 60 && !s.stats.mineHits; i++) { Object.assign(s.boss, { vx: 0, vy: 0 }); s.step(1 / 60); }
@@ -178,7 +189,7 @@ test('boss mines: a bubble grabs one (no shield, no nets); a flick from it at th
     run(t, 0.05);
     Object.assign(t.boss, { x: 3, y: 4, vx: 0, vy: 0, chargeAt: 99, charge: null, mineAt: 99 });
     t.mines = [{ id: 900, x: 8, y: 4 }];
-    bubble(t, 8, 4, 0.5);
+    circle(t, 8, 4, 0.9);
     assert.equal(t.mines.length, 0);
     run(t, 1.2);
     assert.equal(t.held.length, 0);
@@ -188,8 +199,62 @@ test('boss mines: a bubble grabs one (no shield, no nets); a flick from it at th
     run(d, 0.05);
     Object.assign(d.boss, { x: 2, y: 2, vx: 0, vy: 0, chargeAt: 99, charge: null, mineAt: 99 });
     d.mines = [{ id: 900, x: 8, y: 4 }, { id: 901, x: 10, y: 6 }];
-    bubble(d, 8, 4, 0.5);
+    circle(d, 8, 4, 0.9);
     assert.equal(d.held.length, 2);
+});
+
+test('the sling: a short pull is no throw and says so; the further the pull the faster; the clock holds while pulled', () => {
+    const setup = () => {
+        const s = still({ boss: 20, bossAt: 0, bossMines: 1, mineEvery: 99, mineHold: 1 });
+        run(s, 0.05);
+        Object.assign(s.boss, { x: 3, y: 4, vx: 0, vy: 0, chargeAt: 99, charge: null, mineAt: 99 });
+        s.mines = [{ id: 900, x: 8, y: 4 }];
+        circle(s, 8, 4, 0.9);
+        assert.equal(s.held.length, 1);
+        s.takeEvents();
+        return s;
+    };
+    const short = setup();
+    sling(short, 8, 4, 0.3, 0);
+    assert.equal(short.stats.mineThrows, 0);
+    assert.equal(short.takeEvents().find(e => e.type === 'mineMiss')?.why, 'short');
+    assert.equal(short.held.length, 1, 'still held');
+    const speed = pull => { const s = setup(); sling(s, 8, 4, pull, 0); return Math.hypot(s.thrown[0].vx, s.thrown[0].vy); };
+    assert.ok(speed(1.2) < speed(2.4), 'a bigger pull flies faster');
+    assert.equal(speed(2.4), speed(3.5), 'full speed past the full pull');
+    const aimed = setup();
+    sling(aimed, 8, 4, 0, 2.5);
+    assert.ok(aimed.thrown[0].vy < 0 && Math.abs(aimed.thrown[0].vx) < 1e-9, 'it flies away from the pull');
+    // pulled for longer than the mine's clock: it doesn't go live in the hand
+    const slow = setup();
+    slow.addPoint(8, 4);
+    for (let i = 0; i < 90; i++) { slow.addPoint(8 + 2 * Math.min(1, i / 30), 4); slow.step(1 / 60); }
+    assert.equal(slow.held.length, 1, 'the clock held while it was pulled');
+    const aim = slow.slingAim();
+    assert.ok(aim && aim.pts.length > 2 && aim.hits, 'the aim line runs to the boss');
+    slow.liftPen();
+    assert.equal(slow.stats.mineThrows, 1);
+});
+
+test('K5: a loop round a stunned boss says so (not "loops are for the boss"); a loop after the window restarts the count', () => {
+    const s = still({ boss: 20, bossAt: 0 });
+    run(s, 0.05);
+    Object.assign(s.boss, { x: 6, y: 4, vx: 0, vy: 0, chargeAt: 99, charge: null, stunned: s.time + 5 });
+    s.takeEvents();
+    circle(s, 6, 4, 2);
+    const ev = s.takeEvents();
+    assert.ok(ev.some(e => e.type === 'loopStunned'));
+    assert.ok(!ev.some(e => e.type === 'loopOnly'));
+    const t = still({ boss: 20, bossAt: 0 });
+    run(t, 0.05);
+    Object.assign(t.boss, { x: 6, y: 4, vx: 0, vy: 0, chargeAt: 99, charge: null });
+    circle(t, 6, 4, 2);
+    run(t, P.SNARE.bossLoopWindow + 0.2);
+    Object.assign(t.boss, { x: 6, y: 4, vx: 0, vy: 0, chargeAt: 99, charge: null });
+    t.takeEvents();
+    circle(t, 6, 4, 2);
+    const late = t.takeEvents().find(e => e.type === 'bossLoop');
+    assert.ok(late && late.late && late.n === 1, 'too late: back to loop 1');
 });
 
 test('two loops round the boss still stun it', () => {

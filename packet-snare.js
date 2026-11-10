@@ -157,9 +157,10 @@
         // Supernova (Starburst, Snare 15): a bubble let go while the field is frozen bursts to `novaRing` × its size:
         // everything good in that at ×`starMult` on top of the bubble's multiplier, red there deleted, mines cleared.
         novaRing: 1.35,
-        // Boss mines (Snare 15, the owner's call): a bubble let go over one grabs it for `mineHold` s (it stops linking and
-        // shielding); a flick from it at the boss throws it for `mineThrow` damage, through the guard, and the boss reels
-        // `mineReel` s. Not thrown in time, it goes live again.
+        // Boss mines (Snare 15, the owner's call; Snare 18.1, K7, the owner's call: a quick bubble often missed and the boss
+        // popped it): a loop drawn round one disables it for `mineHold` s (it stops linking and shielding); pulled back from
+        // and let go (a slingshot) it flies for `mineThrow` damage, through the guard, and the boss reels `mineReel` s. Not
+        // flung in time, it goes live again.
         mineHold: 5,
         mineThrow: 3,
         mineReel: 1,
@@ -173,6 +174,10 @@
         mineDrag: 0.35,
         mineBounces: 2,
         mineBank: 0,
+        // Snare 18.1 (K7): the sling. A pull of `slingPull` x the shorter side flings at full speed (`mineSpeed`), less
+        // down to 0.4 of it; a pull under `slingMin` x the closing ring is no throw. The mine's clock holds while it's pulled.
+        slingPull: 0.2,
+        slingMin: 0.8,
         threatWait: 4,              // s: a new threat waits this long at most for the pen to lift (Snare 15)
         teachRed: 0,                // sector 1 (no red share): this many red packets anyway, to meet them (Snare 15)
         // Bots (Snare 11, the owner's call): small drones that seek red packets by themselves. A Cleaner bot (Intrusion)
@@ -568,7 +573,8 @@
             mines: [],              // the boss's mines: { id, x, y }
             links: [],              // nets growing between mines: { a, b, t } (mine ids; done at t ≥ netTime)
             splits: [],             // Split: bubbles a full one forked into, waiting to catch { x, y, r, at, mult }
-            held: [],               // boss mines grabbed by a bubble { id, x, y, until }
+            held: [],               // boss mines disabled by a loop { id, x, y, until }
+            sling: null,            // a disabled mine being pulled back { id, x, y, to }
             thrown: [],             // thrown mines in flight { id, x, y, vx, vy, bounces }
             handCaught: 0,          // packets caught by hand (loops): what boots the boss early
             rogueAt: o.rogue ? o.rogueFirst : Infinity,
@@ -1162,8 +1168,9 @@
             return true;
         }
 
-        // A bubble let go over a mine grabs it (Snare 15): it leaves the field's mines (no nets, no shield) and waits,
-        // glowing, to be flicked at the boss; Defuse at its last level grabs the nearest other too.
+        // A loop round a mine disables it (Snare 18.1, K7; a bubble grabbed it from Snare 15): it leaves the field's mines
+        // (no nets, no shield) and waits, glowing, to be pulled back and flung; Defuse at its last level takes the nearest
+        // other too.
         function grabMines(poly) {
             const hit = s.mines.filter(m => pointInPolygon(m, poly));
             if (!hit.length) return false;
@@ -1218,10 +1225,12 @@
                 if (Math.hypot(m.vx, m.vy) < minV) drop('slow');
             }
         }
-        // Not thrown in time, a grabbed mine goes live again where it was.
-        function heldStep() {
+        // Not flung in time, a disabled mine goes live again where it was (its clock holds while it's being pulled).
+        function heldStep(dt) {
+            if (s.sling) for (const q of s.held) if (q.id === s.sling.id) q.until += dt;
             for (const m of s.held.filter(q => s.time >= q.until)) {
                 s.held = s.held.filter(q => q !== m);
+                if (s.sling?.id === m.id) s.sling = null;
                 if (!s.boss) continue;
                 for (const q of s.mines) if (Math.hypot(q.x - m.x, q.y - m.y) <= linkR()) s.links.push({ a: q.id, b: m.id, t: 0 });
                 s.mines.push({ id: m.id, x: m.x, y: m.y });
@@ -2096,23 +2105,8 @@
             if (!boss && !o.spoof) return false;
             const a = st.pts[0], b = st.pts[st.pts.length - 1];
             const chord = Math.hypot(b.x - a.x, b.y - a.y), path = wireLength(st.pts);
-            // A grabbed mine flicked at the boss (Snare 15): from the mine, in the boss's direction (it needn't reach it).
-            const mine = boss && s.held.find(m => Math.hypot(m.x - a.x, m.y - a.y) < MINE_R + Math.max(0.6, closeR * 0.6));
-            if (s.real - (mine && st.moveT != null ? st.moveT : st.t0) > o.flickTime || chord < o.flickLength || chord < path * 0.75) {
-                // a stroke from a held mine that was too slow, short or bent to be a flick says so (`mineMiss`)
-                if (mine && chord > closeR * 0.5) s.events.push({ type: 'mineMiss', why: 'quick', x: mine.x, y: mine.y });
-                return false;
-            }
+            if (s.real - st.t0 > o.flickTime || chord < o.flickLength || chord < path * 0.75) return false;
             let hit = false, near = false;
-            // Snare 17.7: it flies the way it was flicked, a puck off the field's edges (air hockey).
-            if (mine) {
-                const dx = (b.x - a.x) / chord, dy = (b.y - a.y) / chord, v = o.mineSpeed * shortSide;
-                s.held = s.held.filter(m => m !== mine);
-                s.thrown.push({ id: mine.id, x: mine.x, y: mine.y, vx: dx * v, vy: dy * v, bounces: 0 });
-                s.stats.mineThrows++;
-                s.events.push({ type: 'mineLaunch', x: mine.x, y: mine.y, vx: dx * v, vy: dy * v });
-                return true;
-            }
             if (boss) {
                 const through = segDist(boss, a, b) < boss.r;
                 // Swipes at the boss are never flagged (a blind playtest: a missed slash set off an alert it hadn't been
@@ -2213,7 +2207,7 @@
             s.time += dt;
             raceStep(dt);
             splitStep();
-            heldStep();
+            heldStep(dt);
             thrownStep(dt);
             // Burst out of a beaten boss: flung fast, they ease back to a swim (on a current they'd leave the field).
             for (const p of s.packets) {
@@ -2529,8 +2523,10 @@
         // Loops round the boss stun it (the wire never touched it, or it would have snapped): `bossLoops` of them, each
         // within `bossLoopWindow` of the last; a spiral round it counts each turn.
         function loopBoss(poly) {
-            if (!s.boss || s.boss.stunned > s.time || !pointInPolygon(s.boss, poly)) return false;
+            if (!s.boss || !pointInPolygon(s.boss, poly)) return false;
             const b = s.boss;
+            // Already stunned: no count, but it says so (K5: it used to say loops are for the boss, mid-fight).
+            if (b.stunned > s.time) { s.events.push({ type: 'loopStunned', x: b.x, y: b.y, poly }); return true; }
             const late = (b.loops || 0) > 0 && s.time - (b.loopAt ?? -1e9) > o.bossLoopWindow;
             b.loops = s.time - (b.loopAt ?? -1e9) <= o.bossLoopWindow ? (b.loops || 0) + 1 : 1;
             b.loopAt = s.time;
@@ -2565,14 +2561,15 @@
             const at = centroid(poly);
             s.leftStart = false;
             if (o.bubble && !o.loopCatch) {
-                if (!loopBoss(poly)) s.events.push({ type: 'loopOnly', x: at.x, y: at.y, poly });
+                const disabled = grabMines(poly);
+                if (!loopBoss(poly) && !disabled) s.events.push({ type: 'loopOnly', x: at.x, y: at.y, poly });
                 return;
             }
             const j = judge(poly, 0, true);
             // with bubbles, a drawn loop is a wire catch (`wire`: it can be rushed); mines are a bubble's to grab
             if (o.bubble) j.wire = true;
             let acted = s.cores.length && j.area <= o.chokeArea * fieldArea ? quarantineIn(poly) : false;
-            if (!o.bubble && clearMines(poly)) acted = true;
+            if (o.bubble ? grabMines(poly) : clearMines(poly)) acted = true;
             if (loopBoss(poly)) acted = true;
             if (hijackIn(poly)) acted = true;
             if (!j.inside.length) {
@@ -2595,7 +2592,6 @@
         function releaseBubble(poly, b) {
             const at = { x: b.x, y: b.y };
             let acted = quarantineIn(poly);
-            if (grabMines(poly)) acted = true;
             if (hijackIn(poly)) acted = true;
             if (o.star && frozen()) { payNova(b, poly); return; }
             const j = judge(poly, bubbleBonus(b));
@@ -2890,11 +2886,18 @@
                 s.stroke = { t0: s.real, pts: [p] };
                 // the pen's kind (Snare 12.4, the owner: on a mouse, left holds a bubble and right draws the wire): 'bubble'
                 // never turns into a wire, 'wire' never grows a bubble, none (touch) decides by how the stroke moves
-                // a press on a mine you're holding is a throw on its way (resting the finger there first must not grow a bubble)
-                const onMine = s.boss && s.held.some(m => Math.hypot(m.x - x, m.y - y) < MINE_R + Math.max(0.6, closeR * 0.6));
-                if (o.bubble && s.penKind !== 'wire' && !onMine) s.bubble = { x, y, ox: x, oy: y, t0: s.real, r: bubbleMinR(), growing: false, pen: p, locked: s.penKind === 'bubble' };
+                // a press on a disabled mine pulls it back (the sling, Snare 18.1): no bubble, no wire to snap
+                const onMine = s.boss && s.held.find(m => Math.hypot(m.x - x, m.y - y) < MINE_R + Math.max(0.6, closeR * 0.6));
+                if (onMine) {
+                    s.sling = { id: onMine.id, x: onMine.x, y: onMine.y, to: p };
+                    s.wire = [];
+                    s.stroke = null;
+                    return true;
+                }
+                if (o.bubble && s.penKind !== 'wire') s.bubble = { x, y, ox: x, oy: y, t0: s.real, r: bubbleMinR(), growing: false, pen: p, locked: s.penKind === 'bubble' };
                 return true;
             }
+            if (s.sling) { s.sling.to = p; return true; }
             // when the pen first moves off its start (a throw's flick is timed from here, not from the press)
             if (s.stroke && s.stroke.moveT == null && Math.hypot(x - s.stroke.pts[0].x, y - s.stroke.pts[0].y) > closeR * 0.3) s.stroke.moveT = s.real;
             // Bubbles: once one grows it owns the stroke; a pen that wanders off before then draws a wire after all.
@@ -2949,8 +2952,62 @@
             return true;
         }
 
+        // The sling (Snare 18.1, K7, the owner's call): a disabled mine pulled back and let go flies the other way, as a
+        // puck (Snare 17.7), faster the further it was pulled. `slingShot`: what letting go now would do (null with no
+        // sling; `short` under the least pull). `slingAim`: that and the path it would take, bounces included, for the
+        // aim line.
+        function slingShot() {
+            const sl = s.sling;
+            const m = sl && s.held.find(q => q.id === sl.id);
+            if (!m) return null;
+            const px = m.x - sl.to.x, py = m.y - sl.to.y, d = Math.hypot(px, py);
+            const pull = Math.min(1, d / (o.slingPull * shortSide));
+            if (d < o.slingMin * closeR) return { m, short: true, pull };
+            const v = o.mineSpeed * shortSide * (0.4 + 0.6 * pull);
+            return { m, vx: px / d * v, vy: py / d * v, pull };
+        }
+        function slingAim() {
+            const shot = slingShot();
+            if (!shot) return null;
+            const from = { x: shot.m.x, y: shot.m.y };
+            if (shot.short) return { from, short: true, pull: shot.pull, pts: [], hits: false, bounces: 0 };
+            let x = from.x, y = from.y, vx = shot.vx, vy = shot.vy, bounces = 0, hits = false;
+            const pts = [{ x, y }], dt = 1 / 60, minV = 0.12 * shortSide, b = s.boss;
+            for (let i = 0; i < 300; i++) {
+                const k = Math.exp(-o.mineDrag * dt);
+                vx *= k; vy *= k; x += vx * dt; y += vy * dt;
+                let wall = false;
+                if (x < MINE_R) { x = MINE_R; vx = Math.abs(vx); wall = true; }
+                if (x > w - MINE_R) { x = w - MINE_R; vx = -Math.abs(vx); wall = true; }
+                if (y < MINE_R) { y = MINE_R; vy = Math.abs(vy); wall = true; }
+                if (y > h - MINE_R) { y = h - MINE_R; vy = -Math.abs(vy); wall = true; }
+                if (wall) { pts.push({ x, y }); if (bounces >= o.mineBounces) break; bounces++; }
+                if (b && Math.hypot(b.x - x, b.y - y) < b.r + MINE_R * 1.5) { hits = true; break; }
+                if (Math.hypot(vx, vy) < minV) break;
+                if (i % 4 === 0) pts.push({ x, y });
+            }
+            pts.push({ x, y });
+            return { from, pts, pull: shot.pull, hits, bounces };
+        }
+        function fling() {
+            const shot = slingShot();
+            s.sling = null;
+            s.wire = [];
+            s.stroke = null;
+            s.drawing = false;
+            s.leftStart = false;
+            if (!shot || s.over) return;
+            const m = shot.m;
+            if (shot.short) { s.events.push({ type: 'mineMiss', why: 'short', x: m.x, y: m.y }); return; }
+            s.held = s.held.filter(q => q !== m);
+            s.thrown.push({ id: m.id, x: m.x, y: m.y, vx: shot.vx, vy: shot.vy, bounces: 0 });
+            s.stats.mineThrows++;
+            s.events.push({ type: 'mineLaunch', x: m.x, y: m.y, vx: shot.vx, vy: shot.vy });
+        }
+
         // The pen lifts: near the start the loop closes, else an open wire is let go.
         function liftPen() {
+            if (s.sling) { fling(); return; }
             if (s.bubble?.growing) { popBubble(); return; }
             s.bubble = null;
             if (s.race) settleRace();
@@ -2981,6 +3038,7 @@
         // The next stroke's kind: 'bubble', 'wire', or null to decide by how it moves (touch).
         function setPen(kind) { s.penKind = kind || null; }
         function cancelPen() {
+            s.sling = null;
             s.bubble = null;
             s.wire = [];
             s.stroke = null;
@@ -3026,7 +3084,7 @@
             return e;
         }
 
-        return Object.assign(s, { step, nextSector, goalProgress, addPoint, liftPen, cancelPen, setPen, stop, netsDone, netAreas, chargeReach, takeEvents, preview, valueOf, isGood, placeZone, moveZone, zoneAt, placeAt, removeAt, usePower, grab, wallsUp, frozen, layoutOf, emitterSpots });
+        return Object.assign(s, { step, nextSector, goalProgress, addPoint, liftPen, cancelPen, setPen, slingAim, stop, netsDone, netAreas, chargeReach, takeEvents, preview, valueOf, isGood, placeZone, moveZone, zoneAt, placeAt, removeAt, usePower, grab, wallsUp, frozen, layoutOf, emitterSpots });
     }
 
     return { STEP, FIELD_AREA, SNARE, GOLD_VALUE, TAG_VALUE, TAG_SECONDS, LOCK_SECONDS, PACKET_R, AV_R, BOSS_R, BOSS_WARN, BOSS_DASH, BOSS_DASH_SPEED, MINE_R, createSnare, segIntersect, pointInPolygon, polygonArea, wireLength, areaMult, rng };

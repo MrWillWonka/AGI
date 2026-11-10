@@ -15,11 +15,12 @@ function arena(over = {}) {
     return s;
 }
 const hold = (s, x, y) => { s.held.push({ id: 900 + s.held.length, x, y, until: s.time + 99 }); };
+// Snare 18.1 (K7): a disabled mine at (x0, y0) pulled back all the way and let go, aimed through (x1, y1) (it flies the
+// other way from the pull, at full speed past `slingPull`).
 function flick(s, x0, y0, x1, y1) {
-    s.setPen('wire');
-    for (let i = 0; i <= 8; i++) { s.addPoint(x0 + (x1 - x0) * i / 8, y0 + (y1 - y0) * i / 8); if (i % 3 === 0) s.step(1 / 60); }
+    const d = Math.hypot(x1 - x0, y1 - y0), ux = (x1 - x0) / d, uy = (y1 - y0) / d, pull = 3;
+    for (let i = 0; i <= 8; i++) { s.addPoint(x0 - ux * pull * i / 8, y0 - uy * pull * i / 8); s.step(1 / 60); }
     s.liftPen();
-    s.setPen(null);
 }
 const fly = (s, secs) => { for (let i = 0; i < secs * 60; i++) { if (s.boss) Object.assign(s.boss, { vx: 0, vy: 0, x: 10, y: 6, chargeAt: 999, charge: null }); s.step(1 / 60); } };
 

@@ -120,42 +120,36 @@ test('a drawn loop pays at most what a full bubble would (the owner\'s call: cir
     assert.ok(small.takeEvents().find(e => e.type === 'catch').mult < hev.mult, 'a small loop pays less than the cap');
 });
 
-// A boss standing at (3, 4) and a mine held at (8, 4) (grabbed with a bubble), for the throw's teaching.
+// A boss standing at (3, 4) and a mine at (8, 4) disabled by a drawn loop (Snare 18.1, K7), for the sling.
 function holding() {
     const s = still({ boss: 20, bossAt: 0, bossMines: 1, mineEvery: 99 });
     for (let i = 0; i < 3; i++) s.step(1 / 60);
     Object.assign(s.boss, { x: 3, y: 4, vx: 0, vy: 0, chargeAt: 99, charge: null, mineAt: 99 });
     s.mines.push({ id: 900, x: 8, y: 4 });
-    s.setPen('bubble');
-    s.addPoint(8, 4);
-    for (let i = 0; i < 30; i++) { s.addPoint(8, 4); s.step(1 / 60); }
-    s.liftPen();
-    s.setPen(null);
-    assert.equal(s.held.length, 1, 'grabbed');
+    drawCircle(s, 8, 4, 1, 0.5);
+    assert.equal(s.held.length, 1, 'disabled');
     Object.assign(s.boss, { x: 3, y: 4, vx: 0, vy: 0, stunned: 0 });
     s.takeEvents();
     return s;
 }
 
-test('a finger resting on a held mine and then flicking throws it (no bubble grows there)', () => {
+test('a finger resting on a disabled mine grows no bubble; pulling back and letting go flings it', () => {
     const s = holding();
     s.addPoint(8, 4);
     for (let i = 0; i < 40; i++) { s.addPoint(8, 4); s.step(1 / 60); }     // two thirds of a second resting on it
-    assert.ok(!s.bubble, 'no bubble on a held mine');
-    for (let i = 1; i <= 8; i++) { s.addPoint(8 - 0.25 * i, 4); if (i % 3 === 0) s.step(1 / 60); }
+    assert.ok(!s.bubble, 'no bubble on a disabled mine');
+    for (let i = 1; i <= 20; i++) { s.addPoint(8 + 0.12 * i, 4); s.step(1 / 60); }    // a slow, deliberate pull
+    assert.ok(!s.wire.length, 'no wire for an Antivirus to snap');
     s.liftPen();
-    assert.equal(s.stats.mineThrows, 1, 'thrown: the flick is timed from when the finger moved');
+    assert.equal(s.stats.mineThrows, 1, 'flung however slowly it was pulled');
+    assert.ok(s.thrown[0].vx < 0, 'away from the pull, at the boss');
 });
 
-test('a stroke from a held mine that is too slow says so; any quick flick launches it', () => {
-    const slow = holding();
-    for (let i = 0; i <= 30; i++) { slow.addPoint(8 - 0.07 * i, 4); slow.step(1 / 60); }    // half a second dragging
-    slow.liftPen();
-    assert.equal(slow.stats.mineThrows, 0);
-    assert.equal(slow.takeEvents().find(e => e.type === 'mineMiss')?.why, 'quick');
-    const wide = holding();
-    for (let i = 0; i <= 8; i++) { wide.addPoint(8, 4 + 0.25 * i); if (i % 3 === 0) wide.step(1 / 60); }   // straight down, away from it
-    wide.liftPen();
-    assert.equal(wide.stats.mineThrows, 1, 'launched the way it was flicked (Snare 17.7: a puck)');
-    assert.ok(wide.takeEvents().some(e => e.type === 'mineLaunch'));
+test('a pull too short to fling says so, and the mine stays disabled', () => {
+    const s = holding();
+    for (let i = 0; i <= 6; i++) { s.addPoint(8 + 0.05 * i, 4); s.step(1 / 60); }
+    s.liftPen();
+    assert.equal(s.stats.mineThrows, 0);
+    assert.equal(s.takeEvents().find(e => e.type === 'mineMiss')?.why, 'short');
+    assert.equal(s.held.length, 1);
 });

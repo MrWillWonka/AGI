@@ -4129,6 +4129,7 @@ window.AGI = (function () {
                 snareFxFor(e, snare.fx);
                 // why things failed, for the playtest log (`why` on the run's `snare` event)
                 if (t === 'bossLoop' && e.late) snareWhy('loopTooLate');
+                if (t === 'loopStunned') snareWhy('loopStunned');
                 if (t === 'loopOnly' && run.boss) snareWhy('loopMissedBoss');
                 if (t === 'mineMiss') snareWhy(`mineMiss:${e.why}`);
                 if (t === 'corrupt') sfx('snareSpoil');
@@ -4147,7 +4148,10 @@ window.AGI = (function () {
                 else if (t === 'bossCharge') sfx('snareCharge');
                 else if (t === 'parry') { sfx('snareParry'); shake(0.2); state.intro['snare:parried'] = true; }
                 else if (t === 'fizzle') snare.fx.push({ kind: 'hint', x: e.x, y: e.y - 0.6, t: 0, life: 0.9, text: e.bubble ? '> hold longer' : '> too small to loop' });
-                else if (t === 'bossLoop') { sfx('snareStun', { down: false }); snare.fx.push({ kind: 'stun', x: e.x, y: e.y - 1.2, t: 0, life: 0.9, text: `LOOP ${e.n}/${e.of} · AGAIN!`, small: true }); }
+                // K5 (Snare 18.1): the count reads over the boss and on the fight bar while its window runs (drawSnareBoss);
+                // a loop after the window says it was too slow, and one round a stunned boss says to slash it
+                else if (t === 'bossLoop') { sfx('snareStun', { down: false }); if (e.late) snare.fx.push({ kind: 'hint', x: e.x, y: e.y + 1.6, t: 0, life: 1.6, text: `> too slow · back to loop 1/${e.of}` }); }
+                else if (t === 'loopStunned') snare.fx.push({ kind: 'hint', x: e.x, y: e.y + 1.6, t: 0, life: 1.4, text: "> it's stunned · slash it" });
                 else if (t === 'bossLooped') { sfx('snareParry'); shake(0.25); state.intro['snare:looped'] = true; snare.fx = snare.fx.filter(f => !/^LOOP \d/.test(f.text || '')); snare.fx.push({ kind: 'stun', x: e.x, y: e.y - 1.2, t: 0, life: 1, text: 'STUNNED', small: true }); }
                 else if (t === 'slash' && e.shielded) sfx('snareStun', { down: false });
                 else if (t === 'bossHit') { sfx(e.how === 'ram' ? 'snareHit' : 'snareSlash'); shake(0.25); }
@@ -4158,9 +4162,9 @@ window.AGI = (function () {
                 else if (t === 'nova') { sfx('snarePower', { kind: 'freeze' }); shake(0.35); }
                 else if (t === 'split') sfx('snareChain');
                 else if (t === 'raceTick') sfx('snareRace', { step: Math.min(8, Math.round(e.bonus / e.max * 8)) });
-                else if (t === 'mineGrab') { sfx('snareHijack'); state.intro['snare:grabbed'] = true; }
+                else if (t === 'mineGrab') { sfx('snareHijack'); state.intro['snare:grabbed'] = true; state.intro['snare:disabled'] = true; }
                 else if (t === 'mineThrow') { sfx('snareHit'); shake(0.35 + 0.1 * Math.min(3, e.bounces || 0)); }
-                else if (t === 'mineLaunch') { sfx('snareSpoof'); state.intro['snare:thrown'] = true; }
+                else if (t === 'mineLaunch') { sfx('snareSpoof'); state.intro['snare:thrown'] = true; state.intro['snare:slung'] = true; }
                 else if (t === 'mineBounce') sfx('snareZap');
                 else if (t === 'mineLive') sfx('snareCore');
                 else if (t === 'escalate') sfx('snareHijack');
@@ -4206,8 +4210,8 @@ window.AGI = (function () {
         antivirus: ['Antivirus', 'Hunts held bubbles. Release before contact.'],
         sweep: ['Full Scan', 'Edge flashes, then it sweeps the field. Bubbles in its path pop.'],
         boss: ['Boss Antivirus', () => (snareFinePointer() ? 'Loop it twice with the left button to stun it, then slash.' : 'Loop it twice to stun it, then slash.')],
-        mines: ['Mines', 'Grab one with a bubble. Flick it back at the boss.'],
-        nets: ['Nets', 'Three mines close a triangle. Grab them before it shuts.'],
+        mines: ['Mines', 'Loop one to disable it. Pull it back and let go at the boss.'],
+        nets: ['Nets', 'Three mines close a triangle. Loop them before it shuts.'],
         rogue: ['Unknown process', 'Its cores take the data they reach. Release a bubble over one to quarantine it.'],
         firewall: ['Firewalls', 'Now auto-deployed where packets gather. Unreadable data and Antivirus stay out.'],
         decoy: ['Decoys', 'Now auto-deployed. Unreadable data and Antivirus chase them.'],
@@ -5251,14 +5255,15 @@ window.AGI = (function () {
         else if (e.type === 'nova') { fx.push({ kind: 'nova', x: e.x, y: e.y, r: e.r, t: 0, life: 0.9 }); fx.push({ kind: 'flash', t: 0, life: 0.35, warn: false }); }
         else if (e.type === 'split') for (const kd of e.kids) fx.push({ kind: 'splitKid', x: kd.x, y: kd.y, r: kd.r, from: { x: e.x, y: e.y }, t: 0, life: 0.5 });
         else if (e.type === 'splitSpoiled') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: 0.9, text: 'SPLIT GARBLED', small: true });
-        else if (e.type === 'mineGrab') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 0.6, t: 0, life: 0.8, text: state.intro['snare:thrown'] ? 'GRABBED' : 'GRABBED · FLICK IT AT THE BOSS', small: true });
+        // Snare 18.1 (K7): a loop round a mine disables it; until the first fling, the pull-back's hint shows on it
+        else if (e.type === 'mineGrab') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 0.6, t: 0, life: 0.8, text: 'DISABLED', small: true });
         else if (e.type === 'mineThrow') { fx.push({ kind: 'throw', x: e.x, y: e.y, from: e.from, t: 0, life: 0.45 }); fx.push({ kind: 'stun', x: e.x, y: e.y - 1.2, t: 0, life: 1.2, text: e.bank ? `BANK SHOT ×${e.bounces} · −${e.damage}` : `MINE HIT · −${e.damage ?? ''}`, small: !e.bank }); state.intro['snare:thrown'] = true; }
         // Snare 17.7: a thrown mine is a puck; a spark where it bounces, DUD where it gives out
         else if (e.type === 'mineBounce') fx.push({ kind: 'placed', x: e.x, y: e.y, t: 0, life: 0.4 });
         else if (e.type === 'mineDud') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: 0.9, text: 'DUD', small: true });
-        else if (e.type === 'mineLive') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: state.intro['snare:thrown'] ? 0.9 : 1.6, text: state.intro['snare:thrown'] ? 'LIVE AGAIN' : 'LIVE AGAIN · FLICK IT SOONER', small: true });
-        // a stroke from a held mine that didn't throw it says why, until the first throw
-        else if (e.type === 'mineMiss' && !state.intro['snare:thrown']) fx.push({ kind: 'hint', x: e.x, y: e.y - 0.8, t: 0, life: 1.3, text: e.why === 'aim' ? '> aim at the boss' : '> quicker: a fast, straight flick' });
+        else if (e.type === 'mineLive') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: state.intro['snare:slung'] ? 0.9 : 1.6, text: state.intro['snare:slung'] ? 'LIVE AGAIN' : 'LIVE AGAIN · FLING IT SOONER', small: true });
+        // a pull too short to fling says so
+        else if (e.type === 'mineMiss') fx.push({ kind: 'hint', x: e.x, y: e.y - 0.8, t: 0, life: 1.3, text: '> pull back further' });
         else if (e.type === 'escalate') fx.push({ kind: 'flick', a: e.from, b: { x: e.x, y: e.y }, hit: true, t: 0, life: 0.6 });
         else if (e.type === 'garbage') fx.push({ kind: 'catch', poly: e.poly, x: e.x, y: e.y, t: 0, text, packets: [] });
         else if (e.type === 'taken') fx.push({ kind: 'laser', from: { x: e.x, y: e.y }, x: e.packets[0]?.x ?? e.x, y: e.packets[0]?.y ?? e.y, t: 0, life: 0.35, text, small: true });
@@ -5305,7 +5310,7 @@ window.AGI = (function () {
             if (!canvas.offsetParent) return void setTimeout(() => canvas.isConnected && requestAnimationFrame(frame), 800);
             const dt = Math.min(0.05, (now - last) / 1000);
             last = now;
-            if (!sim || sim.t >= D.PERIOD) { sim = D.start(window.PacketSnare, kind); fx = []; }
+            if (!sim || sim.t >= D.periodOf(kind)) { sim = D.start(window.PacketSnare, kind); fx = []; }
             if (reducedMotion()) { while (sim.t < 1.6) advance(1 / 60); } else advance(dt);
             drawSnareView(ctx, { run: sim.run, effects: fx, k, ox: (SNARE_DEMO.w - D.FIELD.w * k) / 2, oy: (SNARE_DEMO.h - D.FIELD.h * k) / 2,
                 cw: SNARE_DEMO.w, ch: SNARE_DEMO.h, dpr, field: sim.run });
@@ -5430,6 +5435,19 @@ window.AGI = (function () {
             ctx.textAlign = 'right';
             ctx.fillText(`${Math.ceil(f.left)} s LEFT`, bx + bw - 6, by + bh / 2 + 1);
             ctx.textAlign = 'center';
+            // K5 (Snare 18.1): a loop count running shows in the bar's middle too, fading as its window runs out
+            const need = run.opts.bossLoops || 1, loopLeft = b.loops > 0 && !(b.stunned > run.time) ? 1 - (run.time - (b.loopAt ?? 0)) / run.opts.bossLoopWindow : 0;
+            if (need > 1 && loopLeft > 0) {
+                // on a dark pill: amber on the bar's red didn't read
+                const lw = ctx.measureText(`LOOP ${b.loops}/${need}`).width + 14;
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = C.bg;
+                ctx.fillRect(W / 2 - lw / 2, by - 1, lw, bh + 2);
+                ctx.globalAlpha = 0.45 + 0.55 * loopLeft;
+                ctx.fillStyle = C.warning;
+                ctx.fillText(`LOOP ${b.loops}/${need}`, W / 2, by + bh / 2 + 1);
+                ctx.globalAlpha = 1;
+            }
             // a snap or a spoil took time off the clock: −n s CLOCK under the bar, a loss in red, fading (Snare 17.8)
             const cost = sn.fightCost, ago = cost ? (performance.now() - cost.at) / 1400 : 1;
             const big = Math.round(Math.min(W, H) * 0.06);
@@ -6325,16 +6343,17 @@ window.AGI = (function () {
         ctx.globalAlpha = 1;
     }
 
-    // Mines a bubble grabbed (Snare 15): amber diamonds in a bubble's skin, a ring draining with the time left, and a
-    // dashed line to the boss until the first throw (flick from it at the boss).
+    // Mines a loop disabled (Snare 18.1, K7): amber diamonds in a glow, a ring draining with the time left; until the first
+    // fling the pull-back gesture shows on them; while one is pulled, the band and where it would fly (drawSnareSling).
     function drawSnareHeld(d) {
         const { ctx, C, k, run, t } = d;
         drawSnareThrown(d);
         if (!run.held?.length) return;
         const P = window.PacketSnare, r = Math.max(8, P.MINE_R * k);
+        drawSnareSling(d, r);
         for (const m of run.held) {
             const x = m.x * k, y = m.y * k, left = Math.max(0, (m.until - run.time) / run.opts.mineHold);
-            if (run.boss && !state.intro['snare:thrown']) drawSnareThrowHint(d, x, y, r);
+            if (run.boss && !run.sling && !state.intro['snare:slung']) drawSnareThrowHint(d, x, y, r);
             ctx.globalAlpha = 0.25 + 0.15 * Math.sin(t * 8);
             ctx.fillStyle = C.warning;
             ctx.beginPath(); ctx.arc(x, y, r * 1.9, 0, Math.PI * 2); ctx.fill();
@@ -6388,8 +6407,43 @@ window.AGI = (function () {
         }
     }
 
-    // Until your first throw (the owner's call on the 17.5 log: 12 mines grabbed, none thrown): a big amber swipe
-    // sweeping from the held mine toward the boss again and again, the faint path to it, and FLICK AT THE BOSS on the mine.
+    // A disabled mine being pulled back (Snare 18.1, K7): the band from the mine to the finger, and the path it would fly
+    // if let go now, its bounces included (`slingAim` in the rules), amber, solid to the boss when it would hit it.
+    function drawSnareSling(d, r) {
+        const { ctx, C, k, run, t } = d;
+        const aim = run.sling && run.slingAim?.();
+        if (!aim) return;
+        const x = aim.from.x * k, y = aim.from.y * k, px = run.sling.to.x * k, py = run.sling.to.y * k;
+        ctx.globalAlpha = 0.9;
+        ctx.strokeStyle = aim.short ? C.muted : C.warning;
+        ctx.lineWidth = 2 + 3 * aim.pull;
+        ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(px, py); ctx.stroke();
+        ctx.fillStyle = C.text;
+        ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.fill();
+        if (aim.pts.length > 1) {
+            ctx.globalAlpha = aim.hits ? 0.95 : 0.55;
+            ctx.strokeStyle = C.warning;
+            ctx.lineWidth = aim.hits ? 3 : 2;
+            ctx.setLineDash([6, 6]);
+            ctx.lineDashOffset = -t * 40;
+            ctx.beginPath();
+            aim.pts.forEach((p, i) => (i ? ctx.lineTo(p.x * k, p.y * k) : ctx.moveTo(p.x * k, p.y * k)));
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.lineDashOffset = 0;
+            const end = aim.pts[aim.pts.length - 1];
+            ctx.beginPath(); ctx.arc(end.x * k, end.y * k, aim.hits ? 7 : 4, 0, Math.PI * 2);
+            ctx.fillStyle = C.warning;
+            ctx.fill();
+        }
+        ctx.lineCap = 'butt';
+        ctx.globalAlpha = 1;
+    }
+
+    // Until your first fling (Snare 18.1, K7; it was a flick, taught the same way after the 17.5 log): a finger pulling
+    // back from the disabled mine, away from the boss, again and again, the faint path to the boss it would fly, and
+    // > pull back · let go beside the mine.
     function drawSnareThrowHint(d, x, y, r) {
         const { ctx, C, k, run, t } = d;
         const bx = run.boss.x * k, by = run.boss.y * k, dist = Math.hypot(bx - x, by - y);
@@ -6404,29 +6458,25 @@ window.AGI = (function () {
         ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(bx - nx * run.boss.r * k, by - ny * run.boss.r * k); ctx.stroke();
         ctx.setLineDash([]);
         ctx.lineDashOffset = 0;
-        // the gesture: a thick stroke from the mine shooting toward the boss, its arrowhead leading
-        const reach = Math.max(40, Math.min(dist - run.boss.r * k, 150)), ph = (t * 1.8) % 1;
-        const head = r * 1.4 + reach * Math.min(1, ph * 1.4);
-        ctx.globalAlpha = 0.95 * (1 - Math.max(0, ph - 0.72) * 3.5);
+        // the gesture: a band stretching back from the mine, away from the boss, a finger dot at its end, then let go
+        const reach = Math.max(36, Math.min(90, run.opts.slingPull * Math.min(run.w, run.h) * k)), ph = (t * 0.9) % 1;
+        const pull = r * 1.2 + reach * Math.min(1, ph * 1.6);
+        ctx.globalAlpha = 0.95 * (1 - Math.max(0, ph - 0.75) * 4);
         ctx.strokeStyle = C.warning;
-        ctx.lineWidth = 6;
-        ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(x + nx * r * 1.4, y + ny * r * 1.4); ctx.lineTo(x + nx * head, y + ny * head); ctx.stroke();
-        const hx = x + nx * head, hy = y + ny * head;
         ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.moveTo(hx - nx * 14 + px * 11, hy - ny * 14 + py * 11);
-        ctx.lineTo(hx, hy);
-        ctx.lineTo(hx - nx * 14 - px * 11, hy - ny * 14 - py * 11);
-        ctx.stroke();
+        ctx.lineCap = 'round';
+        const ex = x - nx * pull, ey = y - ny * pull;
+        ctx.beginPath(); ctx.moveTo(x - nx * r * 1.2, y - ny * r * 1.2); ctx.lineTo(ex, ey); ctx.stroke();
+        ctx.fillStyle = C.text;
+        ctx.beginPath(); ctx.arc(ex, ey, 7, 0, Math.PI * 2); ctx.fill();
         ctx.lineCap = 'butt';
-        // the words, on the mine's far side from the boss and kept inside the field
+        // the words, beside the mine (off the line both ways) and kept inside the field
         ctx.globalAlpha = 1;
-        const label = '> flick at the boss';
+        const label = '> pull back · let go';
         ctx.font = snareHintFont(15);
         ctx.textAlign = 'center';
         const tw = ctx.measureText(label).width, FW = run.w * k, FH = run.h * k;
-        const lx = Math.max(tw / 2 + 4, Math.min(FW - tw / 2 - 4, x - nx * (r * 2.6 + 10))), ly = Math.max(16, Math.min(FH - 8, y - ny * (r * 2.6 + 10) + 5));
+        const lx = Math.max(tw / 2 + 4, Math.min(FW - tw / 2 - 4, x + px * (r * 2.6 + 12))), ly = Math.max(16, Math.min(FH - 8, y + py * (r * 2.6 + 12) + 5));
         ctx.lineWidth = 3;
         ctx.strokeStyle = C.bg;
         ctx.strokeText(label, lx, ly);
@@ -6762,8 +6812,9 @@ window.AGI = (function () {
             ctx.fillStyle = b.shielded ? C.danger : C.warning;
             ctx.fillText(label, x, y - ringR - 8);
         }
-        // Loops taken toward a stun (Snare 12.7: it takes more than one): a pip each round it, counted ones lit, the lit
-        // ones fading as the window to loop it again runs out
+        // Loops taken toward a stun (Snare 12.7: it takes more than one): a pip each round it, counted ones lit; K5 (Snare
+        // 18.1, the owner's call: LOOP 1/2 was easy to miss mid-fight): LOOP n/m large over it until the window to loop it
+        // again runs out, and a ring outside the pips draining with that window
         const need = run.opts.bossLoops || 1;
         if (!reeling && need > 1 && b.loops > 0) {
             const left = Math.max(0, 1 - (run.time - (b.loopAt ?? 0)) / run.opts.bossLoopWindow);
@@ -6771,13 +6822,30 @@ window.AGI = (function () {
                 const pr = r + 12, gap = 0.22;
                 for (let i = 0; i < need; i++) {
                     const a0 = -Math.PI / 2 + (i / need) * Math.PI * 2 + gap / 2, a1 = a0 + Math.PI * 2 / need - gap;
-                    ctx.globalAlpha = i < b.loops ? 0.35 + 0.6 * left : 0.3;
+                    ctx.globalAlpha = i < b.loops ? 0.95 : 0.45;
                     ctx.strokeStyle = i < b.loops ? C.warning : C.muted;
-                    ctx.lineWidth = i < b.loops ? 5 : 2;
+                    ctx.lineWidth = i < b.loops ? 7 : 3;
                     ctx.beginPath();
                     ctx.arc(x, y, pr, a0, a1);
                     ctx.stroke();
                 }
+                ctx.globalAlpha = 0.9;
+                ctx.strokeStyle = C.text;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(x, y, pr + 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left);
+                ctx.stroke();
+                const label = `LOOP ${b.loops}/${need}`, size = Math.max(18, Math.min(30, r * 0.9));
+                ctx.font = `700 ${size}px ${snareMono()}`;
+                ctx.textAlign = 'center';
+                const FW = run.w * k, tw = ctx.measureText(label).width;
+                const lx = Math.max(tw / 2 + 4, Math.min(FW - tw / 2 - 4, x)), ly = Math.max(size, y - pr - 16);
+                ctx.globalAlpha = 1;
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = C.bg;
+                ctx.strokeText(label, lx, ly);
+                ctx.fillStyle = C.warning;
+                ctx.fillText(label, lx, ly);
             }
         }
         ctx.globalAlpha = 1;
