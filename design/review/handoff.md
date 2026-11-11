@@ -6,7 +6,8 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
 
 ## Where things stand
 
-- **Live review build:** Packet Snare **18.8**, republished 2026-11-11 22:53 UTC (version `1794437631-8d30`, game.js: the owner's
+- **Live review build:** Packet Snare **18.8**, republished 2026-11-11 23:23 UTC (version `1794439419-1d9c`, game.js and
+  packet-snare.js: a fourth tutorial step on phones, Throughput, on the wire's length; and before that the owner's
   tutorial reports: each step takes its own move before it moves on (the bubble step a bubble, the drawn loop's a drawn
   loop; the wrong one catches for nothing and a fresh group swims in), and before that: a catch made before a walkthrough shows counts as that step, a bubble on the drawn loop's step brings a
   fresh group and then moves on, no combo in the tutorial, the old wire on its small field (the share of it was too short
