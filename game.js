@@ -4523,7 +4523,7 @@ window.AGI = (function () {
             snareCoachEvent(e);
             if (t === 'catch') {
                 // A scribbled loop (closed moments after the last on the same stroke) pays half, and says so.
-                snareFxFor(e, snare.fx, `+${E.format(snarePay(e.units))}${e.hasty ? ' · RUSHED ×½' : e.safe ? ' · SAFE' : ''}${e.cleanRun >= 2 ? ` · STREAK ${e.cleanRun}` : ''}`);
+                snareFxFor(e, snare.fx, `+${E.format(snarePay(e.units))}${e.hasty ? ' · RUSHED ×½' : e.safe ? ' · SAFE' : ''}${e.cleanRun >= 1 && run.opts.comboWindow ? ` · COMBO ×${(1 + run.opts.streakPay * e.cleanRun).toFixed(1)}` : e.cleanRun >= 2 ? ` · STREAK ${e.cleanRun}` : ''}`);
                 sfx('snareCatch', { mult: e.mult });
                 if (e.chained.length) sfx('snareChain');
                 snare.tipAfter = Math.max(snare.tipAfter || 0, run.real + 1);
@@ -4595,7 +4595,7 @@ window.AGI = (function () {
                 // It blows: the biggest moment of the run, then the run ends (no Focus top-up, no burst of packets)
                 const total = (snare.melt?.paid || 0) + (snare.melt?.bounty || 0);
                 snare.fx.push({ kind: 'burst', x: e.x, y: e.y, t: 0, life: 1.4 });
-                snare.fx.push({ kind: 'banner', centre: true, huge: true, x: run.w / 2, y: run.h / 2, t: 0, life: 2.2, text: `BOSS UNINSTALLED · +${E.format(total)}` });
+                snare.fx.push({ kind: 'banner', centre: true, huge: true, x: run.w / 2, y: run.h / 2, t: 0, life: 2.2, text: `${snare.melt?.sector === E.SNARE_END_BOSS ? 'FINAL BOSS UNINSTALLED' : 'BOSS UNINSTALLED'} · +${E.format(total)}` });
                 if (!reducedMotion()) snare.fx.push({ kind: 'flash', gold: true, t: 0, life: 0.6 }, { kind: 'wave', t: 0, life: 1.4 });
                 if (shakeOn()) snare.fx.push({ kind: 'shake', t: 0, life: 0.7 });
                 sfx('snareBossDown');
@@ -4908,7 +4908,10 @@ window.AGI = (function () {
     // goals with thousands separators, and the loop bonus in plain words (round 7 of the review: "catch 35185" and
     // "(a ×2 bubble counts its packets 1.5×)" didn't read)
     const goalNum = n => Math.round(n).toLocaleString('en-US');
-    const snareGoalText = k => (E.isSnareBossSector(k) ? 'Objective: Uninstall the boss.' : `Objective: Earn ${goalNum(E.snareGoal(k))} Signal in one run.`);
+    // After the 18.7 log (the owner's calls): the end boss on sector 15, and a boss whose trick needs a Training skill you
+    // haven't learned says so, and where to learn it.
+    const snareGateText = k => { const sk = E.snareGateSkill(state, k); return sk ? ` Your model hasn't learned ${sk} yet, so your hits do ${Math.round(100 * E.SNARE_GATE_ARMOR)}% of their damage. Learn it in the Training Cluster.` : ''; };
+    const snareGoalText = k => (E.isSnareBossSector(k) ? `Objective: Uninstall the ${k === E.SNARE_END_BOSS ? 'final boss' : 'boss'}.${snareGateText(k)}` : `Objective: Earn ${goalNum(E.snareGoal(k))} Signal in one run.`);
     // What the best haul feeds: research, a trickle while you play.
     const snareRpLine = () => {
         const rp = E.derive(state).snareRp;
@@ -5822,7 +5825,7 @@ window.AGI = (function () {
 
     // Drawn in layers, back to front, each a function of the view `d` (the context, colours, scale, run, effects), so the
     // field draws the same into the bay's canvas and a node's demo.
-    const SNARE_LAYERS = () => [drawSnareCurrent, drawSnareContain, drawSnareScanner, drawSnareCores, drawSnareMines, drawSnareFirewalls, drawSnareToolLife, drawSnareSweeps, drawSnareLoops, drawSnarePreview, drawSnarePackets, drawSnareHerders, drawSnareLasers, drawSnareChain, drawSnareWire, drawSnareRaceLabel, drawSnareRogueFx, drawSnareSnaps, drawSnareAntivirus, drawSnareBoss, drawSnareMelt, drawSnarePickups, drawSnareFrozen, drawSnarePops, drawSnareCoach];
+    const SNARE_LAYERS = () => [drawSnareCurrent, drawSnareContain, drawSnareScanner, drawSnareCores, drawSnareMines, drawSnareFirewalls, drawSnareToolLife, drawSnareSweeps, drawSnareLoops, drawSnarePreview, drawSnarePackets, drawSnareHerders, drawSnareLasers, drawSnareChain, drawSnareWire, drawSnareRaceLabel, drawSnareRogueFx, drawSnareSnaps, drawSnareAntivirus, drawSnareBoss, drawSnareMelt, drawSnarePickups, drawSnareFrozen, drawSnareCombo, drawSnarePops, drawSnareCoach];
     let snareMonoFont = '', snareHintFace = '';
     // Hints (how to do something) are the pipeline terminal's prompt: '> ' and lower case in its mono type, small and in the
     // text colour, so they never read as a payoff or a loss.
@@ -6836,6 +6839,30 @@ window.AGI = (function () {
         }
     }
 
+    // The combo (the owner's call after the 18.7 log: keep racing): while the next catch would keep it going, its multiplier
+    // large at the top of the field, with a bar draining to when it breaks.
+    function drawSnareCombo(d) {
+        const { ctx, C, k, run, W } = d;
+        const o = run.opts;
+        if (!o.comboWindow || run.cleanRun < 1 || run.frozenLeft > 0) return;
+        const left = 1 - (run.time - run.lastCatchAt) / o.comboWindow;
+        if (!(left > 0)) return;
+        const mult = 1 + o.streakPay * Math.min(run.cleanRun, o.streakMax);
+        const x = W * k / 2, y = 26, size = Math.round(16 + 6 * Math.min(1, run.cleanRun / o.streakMax));
+        ctx.save();
+        ctx.globalAlpha = 0.35 + 0.6 * left;
+        ctx.font = `700 ${size}px ${snareMono()}`;
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = C.bg;
+        const txt = `COMBO ×${mult.toFixed(1)}`;
+        ctx.strokeText(txt, x, y);
+        ctx.fillStyle = C['snare-tag'] || C.warning || C.text;
+        ctx.fillText(txt, x, y);
+        ctx.fillRect(x - 40, y + 6, 80 * left, 3);
+        ctx.restore();
+    }
+
     function drawSnareFrozen(d) {
         const { ctx, C, k, run, W, H } = d;
         if (!run.frozen?.()) return;
@@ -7640,7 +7667,8 @@ window.AGI = (function () {
             const n = run.wire.length;
             // In five bands, each one path, fading toward the tail (a stroke per segment was up to 360 strokes a frame).
             // White (your Firewalls are white and amber, catches blue): while an Antivirus hunts it, it pulses.
-            ctx.strokeStyle = C.text;
+            // as it runs out of length (the owner's call: a skill to draw the right size), it turns to the danger colour
+            ctx.strokeStyle = run.wireUsed > 0.75 ? C.danger : C.text;
             ctx.lineWidth = hunted ? 2.5 + Math.sin(d.t * 18) : 2.5;
             const bands = 5;
             for (let band = 0; band < bands; band++) {

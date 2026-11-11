@@ -100,9 +100,9 @@ test('the parry\'s knockback carries about parryKnock of the shorter side', () =
 });
 
 test('engine: nets shield the boss from the nets\' sector; the flick nodes are gone and v32 saves get the tree back', () => {
-    // sectors are 0-based here: 10 is sector 11 (the third boss, its nets), 7 is sector 8 (mines, no net shield)
-    assert.equal(E.snareOpts(E.defaultState(0), 10).netShield, 1);
-    assert.equal(E.snareOpts(E.defaultState(0), 7).netShield, 0);
+    // sectors are 0-based here: 11 is sector 12 (the fourth boss, its nets, since the 18.7 log), 8 is sector 9 (no net shield)
+    assert.equal(E.snareOpts(E.defaultState(0), 11).netShield, 1);
+    assert.equal(E.snareOpts(E.defaultState(0), 8).netShield, 0);
     for (const id of ['snareSpoof', 'snareForged', 'snareEscalate']) assert.equal(E.UPGRADE_BY_ID[id], undefined, `${id} gone`);
     assert.equal(E.UPGRADE_BY_ID.snareLaser.requires, 'snareParry');
     assert.equal(E.UPGRADE_BY_ID.snareBlueScreen.requires, 'snareLaser');

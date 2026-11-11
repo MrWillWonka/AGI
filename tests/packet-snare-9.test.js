@@ -252,9 +252,10 @@ test('training skills power you up in Packet Snare, each by its name', () => {
     // never on one sector.
     const field = E.SNARE_STAGES.filter(x => !x.gate && x.sector).map(x => x.sector);
     const gates = E.SNARE_STAGES.filter(x => x.gate).map(x => x.sector);
-    assert.deepEqual(field, [1, 2, 5, 8, 11]);
+    // after the 18.7 log: red on 2, Antivirus on 4, scans on 7, the Rogue AI on 10, faster scans on 13 (bosses on 3, 6, 9…)
+    assert.deepEqual(field, [1, 3, 6, 9, 12]);
     assert.deepEqual(gates.map((k, i) => (i ? k - gates[i - 1] : E.SNARE_BOSS_EVERY)), gates.map(() => E.SNARE_BOSS_EVERY));
-    assert.ok(gates.every(E.isSnareBossSector) && gates[0] > 4, 'gates are boss sectors, after the first boss');
+    assert.ok(gates.every(E.isSnareBossSector) && gates[0] > E.SNARE_FIRST_BOSS, 'gates are boss sectors, after the first boss');
     assert.ok(!gates.some(k => field.includes(k)));
 });
 

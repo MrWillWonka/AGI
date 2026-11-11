@@ -241,11 +241,11 @@ test('a sweep snaps a fast stroke whose segment straddles its line', () => {
     assert.equal(s.stats.snaps, 1);
 });
 
-test('the boss is the wall: every third sector from 5, a real fight the first time, more after, and its bounty is paid by the engine', () => {
+test('the boss is the wall: every third sector from 3, a real fight the first time, more after, and its bounty is paid by the engine', () => {
     const first = E.SNARE_FIRST_BOSS;
     assert.equal(E.snareBossHealth(0), 0, 'no boss on the first sector');
-    assert.equal(E.snareBossHealth(first), 60, 'the first boss on sector 5 (30 on the 17.4 log; doubled in Snare 18.6 when slashes lost their gap and cap)');
-    assert.deepEqual([7, 10, 13].map(E.snareBossHealth), [100, 160, 240], 'then 100, 160, 240 on sectors 8, 11, 14');
+    assert.equal(E.snareBossHealth(first), 40, 'the first boss on sector 3 (after the 18.7 log)');
+    assert.deepEqual([5, 8, 11, 14].map(E.snareBossHealth), [100, 160, 240, 600], 'then 100, 160, 240 on sectors 6, 9, 12, and the end boss on 15');
     const o5 = E.snareOpts(E.defaultState(NOW), first);
     assert.ok(o5.bossArrive === 0.5 && o5.bossFight === 30 && o5.bossSwallow === 1 && o5.bossFocus === 0, 'the new fight: at half Focus, a 30 s clock, the field swallowed');
     const s = E.defaultState(NOW);

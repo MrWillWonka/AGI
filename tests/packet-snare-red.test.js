@@ -49,15 +49,15 @@ test('Gold Plating: a Cleaner bot with no red near turns a regular packet gold',
     assert.ok(s.stats.gilded >= 1 && s.packets.some(p => p.kind === 'gold'));
 });
 
-test('goals are Signal: 40, 170, 330, 950, then 3,900 at sector 6 growing ×2.45 a sector (the owner\'s call on the 17.3 log)', () => {
-    assert.deepEqual([0, 1, 2, 3].map(E.snareGoal), [40, 170, 330, 950]);
-    assert.equal(E.snareGoal(4), 0, 'sector 5 is a boss');
-    assert.equal(E.snareGoal(5), 3900, 'sector 6');
-    assert.equal(E.snareGoal(6), 5 * Math.round(3900 * 2.45 / 5));
-    // boss sectors (5, 8, 11…) take no step of the curve (Snare 18, K19): sector 9 is the third goal sector from 6
-    assert.equal(E.snareGoal(8), 5 * Math.round(3900 * 2.45 ** 2 / 5));
-    assert.equal(E.snareGoal(11), 5 * Math.round(3900 * 2.45 ** 4 / 5), 'sector 12');
-    for (const k of [6, 8, 9, 11, 12]) assert.ok(E.snareGoal(k) / E.snareGoal(k - (E.isSnareBossSector(k - 1) ? 2 : 1)) < 2.5, `no jump past a boss into sector ${k + 1}`);
+test('goals are Signal by goal sector: 40, 170, 600, 1,500, then growing a goal sector at a time (after the 18.7 log)', () => {
+    assert.deepEqual([0, 1, 3, 4].map(E.snareGoal), [40, 170, 600, 1500]);
+    assert.equal(E.snareGoal(2), 0, 'sector 3 is a boss');
+    assert.equal(E.snareGoal(5), 0, 'and sector 6');
+    const G = E.snareGoal(6) / 1500;
+    assert.ok(G > 2 && G < 4, 'sector 7 grows from sector 5');
+    // boss sectors (3, 6, 9…) take no step of the curve (Snare 18, K19): sector 10 is the third goal sector after 5
+    assert.ok(Math.abs(E.snareGoal(9) / (1500 * G ** 3) - 1) < 0.01, 'sector 10');
+    for (const k of [6, 9, 12]) assert.ok(E.snareGoal(k) / E.snareGoal(k - (E.isSnareBossSector(k - 1) ? 2 : 1)) < 2.5, `no jump past a boss into sector ${k + 1}`);
     // the goal counts Signal as the haul pays it: the sector's pay and Overclock
     const s = E.defaultState(Date.now());
     s.levels.snareOverclock = 3;

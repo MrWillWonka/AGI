@@ -542,7 +542,7 @@
         { id: 'snareSteady', name: 'Steady Hand', snare: { x: -1, y: -3 }, requires: 'snareLongWire', cost: { signal: 1600 }, scale: 2, max: 2, sn: { bubbleGrow: 0.25 }, effect: 'Bubbles grow 25% faster.' },
         { id: 'snareChainStorm', name: 'Chain Storm', snare: { x: 1, y: -3 }, requires: 'snareChain', cost: { signal: 4200 }, scale: 1.3, max: 5, sn: { chainForks: 1, chainRange: 0.4 }, effect: 'Each catch sends out one more bolt, and bolts jump 40% further.' },
         { id: 'snareRace', name: 'Race Condition', mechanic: 'race', snare: { x: 2, y: -3 }, requires: 'snareChainStorm', cost: { signal: 12250 }, scale: 2, max: 2, sn: { race: 1 }, stages: { 2: { raceMax: 2 } }, effect: 'Hold a full bubble still, and its multiplier keeps climbing.' },
-        { id: 'snareLongWire', name: 'Bigger Buffers', snare: { x: 0, y: -3 }, requires: 'snareBandwidth', cost: { signal: 1400 }, scale: 2, max: 1, sn: { bubbleSize: 0.25 }, effect: 'Full bubbles are 25% bigger.' },
+        { id: 'snareLongWire', name: 'Bigger Buffers', snare: { x: 0, y: -3 }, requires: 'snareBandwidth', cost: { signal: 1400 }, scale: 2, max: 1, sn: { bubbleSize: 0.25 }, effect: 'Full bubbles are 25% bigger, and the wire reaches round more of the field.' },
         { id: 'snareFreeze', name: 'Freeze Frame', mechanic: 'freeze', snare: { x: -1, y: -4 }, requires: 'snareSteady', cost: { signal: 6100 }, scale: 1.6, max: 3, sn: { freeze: 1 }, effect: 'Freeze pickups drift in. Tap one to stop the field for 3 s.' },
         { id: 'snareFork', name: 'Split', mechanic: 'fork', snare: { x: 0, y: -5 }, requires: 'snareHerders', cost: { signal: 10500 }, scale: 2, max: 2, sn: { fork: 1 }, effect: 'Let go of a full bubble, and it splits in two. Their multipliers multiply.' },
         { id: 'snareDilation', name: 'Time Dilation', snare: { x: -2, y: -4 }, requires: 'snareFreeze', cost: { signal: 17300 }, scale: 2, max: 2, sn: { freezeSeconds: 1.5 }, effect: 'Freeze lasts 1.5 s longer.' },
@@ -2160,18 +2160,30 @@
     // Snare 17.5 (the owner's call on the 17.4 log, "bosses felt absent"): a boss every third sector from 5 (5, 8, 11,
     // 14…); its tricks move with it, a boss each: mines on the second (sector 8), nets on the third (11), booted
     // Antivirus on the fourth (14), four mines laid faster on the fifth (17).
-    const SNARE_BOSS_EVERY = 3, SNARE_FIRST_BOSS = 4;
+    // After the 18.7 log (the owner's calls): 15 sectors to a big end boss at 15, bosses on 3, 6, 9, 12 and 15, and endless
+    // sectors after it (a boss every third still); each boss brings one new trick: mines (6), Antivirus minions (9), nets
+    // (12), everything at once (15, `SNARE_END_BOSS`).
+    const SNARE_BOSS_EVERY = 3, SNARE_FIRST_BOSS = 2, SNARE_END_BOSS = 14;
     const isSnareBossSector = k => k >= SNARE_FIRST_BOSS && (k - SNARE_FIRST_BOSS) % SNARE_BOSS_EVERY === 0;
     const snareBossOrdinal = k => Math.max(0, Math.floor((k - SNARE_FIRST_BOSS) / SNARE_BOSS_EVERY));
     // Snare 14 (the owner's call: the early game wasn't harrowing): red packets from sector 2, Antivirus from 3, Full Scans
     // from 6 (round 2 of the review: on 5 they came with the first boss, two new things at once).
-    const RED_SECTOR = 1, SWEEP_SECTOR = 5, AV_SECTOR = 2, ROGUE_SECTOR = 8, FAST_SWEEP_SECTOR = 11;
-    const MINE_SECTOR = 7, NET_SECTOR = 10, MINION_SECTOR = 13, SWARM_SECTOR = 16;
+    // After the 18.7 log: Antivirus from sector 4 (after the first boss, so it isn't two new things at once), Full Scans from
+    // 7, the Rogue AI from 10, faster scans from 13.
+    const RED_SECTOR = 1, SWEEP_SECTOR = 6, AV_SECTOR = 3, ROGUE_SECTOR = 9, FAST_SWEEP_SECTOR = 12;
+    const MINE_SECTOR = 5, MINION_SECTOR = 8, NET_SECTOR = 11, SWARM_SECTOR = SNARE_END_BOSS;
+    // Each boss's trick is answered by a Training skill (the owner's call: "each skill hill can correspond with a boss
+    // mechanic", the first at skill 6 and each further than the last): without it the boss is very unlikely to fall, but
+    // a grind can still do it: your hits do `SNARE_GATE_ARMOR` of their damage. A later boss needs every gate before it.
+    const SNARE_GATE_SKILLS = [[MINE_SECTOR, 'Image Recognition'], [MINION_SECTOR, 'Speech Recognition'], [NET_SECTOR, 'Translation'], [SWARM_SECTOR, 'Analogy']];
+    const SNARE_GATE_ARMOR = 0.3;
+    // The first skill a boss on sector k needs that you haven't learned (null when none).
+    const snareGateSkill = (s, k) => { if (!isSnareBossSector(k)) return null; const g = SNARE_GATE_SKILLS.find(([sec, name]) => k >= sec && !knows(s, name)); return g ? g[1] : null; };
     const SNARE_GATES = [MINE_SECTOR, NET_SECTOR, MINION_SECTOR, SWARM_SECTOR];
     const SNARE_STAGES = [
-        { sector: 0, adds: 'packets' }, { sector: RED_SECTOR, adds: 'red' }, { sector: AV_SECTOR, adds: 'antivirus' }, { sector: SWEEP_SECTOR, adds: 'sweeps' },
-        { sector: MINE_SECTOR, adds: 'mines', gate: true }, { sector: ROGUE_SECTOR, adds: 'rogue' }, { sector: NET_SECTOR, adds: 'nets', gate: true },
-        { sector: FAST_SWEEP_SECTOR, adds: 'fastSweeps' }, { sector: MINION_SECTOR, adds: 'minions', gate: true }, { sector: SWARM_SECTOR, adds: 'swarm', gate: true }
+        { sector: 0, adds: 'packets' }, { sector: RED_SECTOR, adds: 'red' }, { sector: AV_SECTOR, adds: 'antivirus' },
+        { sector: MINE_SECTOR, adds: 'mines', gate: true }, { sector: SWEEP_SECTOR, adds: 'sweeps' }, { sector: MINION_SECTOR, adds: 'minions', gate: true }, { sector: ROGUE_SECTOR, adds: 'rogue' },
+        { sector: NET_SECTOR, adds: 'nets', gate: true }, { sector: FAST_SWEEP_SECTOR, adds: 'fastSweeps' }, { sector: SWARM_SECTOR, adds: 'swarm', gate: true }
     ];
     const SNARE_SECTORS = ['Ingress', 'Buffer', 'Cache', 'Backbone', 'Relay', 'Mirror', 'Vault', 'Core'];
     const snareSectorName = k => (SNARE_SECTORS[k] || `Deep ${k - SNARE_SECTORS.length + 1}`);
@@ -2180,7 +2192,9 @@
     // Snare 17.5 (the owner's call: harder, a real fight on its own 30 s clock; the owner beat sector 5's 15 in about 11 s):
     // 30, 50, 80, 120, 170, 230, 300, 390, then about a third more each boss.
     // Snare 18.6 (the owner's call: fast slashes, not slowed ones): doubled when slashes lost their 0.3 s gap and 5-a-stun cap
-    const SNARE_BOSS_HEALTH = [60, 100, 160, 240, 340, 460, 600, 780];
+    // After the 18.7 log: 40 on the first (it comes on sector 3 now), and the end boss on 15 is big; then about a third
+    // more each boss past it.
+    const SNARE_BOSS_HEALTH = [40, 100, 160, 240, 600];
     const snareBossHp = k => {
         const n = snareBossOrdinal(k);
         return n < SNARE_BOSS_HEALTH.length ? SNARE_BOSS_HEALTH[n] : Math.round(SNARE_BOSS_HEALTH[SNARE_BOSS_HEALTH.length - 1] * Math.pow(1.3, n - SNARE_BOSS_HEALTH.length + 1));
@@ -2216,15 +2230,18 @@
     // field caps (sector 8: 1,127 packets), and sector 12 asked 168,670 of the 16–21K packets a run there. Each is the old
     // packet goal × what the owner's clearing run was worth a packet of progress (1.4 on sector 1, 4.7 on 11): 40, 170,
     // 330, 950, then 3,900 on sector 6 and ×2.45 a sector (the owner's hauls grew ×2.4–2.5 a sector from 6 to 11).
-    const SNARE_FIRST_GOALS = [40, 170, 330, 950];
-    const SNARE_GOAL_SIX = 3900;
+    // After the 18.7 log (bosses on 3, 6, 9…): the goals go by goal sector, not sector: the first four 40, 170, 600 and
+    // 1,500 (sectors 1, 2, 4 and 5), then ×`SNARE_GOAL_GROWTH` each goal sector after.
+    const SNARE_FIRST_GOALS = [40, 170, 600, 1500];
     const SNARE_GOAL_GROWTH = 2.45;
+    const SNARE_FOCUS_SECTOR = 0;   // s of Focus more a sector from sector 7 (swept with the goals)
     // Snare 18 (the owner's call on K19): the curve grows on goal sectors only. It was set when a boss came every fifth
     // sector; with one every third (17.5) each boss took a step too, so the sector after it asked ×6 the one before (the
     // bot: sector 9 in 22–27 runs, sector 12 in 42–45, asking 843K). Now 9 asks 23K, 10 57K, 12 140K, 13 344K, and the
     // bot clears a sector every 8–10 minutes from 9 to 15.
-    const snareGoalSteps = k => { let n = 0; for (let i = 6; i <= k; i++) if (!isSnareBossSector(i)) n++; return n; };
-    const snareGoal = k => (isSnareBossSector(k) ? 0 : k < SNARE_FIRST_GOALS.length ? SNARE_FIRST_GOALS[k] : 5 * Math.round(SNARE_GOAL_SIX * Math.pow(SNARE_GOAL_GROWTH, snareGoalSteps(k)) / 5));
+    const snareGoalOrdinal = k => { let n = 0; for (let i = 0; i < k; i++) if (!isSnareBossSector(i)) n++; return n; };
+    const snareGoal = k => { if (isSnareBossSector(k)) return 0; const g = snareGoalOrdinal(k), F = SNARE_FIRST_GOALS;
+        return g < F.length ? F[g] : 5 * Math.round(F[F.length - 1] * Math.pow(SNARE_GOAL_GROWTH, g - F.length + 1) / 5); };
     // Training skills power you up in Packet Snare too, each by its name (the owner's call: the boss's gates send you to
     // the rest of the game, and you come back stronger). Added to the tree's levels in `snareLevels`.
     const SNARE_SKILL_BUFFS = {
@@ -2292,10 +2309,18 @@
             // The field grows slower at first (Snare 12, a review's call: ×1.6 a level was ×4 the field for two runs' Signal):
             // ×1.35 a Sprawl level for the first three, ×1.5 for the next three, ×1.6 for the last three.
             area: Math.round(B.area * Math.pow(1.35, Math.min(3, sprawlLv)) * Math.pow(1.5, Math.max(0, Math.min(3, sprawlLv - 3))) * Math.pow(1.6, Math.max(0, sprawlLv - 6))),
-            focus: Math.round(B.focus * (1 + g('focus'))),
+            // After the 18.7 log (the owner: runs take a bit more time once you're progressing): `SNARE_FOCUS_SECTOR` s more
+            // Focus a sector from sector 7 (the first after the second boss).
+            focus: Math.round(B.focus * (1 + g('focus')) + SNARE_FOCUS_SECTOR * Math.max(0, k - 5)),
             maxMult: B.maxMult + g('maxMult'),
             fullMult: g('fullMult'),
             maxWire: B.maxWire * (1 + g('wireMult')),
+            // After the 18.7 log (the owner: racing, not one circle round the screen): the wire reaches round 20% of the field
+            // (a full bubble's share), more with Bigger Buffers, and catches in quick succession build a combo: each within
+            // `comboWindow` s of the last adds 10%, up to ×2.
+            wireShare: 0.2 * (1 + g('bubbleSize')) ** 2 * (1 + g('wireMult')),
+            comboWindow: 2,
+            streakPay: 0.1,
             closeRadius: B.closeRadius * (1 + g('closeMult')),
             // Snare 15 (the owner's call): bubbles are the way to catch; the wire circles the boss and flicks.
             bubble: 1,
@@ -2430,7 +2455,7 @@
             // has its own 30 s clock (run it out and it escapes: the run is over).
             bossArrive: 0.5,
             bossIncoming: 2.5,
-            bossFight: 30,
+            bossFight: k >= SNARE_END_BOSS ? 45 : 30,   // the end boss on 15 and after: a longer fight (the owner's call: a big end boss)
             // Snare 18.3: beaten, it melts down (slash it for Signal), then the run ends. Snare 18.5 (the owner: "slash like
             // crazy" for the most, more each boss); after the 18.7 log (the owner: a much shorter timer to start, for suspense,
             // with an upgrade adding time for the late game's payout, and fewer hits on the first): 3 s and 20 hits on the first
@@ -2446,7 +2471,9 @@
             bossWarn: Math.max(1.2, B.bossWarn - 0.03 * k) + g('bossWarn'),
             bossStun: Math.max(1.8, B.bossStun - 0.03 * k) + g('bossStun'),
             // Two on sector 20, whose gate is its minions (three mines as well made it a wall).
-            bossMines: k >= SWARM_SECTOR ? 4 : k === MINION_SECTOR ? 2 : k >= NET_SECTOR ? 3 : k >= MINE_SECTOR ? 2 : 0,
+            bossMines: k >= SWARM_SECTOR ? 4 : k >= NET_SECTOR ? 3 : k >= MINE_SECTOR ? 2 : 0,
+            // the Training skill this boss needs, and your hits' share of their damage without it (the owner's call)
+            bossArmor: snareGateSkill(s, k) ? SNARE_GATE_ARMOR : 1,
             mineEvery: k >= SWARM_SECTOR ? 8 : k < NET_SECTOR ? 16 : B.mineEvery,
             bossMinions: k >= MINION_SECTOR ? 1 + Math.floor((k - MINION_SECTOR) / SNARE_BOSS_EVERY) : 0,
             rogue: k >= ROGUE_SECTOR && floor('rogue') ? 1 + Math.floor((k - ROGUE_SECTOR) / 3) : 0,
@@ -3272,7 +3299,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, SNARE_OPEN_AT_START, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
-        SNARE_RED_UNIT, SNARE_RED_FLOOR, snareRedShare, SNARE_DESKTOP, snareDesktop, SNARE_RUN_FLOORS, snareCatch, snareBossDown, snareMeltPool, snareMeltPay, snareGoalMet, snareGoal, isSnareBossSector, SNARE_BOSS_EVERY, SNARE_FIRST_BOSS, snareBossOrdinal, finishSnare, snareOpts, SNARE_STAGES, RED_SECTOR, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, snareBossHp, snareBossHealth, SNARE_SKILL_BUFFS, snareSkillBuffs, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
+        SNARE_RED_UNIT, SNARE_RED_FLOOR, snareRedShare, SNARE_DESKTOP, snareDesktop, SNARE_RUN_FLOORS, snareCatch, snareBossDown, snareMeltPool, snareMeltPay, snareGoalMet, snareGoal, isSnareBossSector, SNARE_BOSS_EVERY, SNARE_FIRST_BOSS, snareBossOrdinal, finishSnare, snareOpts, SNARE_STAGES, RED_SECTOR, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, SNARE_GATE_SKILLS, SNARE_GATE_ARMOR, snareGateSkill, SNARE_END_BOSS, snareGoalOrdinal, snareBossHp, snareBossHealth, SNARE_SKILL_BUFFS, snareSkillBuffs, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany

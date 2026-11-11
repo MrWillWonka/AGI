@@ -150,6 +150,8 @@
                                     // bubble was ×1.75 on a wide desktop field, ×2.07 on an upright phone's)
         streakPay: 0.05,            // each clean catch in a row pays this much more, up to streakMax (round 2: careful play hardly
         streakMax: 10,              // beat blind holds); a spoil or a pop starts the count again
+        comboWindow: 0,             // s: with this set, the streak is a combo: a catch more than this after the last starts it again
+        wireShare: 0,               // with this set, the wire is as long as a circle round this share of the field (0: `maxWire`)
         bubbleFollow: 0.012,        // s: how closely it sticks to the pen (Snare 13.2, the owner: it lagged; it was a capped drift)
         bubbleSize: 0,              // Bigger Buffers: + this share of its full size
         bubbleGrow: 0,              // Steady Hand: it grows this much faster
@@ -572,7 +574,9 @@
             return { id: s.nextId++, x: Math.max(zoneHw, Math.min(w - zoneHw, x)), y: Math.max(zoneHh, Math.min(h - zoneHh, y)), hw: zoneHw, hh: zoneHh, hp, max: hp };
         }
         const shortSide = Math.min(w, h);
-        const maxWire = o.maxWire * grow;
+        // After the 18.7 log (the owner: keep players racing, not drawing one circle round the screen): the wire can be as long
+        // as a circle round `wireShare` of the field, so a loop can't take the whole field; upgrades lengthen it.
+        const maxWire = o.wireShare > 0 ? 2 * Math.sqrt(Math.PI * o.wireShare * w * h) : o.maxWire * grow;
         const s = {
             w, h, opts: o, closeR, grow,
             echoes: [],             // Infinite Loop: loops waiting to catch again ({ poly, at, mult })
@@ -631,6 +635,8 @@
             fight: null,            // its fight clock: { left, total } while it stands
             swallowed: [],          // the good packets it swallowed (kinds), burst back out when it's beaten
             cleanRun: 0,            // clean catches in a row (the streak's pay)
+            lastCatchAt: -Infinity, // when the last catch landed (the combo's window)
+            wireUsed: 0,            // how much of the wire's length the stroke has used, 0 to 1 (drawn as it runs out)
             lastLoopAt: -1e9,       // when the last loop paid (a loop moments after it is rushed)
             clears: 0,              // sectors cleared this run (each clear's Focus bonus is half the last's)
             stats: { bossEscaped: 0, swallowed: 0, burst: 0, catches: 0, bubbles: 0, spawned: 0, pickups: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, botCollected: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
@@ -1087,6 +1093,8 @@
                 return false;
             }
             if (!(dmg > 0)) return true;
+            // A Training skill this boss needs and you haven't learned: your hits do a share of their damage (18.7's log).
+            dmg *= o.bossArmor ?? 1;
             if (s.mines.length === 1 && !pierce && !(b.shieldBreak > s.time)) dmg = Math.ceil(dmg / 2);
             b.hp = Math.max(0, b.hp - dmg);
             s.stats.bossHits++;
@@ -2889,7 +2897,10 @@
             // (Bubbles aren't rushed: they already cost the time they're held; round 2 of the review.)
             const hasty = (!o.bubble || j.wire) && s.real - s.lastLoopAt < o.scribbleGap;
             s.lastLoopAt = s.real;
-            // A clean streak: each clean catch in a row before this one adds `streakPay` (careful play pays).
+            // A clean streak: each clean catch in a row before this one adds `streakPay` (careful play pays). With a combo
+            // window, a catch too long after the last starts it again (the owner: keep racing).
+            if (o.comboWindow > 0 && s.time - s.lastCatchAt > o.comboWindow) s.cleanRun = 0;
+            s.lastCatchAt = s.time;
             const run = Math.min(s.cleanRun, o.streakMax);
             const units = (j.value + chainValue) * j.mult * (hasty ? o.scribblePay : 1) * (1 + o.streakPay * run);
             const gold = j.good.filter(p => p.kind === 'gold').length + chained.filter(c => c.packet.kind === 'gold').length;
@@ -3129,6 +3140,7 @@
                 L -= segCost(s.wire[0], s.wire[1]);
                 s.wire.shift();
             }
+            s.wireUsed = Math.min(1, L / maxWire);
             return true;
         }
 
