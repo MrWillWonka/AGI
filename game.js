@@ -5772,6 +5772,26 @@ window.AGI = (function () {
             ctx.fillRect(bx, by + bh + 3, bw, 6);
             ctx.fillStyle = f.left < 10 ? C.danger : C.warning;
             ctx.fillRect(bx, by + bh + 3, bw * left, 6);
+            // Snare 18.6: the stun's time left, under the fight's bar (above your finger, which covers the boss), with its seconds
+            if (b.stunned > run.time && !b.melt) {
+                const sl = snareStunLeft(b, run.time), last = b.stunned - run.time < 0.7;
+                const sy = by + bh + 12;
+                ctx.fillStyle = hexAlpha(C.bg, 0.85);
+                ctx.fillRect(bx - 3, sy - 2, bw + 6, 16);
+                ctx.fillStyle = hexAlpha(last ? C.danger : C.warning, 0.25);
+                ctx.fillRect(bx, sy, bw, 12);
+                ctx.fillStyle = last ? C.danger : C.warning;
+                ctx.fillRect(bx, sy, bw * sl, 12);
+                ctx.font = `700 11px ${snareMono()}`;
+                ctx.textAlign = 'left';
+                const stx = `STUNNED ${Math.max(0, b.stunned - run.time).toFixed(1)} s`;
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = C.bg;
+                ctx.strokeText(stx, bx + 6, sy + 6.5);
+                ctx.fillStyle = C.text;
+                ctx.fillText(stx, bx + 6, sy + 6.5);
+                ctx.textAlign = 'center';
+            }
             const size = 11;
             ctx.font = `700 ${size}px ${snareMono()}`;
             ctx.fillStyle = C.text;
@@ -6944,6 +6964,12 @@ window.AGI = (function () {
     // stand, and while it reels (the slash window) an amber outline, a countdown and SLASH.
     // A boss melting down (Snare 18.3): a hot core pulsing faster as it fills, cracks of light, a ring of its hits and
     // a ring of the time left, and MELTDOWN n/12 under it.
+    // How much of the boss's stun is left (0–1): its length taken when it starts (a parry, a loop, a mine, a Firewall), so
+    // a stun made longer starts again from full.
+    function snareStunLeft(b, t) {
+        if (b.stunEndSeen !== b.stunned) { b.stunEndSeen = b.stunned; b.stunLen = Math.max(0.3, b.stunned - t); }
+        return Math.max(0, Math.min(1, (b.stunned - t) / b.stunLen));
+    }
     function drawSnareMelt(d) {
         const { ctx, C, k, run } = d;
         const b = run.boss;
@@ -7191,15 +7217,25 @@ window.AGI = (function () {
             ctx.fillStyle = C.danger;
             ctx.fillText(hpText, x, y + ringR + 14);
         }
-        // the slash window: a countdown ring and SLASH (or what's stopping it)
-        if (reeling) {
-            const left = Math.max(0, (b.stunned - t) / Math.max(0.5, run.opts.bossStun));
-            ctx.strokeStyle = C.warning;
-            ctx.lineWidth = 2.5;
-            ctx.globalAlpha = 0.9;
+        // the slash window: a countdown ring and SLASH (or what's stopping it). Snare 18.6 (the owner: hard to see how much
+        // time is left while slashing): a thick ring round it on a dim track, draining, red and pulsing in its last 0.7 s
+        // (the fight's bar carries it too, above your finger)
+        if (reeling && !b.melt) {
+            const left = snareStunLeft(b, t);
+            const last = (b.stunned - t) < 0.7, pulse = reducedMotion() ? 1 : 0.6 + 0.4 * Math.sin(performance.now() / 50);
+            ctx.globalAlpha = 0.25;
+            ctx.strokeStyle = C.muted;
+            ctx.lineWidth = 9;
+            ctx.beginPath(); ctx.arc(x, y, ringR + 10, 0, Math.PI * 2); ctx.stroke();
+            ctx.globalAlpha = last ? pulse : 1;
+            ctx.strokeStyle = last ? C.danger : C.warning;
+            ctx.lineWidth = 9;
+            ctx.lineCap = 'round';
             ctx.beginPath();
-            ctx.arc(x, y, r * 0.8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, left));
+            ctx.arc(x, y, ringR + 10, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, left));
             ctx.stroke();
+            ctx.lineCap = 'butt';
+            ctx.globalAlpha = 0.9;
             ctx.font = `700 14px ${snareMono()}`;
             const label = b.shielded ? 'SHIELDED' : 'SLASH!';
             ctx.lineWidth = 3;

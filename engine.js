@@ -2182,7 +2182,8 @@
     // learn), 30 on 10, 64 on 15, 90 on 20 (with its minions it was a wall at 111), then about a third more each boss.
     // Snare 17.5 (the owner's call: harder, a real fight on its own 30 s clock; the owner beat sector 5's 15 in about 11 s):
     // 30, 50, 80, 120, 170, 230, 300, 390, then about a third more each boss.
-    const SNARE_BOSS_HEALTH = [30, 50, 80, 120, 170, 230, 300, 390];
+    // Snare 18.6 (the owner's call: fast slashes, not slowed ones): doubled when slashes lost their 0.3 s gap and 5-a-stun cap
+    const SNARE_BOSS_HEALTH = [60, 100, 160, 240, 340, 460, 600, 780];
     const snareBossHp = k => {
         const n = snareBossOrdinal(k);
         return n < SNARE_BOSS_HEALTH.length ? SNARE_BOSS_HEALTH[n] : Math.round(SNARE_BOSS_HEALTH[SNARE_BOSS_HEALTH.length - 1] * Math.pow(1.3, n - SNARE_BOSS_HEALTH.length + 1));

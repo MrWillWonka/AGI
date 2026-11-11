@@ -290,7 +290,9 @@
         bossEdge: 0.24,             // × the shorter side: how far its edge keeps from the field's (0.18 before round 3 of the review)
         slashDamage: 1,             // health a slash takes off
         parryDamage: 0,             // health a parry takes off (Riposte)
-        slashGap: 0.3,              // seconds between slashes (Snare 12: at 0.12 a bot landed twice what a thumb does)
+        // seconds between slashes that count (Snare 12: 0.3, at 0.12 a bot landed twice what a thumb does; Snare 18.6, the
+        // owner's call: encourage fast slashes, don't slow them; the boss's health doubled instead)
+        slashGap: 0.06,
         // Mines: from the boss's second sector, `bossMines` at a time, laid every `mineEvery` s; mines within `netRange`
         // × the shorter side of each other link up over `netTime` s, and a finished net wipes the good data along it (two
         // mines) or inside it (three or more round a triangle) every `netEvery` s.
@@ -358,7 +360,7 @@
         bossPullSpeed: 2.2,         // × a packet's own speed, at its body
         bossFlee: 1.8,              // packets within this × its reach flee it
         bossPanic: 0.25,            // schooling × this while it stands
-        slashCap: 5,                // slashes a stun allows: then it shakes it off
+        slashCap: Infinity,         // slashes a stun allows, then it shakes it off (5 until Snare 18.6: no cap now)
         bossRest: 1.5,              // seconds it stands after a dash (a second moment to loop it)
         gcCap: 3,                   // Garbage Collection: Focus back for at most this many red packets a loop…
         gcRepeat: 8,                // …and half of it within this many seconds of the last
