@@ -4095,23 +4095,20 @@ window.AGI = (function () {
             run.packets.push({ id: run.nextId++, kind: i === 2 ? 'gold' : 'good', x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, vx: Math.cos(h) * v, vy: Math.sin(h) * v, v, r: run.opts.packetR, age: 1, school: 0, tag: 0 });
         }
     }
+    // Snare 18.9 (the owner's call: the unreadable packet's step stayed in slow motion and the zoom didn't seem to come from
+    // it): bubble, then the unreadable packet (at full speed, a few seconds, then gone), then on a phone the drawn loop,
+    // and the zoom out starts from where that loop caught (on desktop, from the middle, after the packet).
     function snareTutorialStep(run) {
         const tu = snare.tutorial;
         if (!tu || snare.zoom || run.over) return;
-        const bubbled = !!state.intro['snare:coach:bubble'];
+        const now = performance.now();
         const phone = run.opts.loopCatch && !snareFinePointer();
-        // the drawn loop's group, a moment after the bubble's catch (phones: the other way to catch)
-        if (bubbled && phone && !tu.second && performance.now() - (snare.coachCaught || 0) > 600) {
-            tu.second = true;
-            snareTutorialGroup(run, run.w / 2, run.h * 0.55);
-        }
         const seen = k => (state.intro[`snare:coachSeen:${k}`] || 0) >= SNARE_COACH_TRIES && snare.coach?.key !== k;
-        const bubbleOver = bubbled || seen('bubble'), loopOver = !phone || state.intro['snare:coach:loop'] || seen('loop');
-        // then an unreadable packet swims in from the edge and settles near the middle, for its walkthrough (Snare 18.8, the
-        // owner's call); the zoom out is centred on it
-        if (bubbleOver && loopOver && !tu.red && !snare.coach) {
+        const bubbleOver = state.intro['snare:coach:bubble'] || seen('bubble');
+        // 2: an unreadable packet swims in and settles near the middle for its walkthrough
+        if (bubbleOver && !tu.red && !snare.coach && now - (snare.coachCaught || 0) > 600) {
             const v = 0.6;
-            const p = { id: run.nextId++, kind: 'corrupt', x: Math.max(0.15, run.w / 2 - 1.4), y: run.h / 2, vx: v, vy: 0, v, r: run.opts.packetR, age: 1, school: 0, tag: 0 };
+            const p = { id: run.nextId++, kind: 'corrupt', x: Math.max(0.15, run.w / 2 - 1.2), y: run.h / 2, vx: v, vy: 0, v, r: run.opts.packetR, age: 1, school: 0, tag: 0 };
             run.packets.push(p);
             tu.red = p.id;
         }
@@ -4122,11 +4119,24 @@ window.AGI = (function () {
             red.vx = red.vx / sp * 0.05; red.vy = red.vy / sp * 0.05;
         }
         const redOver = tu.red && (!red || state.intro['snare:coach:red'] || seen('red'));
-        const late = performance.now() - tu.t0 > SNARE_TUTORIAL_MAX * 1000;
-        if ((bubbleOver && loopOver && redOver && !snare.coach) || late) snareZoomOut(red);
+        // its step over, it's deleted (a puff), and the drawn loop's group comes in (phones)
+        if (redOver && !tu.redGone && snare.coach?.key !== 'red') {
+            tu.redGone = now;
+            if (red) {
+                snare.fx.push({ kind: 'purge', packets: [{ x: red.x, y: red.y, kind: 'corrupt' }], t: 0, life: 0.5 });
+                run.packets = run.packets.filter(p => p !== red);
+            }
+        }
+        if (tu.redGone && phone && !tu.second && now - tu.redGone > 500) {
+            tu.second = true;
+            snareTutorialGroup(run, run.w / 2, run.h * 0.5);
+        }
+        const loopOver = !phone || state.intro['snare:coach:loop'] || (tu.second && seen('loop'));
+        const late = now - tu.t0 > SNARE_TUTORIAL_MAX * 1000;
+        if ((tu.redGone && loopOver && !snare.coach && now - tu.redGone > 400) || late) snareZoomOut(tu.anchor || null);
     }
-    // The tutorial's field zooms out to the standard one: the run proper starts with what was left. Snare 18.8 (the owner's
-    // call): centred on the tutorial's unreadable packet (`anchor`), which lands in the middle of the standard field and
+    // The tutorial's field zooms out to the standard one: the run proper starts with what was left. Centred on `anchor`
+    // (Snare 18.9: where the drawn loop caught; the middle on desktop), which lands in the middle of the standard field and
     // stays at the middle of the screen as the view pulls back.
     function snareZoomOut(anchor = null) {
         const tut = snare.run, o = snare.tutorial.o;
@@ -4160,11 +4170,11 @@ window.AGI = (function () {
             aim: (run, ids) => { const g = snareGroupAt(run, ids); return g && { ...g, gesture: 'hold' }; },
             text: () => (snareFinePointer() ? '> Hold the right button, then let go to catch them.' : '> Hold still, then let go to catch them.'),
             done: e => e.type === 'catch' },
-        { key: 'red', after: 'bubble', info: 5, when: run => run.packets.find(p => p.kind === 'corrupt' && (snare.tutorial ? Math.hypot(p.x - run.w / 2, p.y - run.h / 2) < 0.4 : p.x > 0.5 && p.y > 0.5 && p.x < run.w - 0.5 && p.y < run.h - 0.5))?.id,
+        { key: 'red', after: 'bubble', info: 3.5, slow: 1, when: run => run.packets.find(p => p.kind === 'corrupt' && (snare.tutorial ? Math.hypot(p.x - run.w / 2, p.y - run.h / 2) < 0.4 : p.x > 0.5 && p.y > 0.5 && p.x < run.w - 0.5 && p.y < run.h - 0.5))?.id,
             aim: (run, id) => { const p = coachById(run.packets, id); return p && { x: p.x, y: p.y, r: 0.7, gesture: 'mark' }; },
             text: () => '> That packet is unreadable. Keep it out of your bubble.', done: e => e.type === 'catch' },
         // Phones catch with a drawn loop too (Snare 17.5): shown once a bubble has caught (the owner's call: show the choice)
-        { key: 'loop', after: 'bubble', when: run => run.opts.loopCatch && !snareFinePointer() && performance.now() - (snare.coachCaught || Infinity) > 1500 && snareCluster(run),
+        { key: 'loop', after: 'bubble', when: run => run.opts.loopCatch && !snareFinePointer() && (!snare.tutorial || snare.tutorial.second) && (snare.tutorial || performance.now() - (snare.coachCaught || Infinity) > 1500) && snareCluster(run),
             aim: (run, ids) => { const g = snareGroupAt(run, ids); return g && { ...g, r: g.r + 0.3, gesture: 'loop' }; },
             text: () => '> You can also draw a loop round them to catch them.', done: e => e.type === 'catch' && e.drawn },
         { key: 'bossLoop', when: run => run.boss && run.fight && !(run.boss.stunned > run.time) && !run.boss.charge,
@@ -4247,7 +4257,7 @@ window.AGI = (function () {
             if (!at) continue;
             state.intro[coachKey(def, 'coachSeen')] = (state.intro[coachKey(def, 'coachSeen')] || 0) + 1;
             snare.coach = { key: def.key, what, at, t0: now };
-            run.setSlow(SNARE_COACH_SLOW || 0.01);
+            run.setSlow(def.slow ?? (SNARE_COACH_SLOW || 0.01));
             return;
         }
     }
@@ -4264,6 +4274,7 @@ window.AGI = (function () {
     function snareCoachEvent(e) {
         if (snare.coachOff) return;
         if (e.type === 'catch') snare.coachCaught = performance.now();
+        if (e.type === 'catch' && e.drawn && snare.tutorial) snare.tutorial.anchor = { x: e.x, y: e.y };
         const c = snare.coach;
         if (!c) return;
         const def = SNARE_COACHES.find(x => x.key === c.key);
