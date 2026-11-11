@@ -6,7 +6,11 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
 
 ## Where things stand
 
-- **Live review build:** Packet Snare **18.7**, republished 2026-11-11 14:54 UTC (version `1794408849-06ec`, engine.js,
+- **Live review build:** Packet Snare **18.8**, published 2026-11-11 20:56 UTC (version `1794430575-69c8`, index.html,
+  engine.js, game.js, packet-snare.js, snare-demos.js and scenarios.json): the owner's calls on the 18.7 log (the 15-sector
+  campaign with skill-gated bosses, the meltdown doubling the run, racing combos and a limited wire, defences in the boss
+  fight, the bubble nodes on drawn loops; see CLAUDE.md). The owner reviews it on the phone over Tailscale first (below).
+- **Before it:** Packet Snare **18.7**, republished 2026-11-11 14:54 UTC (version `1794408849-06ec`, engine.js,
   game.js, packet-snare.js and styles.css): the open decisions closed (flick nodes gone, nets shield the boss, a parry
   knocks it into mines), round 11's layout fixes (F41) and the field filling the width on screens 1700 px and wider. The
   build number stayed 18.7 (the owner's call: a new one only when a playtest led to a change). Before it, 12:23 UTC

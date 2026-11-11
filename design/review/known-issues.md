@@ -8,7 +8,10 @@ Tag every issue in your review: `[new]`, `[known K#]` or `[regression]`. Issues 
 Update this file with every fix batch (move fixed ones to *fixed: verify*, drop them after a review confirms them).
 
 ## Open
-- None. Closed with no change: K6 (a maxed field's clutter) was closed with no change (the owner's call, 2026-11-11), and the desktop part of
+- **K28** [new] (18.8): the boss's Antivirus minions have no look out card or demo. They come with sector 9's boss now
+  (sector 14 before) and are what the defences answer, so a player meets them mid-fight with no warning. Needs a
+  `minions` intro in `SNARE_INTROS`, `snareBrings` and a demo in `snare-demos.js`.
+- Closed with no change: K6 (a maxed field's clutter) was closed with no change (the owner's call, 2026-11-11), and the desktop part of
   K20 (the HUD small at 1920 and 4K) was left as it is.
 
 ## Fixed: verify
