@@ -6,7 +6,12 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
 
 ## Where things stand
 
-- **Live review build:** Packet Snare **18.4**, published 2026-11-11 02:46 UTC (version `1794365202-92a4`, from the
+- **Live review build:** Packet Snare **18.5**, published 2026-11-11 03:26 UTC (version `1794367558-1ac2`): the
+  tutorial field that zooms out, fast slashes with the boss's health doubled, the stun timer, quicker bubbles, catches ×0.7,
+  Sprawl level 4 at 1,000 (see the Builds row). **The owner decides pacing**: show them a sweep before any compensating
+  change (memory and CLAUDE.md say so). Watch in the next log: the tutorial, the meltdown's 30 hits and shake, fast
+  slashes against the doubled health, sector 2–4 runs at ×0.7 pay. Open: the flicks (D20).
+- **Before it:** Packet Snare **18.4**, published 2026-11-11 02:46 UTC (version `1794365202-92a4`, from the
   owner's Windows machine): walkthroughs, the meltdown (slash like crazy), the bolt, Hijack, the cut nodes, full sentences;
   see the Builds row. Watch in the next log: the 0.15 slow motion (the owner's fallback is freezing), meltdown hits
   against 30/40/50 and the shake, sectors 6–8 with the dearer Sprawl, Chain Lightning's feel. Open: the flicks (D20).
