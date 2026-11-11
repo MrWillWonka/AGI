@@ -60,6 +60,11 @@ When answered: the change, `settled.md` (or `targets.json`) and this file are up
 - **K20 (answered 2026-11-11)**: screens. The owner's call: save space on phones, and leave the desktop HUD as it is.
   Built for phones (F40).
 
+- **Round 11 (answered 2026-11-11)**: layout. The owner's calls: fix the sideways phone cards, the canvas text, tablets
+  and narrow windows, and toasts over a docked popup (F41); widen the field on screens 1700 px and wider, with no
+  compensation (a sweep: the same pacing through sector 12, about 4 minutes slower by sector 15, the tree about 2 minutes
+  later; field 1360 → 1890 px across at 1920, +39% area; a 1280 laptop unchanged).
+
 ## Open
 - None. New decisions come from the next playtest log.
 

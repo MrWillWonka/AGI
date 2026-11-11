@@ -3659,3 +3659,9 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
 @media (max-width: 640px) and (min-height: 501px) {
     .snare-card .snare-name { display: none; }
 }
+/* The owner's call (round 11, from a sweep: the same pacing through sector 12, about 4 minutes slower by 15, no
+   compensation): on screens 1700 px wide or more, Packet Snare's field fills the width (it was capped at 1360 px: 54%
+   of a 1920 screen, 280 px empty each side). */
+@media (min-width: 1700px) {
+    .snare-view > .canvas-wrap, .snare-view .snare-tools { width: min(100%, 2400px); }
+}
