@@ -3,3 +3,4 @@ round,date,kind,roles,minutes,new_issues,known_repeats,false_alarms,fixes_verifi
 7,2026-11-09,full,3 generalists,~75,,,,,usage limit hit mid-round
 9,2026-11-09,partial,screens,6,8,2,1,,early and late stopped; first round with the report and briefs
 10,2026-11-10,full+verify,early fable · late opus · screens sonnet · verify sonnet,~36,22,3,0,4,first round on the 17.5–17.7 boss; F14–F17 hold; F16 brought a regression (sideways crumbs)
+11,2026-11-11,layout,layout-phone opus · layout-desktop sonnet,~13,14,4,0,,layout only; tools/review/layout.js baseline in review-out/layout-r11 (base layout-r11-base); F40 holds upright and at 844 for start cards, broke end card headings (K23)
