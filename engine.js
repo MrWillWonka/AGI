@@ -547,7 +547,7 @@
         { id: 'snareFork', name: 'Split', mechanic: 'fork', snare: { x: 0, y: -5 }, requires: 'snareHerders', cost: { signal: 10500 }, scale: 2, max: 2, sn: { fork: 1 }, effect: 'Let go of a full bubble, and it splits in two. Their multipliers multiply.' },
         { id: 'snareDilation', name: 'Time Dilation', snare: { x: -2, y: -4 }, requires: 'snareFreeze', cost: { signal: 17300 }, scale: 2, max: 2, sn: { freezeSeconds: 1.5 }, effect: 'Freeze lasts 1.5 s longer.' },
         { id: 'snareStar', name: 'Supernova', mechanic: 'star', snare: { x: -2, y: -3 }, requires: 'snareSteady', after: 'snareFreeze', cost: { signal: 21000 }, scale: 2, max: 2, sn: { star: 1 }, stages: { 2: { starMult: 3 } }, effect: 'A bubble let go while frozen bursts wider, pays ×2 and deletes unreadable data.' },
-        { id: 'snareHerders', name: 'Herders', mechanic: 'herders', snare: { x: 0, y: -4 }, requires: 'snareLongWire', cost: { signal: 3500 }, scale: 1.6, max: 4, sn: { herders: 1, herdRadius: 0.15, herdEvade: 0.5 }, effect: 'A drone herds stray packets together and deletes unreadable ones.' },
+        { id: 'snareHerders', name: 'Herders', mechanic: 'herders', snare: { x: 0, y: -4 }, requires: 'snareLongWire', cost: { signal: 3500 }, scale: 1.6, max: 4, sn: { herders: 1, herdShare: 0.075, herdEvade: 0.5 }, effect: 'A drone herds packets toward the middle and deletes unreadable ones.' },
         { id: 'snareEcho', name: 'Infinite Loop', mechanic: 'echo', snare: { x: 0, y: -6 }, requires: 'snareFork', cost: { signal: 26250 }, scale: 1.7, max: 3, sn: { echo: 1 }, effect: 'Every bubble catches again a second later.' },
         // FIELD (right): abundance; the scanner, its towers and Packet Storm at its tip.
         { id: 'snareSprawl', name: 'Sprawl', snare: { x: 1, y: 0 }, requires: 'snareSeed', deep: true, costs: [{ signal: 15 }, { signal: 38 }, { signal: 94 }, { signal: 1000 }], cost: { signal: 400 }, scale: 3, max: 9, sn: { sprawl: 1 }, effect: 'The field grows ×1.35. Levels 4 and 7 grow it more.' },
@@ -564,7 +564,7 @@
         // EXPLOITS (down): the flick and the boss fight; the lasers and Blue Screen at its tip.
         { id: 'snareCleanerBot', name: 'Decoder Bot', mechanic: 'cleaner', snare: { x: -1, y: 1 }, requires: 'snareSanitizer', cost: { signal: 100 }, scale: 2, max: 4, sn: { cleanBots: 1 }, effect: 'A Decoder Bot rides an unreadable packet until your model can read it.' },
         { id: 'snareSanitizer', name: 'Sanitizer', snare: { x: 0, y: 1 }, requires: 'snareSeed', deep: true, cost: { signal: 40 }, scale: 2, max: 9, perLevel: [{ cleaner: 1 }, { cleaner: 1 }, { cleaner: 1 }, { cleaner: 2 }, { cleaner: 2, lureMult: -0.16 }, { cleaner: 3, lureMult: -0.16 }, { cleaner: 3, lureMult: -0.16 }, { cleaner: 4, lureMult: -0.16 }, { cleaner: 4, lureMult: -0.16 }], sn: { cleaner: 1 }, effect: 'Fewer packets are unreadable. From level 5, they stop chasing schools.' },
-        { id: 'snareKernelPanic', name: 'Kernel Panic', snare: { x: 0, y: 2 }, requires: 'snareSanitizer', cost: { signal: 500 }, scale: 2, max: 1, sn: { bossStun: 1 }, effect: 'A stunned boss reels 1 s longer.',
+        { id: 'snareKernelPanic', name: 'Kernel Panic', snare: { x: 0, y: 2 }, requires: 'snareSanitizer', cost: { signal: 500 }, scale: 2, max: 5, deep: true, sn: { bossStun: 1, meltdown: 1.5 }, perLevel: [{ bossStun: 1, meltdown: 1.5 }, { meltdown: 1.5 }], effect: 'A beaten boss melts down 1.5 s longer, and a stunned boss reels longer.',
             // the boss's nodes wait for the first boss (round 10: sold on sector 3, they took Signal the wall needed); Snare 18.3
             // (the owner on the 18.1 log: they sat unbought with nothing to do): out of the tree until a boss is met (its
             // look out card shown) or beaten
@@ -578,7 +578,7 @@
         { id: 'snareLaser', name: 'Targeted Laser', mechanic: 'laser', snare: { x: 0, y: 4 }, requires: 'snareParry', cost: { signal: 3800 }, scale: 1.5, max: 5, sn: {  }, stages: { 1: { laser: 2.5 }, 2: { laser: 1.7 }, 3: { laser: 1.2 }, 4: { laser: 0.85 }, 5: { laser: 0.6 } }, effect: 'A laser zaps the richest packet in reach every 2.5 s.' },
         { id: 'snareLens', name: 'Overcharged Lens', snare: { x: -1, y: 4 }, requires: 'snareLaser', cost: { signal: 75250 }, scale: 2, max: 2, sn: { laserMult: -0.25, laserReach: 0.2 }, effect: 'Lasers fire 25% sooner and reach 20% further.' },
         { id: 'snareEmitters', name: 'Twin Emitters', snare: { x: 0, y: 5 }, requires: 'snareLaser', cost: { signal: 75250 }, scale: 1.3, max: 2, sn: { emitters: 1 }, effect: 'Each laser edge gets one more emitter.' },
-        { id: 'snareGoldPlate', name: 'Gold Plating', mechanic: 'goldPlate', snare: { x: -1, y: 2 }, requires: 'snareCleanerBot', cost: { signal: 8000 }, scale: 2, max: 2, sn: { goldPlate: 1 }, effect: 'With nothing unreadable near, Decoder Bots gild a packet every 6 s.' },
+        { id: 'snareGoldPlate', name: 'Gold Plating', mechanic: 'goldPlate', snare: { x: -1, y: 2 }, requires: 'snareCleanerBot', cost: { signal: 8000 }, scale: 2, max: 2, sn: { goldPlate: 1 }, effect: 'With nothing unreadable near, Decoder Bots gild 2 packets every 6 s.' },
         { id: 'snareLaserArray', name: 'Laser Array', snare: { x: -1, y: 5 }, requires: 'snareLens', cost: { signal: 166250 }, scale: 1.5, max: 3, sn: { laserSides: 1 }, effect: 'Lasers fire from one more edge: the top, then the left, then the right.' },
         // DEFENSE (left): walls, decoys, the cleaners and the Antivirus; the turrets and Zero Trust at its tip.
         { id: 'snareSpooferBot', name: 'Spoofer Bot', mechanic: 'spoofer', snare: { x: -2, y: -1 }, requires: 'snareFirewalls', cost: { signal: 2500 }, scale: 1.4, max: 4, sn: { spoofBots: 1 }, effect: 'A Spoofer Bot turns unreadable packets good, worth ×2, for a while.' },
@@ -2318,6 +2318,9 @@
             contain: g('contain'),
             herders: g('herders'),
             herdRadius: B.herdRadius * (1 + g('herdRadius')),
+            // after the 18.7 log (the owner: make each weak buy pay): a herder's reach is a share of the field, 7.5% of the
+            // shorter side a level (on a full phone field its 1.7 units moved almost nothing: +0% a run, now about +8.5% at 4)
+            herdShare: g('herdShare'),
             herdEvade: g('herdEvade'),
             emitters: B.emitters + g('emitters'),
             laserSides: B.laserSides + g('laserSides'),
@@ -2358,6 +2361,7 @@
             collectBots: g('collectBots'),
             // the helpers that deal with red (the owner's calls on the 15.5 log)
             goldPlate: g('goldPlate'),
+            goldBatch: 2 * g('goldPlate'),   // 18.7's log: one at a time added nothing; 2, then 4 at once about +9% a run
             fwHits: B.fwHits + g('fwHits'),
             decoys: slots(g('decoys')),
             decoyLure: B.decoyLure * (1 + g('decoyLure')),
@@ -2428,9 +2432,11 @@
             bossIncoming: 2.5,
             bossFight: 30,
             // Snare 18.3: beaten, it melts down (slash it for Signal), then the run ends. Snare 18.5 (the owner: "slash like
-            // crazy" for the most, more each boss): 30 hits for all of it on the first boss in 8 s, 10 more and 1 s more a boss
-            meltdown: 8 + snareBossOrdinal(k),
-            meltHits: 30 + 10 * snareBossOrdinal(k),
+            // crazy" for the most, more each boss); after the 18.7 log (the owner: a much shorter timer to start, for suspense,
+            // with an upgrade adding time for the late game's payout, and fewer hits on the first): 3 s and 20 hits on the first
+            // boss, 0.5 s and 10 hits more a boss, and Kernel Panic adds 1.5 s a level (five levels, 500 to 8,000 Signal) (`meltdown` in the tree)
+            meltdown: 3 + 0.5 * snareBossOrdinal(k) + g('meltdown'),
+            meltHits: 20 + 10 * snareBossOrdinal(k),
             fightPenalty: 2,   // Snare 17.8 (round 10): a snap or a spoil in the fight costs the fight clock 2 s, not Focus
             bossSwallow: 1,
             bossFocus: 0,
@@ -2480,13 +2486,15 @@
     }
     // Snare 18.3 (the owner on the 18.1 log: a beaten boss's run went on to 13K and 61K on the Focus top-up and the burst of
     // packets): a beaten boss melts down, and each meltdown hit pays Signal, more each hit (hit k of n pays k / (1 + … + n)
-    // of the pool), so all n hits pay the pool: the next sector's goal (half on a replay). A set amount per boss: no
-    // sector pay, no Overclock. `from`, `to`: the hits before and after (a loop counts two). Returns what it paid.
-    function snareMeltPool(sector, replay = false) { return Math.round((replay ? 0.5 : 1) * snareGoal(sector + 1)); }
-    function snareMeltPay(s, sector, replay, from, to, of = 12) {
+    // of the pool), so all n hits pay the pool. After the 18.7 log (the owner: the jackpot paid the next sector's goal, so
+    // the sector after each boss fell first try; it should feel like doubling your money from the run): the pool is what
+    // the run had earned when the boss was beaten (`snareMeltPool(haul)`, the boss's bounty included), so all n hits double
+    // it. `from`, `to`: the hits before and after (a loop counts two). Returns what it paid.
+    function snareMeltPool(haul) { return Math.max(0, Math.round(haul)); }
+    function snareMeltPay(s, pool, from, to, of = 12) {
         let share = 0;
         for (let k = from + 1; k <= to; k++) share += k;
-        const pay = Math.round(snareMeltPool(sector, replay) * share / (of * (of + 1) / 2));
+        const pay = Math.round(snareMeltPool(pool) * share / (of * (of + 1) / 2));
         s.snare.signal += pay;
         s.snare.earned += pay;
         return pay;

@@ -73,26 +73,33 @@ test('left alone it blows when its six seconds are up', () => {
     assert.ok(boom && boom.hits === 0);
 });
 
-test('the twelve hits pay the next sector\'s goal between them, more each hit; half on a replay', () => {
+// After the 18.7 log (the owner: the jackpot paid the next sector's goal, so the sector after each boss fell first try;
+// "double your money from the run"): the pool is what the run had earned when the boss was beaten.
+test('the hits pay what the run had earned between them, more each hit (all of them double the run)', () => {
     const st = E.defaultState(Date.now());
-    st.snare.sector = 5;
-    const pool = E.snareMeltPool(4);
-    assert.equal(pool, E.snareGoal(5));
-    const one = E.snareMeltPay(st, 4, false, 0, 1), last = E.snareMeltPay(st, 4, false, 11, 12);
+    const pool = E.snareMeltPool(4000.4);
+    assert.equal(pool, 4000);
+    const one = E.snareMeltPay(st, pool, 0, 1), last = E.snareMeltPay(st, pool, 11, 12);
     assert.ok(last > 10 * one, 'the last hit pays far more than the first');
     let paid = 0;
-    for (let k = 0; k < 12; k++) paid += E.snareMeltPay(st, 4, false, k, k + 1);
+    for (let k = 0; k < 12; k++) paid += E.snareMeltPay(st, pool, k, k + 1);
     assert.ok(Math.abs(paid - pool) <= 12, 'all twelve: the pool');
-    assert.ok(Math.abs(E.snareMeltPay(st, 4, true, 0, 12) - pool / 2) <= 1, 'a replay: half');
+    assert.equal(E.snareMeltPay(st, 0, 0, 12), 0, 'a run that had earned nothing melts for nothing');
 });
 
-// Snare 18.5 (the owner: "slash like crazy" for the most, more each boss, the screen shaking harder the more you get)
-test('each boss takes more meltdown hits for all of it (30, then 10 more a boss), with a second more each', () => {
+// The owner on the 18.7 log: a much shorter timer to start (suspense), Kernel Panic adds time (the late game's payout),
+// and fewer hits on the first boss.
+test('the first boss takes 20 hits in 3 s, each boss 10 more and 0.5 s more, and Kernel Panic adds 1.5 s a level', () => {
     const st = E.defaultState(Date.now());
     const at = k => { const o = E.snareOpts(st, k); return [o.meltHits, o.meltdown]; };
-    assert.deepEqual(at(4), [30, 8]);
-    assert.deepEqual(at(7), [40, 9]);
-    assert.deepEqual(at(10), [50, 10]);
+    assert.deepEqual(at(4), [20, 3]);
+    assert.deepEqual(at(7), [30, 3.5]);
+    assert.deepEqual(at(10), [40, 4]);
+    st.levels.snareKernelPanic = 1;
+    assert.deepEqual(at(4), [20, 4.5]);
+    st.levels.snareKernelPanic = 5;
+    assert.deepEqual(at(4), [20, 10.5]);
+    assert.equal(E.snareOpts(st, 4).bossStun, E.snareOpts(E.defaultState(1), 4).bossStun + 1, 'its reel stays 1 s, not 1 s a level');
 });
 
 test('while it melts, slashes count far faster than in the fight (slash like crazy)', () => {

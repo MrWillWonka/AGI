@@ -204,6 +204,7 @@
         collectCap: 8,
         goldPlate: 0,
         goldEvery: 6,
+        goldBatch: 1,               // the regular packets near it a bot gilds at a time
         botEvery: 3,
         botSpeed: 2.4,
         // Things you place with a tap: decoys (corrupt packets and idle Antivirus go to them; an Antivirus that reaches
@@ -252,6 +253,7 @@
         herdGcEvery: 1.2,           // …one each at most this often
         herdSpeed: 2.8,
         herdPull: 2.6,              // how quickly a herded packet turns (per second)
+        herdShare: 0,               // a herder's reach as a share of the field's shorter side, if wider than `herdRadius`
         cleanStart: false,          // the first runs: one school starts clear of corrupt packets, and the lure waits
         // The boss Antivirus: it boots `bossAt` s in, or once `bossCatch` packets are caught by hand (0 = none this run).
         // It has health (`boss`, more each sector) and is fought with flicks (the owner's design): every `bossCharge` s
@@ -472,7 +474,11 @@
         // Backpressure: a catch turns the packets round it back against their course for `backSeconds` s, within
         // (0.12 + 0.04 a level) × the shorter side, so they bunch up near your loop.
         backpressure: 0,
-        backSeconds: 1.2
+        backSeconds: 1.2,
+        backReach: 0.12,            // its reach: this share of the shorter side…
+        backReachLv: 0.04,          // …and this much more a level
+        overflowGold: 0.2,           // past four times what a screen-capped field can hold, packets come gold this much more a doubling
+        backPull: 0                  // Backpressure pulls packets in toward the catch instead of turning them back (tried: no better)
     };
     const GOLD_VALUE = 5;
     const TAG_VALUE = 2;
@@ -800,12 +806,12 @@
                 let target = null, bd = Infinity;
                 for (const p of reds) { const d = Math.hypot(p.x - b.x, p.y - b.y); if (d < bd) { bd = d; target = p; } }
                 if (b.kind === 'clean' && o.goldPlate && s.time >= b.goldAt && !(target && bd < 2.5 * Math.sqrt(grow))) {
-                    // Gold Plating: with no red near, the nearest regular packet turns gold.
-                    let g = null, gd = Infinity;
-                    for (const p of s.packets) { if (p.kind !== 'good') continue; const d = Math.hypot(p.x - b.x, p.y - b.y); if (d < gd) { gd = d; g = p; } }
-                    if (g && gd < 3 * grow) {
+                    // Gold Plating: with no red near, the nearest regular packets turn gold (`goldBatch` at a time).
+                    const near = s.packets.filter(p => p.kind === 'good').map(p => ({ p, d: Math.hypot(p.x - b.x, p.y - b.y) }))
+                        .filter(q => q.d < 3 * grow).sort((a, c) => a.d - c.d).slice(0, Math.max(1, Math.round(o.goldBatch)));
+                    if (near.length) b.goldAt = s.time + o.goldEvery / o.goldPlate;
+                    for (const { p: g } of near) {
                         g.kind = 'gold';
-                        b.goldAt = s.time + o.goldEvery / o.goldPlate;
                         s.stats.gilded++;
                         s.events.push({ type: 'gilded', x: g.x, y: g.y, from: { x: b.x, y: b.y } });
                     }
@@ -2100,9 +2106,9 @@
                 remove([p]);
             }
             // Packets near a working herder turn: good ones toward the gather point, corrupt ones away from it.
-            const kp = Math.min(1, o.herdPull * dt);
+            const kp = Math.min(1, o.herdPull * dt), herdR = Math.max(o.herdRadius, o.herdShare * shortSide);
             for (const p of s.packets) {
-                if (!working.some(hd => Math.hypot(hd.x - p.x, hd.y - p.y) <= o.herdRadius)) continue;
+                if (!working.some(hd => Math.hypot(hd.x - p.x, hd.y - p.y) <= herdR)) continue;
                 let ang = Math.atan2(g.y - p.y, g.x - p.x);
                 if (p.kind === 'corrupt') ang += Math.PI;
                 p.vx += (Math.cos(ang) * p.v - p.vx) * kp;
@@ -2915,12 +2921,16 @@
             }
             // Backpressure: the packets round the loop turn back against their course for a moment.
             if (o.backpressure) {
-                const R = shortSide * (0.12 + 0.04 * o.backpressure);
+                const R = shortSide * (o.backReach + o.backReachLv * o.backpressure);
                 let n = 0;
                 for (const p of s.packets) {
                     if (p.kind === 'corrupt' || p.back || Math.hypot(p.x - at.x, p.y - at.y) > R) continue;
                     p.back = { until: s.time + o.backSeconds, vx: p.vx, vy: p.vy };
-                    p.vx = -p.vx * 0.6; p.vy = -p.vy * 0.6;
+                    if (o.backPull) {
+                        // pulled in toward where the catch was, so a bunch gathers there for the next one
+                        const d = Math.hypot(at.x - p.x, at.y - p.y) || 1, v = Math.hypot(p.vx, p.vy) || p.v || 1;
+                        p.vx = (at.x - p.x) / d * v * o.backPull; p.vy = (at.y - p.y) / d * v * o.backPull;
+                    } else { p.vx = -p.vx * 0.6; p.vy = -p.vy * 0.6; }
                     n++;
                 }
                 if (n) { s.stats.pushedBack += n; s.events.push({ type: 'backpressure', x: at.x, y: at.y, r: R, count: n }); }

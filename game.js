@@ -3919,6 +3919,9 @@ window.AGI = (function () {
             // Past the cap, the packets it can't hold come back sooner instead (the owner's call, Snare 10: packet
             // nodes never stop doing something), up to four times as fast…
             if (want > cap) out.respawn = (o.respawn ?? B.respawn) / Math.min(4, want / cap);
+            // Past four times that (the owner's call on the 18.7 log: Sprawl's last levels did nothing on a phone), the packets
+            // it still can't hold come gold more often instead (`overflowGold` a doubling).
+            if (want / cap > 4 && B.overflowGold) out.goldChance = (o.goldChance ?? B.goldChance) + B.overflowGold * Math.log2(want / cap / 4);
             // …and a fuller field draws its packets smaller (never under 0.55 of their size), so it stays readable.
             out.packetR = B.packetR * Math.max(0.55, Math.min(1, Math.sqrt(0.3 / dens)));
         }
@@ -4580,7 +4583,7 @@ window.AGI = (function () {
             } else if (t === 'meltHit') {
                 // Snare 18.3: each meltdown hit bursts Signal out of the boss, more each hit (a set amount per boss)
                 const m = snare.melt;
-                const pay = m ? E.snareMeltPay(state, m.sector, m.replay, e.from, e.to, e.of) : 0;
+                const pay = m ? E.snareMeltPay(state, m.pool, e.from, e.to, e.of) : 0;
                 if (m) m.paid += pay;
                 snare.haul += pay;
                 snare.fx.push({ kind: 'stun', gold: true, x: e.x + (Math.random() - 0.5) * 1.6, y: e.y - 1.4 - Math.random() * 0.8, t: 0, life: 1, text: `+${E.format(pay)}`, small: e.to < e.of * 0.5 });
@@ -4814,7 +4817,8 @@ window.AGI = (function () {
         snare.cleared.push(cleared);
         snare.threatAfter = Math.max(snare.threatAfter || 0, run.real + 1.5);
         // Big, centred, with a flash (round 3 of the review: a small blue line like every other pop).
-        snare.melt = boss && e.meltdown ? { sector: cleared, replay, paid: 0, bounty: pay } : null;
+        // the meltdown's pool: what the run had earned, the bounty included (the owner: "double your money from the run")
+        snare.melt = boss && e.meltdown ? { sector: cleared, replay, paid: 0, bounty: pay, pool: E.snareMeltPool(snare.haul) } : null;
         snare.fx.push({ kind: 'banner', centre: true, huge: true, x: e.x, y: e.y, t: 0, life: 2, text: snare.melt ? 'MELTDOWN' : `${boss ? 'BOSS UNINSTALLED' : 'SECTOR BREACHED'} +${E.format(pay)}${e.focus > 0 ? ` · +${e.focus} s FOCUS` : ''}` });
         if (!reducedMotion()) snare.fx.push({ kind: 'flash', gold: true, t: 0, life: 0.35 }, { kind: 'wave', t: 0, life: 1.2 });
         sfx('snareBossDown');
@@ -5145,7 +5149,7 @@ window.AGI = (function () {
         race: 'hourglass', freeze: 'timer', freezeSeconds: 'timer', sprawl: 'expand', pay: 'boost', schooling: 'school', contain: 'anchor',   // a padlock read as a locked node (round 7 of the review)
        
         herders: 'drone', herdEvade: 'drone', herdRadius: 'drone', density: 'stack', goldChance: 'coin', goldValue: 'coin', tagValue: 'star',
-        gc: 'trash', spoof: 'mask', slashDamage: 'sword', parryDamage: 'slash', parry: 'slash', bossStun: 'timer', fork: 'fork', star: 'burst', escalate: 'ram', cleaner: 'terminal', laser: 'beams', emitters: 'beams', laserSides: 'beams', laserMult: 'beams',
+        gc: 'trash', spoof: 'mask', slashDamage: 'sword', parryDamage: 'slash', parry: 'slash', bossStun: 'timer', meltdown: 'burst', fork: 'fork', star: 'burst', escalate: 'ram', cleaner: 'terminal', laser: 'beams', emitters: 'beams', laserSides: 'beams', laserMult: 'beams',
         turrets: 'turret', turretPurge: 'turret', turretRange: 'turret', turretRate: 'turret', scanner: 'radar', towers: 'mast', towerRange: 'mast',
         chain: 'bolt', chainHops: 'bolt', chainRange: 'bolt', scrubbers: 'filter', corruptMult: 'terminal', lureMult: 'code', purge: 'flame',
         firewalls: 'bricks', wallMult: 'bricks', wallRebuild: 'bricks', fwHits: 'shield', decoys: 'diamond', decoyLure: 'diamond',
@@ -5460,7 +5464,7 @@ window.AGI = (function () {
         ['parry', 'The boss\'s charge', v => (v ? 'parried with a flick across its line' : 'dodge it, or loop the boss')],
         ['gc', 'Bubbles of only unreadable packets', v => (v ? 'deleted, Focus back' : 'garble')], ['spoof', 'Flicks', v => (v ? 'spoof unreadable packets' : 'off')],
         ['spoofSeconds', 'Spoofed for', v => `${num1(v)} s`], ['slashDamage', 'A slash takes', v => `${v} health`], ['parryDamage', 'A parry takes', v => `${v} health`],
-        ['bossStun', 'A stunned boss reels', v => `${num1(v)} s`], ['fork', 'A full bubble let go', v => (v ? `splits into ${v + 1}` : 'stays whole')],
+        ['bossStun', 'A stunned boss reels', v => `${num1(v)} s`], ['meltdown', 'A beaten boss melts down for', v => `${num1(v)} s`], ['fork', 'A full bubble let go', v => (v ? `splits into ${v + 1}` : 'stays whole')],
         ['star', 'A bubble let go while frozen', v => (v ? 'goes supernova' : 'nothing special')], ['starMult', 'A supernova pays', v => `×${v} more`],
         ['escalate', 'Your hijacked Antivirus', v => (v ? 'can ram the boss' : 'only takes packets')], ['escalateDamage', 'A ram takes', v => `${v} health`],
         ['laser', 'Laser', v => (v ? `every ${num1(v)} s` : 'none')], ['emitters', 'Emitters per edge', String], ['laserSides', 'Edges with lasers', String],
@@ -5488,7 +5492,7 @@ window.AGI = (function () {
         ['relay', 'Unreadable packets your Firewalls bounce', v => (v ? 'swim to your Decoy' : 'swim on')],
         ['backpressure', 'A catch', v => (v ? 'turns the packets round it back' : 'leaves the packets round it be')],
         ['cleanBots', 'Decoder bots', String], ['spoofBots', 'Spoofer bots', String], ['collectBots', 'Collector bots', String],
-        ['goldPlate', 'Decoder bots gild a packet every', v => (v ? `${num1(6 / v)} s` : 'never')],
+        ['goldBatch', 'Gilded at a time', String], ['herdShare', 'Herder reach', v => `${Math.round(100 * v)}% of the field`], ['goldPlate', 'Decoder bots gild every', v => (v ? `${num1(6 / v)} s` : 'never')],
         ['pen', 'Good packets in a Firewall', v => (v ? 'stay in' : 'come and go')],
         ['autoZone', 'Free Firewalls', v => (v ? 'place themselves' : 'wait for you')]
     ];
@@ -5514,6 +5518,9 @@ window.AGI = (function () {
             // As counts on this screen (round 2 of the review: "×1.2 → ×1.6" at level 0 read as a ×1.2 never bought).
             const base = window.PacketSnare.SNARE.density * window.PacketSnare.SNARE.area;
             if (b > a * 1.005) return `Packets on the field: ${Math.round(a * base)} → ${Math.round(b * base)}${sooner}`;
+            // Far past it, the packets it can't hold come gold more often (the owner's call on the 18.7 log).
+            const gold = o => snareField(o.area, o).goldChance ?? o.goldChance;
+            if (gold(next) > gold(now) + 0.001) return `Gold packets: ${pct(gold(now))} → ${pct(gold(next))} (your screen is full)`;
             // Past the screen's cap a packet node makes them come back sooner (Snare 10).
             if (sooner) return `Packets come back: ${num2(ra)} s → ${num2(rb)} s (your screen is full)`;
         }

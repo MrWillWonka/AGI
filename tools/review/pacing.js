@@ -67,6 +67,7 @@ function field(o, scr) {
     const want = o.density * o.area / a, dcap = Math.min(B.densityCap, B.maxOnScreen / a), dens = Math.min(dcap, want);
     if (o.area > a || want > dcap) { out.density = dens; out.maxGood = Math.max(o.maxGood, Math.round(dens * a)); }
     if (want > dcap) out.respawn = (o.respawn ?? B.respawn) / Math.min(4, want / dcap);
+    if (want / dcap > 4 && B.overflowGold) out.goldChance = (o.goldChance ?? B.goldChance) + B.overflowGold * Math.log2(want / dcap / 4);   // past the cap: gold (18.7's log)
     out.packetR = B.packetR * Math.max(0.55, Math.min(1, Math.sqrt(0.3 / dens)));
     return out;
 }
@@ -87,7 +88,7 @@ function campaign(seed, scr, { pace = PACE, minutes = MINUTES, runCap = RUN_CAP,
         if (o.boss) s.intro["snare:intro:boss"] = true;   // a boss sector: the boss is met (its nodes come into the tree, Snare 18.3)
         const run = P.createSnare({ ...o, ...field(o, scr), seed: Math.floor(rand() * 1e9), simStep: dt });
         const bot = createBot(run, { ...pace, rand });
-        let haul = 0, cleared = false, t = 0, mine = 0, helped = 0;
+        let haul = 0, cleared = false, t = 0, mine = 0, helped = 0, meltPool = 0;
         while (!run.over && t < runCap) {
             t += dt;
             bot.step(dt);
@@ -101,11 +102,12 @@ function campaign(seed, scr, { pace = PACE, minutes = MINUTES, runCap = RUN_CAP,
                     if (e.type === 'catch' || e.type === 'quarantine' || e.type === 'chainHop') mine += pay; else helped += pay;
                 }
                 // Snare 18.3: a melting boss's hits pay a set amount (the game pays them the same way)
-                if (e.type === 'meltHit') { const pay = E.snareMeltPay(s, k, false, e.from, e.to, e.of); haul += pay; mine += pay; }
+                if (e.type === 'meltHit') { const pay = E.snareMeltPay(s, meltPool, e.from, e.to, e.of); haul += pay; mine += pay; }
                 // a cleared sector: the run gathers on there (a person rarely pressed Go deeper in the log)
                 if ((e.type === 'goal' || e.type === 'bossDown') && !cleared) {
                     cleared = true;
                     haul += e.type === 'bossDown' ? E.snareBossDown(s, k) : E.snareGoalMet(s, k);
+                    meltPool = haul;   // the meltdown doubles what the run had earned (18.7's log, the owner's call)
                 }
             }
         }
