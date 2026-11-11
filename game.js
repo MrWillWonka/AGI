@@ -3984,7 +3984,13 @@ window.AGI = (function () {
         snareLive(true);
         reserveSnareTools(o);
         snare.seed = (state.snare.runs * 7919 + Math.floor(state.stats.playTime * 1000)) >>> 0;
-        snare.run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area, o), seed: snare.seed, redHunt: snareHuntOn() ? SNARE_HUNT : 0 });
+        // The very first run is the tutorial (Snare 18.7, the owner's call: the walkthroughs came only on the second run, by
+        // when the goal was easy): a small field, zoomed in, a group placed for each walkthrough, then it zooms out to the
+        // standard start and the run proper begins.
+        const tutorial = !state.intro['snare:tutorial'] && state.snare.runs === 0 && sector === 0;
+        snare.tutorial = tutorial ? { t0: performance.now(), o, second: false } : null;
+        snare.zoom = null;
+        snare.run = tutorial ? snareTutorialRun(o) : window.PacketSnare.createSnare({ ...o, ...snareField(o.area, o), seed: snare.seed, redHunt: snareHuntOn() ? SNARE_HUNT : 0 });
         snare.coach = null;
         snare.coachCaught = 0;
         snare.melt = null;
@@ -4050,7 +4056,8 @@ window.AGI = (function () {
             // the circle the walkthrough shows round them (a loop's is wider still) must stay on the field and clear of
             // anything unreadable: one aimed at the edge garbled the phone's loop
             const g = snareGroupAt(run, near.map(q => q.id)), rr = g.r + 0.3;
-            if (g.x < rr + 0.4 || g.y < rr + 0.4 || g.x > run.w - rr - 0.4 || g.y > run.h - rr - 0.4) continue;
+            const m = snare.tutorial ? 0.05 : 0.4;
+            if (g.x < rr + m || g.y < rr + m || g.x > run.w - rr - m || g.y > run.h - rr - m) continue;
             if (bad.some(q => Math.hypot(q.x - g.x, q.y - g.y) < rr + 0.8)) continue;
             best = near;
         }
@@ -4065,6 +4072,62 @@ window.AGI = (function () {
     }
     const coachById = (list, id) => list.find(q => q.id === id) || null;
     const coachTap = () => (snareFinePointer() ? 'click' : 'tap');
+    // ---- The tutorial (Snare 18.7) ---------------------------------------------------------------------------------------
+    // The first run starts on a field a fraction of the standard one (`SNARE_TUTORIAL_AREA`), zoomed in, Focus held, with a
+    // group of packets in the middle for the bubble's walkthrough (on a phone, a second group then for the drawn loop's);
+    // once they're done it zooms out (`SNARE_ZOOM_OUT` s) to the standard field, carrying what's left, and the run proper
+    // begins (its goal counts from there). A walkthrough not done in `SNARE_TUTORIAL_MAX` s zooms out anyway.
+    const SNARE_TUTORIAL_AREA = 0.4, SNARE_ZOOM_OUT = 1.5, SNARE_TUTORIAL_MAX = 45;
+    function snareTutorialRun(o) {
+        const run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area * SNARE_TUTORIAL_AREA, o), seed: snare.seed, density: 0, antivirus: [],
+            sweepFirst: Infinity, idleDrain: 0, respawn: 1e9, teachRed: 0, corruptShare: 0, goal: 0, flow: false, schooling: 0, cleanStart: 0,
+            // zoomed in, packets drawn at their standard size would merge into one blob: smaller here, back to size after
+            packetR: window.PacketSnare.SNARE.packetR * 0.55 });
+        run.packets = [];
+        snareTutorialGroup(run, run.w / 2, run.h * 0.45);
+        return run;
+    }
+    // A group of good packets round (cx, cy), drifting slowly (a walkthrough's target).
+    function snareTutorialGroup(run, cx, cy, n = 9) {
+        const R = Math.max(0.75, run.closeR * 2.2);
+        for (let i = 0; i < n; i++) {
+            const a = i * 2.39996, d = R * Math.sqrt((i + 0.5) / n), h = Math.random() * Math.PI * 2, v = 0.08;
+            run.packets.push({ id: run.nextId++, kind: i === 4 ? 'gold' : 'good', x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, vx: Math.cos(h) * v, vy: Math.sin(h) * v, v, r: run.opts.packetR, age: 1, school: 0, tag: 0 });
+        }
+    }
+    function snareTutorialStep(run) {
+        const tu = snare.tutorial;
+        if (!tu || snare.zoom || run.over) return;
+        const bubbled = !!state.intro['snare:coach:bubble'];
+        const phone = run.opts.loopCatch && !snareFinePointer();
+        // the drawn loop's group, a moment after the bubble's catch (phones: the other way to catch)
+        if (bubbled && phone && !tu.second && performance.now() - (snare.coachCaught || 0) > 600) {
+            tu.second = true;
+            snareTutorialGroup(run, run.w / 2, run.h * 0.55);
+        }
+        const seen = k => (state.intro[`snare:coachSeen:${k}`] || 0) >= SNARE_COACH_TRIES && snare.coach?.key !== k;
+        const bubbleOver = bubbled || seen('bubble'), loopOver = !phone || state.intro['snare:coach:loop'] || seen('loop');
+        const late = performance.now() - tu.t0 > SNARE_TUTORIAL_MAX * 1000;
+        if ((bubbleOver && loopOver && !snare.coach) || late) snareZoomOut();
+    }
+    // The tutorial's field zooms out to the standard one: the run proper starts with what was left in the middle.
+    function snareZoomOut() {
+        const tut = snare.run, o = snare.tutorial.o;
+        snareCoachEnd(false);
+        snare.tutorial = null;
+        state.intro['snare:tutorial'] = true;
+        const big = window.PacketSnare.createSnare({ ...o, ...snareField(o.area, o), seed: snare.seed, redHunt: snareHuntOn() ? SNARE_HUNT : 0 });
+        const dx = (big.w - tut.w) / 2, dy = (big.h - tut.h) / 2;
+        for (const p of tut.packets) if (p.kind !== 'corrupt') big.packets.push({ ...p, id: big.nextId++, x: p.x + dx, y: p.y + dy, r: big.opts.packetR });
+        const s0 = snare.scale, x0 = snare.ox - dx * s0, y0 = snare.oy - dy * s0, turned0 = snare.turned;
+        snare.run = big;
+        snareFit();
+        pt('snareTutorial', { secs: Math.round(tut.time), caught: tut.stats.caught });
+        // a sideways phone may turn the field one way and not the other: then it just switches
+        if (turned0 || snare.turned || reducedMotion()) return;
+        snare.zoom = { t: 0, dur: SNARE_ZOOM_OUT, s0, x0, y0, s1: snare.scale, x1: snare.ox, y1: snare.oy };
+        snare.scale = s0; snare.ox = x0; snare.oy = y0;
+    }
     // Each walkthrough: `when` it can start (what it's about, or null), `aim` where it is now (null: it's gone), the
     // `gesture` the ghost plays, the prompt, and `done`, the event that means you did it. `info`: nothing to do but see it
     // (done when its time is up).
@@ -4350,6 +4413,25 @@ window.AGI = (function () {
             snare.raf = requestAnimationFrame(snareFrame);
             return;
         }
+        if (snare.zoom) {
+            const z = snare.zoom;
+            z.t += dt;
+            const p = Math.min(1, z.t / z.dur), e = p * p * (3 - 2 * p);
+            snare.scale = z.s0 * Math.pow(z.s1 / z.s0, e);
+            snare.ox = z.x0 + (z.x1 - z.x0) * e;
+            snare.oy = z.y0 + (z.y1 - z.y0) * e;
+            for (const f of snare.fx) f.t += dt;
+            snare.fx = snare.fx.filter(f => f.t < (f.life || SNARE_FX));
+            if (p >= 1) {
+                snare.zoom = null;
+                snareFit();
+                snare.fx.push({ kind: 'hint', x: run.w / 2, y: run.h * 0.55, t: 0, life: 2.6, text: '> The full pipeline is open. Earn the goal before your Focus runs out.' });
+            }
+            drawSnare();
+            renderSnareHud();
+            snare.raf = requestAnimationFrame(snareFrame);
+            return;
+        }
         // Paused while the page is hidden, a dialog (the Journal, the inbox) is open, or the tree is up mid-run.
         const paused = document.hidden || snare.tree || !!snare.intro || !!document.querySelector('dialog[open]') || !$('legacyScreen').hidden;
         if (paused) {
@@ -4363,6 +4445,7 @@ window.AGI = (function () {
         // after the events: a catch let go between frames takes its packets at once, so the walkthrough must hear the
         // catch before it looks for them (it ended as "gone", not done, and showed again)
         snareCoachStep(run);
+        snareTutorialStep(run);
         drawSnare();
         renderSnareHud();
         if (run.over && !snare.fx.length) { snare.raf = 0; return; }
@@ -4490,7 +4573,7 @@ window.AGI = (function () {
                     else if (e.fight) { shake(0.6); snare.fx.push({ kind: 'banner', centre: true, x: run.w / 2, y: run.h * 0.75, t: 0, life: 2, text: `UNINSTALL WINDOW · ${e.fight} s`, big: true }); } }
                 else if (t === 'bossCharge') sfx('snareCharge');
                 else if (t === 'parry') { sfx('snareParry'); shake(0.2); state.intro['snare:parried'] = true; }
-                else if (t === 'fizzle') snare.fx.push({ kind: 'hint', x: e.x, y: e.y - 0.6, t: 0, life: 0.9, text: e.bubble ? '> Hold a little longer.' : '> That loop is too small.' });
+                else if (t === 'fizzle' && e.bubble) snare.fx.push({ kind: 'hint', x: e.x, y: e.y - 0.6, t: 0, life: 0.9, text: '> Hold a little longer.' });
                 // K5 (Snare 18.1): the count reads over the boss and on the fight bar while its window runs (drawSnareBoss);
                 // a loop after the window says it was too slow, and one round a stunned boss says to slash it
                 else if (t === 'bossLoop') { sfx('snareStun', { down: false }); if (e.late) snare.fx.push({ kind: 'hint', x: e.x, y: e.y + 1.6, t: 0, life: 1.6, text: `> Too slow, so the count starts again at loop 1 of ${e.of}.` }); }
@@ -5569,7 +5652,7 @@ window.AGI = (function () {
         }
         // a slash too soon after the last (round 6: it was swallowed without a word); at most one a half second
         else if (e.type === 'slashSoon') {
-            if (!fx.some(f => f.soon && f.t < 0.5)) fx.push({ kind: 'stun', soon: true, x: e.x, y: e.y + 1.2, t: 0, life: 0.6, text: 'TOO FAST', small: true });
+
         }
         // a red packet turned regular (a Cleaner bot: a line from it)
         else if (e.type === 'cleaned') {
@@ -5593,7 +5676,8 @@ window.AGI = (function () {
         // the run has earned back all the Focus it can (packet-snare.js focusEarnCap): said once, at the top
         else if (e.type === 'focusCap') fx.push({ kind: 'hint', x: e.x, y: e.y, t: 0, life: 2.2, text: '> No more Focus comes back this run.' });
         else if (e.type === 'backpressure') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: e.r, t: 0, life: 0.5 });
-        else if (e.type === 'bossBlock') fx.push({ kind: 'flag', x: e.x, y: e.y - 1, t: 0, life: 0.9, text: e.reason === 'shield' ? 'SHIELDED' : 'GUARD UP · loop round it first', small: true });
+        else if (e.type === 'bossBlock') fx.push({ kind: 'flag', x: e.x, y: e.y - 1, t: 0, life: 0.9, text: e.reason === 'shield' ? 'SHIELDED' : 'GUARD UP', small: true });
+        if (e.type === 'bossBlock' && e.reason !== 'shield' && !fx.some(q => q.guardHint && q.t < 1.2)) fx.push({ kind: 'hint', guardHint: true, x: e.x, y: e.y + 1.6, t: 0, life: 1.4, text: '> Loop round it twice to stun it first.' });
         else if (e.type === 'mine') fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.6 });
         else if (e.type === 'mineDown') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 0.6, t: 0, life: 0.6, text: e.boss ? '' : 'MINE CLEARED', small: true });
         else if (e.type === 'netted') fx.push({ kind: 'purge', packets: e.packets, t: 0, life: 0.5 });
@@ -5606,19 +5690,20 @@ window.AGI = (function () {
         // Snare 17.7: a thrown mine is a puck; a spark where it bounces, DUD where it gives out
         else if (e.type === 'mineBounce') fx.push({ kind: 'placed', x: e.x, y: e.y, t: 0, life: 0.4 });
         else if (e.type === 'mineDud') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: 0.9, text: 'DUD', small: true });
-        else if (e.type === 'mineLive') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: state.intro['snare:slung'] ? 0.9 : 1.6, text: state.intro['snare:slung'] ? 'LIVE AGAIN' : 'LIVE AGAIN · FLING IT SOONER', small: true });
+        else if (e.type === 'mineLive') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: state.intro['snare:slung'] ? 0.9 : 1.6, text: 'LIVE AGAIN', small: true });
+        if (e.type === 'mineLive' && !state.intro['snare:slung']) fx.push({ kind: 'hint', x: e.x, y: e.y + 0.9, t: 0, life: 1.6, text: '> Fling a disabled mine before it goes live again.' });
         // a pull too short to fling says so
         else if (e.type === 'mineMiss') fx.push({ kind: 'hint', x: e.x, y: e.y - 0.8, t: 0, life: 1.3, text: '> Pull it back further.' });
         else if (e.type === 'escalate') fx.push({ kind: 'flick', a: e.from, b: { x: e.x, y: e.y }, hit: true, t: 0, life: 0.6 });
         else if (e.type === 'garbage') fx.push({ kind: 'catch', poly: e.poly, x: e.x, y: e.y, t: 0, text, packets: [] });
         else if (e.type === 'taken') fx.push({ kind: 'laser', from: { x: e.x, y: e.y }, x: e.packets[0]?.x ?? e.x, y: e.packets[0]?.y ?? e.y, t: 0, life: 0.35, text, small: true });
         // Flicks: a bright streak where the stroke went (amber when it landed, red when it was flagged).
-        else if (e.type === 'parry') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 1, t: 0, life: 0.7, text: 'PARRIED · slash it!', big: true });
+        else if (e.type === 'parry') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 1, t: 0, life: 0.7, text: 'PARRIED', big: true });
         else if (e.type === 'spoof' || e.type === 'parryFlick' || e.type === 'slash' || e.type === 'flag') {
             const a = e.a, b = e.b, hit = e.type !== 'flag';
             fx.push({ kind: 'flick', a, b, hit, t: 0, life: 0.5 });
             if (e.type === 'spoof') fx.push({ kind: 'stun', x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, t: 0, life: 0.7, text: `SPOOFED ×${e.packets.length}`, small: true });
-            if (e.type === 'flag') fx.push({ kind: 'flag', x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, t: 0, life: 0.9, text: `⚑ FLAGGED ${e.flags}/${e.limit}`, small: true });
+
         } else if (e.type === 'ids') fx.push({ kind: 'ids', x: 0, y: 0, t: 0, life: 1.6 });
         else if (e.type === 'hijack') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.8, text: 'HIJACKED', small: true });
         else if (e.type === 'herdStun') fx.push({ kind: 'flag', x: e.x, y: e.y, t: 0, life: 0.6, text: 'DRONE DOWN', small: true });
@@ -7614,7 +7699,7 @@ window.AGI = (function () {
         // what letting go now would pay, above it (kept inside the canvas, clear of the finger)
         ctx.font = `700 13px ${snareMono()}`;
         ctx.textAlign = 'center';
-        const label = pv.spoiled ? 'UNREADABLE ✕ · it garbles' : pv.inside.length ? `×${pv.mult.toFixed(1)} · ${pv.good.length}${pv.scrub ? ` · ${pv.scrub} scrubbed` : ''}${pv.safe ? ' · SAFE' : ''}${b.full ? ' · FULL' : ''}`
+        const label = pv.spoiled ? 'UNREADABLE ✕ · the catch will garble' : pv.inside.length ? `×${pv.mult.toFixed(1)} · ${pv.good.length}${pv.scrub ? ` · ${pv.scrub} scrubbed` : ''}${pv.safe ? ' · SAFE' : ''}${b.full ? ' · FULL' : ''}`
             : `×${pv.mult.toFixed(1)}${b.full ? ' · FULL' : ''}`;
         const half = ctx.measureText(label).width / 2 + 8;
         const lx = Math.max(half, Math.min(cw - half, x + d.ox)) - d.ox;

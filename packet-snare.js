@@ -143,7 +143,7 @@
         bubbleStillTime: 0.15,
         loopCatch: 0,
         bubbleMin: 0.85,            // × the closing ring's radius: its size the moment it appears
-        bubbleTime: 2.5,            // seconds to grow to its full size…
+        bubbleTime: 1.8,            // seconds to grow to its full size (2.5 until Snare 18.7, the owner: closer to drawing a loop)…
         bubblePow: 1.15,            // …a little faster as it goes (radius ∝ t^pow)
         bubbleMax: 0.48,            // its full radius at most, × the field's shorter side…
         bubbleShare: 0.2,           // …and a full bubble is this share of the field whatever its shape (round 2 of the review: a full
@@ -266,7 +266,8 @@
                                     // Snare 17.4, the owner's call: packet goals stopped at a phone's capped field)
         goalPay: 1,                 // Signal a unit of worth pays (the sector's pay × Overclock, from the engine), so the goal
                                     // counts what the haul does: every catch, helper, echo and laser
-        clearFocus: 0.4,            // a cleared sector (its goal met or its boss beaten) tops Focus up by this share of the bar,
+        clearFocus: 0.2,            // Snare 18.7 (the owner: 3 s, not 6): 0.4 before;
+                                    // a cleared sector (its goal met or its boss beaten) tops Focus up by this share of the bar,
                                     // so the run keeps gathering there (Go deeper takes it on into the next sector)
         bossAt: 16,
         bossCatch: 18,
