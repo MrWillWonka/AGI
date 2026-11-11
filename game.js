@@ -4046,7 +4046,13 @@ window.AGI = (function () {
             if (p.x < R || p.y < R || p.x > run.w - R || p.y > run.h - R) continue;
             if (bad.some(q => Math.hypot(q.x - p.x, q.y - p.y) < R * 1.5)) continue;
             const near = good.filter(q => Math.hypot(q.x - p.x, q.y - p.y) < R);
-            if (!best || near.length > best.length) best = near;
+            if (best && near.length <= best.length) continue;
+            // the circle the walkthrough shows round them (a loop's is wider still) must stay on the field and clear of
+            // anything unreadable: one aimed at the edge garbled the phone's loop
+            const g = snareGroupAt(run, near.map(q => q.id)), rr = g.r + 0.3;
+            if (g.x < rr + 0.4 || g.y < rr + 0.4 || g.x > run.w - rr - 0.4 || g.y > run.h - rr - 0.4) continue;
+            if (bad.some(q => Math.hypot(q.x - g.x, q.y - g.y) < rr + 0.8)) continue;
+            best = near;
         }
         return best && best.length >= 2 ? best.map(p => p.id) : null;
     }

@@ -47,6 +47,11 @@ When answered: the change, `settled.md` (or `targets.json`) and this file are up
   spill swallowed packets, nets that bite the jackpot.
 
 ## Open
+- **D20 (open, 2026-11-10)**: the flicks. The owner: "the flicks don't feel useful or fun at the moment". Packet
+  Spoofing, Forged Headers and Privilege Escalation are built on them; the boss's slash and Riposte's parry stay. Three
+  directions were offered and none landed: Slice (a fast swipe deletes unreadable packets, combos), Sling packets (the
+  mine's pull-back on packets), Gust (a swipe blows packets along). Already decided: no flags and no IDS alerts
+  (`flagging` 0; IDS Evasion gone). Bring a fresh idea, or ask whether to remove the flick nodes outright.
 - **D15 (watching)**: sector 3 on desktop. 10 runs on 17, 4 on 17.1, not cleared in 5 on 17.2 (best 100 of 185 packets,
   4–6 catches a run, Antivirus popping 0–2 bubbles). The owner's call: play more first, no change; judge it on the next
   desktop log (sector 3 runs, catches a run, Antivirus pops). Levers if it stays a wall: the desktop's extras from

@@ -19,7 +19,8 @@ Update this file with every fix batch (move fixed ones to *fixed: verify*, drop 
 ## Fixed: verify
 - **F38 Several nodes did nothing** (the owner on the 18.1 log): Garbage Collection gone (the Herders delete unreadable
   packets near them), Second Wind, Clean Sweep, Quarantine Relay and Zero Trust gone; Hijack reworked (two loops round a
-  stunned Antivirus, then it vacuums up packets for you; a stun shows a mark, no words). The flicks are next (proposals).
+  stunned Antivirus, then it vacuums up packets for you; a stun shows a mark, no words). No flags or IDS alerts (IDS Evasion gone; Forged Headers and
+  Privilege Escalation moved). The flicks themselves are open (D20).
 - **F37 Chain Lightning felt like static shock:** a bolt now leaves each catch and jumps packet to packet, a hop every
   0.05 s, paid as it lands; Chain Storm sends more bolts each their own way.
 - **F36 Instructions read as clipped statements** ("click it: the field freezes"): every instruction and description is

@@ -366,6 +366,7 @@
         flickTime: 0.45,            // (0.35 missed real thumbs)
         flickLength: 1.2,
         flagLimit: 3,               // flags and an IDS alert: the boss boots now, enraged (or another Antivirus)
+        flagging: 1,                // Snare 18.4 (the owner's call: no flags in their logs, and swipes should be free to try): 0, none
         flagNear: 1.2,              // units: how near a flick must pass to something it could hit to be flagged
         // Garbage Collection: a loop of nothing but corrupt packets deletes them and gives `gcFocus` Focus each.
         gc: 0,
@@ -2314,6 +2315,7 @@
         }
         // A sloppy exploit is flagged; `flagLimit` flags and an IDS alert goes off.
         function flag(a, b) {
+            if (!o.flagging) return;
             s.flags++;
             s.stats.flags++;
             s.events.push({ type: 'flag', a, b, flags: s.flags, limit: o.flagLimit });
