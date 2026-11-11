@@ -399,6 +399,11 @@
         race: 0,
         raceRate: 0.25,
         raceMax: 1,
+        // With `raceSweet` set (the owner's call after the 18.7 log: a brief moment and a skill check), the hold is a timing
+        // check instead: let go within `raceWindow` s of `raceSweet` s for the whole `raceMax`; sooner or later pays the plain
+        // catch, and a drawn loop held well past the mark pays out plain on its own.
+        raceSweet: 0,
+        raceWindow: 0.12,
         // Hijack (Snare 18.4, the owner's call): `hijackLoops` loops (or bubbles) round a stunned Antivirus, each within
         // `hijackWindow` s of the last, turn it for `hijackSeconds`: it vacuums up the good packets within `hijackPull` of the
         // shorter side and pays you for them. Your Turrets and Firewalls do the stunning; with Hijack a stun lasts at
@@ -484,8 +489,8 @@
         // bubble or drawn loop that catches also takes the good packets in a thin ring just outside its edge, at the same
         // multiplier; red in the ring is left alone.
         backpressure: 0,
-        backReach: 0.12,            // the ring's width at its first level: this share of the field's shorter side…
-        backReachLv: 0.04,          // …and this much more each level after
+        backReach: 0.06,            // the ring's width at its first level: this share of the field's shorter side (the owner's pick:
+        backReachLv: 0.02,          // 0.12 added 40–50% a run)… and this much more each level after
         overflowGold: 0.2           // past four times what a screen-capped field can hold, packets come gold this much more a doubling
     };
     const GOLD_VALUE = 5;
@@ -2298,6 +2303,9 @@
             s.partners = s.partners.filter(c => c.age < o.partnerLife);
         }
         // Race Condition: the held loop's multiplier grows; a corrupt packet getting in (past the scrubbers) spoils it.
+        // What a hold of `t` s adds to the multiplier: the old steady growth, or the timing check's all-or-nothing.
+        const raceBonus = t => (o.raceSweet > 0 ? (Math.abs(t - o.raceSweet) <= o.raceWindow ? o.raceMax : 0) : Math.min(o.raceMax, o.raceRate * t));
+        const raceMarked = (t, prev) => o.raceSweet > 0 && prev < o.raceSweet - o.raceWindow && t >= o.raceSweet - o.raceWindow;
         function raceStep(dt) {
             const r = s.race;
             if (!r) return;
@@ -2314,10 +2322,12 @@
                 snap(c, dashing ? 'boss' : 'scan');
                 return;
             }
+            const prev = r.t;
             r.t += dt;
-            r.bonus = Math.min(o.raceMax, o.raceRate * r.t);
-            // Held to its cap, it pays out (holding is a timing call, not a farm).
-            if (r.bonus >= o.raceMax) { settleRace(); return; }
+            r.bonus = raceBonus(r.t);
+            if (raceMarked(r.t, prev)) { const c = centroid(r.poly); s.events.push({ type: 'raceMark', x: c.x, y: c.y }); }
+            // Held to its cap, it pays out (holding is a timing call, not a farm); held well past the mark, it pays plain.
+            if (o.raceSweet > 0 ? r.t > o.raceSweet + o.raceWindow + 0.4 : r.bonus >= o.raceMax) { settleRace(); return; }
             const inLoop = s.packets.filter(p => pointInPolygon(p, r.poly));
             const bad = inLoop.filter(p => p.kind === 'corrupt' && !spoofed(p)).length;
             if (bad > forgives(inLoop.length - bad)) settleRace();
@@ -3103,10 +3113,11 @@
                     b.raceT = 0;
                     b.bonus = 0;
                 } else {
-                    const before = Math.floor((b.bonus || 0) / 0.125);
+                    const before = Math.floor((b.bonus || 0) / 0.125), prev = b.raceT;
                     b.raceT += dt;
-                    b.bonus = Math.min(o.raceMax, o.raceRate * b.raceT);
-                    if (Math.floor(b.bonus / 0.125) > before) s.events.push({ type: 'raceTick', x: b.x, y: b.y, bonus: b.bonus, max: o.raceMax });
+                    b.bonus = raceBonus(b.raceT);
+                    if (raceMarked(b.raceT, prev)) s.events.push({ type: 'raceMark', x: b.x, y: b.y });
+                    else if (!(o.raceSweet > 0) && Math.floor(b.bonus / 0.125) > before) s.events.push({ type: 'raceTick', x: b.x, y: b.y, bonus: b.bonus, max: o.raceMax });
                 }
             }
         }

@@ -4643,6 +4643,7 @@ window.AGI = (function () {
                 else if (t === 'nova') { sfx('snarePower', { kind: 'freeze' }); shake(0.35); }
                 else if (t === 'split') sfx('snareChain');
                 else if (t === 'raceTick') sfx('snareRace', { step: Math.min(8, Math.round(e.bonus / e.max * 8)) });
+                else if (t === 'raceMark') sfx('snareRace', { step: 8 });   // the timing check's cue: let go now
                 else if (t === 'mineGrab') { sfx('snareHijack'); state.intro['snare:grabbed'] = true; state.intro['snare:disabled'] = true; }
                 else if (t === 'mineThrow') { sfx('snareHit'); shake(0.35 + 0.1 * Math.min(3, e.bounces || 0)); }
                 else if (t === 'mineLaunch') { sfx('snareSpoof'); state.intro['snare:thrown'] = true; state.intro['snare:slung'] = true; }
@@ -5461,7 +5462,7 @@ window.AGI = (function () {
         ['bubbleSize', 'A full bubble', v => `×${num1(1 + v)} the size`], ['bubbleGrow', 'Bubbles fill in', v => `${num1(window.PacketSnare.SNARE.bubbleTime / (1 + v))} s`],
         ['drawnCap', 'A drawn loop\'s MAX', v => `${Math.round(100 * (1 + v))}% of a full bubble\'s`],
         ['focusBack', 'Focus back from a ×2 bubble', v => `${v} s`],
-        ['race', 'A full bubble or closed loop held still', v => (v ? 'keeps growing' : 'stays put')], ['raceMax', 'A held catch grows to', v => `×${num1(1 + v)}`],
+        ['race', 'A full bubble or closed loop held still', v => (v ? 'pays more if let go on the mark' : 'pays as usual')], ['raceMax', 'Let go on the mark', v => `+${num1(v)} to the multiplier`],
         ['freeze', 'Freeze pickups', v => (v ? `one every ~${Math.round(16 / (1 + 0.6 * (v - 1)))} s` : 'none')], ['freezeSeconds', 'Freeze', v => `${num1(v)} s`],
         ['density', 'Packets', snareX('density')], ['goldChance', 'Gold packets', pct], ['goldValue', 'A gold packet is worth', String],
         ['tagValue', 'A tag', v => `×${v}`], ['schoolSize', 'School size', String], ['contain', 'Edges', v => (v ? 'hold good packets' : 'let packets go')],
@@ -5673,7 +5674,7 @@ window.AGI = (function () {
     // A run's event as an effect on the field (the bay and the demos share these).
     function snareFxFor(e, fx, text = '') {
         if (e.type === 'catch') {
-            const sub = e.split ? `SPLIT ×${e.mult.toFixed(1)}` : e.star ? `✸ SUPERNOVA ×${e.mult.toFixed(1)}` : e.race > 0 ? `HELD ×${e.mult.toFixed(1)}` : e.mult >= 1.15 ? `×${e.mult.toFixed(1)}` : '';
+            const sub = e.split ? `SPLIT ×${e.mult.toFixed(1)}` : e.star ? `✸ SUPERNOVA ×${e.mult.toFixed(1)}` : e.race > 0 ? `${run.opts.raceSweet > 0 ? 'PERFECT' : 'HELD'} ×${e.mult.toFixed(1)}` : e.mult >= 1.15 ? `×${e.mult.toFixed(1)}` : '';
             fx.push({ kind: 'catch', poly: e.poly, x: e.x, y: e.y, t: 0, text, sub, big: e.mult >= 2.5 || e.gold > 0 || e.chained.length > 2 || !!e.split || !!e.star, packets: e.packets });
             // Snare 14 (the owner's call: the powers should feel like powers): longer, brighter arcs, and a big chain says so.
             if (e.chained.length) fx.push({ kind: 'chain', arcs: e.chained, t: 0, life: 0.8, seed: e.x * 13.7 % 1 });
@@ -6572,7 +6573,20 @@ window.AGI = (function () {
         const { ctx, C, k, run } = d;
         // A full bubble held still (Snare 15): the meter under it fills toward the hold's top.
         const bb = run.bubble;
-        if (bb?.full && run.opts.race) {
+        const timed = run.opts.raceSweet > 0;
+        const raceRing = (cx, cy, rad, t) => {
+            // the timing check (the owner's call): a ring filling to the mark at the top; gold while it's on the mark (let go), grey past it
+            const o = run.opts, on = Math.abs(t - o.raceSweet) <= o.raceWindow, late = t > o.raceSweet + o.raceWindow;
+            ctx.lineWidth = on ? 5 : 3;
+            ctx.strokeStyle = C.bg;
+            ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2); ctx.stroke();
+            ctx.strokeStyle = on ? (C['snare-tag'] || C.warning || C.text) : late ? C.muted : (C['snare-bubble'] || C.success);
+            ctx.beginPath(); ctx.arc(cx, cy, rad, -Math.PI / 2, -Math.PI / 2 + Math.min(1, t / o.raceSweet) * Math.PI * 2); ctx.stroke();
+            ctx.fillStyle = C.text; ctx.fillRect(cx - 1, cy - rad - 5, 2, 6);   // the mark
+            if (on) { ctx.font = `700 13px ${snareMono()}`; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = C.bg; ctx.strokeText('NOW', cx, cy + rad + 16); ctx.fillStyle = C['snare-tag'] || C.text; ctx.fillText('NOW', cx, cy + rad + 16); }
+        };
+        if (bb?.full && run.opts.race && timed && bb.still) raceRing(bb.x * k, (bb.y + bb.r) * k + 16, 10, bb.raceT || 0);
+        else if (bb?.full && run.opts.race && !timed) {
             const full = Math.min(1, (bb.bonus || 0) / Math.max(0.01, run.opts.raceMax)), cx = bb.x * k, cy = (bb.y + bb.r) * k + 14, rad = 8;
             ctx.lineWidth = 3;
             ctx.strokeStyle = C.bg;
@@ -6589,11 +6603,12 @@ window.AGI = (function () {
         ctx.textAlign = 'center';
         ctx.lineWidth = 3;
         ctx.strokeStyle = C.bg;
-        const text = `HOLD ×${mult.toFixed(1)}`;
+        const text = timed ? `×${mult.toFixed(1)}` : `HOLD ×${mult.toFixed(1)}`;
         ctx.strokeText(text, c.x * k, c.y * k);
         ctx.fillStyle = (C['snare-bubble'] || C.success);
         ctx.fillText(text, c.x * k, c.y * k);
         // The meter (review 1: make the growth readable): a ring under the label filling toward the hold's top.
+        if (timed) { raceRing(c.x * k, c.y * k + 18, 11, r.t); return; }
         const full = Math.min(1, r.bonus / Math.max(0.01, run.opts.raceMax)), cy = c.y * k + 16, rad = 9;
         ctx.lineWidth = 3;
         ctx.strokeStyle = C.bg;

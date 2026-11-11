@@ -199,10 +199,11 @@ test('Steady Hand on a drawn loop: its MAX rises 10% a level (a loop under the M
 test('Backpressure: a drawn loop or a bubble also takes the good packets just outside its edge, at its multiplier, and leaves red there', () => {
     const lay = s => {
         packet(s, 'good', 6, 4); packet(s, 'good', 6.3, 4.2); packet(s, 'good', 5.8, 3.8);
-        packet(s, 'good', 6, 6.2);                                      // 0.6 past the edge
-        packet(s, 'good', 3.9, 4);                                      // 0.5 past it
-        const red = packet(s, 'corrupt', 8.2, 4);                       // 0.6 past it: left alone
-        const wider = packet(s, 'good', 6, 1.25);                       // 1.15 past it: the second level only
+        // the ring is 0.06 of the shorter side (8): 0.48 past the edge, then 0.64 (the owner's pick: 0.12 added 40–50% a run)
+        packet(s, 'good', 6, 5.9);                                      // 0.3 past the edge
+        packet(s, 'good', 4.15, 4);                                     // 0.25 past it
+        const red = packet(s, 'corrupt', 7.9, 4);                       // 0.3 past it: left alone
+        const wider = packet(s, 'good', 6, 1.85);                       // 0.55 past it: the second level only
         const far = packet(s, 'good', 11.5, 7.5);
         return { red, wider, far };
     };
@@ -214,7 +215,7 @@ test('Backpressure: a drawn loop or a bubble also takes the good packets just ou
     assert.equal(s.stats.corrupted, 0, 'red in the ring garbles nothing');
     assert.ok(s.packets.includes(red) && s.packets.includes(wider) && s.packets.includes(far));
     assert.ok(Math.abs(c.units - c.count * c.mult) < 1e-9, 'the ring pays at the catch\'s multiplier');
-    // the second level widens the ring (0.12 of the shorter side, then 0.16)
+    // the second level widens the ring (0.06 of the shorter side, then 0.08)
     const s2 = still({ backpressure: 2 });
     const two = lay(s2);
     drawLoop(s2, 6, 4, 1.6);
@@ -252,4 +253,29 @@ test('the five nodes say what they do on a drawn loop too', () => {
     assert.match(U.snareSteady.effect, /drawn loop/);
     assert.match(U.snareBackpressure.effect, /just outside its edge/);
     assert.ok(!('backSeconds' in P.SNARE) && !('backPull' in P.SNARE), 'the turn-back knobs are gone');
+});
+
+// The owner's call after the 18.7 log: the hold is a brief moment and a skill check: let go on the mark for the bonus.
+test('Race Condition is a timing check: let go on the mark for the whole bonus, early or late for the plain catch', () => {
+    const E = require('../engine.js');
+    const st = E.defaultState(1); st.levels.snareRace = 1;
+    const o = E.snareOpts(st, 4);
+    assert.ok(o.raceSweet > 0 && o.raceWindow > 0 && o.raceWindow < 0.2, 'the game plays it as a timing check');
+    const hold = secs => {
+        const s = still({ race: 1, raceMax: 1, raceSweet: 0.8, raceWindow: 0.12 });
+        packet(s, 'good', 6, 4); packet(s, 'good', 6.3, 4.2); packet(s, 'good', 5.8, 3.8);
+        const ev = drawLoop(s, 6, 4, 1.6, { hold: true });
+        assert.ok(ev.some(e => e.type === 'raceStart'));
+        const marks = [];
+        for (let i = 0; i < Math.round(secs * 60) && s.race; i++) { s.step(1 / 60); marks.push(...s.takeEvents()); }
+        if (s.race) s.liftPen();
+        const c = [...marks, ...s.takeEvents()].find(e => e.type === 'catch');
+        return { race: c ? c.race : null, marked: marks.some(e => e.type === 'raceMark') };
+    };
+    assert.equal(hold(0.4).race, 0, 'early: the plain catch');
+    const on = hold(0.8);
+    assert.equal(on.race, 1, 'on the mark: the whole bonus');
+    assert.ok(on.marked, 'the mark is announced');
+    assert.equal(hold(1.0).race, 0, 'late: the plain catch');
+    assert.equal(hold(3).race, 0, 'held well past it, it pays out plain on its own');
 });

@@ -104,7 +104,7 @@ test('catches in quick succession build a combo, and a pause starts it again', (
 test('Antivirus grow in number and speed from sector 9', () => {
     const s = E.defaultState(1);
     const at = k => E.snareOpts(s, k);
-    assert.ok(at(9).antivirus.length > at(7).antivirus.length + 1, 'more of them');
+    assert.ok(at(9).antivirus.length > at(7).antivirus.length, 'more of them (one more every two sectors, the owner\'s pick)');
     assert.ok(at(12).antivirus.length > at(9).antivirus.length, 'and more each sector');
     assert.ok(at(9).avSpeed / at(7).avSpeed > (1 + 0.08 * 9) / (1 + 0.08 * 7), 'and faster than the old rise');
 });

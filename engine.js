@@ -541,7 +541,7 @@
         { id: 'snareBandwidth', name: 'Bandwidth', snare: { x: 0, y: -2 }, requires: 'snarePacketStream', cost: { signal: 130 }, costs: [{ signal: 130 }, { signal: 230 }], scale: 2, max: 2, sn: { maxMult: 2, fullMult: 0.25 }, effect: 'Full bubbles pay ×1.25 more, and the multiplier cap rises by 2.' },
         { id: 'snareSteady', name: 'Steady Hand', snare: { x: -1, y: -3 }, requires: 'snareLongWire', cost: { signal: 1600 }, scale: 2, max: 2, sn: { bubbleGrow: 0.25, drawnCap: 0.1 }, effect: 'Bubbles grow 25% faster, and a drawn loop\'s MAX rises 10%.' },
         { id: 'snareChainStorm', name: 'Chain Storm', snare: { x: 1, y: -3 }, requires: 'snareChain', cost: { signal: 4200 }, scale: 1.3, max: 5, sn: { chainForks: 1, chainRange: 0.4 }, effect: 'Each catch sends out one more bolt, and bolts jump 40% further.' },
-        { id: 'snareRace', name: 'Race Condition', mechanic: 'race', snare: { x: 2, y: -3 }, requires: 'snareChainStorm', cost: { signal: 12250 }, scale: 2, max: 2, sn: { race: 1 }, stages: { 2: { raceMax: 2 } }, effect: 'Hold a full bubble or a closed loop still, and its multiplier keeps climbing.' },
+        { id: 'snareRace', name: 'Race Condition', mechanic: 'race', snare: { x: 2, y: -3 }, requires: 'snareChainStorm', cost: { signal: 12250 }, scale: 2, max: 2, sn: { race: 1 }, stages: { 2: { raceMax: 2 } }, effect: 'Hold a full bubble or closed loop still, and let go on the mark for +1 ×.' },
         { id: 'snareLongWire', name: 'Bigger Buffers', snare: { x: 0, y: -3 }, requires: 'snareBandwidth', cost: { signal: 1400 }, scale: 2, max: 1, sn: { bubbleSize: 0.25 }, effect: 'Full bubbles are 25% bigger, and the wire reaches round more of the field.' },
         { id: 'snareFreeze', name: 'Freeze Frame', mechanic: 'freeze', snare: { x: -1, y: -4 }, requires: 'snareSteady', cost: { signal: 6100 }, scale: 1.6, max: 3, sn: { freeze: 1 }, effect: 'Freeze pickups drift in. Tap one to stop the field for 3 s.' },
         { id: 'snareFork', name: 'Split', mechanic: 'fork', snare: { x: 0, y: -5 }, requires: 'snareHerders', cost: { signal: 10500 }, scale: 2, max: 2, sn: { fork: 1 }, effect: 'A full bubble, or a loop at MAX, splits in two. Their multipliers multiply.' },
@@ -2233,7 +2233,7 @@
     // After the 18.7 log (bosses on 3, 6, 9…): the goals go by goal sector, not sector: the first four 40, 170, 600 and
     // 1,500 (sectors 1, 2, 4 and 5), then ×`SNARE_GOAL_GROWTH` each goal sector after.
     const SNARE_FIRST_GOALS = [40, 170, 600, 1500];
-    const SNARE_GOAL_GROWTH = 2.9;   // the owner's pick from the campaign sweep (2.45, 2.7, 2.9, 3.4)
+    const SNARE_GOAL_GROWTH = 2.7;   // the owner's pick from the campaign sweeps (2.9 with one more Antivirus a sector walled)
     const SNARE_FOCUS_SECTOR = 3;   // s of Focus more a sector from sector 7 (the owner's pick with the goals)
     // Snare 18 (the owner's call on K19): the curve grows on goal sectors only. It was set when a boss came every fifth
     // sector; with one every third (17.5) each boss took a step too, so the sector after it asked ×6 the one before (the
@@ -2298,9 +2298,9 @@
         // The hazards come from the sector, not the field (the field's size is a reward): an Antivirus more every two
         // sectors past the first with them, a core more every three past the first with the Rogue AI.
         const runs = s.snare.runs, floor = key => runs >= SNARE_RUN_FLOORS[key];
-        // After the 18.7 log (the owner: the Antivirus were harmless late, so the defences went unused): one more a sector from
-        // sector 9.
-        const avCount = k >= AV_SECTOR && floor('antivirus') ? 1 + Math.floor((k - AV_SECTOR) / 4) + Math.max(0, k - 7) : 0;
+        // After the 18.7 log (the owner: the Antivirus were harmless late, so the defences went unused): one more every two
+        // sectors from sector 9 (the owner's pick: one a sector made sector 14 a 62-run wall for the bot).
+        const avCount = k >= AV_SECTOR && floor('antivirus') ? 1 + Math.floor((k - AV_SECTOR) / 4) + Math.floor(Math.max(0, k - 6) / 2) : 0;
         const antivirus = Array.from({ length: avCount }, (_, i) => Math.round(5 + i * 26 / avCount));
         // Sprawl's sixth and ninth levels each give every tool you own a slot more (Megasprawl's and Hyperscale's last
         // levels, before the owner folded them into Sprawl).
@@ -2407,6 +2407,8 @@
             spoof: g('spoof'),
             parry: g('parry'),
             race: g('race'),
+            // the owner's call after the 18.7 log: the hold is a brief timing check, let go on the mark for the bonus
+            raceSweet: 0.8, raceWindow: 0.12,
             hijack: g('hijack'),
             escalate: g('escalate'),
             fork: g('fork'),

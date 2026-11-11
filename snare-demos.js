@@ -135,7 +135,7 @@
             packets: [['good', 2.8, 1.3], ['good', 3.2, 1.6], ['good', 2.9, 1.7]],
             bubbles: [[0.3, 1.9, 3, 1.5]], expect: r => r.stats.pulses >= 1 && r.packets.length >= 4 },
         // Backpressure (reworked after the 18.7 log): the good packets just outside the catch's edge are caught too, red there left.
-        backpressure: { text: 'A catch also takes the good packets just outside its edge.', opts: { backpressure: 1 },
+        backpressure: { text: 'A catch also takes the good packets just outside its edge.', opts: { backpressure: 1, backReach: 0.12 },   // the demo's small field: a ring wide enough to see
             packets: [['good', 2.8, 1.4], ['good', 3.1, 1.6], ['good', 3.8, 1.5], ['good', 2.1, 1.65], ['corrupt', 2.95, 2.35], ['good', 4.9, 0.7]],
             bubbles: [[0.3, 1.3, 2.95, 1.5]], expect: r => r.stats.edgeCaught >= 2 && r.packets.some(p => p.kind === 'corrupt') },
         // The branch capstones (Snare 10).
