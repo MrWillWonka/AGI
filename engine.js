@@ -552,7 +552,7 @@
         { id: 'snareHerders', name: 'Herders', mechanic: 'herders', snare: { x: 0, y: -4 }, requires: 'snareLongWire', cost: { signal: 3500 }, scale: 1.6, max: 4, sn: { herders: 1, herdRadius: 0.15, herdEvade: 0.5 }, effect: 'A drone herds stray packets together.' },
         { id: 'snareEcho', name: 'Infinite Loop', mechanic: 'echo', snare: { x: 0, y: -6 }, requires: 'snareFork', cost: { signal: 26250 }, scale: 1.7, max: 3, sn: { echo: 1 }, effect: 'Every bubble catches again a second later.' },
         // FIELD (right): abundance; the scanner, its towers and Packet Storm at its tip.
-        { id: 'snareSprawl', name: 'Sprawl', snare: { x: 1, y: 0 }, requires: 'snareSeed', deep: true, cost: { signal: 15 }, scale: 2.5, max: 9, sn: { sprawl: 1 }, effect: 'The field grows ×1.35. Bigger steps at levels 4 and 7.' },
+        { id: 'snareSprawl', name: 'Sprawl', snare: { x: 1, y: 0 }, requires: 'snareSeed', deep: true, costs: [{ signal: 15 }, { signal: 38 }, { signal: 94 }], cost: { signal: 400 }, scale: 3, max: 9, sn: { sprawl: 1 }, effect: 'The field grows ×1.35. Bigger steps at levels 4 and 7.' },
         { id: 'snareSchools', name: 'Schooling', snare: { x: 2, y: -1 }, requires: 'snareContain', cost: { signal: 390 }, scale: 2, max: 1, sn: { schooling: 0.5, schoolSize: 4 }, effect: 'Bigger, tighter schools.' },
         { id: 'snareGold', name: 'Gold Rush', snare: { x: 2, y: 0 }, requires: 'snareSprawl', cost: { signal: 100 }, scale: 2.5, max: 4, perLevel: [{ goldChance: 0.05 }, { goldChance: 0.05 }, { goldValue: 3 }, { goldValue: 3 }], sn: { goldChance: 0.05 }, effect: '+5% of packets come gold. From level 3: gold worth +3.' },
         { id: 'snareContain', name: 'Containment Field', mechanic: 'contain', snare: { x: 1, y: -1 }, requires: 'snareSprawl', cost: { signal: 350 }, scale: 2, max: 1, sn: { contain: 1 }, effect: 'The edges turn good packets back. Unreadable ones still leave.' },
@@ -568,8 +568,10 @@
         { id: 'snareCleanerBot', name: 'Decoder Bot', mechanic: 'cleaner', snare: { x: -1, y: 1 }, requires: 'snareSanitizer', cost: { signal: 100 }, scale: 2, max: 4, sn: { cleanBots: 1 }, effect: 'A Decoder Bot rides an unreadable packet until your model can read it.' },
         { id: 'snareSanitizer', name: 'Sanitizer', snare: { x: 0, y: 1 }, requires: 'snareSeed', deep: true, cost: { signal: 40 }, scale: 2, max: 9, perLevel: [{ cleaner: 1 }, { cleaner: 1 }, { cleaner: 1 }, { cleaner: 2 }, { cleaner: 2, lureMult: -0.16 }, { cleaner: 3, lureMult: -0.16 }, { cleaner: 3, lureMult: -0.16 }, { cleaner: 4, lureMult: -0.16 }, { cleaner: 4, lureMult: -0.16 }], sn: { cleaner: 1 }, effect: 'Fewer unreadable packets. From level 5, they stop chasing schools.' },
         { id: 'snareKernelPanic', name: 'Kernel Panic', snare: { x: 0, y: 2 }, requires: 'snareSanitizer', cost: { signal: 500 }, scale: 2, max: 1, sn: { bossStun: 1 }, effect: 'A stunned boss reels 1 s longer.',
-            // the boss's nodes wait for the first boss (round 10: sold on sector 3, they took Signal the wall needed)
-            unlock: s => s.snare.sector >= SNARE_FIRST_BOSS },
+            // the boss's nodes wait for the first boss (round 10: sold on sector 3, they took Signal the wall needed); Snare 18.3
+            // (the owner on the 18.1 log: they sat unbought with nothing to do): out of the tree until a boss is met (its
+            // look out card shown) or beaten
+            unlock: s => (s.snare.bosses || 0) > 0 || !!s.intro?.['snare:intro:boss'] },
         { id: 'snareSpoof', name: 'Packet Spoofing', mechanic: 'spoof', snare: { x: 0, y: 4 }, requires: 'snareParry', cost: { signal: 3000 }, scale: 1.2, max: 2, sn: { spoof: 1 }, stages: { 2: { spoofSeconds: 7 } }, effect: 'Flick through unreadable packets: they turn good, worth ×2, for 5 s.' },
         { id: 'snareCollectorBot', name: 'Collector Bot', mechanic: 'collector', snare: { x: -2, y: 3 }, requires: 'snareGc', cost: { signal: 3200 }, scale: 1.5, max: 3, sn: { collectBots: 1 }, effect: 'A Collector Bot nets small clusters of good packets.' },
         { id: 'snareRiposte', name: 'Riposte', mechanic: 'parry', snare: { x: 1, y: 2 }, requires: 'snareKernelPanic', cost: { signal: 1800 }, scale: 2, max: 1, sn: { parry: 1 }, effect: 'Flick across the boss\'s charge line: parried, stunned, shield down.' },
@@ -2430,6 +2432,7 @@
             bossArrive: 0.5,
             bossIncoming: 2.5,
             bossFight: 30,
+            meltdown: 6,       // Snare 18.3: beaten, it melts down for 6 s (slash it for Signal), then the run ends
             fightPenalty: 2,   // Snare 17.8 (round 10): a snap or a spoil in the fight costs the fight clock 2 s, not Focus
             bossSwallow: 1,
             bossFocus: 0,
@@ -2474,6 +2477,19 @@
         const pay = snareCatch(s, (replay ? 5 : 10) * Math.max(snareBossHealth(sector), snareBossHp(sector)), sector);
         s.snare.bosses++;
         s.snare.sector = Math.max(s.snare.sector, sector + 1);
+        return pay;
+    }
+    // Snare 18.3 (the owner on the 18.1 log: a beaten boss's run went on to 13K and 61K on the Focus top-up and the burst of
+    // packets): a beaten boss melts down, and each meltdown hit pays Signal, more each hit (hit k of n pays k / (1 + … + n)
+    // of the pool), so all n hits pay the pool: the next sector's goal (half on a replay). A set amount per boss: no
+    // sector pay, no Overclock. `from`, `to`: the hits before and after (a loop counts two). Returns what it paid.
+    function snareMeltPool(sector, replay = false) { return Math.round((replay ? 0.5 : 1) * snareGoal(sector + 1)); }
+    function snareMeltPay(s, sector, replay, from, to, of = 12) {
+        let share = 0;
+        for (let k = from + 1; k <= to; k++) share += k;
+        const pay = Math.round(snareMeltPool(sector, replay) * share / (of * (of + 1) / 2));
+        s.snare.signal += pay;
+        s.snare.earned += pay;
         return pay;
     }
     // A sector with no boss reached its goal (that much Signal earned in it in one run): it's cleared, for a bounty of half
@@ -3245,7 +3261,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, SNARE_OPEN_AT_START, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
-        SNARE_RED_UNIT, SNARE_RED_FLOOR, snareRedShare, SNARE_DESKTOP, snareDesktop, SNARE_RUN_FLOORS, snareCatch, snareBossDown, snareGoalMet, snareGoal, isSnareBossSector, SNARE_BOSS_EVERY, SNARE_FIRST_BOSS, snareBossOrdinal, finishSnare, snareOpts, SNARE_STAGES, RED_SECTOR, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, snareBossHp, snareBossHealth, SNARE_SKILL_BUFFS, snareSkillBuffs, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
+        SNARE_RED_UNIT, SNARE_RED_FLOOR, snareRedShare, SNARE_DESKTOP, snareDesktop, SNARE_RUN_FLOORS, snareCatch, snareBossDown, snareMeltPool, snareMeltPay, snareGoalMet, snareGoal, isSnareBossSector, SNARE_BOSS_EVERY, SNARE_FIRST_BOSS, snareBossOrdinal, finishSnare, snareOpts, SNARE_STAGES, RED_SECTOR, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, snareBossHp, snareBossHealth, SNARE_SKILL_BUFFS, snareSkillBuffs, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany

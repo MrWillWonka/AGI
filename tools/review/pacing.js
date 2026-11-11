@@ -84,6 +84,7 @@ function campaign(seed, scr, { pace = PACE, minutes = MINUTES, runCap = RUN_CAP,
         const k = s.snare.sector;
         if (!scenarios[k + 1]) scenarios[k + 1] = { levels: Object.fromEntries(E.SNARE_TREE.filter(u => E.level(s, u.id)).map(u => [u.id, E.level(s, u.id)])), signal: Math.round(s.snare.signal), runs: s.snare.runs, minute: +(clock / 60).toFixed(1) };
         const o = scr.close === SCREENS.desktop.close ? E.snareDesktop(E.snareOpts(s, k)) : E.snareOpts(s, k);   // a mouse's harder field, as the game
+        if (o.boss) s.intro["snare:intro:boss"] = true;   // a boss sector: the boss is met (its nodes come into the tree, Snare 18.3)
         const run = P.createSnare({ ...o, ...field(o, scr), seed: Math.floor(rand() * 1e9), simStep: dt });
         const bot = createBot(run, { ...pace, rand });
         let haul = 0, cleared = false, t = 0, mine = 0, helped = 0;

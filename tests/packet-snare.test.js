@@ -443,7 +443,7 @@ test('Packet Snare\'s tree opens with the bay, grows node by node, and is bought
     assert.ok(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareSprawl), 'the first ring shows');
     assert.ok(!E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareGold), 'its children wait');
     assert.ok(E.buy(s, 'snareSprawl').ok);
-    assert.equal(s.snare.signal, 1000 - E.UPGRADE_BY_ID.snareSprawl.cost.signal);
+    assert.equal(s.snare.signal, 1000 - E.upgradeCost(E.UPGRADE_BY_ID.snareSprawl, 0).signal);
     E.evaluate(s);
     assert.ok(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareGold));
     for (const up of E.SNARE_TREE) {

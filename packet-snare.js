@@ -171,7 +171,7 @@
         // bounce before it adding `mineBank` × that (Ricochet). Snare 18.2 (the owner: they still felt too close): the ring is
         // 0.42 of the shorter side (it was 0.3), room to loop a mine well clear of the boss, and longer bank shots.
         mineSpread: 0.42,
-        mineSpeed: 1.3,
+        mineSpeed: 2,               // Snare 18.3 (the owner on the 18.1 log: "too slow on release"): 1.3 before
         mineDrag: 0.35,
         mineBounces: 2,
         mineBank: 0,
@@ -322,6 +322,13 @@
         bossArrive: 0,
         bossIncoming: 2.5,
         bossFight: 0,
+        // Snare 18.3 (the owner on the 18.1 log: the Focus top-up and the swallowed packets bursting back out after a boss
+        // made a 13K and a 61K run): beaten, the boss melts down for `meltdown` s instead. It can't fight back, and every
+        // slash, loop round it or ram is a meltdown hit (a loop counts 2), up to `meltHits`; the game pays each in Signal,
+        // more each hit, a set amount per boss. Then it explodes and the run ends `meltEnd` s later. 0: the old burst.
+        meltdown: 0,
+        meltHits: 12,
+        meltEnd: 1.5,
         fightPenalty: 0,             // Snare 17.8 (round 10): s off the fight clock for a snap or a spoil while the boss fights (Focus holds)
         bossSwallow: 0,
         // Red hunts your bubble (the owner's call on a phone log: no catch spoiled in 15 runs, red was easy to keep out):
@@ -1033,6 +1040,7 @@
         }
         // Health off the boss (a slash, a parry with Riposte, a ram). Returns whether it landed.
         function damageBoss(b, dmg, how, pierce = false) {
+            if (b.melt) { meltHit(b, 1, how); return true; }
             if (b.shielded && !pierce) {
                 s.stats.glanced++;
                 s.events.push({ type: 'bossBlock', x: b.x, y: b.y, reason: 'shield', how });
@@ -1054,6 +1062,14 @@
                 s.thrown = [];
                 s.links = [];
                 s.fight = null;
+                // Snare 18.3: it melts down where it stands (no burst of packets, no Focus top-up), and the run ends after.
+                if (o.meltdown > 0) {
+                    s.boss = b;
+                    s.swallowed = [];
+                    Object.assign(b, { hp: 0, melt: { until: s.time + o.meltdown, hits: 0 }, stunned: s.time + o.meltdown, charge: null, vx: 0, vy: 0, shielded: false });
+                    s.events.push({ type: 'bossDown', x: b.x, y: b.y, focus: 0, meltdown: o.meltdown, hits: o.meltHits });
+                    return true;
+                }
                 // What it swallowed bursts back out over the field (the jackpot).
                 if (s.swallowed.length) {
                     const n = s.swallowed.length;
@@ -1076,6 +1092,21 @@
                 s.events.push({ type: 'bossHit', x: b.x, y: b.y, r: b.r, hp: b.hp, maxHp: b.maxHp, how, dmg, fight: !!s.fight });
             }
             return true;
+        }
+        // A meltdown hit (Snare 18.3): `n` more, up to `meltHits`; at the last it blows at once.
+        function meltHit(b, n, how) {
+            const m = b.melt, from = m.hits;
+            m.hits = Math.min(o.meltHits, m.hits + n);
+            if (m.hits === from) return;
+            s.stats.meltHits = m.hits;
+            s.events.push({ type: 'meltHit', x: b.x, y: b.y, from, to: m.hits, of: o.meltHits, how });
+            if (m.hits >= o.meltHits) explodeBoss(b);
+        }
+        function explodeBoss(b) {
+            if (s.boss !== b) return;
+            s.boss = null;
+            s.endAt = s.time + o.meltEnd;
+            s.events.push({ type: 'bossExplode', x: b.x, y: b.y, r: b.r, hits: b.melt.hits, of: o.meltHits });
         }
         // A parry: the charge broken, the boss reeling (the slash window); later sectors' bosses boot Antivirus when it happens.
         // Stunned (a loop round it, or a parry): its charge is broken and it reels (the slash window); later sectors'
@@ -2142,7 +2173,7 @@
                         boss.slashAt = s.real;
                         // A stun allows `slashCap` slashes; the last one ends it.
                         boss.stunSlashes = (boss.stunSlashes || 0) + 1;
-                        if (boss.stunSlashes >= o.slashCap) boss.stunned = Math.min(boss.stunned, s.time + 0.1);
+                        if (boss.stunSlashes >= o.slashCap && !boss.melt) boss.stunned = Math.min(boss.stunned, s.time + 0.1);
                         s.stats.slashes++;
                         // Blue Screen: every `crashEvery`th slash on this boss crashes it.
                         boss.slashCount = (boss.slashCount || 0) + 1;
@@ -2191,7 +2222,7 @@
         }
 
         // Snare 17.5: while the boss is coming or stands (the new fight), Focus holds and nothing new swims in.
-        const bossHold = () => o.bossFight > 0 && !s.bossDone && (s.boss || s.bossDueAt != null);
+        const bossHold = () => o.bossFight > 0 && ((!s.bossDone && (s.boss || s.bossDueAt != null)) || !!s.boss?.melt);
         function stepOnce(dt) {
             s.real += dt;
             if (s.cooldown > 0) s.cooldown = Math.max(0, s.cooldown - dt);
@@ -2210,6 +2241,9 @@
                 return;
             }
             s.time += dt;
+            // Snare 18.3: a melting boss blows when its time is up; the run ends a beat after
+            if (s.boss?.melt && s.time >= s.boss.melt.until) explodeBoss(s.boss);
+            if (s.endAt != null && s.time >= s.endAt) { end(); return; }
             raceStep(dt);
             splitStep();
             heldStep(dt);
@@ -2530,6 +2564,8 @@
         function loopBoss(poly) {
             if (!s.boss || !pointInPolygon(s.boss, poly)) return false;
             const b = s.boss;
+            // Melting down: a loop round it is two meltdown hits.
+            if (b.melt) { meltHit(b, 2, 'loop'); return true; }
             // Already stunned: no count, but it says so (K5: it used to say loops are for the boss, mid-fight).
             if (b.stunned > s.time) { s.events.push({ type: 'loopStunned', x: b.x, y: b.y, poly }); return true; }
             const late = (b.loops || 0) > 0 && s.time - (b.loopAt ?? -1e9) > o.bossLoopWindow;
@@ -2969,7 +3005,7 @@
             const px = m.x - sl.to.x, py = m.y - sl.to.y, d = Math.hypot(px, py);
             const pull = Math.min(1, d / (o.slingPull * shortSide));
             if (d < o.slingMin * closeR) return { m, short: true, pull };
-            const v = o.mineSpeed * shortSide * (0.4 + 0.6 * pull);
+            const v = o.mineSpeed * shortSide * (0.55 + 0.45 * pull);
             return { m, vx: px / d * v, vy: py / d * v, pull };
         }
         function slingAim() {

@@ -1993,7 +1993,7 @@ test('Packet Snare: every branch opens with a cheap packet or red-packet node (a
     assert.ok(seed[0].cost.signal <= 10 && seed[0].max === 1 && seed[0].sn.density, 'a cheap one-level seed: more packets');
     const roots = E.SNARE_TREE.filter(up => up.requires === 'snareSeed').map(up => up.id).sort();
     assert.deepEqual(roots, ['snareFocus', 'snarePacketStream', 'snareSanitizer', 'snareSprawl']);
-    for (const r of roots) assert.ok(E.UPGRADE_BY_ID[r].deep && E.UPGRADE_BY_ID[r].max >= 9 && E.UPGRADE_BY_ID[r].cost.signal <= 60, `${r}: cheap to start, nine levels to come back to`);
+    for (const r of roots) assert.ok(E.UPGRADE_BY_ID[r].deep && E.UPGRADE_BY_ID[r].max >= 9 && E.upgradeCost(E.UPGRADE_BY_ID[r], 0).signal <= 60, `${r}: cheap to start, nine levels to come back to`);
     // each root's stat lives only there: nothing else cuts red, adds Focus or thickens the field
     const only = (key, id) => assert.deepEqual(E.SNARE_TREE.filter(up => up.sn[key] || up.perLevel?.some(l => l[key])).map(up => up.id).filter(x => x !== 'snareSeed'), [id], `${key} only on ${id}`);
     only('cleaner', 'snareSanitizer'); only('focus', 'snareFocus'); only('density', 'snarePacketStream'); only('respawnMult', 'snarePacketStream'); only('sprawl', 'snareSprawl');
@@ -2091,17 +2091,18 @@ test('Packet Snare on a mouse: 25% more red, threats 20% faster and the boss war
 });
 
 // Round 10: the boss's nodes (Kernel Panic, and Root Access and Riposte after it) wait for the first boss's sector.
-test('Packet Snare: the boss nodes show once the frontier reaches the first boss', () => {
+// Snare 18.3 (the owner on the 18.1 log: they sat unbought with nothing to do before it): out of the tree until a boss is met
+test('Packet Snare: the boss nodes show once a boss is met', () => {
     const s = E.defaultState();
     s.unlocked['module:snare'] = true;
     s.levels.snareSeed = 1;
     s.levels.snareSanitizer = 1;
-    s.snare.sector = E.SNARE_FIRST_BOSS - 1;
-    E.evaluate(s);
-    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareKernelPanic), false, 'not before the first boss');
     s.snare.sector = E.SNARE_FIRST_BOSS;
     E.evaluate(s);
-    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareKernelPanic), true, 'from its sector');
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareKernelPanic), false, 'not on reaching its sector');
+    s.intro['snare:intro:boss'] = true;
+    E.evaluate(s);
+    assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareKernelPanic), true, 'once its look out card has shown');
     s.snare.sector = 0;
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareKernelPanic), true, 'and it stays (a replay of sector 1 hides nothing)');

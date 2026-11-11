@@ -3987,6 +3987,7 @@ window.AGI = (function () {
         snare.run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area, o), seed: snare.seed, redHunt: snareHuntOn() ? SNARE_HUNT : 0 });
         snare.coach = null;
         snare.coachCaught = 0;
+        snare.melt = null;
         snare.sector = sector;
         snare.startSector = sector;
         snare.cleared = [];
@@ -4076,7 +4077,10 @@ window.AGI = (function () {
         { key: 'bossLoop', when: run => run.boss && run.fight && !(run.boss.stunned > run.time) && !run.boss.charge,
             aim: run => { const b = run.boss; return b && !(b.stunned > run.time) && { x: b.x, y: b.y, r: b.r + Math.max(0.9, run.closeR * 1.1), gesture: 'loop', turns: 2 }; },
             text: () => (snareFinePointer() ? '> left button: loop round it twice' : '> loop round it twice'), done: e => e.type === 'bossLooped' },
-        { key: 'slash', after: 'bossLoop', when: run => run.boss && run.boss.stunned > run.time && !run.boss.shielded,
+        { key: 'meltdown', when: run => run.boss?.melt && true,
+            aim: run => { const b = run.boss; if (!b?.melt) return null; const L = b.r + 1.4; return { x: b.x, y: b.y, r: L, gesture: 'flick', a: { x: b.x - L, y: b.y + L * 0.35 }, b: { x: b.x + L, y: b.y - L * 0.35 } }; },
+            text: () => 'The boss is melting down. Slash it as fast as you can, because every hit bursts out more Signal.', done: e => e.type === 'meltHit' },
+        { key: 'slash', after: 'bossLoop', when: run => run.boss && !run.boss.melt && run.boss.stunned > run.time && !run.boss.shielded,
             aim: run => { const b = run.boss; if (!b || !(b.stunned > run.time)) return null; const L = b.r + 1.4; return { x: b.x, y: b.y, r: L, gesture: 'flick', a: { x: b.x - L, y: b.y - L * 0.35 }, b: { x: b.x + L, y: b.y + L * 0.35 } }; },
             text: () => "> swipe through it while it's stunned", done: e => e.type === 'slash' && !e.shielded },
         { key: 'mineLoop', when: run => run.boss && run.mines.length && !run.held.length && !(run.boss.stunned > run.time) && [...run.mines].sort((m, q) => Math.hypot(m.x - run.boss.x, m.y - run.boss.y) - Math.hypot(q.x - run.boss.x, q.y - run.boss.y)).pop().id,
@@ -4403,6 +4407,25 @@ window.AGI = (function () {
                 shake(0.5);
             } else if (t === 'bossDown' || t === 'goal') {
                 clearSnareSector(run, e, t === 'bossDown');
+            } else if (t === 'meltHit') {
+                // Snare 18.3: each meltdown hit bursts Signal out of the boss, more each hit (a set amount per boss)
+                const m = snare.melt;
+                const pay = m ? E.snareMeltPay(state, m.sector, m.replay, e.from, e.to, e.of) : 0;
+                if (m) m.paid += pay;
+                snare.haul += pay;
+                snare.fx.push({ kind: 'stun', x: e.x + (Math.random() - 0.5) * 1.6, y: e.y - 1.4 - Math.random() * 0.8, t: 0, life: 1, text: `+${E.format(pay)}`, small: e.to < e.of * 0.5 });
+                snare.fx.push({ kind: 'burst', x: e.x, y: e.y, t: 0, life: 0.5 });
+                sfx('snareSlash');
+                if (shakeOn()) snare.fx.push({ kind: 'shake', t: 0, life: 0.12 + 0.02 * e.to });
+                renderSnareHud();
+            } else if (t === 'bossExplode') {
+                // It blows: the biggest moment of the run, then the run ends (no Focus top-up, no burst of packets)
+                const total = (snare.melt?.paid || 0) + (snare.melt?.bounty || 0);
+                snare.fx.push({ kind: 'burst', x: e.x, y: e.y, t: 0, life: 1.4 });
+                snare.fx.push({ kind: 'banner', centre: true, huge: true, x: run.w / 2, y: run.h / 2, t: 0, life: 2.2, text: `BOSS UNINSTALLED · +${E.format(total)}` });
+                if (!reducedMotion()) snare.fx.push({ kind: 'flash', gold: true, t: 0, life: 0.6 }, { kind: 'wave', t: 0, life: 1.4 });
+                if (shakeOn()) snare.fx.push({ kind: 'shake', t: 0, life: 0.7 });
+                sfx('snareBossDown');
             } else if (t === 'sector') {
                 // The run goes on into the next sector: its hazards come in from now, and Focus is topped up.
                 snare.fx.push({ kind: 'quarantine', x: run.w / 2, y: run.h * 0.62, r: 1, t: 0, life: 1.6, text: `${snareSector(snare.sector).toUpperCase()}${e.boss ? ' · BOSS' : ''}`, big: true });
@@ -4619,7 +4642,8 @@ window.AGI = (function () {
         snare.cleared.push(cleared);
         snare.threatAfter = Math.max(snare.threatAfter || 0, run.real + 1.5);
         // Big, centred, with a flash (round 3 of the review: a small blue line like every other pop).
-        snare.fx.push({ kind: 'banner', centre: true, huge: true, x: e.x, y: e.y, t: 0, life: 2, text: `${boss ? 'BOSS UNINSTALLED' : 'SECTOR BREACHED'} +${E.format(pay)}${e.focus > 0 ? ` · +${e.focus} s FOCUS` : ''}` });
+        snare.melt = boss && e.meltdown ? { sector: cleared, replay, paid: 0, bounty: pay } : null;
+        snare.fx.push({ kind: 'banner', centre: true, huge: true, x: e.x, y: e.y, t: 0, life: 2, text: snare.melt ? 'MELTDOWN' : `${boss ? 'BOSS UNINSTALLED' : 'SECTOR BREACHED'} +${E.format(pay)}${e.focus > 0 ? ` · +${e.focus} s FOCUS` : ''}` });
         if (!reducedMotion()) snare.fx.push({ kind: 'flash', gold: true, t: 0, life: 0.35 }, { kind: 'wave', t: 0, life: 1.2 });
         sfx('snareBossDown');
         if (shakeOn()) snare.fx.push({ kind: 'shake', t: 0, life: boss ? 0.4 : 0.3 });
@@ -4632,7 +4656,8 @@ window.AGI = (function () {
         renderSnareHud();
     }
     // Go deeper: a cleared sector's run moves on into the next (its hazards from now, its goal or boss).
-    const snareCleared = run => !!run && !run.over && !snare.preview && (run.goalDone || run.bossDone);
+    // (not while a beaten boss melts down or after it blows: that run is ending, Snare 18.3)
+    const snareCleared = run => !!run && !run.over && !snare.preview && (run.goalDone || run.bossDone) && !run.boss?.melt && run.endAt == null;
     function goDeeper() {
         const run = snare.run;
         if (!snareCleared(run) || snare.intro) return;
@@ -4676,7 +4701,7 @@ window.AGI = (function () {
             pushedOut: stats.pushedOut, autoZones: stats.autoZones, pulses: stats.pulses, sweepsClean: stats.sweepsClean,
             relayed: stats.relayed, pushedBack: stats.pushedBack, raceBroken: stats.raceBroken, crashes: stats.crashes, converted: stats.converted,
             // the bubble prototype: on for this run, and how many bubbles caught
-            bubbles: stats.bubbles, minesGrabbed: stats.minesGrabbed, mineThrows: stats.mineThrows, mineHits: stats.mineHits, mineBounces: stats.mineBounces, mineDuds: stats.mineDuds, spent: Math.round(state.snare.earned - state.snare.signal),
+            bubbles: stats.bubbles, meltHits: stats.meltHits || 0, meltPaid: snare.melt?.paid || 0, minesGrabbed: stats.minesGrabbed, mineThrows: stats.mineThrows, mineHits: stats.mineHits, mineBounces: stats.mineBounces, mineDuds: stats.mineDuds, spent: Math.round(state.snare.earned - state.snare.signal),
             area: Math.round(snare.run.w * snare.run.h), replay: !!snare.replay, secs: Math.round(snare.run.time), record: res.record, seed: snare.seed });
         log(`Packet Snare: +${E.format(snare.haul)} Signal from ${stats.caught} packet${stats.caught === 1 ? '' : 's'}${res.record ? ' · new record' : ''}.`, res.record ? 'success' : 'info');
         sfx(res.record ? 'record' : 'runEnd');
@@ -4811,7 +4836,7 @@ window.AGI = (function () {
                 // A boss beaten leads the card (round 2 of the review: it read like any other run).
                 // Snare 17.5: its fight clock ran out (the run ends with it).
                 s.bossEscaped ? el('div', { class: 'result-main snare-red-line', text: `Boss escaped${s.swallowed ? ` with ${s.swallowed} packets` : ''}${s.escapedMaxHp ? `, ${s.escapedHp} of ${s.escapedMaxHp} health left` : ''} · uninstall window ${snare.run?.opts?.bossFight || 30} s` }) : null,
-                d.cleared.some(k => E.isSnareBossSector(k)) ? el('div', { class: 'result-main snare-boss-down', text: `Boss uninstalled · ${s.slashes || 0} slash${s.slashes === 1 ? '' : 'es'}${s.mineThrows ? ` · ${s.mineThrows} mine${s.mineThrows === 1 ? '' : 's'} thrown` : ''}` }) : null,
+                d.cleared.some(k => E.isSnareBossSector(k)) ? el('div', { class: 'result-main snare-boss-down', text: `Boss uninstalled · ${s.slashes || 0} slash${s.slashes === 1 ? '' : 'es'}${s.mineThrows ? ` · ${s.mineThrows} mine${s.mineThrows === 1 ? '' : 's'} thrown` : ''}${s.meltHits ? ` · meltdown ${s.meltHits}/12` : ''}` }) : null,
                 el('div', { class: 'result-main', text: s.caught ? `${s.caught} packet${s.caught === 1 ? '' : 's'} captured` : 'No packets captured' }),
                 // nothing caught: why, in plain words, first (round 9 of the review: "Corrupted catches 1" didn't say it)
                 // (not after an escape: the escape is the reason, round 10)
@@ -5613,7 +5638,7 @@ window.AGI = (function () {
 
     // Drawn in layers, back to front, each a function of the view `d` (the context, colours, scale, run, effects), so the
     // field draws the same into the bay's canvas and a node's demo.
-    const SNARE_LAYERS = () => [drawSnareCurrent, drawSnareContain, drawSnareScanner, drawSnareCores, drawSnareMines, drawSnareFirewalls, drawSnareToolLife, drawSnareSweeps, drawSnareLoops, drawSnarePreview, drawSnarePackets, drawSnareHerders, drawSnareLasers, drawSnareChain, drawSnareWire, drawSnareRaceLabel, drawSnareRogueFx, drawSnareSnaps, drawSnareAntivirus, drawSnareBoss, drawSnarePickups, drawSnareFrozen, drawSnarePops, drawSnareCoach];
+    const SNARE_LAYERS = () => [drawSnareCurrent, drawSnareContain, drawSnareScanner, drawSnareCores, drawSnareMines, drawSnareFirewalls, drawSnareToolLife, drawSnareSweeps, drawSnareLoops, drawSnarePreview, drawSnarePackets, drawSnareHerders, drawSnareLasers, drawSnareChain, drawSnareWire, drawSnareRaceLabel, drawSnareRogueFx, drawSnareSnaps, drawSnareAntivirus, drawSnareBoss, drawSnareMelt, drawSnarePickups, drawSnareFrozen, drawSnarePops, drawSnareCoach];
     let snareMonoFont = '', snareHintFace = '';
     // Hints (how to do something) are the pipeline terminal's prompt: '> ' and lower case in its mono type, small and in the
     // text colour, so they never read as a payoff or a loss.
@@ -6880,6 +6905,53 @@ window.AGI = (function () {
     // The boss Antivirus: a big red hexagon with its health round it (a ring of segments, or an arc and a number for a
     // big one), its charge's warning line with amber ticks where a flick parries it, a shield of hexagons while its mines
     // stand, and while it reels (the slash window) an amber outline, a countdown and SLASH.
+    // A boss melting down (Snare 18.3): a hot core pulsing faster as it fills, cracks of light, a ring of its hits and
+    // a ring of the time left, and MELTDOWN n/12 under it.
+    function drawSnareMelt(d) {
+        const { ctx, C, k, run } = d;
+        const b = run.boss;
+        if (!b?.melt) return;
+        const x = b.x * k, y = b.y * k, r = Math.max(16, b.r * k), m = b.melt, of = run.opts.meltHits || 12;
+        const fill = m.hits / of, left = Math.max(0, (m.until - run.time) / (run.opts.meltdown || 6));
+        const pulse = reducedMotion() ? 0.5 : 0.5 + 0.5 * Math.sin(performance.now() / 1000 * (6 + 14 * fill));
+        ctx.save();
+        ctx.globalAlpha = 0.25 + 0.35 * fill + 0.2 * pulse;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r * (1.6 + fill));
+        g.addColorStop(0, C.text);
+        g.addColorStop(0.35, C.warning);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(x, y, r * (1.6 + fill), 0, Math.PI * 2); ctx.fill();
+        // cracks: one a hit, out from the middle
+        ctx.globalAlpha = 0.9;
+        ctx.strokeStyle = C.text;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < m.hits; i++) {
+            const a = i * 2.39996, len = r * (0.7 + 0.25 * ((i * 7) % 3));
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + Math.cos(a) * len * 0.5 + Math.cos(a + 1.2) * 4, y + Math.sin(a) * len * 0.5 + Math.sin(a + 1.2) * 4);
+            ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len);
+        }
+        ctx.stroke();
+        // its hits (gold) and the time left (white), round it
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = C.warning;
+        ctx.beginPath(); ctx.arc(x, y, r + 10, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * fill); ctx.stroke();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = C.text;
+        ctx.beginPath(); ctx.arc(x, y, r + 17, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left); ctx.stroke();
+        const label = `MELTDOWN ${m.hits}/${of}`;
+        ctx.font = `700 ${Math.round(Math.max(14, Math.min(22, r * 0.6)))}px ${snareMono()}`;
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = C.bg;
+        ctx.strokeText(label, x, y + r + 36);
+        ctx.fillStyle = C.warning;
+        ctx.fillText(label, x, y + r + 36);
+        ctx.restore();
+    }
     function drawSnareBoss(d) {
         const { ctx, C, k, run, t } = d;
         const b = run.boss;

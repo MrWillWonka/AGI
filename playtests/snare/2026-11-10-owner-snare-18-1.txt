@@ -1,0 +1,41 @@
+The Path to AGI · playtest log
+Log v1 · began 2026-11-10T22:54:59.849Z · exported 2026-11-10T23:29:45.987Z
+build: 2026-11-10 22:25 (review branch) · Packet Snare 18.1: loop a mine to disable it, pull it back and let go to fling it; the boss loop count readable; demos with a beat before and after
+save: v31, v1.0, 4 skills
+screen: 440×820, touch
+browser: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Claude/1.261104.19
+
+Play time 11.5 min over 3 sessions, 174 events, 34.8 min on the clock.
+Skill-tree and legacy buys: 69; 10% the cheapest affordable, the rest dearer picks.
+
+Time by screen:
+  bay:pipeline    7.8 min  68%
+  snareTree       3.7 min  32%
+  servers         0.0 min  0%
+  lab             0.0 min  0%
+
+The owner's notes with it (chat, 2026-11-10): playing the boss was good and the drag (the sling) felt nice, but the mine
+was too slow on release; after the boss a surge of time gave a ton of extra Signal (overpowered): make beating the boss a
+big explosion moment, looping and slashing it like crazy to make it explode more and more Signal, a set amount per boss
+so it pays out without the scaling the extra time gave; the arena grew too big too quickly (field size should be much
+harder to buy than tools and mechanics); several nodes feel useless now (Garbage Collection, for example), and the boss
+nodes have no purpose until the first boss so they sit unbought; Chain Lightning feels more like static shock than chain
+lightning; instructions and descriptions should be sentences, not clipped statements like "click it: the field freezes".
+
+--- events (t = play seconds, w = wall seconds) ---
+(The events are summarised below; the full export was pasted in chat on 2026-11-10 and its numbers are quoted here.)
+runs (sector: haul, catches/caught, secs):
+  1: 239 (9/86, 14 s, goal 40 cleared)
+  2: 126 (5/48), 335 (7/81, cleared)
+  3: 36, 42, 163, 233, 251, 868 (12/189, cleared; 117 escaped)
+  4: 173, 0 (4 spoiled), 242, 517, 193, 354, 512, 4,802 (16/698, chained 106, best ×2.99, cleared)
+  5 (boss, 30 hp): 13,450 (17/964, 30 slashes, swallowed 44 burst 44, 61 s) cleared first try
+  6: 17,715 (10/1,613, area 751, cleared first try)
+  7: 49,515 (9/3,657, cleared first try)
+  8 (boss, 50 hp): 39,901 (boss escaped at 28/50; 4 mines grabbed, thrown, hit), then 61,507 (13 hits, 1 parry,
+     2 mines thrown and hit with 2 bounces, swallowed 587 burst 587, best ×3.9, 49 s) cleared
+field area: 70 → 95 (Sprawl 1) → 128 (2) → 172 (3) → 751 (Sprawl 4–7 bought in one visit after sector 5's boss)
+buys after sector 5's 13,450: Sprawl 4–7, Sanitizer 6–7, Packet Stream 5, Attention Span 7; after sector 7: Attention
+Span 9, Packet Stream 6–8, Sprawl 8; after sector 8's escape: Long Wire, Herders 1–4, Decoder Bot 4, Firewalls 1–3,
+Kernel Panic, Root Access 1–3, Riposte, Garbage Collection, Chain Lightning 3; after sector 8: Scanner Towers, Sprawl 9,
+Packet Stream 9, Ricochet, Spoofer Bot.
