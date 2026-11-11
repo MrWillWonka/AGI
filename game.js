@@ -4272,6 +4272,32 @@ window.AGI = (function () {
         if (c.at) snare.fx.push({ kind: 'stun', x: c.at.x, y: c.at.y - (c.at.r || 1) - 0.4, t: 0, life: 0.9, text: '✓', small: true });
         snareCoachEnd(true);
     }
+    // Text upright in screen space on the field (K25): on a turned field (a quarter turn, see drawSnare) the field's own
+    // frame draws each string upright where it lands, so lines stacked in field units went sideways and overprinted.
+    // This frame un-turns it: `u` runs across the screen (0 to sw), `v` down it (0 to sh), and `fill`/`stroke` draw at
+    // (u, v). `at(x, y)` takes field px to (u, v).
+    function snareScreenText(ctx, W, H, k) {
+        const turned = !!snare.turned, sw = (turned ? H : W) * k, sh = (turned ? W : H) * k;
+        const P = CanvasRenderingContext2D.prototype;
+        return {
+            sw, sh,
+            at: (x, y) => (turned ? [H * k - y, x] : [x, y]),
+            begin() { ctx.save(); if (turned) ctx.transform(0, -1, 1, 0, 0, H * k); },
+            end() { ctx.restore(); },
+            fill: (t, u, v) => P.fillText.call(ctx, t, u, v),
+            stroke: (t, u, v) => P.strokeText.call(ctx, t, u, v),
+        };
+    }
+    // Words wrapped to a width in the context's current font.
+    function snareWrap(ctx, text, maxW) {
+        const lines = [];
+        for (const word of text.split(' ')) {
+            const cur = lines[lines.length - 1];
+            if (cur && ctx.measureText(`${cur} ${word}`).width <= maxW) lines[lines.length - 1] = `${cur} ${word}`;
+            else lines.push(word);
+        }
+        return lines;
+    }
     // The walkthrough on the field (a layer, in field units): the field dimmed round a spotlight, the ghost finger
     // playing the gesture (hidden while your own pen is down), and the prompt.
     function drawSnareCoach(d) {
@@ -4303,28 +4329,29 @@ window.AGI = (function () {
         // the prompt, under the spotlight (over it near the foot of the field), wrapped to the field's width: the prompts
         // are sentences (the owner's call), and one ran off a phone
         const label = def.text();
-        ctx.save();
+        const T = snareScreenText(ctx, W, H, k);
+        T.begin();
         ctx.font = snareHintFont(16);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        const maxW = (snare.turned ? H : W) * k - 24, lines = [];
-        for (const word of label.split(' ')) {
-            const cur = lines[lines.length - 1];
-            if (cur && ctx.measureText(`${cur} ${word}`).width <= maxW) lines[lines.length - 1] = `${cur} ${word}`;
-            else lines.push(word);
-        }
-        const lh = 20, below = sy + sr + 14 + lines.length * lh < H * k - 6;
-        const top = below ? sy + sr + 22 : sy - sr - 18 - (lines.length - 1) * lh;
+        const lines = snareWrap(ctx, label, T.sw - 24), lh = 20;
+        // where the spotlight is on screen; its radius is the same either way
+        const [su, sv] = T.at(sx, sy);
+        // a centred banner or the boss's warning is up (K25: the prompt overprinted BOSS INCOMING, SECTOR BREACHED and the
+        // fight's window line): the prompt goes to the field's foot
+        const banner = (run.bossDueAt != null && !run.boss && !run.bossDone) || snare.fx.some(f => f.centre && f.text);
+        const below = sv + sr + 14 + lines.length * lh < T.sh - 6;
+        const top = banner ? T.sh - 14 - (lines.length - 1) * lh : below ? sv + sr + 22 : sv - sr - 18 - (lines.length - 1) * lh;
         ctx.globalAlpha = fade;
         lines.forEach((line, i) => {
-            const tw = ctx.measureText(line).width, lx = Math.max(tw / 2 + 8, Math.min(W * k - tw / 2 - 8, sx)), ly = Math.max(12, top + i * lh);
+            const tw = ctx.measureText(line).width, lu = Math.max(tw / 2 + 8, Math.min(T.sw - tw / 2 - 8, su)), lv = Math.max(12, top + i * lh);
             ctx.lineWidth = 5;
             ctx.strokeStyle = C.bg;
-            ctx.strokeText(line, lx, ly);
+            T.stroke(line, lu, lv);
             ctx.fillStyle = C.text;
-            ctx.fillText(line, lx, ly);
+            T.fill(line, lu, lv);
         });
-        ctx.restore();
+        T.end();
     }
     // The ghost finger at phase p (0–1) of its gesture.
     function drawSnareGhost(d, at, def, p, fade) {
@@ -4696,8 +4723,10 @@ window.AGI = (function () {
         return [lead ? el('p', { class: cls, text: lead }) : null, el('ol', { class: 'snare-steps' }, v.steps.map(t => el('li', { text: t }))),
             v.note ? el('p', { class: 'snare-intro-line', text: v.note }) : null].filter(Boolean);
     }
-    const snareMeetParts = (kinds, prefix = '> ') => kinds.flatMap(k => [...snareIntroBody(k, `${prefix}${SNARE_INTROS[k][0].toUpperCase()}`, 'snare-intro-line snare-red-line'),
-        snareDemo(SNARE_INTRO_DEMO[k] || k)]).filter(Boolean);
+    // Each threat's words and its demo in one group (`.snare-meet`, K24): it lays nothing out upright (display: contents),
+    // and on a sideways phone sets the words beside the demo.
+    const snareMeetParts = (kinds, prefix = '> ') => kinds.map(k => el('div', { class: 'snare-meet' }, [...snareIntroBody(k, `${prefix}${SNARE_INTROS[k][0].toUpperCase()}`, 'snare-intro-line snare-red-line'),
+        snareDemo(SNARE_INTRO_DEMO[k] || k)].filter(Boolean)));
     // Going deeper into a sector with a threat not yet met: its look out card first, then on (the run waits on it).
     function snareLookOut(kinds, then) {
         const card = $('snareCard');
@@ -4926,8 +4955,7 @@ window.AGI = (function () {
                 snareSectorPicker(),
                 el('p', { class: 'snare-intro-line snare-goal-line', text: snareGoalText(snareNextSector()) }),
                 // the demo's caption would say again what the line under it says (round 2 of the review)
-                first ? (d => (d?.querySelector('figcaption')?.remove(), d))(snareDemo('lasso')) : null,
-                first ? el('p', { class: 'snare-intro-line', text: snareHowTo() }) : null,
+                first ? el('div', { class: 'snare-meet' }, [(d => (d?.querySelector('figcaption')?.remove(), d))(snareDemo('lasso')), el('p', { class: 'snare-intro-line', text: snareHowTo() })].filter(Boolean)) : null,
                 ...snareMeetParts(meet),
                 state.snare.runs < 3 && !first && !meetRed ? el('p', { class: 'snare-intro-line', text: snareHowTo() }) : null,
                 best > 0 ? el('ul', { class: 'result-lines' }, [['Best haul', `+${E.format(best)} Signal`], snareRpLine(), snareTrainingLine()].filter(Boolean)
@@ -5363,7 +5391,8 @@ window.AGI = (function () {
             for (const [k, v] of Object.entries({ x1: b.x * cell, y1: b.y * cell, x2: up.snare.x * cell, y2: up.snare.y * cell })) line.setAttribute(k, v);
         }
         // A narrow tree (a phone) docks the popup along its foot instead of beside the node.
-        $('snareTreeDetail').classList.toggle('docked', grid.clientWidth < 560);
+        // (Not on a landscape tree, a sideways phone: docked at its foot there it had 96 px of 165, K24.)
+        $('snareTreeDetail').classList.toggle('docked', grid.clientWidth < 560 && grid.clientHeight > grid.clientWidth * 0.8);
         placeSnarePopup();
     }
 
@@ -8112,16 +8141,21 @@ window.AGI = (function () {
             let y = f.centre ? H * k * 0.38 : f.y * k - 10 - f.t * 26;
             const x = f.centre ? W * k / 2 : f.x * k;
             const pop = f.huge && !reducedMotion() ? 1 + 0.35 * Math.max(0, 1 - f.t / 0.18) : 1;
-            const size = Math.round((f.hint ? 13 : f.small ? 11 : f.huge ? 24 : f.big ? 18 : 15) * pop);
-            const fontAt = px => (f.hint ? snareHintFont(px) : `700 ${px}px ${snareMono()}`);
+            // a hint (`kind: 'hint'` or `hint`) in the hint font (K25: `kind: 'hint'` drew at 15 px bold and was shrunk)
+            const isHint = f.hint || f.kind === 'hint';
+            const size = Math.round((isHint ? 13 : f.small ? 11 : f.huge ? 24 : f.big ? 18 : 15) * pop);
+            const fontAt = px => (isHint ? snareHintFont(px) : `700 ${px}px ${snareMono()}`);
             ctx.font = fontAt(size);
             // the same words already up nearby: once is enough (round 4 of the review: SHIELDED ×4 in a column)
             if (placed.some(p => p.text === f.text && Math.abs(p.x - x) < 160)) continue;
             // too wide for the field: smaller (round 4: SECTOR CLEARED ran off a phone's field)
             let fit = size;
-            const room = W * k - 12;
-            if (ctx.measureText(f.text).width > room) { fit = Math.max(10, Math.floor(size * room / ctx.measureText(f.text).width)); ctx.font = fontAt(fit); }
-            const hw = ctx.measureText(f.text).width / 2 + 4, lh = fit + 4 + (f.sub ? 14 : 0);
+            const room = (snare.turned ? H : W) * k - 12;
+            // a hint too wide wraps (K25: "…before your Focus runs out." was shrunk and cut off on a phone); other labels shrink
+            const wrapped = isHint && ctx.measureText(f.text).width > room ? snareWrap(ctx, f.text, room - 8) : null;
+            if (!wrapped && ctx.measureText(f.text).width > room) { fit = Math.max(10, Math.floor(size * room / ctx.measureText(f.text).width)); ctx.font = fontAt(fit); }
+            const hw = (wrapped ? Math.max(...wrapped.map(l => ctx.measureText(l).width)) : ctx.measureText(f.text).width) / 2 + 4;
+            const lh = (fit + 4) * (wrapped ? wrapped.length : 1) + (f.sub ? 14 : 0);
             const hits = yy => placed.some(p => Math.abs(p.x - x) < p.hw + hw && yy - lh < p.y && p.y - p.lh < yy);
             let tries = 0;
             while (tries < 3 && hits(y)) { y -= lh; tries++; }
@@ -8133,6 +8167,19 @@ window.AGI = (function () {
             ctx.lineWidth = 3;
             ctx.strokeStyle = C.bg;
             // Kept inside the field (Snare 14: a big CHAIN or SURGE by the edge ran off a phone's field).
+            if (wrapped) {
+                // stacked upward from where the label sits, upright on screen
+                const T = snareScreenText(ctx, W, H, k), [u0, v0] = T.at(x, y);
+                T.begin();
+                wrapped.forEach((line, i) => {
+                    const half = ctx.measureText(line).width / 2 + 4;
+                    const u = Math.max(half, Math.min(T.sw - half, u0)), v = Math.max(fit, v0 - (wrapped.length - 1 - i) * (fit + 4));
+                    T.stroke(line, u, v);
+                    T.fill(line, u, v);
+                });
+                T.end();
+                continue;
+            }
             const half = ctx.measureText(f.text).width / 2 + 4;
             const tx = Math.max(half, Math.min(W * k - half, x));
             ctx.strokeText(f.text, tx, y);

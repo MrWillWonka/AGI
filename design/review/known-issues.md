@@ -8,15 +8,11 @@ Tag every issue in your review: `[new]`, `[known K#]` or `[regression]`. Issues 
 Update this file with every fix batch (move fixed ones to *fixed: verify*, drop them after a review confirms them).
 
 ## Open
-- **K23 [regression of F40] Sideways end cards: the heading wraps round the floated sector title** ("FOCUS DEPLETED No / packets captured"; 640 × 360 and 844 × 390, every end card) (round 11).
-- **K24 Sideways phones between runs are cramped:** at 640 × 360 the top bar takes three rows (93 px); end cards are 440 px wide and scroll 95–183 px; look out and boss cards hide or shrink their demo; the tree popup docks at the foot in 96 px (640) or cuts its rules after a line (844) (round 11).
-- **K25 Canvas text:** long field hints are shrunk and cut off on upright phones (the tutorial's "…before your Focus runs out."); a phone turned mid-run draws the walkthrough prompt's lines on top of each other; walkthrough prompts overprint centred banners (BOSS INCOMING, SECTOR BREACHED, the boss warning on desktop) (round 11).
-- **K26 Between 641 and 960 px wide** (upright tablets, narrow desktop windows) the field doesn't use the height (768 × 1024: 56% of the height empty; the HUD truncates); short desktop windows (600–700 px high) cut the first card's second demo behind Start; tablets' back and map-pin targets are 24 px (round 11).
-- **K27 Toasts at the foot cover a docked popup's buy button** on phones (round 11).
-- None else. K6 (a maxed field's clutter) was closed with no change (the owner's call, 2026-11-11), and the desktop part of
+- None. Closed with no change: K6 (a maxed field's clutter) was closed with no change (the owner's call, 2026-11-11), and the desktop part of
   K20 (the HUD small at 1920 and 4K) was left as it is.
 
 ## Fixed: verify
+- **F41 (K23–K27, round 11, layout)**: sideways end cards' heading no longer wraps round the sector (only a start card floats it); sideways phones 640 px wide or less get a one-row top bar (93 → about 35 px); sideways cards are wider, an end card in two columns (the result left, its lines right) and each threat's words beside its demo (); a landscape tree floats its popup beside the node (it docked in 96 px); field hints wrap instead of shrinking, and the walkthrough prompt and hints draw upright on a turned phone (), the prompt going to the field's foot under a centred banner or the boss's warning; from 641 px wide (above 500 px high) the field fills the height (an upright tablet 52% → 69% of the screen), its crumbs shorten to 960 px, short windows get smaller demos, tablets' crumbs and map pin are 32 px; toasts go to the top while a docked popup is open; upright phones drop the start card's repeated title. The layout pass ( against ): 91 problems gone, the only new one the 360 × 640 first card scrolling 2 px more (since gone).
 - **F40 (K20, phones) Screens, smaller** (the owner: save space on phones): a sideways phone's start card drops the
   repeated "Packet Snare" title, sets the sector beside the start-at picker and slims Start, so the threat's teaching shows
   above it (both lines of sector 3's card now show); a docked tree popup (narrow phones) is a little taller with a

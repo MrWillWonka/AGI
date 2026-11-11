@@ -3495,8 +3495,9 @@ body.calm .snare-deeper { animation: none; }
 .snare-card .demo canvas { max-height: 22vh; width: auto; max-width: 100%; }
 /* The rack's Packet Snare badge sits inside the tile (it was clipped by the bay's edge). */
 .bay[data-ready]::after { top: 8px; right: 8px; z-index: 3; }
-/* The field uses the bay's height on desktop (it sat in a 448 px strip with empty floor under it). */
-@media (min-width: 961px) {
+/* The field uses the bay's height on desktop (it sat in a 448 px strip with empty floor under it), and from 641 px wide
+   on screens taller than a sideways phone (K26: an upright tablet left 56% of its height empty under the field). */
+@media (min-width: 961px), (min-width: 641px) and (min-height: 501px) {
     .snare-view > .canvas-wrap { height: clamp(300px, calc(100dvh / var(--zoom, 1) - var(--topbar-h, 60px) - 177px), 820px); }
 }
 @media (max-width: 640px) and (min-height: 501px) {
@@ -3605,17 +3606,56 @@ body.calm .snare-deeper.lit, body.idle .snare-deeper.lit { animation: none; }
 
 /* Sideways phones (round 9 of the review: a card's teaching sat below the fold behind Start): a wider card, its demos
    floated to the left with the words beside them, Start across the foot. */
+.snare-meet { display: contents; }
 @media (max-height: 500px) and (orientation: landscape) {
-    .snare-card:has(.demo) { width: min(720px, 92vw); max-width: min(720px, 92vw); }
-    .snare-card:has(.demo) > .demo { float: left; clear: left; width: 150px; margin: 2px 14px 6px 0; }
-    .snare-card:has(.demo) > .result-actions { clear: both; }
+    .snare-card { width: min(760px, 94vw); max-width: min(760px, 94vw); }
 }
 /* K20 (the owner's call: save space on phones): a sideways phone's card drops the repeated game name, sets the sector beside
    the picker, and keeps Start slimmer, so more of the teaching shows above it. */
 @media (pointer: coarse) and (max-height: 500px) and (orientation: landscape) {
     .snare-card .snare-name { display: none; }
-    .snare-card > .result-title { float: left; margin: 7px 12px 0 0; }
+    /* only a start card's title floats beside its picker (K23: an end card's heading wrapped round it) */
+    .snare-card:has(> .snare-name) > .result-title { float: left; margin: 7px 12px 0 0; }
+    /* K24: each threat's words beside its demo (the demo was hidden at 640 and a thumbnail under the line at 844) */
+    .snare-card .snare-meet { display: grid; grid-template-columns: minmax(0, 1fr) min(160px, 30%); column-gap: 14px; align-items: start; margin: 4px 0 6px; clear: both; }
+    .snare-card .snare-meet > .demo { grid-column: 2; grid-row: 1 / span 6; width: 100%; margin: 0; }
+    .snare-card .snare-meet > .demo canvas { max-height: none; width: 100%; height: auto; }
+    .snare-card .snare-meet > :not(.demo) { grid-column: 1; }
+    /* K24: an end card in two columns: the result on the left, its lines on the right, the picker and Start across */
+    .snare-card:has(> .result-xp) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 20px; align-content: start; }
+    .snare-card:has(> .result-xp) > * { grid-column: 1; }
+    .snare-card:has(> .result-xp) > .result-lines { grid-column: 2; grid-row: 1 / span 5; align-self: start; margin-top: 0; }
+    .snare-card:has(> .result-xp) > .snare-sector-row, .snare-card:has(> .result-xp) > .snare-goal-line, .snare-card:has(> .result-xp) > .result-actions, .snare-card:has(> .result-xp) > details { grid-column: 1 / -1; }
+    /* K24: a sideways phone 640 px wide or less kept the narrow phone's three-row top bar (93 px of 360): one row */
+    .topbar-inner { display: flex; }
+    .chips-attr { max-width: none; }
+    /* the tree's popup beside the node is a little wider there */
+    .snare-tree-grid .node-detail:not(.docked) { width: min(290px, calc(100% - 8px)); }
     .snare-card .snare-sector-row { justify-content: flex-end; margin-bottom: 4px; }
     .snare-card .result-actions { padding: 6px 0 14px; }
     .snare-card .result-actions .button { min-height: 36px; padding-block: 6px; }
+}
+
+/* K26 (round 11): short windows (600–760 px high) keep both of a card's demos in view with Start: smaller demos. */
+@media (max-height: 760px) and (min-height: 501px) {
+    .snare-card .demo canvas { max-height: 14vh; }
+}
+/* K26: on tablets the crumbs and the map's pin are touch targets of 32 px (24 px fit a mouse). */
+@media (pointer: coarse) and (min-width: 641px) and (min-height: 501px) {
+    .crumbs .crumb { min-height: 32px; min-width: 32px; }
+    .minimap .mm-min { min-width: 32px; min-height: 32px; }
+}
+/* K27 (round 11): a tree popup docked at the foot of a phone's tree: toasts go to the top, off its buy button. */
+body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px, env(safe-area-inset-top, 0px)); bottom: auto; }
+/* K26: from 641 to 960 px wide the bay's crumbs shorten as on phones (⌂ / server_room), so the HUD beside them isn't cut
+   off ("packet…", "Goal 0/…" on an upright tablet). */
+@media (min-width: 641px) and (max-width: 960px) {
+    #moduleView:has(> #snarePanel:not([hidden])) .module-bar #moduleTitle,
+    #moduleView:has(> #snarePanel:not([hidden])) .module-bar .crumb-sep { display: none; }
+    #moduleView:has(> #snarePanel:not([hidden])) .crumbs .crumb-home { font-size: 0; }
+    #moduleView:has(> #snarePanel:not([hidden])) .crumbs .crumb-home::before { font-size: 0.95rem; margin-right: 0; }
+}
+/* Round 11 (the phone reviewer's +1): upright phones drop the start card's repeated "Packet Snare" title too. */
+@media (max-width: 640px) and (min-height: 501px) {
+    .snare-card .snare-name { display: none; }
 }
