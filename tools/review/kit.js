@@ -41,11 +41,13 @@ async function launch({ phone = false } = {}) {
 }
 
 // A new player's first visit: a fresh save, the bay opened the way the game opens it, Packet Snare reset.
-async function fresh(page) {
+// `tutorial`: keep the first run's tutorial (Snare 18.7: a zoomed-in field until its walkthroughs are done); the standard
+// tours skip it, as a player who has played before would.
+async function fresh(page, { tutorial = false } = {}) {
     await page.evaluate(() => { localStorage.clear(); });
     await page.goto(url());
     await page.waitForTimeout(800);
-    await page.evaluate(() => { AGI.debug.openSnare(); AGI.debug.resetSnare(); });
+    await page.evaluate(t => { AGI.debug.openSnare(); AGI.debug.resetSnare(); if (!t) AGI.state.intro['snare:tutorial'] = true; }, tutorial);
     await page.waitForTimeout(1200);
 }
 

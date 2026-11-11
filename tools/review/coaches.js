@@ -49,7 +49,7 @@ async function section(page, k, doneKeys, levels = {}) {
         const screen = phone ? 'phone' : 'desktop';
         const { browser, page } = await K.launch({ phone });
         const snap = async name => page.screenshot({ path: path.join(out, `${screen}-${name}.png`) });
-        await K.fresh(page);
+        await K.fresh(page, { tutorial: true });   // run 1 is the tutorial (Snare 18.7)
         await startRun(page);
         // run 1: the bubble, the red packet, (phones) the drawn loop
         let c = await waitCoach(page, 'bubble');

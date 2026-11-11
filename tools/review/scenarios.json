@@ -9,79 +9,79 @@
   "levels": {
    "snareSeed": 1,
    "snareFocus": 1,
-   "snareSprawl": 1
+   "snareSprawl": 2,
+   "snareSanitizer": 1
   },
-  "signal": 17,
-  "runs": 1,
-  "minute": 0.4
+  "signal": 26,
+  "runs": 3,
+  "minute": 1.2
  },
  "3": {
   "levels": {
    "snareSeed": 1,
    "snareFocus": 3,
    "snarePacketStream": 2,
-   "snareBandwidth": 1,
    "snareSprawl": 3,
    "snareGold": 1,
    "snareCleanerBot": 1,
    "snareSanitizer": 2
   },
-  "signal": 41,
-  "runs": 10,
-  "minute": 4.3
+  "signal": 105,
+  "runs": 11,
+  "minute": 4.5
  },
  "4": {
   "levels": {
    "snareSeed": 1,
    "snareFocus": 4,
-   "snarePacketStream": 3,
-   "snareChain": 1,
+   "snarePacketStream": 2,
    "snareBandwidth": 2,
    "snareSprawl": 3,
    "snareGold": 2,
-   "snareContain": 1,
    "snareCleanerBot": 2,
-   "snareSanitizer": 4
+   "snareSanitizer": 3
   },
-  "signal": 326,
-  "runs": 24,
-  "minute": 11
+  "signal": 73,
+  "runs": 19,
+  "minute": 8.1
  },
  "5": {
-  "levels": {
-   "snareSeed": 1,
-   "snareFocus": 5,
-   "snarePacketStream": 4,
-   "snareChain": 3,
-   "snareBandwidth": 2,
-   "snareSprawl": 4,
-   "snareSchools": 1,
-   "snareGold": 2,
-   "snareContain": 1,
-   "snareCleanerBot": 3,
-   "snareSanitizer": 4
-  },
-  "signal": 595,
-  "runs": 29,
-  "minute": 13.6
- },
- "6": {
   "levels": {
    "snareSeed": 1,
    "snareFocus": 6,
    "snarePacketStream": 4,
    "snareChain": 3,
    "snareBandwidth": 2,
-   "snareSprawl": 4,
+   "snareSprawl": 3,
    "snareSchools": 1,
    "snareGold": 3,
    "snareContain": 1,
-   "snareCleanerBot": 3,
+   "snareCleanerBot": 4,
    "snareSanitizer": 5,
-   "snareKernelPanic": 1
+   "snareFirewalls": 1
   },
-  "signal": 212,
-  "runs": 31,
-  "minute": 15.2
+  "signal": 630,
+  "runs": 38,
+  "minute": 17.3
+ },
+ "6": {
+  "levels": {
+   "snareSeed": 1,
+   "snareFocus": 6,
+   "snarePacketStream": 4,
+   "snareChain": 4,
+   "snareBandwidth": 2,
+   "snareSprawl": 3,
+   "snareSchools": 1,
+   "snareGold": 3,
+   "snareContain": 1,
+   "snareCleanerBot": 4,
+   "snareSanitizer": 5,
+   "snareKernelPanic": 1,
+   "snareFirewalls": 1
+  },
+  "signal": 900,
+  "runs": 40,
+  "minute": 19.1
  }
 }
