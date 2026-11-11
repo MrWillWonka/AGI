@@ -6,9 +6,11 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
 
 ## Where things stand
 
-- **Live review build:** Packet Snare **18.7**, republished 2026-11-11 12:23 UTC (version `1794399783-9146`) with
-  `debug-panel.js` and `styles.css` only: a long press on the logo opens and closes the debug panel. The build number
-  stayed 18.7 (the owner's call: it isn't a change to the game).
+- **Live review build:** Packet Snare **18.7**, republished 2026-11-11 14:54 UTC (version `1794408849-06ec`, engine.js,
+  game.js, packet-snare.js and styles.css): the open decisions closed (flick nodes gone, nets shield the boss, a parry
+  knocks it into mines), round 11's layout fixes (F41) and the field filling the width on screens 1700 px and wider. The
+  build number stayed 18.7 (the owner's call: a new one only when a playtest led to a change). Before it, 12:23 UTC
+  (`1794399783-9146`): the debug panel's long press.
 - **Open decisions: none** (2026-11-11, the owner closed them all: D20 the flick nodes removed, K17 nets shield the
   boss and a parry knocks it into mines, K20 phones save space, D15 and K6 closed with no change; see decisions.md).
   The next decisions come from the next playtest log. Older entries below that say "Open" are history.
