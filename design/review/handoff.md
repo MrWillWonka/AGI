@@ -6,7 +6,9 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
 
 ## Where things stand
 
-- **Live review build:** Packet Snare **18.8**, published 2026-11-11 20:56 UTC (version `1794430575-69c8`, index.html,
+- **Live review build:** Packet Snare **18.8**, republished 2026-11-11 21:41 UTC (version `1794433264-85c1`, game.js: a catch
+  made before a tutorial walkthrough shows counts as that step, the owner's report; the build number kept, the owner's call).
+  First published 20:56 UTC (version `1794430575-69c8`, index.html,
   engine.js, game.js, packet-snare.js, snare-demos.js and scenarios.json): the owner's calls on the 18.7 log (the 15-sector
   campaign with skill-gated bosses, the meltdown doubling the run, racing combos and a limited wire, defences in the boss
   fight, the bubble nodes on drawn loops; see CLAUDE.md). The owner reviews it on the phone over Tailscale first (below).
