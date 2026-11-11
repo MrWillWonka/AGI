@@ -6,8 +6,9 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
 
 ## Where things stand
 
-- **Live review build:** Packet Snare **18.8**, republished 2026-11-11 22:31 UTC (version `1794436307-6fa6`, game.js: the owner's
-  tutorial reports: a catch made before a walkthrough shows counts as that step, a bubble on the drawn loop's step brings a
+- **Live review build:** Packet Snare **18.8**, republished 2026-11-11 22:53 UTC (version `1794437631-8d30`, game.js: the owner's
+  tutorial reports: each step takes its own move before it moves on (the bubble step a bubble, the drawn loop's a drawn
+  loop; the wrong one catches for nothing and a fresh group swims in), and before that: a catch made before a walkthrough shows counts as that step, a bubble on the drawn loop's step brings a
   fresh group and then moves on, no combo in the tutorial, the old wire on its small field (the share of it was too short
   for the loop it asks for), and its walkthroughs never repeat after the zoom; the build number kept, the owner's call).
   First published 20:56 UTC (version `1794430575-69c8`, index.html,
