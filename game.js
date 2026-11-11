@@ -4098,10 +4098,10 @@ window.AGI = (function () {
         const wide = run.w >= run.h, off = 0.3 * Math.max(run.w, run.h);
         const spots = [-1, 1].map(sgn => (wide ? [run.w / 2 + sgn * off, run.h / 2] : [run.w / 2, run.h / 2 + sgn * off]));
         const pick = n >= 2 ? spots : [spots[Math.floor(Math.random() * 2)]];
-        for (const [x, y] of pick) snareTutorialGroup(run, x, y, 3);
+        for (const [x, y] of pick) snareTutorialGroup(run, x, y, 3, 0.35);   // tight, the same on every screen (a sideways phone's spread wide)
     }
-    function snareTutorialGroup(run, cx, cy, n = 4) {
-        const R = Math.max(0.4, run.closeR * 1.6);
+    function snareTutorialGroup(run, cx, cy, n = 4, spread = null) {
+        const R = spread ?? Math.max(0.4, run.closeR * 1.6);
         for (let i = 0; i < n; i++) {
             const a = i * 2.39996, d = R * Math.sqrt((i + 0.5) / n), h = Math.random() * Math.PI * 2, v = 0.08;
             run.packets.push({ id: run.nextId++, kind: i === 2 ? 'gold' : 'good', x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, vx: Math.cos(h) * v, vy: Math.sin(h) * v, v, r: run.opts.packetR, age: 1, school: 0, tag: 0 });
@@ -4147,7 +4147,7 @@ window.AGI = (function () {
         // 4 (phones): Throughput. The wire is cut to go round one group but not two, and two groups come in apart.
         if (phone && state.intro['snare:coach:loop'] && !tu.wireStep && !snare.coach && now - (snare.coachCaught || 0) > 600) {
             tu.wireStep = now;
-            const r = Math.max(0.4, run.closeR * 1.6) + 0.75;   // a loop round one group fits (the ghost's too); round both it can't
+            const r = 1.2;   // a loop round one group fits (its ghost is about 0.85); round both, a third of the longer side apart, it can't
             run.opts.wireShare = Math.PI * r * r / (run.w * run.h);
             snareWireGroups(run, 2);
         }
@@ -4362,7 +4362,8 @@ window.AGI = (function () {
         const at = c.at, def = SNARE_COACHES.find(x => x.key === c.key);
         const real = (performance.now() - c.t0) / 1000, calm = reducedMotion();
         const fade = Math.min(1, real / 0.35);
-        const sx = at.x * k, sy = at.y * k, sr = Math.max(1.2, at.r + 0.6) * k;
+        // (on the tutorial's zoomed-in field the usual 1.2-unit floor filled the screen: there it hugs the group)
+        const sx = at.x * k, sy = at.y * k, sr = (snare.tutorial ? at.r + 0.35 : Math.max(1.2, at.r + 0.6)) * k;
         // the dim, with the spotlight cut out of it
         ctx.save();
         ctx.globalAlpha = 0.55 * fade;
@@ -4396,10 +4397,13 @@ window.AGI = (function () {
         // fight's window line): the prompt goes to the field's foot
         const banner = (run.bossDueAt != null && !run.boss && !run.bossDone) || snare.fx.some(f => f.centre && f.text);
         const below = sv + sr + 14 + lines.length * lh < T.sh - 6;
-        const top = banner ? T.sh - 14 - (lines.length - 1) * lh : below ? sv + sr + 22 : sv - sr - 18 - (lines.length - 1) * lh;
+        // the block kept together on the field (the owner's sideways phone: with no room above or below the spotlight each line
+        // was pinned to the top edge on its own, and they overprinted)
+        const want = banner ? T.sh - 14 - (lines.length - 1) * lh : below ? sv + sr + 22 : sv - sr - 18 - (lines.length - 1) * lh;
+        const top = Math.max(14, Math.min(T.sh - 14 - (lines.length - 1) * lh, want));
         ctx.globalAlpha = fade;
         lines.forEach((line, i) => {
-            const tw = ctx.measureText(line).width, lu = Math.max(tw / 2 + 8, Math.min(T.sw - tw / 2 - 8, su)), lv = Math.max(12, top + i * lh);
+            const tw = ctx.measureText(line).width, lu = Math.max(tw / 2 + 8, Math.min(T.sw - tw / 2 - 8, su)), lv = top + i * lh;
             ctx.lineWidth = 5;
             ctx.strokeStyle = C.bg;
             T.stroke(line, lu, lv);
