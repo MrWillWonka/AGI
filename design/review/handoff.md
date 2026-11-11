@@ -149,6 +149,16 @@ with `publish_files` (slug above, `base_version` = the live version from `get_ar
 debug panel's Playtest from this sector presets), so include it when it changed. After publishing, `list_files` again:
 every hash should match the script's.
 
+## Reviewing on the owner's phone
+
+The artifact viewer keeps Claude's own bar over the top of the page, so the owner reviews mobile layout over
+**Tailscale** (the owner's call, 2026-11-11): a private network between their own devices, with nothing on the open
+internet. The PC serves the repo with `node tools/review/serve.js 8123` (no caching, so a refresh shows every edit), and
+`tailscale serve --bg 8123` gives it a private `https://<pc-name>.<tailnet>.ts.net` address that only the owner's
+signed-in devices can open. Add `#snare` to the address to open straight into Packet Snare. `index.html` carries the
+home-screen tags, so "Add to Home Screen" opens the game with no browser bars. The PC must be on and serving. Saves are
+per address, so this is a separate game from the artifact's.
+
 ## Commands
 
 ```bash
