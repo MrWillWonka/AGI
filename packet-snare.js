@@ -153,15 +153,18 @@
         bubbleFollow: 0.012,        // s: how closely it sticks to the pen (Snare 13.2, the owner: it lagged; it was a capped drift)
         bubbleSize: 0,              // Bigger Buffers: + this share of its full size
         bubbleGrow: 0,              // Steady Hand: it grows this much faster
+        drawnCap: 0,                // Steady Hand: a drawn loop's cap is this much over a full bubble's multiplier
         raceStill: 0.6,             // Race Condition: a full bubble held within this × the closing ring of where it filled grows
         // Split (Fork Bomb, Snare 15): a full bubble let go forks into `fork` + 1 smaller ones (`splitR` × its radius,
         // `splitDist` × its radius out) that catch `splitDelay` s later, each at its own multiplier times the first's (up to
-        // `forkMax` × the cap); red in one spoils only that one, and costs nothing.
+        // `forkMax` × the cap); red in one spoils only that one, and costs nothing. A drawn loop closed at its cap (×n MAX)
+        // splits too, its kids a full bubble's at most, set out past the loop's edge.
         splitDelay: 0.5,
         splitR: 0.6,
         splitDist: 1.3,
         // Supernova (Starburst, Snare 15): a bubble let go while the field is frozen bursts to `novaRing` × its size:
-        // everything good in that at ×`starMult` on top of the bubble's multiplier, red there deleted, mines cleared.
+        // everything good in that at ×`starMult` on top of the bubble's multiplier, red there deleted, mines cleared. A drawn
+        // loop closed while frozen bursts too, its edge pushed out by as much as a full bubble's would be at most.
         novaRing: 1.35,
         // Boss mines (Snare 15, the owner's call; Snare 18.1, K7, the owner's call: a quick bubble often missed and the boss
         // popped it): a loop drawn round one disables it for `mineHold` s (it stops linking and shielding); pulled back from
@@ -386,7 +389,7 @@
         gcFocus: 0.8,
         // Race Condition: close a loop and keep the pen still, and the loop stays open, its multiplier growing
         // `raceRate` a second (up to `raceMax` more) and taking what swims in, until you move, lift, or a corrupt packet
-        // gets in (spoiling it).
+        // gets in (spoiling it). With bubbles a drawn loop does it too (on a phone, `loopCatch`), its growth on top of its cap.
         race: 0,
         raceRate: 0.25,
         raceMax: 1,
@@ -471,14 +474,13 @@
         // Quarantine Relay: a red packet that bounces off your Firewall swims to your nearest decoy for `relaySeconds` s.
         relay: 0,
         relaySeconds: 4,
-        // Backpressure: a catch turns the packets round it back against their course for `backSeconds` s, within
-        // (0.12 + 0.04 a level) × the shorter side, so they bunch up near your loop.
+        // Backpressure (reworked after the 18.7 log: turning packets back measured about 0% a run however it was tuned): a
+        // bubble or drawn loop that catches also takes the good packets in a thin ring just outside its edge, at the same
+        // multiplier; red in the ring is left alone.
         backpressure: 0,
-        backSeconds: 1.2,
-        backReach: 0.12,            // its reach: this share of the shorter side…
-        backReachLv: 0.04,          // …and this much more a level
-        overflowGold: 0.2,           // past four times what a screen-capped field can hold, packets come gold this much more a doubling
-        backPull: 0                  // Backpressure pulls packets in toward the catch instead of turning them back (tried: no better)
+        backReach: 0.12,            // the ring's width at its first level: this share of the field's shorter side…
+        backReachLv: 0.04,          // …and this much more each level after
+        overflowGold: 0.2           // past four times what a screen-capped field can hold, packets come gold this much more a doubling
     };
     const GOLD_VALUE = 5;
     const TAG_VALUE = 2;
@@ -633,7 +635,7 @@
             cleanRun: 0,            // clean catches in a row (the streak's pay)
             lastLoopAt: -1e9,       // when the last loop paid (a loop moments after it is rushed)
             clears: 0,              // sectors cleared this run (each clear's Focus bonus is half the last's)
-            stats: { bossEscaped: 0, swallowed: 0, burst: 0, catches: 0, bubbles: 0, spawned: 0, pickups: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, botCollected: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, pushedBack: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
+            stats: { bossEscaped: 0, swallowed: 0, burst: 0, catches: 0, bubbles: 0, spawned: 0, pickups: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, botCollected: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, edgeCaught: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
                 stolen: 0, cores: 0, quarantined: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0,
                 herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0,
                 bossDamage: 0, avDown: 0, glanced: 0, mines: 0, minesCleared: 0, netted: 0, escalations: 0, forks: 0, stars: 0, minesGrabbed: 0, mineThrows: 0, mineHits: 0, mineBounces: 0, mineDuds: 0 },
@@ -2274,7 +2276,11 @@
             if (!r) return;
             s.race = null;
             if (r.t >= 0.3) s.stats.raced++;
-            payLoop(r.poly, r.bonus);
+            // a drawn loop (with bubbles) keeps its cap, its growth on top, and splits if it closed at the cap
+            const j = judge(r.poly, r.bonus, r.drawn);
+            if (r.drawn) j.wire = true;
+            payLoop(r.poly, r.bonus, j);
+            if (r.drawn) splitDrawn(r.poly, j);
         }
 
         // ---- Flicks: the boss fight (parry, slash), Packet Spoofing, Privilege Escalation --------------------------
@@ -2406,8 +2412,6 @@
                 p.vx += (p.vx / sp * p.v - p.vx) * k;
                 p.vy += (p.vy / sp * p.v - p.vy) * k;
             }
-            // Backpressure: packets turned back resume their course.
-            for (const p of s.packets) if (p.back && s.time >= p.back.until) { p.vx = p.back.vx; p.vy = p.back.vy; p.back = null; }
             flock(dt);
             huntStep(dt);
             feedStep(dt);
@@ -2678,6 +2682,8 @@
         // 17.5 phone log: a loop round half the field paid ×6, the cap, against a full bubble's ×1.8): quick, not bigger.
         let fullCap = null;
         const fullBubbleMult = () => fullCap ?? (fullCap = areaMult(polygonArea(circle(0, 0, bubbleMaxR)), o, fieldArea) * (1 + o.fullMult));
+        // Steady Hand raises a drawn loop's cap a little (the owner's call: it only sped bubbles up, which loop players never make)
+        const drawnCap = () => fullBubbleMult() * (1 + o.drawnCap);
         function judge(poly, bonus = 0, drawn = false) {
             const area = polygonArea(poly);
             const inside = s.packets.filter(p => pointInPolygon(p, poly));
@@ -2688,9 +2694,11 @@
             const spoiled = !garbage && corrupt.length > forgives(good.length);
             // A loop wholly inside one of your Firewall sections is safe (red can't get in), so it pays less.
             const safe = wallsNow.some(f => poly.every(v => inZone(v, f, 0.05)));
-            let mult = areaMult(area, o, fieldArea) * (1 + bonus) * (safe && !o.pen ? o.safeLoop : 1);
-            const capped = drawn && o.bubble && mult > fullBubbleMult();
-            if (capped) mult = fullBubbleMult();
+            let mult = areaMult(area, o, fieldArea) * (safe && !o.pen ? o.safeLoop : 1);
+            const capped = drawn && o.bubble && mult > drawnCap();
+            if (capped) mult = drawnCap();
+            // Race Condition's growth comes on top of the cap (a held drawn loop climbs from its MAX, as a full bubble does)
+            mult *= 1 + bonus;
             const value = good.reduce((a, p) => a + valueOf(p), 0);
             return { area, inside, corrupt, good, spoiled, garbage, mult, capped, value, safe, units: spoiled ? 0 : value * mult };
         }
@@ -2778,19 +2786,38 @@
             if (o.bubble ? grabMines(poly) : clearMines(poly)) acted = true;
             if (loopBoss(poly)) acted = true;
             if (hijackIn(poly)) acted = true;
+            // Supernova: a drawn loop closed while the field is frozen bursts as a bubble let go then would.
+            if (o.bubble && o.star && frozen()) { novaDrawn(poly, j); return; }
             if (!j.inside.length) {
                 if (acted) return;
                 s.stats.empty++;
                 s.events.push({ type: 'empty', x: at.x, y: at.y, poly, area: j.area });
                 return;
             }
-            // Race Condition: a clean loop closed with the pen still down stays open while the pen holds still.
-            if (o.race && held && !o.bubble && !j.spoiled && !j.garbage && j.good.length) {
-                s.race = { poly, at: s.penAt, t: 0, bonus: 0 };
+            // Race Condition: a clean loop closed with the pen still down stays open while the pen holds still (with
+            // bubbles too, since the owner's call after 18.7: on a phone most catches are drawn loops).
+            if (o.race && held && !j.spoiled && !j.garbage && j.good.length) {
+                s.race = { poly, at: s.penAt, t: 0, bonus: 0, base: j.mult, drawn: !!o.bubble };
                 s.events.push({ type: 'raceStart', x: at.x, y: at.y, poly });
                 return;
             }
             payLoop(poly, 0, j);
+            if (o.bubble) splitDrawn(poly, j);
+        }
+        // Split on a drawn loop: closed at its cap (×n MAX), it forks as a full bubble does. The kids are a full bubble's at
+        // most and sit out past the loop's edge (inside a big loop there's nothing left to catch).
+        function splitDrawn(poly, j) {
+            if (!o.fork || !j.capped || j.spoiled || j.garbage || !j.good.length || s.over) return;
+            const c = centroid(poly), r = Math.sqrt(j.area / Math.PI);
+            split({ x: c.x, y: c.y, r: Math.min(r, bubbleMaxR), d: r }, j.mult);
+        }
+        // Supernova on a drawn loop: the loop pushed out from its middle (`novaRing` × for a loop a full bubble's size or
+        // smaller; a bigger one's edge moves out by as much as a full bubble's would), at ×`starMult` on its capped multiplier.
+        function novaDrawn(poly, j) {
+            const c = centroid(poly), r = Math.sqrt(j.area / Math.PI);
+            const f = 1 + (o.novaRing - 1) * Math.min(1, bubbleMaxR / Math.max(1e-6, r));
+            const big = poly.map(q => ({ x: c.x + (q.x - c.x) * f, y: c.y + (q.y - c.y) * f }));
+            payNova(big, j, c, r * f);
         }
 
         // Let go of a bubble (Snare 15): a core inside is quarantined, a mine grabbed, a stunned Antivirus hijacked; then
@@ -2799,7 +2826,7 @@
             const at = { x: b.x, y: b.y };
             let acted = quarantineIn(poly);
             if (hijackIn(poly)) acted = true;
-            if (o.star && frozen()) { payNova(b, poly); return; }
+            if (o.star && frozen()) { payNova(circle(b.x, b.y, b.r * o.novaRing), judge(poly, b.bonus), b, b.r * o.novaRing); return; }
             const j = judge(poly, bubbleBonus(b));
             if (!j.inside.length) {
                 if (acted) return;
@@ -2817,7 +2844,7 @@
         function split(b, mult) {
             const n = 1 + o.fork, a0 = rand() * Math.PI * 2, kids = [];
             for (let i = 0; i < n; i++) {
-                const ang = a0 + i * Math.PI * 2 / n, r = b.r * o.splitR, d = b.r * o.splitDist;
+                const ang = a0 + i * Math.PI * 2 / n, r = b.r * o.splitR, d = (b.d ?? b.r) * o.splitDist;
                 const x = Math.max(r * 0.5, Math.min(w - r * 0.5, b.x + Math.cos(ang) * d)), y = Math.max(r * 0.5, Math.min(h - r * 0.5, b.y + Math.sin(ang) * d));
                 kids.push({ x, y, r, at: s.time + o.splitDelay, mult });
             }
@@ -2835,21 +2862,35 @@
                 payLoop(poly, 0, { ...j, mult, units: j.value * mult, split: true });
             }
         }
-        // Supernova: let go while the field is frozen, it bursts to `novaRing` × its size; everything good in that at
-        // ×`starMult` on top of the bubble's multiplier, red there deleted, mines there cleared.
-        function payNova(b, poly) {
-            const big = circle(b.x, b.y, b.r * o.novaRing);
+        // Supernova: let go while the field is frozen, it bursts to `novaRing` × its size (`big`); everything good in that at
+        // ×`starMult` on top of the catch's own multiplier (`inner`), red there deleted, mines there cleared.
+        function payNova(big, inner, at, r) {
             clearMines(big);
-            const j = judge(big), inner = judge(poly, b.bonus);
+            const j = judge(big);
             if (j.corrupt.length) {
                 s.stats.scrubbed += j.corrupt.length;
                 remove(j.corrupt);
             }
             s.stats.stars++;
-            s.events.push({ type: 'nova', x: b.x, y: b.y, r: b.r * o.novaRing });
+            s.events.push({ type: 'nova', x: at.x, y: at.y, r });
             if (!j.good.length) return;
             const mult = inner.mult * o.starMult;
             payLoop(big, 0, { ...j, inside: j.good, corrupt: [], spoiled: false, garbage: false, mult, units: j.value * mult, star: true });
+        }
+        // Backpressure's ring: how wide it is, and the good packets in it (outside the catch, within that of its edge).
+        const edgeWidth = () => shortSide * (o.backReach + o.backReachLv * Math.max(0, o.backpressure - 1));
+        function edgeRing(poly, j) {
+            const R = edgeWidth(), inside = new Set(j.inside), out = [];
+            let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+            for (const q of poly) { x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y); }
+            for (const p of s.packets) {
+                if (!isGood(p) || inside.has(p) || p.x < x0 - R || p.x > x1 + R || p.y < y0 - R || p.y > y1 + R) continue;
+                if (pointInPolygon(p, poly)) continue;
+                for (let i = 0; i < poly.length; i++) {
+                    if (segDist(p, poly[i], poly[(i + 1) % poly.length]) <= R) { out.push(p); break; }
+                }
+            }
+            return out;
         }
         // Pay a closed loop (at once, or when a held Race Condition loop lets go, `bonus` its growth).
         function payLoop(poly, bonus, j = judge(poly, bonus)) {
@@ -2879,6 +2920,16 @@
                 s.events.push({ type: 'corrupt', x: at.x, y: at.y, poly, area: j.area, count: j.inside.length, corrupt: j.corrupt.length, packets: j.inside });
                 if (s.focus <= 0) end();
                 return;
+            }
+            // Backpressure: a hand catch (a bubble, a drawn loop, a supernova; not a split's kids) also takes the good packets
+            // in a thin ring just outside its edge, at its multiplier; red in the ring is left alone.
+            if (o.backpressure && !j.split) {
+                const ring = edgeRing(poly, j);
+                if (ring.length) {
+                    j = { ...j, inside: [...j.inside, ...ring], good: [...j.good, ...ring], value: j.value + ring.reduce((a, p) => a + valueOf(p), 0) };
+                    s.stats.edgeCaught += ring.length;
+                    s.events.push({ type: 'backpressure', x: at.x, y: at.y, r: Math.sqrt(j.area / Math.PI) + edgeWidth(), count: ring.length, packets: ring.map(p => ({ x: p.x, y: p.y })) });
+                }
             }
             // Chain Lightning is a bolt now (Snare 18.4): it leaves after the catch is paid (`launchBolt` below), so the catch
             // itself chains nothing.
@@ -2918,22 +2969,6 @@
                 s.freeDrawUntil = s.time + o.cleanSweep;
                 s.stats.sweepsClean++;
                 s.events.push({ type: 'cleanSweep', x: at.x, y: at.y, until: s.freeDrawUntil });
-            }
-            // Backpressure: the packets round the loop turn back against their course for a moment.
-            if (o.backpressure) {
-                const R = shortSide * (o.backReach + o.backReachLv * o.backpressure);
-                let n = 0;
-                for (const p of s.packets) {
-                    if (p.kind === 'corrupt' || p.back || Math.hypot(p.x - at.x, p.y - at.y) > R) continue;
-                    p.back = { until: s.time + o.backSeconds, vx: p.vx, vy: p.vy };
-                    if (o.backPull) {
-                        // pulled in toward where the catch was, so a bunch gathers there for the next one
-                        const d = Math.hypot(at.x - p.x, at.y - p.y) || 1, v = Math.hypot(p.vx, p.vy) || p.v || 1;
-                        p.vx = (at.x - p.x) / d * v * o.backPull; p.vy = (at.y - p.y) / d * v * o.backPull;
-                    } else { p.vx = -p.vx * 0.6; p.vy = -p.vy * 0.6; }
-                    n++;
-                }
-                if (n) { s.stats.pushedBack += n; s.events.push({ type: 'backpressure', x: at.x, y: at.y, r: R, count: n }); }
             }
             // Floodgate: clean catches in a row set off a surge of packets.
             if (o.surge && !hasty && ++s.streak >= o.surgeEvery && s.time >= s.surgeAt) {
