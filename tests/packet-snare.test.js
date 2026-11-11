@@ -320,11 +320,12 @@ test('a bigger field takes a bigger loop for the same multiplier', () => {
 test('a catch pays Signal in whole numbers, more on later sectors, and no data', () => {
     const s = E.defaultState(NOW);
     const pay = E.snareCatch(s, 2.7);
-    assert.equal(pay, 3);
-    assert.equal(s.snare.signal, 3);
+    assert.equal(pay, Math.round(2.7 * E.snareSectorPay(0)));
+    assert.equal(s.snare.signal, pay);
     assert.equal(s.res.dp, 0, 'the lab makes the data');
     s.snare.sector = 2;
-    assert.equal(E.snareCatch(s, 4), Math.round(4 * 1.3));
+    assert.equal(E.snareCatch(s, 4), Math.round(4 * E.snareSectorPay(2)));
+    assert.ok(E.snareSectorPay(2) > E.snareSectorPay(0), 'more on later sectors');
     assert.equal(E.snareCatch(s, 0.1), 1, 'at least 1');
 });
 

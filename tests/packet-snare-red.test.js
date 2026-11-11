@@ -62,7 +62,7 @@ test('goals are Signal: 40, 170, 330, 950, then 3,900 at sector 6 growing ×2.45
     const s = E.defaultState(Date.now());
     s.levels.snareOverclock = 3;
     assert.ok(Math.abs(E.snareOpts(s, 6).goalPay - E.snareSectorPay(6) * E.snareOverclock(s)) < 1e-12);
-    assert.equal(E.snareSectorPay(4), 1.6, '+15% a sector');
+    assert.ok(Math.abs(E.snareSectorPay(4) - 1.6 * 0.7) < 1e-12, '+15% a sector, every catch ×0.7 (Snare 18.7)');
 });
 
 test('a save from before v30 gets its Packet Snare tree refunded (the red nodes back, the Cleaner Bot later)', () => {

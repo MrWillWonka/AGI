@@ -550,7 +550,7 @@
         { id: 'snareHerders', name: 'Herders', mechanic: 'herders', snare: { x: 0, y: -4 }, requires: 'snareLongWire', cost: { signal: 3500 }, scale: 1.6, max: 4, sn: { herders: 1, herdRadius: 0.15, herdEvade: 0.5 }, effect: 'A drone herds stray packets together and deletes unreadable ones.' },
         { id: 'snareEcho', name: 'Infinite Loop', mechanic: 'echo', snare: { x: 0, y: -6 }, requires: 'snareFork', cost: { signal: 26250 }, scale: 1.7, max: 3, sn: { echo: 1 }, effect: 'Every bubble catches again a second later.' },
         // FIELD (right): abundance; the scanner, its towers and Packet Storm at its tip.
-        { id: 'snareSprawl', name: 'Sprawl', snare: { x: 1, y: 0 }, requires: 'snareSeed', deep: true, costs: [{ signal: 15 }, { signal: 38 }, { signal: 94 }, { signal: 400 }], cost: { signal: 400 }, scale: 3, max: 9, sn: { sprawl: 1 }, effect: 'The field grows ×1.35. Levels 4 and 7 grow it more.' },
+        { id: 'snareSprawl', name: 'Sprawl', snare: { x: 1, y: 0 }, requires: 'snareSeed', deep: true, costs: [{ signal: 15 }, { signal: 38 }, { signal: 94 }, { signal: 1000 }], cost: { signal: 400 }, scale: 3, max: 9, sn: { sprawl: 1 }, effect: 'The field grows ×1.35. Levels 4 and 7 grow it more.' },
         { id: 'snareSchools', name: 'Schooling', snare: { x: 2, y: -1 }, requires: 'snareContain', cost: { signal: 390 }, scale: 2, max: 1, sn: { schooling: 0.5, schoolSize: 4 }, effect: 'Schools are bigger and swim closer together.' },
         { id: 'snareGold', name: 'Gold Rush', snare: { x: 2, y: 0 }, requires: 'snareSprawl', cost: { signal: 100 }, scale: 2.5, max: 4, perLevel: [{ goldChance: 0.05 }, { goldChance: 0.05 }, { goldValue: 3 }, { goldValue: 3 }], sn: { goldChance: 0.05 }, effect: '5% more packets come gold. From level 3, gold is worth 3 more.' },
         { id: 'snareContain', name: 'Containment Field', mechanic: 'contain', snare: { x: 1, y: -1 }, requires: 'snareSprawl', cost: { signal: 350 }, scale: 2, max: 1, sn: { contain: 1 }, effect: 'The edges turn good packets back. Unreadable ones still leave.' },
@@ -2455,7 +2455,8 @@
     const snareTreeReady = s => SNARE_TREE.some(up => isUpgradeVisible(s, up) && !isMaxed(s, up) && canAfford(s, upgradeCost(up, level(s, up.id))));
     // Signal a packet's worth pays (its value × the loop's multiplier): more on later sectors, more with Overclock.
     // +15% a sector (the owner's call on the pacing sweep: +25% snowballed the late sectors, +10% walled 6, 9 and 11).
-    const snareSectorPay = k => 1 + 0.15 * k;
+    // Snare 18.7 (the owner's pick of four cuts, after quicker bubbles sped the bot's campaign up): every catch pays ×0.7
+    const snareSectorPay = k => (1 + 0.15 * k) * 0.7;
     const snareOverclock = s => 1 + 0.1 * level(s, 'snareOverclock');
     // What you placed in Packet Snare, as shares of the field (walls as two points), carried between runs.
     const cleanPts = (a, n) => (Array.isArray(a) ? a : []).filter(p => Array.isArray(p) && p.length === n && p.every(v => typeof v === 'number' && v >= 0 && v <= 1))

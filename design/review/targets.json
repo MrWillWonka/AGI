@@ -8,7 +8,7 @@
     ],
     "2": [
       2,
-      7
+      8
     ],
     "3": [
       2,
@@ -42,8 +42,9 @@
       "why": "Sector 3's goal is 330 Signal (17.4). The person-paced bot took a median 8 runs on 15.5, 13 after 17.3's tree fold, 18 since 17.7's faster Antivirus (avHunt x1.25, avTurn x1.2). The owner held the limit at 18 on 2026-11-10 (they took 6 runs on sector 3; D15, desktop, stays open for their desktop log). The test fails if it gets worse than 18."
     },
     "4": {
-      "atMost": 7,
-      "why": "Sector 4's goal is 950 Signal (17.4). The person-paced bot takes a median 7 runs over the test's five seeds (4/4/7/7/7) since 17.7's faster Antivirus; the report's three seeds give 4, and the owner took 3-6 on 17.4-17.6. The owner held it at 7 on 2026-11-10 (target still 2-6). The test fails if it gets worse than 7."
+      "atMost": 13,
+      "why": "Sector 4's goal is 950 Signal. On 2026-11-11 the owner picked catches paying x0.7 everywhere (after 1.8 s bubbles sped the campaign) and Sprawl level 4 at 1,000; the person-paced bot then takes a median 13 runs over the test's five seeds (11/12/13/15/19), within the 30-minute window the owner widened it to (it was 18). The owner set the limit to the measured 13. The test fails if it gets worse than 13."
     }
-  }
+  },
+  "_sector2": "Sector 2 target 2-8 (was 2-7): the owner widened it on 2026-11-11 with the x0.7 catch pay (the bot takes 8)."
 }

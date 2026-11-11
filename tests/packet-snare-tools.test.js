@@ -275,7 +275,7 @@ test('the research trickle is capped, and Overclock raises every catch', () => {
     const d = E.derive(s);
     assert.ok(Math.abs(d.snareRp - d.rpPerResearch * E.SNARE_RP_CAP / E.SNARE_RP_SIGNAL) < 1e-9);
     s.levels.snareOverclock = 3;
-    assert.equal(E.snareCatch(s, 10), 13);
+    assert.equal(E.snareCatch(s, 10), Math.round(10 * E.snareSectorPay(0) * E.snareOverclock(s)), 'Overclock raises every catch');
 });
 
 test('the tree cuts red, fills the field with packets and grows it to a datacentre', () => {
