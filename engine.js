@@ -2233,8 +2233,8 @@
     // After the 18.7 log (bosses on 3, 6, 9…): the goals go by goal sector, not sector: the first four 40, 170, 600 and
     // 1,500 (sectors 1, 2, 4 and 5), then ×`SNARE_GOAL_GROWTH` each goal sector after.
     const SNARE_FIRST_GOALS = [40, 170, 600, 1500];
-    const SNARE_GOAL_GROWTH = 2.45;
-    const SNARE_FOCUS_SECTOR = 0;   // s of Focus more a sector from sector 7 (swept with the goals)
+    const SNARE_GOAL_GROWTH = 2.9;   // the owner's pick from the campaign sweep (2.45, 2.7, 2.9, 3.4)
+    const SNARE_FOCUS_SECTOR = 3;   // s of Focus more a sector from sector 7 (the owner's pick with the goals)
     // Snare 18 (the owner's call on K19): the curve grows on goal sectors only. It was set when a boss came every fifth
     // sector; with one every third (17.5) each boss took a step too, so the sector after it asked ×6 the one before (the
     // bot: sector 9 in 22–27 runs, sector 12 in 42–45, asking 843K). Now 9 asks 23K, 10 57K, 12 140K, 13 344K, and the
