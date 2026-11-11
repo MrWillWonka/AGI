@@ -4049,15 +4049,15 @@ window.AGI = (function () {
         const good = run.packets.filter(p => p.kind !== 'corrupt' && !p.burst).slice(0, 300), bad = run.packets.filter(p => p.kind === 'corrupt');
         let best = null;
         for (const p of good) {
-            if (p.x < R || p.y < R || p.x > run.w - R || p.y > run.h - R) continue;
+            if (!snare.tutorial && (p.x < R || p.y < R || p.x > run.w - R || p.y > run.h - R)) continue;
             if (bad.some(q => Math.hypot(q.x - p.x, q.y - p.y) < R * 1.5)) continue;
             const near = good.filter(q => Math.hypot(q.x - p.x, q.y - p.y) < R);
             if (best && near.length <= best.length) continue;
             // the circle the walkthrough shows round them (a loop's is wider still) must stay on the field and clear of
             // anything unreadable: one aimed at the edge garbled the phone's loop
             const g = snareGroupAt(run, near.map(q => q.id)), rr = g.r + 0.3;
-            const m = snare.tutorial ? 0.05 : 0.4;
-            if (g.x < rr + m || g.y < rr + m || g.x > run.w - rr - m || g.y > run.h - rr - m) continue;
+            // (the tutorial's field is little more than the group: its edges don't count)
+            if (!snare.tutorial && (g.x < rr + 0.4 || g.y < rr + 0.4 || g.x > run.w - rr - 0.4 || g.y > run.h - rr - 0.4)) continue;
             if (bad.some(q => Math.hypot(q.x - g.x, q.y - g.y) < rr + 0.8)) continue;
             best = near;
         }
@@ -4077,7 +4077,7 @@ window.AGI = (function () {
     // group of packets in the middle for the bubble's walkthrough (on a phone, a second group then for the drawn loop's);
     // once they're done it zooms out (`SNARE_ZOOM_OUT` s) to the standard field, carrying what's left, and the run proper
     // begins (its goal counts from there). A walkthrough not done in `SNARE_TUTORIAL_MAX` s zooms out anyway.
-    const SNARE_TUTORIAL_AREA = 0.4, SNARE_ZOOM_OUT = 1.5, SNARE_TUTORIAL_MAX = 45;
+    const SNARE_TUTORIAL_AREA = 0.15, SNARE_ZOOM_OUT = 1.8, SNARE_TUTORIAL_MAX = 45;   // 0.15: a view of just a group of 4 (the owner)
     function snareTutorialRun(o) {
         const run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area * SNARE_TUTORIAL_AREA, o), seed: snare.seed, density: 0, antivirus: [],
             sweepFirst: Infinity, idleDrain: 0, respawn: 1e9, teachRed: 0, corruptShare: 0, goal: 0, flow: false, schooling: 0, cleanStart: 0,
@@ -4088,11 +4088,11 @@ window.AGI = (function () {
         return run;
     }
     // A group of good packets round (cx, cy), drifting slowly (a walkthrough's target).
-    function snareTutorialGroup(run, cx, cy, n = 9) {
-        const R = Math.max(0.75, run.closeR * 2.2);
+    function snareTutorialGroup(run, cx, cy, n = 4) {
+        const R = Math.max(0.4, run.closeR * 1.6);
         for (let i = 0; i < n; i++) {
             const a = i * 2.39996, d = R * Math.sqrt((i + 0.5) / n), h = Math.random() * Math.PI * 2, v = 0.08;
-            run.packets.push({ id: run.nextId++, kind: i === 4 ? 'gold' : 'good', x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, vx: Math.cos(h) * v, vy: Math.sin(h) * v, v, r: run.opts.packetR, age: 1, school: 0, tag: 0 });
+            run.packets.push({ id: run.nextId++, kind: i === 2 ? 'gold' : 'good', x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, vx: Math.cos(h) * v, vy: Math.sin(h) * v, v, r: run.opts.packetR, age: 1, school: 0, tag: 0 });
         }
     }
     function snareTutorialStep(run) {
