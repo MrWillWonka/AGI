@@ -1,4 +1,4 @@
-// tools/review/layout.js <out dir> [--url http://localhost:8211/] [--prev <an earlier layout run's dir>] [--only <size,…>]
+// tools/review/layout.js <out dir> [--url http://localhost:8211/] [--prev <an earlier layout run's dir>] [--only <size,…>] [--recompare]
 // Packet Snare's layout at every screen shape (the owner's call, 2026-11-11: a review round on layout alone, phones and
 // desktops, upright and sideways, compared over time so layout improves and doesn't regress). For each screen size it
 // plays the same moments the same way (the tutorial, the first card, a run, an end card, a Look out card, a late run, the
@@ -189,7 +189,9 @@ async function diff(page, a, b, still) {
             console.log(`${s.key} done (${Math.round((Date.now() - t0) / 1000)} s)`);
         }
     }
-    await Promise.all([worker(), worker()]);
+    // --recompare: no new screenshots, only the comparison and the report again (from this run's layout.json)
+    if (argv.includes('--recompare')) results.push(...JSON.parse(fs.readFileSync(path.join(out, 'layout.json'), 'utf8')).results);
+    else await Promise.all([worker(), worker()]);
     results.sort((a, b) => a.name.localeCompare(b.name));
     // against the earlier run
     const prev = PREV && fs.existsSync(path.join(PREV, 'layout.json')) ? Object.fromEntries(JSON.parse(fs.readFileSync(path.join(PREV, 'layout.json'), 'utf8')).results.map(r => [r.name, r])) : null;
@@ -202,8 +204,8 @@ async function diff(page, a, b, still) {
         if (!was) continue;
         // the same problem with a different number (a card needing 170 px of scrolling, now 114) is one that moved:
         // better or worse by its number (less scrolling is better; a bigger target or font is better)
-        const shape = x => x.replace(/[d.,]+/g, '#');
-        const num = x => parseFloat((x.match(/[d.]+/) || [NaN])[0]);
+        const shape = x => x.replace(/[\d.,]+/g, '#');
+        const num = x => parseFloat((x.match(/[\d.]+/) || [NaN])[0]);
         const higherBetter = { small: true, tiny: true };
         for (const kind of Object.keys(r.problems || {})) {
             const now = [...new Set(r.problems[kind])], then = [...new Set(was.problems?.[kind] || [])];
@@ -212,7 +214,7 @@ async function diff(page, a, b, still) {
                 const i = gone.findIndex(y => shape(y) === shape(x));
                 if (i < 0) { regressions.push(`${r.name} · ${kind}: ${x}`); continue; }
                 const y = gone.splice(i, 1)[0], better = higherBetter[kind] ? num(x) > num(y) : num(x) < num(y);
-                (better ? fixes : regressions).push(`${r.name} · ${kind}: ${y} → ${x.match(/[d.]+/)?.[0]}`);
+                (better ? fixes : regressions).push(`${r.name} · ${kind}: ${y} → ${num(x)}`);
             }
             for (const y of gone) fixes.push(`${r.name} · ${kind}: ${y}`);
         }
