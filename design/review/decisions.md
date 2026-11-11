@@ -71,4 +71,7 @@ When answered: the change, `settled.md` (or `targets.json`) and this file are up
 ## Parked ideas (not to build until the owner picks them up)
 - **New flick-like mechanics** (D20, 2026-11-11): quick-gesture moves to replace Packet Spoofing, Forged Headers and
   Privilege Escalation. Slice, Sling packets and Gust were offered and didn't land.
+- **A bug-hunting section or game** (2026-11-11, the owner's note for later): Packet Snare turned on its head. The goal is
+  to find the bad packets ("bugs" or "errors") and remove them, singling out more and more of them, instead of catching
+  the good ones and keeping the bad out. Could be its own bay or a mode of Packet Snare; not designed yet.
 - *Dropped 2026-11-11:* "Training lowers red" (the owner: Packet Snare shouldn't be gated behind training).
