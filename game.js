@@ -4134,7 +4134,7 @@ window.AGI = (function () {
             tu.second = true;
             snareTutorialGroup(run, run.w / 2, run.h * 0.5);
         }
-        const loopOver = !phone || state.intro['snare:coach:loop'] || (tu.second && seen('loop'));
+        const loopOver = !phone || state.intro['snare:coach:loop'] || tu.loopDone || (tu.second && seen('loop'));
         const late = now - tu.t0 > SNARE_TUTORIAL_MAX * 1000;
         if ((tu.redGone && loopOver && !snare.coach && now - tu.redGone > 400) || late) snareZoomOut(tu.anchor || null);
     }
@@ -4269,6 +4269,15 @@ window.AGI = (function () {
         if (e.type === 'catch') snare.coachCaught = performance.now();
         if (e.type === 'catch' && e.drawn && snare.tutorial) snare.tutorial.anchor = { x: e.x, y: e.y };
         const c = snare.coach;
+        // The owner's report on 18.8: a catch made before the tutorial's walkthrough showed left it waiting for a group that
+        // was gone, and the tutorial didn't move on. A catch before its walkthrough counts as that step done (a drawn loop
+        // as the loop's too); a bubble on the phone's second group lets the tutorial go on, the loop's walkthrough later.
+        if (!c && e.type === 'catch' && snare.tutorial) {
+            const tu = snare.tutorial;
+            if (!state.intro['snare:coach:bubble']) { state.intro['snare:coach:bubble'] = true; pt('snareCoach', { key: 'bubble', done: true, early: true }); }
+            else if (tu.second && !e.drawn) tu.loopDone = true;
+            if (e.drawn && !state.intro['snare:coach:loop']) { state.intro['snare:coach:loop'] = true; pt('snareCoach', { key: 'loop', done: true, early: true }); }
+        }
         if (!c) return;
         const def = SNARE_COACHES.find(x => x.key === c.key);
         if (!def.done(e)) return;
