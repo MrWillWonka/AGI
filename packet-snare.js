@@ -587,7 +587,8 @@
         const shortSide = Math.min(w, h);
         // After the 18.7 log (the owner: keep players racing, not drawing one circle round the screen): the wire can be as long
         // as a circle round `wireShare` of the field, so a loop can't take the whole field; upgrades lengthen it.
-        const maxWire = o.wireShare > 0 ? 2 * Math.sqrt(Math.PI * o.wireShare * w * h) : o.maxWire * grow;
+        // read live, so the tutorial can shorten it for its Throughput step
+        const wireMax = () => (o.wireShare > 0 ? 2 * Math.sqrt(Math.PI * o.wireShare * w * h) : o.maxWire * grow);
         const s = {
             w, h, opts: o, closeR, grow,
             echoes: [],             // Infinite Loop: loops waiting to catch again ({ poly, at, mult })
@@ -3226,6 +3227,7 @@
             }
             // A wire past its length drops its tail (and its start moves with it).
             let L = wireCost(s.wire);
+            const maxWire = wireMax();
             while (L > maxWire && s.wire.length > 2) {
                 L -= segCost(s.wire[0], s.wire[1]);
                 s.wire.shift();

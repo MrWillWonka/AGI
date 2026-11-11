@@ -4093,6 +4093,13 @@ window.AGI = (function () {
         return run;
     }
     // A group of good packets round (cx, cy), drifting slowly (a walkthrough's target).
+    // Throughput's groups: `n` of them (two, or one again after a wrong move), a third of the longer side from the middle.
+    function snareWireGroups(run, n) {
+        const wide = run.w >= run.h, off = 0.3 * Math.max(run.w, run.h);
+        const spots = [-1, 1].map(sgn => (wide ? [run.w / 2 + sgn * off, run.h / 2] : [run.w / 2, run.h / 2 + sgn * off]));
+        const pick = n >= 2 ? spots : [spots[Math.floor(Math.random() * 2)]];
+        for (const [x, y] of pick) snareTutorialGroup(run, x, y, 3);
+    }
     function snareTutorialGroup(run, cx, cy, n = 4) {
         const R = Math.max(0.4, run.closeR * 1.6);
         for (let i = 0; i < n; i++) {
@@ -4137,8 +4144,16 @@ window.AGI = (function () {
             snareTutorialGroup(run, run.w / 2, run.h * 0.5);
         }
         const loopOver = !phone || state.intro['snare:coach:loop'];
+        // 4 (phones): Throughput. The wire is cut to go round one group but not two, and two groups come in apart.
+        if (phone && state.intro['snare:coach:loop'] && !tu.wireStep && !snare.coach && now - (snare.coachCaught || 0) > 600) {
+            tu.wireStep = now;
+            const r = Math.max(0.4, run.closeR * 1.6) + 0.75;   // a loop round one group fits (the ghost's too); round both it can't
+            run.opts.wireShare = Math.PI * r * r / (run.w * run.h);
+            snareWireGroups(run, 2);
+        }
+        const wireOver = !phone || state.intro['snare:coach:wire'];
         const late = snare.coachOff && now - tu.t0 > SNARE_TUTORIAL_MAX * 1000;   // only if the walkthroughs broke
-        if ((tu.redGone && loopOver && !snare.coach && now - tu.redGone > 400) || late) snareZoomOut(tu.anchor || null);
+        if ((tu.redGone && loopOver && wireOver && !snare.coach && now - tu.redGone > 400) || late) snareZoomOut(tu.anchor || null);
     }
     // The tutorial's field zooms out to the standard one: the run proper starts with what was left. Centred on `anchor`
     // (Snare 18.9: where the drawn loop caught; the middle on desktop), which lands in the middle of the standard field and
@@ -4149,7 +4164,7 @@ window.AGI = (function () {
         snare.tutorial = null;
         state.intro['snare:tutorial'] = true;
         // its walkthroughs belong to it: none plays again on the full field (the owner: they played before and after the zoom)
-        for (const k of ['bubble', 'red', 'loop']) if (!state.intro['snare:coach:' + k]) state.intro['snare:coachSeen:' + k] = SNARE_COACH_TRIES;
+        for (const k of ['bubble', 'red', 'loop', 'wire']) if (!state.intro['snare:coach:' + k]) state.intro['snare:coachSeen:' + k] = SNARE_COACH_TRIES;
         const big = window.PacketSnare.createSnare({ ...o, ...snareField(o.area, o), seed: snare.seed, redHunt: snareHuntOn() ? SNARE_HUNT : 0 });
         const ax = anchor ? anchor.x : tut.w / 2, ay = anchor ? anchor.y : tut.h / 2;
         const dx = big.w / 2 - ax, dy = big.h / 2 - ay;
@@ -4184,6 +4199,16 @@ window.AGI = (function () {
         { key: 'loop', after: 'bubble', when: run => run.opts.loopCatch && !snareFinePointer() && (!snare.tutorial || snare.tutorial.second) && (snare.tutorial || performance.now() - (snare.coachCaught || Infinity) > 1500) && snareCluster(run),
             aim: (run, ids) => { const g = snareGroupAt(run, ids); return g && { ...g, r: g.r + 0.3, gesture: 'loop' }; },
             text: () => '> You can also draw a loop round them to catch them.', done: e => e.type === 'catch' && e.drawn },
+        // The tutorial's last step on a phone (the owner's call): the wire's length, its throughput. Two groups too far apart
+        // for one loop; it's done once both are caught with drawn loops (`snareCoachEvent` counts them).
+        { key: 'wire', after: 'loop', when: run => {
+                // one group, not both (the general cluster finder reached across the gap and drew its loop round the two)
+                if (!snare.tutorial?.wireStep) return null;
+                const ps = run.packets.filter(p => p.kind !== 'corrupt');
+                return ps.length ? ps.filter(p => Math.hypot(p.x - ps[0].x, p.y - ps[0].y) < 0.9).map(p => p.id) : null;
+            },
+            aim: (run, ids) => { const g = snareGroupAt(run, ids); return g && { ...g, r: g.r + 0.1, gesture: 'loop' }; },
+            text: () => '> Your wire has limited throughput. It turns red as it runs out, so loop one group at a time.', done: () => false },
         { key: 'bossLoop', when: run => run.boss && run.fight && !(run.boss.stunned > run.time) && !run.boss.charge,
             aim: run => { const b = run.boss; return b && !(b.stunned > run.time) && { x: b.x, y: b.y, r: b.r + Math.max(0.9, run.closeR * 1.1), gesture: 'loop', turns: 2 }; },
             text: () => (snareFinePointer() ? '> Loop round it twice with the left button to stun it.' : '> Loop round it twice to stun it.'), done: e => e.type === 'bossLooped' },
@@ -4246,7 +4271,7 @@ window.AGI = (function () {
         if (run.over || run.drawing || now < (snare.coachNext || 0)) return;
         snare.coachNext = now + 250;   // looking for one costs a little: four times a second is plenty
         for (const def of SNARE_COACHES) {
-            const tries = snare.tutorial && (def.key === 'bubble' || def.key === 'loop') ? Infinity : SNARE_COACH_TRIES;   // the tutorial waits for them
+            const tries = snare.tutorial && ['bubble', 'loop', 'wire'].includes(def.key) ? Infinity : SNARE_COACH_TRIES;   // the tutorial waits for them
             if (state.intro[coachKey(def, 'coach')] || (state.intro[coachKey(def, 'coachSeen')] || 0) >= tries) continue;
             if (def.after && !state.intro[`snare:coach:${def.after}`]) continue;
             const what = def.when(run);
@@ -4279,12 +4304,19 @@ window.AGI = (function () {
         // for nothing (no Signal to farm) and a fresh group swims in to do it right. Nothing moves on until it's done.
         if (e.type === 'catch' && snare.tutorial) {
             const tu = snare.tutorial, phone = snare.run.opts.loopCatch && !snareFinePointer();
-            const need = !state.intro['snare:coach:bubble'] ? 'bubble' : phone && tu.second && !state.intro['snare:coach:loop'] ? 'loop' : null;
+            const need = !state.intro['snare:coach:bubble'] ? 'bubble' : phone && tu.second && !state.intro['snare:coach:loop'] ? 'loop'
+                : phone && tu.wireStep && !state.intro['snare:coach:wire'] ? 'wire' : null;
             if (need && (need === 'bubble' ? e.drawn : !e.drawn)) {
                 e.units = 0;
                 if (c) snareCoachEnd(false);
-                snareTutorialGroup(snare.run, snare.run.w / 2, snare.run.h * 0.5);
+                if (need === 'wire') snareWireGroups(snare.run, 1); else snareTutorialGroup(snare.run, snare.run.w / 2, snare.run.h * 0.5);
                 pt('snareCoach', { key: need, wrong: true });
+                return;
+            }
+            if (need === 'wire') {
+                // both groups, each with its own drawn loop (one round both can't close on this wire)
+                tu.wireCaught = (tu.wireCaught || 0) + 1;
+                if (tu.wireCaught >= 2) { if (c) snareCoachEnd(true); else state.intro['snare:coach:wire'] = true; pt('snareCoach', { key: 'wire', done: true, caught: tu.wireCaught }); }
                 return;
             }
             if (need && !c) { state.intro['snare:coach:' + need] = true; pt('snareCoach', { key: need, done: true, early: true }); }
