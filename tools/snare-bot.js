@@ -8,6 +8,9 @@
 // `createBot(run, HUMAN)` plays at a person's pace (tools/review: calibrated to the owner's phone log of 2026-11-09): a
 // pause between bubbles (`gap`), a longer hold, a slower slash, an aim that's off by up to `aim` units, and a little
 // carelessness about red (`careless`: the share of bubbles let go late).
+// `loops: true` plays as a phone player does (the owner's 18.7 log: 18 bubbles in 45 runs): it draws a loop round the biggest
+// clean cluster, about a full bubble's size (`loopSize`), instead of holding a bubble; with Race Condition it holds a closed
+// loop still for `holdLoop` s (let go early if red comes near). `pickups: true` taps the Freeze and Purge pickups.
 'use strict';
 
 function createBot(s, opt = {}) {
@@ -19,7 +22,22 @@ function createBot(s, opt = {}) {
     const aim = opt.aim ?? 0;                // units a bubble lands off where it's meant to
     const careless = opt.careless ?? 0;      // share of bubbles that ignore red coming in
     const rand = opt.rand || (() => 0.5);
+    const loops = !!opt.loops, loopSize = opt.loopSize ?? 1, holdLoop = opt.holdLoop ?? 2.5;
     let plan = [], wait = 0, nextSlash = 0, parried = null, hold = null, ringing = false;
+    // A full bubble's radius on this field (as packet-snare.js works it out), the size a loop is drawn at.
+    const fullR = () => {
+        const o = s.opts, short = Math.min(s.w, s.h);
+        return Math.min(Math.min(o.bubbleMax * short, Math.sqrt(o.bubbleShare * s.w * s.h / Math.PI)) * (1 + (o.bubbleSize || 0)), Math.sqrt(s.w * s.h / 2 / Math.PI), 0.6 * short);
+    };
+    // A drawn loop round (cx, cy), a finger's (no pen kind); held still once closed if Race Condition is owned.
+    const drawn = (cx, cy, rad) => {
+        if (s.drawing) s.liftPen();
+        s.setPen(null);
+        const n = Math.max(18, Math.ceil(2 * Math.PI * rad / 0.15));
+        plan = [];
+        for (let i = 0; i <= n + 2; i++) { const a = -Math.PI / 2 + i / n * Math.PI * 2; plan.push([cx + Math.cos(a) * rad, cy + Math.sin(a) * rad]); }
+        plan.push(s.opts.race ? { holdLoop: { cx, cy, rad } } : 'lift');
+    };
     // `turns` times round (the boss takes more than one loop to stun)
     const ring = (cx, cy, rad, turns = 1) => {
         const n = Math.max(18, Math.ceil(2 * Math.PI * rad / 0.15));
@@ -59,7 +77,12 @@ function createBot(s, opt = {}) {
         const per = plan.length && plan[plan.length - 1] === 'lift' && plan.length <= 9 ? 3 : Math.max(2, Math.round(1.2 * Math.sqrt(s.w * s.h / 70)));
         for (let k = 0; k < per && plan.length; k++) {
             const p = plan.shift();
-            if (p === 'lift') { s.liftPen(); s.setPen(null); } else if (p.pen) { s.setPen(p.pen); k--; } else s.addPoint(p[0], p[1]);
+            if (p === 'lift') { s.liftPen(); s.setPen(null); } else if (p.holdLoop) {
+                // Race Condition: keep the finger where it closed while the loop grows, until red comes near or it pays out
+                const { cx, cy, rad } = p.holdLoop, at = s.penAt || { x: cx, y: cy };
+                hold = { x: at.x, y: at.y, until: s.real + holdLoop, early: () => !s.race || s.packets.some(q => q.kind === 'corrupt' && !(q.spoof > s.time) && Math.hypot(q.x - cx, q.y - cy) < rad + 0.3) };
+                plan = [];
+            } else if (p.pen) { s.setPen(p.pen); k--; } else s.addPoint(p[0], p[1]);
         }
         if (plan.length || s.cooldown > 0) return;
         const b = s.boss;
@@ -95,6 +118,8 @@ function createBot(s, opt = {}) {
             flick(b.x - Math.cos(a) * h, b.y - Math.sin(a) * h, b.x + Math.cos(a) * h, b.y + Math.sin(a) * h);
             return;
         }
+        // A Freeze or Purge pickup: tap it.
+        if (opt.pickups && s.pickups?.length && !s.drawing) { const pk = s.pickups[0]; s.grab(pk.x, pk.y, 0.3); }
         if ((wait -= dt) > 0) return;
         // Its mines: the nearest, disabled with a loop round it (Snare 18.1).
         if (s.mines.length) {
@@ -103,6 +128,29 @@ function createBot(s, opt = {}) {
             ring(m.x, m.y, Math.max(0.6, s.closeR * 1.1));
             ringing = false;
             wait = 0.1;
+            return;
+        }
+        // A phone player's drawn loop: round the biggest clean cluster, about a full bubble's size.
+        if (loops) {
+            wait = gap;
+            const rad = fullR() * loopSize * (0.85 + 0.3 * rand()), reach = rad + 0.25, blind = rand() < careless;
+            let best = 0, target = null;
+            for (let i = 0; i < s.packets.length; i += Math.max(1, Math.floor(s.packets.length / 150))) {
+                const p = s.packets[i];
+                if (p.kind === 'corrupt' || (b && Math.hypot(p.x - b.x, p.y - b.y) < b.r + rad + 1)) continue;
+                const cx = Math.max(rad, Math.min(s.w - rad, p.x)), cy = Math.max(rad, Math.min(s.h - rad, p.y));
+                let n = 0, bad = false;
+                for (const q of s.packets) {
+                    if (Math.abs(q.x - cx) > reach || Math.abs(q.y - cy) > reach || Math.hypot(q.x - cx, q.y - cy) > reach) continue;
+                    if (q.kind === 'corrupt' && !(q.spoof > s.time)) { bad = true; break; }
+                    n++;
+                }
+                if ((!bad || blind) && n > best) { best = n; target = { x: cx, y: cy }; }
+            }
+            if (target) {
+                const off = aim * rand(), ang = rand() * Math.PI * 2;
+                drawn(target.x + Math.cos(ang) * off, target.y + Math.sin(ang) * off, rad);
+            }
             return;
         }
         // The biggest clean cluster, held until it's grown or red comes near.

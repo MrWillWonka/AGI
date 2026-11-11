@@ -134,9 +134,10 @@
         pulse: { text: 'A clean catch brings a pulse of new packets swimming in.', opts: { pulse: 2, flow: true, flowSpread: 0.2, schoolSize: 4 },
             packets: [['good', 2.8, 1.3], ['good', 3.2, 1.6], ['good', 2.9, 1.7]],
             bubbles: [[0.3, 1.9, 3, 1.5]], expect: r => r.stats.pulses >= 1 && r.packets.length >= 4 },
-        backpressure: { text: 'A catch turns the packets round it back, so they bunch up.', opts: { backpressure: 4, backSeconds: 1.4 },
-            packets: [['good', 2.8, 1.4], ['good', 3.1, 1.6], ['good', 3.62, 1.45, 0.03, 0], ['good', 3.6, 1.75, 0.03, 0], ['good', 2.3, 1.3, -0.03, 0]],
-            bubbles: [[0.3, 1.3, 2.95, 1.5]], expect: r => r.stats.pushedBack >= 2 },
+        // Backpressure (reworked after the 18.7 log): the good packets just outside the catch's edge are caught too, red there left.
+        backpressure: { text: 'A catch also takes the good packets just outside its edge.', opts: { backpressure: 1 },
+            packets: [['good', 2.8, 1.4], ['good', 3.1, 1.6], ['good', 3.8, 1.5], ['good', 2.1, 1.65], ['corrupt', 2.95, 2.35], ['good', 4.9, 0.7]],
+            bubbles: [[0.3, 1.3, 2.95, 1.5]], expect: r => r.stats.edgeCaught >= 2 && r.packets.some(p => p.kind === 'corrupt') },
         // The branch capstones (Snare 10).
         echo: { text: 'Each bubble catches again a second later.', opts: { echo: 1, echoDelay: 0.9 },
             packets: [['good', 2.8, 1.3], ['good', 3.2, 1.6], ['good', 0.4, 1.5, 0.9, 0], ['good', 0.2, 1.3, 0.95, 0]],

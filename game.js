@@ -4875,7 +4875,7 @@ window.AGI = (function () {
             density: r2(snare.run.opts.density), respawn: r2(snare.run.opts.respawn), packetR: r2(snare.run.opts.packetR), redPerGood: r2(snare.run.opts.corruptShare), reds: snare.run.packets.filter(p => p.kind === 'corrupt').length,
             echoes: stats.echoes, storms: stats.storms, surges: stats.surges, cleaned: stats.cleaned, botSpoofed: stats.botSpoofed, botCollected: stats.botCollected, gilded: stats.gilded,
             pushedOut: stats.pushedOut, autoZones: stats.autoZones, pulses: stats.pulses, sweepsClean: stats.sweepsClean,
-            relayed: stats.relayed, pushedBack: stats.pushedBack, raceBroken: stats.raceBroken, crashes: stats.crashes, converted: stats.converted,
+            relayed: stats.relayed, edgeCaught: stats.edgeCaught, raceBroken: stats.raceBroken, crashes: stats.crashes, converted: stats.converted,
             // the bubble prototype: on for this run, and how many bubbles caught
             bubbles: stats.bubbles, meltHits: stats.meltHits || 0, meltPaid: snare.melt?.paid || 0, minesGrabbed: stats.minesGrabbed, mineThrows: stats.mineThrows, mineHits: stats.mineHits, mineBounces: stats.mineBounces, mineDuds: stats.mineDuds, spent: Math.round(state.snare.earned - state.snare.signal),
             area: Math.round(snare.run.w * snare.run.h), replay: !!snare.replay, secs: Math.round(snare.run.time), record: res.record, seed: snare.seed });
@@ -5001,7 +5001,8 @@ window.AGI = (function () {
                 s.forks ? ['Split catches', `${s.forks}`] : null,
                 s.stars ? ['Supernovas', `${s.stars}`] : null,
                 s.escalations ? ['Rams', `${s.escalations}`] : null,
-                s.raced ? ['Bubbles held still', `${s.raced}`] : null,
+                s.raced ? ['Catches held still', `${s.raced}`] : null,
+                s.edgeCaught ? ['Caught at the edge', `${s.edgeCaught}`] : null,
                 s.hijacked ? ['Antivirus hijacked', `${s.hijacked}`] : null,
                 s.partners ? ['Partner cores', `${s.partners} · ${s.partnered} packets`] : null,
                 s.flags ? ['Exploits flagged', `${s.flags}${s.ids ? ` · ${s.ids} IDS alert${s.ids === 1 ? '' : 's'}` : ''}`] : null,
@@ -5458,8 +5459,9 @@ window.AGI = (function () {
     const SNARE_OPT_LABEL = [
         ['area', 'Field', snareX('area')], ['focus', 'Focus', v => `${v} s`], ['fullMult', 'A full bubble pays', v => `×${num1(1 + v)}`], ['maxMult', 'Multiplier cap', v => `×${v}`],
         ['bubbleSize', 'A full bubble', v => `×${num1(1 + v)} the size`], ['bubbleGrow', 'Bubbles fill in', v => `${num1(window.PacketSnare.SNARE.bubbleTime / (1 + v))} s`],
+        ['drawnCap', 'A drawn loop\'s MAX', v => `${Math.round(100 * (1 + v))}% of a full bubble\'s`],
         ['focusBack', 'Focus back from a ×2 bubble', v => `${v} s`],
-        ['race', 'A full bubble held still', v => (v ? 'keeps growing' : 'stays put')], ['raceMax', 'A held bubble grows to', v => `×${num1(1 + v)}`],
+        ['race', 'A full bubble or closed loop held still', v => (v ? 'keeps growing' : 'stays put')], ['raceMax', 'A held catch grows to', v => `×${num1(1 + v)}`],
         ['freeze', 'Freeze pickups', v => (v ? `one every ~${Math.round(16 / (1 + 0.6 * (v - 1)))} s` : 'none')], ['freezeSeconds', 'Freeze', v => `${num1(v)} s`],
         ['density', 'Packets', snareX('density')], ['goldChance', 'Gold packets', pct], ['goldValue', 'A gold packet is worth', String],
         ['tagValue', 'A tag', v => `×${v}`], ['schoolSize', 'School size', String], ['contain', 'Edges', v => (v ? 'hold good packets' : 'let packets go')],
@@ -5467,8 +5469,8 @@ window.AGI = (function () {
         ['parry', 'The boss\'s charge', v => (v ? 'parried with a flick across its line' : 'dodge it, or loop the boss')],
         ['gc', 'Bubbles of only unreadable packets', v => (v ? 'deleted, Focus back' : 'garble')], ['spoof', 'Flicks', v => (v ? 'spoof unreadable packets' : 'off')],
         ['spoofSeconds', 'Spoofed for', v => `${num1(v)} s`], ['slashDamage', 'A slash takes', v => `${v} health`], ['parryDamage', 'A parry takes', v => `${v} health`],
-        ['bossStun', 'A stunned boss reels', v => `${num1(v)} s`], ['meltdown', 'A beaten boss melts down for', v => `${num1(v)} s`], ['fork', 'A full bubble let go', v => (v ? `splits into ${v + 1}` : 'stays whole')],
-        ['star', 'A bubble let go while frozen', v => (v ? 'goes supernova' : 'nothing special')], ['starMult', 'A supernova pays', v => `×${v} more`],
+        ['bossStun', 'A stunned boss reels', v => `${num1(v)} s`], ['meltdown', 'A beaten boss melts down for', v => `${num1(v)} s`], ['fork', 'A full bubble or a loop at MAX', v => (v ? `splits into ${v + 1}` : 'stays whole')],
+        ['star', 'A catch made while frozen', v => (v ? 'goes supernova' : 'nothing special')], ['starMult', 'A supernova pays', v => `×${v} more`],
         ['escalate', 'Your hijacked Antivirus', v => (v ? 'can ram the boss' : 'only takes packets')], ['escalateDamage', 'A ram takes', v => `${v} health`],
         ['laser', 'Laser', v => (v ? `every ${num1(v)} s` : 'none')], ['emitters', 'Emitters per edge', String], ['laserSides', 'Edges with lasers', String],
         ['laserReach', 'Laser reach', snareX('laserReach')],
@@ -5493,7 +5495,7 @@ window.AGI = (function () {
         ['broadband', 'Each turret or tower placed', v => (v ? `brings packets back ${Math.round(v * 100)}% sooner` : 'does nothing for refills')],
         ['cleanSweep', 'After a clean loop, the clock stops for', v => `${num1(v)} s`],
         ['relay', 'Unreadable packets your Firewalls bounce', v => (v ? 'swim to your Decoy' : 'swim on')],
-        ['backpressure', 'A catch', v => (v ? 'turns the packets round it back' : 'leaves the packets round it be')],
+        ['backpressure', 'Good packets just outside a catch', v => (v ? `caught too, within ${Math.round(100 * (window.PacketSnare.SNARE.backReach + window.PacketSnare.SNARE.backReachLv * (v - 1)))}% of the field` : 'left behind')],
         ['cleanBots', 'Decoder bots', String], ['spoofBots', 'Spoofer bots', String], ['collectBots', 'Collector bots', String],
         ['goldBatch', 'Gilded at a time', String], ['herdShare', 'Herder reach', v => `${Math.round(100 * v)}% of the field`], ['goldPlate', 'Decoder bots gild every', v => (v ? `${num1(6 / v)} s` : 'never')],
         ['pen', 'Good packets in a Firewall', v => (v ? 'stay in' : 'come and go')],
@@ -6581,7 +6583,7 @@ window.AGI = (function () {
         const r = run.race;
         if (!r) return;
         const P = window.PacketSnare;
-        const mult = P.areaMult(P.polygonArea(r.poly), run.opts, run.w * run.h) * (1 + r.bonus);
+        const mult = (r.base ?? P.areaMult(P.polygonArea(r.poly), run.opts, run.w * run.h)) * (1 + r.bonus);
         const c = r.poly.reduce((a, p) => ({ x: a.x + p.x / r.poly.length, y: a.y + p.y / r.poly.length }), { x: 0, y: 0 });
         ctx.font = `700 15px ${snareMono()}`;
         ctx.textAlign = 'center';
