@@ -4109,7 +4109,7 @@ window.AGI = (function () {
         const now = performance.now();
         const phone = run.opts.loopCatch && !snareFinePointer();
         const seen = k => (state.intro[`snare:coachSeen:${k}`] || 0) >= SNARE_COACH_TRIES && snare.coach?.key !== k;
-        const bubbleOver = state.intro['snare:coach:bubble'] || seen('bubble');
+        const bubbleOver = state.intro['snare:coach:bubble'];
         // 2: an unreadable packet swims in and settles near the middle for its walkthrough
         if (bubbleOver && !tu.red && !snare.coach && now - (snare.coachCaught || 0) > 600) {
             const v = 0.6;
@@ -4136,8 +4136,8 @@ window.AGI = (function () {
             tu.second = true;
             snareTutorialGroup(run, run.w / 2, run.h * 0.5);
         }
-        const loopOver = !phone || state.intro['snare:coach:loop'] || tu.loopDone || (tu.second && seen('loop'));
-        const late = now - tu.t0 > SNARE_TUTORIAL_MAX * 1000;
+        const loopOver = !phone || state.intro['snare:coach:loop'];
+        const late = snare.coachOff && now - tu.t0 > SNARE_TUTORIAL_MAX * 1000;   // only if the walkthroughs broke
         if ((tu.redGone && loopOver && !snare.coach && now - tu.redGone > 400) || late) snareZoomOut(tu.anchor || null);
     }
     // The tutorial's field zooms out to the standard one: the run proper starts with what was left. Centred on `anchor`
@@ -4176,7 +4176,7 @@ window.AGI = (function () {
         { key: 'bubble', when: run => run.time > 0.6 && snareCluster(run),
             aim: (run, ids) => { const g = snareGroupAt(run, ids); return g && { ...g, gesture: 'hold' }; },
             text: () => (snareFinePointer() ? '> Hold the right button, then let go to catch them.' : '> Hold still, then let go to catch them.'),
-            done: e => e.type === 'catch' },
+            done: e => e.type === 'catch' && !e.drawn },   // a bubble, not a drawn loop (the owner: a loop finished it in error)
         { key: 'red', after: 'bubble', info: 3.5, slow: 1, when: run => run.packets.find(p => p.kind === 'corrupt' && (snare.tutorial ? Math.hypot(p.x - run.w / 2, p.y - run.h / 2) < 0.4 : p.x > 0.5 && p.y > 0.5 && p.x < run.w - 0.5 && p.y < run.h - 0.5))?.id,
             aim: (run, id) => { const p = coachById(run.packets, id); return p && { x: p.x, y: p.y, r: 0.7, gesture: 'mark' }; },
             text: () => '> That packet is unreadable. Keep it out of your bubble.', done: e => e.type === 'catch' },
@@ -4246,7 +4246,8 @@ window.AGI = (function () {
         if (run.over || run.drawing || now < (snare.coachNext || 0)) return;
         snare.coachNext = now + 250;   // looking for one costs a little: four times a second is plenty
         for (const def of SNARE_COACHES) {
-            if (state.intro[coachKey(def, 'coach')] || (state.intro[coachKey(def, 'coachSeen')] || 0) >= SNARE_COACH_TRIES) continue;
+            const tries = snare.tutorial && (def.key === 'bubble' || def.key === 'loop') ? Infinity : SNARE_COACH_TRIES;   // the tutorial waits for them
+            if (state.intro[coachKey(def, 'coach')] || (state.intro[coachKey(def, 'coachSeen')] || 0) >= tries) continue;
             if (def.after && !state.intro[`snare:coach:${def.after}`]) continue;
             const what = def.when(run);
             if (!what) continue;   // ids start at 1, so anything falsy (0 from a switched-off option too) is "not now"
@@ -4273,23 +4274,20 @@ window.AGI = (function () {
         if (e.type === 'catch') snare.coachCaught = performance.now();
         if (e.type === 'catch' && e.drawn && snare.tutorial) snare.tutorial.anchor = { x: e.x, y: e.y };
         const c = snare.coach;
-        // The owner's report on 18.8: a catch made before the tutorial's walkthrough showed left it waiting for a group that
-        // was gone, and the tutorial didn't move on. A catch before its walkthrough counts as that step done (a drawn loop
-        // as the loop's too); a bubble on the phone's second group lets the tutorial go on, the loop's walkthrough later.
-        if (!c && e.type === 'catch' && snare.tutorial) {
-            const tu = snare.tutorial;
-            if (!state.intro['snare:coach:bubble']) { state.intro['snare:coach:bubble'] = true; pt('snareCoach', { key: 'bubble', done: true, early: true }); }
-            else if (tu.second && !e.drawn) tu.loopDone = true;
-            if (e.drawn && !state.intro['snare:coach:loop']) { state.intro['snare:coach:loop'] = true; pt('snareCoach', { key: 'loop', done: true, early: true }); }
-        }
-        // The owner again: a bubble round the drawn loop's group while its walkthrough was up left it nothing to point at.
-        // A fresh group swims in once to try the drawn loop on; a second bubble and the tutorial moves on.
-        if (c?.key === 'loop' && e.type === 'catch' && !e.drawn && snare.tutorial) {
-            const tu = snare.tutorial;
-            snareCoachEnd(false);
-            if (!tu.loopRetry) { tu.loopRetry = true; snareTutorialGroup(snare.run, snare.run.w / 2, snare.run.h * 0.5); }
-            else tu.loopDone = true;
-            return;
+        // The tutorial's steps take their own move (the owner's calls on 18.8): the bubble step a bubble, the drawn loop's step
+        // (phones) a drawn loop. The right move finishes its step, even before its walkthrough shows; the wrong one catches
+        // for nothing (no Signal to farm) and a fresh group swims in to do it right. Nothing moves on until it's done.
+        if (e.type === 'catch' && snare.tutorial) {
+            const tu = snare.tutorial, phone = snare.run.opts.loopCatch && !snareFinePointer();
+            const need = !state.intro['snare:coach:bubble'] ? 'bubble' : phone && tu.second && !state.intro['snare:coach:loop'] ? 'loop' : null;
+            if (need && (need === 'bubble' ? e.drawn : !e.drawn)) {
+                e.units = 0;
+                if (c) snareCoachEnd(false);
+                snareTutorialGroup(snare.run, snare.run.w / 2, snare.run.h * 0.5);
+                pt('snareCoach', { key: need, wrong: true });
+                return;
+            }
+            if (need && !c) { state.intro['snare:coach:' + need] = true; pt('snareCoach', { key: need, done: true, early: true }); }
         }
         if (!c) return;
         const def = SNARE_COACHES.find(x => x.key === c.key);
@@ -4545,7 +4543,8 @@ window.AGI = (function () {
             snareCoachEvent(e);
             if (t === 'catch') {
                 // A scribbled loop (closed moments after the last on the same stroke) pays half, and says so.
-                snareFxFor(e, snare.fx, `+${E.format(snarePay(e.units))}${e.hasty ? ' · RUSHED ×½' : e.safe ? ' · SAFE' : ''}${e.cleanRun >= 1 && run.opts.comboWindow ? ` · COMBO ×${(1 + run.opts.streakPay * e.cleanRun).toFixed(1)}` : e.cleanRun >= 2 ? ` · STREAK ${e.cleanRun}` : ''}`);
+                // a wrong-way catch in the tutorial is worth nothing (snareCoachEvent zeroes it; snareCatch pays at least 1)
+                snareFxFor(e, snare.fx, `+${E.format(e.units > 0 ? snarePay(e.units) : 0)}${e.hasty ? ' · RUSHED ×½' : e.safe ? ' · SAFE' : ''}${e.cleanRun >= 1 && run.opts.comboWindow ? ` · COMBO ×${(1 + run.opts.streakPay * e.cleanRun).toFixed(1)}` : e.cleanRun >= 2 ? ` · STREAK ${e.cleanRun}` : ''}`);
                 sfx('snareCatch', { mult: e.mult });
                 if (e.chained.length) sfx('snareChain');
                 snare.tipAfter = Math.max(snare.tipAfter || 0, run.real + 1);
