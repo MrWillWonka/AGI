@@ -8,15 +8,20 @@ Tag every issue in your review: `[new]`, `[known K#]` or `[regression]`. Issues 
 Update this file with every fix batch (move fixed ones to *fixed: verify*, drop them after a review confirms them).
 
 ## Open
-- **K6 A maxed field is cluttered:** 1,400 small packets, helpers, lasers and labels; the player's own bubble is hard to
-  find (rounds 7–9).
-- **K17 Sector 11's nets do nothing in the fight** (the field is swallowed, so a net has nothing to wipe: 0 netted in
-  every fight) (round 10; the owner: after the next log).
-- **K20 Screens, smaller:** the HUD is small and far from the field at 1920 and 4K; a sideways Look out card shows a line
-  or two before Start covers it; at 360 × 640 a tree popup can clip its effect line; an UPDATING label clips at the
-  field's edge (round 10).
+- None. K6 (a maxed field's clutter) was closed with no change (the owner's call, 2026-11-11), and the desktop part of
+  K20 (the HUD small at 1920 and 4K) was left as it is.
 
 ## Fixed: verify
+- **F40 (K20, phones) Screens, smaller** (the owner: save space on phones): a sideways phone's start card drops the
+  repeated "Packet Snare" title, sets the sector beside the start-at picker and slims Start, so the threat's teaching shows
+  above it (both lines of sector 3's card now show); a docked tree popup (narrow phones) is a little taller with a
+  slimmer header, buy button and now → after line, so the node's rules show above the pinned foot (at 360 × 640,
+  Floodgate's rules were hidden behind it); an Antivirus's UPDATING label stays inside the field.
+- **F39 (K17) Sector 11's nets did nothing in the fight**: from the nets' sector (`netShield`), a finished net shields
+  the boss until every mine is disabled (one mine left still shields it in full, and a parry no longer breaks it; NET
+  SHIELD and "> Disable every mine to bring the shield down."), and a parry knocks the boss `parryKnock` 0.35 of the
+  field's shorter side the way the flick went (about one unit before), disabling a mine it reels into. `tools/snare-boss.js`:
+  the same builds beat the same bosses, and the health taken elsewhere moves within the seeds' noise.
 - **F38 Several nodes did nothing** (the owner on the 18.1 log): Garbage Collection gone (the Herders delete unreadable
   packets near them), Second Wind, Clean Sweep, Quarantine Relay and Zero Trust gone; Hijack reworked (two loops round a
   stunned Antivirus, then it vacuums up packets for you; a stun shows a mark, no words). No flags or IDS alerts (IDS Evasion gone; Forged Headers and

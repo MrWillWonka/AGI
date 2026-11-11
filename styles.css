@@ -3465,6 +3465,15 @@ body.calm .snare-deeper { animation: none; }
 /* Its demo smaller there, so the buy button never sits on it (review round 2). */
 .snare-tree-grid .node-detail.docked .demo { width: 160px; margin-inline: auto; }
 .snare-tree-grid .node-detail.docked .demo figcaption { display: none; }
+/* K20 (the owner's call: save space on phones): a docked popup a little taller, its header, buy button and now → after
+   line slimmer, so the node's rules show above the pinned foot. */
+.snare-tree-grid .node-detail.docked { max-height: 58%; }
+.snare-tree-grid .node-detail.docked .detail-head { gap: 8px; }
+.snare-tree-grid .node-detail.docked .detail-icon { width: 28px; height: 28px; }
+.snare-tree-grid .node-detail.docked .detail-icon svg { width: 16px; }
+.snare-tree-grid .node-detail.docked .detail-foot { gap: 4px; }
+.snare-tree-grid .node-detail.docked .detail-foot .button { min-height: 36px; padding-block: 6px; }
+.snare-tree-grid .node-detail.docked .detail-foot .detail-preview { font-size: 0.72rem; line-height: 1.3; }
 /* a node's rules text (the copy pass): plain text, numbers bold, packet words in the packets' own theme tokens */
 .node-detail .detail-effect.snare-rules { color: var(--text); font: 500 0.9rem/1.4 var(--font-body); }
 .snare-rules .kw-num { font: 700 0.86rem var(--font-mono); }
@@ -3600,4 +3609,13 @@ body.calm .snare-deeper.lit, body.idle .snare-deeper.lit { animation: none; }
     .snare-card:has(.demo) { width: min(720px, 92vw); max-width: min(720px, 92vw); }
     .snare-card:has(.demo) > .demo { float: left; clear: left; width: 150px; margin: 2px 14px 6px 0; }
     .snare-card:has(.demo) > .result-actions { clear: both; }
+}
+/* K20 (the owner's call: save space on phones): a sideways phone's card drops the repeated game name, sets the sector beside
+   the picker, and keeps Start slimmer, so more of the teaching shows above it. */
+@media (pointer: coarse) and (max-height: 500px) and (orientation: landscape) {
+    .snare-card .snare-name { display: none; }
+    .snare-card > .result-title { float: left; margin: 7px 12px 0 0; }
+    .snare-card .snare-sector-row { justify-content: flex-end; margin-bottom: 4px; }
+    .snare-card .result-actions { padding: 6px 0 14px; }
+    .snare-card .result-actions .button { min-height: 36px; padding-block: 6px; }
 }

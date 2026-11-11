@@ -43,10 +43,10 @@ const BUILDS = [
     ['the Focus branch', FOCUS],
     ['Focus + Ghost Protocol', { ...FOCUS, snareFirewalls: 1, snareDecoys: 1, snareHijack: 1, snareGhost: 3 }],
     ['Focus + a datacentre', { ...FOCUS, snareSprawl: 9 }],
-    ['Focus + Root Access 3', { ...FOCUS, snareGc: 1, snareSpoof: 2, snareParry: 3 }],
-    ['Focus + Root Access 3, Kernel Panic', { ...FOCUS, snareGc: 1, snareSpoof: 2, snareParry: 3, snareKernelPanic: 2 }],
-    ['… + Riposte (the parry)', { ...FOCUS, snareGc: 1, snareSpoof: 2, snareParry: 3, snareKernelPanic: 2, snareRiposte: 1 }],
-    ['… + Blue Screen', { ...FOCUS, snareGc: 1, snareSpoof: 2, snareParry: 3, snareKernelPanic: 2, snareRiposte: 1, snareBlueScreen: 1 }]
+    ['Focus + Root Access 3', { ...FOCUS, snareGc: 1, snareParry: 3 }],
+    ['Focus + Root Access 3, Kernel Panic', { ...FOCUS, snareGc: 1, snareParry: 3, snareKernelPanic: 2 }],
+    ['… + Riposte (the parry)', { ...FOCUS, snareGc: 1, snareParry: 3, snareKernelPanic: 2, snareRiposte: 1 }],
+    ['… + Blue Screen', { ...FOCUS, snareGc: 1, snareParry: 3, snareKernelPanic: 2, snareRiposte: 1, snareLaser: 1, snareBlueScreen: 1 }]
 ];
 // Only boss sectors (every fifth): the others are cleared by a goal of packets.
 const [lo, hi] = (process.env.SECTORS || '1-25').split('-').map(Number);

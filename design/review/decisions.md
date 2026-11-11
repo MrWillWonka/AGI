@@ -46,18 +46,24 @@ When answered: the change, `settled.md` (or `targets.json`) and this file are up
   label without it); **a Riposte parry breaks the mine shield** for its reel. Not yet (after the next log): hits that
   spill swallowed packets, nets that bite the jackpot.
 
+- **D20 (answered 2026-11-11)**: the flicks. The owner: the flick options aren't worthwhile, so remove them for now and
+  replace them later with other mechanics like flicks. Packet Spoofing, Forged Headers and Privilege Escalation are gone
+  (save v33 refunds the tree); Targeted Laser grows from Root Access and Blue Screen from Targeted Laser. The boss's
+  slash and Riposte's parry stay. The rules for spoofing and ramming stay in packet-snare.js unused (the Spoofer Bot
+  still spoofs).
+- **D15 (closed 2026-11-11)**: sector 3 on desktop. The owner's call: close it with no change, and reopen it as a new
+  decision with sweep numbers if a desktop log shows sector 3 as a wall.
+- **K6 (closed 2026-11-11)**: a maxed field's clutter. The owner's call: leave it.
+- **K17 (answered 2026-11-11)**: nets in the fight. The owner's call: from the nets' sector, a finished net shields the
+  boss until every mine is disabled, a parry knocks the boss back harder (the way the flick went), and a mine it is
+  knocked into is disabled. Built (F39).
+- **K20 (answered 2026-11-11)**: screens. The owner's call: save space on phones, and leave the desktop HUD as it is.
+  Built for phones (F40).
+
 ## Open
-- **D20 (open, 2026-11-10)**: the flicks. The owner: "the flicks don't feel useful or fun at the moment". Packet
-  Spoofing, Forged Headers and Privilege Escalation are built on them; the boss's slash and Riposte's parry stay. Three
-  directions were offered and none landed: Slice (a fast swipe deletes unreadable packets, combos), Sling packets (the
-  mine's pull-back on packets), Gust (a swipe blows packets along). Already decided: no flags and no IDS alerts
-  (`flagging` 0; IDS Evasion gone). Bring a fresh idea, or ask whether to remove the flick nodes outright.
-- **D15 (watching)**: sector 3 on desktop. 10 runs on 17, 4 on 17.1, not cleared in 5 on 17.2 (best 100 of 185 packets,
-  4–6 catches a run, Antivirus popping 0–2 bubbles). The owner's call: play more first, no change; judge it on the next
-  desktop log (sector 3 runs, catches a run, Antivirus pops). Levers if it stays a wall: the desktop's extras from
-  sector 4, or sector 3's goal 185 → 150.
+- None. New decisions come from the next playtest log.
 
 ## Parked ideas (not to build until the owner picks them up)
-- **Training lowers red**: red packets are data the model can't read yet; finishing runs in the Training Cluster could
-  make fewer of them unreadable, a reason to go back and forth. The owner isn't sold: Packet Snare must stay fun and
-  not gated behind training. Only the words are in (2026-11-09).
+- **New flick-like mechanics** (D20, 2026-11-11): quick-gesture moves to replace Packet Spoofing, Forged Headers and
+  Privilege Escalation. Slice, Sling packets and Gust were offered and didn't land.
+- *Dropped 2026-11-11:* "Training lowers red" (the owner: Packet Snare shouldn't be gated behind training).

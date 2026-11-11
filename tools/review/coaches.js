@@ -99,18 +99,17 @@ async function section(page, k, doneKeys, levels = {}) {
             await page.waitForTimeout(300);
         }
         note(screen, 'sling', !!c && await done(page, 'sling'), c ? '' : 'never showed');
-        // unlocked moves on sector 3: Freeze and Purge pickups, Packet Spoofing
-        await section(page, 3, ['bubble', 'red', 'loop'], { snareFreeze: 1, snarePurge: 1, snareSpoof: 1 });
-        // whichever comes up first (spoofing usually: red is on the field from the start; pickups drift in later)
-        const keys = ['pickup:freeze', 'pickup:purge', 'spoof'], seen = new Set();
+        // unlocked moves on sector 3: the Freeze and Purge pickups
+        await section(page, 3, ['bubble', 'red', 'loop'], { snareFreeze: 1, snarePurge: 1 });
+        // whichever comes up first
+        const keys = ['pickup:freeze', 'pickup:purge'], seen = new Set();
         for (let i = 0; i < 300 && seen.size < keys.length; i++) {
             c = await coach(page);
             if (c && keys.includes(c.key) && !seen.has(c.key)) {
                 seen.add(c.key);
                 await page.waitForTimeout(700); await snap(`8-${c.key.replace(':', '-')}`);
                 c = await coach(page) || c;
-                if (c.key === 'spoof') { const a = c.at; await K.flick(page, a.x - 1.3, a.y - 0.4, a.x + 1.3, a.y + 0.4); }
-                else { const p = await K.screen(page, c.at.x, c.at.y); if (phone) await page.touchscreen.tap(p.x, p.y); else await page.mouse.click(p.x, p.y); }
+                { const p = await K.screen(page, c.at.x, c.at.y); if (phone) await page.touchscreen.tap(p.x, p.y); else await page.mouse.click(p.x, p.y); }
                 await page.waitForTimeout(400);
             }
             if ((await K.state(page))?.over) { await K.cards(page); await K.start(page); await K.cards(page); }

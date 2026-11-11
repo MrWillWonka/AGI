@@ -4206,16 +4206,6 @@ window.AGI = (function () {
                 return { x: mx, y: my, r: 2, gesture: 'flick', a: { x: mx - c.dy * h, y: my + c.dx * h }, b: { x: mx + c.dy * h, y: my - c.dx * h } };
             },
             text: () => '> Swipe across its charge line to parry it.', done: e => e.type === 'parry' },
-        { key: 'spoof', when: run => run.opts.spoof && !run.boss && run.packets.find(p => p.kind === 'corrupt' && p.x > 1.5 && p.x < run.w - 1.5 && p.y > 1 && p.y < run.h - 1)?.id,
-            aim: (run, id) => { const p = coachById(run.packets, id); return p && p.kind === 'corrupt' && { x: p.x, y: p.y, r: 1.6, gesture: 'flick', a: { x: p.x - 1.3, y: p.y - 0.4 }, b: { x: p.x + 1.3, y: p.y + 0.4 } }; },
-            text: () => '> Flick through unreadable packets to make them pass as good.', done: e => e.type === 'spoof' },
-        { key: 'escalate', when: run => run.opts.escalate && run.boss && run.antivirus.find(f => f.ally > run.time)?.id,
-            aim: (run, id) => {
-                const f = coachById(run.antivirus, id), b = run.boss;
-                if (!f || !b || !(f.ally > run.time)) return null;
-                return { x: (f.x + b.x) / 2, y: (f.y + b.y) / 2, r: Math.hypot(b.x - f.x, b.y - f.y) / 2 + 0.8, gesture: 'flick', a: { x: f.x, y: f.y }, b: { x: b.x, y: b.y } };
-            },
-            text: () => '> Flick from your Antivirus into the boss to ram it.', done: e => e.type === 'escalate' },
         { key: 'hijack', when: run => run.opts.hijack && run.antivirus.find(f => !(f.ally > run.time) && f.stunned > run.time)?.id,
             aim: (run, id) => { const f = run.antivirus.find(q => q.id === id); return f && !(f.ally > run.time) && f.stunned > run.time && { x: f.x, y: f.y, r: f.r + Math.max(0.8, run.closeR), gesture: 'loop', turns: 2 }; },
             text: () => '> Loop round the stunned Antivirus twice to hijack it.', done: e => e.type === 'hijack' },
@@ -4932,7 +4922,7 @@ window.AGI = (function () {
             for (const k of meet) state.intro[`snare:intro:${k}`] = true;
             card.replaceChildren(...[
                 el('div', { class: 'result-title', text: snareSector(snareNextSector()) }),
-                el('div', { class: 'result-main', text: 'Packet Snare' }),
+                el('div', { class: 'result-main snare-name', text: 'Packet Snare' }),
                 snareSectorPicker(),
                 el('p', { class: 'snare-intro-line snare-goal-line', text: snareGoalText(snareNextSector()) }),
                 // the demo's caption would say again what the line under it says (round 2 of the review)
@@ -5712,6 +5702,9 @@ window.AGI = (function () {
         else if (e.type === 'focusCap') fx.push({ kind: 'hint', x: e.x, y: e.y, t: 0, life: 2.2, text: '> No more Focus comes back this run.' });
         else if (e.type === 'backpressure') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: e.r, t: 0, life: 0.5 });
         else if (e.type === 'bossBlock') fx.push({ kind: 'flag', x: e.x, y: e.y - 1, t: 0, life: 0.9, text: e.reason === 'shield' ? 'SHIELDED' : 'GUARD UP', small: true });
+        // K17: a finished net shields the boss until every mine is disabled.
+        if (e.type === 'netShield') { fx.push({ kind: 'flag', x: e.x, y: e.y - 1.2, t: 0, life: 1.4, text: 'NET SHIELD' }); fx.push({ kind: 'hint', netHint: true, x: e.x, y: e.y + 1.6, t: 0, life: 2.4, text: '> Disable every mine to bring the shield down.' }); }
+        if (e.type === 'bossBlock' && e.reason === 'shield' && e.net && !fx.some(q => q.netHint && q.t < 1.8)) fx.push({ kind: 'hint', netHint: true, x: e.x, y: e.y + 1.6, t: 0, life: 1.6, text: '> Disable every mine to bring the shield down.' });
         if (e.type === 'bossBlock' && e.reason !== 'shield' && !fx.some(q => q.guardHint && q.t < 1.2)) fx.push({ kind: 'hint', guardHint: true, x: e.x, y: e.y + 1.6, t: 0, life: 1.4, text: '> Loop round it twice to stun it first.' });
         else if (e.type === 'mine') fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.6 });
         else if (e.type === 'mineDown') fx.push({ kind: 'quarantine', x: e.x, y: e.y, r: 0.6, t: 0, life: 0.6, text: e.boss ? '' : 'MINE CLEARED', small: true });
@@ -7835,7 +7828,10 @@ window.AGI = (function () {
                 ctx.font = `700 9px ${snareMono()}`;
                 ctx.textAlign = 'center';
                 ctx.fillStyle = C.muted;
-                ctx.fillText('UPDATING', x, y - r - 9);
+                // kept inside the field (K20: it clipped at the edge): nudged in from the sides, and under the ring at the top
+                const half = ctx.measureText('UPDATING').width / 2 + 2;
+                const lx = Math.max(half, Math.min(run.w * k - half, x)), ly = y - r - 9 < 10 ? y + r + 15 : y - r - 9;
+                ctx.fillText('UPDATING', lx, ly);
             }
             ctx.strokeStyle = col;
             ctx.fillStyle = col;

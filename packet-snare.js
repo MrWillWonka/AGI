@@ -302,6 +302,13 @@
         netRange: 0.45,
         netTime: 4,
         netEvery: 1,
+        // K17 (the owner's call, 2026-11-11: nets did nothing in the fight): with `netShield`, once a net has finished the
+        // boss stays shielded until every mine is disabled (one mine left still shields it in full), and a parry no
+        // longer breaks that shield. engine.js sets it from the nets' sector.
+        netShield: 0,
+        // A parry knocks the boss back the way the flick went, about `parryKnock` of the shorter side (it was about one
+        // unit); a mine it reels into while knocked back is disabled, as a loop round it would.
+        parryKnock: 0.35,
         // Lasers reach only part of the field: each emitter takes the richest packet within `laserReach` × the field's
         // shorter side of it; Laser Array adds emitters on more sides (bottom, top, left, right).
         laserReach: 0.5,
@@ -968,13 +975,19 @@
             // Shielded while two or more mines stand (one mine halves its slashes).
             // A parry breaks it for its reel (Snare 17.8, round 10, the owner's call: the parry was followed by slashes
             // that all glanced off a shield up 41% of sector 11's fight).
-            b.shielded = s.mines.length >= 2 && !(b.shieldBreak > s.time);
+            // K17: on net sectors a finished net holds the shield up until the last mine is disabled.
+            if (!s.mines.length) b.netShield = false;
+            else if (o.netShield && !b.netShield && netsDone().length) { b.netShield = true; s.events.push({ type: 'netShield', x: b.x, y: b.y }); }
+            b.shielded = b.netShield ? s.mines.length >= 1 : s.mines.length >= 2 && !(b.shieldBreak > s.time);
             if (b.stunned > s.time) {
                 b.x += b.vx * dt;
                 b.y += b.vy * dt;
                 b.vx *= 1 - Math.min(1, 3 * dt);
                 b.vy *= 1 - Math.min(1, 3 * dt);
-                keepCentral(b);
+                // Knocked back by a parry: it may leave the middle, and a mine it reels into is disabled.
+                const knocked = b.knock > s.time && Math.hypot(b.vx, b.vy) > 0.5;
+                if (knocked) for (const m of s.mines.filter(q => Math.hypot(q.x - b.x, q.y - b.y) < b.r + MINE_R * 1.5)) disableMine(m, 'knock');
+                keepCentral(b, knocked);
                 return;
             }
             // It roams toward the nearest school (kept to the middle) and wipes the data it touches; every few seconds it
@@ -1064,7 +1077,7 @@
             if (b.melt) { meltHit(b, 1, how); return true; }
             if (b.shielded && !pierce) {
                 s.stats.glanced++;
-                s.events.push({ type: 'bossBlock', x: b.x, y: b.y, reason: 'shield', how });
+                s.events.push({ type: 'bossBlock', x: b.x, y: b.y, reason: 'shield', how, net: !!b.netShield });
                 return false;
             }
             if (!(dmg > 0)) return true;
@@ -1141,14 +1154,19 @@
             const minions = s.antivirus.filter(f => f.minion && !f.ally).length;
             for (let i = 0; i < o.bossMinions && minions + i < o.minionCap; i++) { bootAntivirus(); s.antivirus[s.antivirus.length - 1].minion = true; }
         }
-        function parryBoss(b) {
+        function parryBoss(b, dir) {
             const { dx, dy } = b.charge;
             stunBoss(b);
-            b.vx = -dx * 3;
-            b.vy = -dy * 3;
+            // The knockback goes the way the flick went (back along its charge without one) and carries it `parryKnock`
+            // of the shorter side (it eases off at 3 a second, so it starts at 3 × that).
+            const k = dir && Math.hypot(dir.x, dir.y) > 1e-6 ? dir : { x: -dx, y: -dy }, kl = Math.hypot(k.x, k.y) || 1;
+            const v = 3 * Math.max(1, o.parryKnock * shortSide);
+            b.vx = k.x / kl * v;
+            b.vy = k.y / kl * v;
+            b.knock = b.stunned;
             s.stats.parries++;
             s.events.push({ type: 'parry', x: b.x, y: b.y });
-            if (s.mines.length) { b.shieldBreak = b.stunned; b.shielded = false; s.events.push({ type: 'shieldBreak', x: b.x, y: b.y, until: b.stunned }); }
+            if (s.mines.length && !b.netShield) { b.shieldBreak = b.stunned; b.shielded = false; s.events.push({ type: 'shieldBreak', x: b.x, y: b.y, until: b.stunned }); }
             damageBoss(b, o.parryDamage, 'parry');
         }
 
@@ -1242,6 +1260,18 @@
             }
             if (s.boss && !s.mines.length) s.boss.mineAt = Math.max(s.boss.mineAt, s.time + o.mineEvery * 0.75);
             return true;
+        }
+        // One mine disabled by something other than a loop (the boss knocked into it by a parry, K17): held like a
+        // looped one, ready to be pulled back and flung.
+        function disableMine(m, how) {
+            if (!s.mines.includes(m)) return;
+            s.mines = s.mines.filter(q => q !== m);
+            s.links = s.links.filter(l => mineById(l.a) && mineById(l.b));
+            s.held.push({ id: m.id, x: m.x, y: m.y, until: s.time + o.mineHold });
+            s.stats.minesGrabbed++;
+            s.stats.minesKnocked = (s.stats.minesKnocked || 0) + 1;
+            s.events.push({ type: 'mineGrab', x: m.x, y: m.y, how });
+            if (s.boss && !s.mines.length) s.boss.mineAt = Math.max(s.boss.mineAt, s.time + o.mineEvery * 0.75);
         }
         // Thrown mines in flight (Snare 17.7): pucks that bounce off the field's edges and hit the boss.
         function thrownStep(dt) {
@@ -2273,7 +2303,7 @@
                     const close = segDist(a, boss, end) < reach || segDist(b, boss, end) < reach || segDist({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, boss, end) < reach;
                     if (segIntersect(a, b, boss, end) || segDist(boss, a, b) < boss.r * 1.4 || close) {
                         s.events.push({ type: 'parryFlick', a, b });
-                        parryBoss(boss);
+                        parryBoss(boss, { x: b.x - a.x, y: b.y - a.y });
                         hit = true;
                     }
                 } else if (through && boss.stunned > s.time) {
