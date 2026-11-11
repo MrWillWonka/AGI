@@ -4084,6 +4084,7 @@ window.AGI = (function () {
     function snareTutorialRun(o) {
         const run = window.PacketSnare.createSnare({ ...o, ...snareField(o.area * SNARE_TUTORIAL_AREA, o), seed: snare.seed, density: 0, antivirus: [],
             sweepFirst: Infinity, idleDrain: 0, respawn: 1e9, teachRed: 0, corruptShare: 0, goal: 0, flow: false, schooling: 0, cleanStart: 0,
+            comboWindow: 0,   // no combo in the tutorial (the owner: it showed up during the walkthroughs)
             // zoomed in, packets drawn at their standard size would merge into one blob: smaller here, back to size after
             packetR: window.PacketSnare.SNARE.packetR * 0.55 });
         run.packets = [];
@@ -4277,6 +4278,16 @@ window.AGI = (function () {
             if (!state.intro['snare:coach:bubble']) { state.intro['snare:coach:bubble'] = true; pt('snareCoach', { key: 'bubble', done: true, early: true }); }
             else if (tu.second && !e.drawn) tu.loopDone = true;
             if (e.drawn && !state.intro['snare:coach:loop']) { state.intro['snare:coach:loop'] = true; pt('snareCoach', { key: 'loop', done: true, early: true }); }
+        }
+        // The owner again: a bubble round the drawn loop's group while its walkthrough was up left it nothing to point at.
+        // A fresh group swims in once to try the drawn loop on; a second bubble and the tutorial moves on (the loop's
+        // walkthrough comes back on the full field, as it isn't done).
+        if (c?.key === 'loop' && e.type === 'catch' && !e.drawn && snare.tutorial) {
+            const tu = snare.tutorial;
+            snareCoachEnd(false);
+            if (!tu.loopRetry) { tu.loopRetry = true; snareTutorialGroup(snare.run, snare.run.w / 2, snare.run.h * 0.5); }
+            else { tu.loopDone = true; state.intro['snare:coachSeen:loop'] = 0; }   // so it can show again on the full field
+            return;
         }
         if (!c) return;
         const def = SNARE_COACHES.find(x => x.key === c.key);
