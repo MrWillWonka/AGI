@@ -6,9 +6,10 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
 
 ## Where things stand
 
-- **Live review build:** Packet Snare **18.8**, republished 2026-11-11 21:43 UTC (version `1794433438-4f61`, game.js: the owner's
+- **Live review build:** Packet Snare **18.8**, republished 2026-11-11 22:31 UTC (version `1794436307-6fa6`, game.js: the owner's
   tutorial reports: a catch made before a walkthrough shows counts as that step, a bubble on the drawn loop's step brings a
-  fresh group and then moves on, and no combo in the tutorial; the build number kept, the owner's call).
+  fresh group and then moves on, no combo in the tutorial, the old wire on its small field (the share of it was too short
+  for the loop it asks for), and its walkthroughs never repeat after the zoom; the build number kept, the owner's call).
   First published 20:56 UTC (version `1794430575-69c8`, index.html,
   engine.js, game.js, packet-snare.js, snare-demos.js and scenarios.json): the owner's calls on the 18.7 log (the 15-sector
   campaign with skill-gated bosses, the meltdown doubling the run, racing combos and a limited wire, defences in the boss
