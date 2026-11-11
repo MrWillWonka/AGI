@@ -6,7 +6,10 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
 
 ## Where things stand
 
-- **Live review build:** Packet Snare **18.7**, published 2026-11-11 12:17 UTC (version `1794399429-0082`): the tutorial
+- **Live review build:** Packet Snare **18.7**, republished 2026-11-11 12:23 UTC (version `1794399783-9146`) with
+  `debug-panel.js` and `styles.css` only: a long press on the logo opens and closes the debug panel. The build number
+  stayed 18.7 (the owner's call: it isn't a change to the game).
+- **18.7 first went out** 2026-11-11 12:17 UTC (version `1794399429-0082`): the tutorial
   runs bubble, unreadable packet (full speed), drawn loop, and zooms out from the loop's catch.
 - **Before it:** Packet Snare **18.6**, published 2026-11-11 03:44 UTC (version `1794368669-b149`): 18.5 plus
   the tutorial's unreadable packet and a zoom out centred on it. To see the tutorial again: debug panel, Reset Packet Snare.
@@ -62,7 +65,9 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
 
 - **Check in before starting work or reviews.** Ask with question cards (AskUserQuestion), a recommended option first,
   labelled "(Rec.)". Nothing is built on an open decision.
-- **Publish only on the owner's explicit go-ahead.** When asked: bump `BUILD` in `engine.js` (UTC time + a few words),
+- **Publish only on the owner's explicit go-ahead.** Bump the build only for a real change to the game (the owner's
+  call, 2026-11-11: a tool-only change, like how the debug panel opens, republishes its files under the same build, no
+  `BUILD` bump and no Builds row). For a real change: bump `BUILD` in `engine.js` (UTC time + a few words),
   add a row to `playtests/README.md`'s Builds table (the test `the build stamp has its row…` checks the bold name),
   run `node --test` and `node tools/review/report.js review-out/<name>`, commit, push, then publish.
 - **No pull requests.** Commit and push to the session's branch. No model names in commits or artifacts.
