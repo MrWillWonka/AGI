@@ -1,4 +1,4 @@
-// debug-panel.js — developer tools. Hidden: opened by three taps on the title in a row, ?debug or #debug in
+// debug-panel.js — developer tools. Hidden: opened by a long press (or three taps) on the title, ?debug or #debug in
 // the URL, or the ` (backtick) key; remembered per device. The panel's × (or three more taps) closes it.
 (function () {
     'use strict';
@@ -202,7 +202,30 @@
         // of the last, open and close it, on a phone too (pointerup: iOS sends no click to a plain heading).
         const brand = document.querySelector('.topbar .brand');
         let taps = [];
+        // A long press on the title (the owner's call, 2026-11-11: on a phone the title is just the logo, too small to
+        // triple-tap easily): held still for LONG_PRESS ms, it opens or closes the panel. The press's own lift doesn't
+        // count as a tap. iOS's callout and text selection are kept off the title (styles.css, .brand).
+        const LONG_PRESS = 900;
+        let hold = null, held = false;
+        const cancelHold = () => { if (hold) { clearTimeout(hold.timer); hold = null; } };
+        brand?.addEventListener('pointerdown', e => {
+            if (e.button > 0) return;
+            cancelHold();
+            held = false;
+            hold = { x: e.clientX, y: e.clientY, timer: setTimeout(() => {
+                hold = null;
+                held = true;
+                taps = [];
+                navigator.vibrate?.(15);
+                toggle(!panel || panel.hidden);
+            }, LONG_PRESS) };
+        });
+        brand?.addEventListener('pointermove', e => { if (hold && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > 12) cancelHold(); });
+        for (const t of ['pointercancel', 'pointerleave']) brand?.addEventListener(t, cancelHold);
+        brand?.addEventListener('contextmenu', e => e.preventDefault());
         brand?.addEventListener('pointerup', e => {
+            cancelHold();
+            if (held) { held = false; return; }
             if (e.button > 0) return;
             const now = performance.now();
             taps = taps.filter(t => now - t < 500 * (taps.length + 1)).concat(now);

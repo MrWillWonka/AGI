@@ -1268,7 +1268,7 @@ h1, h2, h3, p { margin: 0; }
 [data-section="settings"] .settings-saves > .button-row:first-child { margin-top: 0; }
 [data-section="settings"] .settings-saves > .toggle:last-child { margin-top: 10px; }
 /* Three taps on the title open the debug panel: no double-tap zoom or text selection on it. */
-.topbar .brand { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+.topbar .brand { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }   /* a long press opens the debug panel: no iOS callout */
 
 #dialog { width: min(440px, calc(100vw - 32px)); }
 
