@@ -6,7 +6,11 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
 
 ## Where things stand
 
-- **Live review build:** Packet Snare **18.1**, published to the owner's artifact
+- **Live review build:** Packet Snare **18.4**, published 2026-11-11 02:46 UTC (version `1794365202-92a4`, from the
+  owner's Windows machine): walkthroughs, the meltdown (slash like crazy), the bolt, Hijack, the cut nodes, full sentences;
+  see the Builds row. Watch in the next log: the 0.15 slow motion (the owner's fallback is freezing), meltdown hits
+  against 30/40/50 and the shake, sectors 6–8 with the dearer Sprawl, Chain Lightning's feel. Open: the flicks (D20).
+- **Before it:** Packet Snare **18.1**, published to the owner's artifact
   <https://claude.ai/artifact/9Sc3mL6iQFeDVNmdnjtP5Q> (slug `445c4d6b-4414-4184-aa65-debc63cd7dcf`, version
   `1794349829-0fa7` at publish, 22:30 UTC, from the owner's Windows machine; read: owner). `E.BUILD` in `engine.js` says
   `2026-11-10 22:25 (review branch) · Packet Snare 18.1: …` (18 was `1794337885-40a0`, 19:06; 17.9 was `1794331539-3bb3`,
