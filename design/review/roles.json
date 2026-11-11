@@ -3,5 +3,7 @@
   "early": "fable",
   "late": "opus",
   "screens": "sonnet",
-  "verify": "sonnet"
+  "verify": "sonnet",
+  "layout-phone": "opus",
+  "layout-desktop": "sonnet"
 }
