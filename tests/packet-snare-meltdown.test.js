@@ -85,3 +85,29 @@ test('the twelve hits pay the next sector\'s goal between them, more each hit; h
     assert.ok(Math.abs(paid - pool) <= 12, 'all twelve: the pool');
     assert.ok(Math.abs(E.snareMeltPay(st, 4, true, 0, 12) - pool / 2) <= 1, 'a replay: half');
 });
+
+// Snare 18.5 (the owner: "slash like crazy" for the most, more each boss, the screen shaking harder the more you get)
+test('each boss takes more meltdown hits for all of it (30, then 10 more a boss), with a second more each', () => {
+    const st = E.defaultState(Date.now());
+    const at = k => { const o = E.snareOpts(st, k); return [o.meltHits, o.meltdown]; };
+    assert.deepEqual(at(4), [30, 8]);
+    assert.deepEqual(at(7), [40, 9]);
+    assert.deepEqual(at(10), [50, 10]);
+});
+
+test('while it melts, slashes count far faster than in the fight (slash like crazy)', () => {
+    const s = beaten();
+    s.takeEvents();
+    const b = s.boss;
+    let hits = 0;
+    for (let i = 0; i < 20; i++) {
+        s.setPen('wire');
+        for (let j = 0; j <= 6; j++) s.addPoint(b.x - 2 + 4 * j / 6, b.y + (i % 2 ? 0.3 : -0.3));
+        s.liftPen();
+        s.setPen(null);
+        for (let j = 0; j < 5; j++) s.step(1 / 60);   // a twelfth of a second between swipes
+        hits = s.boss?.melt?.hits ?? hits;
+    }
+    assert.ok(hits >= 12 || s.stats.meltHits >= 12, `12 swipes in a second and a half all count (got ${s.stats.meltHits})`);
+    assert.equal(s.stats.meltOf, 12);
+});

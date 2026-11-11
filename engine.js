@@ -2427,7 +2427,10 @@
             bossArrive: 0.5,
             bossIncoming: 2.5,
             bossFight: 30,
-            meltdown: 6,       // Snare 18.3: beaten, it melts down for 6 s (slash it for Signal), then the run ends
+            // Snare 18.3: beaten, it melts down (slash it for Signal), then the run ends. Snare 18.5 (the owner: "slash like
+            // crazy" for the most, more each boss): 30 hits for all of it on the first boss in 8 s, 10 more and 1 s more a boss
+            meltdown: 8 + snareBossOrdinal(k),
+            meltHits: 30 + 10 * snareBossOrdinal(k),
             fightPenalty: 2,   // Snare 17.8 (round 10): a snap or a spoil in the fight costs the fight clock 2 s, not Focus
             bossSwallow: 1,
             bossFocus: 0,

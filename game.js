@@ -4451,7 +4451,7 @@ window.AGI = (function () {
                 snare.fx.push({ kind: 'stun', gold: true, x: e.x + (Math.random() - 0.5) * 1.6, y: e.y - 1.4 - Math.random() * 0.8, t: 0, life: 1, text: `+${E.format(pay)}`, small: e.to < e.of * 0.5 });
                 snare.fx.push({ kind: 'burst', x: e.x, y: e.y, t: 0, life: 0.5 });
                 sfx('snareSlash');
-                if (shakeOn()) snare.fx.push({ kind: 'shake', t: 0, life: 0.12 + 0.02 * e.to });
+                if (shakeOn()) snare.fx.push({ kind: 'shake', t: 0, life: 0.35, amp: 4 + 46 * Math.pow(e.to / e.of, 1.5) });   // violent by the end (Snare 18.5)
                 renderSnareHud();
             } else if (t === 'bossExplode') {
                 // It blows: the biggest moment of the run, then the run ends (no Focus top-up, no burst of packets)
@@ -4871,7 +4871,7 @@ window.AGI = (function () {
                 // A boss beaten leads the card (round 2 of the review: it read like any other run).
                 // Snare 17.5: its fight clock ran out (the run ends with it).
                 s.bossEscaped ? el('div', { class: 'result-main snare-red-line', text: `Boss escaped${s.swallowed ? ` with ${s.swallowed} packets` : ''}${s.escapedMaxHp ? `, ${s.escapedHp} of ${s.escapedMaxHp} health left` : ''} · uninstall window ${snare.run?.opts?.bossFight || 30} s` }) : null,
-                d.cleared.some(k => E.isSnareBossSector(k)) ? el('div', { class: 'result-main snare-boss-down', text: `Boss uninstalled · ${s.slashes || 0} slash${s.slashes === 1 ? '' : 'es'}${s.mineThrows ? ` · ${s.mineThrows} mine${s.mineThrows === 1 ? '' : 's'} thrown` : ''}${s.meltHits ? ` · meltdown ${s.meltHits}/12` : ''}` }) : null,
+                d.cleared.some(k => E.isSnareBossSector(k)) ? el('div', { class: 'result-main snare-boss-down', text: `Boss uninstalled · ${s.slashes || 0} slash${s.slashes === 1 ? '' : 'es'}${s.mineThrows ? ` · ${s.mineThrows} mine${s.mineThrows === 1 ? '' : 's'} thrown` : ''}${s.meltHits ? ` · meltdown ${s.meltHits}/${s.meltOf || 30}` : ''}` }) : null,
                 el('div', { class: 'result-main', text: s.caught ? `${s.caught} packet${s.caught === 1 ? '' : 's'} captured` : 'No packets captured' }),
                 // nothing caught: why, in plain words, first (round 9 of the review: "Corrupted catches 1" didn't say it)
                 // (not after an escape: the escape is the reason, round 10)
@@ -5874,10 +5874,12 @@ window.AGI = (function () {
         const { run, effects, k } = v;
         ctx.setTransform(v.dpr, 0, 0, v.dpr, 0, 0);
         ctx.clearRect(0, 0, v.cw, v.ch);
-        const shake = effects.find(f => f.kind === 'shake');
-        const jx = shake ? (Math.random() - 0.5) * 6 * (1 - shake.t / shake.life) : 0;
+        // the strongest shake up (Snare 18.5: a meltdown's grows with every hit, `amp` px; 6 otherwise), both ways
+        const shake = effects.filter(f => f.kind === 'shake').reduce((a, f) => (!a || (f.amp || 6) * (1 - f.t / f.life) > (a.amp || 6) * (1 - a.t / a.life) ? f : a), null);
+        const amp = shake ? (shake.amp || 6) * (1 - shake.t / shake.life) : 0;
+        const jx = shake ? (Math.random() - 0.5) * amp : 0, jy = shake && shake.amp ? (Math.random() - 0.5) * amp : 0;
         ctx.save();
-        ctx.translate(v.ox + jx, v.oy);
+        ctx.translate(v.ox + jx, v.oy + jy);
         const W = v.field.w, H = v.field.h;
         // A turned field: a quarter turn clockwise (world x down the screen, y right to left), with every label drawn
         // upright where it lands.

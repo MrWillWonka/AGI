@@ -337,6 +337,7 @@
         meltdown: 0,
         meltHits: 12,
         meltEnd: 1.5,
+        meltSlashGap: 0.06,         // Snare 18.5: s between slashes that count while it melts (`slashGap` otherwise): slash like crazy
         fightPenalty: 0,             // Snare 17.8 (round 10): s off the fight clock for a snap or a spoil while the boss fights (Focus holds)
         bossSwallow: 0,
         // Red hunts your bubble (the owner's call on a phone log: no catch spoiled in 15 runs, red was easy to keep out):
@@ -1084,6 +1085,7 @@
                     s.boss = b;
                     s.swallowed = [];
                     Object.assign(b, { hp: 0, melt: { until: s.time + o.meltdown, hits: 0 }, stunned: s.time + o.meltdown, charge: null, vx: 0, vy: 0, shielded: false });
+                    s.stats.meltOf = o.meltHits;
                     s.events.push({ type: 'bossDown', x: b.x, y: b.y, focus: 0, meltdown: o.meltdown, hits: o.meltHits });
                     return true;
                 }
@@ -2273,7 +2275,7 @@
                     }
                 } else if (through && boss.stunned > s.time) {
                     // A slash: through it while it reels (a parry or one of your Firewalls), a flick at a time.
-                    if (s.real - boss.slashAt < o.slashGap) {
+                    if (s.real - boss.slashAt < (boss.melt ? o.meltSlashGap : o.slashGap)) {
                         // too soon after the last: said on the field (round 6 of the review: swallowed silently)
                         s.events.push({ type: 'slashSoon', x: boss.x, y: boss.y });
                     } else {
