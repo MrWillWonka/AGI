@@ -585,7 +585,7 @@
         { id: 'snareFirewalls', name: 'Firewalls', mechanic: 'firewall', snare: { x: -2, y: 0 }, requires: 'snareFocus', cost: { signal: 600 }, scale: 2, max: 3, sn: { firewalls: 1 }, effect: 'A Firewall rises where packets gather. Unreadable packets can\'t get in.' },
         { id: 'snarePurge', name: 'Purge', mechanic: 'purge', snare: { x: -3, y: -1 }, requires: 'snareSpooferBot', cost: { signal: 10850 }, scale: 1.6, max: 3, sn: { purge: 1 }, effect: 'Purge pickups drift in. Tap one to wipe out every unreadable packet.' },
         { id: 'snareLongWalls', name: 'Wider Sections', snare: { x: -2, y: 1 }, requires: 'snareFirewalls', cost: { signal: 2700 }, scale: 2, max: 2, sn: { wallMult: 0.4 }, effect: 'Firewalls are 20% bigger each way.' },
-        { id: 'snareDecoys', name: 'Decoys', mechanic: 'decoy', snare: { x: -3, y: 0 }, requires: 'snareFirewalls', cost: { signal: 2500 }, scale: 1.5, max: 2, sn: { decoys: 1, decoyLure: 0.25 }, effect: 'A Decoy appears near unreadable packets, and they and Antivirus go to it.' },
+        { id: 'snareDecoys', name: 'Decoys', mechanic: 'decoy', snare: { x: -3, y: 0 }, requires: 'snareFirewalls', cost: { signal: 2500 }, scale: 1.5, max: 2, sn: { decoys: 1, decoyLure: 0.25 }, effect: 'A Decoy draws unreadable packets, Antivirus and the boss\'s charge.' },
         { id: 'snareHardened', name: 'Hardened Firewalls', snare: { x: -3, y: 1 }, requires: 'snareLongWalls', cost: { signal: 10500 }, scale: 2, max: 2, sn: { fwHits: 1 }, effect: 'Firewalls hold out twice as long against Antivirus.' },
         { id: 'snareGreatWall', name: 'Great Wall', snare: { x: -3, y: 2 }, requires: 'snareHardened', cost: { signal: 24500 }, scale: 2, max: 2, sn: { wallRebuild: 1 }, effect: 'A worn-out Firewall rebuilds itself after 8 s.' },
         { id: 'snareHijack', name: 'Hijack', mechanic: 'hijack', snare: { x: -5, y: 0 }, requires: 'snareTurrets', cost: { signal: 22750 }, scale: 2, max: 1, sn: { hijack: 1 }, effect: 'Loop round a stunned Antivirus twice, and it vacuums up packets for you.' },
@@ -593,7 +593,7 @@
         { id: 'snarePen', name: 'Holding Pen', mechanic: 'pen', snare: { x: -4, y: 1 }, requires: 'snareHardened', cost: { signal: 24500 }, scale: 2, max: 1, sn: { pen: 1 }, effect: 'Good packets inside a Firewall can\'t get out.' },
         { id: 'snareCollude', name: 'Collusion', mechanic: 'collude', snare: { x: -4, y: 2 }, requires: 'snareGreatWall', cost: { signal: 54250 }, scale: 1.6, max: 3, sn: { collude: 0.25 }, effect: 'A quarantined core may turn partner and collect for you.' },
         { id: 'snareAutoZone', name: 'Auto-Deploy', mechanic: 'autoZone', snare: { x: -5, y: 2 }, requires: 'snareCollude', cost: { signal: 157500 }, scale: 2, max: 1, sn: { autoZone: 1 }, effect: 'Firewalls come sooner, and 2 more can stand at once.' },
-        { id: 'snareTurrets', name: 'Turrets', mechanic: 'turret', snare: { x: -4, y: 0 }, requires: 'snareDecoys', cost: { signal: 4000 }, scale: 1.5, max: 3, sn: { turrets: 1 }, effect: 'A Turret rises where Antivirus hunt and shoots them and unreadable packets.' },
+        { id: 'snareTurrets', name: 'Turrets', mechanic: 'turret', snare: { x: -4, y: 0 }, requires: 'snareDecoys', cost: { signal: 4000 }, scale: 1.5, max: 3, sn: { turrets: 1 }, effect: 'A Turret shoots Antivirus, the boss and unreadable packets in reach.' },
         { id: 'snarePurifier', name: 'Purifier Rounds', snare: { x: -5, y: -1 }, requires: 'snareHijack', cost: { signal: 66500 }, scale: 2, max: 2, sn: { turretPurge: 1, turretRange: 0.2 }, effect: 'Turret shots wipe out 1 more unreadable packet and reach 20% further.' },
         { id: 'snareRapidFire', name: 'Rapid Fire', snare: { x: -5, y: 1 }, requires: 'snareHijack', cost: { signal: 66500 }, scale: 2, max: 2, sn: { turretRate: -0.2 }, effect: 'Turrets fire 20% sooner.' },
     ].map(n => ({ ...n, tab: 'snare' }));
@@ -2298,7 +2298,9 @@
         // The hazards come from the sector, not the field (the field's size is a reward): an Antivirus more every two
         // sectors past the first with them, a core more every three past the first with the Rogue AI.
         const runs = s.snare.runs, floor = key => runs >= SNARE_RUN_FLOORS[key];
-        const avCount = k >= AV_SECTOR && floor('antivirus') ? 1 + Math.floor((k - AV_SECTOR) / 4) : 0;
+        // After the 18.7 log (the owner: the Antivirus were harmless late, so the defences went unused): one more a sector from
+        // sector 9.
+        const avCount = k >= AV_SECTOR && floor('antivirus') ? 1 + Math.floor((k - AV_SECTOR) / 4) + Math.max(0, k - 7) : 0;
         const antivirus = Array.from({ length: avCount }, (_, i) => Math.round(5 + i * 26 / avCount));
         // Sprawl's sixth and ninth levels each give every tool you own a slot more (Megasprawl's and Hyperscale's last
         // levels, before the owner folded them into Sprawl).
@@ -2390,7 +2392,7 @@
             fwHits: B.fwHits + g('fwHits'),
             decoys: slots(g('decoys')),
             decoyLure: B.decoyLure * (1 + g('decoyLure')),
-            avSpeed: Math.max(0.4, B.avSpeed + g('avSpeed')) * (1 + 0.08 * k),
+            avSpeed: Math.max(0.4, B.avSpeed + g('avSpeed')) * (1 + 0.08 * k) * (1 + 0.05 * Math.max(0, k - 7)),   // and 5% faster a sector from 9
             avStun: B.avStun + g('avStun'),
             packetSpeed: B.packetSpeed.map(v => v * (1 + 0.06 * k)),
             antivirus, avArea: SNARE_AV_AREA,
@@ -2476,6 +2478,12 @@
             bossArmor: snareGateSkill(s, k) ? SNARE_GATE_ARMOR : 1,
             mineEvery: k >= SWARM_SECTOR ? 8 : k < NET_SECTOR ? 16 : B.mineEvery,
             bossMinions: k >= MINION_SECTOR ? 1 + Math.floor((k - MINION_SECTOR) / SNARE_BOSS_EVERY) : 0,
+            // the defences join the fight (after the 18.7 log): from the minions' boss it sends one every 10 s while it stands,
+            // the end boss one every 6 s with up to five up; turrets shoot it; a decoy draws its charge
+            bossWave: k >= SNARE_END_BOSS ? 6 : k >= MINION_SECTOR ? 10 : 0,
+            minionCap: k >= SNARE_END_BOSS ? 5 : 2,
+            turretBoss: g('turrets') ? 3 + g('turretPurge') : 0,
+            decoyBoss: g('decoys') ? 1 : 0,
             rogue: k >= ROGUE_SECTOR && floor('rogue') ? 1 + Math.floor((k - ROGUE_SECTOR) / 3) : 0,
             cleanStart: s.snare.runs < 2,
             layout: s.snare.layout

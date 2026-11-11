@@ -99,3 +99,49 @@ test('catches in quick succession build a combo, and a pause starts it again', (
     put(s, 16, 6); put(s, 16.3, 6.2);
     assert.equal(drawCircle(s, 16, 6, 1.4, 0.6)[0].cleanRun, 0, 'a pause of more than 2 s starts it again');
 });
+
+// The owner's calls after the 18.7 log: Antivirus grow from sector 9, and the defences join the boss fight.
+test('Antivirus grow in number and speed from sector 9', () => {
+    const s = E.defaultState(1);
+    const at = k => E.snareOpts(s, k);
+    assert.ok(at(9).antivirus.length > at(7).antivirus.length + 1, 'more of them');
+    assert.ok(at(12).antivirus.length > at(9).antivirus.length, 'and more each sector');
+    assert.ok(at(9).avSpeed / at(7).avSpeed > (1 + 0.08 * 9) / (1 + 0.08 * 7), 'and faster than the old rise');
+});
+
+function fightField(over = {}) {
+    const s = P.createSnare({ seed: 7, density: 0, antivirus: [], idleDrain: 0, respawn: 1e9, sweepFirst: Infinity, w: 20, h: 12, boss: 50, bossAt: 0, bossMines: 0, ...over });
+    s.packets = [];
+    for (let i = 0; i < 3 && !s.boss; i++) s.step(1 / 60);
+    Object.assign(s.boss, { x: 10, y: 6, vx: 0, vy: 0, chargeAt: 999, charge: null, mineAt: 999 });
+    return s;
+}
+
+test('a turret in reach shoots the boss', () => {
+    const s = fightField({ turretBoss: 2, turretRange: 4, turretEvery: 0.5 });
+    s.turrets.push({ id: s.nextId++, x: 12, y: 6, at: 0 });
+    const hp = s.boss.hp;
+    for (let i = 0; i < 60; i++) { Object.assign(s.boss, { x: 10, y: 6, vx: 0, vy: 0, chargeAt: 999 }); s.step(1 / 60); }
+    assert.ok(s.boss.hp <= hp - 2, `it took ${hp - s.boss.hp}`);
+});
+
+test('a decoy draws the boss\'s charge, and smashing it makes the boss reel', () => {
+    const s = fightField({ decoyBoss: 1, bossSmash: 0.2, decoyStun: 1.2 });
+    s.decoys.push({ id: s.nextId++, x: 16, y: 6 });
+    s.drawing = true; s.wire = [{ x: 4, y: 6 }];
+    const b = s.boss;
+    // its target: the decoy, not the pen
+    Object.assign(b, { chargeAt: 0 });
+    let reeled = false;
+    for (let i = 0; i < 60 * 8 && !reeled; i++) { s.step(1 / 60); reeled = s.takeEvents().some(e => e.type === 'bossLooped' && e.by === 'decoy'); }
+    assert.ok(reeled, 'it smashed the decoy and reeled');
+    assert.ok(b.stunned > s.time, 'a slash window');
+});
+
+test('later bosses send Antivirus in waves, the end boss faster and more of them', () => {
+    const k9 = E.snareOpts(E.defaultState(1), 8), k15 = E.snareOpts(E.defaultState(1), 14);
+    assert.ok(k9.bossWave > 0 && k15.bossWave < k9.bossWave && k15.minionCap > k9.minionCap);
+    const s = fightField({ bossWave: 1, minionCap: 3 });
+    for (let i = 0; i < 60 * 5; i++) { Object.assign(s.boss, { chargeAt: 999 }); s.step(1 / 60); }
+    assert.equal(s.antivirus.filter(f => f.minion).length, 3, 'up to the cap');
+});

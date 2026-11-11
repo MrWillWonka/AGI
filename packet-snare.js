@@ -290,6 +290,10 @@
         parry: 0,
         bossMinions: 0,             // Antivirus it boots each time it's parried (later sectors), at most `minionCap` alive
         minionCap: 2,
+        bossWave: 0,                // s: with this set, the boss boots an Antivirus minion this often while it stands (up to the cap)
+        turretBoss: 0,              // health a turret's shot takes off the boss in reach (minions first)
+        decoyBoss: 0,               // with this set, the boss charges at a decoy instead of the pen…
+        decoyStun: 1.2,             // …and reels this long after smashing one (a slash window)
         bossR: 0.8,                 // its size: it grows sector by sector
         bossSmash: 2,               // seconds it sits on a decoy before smashing it
         bossEdge: 0.24,             // × the shorter side: how far its edge keeps from the field's (0.18 before round 3 of the review)
@@ -925,6 +929,8 @@
         // Where its charges aim: the pen while you draw, else the nearest good packet (so it charges all the same, and
         // there's always a parry to make).
         function chargeTarget(b) {
+            // A decoy draws its charge (the owner's call after the 18.7 log: the defences join the boss fight).
+            if (o.decoyBoss && s.decoys.length) return s.decoys.reduce((a, c) => (Math.hypot(c.x - b.x, c.y - b.y) < Math.hypot(a.x - b.x, a.y - b.y) ? c : a));
             if (s.drawing && s.wire.length) return s.wire[s.wire.length - 1];
             let best = null, bd = Infinity;
             for (const p of s.packets) {
@@ -981,6 +987,17 @@
                     s.boss = null; s.fight = null; s.swallowed = [];
                     end();
                     return;
+                }
+            }
+            // Later bosses send Antivirus in waves while they stand (the owner's call: the defences more and more needed).
+            if (o.bossWave > 0 && !b.melt) {
+                if (b.waveAt == null) b.waveAt = s.time + o.bossWave;
+                if (s.time >= b.waveAt) {
+                    b.waveAt = s.time + o.bossWave;
+                    if (s.antivirus.filter(f => f.minion && !f.ally).length < o.minionCap) {
+                        bootAntivirus(); s.antivirus[s.antivirus.length - 1].minion = true;
+                        s.events.push({ type: 'bossWave', x: b.x, y: b.y });
+                    }
                 }
             }
             mineStep(b, dt);
@@ -1059,11 +1076,13 @@
             if (onDecoy) {
                 b.smash = b.smash?.id === onDecoy.id ? b.smash : { id: onDecoy.id, t: 0 };
                 b.smash.t += dt;
-                if (b.smash.t >= o.bossSmash) {
+                if (b.smash.t >= (o.decoyBoss ? 0.15 : o.bossSmash)) {   // a decoy that draws its charge is smashed as it arrives
                     s.decoys = s.decoys.filter(dc => dc !== onDecoy);
                     s.stats.decoysLost++;
                     s.events.push({ type: 'decoyGone', x: onDecoy.x, y: onDecoy.y, boss: true });
                     b.smash = null;
+                    // it reels from the smash: a slash window
+                    if (o.decoyBoss && !b.melt) { b.charge = null; b.stunned = s.time + o.decoyStun; s.stats.stuns++; s.events.push({ type: 'bossLooped', x: b.x, y: b.y, by: 'decoy' }); }
                 }
             } else b.smash = null;
             const wiped = s.packets.filter(p => p.kind !== 'corrupt' && Math.hypot(p.x - b.x, p.y - b.y) < b.r);
@@ -1815,7 +1834,20 @@
         const farFrom = (list, d) => at => !list.some(it => Math.hypot(it.x - at.x, it.y - at.y) < d);
         const margin = () => Math.min(1, w / 4, h / 4);
         const interior = at => at && { x: Math.max(margin(), Math.min(w - margin(), at.x)), y: Math.max(margin(), Math.min(h - margin(), at.y)) };
+        // In a boss fight the field is empty (it swallowed the packets), so the tools set up round the boss: a turret within
+        // reach of it, a decoy across the field from it, a Firewall on its way to the middle.
+        function fightSpot(kind) {
+            const b = s.boss;
+            if (!b || b.melt) return null;
+            const dx = w / 2 - b.x, dy = h / 2 - b.y, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d;
+            const ang = rand() * Math.PI * 2;
+            if (kind === 'turret') return interior({ x: b.x + Math.cos(ang) * (b.r + o.turretRange * 0.6), y: b.y + Math.sin(ang) * (b.r + o.turretRange * 0.6) });
+            if (kind === 'decoy') return interior({ x: b.x + Math.cos(ang) * shortSide * 0.4, y: b.y + Math.sin(ang) * shortSide * 0.4 });
+            if (kind === 'wall') return interior({ x: b.x + ux * (b.r + zoneHw * 1.5), y: b.y + uy * (b.r + zoneHh * 1.5) });
+            return null;
+        }
         function toolSpot(kind) {
+            if (s.boss && !s.packets.length) { const f = fightSpot(kind); if (f) return f; }
             const red = p => p.kind === 'corrupt' && !spoofed(p);
             if (kind === 'wall') return bestCell(p => (red(p) ? -2 : 1), 2, at => !s.walls.some(f => Math.abs(f.x - at.x) < f.hw * 2 && Math.abs(f.y - at.y) < f.hh * 2));
             if (kind === 'tower') return interior(bestCell(p => (red(p) ? 0 : 1), 3, farFrom(s.towers, 2.5)));
@@ -1978,10 +2010,12 @@
         // `turretStun` s; `avShots` hits and it's down, rebooting from a corner `avReboot` s later), else the nearest
         // corrupt packet in reach (wiped; Purifier Rounds wipe `turretPurge` more). They never take good packets.
         function turretStep() {
+            // in a boss fight their reach is at least 15% of the shorter side (a full field's 1.7 units barely left the mount)
+            const reach = s.boss ? Math.max(o.turretRange, 0.15 * shortSide) : o.turretRange;
             for (const t of s.turrets) {
                 if (s.time < t.at) continue;
                 const dist = q => Math.hypot(q.x - t.x, q.y - t.y);
-                const av = s.antivirus.filter(f => !(f.ally > s.time) && !f.off && !(f.stunned > s.time) && dist(f) <= o.turretRange + f.r).sort((p, q) => dist(p) - dist(q))[0];
+                const av = s.antivirus.filter(f => !(f.ally > s.time) && !f.off && !(f.stunned > s.time) && dist(f) <= reach + f.r).sort((p, q) => dist(p) - dist(q))[0];
                 if (av) {
                     t.at = s.time + o.turretEvery;
                     av.shot = (av.shot || 0) + 1;
@@ -1997,6 +2031,15 @@
                         av.charge = null;
                         s.events.push({ type: 'zap', x: av.x, y: av.y, from: { x: t.x, y: t.y }, av: true, shots: av.shot, of: o.avShots });
                     }
+                    continue;
+                }
+                // then the boss in reach (the owner's call: the defences join the fight), its shield and armour as for a slash
+                const bs = s.boss;
+                if (o.turretBoss > 0 && bs && !bs.melt && dist(bs) <= reach + bs.r) {
+                    t.at = s.time + o.turretEvery;
+                    s.stats.turreted++;
+                    s.events.push({ type: 'zap', x: bs.x, y: bs.y, from: { x: t.x, y: t.y }, boss: true });
+                    damageBoss(bs, o.turretBoss, 'turret');
                     continue;
                 }
                 const bad = s.packets.filter(p => p.kind === 'corrupt' && !spoofed(p) && dist(p) <= o.turretRange).sort((p, q) => dist(p) - dist(q)).slice(0, 1 + o.turretPurge);
@@ -2506,7 +2549,8 @@
                     continue;
                 }
                 // The open wire first; failing that, your nearest decoy or partner core (not your Firewalls).
-                const wireTarget = s.wire.length > 1 ? nearestWire(f.x, f.y) : null;
+                // a boss's minions go for a standing decoy before your wire (the defences join the fight, after the 18.7 log)
+                const wireTarget = s.wire.length > 1 && !(f.minion && o.decoyBoss && s.decoys.length) ? nearestWire(f.x, f.y) : null;
                 const lures = [...s.decoys, ...s.partners];
                 const decoy = !wireTarget && lures.length ? lures.reduce((b, a) => (!b || (a.x - f.x) ** 2 + (a.y - f.y) ** 2 < (b.x - f.x) ** 2 + (b.y - f.y) ** 2 ? a : b), null) : null;
                 const target = wireTarget || decoy;
