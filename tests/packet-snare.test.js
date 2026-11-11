@@ -235,17 +235,42 @@ test('schools: packets of a school stay together; without schooling they drift a
     assert.ok(spread(1) < spread(0) * 0.6, `${spread(1)} vs ${spread(0)}`);
 });
 
-test('Chain Lightning arcs from a catch to good packets nearby outside the loop, never corrupt ones', () => {
-    const s = still({ chain: 2, chainRange: 2 });
+// Snare 18.4 (the owner: "more like static shock than chain lightning"): a bolt leaves the catch and jumps packet to
+// packet over time, each hop to the nearest good packet in reach, never a corrupt one.
+test('Chain Lightning: a bolt jumps from the catch packet to packet, a hop at a time, never to corrupt ones', () => {
+    const s = still({ chain: 5, chainRange: 2 });
     packet(s, 'good', 5, 3.3);
-    packet(s, 'good', 7.3, 3.3);     // outside the loop, 2.3 from the caught one... too far
-    packet(s, 'good', 6.8, 3.3);     // 1.8: in range
-    packet(s, 'corrupt', 6.6, 3.6);  // in range, but corrupt
+    packet(s, 'good', 6.8, 3.3);     // 1.8 from the caught one: the first hop
+    packet(s, 'good', 8.5, 3.3);     // 1.7 on from there: the second
+    packet(s, 'good', 8.5, 6.2);     // 2.9 on: out of reach, the bolt stops
+    packet(s, 'corrupt', 6.6, 3.6);  // in reach, but corrupt
     arc(s, 5, 3.3, 1.2, 0.95);
     const c = s.takeEvents().find(e => e.type === 'catch');
-    assert.equal(c.chained.length, 2 - 1 + 0, 'one in range');
-    assert.equal(c.count, 2);
+    assert.equal(c.count, 1, 'the catch takes its own packet');
+    assert.equal(s.stats.chained, 0, 'nothing at once: the bolt is on its way');
+    for (let i = 0; i < 30; i++) s.step(1 / 60);
+    const ev = s.takeEvents();
+    const hops = ev.filter(e => e.type === 'chainHop');
+    assert.deepEqual(hops.map(h => h.b.x), [6.8, 8.5], 'packet to packet, nearest first, out to its reach');
+    assert.ok(hops[1].a.x === 6.8, 'each hop starts where the last landed');
+    assert.equal(ev.find(e => e.type === 'chainDone')?.count, 2);
     assert.ok(s.packets.some(p => p.kind === 'corrupt'), 'the corrupt one is left');
+    assert.ok(s.packets.some(p => p.y === 6.2), 'the one out of reach is left');
+});
+
+test('Chain Lightning: never more hops than twice the catch and 2 more; Chain Storm forks the bolt', () => {
+    const line = (over) => { const s = still({ chain: 25, chainRange: 1.2, ...over }); packet(s, 'good', 1, 3.3); for (let i = 0; i < 14; i++) packet(s, 'good', 2 + i * 0.8, 3.3); return s; };
+    const s = line();
+    arc(s, 1, 3.3, 0.9, 0.95);
+    for (let i = 0; i < 90; i++) s.step(1 / 60);
+    assert.equal(s.stats.chained, 4, 'a one-packet catch: 4 hops');
+    const f = still({ chain: 25, chainRange: 1.2, chainForks: 1 });
+    packet(f, 'good', 6, 3.3); packet(f, 'good', 6.4, 3.3); packet(f, 'good', 6.2, 3.6);
+    for (let i = 0; i < 8; i++) { packet(f, 'good', 7 + i * 0.7, 3.3); packet(f, 'good', 5 - i * 0.7, 3.3); }
+    arc(f, 6.2, 3.4, 0.7, 0.95);
+    for (let i = 0; i < 90; i++) f.step(1 / 60);
+    const hops = f.takeEvents().filter(e => e.type === 'chainHop');
+    assert.ok(hops.some(h => h.b.x > 6.5) && hops.some(h => h.b.x < 5.5), 'it forked: both ways along the line');
 });
 
 test('the scanner tags the packets it sweeps, and a tagged packet is worth more', () => {
@@ -632,11 +657,26 @@ test('Herders round good packets up toward the middle and shoo corrupt ones away
         return g.reduce((a, p) => a + Math.hypot(p.x - 7, p.y - 7), 0) / g.length;
     };
     assert.ok(spread(3) < spread(0) * 0.8, `${spread(3)} vs ${spread(0)}`);
-    const s = still({ herders: 1, herdRadius: 3 });
+    const s = still({ herders: 1, herdRadius: 3, herdGc: 0 });
     s.packets.push({ id: s.nextId++, kind: 'corrupt', x: s.w / 2 + 1, y: s.h / 2, vx: 0, vy: 1, v: 1, r: P.PACKET_R, age: 0, school: 0, tag: 0 });
     for (let i = 0; i < 30; i++) s.step(1 / 60);
     const c = s.packets[0];
     assert.ok(c.vx > 0.3, 'turned away from the middle');
+});
+
+// Snare 18.4 (the owner's call): Garbage Collection's job is the Herders': a herder deletes an unreadable packet it gets
+// close to, one at a time.
+test('a herder deletes the unreadable packets it gets close to, one every herdGcEvery seconds', () => {
+    const s = still({ herders: 1, herdRadius: 1.7 });
+    const hd = s.herders[0] || (s.step(1 / 60), s.herders[0]);
+    const near = (dx, dy) => s.packets.push({ id: s.nextId++, kind: 'corrupt', x: hd.x + dx, y: hd.y + dy, vx: 0, vy: 0, v: 0, r: P.PACKET_R, age: 0, school: 0, tag: 0 });
+    near(0.3, 0); near(-0.3, 0);
+    s.step(1 / 60);
+    assert.equal(s.packets.filter(p => p.kind === 'corrupt').length, 1, 'one at once');
+    assert.ok(s.takeEvents().some(e => e.type === 'herdGc'));
+    for (let i = 0; i < 80; i++) { Object.assign(hd, { vx: 0, vy: 0 }); s.step(1 / 60); }
+    assert.ok(s.packets.filter(p => p.kind === 'corrupt').length <= 1);
+    assert.ok(s.stats.collected >= 1);
 });
 
 test('no threat waits for runs played: each comes with its sector (the owner\'s call after the review rounds)', () => {

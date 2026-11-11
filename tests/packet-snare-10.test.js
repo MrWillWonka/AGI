@@ -68,8 +68,6 @@ test('Broadband: caught packets come back sooner for each turret or tower placed
 
 test('the Snare 10.3 nodes sit in their wedges and the tree keeps its rules', () => {
     const at = id => E.UPGRADE_BY_ID[id].snare;
-    assert.deepEqual(at('snareCleanSweep'), { x: -2, y: -5 }, 'Clean Sweep up in Loops');
     assert.deepEqual(at('snareBackpressure'), { x: 3, y: -1 }, 'Backpressure in Flow');
-    assert.deepEqual(at('snareRelay'), { x: -4, y: 3 }, 'Quarantine Relay in Countermeasures');
-    for (const id of ['snareFloodgate', 'snareCleanSweep', 'snareBackpressure', 'snareRelay']) assert.ok(E.UPGRADE_BY_ID[id].mechanic, `${id} is a hexagon`);
+    for (const id of ['snareFloodgate', 'snareBackpressure']) assert.ok(E.UPGRADE_BY_ID[id].mechanic, `${id} is a hexagon`);
 });

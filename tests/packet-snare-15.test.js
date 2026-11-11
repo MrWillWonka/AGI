@@ -134,7 +134,7 @@ test('Race Condition: a full bubble held still grows its multiplier; moving it s
     assert.ok(!(plain.bubble.bonus > 0), 'without the node it stays put');
 });
 
-test('a bubble quarantines a core, hijacks a stunned Antivirus and collects garbage', () => {
+test('a bubble quarantines a core and counts as a loop toward hijacking a stunned Antivirus (two hijack it)', () => {
     const s = still({ rogue: 1, rogueFirst: 0.05, rogueEvery: 99 });
     run(s, 0.1);
     const c = s.cores[0];
@@ -145,11 +145,9 @@ test('a bubble quarantines a core, hijacks a stunned Antivirus and collects garb
     const f = h.antivirus[0];
     Object.assign(f, { x: 6, y: 4, vx: 0, vy: 0, stunned: h.time + 5 });
     bubble(h, 6, 4, 0.6);
+    Object.assign(f, { x: 6, y: 4, vx: 0, vy: 0 });
+    bubble(h, 6, 4, 0.6);
     assert.equal(h.stats.hijacked, 1);
-    const g = still({ gc: 1 });
-    packet(g, 'corrupt', 6, 4); packet(g, 'corrupt', 6.2, 4.1);
-    bubble(g, 6.1, 4, 0.6);
-    assert.equal(g.stats.collected, 2);
 });
 
 // Snare 18.1 (K7, the owner's call): a loop round a mine disables it; pulled back from and let go, it flies (a sling).

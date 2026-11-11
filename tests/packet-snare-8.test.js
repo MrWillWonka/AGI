@@ -158,17 +158,29 @@ test('Race Condition: a loop held open grows its multiplier and takes what swims
     assert.equal(bad.stats.corrupted, 1, 'a corrupt packet getting in spoils it');
 });
 
-test('Hijack: a loop round a stunned Antivirus turns it, and it takes packets for you', () => {
+// Snare 18.4 (the owner's call): two loops round a stunned Antivirus turn it, and it vacuums up packets near it for you.
+test('Hijack: two loops round a stunned Antivirus turn it, and it vacuums up packets for you', () => {
     const s = still({ hijack: 1, antivirus: [0], hijackSeconds: 6 });
     run(s, 0.05);
     Object.assign(s.antivirus[0], { x: 5, y: 3.5, vx: 0, vy: 0, stunned: s.time + 2 });
     circle(s, 5, 3.5, 0.9);
-    assert.equal(s.stats.hijacked, 1);
-    packet(s, 'good', 7, 3.5);
-    run(s, 3);
-    assert.equal(s.stats.caught, 1, 'it took the packet');
-    run(s, 4);
+    assert.equal(s.stats.hijacked, 0, 'one loop is not enough');
+    assert.ok(s.takeEvents().some(e => e.type === 'hijackLoop' && e.n === 1 && e.of === 2));
+    circle(s, 5, 3.5, 0.9);
+    assert.equal(s.stats.hijacked, 1, 'the second turns it');
+    packet(s, 'good', 6.2, 3.5);
+    run(s, 2);
+    assert.equal(s.stats.caught, 1, 'it pulled in the packet near it');
+    run(s, 5);
     assert.ok(!s.antivirus[0].ally, 'and turned back when its time was up');
+});
+
+test('Hijack: a stun lasts long enough to loop it, whatever stunned it', () => {
+    const s = still({ hijack: 1, antivirus: [0] });
+    run(s, 0.05);
+    Object.assign(s.antivirus[0], { stunned: s.time + 0.5 });
+    run(s, 1);
+    assert.ok(s.antivirus[0].stunned > s.time, 'still stunned after the half second its stun had');
 });
 
 test('Collusion: a quarantined core may turn partner, collecting for you until an Antivirus breaks it', () => {

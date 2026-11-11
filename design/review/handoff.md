@@ -22,9 +22,9 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
   a 30 s fight clock); 17.5 republished let drawn circles catch on phones.
 - **Newest owner log:** `playtests/snare/2026-11-10-owner-snare-18-1.txt` (iPhone, 18.1, sectors 1–8; a summary with
   the owner's notes: the full export is in that session's chat). Its calls are built (Snare 18.3, unpublished): the
-  boss's meltdown, a faster mine, dearer big Sprawl steps, the boss nodes waiting for a boss, full sentences. **Still to
-  propose to the owner** (they asked): a revamp of the nodes that feel useless (Garbage Collection named) and of Chain
-  Lightning ("more like static shock than chain lightning").
+  boss's meltdown, a faster mine, dearer big Sprawl steps, the boss nodes waiting for a boss, full sentences. Then (Snare 18.4,
+  unpublished): Chain Lightning a travelling bolt, Hijack reworked, Garbage Collection, Second Wind, Clean Sweep, Quarantine
+  Relay and Zero Trust gone. **Still to propose to the owner:** the flicks ("don't feel useful or fun at the moment").
 - **Older owner log:** `playtests/snare/2026-11-10-owner-snare-17-6.txt` (iPhone, 17.6, through sector 11's boss,
   which escaped twice at 61/80 and 70/80 damage; every mine grabbed was thrown).
 - **Watch in the next log:** sector 11's boss with bank shots; whether the faster Antivirus feel right (sector 3); the

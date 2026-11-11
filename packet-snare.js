@@ -78,9 +78,15 @@
         avHunt: 2.4,                // homing on the wire (a moving pointer is much faster)
         avTurn: 3.0,                // how quickly it steers (per second)
         avStun: 3,                  // seconds an Antivirus is stunned by your Firewall
-        chain: 0,                   // Chain Lightning: packets outside a loop each catch arcs to…
-        chainRange: 1.6,            // …within this of a snared packet
-        chainHops: 0,               // Chain Storm: arcs jump on from the packets they reach, this many times
+        // Chain Lightning (Snare 18.4, the owner: it felt "more like static shock than chain lightning"): a catch sends out a
+        // bolt that jumps packet to packet, one hop every `chainEvery` s, up to `chain` hops (never more than twice the
+        // catch's packets and 2 more), each to the nearest good packet within `chainRange`, catching it at the catch's
+        // multiplier; Chain Storm forks it (`chainForks`: that many more bolts leave the catch, each its own way, each with
+        // its own hops) and reaches further.
+        chain: 0,
+        chainRange: 1.8,            // Snare 18.4: 1.6 before (a bolt travels from its tip, where arcs reached out from the whole catch)
+        chainForks: 0,
+        chainEvery: 0.05,
         scanner: 0,                 // Scanner: beams sweeping from the middle, tagging packets ×TAG_VALUE for TAG_SECONDS
         scannerSpeed: 1.1,          // radians per second
         tagSeconds: 1.5,            // how long a tag lasts: catch what the beam just lit
@@ -242,6 +248,8 @@
         contain: 0,                 // Containment Field: the edges turn good packets back (corrupt ones still leave)
         herders: 0,                 // Herders: drones that round strays up toward your pen (or the middle)
         herdRadius: 1.7,            // units: how near a herder must be to move a packet
+        herdGc: 1,                  // Snare 18.4: herders delete unreadable packets near them (Garbage Collection folded in; 0: off)…
+        herdGcEvery: 1.2,           // …one each at most this often
         herdSpeed: 2.8,
         herdPull: 2.6,              // how quickly a herded packet turns (per second)
         cleanStart: false,          // the first runs: one school starts clear of corrupt packets, and the lure waits
@@ -368,9 +376,16 @@
         race: 0,
         raceRate: 0.25,
         raceMax: 1,
-        // Hijack: a loop round a stunned Antivirus turns it for `hijackSeconds`: it hunts good packets for you.
+        // Hijack (Snare 18.4, the owner's call): `hijackLoops` loops (or bubbles) round a stunned Antivirus, each within
+        // `hijackWindow` s of the last, turn it for `hijackSeconds`: it vacuums up the good packets within `hijackPull` of the
+        // shorter side and pays you for them. Your Turrets and Firewalls do the stunning; with Hijack a stun lasts at
+        // least `hijackStun` s, time to loop it (the game marks it: no words).
         hijack: 0,
-        hijackSeconds: 8,
+        hijackSeconds: 10,
+        hijackLoops: 2,
+        hijackWindow: 3.5,
+        hijackStun: 4,
+        hijackPull: 0.16,
         // Collusion: a quarantined core may turn partner (`collude` chance): it collects good packets in its circle for
         // you, once a second, for `partnerLife` s; Antivirus go for it and break it.
         collude: 0,
@@ -585,6 +600,7 @@
             held: [],               // boss mines disabled by a loop { id, x, y, until }
             sling: null,            // a disabled mine being pulled back { id, x, y, to }
             thrown: [],             // thrown mines in flight { id, x, y, vx, vy, bounces }
+            bolts: [],              // Chain Lightning's bolts on their way { x, y, left, forks, mult, t, hops, group }
             handCaught: 0,          // packets caught by hand (loops): what boots the boss early
             rogueAt: o.rogue ? o.rogueFirst : Infinity,
             boss: null,             // the boss Antivirus once it boots: { x, y, vx, vy, r, hp, maxHp, stunned, charge, shielded }
@@ -2035,9 +2051,20 @@
                 hd.x = Math.max(0.2, Math.min(w - 0.2, hd.x + hd.vx * dt));
                 hd.y = Math.max(0.2, Math.min(h - 0.2, hd.y + hd.vy * dt));
             });
+            // Garbage collection (Snare 18.4, the owner's call: Garbage Collection's job folded into the Herders): a working
+            // herder deletes an unreadable packet it gets close to, one every `herdGcEvery` s.
+            const working = s.herders.filter(hd => !(hd.stunned > s.time));
+            for (const hd of working) {
+                if (!o.herdGc || s.time < (hd.gcAt || 0)) continue;
+                const p = s.packets.find(q => q.kind === 'corrupt' && !(q.spoofed > s.time) && Math.hypot(q.x - hd.x, q.y - hd.y) < Math.max(0.6, o.herdRadius * 0.5));
+                if (!p) continue;
+                hd.gcAt = s.time + o.herdGcEvery;
+                s.stats.collected++;
+                s.events.push({ type: 'herdGc', x: p.x, y: p.y, from: { x: hd.x, y: hd.y } });
+                remove([p]);
+            }
             // Packets near a working herder turn: good ones toward the gather point, corrupt ones away from it.
             const kp = Math.min(1, o.herdPull * dt);
-            const working = s.herders.filter(hd => !(hd.stunned > s.time));
             for (const p of s.packets) {
                 if (!working.some(hd => Math.hypot(hd.x - p.x, hd.y - p.y) <= o.herdRadius)) continue;
                 let ang = Math.atan2(g.y - p.y, g.x - p.x);
@@ -2053,6 +2080,16 @@
         // ---- Hijack, Collusion and Race Condition -------------------------------------------------------------
         // A hijacked Antivirus hunts the richest good packet near it and takes what it touches, for you.
         function allyStep(f, dt) {
+            // the vacuum (Snare 18.4): good packets near it are pulled in
+            const pullR = o.hijackPull * shortSide;
+            for (const p of s.packets) {
+                if (!isGood(p)) continue;
+                const dx = f.x - p.x, dy = f.y - p.y, d = Math.hypot(dx, dy);
+                if (d > pullR || d < 1e-6) continue;
+                const k = Math.min(1, 6 * dt * (1 - d / pullR) + 2 * dt);
+                p.x += dx * k; p.y += dy * k;
+            }
+            f.pullR = pullR;
             let best = null, bd = Infinity;
             for (const p of s.packets) {
                 if (!isGood(p)) continue;
@@ -2072,6 +2109,75 @@
             f.hunting = false;
             const got = s.packets.filter(p => isGood(p) && Math.hypot(p.x - f.x, p.y - f.y) < f.r + p.r);
             if (got.length) takeFor(got, f, 'hijack');
+        }
+        // ---- Chain Lightning's bolts (Snare 18.4) ----------------------------------------------------------------------------
+        // A bolt leaves from the caught packet nearest a good one outside, and jumps on from there.
+        const boltReach = () => o.chainRange;
+        function nearestGood(x, y, reach) {
+            let best = null, bd = reach;
+            for (const p of s.packets) {
+                if (!isGood(p)) continue;
+                const d = Math.hypot(p.x - x, p.y - y);
+                if (d <= bd) { bd = d; best = p; }
+            }
+            return best;
+        }
+        // Chain Storm's forks leave from the catch too, each its own way (first targets at least 60° apart round the catch),
+        // sharing the hops: a fork that followed the bolt only went where it was going.
+        function launchBolt(from, mult) {
+            if (!from.length) return;
+            const cx = from.reduce((a, p) => a + p.x, 0) / from.length, cy = from.reduce((a, p) => a + p.y, 0) / from.length;
+            const cands = [];
+            for (const p of s.packets) {
+                if (!isGood(p)) continue;
+                let best = null, bd = boltReach();
+                for (const a of from) { const d = Math.hypot(p.x - a.x, p.y - a.y); if (d <= bd) { bd = d; best = a; } }
+                if (best) cands.push({ p, a: best, d: bd, ang: Math.atan2(p.y - cy, p.x - cx) });
+            }
+            if (!cands.length) return;
+            cands.sort((x, y) => x.d - y.d || x.p.id - y.p.id);
+            const picks = [];
+            for (const c of cands) {
+                if (picks.length > o.chainForks) break;
+                if (picks.every(q => Math.abs(Math.atan2(Math.sin(c.ang - q.ang), Math.cos(c.ang - q.ang))) > Math.PI / 3)) picks.push(c);
+            }
+            const total = Math.min(o.chain, 2 * from.length + 2);
+            const group = { id: s.nextId++, count: 0, units: 0, alive: picks.length, x: cx, y: cy };
+            // each fork a whole bolt of its own (Chain Storm used to multiply the arcs: splitting the hops left it only reach)
+            // `trail`: where it can branch on from when its tip runs dry: the catch itself, then everywhere it lands
+            picks.forEach((c, i) => s.bolts.push({ x: c.a.x, y: c.a.y, first: c.p, left: total, forks: 0, mult, t: i * o.chainEvery * 0.5, hops: 0, group, trail: from.slice() }));
+        }
+        function boltStep(dt) {
+            if (!s.bolts.length) return;
+            for (const b of s.bolts.slice()) {
+                b.t -= dt;
+                while (b.t <= 0 && b.left > 0) {
+                    b.t += o.chainEvery;
+                    let p = b.first && s.packets.includes(b.first) ? b.first : nearestGood(b.x, b.y, boltReach());
+                    b.first = null;
+                    // nothing in reach of its tip: it branches on from anywhere it has been, or the catch (lightning forks back)
+                    if (!p) for (const q of (b.trail || []).slice().reverse()) { p = nearestGood(q.x, q.y, boltReach()); if (p) { b.x = q.x; b.y = q.y; break; } }
+                    if (!p) { b.left = 0; break; }
+                    (b.trail ||= []).push({ x: b.x, y: b.y });
+                    const units = valueOf(p) * b.mult, g = b.group;
+                    g.count++;
+                    g.units += units;
+                    s.stats.caught++;
+                    s.stats.chained++;
+                    s.stats.units += units;
+                    s.handCaught++;
+                    if (p.kind === 'gold') s.stats.gold++;
+                    s.events.push({ type: 'chainHop', a: { x: b.x, y: b.y }, b: { x: p.x, y: p.y }, units, kind: p.kind, n: g.count, group: g.id });
+                    remove([p]);
+                    b.x = p.x; b.y = p.y;
+                    b.left--;
+                    b.hops++;
+                }
+                if (b.left <= 0) {
+                    s.bolts = s.bolts.filter(q => q !== b);
+                    if (--b.group.alive <= 0 && b.group.count) s.events.push({ type: 'chainDone', x: b.x, y: b.y, count: b.group.count, units: b.group.units, group: b.group.id });
+                }
+            }
         }
         // Packets taken for you outside a loop (a hijacked Antivirus, a partner core): paid at ×1.
         function takeFor(list, from, by) {
@@ -2248,6 +2354,7 @@
             splitStep();
             heldStep(dt);
             thrownStep(dt);
+            boltStep(dt);
             // Burst out of a beaten boss: flung fast, they ease back to a swim (on a current they'd leave the field).
             for (const p of s.packets) {
                 if (!p.burst) continue;
@@ -2303,6 +2410,11 @@
             sweepStep(dt);
             while (avDue.length && s.time >= avDue[0] && !penBusy()) { avDue.shift(); bootAntivirus(); }
             for (const f of s.antivirus) {
+                // With Hijack, a stun lasts long enough to loop it (whatever stunned it: a Turret, a Firewall)
+                if (o.hijack && !f.ally) {
+                    if (f.stunned > s.time) { if (f.stunFrom == null) { f.stunFrom = s.time; f.stunned = Math.max(f.stunned, s.time + o.hijackStun); } }
+                    else f.stunFrom = null;
+                }
                 // Hijacked: it works for you until its time is up, then reboots (stunned a moment) and turns back.
                 if (f.ally) {
                     if (f.ally > s.time) { allyStep(f, dt); continue; }
@@ -2585,11 +2697,20 @@
             let any = false;
             for (const f of s.antivirus) {
                 if (f.ally || !(f.stunned > s.time) || !pointInPolygon(f, poly)) continue;
+                any = true;
+                f.hjLoops = s.time - (f.hjAt ?? -1e9) <= o.hijackWindow ? (f.hjLoops || 0) + 1 : 1;
+                f.hjAt = s.time;
+                if (f.hjLoops < o.hijackLoops) {
+                    // the stun holds while you loop it
+                    f.stunned = Math.max(f.stunned, s.time + o.hijackWindow * 0.6);
+                    s.events.push({ type: 'hijackLoop', x: f.x, y: f.y, n: f.hjLoops, of: o.hijackLoops });
+                    continue;
+                }
+                f.hjLoops = 0;
                 f.ally = s.time + o.hijackSeconds;
                 f.stunned = 0;
                 s.stats.hijacked++;
                 s.events.push({ type: 'hijack', x: f.x, y: f.y });
-                any = true;
             }
             return any;
         }
@@ -2603,7 +2724,8 @@
             s.leftStart = false;
             if (o.bubble && !o.loopCatch) {
                 const disabled = grabMines(poly);
-                if (!loopBoss(poly) && !disabled) s.events.push({ type: 'loopOnly', x: at.x, y: at.y, poly });
+                const hijacked = hijackIn(poly);
+                if (!loopBoss(poly) && !disabled && !hijacked) s.events.push({ type: 'loopOnly', x: at.x, y: at.y, poly });
                 return;
             }
             const j = judge(poly, 0, true);
@@ -2715,42 +2837,10 @@
                 if (s.focus <= 0) end();
                 return;
             }
-            // Chain Lightning: arcs from the snared packets to good ones outside the loop, nearest first.
-            const chained = [];
-            if (o.chain > 0) {
-                const outside = s.packets.filter(p => isGood(p) && !j.inside.includes(p));
-                const cands = [];
-                for (const q of outside) {
-                    let best = null, bd = o.chainRange;
-                    for (const p of j.good) {
-                        const d = Math.hypot(q.x - p.x, q.y - p.y);
-                        if (d <= bd) { bd = d; best = p; }
-                    }
-                    if (best) cands.push({ q, from: best, d: bd });
-                }
-                cands.sort((a, b) => a.d - b.d || a.q.id - b.q.id);
-                // Never more than twice the packets the loop itself caught (a scribble's one-packet loop arcs twice; Snare 14
-                // loosened it from once, the owner's call: Chain Lightning had to feel like a power).
-                const arcs = Math.min(o.chain, 2 * j.good.length);
-                for (const c of cands.slice(0, arcs)) chained.push({ packet: c.q, from: { x: c.from.x, y: c.from.y } });
-                // Chain Storm: each hop arcs on from the packets the last one reached, to as many again.
-                let front = chained.map(c => c.packet);
-                for (let hop = 0; hop < o.chainHops && front.length; hop++) {
-                    const taken = new Set([...j.inside, ...chained.map(c => c.packet)]);
-                    const next = [];
-                    for (const q of s.packets) {
-                        if (!isGood(q) || taken.has(q)) continue;
-                        let best = null, bd = o.chainRange;
-                        for (const p of front) { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= bd) { bd = d; best = p; } }
-                        if (best) next.push({ q, from: best, d: bd });
-                    }
-                    next.sort((a, b) => a.d - b.d || a.q.id - b.q.id);
-                    const add = next.slice(0, arcs);
-                    for (const c of add) chained.push({ packet: c.q, from: { x: c.from.x, y: c.from.y } });
-                    front = add.map(c => c.q);
-                }
-            }
-            const chainValue = chained.reduce((a, c) => a + valueOf(c.packet), 0);
+            // Chain Lightning is a bolt now (Snare 18.4): it leaves after the catch is paid (`launchBolt` below), so the catch
+            // itself chains nothing.
+            const chained = [], chainValue = 0;
+            const caughtAt = j.good.map(p => ({ x: p.x, y: p.y }));
             // A loop closed moments after the last (a scribble, lifted or not) pays half, doesn't count toward the
             // sector's goal and sets off none of the clean-loop rewards.
             // (Bubbles aren't rushed: they already cost the time they're held; round 2 of the review.)
@@ -2773,6 +2863,7 @@
             s.stats.bestMult = Math.max(s.stats.bestMult, j.mult);
             const clean = j.corrupt.length === 0 && !hasty;
             s.cleanRun = clean ? s.cleanRun + 1 : 0;
+            if (o.chain > 0) launchBolt(caughtAt, j.mult * (hasty ? o.scribblePay : 1) * (1 + o.streakPay * run));
             // Firehose: a clean loop sends a pulse of packets in from upstream.
             if (o.pulse && clean) {
                 school(Math.round(2 * o.pulse), true);

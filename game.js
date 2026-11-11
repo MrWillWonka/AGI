@@ -4113,6 +4113,9 @@ window.AGI = (function () {
                 return { x: (f.x + b.x) / 2, y: (f.y + b.y) / 2, r: Math.hypot(b.x - f.x, b.y - f.y) / 2 + 0.8, gesture: 'flick', a: { x: f.x, y: f.y }, b: { x: b.x, y: b.y } };
             },
             text: () => '> Flick from your Antivirus into the boss to ram it.', done: e => e.type === 'escalate' },
+        { key: 'hijack', when: run => run.opts.hijack && run.antivirus.find(f => !(f.ally > run.time) && f.stunned > run.time)?.id,
+            aim: (run, id) => { const f = run.antivirus.find(q => q.id === id); return f && !(f.ally > run.time) && f.stunned > run.time && { x: f.x, y: f.y, r: f.r + Math.max(0.8, run.closeR), gesture: 'loop', turns: 2 }; },
+            text: () => '> Loop round the stunned Antivirus twice to hijack it.', done: e => e.type === 'hijack' },
         ...['freeze', 'purge'].map(kind => ({ key: `pickup:${kind}`, when: run => run.pickups?.find(p => p.kind === kind)?.id,
             aim: (run, id) => { const p = coachById(run.pickups || [], id); return p && { x: p.x, y: p.y, r: 1, gesture: 'tap' }; },
             text: () => `> ${coachTap() === 'click' ? 'Click' : 'Tap'} the pickup to ${kind === 'freeze' ? 'freeze the field' : 'wipe out every unreadable packet'}.`,
@@ -4384,6 +4387,23 @@ window.AGI = (function () {
             } else if (t === 'laser') {
                 snareFxFor(e, snare.fx, `+${E.format(snarePay(e.units))}`);
                 sfx('snareLaser');
+            } else if (t === 'chainHop') {
+                // Snare 18.4: the bolt's hops, each paid as it lands and drawn as its own jagged arc
+                const pay = snarePay(e.units);
+                (snare.chainPaid ||= {})[e.group] = (snare.chainPaid[e.group] || 0) + pay;
+                snare.fx.push({ kind: 'chain', arcs: [{ packet: e.b, from: e.a }], t: 0, life: 0.55, seed: (e.b.x * 13.7 + e.n) % 1 });
+                sfx('snareChain');
+            } else if (t === 'chainDone') {
+                const paid = snare.chainPaid?.[e.group] || 0;
+                if (snare.chainPaid) delete snare.chainPaid[e.group];
+                if (e.count >= 3) snare.fx.push({ kind: 'banner', x: e.x, y: e.y - 1.2, t: 0, life: 1.1, text: `⚡ CHAIN ×${e.count} · +${E.format(paid)}`, huge: e.count >= 20 });
+                if (e.count >= 12 && !reducedMotion()) snare.fx.push({ kind: 'flash', t: 0, life: 0.3 });
+            } else if (t === 'herdGc') {
+                // Snare 18.4: a herder deletes an unreadable packet (Garbage Collection's job, folded in)
+                snare.fx.push({ kind: 'purge', packets: [{ x: e.x, y: e.y, kind: 'corrupt' }], t: 0, life: 0.45 });
+                if (Math.random() < 0.5) sfx('snareGarbage');
+            } else if (t === 'hijackLoop') {
+                sfx('snareStun', { down: false });
             } else if (t === 'taken') {
                 snareFxFor(e, snare.fx, `+${E.format(snarePay(e.units))}`);
                 sfx('snareTaken');
@@ -7670,14 +7690,47 @@ window.AGI = (function () {
                 ctx.lineTo(x + Math.cos(a) * (r + 5), y + Math.sin(a) * (r + 5));
             }
             ctx.stroke();
+            // Hijack (Snare 18.4, the owner's call: a visible mark, no words): a stunned one wears a dashed amber ring that
+            // draws itself round it (loop here), a ring of the stun's time left, and a pip for each loop it needs, lit as
+            // they're done
             if (stunned && run.opts.hijack) {
-                ctx.globalAlpha = 0.5 + 0.4 * Math.sin(t * 8);
+                const need = run.opts.hijackLoops || 2, done = run.time - (f.hjAt ?? -1e9) <= run.opts.hijackWindow ? (f.hjLoops || 0) : 0;
+                const lr = r + 14, ph = (performance.now() / 1000 * 0.8) % 1;
+                ctx.globalAlpha = 0.85;
                 ctx.strokeStyle = C.warning;
-                ctx.setLineDash([4, 4]);
+                ctx.lineWidth = 2.5;
+                ctx.setLineDash([6, 5]);
                 ctx.beginPath();
-                ctx.arc(x, y, r + 10, 0, Math.PI * 2);
+                ctx.arc(x, y, lr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, ph * 1.25));
                 ctx.stroke();
                 ctx.setLineDash([]);
+                ctx.strokeStyle = C.text;
+                ctx.lineWidth = 1.5;
+                const left = Math.max(0, Math.min(1, (f.stunned - run.time) / (run.opts.hijackStun || 4)));
+                ctx.beginPath();
+                ctx.arc(x, y, lr + 6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left);
+                ctx.stroke();
+                for (let i = 0; i < need; i++) {
+                    ctx.globalAlpha = i < done ? 1 : 0.4;
+                    ctx.fillStyle = i < done ? C.warning : C.muted;
+                    ctx.beginPath();
+                    ctx.arc(x - (need - 1) * 6 + i * 12, y + lr + 12, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+            }
+            // a hijacked one's vacuum: its pull, a faint ring turning inward
+            if (ally && f.pullR) {
+                ctx.globalAlpha = 0.35;
+                ctx.strokeStyle = C.warning;
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([3, 6]);
+                ctx.lineDashOffset = performance.now() / 40;
+                ctx.beginPath();
+                ctx.arc(x, y, f.pullR * k, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.lineDashOffset = 0;
                 ctx.globalAlpha = 1;
             }
             if (!stunned) {

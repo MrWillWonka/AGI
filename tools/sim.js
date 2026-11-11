@@ -561,7 +561,8 @@ function snareStep(dt) {
     snareSim.bot.step(dt);
     r.step(dt);
     for (const e of r.takeEvents()) {
-        if (e.type === 'catch' || e.type === 'laser' || e.type === 'quarantine' || e.type === 'taken') snareSim.haul += E.snareCatch(s, e.units, snareSim.sector);
+        if (e.type === 'catch' || e.type === 'laser' || e.type === 'quarantine' || e.type === 'taken' || e.type === 'chainHop') snareSim.haul += E.snareCatch(s, e.units, snareSim.sector);
+        if (e.type === 'meltHit') snareSim.haul += E.snareMeltPay(s, snareSim.sector, false, e.from, e.to, e.of);
         // A cleared sector: the bot goes deeper at once (Go deeper).
         if (e.type === 'bossDown' || e.type === 'goal') {
             snareSim.haul += e.type === 'bossDown' ? E.snareBossDown(s, snareSim.sector) : E.snareGoalMet(s, snareSim.sector);

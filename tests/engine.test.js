@@ -2009,7 +2009,8 @@ test('Packet Snare (Snare 10): four wedges, verbs inside, automation and a capst
     for (const id of ['snareHerders', 'snareTowers', 'snareLaser', 'snareTurrets', 'snareCleanerBot', 'snareSpooferBot', 'snareCollectorBot']) assert.ok(by(id).cost.signal <= 4000, `${id} comes by mid-game`);
     for (const id of ['snareChain', 'snareFreeze', 'snareRace', 'snarePurge', 'snareDecoys', 'snareSpoof', 'snareRiposte']) assert.ok(ring(by(id)) <= 5, `${id} is a verb on the inner rings`);
     // A capstone on each axis, six cells out, each a new rule with a demo.
-    for (const [id, x, y] of [['snareEcho', 0, -6], ['snareStorm', 6, 0], ['snareBlueScreen', 1, 4], ['snareZeroTrust', -6, 0]]) {
+    // (Zero Trust, Countermeasures' capstone, went in Snare 18.4: the owner's call on the 18.1 log)
+    for (const [id, x, y] of [['snareEcho', 0, -6], ['snareStorm', 6, 0], ['snareBlueScreen', 1, 4]]) {
         assert.ok(by(id).mechanic, `${id} is a capstone hexagon`);
         assert.deepEqual([by(id).snare.x, by(id).snare.y], [x, y]);
     }

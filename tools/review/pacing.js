@@ -93,12 +93,15 @@ function campaign(seed, scr, { pace = PACE, minutes = MINUTES, runCap = RUN_CAP,
             bot.step(dt);
             run.step(dt);
             for (const e of run.takeEvents()) {
-                if (e.type === 'catch' || e.type === 'laser' || e.type === 'quarantine' || e.type === 'taken') {
+                // Snare 18.4: Chain Lightning's hops are paid as they land (`chainHop`), the player's own
+                if (e.type === 'catch' || e.type === 'laser' || e.type === 'quarantine' || e.type === 'taken' || e.type === 'chainHop') {
                     const pay = E.snareCatch(s, e.units, k);
                     haul += pay;
                     // the player's bubbles (and what they set off: chains, echoes, splits) against what helpers took
-                    if (e.type === 'catch' || e.type === 'quarantine') mine += pay; else helped += pay;
+                    if (e.type === 'catch' || e.type === 'quarantine' || e.type === 'chainHop') mine += pay; else helped += pay;
                 }
+                // Snare 18.3: a melting boss's hits pay a set amount (the game pays them the same way)
+                if (e.type === 'meltHit') { const pay = E.snareMeltPay(s, k, false, e.from, e.to, e.of); haul += pay; mine += pay; }
                 // a cleared sector: the run gathers on there (a person rarely pressed Go deeper in the log)
                 if ((e.type === 'goal' || e.type === 'bossDown') && !cleared) {
                     cleared = true;
