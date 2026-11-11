@@ -3895,8 +3895,8 @@ window.AGI = (function () {
     // Bubbles (a prototype, per device, off by default): hold still to grow a bubble that catches; loops only stun.
     // How to catch (Snare 15, the owner's call: bubbles are the way to catch), for the first card and the first tip.
     const snareHowTo = () => (matchMedia('(pointer: fine)').matches
-        ? 'CONTROLS: hold the right mouse button to open a bubble. Release to capture.'
-        : 'CONTROLS: hold still to open a bubble, or draw a circle. Release to capture.');
+        ? 'CONTROLS: Hold the right mouse button to open a bubble, and release it to capture.'
+        : 'CONTROLS: Hold still to open a bubble, or draw a circle, and release to capture.');
     function snareField(area = E.snareOpts(state).area, o = null) {
         const aspect = Math.min(3.5, Math.max(0.5, snare.cw / snare.ch || 1.6));
         const cap = snare.cw > 0 && snare.ch > 0 ? Math.max(window.PacketSnare.FIELD_AREA, snare.cw * snare.ch / SNARE_PPU ** 2) : area;
@@ -4025,7 +4025,7 @@ window.AGI = (function () {
         if ((snare.leftHints = (snare.leftHints || 0) + 1) > 4) return;
         if (!snare.toWorld) return;
         const [hx, hy] = snare.toWorld({ clientX: at.clientX ?? at.x, clientY: at.clientY ?? at.y });
-        snare.fx.push({ kind: 'hint', x: hx, y: hy - 0.6, t: 0, life: 1.6, text: '> hold the right button to open a bubble' });
+        snare.fx.push({ kind: 'hint', x: hx, y: hy - 0.6, t: 0, life: 1.6, text: '> Hold the right button to open a bubble.' });
     }
     // Why things went wrong in a run, counted for the playtest log (pops and snaps by what did them, boss loops too late or
     // that missed it): the questions the review rounds couldn't answer from a log.
@@ -4065,27 +4065,27 @@ window.AGI = (function () {
     const SNARE_COACHES = [
         { key: 'bubble', when: run => run.time > 0.6 && snareCluster(run),
             aim: (run, ids) => { const g = snareGroupAt(run, ids); return g && { ...g, gesture: 'hold' }; },
-            text: () => (snareFinePointer() ? '> hold the right button · let go to catch' : '> hold still · let go to catch'),
+            text: () => (snareFinePointer() ? '> Hold the right button, then let go to catch them.' : '> Hold still, then let go to catch them.'),
             done: e => e.type === 'catch' },
         { key: 'red', after: 'bubble', info: 5, when: run => run.packets.find(p => p.kind === 'corrupt' && p.x > 0.5 && p.y > 0.5 && p.x < run.w - 0.5 && p.y < run.h - 0.5)?.id,
             aim: (run, id) => { const p = coachById(run.packets, id); return p && { x: p.x, y: p.y, r: 0.7, gesture: 'mark' }; },
-            text: () => '> unreadable · keep it out of your bubble', done: e => e.type === 'catch' },
+            text: () => '> That packet is unreadable. Keep it out of your bubble.', done: e => e.type === 'catch' },
         // Phones catch with a drawn loop too (Snare 17.5): shown once a bubble has caught (the owner's call: show the choice)
         { key: 'loop', after: 'bubble', when: run => run.opts.loopCatch && !snareFinePointer() && performance.now() - (snare.coachCaught || Infinity) > 1500 && snareCluster(run),
             aim: (run, ids) => { const g = snareGroupAt(run, ids); return g && { ...g, r: g.r + 0.3, gesture: 'loop' }; },
-            text: () => '> or draw a loop round them', done: e => e.type === 'catch' && e.drawn },
+            text: () => '> You can also draw a loop round them to catch them.', done: e => e.type === 'catch' && e.drawn },
         { key: 'bossLoop', when: run => run.boss && run.fight && !(run.boss.stunned > run.time) && !run.boss.charge,
             aim: run => { const b = run.boss; return b && !(b.stunned > run.time) && { x: b.x, y: b.y, r: b.r + Math.max(0.9, run.closeR * 1.1), gesture: 'loop', turns: 2 }; },
-            text: () => (snareFinePointer() ? '> left button: loop round it twice' : '> loop round it twice'), done: e => e.type === 'bossLooped' },
+            text: () => (snareFinePointer() ? '> Loop round it twice with the left button to stun it.' : '> Loop round it twice to stun it.'), done: e => e.type === 'bossLooped' },
         { key: 'meltdown', when: run => run.boss?.melt && true,
             aim: run => { const b = run.boss; if (!b?.melt) return null; const L = b.r + 1.4; return { x: b.x, y: b.y, r: L, gesture: 'flick', a: { x: b.x - L, y: b.y + L * 0.35 }, b: { x: b.x + L, y: b.y - L * 0.35 } }; },
-            text: () => 'The boss is melting down. Slash it as fast as you can, because every hit bursts out more Signal.', done: e => e.type === 'meltHit' },
+            text: () => "> It's melting down. Slash it fast, and every hit bursts out more Signal.", done: e => e.type === 'meltHit' },
         { key: 'slash', after: 'bossLoop', when: run => run.boss && !run.boss.melt && run.boss.stunned > run.time && !run.boss.shielded,
             aim: run => { const b = run.boss; if (!b || !(b.stunned > run.time)) return null; const L = b.r + 1.4; return { x: b.x, y: b.y, r: L, gesture: 'flick', a: { x: b.x - L, y: b.y - L * 0.35 }, b: { x: b.x + L, y: b.y + L * 0.35 } }; },
-            text: () => "> swipe through it while it's stunned", done: e => e.type === 'slash' && !e.shielded },
+            text: () => "> It's stunned, so swipe through it to slash it.", done: e => e.type === 'slash' && !e.shielded },
         { key: 'mineLoop', when: run => run.boss && run.mines.length && !run.held.length && !(run.boss.stunned > run.time) && [...run.mines].sort((m, q) => Math.hypot(m.x - run.boss.x, m.y - run.boss.y) - Math.hypot(q.x - run.boss.x, q.y - run.boss.y)).pop().id,
             aim: (run, id) => { const m = coachById(run.mines, id); return m && { x: m.x, y: m.y, r: Math.max(0.9, run.closeR * 1.2), gesture: 'loop' }; },
-            text: () => '> loop a mine to disable it', done: e => e.type === 'mineGrab' },
+            text: () => '> Loop round a mine to disable it.', done: e => e.type === 'mineGrab' },
         { key: 'sling', when: run => run.boss && run.held[0]?.id,
             aim: (run, id) => {
                 const m = coachById(run.held, id), b = run.boss;
@@ -4093,7 +4093,7 @@ window.AGI = (function () {
                 const d = Math.hypot(b.x - m.x, b.y - m.y) || 1, pull = run.opts.slingPull * Math.min(run.w, run.h);
                 return { x: m.x, y: m.y, r: pull + 0.5, gesture: 'sling', a: { x: m.x, y: m.y }, b: { x: m.x - (b.x - m.x) / d * pull, y: m.y - (b.y - m.y) / d * pull }, to: { x: b.x, y: b.y } };
             },
-            text: () => '> pull it back · let go at the boss', done: e => e.type === 'mineLaunch' },
+            text: () => '> Pull the mine back, then let go to fling it at the boss.', done: e => e.type === 'mineLaunch' },
         // Unlocked moves, the first time each can be used
         { key: 'parry', when: run => run.opts.parry && run.boss?.charge && run.boss.charge.t < run.boss.charge.warn - 0.3,
             aim: run => {
@@ -4102,20 +4102,20 @@ window.AGI = (function () {
                 const mx = b.x + c.dx * 1.6, my = b.y + c.dy * 1.6, h = 1.2;
                 return { x: mx, y: my, r: 2, gesture: 'flick', a: { x: mx - c.dy * h, y: my + c.dx * h }, b: { x: mx + c.dy * h, y: my - c.dx * h } };
             },
-            text: () => '> swipe across its line to parry', done: e => e.type === 'parry' },
+            text: () => '> Swipe across its charge line to parry it.', done: e => e.type === 'parry' },
         { key: 'spoof', when: run => run.opts.spoof && !run.boss && run.packets.find(p => p.kind === 'corrupt' && p.x > 1.5 && p.x < run.w - 1.5 && p.y > 1 && p.y < run.h - 1)?.id,
             aim: (run, id) => { const p = coachById(run.packets, id); return p && p.kind === 'corrupt' && { x: p.x, y: p.y, r: 1.6, gesture: 'flick', a: { x: p.x - 1.3, y: p.y - 0.4 }, b: { x: p.x + 1.3, y: p.y + 0.4 } }; },
-            text: () => '> flick through unreadable packets: they pass as good', done: e => e.type === 'spoof' },
+            text: () => '> Flick through unreadable packets to make them pass as good.', done: e => e.type === 'spoof' },
         { key: 'escalate', when: run => run.opts.escalate && run.boss && run.antivirus.find(f => f.ally > run.time)?.id,
             aim: (run, id) => {
                 const f = coachById(run.antivirus, id), b = run.boss;
                 if (!f || !b || !(f.ally > run.time)) return null;
                 return { x: (f.x + b.x) / 2, y: (f.y + b.y) / 2, r: Math.hypot(b.x - f.x, b.y - f.y) / 2 + 0.8, gesture: 'flick', a: { x: f.x, y: f.y }, b: { x: b.x, y: b.y } };
             },
-            text: () => '> flick from your Antivirus into the boss', done: e => e.type === 'escalate' },
+            text: () => '> Flick from your Antivirus into the boss to ram it.', done: e => e.type === 'escalate' },
         ...['freeze', 'purge'].map(kind => ({ key: `pickup:${kind}`, when: run => run.pickups?.find(p => p.kind === kind)?.id,
             aim: (run, id) => { const p = coachById(run.pickups || [], id); return p && { x: p.x, y: p.y, r: 1, gesture: 'tap' }; },
-            text: () => `> ${coachTap()} it: ${kind === 'freeze' ? 'the field freezes' : 'unreadable packets purged'}`,
+            text: () => `> ${coachTap() === 'click' ? 'Click' : 'Tap'} the pickup to ${kind === 'freeze' ? 'freeze the field' : 'wipe out every unreadable packet'}.`,
             done: e => e.type === 'pickup' && e.kind === kind }))
     ];
     const coachKey = (c, what) => `snare:${what}:${c.key}`;
@@ -4203,21 +4203,30 @@ window.AGI = (function () {
         ctx.restore();
         const yours = run.drawing || run.bubble || run.sling;
         if (!yours) drawSnareGhost(d, at, def, calm ? 0.55 : (real % (at.turns > 1 ? 2.8 : 2.1)) / (at.turns > 1 ? 2.8 : 2.1), fade);
-        // the prompt, under the spotlight (over it near the foot of the field)
+        // the prompt, under the spotlight (over it near the foot of the field), wrapped to the field's width: the prompts
+        // are sentences (the owner's call), and one ran off a phone
         const label = def.text();
         ctx.save();
         ctx.font = snareHintFont(16);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        const below = sy + sr + 22 < H * k - 12;
-        const ly = below ? sy + sr + 22 : sy - sr - 18;
-        const tw = ctx.measureText(label).width, lx = Math.max(tw / 2 + 6, Math.min(W * k - tw / 2 - 6, sx));
+        const maxW = (snare.turned ? H : W) * k - 24, lines = [];
+        for (const word of label.split(' ')) {
+            const cur = lines[lines.length - 1];
+            if (cur && ctx.measureText(`${cur} ${word}`).width <= maxW) lines[lines.length - 1] = `${cur} ${word}`;
+            else lines.push(word);
+        }
+        const lh = 20, below = sy + sr + 14 + lines.length * lh < H * k - 6;
+        const top = below ? sy + sr + 22 : sy - sr - 18 - (lines.length - 1) * lh;
         ctx.globalAlpha = fade;
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = C.bg;
-        ctx.strokeText(label, lx, ly);
-        ctx.fillStyle = C.text;
-        ctx.fillText(label, lx, ly);
+        lines.forEach((line, i) => {
+            const tw = ctx.measureText(line).width, lx = Math.max(tw / 2 + 8, Math.min(W * k - tw / 2 - 8, sx)), ly = Math.max(12, top + i * lh);
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = C.bg;
+            ctx.strokeText(line, lx, ly);
+            ctx.fillStyle = C.text;
+            ctx.fillText(line, lx, ly);
+        });
         ctx.restore();
     }
     // The ghost finger at phase p (0–1) of its gesture.
@@ -4413,7 +4422,7 @@ window.AGI = (function () {
                 const pay = m ? E.snareMeltPay(state, m.sector, m.replay, e.from, e.to, e.of) : 0;
                 if (m) m.paid += pay;
                 snare.haul += pay;
-                snare.fx.push({ kind: 'stun', x: e.x + (Math.random() - 0.5) * 1.6, y: e.y - 1.4 - Math.random() * 0.8, t: 0, life: 1, text: `+${E.format(pay)}`, small: e.to < e.of * 0.5 });
+                snare.fx.push({ kind: 'stun', gold: true, x: e.x + (Math.random() - 0.5) * 1.6, y: e.y - 1.4 - Math.random() * 0.8, t: 0, life: 1, text: `+${E.format(pay)}`, small: e.to < e.of * 0.5 });
                 snare.fx.push({ kind: 'burst', x: e.x, y: e.y, t: 0, life: 0.5 });
                 sfx('snareSlash');
                 if (shakeOn()) snare.fx.push({ kind: 'shake', t: 0, life: 0.12 + 0.02 * e.to });
@@ -4446,7 +4455,7 @@ window.AGI = (function () {
                 else if (t === 'pickup') { snare.fx.push({ kind: 'stun', x: e.x, y: e.y - 0.8, t: 0, life: 1, text: e.kind === 'freeze' ? 'FROZEN' : 'PURGED', small: true }); }
                 else if (t === 'snap') { sfx('snareSnap'); shake(0.25); snareFxFor(e, snare.fx); snareWhy(`${e.bubble ? 'pop' : 'snap'}:${e.by || 'wire'}`); }
                 // Bubbles (the prototype): a loop that only snared packets says what loops are for now (a few times a page)
-                else if (t === 'loopOnly' && (snare.loopHints = (snare.loopHints || 0) + 1) <= 4) snare.fx.push({ kind: 'hint', x: e.x, y: e.y - 0.6, t: 0, life: 1.6, text: '> loops are for the boss · hold still to catch' });
+                else if (t === 'loopOnly' && (snare.loopHints = (snare.loopHints || 0) + 1) <= 4) snare.fx.push({ kind: 'hint', x: e.x, y: e.y - 0.6, t: 0, life: 1.6, text: '> Loops are for the boss. Hold still to catch packets.' });
                 else if (t === 'antivirus') snareIntro('antivirus');
                 else if (t === 'core') { sfx('snareCore'); snareIntro('rogue'); }
                 else if (t === 'stun') sfx('snareStun', { down: !!e.down });
@@ -4455,11 +4464,11 @@ window.AGI = (function () {
                     else if (e.fight) { shake(0.6); snare.fx.push({ kind: 'banner', centre: true, x: run.w / 2, y: run.h * 0.75, t: 0, life: 2, text: `UNINSTALL WINDOW · ${e.fight} s`, big: true }); } }
                 else if (t === 'bossCharge') sfx('snareCharge');
                 else if (t === 'parry') { sfx('snareParry'); shake(0.2); state.intro['snare:parried'] = true; }
-                else if (t === 'fizzle') snare.fx.push({ kind: 'hint', x: e.x, y: e.y - 0.6, t: 0, life: 0.9, text: e.bubble ? '> hold longer' : '> too small to loop' });
+                else if (t === 'fizzle') snare.fx.push({ kind: 'hint', x: e.x, y: e.y - 0.6, t: 0, life: 0.9, text: e.bubble ? '> Hold a little longer.' : '> That loop is too small.' });
                 // K5 (Snare 18.1): the count reads over the boss and on the fight bar while its window runs (drawSnareBoss);
                 // a loop after the window says it was too slow, and one round a stunned boss says to slash it
-                else if (t === 'bossLoop') { sfx('snareStun', { down: false }); if (e.late) snare.fx.push({ kind: 'hint', x: e.x, y: e.y + 1.6, t: 0, life: 1.6, text: `> too slow · back to loop 1/${e.of}` }); }
-                else if (t === 'loopStunned') snare.fx.push({ kind: 'hint', x: e.x, y: e.y + 1.6, t: 0, life: 1.4, text: "> it's stunned · slash it" });
+                else if (t === 'bossLoop') { sfx('snareStun', { down: false }); if (e.late) snare.fx.push({ kind: 'hint', x: e.x, y: e.y + 1.6, t: 0, life: 1.6, text: `> Too slow, so the count starts again at loop 1 of ${e.of}.` }); }
+                else if (t === 'loopStunned') snare.fx.push({ kind: 'hint', x: e.x, y: e.y + 1.6, t: 0, life: 1.4, text: "> It's already stunned, so slash it." });
                 else if (t === 'bossLooped') { sfx('snareParry'); shake(0.25); state.intro['snare:looped'] = true; snare.fx = snare.fx.filter(f => !/^LOOP \d/.test(f.text || '')); snare.fx.push({ kind: 'stun', x: e.x, y: e.y - 1.2, t: 0, life: 1, text: 'STUNNED', small: true }); }
                 else if (t === 'slash' && e.shielded) sfx('snareStun', { down: false });
                 else if (t === 'bossHit') { sfx(e.how === 'ram' ? 'snareHit' : 'snareSlash'); shake(0.25); }
@@ -4513,22 +4522,22 @@ window.AGI = (function () {
     // ---- First meetings: each mechanic is introduced once, with a demo, the moment it turns up (the run pauses) ----
     // Keyed by the demo they show (snare-demos.js).
     const SNARE_INTROS = {
-        lasso: ['Packet Snare', 'Hold to open a bubble. Release to capture what\'s inside.'],
+        lasso: ['Packet Snare', 'Hold to open a bubble, and let go to capture what\'s inside.'],
         red: ['Unreadable data', () => (snareHuntOn() ? 'The model can\'t parse it yet, and it homes in on held bubbles. One inside corrupts the batch.' : 'The model can\'t parse it yet. One inside a bubble corrupts the batch.')],
-        antivirus: ['Antivirus', 'Hunts held bubbles. Release before contact.'],
-        sweep: ['Full Scan', 'Edge flashes, then it sweeps the field. Bubbles in its path pop.'],
-        boss: ['Boss Antivirus', () => (snareFinePointer() ? 'Loop it twice with the left button to stun it, then slash.' : 'Loop it twice to stun it, then slash.')],
-        mines: ['Mines', 'Loop one to disable it. Pull it back and let go at the boss.'],
-        nets: ['Nets', 'Three mines close a triangle. Loop them before it shuts.'],
+        antivirus: ['Antivirus', 'It hunts held bubbles, so let go before it reaches yours.'],
+        sweep: ['Full Scan', 'Its edge flashes, then it sweeps the field and pops any bubble in its path.'],
+        boss: ['Boss Antivirus', () => (snareFinePointer() ? 'Loop round it twice with the left button to stun it, then slash it.' : 'Loop round it twice to stun it, then slash it.')],
+        mines: ['Mines', 'Loop round a mine to disable it, then pull it back and let go at the boss.'],
+        nets: ['Nets', 'Three mines close a triangle, so loop them before it shuts.'],
         rogue: ['Unknown process', 'Its cores take the data they reach. Release a bubble over one to quarantine it.'],
-        firewall: ['Firewalls', 'Now auto-deployed where packets gather. Unreadable data and Antivirus stay out.'],
-        decoy: ['Decoys', 'Now auto-deployed. Unreadable data and Antivirus chase them.'],
-        turret: ['Turrets', 'Now auto-deployed. They fire on Antivirus and unreadable data.'],
-        tower: ['Scanner Towers', 'Now auto-deployed. Packets they tag pay more.'],
-        freeze: ['Freeze Frame', 'Tap the pickup to halt the field.'],
-        purge: ['Purge', 'Tap the pickup to wipe all unreadable data.'],
-        gc: ['Garbage Collection', 'A bubble of only unreadable data deletes it and restores Focus.'],
-        ids: ['IDS alert', 'Missed flicks get flagged. Three flags trip the alarm.']
+        firewall: ['Firewalls', 'They now deploy themselves where packets gather, and keep unreadable data and Antivirus out.'],
+        decoy: ['Decoys', 'They now deploy themselves, and unreadable data and Antivirus chase them.'],
+        turret: ['Turrets', 'They now deploy themselves and fire on Antivirus and unreadable data.'],
+        tower: ['Scanner Towers', 'They now deploy themselves, and the packets they tag pay more.'],
+        freeze: ['Freeze Frame', () => `${snareFinePointer() ? 'Click' : 'Tap'} the pickup to freeze the field.`],
+        purge: ['Purge', () => `${snareFinePointer() ? 'Click' : 'Tap'} the pickup to wipe out all unreadable data.`],
+        gc: ['Garbage Collection', 'A bubble holding only unreadable data deletes it and gives Focus back.'],
+        ids: ['IDS alert', 'Missed flicks get flagged, and three flags set off the alarm.']
     };
     // The first threat the next run brings that hasn't been met, to show on its start card.
     // Look out cards (the owner's call after the review rounds): every threat a sector brings that hasn't been met is
@@ -4732,7 +4741,7 @@ window.AGI = (function () {
     // goals with thousands separators, and the loop bonus in plain words (round 7 of the review: "catch 35185" and
     // "(a ×2 bubble counts its packets 1.5×)" didn't read)
     const goalNum = n => Math.round(n).toLocaleString('en-US');
-    const snareGoalText = k => (E.isSnareBossSector(k) ? 'Objective: uninstall the boss' : `Objective: ${goalNum(E.snareGoal(k))} Signal in one run`);
+    const snareGoalText = k => (E.isSnareBossSector(k) ? 'Objective: Uninstall the boss.' : `Objective: Earn ${goalNum(E.snareGoal(k))} Signal in one run.`);
     // What the best haul feeds: research, a trickle while you play.
     const snareRpLine = () => {
         const rp = E.derive(state).snareRp;
@@ -4832,7 +4841,7 @@ window.AGI = (function () {
                 snareTrainingLine()
             ].filter(Boolean);
             card.replaceChildren(...[
-                el('div', { class: 'result-title', text: `${d.sector > d.startSector ? `Sectors ${d.startSector + 1}–${d.sector + 1}` : snareSector(d.sector)}${d.replay ? ' (replay)' : ''} · ${d.walked ? 'Disconnected' : s.bossEscaped ? 'Boss escaped' : 'Focus depleted'}` }),
+                el('div', { class: 'result-title', text: `${d.sector > d.startSector ? `Sectors ${d.startSector + 1}–${d.sector + 1}` : snareSector(d.sector)}${d.replay ? ' (replay)' : ''} · ${d.walked ? 'Disconnected' : s.bossEscaped ? 'Boss escaped' : s.bosses > 0 ? 'Boss uninstalled' : 'Focus depleted'}` }),
                 // A boss beaten leads the card (round 2 of the review: it read like any other run).
                 // Snare 17.5: its fight clock ran out (the run ends with it).
                 s.bossEscaped ? el('div', { class: 'result-main snare-red-line', text: `Boss escaped${s.swallowed ? ` with ${s.swallowed} packets` : ''}${s.escapedMaxHp ? `, ${s.escapedHp} of ${s.escapedMaxHp} health left` : ''} · uninstall window ${snare.run?.opts?.bossFight || 30} s` }) : null,
@@ -5556,7 +5565,7 @@ window.AGI = (function () {
         else if (e.type === 'raceBroken') fx.push({ kind: 'stun', x: e.x, y: e.y, t: 0, life: 0.9, text: e.by === 'boss' ? 'HOLD BROKEN · the boss' : 'HOLD BROKEN · scanned', small: true });
         else if (e.type === 'cleanSweep') fx.push({ kind: 'stun', x: e.x, y: e.y + 0.9, t: 0, life: 0.8, text: 'CLOCK STOPPED', small: true });
         // the run has earned back all the Focus it can (packet-snare.js focusEarnCap): said once, at the top
-        else if (e.type === 'focusCap') fx.push({ kind: 'hint', x: e.x, y: e.y, t: 0, life: 2.2, text: '> no more Focus back this run' });
+        else if (e.type === 'focusCap') fx.push({ kind: 'hint', x: e.x, y: e.y, t: 0, life: 2.2, text: '> No more Focus comes back this run.' });
         else if (e.type === 'backpressure') fx.push({ kind: 'coreGone', x: e.x, y: e.y, r: e.r, t: 0, life: 0.5 });
         else if (e.type === 'bossBlock') fx.push({ kind: 'flag', x: e.x, y: e.y - 1, t: 0, life: 0.9, text: e.reason === 'shield' ? 'SHIELDED' : 'GUARD UP · loop round it first', small: true });
         else if (e.type === 'mine') fx.push({ kind: 'boot', x: e.x, y: e.y, t: 0, life: 0.6 });
@@ -5573,7 +5582,7 @@ window.AGI = (function () {
         else if (e.type === 'mineDud') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: 0.9, text: 'DUD', small: true });
         else if (e.type === 'mineLive') fx.push({ kind: 'flag', x: e.x, y: e.y - 0.5, t: 0, life: state.intro['snare:slung'] ? 0.9 : 1.6, text: state.intro['snare:slung'] ? 'LIVE AGAIN' : 'LIVE AGAIN · FLING IT SOONER', small: true });
         // a pull too short to fling says so
-        else if (e.type === 'mineMiss') fx.push({ kind: 'hint', x: e.x, y: e.y - 0.8, t: 0, life: 1.3, text: '> pull back further' });
+        else if (e.type === 'mineMiss') fx.push({ kind: 'hint', x: e.x, y: e.y - 0.8, t: 0, life: 1.3, text: '> Pull it back further.' });
         else if (e.type === 'escalate') fx.push({ kind: 'flick', a: e.from, b: { x: e.x, y: e.y }, hit: true, t: 0, life: 0.6 });
         else if (e.type === 'garbage') fx.push({ kind: 'catch', poly: e.poly, x: e.x, y: e.y, t: 0, text, packets: [] });
         else if (e.type === 'taken') fx.push({ kind: 'laser', from: { x: e.x, y: e.y }, x: e.packets[0]?.x ?? e.x, y: e.packets[0]?.y ?? e.y, t: 0, life: 0.35, text, small: true });
@@ -6784,7 +6793,7 @@ window.AGI = (function () {
         ctx.lineCap = 'butt';
         // the words, beside the mine (off the line both ways) and kept inside the field
         ctx.globalAlpha = 1;
-        const label = '> pull back · let go';
+        const label = '> Pull back, then let go.';
         ctx.font = snareHintFont(15);
         ctx.textAlign = 'center';
         const tw = ctx.measureText(label).width, FW = run.w * k, FH = run.h * k;
@@ -7023,7 +7032,7 @@ window.AGI = (function () {
                 ctx.stroke();
                 ctx.setLineDash([]);
                 if (!state.intro['snare:looped'] && !snare.coach) {
-                    const label = (run.opts.bossLoops || 1) > 1 ? `> loop round it ×${run.opts.bossLoops}` : '> loop round it';
+                    const label = (run.opts.bossLoops || 1) > 1 ? `> Loop round it ${run.opts.bossLoops === 2 ? 'twice' : `${run.opts.bossLoops} times`}.` : '> Loop round it.';
                     ctx.font = snareHintFont(14);
                     ctx.textAlign = 'center';
                     ctx.lineWidth = 3;
@@ -7055,7 +7064,7 @@ window.AGI = (function () {
                 ctx.lineTo(hx - nx * 9 - dx * 7, hy - ny * 9 - dy * 7);
                 ctx.stroke();
                 // what to do, in words, until you've parried once
-                const label = state.intro['snare:parried'] ? '> parry' : '> swipe across to parry';
+                const label = state.intro['snare:parried'] ? '> Parry it.' : '> Swipe across the line to parry.';
                 ctx.globalAlpha = 1;
                 ctx.font = snareHintFont(14);
                 ctx.textAlign = 'center';
@@ -7148,7 +7157,7 @@ window.AGI = (function () {
         ctx.lineWidth = 3;
         ctx.strokeStyle = C.bg;
         // its health under it, but not in the fight, where the bar across the top says it (round 10)
-        if (!run.fight) {
+        if (!run.fight && !b.melt) {
             const hpText = `${b.hp}/${b.maxHp}`;
             ctx.strokeText(hpText, x, y + ringR + 14);
             ctx.fillStyle = C.danger;
@@ -7907,7 +7916,7 @@ window.AGI = (function () {
             placed.push({ x, y, hw, lh, text: f.text });
             ctx.globalAlpha = a;
             // three tiers: hints in the text colour, losses red, rewards gold (the theme's own tokens)
-            ctx.fillStyle = f.kind === 'hint' ? C.text : f.loss ? C.danger : f.kind === 'banner' ? C.warning : f.kind === 'quarantine' ? (C['snare-good'] || C.primary) : f.kind === 'stun' ? C.success : f.kind === 'catch' || f.kind === 'laser' || f.kind === 'star' ? (f.big || f.gold ? C.warning : C.text) : C.danger;
+            ctx.fillStyle = f.kind === 'hint' ? C.text : f.loss ? C.danger : f.kind === 'banner' ? C.warning : f.kind === 'quarantine' ? (C['snare-good'] || C.primary) : f.kind === 'stun' ? (f.gold ? C.warning : C.success) : f.kind === 'catch' || f.kind === 'laser' || f.kind === 'star' ? (f.big || f.gold ? C.warning : C.text) : C.danger;
             ctx.lineWidth = 3;
             ctx.strokeStyle = C.bg;
             // Kept inside the field (Snare 14: a big CHAIN or SURGE by the edge ran off a phone's field).

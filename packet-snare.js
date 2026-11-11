@@ -2222,7 +2222,7 @@
         }
 
         // Snare 17.5: while the boss is coming or stands (the new fight), Focus holds and nothing new swims in.
-        const bossHold = () => o.bossFight > 0 && ((!s.bossDone && (s.boss || s.bossDueAt != null)) || !!s.boss?.melt);
+        const bossHold = () => o.bossFight > 0 && ((!s.bossDone && (s.boss || s.bossDueAt != null)) || !!s.boss?.melt || s.endAt != null);
         function stepOnce(dt) {
             s.real += dt;
             if (s.cooldown > 0) s.cooldown = Math.max(0, s.cooldown - dt);

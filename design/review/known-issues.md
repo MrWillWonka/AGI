@@ -17,6 +17,14 @@ Update this file with every fix batch (move fixed ones to *fixed: verify*, drop 
   field's edge (round 10).
 
 ## Fixed: verify
+- **F36 Instructions read as clipped statements** ("click it: the field freezes"): every instruction and description is
+  a sentence (node text, captions, cards, controls, objective, hints, walkthroughs; settled.md → Copy).
+- **F35 The boss's nodes sat unbought before the first boss:** they stay out of the tree until a boss is met.
+- **F34 The arena grew too big too quickly** (172 → 751 units in one visit): Sprawl's big steps cost 1,200, 3,600,
+  10,800 and up (they were 586, 1,465, 3,663); levels 1–4 keep cheap prices so sector 4 still clears.
+- **F33 After a boss, the extra time paid far too much** (13K and 61K runs): a beaten boss melts down for 6 s (slash it,
+  loop it: up to 12 hits, each paying more, the next sector's goal in all), explodes, and the run ends. A flung mine
+  flies faster.
 - **F32 First actions weren't walked through in play** (the owner, 2026-11-10: slow the play, dim it, show the
   process with a ghost): the first time an action comes up in a run, the field slows to 0.15 (your finger keeps real
   time), dims round a spotlight, and a ghost finger plays the gesture with a one-line prompt until you do it: the
