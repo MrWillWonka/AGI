@@ -4391,7 +4391,7 @@ window.AGI = (function () {
                 // Snare 18.4: the bolt's hops, each paid as it lands and drawn as its own jagged arc
                 const pay = snarePay(e.units);
                 (snare.chainPaid ||= {})[e.group] = (snare.chainPaid[e.group] || 0) + pay;
-                snare.fx.push({ kind: 'chain', arcs: [{ packet: e.b, from: e.a }], t: 0, life: 0.55, seed: (e.b.x * 13.7 + e.n) % 1 });
+                snare.fx.push({ kind: 'chain', arcs: [{ x: e.b.x, y: e.b.y, from: e.a }], t: 0, life: 0.55, seed: (e.b.x * 13.7 + e.n) % 1 });
                 sfx('snareChain');
             } else if (t === 'chainDone') {
                 const paid = snare.chainPaid?.[e.group] || 0;
