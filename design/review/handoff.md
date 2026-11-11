@@ -6,7 +6,9 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
 
 ## Where things stand
 
-- **Live review build:** Packet Snare **18.5**, published 2026-11-11 03:26 UTC (version `1794367558-1ac2`): the
+- **Live review build:** Packet Snare **18.6**, published 2026-11-11 03:44 UTC (version `1794368669-b149`): 18.5 plus
+  the tutorial's unreadable packet and a zoom out centred on it. To see the tutorial again: debug panel, Reset Packet Snare.
+- **Before it:** Packet Snare **18.5**, published 2026-11-11 03:26 UTC (version `1794367558-1ac2`): the
   tutorial field that zooms out, fast slashes with the boss's health doubled, the stun timer, quicker bubbles, catches ×0.7,
   Sprawl level 4 at 1,000 (see the Builds row). **The owner decides pacing**: show them a sweep before any compensating
   change (memory and CLAUDE.md say so). Watch in the next log: the tutorial, the meltdown's 30 hits and shake, fast
