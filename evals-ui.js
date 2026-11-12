@@ -192,6 +192,37 @@
         targets[i] = b;
         return b;
     }
+    // The piece can be dragged: it follows the pointer, the slot under it lights, and letting go over a slot picks it
+    // (as a tap on that slot does, which still works). Let go anywhere else and it goes back.
+    function dragPiece(piece) {
+        let from = null, over = -1;
+        const slotAt = e => targets.findIndex(b => { const r = b.getBoundingClientRect(); return e.clientX >= r.left - 8 && e.clientX <= r.right + 8 && e.clientY >= r.top - 8 && e.clientY <= r.bottom + 8; });
+        const light = i => { if (i === over) return; targets[over]?.classList.remove('over'); over = i; targets[over]?.classList.add('over'); };
+        const end = (e, drop) => {
+            if (!from) return;
+            from = null;
+            piece.classList.remove('dragging');
+            piece.style.transform = '';
+            const i = drop ? slotAt(e) : -1;
+            light(-1);
+            if (i >= 0 && !picked.has(i)) tap(i, e);
+        };
+        piece.addEventListener('pointerdown', e => {
+            if (locked || !run || run.over) return;
+            from = { x: e.clientX, y: e.clientY };
+            try { piece.setPointerCapture(e.pointerId); } catch { /* the drag still follows while over the piece */ }
+            piece.classList.add('dragging');
+            e.preventDefault();
+        });
+        piece.addEventListener('pointermove', e => {
+            if (!from) return;
+            piece.style.transform = `translate(${e.clientX - from.x}px, ${e.clientY - from.y}px) scale(1.1)`;
+            light(slotAt(e));
+        });
+        piece.addEventListener('pointerup', e => end(e, true));
+        piece.addEventListener('pointercancel', e => end(e, false));
+        return piece;
+    }
     const picture = t => [el('span', { class: 'evals-thing', 'aria-hidden': 'true', text: t.glyph }), t.hat ? el('span', { class: 'evals-hat', 'aria-hidden': 'true', text: t.hat }) : ''];
     const grid = (c, side, cls = '') => el('div', { class: `evals-grid ${cls}`, role: 'group', 'aria-label': c.prompt, style: `--side: ${side}` },
         ...c.targets.map((t, i) => target(i, 'evals-cell' + (t.hat ? ' hatted' : ''), ...picture(t))));
@@ -228,7 +259,7 @@
             el('div', { class: 'evals-choices', role: 'group', 'aria-label': 'Answers' }, ...c.targets.map((t, i) => target(i, 'evals-choice', el('span', { 'aria-hidden': 'true', text: t.text })))),
         ],
         slide: c => [
-            el('div', { class: 'evals-piece', 'aria-label': `The piece: a ${c.show.name}` }, el('span', { 'aria-hidden': 'true', text: c.show.piece })),
+            el('div', { class: 'evals-piece', 'aria-label': `The piece: a ${c.show.name}` }, dragPiece(el('span', { class: 'evals-piece-shape', 'aria-hidden': 'true', text: c.show.piece }))),
             el('div', { class: 'evals-slots', role: 'group', 'aria-label': 'Slots' }, ...c.targets.map((t, i) => target(i, 'evals-slot', el('span', { class: 'evals-outline', 'aria-hidden': 'true', text: t.text })))),
         ],
         order: c => [

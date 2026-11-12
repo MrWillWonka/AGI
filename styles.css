@@ -3754,6 +3754,11 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
 
 /* Handle: the piece, and slots cut to different shapes (outlines until the piece is slid in). */
 .evals-piece { text-align: center; font-size: 2.6rem; line-height: 1; color: var(--warning); }
+/* The piece is dragged onto a slot (a tap on the slot works too): a finger-sized handle that never scrolls the page. */
+.evals-piece-shape { display: inline-block; position: relative; z-index: 2; min-width: 56px; padding: 6px 8px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.evals-piece-shape.dragging { cursor: grabbing; }
+.evals-slot.over { border-color: var(--warning); }
+.evals-slide:has(.evals-slot[aria-pressed="true"]) .evals-piece-shape:not(.dragging) { opacity: 0.3; }
 .evals-slot { width: 56px; height: 56px; font-size: 1.9rem; line-height: 1; }
 .evals-outline { color: transparent; -webkit-text-stroke: 1.5px var(--text); }
 .evals-slot[aria-pressed="true"] .evals-outline, .evals-slot.right .evals-outline { color: var(--warning); -webkit-text-stroke: 0; }

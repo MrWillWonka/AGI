@@ -57,6 +57,17 @@ async function press(page, size, selector) {
     press.at = { x, y };
 }
 
+// Drag one thing onto another, as a hand does: down, across in steps, up.
+async function drag(page, from, to) {
+    const a = await page.locator(from).boundingBox(), b = await page.locator(to).boundingBox();
+    await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width * 0.55, b.y + b.height * 0.55, { steps: 8 });
+    await page.mouse.up();
+    press.at = { x: b.x + b.width * 0.55, y: b.y + b.height * 0.55 };
+    await page.waitForTimeout(140);
+}
+
 async function play(browser, size, url) {
     const ctx = await browser.newContext({ viewport: size.viewport, hasTouch: size.touch, isMobile: size.touch, deviceScaleFactor: size.touch ? 2 : 1, reducedMotion: size.reduced ? 'reduce' : 'no-preference' });
     const page = await ctx.newPage();
@@ -71,7 +82,7 @@ async function play(browser, size, url) {
     const kinds = await page.evaluate(() => ({ all: Object.keys(Evals.KINDS).length, order: Evals.ORDER.length }));
     const seen = new Set(), wrong = [], unfit = [];
     const rounds = size.rounds || ROUNDS;
-    let hands = 0, answered = 0;
+    let hands = 0, answered = 0, dragged = 0;
     for (let n = 0; n < kinds.order * rounds; n++) {
         const c = await look(page);
         if (!c) { wrong.push(`no captcha at ${n}`); break; }
@@ -79,7 +90,8 @@ async function play(browser, size, url) {
         if (c.scroll || c.small || c.cut) unfit.push(`${name}${c.scroll ? ' scrolls' : ''}${c.small ? ` ${c.small} small` : ''}${c.cut ? ' cut off' : ''}`);
         if (!seen.has(name)) { seen.add(name); await page.screenshot({ path: path.join(out, `${size.name.replace(/ /g, '-')}-${name.replace(/[.:]/g, '-')}.png`) }); }
         await page.waitForTimeout((c.wait + 0.85) * 1000);
-        for (const i of c.answer) { await press(page, size, `.evals-target[data-i="${i}"]`); await page.waitForTimeout(140); }
+        if (c.kind === 'handle.slide') { await drag(page, '.evals-piece-shape', `.evals-target[data-i="${c.answer[0]}"]`); dragged++; }
+        else for (const i of c.answer) { await press(page, size, `.evals-target[data-i="${i}"]`); await page.waitForTimeout(140); }
         if (size.reduced && await page.evaluate(() => { const h = document.querySelector('.evals-hand'); return !!h && !h.hidden && h.getClientRects().length > 0; })) hands++;
         if (!c.instant) await press(page, size, '.evals-verify');
         await page.waitForTimeout(150);
@@ -94,6 +106,7 @@ async function play(browser, size, url) {
     check(wrong.length === 0, `${size.name}: ${kinds.order * rounds} captchas solved${wrong.length ? ' — ' + wrong.join('; ') : ''}`);
     check(kindsSeen.size >= kinds.order, `${size.name}: every family came up (${kindsSeen.size} kinds of ${kinds.all})`);
     check(unfit.length === 0, `${size.name}: every captcha in view, no scrolling, every target a finger wide${unfit.length ? ' — ' + [...new Set(unfit)].join('; ') : ''}`);
+    if (dragged) check(!wrong.some(w => w.startsWith('handle.slide')), `${size.name}: the piece can be dragged into its slot (${dragged} dragged)`);
     if (size.reduced) {
         check(hands === 0, `${size.name}: the AI's hand never shows (${hands} captchas with it)`);
         check(answered > 0, `${size.name}: the AI's line still gives its answer (${answered} of ${kinds.order * rounds})`);
