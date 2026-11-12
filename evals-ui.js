@@ -1,16 +1,21 @@
 // evals-ui.js — Evals' screen (design/evals-plan.md): shows a run from evals.js, hands back answers and a trace of how
-// you solved each one, and draws **the ghost hand**: the AI's own attempt at the captcha you're on, played beside you
-// (a second cursor that taps squares and presses Verify at the times evals.js decided when the captcha showed).
+// you solved each one (what you tapped and when, what you took back, how your pointer moved), and draws **the ghost
+// hand**: the AI's own attempt at the captcha you're on, played beside you (a second cursor that taps targets and
+// presses Verify at the times evals.js decided when the captcha showed, moving along the shapes your own pointer drew).
+// Every captcha is taps on numbered targets, so one screen draws them all: a `layout` here builds the picture and
+// the target buttons, and the rest (tapping, the answer, the reveal, the hand) is shared.
 // For now it is a full-screen dialog opened from the debug panel (AGI.debug.openEvals) or with #evals in the address;
-// it becomes the server room's third bay later. It builds its own elements and knows no rules: what a captcha is,
-// whether an answer is right, what the AI does and when it takes a kind over all live in evals.js. What the AI has
-// learned is in the save (`AGI.state.evals`); a run is counted by engine.js `evalsRunEnd`.
+// it becomes the server room's third bay later. It knows no rules: what a captcha is, whether an answer is right, what
+// the AI does and when it takes a kind over all live in evals.js. What the AI has learned is in the save
+// (`AGI.state.evals`); a run is counted by engine.js `evalsRunEnd`.
 (function () {
     'use strict';
-    const RIGHT_MS = 900, WRONG_MS = 1700;
+    const RIGHT_MS = 900, WRONG_MS = 1900;
     let dlg = null, stage = null, livesEl = null, solvedEl = null;
-    let run = null, picked = new Map(), undos = 0, shownAt = 0, timer = 0, locked = false, raf = 0;
+    let run = null, picked = new Map(), entered = [], undos = 0, shownAt = 0, timer = 0, locked = false, raf = 0;
+    let play = null, targets = [], path = [], pathStep = 40, pathAt = -1e9, tick = { bend: 0, offset: 0 }, cues = [];
     let fallback = null;   // what it has learned when there is no game to keep it in (a bare page)
+    let audio = null;
 
     function el(tag, props = {}, ...kids) {
         const n = document.createElement(tag);
@@ -20,14 +25,19 @@
             else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
             else n.setAttribute(k, v);
         }
-        n.append(...kids);
+        n.append(...kids.filter(kid => kid !== null && kid !== ''));
         return n;
     }
     const saved = () => window.AGI?.state?.evals || (fallback = fallback || { runs: 0, best: 0, learn: window.Evals.newLearn() });
     const lives = n => `${n} ${n === 1 ? 'life' : 'lives'}`;
     const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
     const secs = t => `${t.toFixed(1)} s`;
-    const squares = n => `${n} ${n === 1 ? 'square' : 'squares'}`;
+    const now = () => (performance.now() - shownAt) / 1000;
+    // What a kind's targets are called, for "wrong by 3 squares". A kind with one right answer has no count to give.
+    const NOUN = { pick: ['square', 'squares'], read: ['letter', 'letters'], 'handle.order': ['picture', 'pictures'], listen: ['beep', 'beeps'] };
+    const noun = c => NOUN[c.kind] || NOUN[c.family] || null;
+    const wrongBy = (c, off) => (noun(c) ? ` by ${off} ${noun(c)[off === 1 ? 0 : 1]}` : '');
+    const PAD_HZ = [262, 330, 392, 523];
 
     function build() {
         livesEl = el('span', { class: 'evals-lives' });
@@ -38,11 +48,46 @@
                 el('span', { class: 'evals-title', text: 'Evals' }), livesEl, solvedEl,
                 el('button', { type: 'button', class: 'ghost-button evals-close', 'aria-label': 'Close Evals', text: '×', onclick: close })),
             stage);
-        dlg.addEventListener('close', () => { clearTimeout(timer); cancelAnimationFrame(raf); settle(); run = null; });
+        // Closed some other way (Escape): the same as close(). The event comes late, so a screen already reopened is left be.
+        dlg.addEventListener('close', () => { if (!dlg.open && run) shut(); });
         dlg.addEventListener('keydown', e => {
-            if (e.key === 'Enter' && run && !run.over && !locked && !e.target.closest('.evals-cell, .evals-close, .evals-go')) { e.preventDefault(); verify(); }
+            if (e.key === 'Enter' && run && !run.over && !locked && !run.current?.instant && !e.target.closest('button')) { e.preventDefault(); verify(); }
         });
+        // How your pointer moves over the captcha is part of how you solve it: sampled here, into the trace.
+        stage.addEventListener('pointermove', record);
+        stage.addEventListener('pointerdown', record);
         document.body.append(dlg);
+    }
+    function stop() {
+        clearTimeout(timer);
+        cancelAnimationFrame(raf);
+        for (const cue of cues) clearTimeout(cue);
+        cues = [];
+    }
+
+    // A sample of the pointer: time in hundredths of a second, x and y in thousandths of the play area's width.
+    // Kept to 120 samples a captcha: when it fills, every other one goes and it samples half as often.
+    function record(e) {
+        if (!run || locked || !play) return;
+        const t = performance.now() - shownAt;
+        if (e.type === 'pointermove' && t - pathAt < pathStep) return;
+        pathAt = t;
+        const r = play.getBoundingClientRect();
+        if (!r.width) return;
+        path.push(Math.round(t / 10), Math.round((e.clientX - r.left) / r.width * 1000), Math.round((e.clientY - r.top) / r.width * 1000));
+        if (path.length >= 360) {
+            path = path.filter((_, j) => Math.floor(j / 3) % 2 === 0);
+            pathStep *= 2;
+        }
+    }
+    // How far the pointer's path strayed from a straight line: its length over the distance it covered (0 with no
+    // path to speak of, as on a touch screen).
+    function bendOf() {
+        if (path.length < 12) return 0;
+        let length = 0;
+        for (let j = 3; j < path.length; j += 3) length += Math.hypot(path[j + 1] - path[j - 2], path[j + 2] - path[j - 1]);
+        const straight = Math.hypot(path[path.length - 2] - path[1], path[path.length - 1] - path[2]);
+        return straight < 30 ? 0 : length / straight;
     }
 
     function hud() {
@@ -54,7 +99,8 @@
     }
 
     function card(title, lines, button, action) {
-        cancelAnimationFrame(raf);
+        stop();
+        play = null;
         stage.replaceChildren(el('div', { class: 'evals-card' },
             el('h2', { class: 'evals-card-title', text: title }),
             ...lines.map(text => el('p', { text })),
@@ -78,6 +124,21 @@
         window.AGI?.save?.();
     }
 
+    // What it did over this run, a line a kind it met at least six times: how far off its answers were at the start of
+    // the run and by the end (the first and last third of its attempts). Improvement you can read.
+    function progress() {
+        const lines = [];
+        for (const kind of Object.keys(window.Evals.KINDS)) {
+            const log = run.log.filter(e => e.kind === kind);
+            if (log.length < 6) continue;
+            const third = Math.floor(log.length / 3), mean = list => list.reduce((s, v) => s + v, 0) / list.length;
+            const name = window.Evals.KINDS[kind].name, words = NOUN[kind] || NOUN[window.Evals.KINDS[kind].family];
+            if (words) lines.push(`The AI on ${name}: off by ${mean(log.slice(0, third).map(e => e.ghostOff)).toFixed(1)} ${words[1]} at first, ${mean(log.slice(-third).map(e => e.ghostOff)).toFixed(1)} by the end.`);
+            else lines.push(`The AI on ${name}: right ${Math.round(100 * mean(log.slice(0, third).map(e => +e.ghost)))}% of the time at first, ${Math.round(100 * mean(log.slice(-third).map(e => +e.ghost)))}% by the end.`);
+        }
+        return lines;
+    }
+
     function endCard() {
         const was = saved().best, solved = run.solved;
         settle();
@@ -89,153 +150,280 @@
         card('Verification failed', [`You solved ${solved}.`, solved > was ? 'That is your best run.' : `Your best run: ${was} solved.`, ...progress()], 'Try again', start);
     }
 
-    // What it did over this run, a line a kind it met at least six times: how many squares its answers were off by at
-    // the start of the run and by the end (the first and last third of its attempts). Improvement you can read.
-    function progress() {
-        const lines = [];
-        for (const kind of Object.keys(window.Evals.KINDS)) {
-            const offs = run.log.filter(e => e.kind === kind).map(e => e.ghostOff);
-            if (offs.length < 6) continue;
-            const third = Math.floor(offs.length / 3), mean = list => list.reduce((s, v) => s + v, 0) / list.length;
-            const a = mean(offs.slice(0, third)), b = mean(offs.slice(-third));
-            lines.push(`The AI on ${window.Evals.KINDS[kind].name}: off by ${a.toFixed(1)} squares at first, ${b.toFixed(1)} by the end.`);
-        }
-        return lines;
-    }
-
     function start() {
+        // Sound needs a gesture to begin: this click is it.
+        try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); if (audio.state === 'suspended') audio.resume(); } catch { audio = null; }
         run = window.Evals.createRun({ seed: (Date.now() ^ (Math.random() * 0x7fffffff)) >>> 0, learn: saved().learn });
         if (run.over) endCard(); else show();
     }
+    function beep(pad) {
+        if (!audio) return;
+        try {
+            const osc = audio.createOscillator(), gain = audio.createGain();
+            osc.frequency.value = PAD_HZ[pad] || 440;
+            gain.gain.setValueAtTime(0.0001, audio.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.08, audio.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.22);
+            osc.connect(gain).connect(audio.destination);
+            osc.start();
+            osc.stop(audio.currentTime + 0.25);
+        } catch { /* no sound: the pulses carry it */ }
+    }
 
-    let names = null;
-    const nameOf = glyph => {
-        if (!names) {
-            names = new Map();
-            for (const t of window.Evals.THINGS) names.set(t.glyph, `${t.a} ${t.name}`);
-            for (const h of window.Evals.HATS) names.set(h.glyph, h.phrase);
-        }
-        return names.get(glyph);
+    // A target: a button for target `i` of the captcha up, named for a screen reader by the captcha's own label.
+    function target(i, cls, ...kids) {
+        const c = run.current;
+        const b = el('button', { type: 'button', class: `evals-target ${cls}`, 'aria-label': c.targets[i].label, 'data-i': i },
+            ...kids, el('span', { class: 'evals-its-mark', 'aria-hidden': 'true' }), el('span', { class: 'evals-mark', 'aria-hidden': 'true' }));
+        if (c.mode === 'set') b.setAttribute('aria-pressed', 'false');
+        b.addEventListener('click', e => tap(i, e));
+        targets[i] = b;
+        return b;
+    }
+    const picture = t => [el('span', { class: 'evals-thing', 'aria-hidden': 'true', text: t.glyph }), t.hat ? el('span', { class: 'evals-hat', 'aria-hidden': 'true', text: t.hat }) : ''];
+    const grid = (c, side, cls = '') => el('div', { class: `evals-grid ${cls}`, role: 'group', 'aria-label': c.prompt, style: `--side: ${side}` },
+        ...c.targets.map((t, i) => target(i, 'evals-cell' + (t.hat ? ' hatted' : ''), ...picture(t))));
+    // Light a pad and sound it, `at` seconds from now.
+    const pulse = (pad, at) => cues.push(setTimeout(() => {
+        const b = targets[pad];
+        if (!b || !play) return;
+        beep(pad);
+        b.classList.add('lit');
+        cues.push(setTimeout(() => b.classList.remove('lit'), 240));
+    }, at * 1000));
+
+    // Each layout builds its captcha's picture and target buttons into the play area.
+    const LAYOUTS = {
+        grid: c => [grid(c, c.side)],
+        // A grid to look at, then the same grid with one picture swapped: the squares can't be tapped until it swaps.
+        changed(c) {
+            const g = grid(c, c.side, 'looking');
+            targets.forEach((b, i) => { b.disabled = true; b.querySelector('.evals-thing').textContent = c.show.before[i]; });
+            cues.push(setTimeout(() => {
+                g.classList.remove('looking');
+                g.classList.add('swapped');
+                targets.forEach((b, i) => { b.disabled = false; b.querySelector('.evals-thing').textContent = c.targets[i].glyph; });
+            }, c.show.look * 1000));
+            return [g];
+        },
+        read: c => [
+            el('div', { class: 'evals-word' + (c.show.struck ? ' struck' : ''), 'aria-label': 'A warped word' },
+                ...[...c.show.word].map((letter, j) => el('span', { 'aria-hidden': 'true', text: letter, style: `transform: translateY(${c.show.warp[j].lift}%) rotate(${c.show.warp[j].tilt}deg) scale(${c.show.warp[j].size})` }))),
+            el('div', { class: 'evals-tray', role: 'group', 'aria-label': 'Letters' }, ...c.targets.map((t, i) => target(i, 'evals-tile', el('span', { 'aria-hidden': 'true', text: t.text })))),
+        ],
+        choices: c => [
+            el('p', { class: 'evals-question', text: c.show.question }),
+            el('div', { class: 'evals-choices', role: 'group', 'aria-label': 'Answers' }, ...c.targets.map((t, i) => target(i, 'evals-choice', el('span', { 'aria-hidden': 'true', text: t.text })))),
+        ],
+        slide: c => [
+            el('div', { class: 'evals-piece', 'aria-label': `The piece: a ${c.show.name}` }, el('span', { 'aria-hidden': 'true', text: c.show.piece })),
+            el('div', { class: 'evals-slots', role: 'group', 'aria-label': 'Slots' }, ...c.targets.map((t, i) => target(i, 'evals-slot', el('span', { class: 'evals-outline', 'aria-hidden': 'true', text: t.text })))),
+        ],
+        order: c => [
+            el('div', { class: 'evals-order', 'aria-label': 'The order to tap them in' }, ...c.show.order.flatMap((g, j) => [j ? el('span', { class: 'evals-then', 'aria-hidden': 'true', text: '›' }) : '', el('span', { text: g })])),
+            el('div', { class: 'evals-grid', role: 'group', 'aria-label': c.prompt, style: `--side: ${c.targets.length > 6 ? 4 : 3}` }, ...c.targets.map((t, i) => target(i, 'evals-cell', ...picture(t)))),
+        ],
+        // The pattern plays as it shows (each pad lit and sounded in turn) and again on Play again.
+        pads(c) {
+            const again = () => c.show.pattern.forEach((pad, j) => pulse(pad, 0.15 + j * c.show.step));
+            c.show.pattern.forEach((pad, j) => pulse(pad, 0.45 + j * c.show.step));
+            return [
+                el('div', { class: 'evals-pads', role: 'group', 'aria-label': 'Pads, low to high', style: `--pads: ${c.targets.length}` },
+                    ...c.targets.map((t, i) => target(i, 'evals-pad', el('span', { class: 'evals-bar-mark', 'aria-hidden': 'true', style: `height: ${28 + 72 * i / (c.targets.length - 1)}%` })))),
+                el('button', { type: 'button', class: 'ghost-button evals-replay', text: '▶ Play again', onclick: () => { if (!locked) again(); } }),
+            ];
+        },
+        tick: c => [el('div', { class: 'evals-tickbox' }, target(0, 'evals-tick', el('span', { class: 'evals-box', 'aria-hidden': 'true' }), el('span', { text: c.targets[0].text })))],
+        // A board of arrows with the ball over its starting column, and the bins under it.
+        drop: c => [
+            el('div', { class: 'evals-board', 'aria-label': 'A ball over a board of arrows', style: `--side: ${c.show.cols}` },
+                ...Array.from({ length: c.show.cols }, (_, col) => el('span', { class: 'evals-ball', 'aria-hidden': 'true', text: col === c.show.start ? '●' : '' })),
+                ...c.show.rows.flatMap(row => row.map(d => el('span', { class: 'evals-arrow', 'aria-hidden': 'true', text: d < 0 ? '↙' : d > 0 ? '↘' : '↓' })))),
+            el('div', { class: 'evals-bins', role: 'group', 'aria-label': 'Bins', style: `--side: ${c.show.cols}` }, ...c.targets.map((t, i) => target(i, 'evals-bin', el('span', { 'aria-hidden': 'true', text: t.text })))),
+        ],
     };
 
-    // The captcha up, as a grid of squares to tap and a Verify button, with the AI's line and hand over it.
+    // The captcha up: its prompt, the AI's line, the play area (the picture, the targets and the AI's hand over them),
+    // what you've entered so far if it wants an order, and Verify.
     function show() {
-        clearTimeout(timer);
-        cancelAnimationFrame(raf);
+        stop();
         locked = false;
         picked = new Map();
+        entered = [];
         undos = 0;
+        path = [];
+        pathStep = 40;
+        pathAt = -1e9;
+        tick = { bend: 0, offset: 0 };
+        targets = [];
         hud();
-        const c = run.current;
-        const [before, after] = c.prompt.split(c.scene);
-        const grid = el('div', { class: 'evals-grid', role: 'group', 'aria-label': c.prompt, style: `--side: ${c.side}` });
-        c.cells.forEach((cell, i) => {
-            const label = nameOf(cell.thing) + (cell.hat ? ' ' + nameOf(cell.hat) : '');
-            const b = el('button', { type: 'button', class: 'evals-cell' + (cell.hat ? ' hatted' : ''), 'aria-pressed': 'false', 'aria-label': label, 'data-i': i },
-                el('span', { class: 'evals-thing', 'aria-hidden': 'true', text: cell.thing }),
-                cell.hat ? el('span', { class: 'evals-hat', 'aria-hidden': 'true', text: cell.hat }) : '',
-                el('span', { class: 'evals-its-mark', 'aria-hidden': 'true' }),
-                el('span', { class: 'evals-mark', 'aria-hidden': 'true' }));
-            b.addEventListener('click', () => toggle(i, b));
-            grid.append(b);
-        });
+        const c = shown = run.current;
+        const [before, after] = c.scene ? c.prompt.split(c.scene) : [c.prompt, ''];
         const hand = el('span', { class: 'evals-hand', 'aria-hidden': 'true' });
         hand.innerHTML = '<svg viewBox="0 0 24 24"><path d="M5 2.5v17l4.6-4.2 3 6.4 2.7-1.3-3-6.3 6.2-.5z"/></svg>';
-        stage.replaceChildren(el('div', { class: 'evals-captcha' },
-            el('p', { class: 'evals-prompt' }, before, el('strong', { text: c.scene }), after),
+        play = el('div', { class: `evals-play evals-${c.layout}` }, ...LAYOUTS[c.layout](c), hand);
+        stage.replaceChildren(el('div', { class: `evals-captcha is-${c.layout}` },
+            el('p', { class: 'evals-prompt' }, before, c.scene ? el('strong', { text: c.scene }) : '', after),
             el('p', { class: 'evals-its' }, el('span', { class: 'evals-its-tag', text: 'AI' }), el('span', { class: 'evals-its-line', role: 'status', text: 'Working on it.' })),
-            el('div', { class: 'evals-grid-wrap' }, grid, hand),
+            play,
+            c.mode === 'seq' ? el('div', { class: 'evals-entered' }, el('span', { class: 'evals-entered-list', role: 'status', 'aria-label': 'Entered so far' }),
+                el('button', { type: 'button', class: 'ghost-button evals-back', 'aria-label': 'Take back the last one', text: '⌫', onclick: back })) : '',
             el('div', { class: 'evals-foot' },
                 el('span', { class: 'evals-status', role: 'status' }),
-                el('button', { type: 'button', class: 'evals-go evals-verify', text: 'Verify', onclick: verify }))));
+                c.instant ? '' : el('button', { type: 'button', class: 'evals-go evals-verify', text: 'Verify', onclick: verify }))));
         shownAt = performance.now();
         ghostLoop();
     }
 
-    // The ghost hand: from under the grid to each square it taps, at the times of its attempt, then to Verify. The less
-    // it has learned, the more it wanders on the way. Its taps leave a small ring in the square's corner. With reduced
-    // motion there is no hand: the rings and its line appear at the same times.
+    // The ghost hand: from under the play area to each target it taps, at the times of its attempt, then to Verify.
+    // Between taps it follows one of the shapes your own pointer drew (evals.js `shapes`), turned and scaled onto its
+    // own start and end, so it hovers, wanders and curves in as you do; until it has seen your pointer move it goes
+    // straight, wandering more the less it has learned. Each tap leaves a small ring on the target. With reduced motion
+    // there is no hand: the rings and its line appear at the same times.
     function ghostLoop() {
-        const g = run.ghost, wrap = stage.querySelector('.evals-grid-wrap'), hand = stage.querySelector('.evals-hand');
+        const g = run.ghost, c = run.current, area = play, hand = area.querySelector('.evals-hand');
         const line = stage.querySelector('.evals-its-line'), verifyBtn = stage.querySelector('.evals-verify');
-        const cells = [...stage.querySelectorAll('.evals-cell')];
         const still = reduced();
         if (still) hand.hidden = true;
-        let done = false;
+        let done = false, applied = -1;
         const at = node => {
-            const w = wrap.getBoundingClientRect(), r = node.getBoundingClientRect();
+            const w = area.getBoundingClientRect(), r = node.getBoundingClientRect();
             return { x: r.left - w.left + r.width / 2, y: r.top - w.top + r.height / 2 };
         };
         const frame = () => {
-            if (!run || run.ghost !== g || locked) return;
-            const t = (performance.now() - shownAt) / 1000;
-            const w = wrap.getBoundingClientRect();
-            // Where it is going: the start, each tap, then Verify.
-            const stops = [{ t: 0, p: { x: w.width / 2, y: w.height + 14 } }, ...g.taps.map(tap => ({ t: tap.t, p: at(cells[tap.i]), i: tap.i, off: tap.off })), { t: g.seconds, p: at(verifyBtn) }];
+            if (!run || run.ghost !== g || locked || play !== area) return;
+            const t = now();
+            const w = area.getBoundingClientRect();
+            // Where it is going: the start, each tap, then Verify (or, with no Verify, it stays on its last tap).
+            const stops = [{ t: 0, p: { x: w.width / 2, y: w.height + 14 } }, ...g.taps.map(tap => ({ t: tap.t, p: at(targets[tap.i]), i: tap.i, off: tap.off }))];
+            if (verifyBtn) stops.push({ t: g.seconds, p: at(verifyBtn) });
             let j = stops.findIndex(s => s.t > t);
             if (j < 0) j = stops.length;
-            // Its ring shows on a square from its tap, and goes again if it takes the tap back.
-            for (const s of stops) if (s.i !== undefined) cells[s.i].classList.toggle('its', s.t <= t && !(s.off <= t));
-            if (j >= stops.length) {
-                if (!done) { done = true; line.textContent = g.correct ? `Right, in ${secs(g.seconds)}.` : `Wrong by ${squares(g.off)}, in ${secs(g.seconds)}.`; mark(line.parentNode, g.correct); }
-                if (!still) place(hand, stops[stops.length - 1].p, 0, t);
+            // Its ring shows on a target from its tap (again for a target tapped again), and goes if it takes one back.
+            stops.forEach((s, index) => {
+                if (s.i === undefined) return;
+                if (s.t <= t && index > applied) {
+                    applied = index;
+                    const b = targets[s.i];
+                    b.classList.remove('its');
+                    void b.offsetWidth;
+                    b.classList.add('its');
+                }
+                if (s.off <= t && !stops.some((later, k) => k > index && later.i === s.i && later.t <= t)) targets[s.i].classList.remove('its');
+            });
+            if (t >= g.seconds) {
+                if (!done) { done = true; line.textContent = g.correct ? `Right, in ${secs(g.seconds)}.` : `Wrong${wrongBy(c, g.off)}, in ${secs(g.seconds)}.`; mark(line.parentNode, g.correct); }
+                if (!still) put(hand, stops[stops.length - 1].p);
                 return;
             }
-            if (!still) {
+            if (!still && j < stops.length) {
                 const a = stops[Math.max(0, j - 1)], b = stops[j];
-                // It rests on a square for the first part of each gap, then moves.
-                const k = Math.max(0, Math.min(1, ((t - a.t) / Math.max(0.01, b.t - a.t) - 0.35) / 0.65));
-                const e = k * k * (3 - 2 * k);
-                place(hand, { x: a.p.x + (b.p.x - a.p.x) * e, y: a.p.y + (b.p.y - a.p.y) * e }, (1 - g.m) * Math.sin(Math.PI * e), t);
+                const k = Math.max(0, Math.min(1, (t - a.t) / Math.max(0.01, b.t - a.t)));
+                const shape = g.moves[j - 1];
+                if (shape) {
+                    // Along your shape: `along` the straight line from a to b, `aside` off it, at this share of the time.
+                    let s = 1;
+                    while (s < shape.length - 1 && shape[s][0] < k) s++;
+                    const p0 = shape[s - 1], p1 = shape[s], f = (k - p0[0]) / Math.max(0.001, p1[0] - p0[0]);
+                    const along = p0[1] + (p1[1] - p0[1]) * f, aside = p0[2] + (p1[2] - p0[2]) * f;
+                    const dx = b.p.x - a.p.x, dy = b.p.y - a.p.y;
+                    put(hand, { x: a.p.x + dx * along - dy * aside, y: a.p.y + dy * along + dx * aside });
+                } else {
+                    // No shape of yours yet: it rests for the first part of each gap, then goes straight, wandering.
+                    const r = Math.max(0, (k - 0.35) / 0.65), e = r * r * (3 - 2 * r), wander = (1 - g.m) * Math.sin(Math.PI * e);
+                    put(hand, { x: a.p.x + (b.p.x - a.p.x) * e + wander * 22 * Math.sin(t * 5.1), y: a.p.y + (b.p.y - a.p.y) * e + wander * 16 * Math.cos(t * 3.7) });
+                }
             }
             raf = requestAnimationFrame(frame);
         };
         raf = requestAnimationFrame(frame);
     }
+    const put = (hand, p) => { hand.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`; };
     // Its tag says how its attempt went by a mark as well as by colour: AI ✓ or AI ✕.
     function mark(its, correct) {
         its.classList.add('done');
         its.classList.toggle('wrong', !correct);
         its.querySelector('.evals-its-tag').textContent = correct ? 'AI ✓' : 'AI ✕';
     }
-    function place(hand, p, wander, t) {
-        const dx = wander * 22 * Math.sin(t * 5.1), dy = wander * 16 * Math.cos(t * 3.7);
-        hand.style.transform = `translate(${(p.x + dx).toFixed(1)}px, ${(p.y + dy).toFixed(1)}px)`;
+
+    // What you've entered, for a captcha that wants an order.
+    const valueOf = (c, i) => (c.layout === 'pads' ? ['▁', '▃', '▅', '▇'][c.targets.length === 3 ? [0, 2, 3][i] : i] : c.targets[i].text || c.targets[i].glyph);
+    function listEntered(indices = entered.map(e => e.i)) {
+        const list = stage.querySelector('.evals-entered-list');
+        if (list) list.textContent = indices.map(i => valueOf(shown, i)).join(' ');
+    }
+    let shown = null;   // the captcha on screen (the run has moved on to the next by the time an answer is revealed)
+    function back() {
+        if (locked || !entered.length) return;
+        entered.pop();
+        undos++;
+        listEntered();
     }
 
-    function toggle(i, b) {
-        if (locked) return;
-        // A square tapped and taken back is one of your habits: it is counted, and the AI picks it up.
-        if (picked.has(i)) { picked.delete(i); undos++; } else picked.set(i, (performance.now() - shownAt) / 1000);
-        b.setAttribute('aria-pressed', picked.has(i) ? 'true' : 'false');
+    // A tap on target `i`. A set: it is picked, or taken back if it was (with one right answer, picking another moves
+    // the pick). An order: it is added to what you've entered. The tick box: that is the whole answer, judged on how
+    // long you took, how your pointer came and where in the box the tap landed.
+    function tap(i, e) {
+        if (locked || !run || run.over) return;
+        const c = run.current, t = now();
+        if (c.mode === 'tick') {
+            const r = targets[0].querySelector('.evals-box').getBoundingClientRect();
+            // A tap with no place (a key press) is taken as a hand's width off, as a finger would be.
+            const placed = e && (e.clientX || e.clientY);
+            tick = { bend: bendOf(), offset: placed ? Math.hypot(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2)) / Math.max(1, r.width) : 0.2 };
+            picked.set(0, t);
+            targets[0].setAttribute('aria-pressed', 'true');
+            verify();
+            return;
+        }
+        if (c.mode === 'seq') {
+            entered.push({ i, t });
+            if (c.layout === 'pads') { beep(i); targets[i].classList.add('lit'); cues.push(setTimeout(() => targets[i]?.classList.remove('lit'), 160)); }
+            listEntered();
+            return;
+        }
+        if (picked.has(i)) { picked.delete(i); undos++; }
+        else {
+            if (c.single && picked.size) { picked.clear(); undos++; }
+            picked.set(i, t);
+        }
+        targets.forEach((b, k) => b.setAttribute('aria-pressed', picked.has(k) ? 'true' : 'false'));
     }
 
     function verify() {
         if (!run || run.over || locked) return;
         locked = true;
-        cancelAnimationFrame(raf);
-        const seconds = (performance.now() - shownAt) / 1000;
-        // How you solved it: the squares left picked, in the order you tapped them.
-        const taps = [...picked].map(([i, t]) => ({ i, t })).sort((a, b) => a.t - b.t);
+        stop();
+        const c = run.current, seconds = now();
+        // How you solved it: what you ended with, in the order you tapped it.
+        const taps = c.mode === 'seq' ? entered.slice() : [...picked].map(([i, t]) => ({ i, t })).sort((a, b) => a.t - b.t);
         const mine = taps.map(t => t.i);
-        const r = run.submit(mine, seconds, { taps, seconds, undos });
+        const r = run.submit(mine, seconds, { taps, seconds, undos, path, bend: tick.bend, offset: tick.offset });
         const captcha = stage.querySelector('.evals-captcha');
-        stage.querySelector('.evals-verify').disabled = true;
-        // Show what was right, by mark and not by colour alone: ✓ on every right square, ✕ on a wrong tap. And all of
-        // the AI's attempt, as far as it had got or not.
-        for (const b of stage.querySelectorAll('.evals-cell')) {
-            const i = +b.dataset.i, right = r.answer.includes(i);
+        for (const b of stage.querySelectorAll('.evals-verify, .evals-back, .evals-replay')) b.disabled = true;
+        // Show what was right, by mark and not by colour alone: ✓ on every right target, ✕ on a wrong tap; and all of
+        // the AI's attempt. For an order, the right one is written out.
+        targets.forEach((b, i) => {
             b.disabled = true;
-            if (right) { b.classList.add('right'); b.querySelector('.evals-mark').textContent = '✓'; }
-            else if (picked.has(i)) { b.classList.add('wrong'); b.querySelector('.evals-mark').textContent = '✕'; }
-            b.classList.toggle('its', r.ghost.answer.includes(i));
+            b.classList.remove('lit');
+            if (c.mode === 'set') {
+                if (r.answer.includes(i)) { b.classList.add('right'); b.querySelector('.evals-mark').textContent = '✓'; }
+                else if (picked.has(i)) { b.classList.add('wrong'); b.querySelector('.evals-mark').textContent = '✕'; }
+                b.classList.toggle('its', r.ghost.answer.includes(i));
+            } else b.classList.remove('its');
+        });
+        if (c.mode === 'seq' && !r.correct) {
+            stage.querySelector('.evals-entered').classList.add('answer');
+            listEntered(r.answer);
         }
         captcha.classList.add(r.correct ? 'passed' : 'failed');
-        stage.querySelector('.evals-status').textContent = r.correct ? `Verified in ${secs(seconds)}.` : r.over ? 'Not quite. No lives left.' : `Not quite. ${lives(r.lives)} left.`;
+        const WHY = { quick: 'Too quick to be a person.', straight: 'Too straight to be a person.', centre: 'Too perfect to be a person.' };
+        const left = r.over ? 'No lives left.' : `${lives(r.lives)} left.`;
+        stage.querySelector('.evals-status').textContent = r.correct ? `Verified in ${secs(seconds)}.` : `${r.why ? WHY[r.why] : 'Not quite.'} ${left}`;
         const its = stage.querySelector('.evals-its');
         mark(its, r.ghost.correct);
         its.classList.toggle('ahead', r.ahead);
-        its.querySelector('.evals-its-line').textContent = !r.ghost.correct ? `It was wrong by ${squares(r.ghost.off)}.`
+        its.querySelector('.evals-its-line').textContent = !r.ghost.correct ? (c.mode === 'tick' ? 'It ticked it like a machine.' : `It was wrong${wrongBy(c, r.ghost.off)}.`)
             : r.ahead ? `It got it right first, in ${secs(r.ghost.seconds)}.`
             : `It got it right, in ${secs(r.ghost.seconds)}. You were first.`;
         const hand = stage.querySelector('.evals-hand');
@@ -246,7 +434,7 @@
             if (!run) return;
             if (r.takeover) {
                 window.AGI?.save?.();
-                card('It has learned this', [`It now solves ${window.Evals.KINDS[r.takeover].name} before you can.`, 'It does those from here on. You will not see them again.'], 'Continue', next);
+                card('It has learned this', [`It now does ${window.Evals.KINDS[r.takeover].name} before you can.`, 'It does those from here on. You will not see them again.'], 'Continue', next);
             } else next();
         }, r.correct ? RIGHT_MS : WRONG_MS);
     }
@@ -257,7 +445,10 @@
         if (!dlg.open) dlg.showModal();
         startCard();
     }
-    function close() { if (dlg && dlg.open) dlg.close(); }
+    // The run in play is settled as the screen closes, not when the dialog's own event arrives a moment later (closing
+    // and reopening at once used to end the new run).
+    function shut() { stop(); settle(); run = null; play = null; }
+    function close() { if (dlg && dlg.open) { shut(); dlg.close(); } }
 
     // For the review kit and tests in a browser: the run in play, and the screen's controls.
     window.EvalsUI = { open, close, start, get run() { return run; }, get isOpen() { return !!(dlg && dlg.open); } };

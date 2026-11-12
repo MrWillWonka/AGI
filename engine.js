@@ -2509,7 +2509,8 @@
     const cleanPts = (a, n) => (Array.isArray(a) ? a : []).filter(p => Array.isArray(p) && p.length === n && p.every(v => typeof v === 'number' && v >= 0 && v <= 1))
         .slice(0, 12).map(p => p.map(v => Math.round(v * 1000) / 1000));
     // Evals' saved state, cleaned whatever a save holds: counts whole and sane, at most 64 kinds, `m` from 0 to 1, a
-    // few bounded traces a kind, ten at most (a tap is a square on a grid of at most 8 × 8 and a time under ten minutes).
+    // few bounded traces a kind, ten at most (a tap is one of at most 64 targets and a time under ten minutes; a
+    // pointer path is whole numbers in threes, at most 120 samples; see evals.js `cleanTrace`).
     function cleanEvals(e) {
         const whole = (v, cap) => Math.min(cap, Math.floor(num(v, 0)));
         const kinds = {};
@@ -2520,11 +2521,19 @@
             const traces = [];
             for (const t of Array.isArray(k.traces) ? k.traces.slice(-10) : []) {
                 const side = whole(t?.side, 8);
-                if (side < 1) continue;
+                const n = whole(t?.n, 64) || side * side;
+                if (n < 1) continue;
                 const taps = (Array.isArray(t.taps) ? t.taps.slice(0, 40) : [])
-                    .filter(tap => tap && Number.isInteger(tap.i) && tap.i >= 0 && tap.i < side * side && typeof tap.t === 'number' && tap.t >= 0 && tap.t < 600)
+                    .filter(tap => tap && Number.isInteger(tap.i) && tap.i >= 0 && tap.i < n && typeof tap.t === 'number' && tap.t >= 0 && tap.t < 600)
                     .map(tap => ({ i: tap.i, t: Math.round(tap.t * 100) / 100 }));
-                traces.push({ side, correct: t.correct === true, seconds: Math.min(600, num(t.seconds, 0)), undos: Math.min(20, Math.floor(num(t.undos, 0))), taps });
+                const path = [];
+                const raw = Array.isArray(t.path) ? t.path.slice(0, 360) : [];
+                for (let j = 0; j + 2 < raw.length; j += 3) {
+                    const [at, x, y] = [raw[j], raw[j + 1], raw[j + 2]];
+                    if ([at, x, y].every(Number.isInteger) && at >= 0 && at <= 60000 && x >= -500 && x <= 1500 && y >= -500 && y <= 3000) path.push(at, x, y);
+                }
+                traces.push({ n, side, correct: t.correct === true, seconds: Math.min(600, num(t.seconds, 0)), undos: Math.min(20, Math.floor(num(t.undos, 0))),
+                    bend: Math.min(99, num(t.bend, 0)), offset: Math.min(9, num(t.offset, 0)), taps, path });
             }
             const solves = whole(k.solves, 1e9);
             kinds[key] = { m: Math.min(1, num(k.m, 0)), solves, ahead: whole(k.ahead, 1e6), taken: k.taken === true,

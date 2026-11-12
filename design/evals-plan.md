@@ -129,6 +129,47 @@ less from each. Built:
 - **A brisk solve allows for the grid:** 2 s, plus 0.2 s a square to look over and 0.5 s a right square to tap.
 - `learnSolves` 46, so a steady clean player still keeps a kind 34 to 41 watched solves.
 
+**After the owner's third play (2026-11-11).** "I think I saw it, we can continue to make it better", and their call on
+what next: no text and no flash for the copying, but **more of the player's movement**: "the player hovers for a
+while or clicks and unclicks etc. if the player moves their mouse a certain way I want the ghost to do those things
+too"; then straight on to the six families without stopping. Built:
+
+- **It copies how your pointer moves.** The screen samples your pointer over the captcha (at most 120 samples, kept on
+  your last three solves of a kind). `shapes` in `evals.js` cuts each path into the stretches between your taps and
+  keeps each as a shape: how far along the straight line and how far off to the side you were at each moment. The
+  ghost's hand follows one of your shapes between each of its own taps, turned and scaled to fit, so your hovering,
+  your detours and your overshoots come with it. On a touch screen there is no path between taps, so it goes straight.
+- **Take-backs** were already copied (above); in a sum or a slot, changing your pick counts as one.
+
+**Stage 3 is built** (2026-11-11): the other six families, thin.
+
+- **Every captcha is taps on numbered targets**, in one of three modes: a set (the right ones, any order; `single`
+  when there is one), an order (judged by what the targets say, so either of two tiles with the same letter will do)
+  or the tick box. So one learner, one trace, one ghost hand and one screen serve every family; a family is a `make`
+  in `evals.js` and a layout in `evals-ui.js`.
+- **The kinds** (13): Read: a warped word, a struck-through word. Answer: a sum, a sum in words. Pick: a thing, a
+  scene, "without". Handle: slide the piece into the slot it fits, tap pictures in a shown order. Listen: a beep
+  pattern on three or four pads, lit as it plays and sounded. Invisible: the tick box. Future: where the ball lands on
+  a board of arrows, and which square changed.
+- **The tick box** is passed by being a person: 0.7 s or more before you tick, a pointer path at least 3% longer than
+  the straight line (not judged on a touch screen, which has no path) and a tap at least 4% of the box off its dead
+  centre. The reason shows when you fail ("Too quick to be a person."). The AI is too quick and too perfect until it
+  has watched you and learned how; its line reads "It ticked it like a machine."
+- **A run goes round the seven families in era order**, and each family gets harder with each of its own you solve.
+  A family whose kinds the AI has all taken is passed over.
+- **Its line names what it missed by** where that means something: squares, letters, pictures, beeps. For a captcha
+  with one right answer it says only right or wrong, and the end card gives its share right at first and by the end.
+- **Fixed on the way:** closing the screen and opening it again at once ended the new run (the dialog's close event
+  arrived late).
+- **Tests:** `tests/evals-families.test.js` (every family well formed over 120 seeds and 8 levels, each family's own
+  rules, the tick box, the run's order, the learner on all 13 kinds, the pointer shapes).
+- **Checked in a browser** at phone size upright (18 captchas through every family, no scrolling, every target 44 px
+  or more, no errors) and sideways (the first nine, all in view).
+
+**Not done, and worth knowing:** the trick questions (stage 4); the sound is a plain tone of its own, not the game's
+sound engine, and ignores the game's volume; the picture of the hand following a mouse path was tested as rules, not
+watched on screen; nothing has been played on the owner's iPhone.
+
 Each ends with something the owner can play or read, and a short report.
 
 1. **Skeleton.** `evals.js` with a run (lives, streak, a queue of captchas), one family (Pick), the judge, and tests.

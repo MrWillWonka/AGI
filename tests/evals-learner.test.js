@@ -75,7 +75,7 @@ test('it learns only by watching, more from a clean quick solve than a slow one,
 test('it copies your pace and your order', () => {
     const fast = Evals.newLearn(), slow = Evals.newLearn(), back = Evals.newLearn();
     const teach = (learn, opts) => {
-        const run = Evals.createRun({ seed: 21, learn, comboFrom: 99, withoutFrom: 99, overtake: 999 });
+        const run = Evals.createRun({ families: ['pick'], seed: 21, learn, comboFrom: 99, withoutFrom: 99, overtake: 999 });
         for (let i = 0; i < 12; i++) play(run, opts);
     };
     teach(fast, { first: 0.6, gap: 0.3, verify: 0.4 });
@@ -126,7 +126,7 @@ test('it copies your mistakes: taught sloppily, it stays wrong more often', () =
     const clean = Evals.newLearn(), sloppy = Evals.newLearn();
     for (const [learn, rate] of [[clean, 0], [sloppy, 0.5]]) {
         for (let seed = 1; seed <= 6; seed++) {
-            const run = Evals.createRun({ seed, learn, lives: 999, comboFrom: 99, withoutFrom: 99, overtake: 999 });
+            const run = Evals.createRun({ families: ['pick'], seed, learn, lives: 999, comboFrom: 99, withoutFrom: 99, overtake: 999 });
             const rand = Evals.rng(seed + 50);
             for (let i = 0; i < 10; i++) play(run, { sloppy: rate, rand });
         }
@@ -145,7 +145,7 @@ test('a run: it takes a kind over once it is right and first several times runni
     let took = null, runs = 0;
     while (!took && runs < 80) {
         runs++;
-        const run = Evals.createRun({ seed: runs, learn });
+        const run = Evals.createRun({ families: ['pick'], seed: runs, learn });
         for (let i = 0; i < 2 && !took; i++) {
             assert.equal(run.current.kind, 'pick.thing');
             const r = play(run);
@@ -161,7 +161,7 @@ test('a run: it takes a kind over once it is right and first several times runni
     assert.ok(learn.kinds['pick.thing'].m > 0.9, 'it took over before it had learned much');
     // From now on a run never shows that kind, even at the levels that used to.
     for (let seed = 1; seed <= 20; seed++) {
-        const run = Evals.createRun({ seed, learn, overtake: 999 });
+        const run = Evals.createRun({ families: ['pick'], seed, learn, overtake: 999 });
         for (let i = 0; i < 6; i++) { assert.notEqual(run.current.kind, 'pick.thing'); play(run); }
     }
 });
@@ -169,7 +169,7 @@ test('a run: it takes a kind over once it is right and first several times runni
 test('not ahead, no takeover: a wrong or slower attempt sets it back one, never under none', () => {
     const learn = Evals.newLearn();
     Object.assign(Evals.kindOf(learn, 'pick.thing'), { m: 1, ahead: Evals.EVALS.overtake - 1 });
-    const run = Evals.createRun({ seed: 2, learn });
+    const run = Evals.createRun({ families: ['pick'], seed: 2, learn });
     // You answer in no time at all, so it can't have been first.
     const r = run.submit(run.current.answer, 0.01, { taps: run.current.answer.map((i, j) => ({ i, t: 0.001 * j })), seconds: 0.01 });
     assert.ok(r.correct && !r.ahead && !r.takeover);
@@ -199,7 +199,7 @@ test('three phases: bad for a good while, then at about your pace and often wron
 test('it copies your habit of tapping a square and taking it back', () => {
     const feints = undos => {
         const learn = Evals.newLearn();
-        const run = Evals.createRun({ seed: 3, learn, lives: 999, comboFrom: 99, withoutFrom: 99, overtake: 999 });
+        const run = Evals.createRun({ families: ['pick'], seed: 3, learn, lives: 999, comboFrom: 99, withoutFrom: 99, overtake: 999 });
         for (let i = 0; i < 10; i++) { const c = run.current; run.submit(c.answer, 3, { taps: c.answer.map((x, j) => ({ i: x, t: 1 + 0.5 * j })), seconds: 3, undos }); }
         learn.kinds['pick.thing'].m = 1;
         const list = attempts(learn, 'pick.thing');
@@ -216,19 +216,19 @@ test('it copies your habit of tapping a square and taking it back', () => {
 test('when it has taken every kind, there is nothing left to run', () => {
     const learn = Evals.newLearn();
     for (const kind of Object.keys(Evals.KINDS)) Evals.kindOf(learn, kind).taken = true;
-    const run = Evals.createRun({ seed: 1, learn });
+    const run = Evals.createRun({ families: ['pick'], seed: 1, learn });
     assert.ok(run.over && run.exhausted);
     assert.equal(run.current, null);
     assert.equal(run.submit([0]), null);
     // With one kind left, every captcha is that kind.
     learn.kinds['pick.without'].taken = false;
-    const left = Evals.createRun({ seed: 1, learn, overtake: 999 });
+    const left = Evals.createRun({ families: ['pick'], seed: 1, learn, overtake: 999 });
     for (let i = 0; i < 12; i++) { assert.equal(left.current.kind, 'pick.without'); play(left); }
 });
 
 test('what it does never changes which captchas come up, and a trace is cleaned whatever is handed in', () => {
     const seq = learn => {
-        const run = Evals.createRun({ seed: 8, learn, overtake: 999 });
+        const run = Evals.createRun({ families: ['pick'], seed: 8, learn, overtake: 999 });
         const out = [];
         for (let i = 0; i < 6; i++) { out.push(run.current.prompt); run.submit(run.current.answer, 2); }
         return out.join('|');
@@ -236,8 +236,9 @@ test('what it does never changes which captchas come up, and a trace is cleaned 
     const taught = Evals.newLearn();
     Evals.kindOf(taught, 'pick.thing').m = 1;
     assert.equal(seq(Evals.newLearn()), seq(taught));
-    const t = Evals.cleanTrace({ taps: [{ i: 99, t: 1 }, { i: 2, t: -1 }, { i: 3, t: 2 }, { i: 1, t: 1 }, null, { i: 'x', t: 1 }], seconds: 'soon' }, 3);
+    const t = Evals.cleanTrace({ taps: [{ i: 99, t: 1 }, { i: 2, t: -1 }, { i: 3, t: 2 }, { i: 1, t: 1 }, null, { i: 'x', t: 1 }], seconds: 'soon', path: [10, 5, 5, 'x', 1, 1, 20, 9000, 5, 30, 7, 8] }, 9, 3);
     assert.deepEqual(t.taps, [{ i: 1, t: 1 }, { i: 3, t: 2 }]);
     assert.equal(t.seconds, 2);
-    assert.equal(Evals.cleanTrace(null, 3).taps.length, 0);
+    assert.deepEqual(t.path, [10, 5, 5, 30, 7, 8]);
+    assert.equal(Evals.cleanTrace(null, 9, 3).taps.length, 0);
 });

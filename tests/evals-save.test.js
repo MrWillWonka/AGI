@@ -16,7 +16,7 @@ test('a new game and a save from before Evals both start it empty', () => {
 
 test('what it learned in a run comes back from a save unchanged', () => {
     const s = E.defaultState(NOW);
-    const run = Evals.createRun({ seed: 4, learn: s.evals.learn });
+    const run = Evals.createRun({ families: ['pick'], seed: 4, learn: s.evals.learn });
     for (let i = 0; i < 5; i++) {
         const c = run.current;
         const taps = c.answer.map((x, j) => ({ i: x, t: 1 + 0.5 * j }));
@@ -30,7 +30,7 @@ test('what it learned in a run comes back from a save unchanged', () => {
     const back = E.migrate(JSON.parse(JSON.stringify(s)), NOW);
     assert.deepEqual(back.evals, s.evals);
     // And the learner plays on from it.
-    const again = Evals.createRun({ seed: 5, learn: back.evals.learn });
+    const again = Evals.createRun({ families: ['pick'], seed: 5, learn: back.evals.learn });
     assert.ok(again.ghost.m > 0);
 });
 
@@ -49,7 +49,7 @@ test('junk in the save is cleaned', () => {
     assert.deepEqual(Object.keys(e.learn.kinds), ['pick.thing']);
     const k = e.learn.kinds['pick.thing'];
     assert.deepEqual({ m: k.m, solves: k.solves, ahead: k.ahead, taken: k.taken, wrongs: k.wrongs }, { m: 1, solves: 2, ahead: 0, taken: false, wrongs: 2 });
-    assert.deepEqual(k.traces, [{ side: 3, correct: false, seconds: 600, undos: 0, taps: [{ i: 2, t: 1.23 }] }]);
+    assert.deepEqual(k.traces, [{ n: 9, side: 3, correct: false, seconds: 600, undos: 0, bend: 0, offset: 0, taps: [{ i: 2, t: 1.23 }], path: [] }]);
     for (const bad of [null, 5, 'x', [], { learn: 5 }, { learn: { kinds: [] } }]) {
         assert.deepEqual(E.migrate({ version: E.SAVE_VERSION, evals: bad }, NOW).evals.learn, { kinds: {} });
     }
