@@ -108,10 +108,18 @@
         stage.querySelector('.evals-go').focus();
     }
 
+    // The unlock ladder (evals.js `LADDER`) is on unless the debug panel turned it off on this device.
+    const ladderOn = () => { try { return localStorage.getItem('agiEvalsLadder') !== '0'; } catch { return true; } };
+    const listOf = names => (names.length < 2 ? names.join('') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1]);
+    function rotationLine() {
+        const n = window.Evals.rotation(saved().learn, { ...window.Evals.EVALS, ladder: ladderOn() ? 1 : 0 }).length;
+        return n === 1 ? 'One kind of captcha to prove.' : `${n} kinds of captcha to prove.`;
+    }
     function startCard() {
         run = null;
         hud();
         const lines = ['Prove you are human. Each one is harder than the last.', 'It watches how you do it.', `You have ${lives(window.Evals.EVALS.lives)}.`];
+        lines.push(rotationLine());
         if (saved().best > 0) lines.push(`Your best run: ${saved().best} solved.`);
         card('Verification required', lines, 'Start', start);
     }
@@ -127,7 +135,7 @@
         }
         for (const k of Object.values(kinds)) { k.seconds = Math.round(k.seconds / k.n * 10) / 10; k.aiOff = Math.round(k.aiOff / k.n * 10) / 10; }
         window.AGI?.playtest?.('evals', { solved: run.solved, missed: run.missed, captchas: run.log.length, bestStreak: run.bestStreak, trickAt: run.trickAt,
-            ended: run.exhausted ? 'nothing left' : run.over ? 'lives' : 'closed', takeovers: run.takeovers, kinds });
+            ended: run.exhausted ? 'nothing left' : run.over ? 'lives' : 'closed', takeovers: run.takeovers, unlocks: run.unlocks, ladder: run.opts.ladder, kinds });
         if (window.AGIEngine?.evalsRunEnd && window.AGI?.state) window.AGIEngine.evalsRunEnd(window.AGI.state, run);
         else { run.counted = true; const s = saved(); s.runs++; s.best = Math.max(s.best, run.solved); }
         window.AGI?.save?.();
@@ -162,7 +170,7 @@
     function start() {
         // Sound needs a gesture to begin: this click is it.
         try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); if (audio.state === 'suspended') audio.resume(); } catch { audio = null; }
-        run = window.Evals.createRun({ seed: (Date.now() ^ (Math.random() * 0x7fffffff)) >>> 0, learn: saved().learn });
+        run = window.Evals.createRun({ seed: (Date.now() ^ (Math.random() * 0x7fffffff)) >>> 0, learn: saved().learn, ladder: ladderOn() ? 1 : 0 });
         if (run.over) endCard(); else show();
     }
     function beep(pad) {
@@ -490,7 +498,9 @@
             if (!run) return;
             if (r.takeover) {
                 window.AGI?.save?.();
-                card('It has learned this', [`It now does ${window.Evals.KINDS[r.takeover].name} before you can.`, 'It does those from here on. You will not see them again.'], 'Continue', next);
+                const lines = [`It now does ${window.Evals.KINDS[r.takeover].name} before you can.`, 'It does those from here on. You will not see them again.'];
+                if (r.unlocked.length) lines.push(`New to prove: ${listOf(r.unlocked.map(k => window.Evals.KINDS[k].name))}.`, rotationLine());
+                card('It has learned this', lines, 'Continue', next);
             } else next();
         }, r.correct ? RIGHT_MS : WRONG_MS);
     }

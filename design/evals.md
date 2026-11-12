@@ -42,6 +42,63 @@ replaces the first draft (pitched as Busywork: building tasks for a bored AI), w
 - An earlier pick, **slow pressure**, was made for the first draft. Here it becomes the AI creeping up on you; the
   solving itself is hands-on and quick. To confirm with the owner.
 
+- **Kinds unlock over time, starting from one** (2026-11-12): "start with the most simple and least fun one that gets
+  automated quickly and then add/unlock more and more over time so even though the player is doing them more and more
+  the number of captchas increases and slows the pickup of the AI naturally as the rotation grows… 2…6…10 different
+  kinds in rotation". Their picks: the first kind is the **warped word**; **each kind the AI takes over unlocks the
+  next ones**. Built: see *The unlock ladder* below.
+- **Several agents** (2026-11-12, an idea to design on paper first): "you start the Evals with one but then a second
+  agent can join at a certain point and then it's about training the growing number of agents and eventually your
+  agents training other agents and so on". See *Agents* below; nothing of it is built.
+
+## The unlock ladder (built 2026-11-12)
+
+`LADDER` in `evals.js`. What is open is worked out from how many kinds the AI has taken over, so the save holds nothing
+new. The debug panel can turn it off on a device (Evals → Unlock ladder: every kind from the start).
+
+| It has taken | Opens | In rotation | Learns them |
+|---|---|---|---|
+| 0 | warped words | 1 | 4 times as fast, taken at a score of 3 |
+| 1 | sums, struck-through words | 2 | twice as fast, taken at 5 |
+| 2 | plain picture grids, sliding the piece, sums in words | 4 | the plain pace (taken at 8) |
+| 3 | scenes, beep patterns, tapping in order | 6 | the plain pace |
+| 4 | where the ball lands, the tick box, "without" grids, what changed, trick questions | 10 | the plain pace |
+
+Measured with a steady, clean player (every answer right and brisk): warped words go after 11 captchas, sums at 44,
+struck-through words at 59, and the next not until 193, with ten kinds in rotation. **Two things the owner should
+know.** A run goes round families, not kinds, so two kinds of one family share a turn: the rotation is at most eight
+turns wide however many kinds are open. And with 14 kinds the ladder is spent after four takeovers: from there the
+rotation only shrinks, and because the ten kinds were learned side by side they fall close together (the other eleven
+between captcha 193 and 463). To keep the rotation growing past that needs more kinds (the catalogue below has 70) or
+steps that open later.
+
+## Agents (a design to settle, nothing built)
+
+The owner's idea: one AI at first, a second joins, then you are training a growing number of them, and in time they
+train each other. A first shape, for the owner's calls:
+
+- **Each agent is its own learner**: what `state.evals.learn` is today, one per agent, with its own ghost hand, its
+  own colour and a name. An agent only ever learns a kind by watching someone solve it.
+- **A new agent joins knowing nothing**, at a set point (a first guess: when the first agent takes its third kind).
+- **Who it watches is the game.** On a kind you still solve, it watches you. On a kind another agent has taken over,
+  it can watch that agent instead, so you never have to solve that kind again: your agents train your agents.
+- **A copy of a copy.** The learner copies habits and mistakes, so an agent taught by an agent inherits its teacher's
+  slips with its own on top. A lineage taught carelessly gets worse down the chain; one you step back in and solve
+  for gets better. That gives the player a job after takeovers (Open 2): choosing who teaches whom, and when to do it
+  by hand again.
+- **A kind is automated when any agent has taken it**; more agents on a kind could mean more of whatever it pays
+  (Open 6), which is the reason to train the second one at all.
+
+Open, for the owner:
+
+- A. How many hands show at once. Two or three cursors over a phone's captcha is a lot; one hand in play and the
+  rest as small tags with their result is the cautious version.
+- B. What a second agent is for: more pay per taken kind, a specialist that learns one family faster, or a rival?
+- C. When an agent joins, and whether you choose to bring it in.
+- D. How you pick a teacher: per kind, per agent, or the game decides.
+- E. Where the story goes: the mail's AI is one voice. Are these copies of it, or tools it is building?
+- F. Whether agents teaching agents happens in a run you watch, or over time while you are elsewhere (idle).
+
 ## A run (draft)
 
 - A streak of captchas, each harder than the last. A few lives; a miss costs one. The run ends when they're gone and

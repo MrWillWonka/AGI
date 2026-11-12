@@ -13278,6 +13278,11 @@ window.AGI = (function () {
                 }
                 afterChange();
             },
+            // The unlock ladder on or off on this device (off: every kind from the start, at the plain pace). Returns it.
+            evalsLadder(on) {
+                if (on !== undefined) { try { localStorage.setItem('agiEvalsLadder', on ? '1' : '0'); } catch { /* private mode */ } }
+                try { return localStorage.getItem('agiEvalsLadder') !== '0'; } catch { return true; }
+            },
             // Evals as new: nothing learned, no kinds taken over, no runs. The rest of the game stays.
             resetEvals() {
                 window.EvalsUI?.close();

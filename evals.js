@@ -60,7 +60,25 @@
         // Taking a kind over is earned over many captchas: +1 each time it is right and done before you (or right
         // when you were wrong), -1 each time it isn't, never under 0. At `overtake` the kind is its.
         overtake: 8,
+        // Kinds unlock as it takes kinds over (`LADDER`). 0: every kind from the start, each at the plain pace.
+        ladder: 1,
     };
+    // The unlock ladder (the owner's call, 2026-11-12): a run starts with one kind, the plainest, which it learns
+    // fast; each kind it takes over unlocks the next step, more kinds than it took, so the rotation grows 1, 2, 4, 6,
+    // 10. It learns a kind only from solves of that kind, so the wider the rotation the longer each kind lasts.
+    // A step: its kinds, how many times faster it learns them (`speed`) and the score that takes one over
+    // (`overtake`; EVALS.overtake when not given). What is open is worked out from how many kinds it has taken, never
+    // stored.
+    const LADDER = [
+        { kinds: ['read.word'], speed: 4, overtake: 3 },
+        { kinds: ['answer.sum', 'read.struck'], speed: 2, overtake: 5 },
+        { kinds: ['pick.thing', 'handle.slide', 'answer.words'] },
+        { kinds: ['pick.scene', 'listen.beeps', 'handle.order'] },
+        { kinds: ['future.drop', 'invisible.tick', 'pick.without', 'future.changed', 'trick.question'] },
+    ];
+    const stepOf = kind => LADDER.find(s => s.kinds.includes(kind)) || {};
+    // How fast it learns this kind and the score that takes it over, on the ladder or off it.
+    const paceOf = (kind, o = EVALS) => (o.ladder ? { speed: stepOf(kind).speed || 1, overtake: stepOf(kind).overtake || o.overtake } : { speed: 1, overtake: o.overtake });
     // The three phases, by how much it has learned (`m`): [m, its pace against yours, how surely it knows a target
     // (0 not at all, 1 certain)]. Bad to 0.3; mimicking you, at about your pace and often wrong, to 0.7; then ahead.
     // Its pace passes yours at about 0.68 and takes the last third of the learning to reach its top speed, a steady
@@ -446,6 +464,20 @@
         for (const k of Object.keys(learn.kinds)) if (learn.kinds[k].taken) out[k] = true;
         return out;
     };
+    // The kinds the ladder has opened: a step more for each kind it has taken over.
+    function openKinds(learn, o = EVALS) {
+        if (!o.ladder) return Object.keys(KINDS);
+        const taken = Object.keys(takenMap(learn)).length;
+        return LADDER.slice(0, taken + 1).flatMap(s => s.kinds);
+    }
+    // The kinds a run can't draw: taken over, or not yet unlocked.
+    function blockedMap(learn, o = EVALS) {
+        const out = takenMap(learn), open = new Set(openKinds(learn, o));
+        for (const k of Object.keys(KINDS)) if (!open.has(k)) out[k] = true;
+        return out;
+    }
+    // The kinds in rotation: open and not taken over.
+    const rotation = (learn, o = EVALS) => { const taken = takenMap(learn); return openKinds(learn, o).filter(k => !taken[k]); };
     // How often you get a captcha of this kind wrong, pulled toward never until it has seen a few.
     const errorRate = k => k.wrongs / (k.solves + 4);
     // A brisk solve of this captcha, in seconds.
@@ -492,7 +524,7 @@
             const slow = clamp((t.seconds / par(c, o) - 1) / 2, 0, 1);
             share = lerp(o.learnQuick, o.learnSlow, slow);
         }
-        const gain = Math.min(1 - k.m, share / o.learnSolves);
+        const gain = Math.min(1 - k.m, share / o.learnSolves * paceOf(c.kind, o).speed);
         k.m += gain;
         return gain;
     }
@@ -658,7 +690,8 @@
     // attempt at it; `submit(answer, seconds, trace)` judges your answer, lets it watch, moves on and returns what
     // happened. It goes round the families in order; each family gets harder with each one of its own you solve
     // (`levels`); the trick questions come in their own fixed order (`trickAt`). A miss costs a life. The run is over when the lives are gone, or when the AI has taken over every
-    // kind there is (`exhausted`).
+    // kind there is (`exhausted`). With the ladder (`ladder`), only the kinds it has opened come up, and a takeover opens more
+    // (`unlocked` on the result, `run.unlocks`).
     function createRun(opts = {}) {
         const o = Object.assign({}, EVALS, opts);
         const rand = rng(o.seed ?? 1);
@@ -668,7 +701,7 @@
         const families = (o.families || ORDER).filter(f => FAMILIES[f]);
         const run = {
             opts: o, learn, lives: o.lives, level: 0, levels: {}, solved: 0, missed: 0, streak: 0, bestStreak: 0, over: false, exhausted: false,
-            current: null, ghost: null, takeovers: [], turn: 0, trickAt: 0,
+            current: null, ghost: null, takeovers: [], unlocks: [], turn: 0, trickAt: 0,
             // One line per captcha answered: what it was, whether you and it were right and how long each took.
             log: [],
         };
@@ -678,7 +711,7 @@
             for (let tries = 0; tries < families.length && !run.current; tries++) {
                 const family = families[run.turn % families.length];
                 run.turn++;
-                run.current = FAMILIES[family].make(rand, family === 'trick' ? run.trickAt : run.levels[family] || 0, o, takenMap(learn), run);
+                run.current = FAMILIES[family].make(rand, family === 'trick' ? run.trickAt : run.levels[family] || 0, o, blockedMap(learn, o), run);
             }
             if (!run.current) { run.over = true; run.exhausted = true; run.ghost = null; return; }
             run.ghost = ghostAttempt(learn, run.current, ghostRand, o);
@@ -695,11 +728,15 @@
             const k = kindOf(learn, c.kind);
             const learned = watch(learn, c, seen, correct, o);
             k.ahead = Math.max(0, k.ahead + (ahead ? 1 : -1));
-            let takeover = null;
-            if (k.ahead >= o.overtake && !k.taken) {
+            let takeover = null, unlocked = [];
+            if (k.ahead >= paceOf(c.kind, o).overtake && !k.taken) {
+                const before = new Set(openKinds(learn, o));
                 k.taken = true;
                 takeover = c.kind;
                 run.takeovers.push(c.kind);
+                // Each kind it takes opens the ladder's next step.
+                unlocked = openKinds(learn, o).filter(kind => !before.has(kind));
+                run.unlocks.push(...unlocked);
             }
             run.log.push({ family: c.family, kind: c.kind, level: c.level, correct, seconds, ghost: ghost.correct, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m });
             if (correct) {
@@ -716,7 +753,7 @@
                 run.streak = 0;
                 run.lives--;
             }
-            const result = { correct, why: c.mode === 'tick' && !correct ? tickVerdict(seen, o) : null, answer: c.answer.slice(), captcha: c, ghost, ahead, learned, takeover, lives: run.lives };
+            const result = { correct, why: c.mode === 'tick' && !correct ? tickVerdict(seen, o) : null, answer: c.answer.slice(), captcha: c, ghost, ahead, learned, takeover, unlocked, lives: run.lives };
             if (run.lives <= 0) { run.over = true; run.current = null; run.ghost = null; } else next();
             result.over = run.over;
             result.exhausted = run.exhausted;
@@ -726,6 +763,6 @@
         return run;
     }
 
-    return { EVALS, PACE, PHASES, phase, FAMILIES, KINDS, ORDER, QUIZ, THINGS, HATS, WORDS, SHAPES, rng, createRun, pickTargets, judge, offBy, tickVerdict,
+    return { EVALS, PACE, PHASES, phase, FAMILIES, KINDS, ORDER, LADDER, openKinds, blockedMap, rotation, paceOf, QUIZ, THINGS, HATS, WORDS, SHAPES, rng, createRun, pickTargets, judge, offBy, tickVerdict,
         newLearn, kindOf, takenMap, watch, habits, shapes, ghostAttempt, cleanTrace, errorRate, par };
 });

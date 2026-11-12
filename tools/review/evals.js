@@ -1,7 +1,7 @@
 // tools/review/evals.js — plays Evals (the third minigame) in a real browser at three screen sizes and checks it:
 // three rounds of every family solved with real taps and mouse moves, each captcha in view with no scrolling and no
 // target too small to tap, no console errors, a round with reduced motion (no hand), a run counted and logged, and (with a mouse) the pointer's path recorded
-// and the ghost hand given your shapes to follow. Takes a screenshot of each kind the first time it comes up.
+// and the ghost hand given your shapes to follow. Then the unlock ladder: one kind at first, more after a takeover. Takes a screenshot of each kind the first time it comes up.
 //   node tools/review/evals.js [out dir]     (default review-out/evals; serves the game itself if nothing does)
 // Prints PASS or FAIL a check and exits 1 if any failed. About a minute and a half.
 'use strict';
@@ -76,7 +76,8 @@ async function play(browser, size, url) {
     page.on('console', m => { if (m.type() === 'error' && !/favicon/i.test(m.location()?.url || '')) errors.push(`${m.text()} ${m.location()?.url || ''}`); });
     await page.goto(url);
     await page.waitForTimeout(900);
-    await page.evaluate(() => { AGI.debug.resetEvals(); AGI.debug.openEvals(); });
+    // Every kind from the start: the unlock ladder has its own tests (tests/evals-ladder.test.js).
+    await page.evaluate(() => { AGI.debug.evalsLadder(false); AGI.debug.resetEvals(); AGI.debug.openEvals(); });
     await press(page, size, '.evals-go');
     await page.waitForTimeout(300);
     const kinds = await page.evaluate(() => ({ all: Object.keys(Evals.KINDS).length, order: Evals.ORDER.length }));
@@ -139,11 +140,47 @@ async function play(browser, size, url) {
     await ctx.close();
 }
 
+// The unlock ladder, on a phone: a new game shows one kind, warped words; the AI takes it over within a few dozen
+// solves, and its card names the kinds that opened, one of which comes up next.
+async function ladder(browser, url) {
+    const size = SIZES[0];
+    const ctx = await browser.newContext({ viewport: size.viewport, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+    const page = await ctx.newPage();
+    await page.goto(url);
+    await page.waitForTimeout(900);
+    await page.evaluate(() => { AGI.debug.evalsLadder(true); AGI.debug.resetEvals(); AGI.debug.openEvals(); });
+    const startCard = await page.evaluate(() => document.querySelector('.evals-card')?.innerText || '');
+    check(/One kind of captcha to prove/.test(startCard), 'ladder: the start card says one kind is in');
+    await press(page, size, '.evals-go');
+    await page.waitForTimeout(300);
+    const kinds = new Set();
+    let card = '', n = 0;
+    for (; n < 40 && !card; n++) {
+        const c = await look(page);
+        if (!c) break;
+        kinds.add(c.kind);
+        await page.waitForTimeout(850);
+        for (const i of c.answer) { await press(page, size, `.evals-target[data-i="${i}"]`); await page.waitForTimeout(140); }
+        await press(page, size, '.evals-verify');
+        await page.waitForTimeout(1250);
+        card = await page.evaluate(() => document.querySelector('.evals-card')?.innerText || '');
+    }
+    check(kinds.size === 1 && kinds.has('read.word'), `ladder: only warped words come up at first (${[...kinds].join(', ')})`);
+    check(/New to prove: sums and struck-through words/.test(card) && /2 kinds of captcha to prove/.test(card), `ladder: after ${n} solves its takeover card names what opened`);
+    await page.screenshot({ path: path.join(out, 'ladder-takeover.png') });
+    if (card) { await press(page, size, '.evals-go'); await page.waitForTimeout(300); }
+    const next = await look(page);
+    check(!!next && ['answer.sum', 'read.struck'].includes(next.kind), `ladder: a newly opened kind comes up next (${next ? next.kind : 'nothing'})`);
+    await page.evaluate(() => { EvalsUI.close(); AGI.debug.evalsLadder(true); });
+    await ctx.close();
+}
+
 (async () => {
     const srv = await ensureServer(process.env.REVIEW_URL || 'http://localhost:8123/');
     const browser = await chromium.launch();
     try {
         for (const size of SIZES) { press.at = null; await play(browser, size, srv.url); }
+        await ladder(browser, srv.url);
     } finally {
         await browser.close();
         if (srv.close) srv.close();

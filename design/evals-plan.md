@@ -203,6 +203,16 @@ hand with reduced motion, the run counted once, saved and logged, no console err
 42 px (now 44), and the AI's hand, which starts under the play area, could make the page scroll (clipped at the
 captcha's edge). **Still to come:** the owner's first playtest log on their iPhone.
 
+**The unlock ladder is built** (2026-11-12, the owner's calls; design/evals.md → The unlock ladder): a run starts
+with warped words alone, which the AI learns four times as fast and takes at a score of 3, and each kind it takes over
+opens the ladder's next step (`LADDER`, `openKinds`, `blockedMap`, `rotation`, `paceOf` in `evals.js`; the
+`ladder` option, on by default). A takeover's result lists what it opened (`unlocked`, `run.unlocks`), its card says
+"New to prove: …" and how many kinds are in, and so does the start card. The playtest log's `evals` line carries
+`unlocks` and `ladder`. Debug: Evals → Unlock ladder (per device, `localStorage['agiEvalsLadder']`,
+`AGI.debug.evalsLadder`). Nothing new in the save. Tests: `tests/evals-ladder.test.js`; the older tests run with the
+ladder off; the smoke test plays the ladder on a phone to the first takeover. Several agents are a design on paper
+only (design/evals.md → Agents).
+
 Each ends with something the owner can play or read, and a short report.
 
 1. **Skeleton.** `evals.js` with a run (lives, streak, a queue of captchas), one family (Pick), the judge, and tests.

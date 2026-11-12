@@ -16,7 +16,7 @@ test('a new game and a save from before Evals both start it empty', () => {
 
 test('what it learned in a run comes back from a save unchanged', () => {
     const s = E.defaultState(NOW);
-    const run = Evals.createRun({ families: ['pick'], seed: 4, learn: s.evals.learn });
+    const run = Evals.createRun({ ladder: 0, families: ['pick'], seed: 4, learn: s.evals.learn });
     for (let i = 0; i < 5; i++) {
         const c = run.current;
         const taps = c.answer.map((x, j) => ({ i: x, t: 1 + 0.5 * j }));
@@ -30,7 +30,7 @@ test('what it learned in a run comes back from a save unchanged', () => {
     const back = E.migrate(JSON.parse(JSON.stringify(s)), NOW);
     assert.deepEqual(back.evals, s.evals);
     // And the learner plays on from it.
-    const again = Evals.createRun({ families: ['pick'], seed: 5, learn: back.evals.learn });
+    const again = Evals.createRun({ ladder: 0, families: ['pick'], seed: 5, learn: back.evals.learn });
     assert.ok(again.ghost.m > 0);
 });
 
