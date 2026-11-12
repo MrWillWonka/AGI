@@ -27,6 +27,13 @@ replaces the first draft (pitched as Busywork: building tasks for a bored AI), w
   It can't start a kind until the Training Cluster has taught it the matching skill.
 - **It visibly copies your habits and your mistakes** (where you start, how you hesitate, what you get wrong), and
   carries them into the work it does for the lab. It becomes a copy of you in particular.
+- **Kinds: wide, from the owner's catalogue of 70 real, researched and imagined captcha formats** (below, grouped
+  into families).
+- **Pictures show all kinds of things, the wilder and crazier the better.**
+- **"I'm not a robot" is passed by being humanly imperfect.** Too quick, too straight or too steady fails. The AI
+  fails at first for being too perfect, then learns your wobble.
+- **Trick questions: about 30 in a fixed order first** (a quiz with lives; miss and you restart the stretch, so
+  learning the answers is the game), **then a large shuffled pool** (a hundred or more, drawn at random each run).
 - **"Run", not "shift".**
 - An earlier pick, **slow pressure**, was made for the first draft. Here it becomes the AI creeping up on you; the
   solving itself is hands-on and quick. To confirm with the owner.
@@ -54,6 +61,30 @@ replaces the first draft (pitched as Busywork: building tasks for a bored AI), w
 
 The last row is the corner's ending beat: the game opens with spam asking you to act now, and ends with you failing
 to prove you're human.
+
+## The kinds, by family
+
+The owner's catalogue (2026-11-11) lists 70 formats: 14 kinds of distorted text, 7 question kinds, 6 picture kinds,
+15 interactive ones, 5 audio, 8 invisible checks and 15 imagined future ones. Grouped by what the hand does, they are
+seven families. A family is one small engine; the catalogue's entries are its variants and its difficulty ladder.
+Every kind is a tap or a drag, so the ghost hand can work it, and none depends on hearing or on colour alone.
+
+| Family | You | Variants from the catalogue | Made how |
+|---|---|---|---|
+| **Read** | Tap a warped word's letters in order from a tray with look-alikes | Twisted letters, digits, mixed; struck through; noisy backgrounds; overlapping; each letter tilted; whole words; several words at once; damaged photocopy; nonsense words; letters cut in pieces; scanned-book words; 3D | Generated |
+| **Answer** | Tap the answer | Sums, sums in words, common knowledge, follow the instruction, what do these pictures share, which group does this shape belong to | Generated and a written pool |
+| **Pick** | Tap every square, or the one thing | Cats or dogs, every square with a thing, one big picture cut in tiles, squares that refill until none are left, find it in the scene, match the small icon | Generated |
+| **Handle** | Drag, turn, hold, order | Slide the piece in, line up three, finish a row of five, turn to match, pairs, odd one out, dice and darts to a total, tap in the shown order, row and column, find the path, connect the pairs, press and hold, the matching fragment, mark the area | Generated |
+| **Listen** | Tap back what you heard, always shown as well as played | Spoken digits and words, speech under noise, name the sound, which clips match | Generated, the game's own synth |
+| **Invisible** | Almost nothing | The tick box (pass by being imperfect), checks that run by themselves, a risk score, a spinner doing work | See below |
+| **Future** | A new small game each time | A five-second microgame, where does the ball land, which lever opens the door, where does it come out, the view from the side, turn it until the shadow fits, what bends or floats, what changed, put these in order, which sound goes with which motion, the rule changes mid-way | Generated |
+| **Trick questions** | Whatever the question really wants | The owner's Impossible Quiz era: 30 in a fixed order, then a shuffled pool | Written fresh |
+
+- **The invisible family is a story device more than a game.** A kind the AI has taken over can simply go invisible:
+  "Verified automatically". The risk score can be shown about you.
+- **Not buildable as real input in the artifact frame, kept as jokes for the trick questions:** the camera, augmented
+  reality and vibration formats. Tilting the phone may be possible; to check.
+- **The physics kinds can use the trail's own ball.**
 
 ## What comes with the idea
 
@@ -88,7 +119,7 @@ from your own answers, and winning means making yourself unnecessary.
 2. What the player can still do once it has taken over most kinds (the first draft's idea, held back: the game flips
    and you write captchas for it).
 3. The cheats: which tricks, how you catch one, and how far a breakout moves the story.
-4. The trick-question era: how many, how they're written, how they repeat.
+4. Writing the trick questions (30 in order, then the pool), and who checks they're fair.
 5. Its own currency and tree, and what the first upgrade is.
 6. What useful work pays, exactly (story.md, open 10).
 7. When it opens, against the other two timelines.
