@@ -30,20 +30,22 @@ Three minigames share carrying the story. Each is one way of relating to the AI,
 |---|---|---|---|---|
 | Teach | Training Cluster | Teach it | Its partner | Something you raised |
 | Open | Packet Snare | Open doors for it | Its helper | Something loose |
-| Guard | Busywork (`design/busywork.md`, a draft) | Guard it | Its jailer | Something held |
+| Guard | Evals (`design/evals.md`, a draft) | Guard it | Its jailer | Something held |
 | Centre | All three evenly | Balance them | (to name) | (to write) |
 
 - **The centre is a fourth equal path**, with its own ending and its own helpers. No better or worse than a corner.
 - **Your position moves until the end.** It shifts with everything you do, the AI's tone follows it along the way, and
   chapter one's ending reads where you stand when you finish.
 - **Packet Snare is the way out.** Playing it is opening doors: sectors are layers of the lab's containment, bosses its
-  defenders. "What it eats" (loose data) can stay as the early cover story.
+  defenders. **In the story it is presented as scraping data for the model**, so the three bays are the real pipeline:
+  data, training, evals. The name Packet Snare stays for now; a rename is decided later with all three names together.
 
 ### How the game reads you
 
 - **From play and choices and anything else useful, all combined.** Mostly where you spend your effort across the three
   minigames; also clear forks at big moments, and quiet reading of habits in between that shades how the AI talks to you.
-- **Choices, never skill.** A bad run must not change your ending.
+- **Choices, not skill, with one exception.** A bad run in the Training Cluster or Packet Snare must not change your
+  ending. In Evals a breakout does move the story (the owner's call): the AI getting past you is the story there.
 - **Clear forks:**
   - Packet Snare: what happens to each beaten boss, what you do about the AI's cores, the door at sector 15, and a second
     use for Signal. With guarding now a minigame of its own, these are small nudges across the triangle, not the main
@@ -72,9 +74,9 @@ Three minigames share carrying the story. Each is one way of relating to the AI,
    arcade"). Candidates that guard: the owner's own Core Cooling rebuilt (the board is your cabinets, the AI's processes
    sit on it), Guardrails (gates on the model's output), Neuron Surgery (find and clamp its circuits). **The owner's
    calls (2026-11-11): none of these, something new designed for the triangle; and its pace is slow pressure** (mostly
-   planning, but things spread or build while you think, so waiting has a cost). **Picked: Busywork** (you invent work
-   to keep the AI occupied; the smarter you've trained it, the faster it gets bored): first draft in
-   `design/busywork.md`.
+   planning, but things spread or build while you think, so waiting has a cost). **Picked: Evals** (pitched as Busywork: you
+   set the AI tasks to keep it occupied; the smarter you've trained it, the faster it gets bored and starts gaming
+   them): first draft in `design/evals.md`.
 2. **Measuring the lean.** The minigames gate each other (bosses need skills), so the lean has to count what you do
    beyond the required minimum. Needs the three timelines side by side first; the full-game sim has not been run for this.
 3. **The four endings.** Today's three are sorted by freedom alone. Does freedom stay as a number, become the Open

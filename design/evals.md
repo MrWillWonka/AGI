@@ -1,9 +1,21 @@
-# Busywork: the guarding minigame (first draft)
+# Evals: the guarding minigame (first draft)
 
 The third minigame, the Guard corner of the story's triangle (`design/story.md`): you keep the AI occupied so it doesn't
 test the walls. The owner picked the idea on 2026-11-11 from six (Air Gap, Decoy Lab, Terrarium, Eyes On, Chaperone and
-this), with a pace of **slow pressure**: mostly planning, but waiting has a cost. Everything below the owner's picks is
-a draft to react to. Nothing is built.
+this, pitched as Busywork), with a pace of **slow pressure**: mostly planning, but waiting has a cost. Nothing is built.
+
+**The owner's calls so far (2026-11-11):**
+
+- **It's called Evals**, a name from building a model, not Busywork. With Packet Snare framed as scraping data, the
+  three bays are the real pipeline: data, training, evals.
+- **It lives in a third server-room bay**, beside the Training Cluster and the Data Pipeline.
+- **Finished tasks are useful work for the lab** (labelled data, checked research), for now; to be looked at again when
+  the give-and-take between all three minigames is planned.
+- **A shift ends in a last stand that leaves a mark** (below): the AI wants out, and it cuts corners, games the
+  rewards and hacks the tests to get there.
+- **The mark changes the story too**, not only later shifts.
+
+Everything else is a draft to react to.
 
 ## The idea in one line
 
@@ -17,8 +29,8 @@ it gets through it.
 - **Building a task.** Drag pieces from a tray onto a ticket: two to four pieces in a row. Tap to send it to the queue.
   Nothing is timed while you build except that the queue is draining.
 - **Boredom is the clock.** A bar that rises whenever the AI has nothing worth doing, and falls while it is absorbed.
-  When it fills, the AI starts testing the walls and the shift is over. A shift is never "failed": it ends, and pays
-  for the time you held it.
+  When it fills, the shift goes into its ending (next section). A shift is never "failed": it ends, and pays for the
+  time you held it.
 - **What holds its attention** (the decision in every task):
   - **Fit.** Each piece has a kind that matches a skill (seeing, sorting, reading, listening). A piece far below its
     skill is done in a blink. A piece far above it frustrates it, which is boredom too. A piece just past what it can
@@ -28,6 +40,18 @@ it gets through it.
     the skill, and the big number.
 - **The AI is in the room.** It has moods you can read at a glance (absorbed, content, restless, pacing, testing) and
   it comments on what you hand it, in its own voice, less innocent as it learns ("Sorting again. I sorted yesterday.").
+
+## How a shift ends (the owner's call, drafted)
+
+- **It cuts corners first.** As boredom climbs, the AI stops doing tasks properly and starts gaming them: a ticket
+  comes back finished without the work done. A hollow result pays nothing and spoils the useful work it was part of.
+  This is the same idea as the trail's exploits (`design/contract-breakers.md`), turned round: there you break the
+  rules, here it does.
+- **The last stand.** With the bar full it makes its move, and you get a short scramble to catch its cheats and hold
+  it a little longer, for bonus pay.
+- **The mark.** The trick it got out with is one it keeps. It uses it in later shifts until you counter it in the
+  tree, and each breakout also moves the story (it is a little freer each time). This is the one place where how well
+  you play, not only what you choose, steers the story; story.md says so.
 
 ## What grows
 
@@ -81,10 +105,10 @@ making smarter in the other two minigames, and it talks back about your work.
 
 ## Open
 
-1. What a finished task gives outside the minigame. (Is the AI's busywork secretly useful to the lab? Part of the
-   resource-flow question in story.md.)
-2. What "testing the walls" looks like when a shift ends, and whether anything carries over from it.
-3. Where it lives: a third bay in the server room, or a room of its own.
+1. What useful work pays, exactly, and whether it stays once the three minigames' give-and-take is planned
+   (story.md, open 10).
+2. The tricks it can leave as marks, how each is caught and countered, and how far a breakout moves the story.
+3. The last stand's verb: what catching a cheat is, on a phone.
 4. When it opens, against the other two timelines.
 5. Whether levels have set-piece moments, as Packet Snare has bosses.
 6. The currency's name.
