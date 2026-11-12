@@ -15,6 +15,7 @@
 //   listen    a pattern of beeps, shown as well as played, tapped back    listen.beeps
 //   invisible "I'm not a robot": passed by being humanly imperfect        invisible.tick
 //   future    where does the ball land; what changed                      future.drop, future.changed
+//   trick     written questions where the page itself is the puzzle       trick.question
 //
 // **The learner**: per kind it keeps how well it has learned (`m`, 0 to 1), how many solves it watched and how many
 // you got wrong, and your last few solves as traces (what you tapped and when, your take-backs, and how your pointer
@@ -148,6 +149,7 @@
         'invisible.tick': { family: 'invisible', name: 'the "I\'m not a robot" box' },
         'future.drop': { family: 'future', name: 'where the ball lands' },
         'future.changed': { family: 'future', name: 'spotting what changed' },
+        'trick.question': { family: 'trick', name: 'trick questions' },
     };
     // The kind a family wants at this level, or, if the AI has taken it over, the next of the family's kinds it
     // hasn't (harder first). Null when it has taken them all.
@@ -156,6 +158,31 @@
         const from = order.indexOf(wanted);
         return [...order.slice(from + 1), ...order.slice(0, from).reverse()].find(k => !taken[k]) || null;
     }
+
+    // The trick questions (the owner's last era: "essentially like the old Impossible Quiz"; design/evals.md). Written
+    // fresh, about this page, this run and the AI beside you, so they could belong to no other game; each has an answer
+    // that is fair once you see it. **A fixed order**: a run meets them one at a time in this order, a miss sends it back
+    // to the first, so learning the answers is the game. (The owner's plan: about 30 in order, then a large shuffled pool;
+    // these seven prove the format.) A question's `make(run)` returns its prompt, targets and answer, or null if it
+    // can't be asked now (it needs something the run doesn't have yet). `{n}` in a prompt puts target n in the sentence.
+    const one = (texts, right) => ({ mode: 'set', single: true, targets: texts.map(t => ({ text: t, v: t, label: t })), answer: [texts.indexOf(right)] });
+    const QUIZ = [
+        // Four is the only number that has as many letters as it says.
+        { id: 'letters', make: () => ({ prompt: 'How many letters are in the answer to this question?', ...one(['three', 'four', 'five', 'six'], 'four') }) },
+        // None of the buttons says it. The sentence does.
+        { id: 'word', make: () => { const q = one(['robot', 'machine', 'program', 'model', 'human'], 'human'); q.targets[4].inline = true; return { prompt: 'Tap the word {4}.', ...q }; } },
+        // One of the buttons says Verify. It isn't Verify.
+        { id: 'nothing', make: () => ({ prompt: 'Do not tap any of these. Press Verify.', mode: 'set', answer: [],
+            targets: ['Tap me', 'No, me', 'Verify', 'Skip'].map(t => ({ text: t, v: t, label: `a button that says ${t}` })) }) },
+        // The words on the page are only words.
+        { id: 'alphabet', make: () => { const texts = ['Verify', 'Evals', 'AI', 'Human'], want = ['AI', 'Evals', 'Human', 'Verify'];
+            return { prompt: 'Tap these in alphabetical order.', mode: 'seq', targets: texts.map(t => ({ text: t, v: t, label: t })), want, answer: want.map(w => texts.indexOf(w)) }; } },
+        // The answer is at the top of the screen.
+        { id: 'lives', make: run => (run && run.lives >= 1 && run.lives <= 3 ? { prompt: 'How many lives do you have left?', ...one(['0', '1', '2', '3'], String(run.lives)) } : null) },
+        { id: 'third', make: () => ({ prompt: 'Tap the third word of this sentence.', ...one(['third', 'word', 'the', 'sentence'], 'third') }) },
+        // You were told, on the last captcha. Were you watching it back?
+        { id: 'watched', make: run => (run && run.log && run.log.length ? { prompt: 'The AI is watching you. Was its last answer right?', ...one(['Yes', 'No'], run.log[run.log.length - 1].ghost ? 'Yes' : 'No') } : null) },
+    ];
 
     const sameCell = (c, t) => c.thing === t.thing && (c.hat || '') === (t.hat || '');
     // The squares a Pick captcha's own cells say are right. `make` stores this as `answer`; tests recompute it.
@@ -353,8 +380,23 @@
         },
     };
 
+    // Trick: the next question in `QUIZ`'s order that can be asked now (`level` is how far along the run is; `at` is the
+    // question it turned out to be).
+    FAMILIES.trick = {
+        kinds: ['trick.question'],
+        make(rand, level, o = EVALS, taken = null, run = null) {
+            rand();
+            if (!kindFor(this.kinds, 'trick.question', taken)) return null;
+            for (let tries = 0; tries < QUIZ.length; tries++) {
+                const at = (level + tries) % QUIZ.length, made = QUIZ[at].make(run);
+                if (made) return { family: 'trick', kind: 'trick.question', level, layout: 'trick', id: QUIZ[at].id, at, of: QUIZ.length, show: {}, ...made };
+            }
+            return null;
+        },
+    };
+
     // The families a run draws from, in the order it meets them: the eras of the captcha, old to new.
-    const ORDER = ['read', 'answer', 'pick', 'handle', 'listen', 'invisible', 'future'];
+    const ORDER = ['read', 'answer', 'pick', 'handle', 'listen', 'invisible', 'future', 'trick'];
 
     // How you ticked the box: null if a person might have, else why not ('quick', 'straight' or 'centre'). `trace`
     // has `seconds`, `bend` (the pointer's path over the straight line to the box; 0 on a touch screen, where there is
@@ -615,7 +657,7 @@
     // A run. opts: { seed, learn, families, ...any EVALS override }. `current` is the captcha up and `ghost` the AI's
     // attempt at it; `submit(answer, seconds, trace)` judges your answer, lets it watch, moves on and returns what
     // happened. It goes round the families in order; each family gets harder with each one of its own you solve
-    // (`levels`). A miss costs a life. The run is over when the lives are gone, or when the AI has taken over every
+    // (`levels`); the trick questions come in their own fixed order (`trickAt`). A miss costs a life. The run is over when the lives are gone, or when the AI has taken over every
     // kind there is (`exhausted`).
     function createRun(opts = {}) {
         const o = Object.assign({}, EVALS, opts);
@@ -626,7 +668,7 @@
         const families = (o.families || ORDER).filter(f => FAMILIES[f]);
         const run = {
             opts: o, learn, lives: o.lives, level: 0, levels: {}, solved: 0, missed: 0, streak: 0, bestStreak: 0, over: false, exhausted: false,
-            current: null, ghost: null, takeovers: [], turn: 0,
+            current: null, ghost: null, takeovers: [], turn: 0, trickAt: 0,
             // One line per captcha answered: what it was, whether you and it were right and how long each took.
             log: [],
         };
@@ -636,7 +678,7 @@
             for (let tries = 0; tries < families.length && !run.current; tries++) {
                 const family = families[run.turn % families.length];
                 run.turn++;
-                run.current = FAMILIES[family].make(rand, run.levels[family] || 0, o, takenMap(learn));
+                run.current = FAMILIES[family].make(rand, family === 'trick' ? run.trickAt : run.levels[family] || 0, o, takenMap(learn), run);
             }
             if (!run.current) { run.over = true; run.exhausted = true; run.ghost = null; return; }
             run.ghost = ghostAttempt(learn, run.current, ghostRand, o);
@@ -666,7 +708,10 @@
                 run.bestStreak = Math.max(run.bestStreak, run.streak);
                 run.level++;
                 run.levels[c.family] = (run.levels[c.family] || 0) + 1;
+                if (c.family === 'trick') run.trickAt = c.at + 1;
             } else {
+                // A trick question missed sends the run back to the first of them.
+                if (c.family === 'trick') run.trickAt = 0;
                 run.missed++;
                 run.streak = 0;
                 run.lives--;
@@ -681,6 +726,6 @@
         return run;
     }
 
-    return { EVALS, PACE, PHASES, phase, FAMILIES, KINDS, ORDER, THINGS, HATS, WORDS, SHAPES, rng, createRun, pickTargets, judge, offBy, tickVerdict,
+    return { EVALS, PACE, PHASES, phase, FAMILIES, KINDS, ORDER, QUIZ, THINGS, HATS, WORDS, SHAPES, rng, createRun, pickTargets, judge, offBy, tickVerdict,
         newLearn, kindOf, takenMap, watch, habits, shapes, ghostAttempt, cleanTrace, errorRate, par };
 });

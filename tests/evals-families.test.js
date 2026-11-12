@@ -6,7 +6,9 @@ const Evals = require('../evals.js');
 
 const SEEDS = Array.from({ length: 120 }, (_, i) => i + 1);
 const LEVELS = [0, 1, 2, 3, 4, 6, 8, 12];
-const FAMILY_NAMES = Object.keys(Evals.FAMILIES);
+// The trick questions are written, not generated, and have their own tests (evals-trick.test.js).
+const FAMILY_NAMES = Object.keys(Evals.FAMILIES).filter(f => f !== 'trick');
+const KIND_NAMES = Object.keys(Evals.KINDS).filter(k => Evals.KINDS[k].family !== 'trick');
 // A trace a person might leave: unhurried, a pointer path with a bend in it, a tap off the box's centre.
 const human = (c, seconds = 3) => ({ taps: c.answer.map((i, j) => ({ i, t: 1 + 0.4 * j })), seconds, bend: 1.2, offset: 0.3 });
 const each = fn => { for (const family of FAMILY_NAMES) for (const seed of SEEDS) for (const level of LEVELS) fn(Evals.FAMILIES[family].make(Evals.rng(seed * 97 + level), level), family, seed, level); };
@@ -32,7 +34,7 @@ test('every captcha of every family is well formed, and its own answer is right'
         if (c.side) assert.equal(c.targets.length, c.side * c.side, at);
         assert.ok(Evals.par(c) > 0, at);
     });
-    assert.deepEqual([...kinds].sort(), Object.keys(Evals.KINDS).sort(), 'a kind no family ever makes');
+    assert.deepEqual([...kinds].sort(), KIND_NAMES.slice().sort(), 'a kind no family ever makes');
 });
 
 test('a wrong answer is judged wrong in every mode', () => {
@@ -147,7 +149,7 @@ test('a run goes round the families in order, each getting harder with its own s
         assert.equal(c.level, Math.floor(i / Evals.ORDER.length), `${c.family} level`);
         assert.ok(run.submit(c.answer, 3, human(c)).correct, c.kind);
     }
-    assert.deepEqual(seen.slice(0, 14), [...Evals.ORDER, ...Evals.ORDER]);
+    assert.deepEqual(seen.slice(0, Evals.ORDER.length * 2), [...Evals.ORDER, ...Evals.ORDER]);
     // With a whole family taken, the run passes over it; with everything taken, there is no run.
     const learn = Evals.newLearn();
     for (const kind of Object.keys(Evals.KINDS)) if (Evals.KINDS[kind].family !== 'answer') Evals.kindOf(learn, kind).taken = true;
@@ -158,7 +160,7 @@ test('a run goes round the families in order, each getting harder with its own s
 });
 
 test('one learner for every kind: it goes from mostly wrong to mostly right, and its attempt is always playable', () => {
-    for (const kind of Object.keys(Evals.KINDS)) {
+    for (const kind of KIND_NAMES) {
         const family = Evals.KINDS[kind].family;
         const share = m => {
             const learn = Evals.newLearn();

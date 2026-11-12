@@ -90,7 +90,7 @@ window.AGI = (function () {
     let playtestSampleAt = 0;
     // Rare progression events are written at once: the log is otherwise flushed every 30 s of play and on
     // hide, so a crash or a killed tab lost the funnel's steps since the last sample.
-    const PT_FLUSH = new Set(['skill', 'unlock', 'phase', 'ship', 'transcend', 'challenge', 'perk', 'ending', 'mailAccepted', 'setting', 'save']);
+    const PT_FLUSH = new Set(['skill', 'unlock', 'phase', 'ship', 'transcend', 'challenge', 'perk', 'ending', 'mailAccepted', 'setting', 'save', 'evals']);
     function pt(type, data) {
         if (!playtest || !state) return;
         playtest.event(state.stats.playTime, type, data);
@@ -13128,6 +13128,8 @@ window.AGI = (function () {
     return {
         get state() { return state; },
         save: () => save(true),
+        // A line in the playtest log from a screen of its own (evals-ui.js).
+        playtest: (type, data) => pt(type, data),
         debug: {
             // The music: the area's other song, or the next section of this one (on the next downbeat).
             nextSong: () => window.SFX?.songCmd?.('song'),

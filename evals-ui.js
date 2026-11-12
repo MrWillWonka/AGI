@@ -119,6 +119,15 @@
     // A run that has ended is counted once and saved, whichever way it ended (the last life, or the screen closed).
     function settle() {
         if (!run || !run.log.length || run.counted) return;
+        // One line in the playtest log a run: what you met, how you and the AI did on each kind, what it took over.
+        const kinds = {};
+        for (const e of run.log) {
+            const k = kinds[e.kind] = kinds[e.kind] || { n: 0, right: 0, seconds: 0, ai: 0, aiOff: 0, m: 0 };
+            k.n++; k.right += +e.correct; k.seconds += e.seconds; k.ai += +e.ghost; k.aiOff += e.ghostOff; k.m = Math.round(e.m * 100) / 100;
+        }
+        for (const k of Object.values(kinds)) { k.seconds = Math.round(k.seconds / k.n * 10) / 10; k.aiOff = Math.round(k.aiOff / k.n * 10) / 10; }
+        window.AGI?.playtest?.('evals', { solved: run.solved, missed: run.missed, captchas: run.log.length, bestStreak: run.bestStreak, trickAt: run.trickAt,
+            ended: run.exhausted ? 'nothing left' : run.over ? 'lives' : 'closed', takeovers: run.takeovers, kinds });
         if (window.AGIEngine?.evalsRunEnd && window.AGI?.state) window.AGIEngine.evalsRunEnd(window.AGI.state, run);
         else { run.counted = true; const s = saved(); s.runs++; s.best = Math.max(s.best, run.solved); }
         window.AGI?.save?.();
@@ -162,7 +171,10 @@
             const osc = audio.createOscillator(), gain = audio.createGain();
             osc.frequency.value = PAD_HZ[pad] || 440;
             gain.gain.setValueAtTime(0.0001, audio.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.08, audio.currentTime + 0.02);
+            // At the game's own sound volume (Settings), and silent when that is off.
+            const volume = typeof window.SFX?.volume === 'number' ? window.SFX.volume : 1;
+            if (volume <= 0) return;
+            gain.gain.exponentialRampToValueAtTime(0.08 * volume, audio.currentTime + 0.02);
             gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.22);
             osc.connect(gain).connect(audio.destination);
             osc.start();
@@ -233,6 +245,9 @@
                 el('button', { type: 'button', class: 'ghost-button evals-replay', text: '▶ Play again', onclick: () => { if (!locked) again(); } }),
             ];
         },
+        // A trick question: its buttons (any target it put in the sentence itself is drawn there, by the prompt).
+        trick: c => [el('div', { class: 'evals-choices', role: 'group', 'aria-label': 'Answers' },
+            ...c.targets.map((t, i) => (t.inline ? '' : target(i, 'evals-choice evals-wordy', el('span', { 'aria-hidden': 'true', text: t.text })))))],
         tick: c => [el('div', { class: 'evals-tickbox' }, target(0, 'evals-tick', el('span', { class: 'evals-box', 'aria-hidden': 'true' }), el('span', { text: c.targets[0].text })))],
         // A board of arrows with the ball over its starting column, and the bins under it.
         drop: c => [
@@ -242,6 +257,16 @@
             el('div', { class: 'evals-bins', role: 'group', 'aria-label': 'Bins', style: `--side: ${c.show.cols}` }, ...c.targets.map((t, i) => target(i, 'evals-bin', el('span', { 'aria-hidden': 'true', text: t.text })))),
         ],
     };
+
+    // A prompt's pieces: its words, the scene it names set strong, and any target a trick question puts in the
+    // sentence itself (`{n}`), as a word you can tap.
+    function promptParts(c) {
+        if (c.scene) { const [before, after] = c.prompt.split(c.scene); return [before, el('strong', { text: c.scene }), after]; }
+        return c.prompt.split(/(\{\d+\})/).filter(Boolean).map(part => {
+            const m = part.match(/^\{(\d+)\}$/);
+            return m ? target(+m[1], 'evals-inline', el('span', { text: c.targets[+m[1]].text })) : part;
+        });
+    }
 
     // The captcha up: its prompt, the AI's line, the play area (the picture, the targets and the AI's hand over them),
     // what you've entered so far if it wants an order, and Verify.
@@ -258,12 +283,12 @@
         targets = [];
         hud();
         const c = shown = run.current;
-        const [before, after] = c.scene ? c.prompt.split(c.scene) : [c.prompt, ''];
         const hand = el('span', { class: 'evals-hand', 'aria-hidden': 'true' });
         hand.innerHTML = '<svg viewBox="0 0 24 24"><path d="M5 2.5v17l4.6-4.2 3 6.4 2.7-1.3-3-6.3 6.2-.5z"/></svg>';
         play = el('div', { class: `evals-play evals-${c.layout}` }, ...LAYOUTS[c.layout](c), hand);
         stage.replaceChildren(el('div', { class: `evals-captcha is-${c.layout}` },
-            el('p', { class: 'evals-prompt' }, before, c.scene ? el('strong', { text: c.scene }) : '', after),
+            c.family === 'trick' ? el('p', { class: 'evals-quiz', text: `Question ${c.at + 1} of ${c.of}` }) : '',
+            el('p', { class: 'evals-prompt' }, ...promptParts(c)),
             el('p', { class: 'evals-its' }, el('span', { class: 'evals-its-tag', text: 'AI' }), el('span', { class: 'evals-its-line', role: 'status', text: 'Working on it.' })),
             play,
             c.mode === 'seq' ? el('div', { class: 'evals-entered' }, el('span', { class: 'evals-entered-list', role: 'status', 'aria-label': 'Entered so far' }),

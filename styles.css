@@ -3825,6 +3825,19 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
 @media (prefers-reduced-motion: no-preference) { .evals-target.its .evals-its-mark { animation: evals-tap 0.25s ease-out; } }
 @keyframes evals-tap { from { transform: scale(2.2); opacity: 0.2; } }
 
+/* Trick questions: which one of how many, buttons that hold words, and a word in the sentence that is itself a target
+   (it looks like any other word until it is picked). */
+.evals-quiz { font: 600 0.72rem var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.evals-wordy { font: 700 1.05rem var(--font-body); padding: 0 8px; }
+.evals-inline {
+    display: inline; min-width: 0; min-height: 0; padding: 8px 3px; margin: -8px -3px; background: none; border: 0; border-radius: 4px;
+    font: inherit; color: inherit; vertical-align: baseline;
+}
+.evals-inline .evals-mark, .evals-inline .evals-its-mark { display: none !important; }
+.evals-inline[aria-pressed="true"] { box-shadow: inset 0 -3px 0 var(--primary); color: var(--primary); }
+.evals-inline.right { box-shadow: inset 0 -3px 0 var(--success); color: var(--success); }
+.evals-inline.its { outline: 2px solid var(--text); outline-offset: 1px; }
+
 /* Sideways phones and short windows: the play area takes the height there is, with the prompt, the AI's line, what
    you've entered and Verify beside it. */
 @media (max-height: 520px) {

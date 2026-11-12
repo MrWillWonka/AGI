@@ -166,9 +166,33 @@ too"; then straight on to the six families without stopping. Built:
 - **Checked in a browser** at phone size upright (18 captchas through every family, no scrolling, every target 44 px
   or more, no errors) and sideways (the first nine, all in view).
 
-**Not done, and worth knowing:** the trick questions (stage 4); the sound is a plain tone of its own, not the game's
-sound engine, and ignores the game's volume; the picture of the hand following a mouse path was tested as rules, not
-watched on screen; nothing has been played on the owner's iPhone.
+**Not done, and worth knowing** (as of stage 3): the picture of the hand following a mouse path was tested as rules,
+not watched on screen; nothing has been played on the owner's iPhone.
+
+**Stages 4 and 5 are built** (2026-11-11): the trick questions and the run around it.
+
+- **Seven trick questions** (`QUIZ` in `evals.js`), written fresh and about this page, this run and the AI beside
+  you: how many letters are in the answer to this question; tap the word "human" (it is in the sentence, not on a
+  button); do not tap any of these, press Verify (one of the buttons says Verify); tap Verify, Evals, AI and Human in
+  alphabetical order; how many lives do you have left; tap the third word of this sentence; the AI is watching you,
+  was its last answer right. Each has one answer that is fair once you see it (tested: no question has two).
+- **A fixed order.** They are the eighth family in a run's round. Each right answer brings the next; a miss costs a
+  life and sends the run back to the first, so learning the answers is the game. A question that can't be asked yet
+  (the AI has no last answer) is passed over. "Question 3 of 7" shows over the prompt.
+- **The page is part of the puzzle:** a prompt can hold a target in its own sentence (`{n}`), drawn as a word like any
+  other until it is picked; two questions read the run itself (your lives, the AI's last result).
+- **The AI learns them as one kind** (`trick.question`), like any other, and can take them over.
+- **The playtest log** gets a line a run (`evals`): solved, missed, how it ended, takeovers, and per kind how many
+  you met, how many you and the AI got right, your seconds, how far off it was and how much it had learned.
+- **The beeps follow the game's sound volume** (Settings), and are silent when it is off.
+- **Tests:** `tests/evals-trick.test.js`.
+- **Checked in a browser:** all seven answered in order at phone size, the word in the sentence picked and marked,
+  the log line written.
+
+**Left for the full version** (the owner's plan): about 30 questions in order, then a shuffled pool of a hundred or
+more; a trick question a round is slow going (seven take 56 captchas), so the stretch probably wants to come as a
+block of its own once there are more. **Stage 6** (a smoke test in the review kit, screenshots, the owner's first
+playtest log) is next, and then the owner's calls on everything stage 1 left out (design/evals.md, Open).
 
 Each ends with something the owner can play or read, and a short report.
 
