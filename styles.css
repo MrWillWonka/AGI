@@ -3690,6 +3690,8 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
     width: min(100%, 440px); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 18px; display: flex; flex-direction: column; gap: 12px;
 }
+/* The AI's hand starts just under the play area: it is clipped at the captcha's edge, so it never makes the page scroll. */
+.evals-captcha { overflow: clip; }
 .evals-card-title { font: 700 1.2rem var(--font-display); letter-spacing: 0.02em; }
 .evals-card p { color: var(--muted); line-height: 1.45; }
 .evals-prompt { font-size: 1.05rem; line-height: 1.4; }
@@ -3854,7 +3856,8 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
     .evals-thing { font-size: clamp(1.2rem, calc((100dvh - 100px) / var(--side) / 1.9), 2.6rem); }
     .evals-hat { font-size: clamp(0.8rem, calc((100dvh - 100px) / var(--side) / 3), 1.5rem); }
     .evals-word { font-size: 1.9rem; padding: 10px 6px; }
-    .evals-tile { width: 42px; height: 42px; min-width: 42px; min-height: 42px; }
+    .evals-tile { width: 44px; height: 44px; }
+    .evals-tray { gap: 4px; }
     .evals-pads { height: 90px; }
     .evals-question { padding: 4px 0; }
     .evals-tickbox { padding: 6px 0; }

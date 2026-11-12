@@ -1,0 +1,140 @@
+// tools/review/evals.js — plays Evals (the third minigame) in a real browser at three screen sizes and checks it:
+// three rounds of every family solved with real taps and mouse moves, each captcha in view with no scrolling and no
+// target too small to tap, no console errors, a round with reduced motion (no hand), a run counted and logged, and (with a mouse) the pointer's path recorded
+// and the ghost hand given your shapes to follow. Takes a screenshot of each kind the first time it comes up.
+//   node tools/review/evals.js [out dir]     (default review-out/evals; serves the game itself if nothing does)
+// Prints PASS or FAIL a check and exits 1 if any failed. About a minute and a half.
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const root = path.join(__dirname, '..', '..');
+const out = path.resolve(process.argv[2] || path.join(root, 'review-out', 'evals'));
+const { ensureServer } = require('./serve.js');
+let chromium;
+try { ({ chromium } = require('playwright')); } catch {
+    console.error('Playwright is not installed here. From the repo: npm install --no-save playwright, then npx playwright install chromium (see design/review/handoff.md)');
+    process.exit(1);
+}
+fs.mkdirSync(out, { recursive: true });
+
+const SIZES = [
+    { name: 'phone', viewport: { width: 390, height: 727 }, touch: true },
+    { name: 'sideways', viewport: { width: 727, height: 390 }, touch: true },
+    { name: 'desktop', viewport: { width: 1280, height: 800 }, touch: false },
+    // With reduced motion there is no hand: one round, and the AI's line and rings still answer.
+    { name: 'reduced motion', viewport: { width: 390, height: 727 }, touch: true, reduced: true, rounds: 1 },
+];
+const ROUNDS = 3;
+let failed = 0;
+const check = (ok, what) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${what}`); if (!ok) failed++; };
+
+// The captcha up, and whether all of it can be seen and tapped.
+const look = page => page.evaluate(() => {
+    const run = EvalsUI.run, c = run && run.current;
+    if (!c) return null;
+    const stage = document.querySelector('.evals-stage');
+    const buttons = [...document.querySelectorAll('.evals-target')];
+    const boxes = buttons.map(b => b.getBoundingClientRect());
+    const ends = [document.querySelector('.evals-prompt'), document.querySelector('.evals-verify') || document.querySelector('.evals-target')].map(n => n.getBoundingClientRect());
+    return {
+        kind: c.kind, id: c.id || '', answer: c.answer, wait: c.wait || 0, instant: !!c.instant, inline: c.targets.map(t => !!t.inline),
+        scroll: stage.scrollHeight > stage.clientHeight + 1 || document.documentElement.scrollWidth > innerWidth + 1,
+        // A word in a sentence is as tall as its line; every other target is a finger's width at least.
+        small: boxes.filter((r, j) => !c.targets[+buttons[j].dataset.i].inline && (r.width < 43.5 || r.height < 43.5)).length,
+        cut: [...boxes, ...ends].some(r => r.top < -0.5 || r.bottom > innerHeight + 0.5 || r.left < -0.5 || r.right > innerWidth + 0.5),
+    };
+});
+
+async function press(page, size, selector) {
+    const box = await page.locator(selector).boundingBox();
+    // Off the dead centre, as a hand is; with a mouse, by way of a bend, as a hand goes.
+    const x = box.x + box.width * 0.62, y = box.y + box.height * 0.58;
+    if (size.touch) return page.touchscreen.tap(x, y);
+    const from = press.at || { x: 640, y: 700 };
+    await page.mouse.move((from.x + x) / 2 + 60, (from.y + y) / 2 - 40, { steps: 6 });
+    await page.mouse.move(x, y, { steps: 6 });
+    await page.mouse.click(x, y);
+    press.at = { x, y };
+}
+
+async function play(browser, size, url) {
+    const ctx = await browser.newContext({ viewport: size.viewport, hasTouch: size.touch, isMobile: size.touch, deviceScaleFactor: size.touch ? 2 : 1, reducedMotion: size.reduced ? 'reduce' : 'no-preference' });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(String(e)));
+    page.on('console', m => { if (m.type() === 'error' && !/favicon/i.test(m.location()?.url || '')) errors.push(`${m.text()} ${m.location()?.url || ''}`); });
+    await page.goto(url);
+    await page.waitForTimeout(900);
+    await page.evaluate(() => { AGI.debug.resetEvals(); AGI.debug.openEvals(); });
+    await press(page, size, '.evals-go');
+    await page.waitForTimeout(300);
+    const kinds = await page.evaluate(() => ({ all: Object.keys(Evals.KINDS).length, order: Evals.ORDER.length }));
+    const seen = new Set(), wrong = [], unfit = [];
+    const rounds = size.rounds || ROUNDS;
+    let hands = 0, answered = 0;
+    for (let n = 0; n < kinds.order * rounds; n++) {
+        const c = await look(page);
+        if (!c) { wrong.push(`no captcha at ${n}`); break; }
+        const name = c.kind + (c.id ? ':' + c.id : '');
+        if (c.scroll || c.small || c.cut) unfit.push(`${name}${c.scroll ? ' scrolls' : ''}${c.small ? ` ${c.small} small` : ''}${c.cut ? ' cut off' : ''}`);
+        if (!seen.has(name)) { seen.add(name); await page.screenshot({ path: path.join(out, `${size.name.replace(/ /g, '-')}-${name.replace(/[.:]/g, '-')}.png`) }); }
+        await page.waitForTimeout((c.wait + 0.85) * 1000);
+        for (const i of c.answer) { await press(page, size, `.evals-target[data-i="${i}"]`); await page.waitForTimeout(140); }
+        if (size.reduced && await page.evaluate(() => { const h = document.querySelector('.evals-hand'); return !!h && !h.hidden && h.getClientRects().length > 0; })) hands++;
+        if (!c.instant) await press(page, size, '.evals-verify');
+        await page.waitForTimeout(150);
+        const status = await page.evaluate(() => document.querySelector('.evals-status')?.textContent || '');
+        if (!status.startsWith('Verified')) wrong.push(`${name}: ${status}`);
+        if (size.reduced && await page.evaluate(() => /^(Right|Wrong|It ticked)/.test(document.querySelector('.evals-its-line')?.textContent || ''))) answered++;
+        await page.waitForTimeout(1050);
+        // A takeover's card: carry on.
+        if (await page.evaluate(() => !!document.querySelector('.evals-card'))) { await press(page, size, '.evals-go'); await page.waitForTimeout(200); }
+    }
+    const kindsSeen = new Set([...seen].map(s => s.split(':')[0]));
+    check(wrong.length === 0, `${size.name}: ${kinds.order * rounds} captchas solved${wrong.length ? ' — ' + wrong.join('; ') : ''}`);
+    check(kindsSeen.size >= kinds.order, `${size.name}: every family came up (${kindsSeen.size} kinds of ${kinds.all})`);
+    check(unfit.length === 0, `${size.name}: every captcha in view, no scrolling, every target a finger wide${unfit.length ? ' — ' + [...new Set(unfit)].join('; ') : ''}`);
+    if (size.reduced) {
+        check(hands === 0, `${size.name}: the AI's hand never shows (${hands} captchas with it)`);
+        check(answered > 0, `${size.name}: the AI's line still gives its answer (${answered} of ${kinds.order * rounds})`);
+    }
+    if (!size.touch) {
+        // With a mouse, how the pointer moved is in the trace, and the ghost has your shapes to follow.
+        const moved = await page.evaluate(() => {
+            const kinds = Object.values(AGI.state.evals.learn.kinds);
+            return { paths: kinds.filter(k => k.traces.some(t => t.path.length >= 9)).length, of: kinds.length, shapes: (EvalsUI.run.ghost.moves || []).filter(Boolean).length };
+        });
+        check(moved.paths === moved.of && moved.of > 0, `${size.name}: the pointer's path is recorded on every kind (${moved.paths} of ${moved.of})`);
+        check(moved.shapes > 0, `${size.name}: the ghost hand has your shapes to follow (${moved.shapes} on the captcha up)`);
+    }
+    // Lose the run: every answer wrong (the tick box, ticked at once) until the lives are gone.
+    for (let n = 0; n < 6 && await page.evaluate(() => !!(EvalsUI.run && !EvalsUI.run.over)); n++) {
+        const c = await look(page);
+        if (c.kind === 'trick.question' && c.id === 'nothing') await press(page, size, '.evals-target[data-i="0"]');
+        await press(page, size, c.instant ? '.evals-target[data-i="0"]' : '.evals-verify');
+        await page.waitForTimeout(2100);
+    }
+    const end = await page.evaluate(() => ({
+        card: document.querySelector('.evals-card')?.innerText || '', runs: AGI.state.evals.runs, best: AGI.state.evals.best,
+        logged: JSON.parse(localStorage.getItem('agiPlaytest') || '{"events":[]}').events.filter(e => e.e === 'evals').length,
+        saved: !!JSON.parse(localStorage.getItem('agiGame') || '{}').evals,
+    }));
+    await page.screenshot({ path: path.join(out, `${size.name.replace(/ /g, '-')}-end.png`) });
+    check(/Verification failed/.test(end.card) && /You solved \d+/.test(end.card), `${size.name}: the run ends on its card`);
+    check(end.runs === 1 && end.best >= kinds.order * rounds - 3 && end.logged === 1 && end.saved, `${size.name}: the run is counted once, saved and logged (runs ${end.runs}, best ${end.best}, log lines ${end.logged})`);
+    check(errors.length === 0, `${size.name}: no console errors${errors.length ? ' — ' + [...new Set(errors)].slice(0, 3).join(' | ') : ''}`);
+    await ctx.close();
+}
+
+(async () => {
+    const srv = await ensureServer(process.env.REVIEW_URL || 'http://localhost:8123/');
+    const browser = await chromium.launch();
+    try {
+        for (const size of SIZES) { press.at = null; await play(browser, size, srv.url); }
+    } finally {
+        await browser.close();
+        if (srv.close) srv.close();
+    }
+    console.log(failed ? `\n${failed} check${failed === 1 ? '' : 's'} failed. Screenshots in ${out}` : `\nAll checks passed. Screenshots in ${out}`);
+    process.exit(failed ? 1 : 0);
+})().catch(e => { console.error(e); process.exit(1); });

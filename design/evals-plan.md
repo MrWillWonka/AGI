@@ -194,6 +194,15 @@ more; a trick question a round is slow going (seven take 56 captchas), so the st
 block of its own once there are more. **Stage 6** (a smoke test in the review kit, screenshots, the owner's first
 playtest log) is next, and then the owner's calls on everything stage 1 left out (design/evals.md, Open).
 
+**Stage 6's smoke test is built** (2026-11-11): `node tools/review/evals.js [out dir]` plays Evals in a real browser
+at phone, sideways and desktop size (three rounds of every family with real taps and mouse moves, then a lost run),
+and one round on a phone with reduced motion. It checks: every captcha solved, every family met, each captcha in view
+with no scrolling and every target 44 px or more, the pointer's path recorded and the ghost given shapes (mouse), no
+hand with reduced motion, the run counted once, saved and logged, no console errors; a screenshot of each kind goes to
+`review-out/evals`. All 28 checks pass. It found two things on a sideways phone, both fixed: the letter tiles were
+42 px (now 44), and the AI's hand, which starts under the play area, could make the page scroll (clipped at the
+captcha's edge). **Still to come:** the owner's first playtest log on their iPhone.
+
 Each ends with something the owner can play or read, and a short report.
 
 1. **Skeleton.** `evals.js` with a run (lives, streak, a queue of captchas), one family (Pick), the judge, and tests.
