@@ -6,7 +6,9 @@ branch `claude/snare-review-rounds` (head: the commit that added this file). A n
 
 ## Where things stand
 
-- **Live review build:** Packet Snare **18.8**, republished 2026-11-11 23:31 UTC (version `1794439900-9acd`, game.js: walkthrough
+- **Live review build:** Packet Snare **18.8**, republished 2026-11-12 01:52 UTC (version `1794448367-329e`, game.js and
+  packet-snare.js: a gated boss's escape card names the skill and links to the Training Cluster, and gated hits show 30%,
+  from the owner's 18.8 log); before that 2026-11-11 23:31 UTC (`1794439900-9acd`, game.js: walkthrough
   prompts keep their lines together on a short sideways field, Throughput's groups and spotlight sized for any screen);
   before that 23:23 UTC (game.js and packet-snare.js: a fourth tutorial step on phones, Throughput, on the wire's length; and before that the owner's
   tutorial reports: each step takes its own move before it moves on (the bubble step a bubble, the drawn loop's a drawn
