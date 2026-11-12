@@ -34,6 +34,10 @@ replaces the first draft (pitched as Busywork: building tasks for a bored AI), w
   fails at first for being too perfect, then learns your wobble.
 - **Trick questions: about 30 in a fixed order first** (a quiz with lives; miss and you restart the stretch, so
   learning the answers is the game), **then a large shuffled pool** (a hundred or more, drawn at random each run).
+- **Pictures are emoji, combined into odd scenes** ("every square with a crying cactus"): thousands of ready
+  pictures and no art to make. They look a little different on each device.
+- **The first playable version holds every family, thin:** one or two variants of all seven and a few trick
+  questions, with the ghost hand and being overtaken, so the whole arc can be felt before any family is deepened.
 - **"Run", not "shift".**
 - An earlier pick, **slow pressure**, was made for the first draft. Here it becomes the AI creeping up on you; the
   solving itself is hands-on and quick. To confirm with the owner.
