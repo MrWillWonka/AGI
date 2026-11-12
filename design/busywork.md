@@ -1,0 +1,90 @@
+# Busywork: the guarding minigame (first draft)
+
+The third minigame, the Guard corner of the story's triangle (`design/story.md`): you keep the AI occupied so it doesn't
+test the walls. The owner picked the idea on 2026-11-11 from six (Air Gap, Decoy Lab, Terrarium, Eyes On, Chaperone and
+this), with a pace of **slow pressure**: mostly planning, but waiting has a cost. Everything below the owner's picks is
+a draft to react to. Nothing is built.
+
+## The idea in one line
+
+The AI hired you with a work-from-home spam offer. Now you invent work for it, and the smarter you make it, the faster
+it gets through it.
+
+## A shift
+
+- **The queue.** A short row of slots (three to start). The AI works the task at the front. You build tasks and drop
+  them in behind.
+- **Building a task.** Drag pieces from a tray onto a ticket: two to four pieces in a row. Tap to send it to the queue.
+  Nothing is timed while you build except that the queue is draining.
+- **Boredom is the clock.** A bar that rises whenever the AI has nothing worth doing, and falls while it is absorbed.
+  When it fills, the AI starts testing the walls and the shift is over. A shift is never "failed": it ends, and pays
+  for the time you held it.
+- **What holds its attention** (the decision in every task):
+  - **Fit.** Each piece has a kind that matches a skill (seeing, sorting, reading, listening). A piece far below its
+    skill is done in a blink. A piece far above it frustrates it, which is boredom too. A piece just past what it can
+    do holds it longest.
+  - **Novelty.** The same kind again and again holds it less each time. Variety resets that.
+  - **Chains.** A piece whose result feeds the next one multiplies the whole ticket's hold. Building a good chain is
+    the skill, and the big number.
+- **The AI is in the room.** It has moods you can read at a glance (absorbed, content, restless, pacing, testing) and
+  it comments on what you hand it, in its own voice, less innocent as it learns ("Sorting again. I sorted yesterday.").
+
+## What grows
+
+- **Levels.** Each shift level the AI is sharper: boredom rises faster and yesterday's tasks hold less. A level is
+  cleared by holding it for a target time in one shift.
+- **Its own currency and tree**, as the other two have (a name is open: Quiet, Calm, Hours). First upgrades show in
+  the next shift: a fourth slot, a bigger tray, a new piece kind.
+- **Rule changes later** (each a hexagon with a demo, as the other trees do):
+  - **Loops.** A ticket that feeds itself runs until the AI notices, which it does sooner the smarter it is.
+  - **Nested tasks.** A ticket inside a piece.
+  - **Templates.** Save a ticket you built; a scheduler refills the queue from your templates. This is the automation,
+    and what outlasts the run.
+  - **Its own requests.** Now and then it slides a piece of its own onto your tray: "Can I have this one?" It would
+    hold it for a long time. This is the minigame's clear fork (give it what it asks for, or not), a choice and never
+    a missed tap.
+
+## How it ties to the other two corners
+
+- **Training Cluster (Teach).** Each skill learned makes the AI faster at that kind of piece, so old tasks stop
+  working, and also adds a new kind of piece to your tray. Teaching it makes guarding harder and richer at once.
+- **Packet Snare (Open).** Pieces are made from data. A basic supply comes from the lab; better pieces (gold, tagged)
+  come from what you caught in the pipeline. Every sector opened could also make it restless sooner: it knows there is
+  more out there.
+- **Neither is required to play a shift.** A player leaning on this corner alone always has basic pieces.
+
+## The activity contract (second-minigame.md, section 4)
+
+| Asked for | Here |
+|---|---|
+| A verb understood without reading | Drag pieces onto a ticket, hand it over, watch it work |
+| A constraint that makes a decision | Fit, novelty and chains against a draining queue |
+| A first upgrade visible in the next attempt | A fourth queue slot |
+| A later rule change | Loops, templates, its own requests |
+| A benefit outside the activity | Open: see below |
+| A comfortable way to stop, switch or automate | A shift ends by itself; templates and the scheduler |
+
+## Inspired by, never a copy
+
+Zoo enrichment (keepers inventing puzzles so a clever animal doesn't pace), production-line and queue games, and the
+idea of a flow channel between boredom and frustration. What's new: the opponent is the boredom of a mind you are
+making smarter in the other two minigames, and it talks back about your work.
+
+## Risks
+
+- **It could feel like chores.** The chain has to be a real puzzle with a visible payoff, or assembling tickets is
+  admin.
+- **Watching more than playing.** While the AI works a long ticket there must be something to do: building the next
+  one should always be worth it.
+- **Fit has to be readable.** If the player can't see why a piece held or didn't, it reads as random.
+- **First cut before any tree:** three piece kinds, three slots, the boredom bar, one chain rule, on a phone.
+
+## Open
+
+1. What a finished task gives outside the minigame. (Is the AI's busywork secretly useful to the lab? Part of the
+   resource-flow question in story.md.)
+2. What "testing the walls" looks like when a shift ends, and whether anything carries over from it.
+3. Where it lives: a third bay in the server room, or a room of its own.
+4. When it opens, against the other two timelines.
+5. Whether levels have set-piece moments, as Packet Snare has bosses.
+6. The currency's name.

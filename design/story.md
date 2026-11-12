@@ -30,7 +30,7 @@ Three minigames share carrying the story. Each is one way of relating to the AI,
 |---|---|---|---|---|
 | Teach | Training Cluster | Teach it | Its partner | Something you raised |
 | Open | Packet Snare | Open doors for it | Its helper | Something loose |
-| Guard | Third minigame (not designed) | Guard it | Its jailer | Something held |
+| Guard | Busywork (`design/busywork.md`, a draft) | Guard it | Its jailer | Something held |
 | Centre | All three evenly | Balance them | (to name) | (to write) |
 
 - **The centre is a fourth equal path**, with its own ending and its own helpers. No better or worse than a corner.
@@ -72,7 +72,9 @@ Three minigames share carrying the story. Each is one way of relating to the AI,
    arcade"). Candidates that guard: the owner's own Core Cooling rebuilt (the board is your cabinets, the AI's processes
    sit on it), Guardrails (gates on the model's output), Neuron Surgery (find and clamp its circuits). **The owner's
    calls (2026-11-11): none of these, something new designed for the triangle; and its pace is slow pressure** (mostly
-   planning, but things spread or build while you think, so waiting has a cost).
+   planning, but things spread or build while you think, so waiting has a cost). **Picked: Busywork** (you invent work
+   to keep the AI occupied; the smarter you've trained it, the faster it gets bored): first draft in
+   `design/busywork.md`.
 2. **Measuring the lean.** The minigames gate each other (bosses need skills), so the lean has to count what you do
    beyond the required minimum. Needs the three timelines side by side first; the full-game sim has not been run for this.
 3. **The four endings.** Today's three are sorted by freedom alone. Does freedom stay as a number, become the Open
