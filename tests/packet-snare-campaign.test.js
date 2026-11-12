@@ -45,12 +45,18 @@ test('a gated boss takes that share of a slash', () => {
         const b = s.boss;
         Object.assign(b, { x: 10, y: 6, vx: 0, vy: 0, chargeAt: 999, charge: null, mineAt: 999, stunned: s.time + 2 });
         const before = b.hp;
+        s.events.length = 0;
         flick(s, 8.6, 5.7, 11.4, 6.3);
+        hits[armor] = s.events.filter(e => e.type === 'bossHit');
         return before - b.hp;
     };
+    const hits = {};
     const full = hit(1), gated = hit(E.SNARE_GATE_ARMOR);
     assert.ok(full > 0, 'a slash lands');
     assert.ok(Math.abs(gated - full * E.SNARE_GATE_ARMOR) < 1e-9, 'gated: ' + gated + ' of ' + full);
+    // the hit says it was gated, so its pop can show the share (the owner's call on the 18.8 log)
+    assert.ok(hits[E.SNARE_GATE_ARMOR].length && hits[E.SNARE_GATE_ARMOR].every(e => e.armor === E.SNARE_GATE_ARMOR), 'gated hits carry the share');
+    assert.ok(hits[1].length && hits[1].every(e => !e.armor), 'full hits carry none');
 });
 
 // The owner's calls after the 18.7 log: keep players racing, not drawing one circle round the screen.

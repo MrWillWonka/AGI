@@ -5068,11 +5068,14 @@ window.AGI = (function () {
                 snareRpLine(),
                 snareTrainingLine()
             ].filter(Boolean);
+            // a boss that escaped because a Training skill wasn't learned (the owner's call on the 18.8 log: the objective line was the only place that said so)
+            const gate = s.bossEscaped ? E.snareGateSkill(state, d.sector) : null;
             card.replaceChildren(...[
                 el('div', { class: 'result-title', text: `${d.sector > d.startSector ? `Sectors ${d.startSector + 1}–${d.sector + 1}` : snareSector(d.sector)}${d.replay ? ' (replay)' : ''} · ${d.walked ? 'Disconnected' : s.bossEscaped ? 'Boss escaped' : s.bosses > 0 ? 'Boss uninstalled' : 'Focus depleted'}` }),
                 // A boss beaten leads the card (round 2 of the review: it read like any other run).
                 // Snare 17.5: its fight clock ran out (the run ends with it).
                 s.bossEscaped ? el('div', { class: 'result-main snare-red-line', text: `Boss escaped${s.swallowed ? ` with ${s.swallowed} packets` : ''}${s.escapedMaxHp ? `, ${s.escapedHp} of ${s.escapedMaxHp} health left` : ''} · uninstall window ${snare.run?.opts?.bossFight || 30} s` }) : null,
+                gate ? el('p', { class: 'snare-intro-line snare-red-line snare-gate-line', text: `Your model hasn't learned ${gate} yet, so your hits did ${Math.round(100 * E.SNARE_GATE_ARMOR)}% of their damage. Learn it in the Training Cluster, then come back stronger.` }) : null,
                 d.cleared.some(k => E.isSnareBossSector(k)) ? el('div', { class: 'result-main snare-boss-down', text: `Boss uninstalled · ${s.slashes || 0} slash${s.slashes === 1 ? '' : 'es'}${s.mineThrows ? ` · ${s.mineThrows} mine${s.mineThrows === 1 ? '' : 's'} thrown` : ''}${s.meltHits ? ` · meltdown ${s.meltHits}/${s.meltOf || 30}` : ''}` }) : null,
                 el('div', { class: 'result-main', text: s.caught ? `${s.caught} packet${s.caught === 1 ? '' : 's'} captured` : 'No packets captured' }),
                 // nothing caught: why, in plain words, first (round 9 of the review: "Corrupted catches 1" didn't say it)
@@ -5083,8 +5086,10 @@ window.AGI = (function () {
                 d.record ? el('span', { class: 'result-badge', text: `New record · was +${E.format(d.prev)}` }) : null,
                 ...resultLines(lines),
                 snareSectorPicker(),
-                el('p', { class: 'snare-intro-line snare-goal-line', text: snareGoalText(snareNextSector()) }),
-                el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: 'Snare again', onclick: startSnare }), snareUpgradesButton()])].filter(Boolean));
+                // (after a gated escape the gate's line above says it; the objective doesn't repeat it)
+                el('p', { class: 'snare-intro-line snare-goal-line', text: gate ? snareGoalText(snareNextSector()).replace(snareGateText(snareNextSector()), '') : snareGoalText(snareNextSector()) }),
+                el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: 'Snare again', onclick: startSnare }), snareUpgradesButton(),
+                    gate ? el('button', { type: 'button', class: 'ghost-button snare-gate-go', text: 'Go to the Training Cluster', onclick: () => jumpTo('bay:training') }) : null].filter(Boolean))].filter(Boolean));
         }
         setHidden(card, false);
     }
@@ -5772,7 +5777,7 @@ window.AGI = (function () {
             // the ring on the boss, the words under it (round 7 of the review: they sat on SLASH! over it)
             const br = e.r || window.PacketSnare.BOSS_R;
             fx.push({ kind: 'quarantine', hit: true, x: e.x, y: e.y, r: br, t: 0, life: 0.7 });
-            fx.push({ kind: 'stun', hit: true, x: e.x, y: e.y + br + 0.9, t: 0, life: 0.8, text: `${e.how === 'ram' ? 'RAMMED' : e.how === 'parry' ? 'RIPOSTE' : e.how === 'crash' ? 'BLUE SCREEN' : 'SLASH'} −${e.dmg}${e.fight ? '' : ` · ${e.hp} left`}` });
+            fx.push({ kind: 'stun', hit: true, x: e.x, y: e.y + br + 0.9, t: 0, life: 0.8, text: `${e.how === 'ram' ? 'RAMMED' : e.how === 'parry' ? 'RIPOSTE' : e.how === 'crash' ? 'BLUE SCREEN' : 'SLASH'} −${+(+e.dmg).toFixed(1)}${e.armor ? ` · ${Math.round(100 * e.armor)}%` : ''}${e.fight ? '' : ` · ${e.hp} left`}` });
         }
         // a slash too soon after the last (round 6: it was swallowed without a word); at most one a half second
         else if (e.type === 'slashSoon') {
