@@ -3748,3 +3748,32 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
     .evals-thing { font-size: clamp(1.2rem, calc((100dvh - 100px) / var(--side) / 1.9), 2.6rem); }
     .evals-hat { font-size: clamp(0.8rem, calc((100dvh - 100px) / var(--side) / 3), 1.5rem); }
 }
+
+/* Evals, stage 2: the AI's attempt beside yours. Its line above the grid, its hand (a second cursor) over it, and a
+   small hollow ring in the corner of each square it tapped: a different shape and corner from your own mark. */
+.evals-its { display: flex; align-items: center; gap: 8px; min-height: 1.5em; font-size: 0.9rem; color: var(--muted); }
+.evals-its-tag {
+    font: 700 0.7rem var(--font-mono); letter-spacing: 0.08em; padding: 2px 6px; border-radius: 5px;
+    color: var(--text); border: 1.5px dashed var(--text);
+}
+.evals-its.done { color: var(--text); }
+.evals-its.ahead .evals-its-line { font-weight: 700; }
+.evals-its.ahead .evals-its-tag { background: var(--text); color: var(--bg); border-style: solid; }
+.evals-grid-wrap { position: relative; }
+.evals-hand { position: absolute; left: -4px; top: -3px; width: 26px; height: 26px; pointer-events: none; z-index: 2; will-change: transform; }
+.evals-hand svg { width: 100%; height: 100%; fill: var(--text); stroke: var(--bg); stroke-width: 1.5; stroke-linejoin: round; opacity: 0.92; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); }
+.evals-its-mark {
+    position: absolute; left: 4px; top: 4px; width: 0.95em; height: 0.95em; border-radius: 50%; display: none;
+    border: 2.5px solid var(--text); font-size: 0.85rem; box-shadow: 0 0 0 1.5px var(--bg);
+}
+.evals-cell.its .evals-its-mark { display: block; }
+@media (prefers-reduced-motion: no-preference) {
+    .evals-cell.its .evals-its-mark { animation: evals-tap 0.25s ease-out; }
+}
+@keyframes evals-tap { from { transform: scale(2.2); opacity: 0.2; } }
+@media (max-height: 520px) {
+    .evals-captcha { grid-template-rows: auto 1fr auto; }
+    .evals-grid-wrap { grid-row: 1 / 4; grid-column: 1; }
+    .evals-grid { grid-row: auto; }
+    .evals-its { align-self: start; }
+}

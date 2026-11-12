@@ -13268,6 +13268,20 @@ window.AGI = (function () {
             openSnare: () => straightToSnare(),
             // Evals, the third minigame (stage 1: its own screen, opened from here or with #evals).
             openEvals: () => window.EvalsUI?.open(),
+            // What the AI has learned of every kind of captcha, raised by `by` (0 to 1): for watching it learn without the solves.
+            evalsTeach(by = 0.25) {
+                for (const kind of Object.keys(window.Evals?.KINDS || {})) {
+                    const k = window.Evals.kindOf(state.evals.learn, kind);
+                    k.m = Math.max(0, Math.min(1, k.m + by));
+                }
+                afterChange();
+            },
+            // Evals as new: nothing learned, no kinds taken over, no runs. The rest of the game stays.
+            resetEvals() {
+                window.EvalsUI?.close();
+                state.evals = E.defaultState().evals;
+                afterChange();
+            },
             learnSkill() {
                 if (E.actTwoLocked(state)) return;   // the demo's gate
                 E.learnSkill(state, state.path.learned);

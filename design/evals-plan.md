@@ -68,7 +68,31 @@ Follow Packet Snare's split (`CLAUDE.md` → Layout; `design/second-minigame.md`
 built**: `evals.js` (the run, three lives, the Pick family with emoji scenes, "without" and a 4 by 4 grid as it
 climbs), `tests/evals.test.js`, and `evals-ui.js`, a full-screen dialog opened from the debug panel's Evals section or
 with `#evals` in the address. It keeps nothing in the save yet (the best run is per device). Checked in a browser at
-phone size upright and sideways. Stage 2, the ghost hand, is next.
+phone size upright and sideways.
+
+**Stage 2 is built** (2026-11-11): the learner and the ghost hand.
+
+- **Kinds.** Pick is three kinds the AI learns apart: plain picture grids, grids with scenes, and "every square
+  without" grids. A kind it has taken over gives way to the next it hasn't; with none left a run can't start
+  ("Verified automatically").
+- **The learner** (`evals.js`): per kind, how well it has learned (0 to 1), how many solves it watched, how many of
+  those you got wrong, and your last six solves as traces. A clean quick solve teaches 1.3 of 8, a slow one 0.6, a
+  wrong one 0.25. A steady clean player loses a kind after about 8 watched solves, 2 to 4 runs.
+- **Its attempt** is decided when the captcha shows: knowing nothing it guesses each square, in no order, at 2.4 times
+  your pace; learned, it taps in your order at 0.55 of your pace, and slips on one square as often as you get one of
+  these wrong.
+- **Taking over:** right and done before you (or right when you were wrong) three times running.
+- **On screen** (`evals-ui.js`): a second cursor that wanders less as it learns, a ring in the corner of each square
+  it taps, and a line for it above the grid ("It got it right first, in 1.8 s."). With reduced motion there is no
+  cursor, only the rings and the line. A takeover shows a card and the run goes on.
+- **Saved:** `state.evals` (save v34: runs, best, what it learned). A new version starts it again, like the rest of a
+  version's play; that is the default, not a decision (story.md, open 9).
+- **Debug:** Teach it (+25% every kind), Reset Evals.
+- **Tests:** `tests/evals-learner.test.js`, `tests/evals-save.test.js`.
+
+**To watch in the owner's first play:** whether seeing its rings gives the answer away once it is good (they show
+which squares it tapped while you are still solving); whether three times running is the right bar; whether its speed
+at the end feels like being overtaken or like a cheat. **Stop here for the owner's review before stage 3.**
 
 Each ends with something the owner can play or read, and a short report.
 
