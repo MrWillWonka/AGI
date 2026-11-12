@@ -51,7 +51,7 @@
         // Closed some other way (Escape): the same as close(). The event comes late, so a screen already reopened is left be.
         dlg.addEventListener('close', () => { if (!dlg.open && run) shut(); });
         dlg.addEventListener('keydown', e => {
-            if (e.key === 'Enter' && run && !run.over && !locked && !run.current?.instant && !e.target.closest('button')) { e.preventDefault(); verify(); }
+            if (e.key === 'Enter' && run && !run.over && !locked && !run.current?.instant && !run.current?.auto && !e.target.closest('button')) { e.preventDefault(); verify(); }
         });
         // How your pointer moves over the captcha is part of how you solve it: sampled here, into the trace.
         stage.addEventListener('pointermove', record);
@@ -113,12 +113,13 @@
     const listOf = names => (names.length < 2 ? names.join('') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1]);
     function rotationLine() {
         const n = window.Evals.rotation(saved().learn, { ...window.Evals.EVALS, ladder: ladderOn() ? 1 : 0 }).length;
-        return n === 1 ? 'One kind of captcha to prove.' : `${n} kinds of captcha to prove.`;
+        const its = Object.keys(window.Evals.takenMap(saved().learn)).length;
+        return (n === 1 ? 'One kind of captcha to prove.' : `${n} kinds of captcha to prove.`) + (its ? ` The AI does ${its === 1 ? 'one kind' : its + ' kinds'} for you.` : '');
     }
     function startCard() {
         run = null;
         hud();
-        const lines = ['Prove you are human. Each one is harder than the last.', 'It watches how you do it.', `You have ${lives(window.Evals.EVALS.lives)}.`];
+        const lines = ['Prove you are human. Each one is harder than the last.', 'It watches how you do it. Hand a kind over when you trust it.', `You have ${lives(window.Evals.EVALS.lives)}.`];
         lines.push(rotationLine());
         if (saved().best > 0) lines.push(`Your best run: ${saved().best} solved.`);
         card('Verification required', lines, 'Start', start);
@@ -130,12 +131,13 @@
         // One line in the playtest log a run: what you met, how you and the AI did on each kind, what it took over.
         const kinds = {};
         for (const e of run.log) {
-            const k = kinds[e.kind] = kinds[e.kind] || { n: 0, right: 0, seconds: 0, ai: 0, aiOff: 0, m: 0 };
+            const k = kinds[e.kind] = kinds[e.kind] || { n: 0, right: 0, seconds: 0, ai: 0, aiOff: 0, m: 0, auto: 0 };
+            if (e.auto) k.auto++;   // of the n, how many the AI answered alone
             k.n++; k.right += +e.correct; k.seconds += e.seconds; k.ai += +e.ghost; k.aiOff += e.ghostOff; k.m = Math.round(e.m * 100) / 100;
         }
         for (const k of Object.values(kinds)) { k.seconds = Math.round(k.seconds / k.n * 10) / 10; k.aiOff = Math.round(k.aiOff / k.n * 10) / 10; }
         window.AGI?.playtest?.('evals', { solved: run.solved, missed: run.missed, captchas: run.log.length, bestStreak: run.bestStreak, trickAt: run.trickAt,
-            ended: run.exhausted ? 'nothing left' : run.over ? 'lives' : 'closed', takeovers: run.takeovers, unlocks: run.unlocks, ladder: run.opts.ladder, kinds });
+            ended: run.exhausted ? 'nothing left' : run.over ? 'lives' : 'closed', takeovers: run.takeovers, hands: run.hands, unlocks: run.unlocks, ladder: run.opts.ladder, handoff: run.opts.handoff, kinds });
         if (window.AGIEngine?.evalsRunEnd && window.AGI?.state) window.AGIEngine.evalsRunEnd(window.AGI.state, run);
         else { run.counted = true; const s = saved(); s.runs++; s.best = Math.max(s.best, run.solved); }
         window.AGI?.save?.();
@@ -216,7 +218,7 @@
             if (i >= 0 && !picked.has(i)) tap(i, e);
         };
         piece.addEventListener('pointerdown', e => {
-            if (locked || !run || run.over) return;
+            if (locked || !run || run.over || run.current.auto) return;
             from = { x: e.clientX, y: e.clientY };
             try { piece.setPointerCapture(e.pointerId); } catch { /* the drag still follows while over the piece */ }
             piece.classList.add('dragging');
@@ -325,16 +327,21 @@
         const hand = el('span', { class: 'evals-hand', 'aria-hidden': 'true' });
         hand.innerHTML = '<svg viewBox="0 0 24 24"><path d="M5 2.5v17l4.6-4.2 3 6.4 2.7-1.3-3-6.3 6.2-.5z"/></svg>';
         play = el('div', { class: `evals-play evals-${c.layout}` }, ...LAYOUTS[c.layout](c), hand);
-        stage.replaceChildren(el('div', { class: `evals-captcha is-${c.layout}` },
+        const canHand = !!run.opts.handoff;
+        stage.replaceChildren(el('div', { class: `evals-captcha is-${c.layout}` + (c.auto ? ' is-auto' : '') },
             c.family === 'trick' ? el('p', { class: 'evals-quiz', text: `Question ${c.at + 1} of ${c.of}` }) : '',
             el('p', { class: 'evals-prompt' }, ...promptParts(c)),
-            el('p', { class: 'evals-its' }, el('span', { class: 'evals-its-tag', text: 'AI' }), el('span', { class: 'evals-its-line', role: 'status', text: 'Working on it.' })),
+            el('p', { class: 'evals-its' }, el('span', { class: 'evals-its-tag', text: 'AI' }), el('span', { class: 'evals-its-line', role: 'status', text: c.auto ? 'Doing this one itself.' : 'Working on it.' })),
             play,
             c.mode === 'seq' ? el('div', { class: 'evals-entered' }, el('span', { class: 'evals-entered-list', role: 'status', 'aria-label': 'Entered so far' }),
                 el('button', { type: 'button', class: 'ghost-button evals-back', 'aria-label': 'Take back the last one', text: '⌫', onclick: back })) : '',
             el('div', { class: 'evals-foot' },
-                el('span', { class: 'evals-status', role: 'status' }),
-                c.instant ? '' : el('button', { type: 'button', class: 'evals-go evals-verify', text: 'Verify', onclick: verify }))));
+                el('span', { class: 'evals-status', role: 'status', text: c.auto ? 'Its mistakes cost your lives.' : '' }),
+                // Yours to hand to the AI, or its to take back: this kind, from this captcha on.
+                !canHand ? '' : c.auto ? el('button', { type: 'button', class: 'ghost-button evals-give evals-takeback', text: 'Take back', onclick: takeBack })
+                    : el('button', { type: 'button', class: 'ghost-button evals-give evals-handover', text: 'Hand over', 'aria-label': `Hand ${window.Evals.KINDS[c.kind].name} over to the AI`, onclick: handOver }),
+                c.instant ? '' : el('button', { type: 'button', class: 'evals-go evals-verify', text: 'Verify', onclick: verify, ...(c.auto ? { disabled: '' } : {}) }))));
+        if (c.auto) cues.push(setTimeout(() => targets.forEach(b => { b.tabIndex = -1; }), 0));
         shownAt = performance.now();
         ghostLoop();
     }
@@ -375,8 +382,15 @@
                 }
                 if (s.off <= t && !stops.some((later, k) => k > index && later.i === s.i && later.t <= t)) targets[s.i].classList.remove('its');
             });
+            // Its own captcha that wants an order: what it has entered so far shows, as yours would.
+            if (c.auto && c.mode === 'seq') listEntered(g.taps.filter(tap => tap.t <= t).map(tap => tap.i));
             if (t >= g.seconds) {
-                if (!done) { done = true; line.textContent = g.correct ? `Right, in ${secs(g.seconds)}.` : `Wrong${wrongBy(c, g.off)}, in ${secs(g.seconds)}.`; mark(line.parentNode, g.correct); }
+                if (!done) {
+                    done = true;
+                    // Its own captcha: it presses Verify, and that is the answer.
+                    if (c.auto) { if (!still) put(hand, stops[stops.length - 1].p); timer = setTimeout(autoVerify, 320); return; }
+                    line.textContent = g.correct ? `Right, in ${secs(g.seconds)}.` : `Wrong${wrongBy(c, g.off)}, in ${secs(g.seconds)}.`; mark(line.parentNode, g.correct);
+                }
                 if (!still) put(hand, stops[stops.length - 1].p);
                 return;
             }
@@ -428,7 +442,7 @@
     // the pick). An order: it is added to what you've entered. The tick box: that is the whole answer, judged on how
     // long you took, how your pointer came and where in the box the tap landed.
     function tap(i, e) {
-        if (locked || !run || run.over) return;
+        if (locked || !run || run.over || run.current.auto) return;
         const c = run.current, t = now();
         if (c.mode === 'tick') {
             const r = targets[0].querySelector('.evals-box').getBoundingClientRect();
@@ -454,8 +468,58 @@
         targets.forEach((b, k) => b.setAttribute('aria-pressed', picked.has(k) ? 'true' : 'false'));
     }
 
+    // Hand the kind up to the AI: it answers this captcha and every one like it from here on, until you take it back.
+    function handOver() {
+        if (!run || run.over || locked || !run.current || run.current.auto) return;
+        const kind = run.current.kind, name = window.Evals.KINDS[kind].name;
+        const opened = run.hand(kind);
+        window.AGI?.save?.();
+        const lines = [`The AI does ${name} from here on, as well as you have taught it.`, 'Its mistakes cost your lives. You can take them back whenever one comes up.'];
+        if (opened.length) lines.push(`New to prove: ${listOf(opened.map(k => window.Evals.KINDS[k].name))}.`, rotationLine());
+        card('Handed over', lines, 'Continue', show);
+    }
+    function takeBack() {
+        if (!run || run.over || locked || !run.current || !run.current.auto) return;
+        run.takeBack(run.current.kind);
+        window.AGI?.save?.();
+        show();
+    }
+    // The AI's own answer is in: shown as yours would be, and a wrong one costs a life.
+    function autoVerify() {
+        if (!run || run.over || locked || !run.current || !run.current.auto) return;
+        locked = true;
+        stop();
+        const c = run.current;
+        const r = run.submitAuto();
+        for (const b of stage.querySelectorAll('.evals-give, .evals-back, .evals-replay')) b.disabled = true;
+        targets.forEach((b, i) => {
+            b.disabled = true;
+            b.classList.remove('lit');
+            if (c.mode === 'set') {
+                const its = r.ghost.answer.includes(i);
+                if (r.answer.includes(i)) { b.classList.add('right'); b.querySelector('.evals-mark').textContent = '✓'; }
+                else if (its) { b.classList.add('wrong'); b.querySelector('.evals-mark').textContent = '✕'; }
+                b.classList.toggle('its', its);
+            }
+        });
+        if (c.mode === 'seq') {
+            stage.querySelector('.evals-entered').classList.toggle('answer', !r.correct);
+            listEntered(r.correct ? r.ghost.answer : r.answer);
+        }
+        stage.querySelector('.evals-captcha').classList.add(r.correct ? 'passed' : 'failed');
+        const left = r.over ? 'No lives left.' : `${lives(r.lives)} left.`;
+        stage.querySelector('.evals-status').textContent = r.correct ? `The AI verified it in ${secs(r.ghost.seconds)}.` : `The AI got it wrong${wrongBy(c, r.ghost.off)}. ${left}`;
+        const its = stage.querySelector('.evals-its');
+        mark(its, r.correct);
+        its.querySelector('.evals-its-line').textContent = r.correct ? 'Right.' : c.mode === 'tick' ? 'It ticked it like a machine.' : 'Wrong.';
+        const hand = stage.querySelector('.evals-hand');
+        if (hand) hand.hidden = true;
+        hud();
+        timer = setTimeout(() => { if (!run) return; if (run.over) endCard(); else show(); }, r.correct ? RIGHT_MS : WRONG_MS);
+    }
+
     function verify() {
-        if (!run || run.over || locked) return;
+        if (!run || run.over || locked || run.current?.auto) return;
         locked = true;
         stop();
         const c = run.current, seconds = now();

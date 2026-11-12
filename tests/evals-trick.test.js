@@ -5,9 +5,9 @@ const Evals = require('../evals.js');
 
 const trace = (c, seconds = 3) => ({ taps: c.answer.map((i, j) => ({ i, t: 1 + 0.4 * j })), seconds, bend: 1.2, offset: 0.3 });
 // A run of trick questions only, with something behind it so every question can be asked.
-const quizRun = (opts = {}) => Evals.createRun({ ladder: 0, seed: 6, families: ['trick'], overtake: 999, ...opts });
+const quizRun = (opts = {}) => Evals.createRun({ ladder: 0, handoff: 0, seed: 6, families: ['trick'], overtake: 999, ...opts });
 const withHistory = () => {
-    const run = Evals.createRun({ ladder: 0, seed: 6, families: ['answer', 'trick'], overtake: 999 });
+    const run = Evals.createRun({ ladder: 0, handoff: 0, seed: 6, families: ['answer', 'trick'], overtake: 999 });
     run.submit(run.current.answer, 3, trace(run.current));
     return run;
 };
@@ -101,7 +101,7 @@ test('"how many lives" follows the run: miss one and the answer changes', () => 
 
 test('the AI learns them like any other kind, and can take them over', () => {
     const learn = Evals.newLearn();
-    const run = Evals.createRun({ ladder: 0, seed: 2, families: ['trick'], learn, overtake: 999, lives: 999 });
+    const run = Evals.createRun({ ladder: 0, handoff: 0, seed: 2, families: ['trick'], learn, overtake: 999, lives: 999 });
     for (let i = 0; i < 30; i++) run.submit(run.current.answer, 3, trace(run.current));
     const k = learn.kinds['trick.question'];
     assert.ok(k.m > 0.5 && k.solves === 30);
@@ -120,5 +120,5 @@ test('the AI learns them like any other kind, and can take them over', () => {
     assert.ok(share(0.05) < 0.5, `knowing little: ${share(0.05)}`);
     assert.ok(share(1) > 0.8, `learned: ${share(1)}`);
     k.taken = true;
-    assert.ok(Evals.createRun({ ladder: 0, seed: 2, families: ['trick'], learn }).exhausted);
+    assert.ok(Evals.createRun({ ladder: 0, handoff: 0, seed: 2, families: ['trick'], learn }).exhausted);
 });

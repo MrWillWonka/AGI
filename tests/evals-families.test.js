@@ -135,13 +135,13 @@ test('the tick box: too quick, too straight or too dead-centre is a robot', () =
     assert.ok(Evals.judge(c, [0], ok));
     assert.ok(!Evals.judge(c, [0], { ...ok, seconds: 0.1 }));
     assert.ok(!Evals.judge(c, [], ok));
-    const run = Evals.createRun({ ladder: 0, seed: 1, families: ['invisible'] });
+    const run = Evals.createRun({ ladder: 0, handoff: 0, seed: 1, families: ['invisible'] });
     assert.equal(run.submit([0], 0.2, { taps: [{ i: 0, t: 0.2 }], bend: 1.2, offset: 0.2 }).why, 'quick');
     assert.equal(run.submit([0], 1.5, { taps: [{ i: 0, t: 1.5 }], bend: 1.2, offset: 0.2 }).why, null);
 });
 
 test('a run goes round the families in order, each getting harder with its own solves, and skips what the AI has taken', () => {
-    const run = Evals.createRun({ ladder: 0, seed: 9, overtake: 999 });
+    const run = Evals.createRun({ ladder: 0, handoff: 0, seed: 9, overtake: 999 });
     const seen = [];
     for (let i = 0; i < 28; i++) {
         const c = run.current;
@@ -153,10 +153,10 @@ test('a run goes round the families in order, each getting harder with its own s
     // With a whole family taken, the run passes over it; with everything taken, there is no run.
     const learn = Evals.newLearn();
     for (const kind of Object.keys(Evals.KINDS)) if (Evals.KINDS[kind].family !== 'answer') Evals.kindOf(learn, kind).taken = true;
-    const only = Evals.createRun({ ladder: 0, seed: 2, learn, overtake: 999 });
+    const only = Evals.createRun({ ladder: 0, handoff: 0, seed: 2, learn, overtake: 999 });
     for (let i = 0; i < 10; i++) { assert.equal(only.current.family, 'answer'); only.submit(only.current.answer, 3, human(only.current)); }
     Evals.kindOf(learn, 'answer.sum').taken = Evals.kindOf(learn, 'answer.words').taken = true;
-    assert.ok(Evals.createRun({ ladder: 0, seed: 2, learn }).exhausted);
+    assert.ok(Evals.createRun({ ladder: 0, handoff: 0, seed: 2, learn }).exhausted);
 });
 
 test('one learner for every kind: it goes from mostly wrong to mostly right, and its attempt is always playable', () => {
@@ -165,7 +165,7 @@ test('one learner for every kind: it goes from mostly wrong to mostly right, and
         const share = m => {
             const learn = Evals.newLearn();
             // It has watched you: a few solves of this kind in the bank.
-            const teach = Evals.createRun({ ladder: 0, seed: 3, learn, families: [family], overtake: 999, lives: 999 });
+            const teach = Evals.createRun({ ladder: 0, handoff: 0, seed: 3, learn, families: [family], overtake: 999, lives: 999 });
             for (let i = 0; i < 40; i++) teach.submit(teach.current.answer, 3, human(teach.current));
             if (!learn.kinds[kind]) return null;
             learn.kinds[kind].m = m;

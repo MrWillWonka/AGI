@@ -62,6 +62,15 @@
         overtake: 8,
         // Kinds unlock as it takes kinds over (`LADDER`). 0: every kind from the start, each at the plain pace.
         ladder: 1,
+        // Handing over (the owner's call, 2026-11-12): the AI never takes a kind. You hand one to it when you choose
+        // (`run.hand`), and take it back when you choose (`run.takeBack`). A handed-over kind still comes up in your
+        // run and the AI answers it alone, as well as you taught it; a wrong answer of its costs you a life. While it
+        // learns it is never faster than you; on its own its pace falls from there to `ownPace` of yours over
+        // `ownSolves` captchas it has done alone, and it learns nothing more (the same mistakes, faster).
+        // 0: the older rule, it takes a kind over once it is right and first often enough (`overtake`).
+        handoff: 1,
+        ownSolves: 40,
+        ownPace: 0.55,
     };
     // The unlock ladder (the owner's call, 2026-11-12): a run starts with one kind, the plainest, which it learns
     // fast; each kind it takes over unlocks the next step, more kinds than it took, so the rotation grows 1, 2, 4, 6,
@@ -455,8 +464,10 @@
     // watched, `ahead` (its score toward taking the kind over: see `overtake`), `taken`, `wrongs` (how many of those
     // solves you got wrong) and `traces`, your last few solves.
     const newLearn = () => ({ kinds: {} });
+    // `taken`: the AI does this kind now (taken over, or handed to it). `handed`: it has been handed over at some
+    // time (what the ladder counts, so taking a kind back closes nothing). `own`: captchas of it the AI has done alone.
     function kindOf(learn, kind) {
-        if (!learn.kinds[kind]) learn.kinds[kind] = { m: 0, solves: 0, ahead: 0, taken: false, wrongs: 0, traces: [] };
+        if (!learn.kinds[kind]) learn.kinds[kind] = { m: 0, solves: 0, ahead: 0, taken: false, handed: false, own: 0, wrongs: 0, traces: [] };
         return learn.kinds[kind];
     }
     const takenMap = learn => {
@@ -467,16 +478,26 @@
     // The kinds the ladder has opened: a step more for each kind it has taken over.
     function openKinds(learn, o = EVALS) {
         if (!o.ladder) return Object.keys(KINDS);
-        const taken = Object.keys(takenMap(learn)).length;
+        const taken = Object.keys(learn.kinds).filter(k => learn.kinds[k].taken || learn.kinds[k].handed).length;
         return LADDER.slice(0, taken + 1).flatMap(s => s.kinds);
     }
-    // The kinds a run can't draw: taken over, or not yet unlocked.
+    // The kinds a run can't draw: not yet unlocked, and (without handing over) the ones it has taken.
     function blockedMap(learn, o = EVALS) {
-        const out = takenMap(learn), open = new Set(openKinds(learn, o));
+        const out = o.handoff ? {} : takenMap(learn), open = new Set(openKinds(learn, o));
         for (const k of Object.keys(KINDS)) if (!open.has(k)) out[k] = true;
         return out;
     }
-    // The kinds in rotation: open and not taken over.
+    // You hand a kind to the AI: it does them from here on. Returns the kinds that opened.
+    function handOver(learn, kind, o = EVALS) {
+        if (!KINDS[kind]) return [];
+        const before = new Set(openKinds(learn, o)), k = kindOf(learn, kind);
+        k.taken = true;
+        k.handed = true;
+        return openKinds(learn, o).filter(open => !before.has(open));
+    }
+    // …and take it back: yours to solve again, and it watches again. What it did alone (`own`) it keeps.
+    function takeBack(learn, kind) { if (learn.kinds[kind]) learn.kinds[kind].taken = false; }
+    // The kinds you still prove yourself: open and not the AI's.
     const rotation = (learn, o = EVALS) => { const taken = takenMap(learn); return openKinds(learn, o).filter(k => !taken[k]); };
     // How often you get a captcha of this kind wrong, pulled toward never until it has seen a few.
     const errorRate = k => k.wrongs / (k.solves + 4);
@@ -619,7 +640,11 @@
     function ghostAttempt(learn, c, rand, o = EVALS) {
         const k = kindOf(learn, c.kind);
         const m = k.m, h = habits(k), n = c.targets.length, side = c.side || 0;
-        const know = phase(m, 2), pace = phase(m, 1);
+        const know = phase(m, 2);
+        // Its pace against yours. With handing over: never faster than you while it learns, and on its own faster with
+        // every captcha it does alone.
+        let pace = phase(m, 1);
+        if (o.handoff) pace = k.taken ? lerp(Math.max(1, pace), o.ownPace, clamp((k.own || 0) / o.ownSolves, 0, 1)) : Math.max(1, pace);
         const last = k.traces.length ? k.traces[k.traces.length - 1] : null;
         const wobble = () => 1 + (rand() - 0.5) * 0.5 * (1 - m);
         const beat = (list, mid) => { const r = rand(), s = rand(); return (list.length && s < m ? list[Math.floor(r * list.length)] : mid) * pace * wobble(); };
@@ -701,7 +726,7 @@
         const families = (o.families || ORDER).filter(f => FAMILIES[f]);
         const run = {
             opts: o, learn, lives: o.lives, level: 0, levels: {}, solved: 0, missed: 0, streak: 0, bestStreak: 0, over: false, exhausted: false,
-            current: null, ghost: null, takeovers: [], unlocks: [], turn: 0, trickAt: 0,
+            current: null, ghost: null, takeovers: [], unlocks: [], hands: [], turn: 0, trickAt: 0,
             // One line per captcha answered: what it was, whether you and it were right and how long each took.
             log: [],
         };
@@ -714,31 +739,12 @@
                 run.current = FAMILIES[family].make(rand, family === 'trick' ? run.trickAt : run.levels[family] || 0, o, blockedMap(learn, o), run);
             }
             if (!run.current) { run.over = true; run.exhausted = true; run.ghost = null; return; }
+            // A kind handed to the AI is its to answer (`auto`): see `submitAuto`.
+            run.current.auto = !!(o.handoff && kindOf(learn, run.current.kind).taken);
             run.ghost = ghostAttempt(learn, run.current, ghostRand, o);
         };
-        run.submit = function (answer, seconds = 0, trace = null) {
-            if (run.over || !run.current) return null;
-            const c = run.current, ghost = run.ghost;
-            seconds = Math.max(0, +seconds || 0);
-            const list = Array.isArray(answer) ? answer : [];
-            const seen = { ...(trace || { taps: list.map((i, j) => ({ i, t: seconds * (j + 1) / (list.length + 1) })), bend: 0, offset: 1 }), seconds };
-            const correct = judge(c, answer, seen);
-            // It was ahead if it was right and either done before you or you were wrong.
-            const ahead = ghost.correct && (!correct || ghost.seconds < seconds);
-            const k = kindOf(learn, c.kind);
-            const learned = watch(learn, c, seen, correct, o);
-            k.ahead = Math.max(0, k.ahead + (ahead ? 1 : -1));
-            let takeover = null, unlocked = [];
-            if (k.ahead >= paceOf(c.kind, o).overtake && !k.taken) {
-                const before = new Set(openKinds(learn, o));
-                k.taken = true;
-                takeover = c.kind;
-                run.takeovers.push(c.kind);
-                // Each kind it takes opens the ladder's next step.
-                unlocked = openKinds(learn, o).filter(kind => !before.has(kind));
-                run.unlocks.push(...unlocked);
-            }
-            run.log.push({ family: c.family, kind: c.kind, level: c.level, correct, seconds, ghost: ghost.correct, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m });
+        // What a captcha answered does to the run, whoever answered it.
+        const tally = (c, correct) => {
             if (correct) {
                 run.solved++;
                 run.streak++;
@@ -753,8 +759,58 @@
                 run.streak = 0;
                 run.lives--;
             }
-            const result = { correct, why: c.mode === 'tick' && !correct ? tickVerdict(seen, o) : null, answer: c.answer.slice(), captcha: c, ghost, ahead, learned, takeover, unlocked, lives: run.lives };
             if (run.lives <= 0) { run.over = true; run.current = null; run.ghost = null; } else next();
+        };
+        // Hand a kind to the AI, now: the captcha up becomes its own if it is of that kind. Returns the kinds that opened.
+        run.hand = function (kind) {
+            if (run.over || !o.handoff || !KINDS[kind] || kindOf(learn, kind).taken) return [];
+            const opened = handOver(learn, kind, o);
+            run.hands.push(kind);
+            run.unlocks.push(...opened);
+            if (run.current && run.current.kind === kind) { run.current.auto = true; run.ghost = ghostAttempt(learn, run.current, ghostRand, o); }
+            return opened;
+        };
+        run.takeBack = function (kind) {
+            takeBack(learn, kind);
+            if (run.current && run.current.kind === kind) { run.current.auto = false; run.ghost = ghostAttempt(learn, run.current, ghostRand, o); }
+        };
+        // The AI's own answer to a captcha of a kind you handed it: right counts as solved, wrong costs a life. It
+        // learns nothing from its own work; it only gets faster (`own`).
+        run.submitAuto = function () {
+            if (run.over || !run.current || !run.current.auto) return null;
+            const c = run.current, ghost = run.ghost, k = kindOf(learn, c.kind);
+            k.own = (k.own || 0) + 1;
+            run.log.push({ family: c.family, kind: c.kind, level: c.level, auto: true, correct: ghost.correct, seconds: ghost.seconds, ghost: ghost.correct, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m });
+            const result = { correct: ghost.correct, auto: true, why: null, answer: c.answer.slice(), captcha: c, ghost, ahead: false, learned: 0, takeover: null, unlocked: [] };
+            tally(c, ghost.correct);
+            return Object.assign(result, { lives: run.lives, over: run.over, exhausted: run.exhausted });
+        };
+        run.submit = function (answer, seconds = 0, trace = null) {
+            if (run.over || !run.current) return null;
+            const c = run.current, ghost = run.ghost;
+            seconds = Math.max(0, +seconds || 0);
+            const list = Array.isArray(answer) ? answer : [];
+            const seen = { ...(trace || { taps: list.map((i, j) => ({ i, t: seconds * (j + 1) / (list.length + 1) })), bend: 0, offset: 1 }), seconds };
+            const correct = judge(c, answer, seen);
+            // It was ahead if it was right and either done before you or you were wrong.
+            const ahead = ghost.correct && (!correct || ghost.seconds < seconds);
+            const k = kindOf(learn, c.kind);
+            const learned = watch(learn, c, seen, correct, o);
+            k.ahead = Math.max(0, k.ahead + (ahead ? 1 : -1));
+            let takeover = null, unlocked = [];
+            if (!o.handoff && k.ahead >= paceOf(c.kind, o).overtake && !k.taken) {
+                const before = new Set(openKinds(learn, o));
+                k.taken = true;
+                takeover = c.kind;
+                run.takeovers.push(c.kind);
+                // Each kind it takes opens the ladder's next step.
+                unlocked = openKinds(learn, o).filter(kind => !before.has(kind));
+                run.unlocks.push(...unlocked);
+            }
+            run.log.push({ family: c.family, kind: c.kind, level: c.level, correct, seconds, ghost: ghost.correct, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m });
+            const result = { correct, why: c.mode === 'tick' && !correct ? tickVerdict(seen, o) : null, answer: c.answer.slice(), captcha: c, ghost, ahead, learned, takeover, unlocked };
+            tally(c, correct);
+            result.lives = run.lives;
             result.over = run.over;
             result.exhausted = run.exhausted;
             return result;
@@ -763,6 +819,6 @@
         return run;
     }
 
-    return { EVALS, PACE, PHASES, phase, FAMILIES, KINDS, ORDER, LADDER, openKinds, blockedMap, rotation, paceOf, QUIZ, THINGS, HATS, WORDS, SHAPES, rng, createRun, pickTargets, judge, offBy, tickVerdict,
+    return { EVALS, PACE, PHASES, phase, FAMILIES, KINDS, ORDER, LADDER, openKinds, blockedMap, rotation, paceOf, handOver, takeBack, QUIZ, THINGS, HATS, WORDS, SHAPES, rng, createRun, pickTargets, judge, offBy, tickVerdict,
         newLearn, kindOf, takenMap, watch, habits, shapes, ghostAttempt, cleanTrace, errorRate, par };
 });

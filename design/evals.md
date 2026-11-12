@@ -51,10 +51,43 @@ replaces the first draft (pitched as Busywork: building tasks for a bored AI), w
   agent can join at a certain point and then it's about training the growing number of agents and eventually your
   agents training other agents and so on". See *Agents* below; nothing of it is built.
 
+- **You hand kinds over; it never takes them** (2026-11-12). Asked whether to split the view so the AI could be seen
+  working alone, the owner chose otherwise: "an active handoff, you can hand those to the AI to do automatically but it
+  isn't quite as good as you, over time it gets better and better… we don't need the panel and can stick to the ghost
+  hand. Later with agents we can show many of them solving captchas on their own in the bay." It is the "player's
+  choice to trade efficiency for convenience and later it will lead to models doing it better than the player". Their
+  picks: a handed-over kind **still comes up in your run and the AI solves it while you watch**; **its wrong answer
+  costs you a life**; you can **take a kind back any time**; **each handover opens the ladder's next step**; and on
+  its own it gets **faster with the same mistakes**. Also theirs: while it learns it is **only as fast as you**, never
+  faster. This replaces "once it beats you at a kind, it takes that kind over" above. Built: see *Handing over*.
+
+## Handing over (built 2026-11-12)
+
+`handoff` in `evals.js` (on by default; 0 is the older rule, kept for its tests).
+
+- **Hand over** is a button on every captcha of a kind that is yours. It hands that kind to the AI from that captcha
+  on (`run.hand`), with a card saying so and what it opened. **Take back** is on every captcha that is the AI's
+  (`run.takeBack`): the kind is yours again from that captcha, and it watches again.
+- **Its own captcha** (`auto`) plays in your run with your targets locked: the ghost hand taps, what it enters
+  shows, it presses Verify, and the answer is judged as yours would be (`run.submitAuto`). Right counts as solved
+  and keeps the streak; wrong costs a life.
+- **How good it is** is how much it had learned when you handed the kind over. It learns nothing from its own
+  answers. Handed over knowing nothing, it loses the run in a few captchas; fully taught, it is right about nine
+  times in ten (it never stops slipping, `ghostSlip`).
+- **Pace.** While it learns it is never faster than you (its pace against yours is held at 1 or slower). On its own
+  it goes from there to 0.55 of your time over 40 captchas it has done alone (`ownSolves`, `ownPace`, a kind's
+  `own`), and no faster yet: models that beat the player are for later.
+- **The ladder counts kinds ever handed over** (a kind's `handed`), so taking one back closes nothing.
+- **Save v35**: a kind's `handed` and `own`. The playtest log's `evals` line carries `hands` and, per kind, `auto`
+  (how many of them the AI answered).
+
+To watch in the owner's first play: when they choose to hand over, and whether a life is the right price; whether
+watching it solve is a welcome breath or dead time (its captchas can't be skipped); whether Take back gets used.
+
 ## The unlock ladder (built 2026-11-12)
 
-`LADDER` in `evals.js`. What is open is worked out from how many kinds the AI has taken over, so the save holds nothing
-new. The debug panel can turn it off on a device (Evals → Unlock ladder: every kind from the start).
+`LADDER` in `evals.js`. What is open is worked out from how many kinds have been handed to the AI (before handing
+over was built: how many it had taken; the measurements below are from that rule). The debug panel can turn it off on a device (Evals → Unlock ladder: every kind from the start).
 
 | It has taken | Opens | In rotation | Learns them |
 |---|---|---|---|

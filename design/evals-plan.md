@@ -213,6 +213,14 @@ opens the ladder's next step (`LADDER`, `openKinds`, `blockedMap`, `rotation`, `
 ladder off; the smoke test plays the ladder on a phone to the first takeover. Several agents are a design on paper
 only (design/evals.md → Agents).
 
+**Handing over is built** (2026-11-12, the owner's calls; design/evals.md → Handing over): the AI never takes a kind.
+Hand over and Take back are buttons on the captcha; a handed-over kind still comes up and the AI answers it alone in
+your run, a wrong answer costing a life; each handover opens the ladder's next step; while it learns it is never
+faster than you, and on its own it gets faster with the same mistakes. `handoff`, `ownSolves`, `ownPace`,
+`handOver`, `takeBack`, `run.hand`, `run.takeBack`, `run.submitAuto` in `evals.js`; save v35 (`handed`, `own`).
+Tests: `tests/evals-handoff.test.js`; the older tests and the ladder's run with `handoff: 0`. The smoke test hands
+warped words over on a phone, watches the AI answer one, and takes them back.
+
 Each ends with something the owner can play or read, and a short report.
 
 1. **Skeleton.** `evals.js` with a run (lives, streak, a queue of captchas), one family (Pick), the judge, and tests.

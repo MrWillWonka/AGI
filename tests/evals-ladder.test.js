@@ -4,6 +4,8 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const Evals = require('../evals.js');
+// These measure the AI taking kinds over by itself, the rule before handing over (`handoff: 0`); with handing over the
+// ladder counts the kinds you hand it (tests/evals-handoff.test.js).
 
 // A steady, clean player: every answer right, at a brisk pace for the captcha. Plays runs on one learner until
 // `until(learn)` or `cap` captchas; returns how many captchas each kind had been watched when it was taken over.
@@ -11,7 +13,7 @@ function play(until, cap = 4000, opts = {}) {
     const learn = Evals.newLearn(), tookAt = {}, order = [], sizes = [];
     let n = 0;
     for (let seed = 1; n < cap && !until(learn); seed++) {
-        const run = Evals.createRun({ seed, learn, lives: 999, ...opts });
+        const run = Evals.createRun({ seed, learn, lives: 999, handoff: 0, ...opts });
         for (let j = 0; j < 60 && !run.over && n < cap && !until(learn); j++) {
             const c = run.current;
             const r = run.submit(c.answer, Evals.par(c) * 0.9);
@@ -60,7 +62,7 @@ test('the rotation grows 1, 2, 4, 6, 10 as it takes kinds over, and a takeover s
     const { order } = play(l => takenCount(l) >= 1);
     assert.deepStrictEqual(order, ['read.word']);
     const fresh = Evals.newLearn();
-    const run = Evals.createRun({ seed: 3, learn: fresh, lives: 999 });
+    const run = Evals.createRun({ seed: 3, learn: fresh, lives: 999, handoff: 0 });
     let r;
     for (let j = 0; j < 60 && !(r && r.takeover); j++) r = run.submit(run.current.answer, Evals.par(run.current) * 0.9);
     assert.strictEqual(r.takeover, 'read.word');

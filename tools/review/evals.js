@@ -140,37 +140,72 @@ async function play(browser, size, url) {
     await ctx.close();
 }
 
-// The unlock ladder, on a phone: a new game shows one kind, warped words; the AI takes it over within a few dozen
-// solves, and its card names the kinds that opened, one of which comes up next.
+// The unlock ladder and handing over, on a phone: a new game shows one kind, warped words, and the AI never takes it;
+// you hand it over, its card names the kinds that opened, the AI answers its own captcha, and you can take it back.
 async function ladder(browser, url) {
     const size = SIZES[0];
     const ctx = await browser.newContext({ viewport: size.viewport, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
     const page = await ctx.newPage();
     await page.goto(url);
     await page.waitForTimeout(900);
+    const errors = [];
+    page.on('pageerror', e => errors.push(String(e)));
     await page.evaluate(() => { AGI.debug.evalsLadder(true); AGI.debug.resetEvals(); AGI.debug.openEvals(); });
     const startCard = await page.evaluate(() => document.querySelector('.evals-card')?.innerText || '');
     check(/One kind of captcha to prove/.test(startCard), 'ladder: the start card says one kind is in');
     await press(page, size, '.evals-go');
     await page.waitForTimeout(300);
-    const kinds = new Set();
-    let card = '', n = 0;
-    for (; n < 40 && !card; n++) {
-        const c = await look(page);
+    const kinds = new Set(), unfit = [];
+    const fit = async () => { const c = await look(page); if (c && (c.scroll || c.small || c.cut)) unfit.push(c.kind); const give = await page.locator('.evals-give').boundingBox(); if (!give || give.height < 43.5 || give.x + give.width > size.viewport.width) unfit.push('hand over button'); return c; };
+    // Twelve solved by hand: it never takes the kind itself.
+    for (let n = 0; n < 12; n++) {
+        const c = await fit();
         if (!c) break;
         kinds.add(c.kind);
         await page.waitForTimeout(850);
         for (const i of c.answer) { await press(page, size, `.evals-target[data-i="${i}"]`); await page.waitForTimeout(140); }
         await press(page, size, '.evals-verify');
         await page.waitForTimeout(1250);
-        card = await page.evaluate(() => document.querySelector('.evals-card')?.innerText || '');
     }
-    check(kinds.size === 1 && kinds.has('read.word'), `ladder: only warped words come up at first (${[...kinds].join(', ')})`);
-    check(/New to prove: sums and struck-through words/.test(card) && /2 kinds of captcha to prove/.test(card), `ladder: after ${n} solves its takeover card names what opened`);
-    await page.screenshot({ path: path.join(out, 'ladder-takeover.png') });
-    if (card) { await press(page, size, '.evals-go'); await page.waitForTimeout(300); }
-    const next = await look(page);
-    check(!!next && ['answer.sum', 'read.struck'].includes(next.kind), `ladder: a newly opened kind comes up next (${next ? next.kind : 'nothing'})`);
+    check(kinds.size === 1 && kinds.has('read.word') && !(await page.evaluate(() => !!document.querySelector('.evals-card'))), `ladder: only warped words come up at first, and it takes nothing itself (${[...kinds].join(', ')})`);
+    // Hand the kind over: its card names what opened.
+    await press(page, size, '.evals-handover');
+    await page.waitForTimeout(250);
+    const card = await page.evaluate(() => document.querySelector('.evals-card')?.innerText || '');
+    check(/Handed over/.test(card) && /New to prove: sums and struck-through words/.test(card) && /2 kinds of captcha to prove\. The AI does one kind for you/.test(card), 'handover: its card names what opened');
+    await page.screenshot({ path: path.join(out, 'handover-card.png') });
+    await press(page, size, '.evals-go');
+    await page.waitForTimeout(400);
+    // The captcha up is the AI's now: it answers it alone, and its answer counts.
+    const before = await page.evaluate(() => ({ auto: !!EvalsUI.run.current.auto, solved: EvalsUI.run.solved, lives: EvalsUI.run.lives, own: AGI.state.evals.learn.kinds['read.word'].own }));
+    await fit();
+    await page.screenshot({ path: path.join(out, 'handover-its-own.png') });
+    await page.waitForFunction(() => /^The AI (verified|got it wrong)/.test(document.querySelector('.evals-status')?.textContent || ''), null, { timeout: 30000 }).catch(() => {});
+    const status = await page.evaluate(() => document.querySelector('.evals-status')?.textContent || '');
+    const after = await page.evaluate(() => ({ solved: EvalsUI.run.solved, lives: EvalsUI.run.lives, own: AGI.state.evals.learn.kinds['read.word'].own }));
+    const counted = /verified/.test(status) ? after.solved === before.solved + 1 && after.lives === before.lives : after.lives === before.lives - 1 && after.solved === before.solved;
+    check(before.auto && after.own === before.own + 1 && counted, `handover: the AI answers its own captcha and it counts (${status})`);
+    // On through the run until one of its captchas is up again, solving your own; then take the kind back.
+    let mine = new Set(), back = false;
+    for (let n = 0; n < 12 && !back; n++) {
+        await page.waitForFunction(() => !document.querySelector('.evals-captcha.passed, .evals-captcha.failed') && !!EvalsUI.run?.current, null, { timeout: 30000 }).catch(() => {});
+        const c = await fit();
+        if (!c) break;
+        if (await page.evaluate(() => !!EvalsUI.run.current.auto)) {
+            if (mine.size) { await press(page, size, '.evals-takeback'); await page.waitForTimeout(300); back = await page.evaluate(() => !EvalsUI.run.current.auto && !AGI.state.evals.learn.kinds['read.word'].taken); break; }
+            await page.waitForFunction(() => !!document.querySelector('.evals-captcha.passed, .evals-captcha.failed'), null, { timeout: 30000 }).catch(() => {});
+            continue;
+        }
+        mine.add(c.kind);
+        await page.waitForTimeout(850);
+        for (const i of c.answer) { await press(page, size, `.evals-target[data-i="${i}"]`); await page.waitForTimeout(140); }
+        await press(page, size, '.evals-verify');
+        await page.waitForTimeout(300);
+    }
+    check([...mine].every(k => ['answer.sum', 'read.struck'].includes(k)) && mine.size > 0, `handover: the newly opened kinds come up for you (${[...mine].join(', ') || 'none'})`);
+    check(back, 'handover: Take back makes the kind yours again');
+    check(unfit.length === 0, `handover: everything in view and a finger wide${unfit.length ? ' — ' + [...new Set(unfit)].join('; ') : ''}`);
+    check(errors.length === 0, `handover: no page errors${errors.length ? ' — ' + errors.slice(0, 2).join(' | ') : ''}`);
     await page.evaluate(() => { EvalsUI.close(); AGI.debug.evalsLadder(true); });
     await ctx.close();
 }

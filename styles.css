@@ -3796,6 +3796,10 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
 .evals-back { min-width: 44px; min-height: 44px; font-size: 1.2rem; }
 
 .evals-foot { display: flex; align-items: center; gap: 12px; min-height: 46px; }
+/* Hand this kind to the AI, or take it back. On the AI's own captcha your targets can't be pressed. */
+.evals-give { min-height: 44px; padding: 0 12px; white-space: nowrap; }
+.evals-captcha.is-auto .evals-target, .evals-captcha.is-auto .evals-piece-shape, .evals-captcha.is-auto .evals-back, .evals-captcha.is-auto .evals-replay { pointer-events: none; }
+.evals-captcha.is-auto .evals-prompt { color: var(--muted); }
 .evals-status { flex: 1; font-weight: 600; }
 .evals-captcha.passed .evals-status { color: var(--success); }
 .evals-captcha.failed .evals-status { color: var(--danger); }

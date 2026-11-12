@@ -56,7 +56,7 @@ test('the names on the pictures are all different, so a prompt can only mean one
 });
 
 test('a run: right answers raise the level, a miss costs a life, and it ends when the lives are gone', () => {
-    const run = Evals.createRun({ ladder: 0, families: ['pick'], seed: 3 });
+    const run = Evals.createRun({ ladder: 0, handoff: 0, families: ['pick'], seed: 3 });
     assert.equal(run.lives, Evals.EVALS.lives);
     for (let i = 0; i < 5; i++) {
         const r = run.submit(run.current.answer, 2);
@@ -84,12 +84,12 @@ test('a run: right answers raise the level, a miss costs a life, and it ends whe
 });
 
 test('a solver passes every captcha and a random tapper runs out of lives quickly', () => {
-    const solver = Evals.createRun({ ladder: 0, families: ['pick'], seed: 11 });
+    const solver = Evals.createRun({ ladder: 0, handoff: 0, families: ['pick'], seed: 11 });
     for (let i = 0; i < 60; i++) assert.ok(solver.submit(solver.current.answer).correct);
     assert.equal(solver.lives, Evals.EVALS.lives);
     let solved = 0;
     for (const seed of SEEDS.slice(0, 50)) {
-        const run = Evals.createRun({ ladder: 0, families: ['pick'], seed });
+        const run = Evals.createRun({ ladder: 0, handoff: 0, families: ['pick'], seed });
         const rand = Evals.rng(seed + 999);
         while (!run.over) run.submit(run.current.cells.map((_, i) => i).filter(() => rand() < 0.4));
         solved += run.solved;
@@ -99,7 +99,7 @@ test('a solver passes every captcha and a random tapper runs out of lives quickl
 
 test('a seed plays the same run twice, and different seeds differ', () => {
     const play = seed => {
-        const run = Evals.createRun({ ladder: 0, families: ['pick'], seed });
+        const run = Evals.createRun({ ladder: 0, handoff: 0, families: ['pick'], seed });
         const out = [];
         for (let i = 0; i < 8; i++) { out.push(JSON.stringify(run.current)); run.submit(run.current.answer); }
         return out.join('|');
