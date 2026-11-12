@@ -113,6 +113,22 @@ picks: **about 40 solves to lose a kind**, and **the same top speed, reached slo
   gets.
 - **Its tag reads AI ✓ or AI ✕** when it answers, and its line says "Right, in 2.1 s." or "Wrong, in 4.0 s."
 
+**After the owner's second play (2026-11-11).** Their words: "the AI didn't seem to copy me or improve during the
+runs". Their save showed why: one run of 42 solves, nearly all on 4 by 4 grids. The AI guessed each square alone, so
+on sixteen squares it looked random until it had almost finished learning; nothing it did looked like the player; it
+was improving, but only "wrong" or "right" showed; and 8 s on a 4 by 4 scene counted as a slow solve, so it learned
+less from each. Built:
+
+- **It copies before it understands.** For each square it either knows the answer (more often as it learns) or does
+  what you did on your last one of that kind: the same places on the grid, in your order, stretched if the grid is a
+  different size. From your second solve it is recognisably you, and wrong because the pictures have moved.
+- **How wrong it was shows.** Its line reads "Wrong by 5 squares, in 6.2 s." and the number falls as it learns
+  (measured on a 3 by 3 grid: about 4 squares off knowing nothing, under 0.3 fully learned).
+- **The end card says what it did over the run**, a line a kind it met six times or more: "The AI on picture grids
+  with scenes: off by 4.7 squares at first, 1.3 by the end."
+- **A brisk solve allows for the grid:** 2 s, plus 0.2 s a square to look over and 0.5 s a right square to tap.
+- `learnSolves` 46, so a steady clean player still keeps a kind 34 to 41 watched solves.
+
 Each ends with something the owner can play or read, and a short report.
 
 1. **Skeleton.** `evals.js` with a run (lives, streak, a queue of captchas), one family (Pick), the judge, and tests.

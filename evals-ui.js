@@ -27,6 +27,7 @@
     const lives = n => `${n} ${n === 1 ? 'life' : 'lives'}`;
     const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
     const secs = t => `${t.toFixed(1)} s`;
+    const squares = n => `${n} ${n === 1 ? 'square' : 'squares'}`;
 
     function build() {
         livesEl = el('span', { class: 'evals-lives' });
@@ -85,7 +86,21 @@
             card('Verified automatically', ['It solves every kind you know before you can.', 'There is nothing left here for you to prove.'], 'Close', close);
             return;
         }
-        card('Verification failed', [`You solved ${solved}.`, solved > was ? 'That is your best run.' : `Your best run: ${was} solved.`], 'Try again', start);
+        card('Verification failed', [`You solved ${solved}.`, solved > was ? 'That is your best run.' : `Your best run: ${was} solved.`, ...progress()], 'Try again', start);
+    }
+
+    // What it did over this run, a line a kind it met at least six times: how many squares its answers were off by at
+    // the start of the run and by the end (the first and last third of its attempts). Improvement you can read.
+    function progress() {
+        const lines = [];
+        for (const kind of Object.keys(window.Evals.KINDS)) {
+            const offs = run.log.filter(e => e.kind === kind).map(e => e.ghostOff);
+            if (offs.length < 6) continue;
+            const third = Math.floor(offs.length / 3), mean = list => list.reduce((s, v) => s + v, 0) / list.length;
+            const a = mean(offs.slice(0, third)), b = mean(offs.slice(-third));
+            lines.push(`The AI on ${window.Evals.KINDS[kind].name}: off by ${a.toFixed(1)} squares at first, ${b.toFixed(1)} by the end.`);
+        }
+        return lines;
     }
 
     function start() {
@@ -162,7 +177,7 @@
             // Its ring shows on a square from its tap, and goes again if it takes the tap back.
             for (const s of stops) if (s.i !== undefined) cells[s.i].classList.toggle('its', s.t <= t && !(s.off <= t));
             if (j >= stops.length) {
-                if (!done) { done = true; line.textContent = g.correct ? `Right, in ${secs(g.seconds)}.` : `Wrong, in ${secs(g.seconds)}.`; mark(line.parentNode, g.correct); }
+                if (!done) { done = true; line.textContent = g.correct ? `Right, in ${secs(g.seconds)}.` : `Wrong by ${squares(g.off)}, in ${secs(g.seconds)}.`; mark(line.parentNode, g.correct); }
                 if (!still) place(hand, stops[stops.length - 1].p, 0, t);
                 return;
             }
@@ -220,7 +235,7 @@
         const its = stage.querySelector('.evals-its');
         mark(its, r.ghost.correct);
         its.classList.toggle('ahead', r.ahead);
-        its.querySelector('.evals-its-line').textContent = !r.ghost.correct ? 'It got it wrong.'
+        its.querySelector('.evals-its-line').textContent = !r.ghost.correct ? `It was wrong by ${squares(r.ghost.off)}.`
             : r.ahead ? `It got it right first, in ${secs(r.ghost.seconds)}.`
             : `It got it right, in ${secs(r.ghost.seconds)}. You were first.`;
         const hand = stage.querySelector('.evals-hand');

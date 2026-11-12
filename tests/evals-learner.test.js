@@ -93,6 +93,35 @@ test('it copies your pace and your order', () => {
     assert.ok(rising(back) < 0.2, `backward: ${rising(back)}`);
 });
 
+test('it copies before it understands: knowing little, it taps where you tapped on your last one, in your order', () => {
+    const learn = Evals.newLearn();
+    const k = Evals.kindOf(learn, 'pick.thing');
+    k.traces.push({ side: 3, correct: true, seconds: 4, undos: 0, taps: [{ i: 8, t: 1 }, { i: 4, t: 1.6 }, { i: 0, t: 2.2 }] });
+    k.solves = 1;
+    k.m = 0.03;
+    const list = attempts(learn, 'pick.thing');
+    // Nearly every attempt is your three squares, bottom-right to top-left, whatever the pictures are.
+    const same = list.filter(x => x.g.taps.map(t => t.i).join() === '8,4,0').length / list.length;
+    assert.ok(same > 0.6, `same as you: ${same}`);
+    assert.ok(rightShare(list) < 0.1);
+    // `off` counts the squares its answer was wrong by, and it shrinks as it learns.
+    for (const { c, g } of list) {
+        const right = new Set(c.answer);
+        assert.equal(g.off, c.cells.filter((_, i) => g.answer.includes(i) !== right.has(i)).length);
+        assert.equal(g.off === 0, g.correct);
+    }
+    const meanOff = m => { k.m = m; const a = attempts(learn, 'pick.thing'); return a.reduce((s, x) => s + x.g.off, 0) / a.length; };
+    const offs = [0.05, 0.3, 0.6, 0.8, 1].map(meanOff);
+    for (let j = 1; j < offs.length; j++) assert.ok(offs[j] < offs[j - 1], `off by ${offs}`);
+    assert.ok(offs[0] > 3 && offs[4] < 0.3, `off by ${offs}`);
+    // On a bigger grid it taps the same places, stretched: your corner is still its corner.
+    k.m = 0.03;
+    const rand = Evals.rng(3), grand = Evals.rng(4);
+    let corners = 0;
+    for (let n = 0; n < 100; n++) { const c = Evals.FAMILIES.pick.make(rand, 9, { ...Evals.EVALS, comboFrom: 99, withoutFrom: 99 }); assert.equal(c.side, 4); if (Evals.ghostAttempt(learn, c, grand).answer.includes(15)) corners++; }
+    assert.ok(corners > 80, `corner: ${corners}`);
+});
+
 test('it copies your mistakes: taught sloppily, it stays wrong more often', () => {
     const clean = Evals.newLearn(), sloppy = Evals.newLearn();
     for (const [learn, rate] of [[clean, 0], [sloppy, 0.5]]) {

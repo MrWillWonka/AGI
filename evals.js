@@ -30,13 +30,15 @@
         // mimicking the player and their quirks", and its speed went too fast from faster to "I can't keep up". So a
         // clean player keeps a kind about 40 solves, in three phases by how much it has learned (`PHASES`): bad, then a
         // long stretch mimicking you at about your own pace, then edging ahead to the same top speed as before.
-        learnSolves: 40,   // clean solves it must watch to learn a kind fully
+        learnSolves: 46,   // clean solves it must watch to learn a kind fully (a brisk one counts 1.3: about 35 of those)
         learnWrong: 0.25,  // a wrong answer teaches it this share of a clean one (and its mistakes)
         learnSlow: 0.6,    // a right but slow solve teaches this share; a quick one 1.3 (`learnQuick`)
         learnQuick: 1.3,
-        parBase: 1.5, parCell: 0.55,   // a brisk solve: this many seconds, plus this many a right square
+        // A brisk solve: this many seconds, plus `parScan` a square to look over and `parCell` a right square to tap.
+        // (The owner's second play: 8 s on a 4 × 4 scene counted as slow against a par of 3.4 s, so it learned less.)
+        parBase: 2, parScan: 0.2, parCell: 0.5,
         traces: 10,        // solves of yours it keeps per kind
-        ghostGuess: 0.55,  // the chance it treats a square rightly when it knows nothing
+        ghostTap: 0.3,     // before it has seen you solve one, the chance it taps any square
         ghostSlip: 0.1,    // it never stops slipping: this often it gets one square wrong, however much it has learned
         undoMax: 0.6,      // at most this often it copies your habit of tapping a square and taking it back
         // Taking a kind over is earned over many captchas: +1 each time it is right and done before you (or right
@@ -198,7 +200,7 @@
     // How often you get a captcha of this kind wrong, pulled toward never until it has seen a few.
     const errorRate = k => k.wrongs / (k.solves + 4);
     // A brisk solve of this captcha, in seconds.
-    const par = (c, o = EVALS) => o.parBase + o.parCell * c.answer.length;
+    const par = (c, o = EVALS) => o.parBase + o.parScan * c.cells.length + o.parCell * c.answer.length;
 
     // A trace is how you solved one captcha: `taps` ([{ i, t }]: the squares left picked at Verify, in the order you
     // first tapped them, `t` seconds after it showed), `seconds` to Verify, `side`, `correct`, and `undos` (squares you
@@ -269,24 +271,38 @@
     }
 
     // Its attempt at `c`, decided when the captcha shows: which squares it taps and when, and when it presses Verify.
-    // Knowing nothing it guesses each square, in no order, slowly. As it learns, each square is right more often; the
-    // order settles into yours; its pace goes from `ghostSlow` times yours to `ghostFast`; and it picks up your
-    // mistakes: as often as you get one of these wrong, it slips on one square (misses a right one or taps a wrong one).
+    // **It copies before it understands** (the owner's second play: over a 42-captcha run it "didn't seem to copy me
+    // or improve": it guessed each square alone, so on a 4 × 4 grid it looked random until it had nearly finished
+    // learning, and nothing it did looked like the player). For each square it either knows the answer (more often as
+    // it learns: `PHASES`' third column) or does what you did on your last one of these: the same places on the grid,
+    // in your order. So from your second solve on it is recognisably you, and wrong because the pictures have moved;
+    // as it learns, more of its squares are right. Its pace follows `PHASES`; it slips on one square now and then,
+    // and as often again as you get one of these wrong. `off` is how many squares its answer was wrong by.
     function ghostAttempt(learn, c, rand, o = EVALS) {
         const k = kindOf(learn, c.kind);
         const m = k.m, h = habits(k);
         const right = new Set(c.answer);
-        const pRight = lerp(o.ghostGuess, 1, phase(m, 2));
+        const know = phase(m, 2);
+        // Where you tapped last time, on this grid (a 3 × 3 trace is stretched onto a 4 × 4 grid and back), and when.
+        const last = k.traces.length ? k.traces[k.traces.length - 1] : null;
+        const copied = new Map();
+        const onto = (v, from) => Math.min(c.side - 1, Math.floor((v + 0.5) / from * c.side));
+        if (last) last.taps.forEach((tap, j) => {
+            const i = onto(Math.floor(tap.i / last.side), last.side) * c.side + onto(tap.i % last.side, last.side);
+            if (!copied.has(i)) copied.set(i, j / Math.max(1, last.taps.length - 1));
+        });
         let chosen = [];
         for (let i = 0; i < c.cells.length; i++) {
-            const knows = rand() < pRight;
-            if (right.has(i) === knows) chosen.push(i);
+            const r = rand(), guess = rand();
+            const tap = r < know ? right.has(i) : last ? copied.has(i) : guess < o.ghostTap;
+            if (tap) chosen.push(i);
         }
         // Its own slips never stop, and yours come on top as it learns you.
         const slip = rand() < o.ghostSlip + (1 - o.ghostSlip) * errorRate(k) * m, where = int(rand, c.cells.length);
         if (slip) chosen = chosen.includes(where) ? chosen.filter(i => i !== where) : [...chosen, where];
-        // Your order, with noise that fades as it learns.
-        const key = new Map(chosen.map(i => [i, lerp(rand(), h.rank(i, c.side), h.seen ? m : 0) + rand() * 0.15 * (1 - m)]));
+        // Your order from the first solve it watched: a square you tapped last time keeps its place in that order, any
+        // other goes where you tend to go on the grid. A little noise, fading as it learns.
+        const key = new Map(chosen.map(i => [i, (h.seen ? (copied.has(i) && know < 1 ? lerp(copied.get(i), h.rank(i, c.side), know) : h.rank(i, c.side)) : rand()) + rand() * 0.1 * (1 - m)]));
         chosen.sort((a, b) => key.get(a) - key.get(b));
         const pace = phase(m, 1);
         const wobble = () => 1 + (rand() - 0.5) * 0.5 * (1 - m);
@@ -308,7 +324,9 @@
         if (feint && feint.at === chosen.length) undo();
         const lastTap = taps.length ? Math.max(...taps.map(tap => tap.off ?? tap.t)) : t;
         const seconds = r2(lastTap + beat(h.verifies, h.verify));
-        return { taps, seconds, answer: chosen.slice().sort((a, b) => a - b), correct: FAMILIES[c.family].judge(c, chosen), m };
+        let off = 0;
+        for (let i = 0; i < c.cells.length; i++) if (chosen.includes(i) !== right.has(i)) off++;
+        return { taps, seconds, answer: chosen.slice().sort((a, b) => a - b), correct: FAMILIES[c.family].judge(c, chosen), off, m };
     }
 
     // A run. opts: { seed, learn, ...any EVALS override }. `current` is the captcha up and `ghost` the AI's attempt at
@@ -349,7 +367,7 @@
                 takeover = c.kind;
                 run.takeovers.push(c.kind);
             }
-            run.log.push({ family: c.family, kind: c.kind, level: c.level, correct, seconds, ghost: ghost.correct, ghostSeconds: ghost.seconds, m: k.m });
+            run.log.push({ family: c.family, kind: c.kind, level: c.level, correct, seconds, ghost: ghost.correct, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m });
             if (correct) {
                 run.solved++;
                 run.streak++;
