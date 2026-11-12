@@ -9,7 +9,7 @@
     'use strict';
     const RIGHT_MS = 900, WRONG_MS = 1700;
     let dlg = null, stage = null, livesEl = null, solvedEl = null;
-    let run = null, picked = new Map(), shownAt = 0, timer = 0, locked = false, raf = 0;
+    let run = null, picked = new Map(), undos = 0, shownAt = 0, timer = 0, locked = false, raf = 0;
     let fallback = null;   // what it has learned when there is no game to keep it in (a bare page)
 
     function el(tag, props = {}, ...kids) {
@@ -109,6 +109,7 @@
         cancelAnimationFrame(raf);
         locked = false;
         picked = new Map();
+        undos = 0;
         hud();
         const c = run.current;
         const [before, after] = c.prompt.split(c.scene);
@@ -155,12 +156,13 @@
             const t = (performance.now() - shownAt) / 1000;
             const w = wrap.getBoundingClientRect();
             // Where it is going: the start, each tap, then Verify.
-            const stops = [{ t: 0, p: { x: w.width / 2, y: w.height + 14 } }, ...g.taps.map(tap => ({ t: tap.t, p: at(cells[tap.i]), i: tap.i })), { t: g.seconds, p: at(verifyBtn) }];
+            const stops = [{ t: 0, p: { x: w.width / 2, y: w.height + 14 } }, ...g.taps.map(tap => ({ t: tap.t, p: at(cells[tap.i]), i: tap.i, off: tap.off })), { t: g.seconds, p: at(verifyBtn) }];
             let j = stops.findIndex(s => s.t > t);
             if (j < 0) j = stops.length;
-            for (const s of stops) if (s.i !== undefined && s.t <= t) cells[s.i].classList.add('its');
+            // Its ring shows on a square from its tap, and goes again if it takes the tap back.
+            for (const s of stops) if (s.i !== undefined) cells[s.i].classList.toggle('its', s.t <= t && !(s.off <= t));
             if (j >= stops.length) {
-                if (!done) { done = true; line.textContent = g.correct ? `Done in ${secs(g.seconds)}.` : `Answered in ${secs(g.seconds)}.`; line.parentNode.classList.add('done'); }
+                if (!done) { done = true; line.textContent = g.correct ? `Right, in ${secs(g.seconds)}.` : `Wrong, in ${secs(g.seconds)}.`; mark(line.parentNode, g.correct); }
                 if (!still) place(hand, stops[stops.length - 1].p, 0, t);
                 return;
             }
@@ -175,6 +177,12 @@
         };
         raf = requestAnimationFrame(frame);
     }
+    // Its tag says how its attempt went by a mark as well as by colour: AI ✓ or AI ✕.
+    function mark(its, correct) {
+        its.classList.add('done');
+        its.classList.toggle('wrong', !correct);
+        its.querySelector('.evals-its-tag').textContent = correct ? 'AI ✓' : 'AI ✕';
+    }
     function place(hand, p, wander, t) {
         const dx = wander * 22 * Math.sin(t * 5.1), dy = wander * 16 * Math.cos(t * 3.7);
         hand.style.transform = `translate(${(p.x + dx).toFixed(1)}px, ${(p.y + dy).toFixed(1)}px)`;
@@ -182,7 +190,8 @@
 
     function toggle(i, b) {
         if (locked) return;
-        if (picked.has(i)) picked.delete(i); else picked.set(i, (performance.now() - shownAt) / 1000);
+        // A square tapped and taken back is one of your habits: it is counted, and the AI picks it up.
+        if (picked.has(i)) { picked.delete(i); undos++; } else picked.set(i, (performance.now() - shownAt) / 1000);
         b.setAttribute('aria-pressed', picked.has(i) ? 'true' : 'false');
     }
 
@@ -194,7 +203,7 @@
         // How you solved it: the squares left picked, in the order you tapped them.
         const taps = [...picked].map(([i, t]) => ({ i, t })).sort((a, b) => a.t - b.t);
         const mine = taps.map(t => t.i);
-        const r = run.submit(mine, seconds, { taps, seconds });
+        const r = run.submit(mine, seconds, { taps, seconds, undos });
         const captcha = stage.querySelector('.evals-captcha');
         stage.querySelector('.evals-verify').disabled = true;
         // Show what was right, by mark and not by colour alone: ✓ on every right square, ✕ on a wrong tap. And all of
@@ -209,7 +218,7 @@
         captcha.classList.add(r.correct ? 'passed' : 'failed');
         stage.querySelector('.evals-status').textContent = r.correct ? `Verified in ${secs(seconds)}.` : r.over ? 'Not quite. No lives left.' : `Not quite. ${lives(r.lives)} left.`;
         const its = stage.querySelector('.evals-its');
-        its.classList.add('done');
+        mark(its, r.ghost.correct);
         its.classList.toggle('ahead', r.ahead);
         its.querySelector('.evals-its-line').textContent = !r.ghost.correct ? 'It got it wrong.'
             : r.ahead ? `It got it right first, in ${secs(r.ghost.seconds)}.`

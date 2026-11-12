@@ -3758,6 +3758,9 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
 }
 .evals-its.done { color: var(--text); }
 .evals-its.ahead .evals-its-line { font-weight: 700; }
+.evals-its.done .evals-its-tag { border-style: solid; font-size: 0.8rem; }
+.evals-its.done.wrong .evals-its-tag { color: var(--danger); border-color: var(--danger); }
+.evals-its.done:not(.wrong) .evals-its-tag { color: var(--success); border-color: var(--success); }
 .evals-its.ahead .evals-its-tag { background: var(--text); color: var(--bg); border-style: solid; }
 .evals-grid-wrap { position: relative; }
 .evals-hand { position: absolute; left: -4px; top: -3px; width: 26px; height: 26px; pointer-events: none; z-index: 2; will-change: transform; }

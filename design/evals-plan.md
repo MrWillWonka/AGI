@@ -77,11 +77,12 @@ phone size upright and sideways.
   ("Verified automatically").
 - **The learner** (`evals.js`): per kind, how well it has learned (0 to 1), how many solves it watched, how many of
   those you got wrong, and your last six solves as traces. A clean quick solve teaches 1.3 of 8, a slow one 0.6, a
-  wrong one 0.25. A steady clean player loses a kind after about 8 watched solves, 2 to 4 runs.
+  wrong one 0.25. A steady clean player lost a kind after about 8 watched solves, 2 to 4 runs (now 40: below).
 - **Its attempt** is decided when the captcha shows: knowing nothing it guesses each square, in no order, at 2.4 times
   your pace; learned, it taps in your order at 0.55 of your pace, and slips on one square as often as you get one of
-  these wrong.
-- **Taking over:** right and done before you (or right when you were wrong) three times running.
+  these wrong. (Retuned after the owner's first play: below.)
+- **Taking over:** right and done before you (or right when you were wrong) often enough (three times running at
+  first; a score of 8 since the retune).
 - **On screen** (`evals-ui.js`): a second cursor that wanders less as it learns, a ring in the corner of each square
   it taps, and a line for it above the grid ("It got it right first, in 1.8 s."). With reduced motion there is no
   cursor, only the rings and the line. A takeover shows a card and the run goes on.
@@ -93,6 +94,24 @@ phone size upright and sideways.
 **To watch in the owner's first play:** whether seeing its rings gives the answer away once it is good (they show
 which squares it tapped while you are still solving); whether three times running is the right bar; whether its speed
 at the end feels like being overtaken or like a cheat. **Stop here for the owner's review before stage 3.**
+
+**After the owner's first play (2026-11-11).** Their words: the rings didn't matter (it was too fast to use them) and
+they couldn't tell it was right; taking over was "WAY too quick, it should feel bad for a good while and it should
+still make mistakes every now and then. Much more time copying and mimicking the player and their quirks"; and the
+speed "definitely felt overtaken but it went very fast from oh it's faster to AHH it's so fast I can't keep up". Their
+picks: **about 40 solves to lose a kind**, and **the same top speed, reached slowly**. Built:
+
+- **Three phases** by how much it has learned (`PHASES` in `evals.js`): bad to 0.3 (2.4 down to 1.5 times your pace,
+  nearly always wrong); mimicking you to about 0.7 (around your pace, wrong more often than right); then ahead, its pace
+  passing yours at about 0.68 and climbing steadily to 0.55 over the last third.
+- **40 clean solves to learn a kind fully** (8 before), ten traces kept (six).
+- **Never perfect:** it slips on a square one captcha in ten however much it has learned, with your own mistakes on top.
+- **More of you:** each pause it makes is one you really made (your rhythm, not the middle of it), and it copies your
+  habit of tapping a square and taking it back (its ring appears on a wrong square and goes again).
+- **Taking over is a score, not a streak:** +1 each time it is right and first, -1 each time it isn't, a kind is its
+  at 8. Measured with a steady clean player: 32 to 43 watched solves a kind, 5 to 20 runs depending on how far a run
+  gets.
+- **Its tag reads AI ✓ or AI ✕** when it answers, and its line says "Right, in 2.1 s." or "Wrong, in 4.0 s."
 
 Each ends with something the owner can play or read, and a short report.
 

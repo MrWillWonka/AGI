@@ -49,7 +49,7 @@ test('junk in the save is cleaned', () => {
     assert.deepEqual(Object.keys(e.learn.kinds), ['pick.thing']);
     const k = e.learn.kinds['pick.thing'];
     assert.deepEqual({ m: k.m, solves: k.solves, ahead: k.ahead, taken: k.taken, wrongs: k.wrongs }, { m: 1, solves: 2, ahead: 0, taken: false, wrongs: 2 });
-    assert.deepEqual(k.traces, [{ side: 3, correct: false, seconds: 600, taps: [{ i: 2, t: 1.23 }] }]);
+    assert.deepEqual(k.traces, [{ side: 3, correct: false, seconds: 600, undos: 0, taps: [{ i: 2, t: 1.23 }] }]);
     for (const bad of [null, 5, 'x', [], { learn: 5 }, { learn: { kinds: [] } }]) {
         assert.deepEqual(E.migrate({ version: E.SAVE_VERSION, evals: bad }, NOW).evals.learn, { kinds: {} });
     }
@@ -58,5 +58,5 @@ test('junk in the save is cleaned', () => {
     for (let i = 0; i < 200; i++) many.learn.kinds['k.' + 'a'.repeat(1 + i % 20) + String.fromCharCode(97 + i % 26)] = { m: 0.5, traces: Array.from({ length: 30 }, () => ({ side: 3, taps: [] })) };
     const cut = E.migrate({ version: E.SAVE_VERSION, evals: many }, NOW).evals.learn.kinds;
     assert.ok(Object.keys(cut).length <= 64);
-    assert.ok(Object.values(cut).every(k => k.traces.length <= 6));
+    assert.ok(Object.values(cut).every(k => k.traces.length <= 10));
 });

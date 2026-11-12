@@ -2509,7 +2509,7 @@
     const cleanPts = (a, n) => (Array.isArray(a) ? a : []).filter(p => Array.isArray(p) && p.length === n && p.every(v => typeof v === 'number' && v >= 0 && v <= 1))
         .slice(0, 12).map(p => p.map(v => Math.round(v * 1000) / 1000));
     // Evals' saved state, cleaned whatever a save holds: counts whole and sane, at most 64 kinds, `m` from 0 to 1, a
-    // few bounded traces a kind (a tap is a square on a grid of at most 8 × 8 and a time under ten minutes).
+    // few bounded traces a kind, ten at most (a tap is a square on a grid of at most 8 × 8 and a time under ten minutes).
     function cleanEvals(e) {
         const whole = (v, cap) => Math.min(cap, Math.floor(num(v, 0)));
         const kinds = {};
@@ -2518,13 +2518,13 @@
             const k = raw[key];
             if (!k || typeof k !== 'object' || key.length > 40 || !/^[a-z]+(\.[a-z]+)*$/.test(key)) continue;
             const traces = [];
-            for (const t of Array.isArray(k.traces) ? k.traces.slice(-6) : []) {
+            for (const t of Array.isArray(k.traces) ? k.traces.slice(-10) : []) {
                 const side = whole(t?.side, 8);
                 if (side < 1) continue;
                 const taps = (Array.isArray(t.taps) ? t.taps.slice(0, 40) : [])
                     .filter(tap => tap && Number.isInteger(tap.i) && tap.i >= 0 && tap.i < side * side && typeof tap.t === 'number' && tap.t >= 0 && tap.t < 600)
                     .map(tap => ({ i: tap.i, t: Math.round(tap.t * 100) / 100 }));
-                traces.push({ side, correct: t.correct === true, seconds: Math.min(600, num(t.seconds, 0)), taps });
+                traces.push({ side, correct: t.correct === true, seconds: Math.min(600, num(t.seconds, 0)), undos: Math.min(20, Math.floor(num(t.undos, 0))), taps });
             }
             const solves = whole(k.solves, 1e9);
             kinds[key] = { m: Math.min(1, num(k.m, 0)), solves, ahead: whole(k.ahead, 1e6), taken: k.taken === true,

@@ -33,7 +33,8 @@ test('knowing nothing, its attempts are nearly always wrong and slow; having lea
     const learn = Evals.newLearn();
     Object.assign(Evals.kindOf(learn, 'pick.thing'), { m: 1, solves: 10, wrongs: 0 });
     const warm = attempts(learn, 'pick.thing');
-    assert.ok(rightShare(warm) > 0.95, `warm: ${rightShare(warm)}`);
+    // Learned, it is right most of the time and still slips now and then (the owner's call).
+    assert.ok(rightShare(warm) > 0.82 && rightShare(warm) < 0.96, `warm: ${rightShare(warm)}`);
     assert.ok(meanSeconds(warm) < meanSeconds(cold) / 3);
     // Half way, in between.
     Evals.kindOf(learn, 'pick.thing').m = 0.5;
@@ -41,9 +42,9 @@ test('knowing nothing, its attempts are nearly always wrong and slow; having lea
     assert.ok(mid > rightShare(cold) && mid < rightShare(warm), `mid: ${mid}`);
     // An attempt's own answer is what it tapped, and it never names a square off the grid.
     for (const { c, g } of [...cold, ...warm]) {
-        assert.deepEqual(g.taps.map(t => t.i).sort((a, b) => a - b), g.answer);
+        assert.deepEqual(g.taps.filter(t => t.off === undefined).map(t => t.i).sort((a, b) => a - b), g.answer);
         assert.ok(g.taps.every(t => t.i >= 0 && t.i < c.cells.length && t.t > 0));
-        assert.ok(g.seconds >= (g.taps.length ? g.taps[g.taps.length - 1].t : 0));
+        assert.ok(g.taps.every(t => g.seconds >= (t.off ?? t.t)));
         assert.equal(g.correct, Evals.FAMILIES.pick.judge(c, g.answer));
     }
 });
@@ -80,6 +81,7 @@ test('it copies your pace and your order', () => {
     teach(fast, { first: 0.6, gap: 0.3, verify: 0.4 });
     teach(slow, { first: 2.4, gap: 1.2, verify: 1.6 });
     teach(back, { first: 0.6, gap: 0.3, verify: 0.4, reverse: true });
+    for (const learn of [fast, slow, back]) learn.kinds['pick.thing'].m = 1;
     assert.ok(meanSeconds(attempts(slow, 'pick.thing')) > meanSeconds(attempts(fast, 'pick.thing')) * 2.5);
     // Taught top-left to bottom-right, its taps mostly climb the grid; taught the other way, they mostly fall.
     const rising = learn => {
@@ -106,13 +108,13 @@ test('it copies your mistakes: taught sloppily, it stays wrong more often', () =
     assert.ok(sloppyRight < cleanRight - 0.2, `sloppy ${sloppyRight}, clean ${cleanRight}`);
     // And about as often as you were: half its teacher's answers were wrong, so it is no better than half right, and
     // not far worse either.
-    assert.ok(sloppyRight > 0.4 && sloppyRight < 0.7, `sloppy ${sloppyRight}`);
+    assert.ok(sloppyRight > 0.35 && sloppyRight < 0.7, `sloppy ${sloppyRight}`);
 });
 
 test('a run: it takes a kind over once it is right and first several times running, and the kind leaves the run', () => {
     const learn = Evals.newLearn();
     let took = null, runs = 0;
-    while (!took && runs < 40) {
+    while (!took && runs < 80) {
         runs++;
         const run = Evals.createRun({ seed: runs, learn });
         for (let i = 0; i < 2 && !took; i++) {
@@ -122,10 +124,12 @@ test('a run: it takes a kind over once it is right and first several times runni
         }
     }
     assert.ok(took, 'never took over');
-    assert.ok(runs >= 3, `took over after only ${runs} runs`);
+    // A clean, steady player keeps a kind for about 40 solves (the owner's call).
+    const watched = learn.kinds['pick.thing'].solves;
+    assert.ok(watched >= 30 && watched <= 55, `took over after ${watched} solves`);
     assert.equal(took.takeover, 'pick.thing');
     assert.ok(learn.kinds['pick.thing'].taken);
-    assert.ok(learn.kinds['pick.thing'].m > 0.6, 'it took over before it had learned much');
+    assert.ok(learn.kinds['pick.thing'].m > 0.9, 'it took over before it had learned much');
     // From now on a run never shows that kind, even at the levels that used to.
     for (let seed = 1; seed <= 20; seed++) {
         const run = Evals.createRun({ seed, learn, overtake: 999 });
@@ -133,14 +137,51 @@ test('a run: it takes a kind over once it is right and first several times runni
     }
 });
 
-test('not ahead, no takeover: a wrong or slower attempt starts its count again', () => {
+test('not ahead, no takeover: a wrong or slower attempt sets it back one, never under none', () => {
     const learn = Evals.newLearn();
     Object.assign(Evals.kindOf(learn, 'pick.thing'), { m: 1, ahead: Evals.EVALS.overtake - 1 });
     const run = Evals.createRun({ seed: 2, learn });
     // You answer in no time at all, so it can't have been first.
     const r = run.submit(run.current.answer, 0.01, { taps: run.current.answer.map((i, j) => ({ i, t: 0.001 * j })), seconds: 0.01 });
     assert.ok(r.correct && !r.ahead && !r.takeover);
+    assert.equal(learn.kinds['pick.thing'].ahead, Evals.EVALS.overtake - 2);
+    learn.kinds['pick.thing'].ahead = 0;
+    const c = run.current;
+    run.submit(c.answer, 0.01, { taps: c.answer.map((i, j) => ({ i, t: 0.001 * j })), seconds: 0.01 });
     assert.equal(learn.kinds['pick.thing'].ahead, 0);
+});
+
+test('three phases: bad for a good while, then at about your pace and often wrong, then ahead', () => {
+    const at = m => { const learn = Evals.newLearn(); Object.assign(Evals.kindOf(learn, 'pick.thing'), { m, solves: 10 }); const a = attempts(learn, 'pick.thing'); return { right: rightShare(a), seconds: meanSeconds(a) }; };
+    const yours = Evals.PACE.first + Evals.PACE.gap * 2 + Evals.PACE.verify;   // about what three squares take you
+    const bad = at(0.25), mimic = at(0.6), late = at(0.85), done = at(1);
+    assert.ok(bad.right < 0.1, `bad: ${bad.right}`);
+    assert.ok(mimic.right > 0.15 && mimic.right < 0.6, `mimic: ${mimic.right}`);
+    assert.ok(Math.abs(mimic.seconds / yours - 1.15) < 0.25, `mimic pace: ${mimic.seconds / yours}`);
+    assert.ok(late.right > 0.7 && late.seconds < mimic.seconds);
+    assert.ok(done.seconds < late.seconds && done.seconds / yours < 0.7);
+    // Its pace only ever quickens, and never jumps: no step between neighbouring amounts learned is over 6%.
+    for (let m = 0.02; m <= 1.0001; m += 0.02) {
+        const a = Evals.phase(m - 0.02, 1), b = Evals.phase(m, 1);
+        assert.ok(b <= a && a / b < 1.06, `pace step at ${m.toFixed(2)}: ${a} to ${b}`);
+    }
+});
+
+test('it copies your habit of tapping a square and taking it back', () => {
+    const feints = undos => {
+        const learn = Evals.newLearn();
+        const run = Evals.createRun({ seed: 3, learn, lives: 999, comboFrom: 99, withoutFrom: 99, overtake: 999 });
+        for (let i = 0; i < 10; i++) { const c = run.current; run.submit(c.answer, 3, { taps: c.answer.map((x, j) => ({ i: x, t: 1 + 0.5 * j })), seconds: 3, undos }); }
+        learn.kinds['pick.thing'].m = 1;
+        const list = attempts(learn, 'pick.thing');
+        for (const { c, g } of list) for (const t of g.taps.filter(t => t.off !== undefined)) {
+            assert.ok(t.off > t.t && !g.answer.includes(t.i) && t.i < c.cells.length);
+        }
+        return list.filter(x => x.g.taps.some(t => t.off !== undefined)).length / list.length;
+    };
+    assert.equal(feints(0), 0);
+    const often = feints(1);
+    assert.ok(often > 0.4 && often <= Evals.EVALS.undoMax + 0.08, `feints: ${often}`);
 });
 
 test('when it has taken every kind, there is nothing left to run', () => {

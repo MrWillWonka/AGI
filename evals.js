@@ -3,9 +3,9 @@
 // Built so far: the run, one family, **Pick** (tap every square that holds the thing named), in three kinds (a plain
 // thing, a scene, "every square without"), and **the learner** (stage 2): per kind it keeps how well it has learned
 // (`m`, 0 to 1), a few traces of your own solves and how often you get one wrong. Its attempt at a captcha (`ghostAttempt`) is your
-// play, played back: your order, your pace, your mistakes, with noise that shrinks as `m` rises, slower than you at
-// first and faster in the end. When it is right and done before you several times running, it **takes the kind
-// over**: the kind leaves your runs.
+// play, played back: your order, your rhythm, your mistakes and your take-backs, with noise that shrinks as `m` rises,
+// slower than you at first and faster in the end, and never perfect. When it has been right and done before you often
+// enough (`overtake`), it **takes the kind over**: the kind leaves your runs.
 // A captcha is plain data: the screen (evals-ui.js) shows it and hands back an answer and a trace of how you solved it.
 // Each family has `make(rand, level, o, taken)` and `judge(captcha, answer)`.
 // Pure and deterministic: no DOM, no clock, no Math.random (a seeded generator). Loaded in the browser as
@@ -25,16 +25,35 @@
         withoutFrom: 5,    // Pick: "every square without …" from this level
         bigFrom: 7,        // Pick: a 4 × 4 grid from this level
         // The learner.
-        learnSolves: 8,    // clean solves it must watch to learn a kind fully
+        // The owner's calls on the first play (2026-11-11): 8 solves to lose a kind was "WAY too quick, it should feel
+        // bad for a good while and it should still make mistakes every now and then. Much more time copying and
+        // mimicking the player and their quirks", and its speed went too fast from faster to "I can't keep up". So a
+        // clean player keeps a kind about 40 solves, in three phases by how much it has learned (`PHASES`): bad, then a
+        // long stretch mimicking you at about your own pace, then edging ahead to the same top speed as before.
+        learnSolves: 40,   // clean solves it must watch to learn a kind fully
         learnWrong: 0.25,  // a wrong answer teaches it this share of a clean one (and its mistakes)
         learnSlow: 0.6,    // a right but slow solve teaches this share; a quick one 1.3 (`learnQuick`)
         learnQuick: 1.3,
         parBase: 1.5, parCell: 0.55,   // a brisk solve: this many seconds, plus this many a right square
-        traces: 6,         // solves of yours it keeps per kind
-        ghostSlow: 2.4,    // its pace against yours when it knows nothing…
-        ghostFast: 0.55,   // …and when it has learned the kind
+        traces: 10,        // solves of yours it keeps per kind
         ghostGuess: 0.55,  // the chance it treats a square rightly when it knows nothing
-        overtake: 3,       // times running it must be right and done before you to take a kind over
+        ghostSlip: 0.1,    // it never stops slipping: this often it gets one square wrong, however much it has learned
+        undoMax: 0.6,      // at most this often it copies your habit of tapping a square and taking it back
+        // Taking a kind over is earned over many captchas: +1 each time it is right and done before you (or right
+        // when you were wrong), -1 each time it isn't, never under 0. At `overtake` the kind is its.
+        overtake: 8,
+    };
+    // The three phases, by how much it has learned (`m`): [m, its pace against yours, how surely it knows a square
+    // (0 a guess, 1 certain)]. Bad to 0.3; mimicking you, at about your pace and often wrong, to 0.7; then ahead.
+    // Its pace passes yours at about 0.68 and takes the last third of the learning to reach its top speed, a steady
+    // climb (the owner: it went too fast from "it's faster" to "I can't keep up").
+    const PHASES = [[0, 2.4, 0], [0.3, 1.5, 0.25], [0.6, 1.1, 0.72], [0.7, 0.9625, 0.9], [1, 0.55, 1]];
+    const phase = (m, col) => {
+        for (let j = 1; j < PHASES.length; j++) {
+            const a = PHASES[j - 1], b = PHASES[j];
+            if (m <= b[0]) return a[col] + (b[col] - a[col]) * (m - a[0]) / (b[0] - a[0]);
+        }
+        return PHASES[PHASES.length - 1][col];
     };
     // Your pace before it has seen you play: seconds to the first tap, between taps, and from the last tap to Verify.
     const PACE = { first: 1.4, gap: 0.7, verify: 0.9 };
@@ -164,7 +183,7 @@
 
     // ---- The learner ----
     // What the AI has learned, kept in the save (engine.js `state.evals.learn`): per kind `m` (0 to 1), `solves` it has
-    // watched, `ahead` (times running it was right and done before you), `taken`, `wrongs` (how many of those solves
+    // watched, `ahead` (its score toward taking the kind over: see `overtake`), `taken`, `wrongs` (how many of those solves
     // you got wrong) and `traces`, your last few solves.
     const newLearn = () => ({ kinds: {} });
     function kindOf(learn, kind) {
@@ -182,8 +201,8 @@
     const par = (c, o = EVALS) => o.parBase + o.parCell * c.answer.length;
 
     // A trace is how you solved one captcha: `taps` ([{ i, t }]: the squares left picked at Verify, in the order you
-    // first tapped them, `t` seconds after it showed), `seconds` to Verify, `side`, `correct`. Bounded and cleaned here,
-    // whatever the screen (or an old save) hands in.
+    // first tapped them, `t` seconds after it showed), `seconds` to Verify, `side`, `correct`, and `undos` (squares you
+    // tapped and took back). Bounded and cleaned here, whatever the screen (or an old save) hands in.
     function cleanTrace(t, side) {
         const n = side * side;
         const taps = [];
@@ -193,7 +212,7 @@
         }
         taps.sort((a, b) => a.t - b.t);
         const last = taps.length ? taps[taps.length - 1].t : 0;
-        return { side, correct: !!t?.correct, seconds: clamp(+t?.seconds || 0, last, 600), taps };
+        return { side, correct: !!t?.correct, seconds: clamp(+t?.seconds || 0, last, 600), undos: clamp(Math.floor(+t?.undos || 0), 0, 20), taps };
     }
 
     // It watches you answer `c`: it learns (more from a right, quick solve), keeps the trace and counts your mistakes.
@@ -216,8 +235,10 @@
         return gain;
     }
 
-    // Your habits on a kind, read from your traces: your pace, and where on the grid you tend to start and go next
-    // (`rank(i, side)`: the average place in your tapping order of the squares near there, lower is sooner).
+    // Your habits on a kind, read from your traces: your pace (the middle of it as `first`, `gap`, `verify`, and every
+    // pause you made as `firsts`, `gaps`, `verifies`, so it can play your rhythm and not an average), how often you tap a
+    // square and take it back (`undo`, a solve), and where on the grid you tend to start and go next (`rank(i, side)`:
+    // the average place in your tapping order of the squares near there, lower is sooner).
     function habits(k) {
         const first = [], gaps = [], verify = [];
         const spots = [];   // { x, y, r }: a tap's place on the grid (0 to 1) and its place in the order (0 to 1)
@@ -242,7 +263,9 @@
             }
             return sum / weight;
         };
-        return { first: median(first, PACE.first), gap: median(gaps, PACE.gap), verify: median(verify, PACE.verify), rank, seen: spots.length > 0 };
+        const undo = k.traces.length ? k.traces.filter(t => t.undos > 0).length / k.traces.length : 0;
+        return { first: median(first, PACE.first), gap: median(gaps, PACE.gap), verify: median(verify, PACE.verify),
+            firsts: first, gaps, verifies: verify, undo, rank, seen: spots.length > 0 };
     }
 
     // Its attempt at `c`, decided when the captcha shows: which squares it taps and when, and when it presses Verify.
@@ -253,26 +276,38 @@
         const k = kindOf(learn, c.kind);
         const m = k.m, h = habits(k);
         const right = new Set(c.answer);
-        const pRight = lerp(o.ghostGuess, 1, Math.pow(m, 0.8));
+        const pRight = lerp(o.ghostGuess, 1, phase(m, 2));
         let chosen = [];
         for (let i = 0; i < c.cells.length; i++) {
             const knows = rand() < pRight;
             if (right.has(i) === knows) chosen.push(i);
         }
-        const slip = rand() < errorRate(k) * m, where = int(rand, c.cells.length);
+        // Its own slips never stop, and yours come on top as it learns you.
+        const slip = rand() < o.ghostSlip + (1 - o.ghostSlip) * errorRate(k) * m, where = int(rand, c.cells.length);
         if (slip) chosen = chosen.includes(where) ? chosen.filter(i => i !== where) : [...chosen, where];
         // Your order, with noise that fades as it learns.
         const key = new Map(chosen.map(i => [i, lerp(rand(), h.rank(i, c.side), h.seen ? m : 0) + rand() * 0.15 * (1 - m)]));
         chosen.sort((a, b) => key.get(a) - key.get(b));
-        const pace = lerp(o.ghostSlow, o.ghostFast, m);
+        const pace = phase(m, 1);
         const wobble = () => 1 + (rand() - 0.5) * 0.5 * (1 - m);
-        let t = h.first * pace * wobble();
+        // Your rhythm: each pause is one you really made (more so as it learns), not the middle of them all.
+        const beat = (list, mid) => { const r = rand(), s = rand(); return (list.length && s < m ? list[Math.floor(r * list.length)] : mid) * pace * wobble(); };
+        const r2 = n => Math.round(n * 100) / 100;
+        let t = beat(h.firsts, h.first);
         const taps = [];
-        for (const i of chosen) {
-            taps.push({ i, t: Math.round(t * 100) / 100 });
-            t += h.gap * pace * wobble();
-        }
-        const seconds = Math.round(((taps.length ? taps[taps.length - 1].t : t) + h.verify * pace * wobble()) * 100) / 100;
+        // Your habit of tapping a square and taking it back: as often as you do, it taps a wrong square on the way
+        // and takes it back a moment later (`off`).
+        const wrongs = c.cells.map((_, i) => i).filter(i => !chosen.includes(i));
+        const feint = rand() < Math.min(o.undoMax, h.undo) * m && wrongs.length ? { at: int(rand, chosen.length + 1), i: wrongs[int(rand, wrongs.length)] } : null;
+        const undo = () => { const gap = beat(h.gaps, h.gap); taps.push({ i: feint.i, t: r2(t), off: r2(t + gap * 0.7) }); t += gap * 1.4; };
+        chosen.forEach((i, j) => {
+            if (feint && feint.at === j) undo();
+            taps.push({ i, t: r2(t) });
+            t += beat(h.gaps, h.gap);
+        });
+        if (feint && feint.at === chosen.length) undo();
+        const lastTap = taps.length ? Math.max(...taps.map(tap => tap.off ?? tap.t)) : t;
+        const seconds = r2(lastTap + beat(h.verifies, h.verify));
         return { taps, seconds, answer: chosen.slice().sort((a, b) => a - b), correct: FAMILIES[c.family].judge(c, chosen), m };
     }
 
@@ -307,7 +342,7 @@
             const ahead = ghost.correct && (!correct || ghost.seconds < seconds);
             const k = kindOf(learn, c.kind);
             const learned = watch(learn, c, trace || { taps: (Array.isArray(answer) ? answer : []).map((i, j) => ({ i, t: seconds * (j + 1) / (answer.length + 1) })), seconds }, correct, o);
-            k.ahead = ahead ? k.ahead + 1 : 0;
+            k.ahead = Math.max(0, k.ahead + (ahead ? 1 : -1));
             let takeover = null;
             if (k.ahead >= o.overtake && !k.taken) {
                 k.taken = true;
@@ -335,5 +370,5 @@
         return run;
     }
 
-    return { EVALS, PACE, FAMILIES, KINDS, ORDER, THINGS, HATS, rng, createRun, pickTargets, newLearn, kindOf, takenMap, watch, habits, ghostAttempt, cleanTrace, errorRate, par };
+    return { EVALS, PACE, PHASES, phase, FAMILIES, KINDS, ORDER, THINGS, HATS, rng, createRun, pickTargets, newLearn, kindOf, takenMap, watch, habits, ghostAttempt, cleanTrace, errorRate, par };
 });
