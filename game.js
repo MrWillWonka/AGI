@@ -13266,6 +13266,8 @@ window.AGI = (function () {
                 afterChange();
             },
             openSnare: () => straightToSnare(),
+            // Evals, the third minigame (stage 1: its own screen, opened from here or with #evals).
+            openEvals: () => window.EvalsUI?.open(),
             learnSkill() {
                 if (E.actTwoLocked(state)) return;   // the demo's gate
                 E.learnSkill(state, state.path.learned);

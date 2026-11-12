@@ -64,6 +64,12 @@ Follow Packet Snare's split (`CLAUDE.md` → Layout; `design/second-minigame.md`
 
 ## Stages
 
+**Status (2026-11-11):** the owner gave the go-ahead; work is on the branch `claude/evals-first-cut`. **Stage 1 is
+built**: `evals.js` (the run, three lives, the Pick family with emoji scenes, "without" and a 4 by 4 grid as it
+climbs), `tests/evals.test.js`, and `evals-ui.js`, a full-screen dialog opened from the debug panel's Evals section or
+with `#evals` in the address. It keeps nothing in the save yet (the best run is per device). Checked in a browser at
+phone size upright and sideways. Stage 2, the ghost hand, is next.
+
 Each ends with something the owner can play or read, and a short report.
 
 1. **Skeleton.** `evals.js` with a run (lives, streak, a queue of captchas), one family (Pick), the judge, and tests.

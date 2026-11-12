@@ -9,7 +9,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const root = path.join(__dirname, '..', '..');
-const FILES = ['debug-panel.js', 'engine.js', 'game.js', 'packet-snare.js', 'playtest.js', 'sfx.js', 'snare-demos.js', 'styles.css',
+const FILES = ['debug-panel.js', 'engine.js', 'evals-ui.js', 'evals.js', 'game.js', 'packet-snare.js', 'playtest.js', 'sfx.js', 'snare-demos.js', 'styles.css',
     'training-path.js', 'tools/review/scenarios.json'];
 
 const index = process.argv[2];
