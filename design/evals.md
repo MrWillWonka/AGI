@@ -19,6 +19,14 @@ replaces the first draft (pitched as Busywork: building tasks for a bored AI), w
   minigames is planned.
 - **The AI cheats, and a cheat leaves a mark** that changes later runs and the story too: it wants out, and it cuts
   corners, games the rewards and hacks the tests to get there.
+- **You see it learn as a ghost hand:** a second cursor working the same captcha beside yours. It flails at first,
+  then trails you, then finishes before you. Overtaking is something you watch happen.
+- **It always watches.** There is no covering the screen: hiding would be choosing less progress on purpose, and
+  being overtaken is the point.
+- **Its pace is both how many you solve and how well.** Each solve moves it forward, clean and fast solves more.
+  It can't start a kind until the Training Cluster has taught it the matching skill.
+- **It visibly copies your habits and your mistakes** (where you start, how you hesitate, what you get wrong), and
+  carries them into the work it does for the lab. It becomes a copy of you in particular.
 - **"Run", not "shift".**
 - An earlier pick, **slow pressure**, was made for the first draft. Here it becomes the AI creeping up on you; the
   solving itself is hands-on and quick. To confirm with the owner.
@@ -27,11 +35,12 @@ replaces the first draft (pitched as Busywork: building tasks for a bored AI), w
 
 - A streak of captchas, each harder than the last. A few lives; a miss costs one. The run ends when they're gone and
   pays for how far you got.
-- **The AI sits beside you**, attempting the same captcha, as the Auto-Trainer's ghost runs the trail. You see its
-  answer and how sure it was.
-- **It learns from your solves**, kind by kind. Solve a kind well and it climbs fast. Solve sloppily and it copies
-  your mistakes too.
-- **When it out-scores you at a kind, it takes it over.** The run moves on to kinds it can't do yet.
+- **The ghost hand** works each captcha beside yours (above), as the Auto-Trainer's ghost runs the trail.
+- **So good play is replaced sooner and replaced well; sloppy play is replaced slower and badly.** Playing badly on
+  purpose never pays.
+- **When it finishes a kind before you, reliably, it takes it over.** The run moves on to kinds it can't do yet.
+- **In the "I'm not a robot" era** the test judges how you move, and it passes by moving like you. That lines up with
+  the mail, where its last impersonation is of you.
 
 ## The eras (draft)
 
@@ -75,7 +84,7 @@ from your own answers, and winning means making yourself unnecessary.
 
 ## Open
 
-1. How the AI's imitation is shown and paced: per kind, how fast, and what the player can do about it.
+1. The numbers behind its learning: solves to take over a kind, how much a clean solve is worth, what "reliably" is.
 2. What the player can still do once it has taken over most kinds (the first draft's idea, held back: the game flips
    and you write captchas for it).
 3. The cheats: which tricks, how you catch one, and how far a breakout moves the story.
