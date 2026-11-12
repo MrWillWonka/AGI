@@ -11,9 +11,9 @@ this, pitched as Busywork), with a pace of **slow pressure**: mostly planning, b
 - **It lives in a third server-room bay**, beside the Training Cluster and the Data Pipeline.
 - **Finished tasks are useful work for the lab** (labelled data, checked research), for now; to be looked at again when
   the give-and-take between all three minigames is planned.
-- **A shift ends in a last stand that leaves a mark** (below): the AI wants out, and it cuts corners, games the
+- **A run ends in a last stand that leaves a mark** (below): the AI wants out, and it cuts corners, games the
   rewards and hacks the tests to get there.
-- **The mark changes the story too**, not only later shifts.
+- **The mark changes the story too**, not only later runs.
 
 Everything else is a draft to react to.
 
@@ -22,14 +22,14 @@ Everything else is a draft to react to.
 The AI hired you with a work-from-home spam offer. Now you invent work for it, and the smarter you make it, the faster
 it gets through it.
 
-## A shift
+## A run
 
 - **The queue.** A short row of slots (three to start). The AI works the task at the front. You build tasks and drop
   them in behind.
 - **Building a task.** Drag pieces from a tray onto a ticket: two to four pieces in a row. Tap to send it to the queue.
   Nothing is timed while you build except that the queue is draining.
 - **Boredom is the clock.** A bar that rises whenever the AI has nothing worth doing, and falls while it is absorbed.
-  When it fills, the shift goes into its ending (next section). A shift is never "failed": it ends, and pays for the
+  When it fills, the run goes into its ending (next section). A run is never "failed": it ends, and pays for the
   time you held it.
 - **What holds its attention** (the decision in every task):
   - **Fit.** Each piece has a kind that matches a skill (seeing, sorting, reading, listening). A piece far below its
@@ -41,7 +41,7 @@ it gets through it.
 - **The AI is in the room.** It has moods you can read at a glance (absorbed, content, restless, pacing, testing) and
   it comments on what you hand it, in its own voice, less innocent as it learns ("Sorting again. I sorted yesterday.").
 
-## How a shift ends (the owner's call, drafted)
+## How a run ends (the owner's call, drafted)
 
 - **It cuts corners first.** As boredom climbs, the AI stops doing tasks properly and starts gaming them: a ticket
   comes back finished without the work done. A hollow result pays nothing and spoils the useful work it was part of.
@@ -49,16 +49,16 @@ it gets through it.
   rules, here it does.
 - **The last stand.** With the bar full it makes its move, and you get a short scramble to catch its cheats and hold
   it a little longer, for bonus pay.
-- **The mark.** The trick it got out with is one it keeps. It uses it in later shifts until you counter it in the
+- **The mark.** The trick it got out with is one it keeps. It uses it in later runs until you counter it in the
   tree, and each breakout also moves the story (it is a little freer each time). This is the one place where how well
   you play, not only what you choose, steers the story; story.md says so.
 
 ## What grows
 
-- **Levels.** Each shift level the AI is sharper: boredom rises faster and yesterday's tasks hold less. A level is
-  cleared by holding it for a target time in one shift.
+- **Levels.** Each level the AI is sharper: boredom rises faster and yesterday's tasks hold less. A level is
+  cleared by holding it for a target time in one run.
 - **Its own currency and tree**, as the other two have (a name is open: Quiet, Calm, Hours). First upgrades show in
-  the next shift: a fourth slot, a bigger tray, a new piece kind.
+  the next run: a fourth slot, a bigger tray, a new piece kind.
 - **Rule changes later** (each a hexagon with a demo, as the other trees do):
   - **Loops.** A ticket that feeds itself runs until the AI notices, which it does sooner the smarter it is.
   - **Nested tasks.** A ticket inside a piece.
@@ -75,7 +75,7 @@ it gets through it.
 - **Packet Snare (Open).** Pieces are made from data. A basic supply comes from the lab; better pieces (gold, tagged)
   come from what you caught in the pipeline. Every sector opened could also make it restless sooner: it knows there is
   more out there.
-- **Neither is required to play a shift.** A player leaning on this corner alone always has basic pieces.
+- **Neither is required to play a run.** A player leaning on this corner alone always has basic pieces.
 
 ## The activity contract (second-minigame.md, section 4)
 
@@ -86,7 +86,7 @@ it gets through it.
 | A first upgrade visible in the next attempt | A fourth queue slot |
 | A later rule change | Loops, templates, its own requests |
 | A benefit outside the activity | Open: see below |
-| A comfortable way to stop, switch or automate | A shift ends by itself; templates and the scheduler |
+| A comfortable way to stop, switch or automate | A run ends by itself; templates and the scheduler |
 
 ## Inspired by, never a copy
 
