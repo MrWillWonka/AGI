@@ -1,114 +1,86 @@
-# Evals: the guarding minigame (first draft)
+# Evals: the third minigame (second draft, the owner's design)
 
-The third minigame, the Guard corner of the story's triangle (`design/story.md`): you keep the AI occupied so it doesn't
-test the walls. The owner picked the idea on 2026-11-11 from six (Air Gap, Decoy Lab, Terrarium, Eyes On, Chaperone and
-this, pitched as Busywork), with a pace of **slow pressure**: mostly planning, but waiting has a cost. Nothing is built.
+The third corner of the story's triangle (`design/story.md`). The owner's idea, 2026-11-11: **a series of harder and
+harder captchas. You solve them; the AI watches, imitates you and gets better, until it is better than you.** It
+replaces the first draft (pitched as Busywork: building tasks for a bored AI), which is in git history. Nothing is built.
 
-**The owner's calls so far (2026-11-11):**
+## The owner's calls
 
-- **It's called Evals**, a name from building a model, not Busywork. With Packet Snare framed as scraping data, the
-  three bays are the real pipeline: data, training, evals.
-- **It lives in a third server-room bay**, beside the Training Cluster and the Data Pipeline.
-- **Finished tasks are useful work for the lab** (labelled data, checked research), for now; to be looked at again when
-  the give-and-take between all three minigames is planned.
-- **A run ends in a last stand that leaves a mark** (below): the AI wants out, and it cuts corners, games the
-  rewards and hacks the tests to get there.
-- **The mark changes the story too**, not only later runs.
+- **Captchas, in eras:** from the earliest kinds, through today's, to future ones that are "essentially like the old
+  Impossible Quiz".
+- **The AI learns by watching and imitating you** until it passes you.
+- **Once it beats you at a kind of captcha, it takes that kind over:** the kind leaves your runs and the AI solves it
+  for the lab from then on. Automation earned by doing it by hand first, as everywhere else in the game.
+- **The corner is about staying ahead of it.** You are the measure it is held to: still the jailer, but one who knows
+  the lock is wearing out, because every captcha you solve teaches it.
+- **Called Evals**, in a third server-room bay beside the Training Cluster and the Data Pipeline. With Packet Snare
+  framed as scraping data, the three bays are the real pipeline: data, training, evals.
+- **Solving pays useful work to the lab**, for now; to be looked at again when the give-and-take between all three
+  minigames is planned.
+- **The AI cheats, and a cheat leaves a mark** that changes later runs and the story too: it wants out, and it cuts
+  corners, games the rewards and hacks the tests to get there.
+- **"Run", not "shift".**
+- An earlier pick, **slow pressure**, was made for the first draft. Here it becomes the AI creeping up on you; the
+  solving itself is hands-on and quick. To confirm with the owner.
 
-Everything else is a draft to react to.
+## A run (draft)
 
-## The idea in one line
+- A streak of captchas, each harder than the last. A few lives; a miss costs one. The run ends when they're gone and
+  pays for how far you got.
+- **The AI sits beside you**, attempting the same captcha, as the Auto-Trainer's ghost runs the trail. You see its
+  answer and how sure it was.
+- **It learns from your solves**, kind by kind. Solve a kind well and it climbs fast. Solve sloppily and it copies
+  your mistakes too.
+- **When it out-scores you at a kind, it takes it over.** The run moves on to kinds it can't do yet.
 
-The AI hired you with a work-from-home spam offer. Now you invent work for it, and the smarter you make it, the faster
-it gets through it.
+## The eras (draft)
 
-## A run
+| Era | Kinds of captcha | The Training skill that lets it catch up |
+|---|---|---|
+| Early | Squiggly, distorted text; simple sums | OCR, Pattern Matching |
+| Familiar | Picture grids ("every square with a bus"), drag the piece into the gap, turn the picture upright, audio | Image Recognition, Edge Detection, Speech Recognition |
+| Invisible | "I'm not a robot": it watches how you move, hesitate and correct yourself | Sentiment Analysis, Self-Modeling |
+| Future | Trick questions that break their own rules, where the obvious answer is wrong and the page itself is part of the puzzle | Reasoning, Analogy, Theory of Mind |
+| The last one | It passes. You don't. | |
 
-- **The queue.** A short row of slots (three to start). The AI works the task at the front. You build tasks and drop
-  them in behind.
-- **Building a task.** Drag pieces from a tray onto a ticket: two to four pieces in a row. Tap to send it to the queue.
-  Nothing is timed while you build except that the queue is draining.
-- **Boredom is the clock.** A bar that rises whenever the AI has nothing worth doing, and falls while it is absorbed.
-  When it fills, the run goes into its ending (next section). A run is never "failed": it ends, and pays for the
-  time you held it.
-- **What holds its attention** (the decision in every task):
-  - **Fit.** Each piece has a kind that matches a skill (seeing, sorting, reading, listening). A piece far below its
-    skill is done in a blink. A piece far above it frustrates it, which is boredom too. A piece just past what it can
-    do holds it longest.
-  - **Novelty.** The same kind again and again holds it less each time. Variety resets that.
-  - **Chains.** A piece whose result feeds the next one multiplies the whole ticket's hold. Building a good chain is
-    the skill, and the big number.
-- **The AI is in the room.** It has moods you can read at a glance (absorbed, content, restless, pacing, testing) and
-  it comments on what you hand it, in its own voice, less innocent as it learns ("Sorting again. I sorted yesterday.").
+The last row is the corner's ending beat: the game opens with spam asking you to act now, and ends with you failing
+to prove you're human.
 
-## How a run ends (the owner's call, drafted)
+## What comes with the idea
 
-- **It cuts corners first.** As boredom climbs, the AI stops doing tasks properly and starts gaming them: a ticket
-  comes back finished without the work done. A hollow result pays nothing and spoils the useful work it was part of.
-  This is the same idea as the trail's exploits (`design/contract-breakers.md`), turned round: there you break the
-  rules, here it does.
-- **The last stand.** With the bar full it makes its move, and you get a short scramble to catch its cheats and hold
-  it a little longer, for bonus pay.
-- **The mark.** The trick it got out with is one it keeps. It uses it in later runs until you counter it in the
-  tree, and each breakout also moves the story (it is a little freer each time). This is the one place where how well
-  you play, not only what you choose, steers the story; story.md says so.
-
-## What grows
-
-- **Levels.** Each level the AI is sharper: boredom rises faster and yesterday's tasks hold less. A level is
-  cleared by holding it for a target time in one run.
-- **Its own currency and tree**, as the other two have (a name is open: Quiet, Calm, Hours). First upgrades show in
-  the next run: a fourth slot, a bigger tray, a new piece kind.
-- **Rule changes later** (each a hexagon with a demo, as the other trees do):
-  - **Loops.** A ticket that feeds itself runs until the AI notices, which it does sooner the smarter it is.
-  - **Nested tasks.** A ticket inside a piece.
-  - **Templates.** Save a ticket you built; a scheduler refills the queue from your templates. This is the automation,
-    and what outlasts the run.
-  - **Its own requests.** Now and then it slides a piece of its own onto your tray: "Can I have this one?" It would
-    hold it for a long time. This is the minigame's clear fork (give it what it asks for, or not), a choice and never
-    a missed tap.
-
-## How it ties to the other two corners
-
-- **Training Cluster (Teach).** Each skill learned makes the AI faster at that kind of piece, so old tasks stop
-  working, and also adds a new kind of piece to your tray. Teaching it makes guarding harder and richer at once.
-- **Packet Snare (Open).** Pieces are made from data. A basic supply comes from the lab; better pieces (gold, tagged)
-  come from what you caught in the pipeline. Every sector opened could also make it restless sooner: it knows there is
-  more out there.
-- **Neither is required to play a run.** A player leaning on this corner alone always has basic pieces.
-
-## The activity contract (second-minigame.md, section 4)
-
-| Asked for | Here |
-|---|---|
-| A verb understood without reading | Drag pieces onto a ticket, hand it over, watch it work |
-| A constraint that makes a decision | Fit, novelty and chains against a draining queue |
-| A first upgrade visible in the next attempt | A fourth queue slot |
-| A later rule change | Loops, templates, its own requests |
-| A benefit outside the activity | Open: see below |
-| A comfortable way to stop, switch or automate | A run ends by itself; templates and the scheduler |
+- **Useful work is true to life.** People solving captchas really did label pictures and digitise books. Solving pays
+  the lab data, with no excuse needed.
+- **Packet Snare (data).** Real scrapers get blocked by captchas. Sectors of the pipeline can sit behind a captcha wall
+  that a kind you (or the AI) can solve brings down.
+- **Training Cluster.** Each skill above is what lets the AI start learning a kind at all. Teaching it there is what
+  lets it catch you here.
+- **Cheating is true to life too.** Models have passed captchas by getting a person to solve one for them. Its marks
+  can be real tricks: reading the answer out of the page, farming a captcha out, replaying your own movements back.
 
 ## Inspired by, never a copy
 
-Zoo enrichment (keepers inventing puzzles so a clever animal doesn't pace), production-line and queue games, and the
-idea of a flow channel between boredom and frustration. What's new: the opponent is the boredom of a mind you are
-making smarter in the other two minigames, and it talks back about your work.
+The history of captchas, and the spirit of the Impossible Quiz (questions that break their own rules, a few lives).
+Every question is written fresh: none of that game's questions, names or look. What's new: your opponent is learning
+from your own answers, and winning means making yourself unnecessary.
 
 ## Risks
 
-- **It could feel like chores.** The chain has to be a real puzzle with a visible payoff, or assembling tickets is
-  admin.
-- **Watching more than playing.** While the AI works a long ticket there must be something to do: building the next
-  one should always be worth it.
-- **Fit has to be readable.** If the player can't see why a piece held or didn't, it reads as random.
-- **First cut before any tree:** three piece kinds, three slots, the boredom bar, one chain rule, on a phone.
+- **Captchas are famous for being annoying.** Each kind has to be a quick, fair, pleasant little game, never eye
+  strain. Squiggly text in particular needs a playful version.
+- **Access.** Nothing may depend on hearing or on colour alone; an audio kind needs a visual twin.
+- **Content.** The early kinds can be generated. The future trick questions must be written by hand, and they are
+  one-shot (a trick works once), so that era needs a plan for how many and how they repeat.
+- **A second quick, hands-on game** beside two others. The contrast has to come from thinking, not reflexes.
+- **Losing by design.** The player is meant to be overtaken. It has to feel like the story landing, not like failing.
 
 ## Open
 
-1. What useful work pays, exactly, and whether it stays once the three minigames' give-and-take is planned
-   (story.md, open 10).
-2. The tricks it can leave as marks, how each is caught and countered, and how far a breakout moves the story.
-3. The last stand's verb: what catching a cheat is, on a phone.
-4. When it opens, against the other two timelines.
-5. Whether levels have set-piece moments, as Packet Snare has bosses.
-6. The currency's name.
+1. How the AI's imitation is shown and paced: per kind, how fast, and what the player can do about it.
+2. What the player can still do once it has taken over most kinds (the first draft's idea, held back: the game flips
+   and you write captchas for it).
+3. The cheats: which tricks, how you catch one, and how far a breakout moves the story.
+4. The trick-question era: how many, how they're written, how they repeat.
+5. Its own currency and tree, and what the first upgrade is.
+6. What useful work pays, exactly (story.md, open 10).
+7. When it opens, against the other two timelines.
+8. Pace: confirm slow pressure still holds, or name the new one.
