@@ -104,7 +104,12 @@ Every kind is a tap or a drag, so the ghost hand can work it, and none depends o
 ## Inspired by, never a copy
 
 The history of captchas, and the spirit of the Impossible Quiz (questions that break their own rules, a few lives).
-Every question is written fresh: none of that game's questions, names or look. What's new: your opponent is learning
+Every question is written fresh: none of that game's questions, names or look. The owner also pointed to
+neal.fun's *I'm Not a Robot* (2026-11-11), a web game of numbered captcha levels that start ordinary and escalate: the
+closest existing thing to this idea, and a reference for tone and for how pleasant a captcha can be to play. The same
+rule holds: none of its levels, wording or look. Players who know it will compare, so Evals has to stand on what it
+doesn't have (below), and its structure differs too: runs with lives over generated kinds, not a fixed ladder of
+hand-made levels. What's new: your opponent is learning
 from your own answers, and winning means making yourself unnecessary.
 
 ## Risks
