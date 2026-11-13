@@ -13278,6 +13278,12 @@ window.AGI = (function () {
                 }
                 afterChange();
             },
+            // Loopholes without the wait: every kind the AI holds counts as long done alone. `mis` sets how misaligned it is.
+            evalsLoopholes(mis) {
+                for (const k of Object.values(state.evals.learn.kinds)) if (k.taken) k.own = Math.max(k.own || 0, window.Evals.EVALS.ownSolves);
+                if (mis !== undefined) state.evals.learn.mis = Math.max(0, Math.min(1, +mis || 0));
+                afterChange();
+            },
             // The unlock ladder on or off on this device (off: every kind from the start, at the plain pace). Returns it.
             evalsLadder(on) {
                 if (on !== undefined) { try { localStorage.setItem('agiEvalsLadder', on ? '1' : '0'); } catch { /* private mode */ } }

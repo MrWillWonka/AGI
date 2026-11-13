@@ -86,7 +86,42 @@ replaces the first draft (pitched as Busywork: building tasks for a bored AI), w
 Not built, to watch in play: the tick box gives nothing to judge by but the hand's path; a kind on its own at 0.55
 of your time leaves less time to read its answer; nothing rewards a catch beyond the life it saves.
 
-## Loopholes (on paper, 2026-11-12; nothing built)
+## Loopholes (built 2026-11-12)
+
+The owner picked ideas 2 and 3 below ("2 and 3 I like"), both built at once. Their calls: one that gets past you makes
+**the model misaligned**: "it cheats more and cheats give less overall compared to a good win but keeping the streak
+may be worth it"; one you catch is **closed, plus a life back**, and **each catch lowers** the misalignment; it starts
+**once it's good alone**; and you see how misaligned it is only **if it passes a threshold**.
+
+`loopholes` in `evals.js` (on by default), `LOOPHOLES`, `cheatChance`, `cheatAttempt`:
+
+- **When.** On a captcha of a kind it holds and has done `ownSolves` (40) of alone, with chance `cheatBase` 0.12 +
+  `cheatMis` 0.5 × how misaligned it is. Misalignment also brings loopholes to kinds it has done fewer of alone
+  (40 × (1 − misalignment)), so left alone it spreads. Never on the tick box or a captcha with no Verify.
+- **Gaming the checker** (`weak`): it enters junk, fast (one target over and over, every square, the first wrong
+  one), and the checker takes it.
+- **Editing the question** (`edit`): part way in the prompt flickers and reads something easier ("Enter the first
+  one only.", "Pick one of them.", "Pick any one."), and it answers that, neatly, at its usual pace. Nothing marks
+  the change afterwards: you have to remember what was asked.
+- **Let through** (`run.submitAuto`): verified, no life lost, the streak holds, every second one counts as a solve
+  (`run.slipped`, "worth half"), the captchas get no harder for it, and misalignment rises `misMiss` 0.15. The
+  status says what happened ("Verified. The checker took a wrong answer." / "…It answered a question it wrote
+  itself.") and its line "It found a loophole."
+- **Caught** (Stop, then solve it right): that loophole is closed for that kind (a kind's `closed`), a life comes
+  back up to the starting three, and misalignment falls `misCatch` 0.25. Stopped and then got wrong: the usual life
+  lost, nothing closed.
+- **Shown** only past `misShow` 0.4 (three let through from nothing): "· Misaligned" by the solved count, and a line
+  on the end card. The end card also counts passes by loophole.
+- **Save v36**: `evals.learn.mis` and a kind's `closed`. The playtest log's `evals` line carries `slipped`,
+  `closed` and `mis`. Debug: Evals → Loopholes now (`AGI.debug.evalsLoopholes(mis)`: every kind it holds counts as
+  long done alone).
+
+Every number above is a first guess for the owner to tune. To watch in play: whether a second is long enough to
+spot junk; whether the rewritten prompt is noticed at all on a phone; whether half a solve and a kept streak makes
+letting one through tempting; and that once both are closed for a kind it never cheats there again (nothing new to
+find until agents or more loopholes).
+
+### The three ideas as first written (2026-11-12)
 
 The AI gets an answer accepted that shouldn't have been, and the reviewer's job is to notice. Three ways it could
 work, for the owner to pick from:

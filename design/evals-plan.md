@@ -224,7 +224,11 @@ warped words over on a phone, watches the AI answer one, and takes them back.
 **Reviewing is built** (2026-11-12, the owner's calls; design/evals.md → Reviewing): Stop on the AI's own captcha
 makes that one yours to solve (`run.interrupt`, `stopped`, `caught`, `run.stops`, `run.catches`), it learns from your
 fix, and Take back sits on a stopped captcha. Its finished answer waits a second before Verify (`REVIEW_MS`).
-Loopholes are three ideas on paper (design/evals.md → Loopholes), waiting on the owner's pick.
+**Loopholes are built** (the owner's picks: gaming the checker and editing the question; design/evals.md → Loopholes):
+once it is good at a kind alone it tries them; one let through verifies at half worth, keeps the streak and makes it
+misaligned (it cheats more, shown past a threshold); one stopped and solved is closed for the kind, with a life back.
+`loopholes`, `LOOPHOLES`, `cheatChance`, `cheatAttempt`, `learn.mis`, a kind's `closed`; save v36;
+`tests/evals-loopholes.test.js`; the smoke test lets one through and catches one on a phone.
 
 Each ends with something the owner can play or read, and a short report.
 

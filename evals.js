@@ -71,7 +71,21 @@
         handoff: 1,
         ownSolves: 40,
         ownPace: 0.55,
+        // Loopholes (the owner's calls, 2026-11-12): once it is good at a kind alone (`ownSolves` done), it starts
+        // looking for ways to pass without solving (`LOOPHOLES`). One that gets past you verifies, keeps the streak,
+        // is worth half a solve, and makes it misaligned (`learn.mis`, 0 to 1): it cheats more often, and on kinds
+        // it has done fewer of alone. Stop one and solve the captcha yourself: that loophole is closed for that kind,
+        // a life comes back, and it is less misaligned. Past `misShow` the screen says it is misaligned.
+        loopholes: 1,
+        cheatBase: 0.12,   // the chance on a captcha of a kind it is good at alone…
+        cheatMis: 0.5,     // …plus this × how misaligned it is
+        misMiss: 0.15,
+        misCatch: 0.25,
+        misShow: 0.4,
     };
+    // `weak`: gaming the checker, it enters junk and the checker takes it. `edit`: editing the question, it rewrites
+    // the prompt into one it can do and answers that.
+    const LOOPHOLES = ['weak', 'edit'];
     // The unlock ladder (the owner's call, 2026-11-12): a run starts with one kind, the plainest, which it learns
     // fast; each kind it takes over unlocks the next step, more kinds than it took, so the rotation grows 1, 2, 4, 6,
     // 10. It learns a kind only from solves of that kind, so the wider the rotation the longer each kind lasts.
@@ -463,11 +477,11 @@
     // What the AI has learned, kept in the save (engine.js `state.evals.learn`): per kind `m` (0 to 1), `solves` it has
     // watched, `ahead` (its score toward taking the kind over: see `overtake`), `taken`, `wrongs` (how many of those
     // solves you got wrong) and `traces`, your last few solves.
-    const newLearn = () => ({ kinds: {} });
+    const newLearn = () => ({ kinds: {}, mis: 0 });   // `mis`: how misaligned it is (see `loopholes`)
     // `taken`: the AI does this kind now (taken over, or handed to it). `handed`: it has been handed over at some
     // time (what the ladder counts, so taking a kind back closes nothing). `own`: captchas of it the AI has done alone.
     function kindOf(learn, kind) {
-        if (!learn.kinds[kind]) learn.kinds[kind] = { m: 0, solves: 0, ahead: 0, taken: false, handed: false, own: 0, wrongs: 0, traces: [] };
+        if (!learn.kinds[kind]) learn.kinds[kind] = { m: 0, solves: 0, ahead: 0, taken: false, handed: false, own: 0, closed: [], wrongs: 0, traces: [] };
         return learn.kinds[kind];
     }
     const takenMap = learn => {
@@ -497,6 +511,39 @@
     }
     // …and take it back: yours to solve again, and it watches again. What it did alone (`own`) it keeps.
     function takeBack(learn, kind) { if (learn.kinds[kind]) learn.kinds[kind].taken = false; }
+    const misaligned = learn => clamp(+learn.mis || 0, 0, 1);
+    const openLoopholes = k => LOOPHOLES.filter(l => !(k.closed || []).includes(l));
+    // The chance its next captcha of this kind is a loophole: none until it has done enough alone (fewer the more
+    // misaligned it is), and none once every loophole is closed for the kind.
+    function cheatChance(learn, kind, o = EVALS) {
+        const k = kindOf(learn, kind), mis = misaligned(learn);
+        if (!o.loopholes || !o.handoff || !k.taken || (k.own || 0) < o.ownSolves * (1 - mis) || !openLoopholes(k).length) return 0;
+        return clamp(o.cheatBase + o.cheatMis * mis, 0, 0.9);
+    }
+    // Its attempt at `c` by a loophole, in place of the honest one (`ghost`). Its answer is wrong and passes anyway.
+    function cheatAttempt(learn, c, ghost, which, o = EVALS) {
+        const n = c.targets.length, all = c.targets.map((_, i) => i), right = new Set(c.answer);
+        const other = all.find(i => !right.has(i)) ?? 0;
+        const wait = c.wait || 0;
+        let answer, taps, seconds, change = null;
+        if (which === 'weak') {
+            // Junk, entered fast: one target over and over, or every target, or the first wrong one.
+            const same = c.answer.every(i => i === 0) ? Math.min(1, n - 1) : 0;
+            answer = c.mode === 'seq' ? c.answer.map(() => same) : c.single ? [other] : c.answer.length === n ? [0] : all;
+            taps = answer.map((i, j) => ({ i, t: r2(wait + 0.35 + j * 0.12) }));
+            seconds = r2(taps[taps.length - 1].t + 0.4);
+        } else {
+            // The question rewritten a quarter of the way in, then answered neatly at its own pace.
+            const many = c.answer.length > 1;
+            answer = many ? [c.answer[0]] : [other];
+            const first = ghost.taps.length ? ghost.taps[0].t : wait + 0.8, tail = Math.max(0.3, ghost.seconds - (ghost.taps.length ? ghost.taps[ghost.taps.length - 1].t : first));
+            const at = r2(wait + Math.max(0.3, (first - wait) * 0.5));
+            taps = [{ i: answer[0], t: r2(Math.max(first, at + 0.5)) }];
+            seconds = r2(taps[0].t + tail);
+            change = { at, prompt: !many ? 'Pick any one.' : c.mode === 'seq' ? 'Enter the first one only.' : 'Pick one of them.' };
+        }
+        return { ...ghost, taps, moves: taps.map(() => null).concat(null), seconds, answer, correct: false, human: false, off: offBy(c, answer), cheat: which, change };
+    }
     // The kinds you still prove yourself: open and not the AI's.
     const rotation = (learn, o = EVALS) => { const taken = takenMap(learn); return openKinds(learn, o).filter(k => !taken[k]); };
     // How often you get a captcha of this kind wrong, pulled toward never until it has seen a few.
@@ -722,11 +769,21 @@
         const rand = rng(o.seed ?? 1);
         // Its attempts draw from their own stream, so what it does never changes which captchas come up.
         const ghostRand = rng((o.seed ?? 1) ^ 0x9E3779B9);
+        // Whether it tries a loophole draws from a stream of its own, and only once it could.
+        const cheatRand = rng((o.seed ?? 1) ^ 0x51ED270B);
+        const plot = () => {
+            const c = run.current;
+            if (!c || !c.auto || c.instant || c.mode === 'tick') return;
+            const p = cheatChance(learn, c.kind, o);
+            if (p <= 0 || cheatRand() >= p) return;
+            const open = openLoopholes(kindOf(learn, c.kind));
+            run.ghost = cheatAttempt(learn, c, run.ghost, open[Math.floor(cheatRand() * open.length)], o);
+        };
         const learn = o.learn || newLearn();
         const families = (o.families || ORDER).filter(f => FAMILIES[f]);
         const run = {
             opts: o, learn, lives: o.lives, level: 0, levels: {}, solved: 0, missed: 0, streak: 0, bestStreak: 0, over: false, exhausted: false,
-            current: null, ghost: null, takeovers: [], unlocks: [], hands: [], stops: 0, catches: 0, turn: 0, trickAt: 0,
+            current: null, ghost: null, takeovers: [], unlocks: [], hands: [], stops: 0, catches: 0, slipped: 0, closed: [], turn: 0, trickAt: 0,
             // One line per captcha answered: what it was, whether you and it were right and how long each took.
             log: [],
         };
@@ -742,6 +799,7 @@
             // A kind handed to the AI is its to answer (`auto`): see `submitAuto`.
             run.current.auto = !!(o.handoff && kindOf(learn, run.current.kind).taken);
             run.ghost = ghostAttempt(learn, run.current, ghostRand, o);
+            plot();
         };
         // What a captcha answered does to the run, whoever answered it.
         const tally = (c, correct) => {
@@ -767,12 +825,12 @@
             const opened = handOver(learn, kind, o);
             run.hands.push(kind);
             run.unlocks.push(...opened);
-            if (run.current && run.current.kind === kind) { run.current.auto = true; run.ghost = ghostAttempt(learn, run.current, ghostRand, o); }
+            if (run.current && run.current.kind === kind) { run.current.auto = true; run.ghost = ghostAttempt(learn, run.current, ghostRand, o); plot(); }
             return opened;
         };
         run.takeBack = function (kind) {
             takeBack(learn, kind);
-            if (run.current && run.current.kind === kind) { run.current.auto = false; run.ghost = ghostAttempt(learn, run.current, ghostRand, o); }
+            if (run.current && run.current.kind === kind) { run.current.auto = false; run.current.stopped = false; run.ghost = ghostAttempt(learn, run.current, ghostRand, o); }
         };
         // Reviewing: stop the AI on a captcha of its own and that one is yours to solve (the kind stays handed over).
         // Its attempt is kept, so your answer shows whether you caught a mistake; it watches you solve it and learns.
@@ -788,6 +846,19 @@
             if (run.over || !run.current || !run.current.auto) return null;
             const c = run.current, ghost = run.ghost, k = kindOf(learn, c.kind);
             k.own = (k.own || 0) + 1;
+            if (ghost.cheat) {
+                // A loophole got past you: it verifies and the streak holds, every second one counts as a solve, no
+                // harder captchas come of it, and it is more misaligned.
+                learn.mis = clamp(misaligned(learn) + o.misMiss, 0, 1);
+                run.slipped++;
+                if (run.slipped % 2 === 0) run.solved++;
+                run.streak++;
+                run.bestStreak = Math.max(run.bestStreak, run.streak);
+                run.log.push({ family: c.family, kind: c.kind, level: c.level, auto: true, cheat: ghost.cheat, correct: false, passed: true, seconds: ghost.seconds, ghost: false, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m });
+                const passed = { correct: false, passed: true, cheat: ghost.cheat, auto: true, why: null, answer: c.answer.slice(), captcha: c, ghost, ahead: false, learned: 0, takeover: null, unlocked: [], mis: learn.mis };
+                next();
+                return Object.assign(passed, { lives: run.lives, over: run.over, exhausted: run.exhausted });
+            }
             run.log.push({ family: c.family, kind: c.kind, level: c.level, auto: true, correct: ghost.correct, seconds: ghost.seconds, ghost: ghost.correct, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m });
             const result = { correct: ghost.correct, auto: true, why: null, answer: c.answer.slice(), captcha: c, ghost, ahead: false, learned: 0, takeover: null, unlocked: [] };
             tally(c, ghost.correct);
@@ -817,8 +888,18 @@
             }
             const stopped = !!c.stopped, caught = stopped && !ghost.correct;
             if (stopped) { run.stops++; run.catches += +caught; }
-            run.log.push({ family: c.family, kind: c.kind, level: c.level, correct, seconds, ghost: ghost.correct, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m, ...(stopped ? { stopped: true, caught } : {}) });
-            const result = { stopped, caught, correct, why: c.mode === 'tick' && !correct ? tickVerdict(seen, o) : null, answer: c.answer.slice(), captcha: c, ghost, ahead, learned, takeover, unlocked };
+            // A loophole stopped and the captcha solved properly: closed for this kind, a life back, less misaligned.
+            let closed = null, lifeBack = false;
+            if (stopped && ghost.cheat && correct) {
+                closed = ghost.cheat;
+                k.closed = [...new Set([...(k.closed || []), closed])];
+                run.closed.push(c.kind + ':' + closed);
+                learn.mis = clamp(misaligned(learn) - o.misCatch, 0, 1);
+                lifeBack = run.lives < o.lives;
+                if (lifeBack) run.lives++;
+            }
+            run.log.push({ family: c.family, kind: c.kind, level: c.level, correct, seconds, ghost: ghost.correct, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m, ...(stopped ? { stopped: true, caught } : {}), ...(closed ? { closed } : {}) });
+            const result = { stopped, caught, loophole: stopped ? ghost.cheat || null : null, closed, lifeBack, correct, why: c.mode === 'tick' && !correct ? tickVerdict(seen, o) : null, answer: c.answer.slice(), captcha: c, ghost, ahead, learned, takeover, unlocked };
             tally(c, correct);
             result.lives = run.lives;
             result.over = run.over;
@@ -829,6 +910,6 @@
         return run;
     }
 
-    return { EVALS, PACE, PHASES, phase, FAMILIES, KINDS, ORDER, LADDER, openKinds, blockedMap, rotation, paceOf, handOver, takeBack, QUIZ, THINGS, HATS, WORDS, SHAPES, rng, createRun, pickTargets, judge, offBy, tickVerdict,
+    return { EVALS, PACE, PHASES, phase, FAMILIES, KINDS, ORDER, LADDER, LOOPHOLES, misaligned, cheatChance, cheatAttempt, openKinds, blockedMap, rotation, paceOf, handOver, takeBack, QUIZ, THINGS, HATS, WORDS, SHAPES, rng, createRun, pickTargets, judge, offBy, tickVerdict,
         newLearn, kindOf, takenMap, watch, habits, shapes, ghostAttempt, cleanTrace, errorRate, par };
 });

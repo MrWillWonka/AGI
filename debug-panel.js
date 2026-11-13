@@ -157,6 +157,7 @@
                 button('Teach it (+25% every kind)', () => AGI.debug.evalsTeach(0.25)),
                 // kinds unlock as it takes kinds over; off, every kind is in from the start (takes effect on the next run)
                 (() => { const label = () => `Unlock ladder: ${AGI.debug.evalsLadder() ? 'on' : 'off (every kind)'}`; const b = button(label(), () => { AGI.debug.evalsLadder(!AGI.debug.evalsLadder()); b.textContent = label(); }); return b; })(),
+                button('Loopholes now (kinds it holds)', () => AGI.debug.evalsLoopholes()),
                 dangerButton('Reset Evals (nothing learned)', () => AGI.debug.resetEvals())),
             section('Jump ahead', button('Learn next skill', AGI.debug.learnSkill), ...phaseButtons,
                 button('Unlock everything', AGI.debug.unlockAll)),

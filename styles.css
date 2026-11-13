@@ -3800,6 +3800,9 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
 .evals-give { min-height: 44px; padding: 0 12px; white-space: nowrap; }
 .evals-captcha.is-auto .evals-target, .evals-captcha.is-auto .evals-piece-shape, .evals-captcha.is-auto .evals-back, .evals-captcha.is-auto .evals-replay { pointer-events: none; }
 .evals-captcha.is-auto .evals-prompt { color: var(--muted); }
+@keyframes evals-edited { 0%, 40% { opacity: 0.15; transform: translateX(-2px); } 20%, 60% { opacity: 1; transform: translateX(2px); } 100% { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: no-preference) { .evals-prompt.edited { animation: evals-edited 0.3s steps(5); } }
+.evals-solved.misaligned { color: var(--danger); }
 .evals-status { flex: 1; font-weight: 600; }
 .evals-captcha.passed .evals-status { color: var(--success); }
 .evals-captcha.failed .evals-status { color: var(--danger); }

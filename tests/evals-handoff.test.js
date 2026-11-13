@@ -61,7 +61,7 @@ test('its own answers: right counts as solved, wrong costs a life, and it learns
     // Taught fully first: it is right most of the time, each right one solved, and what it knows does not move.
     const learn = Evals.newLearn();
     Evals.kindOf(learn, 'read.word').m = 1;
-    const run = Evals.createRun({ seed: 5, learn, lives: 999, families: ['read'] });
+    const run = Evals.createRun({ seed: 5, learn, lives: 999, families: ['read'], loopholes: 0 });
     run.hand('read.word');
     let right = 0;
     // (Struck-through words, which handing over opened, are still yours: solved here and not counted.)

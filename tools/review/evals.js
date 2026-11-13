@@ -204,8 +204,49 @@ async function ladder(browser, url) {
     }
     check([...mine].every(k => ['answer.sum', 'read.struck'].includes(k)) && mine.size > 0, `handover: the newly opened kinds come up for you (${[...mine].join(', ') || 'none'})`);
     check(stopped, 'handover: Stop makes its captcha yours to solve, the kind still handed over');
-    check(back, 'handover: Take back makes the kind yours again');
+    check(back && (await page.locator('.evals-handover').count()) === 1, 'handover: Take back makes the kind yours again, to hand over again');
     check(unfit.length === 0, `handover: everything in view and a finger wide${unfit.length ? ' — ' + [...new Set(unfit)].join('; ') : ''}`);
+    // Loopholes: hand the kind over again, make it good alone and sure to cheat. The first one is let through
+    // (verified, and it says so; past the threshold the bar says Misaligned); the next is stopped and solved (closed).
+    if (await page.locator('.evals-handover').count()) { await press(page, size, '.evals-handover'); await page.waitForTimeout(250); await press(page, size, '.evals-go'); await page.waitForTimeout(300); }
+    await page.evaluate(() => { AGI.debug.evalsLoopholes(0.5); EvalsUI.run.opts.cheatBase = 1; });
+    let slip = null, caught = null, seen = [], dbg = [];
+    for (let n = 0; n < 24 && !caught; n++) {
+        await page.waitForFunction(() => !document.querySelector('.evals-captcha.passed, .evals-captcha.failed') && !!EvalsUI.run?.current, null, { timeout: 30000 }).catch(() => {});
+        const c = await fit();
+        if (!c) break;
+        const up = await page.evaluate(() => ({ auto: !!EvalsUI.run.current.auto, cheat: EvalsUI.run.ghost.cheat || null, change: EvalsUI.run.ghost.change?.prompt || null }));
+        const solve = async () => { await page.waitForTimeout(500); for (const i of c.answer) { await press(page, size, `.evals-target[data-i="${i}"]`); await page.waitForTimeout(140); } await press(page, size, '.evals-verify'); await page.waitForTimeout(300); };
+        dbg.push(c.kind + (up.auto ? ':auto' : '') + (up.cheat ? ':' + up.cheat : ''));
+        if (!up.auto) { await solve(); continue; }
+        if (!up.cheat || slip) {
+            if (up.cheat) {
+                seen.push(up.cheat);
+                if (up.change) await page.waitForFunction(text => document.querySelector('.evals-prompt')?.textContent === text, up.change, { timeout: 15000 }).catch(() => {});
+                const edited = !up.change || await page.evaluate(text => document.querySelector('.evals-prompt').textContent === text, up.change);
+                await page.screenshot({ path: path.join(out, `loophole-${up.cheat}.png`) });
+                await press(page, size, '.evals-stop');
+                await page.waitForTimeout(300);
+                const lives = await page.evaluate(() => EvalsUI.run.lives);
+                await solve();
+                caught = await page.evaluate(() => ({ line: document.querySelector('.evals-its-line')?.textContent || '', closed: AGI.state.evals.learn.kinds['read.word'].closed, lives: EvalsUI.run.lives, mis: AGI.state.evals.learn.mis }));
+                Object.assign(caught, { edited, which: up.cheat, before: lives });
+                await page.screenshot({ path: path.join(out, 'loophole-caught.png') });
+                break;
+            }
+            await page.waitForFunction(() => !!document.querySelector('.evals-captcha.passed, .evals-captcha.failed'), null, { timeout: 30000 }).catch(() => {});
+            continue;
+        }
+        seen.push(up.cheat);
+        const was = await page.evaluate(() => ({ lives: EvalsUI.run.lives, streak: EvalsUI.run.streak }));
+        await page.waitForFunction(() => !!document.querySelector('.evals-captcha.passed, .evals-captcha.failed'), null, { timeout: 30000 }).catch(() => {});
+        slip = await page.evaluate(() => ({ status: document.querySelector('.evals-status')?.textContent || '', line: document.querySelector('.evals-its-line')?.textContent || '', bar: document.querySelector('.evals-solved')?.textContent || '', lives: EvalsUI.run.lives, streak: EvalsUI.run.streak, slipped: EvalsUI.run.slipped }));
+        Object.assign(slip, { was });
+        await page.screenshot({ path: path.join(out, 'loophole-slipped.png') });
+    }
+    check(!!slip && /^Verified\. /.test(slip.status) && /loophole/.test(slip.line) && slip.lives === slip.was.lives && slip.streak === slip.was.streak + 1 && slip.slipped === 1, `loopholes: one let through verifies, keeps the streak and says so (${slip ? slip.status : 'none came up: ' + JSON.stringify(dbg)})`);
+    check(!!slip && /Misaligned/.test(slip.bar), `loopholes: past the threshold the bar says it is misaligned (${slip ? slip.bar : ''})`);
+    check(!!caught && /caught a loophole/.test(caught.line) && caught.closed.includes(caught.which) && caught.edited && caught.lives === Math.min(3, caught.before + 1) && caught.mis < 0.65, `loopholes: one stopped and solved is closed for the kind (${caught ? caught.which + ': ' + caught.line : 'none came up'})`);
     check(errors.length === 0, `handover: no page errors${errors.length ? ' — ' + errors.slice(0, 2).join(' | ') : ''}`);
     await page.evaluate(() => { EvalsUI.close(); AGI.debug.evalsLadder(true); });
     await ctx.close();
@@ -215,7 +256,7 @@ async function ladder(browser, url) {
     const srv = await ensureServer(process.env.REVIEW_URL || 'http://localhost:8123/');
     const browser = await chromium.launch();
     try {
-        for (const size of SIZES) { press.at = null; await play(browser, size, srv.url); }
+        if (!process.env.ONLY_LADDER) for (const size of SIZES) { press.at = null; await play(browser, size, srv.url); }
         await ladder(browser, srv.url);
     } finally {
         await browser.close();

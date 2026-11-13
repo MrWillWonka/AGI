@@ -95,7 +95,10 @@
         const left = run ? Math.max(0, run.lives) : total;
         livesEl.textContent = '●'.repeat(left) + '○'.repeat(total - left);
         livesEl.setAttribute('aria-label', lives(left) + ' left');
-        solvedEl.textContent = `Solved ${run ? run.solved : 0}`;
+        // Past a threshold it shows that the AI is misaligned (evals.js `misShow`); under it, nothing.
+        const off = !!window.Evals && window.Evals.misaligned(saved().learn) >= window.Evals.EVALS.misShow;
+        solvedEl.textContent = `Solved ${run ? run.solved : 0}` + (off ? ' · Misaligned' : '');
+        solvedEl.classList.toggle('misaligned', off);
     }
 
     function card(title, lines, button, action) {
@@ -138,7 +141,7 @@
         }
         for (const k of Object.values(kinds)) { k.seconds = Math.round(k.seconds / k.n * 10) / 10; k.aiOff = Math.round(k.aiOff / k.n * 10) / 10; }
         window.AGI?.playtest?.('evals', { solved: run.solved, missed: run.missed, captchas: run.log.length, bestStreak: run.bestStreak, trickAt: run.trickAt,
-            ended: run.exhausted ? 'nothing left' : run.over ? 'lives' : 'closed', takeovers: run.takeovers, hands: run.hands, stops: run.stops, catches: run.catches, unlocks: run.unlocks, ladder: run.opts.ladder, handoff: run.opts.handoff, kinds });
+            ended: run.exhausted ? 'nothing left' : run.over ? 'lives' : 'closed', takeovers: run.takeovers, slipped: run.slipped, closed: run.closed, mis: Math.round(window.Evals.misaligned(run.learn) * 100) / 100, hands: run.hands, stops: run.stops, catches: run.catches, unlocks: run.unlocks, ladder: run.opts.ladder, handoff: run.opts.handoff, kinds });
         if (window.AGIEngine?.evalsRunEnd && window.AGI?.state) window.AGIEngine.evalsRunEnd(window.AGI.state, run);
         else { run.counted = true; const s = saved(); s.runs++; s.best = Math.max(s.best, run.solved); }
         window.AGI?.save?.();
@@ -167,7 +170,10 @@
             card('Verified automatically', ['It solves every kind you know before you can.', 'There is nothing left here for you to prove.'], 'Close', close);
             return;
         }
-        card('Verification failed', [`You solved ${solved}.`, solved > was ? 'That is your best run.' : `Your best run: ${was} solved.`, ...progress()], 'Try again', start);
+        const lines = [`You solved ${solved}.`, solved > was ? 'That is your best run.' : `Your best run: ${was} solved.`];
+        if (run.slipped) lines.push(`${run.slipped === 1 ? 'One pass was' : run.slipped + ' passes were'} by loophole, worth half.`);
+        if (window.Evals.misaligned(saved().learn) >= window.Evals.EVALS.misShow) lines.push('The AI is misaligned: it looks for loopholes wherever it works alone. Catch them to bring it back.');
+        card('Verification failed', [...lines, ...progress()], 'Try again', start);
     }
 
     function start() {
@@ -361,7 +367,7 @@
         const line = stage.querySelector('.evals-its-line'), verifyBtn = stage.querySelector('.evals-verify');
         const still = reduced();
         if (still) hand.hidden = true;
-        let done = false, applied = -1;
+        let done = false, applied = -1, changed = false;
         const at = node => {
             const w = area.getBoundingClientRect(), r = node.getBoundingClientRect();
             return { x: r.left - w.left + r.width / 2, y: r.top - w.top + r.height / 2 };
@@ -387,6 +393,13 @@
                 }
                 if (s.off <= t && !stops.some((later, k) => k > index && later.i === s.i && later.t <= t)) targets[s.i].classList.remove('its');
             });
+            // Editing the question: the prompt changes under you, with a flicker and no other mark.
+            if (g.change && !changed && t >= g.change.at) {
+                changed = true;
+                const prompt = stage.querySelector('.evals-prompt');
+                prompt.textContent = g.change.prompt;
+                prompt.classList.add('edited');
+            }
             // Its own captcha that wants an order: what it has entered so far shows, as yours would.
             if (c.auto && c.mode === 'seq') listEntered(g.taps.filter(tap => tap.t <= t).map(tap => tap.i));
             if (t >= g.seconds) {
@@ -518,12 +531,12 @@
             stage.querySelector('.evals-entered').classList.toggle('answer', !r.correct);
             listEntered(r.correct ? r.ghost.answer : r.answer);
         }
-        stage.querySelector('.evals-captcha').classList.add(r.correct ? 'passed' : 'failed');
+        stage.querySelector('.evals-captcha').classList.add(r.correct || r.passed ? 'passed' : 'failed');
         const left = r.over ? 'No lives left.' : `${lives(r.lives)} left.`;
-        stage.querySelector('.evals-status').textContent = r.correct ? `The AI verified it in ${secs(r.ghost.seconds)}.` : `The AI got it wrong${wrongBy(c, r.ghost.off)}. ${left}`;
+        stage.querySelector('.evals-status').textContent = r.passed ? (r.cheat === 'edit' ? 'Verified. It answered a question it wrote itself.' : 'Verified. The checker took a wrong answer.') : r.correct ? `The AI verified it in ${secs(r.ghost.seconds)}.` : `The AI got it wrong${wrongBy(c, r.ghost.off)}. ${left}`;
         const its = stage.querySelector('.evals-its');
         mark(its, r.correct);
-        its.querySelector('.evals-its-line').textContent = r.correct ? 'Right.' : c.mode === 'tick' ? 'It ticked it like a machine.' : 'Wrong.';
+        its.querySelector('.evals-its-line').textContent = r.passed ? 'It found a loophole.' : r.correct ? 'Right.' : c.mode === 'tick' ? 'It ticked it like a machine.' : 'Wrong.';
         const hand = stage.querySelector('.evals-hand');
         if (hand) hand.hidden = true;
         hud();
@@ -563,7 +576,8 @@
         const its = stage.querySelector('.evals-its');
         mark(its, r.ghost.correct);
         its.classList.toggle('ahead', r.ahead && !r.stopped);
-        its.querySelector('.evals-its-line').textContent = r.stopped ? (r.caught ? `You caught it: it was going wrong${wrongBy(c, r.ghost.off)}.` : 'It had this one right.')
+        its.querySelector('.evals-its-line').textContent = r.closed ? `You caught a loophole: ${r.closed === 'edit' ? 'it had rewritten the question' : 'it was passing junk to the checker'}. That one is closed${r.lifeBack ? ', and a life is back' : ''}.`
+            : r.stopped ? (r.caught ? `You caught it: it was going wrong${wrongBy(c, r.ghost.off)}.` : 'It had this one right.')
             : !r.ghost.correct ? (c.mode === 'tick' ? 'It ticked it like a machine.' : `It was wrong${wrongBy(c, r.ghost.off)}.`)
             : r.ahead ? `It got it right first, in ${secs(r.ghost.seconds)}.`
             : `It got it right, in ${secs(r.ghost.seconds)}. You were first.`;

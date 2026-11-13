@@ -7,11 +7,11 @@ const Evals = require('../evals.js');
 const NOW = 1_700_000_000_000;
 
 test('a new game and a save from before Evals both start it empty', () => {
-    assert.deepEqual(E.defaultState(NOW).evals, { runs: 0, best: 0, learn: { kinds: {} } });
+    assert.deepEqual(E.defaultState(NOW).evals, { runs: 0, best: 0, learn: { kinds: {}, mis: 0 } });
     const old = E.migrate({ version: 33, res: { cp: 5 } }, NOW);
     assert.equal(old.version, E.SAVE_VERSION);
     assert.ok(E.SAVE_VERSION >= 34);
-    assert.deepEqual(old.evals, { runs: 0, best: 0, learn: { kinds: {} } });
+    assert.deepEqual(old.evals, { runs: 0, best: 0, learn: { kinds: {}, mis: 0 } });
 });
 
 test('what it learned in a run comes back from a save unchanged', () => {
@@ -51,7 +51,7 @@ test('junk in the save is cleaned', () => {
     assert.deepEqual({ m: k.m, solves: k.solves, ahead: k.ahead, taken: k.taken, wrongs: k.wrongs }, { m: 1, solves: 2, ahead: 0, taken: false, wrongs: 2 });
     assert.deepEqual(k.traces, [{ n: 9, side: 3, correct: false, seconds: 600, undos: 0, bend: 0, offset: 0, taps: [{ i: 2, t: 1.23 }], path: [] }]);
     for (const bad of [null, 5, 'x', [], { learn: 5 }, { learn: { kinds: [] } }]) {
-        assert.deepEqual(E.migrate({ version: E.SAVE_VERSION, evals: bad }, NOW).evals.learn, { kinds: {} });
+        assert.deepEqual(E.migrate({ version: E.SAVE_VERSION, evals: bad }, NOW).evals.learn, { kinds: {}, mis: 0 });
     }
     // More kinds or traces than it keeps are cut.
     const many = { learn: { kinds: {} } };
