@@ -1,4 +1,4 @@
-The Path to AGI · playtest log (filed condensed: the header, the summary, and one line a run; the samples, views and buys left out)
+The Path to AGI · playtest log (filed condensed: the header, the summary, and one line a run; the samples, views and buys left out) Played by the owner's brother (the owner, 2026-11-12).
 Log v1 · began 2026-11-08T16:51:01.711Z · exported 2026-11-08T18:54:49.514Z
 build: 2026-11-08 17:20 (branch) · Packet Snare 11.5: Focus is a clock in seconds (drawing costs nothing more), a smoothed pen, a tighter closing ring on desktop and a setting to hide it
 save: v24, v1.0, 0 skills
