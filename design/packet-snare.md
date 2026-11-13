@@ -463,7 +463,7 @@ They also asked for a few review rounds with a Fable agent, and a blind review b
 
 ## Snare 12.1 (a phone log of 11.5)
 
-An iPhone log of 11.5 (79 min of play, Packet Snare only; `playtests/snare/2026-11-08-phone-snare-11-5.txt`), read
+An iPhone log of 11.5 (79 min of play, Packet Snare only; `playtests/snare/2026-11-08-brother-snare-11-5.txt`), read
 against Snare 12. Already answered by 12: red at 1–2% per good packet by sector 10 (12's floor is about five times that
 deep in), scribbling with Chain Lightning (31 catches, 30 of them empty, 495 chained; 12 caps the chain at the packets
 caught and halves rushed loops), a replay chaining 17 sectors on a full Focus bar each clear (12 halves the clear bonus
