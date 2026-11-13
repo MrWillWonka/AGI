@@ -5,6 +5,9 @@ window.AGI = (function () {
     const E = window.AGIEngine;
     // Review builds open straight into Packet Snare (see straightToSnare).
     const SNARE_DIRECT = window.AGI_SNARE_DIRECT === true || location.hash === '#snare';
+    // `#bays` (the owner's call, for testing): straight to the server room with all three minigames' bays open, the
+    // Training Cluster, Packet Snare and Evals. Evals has no bay of its own yet, so here the third bay opens its screen.
+    const BAYS_DIRECT = location.hash === '#bays';
     const SAVE_KEY = 'agiGame';
     const BACKUP_KEY = 'agiGame.bak';         // the last good save (refreshed every BACKUP_MS, and kept before an import)
     const CORRUPT_KEY = 'agiGame.corrupt';    // a save that couldn't be read, kept as it was
@@ -2903,6 +2906,7 @@ window.AGI = (function () {
         const room = bay ? 'servers' : target;
         if (room !== 'facility' && !roomOpen(room)) return;
         if (bay && !(bayUnlocked(bay) && BAYS[bay].built)) return;
+        if (bay && BAYS[bay].evals) { window.EvalsUI?.open(); return; }
         storageSet(VIEW_KEY, room);
         const go = () => {
             closeBayNow();
@@ -3448,7 +3452,7 @@ window.AGI = (function () {
             lockedText: () => 'Locked' },
         // The Data Pipeline's Packet Snare (packet-snare.js): opens with Edge Detection (engine milestone module:snare).
         pipeline: { name: 'Packet Snare', built: true, unlocked: () => !!state.unlocked['module:snare'] },
-        architecture: { name: 'Architecture Lab', phase: 2 },
+        architecture: BAYS_DIRECT ? { name: 'Evals', built: true, evals: true, unlocked: () => true } : { name: 'Architecture Lab', phase: 2 },
         core: { name: 'The Core', phase: 3 }
     };
     let openBay = null;
@@ -3468,6 +3472,7 @@ window.AGI = (function () {
         const bay = BAYS[id];
         if (!bayUnlocked(id)) return id === 'training' && bay.lockedText ? bay.lockedText() : 'Sealed';
         if (id === 'pipeline') return snareStatus();
+        if (bay.evals) return state.evals.runs ? `${state.evals.runs} run${state.evals.runs === 1 ? '' : 's'} · best ${state.evals.best} solved` : 'Verification required';
         const learned = state.path.learned;
         const record = Math.round(state.path.best * 100);
         return `${learned} skill${learned === 1 ? '' : 's'} · next: ${E.skillAt(learned).name}${record ? ` · record ${record}%` : ''}`;
@@ -3598,6 +3603,8 @@ window.AGI = (function () {
 
     function enterBay(id, bayNode) {
         if (!bayUnlocked(id) || openBay) return;
+        // Evals' test bay (`#bays`): its own full-screen dialog, not a module in the room.
+        if (BAYS[id].evals) { window.EvalsUI?.open(); return; }
         openBay = id;
         ptView(`bay:${id}`);
         // A bay you've entered stops wearing its New badge, and the map offers it as a shortcut from now on.
@@ -13065,8 +13072,25 @@ window.AGI = (function () {
             straightToSnare();
             return;
         }
+        if (BAYS_DIRECT) {
+            for (const m of E.MAIL.filter(m => m.intro)) state.intro['mail:' + m.id] = state.intro['mailRead:' + m.id] = true;
+            deliverMail(true);
+            straightToBays();
+            return;
+        }
         deliverMail(true);
         if (!introDone()) openInbox();
+    }
+    // The server room at once, every minigame's bay open: skills learned up to Edge Detection, as straightToSnare does.
+    function straightToBays() {
+        state.intro['mailAccepted:welcome'] = true;
+        if ($('inbox').open) $('inbox').close();
+        state.unlocked['module:path'] = true;
+        for (let i = 0; i < 20 && !E.knows(state, 'Edge Detection'); i++) E.learnSkill(state, state.path.learned);
+        Object.assign(path, { roll: null, done: false });
+        dismissResult();
+        afterChange();
+        setTimeout(() => jumpTo('servers'), 50);
     }
     // Packet Snare at once: the server room open, skills learned up to Edge Detection, then into the bay.
     function straightToSnare() {
