@@ -1,0 +1,37 @@
+The Path to AGI · playtest log (Evals, a scripted reviewer, not a person: answers read from the run, tapped at a set pace, 4% wrong on purpose; commit 515f0ca, with the lane; see playtests/README.md, Reviewer logs)
+Log v1 · began 2026-11-13T04:10:38.529Z · exported 2026-11-13T04:39:27.842Z
+build: 2026-11-11 20:54 (review branch) · Packet Snare 18.8: a 15-sector campaign with skill-gated bosses, racing combos, a limited wire and defences in the fight
+save: v37, v1.0, 4 skills
+screen: 390×844, touch
+browser: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36
+
+Play time 4.4 min over 2 sessions, 23 events, 28.8 min on the clock.
+
+Time by screen:
+  servers         4.4 min  100%
+  lab             0.0 min  0%
+
+--- events (t = play seconds, w = wall seconds) ---
+{"t":0,"w":0,"e":"view","v":"lab"}
+{"t":0,"w":0,"e":"session","build":"2026-11-11 20:54 (review branch) · Packet Snare 18.8: a 15-sector campaign with skill-gated bosses, racing combos, a limited wire and defences in the fight","save":37,"skills":0,"version":"v1.0","screen":"390x844","touch":true,"at":"lab"}
+{"t":0,"w":0,"e":"sample","cp":0,"dp":0,"rp":0,"xp":0,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0,"int":0,"skills":0,"phase":0,"ver":"v1.0","at":"lab","labNew":0,"offers":0,"offersDone":0,"treeReady":0}
+{"t":0,"w":0,"e":"achievement","id":"firstSkill"}
+{"t":0,"w":0,"e":"mail","id":"serverRoom"}
+{"t":0,"w":0,"e":"mail","id":"firstSkill"}
+{"t":0,"w":0,"e":"mail","id":"edges"}
+{"t":0,"w":0,"e":"mail","id":"pipeline"}
+{"t":0.1,"w":0,"e":"dilemma","id":"maintenance"}
+{"t":0.2,"w":0,"e":"view","v":"servers"}
+{"t":30,"w":30,"e":"sample","cp":0,"dp":0,"rp":0,"xp":9,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"servers","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
+{"t":60,"w":60,"e":"sample","cp":0,"dp":0,"rp":0,"xp":18,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"servers","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
+{"t":90.1,"w":90,"e":"sample","cp":0,"dp":0,"rp":0,"xp":27,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"servers","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
+{"t":120.2,"w":120,"e":"sample","cp":0,"dp":0,"rp":0,"xp":36,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"servers","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
+{"t":150.3,"w":150,"e":"sample","cp":0,"dp":0,"rp":0,"xp":45,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"servers","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
+{"t":178.9,"w":179,"e":"evals","marks":880,"bestCombo":28,"lane":1,"laneDone":8,"solved":50,"missed":3,"captchas":53,"bestStreak":28,"trickAt":0,"ended":"lives","takeovers":[],"slipped":0,"closed":[],"mis":0,"hands":["read.word"],"stops":0,"catches":0,"unlocks":["read.struck","pick.thing"],"ladder":1,"handoff":1,"kinds":{"read.word":{"n":17,"right":17,"seconds":5.2,"ai":12,"aiOff":1.1,"m":1,"auto":8,"stops":0,"caught":0},"answer.sum":{"n":14,"right":14,"seconds":2,"ai":13,"aiOff":0.1,"m":1,"auto":0,"stops":0,"caught":0},"invisible.tick":{"n":13,"right":12,"seconds":1.3,"ai":8,"aiOff":0.4,"m":1,"auto":0,"stops":0,"caught":0},"pick.thing":{"n":5,"right":3,"seconds":2.9,"ai":0,"aiOff":3.8,"m":0.19,"auto":0,"stops":0,"caught":0},"read.struck":{"n":4,"right":4,"seconds":5.2,"ai":0,"aiOff":4.8,"m":0.23,"auto":0,"stops":0,"caught":0}}}
+{"t":180.3,"w":180,"e":"sample","cp":0,"dp":0,"rp":0,"xp":54,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"servers","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
+{"t":210.4,"w":210,"e":"sample","cp":0,"dp":0,"rp":0,"xp":63,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"servers","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
+{"t":240.4,"w":240,"e":"sample","cp":0,"dp":0,"rp":0,"xp":72,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"servers","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
+{"t":260.8,"w":1727,"e":"view","v":"servers"}
+{"t":260.8,"w":1727,"e":"session","build":"2026-11-11 20:54 (review branch) · Packet Snare 18.8: a 15-sector campaign with skill-gated bosses, racing combos, a limited wire and defences in the fight","save":37,"skills":4,"version":"v1.0","screen":"390x844","touch":true,"at":"servers"}
+{"t":260.8,"w":1727,"e":"sample","cp":0,"dp":0,"rp":0,"xp":79,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"servers","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
+{"t":262.9,"w":1729,"e":"sample","cp":0,"dp":0,"rp":0,"xp":79,"cpNet":0,"dpNet":0,"rpRate":0,"xpRate":0.3,"int":3,"skills":4,"phase":0,"ver":"v1.0","at":"servers","labNew":0,"offers":0,"offersDone":0,"treeReady":1}
