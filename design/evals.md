@@ -69,6 +69,29 @@ replaces the first draft (pitched as Busywork: building tasks for a bored AI), w
   the earlier call stands (its wrong answer that you let through costs a life) and stopping a right one costs only
   your time. Built: see *Reviewing*.
 
+## After the owner's first play (2026-11-12; `playtests/evals/2026-11-12-owner-evals-1.txt`)
+
+Nine and a half minutes on an iPhone, 88 captchas, one handover. Their notes and what was done:
+
+- **"The text is hard to read", and the AI's mark made a letter harder to see.** The warped word is bigger (up to
+  2.8rem, by the screen's width) on a fainter ground; letter tiles are 1.6rem; the AI's tap is a frame just inside
+  the target's edge and a dot on its corner (it was a ring over the letter); its hand points at a target's lower
+  right, so the arrow lies off what the target shows; the prompt on its own captcha is no longer dimmed (you are
+  reviewing it).
+- **One kind alone "got really boring really quick"** (41 warped words by hand before the first handover). A run
+  now starts with **three quick kinds** (their pick): warped words, the tick box and sums, each learned fully in
+  about nine solves of it. "The harder and more unique ones are the ones that will take longer to get better at":
+  each step of the ladder is learned slower than the last (`speed` 4, 2, 1.25, 1, 0.75). The rotation goes 3, 4, 6,
+  8, 10.
+- **On a desktop the layout sat in the bottom right corner.** The page is zoomed on screens 2200 px wide or more
+  (and by the text-size setting), and the Evals screen's `100vw` was zoomed with it; its size is now divided by the
+  zoom.
+- **Asked for suggestions**, and picked all four, with their own turn on one: **a score sheet** ("like models these
+  days where your model is ranked against other fake ones and the accuracy is the score so you can see how much
+  you've done, how far till the next jump and how likely handing it off will gain vs lose you resources") in place
+  of a plain "it's ready" light; **a reward and a tree**; **speed and streak pay**; **the AI working beside you**
+  (its own captchas in a lane while you solve yours). None built yet: each needs the owner's design calls first.
+
 ## Reviewing (built 2026-11-12)
 
 - **Stop** is the button on every captcha that is the AI's (`run.interrupt`). The captcha becomes yours, from a fresh
@@ -164,7 +187,7 @@ loopholes begin (a mastery level, the ladder's last step, or agents).
 To watch in the owner's first play: when they choose to hand over, and whether a life is the right price; whether
 watching it solve is a welcome breath or dead time (its captchas can't be skipped); whether Take back gets used.
 
-## The unlock ladder (built 2026-11-12)
+## The unlock ladder (built 2026-11-12; its steps changed after the owner's first play, above)
 
 `LADDER` in `evals.js`. What is open is worked out from how many kinds have been handed to the AI (before handing
 over was built: how many it had taken; the measurements below are from that rule). The debug panel can turn it off on a device (Evals → Unlock ladder: every kind from the start).

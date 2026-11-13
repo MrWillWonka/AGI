@@ -3671,7 +3671,10 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
    a Verify button. Every family's targets are `.evals-target` buttons, so picking, the ✓ and ✕ of the reveal and the
    AI's ring are styled once. Right and wrong are shown by a mark as well as by colour. */
 .evals-screen {
-    width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; padding: 0; border: 0;
+    /* The page is zoomed on large screens and by the text-size setting (`body { zoom }`), and a viewport unit inside
+       it is zoomed too: undone here, or the screen is wider and taller than the window and its middle sits low and
+       right (the owner's desktop). */
+    width: calc(100vw / var(--zoom, 1)); max-width: none; height: calc(100dvh / var(--zoom, 1)); max-height: none; margin: 0; padding: 0; border: 0;
     background: var(--bg); color: var(--text); font-family: var(--font-body);
 }
 .evals-screen[open] { display: flex; flex-direction: column; }
@@ -3738,14 +3741,14 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
 /* Read: a warped word over a hatched ground, and a tray of letter tiles. */
 .evals-word {
     position: relative; overflow: hidden; display: flex; justify-content: center; gap: 0.1em; padding: 20px 8px; user-select: none;
-    font: 700 2.4rem var(--font-mono); border-radius: 10px;
-    background: repeating-linear-gradient(45deg, transparent 0 9px, color-mix(in srgb, var(--text) 8%, transparent) 9px 10px), var(--bg-2);
+    font: 700 clamp(2rem, 11vw, 2.8rem) var(--font-mono); border-radius: 10px; gap: 0.16em; color: var(--text);
+    background: repeating-linear-gradient(45deg, transparent 0 9px, color-mix(in srgb, var(--text) 4%, transparent) 9px 10px), var(--bg-2);
 }
 .evals-word span { display: inline-block; }
 .evals-word.struck::before, .evals-word.struck::after { content: ''; position: absolute; left: 4%; right: 4%; height: 3px; background: var(--text); top: 40%; transform: rotate(-4deg); }
 .evals-word.struck::after { top: 60%; transform: rotate(3deg); }
 .evals-tray, .evals-slots { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
-.evals-tile { width: 48px; height: 48px; font: 700 1.3rem var(--font-mono); }
+.evals-tile { width: 48px; height: 48px; font: 700 1.6rem var(--font-mono); }
 
 /* Answer: a question and four answers. */
 .evals-question { font: 700 1.6rem var(--font-display); text-align: center; padding: 14px 0; }
@@ -3799,7 +3802,7 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
 /* Hand this kind to the AI, or take it back. On the AI's own captcha your targets can't be pressed. */
 .evals-give { min-height: 44px; padding: 0 12px; white-space: nowrap; }
 .evals-captcha.is-auto .evals-target, .evals-captcha.is-auto .evals-piece-shape, .evals-captcha.is-auto .evals-back, .evals-captcha.is-auto .evals-replay { pointer-events: none; }
-.evals-captcha.is-auto .evals-prompt { color: var(--muted); }
+/* (The prompt on the AI's own captcha stays at full strength: you are reviewing it.) */
 @keyframes evals-edited { 0%, 40% { opacity: 0.15; transform: translateX(-2px); } 20%, 60% { opacity: 1; transform: translateX(2px); } 100% { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: no-preference) { .evals-prompt.edited { animation: evals-edited 0.3s steps(5); } }
 .evals-solved.misaligned { color: var(--danger); }
@@ -3830,11 +3833,14 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
 .evals-its.done:not(.wrong) .evals-its-tag { color: var(--success); border-color: var(--success); }
 .evals-its.ahead .evals-its-tag { background: var(--success); color: var(--bg); }
 .evals-hand { position: absolute; left: -4px; top: -3px; width: 26px; height: 26px; pointer-events: none; z-index: 2; will-change: transform; }
-.evals-hand svg { width: 100%; height: 100%; fill: var(--text); stroke: var(--bg); stroke-width: 1.5; stroke-linejoin: round; opacity: 0.92; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); }
+.evals-hand svg { width: 100%; height: 100%; fill: var(--text); stroke: var(--bg); stroke-width: 1.5; stroke-linejoin: round; opacity: 0.8; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); }
+/* What the AI tapped: a frame just inside the target's edge and a dot on its corner, never over what the target shows
+   (the owner's phone: a ring over the letter hid it). Yours is the border's colour, so both can show at once. */
 .evals-its-mark {
-    position: absolute; left: 4px; top: 4px; width: 0.95em; height: 0.95em; border-radius: 50%; display: none;
-    border: 2.5px solid var(--text); font-size: 0.85rem; box-shadow: 0 0 0 1.5px var(--bg);
+    position: absolute; left: -5px; top: -5px; width: 11px; height: 11px; border-radius: 50%; display: none;
+    background: var(--text); box-shadow: 0 0 0 2px var(--bg); z-index: 1;
 }
+.evals-target.its { box-shadow: inset 0 0 0 2px var(--text); }
 .evals-target.its .evals-its-mark { display: block; }
 @media (prefers-reduced-motion: no-preference) { .evals-target.its .evals-its-mark { animation: evals-tap 0.25s ease-out; } }
 @keyframes evals-tap { from { transform: scale(2.2); opacity: 0.2; } }

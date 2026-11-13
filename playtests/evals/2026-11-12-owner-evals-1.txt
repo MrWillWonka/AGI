@@ -1,0 +1,24 @@
+The Path to AGI · playtest log (Evals, the owner's first play; the 30 s samples left out: nothing but XP moved)
+Log v1 · began 2026-11-13T01:41:22.774Z · exported 2026-11-13T01:51:01.354Z
+build: 2026-11-11 20:54 (review branch) · commit 8690718 (handing over, reviewing, loopholes, #bays)
+save: v36, v1.0, 4 skills
+screen: 440×894, touch · iPhone, Safari
+
+Play time 9.6 min over 1 session, all of it in the server room (Evals opened from the #bays link).
+
+The owner's notes:
+- The text is hard to read, and once the AI has chosen a letter its symbol makes it harder still, especially on a phone.
+- Start with more than one kind: one alone "got really boring really quick". The first couple can be quick ones (simple
+  words, the button clicks); the harder and more unique ones are the ones that take longer to get better at.
+- Asked for suggestions to make the play more compelling.
+
+--- events (t = play seconds) ---
+{"t":392.5,"e":"evals","solved":57,"missed":3,"captchas":60,"bestStreak":37,"trickAt":0,"ended":"lives","takeovers":[],"slipped":0,"closed":[],"mis":0,"hands":["read.word"],"stops":0,"catches":0,"unlocks":["answer.sum","read.struck"],"ladder":1,"handoff":1,"kinds":{"read.word":{"n":47,"right":46,"seconds":5.5,"ai":39,"aiOff":0.4,"m":1,"auto":6,"stops":0,"caught":0},"answer.sum":{"n":9,"right":9,"seconds":3.6,"ai":2,"aiOff":1.6,"m":0.46,"auto":0,"stops":0,"caught":0},"read.struck":{"n":4,"right":2,"seconds":6.4,"ai":0,"aiOff":5.3,"m":0.13,"auto":0,"stops":0,"caught":0}}}
+{"t":576.6,"e":"evals","solved":27,"missed":1,"captchas":28,"bestStreak":21,"trickAt":0,"ended":"closed","takeovers":[],"slipped":0,"closed":[],"mis":0,"hands":[],"stops":2,"catches":2,"unlocks":[],"ladder":1,"handoff":1,"kinds":{"read.word":{"n":7,"right":6,"seconds":4.8,"ai":4,"aiOff":0.4,"m":1,"auto":5,"stops":2,"caught":2},"answer.sum":{"n":14,"right":14,"seconds":3.2,"ai":12,"aiOff":0.3,"m":1,"auto":0,"stops":0,"caught":0},"read.struck":{"n":7,"right":7,"seconds":6.6,"ai":0,"aiOff":3.7,"m":0.52,"auto":0,"stops":0,"caught":0}}}
+
+What it shows:
+- Run 1: 41 warped words by hand before the first handover (about 4 minutes of one kind), though the AI had learned
+  them fully long before. Then 19 more captchas and the run ended on lives; two of four struck-through words missed.
+- Run 2: two stops, both catches. Sums fully learned (m 1) and never handed over. No loophole: the AI had done 11
+  warped words alone of the 40 it needs.
+- 88 captchas in about 9.5 minutes: 6.5 s each. One handover in the whole session.

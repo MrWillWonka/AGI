@@ -52,7 +52,7 @@ test('knowing nothing, its attempts are nearly always wrong and slow; having lea
 test('it learns only by watching, more from a clean quick solve than a slow one, least from a wrong one', () => {
     const c = Evals.FAMILIES.pick.make(Evals.rng(4), 0);
     const trace = seconds => ({ taps: c.answer.map((i, j) => ({ i, t: 0.5 + 0.3 * j })), seconds });
-    const gain = (seconds, correct) => Evals.watch(Evals.newLearn(), c, trace(seconds), correct);
+    const gain = (seconds, correct) => Evals.watch(Evals.newLearn(), c, trace(seconds), correct, { ...Evals.EVALS, ladder: 0 });   // the plain pace, off the ladder's steps
     const quick = gain(Evals.par(c) * 0.8, true), slow = gain(Evals.par(c) * 4, true), wrong = gain(Evals.par(c), false);
     assert.ok(quick > slow && slow > wrong && wrong > 0);
     assert.ok(Math.abs(quick - Evals.EVALS.learnQuick / Evals.EVALS.learnSolves) < 1e-9);

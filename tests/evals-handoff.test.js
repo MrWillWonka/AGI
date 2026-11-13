@@ -12,7 +12,7 @@ test('it never takes a kind by itself, however long you play, and is never faste
     const learn = Evals.newLearn();
     let fastest = Infinity;
     for (let seed = 1; seed <= 6; seed++) {
-        const run = Evals.createRun({ seed, learn, lives: 999 });
+        const run = Evals.createRun({ seed, learn, lives: 999, families: ['read'] });
         for (let j = 0; j < 40; j++) {
             const mine = Evals.par(run.current) * 0.9;
             // Its attempt is built from your own rhythm at a pace of 1 or more: against your own steady time it can
@@ -20,7 +20,7 @@ test('it never takes a kind by itself, however long you play, and is never faste
             if (learn.kinds['read.word']?.solves >= 3) fastest = Math.min(fastest, run.ghost.seconds / mine);
             const r = brisk(run);
             assert.strictEqual(r.takeover, null);
-            assert.strictEqual(run.current.kind, 'read.word');
+            assert.ok(Evals.LADDER[0].kinds.includes(run.current.kind));
         }
     }
     assert.deepStrictEqual(Evals.takenMap(learn), {});
@@ -30,14 +30,15 @@ test('it never takes a kind by itself, however long you play, and is never faste
 
 test('handing a kind over opens the ladder\'s next step, and the captcha up becomes its own', () => {
     const learn = Evals.newLearn();
-    const run = Evals.createRun({ seed: 2, learn, lives: 999 });
+    const run = Evals.createRun({ seed: 2, learn, lives: 999, families: ['read', 'answer'] });
     for (let j = 0; j < 8; j++) brisk(run);
+    while (run.current.kind !== 'read.word') brisk(run);
     assert.ok(!run.current.auto);
     const opened = run.hand('read.word');
     assert.deepStrictEqual(opened, Evals.LADDER[1].kinds);
     assert.deepStrictEqual(run.hands, ['read.word']);
     assert.ok(run.current.auto && run.current.kind === 'read.word');
-    assert.deepStrictEqual(Evals.rotation(learn).sort(), [...Evals.LADDER[1].kinds].sort());
+    assert.deepStrictEqual(Evals.rotation(learn).sort(), [...Evals.LADDER[0].kinds.filter(k => k !== 'read.word'), ...Evals.LADDER[1].kinds].sort());
     // Handing it over again does nothing.
     assert.deepStrictEqual(run.hand('read.word'), []);
     // A handed-over kind still comes up, as its own, among the ones you prove.
@@ -123,7 +124,7 @@ test('the save keeps handed and own, and a kind taken in an older save counts as
     assert.ok(E.SAVE_VERSION >= 35 && s.version === E.SAVE_VERSION);
     assert.deepStrictEqual([s.evals.learn.kinds['read.word'].taken, s.evals.learn.kinds['read.word'].handed, s.evals.learn.kinds['read.word'].own], [true, true, 0]);
     assert.deepStrictEqual([s.evals.learn.kinds['answer.sum'].taken, s.evals.learn.kinds['answer.sum'].handed, s.evals.learn.kinds['answer.sum'].own], [false, true, 7]);
-    assert.strictEqual(Evals.openKinds(s.evals.learn).length, 6);
+    assert.strictEqual(Evals.openKinds(s.evals.learn).length, Evals.LADDER.slice(0, 3).flatMap(step => step.kinds).length);
     const junk = E.migrate({ version: E.SAVE_VERSION, evals: { learn: { kinds: { 'read.word': { own: -4, handed: 'yes' } } } } }, now).evals.learn.kinds['read.word'];
     assert.deepStrictEqual([junk.own, junk.handed], [0, false]);
 });

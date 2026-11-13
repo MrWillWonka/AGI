@@ -368,16 +368,18 @@
         const still = reduced();
         if (still) hand.hidden = true;
         let done = false, applied = -1, changed = false;
-        const at = node => {
+        // Where its hand points on a node: the middle, or for a target its lower right, so the arrow never lies over
+        // what the target shows.
+        const at = (node, f = 0.5) => {
             const w = area.getBoundingClientRect(), r = node.getBoundingClientRect();
-            return { x: r.left - w.left + r.width / 2, y: r.top - w.top + r.height / 2 };
+            return { x: r.left - w.left + r.width * f, y: r.top - w.top + r.height * f };
         };
         const frame = () => {
             if (!run || run.ghost !== g || locked || play !== area) return;
             const t = now();
             const w = area.getBoundingClientRect();
             // Where it is going: the start, each tap, then Verify (or, with no Verify, it stays on its last tap).
-            const stops = [{ t: 0, p: { x: w.width / 2, y: w.height + 14 } }, ...g.taps.map(tap => ({ t: tap.t, p: at(targets[tap.i]), i: tap.i, off: tap.off }))];
+            const stops = [{ t: 0, p: { x: w.width / 2, y: w.height + 14 } }, ...g.taps.map(tap => ({ t: tap.t, p: at(targets[tap.i], 0.76), i: tap.i, off: tap.off }))];
             if (verifyBtn) stops.push({ t: g.seconds, p: at(verifyBtn) });
             let j = stops.findIndex(s => s.t > t);
             if (j < 0) j = stops.length;

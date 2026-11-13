@@ -92,12 +92,16 @@
     // A step: its kinds, how many times faster it learns them (`speed`) and the score that takes one over
     // (`overtake`; EVALS.overtake when not given). What is open is worked out from how many kinds it has taken, never
     // stored.
+    // The owner's calls on their first play (2026-11-12, playtests/evals): one kind alone "got really boring really
+    // quick", so a run starts with three quick ones (warped words, the tick box, sums), learned fast; "the harder and
+    // more unique ones are the ones that will take longer to get better at", so each step is learned slower than the
+    // last. The rotation goes 3, 4, 6, 8, 10 as kinds are handed over.
     const LADDER = [
-        { kinds: ['read.word'], speed: 4, overtake: 3 },
-        { kinds: ['answer.sum', 'read.struck'], speed: 2, overtake: 5 },
-        { kinds: ['pick.thing', 'handle.slide', 'answer.words'] },
-        { kinds: ['pick.scene', 'listen.beeps', 'handle.order'] },
-        { kinds: ['future.drop', 'invisible.tick', 'pick.without', 'future.changed', 'trick.question'] },
+        { kinds: ['read.word', 'invisible.tick', 'answer.sum'], speed: 4, overtake: 3 },
+        { kinds: ['read.struck', 'pick.thing'], speed: 2, overtake: 5 },
+        { kinds: ['handle.slide', 'answer.words', 'pick.scene'], speed: 1.25 },
+        { kinds: ['listen.beeps', 'handle.order', 'pick.without'] },
+        { kinds: ['future.drop', 'future.changed', 'trick.question'], speed: 0.75 },
     ];
     const stepOf = kind => LADDER.find(s => s.kinds.includes(kind)) || {};
     // How fast it learns this kind and the score that takes it over, on the ladder or off it.
