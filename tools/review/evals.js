@@ -116,9 +116,9 @@ async function play(browser, size, url) {
         // With a mouse, how the pointer moved is in the trace, and the ghost has your shapes to follow.
         const moved = await page.evaluate(() => {
             const kinds = Object.values(AGI.state.evals.learn.kinds);
-            return { paths: kinds.filter(k => k.traces.some(t => t.path.length >= 9)).length, of: kinds.length, shapes: (EvalsUI.run.ghost.moves || []).filter(Boolean).length };
+            return { none: Object.entries(AGI.state.evals.learn.kinds).filter(([, k]) => !k.traces.some(t => t.path.length >= 9)).map(([name]) => name).join(', '), paths: kinds.filter(k => k.traces.some(t => t.path.length >= 9)).length, of: kinds.length, shapes: (EvalsUI.run.ghost.moves || []).filter(Boolean).length };
         });
-        check(moved.paths === moved.of && moved.of > 0, `${size.name}: the pointer's path is recorded on every kind (${moved.paths} of ${moved.of})`);
+        check(moved.paths === moved.of && moved.of > 0, `${size.name}: the pointer's path is recorded on every kind (${moved.paths} of ${moved.of}${moved.none ? ": none on " + moved.none : ""})`);
         check(moved.shapes > 0, `${size.name}: the ghost hand has your shapes to follow (${moved.shapes} on the captcha up)`);
     }
     // Lose the run: every answer wrong (the tick box, ticked at once) until the lives are gone.
@@ -142,6 +142,68 @@ async function play(browser, size, url) {
 
 // The unlock ladder and handing over, on a phone: a new game shows three quick kinds, and the AI never takes one;
 // you hand it over, its card names the kinds that opened, the AI answers its own captcha, and you can take it back.
+// The AI's lane, Marks, the score sheet and the upgrades, on a phone: a kind handed over runs above your captcha and
+// pays; Stop brings its captcha down to you; the sheet lists every kind and the upgrades can be bought.
+async function lane(page, size) {
+    const fits = async selector => page.evaluate(sel => { const r = document.querySelector(sel)?.getBoundingClientRect(); return !!r && r.width > 0 && r.left >= 0 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5; }, selector);
+    await page.evaluate(() => { AGI.debug.resetEvals(); AGI.debug.evalsTeach(1); AGI.debug.openEvals(); });
+    await press(page, size, '.evals-go');
+    await page.waitForTimeout(400);
+    const first = await page.evaluate(() => EvalsUI.run.current.kind);
+    await press(page, size, '.evals-handover');
+    await page.waitForTimeout(250);
+    await press(page, size, '.evals-go');
+    await page.waitForTimeout(250);
+    await press(page, size, '.evals-go');
+    await page.waitForTimeout(900);
+    const up = await page.evaluate(() => ({ lane: EvalsUI.run.lane?.captcha.kind, mine: EvalsUI.run.current.kind, auto: !!EvalsUI.run.current.auto, shown: !document.querySelector('.evals-lane').hidden }));
+    const c = await look(page);
+    const stopBox = await page.locator('.evals-lane-stop').boundingBox();
+    check(up.shown && up.lane === first && up.mine !== first && !up.auto, `lane: the kind handed over runs in its lane and yours is another (${up.lane} above ${up.mine})`);
+    check(await fits('.evals-lane') && await fits('.evals-captcha') && !!c && !c.scroll && !c.cut && !!stopBox && stopBox.height >= 43.5, 'lane: the lane and your captcha both fit, its Stop a finger high');
+    await page.screenshot({ path: path.join(out, 'lane.png') });
+    await page.waitForFunction(() => /^(Verified|Wrong)/.test(document.querySelector('.evals-lane-status')?.textContent || ''), null, { timeout: 30000 }).catch(() => {});
+    const done = await page.evaluate(() => ({ status: document.querySelector('.evals-lane-status')?.textContent || '', marks: EvalsUI.run.marks, lives: EvalsUI.run.lives, bar: document.querySelector('.evals-marks')?.textContent || '' }));
+    check(/^Verified\. \+\d+/.test(done.status) ? done.marks > 0 && done.bar === `◈ ${done.marks}` : done.lives === 2, `lane: its answer counts, paid or paid for (${done.status})`);
+    // Its next one: stop it, and it is yours to solve while your own waits.
+    await page.waitForFunction(() => document.querySelector('.evals-lane-status')?.textContent === 'Working.', null, { timeout: 15000 }).catch(() => {});
+    const held = await page.evaluate(() => EvalsUI.run.current.kind);
+    await press(page, size, '.evals-lane-stop');
+    await page.waitForTimeout(300);
+    const mine = await page.evaluate(() => ({ kind: EvalsUI.run.current.kind, stopped: !!EvalsUI.run.current.stopped, hidden: document.querySelector('.evals-lane').hidden }));
+    const s = await look(page);
+    await page.waitForTimeout(700);
+    for (const i of s.answer) { await press(page, size, `.evals-target[data-i="${i}"]`); await page.waitForTimeout(140); }
+    if (!s.instant) await press(page, size, '.evals-verify');
+    await page.waitForTimeout(200);
+    const after = await page.evaluate(() => ({ status: document.querySelector('.evals-status')?.textContent || '', line: document.querySelector('.evals-its-line')?.textContent || '' }));
+    await page.waitForFunction(() => !document.querySelector('.evals-captcha.passed, .evals-captcha.failed'), null, { timeout: 10000 }).catch(() => {});
+    await page.waitForTimeout(300);
+    const back = await page.evaluate(() => ({ kind: EvalsUI.run.current.kind, lane: !document.querySelector('.evals-lane').hidden, combo: document.querySelector('.evals-combo')?.textContent || '' }));
+    check(mine.stopped && mine.kind === first && mine.hidden && /^Verified in .* \+\d+/.test(after.status) && /It had this one right|You caught/.test(after.line), `lane: Stop brings its captcha down to you, and solving it pays (${after.status} ${after.line})`);
+    check(back.kind === held && back.lane, `lane: then the one that waited is back, and the lane runs again (${back.kind})`);
+    // The score sheet and the upgrades, from the start card.
+    await page.evaluate(() => { EvalsUI.close(); AGI.debug.evalsMarks(500); AGI.debug.openEvals(); });
+    await page.waitForTimeout(300);
+    await page.evaluate(() => [...document.querySelectorAll('.evals-extra')].find(b => b.textContent === 'Score sheet').click());
+    await page.waitForTimeout(300);
+    const sheet = await page.evaluate(() => ({ lead: document.querySelector('.evals-sheet p')?.textContent || '', board: document.querySelectorAll('.evals-board li').length, you: document.querySelectorAll('.evals-board li.you').length,
+        rows: document.querySelectorAll('.evals-rows li').length, wide: document.querySelector('.evals-stage').scrollWidth > document.querySelector('.evals-stage').clientWidth + 1 }));
+    check(/^Your model scores [\d.]+/.test(sheet.lead) && sheet.board === 9 && sheet.you === 1 && sheet.rows === 14 && !sheet.wide, `sheet: your model on the board and a row a kind (${sheet.lead})`);
+    await page.screenshot({ path: path.join(out, 'score-sheet.png'), fullPage: true });
+    await page.evaluate(() => { document.querySelector('.evals-go').click(); });
+    await page.waitForTimeout(250);
+    await page.evaluate(() => [...document.querySelectorAll('.evals-extra')].find(b => b.textContent === 'Upgrades').click());
+    await page.waitForTimeout(300);
+    const before = await page.evaluate(() => ({ marks: AGI.state.evals.marks, ups: document.querySelectorAll('.evals-ups li').length, small: [...document.querySelectorAll('.evals-buy')].filter(b => b.getBoundingClientRect().height < 43.5).length }));
+    await page.screenshot({ path: path.join(out, 'upgrades.png') });
+    await page.evaluate(() => document.querySelector('.evals-buy:not([disabled])').click());
+    await page.waitForTimeout(250);
+    const bought = await page.evaluate(() => ({ marks: AGI.state.evals.marks, levels: Object.values(AGI.state.evals.levels).reduce((a, b) => a + b, 0) }));
+    check(before.ups === 7 && before.small === 0 && bought.levels === 1 && bought.marks < before.marks, `upgrades: seven to buy with Marks, and one bought (${before.marks} to ${bought.marks} Marks)`);
+    await page.evaluate(() => { EvalsUI.close(); AGI.debug.resetEvals(); });
+}
+
 async function ladder(browser, url) {
     const size = SIZES[0];
     const ctx = await browser.newContext({ viewport: size.viewport, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
@@ -150,7 +212,8 @@ async function ladder(browser, url) {
     await page.waitForTimeout(900);
     const errors = [];
     page.on('pageerror', e => errors.push(String(e)));
-    await page.evaluate(() => { AGI.debug.evalsLadder(true); AGI.debug.resetEvals(); AGI.debug.openEvals(); });
+    // (The lane off here: these checks watch the AI answer in your turn. The lane has its own, below.)
+    await page.evaluate(() => { AGI.debug.evalsLadder(true); AGI.debug.evalsLane(false); AGI.debug.resetEvals(); AGI.debug.openEvals(); });
     const startCard = await page.evaluate(() => document.querySelector('.evals-card')?.innerText || '');
     check(/3 kinds of captcha to prove/.test(startCard), 'ladder: the start card says three kinds are in');
     const START = ['read.word', 'invisible.tick', 'answer.sum'], NEXT = ['read.struck', 'pick.thing'];
@@ -176,6 +239,10 @@ async function ladder(browser, url) {
         await solve(c, 1250);
     }
     await press(page, size, '.evals-handover');
+    await page.waitForTimeout(250);
+    const asked = await page.evaluate(() => document.querySelector('.evals-card')?.innerText || '');
+    check(/^Hand over warped words\?/.test(asked) && /right about \d+% of the time/.test(asked) && /Likely gain|Risky|Likely loss/.test(asked), `handover: it asks first, with the odds (${asked.split('\n').filter(Boolean).slice(1, 3).join(' ')})`);
+    await press(page, size, '.evals-go');
     await page.waitForTimeout(250);
     const card = await page.evaluate(() => document.querySelector('.evals-card')?.innerText || '');
     check(/Handed over/.test(card) && /New to prove: /.test(card) && /4 kinds of captcha to prove\. The AI does one kind for you/.test(card), 'handover: its card names what opened');
@@ -211,7 +278,7 @@ async function ladder(browser, url) {
     check(unfit.length === 0, `handover: everything in view and a finger wide${unfit.length ? ' — ' + [...new Set(unfit)].join('; ') : ''}`);
     // Loopholes: hand the kind over again, make it good alone and sure to cheat. The first one is let through
     // (verified, and it says so; past the threshold the bar says Misaligned); the next is stopped and solved (closed).
-    if (await page.locator('.evals-handover').count()) { await press(page, size, '.evals-handover'); await page.waitForTimeout(250); await press(page, size, '.evals-go'); await page.waitForTimeout(300); }
+    if (await page.locator('.evals-handover').count()) { await press(page, size, '.evals-handover'); await page.waitForTimeout(250); await press(page, size, '.evals-go'); await page.waitForTimeout(300); if (await page.locator('.evals-card').count()) { await press(page, size, '.evals-go'); await page.waitForTimeout(300); } }
     await page.evaluate(() => { AGI.debug.evalsLoopholes(0.5); EvalsUI.run.opts.cheatBase = 1; });
     let slip = null, caught = null, seen = [], dbg = [];
     for (let n = 0; n < 90 && !caught; n++) {
@@ -250,7 +317,8 @@ async function ladder(browser, url) {
     check(!!slip && /Misaligned/.test(slip.bar), `loopholes: past the threshold the bar says it is misaligned (${slip ? slip.bar : ''})`);
     check(!!caught && /caught a loophole/.test(caught.line) && caught.closed.includes(caught.which) && caught.edited && caught.lives === Math.min(3, caught.before + 1) && caught.mis < 0.65, `loopholes: one stopped and solved is closed for the kind (${caught ? caught.which + ': ' + caught.line : 'none came up'})`);
     check(errors.length === 0, `handover: no page errors${errors.length ? ' — ' + errors.slice(0, 2).join(' | ') : ''}`);
-    await page.evaluate(() => { EvalsUI.close(); AGI.debug.evalsLadder(true); });
+    await page.evaluate(() => { EvalsUI.close(); AGI.debug.evalsLadder(true); AGI.debug.evalsLane(true); });
+    await lane(page, size);
     await ctx.close();
 }
 

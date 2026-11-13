@@ -14,7 +14,7 @@
     // against the features it had (playtests/README.md lists the builds). Bump it with every publish: the date and
     // time (UTC) and a few words on what changed.
     const BUILD = '2026-11-11 20:54 (review branch) · Packet Snare 18.8: a 15-sector campaign with skill-gated bosses, racing combos, a limited wire and defences in the fight';
-    const SAVE_VERSION = 36;   // 36: Evals' loopholes (how misaligned the AI is, `evals.learn.mis`, and the loopholes closed for a kind, `closed`); 35: Evals' handovers (a kind's `handed` and `own`: you hand kinds to the AI, it never takes them); 34: Evals, the third minigame: what the AI has learned by watching you (`evals`), new and empty. 33: Packet Snare's flick nodes gone (Packet Spoofing, Forged Headers, Privilege Escalation; the owner's call on D20), the laser line and Blue Screen re-hung, the tree refunded again; 32: Packet Snare 18.4 (Garbage Collection, Second Wind, Clean Sweep, Quarantine Relay, Zero Trust and IDS Evasion gone, Chain Lightning a travelling bolt, Hijack reworked), the tree refunded again; 31: Packet Snare's repeats folded into four deep roots round a seed (Handshake), Scrubbers gone, the Decoder Bot early, the tree refunded; 30: Packet Snare's red-packet nodes back (Sanitizer, Checksums, Spam Filter, Reputation Check, Rate Limiter, Error Correction, Parity Check, Signature Database), the Cleaner Bot later, the Bouncer and Escort bots and both towers gone, the tree refunded again; 29: Packet Snare's red-packet nodes became helpers (Cleaner Bot at the root, Bouncer and Escort bots, Checksum and Jammer towers), the packet and red nodes folded into the early ones, the tree refunded again; 28: Packet Snare's tree after the review rounds (Input Validation and Mirror Port folded in, Chain Lightning at 250), refunded again; 27: Packet Snare 15 (bubbles are the way to catch: Split, Supernova, Bigger Buffers, mines grabbed), the tree refunded again; 26: Packet Snare 14 (bots earlier, powers with five levels, Collector Bot), the tree refunded again; 25: Packet Snare 12 (the boss looped, the tree repriced and Root Access moved), the tree refunded again; 24: Packet Snare's tree rearranged so no node does the same thing as the one it grows from, every level refunded; 23: Packet Snare's Firewalls became sections (layout.zones; drawn walls dropped), its tree regrown again with every level refunded; 22: Packet Snare's tree regrown (Snare 10: four wedges, capstones), every level refunded; 21: Packet Snare's placements (snare.layout: walls, decoys, turrets, towers; the anchors went), its tree regrown; 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
+    const SAVE_VERSION = 37;   // 37: Evals' Marks (`evals.marks`, `earned`), the rivals passed on its score sheet (`passed`) and its upgrades (`levels`); 36: Evals' loopholes (how misaligned the AI is, `evals.learn.mis`, and the loopholes closed for a kind, `closed`); 35: Evals' handovers (a kind's `handed` and `own`: you hand kinds to the AI, it never takes them); 34: Evals, the third minigame: what the AI has learned by watching you (`evals`), new and empty. 33: Packet Snare's flick nodes gone (Packet Spoofing, Forged Headers, Privilege Escalation; the owner's call on D20), the laser line and Blue Screen re-hung, the tree refunded again; 32: Packet Snare 18.4 (Garbage Collection, Second Wind, Clean Sweep, Quarantine Relay, Zero Trust and IDS Evasion gone, Chain Lightning a travelling bolt, Hijack reworked), the tree refunded again; 31: Packet Snare's repeats folded into four deep roots round a seed (Handshake), Scrubbers gone, the Decoder Bot early, the tree refunded; 30: Packet Snare's red-packet nodes back (Sanitizer, Checksums, Spam Filter, Reputation Check, Rate Limiter, Error Correction, Parity Check, Signature Database), the Cleaner Bot later, the Bouncer and Escort bots and both towers gone, the tree refunded again; 29: Packet Snare's red-packet nodes became helpers (Cleaner Bot at the root, Bouncer and Escort bots, Checksum and Jammer towers), the packet and red nodes folded into the early ones, the tree refunded again; 28: Packet Snare's tree after the review rounds (Input Validation and Mirror Port folded in, Chain Lightning at 250), refunded again; 27: Packet Snare 15 (bubbles are the way to catch: Split, Supernova, Bigger Buffers, mines grabbed), the tree refunded again; 26: Packet Snare 14 (bots earlier, powers with five levels, Collector Bot), the tree refunded again; 25: Packet Snare 12 (the boss looped, the tree repriced and Root Access moved), the tree refunded again; 24: Packet Snare's tree rearranged so no node does the same thing as the one it grows from, every level refunded; 23: Packet Snare's Firewalls became sections (layout.zones; drawn walls dropped), its tree regrown again with every level refunded; 22: Packet Snare's tree regrown (Snare 10: four wedges, capstones), every level refunded; 21: Packet Snare's placements (snare.layout: walls, decoys, turrets, towers; the anchors went), its tree regrown; 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
     // Auto-Trainer, XP nodes) carry most of a new version's speed, so this stays small: at 0.2 a second run
@@ -1196,7 +1196,7 @@
             snare: { best: 0, runs: 0, signal: 0, earned: 0, sector: 0, bosses: 0, bestMult: 0, quarantined: 0, layout: { zones: [], decoys: [], turrets: [], towers: [] } },
             // Evals (evals.js): runs played, the best run, and `learn`, what the AI has learned of each kind of captcha by
             // watching you (see evals.js, the learner). A new version starts it again, like the rest of a version's play.
-            evals: { runs: 0, best: 0, learn: { kinds: {}, mis: 0 } },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k; legPower[k]: your full-sprint strength when you last ran leg k (the Auto-Trainer's ghost plays at it)
+            evals: { runs: 0, best: 0, marks: 0, earned: 0, passed: 0, levels: {}, learn: { kinds: {}, mis: 0 } },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k; legPower[k]: your full-sprint strength when you last ran leg k (the Auto-Trainer's ghost plays at it)
             projects: { offers: [], boosts: [], next: PROJECTS.firstAt, seq: 0 },
             // Dilemmas: `order` is every mail key in arrival order (m:story id, d:dilemma, o:its consequence),
             // `open` the one waiting for an answer, `later` the consequences on their way. Kept for good.
@@ -2543,7 +2543,51 @@
                 closed: (Array.isArray(k.closed) ? k.closed : []).filter((l, i, a) => (l === 'weak' || l === 'edit') && a.indexOf(l) === i),
                 wrongs: Math.min(solves, whole(k.wrongs, 1e9)), traces };
         }
-        return { runs: whole(e?.runs, 1e9), best: whole(e?.best, 1e6), learn: { kinds, mis: Math.min(1, num(e?.learn?.mis, 0)) } };   // v36: how misaligned it is
+        // v37: Marks (held and ever earned), the score sheet's rivals passed, and the upgrades bought with Marks
+        const levels = {};
+        for (const up of EVALS_TREE) { const lv = Math.min(up.max, whole(e?.levels?.[up.id], 99)); if (lv > 0) levels[up.id] = lv; }
+        return { runs: whole(e?.runs, 1e9), best: whole(e?.best, 1e6), marks: whole(e?.marks, 1e12), earned: whole(e?.earned, 1e12), passed: whole(e?.passed, 99), levels,
+            learn: { kinds, mis: Math.min(1, num(e?.learn?.mis, 0)) } };   // v36: how misaligned it is
+    }
+    // Evals' upgrades, bought with Marks (the owner's picks, 2026-11-12: "a reward and a tree"; a list for now, a tree
+    // once there is more of it). Each level costs `base` × `scale` per level owned. `evalsOpts` turns the levels
+    // into a run's options (evals.js `EVALS`).
+    const EVALS_TREE = [
+        { id: 'marks', name: 'Grant Writing', text: 'Every captcha pays 25% more Marks.', max: 5, base: 150, scale: 2.2 },
+        { id: 'learn', name: 'Curriculum', text: 'The AI learns 20% faster from watching you.', max: 4, base: 200, scale: 2.4 },
+        { id: 'combo', name: 'Flow State', text: 'The combo can grow 5 steps higher.', max: 3, base: 250, scale: 2.5 },
+        { id: 'beat', name: 'Change Review', text: 'The AI waits half a second longer before it verifies its own answer.', max: 3, base: 200, scale: 2.5 },
+        { id: 'aiPay', name: 'Delegation', text: 'The AI\'s own captchas pay 15% more of a full one.', max: 3, base: 400, scale: 2.5 },
+        { id: 'lives', name: 'Second Opinion', text: 'One more life a run.', max: 2, base: 500, scale: 5 },
+        { id: 'forgive', name: 'Rollback', text: 'The AI\'s first wrong answer of a run costs no life.', max: 2, base: 900, scale: 4 },
+    ];
+    const EVALS_UP = Object.fromEntries(EVALS_TREE.map(up => [up.id, up]));
+    const evalsLevel = (s, id) => Math.min(EVALS_UP[id]?.max || 0, Math.floor(num(s.evals.levels?.[id], 0)));
+    function evalsCost(s, id) {
+        const up = EVALS_UP[id];
+        if (!up || evalsLevel(s, id) >= up.max) return Infinity;
+        return Math.round(up.base * Math.pow(up.scale, evalsLevel(s, id)));
+    }
+    function evalsBuy(s, id) {
+        const cost = evalsCost(s, id);
+        if (!(cost <= s.evals.marks)) return false;
+        s.evals.marks -= cost;
+        s.evals.levels[id] = evalsLevel(s, id) + 1;
+        return true;
+    }
+    const evalsOpts = s => ({
+        lives: 3 + evalsLevel(s, 'lives'), markMult: 1 + 0.25 * evalsLevel(s, 'marks'), learnMult: 1 + 0.2 * evalsLevel(s, 'learn'),
+        comboCap: 10 + 5 * evalsLevel(s, 'combo'), reviewBeat: 1 + 0.5 * evalsLevel(s, 'beat'), aiPay: 0.5 + 0.15 * evalsLevel(s, 'aiPay'), forgive: evalsLevel(s, 'forgive'),
+    });
+    // The score sheet: `passed` rivals are behind your model (evals.js `sheet`). Each new one pays its bounty, once;
+    // `bounties` is every rival's, in order. Returns the Marks paid.
+    function evalsPassed(s, passed, bounties) {
+        let paid = 0;
+        for (let i = s.evals.passed; i < Math.min(passed, bounties.length); i++) paid += Math.max(0, Math.floor(num(bounties[i], 0)));
+        s.evals.passed = Math.max(s.evals.passed, Math.min(passed, bounties.length));
+        s.evals.marks += paid;
+        s.evals.earned += paid;
+        return paid;
     }
     // An Evals run is over: counted once, and the best run kept. `run` is evals.js's; `run.counted` guards a second call.
     function evalsRunEnd(s, run) {
@@ -2551,6 +2595,9 @@
         run.counted = true;
         s.evals.runs++;
         s.evals.best = Math.max(s.evals.best, Math.floor(num(run.solved, 0)));
+        const marks = Math.max(0, Math.floor(num(run.marks, 0)));
+        s.evals.marks += marks;
+        s.evals.earned += marks;
         return true;
     }
     const cleanLayout = l => ({ zones: cleanPts(l?.zones, 2), decoys: cleanPts(l?.decoys, 2), turrets: cleanPts(l?.turrets, 2), towers: cleanPts(l?.towers, 2) });
@@ -3354,7 +3401,7 @@
     }
 
     return {
-        SAVE_VERSION, evalsRunEnd, cleanEvals, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
+        SAVE_VERSION, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
         versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, startBreakCountdown, WALL_SURGE_RUNS, SURGE_POWER, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, ENDINGS, ending, recordLegPower, legPower, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,

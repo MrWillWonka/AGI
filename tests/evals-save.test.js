@@ -7,11 +7,11 @@ const Evals = require('../evals.js');
 const NOW = 1_700_000_000_000;
 
 test('a new game and a save from before Evals both start it empty', () => {
-    assert.deepEqual(E.defaultState(NOW).evals, { runs: 0, best: 0, learn: { kinds: {}, mis: 0 } });
+    assert.deepEqual(E.defaultState(NOW).evals, { runs: 0, best: 0, marks: 0, earned: 0, passed: 0, levels: {}, learn: { kinds: {}, mis: 0 } });
     const old = E.migrate({ version: 33, res: { cp: 5 } }, NOW);
     assert.equal(old.version, E.SAVE_VERSION);
     assert.ok(E.SAVE_VERSION >= 34);
-    assert.deepEqual(old.evals, { runs: 0, best: 0, learn: { kinds: {}, mis: 0 } });
+    assert.deepEqual(old.evals, { runs: 0, best: 0, marks: 0, earned: 0, passed: 0, levels: {}, learn: { kinds: {}, mis: 0 } });
 });
 
 test('what it learned in a run comes back from a save unchanged', () => {

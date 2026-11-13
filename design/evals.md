@@ -90,7 +90,46 @@ Nine and a half minutes on an iPhone, 88 captchas, one handover. Their notes and
   days where your model is ranked against other fake ones and the accuracy is the score so you can see how much
   you've done, how far till the next jump and how likely handing it off will gain vs lose you resources") in place
   of a plain "it's ready" light; **a reward and a tree**; **speed and streak pay**; **the AI working beside you**
-  (its own captchas in a lane while you solve yours). None built yet: each needs the owner's design calls first.
+  (its own captchas in a lane while you solve yours). Built: see *Marks, the combo, the score sheet and the lane*.
+
+## Marks, the combo, the score sheet and the lane (built 2026-11-12)
+
+The owner's calls: the reward is **its own currency, "benchmarks or marks for short"**; the score sheet has **a row
+per kind**; the combo grows on **quick clean solves**; and **everything is built before they play again**.
+
+- **Marks** (`MARKS`, `markOf`, `run.marks`): a verified captcha pays by its kind's step on the ladder, 10, 20, 30,
+  50, 80. Kept when the run ends (`E.evalsRunEnd`: `evals.marks`, `earned`). The bar shows ◈ and the run's Marks.
+- **The combo** (`run.combo`): each right answer of yours within `comboPar` 1.2 × the captcha's par adds a step, each
+  step 10% more pay up to `comboCap` 10 (×2); a right but slow answer holds it, a miss resets it. Shown as ×1.3 on
+  the bar. The owner's phone times sit just inside par (words 5.5 s against 6.1, sums 3.6 against 3.3 × 1.2).
+- **The AI's captchas pay `aiPay` half** of a plain one: handing over trades pay for your time. A loophole's pass
+  pays half of that.
+- **The score sheet** (`accuracy`, `sheet`, `RIVALS`): accuracy is measured, 40 attempts a kind as the AI is now.
+  Your model's score is the mean over all fourteen kinds, out of 100 (about 9 untaught, about 27 with the three
+  starters taught, about 84 with everything). It stands on a board of eight made-up models (Parrot-7B 12 up to
+  Omega-1 86); passing one pays its bounty once (100 up to 4,000 Marks; `E.evalsPassed`, `evals.passed`), paid at a
+  run's end and named on the end card. Under the board, a row a kind: how often it is right and **Ready to hand
+  over** (85% or more), **Risky** (65%) or **Not ready**. Opened from the start and end cards.
+- **Hand over asks first**, with that kind's line: "The AI gets warped words right about 95% of the time. Likely
+  gain…", and what its captchas pay.
+- **Upgrades** (`EVALS_TREE` in engine.js, `evalsOpts`; a list for now, the owner asked for a tree): Grant Writing
+  (+25% Marks, 5), Curriculum (learns 20% faster, 4), Flow State (combo cap +5, 3), Change Review (+0.5 s before it
+  verifies, 3), Delegation (its captchas pay 15% more, 3), Second Opinion (+1 life, 2), Rollback (its first wrong
+  answer of a run costs no life, 2). 150 to 900 Marks for a first level, ×2.2 to ×5 a level.
+- **The lane** (`lane`, `run.laneNext`, `run.laneSubmit`, `run.laneInterrupt`): the kinds you handed over leave
+  your rotation and run one at a time in a strip above your captcha, on a clock of their own: what it asks in a
+  line, its targets as small chips framed as it taps them, what it has entered, and a bar that fills over its
+  attempt and then its pause before verifying (the strip's edge lights: the moment to stop it). Right pays, wrong
+  costs a life, and its next comes `laneGap` 1.2 s later. **Stop** brings its captcha down in front of you and
+  yours waits (`run.held`); solve it and yours is back. Your combo is untouched by the lane. With every open kind
+  handed over they come up in your turn as before; debug: Evals → AI's lane off does the same.
+- **Save v37**: `evals.marks`, `earned`, `passed`, `levels`. The playtest log's `evals` line carries `marks`,
+  `bestCombo`, `lane` and `laneDone`. Debug: +1,000 Marks.
+
+Every number is a first guess. To watch in the owner's play: whether two things at once is fun or too much on a
+phone; whether the lane's one-line view is enough to catch a mistake (the ball drop and "what changed" can't be
+judged from it); whether Marks come at a pace that makes the upgrades feel reachable; the board's bounties against
+a run's pay (a first run earns a few hundred, the first two rivals 300).
 
 ## Reviewing (built 2026-11-12)
 

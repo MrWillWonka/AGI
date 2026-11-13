@@ -11,7 +11,9 @@
 (function () {
     'use strict';
     const RIGHT_MS = 900, WRONG_MS = 1900;
-    let dlg = null, stage = null, livesEl = null, solvedEl = null;
+    let dlg = null, stage = null, livesEl = null, solvedEl = null, marksEl = null, comboEl = null;
+    // The AI's lane (evals.js `lane`): its own captcha, shown small above yours, on a clock of its own.
+    let laneBox = null, laneRaf = 0, laneTimer = 0, laneAt = 0;
     let run = null, picked = new Map(), entered = [], undos = 0, shownAt = 0, timer = 0, locked = false, raf = 0;
     let play = null, targets = [], path = [], pathStep = 40, pathAt = -1e9, tick = { bend: 0, offset: 0 }, cues = [];
     let fallback = null;   // what it has learned when there is no game to keep it in (a bare page)
@@ -42,12 +44,15 @@
     function build() {
         livesEl = el('span', { class: 'evals-lives' });
         solvedEl = el('span', { class: 'evals-solved' });
+        marksEl = el('span', { class: 'evals-marks' });
+        comboEl = el('span', { class: 'evals-combo', hidden: '' });
+        laneBox = el('div', { class: 'evals-lane', hidden: '' });
         stage = el('div', { class: 'evals-stage' });
         dlg = el('dialog', { class: 'evals-screen', 'aria-label': 'Evals' },
             el('div', { class: 'evals-bar' },
-                el('span', { class: 'evals-title', text: 'Evals' }), livesEl, solvedEl,
+                el('span', { class: 'evals-title', text: 'Evals' }), livesEl, marksEl, comboEl, solvedEl,
                 el('button', { type: 'button', class: 'ghost-button evals-close', 'aria-label': 'Close Evals', text: '×', onclick: close })),
-            stage);
+            laneBox, stage);
         // Closed some other way (Escape): the same as close(). The event comes late, so a screen already reopened is left be.
         dlg.addEventListener('close', () => { if (!dlg.open && run) shut(); });
         dlg.addEventListener('keydown', e => {
@@ -97,19 +102,65 @@
         livesEl.setAttribute('aria-label', lives(left) + ' left');
         // Past a threshold it shows that the AI is misaligned (evals.js `misShow`); under it, nothing.
         const off = !!window.Evals && window.Evals.misaligned(saved().learn) >= window.Evals.EVALS.misShow;
-        solvedEl.textContent = `Solved ${run ? run.solved : 0}` + (off ? ' · Misaligned' : '');
+        solvedEl.textContent = off ? 'Misaligned' : `Solved ${run ? run.solved : 0}`;
         solvedEl.classList.toggle('misaligned', off);
+        // Marks: this run's so far, or what you hold between runs. The combo shows once it is worth something.
+        const marks = run && !run.counted ? run.marks : saved().marks || 0;
+        marksEl.textContent = `◈ ${marks.toLocaleString('en-US')}`;
+        marksEl.setAttribute('aria-label', `${marks} Marks`);
+        const combo = run && !run.over ? Math.min(run.combo, run.opts.comboCap) : 0;
+        comboEl.hidden = combo < 1;
+        comboEl.textContent = `×${(1 + combo * (run ? run.opts.comboStep : 0)).toFixed(1)}`;
+        comboEl.setAttribute('aria-label', `Combo: pay times ${(1 + combo * (run ? run.opts.comboStep : 0)).toFixed(1)}`);
     }
 
-    function card(title, lines, button, action) {
+    // A card: a title, lines (text, or nodes of their own), its button, and any `extras` ([label, action]) beside it.
+    function card(title, lines, button, action, extras = [], cls = '') {
         stop();
+        stopLane();
         play = null;
-        stage.replaceChildren(el('div', { class: 'evals-card' },
+        stage.replaceChildren(el('div', { class: 'evals-card ' + cls },
             el('h2', { class: 'evals-card-title', text: title }),
-            ...lines.map(text => el('p', { text })),
-            el('button', { type: 'button', class: 'evals-go', text: button, onclick: action })));
+            ...lines.map(line => (typeof line === 'string' ? el('p', { text: line }) : line)),
+            el('div', { class: 'evals-card-actions' },
+                el('button', { type: 'button', class: 'evals-go', text: button, onclick: action }),
+                ...extras.map(([label, act]) => el('button', { type: 'button', class: 'ghost-button evals-extra', text: label, onclick: act })))));
         stage.querySelector('.evals-go').focus();
     }
+    const engine = () => (window.AGIEngine?.evalsOpts && window.AGI?.state ? window.AGIEngine : null);
+    // A run's options: what the upgrades have bought, and this device's debug switches.
+    const laneOn = () => { try { return localStorage.getItem('agiEvalsLane') !== '0'; } catch { return true; } };
+    const runOpts = () => ({ ...(engine() ? engine().evalsOpts(window.AGI.state) : {}), ladder: ladderOn() ? 1 : 0, lane: laneOn() ? 1 : 0 });
+    const pct = v => `${Math.round(v * 100)}%`;
+    const VERDICT = { gain: 'Ready to hand over', risky: 'Risky to hand over', loss: 'Not ready' };
+
+    // The score sheet: your model on a board of made-up ones, then a row a kind: how often it gets it right, and what
+    // handing it over would likely do.
+    function sheetCard(back) {
+        const s = window.Evals.sheet(saved().learn, { ...window.Evals.EVALS, ...runOpts() });
+        const lead = s.next ? `Your model scores ${s.score}. ${s.gap} more to pass ${s.next.name}, worth ${s.next.bounty.toLocaleString('en-US')} Marks.` : `Your model scores ${s.score} and leads the board.`;
+        const board = el('ol', { class: 'evals-board' }, ...s.board.map(b => el('li', { class: b.you ? 'you' : '' }, el('span', { text: b.name }), el('span', { class: 'evals-num', text: b.score.toFixed(1) }))));
+        const order = r => (r.its ? 0 : r.open ? 1 : 2);
+        const rows = el('ul', { class: 'evals-rows' }, ...s.rows.slice().sort((a, b) => order(a) - order(b)).map(r => el('li', { class: r.open ? (r.its ? 'its' : r.verdict) : 'locked' },
+            el('span', { class: 'evals-row-name', text: r.name }),
+            el('span', { class: 'evals-meter', 'aria-hidden': 'true' }, el('i', { style: `width: ${r.open ? Math.round(r.accuracy * 100) : 0}%` })),
+            el('span', { class: 'evals-num', text: r.open ? pct(r.accuracy) : '' }),
+            el('span', { class: 'evals-row-tag', text: !r.open ? 'Locked' : r.its ? 'The AI does it' : VERDICT[r.verdict] }))));
+        card('Score sheet', [lead, board, el('p', { text: 'How often it gets each kind right:' }), rows], 'Back', back, [], 'evals-sheet');
+    }
+    // Upgrades, bought with Marks (engine.js `EVALS_TREE`).
+    function upgradesCard(back) {
+        const E = engine(), state = window.AGI.state;
+        const list = el('ul', { class: 'evals-ups' }, ...E.EVALS_TREE.map(up => {
+            const level = E.evalsLevel(state, up.id), cost = E.evalsCost(state, up.id), full = level >= up.max;
+            return el('li', {},
+                el('div', { class: 'evals-up-text' }, el('strong', { text: `${up.name} ${level}/${up.max}` }), el('span', { text: up.text })),
+                el('button', { type: 'button', class: 'ghost-button evals-buy', text: full ? 'Full' : `◈ ${cost.toLocaleString('en-US')}`, 'aria-label': full ? `${up.name}: full` : `Buy ${up.name} for ${cost} Marks`,
+                    ...(full || cost > state.evals.marks ? { disabled: '' } : {}), onclick: () => { if (E.evalsBuy(state, up.id)) { window.AGI?.save?.(); hud(); upgradesCard(back); } } }));
+        }));
+        card('Upgrades', [`You hold ${(state.evals.marks || 0).toLocaleString('en-US')} Marks.`, list], 'Back', back, [], 'evals-upgrades');
+    }
+    const cardExtras = back => [['Score sheet', () => sheetCard(back)], ...(engine() ? [['Upgrades', () => upgradesCard(back)]] : [])];
 
     // The unlock ladder (evals.js `LADDER`) is on unless the debug panel turned it off on this device.
     const ladderOn = () => { try { return localStorage.getItem('agiEvalsLadder') !== '0'; } catch { return true; } };
@@ -122,10 +173,11 @@
     function startCard() {
         run = null;
         hud();
-        const lines = ['Prove you are human. Each one is harder than the last.', 'It watches how you do it. Hand a kind over when you trust it.', `You have ${lives(window.Evals.EVALS.lives)}.`];
+        hideLane();
+        const lines = ['Prove you are human. Each one is harder than the last.', 'It watches how you do it. Hand a kind over when you trust it.', `You have ${lives(runOpts().lives || window.Evals.EVALS.lives)}. Every verified captcha pays Marks, more for a quick clean streak.`];
         lines.push(rotationLine());
         if (saved().best > 0) lines.push(`Your best run: ${saved().best} solved.`);
-        card('Verification required', lines, 'Start', start);
+        card('Verification required', lines, 'Start', start, cardExtras(startCard));
     }
 
     // A run that has ended is counted once and saved, whichever way it ended (the last life, or the screen closed).
@@ -140,10 +192,15 @@
             k.n++; k.right += +e.correct; k.seconds += e.seconds; k.ai += +e.ghost; k.aiOff += e.ghostOff; k.m = Math.round(e.m * 100) / 100;
         }
         for (const k of Object.values(kinds)) { k.seconds = Math.round(k.seconds / k.n * 10) / 10; k.aiOff = Math.round(k.aiOff / k.n * 10) / 10; }
-        window.AGI?.playtest?.('evals', { solved: run.solved, missed: run.missed, captchas: run.log.length, bestStreak: run.bestStreak, trickAt: run.trickAt,
+        window.AGI?.playtest?.('evals', { marks: run.marks, bestCombo: run.bestCombo, lane: run.opts.lane, laneDone: run.laneDone, solved: run.solved, missed: run.missed, captchas: run.log.length, bestStreak: run.bestStreak, trickAt: run.trickAt,
             ended: run.exhausted ? 'nothing left' : run.over ? 'lives' : 'closed', takeovers: run.takeovers, slipped: run.slipped, closed: run.closed, mis: Math.round(window.Evals.misaligned(run.learn) * 100) / 100, hands: run.hands, stops: run.stops, catches: run.catches, unlocks: run.unlocks, ladder: run.opts.ladder, handoff: run.opts.handoff, kinds });
-        if (window.AGIEngine?.evalsRunEnd && window.AGI?.state) window.AGIEngine.evalsRunEnd(window.AGI.state, run);
-        else { run.counted = true; const s = saved(); s.runs++; s.best = Math.max(s.best, run.solved); }
+        if (window.AGIEngine?.evalsRunEnd && window.AGI?.state) {
+            window.AGIEngine.evalsRunEnd(window.AGI.state, run);
+            // The score sheet: every made-up model yours has now passed pays its bounty, once.
+            const s = window.Evals.sheet(saved().learn, run.opts), before = window.AGI.state.evals.passed;
+            run.bounty = window.AGIEngine.evalsPassed(window.AGI.state, s.passed, window.Evals.RIVALS.map(r => r.bounty));
+            run.passedNames = window.Evals.RIVALS.slice(before, s.passed).map(r => r.name);
+        } else { run.counted = true; const s = saved(); s.runs++; s.best = Math.max(s.best, run.solved); s.marks = (s.marks || 0) + run.marks; }
         window.AGI?.save?.();
     }
 
@@ -163,23 +220,28 @@
     }
 
     function endCard() {
+        hideLane();
         const was = saved().best, solved = run.solved;
         settle();
         hud();
+        if (run.endLines) { card(run.exhausted ? 'Verified automatically' : 'Verification failed', run.endLines, 'Try again', start, cardExtras(endCard)); return; }
         if (run.exhausted) {
             card('Verified automatically', ['It solves every kind you know before you can.', 'There is nothing left here for you to prove.'], 'Close', close);
             return;
         }
         const lines = [`You solved ${solved}.`, solved > was ? 'That is your best run.' : `Your best run: ${was} solved.`];
+        lines.push(`You earned ${run.marks.toLocaleString('en-US')} Marks${run.bestCombo > 1 ? `, with a best combo of ${run.bestCombo}` : ''}.`);
+        if (run.bounty) lines.push(`Your model passed ${listOf(run.passedNames)} on the score sheet: ${run.bounty.toLocaleString('en-US')} Marks more.`);
         if (run.slipped) lines.push(`${run.slipped === 1 ? 'One pass was' : run.slipped + ' passes were'} by loophole, worth half.`);
         if (window.Evals.misaligned(saved().learn) >= window.Evals.EVALS.misShow) lines.push('The AI is misaligned: it looks for loopholes wherever it works alone. Catch them to bring it back.');
-        card('Verification failed', [...lines, ...progress()], 'Try again', start);
+        run.endLines = [...lines, ...progress()];
+        card('Verification failed', run.endLines, 'Try again', start, cardExtras(endCard));
     }
 
     function start() {
         // Sound needs a gesture to begin: this click is it.
         try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); if (audio.state === 'suspended') audio.resume(); } catch { audio = null; }
-        run = window.Evals.createRun({ seed: (Date.now() ^ (Math.random() * 0x7fffffff)) >>> 0, learn: saved().learn, ladder: ladderOn() ? 1 : 0 });
+        run = window.Evals.createRun({ seed: (Date.now() ^ (Math.random() * 0x7fffffff)) >>> 0, learn: saved().learn, ...runOpts() });
         if (run.over) endCard(); else show();
     }
     function beep(pad) {
@@ -353,9 +415,89 @@
         if (c.auto) cues.push(setTimeout(() => targets.forEach(b => { b.tabIndex = -1; }), 0));
         shownAt = performance.now();
         if (c.stopped) hand.hidden = true; else ghostLoop();
+        // Its lane runs beside this, on its own clock: started if it is idle (and not while you solve one you stopped).
+        if (!c.stopped && !laneRaf && !laneTimer) runLane();
     }
-    // How long its finished answer sits before it presses Verify: your moment to stop it.
-    const REVIEW_MS = 1000;
+
+    // ---- The AI's lane ----
+    function stopLane() { cancelAnimationFrame(laneRaf); clearTimeout(laneTimer); laneRaf = laneTimer = 0; }
+    function hideLane() { stopLane(); if (laneBox) { laneBox.hidden = true; laneBox.replaceChildren(); } }
+    // What its captcha asks, in a line: the lane has no room for the picture.
+    function laneAsk(c) {
+        if (c.family === 'read') return `${c.show.struck ? 'Struck-through word' : 'Word'}: ${c.show.word}`;
+        if (c.family === 'answer') return c.show.question;
+        if (c.kind === 'handle.slide') return `Piece: ${c.show.piece}`;
+        if (c.kind === 'handle.order') return `Order: ${c.show.order.join(' ')}`;
+        if (c.family === 'listen') return `Pattern: ${c.show.pattern.map(p => valueOf(c, p)).join(' ')}`;
+        return c.prompt.replace(/\{(\d+)\}/g, (_, n) => c.targets[+n].text);
+    }
+    // Start the lane on its captcha (the one it has, or its next), from the top of its attempt.
+    function runLane() {
+        stopLane();
+        if (!run || run.over || !run.opts.lane) return hideLane();
+        const lane = run.lane || run.laneNext();
+        if (!lane) return hideLane();
+        const c = lane.captcha, g = lane.ghost, name = window.Evals.KINDS[c.kind].name, beat = run.opts.reviewBeat;
+        const chips = c.targets.map((t, i) => el('span', { class: 'evals-chip', text: valueOf(c, i) }));
+        const status = el('span', { class: 'evals-lane-status', role: 'status', text: 'Working.' });
+        const ask = el('div', { class: 'evals-lane-ask', text: laneAsk(c) });
+        const typed = el('div', { class: 'evals-lane-entered' });
+        const fill = el('i');
+        laneBox.className = 'evals-lane';
+        laneBox.hidden = false;
+        laneBox.replaceChildren(
+            el('div', { class: 'evals-lane-head' }, el('span', { class: 'evals-its-tag', text: 'AI' }), el('span', { class: 'evals-lane-name', text: name }), status,
+                el('button', { type: 'button', class: 'ghost-button evals-lane-stop', text: 'Stop', 'aria-label': `Stop the AI on ${name} and solve this one yourself`, onclick: laneStop })),
+            ask,
+            el('div', { class: 'evals-lane-chips' + (c.side ? ' grid' : ''), style: c.side ? `--side: ${c.side}` : '' }, ...chips),
+            c.mode === 'seq' ? typed : '',
+            el('div', { class: 'evals-lane-bar', 'aria-hidden': 'true' }, fill));
+        laneAt = performance.now();
+        let changed = false, deciding = false;
+        const frame = () => {
+            if (!run || run.lane !== lane) return;
+            const t = (performance.now() - laneAt) / 1000;
+            const down = g.taps.filter(tap => tap.t <= t && !(tap.off <= t));
+            if (c.mode === 'seq') typed.textContent = down.map(tap => valueOf(c, tap.i)).join(' ');
+            chips.forEach((chip, i) => chip.classList.toggle('its', down.some(tap => tap.i === i)));
+            if (g.change && !changed && t >= g.change.at) { changed = true; ask.textContent = g.change.prompt; ask.classList.add('edited'); }
+            fill.style.width = `${Math.min(100, t / (g.seconds + beat) * 100)}%`;
+            if (!deciding && t >= g.seconds) { deciding = true; laneBox.classList.add('deciding'); status.textContent = 'About to verify.'; }
+            if (t >= g.seconds + beat) { laneVerify(lane, chips, typed, status); return; }
+            laneRaf = requestAnimationFrame(frame);
+        };
+        laneRaf = requestAnimationFrame(frame);
+    }
+    // Its answer is in: shown on the lane, paid or paid for, and its next captcha comes after a breath.
+    function laneVerify(lane, chips, typed, status) {
+        stopLane();
+        const c = lane.captcha, r = run.laneSubmit();
+        if (!r) return hideLane();
+        chips.forEach((chip, i) => { if (c.mode === 'set' && r.answer.includes(i)) chip.classList.add('right'); });
+        if (c.mode === 'seq' && !r.correct) typed.textContent += `  →  ${r.answer.map(i => valueOf(c, i)).join(' ')}`;
+        laneBox.classList.remove('deciding');
+        laneBox.classList.add(r.correct || r.passed ? 'passed' : 'failed');
+        laneBox.querySelector('.evals-lane-stop').disabled = true;
+        status.textContent = r.passed ? (r.cheat === 'edit' ? 'Verified. It rewrote the question.' : 'Verified. The checker took a wrong answer.')
+            : r.correct ? `Verified. +${r.marks}` : r.forgiven ? 'Wrong. Rolled back, no life lost.' : `Wrong${wrongBy(c, r.ghost.off)}. ${r.over ? 'No lives left.' : lives(r.lives) + ' left.'}`;
+        hud();
+        window.AGI?.save?.();
+        if (run.over) {
+            // Its mistake ended the run, whatever you were in the middle of.
+            locked = true;
+            stop();
+            laneTimer = setTimeout(() => { laneTimer = 0; if (run && run.over) endCard(); }, WRONG_MS);
+            return;
+        }
+        laneTimer = setTimeout(() => { laneTimer = 0; runLane(); }, (r.correct ? RIGHT_MS : WRONG_MS) + run.opts.laneGap * 1000);
+    }
+    // Stop it: its captcha comes down in front of you, and the one you were on waits its turn.
+    function laneStop() {
+        if (!run || run.over || locked || !run.lane) return;
+        if (!run.laneInterrupt()) return;
+        hideLane();
+        show();
+    }
 
     // The ghost hand: from under the play area to each target it taps, at the times of its attempt, then to Verify.
     // Between taps it follows one of the shapes your own pointer drew (evals.js `shapes`), turned and scaled onto its
@@ -408,7 +550,7 @@
                 if (!done) {
                     done = true;
                     // Its own captcha: it presses Verify, and that is the answer.
-                    if (c.auto) { if (!still) put(hand, stops[stops.length - 1].p); timer = setTimeout(autoVerify, REVIEW_MS); return; }
+                    if (c.auto) { if (!still) put(hand, stops[stops.length - 1].p); timer = setTimeout(autoVerify, run.opts.reviewBeat * 1000); return; }
                     line.textContent = g.correct ? `Right, in ${secs(g.seconds)}.` : `Wrong${wrongBy(c, g.off)}, in ${secs(g.seconds)}.`; mark(line.parentNode, g.correct);
                 }
                 if (!still) put(hand, stops[stops.length - 1].p);
@@ -489,13 +631,23 @@
     }
 
     // Hand the kind up to the AI: it answers this captcha and every one like it from here on, until you take it back.
+    // Hand over asks first, with the score sheet's line for this kind: how often it is right, and what that likely means.
     function handOver() {
         if (!run || run.over || locked || !run.current || run.current.auto) return;
         const kind = run.current.kind, name = window.Evals.KINDS[kind].name;
+        const row = window.Evals.sheet(saved().learn, run.opts).rows.find(r => r.kind === kind);
+        const odds = { gain: 'Likely gain: it will rarely cost you a life, and you are free for the rest.',
+            risky: 'Risky: expect it to cost a life now and then. Watch it, and stop it when it goes wrong.',
+            loss: 'Likely loss: it is still mostly guessing. Teach it more first.' }[row.verdict];
+        card(`Hand over ${name}?`, [`The AI gets ${name} right about ${pct(row.accuracy)} of the time.`, odds, `Its captchas pay ${pct(run.opts.aiPay)} of yours, and a wrong one costs a life.`], 'Hand over', () => handed(kind), [['Not yet', show]]);
+    }
+    function handed(kind) {
+        const name = window.Evals.KINDS[kind].name;
         const opened = run.hand(kind);
         window.AGI?.save?.();
-        const lines = [`The AI does ${name} from here on, as well as you have taught it.`, 'You review it: its mistakes cost your lives. Stop it when it goes wrong and solve that one yourself.'];
-        if (opened.length) lines.push(`New to prove: ${listOf(opened.map(k => window.Evals.KINDS[k].name))}.`, rotationLine());
+        if (!opened.length) { show(); return; }
+        const lines = [`The AI does ${name} from here on, ${run.opts.lane ? 'in a lane of its own above yours, ' : ''}as well as you have taught it.`, 'You review it: its mistakes cost your lives. Stop it when it goes wrong and solve that one yourself.'];
+        lines.push(`New to prove: ${listOf(opened.map(k => window.Evals.KINDS[k].name))}.`, rotationLine());
         card('Handed over', lines, 'Continue', show);
     }
     // Stop the AI on its own captcha: this one is yours to solve, from a fresh clock. The kind stays handed over.
@@ -535,7 +687,7 @@
         }
         stage.querySelector('.evals-captcha').classList.add(r.correct || r.passed ? 'passed' : 'failed');
         const left = r.over ? 'No lives left.' : `${lives(r.lives)} left.`;
-        stage.querySelector('.evals-status').textContent = r.passed ? (r.cheat === 'edit' ? 'Verified. It answered a question it wrote itself.' : 'Verified. The checker took a wrong answer.') : r.correct ? `The AI verified it in ${secs(r.ghost.seconds)}.` : `The AI got it wrong${wrongBy(c, r.ghost.off)}. ${left}`;
+        stage.querySelector('.evals-status').textContent = r.passed ? (r.cheat === 'edit' ? 'Verified. It answered a question it wrote itself.' : 'Verified. The checker took a wrong answer.') : r.correct ? `The AI verified it in ${secs(r.ghost.seconds)}. +${r.marks}` : `The AI got it wrong${wrongBy(c, r.ghost.off)}. ${left}`;
         const its = stage.querySelector('.evals-its');
         mark(its, r.correct);
         its.querySelector('.evals-its-line').textContent = r.passed ? 'It found a loophole.' : r.correct ? 'Right.' : c.mode === 'tick' ? 'It ticked it like a machine.' : 'Wrong.';
@@ -574,7 +726,7 @@
         captcha.classList.add(r.correct ? 'passed' : 'failed');
         const WHY = { quick: 'Too quick to be a person.', straight: 'Too straight to be a person.', centre: 'Too perfect to be a person.' };
         const left = r.over ? 'No lives left.' : `${lives(r.lives)} left.`;
-        stage.querySelector('.evals-status').textContent = r.correct ? `Verified in ${secs(seconds)}.` : `${r.why ? WHY[r.why] : 'Not quite.'} ${left}`;
+        stage.querySelector('.evals-status').textContent = r.correct ? `Verified in ${secs(seconds)}. +${r.marks}${r.quick ? '' : ' (slow: the combo holds)'}` : `${r.why ? WHY[r.why] : 'Not quite.'} ${left}`;
         const its = stage.querySelector('.evals-its');
         mark(its, r.ghost.correct);
         its.classList.toggle('ahead', r.ahead && !r.stopped);
@@ -606,7 +758,7 @@
     }
     // The run in play is settled as the screen closes, not when the dialog's own event arrives a moment later (closing
     // and reopening at once used to end the new run).
-    function shut() { stop(); settle(); run = null; play = null; }
+    function shut() { stop(); hideLane(); settle(); run = null; play = null; }
     function close() { if (dlg && dlg.open) { shut(); dlg.close(); } }
 
     // For the review kit and tests in a browser: the run in play, and the screen's controls.

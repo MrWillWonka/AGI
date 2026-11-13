@@ -13302,6 +13302,12 @@ window.AGI = (function () {
                 }
                 afterChange();
             },
+            // The AI's lane on or off on this device (off: the kinds you handed over come up in your turn). Returns it.
+            evalsLane(on) {
+                if (on !== undefined) { try { localStorage.setItem('agiEvalsLane', on ? '1' : '0'); } catch { /* private mode */ } }
+                try { return localStorage.getItem('agiEvalsLane') !== '0'; } catch { return true; }
+            },
+            evalsMarks(n = 1000) { state.evals.marks += n; state.evals.earned += n; afterChange(); },
             // Loopholes without the wait: every kind the AI holds counts as long done alone. `mis` sets how misaligned it is.
             evalsLoopholes(mis) {
                 for (const k of Object.values(state.evals.learn.kinds)) if (k.taken) k.own = Math.max(k.own || 0, window.Evals.EVALS.ownSolves);

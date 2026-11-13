@@ -158,6 +158,8 @@
                 // kinds unlock as it takes kinds over; off, every kind is in from the start (takes effect on the next run)
                 (() => { const label = () => `Unlock ladder: ${AGI.debug.evalsLadder() ? 'on' : 'off (every kind)'}`; const b = button(label(), () => { AGI.debug.evalsLadder(!AGI.debug.evalsLadder()); b.textContent = label(); }); return b; })(),
                 button('Loopholes now (kinds it holds)', () => AGI.debug.evalsLoopholes()),
+                button('+1,000 Marks', () => AGI.debug.evalsMarks(1000)),
+                (() => { const label = () => `AI's lane: ${AGI.debug.evalsLane() ? 'on' : 'off (it takes your turn)'}`; const b = button(label(), () => { AGI.debug.evalsLane(!AGI.debug.evalsLane()); b.textContent = label(); }); return b; })(),
                 dangerButton('Reset Evals (nothing learned)', () => AGI.debug.resetEvals())),
             section('Jump ahead', button('Learn next skill', AGI.debug.learnSkill), ...phaseButtons,
                 button('Unlock everything', AGI.debug.unlockAll)),

@@ -230,6 +230,11 @@ misaligned (it cheats more, shown past a threshold); one stopped and solved is c
 `loopholes`, `LOOPHOLES`, `cheatChance`, `cheatAttempt`, `learn.mis`, a kind's `closed`; save v36;
 `tests/evals-loopholes.test.js`; the smoke test lets one through and catches one on a phone.
 
+**After the owner's first play** (2026-11-12; design/evals.md): a run starts with three quick kinds; **Marks**, the
+**combo**, the **score sheet** with its made-up rivals, the **upgrades** list and **the AI's lane** are built (`MARKS`,
+`RIVALS`, `sheet`, `run.lane*` in evals.js; `EVALS_TREE`, `evalsOpts`, `evalsPassed` in engine.js; save v37;
+`tests/evals-marks.test.js`; the smoke test's `lane` checks). Next: the owner's second play.
+
 Each ends with something the owner can play or read, and a short report.
 
 1. **Skeleton.** `evals.js` with a run (lives, streak, a queue of captchas), one family (Pick), the judge, and tests.

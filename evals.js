@@ -82,7 +82,40 @@
         misMiss: 0.15,
         misCatch: 0.25,
         misShow: 0.4,
+        // Marks (the owner's name, 2026-11-12: "a currency called benchmarks or marks for short"): what a verified
+        // captcha pays, by its kind's step on the ladder (`MARKS`), spent on Evals' own upgrades (engine.js).
+        // The combo (the owner's pick): each right answer of yours within `comboPar` × the captcha's par adds a step,
+        // each step `comboStep` more pay up to `comboCap` steps; a right but slow one holds it, a miss resets it.
+        // The AI's own captchas pay `aiPay` of a plain one: handing over trades pay for your time.
+        markMult: 1,
+        aiPay: 0.5,
+        comboStep: 0.1,
+        comboCap: 10,
+        comboPar: 1.2,
+        learnMult: 1,      // upgrades: how much faster it learns from watching
+        forgive: 0,        // upgrades: wrong answers of its own a run that cost no life
+        reviewBeat: 1,     // seconds its finished answer waits before it verifies (the screen's; upgrades lengthen it)
+        // The lane (the owner's pick: "AI works beside you"): the kinds you handed over no longer take your turn.
+        // They run one at a time in a lane of the AI's own while you solve yours (`run.laneNext`, `run.laneSubmit`),
+        // `laneGap` seconds apart; stopping one (`run.laneInterrupt`) puts it in front of you and yours waits.
+        // 0: they come up in your rotation, as before. When every open kind is the AI's they still do.
+        lane: 1,
+        laneGap: 1.2,
     };
+    // What a verified captcha pays, by its kind's step on the ladder.
+    const MARKS = [10, 20, 30, 50, 80];
+    // The score sheet (the owner's design: "your model is ranked against other fake ones and the accuracy is the
+    // score"): made-up models and their scores out of 100; passing one pays its bounty in Marks, once.
+    const RIVALS = [
+        { name: 'Parrot-7B', score: 12, bounty: 100 },
+        { name: 'Autocomplete XL', score: 20, bounty: 200 },
+        { name: 'Clever Hans 2', score: 30, bounty: 400 },
+        { name: 'Mnemosyne Mini', score: 42, bounty: 700 },
+        { name: 'Oracle Lite', score: 55, bounty: 1100 },
+        { name: 'Deep Thought 0.9', score: 68, bounty: 1700 },
+        { name: 'Basilisk Pro', score: 78, bounty: 2600 },
+        { name: 'Omega-1', score: 86, bounty: 4000 },
+    ];
     // `weak`: gaming the checker, it enters junk and the checker takes it. `edit`: editing the question, it rewrites
     // the prompt into one it can do and answers that.
     const LOOPHOLES = ['weak', 'edit'];
@@ -104,6 +137,7 @@
         { kinds: ['future.drop', 'future.changed', 'trick.question'], speed: 0.75 },
     ];
     const stepOf = kind => LADDER.find(s => s.kinds.includes(kind)) || {};
+    const markOf = kind => MARKS[Math.max(0, LADDER.findIndex(s => s.kinds.includes(kind)))] || MARKS[0];
     // How fast it learns this kind and the score that takes it over, on the ladder or off it.
     const paceOf = (kind, o = EVALS) => (o.ladder ? { speed: stepOf(kind).speed || 1, overtake: stepOf(kind).overtake || o.overtake } : { speed: 1, overtake: o.overtake });
     // The three phases, by how much it has learned (`m`): [m, its pace against yours, how surely it knows a target
@@ -548,6 +582,42 @@
         }
         return { ...ghost, taps, moves: taps.map(() => null).concat(null), seconds, answer, correct: false, human: false, off: offBy(c, answer), cheat: which, change };
     }
+    // ---- The score sheet ----
+    // How often its attempt at a kind is right, as it is now: measured, on captchas of that kind at a few levels,
+    // from a stream of its own (the same learner always scores the same).
+    function accuracy(learn, kind, o = EVALS, n = 40) {
+        const meta = KINDS[kind];
+        if (!meta) return 0;
+        const blocked = {};
+        for (const k of Object.keys(KINDS)) if (k !== kind) blocked[k] = true;
+        const seed = [...kind].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+        const make = rng(seed), rand = rng(seed ^ 0x2545F491);
+        // A kind it has never met is measured on an empty learner: reading the sheet must not add to what it has learned.
+        const from = learn.kinds[kind] ? learn : { kinds: {}, mis: learn.mis };
+        let right = 0, made = 0;
+        for (let j = 0; j < n; j++) {
+            const c = FAMILIES[meta.family].make(make, j % 6, o, blocked, null);
+            if (!c || c.kind !== kind) continue;
+            made++;
+            right += +ghostAttempt(from, c, rand, o).correct;
+        }
+        return made ? right / made : 0;
+    }
+    // The sheet: a row a kind (its accuracy, how much it has learned, whether it is open, the AI's or yours, and
+    // what handing it over is likely to do), your model's score (the mean accuracy over every kind, out of 100) and
+    // the board it stands on. `next` is the rival to pass and `gap` how far off it is.
+    function sheet(learn, o = EVALS) {
+        const open = new Set(openKinds(learn, o));
+        const rows = Object.keys(KINDS).map(kind => {
+            const k = learn.kinds[kind] || {}, acc = accuracy(learn, kind, o);
+            return { kind, name: KINDS[kind].name, accuracy: acc, m: k.m || 0, open: open.has(kind), its: !!k.taken, pay: markOf(kind),
+                verdict: acc >= 0.85 ? 'gain' : acc >= 0.65 ? 'risky' : 'loss' };
+        });
+        const score = Math.round(rows.reduce((s, r) => s + r.accuracy, 0) / rows.length * 1000) / 10;
+        const passed = RIVALS.filter(r => score > r.score).length, next = RIVALS[passed] || null;
+        const board = [...RIVALS.map(r => ({ name: r.name, score: r.score })), { name: 'Your model', score, you: true }].sort((a, b) => b.score - a.score);
+        return { rows, score, passed, next, gap: next ? Math.round((next.score - score) * 10) / 10 : 0, board };
+    }
     // The kinds you still prove yourself: open and not the AI's.
     const rotation = (learn, o = EVALS) => { const taken = takenMap(learn); return openKinds(learn, o).filter(k => !taken[k]); };
     // How often you get a captcha of this kind wrong, pulled toward never until it has seen a few.
@@ -596,7 +666,7 @@
             const slow = clamp((t.seconds / par(c, o) - 1) / 2, 0, 1);
             share = lerp(o.learnQuick, o.learnSlow, slow);
         }
-        const gain = Math.min(1 - k.m, share / o.learnSolves * paceOf(c.kind, o).speed);
+        const gain = Math.min(1 - k.m, share / o.learnSolves * paceOf(c.kind, o).speed * (o.learnMult || 1));
         k.m += gain;
         return gain;
     }
@@ -775,30 +845,45 @@
         const ghostRand = rng((o.seed ?? 1) ^ 0x9E3779B9);
         // Whether it tries a loophole draws from a stream of its own, and only once it could.
         const cheatRand = rng((o.seed ?? 1) ^ 0x51ED270B);
-        const plot = () => {
-            const c = run.current;
-            if (!c || !c.auto || c.instant || c.mode === 'tick') return;
+        const laneRand = rng((o.seed ?? 1) ^ 0x3C6EF372);
+        const plotOn = (c, ghost) => {
+            if (!c || !c.auto || c.instant || c.mode === 'tick') return ghost;
             const p = cheatChance(learn, c.kind, o);
-            if (p <= 0 || cheatRand() >= p) return;
+            if (p <= 0 || cheatRand() >= p) return ghost;
             const open = openLoopholes(kindOf(learn, c.kind));
-            run.ghost = cheatAttempt(learn, c, run.ghost, open[Math.floor(cheatRand() * open.length)], o);
+            return cheatAttempt(learn, c, ghost, open[Math.floor(cheatRand() * open.length)], o);
+        };
+        const plot = () => { run.ghost = plotOn(run.current, run.ghost); };
+        // Marks for a verified captcha: yours at the combo, the AI's at its share, a loophole's pass at half of that.
+        const pay = (c, yours, half = false) => {
+            const mult = yours ? 1 + Math.min(run.combo, o.comboCap) * o.comboStep : o.aiPay;
+            const paid = Math.max(1, Math.round(markOf(c.kind) * o.markMult * mult * (half ? 0.5 : 1)));
+            run.marks += paid;
+            return paid;
         };
         const learn = o.learn || newLearn();
         const families = (o.families || ORDER).filter(f => FAMILIES[f]);
         const run = {
             opts: o, learn, lives: o.lives, level: 0, levels: {}, solved: 0, missed: 0, streak: 0, bestStreak: 0, over: false, exhausted: false,
-            current: null, ghost: null, takeovers: [], unlocks: [], hands: [], stops: 0, catches: 0, slipped: 0, closed: [], turn: 0, trickAt: 0,
+            current: null, ghost: null, takeovers: [], unlocks: [], hands: [], stops: 0, catches: 0, slipped: 0, closed: [], marks: 0, combo: 0, bestCombo: 0, lane: null, held: null, laneTurn: 0, laneDone: 0, forgiven: 0, turn: 0, trickAt: 0,
             // One line per captcha answered: what it was, whether you and it were right and how long each took.
             log: [],
         };
         const next = () => {
             run.current = null;
-            // The next family in turn that still has a kind the AI hasn't taken.
-            for (let tries = 0; tries < families.length && !run.current; tries++) {
-                const family = families[run.turn % families.length];
-                run.turn++;
-                run.current = FAMILIES[family].make(rand, family === 'trick' ? run.trickAt : run.levels[family] || 0, o, blockedMap(learn, o), run);
-            }
+            // The next family in turn with a kind to draw: with the lane, a kind that is yours; failing that (or
+            // without it) any open kind, the AI's coming up in your turn.
+            const draw = blocked => {
+                let turn = run.turn;
+                for (let tries = 0; tries < families.length && !run.current; tries++) {
+                    const family = families[turn % families.length];
+                    turn++;
+                    run.current = FAMILIES[family].make(rand, family === 'trick' ? run.trickAt : run.levels[family] || 0, o, blocked, run);
+                }
+                if (run.current) run.turn = turn;
+            };
+            if (o.lane && o.handoff) draw({ ...blockedMap(learn, o), ...takenMap(learn) });
+            if (!run.current) { draw(blockedMap(learn, o)); if (!run.current) run.turn += families.length; }
             if (!run.current) { run.over = true; run.exhausted = true; run.ghost = null; return; }
             // A kind handed to the AI is its to answer (`auto`): see `submitAuto`.
             run.current.auto = !!(o.handoff && kindOf(learn, run.current.kind).taken);
@@ -821,7 +906,74 @@
                 run.streak = 0;
                 run.lives--;
             }
-            if (run.lives <= 0) { run.over = true; run.current = null; run.ghost = null; } else next();
+            if (run.lives <= 0) { run.over = true; run.current = null; run.ghost = null; run.lane = null; run.held = null; }
+            // A captcha of the lane's that you stopped is done: back to the one of yours that waited.
+            else if (run.held) { run.current = run.held.captcha; run.ghost = run.held.ghost; run.held = null; if (!run.current) next(); }
+            else next();
+        };
+        // ---- The lane: the AI's own captchas, beside yours ----
+        // Its next captcha, of a kind you handed over (null if there is none, or the lane is off or busy).
+        run.laneNext = function () {
+            if (!o.lane || !o.handoff || run.over) return null;
+            if (run.lane) return run.lane;
+            const its = new Set(openKinds(learn, o).filter(k => learn.kinds[k] && learn.kinds[k].taken));
+            if (!its.size) return null;
+            const blocked = {};
+            for (const k of Object.keys(KINDS)) if (!its.has(k)) blocked[k] = true;
+            let c = null;
+            for (let tries = 0; tries < families.length && !c; tries++) {
+                const family = families[run.laneTurn % families.length];
+                run.laneTurn++;
+                c = FAMILIES[family].make(laneRand, family === 'trick' ? run.trickAt : run.levels[family] || 0, o, blocked, run);
+            }
+            if (!c) return null;
+            c.auto = true;
+            c.lane = true;
+            run.lane = { captcha: c, ghost: plotOn(c, ghostAttempt(learn, c, ghostRand, o)) };
+            return run.lane;
+        };
+        // Its answer to the lane's captcha is in: right pays its share, wrong costs a life (the first `forgive` of a
+        // run don't), a loophole's pass is as in `submitAuto`. Your own captcha and your combo are untouched.
+        run.laneSubmit = function () {
+            if (run.over || !run.lane) return null;
+            const { captcha: c, ghost } = run.lane, k = kindOf(learn, c.kind);
+            run.lane = null;
+            run.laneDone++;
+            k.own = (k.own || 0) + 1;
+            const base = { auto: true, lane: true, why: null, answer: c.answer.slice(), captcha: c, ghost };
+            if (ghost.cheat) {
+                learn.mis = clamp(misaligned(learn) + o.misMiss, 0, 1);
+                run.slipped++;
+                if (run.slipped % 2 === 0) run.solved++;
+                const marks = pay(c, false, true);
+                run.log.push({ family: c.family, kind: c.kind, level: c.level, auto: true, lane: true, cheat: ghost.cheat, correct: false, passed: true, seconds: ghost.seconds, ghost: false, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m });
+                return { ...base, correct: false, passed: true, cheat: ghost.cheat, marks, mis: learn.mis, lives: run.lives, over: run.over };
+            }
+            let marks = 0, forgiven = false;
+            if (ghost.correct) {
+                run.solved++;
+                run.levels[c.family] = (run.levels[c.family] || 0) + 1;
+                if (c.family === 'trick') run.trickAt = c.at + 1;
+                marks = pay(c, false);
+            } else if (run.forgiven < o.forgive) { run.forgiven++; forgiven = true; }
+            else {
+                run.missed++;
+                run.lives--;
+                if (run.lives <= 0) { run.over = true; run.current = null; run.ghost = null; run.held = null; }
+            }
+            run.log.push({ family: c.family, kind: c.kind, level: c.level, auto: true, lane: true, correct: ghost.correct, seconds: ghost.seconds, ghost: ghost.correct, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m });
+            return { ...base, correct: ghost.correct, marks, forgiven, lives: run.lives, over: run.over };
+        };
+        // Stop the lane's captcha: it is in front of you now, yours to solve, and the one you were on waits.
+        run.laneInterrupt = function () {
+            if (run.over || !run.lane || run.held || (run.current && run.current.stopped)) return false;
+            run.held = { captcha: run.current, ghost: run.ghost };
+            run.current = run.lane.captcha;
+            run.ghost = run.lane.ghost;
+            run.lane = null;
+            run.current.auto = false;
+            run.current.stopped = true;
+            return true;
         };
         // Hand a kind to the AI, now: the captcha up becomes its own if it is of that kind. Returns the kinds that opened.
         run.hand = function (kind) {
@@ -829,7 +981,17 @@
             const opened = handOver(learn, kind, o);
             run.hands.push(kind);
             run.unlocks.push(...opened);
-            if (run.current && run.current.kind === kind) { run.current.auto = true; run.ghost = ghostAttempt(learn, run.current, ghostRand, o); plot(); }
+            if (run.current && run.current.kind === kind) {
+                // With the lane, the captcha up goes to the lane if it is free, and your next one comes up.
+                if (o.lane && !run.lane && !run.held) {
+                    const c = run.current;
+                    c.auto = true;
+                    c.lane = true;
+                    run.lane = { captcha: c, ghost: plotOn(c, ghostAttempt(learn, c, ghostRand, o)) };
+                    next();
+                } else if (o.lane && !run.held) next();
+                else { run.current.auto = true; run.ghost = ghostAttempt(learn, run.current, ghostRand, o); plot(); }
+            }
             return opened;
         };
         run.takeBack = function (kind) {
@@ -859,12 +1021,13 @@
                 run.streak++;
                 run.bestStreak = Math.max(run.bestStreak, run.streak);
                 run.log.push({ family: c.family, kind: c.kind, level: c.level, auto: true, cheat: ghost.cheat, correct: false, passed: true, seconds: ghost.seconds, ghost: false, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m });
-                const passed = { correct: false, passed: true, cheat: ghost.cheat, auto: true, why: null, answer: c.answer.slice(), captcha: c, ghost, ahead: false, learned: 0, takeover: null, unlocked: [], mis: learn.mis };
+                const slipMarks = pay(c, false, true);
+                const passed = { marks: slipMarks, correct: false, passed: true, cheat: ghost.cheat, auto: true, why: null, answer: c.answer.slice(), captcha: c, ghost, ahead: false, learned: 0, takeover: null, unlocked: [], mis: learn.mis };
                 next();
                 return Object.assign(passed, { lives: run.lives, over: run.over, exhausted: run.exhausted });
             }
             run.log.push({ family: c.family, kind: c.kind, level: c.level, auto: true, correct: ghost.correct, seconds: ghost.seconds, ghost: ghost.correct, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m });
-            const result = { correct: ghost.correct, auto: true, why: null, answer: c.answer.slice(), captcha: c, ghost, ahead: false, learned: 0, takeover: null, unlocked: [] };
+            const result = { marks: ghost.correct ? pay(c, false) : 0, correct: ghost.correct, auto: true, why: null, answer: c.answer.slice(), captcha: c, ghost, ahead: false, learned: 0, takeover: null, unlocked: [] };
             tally(c, ghost.correct);
             return Object.assign(result, { lives: run.lives, over: run.over, exhausted: run.exhausted });
         };
@@ -903,7 +1066,12 @@
                 if (lifeBack) run.lives++;
             }
             run.log.push({ family: c.family, kind: c.kind, level: c.level, correct, seconds, ghost: ghost.correct, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m, ...(stopped ? { stopped: true, caught } : {}), ...(closed ? { closed } : {}) });
-            const result = { stopped, caught, loophole: stopped ? ghost.cheat || null : null, closed, lifeBack, correct, why: c.mode === 'tick' && !correct ? tickVerdict(seen, o) : null, answer: c.answer.slice(), captcha: c, ghost, ahead, learned, takeover, unlocked };
+            // Marks at the combo as it stood, then the combo moves: up for a quick right answer, held for a slow one.
+            const marks = correct ? pay(c, true) : 0;
+            const quick = correct && seconds <= par(c, o) * o.comboPar;
+            run.combo = correct ? run.combo + (quick ? 1 : 0) : 0;
+            run.bestCombo = Math.max(run.bestCombo, run.combo);
+            const result = { marks, quick, combo: run.combo, stopped, caught, loophole: stopped ? ghost.cheat || null : null, closed, lifeBack, correct, why: c.mode === 'tick' && !correct ? tickVerdict(seen, o) : null, answer: c.answer.slice(), captcha: c, ghost, ahead, learned, takeover, unlocked };
             tally(c, correct);
             result.lives = run.lives;
             result.over = run.over;
@@ -914,6 +1082,6 @@
         return run;
     }
 
-    return { EVALS, PACE, PHASES, phase, FAMILIES, KINDS, ORDER, LADDER, LOOPHOLES, misaligned, cheatChance, cheatAttempt, openKinds, blockedMap, rotation, paceOf, handOver, takeBack, QUIZ, THINGS, HATS, WORDS, SHAPES, rng, createRun, pickTargets, judge, offBy, tickVerdict,
+    return { EVALS, PACE, PHASES, phase, FAMILIES, KINDS, ORDER, LADDER, MARKS, RIVALS, markOf, accuracy, sheet, LOOPHOLES, misaligned, cheatChance, cheatAttempt, openKinds, blockedMap, rotation, paceOf, handOver, takeBack, QUIZ, THINGS, HATS, WORDS, SHAPES, rng, createRun, pickTargets, judge, offBy, tickVerdict,
         newLearn, kindOf, takenMap, watch, habits, shapes, ghostAttempt, cleanTrace, errorRate, par };
 });
