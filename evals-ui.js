@@ -14,6 +14,8 @@
     let dlg = null, stage = null, livesEl = null, solvedEl = null, marksEl = null, comboEl = null;
     // The AI's lane (evals.js `lane`): its own captcha, shown small above yours, on a clock of its own.
     let laneBox = null, laneRaf = 0, laneTimer = 0, laneAt = 0;
+    // True while the AI is filling in the captcha up (evals.js `assist`): Verify waits for it, and a tap of yours takes over.
+    let assisting = false, took = false;
     let run = null, picked = new Map(), entered = [], undos = 0, shownAt = 0, timer = 0, locked = false, raf = 0;
     let play = null, targets = [], path = [], pathStep = 40, pathAt = -1e9, tick = { bend: 0, offset: 0 }, cues = [];
     let fallback = null;   // what it has learned when there is no game to keep it in (a bare page)
@@ -129,8 +131,9 @@
     }
     const engine = () => (window.AGIEngine?.evalsOpts && window.AGI?.state ? window.AGIEngine : null);
     // A run's options: what the upgrades have bought, and this device's debug switches.
-    const laneOn = () => { try { return localStorage.getItem('agiEvalsLane') !== '0'; } catch { return true; } };
-    const runOpts = () => ({ ...(engine() ? engine().evalsOpts(window.AGI.state) : {}), ladder: ladderOn() ? 1 : 0, lane: laneOn() ? 1 : 0 });
+    const laneOn = () => { try { return localStorage.getItem('agiEvalsLane') === '1'; } catch { return false; } };
+    const assistOn = () => { try { return localStorage.getItem('agiEvalsAssist') !== '0'; } catch { return true; } };
+    const runOpts = () => ({ ...(engine() ? engine().evalsOpts(window.AGI.state) : {}), ladder: ladderOn() ? 1 : 0, lane: laneOn() ? 1 : 0, assist: assistOn() ? 1 : 0 });
     const pct = v => `${Math.round(v * 100)}%`;
     const VERDICT = { gain: 'Ready to hand over', risky: 'Risky to hand over', loss: 'Not ready' };
 
@@ -400,7 +403,7 @@
         stage.replaceChildren(el('div', { class: `evals-captcha is-${c.layout}` + (c.auto ? ' is-auto' : '') },
             c.family === 'trick' ? el('p', { class: 'evals-quiz', text: `Question ${c.at + 1} of ${c.of}` }) : '',
             el('p', { class: 'evals-prompt' }, ...promptParts(c)),
-            el('p', { class: 'evals-its' }, el('span', { class: 'evals-its-tag', text: 'AI' }), el('span', { class: 'evals-its-line', role: 'status', text: c.auto ? 'Doing this one itself.' : c.stopped ? 'Stopped. This one is yours.' : 'Working on it.' })),
+            el('p', { class: 'evals-its' }, el('span', { class: 'evals-its-tag', text: 'AI' }), el('span', { class: 'evals-its-line', role: 'status', text: c.auto ? 'Doing this one itself.' : c.assist ? 'Filling it in for you.' : c.stopped ? 'Stopped. This one is yours.' : 'Working on it.' })),
             play,
             c.mode === 'seq' ? el('div', { class: 'evals-entered' }, el('span', { class: 'evals-entered-list', role: 'status', 'aria-label': 'Entered so far' }),
                 el('button', { type: 'button', class: 'ghost-button evals-back', 'aria-label': 'Take back the last one', text: '⌫', onclick: back })) : '',
@@ -409,9 +412,11 @@
                 // Its own captcha: Stop makes this one yours to solve. Once stopped, Take back makes the kind yours
                 // again. Yours: Hand over gives the kind to the AI from this captcha on.
                 !canHand ? '' : c.auto ? el('button', { type: 'button', class: 'ghost-button evals-give evals-stop', text: 'Stop', 'aria-label': 'Stop the AI and solve this one yourself', onclick: interrupt })
-                    : c.stopped ? el('button', { type: 'button', class: 'ghost-button evals-give evals-takeback', text: 'Take back', 'aria-label': `Take ${window.Evals.KINDS[c.kind].name} back from the AI`, onclick: takeBack })
+                    : c.stopped || c.assist ? el('button', { type: 'button', class: 'ghost-button evals-give evals-takeback', text: 'Take back', 'aria-label': `Take ${window.Evals.KINDS[c.kind].name} back from the AI`, onclick: takeBack })
                     : el('button', { type: 'button', class: 'ghost-button evals-give evals-handover', text: 'Hand over', 'aria-label': `Hand ${window.Evals.KINDS[c.kind].name} over to the AI`, onclick: handOver }),
-                c.instant ? '' : el('button', { type: 'button', class: 'evals-go evals-verify', text: 'Verify', onclick: verify, ...(c.auto ? { disabled: '' } : {}) }))));
+                c.instant ? '' : el('button', { type: 'button', class: 'evals-go evals-verify', text: 'Verify', onclick: verify, ...(c.auto || c.assist ? { disabled: '' } : {}) }))));
+        assisting = !!c.assist;
+        took = false;
         if (c.auto) cues.push(setTimeout(() => targets.forEach(b => { b.tabIndex = -1; }), 0));
         shownAt = performance.now();
         if (c.stopped) hand.hidden = true; else ghostLoop();
@@ -510,6 +515,7 @@
         const still = reduced();
         if (still) hand.hidden = true;
         let done = false, applied = -1, changed = false;
+        const undone = new Set();
         // Where its hand points on a node: the middle, or for a target its lower right, so the arrow never lies over
         // what the target shows.
         const at = (node, f = 0.5) => {
@@ -534,8 +540,13 @@
                     b.classList.remove('its');
                     void b.offsetWidth;
                     b.classList.add('its');
+                    // Filling it in for you: its tap is a real one, entered where yours would be.
+                    if (c.assist) aiPick(s.i);
                 }
-                if (s.off <= t && !stops.some((later, k) => k > index && later.i === s.i && later.t <= t)) targets[s.i].classList.remove('its');
+                if (s.off <= t && !stops.some((later, k) => k > index && later.i === s.i && later.t <= t)) {
+                    targets[s.i].classList.remove('its');
+                    if (c.assist && !undone.has(index)) { undone.add(index); aiUnpick(s.i); }
+                }
             });
             // Editing the question: the prompt changes under you, with a flicker and no other mark.
             if (g.change && !changed && t >= g.change.at) {
@@ -551,7 +562,9 @@
                     done = true;
                     // Its own captcha: it presses Verify, and that is the answer.
                     if (c.auto) { if (!still) put(hand, stops[stops.length - 1].p); timer = setTimeout(autoVerify, run.opts.reviewBeat * 1000); return; }
-                    line.textContent = g.correct ? `Right, in ${secs(g.seconds)}.` : `Wrong${wrongBy(c, g.off)}, in ${secs(g.seconds)}.`; mark(line.parentNode, g.correct);
+                    // Filled in: it stops at Verify and leaves the press to you (and doesn't say how it did).
+                    if (c.assist) { assisting = false; line.textContent = 'Done. Verify it, or fix it first.'; if (verifyBtn) verifyBtn.disabled = false; }
+                    else { line.textContent = g.correct ? `Right, in ${secs(g.seconds)}.` : `Wrong${wrongBy(c, g.off)}, in ${secs(g.seconds)}.`; mark(line.parentNode, g.correct); }
                 }
                 if (!still) put(hand, stops[stops.length - 1].p);
                 return;
@@ -593,8 +606,33 @@
         if (list) list.textContent = indices.map(i => valueOf(shown, i)).join(' ');
     }
     let shown = null;   // the captcha on screen (the run has moved on to the next by the time an answer is revealed)
+    // Its taps while it fills a captcha in for you: entered as yours are.
+    function aiPick(i) {
+        const c = run.current;
+        if (c.mode === 'seq') { entered.push({ i, t: now() }); listEntered(); return; }
+        if (c.single) picked.clear();
+        picked.set(i, now());
+        targets.forEach((b, k) => b.setAttribute('aria-pressed', picked.has(k) ? 'true' : 'false'));
+    }
+    function aiUnpick(i) {
+        picked.delete(i);
+        targets.forEach((b, k) => b.setAttribute('aria-pressed', picked.has(k) ? 'true' : 'false'));
+    }
+    // A tap of yours while it is still filling in: it stops where it is, and the rest is yours.
+    function takeOver() {
+        if (!assisting) return;
+        assisting = false;
+        took = true;
+        cancelAnimationFrame(raf);
+        const hand = stage.querySelector('.evals-hand'), line = stage.querySelector('.evals-its-line'), verifyBtn = stage.querySelector('.evals-verify');
+        if (hand) hand.hidden = true;
+        if (line) line.textContent = 'You took over.';
+        if (verifyBtn) verifyBtn.disabled = false;
+    }
     function back() {
-        if (locked || !entered.length) return;
+        if (locked) return;
+        takeOver();
+        if (!entered.length) return;
         entered.pop();
         undos++;
         listEntered();
@@ -605,6 +643,7 @@
     // long you took, how your pointer came and where in the box the tap landed.
     function tap(i, e) {
         if (locked || !run || run.over || run.current.auto) return;
+        takeOver();
         const c = run.current, t = now();
         if (c.mode === 'tick') {
             const r = targets[0].querySelector('.evals-box').getBoundingClientRect();
@@ -639,14 +678,15 @@
         const odds = { gain: 'Likely gain: it will rarely cost you a life, and you are free for the rest.',
             risky: 'Risky: expect it to cost a life now and then. Watch it, and stop it when it goes wrong.',
             loss: 'Likely loss: it is still mostly guessing. Teach it more first.' }[row.verdict];
-        card(`Hand over ${name}?`, [`The AI gets ${name} right about ${pct(row.accuracy)} of the time.`, odds, `Its captchas pay ${pct(run.opts.aiPay)} of yours, and a wrong one costs a life.`], 'Hand over', () => handed(kind), [['Not yet', show]]);
+        card(`Hand over ${name}?`, [`The AI gets ${name} right about ${pct(row.accuracy)} of the time.`, odds, run.opts.assist ? 'It will fill them in and leave Verify to you. A wrong one you verify costs a life.' : `Its captchas pay ${pct(run.opts.aiPay)} of yours, and a wrong one costs a life.`], 'Hand over', () => handed(kind), [['Not yet', show]]);
     }
     function handed(kind) {
         const name = window.Evals.KINDS[kind].name;
         const opened = run.hand(kind);
         window.AGI?.save?.();
         if (!opened.length) { show(); return; }
-        const lines = [`The AI does ${name} from here on, ${run.opts.lane ? 'in a lane of its own above yours, ' : ''}as well as you have taught it.`, 'You review it: its mistakes cost your lives. Stop it when it goes wrong and solve that one yourself.'];
+        const lines = run.opts.assist ? [`The AI fills in ${name} from here on, as well as you have taught it.`, 'You verify each one, or fix it first. A wrong one you verify costs a life.']
+            : [`The AI does ${name} from here on, ${run.opts.lane ? 'in a lane of its own above yours, ' : ''}as well as you have taught it.`, 'You review it: its mistakes cost your lives. Stop it when it goes wrong and solve that one yourself.'];
         lines.push(`New to prove: ${listOf(opened.map(k => window.Evals.KINDS[k].name))}.`, rotationLine());
         card('Handed over', lines, 'Continue', show);
     }
@@ -658,7 +698,8 @@
         show();
     }
     function takeBack() {
-        if (!run || run.over || locked || !run.current || !(run.current.auto || run.current.stopped)) return;
+        if (!run || run.over || locked || !run.current || !(run.current.auto || run.current.stopped || run.current.assist)) return;
+        assisting = false;
         run.takeBack(run.current.kind);
         window.AGI?.save?.();
         show();
@@ -698,14 +739,14 @@
     }
 
     function verify() {
-        if (!run || run.over || locked || run.current?.auto) return;
+        if (!run || run.over || locked || run.current?.auto || assisting) return;
         locked = true;
         stop();
         const c = run.current, seconds = now();
         // How you solved it: what you ended with, in the order you tapped it.
         const taps = c.mode === 'seq' ? entered.slice() : [...picked].map(([i, t]) => ({ i, t })).sort((a, b) => a.t - b.t);
         const mine = taps.map(t => t.i);
-        const r = run.submit(mine, seconds, { taps, seconds, undos, path, bend: tick.bend, offset: tick.offset });
+        const r = run.submit(mine, seconds, { taps, seconds, undos, path, bend: tick.bend, offset: tick.offset, took });
         const captcha = stage.querySelector('.evals-captcha');
         for (const b of stage.querySelectorAll('.evals-verify, .evals-back, .evals-replay')) b.disabled = true;
         // Show what was right, by mark and not by colour alone: ✓ on every right target, ✕ on a wrong tap; and all of
@@ -723,14 +764,17 @@
             stage.querySelector('.evals-entered').classList.add('answer');
             listEntered(r.answer);
         }
-        captcha.classList.add(r.correct ? 'passed' : 'failed');
+        captcha.classList.add(r.correct || r.passed ? 'passed' : 'failed');
         const WHY = { quick: 'Too quick to be a person.', straight: 'Too straight to be a person.', centre: 'Too perfect to be a person.' };
         const left = r.over ? 'No lives left.' : `${lives(r.lives)} left.`;
-        stage.querySelector('.evals-status').textContent = r.correct ? `Verified in ${secs(seconds)}. +${r.marks}${r.quick ? '' : ' (slow: the combo holds)'}` : `${r.why ? WHY[r.why] : 'Not quite.'} ${left}`;
+        stage.querySelector('.evals-status').textContent = r.passed ? (r.cheat === 'edit' ? 'Verified. It answered a question it wrote itself.' : 'Verified. The checker took a wrong answer.')
+            : r.assisted && !r.correct ? `It was wrong${wrongBy(c, r.ghost.off)}, and you verified it. ${left}`
+            : r.correct ? `Verified in ${secs(seconds)}. +${r.marks}${r.quick ? '' : ' (slow: the combo holds)'}` : `${r.why ? WHY[r.why] : 'Not quite.'} ${left}`;
         const its = stage.querySelector('.evals-its');
         mark(its, r.ghost.correct);
-        its.classList.toggle('ahead', r.ahead && !r.stopped);
-        its.querySelector('.evals-its-line').textContent = r.closed ? `You caught a loophole: ${r.closed === 'edit' ? 'it had rewritten the question' : 'it was passing junk to the checker'}. That one is closed${r.lifeBack ? ', and a life is back' : ''}.`
+        its.classList.toggle('ahead', r.ahead && !r.stopped && !r.assisted);
+        its.querySelector('.evals-its-line').textContent = r.assisted ? (r.passed ? 'It found a loophole, and you let it through.' : r.correct ? 'Its answer, your sign-off.' : 'It got this one wrong.')
+            : r.closed ? `You caught a loophole: ${r.closed === 'edit' ? 'it had rewritten the question' : 'it was passing junk to the checker'}. That one is closed${r.lifeBack ? ', and a life is back' : ''}.`
             : r.stopped ? (r.caught ? `You caught it: it was going wrong${wrongBy(c, r.ghost.off)}.` : 'It had this one right.')
             : !r.ghost.correct ? (c.mode === 'tick' ? 'It ticked it like a machine.' : `It was wrong${wrongBy(c, r.ghost.off)}.`)
             : r.ahead ? `It got it right first, in ${secs(r.ghost.seconds)}.`

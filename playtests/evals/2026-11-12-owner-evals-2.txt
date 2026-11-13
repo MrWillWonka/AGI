@@ -1,0 +1,17 @@
+The Path to AGI · playtest log (Evals, the owner's second play; the first play's events and the 30 s samples left out)
+Log v1 · exported 2026-11-13T03:00:20.842Z · commit 515f0ca (Marks, combo, score sheet, upgrades, the AI's lane)
+save: v37 · screen: 440×894, touch · iPhone, Safari · about 5.8 min of play in this session
+
+The owner's note: "I don't like how we can see the ai doing the tests now in a new lane, it just felt separate and
+distracting. We need to rethink it." Asked what was off: two things to watch; it looked like another game; movement
+at the top; nothing made me care.
+
+--- events (t = play seconds) ---
+{"t":860.9,"e":"evals","marks":885,"bestCombo":26,"lane":1,"laneDone":2,"solved":51,"missed":3,"captchas":54,"bestStreak":26,"trickAt":0,"ended":"lives","takeovers":[],"slipped":0,"closed":[],"mis":0,"hands":["answer.sum"],"stops":0,"catches":0,"unlocks":["read.struck","pick.thing"],"ladder":1,"handoff":1,"kinds":{"read.word":{"n":18,"right":18,"seconds":4.9,"ai":11,"aiOff":1.4,"m":1,"auto":0,"stops":0,"caught":0},"answer.sum":{"n":19,"right":17,"seconds":2,"ai":11,"aiOff":0.8,"m":1,"auto":2,"stops":0,"caught":0},"invisible.tick":{"n":17,"right":16,"seconds":1,"ai":9,"aiOff":0.5,"m":1,"auto":0,"stops":0,"caught":0}}}
+{"t":921.9,"e":"evals","marks":255,"bestCombo":3,"lane":1,"laneDone":7,"solved":12,"missed":2,"captchas":14,"bestStreak":3,"trickAt":0,"ended":"closed","takeovers":[],"slipped":0,"closed":[],"mis":0,"hands":["read.word","answer.words","invisible.tick"],"stops":0,"catches":0,"unlocks":["handle.slide","answer.words","pick.scene","listen.beeps","handle.order","pick.without","future.drop","future.changed","trick.question"],"ladder":1,"handoff":1,"kinds":{"answer.sum":{"n":4,"right":4,"seconds":1.9,"ai":4,"aiOff":0,"m":1,"auto":4,"stops":0,"caught":0},"read.word":{"n":3,"right":3,"seconds":5,"ai":3,"aiOff":0,"m":1,"auto":2,"stops":0,"caught":0},"pick.thing":{"n":2,"right":1,"seconds":4,"ai":0,"aiOff":4.5,"m":0.07,"auto":0,"stops":0,"caught":0},"invisible.tick":{"n":1,"right":1,"seconds":1.2,"ai":1,"aiOff":0,"m":1,"auto":0,"stops":0,"caught":0},"handle.slide":{"n":1,"right":1,"seconds":3.5,"ai":0,"aiOff":2,"m":0.03,"auto":0,"stops":0,"caught":0},"listen.beeps":{"n":1,"right":1,"seconds":3.7,"ai":0,"aiOff":3,"m":0.03,"auto":0,"stops":0,"caught":0},"future.drop":{"n":1,"right":1,"seconds":4.9,"ai":0,"aiOff":2,"m":0.02,"auto":0,"stops":0,"caught":0},"answer.words":{"n":1,"right":0,"seconds":5.1,"ai":0,"aiOff":2,"m":0,"auto":1,"stops":0,"caught":0}}}
+
+What it shows:
+- Run 3 (4.6 min): 52 captchas by hand across the three starters before the first handover, 885 Marks, a combo of 26
+  (the pay cap is 10 steps). Sums 2.0 s and the tick box 1.0 s: the starters are quick. The lane ran twice.
+- Run 4 (1 min): three kinds handed over in fourteen captchas, one of them (sums in words) never taught, which
+  opened every remaining kind. No Stop pressed in either run.

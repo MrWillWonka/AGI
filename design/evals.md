@@ -131,6 +131,33 @@ phone; whether the lane's one-line view is enough to catch a mistake (the ball d
 judged from it); whether Marks come at a pace that makes the upgrades feel reachable; the board's bounties against
 a run's pay (a first run earns a few hundred, the first two rivals 300).
 
+## It fills in, you verify (built 2026-11-12, after the owner's second play)
+
+`playtests/evals/2026-11-12-owner-evals-2.txt`. **The lane is dropped.** The owner: "I don't like how we can see the
+AI doing the tests now in a new lane, it just felt separate and distracting. We need to rethink it." Asked what was
+off, they ticked all four: two things to watch, it looked like another game, movement at the top, and nothing made
+them care (the log: no Stop pressed in either run with the lane). Of three directions (it assists before it
+replaces; out of sight with exceptions sent to you; reviewing between runs) they picked the first, "but it should
+still go through the motions of filling things out and then you can verify".
+
+`assist` in `evals.js` (on by default; `lane` is off by default and kept behind a debug switch):
+
+- A captcha of a kind you handed over **comes up in your turn, full size**. The AI's hand taps it in, and each tap is
+  a real one: entered or picked as yours would be. It stops at Verify. **Verify is yours** (it waits until the AI is
+  done), or fix the answer first.
+- **Verified as it left it**, its answer is judged: right pays you at your combo and counts toward what it has done
+  alone (`own`), wrong costs your life ("It was wrong by 2 letters, and you verified it."). Nothing is learned.
+- **Changed by you**, or with a tap of yours while it was still filling in (it stops: "You took over."), your answer
+  is judged as on a captcha you stopped: it says whether you caught a mistake, and it learns from the fix.
+- **Loopholes** show the same way: junk entered fast, or the prompt flickering into an easier one. Verify it and it
+  passes at half pay and misaligns it; fix it and that loophole is closed with a life back.
+- The tick box has no Verify, so there it still answers alone. Take back is on every filled-in captcha.
+- Not built: the third stage, a proven kind going out of sight and paying on its own.
+
+To watch in play: whether waiting for it to finish feels like a breath or a drag (it is only as fast as you until it
+has done many alone); whether its wrong answers get noticed; and handing over is still free, so an untaught kind
+can be handed over and the ladder run to its end at once (the second play did this: three handed over, one at 0%).
+
 ## Reviewing (built 2026-11-12)
 
 - **Stop** is the button on every captcha that is the AI's (`run.interrupt`). The captcha becomes yours, from a fresh

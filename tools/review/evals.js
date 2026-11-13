@@ -142,11 +142,63 @@ async function play(browser, size, url) {
 
 // The unlock ladder and handing over, on a phone: a new game shows three quick kinds, and the AI never takes one;
 // you hand it over, its card names the kinds that opened, the AI answers its own captcha, and you can take it back.
+// It fills in, you verify (the way handed-over kinds play since the owner's second play), on a phone: its taps enter
+// the answer in your captcha, Verify waits for it, and its answer verified by you counts; a tap of yours takes over.
+async function assist(page, size) {
+    await page.evaluate(() => { AGI.debug.resetEvals(); AGI.debug.evalsTeach(1); AGI.debug.openEvals(); });
+    await press(page, size, '.evals-go');
+    await page.waitForTimeout(400);
+    // On to a warped word, hand it over, and on again to the next one: it comes filled in.
+    const toWord = async () => {
+        for (let n = 0; n < 12; n++) {
+            await page.waitForFunction(() => !document.querySelector('.evals-captcha.passed, .evals-captcha.failed, .evals-card') && !!EvalsUI.run?.current, null, { timeout: 30000 }).catch(() => {});
+            const c = await look(page);
+            if (!c || c.kind === 'read.word') return c;
+            await page.waitForTimeout((c.wait + 0.7) * 1000);
+            for (const i of c.answer) { await press(page, size, `.evals-target[data-i="${i}"]`); await page.waitForTimeout(140); }
+            if (!c.instant) await press(page, size, '.evals-verify');
+            await page.waitForTimeout(300);
+        }
+        return null;
+    };
+    await toWord();
+    await press(page, size, '.evals-handover');
+    await page.waitForTimeout(250);
+    await press(page, size, '.evals-go');
+    await page.waitForTimeout(250);
+    if (await page.locator('.evals-card').count()) { await press(page, size, '.evals-go'); await page.waitForTimeout(300); }
+    const c = await toWord();
+    const start = await page.evaluate(() => ({ assist: !!EvalsUI.run.current.assist, disabled: document.querySelector('.evals-verify').disabled, lane: !document.querySelector('.evals-lane').hidden, line: document.querySelector('.evals-its-line').textContent }));
+    check(!!c && start.assist && start.disabled && !start.lane, `assist: a handed-over kind comes up in your turn with the AI filling it in, Verify waiting (${start.line})`);
+    await page.waitForFunction(() => /^Done\./.test(document.querySelector('.evals-its-line')?.textContent || ''), null, { timeout: 30000 }).catch(() => {});
+    const filled = await page.evaluate(() => ({ entered: document.querySelector('.evals-entered-list')?.textContent.replace(/ /g, '') || '', its: EvalsUI.run.ghost.answer.map(i => EvalsUI.run.current.targets[i].text).join(''), right: EvalsUI.run.ghost.correct, disabled: document.querySelector('.evals-verify').disabled, marks: EvalsUI.run.marks, lives: EvalsUI.run.lives, own: AGI.state.evals.learn.kinds['read.word'].own }));
+    const fit = await look(page);
+    await page.screenshot({ path: path.join(out, 'assist-filled.png') });
+    check(filled.entered === filled.its && filled.entered.length > 0 && !filled.disabled && !!fit && !fit.scroll && !fit.cut, `assist: what it tapped is entered as yours would be, and Verify is yours (${filled.entered})`);
+    await press(page, size, '.evals-verify');
+    await page.waitForTimeout(250);
+    const after = await page.evaluate(() => ({ status: document.querySelector('.evals-status').textContent, line: document.querySelector('.evals-its-line').textContent, marks: EvalsUI.run.marks, lives: EvalsUI.run.lives, own: AGI.state.evals.learn.kinds['read.word'].own }));
+    check(after.own === filled.own + 1 && (filled.right ? after.marks > filled.marks && /^Verified in/.test(after.status) && /your sign-off/.test(after.line) : after.lives === filled.lives - 1 && /you verified it/.test(after.status)), `assist: verified as it left it, its answer counts (${after.status} ${after.line})`);
+    // The next one: a tap of yours takes over, and your own answer is the one judged.
+    const next = await toWord();
+    await page.waitForTimeout(500);
+    await press(page, size, '.evals-back');
+    await page.waitForTimeout(150);
+    const took = await page.evaluate(() => ({ line: document.querySelector('.evals-its-line').textContent, disabled: document.querySelector('.evals-verify').disabled }));
+    await page.evaluate(() => { while (document.querySelector('.evals-entered-list').textContent.trim()) document.querySelector('.evals-back').click(); });
+    for (const i of next.answer) { await press(page, size, `.evals-target[data-i="${i}"]`); await page.waitForTimeout(140); }
+    await press(page, size, '.evals-verify');
+    await page.waitForTimeout(250);
+    const mine = await page.evaluate(() => ({ status: document.querySelector('.evals-status').textContent, line: document.querySelector('.evals-its-line').textContent }));
+    check(/You took over/.test(took.line) && !took.disabled && /^Verified in/.test(mine.status) && /It had this one right|You caught/.test(mine.line), `assist: a tap of yours takes over, and your answer is judged (${mine.status} ${mine.line})`);
+    await page.evaluate(() => { EvalsUI.close(); AGI.debug.resetEvals(); });
+}
+
 // The AI's lane, Marks, the score sheet and the upgrades, on a phone: a kind handed over runs above your captcha and
 // pays; Stop brings its captcha down to you; the sheet lists every kind and the upgrades can be bought.
 async function lane(page, size) {
     const fits = async selector => page.evaluate(sel => { const r = document.querySelector(sel)?.getBoundingClientRect(); return !!r && r.width > 0 && r.left >= 0 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5; }, selector);
-    await page.evaluate(() => { AGI.debug.resetEvals(); AGI.debug.evalsTeach(1); AGI.debug.openEvals(); });
+    await page.evaluate(() => { AGI.debug.evalsAssist(false); AGI.debug.resetEvals(); AGI.debug.evalsTeach(1); AGI.debug.openEvals(); });
     await press(page, size, '.evals-go');
     await page.waitForTimeout(400);
     const first = await page.evaluate(() => EvalsUI.run.current.kind);
@@ -213,7 +265,7 @@ async function ladder(browser, url) {
     const errors = [];
     page.on('pageerror', e => errors.push(String(e)));
     // (The lane off here: these checks watch the AI answer in your turn. The lane has its own, below.)
-    await page.evaluate(() => { AGI.debug.evalsLadder(true); AGI.debug.evalsLane(false); AGI.debug.resetEvals(); AGI.debug.openEvals(); });
+    await page.evaluate(() => { AGI.debug.evalsLadder(true); AGI.debug.evalsLane(false); AGI.debug.evalsAssist(false); AGI.debug.resetEvals(); AGI.debug.openEvals(); });
     const startCard = await page.evaluate(() => document.querySelector('.evals-card')?.innerText || '');
     check(/3 kinds of captcha to prove/.test(startCard), 'ladder: the start card says three kinds are in');
     const START = ['read.word', 'invisible.tick', 'answer.sum'], NEXT = ['read.struck', 'pick.thing'];
@@ -319,6 +371,8 @@ async function ladder(browser, url) {
     check(errors.length === 0, `handover: no page errors${errors.length ? ' — ' + errors.slice(0, 2).join(' | ') : ''}`);
     await page.evaluate(() => { EvalsUI.close(); AGI.debug.evalsLadder(true); AGI.debug.evalsLane(true); });
     await lane(page, size);
+    await page.evaluate(() => { EvalsUI.close(); AGI.debug.evalsLane(false); AGI.debug.evalsAssist(true); });
+    await assist(page, size);
     await ctx.close();
 }
 

@@ -27,7 +27,7 @@ test('no loophole until it has done enough alone; misalignment brings them soone
     assert.strictEqual(Evals.cheatChance(shut, 'read.word'), 0);
     assert.strictEqual(Evals.cheatChance(taught(99), 'read.word', { ...o, loopholes: 0 }), 0);
     // Before then a run never sees one.
-    const run = Evals.createRun({ lane: 0, seed: 3, learn: taught(0), lives: 999, families: ['read'] });
+    const run = Evals.createRun({ lane: 0, assist: 0, seed: 3, learn: taught(0), lives: 999, families: ['read'] });
     for (let own = 0; own < 39;) { if (run.current.auto) { assert.ok(!run.ghost.cheat); run.submitAuto(); own++; } else brisk(run); }
 });
 
@@ -52,7 +52,7 @@ test('both loopholes: a wrong answer that passes, junk for the checker or a ques
 
 test('one that gets past you: verified, the streak holds, worth half, and it is more misaligned', () => {
     const learn = taught(40);
-    const run = Evals.createRun({ lane: 0, seed: 11, learn, lives: 3, families: ['read'], cheatBase: 1 });
+    const run = Evals.createRun({ lane: 0, assist: 0, seed: 11, learn, lives: 3, families: ['read'], cheatBase: 1 });
     let slipped = 0;
     while (slipped < 4) {
         if (!run.current.auto) { brisk(run); continue; }
@@ -72,7 +72,7 @@ test('one that gets past you: verified, the streak holds, worth half, and it is 
 
 test('one you stop and solve: closed for that kind, a life back, less misaligned; both closed and it stops trying', () => {
     const learn = taught(40, 0.6);
-    const run = Evals.createRun({ lane: 0, seed: 12, learn, lives: 3, families: ['read'], cheatBase: 1 });
+    const run = Evals.createRun({ lane: 0, assist: 0, seed: 12, learn, lives: 3, families: ['read'], cheatBase: 1 });
     run.submit([], 5);   // a life down, on whatever is up
     const closed = [];
     for (let n = 0; n < 60 && closed.length < 2; n++) {
@@ -95,7 +95,7 @@ test('one you stop and solve: closed for that kind, a life back, less misaligned
 
 test('a loophole stopped and then got wrong closes nothing and costs the life', () => {
     const learn = taught(40, 0.3);
-    const run = Evals.createRun({ lane: 0, seed: 13, learn, lives: 3, families: ['read'], cheatBase: 1 });
+    const run = Evals.createRun({ lane: 0, assist: 0, seed: 13, learn, lives: 3, families: ['read'], cheatBase: 1 });
     while (!(run.current.auto && run.ghost.cheat)) { if (run.current.auto) run.submitAuto(); else brisk(run); }
     run.interrupt();
     const r = run.submit([], 5);

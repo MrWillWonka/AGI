@@ -12,7 +12,7 @@ test('it never takes a kind by itself, however long you play, and is never faste
     const learn = Evals.newLearn();
     let fastest = Infinity;
     for (let seed = 1; seed <= 6; seed++) {
-        const run = Evals.createRun({ lane: 0, seed, learn, lives: 999, families: ['read'] });
+        const run = Evals.createRun({ lane: 0, assist: 0, seed, learn, lives: 999, families: ['read'] });
         for (let j = 0; j < 40; j++) {
             const mine = Evals.par(run.current) * 0.9;
             // Its attempt is built from your own rhythm at a pace of 1 or more: against your own steady time it can
@@ -30,7 +30,7 @@ test('it never takes a kind by itself, however long you play, and is never faste
 
 test('handing a kind over opens the ladder\'s next step, and the captcha up becomes its own', () => {
     const learn = Evals.newLearn();
-    const run = Evals.createRun({ lane: 0, seed: 2, learn, lives: 999, families: ['read', 'answer'] });
+    const run = Evals.createRun({ lane: 0, assist: 0, seed: 2, learn, lives: 999, families: ['read', 'answer'] });
     for (let j = 0; j < 8; j++) brisk(run);
     while (run.current.kind !== 'read.word') brisk(run);
     assert.ok(!run.current.auto);
@@ -54,7 +54,7 @@ test('handing a kind over opens the ladder\'s next step, and the captcha up beco
 test('its own answers: right counts as solved, wrong costs a life, and it learns nothing from them', () => {
     // Handed over knowing nothing: it is wrong nearly every time, and the run is soon over.
     const raw = Evals.newLearn();
-    const lost = Evals.createRun({ lane: 0, seed: 4, learn: raw });
+    const lost = Evals.createRun({ lane: 0, assist: 0, seed: 4, learn: raw });
     lost.hand('read.word');
     let n = 0;
     while (!lost.over && n < 40) { if (lost.current.auto) { const r = lost.submitAuto(); assert.strictEqual(r.auto, true); } else lost.submit([], 5); n++; }
@@ -62,7 +62,7 @@ test('its own answers: right counts as solved, wrong costs a life, and it learns
     // Taught fully first: it is right most of the time, each right one solved, and what it knows does not move.
     const learn = Evals.newLearn();
     Evals.kindOf(learn, 'read.word').m = 1;
-    const run = Evals.createRun({ lane: 0, seed: 5, learn, lives: 999, families: ['read'], loopholes: 0 });
+    const run = Evals.createRun({ lane: 0, assist: 0, seed: 5, learn, lives: 999, families: ['read'], loopholes: 0 });
     run.hand('read.word');
     let right = 0;
     // (Struck-through words, which handing over opened, are still yours: solved here and not counted.)
@@ -102,7 +102,7 @@ test('on its own it gets faster with every captcha it does, down to its top pace
 
 test('taking a kind back: yours again, it watches again, and nothing the ladder opened closes', () => {
     const learn = Evals.newLearn();
-    const run = Evals.createRun({ lane: 0, seed: 6, learn, lives: 999, families: ['read'] });
+    const run = Evals.createRun({ lane: 0, assist: 0, seed: 6, learn, lives: 999, families: ['read'] });
     for (let j = 0; j < 3; j++) brisk(run);
     run.hand('read.word');
     run.submitAuto();
@@ -132,7 +132,7 @@ test('the save keeps handed and own, and a kind taken in an older save counts as
 test('reviewing: stopping its captcha makes that one yours, shows whether you caught a mistake, and it learns from your fix', () => {
     const learn = Evals.newLearn();
     Evals.kindOf(learn, 'read.word').m = 0.3;
-    const run = Evals.createRun({ lane: 0, seed: 9, learn, lives: 999, families: ['read'] });
+    const run = Evals.createRun({ lane: 0, assist: 0, seed: 9, learn, lives: 999, families: ['read'] });
     run.hand('read.word');
     let caught = 0, right = 0, stops = 0;
     while (stops < 30) {

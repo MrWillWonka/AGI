@@ -99,8 +99,17 @@
         // They run one at a time in a lane of the AI's own while you solve yours (`run.laneNext`, `run.laneSubmit`),
         // `laneGap` seconds apart; stopping one (`run.laneInterrupt`) puts it in front of you and yours waits.
         // 0: they come up in your rotation, as before. When every open kind is the AI's they still do.
-        lane: 1,
+        // (Off since the owner's second play, 2026-11-12: the lane "felt separate and distracting"; kept behind the
+        // debug switch.)
+        lane: 0,
         laneGap: 1.2,
+        // It assists before it replaces (the owner's pick after the lane, 2026-11-12): a captcha of a kind you handed
+        // over still comes up in your turn, and the AI goes through the motions of filling it in (`assist` on the
+        // captcha); then it is yours to verify, or to fix first. Verified as it left it, its answer is judged: right
+        // pays you and counts toward what it has done alone, wrong costs your life, a loophole's pass is as before.
+        // Changed by you, it is your answer that is judged, and it learns from the fix. The tick box has no Verify,
+        // so there it still answers alone. 0: it presses Verify itself (`auto`, `run.submitAuto`).
+        assist: 1,
     };
     // What a verified captcha pays, by its kind's step on the ladder.
     const MARKS = [10, 20, 30, 50, 80];
@@ -847,13 +856,16 @@
         const cheatRand = rng((o.seed ?? 1) ^ 0x51ED270B);
         const laneRand = rng((o.seed ?? 1) ^ 0x3C6EF372);
         const plotOn = (c, ghost) => {
-            if (!c || !c.auto || c.instant || c.mode === 'tick') return ghost;
+            if (!c || !(c.auto || c.assist) || c.instant || c.mode === 'tick') return ghost;
             const p = cheatChance(learn, c.kind, o);
             if (p <= 0 || cheatRand() >= p) return ghost;
             const open = openLoopholes(kindOf(learn, c.kind));
             return cheatAttempt(learn, c, ghost, open[Math.floor(cheatRand() * open.length)], o);
         };
         const plot = () => { run.ghost = plotOn(run.current, run.ghost); };
+        // With `assist`, a captcha that would be the AI's to answer is one it fills in for you to verify.
+        const assisted = c => { if (c.auto && o.assist && !c.instant) { c.auto = false; c.assist = true; } };
+        const sameAnswer = (c, a, b) => (c.mode === 'seq' ? a.length === b.length && a.every((v, j) => v === b[j]) : a.length === b.length && [...a].sort((x, y) => x - y).every((v, j) => v === [...b].sort((x, y) => x - y)[j]));
         // Marks for a verified captcha: yours at the combo, the AI's at its share, a loophole's pass at half of that.
         const pay = (c, yours, half = false) => {
             const mult = yours ? 1 + Math.min(run.combo, o.comboCap) * o.comboStep : o.aiPay;
@@ -887,6 +899,7 @@
             if (!run.current) { run.over = true; run.exhausted = true; run.ghost = null; return; }
             // A kind handed to the AI is its to answer (`auto`): see `submitAuto`.
             run.current.auto = !!(o.handoff && kindOf(learn, run.current.kind).taken);
+            assisted(run.current);
             run.ghost = ghostAttempt(learn, run.current, ghostRand, o);
             plot();
         };
@@ -990,13 +1003,13 @@
                     run.lane = { captcha: c, ghost: plotOn(c, ghostAttempt(learn, c, ghostRand, o)) };
                     next();
                 } else if (o.lane && !run.held) next();
-                else { run.current.auto = true; run.ghost = ghostAttempt(learn, run.current, ghostRand, o); plot(); }
+                else { run.current.auto = true; assisted(run.current); run.ghost = ghostAttempt(learn, run.current, ghostRand, o); plot(); }
             }
             return opened;
         };
         run.takeBack = function (kind) {
             takeBack(learn, kind);
-            if (run.current && run.current.kind === kind) { run.current.auto = false; run.current.stopped = false; run.ghost = ghostAttempt(learn, run.current, ghostRand, o); }
+            if (run.current && run.current.kind === kind) { run.current.auto = false; run.current.assist = false; run.current.stopped = false; run.ghost = ghostAttempt(learn, run.current, ghostRand, o); }
         };
         // Reviewing: stop the AI on a captcha of its own and that one is yours to solve (the kind stays handed over).
         // Its attempt is kept, so your answer shows whether you caught a mistake; it watches you solve it and learns.
@@ -1036,6 +1049,34 @@
             const c = run.current, ghost = run.ghost;
             seconds = Math.max(0, +seconds || 0);
             const list = Array.isArray(answer) ? answer : [];
+            // A captcha it filled in for you. Verified as it left it: its answer is the one judged, and nothing is
+            // learned. Changed: yours is, as on one you stopped (it watches the fix).
+            if (c.assist) {
+                // (`took` on the trace: you took over part way, so it is your answer even if it matches its own.)
+                if (!(trace && trace.took) && sameAnswer(c, list, ghost.answer)) {
+                    const k = kindOf(learn, c.kind);
+                    k.own = (k.own || 0) + 1;
+                    const base = { assisted: true, why: null, answer: c.answer.slice(), captcha: c, ghost, ahead: false, learned: 0, takeover: null, unlocked: [], stopped: false, caught: false, closed: null };
+                    if (ghost.cheat) {
+                        learn.mis = clamp(misaligned(learn) + o.misMiss, 0, 1);
+                        run.slipped++;
+                        if (run.slipped % 2 === 0) run.solved++;
+                        run.streak++;
+                        run.bestStreak = Math.max(run.bestStreak, run.streak);
+                        const marks = pay(c, true, true);
+                        run.log.push({ family: c.family, kind: c.kind, level: c.level, assist: true, cheat: ghost.cheat, correct: false, passed: true, seconds, ghost: false, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m });
+                        next();
+                        return { ...base, correct: false, passed: true, cheat: ghost.cheat, marks, quick: false, combo: run.combo, mis: learn.mis, lives: run.lives, over: run.over, exhausted: run.exhausted };
+                    }
+                    const right = ghost.correct, marks = right ? pay(c, true) : 0, quick = right && seconds <= par(c, o) * o.comboPar;
+                    run.combo = right ? run.combo + (quick ? 1 : 0) : 0;
+                    run.bestCombo = Math.max(run.bestCombo, run.combo);
+                    run.log.push({ family: c.family, kind: c.kind, level: c.level, assist: true, correct: right, seconds, ghost: right, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m });
+                    tally(c, right);
+                    return { ...base, correct: right, marks, quick, combo: run.combo, lives: run.lives, over: run.over, exhausted: run.exhausted };
+                }
+                c.stopped = true;
+            }
             const seen = { ...(trace || { taps: list.map((i, j) => ({ i, t: seconds * (j + 1) / (list.length + 1) })), bend: 0, offset: 1 }), seconds };
             const correct = judge(c, answer, seen);
             // It was ahead if it was right and either done before you or you were wrong.

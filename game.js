@@ -13302,10 +13302,15 @@ window.AGI = (function () {
                 }
                 afterChange();
             },
-            // The AI's lane on or off on this device (off: the kinds you handed over come up in your turn). Returns it.
+            // The AI's lane on or off on this device (off, as it is unless turned on: the kinds you handed over come up in your turn). Returns it.
             evalsLane(on) {
                 if (on !== undefined) { try { localStorage.setItem('agiEvalsLane', on ? '1' : '0'); } catch { /* private mode */ } }
-                try { return localStorage.getItem('agiEvalsLane') !== '0'; } catch { return true; }
+                try { return localStorage.getItem('agiEvalsLane') === '1'; } catch { return false; }
+            },
+            // The AI filling a handed-over kind in for you to verify, on or off on this device (off: it presses Verify itself).
+            evalsAssist(on) {
+                if (on !== undefined) { try { localStorage.setItem('agiEvalsAssist', on ? '1' : '0'); } catch { /* private mode */ } }
+                try { return localStorage.getItem('agiEvalsAssist') !== '0'; } catch { return true; }
             },
             evalsMarks(n = 1000) { state.evals.marks += n; state.evals.earned += n; afterChange(); },
             // Loopholes without the wait: every kind the AI holds counts as long done alone. `mis` sets how misaligned it is.

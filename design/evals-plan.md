@@ -235,6 +235,11 @@ misaligned (it cheats more, shown past a threshold); one stopped and solved is c
 `RIVALS`, `sheet`, `run.lane*` in evals.js; `EVALS_TREE`, `evalsOpts`, `evalsPassed` in engine.js; save v37;
 `tests/evals-marks.test.js`; the smoke test's `lane` checks). Next: the owner's second play.
 
+**After the owner's second play** (2026-11-12): the lane is dropped (off by default) and **the AI fills a handed-over
+kind in for you to verify** (`assist` in evals.js; design/evals.md → It fills in, you verify;
+`tests/evals-assist.test.js`; the smoke test's `assist` checks). Open: a proven kind going out of sight, and
+whether handing over should be earned.
+
 Each ends with something the owner can play or read, and a short report.
 
 1. **Skeleton.** `evals.js` with a run (lives, streak, a queue of captchas), one family (Pick), the judge, and tests.

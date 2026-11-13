@@ -40,7 +40,7 @@ test('a verified captcha pays Marks by its step on the ladder, and the combo gro
 
 test('the lane: handed-over kinds leave your rotation and run beside you, paying the AI\'s share', () => {
     const learn = taught(['read.word', 'answer.sum', 'invisible.tick']);
-    const run = Evals.createRun({ seed: 5, learn, lives: 9 });
+    const run = Evals.createRun({ seed: 5, learn, lives: 9, lane: 1 });
     assert.strictEqual(run.laneNext(), null);   // nothing handed over yet
     while (run.current.kind !== 'read.word') brisk(run);
     const up = run.current;
@@ -74,7 +74,7 @@ test('the lane: handed-over kinds leave your rotation and run beside you, paying
 
 test('stopping the lane puts its captcha in front of you, and yours waits', () => {
     const learn = taught(['read.word', 'answer.sum', 'invisible.tick'], ['read.word']);
-    const run = Evals.createRun({ seed: 6, learn, lives: 9 });
+    const run = Evals.createRun({ seed: 6, learn, lives: 9, lane: 1 });
     const mine = run.current, lane = run.laneNext();
     assert.ok(lane && mine.kind !== 'read.word');
     assert.strictEqual(run.laneInterrupt(), true);
@@ -90,7 +90,7 @@ test('stopping the lane puts its captcha in front of you, and yours waits', () =
 test('the lane\'s wrong answers: forgiven by Rollback first, then a life each, and the last one ends the run', () => {
     const learn = Evals.newLearn();
     Object.assign(Evals.kindOf(learn, 'read.word'), { m: 0, taken: true, handed: true });
-    const run = Evals.createRun({ seed: 7, learn, lives: 2, forgive: 1 });
+    const run = Evals.createRun({ seed: 7, learn, lives: 2, forgive: 1, lane: 1 });
     const first = (run.laneNext(), run.laneSubmit());
     assert.ok(!first.correct && first.forgiven && run.lives === 2);
     const second = (run.laneNext(), run.laneSubmit());
@@ -103,9 +103,9 @@ test('the lane\'s wrong answers: forgiven by Rollback first, then a life each, a
 test('with every open kind handed over they come up in your turn again, and with the lane off they always do', () => {
     const all = Object.keys(Evals.KINDS);
     const learn = taught(all, all);
-    const run = Evals.createRun({ seed: 8, learn, lives: 9 });
+    const run = Evals.createRun({ seed: 8, learn, lives: 9, lane: 1, assist: 0 });
     assert.ok(run.current && run.current.auto);
-    const off = Evals.createRun({ seed: 8, learn: taught(['read.word'], ['read.word']), lives: 9, lane: 0, families: ['read'] });
+    const off = Evals.createRun({ seed: 8, learn: taught(['read.word'], ['read.word']), lives: 9, lane: 0, assist: 0, families: ['read'] });
     assert.ok(off.current.auto && off.laneNext() === null);
 });
 
