@@ -127,3 +127,33 @@ test('the save keeps handed and own, and a kind taken in an older save counts as
     const junk = E.migrate({ version: E.SAVE_VERSION, evals: { learn: { kinds: { 'read.word': { own: -4, handed: 'yes' } } } } }, now).evals.learn.kinds['read.word'];
     assert.deepStrictEqual([junk.own, junk.handed], [0, false]);
 });
+
+test('reviewing: stopping its captcha makes that one yours, shows whether you caught a mistake, and it learns from your fix', () => {
+    const learn = Evals.newLearn();
+    Evals.kindOf(learn, 'read.word').m = 0.3;
+    const run = Evals.createRun({ seed: 9, learn, lives: 999, families: ['read'] });
+    run.hand('read.word');
+    let caught = 0, right = 0, stops = 0;
+    while (stops < 30) {
+        if (!run.current.auto) { brisk(run); continue; }
+        const would = run.ghost.correct, own = learn.kinds['read.word'].own, m = learn.kinds['read.word'].m, lives = run.lives;
+        assert.strictEqual(run.interrupt(), true);
+        assert.ok(!run.current.auto && run.current.stopped && run.current.kind === 'read.word');
+        assert.strictEqual(run.submitAuto(), null);
+        assert.strictEqual(run.interrupt(), false);
+        const r = brisk(run);
+        stops++; caught += +r.caught; right += +!r.caught;
+        assert.ok(r.stopped && r.correct && r.caught === !would);
+        // Your answer is the one that counts: no life lost whatever it was about to do, and it learned from watching.
+        assert.strictEqual(run.lives, lives);
+        assert.strictEqual(learn.kinds['read.word'].own, own);
+        assert.ok(learn.kinds['read.word'].m >= m);
+    }
+    assert.ok(learn.kinds['read.word'].taken, 'the kind stays handed over');
+    assert.ok(caught > 0 && right > 0, `caught ${caught}, it was right ${right}`);
+    assert.deepStrictEqual([run.stops, run.catches], [30, caught]);
+    assert.strictEqual(run.log.filter(e => e.stopped).length, 30);
+    // A captcha of your own can't be stopped.
+    while (run.current.auto) run.submitAuto();
+    assert.strictEqual(run.interrupt(), false);
+});

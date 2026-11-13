@@ -61,13 +61,58 @@ replaces the first draft (pitched as Busywork: building tasks for a bored AI), w
   its own it gets **faster with the same mistakes**. Also theirs: while it learns it is **only as fast as you**, never
   faster. This replaces "once it beats you at a kind, it takes that kind over" above. Built: see *Handing over*.
 
+- **Handing over makes you its reviewer** (2026-11-12). "I don't want the handoff to mean the player never completes
+  those again, it can be more of a reviewer role to catch the AI making mistakes and catching them, or catching them
+  finding loopholes." Their picks: the AI works and submits on its own and **you can stop it** when you see it going
+  wrong; a stopped captcha is **yours to solve**, and it learns from your fix; loopholes are **designed on paper
+  first** (see *Loopholes*). Asked what a reviewer's wrong calls cost, the answer was "Na": taken as nothing new, so
+  the earlier call stands (its wrong answer that you let through costs a life) and stopping a right one costs only
+  your time. Built: see *Reviewing*.
+
+## Reviewing (built 2026-11-12)
+
+- **Stop** is the button on every captcha that is the AI's (`run.interrupt`). The captcha becomes yours, from a fresh
+  clock, with nothing entered; the kind stays handed over. **Take back** moved onto a stopped captcha (stop, then
+  take back), so the foot never holds more than two buttons.
+- **What you see to judge by:** its taps ring the targets, an order shows as it enters it, and its finished answer
+  sits for a second before it presses Verify (`REVIEW_MS` in `evals-ui.js`, a first guess for the owner to tune).
+- **After you solve it** its line says whether you caught one ("You caught it: it was going wrong…") or not ("It had
+  this one right."). Your answer is the one judged; its attempt costs nothing either way.
+- **It learns from your fix** as it does from any captcha it watches you solve, so reviewing is how a kind handed
+  over early gets better. It still learns nothing from its own answers.
+- The run counts `stops` and `catches`; the playtest log's `evals` line carries them, and per kind `stops` and
+  `caught`.
+
+Not built, to watch in play: the tick box gives nothing to judge by but the hand's path; a kind on its own at 0.55
+of your time leaves less time to read its answer; nothing rewards a catch beyond the life it saves.
+
+## Loopholes (on paper, 2026-11-12; nothing built)
+
+The AI gets an answer accepted that shouldn't have been, and the reviewer's job is to notice. Three ways it could
+work, for the owner to pick from:
+
+1. **Shortcut tells.** Its answer is right, but how it got there isn't: it taps before the prompt could be read,
+   goes dead straight to the target, or answers a listening captcha before the beeps end. Verified counts, but each
+   one you let through teaches it the shortcut, and a kind full of shortcuts starts failing when the captchas change
+   (a new level, a new variant). Stopping it and solving it properly unlearns one. Cheapest: the ghost already has
+   timing and paths.
+2. **Gaming the checker.** Some captchas come with a weak checker (marked or not): any five letters pass, any three
+   tiles pass. The AI finds it and enters junk that verifies. No life is lost, but junk passes pile up as a hidden
+   debt that comes due later (an audit captcha, or a score that discounts them). Catching one closes that hole for
+   the kind. Closest to real evals (specification gaming).
+3. **Editing the question.** Late, with agents: the AI changes the captcha into one it can do (a struck word
+   un-struck, a sum simplified) and solves that. The reviewer has to remember what was asked. The strongest story
+   beat, the most work, and it leans on the *future* family's "what changed" captchas.
+
+Open for each: what a missed loophole costs (a life, a debt, a worse AI), whether a catch pays anything, and when
+loopholes begin (a mastery level, the ladder's last step, or agents).
+
 ## Handing over (built 2026-11-12)
 
 `handoff` in `evals.js` (on by default; 0 is the older rule, kept for its tests).
 
 - **Hand over** is a button on every captcha of a kind that is yours. It hands that kind to the AI from that captcha
-  on (`run.hand`), with a card saying so and what it opened. **Take back** is on every captcha that is the AI's
-  (`run.takeBack`): the kind is yours again from that captcha, and it watches again.
+  on (`run.hand`), with a card saying so and what it opened. **Take back** (`run.takeBack`; since *Reviewing*, on a captcha of its you have stopped): the kind is yours again from that captcha, and it watches again.
 - **Its own captcha** (`auto`) plays in your run with your targets locked: the ghost hand taps, what it enters
   shows, it presses Verify, and the answer is judged as yours would be (`run.submitAuto`). Right counts as solved
   and keeps the streak; wrong costs a life.

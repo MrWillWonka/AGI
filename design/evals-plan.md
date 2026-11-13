@@ -221,6 +221,11 @@ faster than you, and on its own it gets faster with the same mistakes. `handoff`
 Tests: `tests/evals-handoff.test.js`; the older tests and the ladder's run with `handoff: 0`. The smoke test hands
 warped words over on a phone, watches the AI answer one, and takes them back.
 
+**Reviewing is built** (2026-11-12, the owner's calls; design/evals.md → Reviewing): Stop on the AI's own captcha
+makes that one yours to solve (`run.interrupt`, `stopped`, `caught`, `run.stops`, `run.catches`), it learns from your
+fix, and Take back sits on a stopped captcha. Its finished answer waits a second before Verify (`REVIEW_MS`).
+Loopholes are three ideas on paper (design/evals.md → Loopholes), waiting on the owner's pick.
+
 Each ends with something the owner can play or read, and a short report.
 
 1. **Skeleton.** `evals.js` with a run (lives, streak, a queue of captchas), one family (Pick), the judge, and tests.

@@ -726,7 +726,7 @@
         const families = (o.families || ORDER).filter(f => FAMILIES[f]);
         const run = {
             opts: o, learn, lives: o.lives, level: 0, levels: {}, solved: 0, missed: 0, streak: 0, bestStreak: 0, over: false, exhausted: false,
-            current: null, ghost: null, takeovers: [], unlocks: [], hands: [], turn: 0, trickAt: 0,
+            current: null, ghost: null, takeovers: [], unlocks: [], hands: [], stops: 0, catches: 0, turn: 0, trickAt: 0,
             // One line per captcha answered: what it was, whether you and it were right and how long each took.
             log: [],
         };
@@ -774,6 +774,14 @@
             takeBack(learn, kind);
             if (run.current && run.current.kind === kind) { run.current.auto = false; run.ghost = ghostAttempt(learn, run.current, ghostRand, o); }
         };
+        // Reviewing: stop the AI on a captcha of its own and that one is yours to solve (the kind stays handed over).
+        // Its attempt is kept, so your answer shows whether you caught a mistake; it watches you solve it and learns.
+        run.interrupt = function () {
+            if (run.over || !run.current || !run.current.auto) return false;
+            run.current.auto = false;
+            run.current.stopped = true;
+            return true;
+        };
         // The AI's own answer to a captcha of a kind you handed it: right counts as solved, wrong costs a life. It
         // learns nothing from its own work; it only gets faster (`own`).
         run.submitAuto = function () {
@@ -807,8 +815,10 @@
                 unlocked = openKinds(learn, o).filter(kind => !before.has(kind));
                 run.unlocks.push(...unlocked);
             }
-            run.log.push({ family: c.family, kind: c.kind, level: c.level, correct, seconds, ghost: ghost.correct, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m });
-            const result = { correct, why: c.mode === 'tick' && !correct ? tickVerdict(seen, o) : null, answer: c.answer.slice(), captcha: c, ghost, ahead, learned, takeover, unlocked };
+            const stopped = !!c.stopped, caught = stopped && !ghost.correct;
+            if (stopped) { run.stops++; run.catches += +caught; }
+            run.log.push({ family: c.family, kind: c.kind, level: c.level, correct, seconds, ghost: ghost.correct, ghostSeconds: ghost.seconds, ghostOff: ghost.off, m: k.m, ...(stopped ? { stopped: true, caught } : {}) });
+            const result = { stopped, caught, correct, why: c.mode === 'tick' && !correct ? tickVerdict(seen, o) : null, answer: c.answer.slice(), captcha: c, ghost, ahead, learned, takeover, unlocked };
             tally(c, correct);
             result.lives = run.lives;
             result.over = run.over;

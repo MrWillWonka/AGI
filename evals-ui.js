@@ -131,13 +131,14 @@
         // One line in the playtest log a run: what you met, how you and the AI did on each kind, what it took over.
         const kinds = {};
         for (const e of run.log) {
-            const k = kinds[e.kind] = kinds[e.kind] || { n: 0, right: 0, seconds: 0, ai: 0, aiOff: 0, m: 0, auto: 0 };
+            const k = kinds[e.kind] = kinds[e.kind] || { n: 0, right: 0, seconds: 0, ai: 0, aiOff: 0, m: 0, auto: 0, stops: 0, caught: 0 };
+            if (e.stopped) { k.stops++; k.caught += +e.caught; }   // its captchas you stopped, and how many of those it had wrong
             if (e.auto) k.auto++;   // of the n, how many the AI answered alone
             k.n++; k.right += +e.correct; k.seconds += e.seconds; k.ai += +e.ghost; k.aiOff += e.ghostOff; k.m = Math.round(e.m * 100) / 100;
         }
         for (const k of Object.values(kinds)) { k.seconds = Math.round(k.seconds / k.n * 10) / 10; k.aiOff = Math.round(k.aiOff / k.n * 10) / 10; }
         window.AGI?.playtest?.('evals', { solved: run.solved, missed: run.missed, captchas: run.log.length, bestStreak: run.bestStreak, trickAt: run.trickAt,
-            ended: run.exhausted ? 'nothing left' : run.over ? 'lives' : 'closed', takeovers: run.takeovers, hands: run.hands, unlocks: run.unlocks, ladder: run.opts.ladder, handoff: run.opts.handoff, kinds });
+            ended: run.exhausted ? 'nothing left' : run.over ? 'lives' : 'closed', takeovers: run.takeovers, hands: run.hands, stops: run.stops, catches: run.catches, unlocks: run.unlocks, ladder: run.opts.ladder, handoff: run.opts.handoff, kinds });
         if (window.AGIEngine?.evalsRunEnd && window.AGI?.state) window.AGIEngine.evalsRunEnd(window.AGI.state, run);
         else { run.counted = true; const s = saved(); s.runs++; s.best = Math.max(s.best, run.solved); }
         window.AGI?.save?.();
@@ -331,20 +332,24 @@
         stage.replaceChildren(el('div', { class: `evals-captcha is-${c.layout}` + (c.auto ? ' is-auto' : '') },
             c.family === 'trick' ? el('p', { class: 'evals-quiz', text: `Question ${c.at + 1} of ${c.of}` }) : '',
             el('p', { class: 'evals-prompt' }, ...promptParts(c)),
-            el('p', { class: 'evals-its' }, el('span', { class: 'evals-its-tag', text: 'AI' }), el('span', { class: 'evals-its-line', role: 'status', text: c.auto ? 'Doing this one itself.' : 'Working on it.' })),
+            el('p', { class: 'evals-its' }, el('span', { class: 'evals-its-tag', text: 'AI' }), el('span', { class: 'evals-its-line', role: 'status', text: c.auto ? 'Doing this one itself.' : c.stopped ? 'Stopped. This one is yours.' : 'Working on it.' })),
             play,
             c.mode === 'seq' ? el('div', { class: 'evals-entered' }, el('span', { class: 'evals-entered-list', role: 'status', 'aria-label': 'Entered so far' }),
                 el('button', { type: 'button', class: 'ghost-button evals-back', 'aria-label': 'Take back the last one', text: '⌫', onclick: back })) : '',
             el('div', { class: 'evals-foot' },
-                el('span', { class: 'evals-status', role: 'status', text: c.auto ? 'Its mistakes cost your lives.' : '' }),
-                // Yours to hand to the AI, or its to take back: this kind, from this captcha on.
-                !canHand ? '' : c.auto ? el('button', { type: 'button', class: 'ghost-button evals-give evals-takeback', text: 'Take back', onclick: takeBack })
+                el('span', { class: 'evals-status', role: 'status', text: c.auto ? 'Stop it if it goes wrong.' : '' }),
+                // Its own captcha: Stop makes this one yours to solve. Once stopped, Take back makes the kind yours
+                // again. Yours: Hand over gives the kind to the AI from this captcha on.
+                !canHand ? '' : c.auto ? el('button', { type: 'button', class: 'ghost-button evals-give evals-stop', text: 'Stop', 'aria-label': 'Stop the AI and solve this one yourself', onclick: interrupt })
+                    : c.stopped ? el('button', { type: 'button', class: 'ghost-button evals-give evals-takeback', text: 'Take back', 'aria-label': `Take ${window.Evals.KINDS[c.kind].name} back from the AI`, onclick: takeBack })
                     : el('button', { type: 'button', class: 'ghost-button evals-give evals-handover', text: 'Hand over', 'aria-label': `Hand ${window.Evals.KINDS[c.kind].name} over to the AI`, onclick: handOver }),
                 c.instant ? '' : el('button', { type: 'button', class: 'evals-go evals-verify', text: 'Verify', onclick: verify, ...(c.auto ? { disabled: '' } : {}) }))));
         if (c.auto) cues.push(setTimeout(() => targets.forEach(b => { b.tabIndex = -1; }), 0));
         shownAt = performance.now();
-        ghostLoop();
+        if (c.stopped) hand.hidden = true; else ghostLoop();
     }
+    // How long its finished answer sits before it presses Verify: your moment to stop it.
+    const REVIEW_MS = 1000;
 
     // The ghost hand: from under the play area to each target it taps, at the times of its attempt, then to Verify.
     // Between taps it follows one of the shapes your own pointer drew (evals.js `shapes`), turned and scaled onto its
@@ -388,7 +393,7 @@
                 if (!done) {
                     done = true;
                     // Its own captcha: it presses Verify, and that is the answer.
-                    if (c.auto) { if (!still) put(hand, stops[stops.length - 1].p); timer = setTimeout(autoVerify, 320); return; }
+                    if (c.auto) { if (!still) put(hand, stops[stops.length - 1].p); timer = setTimeout(autoVerify, REVIEW_MS); return; }
                     line.textContent = g.correct ? `Right, in ${secs(g.seconds)}.` : `Wrong${wrongBy(c, g.off)}, in ${secs(g.seconds)}.`; mark(line.parentNode, g.correct);
                 }
                 if (!still) put(hand, stops[stops.length - 1].p);
@@ -474,12 +479,19 @@
         const kind = run.current.kind, name = window.Evals.KINDS[kind].name;
         const opened = run.hand(kind);
         window.AGI?.save?.();
-        const lines = [`The AI does ${name} from here on, as well as you have taught it.`, 'Its mistakes cost your lives. You can take them back whenever one comes up.'];
+        const lines = [`The AI does ${name} from here on, as well as you have taught it.`, 'You review it: its mistakes cost your lives. Stop it when it goes wrong and solve that one yourself.'];
         if (opened.length) lines.push(`New to prove: ${listOf(opened.map(k => window.Evals.KINDS[k].name))}.`, rotationLine());
         card('Handed over', lines, 'Continue', show);
     }
-    function takeBack() {
+    // Stop the AI on its own captcha: this one is yours to solve, from a fresh clock. The kind stays handed over.
+    function interrupt() {
         if (!run || run.over || locked || !run.current || !run.current.auto) return;
+        stop();
+        run.interrupt();
+        show();
+    }
+    function takeBack() {
+        if (!run || run.over || locked || !run.current || !(run.current.auto || run.current.stopped)) return;
         run.takeBack(run.current.kind);
         window.AGI?.save?.();
         show();
@@ -550,8 +562,9 @@
         stage.querySelector('.evals-status').textContent = r.correct ? `Verified in ${secs(seconds)}.` : `${r.why ? WHY[r.why] : 'Not quite.'} ${left}`;
         const its = stage.querySelector('.evals-its');
         mark(its, r.ghost.correct);
-        its.classList.toggle('ahead', r.ahead);
-        its.querySelector('.evals-its-line').textContent = !r.ghost.correct ? (c.mode === 'tick' ? 'It ticked it like a machine.' : `It was wrong${wrongBy(c, r.ghost.off)}.`)
+        its.classList.toggle('ahead', r.ahead && !r.stopped);
+        its.querySelector('.evals-its-line').textContent = r.stopped ? (r.caught ? `You caught it: it was going wrong${wrongBy(c, r.ghost.off)}.` : 'It had this one right.')
+            : !r.ghost.correct ? (c.mode === 'tick' ? 'It ticked it like a machine.' : `It was wrong${wrongBy(c, r.ghost.off)}.`)
             : r.ahead ? `It got it right first, in ${secs(r.ghost.seconds)}.`
             : `It got it right, in ${secs(r.ghost.seconds)}. You were first.`;
         const hand = stage.querySelector('.evals-hand');

@@ -186,13 +186,13 @@ async function ladder(browser, url) {
     const counted = /verified/.test(status) ? after.solved === before.solved + 1 && after.lives === before.lives : after.lives === before.lives - 1 && after.solved === before.solved;
     check(before.auto && after.own === before.own + 1 && counted, `handover: the AI answers its own captcha and it counts (${status})`);
     // On through the run until one of its captchas is up again, solving your own; then take the kind back.
-    let mine = new Set(), back = false;
+    let mine = new Set(), back = false, stopped = false;
     for (let n = 0; n < 12 && !back; n++) {
         await page.waitForFunction(() => !document.querySelector('.evals-captcha.passed, .evals-captcha.failed') && !!EvalsUI.run?.current, null, { timeout: 30000 }).catch(() => {});
         const c = await fit();
         if (!c) break;
         if (await page.evaluate(() => !!EvalsUI.run.current.auto)) {
-            if (mine.size) { await press(page, size, '.evals-takeback'); await page.waitForTimeout(300); back = await page.evaluate(() => !EvalsUI.run.current.auto && !AGI.state.evals.learn.kinds['read.word'].taken); break; }
+            if (mine.size) { await press(page, size, '.evals-stop'); await page.waitForTimeout(300); stopped = await page.evaluate(() => !EvalsUI.run.current.auto && !!EvalsUI.run.current.stopped && AGI.state.evals.learn.kinds['read.word'].taken && !document.querySelector('.evals-verify').disabled); await fit(); await page.screenshot({ path: path.join(out, 'handover-stopped.png') }); await press(page, size, '.evals-takeback'); await page.waitForTimeout(300); back = await page.evaluate(() => !EvalsUI.run.current.auto && !AGI.state.evals.learn.kinds['read.word'].taken); break; }
             await page.waitForFunction(() => !!document.querySelector('.evals-captcha.passed, .evals-captcha.failed'), null, { timeout: 30000 }).catch(() => {});
             continue;
         }
@@ -203,6 +203,7 @@ async function ladder(browser, url) {
         await page.waitForTimeout(300);
     }
     check([...mine].every(k => ['answer.sum', 'read.struck'].includes(k)) && mine.size > 0, `handover: the newly opened kinds come up for you (${[...mine].join(', ') || 'none'})`);
+    check(stopped, 'handover: Stop makes its captcha yours to solve, the kind still handed over');
     check(back, 'handover: Take back makes the kind yours again');
     check(unfit.length === 0, `handover: everything in view and a finger wide${unfit.length ? ' — ' + [...new Set(unfit)].join('; ') : ''}`);
     check(errors.length === 0, `handover: no page errors${errors.length ? ' — ' + errors.slice(0, 2).join(' | ') : ''}`);
