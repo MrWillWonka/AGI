@@ -4200,3 +4200,10 @@ body.ring-device.device-phone .snare-tree-zoom { bottom: auto; top: 8px; }
 /* Mail under the ring: its buttons are one width, stacked. */
 body.ring-device .inbox-message .dialog-actions { flex-direction: column; align-items: stretch; gap: 10px; }
 body.ring-device .inbox-message .dialog-actions .button { width: 100%; margin: 0; }
+/* The ring: an app fills the phone's screen or its own window, so the old game's outermost frame round a room (its
+   border, corner marks, padding and shadow) is gone. The frames round the sections inside stay. */
+body.ring-device .room-frame, body.ring-device #viewport { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+body.ring-device .room-frame::after, body.ring-device #viewport::after { display: none; }
+body.ring-device .module-view { padding: 0; background: none; }
+body.ring-device .room-frame, body.ring-device #viewport { padding: 0 16px; }
+body.ring-device.device-phone .room-frame, body.ring-device.device-phone #viewport { padding: 0 10px; }

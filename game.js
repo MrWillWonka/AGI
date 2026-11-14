@@ -2154,9 +2154,9 @@ window.AGI = (function () {
             const hideSwitch = () => { sw.hidden = true; clearTimeout(desk.switchTimer); };
             const switchButton = (key, label, svg, act) => { const b = el('button', { type: 'button', class: `device-switch-button device-switch-${key}${key === 'home' ? ' device-homebar' : ''}`, 'aria-label': label, onclick: () => { hideSwitch(); pt('switch', { to: key }); act(); } }); b.innerHTML = svg; return b; };
             sw.append(
-                switchButton('settings', 'Settings', HOME_ICONS.settings, () => $('settingsButton').click()),
+                switchButton('playtest', 'Playtest survey', HOME_ICONS.playtest, () => openSurvey()),
                 switchButton('home', 'Home screen', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>', () => goHome()),
-                switchButton('playtest', 'Playtest survey', HOME_ICONS.playtest, () => openSurvey()));
+                switchButton('settings', 'Settings', HOME_ICONS.settings, () => $('settingsButton').click()));
             const dot = el('button', { type: 'button', class: 'device-homedot', 'aria-label': 'Show Home, Settings and Playtest', onclick: () => {
                 if (!sw.hidden) return hideSwitch();
                 sw.hidden = false;
