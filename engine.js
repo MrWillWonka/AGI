@@ -1664,6 +1664,8 @@
     }
 
     function isUpgradeVisible(s, up) {
+        // The ring: once the desk is built its card goes (the owner's call: it sat there reading Full).
+        if (ring && up.id === 'keyboard' && level(s, 'keyboard') >= RING_DESK) return false;
         return !!s.unlocked['up:' + up.id];
     }
 

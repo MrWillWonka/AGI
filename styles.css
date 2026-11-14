@@ -4138,3 +4138,15 @@ body.device-phone .home-dock .home-icon { width: 25%; min-width: 0; }
 /* The home screen can't be zoomed or dragged about (game.js buildHome stops iOS's pinch). */
 .device-home { touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .device-home .home-icon { touch-action: manipulation; }
+/* The ring: short of compute for a Packet Snare run (game.js snareClockNote). */
+.snare-clock-note { display: grid; gap: 8px; justify-items: start; margin: 10px 0 4px; padding: 10px 12px; border: 1px solid var(--warning); border-radius: 10px; background: color-mix(in srgb, var(--warning) 10%, transparent); text-align: left; }
+.snare-clock-note p { margin: 0; color: var(--text); }
+/* The ring on a phone: a home bar at the foot of every app (under the home screen, over the page), in place of the
+   round map button and the lab's home crumb. Hidden while a Packet Snare run has the screen. */
+.device-homebar { display: none; }
+body.ring-device.device-phone .device-homebar { display: grid; place-items: center; position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 2500; width: 96px; height: 40px; padding: 0; border: 1px solid var(--border); border-radius: 20px; background: color-mix(in srgb, var(--panel) 92%, transparent); color: var(--success); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55); cursor: pointer; }
+.device-homebar svg { width: 22px; height: 22px; display: block; }
+body.snare-live .device-homebar { display: none !important; }
+body.ring-device.device-phone .minimap { display: none; }
+body.ring-device.device-phone #labRoom .crumb-home, body.ring-device.device-phone #labRoom .crumb-home + .crumb-sep { display: none; }
+body.ring-device.device-phone .app { padding-bottom: 76px; }

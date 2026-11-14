@@ -2132,6 +2132,11 @@ window.AGI = (function () {
         if (!desk.crumb) {
             desk.crumb = true;
             // On the laptop the Lab is a window: its × closes it to the desktop (the owner's call).
+            // On a phone every app has a home bar at the foot of the screen (the owner's playtest: the crumb's home felt
+            // odd on a phone). It sits under the home screen, so it only shows inside an app.
+            const bar = el('button', { type: 'button', class: 'device-homebar', 'aria-label': 'Home screen', onclick: () => goHome() });
+            bar.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+            document.body.append(bar);
             $('labRoom').querySelector('.room-bar').append(el('button', { type: 'button', class: 'ghost-button window-close', 'aria-label': 'Close the Lab, back to the desktop', text: '×', onclick: () => goHome() }));
             for (const b of document.querySelectorAll('[data-facility], [data-jump="facility"]')) { b.textContent = 'home'; b.setAttribute('aria-label', 'Back to the home screen'); }
         }
@@ -2179,7 +2184,7 @@ window.AGI = (function () {
         const mail = icon('mail', 'Mail', () => { pt('home', { open: 'mail' }); openInbox(); });
         const lab = icon('lab', 'Lab', () => openLab());
         const snareApp = icon('snare', 'Packet Snare', () => { pt('home', { open: 'snare' }); openSnareApp(); });
-        const feedApp = icon('feed', 'The Feed', () => { pt('home', { open: 'feed' }); window.FeedUI?.open(); });
+        const feedApp = icon('feed', 'The Feed', () => { pt('home', { open: 'feed' }); openFeed(); });
         snareApp.button.hidden = feedApp.button.hidden = true;
         // Settings, the Journal, Debug and the playtest survey are apps too (the owner's call), so they can be reached
         // from the home screen, which covers the top bar.
@@ -2381,6 +2386,23 @@ window.AGI = (function () {
         document.body.append(dlg);
         dlg.showModal();
         sfx('ui');
+    }
+    // The Feed opens with a short card the first time (placeholder words): what it is and what to do there.
+    function openFeed() {
+        window.FeedUI?.open();
+        if (!E.isRing() || state.intro['ring:feedIntro']) return;
+        const steps = [
+            ['What you catch lands here', 'Every packet you catch in Packet Snare falls into The Feed and turns into sand.'],
+            ['Your mites eat it', 'They work on their own, even while you are away, and what they eat becomes research.'],
+            ['Lead them', 'Hold a point on the pile and the mites go there. Send them at the good sand first.'],
+            ['Garbled sand is slow', 'Sand from garbled catches takes longer to eat and pays nothing. It still has to be cleared.']];
+        const dlg = el('dialog', { class: 'dialog ring-welcome', 'aria-labelledby': 'ringFeedTitle' }, [
+            el('h2', { id: 'ringFeedTitle', text: 'The Feed' }),
+            el('ol', { class: 'ring-welcome-steps' }, steps.map(([head, text]) => el('li', {}, [el('strong', { text: head }), el('span', { text: text })]))),
+            el('div', { class: 'dialog-actions' }, [el('button', { type: 'button', class: 'button', text: 'Got it', onclick: () => dlg.close() })])]);
+        dlg.addEventListener('close', () => { state.intro['ring:feedIntro'] = true; pt('home', { feedIntro: 1 }); dlg.remove(); save(); });
+        document.body.append(dlg);
+        dlg.showModal();
     }
     // The playtest survey (the owner's call: an icon for surveying the testers). Placeholder questions for now; the
     // answers go into the playtest log as a `survey` event, and the log can be copied from here.
@@ -5281,8 +5303,10 @@ window.AGI = (function () {
     function feedFromRun(stats) {
         if (!E.isRing()) return;
         const load = { sector: snare.startSector + 1, packets: stats.caught || 0, gold: stats.gold || 0, garbled: stats.garbledPackets || 0, popped: stats.poppedPackets || 0 };
+        const before = state.feed.stats.delivered;
         const out = E.feedDeliver(state, load);
         if (out.added) pt('feedDelivery', load);
+        if (!before && state.feed.stats.delivered > 0) deviceNotice('feed', 'System', 'The Feed has been added to your home screen.', openFeed);
         feedShow(out);
     }
     // The Start button's words: under the ring, what the clock costs here, or the seconds you can afford.
@@ -5291,6 +5315,20 @@ window.AGI = (function () {
         if (clock.free) return plain;
         if (!clock.ok) return `${plain} · needs ${E.format(Math.ceil(clock.perSecond * E.RING_CLOCK_MIN))} compute`;
         return clock.full ? `${plain} · ${E.format(clock.cost)} compute` : `${plain} · ${clock.seconds} s for ${E.format(clock.cost)} compute`;
+    }
+    // Under the ring a run's clock is bought with compute. When you can't afford a full one, the card says so in a
+    // sentence (the owner's playtest: the runs got short, then stopped, and nothing said why). Placeholder words.
+    function snareClockNote() {
+        if (!E.isRing()) return null;
+        const sector = snareNextSector(), clock = E.snareClock(state, sector, snareRunOpts(sector).focus);
+        if (clock.free || clock.full) return null;
+        const have = E.format(Math.floor(state.res.cp));
+        const text = clock.ok
+            ? `You are short on compute. A full ${E.format(Math.round(clock.price / clock.perSecond))} s run here costs ${E.format(clock.price)} and you have ${have}, so the next run lasts ${clock.seconds} s.`
+            : `You are out of compute. A run here needs at least ${E.format(Math.ceil(clock.perSecond * E.RING_CLOCK_MIN))} and you have ${have}.`;
+        return el('div', { class: 'snare-clock-note', role: 'status' }, [
+            el('p', { text }),
+            el('button', { type: 'button', class: 'ghost-button', text: 'Make more in the Lab', onclick: () => jumpTo('lab') })]);
     }
     function endSnare(stats, layout) {
         snare.raceStep = 0;
@@ -5413,6 +5451,7 @@ window.AGI = (function () {
                 state.snare.runs < 3 && !first && !meetRed ? el('p', { class: 'snare-intro-line', text: snareHowTo() }) : null,
                 best > 0 ? el('ul', { class: 'result-lines' }, [['Best haul', `+${E.format(best)} Signal`], snareRpLine(), snareTrainingLine()].filter(Boolean)
                     .map(([a, b]) => el('li', {}, [el('span', { text: a }), el('span', { text: b })]))) : null,
+                snareClockNote(),
                 el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: snareStartText('Start'), onclick: startSnare }), state.snare.runs > 0 ? snareUpgradesButton() : null].filter(Boolean))].filter(Boolean));
         } else {
             const d = snare.done;
@@ -5476,6 +5515,7 @@ window.AGI = (function () {
                 snareSectorPicker(),
                 // (after a gated escape the gate's line above says it; the objective doesn't repeat it)
                 el('p', { class: 'snare-intro-line snare-goal-line', text: gate ? snareGoalText(snareNextSector()).replace(snareGateText(snareNextSector()), '') : snareGoalText(snareNextSector()) }),
+                snareClockNote(),
                 el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: snareStartText('Snare again'), onclick: startSnare }), snareUpgradesButton(),
                     gate ? el('button', { type: 'button', class: 'ghost-button snare-gate-go', text: 'Go to the Training Cluster', onclick: () => jumpTo('bay:training') }) : null].filter(Boolean))].filter(Boolean));
         }
