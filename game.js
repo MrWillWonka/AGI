@@ -2131,6 +2131,8 @@ window.AGI = (function () {
         const cl = document.body.classList;
         if (!desk.crumb) {
             desk.crumb = true;
+            // On the laptop the Lab is a window: its × closes it to the desktop (the owner's call).
+            $('labRoom').querySelector('.room-bar').append(el('button', { type: 'button', class: 'ghost-button window-close', 'aria-label': 'Close the Lab, back to the desktop', text: '×', onclick: () => goHome() }));
             for (const b of document.querySelectorAll('[data-facility], [data-jump="facility"]')) { b.textContent = 'home'; b.setAttribute('aria-label', 'Back to the home screen'); }
         }
         cl.add('ring-device');
@@ -3159,6 +3161,8 @@ window.AGI = (function () {
 
     // Go straight to any area (a quick fade instead of zooming through the rooms in between).
     function jumpTo(target) {
+        // The ring has no Surveillance screen: the map's home button is the device's home screen (the owner's call).
+        if (E.isRing() && target === 'facility') return goHome();
         if (zooming || target === currentPlace()) return;
         const bay = target.startsWith('bay:') ? target.slice(4) : null;
         const room = bay ? 'servers' : target;

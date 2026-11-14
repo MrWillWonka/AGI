@@ -4103,3 +4103,6 @@ body.ring-device .debug-panel { z-index: 3600; }
 .survey-scale input:checked + span { border-color: var(--primary); background: rgba(255, 255, 255, 0.08); color: var(--primary); }
 .survey-scale input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: 2px; }
 .survey-q textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: rgba(0, 0, 0, 0.3); color: var(--text); font: 0.95rem var(--font-body); resize: vertical; }
+/* The ring, laptop: the Lab is a window with a × that closes it to the desktop. A phone uses the home button. */
+.window-close { display: none; margin-left: auto; width: 34px; height: 30px; padding: 0; font-size: 1.2rem; line-height: 1; }
+body.device-laptop .window-close { display: inline-grid; place-items: center; }

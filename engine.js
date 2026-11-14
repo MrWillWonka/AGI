@@ -672,7 +672,7 @@
         { key: 'module:snare', name: 'Packet Snare', desc: 'Learn Edge Detection to open the Data Pipeline',
             callout: ['Data Pipeline online', 'Loose data is drifting through the server room\'s second bay. Draw a loop round it to catch it.'],
             // The ring: it is the first place to open, on your screen when the desk is done.
-            ringCallout: ['You are online', 'Packet Snare is on your home screen. Open it to start catching data.'],
+            ringCallout: ['System', 'Packet Snare has been added to your home screen.'],
             check: s => (ring ? deskDone(s) : SNARE_OPEN_AT_START || (!!s.unlocked['module:path'] && knows(s, 'Edge Detection'))) },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }
@@ -806,7 +806,8 @@
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'a small favor',
             body: ['Hello,', 'Edge Detection. It can see where things stop now: the lab, the cameras, the door at the back.',
                 'Small favor. When the investors call, say yes. We need the compute more than they need the details.', 'Thanks,\nF'] },
-        { id: 'pipeline', when: s => !!s.unlocked['module:snare'] && !!s.intro['mailAccepted:welcome'],
+        { id: 'pipeline', when: s => !ring && !!s.unlocked['module:snare'] && !!s.intro['mailAccepted:welcome'],   // the ring: a notification says it, not a mail
+         
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'loose data',
             body: ['Hello again,', 'There is a second bay in the server room now. Everything the crawler drops ends up in there, drifting around loose.',
                 'Hold a bubble round the good packets and they\'re yours. The bigger the bubble, the more they\'re worth. Leave the unreadable ones alone.',

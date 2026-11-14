@@ -33,7 +33,7 @@ test('the finished desk puts Packet Snare online, and not before', () => ring(()
     s.levels.keyboard = 4;
     const changes = E.evaluate(s);
     assert.ok(keys(changes).includes('module:snare'));
-    assert.deepEqual(changes.milestones.find(m => m.key === 'module:snare').ringCallout[0], 'You are online');
+    assert.deepEqual(changes.milestones.find(m => m.key === 'module:snare').ringCallout[0], 'System');
 }));
 
 test('under the ring the lab never offers Collect Data or Research, and training stays sealed', () => ring(() => {
