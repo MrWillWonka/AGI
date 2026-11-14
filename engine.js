@@ -501,9 +501,9 @@
     const deskLevels = () => (ring ? RING_DESK : CPU_AFTER_CLICK_LEVEL);
     // The ring: the desk is bought with money, not compute (the owner's call, 2026-11-14: earning a desk by clicking made
     // no sense). Clicking earns compute; at RING_CALL_CP of it a call comes from "M0M" (the AI, not Mom), goes to
-    // voicemail, and a transfer is offered: accept or decline. Declined, Dad's mail brings his own offer; declined
-    // again, Mom's does; all declined, pay day deposits it with no question. Mom's mail says she is sending money
-    // "right now", so a player who took M0M's can write it off as that one, until her transfer really arrives later.
+    // voicemail, and a transfer is offered: accept or decline. Taken, Mom's mail says she is sending money and thinks
+    // it already went through, so M0M's can be written off as hers, until her transfer really arrives later. Declined,
+    // Dad's mail brings his own offer; declined again, Mom's does; all declined, pay day deposits it with no question.
     // Nothing is stored but flags in `intro` (`fund:<who>` taken, `fundNo:<who>` declined, `ring:call` the call
     // made): the money held is the deposits taken less the desk parts bought (derive, don't store).
     // Placeholder numbers until the owner sets them.
@@ -522,12 +522,17 @@
             return s.stats.runCp >= RING_CALL_CP ? 'call' : null;
         }
         if (!decided('m0m')) return 'offer:m0m';
+        // Taken: the main beat (the owner's call). Mom writes that she is sending money and thinks it has gone through,
+        // so M0M's reads as hers; later her real transfer arrives. Nothing else, and no more questions.
+        if (i['fund:m0m']) return !i['mail:mom'] ? 'mail:mom' : !decided('mom') ? 'deposit:mom' : null;
+        // Declined: Dad's offer; declined again, Mom's; declined again, pay day. Each only if the last was refused.
         if (!i['mail:dad']) return 'mail:dad';
-        if (!funded(s) && !decided('dad')) return 'offer:dad';
+        if (!decided('dad')) return 'offer:dad';
+        if (i['fund:dad']) return null;
         if (!i['mail:mom']) return 'mail:mom';
-        if (!decided('mom')) return funded(s) ? 'deposit:mom' : 'offer:mom';
-        if (!funded(s)) return 'deposit:payday';
-        return null;
+        if (!decided('mom')) return 'offer:mom';
+        if (i['fund:mom']) return null;
+        return i['fund:payday'] ? null : 'deposit:payday';
     }
     function fundDecide(s, who, yes) {
         if (!FUNDERS.includes(who) || s.intro['fund:' + who] || s.intro['fundNo:' + who]) return false;
@@ -842,21 +847,20 @@
             body: ['Hello,', 'Edge Detection. It can see where things stop now: the lab, the cameras, the door at the back.',
                 'Small favor. When the investors call, say yes. We need the compute more than they need the details.', 'Thanks,\nF'] },
         // The ring's money story (fundStep): the game delivers these, so `when` never does. Placeholder words until the
-        // owner writes them. Dad is real, and misspells; whether he sends money depends on whether M0M's was taken.
+        // owner writes them. Dad is real, and misspells; he writes only if M0M's transfer was declined.
         { id: 'dad', ring: true, when: () => false, from: 'Dad <dad@mail.net>', subject: 'your computor thing',
-            body: ['Hi {name} its Dad.'],   // the whole mail is the variant's
-            variant: s => ({ body: [
+            body: [
                 'Hi {name} its Dad.',
                 'Your brother says your doing some kind of artifical inteligence project on his old {device}. I dont realy understand what that is or why it needs so much equiptment.',
                 'I still think you should be looking for a real job. But your mother says we should suport you so fine.',
-                funded(s) ? 'Tell me if you need anything for it. Within reason.' : 'I am sending you some money for the desk stuff. Dont spend it on anything else.',
+                'I am sending you some money for the desk stuff. Dont spend it on anything else.',
                 'Love Dad',
-                'PS how do I make the letters biger on this'] }) },
+                'PS how do I make the letters biger on this'] },
         { id: 'mom', ring: true, when: () => false, from: 'Mom <mom@mail.net>', subject: 'thinking of you sweetie',
             body: [
                 'Hi sweetie!',
                 'Dad told me about your computer project and I think it is wonderful, even if neither of us understands it.',
-                'I am going to send you a little money to help you get set up. I am doing it on the bank app right now so it should be there any second!! Tell me if it worked.',
+                'I am sending you a little money to help you get set up. I am doing it on the bank app right now. It says "pending" but your father says that just means it went through, so you probably have it already!! Tell me if it worked.',
                 'Love you,', 'Mom'] },
         { id: 'pipeline', when: s => !ring && !!s.unlocked['module:snare'] && !!s.intro['mailAccepted:welcome'],   // the ring: a notification says it, not a mail
          

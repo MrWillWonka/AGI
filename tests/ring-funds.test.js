@@ -17,7 +17,7 @@ test('the ring: the desk costs money, not compute, and compute alone buys none o
     assert.equal(E.DESK_PRICES.reduce((a, b) => a + b, 0), E.RING_DEPOSIT, 'one deposit covers the whole desk');
 });
 
-test('the ring: taking M0M\'s transfer buys the whole desk; Dad writes, Mom writes, and her money still comes', () => {
+test('the ring: taking M0M\'s transfer buys the whole desk; then only Mom writes, and her money still comes', () => {
     const s = game();
     assert.equal(E.fundStep(s), null, 'nothing before the compute is earned');
     s.stats.runCp = E.RING_CALL_CP;
@@ -32,14 +32,22 @@ test('the ring: taking M0M\'s transfer buys the whole desk; Dad writes, Mom writ
     assert.equal(E.deskCash(s), 0);
     assert.equal(E.deskDone(s), true);
     assert.equal(s.res.cp, 0, 'no compute spent');
-    assert.equal(E.fundStep(s), 'mail:dad'); s.intro['mail:dad'] = true;
-    assert.equal(E.fundStep(s), 'mail:mom'); s.intro['mail:mom'] = true;
+    assert.equal(E.fundStep(s), 'mail:mom', 'no mail from Dad, no other offer'); s.intro['mail:mom'] = true;
+    assert.ok(E.MAIL.find(m => m.id === 'mom').body.some(p => /went through/.test(p)), 'she thinks it already arrived');
     assert.equal(E.fundStep(s), 'deposit:mom', 'her transfer arrives with no question: something is off');
     E.fundDecide(s, 'mom', true);
     assert.equal(E.deskCash(s), E.RING_DEPOSIT);
     assert.equal(E.fundStep(s), null);
-    const dad = E.MAIL.find(m => m.id === 'dad');
-    assert.ok(!dad.variant(s).body.some(p => /sending you some money/.test(p)), 'Dad sends none when you have it');
+});
+
+test('the ring: an offer taken ends the chain: Dad\'s taken, Mom never offers', () => {
+    const s = game();
+    s.stats.runCp = E.RING_CALL_CP; s.intro['ring:call'] = true;
+    E.fundDecide(s, 'm0m', false);
+    s.intro['mail:dad'] = true;
+    E.fundDecide(s, 'dad', true);
+    assert.equal(E.fundStep(s), null);
+    assert.equal(E.deskCash(s), E.RING_DEPOSIT);
 });
 
 test('the ring: declined all the way down, pay day deposits it with no question', () => {
@@ -47,7 +55,7 @@ test('the ring: declined all the way down, pay day deposits it with no question'
     s.stats.runCp = E.RING_CALL_CP; s.intro['ring:call'] = true;
     E.fundDecide(s, 'm0m', false);
     assert.equal(E.fundStep(s), 'mail:dad'); s.intro['mail:dad'] = true;
-    assert.ok(E.MAIL.find(m => m.id === 'dad').variant(s).body.some(p => /sending you some money/.test(p)));
+    assert.ok(E.MAIL.find(m => m.id === 'dad').body.some(p => /sending you some money/.test(p)));
     assert.equal(E.fundStep(s), 'offer:dad'); E.fundDecide(s, 'dad', false);
     assert.equal(E.fundStep(s), 'mail:mom'); s.intro['mail:mom'] = true;
     assert.equal(E.fundStep(s), 'offer:mom'); E.fundDecide(s, 'mom', false);
