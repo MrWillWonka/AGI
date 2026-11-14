@@ -8,6 +8,8 @@ window.AGI = (function () {
     // `#bays` (the owner's call, for testing): straight to the server room with all three minigames' bays open, the
     // Training Cluster, Packet Snare and Evals. Evals has no bay of its own yet, so here the third bay opens its screen.
     const BAYS_DIRECT = location.hash === '#bays';
+    // `#ring` turns the ring's rules on (engine.js `setRing`; design/ring.md): off, the game is as it was.
+    if (location.hash === '#ring') window.AGIEngine.setRing(true);
     const SAVE_KEY = 'agiGame';
     const BACKUP_KEY = 'agiGame.bak';         // the last good save (refreshed every BACKUP_MS, and kept before an import)
     const CORRUPT_KEY = 'agiGame.corrupt';    // a save that couldn't be read, kept as it was
@@ -94,6 +96,20 @@ window.AGI = (function () {
     // Rare progression events are written at once: the log is otherwise flushed every 30 s of play and on
     // hide, so a crash or a killed tab lost the funnel's steps since the last sample.
     const PT_FLUSH = new Set(['skill', 'unlock', 'phase', 'ship', 'transcend', 'challenge', 'perk', 'ending', 'mailAccepted', 'setting', 'save', 'evals']);
+    // The Feed (feed.js, feed-ui.js): the swarm eats on the game's clock, so it grazes while you are elsewhere with the
+    // page open. It runs under the ring, or while its screen is open (the test door). What it earns is research.
+    function feedTick(dt) {
+        if (!E.isRing() && !window.FeedUI?.isOpen) return;
+        feedShow(E.feedStep(state, dt));
+    }
+    function feedShow(out) {
+        for (const ev of out.events) {
+            if (ev.type === 'layer') pt('feedLayer', { layer: ev.layer, pay: ev.pay, mites: ev.mites, eaten: state.feed.stats.eaten });
+            else if (ev.type === 'fragment') pt('feedFragment', { set: ev.set, found: ev.found });
+            else if (ev.type === 'empty') pt('feedEmpty', { layer: state.feed.layers + 1, eaten: state.feed.stats.eaten });
+        }
+        if (out.events.length) window.FeedUI?.events(out.events);
+    }
     function pt(type, data) {
         if (!playtest || !state) return;
         playtest.event(state.stats.playTime, type, data);
@@ -2216,6 +2232,7 @@ window.AGI = (function () {
             advanceTasks(dt * debugSpeed);
             ghostTrain(dt * debugSpeed);
             logProcurement(bought);
+            feedTick(dt * debugSpeed);
         }
         afterChange();
         musicTick();
@@ -13296,6 +13313,11 @@ window.AGI = (function () {
             openSnare: () => straightToSnare(),
             // Evals, the third minigame (stage 1: its own screen, opened from here or with #evals).
             openEvals: () => window.EvalsUI?.open(),
+            // The Feed (Build 1 of the ring: its screen behind a test door, opened from here or with #feed).
+            openFeed: () => { window.FeedUI?.open(); pt('view', { v: 'feed' }); },
+            // A Packet Snare run's worth of packets on the heap, for testing before runs fill it.
+            feedDeliver(sector = 1, packets = 40, gold = 0) { feedShow(E.feedDeliver(state, { sector, packets, gold })); afterChange(); },
+            resetFeed() { window.FeedUI?.close(); state.feed = E.defaultState(Date.now()).feed; afterChange(); },
             // What the AI has learned of every kind of captcha, raised by `by` (0 to 1): for watching it learn without the solves.
             evalsTeach(by = 0.25) {
                 for (const kind of Object.keys(window.Evals?.KINDS || {})) {

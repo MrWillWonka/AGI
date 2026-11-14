@@ -153,6 +153,11 @@
                 // before it met, marked in the playtest log (`preset`)
                 button('Playtest from this sector', () => { AGI.debug.snarePreset(Math.max(1, Math.floor(Number(sectorAmount.value) || 1))); toggle(false); }),
                 dangerButton('Reset Packet Snare (sector 1, no Signal)', () => AGI.debug.resetSnare())),
+            section('The Feed', button('Open The Feed', () => { toggle(false); AGI.debug.openFeed(); }),
+                button('+40 packets (a first heap)', () => AGI.debug.feedDeliver(1, 40, 3)),
+                button('+75 packets (a sector 2 run)', () => AGI.debug.feedDeliver(2, 75, 6)),
+                button('+200 packets (a sector 4 run)', () => AGI.debug.feedDeliver(4, 200, 15)),
+                dangerButton('Reset The Feed (one mite, empty)', () => AGI.debug.resetFeed())),
             section('Evals', button('Open Evals', () => { toggle(false); AGI.debug.openEvals(); }),
                 button('Teach it (+25% every kind)', () => AGI.debug.evalsTeach(0.25)),
                 // kinds unlock as it takes kinds over; off, every kind is in from the start (takes effect on the next run)
