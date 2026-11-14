@@ -13317,7 +13317,7 @@ window.AGI = (function () {
             openFeed: () => { window.FeedUI?.open(); pt('view', { v: 'feed' }); },
             // A Packet Snare run's worth of packets on the heap, for testing before runs fill it.
             feedDeliver(sector = 1, packets = 40, gold = 0, garbled = 0, popped = 0) { feedShow(E.feedDeliver(state, { sector, packets, gold, garbled, popped })); afterChange(); },
-            resetFeed() { window.FeedUI?.close(); state.feed = E.defaultState(Date.now()).feed; afterChange(); },
+            resetFeed() { state.feed = E.defaultState(Date.now()).feed; afterChange(); },
             // What the AI has learned of every kind of captcha, raised by `by` (0 to 1): for watching it learn without the solves.
             evalsTeach(by = 0.25) {
                 for (const kind of Object.keys(window.Evals?.KINDS || {})) {

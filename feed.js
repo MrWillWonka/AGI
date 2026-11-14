@@ -39,8 +39,8 @@
 
     // The base numbers, in one place. Every call takes overrides of any of them (but not of the box's size).
     const FEED = {
-        w: 64, h: 112,      // the box, in cells: tall, for an upright phone
-        grains: 4,          // grains of sand a packet makes
+        w: 128, h: 224,     // the box, in cells: tall, for an upright phone; fine sand (the owner's call)
+        grains: 16,         // grains of sand a packet makes
         chew: 2,            // packets' worth of bites a second a mite, when led (the model's `chew`)
         graze: 0.25,        // the share of that when left alone (the owner's call; the model's `graze`)
         tough: [1, 2, 3],   // bites a grain takes, by the sector it came from (the model's `tough`); +1 a sector past the list
@@ -51,11 +51,12 @@
         miteFirst: 1,       // the first new mite comes with this layer (the owner's call: the first; the model's `miteFirst`)
         miteEvery: 2,       // and another every this many layers after it (the model's `miteEvery`)
         layerPay: 0.2,      // a layer's lump of research, as a share of its packets
-        pour: 30,           // packets a second through the spout
-        spout: 6,           // the spout's half-width, in cells
-        fall: 40,           // cells a second a grain falls
-        speed: 16,          // cells a second a mite moves
-        near: 4,            // a led mite this close to the point eats the sand nearest the point
+        pour: 8,            // packets a second through the spout: slow enough that the pile sheds it and no column backs up
+        spout: 12,          // the spout's half-width, in cells
+        fall: 80,           // cells a second a grain falls
+        speed: 90,          // cells a second a mite moves
+        near: 8,            // a led mite this close to the point eats the sand nearest the point
+        lamp: 7,            // a mite shows what the sand within this many cells of it really is (gold, fragments)
         stick: 0.92,        // how likely the next grain poured is the same sort as the last: sorts lie in patches
         bands: 6,           // colours of strata before they repeat
         fragFrom: 2,        // a layer's fragment is one of its first plain packets: this many in at the least,
@@ -85,9 +86,11 @@
         const t = opt(opts).tough, k = Math.max(1, Math.floor(sector) || 1);
         return k <= t.length ? t[k - 1] : t[t.length - 1] + (k - t.length);
     };
-    // A cell is one number: its kind, its band of colour and the bites it has left.
-    const kindOf = v => v & 7, bandOf = v => (v >> 3) & 7, hpOf = v => v >> 6;
-    const cell = (kind, band, hp) => kind | (band << 3) | (Math.min(255, hp) << 6);
+    // A cell is one number: its kind, its band of colour, whether a mite has seen what it is, and the bites it has left.
+    // Gold and fragments look like plain sand until a mite's lamp has been near them (the owner's call: buried finds).
+    const kindOf = v => v & 7, bandOf = v => (v >> 3) & 7, seenOf = v => (v >> 6) & 1, hpOf = v => v >> 7;
+    const cell = (kind, band, hp, seen = 1) => kind | (band << 3) | ((seen ? 1 : 0) << 6) | (Math.min(255, hp) << 7);
+    const HIDDEN = [2, 3];   // vein, fragment
 
     // Mulberry32 (as packet-snare.js and evals.js), stepped from a position kept in the state.
     function rand(state) {
@@ -100,6 +103,28 @@
     const readable = (state, kind) => !KINDS[kind].skill || state.readable.includes(kind);
     // Sand that pays nothing and takes `slow` times the bites: garbled, or a kind the model has no skill for.
     const slowSand = (state, kind) => !!KINDS[kind].bad || !readable(state, kind);
+    // The box in the save: runs of the same cell, as text (`value` or `value*count`, in base 36), about a tenth the size
+    // of the list. A Feed's state turns its cells into that when it is saved (`toJSON`), and `clean` reads it back.
+    function pack(cells) {
+        const out = [];
+        for (let i = 0; i < cells.length;) {
+            let n = 1;
+            while (i + n < cells.length && cells[i + n] === cells[i]) n++;
+            out.push(cells[i].toString(36) + (n > 1 ? '*' + n.toString(36) : ''));
+            i += n;
+        }
+        return out.join(',');
+    }
+    function unpack(text, size) {
+        const cells = [];
+        for (const run of String(text).split(',')) {
+            const [v, n] = run.split('*'), value = parseInt(v, 36), count = n === undefined ? 1 : parseInt(n, 36);
+            if (!Number.isInteger(value) || !Number.isInteger(count) || count < 1 || cells.length + count > size) return null;
+            for (let k = 0; k < count; k++) cells.push(value);
+        }
+        return cells.length === size ? cells : null;
+    }
+    const saveable = state => Object.defineProperty(state, 'toJSON', { value() { return { ...this, cells: pack(this.cells) }; }, enumerable: false });
     const mitePlace = (state, n) => ({ x: FEED.w / 2 + ((n * 7) % 11 - 5) * 2 + 0.5, y: 1.5, b: 0, t: -1 });
 
     function startLayer(state, o) {
@@ -120,7 +145,7 @@
         };
         state.swarm.push(mitePlace(state, 0));
         startLayer(state, o);
-        return state;
+        return saveable(state);
     }
 
     // Grains still waiting to pour, and everything there is left to eat.
@@ -181,7 +206,7 @@
                 }
             }
         }
-        const v = cell(KINDS[kind].id, e.band, bitesFor(e.sector, o) * (slowSand(state, kind) ? o.slow : 1));
+        const v = cell(KINDS[kind].id, e.band, bitesFor(e.sector, o) * (slowSand(state, kind) ? o.slow : 1), !HIDDEN.includes(KINDS[kind].id));
         if (e.n + e.gold + e.bad <= 0) { state.backlog.shift(); state.last = 0; }
         return v;
     }
@@ -194,7 +219,7 @@
             // The spout wanders a cell at a time, so grains poured together land together: seams and patches.
             state.spout = Math.max(-o.spout, Math.min(o.spout, state.spout + Math.round(rand(state) * 2 - 1)));
             // The cell under the spout, or one beside it while that one is still falling clear.
-            const x = [0, 1, -1, 2, -2].map(d => mid + state.spout + d).find(c => !state.cells[c]);
+            const x = [0, 1, -1, 2, -2, 3, -3].map(d => mid + state.spout + d).find(c => !state.cells[c]);
             if (x === undefined) { state.pourAcc = Math.min(state.pourAcc, 1); break; }   // the box is full to the spout: wait
             state.cells[x] = nextGrain(state, o);
             state.grains++; state.rest = false; state.pourAcc -= 1;
@@ -234,6 +259,7 @@
         for (let i = 0; i < cells.length; i++) {
             if (!cells[i]) continue;
             const x = i % w, y = (i - x) / w;
+            if (y < h - 1 && !cells[i + w]) continue;   // still falling: not part of the pile yet
             if (!(y === 0 || !cells[i - w] || (x > 0 && !cells[i - 1]) || (x < w - 1 && !cells[i + 1]) || (y < h - 1 && !cells[i + w]))) continue;
             const d = (x + 0.5 - px) * (x + 0.5 - px) + (y + 0.5 - py) * (y + 0.5 - py);
             if (d < bestD) { bestD = d; best = i; }
@@ -288,7 +314,7 @@
     // One mite for one step: head for the point you hold (or the nearest sand on the surface), biting what is in the way.
     function mite(state, o, m, dt, out) {
         const led = !!state.aim, { w, h, cells } = state;
-        m.b = Math.min(m.b + o.chew * o.grains * (led ? 1 : o.graze) * dt, 4);
+        m.b = Math.min(m.b + o.chew * o.grains * (led ? 1 : o.graze) * dt, 2);
         let gx, gy, food = -1;
         if (led) {
             gx = state.aim.x; gy = state.aim.y;
@@ -299,6 +325,11 @@
             if (food < 0) { gx = w / 2 + ((state.swarm.indexOf(m) * 7) % 11 - 5) * 2; gy = 2; }
         }
         if (food >= 0) { gx = food % w + 0.5; gy = Math.floor(food / w) + 0.5; }
+        const here = Math.floor(m.y) * w + Math.floor(m.x);
+        if (food === here && cells[here]) {
+            while (m.b >= 1 && cells[here]) { m.b -= 1; const v = cells[here], hp = hpOf(v) - 1; if (hp > 0) cells[here] = cell(kindOf(v), bandOf(v), hp, seenOf(v)); else eat(state, o, here, out); }
+            return;
+        }
         const dx = gx - m.x, dy = gy - m.y, d = Math.hypot(dx, dy);
         if (d < 0.05) { if (food < 0) m.b = Math.min(m.b, 1); return; }
         const go = Math.min(d, o.speed * dt), nx = Math.max(0.01, Math.min(w - 0.01, m.x + dx / d * go)), ny = Math.max(0.01, Math.min(h - 0.01, m.y + dy / d * go));
@@ -314,17 +345,26 @@
             while (m.b >= 1 && cells[ci]) {
                 m.b -= 1;
                 const v = cells[ci], hp = hpOf(v) - 1;
-                if (hp > 0) cells[ci] = cell(kindOf(v), bandOf(v), hp);
+                if (hp > 0) cells[ci] = cell(kindOf(v), bandOf(v), hp, seenOf(v));
                 else eat(state, o, ci, out);
             }
             return;
         }
-        if (cells[own] && food === own) {
-            while (m.b >= 1 && cells[own]) { m.b -= 1; const v = cells[own], hp = hpOf(v) - 1; if (hp > 0) cells[own] = cell(kindOf(v), bandOf(v), hp); else eat(state, o, own, out); }
-            return;
-        }
         m.x = nx; m.y = ny;
         if (food < 0) m.b = Math.min(m.b, 1);   // nothing to bite on the way: no bites saved up
+    }
+
+    // A mite's lamp: hidden sand lying within `lamp` cells of it shows what it is, for good (sand still falling past doesn't).
+    function lamp(state, o, m, out) {
+        const { w, h, cells } = state, r = o.lamp, r2 = r * r;
+        for (let y = Math.max(0, Math.floor(m.y - r)); y <= Math.min(h - 1, Math.floor(m.y + r)); y++) {
+            for (let x = Math.max(0, Math.floor(m.x - r)); x <= Math.min(w - 1, Math.floor(m.x + r)); x++) {
+                const i = y * w + x, v = cells[i];
+                if (!v || seenOf(v) || (y < h - 1 && !cells[i + w]) || (x + 0.5 - m.x) * (x + 0.5 - m.x) + (y + 0.5 - m.y) * (y + 0.5 - m.y) > r2) continue;
+                cells[i] = v | 64;
+                out.events.push({ type: 'found', x, y, kind: KIND_IDS[kindOf(v)] });
+            }
+        }
     }
 
     // `dt` seconds pass. Returns { research, events }: research earned (whole numbers) and what the screen should show.
@@ -333,14 +373,22 @@
         if (!(dt > 0) || !Number.isFinite(dt)) return out;
         const steps = Math.min(6000, Math.max(1, Math.round(dt / STEP))), each = dt / steps;
         for (let n = 0; n < steps; n++) {
-            pour(state, o, each);
-            if (!state.rest) {
-                state.fallAcc += o.fall * each;
-                let moved = false;
-                while (state.fallAcc >= 1) { state.fallAcc -= 1; moved = fallPass(state) || moved; }
-                if (!moved && !state.backlog.length && state.fallAcc < 1 && o.fall * each >= 1) state.rest = true;
+            // Pouring and falling take turns, a cell's fall at a time, so the spout is clear for the next grains.
+            state.fallAcc += o.fall * each;
+            const passes = Math.floor(state.fallAcc);
+            state.fallAcc -= passes;
+            if (!passes) pour(state, o, each);
+            let moved = false;
+            for (let k = 0; k < passes; k++) {
+                pour(state, o, each / passes);
+                if (!state.rest) moved = fallPass(state) || moved;
             }
-            if (state.grains) for (const m of state.swarm) mite(state, o, m, each, out);
+            if (passes && !moved && !state.backlog.length) state.rest = true;
+            if (state.grains) {
+                // Fine sand: a mite may finish several grains in a step, so its step is cut into as many moves.
+                const moves = Math.max(1, Math.ceil(o.chew * o.grains * (state.aim ? 1 : o.graze) * each));
+                for (const m of state.swarm) { for (let k = 0; k < moves; k++) mite(state, o, m, each / moves, out); lamp(state, o, m, out); }
+            }
             else if (!state.backlog.length) {
                 for (const m of state.swarm) { m.b = 0; m.t = -1; }
                 if (!state.dry && state.stats.delivered > 0) { state.dry = true; out.events.push({ type: 'empty' }); }
@@ -360,7 +408,7 @@
         if (fresh.length) {
             for (let i = 0; i < state.cells.length; i++) {
                 const v = state.cells[i];
-                if (v && fresh.includes(kindOf(v))) { state.cells[i] = cell(kindOf(v), bandOf(v), Math.max(1, Math.ceil(hpOf(v) / o.slow))); out.turned++; }
+                if (v && fresh.includes(kindOf(v))) { state.cells[i] = cell(kindOf(v), bandOf(v), Math.max(1, Math.ceil(hpOf(v) / o.slow)), seenOf(v)); out.turned++; }
             }
         }
         return out;
@@ -393,11 +441,12 @@
         }
         state.readable = LOCKED.filter(k => Array.isArray(raw.readable) && raw.readable.includes(k));
         for (const key of Object.keys(state.stats)) state.stats[key] = whole(raw.stats?.[key], 1e15);
-        const sized = raw.w === FEED.w && raw.h === FEED.h && Array.isArray(raw.cells) && raw.cells.length === FEED.w * FEED.h;
+        const box = raw.w === FEED.w && raw.h === FEED.h ? (typeof raw.cells === 'string' ? unpack(raw.cells, FEED.w * FEED.h) : raw.cells) : null;
+        const sized = Array.isArray(box) && box.length === FEED.w * FEED.h;
         if (sized) {
             state.grains = 0;
-            state.cells = raw.cells.map(v => {
-                if (!Number.isInteger(v) || v <= 0 || !KIND_IDS[kindOf(v)] || bandOf(v) >= 8 || hpOf(v) < 1 || hpOf(v) > 255) return 0;
+            state.cells = box.map(v => {
+                if (!Number.isInteger(v) || v <= 0 || !KIND_IDS[kindOf(v)] || hpOf(v) < 1 || hpOf(v) > 255) return 0;
                 state.grains++;
                 return v;
             });
@@ -433,5 +482,5 @@
     }
 
     return { FEED, KINDS, KIND_IDS, LOCKED, FRAGMENTS, STEP, newFeed, clean, deliver, point, step, setReadable, readableFor,
-        left, waiting, fill, census, layerSize, bitesFor, kindOf, bandOf, hpOf };
+        pack, unpack, left, waiting, fill, census, layerSize, bitesFor, kindOf, bandOf, seenOf, hpOf };
 });

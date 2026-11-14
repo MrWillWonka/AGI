@@ -48,7 +48,7 @@ test('what The Feed earns goes to research, in whole numbers', () => {
     assert.equal(s.feed.layers, 1);
     assert.equal(s.feed.mites, 2, 'the first layer digested gives the first new mite');
     assert.equal(s.res.rp, paid);
-    assert.equal(paid, Math.floor((159 + 2) / G + 6), '159 letter grains and a fragment at a quarter each, and the layer\'s lump');
+    assert.equal(paid, Math.floor((40 * G - 1 + 2) / G + 6), 'letter grains and a fragment at a grain\'s share each, and the layer\'s lump');
     assert.ok(Number.isInteger(s.res.rp));
 });
 
@@ -74,8 +74,8 @@ test('the kinds the model can read follow its skills: numbers with Embeddings, p
     assert.deepEqual(E.feedReadable(at('Edge Detection')), ['numbers', 'pictures']);
     // Learning the skill turns that sand good on the next step: quick to eat, and it pays.
     const s = E.defaultState(NOW);
-    E.feedDeliver(s, { sector: 2, packets: 200, gold: 0 });
-    Feed.step(s.feed, 20, { chew: 0 });
+    E.feedDeliver(s, { sector: 2, packets: 80, gold: 0 });
+    Feed.step(s.feed, 15, { chew: 0 });
     const slow = v => v && Feed.KIND_IDS[Feed.kindOf(v)] === 'numbers';
     assert.ok(s.feed.cells.filter(slow).length > 20);
     assert.ok(s.feed.cells.filter(slow).every(v => Feed.hpOf(v) === 2 * Feed.FEED.slow));
@@ -115,6 +115,7 @@ test('bad cells, mites and counts in a box of the right size are cleaned one by 
     E.feedDeliver(s, { sector: 1, packets: 30, gold: 4 });
     Feed.step(s.feed, 6, { chew: 0 });
     const raw = JSON.parse(JSON.stringify(s));
+    raw.feed.cells = Feed.unpack(raw.feed.cells, W * H);
     const full = raw.feed.cells.map((v, i) => (v ? i : -1)).filter(i => i >= 0);
     raw.feed.cells[full[0]] = -3;
     raw.feed.cells[full[1]] = 'x';

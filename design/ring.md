@@ -153,7 +153,7 @@ with nothing unlocked.
 **The sand design (the owner's call, 2026-11-13; built in `feed.js` and `feed-ui.js`).** Where it differs from the
 bullets and the table under it (a grid of face-down tiles, a drawn line), this is newer:
 
-- **Packets fall into a box and turn to sand, like sand art.** A packet is four grains. Each delivery is its own colour,
+- **Packets fall into a box and turn to sand, like sand art.** The sand is fine: a packet is sixteen grains. Each delivery is its own colour,
   so the pile lies in strata. Gold packets pour in together and lie in seams.
 - **The swarm eats the sand itself, from the outside in.** Left alone, each mite goes to the nearest grain on the pile's
   surface, at a quarter of full speed. Sand above what was eaten falls in.
@@ -166,10 +166,17 @@ bullets and the table under it (a grid of face-down tiles, a drawn line), this i
   garbled sand is never good.
 - **Layers are counted, not drawn:** every 30 packets' worth of paying sand eaten (then 1.8 times more each) is a layer
   digested, with its lump of research and the mites as below.
-- *Proposed, to tune in play:* the box is 64 by 112 cells and holds about 1,650 packets; more waits at the spout.
-  Research is paid a quarter of a packet's worth a grain. Mites are not hurt by anything.
-- *Open:* nothing is hidden in the sand yet (every grain shows what it is), so "discovering" is seeing a seam or a
-  fragment glint and leading the swarm to it. A sideways phone shows the tall box very small.
+- **Buried finds** (the owner's call): gold and fragments look like the sand round them until a mite has been near
+  (its lamp, *proposed* 7 grains), and then show for good. Garbled and unknown sand always show, so you can steer
+  round them from the start.
+- **The view starts close and draws back** as the pile grows (the owner's call), and grains are drawn round.
+- *Proposed, to tune in play:* the box is 128 by 224 cells and holds about 1,600 packets; the spout pours 8 packets a
+  second (faster backs up into a column) and more waits above it. Research is paid a grain's share of a packet. Mites
+  are not hurt by anything.
+- *Open:* **layers no longer fit the sand** (the owner, 2026-11-13); what replaces them is being decided. So is how
+  the swarm grows and what else acts on the sand: the owner's notes point at tools that scan faster than mites,
+  pulses that shift the sand, and pipes or vacuums that sort it into piles, chained together. A sideways phone shows
+  the tall box very small.
 
 - **The picture.** Everything you snared lands in a heap of packets, grey and garbled. Your AI is a swarm of mites on
   top. Where they chew, tiles flip over and show what the data was.

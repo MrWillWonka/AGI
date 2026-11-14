@@ -3953,7 +3953,11 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
 .feed-close { min-width: 44px; min-height: 44px; font-size: 1.4rem; line-height: 1; }
 .feed-prompt { height: 2.2rem; line-height: 2.2rem; padding: 0 14px; font: 600 0.95rem var(--font-mono); color: var(--terminal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
 .feed-stage { flex: 1; min-height: 0; position: relative; }
-.feed-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; cursor: crosshair; image-rendering: pixelated; }
+.feed-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; cursor: crosshair; }
+/* Test buttons, while The Feed is behind its test door (the debug panel can't be reached under a dialog). */
+.feed-test { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-bottom: 1px dashed var(--border); overflow-x: auto; }
+.feed-test-label { font: 600 0.75rem var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.feed-test .ghost-button { min-height: 36px; padding: 4px 10px; font-size: 0.85rem; white-space: nowrap; }
 .feed-fragment {
     display: flex; align-items: center; gap: 6px 10px; flex-wrap: nowrap; overflow: hidden; height: 2.6rem; padding: 0 14px;
     padding-bottom: env(safe-area-inset-bottom); box-sizing: content-box; border-top: 1px solid var(--border); background: var(--bg-2);
