@@ -5,7 +5,7 @@
 // **The heap is one layer at a time.** A layer is a tray of `size` slots (30, then ×1.8 a layer) on a grid `cols`
 // wide. Packets delivered from a run fill its empty slots; what doesn't fit waits in `backlog` for the next layer.
 // A layer is cleared when every slot has been filled and nothing the model can read is left on it: that pays a lump
-// of research, and every second layer cleared adds a mite for good. A layer whose delivered tiles are all eaten but
+// of research, and the first layer cleared and every second one after it add a mite for good. A layer whose delivered tiles are all eaten but
 // whose slots aren't all filled is just empty ("> It is still hungry."): back to Packet Snare.
 //
 // **Tiles** are face down (`s` 0) until eaten or shown:
@@ -37,7 +37,8 @@
         tough: [1, 2, 3],   // bites a tile takes, by the sector it came from (the model's `tough`); +1 a sector past the list
         layerFirst: 30,     // slots in the first layer
         layerGrow: 1.8,     // each layer is this much bigger than the last (the model's `layerGrow`)
-        miteEvery: 2,       // a new mite every this many layers cleared (the model's `miteEvery`)
+        miteFirst: 1,       // the first new mite comes with this layer cleared (the owner's call: the first one; the model's `miteFirst`)
+        miteEvery: 2,       // and another every this many layers after it (the model's `miteEvery`)
         layerPay: 0.2,      // a cleared layer's lump of research, as a share of its slots
         lineMax: 12,        // the most tiles a pointed line holds
         veinMax: 6,         // the longest single run of vein tiles
@@ -187,7 +188,7 @@
             }
             const pay = Math.max(1, Math.round(o.layerPay * state.size));
             state.layers++;
-            const mite = state.layers % o.miteEvery === 0;
+            const mite = state.layers >= o.miteFirst && (state.layers - o.miteFirst) % o.miteEvery === 0;
             if (mite) state.mites++;
             state.stats.research += pay; out.research += pay;
             out.events.push({ type: 'layer', layer: state.layers, pay, mite, mites: state.mites, locked: kept });

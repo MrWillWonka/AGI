@@ -24,6 +24,7 @@ test('the dials start at the ring model\'s numbers', () => {
     assert.equal(f.graze, d.graze);
     assert.deepEqual(f.tough, d.tough);
     assert.equal(f.layerGrow, d.layerGrow);
+    assert.equal(f.miteFirst, d.miteFirst);
     assert.equal(f.miteEvery, d.miteEvery);
     assert.equal(f.layerFirst, 30);
 });
@@ -103,14 +104,14 @@ test('research is whole numbers, and what a step returns is what its events paid
     }
 });
 
-test('a cleared layer pays a lump, the next is 1.8 times bigger, and every second one adds a mite', () => {
+test('a cleared layer pays a lump, the next is 1.8 times bigger, and the first and every second after it add a mite', () => {
     const s = Feed.newFeed({ seed: 2 });
     Feed.deliver(s, { sector: 1, packets: 300, gold: 0 });
     const { events } = eatAll(s);
     const layers = events.filter(e => e.type === 'layer');
     assert.deepEqual(layers.map(e => e.pay), [6, 11, 19], '0.2 of 30, 54 and 97 slots');
-    assert.deepEqual(layers.map(e => e.mite), [false, true, false]);
-    assert.equal(s.mites, 2);
+    assert.deepEqual(layers.map(e => e.mite), [true, false, true]);
+    assert.equal(s.mites, 3);
     assert.equal(s.layers, 3);
     assert.equal(s.size, 175);
     assert.deepEqual([0, 1, 2, 3].map(n => Feed.layerSize(n)), [30, 54, 97, 175]);

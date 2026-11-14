@@ -135,7 +135,9 @@ with nothing unlocked.
   tuned in play.)
 - **It grows without an upgrade tree.** Clearing layers adds mites for good. (Mites that multiply by layer: a starting
   point, to be tuned. The numbers model says one mite per layer makes the heap vanish before you arrive, so start at a
-  mite every second layer with layers 1.8 times bigger each, and deeper data taking more bites.)
+  mite every second layer with layers 1.8 times bigger each, and deeper data taking more bites. The owner's call,
+  2026-11-13: the first layer cleared gives the first new mite, so the first visit ends on the split, then every
+  second layer after it.)
 - **The first minute:** you arrive with about 40 packets and one mite; "> Show it where to start."; you drag a line and
   it chews, each tile paying a little research; a tile flips to a vein of richer data running off to one side; another
   flips to a scrap of the parcel spam from your own inbox (your first clue, and you can ignore it); the top layer
@@ -306,10 +308,10 @@ Packet Snare's real run sizes (the 18.7 and 18.8 logs). The dials are guesses un
 | Research per full sprint | 35 | How long the Pattern Matching hill takes |
 | Tiles a mite eats a second when pointed | 2, and about a third of that grazing | How long you stay in The Feed |
 | Bites per packet | 1, 2, 3 on sectors 1, 2, 3 | Whether deeper data stays worth pointing at |
-| A new mite | Every second layer, layers 1.8 times bigger each | Whether The Feed eats itself |
+| A new mite | With the first layer, then every second one; layers 1.8 times bigger each | Whether The Feed eats itself |
 
-That gives: the first boss met at minute 6, the warm-up summit at 6.5, Pattern Matching at 14.5, the boss down at
-15.5; time split 38% Packet Snare, 27% The Feed, 25% training, 10% the lab.
+That gives (rerun with the first mite on the first layer): the first boss met at minute 6, the warm-up summit at 6,
+Pattern Matching at 14, the boss down at 15.5; time split 38% Packet Snare, 22% The Feed, 25% training, 14% the lab.
 
 - **Buy hardware before you scrape:** never doing so means 42% of the time clicking and the boss down at minute 23.
 - **A mite per layer makes The Feed eat itself:** 2% of the player's time. Hence the two brakes above.
