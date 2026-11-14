@@ -1,3 +1,6 @@
+NOTE: this describes the track as it was BEFORE the audio overhaul (2026-11-14). The track as it is now is
+described at the top of each section in music/retro.js and in design/audio/coverage.md.
+
 RETRO: what went into the track and its sound effects
 =======================================================
 Source: sfx.js as copied on 2026-11-14 (songs.js, instruments.js, sound-effects.js in this folder) and the

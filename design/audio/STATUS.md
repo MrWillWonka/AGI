@@ -29,11 +29,13 @@ Branch `claude/audio-overhaul` (a worktree), from `0bffe20` on `claude/ring-buil
 | 3b The music system | Tempo per track and song; forms and playlists as data (`form` on a song: sections with their melody, chords, bass, drum mask, lift, entry points); layers per track (`layers`); swing and triplets; sends (reverb from a generated impulse, a feedback delay) and stereo; voices with held envelopes, FM and pulse widths (`note`); a music/effects mixer with ducking under big moments and a limiter; voices counted, decoration dropped first; a song that can't be built is reported and left out; changing track fades out and restarts on a beat; area changes on a beat in slow songs | The five old tracks on the new engine: music within 0.2 LU of the baseline, effects within 0.07, 70 renders with no fault, stress peaks under -1.2 dBTP |
 | 4a Classic and Soft | Rewritten on it (music/classic.js, music/soft.js): Classic 124 BPM straight dub (real delay line, held bass, vibrato lead, its own layer order and forms, B progressions, three fills); Soft 93 BPM with swing (FM electric piano, kalimba with an inharmonic pluck, two-step kick that arrives last, rim, shakers, a room), its own forms, a borrowed chord in Morning Lab | `node tools/audio/calibrate.js classic` (and `soft`): every song within 0.4 LU of -34; survey `m4b`: 28 renders, no fault |
 
-**Checkpoint 1 is waiting on the owner's ears**: `review-out/audio/checkpoint-1/` (ten clips and a manifest). Dark,
-Ominous and Retro still play their old music (on the new engine) until Classic and Soft have been heard.
+| 4b Dark, Ominous, Retro | Dark 130 BPM (the tones pump on the kick, acid lines per song, club forms with a breakdown and a drop); Ominous 62 BPM (a drone, a 3.2 s hall, a bell and a knock that land irregularly, drums only at the peak, triplets); Retro 144 BPM (pulse widths, a walking triangle bass, a breakbeat, the last chorus up a tone) | `calibrate.js`: all 30 songs within 0.4 dB of each other; 70 renders, no fault |
+| 4c Effects | The eight power-up effects written for Dark, Soft and Ominous (Retro's seven); four sprint-meter parts each; levelled against Classic's (`fx-levels.js`); a pitch policy (effects fit the sounding chord, except Dark, Ominous and the sounds meant to rub) | `fx-levels.js`: within about 1 dB |
+| 5 Checks | `tests/audio.test.js`: the real scheduler on a stand-in AudioContext (drum masks, stall, held figure, tap wait, a hundred switches, validation); taps never wait longer than at 124 BPM; coverage matrix | `node --test`: 597 tests; `design/audio/coverage.md` |
+| 6 Review package | `design/audio/REVIEW-PACKAGE.md`; `node tools/audio/package.js` → `review-out/audio/package/` (26 clips, manifest, metrics) | 30 songs −34.38 to −33.58 LUFS; stress peaks ≤ −4.21 dBTP over 20 runs; no bad sample; no fault |
 
-Not yet done for Classic and Soft: their sound effects and sprint-meter parts are still the old ones (only the
-music changed); `music/<theme>/notes.txt` describe the old tracks.
+The owner continued past checkpoint 1 ("Yes, carry on") before reporting on the clips: Classic and Soft are still
+unheard by anyone, like the other three.
 
 ## Commands
 
@@ -57,7 +59,7 @@ Presets: `song`, `build`, `hold`, `run`, `stress`, `effects` (tools/audio/preset
 - With the hold on the game's clock, a held job's sound trails its number pop by a fixed part of an 8th note (it
   used to be the reward that moved to the beat). Expected from the separation; say if it reads as lag.
 
-## Next
+## Next (superseded: see below)
 
 After the checkpoint: Classic and Soft effects and sprint-meter parts, then Dark, Ominous and Retro (music, effects),
 then the production pass (levels against the agreed target, phone translation, simple mode, performance) and the
@@ -66,3 +68,9 @@ review package.
 ## Open questions for the owner
 
 1. The loudness target at default sliders (see above).
+
+## Where it stands
+
+The implementation is through milestone 6. What is left is not code: the owner's listening, the independent code
+review (GPT-6 Astra), the listening review (Gemini 4 Carbon) and RoEx Mix Check Studio on the clips, then revisions
+from what they find. Open decisions and untested cases are in `REVIEW-PACKAGE.md`, section 5. Not merged, not published.
