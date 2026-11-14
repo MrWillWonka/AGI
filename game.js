@@ -13050,7 +13050,7 @@ window.AGI = (function () {
     function reportMail(item) {
         state.player.reports++;
         pt('mailReport', { id: item.key, nag: item.copy || undefined, n: state.player.reports });
-        inboxNotice('IT Support: Thank you for reporting this message. It has been deleted.');
+        inboxNotice('Moved to Junk.');
         sfx('ui');
         if (item.key === 'm:welcome') { reportedCopies.add(item.copy); leaveMail(); }
         else { state.intro['mailGone:' + item.key.slice(2)] = true; state.intro[item.readKey] = true; renderInbox(); }
