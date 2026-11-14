@@ -4359,3 +4359,17 @@ body.ring-device.device-phone .snare-tree-bar .button, body.ring-device.device-p
 .shop-way[hidden] { display: none; }
 .shop-list { padding-top: 10px; }
 @media (orientation: landscape) and (max-height: 520px) { .shop-sellbox { display: flex; align-items: center; gap: 12px; padding: 6px 12px; margin-top: 6px; } .shop-sellbox h3, .shop-have { margin: 0; } .shop-have { flex: 1; min-width: 0; } }
+/* The AI's own voice: a pale bubble at the foot of the screen, in a plain face unlike the rest of the device. */
+.assist { position: fixed; inset: auto 10px calc(112px + env(safe-area-inset-bottom, 0px)) 10px; width: auto; height: auto; margin: 0; padding: 0; border: 0; background: none; overflow: visible; pointer-events: none; z-index: 6000; }
+.assist:empty { display: none; }
+.assist-bubble { pointer-events: auto; position: relative; display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: start; max-width: 440px; padding: 12px 10px 12px 14px; border-radius: 18px 18px 18px 5px; background: #f1eee6; color: #15181a; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55); font: 500 0.98rem/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; cursor: pointer; animation: assist-in 0.3s ease-out; }
+.assist-mark { width: 12px; height: 12px; margin-top: 5px; border-radius: 50%; background: #15181a; box-shadow: 0 0 0 3px #f1eee6, 0 0 0 4.5px #15181a; }
+.assist-text { margin: 0; }
+.assist-close { width: 32px; height: 32px; margin: -6px -2px 0 0; border: 0; border-radius: 50%; background: none; color: #5a5f63; font: 400 1.3rem/1 system-ui, sans-serif; cursor: pointer; }
+.assist-go { grid-column: 2 / -1; justify-self: start; min-height: 40px; padding: 6px 16px; border: 0; border-radius: 999px; background: #15181a; color: #f1eee6; font: 600 0.9rem system-ui, sans-serif; cursor: pointer; }
+.assist-ring { outline: 2px solid #f1eee6 !important; outline-offset: 4px; animation: assist-pulse 1.4s ease-in-out infinite; }
+@keyframes assist-in { from { opacity: 0; transform: translateY(10px); } }
+@keyframes assist-pulse { 50% { outline-offset: 8px; } }
+@media (prefers-reduced-motion: reduce) { .assist-bubble, .assist-ring { animation: none; } }
+body.device-laptop .assist { left: 16px; right: auto; bottom: 16px; }
+body.snare-live .assist { display: none; }

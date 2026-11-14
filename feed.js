@@ -81,6 +81,7 @@
         wobble: 0.9,        // how far off the straight line it swings on its way there, in radians
         character: 1,       // 1: each mite follows its character's priorities (`CHARACTERS`)
         megaChance: 0.08,
+        tidyAbove: 0.5,     // a tidy mite clears garbled sand only while the hunger bar is above this (garbled feeds no one: a lone tidy mite starved the swarm)
         // A tapped point (the owner's call, 2026-11-14): it stays until you tap elsewhere, and the swarm works loosely
         // round it; holding or dragging pulls them tight, at full pace.
         tapRate: 0.6,       // the share of a led mite's eating a mite at a tapped point does (left alone: `graze`)
@@ -893,7 +894,8 @@
     // What a mite would rather eat near a point: gold it can see for the gold-hungry, garbled sand for the tidy, and
     // anything but garbled for the rest; failing that, whatever is nearest.
     function liked(state, o, m, x, y, r) {
-        if (o.character) { const i = nearestWhere(state, x, y, r, m.c === 'gold' ? GOLD : m.c === 'tidy' ? BAD : GOOD); if (i >= 0) return i; }
+        const tidy = m.c === 'tidy' && (!state.session || state.life > o.tidyAbove);
+        if (o.character) { const i = nearestWhere(state, x, y, r, m.c === 'gold' ? GOLD : tidy ? BAD : GOOD); if (i >= 0) return i; }
         return nearestWithin(state, x, y, r);
     }
     // Where a led mite is heading: its own spot within `roam` cells of the point you hold, picked afresh every second or
@@ -936,7 +938,7 @@
                 if (food < 0 && g !== pt) { gx = pt.x; gy = pt.y; if ((m.x - gx) * (m.x - gx) + (m.y - gy) * (m.y - gy) <= o.near * o.near) food = liked(state, o, m, gx, gy, o.near); }
             } else if (o.character && o.roam > 0 && (m.c === 'gold' || m.c === 'tidy')) {
                 // On its way: it stops for what it likes best, when that is right beside it.
-                food = nearestWhere(state, m.x, m.y, o.lamp / 2, m.c === 'gold' ? GOLD : BAD);
+                if (m.c === 'gold' || !state.session || state.life > o.tidyAbove) food = nearestWhere(state, m.x, m.y, o.lamp / 2, m.c === 'gold' ? GOLD : BAD);
             }
         } else {
             if (m.t < 0 || !cells[m.t]) m.t = state.grains ? nearestSurface(state, m.x, m.y) : -1;
