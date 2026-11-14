@@ -5,7 +5,7 @@
 (window.SFXThemes = window.SFXThemes || {}).retro = function (h) {
     'use strict';
     // eslint-disable-next-line no-unused-vars
-    const { note, perc, harmNote, MIXO, LYD, tone, noise, NOTE, T, seq, S, blip, arp, echo, stab, sub, bell, pluck, run, vary, mapNote, degShift, varDeg, PANEL_INST, PANEL_OCT, phone, PHONE, clickNote, catchNotes, lastAt, raceNote, ping, kick, hat, clap, synth, pad, riser, bassAt, snap, kickLevel, AEOL, PHRY, DOR, HARM, ION } = h;
+    const { pump, note, perc, harmNote, MIXO, LYD, tone, noise, NOTE, T, seq, S, blip, arp, echo, stab, sub, bell, pluck, run, vary, mapNote, degShift, varDeg, PANEL_INST, PANEL_OCT, phone, PHONE, clickNote, catchNotes, lastAt, raceNote, ping, kick, hat, clap, synth, pad, riser, bassAt, snap, kickLevel, AEOL, PHRY, DOR, HARM, ION } = h;
 
     // Retro: an 8-bit console: square pulses, a triangle bass, noise drums, stepped slides (C major pentatonic).
     const sq = (n, o = {}) => T(n, { type: 'square', dur: 0.07, gain: 0.03, ...o });
@@ -32,81 +32,117 @@
         },
 
         // ---- Instruments: the drums and voices, and how they play a song step by step --------------------------
-        // Retro: chiptune: a short punchy kick, a triangle bass bouncing octaves on the chord's root, noise
-        // snares and hats, the chord as a square arpeggio (8ths, 16ths once it's flying), and a square lead with
-        // its echo channel (the same line a dotted 8th later, quieter).
+        // Retro: chiptune at 144 BPM, dry. A console's voices, held to on purpose: a lead on a quarter-width pulse
+        // (it blips up an octave into the first note of a bar, and wobbles on its long notes), an echo channel on a
+        // thinner pulse that the fast arpeggio steals when it comes in, the chord as an arpeggio on that thin pulse,
+        // a triangle bass that walks a line of its own, and noise for drums: a short kick, a snare, hats that
+        // gallop (an 8th and two 16ths). The server-room songs play a breakbeat (kick on 1, the "and" of 2 and
+        // the "and" of 3). Notes switch on and off; nothing fades. The tune is there from the first bar.
+        // Its click figure plays the track's 8ths: nearly five notes a second while a job is held.
         style: {
-            cutoff: k => 4000 + 9000 * k, drive: 0, gain: 1.62,
-            beat: 0.701, tones: 1.829,   // drums 2 dB under the tones, measured (K-weighted)
+            bpm: 144,
+            cutoff: k => 5000 + 9000 * k, drive: 0, gain: 0.57,
+            beat: 1.91, tones: 1.829,   // drums 2 dB under the tones, measured (K-weighted)
             simpleMix: { gain: 1, beat: 1.013, tones: 1.855 }, simpleVoice: 'square',   // the simple version (simpleStep)
+            space: { width: 0.6 },      // no room and no delay line: its echo is a voice
+            layers: { mel: -1, bass: -1, kick: -1, pad: 0.18, off: 0.3, clap: 0.42, harm: 0.54, sixteenth: 0.62, arp: 0.8 },
+            fillAt: 0.3,
             step(t, s, k, len, L, c) {
-                const ch = c.chord;
-                const kg = kickLevel(c, s, s % 4 === 0);
+                const ch = c.chord, song = c.song;
+                const kg = kickLevel(c, s, song.breakbeat ? s === 0 || s === 6 || s === 10 : s % 4 === 0);
                 if (kg) kick(t, 0.45 * kg, 220, 50, 0.12);
-                // The bass bounces octaves on the 8ths; a song with its own line (`walk`) tiptoes it, staccato.
-                if (c.bassOn && c.song.walk) { const b = bassAt(c.song, s, ch); if (b) synth(t, b + 12, len * 0.9, 0.16, 'triangle', 9000); }
-                else if (c.bassOn && s % 2 === 0) synth(t, ch.root + 12 + (s % 4 === 2 ? 12 : 0), len * 1.6, 0.14, 'triangle', 9000);
-                if (L.off > 0.02 && c.drums && s % 4 === 2) hat(t, 0.07 * L.off, 0.02);
-                if (L.clap > 0.02 && c.drums && (s === 4 || s === 12)) clap(t, 0.13 * L.clap);
-                if (L.sixteenth > 0.02 && c.drums && s % 2 === 1) hat(t, 0.035 * L.sixteenth, 0.012);
+                if (c.drums && !c.sparse) {
+                    if (L.clap > 0.02 && (s === 4 || s === 12)) { perc(t, 0.12 * L.clap, { f: 1800, q: 0.8, len: 0.1 }); perc(t, 0.05 * L.clap, { type: 'highpass', f: 5000, len: 0.07 }); }
+                    if (song.breakbeat && L.clap > 0.4 && s === 15 && c.pick(2, 6)) perc(t, 0.05 * L.clap, { f: 1800, q: 0.8, len: 0.05 });
+                    if (L.sixteenth > 0.02) { if (s % 4 !== 1) hat(t, (s % 4 === 0 ? 0.04 : 0.028) * L.sixteenth, 0.012, { pan: 0.2 }); }
+                    else if (L.off > 0.02 && s % 4 === 2) hat(t, 0.06 * L.off, 0.02, { pan: 0.2 });
+                }
+                // The triangle bass walks the song's line, staccato.
+                const b = c.bassOn && bassAt(song, s, ch);
+                if (b) note(t, b + 12, len * (song.walk ? 0.9 : 1.5), 0.15 * L.bass, { type: 'triangle', sus: 0.9, dec: 0.02, rel: 0.012 });
+                // The chord as an arpeggio (8ths, 16ths once it's flying): up on even bars, down on odd ones.
                 const every = L.arp > 0.5 ? 1 : 2;
-                // Up on even bars, down on odd ones.
                 if (L.pad > 0.02 && s % every === 0) {
                     const v = ch.v, i = (s / every) % v.length, idx = c.bar % 2 ? v.length - 1 - i : i;
-                    synth(t, v[idx], len * 0.8, (0.016 + 0.014 * Math.max(L.clap, L.arp)) * L.pad, 'square', 9000);
+                    note(t, v[idx], len * 0.8, (0.016 + 0.014 * Math.max(L.clap, L.arp)) * L.pad, { wave: 'pulse12', sus: 0.8, dec: 0.02, rel: 0.01, pan: -0.5, low: true });
                 }
                 if (c.mel) {
-                    const d = len * c.mel.len * 0.85;
-                    synth(t, c.mel.n, d, 0.03 * c.melGain, 'square', 9000);
-                    synth(t + 3 * len, c.mel.n, d, 0.01 * c.melGain, 'square', 9000);
-                    if (c.mel.harm) synth(t, c.mel.harm, d, 0.016, 'square', 9000);
+                    const d = len * c.mel.len * 0.85, env = { sus: 0.85, dec: 0.03, rel: 0.012 };
+                    note(c.mel.t, c.mel.n, d, 0.03 * c.melGain, { wave: 'pulse25', ...env, glide: s === 0 ? c.mel.n - 12 : null, glideTime: 0.025,
+                        vib: c.mel.len >= 4 ? { rate: 6.5, depth: 16, delay: 0.14 } : null, pan: 0.15 });
+                    if (L.arp <= 0.5) note(c.mel.t + 3 * len, c.mel.n, d, 0.01 * c.melGain, { wave: 'pulse12', ...env, pan: 0.6, low: true });
+                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.016 * c.harmGain * c.melGain, { wave: 'pulse12', ...env, pan: -0.3 });
                 }
             },
-            // A noise-snare roll and a square run up the next chord into the next phrase.
+            // The end of a section: a snare roll with a run up the next chord, or four toms falling.
             fill(t, s, k, len, L, c) {
-                clap(t, 0.1 + 0.02 * (s - 12));
-                synth(t, c.next.v[(s - 12) % c.next.v.length] + 12, len * 0.8, 0.035, 'square', 9000);
+                if (c.pick(2, 8)) {
+                    perc(t, 0.1 + 0.02 * (s - 12), { f: 1800, q: 0.8, len: 0.07 });
+                    note(t, c.next.v[(s - 12) % c.next.v.length] + 12, len * 0.8, 0.035, { wave: 'pulse25', sus: 0.85, dec: 0.02, rel: 0.01 });
+                } else note(t, 57 - 3 * (s - 12), len * 0.9, 0.12, { type: 'triangle', glide: 62 - 3 * (s - 12), glideTime: 0.06, part: 'beat', raw: true });
             }
         },
 
         // ---- Songs: two for the lab, two for the server room, two for Packet Snare -----------------------------
+        // Game loops: a short way in, the tune, a second tune, and a last chorus a tone higher (`up`) before it
+        // comes round again. `breakbeat` gives a song the breakbeat kick. `lvl` trims a song's pitched voices so
+        // every song measures the same; a stealth song's `rest` lifts its tones while its drums are hushed.
         songs: {
             lab: [
-                {   // Pixel Desk: I – V – vi – IV, a square lead with its echo channel.
-                    lvl: 0.89, scale: ION, tonic: 3, chords: ['C', 'G', 'Am', 'F', 'C', 'G', 'F', 'G'],
-                    melA: "1 - 3 - 5 - 3 - | 2 - 5, - 7, - 2 - | 3 - 1 - 6, - 1 - | 4 - 3 - 2 - - .",
-                    melB: "5 - 5 - 6 - 5 - | 4 - 2 - 7, - 5, - | 1 - 3 - 6 - 5 - | 4 - 6 - 1' - - - | 1' - 7 - 5 - 3 - | 2 - 4 - 7 - 5 - | 6 - 4 - 1 - 4 - | 5 - - - 7, - 2 -"
+                {   // Pixel Desk: I – V – vi – IV, and a last chorus up a tone.
+                    name: 'Pixel Desk', lvl: 1.12, scale: ION, tonic: 3, chords: ['C', 'G', 'Am', 'F', 'C', 'G', 'F', 'G'], bass: 'r...o...f...o...',
+                    mel: {
+                        A: "1 - 3 - 5 - 3 - | 2 - 5, - 7, - 2 - | 3 - 1 - 6, - 1 - | 4 - 3 - 2 - - .",
+                        B: "5 - 5 - 6 - 5 - | 4 - 2 - 7, - 5, - | 1 - 3 - 6 - 5 - | 4 - 6 - 1' - - - | 1' - 7 - 5 - 3 - | 2 - 4 - 7 - 5 - | 6 - 4 - 1 - 4 - | 5 - - - 7, - 2 -"
+                    },
+                    form: [['intro', 4, { mel: null }], ['A', 8], ['A', 8, { harm: true }], ['B', 8], ['A', 8], ['B', 8], ['A', 8, { up: 2, harm: true, lift: 0.06 }], ['turn', 2, { mel: null }]]
                 },
-                {   // Save Point: IV – I – V – vi, gentle.
-                    lvl: 0.91, scale: ION, tonic: 3, chords: ['F', 'C', 'G', 'Am', 'F', 'C', 'Dm', 'G'],
-                    melA: "6 - 5 - 4 - 1 - | 3 - 2 - 1 - 5, - | 7, - 2 - 5 - 4 - | 3 - - - 2 - - .",
-                    melB: "1' - 6 - 4 - 6 - | 5 - 3 - 1 - 3 - | 2 - 7, - 2 - 4 - | 3 - 6 - 1' - - - | 1' - 6 - 5 - 4 - | 3 - 5 - 1' - 5 - | 4 - 6 - 2' - 1' - | 7 - - - 5 - - -"
+                {   // Save Point: IV – I – V – vi, gentle; it starts on the tune.
+                    name: 'Save Point', lvl: 1.11, scale: ION, tonic: 3, chords: ['F', 'C', 'G', 'Am', 'F', 'C', 'Dm', 'G'], bass: 'r.....f.r...o...',
+                    mel: {
+                        A: "6 - 5 - 4 - 1 - | 3 - 2 - 1 - 5, - | 7, - 2 - 5 - 4 - | 3 - - - 2 - - .",
+                        B: "1' - 6 - 4 - 6 - | 5 - 3 - 1 - 3 - | 2 - 7, - 2 - 4 - | 3 - 6 - 1' - - - | 1' - 6 - 5 - 4 - | 3 - 5 - 1' - 5 - | 4 - 6 - 2' - 1' - | 7 - - - 5 - - -"
+                    },
+                    form: [['A', 8], ['B', 8], ['A', 8, { harm: true }], ['bridge', 4, { mel: null, drums: 'sparse', fill: false }], ['B', 8], ['A', 8]]
                 }
             ],
             server: [
-                {   // Boss Rush: A minor, a 16th-note riff, the chords arpeggiated.
-                    lvl: 0.87, scale: AEOL, chords: ['Am', 'F', 'G', 'Em', 'Am', 'F', 'Dm', 'E5'],
-                    melA: "1 1 5 1' . 7 5 3 | 1 1 6 1' . 6 5 3 | 7, 7, 2 5 . 4 2 7, | 5, 5, 7, 2 . 5 2 7,",
-                    melB: "1' - 7 - 1' - 3' - | 1' - 6 - 5 - 3 - | 2' - 1' - 7 - 5 - | 7 - 5 - 2 - - - | 1' - 5 - 1' - 3' - | 1' - 3' - 6 - 1' - | 4' - 3' - 2' - 6 - | 5 - - - 7 - 2' -"
+                {   // Boss Rush: A minor over a breakbeat, a riff of repeated notes, a galloping bass; the last chorus up a tone.
+                    name: 'Boss Rush', lvl: 0.67, scale: AEOL, breakbeat: true, chords: ['Am', 'F', 'G', 'Em', 'Am', 'F', 'Dm', 'E5'], bass: 'r.ror.rof.ror.ro',
+                    mel: {
+                        A: "1 1 5 1' . 7 5 3 | 1 1 6 1' . 6 5 3 | 7, 7, 2 5 . 4 2 7, | 5, 5, 7, 2 . 5 2 7,",
+                        B: "1' - 7 - 1' - 3' - | 1' - 6 - 5 - 3 - | 2' - 1' - 7 - 5 - | 7 - 5 - 2 - - - | 1' - 5 - 1' - 3' - | 1' - 3' - 6 - 1' - | 4' - 3' - 2' - 6 - | 5 - - - 7 - 2' -"
+                    },
+                    form: [['intro', 2, { mel: null }], ['A', 8], ['B', 8], ['A', 8, { harm: true }], ['break', 4, { mel: 'A', melGain: 0.7, drums: 'none', fill: false }],
+                        ['B', 8, { lift: 0.08 }], ['A', 8, { up: 2, harm: true, lift: 0.1 }], ['out', 2, { mel: null, fill: false }]]
                 },
-                {   // Turbo: Dorian's raised sixth over D, a race to the finish.
-                    lvl: 0.89, scale: AEOL, chords: ['Am', 'Am', 'C', 'D', 'Am', 'Am', 'F', 'G'],
-                    melA: "1' . 1' . 5 . 7 1' | . 1' 7 5 . 3 5 . | 5 . 5 . 3 . 5 1' | #6 . 5 . 4 - - .",
-                    melB: "1 . 3 . 5 . 1' . | 7 . 5 . 3 . 5 . | 3' . 1' . 5 . 3 . | #6 . 4 . 1' . #6 . | 5 . 1' . 3' . 2' . | 1' . 7 . 5 - - . | 6 . 1' . 3' . 1' . | 2' . 7 . 5 . 2' ."
+                {   // Turbo: the raised sixth over D, a race to the finish, and up a tone for the last lap.
+                    name: 'Turbo', lvl: 0.71, scale: AEOL, breakbeat: true, chords: ['Am', 'Am', 'C', 'D', 'Am', 'Am', 'F', 'G'], bass: 'rr.orr.orr.off.o',
+                    mel: {
+                        A: "1' . 1' . 5 . 7 1' | . 1' 7 5 . 3 5 . | 5 . 5 . 3 . 5 1' | #6 . 5 . 4 - - .",
+                        B: "1 . 3 . 5 . 1' . | 7 . 5 . 3 . 5 . | 3' . 1' . 5 . 3 . | #6 . 4 . 1' . #6 . | 5 . 1' . 3' . 2' . | 1' . 7 . 5 - - . | 6 . 1' . 3' . 1' . | 2' . 7 . 5 . 2' ."
+                    },
+                    form: [['intro', 4, { mel: null }], ['A', 8], ['B', 8], ['A', 8], ['B', 8, { harm: true }], ['A', 8, { up: 2, lift: 0.1 }]]
                 }
             ],
             snare: [
                 {   // Sneaking Mission: an 8-bit infiltration: a triangle bass tiptoeing, a pulse creeping up the A minor.
-                    lvl: 1.39, rest: 1.29, slvl: 0.91, srest: 1.27, scale: AEOL, chords: ['Am', 'Am', 'F', 'G', 'Am', 'Am', 'F', 'Esus4'],
+                    name: 'Sneaking Mission', lvl: 1.34, rest: 1.29, slvl: 0.91, srest: 1.27, scale: AEOL, chords: ['Am', 'Am', 'F', 'G', 'Am', 'Am', 'F', 'Esus4'],
                     bass: 'r...f...r...f.o.', walk: true, kick: 'x.......x.......', hush: 0.5, tick: '..x...x...x...x.', cut: 0.85,
-                    melA: "1 . 1 . . . 3 . | 5, . . . . . . . | 6 . 6 . . . 1' . | 5 - - - . . . .",
-                    melB: "1 . 3 . 5 . 1' . | 7 . 5 . 3 . 5 . | 6 . 1' . 3' . 1' . | 2' - - - 7 - - - | 1' . 1' . 7 . 5 . | 3 . 5 . 1' - - - | 6 . 4 . 6 . 1' . | 2' - - - 1' - - -"
+                    mel: {
+                        A: "1 . 1 . . . 3 . | 5, . . . . . . . | 6 . 6 . . . 1' . | 5 - - - . . . .",
+                        B: "1 . 3 . 5 . 1' . | 7 . 5 . 3 . 5 . | 6 . 1' . 3' . 1' . | 2' - - - 7 - - - | 1' . 1' . 7 . 5 . | 3 . 5 . 1' - - - | 6 . 4 . 6 . 1' . | 2' - - - 1' - - -"
+                    },
+                    form: [['in', 4, { mel: null }], ['A', 8], ['B', 8], ['A', 8], ['wait', 4, { mel: null, fill: false }], ['B', 8], ['A', 8]]
                 },
                 {   // Hide and Seek: A minor seen from C, sus chords that never land, a pulse peeking out and back.
-                    lvl: 1.44, rest: 1.51, slvl: 0.85, srest: 1.29, scale: ION, tonic: 3, chords: ['Am', 'Am', 'Fmaj7', 'Fmaj7', 'Dm7', 'Dm7', 'Gsus4', 'Gsus4'],
+                    name: 'Hide and Seek', lvl: 1.58, rest: 1.51, slvl: 0.85, srest: 1.29, scale: ION, tonic: 3, chords: ['Am', 'Am', 'Fmaj7', 'Fmaj7', 'Dm7', 'Dm7', 'Gsus4', 'Gsus4'],
                     bass: 'r.....r...o.....', walk: true, kick: 'x.....x.........', hush: 0.5, tick: 'o...x...o...x.o.', cut: 0.85,
-                    melA: "6, . . 1 . . . . | 2 - - - . . . . | 6, . . 1 . . . . | 2 - - - 5, . . .",
-                    melB: "3 . 1 . 6, . 1 . | 3 - - - 2 - - - | 1 . 3 . 5 . 3 . | 6, - - - . . . . | 4 . 6 . 1' . 6 . | 4 - - - 2 - - - | 1 . 2 . 5 . 2 . | 1 - - - 5, - - -"
+                    mel: {
+                        A: "6, . . 1 . . . . | 2 - - - . . . . | 6, . . 1 . . . . | 2 - - - 5, . . .",
+                        B: "3 . 1 . 6, . 1 . | 3 - - - 2 - - - | 1 . 3 . 5 . 3 . | 6, - - - . . . . | 4 . 6 . 1' . 6 . | 4 - - - 2 - - - | 1 . 2 . 5 . 2 . | 1 - - - 5, - - -"
+                    },
+                    form: [['A', 8], ['B', 8], ['wait', 4, { mel: null, fill: false }], ['A', 8], ['B', 8], ['A', 8, { harm: true }]]
                 }
             ]
         },

@@ -959,9 +959,12 @@
         // Sends follow their part's fader, so a muted part is muted in the reverb too.
         const sendIn = { beat: {}, tones: {} };
         const space = simple ? { nodes: [] } : buildSpace(st.space, bus);
+        // The tones pass through `pump`: a track may dip them on each kick (`pumpTones`), the breathing of club music.
+        const pumpNode = ctx.createGain();
+        pumpNode.connect(bus);
         for (const [k, g] of Object.entries(parts)) {
             g.gain.value = partLevel(k);
-            g.connect(bus);
+            g.connect(k === 'tones' ? pumpNode : bus);
             for (const kind of ['rev', 'dly']) if (space[kind]) { const sg = ctx.createGain(); sg.gain.value = partLevel(k); sg.connect(space[kind]); sendIn[k][kind] = sg; }
         }
         bus.connect(dry).connect(filter);
@@ -971,7 +974,7 @@
         trim.gain.value = styleTrim();
         filter.connect(trim).connect(out);
         const first = nextStep(4, 0.05);           // joins on a beat, in time with the grid sounds
-        music = { bus, parts, sendIn, space, drive, dry, wet, filter, trim, nextStep: first.t, step: first.n, origin: first.n,
+        music = { bus, parts, pump: pumpNode, up: 0, sendIn, space, drive, dry, wet, filter, trim, nextStep: first.t, step: first.n, origin: first.n,
             area, songs, song, bpm, songStep: first.n, left: {}, cmd: null, style, voices: 0 };
         music.timer = every(schedule, 25);
     }
@@ -1015,7 +1018,14 @@
         }
         fn(g);
     }
-    const shift = () => styleOf().shift || 0;   // the track's key, from A
+    // The track's key, from A, and the section's own lift on top (`up` on a section: a key change for a last chorus).
+    const shift = () => (styleOf().shift || 0) + (music ? music.up : 0);
+    // Dip the tones at time t and let them back up: `depth` 0-1, over `time` seconds.
+    function pumpTones(t, depth = 0.4, time = 0.2) {
+        if (!music || simple) return;
+        music.pump.gain.setValueAtTime(Math.max(0.05, 1 - depth), t);
+        music.pump.gain.linearRampToValueAtTime(1, t + time);
+    }
     // Pulse waves of other widths than a square's (chip voices): 'pulse25', 'pulse12'.
     const waves = {};
     function pulse(name) {
@@ -1184,7 +1194,8 @@
     //            entry, fill }]. `mel` names a melody (default: the section's own name if there is one, else none);
     //            `chords`, `bass`, `comp` name which to play (default 'A'); `drums` is 'full', 'sparse' (the
     //            track decides what that is: usually the kick alone) or 'none'; `harm` adds the harmony line;
-    //            `lift` raises (or with a negative number thins) the arrangement for that section; a section is a
+    //            `lift` raises (or with a negative number thins) the arrangement for that section; `up` plays it
+    //            that many semitones higher (a key change); `from` starts its chords and melody that many bars in; a section is a
     //            place to come back in unless `entry: false`; `fill: false` ends it without the track's fill.
     //            Without a form a song plays its track's (`form` on the style), else the old eight-section one.
     //   swing    how far odd 16ths are delayed, as a share of a step (else the track's)
@@ -1342,7 +1353,7 @@
             if (!(bars > 0) || bars % 1) throw new Error(`section ${name}: ${bars} bars`);
             const sec = { name, bars, start, mel: 'mel' in o ? o.mel : (song.mel[name] ? name : null), chords: o.chords || 'A', bass: o.bass || (song.bassBy[o.chords] ? o.chords : 'A'),
                 comp: o.comp || (song.compBy[o.chords] ? o.chords : 'A'), drums: o.drums || 'full', bassOn: o.bassOn !== false, melGain: o.melGain ?? 1, harm: !!o.harm,
-                lift: o.lift || 0, entry: o.entry !== false, fill: o.fill !== false, from: o.from || 0 };
+                lift: o.lift || 0, up: o.up || 0, entry: o.entry !== false, fill: o.fill !== false, from: o.from || 0 };
             if (sec.mel != null && !song.mel[sec.mel]) throw new Error(`section ${name}: no melody "${sec.mel}"`);
             for (const [what, table] of [['chords', song.prog], ['bass', song.bassBy], ['comp', song.compBy]])
                 if (!table[sec[what]]) { if (what === 'chords' || o[what]) throw new Error(`section ${name}: no ${what} "${sec[what]}"`); sec[what] = Object.keys(table)[0]; }
@@ -1538,6 +1549,7 @@
                 c.mel.t = t + c.mel.off * len + (c.mel.off ? 0 : c.sw);
                 if (!st.layers && L.harm < 0.5) c.mel.harm = 0;
             }
+            music.up = c.section.up;
             c.fill = c.last && c.section.fill && c.drums && (st.fillAt != null ? S >= st.fillAt : L.off > 0.5);
             try {
                 if (simple) simpleStep(st, t, s, k, len, c, L);
@@ -1661,7 +1673,7 @@
     // ---- The themes ----------------------------------------------------------------------------------------
     // Each track lives in music/<theme>.js: a function of this toolkit that returns its key, profile, levels,
     // instruments (`style`), songs and sound effects. Built here, once everything they use exists.
-    const H = { note, perc, MIXO, LYD, harmNote, stepOf, voices, tone, noise, NOTE, T, seq, S, blip, arp, echo, stab, sub, bell, pluck, run, vary, mapNote, degShift, PANEL_INST, PANEL_OCT, phone, PHONE, clickNote, catchNotes, lastAt, raceNote, ping, kick, hat, clap, synth, pad, riser, bassAt, snap, kickLevel, AEOL, PHRY, DOR, HARM, ION, varDeg: () => varDeg };
+    const H = { pump: pumpTones, note, perc, MIXO, LYD, harmNote, stepOf, voices, tone, noise, NOTE, T, seq, S, blip, arp, echo, stab, sub, bell, pluck, run, vary, mapNote, degShift, PANEL_INST, PANEL_OCT, phone, PHONE, clickNote, catchNotes, lastAt, raceNote, ping, kick, hat, clap, synth, pad, riser, bassAt, snap, kickLevel, AEOL, PHRY, DOR, HARM, ION, varDeg: () => varDeg };
     for (const [name, make] of Object.entries(window.SFXThemes || {})) {
         const th = make(H);
         KEYS[name] = th.key; PROFILES[name] = th.profile; SIMPLE_VOICE[name] = th.simpleVoice;
