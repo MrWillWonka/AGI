@@ -4135,3 +4135,6 @@ body.device-phone .home-dock { align-self: stretch; justify-content: space-aroun
 body.device-phone .home-dock .home-icon { width: 25%; min-width: 0; }
 /* The system icons are drawn to one height (3 to 21 of 24) and sized alike. */
 .home-dock .home-icon-art { width: 46px; height: 46px; }
+/* The home screen can't be zoomed or dragged about (game.js buildHome stops iOS's pinch). */
+.device-home { touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.device-home .home-icon { touch-action: manipulation; }

@@ -2201,6 +2201,12 @@ window.AGI = (function () {
             // The system apps sit in a row at the foot of the screen (the owner's call): a phone's dock, a laptop's shelf.
             el('div', { class: 'home-dock' }, tools.map(t => t.button)),
             el('div', { class: 'home-taskbar' }, [el('span', { class: 'home-start', text: '▦' }), el('span', { class: 'home-task', text: 'Mail' }), el('span', { class: 'home-taskbar-clock' })])]);
+        // No zooming the home screen (the owner's call): iOS pinches and double-tap zooms are refused here, with
+        // `touch-action: none` in styles.css for every other browser.
+        for (const type of ['gesturestart', 'gesturechange', 'gestureend']) node.addEventListener(type, e => e.preventDefault());
+        node.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+        let lastTap = 0;
+        node.addEventListener('touchend', e => { const now = Date.now(); if (now - lastTap < 320 && !e.target.closest('button')) e.preventDefault(); lastTap = now; }, { passive: false });
         document.body.append(node);
         return { node, mail, lab, snare: snareApp, feed: feedApp, tools, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
     }
