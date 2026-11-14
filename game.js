@@ -2157,9 +2157,9 @@ window.AGI = (function () {
         ...DESK_ICONS,
         phone: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',
         bank: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg>',
-        journal: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21a2 2 0 0 1 2-2h13v2H6"/><path d="M8 7h7M8 11h5"/></svg>',
-        settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/><circle cx="12" cy="12" r="6.5"/></svg>',
-        debug: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="8" height="11" rx="4"/><path d="M9.5 8a2.5 2.5 0 0 1 5 0M4 13h4M16 13h4M5 7l3.5 2.5M19 7l-3.5 2.5M5 20l3.5-3M19 20l-3.5-3M12 11v8"/></svg>',
+        journal: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 5a2 2 0 0 1 2-2h11v16h-11a2 2 0 0 0-2 2z"/><path d="M5.5 21a2 2 0 0 1 2-2h11v2h-11"/><path d="M9.5 7.5h5.5M9.5 11.5h4"/></svg>',
+        settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.8"/><circle cx="12" cy="12" r="6"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.2 2.2M16.2 16.2l2.2 2.2M5.6 18.4l2.2-2.2M16.2 7.8l2.2-2.2"/></svg>',
+        debug: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7.5" y="7" width="9" height="14" rx="4.5"/><path d="M9 7.5a3 3 0 0 1 6 0M3 13.5h4.5M16.500 13.5H21M4 6.5l4 3M20 6.500l-4 3M4 21l4-3.500M20 21l-4-3.500M12 10.500V21M8.500 3l1.700 2.200M15.500 3l-1.700 2.200"/></svg>',
         playtest: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10l1.5 1.5 2.5-3M8.5 16l1.5 1.5 2.5-3M14.5 10.5H16M14.5 16.5H16"/></svg>',
         lab: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M12 4h8M13 4v9L6 26a2 2 0 0 0 2 3h16a2 2 0 0 0 2-3l-7-13V4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 21h12" stroke="currentColor" stroke-width="2"/></svg>'
     };
@@ -2184,10 +2184,10 @@ window.AGI = (function () {
         // Settings, the Journal, Debug and the playtest survey are apps too (the owner's call), so they can be reached
         // from the home screen, which covers the top bar.
         const tools = [
-            icon('journal', 'Journal', () => $('journalButton').click()),
-            icon('settings', 'Settings', () => $('settingsButton').click()),
             icon('playtest', 'Playtest', () => openSurvey()),
-            icon('debug', 'Debug', () => window.DebugPanel?.toggle())];
+            icon('debug', 'Debug', () => window.DebugPanel?.toggle()),
+            icon('settings', 'Settings', () => $('settingsButton').click()),
+            icon('journal', 'Journal', () => $('journalButton').click())];
         const clock = el('span', { class: 'home-clock' });
         const bar = el('div', { class: 'home-bar-fill' });
         const popupText = el('p', { class: 'home-popup-text' });

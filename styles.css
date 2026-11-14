@@ -4133,3 +4133,5 @@ body.device-laptop .window-close { display: inline-grid; place-items: center; }
 .home-icon-debug { color: var(--accent); }
 body.device-phone .home-dock { align-self: stretch; justify-content: space-around; margin-bottom: 4px; }
 body.device-phone .home-dock .home-icon { width: 25%; min-width: 0; }
+/* The system icons are drawn to one height (3 to 21 of 24) and sized alike. */
+.home-dock .home-icon-art { width: 46px; height: 46px; }
