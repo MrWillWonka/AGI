@@ -78,8 +78,15 @@ can afford, three at the least; the first run ever is free; going deeper costs n
 `snarePayClock` in engine.js). **The desk** (`design/ring.md` → Where the places live: a screen with icons, a
 four-thing desk, no Collect Data or Research, no server room, training sealed; `renderDesk` in game.js, `deskDone`,
 `RING_DESK` and the milestones' ring branches in engine.js). So a fresh save under `#ring` can be played round the
-small loop with no debug panel. **Left in Build 1: the opening** (the brother's laptop in the mail, Report spam, the
-forced final offer). **For Build 2:** the server asked for when the boss shows, and training's icon on the monitor.
+small loop with no debug panel. **The opening** (the owner's calls, 2026-11-13; built): the game opens on the device's **mail
+sign-in** (a first name and an email name: `state.player`, save v39; a phone on a phone, else the laptop); **your
+brother's mail** comes first (it judges your email name, says the device is weak but reliable, and warns about
+clicking, with his princess story); the junk and the offer carry **Report spam** (the mail is deleted and IT thanks
+you; on the offer the next nag still comes, as it does when you close it and leave it on read); reports and closes are
+counted; the ring's **first offer** is from someone who wants rid of an AI (the 20 nags are as they were, for Build
+4); after the last nag the **forced final offer** has no Report and no close. **The whole view is the device's
+screen** (bezel, crack and dimness until the monitor), with a desktop of icons (Mail, Packet Snare, The Feed) and the
+lab's panels as its windows (Compute, Parts). That is Build 1, bar tuning from play. **For Build 2:** the server asked for when the boss shows, and training's icon on the monitor.
 
 Done when: a fresh save under the switch reaches The Feed inside about two minutes of the server room opening, the
 loop can be repeated without getting stuck, research rises, and all existing tests pass with the switch off.

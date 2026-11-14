@@ -3973,21 +3973,46 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
 .feed-hunger-fill { height: 100%; width: 0; background: var(--success); transition: width 0.25s linear; }
 @media (prefers-reduced-motion: reduce) { .feed-hunger-fill { transition: none; } }
 
-/* The ring's desk: the screen on it (game.js renderDesk). A fixed height whatever it shows, so the Workbench under it
-   never moves. The laptop's is small, dim and cracked; the monitor's is wider, lit, with icons. */
-.desk-screen { margin: 0 0 12px; border: 3px solid var(--border); border-bottom-width: 10px; border-radius: 10px; background: #050b0c; height: 132px; position: relative; overflow: hidden; }
-.desk-screen.laptop { max-width: 300px; filter: saturate(0.5) brightness(0.8); }
-.desk-screen.laptop::after { content: ''; position: absolute; inset: 0; pointer-events: none;
-    background: linear-gradient(118deg, transparent 61.6%, rgba(255, 255, 255, 0.28) 62%, transparent 62.5%), linear-gradient(96deg, transparent 61.5%, rgba(255, 255, 255, 0.18) 62%, transparent 62.6%),
-        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 3px); }
-.desk-screen.monitor { border-color: var(--panel-2); box-shadow: 0 0 18px rgba(111, 179, 217, 0.12); }
-.desk-display { height: 100%; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; }
+/* The ring: the whole view is the device's screen (game.js renderDesk sets the classes on body). A bezel round
+   everything, drawn over the page and letting every tap through; on the old screen, a crack, scan lines and a little
+   dimness; on the monitor, a clean thin bezel. A phone's bezel is rounder. Dialogs sit above it (they are their own
+   screens: the sign-in carries its own bezel). */
+body.ring-device::before { content: ''; position: fixed; inset: 0; z-index: 4000; pointer-events: none; border: 9px solid #161d1f; border-bottom-width: 16px; border-radius: 14px; box-shadow: inset 0 0 0 2px #000, inset 0 0 24px rgba(0, 0, 0, 0.5); }
+body.ring-device.device-phone::before { border-width: 12px 7px 14px; border-radius: 30px; }
+body.ring-device.screen-monitor::before { border-color: #20292c; border-width: 6px 6px 12px; border-radius: 8px; box-shadow: inset 0 0 0 1px #000; }
+body.ring-device.screen-old::after { content: ''; position: fixed; inset: 0; z-index: 3999; pointer-events: none;
+    background: linear-gradient(112deg, transparent 63.7%, rgba(255, 255, 255, 0.22) 63.9%, transparent 64.2%), linear-gradient(97deg, transparent 63.6%, rgba(255, 255, 255, 0.14) 63.9%, transparent 64.3%),
+        linear-gradient(140deg, transparent 80.7%, rgba(255, 255, 255, 0.12) 80.9%, transparent 81.2%), repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px), rgba(0, 10, 12, 0.14); }
+body.ring-device.screen-old .app, body.ring-device.screen-old main { filter: saturate(0.72); }
+/* The desktop: a status line and the icons, across the top of the lab. A fixed height whatever it shows. */
+.desk-screen { display: grid; grid-template-rows: auto 1fr; gap: 6px; height: 118px; margin: 0 0 12px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: rgba(0, 0, 0, 0.28); }
 .desk-line { font: 600 0.8rem var(--font-mono); color: var(--terminal-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.desk-icons { display: flex; gap: 10px; flex: 1; min-height: 0; }
-.desk-icon { flex: 0 1 150px; min-width: 0; display: grid; grid-template-rows: 1fr auto auto; justify-items: center; gap: 2px; padding: 6px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--primary); cursor: pointer; font: inherit; }
-.desk-icon:hover, .desk-icon:focus-visible { border-color: var(--border); background: rgba(255, 255, 255, 0.04); }
+.desk-icons { display: flex; gap: 8px; min-height: 0; }
+.desk-icon { flex: 0 1 132px; min-width: 0; display: grid; grid-template-rows: 1fr auto auto; justify-items: center; gap: 1px; padding: 4px 6px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--primary); cursor: pointer; font: inherit; }
+.desk-icon:hover, .desk-icon:focus-visible { border-color: var(--border); background: rgba(255, 255, 255, 0.05); }
+.desk-icon-mail { color: var(--warning); }
 .desk-icon-feed { color: var(--success); }
 .desk-icon-art { display: block; height: 100%; min-height: 0; aspect-ratio: 1; }
 .desk-icon-art svg { width: 100%; height: 100%; display: block; }
-.desk-icon-name { font: 700 0.85rem var(--font-display); color: var(--text); white-space: nowrap; }
-.desk-icon-readout { font: 600 0.72rem var(--font-mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.desk-icon-name { font: 700 0.82rem var(--font-display); color: var(--text); white-space: nowrap; }
+.desk-icon-readout { font: 600 0.7rem var(--font-mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+/* The lab's panels as windows on the desktop: a title bar with the window's name. */
+body.ring-device #labRoom .panel > .station-title { margin: -4px -4px 10px; padding: 5px 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.06); font-size: 0.8rem; letter-spacing: 0.1em; }
+/* The device's mail sign-in: the first screen of a new game under the ring. Its own bezel, the old screen's crack. */
+.device-login { width: min(420px, calc(100vw / var(--zoom, 1) - 24px)); padding: 0; border: 9px solid #161d1f; border-bottom-width: 16px; border-radius: 14px; background: var(--bg-2); color: var(--text); overflow: hidden; }
+.device-login.device-phone { border-width: 12px 7px 14px; border-radius: 30px; }
+.device-login::backdrop { background: #020506; }
+.device-login::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(112deg, transparent 63.7%, rgba(255, 255, 255, 0.2) 63.9%, transparent 64.2%), linear-gradient(97deg, transparent 63.6%, rgba(255, 255, 255, 0.12) 63.9%, transparent 64.3%), repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px); }
+.login-form { display: grid; gap: 12px; padding: 22px 20px 20px; }
+.login-form h2 { margin: 0; font: 700 1.3rem var(--font-display); letter-spacing: 0.04em; }
+.login-lead { margin: 0; color: var(--muted); }
+.login-form label { display: grid; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+.login-form input { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font: 1rem var(--font-body); }
+.login-email { display: flex; align-items: center; gap: 6px; color: var(--muted); font: 0.95rem var(--font-mono); }
+.login-error { min-height: 1.3em; margin: 0; color: var(--danger); font-size: 0.85rem; }
+.login-form .button { min-height: 44px; }
+/* Report spam on the opening's mail, and IT's thanks above the list (a line of its own height, so the list never moves). */
+.mail-report { margin-left: 10px; padding: 4px 10px; min-height: 32px; border: 1px solid var(--border); border-radius: 8px; background: none; color: var(--text); font: inherit; cursor: pointer; }
+.mail-report:hover, .mail-report:focus-visible { border-color: var(--danger); color: var(--danger); }
+.inbox-notice { min-height: 1.4em; margin: 0 0 6px; padding: 0 2px; font: 0.82rem var(--font-mono); color: var(--success); }

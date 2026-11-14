@@ -2103,12 +2103,16 @@ window.AGI = (function () {
 
     // ---- Loop & rendering -----------------------------------------------
 
-    // The ring's desk (design/ring.md → Where the places live; the owner's calls, 2026-11-13): the screen on your desk.
-    // It is the old laptop's, cracked, until the monitor (the desk's last thing) is bought; then a monitor's, online,
-    // with the places you can open as icons, each with one readout: Packet Snare when the desk is done, The Feed once
-    // a run has poured into it. Under the ring there is no server room yet: Packet Snare opens from here and closes
-    // back to here (exitBay). Hidden with the ring off.
+    // The ring's desk (design/ring.md → Where the places live; the owner's calls, 2026-11-13): **the whole view is the
+    // device's screen**, your brother's beat-up laptop (on a phone, his beat-up phone: `state.player.device`) until the
+    // monitor, the desk's last thing, is bought; then the same desktop on a better screen. `body` carries
+    // `ring-device`, `device-laptop` or `device-phone`, and `screen-old` or `screen-monitor` (styles.css draws the
+    // bezel, the crack and the dimness from those). The desktop is a status line and the places you can open as icons,
+    // each with one readout: Mail, Packet Snare when the desk is done, The Feed once a run has poured into it; under
+    // them the lab's panels are its windows, Compute and Parts. There is no server room yet: Packet Snare opens from
+    // here and closes back to here (exitBay). With the ring off none of this shows.
     const DESK_ICONS = {
+        mail: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="8" width="24" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 10l11 8 11-8" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
         snare: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="11" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="5 3"/><path d="M16 22l-5-11 5 3 5-3z" fill="currentColor"/></svg>',
         feed: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 27l9-12 5 6 4-5 8 11z" fill="currentColor"/><circle cx="21" cy="8" r="3" fill="currentColor"/></svg>'
     };
@@ -2123,10 +2127,11 @@ window.AGI = (function () {
             return { button, readout };
         };
         const line = el('div', { class: 'desk-line' });
+        const mail = icon('mail', 'Mail', () => openInbox());
         const snareIcon = icon('snare', 'Packet Snare', () => jumpTo('bay:pipeline'));
         const feedIcon = icon('feed', 'The Feed', () => window.FeedUI?.open());
-        node.append(el('div', { class: 'desk-display' }, [line, el('div', { class: 'desk-icons' }, [snareIcon.button, feedIcon.button])]));
-        return { line, snare: snareIcon, feed: feedIcon };
+        node.append(line, el('div', { class: 'desk-icons' }, [mail.button, snareIcon.button, feedIcon.button]));
+        return { line, mail, snare: snareIcon, feed: feedIcon, titled: false };
     }
     function renderDesk() {
         const node = $('deskScreen');
@@ -2135,12 +2140,22 @@ window.AGI = (function () {
         if (node.hidden === on) node.hidden = !on;
         if (!on) return;
         desk = desk || buildDesk(node);
+        const device = state.player.device || (matchMedia('(pointer: coarse)').matches ? 'phone' : 'laptop');
         const monitor = E.deskDone(state), online = !!state.unlocked['module:snare'], fed = state.feed.stats.delivered > 0;
-        node.classList.toggle('monitor', monitor);
-        node.classList.toggle('laptop', !monitor);
-        setText(desk.line, !monitor ? '> Old laptop. 1 GB of RAM.' : online ? '> Online.' : '> Connecting.');
-        if (desk.snare.button.hidden === online) desk.snare.button.hidden = !online;
-        if (desk.feed.button.hidden === fed) desk.feed.button.hidden = !fed;
+        const cl = document.body.classList;
+        cl.add('ring-device');
+        cl.toggle('device-phone', device === 'phone'); cl.toggle('device-laptop', device !== 'phone');
+        cl.toggle('screen-monitor', monitor); cl.toggle('screen-old', !monitor);
+        // The lab's panels are the desktop's windows.
+        if (!desk.titled) {
+            const names = { Workbench: 'Compute', 'Hardware bench': 'Parts' };
+            for (const h of $('labRoom').querySelectorAll('.station-title')) if (names[h.textContent.trim()]) { h.textContent = names[h.textContent.trim()]; desk.titled = true; }
+        }
+        setText(desk.line, !monitor ? `> Old ${device}. 1 GB of RAM.` : online ? '> Online.' : '> Connecting.');
+        const show = (icon, yes) => { if (icon.button.hidden === yes) icon.button.hidden = !yes; };
+        show(desk.mail, !!state.player.email); show(desk.snare, online); show(desk.feed, fed);
+        const unread = mailReady ? mailUnread() : 0;
+        setText(desk.mail.readout, unread ? `${unread} unread` : 'No new mail');
         if (online) {
             const sector = snareNextSector(), clock = E.snareClock(state, sector, snareRunOpts(sector).focus);
             setText(desk.snare.readout, clock.free ? 'First run free' : `${E.format(clock.price)} compute a run`);
@@ -12906,6 +12921,66 @@ window.AGI = (function () {
     let mailReady = false;   // buildMail (the end of init) starts the opening, so a new game opens on it
     let mailOpen = null;     // the item on screen
     let welcomeNag = 0;      // times the offer was closed unanswered (screen state)
+    // The ring's opening (design/ring.md → The opening): Report spam on the opening's spam (it deletes the mail and IT
+    // thanks you; on the offer the next nag still comes), the counts of reports and closes, and after the last nag the
+    // forced final offer, with no Report and no close.
+    const reportedCopies = new Set();   // copies of the offer reported, so deleted (screen state, as welcomeNag is)
+    let finalOffer = false;
+    const isFinal = item => finalOffer && item?.key === 'm:welcome' && item.latest;
+    const finalOpen = () => E.isRing() && isFinal(mailOpen) && !introDone();
+    const ringGone = (m, n) => E.isRing() && (!!state.intro['mailGone:' + m.id] || (m.id === 'welcome' && reportedCopies.has(n)));
+    const fillMail = shown => (E.isRing() ? { ...shown, from: E.mailFill(state, shown.from), subject: E.mailFill(state, shown.subject), body: shown.body.map(p => E.mailFill(state, p)) } : shown);
+    let noticeTimer = 0;
+    function inboxNotice(text) {
+        let node = $('inboxNotice');
+        if (!node) { node = el('p', { class: 'inbox-notice', id: 'inboxNotice', 'aria-live': 'polite' }); $('inboxList').before(node); }
+        setText(node, text);
+        clearTimeout(noticeTimer);
+        noticeTimer = setTimeout(() => setText(node, ''), 6000);
+    }
+    function reportMail(item) {
+        state.player.reports++;
+        pt('mailReport', { id: item.key, nag: item.copy || undefined, n: state.player.reports });
+        inboxNotice('IT Support: Thank you for reporting this message. It has been deleted.');
+        sfx('ui');
+        if (item.key === 'm:welcome') { reportedCopies.add(item.copy); leaveMail(); }
+        else { state.intro['mailGone:' + item.key.slice(2)] = true; state.intro[item.readKey] = true; renderInbox(); }
+        save();
+    }
+    // The device's mail sign-in, the first thing a new game under the ring shows: a first name and an email name. The
+    // device is a phone on a phone and the laptop otherwise, and stays what it was. Nothing typed here is logged.
+    function showLogin() {
+        const device = matchMedia('(pointer: coarse)').matches ? 'phone' : 'laptop';
+        const name = el('input', { type: 'text', id: 'loginName', maxlength: '20', autocomplete: 'off', autocapitalize: 'words', spellcheck: 'false' });
+        const email = el('input', { type: 'text', id: 'loginEmail', maxlength: '24', autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false', inputmode: 'email' });
+        const error = el('p', { class: 'login-error', 'aria-live': 'polite' });
+        const form = el('form', { class: 'login-form' }, [
+            el('h2', { text: 'Mail' }),
+            el('p', { class: 'login-lead', text: 'Set up your mail to get started.' }),
+            el('label', { for: 'loginName' }, [el('span', { text: 'First name' }), name]),
+            el('label', { for: 'loginEmail' }, [el('span', { text: 'Email name' }), el('span', { class: 'login-email' }, [email, el('span', { text: '@mail.net' })])]),
+            error,
+            el('button', { type: 'submit', class: 'button', text: 'Sign in' })]);
+        const dlg = el('dialog', { class: `dialog device-login device-${device}`, 'aria-label': 'Mail sign in' }, [form]);
+        dlg.addEventListener('cancel', e => e.preventDefault());
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            const r = E.signIn(state, name.value, email.value, device);
+            if (!r.ok) {
+                setText(error, r.error === 'name' ? 'Enter your first name.' : 'Pick an email name: letters, numbers, dots or dashes.');
+                (r.error === 'name' ? name : email).focus();
+                return;
+            }
+            pt('login', { device });
+            dlg.close(); dlg.remove();
+            save();
+            renderDesk();
+            openInbox();
+        });
+        document.body.append(dlg);
+        dlg.showModal();
+        name.focus({ preventScroll: true });
+    }
     let introTimer = 0;
     let arrived = null;      // the key of the row that just arrived, animated in
     let orderSeen = -1;      // how much of state.dilemmas.order has been announced
@@ -12928,8 +13003,13 @@ window.AGI = (function () {
         state.intro['nag:' + i] = true;
         return i;
     }
-    const welcomeText = (m, n) => m.id === 'welcome' && n > 0 && nagSeq[n - 1] != null
-        ? { ...m, ...E.WELCOME_NAGS[nagSeq[n - 1]] } : m;
+    // The offer's words: the first one (the ring's own under the ring), a nag's, or the forced final one's.
+    function welcomeText(m, n) {
+        if (m.id !== 'welcome') return m;
+        const base = E.isRing() && m.ringText ? { ...m, ...m.ringText } : m;
+        if (finalOffer && n === welcomeNag) return { ...base, ...E.WELCOME_FINAL };
+        return n > 0 && nagSeq[n - 1] != null ? { ...base, ...E.WELCOME_NAGS[nagSeq[n - 1]] } : base;
+    }
     function storyArrive(m) {
         state.intro['mail:' + m.id] = true;
         E.mailArrive(state, 'm:' + m.id);
@@ -12943,10 +13023,11 @@ window.AGI = (function () {
             const [kind, id] = [key[0], key.slice(2)];
             if (kind === 'm') {
                 const m = E.MAIL.find(x => x.id === id);
-                if (!m || !state.intro['mail:' + id]) continue;
+                if (!m || !state.intro['mail:' + id] || (m.ring && !E.isRing())) continue;
                 const copies = m.id === 'welcome' && !introDone() ? welcomeNag : 0;
                 for (let n = 0; n <= copies; n++) {
-                    const shown = { ...welcomeText(m, n), ...(m.variant ? m.variant(state) : {}) };
+                    if (ringGone(m, n)) continue;
+                    const shown = fillMail({ ...welcomeText(m, n), ...(m.variant ? m.variant(state) : {}) });
                     items.push({ key, copy: n, latest: n === copies, readKey: 'mailRead:' + id, ...shown,
                         body: [...shown.body, ...(m.extra ? m.extra(state) : [])], read: n < copies || !!state.intro['mailRead:' + id] });
                 }
@@ -13001,7 +13082,7 @@ window.AGI = (function () {
     const deciding = () => !!mailOpen?.dilemma && state.dilemmas.answered[mailOpen.dilemma.id] === undefined;
     function renderInboxClose() {
         const onMail = !!mailOpen;
-        setHidden($('inboxClose'), (!onMail && !introDone()) || deciding());
+        setHidden($('inboxClose'), (!onMail && !introDone()) || deciding() || finalOpen());
         $('inboxClose').setAttribute('aria-label', onMail ? 'Close this email' : 'Close the inbox');
     }
     function renderInbox() {
@@ -13028,7 +13109,7 @@ window.AGI = (function () {
     function introStep() {
         clearTimeout(introTimer);
         if (introDone() || !$('inbox').open) return;
-        const next = E.MAIL.find(m => m.intro && !state.intro['mail:' + m.id]);
+        const next = E.MAIL.find(m => m.intro && (!m.ring || E.isRing()) && !state.intro['mail:' + m.id]);
         if (!next || mailUnread()) return;
         introTimer = setTimeout(() => {
             if (mailOpen || !$('inbox').open) return;
@@ -13086,6 +13167,13 @@ window.AGI = (function () {
             footer.append(link);
         }
         setHidden(footer, !item.footer && !item.unsubscribe);
+        // The ring: the opening's spam can be reported (not the forced final offer).
+        if (E.isRing() && item.spam && !introDone() && !isFinal(item)) {
+            const report = el('button', { type: 'button', class: 'mail-report', text: 'Report spam' });
+            report.addEventListener('click', () => reportMail(item));
+            footer.append(report);
+            setHidden(footer, false);
+        }
         renderChoices(item);
         // Only a reply (the offer's, until you've given it) gets a button: closing is the ×.
         const reply = item.reply && !state.intro['mailAccepted:welcome'] ? item.reply : '';
@@ -13101,12 +13189,17 @@ window.AGI = (function () {
     // Closing the offer without replying: a new copy arrives a beat later, a little different, and pops open.
     function leaveMail() {
         const item = mailOpen;
+        // The ring: an offer closed and left on read is counted (a reported one is counted as a report).
+        if (E.isRing() && item?.key === 'm:welcome' && !introDone() && !reportedCopies.has(item.copy)) state.player.closes++;
         renderInbox();
         if (item?.key !== 'm:welcome' || introDone()) return;
         clearTimeout(introTimer);
         introTimer = setTimeout(() => {
             if (mailOpen || !$('inbox').open || introDone()) return;
-            const nag = nextNag();
+            // The ring: after the last nag, the forced final offer.
+            const last = E.isRing() && welcomeNag >= E.WELCOME_NAGS.length;
+            const nag = last ? -1 : nextNag();
+            if (last) { finalOffer = true; state.player.forced = true; }
             welcomeNag++;
             delete state.intro['mailRead:welcome'];
             pt('mailNag', { n: welcomeNag, nag });
@@ -13132,18 +13225,19 @@ window.AGI = (function () {
     function buildMail() {
         const dialog = $('inbox');
         $('mailButton').addEventListener('click', openInbox);
-        $('inboxClose').addEventListener('click', () => { if (deciding()) return; if (mailOpen) leaveMail(); else if (introDone()) dialog.close(); });
+        $('inboxClose').addEventListener('click', () => { if (deciding() || finalOpen()) return; if (mailOpen) leaveMail(); else if (introDone()) dialog.close(); });
         $('mailReply').addEventListener('click', () => {
             if (mailOpen?.reply && mailOpen.key === 'm:welcome') {
                 state.intro['mailAccepted:welcome'] = true;
-                pt('mailAccepted', { id: 'welcome', nags: welcomeNag });
+                if (E.isRing()) state.player.acceptedAfter = welcomeNag;
+                pt('mailAccepted', { id: 'welcome', nags: welcomeNag, ...(E.isRing() ? { reports: state.player.reports, closes: state.player.closes, forced: state.player.forced ? 1 : 0 } : {}) });
             }
             if (introDone()) dialog.close();
             else leaveMail();
         });
         // Escape does what the × does: back to the list from an email; no way out of the opening but the reply.
         dialog.addEventListener('cancel', e => {
-            if (deciding()) e.preventDefault();
+            if (deciding() || finalOpen()) e.preventDefault();
             else if (mailOpen) { e.preventDefault(); leaveMail(); } else if (!introDone()) e.preventDefault();
         });
         dialog.addEventListener('close', () => {
@@ -13177,7 +13271,7 @@ window.AGI = (function () {
             return;
         }
         deliverMail(true);
-        if (!introDone()) openInbox();
+        if (!introDone()) { if (E.isRing() && !state.player.email) showLogin(); else openInbox(); }
     }
     // The server room at once, every minigame's bay open: skills learned up to Edge Detection, as straightToSnare does.
     function straightToBays() {
