@@ -575,7 +575,10 @@ window.AGI = (function () {
     let calloutLive = null;
     function callout(key, title, message) {
         // The ring: no tips about the old lab's hidden parts.
-        if (E.isRing() && (key === 'hint:labAfterSkill' || key === 'hint:tasks' || key.startsWith('hint:task:'))) return;
+        // Nor the ones that point at the map or the old Lab supply chip: under the ring neither exists, so they could
+        // never show, sat in the queue for good, and a waiting run tip makes the sprint button ignore a press (the
+        // owner's playtest: "something is preventing the sprint sometimes").
+        if (E.isRing() && (key === 'hint:labAfterSkill' || key === 'hint:tasks' || key.startsWith('hint:task:') || key === 'hint:lab' || key === 'hint:offer' || CALLOUTS[key]?.map)) return;
         calloutQueue.push({ key, title, message, gen: calloutGen });
         if (!calloutLive) nextCallout();
     }
@@ -591,7 +594,9 @@ window.AGI = (function () {
         const c = calloutQueue.shift();
         calloutLive = c || null;
         if (!c) return;
-        c.since = Date.now();
+        // Counted from the first time it comes up: a tip that can't show yet went round the queue with a fresh clock
+        // each time, and held the sprint button for as long as it waited.
+        c.since = c.since || Date.now();
         // Wait for whatever just appeared (the minimap, a workbench job) to finish booting up; a run's tip goes
         // up at once, before the player's first press.
         setTimeout(() => showCallout(c), RUN_TIPS.has(c.key) && openBay === 'training' ? 250 : 1200);
@@ -1398,7 +1403,7 @@ window.AGI = (function () {
         cabinetKey = key;
         storageSet(RACK_LOG_KEY, JSON.stringify(log));
         const racks = buildRacks(log);
-        setHidden($('cabinetPanel'), !racks.length);
+        setHidden($('cabinetPanel'), !racks.length || E.isRing());   // the ring: no server cabinets in the Lab app yet
         // New or merged pieces (not on load) pop in; merges flash.
         const seen = new Set();
         const art = $('cabinetArt');
@@ -2826,7 +2831,7 @@ window.AGI = (function () {
             const price = E.actionCost(state, action);
             const locked = !!action.unlock && !state.unlocked[action.unlock];
             // Research shows (locked, with its progress) once the first skill starts its countdown.
-            const preview = locked && action.id === 'research' && state.path.learned >= 2 && !!state.unlocked['module:path'];
+            const preview = !E.isRing() && locked && action.id === 'research' && state.path.learned >= 2 && !!state.unlocked['module:path'];
             setHidden(button, locked && !preview);
             setDisabled(button, locked || !E.canAfford(state, price));
             setText(gain, gains[action.id]);
