@@ -7,7 +7,7 @@ const Feed = require('../feed.js');
 const E = require('../engine.js');
 
 const fresh = () => Feed.sessions(Feed.newFeed({ seed: 7 }));
-const run = (s, seconds, lead) => { const all = { research: 0, events: [] }; for (let t = 0; t < seconds * 10 && (s.session || t === 0); t++) { if (s.session && s.session.offer) Feed.pickCard(s, 0); if (lead && s.session) { let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i]) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); } const o = Feed.step(s, 0.1); all.research += o.research; all.events.push(...o.events); } return all; };
+const run = (s, seconds, lead) => { const all = { research: 0, events: [] }; for (let t = 0; t < seconds * 10 && (s.session || t === 0); t++) { if (s.session && s.session.offer) Feed.pickCard(s, 0); if (lead && s.session) { let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i] && !Feed.airOf(s.cells[i])) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); } const o = Feed.step(s, 0.1); all.research += o.research; all.events.push(...o.events); } return all; };
 test.afterEach(() => E.setRing(false));
 
 test('stockpiles: a run goes to its sector, up to three of your best run there; the rest is lost', () => {
@@ -116,7 +116,7 @@ test('the ring turns sessions on: runs stockpile, research comes only from a ses
 });
 
 // Cards (the owner's cards, 2026-11-14): a split in a session offers three, the session waits, the pick lasts the session.
-const toOffer = s => { for (let t = 0; t < 4000 && s.session && !s.session.offer; t++) { let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i]) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); Feed.step(s, 0.1); } return s.session && s.session.offer; };
+const toOffer = s => { for (let t = 0; t < 4000 && s.session && !s.session.offer; t++) { let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i] && !Feed.airOf(s.cells[i])) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); Feed.step(s, 0.1); } return s.session && s.session.offer; };
 test('a split offers three different cards and the session waits until one is picked', () => {
     const s = fresh();
     for (let i = 0; i < 3; i++) Feed.deliver(s, { sector: 1, packets: 100 });
@@ -150,7 +150,7 @@ test('a card does what it says, stacks, and is gone with the session', () => {
     const drain = cards => { const t = fresh(); Feed.deliver(t, { sector: 1, garbled: 200 }); Feed.startSession(t, 1); t.session.cards = cards; Feed.step(t, 5); return 1 - t.life; };
     assert.ok(Math.abs(drain({ hunger: 1 }) / drain({}) - 0.8) < 0.01);
     // Rich grain: the same sand pays more.
-    const pay = cards => { const t = fresh(); Feed.deliver(t, { sector: 1, packets: 20 }); Feed.startSession(t, 1); t.session.cards = cards; let r = 0; for (let i = 0; i < 4000 && t.session; i++) { if (t.session.offer) Feed.pickCard(t, 0); let top = -1; for (let j = 0; j < t.cells.length; j++) if (t.cells[j]) { top = j; break; } if (top >= 0) Feed.point(t, { x: top % t.w + 0.5, y: Math.floor(top / t.w) + 0.5 }); r += Feed.step(t, 0.1).research; } return r; };
+    const pay = cards => { const t = fresh(); Feed.deliver(t, { sector: 1, packets: 20 }); Feed.startSession(t, 1); t.session.cards = cards; let r = 0; for (let i = 0; i < 4000 && t.session; i++) { if (t.session.offer) Feed.pickCard(t, 0); let top = -1; for (let j = 0; j < t.cells.length; j++) if (t.cells[j] && !Feed.airOf(t.cells[j])) { top = j; break; } if (top >= 0) Feed.point(t, { x: top % t.w + 0.5, y: Math.floor(top / t.w) + 0.5 }); r += Feed.step(t, 0.1).research; } return r; };
     assert.ok(pay({ pay: 3 }) > pay({}) * 1.5);
     const r = Feed.endSession(s, 'left');
     assert.equal(r.cards, 5);
@@ -163,13 +163,13 @@ test('a card does what it says, stacks, and is gone with the session', () => {
 
 // Tools and combos (the owner's cards, 2026-11-14): rare cards that work on their own; two tools merge into a combo.
 const session = (load, cards) => { const s = fresh(); for (let i = 0; i < 3; i++) Feed.deliver(s, load); Feed.startSession(s, load.sector || 1); Object.assign(s.session.cards, cards); return s; };
-const play = (s, seconds, lead = true) => { const ev = []; for (let t = 0; t < seconds * 10 && s.session; t++) { if (s.session.offer) Feed.pickCard(s, 0); if (lead) { let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i]) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); } ev.push(...Feed.step(s, 0.1).events); } return ev; };
+const play = (s, seconds, lead = true) => { const ev = []; for (let t = 0; t < seconds * 10 && s.session; t++) { if (s.session.offer) Feed.pickCard(s, 0); if (lead) { let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i] && !Feed.airOf(s.cells[i])) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); } ev.push(...Feed.step(s, 0.1).events); } return ev; };
 const mean = (s, kind, axis) => { let n = 0, sum = 0; s.cells.forEach((v, i) => { if (Feed.kindOf(v) === kind) { n++; sum += axis === 'x' ? i % s.w : Math.floor(i / s.w); } }); return n ? sum / n : null; };
 
 test('tool cards are rare, and a combo is offered only once you hold both its tools', () => {
     const s = session({ sector: 1, packets: 100 }, {});
     const offers = [];
-    for (let t = 0; t < 6000 && s.session && offers.length < 3; t++) { if (s.session.offer) { offers.push(s.session.offer); Feed.pickCard(s, 0); } let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i]) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); Feed.step(s, 0.1, { cardRare: 1 }); }
+    for (let t = 0; t < 6000 && s.session && offers.length < 3; t++) { if (s.session.offer) { offers.push(s.session.offer); Feed.pickCard(s, 0); } let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i] && !Feed.airOf(s.cells[i])) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); Feed.step(s, 0.1, { cardRare: 1 }); }
     assert.ok(offers.length >= 2);
     assert.ok(offers[0].every(id => Feed.CARDS[id].tool), 'with the rare chance at 1, every card is a tool');
     assert.ok(offers.flat().every(id => !Feed.CARDS[id].combo || Feed.CARDS[id].combo.every(t => s.session.cards[t] || s.session.cards[id])), 'no combo before its tools');
@@ -211,7 +211,8 @@ test('each tool does its job on its own', () => {
     assert.ok(gap(sorted) > gap(plain) + 10, `sorted ${gap(sorted).toFixed(1)} against ${gap(plain).toFixed(1)}`);
     assert.equal(sorted.session.bots.length, 2);
     assert.ok(mean(shaken, 6, 'y') > mean(plain, 6, 'y') + 2, `sunk ${mean(shaken, 6, 'y').toFixed(1)} against ${mean(plain, 6, 'y').toFixed(1)}`);
-    assert.equal(sorted.grains, plain.grains, 'sorting moves sand, it never makes or loses any');
+    const sand = s => s.grains + s.stats.eaten + s.stats.cleaned;
+    assert.equal(sand(sorted), sand(plain), 'sorting moves sand, it never makes or loses any');
 });
 
 test('each combo is an effect of its own', () => {

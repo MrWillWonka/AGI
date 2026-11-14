@@ -2704,7 +2704,6 @@ window.AGI = (function () {
             advanceTasks(dt * debugSpeed);
             ghostTrain(dt * debugSpeed);
             logProcurement(bought);
-            feedTick(dt * debugSpeed);
         }
         afterChange();
         musicTick();
@@ -13832,6 +13831,8 @@ window.AGI = (function () {
         playtest: (type, data) => pt(type, data),
         // The Feed's screen starts and ends sessions through these, so they are logged and saved (feed-ui.js).
         feedStart(sector) { const ok = E.feedStart(state, sector); if (ok) { pt('feedStart', { sector, held: state.feed.backlog.reduce((n, e) => n + e.n + e.gold + e.bad, 0) }); save(); } return ok; },
+        // The Feed's screen steps the sand itself, every frame it draws (feed-ui.js `tick`): nothing moves with it closed.
+        feedFrame(dt) { feedTick(dt * debugSpeed); },
         feedEnd() { const r = E.feedLeave(state); if (r) feedShow({ events: [r] }); return r; },
         feedPick(n) { const offer = state.feed.session?.offer, out = E.feedPick(state, n); if (out) { pt('feedCard', { card: offer[n], offered: offer.join(','), level: state.feed.session.cards[offer[n]], split: state.feed.layers }); feedShow(out); save(); } return !!out; },
         debug: {

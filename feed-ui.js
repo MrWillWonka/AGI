@@ -7,19 +7,19 @@
 // behind the test door it carries its own row of test buttons (the debug panel can't be reached under a dialog).
 //
 // **The view starts close and draws back** (the owner's call): it frames the pile, floor at the bottom, and widens as
-// the pile grows until the whole box shows. Sand is drawn three pixels a cell on a small canvas, each grain with its
-// corners faded so it reads round, and scaled up. Data falls as packets, drawn as Packet Snare draws them, from a
+// the pile grows until the whole box shows. Sand is drawn two pixels a cell on a small canvas, each grain solid in its own shade (it was three with its
+// corners faded, which drew a mesh once the sand was finer), and scaled up. Data falls as packets, drawn as Packet Snare draws them, from a
 // spout that swings from side to side; half way down they melt into sand (feed.js `drops`), which falls on in a
 // colour between the packet's and its own, each delivery its own colour, so the pile lies in strata like sand art. Gold and
 // fragments look like the sand round them until a mite's lamp has found them (feed.js `seenOf`).
 (function () {
     'use strict';
-    const POP_MS = 1800, SPARK_MS = 500, SUB = 3, MIN_COLS = 40, MARGIN = 6, EASE = 0.07;
+    const POP_MS = 1800, SPARK_MS = 500, SUB = 2, MIN_COLS = 80, MARGIN = 12, EASE = 0.07;
     // Strata, in the order deliveries come (feed.js `bands`). Chosen to sit apart on the dark themes.
     const BANDS = ['#e8c07a', '#d98a5f', '#7fc8a9', '#6fa8dc', '#c9a0e8', '#e6dfc8'];
     const TESTS = [['+40', [1, 40, 4]], ['+75 dirty', [2, 75, 6, 10]], ['+200 dirty', [4, 200, 15, 20, 20]]];
     let dlg = null, canvas = null, ctx = null, stage = null, promptEl = null, hungerEl = null, layerEl = null, mitesEl = null, researchEl = null, fragEl = null;
-    let pickEl = null, endEl = null, pickKey = '', cardsEl = null, cardsKey = '', heldEl = null, heldKey = '', giveEl = null, arcs = [], bolts = [], shakeAt = 0;
+    let pickEl = null, endEl = null, pickKey = '', cardsEl = null, cardsKey = '', heldEl = null, heldKey = '', giveEl = null, arcs = [], bolts = [], shakeAt = 0, lastNow = 0;
     let sand = null, sandCtx = null, image = null, pixels = null, palette = null;
     // The window on the box, in cells: `cols` × `rows` from (`x`, `y`), a cell `cell` px, drawn from (`ox`, `oy`).
     let view = { w: 0, h: 0, x: 0, y: 0, cols: 0, rows: 0, cell: 4, ox: 0, oy: 0, want: null };
@@ -133,7 +133,7 @@
         for (let y = h - 1; y >= 0; y--) {
             let n = 0, lo = w, hi = -1;
             for (let x = 0; x < w; x++) if (cells[y * w + x]) { n++; if (x < lo) lo = x; if (x > hi) hi = x; }
-            if (n < 5) break;
+            if (n < 10) break;
             top = y; if (lo < minX) minX = lo; if (hi > maxX) maxX = hi;
         }
         const pad = 8, aspect = (view.w - pad * 2) / (view.h - pad * 2);
@@ -239,7 +239,7 @@
             else if (ev.type === 'shake') shakeAt = now;
             else if (ev.type === 'sonar') sparks.push({ at: now, x: ev.x, y: ev.y, kind: 'sonar', r: ev.r });
             else if (ev.type === 'bolt') bolts.push({ at: now, pts: ev.pts });
-            else if (ev.type === 'drum') for (const [x, y] of ev.hits) arcs.push({ at: now, x1: x, y1: Math.max(0, y - 40), x2: x, y2: y, gold: true });
+            else if (ev.type === 'drum') for (const [x, y] of ev.hits) arcs.push({ at: now, x1: x, y1: Math.max(0, y - 80), x2: x, y2: y, gold: true });
             else if (ev.type === 'defrag') sparks.push({ at: now, x: ev.x, y: ev.y, kind: 'pulse', r: 3 });
             else if (ev.type === 'card' && ev.merged) pops.push({ at: now, text: `${ev.merged.map(cardName).join(' + ')} = ${cardName(ev.card)}`, color: 'gold', big: true });
             else if (ev.type === 'fragment') pops.push({ at: now, text: `Fragment ${ev.found}/${ev.of}`, color: 'primary' });
@@ -270,11 +270,10 @@
             else if (kind === 3) c = blink;
             else if (f.readable.includes(lib.KIND_IDS[kind])) c = palette.known[band][shade];
             else c = kind === 4 ? palette.numbers[(x + y) & 1][shade] : palette.pictures[x & 1][shade];
-            // A grain: three by three, its corners faded.
-            const p = y * SUB * W3 + x * SUB, body = c[0], edge = c[1];
-            pixels[p] = edge; pixels[p + 1] = body; pixels[p + 2] = edge;
-            pixels[p + W3] = body; pixels[p + W3 + 1] = body; pixels[p + W3 + 2] = body;
-            pixels[p + 2 * W3] = edge; pixels[p + 2 * W3 + 1] = body; pixels[p + 2 * W3 + 2] = edge;
+            // A grain: two by two, solid, in its own shade (fine sand reads as sand by its shades; the faded corners the
+            // coarser grains had drew a mesh over a pile this fine).
+            const p = y * SUB * W3 + x * SUB, body = c[0];
+            pixels[p] = body; pixels[p + 1] = body; pixels[p + W3] = body; pixels[p + W3 + 1] = body;
         }
         sandCtx.putImageData(image, 0, 0);
     }
@@ -288,9 +287,9 @@
         const [x0, y0] = px(0, 0), [x1, y1] = px(box.w, box.h);
         ctx.strokeStyle = colors.border; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(x0 - 1, Math.max(0, y0)); ctx.lineTo(x0 - 1, y1 + 1); ctx.lineTo(x1 + 1, y1 + 1); ctx.lineTo(x1 + 1, Math.max(0, y0)); ctx.stroke();
-        if (y0 > -c * 4) {
+        if (y0 > -c * 8) {
             // The spout, where it is on its swing.
-            const [sx] = px(F().spoutX(f) + 0.5, 0), mouth = (box.spout + 3) * c;
+            const [sx] = px(F().spoutX(f) + 0.5, 0), mouth = (box.spout + 6) * c;
             ctx.beginPath(); ctx.moveTo(sx - mouth * 1.5, y0 - 1); ctx.lineTo(sx - mouth, y0 + c * 3); ctx.moveTo(sx + mouth * 1.5, y0 - 1); ctx.lineTo(sx + mouth, y0 + c * 3); ctx.stroke();
         }
         drawSand(f, now);
@@ -298,7 +297,7 @@
         const jig = !still && now - shakeAt < 180 ? Math.sin(now / 12) * 2 : 0;   // the algo-rhythm's beat
         ctx.drawImage(sand, view.x * SUB, view.y * SUB, view.vc * SUB, view.vr * SUB, view.ox + jig, view.oy, view.vc * c, view.vr * c);
         // Packets on their way down: arrowheads, as in Packet Snare, with a little static in them.
-        const size = Math.max(5, c * 3.2);
+        const size = Math.max(5, c * 6.4);
         f.drops.forEach((d, n) => {
             const [x, y] = px(d.x + 0.5, d.y);
             if (y < -size || y > view.h + size) return;
@@ -321,14 +320,14 @@
             const age = (now - s.at) / SPARK_MS, [x, y] = px(s.x, s.y);
             ctx.globalAlpha = 1 - age; ctx.strokeStyle = s.kind === 'vein' ? colors.gold : s.kind === 'pulse' ? colors.good : s.kind === 'sonar' ? colors.gold : colors.text; ctx.lineWidth = s.kind === 'pulse' || s.kind === 'sonar' ? 2.5 : 1.5;
             // A pulse grows; the Sonar's ring, at its full reach, closes back in.
-            ctx.beginPath(); ctx.arc(x, y, s.kind === 'pulse' ? c * s.r * (0.4 + age * 0.8) : s.kind === 'sonar' ? c * s.r * (1 - age * 0.85) : c * (1 + age * 4), 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(x, y, s.kind === 'pulse' ? c * s.r * (0.4 + age * 0.8) : s.kind === 'sonar' ? c * s.r * (1 - age * 0.85) : c * (2 + age * 8), 0, Math.PI * 2); ctx.stroke();
         }
         ctx.globalAlpha = 1;
         // The tools: the scanner's beam, arcs between mites, the sorter bots.
         const sess = f.session;
-        if (sess && sess.beam >= 0) { const [bx] = px(sess.beam, 0); ctx.strokeStyle = colors.primary; ctx.globalAlpha = 0.7; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bx, 0); ctx.lineTo(bx, view.h); ctx.stroke(); ctx.globalAlpha = 0.12; ctx.fillStyle = colors.primary; ctx.fillRect(bx - c * 4, 0, c * 4, view.h); ctx.globalAlpha = 1; }
+        if (sess && sess.beam >= 0) { const [bx] = px(sess.beam, 0); ctx.strokeStyle = colors.primary; ctx.globalAlpha = 0.7; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bx, 0); ctx.lineTo(bx, view.h); ctx.stroke(); ctx.globalAlpha = 0.12; ctx.fillStyle = colors.primary; ctx.fillRect(bx - c * 8, 0, c * 8, view.h); ctx.globalAlpha = 1; }
         if (sess && sess.sift >= 0) { const [bx] = px(sess.sift, 0); ctx.strokeStyle = colors.gold; ctx.globalAlpha = 0.8; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bx, 0); ctx.lineTo(bx, view.h); ctx.stroke(); ctx.globalAlpha = 1; }
-        if (sess) for (const b of [sess.dbot, ...(sess.rbots || [])]) if (b) { const [x, y] = px(b.x, b.y), q = Math.max(4, c * 1.4); ctx.fillStyle = colors.bg; ctx.fillRect(x - q / 2 - 1, y - q * 1.5 - 1, q + 2, q + 2); ctx.fillStyle = b === sess.dbot ? colors.packetBad : colors.text; ctx.fillRect(x - q / 2, y - q * 1.5, q, q); }
+        if (sess) for (const b of [sess.dbot, ...(sess.rbots || [])]) if (b) { const [x, y] = px(b.x, b.y), q = Math.max(4, c * 2.8); ctx.fillStyle = colors.bg; ctx.fillRect(x - q / 2 - 1, y - q * 1.5 - 1, q + 2, q + 2); ctx.fillStyle = b === sess.dbot ? colors.packetBad : colors.text; ctx.fillRect(x - q / 2, y - q * 1.5, q, q); }
         if (sess && sess.ring) { const [rx, ry] = px(sess.ring.x, sess.ring.y); ctx.strokeStyle = colors.primary; ctx.globalAlpha = 0.75; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(rx, ry, Math.max(1, sess.ring.r * c), 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
         bolts = bolts.filter(b => now - b.at < 320);
         for (const b of bolts) { ctx.globalAlpha = 1 - (now - b.at) / 320; ctx.strokeStyle = colors.text; ctx.lineWidth = 2; ctx.beginPath(); b.pts.forEach((p, n) => { const [x, y] = px(p[0], p[1]); n ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); }
@@ -337,7 +336,7 @@
         for (const a of arcs) { const [ax, ay] = px(a.x1, a.y1), [bx, by] = px(a.x2, a.y2), mx = (ax + bx) / 2 + (still ? 0 : Math.sin(a.at + now / 20) * 6), my = (ay + by) / 2 + (still ? 0 : Math.cos(a.at + now / 17) * 6);
             ctx.globalAlpha = 1 - (now - a.at) / 260; ctx.strokeStyle = a.gold ? colors.gold : colors.text; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(mx, my); ctx.lineTo(bx, by); ctx.stroke(); }
         ctx.globalAlpha = 1;
-        if (sess && sess.bots) for (const b of sess.bots) { const [x, y] = px(b.x, b.y), q = Math.max(4, c * 1.4); ctx.fillStyle = colors.bg; ctx.fillRect(x - q / 2 - 1, y - q / 2 - 1, q + 2, q + 2); ctx.fillStyle = colors.gold; ctx.fillRect(x - q / 2, y - q / 2, q, q); }
+        if (sess && sess.bots) for (const b of sess.bots) { const [x, y] = px(b.x, b.y), q = Math.max(4, c * 2.8); ctx.fillStyle = colors.bg; ctx.fillRect(x - q / 2 - 1, y - q / 2 - 1, q + 2, q + 2); ctx.fillStyle = colors.gold; ctx.fillRect(x - q / 2, y - q / 2, q, q); }
         // The point you hold.
         if (f.aim) {
             const [x, y] = px(f.aim.x, f.aim.y);
@@ -345,7 +344,7 @@
             ctx.beginPath(); ctx.arc(x, y, c * box.near, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
         }
         // The swarm.
-        const r = Math.max(3.5, Math.min(9, c * 1.3));
+        const r = Math.max(3.5, Math.min(9, c * 2.6));
         f.swarm.forEach((m, n) => {
             let [x, y] = px(m.x, m.y);
             if (!still) { x += Math.cos(now / 90 + n * 2.4) * r * 0.25; y += Math.sin(now / 70 + n * 1.7) * r * 0.25; }
@@ -393,6 +392,9 @@
         raf = requestAnimationFrame(tick);
         const f = feed(); if (!f) return;
         frames++;
+        // The sand moves every frame it is drawn (it was stepped by the game's loop, ten times a second, and looked it).
+        const dt = lastNow ? Math.min(0.1, Math.max(0, (now - lastNow) / 1000)) : 0; lastNow = now;
+        if (dt > 0) window.AGI?.feedFrame?.(dt);
         // In a session the bar is the hunger bar (it empties; the session ends at nothing) and the stat is the way to the next split.
         const hunger = F().hunger(f), split = Math.round(hunger.share * 100), pct = f.sessioned ? Math.round(hunger.life * 100) : split;
         text(layerEl, f.sessioned ? (f.session ? `Split ${split}%` : '') : `Hunger ${pct}%`);
@@ -414,6 +416,7 @@
         dlg.showModal();
         readColors(); pops = []; sparks = []; held = null; fragShown = -1; pickKey = ''; cardsKey = ''; heldKey = '\u0000'; arcs = []; bolts = []; view.cols = view.rows = 0;
         resize();
+        lastNow = 0;
         cancelAnimationFrame(raf); raf = requestAnimationFrame(tick);
     }
     function stop() { cancelAnimationFrame(raf); raf = 0; if (held !== null) letGo(); }

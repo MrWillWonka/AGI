@@ -51,8 +51,9 @@
 
     // The base numbers, in one place. Every call takes overrides of any of them (but not of the box's size).
     const FEED = {
-        w: 128, h: 224,     // the box, in cells: tall, for an upright phone; fine sand (the owner's call)
-        grains: 16,         // grains of sand a packet makes
+        w: 256, h: 448,     // the box, in cells: tall, for an upright phone; finer sand (the owner's call, 2026-11-14: grains half the size, so
+                            // every length below is in these smaller cells and a packet makes four times the grains)
+        grains: 64,         // grains of sand a packet makes
         chew: 2,            // packets' worth of bites a second a mite, when led (the model's `chew`)
         graze: 0.25,        // the share of that when left alone (the owner's call; the model's `graze`)
         tough: [1, 2, 3],   // bites a grain takes, by the sector it came from (the model's `tough`); +1 a sector past the list
@@ -64,20 +65,22 @@
         miteEvery: 1,       // and another every this many after it: every split (the owner's call; the model's `miteEvery`)
         layerPay: 0.2,      // a layer's lump of research, as a share of its packets
         pour: 8,            // packets a second through the spout: slow enough that the pile sheds it and no column backs up
-        sweep: 46,          // how far the spout swings either side of the middle at the most, in cells
-        sweepMin: 6,        // its swing over an empty box,
+        sweep: 92,          // how far the spout swings either side of the middle at the most, in cells
+        sweepMin: 12,       // its swing over an empty box,
         sweepGrow: 0.3,     // and what the square root of the grains there are adds to it
         sweepTime: 7,       // seconds for one swing there and back
-        spout: 2,           // how far a packet may leave the spout off its line, in cells
-        drop: 70,           // cells a second a packet falls
+        spout: 4,           // how far a packet may leave the spout off its line, in cells
+        drop: 140,          // cells a second a packet falls
         melt: 0.5,          // a packet melts into sand this share of the way down to the pile under it
-        puff: 3,            // how far its grains scatter as it melts, in cells
+        puff: 6,            // how far its grains scatter as it melts, in cells
         hop: 8,             // one landing grain in this many hops (and one in eight of those hops high)
         full: 0.8,          // the spout waits while this share of the box is sand
-        fall: 80,           // cells a second a grain falls
-        speed: 90,          // cells a second a mite moves
-        near: 8,            // a led mite this close to the point eats the sand nearest the point
-        lamp: 7,            // a mite shows what the sand within this many cells of it really is (gold, fragments)
+        gravity: 4,         // a falling grain speeds up: a cell a pass at first, up to this many (the owner's call: so sand reads as falling)
+        slump: 4,           // a resting grain on a slope steeper than one in two rolls a cell down it, one pass in this many: heaps settle shallower and slide
+        fall: 120,          // cells a second a grain falls
+        speed: 180,         // cells a second a mite moves
+        near: 16,           // a led mite this close to the point eats the sand nearest the point
+        lamp: 14,           // a mite shows what the sand within this many cells of it really is (gold, fragments)
         stick: 0.92,        // how likely the next grain poured is the same sort as the last: sorts lie in patches
         bands: 6,           // colours of strata before they repeat
         fragFrom: 2,        // a layer's fragment is one of its first plain packets: this many in at the least,
@@ -92,44 +95,44 @@
         // The tools (rare cards; all work on their own). A level past the first makes each come round sooner: ÷ (1 + `toolFaster` a level).
         toolFaster: 0.5,
         scanEvery: 12,      // scanner: seconds between sweeps,
-        scanSpeed: 70,      // and cells a second the beam crosses the box
+        scanSpeed: 140,     // and cells a second the beam crosses the box
         pulseEvery: 8,      // pulse: seconds between bursts,
-        pulseR: 4,          // its radius in cells,
-        pulseGrow: 1,       // and what a level adds to it
+        pulseR: 8,          // its radius in cells,
+        pulseGrow: 2,       // and what a level adds to it
         arcEvery: 3,        // arc: seconds between sparks,
-        arcReach: 30,       // how far apart two mites may be, in cells,
-        arcGrow: 8,         // and what a level adds to it
-        sortRate: 120,      // sorter bots: grains a second each bot carries toward its kind's side (a bot a level),
-        sortHop: 14,        // and how many cells it carries one, at the most
+        arcReach: 60,       // how far apart two mites may be, in cells,
+        arcGrow: 16,        // and what a level adds to it
+        sortRate: 480,      // sorter bots: grains a second each bot carries toward its kind's side (a bot a level),
+        sortHop: 28,        // and how many cells it carries one, at the most
         shakeEvery: 2,      // algo-rhythm: seconds between beats,
-        shakeMoves: 300,    // and garbled grains a beat that sink a cell, a level
+        shakeMoves: 1200,   // and garbled grains a beat that sink a cell, a level
         // The combos: each its own effect (the owner's call, 2026-11-14: a new thing, not the two tools made stronger).
         sonarEvery: 7,      // Sonar: seconds between rings,
-        sonarR: 26,         // how far a ring spreads from the point you hold, in cells,
-        sonarSpeed: 45,     // cells a second it spreads,
-        sonarPull: 16,      // and how many cells it draws each valuable grain back in
+        sonarR: 52,         // how far a ring spreads from the point you hold, in cells,
+        sonarSpeed: 90,     // cells a second it spreads,
+        sonarPull: 32,      // and how many cells it draws each valuable grain back in
         stormEvery: 3,      // Storm: seconds between strikes,
-        stormLen: 28,       // grains a mite's bolt runs through,
+        stormLen: 112,      // grains a mite's bolt runs through,
         stormForks: 2,      // and bolts a mite sends
         defragEvery: 2,     // Defrag: seconds between passes,
         defragPack: 6,      // a garbled grain with this many garbled neighbours (of eight) is in a clump,
-        defragMax: 80,      // and this many clumped grains a pass are rewritten into good sand
+        defragMax: 320,     // and this many clumped grains a pass are rewritten into good sand
         tracerEvery: 1.5,   // Tracer: seconds between sparks,
-        tracerReach: 26,    // how far from a mite a spark finds gold, in cells,
-        tracerEat: 4,       // and the gold grains a spark takes
-        magnetRate: 160,    // Magnet: gold grains a second drawn toward the point you hold,
-        magnetHop: 14,      // and how many cells each is drawn, at the most
+        tracerReach: 52,    // how far from a mite a spark finds gold, in cells,
+        tracerEat: 16,      // and the gold grains a spark takes
+        magnetRate: 640,    // Magnet: gold grains a second drawn toward the point you hold,
+        magnetHop: 28,      // and how many cells each is drawn, at the most
         resoEvery: 2,       // Resonance: seconds between beats,
-        resoR: 1.6,         // and the small circle round each mite a beat eats, in cells (the owner's call: much smaller than a pulse)
+        resoR: 3.2,         // and the small circle round each mite a beat eats, in cells (the owner's call: much smaller than a pulse)
         siftEvery: 4,       // Sifter: seconds between sweeps (every other beat),
-        siftRise: 5,        // and how many cells each gold grain the beam crosses is shaken up
+        siftRise: 10,       // and how many cells each gold grain the beam crosses is shaken up
         demoEvery: 4,       // Demolition bots: seconds between charges,
-        demoR: 4,           // and the circle a charge blows away, in cells
+        demoR: 8,           // and the circle a charge blows away, in cells
         relayEvery: 3,      // Relay bots: seconds between chains,
         relayBots: 2,       // the bots that hover over the pile,
-        relayMax: 30,       // and the grains a spark eats on one leg of the chain, at the most
+        relayMax: 120,      // and the grains a spark eats on one leg of the chain, at the most
         drumEvery: 2,       // Drum line: seconds between beats,
-        drumSparks: 10,     // sparks in the row,
+        drumSparks: 30,     // sparks in the row,
         drumHit: 2          // and the bites each takes out of the grain it lands on: a grain with no more left is collected
     };
     // Cards (the owner's cards, 2026-11-14): a split in a session offers `cardChoices` of these and you pick one; it
@@ -192,9 +195,15 @@
     // A cell is one number: its kind, its band of colour, whether a mite has seen what it is, and the bites it has left.
     // Gold and fragments look like plain sand until a mite's lamp has been near them (the owner's call: buried finds).
     // `air`: the grain has not landed since it melted out of its packet (it may hop when it does).
-    const kindOf = v => v & 7, bandOf = v => (v >> 3) & 7, seenOf = v => (v >> 6) & 1, airOf = v => (v >> 7) & 1, hpOf = v => v >> 8;
+    const kindOf = v => v & 7, bandOf = v => (v >> 3) & 7, seenOf = v => (v >> 6) & 1, airOf = v => (v >> 7) & 1, hpOf = v => (v >> 8) & 255;
+    // A falling grain's speed is kept above those bits (0 to 7; `fallPass`): how long it has been falling.
+    const velOf = v => (v >> 16) & 7, still = v => v & 0xFFFF;
     const cell = (kind, band, hp, seen = 1, air = 0) => kind | (band << 3) | ((seen ? 1 : 0) << 6) | ((air ? 1 : 0) << 7) | (Math.min(255, hp) << 8);
     const AIR = 128;
+    // The highest row that may hold sand, remembered between passes so falling skips the empty box above it (not part
+    // of the state: unknown is row 0, and anything that puts a grain higher says so with `raise`).
+    const TOP = new WeakMap();
+    const raise = (state, y) => { if (y < (TOP.get(state) ?? 0)) TOP.set(state, y); };
     // A whole number from a cell's place and the pass it is, the same every time: for hops and scatter, with no generator.
     const hash = (a, b) => { let x = (Math.imul(a + 1, 2654435761) ^ Math.imul(b + 7, 40503)) >>> 0; x ^= x >>> 15; x = Math.imul(x, 2246822519) >>> 0; return (x ^ (x >>> 13)) >>> 0; };
     const HIDDEN = [2, 3];   // vein, fragment
@@ -232,7 +241,7 @@
         return cells.length === size ? cells : null;
     }
     const saveable = state => Object.defineProperty(state, 'toJSON', { value() { return { ...this, cells: pack(this.cells) }; }, enumerable: false });
-    const mitePlace = (state, n) => ({ x: FEED.w / 2 + ((n * 7) % 11 - 5) * 2 + 0.5, y: 1.5, b: 0, t: -1 });
+    const mitePlace = (state, n) => ({ x: FEED.w / 2 + ((n * 7) % 11 - 5) * 4 + 0.5, y: 2.5, b: 0, t: -1 });
 
     function startLayer(state, o) {
         state.fed = 0;
@@ -402,7 +411,7 @@
         // Storm: chain lightning. Each mite sends bolts out through the sand round it, grain to touching grain.
         if (c.storm && state.grains && due('storm', 1, o.stormEvery)) {
             for (const m of state.swarm) for (let f = 0; f < o.stormForks; f++) {
-                let at = nearestWithin(state, m.x, m.y, 8); if (at < 0) continue;
+                let at = nearestWithin(state, m.x, m.y, 16); if (at < 0) continue;
                 const pts = [[m.x, m.y]]; let eaten = 0;
                 for (let n = 0; n < o.stormLen && at >= 0; n++) {
                     const x = at % w, y = (at - x) / w; pts.push([x + 0.5, y + 0.5]);
@@ -445,7 +454,7 @@
         // Resonance: on each beat a small burst at every mite, the swarm eating in time.
         if (c.resonance && state.grains && due('reso', 1, o.resoEvery)) {
             // (at the sand nearest each mite: a mite stands just off the pile, and the circle is small)
-            let eaten = 0; for (const m of state.swarm) { const i = nearestWithin(state, m.x, m.y, 6); eaten += i < 0 ? 0 : burst(state, o, i % w + 0.5, Math.floor(i / w) + 0.5, o.resoR, out); }
+            let eaten = 0; for (const m of state.swarm) { const i = nearestWithin(state, m.x, m.y, 12); eaten += i < 0 ? 0 : burst(state, o, i % w + 0.5, Math.floor(i / w) + 0.5, o.resoR, out); }
             out.events.push({ type: 'shake', sunk: 0, eaten });
         }
         // Sifter: the beam sweeps on the beat, showing the sand, and every gold grain it crosses is shaken up to
@@ -703,7 +712,7 @@
                 // A fragment's packet is one fragment grain and plain sand round it.
                 const kind = d.k === 3 && g > 0 ? 1 : d.k;
                 cells[y * w + x] = cell(kind, d.band, kind === 1 && d.k === 3 ? bitesFor(d.q, o) : d.hp, !HIDDEN.includes(kind), 1);
-                state.grains++; d.n--;
+                state.grains++; d.n--; raise(state, y);
             }
             state.rest = false;
             if (d.n <= 0) state.drops.splice(n, 1);
@@ -717,37 +726,57 @@
         let moved = false;
         state.tick++;
         for (let x = 0, i = (h - 1) * w; x < w; x++, i++) if (cells[i] & AIR) moved = land(state, o, i, x, h - 1) || moved;
-        for (let y = h - 2; y >= 0; y--) {
+        const from = TOP.get(state) ?? 0; let seen = h - 1;
+        TOP.set(state, h - 1);
+        for (let y = h - 2; y >= from; y--) {
             const row = y * w, flip = (state.tick + y) & 1;
             for (let n = 0; n < w; n++) {
                 const x = flip ? w - 1 - n : n, i = row + x, v = cells[i];
                 if (!v) continue;
+                seen = y;
                 const below = i + w;
+                if (!cells[below]) {
+                    // Falling: a cell, then faster the longer it has fallen, as far as there is room.
+                    const vel = velOf(v), reach = Math.min(o.gravity, 1 + (vel >> 1));
+                    let to = below;
+                    for (let k = 1; k < reach && to + w < cells.length && !cells[to + w]; k++) to += w;
+                    cells[to] = still(v) | (Math.min(7, vel + 1) << 16); cells[i] = 0; moved = true;
+                    continue;
+                }
                 let to = -1;
-                if (!cells[below]) to = below;
-                else {
-                    const first = (x + state.tick) & 1 ? -1 : 1;
+                const first = (x + state.tick) & 1 ? -1 : 1;
+                for (const d of [first, -first]) {
+                    const nx = x + d;
+                    if (nx >= 0 && nx < w && !cells[below + d] && !cells[i + d]) { to = below + d; break; }
+                }
+                // Slumping: at rest on a ledge with a drop two cells across, it rolls a cell that way (now and then, so a
+                // heap slides rather than snaps). One waiting its turn still counts as movement: the pile is not at rest.
+                if (to < 0 && o.slump > 0 && !(v & AIR)) {
                     for (const d of [first, -first]) {
-                        const nx = x + d;
-                        if (nx >= 0 && nx < w && !cells[below + d] && !cells[i + d]) { to = below + d; break; }
+                        const nx = x + 2 * d;
+                        if (nx < 0 || nx >= w || cells[i + d] || !cells[below + d] || cells[i + 2 * d] || cells[below + 2 * d]) continue;
+                        if (hash(i, state.tick) % o.slump === 0) to = i + d; else moved = true;
+                        break;
                     }
                 }
-                if (to >= 0) { cells[to] = v; cells[i] = 0; moved = true; }
+                if (to >= 0) { cells[to] = still(v); cells[i] = 0; moved = true; }
                 else if (v & AIR) moved = land(state, o, i, x, y) || moved;
+                else if (v > 0xFFFF) cells[i] = still(v);
             }
         }
+        raise(state, seen);
         return moved;
     }
     // A grain lands for the first time since it melted. One in `hop` jumps: up and across a few cells (now and then a
     // lot), to fall again. It hops once: it is no longer in the air after.
     function land(state, o, i, x, y) {
-        const { w, cells } = state, v = cells[i] & ~AIR, j = hash(i, state.tick);
+        const { w, cells } = state, v = still(cells[i]) & ~AIR, j = hash(i, state.tick);
         cells[i] = v;
         if (!(o.hop > 0) || j % o.hop) return false;
-        const high = (j >>> 4) % 8 === 0, up = high ? 7 + (j >>> 8) % 6 : 2 + (j >>> 8) % 3, across = ((j >>> 12) & 1 ? 1 : -1) * (1 + (j >>> 14) % (high ? 5 : 3));
+        const high = (j >>> 4) % 8 === 0, up = high ? 14 + (j >>> 8) % 12 : 4 + (j >>> 8) % 6, across = ((j >>> 12) & 1 ? 1 : -1) * (2 + (j >>> 14) % (high ? 10 : 6));
         const nx = x + across, ny = y - up;
         if (nx < 0 || nx >= w || ny < 0 || cells[ny * w + nx]) return false;
-        cells[ny * w + nx] = v; cells[i] = 0;
+        cells[ny * w + nx] = v; cells[i] = 0; raise(state, ny);
         state.stats.hops++;
         return true;
     }
@@ -755,12 +784,22 @@
     // The grain on the pile's surface nearest a point: one with an empty cell beside it (or at the box's top).
     function nearestSurface(state, px, py) {
         const { w, h, cells } = state;
+        const surface = (i, x, y) => !(y < h - 1 && !cells[i + w]) && (y === 0 || !cells[i - w] || (x > 0 && !cells[i - 1]) || (x < w - 1 && !cells[i + 1]));
+        // Near first: any surface grain within `r` cells is nearer than everything outside the square round it.
+        for (const r of [12, 40]) {
+            let best = -1, bestD = r * r;
+            for (let y = Math.max(0, Math.floor(py - r)); y <= Math.min(h - 1, Math.floor(py + r)); y++) for (let x = Math.max(0, Math.floor(px - r)); x <= Math.min(w - 1, Math.floor(px + r)); x++) {
+                const i = y * w + x; if (!cells[i]) continue;
+                const d = (x + 0.5 - px) * (x + 0.5 - px) + (y + 0.5 - py) * (y + 0.5 - py);
+                if (d < bestD && surface(i, x, y)) { bestD = d; best = i; }
+            }
+            if (best >= 0) return best;
+        }
         let best = -1, bestD = Infinity;
         for (let i = 0; i < cells.length; i++) {
             if (!cells[i]) continue;
             const x = i % w, y = (i - x) / w;
-            if (y < h - 1 && !cells[i + w]) continue;   // still falling: not part of the pile yet
-            if (!(y === 0 || !cells[i - w] || (x > 0 && !cells[i - 1]) || (x < w - 1 && !cells[i + 1]) || (y < h - 1 && !cells[i + w]))) continue;
+            if (!surface(i, x, y)) continue;
             const d = (x + 0.5 - px) * (x + 0.5 - px) + (y + 0.5 - py) * (y + 0.5 - py);
             if (d < bestD) { bestD = d; best = i; }
         }
@@ -817,7 +856,7 @@
     // One mite for one step: head for the point you hold (or the nearest sand on the surface), biting what is in the way.
     function mite(state, o, m, dt, out) {
         const led = !!state.aim, { w, h, cells } = state;
-        m.b = Math.min(m.b + o.chew * o.grains * (led ? 1 : o.graze) * dt, 2);
+        m.b = Math.min(m.b + o.chew * o.grains * (led ? 1 : o.graze) * dt, o.grains / 8);   // bites saved up while it moves: an eighth of a packet's worth, whatever the grain's size
         let gx, gy, food = -1;
         if (led) {
             gx = state.aim.x; gy = state.aim.y;
@@ -825,7 +864,7 @@
         } else {
             if (m.t < 0 || !cells[m.t]) m.t = state.grains ? nearestSurface(state, m.x, m.y) : -1;
             food = m.t;
-            if (food < 0) { gx = w / 2 + ((state.swarm.indexOf(m) * 7) % 11 - 5) * 2; gy = 2; }
+            if (food < 0) { gx = w / 2 + ((state.swarm.indexOf(m) * 7) % 11 - 5) * 4; gy = 3; }
         }
         if (food >= 0) { gx = food % w + 0.5; gy = Math.floor(food / w) + 0.5; }
         const here = Math.floor(m.y) * w + Math.floor(m.x);
@@ -834,7 +873,7 @@
             return;
         }
         const dx = gx - m.x, dy = gy - m.y, d = Math.hypot(dx, dy);
-        if (d < 0.05) { if (food < 0) m.b = Math.min(m.b, 1); return; }
+        if (d < 0.05) { if (food < 0) m.b = Math.min(m.b, o.grains / 16); return; }
         const go = Math.min(d, o.speed * dt), nx = Math.max(0.01, Math.min(w - 0.01, m.x + dx / d * go)), ny = Math.max(0.01, Math.min(h - 0.01, m.y + dy / d * go));
         // The cell it would step into; when the step stays in its own cell, the next one toward the goal.
         let ci = Math.floor(ny) * w + Math.floor(nx);
@@ -854,7 +893,7 @@
             return;
         }
         m.x = nx; m.y = ny;
-        if (food < 0) m.b = Math.min(m.b, 1);   // nothing to bite on the way: no bites saved up
+        if (food < 0) m.b = Math.min(m.b, o.grains / 16);   // nothing to bite on the way: no bites saved up
     }
 
     // A mite's lamp: hidden sand lying within `lamp` cells of it shows what it is, for good (sand still falling past doesn't).
@@ -891,7 +930,9 @@
             if (passes && !moved && !state.backlog.length && !state.drops.length) state.rest = true;
             if (state.grains) {
                 // Fine sand: a mite may finish several grains in a step, so its step is cut into as many moves.
-                const moves = Math.max(1, Math.ceil(o.chew * o.grains * (state.aim ? 1 : o.graze) * each));
+                // (Eight moves a bite it may take: in fine sand a mite spends most moves reaching the next grain, and several
+                // mites go for the same one; measured against the coarser sand's eating rates. Never more than 96 a step.)
+                const moves = Math.min(96, Math.max(1, Math.ceil(o.chew * o.grains * (state.aim ? 1 : o.graze) * each)) * 8);
                 for (const m of state.swarm) { for (let k = 0; k < moves; k++) mite(state, o, m, each / moves, out); lamp(state, o, m, out); }
             }
             else if (!state.backlog.length && !state.drops.length) {
@@ -966,7 +1007,7 @@
         if (sized) {
             state.grains = 0;
             state.cells = box.map(v => {
-                if (!Number.isInteger(v) || v <= 0 || !KIND_IDS[kindOf(v)] || hpOf(v) < 1 || hpOf(v) > 255) return 0;
+                if (!Number.isInteger(v) || v <= 0 || v > 0x7FFFF || !KIND_IDS[kindOf(v)] || hpOf(v) < 1) return 0;
                 state.grains++;
                 return v;
             });
@@ -1027,7 +1068,7 @@
         }
         state.swarm = Array.from({ length: state.mites }, (_, n) => {
             const m = sized && Array.isArray(raw.swarm) ? raw.swarm[n] : null, d = mitePlace(state, n);
-            return { x: real(m?.x, 0, FEED.w - 0.01, d.x), y: real(m?.y, 0, FEED.h - 0.01, d.y), b: real(m?.b, 0, 4, 0), t: Number.isInteger(m?.t) && m.t >= -1 && m.t < FEED.w * FEED.h ? m.t : -1 };
+            return { x: real(m?.x, 0, FEED.w - 0.01, d.x), y: real(m?.y, 0, FEED.h - 0.01, d.y), b: real(m?.b, 0, 64, 0), t: Number.isInteger(m?.t) && m.t >= -1 && m.t < FEED.w * FEED.h ? m.t : -1 };
         });
         return state;
     }

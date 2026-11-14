@@ -6,7 +6,7 @@ const Feed = require('../feed.js');
 const Model = require('../tools/ring-model.js');
 
 const { w: W, h: H, grains: G } = Feed.FEED;
-const FAST = { chew: 60, graze: 1, speed: 80 };   // for tests that only care what was eaten, not how long it took
+const FAST = { chew: 60, graze: 1, speed: 160 };   // for tests that only care what was eaten, not how long it took
 // Steps `seconds` in tenths, gathering what was paid and every event. `lead(state)` gives the point held, if any.
 function play(s, seconds, opts, lead) {
     let research = 0; const events = [];
@@ -59,14 +59,14 @@ test('data falls as packets from a spout that swings from side to side, and melt
         for (const d of s.drops) xs.add(d.x);
         for (const [d, y] of before) if (!s.drops.includes(d)) melted.push({ y, m: d.m });
     }
-    assert.ok(Math.max(...spout) - Math.min(...spout) > 60, 'the spout swings wide');
-    assert.ok(Math.max(...xs) - Math.min(...xs) > 60, 'and packets fall along its whole swing');
+    assert.ok(Math.max(...spout) - Math.min(...spout) > 120, 'the spout swings wide');
+    assert.ok(Math.max(...xs) - Math.min(...xs) > 120, 'and packets fall along its whole swing');
     assert.ok(melted.length > 30);
     // Over an empty floor a packet melts about half way down the box; none reaches the floor whole.
-    assert.ok(melted.slice(0, 10).every(d => Math.abs(d.m - H / 2) <= 1 && d.y < H * 0.6), 'they melt half way down');
+    assert.ok(melted.slice(0, 10).every(d => Math.abs(d.m - H / 2) <= 2 && d.y < H * 0.6), 'they melt half way down');
     // A small delivery is laid narrow, so a first pile is a pile; a big one is laid in a bed across the floor.
-    const bed = packets => { const t = Feed.newFeed({ seed: 2 }); Feed.deliver(t, { sector: 1, packets, gold: 0 }); Feed.step(t, 12, { chew: 0 }); assert.equal(t.drops.length, 0); assert.equal(t.grains, packets * G); return t.cells.slice((H - 1) * W).filter(Boolean).length; };
-    assert.ok(bed(40) < 70, 'a first pile ' + bed(40) + ' cells wide');
+    const bed = packets => { const t = Feed.newFeed({ seed: 2 }); Feed.deliver(t, { sector: 1, packets, gold: 0 }); Feed.step(t, 20, { chew: 0 }); assert.equal(t.drops.length, 0); assert.equal(t.grains, packets * G); return t.cells.slice((H - 1) * W).filter(Boolean).length; };
+    assert.ok(bed(40) < 170, 'a first pile ' + bed(40) + ' cells wide');
     assert.ok(Feed.spoutX(Feed.newFeed()) === W / 2);
 });
 
@@ -91,7 +91,7 @@ test('packets pour in as sand, sixteen grains each, and settle into a pile on th
         assert.equal(s.grains, 0, 'nothing is in the box until it pours');
         Feed.step(s, 0.5, { chew: 0 });
         assert.ok(s.drops.length > 0 && Feed.waiting(s) > 0, 'it pours over time');
-        Feed.step(s, 12, { chew: 0 });
+        Feed.step(s, 25, { chew: 0 });
         assert.equal(s.grains, 40 * G, `seed ${seed}`);
         assert.equal(Feed.waiting(s), 0);
         const c = Feed.census(s);
@@ -113,7 +113,7 @@ test('the same seed makes the same pile; another seed another', () => {
 test('left alone, the swarm eats from the outside in: every grain it takes is on the pile\'s surface', () => {
     const s = Feed.newFeed({ seed: 4 });
     Feed.deliver(s, { sector: 1, packets: 60, gold: 0 });
-    Feed.step(s, 12, { chew: 0 });
+    Feed.step(s, 25, { chew: 0 });
     assert.equal(s.rest, true);
     let eaten = 0;
     for (let i = 0; i < 1500 && eaten < 40; i++) {
@@ -244,7 +244,7 @@ test('gold pours in together: most gold grains lie against another', () => {
 
 test('one fragment a layer until the parcel set is whole, then no more', () => {
     // Small layers, so six of them fit in a small pile.
-    const small = { ...FAST, layerFirst: 6, layerGrow: 1.3, fragFrom: 1, fragSpread: 2 };
+    const small = { ...FAST, layerFirst: 6, layerGrow: 1.3, fragFrom: 1, fragSpread: 2, pour: 2 };   // poured slowly, so the swarm keeps up with it
     for (const seed of [1, 2, 3]) {
         const s = Feed.newFeed({ seed, ...small });
         Feed.deliver(s, { sector: 1, packets: 90, gold: 0 });
@@ -263,8 +263,8 @@ test('numbers come from sector 2 and pictures from sector 4, about a tenth each'
     const one = count(1), two = count(2), four = count(4);
     assert.equal(one.numbers, undefined);
     assert.equal(two.pictures, undefined);
-    assert.ok(Math.abs(two.numbers - 400) < 100, `${two.numbers}`);
-    assert.ok(Math.abs(four.numbers - 400) < 100 && Math.abs(four.pictures - 400) < 100);
+    assert.ok(Math.abs(two.numbers - 25 * G) < 6 * G, `${two.numbers}`);
+    assert.ok(Math.abs(four.numbers - 25 * G) < 6 * G && Math.abs(four.pictures - 25 * G) < 6 * G);
     assert.deepEqual(Feed.LOCKED, ['numbers', 'pictures']);
     assert.deepEqual(Feed.LOCKED.map(k => Feed.KINDS[k].skill), ['Embeddings', 'Edge Detection']);
 });
