@@ -4123,3 +4123,13 @@ body.device-laptop .window-close { display: inline-grid; place-items: center; }
 .device-transfer-from { font-family: var(--font-display); }
 .device-transfer .dialog-actions, .ring-survey .dialog-actions { justify-content: center; gap: 10px; }
 .device-transfer .ghost-button, .ring-survey .ghost-button { padding: 10px 18px; }
+/* The home screen's system apps (Journal, Settings, Playtest, Debug): a row at the foot of the screen, each in its own
+   colour like the other icons. */
+.home-dock { display: flex; justify-content: center; gap: 6px; margin: 0 0 10px; padding: 8px 10px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 18px; background: rgba(255, 255, 255, 0.05); align-self: center; max-width: 100%; }
+.home-dock .home-icon { width: 78px; }
+.home-icon-journal { color: var(--research); }
+.home-icon-settings { color: var(--primary); }
+.home-icon-playtest { color: var(--warning); }
+.home-icon-debug { color: var(--accent); }
+body.device-phone .home-dock { align-self: stretch; justify-content: space-around; margin-bottom: 4px; }
+body.device-phone .home-dock .home-icon { width: 25%; min-width: 0; }

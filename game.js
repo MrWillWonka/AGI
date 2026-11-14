@@ -2196,8 +2196,10 @@ window.AGI = (function () {
             el('div', { class: 'home-popup-title', text: 'Download' }), popupText, el('div', { class: 'home-bar' }, [bar]), el('div', { class: 'home-popup-actions' }, [popupOpen])]);
         const node = el('div', { class: 'device-home', id: 'deviceHome', hidden: '' }, [
             el('div', { class: 'home-status' }, [clock, el('span', { class: 'home-signal', text: '▂▄▆ 37%' })]),
-            el('div', { class: 'home-icons' }, [mail.button, lab.button, snareApp.button, feedApp.button, ...tools.map(t => t.button)]),
+            el('div', { class: 'home-icons' }, [mail.button, lab.button, snareApp.button, feedApp.button]),
             popup,
+            // The system apps sit in a row at the foot of the screen (the owner's call): a phone's dock, a laptop's shelf.
+            el('div', { class: 'home-dock' }, tools.map(t => t.button)),
             el('div', { class: 'home-taskbar' }, [el('span', { class: 'home-start', text: '▦' }), el('span', { class: 'home-task', text: 'Mail' }), el('span', { class: 'home-taskbar-clock' })])]);
         document.body.append(node);
         return { node, mail, lab, snare: snareApp, feed: feedApp, tools, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
