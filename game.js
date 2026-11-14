@@ -2151,7 +2151,7 @@ window.AGI = (function () {
             const names = { Workbench: 'Compute', 'Hardware bench': 'Parts' };
             for (const h of $('labRoom').querySelectorAll('.station-title')) if (names[h.textContent.trim()]) { h.textContent = names[h.textContent.trim()]; desk.titled = true; }
         }
-        setText(desk.line, !monitor ? `> Old ${device}. 1 GB of RAM.` : online ? '> Online.' : '> Connecting.');
+        setText(desk.line, !monitor ? (device === 'phone' ? '> Old phone.' : '> Old laptop. 1 GB of RAM.') : online ? '> Online.' : '> Connecting.');
         const show = (icon, yes) => { if (icon.button.hidden === yes) icon.button.hidden = !yes; };
         show(desk.mail, !!state.player.email); show(desk.snare, online); show(desk.feed, fed);
         const unread = mailReady ? mailUnread() : 0;
