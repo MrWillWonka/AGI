@@ -90,7 +90,7 @@
             el('div', { class: 'feed-bar' },
                 el('span', { class: 'feed-title', text: 'The Feed' }), layerEl, mitesEl, researchEl, endEl,
                 el('button', { type: 'button', class: 'ghost-button feed-close', 'aria-label': 'Close The Feed', text: '×', onclick: close })),
-            hungerEl, (heldEl = el('div', { class: 'feed-held', hidden: '', 'aria-label': 'Cards this session' })), tests, promptEl, stage, zoomEl, fragEl);
+            hungerEl, (heldEl = el('div', { class: 'feed-held', hidden: '', 'aria-label': 'Cards this session' })), ...(/debug|feedtest/.test(location.hash + location.search) ? [tests] : []), promptEl, stage, zoomEl, fragEl);
         dlg.addEventListener('close', stop);
         // One finger (or the left button) leads the swarm; two fingers zoom and move the view; the right button drags it.
         canvas.addEventListener('pointerdown', e => {

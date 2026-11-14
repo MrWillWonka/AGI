@@ -925,8 +925,18 @@
         eat(state, o, i, out);
         if (m.c === 'mega') { const j = nearestWithin(state, x, y, 1.6); if (j >= 0) eat(state, o, j, out); }
     }
+    // A tapped point with no sand left near it holds no one: the mites go back to their own work (the owner's call,
+    // 2026-11-14: three sat starving at the flag with the last pile across the field). Looked at twice a second.
+    const DRY = new WeakMap();
+    function spotDry(state, o, dt) {
+        const s = state.spot; let d = DRY.get(state);
+        if (!d) DRY.set(state, d = { t: 0, x: -1, y: -1, dry: false });
+        d.t -= dt;
+        if (d.t <= 0 || d.x !== s.x || d.y !== s.y) { d.t = 0.5; d.x = s.x; d.y = s.y; d.dry = nearestWithin(state, s.x, s.y, o.roam * o.tapRoam + o.near) < 0; }
+        return d.dry;
+    }
     function mite(state, o, m, dt, out) {
-        const pt = state.aim || state.spot, led = !!pt, { w, h, cells } = state;
+        const pt = state.aim || (state.spot && !spotDry(state, o, dt) ? state.spot : null), led = !!pt, { w, h, cells } = state;
         m.b = Math.min(m.b + o.chew * o.grains * (state.aim ? 1 : state.spot ? o.tapRate : o.graze) * dt, o.grains / 8);   // bites saved up while it moves: an eighth of a packet's worth, whatever the grain's size
         let gx, gy, food = -1;
         if (led) {

@@ -2431,7 +2431,7 @@ window.AGI = (function () {
         if (!assistBox) document.body.append(assistBox = el('div', { class: 'assist', role: 'status', 'aria-live': 'polite' }));
         const close = el('button', { type: 'button', class: 'assist-close', 'aria-label': 'Dismiss', text: '×', onclick: e => { e.stopPropagation(); assistClose('closed'); } });
         const kids = [el('span', { class: 'assist-mark', 'aria-hidden': 'true' }), el('p', { class: 'assist-text', text: q.text }), close];
-        if (q.action) kids.push(el('button', { type: 'button', class: 'assist-go', text: q.action[0], onclick: e => { e.stopPropagation(); const go = q.action[1]; assistClose('action'); go(); } }));
+        if (q.action) kids.push(el('button', { type: 'button', class: 'assist-go', text: q.action[0], onclick: e => { e.stopPropagation(); const go = q.action[1]; assistClose('action'); closeApps(); go(); } }));
         const node = el('div', { class: 'assist-bubble', onclick: () => assistClose('tapped') }, kids);
         assistBox.replaceChildren(node);
         assistLive = { ...q, node, at: performance.now(), ringed: null };
@@ -2448,7 +2448,12 @@ window.AGI = (function () {
         a.node.remove();
         assistLive = null;
         save();
-        setTimeout(assistNext, 400);
+        setTimeout(() => { if (!assistLive) assistNext(); }, 400);
+    }
+    // An app opened from the AI's button closes the app it was said over (Parcel stayed on top of Packet Snare).
+    function closeApps() {
+        if (shop?.dlg.open) shop.dlg.close();
+        if (window.FeedUI?.isOpen) window.FeedUI.close();
     }
     function assistTick() {
         const a = assistLive;
@@ -2617,7 +2622,7 @@ window.AGI = (function () {
             afterChange(); save();
         }
         // The tip about holding a job's button waits until you are in the Lab to see it (it came up over the shop).
-        if (E.level(state, 'keyboard') >= 4 && !state.intro['hint:hold'] && ringAppNow() === 'lab' && !document.querySelector('dialog[open]')) {
+        if (E.level(state, 'keyboard') >= 4 && !state.intro['hint:hold'] && !homeUp && ringAppNow() === 'lab' && !document.querySelector('dialog[open]')) {
             state.intro['hint:hold'] = true;
             callout('hint:hold', 'Hold to repeat', 'Hold a job\'s button and it repeats about four times a second.');
         }
@@ -2630,14 +2635,14 @@ window.AGI = (function () {
         const items = shopItems(), bank = bankNow(), cp = Math.floor(state.res.cp), rate = E.RING_CP_PER_DOLLAR;
         setText(shop.bank, `$${E.format(bank)}`);
         setText(shop.have, `You have ${E.format(cp)} compute. Parcel pays $1 for every ${rate}.`);
-        for (const [btn, amount] of shop.sells) { const n = Math.floor(amount(cp) / rate); btn.disabled = n < 1; setText(btn.lastChild, n < 1 ? '' : ` · $${E.format(n)}`); }
+        for (const [btn, amount] of shop.sells) { const n = Math.floor(amount(cp) / rate); btn.disabled = n < 1 || amount(cp) > cp; setText(btn.lastChild, n < 1 ? '' : ` · $${E.format(n)}`); }
         const key = JSON.stringify([items.map(i => [i.id, i.k, i.owned, i.next, i.coming, i.onWay, i.full, i.price <= bank]), parcels.length]);
         if (key !== shop.key || force) {
             shop.key = key;
             const card = i => {
                 const art = el('span', { class: 'shop-art' });
                 art.innerHTML = `<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${PARCEL_ART[i.art]}</svg>`;
-                const short = i.price > bank, buy = () => el('button', { type: 'button', class: 'button shop-buy', text: short ? `Need $${E.format(i.price - bank)} more` : i.many && i.onWay ? 'Buy another' : 'Buy now', ...(short ? { disabled: '' } : {}), onclick: () => shopOrder(i.id, i.k) });
+                const short = i.price > bank, buy = () => el('button', { type: 'button', class: short ? 'ghost-button shop-buy' : 'button shop-buy', text: short ? `Need $${E.format(i.price - bank)} more` : i.many && i.onWay ? 'Buy another' : 'Buy now', ...(short ? { disabled: '' } : {}), onclick: () => shopOrder(i.id, i.k) });
                 const action = i.owned ? el('span', { class: 'shop-owned', text: '✓ Delivered' })
                     : i.many ? (i.full ? el('span', { class: 'shop-later', text: 'No room for more yet' }) : buy())
                     : i.coming ? el('span', { class: 'shop-coming', text: 'On its way' })
@@ -2683,7 +2688,7 @@ window.AGI = (function () {
         // The first time, the AI says what to do, a line at a time (it was a card of four steps).
         state.intro['ring:feedIntro'] = true; pt('home', { feedIntro: 1 });
         assist('feed1', 'These are your stockpiles, one for each sector you caught in. Pick one and start a session. The bar at the top is their hunger. Empty means they stop.', { target: () => document.querySelector('.feed-pile-start:not([disabled])'), done: () => !!state.feed.session });
-        assist('feed2', 'Tap the sand to set a point for them. Hold and drag to pull them harder. They listen better when you hold. So do I.', { done: () => !!(state.feed.spot || state.feed.aim) || !state.feed.session });
+        assist('feed2', 'Tap the sand to set a point for them. Hold and drag to pull them harder. They listen better when you hold. So do I.', { done: () => !!(state.feed.spot || state.feed.aim) });
         save();
     }
 
@@ -3112,7 +3117,7 @@ window.AGI = (function () {
             const more = [...(labSeen || [])].some(k => k.startsWith(`${u.id}@`));
             callout('hint:lab', 'New in the lab', `${more ? `More room for ${E.upgradeName(state, u)}` : `${E.upgradeName(state, u)} just opened`}. The lab's badge counts what's new since your last visit.`);
         }
-        if (!state.intro['hint:train'] && openBay === 'training' && path.view === 'run' && state.stats.rolls === 0) {
+        if (!E.isRing() && !state.intro['hint:train'] && openBay === 'training' && path.view === 'run' && state.stats.rolls === 0) {
             state.intro['hint:train'] = true;
             callout('hint:train', 'Training runs', 'Your model learns by rolling. Hold the button to charge a sprint, release to fire it. Crest the big hill at the flag to learn a skill; every meter earns XP for upgrades.');
         }
@@ -5606,7 +5611,7 @@ window.AGI = (function () {
         const load = { sector: snare.startSector + 1, packets: stats.caught || 0, gold: stats.gold || 0, garbled: stats.garbledPackets || 0, popped: stats.poppedPackets || 0 };
         const before = state.feed.stats.delivered;
         const out = E.feedDeliver(state, load);
-        if (out.added) pt('feedDelivery', out.cap ? { ...load, stocked: out.stocked, lost: out.lost, held: out.held, cap: out.cap } : load);
+        if (out.added || out.lost) pt('feedDelivery', out.cap ? { ...load, stocked: out.stocked, lost: out.lost, held: out.held, cap: out.cap } : load);
         // A full stockpile says so (placeholder words): the push to go and play it, or to fill another sector's.
         // Said once by the AI, with why it matters; after that a plain notice.
         if (out.full) { if (state.intro['assist:full']) deviceNotice('feedFull', 'The Feed', `The stockpile for sector ${out.sector} is full.`, openFeed);
@@ -5813,8 +5818,8 @@ window.AGI = (function () {
                 el('div', { class: 'result-title', text: `${d.sector > d.startSector ? `Sectors ${d.startSector + 1}–${d.sector + 1}` : snareSector(d.sector)}${d.replay ? ' (replay)' : ''} · ${d.walked ? 'Disconnected' : s.bossEscaped ? 'Boss escaped' : s.bosses > 0 ? 'Boss uninstalled' : 'Focus depleted'}` }),
                 // A boss beaten leads the card (round 2 of the review: it read like any other run).
                 // Snare 17.5: its fight clock ran out (the run ends with it).
-                s.bossEscaped ? el('div', { class: 'result-main snare-red-line', text: `Boss escaped${s.swallowed ? ` with ${s.swallowed} packets` : ''}${s.escapedMaxHp ? `, ${s.escapedHp} of ${s.escapedMaxHp} health left` : ''} · uninstall window ${snare.run?.opts?.bossFight || 30} s` }) : null,
-                gate ? el('p', { class: 'snare-intro-line snare-red-line snare-gate-line', text: `Your model hasn't learned ${gate} yet, so your hits did ${Math.round(100 * E.SNARE_GATE_ARMOR)}% of their damage. Learn it in the Training Cluster, then come back stronger.` }) : null,
+                s.bossEscaped ? el('div', { class: 'result-main snare-red-line', text: `Boss escaped${s.swallowed ? ` with ${s.swallowed} packets` : ''}${s.escapedMaxHp ? `, ${Math.round(s.escapedHp * 10) / 10} of ${s.escapedMaxHp} health left` : ''} · uninstall window ${snare.run?.opts?.bossFight || 30} s` }) : null,
+                gate ? el('p', { class: 'snare-intro-line snare-red-line snare-gate-line', text: `Your model hasn't learned ${gate} yet, so your hits did ${Math.round(100 * E.SNARE_GATE_ARMOR)}% of their damage. Learn it in ${E.isRing() ? 'Training' : 'the Training Cluster'}, then come back stronger.` }) : null,
                 d.cleared.some(k => E.isSnareBossSector(k)) ? el('div', { class: 'result-main snare-boss-down', text: `Boss uninstalled · ${s.slashes || 0} slash${s.slashes === 1 ? '' : 'es'}${s.mineThrows ? ` · ${s.mineThrows} mine${s.mineThrows === 1 ? '' : 's'} thrown` : ''}${s.meltHits ? ` · meltdown ${s.meltHits}/${s.meltOf || 30}` : ''}` }) : null,
                 el('div', { class: 'result-main', text: s.caught ? `${s.caught} packet${s.caught === 1 ? '' : 's'} captured` : 'No packets captured' }),
                 // nothing caught: why, in plain words, first (round 9 of the review: "Corrupted catches 1" didn't say it)
@@ -5831,7 +5836,7 @@ window.AGI = (function () {
                 el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: snareStartText('Snare again'), onclick: startSnare }), snareUpgradesButton(),
                     gate ? (E.isRing() && !state.unlocked['module:path']
                         ? el('button', { type: 'button', class: 'ghost-button snare-gate-go', text: 'Get a server in Parcel', onclick: () => { goHome(); openShop(); } })
-                        : el('button', { type: 'button', class: 'ghost-button snare-gate-go', text: 'Go to the Training Cluster', onclick: () => jumpTo('bay:training') })) : null].filter(Boolean))].filter(Boolean));
+                        : el('button', { type: 'button', class: 'ghost-button snare-gate-go', text: E.isRing() ? 'Go to Training' : 'Go to the Training Cluster', onclick: () => jumpTo('bay:training') })) : null].filter(Boolean))].filter(Boolean));
         }
         setHidden(card, false);
     }
