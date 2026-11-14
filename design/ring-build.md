@@ -183,3 +183,5 @@ Done when: the finish line at the top of `design/ring.md`.
 - **Hop is hidden under the ring for now (2026-11-14, the owner's call):** `exploitCharges` is 0, so its button, tips and windows never show.
 
 - **Decisions on the open Build 1 and 2 items (2026-11-14, the owner's cards).** Packet Snare's clock price and research against The Feed are left as they are until Build 3. Sector 2's goal is 150 (was 170). Declining money is now M0M's transfer, then Mom's mail and her own transfer, then pay day; Dad's mail waits for the story build. The transfer prompt sets the sender in the mono face so the zero in M0M is plain.
+
+- **More decisions (2026-11-14, the owner's cards).** Boss fights: only your own moves stun it (`ownStuns` from `E.snareOpts`: two loops or a parry; a smashed decoy, a thrown mine and a Firewall still damage and block but open no slash window). The Debug icon is gone from the home screen; a three-finger tap anywhere, or holding the top strip of the screen for 0.8 s (not during a live Packet Snare run), opens the panel on every screen (`debug-panel.js`). The Feed's sessions are decided and written in `design/ring.md`.

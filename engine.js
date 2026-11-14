@@ -2656,6 +2656,9 @@
             bossCharge: Math.max(3.5, B.bossCharge - 0.15 * k),
             bossWarn: Math.max(1.2, B.bossWarn - 0.03 * k) + g('bossWarn'),
             bossStun: Math.max(1.8, B.bossStun - 0.03 * k) + g('bossStun'),
+            // One clear rule (the owner's call, 2026-11-14): you stun it (two loops, or a parry), then you slash. Mines,
+            // decoys and Firewalls damage and block, and never open a slash window of their own.
+            ownStuns: 1,
             // Two on sector 20, whose gate is its minions (three mines as well made it a wall).
             bossMines: k >= SWARM_SECTOR ? 4 : k >= NET_SECTOR ? 3 : k >= MINE_SECTOR ? 2 : 0,
             // the Training skill this boss needs, and your hits' share of their damage without it (the owner's call)

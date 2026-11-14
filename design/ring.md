@@ -458,3 +458,12 @@ The rack puzzle; the Boardroom, Signals room, Mirror room and two more bays; act
 challenges and Transcend; new themes and music tracks; desktop-only tuning rounds; new Packet Snare mechanics beyond
 what the ring needs; more Evals upgrades; trail exploits beyond Hop; versions that change your role; agents teaching
 agents in Evals.
+
+### The Feed's sessions (the owner's cards, 2026-11-14; not built yet)
+
+- **Stockpiles by sector.** Packet Snare runs stockpile sand by the sector they were caught in. Each sector's stockpile holds about three good runs' worth; when it is full, more is lost, which sends the player to fill other sectors or to play a session.
+- **A session** starts on one sector's stockpile. Later sectors are tougher to chew and pay more; earlier ones are easy practice.
+- **The hunger bar ends it.** Hunger drains steadily and eating refills it. Clear a layer before it empties and the swarm splits and hunger resets; let it empty and the session is over.
+- **Cards at each split.** A pick of cards: stat boosts, and the four tools (scanner sweep, pulse, sorting pipe, arc between mites) among them, so sessions differ.
+- **Nothing eats outside a session.** Research comes only from playing one. Research and fragments carry over; mites, cards and tools reset.
+- **Build order (proposed):** stockpiles and their cap, with sessions that start and end on hunger; then cards that are stat boosts; then the four tools as cards.

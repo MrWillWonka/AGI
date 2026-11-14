@@ -161,3 +161,9 @@ test('the ring: Hop is hidden for now (no charges, whatever is learned); the old
     E.setRing(false);
     assert.ok(E.exploitCharges(s) > 0);
 });
+
+test('boss fights: only your own moves stun it (the game sets ownStuns; the rules table keeps the old reels for its own tests)', () => {
+    const s = online();
+    assert.equal(E.snareOpts(s, E.SNARE_FIRST_BOSS).ownStuns, 1);
+    assert.equal(require('../packet-snare.js').SNARE.ownStuns, 0);
+});

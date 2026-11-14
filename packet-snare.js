@@ -296,6 +296,8 @@
         bossWave: 0,                // s: with this set, the boss boots an Antivirus minion this often while it stands (up to the cap)
         turretBoss: 0,              // health a turret's shot takes off the boss in reach (minions first)
         decoyBoss: 0,               // with this set, the boss charges at a decoy instead of the pen…
+        ownStuns: 0,                // 1: only your own moves stun the boss (two loops, a parry): a smashed decoy, a thrown mine and a
+                                    // Firewall it presses on still do their damage and blocking, but open no slash window
         decoyStun: 1.2,             // …and reels this long after smashing one (a slash window)
         bossR: 0.8,                 // its size: it grows sector by sector
         bossSmash: 2,               // seconds it sits on a decoy before smashing it
@@ -1092,7 +1094,7 @@
                     s.events.push({ type: 'decoyGone', x: onDecoy.x, y: onDecoy.y, boss: true });
                     b.smash = null;
                     // it reels from the smash: a slash window
-                    if (o.decoyBoss && !b.melt) { b.charge = null; b.stunned = s.time + o.decoyStun; s.stats.stuns++; s.events.push({ type: 'bossLooped', x: b.x, y: b.y, by: 'decoy' }); }
+                    if (o.decoyBoss && !b.melt && !o.ownStuns) { b.charge = null; b.stunned = s.time + o.decoyStun; s.stats.stuns++; s.events.push({ type: 'bossLooped', x: b.x, y: b.y, by: 'decoy' }); }
                 }
             } else b.smash = null;
             const wiped = s.packets.filter(p => p.kind !== 'corrupt' && Math.hypot(p.x - b.x, p.y - b.y) < b.r);
@@ -1347,7 +1349,7 @@
                     s.stats.mineHits++;
                     // `bank`: the bounces added damage (Ricochet's alone: without it a bounce is just a longer path, K15)
                     s.events.push({ type: 'mineThrow', x: boss.x, y: boss.y, from: { x: m.x, y: m.y }, bounces: m.bounces, damage, bank: o.mineBank > 0 && m.bounces > 0 });
-                    if (damageBoss(boss, damage, 'mine', true) && s.boss) boss.stunned = Math.max(boss.stunned, s.time + o.mineReel);
+                    if (damageBoss(boss, damage, 'mine', true) && s.boss && !o.ownStuns) boss.stunned = Math.max(boss.stunned, s.time + o.mineReel);
                     continue;
                 }
                 if (Math.hypot(m.vx, m.vy) < minV) drop('slow');
@@ -2006,7 +2008,7 @@
                     f.hp -= (isBoss ? o.bossChip : o.avChip) * dt;
                     f.hitAt = s.time;
                 }
-                if (isBoss && !v.immune?.includes(f.id) && !(v.stunned > s.time)) {
+                if (isBoss && !o.ownStuns && !v.immune?.includes(f.id) && !(v.stunned > s.time)) {
                     v.immune = [...(v.immune || []), f.id];
                     v.stunned = s.time + o.avStun * 0.6;
                     v.stunSlashes = 0;

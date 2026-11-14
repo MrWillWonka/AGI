@@ -2273,7 +2273,6 @@ window.AGI = (function () {
         // from the home screen, which covers the top bar.
         const tools = [
             icon('playtest', 'Playtest', () => openSurvey()),
-            icon('debug', 'Debug', () => window.DebugPanel?.toggle()),
             icon('settings', 'Settings', () => $('settingsButton').click()),
             icon('journal', 'Achievements', () => $('journalButton').click())];
         const clock = el('span', { class: 'home-clock' });

@@ -211,6 +211,24 @@
     }
     // The ring's home screen has a Debug icon (game.js buildHome).
     window.DebugPanel = { toggle: () => toggle(!panel || panel.hidden) };
+    // Two shortcuts that work on every screen (the owner's call, 2026-11-14: the title was a small target and not every
+    // screen had it): a tap with three fingers anywhere, or holding the top strip of the screen (the status bar's
+    // height) still for most of a second. Neither shows anything to a tester who doesn't know them.
+    const TOP_STRIP = 56, TOP_HOLD = 800;
+    let topHold = null, lastThree = 0;
+    document.addEventListener('touchstart', e => {
+        if (e.touches.length !== 3 || Date.now() - lastThree < 600) return;
+        lastThree = Date.now();
+        clearTimeout(topHold?.timer); topHold = null;
+        window.DebugPanel.toggle();
+    }, { passive: true, capture: true });
+    document.addEventListener('pointerdown', e => {
+        clearTimeout(topHold?.timer); topHold = null;
+        if (e.clientY > TOP_STRIP || !e.isPrimary || document.body.classList.contains('snare-live') || e.target.closest?.('.debug-panel, input, textarea, select')) return;
+        topHold = { x: e.clientX, y: e.clientY, timer: setTimeout(() => { topHold = null; window.DebugPanel.toggle(); }, TOP_HOLD) };
+    }, true);
+    const dropTopHold = e => { if (topHold && (e.type !== 'pointermove' || Math.hypot(e.clientX - topHold.x, e.clientY - topHold.y) > 12)) { clearTimeout(topHold.timer); topHold = null; } };
+    for (const type of ['pointerup', 'pointercancel', 'pointermove']) document.addEventListener(type, dropTopHold, true);
 
 
     document.addEventListener('DOMContentLoaded', () => {
