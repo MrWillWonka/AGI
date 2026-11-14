@@ -82,3 +82,25 @@ test('the ring: Packet Snare trickles no research of its own, even with Research
     E.setRing(false);
     assert.ok(E.derive(s).snareRp > 0, 'the old game keeps its trickle');
 });
+
+test('the ring: compute is sold for money in whole dollars, and Graphics Cards cost money', () => {
+    const s = game();
+    s.res.cp = 257;
+    assert.equal(E.sellCompute(s, 1e9), 25);
+    assert.deepEqual([s.res.cp, E.deskCash(s)], [7, 25]);
+    assert.equal(E.sellCompute(s, 9), 0, 'under a dollar is not sold');
+    const card = E.UPGRADE_BY_ID.cpu, first = E.upgradeCost(card, 0);
+    assert.deepEqual(Object.keys(first), ['cash']);
+    assert.ok(first.cash >= 1 && E.upgradeCost(card, 10).cash > first.cash);
+    s.levels.cpu = 3;
+    assert.equal(E.deskCash(s), 25 - [0, 1, 2].reduce((n, l) => n + E.upgradeCost(card, l).cash, 0));
+    // An older ring save's cards are paid for; the old game still sells nothing and prices cards in compute.
+    const old = E.migrate({ ...JSON.parse(E.serialize(game())), levels: { cpu: 5 }, stats: { clicks: 9 } }, Date.now());
+    assert.equal(E.deskCash(old), 0);
+    assert.ok(old.stats.cashSold > 0);
+    assert.ok(E.SAVE_VERSION >= 43);
+    E.setRing(false);
+    assert.ok(E.upgradeCost(card, 0).cp > 0);
+    assert.equal(E.sellCompute(E.defaultState(Date.now()), 500), 0);
+    E.setRing(true);
+});

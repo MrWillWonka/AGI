@@ -4347,3 +4347,15 @@ body.ring-device.device-phone .snare-tree-bar .button, body.ring-device.device-p
     .shop-info h3 { font-size: 1.05rem; }
     .shop-about { font-size: 0.88rem; }
 }
+/* Parcel: selling compute, and the orders on their way. */
+.shop-sellbox { margin: 10px 14px 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-2); }
+.shop-sellbox h3 { margin: 0 0 2px; font: 700 0.8rem var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--success); }
+.shop-have { margin: 0 0 8px; font-size: 0.85rem; color: var(--muted); }
+.shop-sells { display: flex; gap: 8px; flex-wrap: wrap; }
+.shop-sell { min-height: 44px; padding: 4px 12px; font: 600 0.85rem var(--font-mono); white-space: nowrap; }
+.shop-sell span { color: var(--success); }
+.shop-sell:disabled { opacity: 0.45; }
+.shop-way { margin: 8px 14px 0; min-width: 0; text-align: left; }
+.shop-way[hidden] { display: none; }
+.shop-list { padding-top: 10px; }
+@media (orientation: landscape) and (max-height: 520px) { .shop-sellbox { display: flex; align-items: center; gap: 12px; padding: 6px 12px; margin-top: 6px; } .shop-sellbox h3, .shop-have { margin: 0; } .shop-have { flex: 1; min-width: 0; } }

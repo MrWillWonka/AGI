@@ -959,7 +959,7 @@ window.AGI = (function () {
     const isLabUpgrade = up => up.tab !== 'training' && up.tab !== 'legacy' && up.tab !== 'snare';
     // The ring: what money buys (the desk's parts and the server) is bought in the shop app, not the Lab (the owner's
     // call, 2026-11-14: money and purchasing don't clutter the Lab).
-    const shopOnly = up => E.isRing() && up.id === 'keyboard';
+    const shopOnly = up => E.isRing() && (up.id === 'keyboard' || up.id === 'cpu');
 
     // Lab cards you haven't seen: revealed while you were out of the lab (screen state, per device). Everything
     // on show counts as seen while you're in the lab, and on the first look (no sudden badge for older saves).
@@ -1680,7 +1680,7 @@ window.AGI = (function () {
             if (isLabUpgrade(up)) termLog(`installed ${E.upgradeName(state, up)} (level ${E.level(state, id)})`);
             if (isLabUpgrade(up) && E.isMaxed(state, up)) retireCard(id);
             // Once the desk has its monitor (click tool level 4), point out that jobs can be held down.
-            if (id === 'keyboard' && E.level(state, id) >= 4 && !state.intro['hint:hold']) {
+            if (!E.isRing() && id === 'keyboard' && E.level(state, id) >= 4 && !state.intro['hint:hold']) {
                 state.intro['hint:hold'] = true;
                 callout('hint:hold', 'Hold to repeat', 'Hold a job\'s button and it repeats about four times a second.');
             }
@@ -2361,7 +2361,7 @@ window.AGI = (function () {
         const training = !!state.unlocked['module:path'];
         if (home.train.button.hidden === training) home.train.button.hidden = !training;
         // The shop is there once there is money (or a part already bought); its badge says there is something you can afford.
-        const shopOn = shopOpenable(), canBuy = shopOn && !parcel && shopItems().some(i => i.next && i.price <= bankNow());
+        const shopOn = shopOpenable(), canBuy = shopOn && shopItems().some(i => i.next && !i.coming && i.price <= bankNow());
         if (home.shop.button.hidden === shopOn) home.shop.button.hidden = !shopOn;
         setText(home.shop.badge, canBuy ? '1' : '');
         if (home.shop.badge.hidden === canBuy) home.shop.badge.hidden = !canBuy;
@@ -2430,7 +2430,8 @@ window.AGI = (function () {
     const CALL_RING_MS = 9000;
     let fundWait = { step: null, from: 0 }, fundBusy = false;
     function fundTick() {
-        if (fundBusy || !labOpened()) return;
+        // Nothing rings or deposits over a Packet Snare run (the owner's log: Mom's transfer came up in the tutorial).
+        if (fundBusy || !labOpened() || (snare.run && !snare.run.over && snareInPlay())) return;
         const step = E.fundStep(state);
         if (!step) return;
         if (fundWait.step !== step) fundWait = { step, from: performance.now() };
@@ -2507,77 +2508,116 @@ window.AGI = (function () {
     // spent. For now the desk's four parts and the server; the garage and the warehouse come later. An order is paid
     // for at once and arrives after a short delivery (`PARCEL_MS`): it is installed then, with a notification. One
     // order at a time. The order is held here, not in the save: a reload before it arrives cancels it, money back.
-    const PARCEL_MS = 8000;
+    // (2026-11-14, after the owner's first play of it: orders queue, three seconds apart, it was one at a time and
+    // eight; Graphics Cards are sold here for money; and compute is sold here, `E.sellCompute`.)
+    const PARCEL_MS = 3000;
     const PARCEL_ART = [
         '<rect x="9" y="3" width="14" height="26" rx="2"/><path d="M13 8h6M13 12h6"/><circle cx="16" cy="23" r="1.6"/>',
         '<rect x="3" y="10" width="26" height="13" rx="2"/><path d="M7 14h2M12 14h2M17 14h2M22 14h2M9 19h14"/>',
         '<rect x="10" y="4" width="12" height="24" rx="6"/><path d="M16 4v8M10 13h12"/>',
         '<rect x="3" y="5" width="26" height="17" rx="2"/><path d="M12 27h8M16 22v5"/>',
-        '<rect x="7" y="3" width="18" height="26" rx="2"/><path d="M7 11h18M7 19h18M11 7h2M11 15h2M11 23h2M19 7h2M19 15h2M19 23h2"/>'];
-    let shop = null, parcel = null;
-    const bankNow = () => Math.max(0, E.deskCash(state) - (parcel ? parcel.price : 0));
-    const shopOpenable = () => E.isRing() && (E.funded(state) || E.level(state, 'keyboard') > 0);
+        '<rect x="7" y="3" width="18" height="26" rx="2"/><path d="M7 11h18M7 19h18M11 7h2M11 15h2M11 23h2M19 7h2M19 15h2M19 23h2"/>',
+        '<rect x="3" y="9" width="26" height="14" rx="2"/><circle cx="11" cy="16" r="3.5"/><circle cx="21" cy="16" r="3.5"/><path d="M7 23v4M12 23v4M17 23v4"/>'];
+    let shop = null, parcels = [];   // parcels: the orders on their way, in the order they arrive
+    const held = () => parcels.reduce((n, p) => n + p.price, 0);
+    const bankNow = () => Math.max(0, E.deskCash(state) - held());
+    const shopOpenable = () => E.isRing() && (E.funded(state) || E.level(state, 'keyboard') > 0 || state.stats.cashSold > 0 || state.res.cp >= E.RING_CP_PER_DOLLAR * 20);
+    const queued = id => parcels.filter(p => p.id === id).length;
     function shopItems() {
         const up = E.UPGRADE_BY_ID.keyboard, lvl = E.level(state, 'keyboard'), at = k => ({ ...state, levels: { ...state.levels, keyboard: k } });
-        const items = E.DESK_PRICES.slice(0, E.RING_DESK).map((price, k) => ({ k, price, name: E.upgradeName(at(k), up), about: E.upgradeFlavor(at(k), up), does: '+0.25 compute a click', owned: lvl > k }));
-        if (state.intro['ring:server'] || lvl > E.RING_DESK) items.push({ k: E.RING_DESK, price: E.RING_SERVER_PRICE, name: E.upgradeName(at(E.RING_DESK), up), about: E.upgradeFlavor(at(E.RING_DESK), up), does: 'Opens the Training Cluster', owned: lvl > E.RING_DESK });
-        for (const i of items) { i.next = i.k === lvl; i.coming = !!parcel && parcel.k === i.k; }
+        const items = E.DESK_PRICES.slice(0, E.RING_DESK).map((price, k) => ({ id: 'keyboard', k, art: k, price, name: E.upgradeName(at(k), up), about: E.upgradeFlavor(at(k), up), does: '+0.25 compute a click', owned: lvl > k }));
+        if (state.intro['ring:server'] || lvl > E.RING_DESK) items.push({ id: 'keyboard', k: E.RING_DESK, art: 4, price: E.RING_SERVER_PRICE, name: E.upgradeName(at(E.RING_DESK), up), about: E.upgradeFlavor(at(E.RING_DESK), up), does: 'Opens the Training Cluster', owned: lvl > E.RING_DESK });
+        const next = lvl + queued('keyboard');
+        for (const i of items) { i.coming = parcels.some(p => p.id === 'keyboard' && p.k === i.k); i.next = i.k === next; }
+        // Graphics Cards: as many as there is room for, each dearer than the last.
+        const card = E.UPGRADE_BY_ID.cpu;
+        if (E.isUpgradeVisible(state, card) || E.level(state, 'cpu') > 0) {
+            const own = E.level(state, 'cpu'), k = own + queued('cpu'), room = E.capacity(state, card);
+            items.push({ id: 'cpu', k, art: 5, many: true, own, coming: queued('cpu') > 0, onWay: queued('cpu'), full: k >= room, next: k < room, price: E.upgradeCost(card, k).cash,
+                name: E.upgradeName(state, card), about: E.upgradeFlavor(state, card), does: 'Makes compute on its own', owned: false });
+        }
         return items;
     }
-    function shopOrder(k) {
-        const item = shopItems().find(i => i.k === k);
-        if (!item || !item.next || parcel || item.price > E.deskCash(state)) { sfx('error'); return; }
-        parcel = { k, name: item.name, price: item.price, from: performance.now(), due: performance.now() + PARCEL_MS };
+    function shopOrder(id, k) {
+        const item = shopItems().find(i => i.id === id && i.k === k);
+        if (!item || !item.next || item.price > bankNow()) { sfx('error'); return; }
+        const last = parcels[parcels.length - 1], from = Math.max(performance.now(), last ? last.due : 0);
+        parcels.push({ id, k, name: item.name, price: item.price, from, due: from + PARCEL_MS });
         sfx('buy', { panel: 'hardware' });
-        pt('shopOrder', { item: k, price: item.price });
+        pt('shopOrder', { item: id === 'cpu' ? 'card' : k, price: item.price, queue: parcels.length });
         renderShop(true);
     }
-    // The order arrives: it is bought and installed now (the money has been held since it was placed).
+    function shopSell(cp) {
+        const dollars = E.sellCompute(state, cp);
+        if (!dollars) { sfx('error'); return; }
+        sfx('claim'); pt('shopSell', { dollars, cp: dollars * E.RING_CP_PER_DOLLAR });
+        afterChange(); renderShop(true);
+    }
+    // An order arrives: it is bought and installed now (its money has been held since it was placed).
     function shopTick() {
-        if (parcel && performance.now() >= parcel.due) {
-            const { name, k } = parcel;
-            parcel = null;
-            if (E.level(state, 'keyboard') === k) { doBuy('keyboard'); pt('shopDelivered', { item: k }); deviceNotice('shop', 'Parcel', `Delivered and installed: ${name}.`, () => openShop()); save(); }
+        while (parcels.length && performance.now() >= parcels[0].due) {
+            const p = parcels.shift();
+            if (E.level(state, p.id) !== p.k) continue;
+            const result = E.buy(state, p.id);
+            if (!result.ok) continue;
+            log(result.msg, 'success'); sfx('buy', { panel: 'hardware', big: p.id === 'keyboard' });
+            pt('buy', { id: p.id, lvl: E.level(state, p.id) }); pt('shopDelivered', { item: p.id === 'cpu' ? 'card' : p.k });
+            termLog(`installed ${p.name}`);
+            if (!parcels.length || p.id === 'keyboard') deviceNotice('shop', 'Parcel', `Delivered and installed: ${p.name}.`, () => openShop());
+            afterChange(); save();
+        }
+        // The tip about holding a job's button waits until you are in the Lab to see it (it came up over the shop).
+        if (E.level(state, 'keyboard') >= 4 && !state.intro['hint:hold'] && ringAppNow() === 'lab' && !document.querySelector('dialog[open]')) {
+            state.intro['hint:hold'] = true;
+            callout('hint:hold', 'Hold to repeat', 'Hold a job\'s button and it repeats about four times a second.');
         }
         if (shop?.dlg.open) renderShop();
     }
     function renderShop(force) {
         if (!shop) return;
-        const items = shopItems(), bank = bankNow();
+        const items = shopItems(), bank = bankNow(), cp = Math.floor(state.res.cp), rate = E.RING_CP_PER_DOLLAR;
         setText(shop.bank, `$${E.format(bank)}`);
-        const key = JSON.stringify([items.map(i => [i.k, i.owned, i.next, i.coming]), bank, !!parcel]);
+        setText(shop.have, `You have ${E.format(cp)} compute. Parcel pays $1 for every ${rate}.`);
+        for (const [btn, amount] of shop.sells) { const n = Math.floor(amount(cp) / rate); btn.disabled = n < 1; setText(btn.lastChild, n < 1 ? '' : ` · $${E.format(n)}`); }
+        const key = JSON.stringify([items.map(i => [i.id, i.k, i.owned, i.next, i.coming, i.onWay, i.full, i.price <= bank]), parcels.length]);
         if (key !== shop.key || force) {
             shop.key = key;
             const card = i => {
                 const art = el('span', { class: 'shop-art' });
-                art.innerHTML = `<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${PARCEL_ART[Math.min(i.k, PARCEL_ART.length - 1)]}</svg>`;
-                const short = i.price > bank;
+                art.innerHTML = `<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${PARCEL_ART[i.art]}</svg>`;
+                const short = i.price > bank, buy = () => el('button', { type: 'button', class: 'button shop-buy', text: short ? `Need $${E.format(i.price - bank)} more` : i.many && i.onWay ? 'Buy another' : 'Buy now', ...(short ? { disabled: '' } : {}), onclick: () => shopOrder(i.id, i.k) });
                 const action = i.owned ? el('span', { class: 'shop-owned', text: '✓ Delivered' })
-                    : i.coming ? el('span', { class: 'shop-coming' }, [el('span', { text: 'Out for delivery' }), el('span', { class: 'shop-track' }, [shop.fill = el('span', { class: 'shop-track-fill' })])])
-                    : !i.next ? el('span', { class: 'shop-later', text: 'Next in line' })
-                    : el('button', { type: 'button', class: 'button shop-buy', text: parcel ? 'One order at a time' : short ? `Need $${E.format(i.price - bank)} more` : 'Buy now', ...(parcel || short ? { disabled: '' } : {}), onclick: () => shopOrder(i.k) });
-                return el('article', { class: `shop-item${i.owned ? ' owned' : ''}${i.next ? ' next' : ''}` }, [art,
-                    el('div', { class: 'shop-info' }, [el('h3', { text: i.name }), el('p', { class: 'shop-about', text: i.about }), el('p', { class: 'shop-does', text: i.does })]),
+                    : i.many ? (i.full ? el('span', { class: 'shop-later', text: 'No room for more yet' }) : buy())
+                    : i.coming ? el('span', { class: 'shop-coming', text: 'On its way' })
+                    : !i.next ? el('span', { class: 'shop-later', text: 'Next in line' }) : buy();
+                const does = i.many ? `${i.does} · you own ${i.own}${i.onWay ? `, ${i.onWay} on the way` : ''}` : i.does;
+                return el('article', { class: `shop-item${i.owned ? ' owned' : ''}${i.next && !short ? ' next' : ''}` }, [art,
+                    el('div', { class: 'shop-info' }, [el('h3', { text: i.name }), el('p', { class: 'shop-about', text: i.about }), el('p', { class: 'shop-does', text: does })]),
                     el('div', { class: 'shop-side' }, [el('span', { class: 'shop-price', text: `$${E.format(i.price)}` }), action])]);
             };
             shop.list.replaceChildren(...items.filter(i => !i.owned).map(card), ...items.filter(i => i.owned).map(card));
         }
-        if (parcel && shop.fill) shop.fill.style.width = `${Math.round(Math.min(1, (performance.now() - parcel.from) / PARCEL_MS) * 100)}%`;
+        // The orders on their way: how many, and how long until the next.
+        const p = parcels[0];
+        if (shop.track.hidden === !!p) shop.track.hidden = !p;
+        if (p) { setText(shop.trackText, parcels.length > 1 ? `${p.name} is next · ${parcels.length} on the way` : `${p.name} is on its way`); shop.fill.style.width = `${Math.round(Math.max(0, Math.min(1, (performance.now() - p.from) / PARCEL_MS)) * 100)}%`; }
     }
     function openShop() {
         if (!shopOpenable()) return;
         if (!shop) {
-            const bank = el('b', { class: 'shop-bank-value' }), list = el('div', { class: 'shop-list' });
-            const chip = (text, on) => el('span', { class: `shop-chip${on ? ' on' : ''}`, text });
+            const bank = el('b', { class: 'shop-bank-value' }), list = el('div', { class: 'shop-list' }), have = el('p', { class: 'shop-have' });
+            const fill = el('span', { class: 'shop-track-fill' }), trackText = el('span'), track = el('div', { class: 'shop-coming shop-way', hidden: '' }, [trackText, el('span', { class: 'shop-track' }, [fill])]);
+            const sell = (label, amount) => { const b = el('button', { type: 'button', class: 'ghost-button shop-sell', onclick: () => shopSell(amount(Math.floor(state.res.cp))) }, [document.createTextNode(label), el('span')]); return [b, amount]; };
+            const sells = [sell('Sell 100', () => 100), sell('Sell half', cp => cp / 2), sell('Sell all', cp => cp)];
             const dlg = el('dialog', { class: 'shop-screen', 'aria-label': 'Parcel' }, [
                 el('div', { class: 'shop-bar' }, [el('span', { class: 'shop-title', text: 'Parcel' }), el('span', { class: 'shop-bank' }, [el('i', { text: 'Bank' }), bank]),
                     el('button', { type: 'button', class: 'ghost-button shop-close', 'aria-label': 'Close Parcel', text: '×', onclick: () => dlg.close() })]),
-                el('div', { class: 'shop-chips' }, [chip('Desk', true), chip('Garage · later'), chip('Warehouse · later')]),
-                list,
-                el('p', { class: 'shop-foot', text: 'Orders arrive in a few seconds and install themselves.' })]);
+                el('div', { class: 'shop-chips' }, [['Desk', true], ['Garage · later'], ['Warehouse · later']].map(([text, on]) => el('span', { class: `shop-chip${on ? ' on' : ''}`, text }))),
+                el('section', { class: 'shop-sellbox', 'aria-label': 'Sell compute' }, [el('h3', { text: 'Sell compute' }), have, el('div', { class: 'shop-sells' }, sells.map(s => s[0]))]),
+                track, list]);
             dlg.addEventListener('close', () => { sfx('ui'); renderHome(); });
             document.body.append(dlg);
-            shop = { dlg, bank, list, key: '', fill: null };
+            shop = { dlg, bank, list, have, sells, track, trackText, fill, key: '' };
         }
         if (shop.dlg.open) return;
         shop.dlg.showModal();
@@ -5746,7 +5786,7 @@ window.AGI = (function () {
                 snareClockNote(),
                 el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: snareStartText('Snare again'), onclick: startSnare }), snareUpgradesButton(),
                     gate ? (E.isRing() && !state.unlocked['module:path']
-                        ? el('button', { type: 'button', class: 'ghost-button snare-gate-go', text: 'Get a server in the Lab', onclick: () => jumpTo('lab') })
+                        ? el('button', { type: 'button', class: 'ghost-button snare-gate-go', text: 'Get a server in Parcel', onclick: () => { goHome(); openShop(); } })
                         : el('button', { type: 'button', class: 'ghost-button snare-gate-go', text: 'Go to the Training Cluster', onclick: () => jumpTo('bay:training') })) : null].filter(Boolean))].filter(Boolean));
         }
         setHidden(card, false);
