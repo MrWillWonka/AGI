@@ -3452,7 +3452,9 @@ window.AGI = (function () {
             lockedText: () => 'Locked' },
         // The Data Pipeline's Packet Snare (packet-snare.js): opens with Edge Detection (engine milestone module:snare).
         pipeline: { name: 'Packet Snare', built: true, unlocked: () => !!state.unlocked['module:snare'] },
-        architecture: BAYS_DIRECT ? { name: 'Evals', built: true, evals: true, unlocked: () => true } : { name: 'Architecture Lab', phase: 2 },
+        // The playground build (the owner's call, 2026-11-13): Evals is the third bay, open from the start like Packet
+        // Snare, with no gate. It opens its own full-screen screen. `#bays` still skips the opening to get here.
+        architecture: { name: 'Evals', built: true, evals: true, unlocked: () => true },
         core: { name: 'The Core', phase: 3 }
     };
     let openBay = null;
