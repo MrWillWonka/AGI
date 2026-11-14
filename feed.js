@@ -39,6 +39,7 @@
         layerGrow: 1.8,     // each layer is this much bigger than the last (the model's `layerGrow`)
         miteFirst: 1,       // the first new mite comes with this layer cleared (the owner's call: the first one; the model's `miteFirst`)
         miteEvery: 2,       // and another every this many layers after it (the model's `miteEvery`)
+        layerMax: 600,      // the most slots a layer holds (a guard for the screen and the save; past the first cut's reach)
         layerPay: 0.2,      // a cleared layer's lump of research, as a share of its slots
         lineMax: 12,        // the most tiles a pointed line holds
         veinMax: 6,         // the longest single run of vein tiles
@@ -61,7 +62,7 @@
     const FRAGMENT_ORDER = ['parcel'];
 
     const opt = opts => (opts ? { ...FEED, ...opts } : FEED);
-    const layerSize = (n, opts) => { const o = opt(opts); return Math.round(o.layerFirst * Math.pow(o.layerGrow, n)); };
+    const layerSize = (n, opts) => { const o = opt(opts); return Math.min(o.layerMax, Math.round(o.layerFirst * Math.pow(o.layerGrow, Math.min(n, 60)))); };
     const bitesFor = (sector, opts) => {
         const t = opt(opts).tough, k = Math.max(1, Math.floor(sector) || 1);
         return k <= t.length ? t[k - 1] : t[t.length - 1] + (k - t.length);
@@ -302,6 +303,59 @@
         return cells.slice(0, state.mites);
     }
 
-    return { FEED, KINDS, LOCKED, FRAGMENTS, newFeed, deliver, point, step, setReadable, readableFor, working,
+    // A saved Feed, cleaned whatever the save holds: counts whole and in range, every tile a real one, the layer's
+    // tray the size its number says (a tray of the wrong size is dropped and the layer starts empty; what was earned
+    // stays). Anything that isn't a Feed at all gives a new one.
+    function clean(raw, opts = {}) {
+        const o = opt(opts);
+        const whole = (v, cap) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.min(cap, Math.floor(v)) : 0);
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return newFeed(opts);
+        const state = newFeed(opts);
+        state.rs = whole(raw.rs, 0xFFFFFFFF) >>> 0 || state.rs;
+        state.layers = whole(raw.layers, 200);
+        state.mites = Math.max(1, Math.min(whole(raw.mites, 999), 1 + state.layers));
+        state.bite = typeof raw.bite === 'number' && raw.bite >= 0 && raw.bite < 10 ? raw.bite : 0;
+        state.dry = raw.dry === true;
+        const pieces = FRAGMENT_ORDER.reduce((n, id) => n + FRAGMENTS[id].pieces, 0);
+        state.fragNext = whole(raw.fragNext, pieces);
+        for (const id of FRAGMENT_ORDER) {
+            const found = (Array.isArray(raw.fragments?.[id]) ? raw.fragments[id] : []).filter((p, i, a) => Number.isInteger(p) && p >= 0 && p < FRAGMENTS[id].pieces && a.indexOf(p) === i);
+            if (found.length) state.fragments[id] = found;
+        }
+        state.readable = LOCKED.filter(k => Array.isArray(raw.readable) && raw.readable.includes(k));
+        const entries = (list, needKind) => (Array.isArray(list) ? list.slice(0, 200) : []).map(e => {
+            const kind = LOCKED.includes(e?.kind) ? e.kind : null;
+            const out = { sector: Math.max(1, whole(e?.sector, 99)), n: whole(e?.n, 1e7) };
+            if (needKind) return kind && out.n ? { kind, sector: out.sector, n: out.n } : null;
+            out.gold = kind ? 0 : whole(e?.gold, 1e7);
+            if (kind) out.kind = kind;
+            return out.n + out.gold > 0 ? out : null;
+        }).filter(Boolean);
+        state.backlog = entries(raw.backlog, false);
+        state.locked = entries(raw.locked, true);
+        for (const key of Object.keys(state.stats)) state.stats[key] = whole(raw.stats?.[key], 1e15);
+        startLayer(state, o);
+        state.rs = whole(raw.rs, 0xFFFFFFFF) >>> 0 || state.rs;   // startLayer drew from it: put it back where the save had it
+        if (Array.isArray(raw.tiles) && raw.tiles.length === state.size) {
+            raw.tiles.forEach((t, i) => {
+                if (!t || typeof t !== 'object' || !KINDS[t.k]) return;
+                const e = t.e ? 1 : 0, b = e ? 0 : Math.max(1, whole(t.b, 99));
+                const tile = { k: t.k, b, q: Math.max(1, whole(t.q, 99)), s: e || t.s ? 1 : 0, e };
+                if (t.k === 'fragment') {
+                    if (!FRAGMENTS[t.set] || !Number.isInteger(t.piece) || t.piece < 0 || t.piece >= FRAGMENTS[t.set].pieces) return;
+                    tile.set = t.set; tile.piece = t.piece;
+                }
+                const ordered = t.k === 'fragment' ? { k: tile.k, set: tile.set, piece: tile.piece, b: tile.b, q: tile.q, s: tile.s, e: tile.e } : tile;
+                put(state, i, ordered);
+            });
+            state.plain = whole(raw.plain, 1e7);
+            state.fragAt = whole(raw.fragAt, 1e7) || state.fragAt;
+            state.fragPlaced = raw.fragPlaced === true;
+            state.line = (Array.isArray(raw.line) ? raw.line : []).filter((i, n, a) => Number.isInteger(i) && state.tiles[i] && !state.tiles[i].e && a.indexOf(i) === n).slice(0, o.lineMax);
+        }
+        return state;
+    }
+
+    return { FEED, KINDS, LOCKED, FRAGMENTS, newFeed, clean, deliver, point, step, setReadable, readableFor, working,
         left, waiting, grid, cellOf, indexOf, layerSize, bitesFor };
 });

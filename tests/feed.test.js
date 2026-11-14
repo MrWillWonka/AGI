@@ -186,7 +186,7 @@ test('one fragment hides in each layer until the parcel set is whole, then no mo
 });
 
 test('numbers come from sector 2 and pictures from sector 4, about a tenth each', () => {
-    const count = sector => { const s = Feed.newFeed({ seed: 11, layerFirst: 4000 }); Feed.deliver(s, { sector, packets: 4000, gold: 0 }); return kinds(s); };
+    const count = sector => { const s = Feed.newFeed({ seed: 11, layerFirst: 4000, layerMax: 4000 }); Feed.deliver(s, { sector, packets: 4000, gold: 0 }); return kinds(s); };
     assert.equal(count(1).numbers, undefined);
     assert.equal(count(1).pictures, undefined);
     assert.ok(Math.abs(count(2).numbers - 400) < 80);

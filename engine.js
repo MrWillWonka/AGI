@@ -14,7 +14,7 @@
     // against the features it had (playtests/README.md lists the builds). Bump it with every publish: the date and
     // time (UTC) and a few words on what changed.
     const BUILD = '2026-11-11 20:54 (review branch) · Packet Snare 18.8: a 15-sector campaign with skill-gated bosses, racing combos, a limited wire and defences in the fight';
-    const SAVE_VERSION = 37;   // 37: Evals' Marks (`evals.marks`, `earned`), the rivals passed on its score sheet (`passed`) and its upgrades (`levels`); 36: Evals' loopholes (how misaligned the AI is, `evals.learn.mis`, and the loopholes closed for a kind, `closed`); 35: Evals' handovers (a kind's `handed` and `own`: you hand kinds to the AI, it never takes them); 34: Evals, the third minigame: what the AI has learned by watching you (`evals`), new and empty. 33: Packet Snare's flick nodes gone (Packet Spoofing, Forged Headers, Privilege Escalation; the owner's call on D20), the laser line and Blue Screen re-hung, the tree refunded again; 32: Packet Snare 18.4 (Garbage Collection, Second Wind, Clean Sweep, Quarantine Relay, Zero Trust and IDS Evasion gone, Chain Lightning a travelling bolt, Hijack reworked), the tree refunded again; 31: Packet Snare's repeats folded into four deep roots round a seed (Handshake), Scrubbers gone, the Decoder Bot early, the tree refunded; 30: Packet Snare's red-packet nodes back (Sanitizer, Checksums, Spam Filter, Reputation Check, Rate Limiter, Error Correction, Parity Check, Signature Database), the Cleaner Bot later, the Bouncer and Escort bots and both towers gone, the tree refunded again; 29: Packet Snare's red-packet nodes became helpers (Cleaner Bot at the root, Bouncer and Escort bots, Checksum and Jammer towers), the packet and red nodes folded into the early ones, the tree refunded again; 28: Packet Snare's tree after the review rounds (Input Validation and Mirror Port folded in, Chain Lightning at 250), refunded again; 27: Packet Snare 15 (bubbles are the way to catch: Split, Supernova, Bigger Buffers, mines grabbed), the tree refunded again; 26: Packet Snare 14 (bots earlier, powers with five levels, Collector Bot), the tree refunded again; 25: Packet Snare 12 (the boss looped, the tree repriced and Root Access moved), the tree refunded again; 24: Packet Snare's tree rearranged so no node does the same thing as the one it grows from, every level refunded; 23: Packet Snare's Firewalls became sections (layout.zones; drawn walls dropped), its tree regrown again with every level refunded; 22: Packet Snare's tree regrown (Snare 10: four wedges, capstones), every level refunded; 21: Packet Snare's placements (snare.layout: walls, decoys, turrets, towers; the anchors went), its tree regrown; 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
+    const SAVE_VERSION = 38;   // 38: The Feed, the ring's calm minigame (`feed`: its heap, layer, mites and fragments; feed.js `clean`), new and empty; 37: Evals' Marks (`evals.marks`, `earned`), the rivals passed on its score sheet (`passed`) and its upgrades (`levels`); 36: Evals' loopholes (how misaligned the AI is, `evals.learn.mis`, and the loopholes closed for a kind, `closed`); 35: Evals' handovers (a kind's `handed` and `own`: you hand kinds to the AI, it never takes them); 34: Evals, the third minigame: what the AI has learned by watching you (`evals`), new and empty. 33: Packet Snare's flick nodes gone (Packet Spoofing, Forged Headers, Privilege Escalation; the owner's call on D20), the laser line and Blue Screen re-hung, the tree refunded again; 32: Packet Snare 18.4 (Garbage Collection, Second Wind, Clean Sweep, Quarantine Relay, Zero Trust and IDS Evasion gone, Chain Lightning a travelling bolt, Hijack reworked), the tree refunded again; 31: Packet Snare's repeats folded into four deep roots round a seed (Handshake), Scrubbers gone, the Decoder Bot early, the tree refunded; 30: Packet Snare's red-packet nodes back (Sanitizer, Checksums, Spam Filter, Reputation Check, Rate Limiter, Error Correction, Parity Check, Signature Database), the Cleaner Bot later, the Bouncer and Escort bots and both towers gone, the tree refunded again; 29: Packet Snare's red-packet nodes became helpers (Cleaner Bot at the root, Bouncer and Escort bots, Checksum and Jammer towers), the packet and red nodes folded into the early ones, the tree refunded again; 28: Packet Snare's tree after the review rounds (Input Validation and Mirror Port folded in, Chain Lightning at 250), refunded again; 27: Packet Snare 15 (bubbles are the way to catch: Split, Supernova, Bigger Buffers, mines grabbed), the tree refunded again; 26: Packet Snare 14 (bots earlier, powers with five levels, Collector Bot), the tree refunded again; 25: Packet Snare 12 (the boss looped, the tree repriced and Root Access moved), the tree refunded again; 24: Packet Snare's tree rearranged so no node does the same thing as the one it grows from, every level refunded; 23: Packet Snare's Firewalls became sections (layout.zones; drawn walls dropped), its tree regrown again with every level refunded; 22: Packet Snare's tree regrown (Snare 10: four wedges, capstones), every level refunded; 21: Packet Snare's placements (snare.layout: walls, decoys, turrets, towers; the anchors went), its tree regrown; 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
     // Auto-Trainer, XP nodes) carry most of a new version's speed, so this stays small: at 0.2 a second run
@@ -38,6 +38,15 @@
     // The server room opens for it straight away; the Training Cluster keeps its own gate (module:path). Set false to
     // open it with Edge Detection again.
     const SNARE_OPEN_AT_START = true;
+    // The ring (design/ring.md, the planned demo; the owner's call on the switch, 2026-11-13): its rules apply only while
+    // this is on. Off, the game and every older test are as they were. game.js turns it on for `#ring` in the address;
+    // tests turn it on and off with `setRing`, so both rule sets are covered in one run.
+    let ring = false;
+    const setRing = on => { ring = !!on; };
+    const isRing = () => ring;
+    // The Feed's rules (feed.js), as Packet Snare's are read below.
+    const feedLib = () => (typeof module === 'object' && module.exports ? require('./feed.js') : self.Feed);
+    const feedSeed = now => Math.floor((typeof now === 'number' && now > 0 ? now : 1000) / 1000);
     // The leg frontier runs are built on: the next skill, or In-Context Learning once act one is done in the demo.
     const frontierLeg = s => (ACT_TWO_LOCKED ? Math.min(s.path.learned, ACT_TWO_LEG - 1) : s.path.learned);
     // Act one is done and the demo's gate stands: nothing more to learn on the trail.
@@ -1194,6 +1203,9 @@
             path: { learned: 0, best: 0, auto: [], legBest: [], legPower: [], breakDue: 0, surge: 0 },
             // Packet Snare (the Data Pipeline): the best run's haul this version (DP), runs, and the data it has caught.
             snare: { best: 0, runs: 0, signal: 0, earned: 0, sector: 0, bosses: 0, bestMult: 0, quarantined: 0, layout: { zones: [], decoys: [], turrets: [], towers: [] } },
+            // The Feed (feed.js): the heap as it lies, the layers cleared, the mites and the fragments found. Seeded by
+            // when the game began. It fills only under the ring.
+            feed: feedLib().newFeed({ seed: feedSeed(now) }),
             // Evals (evals.js): runs played, the best run, and `learn`, what the AI has learned of each kind of captcha by
             // watching you (see evals.js, the learner). A new version starts it again, like the rest of a version's play.
             evals: { runs: 0, best: 0, marks: 0, earned: 0, passed: 0, levels: {}, learn: { kinds: {}, mis: 0 } },   // auto[k]: automated laps of cleared stretch k; legBest[k]: best run XP from leg k; legPower[k]: your full-sprint strength when you last ran leg k (the Auto-Trainer's ghost plays at it)
@@ -2591,6 +2603,26 @@
         s.evals.earned += paid;
         return paid;
     }
+    // The Feed in the game (feed.js holds its rules; these pay what it earns into research, whole numbers). Each returns
+    // feed.js's result, { research, events }, for the screen. The kinds the model can read follow the skills learned.
+    const feedReadable = s => feedLib().LOCKED.filter(k => knows(s, feedLib().KINDS[k].skill));
+    function feedPay(s, out) {
+        if (out.research > 0) s.res.rp += out.research;
+        return out;
+    }
+    function feedSync(s) {
+        const want = feedReadable(s);
+        if (want.length === s.feed.readable.length && want.every(k => s.feed.readable.includes(k))) return { research: 0, events: [] };
+        return feedPay(s, feedLib().setReadable(s.feed, want));
+    }
+    // A Packet Snare run's packets arrive: load = { sector (1-based), packets, gold }.
+    const feedDeliver = (s, load) => feedPay(s, feedLib().deliver(s.feed, load));
+    const feedPoint = (s, cells) => feedLib().point(s.feed, cells);
+    function feedStep(s, dt) {
+        const synced = feedSync(s), out = feedPay(s, feedLib().step(s.feed, dt));
+        return { research: synced.research + out.research, events: [...synced.events, ...out.events] };
+    }
+
     // An Evals run is over: counted once, and the best run kept. `run` is evals.js's; `run.counted` guards a second call.
     function evalsRunEnd(s, run) {
         if (!run || run.counted) return false;
@@ -3215,6 +3247,8 @@
             sector: Math.min(99, Math.floor(num(raw.snare?.sector, 0))), bosses: Math.floor(num(raw.snare?.bosses, 0)),
             bestMult: Math.min(99, num(raw.snare?.bestMult, 0)), quarantined: Math.floor(num(raw.snare?.quarantined, 0)), layout: cleanLayout(raw.snare?.layout) };
         s.evals = cleanEvals(raw.evals);   // v34: new; older saves start it empty
+        // v38: The Feed. Older saves start it empty; a saved one is cleaned by its own rules (feed.js `clean`).
+        s.feed = feedLib().clean(raw.feed, { seed: feedSeed(now) });
         // v22: Packet Snare's tree was regrown (Snare 10), so every level is refunded: a version's Signal is only ever spent on
         // the tree, so what it earned is what it had before it spent any (debug Signal kept if it was more).
         // v24 (Snare 11.4): rearranged so no node does the same thing as the one it grows from; refunded again, and its
@@ -3403,7 +3437,7 @@
     }
 
     return {
-        SAVE_VERSION, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
+        SAVE_VERSION, setRing, isRing, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
         versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, startBreakCountdown, WALL_SURGE_RUNS, SURGE_POWER, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, ENDINGS, ending, recordLegPower, legPower, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
