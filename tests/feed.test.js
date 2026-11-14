@@ -152,14 +152,16 @@ test('research is whole numbers, a grain paying its share of a packet, and nothi
     }
 });
 
-test('a layer digested pays a lump; the next is 1.8 times bigger; the first and every second after it add a mite', () => {
+test('the hunger meter: full, the swarm splits (a new mite) and a lump is paid; the next needs 1.8 times as much', () => {
     const s = Feed.newFeed({ seed: 2 });
     Feed.deliver(s, { sector: 1, packets: 190, gold: 0 });
     const layers = eatAll(s).events.filter(e => e.type === 'layer');
     assert.deepEqual(layers.map(e => e.pay), [6, 11, 19], '0.2 of 30, 54 and 97 packets');
-    assert.deepEqual(layers.map(e => e.mite), [true, false, true]);
-    assert.equal(s.mites, 3);
-    assert.equal(s.swarm.length, 3, 'a place in the box for every mite');
+    assert.deepEqual(layers.map(e => e.mite), [true, true, true]);
+    assert.equal(s.mites, 4);
+    assert.equal(s.swarm.length, 4, 'a place in the box for every mite');
+    assert.deepEqual(Feed.hunger(s), { fed: (190 - 30 - 54 - 97) * G, need: 175 * G, share: 9 / 175, splits: 3 });
+    assert.deepEqual(Feed.hunger(Feed.newFeed()), { fed: 0, need: 30 * G, share: 0, splits: 0 });
     assert.equal(s.layers, 3);
     assert.deepEqual([0, 1, 2, 3].map(n => Feed.layerSize(n)), [30, 54, 97, 175]);
     assert.equal(s.fed, (190 - 30 - 54 - 97) * G, 'what is left over counts toward the next layer');

@@ -164,8 +164,9 @@ bullets and the table under it (a grid of face-down tiles, a drawn line), this i
   is data the model has no skill for yet (numbers until Embeddings, pictures until Edge Detection). Both take four
   times the bites (*proposed*) and pay nothing. Learning the skill turns that kind good, in the pile and from then on;
   garbled sand is never good.
-- **Layers are counted, not drawn:** every 30 packets' worth of paying sand eaten (then 1.8 times more each) is a layer
-  digested, with its lump of research and the mites as below.
+- **Hunger, not layers** (the owner's call; built): a meter fills as the swarm eats paying sand (30 packets' worth,
+  then 1.8 times more each). Full, the swarm splits: a new mite, and a lump of research. The model with a mite every
+  split: The Feed takes 14% of the first stretch (23% with one every second), the boss down at minute 14.
 - **Buried finds** (the owner's call): gold and fragments look like the sand round them until a mite has been near
   (its lamp, *proposed* 7 grains), and then show for good. Garbled and unknown sand always show, so you can steer
   round them from the start.
@@ -173,10 +174,26 @@ bullets and the table under it (a grid of face-down tiles, a drawn line), this i
 - *Proposed, to tune in play:* the box is 128 by 224 cells and holds about 1,600 packets; the spout pours 8 packets a
   second (faster backs up into a column) and more waits above it. Research is paid a grain's share of a packet. Mites
   are not hurt by anything.
-- *Open:* **layers no longer fit the sand** (the owner, 2026-11-13); what replaces them is being decided. So is how
-  the swarm grows and what else acts on the sand: the owner's notes point at tools that scan faster than mites,
-  pulses that shift the sand, and pipes or vacuums that sort it into piles, chained together. A sideways phone shows
-  the tall box very small.
+- *Open:* a sideways phone shows the tall box very small.
+
+**The direction from here: sessions and builds (the owner, 2026-11-13; not built, and to be built after Build 1's
+loop is joined).** In the owner's words and picks:
+
+- **A session can end.** If the swarm doesn't eat enough to split, because it isn't strong enough or there wasn't
+  enough data, the session ends, and you start fresh. (This replaces "no failed run" for The Feed. *Open:* what
+  "not enough" is measured against: a hunger that drains, the pile running out, or both.)
+- **Abilities come two ways:** *dug up* from the sand, as stat boosts or boosts that last a while; and *cards*, a pick
+  at each split, building a swarm over the session. Different swarm types and builds to try, while the swarm does the
+  hard work. It should feel unlike the other upgrade trees.
+- **It ties to skills and to Packet Snare:** later sectors bring sand that is harder to chew for better rewards, so
+  going back to an earlier sector's data is a real choice and not only the latest sector at full send.
+- **First abilities to try** (all four picked; our own takes, with Fish Lab as the reference for scanning, moving
+  things about and chaining): a **scanner sweep** that finds buried gold and fragments faster than lamps; a **pulse**
+  that shakes sand loose and mixes it; a **sorting pipe** that pulls one kind of sand out into its own heap; an **arc
+  between mites** that eats the sand on the line between two close together.
+- *Open, to ask before building:* what carries over between sessions; whether the swarm still eats while you are
+  elsewhere (a session that can end and a pile that is eaten unattended pull against each other); how a session picks
+  its data (which sector's, how much); what research a session pays against the ring's numbers.
 
 - **The picture.** Everything you snared lands in a heap of packets, grey and garbled. Your AI is a swarm of mites on
   top. Where they chew, tiles flip over and show what the data was.

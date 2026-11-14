@@ -95,7 +95,7 @@ test('junk in the save is cleaned', () => {
         readable: ['pictures', 'plain', 7], fragNext: 99, fragments: { parcel: [0, 0, 9, 'a', 2], other: [1] }, stats: { delivered: 12.5, eaten: -1, research: 1e300, extra: 4 } };
     const f = E.migrate({ version: E.SAVE_VERSION, feed: old }, NOW).feed;
     assert.equal(f.layers, 2);
-    assert.equal(f.mites, 3, 'never more mites than the layers digested could have given');
+    assert.equal(f.mites, 3, 'never more mites than the splits could have given');
     assert.equal(f.swarm.length, 3);
     assert.equal(f.grains, 0);
     assert.ok(f.cells.length === W * H && f.cells.every(v => v === 0));

@@ -17,7 +17,7 @@
     // Strata, in the order deliveries come (feed.js `bands`). Chosen to sit apart on the dark themes.
     const BANDS = ['#e8c07a', '#d98a5f', '#7fc8a9', '#6fa8dc', '#c9a0e8', '#e6dfc8'];
     const TESTS = [['+40', [1, 40, 4]], ['+75 dirty', [2, 75, 6, 10]], ['+200 dirty', [4, 200, 15, 20, 20]]];
-    let dlg = null, canvas = null, ctx = null, stage = null, promptEl = null, layerEl = null, mitesEl = null, researchEl = null, fragEl = null;
+    let dlg = null, canvas = null, ctx = null, stage = null, promptEl = null, hungerEl = null, layerEl = null, mitesEl = null, researchEl = null, fragEl = null;
     let sand = null, sandCtx = null, image = null, pixels = null, palette = null;
     // The window on the box, in cells: `cols` × `rows` from (`x`, `y`), a cell `cell` px, drawn from (`ox`, `oy`).
     let view = { w: 0, h: 0, x: 0, y: 0, cols: 0, rows: 0, cell: 4, ox: 0, oy: 0, want: null };
@@ -41,6 +41,8 @@
 
     function build() {
         layerEl = el('span', { class: 'feed-stat' });
+        // The hunger meter: full, the swarm splits.
+        hungerEl = el('div', { class: 'feed-hunger', role: 'progressbar', 'aria-label': 'Hunger', 'aria-valuemin': '0', 'aria-valuemax': '100' }, el('div', { class: 'feed-hunger-fill' }));
         mitesEl = el('span', { class: 'feed-stat' });
         researchEl = el('span', { class: 'feed-stat feed-research' });
         promptEl = el('div', { class: 'feed-prompt', 'aria-live': 'polite' });
@@ -56,7 +58,7 @@
             el('div', { class: 'feed-bar' },
                 el('span', { class: 'feed-title', text: 'The Feed' }), layerEl, mitesEl, researchEl,
                 el('button', { type: 'button', class: 'ghost-button feed-close', 'aria-label': 'Close The Feed', text: '×', onclick: close })),
-            tests, promptEl, stage, fragEl);
+            hungerEl, tests, promptEl, stage, fragEl);
         dlg.addEventListener('close', stop);
         canvas.addEventListener('pointerdown', e => { if (e.button !== 0) return; canvas.setPointerCapture?.(e.pointerId); held = e.pointerId; lead(e); });
         canvas.addEventListener('pointermove', e => { if (held === e.pointerId) lead(e); });
@@ -113,13 +115,14 @@
     // `MIN_COLS` cells across, never wider or taller than the box.
     function frame(f) {
         const box = F().FEED, { w, h, cells } = f;
+        // The pile is the rows from the floor up that hold more than a thread of sand: the stream falling from the
+        // spout is a grain or two wide, and the view shouldn't draw back for it.
         let minX = w, maxX = -1, top = h;
-        for (let i = 0; i < cells.length; i++) {
-            if (!cells[i] || (i + w < cells.length && !cells[i + w])) continue;   // empty, or still falling
-            const x = i % w, y = (i - x) / w;
-            if (y < top) top = y;
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
+        for (let y = h - 1; y >= 0; y--) {
+            let n = 0, lo = w, hi = -1;
+            for (let x = 0; x < w; x++) if (cells[y * w + x]) { n++; if (x < lo) lo = x; if (x > hi) hi = x; }
+            if (n < 5) break;
+            top = y; if (lo < minX) minX = lo; if (hi > maxX) maxX = hi;
         }
         const pad = 8, aspect = (view.w - pad * 2) / (view.h - pad * 2);
         const reach = maxX < 0 ? 0 : Math.max(w / 2 - minX, maxX + 1 - w / 2) * 2;   // the pile's width about the spout's line
@@ -157,8 +160,8 @@
             if (ev.type === 'found') { if (ev.kind === 'fragment' || gold++ % 8 === 0) sparks.push({ at: now, x: ev.x + 0.5, y: ev.y + 0.5, kind: ev.kind }); }
             else if (ev.type === 'fragment') pops.push({ at: now, text: `Fragment ${ev.found}/${ev.of}`, color: 'primary' });
             else if (ev.type === 'layer') {
-                pops.push({ at: now, text: `Layer ${ev.layer} digested · +${E().format(ev.pay)} research`, color: 'research', big: true });
-                if (ev.mite) pops.push({ at: now + 500, text: `The swarm grows · ${plural(ev.mites, 'mite', 'mites')}`, color: 'good' });
+                pops.push({ at: now, text: ev.mite ? `The swarm splits · ${plural(ev.mites, 'mite', 'mites')}` : 'Fed', color: 'good', big: true });
+                pops.push({ at: now + 400, text: `+${E().format(ev.pay)} research`, color: 'research' });
             }
         }
         if (sparks.length > 40) sparks.splice(0, sparks.length - 40);
@@ -275,7 +278,9 @@
         raf = requestAnimationFrame(tick);
         const f = feed(); if (!f) return;
         frames++;
-        text(layerEl, `Layer ${f.layers + 1}`);
+        const hunger = F().hunger(f), pct = Math.round(hunger.share * 100);
+        text(layerEl, `Hunger ${pct}%`);
+        if (hungerEl.firstChild.style.width !== pct + '%') { hungerEl.firstChild.style.width = pct + '%'; hungerEl.setAttribute('aria-valuenow', String(pct)); }
         text(mitesEl, plural(f.mites, 'mite', 'mites'));
         text(researchEl, `${E().format(Math.floor(game().res.rp))} research`);
         text(promptEl, prompt());

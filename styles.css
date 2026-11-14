@@ -3969,3 +3969,6 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
 .feed-scrap.found { color: var(--text); opacity: 1; flex-shrink: 1; }
 @media (max-width: 520px) { .feed-bar { gap: 9px; padding-left: 10px; padding-right: 6px; } .feed-stat { font-size: 0.8rem; } }
 @media (max-height: 520px) { .feed-bar { padding-top: 2px; padding-bottom: 2px; } .feed-prompt { height: 1.6rem; line-height: 1.6rem; } .feed-fragment { height: 1.8rem; } }
+.feed-hunger { height: 6px; background: var(--bg-2); border-bottom: 1px solid var(--border); }
+.feed-hunger-fill { height: 100%; width: 0; background: var(--success); transition: width 0.25s linear; }
+@media (prefers-reduced-motion: reduce) { .feed-hunger-fill { transition: none; } }

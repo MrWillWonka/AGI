@@ -24,8 +24,9 @@
 // sand is in its way and then the sand nearest the point. So you lead them into a seam, or away from bad sand that
 // would waste their time.
 //
-// **Layers** are counted, not drawn: every `layerSize(n)` packets' worth of paying sand eaten is a layer digested (30,
-// then ×1.8). It pays a lump of research; the first and then every second one add a mite for good.
+// **Hunger** (the owner's call, replacing layers, which made no sense in sand): a meter fills as the swarm eats paying
+// sand. Full (`layerSize(n)` packets' worth: 30, then ×1.8 each time), the swarm splits: a new mite for good, and a
+// lump of research. `layers` counts the splits, `fed` what has gone into the meter since the last (see `hunger`).
 //
 // Pure and deterministic: no DOM, no clock, no Math.random (the generator's position is in the state, so a saved pile
 // carries on exactly). The state is plain data, ready for the save. Loaded in the browser as window.Feed and in Node
@@ -49,7 +50,7 @@
         layerFirst: 30,     // packets' worth of paying sand in the first layer
         layerGrow: 1.8,     // each layer is this much bigger than the last (the model's `layerGrow`)
         miteFirst: 1,       // the first new mite comes with this layer (the owner's call: the first; the model's `miteFirst`)
-        miteEvery: 2,       // and another every this many layers after it (the model's `miteEvery`)
+        miteEvery: 1,       // and another every this many after it: every split (the owner's call; the model's `miteEvery`)
         layerPay: 0.2,      // a layer's lump of research, as a share of its packets
         pour: 8,            // packets a second through the spout: slow enough that the pile sheds it and no column backs up
         spout: 12,          // the spout's half-width, in cells
@@ -416,6 +417,12 @@
     // The readable kinds for a list of learned skill names.
     const readableFor = skills => LOCKED.filter(k => (skills || []).includes(KINDS[k].skill));
 
+    // The hunger meter: paying grains eaten since the last split, the grains a split needs, and the share of the way there.
+    function hunger(state, opts) {
+        const o = opt(opts), need = layerSize(state.layers, o) * o.grains;
+        return { fed: state.fed, need, share: Math.min(1, state.fed / need), splits: state.layers };
+    }
+
     // How many grains of each kind lie in the box.
     function census(state) {
         const out = {};
@@ -482,5 +489,5 @@
     }
 
     return { FEED, KINDS, KIND_IDS, LOCKED, FRAGMENTS, STEP, newFeed, clean, deliver, point, step, setReadable, readableFor,
-        pack, unpack, left, waiting, fill, census, layerSize, bitesFor, kindOf, bandOf, seenOf, hpOf };
+        pack, unpack, left, waiting, fill, census, hunger, layerSize, bitesFor, kindOf, bandOf, seenOf, hpOf };
 });

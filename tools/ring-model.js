@@ -20,13 +20,13 @@
 //   tough      bites per packet by sector
 //   layerGrow  how much bigger each layer of the heap is than the last
 //   miteFirst  the first new mite comes with this layer cleared (the owner's call: the first)
-//   miteEvery  and another every this many layers after it
+//   miteEvery  and another every this many after it (the owner's call: every time the hunger meter fills)
 //   payback    the player buys a Graphics Card before paying for runs while it pays for itself within this many seconds
 //   clicks     lab clicks a second
 
 'use strict';
 
-const DEFAULTS = { q: 10, qGrow: 1.6, s: 35, chew: 2, graze: 0.25, tough: [1, 2, 3], layerGrow: 1.8, miteFirst: 1, miteEvery: 2, payback: 120, clicks: 2.5 };
+const DEFAULTS = { q: 10, qGrow: 1.6, s: 35, chew: 2, graze: 0.25, tough: [1, 2, 3], layerGrow: 1.8, miteFirst: 1, miteEvery: 1, payback: 120, clicks: 2.5 };
 const DESK = [15, 25, 40, 60, 75];
 const PACKETS = { 1: 45, 2: 75, 3: 75 };
 const CLOCK = { 1: 12, 2: 12.5, 3: 14 };
@@ -94,7 +94,7 @@ const VARIANTS = [
     ['runs cost 16 compute a second', { q: 16 }],
     ['a sprint costs 20 research', { s: 20 }],
     ['a sprint costs 50 research', { s: 50 }],
-    ['the first mite on the second layer', { miteFirst: 2 }],
+    ['a mite every second fill', { miteEvery: 2 }],
     ['a mite every layer, one bite a packet', { miteEvery: 1, tough: [1, 1, 1], layerGrow: 1.4, chew: 3 }],
     ['no grazing while you are elsewhere', { graze: 0 }],
     ['1.5 clicks a second', { clicks: 1.5 }],
