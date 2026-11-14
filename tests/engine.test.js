@@ -70,8 +70,9 @@ test('Packet Snare\'s tree follows the Training tree\'s rules: priced past its p
         const parent = n.requires ? E.UPGRADE_BY_ID[n.requires] : null;
         const at = parent ? parent.snare : { x: 0, y: 0 };
         if (parent || n.snare.x || n.snare.y) assert.equal(Math.abs(at.x - n.snare.x) + Math.abs(at.y - n.snare.y), 1, `${n.id} is adjacent to what it grows from`);
-        // a folded node's children are priced past its second level (it goes on growing beside them)
-        if (parent) assert.ok(n.cost.signal > total(parent, parent.deep ? Math.min(2, parent.max) : parent.max), `${n.id}'s first level costs more than ${parent.id}'s last`);
+        // a folded node's children are priced past its second level (it goes on growing beside them); Sprawl's past its
+        // first (`opens: 1`, the owner's call: one cheap level shows the boss nodes, then it climbs steeply)
+        if (parent) assert.ok(n.cost.signal > total(parent, parent.deep ? Math.min(parent.opens || 2, parent.max) : parent.max), `${n.id}'s first level costs more than ${parent.id}'s last`);
     }
     // Every node that brings a new rule is a hexagon.
     assert.ok(nodes.length >= 40, 'a big tree');
@@ -2050,9 +2051,14 @@ test('Packet Snare: red is the early fight (22% on sector 2, 35% on sectors 3–
     const before = E.snareOpts(s, 1).corruptShare;
     s.levels.snareSanitizer = 1;
     assert.ok(E.snareOpts(s, 1).corruptShare < before * 0.9, 'Sanitizer: fewer red');
-    // the owner's call (Snare 17): the Decoder Bot comes early, one step off the Sanitizer, in Scrubbers' place
+    // the owner's call (Snare 17): the Decoder Bot comes early, in Scrubbers' place; since Sprawl and Sanitizer swapped
+    // (2026-11-14) its cell adjoins Sprawl, whose first level is 15 Signal
     const cb = E.UPGRADE_BY_ID.snareCleanerBot;
-    assert.ok(cb.requires === 'snareSanitizer' && cb.cost.signal <= 150, 'an early buy off the Sanitizer');
+    assert.ok(cb.requires === 'snareSprawl' && cb.cost.signal <= 150 && E.upgradeCost(E.UPGRADE_BY_ID.snareSprawl, 0).signal <= 20, 'an early buy off the cheap first level of the boss branch');
+    // Sprawl roots the boss branch and climbs steeply; Sanitizer starts Flow and leads to gold and containment
+    assert.deepEqual([E.UPGRADE_BY_ID.snareSprawl.snare, E.UPGRADE_BY_ID.snareSanitizer.snare], [{ x: 0, y: 1 }, { x: 1, y: 0 }]);
+    assert.deepEqual(['snareGold', 'snareContain', 'snareKernelPanic'].map(id => E.UPGRADE_BY_ID[id].requires), ['snareSanitizer', 'snareSanitizer', 'snareSprawl']);
+    assert.ok(E.upgradeCost(E.UPGRADE_BY_ID.snareSprawl, 1).signal >= 600 && E.upgradeCost(E.UPGRADE_BY_ID.snareSprawl, 3).signal >= 12000, 'the field stays close for longer');
     assert.equal(E.UPGRADE_BY_ID.snareGoldPlate.requires, 'snareCleanerBot', 'Gold Plating right after it: good to gold');
     assert.ok(E.UPGRADE_BY_ID.snareGoldPlate.cost.signal <= 10000, 'mid-tree');
 });
@@ -2098,7 +2104,7 @@ test('Packet Snare: the boss nodes show once a boss is met', () => {
     const s = E.defaultState();
     s.unlocked['module:snare'] = true;
     s.levels.snareSeed = 1;
-    s.levels.snareSanitizer = 1;
+    s.levels.snareSprawl = 1;
     s.snare.sector = E.SNARE_FIRST_BOSS;
     E.evaluate(s);
     assert.equal(E.isUpgradeVisible(s, E.UPGRADE_BY_ID.snareKernelPanic), false, 'not on reaching its sector');

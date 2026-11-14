@@ -4207,3 +4207,6 @@ body.ring-device .room-frame::after, body.ring-device #viewport::after { display
 body.ring-device .module-view { padding: 0; background: none; }
 body.ring-device .room-frame, body.ring-device #viewport { padding: 0 16px; }
 body.ring-device.device-phone .room-frame, body.ring-device.device-phone #viewport { padding: 0 10px; }
+body.ring-device.device-phone .snare-tree-bar { flex-wrap: nowrap; gap: 8px; }
+body.ring-device.device-phone .snare-tree-bar .snare-tree-title { display: none; }
+body.ring-device.device-phone .snare-tree-bar .button, body.ring-device.device-phone .snare-tree-bar .ghost-button { white-space: nowrap; }

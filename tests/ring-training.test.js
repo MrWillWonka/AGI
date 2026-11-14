@@ -134,3 +134,22 @@ test('the ring: the old lab stays hidden once training opens (no Server Clusters
     for (let i = 0; i < 5; i++) E.evaluate(s);
     assert.ok(E.isUpgradeVisible(s, E.UPGRADES.find(u => u.id === 'server')), 'the old game shows them as ever');
 });
+
+test('the ring: Antivirus notice a cleaner, bigger field (one more per seven cleaner units, three at most); the old game is unchanged', () => {
+    const s = online();
+    const k = E.AV_SECTOR ?? 3;
+    const count = () => E.snareOpts(s, k).antivirus.length;
+    const base = count();
+    assert.ok(base >= 1);
+    s.levels.snareSanitizer = 4;   // five cleaner units
+    assert.equal(count(), base);
+    s.levels.snareSanitizer = 5;   // seven
+    assert.equal(count(), base + 1);
+    s.levels.snareSanitizer = 9;   // twenty-one
+    assert.equal(count(), base + 3);
+    assert.equal(E.snareOpts(s, 1).antivirus.length, 0, 'none before Antivirus arrive');
+    assert.ok(E.snareOpts(s, k).avArea > 0.25);
+    E.setRing(false);
+    assert.equal(count(), base, 'the old game counts them as before');
+    assert.equal(E.snareOpts(s, k).avArea, 0.25);
+});
