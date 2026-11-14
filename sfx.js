@@ -1,8 +1,34 @@
 // sfx.js — sound effects, synthesised with Web Audio (no files, no dependencies).
 // window.SFX.play(name, opts) for one-shots; SFX.charge(level) / SFX.chargeStop() for the held sprint meter.
 // Silent until the first user gesture (browsers block audio before one) and at volume 0.
+// The engine is built by `build(env)`. The game's is `build()`: a live AudioContext, real timers, the page's
+// gestures. Tools build a second one on an OfflineAudioContext (`window.SFXBuild({ ctx, offline: true, random })`)
+// and drive it with `tick()`, so renders and measurements run the same code the game plays (tools/audio/).
 (function () {
     'use strict';
+    window.SFXBuild = build;
+    window.SFX = build();
+    function build(env = {}) {
+    // (The body below keeps its old indent, so the history stays readable.)
+    const rnd = env.random || Math.random;
+    // Is audio running? An offline context renders later, so it always counts as running.
+    const live = () => !!ctx && (!!env.offline || ctx.state === 'running');
+    // Clean-up after a fade: real time in the game; offline, the nodes just stay (silent) until the render ends.
+    const later = (fn, ms) => { if (!env.offline) setTimeout(fn, ms); };
+    // A scheduler's timer: offline, the tool calls `tick()` at each step of render time.
+    const every = (fn, ms) => (env.offline ? (ticks.add(fn), fn) : setInterval(fn, ms));
+    const stopEvery = id => { if (env.offline) ticks.delete(id); else clearInterval(id); };
+    const ticks = new Set();
+    function tick() { for (const fn of [...ticks]) fn(); }
+    // A sound or a step of music that threw: the game carries on, but it is never silent about it. The first few go
+    // to the console (all of them with window.AGI_AUDIO_DEBUG); tools collect every one (`env.onError`).
+    const faults = { count: 0, last: null };
+    function fault(where, e) {
+        faults.count++;
+        faults.last = where + ': ' + ((e && e.message) || e);
+        if (env.onError) env.onError(where, e);
+        else if (faults.count <= 3 || window.AGI_AUDIO_DEBUG) console.warn('[audio] ' + faults.last);
+    }
 
     let ctx = null;
     let master = null;
@@ -14,8 +40,8 @@
     function ensure() {
         if (ctx || (volume <= 0 && musicVolume <= 0)) return ctx;
         const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return null;
-        ctx = new AC();
+        if (!env.ctx && !AC) return null;
+        ctx = env.ctx || new AC();
         master = ctx.createGain();
         master.gain.value = volume * 0.6;
         // A gentle compressor keeps stacked effects from clipping.
@@ -57,9 +83,9 @@
             src.start();
         } catch { /* fine */ }
     }
-    ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach(t => window.addEventListener(t, unlock, { capture: true, passive: true }));
+    if (!env.offline) ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach(t => window.addEventListener(t, unlock, { capture: true, passive: true }));
     // Back from the background (a phone call, another app): resume on the next gesture, and try at once.
-    document.addEventListener('visibilitychange', () => { if (!document.hidden && ctx && ctx.state !== 'running') ctx.resume().catch(() => {}); });
+    if (!env.offline) document.addEventListener('visibilitychange', () => { if (!document.hidden && ctx && ctx.state !== 'running') ctx.resume().catch(() => {}); });
 
     function setVolume(v) {
         volume = Math.max(0, Math.min(1, Number(v) || 0));
@@ -126,7 +152,7 @@
         if (!noiseBuf) {
             noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
             const d = noiseBuf.getChannelData(0);
-            for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+            for (let i = 0; i < d.length; i++) d[i] = rnd() * 2 - 1;
         }
         const P = simple || ownSound ? null : PROFILES[style];
         if (P?.noise) ({ dur, gain, f0, f1 } = P.noise({ dur, gain, f0, f1 }));
@@ -247,7 +273,7 @@
     // register with a short tick (it took data's old sound, the owner's call; an octave lower it sat under the
     // tracks' basses and couldn't be heard), data bright and short, research high and bell-like.
     // Phone speakers push the upper mids, where data's square blip sits: it's quieter and darker there.
-    const PHONE = !!window.matchMedia?.('(pointer: coarse)').matches;
+    const PHONE = env.phone ?? !!window.matchMedia?.('(pointer: coarse)').matches;
     const CLICK_NOTES = {
         cp: [69, 64, 67, 64, 72, 64, 67, 62],       // compute: round, round A4
         dp: [81, 76, 79, 76, 84, 76, 79, 74],       // data: a bright figure an octave up
@@ -257,8 +283,8 @@
     // A different variation from last time: `vary(key, n)` never returns the same index twice running.
     const lastVar = {};
     function vary(key, n) {
-        let i = Math.floor(Math.random() * n);
-        if (n > 1 && i === lastVar[key]) i = (i + 1 + Math.floor(Math.random() * (n - 1))) % n;
+        let i = Math.floor(rnd() * n);
+        if (n > 1 && i === lastVar[key]) i = (i + 1 + Math.floor(rnd() * (n - 1))) % n;
         lastVar[key] = i;
         return i;
     }
@@ -317,7 +343,7 @@
     }
 
     const SOUNDS = {
-        // Workbench jobs: a note on the bar's current 8th (a hold lands on the 8ths: see holdDelay). Compute a
+        // Workbench jobs: a note on the bar's current 8th (a hold plays the 8ths: see `held`). Compute a
         // round triangle, data the square blip, research a sine with its octave.
         click: ({ res = 'cp' } = {}) => {
             const n = clickNote(res);
@@ -1062,17 +1088,21 @@
     const NO_VARY = { click: true, snareRace: true };
     function play(name, opts) {
         const gv = mix[GROUP_OF[name] || 'ui'];
-        if (volume <= 0 || gv <= 0 || !SOUNDS[name] || !ensure() || ctx.state !== 'running') return;
+        if (volume <= 0 || gv <= 0 || !SOUNDS[name] || !ensure() || !live()) return;
         const now = ctx.currentTime;
-        if (last[name] != null && now - last[name] < (GAP[name] ?? 0.03)) return;
-        last[name] = now;
+        const at = opts?.t;      // an exact audio time (the held-job part schedules its own grid points)
+        if (at == null) {
+            if (last[name] != null && now - last[name] < (GAP[name] ?? 0.03)) return;
+            last[name] = now;
+        }
         // Every sound lands on the track's grid, in every track and in simple sounds: the next 16th (a held
         // click and the stingers the next 8th, `q` from game.js or QUANT). If a slowed track puts the 8th too
         // far off, the next 16th.
         const div = opts?.q ?? QUANT[name] ?? 1;
-        base = Math.max(0, nextStep(div).t - now);
-        if (base > 0.3 && div > 1) base = Math.max(0, nextStep(1).t - now);
+        base = Math.max(0, (at ?? nextStep(div).t) - now);
+        if (at == null && base > 0.3 && div > 1) base = Math.max(0, nextStep(1).t - now);
         startAt = now + base;
+        if (name === 'click') lastClickAt = startAt;
         gmul = gv * ((simple ? SIMPLE_TRIM : SFX_TRIM)[style] || 1);
         const st = SNARE_TRIM[(simple ? 's:' : '') + style];
         if (st && name.startsWith('snare')) gmul *= st[name + ':' + (opts?.kind ?? { snarePlace: 'wall', snarePower: 'freeze' }[name])] ?? st[name] ?? 1;
@@ -1084,7 +1114,7 @@
             if (simple) (SIMPLE[name] || SIMPLE.default)(opts);
             else if (own) own(name === 'buyBig' ? { ...opts, big: true } : opts || {});
             else SOUNDS[name](opts);
-        } catch { /* a bad node never breaks the game */ }
+        } catch (e) { fault('play ' + name, e); }   // a bad node never breaks the game
         base = 0;
         startAt = null;
         gmul = 1;
@@ -1092,13 +1122,38 @@
         varDeg = 0; varNoise = 1;
     }
 
-    // Milliseconds until the next held-job beat: the next 8th note (at least `minMs` away), or while the track
-    // is slowed, the grid step closest to an 8th at full tempo. Null without a running audio clock (game.js
-    // then repeats at its own 8th, 242 ms).
-    function holdDelay(minMs = 60) {
-        if (!ctx || ctx.state !== 'running' || !clock) return null;
-        const div = Math.max(1, Math.round((2 * STEP) / clock.len));
-        return (nextStep(div, minMs / 1000).t - ctx.currentTime) * 1000;
+    // A held job: while the game says a job is held (`held(res)` with each repeat it pays, `held(null)` on
+    // release), its click figure plays on the track's grid, a note every `HOLD_DIV` steps (the 8ths). The game
+    // times its own repeats (`E.holdClock`): this part only accompanies them, so it needn't be a note a repeat,
+    // and it never plays on after the hold (it stops on release, or `HOLD_KEEP` s after the last repeat, and
+    // schedules at most `HOLD_AHEAD` s ahead). The first note takes the next 16th, a pick-up into the 8ths.
+    const HOLD_DIV = 2, HOLD_KEEP = 0.4, HOLD_AHEAD = 0.08;
+    let holdPart = null;            // { res, until, next (step), first, timer }
+    let lastClickAt = 0;            // the audio time of the last click scheduled (taps included)
+    function held(res) {
+        if (!res) {
+            if (holdPart) { stopEvery(holdPart.timer); holdPart = null; }
+            return;
+        }
+        if (volume <= 0 || mix.clicks <= 0 || !ensure() || !live()) return;
+        const until = ctx.currentTime + HOLD_KEEP;
+        if (holdPart) { holdPart.res = res; holdPart.until = until; return; }
+        const from = Math.max(ctx.currentTime, lastClickAt + S() / 2);
+        holdPart = { res, until, next: Math.ceil(stepAt(from) - 1e-6), first: true, timer: every(holdTick, 25) };
+        holdTick();
+    }
+    function holdTick() {
+        const h = holdPart;
+        if (!h) return;
+        const now = ctx.currentTime;
+        if (now > h.until || !live()) return held(null);
+        // After a stall, pick the grid up from now: never a burst of the notes that were missed.
+        if (stepTime(h.next) < now - 0.05) h.next = Math.ceil(stepAt(now) / HOLD_DIV - 1e-6) * HOLD_DIV;
+        while (stepTime(h.next) < now + HOLD_AHEAD && stepTime(h.next) <= h.until) {
+            play('click', { res: h.res, t: Math.max(now, stepTime(h.next)) });
+            h.next = h.first ? Math.floor(h.next / HOLD_DIV + 1) * HOLD_DIV : h.next + HOLD_DIV;
+            h.first = false;
+        }
     }
 
     // The sprint meter: while you hold, it plays along with the track instead of a rising tone (the owner
@@ -1134,8 +1189,8 @@
     const BASE_TRIM = { classic: 1.76, dark: 1.8, soft: 1.48, ominous: 1.66, retro: 0.91, 's:classic': 1.93, 's:dark': 3.24, 's:soft': 1.22, 's:ominous': 1.29, 's:retro': 3.05 };
     let lastVoice = -1;
     function chargeVoice() {
-        let i = Math.floor(Math.random() * CHARGE_VOICES.length);
-        if (i === lastVoice) i = (i + 1 + Math.floor(Math.random() * (CHARGE_VOICES.length - 1))) % CHARGE_VOICES.length;
+        let i = Math.floor(rnd() * CHARGE_VOICES.length);
+        if (i === lastVoice) i = (i + 1 + Math.floor(rnd() * (CHARGE_VOICES.length - 1))) % CHARGE_VOICES.length;
         lastVoice = i;
         return CHARGE_VOICES[i];
     }
@@ -1175,7 +1230,7 @@
 
     // Held: `level` is the charge (0-1); `free` is act two's thrust.
     function charge(level, free = false) {
-        if (volume <= 0 || mix.training <= 0 || !ensure() || ctx.state !== 'running') return;
+        if (volume <= 0 || mix.training <= 0 || !ensure() || !live()) return;
         const now = ctx.currentTime;
         const l = Math.max(0, Math.min(1, level));
         if (chargeOsc && chargeOsc.free !== free) chargeStop();
@@ -1197,7 +1252,7 @@
         const { out } = chargeOsc;
         chargeOsc = null;
         out.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.03);
-        setTimeout(() => out.disconnect(), 500);
+        later(() => out.disconnect(), 500);
     }
 
     // ---- Music: songs in each track's voice, that follow the run -----------------------------------------
@@ -1232,7 +1287,7 @@
     }
 
     function startMusic() {
-        if (music || musicVolume <= 0 || !ensure() || ctx.state !== 'running') return;
+        if (music || musicVolume <= 0 || !ensure() || !live()) return;
         const bus = ctx.createGain();
         bus.gain.value = musicLevel();
         const filter = ctx.createBiquadFilter();
@@ -1256,17 +1311,17 @@
         const first = nextStep(16, 0.05);          // joins the clock on a downbeat, in time with the grid sounds
         music = { bus, parts, drive, dry, wet, filter, trim, nextStep: first.t, step: first.n,
             area, song: songFor[area], songStep: first.n, left: {}, cmd: null };
-        music.timer = setInterval(schedule, 25);
+        music.timer = every(schedule, 25);
     }
 
     function stopMusic() {
         if (!music) return;
-        clearInterval(music.timer);
+        stopEvery(music.timer);
         const m = music;
         music = null;
         if (clock.len !== STEP) { const n = Math.ceil(stepAt(ctx.currentTime)); retime(STEP, n, stepTime(n)); }
         m.bus.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.1);
-        setTimeout(() => m.filter.disconnect(), 600);
+        later(() => m.filter.disconnect(), 600);
     }
 
     // One voice into the music, through its part: the beat (kick, hats, claps) or the tones (everything
@@ -1315,7 +1370,7 @@
             const f = ctx.createBiquadFilter();
             o.type = type;
             o.frequency.value = NOTE(n + shift());
-            o.detune.value = (Math.random() - 0.5) * 10;
+            o.detune.value = (rnd() - 0.5) * 10;
             f.type = 'lowpass';
             f.frequency.value = cutoff;
             g.gain.setValueAtTime(0.0001, t);
@@ -1337,7 +1392,7 @@
             g.gain.setValueAtTime(gain, t);
             g.gain.exponentialRampToValueAtTime(0.0001, t + len);
             src.connect(f).connect(g);
-            src.start(t, Math.random() * 0.5);
+            src.start(t, rnd() * 0.5);
             src.stop(t + len + 0.02);
         }, 'beat');
     }
@@ -1353,7 +1408,7 @@
             g.gain.setValueAtTime(gain, t);
             g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
             src.connect(f).connect(g);
-            src.start(t, Math.random() * 0.5);
+            src.start(t, rnd() * 0.5);
             src.stop(t + 0.2);
         }, 'beat');
     }
@@ -1983,10 +2038,17 @@
         };
     }
     function schedule() {
-        if (!music || ctx.state !== 'running' || document.hidden) return;
+        if (!music || !live() || (!env.offline && document.hidden)) return;
         const now = ctx.currentTime;
         const dt = Math.min(0.5, now - (music.last ?? now));
         music.last = now;
+        // Back from a hidden tab or a long stall: pick the song up from now. The steps that were missed are
+        // skipped (the song went on while you were away), never scheduled all at once.
+        if (music.nextStep < now - 0.3) {
+            const k = Math.ceil((now + 0.02 - music.nextStep) / clock.len);
+            music.step += k;
+            music.nextStep += k * clock.len;
+        }
         music.k ??= intensity;
         music.k += (intensity - music.k) * (1 - Math.exp(-dt / (intensity > music.k ? RISE : FALL)));
         const k = music.k;
@@ -2022,7 +2084,7 @@
                     // Every eighth bar ends in a fill, so the song phrases instead of repeating one bar for ever.
                     if (st8.fill && L.off > 0.5 && c.barIn === 7 && s >= 12) st8.fill(t, s, k, len, L, c);
                 }
-            } catch { /* a bad note never stops the music */ }
+            } catch (e) { fault('music ' + style + ' step ' + s, e); }   // a bad note never stops the music
             songLvl = 1;
             music.nextStep += len;
             music.step++;
@@ -2053,7 +2115,7 @@
     function musicState(k, m = null) {
         intensity = Math.max(0, Math.min(1, Number(k) || 0));
         mode = m;
-        if (musicVolume > 0 && ctx?.state === 'running') startMusic();
+        if (musicVolume > 0 && (live() || (env.offline && ensure()))) startMusic();
     }
 
     // A breakthrough: a rising swell into the filter, then a crash on the next beat.
@@ -2121,5 +2183,6 @@
             for (const k of Object.keys(musicMix)) music.parts[k].gain.setTargetAtTime(partLevel(k), ctx.currentTime, 0.2);
         }
     }
-    window.SFX = { play, holdDelay, setArea, setDepth, setTraining, songCmd, get song() { return songNow(); }, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
+    return { tick, get context() { return ctx; }, get faults() { return { ...faults }; }, get sounds() { return Object.keys(SOUNDS); }, play, held, setArea, setDepth, setTraining, songCmd, get song() { return songNow(); }, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
+    }
 })();
