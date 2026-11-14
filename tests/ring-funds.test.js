@@ -72,3 +72,14 @@ test('the ring off: the desk costs compute as ever, and no money story', () => {
     assert.equal(E.fundStep(s), null);
     assert.equal(E.MAIL.find(m => m.id === 'dad').when(s), false);
 });
+
+test('the ring: Packet Snare trickles no research of its own, even with Research open (The Feed makes it)', () => {
+    const s = game();
+    s.snare.best = 300; s.snare.runs = 20; s.unlocked['action:research'] = true;
+    assert.equal(E.derive(s).snareRp, 0);
+    const before = s.res.rp;
+    for (let i = 0; i < 300; i++) E.tick(s, 0.1);
+    assert.equal(s.res.rp, before);
+    E.setRing(false);
+    assert.ok(E.derive(s).snareRp > 0, 'the old game keeps its trickle');
+});

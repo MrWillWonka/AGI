@@ -2399,7 +2399,7 @@ window.AGI = (function () {
         if (!E.isRing() || state.intro['ring:feedIntro']) return;
         const steps = [
             ['What you catch lands here', 'Every packet you catch in Packet Snare falls into The Feed and turns into sand.'],
-            ['Your mites eat it', 'They work on their own, even while you are away, and what they eat becomes research.'],
+            ['Your mites eat it', 'They work on their own, even while you are in another app, and what they eat becomes research. They stop when the game is closed.'],
             ['Lead them', 'Hold a point on the pile and the mites go there. Send them at the good sand first.'],
             ['Garbled sand is slow', 'Sand from garbled catches takes longer to eat and pays nothing. It still has to be cleared.']];
         const dlg = el('dialog', { class: 'dialog ring-welcome', 'aria-labelledby': 'ringFeedTitle' }, [

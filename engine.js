@@ -2858,7 +2858,8 @@
     // best of `SNARE_RP_CAP` (one every 2 s): it creates research rather than converting a bank (the owner's call), so
     // it stays a trickle.
     const SNARE_RP_SIGNAL = 600, SNARE_RP_CAP = 300;
-    const snareRpPerSec = (s, rpPerResearch) => (s.unlocked['action:research'] && s.snare.best > 0 ? rpPerResearch * Math.min(s.snare.best, SNARE_RP_CAP) / SNARE_RP_SIGNAL : 0);
+    // The ring: Packet Snare makes no research of its own, whatever is unlocked: The Feed turns its catch into research.
+    const snareRpPerSec = (s, rpPerResearch) => (!ring && s.unlocked['action:research'] && s.snare.best > 0 ? rpPerResearch * Math.min(s.snare.best, SNARE_RP_CAP) / SNARE_RP_SIGNAL : 0);
 
     // ---- Exploits (design/contract-breakers.md): the player breaks the trail's rules -------------------------
     // The trail is the training environment and every exploit is a bug the model found in it. The first is **Hop**,
