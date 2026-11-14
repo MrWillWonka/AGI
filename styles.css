@@ -4159,3 +4159,44 @@ body.ring-device.device-phone .app { padding-bottom: 76px; }
 /* A phone's first row of icons starts below where a notification drops, so one notice never covers an app. */
 body.device-phone .home-icons { padding-top: 92px; }
 .device-notice[hidden] { display: none; }
+/* The ring: the old game's top bar is gone inside the device. A thin status bar sits over every app (game.js
+   renderStatus): the clock, what you hold (one at a time when they don't fit), the signal. */
+body.ring-device .topbar { display: none; }
+body.ring-device #bulkBuy { display: none !important; }
+body.ring-device main.layout { padding-top: 34px; }
+body.ring-device.device-phone main.layout { padding-bottom: 46px; }
+.device-status { display: none; }
+body.ring-device .device-status { display: flex; align-items: center; gap: 10px; position: fixed; top: 12px; left: 18px; right: 18px; height: 24px; z-index: 2400; font: 600 0.78rem var(--font-mono); color: var(--muted); pointer-events: none; }
+body.ring-device.device-laptop .device-status { top: 8px; }
+body.snare-live .device-status { display: none !important; }
+.status-stats { flex: 1; min-width: 0; display: flex; justify-content: center; gap: 14px; overflow: hidden; white-space: nowrap; }
+.status-stat { display: inline-flex; gap: 5px; align-items: baseline; }
+.status-stat[hidden] { display: none; }
+.status-stat i { font-style: normal; font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.75; }
+.status-stat b { font-weight: 700; color: var(--text); }
+.status-cp b { color: var(--warning); } .status-rp b { color: var(--research); } .status-cash b { color: var(--success); } .status-signal b { color: var(--signal, var(--primary)); }
+.status-stats.ticking .status-stat { display: none; }
+.status-stats.ticking .status-stat.on { display: inline-flex; animation: status-in 0.35s ease-out; }
+@keyframes status-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .status-stats.ticking .status-stat.on { animation: none; } }
+/* A phone's way out of an app: a dot at the foot of the screen that reveals Settings, Home and Playtest. */
+.device-homedot, .device-switch { display: none; }
+body.ring-device.device-phone .device-homedot { display: grid; place-items: center; position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 2500; width: 64px; height: 30px; padding: 0; border: 0; background: none; cursor: pointer; }
+.device-homedot::before { content: ''; width: 12px; height: 12px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 22%, transparent); }
+body.ring-device.device-phone .device-switch { display: flex; align-items: center; gap: 10px; position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(46px + env(safe-area-inset-bottom, 0px)); z-index: 2500; padding: 8px 14px; border: 1px solid var(--border); border-radius: 26px; background: var(--panel); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6); }
+body.ring-device.device-phone .device-switch[hidden] { display: none; }
+body.ring-device.device-phone .device-switch-button { all: unset; box-sizing: border-box; display: grid; place-items: center; width: 52px; height: 46px; border-radius: 14px; color: var(--muted); cursor: pointer; position: static; transform: none; border: 0; background: none; box-shadow: none; }
+body.ring-device.device-phone .device-switch-button svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+body.ring-device.device-phone .device-switch-home { width: 64px; color: var(--success); background: rgba(255, 255, 255, 0.07); }
+body.ring-device.device-phone .device-switch-settings { color: var(--primary); } body.ring-device.device-phone .device-switch-playtest { color: var(--warning); }
+body.snare-live .device-homedot, body.snare-live .device-switch { display: none !important; }
+/* Packet Snare on a phone: the result card docks at the foot of the field, and the tree's Back and Start run sit at the
+   bottom with the zoom buttons up out of the way (the owner's call, for thumbs). */
+body.ring-device.device-phone .snare-card { inset: auto 8px 8px 8px; margin: 0; width: auto; max-height: calc(100% - 24px); }
+body.ring-device.device-phone .snare-tree { grid-template: minmax(0, 1fr) auto / minmax(0, 1fr); }
+body.ring-device.device-phone .snare-tree-bar { grid-row: 2; }
+body.ring-device.device-phone .snare-tree-grid { grid-row: 1; }
+body.ring-device.device-phone .snare-tree-zoom { bottom: auto; top: 8px; }
+/* Mail under the ring: its buttons are one width, stacked. */
+body.ring-device .inbox-message .dialog-actions { flex-direction: column; align-items: stretch; gap: 10px; }
+body.ring-device .inbox-message .dialog-actions .button { width: 100%; margin: 0; }

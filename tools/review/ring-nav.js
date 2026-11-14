@@ -52,7 +52,9 @@ const PORT = 8194;
             if (!ok) { bad++; await page.screenshot({ path: `${out}/navall-${name}-${log.length}.png` }); }
             log.push(`${ok ? 'ok  ' : 'FAIL'} ${label} -> ${at}${ok ? '' : ` (wanted ${want})${err ? ' ' + err : ''}`}`);
         };
-        const click = sel => () => page.click(sel, { timeout: 3000 });
+        // On a phone Home is behind the dot at the foot of the screen.
+        const tapHome = async sel => { if (sel === '.device-homebar') { await page.click('.device-homedot', { timeout: 3000 }); await page.waitForTimeout(200); } await page.click(sel, { timeout: 3000 }); };
+        const click = sel => () => tapHome(sel);
         const goHomeFromLab = touch ? click('.device-homebar') : click('.window-close');
         const crumb = touch ? '.device-homebar' : '#labRoom .crumb-home';
         await step('start in the Lab', async () => {}, 'lab', 0);
@@ -81,6 +83,7 @@ const PORT = 8194;
         await step('home: Journal', click('.home-icon-journal'), 'dialog:journal');
         await step('Journal: close', click('#journalClose'), 'home');
         await step('home: Settings', click('.home-icon-settings'), 'dialog:journal');
+        if (touch) { await step('Lab: dot, then Settings', async () => { await page.click('#journalClose'); await page.click('.home-icon-lab'); await page.waitForTimeout(400); await page.click('.device-homedot'); await page.waitForTimeout(200); await page.click('.device-switch-settings'); }, 'dialog:journal'); await step('Settings: close back to the Lab, dot, Home', async () => { await page.click('#journalClose'); await page.waitForTimeout(300); await tapHome('.device-homebar'); await page.waitForTimeout(300); await page.click('.home-icon-settings'); }, 'dialog:journal'); }
         await step('Settings: close', click('#journalClose'), 'home');
         await step('home: Playtest', click('.home-icon-playtest'), 'dialog:ring-survey');
         await step('Playtest: Close', click('.ring-survey .ghost-button'), 'home');
@@ -89,16 +92,12 @@ const PORT = 8194;
         await step('home: Debug', click('.home-icon-debug'), 'home+debug');
         await step('Debug: icon again closes it', async () => { const covered = await page.evaluate(() => { const b = document.querySelector('.home-icon-debug').getBoundingClientRect(); return !document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2)?.closest('.home-icon-debug'); }); if (covered) await page.evaluate(() => DebugPanel.toggle()); else await page.click('.home-icon-debug'); }, 'home');
         await step('home: Lab', click('.home-icon-lab'), 'lab');
-        await step('Lab: top bar Journal', click('#journalButton'), 'dialog:journal');
-        await step('Journal: close back to the Lab', click('#journalClose'), 'lab');
-        await step('Lab: top bar Settings', click('#settingsButton'), 'dialog:journal');
-        await step('Settings: close back to the Lab', click('#journalClose'), 'lab');
         await step('Lab: a mail notification opens Mail', async () => { await page.evaluate(() => { AGI.state.intro['mail:dad'] = true; AGIEngine.mailArrive(AGI.state, 'm:dad'); AGI.debug.notice('mail', 'Mail', 'your computor thing'); }); await page.click('.device-notice'); }, 'dialog:inbox');
         await step('Mail: x back to the Lab', click('#inboxClose'), 'lab');
         // Reloads: wherever you were, the game comes back somewhere that works.
         await step('reload in the Lab', () => page.reload(), 'home', 1800);
         await step('home after reload: Lab icon', click('.home-icon-lab'), 'lab');
-        await step('to Packet Snare and reload', async () => { await page.click(crumb); await page.waitForTimeout(500); await page.click('.home-icon-snare'); await page.waitForTimeout(1100); await page.reload(); }, 'home', 1800);
+        await step('to Packet Snare and reload', async () => { await tapHome(crumb); await page.waitForTimeout(500); await page.click('.home-icon-snare'); await page.waitForTimeout(1100); await page.reload(); }, 'home', 1800);
         await step('home, then reload', () => page.reload(), 'home', 1800);
         await step('after reload: Packet Snare opens', click('.home-icon-snare'), 'snare', 1100);
         await step('and its crumb goes home', click('#backButton'), 'home', 1100);

@@ -407,7 +407,7 @@ window.AGI = (function () {
             // The ring: an achievement is a device notification, which shows over the home screen and over an open
             // dialog (the owner's playtest: The IT Department's Favorite sounded behind Mail and showed nothing). In a
             // Packet Snare run it waits in the usual queue.
-            if (E.isRing() && !snareInPlay()) { deviceNotice('journal', 'Achievement', title.replace('Achievement · ', '') + (message ? `: ${message}` : ''), () => $('journalButton').click()); return; }
+            if (E.isRing()) { ringAchievement(title, message); return; }
             toastQueue.push({ title, message, kind });
             if (!toastBusy) nextToast();
             return;
@@ -2148,9 +2148,28 @@ window.AGI = (function () {
             // On the laptop the Lab is a window: its × closes it to the desktop (the owner's call).
             // On a phone every app has a home bar at the foot of the screen (the owner's playtest: the crumb's home felt
             // odd on a phone). It sits under the home screen, so it only shows inside an app.
-            const bar = el('button', { type: 'button', class: 'device-homebar', 'aria-label': 'Home screen', onclick: () => goHome() });
-            bar.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
-            document.body.append(bar);
+            // (The owner's call, 2026-11-14: a simple dot that reveals a bar: Settings, Home in the middle, Playtest.)
+            const sw = el('div', { class: 'device-switch' });
+            sw.hidden = true;
+            const hideSwitch = () => { sw.hidden = true; clearTimeout(desk.switchTimer); };
+            const switchButton = (key, label, svg, act) => { const b = el('button', { type: 'button', class: `device-switch-button device-switch-${key}${key === 'home' ? ' device-homebar' : ''}`, 'aria-label': label, onclick: () => { hideSwitch(); pt('switch', { to: key }); act(); } }); b.innerHTML = svg; return b; };
+            sw.append(
+                switchButton('settings', 'Settings', HOME_ICONS.settings, () => $('settingsButton').click()),
+                switchButton('home', 'Home screen', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>', () => goHome()),
+                switchButton('playtest', 'Playtest survey', HOME_ICONS.playtest, () => openSurvey()));
+            const dot = el('button', { type: 'button', class: 'device-homedot', 'aria-label': 'Show Home, Settings and Playtest', onclick: () => {
+                if (!sw.hidden) return hideSwitch();
+                sw.hidden = false;
+                clearTimeout(desk.switchTimer);
+                desk.switchTimer = setTimeout(hideSwitch, 5000);
+            } });
+            document.addEventListener('pointerdown', e => { if (!sw.hidden && !e.target.closest('.device-switch, .device-homedot')) hideSwitch(); });
+            document.body.append(sw, dot);
+            // The status bar: the device's own thin row over every app, in place of the old game's top bar (the owner's
+            // call): the clock, what you hold, the signal. When the stats don't fit it shows them one at a time.
+            const clock = el('span', { class: 'status-clock' }), stats = el('span', { class: 'status-stats' });
+            document.body.append(el('div', { class: 'device-status', role: 'status', 'aria-label': 'Status' }, [clock, stats, el('span', { class: 'status-signal', text: '▂▄▆ 37%' })]));
+            desk.status = { clock, stats, items: {}, turn: 0, checked: 0, rp: state.res.rp, at: performance.now() };
             $('labRoom').querySelector('.room-bar').append(el('button', { type: 'button', class: 'ghost-button window-close', 'aria-label': 'Close the Lab, back to the desktop', text: '×', onclick: () => goHome() }));
             for (const b of document.querySelectorAll('[data-facility], [data-jump="facility"]')) { b.textContent = 'home'; b.setAttribute('aria-label', 'Back to the home screen'); }
         }
@@ -2163,7 +2182,55 @@ window.AGI = (function () {
             for (const h of $('labRoom').querySelectorAll('.station-title')) if (names[h.textContent.trim()]) { h.textContent = names[h.textContent.trim()]; desk.titled = true; if (h.textContent === 'Parts') desk.parts = h; }
         }
         // The money you hold shows on the Parts window.
-        if (desk.parts) { const cash = E.deskCash(state); setText(desk.parts, cash > 0 ? `Parts · $${E.format(cash)}` : 'Parts'); }
+        renderStatus();
+    }
+    // Research per second as it is really earned (The Feed makes it): a smoothed rate from what you hold, ignoring
+    // what sprints spend. Shown in the status bar and the Lab's Research box.
+    let ringRpRate = 0;
+    function renderStatus() {
+        const st = desk?.status;
+        if (!st) return;
+        const now = performance.now();
+        if (now - st.at >= 1000) {
+            // What came in over the last half minute (a layer's payout arrives all at once; sprints' spending is left out).
+            st.gains = (st.gains || []).filter(x => now - x[0] < 30000);
+            if (state.res.rp > st.rp) st.gains.push([now, state.res.rp - st.rp]);
+            ringRpRate = st.gains.reduce((s, x) => s + x[1], 0) / 30;
+            st.rp = state.res.rp; st.at = now;
+        }
+        const d = new Date();
+        setText(st.clock, `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+        const f = E.format, cash = E.deskCash(state), dv = E.derive(state, debugRates);
+        const want = [
+            ['cash', cash > 0, 'Bank', `$${f(cash)}`],
+            ['cp', true, 'Compute', `${f(Math.floor(state.res.cp))}${dv.cpNet > 0 ? ` +${f(dv.cpNet)}/s` : ''}`],
+            ['rp', state.feed.stats.delivered > 0 || state.res.rp > 0, 'Research', `${f(Math.floor(state.res.rp))}${ringRpRate >= 0.05 ? ` +${f(ringRpRate, 1)}/s` : ''}`],
+            ['signal', !!state.unlocked['module:snare'] && state.snare.runs > 0, 'Signal', f(state.snare.signal)],
+            ['xp', !!state.unlocked['module:path'], 'XP', f(Math.floor(state.res.xp))]];
+        for (const [key, show, label, value] of want) {
+            let item = st.items[key];
+            if (!item) { const v = el('b'); item = st.items[key] = { node: el('span', { class: `status-stat status-${key}` }, [el('i', { text: label }), v]), v }; st.stats.append(item.node); }
+            if (item.node.hidden === show) item.node.hidden = !show;
+            setText(item.v, value);
+        }
+        // Too many to fit: one at a time, a few seconds each.
+        if (now - st.checked >= 2600) {
+            st.checked = now;
+            const shown = Object.values(st.items).filter(i => !i.node.hidden);
+            st.stats.classList.remove('ticking');
+            for (const i of shown) i.node.classList.remove('on');
+            if (st.stats.scrollWidth > st.stats.clientWidth + 2 && shown.length > 1) {
+                st.stats.classList.add('ticking');
+                shown[st.turn++ % shown.length].node.classList.add('on');
+            }
+        }
+    }
+    // Achievements earned during a Packet Snare run wait for it to end, then show as notifications.
+    const ringAchWait = [];
+    const snareRunLive = () => document.body.classList.contains('snare-live');
+    function ringAchievement(title, message) {
+        if (snareRunLive()) { ringAchWait.push([title, message]); return; }
+        deviceNotice('journal', 'Achievement', title.replace('Achievement · ', '') + (message ? `: ${message}` : ''), () => $('journalButton').click());
     }
     // The device's home screen (the owner's call, 2026-11-13): under the ring a new game starts here once mail is set
     // up, not in the lab: a laptop's desktop (icons, a taskbar with the clock) or a phone's home screen (a status bar,
@@ -2177,7 +2244,7 @@ window.AGI = (function () {
         training: '<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 25c5 0 6-6 10-6s4 4 7 4 4-14 9-14"/><circle cx="9" cy="17" r="2.6"/></svg>',
         phone: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',
         bank: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg>',
-        journal: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 5a2 2 0 0 1 2-2h11v16h-11a2 2 0 0 0-2 2z"/><path d="M5.5 21a2 2 0 0 1 2-2h11v2h-11"/><path d="M9.5 7.5h5.5M9.5 11.5h4"/></svg>',
+        journal: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3.5h8v5.500a4 4 0 0 1-8 0z"/><path d="M8 5H5a3 3 0 0 0 3 4.200M16 5h3a3 3 0 0 1-3 4.200M12 13v3.500M9.500 16.500h5v4h-5zM7.500 20.500h9"/></svg>',
         settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.8"/><circle cx="12" cy="12" r="6"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.2 2.2M16.2 16.2l2.2 2.2M5.6 18.4l2.2-2.2M16.2 7.8l2.2-2.2"/></svg>',
         debug: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7.5" y="7" width="9" height="14" rx="4.5"/><path d="M9 7.5a3 3 0 0 1 6 0M3 13.5h4.5M16.500 13.5H21M4 6.5l4 3M20 6.500l-4 3M4 21l4-3.500M20 21l-4-3.500M12 10.500V21M8.500 3l1.700 2.200M15.500 3l-1.700 2.200"/></svg>',
         playtest: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10l1.5 1.5 2.5-3M8.5 16l1.5 1.5 2.5-3M14.5 10.5H16M14.5 16.5H16"/></svg>',
@@ -2208,7 +2275,7 @@ window.AGI = (function () {
             icon('playtest', 'Playtest', () => openSurvey()),
             icon('debug', 'Debug', () => window.DebugPanel?.toggle()),
             icon('settings', 'Settings', () => $('settingsButton').click()),
-            icon('journal', 'Journal', () => $('journalButton').click())];
+            icon('journal', 'Achievements', () => $('journalButton').click())];
         const clock = el('span', { class: 'home-clock' });
         const bar = el('div', { class: 'home-bar-fill' });
         const popupText = el('p', { class: 'home-popup-text' });
@@ -2235,6 +2302,7 @@ window.AGI = (function () {
         if (!E.isRing()) return;
         fundTick();
         stuckTick();
+        if (ringAchWait.length && !snareRunLive()) ringAchievement(...ringAchWait.shift());
         // The playtest log's time by screen: the home screen and The Feed are places too (they were counted as the lab).
         const where = $('inbox').open ? null : window.FeedUI?.isOpen ? 'feed' : home && !home.node.hidden ? 'home' : null;
         if (where) ptView(where); else if (playtestView === 'home' || playtestView === 'feed') ptView(ptPlace());
@@ -2745,7 +2813,7 @@ window.AGI = (function () {
             // Clicks count too: passive net output plus what you made by hand in the last few seconds.
             case 'supply.cp': return `${f(d.cpNet + handRate('cp'))} CP/s`;
             case 'supply.dp': return `${f(d.dpNet + handRate('dp'))} DP/s`;
-            case 'supply.rp': return `${f(d.rpPerSec + handRate('rp'))} RP/s`;
+            case 'supply.rp': return E.isRing() ? `${f(ringRpRate, 1)} RP/s · The Feed` : `${f(d.rpPerSec + handRate('rp'))} RP/s`;
             case 'supply.xp': {
                 const recent = lab.xp.slice(-20);
                 const xpRate = recent.length ? recent.reduce((a, b) => a + b, 0) / recent.length : d.xpPerSec;
@@ -2903,7 +2971,7 @@ window.AGI = (function () {
             const maxed = E.isMaxed(state, up);
             if (yieldLine) setText(yieldLine, yieldText(up, lvl, d));
             setText(nameNode, E.upgradeName(state, up));
-            setText(levelBadge, up.max === 1 ? '' : `Lv ${lvl}`);
+            setText(levelBadge, up.max === 1 || (E.isRing() && up.id === 'keyboard' && lvl >= E.RING_DESK) ? '' : `Lv ${lvl}`);
             card.classList.toggle('owned', maxed);
             button.classList.toggle('full', !maxed && E.atCapacity(state, up));
             if (maxed) {
