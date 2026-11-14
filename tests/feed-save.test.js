@@ -103,7 +103,7 @@ test('junk in the save is cleaned', () => {
     assert.deepEqual(f.readable, ['pictures']);
     assert.equal(f.fragNext, 4);
     assert.deepEqual(f.fragments, { parcel: [0, 1, 2, 3] });
-    assert.deepEqual(f.stats, { delivered: 12, eaten: 0, cleaned: 0, research: 1e15, veins: 0 });
+    assert.deepEqual(f.stats, { delivered: 12, eaten: 0, cleaned: 0, research: 1e15, veins: 0, hops: 0 });
     assert.equal(f.tiles, undefined);
     // It still plays.
     assert.ok(Feed.deliver(f, { sector: 1, packets: 10, gold: 0 }).added > 0);
@@ -127,7 +127,7 @@ test('bad cells, mites and counts in a box of the right size are cleaned one by 
     raw.feed.swarm = [{ x: -9, y: 'no', b: 99, t: 1e9 }, { x: 3, y: 3 }];
     raw.feed.backlog = [{ sector: -2, n: 5.7, gold: 'x', bad: 2, band: 99 }, { n: 0 }, null, { sector: 3, n: 4, kind: 'pictures' }, { sector: 2, n: 1, kind: 'spoons' }];
     raw.feed.aim = { x: 1e9, y: 4 };
-    raw.feed.owed = -1; raw.feed.fed = 2.5; raw.feed.pourAcc = 'x'; raw.feed.spout = 400; raw.feed.rest = true;
+    raw.feed.owed = -1; raw.feed.fed = 2.5; raw.feed.pourAcc = 'x'; raw.feed.sweepAt = -3; raw.feed.drops = [{ x: 5, y: 3, m: 50, n: 4, k: 2, band: 1, hp: 1, q: 1 }, { x: -1, k: 1, n: 3, hp: 1 }, { x: 4, k: 9, n: 3, hp: 1 }, null]; raw.feed.rest = true;
     const f = E.migrate(raw, NOW).feed;
     for (const i of [0, full[0], full[1], full[2], full[3]]) assert.equal(f.cells[i], 0);
     assert.equal(f.grains, 30 * G - 5);
@@ -136,6 +136,7 @@ test('bad cells, mites and counts in a box of the right size are cleaned one by 
     assert.deepEqual(f.swarm[0], { ...Feed.newFeed().swarm[0] });
     assert.deepEqual(f.backlog, [{ sector: 1, n: 5, gold: 0, bad: 2, band: 7 }, { sector: 3, n: 4, gold: 0, bad: 0, band: 0, kind: 'pictures' }, { sector: 2, n: 1, gold: 0, bad: 0, band: 0 }]);
     assert.deepEqual(f.aim, { x: W - 0.01, y: 4 });
-    assert.deepEqual([f.owed, f.fed, f.pourAcc, f.spout], [0, 2, 0, 0]);
+    assert.deepEqual([f.owed, f.fed, f.pourAcc, f.sweepAt], [0, 2, 0, 0]);
+    assert.deepEqual(f.drops, [{ x: 5, y: 3, m: 50, n: 4, k: 2, band: 1, hp: 1, q: 1 }]);
     assert.equal(f.rest, false, 'a grain hangs over the hole, so it is not at rest');
 });

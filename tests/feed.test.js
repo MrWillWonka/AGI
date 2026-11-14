@@ -47,14 +47,51 @@ test('a new Feed is one mite over an empty box, and says nothing until data arri
     assert.deepEqual(Feed.step(s, 5), { research: 0, events: [] });
 });
 
+test('data falls as packets from a spout that swings from side to side, and melts into sand half way down', () => {
+    const s = Feed.newFeed({ seed: 2 });
+    Feed.deliver(s, { sector: 1, packets: 600, gold: 0 });
+    const xs = new Set(), spout = new Set();
+    let melted = [];
+    for (let i = 0; i < 160; i++) {
+        const before = new Map(s.drops.map(d => [d, d.y]));
+        Feed.step(s, 0.05, { chew: 0 });
+        spout.add(Feed.spoutX(s));
+        for (const d of s.drops) xs.add(d.x);
+        for (const [d, y] of before) if (!s.drops.includes(d)) melted.push({ y, m: d.m });
+    }
+    assert.ok(Math.max(...spout) - Math.min(...spout) > 60, 'the spout swings wide');
+    assert.ok(Math.max(...xs) - Math.min(...xs) > 60, 'and packets fall along its whole swing');
+    assert.ok(melted.length > 30);
+    // Over an empty floor a packet melts about half way down the box; none reaches the floor whole.
+    assert.ok(melted.slice(0, 10).every(d => Math.abs(d.m - H / 2) <= 1 && d.y < H * 0.6), 'they melt half way down');
+    // A small delivery is laid narrow, so a first pile is a pile; a big one is laid in a bed across the floor.
+    const bed = packets => { const t = Feed.newFeed({ seed: 2 }); Feed.deliver(t, { sector: 1, packets, gold: 0 }); Feed.step(t, 12, { chew: 0 }); assert.equal(t.drops.length, 0); assert.equal(t.grains, packets * G); return t.cells.slice((H - 1) * W).filter(Boolean).length; };
+    assert.ok(bed(40) < 70, 'a first pile ' + bed(40) + ' cells wide');
+    assert.ok(Feed.spoutX(Feed.newFeed()) === W / 2);
+});
+
+test('now and then a grain hops as it lands; with no hop in it, sand only falls', () => {
+    const rise = opts => {
+        const s = Feed.newFeed({ seed: 4 });
+        Feed.deliver(s, { sector: 1, packets: 80, gold: 0 });
+        Feed.step(s, 20, opts);
+        return { hops: s.stats.hops, s };
+    };
+    const lively = rise({ chew: 0 }), plain = rise({ chew: 0, hop: 0 });
+    // About one landing in eight hops.
+    assert.ok(lively.hops > 80 * G / 16 && lively.hops < 80 * G / 4, lively.hops + ' hops');
+    assert.equal(plain.hops, 0);
+    for (const { s } of [lively, plain]) { Feed.step(s, 6, { chew: 0 }); assert.equal(s.grains, 80 * G); assert.ok(s.cells.every(v => !Feed.airOf(v)), 'everything has landed'); }
+});
+
 test('packets pour in as sand, sixteen grains each, and settle into a pile on the floor', () => {
     for (const seed of [1, 2, 3]) {
         const s = Feed.newFeed({ seed });
         assert.equal(Feed.deliver(s, { sector: 1, packets: 40, gold: 4 }).added, 40 * G);
         assert.equal(s.grains, 0, 'nothing is in the box until it pours');
         Feed.step(s, 0.5, { chew: 0 });
-        assert.ok(s.grains > 0 && Feed.waiting(s) > 0, 'it pours over time');
-        Feed.step(s, 8, { chew: 0 });
+        assert.ok(s.drops.length > 0 && Feed.waiting(s) > 0, 'it pours over time');
+        Feed.step(s, 12, { chew: 0 });
         assert.equal(s.grains, 40 * G, `seed ${seed}`);
         assert.equal(Feed.waiting(s), 0);
         const c = Feed.census(s);

@@ -153,6 +153,10 @@ with nothing unlocked.
 **The sand design (the owner's call, 2026-11-13; built in `feed.js` and `feed-ui.js`).** Where it differs from the
 bullets and the table under it (a grid of face-down tiles, a drawn line), this is newer:
 
+- **Data comes in as packets** (the owner's call; built): they fall, drawn as Packet Snare draws them, from a spout
+  that swings from side to side so the sand is laid in layers (a narrow swing over a small pile, wider as it grows),
+  and half way down to the pile they melt into sand. Now and then a landing grain hops, and a falling packet crackles:
+  mostly ordinary sand, with moments of whimsy (*proposed:* one landing in eight hops, one hop in eight high).
 - **Packets fall into a box and turn to sand, like sand art.** The sand is fine: a packet is sixteen grains. Each delivery is its own colour,
   so the pile lies in strata. Gold packets pour in together and lie in seams.
 - **The swarm eats the sand itself, from the outside in.** Left alone, each mite goes to the nearest grain on the pile's

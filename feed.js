@@ -3,9 +3,11 @@
 // outside in, and what it eats pays research. No clock, no enemy, no failed run. (The owner's design, 2026-11-13,
 // replacing a grid of face-down tiles and a drawn line: sand art, eaten like sand, the swarm drawn to your finger.)
 //
-// **The box** is `w` × `h` cells. A packet is `grains` grains of sand. Grains pour in at the top, fall, and slide off
-// each other into a pile (one cell down, else one down and across). What doesn't fit yet waits in `backlog` and
-// pours as room is made. Each delivery is a band of its own colour (`band`), so the pile lies in strata.
+// **The box** is `w` × `h` cells. A packet is `grains` grains of sand. Data comes in as packets (`drops`): they fall
+// from a spout that sweeps back and forth across the top, so the sand is laid in layers, and half way down to the pile
+// under it a packet melts into its grains (the owner's design). Grains fall and slide off each other into a pile (one
+// cell down, else one down and across), and now and then one hops as it lands: a little static in it. What doesn't fit
+// yet waits in `backlog`. Each delivery is a band of its own colour (`band`), so the pile lies in strata.
 //
 // **Sand** (a cell's `kind`):
 //   plain      letters, which the model reads from the start: the bulk of the pile
@@ -53,7 +55,16 @@
         miteEvery: 1,       // and another every this many after it: every split (the owner's call; the model's `miteEvery`)
         layerPay: 0.2,      // a layer's lump of research, as a share of its packets
         pour: 8,            // packets a second through the spout: slow enough that the pile sheds it and no column backs up
-        spout: 12,          // the spout's half-width, in cells
+        sweep: 46,          // how far the spout swings either side of the middle at the most, in cells
+        sweepMin: 6,        // its swing over an empty box,
+        sweepGrow: 0.3,     // and what the square root of the grains there are adds to it
+        sweepTime: 7,       // seconds for one swing there and back
+        spout: 2,           // how far a packet may leave the spout off its line, in cells
+        drop: 70,           // cells a second a packet falls
+        melt: 0.5,          // a packet melts into sand this share of the way down to the pile under it
+        puff: 3,            // how far its grains scatter as it melts, in cells
+        hop: 8,             // one landing grain in this many hops (and one in eight of those hops high)
+        full: 0.8,          // the spout waits while this share of the box is sand
         fall: 80,           // cells a second a grain falls
         speed: 90,          // cells a second a mite moves
         near: 8,            // a led mite this close to the point eats the sand nearest the point
@@ -89,8 +100,12 @@
     };
     // A cell is one number: its kind, its band of colour, whether a mite has seen what it is, and the bites it has left.
     // Gold and fragments look like plain sand until a mite's lamp has been near them (the owner's call: buried finds).
-    const kindOf = v => v & 7, bandOf = v => (v >> 3) & 7, seenOf = v => (v >> 6) & 1, hpOf = v => v >> 7;
-    const cell = (kind, band, hp, seen = 1) => kind | (band << 3) | ((seen ? 1 : 0) << 6) | (Math.min(255, hp) << 7);
+    // `air`: the grain has not landed since it melted out of its packet (it may hop when it does).
+    const kindOf = v => v & 7, bandOf = v => (v >> 3) & 7, seenOf = v => (v >> 6) & 1, airOf = v => (v >> 7) & 1, hpOf = v => v >> 8;
+    const cell = (kind, band, hp, seen = 1, air = 0) => kind | (band << 3) | ((seen ? 1 : 0) << 6) | ((air ? 1 : 0) << 7) | (Math.min(255, hp) << 8);
+    const AIR = 128;
+    // A whole number from a cell's place and the pass it is, the same every time: for hops and scatter, with no generator.
+    const hash = (a, b) => { let x = (Math.imul(a + 1, 2654435761) ^ Math.imul(b + 7, 40503)) >>> 0; x ^= x >>> 15; x = Math.imul(x, 2246822519) >>> 0; return (x ^ (x >>> 13)) >>> 0; };
     const HIDDEN = [2, 3];   // vein, fragment
 
     // Mulberry32 (as packet-snare.js and evals.js), stepped from a position kept in the state.
@@ -131,7 +146,7 @@
     function startLayer(state, o) {
         state.fed = 0;
         state.plain = 0;
-        state.fragAt = Math.round((o.fragFrom + rand(state) * o.fragSpread) * o.grains);
+        state.fragAt = Math.round(o.fragFrom + rand(state) * o.fragSpread);
         state.fragPlaced = false;
     }
 
@@ -141,8 +156,8 @@
         const state = {
             rs: (opts.seed ?? 1) >>> 0, w: FEED.w, h: FEED.h, cells: new Array(FEED.w * FEED.h).fill(0), grains: 0, rest: true, tick: 0,
             mites: 1, swarm: [], aim: null, layers: 0, fed: 0, owed: 0, plain: 0, fragAt: 0, fragPlaced: false, fragNext: 0, fragments: {},
-            backlog: [], last: 0, band: 0, spout: 0, pourAcc: 0, fallAcc: 0, readable: [], dry: false,
-            stats: { delivered: 0, eaten: 0, cleaned: 0, research: 0, veins: 0 }
+            backlog: [], drops: [], last: 0, band: 0, sweepAt: 0, pourAcc: 0, fallAcc: 0, readable: [], dry: false,
+            stats: { delivered: 0, eaten: 0, cleaned: 0, research: 0, veins: 0, hops: 0 }
         };
         state.swarm.push(mitePlace(state, 0));
         startLayer(state, o);
@@ -150,7 +165,7 @@
     }
 
     // Grains still waiting to pour, and everything there is left to eat.
-    const waiting = state => state.backlog.reduce((n, e) => n + e.n + e.gold + e.bad, 0);
+    const waiting = state => state.backlog.reduce((n, e) => n + e.n + e.gold + e.bad, 0) * FEED.grains + state.drops.reduce((n, d) => n + d.n, 0);
     const left = state => state.grains + waiting(state);
     // The share of the box's cells that hold sand.
     const fill = state => state.grains / (state.w * state.h);
@@ -165,7 +180,7 @@
         const bad = whole(load?.garbled) + Math.round(whole(load?.popped) * o.popped);
         if (!packets && !bad) return out;
         state.band = (state.band + 1) % o.bands;
-        state.backlog.push({ sector: Math.max(1, whole(load.sector) || 1), n: (packets - gold) * o.grains, gold: gold * o.grains, bad: bad * o.grains, band: state.band });
+        state.backlog.push({ sector: Math.max(1, whole(load.sector) || 1), n: packets - gold, gold, bad, band: state.band });
         state.stats.delivered += packets + bad;
         state.dry = false;
         out.added = (packets + bad) * o.grains;
@@ -179,8 +194,15 @@
         return state.aim;
     }
 
-    // The next grain through the spout: which sort (plain data, gold, bad) and what it is.
-    function nextGrain(state, o) {
+    // Where the spout is: it swings from side to side while it pours.
+    function spoutX(state, opts) {
+        const o = opt(opts), t = state.sweepAt / o.sweepTime, tri = 4 * Math.abs(t - Math.floor(t + 0.75) + 0.25) - 1;
+        // A small pile is laid narrow and a big one wide: the swing grows with the sand there is (in the box and to come).
+        const swing = Math.min(o.sweep, o.sweepMin + Math.sqrt(state.grains + waiting(state)) * o.sweepGrow);
+        return Math.max(2, Math.min(state.w - 3, Math.round(state.w / 2 + swing * tri)));
+    }
+    // The next packet through the spout: which sort (plain data, gold, bad) and what it is.
+    function nextPacket(state, o) {
         const e = state.backlog[0], total = e.n + e.gold + e.bad;
         const has = [0, e.n, e.gold, e.bad];
         let sort = state.last;
@@ -207,31 +229,57 @@
                 }
             }
         }
-        const v = cell(KINDS[kind].id, e.band, bitesFor(e.sector, o) * (slowSand(state, kind) ? o.slow : 1), !HIDDEN.includes(KINDS[kind].id));
+        const packet = { k: KINDS[kind].id, band: e.band, hp: bitesFor(e.sector, o) * (slowSand(state, kind) ? o.slow : 1), q: e.sector };
         if (e.n + e.gold + e.bad <= 0) { state.backlog.shift(); state.last = 0; }
-        return v;
+        return packet;
     }
 
     function pour(state, o, dt) {
         if (!state.backlog.length) { state.pourAcc = 0; return; }
-        state.pourAcc += o.pour * o.grains * dt;
-        const mid = state.w >> 1;
+        state.sweepAt += dt;
+        state.pourAcc += o.pour * dt;
         while (state.pourAcc >= 1 && state.backlog.length) {
-            // The spout wanders a cell at a time, so grains poured together land together: seams and patches.
-            state.spout = Math.max(-o.spout, Math.min(o.spout, state.spout + Math.round(rand(state) * 2 - 1)));
-            // The cell under the spout, or one beside it while that one is still falling clear.
-            const x = [0, 1, -1, 2, -2, 3, -3].map(d => mid + state.spout + d).find(c => !state.cells[c]);
-            if (x === undefined) { state.pourAcc = Math.min(state.pourAcc, 1); break; }   // the box is full to the spout: wait
-            state.cells[x] = nextGrain(state, o);
-            state.grains++; state.rest = false; state.pourAcc -= 1;
+            // The box is nearly full: wait.
+            if (state.grains + state.drops.length * o.grains > o.full * state.w * state.h) { state.pourAcc = Math.min(state.pourAcc, 1); break; }
+            const x = Math.max(0, Math.min(state.w - 1, spoutX(state, o) + Math.round((rand(state) * 2 - 1) * o.spout)));
+            // It melts a share of the way down to the sand under it (or to the floor).
+            let top = 0;
+            while (top < state.h && !state.cells[top * state.w + x]) top++;
+            state.drops.push({ x, y: 0, m: Math.round(top * o.melt), n: o.grains, ...nextPacket(state, o) });
+            state.rest = false; state.pourAcc -= 1;
+        }
+    }
+    // Packets fall; at their melting line (or on meeting sand) they turn to grains, scattered a little round them.
+    function dropStep(state, o, dt) {
+        const { w, h, cells } = state;
+        for (let n = state.drops.length - 1; n >= 0; n--) {
+            const d = state.drops[n];
+            d.y += o.drop * dt;
+            const row = Math.min(h - 1, Math.floor(d.y));
+            if (d.y < d.m && row < h - 1 && !cells[(row + 1) * w + d.x]) continue;
+            for (let g = d.n - 1; g >= 0; g--) {
+                const j = hash(d.x * 131 + g, state.tick + row);
+                const x = Math.max(0, Math.min(w - 1, d.x + (j % (o.puff * 2 + 1)) - o.puff));
+                let y = Math.max(0, Math.min(h - 1, row - ((j >>> 8) % (o.puff * 2 + 1))));
+                while (y > 0 && cells[y * w + x]) y--;
+                if (cells[y * w + x]) continue;   // no room in that column yet: this grain waits
+                // A fragment's packet is one fragment grain and plain sand round it.
+                const kind = d.k === 3 && g > 0 ? 1 : d.k;
+                cells[y * w + x] = cell(kind, d.band, kind === 1 && d.k === 3 ? bitesFor(d.q, o) : d.hp, !HIDDEN.includes(kind), 1);
+                state.grains++; d.n--;
+            }
+            state.rest = false;
+            if (d.n <= 0) state.drops.splice(n, 1);
+            else d.y = Math.min(d.y, h - 1);
         }
     }
 
     // One pass of falling: every grain with room under it drops a cell, else slides down and across.
-    function fallPass(state) {
+    function fallPass(state, o) {
         const { w, h, cells } = state;
         let moved = false;
         state.tick++;
+        for (let x = 0, i = (h - 1) * w; x < w; x++, i++) if (cells[i] & AIR) moved = land(state, o, i, x, h - 1) || moved;
         for (let y = h - 2; y >= 0; y--) {
             const row = y * w, flip = (state.tick + y) & 1;
             for (let n = 0; n < w; n++) {
@@ -248,9 +296,23 @@
                     }
                 }
                 if (to >= 0) { cells[to] = v; cells[i] = 0; moved = true; }
+                else if (v & AIR) moved = land(state, o, i, x, y) || moved;
             }
         }
         return moved;
+    }
+    // A grain lands for the first time since it melted. One in `hop` jumps: up and across a few cells (now and then a
+    // lot), to fall again. It hops once: it is no longer in the air after.
+    function land(state, o, i, x, y) {
+        const { w, cells } = state, v = cells[i] & ~AIR, j = hash(i, state.tick);
+        cells[i] = v;
+        if (!(o.hop > 0) || j % o.hop) return false;
+        const high = (j >>> 4) % 8 === 0, up = high ? 7 + (j >>> 8) % 6 : 2 + (j >>> 8) % 3, across = ((j >>> 12) & 1 ? 1 : -1) * (1 + (j >>> 14) % (high ? 5 : 3));
+        const nx = x + across, ny = y - up;
+        if (nx < 0 || nx >= w || ny < 0 || cells[ny * w + nx]) return false;
+        cells[ny * w + nx] = v; cells[i] = 0;
+        state.stats.hops++;
+        return true;
     }
 
     // The grain on the pile's surface nearest a point: one with an empty cell beside it (or at the box's top).
@@ -374,23 +436,20 @@
         if (!(dt > 0) || !Number.isFinite(dt)) return out;
         const steps = Math.min(6000, Math.max(1, Math.round(dt / STEP))), each = dt / steps;
         for (let n = 0; n < steps; n++) {
-            // Pouring and falling take turns, a cell's fall at a time, so the spout is clear for the next grains.
-            state.fallAcc += o.fall * each;
+                    state.fallAcc += o.fall * each;
             const passes = Math.floor(state.fallAcc);
             state.fallAcc -= passes;
-            if (!passes) pour(state, o, each);
+            pour(state, o, each);
+            if (state.drops.length) dropStep(state, o, each);
             let moved = false;
-            for (let k = 0; k < passes; k++) {
-                pour(state, o, each / passes);
-                if (!state.rest) moved = fallPass(state) || moved;
-            }
-            if (passes && !moved && !state.backlog.length) state.rest = true;
+            for (let k = 0; k < passes; k++) if (!state.rest) moved = fallPass(state, o) || moved;
+            if (passes && !moved && !state.backlog.length && !state.drops.length) state.rest = true;
             if (state.grains) {
                 // Fine sand: a mite may finish several grains in a step, so its step is cut into as many moves.
                 const moves = Math.max(1, Math.ceil(o.chew * o.grains * (state.aim ? 1 : o.graze) * each));
                 for (const m of state.swarm) { for (let k = 0; k < moves; k++) mite(state, o, m, each / moves, out); lamp(state, o, m, out); }
             }
-            else if (!state.backlog.length) {
+            else if (!state.backlog.length && !state.drops.length) {
                 for (const m of state.swarm) { m.b = 0; m.t = -1; }
                 if (!state.dry && state.stats.delivered > 0) { state.dry = true; out.events.push({ type: 'empty' }); }
             }
@@ -471,7 +530,12 @@
             state.fragPlaced = raw.fragPlaced === true;
             state.last = whole(raw.last, 3);
             state.band = whole(raw.band, 7);
-            state.spout = Number.isInteger(raw.spout) && Math.abs(raw.spout) <= o.spout ? raw.spout : 0;
+            state.sweepAt = real(raw.sweepAt, 0, 1e9, 0);
+            state.drops = (Array.isArray(raw.drops) ? raw.drops.slice(0, 400) : []).map(d => {
+                if (!d || !Number.isInteger(d.x) || d.x < 0 || d.x >= FEED.w || !KIND_IDS[d.k]) return null;
+                const n = whole(d.n, o.grains), hp = whole(d.hp, 255);
+                return n && hp ? { x: d.x, y: real(d.y, 0, FEED.h, 0), m: whole(d.m, FEED.h), n, k: d.k, band: whole(d.band, 7), hp, q: Math.max(1, whole(d.q, 99)) } : null;
+            }).filter(Boolean);
             state.pourAcc = real(raw.pourAcc, 0, 1e4, 0);
             state.fallAcc = real(raw.fallAcc, 0, 1e4, 0);
             state.dry = raw.dry === true;
@@ -489,5 +553,5 @@
     }
 
     return { FEED, KINDS, KIND_IDS, LOCKED, FRAGMENTS, STEP, newFeed, clean, deliver, point, step, setReadable, readableFor,
-        pack, unpack, left, waiting, fill, census, hunger, layerSize, bitesFor, kindOf, bandOf, seenOf, hpOf };
+        pack, unpack, spoutX, left, waiting, fill, census, hunger, layerSize, bitesFor, kindOf, bandOf, seenOf, airOf, hpOf };
 });

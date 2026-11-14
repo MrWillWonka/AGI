@@ -8,8 +8,9 @@
 //
 // **The view starts close and draws back** (the owner's call): it frames the pile, floor at the bottom, and widens as
 // the pile grows until the whole box shows. Sand is drawn three pixels a cell on a small canvas, each grain with its
-// corners faded so it reads round, and scaled up. Packets fall in their own colour (as Packet Snare draws them) and
-// turn to sand where they land, each delivery its own colour, so the pile lies in strata like sand art. Gold and
+// corners faded so it reads round, and scaled up. Data falls as packets, drawn as Packet Snare draws them, from a
+// spout that swings from side to side; half way down they melt into sand (feed.js `drops`), which falls on in a
+// colour between the packet's and its own, each delivery its own colour, so the pile lies in strata like sand art. Gold and
 // fragments look like the sand round them until a mite's lamp has found them (feed.js `seenOf`).
 (function () {
     'use strict';
@@ -90,12 +91,14 @@
     function readColors() {
         const css = getComputedStyle(dlg), v = name => css.getPropertyValue(name).trim();
         colors = { bg: v('--bg'), border: v('--border'), text: v('--text'), muted: v('--muted'), gold: v('--warning'), good: v('--success'),
-            research: v('--research'), primary: v('--primary'), mono: v('--font-mono') || 'monospace' };
+            research: v('--research'), primary: v('--primary'), mono: v('--font-mono') || 'monospace',
+            packet: v('--snare-good') || v('--primary'), packetBad: v('--snare-bad') || v('--danger') };
         const bg = rgb(colors.bg), muted = rgb(colors.muted), bad = rgb(v('--snare-bad') || v('--danger')), text = rgb(colors.text);
         const bands = BANDS.map(rgb);
         palette = {
             bands: bands.map(shades), known: bands.map(c => shades(mix(c, text, 0.35))), gold: shades(rgb(colors.gold)), fragment: text,
-            falling: shades(rgb(v('--snare-good') || colors.primary)), fallingBad: shades(bad),
+            // Sand just melted out of a packet and still in the air: half way between the packet's colour and its own.
+            falling: bands.map(c => shades(mix(c, rgb(colors.packet), 0.5))), fallingBad: shades(bad),
             // Sand the model has no skill for: grey, cold. Garbled sand: the bad packets' colour, dark. Both read as "not for eating".
             numbers: [shades(mix(bg, muted, 0.75)), shades(mix(bg, muted, 0.4))], pictures: [shades(mix(bg, rgb(colors.primary), 0.5)), shades(mix(bg, muted, 0.45))],
             garbled: [shades(mix(bg, bad, 0.62)), shades(mix(bg, bad, 0.32))]
@@ -177,10 +180,10 @@
             const v = cells[i];
             if (!v) continue;
             const kind = lib.kindOf(v), x = i % w, y = (i - x) / w, shade = (i * 2654435761 >>> 0) % 5;
-            const falling = y < h - 1 && !cells[i + w], band = lib.bandOf(v) % palette.bands.length;
+            const falling = lib.airOf(v), band = lib.bandOf(v) % palette.bands.length;
             let c;
             if (kind === 6) c = falling ? palette.fallingBad[shade] : palette.garbled[(x + y * 3 + (i >> 3)) & 1][shade];
-            else if (falling) c = palette.falling[shade];
+            else if (falling) c = palette.falling[band][shade];
             else if (kind === 1 || !lib.seenOf(v)) c = palette.bands[band][shade];
             else if (kind === 2) c = palette.gold[2 + (shade & 1)];
             else if (kind === 3) c = blink;
@@ -204,13 +207,27 @@
         const [x0, y0] = px(0, 0), [x1, y1] = px(box.w, box.h);
         ctx.strokeStyle = colors.border; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(x0 - 1, Math.max(0, y0)); ctx.lineTo(x0 - 1, y1 + 1); ctx.lineTo(x1 + 1, y1 + 1); ctx.lineTo(x1 + 1, Math.max(0, y0)); ctx.stroke();
-        if (y0 > -c * 2) {
-            const mid = (x0 + x1) / 2, mouth = (box.spout + 3) * c;
-            ctx.beginPath(); ctx.moveTo(mid - mouth, y0 - 1); ctx.lineTo(mid - mouth * 0.7, y0 + c * 2.5); ctx.moveTo(mid + mouth, y0 - 1); ctx.lineTo(mid + mouth * 0.7, y0 + c * 2.5); ctx.stroke();
+        if (y0 > -c * 4) {
+            // The spout, where it is on its swing.
+            const [sx] = px(F().spoutX(f) + 0.5, 0), mouth = (box.spout + 3) * c;
+            ctx.beginPath(); ctx.moveTo(sx - mouth * 1.5, y0 - 1); ctx.lineTo(sx - mouth, y0 + c * 3); ctx.moveTo(sx + mouth * 1.5, y0 - 1); ctx.lineTo(sx + mouth, y0 + c * 3); ctx.stroke();
         }
         drawSand(f, now);
         ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'low';
         ctx.drawImage(sand, view.x * SUB, view.y * SUB, view.vc * SUB, view.vr * SUB, view.ox, view.oy, view.vc * c, view.vr * c);
+        // Packets on their way down: arrowheads, as in Packet Snare, with a little static in them.
+        const size = Math.max(5, c * 3.2);
+        f.drops.forEach((d, n) => {
+            const [x, y] = px(d.x + 0.5, d.y);
+            if (y < -size || y > view.h + size) return;
+            const jolt = still ? 0 : Math.sin(now / 45 + n * 12.9898 + d.x) > 0.93 ? size * 0.25 : 0;
+            ctx.fillStyle = d.k === 6 ? colors.packetBad : d.k === 2 ? colors.gold : d.k === 4 || d.k === 5 ? colors.muted : colors.packet;
+            ctx.strokeStyle = colors.bg; ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x + jolt, y + size * 0.6); ctx.lineTo(x + size * 0.55 + jolt, y - size * 0.5); ctx.lineTo(x + jolt, y - size * 0.2); ctx.lineTo(x - size * 0.55 + jolt, y - size * 0.5);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            if (jolt) { ctx.strokeStyle = colors.text; ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.moveTo(x - size * 0.9, y); ctx.lineTo(x - size * 0.5, y - size * 0.3); ctx.lineTo(x - size * 0.7, y + size * 0.2); ctx.stroke(); ctx.globalAlpha = 1; }
+        });
         // Each mite's lamp, faintly: what it has lit shows for good.
         const lamp = box.lamp * c;
         ctx.fillStyle = colors.good; ctx.globalAlpha = 0.07;
