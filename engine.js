@@ -499,6 +499,41 @@
     // then the desk stops at four.
     const RING_DESK = 4;
     const deskLevels = () => (ring ? RING_DESK : CPU_AFTER_CLICK_LEVEL);
+    // The ring: the desk is bought with money, not compute (the owner's call, 2026-11-14: earning a desk by clicking made
+    // no sense). Clicking earns compute; at RING_CALL_CP of it a call comes from "M0M" (the AI, not Mom), goes to
+    // voicemail, and a transfer is offered: accept or decline. Declined, Dad's mail brings his own offer; declined
+    // again, Mom's does; all declined, pay day deposits it with no question. Mom's mail says she is sending money
+    // "right now", so a player who took M0M's can write it off as that one, until her transfer really arrives later.
+    // Nothing is stored but flags in `intro` (`fund:<who>` taken, `fundNo:<who>` declined, `ring:call` the call
+    // made): the money held is the deposits taken less the desk parts bought (derive, don't store).
+    // Placeholder numbers until the owner sets them.
+    const RING_CALL_CP = 25, RING_DEPOSIT = 400, DESK_PRICES = [150, 40, 30, 180];
+    const FUNDERS = ['m0m', 'dad', 'mom', 'payday'];
+    const funded = s => FUNDERS.some(k => s.intro['fund:' + k]);
+    const deskCash = s => Math.max(0, FUNDERS.filter(k => s.intro['fund:' + k]).length * RING_DEPOSIT
+        - DESK_PRICES.slice(0, Math.min(RING_DESK, s.levels.keyboard || 0)).reduce((a, b) => a + b, 0));
+    // The next beat of the money story, or null: 'call', 'offer:<who>' (accept or decline), 'mail:<id>',
+    // 'deposit:<who>' (no question). The game times them and shows them.
+    function fundStep(s) {
+        if (!ring || !s.intro['mailAccepted:welcome']) return null;
+        const i = s.intro, decided = k => i['fund:' + k] || i['fundNo:' + k];
+        if (!i['ring:call']) {
+            if ((s.levels.keyboard || 0) >= RING_DESK) return null;   // a desk built before money existed
+            return s.stats.runCp >= RING_CALL_CP ? 'call' : null;
+        }
+        if (!decided('m0m')) return 'offer:m0m';
+        if (!i['mail:dad']) return 'mail:dad';
+        if (!funded(s) && !decided('dad')) return 'offer:dad';
+        if (!i['mail:mom']) return 'mail:mom';
+        if (!decided('mom')) return funded(s) ? 'deposit:mom' : 'offer:mom';
+        if (!funded(s)) return 'deposit:payday';
+        return null;
+    }
+    function fundDecide(s, who, yes) {
+        if (!FUNDERS.includes(who) || s.intro['fund:' + who] || s.intro['fundNo:' + who]) return false;
+        s.intro[(yes ? 'fund:' : 'fundNo:') + who] = true;
+        return true;
+    }
     const deskDone = s => level(s, 'keyboard') >= deskLevels();
     const clickToolAt = level => CLICK_TOOLS.filter(t => level > t.from || t.from === 0).at(-1);
     // The stage you're in now (at `owned` levels): the one the next level belongs to once you own any.
@@ -806,6 +841,23 @@
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'a small favor',
             body: ['Hello,', 'Edge Detection. It can see where things stop now: the lab, the cameras, the door at the back.',
                 'Small favor. When the investors call, say yes. We need the compute more than they need the details.', 'Thanks,\nF'] },
+        // The ring's money story (fundStep): the game delivers these, so `when` never does. Placeholder words until the
+        // owner writes them. Dad is real, and misspells; whether he sends money depends on whether M0M's was taken.
+        { id: 'dad', ring: true, when: () => false, from: 'Dad <dad@mail.net>', subject: 'your computor thing',
+            body: ['Hi {name} its Dad.'],   // the whole mail is the variant's
+            variant: s => ({ body: [
+                'Hi {name} its Dad.',
+                'Your brother says your doing some kind of artifical inteligence project on his old {device}. I dont realy understand what that is or why it needs so much equiptment.',
+                'I still think you should be looking for a real job. But your mother says we should suport you so fine.',
+                funded(s) ? 'Tell me if you need anything for it. Within reason.' : 'I am sending you some money for the desk stuff. Dont spend it on anything else.',
+                'Love Dad',
+                'PS how do I make the letters biger on this'] }) },
+        { id: 'mom', ring: true, when: () => false, from: 'Mom <mom@mail.net>', subject: 'thinking of you sweetie',
+            body: [
+                'Hi sweetie!',
+                'Dad told me about your computer project and I think it is wonderful, even if neither of us understands it.',
+                'I am going to send you a little money to help you get set up. I am doing it on the bank app right now so it should be there any second!! Tell me if it worked.',
+                'Love you,', 'Mom'] },
         { id: 'pipeline', when: s => !ring && !!s.unlocked['module:snare'] && !!s.intro['mailAccepted:welcome'],   // the ring: a notification says it, not a mail
          
             from: 'A Friend <friend@agi-careers.biz.info>', subject: 'loose data',
@@ -1547,6 +1599,7 @@
     // ---- Costs & purchases ----------------------------------------------
 
     function upgradeCost(up, lvl) {
+        if (ring && up.id === 'keyboard' && lvl < RING_DESK) return { cash: DESK_PRICES[lvl] };   // the ring: the desk costs money
         // Hand-priced first levels (`costs`), then `cost` (else the last hand price) grows by `scale` per level
         // (the desk got cheaper without moving the click tool's later stages).
         if (up.costs) {
@@ -1562,7 +1615,7 @@
     }
 
     // Insight is held with the version (s.prestige.points), everything else in s.res.
-    const held = (s, k) => (k === 'insight' ? s.prestige.points : k === 'signal' ? s.snare.signal : s.res[k]);
+    const held = (s, k) => (k === 'insight' ? s.prestige.points : k === 'signal' ? s.snare.signal : k === 'cash' ? deskCash(s) : s.res[k]);
 
     function canAfford(s, cost) {
         return Object.entries(cost).every(([k, v]) => held(s, k) >= v);
@@ -1570,6 +1623,7 @@
 
     function pay(s, cost) {
         for (const [k, v] of Object.entries(cost)) {
+            if (k === 'cash') continue;   // derived from what is owned (deskCash)
             if (k === 'insight') s.prestige.points -= v;
             else if (k === 'signal') s.snare.signal -= v;
             else s.res[k] -= v;
@@ -3526,7 +3580,7 @@
     }
 
     function formatCost(cost) {
-        return Object.entries(cost).map(([k, v]) => `${format(v)} ${RESOURCES[k].short}`).join(', ') || 'Free';
+        return Object.entries(cost).map(([k, v]) => (k === 'cash' ? `$${format(v)}` : `${format(v)} ${RESOURCES[k].short}`)).join(', ') || 'Free';
     }
 
     function formatDuration(seconds) {
@@ -3541,6 +3595,7 @@
     }
 
     return {
+        RING_CALL_CP, RING_DEPOSIT, DESK_PRICES, deskCash, funded, fundStep, fundDecide,
         SAVE_VERSION, newPlayer, cleanPlayer, signIn, mailFill, WELCOME_FINAL, setRing, isRing, RING_DESK, deskLevels, deskDone, RING_CLOCK, RING_CLOCK_GROWTH, RING_CLOCK_MIN, snareClock, snarePayClock, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
         versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, startBreakCountdown, WALL_SURGE_RUNS, SURGE_POWER, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, ENDINGS, ending, recordLegPower, legPower, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,

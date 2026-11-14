@@ -2141,8 +2141,10 @@ window.AGI = (function () {
         // The lab's panels are the desktop's windows.
         if (!desk.titled) {
             const names = { Workbench: 'Compute', 'Hardware bench': 'Parts' };
-            for (const h of $('labRoom').querySelectorAll('.station-title')) if (names[h.textContent.trim()]) { h.textContent = names[h.textContent.trim()]; desk.titled = true; }
+            for (const h of $('labRoom').querySelectorAll('.station-title')) if (names[h.textContent.trim()]) { h.textContent = names[h.textContent.trim()]; desk.titled = true; if (h.textContent === 'Parts') desk.parts = h; }
         }
+        // The money you hold shows on the Parts window.
+        if (desk.parts) { const cash = E.deskCash(state); setText(desk.parts, cash > 0 ? `Parts · $${E.format(cash)}` : 'Parts'); }
     }
     // The device's home screen (the owner's call, 2026-11-13): under the ring a new game starts here once mail is set
     // up, not in the lab: a laptop's desktop (icons, a taskbar with the clock) or a phone's home screen (a status bar,
@@ -2153,6 +2155,8 @@ window.AGI = (function () {
     const HOME_INSTALL_MS = 6000;
     const HOME_ICONS = {
         ...DESK_ICONS,
+        phone: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',
+        bank: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg>',
         journal: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21a2 2 0 0 1 2-2h13v2H6"/><path d="M8 7h7M8 11h5"/></svg>',
         settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/><circle cx="12" cy="12" r="6.5"/></svg>',
         debug: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="8" height="11" rx="4"/><path d="M9.5 8a2.5 2.5 0 0 1 5 0M4 13h4M16 13h4M5 7l3.5 2.5M19 7l-3.5 2.5M5 20l3.5-3M19 20l-3.5-3M12 11v8"/></svg>',
@@ -2200,6 +2204,7 @@ window.AGI = (function () {
     }
     function renderHome() {
         if (!E.isRing()) return;
+        fundTick();
         // A save that is already working in the lab has opened it.
         if (!labOpened() && introDone() && (state.stats.clicks > 0 || E.level(state, 'keyboard') > 0)) state.intro['ring:labOpened'] = true;
         const on = !labOpened() || homeUp;
@@ -2289,6 +2294,85 @@ window.AGI = (function () {
         save();
         if (!state.intro['ring:welcome']) showWelcome();
     }
+    // The money story (engine.js fundStep; the owner's call, 2026-11-14): the call from M0M that rings out to voicemail,
+    // the transfers to accept or decline, Dad's and Mom's mails, pay day. Each beat waits its delay (this session's
+    // clock) and for any open dialog to close. Placeholder timings until the owner sets them.
+    const FUND_DELAY = { call: 1500, 'offer:m0m': 2500, 'mail:dad': 45000, 'offer:dad': 20000, 'mail:mom': 45000, 'offer:mom': 60000, 'deposit:mom': 60000, 'deposit:payday': 20000 };
+    const FUND_NAME = { m0m: 'M0M', dad: 'Dad', mom: 'Mom' };
+    const CALL_RING_MS = 9000;
+    let fundWait = { step: null, from: 0 }, fundBusy = false;
+    function fundTick() {
+        if (fundBusy || !labOpened()) return;
+        const step = E.fundStep(state);
+        if (!step) return;
+        if (fundWait.step !== step) fundWait = { step, from: performance.now() };
+        if (performance.now() - fundWait.from < FUND_DELAY[step] || document.querySelector('dialog[open]')) return;
+        fundWait.step = null;
+        const [kind, who] = step.split(':');
+        const money = `$${E.format(E.RING_DEPOSIT)}`;
+        if (kind === 'call') return showCall();
+        if (kind === 'offer') return showTransfer(who);
+        if (kind === 'mail') {
+            const m = E.MAIL.find(x => x.id === who);
+            storyArrive(m);
+            pt('mail', { id: who });
+            toast('New message', m.subject, 'mail');
+        } else {
+            E.fundDecide(state, who, true);
+            pt('funds', { from: who, auto: 1 });
+            deviceNotice('bank', 'Bank', who === 'mom' ? `Mom sent you ${money}.` : `Pay day. ${money} has been deposited.`, () => {});
+        }
+        afterChange();
+        save();
+    }
+    function showCall() {
+        fundBusy = true;
+        const dlg = el('dialog', { class: 'dialog device-call', 'aria-labelledby': 'deviceCallName' }, [
+            el('p', { class: 'device-call-kind', text: 'Incoming call' }),
+            el('h2', { id: 'deviceCallName', text: 'M0M' }),
+            el('p', { class: 'device-call-kind', text: 'mobile' }),
+            el('div', { class: 'device-call-actions' }, [el('button', { type: 'button', class: 'device-call-decline', text: 'Decline', onclick: () => { declined = true; dlg.close(); } })])]);
+        let declined = false;
+        const ring = setInterval(() => sfx('ui'), 1200);
+        const out = setTimeout(() => dlg.close(), CALL_RING_MS);
+        dlg.addEventListener('cancel', e => e.preventDefault());
+        dlg.addEventListener('close', () => {
+            clearInterval(ring); clearTimeout(out);
+            dlg.remove();
+            state.intro['ring:call'] = true;
+            fundBusy = false;
+            pt('call', { from: 'm0m', declined: declined ? 1 : 0 });
+            deviceNotice('phone', 'Phone', 'Missed call from M0M. New voicemail (0:11).', () => {});
+            save();
+        });
+        document.body.append(dlg);
+        dlg.showModal();
+        sfx('ui');
+    }
+    function showTransfer(who) {
+        fundBusy = true;
+        const money = `$${E.format(E.RING_DEPOSIT)}`;
+        const choose = yes => { E.fundDecide(state, who, yes); pt('funds', { from: who, accepted: yes ? 1 : 0 }); dlg.close(); };
+        const dlg = el('dialog', { class: 'dialog ring-welcome device-transfer', 'aria-labelledby': 'deviceTransferTitle' }, [
+            el('p', { class: 'device-call-kind', text: 'Bank' }),
+            el('h2', { id: 'deviceTransferTitle', text: 'Incoming transfer' }),
+            el('p', { class: 'device-transfer-sum', text: money }),
+            el('p', { class: 'device-transfer-from', text: `from ${FUND_NAME[who]}` }),
+            el('div', { class: 'dialog-actions' }, [
+                el('button', { type: 'button', class: 'ghost-button', text: 'Decline', onclick: () => choose(false) }),
+                el('button', { type: 'button', class: 'button', text: 'Accept', onclick: () => choose(true) })])]);
+        dlg.addEventListener('cancel', e => e.preventDefault());
+        dlg.addEventListener('close', () => {
+            dlg.remove();
+            fundBusy = false;
+            if (state.intro['fund:' + who]) { sfx('claim'); deviceNotice('bank', 'Bank', `${money} deposited. Parts are in the Lab.`, () => { if (homeUp) openLab(); }); }
+            afterChange();
+            save();
+        });
+        document.body.append(dlg);
+        dlg.showModal();
+        sfx('ui');
+    }
     // The playtest survey (the owner's call: an icon for surveying the testers). Placeholder questions for now; the
     // answers go into the playtest log as a `survey` event, and the log can be copied from here.
     function openSurvey() {
@@ -2307,7 +2391,7 @@ window.AGI = (function () {
             el('p', { class: 'survey-lead', text: 'Answer what you like. Your answers are saved in the playtest log.' }),
             form,
             el('div', { class: 'dialog-actions' }, [
-                el('button', { type: 'button', class: 'button ghost', text: 'Close', onclick: () => dlg.close() }),
+                el('button', { type: 'button', class: 'ghost-button', text: 'Close', onclick: () => dlg.close() }),
                 el('button', { type: 'button', class: 'button', text: 'Save and copy log', onclick: () => {
                     const data = Object.fromEntries([...new FormData(form)].filter(([, v]) => String(v).trim()).map(([k, v]) => [k, String(v).trim()]));
                     pt('survey', data);
@@ -2323,7 +2407,7 @@ window.AGI = (function () {
         const steps = [
             ['Your AI is very weak', 'It can\'t do anything yet. Everything it does runs on compute, and right now it has none.'],
             ['Click to make compute', 'Press Generate Compute. Each click makes a little. This old device is slow, so it takes a lot of clicks.'],
-            ['Spend it on your desk', 'Parts sells a tower, a keyboard, a mouse and a monitor. Each one makes your clicks worth more.'],
+            ['It needs a real desk', 'Parts sells a tower, a keyboard, a mouse and a monitor. They cost money, which you don\'t have yet.'],
             ['Finish the desk to get online', 'With the monitor in, your AI can reach the internet and start catching data to learn from.']];
         const dlg = el('dialog', { class: 'dialog ring-welcome', 'aria-labelledby': 'ringWelcomeTitle' }, [
             el('h2', { id: 'ringWelcomeTitle', text: 'Welcome to the lab' }),
