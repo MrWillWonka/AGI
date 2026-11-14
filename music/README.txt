@@ -34,11 +34,17 @@ WHAT EVERY TRACK SHARES (the considerations behind all five)
                Holding a job repeats on the 8ths: 242 ms, 4.13 clicks a second, which is part of the
                game's pacing.
   One key each Songs and effects are all written in A and moved into the track's key, so every effect is in
-               key with whatever song is playing. Effects use five-note scales, which cannot clash.
+               the track's key. Effects use five-note scales, which keeps them safe most of the time.
+               They follow the scale, not the chord: only the sprint meter reads the chord the music is
+               on. So an effect can still rub against a chord (in Classic, a G against the G sharp of
+               E7 at the end of Uptime, Overclock and Packet Storm; in Soft, an F against the E of Am7).
+               Whether that matters depends on the chord, the register and how long the note lasts.
   A song       An eight-bar chord progression, a bass pattern, the chords' rhythm, a four-bar melody (A) and
                an eight-bar one (B), and a level trim.
-  The form     Eight bars a section: intro, A, B, A, a breakdown (drums out), B, A with a harmony a third
-               below, out. Two minutes, then the area's other song. Changing rooms changes song on the
+  The form     Eight bars a section: intro, A, B, A, a breakdown, B, A with a harmony a third below, out.
+               The breakdown is meant to be "drums out", but only the kick, the clap and the stealth tick
+               obey it: in all five tracks the hats (Soft's shakers and rim) keep playing through it.
+               See opportunities.txt, "Found in review". Two minutes, then the area's other song. Changing rooms changes song on the
                next downbeat; coming back picks the song up at the section it left.
   It builds    Progress through the game and the run's speed add up to how many parts play, each fading in:
                kick and bass always, then chords, off-beat hats, the melody, a clap, 16th hats, the harmony,

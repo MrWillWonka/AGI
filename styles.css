@@ -4250,3 +4250,10 @@ body.ring-device.device-phone .snare-tree-bar .button, body.ring-device.device-p
 .feed-title { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
 .feed-close, .feed-end { flex: none; }
 @media (max-width: 520px) { .feed-bar:has(.feed-end:not([hidden])) .feed-title { display: none; } .feed-bar:has(.feed-end:not([hidden])) .feed-stat:first-of-type { margin-right: auto; } }
+/* The Feed's tools and combos: the cards you hold this session, and how rare cards look. */
+.feed-held { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 14px 0; }
+.feed-held[hidden] { display: none; }
+.feed-chip { font: 600 0.72rem var(--font-mono); padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); white-space: nowrap; }
+.feed-chip.rare { border-color: var(--warning); color: var(--warning); }
+.feed-chip.combo, .feed-card.combo { border-color: var(--research); }
+.feed-chip.combo, .feed-card.combo em { color: var(--research); }

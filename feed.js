@@ -88,7 +88,23 @@
         hungerFill: 0.6,    // eating this share of the layer's worth of paying sand refills the whole bar
         sectorPay: 0.5,     // a packet from sector k pays 1 + this × (k − 1) times as much
         cardChoices: 3,     // cards offered at a split, to pick one (the owner's call: the session waits while you choose)
-        cardRare: 0.12      // the chance each offered card is a rare one, when there are rare ones to offer
+        cardRare: 0.12,     // the chance each offered card is a rare one, when there are rare ones to offer
+        // The tools (rare cards; all work on their own). A level past the first makes each come round sooner: ÷ (1 + `toolFaster` a level).
+        toolFaster: 0.5,
+        scanEvery: 12,      // scanner: seconds between sweeps,
+        scanSpeed: 70,      // and cells a second the beam crosses the box
+        pulseEvery: 8,      // pulse: seconds between bursts,
+        pulseR: 4,          // its radius in cells,
+        pulseGrow: 1,       // and what a level adds to it
+        arcEvery: 3,        // arc: seconds between sparks,
+        arcReach: 30,       // how far apart two mites may be, in cells,
+        arcGrow: 8,         // and what a level adds to it
+        sortRate: 120,      // sorter bots: grains a second each bot carries toward its kind's side (a bot a level),
+        sortHop: 14,        // and how many cells it carries one, at the most
+        shakeEvery: 2,      // algo-rhythm: seconds between beats,
+        shakeMoves: 300,    // and garbled grains a beat that sink a cell, a level
+        stormR: 3,          // the Storm's bursts at each end of an arc
+        comboLevels: 2      // a combo works its two tools at this many levels each, a level of its own
     };
     // Cards (the owner's cards, 2026-11-14): a split in a session offers `cardChoices` of these and you pick one; it
     // lasts the session and stacks. `stat` is the dial it multiplies (`pay` is research per grain), `by` the multiplier
@@ -97,9 +113,25 @@
         chew: { stat: 'chew', by: 1.25 },
         hunger: { stat: 'hungerTime', by: 1.25 },
         speed: { stat: 'speed', by: 1.3 },
-        pay: { stat: 'pay', by: 1.2 }
+        pay: { stat: 'pay', by: 1.2 },
+        // Tools (the owner's cards): rare, they work on their own, and a copy makes one stronger.
+        scanner: { rare: true, tool: true },   // a beam crosses the box and shows what the sand is (gold, fragments)
+        pulse: { rare: true, tool: true },     // a burst at the point you hold (else a mite) eats every grain in a circle
+        arc: { rare: true, tool: true },       // sparks between mites near each other eat the sand along the line
+        sorter: { rare: true, tool: true },    // bots move gold toward one wall and garbled sand toward the other: like with like
+        rhythm: { rare: true, tool: true },    // the box shakes on a beat: the dense garbled sand sinks, the rest rises
+        // Combos (the owner's call, from a picture of recipes): hold both tools and the combo may be offered; taking it
+        // merges the two into one tool that does both jobs harder, with a twist of its own.
+        sonar: { rare: true, combo: ['scanner', 'pulse'] },   // the pulse goes off on gold
+        storm: { rare: true, combo: ['pulse', 'arc'] },       // every arc ends in a small burst at each mite
+        defrag: { rare: true, combo: ['sorter', 'rhythm'] }   // sorts and settles together
     };
     const CARD_IDS = Object.keys(CARDS);
+    const COMBOS = CARD_IDS.filter(id => CARDS[id].combo);
+    // A tool's level this session: its own copies, and `comboLevels` for each level of a combo it was merged into.
+    const toolLevel = (state, id, opts) => { const c = state.session?.cards; if (!c) return 0; let n = c[id] || 0; for (const k of COMBOS) if (c[k] && CARDS[k].combo.includes(id)) n += opt(opts).comboLevels * c[k]; return n; };
+    // May this card be offered now? A combo only once you hold both its tools (or already hold it).
+    const offerable = (state, id) => { const k = CARDS[id], c = state.session?.cards || {}; return !k.combo || !!c[id] || k.combo.every(t => c[t] > 0); };
     const STEP = 0.05;      // the rules' own time step, in seconds
 
     // Kinds by their number in a cell (0 is empty), what a packet of each pays when eaten, and the skill a kind waits for.
@@ -210,7 +242,7 @@
     const withCards = (state, o) => { const c = state.session?.cards; if (!c || !Object.keys(c).length) return o; const out = { ...o }; for (const stat of ['chew', 'hungerTime', 'speed']) out[stat] = o[stat] * cardMult(state, stat); return out; };
     // Offer cards: `cardChoices` different ones, each slot a rare one at `cardRare` when there are any left to offer.
     function offerCards(state, o, out) {
-        const s = state.session, pool = { common: CARD_IDS.filter(id => !CARDS[id].rare), rare: CARD_IDS.filter(id => CARDS[id].rare) }, offer = [];
+        const s = state.session, pool = { common: CARD_IDS.filter(id => !CARDS[id].rare), rare: CARD_IDS.filter(id => CARDS[id].rare && offerable(state, id)) }, offer = [];
         for (let n = 0; n < o.cardChoices; n++) {
             const from = pool.rare.length && (rand(state) < o.cardRare || !pool.common.length) ? pool.rare : pool.common;
             if (!from.length) break;
@@ -224,9 +256,96 @@
         const o = opt(opts), s = state.session, id = s?.offer?.[n], out = { research: 0, events: [] };
         if (!id) return null;
         s.cards[id] = (s.cards[id] || 0) + 1; s.offer = null; s.picks = Math.max(0, (s.picks || 0) - 1);
-        out.events.push({ type: 'card', card: id, level: s.cards[id] });
+        // A combo merges its two tools into itself: their cards go, and copies they had past the first carry over as levels.
+        let merged = null;
+        if (CARDS[id].combo && CARDS[id].combo.every(t => s.cards[t] > 0)) { merged = [...CARDS[id].combo]; for (const t of merged) { s.cards[id] += s.cards[t] - 1; delete s.cards[t]; } }
+        out.events.push(merged ? { type: 'card', card: id, level: s.cards[id], merged } : { type: 'card', card: id, level: s.cards[id] });
         if (s.picks > 0) offerCards(state, o, out);
         return out;
+    }
+    // ---- the tools ----------------------------------------------------------------------------------------------------
+    const settled = (state, i) => i + state.w >= state.cells.length || !!state.cells[i + state.w];
+    const every = (base, level, o) => base / (1 + o.toolFaster * (level - 1));
+    // Eat every grain within `r` cells of a point, whatever it is (garbled sand is cleared too).
+    function burst(state, o, x, y, r, out) {
+        const { w, h, cells } = state; let n = 0;
+        for (let cy = Math.max(0, Math.floor(y - r)); cy <= Math.min(h - 1, Math.floor(y + r)); cy++) for (let cx = Math.max(0, Math.floor(x - r)); cx <= Math.min(w - 1, Math.floor(x + r)); cx++) {
+            const i = cy * w + cx; if (cells[i] && (cx + 0.5 - x) * (cx + 0.5 - x) + (cy + 0.5 - y) * (cy + 0.5 - y) <= r * r) { eat(state, o, i, out); n++; }
+        }
+        out.events.push({ type: 'pulse', x, y, r, eaten: n });
+        return n;
+    }
+    // The session's tools for one step of `dt` seconds. `s.tt` holds each one's clock, `s.beam` the scanner's beam
+    // (a column, or −1), `s.bots` where the sorter bots are.
+    function tools(state, o, dt, out) {
+        const s = state.session, { w, h, cells } = state, tt = s.tt || (s.tt = {});
+        const due = (key, level, base) => { tt[key] = (tt[key] || 0) + dt; const t = every(base, level, o); if (tt[key] < t) return false; tt[key] -= t; return true; };
+        const scan = toolLevel(state, 'scanner', o), pulse = toolLevel(state, 'pulse', o), arc = toolLevel(state, 'arc', o), sort = toolLevel(state, 'sorter', o), shake = toolLevel(state, 'rhythm', o);
+        if (scan) {
+            if (!(s.beam >= 0) && due('scan', scan, o.scanEvery)) s.beam = 0;
+            if (s.beam >= 0) {
+                const to = Math.min(w, s.beam + o.scanSpeed * dt);
+                for (let x = Math.floor(s.beam); x < Math.ceil(to) && x < w; x++) for (let y = 0; y < h; y++) {
+                    const i = y * w + x, v = cells[i];
+                    if (!v || seenOf(v) || !settled(state, i)) continue;
+                    cells[i] = v | 64;
+                    const kind = KIND_IDS[kindOf(v)]; if (kind === 'vein' || kind === 'fragment') out.events.push({ type: 'found', x, y, kind });
+                }
+                s.beam = to >= w ? -1 : to;
+            }
+        }
+        if (pulse && state.grains && due('pulse', pulse, o.pulseEvery)) {
+            let at = state.aim || state.swarm[Math.floor(rand(state) * state.swarm.length)];
+            // Sonar: it goes off on gold, when a few tries find some.
+            if (s.cards.sonar) for (let n = 0; n < 300; n++) { const i = Math.floor(rand(state) * cells.length); if (kindOf(cells[i]) === KINDS.vein.id && settled(state, i)) { at = { x: i % w + 0.5, y: Math.floor(i / w) + 0.5 }; break; } }
+            burst(state, o, at.x, at.y, o.pulseR + o.pulseGrow * (pulse - 1), out);
+        }
+        if (arc && state.swarm.length > 1 && state.grains && due('arc', arc, o.arcEvery)) {
+            const reach = o.arcReach + o.arcGrow * (arc - 1);
+            for (let n = 0; n + 1 < state.swarm.length; n++) {
+                const a = state.swarm[n], b = state.swarm[n + 1], len = Math.hypot(b.x - a.x, b.y - a.y);
+                if (len > reach) continue;
+                let eaten = 0;
+                for (let k = 0, steps = Math.max(1, Math.ceil(len * 2)); k <= steps; k++) {
+                    const x = Math.floor(a.x + (b.x - a.x) * k / steps), y = Math.floor(a.y + (b.y - a.y) * k / steps), i = y * w + x;
+                    if (x >= 0 && x < w && y >= 0 && y < h && cells[i]) { eat(state, o, i, out); eaten++; }
+                }
+                out.events.push({ type: 'arc', x1: a.x, y1: a.y, x2: b.x, y2: b.y, eaten });
+                if (s.cards.storm) { burst(state, o, a.x, a.y, o.stormR, out); burst(state, o, b.x, b.y, o.stormR, out); }
+            }
+        }
+        if (sort && state.grains) {
+            if (!Array.isArray(s.bots)) s.bots = [];
+            while (s.bots.length < sort) s.bots.push({ x: w / 2, y: h - 1 });
+            s.bots.length = sort;
+            tt.sort = (tt.sort || 0) + o.sortRate * dt;
+            const moves = Math.floor(tt.sort); tt.sort -= moves;
+            for (const bot of s.bots) for (let m = 0; m < moves; m++) {
+                // Gold a cell toward the right wall, garbled a cell toward the left, past sand of another kind.
+                // (looked for from a random cell on, a quarter of the box at the most)
+                for (let tries = 0, from = Math.floor(rand(state) * cells.length), span = cells.length >> 2; tries < span; tries++) {
+                    const i = (from + tries) % cells.length, v = cells[i], k = kindOf(v);
+                    const dir = k === KINDS.vein.id ? 1 : k === KINDS.garbled.id ? -1 : 0, x = i % w;
+                    if (!dir || x + dir < 0 || x + dir >= w) continue;
+                    if (!settled(state, i)) continue;
+                    let at = i, hops = 0;
+                    for (; hops < o.sortHop; hops++) { const cx = at % w, j = at + dir, u = cells[j]; if (cx + dir < 0 || cx + dir >= w || !u || kindOf(u) === k || !settled(state, j)) break; cells[at] = u; cells[j] = v; at = j; }
+                    if (!hops) continue;
+                    bot.x = at % w + 0.5; bot.y = Math.floor(at / w) + 0.5;
+                    break;
+                }
+            }
+        } else if (s.bots && s.bots.length) s.bots = [];
+        if (shake && state.grains && due('shake', 1, o.shakeEvery)) {
+            let sunk = 0;
+            // From a random cell back up the box, so a grain sinks one cell a beat.
+            for (let n = 0, want = o.shakeMoves * shake, from = Math.floor(rand(state) * (cells.length - w)), span = cells.length - w; n < span && sunk < want; n++) {
+                const i = (from - n + span) % span, v = cells[i], u = cells[i + w];
+                if (kindOf(v) !== KINDS.garbled.id || !u || kindOf(u) === KINDS.garbled.id || !settled(state, i + w)) continue;
+                cells[i] = u; cells[i + w] = v; sunk++;
+            }
+            out.events.push({ type: 'shake', sunk });
+        }
     }
     // An empty box and a swarm of one: how every session starts, and what is left when one ends.
     function clearBox(state, o) {
@@ -273,7 +392,7 @@
         state.band = (state.band + 1) % o.bands;
         state.backlog.push({ sector: k, n: e.n, gold: e.gold, bad: e.bad, band: state.band });
         delete state.stock[k];
-        state.session = { sector: k, research: 0, time: 0, packets: e.n + e.gold + e.bad, cards: {}, offer: null, picks: 0 };
+        state.session = { sector: k, research: 0, time: 0, packets: e.n + e.gold + e.bad, cards: {}, offer: null, picks: 0, tt: {}, beam: -1, bots: [] };
         state.life = 1; state.lastSession = null; state.stats.sessions++;
         return true;
     }
@@ -582,6 +701,7 @@
                 if (!state.dry && state.stats.delivered > 0) { state.dry = true; out.events.push({ type: 'empty' }); }
             }
             if (state.session) {
+                tools(state, o, each, out);
                 if (state.session.picks > 0) { offerCards(state, base, out); if (state.session.offer) break; }
                 state.life -= each / o.hungerTime;
                 if (state.life <= 0) { state.life = 0; ended = 'hunger'; break; }
@@ -692,6 +812,10 @@
                 const cards = {}; for (const id of CARD_IDS) { const n = whole(sess.cards?.[id], 200); if (n) cards[id] = n; }
                 const offer = Array.isArray(sess.offer) ? [...new Set(sess.offer.filter(id => typeof id === 'string' && Object.prototype.hasOwnProperty.call(CARDS, id)))].slice(0, o.cardChoices) : [];
                 state.session = { sector, research: whole(sess.research, 1e12), time: real(sess.time, 0, 1e7, 0), packets: whole(sess.packets, 1e8), cards, offer: offer.length ? offer : null, picks: offer.length ? Math.max(1, whole(sess.picks, 200)) : whole(sess.picks, 200) };
+                // The tools' clocks, the scanner's beam and the sorter bots.
+                const tt = {}; for (const key of ['scan', 'pulse', 'arc', 'sort', 'shake']) { if (typeof sess.tt?.[key] === 'number') tt[key] = real(sess.tt[key], 0, 1e4, 0); }
+                state.session.tt = tt; state.session.beam = real(sess.beam, 0, FEED.w, -1);
+                state.session.bots = (Array.isArray(sess.bots) ? sess.bots.slice(0, 50) : []).map(b => ({ x: real(b?.x, 0, FEED.w, FEED.w / 2), y: real(b?.y, 0, FEED.h, FEED.h - 1) }));
                 state.life = real(raw.life, 0, 1, 1);
             } else { clearBox(state, o); state.life = 1; }
             const last = raw.lastSession;
@@ -705,6 +829,6 @@
     }
 
     return { FEED, KINDS, KIND_IDS, LOCKED, FRAGMENTS, STEP, newFeed, clean, deliver, point, step, setReadable, readableFor,
-        sessions, startSession, endSession, stockList, stockOf, stockCap, CARDS, pickCard, cardMult,
+        sessions, startSession, endSession, stockList, stockOf, stockCap, CARDS, COMBOS, pickCard, cardMult, toolLevel,
         pack, unpack, spoutX, left, waiting, fill, census, hunger, layerSize, bitesFor, kindOf, bandOf, seenOf, airOf, hpOf };
 });

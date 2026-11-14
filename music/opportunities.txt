@@ -70,6 +70,45 @@ THE THREE MOST IMPACTFUL
    calls. A track that starts from pads instead needs the owner's yes.
 
 
+FOUND IN REVIEW (2026-11-14; each checked against the code, none by ear)
+======================================================================
+A. THE BREAKDOWN IS NOT "DRUMS OUT"
+   The breakdown sets `drums` false for its first six bars, and only the kick, the clap and the stealth
+   tick check it. Hats don't, in any track: Classic keeps 12 hat hits a bar (4 off-beat, 8 on the 16ths),
+   Dark its open hats and ride, Ominous its clock, Retro its hats, Soft 9 (8 shakers and the rim). So while
+   training, with the layers in, the breakdown is "kick and clap out", which is a much smaller drop.
+   Fix: one check per hat line in each style's `step` (about ten lines in sfx.js). Whether a track should
+   keep a quiet hat through its breakdown is then a choice per track, not an accident. Ominous keeping
+   its clock would be a good choice; Classic keeping 16th hats probably isn't.
+
+B. THE INSTRUMENTS ARE THINNER THAN THEIR NAMES
+   Soft's Rhodes is one sine per note; its kalimba a sine and a short octave tone; its shaker and rim one
+   noise hat. The same is true elsewhere (Dark's "hoover" is two detuned saws, Ominous's "strings" are
+   triangles). This is the part no mixing or mastering can fix: it is synthesis, and it lives in the engine.
+   Do, in order of value:
+     Rhodes    two-operator FM: a sine carrier with a sine modulator at 1:1 whose depth falls quickly (the
+               "bark"), plus a very short high partial for the tine, and a slow tremolo.
+     Kalimba   a sine with an inharmonic partial (about 5.4 times the note) that dies in 50 ms and a tiny
+               noise click for the thumb: a pluck, not a beep.
+     Shaker    band-passed noise with a soft attack and two alternating levels; a rim as a short pitched
+               click (a 1.7 kHz sine burst with noise), so the two stop being the same sound.
+     Hoover    three or more saws with pitch falling into the note, through a chorus.
+     Strings   detuned saws through a slow filter with a slow attack, in place of triangles.
+   Where: `synth` takes a waveform, a filter and an envelope today. It needs an FM option and a per-note
+   partial list. Re-measure levels after: richer voices are louder at the same gain.
+
+C. EFFECTS FOLLOW THE SCALE, NOT THE CHORD
+   Only the sprint meter reads the chord the music is on (`chordAt`). Clicks take their note from the bar's
+   position; every stinger plays fixed notes in the track's five-note scale. A five-note scale avoids most
+   trouble but not all: a click's G lands on E7's G sharp, a summit's A minor stabs can land on any chord.
+   Short, high, quiet notes get away with it; long, loud ones (summit, phase, ship, the big buys) may not.
+   Do: use `chordAt` for the long stingers first (voice their chord as the chord the song is on, or wait
+   for the next bar's chord), then for clicks: keep the figure's shape and move any note a semitone from a
+   chord tone to that chord tone. Keep the tension where it is meant (Dark's flat second, Ominous's
+   tritone). The earlier claim in these notes that pentatonic scales "cannot clash" was too strong and has
+   been corrected.
+
+
 EACH GROUP, ELEMENT BY ELEMENT
 ==============================
 Melody, harmony, rhythm and meter, texture, timbre, dynamics, form; then the effects.
@@ -112,7 +151,8 @@ SOFT (gentle, F major / D minor)
   Rhythm    Swing and a different kick pattern (item 1). The biggest single change available to this track.
   Texture   Pad, Rhodes, arpeggio and kalimba are all sines in the same octave or two: they blur. Move the
             arpeggio up an octave or give the Rhodes a tremolo so each has its own place.
-  Timbre    Everything is a sine or a triangle. Add one voice with some grit (a soft, filtered saw "cello"
+  Timbre    Everything is a sine or a triangle, and the Rhodes and kalimba are sines in name only (see
+            "Found in review", B: this track gains the most from better synthesis). Add one voice with some grit (a soft, filtered saw "cello"
             or a breathy noise layer on the pad) so the sines have something to sit against.
   Dynamics  The mallet instruments have one loudness. Vary the strike level note to note.
   Form      Start from pads, kick last (item 3).

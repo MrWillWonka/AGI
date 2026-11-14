@@ -160,3 +160,58 @@ test('a card does what it says, stacks, and is gone with the session', () => {
     const junk = Feed.clean({ ...JSON.parse(JSON.stringify(s)), session: { sector: 1, cards: { pay: -3, zap: 9, chew: 2.7 }, offer: ['zap', 'pay', 'pay', 7], picks: 'x' } });
     assert.deepEqual([junk.session.cards, junk.session.offer, junk.session.picks], [{ chew: 2 }, ['pay'], 1]);
 });
+
+// Tools and combos (the owner's cards, 2026-11-14): rare cards that work on their own; two tools merge into a combo.
+const session = (load, cards) => { const s = fresh(); for (let i = 0; i < 3; i++) Feed.deliver(s, load); Feed.startSession(s, load.sector || 1); Object.assign(s.session.cards, cards); return s; };
+const play = (s, seconds, lead = true) => { const ev = []; for (let t = 0; t < seconds * 10 && s.session; t++) { if (s.session.offer) Feed.pickCard(s, 0); if (lead) { let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i]) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); } ev.push(...Feed.step(s, 0.1).events); } return ev; };
+const mean = (s, kind, axis) => { let n = 0, sum = 0; s.cells.forEach((v, i) => { if (Feed.kindOf(v) === kind) { n++; sum += axis === 'x' ? i % s.w : Math.floor(i / s.w); } }); return n ? sum / n : null; };
+
+test('tool cards are rare, and a combo is offered only once you hold both its tools', () => {
+    const s = session({ sector: 1, packets: 100 }, {});
+    const offers = [];
+    for (let t = 0; t < 6000 && s.session && offers.length < 3; t++) { if (s.session.offer) { offers.push(s.session.offer); Feed.pickCard(s, 0); } let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i]) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); Feed.step(s, 0.1, { cardRare: 1 }); }
+    assert.ok(offers.length >= 2);
+    assert.ok(offers[0].every(id => Feed.CARDS[id].tool), 'with the rare chance at 1, every card is a tool');
+    assert.ok(offers.flat().every(id => !Feed.CARDS[id].combo || Feed.CARDS[id].combo.every(t => s.session.cards[t] || s.session.cards[id])), 'no combo before its tools');
+    // Taking a combo merges its tools: their cards go, copies past the first carry over, and it works both harder.
+    const m = session({ sector: 1, packets: 60 }, { scanner: 2, pulse: 1, chew: 1 });
+    assert.equal(Feed.toolLevel(m, 'scanner'), 2);
+    m.session.offer = ['sonar']; m.session.picks = 1;
+    const out = Feed.pickCard(m, 0);
+    assert.deepEqual(out.events, [{ type: 'card', card: 'sonar', level: 2, merged: ['scanner', 'pulse'] }]);
+    assert.deepEqual(m.session.cards, { chew: 1, sonar: 2 });
+    assert.deepEqual([Feed.toolLevel(m, 'scanner'), Feed.toolLevel(m, 'pulse'), Feed.toolLevel(m, 'arc')], [4, 4, 0]);
+});
+
+test('each tool does its job on its own', () => {
+    // Scanner: after a sweep no settled gold is hidden.
+    const hidden = s => s.cells.filter((v, i) => Feed.kindOf(v) === 2 && !Feed.seenOf(v) && (i + s.w >= s.cells.length || s.cells[i + s.w])).length;
+    const a = session({ sector: 1, packets: 100, gold: 30 }, {}), b = session({ sector: 1, packets: 100, gold: 30 }, { scanner: 1 });
+    play(a, 16, false); play(b, 16, false);
+    assert.ok(hidden(a) > 20 && hidden(b) < hidden(a) / 4, `scanned ${hidden(b)} against ${hidden(a)}`);
+    // Pulse: bursts that eat.
+    const p = play(session({ sector: 1, packets: 100 }, { pulse: 1 }), 20).filter(e => e.type === 'pulse');
+    assert.ok(p.length >= 2 && p.some(e => e.eaten > 5));
+    // Arc: sparks between mites once there are two; the Storm adds bursts.
+    const arcs = play(session({ sector: 1, packets: 100 }, { arc: 1 }), 90).filter(e => e.type === 'arc');
+    assert.ok(arcs.length > 0, 'arcs fire between mites');
+    // Sorter bots and the algo-rhythm, on copies of one settled pile: gold drifts right and garbled left; garbled sinks
+    // (rows count down the box).
+    const pile = fresh(); Feed.deliver(pile, { sector: 1, packets: 50, gold: 20, garbled: 30 }); Feed.startSession(pile, 1); play(pile, 13, false);
+    assert.equal(Feed.waiting(pile), 0);
+    const after = cards => { const s = Feed.clean(JSON.parse(JSON.stringify(pile))); Object.assign(s.session.cards, cards); play(s, 10, false); return s; };
+    const plain = after({}), sorted = after({ sorter: 2 }), shaken = after({ rhythm: 1 });
+    const gap = s => mean(s, 2, 'x') - mean(s, 6, 'x');
+    assert.ok(gap(sorted) > gap(plain) + 10, `sorted ${gap(sorted).toFixed(1)} against ${gap(plain).toFixed(1)}`);
+    assert.equal(sorted.session.bots.length, 2);
+    assert.ok(mean(shaken, 6, 'y') > mean(plain, 6, 'y') + 2, `sunk ${mean(shaken, 6, 'y').toFixed(1)} against ${mean(plain, 6, 'y').toFixed(1)}`);
+    assert.equal(sorted.grains, plain.grains, 'sorting moves sand, it never makes or loses any');
+});
+
+test('a save keeps the tools going exactly', () => {
+    const s = session({ sector: 1, packets: 100, gold: 20, garbled: 30 }, { scanner: 1, pulse: 1, arc: 1, sorter: 1, rhythm: 1 });
+    play(s, 7);
+    const back = Feed.clean(JSON.parse(JSON.stringify(s)));
+    assert.deepEqual(JSON.parse(JSON.stringify(back)), JSON.parse(JSON.stringify(s)));
+    assert.deepEqual(Feed.step(back, 5), Feed.step(s, 5));
+});
