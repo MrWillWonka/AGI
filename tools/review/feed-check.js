@@ -67,6 +67,17 @@ const PORT = 8179, URL = `http://localhost:${PORT}`, T = { timeout: 6000 };
             await page.click('.feed-card:nth-child(2)', T); await page.waitForTimeout(700);
             const picked = await page.evaluate(() => ({ cards: AGI.state.feed.session.cards, hidden: document.querySelector('.feed-cards').hidden, chips: document.querySelector('.feed-held').innerText, time: AGI.state.feed.session.time }));
             check('a pick is kept, shown as a chip, and the session carries on', picked.cards[offer.offer[1]] === 1 && picked.hidden && picked.chips.length > 0 && picked.time > offer.time, picked);
+            // A tap sets a point that stays; a tap on it clears it; a hold leads and lets go.
+            const cv = await page.locator('.feed-canvas').boundingBox(), tx = cv.x + cv.width * 0.5, ty = cv.y + cv.height * 0.8;
+            await page.mouse.click(tx, ty); await page.waitForTimeout(150);
+            const spot1 = await page.evaluate(() => ({ spot: !!AGI.state.feed.spot, aim: AGI.state.feed.aim }));
+            await page.mouse.move(tx + 60, ty); await page.mouse.down(); await page.waitForTimeout(500);
+            const holding = await page.evaluate(() => ({ aim: !!AGI.state.feed.aim, spot: !!AGI.state.feed.spot }));
+            await page.mouse.up(); await page.waitForTimeout(100);
+            const after = await page.evaluate(() => ({ aim: AGI.state.feed.aim, spot: !!AGI.state.feed.spot }));
+            await page.mouse.click(tx, ty); await page.waitForTimeout(150);
+            const spot2 = await page.evaluate(() => !!AGI.state.feed.spot);
+            check('a tap sets a point that stays through a hold, and a tap on it clears it', spot1.spot && spot1.aim === null && holding.aim && after.aim === null && after.spot && !spot2, { spot1, holding, after, spot2 });
             // The camera and the zoom.
             await page.click('.feed-zoom button[aria-label="Zoom in"]', T);
             const cam0 = await page.evaluate(() => document.querySelector('.feed-cam').textContent);

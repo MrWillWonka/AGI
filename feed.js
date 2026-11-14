@@ -80,7 +80,12 @@
         roam: 40,           // how far from the point you hold a mite picks its own spot to work, in cells (the owner's pick: strong)
         wobble: 0.9,        // how far off the straight line it swings on its way there, in radians
         character: 1,       // 1: each mite follows its character's priorities (`CHARACTERS`)
-        megaChance: 0.08,   // the chance a new mite at a split is a mega mite, which takes sand two grains at a time
+        megaChance: 0.08,
+        // A tapped point (the owner's call, 2026-11-14): it stays until you tap elsewhere, and the swarm works loosely
+        // round it; holding or dragging pulls them tight, at full pace.
+        tapRate: 0.6,       // the share of a led mite's eating a mite at a tapped point does (left alone: `graze`)
+        tapRoam: 1.5,       // and how much wider it roams round a tapped point than round a held one
+        toughFeed: 0.7,     // tough sand feeds the hunger bar this much more a bite past the first (the owner's call: a little worse than soft sand)   // the chance a new mite at a split is a mega mite, which takes sand two grains at a time
         gravity: 4,         // a falling grain speeds up: a cell a pass at first, up to this many (the owner's call: so sand reads as falling)
         slump: 4,           // a resting grain on a slope steeper than one in two rolls a cell down it, one pass in this many: heaps settle shallower and slide
         fall: 120,          // cells a second a grain falls
@@ -267,7 +272,7 @@
         const o = opt(opts);
         const state = {
             rs: (opts.seed ?? 1) >>> 0, w: FEED.w, h: FEED.h, cells: new Array(FEED.w * FEED.h).fill(0), grains: 0, rest: true, tick: 0,
-            mites: 1, swarm: [], aim: null, layers: 0, fed: 0, owed: 0, plain: 0, fragAt: 0, fragPlaced: false, fragNext: 0, fragments: {},
+            mites: 1, swarm: [], aim: null, spot: null, layers: 0, fed: 0, owed: 0, plain: 0, fragAt: 0, fragPlaced: false, fragNext: 0, fragments: {},
             backlog: [], drops: [], last: 0, band: 0, sweepAt: 0, pourAcc: 0, fallAcc: 0, readable: [], dry: false,
             // Sessions: stockpiles and best runs by sector, the session in play (or null), the hunger bar, the last one's result.
             sessioned: false, stock: {}, best: {}, record: {}, session: null, life: 1, lastSession: null,
@@ -349,7 +354,7 @@
             }
         }
         if (pulse && state.grains && due('pulse', pulse, o.pulseEvery)) {
-            const at = state.aim || state.swarm[Math.floor(rand(state) * state.swarm.length)];
+            const at = state.aim || state.spot || state.swarm[Math.floor(rand(state) * state.swarm.length)];
             burst(state, o, at.x, at.y, o.pulseR + o.pulseGrow * (pulse - 1), out);
         }
         if (arc && state.swarm.length > 1 && state.grains && due('arc', arc, o.arcEvery)) {
@@ -402,7 +407,7 @@
         // Sonar: a ring spreads from the point you hold (else a mite), showing the sand it crosses; at its full
         // reach it draws the gold and fragments inside back toward its middle.
         if (c.sonar) {
-            if (!s.ring && state.grains && due('sonar', 1, o.sonarEvery)) { const at = state.aim || state.swarm[Math.floor(rand(state) * state.swarm.length)]; s.ring = { x: at.x, y: at.y, r: 0 }; }
+            if (!s.ring && state.grains && due('sonar', 1, o.sonarEvery)) { const at = state.aim || state.spot || state.swarm[Math.floor(rand(state) * state.swarm.length)]; s.ring = { x: at.x, y: at.y, r: 0 }; }
             if (s.ring) {
                 const g = s.ring, r0 = g.r, r1 = Math.min(o.sonarR, g.r + o.sonarSpeed * dt), list = [];
                 for (let y = Math.max(0, Math.floor(g.y - r1)); y <= Math.min(h - 1, Math.floor(g.y + r1)); y++) for (let x = Math.max(0, Math.floor(g.x - r1)); x <= Math.min(w - 1, Math.floor(g.x + r1)); x++) {
@@ -525,7 +530,7 @@
         }
         // Magnet: gold is drawn through the pile toward the point you hold (else the first mite).
         if (c.magnet && state.grains) {
-            const to = state.aim || state.swarm[0];
+            const to = state.aim || state.spot || state.swarm[0];
             tt.magnet = (tt.magnet || 0) + o.magnetRate * dt;
             const moves = Math.floor(tt.magnet); tt.magnet -= moves;
             for (let m = 0; m < moves; m++) for (let tries = 0, from = Math.floor(rand(state) * cells.length), span = cells.length >> 2; tries < span; tries++) {
@@ -570,7 +575,7 @@
     // An empty box and a swarm of one: how every session starts, and what is left when one ends.
     function clearBox(state, o) {
         state.cells.fill(0); state.grains = 0; state.drops = []; state.backlog = []; state.rest = true; state.dry = false;
-        state.mites = 1; state.swarm = [mitePlace(state, 0)]; state.layers = 0; state.aim = null; state.last = 0; state.sweepAt = 0; state.pourAcc = 0;
+        state.mites = 1; state.swarm = [mitePlace(state, 0)]; state.layers = 0; state.aim = null; state.spot = null; state.last = 0; state.sweepAt = 0; state.pourAcc = 0;
         startLayer(state, o);
     }
     // Turn sessions on. A pile from before they existed goes into the stockpiles (its box as plain sector-1 packets).
@@ -614,6 +619,7 @@
         delete state.stock[k];
         state.session = { sector: k, research: 0, time: 0, packets: e.n + e.gold + e.bad, cards: {}, offer: null, picks: 0, tt: {}, beam: -1, ring: null, bots: [], sift: -1, dbot: null, rbots: [] };
         state.life = 1; state.lastSession = null; state.stats.sessions++;
+        state.swarm[0].c = CHARACTERS[Math.floor(rand(state) * CHARACTERS.length)];   // the first mite is anyone (the owner's call: it was always the gold-hungry)
         return true;
     }
     // The session is over (`why`: 'hunger', 'empty', or 'left' when you end it yourself). Sand not yet poured goes back
@@ -646,6 +652,12 @@
     }
 
     // Lead the swarm: a point in the box, in cells ({ x, y }), while you hold it; null when you let go.
+    // A tapped point: it stays (`spot`) until another is set or it is cleared with null.
+    function mark(state, p) {
+        const ok = p && typeof p.x === 'number' && typeof p.y === 'number' && Number.isFinite(p.x) && Number.isFinite(p.y);
+        state.spot = ok ? { x: Math.max(0, Math.min(state.w - 0.01, p.x)), y: Math.max(0, Math.min(state.h - 0.01, p.y)) } : null;
+        return state.spot;
+    }
     function point(state, aim) {
         const ok = aim && typeof aim.x === 'number' && typeof aim.y === 'number' && Number.isFinite(aim.x) && Number.isFinite(aim.y);
         state.aim = ok ? { x: Math.max(0, Math.min(state.w - 0.01, aim.x)), y: Math.max(0, Math.min(state.h - 0.01, aim.y)) } : null;
@@ -840,7 +852,7 @@
             state.owed += KINDS[kind].pay / o.grains * payMult(state, o);
             state.fed++;
             // Eating feeds the hunger bar: the whole bar for `hungerFill` of this layer's worth.
-            if (state.session) state.life = Math.min(1, state.life + 1 / (o.hungerFill * layerSize(state.layers, o) * o.grains));
+            if (state.session) state.life = Math.min(1, state.life + (1 + o.toughFeed * (bitesFor(state.session.sector, o) - 1)) / (o.hungerFill * layerSize(state.layers, o) * o.grains));
             if (kind === 'vein') state.stats.veins++;
         } else state.stats.cleaned++;
         out.events.push({ type: 'eat', x, y, kind, pays });
@@ -887,10 +899,10 @@
     // Where a led mite is heading: its own spot within `roam` cells of the point you hold, picked afresh every second or
     // two. A loner's is pushed away from the rest of the swarm; a follower's is beside the mite before it.
     function goalFor(state, o, m, dt) {
-        const aim = state.aim, { w, h, swarm } = state;
+        const aim = state.aim || state.spot, loose = state.aim ? 1 : o.tapRoam, { w, h, swarm } = state;
         if (!(o.roam > 0)) return aim;
         m.rt = (m.rt || 0) - dt;
-        if (m.rt <= 0) { const ang = rand(state) * Math.PI * 2, r = Math.sqrt(rand(state)) * o.roam; m.ox = Math.cos(ang) * r; m.oy = Math.sin(ang) * r * 0.5; m.rt = 1 + rand(state) * 1.5; }
+        if (m.rt <= 0) { const ang = rand(state) * Math.PI * 2, r = Math.sqrt(rand(state)) * o.roam * loose; m.ox = Math.cos(ang) * r; m.oy = Math.sin(ang) * r * 0.5; m.rt = 1 + rand(state) * 1.5; }
         let x = aim.x + m.ox, y = aim.y + m.oy;
         if (o.character && swarm.length > 1) {
             if (m.c === 'loner') {
@@ -912,8 +924,8 @@
         if (m.c === 'mega') { const j = nearestWithin(state, x, y, 1.6); if (j >= 0) eat(state, o, j, out); }
     }
     function mite(state, o, m, dt, out) {
-        const led = !!state.aim, { w, h, cells } = state;
-        m.b = Math.min(m.b + o.chew * o.grains * (led ? 1 : o.graze) * dt, o.grains / 8);   // bites saved up while it moves: an eighth of a packet's worth, whatever the grain's size
+        const pt = state.aim || state.spot, led = !!pt, { w, h, cells } = state;
+        m.b = Math.min(m.b + o.chew * o.grains * (state.aim ? 1 : state.spot ? o.tapRate : o.graze) * dt, o.grains / 8);   // bites saved up while it moves: an eighth of a packet's worth, whatever the grain's size
         let gx, gy, food = -1;
         if (led) {
             const g = goalFor(state, o, m, dt);
@@ -921,7 +933,7 @@
             if ((m.x - gx) * (m.x - gx) + (m.y - gy) * (m.y - gy) <= o.near * o.near) {
                 food = liked(state, o, m, gx, gy, o.near);
                 // Nothing to eat at its own spot: back to the point itself.
-                if (food < 0 && g !== state.aim) { gx = state.aim.x; gy = state.aim.y; if ((m.x - gx) * (m.x - gx) + (m.y - gy) * (m.y - gy) <= o.near * o.near) food = liked(state, o, m, gx, gy, o.near); }
+                if (food < 0 && g !== pt) { gx = pt.x; gy = pt.y; if ((m.x - gx) * (m.x - gx) + (m.y - gy) * (m.y - gy) <= o.near * o.near) food = liked(state, o, m, gx, gy, o.near); }
             } else if (o.character && o.roam > 0 && (m.c === 'gold' || m.c === 'tidy')) {
                 // On its way: it stops for what it likes best, when that is right beside it.
                 food = nearestWhere(state, m.x, m.y, o.lamp / 2, m.c === 'gold' ? GOLD : BAD);
@@ -1000,7 +1012,7 @@
                 // Fine sand: a mite may finish several grains in a step, so its step is cut into as many moves.
                 // (Eight moves a bite it may take: in fine sand a mite spends most moves reaching the next grain, and several
                 // mites go for the same one; measured against the coarser sand's eating rates. Never more than 96 a step.)
-                const moves = Math.min(96, Math.max(1, Math.ceil(o.chew * o.grains * (state.aim ? 1 : o.graze) * each)) * 8);
+                const moves = Math.min(96, Math.max(1, Math.ceil(o.chew * o.grains * (state.aim ? 1 : state.spot ? o.tapRate : o.graze) * each)) * 8);
                 for (const m of state.swarm) { for (let k = 0; k < moves; k++) mite(state, o, m, each / moves, out); lamp(state, o, m, out); }
             }
             else if (!state.backlog.length && !state.drops.length) {
@@ -1107,6 +1119,7 @@
             const aim = raw.aim;
             state.aim = null;
             if (aim) point(state, aim);
+            if (raw.spot) mark(state, raw.spot);
         }
         // Sessions: the stockpiles, best runs and records by sector; the session in play only with its box.
         if (raw.sessioned === true) {
@@ -1142,7 +1155,7 @@
         return state;
     }
 
-    return { FEED, KINDS, KIND_IDS, LOCKED, FRAGMENTS, STEP, newFeed, clean, deliver, point, step, setReadable, readableFor,
+    return { FEED, KINDS, KIND_IDS, LOCKED, FRAGMENTS, STEP, newFeed, clean, deliver, point, mark, step, setReadable, readableFor,
         sessions, startSession, endSession, stockList, stockOf, stockCap, CARDS, COMBOS, CHARACTERS, pickCard, cardMult, toolLevel,
         pack, unpack, spoutX, left, waiting, fill, census, hunger, layerSize, bitesFor, kindOf, bandOf, seenOf, airOf, hpOf };
 });

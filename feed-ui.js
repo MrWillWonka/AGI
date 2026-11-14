@@ -25,7 +25,11 @@
     const ZOOM_MAX = 6;
     // The camera (the owner's ask: a finger hides what it points at): a small window just above the point you hold,
     // showing the sand under it enlarged. Docked, it stays in the box's top corner instead (a choice kept on this device).
-    const CAM_W = 138, CAM_H = 96, CAM_CELL = 6, CAM_UP = 46;
+    // (Bigger and less enlarged since the owner's first play of it: it was 138 by 96 at six px a cell.)
+    const CAM_W = 210, CAM_H = 140, CAM_CELL = 3.6, CAM_UP = 46;
+    // A quick tap (under `TAP_MS`, the finger barely moving) sets a point that stays; a tap on that point clears it.
+    const TAP_MS = 260, TAP_PX = 10;
+    let downAt = 0, downXY = null;
     let camDock = false, camEl = null;
     try { camDock = localStorage.getItem('agiFeedCam') === 'dock'; } catch { /* private mode */ }
     const camLabel = () => { if (camEl) { camEl.textContent = camDock ? 'Camera: docked' : 'Camera: follows'; camEl.setAttribute('aria-pressed', String(camDock)); } };
@@ -95,7 +99,7 @@
             if (e.button !== 0) return;
             touches.set(e.pointerId, stageXY(e));
             if (touches.size === 2) { if (held !== null) letGo(); const [a, b] = [...touches.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, mx: (a[0] + b[0]) / 2, my: (a[1] + b[1]) / 2 }; return; }
-            if (touches.size === 1) { held = e.pointerId; lead(e); }
+            if (touches.size === 1) { held = e.pointerId; downAt = performance.now(); downXY = stageXY(e); lead(e); }
         });
         canvas.addEventListener('pointermove', e => {
             if (pan && pan.id === e.pointerId) { const xy = stageXY(e); panBy(xy[0] - pan.xy[0], xy[1] - pan.xy[1]); pan.xy = xy; return; }
@@ -112,7 +116,11 @@
             if (pan && pan.id === e.pointerId) pan = null;
             touches.delete(e.pointerId);
             if (touches.size < 2) pinch = null;
-            if (held === e.pointerId) letGo();
+            if (held === e.pointerId) {
+                const xy = stageXY(e), tapped = e.type === 'pointerup' && downXY && performance.now() - downAt < TAP_MS && Math.hypot(xy[0] - downXY[0], xy[1] - downXY[1]) < TAP_PX;
+                if (tapped && feed()?.session) { const at = cellAt(e), old = feed().spot, near = old && Math.hypot(old.x - at.x, old.y - at.y) < Math.max(6, 22 / view.cell); E().feedMark(game(), near ? null : at); }
+                letGo();
+            }
         });
         canvas.addEventListener('wheel', e => { e.preventDefault(); const [sx, sy] = stageXY(e); zoomAt(sx, sy, e.deltaY < 0 ? 1.25 : 0.8); }, { passive: false });
         canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -482,6 +490,15 @@
             ctx.globalAlpha = 1 - (now - a.at) / 260; ctx.strokeStyle = a.gold ? colors.gold : colors.text; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(mx, my); ctx.lineTo(bx, by); ctx.stroke(); }
         ctx.globalAlpha = 1;
         if (sess && sess.bots) for (const b of sess.bots) { const [x, y] = px(b.x, b.y), q = Math.max(4, c * 2.8); ctx.fillStyle = colors.bg; ctx.fillRect(x - q / 2 - 1, y - q / 2 - 1, q + 2, q + 2); ctx.fillStyle = colors.gold; ctx.fillRect(x - q / 2, y - q / 2, q, q); }
+        // The point you tapped: a pin that stays until you tap elsewhere (or tap it again).
+        if (f.spot && !f.aim) {
+            const [x, y] = px(f.spot.x, f.spot.y);
+            ctx.strokeStyle = colors.text; ctx.globalAlpha = 0.5; ctx.lineWidth = 1.5; ctx.setLineDash([2, 5]);
+            ctx.beginPath(); ctx.arc(x, y, c * box.near, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+            ctx.globalAlpha = 0.95; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 16); ctx.stroke();
+            ctx.fillStyle = colors.text; ctx.beginPath(); ctx.moveTo(x, y - 16); ctx.lineTo(x + 10, y - 12.5); ctx.lineTo(x, y - 9); ctx.closePath(); ctx.fill();
+            ctx.globalAlpha = 1;
+        }
         // The point you hold.
         if (f.aim) {
             const [x, y] = px(f.aim.x, f.aim.y);
@@ -497,7 +514,7 @@
         });
         // The camera: the sand and the mites under the point you hold, enlarged, in a window of its own.
         if (f.aim && held !== null) {
-            const [fx, fy] = px(f.aim.x, f.aim.y), k = Math.max(CAM_CELL, c * 2), cols = CAM_W / k, rows = CAM_H / k;
+            const [fx, fy] = px(f.aim.x, f.aim.y), k = Math.max(CAM_CELL, c * 1.6), cols = CAM_W / k, rows = CAM_H / k;
             let lx = 8, ly = 8;
             if (!camDock) { lx = Math.max(4, Math.min(view.w - CAM_W - 4, fx - CAM_W / 2)); ly = fy - CAM_UP - CAM_H; if (ly < 4) ly = Math.min(view.h - CAM_H - 4, fy + CAM_UP); }
             const x0 = f.aim.x - cols / 2, y0 = f.aim.y - rows / 2;
@@ -508,7 +525,7 @@
             const sx0 = Math.max(0, x0), sy0 = Math.max(0, y0), sx1 = Math.min(box.w, x0 + cols), sy1 = Math.min(box.h, y0 + rows);
             if (sx1 > sx0 && sy1 > sy0) { ctx.imageSmoothingEnabled = false; ctx.drawImage(sand, sx0 * SUB, sy0 * SUB, (sx1 - sx0) * SUB, (sy1 - sy0) * SUB, lx + (sx0 - x0) * k, ly + (sy0 - y0) * k, (sx1 - sx0) * k, (sy1 - sy0) * k); }
             if (y0 + rows > box.h) { ctx.fillStyle = colors.border; ctx.fillRect(lx, ly + (box.h - y0) * k, CAM_W, 2); }
-            const mr = Math.max(7, Math.min(14, k * 1.8));
+            const mr = Math.max(7, Math.min(14, k * 2.6));
             for (const m of f.swarm) { const mx = lx + (m.x - x0) * k, my = ly + (m.y - y0) * k; if (mx > lx - 40 && mx < lx + CAM_W + 40 && my > ly - 40 && my < ly + CAM_H + 40) drawMite(m.c, mx, my, m.c === 'mega' ? mr * 1.5 : mr); }
             // The point itself.
             ctx.strokeStyle = colors.text; ctx.globalAlpha = 0.9; ctx.lineWidth = 1.5;
@@ -535,7 +552,7 @@
     // ---- the words round the pile ---------------------------------------------------------------------------------
     function prompt() {
         const f = feed(), lib = F();
-        if (f.sessioned) return !f.session ? '' : f.life < 0.25 ? '> They are starving. Lead them to good sand.' : !f.stats.eaten && !f.aim ? '> Show it where to start.' : '';
+        if (f.sessioned) return !f.session ? '' : f.life < 0.25 ? '> They are starving. Lead them to good sand.' : !f.aim && !f.spot ? '> Tap to set a point, or hold and drag to lead them.' : '';
         if (!f.stats.delivered) return '> Nothing to eat yet.';
         if (lib.left(f) === 0) return '> It is still hungry.';
         if (!f.stats.eaten && !f.stats.cleaned && !f.aim) return '> Show it where to start.';

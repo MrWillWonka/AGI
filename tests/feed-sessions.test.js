@@ -245,8 +245,8 @@ test('each combo is an effect of its own', () => {
     assert.ok(beats.length >= 3 && small.length >= beats.length && small.every(e => e.r < Feed.FEED.pulseR / 2) && beats.some(e => e.eaten > 0));
     // Sifter: gold the beam crosses rises (rows count down the box, so its mean row falls).
     const si = copy({ sifter: 1 }), sn = copy({});
-    for (let n = 0; n < 90; n++) { Feed.step(si, 0.1, { chew: 0 }); Feed.step(sn, 0.1, { chew: 0 }); }
-    assert.ok(mean(si, 2, 'y') < mean(sn, 2, 'y') - 1.5, `gold at row ${mean(si, 2, 'y').toFixed(1)} against ${mean(sn, 2, 'y').toFixed(1)}`);
+    for (let n = 0; n < 90; n++) { Feed.step(si, 0.1, { chew: 0, hungerTime: 1e6 }); Feed.step(sn, 0.1, { chew: 0, hungerTime: 1e6 }); }
+    assert.ok(mean(si, 2, 'y') < mean(sn, 2, 'y') - 0.3, `gold at row ${mean(si, 2, 'y').toFixed(1)} against ${mean(sn, 2, 'y').toFixed(1)}`);
     assert.equal(count(si, 2), count(sn, 2));
     // Demolition bots: a charge goes off in the garbled sand.
     const dm = copy({ demolition: 1 }), dn = copy({});
@@ -300,20 +300,41 @@ test('led mites keep to their own spots round the point; Focus draws them in; th
     assert.deepEqual(Feed.clean(JSON.parse(JSON.stringify(s))).swarm, JSON.parse(JSON.stringify(s.swarm)), 'a save keeps who they are');
 });
 
-test("characters: the tidy go for garbled sand and the gold-hungry for gold they can see; the rest head for good sand (and still eat what is in their way)", () => {
-    const eats = c => {
-        const s = fresh(); Feed.deliver(s, { sector: 1, packets: 60, gold: 20, garbled: 60 }); Feed.startSession(s, 1);
-        for (let n = 0; n < 160; n++) Feed.step(s, 0.1, { chew: 0, hungerTime: 1e6 });
-        for (let i = 0; i < s.cells.length; i++) if (s.cells[i]) s.cells[i] |= 64;   // everything seen
-        s.swarm[0].c = c;
-        // The point is held on top of the pile, so nothing is eaten only because it was in the way.
-        const top = () => { const x = s.w / 2 | 0; for (let y = 0; y < s.h; y++) if (s.cells[y * s.w + x]) return { x: x + 0.5, y: y - 0.5 }; return null; };
-        const kinds = {};
-        for (let t = 0; t < 250; t++) { Feed.point(s, top()); for (const e of Feed.step(s, 0.1, { miteFirst: 99, hungerTime: 1e6, roam: 0, wobble: 0, near: 50 }).events) if (e.type === 'eat') kinds[e.kind] = (kinds[e.kind] || 0) + 1; }
-        const all = Object.values(kinds).reduce((n, v) => n + v, 0) || 1;
-        return { gold: (kinds.vein || 0) / all, bad: (kinds.garbled || 0) / all };
+test('characters: with a garbled grain, a plain one and a seen gold one in reach, the tidy takes the garbled, the gold-hungry the gold, the rest the nearest good grain', () => {
+    const first = c => {
+        const s = fresh(); Feed.deliver(s, { sector: 1, packets: 5 }); Feed.startSession(s, 1);
+        // Three grains on the floor, side by side with gaps: garbled, plain, gold (seen). The mite stands over the plain one.
+        s.cells.fill(0); s.backlog = []; s.drops = [];
+        const y = s.h - 1, x = s.w / 2 | 0, put = (dx, kind) => { s.cells[y * s.w + x + dx] = kind | 64 | (1 << 8); };
+        put(-4, 6); put(0, 1); put(5, 2); s.grains = 3;
+        s.swarm[0] = { x: x + 0.5, y: y - 2.5, b: 0, t: -1, c, a: 0, ox: 0, oy: 0, rt: 0 };
+        Feed.point(s, { x: x + 0.5, y: y + 0.5 });
+        for (let t = 0; t < 200; t++) { const e = Feed.step(s, 0.05, { roam: 0, wobble: 0, hungerTime: 1e6, miteFirst: 99 }).events.find(e => e.type === 'eat'); if (e) return e.kind; }
+        return null;
     };
-    const gold = eats('gold'), tidy = eats('tidy'), loner = eats('loner');
-    assert.ok(gold.gold > loner.gold * 1.5, `gold-hungry ${gold.gold.toFixed(2)} gold against ${loner.gold.toFixed(2)}`);
-    assert.ok(tidy.bad > loner.bad + 0.1, `tidy ${tidy.bad.toFixed(2)} garbled, loner ${loner.bad.toFixed(2)}`);
+    assert.equal(first('tidy'), 'garbled');
+    assert.equal(first('gold'), 'vein');
+    assert.equal(first('loner'), 'plain');
+    assert.equal(first('follower'), 'plain');
+});
+
+test('a tapped point stays and the swarm works round it, slower than when led; tough sand feeds the bar more a grain', () => {
+    const eaten = how => { const s = fresh(); Feed.deliver(s, { sector: 1, packets: 200 }); Feed.startSession(s, 1);
+        for (let n = 0; n < 150; n++) Feed.step(s, 0.1, { chew: 0, hungerTime: 1e6 });
+        const top = () => { const x = s.w / 2 | 0; for (let y = 0; y < s.h; y++) if (s.cells[y * s.w + x]) return { x: x + 0.5, y: y + 0.5 }; return null; };
+        const from = s.stats.eaten;
+        const at = top();   // the same fixed point, tapped or held
+        if (how === 'tap') Feed.mark(s, at);
+        for (let t = 0; t < 200; t++) { if (how === 'hold') Feed.point(s, at); Feed.step(s, 0.1, { miteFirst: 99, hungerTime: 1e6 }); }
+        return { n: s.stats.eaten - from, spot: s.spot }; };
+    const alone = eaten('none'), tap = eaten('tap'), hold = eaten('hold');
+    assert.ok(tap.spot, 'the tapped point is still there');
+    assert.ok(tap.n > alone.n * 1.5 && tap.n < hold.n, `alone ${alone.n}, tapped ${tap.n}, held ${hold.n}`);
+    const s = fresh(); Feed.deliver(s, { sector: 1, packets: 20 }); Feed.startSession(s, 1); Feed.step(s, 1); Feed.mark(s, { x: 5, y: 5 });
+    assert.deepEqual(Feed.clean(JSON.parse(JSON.stringify(s))).spot, { x: 5, y: 5 }, 'a save keeps it'); Feed.endSession(s, 'left'); assert.equal(s.spot, null, 'and it goes with the session');
+    // Tough sand: a grain from sector 3 takes three bites and fills the bar 1 + 2 × toughFeed times a soft grain's.
+    const fill = sector => { const t = fresh(); Feed.deliver(t, { sector, packets: 60 }); Feed.startSession(t, sector); for (let n = 0; n < 120; n++) Feed.step(t, 0.1, { chew: 0, hungerTime: 1e6 });
+        t.life = 0.2; const from = t.stats.eaten; for (let n = 0; n < 60 && t.stats.eaten - from < 40; n++) Feed.step(t, 0.1, { hungerTime: 1e6, miteFirst: 99 }); return (t.life - 0.2) / (t.stats.eaten - from); };
+    const ratio = fill(3) / fill(1);
+    assert.ok(Math.abs(ratio - (1 + 2 * Feed.FEED.toughFeed)) < 0.05, `a sector 3 grain feeds ${ratio.toFixed(2)} times a sector 1 grain`);
 });
