@@ -1680,13 +1680,24 @@
         return parent.max == null ? level(s, parent.id) > 0 : level(s, parent.id) >= parent.max;
     }
 
+    // The ring: the old lab's later content stays hidden until it is designed in (the owner's call, 2026-11-14, on a
+    // playtest where Server Clusters, Quantum, the Procurement Bot, the Auto-Trainer and the Algorithms tab all came
+    // back once training opened, and compute went to 160,000). Of the lab's own tabs only the desk and the Graphics
+    // Card show; the Training and Packet Snare trees are untouched. The milestones that open the old tabs and the
+    // Auto-Trainer don't fire, and no choice mail arrives.
+    const RING_LAB = new Set(['keyboard', 'cpu']);
+    const RING_LAB_TABS = new Set(['hardware', 'software', 'algorithms', 'consciousness']);
+    const RING_NO_MILESTONES = new Set(['auto:trainer', 'tab:algorithms', 'tab:consciousness']);
+    const ringHides = up => ring && RING_LAB_TABS.has(up.tab) && !RING_LAB.has(up.id);
     function isUpgradeVisible(s, up) {
+        if (ringHides(up)) return false;
         // The ring: once the desk is built its card goes (the owner's call: it sat there reading Full).
         if (ring && up.id === 'keyboard' && level(s, 'keyboard') >= RING_DESK && !(serverOffered(s) && level(s, 'keyboard') === RING_DESK)) return false;
         return !!s.unlocked['up:' + up.id];
     }
 
     function upgradeUnlockMet(s, up) {
+        if (ringHides(up)) return false;
         // Legacy upgrades live on their own screen (not the skill tree): they appear after the first new
         // version, need only an earlier legacy upgrade maxed (if any), and once owned they stay.
         if (up.legacy) {
@@ -1897,6 +1908,7 @@
             }
         }
         for (const m of MILESTONES) {
+            if (ring && RING_NO_MILESTONES.has(m.key)) continue;
             if (!s.unlocked[m.key] && m.check(s)) {
                 s.unlocked[m.key] = true;
                 out.milestones.push(m);
@@ -3141,7 +3153,7 @@
         }
         // One question at a time, once the opening's done and the first data is in.
         if (d.open || t < d.next || !s.intro['mailAccepted:welcome'] && !s.path.learned) return events;
-        const next = DILEMMAS.find(x => !(x.id in d.answered) && x.when(s));
+        const next = ring ? null : DILEMMAS.find(x => !(x.id in d.answered) && x.when(s));   // the ring: no choice mails yet
         if (!next) return events;
         d.open = next.id;
         mailArrive(s, 'd:' + next.id);

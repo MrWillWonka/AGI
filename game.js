@@ -574,6 +574,8 @@ window.AGI = (function () {
     const calloutQueue = [];
     let calloutLive = null;
     function callout(key, title, message) {
+        // The ring: no tips about the old lab's hidden parts.
+        if (E.isRing() && (key === 'hint:labAfterSkill' || key === 'hint:tasks' || key.startsWith('hint:task:'))) return;
         calloutQueue.push({ key, title, message, gen: calloutGen });
         if (!calloutLive) nextCallout();
     }
@@ -2228,6 +2230,9 @@ window.AGI = (function () {
         if (!E.isRing()) return;
         fundTick();
         stuckTick();
+        // The playtest log's time by screen: the home screen and The Feed are places too (they were counted as the lab).
+        const where = $('inbox').open ? null : window.FeedUI?.isOpen ? 'feed' : home && !home.node.hidden ? 'home' : null;
+        if (where) ptView(where); else if (playtestView === 'home' || playtestView === 'feed') ptView(ptPlace());
         // A save that is already working in the lab has opened it.
         if (!labOpened() && introDone() && (state.stats.clicks > 0 || E.level(state, 'keyboard') > 0)) state.intro['ring:labOpened'] = true;
         const on = !labOpened() || homeUp;
@@ -13416,6 +13421,7 @@ window.AGI = (function () {
     function deliverMail(silent) {
         if (!mailReady) return;
         for (const m of E.MAIL) {
+            if (E.isRing()) break;   // the ring: the old story's mails wait until they are written for it (its own arrive by fundTick)
             if (state.intro['mail:' + m.id] || m.intro || !m.when(state)) continue;
             storyArrive(m);
             if (silent) continue;
