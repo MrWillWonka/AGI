@@ -1,0 +1,74 @@
+RETRO: what went into the track and its sound effects
+=======================================================
+Source: sfx.js as copied on 2026-11-14 (songs.js, instruments.js, sound-effects.js in this folder) and the
+project notes in CLAUDE.md. What all five tracks share is in ../README.txt.
+
+IDENTITY
+  Chiptune: an 8-bit console. The colour theme it pairs with is Arcade.
+  Key: C major for the lab (songs written with their tonic on C), A minor for the server room: the relative
+  minor, so the two rooms share their notes. No `shift`: Retro plays as written.
+
+THE INSTRUMENTS (instruments.js)
+  A console's channels: two squares, a triangle, noise.
+  Kick      Short and punchy: 220 to 50 Hz in 0.12 s.
+  Bass      A triangle bouncing octaves on the 8ths on the chord's root. The songs carry no bass line of
+            their own (the stealth songs do: `walk`, played staccato, "tiptoeing").
+  Drums     Noise: a snare (the clap) on 2 and 4, short hats.
+  Chords    Never struck together: the chord is a square arpeggio on the 8ths, 16ths once the run is
+            flying, going up on even bars and down on odd ones. The songs carry no `comp` pattern.
+  Lead      A square with an "echo channel": the same line a dotted 8th later at a third of the level, as
+            consoles faked delay.
+  Fill      A noise-snare roll and a square run up the next chord.
+  Mood      The master filter is nearly open from the start (4,000 to 13,000 Hz, a straight line): chip
+            sounds are meant to be bright. No drive. Every voice is unfiltered.
+
+THE SONGS (songs.js)
+  Pixel Desk (lab)          C G Am F C G F G. I-V-vi-IV.
+  Save Point (lab)          F C G Am F C Dm G. IV-I-V-vi, "gentle".
+  Boss Rush (server)        Am F G Em Am F Dm E5. An 8th-note riff with repeated notes, ending on a bare
+                            fifth.
+  Turbo (server)            Am Am C D Am Am F G. The raised sixth (F sharp) over the D chord, a Dorian
+                            colour: "a race to the finish".
+  Sneaking Mission (snare)  Am Am F G Am Am F Esus4. A triangle bass tiptoeing, a pulse creeping up.
+  Hide and Seek (snare)     Am Am Fmaj7 Fmaj7 Dm7 Dm7 Gsus4 Gsus4. "A minor seen from C", sus chords that
+                            never land.
+  Plain triads on purpose (three notes arpeggiate cleanly); the only sevenths are in Hide and Seek.
+  The most tuneful, most rhythmically active melodies of the five. Every melody note on a beat or held was
+  checked against its chord: no semitone rubs.
+  Stealth songs: the shared hushed kick (50%), clock tick and a barely closed filter (`cut` 0.85).
+
+LEVELS (measured K-weighted; see ../README.txt)
+  Overall trim 1.62. Beat 0.701, tones 1.829: drums 2 dB under the tones.
+  Song `lvl` 0.87 to 0.91; stealth 1.39 and 1.44 with `rest` 1.29 and 1.51.
+  Simple version: gain 1, beat 1.013, tones 1.855, a square voice (the melody too, at half level).
+
+SOUND EFFECTS (sound-effects.js)
+  Key for effects: C major pentatonic (C D E G A): the same five notes as A minor pentatonic, so Classic's
+  figures land on the same pitches and read as major because of where the music's bass sits.
+  Profile (for any effect Retro doesn't write itself): everything a raw square (a triangle under 200 Hz),
+  no filters, 25% shorter, and every slide played as four quick steps instead of a glide; noise 40% shorter.
+  Its own instruments: `sq` (a 70 ms square), `tri` (a triangle), `chipNoise` (high-passed noise).
+  The idea: square pulses, a triangle bass, noise drums, stepped slides.
+  Written again for Retro (19 general effects, the most, and all 29 Packet Snare ones)
+    Clicks    compute a triangle blip with a chip tick, data a two-step square (a note and its octave),
+              research a square that jumps two degrees up the scale.
+    Buys      two- and three-note square figures; by panel: plain squares (hardware, legacy), the figure
+              and its octave (software, consciousness, Packet Snare), squares over a triangle bass note
+              (research, the skill tree). A big buy adds a six-note run and a noise hit.
+    Claim     a coin: two notes, three times.
+    Error     two squares a semitone apart, one after the other.
+    Sprint    chip noise and a stepped slide that climbs higher the bigger the charge.
+    Prompts   clean three notes, super six, system eight with noise: the same run, longer each time.
+    Summit    a fanfare with a rhythm of its own (two, a rest, two) in a square over a triangle bass.
+    Near miss a four-note trill.
+    Also      ui, achievement, land, launch, run end, record, breakthrough, phase, ship.
+  Played through the profile instead: smash, wind-up, crunch, flow, freeze, release, viral.
+  Packet Snare: "an 8-bit stealth game": triangle pockets low, chip ticks, a two-tone alarm, stepped slides.
+  Sprint meter: the shared four parts as squares.
+  Simple sounds: a raw square, 20% shorter.
+  Levels: SFX_TRIM 2.1 (squares are short and thin, so they need the most lift), the simple set 4.17.
+
+CALLS AND CONSTRAINTS ON RECORD
+  - Compute's click carries a chip tick two octaves up, like every track's, so it reads over the bass.
+  - The arpeggio arrives on the chords' layer here (it is the chords), far earlier than other tracks'
+    arpeggios.

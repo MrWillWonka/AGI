@@ -1,0 +1,73 @@
+SOFT: what went into the track and its sound effects
+======================================================
+Source: sfx.js as copied on 2026-11-14 (songs.js, instruments.js, sound-effects.js in this folder) and the
+project notes in CLAUDE.md. What all five tracks share is in ../README.txt.
+
+IDENTITY
+  "Subtle", "deep and gentle". The colour theme it pairs with is Soft pink.
+  Key: F major / D minor. Songs are written around C major or A minor and moved up a fourth (`shift` +5).
+  The lab songs are major (the only major-key lab besides Retro's); the server songs are minor and Dorian.
+
+THE INSTRUMENTS (instruments.js)
+  Kick      Soft and short: 110 to 48 Hz at about two thirds of Classic's level.
+  Bass      A round triangle on each song's own line, three 16ths long, with a low filter.
+  Pad       The whole chord in triangles, held for the bar.
+  Rhodes    Soft sines an octave up on the song's `comp` steps.
+  Shakers   Very quiet, on the odd 16ths.
+  Rim       On beat 4 only (in place of a clap).
+  Lead      A kalimba: a sine with a bright 70 ms tick an octave up. Notes are capped at 0.9 s.
+  Arpeggio  Sines on the 8ths, rising for two bars and falling for two.
+  Fill      A rim pattern and the next chord's top note, leading in.
+  Mood      The master filter runs 700 to 5,200 Hz: the darkest ceiling after Ominous. No drive.
+
+THE SONGS (songs.js; chords as written: they sound a fourth higher)
+  Morning Lab (lab)       Cmaj7 Am7 Fmaj7 G6 Cmaj7 Em7 Fmaj7 Gsus4. Major sevenths, the Rhodes on the
+                          off-beats of 2 and 4, the kalimba line an octave down.
+  Window Seat (lab)       Fmaj7 G Em7 Am7 Dm7 G Cmaj7 Cmaj7. IV-V-iii-vi, then ii-V-I: "unhurried", and the
+                          only song in the game that ends its phrase resolved on the tonic for two bars.
+  Gentle Climb (server)   Am9 Fmaj7 Cadd9 G6 Dm9 Fmaj7 Cadd9 Esus4. Minor ninths, a syncopated bass.
+  Glide Path (server)     Am7 D9 Am7 D9 Fmaj7 G Am7 Esus4. Dorian (the bright sixth), "a funky Rhodes on
+                          every off-beat": the busiest comp in the track.
+  Tiptoe (snare)          Am9 Am9 Gsus2 Gsus2 Fmaj7 Fmaj7 Esus4 Esus4. A mallet whispering low, the bass on
+                          one and three.
+  Hushed Channel (snare)  Fmaj7 Fmaj7 Dm9 Dm9 Am7 Am7 Gsus4 Gsus4. Major sevenths drifting to a sus chord
+                          that never lands, the kalimba kept low.
+  The richest harmony of the five (ninths, sixths, add9, sus). Melodies move mostly in quarter notes with
+  long held notes at phrase ends. Every melody note on a beat or held was checked against its chord: no
+  semitone rubs.
+  Stealth songs: the shared hushed kick (50%), clock tick and closed filter (`cut` 0.8).
+
+LEVELS (measured K-weighted; see ../README.txt)
+  Overall trim 1.7 (the largest: soft sines and triangles carry little energy). Beat 0.738, tones 1.487:
+  drums 2 dB under the tones.
+  Song `lvl` 0.77 to 0.91; stealth 1.14 and 1.27 with `rest` 1.32 and 1.26.
+  Simple version: gain 1, beat 0.997, tones 2.032, a sine bass.
+
+SOUND EFFECTS (sound-effects.js)
+  Key for effects: F major pentatonic (F G A C D). No semitones are available in it, so nothing can clash.
+  Profile (for any effect Soft doesn't write itself): squares and saws become triangles, filters 45% more
+  closed, a slower attack (12 ms), 25% longer, noise 30% quieter.
+  Its own instruments: `marimba` (a sine with a short tick two octaves up), `softBell` (a long sine with a
+  triangle an octave up), `padChord` (triangles swelling in over 150 ms).
+  The idea: mallets and bells, a warm pad.
+  Written again for Soft (18 general effects and all 29 Packet Snare ones)
+    Clicks    compute a marimba, data a glassy kalimba (quieter on phones), research a bell.
+    Buys      rising three-note figures; marimba (hardware, legacy), glassy high sines (software,
+              consciousness, Packet Snare), soft bells (research, the skill tree). A big buy adds a pad chord.
+    Error     a sine falling a third. No dissonance, even for a mistake.
+    Sprint    soft lowpassed noise and a sine that rises an octave: where Classic and Dark drop, Soft lifts.
+    Prompts   clean: two soft bells. Super: five overlapping sines, a strummed chord.
+    Summit    a pad chord, four bells climbing, a low sine swelling under them.
+    Breakthrough  a slow swell, then a pad chord and a bell: no sub drop and no impact.
+    Also      claim (bells falling), ui, achievement, land, launch, run end (two marimba notes, up for good,
+              down otherwise), record, near miss, phase, ship.
+  Played through the profile instead: system prompt, smash, wind-up, crunch, flow, freeze, release, viral.
+  Packet Snare: "secretive": muted triangles and glassy sines, soft bells, a sine heartbeat, a warm pad.
+  Sprint meter: the shared four parts through the profile's triangles.
+  Simple sounds: a sine that rings like a mallet (40% longer).
+  Levels: SFX_TRIM 1.21, the simple set 1.56.
+
+CALLS AND CONSTRAINTS ON RECORD
+  - Data's click is quieter on touch screens in every track; here it is a glassy sine instead of a square.
+  - Soft's Rhodes and shakers come in on the off-beat hats' layer, so the track has movement before any
+    hats would have arrived.

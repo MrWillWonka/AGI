@@ -1,0 +1,84 @@
+DARK: what went into the track and its sound effects
+======================================================
+Source: sfx.js as copied on 2026-11-14 (songs.js, instruments.js, sound-effects.js in this folder) and the
+project notes in CLAUDE.md. What all five tracks share is in ../README.txt.
+
+IDENTITY
+  Hard warehouse techno, "intense". It was reimagined once, into this. The colour theme it pairs with is Red.
+  Key: E Phrygian. Songs are written in A Phrygian and moved down a fourth (`shift` -5). The flat second
+  (F over E) is the track's sound: it is allowed to rub where the other tracks avoid semitones.
+
+THE INSTRUMENTS (instruments.js)
+  Kick      Punchy: 170 to 42 Hz, the loudest kick of the five.
+  Rumble    A low saw on the chord's root on the three 16ths after each kick, fading (0.12, 0.09, 0.06).
+            Its filter was raised (240 Hz and up) so it can be heard on small speakers.
+  Acid      A saw through a very resonant filter (Q 12) that snaps shut on every note: roots, the octave,
+            the flat second, a third and a fifth above the chord's root, with accents on the turns
+            (DARK_ACID, DARK_ACCENT). The second half of every four-bar phrase answers with its own line
+            (DARK_ACID_B). Its turns are snapped into the scale. It plays at rest too, quieter, and opens
+            with speed. Each song sets how much of it there is (`acid`).
+            The rumble and the acid line are this track's bass: there is no separate bass line.
+  Hats      Open hats on the off-beats, then a ride of 16ths.
+  Snare     A clap layered with a metal hat on 2 and 4.
+  Pad       Detuned saws (9 cents either side) an octave down, held a whole bar with a slow attack.
+  Stabs     Short resonant saw stabs on a song's `comp` steps; when the top layer is in, a three-note
+            detuned hoover stab of the chord every other bar.
+  Lead      A hoover: two saws 12 cents either side.
+  Fill      A snare roll with metal and a noise riser into the next phrase.
+  Mood      The master filter runs 1,400 to 9,400 Hz. A light constant drive (0.04): a heavier one played
+            at the same level however the parts were set, which kept the drums loud.
+
+THE SONGS (songs.js; chords as written, in A: they sound a fourth lower)
+  Foundry (lab)       Am Am Bb Am Dm Dm Bb C. A low pad, the acid line held back (0.45).
+  Rust (lab)          Am Gm F Gm Am Bb F Bb. A slow descent, i-vii-VI-vii; acid at 0.35.
+  Warehouse (server)  Am Am Bb Bb Am Am F Gm. The acid line at full tilt, a hoover riff on a dotted rhythm.
+  Pressure (server)   Am Bb Am Gm Am Bb Dm Bb. A low hoover (an octave down) stabbing, stabs on the
+                      off-beats.
+  Black Box (snare)   Am Am Bb Bb Am Am Gm Gm. "The warehouse held back": the acid line low and closed
+                      (0.3), the rumble at 0.6, the kick a pulse on 1 and 3, the flat second waiting.
+  Tripwire (snare)    Am Bb Am Bb Dm C Dm Bb. A against B flat, a hoover creeping up the D minor, never
+                      home. Acid 0.25, rumble 0.5.
+  All triads, no sevenths: the weight is in the timbre, not the chord. The chords move by step around the
+  flat second (Am to Bb) instead of by fifths. Melodies were checked against their chords, the flat
+  seconds and flat ninths excepted on purpose.
+  In the stealth songs the acid line and the rumble open up as you're spotted, on top of the shared
+  hushed kick, clock tick and closed filter (`cut` 0.7).
+
+LEVELS (measured K-weighted; see ../README.txt)
+  Overall trim 0.94. Beat 0.31, tones 3.49: the widest correction of the five. Measured, the drums sat
+  far over the tones and Dark's tones were inaudible; now the drums are 2 dB under the tones.
+  Song `lvl` 0.77 to 1.05. The stealth songs lift their tones the most while hushed (`rest` 2.01, 2.20).
+  Simple version: gain 1, beat 1.032, tones 3.515, a saw bass.
+
+SOUND EFFECTS (sound-effects.js)
+  Key for effects: E Phrygian's five notes E F G B C. Each effect is written in A minor pentatonic and each
+  degree moves to the same degree here, so a figure keeps its shape and gains the flat second.
+  Profile (for any effect Dark doesn't write itself): triangles and squares become saws, sines become
+  triangles, an octave down, filters 30% more closed, through a drive; noise louder and darker.
+  Its own instruments: `metal` (a short ring of narrow-band noise) and `saw` (a driven, resonant saw).
+  The idea: industrial. Distorted saws, metal hits, sub drops, flat seconds.
+  Written again for Dark (18 general effects and all 29 Packet Snare ones)
+    Clicks    compute a short saw with a tick, data a metal tick on a thin square, research a detuned,
+              driven triangle an octave down.
+    Buys      three-note figures built on the flat second; by panel: driven saws (hardware, legacy), thin
+              squares with a metal tick (software, consciousness, Packet Snare), detuned triangles (research,
+              the skill tree). A big buy adds a sub drop and falling noise.
+    Error     E and F together: a semitone cluster.
+    Sprint    a resonant noise riser and a driven sub drop.
+    Prompts   clean: two squares and a metal tick. Super: a saw run that falls from the flat second.
+    Summit    a held saw chord with the flat second in it, a sub drop, a noise wash, two metal hits. It is a
+              weight landing, where Classic's is a rhythm.
+    Also      claim, ui, achievement, land, launch, run end, record, near miss, breakthrough, phase, ship.
+  Played through the profile instead (Classic's notes, Dark's colour): system prompt, smash, wind-up,
+  crunch, flow, freeze, release, viral.
+  Packet Snare: "held back": driven saws muted low, metal ticks, sub thumps, the flat second for alarms.
+  Sprint meter: the shared four parts through the profile's saws. Its levels are capped: Dark's dense mix
+  would have needed more than the ceiling allows, so the meter stands about 4 dB over the music, not 7.
+  Simple sounds: a filtered saw.
+  Levels: SFX_TRIM 1.29, the simple set 4.65 (the largest simple trim).
+
+CALLS AND CONSTRAINTS ON RECORD
+  - Dark's tones were inaudible at the owner's Beat setting; the part balance above is the fix.
+  - The acid line plays at rest (quieter) so the track is recognisable before the layers build.
+  - The rumble is filtered high enough for small speakers.
+  - The drive stays light, and is routed past the sounds' volume.

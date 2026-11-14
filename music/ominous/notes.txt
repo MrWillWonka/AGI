@@ -1,0 +1,81 @@
+OMINOUS: what went into the track and its sound effects
+=========================================================
+Source: sfx.js as copied on 2026-11-14 (songs.js, instruments.js, sound-effects.js in this folder) and the
+project notes in CLAUDE.md. What all five tracks share is in ../README.txt.
+
+IDENTITY
+  Slow dread. The colour theme it pairs with is Void.
+  Key: C harmonic minor, leaning on the flat second (D flat). Songs are written in A harmonic minor an
+  octave down and moved up a minor third (`shift` +3).
+  The one track with a different feel on the shared grid: half-time.
+
+THE INSTRUMENTS (instruments.js)
+  Kick      Deep and long (110 to 32 Hz over 0.6 s), on beats 1 and 3 only.
+  Drone     A low saw on the chord's root, held the whole bar: the bass doesn't move inside a bar.
+  Bell      A sine with a quiet partial a twelfth up, tolling a chord tone every other bar. The tone is
+            voice-led: it takes the chord tone nearest the last one it rang.
+  Clock     Quiet hat ticks on the off-beats; even quieter 16ths later.
+  Clap      Only on beat 4, at half Classic's level.
+  Strings   The chord in triangles an octave down, held for the bar.
+  Lead      A triangle tuned 10 cents flat that swells in (up to 80 ms of attack), with a faint sine bell an
+            octave above it. The harmony line is tuned 10 cents sharp, so the two beat against each other.
+  Arpeggio  One triangle note of the chord on each beat.
+  Fill      Only a reversed swell (a noise riser) into the next phrase. No drum fill.
+  Mood      The master filter runs 500 to 4,000 Hz, the darkest of the five. No drive at all: a saturating
+            drive kept the drums loud however the parts were set.
+
+THE SONGS (songs.js; chords as written, in A: they sound a minor third higher)
+  Vigil (lab)         Am Am Bb Bb Dm Dm E7 E7. Half notes, the flat second in the line, E7's flat ninth.
+  Static (lab)        Am Dm Am Bb Am Dm F E. "A motif that keeps falling back to the flat second."
+  Descent (server)    Am Bb Am Bb Fmaj7 Dm Bb E7. A against B flat, then down through F to E.
+  Undertow (server)   Am Am Bb C Am Am Bb E7. A dotted figure climbing the chord and back: the only
+                      rhythmic melody in the track.
+  Crawlspace (snare)  Am Bb Am Bb Dm Bb E E. A heartbeat for a kick (two hits, the second softer), the bell
+                      far off.
+  Lights Out (snare)  Am F Dm E Am F Bb E7. The line stepping down and stopping to listen.
+  Triads plus the dominant seventh. The harmony is the Neapolitan (B flat against A minor) and the
+  dominant (E), so every phrase ends pulling home and never rests. Melodies are the slowest in the game:
+  half notes and whole notes. Checked against their chords, with the flat seconds and flat ninths left in
+  on purpose.
+  Stealth songs: the hushed kick is louder here than elsewhere (60%), with the shared tick and closed
+  filter (`cut` 0.8).
+
+LEVELS (measured K-weighted; see ../README.txt)
+  Overall trim 1.42. Beat 0.598, tones 2.145: drums 2 dB under the tones.
+  Song `lvl` 0.88 to 0.95, the tightest spread; stealth `rest` only 1.14 and 1.22, because there are few
+  drums to miss.
+  Simple version: gain 1, beat 1.378, tones 1.951, a low sine bass, the kick on 1 and 3.
+
+SOUND EFFECTS (sound-effects.js)
+  Key for effects: C, D flat, E flat, F sharp, G. The flat second and the tritone are built into the
+  scale, so every figure written for Classic comes out unsettled here without being rewritten.
+  Profile (for any effect Ominous doesn't write itself): squares become triangles, an octave down, filters
+  55% more closed, 70% longer, a slow attack (20 ms), tuned 14 cents flat, and every note answered by an
+  echo a dotted 8th later at 30%; noise longer and much darker.
+  Its own instruments: `toll` (a long sine with an inharmonic partial at 2.76 times the note: a real bell's
+  clang), `knock` (a muffled triangle with a noise thud), `swellUp` (noise that swells and cuts off: a
+  reversed sound).
+  The idea: tolling bells, knocks, reversed swells and drones.
+  Written again for Ominous (18 general effects and all 29 Packet Snare ones)
+    Clicks    compute a knock, data a ghostly ping with its echo (quieter on phones), research a short toll
+              an octave down.
+    Buys      two-note figures, slow: tolls (hardware, legacy), high detuned sines with echoes (software,
+              consciousness, Packet Snare), detuned triangles swelling in (research, the skill tree). A big
+              buy is a reversed swell into a sub drop.
+    Error     a semitone cluster in saws.
+    Sprint    a reversed swell, and the sub drop lands after it, later the bigger the charge.
+    Prompts   clean: one long sine with its echo. Super: two tolls.
+    Summit    a low toll, a slow minor cluster swelling in, a high toll answering, a long sub.
+    Ship      three tolls, each an octave above the last, over a long sub.
+    Also      claim (tolls falling), ui, achievement, land (long and low), launch, run end, record, near
+              miss, breakthrough, phase.
+  Played through the profile instead: system prompt, smash, wind-up, crunch, flow, freeze, release, viral.
+  Packet Snare: "creeping": muffled detuned triangles, knocks, a bell's warning down to the flat second, a
+  deep heartbeat with a toll, reversed swells.
+  Sprint meter: the shared four parts through the profile.
+  Simple sounds: a low sine with a long tail, an octave down.
+  Levels: SFX_TRIM 0.81 (the only track whose effects had to come down: long tails add up), simple 1.37.
+
+CALLS AND CONSTRAINTS ON RECORD
+  - Errors still sit above the basses' register.
+  - Long tails overlap, so Ominous is the track most likely to stack sounds into the master compressor.

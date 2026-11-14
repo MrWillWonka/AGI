@@ -4211,3 +4211,24 @@ body.ring-device.device-phone .snare-tree-bar { flex-wrap: nowrap; gap: 8px; }
 body.ring-device.device-phone .snare-tree-bar .snare-tree-title { display: none; }
 body.ring-device.device-phone .snare-tree-bar .button, body.ring-device.device-phone .snare-tree-bar .ghost-button { white-space: nowrap; }
 .device-transfer-name { font: 700 1.5rem var(--font-mono); letter-spacing: 0.08em; font-variant-numeric: slashed-zero; font-feature-settings: 'zero' 1; }
+/* The Feed's sessions (the ring): the stockpiles between sessions, over the empty box, and the hunger bar that ends one. */
+.feed-pick { position: absolute; inset: 0; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; align-items: center; background: color-mix(in srgb, var(--bg) 88%, transparent); }
+.feed-pick[hidden] { display: none; }
+.feed-pick > * { width: min(100%, 460px); }
+.feed-pick-title { margin: 4px 0 0; font: 700 0.8rem var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.feed-pick-none { margin: 0; color: var(--muted); }
+.feed-last { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid var(--research); border-radius: 10px; background: var(--bg-2); }
+.feed-last span { font: 600 0.85rem var(--font-mono); color: var(--research); }
+.feed-pile { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-2); }
+.feed-pile.full { border-color: var(--warning); }
+.feed-pile-head { display: flex; justify-content: space-between; align-items: baseline; }
+.feed-pile-tag { font: 700 0.75rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--warning); }
+.feed-pile-bar { height: 8px; border-radius: 4px; background: var(--bg); overflow: hidden; }
+.feed-pile-fill { height: 100%; background: var(--success); }
+.feed-pile.full .feed-pile-fill { background: var(--warning); }
+.feed-pile-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; font: 600 0.8rem var(--font-mono); color: var(--muted); }
+.feed-pile-start { min-height: 44px; white-space: nowrap; }
+.feed-end { min-height: 44px; padding: 4px 12px; }
+.feed-end[hidden] { display: none; }
+.feed-hunger.life { height: 10px; }
+.feed-hunger.low .feed-hunger-fill { background: var(--danger); }

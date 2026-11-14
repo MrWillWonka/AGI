@@ -99,7 +99,9 @@ window.AGI = (function () {
     // The Feed (feed.js, feed-ui.js): the swarm eats on the game's clock, so it eats (at a quarter speed, with nobody
     // leading it) while you are elsewhere with the page open. It runs under the ring, or while its screen is open (the test door). What it earns is research.
     function feedTick(dt) {
-        if (!E.isRing() && !window.FeedUI?.isOpen) return;
+        // Under the ring it plays in sessions (feed.js `sessions`), and a session runs only while its screen is open:
+        // leave and it waits for you (the owner's call, 2026-11-14: nothing eats outside a session).
+        if (!window.FeedUI?.isOpen) return;
         feedShow(E.feedStep(state, dt));
     }
     function feedShow(out) {
@@ -107,6 +109,7 @@ window.AGI = (function () {
             if (ev.type === 'layer') pt('feedLayer', { layer: ev.layer, pay: ev.pay, mites: ev.mites, eaten: state.feed.stats.eaten, cleaned: state.feed.stats.cleaned });
             else if (ev.type === 'fragment') pt('feedFragment', { set: ev.set, found: ev.found });
             else if (ev.type === 'empty') pt('feedEmpty', { layer: state.feed.layers + 1, eaten: state.feed.stats.eaten });
+            else if (ev.type === 'over') { pt('feedSession', { why: ev.why, sector: ev.sector, splits: ev.layers, mites: ev.mites, research: ev.research, seconds: ev.time, record: ev.record ? 1 : 0 }); save(); }
         }
         if (out.events.length) window.FeedUI?.events(out.events);
     }
@@ -2490,10 +2493,10 @@ window.AGI = (function () {
         window.FeedUI?.open();
         if (!E.isRing() || state.intro['ring:feedIntro']) return;
         const steps = [
-            ['What you catch lands here', 'Every packet you catch in Packet Snare falls into The Feed and turns into sand.'],
-            ['Your mites eat it', 'They work on their own, even while you are in another app, and what they eat becomes research. They stop when the game is closed.'],
-            ['Lead them', 'Hold a point on the pile and the mites go there. Send them at the good sand first.'],
-            ['Garbled sand is slow', 'Sand from garbled catches takes longer to eat and pays nothing. It still has to be cleared.']];
+            ['What you catch is stockpiled here', 'Every packet you catch in Packet Snare is kept here, in a stockpile for the sector it came from. A stockpile only holds so much.'],
+            ['Start a session', 'Pick a stockpile and it pours in as sand. Your mites eat it, and what they eat becomes research.'],
+            ['Keep them fed', 'The hunger bar runs down and eating fills it. Hold a point on the pile to lead the mites to good sand. When the bar is empty, the session is over.'],
+            ['Garbled sand is slow', 'Sand from garbled catches takes longer to eat and does not feed them.']];
         const dlg = el('dialog', { class: 'dialog ring-welcome', 'aria-labelledby': 'ringFeedTitle' }, [
             el('h2', { id: 'ringFeedTitle', text: 'The Feed' }),
             el('ol', { class: 'ring-welcome-steps' }, steps.map(([head, text]) => el('li', {}, [el('strong', { text: head }), el('span', { text: text })]))),
@@ -5425,7 +5428,9 @@ window.AGI = (function () {
         const load = { sector: snare.startSector + 1, packets: stats.caught || 0, gold: stats.gold || 0, garbled: stats.garbledPackets || 0, popped: stats.poppedPackets || 0 };
         const before = state.feed.stats.delivered;
         const out = E.feedDeliver(state, load);
-        if (out.added) pt('feedDelivery', load);
+        if (out.added) pt('feedDelivery', out.cap ? { ...load, stocked: out.stocked, lost: out.lost, held: out.held, cap: out.cap } : load);
+        // A full stockpile says so (placeholder words): the push to go and play it, or to fill another sector's.
+        if (out.full) deviceNotice('feedFull', 'The Feed', `The stockpile for sector ${out.sector} is full.`, openFeed);
         if (!before && state.feed.stats.delivered > 0) deviceNotice('feed', 'System', 'The Feed has been added to your home screen.', openFeed);
         feedShow(out);
     }
@@ -13825,6 +13830,9 @@ window.AGI = (function () {
         save: () => save(true),
         // A line in the playtest log from a screen of its own (evals-ui.js).
         playtest: (type, data) => pt(type, data),
+        // The Feed's screen starts and ends sessions through these, so they are logged and saved (feed-ui.js).
+        feedStart(sector) { const ok = E.feedStart(state, sector); if (ok) { pt('feedStart', { sector, held: state.feed.backlog.reduce((n, e) => n + e.n + e.gold + e.bad, 0) }); save(); } return ok; },
+        feedEnd() { const r = E.feedLeave(state); if (r) feedShow({ events: [r] }); return r; },
         debug: {
             // The music: the area's other song, or the next section of this one (on the next downbeat).
             nextSong: () => window.SFX?.songCmd?.('song'),
@@ -13971,6 +13979,7 @@ window.AGI = (function () {
             // A Packet Snare run's worth of packets on the heap, for testing before runs fill it.
             feedDeliver(sector = 1, packets = 40, gold = 0, garbled = 0, popped = 0) { feedShow(E.feedDeliver(state, { sector, packets, gold, garbled, popped })); afterChange(); },
             resetFeed() { state.feed = E.defaultState(Date.now()).feed; afterChange(); },
+            feedStart(sector = 1) { const ok = E.feedStart(state, sector); afterChange(); return ok; },
             // What the AI has learned of every kind of captcha, raised by `by` (0 to 1): for watching it learn without the solves.
             evalsTeach(by = 0.25) {
                 for (const kind of Object.keys(window.Evals?.KINDS || {})) {

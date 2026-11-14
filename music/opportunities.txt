@@ -1,0 +1,236 @@
+OPPORTUNITIES: making the tracks and effects less like Classic, and better
+===========================================================================
+Written 2026-11-14 from a read of sfx.js (the copies in this folder). These are suggestions, not decisions:
+nothing here has been built or listened to, and anything that changes how the game feels is the owner's call.
+"Measured" below means a number read from the code; "likely" means a judgement that needs ears.
+
+Why the tracks sound related: Dark, Soft, Ominous and Retro were each made by re-dressing Classic. They
+changed the key, the instruments and the notes, and kept the tempo, the meter, the drum grid, the two-minute
+form, the order the layers arrive in, the shape of every sound effect and the mix chain. So timbre and harmony
+already differ a lot, and rhythm, form, space and gesture hardly differ at all. The biggest gains are there.
+
+
+THE THREE MOST IMPACTFUL
+========================
+
+1. GIVE EACH TRACK ITS OWN GROOVE (rhythm and meter)
+   Today: all five are 124 BPM, straight 16ths, kick on every beat (Ominous on 1 and 3), clap on 2 and 4,
+   hats on the same off-beats. Tap along to any of them and it is the same pattern.
+   Do: keep the one 124 BPM clock (see the caution) and change what is played on it.
+     Dark     leave four on the floor (it is the genre), add an off-beat open hat pattern that shifts and a
+              snare ghost before the 4.
+     Soft     swing: delay every second 16th by 20 to 30% of a step. Move the kick off the grid of four (a
+              kick on 1 and the "and" of 2, a boom-bap or two-step pattern). This alone will stop it reading
+              as quiet techno.
+     Ominous  triplets against the half-time pulse: let the clock tick three to a beat while the kick stays
+              on 1 and 3, and drop the kick entirely for whole sections.
+     Retro    a breakbeat or a gallop (an 8th and two 16ths) in the noise channel, and a bass that walks
+              instead of only bouncing octaves.
+     Classic  stays as it is: it becomes the straight one.
+   Where: each style's `step` function already owns its drum pattern, so this is per-track code plus one
+   small engine change (a per-style swing amount applied to odd steps; effects that quantise to 16ths should
+   use the same offset, or quantise to 8ths in a swung track).
+   Caution: do not change the BPM per track without the owner. Held jobs repeat on the music's 8ths, so the
+   tempo sets clicks per second (4.13 at 124). A 100 BPM track would cut hand income by about a fifth.
+
+2. GIVE EACH TRACK ITS OWN SPACE (timbre, texture, translation)
+   Today: every voice in every track is mono, centred and dry. There is no stereo, no reverb and no delay
+   line anywhere; the "echoes" are second notes. That one shared, flat room is a large part of why the
+   tracks feel like one family, and why Ominous and Soft cannot sound as deep as their names.
+   Do: add a small send bus per track with a character of its own.
+     Classic  a real feedback delay at a dotted 8th (the dub chord's echo, tailing off), a little width.
+     Dark     nearly dry and narrow, a short metallic room on the snare only. Its weight is in being close.
+     Soft     a warm, short room; the Rhodes and the kalimba placed left and right.
+     Ominous  a long, dark hall (three to four seconds) on the bell, the lead and every effect; wide.
+     Retro    bone dry and mono on purpose. The contrast with the others is the point.
+   Where: a generated impulse response for a ConvolverNode (no files needed), a DelayNode, and a
+   StereoPannerNode per voice; a `space` entry on each style. The same send can serve the track's effects.
+   Caution: check the mix summed to mono (one phone speaker), re-measure every level afterwards, and keep
+   kick, bass and sub centred and dry.
+
+3. GIVE EACH TRACK ITS OWN SHAPE (form, texture, dynamics)
+   Today: all 30 songs play intro, A, B, A, break, B, A2, out over one eight-bar progression, and all five
+   tracks bring their layers in in the same order at the same thresholds (kick and bass, chords, hats,
+   melody, clap, 16ths, harmony, arpeggio). The intro and the outro are the same thing: the groove with
+   no melody.
+   Do: a form and a layer order per track, and a second progression for B.
+     Dark     build like a club track: long intro, the acid line opening over 16 bars, a breakdown with a
+              riser, a drop. Kick first, melody last.
+     Soft     start from the pad and the Rhodes with no kick at all; the kick is the last thing in.
+     Ominous  through-composed: drone and bell first, the melody early and alone, drums only at the peak;
+              no repeat of A after B.
+     Retro    a game loop: a four-bar intro once, then A A B A looping, with a key change up a tone on the
+              last A.
+     Classic  as it is.
+   Also write a B-section progression for each song (a move to the relative major or minor, or to the
+   subdominant), so B is a change of place and not only a new tune over the same chords.
+   Where: FORM and the layer thresholds are single shared constants today; make both a field on the style
+   (and optionally on the song), and let `chords` take a second list for B.
+   Caution: "a new game is a kick and a bass" and "the beat plays only while training" are the owner's
+   calls. A track that starts from pads instead needs the owner's yes.
+
+
+EACH GROUP, ELEMENT BY ELEMENT
+==============================
+Melody, harmony, rhythm and meter, texture, timbre, dynamics, form; then the effects.
+
+CLASSIC (dub techno, A minor) — the reference; improve it without moving it
+  Melody    The lab melodies are long and stepwise and work. The server riffs are short cells repeated at
+            new pitches; give each a clear answer phrase in bars 3 and 4. Use more 16th pick-ups: only one
+            bar in the whole game has any.
+  Harmony   Sevenths and ninths, well voiced. Night Survey never reaches a dominant and Uptime, Overclock
+            and Packet Storm all end on E7: vary the turnarounds (a bVII, a iv, a bare sus).
+  Rhythm    Leave straight. Add a ghost kick or a shuffled hat on the last bar of each phrase.
+  Texture   The dub chord is the signature; let its echo actually repeat and decay (item 2).
+  Timbre    Three waveforms through one lowpass. Add slow filter movement on the pad (an LFO) so held
+            chords are alive.
+  Dynamics  Accents: every hat and every bass note is the same level. Add a velocity pattern.
+  Form      Give the intro and the outro their own material (item 3).
+  Effects   Solid. The eight power-up effects are its best; keep them as the model for the other tracks'.
+
+DARK (warehouse techno, E Phrygian)
+  Melody    The hoover lines are the weakest part: they are polite stepwise tunes over a brutal rhythm
+            section. Replace them with two- or three-note riffs that hammer the flat second, or drop the
+            lead for whole sections and let the acid line be the tune.
+  Harmony   Triads moving by step around Am and Bb: right for the style. Try whole sections on one chord
+            (a pedal E) so a chord change becomes an event.
+  Rhythm    The acid pattern is two fixed bars for every song. Write one per song, and let accents move.
+  Texture   Dense from the first layer. Thin it: take the rumble out for the first eight bars of a section
+            so its return hits.
+  Timbre    Already the furthest from Classic. Add real distortion on the kick only, and a noise bed.
+  Dynamics  Needs contrast most: side-chain the pad and acid to the kick (duck them on each beat) for the
+            pumping this genre is known for. One gain curve per beat on the tones bus would do it.
+  Form      Club form (item 3).
+  Effects   The eight unwritten power-up effects are saws an octave down: muddy against this mix. Write
+            them: metal and sub drops for smash and release, a pitch-down for freeze.
+
+SOFT (gentle, F major / D minor)
+  Melody    Almost all quarter notes on the beat. Add syncopation (notes tied over the bar line) and a few
+            grace notes; a kalimba line wants to be a little uneven.
+  Harmony   The richest in the game. It can go further: borrowed chords (a iv minor in the major songs), a
+            walking bass between chords.
+  Rhythm    Swing and a different kick pattern (item 1). The biggest single change available to this track.
+  Texture   Pad, Rhodes, arpeggio and kalimba are all sines in the same octave or two: they blur. Move the
+            arpeggio up an octave or give the Rhodes a tremolo so each has its own place.
+  Timbre    Everything is a sine or a triangle. Add one voice with some grit (a soft, filtered saw "cello"
+            or a breathy noise layer on the pad) so the sines have something to sit against.
+  Dynamics  The mallet instruments have one loudness. Vary the strike level note to note.
+  Form      Start from pads, kick last (item 3).
+  Effects   The most distinct set after Retro. The profile makes the eight unwritten ones too polite for
+            what they mark: a breakthrough and a smash should still land. Give them a warm, big version
+            (a low drum and a chord bloom) rather than Classic's noise, softened.
+
+OMINOUS (slow dread, C harmonic minor)
+  Melody    Half and whole notes throughout: all six songs move at the same slow speed. Give two of them a
+            repeating, obsessive figure (a four-note cell that doesn't develop) and leave real silence:
+            whole bars with no melody.
+  Harmony   Am, Bb and E in every song. Add other kinds of unease: a diminished chord, a chord that holds
+            for four bars, a major chord where a minor one is expected.
+  Rhythm    Triplets over the half-time pulse, and sections with no kick (item 1).
+  Texture   Drone, strings, bell and lead all sustain. Add something short and dry (a knock, a tick that
+            speeds up and slows down) so the long sounds have a foreground.
+  Timbre    Its bell and detuned lead are good. This track gains the most from a long reverb (item 2).
+  Dynamics  The filter tops out at 4 kHz, so a fast run cannot get much more intense than a slow one.
+            Give it another way to grow: the detune widening, a second drone a fifth up, the bell tolling
+            every bar and then every beat.
+  Form      Through-composed (item 3).
+  Effects   Long tails are its character and its risk: clicks at four a second each ring for 0.1 to 0.7 s
+            with an echo. Check what a held job sounds like and shorten the clicks only.
+
+RETRO (chiptune, C major / A minor)
+  Melody    The strongest tunes in the game. Add chip ornaments: fast arpeggiated grace notes, pitch
+            vibrato on held notes, a duty-cycle change between A and B.
+  Harmony   Four-chord loops in triads: correct. A key change up a tone for the last A is the classic move
+            and costs one line.
+  Rhythm    The bass only bounces octaves and the kick is four on the floor: it is Classic's drum pattern in
+            noise. A breakbeat and a walking bass (item 1).
+  Texture   Honour the four-channel limit strictly (two squares, a triangle, noise) and it will sound more
+            like itself. Today the echo and the arpeggio together can exceed it.
+  Timbre    Only 50% squares. Pulse widths of 12.5% and 25% (a PeriodicWave) would give it three more
+            colours for free and separate the lead from the arpeggio.
+  Dynamics  Chips had no fades: use hard on and off, and volume steps (full, half, quarter) on the echo.
+  Form      A looping game form (item 3).
+  Effects   Already written the most completely (19 of 27). Finish the set: smash, wind-up, crunch, flow,
+            freeze, release and viral are the only ones left.
+
+ACROSS ALL FIVE: the sound effects
+  - Eight of the 27 general effects are not written per track (system prompt, smash, wind-up, crunch, flow,
+    freeze, release, viral; Retro has system). They are the power-up moments, the most dramatic sounds in
+    the game, and in four tracks they are Classic's notes through a filter.
+  - The sprint meter is the same four parts in every track, with only the waveform changed. It is heard on
+    every sprint. A set of parts per track (Dark an acid line, Soft a strummed chord, Ominous a tolling
+    pulse, Retro a fast arpeggio) would do more than any single effect.
+  - Every effect varies the same way (the figure moves 0, +1, -1 or +2 degrees). Add variation in rhythm and
+    length too, per track.
+  - Gesture: most effects in every track are "a short run of notes going up". Let each track have a
+    direction of its own: Dark falls, Soft rises, Ominous stays on one note, Retro leaps.
+
+
+LEVELS, MASTERING AND TRANSLATION
+=================================
+What exists: a relative match. Every track and its effects were levelled to Classic with a K-weighted
+meter, within about 1 dB, in headless Chromium. That work is thorough and should be kept. What is missing:
+
+  An absolute target      Nothing says how loud the game is, only that the tracks agree. Pick one (for a
+                          browser game, around -18 to -16 LUFS integrated for music with effects on top is
+                          a common range) and measure the finished mix against it, music and effects
+                          together, at the default volumes.
+  A limiter               The last stage is a compressor at -18 dB, ratio 6, with default timing. It is not a
+                          limiter: a breakthrough swell (music bus up 55%), a smash and a sub drop together
+                          can clip. Add a fast limiter after it with a ceiling near -1 dB.
+  Music and effects pump  Both go through the same compressor, so a loud effect turns the music down. That
+                          may be wanted (it makes room) but it is uncontrolled. Decide: either duck the
+                          music on purpose under the big stingers, by a set amount, or give each its own
+                          compressor and meet at the limiter.
+  The measuring tools     The checks named in the project notes (the loudness meter, the click and meter
+                          clearance checks) are not in the repository. Check them in (tools/audio/) so any
+                          change here can be re-measured the same way, and add one test that fails when a
+                          track drifts more than 1 dB.
+  Low end on phones       Many effects rest on a sine at 55 Hz dropping to 27.5 Hz (sprint, breakthrough,
+                          smash, summit, landings). A phone or laptop speaker plays nothing below about
+                          150 to 200 Hz, so on the owner's phone those sounds lose their body. Add a quiet
+                          harmonic an octave or two up (or light saturation) to every sub, as was done for
+                          Dark's rumble and compute's click. High-pass the whole mix near 30 Hz to stop
+                          inaudible lows eating headroom.
+  Small-speaker harshness Only data's click is adjusted for phones. Retro's raw squares and Dark's metal hits
+                          sit in the same 2 to 5 kHz band phone speakers exaggerate. Measure the five sets
+                          through a phone-shaped filter and trim by track.
+  Headphones              Sustained sub and unfiltered squares are tiring on headphones. A gentle high shelf
+                          cut on Retro and a level check of the subs at headphone volume.
+  Mono                    Fine today (everything is mono). If stereo is added, test the sum to mono every time.
+  Bluetooth               Wireless headphones add 100 to 300 ms. Effects already wait for the grid, so they
+                          stay musical, but a click's sound trails the tap. Nothing to fix in the mix; a
+                          "low latency" option could skip the wait for clicks only.
+  Browsers                Levels were measured in Chromium only. Safari's and Firefox's compressors behave
+                          differently, and iOS is the owner's phone. Measure once on real iOS.
+  Too many voices         Ominous's long tails and held clicks can stack dozens of oscillators. Cap voices
+                          per effect name on phones.
+  Distribution formats    The game ships as code, so there is no file format to master for. If the music is
+                          ever wanted outside the game (a trailer, a store page, a soundtrack), render each
+                          song offline to 48 kHz, 24-bit WAV and master those separately: about -14 LUFS and
+                          -1 dB true peak is what streaming services normalise to, and a trailer is mixed
+                          to the video platform's level. Encode to AAC or Opus from the WAV, never from an
+                          MP3.
+
+
+IF TIME AND SCOPE ALLOW
+=======================
+ 1. A render tool: any song, in any track, at any intensity, to a WAV file. It makes every item in this file
+    reviewable by ear outside the game, and A/B comparisons possible.
+ 2. Check in the loudness tools and the 1 dB drift test (above).
+ 3. Write the eight missing power-up effects for Dark, Soft and Ominous, and Retro's seven.
+ 4. Sprint meter parts per track.
+ 5. Humanise: velocity accents, a few milliseconds of timing looseness on hats and mallets, ghost notes.
+    Small, cheap, and it lifts every track.
+ 6. Song-to-song transitions. A song now simply starts when the last one ends, or on the next downbeat when
+    you change rooms. A one-bar turnaround or a filter sweep into the new song.
+ 7. A motif that links effects to songs: let the summit stinger quote the first notes of the song that is
+    playing, so learning a skill sounds like part of the music.
+ 8. More songs where time is spent. Two lab songs per track loop every four minutes; the lab is where a
+    player sits longest. A third lab song per track, or a longer form, before any new track.
+ 9. Music for the ring's new places. The planned demo has five places (the lab, Packet Snare, The Feed, the
+    Training Cluster, Evals) and the music knows three areas. The Feed is described as calm: it wants its
+    own songs, not the lab's.
+10. A sixth track built from nothing instead of from Classic, as a test of how far the engine can go: a
+    different tempo feel, its own form, its own effects from the first note. What it needs that the engine
+    cannot do is the real list of engine work.

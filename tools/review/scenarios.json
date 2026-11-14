@@ -12,7 +12,7 @@
    "snareSprawl": 2,
    "snareSanitizer": 1
   },
-  "signal": 26,
+  "signal": 16,
   "runs": 3,
   "minute": 1.2
  },
@@ -26,7 +26,7 @@
    "snareCleanerBot": 1,
    "snareSanitizer": 2
   },
-  "signal": 105,
+  "signal": 44,
   "runs": 11,
   "minute": 4.5
  },
@@ -35,53 +35,33 @@
    "snareSeed": 1,
    "snareFocus": 4,
    "snarePacketStream": 2,
-   "snareBandwidth": 2,
+   "snareBandwidth": 1,
    "snareSprawl": 3,
-   "snareGold": 2,
-   "snareCleanerBot": 2,
+   "snareGold": 1,
+   "snareCleanerBot": 1,
    "snareSanitizer": 3
   },
-  "signal": 73,
-  "runs": 19,
-  "minute": 8.1
+  "signal": 83,
+  "runs": 13,
+  "minute": 6.1
  },
  "5": {
   "levels": {
    "snareSeed": 1,
-   "snareFocus": 6,
+   "snareFocus": 5,
    "snarePacketStream": 4,
    "snareChain": 3,
    "snareBandwidth": 2,
    "snareSprawl": 3,
    "snareSchools": 1,
-   "snareGold": 3,
+   "snareGold": 2,
    "snareContain": 1,
-   "snareCleanerBot": 4,
-   "snareSanitizer": 5,
-   "snareFirewalls": 1
+   "snareCleanerBot": 3,
+   "snareSanitizer": 4,
+   "snareKernelPanic": 1
   },
-  "signal": 630,
-  "runs": 38,
-  "minute": 17.3
- },
- "6": {
-  "levels": {
-   "snareSeed": 1,
-   "snareFocus": 6,
-   "snarePacketStream": 4,
-   "snareChain": 4,
-   "snareBandwidth": 2,
-   "snareSprawl": 3,
-   "snareSchools": 1,
-   "snareGold": 3,
-   "snareContain": 1,
-   "snareCleanerBot": 4,
-   "snareSanitizer": 5,
-   "snareKernelPanic": 1,
-   "snareFirewalls": 1
-  },
-  "signal": 900,
-  "runs": 40,
-  "minute": 19.1
+  "signal": 457,
+  "runs": 36,
+  "minute": 17.1
  }
 }

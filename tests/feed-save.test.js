@@ -103,7 +103,7 @@ test('junk in the save is cleaned', () => {
     assert.deepEqual(f.readable, ['pictures']);
     assert.equal(f.fragNext, 4);
     assert.deepEqual(f.fragments, { parcel: [0, 1, 2, 3] });
-    assert.deepEqual(f.stats, { delivered: 12, eaten: 0, cleaned: 0, research: 1e15, veins: 0, hops: 0 });
+    assert.deepEqual(f.stats, { delivered: 12, eaten: 0, cleaned: 0, research: 1e15, veins: 0, hops: 0, sessions: 0, lost: 0 });
     assert.equal(f.tiles, undefined);
     // It still plays.
     assert.ok(Feed.deliver(f, { sector: 1, packets: 10, gold: 0 }).added > 0);

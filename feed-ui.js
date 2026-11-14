@@ -19,6 +19,7 @@
     const BANDS = ['#e8c07a', '#d98a5f', '#7fc8a9', '#6fa8dc', '#c9a0e8', '#e6dfc8'];
     const TESTS = [['+40', [1, 40, 4]], ['+75 dirty', [2, 75, 6, 10]], ['+200 dirty', [4, 200, 15, 20, 20]]];
     let dlg = null, canvas = null, ctx = null, stage = null, promptEl = null, hungerEl = null, layerEl = null, mitesEl = null, researchEl = null, fragEl = null;
+    let pickEl = null, endEl = null, pickKey = '';
     let sand = null, sandCtx = null, image = null, pixels = null, palette = null;
     // The window on the box, in cells: `cols` × `rows` from (`x`, `y`), a cell `cell` px, drawn from (`ox`, `oy`).
     let view = { w: 0, h: 0, x: 0, y: 0, cols: 0, rows: 0, cell: 4, ox: 0, oy: 0, want: null };
@@ -42,13 +43,16 @@
 
     function build() {
         layerEl = el('span', { class: 'feed-stat' });
-        // The hunger meter: full, the swarm splits.
+        // The hunger meter. In a session (the ring) it is the hunger bar that ends it; otherwise full, the swarm splits.
         hungerEl = el('div', { class: 'feed-hunger', role: 'progressbar', 'aria-label': 'Hunger', 'aria-valuemin': '0', 'aria-valuemax': '100' }, el('div', { class: 'feed-hunger-fill' }));
         mitesEl = el('span', { class: 'feed-stat' });
         researchEl = el('span', { class: 'feed-stat feed-research' });
         promptEl = el('div', { class: 'feed-prompt', 'aria-live': 'polite' });
         canvas = el('canvas', { class: 'feed-canvas', 'aria-label': 'The pile. Hold a point to lead the swarm there.' });
-        stage = el('div', { class: 'feed-stage' }, canvas);
+        // Between sessions (the ring): the stockpiles to pick from, over the empty box.
+        pickEl = el('div', { class: 'feed-pick', hidden: '' });
+        stage = el('div', { class: 'feed-stage' }, canvas, pickEl);
+        endEl = el('button', { type: 'button', class: 'ghost-button feed-end', text: 'End', hidden: '', onclick: endNow });
         fragEl = el('div', { class: 'feed-fragment' });
         const debug = window.AGI?.debug;
         const tests = el('div', { class: 'feed-test', 'aria-label': 'Testing' },
@@ -57,7 +61,7 @@
             el('button', { type: 'button', class: 'ghost-button', text: 'Empty', onclick: () => { debug?.resetFeed(); fragShown = -1; view.want = null; } }));
         dlg = el('dialog', { class: 'feed-screen', 'aria-label': 'The Feed' },
             el('div', { class: 'feed-bar' },
-                el('span', { class: 'feed-title', text: 'The Feed' }), layerEl, mitesEl, researchEl,
+                el('span', { class: 'feed-title', text: 'The Feed' }), layerEl, mitesEl, researchEl, endEl,
                 el('button', { type: 'button', class: 'ghost-button feed-close', 'aria-label': 'Close The Feed', text: '×', onclick: close })),
             hungerEl, tests, promptEl, stage, fragEl);
         dlg.addEventListener('close', stop);
@@ -152,6 +156,35 @@
         return { x: ((e.clientX - b.left) / b.width * view.w - view.ox) / view.cell + view.x, y: ((e.clientY - b.top) / b.height * view.h - view.oy) / view.cell + view.y };
     }
     function lead(e) { if (feed()) E().feedPoint(game(), cellAt(e)); }
+    // ---- sessions (the ring): the stockpiles between them, and ending one --------------------------------------------
+    const WHY = { hunger: 'The swarm went hungry.', empty: 'The stockpile is eaten.', left: 'You ended the session.' };
+    function endNow() { if (feed()?.session) { window.AGI.feedEnd(); pickKey = ''; } }
+    function start(sector) { if (window.AGI.feedStart(sector)) { pickKey = ''; view.want = null; pops = []; } }
+    function renderPick() {
+        const f = feed(), on = !!(f && f.sessioned && !f.session);
+        pickEl.hidden = !on; endEl.hidden = !(f && f.session);
+        if (!on) { pickKey = ''; return; }
+        const list = E().feedStock(game()), last = f.lastSession;
+        const key = JSON.stringify([list.map(e => [e.sector, e.total, e.cap, e.gold, e.bad, e.record]), last]);
+        if (key === pickKey) return;
+        pickKey = key;
+        const kids = [];
+        if (last) kids.push(el('div', { class: 'feed-last' },
+            el('strong', { text: WHY[last.why] || 'Session over.' }),
+            el('span', { text: `Sector ${last.sector} · ${plural(last.layers, 'split', 'splits')} · +${E().format(last.research)} research · ${last.time} s${last.record ? ' · New best' : ''}` })));
+        kids.push(el('h3', { class: 'feed-pick-title', text: 'Stockpiles' }));
+        if (!list.some(e => e.total > 0)) kids.push(el('p', { class: 'feed-pick-none', text: 'Nothing stockpiled. Catch packets in Packet Snare to fill one.' }));
+        for (const e of list) {
+            const pct = Math.round(Math.min(1, e.total / e.cap) * 100);
+            const parts = [`${e.total}/${e.cap} packets`]; if (e.gold) parts.push(`${e.gold} gold`); if (e.bad) parts.push(`${e.bad} garbled`); if (e.record) parts.push(`best ${plural(e.record, 'split', 'splits')}`);
+            kids.push(el('div', { class: e.full ? 'feed-pile full' : 'feed-pile' },
+                el('div', { class: 'feed-pile-head' }, el('strong', { text: `Sector ${e.sector}` }), el('span', { class: 'feed-pile-tag', text: e.full ? 'Full' : '' })),
+                el('div', { class: 'feed-pile-bar' }, el('div', { class: 'feed-pile-fill', style: `width:${pct}%` })),
+                el('div', { class: 'feed-pile-foot' }, el('span', { text: parts.join(' · ') }),
+                    el('button', { type: 'button', class: 'button feed-pile-start', text: 'Start session', ...(e.total > 0 ? {} : { disabled: '' }), onclick: () => start(e.sector) }))));
+        }
+        pickEl.replaceChildren(...kids);
+    }
     function letGo() { held = null; if (feed()) E().feedPoint(game(), null); }
 
     // ---- what happened (from game.js's loop) ------------------------------------------------------------------------
@@ -274,6 +307,7 @@
     // ---- the words round the pile ---------------------------------------------------------------------------------
     function prompt() {
         const f = feed(), lib = F();
+        if (f.sessioned) return !f.session ? '' : f.life < 0.25 ? '> They are starving. Lead them to good sand.' : !f.stats.eaten && !f.aim ? '> Show it where to start.' : '';
         if (!f.stats.delivered) return '> Nothing to eat yet.';
         if (lib.left(f) === 0) return '> It is still hungry.';
         if (!f.stats.eaten && !f.stats.cleaned && !f.aim) return '> Show it where to start.';
@@ -295,8 +329,11 @@
         raf = requestAnimationFrame(tick);
         const f = feed(); if (!f) return;
         frames++;
-        const hunger = F().hunger(f), pct = Math.round(hunger.share * 100);
-        text(layerEl, `Hunger ${pct}%`);
+        // In a session the bar is the hunger bar (it empties; the session ends at nothing) and the stat is the way to the next split.
+        const hunger = F().hunger(f), split = Math.round(hunger.share * 100), pct = f.sessioned ? Math.round(hunger.life * 100) : split;
+        text(layerEl, f.sessioned ? (f.session ? `Split ${split}%` : '') : `Hunger ${pct}%`);
+        hungerEl.classList.toggle('life', !!f.sessioned); hungerEl.classList.toggle('low', !!f.session && hunger.life < 0.25);
+        renderPick();
         if (hungerEl.firstChild.style.width !== pct + '%') { hungerEl.firstChild.style.width = pct + '%'; hungerEl.setAttribute('aria-valuenow', String(pct)); }
         text(mitesEl, plural(f.mites, 'mite', 'mites'));
         text(researchEl, `${E().format(Math.floor(game().res.rp))} research`);
@@ -311,7 +348,7 @@
         if (!dlg) build();
         if (dlg.open) return;
         dlg.showModal();
-        readColors(); pops = []; sparks = []; held = null; fragShown = -1; view.cols = view.rows = 0;
+        readColors(); pops = []; sparks = []; held = null; fragShown = -1; pickKey = ''; view.cols = view.rows = 0;
         resize();
         cancelAnimationFrame(raf); raf = requestAnimationFrame(tick);
     }

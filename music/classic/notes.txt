@@ -1,0 +1,98 @@
+CLASSIC: what went into the track and its sound effects
+=========================================================
+Source: sfx.js as copied on 2026-11-14 (songs.js, instruments.js, sound-effects.js in this folder) and the
+project notes in CLAUDE.md. Classic is the original: every other track is measured against it and falls
+back to its sound effects. What all five tracks share is in ../README.txt.
+
+IDENTITY
+  Dub techno. The colour theme it pairs with is Night survey.
+  Key: A minor (natural minor), as written. Every song and effect in the game is written in A and moved
+  into the other tracks' keys, so Classic is the only track that plays the notes on the page.
+
+THE INSTRUMENTS (instruments.js)
+  Kick      A sine drop 150 to 45 Hz on every beat (four on the floor).
+  Bass      A saw on each song's own bass line; its filter opens with the run's speed (220 to 1,820 Hz).
+  Hats      Off-beat hats, then 16th hats, each on its own layer.
+  Clap      On beats 2 and 4.
+  Chords    Dub chords: a filtered saw stab on the song's `comp` steps, answered a dotted 8th later by a
+            quieter, darker copy (a delay throw written as a second note, not a delay effect).
+  Lead      A filtered square, with the same dotted-8th throw at about a third of the level.
+  Arpeggio  The chord in squares an octave up, on every 16th, starting a step later each bar so the figure
+            turns over a four-bar phrase.
+  Fill      Every eighth bar ends in a clap roll that gets louder, and a square note two octaves over the
+            next chord's root on the last 16th.
+  Mood      The master filter runs 900 Hz at rest to 9,900 Hz at full speed (a squared curve, so most of the
+            opening comes late). No drive.
+
+THE SONGS (songs.js)
+  Lab songs are steadier and more melodic; server-room songs drive harder; Packet Snare's are stealth.
+  Night Survey (lab)     Am9 Am9 Fmaj7 Fmaj7 Cmaj7 Cmaj7 Dm7 Cmaj7. Two bars a chord, chords on the off-beats
+                         of 1 and 3, a long-breathed line. Never touches the dominant: it floats.
+  Uptime (lab)           Am7 Fmaj9 C6 Gsus2 Am7 Fmaj9 Dm7 E7. i-VI-III-VII, "wide and hopeful", chords late
+                         in the bar (the off-beats of 2 and 4). The E7 at the turn is the only strong pull
+                         home in the lab, and the melody takes the G sharp with it.
+  Overclock (server)     Am7 Am7 Dm7 Dm7 Fmaj7 G Esus4 E7. A rolling 16th bass, a short riff with rests,
+                         three chord stabs a bar, harmonic minor's E7 at the turn.
+  Packet Storm (server)  Am G Fmaj7 E7 Am G Dm9 E7. The Andalusian cadence under a busy hook, the bass
+                         bouncing octaves on the 8ths. The only melody with 16th notes (bar 5 of B).
+  Packet Sniffer (snare) Am9 Am9 Fmaj7 Fmaj7 Dm9 Dm9 Esus4 Esus4. Dub techno gone quiet: one muted stab a
+                         bar, the phrase left hanging on a sus chord that never resolves.
+  Dead Drop (snare)      Am7 Am7 Em7 Em7 Fmaj7 Fmaj7 Gsus4 Gsus4. A bass that steps and stops.
+  Chords are sevenths and ninths rather than triads, voiced close to the last chord (smooth voice leading);
+  five-note chords leave the root to the bass. Every melody note on a beat or held was checked against its
+  chord: no semitone rubs.
+  Stealth songs carry their own hushed kick pattern (`kick`, at 45% level), a quiet clock tick (`tick`) and a
+  master filter that starts 25% closed (`cut` 0.75); as you're spotted the track's own kick fades in.
+
+LEVELS (measured K-weighted in headless Chromium; see ../README.txt)
+  Classic is the reference: no overall trim (gain 1). Beat 0.659, tones 1.97, which puts the drums 2 dB
+  under the tones (the owner kept Beat at 50% or lower; the drums had sat 4 to 12.5 dB over the tones).
+  Each song's `lvl` (0.82 to 1.01) evens the songs; the stealth songs need more (1.37 and 1.62) and a
+  further lift while their drums are hushed (`rest` 1.36 to 1.40).
+  Simple version: gain 1, beat 0.987, tones 2.455, a triangle bass.
+
+SOUND EFFECTS (sound-effects.js)
+  Classic's set is the design every other track starts from: SOUNDS holds all 27 general effects and the
+  29 Packet Snare ones. SFX_TRIM is 1 (the reference); the simple set is trimmed 2.33.
+  House voices
+    blip   a square through a 2.6 kHz lowpass, 90 ms: the house voice
+    stab   detuned saws through a resonant lowpass: chords
+    sub    a sine dropping or holding, mostly A1 (55 Hz) down to A0 (27.5 Hz)
+    echo   the same figure again a dotted 8th later at 40%: the delay throw on prompts
+    bell   a sine with a quiet partial a twelfth up; pluck: a short filtered saw
+  The clicks (the most-heard sounds in the game)
+    Compute   a round triangle in the middle register with a bright tick two octaves up and a noise tick.
+              The owner's call: an octave lower it sat under the basses, and in the chords' register it
+              read as part of the track, so the tick puts its energy where the music is thin.
+    Data      the square blip, bright and short; on touch screens 45% quieter with a darker filter, because
+              phone speakers push the upper mids.
+    Research  a sine with its octave, high and bell-like.
+    Each job plays an eight-note figure across the bar (CLICK_NOTES); where the click falls in the bar
+    picks its note, so tapping or holding plays a tune in time. The three are levelled alike, data about
+    5 dB under compute, and each clears the music by 6 dB or more in its own third-octave bands.
+  Buying: one sound per panel, three or four variations that never repeat back to back
+    hardware square blips (with a sub on a big buy), software quick high triangles like a terminal,
+    research bells, consciousness a soft saw pad, the skill tree saw plucks, legacy a wide chord with a
+    sub, Packet Snare's tree glassy triangle runs.
+  Training
+    sprint: a noise riser as strong as the charge, and a sub drop to A.
+    clean / super / system prompt: two, four, then nine rising blips, each with the delay throw.
+    breakthrough: a sub drop, a noise burst, an A minor stab on the next 16th. smash: the same, bigger.
+    summit (a skill learned): stabs on the 16ths, Am, Am, G, then Am held under a high E with a sub.
+    near miss: one note sagging a whole tone. flow: a slow A minor arpeggio in sines.
+  Errors sit an octave above the basses so they can be heard.
+  Packet Snare (TRACK_SOUNDS.classic): written apart from the training sounds on purpose, "in the stealth
+  spirit": muted saw plucks low down for a catch (two to six notes by the multiplier), ticks, filtered
+  noise, a heartbeat sub for the boss, the delay throw on a few. Levelled against Classic's own 17 effects
+  by SNARE_TRIM (frequent ones 3.5 dB under, alarms 3.5 over, the boss 5.5 over).
+  The sprint meter: the four shared parts (arpeggio, octave hops, acid line, gated chord) in triangles and
+  saws, levelled per part by CHARGE_TRIM to stand about 7 dB over the music.
+  Simple sounds: a filtered square (the blip, plain).
+
+CALLS AND CONSTRAINTS ON RECORD
+  - Compute took data's old sound (the owner's call).
+  - The sprint meter never plays a rising tone (the owner found the old glide grating): it plays notes of
+    the chord the music is on.
+  - Every sound lands on the grid: the next 16th, big stingers and held clicks the next 8th.
+  - The beat plays only while training (the owner's call); elsewhere the music is its tones alone.
+  - Nothing plays the same way twice running (the generate clicks excepted).

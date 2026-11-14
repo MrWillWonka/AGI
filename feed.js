@@ -30,6 +30,15 @@
 // sand. Full (`layerSize(n)` packets' worth: 30, then ×1.8 each time), the swarm splits: a new mite for good, and a
 // lump of research. `layers` counts the splits, `fed` what has gone into the meter since the last (see `hunger`).
 //
+// **Sessions** (the owner's cards, 2026-11-14; on when `sessions(state)` has been called, as the ring does). What
+// Packet Snare catches is **stockpiled by the sector it came from** (`stock`), each stockpile holding `stockRuns`
+// of your best run there (`stockMin` at the least); what doesn't fit is lost. Nothing eats outside a session. A
+// **session** starts on one sector's stockpile (`startSession`): an empty box, one mite, that sand poured in. A
+// **hunger bar** (`life`, 1 to 0) drains over `hungerTime` seconds and eating paying sand refills it (the whole bar
+// for `hungerFill` of the layer's worth, so it gets harder to keep up as layers grow); a split fills it. When it
+// empties, or the sand is gone, the session is over (`over` event): the box is cleared and the swarm is one mite
+// again. Research and fragments are kept. A deeper sector's sand is tougher (`tough`) and pays more (`sectorPay`).
+//
 // Pure and deterministic: no DOM, no clock, no Math.random (the generator's position is in the state, so a saved pile
 // carries on exactly). The state is plain data, ready for the save. Loaded in the browser as window.Feed and in Node
 // (tests) via require(). The dials start at tools/ring-model.js's values and a test holds the two in step.
@@ -72,7 +81,12 @@
         stick: 0.92,        // how likely the next grain poured is the same sort as the last: sorts lie in patches
         bands: 6,           // colours of strata before they repeat
         fragFrom: 2,        // a layer's fragment is one of its first plain packets: this many in at the least,
-        fragSpread: 10      // and up to this many more
+        fragSpread: 10,     // and up to this many more
+        stockRuns: 3,       // sessions: a sector's stockpile holds this many of your best run there (the owner's call),
+        stockMin: 60,       // and this many packets at the least
+        hungerTime: 25,     // seconds a full hunger bar takes to empty
+        hungerFill: 0.6,    // eating this share of the layer's worth of paying sand refills the whole bar
+        sectorPay: 0.5      // a packet from sector k pays 1 + this × (k − 1) times as much
     };
     const STEP = 0.05;      // the rules' own time step, in seconds
 
@@ -157,7 +171,9 @@
             rs: (opts.seed ?? 1) >>> 0, w: FEED.w, h: FEED.h, cells: new Array(FEED.w * FEED.h).fill(0), grains: 0, rest: true, tick: 0,
             mites: 1, swarm: [], aim: null, layers: 0, fed: 0, owed: 0, plain: 0, fragAt: 0, fragPlaced: false, fragNext: 0, fragments: {},
             backlog: [], drops: [], last: 0, band: 0, sweepAt: 0, pourAcc: 0, fallAcc: 0, readable: [], dry: false,
-            stats: { delivered: 0, eaten: 0, cleaned: 0, research: 0, veins: 0, hops: 0 }
+            // Sessions: stockpiles and best runs by sector, the session in play (or null), the hunger bar, the last one's result.
+            sessioned: false, stock: {}, best: {}, record: {}, session: null, life: 1, lastSession: null,
+            stats: { delivered: 0, eaten: 0, cleaned: 0, research: 0, veins: 0, hops: 0, sessions: 0, lost: 0 }
         };
         state.swarm.push(mitePlace(state, 0));
         startLayer(state, o);
@@ -173,12 +189,80 @@
     // A run's packets arrive: { sector, packets, gold, garbled, popped }. `packets` are the good ones caught (`gold` of
     // them gold); `garbled` the packets of garbled catches; `popped` what popped bubbles and snapped loops held, of
     // which a share arrives garbled. They pour in over the next seconds.
+    // ---- sessions ---------------------------------------------------------------------------------------------------
+    const stockOf = (state, sector) => { const e = state.stock[sector]; return e ? e.n + e.gold + e.bad : 0; };
+    const stockCap = (state, sector, opts) => { const o = opt(opts); return Math.max(o.stockMin, o.stockRuns * (state.best[sector] || 0)); };
+    const payMult = (state, o) => (state.session ? 1 + o.sectorPay * (state.session.sector - 1) : 1);
+    // An empty box and a swarm of one: how every session starts, and what is left when one ends.
+    function clearBox(state, o) {
+        state.cells.fill(0); state.grains = 0; state.drops = []; state.backlog = []; state.rest = true; state.dry = false;
+        state.mites = 1; state.swarm = [mitePlace(state, 0)]; state.layers = 0; state.aim = null; state.last = 0; state.sweepAt = 0; state.pourAcc = 0;
+        startLayer(state, o);
+    }
+    // Turn sessions on. A pile from before they existed goes into the stockpiles (its box as plain sector-1 packets).
+    function sessions(state, opts) {
+        if (state.sessioned) return state;
+        const o = opt(opts);
+        state.sessioned = true;
+        const add = (sector, n, gold, bad) => { const e = state.stock[sector] || (state.stock[sector] = { n: 0, gold: 0, bad: 0 }); e.n += n; e.gold += gold; e.bad += bad; };
+        for (const e of state.backlog) add(e.sector, e.n, e.gold, e.bad);
+        const boxed = Math.floor((state.grains + state.drops.reduce((n, d) => n + d.n, 0)) / o.grains);
+        if (boxed > 0) add(1, boxed, 0, 0);
+        for (const k of Object.keys(state.stock)) state.best[k] = Math.max(state.best[k] || 0, Math.ceil(stockOf(state, k) / o.stockRuns));
+        clearBox(state, o);
+        state.session = null; state.life = 1;
+        return state;
+    }
+    // Every stockpile with sand in it, and every sector you have a best run on: for the screen's list.
+    function stockList(state, opts) {
+        const keys = [...new Set([...Object.keys(state.stock), ...Object.keys(state.best)])].map(Number).filter(k => k >= 1).sort((a, b) => a - b);
+        return keys.map(sector => { const e = state.stock[sector] || { n: 0, gold: 0, bad: 0 }, total = e.n + e.gold + e.bad, cap = stockCap(state, sector, opts);
+            return { sector, n: e.n, gold: e.gold, bad: e.bad, total, cap, full: total >= cap, best: state.best[sector] || 0, record: state.record[sector] || 0 }; });
+    }
+    // A run's packets go to their sector's stockpile, as far as it has room. `lost`: what didn't fit.
+    function stockpile(state, sector, packets, gold, bad, o, out) {
+        state.best[sector] = Math.max(state.best[sector] || 0, packets);
+        const total = packets + bad, cap = stockCap(state, sector, o), have = stockOf(state, sector);
+        const take = Math.max(0, Math.min(cap - have, total)), share = total ? take / total : 0;
+        const addBad = Math.min(bad, Math.round(bad * share)), addGood = take - addBad, addGold = Math.min(addGood, Math.round(gold * share));
+        if (take > 0) { const e = state.stock[sector] || (state.stock[sector] = { n: 0, gold: 0, bad: 0 }); e.n += addGood - addGold; e.gold += addGold; e.bad += addBad; }
+        state.stats.delivered += take; state.stats.lost += total - take;
+        Object.assign(out, { added: take * o.grains, stocked: take, lost: total - take, sector, held: have + take, cap, full: have + take >= cap });
+        return out;
+    }
+    // Start a session on a sector's stockpile. False when sessions are off, one is in play, or there is nothing there.
+    function startSession(state, sector, opts) {
+        const o = opt(opts), k = Math.floor(sector) || 0, e = state.stock[k];
+        if (!state.sessioned || state.session || !e || e.n + e.gold + e.bad <= 0) return false;
+        clearBox(state, o);
+        state.band = (state.band + 1) % o.bands;
+        state.backlog.push({ sector: k, n: e.n, gold: e.gold, bad: e.bad, band: state.band });
+        delete state.stock[k];
+        state.session = { sector: k, research: 0, time: 0, packets: e.n + e.gold + e.bad };
+        state.life = 1; state.lastSession = null; state.stats.sessions++;
+        return true;
+    }
+    // The session is over (`why`: 'hunger', 'empty', or 'left' when you end it yourself). Sand not yet poured goes back
+    // to its stockpile; sand in the box is gone.
+    function endSession(state, why, opts, out) {
+        const o = opt(opts), s = state.session;
+        if (!s) return null;
+        for (const e of state.backlog) { const t = state.stock[e.sector] || (state.stock[e.sector] = { n: 0, gold: 0, bad: 0 }); t.n += e.n; t.gold += e.gold; t.bad += e.bad; }
+        const result = { type: 'over', why, sector: s.sector, layers: state.layers, mites: state.mites, research: s.research, time: Math.round(s.time), record: state.layers > (state.record[s.sector] || 0) };
+        if (result.record) state.record[s.sector] = state.layers;
+        clearBox(state, o);
+        state.session = null; state.life = 1; state.lastSession = { ...result };
+        if (out) out.events.push(result);
+        return result;
+    }
+
     function deliver(state, load, opts) {
         const o = opt(opts), out = { research: 0, events: [], added: 0 };
         const whole = v => Math.max(0, Math.floor(v) || 0);
         const packets = whole(load?.packets), gold = Math.min(packets, whole(load?.gold));
         const bad = whole(load?.garbled) + Math.round(whole(load?.popped) * o.popped);
         if (!packets && !bad) return out;
+        if (state.sessioned) return stockpile(state, Math.max(1, whole(load.sector) || 1), packets, gold, bad, o, out);
         state.band = (state.band + 1) % o.bands;
         state.backlog.push({ sector: Math.max(1, whole(load.sector) || 1), n: packets - gold, gold, bad, band: state.band });
         state.stats.delivered += packets + bad;
@@ -349,8 +433,10 @@
         const pays = !slowSand(state, kind);
         if (pays) {
             state.stats.eaten++;
-            state.owed += KINDS[kind].pay / o.grains;
+            state.owed += KINDS[kind].pay / o.grains * payMult(state, o);
             state.fed++;
+            // Eating feeds the hunger bar: the whole bar for `hungerFill` of this layer's worth.
+            if (state.session) state.life = Math.min(1, state.life + 1 / (o.hungerFill * layerSize(state.layers, o) * o.grains));
             if (kind === 'vein') state.stats.veins++;
         } else state.stats.cleaned++;
         out.events.push({ type: 'eat', x, y, kind, pays });
@@ -363,8 +449,9 @@
         }
         const need = layerSize(state.layers, o) * o.grains;
         if (state.fed >= need) {
-            const over = state.fed - need, pay = Math.max(1, Math.round(o.layerPay * layerSize(state.layers, o)));
+            const over = state.fed - need, pay = Math.max(1, Math.round(o.layerPay * layerSize(state.layers, o) * payMult(state, o)));
             state.layers++;
+            if (state.session) state.life = 1;   // a split fills the hunger bar
             const mite = state.layers >= o.miteFirst && (state.layers - o.miteFirst) % o.miteEvery === 0;
             if (mite) { state.swarm.push(mitePlace(state, state.mites)); state.mites++; }
             state.owed += pay;
@@ -434,7 +521,9 @@
     function step(state, dt, opts) {
         const o = opt(opts), out = { research: 0, events: [] };
         if (!(dt > 0) || !Number.isFinite(dt)) return out;
+        if (state.sessioned && !state.session) return out;   // nothing eats outside a session
         const steps = Math.min(6000, Math.max(1, Math.round(dt / STEP))), each = dt / steps;
+        let ended = null;
         for (let n = 0; n < steps; n++) {
                     state.fallAcc += o.fall * each;
             const passes = Math.floor(state.fallAcc);
@@ -451,11 +540,18 @@
             }
             else if (!state.backlog.length && !state.drops.length) {
                 for (const m of state.swarm) { m.b = 0; m.t = -1; }
+                if (state.session) { ended = 'empty'; break; }
                 if (!state.dry && state.stats.delivered > 0) { state.dry = true; out.events.push({ type: 'empty' }); }
+            }
+            if (state.session) {
+                state.life -= each / o.hungerTime;
+                if (state.life <= 0) { state.life = 0; ended = 'hunger'; break; }
             }
         }
         const whole = Math.floor(state.owed + 1e-9);
         if (whole > 0) { state.owed -= whole; state.stats.research += whole; out.research = whole; }
+        if (state.session) { state.session.research += out.research; state.session.time += dt; }
+        if (ended) endSession(state, ended, opts, out);
         return out;
     }
 
@@ -479,7 +575,7 @@
     // The hunger meter: paying grains eaten since the last split, the grains a split needs, and the share of the way there.
     function hunger(state, opts) {
         const o = opt(opts), need = layerSize(state.layers, o) * o.grains;
-        return { fed: state.fed, need, share: Math.min(1, state.fed / need), splits: state.layers };
+        return { fed: state.fed, need, share: Math.min(1, state.fed / need), splits: state.layers, life: state.session ? Math.max(0, Math.min(1, state.life)) : 1 };
     }
 
     // How many grains of each kind lie in the box.
@@ -545,6 +641,21 @@
             state.aim = null;
             if (aim) point(state, aim);
         }
+        // Sessions: the stockpiles, best runs and records by sector; the session in play only with its box.
+        if (raw.sessioned === true) {
+            state.sessioned = true;
+            const bySector = (src, read) => { const dst = {}; if (src && typeof src === 'object') for (const key of Object.keys(src).slice(0, 200)) { const k = whole(Number(key), 99); const v = k ? read(src[key]) : null; if (v) dst[k] = v; } return dst; };
+            state.stock = bySector(raw.stock, e => { const v = { n: whole(e?.n, 1e8), gold: whole(e?.gold, 1e8), bad: whole(e?.bad, 1e8) }; return v.n + v.gold + v.bad > 0 ? v : null; });
+            state.best = bySector(raw.best, v => whole(v, 1e8) || null);
+            state.record = bySector(raw.record, v => whole(v, 200) || null);
+            const sess = raw.session, sector = whole(sess?.sector, 99);
+            if (sized && sess && sector) {
+                state.session = { sector, research: whole(sess.research, 1e12), time: real(sess.time, 0, 1e7, 0), packets: whole(sess.packets, 1e8) };
+                state.life = real(raw.life, 0, 1, 1);
+            } else { clearBox(state, o); state.life = 1; }
+            const last = raw.lastSession;
+            if (last && whole(last.sector, 99)) state.lastSession = { type: 'over', why: ['hunger', 'empty', 'left'].includes(last.why) ? last.why : 'hunger', sector: whole(last.sector, 99), layers: whole(last.layers, 200), mites: Math.max(1, whole(last.mites, 999)), research: whole(last.research, 1e12), time: whole(last.time, 1e7), record: last.record === true };
+        }
         state.swarm = Array.from({ length: state.mites }, (_, n) => {
             const m = sized && Array.isArray(raw.swarm) ? raw.swarm[n] : null, d = mitePlace(state, n);
             return { x: real(m?.x, 0, FEED.w - 0.01, d.x), y: real(m?.y, 0, FEED.h - 0.01, d.y), b: real(m?.b, 0, 4, 0), t: Number.isInteger(m?.t) && m.t >= -1 && m.t < FEED.w * FEED.h ? m.t : -1 };
@@ -553,5 +664,6 @@
     }
 
     return { FEED, KINDS, KIND_IDS, LOCKED, FRAGMENTS, STEP, newFeed, clean, deliver, point, step, setReadable, readableFor,
+        sessions, startSession, endSession, stockList, stockOf, stockCap,
         pack, unpack, spoutX, left, waiting, fill, census, hunger, layerSize, bitesFor, kindOf, bandOf, seenOf, airOf, hpOf };
 });
