@@ -730,13 +730,15 @@
             from: 'Your brother',
             subject: 'the {device}',
             body: [
-                '{name}. "{email}@mail.net"? that\'s what you went with? I am judging you. a lot.',
-                'anyway. like I said when I handed it over: the {device} is not strong (1 GB of RAM) but it\'s reliable. I think.',
-                'don\'t download anything weird. and be careful what you click on.',
-                'I mean it. a princess emailed me once. she only needed a little money to unlock her fortune, and she was very polite about it. I sent it. I have not heard back from the princess.',
-                '- your brother'
+                'lol {name}. {email}@mail.net?? that\'s the one you picked. ok',
+                'not gonna say anything. (I\'m judging you so hard right now)',
+                'anyway like I said the {device}\'s old and it\'s slow as hell but it\'s never actually died on me so you should be fine for whatever it is you\'re doing',
+                'just don\'t download random stuff ok. and be careful what you click on. I\'m serious',
+                'I sent real money to a "princess" once. she needed help getting to her inheritance and she was super nice about it. still waiting to hear back on that one',
+                'don\'t tell mom'
             ] },
-        { id: 'parcel', intro: true, spam: true, when: () => true,
+        // `ringReply`: under the ring the junk has a reply too, beside Report spam, so the offer's two buttons are no surprise.
+        { id: 'parcel', intro: true, spam: true, ringReply: 'Reply: Reschedule', when: () => true,
             from: 'Parcel Services <delivery@parcel-services.co>',
             subject: 'Your parcel could not be delivered (action required)',
             body: [
@@ -746,7 +748,7 @@
                 'If we do not hear from you within 24 hours your parcel will be returned to the sender. The sender is also us.',
                 'Parcel Services'
             ] },
-        { id: 'prize', intro: true, spam: true, when: () => true,
+        { id: 'prize', intro: true, spam: true, ringReply: 'Reply: Claim it', when: () => true,
             from: 'Prize Desk <winner@prize-desk.win>',
             subject: 'You\'ve WON a free cruise!! Claim now',
             body: [
@@ -2675,7 +2677,7 @@
     // device that was (a phone on a phone, else the laptop), and how the opening was met: offers reported as spam, offers
     // closed and left, how many nags had come when the offer was taken, and whether it took the forced final one. That
     // is the first reading of the player's path (design/ring.md → Paths); nothing reads it yet.
-    const newPlayer = () => ({ name: '', email: '', device: '', reports: 0, closes: 0, acceptedAfter: -1, forced: false });
+    const newPlayer = () => ({ name: '', email: '', device: '', reports: 0, closes: 0, replies: 0, acceptedAfter: -1, forced: false });   // replies: junk answered
     const cleanName = v => (typeof v === 'string' ? v.replace(/[\u0000-\u001f<>{}]/g, '').replace(/\s+/g, ' ').trim().slice(0, 20) : '');
     const cleanEmailName = v => { const t = typeof v === 'string' ? v.trim().toLowerCase().replace(/@.*$/, '') : ''; return /^[a-z0-9][a-z0-9._-]{0,23}$/.test(t) ? t : ''; };
     function cleanPlayer(raw) {
@@ -2683,7 +2685,7 @@
         if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return p;
         p.name = cleanName(raw.name); p.email = cleanEmailName(raw.email);
         p.device = raw.device === 'phone' || raw.device === 'laptop' ? raw.device : '';
-        p.reports = count(raw.reports); p.closes = count(raw.closes);
+        p.reports = count(raw.reports); p.closes = count(raw.closes); p.replies = count(raw.replies);
         p.acceptedAfter = Number.isInteger(raw.acceptedAfter) && raw.acceptedAfter >= 0 ? Math.min(raw.acceptedAfter, 9999) : -1;
         p.forced = raw.forced === true;
         return p;

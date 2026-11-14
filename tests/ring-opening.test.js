@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const E = require('../engine.js');
 const NOW = 1_700_000_000_000;
-const FRESH = { name: '', email: '', device: '', reports: 0, closes: 0, acceptedAfter: -1, forced: false };
+const FRESH = { name: '', email: '', device: '', reports: 0, closes: 0, replies: 0, acceptedAfter: -1, forced: false };
 
 test('a new game and an older save both start with nobody signed in', () => {
     assert.deepEqual(E.defaultState(NOW).player, FRESH);
@@ -30,7 +30,7 @@ test('signing in takes a first name and an email name, and says which is missing
 test('the player comes back from a save, and junk in it is cleaned', () => {
     const s = E.defaultState(NOW);
     E.signIn(s, 'Will', 'will.i.am', 'laptop');
-    Object.assign(s.player, { reports: 20, closes: 3, acceptedAfter: 21, forced: true });
+    Object.assign(s.player, { reports: 20, closes: 3, replies: 2, acceptedAfter: 21, forced: true });
     assert.deepEqual(E.migrate(JSON.parse(JSON.stringify(s)), NOW).player, s.player);
     const junk = { name: '<b>W{il}l</b>\n\tx'.padEnd(60, 'y'), email: 'NOT AN EMAIL', device: 'fridge', reports: -4, closes: 2.5, acceptedAfter: 'x', forced: 'yes', extra: 1 };
     const p = E.migrate({ version: E.SAVE_VERSION, player: junk }, NOW).player;
@@ -47,8 +47,10 @@ test('your brother\'s mail is the ring\'s alone, and speaks of your email name a
     const s = E.defaultState(NOW);
     E.signIn(s, 'Will', 'big.brain', 'phone');
     const body = m.body.map(p => E.mailFill(s, p)).join('\n');
-    assert.ok(body.includes('Will. "big.brain@mail.net"'));
-    assert.ok(body.includes('the phone is not strong'));
+    assert.ok(body.includes('lol Will. big.brain@mail.net??'));
+    assert.ok(body.includes('the phone\'s old'));
+    assert.ok(!/RAM/.test(body), 'no specs: he is not a spec sheet');
+    assert.ok(!/[A-Z]{4,}|!!/.test(body), 'he doesn\'t write like the spam');
     assert.equal(E.mailFill(s, m.subject), 'the phone');
     assert.ok(!/\{\w+\}/.test(body), 'nothing left unfilled');
     // With nobody signed in, the words still read.
@@ -57,6 +59,8 @@ test('your brother\'s mail is the ring\'s alone, and speaks of your email name a
 
 test('the opening\'s spam can be reported: the two junk mails and the offer, not your brother', () => {
     assert.deepEqual(E.MAIL.filter(m => m.spam).map(m => m.id), ['parcel', 'prize', 'welcome']);
+    // The junk has a reply of its own under the ring, so the offer's two buttons are nothing new.
+    assert.deepEqual(E.MAIL.filter(m => m.ringReply).map(m => m.id), ['parcel', 'prize']);
 });
 
 test('under the ring the first offer is from someone who wants rid of an AI; the old one is kept beside it', () => {

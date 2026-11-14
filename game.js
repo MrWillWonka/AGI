@@ -13154,6 +13154,8 @@ window.AGI = (function () {
     function openMail(item) {
         clearTimeout(introTimer);
         mailOpen = item;
+        // IT's line belongs to the list: it goes when a mail is opened.
+        if ($('inboxNotice')) setText($('inboxNotice'), '');
         if (item.latest) state.intro[item.readKey] = true;
         pt('mailRead', { id: item.key, nag: item.copy || undefined });
         setText($('mailSubject'), item.subject);
@@ -13167,18 +13169,24 @@ window.AGI = (function () {
             footer.append(link);
         }
         setHidden(footer, !item.footer && !item.unsubscribe);
-        // The ring: the opening's spam can be reported (not the forced final offer).
-        if (E.isRing() && item.spam && !introDone() && !isFinal(item)) {
-            const report = el('button', { type: 'button', class: 'mail-report', text: 'Report spam' });
-            report.addEventListener('click', () => reportMail(item));
-            footer.append(report);
-            setHidden(footer, false);
-        }
         renderChoices(item);
         // Only a reply (the offer's, until you've given it) gets a button: closing is the ×.
-        const reply = item.reply && !state.intro['mailAccepted:welcome'] ? item.reply : '';
+        // The ring: the opening's junk has a reply as well (`ringReply`), and its spam a Report spam beside the reply, the
+        // same kind of button (not on the forced final offer). Both sit at the mail's end, after its words.
+        const junkReply = E.isRing() && item.ringReply && !introDone() && !state.intro['mailReplied:' + item.key.slice(2)] ? item.ringReply : '';
+        const reply = item.reply && !state.intro['mailAccepted:welcome'] ? item.reply : junkReply;
+        const reportable = E.isRing() && item.spam && !introDone() && !isFinal(item);
+        const actions = $('mailReply').parentElement;
+        actions.querySelector('.mail-report')?.remove();
+        if (reportable) {
+            const report = el('button', { type: 'button', class: 'button mail-report', text: 'Report spam' });
+            report.addEventListener('click', () => reportMail(item));
+            actions.prepend(report);
+        }
         setText($('mailReply'), reply);
-        setHidden($('mailReply').parentElement, !reply);
+        setHidden($('mailReply'), !reply);
+        setHidden(actions, !reply && !reportable);
+        $('inboxMessage').scrollTop = 0;
         setHidden($('inboxList'), true);
         setHidden($('inboxMessage'), false);
         renderInboxClose();
@@ -13207,6 +13215,8 @@ window.AGI = (function () {
             arrived = 'm:welcome';
             sfx('ui');
             renderInbox();
+            // The ring: it waits in the list, unread; it doesn't open itself (the owner's call).
+            if (E.isRing()) return;
             introTimer = setTimeout(() => {
                 if (mailOpen || !$('inbox').open) return;
                 const latest = mailItems().find(i => i.key === 'm:welcome' && i.latest);
@@ -13231,6 +13241,13 @@ window.AGI = (function () {
                 state.intro['mailAccepted:welcome'] = true;
                 if (E.isRing()) state.player.acceptedAfter = welcomeNag;
                 pt('mailAccepted', { id: 'welcome', nags: welcomeNag, ...(E.isRing() ? { reports: state.player.reports, closes: state.player.closes, forced: state.player.forced ? 1 : 0 } : {}) });
+            }
+            // The ring: a reply to the opening's junk goes nowhere, and is counted.
+            else if (E.isRing() && mailOpen?.ringReply && !introDone()) {
+                state.player.replies++;
+                state.intro['mailReplied:' + mailOpen.key.slice(2)] = true;
+                pt('mailReply', { id: mailOpen.key });
+                inboxNotice('Mail: Your reply could not be delivered.');
             }
             if (introDone()) dialog.close();
             else leaveMail();
