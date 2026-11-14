@@ -49,19 +49,25 @@
         sfx.setMusic(spec.music ?? 0.35);
         const ev = expand(spec), sprints = spec.sprints || [];
         const log = [];
+        const musicOn = (spec.music ?? 0.35) > 0;
+        let state = [spec.intensity ?? 0.05, spec.mode ?? null];
         let i = 0;
         const run = t => {
             while (i < ev.length && ev[i][0] <= t + 1e-9) {
                 const [at, m, ...a] = ev[i++];
                 if (typeof sfx[m] !== 'function') { faults.push('no engine method ' + m); continue; }
                 sfx[m](...a);
+                if (m === 'musicState') state = a;
                 log.push([+at.toFixed(4), m, ...a]);
             }
             for (const s of sprints) if (t >= s.from && t < s.to) sfx.charge((s.level ?? 1) * (t - s.from) / (s.to - s.from), !!s.thrust);
+            // The game reports its state every tick (game.js musicTick), which is also what restarts the music after
+            // a change of track: so does the render.
+            if (musicOn) sfx.musicState(...state);
             sfx.tick();
         };
         // The music starts when the game first reports its state.
-        if ((spec.music ?? 0.35) > 0) sfx.musicState(spec.intensity ?? 0.05, spec.mode ?? null);
+        if (musicOn) sfx.musicState(...state);
         run(0);
         const step = QUANTUM / sr;
         for (let n = 1; n * step < seconds; n++) ctx.suspend(n * step).then(() => { run(n * step); ctx.resume(); });

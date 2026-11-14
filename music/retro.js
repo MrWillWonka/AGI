@@ -51,8 +51,8 @@
         // Its click figure plays the track's 8ths: nearly five notes a second while a job is held.
         style: {
             bpm: 144,
-            cutoff: k => 5000 + 9000 * k, drive: 0, gain: 0.57,
-            beat: 1.91, tones: 1.829,   // drums 2 dB under the tones, measured (K-weighted)
+            cutoff: k => 5000 + 9000 * k, drive: 0, gain: 0.656,
+            beat: 1.15, tones: 1.829,   // drums about 6 dB under the tones by loudness: its kick is so short that matching the others' 2 dB made it spike 9 dB over them
             simpleMix: { gain: 1, beat: 1.013, tones: 1.855 }, simpleVoice: 'square',   // the simple version (simpleStep)
             space: { width: 0.6 },      // no room and no delay line: its echo is a voice
             layers: { mel: -1, bass: -1, kick: -1, pad: 0.18, off: 0.3, clap: 0.42, harm: 0.54, sixteenth: 0.62, arp: 0.8 },

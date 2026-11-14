@@ -98,8 +98,8 @@ waits at most 121.5 ms in any track. A hundred track and room changes leave the 
 Not tested in a real browser: tab hide and show, audio interruptions, memory and CPU over time.
 
 **Levels (FFmpeg, default sliders).** All 30 songs sit between −34.38 and −33.58 LUFS integrated through their forms:
-the level the game had before (the baseline's music was −32 to −35). Drums 2 dB under the tones in Classic, Dark and
-Retro, about 3.5 in Soft and 4 in Ominous (a choice). Stress timeline, four seeds per track: hottest true peak
+the level the game had before (the baseline's music was −32 to −35). Drums 2 dB under the tones in Classic and Dark,
+about 3.5 in Soft, 4 in Ominous and 6 in Retro (choices: Retro's short kick spiked 9 dB over the others at 2). Stress timeline, four seeds per track: hottest true peak
 −4.21 dBTP, no NaN, infinity or clipped sample. New effects within about 1 dB of Classic's same effect; meter parts
 within about 1 dB of the mean of Classic's four. Two renders of one timeline differ by rounding only (about 130 dB
 under the peak), not bit for bit.
