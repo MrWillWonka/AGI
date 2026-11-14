@@ -957,6 +957,9 @@ window.AGI = (function () {
 
     // Lab cards: everything but the skill tree and the legacy upgrades (their own screen).
     const isLabUpgrade = up => up.tab !== 'training' && up.tab !== 'legacy' && up.tab !== 'snare';
+    // The ring: what money buys (the desk's parts and the server) is bought in the shop app, not the Lab (the owner's
+    // call, 2026-11-14: money and purchasing don't clutter the Lab).
+    const shopOnly = up => E.isRing() && up.id === 'keyboard';
 
     // Lab cards you haven't seen: revealed while you were out of the lab (screen state, per device). Everything
     // on show counts as seen while you're in the lab, and on the first look (no sudden badge for older saves).
@@ -977,7 +980,7 @@ window.AGI = (function () {
         // A capped card is news again when its capacity rises (a skill made room: `id@capacity`). Older lists kept
         // plain ids: those count as seen at today's capacity.
         const key = u => (E.CAPACITY[u.id] ? `${u.id}@${E.capacity(state, u)}` : u.id);
-        const shown = E.UPGRADES.filter(u => isLabUpgrade(u) && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u));
+        const shown = E.UPGRADES.filter(u => isLabUpgrade(u) && !shopOnly(u) && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u));
         if (labSeen) for (const u of shown) if (E.CAPACITY[u.id] && labSeen.has(u.id)) { labSeen.delete(u.id); labSeen.add(key(u)); }
         if (!labSeen || view === 'lab') {
             if (!labSeen || shown.some(u => !labSeen.has(key(u)))) {
@@ -2190,6 +2193,8 @@ window.AGI = (function () {
     // Research per second as it is really earned (The Feed makes it): a smoothed rate from what you hold, ignoring
     // what sprints spend. Shown in the status bar and the Lab's Research box.
     let ringRpRate = 0;
+    // The app on screen under the ring: 'home', 'lab', 'snare', 'training', 'feed' or 'shop'.
+    const ringAppNow = () => (shop?.dlg.open ? 'shop' : window.FeedUI?.isOpen ? 'feed' : !labOpened() || homeUp ? 'home' : openBay === 'pipeline' ? 'snare' : openBay === 'training' ? 'training' : 'lab');
     function renderStatus() {
         const st = desk?.status;
         if (!st) return;
@@ -2203,16 +2208,18 @@ window.AGI = (function () {
         }
         const d = new Date();
         setText(st.clock, `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
-        const f = E.format, cash = E.deskCash(state), dv = E.derive(state, debugRates);
+        const f = E.format, cash = bankNow(), dv = E.derive(state, debugRates);
+        // The open app's own number is left out: that app shows it (the owner's call, 2026-11-14).
+        const app = ringAppNow();
         const want = [
-            ['cash', cash > 0, 'Bank', `$${f(cash)}`],
-            ['cp', true, 'Compute', `${f(Math.floor(state.res.cp))}${dv.cpNet > 0 ? ` +${f(dv.cpNet)}/s` : ''}`],
-            ['rp', state.feed.stats.delivered > 0 || state.res.rp > 0, 'Research', `${f(Math.floor(state.res.rp))}${ringRpRate >= 0.05 ? ` +${f(ringRpRate, 1)}/s` : ''}`],
-            ['signal', !!state.unlocked['module:snare'] && state.snare.runs > 0, 'Signal', f(state.snare.signal)],
+            ['cash', cash > 0 && app !== 'shop', 'Bank', `$${f(cash)}`],
+            ['cp', app !== 'lab', 'Compute', `${f(Math.floor(state.res.cp))}${dv.cpNet > 0 ? ` +${f(dv.cpNet)}/s` : ''}`],
+            ['rp', (state.feed.stats.delivered > 0 || state.res.rp > 0) && app !== 'feed', 'Research', `${f(Math.floor(state.res.rp))}${ringRpRate >= 0.05 ? ` +${f(ringRpRate, 1)}/s` : ''}`],
+            ['signal', !!state.unlocked['module:snare'] && state.snare.runs > 0 && app !== 'snare', 'Signal', f(state.snare.signal)],
             ['xp', !!state.unlocked['module:path'], 'XP', f(Math.floor(state.res.xp))]];
         for (const [key, show, label, value] of want) {
             let item = st.items[key];
-            if (!item) { const v = el('b'); item = st.items[key] = { node: el('span', { class: `status-stat status-${key}` }, [el('i', { text: label }), v]), v }; st.stats.append(item.node); }
+            if (!item) { const v = el('b'); item = st.items[key] = { node: el('span', { class: `status-stat status-${key}` }, [el('i', { text: label, 'data-short': { cash: '', cp: 'CP', rp: 'RP', signal: 'SIG', xp: 'XP' }[key] }), v]), v }; st.stats.append(item.node); }
             if (item.node.hidden === show) item.node.hidden = !show;
             setText(item.v, value);
         }
@@ -2251,6 +2258,7 @@ window.AGI = (function () {
         settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.8"/><circle cx="12" cy="12" r="6"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.2 2.2M16.2 16.2l2.2 2.2M5.6 18.4l2.2-2.2M16.2 7.8l2.2-2.2"/></svg>',
         debug: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7.5" y="7" width="9" height="14" rx="4.5"/><path d="M9 7.5a3 3 0 0 1 6 0M3 13.5h4.5M16.500 13.5H21M4 6.5l4 3M20 6.500l-4 3M4 21l4-3.500M20 21l-4-3.500M12 10.500V21M8.500 3l1.700 2.200M15.500 3l-1.700 2.200"/></svg>',
         playtest: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10l1.5 1.5 2.5-3M8.5 16l1.5 1.5 2.5-3M14.5 10.5H16M14.5 16.5H16"/></svg>',
+        shop: '<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 10l12-6 12 6v13l-12 6-12-6z"/><path d="M4 10l12 6 12-6M16 16v13M10 7l12 6v5"/></svg>',
         lab: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M12 4h8M13 4v9L6 26a2 2 0 0 0 2 3h16a2 2 0 0 0 2-3l-7-13V4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 21h12" stroke="currentColor" stroke-width="2"/></svg>'
     };
     let home = null, installFrom = 0, homeMailFrom = 0, homeUp = true;   // homeUp: on the home screen, not in an app. A load starts there (the owner's call)
@@ -2271,7 +2279,8 @@ window.AGI = (function () {
         const snareApp = icon('snare', 'Packet Snare', () => { pt('home', { open: 'snare' }); openSnareApp(); });
         const feedApp = icon('feed', 'The Feed', () => { pt('home', { open: 'feed' }); openFeed(); });
         const trainApp = icon('training', 'Training', () => { pt('home', { open: 'training' }); openTrainingApp(); });
-        snareApp.button.hidden = feedApp.button.hidden = trainApp.button.hidden = true;
+        const shopApp = icon('shop', 'Parcel', () => { pt('home', { open: 'shop' }); openShop(); });
+        snareApp.button.hidden = feedApp.button.hidden = trainApp.button.hidden = shopApp.button.hidden = true;
         // Settings, the Journal, Debug and the playtest survey are apps too (the owner's call), so they can be reached
         // from the home screen, which covers the top bar.
         const tools = [
@@ -2286,7 +2295,7 @@ window.AGI = (function () {
             el('div', { class: 'home-popup-title', text: 'Download' }), popupText, el('div', { class: 'home-bar' }, [bar]), el('div', { class: 'home-popup-actions' }, [popupOpen])]);
         const node = el('div', { class: 'device-home', id: 'deviceHome', hidden: '' }, [
             el('div', { class: 'home-status' }, [clock, el('span', { class: 'home-signal', text: '▂▄▆ 37%' })]),
-            el('div', { class: 'home-icons' }, [mail.button, lab.button, snareApp.button, feedApp.button, trainApp.button]),
+            el('div', { class: 'home-icons' }, [mail.button, lab.button, shopApp.button, snareApp.button, feedApp.button, trainApp.button]),
             popup,
             // The system apps sit in a row at the foot of the screen (the owner's call): a phone's dock, a laptop's shelf.
             el('div', { class: 'home-dock' }, tools.map(t => t.button)),
@@ -2298,16 +2307,17 @@ window.AGI = (function () {
         let lastTap = 0;
         node.addEventListener('touchend', e => { const now = Date.now(); if (now - lastTap < 320 && !e.target.closest('button')) e.preventDefault(); lastTap = now; }, { passive: false });
         document.body.append(node);
-        return { node, mail, lab, snare: snareApp, feed: feedApp, train: trainApp, tools, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
+        return { node, mail, lab, snare: snareApp, feed: feedApp, train: trainApp, shop: shopApp, tools, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
     }
     function renderHome() {
         if (!E.isRing()) return;
+        shopTick();
         fundTick();
         stuckTick();
         if (ringAchWait.length && !snareRunLive()) ringAchievement(...ringAchWait.shift());
         // The playtest log's time by screen: the home screen and The Feed are places too (they were counted as the lab).
-        const where = $('inbox').open ? null : window.FeedUI?.isOpen ? 'feed' : home && !home.node.hidden ? 'home' : null;
-        if (where) ptView(where); else if (playtestView === 'home' || playtestView === 'feed') ptView(ptPlace());
+        const where = $('inbox').open ? null : window.FeedUI?.isOpen ? 'feed' : shop?.dlg.open ? 'shop' : home && !home.node.hidden ? 'home' : null;
+        if (where) ptView(where); else if (playtestView === 'home' || playtestView === 'feed' || playtestView === 'shop') ptView(ptPlace());
         // A save that is already working in the lab has opened it.
         if (!labOpened() && introDone() && (state.stats.clicks > 0 || E.level(state, 'keyboard') > 0)) state.intro['ring:labOpened'] = true;
         const on = !labOpened() || homeUp;
@@ -2350,6 +2360,11 @@ window.AGI = (function () {
         if (home.feed.button.hidden === fed) home.feed.button.hidden = !fed;
         const training = !!state.unlocked['module:path'];
         if (home.train.button.hidden === training) home.train.button.hidden = !training;
+        // The shop is there once there is money (or a part already bought); its badge says there is something you can afford.
+        const shopOn = shopOpenable(), canBuy = shopOn && !parcel && shopItems().some(i => i.next && i.price <= bankNow());
+        if (home.shop.button.hidden === shopOn) home.shop.button.hidden = !shopOn;
+        setText(home.shop.badge, canBuy ? '1' : '');
+        if (home.shop.badge.hidden === canBuy) home.shop.badge.hidden = !canBuy;
         const installed = !!state.intro['ring:labInstalled'] || labOpened(), share = installed ? 1 : accepted ? Math.min(1, (performance.now() - installFrom) / HOME_INSTALL_MS) : 0;
         if (home.lab.button.hidden === accepted) home.lab.button.hidden = !accepted;
         home.lab.button.classList.toggle('loading', accepted && !installed);
@@ -2480,13 +2495,94 @@ window.AGI = (function () {
         dlg.addEventListener('close', () => {
             dlg.remove();
             fundBusy = false;
-            if (state.intro['fund:' + who]) { sfx('claim'); deviceNotice('bank', 'Bank', `${money} deposited. Parts are in the Lab.`, () => { if (homeUp) openLab(); }); }
+            if (state.intro['fund:' + who]) { sfx('claim'); deviceNotice('bank', 'Bank', `${money} deposited. Parcel has been added to your home screen.`, () => openShop()); }
             afterChange();
             save();
         });
         document.body.append(dlg);
         dlg.showModal();
         sfx('ui');
+    }
+    // Parcel, the shop app (the owner's call, 2026-11-14; the name and every word are placeholders): where money is
+    // spent. For now the desk's four parts and the server; the garage and the warehouse come later. An order is paid
+    // for at once and arrives after a short delivery (`PARCEL_MS`): it is installed then, with a notification. One
+    // order at a time. The order is held here, not in the save: a reload before it arrives cancels it, money back.
+    const PARCEL_MS = 8000;
+    const PARCEL_ART = [
+        '<rect x="9" y="3" width="14" height="26" rx="2"/><path d="M13 8h6M13 12h6"/><circle cx="16" cy="23" r="1.6"/>',
+        '<rect x="3" y="10" width="26" height="13" rx="2"/><path d="M7 14h2M12 14h2M17 14h2M22 14h2M9 19h14"/>',
+        '<rect x="10" y="4" width="12" height="24" rx="6"/><path d="M16 4v8M10 13h12"/>',
+        '<rect x="3" y="5" width="26" height="17" rx="2"/><path d="M12 27h8M16 22v5"/>',
+        '<rect x="7" y="3" width="18" height="26" rx="2"/><path d="M7 11h18M7 19h18M11 7h2M11 15h2M11 23h2M19 7h2M19 15h2M19 23h2"/>'];
+    let shop = null, parcel = null;
+    const bankNow = () => Math.max(0, E.deskCash(state) - (parcel ? parcel.price : 0));
+    const shopOpenable = () => E.isRing() && (E.funded(state) || E.level(state, 'keyboard') > 0);
+    function shopItems() {
+        const up = E.UPGRADE_BY_ID.keyboard, lvl = E.level(state, 'keyboard'), at = k => ({ ...state, levels: { ...state.levels, keyboard: k } });
+        const items = E.DESK_PRICES.slice(0, E.RING_DESK).map((price, k) => ({ k, price, name: E.upgradeName(at(k), up), about: E.upgradeFlavor(at(k), up), does: '+0.25 compute a click', owned: lvl > k }));
+        if (state.intro['ring:server'] || lvl > E.RING_DESK) items.push({ k: E.RING_DESK, price: E.RING_SERVER_PRICE, name: E.upgradeName(at(E.RING_DESK), up), about: E.upgradeFlavor(at(E.RING_DESK), up), does: 'Opens the Training Cluster', owned: lvl > E.RING_DESK });
+        for (const i of items) { i.next = i.k === lvl; i.coming = !!parcel && parcel.k === i.k; }
+        return items;
+    }
+    function shopOrder(k) {
+        const item = shopItems().find(i => i.k === k);
+        if (!item || !item.next || parcel || item.price > E.deskCash(state)) { sfx('error'); return; }
+        parcel = { k, name: item.name, price: item.price, from: performance.now(), due: performance.now() + PARCEL_MS };
+        sfx('buy', { panel: 'hardware' });
+        pt('shopOrder', { item: k, price: item.price });
+        renderShop(true);
+    }
+    // The order arrives: it is bought and installed now (the money has been held since it was placed).
+    function shopTick() {
+        if (parcel && performance.now() >= parcel.due) {
+            const { name, k } = parcel;
+            parcel = null;
+            if (E.level(state, 'keyboard') === k) { doBuy('keyboard'); pt('shopDelivered', { item: k }); deviceNotice('shop', 'Parcel', `Delivered and installed: ${name}.`, () => openShop()); save(); }
+        }
+        if (shop?.dlg.open) renderShop();
+    }
+    function renderShop(force) {
+        if (!shop) return;
+        const items = shopItems(), bank = bankNow();
+        setText(shop.bank, `$${E.format(bank)}`);
+        const key = JSON.stringify([items.map(i => [i.k, i.owned, i.next, i.coming]), bank, !!parcel]);
+        if (key !== shop.key || force) {
+            shop.key = key;
+            const card = i => {
+                const art = el('span', { class: 'shop-art' });
+                art.innerHTML = `<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${PARCEL_ART[Math.min(i.k, PARCEL_ART.length - 1)]}</svg>`;
+                const short = i.price > bank;
+                const action = i.owned ? el('span', { class: 'shop-owned', text: '✓ Delivered' })
+                    : i.coming ? el('span', { class: 'shop-coming' }, [el('span', { text: 'Out for delivery' }), el('span', { class: 'shop-track' }, [shop.fill = el('span', { class: 'shop-track-fill' })])])
+                    : !i.next ? el('span', { class: 'shop-later', text: 'Next in line' })
+                    : el('button', { type: 'button', class: 'button shop-buy', text: parcel ? 'One order at a time' : short ? `Need $${E.format(i.price - bank)} more` : 'Buy now', ...(parcel || short ? { disabled: '' } : {}), onclick: () => shopOrder(i.k) });
+                return el('article', { class: `shop-item${i.owned ? ' owned' : ''}${i.next ? ' next' : ''}` }, [art,
+                    el('div', { class: 'shop-info' }, [el('h3', { text: i.name }), el('p', { class: 'shop-about', text: i.about }), el('p', { class: 'shop-does', text: i.does })]),
+                    el('div', { class: 'shop-side' }, [el('span', { class: 'shop-price', text: `$${E.format(i.price)}` }), action])]);
+            };
+            shop.list.replaceChildren(...items.filter(i => !i.owned).map(card), ...items.filter(i => i.owned).map(card));
+        }
+        if (parcel && shop.fill) shop.fill.style.width = `${Math.round(Math.min(1, (performance.now() - parcel.from) / PARCEL_MS) * 100)}%`;
+    }
+    function openShop() {
+        if (!shopOpenable()) return;
+        if (!shop) {
+            const bank = el('b', { class: 'shop-bank-value' }), list = el('div', { class: 'shop-list' });
+            const chip = (text, on) => el('span', { class: `shop-chip${on ? ' on' : ''}`, text });
+            const dlg = el('dialog', { class: 'shop-screen', 'aria-label': 'Parcel' }, [
+                el('div', { class: 'shop-bar' }, [el('span', { class: 'shop-title', text: 'Parcel' }), el('span', { class: 'shop-bank' }, [el('i', { text: 'Bank' }), bank]),
+                    el('button', { type: 'button', class: 'ghost-button shop-close', 'aria-label': 'Close Parcel', text: '×', onclick: () => dlg.close() })]),
+                el('div', { class: 'shop-chips' }, [chip('Desk', true), chip('Garage · later'), chip('Warehouse · later')]),
+                list,
+                el('p', { class: 'shop-foot', text: 'Orders arrive in a few seconds and install themselves.' })]);
+            dlg.addEventListener('close', () => { sfx('ui'); renderHome(); });
+            document.body.append(dlg);
+            shop = { dlg, bank, list, key: '', fill: null };
+        }
+        if (shop.dlg.open) return;
+        shop.dlg.showModal();
+        sfx('ui');
+        renderShop(true);
     }
     // The Feed opens with a short card the first time (placeholder words): what it is and what to do there.
     function openFeed() {
@@ -2560,7 +2656,7 @@ window.AGI = (function () {
         const steps = [
             ['Your AI is very weak', 'It can\'t do anything yet. Everything it does runs on compute, and right now it has none.'],
             ['Click to make compute', 'Press Generate Compute. Each click makes a little. This old device is slow, so it takes a lot of clicks.'],
-            ['It needs a real desk', 'Parts sells a tower, a keyboard, a mouse and a monitor. They cost money, which you don\'t have yet.'],
+            ['It needs a real desk', 'A tower, a keyboard, a mouse and a monitor. They cost money, which you don\'t have yet.'],
             ['Finish the desk to get online', 'With the monitor in, your AI can reach the internet and start catching data to learn from.']];
         const dlg = el('dialog', { class: 'dialog ring-welcome', 'aria-labelledby': 'ringWelcomeTitle' }, [
             el('h2', { id: 'ringWelcomeTitle', text: 'Welcome to the lab' }),
@@ -2966,7 +3062,7 @@ window.AGI = (function () {
         const visibleCount = {};
         for (const { up, card, button, levelBadge, yieldLine, nameNode } of Object.values(ui.upgrades)) {
             // Finished one-time upgrades retire: a short "installed" animation, then the card folds away.
-            const visible = E.isUpgradeVisible(state, up) && (!E.isMaxed(state, up) || !!ui.upgrades[up.id].retiring);
+            const visible = !shopOnly(up) && E.isUpgradeVisible(state, up) && (!E.isMaxed(state, up) || !!ui.upgrades[up.id].retiring);
             setHidden(card, !visible);
             if (!visible) continue;
             visibleCount[up.tab] = (visibleCount[up.tab] || 0) + 1;
@@ -3005,6 +3101,8 @@ window.AGI = (function () {
             }
         }
         for (const tab of E.TABS) setHidden(ui.panels[tab.id].emptyHint, !!visibleCount[tab.id]);
+        // The ring: a window with nothing in it is not shown (Parts, now that the shop sells the desk).
+        if (E.isRing()) for (const tab of E.TABS) ui.stations[tab.id]?.node.classList.toggle('ring-empty', !visibleCount[tab.id]);
 
         // Milestones say what they were only once reached (no recipes up front).
         for (const [key, item] of Object.entries(ui.milestones)) {
@@ -3121,7 +3219,7 @@ window.AGI = (function () {
         if (!roomUnlocked(id)) return '';
         if (!r.built) return 'Under construction';
         if (id === 'lab') {
-            const ready = E.UPGRADES.filter(u => isLabUpgrade(u) && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u)
+            const ready = E.UPGRADES.filter(u => isLabUpgrade(u) && !shopOnly(u) && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u)
                 && E.canAfford(state, E.upgradeCost(u, E.level(state, u.id)))).length;
             return `+${E.format(d.cpNet)} CP/s · ${ready ? `${ready} upgrade${ready === 1 ? '' : 's'} ready` : 'no upgrades ready'}`;
         }
@@ -5461,7 +5559,7 @@ window.AGI = (function () {
         if (E.isRing() && stats.bossEscaped && !state.intro['ring:server'] && E.snareGateSkill(state, snare.sector)) {
             state.intro['ring:server'] = true;
             pt('server', { offered: 1 });
-            deviceNotice('lab', 'System', 'Your AI needs a server to train on. Parts has one.', () => { if (openBay) jumpTo('lab'); homeUp = false; renderHome(); });
+            deviceNotice('shop', 'System', 'Your AI needs a server to train on. Parcel has one.', () => openShop());
         }
         const res = E.finishSnare(state, snare.haul, layout, stats);
         snare.done = { stats, haul: snare.haul, record: res.record, first: res.first, prev: res.prev, sector: snare.sector, startSector: snare.startSector, cleared: snare.cleared.slice(), walked: !!snare.walked,

@@ -4267,3 +4267,83 @@ body.ring-device.device-phone .snare-tree-bar .button, body.ring-device.device-p
 .feed-zoom-reset { visibility: hidden; }
 .feed-zoom.zoomed .feed-zoom-reset { visibility: visible; }
 .feed-zoom[hidden] { display: none; }
+/* Parcel, the shop app (the ring): a full-screen dialog like The Feed's. */
+.shop-screen { width: calc(100vw / var(--zoom, 1)); max-width: none; height: calc(100dvh / var(--zoom, 1)); max-height: none; margin: 0; padding: 0; border: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); overflow: hidden; }
+.shop-screen[open] { display: flex; flex-direction: column; }
+.shop-bar { display: flex; align-items: center; gap: 12px; padding: 30px 8px 6px 14px; border-bottom: 1px solid var(--border); }
+.shop-title { font: 700 1.15rem var(--font-display); letter-spacing: 0.04em; margin-right: auto; color: var(--warning); }
+.shop-bank { display: inline-flex; gap: 6px; align-items: baseline; font: 600 0.9rem var(--font-mono); }
+.shop-bank i { font-style: normal; font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.shop-bank-value { color: var(--success); font-size: 1.05rem; }
+.shop-close { min-width: 44px; min-height: 44px; font-size: 1.4rem; line-height: 1; }
+.shop-chips { display: flex; gap: 8px; padding: 10px 14px; overflow-x: auto; }
+.shop-chip { font: 600 0.78rem var(--font-mono); padding: 5px 12px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); white-space: nowrap; opacity: 0.6; }
+.shop-chip.on { color: var(--warning); border-color: var(--warning); opacity: 1; }
+.shop-list { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 14px 14px; display: grid; gap: 10px; align-content: start; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); }
+.shop-item { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-2); }
+.shop-item.next { border-color: var(--warning); }
+.shop-item.owned { opacity: 0.6; }
+.shop-art { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 10px; background: var(--bg); color: var(--warning); }
+.shop-art svg { width: 40px; height: 40px; }
+.shop-info { min-width: 0; }
+.shop-info h3 { margin: 0 0 2px; font: 700 1rem var(--font-display); }
+.shop-about { margin: 0; font-size: 0.82rem; color: var(--muted); }
+.shop-does { margin: 4px 0 0; font: 600 0.78rem var(--font-mono); color: var(--primary); }
+.shop-side { display: grid; justify-items: end; gap: 6px; }
+.shop-price { font: 700 1.1rem var(--font-mono); color: var(--success); }
+.shop-buy { min-height: 44px; white-space: nowrap; }
+.shop-owned, .shop-later, .shop-coming { font: 600 0.75rem var(--font-mono); color: var(--muted); text-align: right; }
+.shop-owned { color: var(--success); }
+.shop-coming { display: grid; gap: 4px; color: var(--warning); min-width: 120px; }
+.shop-track { height: 6px; border-radius: 3px; background: var(--bg); overflow: hidden; }
+.shop-track-fill { display: block; height: 100%; width: 0; background: var(--warning); }
+.shop-foot { margin: 0; padding: 8px 14px 12px; font-size: 0.78rem; color: var(--muted); border-top: 1px solid var(--border); }
+.home-icon-shop { color: var(--warning); }
+@media (max-width: 420px) { .shop-item { grid-template-columns: 44px 1fr; } .shop-art { width: 44px; height: 44px; } .shop-side { grid-column: 1 / -1; grid-template-columns: auto 1fr; align-items: center; justify-items: stretch; } .shop-side > :last-child { justify-self: end; } }
+.station.ring-empty { display: none !important; }
+/* The status bar on an upright phone: short labels, so more of the numbers fit at once (the owner's call). */
+@media (orientation: portrait) and (max-width: 560px) {
+    body.ring-device .status-stats { gap: 9px; }
+    body.ring-device .status-stat { gap: 3px; }
+    body.ring-device .status-stat i { font-size: 0; }
+    body.ring-device .status-stat i::after { content: attr(data-short); font-size: 0.62rem; }
+    body.ring-device .device-status { font-size: 0.74rem; gap: 8px; left: 14px; right: 14px; }
+}
+.shop-later { white-space: nowrap; }
+.home-badge { right: auto; left: calc(50% + 12px); }
+/* A phone held sideways under the ring (the owner's call, 2026-11-14: those views were hard to read): bigger, brighter
+   words, and the short height used across rather than down. */
+@media (orientation: landscape) and (max-height: 520px) {
+    body.ring-device.device-phone { --muted: color-mix(in srgb, var(--text) 74%, var(--bg)); }
+    body.ring-device.device-phone .device-status { font-size: 0.9rem; height: 26px; }
+    body.ring-device.device-phone .status-stat i { font-size: 0.72rem; opacity: 0.9; }
+    /* The Lab: its readouts down the left, its windows on the right. */
+    body.ring-device.device-phone #labRoom { grid-template-areas: none; grid-template-columns: minmax(210px, 32%) minmax(0, 1fr); grid-auto-rows: auto; gap: 0 12px; align-items: start; }
+    body.ring-device.device-phone #labRoom > * { grid-column: 2 !important; grid-row: auto !important; margin-bottom: 8px; }
+    body.ring-device.device-phone #labRoom > .room-bar { grid-column: 1 / -1 !important; grid-row: 1 !important; }
+    body.ring-device.device-phone #labRoom > #labSupply { grid-column: 1 !important; grid-row: 2 / span 12 !important; height: auto; grid-auto-flow: row; grid-template-columns: 1fr; grid-auto-columns: auto; grid-auto-rows: 86px; gap: 8px; align-self: start; }
+    body.ring-device.device-phone #labRoom .supply-cell { min-height: 78px; }
+    body.ring-device.device-phone #labRoom .supply-label { font-size: 0.82rem; }
+    body.ring-device.device-phone #labRoom .supply-bank { font-size: 1.75rem; }
+    body.ring-device.device-phone #labRoom .supply-value { font-size: 0.98rem; }
+    body.ring-device.device-phone #labRoom .panel > .station-title { font-size: 0.9rem; }
+    body.ring-device.device-phone #labRoom .action-name { font-size: 1.12rem; }
+    body.ring-device.device-phone #labRoom .action-gain { font-size: 1rem; }
+    body.ring-device.device-phone #labRoom .action-auto { font-size: 0.88rem; }
+    body.ring-device.device-phone #labRoom .upgrade-name, body.ring-device.device-phone #labRoom .card-name { font-size: 1.02rem; }
+    /* The home screen: the apps in one row, and the dock a slim row under them that never covers one. */
+    body.device-phone .device-home { padding: 8px 14px 34px; }
+    body.device-phone .home-icons { padding: 34px 6px 4px; gap: 6px 4px; flex: 1; align-content: center; justify-content: center; }
+    body.device-phone .home-icon { width: 13.5%; min-width: 84px; padding: 6px 2px; }
+    body.device-phone .home-icon-art { width: 46px; height: 46px; }
+    body.device-phone .home-icon-name { font-size: 0.86rem; }
+    body.device-phone .home-dock { align-self: center; margin-bottom: 0; padding: 4px 16px; gap: 18px; }
+    body.device-phone .home-dock .home-icon { width: auto; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 4px 8px; }
+    body.device-phone .home-dock .home-icon-art { width: 30px; height: 30px; }
+    /* The shop: less bar, more list. */
+    .shop-bar { padding-top: 26px; }
+    .shop-chips { padding: 6px 14px; }
+    .shop-foot { display: none; }
+    .shop-info h3 { font-size: 1.05rem; }
+    .shop-about { font-size: 0.88rem; }
+}
