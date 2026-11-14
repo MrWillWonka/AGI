@@ -2330,7 +2330,7 @@ window.AGI = (function () {
     // The money story (engine.js fundStep; the owner's call, 2026-11-14): the call from M0M that rings out to voicemail,
     // the transfers to accept or decline, Dad's and Mom's mails, pay day. Each beat waits its delay (this session's
     // clock) and for any open dialog to close. Placeholder timings until the owner sets them.
-    const FUND_DELAY = { call: 1500, 'offer:m0m': 2500, 'mail:dad': 45000, 'offer:dad': 20000, 'mail:mom': 45000, 'offer:mom': 60000, 'deposit:mom': 60000, 'deposit:payday': 20000 };
+    const FUND_DELAY = { call: 1500, 'offer:m0m': 2500, 'mail:dad': 45000, 'offer:dad': 20000, 'mail:mom': 45000, 'offer:mom': 60000, 'deposit:mom': 60000, 'deposit:payday': 20000, 'deposit:server': 6000 };
     const FUND_NAME = { m0m: 'M0M', dad: 'Dad', mom: 'Mom' };
     const CALL_RING_MS = 9000;
     let fundWait = { step: null, from: 0 }, fundBusy = false;
