@@ -94,10 +94,12 @@ const PORT = 8194;
         await step('Lab: a mail notification opens Mail', async () => { await page.evaluate(() => { AGI.state.intro['mail:dad'] = true; AGIEngine.mailArrive(AGI.state, 'm:dad'); AGI.debug.notice('mail', 'Mail', 'your computor thing'); }); await page.click('.device-notice'); }, 'dialog:inbox');
         await step('Mail: x back to the Lab', click('#inboxClose'), 'lab');
         // Reloads: wherever you were, the game comes back somewhere that works.
-        await step('reload in the Lab', () => page.reload(), 'lab', 1800);
-        await step('to Packet Snare and reload', async () => { await page.click('#labRoom .crumb-home'); await page.waitForTimeout(500); await page.click('.home-icon-snare'); await page.waitForTimeout(1100); await page.reload(); }, 'lab', 1800);
-        await step('home, then reload', async () => { await page.click('#labRoom .crumb-home'); await page.waitForTimeout(500); await page.reload(); }, 'lab', 1800);
-        await step('after reload: home crumb still works', click('#labRoom .crumb-home'), 'home');
+        await step('reload in the Lab', () => page.reload(), 'home', 1800);
+        await step('home after reload: Lab icon', click('.home-icon-lab'), 'lab');
+        await step('to Packet Snare and reload', async () => { await page.click('#labRoom .crumb-home'); await page.waitForTimeout(500); await page.click('.home-icon-snare'); await page.waitForTimeout(1100); await page.reload(); }, 'home', 1800);
+        await step('home, then reload', () => page.reload(), 'home', 1800);
+        await step('after reload: Packet Snare opens', click('.home-icon-snare'), 'snare', 1100);
+        await step('and its crumb goes home', click('#backButton'), 'home', 1100);
         console.log(`--- ${name} ---\n${log.join('\n')}\nerrors: ${JSON.stringify([...new Set(errors)])}`);
         if (errors.length) bad++;
         await ctx.close();

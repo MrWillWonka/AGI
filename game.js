@@ -2163,7 +2163,7 @@ window.AGI = (function () {
         playtest: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10l1.5 1.5 2.5-3M8.5 16l1.5 1.5 2.5-3M14.5 10.5H16M14.5 16.5H16"/></svg>',
         lab: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M12 4h8M13 4v9L6 26a2 2 0 0 0 2 3h16a2 2 0 0 0 2-3l-7-13V4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 21h12" stroke="currentColor" stroke-width="2"/></svg>'
     };
-    let home = null, installFrom = 0, homeMailFrom = 0, homeUp = false;   // homeUp: back on the home screen from an app
+    let home = null, installFrom = 0, homeMailFrom = 0, homeUp = true;   // homeUp: on the home screen, not in an app. A load starts there (the owner's call)
     const HOME_MAIL_MS = 2500;   // the first mail arrives this long after you reach the home screen
     const labOpened = () => !!state.intro['ring:labOpened'];
     function buildHome() {
@@ -2290,6 +2290,7 @@ window.AGI = (function () {
         if (labOpened()) { homeUp = false; pt('home', { open: 'lab' }); sfx('ui'); renderHome(); return; }
         if (!state.intro['ring:labInstalled']) return;
         state.intro['ring:labOpened'] = true;
+        homeUp = false;
         pt('home', { open: 'lab' });
         sfx('ui');
         renderHome();
