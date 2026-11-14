@@ -209,6 +209,8 @@
         panel.hidden = !show;
         flag(show);
     }
+    // The ring's home screen has a Debug icon (game.js buildHome).
+    window.DebugPanel = { toggle: () => toggle(!panel || panel.hidden) };
 
 
     document.addEventListener('DOMContentLoaded', () => {

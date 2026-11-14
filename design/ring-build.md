@@ -163,3 +163,5 @@ Done when: the finish line at the top of `design/ring.md`.
   `design/ring.md`.
 
 - **The lab is one app (2026-11-13, the owner's call).** Mail, Packet Snare and The Feed are icons on the home screen, not a strip in the lab; the lab's home crumb (and leaving Packet Snare) goes back to the home screen (`goHome`, `homeUp`, session only); the top bar's envelope is hidden; new mail and Packet Snare coming online drop from the top as device notifications that open the app (`deviceNotice`). Reporting spam says "Moved to Junk."
+
+- **Home screen apps (2026-11-14, the owner's call).** Journal, Settings, Playtest (a placeholder survey, `openSurvey`, saved to the log as a `survey` event) and Debug are home-screen icons. The opening's mail keeps arriving with Mail closed: on the home screen the next mail, then the offer's next copy (`sendNag`), comes a beat later with a notification.

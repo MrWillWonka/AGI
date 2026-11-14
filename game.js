@@ -2151,6 +2151,10 @@ window.AGI = (function () {
     const HOME_INSTALL_MS = 6000;
     const HOME_ICONS = {
         ...DESK_ICONS,
+        journal: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21a2 2 0 0 1 2-2h13v2H6"/><path d="M8 7h7M8 11h5"/></svg>',
+        settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/><circle cx="12" cy="12" r="6.5"/></svg>',
+        debug: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="8" height="11" rx="4"/><path d="M9.5 8a2.5 2.5 0 0 1 5 0M4 13h4M16 13h4M5 7l3.5 2.5M19 7l-3.5 2.5M5 20l3.5-3M19 20l-3.5-3M12 11v8"/></svg>',
+        playtest: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10l1.5 1.5 2.5-3M8.5 16l1.5 1.5 2.5-3M14.5 10.5H16M14.5 16.5H16"/></svg>',
         lab: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M12 4h8M13 4v9L6 26a2 2 0 0 0 2 3h16a2 2 0 0 0 2-3l-7-13V4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 21h12" stroke="currentColor" stroke-width="2"/></svg>'
     };
     let home = null, installFrom = 0, homeMailFrom = 0, homeUp = false;   // homeUp: back on the home screen from an app
@@ -2171,6 +2175,13 @@ window.AGI = (function () {
         const snareApp = icon('snare', 'Packet Snare', () => { pt('home', { open: 'snare' }); openSnareApp(); });
         const feedApp = icon('feed', 'The Feed', () => { pt('home', { open: 'feed' }); window.FeedUI?.open(); });
         snareApp.button.hidden = feedApp.button.hidden = true;
+        // Settings, the Journal, Debug and the playtest survey are apps too (the owner's call), so they can be reached
+        // from the home screen, which covers the top bar.
+        const tools = [
+            icon('journal', 'Journal', () => $('journalButton').click()),
+            icon('settings', 'Settings', () => $('settingsButton').click()),
+            icon('playtest', 'Playtest', () => openSurvey()),
+            icon('debug', 'Debug', () => window.DebugPanel?.toggle())];
         const clock = el('span', { class: 'home-clock' });
         const bar = el('div', { class: 'home-bar-fill' });
         const popupText = el('p', { class: 'home-popup-text' });
@@ -2179,11 +2190,11 @@ window.AGI = (function () {
             el('div', { class: 'home-popup-title', text: 'Download' }), popupText, el('div', { class: 'home-bar' }, [bar]), el('div', { class: 'home-popup-actions' }, [popupOpen])]);
         const node = el('div', { class: 'device-home', id: 'deviceHome', hidden: '' }, [
             el('div', { class: 'home-status' }, [clock, el('span', { class: 'home-signal', text: '▂▄▆ 37%' })]),
-            el('div', { class: 'home-icons' }, [mail.button, lab.button, snareApp.button, feedApp.button]),
+            el('div', { class: 'home-icons' }, [mail.button, lab.button, snareApp.button, feedApp.button, ...tools.map(t => t.button)]),
             popup,
             el('div', { class: 'home-taskbar' }, [el('span', { class: 'home-start', text: '▦' }), el('span', { class: 'home-task', text: 'Mail' }), el('span', { class: 'home-taskbar-clock' })])]);
         document.body.append(node);
-        return { node, mail, lab, snare: snareApp, feed: feedApp, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
+        return { node, mail, lab, snare: snareApp, feed: feedApp, tools, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
     }
     function renderHome() {
         if (!E.isRing()) return;
@@ -2198,18 +2209,24 @@ window.AGI = (function () {
         setText(home.clock, time); setText(home.clock2, time);
         const signedIn = !!state.player.email, accepted = introDone();
         if (home.mail.button.hidden === signedIn) home.mail.button.hidden = !signedIn;
+        for (const t of home.tools) if (t.button.hidden === signedIn) t.button.hidden = !signedIn;
         // Mail starts empty. The first mail (your brother's) arrives a beat after you reach the home screen, and the
         // badge shows it; opened, the inbox has it waiting (the owner's call: the badge said 1 over an empty inbox).
-        if (signedIn && !accepted && mailReady && !$('inbox').open && !E.MAIL.some(m => state.intro['mail:' + m.id])) {
+        // The same goes for every mail of the opening (the owner: leaving Mail for the home screen stopped them): with
+        // the inbox closed and nothing unread, the next one arrives a beat later with a notification, and once they
+        // have all come, the offer's next copy does.
+        if (signedIn && !accepted && mailReady && !$('inbox').open && !mailUnread() && !finalOpen()) {
             homeMailFrom = homeMailFrom || performance.now();
             if (performance.now() - homeMailFrom >= HOME_MAIL_MS) {
-                const first = E.MAIL.find(m => m.intro && (!m.ring || E.isRing()));
-                storyArrive(first);
-                pt('mail', { id: first.id });
-                deviceNotice('mail', 'Mail', E.mailFill(state, first.subject), openInbox);
+                homeMailFrom = 0;
+                const next = E.MAIL.find(m => m.intro && (!m.ring || E.isRing()) && !state.intro['mail:' + m.id]);
+                if (next) { storyArrive(next); pt('mail', { id: next.id }); }
+                else sendNag();
+                const item = mailItems().filter(i => !i.read).pop();
+                deviceNotice('mail', 'Mail', item ? item.subject : 'New message', openInbox);
                 save();
             }
-        }
+        } else homeMailFrom = 0;
         const unread = mailReady ? mailUnread() : 0;
         setText(home.mail.badge, unread ? String(unread) : '');
         if (home.mail.badge.hidden === !!unread) home.mail.badge.hidden = !unread;
@@ -2269,6 +2286,35 @@ window.AGI = (function () {
         renderHome();
         save();
         if (!state.intro['ring:welcome']) showWelcome();
+    }
+    // The playtest survey (the owner's call: an icon for surveying the testers). Placeholder questions for now; the
+    // answers go into the playtest log as a `survey` event, and the log can be copied from here.
+    function openSurvey() {
+        const scale = (name, legend, labels) => el('fieldset', { class: 'survey-q' }, [el('legend', { text: legend }),
+            el('div', { class: 'survey-scale' }, labels.map((text, i) => el('label', {}, [el('input', { type: 'radio', name, value: String(i + 1) }), el('span', { text })])))]);
+        const text = (name, legend) => el('label', { class: 'survey-q' }, [el('span', { class: 'survey-legend', text: legend }), el('textarea', { name, rows: '2', maxlength: '400' })]);
+        const form = el('form', { method: 'dialog', class: 'survey-form' }, [
+            scale('fun', 'How fun was it?', ['1', '2', '3', '4', '5']),
+            scale('clear', 'Did you know what to do next?', ['Lost', 'Sometimes', 'Mostly', 'Always']),
+            text('confused', 'What confused you?'),
+            text('slow', 'What dragged or felt slow?'),
+            text('broken', 'Did anything break or look wrong?'),
+            text('more', 'Anything else?')]);
+        const dlg = el('dialog', { class: 'dialog ring-welcome ring-survey', 'aria-labelledby': 'ringSurveyTitle' }, [
+            el('h2', { id: 'ringSurveyTitle', text: 'Playtest survey' }),
+            el('p', { class: 'survey-lead', text: 'Answer what you like. Your answers are saved in the playtest log.' }),
+            form,
+            el('div', { class: 'dialog-actions' }, [
+                el('button', { type: 'button', class: 'button ghost', text: 'Close', onclick: () => dlg.close() }),
+                el('button', { type: 'button', class: 'button', text: 'Save and copy log', onclick: () => {
+                    const data = Object.fromEntries([...new FormData(form)].filter(([, v]) => String(v).trim()).map(([k, v]) => [k, String(v).trim()]));
+                    pt('survey', data);
+                    dlg.close();
+                    exportPlaytest();
+                } })])]);
+        dlg.addEventListener('close', () => dlg.remove());
+        document.body.append(dlg);
+        dlg.showModal();
     }
     // The lab's welcome: placeholder words for now (the owner's call), plain and short: what to do, and why you click.
     function showWelcome() {
@@ -13248,7 +13294,12 @@ window.AGI = (function () {
         clearTimeout(introTimer);
         if (introDone() || !$('inbox').open) return;
         const next = E.MAIL.find(m => m.intro && (!m.ring || E.isRing()) && !state.intro['mail:' + m.id]);
-        if (!next || mailUnread()) return;
+        if (mailUnread()) return;
+        if (!next) {
+            if (!E.isRing() || finalOpen()) return;
+            introTimer = setTimeout(() => { if (mailOpen || !$('inbox').open || introDone() || mailUnread()) return; sendNag(); sfx('ui'); renderInbox(); save(); }, 1100);
+            return;
+        }
         introTimer = setTimeout(() => {
             if (mailOpen || !$('inbox').open) return;
             storyArrive(next);
@@ -13332,6 +13383,18 @@ window.AGI = (function () {
         save();
         ($('mailChoices').querySelector('button') || (reply ? $('mailReply') : $('inboxClose'))).focus({ preventScroll: true });
     }
+    // The offer's next copy arrives (from the inbox's list, `leaveMail`, or on the ring's home screen, `renderHome`).
+    function sendNag() {
+        // The ring: after the last nag, the forced final offer.
+        const last = E.isRing() && welcomeNag >= E.WELCOME_NAGS.length;
+        const nag = last ? -1 : nextNag();
+        if (last) { finalOffer = true; state.player.forced = true; }
+        welcomeNag++;
+        delete state.intro['mailRead:welcome'];
+        pt('mailNag', { n: welcomeNag, nag });
+        afterChange();   // The IT Department's Favorite, on the twentieth
+        arrived = 'm:welcome';
+    }
     // Closing the offer without replying: a new copy arrives a beat later, a little different, and pops open.
     function leaveMail() {
         const item = mailOpen;
@@ -13342,15 +13405,7 @@ window.AGI = (function () {
         clearTimeout(introTimer);
         introTimer = setTimeout(() => {
             if (mailOpen || !$('inbox').open || introDone()) return;
-            // The ring: after the last nag, the forced final offer.
-            const last = E.isRing() && welcomeNag >= E.WELCOME_NAGS.length;
-            const nag = last ? -1 : nextNag();
-            if (last) { finalOffer = true; state.player.forced = true; }
-            welcomeNag++;
-            delete state.intro['mailRead:welcome'];
-            pt('mailNag', { n: welcomeNag, nag });
-            afterChange();   // The IT Department's Favorite, on the twentieth
-            arrived = 'm:welcome';
+            sendNag();
             sfx('ui');
             renderInbox();
             // The ring: it waits in the list, unread; it doesn't open itself (the owner's call).
@@ -13363,6 +13418,7 @@ window.AGI = (function () {
         }, 1000);
     }
     function openInbox() {
+        for (const n of document.querySelectorAll('.device-notice-mail')) n.remove();   // Mail is open: its notifications go
         renderInbox();
         if (!$('inbox').open) $('inbox').showModal();
         introStep();
