@@ -16,7 +16,7 @@
 //   q          compute per second of a run's clock on sector 1
 //   qGrow      that price's growth a sector
 //   s          research per full sprint
-//   chew       tiles a mite eats a second when pointed; graze is its share of that while you are elsewhere
+//   chew       packets a mite eats a second when led; graze is its share of that left alone (the owner's call: a quarter)
 //   tough      bites per packet by sector
 //   layerGrow  how much bigger each layer of the heap is than the last
 //   miteFirst  the first new mite comes with this layer cleared (the owner's call: the first)
@@ -26,7 +26,7 @@
 
 'use strict';
 
-const DEFAULTS = { q: 10, qGrow: 1.6, s: 35, chew: 2, graze: 0.35, tough: [1, 2, 3], layerGrow: 1.8, miteFirst: 1, miteEvery: 2, payback: 120, clicks: 2.5 };
+const DEFAULTS = { q: 10, qGrow: 1.6, s: 35, chew: 2, graze: 0.25, tough: [1, 2, 3], layerGrow: 1.8, miteFirst: 1, miteEvery: 2, payback: 120, clicks: 2.5 };
 const DESK = [15, 25, 40, 60, 75];
 const PACKETS = { 1: 45, 2: 75, 3: 75 };
 const CLOCK = { 1: 12, 2: 12.5, 3: 14 };

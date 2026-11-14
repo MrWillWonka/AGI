@@ -1,19 +1,22 @@
-// feed-ui.js — The Feed's screen (design/ring.md → The Feed; Build 1 of design/ring-build.md): draws the heap from
-// feed.js's state (`AGI.state.feed`), turns a drag into a pointed line (engine.js `feedPoint`), and shows what the
-// swarm uncovers. It knows no rules, and it doesn't step the heap: game.js's loop does (engine.js `feedStep`, so the
-// swarm grazes while you are elsewhere) and hands the events here (`FeedUI.events`).
+// feed-ui.js — The Feed's screen (design/ring.md → The Feed; Build 1 of design/ring-build.md): draws the box of sand
+// from feed.js's state (`AGI.state.feed`) and holds a point for the swarm while your finger or the mouse button is
+// down (engine.js `feedPoint`). It knows no rules, and it doesn't step the pile: game.js's loop does (engine.js
+// `feedStep`, so the swarm eats while you are elsewhere) and hands the events here (`FeedUI.events`).
 // For now it is a full-screen dialog (the owner's pick) behind a test door: the debug panel (AGI.debug.openFeed) or
-// #feed in the address. Where its real door goes waits on the owner's call about where the five places live.
+// #feed in the address. Its real door is an object on the desk (design/ring.md → Where the places live).
 //
-// The heap: a layer always fits the screen until its tiles would be smaller than a finger can point at (`MIN_TILE`);
-// past that the tiles keep their size and the layer is panned (the owner's pick: later layers are explored). One
-// finger (or the left button) draws the line; two fingers, the right button or the wheel pan.
+// The box always fits the screen, a whole number of pixels a cell. Sand is drawn a cell a pixel on a small canvas and
+// scaled up with no smoothing, so it reads as grains: packets fall in their own colour (as Packet Snare draws them) and
+// turn to sand where they land, each delivery its own colour, so the pile lies in strata like sand art.
 (function () {
     'use strict';
-    const MIN_TILE = { coarse: 34, fine: 26 }, MAX_TILE = 64, GAP = 0.1, FLASH_MS = 650, POP_MS = 1800;
+    const POP_MS = 1800, SPARK_MS = 500;
+    // Strata, in the order deliveries come (feed.js `bands`). Chosen to sit apart on the dark themes.
+    const BANDS = ['#e8c07a', '#d98a5f', '#7fc8a9', '#6fa8dc', '#c9a0e8', '#e6dfc8'];
     let dlg = null, canvas = null, ctx = null, stage = null, promptEl = null, layerEl = null, mitesEl = null, researchEl = null, fragEl = null;
-    let raf = 0, view = { w: 0, h: 0, tile: 40, ox: 0, oy: 0, camX: 0, camY: 0, panX: false, panY: false }, colors = {};
-    let fragShown = -1, drag = null, pan = null, pointers = new Map(), flashes = new Map(), pops = [], said = '', saidUntil = 0, seenLayer = -1;
+    let sand = null, sandCtx = null, image = null, palette = null;
+    let raf = 0, view = { w: 0, h: 0, cell: 4, ox: 0, oy: 0 }, colors = {};
+    let fragShown = -1, held = null, pops = [], sparks = [];
 
     function el(tag, props = {}, ...kids) {
         const n = document.createElement(tag);
@@ -29,7 +32,6 @@
     const F = () => window.Feed, E = () => window.AGIEngine, game = () => window.AGI?.state;
     const feed = () => game()?.feed;
     const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const coarse = () => matchMedia('(pointer: coarse)').matches;
     const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
     function build() {
@@ -37,7 +39,7 @@
         mitesEl = el('span', { class: 'feed-stat' });
         researchEl = el('span', { class: 'feed-stat feed-research' });
         promptEl = el('div', { class: 'feed-prompt', 'aria-live': 'polite' });
-        canvas = el('canvas', { class: 'feed-canvas', 'aria-label': 'The heap. Drag across it to show the swarm where to eat.' });
+        canvas = el('canvas', { class: 'feed-canvas', 'aria-label': 'The pile. Hold a point to lead the swarm there.' });
         stage = el('div', { class: 'feed-stage' }, canvas);
         fragEl = el('div', { class: 'feed-fragment' });
         dlg = el('dialog', { class: 'feed-screen', 'aria-label': 'The Feed' },
@@ -46,198 +48,156 @@
                 el('button', { type: 'button', class: 'ghost-button feed-close', 'aria-label': 'Close The Feed', text: '×', onclick: close })),
             promptEl, stage, fragEl);
         dlg.addEventListener('close', stop);
-        canvas.addEventListener('pointerdown', down);
-        canvas.addEventListener('pointermove', move);
-        for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(type, up);
+        canvas.addEventListener('pointerdown', e => { if (e.button !== 0) return; canvas.setPointerCapture?.(e.pointerId); held = e.pointerId; lead(e); });
+        canvas.addEventListener('pointermove', e => { if (held === e.pointerId) lead(e); });
+        for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(type, e => { if (held === e.pointerId) letGo(); });
         canvas.addEventListener('contextmenu', e => e.preventDefault());
-        canvas.addEventListener('wheel', e => { e.preventDefault(); panBy(-e.deltaX, -e.deltaY); }, { passive: false });
         new ResizeObserver(resize).observe(stage);
         document.body.append(dlg);
         ctx = canvas.getContext('2d');
+        sand = document.createElement('canvas');
+        sand.width = F().FEED.w; sand.height = F().FEED.h;
+        sandCtx = sand.getContext('2d');
+        image = sandCtx.createImageData(sand.width, sand.height);
     }
 
-    // ---- layout ---------------------------------------------------------------------------------------------------
+    // ---- colours --------------------------------------------------------------------------------------------------
+    // A CSS colour as [r, g, b], read back from a pixel so any form a theme uses works.
+    function rgb(color) {
+        const c = document.createElement('canvas'); c.width = c.height = 1;
+        const x = c.getContext('2d', { willReadFrequently: true }); x.fillStyle = color; x.fillRect(0, 0, 1, 1);
+        const d = x.getImageData(0, 0, 1, 1).data;
+        return [d[0], d[1], d[2]];
+    }
+    const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
     function readColors() {
         const css = getComputedStyle(dlg), v = name => css.getPropertyValue(name).trim();
-        colors = { bg: v('--bg'), panel: v('--panel-2'), border: v('--border'), text: v('--text'), muted: v('--muted'),
-            gold: v('--warning'), good: v('--success'), research: v('--research'), primary: v('--primary'),
-            mono: v('--font-mono') || 'monospace' };
+        colors = { bg: v('--bg'), border: v('--border'), text: v('--text'), muted: v('--muted'), gold: v('--warning'), good: v('--success'),
+            research: v('--research'), primary: v('--primary'), mono: v('--font-mono') || 'monospace' };
+        const bg = rgb(colors.bg), muted = rgb(colors.muted), bad = rgb(v('--snare-bad') || v('--danger'));
+        palette = {
+            bands: BANDS.map(rgb), gold: rgb(colors.gold), fragment: rgb(colors.text), falling: rgb(v('--snare-good') || colors.primary), fallingBad: bad,
+            // Sand the model has no skill for: grey, cold. Garbled sand: the bad packets' colour, dark. Both read as "not for eating".
+            numbers: [mix(bg, muted, 0.75), mix(bg, muted, 0.4)], pictures: [mix(bg, rgb(colors.primary), 0.5), mix(bg, muted, 0.45)],
+            garbled: [mix(bg, bad, 0.6), mix(bg, bad, 0.3)]
+        };
     }
+
+    // ---- layout and input -----------------------------------------------------------------------------------------
     function resize() {
         if (!dlg?.open) return;
         const w = stage.clientWidth, h = stage.clientHeight, dpr = Math.min(3, window.devicePixelRatio || 1);
         if (!w || !h) return;
         canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const box = F().FEED, pad = 8;
         view.w = w; view.h = h;
-        layout();
+        view.cell = Math.max(1, Math.floor(Math.min((w - pad * 2) / box.w, (h - pad * 2) / box.h) * dpr) / dpr);
+        view.ox = Math.round((w - box.w * view.cell) / 2); view.oy = Math.round((h - box.h * view.cell) / 2);
     }
-    // The tile size and where the layer sits: fitted to the stage, never smaller than a finger can point at.
-    function layout() {
-        const f = feed(); if (!f || !view.w) return;
-        const g = F().grid(f), pad = 10;
-        const fit = Math.min((view.w - pad * 2) / g.cols, (view.h - pad * 2) / g.rows);
-        view.tile = Math.max(coarse() ? MIN_TILE.coarse : MIN_TILE.fine, Math.min(MAX_TILE, fit));
-        const gw = g.cols * view.tile, gh = g.rows * view.tile;
-        view.panX = gw > view.w - pad * 2 + 0.5; view.panY = gh > view.h - pad * 2 + 0.5;
-        view.ox = view.panX ? pad : (view.w - gw) / 2; view.oy = view.panY ? pad : (view.h - gh) / 2;
-        view.maxX = Math.max(0, gw + pad * 2 - view.w); view.maxY = Math.max(0, gh + pad * 2 - view.h);
-        panBy(0, 0);
+    // A pointer event's place in the box, in cells (the page may be zoomed, so by the canvas's own box).
+    function cellAt(e) {
+        const b = canvas.getBoundingClientRect();
+        return { x: ((e.clientX - b.left) / b.width * view.w - view.ox) / view.cell, y: ((e.clientY - b.top) / b.height * view.h - view.oy) / view.cell };
     }
-    function panBy(dx, dy) {
-        view.camX = Math.max(0, Math.min(view.maxX || 0, view.camX - dx));
-        view.camY = Math.max(0, Math.min(view.maxY || 0, view.camY - dy));
-    }
-    const centre = i => { const f = feed(), c = F().cellOf(f, i); return [view.ox - view.camX + (c.c + 0.5) * view.tile, view.oy - view.camY + (c.r + 0.5) * view.tile]; };
-    // A pointer event's place on the canvas in its own pixels (the page may be zoomed), and the slot under it.
-    function at(e) {
-        const box = canvas.getBoundingClientRect();
-        return [(e.clientX - box.left) / box.width * view.w, (e.clientY - box.top) / box.height * view.h];
-    }
-    function slotAt([x, y]) {
-        const f = feed();
-        return F().indexOf(f, Math.floor((x - view.ox + view.camX) / view.tile), Math.floor((y - view.oy + view.camY) / view.tile));
-    }
-
-    // ---- input ----------------------------------------------------------------------------------------------------
-    function down(e) {
-        if (!feed()) return;
-        canvas.setPointerCapture?.(e.pointerId);
-        pointers.set(e.pointerId, at(e));
-        if (pointers.size >= 2 || e.button === 2) { drag = null; pan = { last: mid() }; return; }
-        if (e.button !== 0) return;
-        drag = { id: e.pointerId, cells: [] };
-        extend(at(e));
-    }
-    function move(e) {
-        if (!pointers.has(e.pointerId)) return;
-        pointers.set(e.pointerId, at(e));
-        if (pan) { const m = mid(); panBy(m[0] - pan.last[0], m[1] - pan.last[1]); pan.last = m; return; }
-        if (drag && drag.id === e.pointerId) extend(at(e));
-    }
-    function up(e) {
-        pointers.delete(e.pointerId);
-        if (drag && drag.id === e.pointerId) drag = null;
-        if (pan) pan = pointers.size ? { last: mid() } : null;
-    }
-    const mid = () => { const ps = [...pointers.values()]; return [ps.reduce((n, p) => n + p[0], 0) / ps.length, ps.reduce((n, p) => n + p[1], 0) / ps.length]; };
-    // The drag so far is the line: the swarm starts on it at once, and takes more of it as it eats (feed.js keeps the
-    // first `lineMax` tiles still uneaten).
-    function extend(p) {
-        const i = slotAt(p), f = feed();
-        if (i < 0 || !f.tiles[i] || f.tiles[i].e || drag.cells.includes(i)) return;
-        drag.cells.push(i);
-        repoint();
-    }
-    function repoint() { if (drag && feed()) E().feedPoint(game(), drag.cells); }
+    function lead(e) { if (feed()) E().feedPoint(game(), cellAt(e)); }
+    function letGo() { held = null; if (feed()) E().feedPoint(game(), null); }
+    const px = (x, y) => [view.ox + x * view.cell, view.oy + y * view.cell];
 
     // ---- what happened (from game.js's loop) ------------------------------------------------------------------------
     function events(list) {
         if (!dlg?.open) return;
         const now = performance.now();
         for (const ev of list) {
-            if (ev.type === 'eat') flashes.set(ev.cell, { at: now, kind: ev.kind });
-            else if (ev.type === 'locked') say(`> Unreadable. It hasn't learned ${ev.kind} yet.`, 3500);
-            else if (ev.type === 'fragment') { pops.push({ at: now, text: `Fragment ${ev.found}/${ev.of}`, color: 'primary' }); renderFragment(); }
+            if (ev.type === 'eat') { if (ev.kind === 'vein' || ev.kind === 'fragment') sparks.push({ at: now, x: ev.x + 0.5, y: ev.y + 0.5, kind: ev.kind }); }
+            else if (ev.type === 'fragment') pops.push({ at: now, text: `Fragment ${ev.found}/${ev.of}`, color: 'primary' });
             else if (ev.type === 'layer') {
-                flashes.clear(); drag = null; view.camX = view.camY = 0;
                 pops.push({ at: now, text: `Layer ${ev.layer} digested · +${E().format(ev.pay)} research`, color: 'research', big: true });
                 if (ev.mite) pops.push({ at: now + 500, text: `The swarm grows · ${plural(ev.mites, 'mite', 'mites')}`, color: 'good' });
-                layout();
             }
         }
-        if (drag) repoint();
+        if (sparks.length > 60) sparks.splice(0, sparks.length - 60);
     }
-    function say(text, ms) { said = text; saidUntil = performance.now() + ms; }
 
     // ---- drawing --------------------------------------------------------------------------------------------------
-    const GLYPH = { numbers: i => String((i * 7 + 3) % 10), pictures: () => '▦' };
-    const letter = i => 'etaoinshrdlucmfw'[(i * 5 + 1) % 16];
-    function box(x, y, s, r) { ctx.beginPath(); ctx.roundRect(x, y, s, s, r); }
+    function drawSand(f, now) {
+        const lib = F(), { w, h, cells } = f, data = image.data, blink = reduced() ? 1 : 0.6 + 0.4 * Math.sin(now / 160);
+        for (let i = 0, p = 0; i < cells.length; i++, p += 4) {
+            const v = cells[i];
+            if (!v) { data[p + 3] = 0; continue; }
+            const kind = lib.KIND_IDS[lib.kindOf(v)], x = i % w, y = (i - x) / w;
+            const falling = y < h - 1 && !cells[i + w];
+            const shade = 0.9 + ((i * 2654435761 >>> 0) % 21) / 100;   // each grain a touch lighter or darker, the same every frame
+            let c;
+            if (kind === 'garbled') c = falling ? palette.fallingBad : palette.garbled[(x + y * 3 + (i >> 3)) & 1];
+            else if (falling) c = palette.falling;
+            else if (kind === 'plain') c = palette.bands[lib.bandOf(v) % palette.bands.length];
+            else if (kind === 'vein') c = palette.gold;
+            else if (kind === 'fragment') c = palette.fragment;
+            else if (f.readable.includes(kind)) c = mix(palette.bands[lib.bandOf(v) % palette.bands.length], palette.fragment, 0.35);
+            else c = kind === 'numbers' ? palette.numbers[(x + y) & 1] : palette.pictures[x & 1];
+            const k = kind === 'fragment' ? blink : kind === 'vein' ? 1 : shade;
+            data[p] = Math.min(255, c[0] * k); data[p + 1] = Math.min(255, c[1] * k); data[p + 2] = Math.min(255, c[2] * k); data[p + 3] = 255;
+        }
+        sandCtx.putImageData(image, 0, 0);
+    }
     function draw(now) {
-        const f = feed(); if (!f) return;
-        if (f.layers !== seenLayer) { seenLayer = f.layers; layout(); }
-        const t = view.tile, gap = Math.max(1.5, t * GAP), s = t - gap, r = Math.max(2, t * 0.16), lib = F();
+        const f = feed(); if (!f || !palette) return;
+        const box = F().FEED, c = view.cell, still = reduced();
         ctx.clearRect(0, 0, view.w, view.h);
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        for (let i = 0; i < f.size; i++) {
-            const [cx, cy] = centre(i);
-            if (cx < -t || cy < -t || cx > view.w + t || cy > view.h + t) continue;
-            const x = cx - s / 2, y = cy - s / 2, tile = f.tiles[i];
-            if (!tile || tile.e) {
-                const flash = tile && flashes.get(i), age = flash ? (now - flash.at) / FLASH_MS : 1;
-                ctx.globalAlpha = 0.35; ctx.strokeStyle = colors.border; ctx.lineWidth = 1;
-                box(x, y, s, r); ctx.stroke(); ctx.globalAlpha = 1;
-                if (flash && age < 1) {
-                    ctx.globalAlpha = 1 - age;
-                    ctx.fillStyle = flash.kind === 'vein' ? colors.gold : flash.kind === 'fragment' ? colors.primary : colors.text;
-                    ctx.font = `700 ${Math.round(s * 0.55)}px ${colors.mono}`;
-                    ctx.fillText(flash.kind === 'vein' ? '◆' : flash.kind === 'fragment' ? '✉' : GLYPH[flash.kind] ? GLYPH[flash.kind](i) : letter(i), cx, cy - age * s * 0.25);
-                    ctx.globalAlpha = 1;
-                } else if (flash) flashes.delete(i);
-                continue;
-            }
-            const locked = tile.s && lib.KINDS[tile.k].skill && !f.readable.includes(tile.k);
-            ctx.fillStyle = colors.panel; box(x, y, s, r); ctx.fill();
-            ctx.strokeStyle = colors.border; ctx.lineWidth = 1; ctx.stroke();
-            if (tile.s && tile.k === 'vein') {
-                ctx.strokeStyle = colors.gold; ctx.lineWidth = Math.max(2, t * 0.07); box(x + 1, y + 1, s - 2, r); ctx.stroke();
-                ctx.fillStyle = colors.gold; ctx.font = `700 ${Math.round(s * 0.42)}px ${colors.mono}`; ctx.fillText('◆', cx, cy);
-            } else if (locked) {
-                ctx.globalAlpha = 0.55; ctx.setLineDash([3, 3]); ctx.strokeStyle = colors.muted; ctx.lineWidth = 1.5; box(x + 1, y + 1, s - 2, r); ctx.stroke(); ctx.setLineDash([]);
-                ctx.fillStyle = colors.muted; ctx.font = `700 ${Math.round(s * 0.5)}px ${colors.mono}`; ctx.fillText(GLYPH[tile.k](i), cx, cy); ctx.globalAlpha = 1;
-            } else {
-                // Face down: garbled marks, the same for a slot every frame.
-                ctx.fillStyle = colors.muted; ctx.globalAlpha = 0.45;
-                for (let k = 0; k < 3; k++) { const w = s * (0.25 + ((i * 13 + k * 7) % 5) * 0.08); ctx.fillRect(cx - s * 0.3, cy - s * 0.22 + k * s * 0.2, w, Math.max(1.5, s * 0.07)); }
-                ctx.globalAlpha = 1;
-            }
-            // Bitten into: a corner eaten away for each bite taken.
-            const full = lib.bitesFor(tile.q), taken = full - tile.b;
-            if (taken > 0) { ctx.fillStyle = colors.bg; ctx.beginPath(); ctx.arc(x + s, y, s * 0.55 * (taken / full) + s * 0.12, 0, Math.PI * 2); ctx.save(); box(x, y, s, r); ctx.clip(); ctx.fill(); ctx.restore(); }
+        // The box: two walls and a floor, open at the top, with the spout's mouth over the middle.
+        const [x0, y0] = px(0, 0), bw = box.w * c, bh = box.h * c;
+        ctx.strokeStyle = colors.border; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x0 - 1, y0); ctx.lineTo(x0 - 1, y0 + bh + 1); ctx.lineTo(x0 + bw + 1, y0 + bh + 1); ctx.lineTo(x0 + bw + 1, y0); ctx.stroke();
+        const mouth = (box.spout + 2) * c;
+        ctx.beginPath(); ctx.moveTo(x0 + bw / 2 - mouth, y0 - 1); ctx.lineTo(x0 + bw / 2 - mouth * 0.6, y0 + c * 1.5); ctx.moveTo(x0 + bw / 2 + mouth, y0 - 1); ctx.lineTo(x0 + bw / 2 + mouth * 0.6, y0 + c * 1.5); ctx.stroke();
+        drawSand(f, now);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(sand, x0, y0, bw, bh);
+        // Sparks where gold or a fragment was eaten.
+        sparks = sparks.filter(s => now - s.at < SPARK_MS);
+        for (const s of sparks) {
+            const age = (now - s.at) / SPARK_MS, [x, y] = px(s.x, s.y);
+            ctx.globalAlpha = 1 - age; ctx.strokeStyle = s.kind === 'vein' ? colors.gold : colors.text; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.arc(x, y, c * (1 + age * 3), 0, Math.PI * 2); ctx.stroke();
         }
-        // Your line, front first.
-        const line = f.line.filter(i => f.tiles[i] && !f.tiles[i].e);
-        if (line.length) {
-            ctx.lineCap = ctx.lineJoin = 'round'; ctx.strokeStyle = colors.good;
-            for (const [width, alpha] of [[t * 0.5, 0.18], [Math.max(2, t * 0.09), 0.9]]) {
-                ctx.globalAlpha = alpha; ctx.lineWidth = width; ctx.beginPath();
-                line.forEach((i, n) => { const [x, y] = centre(i); if (n) ctx.lineTo(x, y); else { ctx.moveTo(x, y); ctx.lineTo(x + 0.01, y); } });
-                ctx.stroke();
-            }
-            ctx.globalAlpha = 1;
+        ctx.globalAlpha = 1;
+        // The point you hold.
+        if (f.aim) {
+            const [x, y] = px(f.aim.x, f.aim.y), r = c * F().FEED.near;
+            ctx.strokeStyle = colors.good; ctx.globalAlpha = 0.5; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+            ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
         }
-        // The swarm: a mite on each tile being eaten; the rest wait in the middle.
-        const work = lib.working(f), still = reduced(), mite = Math.max(3, Math.min(7, t * 0.14));
-        for (let m = 0; m < f.mites; m++) {
-            const wob = still ? 0 : now / 90 + m * 2.4;
-            let [x, y] = m < work.length ? centre(work[m]) : [view.w / 2 + Math.cos(m * 2.4 + (still ? 0 : now / 1400)) * (14 + m * 5), view.h / 2 + Math.sin(m * 2.4 + (still ? 0 : now / 1400)) * (10 + m * 4)];
-            if (m < work.length) { x += Math.cos(wob) * t * 0.16; y += Math.sin(wob * 1.3) * t * 0.16; }
-            ctx.fillStyle = colors.good; ctx.beginPath(); ctx.arc(x, y, mite, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = colors.bg; ctx.beginPath(); ctx.arc(x + mite * 0.35, y - mite * 0.2, mite * 0.32, 0, Math.PI * 2); ctx.fill();
-        }
+        // The swarm.
+        const r = Math.max(3, Math.min(7, c * 0.9));
+        f.swarm.forEach((m, n) => {
+            let [x, y] = px(m.x, m.y);
+            if (!still) { x += Math.cos(now / 90 + n * 2.4) * c * 0.35; y += Math.sin(now / 70 + n * 1.7) * c * 0.35; }
+            ctx.fillStyle = colors.bg; ctx.beginPath(); ctx.arc(x, y, r + 1.5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = colors.good; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = colors.bg; ctx.beginPath(); ctx.arc(x + r * 0.35, y - r * 0.2, r * 0.32, 0, Math.PI * 2); ctx.fill();
+        });
         // Pops: what a layer paid, a fragment found.
         pops = pops.filter(p => now - p.at < POP_MS);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         let row = 0;
         for (const p of pops) {
             const age = (now - p.at) / POP_MS; if (age < 0) continue;
             ctx.globalAlpha = Math.min(1, (1 - age) * 3);
             ctx.font = `700 ${p.big ? 17 : 14}px ${colors.mono}`;
-            const y = 26 + row++ * 24 - (still ? 0 : age * 8), w = Math.min(view.w - 16, ctx.measureText(p.text).width + 20);
+            const y = 26 + row++ * 26 - (still ? 0 : age * 8), w = Math.min(view.w - 16, ctx.measureText(p.text).width + 20);
             ctx.fillStyle = colors.bg; ctx.beginPath(); ctx.roundRect(view.w / 2 - w / 2, y - 12, w, 24, 8); ctx.fill();
             ctx.fillStyle = colors[p.color]; ctx.fillText(p.text, view.w / 2, y, view.w - 28);
         }
         ctx.globalAlpha = 1;
     }
 
-    // ---- the words round the heap ---------------------------------------------------------------------------------
-    function prompt(now) {
+    // ---- the words round the pile ---------------------------------------------------------------------------------
+    function prompt() {
         const f = feed(), lib = F();
-        if (now < saidUntil) return said;
         if (!f.stats.delivered) return '> Nothing to eat yet.';
         if (lib.left(f) === 0) return '> It is still hungry.';
-        if (!f.stats.eaten && !f.line.length) return '> Show it where to start.';
-        if ((view.panX || view.panY) && !f.line.length) return coarse() ? '> Two fingers move the heap.' : '> The wheel or the right button moves the heap.';
+        if (!f.stats.eaten && !f.stats.cleaned && !f.aim) return '> Show it where to start.';
         return '';
     }
     // The fragment set as found so far: the parcel spam's own words (engine.js MAIL), cut into as many scraps as pieces.
@@ -258,7 +218,7 @@
         text(layerEl, `Layer ${f.layers + 1}`);
         text(mitesEl, plural(f.mites, 'mite', 'mites'));
         text(researchEl, `${E().format(Math.floor(game().res.rp))} research`);
-        text(promptEl, prompt(now));
+        text(promptEl, prompt());
         const found = (f.fragments.parcel || []).length;
         if (found !== fragShown) { fragShown = found; renderFragment(); }
         draw(now);
@@ -269,13 +229,13 @@
         if (!dlg) build();
         if (dlg.open) return;
         dlg.showModal();
-        readColors(); seenLayer = -1; flashes.clear(); pops = []; said = ''; saidUntil = 0; drag = pan = null; pointers.clear();
-        resize(); fragShown = -1;
+        readColors(); pops = []; sparks = []; held = null; fragShown = -1;
+        resize();
         cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
     }
-    function stop() { cancelAnimationFrame(raf); raf = 0; drag = pan = null; pointers.clear(); }
+    function stop() { cancelAnimationFrame(raf); raf = 0; if (held !== null) letGo(); }
     function close() { if (dlg?.open) { dlg.close(); stop(); } }
 
-    window.FeedUI = { open, close, events, get isOpen() { return !!(dlg && dlg.open); }, get view() { return view; }, centre };
+    window.FeedUI = { open, close, events, get isOpen() { return !!(dlg && dlg.open); }, get view() { return view; }, px };
     if (location.hash === '#feed') window.addEventListener('load', () => setTimeout(open, 600));
 })();

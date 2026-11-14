@@ -96,15 +96,15 @@ window.AGI = (function () {
     // Rare progression events are written at once: the log is otherwise flushed every 30 s of play and on
     // hide, so a crash or a killed tab lost the funnel's steps since the last sample.
     const PT_FLUSH = new Set(['skill', 'unlock', 'phase', 'ship', 'transcend', 'challenge', 'perk', 'ending', 'mailAccepted', 'setting', 'save', 'evals']);
-    // The Feed (feed.js, feed-ui.js): the swarm eats on the game's clock, so it grazes while you are elsewhere with the
-    // page open. It runs under the ring, or while its screen is open (the test door). What it earns is research.
+    // The Feed (feed.js, feed-ui.js): the swarm eats on the game's clock, so it eats (at a quarter speed, with nobody
+    // leading it) while you are elsewhere with the page open. It runs under the ring, or while its screen is open (the test door). What it earns is research.
     function feedTick(dt) {
         if (!E.isRing() && !window.FeedUI?.isOpen) return;
         feedShow(E.feedStep(state, dt));
     }
     function feedShow(out) {
         for (const ev of out.events) {
-            if (ev.type === 'layer') pt('feedLayer', { layer: ev.layer, pay: ev.pay, mites: ev.mites, eaten: state.feed.stats.eaten });
+            if (ev.type === 'layer') pt('feedLayer', { layer: ev.layer, pay: ev.pay, mites: ev.mites, eaten: state.feed.stats.eaten, cleaned: state.feed.stats.cleaned });
             else if (ev.type === 'fragment') pt('feedFragment', { set: ev.set, found: ev.found });
             else if (ev.type === 'empty') pt('feedEmpty', { layer: state.feed.layers + 1, eaten: state.feed.stats.eaten });
         }
@@ -13316,7 +13316,7 @@ window.AGI = (function () {
             // The Feed (Build 1 of the ring: its screen behind a test door, opened from here or with #feed).
             openFeed: () => { window.FeedUI?.open(); pt('view', { v: 'feed' }); },
             // A Packet Snare run's worth of packets on the heap, for testing before runs fill it.
-            feedDeliver(sector = 1, packets = 40, gold = 0) { feedShow(E.feedDeliver(state, { sector, packets, gold })); afterChange(); },
+            feedDeliver(sector = 1, packets = 40, gold = 0, garbled = 0, popped = 0) { feedShow(E.feedDeliver(state, { sector, packets, gold, garbled, popped })); afterChange(); },
             resetFeed() { window.FeedUI?.close(); state.feed = E.defaultState(Date.now()).feed; afterChange(); },
             // What the AI has learned of every kind of captcha, raised by `by` (0 to 1): for watching it learn without the solves.
             evalsTeach(by = 0.25) {

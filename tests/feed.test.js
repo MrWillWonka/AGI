@@ -1,27 +1,36 @@
-// The Feed (feed.js): the heap, tiles, layers, mites, pointing, chewing and grazing. Build 1 of design/ring-build.md.
+// The Feed (feed.js): the box of sand, pouring and falling, the swarm left alone and led, slow sand, layers and mites.
+// Build 1 of design/ring-build.md; the owner's sand design of 2026-11-13.
 const test = require('node:test');
 const assert = require('node:assert');
 const Feed = require('../feed.js');
 const Model = require('../tools/ring-model.js');
 
-const SEEDS = Array.from({ length: 40 }, (_, i) => i + 1);
-const kinds = s => s.tiles.filter(Boolean).reduce((m, t) => { m[t.k] = (m[t.k] || 0) + 1; return m; }, {});
-const all = s => s.tiles.map((t, i) => (t && !t.e ? i : -1)).filter(i => i >= 0);
-// Plays until nothing can be eaten, pointing at everything in turn. Returns the research paid and every event.
-function eatAll(s, opts, pointing = true) {
+const { w: W, h: H, grains: G } = Feed.FEED;
+const FAST = { chew: 60, graze: 1, speed: 80 };   // for tests that only care what was eaten, not how long it took
+// Steps `seconds` in tenths, gathering what was paid and every event. `lead(state)` gives the point held, if any.
+function play(s, seconds, opts, lead) {
     let research = 0; const events = [];
-    for (let n = 0; n < 20000 && Feed.left(s) > 0; n++) {
-        if (pointing && !s.line.length) Feed.point(s, all(s), opts);
+    for (let i = 0; i < Math.round(seconds * 10); i++) {
+        if (lead) Feed.point(s, lead(s));
         const r = Feed.step(s, 0.1, opts);
         research += r.research; events.push(...r.events);
     }
     return { research, events };
 }
+function eatAll(s, opts = FAST, cap = 600) {
+    let research = 0; const events = [];
+    for (let t = 0; t < cap && Feed.left(s) > 0; t++) { const r = play(s, 1, opts); research += r.research; events.push(...r.events); }
+    return { research, events };
+}
+const kindAt = (s, i) => Feed.KIND_IDS[Feed.kindOf(s.cells[i])];
+const surface = (s, i) => { const x = i % W, y = (i - x) / W; return y === 0 || !s.cells[i - W] || (x > 0 && !s.cells[i - 1]) || (x < W - 1 && !s.cells[i + 1]) || (y < H - 1 && !s.cells[i + W]); };
+const bottom = s => { for (let i = s.cells.length - 1; i >= 0; i--) if (s.cells[i]) return { x: i % W + 0.5, y: Math.floor(i / W) + 0.5 }; return null; };
 
 test('the dials start at the ring model\'s numbers', () => {
     const d = Model.DEFAULTS, f = Feed.FEED;
     assert.equal(f.chew, d.chew);
     assert.equal(f.graze, d.graze);
+    assert.equal(f.graze, 0.25, 'left alone, a quarter speed (the owner\'s call)');
     assert.deepEqual(f.tough, d.tough);
     assert.equal(f.layerGrow, d.layerGrow);
     assert.equal(f.miteFirst, d.miteFirst);
@@ -29,239 +38,262 @@ test('the dials start at the ring model\'s numbers', () => {
     assert.equal(f.layerFirst, 30);
 });
 
-test('a new Feed is one mite on an empty first layer, and says nothing until data arrives', () => {
+test('a new Feed is one mite over an empty box, and says nothing until data arrives', () => {
     const s = Feed.newFeed({ seed: 3 });
     assert.equal(s.mites, 1);
-    assert.equal(s.size, 30);
+    assert.equal(s.swarm.length, 1);
+    assert.equal(s.cells.length, W * H);
     assert.equal(Feed.left(s), 0);
     assert.deepEqual(Feed.step(s, 5), { research: 0, events: [] });
-    const g = Feed.grid(s);
-    assert.ok(g.cols * g.rows >= g.size && g.cols * (g.rows - 1) < g.size);
 });
 
-test('the first heap: 40 packets fill the first layer of 30 and 10 wait for the next', () => {
-    for (const seed of SEEDS) {
+test('packets pour in as sand, four grains each, and settle into a pile on the floor', () => {
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
         const s = Feed.newFeed({ seed });
-        const r = Feed.deliver(s, { sector: 1, packets: 40, gold: 0 });
-        assert.equal(r.added, 30);
-        assert.equal(s.free, 0);
-        assert.equal(Feed.waiting(s), 10);
-        assert.equal(Feed.left(s), 30);
-        const k = kinds(s);
-        assert.equal(k.fragment, 1, `seed ${seed}: the first layer hides one fragment`);
-        assert.equal(k.plain, 29, `seed ${seed}: sector 1 brings nothing unreadable`);
-        assert.ok(s.tiles.every(t => t.s === 0 && t.b === 1), 'face down, one bite each');
+        assert.equal(Feed.deliver(s, { sector: 1, packets: 40, gold: 4 }).added, 40 * G);
+        assert.equal(s.grains, 0, 'nothing is in the box until it pours');
+        Feed.step(s, 0.5, { chew: 0 });
+        assert.ok(s.grains > 0 && Feed.waiting(s) > 0, 'it pours over time');
+        Feed.step(s, 8, { chew: 0 });
+        assert.equal(s.grains, 160, `seed ${seed}`);
+        assert.equal(Feed.waiting(s), 0);
+        const c = Feed.census(s);
+        assert.deepEqual([c.plain, c.vein, c.fragment], [143, 16, 1], `seed ${seed}`);
+        // At rest: every grain sits on the floor or on sand.
+        for (let i = 0; i + W < s.cells.length; i++) if (s.cells[i]) assert.ok(s.cells[i + W], `seed ${seed}: a grain hangs in the air`);
+        const top = s.cells.findIndex(v => v);
+        assert.ok(Math.floor(top / W) > H - 16, `seed ${seed}: a low mound, not a column`);
+        assert.equal(s.rest, true);
     }
 });
 
-test('the same seed lays the same heap; another seed lays another', () => {
-    const lay = seed => { const s = Feed.newFeed({ seed }); Feed.deliver(s, { sector: 2, packets: 30, gold: 5 }); return JSON.stringify(s.tiles); };
+test('the same seed makes the same pile; another seed another', () => {
+    const lay = seed => { const s = Feed.newFeed({ seed }); Feed.deliver(s, { sector: 2, packets: 60, gold: 6, garbled: 5 }); Feed.step(s, 8); return JSON.stringify(s); };
     assert.equal(lay(7), lay(7));
     assert.notEqual(lay(7), lay(8));
 });
 
-test('pointing: the swarm eats your line in order, a tile a bite on sector 1, two bites a second a mite', () => {
-    const s = Feed.newFeed({ seed: 5 });
-    Feed.deliver(s, { sector: 1, packets: 30, gold: 0 });
-    const line = Feed.point(s, [{ c: 4, r: 0 }, 9, 2, { c: 0, r: 3 }]);
-    assert.deepEqual(line, [4, 9, 2, 18]);
-    const r = Feed.step(s, 1);
-    assert.deepEqual(r.events.filter(e => e.type === 'eat').map(e => e.cell), [4, 9]);
-    assert.equal(Feed.step(s, 1).events.filter(e => e.type === 'eat').length, 2);
-    assert.equal(s.line.length, 0);
-    assert.equal(s.stats.eaten, 4);
+test('left alone, the swarm eats from the outside in: every grain it takes is on the pile\'s surface', () => {
+    const s = Feed.newFeed({ seed: 4 });
+    Feed.deliver(s, { sector: 1, packets: 120, gold: 0 });
+    Feed.step(s, 8, { chew: 0 });
+    let eaten = 0;
+    for (let i = 0; i < 4000 && eaten < 60; i++) {
+        const before = s.cells.slice();
+        for (const e of Feed.step(s, Feed.STEP).events) {
+            if (e.type !== 'eat') continue;
+            const cell = e.y * W + e.x;
+            assert.ok(before[cell] && surface({ cells: before }, cell), `bite ${eaten}: a buried grain was eaten`);
+            eaten++;
+        }
+    }
+    assert.ok(eaten >= 60);
 });
 
-test('a line ignores cells off the heap, empty slots, eaten tiles and repeats, and holds at most lineMax tiles', () => {
-    const s = Feed.newFeed({ seed: 5 });
-    Feed.deliver(s, { sector: 1, packets: 12, gold: 0 });
-    const empty = s.tiles.findIndex(t => !t), full = all(s);
-    assert.deepEqual(Feed.point(s, [-1, 99, 2.5, { c: 9, r: 9 }, empty, full[0], full[0], full[1]]), [full[0], full[1]]);
-    Feed.step(s, 0.5);
-    assert.deepEqual(Feed.point(s, [full[0], full[2]]), [full[2]], 'an eaten tile is not pointed at again');
-    const t = Feed.newFeed({ seed: 5 });
-    Feed.deliver(t, { sector: 1, packets: 30, gold: 0 });
-    assert.equal(Feed.point(t, all(t)).length, Feed.FEED.lineMax);
+test('led, a mite eats two packets a second; left alone, a quarter of that', () => {
+    const rate = lead => {
+        const s = Feed.newFeed({ seed: 9 });
+        Feed.deliver(s, { sector: 1, packets: 300, gold: 0 });
+        Feed.step(s, 12, { chew: 0 });
+        play(s, 6, undefined, lead);   // time to reach the pile
+        const from = s.stats.eaten;
+        play(s, 20, undefined, lead);
+        return (s.stats.eaten - from) / G / 20;
+    };
+    const led = rate(bottom), alone = rate(null);
+    assert.ok(Math.abs(led - 2) < 0.25, `led: ${led} packets a second`);
+    assert.ok(Math.abs(alone - 0.5) < 0.1, `alone: ${alone} packets a second`);
 });
 
-test('grazing: with no line the swarm eats at about a third of the speed, lowest slot first', () => {
-    const s = Feed.newFeed({ seed: 9 });
-    Feed.deliver(s, { sector: 1, packets: 30, gold: 0 });
-    let eaten = [];
-    for (let i = 0; i < 100; i++) eaten.push(...Feed.step(s, 0.1).events.filter(e => e.type === 'eat').map(e => e.cell));
-    assert.equal(eaten.length, 7, '10 s × 2 × 0.35');
-    assert.deepEqual(eaten, [0, 1, 2, 3, 4, 5, 6]);
+test('the swarm goes where you hold: to a point in empty air it eats nothing, and through sand it eats its way', () => {
+    const s = Feed.newFeed({ seed: 6 });
+    Feed.deliver(s, { sector: 1, packets: 200, gold: 0 });
+    Feed.step(s, 10, { chew: 0 });
+    s.mites = 3; s.swarm.push({ x: 10.5, y: 1.5, b: 0, t: -1 }, { x: 50.5, y: 1.5, b: 0, t: -1 });
+    const air = { x: 6.5, y: 20.5 };
+    play(s, 5, undefined, () => air);
+    assert.equal(s.stats.eaten, 0);
+    for (const m of s.swarm) assert.ok(Math.hypot(m.x - air.x, m.y - air.y) < 1, 'every mite came to the point');
+    // Now a point on the floor under the pile's middle: they tunnel to it.
+    const deep = { x: W / 2 + 0.5, y: H - 0.5 };
+    const { events } = play(s, 40, undefined, () => deep);
+    const eats = events.filter(e => e.type === 'eat');
+    assert.ok(eats.length > 40);
+    assert.ok(eats.some(e => Math.hypot(e.x + 0.5 - deep.x, e.y + 0.5 - deep.y) < 3), 'they ate down to the point');
+    for (const m of s.swarm) assert.ok(Math.hypot(m.x - deep.x, m.y - deep.y) < Feed.FEED.near + 2);
+    // Let go: the point is forgotten.
+    assert.equal(Feed.point(s, null), null);
+    assert.equal(s.aim, null);
 });
 
-test('research is whole numbers, and what a step returns is what its events paid', () => {
-    for (const seed of SEEDS.slice(0, 10)) {
+test('a point is kept inside the box, and junk is no point', () => {
+    const s = Feed.newFeed({ seed: 1 });
+    assert.deepEqual(Feed.point(s, { x: -5, y: 1e9 }), { x: 0, y: H - 0.01 });
+    for (const junk of [undefined, 5, 'x', {}, { x: 1 }, { x: NaN, y: 2 }, { x: Infinity, y: 2 }]) assert.equal(Feed.point(s, junk), null);
+});
+
+test('research is whole numbers, a quarter of a packet\'s pay a grain, and nothing is lost between steps', () => {
+    for (const seed of [1, 2, 3]) {
         const s = Feed.newFeed({ seed });
-        Feed.deliver(s, { sector: 3, packets: 200, gold: 20 });
+        Feed.deliver(s, { sector: 1, packets: 40, gold: 4 });
         const { research, events } = eatAll(s);
         assert.ok(Number.isInteger(research));
-        assert.equal(research, events.filter(e => e.type === 'eat' || e.type === 'layer').reduce((n, e) => n + e.pay, 0));
+        // 143 letters at 1, 16 gold at 3, a fragment at 2, a quarter each; and the first layer's lump of 6.
+        const owed = (143 * 1 + 16 * 3 + 1 * 2) / G + 6;
+        assert.equal(research, Math.floor(owed));
+        assert.ok(Math.abs(s.owed - (owed - Math.floor(owed))) < 1e-6);
         assert.equal(research, s.stats.research);
+        assert.equal(events.filter(e => e.type === 'eat').length, 160);
     }
 });
 
-test('a cleared layer pays a lump, the next is 1.8 times bigger, and the first and every second after it add a mite', () => {
+test('a layer digested pays a lump; the next is 1.8 times bigger; the first and every second after it add a mite', () => {
     const s = Feed.newFeed({ seed: 2 });
-    Feed.deliver(s, { sector: 1, packets: 300, gold: 0 });
-    const { events } = eatAll(s);
-    const layers = events.filter(e => e.type === 'layer');
-    assert.deepEqual(layers.map(e => e.pay), [6, 11, 19], '0.2 of 30, 54 and 97 slots');
+    Feed.deliver(s, { sector: 1, packets: 190, gold: 0 });
+    const layers = eatAll(s).events.filter(e => e.type === 'layer');
+    assert.deepEqual(layers.map(e => e.pay), [6, 11, 19], '0.2 of 30, 54 and 97 packets');
     assert.deepEqual(layers.map(e => e.mite), [true, false, true]);
     assert.equal(s.mites, 3);
+    assert.equal(s.swarm.length, 3, 'a place in the box for every mite');
     assert.equal(s.layers, 3);
-    assert.equal(s.size, 175);
     assert.deepEqual([0, 1, 2, 3].map(n => Feed.layerSize(n)), [30, 54, 97, 175]);
+    assert.equal(s.fed, (190 - 30 - 54 - 97) * G, 'what is left over counts toward the next layer');
 });
 
-test('a new layer waits for you: a step that clears a layer eats nothing on the next', () => {
-    const s = Feed.newFeed({ seed: 2 });
-    Feed.deliver(s, { sector: 1, packets: 80, gold: 0 });
-    Feed.point(s, all(s));
-    let r;
-    for (let i = 0; i < 400 && s.layers === 0; i++) { Feed.point(s, all(s)); r = Feed.step(s, 30); }
-    assert.equal(r.events[r.events.length - 1].type, 'layer');
-    assert.equal(s.stats.eaten, 30);
-    assert.equal(s.line.length, 0, 'the old line went with the old layer');
-});
-
-test('the heap runs out: "empty" comes once, and again only after more data has come and gone', () => {
+test('the pile runs out: "empty" comes once, and again only after more data has come and gone', () => {
     const s = Feed.newFeed({ seed: 4 });
     Feed.deliver(s, { sector: 1, packets: 10, gold: 0 });
-    const first = eatAll(s).events.filter(e => e.type === 'empty');
-    assert.equal(first.length, 1);
+    eatAll(s);
+    const first = play(s, 2).events.concat();
+    assert.ok(first.length <= 1);
     assert.deepEqual(Feed.step(s, 10), { research: 0, events: [] });
-    assert.equal(s.bite, 0, 'no bites saved up while there is nothing to eat');
+    assert.equal(s.dry, true);
+    assert.ok(s.swarm.every(m => m.b === 0), 'no bites saved up while there is nothing to eat');
     Feed.deliver(s, { sector: 1, packets: 5, gold: 0 });
-    assert.equal(eatAll(s).events.filter(e => e.type === 'empty').length, 1);
+    assert.equal(s.dry, false);
+    const again = eatAll(s).events.concat(play(s, 2).events).filter(e => e.type === 'empty');
+    assert.equal(again.length, 1);
     assert.equal(s.layers, 0, 'half a layer is not a layer');
 });
 
-test('deeper data is tougher: two bites a tile from sector 2, three from sector 3, one more a sector after', () => {
+test('deeper data is tougher: two bites a grain from sector 2, three from sector 3, one more a sector after', () => {
     assert.deepEqual([1, 2, 3, 4, 6].map(k => Feed.bitesFor(k)), [1, 2, 3, 4, 6]);
-    const s = Feed.newFeed({ seed: 6 });
-    Feed.deliver(s, { sector: 3, packets: 30, gold: 0 });
-    const first = Feed.left(s);
-    Feed.point(s, all(s));
-    const r = Feed.step(s, 3);
-    assert.equal(r.events.filter(e => e.type === 'bite').length, 4);
-    assert.equal(r.events.filter(e => e.type === 'eat').length, 2);
-    assert.equal(Feed.left(s), first - 2);
-});
-
-test('gold packets arrive as veins: lines of touching tiles that pay more and show their neighbours when eaten', () => {
-    for (const seed of SEEDS) {
-        const s = Feed.newFeed({ seed });
-        Feed.deliver(s, { sector: 1, packets: 30, gold: 5 });
-        const veins = s.tiles.map((t, i) => (t.k === 'vein' ? i : -1)).filter(i => i >= 0);
-        assert.equal(veins.length, 5, `seed ${seed}`);
-        const near = (a, b) => { const p = Feed.cellOf(s, a), q = Feed.cellOf(s, b); return Math.max(Math.abs(p.c - q.c), Math.abs(p.r - q.r)) === 1; };
-        const lone = veins.filter(a => !veins.some(b => near(a, b)));
-        assert.ok(lone.length <= 1, `seed ${seed}: veins lie together`);
-        const start = veins.find(a => veins.some(b => near(a, b)));
-        Feed.point(s, [start]);
-        const r = Feed.step(s, 0.5);
-        assert.equal(r.events[0].pay, Feed.KINDS.vein.pay);
-        const shown = r.events.find(e => e.type === 'reveal');
-        assert.ok(shown && shown.cells.every(i => s.tiles[i].k === 'vein' && s.tiles[i].s === 1 && near(i, start)), `seed ${seed}`);
+    for (const [sector, bites] of [[1, 1], [3, 3]]) {
+        const s = Feed.newFeed({ seed: 6 });
+        Feed.deliver(s, { sector, packets: 30, gold: 0 });
+        Feed.step(s, 8, { chew: 0 });
+        assert.ok(s.cells.every((v, i) => !v || kindAt(s, i) === 'numbers' || Feed.hpOf(v) === bites));
     }
 });
 
-test('one fragment hides in each layer until the parcel set is whole, then no more', () => {
-    for (const seed of SEEDS.slice(0, 12)) {
+test('gold pours in together: most gold grains lie against another', () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
         const s = Feed.newFeed({ seed });
-        Feed.deliver(s, { sector: 1, packets: 2000, gold: 0 });
+        Feed.deliver(s, { sector: 1, packets: 120, gold: 12 });
+        Feed.step(s, 12, { chew: 0 });
+        const gold = s.cells.map((v, i) => (v && kindAt(s, i) === 'vein' ? i : -1)).filter(i => i >= 0);
+        assert.equal(gold.length, 12 * G);
+        const near = gold.filter(i => [-W - 1, -W, -W + 1, -1, 1, W - 1, W, W + 1].some(d => gold.includes(i + d)));
+        assert.ok(near.length >= gold.length * 0.75, `seed ${seed}: ${near.length} of ${gold.length} in a seam`);
+    }
+});
+
+test('one fragment a layer until the parcel set is whole, then no more', () => {
+    for (const seed of [1, 2, 3]) {
+        const s = Feed.newFeed({ seed });
+        Feed.deliver(s, { sector: 1, packets: 700, gold: 0 });
         const { events } = eatAll(s);
         const found = events.filter(e => e.type === 'fragment');
         assert.deepEqual(found.map(e => e.piece), [0, 1, 2, 3], `seed ${seed}`);
         assert.deepEqual(found.map(e => e.complete), [false, false, false, true]);
         assert.deepEqual(s.fragments.parcel, [0, 1, 2, 3]);
-        const layerOf = found.map(e => events.slice(0, events.indexOf(e)).filter(x => x.type === 'layer').length);
-        assert.deepEqual(layerOf, [0, 1, 2, 3], `seed ${seed}: one a layer`);
-        assert.ok(s.layers >= 5 && !s.tiles.some(t => t && t.k === 'fragment'));
+        assert.ok(s.layers >= 5);
+        assert.equal(events.filter(e => e.type === 'eat' && e.kind === 'fragment').length, 4);
     }
 });
 
 test('numbers come from sector 2 and pictures from sector 4, about a tenth each', () => {
-    const count = sector => { const s = Feed.newFeed({ seed: 11, layerFirst: 4000, layerMax: 4000 }); Feed.deliver(s, { sector, packets: 4000, gold: 0 }); return kinds(s); };
-    assert.equal(count(1).numbers, undefined);
-    assert.equal(count(1).pictures, undefined);
-    assert.ok(Math.abs(count(2).numbers - 400) < 80);
-    assert.equal(count(3).pictures, undefined);
-    assert.ok(Math.abs(count(4).numbers - 400) < 80 && Math.abs(count(4).pictures - 400) < 80);
+    const count = sector => { const s = Feed.newFeed({ seed: 11 }); Feed.deliver(s, { sector, packets: 1000, gold: 0 }); Feed.step(s, 60, { chew: 0 }); return Feed.census(s); };
+    const one = count(1), two = count(2), four = count(4);
+    assert.equal(one.numbers, undefined);
+    assert.equal(two.pictures, undefined);
+    assert.ok(Math.abs(two.numbers - 400) < 80, `${two.numbers}`);
+    assert.ok(Math.abs(four.numbers - 400) < 80 && Math.abs(four.pictures - 400) < 80);
     assert.deepEqual(Feed.LOCKED, ['numbers', 'pictures']);
     assert.deepEqual(Feed.LOCKED.map(k => Feed.KINDS[k].skill), ['Embeddings', 'Edge Detection']);
 });
 
-test('unreadable tiles can\'t be eaten, show themselves when pointed at, and never hold a layer up', () => {
-    const s = Feed.newFeed({ seed: 13 });
-    Feed.deliver(s, { sector: 2, packets: 30, gold: 0 });
-    const locked = s.tiles.map((t, i) => (t.k === 'numbers' ? i : -1)).filter(i => i >= 0);
-    assert.ok(locked.length > 0);
-    assert.equal(Feed.left(s), 30 - locked.length);
-    Feed.point(s, [locked[0]]);
-    const r = Feed.step(s, 1);
-    assert.deepEqual(r.events[0], { type: 'locked', cell: locked[0], kind: 'numbers', skill: 'Embeddings' });
-    assert.equal(s.tiles[locked[0]].e, 0);
-    assert.deepEqual(Feed.point(s, [locked[0]]), [], 'once seen, it is not pointed at again');
-    const { events } = eatAll(s);
-    const layer = events.find(e => e.type === 'layer');
-    assert.deepEqual(layer.locked, { numbers: locked.length });
-    assert.deepEqual(s.locked, [{ kind: 'numbers', sector: 2, n: locked.length }]);
-    assert.equal(s.stats.eaten, 30 - locked.length);
+test('garbled sand is slow to eat and pays nothing; it comes from garbled catches, and half of what popped bubbles held', () => {
+    const s = Feed.newFeed({ seed: 8 });
+    assert.equal(Feed.deliver(s, { sector: 1, packets: 0, garbled: 3, popped: 9 }).added, (3 + 5) * G);
+    Feed.step(s, 6, { chew: 0 });
+    assert.deepEqual(Feed.census(s), { garbled: 32 });
+    assert.ok(s.cells.every(v => !v || Feed.hpOf(v) === Feed.FEED.slow), 'four times the bites');
+    const { research, events } = eatAll(s);
+    assert.equal(research, 0);
+    assert.equal(s.owed, 0);
+    assert.equal(s.stats.cleaned, 32);
+    assert.equal(s.stats.eaten, 0);
+    assert.equal(s.fed, 0, 'it is no part of a layer');
+    assert.ok(events.filter(e => e.type === 'eat').every(e => e.kind === 'garbled' && e.pays === false));
+    // The same weight of good sand goes much faster.
+    const time = load => { const t = Feed.newFeed({ seed: 8 }); Feed.deliver(t, load); Feed.step(t, 6, { chew: 0 }); let n = 0; while (Feed.left(t) > 0 && n < 4000) { Feed.point(t, bottom(t)); Feed.step(t, 0.1); n++; } return n / 10; };
+    const good = time({ sector: 1, packets: 8 }), bad = time({ sector: 1, packets: 0, garbled: 8 });
+    assert.ok(bad > good * 2.5, `bad ${bad} s, good ${good} s`);
 });
 
-test('learning the skill brings the tiles left behind back to the heap, readable', () => {
-    const s = Feed.newFeed({ seed: 13 });
-    Feed.deliver(s, { sector: 2, packets: 30, gold: 0 });
-    eatAll(s);
-    const kept = s.locked[0].n;
+test('sand the model has no skill for is slow and pays nothing, until the skill is learned', () => {
+    const fresh = () => { const s = Feed.newFeed({ seed: 13 }); Feed.deliver(s, { sector: 2, packets: 200, gold: 0 }); Feed.step(s, 20, { chew: 0 }); return s; };
+    const a = fresh(), numbers = Feed.census(a).numbers;
+    assert.ok(numbers > 20);
+    for (let i = 0; i < a.cells.length; i++) if (a.cells[i]) assert.equal(Feed.hpOf(a.cells[i]), kindAt(a, i) === 'numbers' ? 2 * Feed.FEED.slow : 2);
+    const without = eatAll(a);
+    assert.equal(a.stats.cleaned, numbers);
+    assert.ok(without.events.filter(e => e.kind === 'numbers').every(e => e.pays === false));
+    // Learn it first, and the same sand is good: quick, and paid at its own rate.
+    const b = fresh();
     assert.deepEqual(Feed.readableFor(['Pattern Matching']), []);
     assert.deepEqual(Feed.readableFor(['Pattern Matching', 'Embeddings']), ['numbers']);
-    const r = Feed.setReadable(s, Feed.readableFor(['Pattern Matching', 'Embeddings']));
-    assert.equal(r.returned, kept);
-    assert.deepEqual(s.locked, []);
-    assert.equal(Feed.left(s), kept);
-    assert.ok(s.tiles.filter(Boolean).every(t => t.k === 'numbers' && t.b === 2));
-    const { research } = eatAll(s);
-    assert.equal(research, kept * Feed.KINDS.numbers.pay);
-    // Tiles of a readable kind already on the layer open up too.
-    const t = Feed.newFeed({ seed: 13 });
-    Feed.deliver(t, { sector: 2, packets: 30, gold: 0 });
-    Feed.setReadable(t, ['numbers']);
-    assert.equal(Feed.left(t), 30);
+    assert.equal(Feed.setReadable(b, ['numbers']).turned, numbers);
+    assert.ok(b.cells.every(v => !v || Feed.hpOf(v) === 2));
+    assert.equal(Feed.setReadable(b, ['numbers']).turned, 0, 'turned once');
+    const withIt = eatAll(b);
+    assert.equal(b.stats.cleaned, 0);
+    assert.ok(withIt.research > without.research + numbers * Feed.KINDS.numbers.pay / G - 2);
+    // Sand that pours in after the skill is learned is good from the start.
+    Feed.deliver(b, { sector: 2, packets: 100, gold: 0 });
+    Feed.step(b, 12, { chew: 0 });
+    assert.ok(b.cells.every(v => !v || Feed.hpOf(v) === 2));
 });
 
-test('a saved heap carries on exactly: the state is plain data, the generator\'s place included', () => {
-    const play = (s, n) => { const out = []; for (let i = 0; i < n; i++) { if (i % 7 === 0) Feed.point(s, all(s).reverse()); out.push(Feed.step(s, 0.25)); if (i % 40 === 5) out.push(Feed.deliver(s, { sector: 2, packets: 60, gold: 6 })); } return out; };
+test('a full box makes the rest wait at the spout, and not a grain is lost', () => {
+    const s = Feed.newFeed({ seed: 5 });
+    Feed.deliver(s, { sector: 1, packets: 2500, gold: 100, garbled: 100 });
+    Feed.step(s, 200, { chew: 0 });
+    assert.ok(Feed.waiting(s) > 0, 'it did not all fit');
+    assert.ok(Feed.fill(s) > 0.7 && Feed.fill(s) <= 1);
+    assert.equal(s.grains, s.cells.filter(Boolean).length);
+    assert.equal(s.grains + Feed.waiting(s), 2600 * G);
+    play(s, 30, FAST);
+    assert.equal(s.grains + Feed.waiting(s) + s.stats.eaten + s.stats.cleaned, 2600 * G);
+});
+
+test('a saved pile carries on exactly: the state is plain data, the generator\'s place included', () => {
+    const go = (s, n) => { const out = []; for (let i = 0; i < n; i++) { Feed.point(s, i % 50 < 30 ? { x: 20 + (i % 7), y: H - 8 } : null); out.push(Feed.step(s, 0.25)); if (i % 40 === 5) out.push(Feed.deliver(s, { sector: 2, packets: 60, gold: 6, popped: 4 })); } return out; };
     const a = Feed.newFeed({ seed: 21 });
-    Feed.deliver(a, { sector: 2, packets: 50, gold: 4 });
-    play(a, 30);
-    const b = JSON.parse(JSON.stringify(a));
+    Feed.deliver(a, { sector: 2, packets: 50, gold: 4, garbled: 6 });
+    go(a, 30);
+    const b = Feed.clean(JSON.parse(JSON.stringify(a)));
     assert.deepEqual(b, a);
-    assert.deepEqual(play(b, 200), play(a, 200));
+    assert.deepEqual(go(b, 200), go(a, 200));
     assert.deepEqual(b, a);
 });
 
-test('the mites at work: one tile each, your line first', () => {
-    const s = Feed.newFeed({ seed: 2 });
-    Feed.deliver(s, { sector: 1, packets: 30, gold: 0 });
-    s.mites = 3;
-    assert.deepEqual(Feed.working(s), [0, 1, 2]);
-    Feed.point(s, [20, 12]);
-    assert.deepEqual(Feed.working(s), [20, 12, 0]);
-});
-
-test('odd loads are safe: nothing, negatives, more gold than packets', () => {
+test('odd loads are safe: nothing, negatives, more gold than packets, junk steps', () => {
     const s = Feed.newFeed({ seed: 1 });
-    assert.equal(Feed.deliver(s, { sector: 1, packets: 0 }).added, 0);
-    assert.equal(Feed.deliver(s, { sector: 1, packets: -5, gold: 3 }).added, 0);
-    assert.equal(Feed.deliver(s, {}).added, 0);
-    assert.equal(Feed.deliver(s, { sector: 0, packets: 6.9, gold: 99 }).added, 6);
-    assert.equal(kinds(s).vein, 6);
-    assert.deepEqual(Feed.step(s, -1), { research: 0, events: [] });
-    assert.deepEqual(Feed.step(s, NaN), { research: 0, events: [] });
+    for (const load of [undefined, {}, { sector: 1, packets: 0 }, { sector: 1, packets: -5, gold: 3 }, { packets: 'x', garbled: NaN }]) assert.equal(Feed.deliver(s, load).added, 0);
+    assert.equal(Feed.deliver(s, { sector: 0, packets: 6.9, gold: 99 }).added, 6 * G);
+    Feed.step(s, 6, { chew: 0 });
+    assert.deepEqual(Feed.census(s), { vein: 24 });
+    for (const dt of [-1, 0, NaN, Infinity]) assert.deepEqual(Feed.step(s, dt), { research: 0, events: [] });
 });

@@ -150,6 +150,27 @@ clock, no enemy, no failed run, and it keeps going while you are elsewhere. (It 
 hours; the owner picked The Feed.) It is the **second** game a player meets, so it has to be fun in its first minute
 with nothing unlocked.
 
+**The sand design (the owner's call, 2026-11-13; built in `feed.js` and `feed-ui.js`).** Where it differs from the
+bullets and the table under it (a grid of face-down tiles, a drawn line), this is newer:
+
+- **Packets fall into a box and turn to sand, like sand art.** A packet is four grains. Each delivery is its own colour,
+  so the pile lies in strata. Gold packets pour in together and lie in seams.
+- **The swarm eats the sand itself, from the outside in.** Left alone, each mite goes to the nearest grain on the pile's
+  surface, at a quarter of full speed. Sand above what was eaten falls in.
+- **The one verb is lead.** While you hold a finger or the button down, every mite heads for that point at full speed,
+  eating what is in its way and then the sand nearest it. So you lead them into gold and away from what wastes time.
+- **Two kinds of slow sand, with the same effect and their own looks:** *garbled* sand is bad packets (a garbled
+  catch's packets, and a lesser share, *proposed* half, of what a popped bubble or snapped loop held); *unknown* sand
+  is data the model has no skill for yet (numbers until Embeddings, pictures until Edge Detection). Both take four
+  times the bites (*proposed*) and pay nothing. Learning the skill turns that kind good, in the pile and from then on;
+  garbled sand is never good.
+- **Layers are counted, not drawn:** every 30 packets' worth of paying sand eaten (then 1.8 times more each) is a layer
+  digested, with its lump of research and the mites as below.
+- *Proposed, to tune in play:* the box is 64 by 112 cells and holds about 1,650 packets; more waits at the spout.
+  Research is paid a quarter of a packet's worth a grain. Mites are not hurt by anything.
+- *Open:* nothing is hidden in the sand yet (every grain shows what it is), so "discovering" is seeing a seam or a
+  fragment glint and leading the swarm to it. A sideways phone shows the tall box very small.
+
 - **The picture.** Everything you snared lands in a heap of packets, grey and garbled. Your AI is a swarm of mites on
   top. Where they chew, tiles flip over and show what the data was.
 - **The one verb: point.** Drag a finger across the heap and the swarm eats along your line. (A starting point, to be
@@ -327,12 +348,13 @@ Packet Snare's real run sizes (the 18.7 and 18.8 logs). The dials are guesses un
 |---|---|---|
 | Compute per second of a run's clock | 10 on sector 1, times 1.6 a sector | How often you go back to the lab |
 | Research per full sprint | 35 | How long the Pattern Matching hill takes |
-| Tiles a mite eats a second when pointed | 2, and about a third of that grazing | How long you stay in The Feed |
+| Packets a mite eats a second when led | 2, and a quarter of that left alone (the owner's call) | How long you stay in The Feed |
 | Bites per packet | 1, 2, 3 on sectors 1, 2, 3 | Whether deeper data stays worth pointing at |
 | A new mite | With the first layer, then every second one; layers 1.8 times bigger each | Whether The Feed eats itself |
 
-That gives (rerun with the first mite on the first layer): the first boss met at minute 6, the warm-up summit at 6,
-Pattern Matching at 14, the boss down at 15.5; time split 38% Packet Snare, 22% The Feed, 25% training, 14% the lab.
+That gives (rerun with the first mite on the first layer and a quarter speed left alone): the first boss met at minute
+6, the warm-up summit at 6, Pattern Matching at 14.5, the boss down at 15.5; time split 38% Packet Snare, 23% The Feed,
+25% training, 14% the lab. The model knows nothing of slow sand.
 
 - **Buy hardware before you scrape:** never doing so means 42% of the time clicking and the boss down at minute 23.
 - **A mite per layer makes The Feed eat itself:** 2% of the player's time. Hence the two brakes above.
