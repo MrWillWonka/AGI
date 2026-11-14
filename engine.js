@@ -2180,10 +2180,13 @@
     // a grind can still do it: your hits do `SNARE_GATE_ARMOR` of their damage. A later boss needs every gate before it.
     const SNARE_GATE_SKILLS = [[MINE_SECTOR, 'Image Recognition'], [MINION_SECTOR, 'Speech Recognition'], [NET_SECTOR, 'Translation'], [SWARM_SECTOR, 'Analogy']];
     const SNARE_GATE_ARMOR = 0.3;
-    // The playground build (the owner's call, 2026-11-13): no boss waits on a Training skill. Set true to bring the gates back.
-    const SNARE_SKILL_GATES = false;
+    // The playground link (`#playground`, the owner's call, 2026-11-14): no boss waits on a Training skill there.
+    // game.js calls `setPlayground(true)` for that link; the plain game keeps the gates.
+    let playground = false;
+    const setPlayground = on => { playground = !!on; };
+    const isPlayground = () => playground;
     // The first skill a boss on sector k needs that you haven't learned (null when none).
-    const snareGateSkill = (s, k) => { if (!SNARE_SKILL_GATES || !isSnareBossSector(k)) return null; const g = SNARE_GATE_SKILLS.find(([sec, name]) => k >= sec && !knows(s, name)); return g ? g[1] : null; };
+    const snareGateSkill = (s, k) => { if (playground || !isSnareBossSector(k)) return null; const g = SNARE_GATE_SKILLS.find(([sec, name]) => k >= sec && !knows(s, name)); return g ? g[1] : null; };
     const SNARE_GATES = [MINE_SECTOR, NET_SECTOR, MINION_SECTOR, SWARM_SECTOR];
     const SNARE_STAGES = [
         { sector: 0, adds: 'packets' }, { sector: RED_SECTOR, adds: 'red' }, { sector: AV_SECTOR, adds: 'antivirus' },
@@ -3409,7 +3412,7 @@
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, SNARE_OPEN_AT_START, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
-        SNARE_RED_UNIT, SNARE_RED_FLOOR, snareRedShare, SNARE_DESKTOP, snareDesktop, SNARE_RUN_FLOORS, snareCatch, snareBossDown, snareMeltPool, snareMeltPay, snareGoalMet, snareGoal, isSnareBossSector, SNARE_BOSS_EVERY, SNARE_FIRST_BOSS, snareBossOrdinal, finishSnare, snareOpts, SNARE_STAGES, RED_SECTOR, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, SNARE_GATE_SKILLS, SNARE_GATE_ARMOR, SNARE_SKILL_GATES, snareGateSkill, SNARE_END_BOSS, snareGoalOrdinal, snareBossHp, snareBossHealth, SNARE_SKILL_BUFFS, snareSkillBuffs, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
+        SNARE_RED_UNIT, SNARE_RED_FLOOR, snareRedShare, SNARE_DESKTOP, snareDesktop, SNARE_RUN_FLOORS, snareCatch, snareBossDown, snareMeltPool, snareMeltPay, snareGoalMet, snareGoal, isSnareBossSector, SNARE_BOSS_EVERY, SNARE_FIRST_BOSS, snareBossOrdinal, finishSnare, snareOpts, SNARE_STAGES, RED_SECTOR, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, SNARE_GATE_SKILLS, SNARE_GATE_ARMOR, setPlayground, isPlayground, snareGateSkill, SNARE_END_BOSS, snareGoalOrdinal, snareBossHp, snareBossHealth, SNARE_SKILL_BUFFS, snareSkillBuffs, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany

@@ -27,12 +27,13 @@ test('each boss past the first names a Training skill, further along each time; 
     const idx = E.SNARE_GATE_SKILLS.map(([, name]) => E.SKILL_INDEX[name] + 1);
     assert.equal(idx[0], 6, 'the first gate is skill 6');
     for (let i = 2; i < idx.length; i++) assert.ok(idx[i] - idx[i - 1] >= idx[i - 1] - idx[i - 2], 'each further than the last');
-    if (!E.SNARE_SKILL_GATES) {   // the playground build: the gates are off, every boss takes full damage
+    // The playground link turns the gates off: every boss takes full damage.
+    E.setPlayground(true);
+    try {
         assert.equal(E.snareGateSkill(s, 5), null);
         assert.equal(E.snareOpts(s, 5).bossArmor, 1);
         assert.equal(E.snareOpts(s, 14).bossArmor, 1);
-        return;
-    }
+    } finally { E.setPlayground(false); }
     assert.equal(E.snareOpts(s, 5).bossArmor, E.SNARE_GATE_ARMOR);
     s.path.learned = E.SKILL_INDEX['Image Recognition'] + 1;
     assert.equal(E.snareOpts(s, 5).bossArmor, 1, 'learned: full damage');
