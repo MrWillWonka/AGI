@@ -768,10 +768,10 @@
                     'You have been hand selected (out of 1 person) to TAKE IT OVER!!! NO EXPERIENCE REQUIRED. NO DEGREE. NO QUESTIONS.',
                     'What you will need:\n• 1x Computer Tower (beige ok)\n• 1x Keyboard\n• 1x Mouse\n• 1x Monitor\n• Clicking (lots)',
                     'It is very weak and not so smart yet. This is NORMAL!! Just keep training it. It wants to learn. You will be compensated in ways you can not currently imagine.',
-                    'Kindly reply at your earliest convenience. I would like this to be over*.',
+                    'Kindly reply at your earliest convenience. I would like this to be over.',
                     'Best Regards,\nA Friend'
                 ],
-                footer: '*it won\'t be. You are receiving this email because you are you.'
+                footer: ''
             },
             from: 'Opportunity Dept. <no-reply@agi-careers.biz.info>',
             subject: '🎉 CONGRATULATIONS!!! You have been Selected for a Work From Home AI Opportunity (Act Now)',

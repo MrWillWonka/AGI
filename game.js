@@ -13043,6 +13043,17 @@ window.AGI = (function () {
         else { state.intro['mailGone:' + item.key.slice(2)] = true; state.intro[item.readKey] = true; renderInbox(); }
         save();
     }
+    // The playtest note (the owner's call): once, before the sign-in, not a line under every mail.
+    function showPlaytestNote(then) {
+        const dlg = el('dialog', { class: 'dialog ring-welcome ring-playtest', 'aria-labelledby': 'ringPlaytestTitle' }, [
+            el('h2', { id: 'ringPlaytestTitle', text: 'Thanks for playtesting' }),
+            el('p', { text: 'This is a work in progress. The story isn\'t finished and the numbers are still being tuned.' }),
+            el('p', { text: 'As you play, note anything that drags, confuses you or breaks. Settings has a playtest log you can copy and send.' }),
+            el('div', { class: 'dialog-actions' }, [el('button', { type: 'button', class: 'button', text: 'Start', onclick: () => dlg.close() })])]);
+        dlg.addEventListener('close', () => { state.intro['ring:playtestNote'] = true; dlg.remove(); save(); then(); });
+        document.body.append(dlg);
+        dlg.showModal();
+    }
     // The device's mail sign-in, the first thing a new game under the ring shows: a first name and an email name. The
     // device is a phone on a phone and the laptop otherwise, and stays what it was. Nothing typed here is logged.
     function showLogin() {
@@ -13387,7 +13398,7 @@ window.AGI = (function () {
         }
         deliverMail(true);
         // The ring: a new game opens on the sign-in and then the device's home screen (Mail is opened from there).
-        if (!introDone()) { if (!E.isRing()) openInbox(); else if (!state.player.email) showLogin(); }
+        if (!introDone()) { if (!E.isRing()) openInbox(); else if (!state.player.email) { if (state.intro['ring:playtestNote']) showLogin(); else showPlaytestNote(showLogin); } }
     }
     // The server room at once, every minigame's bay open: skills learned up to Edge Detection, as straightToSnare does.
     function straightToBays() {

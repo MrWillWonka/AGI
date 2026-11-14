@@ -4065,3 +4065,6 @@ body.device-phone .home-taskbar, body.device-phone .home-popup { display: none; 
 .ring-welcome-steps { margin: 0 0 14px; padding-left: 22px; display: grid; gap: 10px; }
 .ring-welcome-steps li strong { display: block; }
 .ring-welcome-steps li span { color: var(--muted); }
+/* The ring: the playtest note is a popup before the sign-in (game.js showPlaytestNote), not a line under the mail. */
+body.ring-device .inbox-note { display: none; }
+.ring-playtest p { margin: 0 0 10px; color: var(--muted); }
