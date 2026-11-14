@@ -13690,6 +13690,7 @@ window.AGI = (function () {
             },
             // A brand-new game, from the inbox (no confirmation: the debug panel is the owner's).
             startOver() { startFresh('debugStartOver'); },
+            notice(key, app, text) { deviceNotice(key, app, text, key === 'mail' ? openInbox : () => {}); },   // tools/review/ring-nav.js
             // The Packet Snare run in play (tests and the debug view; read it, don't change it).
             snareRun: () => snare.run,
             // Where a field point is on screen (client px), for scripted play (tools, reviews): a turned field included.
