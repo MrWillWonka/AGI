@@ -28,7 +28,7 @@
         for (const t of spec.taps || []) ev.push([t.at, 'play', 'click', { res: t.res, q: 1 }]);
         for (const s of spec.sprints || []) {
             ev.push([s.to, 'chargeStop']);
-            ev.push([s.to, 'play', 'sprint', { charge: s.level ?? 1 }]);
+            if (!s.silent) ev.push([s.to, 'play', 'sprint', { charge: s.level ?? 1 }]);
         }
         return ev.map((e, i) => [e, i]).sort((a, b) => a[0][0] - b[0][0] || a[1] - b[1]).map(x => x[0]);
     }
@@ -37,7 +37,7 @@
         const sr = spec.sampleRate || 48000, seconds = spec.seconds;
         const ctx = new OfflineAudioContext(2, Math.ceil(sr * seconds), sr);
         const faults = [];
-        const sfx = window.SFXBuild({ ctx, offline: true, random: seeded(spec.seed || 1), phone: !!spec.phone, onError: (where, e) => faults.push(where + ': ' + (e && e.message || e)) });
+        const sfx = window.SFXBuild({ ctx, offline: true, random: seeded(spec.seed || 1), phone: !!spec.phone, meterVoice: spec.meterVoice, onError: (where, e) => faults.push(where + ': ' + (e && e.message || e)) });
         sfx.setVolume(spec.sound ?? 0.5);
         sfx.setMusicStyle(spec.style || 'classic');
         sfx.setSimple(!!spec.simple);

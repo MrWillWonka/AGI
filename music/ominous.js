@@ -29,10 +29,21 @@
         trims: {
             sfx: 0.81, simple: 1.37,
             base: 1.66, baseSimple: 1.29,
-            charge: [0.74, 2.46, 4.37, 7.33, 1.34], chargeSimple: [0.22, 0.83, 2.38, 3.32, 2.11],
+            fx: {system: 1.22, smash: 0.82, windup: 1.03, crunch: 0.99, flow: 2.14, freeze: 1.55, release: 0.85, viral: 1.06},      // single effects against Classic's (tools/audio/fx-levels.js)
+            charge: [1, 2.16, 2.01, 2.79, 1.34], chargeSimple: [0.22, 0.83, 2.38, 3.32, 2.11],
             snare: { snareCatch: 1.58, snareSpoil: 2.14, snareSnap: 1.86, snareLaser: 1.64, snareChain: 8.85, snareSweep: 1.39, snareCharge: 3.01, snareBoss: 0.88, snareHit: 1.27, 'snarePlace:wall': 0.96, 'snarePlace:decoy': 1.96, 'snarePlace:turret': 1.81, 'snarePlace:tower': 0.79, snareRemove: 1.54, 'snarePower:freeze': 0.86, 'snarePower:purge': 1.22, snareZap: 2.3, snareDecoy: 1.59, snareQuarantine: 1.14, snareStun: 1.32, snareCore: 0.9, snareBossDown: 0.59, snareParry: 1.87, snareSlash: 2.19, snareSpoof: 2.8, snareGarbage: 1.74, snareRace: 2.48, snareHijack: 2.64, snareTaken: 4.04, snareFlag: 2.27, snareIds: 0.93, snareRebuild: 1.79, snareHerdStun: 2.1 },
             snareSimple: { snareCatch: 0.9, snareSpoil: 1.06, snareSnap: 2.48, snareLaser: 2.17, snareChain: 1.8, snareSweep: 2.25, snareCharge: 1.23, snareBoss: 2.28, snareHit: 0.88, 'snarePlace:wall': 1.16, 'snarePlace:decoy': 1.24, 'snarePlace:turret': 1.14, 'snarePlace:tower': 1.18, snareRemove: 1.09, 'snarePower:freeze': 1.18, 'snarePower:purge': 1.4, snareZap: 1.68, snareDecoy: 1.49, snareQuarantine: 1.04, snareStun: 1.38, snareCore: 1.44, snareBossDown: 0.83, snareParry: 2.41, snareSlash: 1.53, snareSpoof: 1.71, snareGarbage: 2.25, snareRace: 2.47, snareHijack: 2.06, snareTaken: 3.91, snareFlag: 1.53, snareIds: 1.8, snareRebuild: 1.4, snareHerdStun: 1.27 }
         },
+
+        // The sprint meter's parts (one is picked per charge; each plays the chord the music is on, on the grid): one
+        // chord tone tolling, the root with a flicker of the flat second, a slow climb through the chord, a bare fifth.
+        meter: [
+            { raw: true, type: 'sine', gain: 0.05, dur: 0.45, q: 1, cutoff: () => 3000, notes: (l, n, ch) => [ch.bell + 12] },
+            { raw: true, type: 'triangle', gain: 0.04, dur: 0.3, q: 1, cutoff: l => 700 + 1800 * l, notes: (l, n, ch) => [ch.root + 24 + (n % 4 === 3 ? 1 : 0)] },
+            { raw: true, type: 'triangle', gain: 0.035, dur: 0.35, q: 1, cutoff: l => 600 + 1600 * l, notes: (l, n, ch) => [ch.v[(n >> 1) % ch.v.length] + 12] },
+            { raw: true, type: 'sine', gain: 0.016, dur: 0.4, q: 1, cutoff: () => 2500, notes: (l, n, ch) => [ch.root + 24, ch.root + 31] }
+        ],
+        pitch: 'key',       // the flat second and the tritone are this track's sound: effects keep them against any chord
 
         // ---- Instruments: the drums and voices, and how they play a song step by step --------------------------
         // Ominous: 62 BPM in C harmonic minor, leaning on the flat second. Almost no drums: a drone on the chord's
@@ -262,7 +273,16 @@
             },
             snareIds: () => { toll(70, { gain: 0.04, dur: 0.6 }); seq([76, 70, 76, 70], S(), { type: 'triangle', dur: 0.12, gain: 0.045, cutoff: 1800 }); T(33, { dur: 0.2, gain: 0.2 }); },
             snareRebuild: () => { [45, 52, 57, 64].forEach((n, i) => knock(n, { gain: 0.05, at: i * S() / 4 })); T(69, { type: 'sine', dur: 0.3, gain: 0.025, detune: -15, at: S() }); },
-            snareHerdStun: () => { T(72, { to: 48, type: 'triangle', dur: 0.35, gain: 0.04, cutoff: 1200, detune: -12 }); noise({ dur: 0.05, gain: 0.03, f0: 4000, q: 4 }); }
+            snareHerdStun: () => { T(72, { to: 48, type: 'triangle', dur: 0.35, gain: 0.04, cutoff: 1200, detune: -12 }); noise({ dur: 0.05, gain: 0.03, f0: 4000, q: 4 }); },
+            // The power-up moments, in this track's tolls, knocks and swells.
+            system: () => { [45, 57, 69].forEach((n, i) => toll(n, { at: i * S() * 2, gain: 0.05 })); [81, 82, 88].forEach((n, i) => T(n, { type: 'sine', dur: 1.2, gain: 0.025, at: (6 + i) * S(), detune: -12, echo: 0.4 })); },
+            smash: () => { swellUp(0.35, 0.2); T(33, { to: 16, dur: 1.6, gain: 0.5, at: 0.3 }); noise({ dur: 1.4, gain: 0.3, f0: 900, f1: 60, type: 'lowpass', at: 0.3 }); toll(33, { at: 0.3, gain: 0.08 }); },
+            windup: () => { swellUp(0.6, 0.12); T(45, { to: 46, type: 'sawtooth', dur: 0.6, gain: 0.03, cutoff: 700, attack: 0.4 }); },
+            crunch: () => { knock(45, { gain: 0.14 }); knock(46, { gain: 0.1, at: S() }); knock(45, { gain: 0.12, at: 2 * S() }); T(33, { dur: 0.6, gain: 0.15 }); },
+            flow: () => { [45, 48, 52].forEach(n => T(n, { type: 'triangle', dur: 2.6, gain: 0.035, attack: 0.6, cutoff: 1100, detune: -10 })); toll(69, { at: 4 * S(), gain: 0.03 }); },
+            freeze: () => { T(84, { to: 36, type: 'sine', dur: 1.4, gain: 0.1, detune: -12 }); toll(84, { gain: 0.04 }); noise({ dur: 1.2, gain: 0.05, f0: 3000, f1: 100, type: 'lowpass' }); },
+            release: () => { swellUp(0.5, 0.22); T(33, { to: 21, dur: 1.2, gain: 0.45, at: 0.45 }); toll(45, { at: 0.45, gain: 0.08 }); [45, 48, 52].forEach(n => T(n, { type: 'triangle', dur: 1.2, gain: 0.03, at: 0.45, cutoff: 1500 })); },
+            viral: () => [69, 72, 76].forEach((n, i) => toll(n, { at: i * S(), gain: 0.035 }))
         }
     };
 };

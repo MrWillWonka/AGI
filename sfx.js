@@ -263,10 +263,19 @@
         return 57 + 12 * oct + WRITTEN[d2] + (pc - WRITTEN[d]);
     }
     function keyHz(f) {
-        if (!(f > 0) || (!KEYS[style] && !varDeg)) return f;
+        if (!(f > 0) || (!KEYS[style] && !varDeg && !chordNow)) return f;
         const m = 69 + 12 * Math.log2(f / 440);
         const r = Math.round(m);
-        return Math.abs(m - r) > 0.03 ? f : 440 * Math.pow(2, (mapNote(degShift(r, varDeg)) - 69) / 12);
+        return Math.abs(m - r) > 0.03 ? f : 440 * Math.pow(2, (fit(mapNote(degShift(r, varDeg))) - 69) / 12);
+    }
+    // The 'chord' pitch policy: a note a semitone from a tone of the sounding chord takes that tone.
+    function fit(m) {
+        if (!chordNow) return m;
+        const pc = ((m - 57) % 12 + 12) % 12;
+        if (chordNow.includes(pc)) return m;
+        if (chordNow.includes((pc + 11) % 12)) return m - 1;
+        if (chordNow.includes((pc + 1) % 12)) return m + 1;
+        return m;
     }
     // Each beat brings its own sound for every effect (applied in tone and noise; Simple sounds skip it).
     const keep = t => t;
@@ -518,6 +527,17 @@
 
     // Each track's sound set, levelled to Classic's loudness (measured with a K-weighted meter, like the music).
     const SFX_TRIM = {}, SIMPLE_TRIM = {};   // trims.sfx and trims.simple in music/<theme>.js
+    const FX_TRIM = {};        // trims.fx in music/<theme>.js: single effects levelled against Classic's (tools/audio/fx-levels.js)
+    const METERS = {};         // meter in music/<theme>.js: the track's own sprint-meter parts
+    // Pitch policy: how an effect's notes meet the music.
+    //   'chord' (the default): the effect is in the track's key, and while music plays any note a semitone away
+    //           from a tone of the chord sounding then moves onto that tone (a click's G over an E7 becomes G sharp).
+    //   'key':  the track's key only; the tension is left in. Tracks whose sound is the rub (Dark's flat second,
+    //           Ominous's tritone: `pitch: 'key'` on the theme) use it for everything, and every track uses it for the
+    //           sounds that are meant to rub (`TENSE`: errors, warnings, near misses).
+    const PITCH = {};
+    const TENSE = { error: 1, nearMiss: 1, crunch: 1, snareSpoil: 1, snareFlag: 1, snareIds: 1, snareCore: 1, snareSweep: 1, snareBoss: 1, snareCharge: 1, snareSnap: 1, snareStun: 1 };
+    let chordNow = null;       // the chord this sound's notes are fitted to (set by `play`), or null
 
     // Packet Snare's effects, levelled per track (and simple version) against that track's own effects, measured
     // K-weighted (the peak 100 ms, averaged over four plays, against the mean of 17 existing effects): a catch, a
@@ -671,8 +691,14 @@
             duck.gain.setTargetAtTime(1, startAt + secs, 0.3);
         }
         if (name === 'click') lastClickAt = startAt;
+        chordNow = null;
+        if (music && !TENSE[name] && PITCH[style] !== 'key') {
+            const ch = chordAt(startAt), sh = shift();
+            if (ch && ch.iv) chordNow = ch.iv.map(x => (((ch.pc + x + sh) % 12) + 12) % 12);
+        }
         gmul = gv * ((simple ? SIMPLE_TRIM : SFX_TRIM)[style] || 1);
         const st = SNARE_TRIM[(simple ? 's:' : '') + style];
+        if (!simple) gmul *= FX_TRIM[style]?.[name] ?? 1;
         if (st && name.startsWith('snare')) gmul *= st[name + ':' + (opts?.kind ?? { snarePlace: 'wall', snarePower: 'freeze' }[name])] ?? st[name] ?? 1;
         if (!NO_VARY[name]) [varDeg, varNoise] = VARIANTS[vary('v:' + name, VARIANTS.length)];
         // A track's own version of the sound if it has one (TRACK_SOUNDS), else the shared one in its profile.
@@ -683,6 +709,7 @@
             else if (own) own(name === 'buyBig' ? { ...opts, big: true } : opts || {});
             else SOUNDS[name](opts);
         } catch (e) { fault('play ' + name, e); }   // a bad node never breaks the game
+        chordNow = null;
         base = 0;
         startAt = null;
         gmul = 1;
@@ -749,11 +776,15 @@
     // dense mix would have needed more): at the old quiet pluck's level it sat under the music in every track. BASE_TRIM evens the tracks' instruments first.
     const CHARGE_TRIM = {}, BASE_TRIM = {};   // trims.charge and trims.base in music/<theme>.js
     let lastVoice = -1;
+    // The meter's parts: the track's own (`meter` in music/<theme>.js), else the shared four. Simple sounds use the shared.
+    const meterParts = () => (!simple && METERS[style]) || CHARGE_VOICES;
     function chargeVoice() {
-        let i = Math.floor(rnd() * CHARGE_VOICES.length);
-        if (i === lastVoice) i = (i + 1 + Math.floor(rnd() * (CHARGE_VOICES.length - 1))) % CHARGE_VOICES.length;
+        const list = meterParts();
+        let i = Math.floor(rnd() * list.length);
+        if (i === lastVoice) i = (i + 1 + Math.floor(rnd() * (list.length - 1))) % list.length;
+        if (env.meterVoice != null) i = env.meterVoice % list.length;      // tools: one part at a time, to level it
         lastVoice = i;
-        return CHARGE_VOICES[i];
+        return list[i];
     }
     // The chord the music plays at time t (it logs each bar's chord as it schedules it).
     function chordAt(t) {
@@ -769,7 +800,7 @@
         const v = c.v;
         if ((v.every || (l < 0.5 ? 2 : 1)) === 2 && n % 2) return;
         const ch = chordAt(t), P = simple ? null : PROFILES[style];
-        const type = simple ? sv().type : P ? P.wave(v.type, 440) : v.type;
+        const type = simple ? sv().type : v.raw ? v.type : P ? P.wave(v.type, 440) : v.type;
         const key = (simple ? 's:' : '') + style;
         const lvl = mix.training * (simple ? sv().gain : 1) * (BASE_TRIM[key] || 1) * ((CHARGE_TRIM[key] || [])[c.vi] ?? 1);
         const cut = simple && sv().cutoff ? Math.min(v.cutoff(l), sv().cutoff * 1.5) : v.cutoff(l);
@@ -800,7 +831,7 @@
             out.connect(master);
             // The first note waits for the next 16th, like every sound.
             const v = free ? THRUST_VOICE : chargeVoice();
-            chargeOsc = { out, v, vi: free ? 4 : CHARGE_VOICES.indexOf(v), free, sched: Math.floor(stepAt(now) / gridMul()) };
+            chargeOsc = { out, v, vi: free ? 4 : meterParts().indexOf(v), free, sched: Math.floor(stepAt(now) / gridMul()) };
         }
         const c = chargeOsc;
         // Strike each 16th a little ahead, so it lands exactly on the beat.
@@ -1682,6 +1713,7 @@
         CHARGE_TRIM[name] = th.trims.charge; CHARGE_TRIM['s:' + name] = th.trims.chargeSimple;
         SNARE_TRIM[name] = th.trims.snare; SNARE_TRIM['s:' + name] = th.trims.snareSimple;
         STYLES[name] = th.style; TRACK_SOUNDS[name] = th.sounds;
+        FX_TRIM[name] = th.trims.fx || {}; METERS[name] = th.meter || null; PITCH[name] = th.pitch || 'chord';
         SONGS[name] = {};
         for (const a of Object.keys(th.songs)) {
             // A song that can't be built says which and why, and is left out: the others play.

@@ -32,10 +32,22 @@
         trims: {
             sfx: 1.29, simple: 4.65,
             base: 1.8, baseSimple: 3.24,
-            charge: [2.31, 4.21, 8.55, 9.11, 5.43], chargeSimple: [2.02, 2.06, 11.3, 16, 6.39],
+            fx: {system: 0.81, smash: 0.68, windup: 0.45, crunch: 0.71, flow: 1.33, freeze: 1.57, release: 0.69, viral: 1.72},      // single effects against Classic's (tools/audio/fx-levels.js)
+            charge: [3.63, 4.76, 5.81, 8.93, 5.43], chargeSimple: [2.02, 2.06, 11.3, 16, 6.39],
             snare: { snareCatch: 1.39, snareSpoil: 0.68, snareSnap: 0.86, snareLaser: 1.55, snareChain: 5.41, snareSweep: 1.21, snareCharge: 0.48, snareBoss: 0.67, snareHit: 2.11, 'snarePlace:wall': 0.54, 'snarePlace:decoy': 3.05, 'snarePlace:turret': 2.13, 'snarePlace:tower': 0.77, snareRemove: 1.4, 'snarePower:freeze': 0.41, 'snarePower:purge': 1.05, snareZap: 1.79, snareDecoy: 1.88, snareQuarantine: 0.69, snareStun: 0.63, snareCore: 0.55, snareBossDown: 0.48, snareParry: 1.82, snareSlash: 2.08, snareSpoof: 1.98, snareGarbage: 0.48, snareRace: 3.8, snareHijack: 2.12, snareTaken: 3.14, snareFlag: 1.81, snareIds: 0.77, snareRebuild: 0.71, snareHerdStun: 1.79 },
             snareSimple: { snareCatch: 0.98, snareSpoil: 1.03, snareSnap: 2.08, snareLaser: 2.2, snareChain: 1.82, snareSweep: 2.46, snareCharge: 1.31, snareBoss: 1.43, snareHit: 0.98, 'snarePlace:wall': 1.3, 'snarePlace:decoy': 1.29, 'snarePlace:turret': 1.26, 'snarePlace:tower': 1.32, snareRemove: 1.23, 'snarePower:freeze': 1.06, 'snarePower:purge': 1.35, snareZap: 1.63, snareDecoy: 1.5, snareQuarantine: 1.12, snareStun: 1.28, snareCore: 0.82, snareBossDown: 0.69, snareParry: 2.48, snareSlash: 1.66, snareSpoof: 1.97, snareGarbage: 1.87, snareRace: 2.53, snareHijack: 2.02, snareTaken: 3.88, snareFlag: 1.77, snareIds: 1.94, snareRebuild: 1.51, snareHerdStun: 1.38 }
         },
+
+        // The sprint meter's parts (one is picked per charge; each plays the chord the music is on, on the grid, and
+        // opens with the charge): an acid line with the flat second, root pulses with the octave on the beat, a thin
+        // square rocking a fifth, the chord gated.
+        meter: [
+            { raw: true, type: 'sawtooth', gain: 0.03, dur: 0.13, q: 11, cutoff: l => 450 * Math.pow(10, l), notes: (l, n, ch) => [ch.root + 24 + [0, 0, 12, 0, 1, 0, 12, 7][n % 8]] },
+            { raw: true, type: 'sawtooth', gain: 0.034, dur: 0.09, q: 2, cutoff: l => 700 + 2600 * l, notes: (l, n, ch) => (n % 4 === 0 ? [ch.root + 24, ch.root + 36] : [ch.root + 24]) },
+            { raw: true, type: 'square', gain: 0.02, dur: 0.05, q: 1, cutoff: l => 1500 + 4000 * l, notes: (l, n, ch) => [ch.v[0] + 24 + (n % 2 ? 7 : 0)] },
+            { raw: true, type: 'sawtooth', gain: 0.012, dur: 0.07, q: 3, cutoff: l => 900 + 3000 * l, notes: (l, n, ch) => ch.v.map(x => x + 12) }
+        ],
+        pitch: 'key',       // the flat second is this track's sound: effects keep it against any chord
 
         // ---- Instruments: the drums and voices, and how they play a song step by step --------------------------
         // Dark: hard warehouse techno at 130 BPM in E Phrygian. A kick with its own saturation and a click, and the
@@ -267,7 +279,16 @@
             },
             snareIds: () => { seq([76, 70, 76, 70, 76, 70], S() / 2, { type: 'square', dur: 0.05, gain: 0.035, cutoff: 3000, drive: true }); T(33, { dur: 0.15, gain: 0.25, drive: true }); metal(0.07, 0, 3000); metal(0.07, 1.5 * S(), 3000); },
             snareRebuild: () => { [0, 1, 2, 3].forEach(i => metal(0.04, i * S() / 4, 1500 + 700 * i)); T(40, { dur: 0.1, gain: 0.18, drive: true, at: S() }); saw(64, { dur: 0.06, gain: 0.035, cutoff: 1800, at: S() }); },
-            snareHerdStun: () => { saw(72, { to: 52, dur: 0.22, gain: 0.035, cutoff: 1400 }); metal(0.04, 0, 6000); }
+            snareHerdStun: () => { saw(72, { to: 52, dur: 0.22, gain: 0.035, cutoff: 1400 }); metal(0.04, 0, 6000); },
+            // The power-up moments, in this track's metal and saws.
+            system: () => { seq([57, 58, 64, 69, 70, 76, 81, 82, 88], S() / 2, { type: 'sawtooth', dur: 0.1, gain: 0.04, cutoff: 3200, drive: true }); [0, 4, 8].forEach(k => metal(0.05, k * S() / 2, 4200 + 300 * k)); noise({ dur: 0.8, gain: 0.07, f0: 5000, f1: 9000, type: 'highpass' }); },
+            smash: () => { T(33, { to: 16, dur: 0.9, gain: 0.5, drive: true }); noise({ dur: 0.9, gain: 0.35, f0: 1400, f1: 100, q: 0.5, type: 'lowpass' }); [45, 46, 52].forEach(n => saw(n, { dur: 0.6, gain: 0.05, cutoff: 800 })); metal(0.1, 0, 2400); metal(0.07, S(), 1800); },
+            windup: () => { saw(45, { to: 57, dur: 0.6, gain: 0.05, cutoff: 2600, attack: 0.3 }); saw(46, { to: 58, dur: 0.6, gain: 0.035, cutoff: 2600, attack: 0.3 }); },
+            crunch: () => { noise({ dur: 0.4, gain: 0.16, f0: 1100, f1: 300, q: 2 }); [45, 46].forEach(n => saw(n, { dur: 0.3, gain: 0.06, cutoff: 1100, q: 8 })); metal(0.08, 0, 3000); },
+            flow: () => [45, 52, 57, 58].forEach((n, i) => T(n, { type: 'triangle', dur: 1.4, gain: 0.05, at: i * S(), attack: 0.15, cutoff: 900, detune: -10 })),
+            freeze: () => { T(88, { to: 40, type: 'sawtooth', dur: 0.8, gain: 0.06, cutoff: 2400, q: 6 }); noise({ dur: 0.8, gain: 0.08, f0: 6000, f1: 200, type: 'lowpass' }); metal(0.06, 0, 6000); },
+            release: () => { noise({ dur: 0.6, gain: 0.3, f0: 250, f1: 6000, q: 0.6 }); T(33, { to: 18, dur: 0.7, gain: 0.45, drive: true }); [45, 52, 57].forEach(n => saw(n, { dur: 0.3, gain: 0.05 })); metal(0.09, 0, 3600); },
+            viral: () => { seq([57, 58, 64, 69, 70, 76], S() / 2, { type: 'square', dur: 0.06, gain: 0.035, cutoff: 5000 }); metal(0.05, 3 * S(), 5200); }
         }
     };
 };

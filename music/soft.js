@@ -26,10 +26,21 @@
         trims: {
             sfx: 1.21, simple: 1.56,
             base: 1.48, baseSimple: 1.22,
-            charge: [1.72, 2.31, 6.47, 7.14, 3.05], chargeSimple: [0.17, 0.72, 6.12, 5.25, 3.8],
+            fx: {system: 0.82, smash: 1.3, windup: 0.69, crunch: 0.93, flow: 1.38, freeze: 1.32, release: 0.99, viral: 0.76},      // single effects against Classic's (tools/audio/fx-levels.js)
+            charge: [1.7, 2.33, 3.04, 2.71, 3.05], chargeSimple: [0.17, 0.72, 6.12, 5.25, 3.8],
             snare: { snareCatch: 1.37, snareSpoil: 0.6, snareSnap: 1.16, snareLaser: 1.77, snareChain: 1.77, snareSweep: 1.59, snareCharge: 2.67, snareBoss: 0.97, snareHit: 1.22, 'snarePlace:wall': 0.74, 'snarePlace:decoy': 1.59, 'snarePlace:turret': 2.01, 'snarePlace:tower': 0.96, snareRemove: 1.53, 'snarePower:freeze': 1.05, 'snarePower:purge': 1.39, snareZap: 2, snareDecoy: 1.72, snareQuarantine: 0.85, snareStun: 0.8, snareCore: 0.54, snareBossDown: 0.71, snareParry: 1.43, snareSlash: 2.27, snareSpoof: 1.68, snareGarbage: 1.11, snareRace: 3.14, snareHijack: 1.27, snareTaken: 4.12, snareFlag: 2.3, snareIds: 1.11, snareRebuild: 0.76, snareHerdStun: 1.57 },
             snareSimple: { snareCatch: 0.98, snareSpoil: 0.9, snareSnap: 1.65, snareLaser: 1.94, snareChain: 1.69, snareSweep: 2.5, snareCharge: 1.25, snareBoss: 1.36, snareHit: 0.9, 'snarePlace:wall': 1.19, 'snarePlace:decoy': 1.3, 'snarePlace:turret': 1.25, 'snarePlace:tower': 1.29, snareRemove: 1.19, 'snarePower:freeze': 1.03, 'snarePower:purge': 1.37, snareZap: 1.66, snareDecoy: 1.55, snareQuarantine: 1.13, snareStun: 1.17, snareCore: 0.88, snareBossDown: 0.68, snareParry: 2.45, snareSlash: 1.62, snareSpoof: 1.78, snareGarbage: 1.62, snareRace: 2.59, snareHijack: 2.15, snareTaken: 4.06, snareFlag: 1.66, snareIds: 1.92, snareRebuild: 1.56, snareHerdStun: 1.38 }
         },
+
+        // The sprint meter's parts (one is picked per charge; each plays the chord the music is on, on the grid): the
+        // chord strummed upward in sines, a kalimba hopping octaves, a mallet walking up the chord and back, the chord
+        // rung softly.
+        meter: [
+            { raw: true, type: 'sine', gain: 0.04, dur: 0.3, q: 1, cutoff: () => 5000, notes: (l, n, ch) => [ch.v[n % ch.v.length] + 24] },
+            { raw: true, type: 'sine', gain: 0.04, dur: 0.22, q: 1, cutoff: () => 5000, notes: (l, n, ch) => [ch.root + 36 + (n % 2 ? 12 : 0)] },
+            { raw: true, type: 'triangle', gain: 0.034, dur: 0.2, q: 1, cutoff: l => 1200 + 3000 * l, notes: (l, n, ch) => { const v = ch.v, m = 2 * v.length - 2 || 1, i = n % m; return [v[i < v.length ? i : m - i] + 24]; } },
+            { raw: true, type: 'sine', gain: 0.014, dur: 0.25, q: 1, cutoff: () => 5000, notes: (l, n, ch) => ch.v.map(x => x + 24) }
+        ],
 
         // ---- Instruments: the drums and voices, and how they play a song step by step --------------------------
         // Soft: 93 BPM with a light swing (every second 16th leans late), in F major / D minor. It starts from the
@@ -255,7 +266,16 @@
             },
             snareIds: () => { [76, 70, 76, 70].forEach((n, i) => softBell(n, { gain: 0.045, dur: 0.22, at: i * S() })); T(45, { type: 'sine', dur: 0.15, gain: 0.12 }); },
             snareRebuild: () => { [57, 62, 64, 69].forEach((n, i) => marimba(n, { gain: 0.04 + 0.01 * i, at: i * S() / 4 })); noise({ dur: 0.02, gain: 0.03, f0: 3000, q: 3, at: S() }); },
-            snareHerdStun: () => { T(72, { to: 52, type: 'sine', dur: 0.28, gain: 0.05 }); noise({ dur: 0.04, gain: 0.03, f0: 5000, type: 'highpass' }); }
+            snareHerdStun: () => { T(72, { to: 52, type: 'sine', dur: 0.28, gain: 0.05 }); noise({ dur: 0.04, gain: 0.03, f0: 5000, type: 'highpass' }); },
+            // The power-up moments, in this track's mallets, bells and pad: they still land, warmly.
+            system: () => { [69, 72, 76, 79, 81, 84, 88, 91, 93].forEach((n, i) => softBell(n, { at: i * S() / 2, gain: 0.035, dur: 0.6 })); padChord([57, 64, 69, 72], { at: S() * 2, dur: 1.6 }); },
+            smash: () => { T(40, { to: 28, type: 'sine', dur: 0.7, gain: 0.35 }); noise({ dur: 0.7, gain: 0.14, f0: 900, f1: 120, type: 'lowpass' }); padChord([45, 52, 57, 64], { dur: 1.4, gain: 0.035, at: 0.05 }); marimba(45, { gain: 0.1 }); },
+            windup: () => { noise({ dur: 0.6, gain: 0.06, f0: 300, f1: 1800, type: 'lowpass', attack: 0.5 }); [57, 60, 64, 69].forEach((n, i) => T(n, { type: 'sine', dur: 0.5, gain: 0.03, at: i * 0.12, attack: 0.05 })); },
+            crunch: () => { [57, 60, 64].forEach((n, i) => marimba(n, { at: i * S() / 4, gain: 0.07 })); noise({ dur: 0.3, gain: 0.07, f0: 800, f1: 400, type: 'lowpass' }); },
+            flow: () => { padChord([57, 64, 69, 72, 76], { dur: 2.2, gain: 0.03 }); [81, 84, 88].forEach((n, i) => softBell(n, { at: i * S() * 2, gain: 0.03 })); },
+            freeze: () => { T(93, { to: 57, type: 'sine', dur: 0.9, gain: 0.08 }); softBell(93, { gain: 0.04 }); noise({ dur: 0.8, gain: 0.04, f0: 4000, f1: 300, type: 'lowpass' }); },
+            release: () => { noise({ dur: 0.6, gain: 0.14, f0: 300, f1: 3500, type: 'lowpass', attack: 0.3 }); T(45, { to: 33, type: 'sine', dur: 0.6, gain: 0.3, at: 0.3 }); padChord([57, 64, 69, 76], { at: 0.3, dur: 1.4, gain: 0.035 }); softBell(88, { at: 0.3, gain: 0.05 }); },
+            viral: () => [69, 72, 76, 79, 81, 84].forEach((n, i) => marimba(n, { at: i * S() / 2, gain: 0.055 }))
         }
     };
 };

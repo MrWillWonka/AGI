@@ -26,10 +26,20 @@
         trims: {
             sfx: 2.1, simple: 4.17,
             base: 0.91, baseSimple: 3.05,
-            charge: [1.56, 2.63, 5.75, 9.7, 6.08], chargeSimple: [1.11, 0.47, 0.63, 3.89, 3.98],
+            fx: {smash: 0.86, windup: 0.78, crunch: 0.57, flow: 1.14, freeze: 1.77, release: 0.94, viral: 1.04},      // single effects against Classic's (tools/audio/fx-levels.js)
+            charge: [8.92, 8.07, 11.04, 5.43, 6.08], chargeSimple: [1.11, 0.47, 0.63, 3.89, 3.98],
             snare: { snareCatch: 0.71, snareSpoil: 0.91, snareSnap: 0.7, snareLaser: 1.48, snareChain: 1.31, snareSweep: 2.33, snareCharge: 1.37, snareBoss: 0.99, snareHit: 0.82, 'snarePlace:wall': 0.55, 'snarePlace:decoy': 2.77, 'snarePlace:turret': 2.03, 'snarePlace:tower': 0.49, snareRemove: 1.73, 'snarePower:freeze': 0.46, 'snarePower:purge': 0.91, snareZap: 1.3, snareDecoy: 1.01, snareQuarantine: 0.63, snareStun: 0.76, snareCore: 0.53, snareBossDown: 0.44, snareParry: 1.66, snareSlash: 0.92, snareSpoof: 1.93, snareGarbage: 0.54, snareRace: 3.43, snareHijack: 1.04, snareTaken: 3.23, snareFlag: 2.19, snareIds: 0.68, snareRebuild: 0.85, snareHerdStun: 1.53 },
             snareSimple: { snareCatch: 1.06, snareSpoil: 1.05, snareSnap: 1.5, snareLaser: 2.02, snareChain: 1.68, snareSweep: 2.71, snareCharge: 1.43, snareBoss: 1.21, snareHit: 1.06, 'snarePlace:wall': 1.37, 'snarePlace:decoy': 1.3, 'snarePlace:turret': 1.38, 'snarePlace:tower': 1.35, snareRemove: 1.25, 'snarePower:freeze': 0.95, 'snarePower:purge': 1.28, snareZap: 1.65, snareDecoy: 1.53, snareQuarantine: 1.22, snareStun: 1.18, snareCore: 0.73, snareBossDown: 0.62, snareParry: 2.43, snareSlash: 1.78, snareSpoof: 2.11, snareGarbage: 1.34, snareRace: 2.58, snareHijack: 2.17, snareTaken: 4.03, snareFlag: 1.76, snareIds: 1.97, snareRebuild: 1.57, snareHerdStun: 1.43 }
         },
+
+        // The sprint meter's parts (one is picked per charge; each plays the chord the music is on, on the grid): a
+        // fast square arpeggio, octave hops, a trill between two chord tones, a triangle on the root and fifth.
+        meter: [
+            { raw: true, type: 'square', gain: 0.016, dur: 0.06, q: 1, cutoff: () => 9000, every: 1, notes: (l, n, ch) => [ch.v[n % ch.v.length] + 24] },
+            { raw: true, type: 'square', gain: 0.018, dur: 0.08, q: 1, cutoff: () => 9000, notes: (l, n, ch) => [ch.root + 36 + (n % 2 ? 12 : 0)] },
+            { raw: true, type: 'square', gain: 0.016, dur: 0.05, q: 1, cutoff: () => 9000, every: 1, notes: (l, n, ch) => [ch.v[0] + 24 + (n % 2 ? ch.v[1] - ch.v[0] : 0)] },
+            { raw: true, type: 'triangle', gain: 0.05, dur: 0.1, q: 1, cutoff: () => 9000, notes: (l, n, ch) => [ch.root + 24 + (n % 4 === 2 ? 7 : 0)] }
+        ],
 
         // ---- Instruments: the drums and voices, and how they play a song step by step --------------------------
         // Retro: chiptune at 144 BPM, dry. A console's voices, held to on purpose: a lead on a quarter-width pulse
@@ -230,7 +240,15 @@
             snareFlag: ({ flags = 1, limit = 3 }) => { sq(70, { dur: 0.04, gain: 0.022 }); sq(69, { dur: 0.05, gain: 0.02, at: S() / 2 }); if (flags >= limit - 1) sq(70, { dur: 0.03, gain: 0.018, at: S() }); },
             snareIds: () => { seq([76, 70, 76, 70, 76, 70], S() / 2, { type: 'square', dur: 0.05, gain: 0.028 }); chipNoise(0.05, 0.07); tri(45, { dur: 0.15, gain: 0.1 }); },
             snareRebuild: () => { [0, 1, 2, 3].forEach(i => chipNoise(0.012, 0.04, i * S() / 4)); tri(45, { dur: 0.08, gain: 0.1, at: S() }); sq(69, { dur: 0.04, gain: 0.022, at: S() }); },
-            snareHerdStun: () => { T(72, { to: 48, type: 'square', dur: 0.25, gain: 0.02, steps: true }); chipNoise(0.02, 0.03); }
+            snareHerdStun: () => { T(72, { to: 48, type: 'square', dur: 0.25, gain: 0.02, steps: true }); chipNoise(0.02, 0.03); },
+            // The power-up moments, on this track's pulses, triangle and noise.
+            smash: () => { chipNoise(0.5, 0.16); tri(45, { to: 21, dur: 0.5, gain: 0.18, steps: true }); seq([57, 52, 45, 40], S() / 2, { type: 'square', dur: 0.08, gain: 0.03 }); },
+            windup: () => seq([45, 48, 52, 57, 60, 64, 69], 0.08, { type: 'square', dur: 0.07, gain: 0.028 }),
+            crunch: () => { chipNoise(0.2, 0.1); seq([45, 45, 52, 45], S() / 2, { type: 'square', dur: 0.06, gain: 0.035 }); },
+            flow: () => seq([57, 64, 69, 72, 76, 72, 69, 64], S(), { type: 'triangle', dur: 0.2, gain: 0.07 }),
+            freeze: () => { T(93, { to: 45, type: 'square', dur: 0.6, gain: 0.028, steps: true }); chipNoise(0.05, 0.05); },
+            release: () => { chipNoise(0.35, 0.14); seq([45, 57, 69, 81], S() / 4, { type: 'square', dur: 0.05, gain: 0.03 }); tri(33, { dur: 0.4, gain: 0.16 }); },
+            viral: () => seq([69, 72, 76, 79, 81, 84, 88, 91], S() / 4, { type: 'square', dur: 0.05, gain: 0.028 })
         }
     };
 };
