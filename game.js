@@ -2164,6 +2164,7 @@ window.AGI = (function () {
     const HOME_INSTALL_MS = 6000;
     const HOME_ICONS = {
         ...DESK_ICONS,
+        training: '<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 25c5 0 6-6 10-6s4 4 7 4 4-14 9-14"/><circle cx="9" cy="17" r="2.6"/></svg>',
         phone: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',
         bank: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg>',
         journal: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 5a2 2 0 0 1 2-2h11v16h-11a2 2 0 0 0-2 2z"/><path d="M5.5 21a2 2 0 0 1 2-2h11v2h-11"/><path d="M9.5 7.5h5.5M9.5 11.5h4"/></svg>',
@@ -2189,7 +2190,8 @@ window.AGI = (function () {
         const lab = icon('lab', 'Lab', () => openLab());
         const snareApp = icon('snare', 'Packet Snare', () => { pt('home', { open: 'snare' }); openSnareApp(); });
         const feedApp = icon('feed', 'The Feed', () => { pt('home', { open: 'feed' }); openFeed(); });
-        snareApp.button.hidden = feedApp.button.hidden = true;
+        const trainApp = icon('training', 'Training', () => { pt('home', { open: 'training' }); openTrainingApp(); });
+        snareApp.button.hidden = feedApp.button.hidden = trainApp.button.hidden = true;
         // Settings, the Journal, Debug and the playtest survey are apps too (the owner's call), so they can be reached
         // from the home screen, which covers the top bar.
         const tools = [
@@ -2205,7 +2207,7 @@ window.AGI = (function () {
             el('div', { class: 'home-popup-title', text: 'Download' }), popupText, el('div', { class: 'home-bar' }, [bar]), el('div', { class: 'home-popup-actions' }, [popupOpen])]);
         const node = el('div', { class: 'device-home', id: 'deviceHome', hidden: '' }, [
             el('div', { class: 'home-status' }, [clock, el('span', { class: 'home-signal', text: '▂▄▆ 37%' })]),
-            el('div', { class: 'home-icons' }, [mail.button, lab.button, snareApp.button, feedApp.button]),
+            el('div', { class: 'home-icons' }, [mail.button, lab.button, snareApp.button, feedApp.button, trainApp.button]),
             popup,
             // The system apps sit in a row at the foot of the screen (the owner's call): a phone's dock, a laptop's shelf.
             el('div', { class: 'home-dock' }, tools.map(t => t.button)),
@@ -2217,7 +2219,7 @@ window.AGI = (function () {
         let lastTap = 0;
         node.addEventListener('touchend', e => { const now = Date.now(); if (now - lastTap < 320 && !e.target.closest('button')) e.preventDefault(); lastTap = now; }, { passive: false });
         document.body.append(node);
-        return { node, mail, lab, snare: snareApp, feed: feedApp, tools, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
+        return { node, mail, lab, snare: snareApp, feed: feedApp, train: trainApp, tools, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
     }
     function renderHome() {
         if (!E.isRing()) return;
@@ -2262,6 +2264,8 @@ window.AGI = (function () {
         const online = !!state.unlocked['module:snare'], fed = state.feed.stats.delivered > 0;
         if (home.snare.button.hidden === online) home.snare.button.hidden = !online;
         if (home.feed.button.hidden === fed) home.feed.button.hidden = !fed;
+        const training = !!state.unlocked['module:path'];
+        if (home.train.button.hidden === training) home.train.button.hidden = !training;
         const installed = !!state.intro['ring:labInstalled'] || labOpened(), share = installed ? 1 : accepted ? Math.min(1, (performance.now() - installFrom) / HOME_INSTALL_MS) : 0;
         if (home.lab.button.hidden === accepted) home.lab.button.hidden = !accepted;
         home.lab.button.classList.toggle('loading', accepted && !installed);
@@ -2283,6 +2287,11 @@ window.AGI = (function () {
         renderHome();
         if (openBay) jumpTo('lab');
     }
+    function openTrainingApp() {
+        homeUp = false;
+        renderHome();
+        jumpTo('bay:training');
+    }
     function openSnareApp() {
         homeUp = false;
         renderHome();
@@ -2301,7 +2310,7 @@ window.AGI = (function () {
         // Shown again as a popover each time, so it sits above whatever dialog is open (Mail, The Feed, Settings).
         try { if (noticeBox.matches(':popover-open')) noticeBox.hidePopover(); noticeBox.showPopover(); } catch { /* no popovers: it stays under dialogs */ }
         sfx('ui');
-        setTimeout(() => node.remove(), 8000);
+        setTimeout(() => node.remove(), 6000);
     }
     function openLab() {
         if (labOpened()) { homeUp = false; pt('home', { open: 'lab' }); sfx('ui'); renderHome(); return; }
@@ -2471,7 +2480,7 @@ window.AGI = (function () {
             pt('unlock', { key: m.key });
             log(`Milestone reached: ${m.name}`, 'special');
             // First-time callouts show once per save, not again after a new version.
-            if (E.isRing() && m.ringCallout && !state.intro[m.key]) { state.intro[m.key] = true; deviceNotice('snare', m.ringCallout[0], m.ringCallout[1], openSnareApp); }
+            if (E.isRing() && m.ringCallout && !state.intro[m.key]) { state.intro[m.key] = true; deviceNotice(m.key === 'module:path' ? 'training' : 'snare', m.ringCallout[0], m.ringCallout[1], m.key === 'module:path' ? openTrainingApp : openSnareApp); }
             else if (m.callout && !state.intro[m.key]) {
                 state.intro[m.key] = true;
                 callout(m.key, m.callout[0], m.callout[1]);
@@ -5339,6 +5348,12 @@ window.AGI = (function () {
     function endSnare(stats, layout) {
         snare.raceStep = 0;
         feedFromRun(stats);
+        // The ring: the first time the gated boss gets away, the Lab's Parts offers a server (Build 2).
+        if (E.isRing() && stats.bossEscaped && !state.intro['ring:server'] && E.snareGateSkill(state, snare.sector)) {
+            state.intro['ring:server'] = true;
+            pt('server', { offered: 1 });
+            deviceNotice('lab', 'System', 'Your AI needs a server to train on. Parts has one.', () => { if (openBay) jumpTo('lab'); homeUp = false; renderHome(); });
+        }
         const res = E.finishSnare(state, snare.haul, layout, stats);
         snare.done = { stats, haul: snare.haul, record: res.record, first: res.first, prev: res.prev, sector: snare.sector, startSector: snare.startSector, cleared: snare.cleared.slice(), walked: !!snare.walked,
             replay: !!snare.replay, goal: snare.run?.opts.goal || 0, goalDone: !!snare.run?.goalDone, goalAt: Math.floor(snare.run?.goalProgress?.() || 0),
@@ -5523,7 +5538,9 @@ window.AGI = (function () {
                 el('p', { class: 'snare-intro-line snare-goal-line', text: gate ? snareGoalText(snareNextSector()).replace(snareGateText(snareNextSector()), '') : snareGoalText(snareNextSector()) }),
                 snareClockNote(),
                 el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: snareStartText('Snare again'), onclick: startSnare }), snareUpgradesButton(),
-                    gate ? el('button', { type: 'button', class: 'ghost-button snare-gate-go', text: 'Go to the Training Cluster', onclick: () => jumpTo('bay:training') }) : null].filter(Boolean))].filter(Boolean));
+                    gate ? (E.isRing() && !state.unlocked['module:path']
+                        ? el('button', { type: 'button', class: 'ghost-button snare-gate-go', text: 'Get a server in the Lab', onclick: () => jumpTo('lab') })
+                        : el('button', { type: 'button', class: 'ghost-button snare-gate-go', text: 'Go to the Training Cluster', onclick: () => jumpTo('bay:training') })) : null].filter(Boolean))].filter(Boolean));
         }
         setHidden(card, false);
     }
@@ -11577,6 +11594,7 @@ window.AGI = (function () {
 
     function brokeLabel() {
         const cost = E.pushCost(state, E.PATH.minCharge, ballLeg());
+        if (E.isRing()) return 'Out of research · The Feed makes more';
         const short = (cost.dp || 0) > state.res.dp ? 'data' : 'compute';
         return `Out of ${short} · make more in the lab`;
     }

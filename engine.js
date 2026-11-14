@@ -507,15 +507,29 @@
     // Nothing is stored but flags in `intro` (`fund:<who>` taken, `fundNo:<who>` declined, `ring:call` the call
     // made): the money held is the deposits taken less the desk parts bought (derive, don't store).
     // Placeholder numbers until the owner sets them.
-    const RING_CALL_CP = 25, RING_DEPOSIT = 400, DESK_PRICES = [150, 40, 30, 180];
-    const FUNDERS = ['m0m', 'dad', 'mom', 'payday'];
+    // Build 2 (the owner's calls, 2026-11-14): Packet Snare's first boss needs Pattern Matching, which means training,
+    // which needs a server: one server, the desk's fifth thing, offered once that boss has escaped you
+    // (`ring:server` in intro, set by the game) and bought with money. Whoever hasn't the money for it gets a deposit
+    // (`fund:server`). Buying it opens the Training Cluster (the `module:path` milestone), where a sprint costs
+    // research (RING_SPRINT_RP for a full one on the first legs), which The Feed makes. Placeholder numbers.
+    const RING_CALL_CP = 25, RING_DEPOSIT = 400, DESK_PRICES = [150, 40, 30, 180], RING_SERVER_PRICE = 400, RING_SPRINT_RP = 35;
+    const RING_SERVER = { name: 'Server', flavor: 'One server. Your AI needs somewhere to train.' };
+    const serverOffered = s => !!s.intro['ring:server'];
+    const FUNDERS = ['m0m', 'dad', 'mom', 'payday', 'server'];
     const funded = s => FUNDERS.some(k => s.intro['fund:' + k]);
     const deskCash = s => Math.max(0, FUNDERS.filter(k => s.intro['fund:' + k]).length * RING_DEPOSIT
-        - DESK_PRICES.slice(0, Math.min(RING_DESK, s.levels.keyboard || 0)).reduce((a, b) => a + b, 0));
+        - DESK_PRICES.slice(0, Math.min(RING_DESK, s.levels.keyboard || 0)).reduce((a, b) => a + b, 0) - ((s.levels.keyboard || 0) > RING_DESK ? RING_SERVER_PRICE : 0));
     // The next beat of the money story, or null: 'call', 'offer:<who>' (accept or decline), 'mail:<id>',
     // 'deposit:<who>' (no question). The game times them and shows them.
     function fundStep(s) {
         if (!ring || !s.intro['mailAccepted:welcome']) return null;
+        const step = deskFundStep(s);
+        if (step) return step;
+        // The server: short of its price once it's offered, a deposit comes (once).
+        if (serverOffered(s) && (s.levels.keyboard || 0) <= RING_DESK && deskCash(s) < RING_SERVER_PRICE && !s.intro['fund:server']) return 'deposit:server';
+        return null;
+    }
+    function deskFundStep(s) {
         const i = s.intro, decided = k => i['fund:' + k] || i['fundNo:' + k];
         if (!i['ring:call']) {
             if ((s.levels.keyboard || 0) >= RING_DESK) return null;   // a desk built before money existed
@@ -562,8 +576,9 @@
     // The card is named for the next thing to buy. Under the ring the desk stops at the monitor until the first boss, so a
     // finished desk's card is the monitor's, not the server's it can't buy yet.
     const deskStage = s => clickTool(ring && level(s, 'keyboard') >= RING_DESK ? RING_DESK - 1 : level(s, 'keyboard'));
-    const upgradeName = (s, up) => (up.id === 'keyboard' ? deskStage(s).name : up.name);
-    const upgradeFlavor = (s, up) => (up.id === 'keyboard' ? deskStage(s).flavor : up.flavor);
+    const ringServerCard = (s, up) => ring && up.id === 'keyboard' && level(s, 'keyboard') === RING_DESK && !!s.intro['ring:server'];
+    const upgradeName = (s, up) => (ringServerCard(s, up) ? RING_SERVER.name : up.id === 'keyboard' ? deskStage(s).name : up.name);
+    const upgradeFlavor = (s, up) => (ringServerCard(s, up) ? RING_SERVER.flavor : up.id === 'keyboard' ? deskStage(s).flavor : up.flavor);
     // A hardware tier shows up once you own TIER_REVEAL_OWNED of the tier below and have earned its full
     // price this run: late enough that the tier below has done its job, early enough to save up for it.
     const TIER_REVEAL_OWNED = 10;
@@ -696,7 +711,8 @@
             callout: ['Server room online', 'Your AI can start training. Click the server room, or open the map to see every area.'],
             // Anyone who has trained before (older saves, later versions) gets it back once data flows again.
             // The ring: training waits for Packet Snare's first boss (Build 2); sealed until then.
-            check: s => !ring && ((s.stats.collects >= 40 && s.stats.runCp >= 100 && s.stats.runDp >= 40) || ((s.stats.rolls > 0 || s.path.learned > 0) && s.res.dp + s.stats.collects > 0)) },
+            ringCallout: ['System', 'Training Cluster has been added to your home screen.'],
+            check: s => (ring ? level(s, 'keyboard') > RING_DESK : false) || !ring && ((s.stats.collects >= 40 && s.stats.runCp >= 100 && s.stats.runDp >= 40) || ((s.stats.rolls > 0 || s.path.learned > 0) && s.res.dp + s.stats.collects > 0)) },
         // Research is for bigger projects: it opens once training is well under way, and brings the investors
         // (and with them the road to the next version).
         { key: 'action:research', name: 'Basic Research', desc: `Learn a skill, then run ${RESEARCH_SPRINTS} training sprints to unlock Research`,
@@ -825,7 +841,7 @@
                 'Best Regards,\nA Friend'
             ],
             footer: '*it won\'t. You are receiving this email because you are you.', unsubscribe: true },
-        { id: 'serverRoom', when: s => !!s.unlocked['module:path'],
+        { id: 'serverRoom', when: s => !ring && !!s.unlocked['module:path'],   // the ring: a notification says it
             from: 'A Friend <no-reply@agi-careers.biz.info>', subject: 'RE: Your Opportunity (Step 2!!)',
             body: [
                 'Hello again Friend,',
@@ -1604,6 +1620,7 @@
 
     function upgradeCost(up, lvl) {
         if (ring && up.id === 'keyboard' && lvl < RING_DESK) return { cash: DESK_PRICES[lvl] };   // the ring: the desk costs money
+        if (ring && up.id === 'keyboard' && lvl === RING_DESK) return { cash: RING_SERVER_PRICE };   // and so does the server
         // Hand-priced first levels (`costs`), then `cost` (else the last hand price) grows by `scale` per level
         // (the desk got cheaper without moving the click tool's later stages).
         if (up.costs) {
@@ -1653,7 +1670,7 @@
     };
     function capacity(s, up) {
         const c = CAPACITY[up.id];
-        if (ring && up.id === 'keyboard') return RING_DESK;   // the ring: the server waits for the first boss
+        if (ring && up.id === 'keyboard') return RING_DESK + (serverOffered(s) ? 1 : 0);   // the ring: the server waits for the first boss
         return c ? c[0] + Math.floor(c[1] * Math.max(0, legPos(s.path.learned) - 1)) : Infinity;
     }
     const atCapacity = (s, up) => level(s, up.id) >= capacity(s, up);
@@ -1665,7 +1682,7 @@
 
     function isUpgradeVisible(s, up) {
         // The ring: once the desk is built its card goes (the owner's call: it sat there reading Full).
-        if (ring && up.id === 'keyboard' && level(s, 'keyboard') >= RING_DESK) return false;
+        if (ring && up.id === 'keyboard' && level(s, 'keyboard') >= RING_DESK && !(serverOffered(s) && level(s, 'keyboard') === RING_DESK)) return false;
         return !!s.unlocked['up:' + up.id];
     }
 
@@ -1984,7 +2001,8 @@
         const cost = {};
         // Computer Vision sees what matters and skips the rest: sprints need 30% less compute.
         const use = { cp: level(s, 'computerVision') ? 0.7 : 1 };
-        for (const [k, v] of Object.entries(PATH.pushCost)) cost[k] = Math.max(1, Math.ceil(v * factor * (use[k] || 1)));
+        // The ring: a sprint costs research (The Feed makes it), on the same shape by charge and by leg.
+        for (const [k, v] of Object.entries(ring ? { rp: RING_SPRINT_RP } : PATH.pushCost)) cost[k] = Math.max(1, Math.ceil(v * factor * (use[k] || 1)));
         return cost;
     }
 
@@ -2306,7 +2324,8 @@
     // The playground build (the owner's call, 2026-11-13): no boss waits on a Training skill. Set true to bring the gates back.
     const SNARE_SKILL_GATES = false;
     // The first skill a boss on sector k needs that you haven't learned (null when none).
-    const snareGateSkill = (s, k) => { if (!SNARE_SKILL_GATES || !isSnareBossSector(k)) return null; const g = SNARE_GATE_SKILLS.find(([sec, name]) => k >= sec && !knows(s, name)); return g ? g[1] : null; };
+    const snareGateSkill = (s, k) => { if (ring && k === SNARE_FIRST_BOSS) return knows(s, 'Pattern Matching') ? null : 'Pattern Matching';   // the ring: the first gate
+        if (!SNARE_SKILL_GATES || !isSnareBossSector(k)) return null; const g = SNARE_GATE_SKILLS.find(([sec, name]) => k >= sec && !knows(s, name)); return g ? g[1] : null; };
     const SNARE_GATES = [MINE_SECTOR, NET_SECTOR, MINION_SECTOR, SWARM_SECTOR];
     const SNARE_STAGES = [
         { sector: 0, adds: 'packets' }, { sector: RED_SECTOR, adds: 'red' }, { sector: AV_SECTOR, adds: 'antivirus' },
@@ -3602,7 +3621,7 @@
     }
 
     return {
-        RING_CALL_CP, RING_DEPOSIT, DESK_PRICES, deskCash, funded, fundStep, fundDecide,
+        RING_SERVER_PRICE, RING_SPRINT_RP, RING_CALL_CP, RING_DEPOSIT, DESK_PRICES, deskCash, funded, fundStep, fundDecide,
         SAVE_VERSION, newPlayer, cleanPlayer, signIn, mailFill, WELCOME_FINAL, setRing, isRing, RING_DESK, deskLevels, deskDone, RING_CLOCK, RING_CLOCK_GROWTH, RING_CLOCK_MIN, snareClock, snarePayClock, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
         versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, startBreakCountdown, WALL_SURGE_RUNS, SURGE_POWER, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, ENDINGS, ending, recordLegPower, legPower, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
