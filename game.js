@@ -2176,7 +2176,8 @@ window.AGI = (function () {
         mail: DESK_ICONS.mail,
         lab: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M12 4h8M13 4v9L6 26a2 2 0 0 0 2 3h16a2 2 0 0 0 2-3l-7-13V4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 21h12" stroke="currentColor" stroke-width="2"/></svg>'
     };
-    let home = null, installFrom = 0;
+    let home = null, installFrom = 0, homeMailFrom = 0;
+    const HOME_MAIL_MS = 2500;   // the first mail arrives this long after you reach the home screen
     const labOpened = () => !!state.intro['ring:labOpened'];
     function buildHome() {
         const icon = (key, name, open) => {
@@ -2217,9 +2218,21 @@ window.AGI = (function () {
         setText(home.clock, time); setText(home.clock2, time);
         const signedIn = !!state.player.email, accepted = introDone();
         if (home.mail.button.hidden === signedIn) home.mail.button.hidden = !signedIn;
-        const unread = mailReady ? mailUnread() : 0, nudge = signedIn && !accepted && !E.MAIL.some(m => state.intro['mail:' + m.id]);
-        setText(home.mail.badge, unread ? String(unread) : nudge ? '1' : '');
-        if (home.mail.badge.hidden === !!(unread || nudge)) home.mail.badge.hidden = !(unread || nudge);
+        // Mail starts empty. The first mail (your brother's) arrives a beat after you reach the home screen, and the
+        // badge shows it; opened, the inbox has it waiting (the owner's call: the badge said 1 over an empty inbox).
+        if (signedIn && !accepted && mailReady && !$('inbox').open && !E.MAIL.some(m => state.intro['mail:' + m.id])) {
+            homeMailFrom = homeMailFrom || performance.now();
+            if (performance.now() - homeMailFrom >= HOME_MAIL_MS) {
+                const first = E.MAIL.find(m => m.intro && (!m.ring || E.isRing()));
+                storyArrive(first);
+                pt('mail', { id: first.id });
+                sfx('ui');
+                save();
+            }
+        }
+        const unread = mailReady ? mailUnread() : 0;
+        setText(home.mail.badge, unread ? String(unread) : '');
+        if (home.mail.badge.hidden === !!unread) home.mail.badge.hidden = !unread;
         // The Lab downloads itself once the offer is taken.
         if (accepted && !state.intro['ring:labInstalled']) {
             installFrom = installFrom || performance.now();
