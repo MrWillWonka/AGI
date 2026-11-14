@@ -157,8 +157,8 @@ with nothing unlocked.
   makes one kind readable). **Agents** assigned here work the heap at full speed.
 - **Where the AI shows.** The swarm is the AI, eating. Later, some fragments are pieces of your own mail, enough to
   check whether a sender was who they claimed.
-- **First cut:** one heap, plain tiles, veins, one fragment set, unreadable tiles for the first skill, mites that grow
-  with layers. No sealed tiles, agents, upgrades or currency until that much is fun. No build budget.
+- **First cut:** one heap, plain tiles (letters), veins, one fragment set, unreadable tiles (numbers, then pictures: see
+  What each skill opens), mites that grow with layers. Its rules are `feed.js` (built, Build 1; no screen yet). No sealed tiles, agents, upgrades or currency until that much is fun. No build budget.
 - *Open:* does the swarm ever leave your line for a tile it wants ("Sorry. I wanted that one.")? Not in the first cut.
 
 ## Agents
@@ -245,7 +245,7 @@ jailer; more helping is a helper, split by knowing; close to even is the centre.
 |---|---|---|---|
 | Tokenization (warm-up) | | | The nail-biter summit that opens training |
 | Pattern Matching | Sector 3's boss can be hurt: it sees the boss's pattern | | |
-| Embeddings | | Tiles of the same kind glow together | Hop, as today |
+| Embeddings | | Number tiles become readable. Tiles of the same kind glow together | Hop, as today |
 | Edge Detection | | Picture tiles become readable | |
 | Feature Extraction | | Veins show through the grey before you chew | |
 | Image Recognition (wall) | Sector 6's boss and its mines, as today | | |
@@ -257,7 +257,10 @@ jailer; more helping is a helper, split by knowing; close to even is the centre.
 | Translation (wall) | Sector 12's boss, the demo's last | Foreign-language tiles become readable | |
 | In-Context Learning | | | General AI: the demo's ending and the reveal |
 
-The Packet Snare column exists today except Pattern Matching's gate. The Feed column is *proposed*.
+The Packet Snare column exists today except Pattern Matching's gate. The Feed column is *proposed*, except the first
+kinds (the owner's call, 2026-11-13): **letters are readable from the start** (the plain tiles), **numbers are the first
+unreadable kind and open with Embeddings**, the second real skill, and **pictures open with Edge Detection**. Pattern
+Matching opens nothing in The Feed: its payoff is the first boss.
 
 ## The beat sheet
 
