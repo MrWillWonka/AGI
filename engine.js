@@ -2923,7 +2923,8 @@
     const EXPLOIT_CHARGES = 3;   // per run
     const AUDIT_FLAGS = 3;
     const AUDIT_PAY = 0.5;
-    const exploitCharges = s => (knows(s, 'Embeddings') ? EXPLOIT_CHARGES : 0);
+    // The ring: Hop is hidden for now (the owner's call, 2026-11-14: not fully built, and a distraction in the demo).
+    const exploitCharges = s => (!ring && knows(s, 'Embeddings') ? EXPLOIT_CHARGES : 0);
     function grantExploit(s, quality, leg = s.path.learned) {
         s.stats.exploits++;
         if (quality !== 'perfect') return 0;

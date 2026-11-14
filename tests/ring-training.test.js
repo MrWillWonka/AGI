@@ -153,3 +153,11 @@ test('the ring: Antivirus notice a cleaner, bigger field (one more per seven cle
     assert.equal(count(), base, 'the old game counts them as before');
     assert.equal(E.snareOpts(s, k).avArea, 0.25);
 });
+
+test('the ring: Hop is hidden for now (no charges, whatever is learned); the old game keeps it', () => {
+    const s = online();
+    s.path.learned = E.SKILL_INDEX.Embeddings + 1;
+    assert.equal(E.exploitCharges(s), 0);
+    E.setRing(false);
+    assert.ok(E.exploitCharges(s) > 0);
+});
