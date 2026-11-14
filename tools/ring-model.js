@@ -7,7 +7,7 @@
 //   node tools/ring-model.js            the starting numbers and what each dial does
 //   node tools/ring-model.js --json     the same runs as JSON
 //
-// Real numbers: the lab's prices and rates (engine.js: the desk 15/25/40/60/75 CP, a Graphics Card 15 CP x1.15 for
+// Real numbers: the lab's prices and rates (engine.js: the desk 15/25/40/60 CP, a Graphics Card 15 CP x1.15 for
 // 0.5 CP/s, 20 of them at the base cap) and Packet Snare's run sizes (the owner's 18.7 and 18.8 logs: about 45 packets
 // in 12 s on sector 1, 75 in 12.5 s on sector 2, 75 in 14 s on sector 3; sectors 1 and 2 cleared in 2 and 4 full runs).
 // Pattern Matching is taken as 30 sprints (about 12 runs of 2.5).
@@ -27,7 +27,7 @@
 'use strict';
 
 const DEFAULTS = { q: 10, qGrow: 1.6, s: 35, chew: 2, graze: 0.25, tough: [1, 2, 3], layerGrow: 1.8, miteFirst: 1, miteEvery: 1, payback: 120, clicks: 2.5 };
-const DESK = [15, 25, 40, 60, 75];
+const DESK = [15, 25, 40, 60];   // the tower, keyboard, mouse and monitor: the server waits for the first boss
 const PACKETS = { 1: 45, 2: 75, 3: 75 };
 const CLOCK = { 1: 12, 2: 12.5, 3: 14 };
 const CLEAR_RUNS = { 1: 2, 2: 4 };
@@ -52,13 +52,13 @@ function run(options = {}) {
         }
     };
     const shop = () => {
-        while (desk < 5 && cp >= DESK[desk]) { cp -= DESK[desk]; desk++; click += desk < 5 ? 0.25 : 1; }
+        while (desk < DESK.length && cp >= DESK[desk]) { cp -= DESK[desk]; desk++; click += 0.25; }
         const reserve = () => (at.server === undefined ? 0 : price());
-        while (desk >= 5 && cards < CARD_CAP && cp >= cardPrice && (cardPrice / CARD_CPS <= o.payback || cp - cardPrice >= reserve())) {
+        while (desk >= DESK.length && cards < CARD_CAP && cp >= cardPrice && (cardPrice / CARD_CPS <= o.payback || cp - cardPrice >= reserve())) {
             cp -= cardPrice; cards++; cardPrice *= 1.15;
         }
     };
-    while (desk < 5) { tick(1, 'lab', true); shop(); }
+    while (desk < DESK.length) { tick(1, 'lab', true); shop(); }
     at.server = t;
     while (!bossDown && t < 3600) {
         const k = Math.min(sector, 3);

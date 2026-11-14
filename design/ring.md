@@ -138,6 +138,18 @@ reserved for it. The names below are *proposed* placeholders.
 3. **The lab** (later funding rounds): a real server room, and in time a room per place. *Proposed:* the demo can end
    in the garage; this stage can wait.
 
+**How the bedroom stage is built (the owner's calls, 2026-11-13; built under `#ring`):** the places are **icons on a
+screen**, each with one readout, not objects. The screen is the **beat-up old laptop's** (dim, cracked) until the
+desk's last thing, **the monitor**, is bought; then it is a monitor's, online, and the screen can level up again
+later. **The desk is four things** (tower, keyboard, mouse, monitor: 140 compute). Packet Snare's icon is there when
+the desk is done; The Feed's once a run has poured into it; training will be **something on the monitor** when the
+first boss is met (Build 2). **The server is asked for when the boss shows:** one server, the start of the rack, so in
+the garage "the server rack" can be said as if there is only one. Until then the desk stops at the monitor, and
+hardware can be bought from the finished desk. **There is no server room under the ring** until the garage: Packet
+Snare opens from the screen and closes back to it, and the room is on no map. The lab has one hand action, Generate
+Compute. *Proposed copy:* "> Old laptop. 1 GB of RAM.", "> Online.", "You are online · Packet Snare is on your screen.
+Open it to start catching data.", the readouts "First run free", "100 compute a run", "40 packets to eat".
+
 What this changes: under the ring the finished desk does not open the server room. The server room's hub, the minimap
 and Surveillance assume today's rooms and change or wait. The lab screen is dense on a phone and needs a design pass to
 hold the objects. *Cheaper fallback, if the garage is too much to draw now:* today's server room stands in as the

@@ -3972,3 +3972,22 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
 .feed-hunger { height: 6px; background: var(--bg-2); border-bottom: 1px solid var(--border); }
 .feed-hunger-fill { height: 100%; width: 0; background: var(--success); transition: width 0.25s linear; }
 @media (prefers-reduced-motion: reduce) { .feed-hunger-fill { transition: none; } }
+
+/* The ring's desk: the screen on it (game.js renderDesk). A fixed height whatever it shows, so the Workbench under it
+   never moves. The laptop's is small, dim and cracked; the monitor's is wider, lit, with icons. */
+.desk-screen { margin: 0 0 12px; border: 3px solid var(--border); border-bottom-width: 10px; border-radius: 10px; background: #050b0c; height: 132px; position: relative; overflow: hidden; }
+.desk-screen.laptop { max-width: 300px; filter: saturate(0.5) brightness(0.8); }
+.desk-screen.laptop::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(118deg, transparent 61.6%, rgba(255, 255, 255, 0.28) 62%, transparent 62.5%), linear-gradient(96deg, transparent 61.5%, rgba(255, 255, 255, 0.18) 62%, transparent 62.6%),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 3px); }
+.desk-screen.monitor { border-color: var(--panel-2); box-shadow: 0 0 18px rgba(111, 179, 217, 0.12); }
+.desk-display { height: 100%; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; }
+.desk-line { font: 600 0.8rem var(--font-mono); color: var(--terminal-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.desk-icons { display: flex; gap: 10px; flex: 1; min-height: 0; }
+.desk-icon { flex: 0 1 150px; min-width: 0; display: grid; grid-template-rows: 1fr auto auto; justify-items: center; gap: 2px; padding: 6px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--primary); cursor: pointer; font: inherit; }
+.desk-icon:hover, .desk-icon:focus-visible { border-color: var(--border); background: rgba(255, 255, 255, 0.04); }
+.desk-icon-feed { color: var(--success); }
+.desk-icon-art { display: block; height: 100%; min-height: 0; aspect-ratio: 1; }
+.desk-icon-art svg { width: 100%; height: 100%; display: block; }
+.desk-icon-name { font: 700 0.85rem var(--font-display); color: var(--text); white-space: nowrap; }
+.desk-icon-readout { font: 600 0.72rem var(--font-mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }

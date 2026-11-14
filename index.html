@@ -281,7 +281,7 @@
                     <strong class="supply-bank" data-bind="res.dp">0</strong>
                     <canvas class="spark" id="sparkDp" aria-hidden="true"></canvas>
                 </div>
-                <div class="supply-cell cell-rp" data-show="action:research">
+                <div class="supply-cell cell-rp" data-show="seen:rp">
                     <span class="supply-label">Research</span>
                     <strong class="supply-value" data-bind="supply.rp"></strong>
                     <strong class="supply-bank" data-bind="res.rp">0</strong>
@@ -299,6 +299,9 @@
                  the stations that deal in that currency (game.js "Click glow"). -->
             <div class="panel panel-actions hud" id="workbench">
                 <h2 class="station-title">Workbench</h2>
+                <!-- The ring's desk (game.js renderDesk): the screen on it, an old laptop's until the monitor is bought,
+                     then the places you can open as icons with a readout each. Hidden with the ring off. -->
+                <div class="desk-screen" id="deskScreen" hidden></div>
                 <div id="actions" class="action-row"></div>
             </div>
 

@@ -1006,6 +1006,8 @@ window.AGI = (function () {
                 state.stats.holds++;
                 afterChange();
             });
+            // The ring: data comes only from Packet Snare and research only from The Feed, so the lab has one hand action.
+            if (E.isRing() && action.id !== 'compute') button.hidden = true;
             box.append(button);
             ui.actions[action.id] = { action, button, gain, cost, auto };
         }
@@ -1046,7 +1048,7 @@ window.AGI = (function () {
         // The desk is checked before the gate counts as met: the line used to go blank once the 40 computes
         // were done, with the desk still unbuilt.
         const desk = E.level(state, 'keyboard');
-        if (actionId === 'compute' && desk < E.CPU_AFTER_CLICK_LEVEL) parts.push(`desk\u00a0${desk}/${E.CPU_AFTER_CLICK_LEVEL}`);
+        if (actionId === 'compute' && desk < E.deskLevels()) parts.push(`desk\u00a0${desk}/${E.deskLevels()}`);
         return parts.length ? `Automation: ${parts.join(' · ')}` : '';
     }
 
@@ -2101,11 +2103,59 @@ window.AGI = (function () {
 
     // ---- Loop & rendering -----------------------------------------------
 
+    // The ring's desk (design/ring.md → Where the places live; the owner's calls, 2026-11-13): the screen on your desk.
+    // It is the old laptop's, cracked, until the monitor (the desk's last thing) is bought; then a monitor's, online,
+    // with the places you can open as icons, each with one readout: Packet Snare when the desk is done, The Feed once
+    // a run has poured into it. Under the ring there is no server room yet: Packet Snare opens from here and closes
+    // back to here (exitBay). Hidden with the ring off.
+    const DESK_ICONS = {
+        snare: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="11" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="5 3"/><path d="M16 22l-5-11 5 3 5-3z" fill="currentColor"/></svg>',
+        feed: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 27l9-12 5 6 4-5 8 11z" fill="currentColor"/><circle cx="21" cy="8" r="3" fill="currentColor"/></svg>'
+    };
+    let desk = null;
+    function buildDesk(node) {
+        const icon = (key, name, open) => {
+            const art = el('span', { class: 'desk-icon-art' });
+            art.innerHTML = DESK_ICONS[key];
+            const readout = el('span', { class: 'desk-icon-readout' });
+            const button = el('button', { type: 'button', class: `desk-icon desk-icon-${key}`, hidden: '', onclick: () => { pt('desk', { open: key }); open(); } },
+                [art, el('span', { class: 'desk-icon-name', text: name }), readout]);
+            return { button, readout };
+        };
+        const line = el('div', { class: 'desk-line' });
+        const snareIcon = icon('snare', 'Packet Snare', () => jumpTo('bay:pipeline'));
+        const feedIcon = icon('feed', 'The Feed', () => window.FeedUI?.open());
+        node.append(el('div', { class: 'desk-display' }, [line, el('div', { class: 'desk-icons' }, [snareIcon.button, feedIcon.button])]));
+        return { line, snare: snareIcon, feed: feedIcon };
+    }
+    function renderDesk() {
+        const node = $('deskScreen');
+        if (!node) return;
+        const on = E.isRing();
+        if (node.hidden === on) node.hidden = !on;
+        if (!on) return;
+        desk = desk || buildDesk(node);
+        const monitor = E.deskDone(state), online = !!state.unlocked['module:snare'], fed = state.feed.stats.delivered > 0;
+        node.classList.toggle('monitor', monitor);
+        node.classList.toggle('laptop', !monitor);
+        setText(desk.line, !monitor ? '> Old laptop. 1 GB of RAM.' : online ? '> Online.' : '> Connecting.');
+        if (desk.snare.button.hidden === online) desk.snare.button.hidden = !online;
+        if (desk.feed.button.hidden === fed) desk.feed.button.hidden = !fed;
+        if (online) {
+            const sector = snareNextSector(), clock = E.snareClock(state, sector, snareRunOpts(sector).focus);
+            setText(desk.snare.readout, clock.free ? 'First run free' : `${E.format(clock.price)} compute a run`);
+        }
+        if (fed) {
+            const packets = Math.ceil(window.Feed.left(state.feed) / window.Feed.FEED.grains);
+            setText(desk.feed.readout, packets ? `${E.format(packets)} ${packets === 1 ? 'packet' : 'packets'} to eat` : 'Empty');
+        }
+    }
     function afterChange() {
         announce(E.evaluate(state));
         deliverMail(false);
         promptAutoTrainer();
         render();
+        renderDesk();
     }
 
     function announce(changes) {
@@ -2116,7 +2166,8 @@ window.AGI = (function () {
             pt('unlock', { key: m.key });
             log(`Milestone reached: ${m.name}`, 'special');
             // First-time callouts show once per save, not again after a new version.
-            if (m.callout && !state.intro[m.key]) {
+            if (E.isRing() && m.ringCallout && !state.intro[m.key]) { state.intro[m.key] = true; callout(m.key, m.ringCallout[0], m.ringCallout[1]); }
+            else if (m.callout && !state.intro[m.key]) {
                 state.intro[m.key] = true;
                 callout(m.key, m.callout[0], m.callout[1]);
             }
@@ -2638,6 +2689,9 @@ window.AGI = (function () {
     }
     // Always a boolean: classList.toggle(name, undefined) flips the class instead of clearing it.
     const roomOpen = id => !!ROOMS[id].built && roomUnlocked(id);
+    // The ring: there is no server room until the garage (Build 3). It still holds Packet Snare's screen, opened from the
+    // desk, but it is on no map.
+    const ringHides = id => E.isRing() && id === 'servers';
     // Entered a bay before (older saves that have run count as having seen the Training Cluster).
     const baySeen = id => seenRooms.has(`bay:${id}`) || (id === 'training' && state.stats.rolls > 0);
 
@@ -2751,6 +2805,7 @@ window.AGI = (function () {
     function buildFacility() {
         const plan = $('facilityPlan');
         for (const [id, r] of Object.entries(ROOMS)) {
+            if (ringHides(id)) continue;
             const art = el('span', { class: `fr-art fr-art-${id}`, 'aria-hidden': 'true' });
             for (let i = 0; i < 6; i++) art.append(el('i'));
             const camLabel = `CAM ${String(Object.keys(ROOMS).indexOf(id) + 1).padStart(2, '0')}`;
@@ -2963,7 +3018,7 @@ window.AGI = (function () {
         if (!show) return;
         mapAutoMin?.();
         const sealedShown = new Set([...$('facilityPlan').querySelectorAll('.facility-room.locked:not([hidden])')].map(t => t.dataset.roomId));
-        const areas = Object.keys(ROOMS).filter(id => MINIMAP[id] && (roomUnlocked(id) || sealedShown.has(id)));
+        const areas = Object.keys(ROOMS).filter(id => MINIMAP[id] && !ringHides(id) && (roomUnlocked(id) || sealedShown.has(id)));
         const bays = Object.keys(BAYS).filter(id => bayUnlocked(id) || id === nextSealedBay());
         const here = currentPlace();
         // Open state too: a sealed outline that opens keeps the same id, and must redraw as a room.
@@ -3662,6 +3717,8 @@ window.AGI = (function () {
 
     function exitBay() {
         if (!openBay) return;
+        // The ring: a place opened from the desk closes back to the desk.
+        if (E.isRing()) { jumpTo('lab'); return; }
         ptView('servers');
         const bayNode = $('bays').querySelector(`.bay[data-bay="${openBay}"]`);
         const hub = $('hub');

@@ -290,7 +290,7 @@
         // x1.15 per unit, and a tier's output doubles at 25, 50 and 100 owned (HARDWARE_DOUBLINGS), which
         // makes older tiers worth topping up again. Each tier shows up late (tierReady).
         { id: 'cpu', tab: 'hardware', name: 'Graphics Card', cps: 0.5, effect: 'Generates compute', flavor: 'Secondhand, still smells faintly of crypto mining.', cost: { cp: 15 }, scale: 1.15,
-            unlock: s => automationGate(s, 'cpu').met && level(s, 'keyboard') >= CPU_AFTER_CLICK_LEVEL, hint: 'Build your desk up to the Server Rack, and compute by hand 40 times' },
+            unlock: s => automationGate(s, 'cpu').met && deskDone(s), hint: 'Build your desk up to the Server Rack, and compute by hand 40 times' },
         // The click tool: one upgrade that grows into new tools as you level it (CLICK_TOOLS), each adding
         // more per level. Its name and flavour follow the current tool (upgradeName / upgradeFlavor).
         // The first five levels are your desk, one item each at its own price (`costs`); then x1.32 per level.
@@ -493,6 +493,13 @@
         { from: 57, name: 'Robotic Clicker Arms', per: 110, flavor: 'They never blink. Never.' }
     ];
     const CPU_AFTER_CLICK_LEVEL = 5;   // the Server Rack
+    // The ring's desk (the owner's calls, 2026-11-13): four things, the tower, keyboard, mouse and monitor. The monitor
+    // is the last, and with it the screen in the lab turns from the old laptop's into a monitor's, online: Packet Snare
+    // is on it. The server (one server, the start of a rack) is asked for when the first boss shows, in Build 2: until
+    // then the desk stops at four.
+    const RING_DESK = 4;
+    const deskLevels = () => (ring ? RING_DESK : CPU_AFTER_CLICK_LEVEL);
+    const deskDone = s => level(s, 'keyboard') >= deskLevels();
     const clickToolAt = level => CLICK_TOOLS.filter(t => level > t.from || t.from === 0).at(-1);
     // The stage you're in now (at `owned` levels): the one the next level belongs to once you own any.
     const clickTool = owned => CLICK_TOOLS.filter(t => owned >= t.from).at(-1);
@@ -512,8 +519,11 @@
     const nextClickTool = owned => CLICK_TOOLS.find(t => t.from > owned) || null;
 
     // What a card is called and says now (the click tool changes as it grows).
-    const upgradeName = (s, up) => (up.id === 'keyboard' ? clickTool(level(s, 'keyboard')).name : up.name);
-    const upgradeFlavor = (s, up) => (up.id === 'keyboard' ? clickTool(level(s, 'keyboard')).flavor : up.flavor);
+    // The card is named for the next thing to buy. Under the ring the desk stops at the monitor until the first boss, so a
+    // finished desk's card is the monitor's, not the server's it can't buy yet.
+    const deskStage = s => clickTool(ring && level(s, 'keyboard') >= RING_DESK ? RING_DESK - 1 : level(s, 'keyboard'));
+    const upgradeName = (s, up) => (up.id === 'keyboard' ? deskStage(s).name : up.name);
+    const upgradeFlavor = (s, up) => (up.id === 'keyboard' ? deskStage(s).flavor : up.flavor);
     // A hardware tier shows up once you own TIER_REVEAL_OWNED of the tier below and have earned its full
     // price this run: late enough that the tier below has done its job, early enough to save up for it.
     const TIER_REVEAL_OWNED = 10;
@@ -638,20 +648,22 @@
     // Milestones: persistent per-run unlocks for actions and tabs. Once unlocked they stay unlocked.
     const MILESTONES = [
         // Data waits until passive compute reaches 5 CP/s (older saves that already collected keep it).
-        { key: 'action:collect', name: 'Data Collection', desc: 'Reach 5 CP/s to start collecting data', check: s => derive(s).cpPerSec >= 5 || s.stats.collects > 0 || s.res.dp > 0 },
+        { key: 'action:collect', name: 'Data Collection', desc: 'Reach 5 CP/s to start collecting data', check: s => !ring && (derive(s).cpPerSec >= 5 || s.stats.collects > 0 || s.res.dp > 0) },   // the ring: data comes only from Packet Snare
         // The server room opens once you can actually train: data collected by hand 40 times, and 100 CP and
         // 40 DP earned this version (it asked for them held at once, and each obvious play drained one: simple
         // players stalled there 24–28 min in round E's smoke review). Older saves that already train keep it.
         { key: 'module:path', name: 'Training Path', desc: 'Collect data 40 times and earn 100 CP and 40 DP to start training your model',
             callout: ['Server room online', 'Your AI can start training. Click the server room, or open the map to see every area.'],
             // Anyone who has trained before (older saves, later versions) gets it back once data flows again.
-            check: s => (s.stats.collects >= 40 && s.stats.runCp >= 100 && s.stats.runDp >= 40) || ((s.stats.rolls > 0 || s.path.learned > 0) && s.res.dp + s.stats.collects > 0) },
+            // The ring: training waits for Packet Snare's first boss (Build 2); sealed until then.
+            check: s => !ring && ((s.stats.collects >= 40 && s.stats.runCp >= 100 && s.stats.runDp >= 40) || ((s.stats.rolls > 0 || s.path.learned > 0) && s.res.dp + s.stats.collects > 0)) },
         // Research is for bigger projects: it opens once training is well under way, and brings the investors
         // (and with them the road to the next version).
         { key: 'action:research', name: 'Basic Research', desc: `Learn a skill, then run ${RESEARCH_SPRINTS} training sprints to unlock Research`,
             callout: ['Research funded', 'Research is open and investors are watching: their tasks pay training XP, and bigger projects lead to the next version.'],
             // After the first version it reopens as soon as there's data to research with.
-            check: s => s.stats.skilledSprints >= RESEARCH_SPRINTS || ((s.stats.researchDone > 0 || s.prestige.count > 0) && s.res.dp + s.stats.collects > 0) },
+            // The ring: research comes only from The Feed, so the action never opens.
+            check: s => !ring && (s.stats.skilledSprints >= RESEARCH_SPRINTS || ((s.stats.researchDone > 0 || s.prestige.count > 0) && s.res.dp + s.stats.collects > 0)) },
         // The Auto-Trainer is earned like the lab's machines: runs by hand, then it runs them for you.
         { key: 'auto:trainer', name: 'Auto-Trainer', desc: `Finish ${AUTO_TRAINER_RUNS} training runs by hand and learn ${AUTO_TRAINER_SKILL} skills`,
             check: s => level(s, 'autoTrainer') > 0 || automationGate(s, 'autoTrainer').met },
@@ -659,7 +671,9 @@
         // Recognition's wall, so the wall has a side door that pays data (design/second-minigame.md).
         { key: 'module:snare', name: 'Packet Snare', desc: 'Learn Edge Detection to open the Data Pipeline',
             callout: ['Data Pipeline online', 'Loose data is drifting through the server room\'s second bay. Draw a loop round it to catch it.'],
-            check: s => SNARE_OPEN_AT_START || (!!s.unlocked['module:path'] && knows(s, 'Edge Detection')) },
+            // The ring: it is the first place to open, on your screen when the desk is done.
+            ringCallout: ['You are online', 'Packet Snare is on your screen. Open it to start catching data.'],
+            check: s => (ring ? deskDone(s) : SNARE_OPEN_AT_START || (!!s.unlocked['module:path'] && knows(s, 'Edge Detection'))) },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }
     ];
@@ -1073,6 +1087,9 @@
 
     // Things on the top bar appear only once they matter, each introduced once (game.js toasts `intro`).
     const REVEALS = [
+        // Research on the lab's supply line: with its action, or (the ring) once The Feed has paid any.
+        { key: 'seen:rp', name: 'Research', check: s => !!s.unlocked['action:research'] || (ring && s.res.rp > 0),
+            intro: 'What your AI learns from the data it eats.' },
         { key: 'seen:dp', name: 'Data Points', check: s => s.res.dp > 0,
             intro: 'Collected with compute. Training sprints and research run on data.' },
         { key: 'seen:int', name: 'Intelligence', check: s => s.attr.intelligence > 0,
@@ -1545,6 +1562,7 @@
     };
     function capacity(s, up) {
         const c = CAPACITY[up.id];
+        if (ring && up.id === 'keyboard') return RING_DESK;   // the ring: the server waits for the first boss
         return c ? c[0] + Math.floor(c[1] * Math.max(0, legPos(s.path.learned) - 1)) : Infinity;
     }
     const atCapacity = (s, up) => level(s, up.id) >= capacity(s, up);
@@ -3457,7 +3475,7 @@
     }
 
     return {
-        SAVE_VERSION, setRing, isRing, RING_CLOCK, RING_CLOCK_GROWTH, RING_CLOCK_MIN, snareClock, snarePayClock, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
+        SAVE_VERSION, setRing, isRing, RING_DESK, deskLevels, deskDone, RING_CLOCK, RING_CLOCK_GROWTH, RING_CLOCK_MIN, snareClock, snarePayClock, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
         versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, startBreakCountdown, WALL_SURGE_RUNS, SURGE_POWER, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, ENDINGS, ending, recordLegPower, legPower, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,

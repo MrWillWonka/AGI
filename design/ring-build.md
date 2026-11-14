@@ -75,8 +75,11 @@ garbled catch's packets and half of what popped bubbles and snapped loops held a
 `garbledPackets` and `poppedPackets` in a run's stats); **compute buys the clock** (the owner's calls: paid at Start
 for the whole clock, 10 compute a second on sector 1 and 1.6 times more a sector; short of it you play the seconds you
 can afford, three at the least; the first run ever is free; going deeper costs nothing more; `snareClock` and
-`snarePayClock` in engine.js). Until the desk's doors exist, reach them with `#ring` and the debug panel (Open Packet
-Snare; The Feed → Open).
+`snarePayClock` in engine.js). **The desk** (`design/ring.md` → Where the places live: a screen with icons, a
+four-thing desk, no Collect Data or Research, no server room, training sealed; `renderDesk` in game.js, `deskDone`,
+`RING_DESK` and the milestones' ring branches in engine.js). So a fresh save under `#ring` can be played round the
+small loop with no debug panel. **Left in Build 1: the opening** (the brother's laptop in the mail, Report spam, the
+forced final offer). **For Build 2:** the server asked for when the boss shows, and training's icon on the monitor.
 
 Done when: a fresh save under the switch reaches The Feed inside about two minutes of the server room opening, the
 loop can be repeated without getting stuck, research rises, and all existing tests pass with the switch off.
