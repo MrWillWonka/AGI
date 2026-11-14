@@ -69,6 +69,15 @@ full-screen dialog (built, behind `#feed` and the debug panel until its door exi
 Feed's rules, save and screen (done), then runs fill the heap, compute buys the clock, the lab without two buttons with
 the desk's doors and training sealed, and the opening last.
 
+**Built so far (2026-11-13), all under `#ring`:** The Feed (as sand: `design/ring.md` → The Feed), its save and screen;
+**runs fill the pile** (every run, the owner's call: what it caught as sand as tough as the sector it started on, a
+garbled catch's packets and half of what popped bubbles and snapped loops held as bad sand; `feedFromRun` in game.js,
+`garbledPackets` and `poppedPackets` in a run's stats); **compute buys the clock** (the owner's calls: paid at Start
+for the whole clock, 10 compute a second on sector 1 and 1.6 times more a sector; short of it you play the seconds you
+can afford, three at the least; the first run ever is free; going deeper costs nothing more; `snareClock` and
+`snarePayClock` in engine.js). Until the desk's doors exist, reach them with `#ring` and the debug panel (Open Packet
+Snare; The Feed → Open).
+
 Done when: a fresh save under the switch reaches The Feed inside about two minutes of the server room opening, the
 loop can be repeated without getting stuck, research rises, and all existing tests pass with the switch off.
 

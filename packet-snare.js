@@ -651,7 +651,9 @@
             wireUsed: 0,            // how much of the wire's length the stroke has used, 0 to 1 (drawn as it runs out)
             lastLoopAt: -1e9,       // when the last loop paid (a loop moments after it is rushed)
             clears: 0,              // sectors cleared this run (each clear's Focus bonus is half the last's)
-            stats: { bossEscaped: 0, swallowed: 0, burst: 0, catches: 0, bubbles: 0, spawned: 0, pickups: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, botCollected: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, edgeCaught: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
+            // garbledPackets, poppedPackets: for The Feed (the ring): the packets a garbled catch held, and those inside a
+            // bubble or a drawn loop when it was popped or snapped.
+            stats: { garbledPackets: 0, poppedPackets: 0, bossEscaped: 0, swallowed: 0, burst: 0, catches: 0, bubbles: 0, spawned: 0, pickups: 0, sectors: 0, loopStuns: 0, pushedOut: 0, autoZones: 0, cleaned: 0, botSpoofed: 0, botCollected: 0, gilded: 0, echoes: 0, storms: 0, surges: 0, pulses: 0, sweepsClean: 0, relayed: 0, edgeCaught: 0, raceBroken: 0, crashes: 0, converted: 0, caught: 0, gold: 0, units: 0, bestCatch: 0, bestMult: 0, corrupted: 0, snaps: 0, empty: 0, chained: 0, lasered: 0, scrubbed: 0, tagged: 0,
                 stolen: 0, cores: 0, quarantined: 0, bounces: 0, stuns: 0, fwLost: 0, sweeps: 0, escaped: 0, bossHits: 0, bosses: 0, wiped: 0, turreted: 0, purged: 0, decoysLost: 0, freezes: 0,
                 herdStuns: 0, flags: 0, ids: 0, parries: 0, slashes: 0, spoofed: 0, collected: 0, raced: 0, hijacked: 0, partners: 0, partnered: 0,
                 bossDamage: 0, avDown: 0, glanced: 0, mines: 0, minesCleared: 0, netted: 0, escalations: 0, forks: 0, stars: 0, minesGrabbed: 0, mineThrows: 0, mineHits: 0, mineBounces: 0, mineDuds: 0 },
@@ -1545,6 +1547,8 @@
         }
         function snap(fw, by = '') {
             const popped = !!s.bubble?.growing;
+            const lost = popped ? bubblePoly() : s.wire.length >= 3 ? s.wire : null;
+            if (lost) s.stats.poppedPackets += s.packets.filter(p => pointInPolygon(p, lost)).length;
             s.events.push({ type: 'snap', x: fw.x, y: fw.y, wire: s.wire.slice(), bubble: popped, by, boss: !!s.boss });
             s.bubble = null;
             s.wire = [];
@@ -2977,6 +2981,7 @@
             if (j.spoiled) {
                 s.streak = 0;
                 s.cleanRun = 0;
+                s.stats.garbledPackets += j.inside.length;
                 remove(j.inside);
                 s.stats.corrupted++;
                 penalty(o.corruptPenalty, at);

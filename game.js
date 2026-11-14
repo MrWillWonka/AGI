@@ -4008,6 +4008,11 @@ window.AGI = (function () {
         const o = snareRunOpts(sector);
         // A run that brings a threat not yet met starts from a card that shows it (from an end card's Snare again too).
         if (snareMeetNext().length && snare.done) { snare.done = null; showSnareCard('start'); return; }
+        // The ring: compute buys the run's clock, the seconds you can afford (engine.js `snareClock`).
+        const clock = E.snarePayClock(state, sector, o.focus);
+        if (!clock) { snare.short = true; showSnareCard(snare.done ? 'end' : 'start'); return; }
+        snare.short = false;
+        if (!clock.free) { o.focus = clock.seconds; pt('snareClock', { sector: sector + 1, cost: clock.cost, s: clock.seconds, full: clock.full ? 1 : 0 }); }
         snare.meeting = null;
         snare.why = {};
         snareLive(true);
@@ -4931,8 +4936,25 @@ window.AGI = (function () {
         renderSnareHud();
     }
 
+    // The ring: what a run caught pours into The Feed, as sand as tough as the sector it started on; a garbled catch's
+    // packets and what popped bubbles and snapped loops held come as bad sand (feed.js `deliver`).
+    function feedFromRun(stats) {
+        if (!E.isRing()) return;
+        const load = { sector: snare.startSector + 1, packets: stats.caught || 0, gold: stats.gold || 0, garbled: stats.garbledPackets || 0, popped: stats.poppedPackets || 0 };
+        const out = E.feedDeliver(state, load);
+        if (out.added) pt('feedDelivery', load);
+        feedShow(out);
+    }
+    // The Start button's words: under the ring, what the clock costs here, or the seconds you can afford.
+    function snareStartText(plain) {
+        const sector = snareNextSector(), clock = E.snareClock(state, sector, snareRunOpts(sector).focus);
+        if (clock.free) return plain;
+        if (!clock.ok) return `${plain} · needs ${E.format(Math.ceil(clock.perSecond * E.RING_CLOCK_MIN))} compute`;
+        return clock.full ? `${plain} · ${E.format(clock.cost)} compute` : `${plain} · ${clock.seconds} s for ${E.format(clock.cost)} compute`;
+    }
     function endSnare(stats, layout) {
         snare.raceStep = 0;
+        feedFromRun(stats);
         const res = E.finishSnare(state, snare.haul, layout, stats);
         snare.done = { stats, haul: snare.haul, record: res.record, first: res.first, prev: res.prev, sector: snare.sector, startSector: snare.startSector, cleared: snare.cleared.slice(), walked: !!snare.walked,
             replay: !!snare.replay, goal: snare.run?.opts.goal || 0, goalDone: !!snare.run?.goalDone, goalAt: Math.floor(snare.run?.goalProgress?.() || 0),
@@ -5051,7 +5073,7 @@ window.AGI = (function () {
                 state.snare.runs < 3 && !first && !meetRed ? el('p', { class: 'snare-intro-line', text: snareHowTo() }) : null,
                 best > 0 ? el('ul', { class: 'result-lines' }, [['Best haul', `+${E.format(best)} Signal`], snareRpLine(), snareTrainingLine()].filter(Boolean)
                     .map(([a, b]) => el('li', {}, [el('span', { text: a }), el('span', { text: b })]))) : null,
-                el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: 'Start', onclick: startSnare }), state.snare.runs > 0 ? snareUpgradesButton() : null].filter(Boolean))].filter(Boolean));
+                el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: snareStartText('Start'), onclick: startSnare }), state.snare.runs > 0 ? snareUpgradesButton() : null].filter(Boolean))].filter(Boolean));
         } else {
             const d = snare.done;
             const s = d.stats;
@@ -5114,7 +5136,7 @@ window.AGI = (function () {
                 snareSectorPicker(),
                 // (after a gated escape the gate's line above says it; the objective doesn't repeat it)
                 el('p', { class: 'snare-intro-line snare-goal-line', text: gate ? snareGoalText(snareNextSector()).replace(snareGateText(snareNextSector()), '') : snareGoalText(snareNextSector()) }),
-                el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: 'Snare again', onclick: startSnare }), snareUpgradesButton(),
+                el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: snareStartText('Snare again'), onclick: startSnare }), snareUpgradesButton(),
                     gate ? el('button', { type: 'button', class: 'ghost-button snare-gate-go', text: 'Go to the Training Cluster', onclick: () => jumpTo('bay:training') }) : null].filter(Boolean))].filter(Boolean));
         }
         setHidden(card, false);

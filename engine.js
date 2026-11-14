@@ -2603,6 +2603,26 @@
         s.evals.earned += paid;
         return paid;
     }
+    // The ring: compute buys a Packet Snare run's clock (the owner's calls, 2026-11-13). `RING_CLOCK` compute a second on
+    // sector 1, ×`RING_CLOCK_GROWTH` a sector (tools/ring-model.js's `q` and `qGrow`). Paid at Start for the run's whole
+    // clock (`focus` seconds); short of it, you play the seconds you can afford, down to `RING_CLOCK_MIN`. The first run
+    // ever (the tutorial) is free, and going deeper mid-run costs nothing more. With the ring off, every run is free.
+    const RING_CLOCK = 10, RING_CLOCK_GROWTH = 1.6, RING_CLOCK_MIN = 3;
+    function snareClock(s, k, focus) {
+        const full = Math.max(0, num(focus, 0)), free = !ring || s.snare.runs === 0;
+        const perSecond = RING_CLOCK * Math.pow(RING_CLOCK_GROWTH, Math.max(0, Math.floor(num(k, 0))));
+        if (free) return { free, perSecond, price: 0, cost: 0, seconds: full, full: true, ok: true };
+        const seconds = Math.min(full, Math.floor(s.res.cp / perSecond));
+        return { free, perSecond, price: Math.ceil(full * perSecond - 1e-6), cost: Math.ceil(seconds * perSecond - 1e-6), seconds, full: seconds >= full, ok: seconds >= Math.min(full, RING_CLOCK_MIN) };
+    }
+    // Pays for the clock. Returns what was bought (see snareClock), or null when even the shortest clock is out of reach.
+    function snarePayClock(s, k, focus) {
+        const clock = snareClock(s, k, focus);
+        if (!clock.ok) return null;
+        s.res.cp = Math.max(0, s.res.cp - clock.cost);
+        return clock;
+    }
+
     // The Feed in the game (feed.js holds its rules; these pay what it earns into research, whole numbers). Each returns
     // feed.js's result, { research, events }, for the screen. The kinds the model can read follow the skills learned.
     const feedReadable = s => feedLib().LOCKED.filter(k => knows(s, feedLib().KINDS[k].skill));
@@ -3437,7 +3457,7 @@
     }
 
     return {
-        SAVE_VERSION, setRing, isRing, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
+        SAVE_VERSION, setRing, isRing, RING_CLOCK, RING_CLOCK_GROWTH, RING_CLOCK_MIN, snareClock, snarePayClock, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
         versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, startBreakCountdown, WALL_SURGE_RUNS, SURGE_POWER, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, ENDINGS, ending, recordLegPower, legPower, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
