@@ -82,3 +82,36 @@ test('the ring: a sprint costs research, on the old shape by charge; the old gam
     E.setRing(false);
     assert.deepEqual(Object.keys(E.pushCost(s, 1)).sort(), ['cp', 'dp']);
 });
+
+test('the ring: five frontier runs that get nowhere bring a surge offer for half your compute; a record resets the count', () => {
+    const s = online();
+    s.intro['ring:server'] = true; s.intro['fund:server'] = true;
+    E.buy(s, 'keyboard'); E.evaluate(s);
+    s.res.cp = 1000;
+    assert.equal(E.finishRoll(s, 0.4, false).record, true);
+    assert.equal(s.path.stuck, 0, 'a new best is progress');
+    for (let i = 0; i < E.RING_STUCK_RUNS - 1; i++) E.finishRoll(s, 0.3, false);
+    assert.equal(E.stuckOffer(s), null, 'not yet');
+    E.finishRoll(s, 0.3, false);
+    const o = E.stuckOffer(s);
+    assert.deepEqual([o.cost, o.runs, o.ok], [500, 3, true]);
+    assert.equal(E.takeSurge(s), true);
+    assert.deepEqual([s.res.cp, s.path.surge, s.path.stuck], [500, 3, 0]);
+    assert.equal(E.stuckOffer(s), null);
+    // Passed: the count starts again.
+    s.path.surge = 0;
+    for (let i = 0; i < E.RING_STUCK_RUNS; i++) E.finishRoll(s, 0.3, false);
+    assert.equal(E.passSurge(s), true);
+    assert.equal(s.path.stuck, 0);
+    // Too little compute: offered, but it cannot be taken.
+    s.res.cp = 10;
+    for (let i = 0; i < E.RING_STUCK_RUNS; i++) E.finishRoll(s, 0.3, false);
+    assert.equal(E.stuckOffer(s).ok, false);
+    assert.equal(E.takeSurge(s), false);
+    // The count survives a save, and the old game never offers.
+    const back = E.migrate(JSON.parse(JSON.stringify(s)), Date.now());
+    assert.equal(back.path.stuck, E.RING_STUCK_RUNS);
+    assert.equal(E.migrate({ version: 39, path: { learned: 1 } }, Date.now()).path.stuck, 0, 'an older save starts at none');
+    E.setRing(false);
+    assert.equal(E.stuckOffer(s), null);
+});

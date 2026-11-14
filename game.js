@@ -1070,6 +1070,7 @@ window.AGI = (function () {
     // doubling; for click upgrades, what a click is worth.
     function yieldText(up, lvl, d) {
         const f = E.format;
+        if (E.isRing() && up.id === 'keyboard' && lvl >= E.RING_DESK) return 'Opens the Training Cluster';   // the server's card
         if (up.cps) {
             const r = d.hardwareRates[up.id];
             return `+${f(r.each)} CP/s each`;
@@ -2135,6 +2136,8 @@ window.AGI = (function () {
         const cl = document.body.classList;
         if (!desk.crumb) {
             desk.crumb = true;
+            const chip = document.querySelector('.run-stats .module-supply .chip-label');
+            if (chip) { chip.textContent = 'Research'; chip.parentElement.title = 'Research: The Feed makes it'; }
             // On the laptop the Lab is a window: its × closes it to the desktop (the owner's call).
             // On a phone every app has a home bar at the foot of the screen (the owner's playtest: the crumb's home felt
             // odd on a phone). It sits under the home screen, so it only shows inside an app.
@@ -2224,6 +2227,7 @@ window.AGI = (function () {
     function renderHome() {
         if (!E.isRing()) return;
         fundTick();
+        stuckTick();
         // A save that is already working in the lab has opened it.
         if (!labOpened() && introDone() && (state.stats.clicks > 0 || E.level(state, 'keyboard') > 0)) state.intro['ring:labOpened'] = true;
         const on = !labOpened() || homeUp;
@@ -2416,6 +2420,27 @@ window.AGI = (function () {
             el('ol', { class: 'ring-welcome-steps' }, steps.map(([head, text]) => el('li', {}, [el('strong', { text: head }), el('span', { text: text })]))),
             el('div', { class: 'dialog-actions' }, [el('button', { type: 'button', class: 'button', text: 'Got it', onclick: () => dlg.close() })])]);
         dlg.addEventListener('close', () => { state.intro['ring:feedIntro'] = true; pt('home', { feedIntro: 1 }); dlg.remove(); save(); });
+        document.body.append(dlg);
+        dlg.showModal();
+    }
+    // Help when stuck (engine.js stuckOffer): in the Training Cluster, between runs, a prompt offers a surge for compute.
+    let stuckBusy = false;
+    function stuckTick() {
+        if (stuckBusy || openBay !== 'training' || homeUp || runInFlightOnScreen() || document.querySelector('dialog[open]')) return;
+        const o = E.stuckOffer(state);
+        if (!o) return;
+        stuckBusy = true;
+        const done = taken => { pt('surge', { taken: taken ? 1 : 0, cost: o.cost, skill: o.skill }); dlg.close(); };
+        const dlg = el('dialog', { class: 'dialog ring-welcome device-transfer', 'aria-labelledby': 'ringSurgeTitle' }, [
+            el('p', { class: 'device-call-kind', text: 'Lab' }),
+            el('h2', { id: 'ringSurgeTitle', text: `Stuck on ${o.skill}?` }),
+            el('p', { class: 'survey-lead', text: `Spend ${E.format(o.cost)} compute on a surge. Your next ${o.runs} runs start ${Math.round((o.power - 1) * 100)}% stronger.` }),
+            o.ok ? null : el('p', { class: 'survey-lead', text: `You have ${E.format(Math.floor(state.res.cp))} compute. Make more in the Lab.` }),
+            el('div', { class: 'dialog-actions' }, [
+                el('button', { type: 'button', class: 'ghost-button', text: 'Not now', onclick: () => { E.passSurge(state); done(false); } }),
+                o.ok ? el('button', { type: 'button', class: 'button', text: 'Surge', onclick: () => { E.takeSurge(state); sfx('claim'); done(true); } }) : null].filter(Boolean))].filter(Boolean));
+        dlg.addEventListener('cancel', e => { e.preventDefault(); E.passSurge(state); done(false); });
+        dlg.addEventListener('close', () => { dlg.remove(); stuckBusy = false; afterChange(); save(); });
         document.body.append(dlg);
         dlg.showModal();
     }
@@ -2717,6 +2742,7 @@ window.AGI = (function () {
                 return `${f(xpRate, xpRate < 0.1 ? 2 : 1)} XP/s`;
             }
             case 'supply.rates': {
+                if (E.isRing()) return f(Math.floor(state.res.rp));   // sprints cost research there (the chip reads Research)
                 const cp = f(d.cpNet + handRate('cp'));
                 return state.unlocked['seen:dp'] ? `${cp} CP · ${f(d.dpNet + handRate('dp'))} DP /s` : `${cp} CP/s`;
             }
