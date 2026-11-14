@@ -4068,3 +4068,19 @@ body.device-phone .home-taskbar, body.device-phone .home-popup { display: none; 
 /* The ring: the playtest note is a popup before the sign-in (game.js showPlaytestNote), not a line under the mail. */
 body.ring-device .inbox-note { display: none; }
 .ring-playtest p { margin: 0 0 10px; color: var(--muted); }
+/* The ring: the lab is one app. Its old strip of icons is gone, the top bar's envelope too (Mail is on the home screen),
+   and news drops from the top of the device's screen as a notification (game.js deviceNotice). */
+.desk-screen[hidden] { display: none; }
+body.ring-device #mailButton { display: none; }
+.home-icon-snare { color: var(--primary); }
+.home-icon-feed { color: var(--success); }
+.device-notices { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 3500; width: min(380px, calc(100% - 36px)); display: grid; gap: 8px; }
+.device-notice { width: 100%; display: grid; grid-template-columns: 30px 1fr; gap: 0 10px; align-items: center;
+    padding: 10px 14px; border: 1px solid var(--border); border-radius: 16px; background: var(--panel); color: var(--warning); box-shadow: 0 10px 34px rgba(0, 0, 0, 0.65); text-align: left; font: inherit; cursor: pointer; animation: notice-drop 0.32s ease-out; }
+.device-notice-snare { color: var(--primary); }
+.device-notice-art { grid-row: 1 / 3; width: 30px; height: 30px; }
+.device-notice-art svg { width: 100%; height: 100%; display: block; }
+.device-notice-app { font: 700 0.72rem var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.device-notice-text { font: 600 0.9rem var(--font-body); color: var(--text); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+@keyframes notice-drop { from { transform: translateY(-140%); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .device-notice { animation: none; } }

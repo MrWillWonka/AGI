@@ -393,6 +393,7 @@ window.AGI = (function () {
         const say = $('announce');
         if (say) say.textContent = `${title}. ${message || ''}`;
         if (kind === 'mail') {
+            if (E.isRing()) { if (!$('inbox').open) deviceNotice('mail', 'Mail', message, openInbox); return; }
             sfx('ui');
             pulseOnce($('mailButton'), 'bump');
             return;
@@ -2117,32 +2118,21 @@ window.AGI = (function () {
         feed: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 27l9-12 5 6 4-5 8 11z" fill="currentColor"/><circle cx="21" cy="8" r="3" fill="currentColor"/></svg>'
     };
     let desk = null;
-    function buildDesk(node) {
-        const icon = (key, name, open) => {
-            const art = el('span', { class: 'desk-icon-art' });
-            art.innerHTML = DESK_ICONS[key];
-            const readout = el('span', { class: 'desk-icon-readout' });
-            const button = el('button', { type: 'button', class: `desk-icon desk-icon-${key}`, hidden: '', onclick: () => { pt('desk', { open: key }); open(); } },
-                [art, el('span', { class: 'desk-icon-name', text: name }), readout]);
-            return { button, readout };
-        };
-        const line = el('div', { class: 'desk-line' });
-        const mail = icon('mail', 'Mail', () => openInbox());
-        const snareIcon = icon('snare', 'Packet Snare', () => jumpTo('bay:pipeline'));
-        const feedIcon = icon('feed', 'The Feed', () => window.FeedUI?.open());
-        node.append(line, el('div', { class: 'desk-icons' }, [mail.button, snareIcon.button, feedIcon.button]));
-        return { line, mail, snare: snareIcon, feed: feedIcon, titled: false };
-    }
     function renderDesk() {
         const node = $('deskScreen');
         if (!node) return;
-        const on = E.isRing();
-        if (node.hidden === on) node.hidden = !on;
-        if (!on) return;
-        desk = desk || buildDesk(node);
+        // The lab is one app on the device (the owner's call, 2026-11-13): Mail, Packet Snare and The Feed are icons on
+        // the home screen (renderHome), not a strip in the lab, so the strip stays hidden.
+        if (!node.hidden) node.hidden = true;
+        if (!E.isRing()) return;
+        desk = desk || { titled: false, crumb: false };
         const device = state.player.device || (matchMedia('(pointer: coarse)').matches ? 'phone' : 'laptop');
-        const monitor = E.deskDone(state), online = !!state.unlocked['module:snare'], fed = state.feed.stats.delivered > 0;
+        const monitor = E.deskDone(state);
         const cl = document.body.classList;
+        if (!desk.crumb) {
+            desk.crumb = true;
+            for (const b of document.querySelectorAll('[data-facility], [data-jump="facility"]')) { b.textContent = 'home'; b.setAttribute('aria-label', 'Back to the home screen'); }
+        }
         cl.add('ring-device');
         cl.toggle('device-phone', device === 'phone'); cl.toggle('device-laptop', device !== 'phone');
         cl.toggle('screen-monitor', monitor); cl.toggle('screen-old', !monitor);
@@ -2150,19 +2140,6 @@ window.AGI = (function () {
         if (!desk.titled) {
             const names = { Workbench: 'Compute', 'Hardware bench': 'Parts' };
             for (const h of $('labRoom').querySelectorAll('.station-title')) if (names[h.textContent.trim()]) { h.textContent = names[h.textContent.trim()]; desk.titled = true; }
-        }
-        setText(desk.line, !monitor ? (device === 'phone' ? '> Old phone.' : '> Old laptop. 1 GB of RAM.') : online ? '> Online.' : '> Connecting.');
-        const show = (icon, yes) => { if (icon.button.hidden === yes) icon.button.hidden = !yes; };
-        show(desk.mail, !!state.player.email); show(desk.snare, online); show(desk.feed, fed);
-        const unread = mailReady ? mailUnread() : 0;
-        setText(desk.mail.readout, unread ? `${unread} unread` : 'No new mail');
-        if (online) {
-            const sector = snareNextSector(), clock = E.snareClock(state, sector, snareRunOpts(sector).focus);
-            setText(desk.snare.readout, clock.free ? 'First run free' : `${E.format(clock.price)} compute a run`);
-        }
-        if (fed) {
-            const packets = Math.ceil(window.Feed.left(state.feed) / window.Feed.FEED.grains);
-            setText(desk.feed.readout, packets ? `${E.format(packets)} ${packets === 1 ? 'packet' : 'packets'} to eat` : 'Empty');
         }
     }
     // The device's home screen (the owner's call, 2026-11-13): under the ring a new game starts here once mail is set
@@ -2173,10 +2150,10 @@ window.AGI = (function () {
     // covers the page under the device's bezel and crack; dialogs (Mail) open over it.
     const HOME_INSTALL_MS = 6000;
     const HOME_ICONS = {
-        mail: DESK_ICONS.mail,
+        ...DESK_ICONS,
         lab: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M12 4h8M13 4v9L6 26a2 2 0 0 0 2 3h16a2 2 0 0 0 2-3l-7-13V4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 21h12" stroke="currentColor" stroke-width="2"/></svg>'
     };
-    let home = null, installFrom = 0, homeMailFrom = 0;
+    let home = null, installFrom = 0, homeMailFrom = 0, homeUp = false;   // homeUp: back on the home screen from an app
     const HOME_MAIL_MS = 2500;   // the first mail arrives this long after you reach the home screen
     const labOpened = () => !!state.intro['ring:labOpened'];
     function buildHome() {
@@ -2191,6 +2168,9 @@ window.AGI = (function () {
         };
         const mail = icon('mail', 'Mail', () => { pt('home', { open: 'mail' }); openInbox(); });
         const lab = icon('lab', 'Lab', () => openLab());
+        const snareApp = icon('snare', 'Packet Snare', () => { pt('home', { open: 'snare' }); openSnareApp(); });
+        const feedApp = icon('feed', 'The Feed', () => { pt('home', { open: 'feed' }); window.FeedUI?.open(); });
+        snareApp.button.hidden = feedApp.button.hidden = true;
         const clock = el('span', { class: 'home-clock' });
         const bar = el('div', { class: 'home-bar-fill' });
         const popupText = el('p', { class: 'home-popup-text' });
@@ -2199,17 +2179,17 @@ window.AGI = (function () {
             el('div', { class: 'home-popup-title', text: 'Download' }), popupText, el('div', { class: 'home-bar' }, [bar]), el('div', { class: 'home-popup-actions' }, [popupOpen])]);
         const node = el('div', { class: 'device-home', id: 'deviceHome', hidden: '' }, [
             el('div', { class: 'home-status' }, [clock, el('span', { class: 'home-signal', text: '▂▄▆ 37%' })]),
-            el('div', { class: 'home-icons' }, [mail.button, lab.button]),
+            el('div', { class: 'home-icons' }, [mail.button, lab.button, snareApp.button, feedApp.button]),
             popup,
             el('div', { class: 'home-taskbar' }, [el('span', { class: 'home-start', text: '▦' }), el('span', { class: 'home-task', text: 'Mail' }), el('span', { class: 'home-taskbar-clock' })])]);
         document.body.append(node);
-        return { node, mail, lab, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
+        return { node, mail, lab, snare: snareApp, feed: feedApp, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
     }
     function renderHome() {
         if (!E.isRing()) return;
         // A save that is already working in the lab has opened it.
         if (!labOpened() && introDone() && (state.stats.clicks > 0 || E.level(state, 'keyboard') > 0)) state.intro['ring:labOpened'] = true;
-        const on = !labOpened();
+        const on = !labOpened() || homeUp;
         if (!home && !on) return;
         home = home || buildHome();
         if (home.node.hidden === on) home.node.hidden = !on;
@@ -2226,7 +2206,7 @@ window.AGI = (function () {
                 const first = E.MAIL.find(m => m.intro && (!m.ring || E.isRing()));
                 storyArrive(first);
                 pt('mail', { id: first.id });
-                sfx('ui');
+                deviceNotice('mail', 'Mail', E.mailFill(state, first.subject), openInbox);
                 save();
             }
         }
@@ -2238,19 +2218,51 @@ window.AGI = (function () {
             installFrom = installFrom || performance.now();
             if (performance.now() - installFrom >= HOME_INSTALL_MS) { state.intro['ring:labInstalled'] = true; pt('home', { installed: 'lab' }); sfx('ui'); }
         }
-        const installed = !!state.intro['ring:labInstalled'], share = installed ? 1 : accepted ? Math.min(1, (performance.now() - installFrom) / HOME_INSTALL_MS) : 0;
+        const online = !!state.unlocked['module:snare'], fed = state.feed.stats.delivered > 0;
+        if (home.snare.button.hidden === online) home.snare.button.hidden = !online;
+        if (home.feed.button.hidden === fed) home.feed.button.hidden = !fed;
+        const installed = !!state.intro['ring:labInstalled'] || labOpened(), share = installed ? 1 : accepted ? Math.min(1, (performance.now() - installFrom) / HOME_INSTALL_MS) : 0;
         if (home.lab.button.hidden === accepted) home.lab.button.hidden = !accepted;
         home.lab.button.classList.toggle('loading', accepted && !installed);
         home.lab.button.disabled = !installed;
         home.lab.button.style.setProperty('--load', String(share));
         setText(home.lab.label, installed ? 'Lab' : 'Loading…');
-        if (home.popup.hidden === accepted) home.popup.hidden = !accepted;
+        const popping = accepted && !labOpened();
+        if (home.popup.hidden === popping) home.popup.hidden = !popping;
         setText(home.popupText, installed ? 'Lab is ready.' : 'Lab · from A Friend');
         home.bar.style.width = `${Math.round(share * 100)}%`;
         if (home.popupOpen.hidden === installed) home.popupOpen.hidden = !installed;
     }
+    // Back to the home screen from the Lab or Packet Snare (the home crumb), and out to an app from it.
+    function goHome() {
+        if (!labOpened() || homeUp) return;
+        homeUp = true;
+        pt('home', { back: 1 });
+        sfx('ui');
+        renderHome();
+        if (openBay) jumpTo('lab');
+    }
+    function openSnareApp() {
+        homeUp = false;
+        renderHome();
+        jumpTo('bay:pipeline');
+    }
+    // A notification drops from the top of the device's screen (the owner's call): new mail, a new app. Tapping it
+    // opens the app; it goes on its own after a few seconds. Several stack.
+    let noticeBox = null;
+    function deviceNotice(key, app, text, open) {
+        if (!noticeBox) document.body.append(noticeBox = el('div', { class: 'device-notices' }));
+        const art = el('span', { class: 'device-notice-art' });
+        art.innerHTML = HOME_ICONS[key];
+        const node = el('button', { type: 'button', class: `device-notice device-notice-${key}`, onclick: () => { node.remove(); pt('notice', { open: key }); open(); } },
+            [art, el('span', { class: 'device-notice-app', text: app }), el('span', { class: 'device-notice-text', text })]);
+        noticeBox.append(node);
+        sfx('ui');
+        setTimeout(() => node.remove(), 8000);
+    }
     function openLab() {
-        if (!state.intro['ring:labInstalled'] || labOpened()) return;
+        if (labOpened()) { homeUp = false; pt('home', { open: 'lab' }); sfx('ui'); renderHome(); return; }
+        if (!state.intro['ring:labInstalled']) return;
         state.intro['ring:labOpened'] = true;
         pt('home', { open: 'lab' });
         sfx('ui');
@@ -2290,7 +2302,7 @@ window.AGI = (function () {
             pt('unlock', { key: m.key });
             log(`Milestone reached: ${m.name}`, 'special');
             // First-time callouts show once per save, not again after a new version.
-            if (E.isRing() && m.ringCallout && !state.intro[m.key]) { state.intro[m.key] = true; callout(m.key, m.ringCallout[0], m.ringCallout[1]); }
+            if (E.isRing() && m.ringCallout && !state.intro[m.key]) { state.intro[m.key] = true; deviceNotice('snare', m.ringCallout[0], m.ringCallout[1], openSnareApp); }
             else if (m.callout && !state.intro[m.key]) {
                 state.intro[m.key] = true;
                 callout(m.key, m.callout[0], m.callout[1]);
@@ -3060,6 +3072,7 @@ window.AGI = (function () {
     }
 
     function zoomOut() {
+        if (E.isRing()) return goHome();   // the ring: the home crumb is the device's home screen
         if (zooming || view === 'facility') return;
         const from = view;
         storageSet(VIEW_KEY, 'facility');
@@ -3842,7 +3855,7 @@ window.AGI = (function () {
     function exitBay() {
         if (!openBay) return;
         // The ring: a place opened from the desk closes back to the desk.
-        if (E.isRing()) { jumpTo('lab'); return; }
+        if (E.isRing()) { homeUp = true; renderHome(); jumpTo('lab'); return; }
         ptView('servers');
         const bayNode = $('bays').querySelector(`.bay[data-bay="${openBay}"]`);
         const hub = $('hub');

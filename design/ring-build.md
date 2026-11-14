@@ -161,3 +161,5 @@ Done when: the finish line at the top of `design/ring.md`.
 - **`design/story.md`** is still right about what is built and about its settled rules on reading the player
   (choices, not skill; same-strength rewards). Its three paths and its open questions 3, 4 and 10 are answered in
   `design/ring.md`.
+
+- **The lab is one app (2026-11-13, the owner's call).** Mail, Packet Snare and The Feed are icons on the home screen, not a strip in the lab; the lab's home crumb (and leaving Packet Snare) goes back to the home screen (`goHome`, `homeUp`, session only); the top bar's envelope is hidden; new mail and Packet Snare coming online drop from the top as device notifications that open the app (`deviceNotice`). Reporting spam says "Moved to Junk."

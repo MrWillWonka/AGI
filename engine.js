@@ -672,7 +672,7 @@
         { key: 'module:snare', name: 'Packet Snare', desc: 'Learn Edge Detection to open the Data Pipeline',
             callout: ['Data Pipeline online', 'Loose data is drifting through the server room\'s second bay. Draw a loop round it to catch it.'],
             // The ring: it is the first place to open, on your screen when the desk is done.
-            ringCallout: ['You are online', 'Packet Snare is on your screen. Open it to start catching data.'],
+            ringCallout: ['You are online', 'Packet Snare is on your home screen. Open it to start catching data.'],
             check: s => (ring ? deskDone(s) : SNARE_OPEN_AT_START || (!!s.unlocked['module:path'] && knows(s, 'Edge Detection'))) },
         { key: 'tab:algorithms', name: 'Advanced Algorithms', desc: 'Reach 5 Intelligence to unlock Algorithms', check: s => s.attr.intelligence >= 5 },
         { key: 'tab:consciousness', name: 'Consciousness Research', desc: 'Reach General AI to unlock Consciousness', check: s => phaseIndex(s) >= 1 }
