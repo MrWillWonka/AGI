@@ -4210,3 +4210,4 @@ body.ring-device.device-phone .room-frame, body.ring-device.device-phone #viewpo
 body.ring-device.device-phone .snare-tree-bar { flex-wrap: nowrap; gap: 8px; }
 body.ring-device.device-phone .snare-tree-bar .snare-tree-title { display: none; }
 body.ring-device.device-phone .snare-tree-bar .button, body.ring-device.device-phone .snare-tree-bar .ghost-button { white-space: nowrap; }
+.device-transfer-name { font: 700 1.5rem var(--font-mono); letter-spacing: 0.08em; font-variant-numeric: slashed-zero; font-feature-settings: 'zero' 1; }

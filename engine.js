@@ -539,10 +539,9 @@
         // Taken: the main beat (the owner's call). Mom writes that she is sending money and thinks it has gone through,
         // so M0M's reads as hers; later her real transfer arrives. Nothing else, and no more questions.
         if (i['fund:m0m']) return !i['mail:mom'] ? 'mail:mom' : !decided('mom') ? 'deposit:mom' : null;
-        // Declined: Dad's offer; declined again, Mom's; declined again, pay day. Each only if the last was refused.
-        if (!i['mail:dad']) return 'mail:dad';
-        if (!decided('dad')) return 'offer:dad';
-        if (i['fund:dad']) return null;
+        // Declined (the owner's call, 2026-11-14: just the two Mom prompts, then pay day; few will turn down free money
+        // unless they are after the other endings): Mom's mail and her own transfer to accept or decline, then pay day.
+        // Dad's mail waits for the story build.
         if (!i['mail:mom']) return 'mail:mom';
         if (!decided('mom')) return 'offer:mom';
         if (i['fund:mom']) return null;
@@ -2410,7 +2409,7 @@
     // 330, 950, then 3,900 on sector 6 and ×2.45 a sector (the owner's hauls grew ×2.4–2.5 a sector from 6 to 11).
     // After the 18.7 log (bosses on 3, 6, 9…): the goals go by goal sector, not sector: the first four 40, 170, 600 and
     // 1,500 (sectors 1, 2, 4 and 5), then ×`SNARE_GOAL_GROWTH` each goal sector after.
-    const SNARE_FIRST_GOALS = [40, 170, 600, 1500];
+    const SNARE_FIRST_GOALS = [40, 150, 600, 1500];   // sector 2 was 170 (the owner's call, 2026-11-14: 17 runs on the small field, and Sprawl is dear now)
     const SNARE_GOAL_GROWTH = 2.7;   // the owner's pick from the campaign sweeps (2.9 with one more Antivirus a sector walled)
     const SNARE_FOCUS_SECTOR = 3;   // s of Focus more a sector from sector 7 (the owner's pick with the goals)
     // Snare 18 (the owner's call on K19): the curve grows on goal sectors only. It was set when a boss came every fifth

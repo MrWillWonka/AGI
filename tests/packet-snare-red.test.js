@@ -49,8 +49,8 @@ test('Gold Plating: a Cleaner bot with no red near turns a regular packet gold',
     assert.ok(s.stats.gilded >= 1 && s.packets.some(p => p.kind === 'gold'));
 });
 
-test('goals are Signal by goal sector: 40, 170, 600, 1,500, then growing a goal sector at a time (after the 18.7 log)', () => {
-    assert.deepEqual([0, 1, 3, 4].map(E.snareGoal), [40, 170, 600, 1500]);
+test('goals are Signal by goal sector: 40, 150, 600, 1,500, then growing a goal sector at a time (after the 18.7 log)', () => {
+    assert.deepEqual([0, 1, 3, 4].map(E.snareGoal), [40, 150, 600, 1500]);
     assert.equal(E.snareGoal(2), 0, 'sector 3 is a boss');
     assert.equal(E.snareGoal(5), 0, 'and sector 6');
     const G = E.snareGoal(6) / 1500;

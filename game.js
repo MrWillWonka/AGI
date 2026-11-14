@@ -2408,7 +2408,7 @@ window.AGI = (function () {
     // The money story (engine.js fundStep; the owner's call, 2026-11-14): the call from M0M that rings out to voicemail,
     // the transfers to accept or decline, Dad's and Mom's mails, pay day. Each beat waits its delay (this session's
     // clock) and for any open dialog to close. Placeholder timings until the owner sets them.
-    const FUND_DELAY = { call: 1500, 'offer:m0m': 2500, 'mail:dad': 45000, 'offer:dad': 20000, 'mail:mom': 45000, 'offer:mom': 60000, 'deposit:mom': 60000, 'deposit:payday': 20000, 'deposit:server': 6000 };
+    const FUND_DELAY = { call: 1500, 'offer:m0m': 2500, 'mail:dad': 45000, 'offer:dad': 20000, 'mail:mom': 45000, 'offer:mom': 25000, 'deposit:mom': 60000, 'deposit:payday': 20000, 'deposit:server': 6000 };
     const FUND_NAME = { m0m: 'M0M', dad: 'Dad', mom: 'Mom' };
     const CALL_RING_MS = 9000;
     let fundWait = { step: null, from: 0 }, fundBusy = false;
@@ -2468,7 +2468,9 @@ window.AGI = (function () {
             el('p', { class: 'device-call-kind', text: 'Bank' }),
             el('h2', { id: 'deviceTransferTitle', text: 'Incoming transfer' }),
             el('p', { class: 'device-transfer-sum', text: money }),
-            el('p', { class: 'device-transfer-from', text: `from ${FUND_NAME[who]}` }),
+            // The sender is set in the mono face, whose zero is slashed (the owner's call: make the 0 in M0M plain to see
+            // here, so there is a reason to decline; the call screen's display face still reads MOM).
+            el('p', { class: 'device-transfer-from' }, [document.createTextNode('from '), el('b', { class: 'device-transfer-name', text: FUND_NAME[who] })]),
             el('div', { class: 'dialog-actions' }, [
                 el('button', { type: 'button', class: 'ghost-button', text: 'Decline', onclick: () => choose(false) }),
                 el('button', { type: 'button', class: 'button', text: 'Accept', onclick: () => choose(true) })])]);

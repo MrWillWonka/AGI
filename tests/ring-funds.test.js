@@ -40,29 +40,28 @@ test('the ring: taking M0M\'s transfer buys the whole desk; then only Mom writes
     assert.equal(E.fundStep(s), null);
 });
 
-test('the ring: an offer taken ends the chain: Dad\'s taken, Mom never offers', () => {
+test('the ring: M0M declined, Mom\'s own transfer is offered next; taken, that is the end of it', () => {
     const s = game();
     s.stats.runCp = E.RING_CALL_CP; s.intro['ring:call'] = true;
     E.fundDecide(s, 'm0m', false);
-    s.intro['mail:dad'] = true;
-    E.fundDecide(s, 'dad', true);
+    assert.equal(E.fundStep(s), 'mail:mom', 'no mail or offer from Dad'); s.intro['mail:mom'] = true;
+    assert.equal(E.fundStep(s), 'offer:mom');
+    E.fundDecide(s, 'mom', true);
     assert.equal(E.fundStep(s), null);
     assert.equal(E.deskCash(s), E.RING_DEPOSIT);
 });
 
-test('the ring: declined all the way down, pay day deposits it with no question', () => {
+test('the ring: both declined, pay day deposits it with no question', () => {
     const s = game();
     s.stats.runCp = E.RING_CALL_CP; s.intro['ring:call'] = true;
     E.fundDecide(s, 'm0m', false);
-    assert.equal(E.fundStep(s), 'mail:dad'); s.intro['mail:dad'] = true;
-    assert.ok(E.MAIL.find(m => m.id === 'dad').body.some(p => /sending you some money/.test(p)));
-    assert.equal(E.fundStep(s), 'offer:dad'); E.fundDecide(s, 'dad', false);
-    assert.equal(E.fundStep(s), 'mail:mom'); s.intro['mail:mom'] = true;
+    s.intro['mail:mom'] = true;
     assert.equal(E.fundStep(s), 'offer:mom'); E.fundDecide(s, 'mom', false);
     assert.equal(E.deskCash(s), 0);
     assert.equal(E.fundStep(s), 'deposit:payday'); E.fundDecide(s, 'payday', true);
     assert.equal(E.deskCash(s), E.RING_DEPOSIT);
     assert.equal(E.fundStep(s), null);
+    assert.equal(!!s.intro['mail:dad'], false);
 });
 
 test('the ring off: the desk costs compute as ever, and no money story', () => {

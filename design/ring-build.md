@@ -181,3 +181,5 @@ Done when: the finish line at the top of `design/ring.md`.
 - **Owner's notes for later (2026-11-14).** The boss fight needs a clarity pass: be plain about what stuns and what damages, so small stuns (a smashed decoy's 1.2 s reel, a thrown mine's 1 s reel, a Firewall's stun) don't get in the way of, or muddy, the loop-to-stun then slash rhythm. The owner's log: 17 loops round an already-stunned boss. Saved for later, not designed: the player's Firewalls blocking the boss's attacks on turrets and other tools.
 
 - **Hop is hidden under the ring for now (2026-11-14, the owner's call):** `exploitCharges` is 0, so its button, tips and windows never show.
+
+- **Decisions on the open Build 1 and 2 items (2026-11-14, the owner's cards).** Packet Snare's clock price and research against The Feed are left as they are until Build 3. Sector 2's goal is 150 (was 170). Declining money is now M0M's transfer, then Mom's mail and her own transfer, then pay day; Dad's mail waits for the story build. The transfer prompt sets the sender in the mono face so the zero in M0M is plain.
