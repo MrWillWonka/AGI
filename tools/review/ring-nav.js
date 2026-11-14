@@ -29,7 +29,7 @@ const PORT = 8194;
         await page.click('.home-icon-lab'); await page.waitForTimeout(500);
         await page.evaluate(() => { const s = AGI.state; s.stats.clicks = 40; s.stats.runCp = 40; s.res.cp = 500; s.levels.keyboard = 4; });
         await page.click('#actions button:not([hidden])'); await page.waitForTimeout(600);
-        await page.evaluate(() => AGI.debug.feedDeliver(1, 30, 2, 3, 1));
+        await page.evaluate(() => { AGI.state.intro['ring:feed'] = true; AGI.debug.feedDeliver(1, 30, 2, 3, 1); });   // The Feed opens at its mark (a full stockpile, sector 1 cleared, four runs)
         await page.waitForTimeout(600);
         for (const n of await page.$$('.device-notice')) await n.evaluate(x => x.remove());
         const place = () => page.evaluate(() => {

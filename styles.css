@@ -4373,3 +4373,6 @@ body.ring-device.device-phone .snare-tree-bar .button, body.ring-device.device-p
 @media (prefers-reduced-motion: reduce) { .assist-bubble, .assist-ring { animation: none; } }
 body.device-laptop .assist { left: 16px; right: auto; bottom: 16px; }
 body.snare-live .assist { display: none; }
+/* A new app on the home screen wears a tag until it is first opened. */
+.home-icon { position: relative; }
+.home-icon.is-new::after { content: 'NEW'; position: absolute; top: -4px; right: 6px; padding: 2px 6px; border-radius: 999px; background: var(--primary, #5fdcaa); color: #06110f; font: 700 0.62rem/1.2 system-ui, sans-serif; letter-spacing: 0.06em; }

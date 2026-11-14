@@ -512,7 +512,16 @@
     // (`ring:server` in intro, set by the game) and bought with money. Whoever hasn't the money for it gets a deposit
     // (`fund:server`). Buying it opens the Training Cluster (the `module:path` milestone), where a sprint costs
     // research (RING_SPRINT_RP for a full one on the first legs), which The Feed makes. Placeholder numbers.
-    const RING_CALL_CP = 25, RING_DEPOSIT = 400, DESK_PRICES = [150, 40, 30, 180], RING_SERVER_PRICE = 400, RING_SPRINT_RP = 35;
+    // Pace (the owner's calls, 2026-11-14, after a log where the Lab, money, the desk, Packet Snare and The Feed all came
+    // inside 150 s): **no loan to start**. Parcel appears at RING_CALL_CP compute made and buys compute; the desk's
+    // parts are bought one at a time with what it pays (DESK_PRICES, in dollars: about 600 compute in all, PLACEHOLDER
+    // numbers of mine). **The Feed** opens once sector 1 is cleared, four runs are played and a stockpile has filled
+    // (`ring:feed` in intro, set by the game). **Graphics Cards** are sold only after the first Feed session
+    // (`ringCardsOpen`), the first RING_CARD_PRICE dollars and each RING_CARD_GROWTH times the last; M0M's call comes
+    // then, with RING_DEPOSIT dollars "to start automating".
+    const RING_CALL_CP = 25, RING_DEPOSIT = 100, DESK_PRICES = [10, 15, 15, 20], RING_SERVER_PRICE = 400, RING_SPRINT_RP = 35, RING_CARD_PRICE = 10, RING_CARD_GROWTH = 1.25, RING_FEED_RUNS = 4;
+    const ringCardsOpen = s => ring && (s.levels.keyboard || 0) >= RING_DESK && ((s.feed && s.feed.stats && s.feed.stats.sessions) || 0) >= 1;
+    const feedOpen = s => ring && (!!s.intro['ring:feed'] || !!s.intro['ring:feedIntro'] || ((s.feed && s.feed.stats && s.feed.stats.sessions) || 0) > 0);
     const RING_SERVER = { name: 'Server', flavor: 'One server. Your AI needs somewhere to train.' };
     const serverOffered = s => !!s.intro['ring:server'];
     const FUNDERS = ['m0m', 'dad', 'mom', 'payday', 'server'];
@@ -543,8 +552,7 @@
     function deskFundStep(s) {
         const i = s.intro, decided = k => i['fund:' + k] || i['fundNo:' + k];
         if (!i['ring:call']) {
-            if ((s.levels.keyboard || 0) >= RING_DESK) return null;   // a desk built before money existed
-            return s.stats.runCp >= RING_CALL_CP ? 'call' : null;
+            return ringCardsOpen(s) ? 'call' : null;   // the call comes when Graphics Cards go on sale
         }
         if (!decided('m0m')) return 'offer:m0m';
         // Taken: the main beat (the owner's call). Mom writes that she is sending money and thinks it has gone through,
@@ -1631,7 +1639,7 @@
 
     function upgradeCost(up, lvl) {
         const cost = upgradeCostBase(up, lvl);
-        return ring && up.id === 'cpu' && cost.cp ? { cash: Math.max(1, Math.ceil(cost.cp / RING_CP_PER_DOLLAR)) } : cost;
+        return ring && up.id === 'cpu' && cost.cp ? { cash: Math.round(RING_CARD_PRICE * Math.pow(RING_CARD_GROWTH, lvl)) } : cost;
     }
     function upgradeCostBase(up, lvl) {
         if (ring && up.id === 'keyboard' && lvl < RING_DESK) return { cash: DESK_PRICES[lvl] };   // the ring: the desk costs money
@@ -3688,7 +3696,7 @@
     }
 
     return {
-        RING_STUCK_RUNS, RING_SURGE_SHARE, stuckOffer, takeSurge, passSurge, RING_SERVER_PRICE, RING_SPRINT_RP, RING_CALL_CP, RING_DEPOSIT, DESK_PRICES, RING_CP_PER_DOLLAR, sellCompute, deskCash, funded, fundStep, fundDecide,
+        RING_STUCK_RUNS, RING_SURGE_SHARE, stuckOffer, takeSurge, passSurge, RING_SERVER_PRICE, RING_SPRINT_RP, RING_CALL_CP, RING_DEPOSIT, DESK_PRICES, RING_CARD_PRICE, RING_CARD_GROWTH, RING_FEED_RUNS, ringCardsOpen, feedOpen, RING_CP_PER_DOLLAR, sellCompute, deskCash, funded, fundStep, fundDecide,
         feedStart, feedStock, feedLeave, feedPick, feedMark,
         SAVE_VERSION, newPlayer, cleanPlayer, signIn, mailFill, WELCOME_FINAL, setRing, isRing, RING_DESK, deskLevels, deskDone, RING_CLOCK, RING_CLOCK_GROWTH, RING_CLOCK_MIN, snareClock, snarePayClock, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
         versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, startBreakCountdown, WALL_SURGE_RUNS, SURGE_POWER, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, ENDINGS, ending, recordLegPower, legPower, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,

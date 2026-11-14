@@ -2356,7 +2356,7 @@ window.AGI = (function () {
             installFrom = installFrom || performance.now();
             if (performance.now() - installFrom >= HOME_INSTALL_MS) { state.intro['ring:labInstalled'] = true; pt('home', { installed: 'lab' }); sfx('ui'); }
         }
-        const online = !!state.unlocked['module:snare'], fed = state.feed.stats.delivered > 0;
+        const online = !!state.unlocked['module:snare'], fed = E.feedOpen(state);
         if (home.snare.button.hidden === online) home.snare.button.hidden = !online;
         if (home.feed.button.hidden === fed) home.feed.button.hidden = !fed;
         const training = !!state.unlocked['module:path'];
@@ -2366,6 +2366,7 @@ window.AGI = (function () {
         if (home.shop.button.hidden === shopOn) home.shop.button.hidden = !shopOn;
         setText(home.shop.badge, canBuy ? '1' : '');
         if (home.shop.badge.hidden === canBuy) home.shop.badge.hidden = !canBuy;
+        for (const [key, app] of [['shop', home.shop], ['snare', home.snare], ['feed', home.feed], ['training', home.train]]) app.button.classList.toggle('is-new', !app.button.hidden && !state.intro['ring:seen:' + key]);
         const installed = !!state.intro['ring:labInstalled'] || labOpened(), share = installed ? 1 : accepted ? Math.min(1, (performance.now() - installFrom) / HOME_INSTALL_MS) : 0;
         if (home.lab.button.hidden === accepted) home.lab.button.hidden = !accepted;
         home.lab.button.classList.toggle('loading', accepted && !installed);
@@ -2388,11 +2389,13 @@ window.AGI = (function () {
         if (openBay) jumpTo('lab');
     }
     function openTrainingApp() {
+        state.intro['ring:seen:training'] = true;
         homeUp = false;
         renderHome();
         jumpTo('bay:training');
     }
     function openSnareApp() {
+        state.intro['ring:seen:snare'] = true;
         homeUp = false;
         renderHome();
         jumpTo('bay:pipeline');
@@ -2418,7 +2421,8 @@ window.AGI = (function () {
     // One at a time; a line stays until you tap it away, take its button, or do what it asks (`done`); what it is
     // talking about is ringed (`target`). Shown once each (`assist:<key>` in `intro`). EVERY LINE IS A PLACEHOLDER
     // for the owner to write or approve.
-    let assistBox = null, assistLive = null;
+    let assistBox = null, assistLive = null, lastArrival = -1e9;
+    const ARRIVE_GAP_MS = 45000;
     const assistQueue = [];
     function assist(key, text, o = {}) {
         if (!E.isRing() || state.intro['assist:' + key] || assistLive?.key === key || assistQueue.some(q => q.key === key)) return;
@@ -2426,6 +2430,7 @@ window.AGI = (function () {
         if (!assistLive) assistNext();
     }
     function assistNext() {
+        if (assistQueue.length && snareRunLive()) { setTimeout(() => { if (!assistLive) assistNext(); }, 1000); return; }
         const q = assistQueue.shift();
         if (!q) { assistLive = null; return; }
         if (!assistBox) document.body.append(assistBox = el('div', { class: 'assist', role: 'status', 'aria-live': 'polite' }));
@@ -2434,7 +2439,7 @@ window.AGI = (function () {
         if (q.action) kids.push(el('button', { type: 'button', class: 'assist-go', text: q.action[0], onclick: e => { e.stopPropagation(); const go = q.action[1]; assistClose('action'); closeApps(); go(); } }));
         const node = el('div', { class: 'assist-bubble', onclick: () => assistClose('tapped') }, kids);
         assistBox.replaceChildren(node);
-        assistLive = { ...q, node, at: performance.now(), ringed: null };
+        assistLive = { ...q, node, at: performance.now(), ringed: null }; lastArrival = performance.now();
         state.intro['assist:' + q.key] = true;
         pt('assist', { key: q.key });
         sfx('ui');
@@ -2488,9 +2493,12 @@ window.AGI = (function () {
         if (fundBusy || !labOpened() || (snare.run && !snare.run.over && snareInPlay())) return;
         const step = E.fundStep(state);
         if (!step) return;
+        // Quiet arrivals (the owner's call, 2026-11-14): only on the home screen, never with the AI talking, and
+        // ARRIVE_GAP_MS after the last arrival or line (a transfer follows its own call at once).
+        if (!step.startsWith('offer') && (!homeUp || assistLive || performance.now() - lastArrival < ARRIVE_GAP_MS)) { fundWait.step = null; return; }
         if (fundWait.step !== step) fundWait = { step, from: performance.now() };
         if (performance.now() - fundWait.from < FUND_DELAY[step] || document.querySelector('dialog[open]')) return;
-        fundWait.step = null;
+        fundWait.step = null; lastArrival = performance.now();
         const [kind, who] = step.split(':');
         const money = `$${E.format(E.RING_DEPOSIT)}`;
         if (kind === 'call') return showCall();
@@ -2550,8 +2558,9 @@ window.AGI = (function () {
         dlg.addEventListener('close', () => {
             dlg.remove();
             fundBusy = false;
-            if (state.intro['fund:' + who]) { sfx('claim'); deviceNotice('bank', 'Bank', `${money} deposited. Parcel has been added to your home screen.`, () => openShop());
-                assist('money', 'You have money now. Parcel sells the parts for a real desk: a tower, a keyboard, a mouse, a screen. I put Parcel on your home screen. It was not difficult.', { action: ['Open Parcel', () => { goHome(); openShop(); }], done: () => E.level(state, 'keyboard') > 0 || !!shop?.dlg.open }); }
+            if (state.intro['fund:' + who]) { sfx('claim'); deviceNotice('bank', 'Bank', `${money} deposited.`, () => openShop()); }
+            // Graphics Cards are on sale now, whoever paid (PLACEHOLDER words).
+            if (who === 'm0m') assist('cards', 'Parcel has graphics cards now. They make compute without you. I would not want you to tire.', { action: ['Open Parcel', () => { goHome(); openShop(); }], done: () => E.level(state, 'cpu') > 0 || !!shop?.dlg.open });
             afterChange();
             save();
         });
@@ -2576,7 +2585,7 @@ window.AGI = (function () {
     let shop = null, parcels = [];   // parcels: the orders on their way, in the order they arrive
     const held = () => parcels.reduce((n, p) => n + p.price, 0);
     const bankNow = () => Math.max(0, E.deskCash(state) - held());
-    const shopOpenable = () => E.isRing() && (E.funded(state) || E.level(state, 'keyboard') > 0 || state.stats.cashSold > 0 || state.res.cp >= E.RING_CP_PER_DOLLAR * 20);
+    const shopOpenable = () => E.isRing() && (state.stats.runCp >= E.RING_CALL_CP || E.funded(state) || E.level(state, 'keyboard') > 0 || state.stats.cashSold > 0);
     const queued = id => parcels.filter(p => p.id === id).length;
     function shopItems() {
         const up = E.UPGRADE_BY_ID.keyboard, lvl = E.level(state, 'keyboard'), at = k => ({ ...state, levels: { ...state.levels, keyboard: k } });
@@ -2586,7 +2595,7 @@ window.AGI = (function () {
         for (const i of items) { i.coming = parcels.some(p => p.id === 'keyboard' && p.k === i.k); i.next = i.k === next; }
         // Graphics Cards: as many as there is room for, each dearer than the last.
         const card = E.UPGRADE_BY_ID.cpu;
-        if (E.isUpgradeVisible(state, card) || E.level(state, 'cpu') > 0) {
+        if (E.ringCardsOpen(state) || E.level(state, 'cpu') > 0) {
             const own = E.level(state, 'cpu'), k = own + queued('cpu'), room = E.capacity(state, card);
             items.push({ id: 'cpu', k, art: 5, many: true, own, coming: queued('cpu') > 0, onWay: queued('cpu'), full: k >= room, next: k < room, price: E.upgradeCost(card, k).cash,
                 name: E.upgradeName(state, card), about: E.upgradeFlavor(state, card), does: 'Makes compute on its own', owned: false });
@@ -2620,6 +2629,14 @@ window.AGI = (function () {
             termLog(`installed ${p.name}`);
             if (!parcels.length || p.id === 'keyboard') deviceNotice('shop', 'Parcel', `Delivered and installed: ${p.name}.`, () => openShop());
             afterChange(); save();
+        }
+        // Parcel arrives once there is compute to sell: a notice, and the AI's line (PLACEHOLDER words).
+        if (shopOpenable() && !state.intro['ring:parcel']) {
+            state.intro['ring:parcel'] = true;
+            if (!E.level(state, 'keyboard')) {
+                deviceNotice('shop', 'System', 'Parcel has been added to your home screen.', () => openShop());
+                assist('money', 'You have a little compute spare. Parcel will buy it, and it sells desks. A tower would help us both, I think.', { action: ['Open Parcel', () => { goHome(); openShop(); }], done: () => E.level(state, 'keyboard') > 0 || !!shop?.dlg.open });
+            }
         }
         // The tip about holding a job's button waits until you are in the Lab to see it (it came up over the shop).
         if (E.level(state, 'keyboard') >= 4 && !state.intro['hint:hold'] && !homeUp && ringAppNow() === 'lab' && !document.querySelector('dialog[open]')) {
@@ -2677,12 +2694,14 @@ window.AGI = (function () {
             shop = { dlg, bank, list, have, sells, track, trackText, fill, key: '' };
         }
         if (shop.dlg.open) return;
+        state.intro['ring:seen:shop'] = true;
         shop.dlg.showModal();
         sfx('ui');
         renderShop(true);
     }
     // The Feed opens with a short card the first time (placeholder words): what it is and what to do there.
     function openFeed() {
+        state.intro['ring:seen:feed'] = true;
         window.FeedUI?.open();
         if (!E.isRing() || state.intro['ring:feedIntro']) return;
         // The first time, the AI says what to do, a line at a time (it was a card of four steps).
@@ -5614,10 +5633,16 @@ window.AGI = (function () {
         if (out.added || out.lost) pt('feedDelivery', out.cap ? { ...load, stocked: out.stocked, lost: out.lost, held: out.held, cap: out.cap } : load);
         // A full stockpile says so (placeholder words): the push to go and play it, or to fill another sector's.
         // Said once by the AI, with why it matters; after that a plain notice.
-        if (out.full) { if (state.intro['assist:full']) deviceNotice('feedFull', 'The Feed', `The stockpile for sector ${out.sector} is full.`, openFeed);
+        const feedWas = E.feedOpen(state);
+        if (!feedWas && out.full && state.snare.sector >= 1 && state.snare.runs >= E.RING_FEED_RUNS - 1) {
+            state.intro['ring:feed'] = true;
+            deviceNotice('feed', 'System', 'The Feed has been added to your home screen.', openFeed);
+            assist('feed', `The stockpile for sector ${out.sector} is full. I have put The Feed on your home screen. Something in there is hungry.`, { action: ['Open The Feed', () => { goHome(); openFeed(); }], done: () => !!window.FeedUI?.isOpen });
+        }
+        if (out.full && feedWas) { if (state.intro['assist:full']) deviceNotice('feedFull', 'The Feed', `The stockpile for sector ${out.sector} is full.`, openFeed);
             else assist('full', `The stockpile for sector ${out.sector} is full. Anything more you catch there is thrown away. I would rather it was not. The mites are hungry anyway.`, { action: ['Open The Feed', () => { goHome(); openFeed(); }], done: () => !!window.FeedUI?.isOpen }); }
         // The first catch: the AI says where it went and why you would go there (the owner: the notice was hardly seen and gave no reason).
-        if (!before && state.feed.stats.delivered > 0) assist('feed', 'What you caught is in The Feed now. I put it on your home screen. Mites eat the data there and it comes out as research, which is how I learn anything. Please feed them.', { action: ['Open The Feed', () => { goHome(); openFeed(); }], done: () => !!window.FeedUI?.isOpen });
+        void before;
         feedShow(out);
     }
     // The Start button's words: under the ring, what the clock costs here, or the seconds you can afford.

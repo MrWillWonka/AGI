@@ -14,29 +14,34 @@ test('the ring: the desk costs money, not compute, and compute alone buys none o
     assert.equal(E.formatCost(E.upgradeCost(up(), 0)), `$${E.DESK_PRICES[0]}`);
     assert.equal(E.canAfford(s, E.upgradeCost(up(), 0)), false);
     assert.equal(E.buy(s, 'keyboard').ok, false);
-    assert.equal(E.DESK_PRICES.reduce((a, b) => a + b, 0), E.RING_DEPOSIT, 'one deposit covers the whole desk');
+    // No loan to start: each part is bought with compute sold.
+    assert.equal(E.fundStep(Object.assign(s, { stats: { ...s.stats, runCp: 1e6 } })), null, 'no call for the desk');
+    s.stats.clicks = 30; E.evaluate(s);
+    for (let i = 0; i < E.RING_DESK; i++) { assert.equal(E.sellCompute(s, E.DESK_PRICES[i] * E.RING_CP_PER_DOLLAR), E.DESK_PRICES[i]); assert.equal(E.buy(s, 'keyboard').ok, true, `part ${i + 1}`); assert.equal(E.deskCash(s), 0); }
+    assert.equal(E.deskDone(s), true);
 });
 
-test('the ring: taking M0M\'s transfer buys the whole desk; then only Mom writes, and her money still comes', () => {
+test('the ring: M0M calls when Graphics Cards go on sale (desk built, a Feed session played); then only Mom writes, and her money still comes', () => {
     const s = game();
-    assert.equal(E.fundStep(s), null, 'nothing before the compute is earned');
-    s.stats.runCp = E.RING_CALL_CP;
+    s.stats.runCp = 1e5;
+    assert.equal(E.fundStep(s), null, 'nothing for compute alone');
+    s.levels.keyboard = E.RING_DESK; s.stats.cashSold = E.DESK_PRICES.reduce((a, b) => a + b, 0);
+    assert.equal(E.ringCardsOpen(s), false);
+    assert.equal(E.fundStep(s), null, 'nor for the desk alone');
+    s.feed.stats.sessions = 1;
+    assert.equal(E.ringCardsOpen(s), true);
     assert.equal(E.fundStep(s), 'call');
     s.intro['ring:call'] = true;
     assert.equal(E.fundStep(s), 'offer:m0m');
     assert.equal(E.fundDecide(s, 'm0m', true), true);
     assert.equal(E.fundDecide(s, 'm0m', false), false, 'decided once');
     assert.equal(E.deskCash(s), E.RING_DEPOSIT);
-    s.stats.clicks = 30; E.evaluate(s);   // the parts show at 15 clicks
-    for (let i = 0; i < E.RING_DESK; i++) assert.equal(E.buy(s, 'keyboard').ok, true, `part ${i + 1}`);
-    assert.equal(E.deskCash(s), 0);
-    assert.equal(E.deskDone(s), true);
-    assert.equal(s.res.cp, 0, 'no compute spent');
+    assert.ok(E.upgradeCost(E.UPGRADE_BY_ID.cpu, 0).cash <= E.RING_DEPOSIT, 'it buys the first card');
     assert.equal(E.fundStep(s), 'mail:mom', 'no mail from Dad, no other offer'); s.intro['mail:mom'] = true;
     assert.ok(E.MAIL.find(m => m.id === 'mom').body.some(p => /went through/.test(p)), 'she thinks it already arrived');
     assert.equal(E.fundStep(s), 'deposit:mom', 'her transfer arrives with no question: something is off');
     E.fundDecide(s, 'mom', true);
-    assert.equal(E.deskCash(s), E.RING_DEPOSIT);
+    assert.equal(E.deskCash(s), 2 * E.RING_DEPOSIT);
     assert.equal(E.fundStep(s), null);
 });
 
@@ -88,15 +93,17 @@ test('the ring: Packet Snare trickles no research of its own, even with Research
 
 test('the ring: compute is sold for money in whole dollars, and Graphics Cards cost money', () => {
     const s = game();
-    s.res.cp = 257;
-    assert.equal(E.sellCompute(s, 1e9), 25);
-    assert.deepEqual([s.res.cp, E.deskCash(s)], [7, 25]);
+    s.res.cp = 2007;
+    assert.equal(E.sellCompute(s, 1e9), 200);
+    assert.deepEqual([s.res.cp, E.deskCash(s)], [7, 200]);
     assert.equal(E.sellCompute(s, 9), 0, 'under a dollar is not sold');
     const card = E.UPGRADE_BY_ID.cpu, first = E.upgradeCost(card, 0);
     assert.deepEqual(Object.keys(first), ['cash']);
-    assert.ok(first.cash >= 1 && E.upgradeCost(card, 10).cash > first.cash);
+    assert.equal(first.cash, E.RING_CARD_PRICE);
+    assert.equal(E.upgradeCost(card, 10).cash, Math.round(E.RING_CARD_PRICE * Math.pow(E.RING_CARD_GROWTH, 10)));
+    assert.equal(E.feedOpen(s), false, 'The Feed waits for its mark'); s.intro['ring:feed'] = true; assert.equal(E.feedOpen(s), true);
     s.levels.cpu = 3;
-    assert.equal(E.deskCash(s), 25 - [0, 1, 2].reduce((n, l) => n + E.upgradeCost(card, l).cash, 0));
+    assert.equal(E.deskCash(s), 200 - [0, 1, 2].reduce((n, l) => n + E.upgradeCost(card, l).cash, 0));
     // An older ring save's cards are paid for; the old game still sells nothing and prices cards in compute.
     const old = E.migrate({ ...JSON.parse(E.serialize(game())), levels: { cpu: 5 }, stats: { clicks: 9 } }, Date.now());
     assert.equal(E.deskCash(old), 0);
