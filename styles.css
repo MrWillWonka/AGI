@@ -4150,3 +4150,7 @@ body.snare-live .device-homebar { display: none !important; }
 body.ring-device.device-phone .minimap { display: none; }
 body.ring-device.device-phone #labRoom .crumb-home, body.ring-device.device-phone #labRoom .crumb-home + .crumb-sep { display: none; }
 body.ring-device.device-phone .app { padding-bottom: 76px; }
+/* The notifications are a popover (game.js deviceNotice), so they show over open dialogs: undo the browser's popover box. */
+.device-notices[popover] { inset: auto; top: 20px; left: 50%; margin: 0; padding: 0; border: 0; background: none; color: inherit; overflow: visible; height: auto; }
+.device-notice-journal { color: var(--research); }
+.device-notice-journal svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }

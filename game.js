@@ -404,6 +404,10 @@ window.AGI = (function () {
             if (badge) { badge.textContent = journalNew > 9 ? '9+' : String(journalNew); badge.hidden = false; }
             $('journalButton').setAttribute('aria-label', `Journal, ${journalNew} new achievement${journalNew === 1 ? '' : 's'}`);
             pulseOnce($('journalButton'), 'burst');
+            // The ring: an achievement is a device notification, which shows over the home screen and over an open
+            // dialog (the owner's playtest: The IT Department's Favorite sounded behind Mail and showed nothing). In a
+            // Packet Snare run it waits in the usual queue.
+            if (E.isRing() && !snareInPlay()) { deviceNotice('journal', 'Achievement', title.replace('Achievement · ', '') + (message ? `: ${message}` : ''), () => $('journalButton').click()); return; }
             toastQueue.push({ title, message, kind });
             if (!toastBusy) nextToast();
             return;
@@ -2288,12 +2292,14 @@ window.AGI = (function () {
     // opens the app; it goes on its own after a few seconds. Several stack.
     let noticeBox = null;
     function deviceNotice(key, app, text, open) {
-        if (!noticeBox) document.body.append(noticeBox = el('div', { class: 'device-notices' }));
+        if (!noticeBox) document.body.append(noticeBox = el('div', { class: 'device-notices', popover: 'manual' }));
         const art = el('span', { class: 'device-notice-art' });
         art.innerHTML = HOME_ICONS[key];
         const node = el('button', { type: 'button', class: `device-notice device-notice-${key}`, onclick: () => { node.remove(); pt('notice', { open: key }); open(); } },
             [art, el('span', { class: 'device-notice-app', text: app }), el('span', { class: 'device-notice-text', text })]);
         noticeBox.append(node);
+        // Shown again as a popover each time, so it sits above whatever dialog is open (Mail, The Feed, Settings).
+        try { if (noticeBox.matches(':popover-open')) noticeBox.hidePopover(); noticeBox.showPopover(); } catch { /* no popovers: it stays under dialogs */ }
         sfx('ui');
         setTimeout(() => node.remove(), 8000);
     }
