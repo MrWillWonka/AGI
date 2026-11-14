@@ -238,6 +238,10 @@ test('each combo is an effect of its own', () => {
     const tr = copy({ tracer: 1 }), no = copy({});
     const sparks = []; for (let n = 0; n < 60; n++) { sparks.push(...Feed.step(tr, 0.1, { chew: 0 }).events.filter(e => e.type === 'arc')); Feed.step(no, 0.1, { chew: 0 }); }
     assert.ok(sparks.length && sparks.every(e => e.gold) && count(tr, 2) < count(no, 2));
+    // Resonance: on each beat a small pulse at every mite, much smaller than a Pulse's.
+    const re = play(copy({ resonance: 1 }), 7, false);
+    const beats = re.filter(e => e.type === 'shake'), small = re.filter(e => e.type === 'pulse');
+    assert.ok(beats.length >= 3 && small.length >= beats.length && small.every(e => e.r < Feed.FEED.pulseR / 2) && beats.some(e => e.eaten > 0));
     // Magnet: gold gathers toward the point you hold.
     const ma = copy({ magnet: 1 }), mb = copy({});
     const goal = { x: 20, y: pile.h - 3 };
@@ -247,7 +251,7 @@ test('each combo is an effect of its own', () => {
 });
 
 test('a save keeps the tools going exactly', () => {
-    const s = session({ sector: 1, packets: 100, gold: 20, garbled: 30 }, { scanner: 1, pulse: 1, arc: 1, sorter: 1, rhythm: 1, sonar: 1, storm: 1, defrag: 1, tracer: 1, magnet: 1 });
+    const s = session({ sector: 1, packets: 100, gold: 20, garbled: 30 }, { scanner: 1, pulse: 1, arc: 1, sorter: 1, rhythm: 1, sonar: 1, storm: 1, defrag: 1, tracer: 1, magnet: 1, resonance: 1 });
     play(s, 7.5);
     const back = Feed.clean(JSON.parse(JSON.stringify(s)));
     assert.deepEqual(JSON.parse(JSON.stringify(back)), JSON.parse(JSON.stringify(s)));

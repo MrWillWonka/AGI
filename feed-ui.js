@@ -172,7 +172,7 @@
         rhythm: ['Algo-rhythm', 'The box shakes on a beat. Garbled sand sinks and the rest rises.'],
         sonar: ['Sonar', 'A ring spreads from your finger, shows the sand it crosses, then draws the gold back in.'], storm: ['Storm', 'Chain lightning. Each mite sends bolts out through the sand round it.'],
         defrag: ['Defrag', 'Garbled sand packed in a clump is rewritten into good sand.'], tracer: ['Tracer', 'Sparks jump from each mite to gold in reach and take it.'],
-        magnet: ['Magnet', 'Gold is drawn through the pile to where you point.'] };
+        magnet: ['Magnet', 'Gold is drawn through the pile to where you point.'], resonance: ['Resonance', 'On every beat a small pulse goes off at each mite at once.'] };
     const recipe = id => { const k = F().CARDS[id]; return k && k.combo ? k.combo.map(cardName).join(' + ') : ''; };
     const cardName = id => (CARD_TEXT[id] || [id])[0];
     function renderHeld() {

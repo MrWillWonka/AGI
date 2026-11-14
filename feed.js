@@ -118,7 +118,9 @@
         tracerReach: 26,    // how far from a mite a spark finds gold, in cells,
         tracerEat: 4,       // and the gold grains a spark takes
         magnetRate: 160,    // Magnet: gold grains a second drawn toward the point you hold,
-        magnetHop: 14       // and how many cells each is drawn, at the most
+        magnetHop: 14,      // and how many cells each is drawn, at the most
+        resoEvery: 2,       // Resonance: seconds between beats,
+        resoR: 1.6          // and the small circle round each mite a beat eats, in cells (the owner's call: much smaller than a pulse)
     };
     // Cards (the owner's cards, 2026-11-14): a split in a session offers `cardChoices` of these and you pick one; it
     // lasts the session and stacks. `stat` is the dial it multiplies (`pay` is research per grain), `by` the multiplier
@@ -140,7 +142,8 @@
         storm: { rare: true, combo: ['pulse', 'arc'] },        // chain lightning: each mite sends bolts out through the sand round it
         defrag: { rare: true, combo: ['sorter', 'rhythm'] },   // garbled sand packed in a clump is rewritten into good sand
         tracer: { rare: true, combo: ['scanner', 'arc'] },     // sparks jump from each mite to gold in reach and take it
-        magnet: { rare: true, combo: ['scanner', 'sorter'] }   // gold is drawn toward the point you hold
+        magnet: { rare: true, combo: ['scanner', 'sorter'] },  // gold is drawn toward the point you hold
+        resonance: { rare: true, combo: ['pulse', 'rhythm'] }  // each beat sets off a small pulse at every mite at once
     };
     const CARD_IDS = Object.keys(CARDS);
     const COMBOS = CARD_IDS.filter(id => CARDS[id].combo);
@@ -424,6 +427,12 @@
                 for (const [, i] of take) if (cells[i]) eat(state, o, i, out);
                 out.events.push({ type: 'arc', x1: m.x, y1: m.y, x2: first % w + 0.5, y2: Math.floor(first / w) + 0.5, eaten: take.length, gold: true });
             }
+        }
+        // Resonance: on each beat a small burst at every mite, the swarm eating in time.
+        if (c.resonance && state.grains && due('reso', 1, o.resoEvery)) {
+            // (at the sand nearest each mite: a mite stands just off the pile, and the circle is small)
+            let eaten = 0; for (const m of state.swarm) { const i = nearestWithin(state, m.x, m.y, 6); eaten += i < 0 ? 0 : burst(state, o, i % w + 0.5, Math.floor(i / w) + 0.5, o.resoR, out); }
+            out.events.push({ type: 'shake', sunk: 0, eaten });
         }
         // Magnet: gold is drawn through the pile toward the point you hold (else the first mite).
         if (c.magnet && state.grains) {
@@ -926,7 +935,7 @@
                 const offer = Array.isArray(sess.offer) ? [...new Set(sess.offer.filter(id => typeof id === 'string' && Object.prototype.hasOwnProperty.call(CARDS, id)))].slice(0, o.cardChoices) : [];
                 state.session = { sector, research: whole(sess.research, 1e12), time: real(sess.time, 0, 1e7, 0), packets: whole(sess.packets, 1e8), cards, offer: offer.length ? offer : null, picks: offer.length ? Math.max(1, whole(sess.picks, 200)) : whole(sess.picks, 200) };
                 // The tools' clocks, the scanner's beam and the sorter bots.
-                const tt = {}; for (const key of ['scan', 'pulse', 'arc', 'sort', 'shake', 'sonar', 'storm', 'defrag', 'tracer', 'magnet']) { if (typeof sess.tt?.[key] === 'number') tt[key] = real(sess.tt[key], 0, 1e4, 0); }
+                const tt = {}; for (const key of ['scan', 'pulse', 'arc', 'sort', 'shake', 'sonar', 'storm', 'defrag', 'tracer', 'magnet', 'reso']) { if (typeof sess.tt?.[key] === 'number') tt[key] = real(sess.tt[key], 0, 1e4, 0); }
                 state.session.tt = tt; state.session.beam = real(sess.beam, 0, FEED.w, -1);
                 const ring = sess.ring; state.session.ring = ring && typeof ring === 'object' ? { x: real(ring.x, 0, FEED.w, FEED.w / 2), y: real(ring.y, 0, FEED.h, FEED.h - 1), r: real(ring.r, 0, 1e3, 0) } : null;
                 state.session.bots = (Array.isArray(sess.bots) ? sess.bots.slice(0, 50) : []).map(b => ({ x: real(b?.x, 0, FEED.w, FEED.w / 2), y: real(b?.y, 0, FEED.h, FEED.h - 1) }));
