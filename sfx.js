@@ -31,8 +31,10 @@
     }
 
     let ctx = null;
-    let master = null;
-    let out = null;             // the compressor everything ends in (music joins here, apart from the sounds' volume)
+    let master = null;          // the effects' bus (the Sound volume)
+    let out = null;             // where the music joins (its own volume: `musicVolume`)
+    let duck = null;            // the music stepped down under the big moments
+    let limiter = null;         // the last stage: nothing leaves louder than its ceiling
     let volume = 0.5;
     const last = {};            // name -> time last played, to thin out rapid repeats
     let chargeOsc = null;
@@ -44,13 +46,26 @@
         ctx = env.ctx || new AC();
         master = ctx.createGain();
         master.gain.value = volume * 0.6;
-        // A gentle compressor keeps stacked effects from clipping.
+        // The mixer: effects and music on a bus each, meeting at a limiter.
+        //   effects → `master` → a gentle compressor (stacked effects stay in hand) ┐
+        //   music   → `out` → `duck` (stepped down under the big moments, on purpose)  ┴→ limiter → trim → speakers
+        // A DynamicsCompressorNode adds make-up gain of its own (from its threshold, ratio and knee): `MUSIC_MAKEUP`
+        // gives the music what the old shared compressor gave it, and the limiter's is taken back out after it, so
+        // below its threshold the limiter changes nothing.
         const comp = ctx.createDynamicsCompressor();
         comp.threshold.value = -18;
         comp.ratio.value = 6;
-        master.connect(comp).connect(ctx.destination);
-        out = comp;
-        retime(STEP, 0, ctx.currentTime);
+        limiter = ctx.createDynamicsCompressor();
+        limiter.threshold.value = LIMIT_DB; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = 0.002; limiter.release.value = 0.12;
+        const flat = ctx.createGain();
+        flat.gain.value = Math.pow(10, -0.6 * (-LIMIT_DB * (1 - 1 / 20)) / 20);
+        out = ctx.createGain();
+        out.gain.value = MUSIC_MAKEUP;
+        duck = ctx.createGain();
+        master.connect(comp).connect(limiter);
+        out.connect(duck).connect(limiter);
+        limiter.connect(flat).connect(ctx.destination);
+        retime(stepOf(bpmOf(null)), 0, ctx.currentTime);
         return ctx;
     }
 
@@ -141,14 +156,27 @@
             src = src.connect(sh);
         }
         src.connect(g);
-        g.connect(master);
+        place(g, opts, P);
         o.start(t);
         o.stop(t + dur + 0.05);
+    }
+    // An effect's voice into the effects' bus: panned if it asks (`pan`), with a send into the track's room (`rev`)
+    // or its delay (`dly`). A track's profile may give every shared effect a little room (`rev` on the profile).
+    function place(g, opts, P) {
+        let tail = g;
+        if (opts.pan && ctx.createStereoPanner && !simple) { const p = ctx.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, opts.pan)); g.connect(p); tail = p; }
+        tail.connect(master);
+        if (simple) return;
+        const rev = opts.rev ?? (P && P.rev) ?? 0, dly = opts.dly ?? 0;
+        if (!(rev > 0) && !(dly > 0)) return;
+        const sp = fxSends();
+        if (rev > 0 && sp.rev) { const sg = ctx.createGain(); sg.gain.value = rev; tail.connect(sg).connect(sp.rev); }
+        if (dly > 0 && sp.dly) { const sg = ctx.createGain(); sg.gain.value = dly; tail.connect(sg).connect(sp.dly); }
     }
 
     let noiseBuf = null;
     // Filtered noise: whooshes, dust, impacts.
-    function noise({ dur = 0.3, gain = 0.25, f0 = 800, f1 = f0, q = 1, type = 'bandpass', at = 0, attack = 0.01 }) {
+    function noise({ dur = 0.3, gain = 0.25, f0 = 800, f1 = f0, q = 1, type = 'bandpass', at = 0, attack = 0.01, pan = 0, rev, dly }) {
         if (!noiseBuf) {
             noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
             const d = noiseBuf.getChannelData(0);
@@ -169,7 +197,8 @@
         g.gain.setValueAtTime(0.0001, t);
         g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain * gmul), t + Math.min(attack, dur * 0.9));
         g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-        src.connect(f).connect(g).connect(master);
+        src.connect(f).connect(g);
+        place(g, { pan, rev, dly }, P);
         src.start(t);
         src.stop(t + dur + 0.05);
     }
@@ -181,8 +210,11 @@
     // stingers wait for its next 16th or 8th (`q` in `play`), so they land in time with the track; feedback
     // that must feel instant (clicks, sprints, impacts) plays at once but takes its pitch from the bar.
     // Everything is in the track's key, A minor, mostly its pentatonic (A C D E G), which never clashes.
-    const BPM = 124;
-    const STEP = 60 / BPM / 4;                      // a 16th note, 0.121 s
+    const STEP = 60 / 124 / 4;                      // a 16th note at 124 BPM, 0.121 s: the grid the sounds were written on
+    const LIMIT_DB = -1.5;                          // the limiter's threshold: the ceiling is a touch over it
+    const MUSIC_MAKEUP = 1.155;                     // the music's level into the mixer (measured against the old mix)
+    // The music steps down under the big moments (dB, and how long), so they land without the whole mix pumping.
+    const DUCK = { summit: [5, 1.3], phase: [5, 1.5], ship: [5, 1.7], breakthrough: [4, 0.8], smash: [4, 0.9], snareBossDown: [5, 1.3], achievement: [2.5, 0.6], release: [3, 0.6] };
     let clock = null;                               // { t0, n0, len }
     const stepTime = n => clock.t0 + (n - clock.n0) * clock.len;
     const stepAt = t => clock.n0 + (t - clock.t0) / clock.len;
@@ -239,7 +271,9 @@
     // Each beat brings its own sound for every effect (applied in tone and noise; Simple sounds skip it).
     const keep = t => t;
     const PROFILES = {};       // profile in music/<theme>.js
-    const S = () => (clock ? clock.len : STEP);     // one 16th at the current tempo
+    // The sounds' unit of time: the division of the track's grid nearest a 16th at 124 BPM (so a figure written in
+    // 16ths keeps about its speed in a slow or a fast song, and stays on that song's grid).
+    const S = () => (clock ? clock.len * gridMul() : STEP);
 
     // A filtered note: the house voice (a short blip through a lowpass, techno-style).
     const blip = (note, opts) => tone({ f0: NOTE(note), dur: 0.09, type: 'square', gain: 0.07, cutoff: 2600, ...opts });
@@ -318,7 +352,7 @@
     // A click's note: where it falls in the bar picks it from the job's figure.
     function clickNote(res) {
         const notes = CLICK_NOTES[res] || CLICK_NOTES.cp;
-        const i = clock ? Math.floor(Math.round(stepAt(startAt ?? ctx.currentTime + base)) / 2) % 8 : 0;
+        const i = clock ? Math.floor(stepAt(startAt ?? ctx.currentTime + base) / (2 * gridMul()) + 1e-6) % 8 : 0;
         return notes[(i + 8) % 8];
     }
 
@@ -627,10 +661,15 @@
         // Every sound lands on the track's grid, in every track and in simple sounds: the next 16th (a held
         // click and the stingers the next 8th, `q` from game.js or QUANT). If a slowed track puts the 8th too
         // far off, the next 16th.
-        const div = opts?.q ?? QUANT[name] ?? 1;
+        const g1 = gridMul(), div = (opts?.q ?? QUANT[name] ?? 1) * g1;
         base = Math.max(0, (at ?? nextStep(div).t) - now);
-        if (at == null && base > 0.3 && div > 1) base = Math.max(0, nextStep(1).t - now);
+        if (at == null && base > 0.3 && div > g1) base = Math.max(0, nextStep(g1).t - now);
         startAt = now + base;
+        if (DUCK[name] && duck && !simple) {
+            const [db, secs] = DUCK[name];
+            duck.gain.setTargetAtTime(Math.pow(10, -db / 20), startAt, 0.03);
+            duck.gain.setTargetAtTime(1, startAt + secs, 0.3);
+        }
         if (name === 'click') lastClickAt = startAt;
         gmul = gv * ((simple ? SIMPLE_TRIM : SFX_TRIM)[style] || 1);
         const st = SNARE_TRIM[(simple ? 's:' : '') + style];
@@ -656,7 +695,10 @@
     // times its own repeats (`E.holdClock`): this part only accompanies them, so it needn't be a note a repeat,
     // and it never plays on after the hold (it stops on release, or `HOLD_KEEP` s after the last repeat, and
     // schedules at most `HOLD_AHEAD` s ahead). The first note takes the next 16th, a pick-up into the 8ths.
-    const HOLD_DIV = 2, HOLD_KEEP = 0.4, HOLD_AHEAD = 0.08;
+    const HOLD_KEEP = 0.4, HOLD_AHEAD = 0.08;
+    // The held figure's grid: the track's own (`holdDiv` on the style, in steps), else the division nearest an 8th
+    // at 124 BPM (so about four notes a second in any song; the income's rate is the game's business, not this).
+    const holdDiv = () => styleOf().holdDiv || 2 * gridMul();
     let holdPart = null;            // { res, until, next (step), first, timer }
     let lastClickAt = 0;            // the audio time of the last click scheduled (taps included)
     function held(res) {
@@ -668,7 +710,8 @@
         const until = ctx.currentTime + HOLD_KEEP;
         if (holdPart) { holdPart.res = res; holdPart.until = until; return; }
         const from = Math.max(ctx.currentTime, lastClickAt + S() / 2);
-        holdPart = { res, until, next: Math.ceil(stepAt(from) - 1e-6), first: true, timer: every(holdTick, 25) };
+        const g1 = Math.min(gridMul(), holdDiv());
+        holdPart = { res, until, next: Math.ceil(stepAt(from) / g1 - 1e-6) * g1, first: true, timer: every(holdTick, 25) };
         holdTick();
     }
     function holdTick() {
@@ -677,10 +720,11 @@
         const now = ctx.currentTime;
         if (now > h.until || !live()) return held(null);
         // After a stall, pick the grid up from now: never a burst of the notes that were missed.
-        if (stepTime(h.next) < now - 0.05) h.next = Math.ceil(stepAt(now) / HOLD_DIV - 1e-6) * HOLD_DIV;
+        const div = holdDiv();
+        if (stepTime(h.next) < now - 0.05) h.next = Math.ceil(stepAt(now) / div - 1e-6) * div;
         while (stepTime(h.next) < now + HOLD_AHEAD && stepTime(h.next) <= h.until) {
             play('click', { res: h.res, t: Math.max(now, stepTime(h.next)) });
-            h.next = h.first ? Math.floor(h.next / HOLD_DIV + 1) * HOLD_DIV : h.next + HOLD_DIV;
+            h.next = h.first ? Math.floor(h.next / div + 1e-6 + 1) * div : h.next + div;
             h.first = false;
         }
     }
@@ -756,12 +800,13 @@
             out.connect(master);
             // The first note waits for the next 16th, like every sound.
             const v = free ? THRUST_VOICE : chargeVoice();
-            chargeOsc = { out, v, vi: free ? 4 : CHARGE_VOICES.indexOf(v), free, sched: Math.floor(stepAt(now)) };
+            chargeOsc = { out, v, vi: free ? 4 : CHARGE_VOICES.indexOf(v), free, sched: Math.floor(stepAt(now) / gridMul()) };
         }
         const c = chargeOsc;
         // Strike each 16th a little ahead, so it lands exactly on the beat.
-        let next = Math.max(c.sched + 1, Math.ceil(stepAt(now)));
-        while (stepTime(next) - now < 0.06) { strikeCharge(c, l, next, stepTime(next)); next++; }
+        const g1 = gridMul();
+        let next = Math.max(c.sched + 1, Math.ceil(stepAt(now) / g1));
+        while (stepTime(next * g1) - now < 0.06) { strikeCharge(c, l, next, stepTime(next * g1)); next++; }
     }
 
     function chargeStop() {
@@ -773,18 +818,18 @@
     }
 
     // ---- Music: songs in each track's voice, that follow the run -----------------------------------------
-    // A step sequencer (16 steps a bar) scheduled a little ahead on the audio clock. Each track (Classic, Dark,
-    // Soft, Ominous, Retro) has its drums and instruments (`STYLES`) and six songs (`SONGS`): two for the lab
-    // (and Surveillance and R&D), two for the server room (and its bays) and two for Packet Snare's bay. A song is an eight-bar chord
-    // progression with voiced chords, a bass line that follows it, a four-bar melody (A) and an eight-bar one
-    // (B), played in a two-minute form (`FORM`): intro, A, B, A, a breakdown, B, A with a harmony, out. Then the
-    // area's other song takes over; moving between the lab and the server room changes song on the next bar,
-    // and coming back picks a song up at the section it left. Layers come in with the intensity (0-1, from the
-    // ball's speed in game.js): off-beat hats, a clap, 16th hats and an arpeggio of the chord when it's flying.
-    // Power-ups bend it: a crunch distorts it, flow and bullet time slow and muffle it, a breakthrough is a
-    // swell that opens the filter and lands on a crash. Its own volume (`setMusic`), so sounds and music can be
-    // set apart; silent until the first gesture, like everything here.
-    let music = null;               // { bus, parts, drive, dry, wet, filter, trim, nextStep, step, timer, song… }
+    // A step sequencer (16 steps a bar) scheduled a little ahead on the audio clock. Each track has its own
+    // tempo, drums and instruments (`STYLES`, from music/<theme>.js) and a list of songs per area (`SONGS`): the
+    // lab (with Surveillance and R&D), the server room (with its bays) and Packet Snare's bay. A song is chord
+    // progressions, bass lines, melodies and a form: a list of sections, each saying which of them it plays, for
+    // how many bars, and how much of the drum kit is in. When a song ends the area's next one takes over; moving
+    // between areas changes song on the next bar (the next beat in a slow song), and coming back picks a song up
+    // at the section it left. Parts come in with what the game has earned and the run's speed, in an order and at
+    // thresholds each track sets (`layers`). Power-ups bend it: a crunch distorts it, flow and bullet time slow
+    // and muffle it, a breakthrough is a swell that opens the filter and lands on a crash.
+    // The music never times the game: it reads the game's state (`musicState`, `setArea`, `setDepth`,
+    // `setTraining`, `held`) and nothing in the game waits on it.
+    let music = null;               // the running music: buses, sends, the scheduler's place in the song
     let musicVolume = 0.35;
     let intensity = 0;
     let mode = null;                // null | 'crunch' | 'flow' | 'freeze'
@@ -792,6 +837,10 @@
     let depth = 0;                  // 0-1: how much of the arrangement the game has earned (game.js, `setDepth`)
     let training = false;           // the beat plays only while training (game.js, `setTraining`)
     let songLvl = 1;                // the current song's level trim, on its pitched voices
+    // Presentation policy, not architecture: the beat (kick, hats, claps, fills) plays only while training (the
+    // owner's call). `setPolicy({ beatAlways: true })` lifts it without touching the game.
+    const policy = { beatAlways: false };
+    function setPolicy(p) { if (p && p.beatAlways != null) policy.beatAlways = !!p.beatAlways; setParts(0.3); }
 
     function driveCurve(k) {
         const n = 1024;
@@ -803,8 +852,97 @@
         return curve;
     }
 
+    // ---- Space: a track's delay and reverb, shared by all its voices through sends -------------------------
+    // `space` on a style: { reverb: { seconds, damp (Hz), level, pre (s) }, delay: { steps, feedback, cutoff,
+    // level, pan }, width }. One convolver and one delay line per bus (the music's, the effects'), never one a note.
+    const impulses = {};
+    function impulse(sp) {
+        const key = [sp.seconds, sp.damp, sp.pre].join(':');
+        if (impulses[key] && impulses[key].sampleRate === ctx.sampleRate) return impulses[key];
+        const sr = ctx.sampleRate, n = Math.ceil(sr * sp.seconds), pre = Math.floor(sr * (sp.pre || 0.008));
+        const buf = ctx.createBuffer(2, n, sr);
+        // Noise that dies away (60 dB over `seconds`) and darkens as it does: each channel its own, for width.
+        let seed = 0x9E3779B9 ^ Math.round(sp.seconds * 1000);
+        const r = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 * 2 - 1; };
+        for (let c = 0; c < 2; c++) {
+            const d = buf.getChannelData(c);
+            let y = 0;
+            for (let i = pre; i < n; i++) {
+                const t = (i - pre) / sr;
+                const cut = Math.max(600, (sp.damp || 5000) * Math.exp(-t * 1.6 / sp.seconds));
+                const a = 1 - Math.exp(-2 * Math.PI * cut / sr);
+                y += a * (r() - y);
+                d[i] = y * Math.exp(-6.9 * t / sp.seconds);
+            }
+        }
+        // Even energy whatever the length: a long hall is not louder than a short room at the same send.
+        let e = 0;
+        for (let c = 0; c < 2; c++) { const d = buf.getChannelData(c); for (let i = 0; i < n; i++) e += d[i] * d[i]; }
+        const k = 1 / Math.sqrt(e / 2 || 1);
+        for (let c = 0; c < 2; c++) { const d = buf.getChannelData(c); for (let i = 0; i < n; i++) d[i] *= k; }
+        return (impulses[key] = buf);
+    }
+    // Build a space into `dest`: returns its send inputs ({ rev, dly }, either may be missing) and how to dispose of it.
+    function buildSpace(sp, dest) {
+        const s = { nodes: [] };
+        if (!sp) return s;
+        if (sp.reverb) {
+            const inp = ctx.createGain(), conv = ctx.createConvolver(), out = ctx.createGain();
+            conv.buffer = impulse(sp.reverb);
+            out.gain.value = sp.reverb.level ?? 0.3;
+            inp.connect(conv).connect(out).connect(dest);
+            s.rev = inp; s.nodes.push(inp, conv, out);
+        }
+        if (sp.delay) {
+            const inp = ctx.createGain(), d = ctx.createDelay(2), lp = ctx.createBiquadFilter(), fb = ctx.createGain(), out = ctx.createGain();
+            d.delayTime.value = (sp.delay.steps ?? 3) * clock.len;
+            lp.type = 'lowpass'; lp.frequency.value = sp.delay.cutoff ?? 2600;
+            fb.gain.value = Math.min(0.7, sp.delay.feedback ?? 0.35);       // bounded: it always dies away
+            out.gain.value = sp.delay.level ?? 0.4;
+            inp.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d);
+            let tail = lp;
+            if (sp.delay.pan && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = sp.delay.pan; lp.connect(p); tail = p; s.nodes.push(p); }
+            tail.connect(out); out.connect(dest);
+            s.dly = inp; s.delay = d; s.steps = sp.delay.steps ?? 3; s.nodes.push(inp, d, lp, fb, out);
+        }
+        return s;
+    }
+    function dropSpace(s, after = 0) {
+        if (!s || !s.nodes.length) return;
+        const go = () => { for (const n of s.nodes) try { n.disconnect(); } catch { /* gone */ } };
+        if (after) later(go, after); else go();
+    }
+    // The effects' own space (the same room as the track's music, on the effects' bus): built on first use.
+    let fxSpace = null;
+    function fxSends() {
+        if (fxSpace && fxSpace.style === style) return fxSpace;
+        if (fxSpace) dropSpace(fxSpace, 6000);
+        fxSpace = buildSpace(styleOf().space, master);
+        fxSpace.style = style;
+        return fxSpace;
+    }
+
+    // ---- Tempo ---------------------------------------------------------------------------------------------
+    // Each track has its tempo (`bpm` on the style) and a song may have its own. The clock's step is a 16th at
+    // that tempo. Sounds that wait for the grid wait for the division of it nearest the old 16th at 124 BPM
+    // (121 ms), so a tap never waits longer in a slow song (`gridMul`: 1 at 124, ½ at 62).
+    const styleOf = () => STYLES[style] || STYLES.classic || {};
+    const bpmOf = song => (song && song.bpm) || styleOf().bpm || 124;
+    const stepOf = bpm => 60 / bpm / 4;
+    const baseLen = () => stepOf(music ? music.bpm : bpmOf(null));
+    const gridMul = () => Math.pow(2, Math.round(Math.log2(0.121 / baseLen())));
+    // The clock takes a new tempo from now on, without a jump in step time.
+    function tempoNow(bpm) {
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        retime(stepOf(bpm), clock ? stepAt(now) : 0, now);
+    }
+
     function startMusic() {
         if (music || musicVolume <= 0 || !ensure() || !live()) return;
+        const st = styleOf();
+        const songs = areaSongs(area), song = songFor[area] % songs.length, bpm = bpmOf(songs[song]);
+        tempoNow(bpm);
         const bus = ctx.createGain();
         bus.gain.value = musicLevel();
         const filter = ctx.createBiquadFilter();
@@ -818,51 +956,95 @@
         dry.gain.value = 1;
         wet.gain.value = 0;
         const parts = { beat: ctx.createGain(), tones: ctx.createGain() };
-        for (const [k, g] of Object.entries(parts)) { g.gain.value = partLevel(k); g.connect(bus); }
+        // Sends follow their part's fader, so a muted part is muted in the reverb too.
+        const sendIn = { beat: {}, tones: {} };
+        const space = simple ? { nodes: [] } : buildSpace(st.space, bus);
+        for (const [k, g] of Object.entries(parts)) {
+            g.gain.value = partLevel(k);
+            g.connect(bus);
+            for (const kind of ['rev', 'dly']) if (space[kind]) { const sg = ctx.createGain(); sg.gain.value = partLevel(k); sg.connect(space[kind]); sendIn[k][kind] = sg; }
+        }
         bus.connect(dry).connect(filter);
         bus.connect(drive).connect(wet).connect(filter);
         // The beat's trim comes after the drive, which would otherwise saturate back up to full level.
         const trim = ctx.createGain();
         trim.gain.value = styleTrim();
         filter.connect(trim).connect(out);
-        const first = nextStep(16, 0.05);          // joins the clock on a downbeat, in time with the grid sounds
-        music = { bus, parts, drive, dry, wet, filter, trim, nextStep: first.t, step: first.n,
-            area, song: songFor[area], songStep: first.n, left: {}, cmd: null };
+        const first = nextStep(4, 0.05);           // joins on a beat, in time with the grid sounds
+        music = { bus, parts, sendIn, space, drive, dry, wet, filter, trim, nextStep: first.t, step: first.n, origin: first.n,
+            area, songs, song, bpm, songStep: first.n, left: {}, cmd: null, style, voices: 0 };
         music.timer = every(schedule, 25);
     }
 
-    function stopMusic() {
+    function stopMusic(fade = 0.1) {
         if (!music) return;
         stopEvery(music.timer);
         const m = music;
         music = null;
-        if (clock.len !== STEP) { const n = Math.ceil(stepAt(ctx.currentTime)); retime(STEP, n, stepTime(n)); }
-        m.bus.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.1);
-        later(() => m.filter.disconnect(), 600);
+        m.bus.gain.setTargetAtTime(0.0001, ctx.currentTime, fade);
+        later(() => { m.filter.disconnect(); m.trim.disconnect(); dropSpace(m.space); for (const k of Object.keys(m.sendIn)) for (const g of Object.values(m.sendIn[k])) g.disconnect(); }, 600 + fade * 4000);
+        if (clock.len !== baseLen()) tempoNow(bpmOf(null));
     }
 
-    // One voice into the music, through its part: the beat (kick, hats, claps) or the tones (everything
-    // pitched), each with its own volume in Settings (`setMusicMix`).
-    function voice(fn, part = 'tones') {
+    // ---- Voices ----------------------------------------------------------------------------------------------
+    // One voice into the music, through its part: the beat (kick, hats, claps) or the tones (everything pitched),
+    // each with its own volume in Settings (`setMusicMix`). `o`: { pan (-1 to 1), rev, dly (send amounts) }.
+    // Voices are counted (`voices`), and a voice marked `low` (decoration: doublings, arpeggios) is dropped while
+    // the count is over `VOICE_SOFT`: the tune and the beat always play.
+    const voices = { music: 0, peak: 0 };
+    const VOICE_SOFT = env.phone ? 70 : 120;
+    function count(node) {
+        voices.music++;
+        if (voices.music > voices.peak) voices.peak = voices.music;
+        node.onended = () => { voices.music--; };
+    }
+    function voice(fn, part = 'tones', o) {
+        if (!music) return;
         const g = ctx.createGain();
-        g.connect(music.parts[part] || music.bus);
+        let tail = g;
+        if (o && o.pan && ctx.createStereoPanner && !simple) {
+            const p = ctx.createStereoPanner();
+            p.pan.value = Math.max(-1, Math.min(1, o.pan * (styleOf().space?.width ?? 1)));
+            g.connect(p);
+            tail = p;
+        }
+        tail.connect(music.parts[part] || music.bus);
+        if (o && !simple) for (const kind of ['rev', 'dly']) {
+            const to = music.sendIn[part] && music.sendIn[part][kind];
+            if (o[kind] && to) { const sg = ctx.createGain(); sg.gain.value = o[kind]; tail.connect(sg).connect(to); }
+        }
         fn(g);
     }
-    const shift = () => (STYLES[style] || STYLES.classic).shift || 0;   // the track's key, from A
-    function kick(t, gain, from = 150, to = 45, decay = 0.28) {
+    const shift = () => styleOf().shift || 0;   // the track's key, from A
+    // Pulse waves of other widths than a square's (chip voices): 'pulse25', 'pulse12'.
+    const waves = {};
+    function pulse(name) {
+        const m = /^pulse(\d+)$/.exec(name);
+        if (!m || !ctx.createPeriodicWave) return null;
+        if (waves[name] && waves[name].ctx === ctx) return waves[name].w;
+        const d = Number(m[1]) / 100, N = 48, re = new Float32Array(N), im = new Float32Array(N);
+        for (let n = 1; n < N; n++) re[n] = (2 / (n * Math.PI)) * Math.sin(n * Math.PI * d);
+        const w = ctx.createPeriodicWave(re, im);
+        waves[name] = { ctx, w };
+        return w;
+    }
+    // A kick: a sine dropping `from` → `to` Hz. `o`: { drive (0-1: its own saturation), click (a tick on top) }.
+    function kick(t, gain, from = 150, to = 45, decay = 0.28, o) {
         voice(g => {
-            const o = ctx.createOscillator();
-            o.frequency.setValueAtTime(from, t);
-            o.frequency.exponentialRampToValueAtTime(to, t + 0.12);
+            const osc = ctx.createOscillator();
+            osc.frequency.setValueAtTime(from, t);
+            osc.frequency.exponentialRampToValueAtTime(to, t + 0.12);
             g.gain.setValueAtTime(gain, t);
             g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
-            o.connect(g);
-            o.start(t);
-            o.stop(t + decay + 0.02);
-        }, 'beat');
+            if (o && o.drive) { const sh = ctx.createWaveShaper(); sh.curve = driveCurve(2 + 30 * o.drive); osc.connect(sh).connect(g); } else osc.connect(g);
+            osc.start(t);
+            osc.stop(t + decay + 0.02);
+            count(osc);
+        }, 'beat', o);
+        if (o && o.click) perc(t, o.click, { f: 3200, q: 1.5, len: 0.012 });
     }
     // A noise swell rising into the next bar (the fills): its gain and filter climb to the downbeat.
-    function riser(t, dur, gain) {
+    function riser(t, dur, gain, o) {
         voice(g => {
             if (!noiseBuf) noise({ dur: 0.01, gain: 0.0001 });
             const src = ctx.createBufferSource();
@@ -870,100 +1052,150 @@
             src.loop = true;
             const f = ctx.createBiquadFilter();
             f.type = 'bandpass';
-            f.frequency.setValueAtTime(400, t);
-            f.frequency.exponentialRampToValueAtTime(5000, t + dur);
+            f.frequency.setValueAtTime((o && o.from) || 400, t);
+            f.frequency.exponentialRampToValueAtTime((o && o.to) || 5000, t + dur);
             g.gain.setValueAtTime(0.0001, t);
             g.gain.exponentialRampToValueAtTime(gain, t + dur);
             g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.05);
             src.connect(f).connect(g);
             src.start(t);
             src.stop(t + dur + 0.1);
-        }, 'beat');
+            count(src);
+        }, (o && o.part) || 'beat', o);
     }
     // A soft chord held for a bar (pads): slow attack, gentle release.
-    function pad(t, notes, dur, gain, type = 'triangle', cutoff = 1400) {
+    function pad(t, notes, dur, gain, type = 'triangle', cutoff = 1400, o) {
         for (const n of notes) voice(g => {
-            const o = ctx.createOscillator();
+            const osc = ctx.createOscillator();
             const f = ctx.createBiquadFilter();
-            o.type = type;
-            o.frequency.value = NOTE(n + shift());
-            o.detune.value = (rnd() - 0.5) * 10;
+            osc.type = type;
+            osc.frequency.value = NOTE(n + shift());
+            osc.detune.value = (rnd() - 0.5) * 10;
             f.type = 'lowpass';
             f.frequency.value = cutoff;
             g.gain.setValueAtTime(0.0001, t);
             g.gain.exponentialRampToValueAtTime(gain * songLvl, t + dur * 0.3);
             g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-            o.connect(f).connect(g);
-            o.start(t);
-            o.stop(t + dur + 0.05);
-        });
+            osc.connect(f).connect(g);
+            osc.start(t);
+            osc.stop(t + dur + 0.05);
+            count(osc);
+        }, 'tones', o);
     }
-    function hat(t, gain, len = 0.04) {
+    // Filtered noise in the beat: hats, shakers, rims, snares. `o`: { type, f, f1 (sweeps to), q, len, attack, pan, rev }.
+    function perc(t, gain, o = {}) {
+        const len = o.len ?? 0.04;
         voice(g => {
             if (!noiseBuf) noise({ dur: 0.01, gain: 0.0001 });   // builds the shared noise buffer
             const src = ctx.createBufferSource();
             src.buffer = noiseBuf;
             const f = ctx.createBiquadFilter();
-            f.type = 'highpass';
-            f.frequency.value = 7000;
-            g.gain.setValueAtTime(gain, t);
+            f.type = o.type || 'bandpass';
+            f.frequency.setValueAtTime(o.f ?? 3000, t);
+            if (o.f1) f.frequency.exponentialRampToValueAtTime(o.f1, t + len);
+            f.Q.value = o.q ?? 1;
+            if (o.attack) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + o.attack); } else g.gain.setValueAtTime(gain, t);
             g.gain.exponentialRampToValueAtTime(0.0001, t + len);
             src.connect(f).connect(g);
             src.start(t, rnd() * 0.5);
             src.stop(t + len + 0.02);
-        }, 'beat');
+            count(src);
+        }, o.part || 'beat', o);
     }
-    function clap(t, gain) {
+    const hat = (t, gain, len = 0.04, o) => perc(t, gain, { type: 'highpass', f: 7000, len, ...o });
+    const clap = (t, gain, o) => perc(t, gain, { f: 1600, q: 0.9, len: 0.16, ...o });
+    // A pitched voice. `o`:
+    //   type ('sine'…) or wave ('pulse25', 'pulse12'); detune (cents); glide (from this note) and glideTime
+    //   cutoff, q, env (the filter starts at cutoff × (1 + env) and snaps down: acid), ftype
+    //   attack; then either a plain decay over `dur` (a pluck), or with `sus` (0-1) a held note: it falls to
+    //   `sus` over `dec`, holds to the end of `dur`, and lets go over `rel`. Duration, envelope and level are
+    //   separate: a long note is long because of `sus`, not because the helper happens to decay slowly.
+    //   fm: { ratio, index, decay, sus } a modulator on its pitch (electric keys, bells: bright at the strike)
+    //   vib: { rate, depth (cents), delay }
+    //   pan, rev, dly: its place and its sends; part; low (decoration: dropped first when voices run short)
+    function note(t, n, dur, gain, o = {}) {
+        if (!music || (o.low && voices.music > VOICE_SOFT)) return;
         voice(g => {
-            if (!noiseBuf) noise({ dur: 0.01, gain: 0.0001 });
-            const src = ctx.createBufferSource();
-            src.buffer = noiseBuf;
-            const f = ctx.createBiquadFilter();
-            f.type = 'bandpass';
-            f.frequency.value = 1600;
-            f.Q.value = 0.9;
-            g.gain.setValueAtTime(gain, t);
-            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
-            src.connect(f).connect(g);
-            src.start(t, rnd() * 0.5);
-            src.stop(t + 0.2);
-        }, 'beat');
-    }
-    // A pitched voice; `q` the filter's resonance, `env` sweeps the filter down from cutoff × (1 + env) (acid),
-    // `attack` in seconds (pads and slow leads).
-    function synth(t, note, dur, gain, type, cutoff, q = 6, env = 0, detune = 0, attack = 0.008) {
-        voice(g => {
-            const o = ctx.createOscillator();
-            const f = ctx.createBiquadFilter();
-            o.type = type;
-            o.frequency.value = NOTE(note + shift());
-            if (detune) o.detune.value = detune;
-            f.type = 'lowpass';
-            f.Q.value = q;
-            if (env) {
-                f.frequency.setValueAtTime(cutoff * (1 + env), t);
-                f.frequency.exponentialRampToValueAtTime(Math.max(40, cutoff), t + Math.min(dur, 0.18));
-            } else f.frequency.value = cutoff;
+            const osc = ctx.createOscillator();
+            const f0 = NOTE(n + (o.raw ? 0 : shift()));
+            const w = o.wave && pulse(o.wave);
+            if (w) osc.setPeriodicWave(w); else osc.type = o.type || 'sine';
+            if (o.glide != null) {
+                osc.frequency.setValueAtTime(NOTE(o.glide + (o.raw ? 0 : shift())), t);
+                osc.frequency.exponentialRampToValueAtTime(f0, t + (o.glideTime || 0.06));
+            } else osc.frequency.value = f0;
+            if (o.detune) osc.detune.value = o.detune;
+            const held = o.sus != null, rel = held ? (o.rel ?? 0.08) : 0, end = t + dur + rel;
+            if (o.vib) {
+                const lfo = ctx.createOscillator(), lg = ctx.createGain();
+                lfo.frequency.value = o.vib.rate || 5.5;
+                lg.gain.setValueAtTime(0, t + (o.vib.delay || 0));
+                lg.gain.linearRampToValueAtTime(o.vib.depth || 12, t + (o.vib.delay || 0) + 0.15);
+                lfo.connect(lg).connect(osc.detune);
+                lfo.start(t); lfo.stop(end + 0.02);
+            }
+            if (o.fm) {
+                const mod = ctx.createOscillator(), mg = ctx.createGain();
+                mod.frequency.value = f0 * (o.fm.ratio || 1);
+                const top = f0 * (o.fm.index || 1);
+                mg.gain.setValueAtTime(top, t);
+                mg.gain.exponentialRampToValueAtTime(Math.max(0.01, top * (o.fm.sus ?? 0.12)), t + (o.fm.decay || 0.15));
+                mod.connect(mg).connect(osc.frequency);
+                mod.start(t); mod.stop(end + 0.02);
+            }
+            let srcNode = osc;
+            if (o.cutoff) {
+                const f = ctx.createBiquadFilter();
+                f.type = o.ftype || 'lowpass';
+                f.Q.value = o.q ?? 1;
+                if (o.env) {
+                    f.frequency.setValueAtTime(o.cutoff * (1 + o.env), t);
+                    f.frequency.exponentialRampToValueAtTime(Math.max(40, o.cutoff), t + Math.min(dur, o.envTime || 0.18));
+                } else f.frequency.value = o.cutoff;
+                srcNode = osc.connect(f);
+            }
+            const peak = Math.max(0.0002, gain * songLvl), attack = Math.min(o.attack ?? 0.008, dur * 0.5);
             g.gain.setValueAtTime(0.0001, t);
-            g.gain.exponentialRampToValueAtTime(gain * songLvl, t + Math.min(attack, dur * 0.5));
-            g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-            o.connect(f).connect(g);
-            o.start(t);
-            o.stop(t + dur + 0.02);
-        });
+            g.gain.exponentialRampToValueAtTime(peak, t + attack);
+            if (held) {
+                const level = Math.max(0.0002, peak * o.sus), dec = Math.max(0.005, Math.min(o.dec ?? 0.12, dur - attack - 0.005));
+                g.gain.exponentialRampToValueAtTime(level, t + attack + dec);
+                g.gain.setValueAtTime(level, Math.max(t + attack + dec, t + dur));
+                g.gain.exponentialRampToValueAtTime(0.0001, end);
+            } else g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            srcNode.connect(g);
+            osc.start(t);
+            osc.stop(end + 0.02);
+            count(osc);
+        }, o.part || 'tones', o);
     }
+    // The older call (the tracks not yet rewritten use it): a plucked voice through a resonant lowpass.
+    const synth = (t, n, dur, gain, type, cutoff, q = 6, env = 0, detune = 0, attack = 0.008) => note(t, n, dur, gain, { type, cutoff, q, env, detune, attack });
 
     // ---- Songs ----------------------------------------------------------------------------------------
     // Everything is written in A (A minor, A Phrygian…, or C major for the bright songs, its relative), and the
-    // track's `shift` moves it to the track's key: Classic and Retro stay in A minor / C major, Dark goes to E
-    // (Phrygian), Soft to D minor / F major, Ominous to C. The sounds sit in the same keys (KEYS).
+    // track's `shift` moves it to the track's key. The sounds sit in the same keys (KEYS).
+    // A song (in music/<theme>.js):
+    //   name, bpm (else the track's), scale, tonic (semitones from A), oct, lvl (a trim on its pitched voices)
+    //   chords   a progression, a bar a chord: ['Am9', 'Fmaj7', …], or several by name: { A: […], B: […] }
+    //   bass     a bar's pattern (see `bassAt`), or several by name; comp: the chords' steps in the bar, likewise
+    //   mel      melodies by name: { A: '…', B: '…' }, each any whole number of bars (see `parseMelody`)
+    //   form     its sections in order: [name, bars, { mel, chords, bass, comp, drums, bassOn, melGain, harm, lift,
+    //            entry, fill }]. `mel` names a melody (default: the section's own name if there is one, else none);
+    //            `chords`, `bass`, `comp` name which to play (default 'A'); `drums` is 'full', 'sparse' (the
+    //            track decides what that is: usually the kick alone) or 'none'; `harm` adds the harmony line;
+    //            `lift` raises (or with a negative number thins) the arrangement for that section; a section is a
+    //            place to come back in unless `entry: false`; `fill: false` ends it without the track's fill.
+    //            Without a form a song plays its track's (`form` on the style), else the old eight-section one.
+    //   swing    how far odd 16ths are delayed, as a share of a step (else the track's)
     const AEOL = [0, 2, 3, 5, 7, 8, 10], PHRY = [0, 1, 3, 5, 7, 8, 10], DOR = [0, 2, 3, 5, 7, 9, 10];
-    const HARM = [0, 2, 3, 5, 7, 8, 11], ION = [0, 2, 4, 5, 7, 9, 11];
+    const HARM = [0, 2, 3, 5, 7, 8, 11], ION = [0, 2, 4, 5, 7, 9, 11], MIXO = [0, 2, 4, 5, 7, 9, 10], LYD = [0, 2, 4, 6, 7, 9, 11];
     const PC = { A: 0, B: 2, C: 3, D: 5, E: 7, F: 8, G: 10 };
     const QUALITY = {
-        '': [0, 4, 7], m: [0, 3, 7], 5: [0, 7, 12], 6: [0, 4, 7, 9], 7: [0, 4, 7, 10], maj7: [0, 4, 7, 11], m7: [0, 3, 7, 10],
-        9: [0, 4, 7, 10, 14], maj9: [0, 4, 7, 11, 14], m9: [0, 3, 7, 10, 14], add9: [0, 4, 7, 14], sus2: [0, 2, 7],
-        sus4: [0, 5, 7], '7sus4': [0, 5, 7, 10], dim: [0, 3, 6]
+        '': [0, 4, 7], m: [0, 3, 7], 5: [0, 7, 12], 6: [0, 4, 7, 9], m6: [0, 3, 7, 9], 7: [0, 4, 7, 10], maj7: [0, 4, 7, 11], m7: [0, 3, 7, 10],
+        9: [0, 4, 7, 10, 14], maj9: [0, 4, 7, 11, 14], m9: [0, 3, 7, 10, 14], add9: [0, 4, 7, 14], madd9: [0, 3, 7, 14], sus2: [0, 2, 7],
+        sus4: [0, 5, 7], '7sus4': [0, 5, 7, 10], dim: [0, 3, 6], dim7: [0, 3, 6, 9], m7b5: [0, 3, 6, 10], aug: [0, 4, 8], '7b9': [0, 4, 7, 10, 13],
+        m11: [0, 3, 7, 10, 17], 13: [0, 4, 10, 14, 21], '6/9': [0, 4, 7, 9, 14]
     };
     const pcOf = n => (((n - 57) % 12) + 12) % 12;     // pitch class from A
     // A chord name ('Am9', 'Fmaj7', 'E7', 'G/B') → its bass note (A1 to G#2), chord tones, third and fifth.
@@ -997,34 +1229,58 @@
         return best;
     }
     // A melody: one token per 8th note. A scale degree (1-7, from the song's tonic), with b/# for a sharp or
-    // flat, ' for each octave up and , for each octave down; '-' holds the note on, '.' rests, and 'x+y' splits
-    // the 8th into two 16ths. Bars may be split with '|' for reading. Each note: { deg, acc, len } in 16ths.
-    function parseMelody(str, steps) {
-        const ev = new Array(steps).fill(null);
+    // flat, ' for each octave up and , for each octave down; '-' holds the note on, '.' rests; 'x+y' splits the
+    // 8th into two 16ths; 'x/y/z' is a triplet across a quarter note (it takes the place of two tokens). Bars
+    // may be split with '|' for reading. Any whole number of bars. Each note: { deg, acc, len, off } in 16ths
+    // (`off`: how far past its step it starts, for triplets).
+    function parseMelody(str) {
+        const ev = [];
         let i = 0, cur = null;
+        const mk = tok => {
+            const m = /^([b#]?)([1-7])('*|,*)$/.exec(tok);
+            if (!m) throw new Error('note ' + tok);
+            const oct = m[3][0] === "'" ? m[3].length : -m[3].length;
+            return { deg: +m[2] - 1 + 7 * oct, acc: m[1] === 'b' ? -1 : m[1] === '#' ? 1 : 0, len: 1, off: 0 };
+        };
         const put = tok => {
-            if (tok === '-') { if (cur) cur.len++; }
-            else if (tok === '.') cur = null;
-            else {
-                const m = /^([b#]?)([1-7])('*|,*)$/.exec(tok);
-                if (!m) throw new Error('note ' + tok);
-                const oct = m[3][0] === "'" ? m[3].length : -m[3].length;
-                cur = { deg: +m[2] - 1 + 7 * oct, acc: m[1] === 'b' ? -1 : m[1] === '#' ? 1 : 0, len: 1 };
-                ev[i] = cur;
-            }
+            if (tok === '-') { if (cur) cur.len++; ev[i] = ev[i] || null; }
+            else if (tok === '.') { cur = null; ev[i] = null; }
+            else ev[i] = cur = mk(tok);
             i++;
         };
         for (const tk of str.replace(/\|/g, ' ').trim().split(/\s+/)) {
-            if (tk.includes('+')) tk.split('+').forEach(put);
+            if (tk.includes('/')) {
+                const parts = tk.split('/');
+                if (parts.length !== 3) throw new Error('triplet ' + tk);
+                parts.forEach((p, k) => {
+                    if (p === '.') { ev[i + k] = null; return; }
+                    if (p === '-') { if (cur) cur.len += 4 / 3; ev[i + k] = null; return; }
+                    cur = mk(p); cur.len = 4 / 3; cur.off = k / 3; ev[i + k] = cur;
+                });
+                ev[i + 3] = null;
+                i += 4;
+            } else if (tk.includes('+')) tk.split('+').forEach(put);
             else { put(tk); put(tk === '.' ? '.' : '-'); }
         }
-        if (i !== steps) throw new Error(`melody of ${i} steps, not ${steps}`);
+        if (!i || i % 16) throw new Error(`melody of ${i} steps: not whole bars`);
+        for (let k = 0; k < i; k++) ev[k] = ev[k] || null;
         return ev;
     }
-    // A melody note, `harm` degrees away in the song's scale (−2: a third below, the A2 section's harmony).
+    // A melody note; `harm` degrees away in the song's scale.
     function melNote(song, e, harm = 0) {
         const d = e.deg + harm, o = Math.floor(d / 7), sc = song.scale;
         return 69 + song.tonic + sc[d - 7 * o] + 12 * o + 12 * song.oct + (harm ? 0 : e.acc);
+    }
+    // The harmony line under a melody note: a third below in the song's scale, unless that rubs against the
+    // chord (a semitone from a chord tone it isn't), where it takes the chord tone under the melody instead.
+    function harmNote(song, e, ch) {
+        const top = melNote(song, e), third = melNote(song, e, -2);
+        const tones = ch.iv.map(x => (ch.pc + x) % 12);
+        const isTone = n => tones.includes(pcOf(n));
+        const rubs = n => !isTone(n) && tones.some(p => { const d = (pcOf(n) - p + 12) % 12; return d === 1 || d === 11; });
+        if (!rubs(third)) return third;
+        for (let n = top - 3; n >= top - 9; n--) if (isTone(n)) return n;
+        return third;
     }
     // Snap a note into the song's scale (the Dark acid line's turns, written over any root).
     function snap(song, n) {
@@ -1032,48 +1288,88 @@
         return inScale(n) ? n : inScale(n - 1) ? n - 1 : n + 1;
     }
     // Bass patterns: 16 characters a bar. '.' rest, r root, o its octave, f the fifth, d the fifth below,
-    // t the chord's third (sus chords: their 4th or 2nd).
+    // t the chord's third (sus chords: their 4th or 2nd), s the seventh below the root (a walk-up).
     function bassAt(song, s, ch) {
         const c = song.bass[s];
         if (!c || c === '.') return 0;
-        return ch.root + ({ r: 0, o: 12, f: 7, d: -5, t: ch.third }[c] ?? 0);
+        return ch.root + ({ r: 0, o: 12, f: 7, d: -5, t: ch.third, s: -2 }[c] ?? 0);
     }
-    function buildSong(def) {
-        const song = { tonic: 0, oct: 0, lvl: 1, comp: [], bass: 'r.......r.......', acid: 1, ...def };
-        let prev = null, hold = 69, bell = 69;
-        song.chords = def.chords.map(name => {
-            const c = parseChord(name);
-            c.v = voiceChord(c, prev);
-            prev = c.v;
-            // Simple sounds' held note: the chord tone nearest the last one, E4 to E5 (no wrong notes).
-            const tones = [];
-            for (let n = 52; n <= 88; n++) if (c.iv.some(x => (c.pc + x) % 12 === pcOf(n))) tones.push(n);
-            const near = (lo, hi, to) => tones.filter(n => n >= lo && n <= hi).sort((a, b) => Math.abs(a - to) - Math.abs(b - to))[0];
-            c.hold = hold = near(64, 76, hold);
-            c.bell = bell = near(64, 76, bell);       // Ominous's bell tolls a chord tone
-            return c;
+    // The old form every song shared (the tracks not yet rewritten play it): eight bars a section; the breakdown
+    // loses its drums for six bars and its bass for four.
+    const LEGACY_FORM = [
+        ['intro', 8, { mel: null }], ['A', 8], ['B', 8], ['A', 8],
+        ['break', 4, { mel: 'A', melGain: 0.6, drums: 'none', bassOn: false, fill: false }], ['break', 2, { mel: 'A', melGain: 0.6, drums: 'none', fill: false, entry: false, from: 4 }],
+        ['break', 2, { mel: 'A', melGain: 0.6, entry: false, from: 6 }],
+        ['B', 8], ['A2', 8, { mel: 'A', harm: true }], ['out', 8, { mel: null }]
+    ];
+    const byName = (v, fallback) => (v && typeof v === 'object' && !Array.isArray(v) ? v : { A: v ?? fallback });
+    function buildSong(def, st = {}) {
+        const song = { tonic: 0, oct: 0, lvl: 1, acid: 1, ...def };
+        song.prog = {};
+        for (const [key, names] of Object.entries(byName(def.chords))) {
+            if (!Array.isArray(names) || !names.length) throw new Error('chords ' + key + ' are missing');
+            let prev = null, hold = 69, bell = 69;
+            song.prog[key] = names.map(name => {
+                const c = parseChord(name);
+                c.v = voiceChord(c, prev);
+                prev = c.v;
+                // Simple sounds' held note: the chord tone nearest the last one, E4 to E5 (no wrong notes).
+                const tones = [];
+                for (let n = 52; n <= 88; n++) if (c.iv.some(x => (c.pc + x) % 12 === pcOf(n))) tones.push(n);
+                const near = (lo, hi, to) => tones.filter(n => n >= lo && n <= hi).sort((a, b) => Math.abs(a - to) - Math.abs(b - to))[0];
+                c.hold = hold = near(64, 76, hold);
+                c.bell = bell = near(64, 76, bell);       // Ominous's bell tolls a chord tone
+                return c;
+            });
+        }
+        song.chords = song.prog.A || Object.values(song.prog)[0];
+        song.bassBy = byName(def.bass, 'r.......r.......');
+        song.compBy = byName(def.comp, []);
+        for (const [k, p] of Object.entries(song.bassBy)) if (typeof p !== 'string' || p.length !== 16) throw new Error(`bass ${k}: 16 characters a bar, not "${p}"`);
+        song.bass = song.bassBy.A || Object.values(song.bassBy)[0];
+        song.comp = song.compBy.A || Object.values(song.compBy)[0];
+        const mels = def.mel || { A: def.melA, B: def.melB };
+        song.mel = {};
+        for (const [k, str] of Object.entries(mels)) {
+            if (typeof str !== 'string') throw new Error('melody ' + k + ' is missing');
+            try { song.mel[k] = parseMelody(str); } catch (e) { throw new Error(`melody ${k}: ${e.message}`); }
+        }
+        let start = 0;
+        const form = def.form || st.form || LEGACY_FORM;
+        if (!Array.isArray(form) || !form.length) throw new Error('an empty form');
+        song.form = form.map(row => {
+            const [name, bars, o = {}] = Array.isArray(row) ? row : [row.name, row.bars, row];
+            if (!(bars > 0) || bars % 1) throw new Error(`section ${name}: ${bars} bars`);
+            const sec = { name, bars, start, mel: 'mel' in o ? o.mel : (song.mel[name] ? name : null), chords: o.chords || 'A', bass: o.bass || (song.bassBy[o.chords] ? o.chords : 'A'),
+                comp: o.comp || (song.compBy[o.chords] ? o.chords : 'A'), drums: o.drums || 'full', bassOn: o.bassOn !== false, melGain: o.melGain ?? 1, harm: !!o.harm,
+                lift: o.lift || 0, entry: o.entry !== false, fill: o.fill !== false, from: o.from || 0 };
+            if (sec.mel != null && !song.mel[sec.mel]) throw new Error(`section ${name}: no melody "${sec.mel}"`);
+            for (const [what, table] of [['chords', song.prog], ['bass', song.bassBy], ['comp', song.compBy]])
+                if (!table[sec[what]]) { if (what === 'chords' || o[what]) throw new Error(`section ${name}: no ${what} "${sec[what]}"`); sec[what] = Object.keys(table)[0]; }
+            if (!['full', 'sparse', 'none'].includes(sec.drums)) throw new Error(`section ${name}: drums "${sec.drums}"`);
+            start += bars;
+            return sec;
         });
-        song.melA = parseMelody(def.melA, 64);
-        song.melB = parseMelody(def.melB, 128);
+        song.bars = start;
         return song;
     }
-    // The form, eight bars a section: two minutes at 124 BPM, then the area's other song.
-    const FORM = ['intro', 'A', 'B', 'A', 'break', 'B', 'A2', 'out'];
-    const SONG_BARS = FORM.length * 8;
+    const sectionAt = (song, bar) => song.form.find(x => bar < x.start + x.bars) || song.form[song.form.length - 1];
+    // Where a song may be picked up again: the start of the section, or of the last one before it that is an entry.
+    function entryAt(song, bar) {
+        let i = song.form.indexOf(sectionAt(song, bar));
+        while (i > 0 && !song.form[i].entry) i--;
+        return song.form[i].start;
+    }
 
-    // Two songs for the lab, two for the server room and two for Packet Snare, per track. Lab songs are steadier and
-    // more melodic; server-room songs drive harder (busier bass, syncopated chords, riffs); Packet Snare's are the
-    // track gone stealthy (sparse, muted, suspended chords that don't resolve, a hushed kick of their own and a
-    // ticking clock: see `kickLevel`) until you're spotted and the beat drops in. `lvl` trims each song's pitched
-    // voices so every song measures the same (K-weighted, the tones 2 dB over the beat); a stealth song's `rest`
-    // lifts its tones while it's hushed (fading out as you're spotted), so it measures the same then too
-    // (`slvl`/`srest`: the same for its simple version).
     const SONGS = {};        // each track's songs: music/<theme>.js
-    const songFor = { lab: 0, server: 0, snare: 0 };   // which of the area's two songs plays next (flips each cycle)
+    const songFor = { lab: 0, server: 0, snare: 0 };   // which of the area's songs plays next
     const AREAS = Object.keys(songFor);
 
-    // Each step gets `c`: { song, chord, next (the next bar's chord), bar (in the song), sec (FORM), barIn
-    // (in the section), mel (a melody note starting now: { n, len, harm }), melGain, drums, bassOn }.
+    // Each step gets `c`: { song, chord, next (the next bar's chord), bar (in the song), sec (the section's name),
+    // section, barIn (in the section), last (its last bar), mel (a melody note starting now: { n, len, harm, t }),
+    // melGain, harmGain, drums (false: none of the kit), sparse (only the track's sparse kit), bassOn, comp, len
+    // (a step, s), sw (this step's swing, s), trip(i) (the i-th triplet 8th of a beat, s), pick(n, salt) (a choice
+    // 0…n-1 that is the same every time this bar of this song comes round: bounded variation) }.
     let style = 'classic';
     const STYLES = {};       // each track's instruments: music/<theme>.js (built below, "The themes")
     // Packet Snare's songs are stealth versions of each track: until you're spotted their kick plays its own sparse
@@ -1081,8 +1377,9 @@
     // clap's layer comes in (the busier the field and the lower your Focus, the more of it); a quiet clock ticks
     // (`tick`, the same marks) and hides under the 16th hats as they arrive; the whole mix sits under a closed
     // filter at rest (`cut`) that opens with the intensity. `kickLevel` is the kick's level on a step (0: none).
-    function kickLevel(c, s, on, plain = false) {
-        if (!c.drums && !plain) return 0;
+    // A section with no drums has no kick, in the simple version too.
+    function kickLevel(c, s, on) {
+        if (!c.drums) return 0;
         const p = c.song.kick;
         if (!p) return on ? 1 : 0;
         const hid = (p[s] === 'x' ? 1 : p[s] === 'o' ? 0.6 : 0) * (c.song.hush ?? 1);
@@ -1092,74 +1389,105 @@
     function stealthStep(t, s, k, len, L, c) {
         const m = c.song.tick?.[s];
         if (!m || m === '.' || !c.drums) return;
-        const st = STYLES[style] || STYLES.classic;
-        hat(t, (m === 'x' ? 1 : 0.55) * 0.05 * (st.tick ?? 1) * (1 - 0.7 * L.sixteenth), 0.014);
+        hat(t, (m === 'x' ? 1 : 0.55) * 0.05 * (styleOf().tick ?? 1) * (1 - 0.7 * L.sixteenth), 0.014);
     }
 
-    // Simple sounds: each song stripped to its bones, in its key: a kick (Ominous's on 1 and 3), the bass on
-    // beats 1 and 3 on the chord's root, one held chord tone each bar (voice-led, so it never rubs), and the
-    // melody in a plain sine (Retro: a square), all in the track's plain voice; no hats, claps, chords,
-    // arpeggios, fills or drive.
+    // Simple sounds: each song stripped to its bones, in its key: a kick (`simpleKick` on the style says where:
+    // every beat unless it says otherwise), the bass on beats 1 and 3 on the chord's root, one held chord tone each
+    // bar (voice-led, so it never rubs), and the melody in a plain sine (Retro: a square), all in the track's
+    // plain voice; no hats, claps, chords, arpeggios, fills, sends or drive.
     function simpleStep(st, t, s, k, len, c, L) {
         const sv = st.simpleVoice || 'triangle';
-        const kg = kickLevel(c, s, st === STYLES.ominous ? s % 8 === 0 : s % 4 === 0, true);
+        const kg = kickLevel(c, s, s % (st.simpleKick || (st === STYLES.ominous ? 8 : 4)) === 0);
         if (kg) kick(t, 0.38 * kg, 130, 45, 0.22);
-        if (s === 0 || s === 8) synth(t, c.chord.root + 12, len * 6, 0.16, sv, 700, 1);
+        if (c.bassOn && (s === 0 || s === 8)) synth(t, c.chord.root + 12, len * 6, 0.16, sv, 700, 1);
         if (L.pad > 0.02 && s === 0) synth(t, c.chord.hold, len * 14, 0.035 * L.pad, 'sine', 3000, 1);
-        if (c.mel) synth(t, c.mel.n, Math.min(len * c.mel.len * 0.9, 0.7), 0.03 * c.melGain * (sv === 'square' ? 0.5 : 1), sv === 'square' ? 'square' : 'sine', 2500, 1);
+        if (c.mel) synth(c.mel.t, c.mel.n, Math.min(len * c.mel.len * 0.9, 0.7), 0.03 * c.melGain * (sv === 'square' ? 0.5 : 1), sv === 'square' ? 'square' : 'sine', 2500, 1);
     }
 
-    // The bus level for the music volume, and each beat's trim (`gain` on the style, measured RMS against Classic,
-    // all at the same level (K-weighted, within about 1 dB of Classic; re-measure if a track changes).
+    // The bus level for the music volume, and each track's trim (`gain` on the style), all measured to the same
+    // loudness (tools/audio; re-measure if a track changes).
     const musicLevel = () => musicVolume * 0.55;
-    const styleTrim = () => { const st = STYLES[style] || STYLES.classic; return (simple ? st.simpleMix?.gain : st.gain) || 1; };
+    const styleTrim = () => { const st = styleOf(); return (simple ? st.simpleMix?.gain : st.gain) || 1; };
+    // Changing track: tracks differ in tempo, so the old one fades out and the new one starts on a beat of its own
+    // (the game calls `musicState` every tick, which starts it), never two grooves at once.
     function setMusicStyle(name) {
-        if (!STYLES[name]) return;
-        style = name;
+        if (!STYLES[name] || name === style) return;
         chargeStop();
-        if (music) {
-            music.trim.gain.setTargetAtTime(styleTrim(), ctx.currentTime, 0.3);
-            for (const k of Object.keys(musicMix)) music.parts[k].gain.setTargetAtTime(partLevel(k), ctx.currentTime, 0.3);
-        }
+        if (music) stopMusic(0.06);
+        style = name;
+        if (ctx && !music) tempoNow(bpmOf(null));
     }
 
     // Layers fade in and out over a couple of bars rather than switching on a threshold: the intensity
     // eases toward the ball's speed (faster on the way up than down), each layer's level ramps across a
     // band around its threshold, and the tempo glides into and out of flow's slow-down.
+    // Each track sets where its layers come in (`layers` on the style: name → threshold, below 0 for "always"):
+    // the order the parts arrive in is part of what a track is. Tracks without one use the old order.
     const RISE = 1.2, FALL = 3;       // seconds (time constants) for the intensity to follow speed
     const layer = (k, at) => Math.max(0, Math.min(1, (k - at) / 0.2 + 0.5));
+    const OLD_LAYERS = { pad: 0.12, off: 0.28, mel: 0.4, clap: 0.52, sixteenth: 0.64, harm: 0.72, arp: 0.82 };
+    function levels(st, S) {
+        const L = {};
+        for (const [k, at] of Object.entries(st.layers || OLD_LAYERS)) L[k] = at < 0 ? 1 : layer(S, at);
+        for (const k of Object.keys(OLD_LAYERS)) if (L[k] == null) L[k] = layer(S, OLD_LAYERS[k]);
+        return L;
+    }
     const songsOf = () => (SONGS[style] || SONGS.classic);
     const areaSongs = a => songsOf()[a] || songsOf().server;
-    // On a downbeat: change song if the area changed (the old area's place is kept, to its section), after a
-    // whole song (the area's other one), or on a debug command.
-    function songTurn() {
+    // On a downbeat (or, when the area changed in a slow song, on a beat: nobody waits four seconds for a room's
+    // music): change song if the area changed (the old area's place is kept, to an entry point), after a whole
+    // song (the area's next one), or on a debug command. True when the bar grid starts again here.
+    function songTurn(s) {
         const m = music;
+        const song = m.songs[m.song];
         const bar = Math.floor((m.step - m.songStep) / 16);
+        let moved = false;
         if (m.area !== area) {
-            m.left[m.area] = { song: m.song, bar: Math.floor(bar / 8) * 8 % SONG_BARS };
+            m.left[m.area] = { song: m.song, bar: entryAt(song, Math.min(bar, song.bars - 1)) };
             const back = m.left[area];
             m.area = area;
-            m.song = back ? back.song : songFor[area];
+            m.songs = areaSongs(area);
+            m.song = (back ? back.song : songFor[area]) % m.songs.length;
             m.songStep = m.step - 16 * (back ? back.bar : 0);
-        } else if (m.cmd === 'song' || bar >= SONG_BARS) {
-            m.song = songFor[area] = (m.song + 1) % 2;
+            moved = true;
+        } else if (s !== 0) return false;
+        else if (m.cmd === 'song' || bar >= song.bars) {
+            m.song = songFor[area] = (m.song + 1) % m.songs.length;
             m.songStep = m.step;
-        } else if (m.cmd === 'section') m.songStep = m.step - 16 * ((Math.floor(bar / 8) + 1) * 8 % SONG_BARS);
+            moved = true;
+        } else if (m.cmd === 'section') {
+            const sec = sectionAt(song, bar);
+            m.songStep = m.step - 16 * ((sec.start + sec.bars) % song.bars);
+            moved = true;
+        }
         m.cmd = null;
+        if (moved) {
+            m.origin = m.step;
+            const bpm = bpmOf(m.songs[m.song]);
+            if (bpm !== m.bpm) { m.bpm = bpm; m.jump = true; }     // a new tempo starts on this beat, with no glide
+        }
+        return moved;
     }
+    const hash = (a, b) => { let x = (Math.imul(a + 1, 0x9E3779B1) ^ Math.imul(b + 7, 0x85EBCA6B)) >>> 0; x ^= x >>> 15; x = Math.imul(x, 0x2C1B3C6D) >>> 0; x ^= x >>> 12; return x / 4294967296; };
     function songContext(s) {
-        const m = music, song = areaSongs(m.area)[m.song];
-        const bar = Math.floor((m.step - m.songStep) / 16), barIn = bar % 8;
-        const sec = FORM[Math.floor(bar / 8) % FORM.length];
-        let e = null;
-        if (sec === 'A' || sec === 'A2' || sec === 'break') e = song.melA[(barIn % 4) * 16 + s];
-        else if (sec === 'B') e = song.melB[barIn * 16 + s];
-        const n = song.chords.length;
+        const m = music, song = m.songs[m.song];
+        const bar = Math.max(0, Math.floor((m.step - m.songStep) / 16));
+        const i = song.form.indexOf(sectionAt(song, bar)), sec = song.form[i], barIn = bar - sec.start;
+        const chords = song.prog[sec.chords];
+        const after = song.form[(i + 1) % song.form.length];
+        const mel = sec.mel != null ? song.mel[sec.mel] : null;
+        const e = mel ? mel[((barIn + sec.from) * 16 + s) % mel.length] : null;
+        const chord = chords[(barIn + sec.from) % chords.length];
+        // The older tracks read these off the song.
+        song.bass = song.bassBy[sec.bass];
+        song.comp = song.compBy[sec.comp];
         return {
-            song, bar, barIn, sec, chord: song.chords[bar % n], next: song.chords[(bar + 1) % n],
-            mel: e && { n: melNote(song, e), len: e.len, harm: sec === 'A2' ? melNote(song, e, -2) : 0 },
-            melGain: sec === 'break' ? 0.6 : 1,
-            drums: !(sec === 'break' && barIn < 6), bassOn: !(sec === 'break' && barIn < 4)
+            song, bar, barIn, sec: sec.name, section: sec, last: barIn === sec.bars - 1, chord,
+            next: barIn + 1 < sec.bars ? chords[(barIn + 1 + sec.from) % chords.length] : song.prog[after.chords][after.from % song.prog[after.chords].length],
+            mel: e && { n: melNote(song, e), len: e.len, off: e.off, harm: sec.harm ? harmNote(song, e, chord) : 0 },
+            melGain: sec.melGain, drums: sec.drums !== 'none', sparse: sec.drums === 'sparse', bassOn: sec.bassOn, comp: song.comp,
+            pick: (n, salt = 0) => Math.floor(hash(m.song * 131 + bar, salt) * n)
         };
     }
     function schedule() {
@@ -1178,61 +1506,72 @@
         music.k += (intensity - music.k) * (1 - Math.exp(-dt / (intensity > music.k ? RISE : FALL)));
         const k = music.k;
         const slow = mode === 'flow' || mode === 'freeze';
-        const target = STEP / (slow ? 0.6 : 1);
+        const st = styleOf();
         while (music.nextStep < now + 0.12) {
-            // The tempo glides a step at a time (about a bar to settle).
-            const len = Math.abs(clock.len - target) < 1e-4 ? target : clock.len + (target - clock.len) * 0.12;
+            let s = (((music.step - music.origin) % 16) + 16) % 16;
+            if (s === 0 || (music.area !== area && s % 4 === 0 && 16 * clock.len > 2)) { if (songTurn(s)) s = 0; }
+            // The tempo glides a step at a time into and out of a slow-down (about a bar to settle); a new song's
+            // tempo starts at once.
+            const target = stepOf(music.bpm) / (slow ? 0.6 : 1);
+            const len = music.jump || Math.abs(clock.len - target) < 1e-4 ? target : clock.len + (target - clock.len) * 0.12;
+            music.jump = false;
             if (len !== clock.len) retime(len, music.step, music.nextStep);
             const t = music.nextStep;
-            const s = ((music.step % 16) + 16) % 16;
-            if (s === 0) songTurn();
-            // The arrangement builds: what the game has earned (`depth`) and the run's speed (`k`) add up to how
-            // many parts play, each fading in over a band: chords, then off-beat hats, the melody, a clap, 16th
-            // hats, the A2 harmony and fills, the arpeggio. A new game at rest is a kick and a bass.
-            const S = 0.6 * depth + 0.6 * Math.max(0, k - 0.05);
-            const L = { pad: layer(S, 0.12), off: layer(S, 0.28), mel: layer(S, 0.4), clap: layer(S, 0.52), sixteenth: layer(S, 0.64), harm: layer(S, 0.72), arp: layer(S, 0.82) };
-            const st8 = STYLES[style] || STYLES.classic;
             const c = songContext(s);
+            // The arrangement builds: what the game has earned (`depth`) and the run's speed (`k`) add up to how
+            // many parts play, each fading in over a band; a section may lift or thin it.
+            const S = 0.6 * depth + 0.6 * Math.max(0, k - 0.05) + c.section.lift;
+            const L = levels(st, S);
             if (s === 0) { (music.chordLog ||= []).push({ t, ch: c.chord }); if (music.chordLog.length > 3) music.chordLog.shift(); }
             // A stealth song's tones stand a little forward while its drums are hushed (`rest`), so it keeps the level.
             c.spot = L.clap;
             const lvl = simple ? c.song.slvl ?? c.song.lvl : c.song.lvl, rest = simple ? c.song.srest ?? c.song.rest : c.song.rest;
             songLvl = lvl * (rest ? 1 + (rest - 1) * (1 - c.spot) : 1);
-            // The melody waits for its layer; the A2 harmony for its own.
+            c.len = len;
+            c.sw = s % 2 ? (c.song.swing ?? st.swing ?? 0) * len : 0;
+            c.trip = i => (i * len * 4) / 3;
+            c.harmGain = L.harm;
+            // The melody waits for its layer; the harmony fades in with its own (the older tracks switch it).
             if (c.mel && L.mel <= 0.02) c.mel = null;
-            if (c.mel) { c.melGain *= L.mel; if (L.harm < 0.5) c.mel.harm = 0; }
+            if (c.mel) {
+                c.melGain *= L.mel;
+                c.mel.t = t + c.mel.off * len + (c.mel.off ? 0 : c.sw);
+                if (!st.layers && L.harm < 0.5) c.mel.harm = 0;
+            }
+            c.fill = c.last && c.section.fill && c.drums && (st.fillAt != null ? S >= st.fillAt : L.off > 0.5);
             try {
-                if (simple) simpleStep(st8, t, s, k, len, c, L);
+                if (simple) simpleStep(st, t, s, k, len, c, L);
                 else {
-                    st8.step(t, s, k, len, L, c);
+                    st.step(t, s, k, len, L, c);
                     if (c.song.tick) stealthStep(t, s, k, len, L, c);
-                    // Every eighth bar ends in a fill, so the song phrases instead of repeating one bar for ever.
-                    if (st8.fill && L.off > 0.5 && c.barIn === 7 && s >= 12) st8.fill(t, s, k, len, L, c);
+                    // A section ends in the track's fill, so the song phrases instead of repeating one bar for ever.
+                    if (st.fill && c.fill && s >= 12) st.fill(t, s, k, len, L, c);
                 }
-            } catch (e) { fault('music ' + style + ' step ' + s, e); }   // a bad note never stops the music
+            } catch (e) { fault(`music ${style} "${c.song.name || ''}" ${c.sec} bar ${c.barIn + 1} step ${s}`, e); }   // a bad note never stops the music
             songLvl = 1;
             music.nextStep += len;
             music.step++;
         }
-        // The mood: muffled in flow and bullet time, distorted in a crunch, opening up with speed.
-        const st = STYLES[style] || STYLES.classic;
-        const cut = areaSongs(music.area)[music.song]?.cut;
+        // The mood: muffled in flow and bullet time, distorted in a crunch, opening up with speed. A swell owns
+        // the filter until it has landed (`music.hold`).
+        const cut = music.songs[music.song]?.cut;
         const cutoff = slow ? 600 : st.cutoff(k) * (cut ? cut + (1 - cut) * k : 1);
-        music.filter.frequency.setTargetAtTime(cutoff, now, slow ? 0.6 : 0.5);
-        music.wet.gain.setTargetAtTime(mode === 'crunch' ? 0.55 : simple ? 0 : st.drive, now, 0.15);
+        if (!(music.hold > now)) music.filter.frequency.setTargetAtTime(cutoff, now, slow ? 0.6 : 0.5);
+        music.wet.gain.setTargetAtTime(mode === 'crunch' ? 0.55 : simple ? 0 : st.drive || 0, now, 0.15);
         music.dry.gain.setTargetAtTime(mode === 'crunch' ? 0.6 : 1, now, 0.15);
+        if (music.space.delay) music.space.delay.delayTime.setTargetAtTime(music.space.steps * clock.len, now, 0.2);
     }
 
     // Where the player is (game.js): 'lab' (the lab, Surveillance, R&D), 'server' (the server room and its bays) or
     // 'snare' (Packet Snare's bay); anything else is the lab. The music changes song on the next bar.
     function setArea(a) { area = AREAS.includes(a) ? a : 'lab'; }
     function setDepth(d) { depth = Math.max(0, Math.min(1, Number(d) || 0)); }
-    // What's playing (the debug panel), and debug commands on the next downbeat: the area's other song, or the
+    // What's playing (the debug panel), and debug commands on the next downbeat: the area's next song, or the
     // next section.
     function songNow() {
         if (!music) return null;
-        const bar = Math.floor((music.step - music.songStep) / 16);
-        return { area: music.area, song: music.song + 1, section: FORM[Math.floor(bar / 8) % FORM.length], bar: (bar % 8) + 1 };
+        const song = music.songs[music.song], bar = Math.max(0, Math.floor((music.step - music.songStep) / 16)), sec = sectionAt(song, bar);
+        return { area: music.area, song: music.song + 1, of: music.songs.length, name: song.name || null, section: sec.name, bar: bar - sec.start + 1, bars: sec.bars, bpm: music.bpm, voices: voices.music };
     }
     function songCmd(cmd) { if (music) music.cmd = cmd; }
 
@@ -1248,6 +1587,7 @@
         if (!music) return;
         const now = ctx.currentTime;
         const hit = nextStep(4, 0.45).t;            // the crash lands on a beat, half a second or so away
+        music.hold = hit + 0.3;                     // the swell owns the filter until it has landed
         music.filter.frequency.cancelScheduledValues(now);
         music.filter.frequency.setValueAtTime(music.filter.frequency.value, now);
         music.filter.frequency.exponentialRampToValueAtTime(14000, hit);
@@ -1276,21 +1616,30 @@
 
     // The music's parts, each 0-1 (Settings → Music: Beat and Tones, per device).
     const musicMix = { beat: 1, tones: 1 };
+    // A part's level: the player's slider times the track's balance (`beat`/`tones` on the style, measured).
+    // The beat (kick, hats, claps, fills) plays only while training (`setTraining`, `policy`); everywhere else
+    // the music is its tones alone.
+    const partLevel = k => { const st = styleOf(); return musicMix[k] * ((simple ? st.simpleMix?.[k] : st[k]) ?? 1) * (k === 'beat' && !training && !policy.beatAlways ? 0 : 1); };
+    // Set the parts' faders, and their sends with them.
+    function setParts(time = 0.05, only = null) {
+        if (!music) return;
+        for (const k of Object.keys(musicMix)) {
+            if (only && k !== only) continue;
+            const v = Math.max(0.0001, partLevel(k));
+            music.parts[k].gain.setTargetAtTime(v, ctx.currentTime, time);
+            for (const g of Object.values(music.sendIn[k])) g.gain.setTargetAtTime(v, ctx.currentTime, time);
+        }
+    }
     function setMusicMix(m) {
         for (const k of Object.keys(musicMix)) if (m && m[k] != null) musicMix[k] = Math.max(0, Math.min(1, Number(m[k]) || 0));
-        if (music) for (const k of Object.keys(musicMix)) music.parts[k].gain.setTargetAtTime(partLevel(k), ctx.currentTime, 0.05);
+        setParts(0.05);
     }
-    // A part's level: the player's slider times the track's balance (`beat`/`tones` on the style: the drums sit
-    // about 2 dB under the tones on every track, measured; at an even split the beat drowned the music).
-    // The beat (kick, hats, claps, fills) plays only while training (`setTraining`); everywhere else the music
-    // is its tones alone.
-    const partLevel = k => { const st = STYLES[style] || STYLES.classic; return musicMix[k] * ((simple ? st.simpleMix?.[k] : st[k]) ?? 1) * (k === 'beat' && !training ? 0 : 1); };
     // In the training run view (game.js): the beat comes in over about a bar, and leaves the same way.
     function setTraining(on) {
         on = !!on;
         if (on === training) return;
         training = on;
-        if (music) music.parts.beat.gain.setTargetAtTime(Math.max(0.0001, partLevel('beat')), ctx.currentTime, 0.6);
+        setParts(0.6, 'beat');
     }
 
     function setMusic(v) {
@@ -1305,13 +1654,14 @@
         chargeStop();
         if (music) {
             music.trim.gain.setTargetAtTime(styleTrim(), ctx.currentTime, 0.2);
-            for (const k of Object.keys(musicMix)) music.parts[k].gain.setTargetAtTime(partLevel(k), ctx.currentTime, 0.2);
+            setParts(0.2);
         }
     }
+
     // ---- The themes ----------------------------------------------------------------------------------------
     // Each track lives in music/<theme>.js: a function of this toolkit that returns its key, profile, levels,
     // instruments (`style`), songs and sound effects. Built here, once everything they use exists.
-    const H = { tone, noise, NOTE, T, seq, S, blip, arp, echo, stab, sub, bell, pluck, run, vary, mapNote, degShift, PANEL_INST, PANEL_OCT, phone, PHONE, clickNote, catchNotes, lastAt, raceNote, ping, kick, hat, clap, synth, pad, riser, bassAt, snap, kickLevel, AEOL, PHRY, DOR, HARM, ION, varDeg: () => varDeg };
+    const H = { note, perc, MIXO, LYD, harmNote, stepOf, voices, tone, noise, NOTE, T, seq, S, blip, arp, echo, stab, sub, bell, pluck, run, vary, mapNote, degShift, PANEL_INST, PANEL_OCT, phone, PHONE, clickNote, catchNotes, lastAt, raceNote, ping, kick, hat, clap, synth, pad, riser, bassAt, snap, kickLevel, AEOL, PHRY, DOR, HARM, ION, varDeg: () => varDeg };
     for (const [name, make] of Object.entries(window.SFXThemes || {})) {
         const th = make(H);
         KEYS[name] = th.key; PROFILES[name] = th.profile; SIMPLE_VOICE[name] = th.simpleVoice;
@@ -1321,9 +1671,15 @@
         SNARE_TRIM[name] = th.trims.snare; SNARE_TRIM['s:' + name] = th.trims.snareSimple;
         STYLES[name] = th.style; TRACK_SOUNDS[name] = th.sounds;
         SONGS[name] = {};
-        for (const a of Object.keys(th.songs)) SONGS[name][a] = th.songs[a].map(buildSong);
+        for (const a of Object.keys(th.songs)) {
+            // A song that can't be built says which and why, and is left out: the others play.
+            SONGS[name][a] = th.songs[a].map((def, i) => {
+                try { return buildSong(def, th.style); } catch (e) { fault(`song ${name}/${a} ${i + 1}${def.name ? ' "' + def.name + '"' : ''}`, e); return null; }
+            }).filter(Boolean);
+            if (!SONGS[name][a].length) delete SONGS[name][a];
+        }
     }
 
-    return { tick, get context() { return ctx; }, get faults() { return { ...faults }; }, get sounds() { return Object.keys(SOUNDS); }, play, held, setArea, setDepth, setTraining, songCmd, get song() { return songNow(); }, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
+    return { tick, setPolicy, get voices() { return { ...voices }; }, get context() { return ctx; }, get faults() { return { ...faults }; }, get sounds() { return Object.keys(SOUNDS); }, play, held, setArea, setDepth, setTraining, songCmd, get song() { return songNow(); }, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
     }
 })();
