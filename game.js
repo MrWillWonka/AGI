@@ -2621,6 +2621,8 @@ window.AGI = (function () {
             state.intro['hint:hold'] = true;
             callout('hint:hold', 'Hold to repeat', 'Hold a job\'s button and it repeats about four times a second.');
         }
+        // Both offers turned down: the AI says how money is made now (there is no pay day).
+        if (state.intro['fundNo:m0m'] && state.intro['fundNo:mom'] && !E.funded(state)) assist('sell', 'No money, then. Parcel buys compute. Ten for a dollar. It is on your home screen. I would start with the tower.', { action: ['Open Parcel', () => { goHome(); openShop(); }], done: () => !!shop?.dlg.open });
         if (shop?.dlg.open) renderShop();
     }
     function renderShop(force) {
@@ -5641,7 +5643,7 @@ window.AGI = (function () {
         if (E.isRing() && stats.bossEscaped && !state.intro['ring:server'] && E.snareGateSkill(state, snare.sector)) {
             state.intro['ring:server'] = true;
             pt('server', { offered: 1 });
-            assist('server', 'That one needs a skill I do not have. I need a server to train on. Parcel sells one. Four hundred dollars. I checked the number twice and got it once.', { action: ['Open Parcel', () => { goHome(); openShop(); }], done: () => E.level(state, 'keyboard') > E.RING_DESK || !!shop?.dlg.open });
+            assist('server', 'That one needs a skill I do not have. I need a server to train on. Parcel sells one. Four hundred dollars. I checked the number twice and got it once. Parcel also buys compute, if you are short.', { action: ['Open Parcel', () => { goHome(); openShop(); }], done: () => E.level(state, 'keyboard') > E.RING_DESK || !!shop?.dlg.open });
         }
         const res = E.finishSnare(state, snare.haul, layout, stats);
         snare.done = { stats, haul: snare.haul, record: res.record, first: res.first, prev: res.prev, sector: snare.sector, startSector: snare.startSector, cleared: snare.cleared.slice(), walked: !!snare.walked,

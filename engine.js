@@ -536,8 +536,8 @@
         if (!ring || !s.intro['mailAccepted:welcome']) return null;
         const step = deskFundStep(s);
         if (step) return step;
-        // The server: short of its price once it's offered, a deposit comes (once).
-        if (serverOffered(s) && (s.levels.keyboard || 0) <= RING_DESK && deskCash(s) < RING_SERVER_PRICE && !s.intro['fund:server']) return 'deposit:server';
+        // No money comes for the server (the owner's call, 2026-11-14: "players just get $400 for the server"): it is
+        // earned by selling compute. (A save that was given it keeps it: `fund:server` still counts in `deskCash`.)
         return null;
     }
     function deskFundStep(s) {
@@ -555,8 +555,8 @@
         // Dad's mail waits for the story build.
         if (!i['mail:mom']) return 'mail:mom';
         if (!decided('mom')) return 'offer:mom';
-        if (i['fund:mom']) return null;
-        return i['fund:payday'] ? null : 'deposit:payday';
+        // Both declined: no pay day any more (the owner's call, 2026-11-14): selling compute is how that player gets money.
+        return null;
     }
     function fundDecide(s, who, yes) {
         if (!FUNDERS.includes(who) || s.intro['fund:' + who] || s.intro['fundNo:' + who]) return false;

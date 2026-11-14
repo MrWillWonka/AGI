@@ -51,16 +51,19 @@ test('the ring: M0M declined, Mom\'s own transfer is offered next; taken, that i
     assert.equal(E.deskCash(s), E.RING_DEPOSIT);
 });
 
-test('the ring: both declined, pay day deposits it with no question', () => {
+test('the ring: both declined, nothing more is given; the desk is bought by selling compute', () => {
     const s = game();
     s.stats.runCp = E.RING_CALL_CP; s.intro['ring:call'] = true;
     E.fundDecide(s, 'm0m', false);
     s.intro['mail:mom'] = true;
     assert.equal(E.fundStep(s), 'offer:mom'); E.fundDecide(s, 'mom', false);
     assert.equal(E.deskCash(s), 0);
-    assert.equal(E.fundStep(s), 'deposit:payday'); E.fundDecide(s, 'payday', true);
-    assert.equal(E.deskCash(s), E.RING_DEPOSIT);
-    assert.equal(E.fundStep(s), null);
+    assert.equal(E.fundStep(s), null, 'no pay day');
+    s.stats.clicks = 40; s.stats.runCp = 40; E.evaluate(s);
+    s.res.cp = E.DESK_PRICES[0] * E.RING_CP_PER_DOLLAR;
+    assert.equal(E.sellCompute(s, s.res.cp), E.DESK_PRICES[0]);
+    assert.equal(E.buy(s, 'keyboard').ok, true);
+    assert.equal(E.deskCash(s), 0);
     assert.equal(!!s.intro['mail:dad'], false);
 });
 

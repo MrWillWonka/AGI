@@ -53,13 +53,14 @@ test('the ring: the finished desk has no card until the server is offered; the s
     assert.equal(changes.milestones.find(m => m.key === 'module:path').ringCallout[1], 'Training Cluster has been added to your home screen.');
 });
 
-test('the ring: short of the server\'s price, a deposit comes once', () => {
+test('the ring: no money comes for the server; it is bought with what compute sells for', () => {
     const s = online();
     s.intro['mail:mom'] = true; E.fundDecide(s, 'mom', false);   // (as if her transfer never came)
     s.intro['ring:server'] = true;
     assert.equal(E.deskCash(s), 0);
-    assert.equal(E.fundStep(s), 'deposit:server');
-    E.fundDecide(s, 'server', true);
+    assert.equal(E.fundStep(s), null, 'no deposit');
+    assert.equal(E.buy(s, 'keyboard').ok, false);
+    s.res.cp = E.RING_SERVER_PRICE * E.RING_CP_PER_DOLLAR; E.sellCompute(s, s.res.cp);
     assert.equal(E.deskCash(s), E.RING_SERVER_PRICE);
     assert.equal(E.fundStep(s), null);
     assert.equal(E.buy(s, 'keyboard').ok, true);
