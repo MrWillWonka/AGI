@@ -462,7 +462,7 @@
         // Sparks where gold or a fragment was found.
         sparks = sparks.filter(s => now - s.at < SPARK_MS);
         for (const s of sparks) {
-            const age = (now - s.at) / SPARK_MS, [x, y] = px(s.x, s.y);
+            const age = Math.max(0, (now - s.at) / SPARK_MS), [x, y] = px(s.x, s.y);   // never before its time: an event is stamped by the clock, a frame by when it began
             ctx.globalAlpha = 1 - age; ctx.strokeStyle = s.kind === 'vein' ? colors.gold : s.kind === 'pulse' ? colors.good : s.kind === 'sonar' ? colors.gold : colors.text; ctx.lineWidth = s.kind === 'pulse' || s.kind === 'sonar' ? 2.5 : 1.5;
             // A pulse grows; the Sonar's ring, at its full reach, closes back in.
             ctx.beginPath(); ctx.arc(x, y, s.kind === 'pulse' ? c * s.r * (0.4 + age * 0.8) : s.kind === 'sonar' ? c * s.r * (1 - age * 0.85) : c * (2 + age * 8), 0, Math.PI * 2); ctx.stroke();
