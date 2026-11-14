@@ -1,8 +1,11 @@
 // The Feed's cards, tools and combos measured (design/ring-build.md): what each does to a session's research, length
 // and how it ends, against a session with no cards. It changes nothing: the owner decides the numbers.
 //
-//   node tools/feed-balance.js            every card on two stockpiles, three seeds each (a few minutes, all cores)
-//   node tools/feed-balance.js --seeds 5  more seeds
+//   node tools/feed-balance.js             every card on two stockpiles, twelve seeds each (about a quarter of an hour, all cores)
+//   node tools/feed-balance.js --seeds 24  more seeds
+//
+// Sessions vary a lot from seed to seed: with three seeds a row a card's research read up to a third off (Sonar read
+// -34% and was +1% over 24 seeds). Each row prints its standard error; a difference under about twice that is noise.
 //
 // The player is a simple one: it holds the point on the highest column of the pile, moving it three times a second.
 // A card is given at the session's start and no others are offered (`cardChoices` 0), so each is measured alone;
@@ -53,7 +56,7 @@ if (process.send) {
     });
 } else {
     const arg = name => { const i = process.argv.indexOf('--' + name); return i > 0 ? Number(process.argv[i + 1]) : null; };
-    const seeds = Array.from({ length: arg('seeds') || 3 }, (_, n) => 11 + n * 7);
+    const seeds = Array.from({ length: arg('seeds') || 12 }, (_, n) => 11 + n * 7);
     const jobs = [];
     for (const [name, cards] of configs()) for (const stock of STOCKS) for (const seed of seeds) jobs.push({ name, cards, stock, seed, played: false });
     for (const stock of STOCKS) for (let n = 0; n < seeds.length * 4; n++) jobs.push({ name: 'as played', cards: {}, stock, seed: 101 + n * 13, played: true });
@@ -68,11 +71,12 @@ if (process.send) {
         console.log(`The Feed's cards measured: ${seeds.length} seeds a row, sector 1, a tenth gold and 15% garbled, led on the pile's peak.`);
         for (const stock of STOCKS) {
             console.log(`\nStockpile of ${stock} packets`);
-            console.log('card'.padEnd(16) + 'kind'.padEnd(7) + 'research'.padStart(9) + 'vs none'.padStart(9) + 'seconds'.padStart(9) + 'splits'.padStart(8) + '  ends');
+            console.log('card'.padEnd(16) + 'kind'.padEnd(7) + 'research'.padStart(9) + '  ±'.padEnd(6) + 'vs none'.padStart(9) + 'seconds'.padStart(9) + 'splits'.padStart(8) + '  ends');
             const rows = names.map(name => { const r = results.filter(x => x.name === name && x.stock === stock); const why = {}; for (const x of r) why[x.why] = (why[x.why] || 0) + 1;
-                return { name, research: mean(r.map(x => x.research)), time: mean(r.map(x => x.time)), splits: mean(r.map(x => x.splits)), why: Object.entries(why).map(([k, v]) => `${k} ${v}`).join(', '), cards: mean(r.map(x => x.cards)) }; });
+                const m = mean(r.map(x => x.research)), se = r.length > 1 ? Math.sqrt(r.reduce((n, x) => n + (x.research - m) ** 2, 0) / (r.length - 1) / r.length) : 0;
+                return { name, se, research: m, time: mean(r.map(x => x.time)), splits: mean(r.map(x => x.splits)), why: Object.entries(why).map(([k, v]) => `${k} ${v}`).join(', '), cards: mean(r.map(x => x.cards)) }; });
             rows.sort((a, b) => (a.name === '(none)' ? -1 : b.name === '(none)' ? 1 : b.research - a.research));
-            for (const r of rows) console.log(r.name.padEnd(16) + kind(r.name).padEnd(7) + r.research.toFixed(0).padStart(9) + (r.name === '(none)' ? '' : `${r.research >= base[stock] ? '+' : ''}${((r.research / base[stock] - 1) * 100).toFixed(0)}%`).padStart(9) + r.time.toFixed(0).padStart(9) + r.splits.toFixed(1).padStart(8) + '  ' + r.why + (r.name === 'as played' ? ` · ${r.cards.toFixed(1)} cards taken` : ''));
+            for (const r of rows) console.log(r.name.padEnd(16) + kind(r.name).padEnd(7) + r.research.toFixed(0).padStart(9) + ('  ±' + r.se.toFixed(0)).padEnd(6) + (r.name === '(none)' ? '' : `${r.research >= base[stock] ? '+' : ''}${((r.research / base[stock] - 1) * 100).toFixed(0)}%`).padStart(9) + r.time.toFixed(0).padStart(9) + r.splits.toFixed(1).padStart(8) + '  ' + r.why + (r.name === 'as played' ? ` · ${r.cards.toFixed(1)} cards taken` : ''));
         }
         process.exit(0);
     };
