@@ -16,9 +16,9 @@ ominous: {
         if (c.bassOn && s === 0) synth(t, ch.root, len * 16, 0.13, 'sawtooth', 160 + 260 * k);
         if (L.pad > 0.02 && s === 0 && c.bar % 2 === 0) { synth(t, ch.bell, len * 12, 0.05 * L.pad, 'sine', 4000); synth(t, ch.bell + 19, len * 6, 0.012 * L.pad, 'sine', 4000); }
         if (L.off > 0.02 && s === 0 && c.song.comp.includes(0)) pad(t, ch.v.map(n => n - 12), len * 16, 0.016 * L.off, 'triangle', 900);
-        if (L.off > 0.02 && s % 4 === 2) hat(t, 0.035 * L.off, 0.02);
+        if (L.off > 0.02 && c.drums && s % 4 === 2) hat(t, 0.035 * L.off, 0.02);
         if (L.clap > 0.02 && c.drums && s === 12) clap(t, 0.08 * L.clap);
-        if (L.sixteenth > 0.02 && s % 2 === 1) hat(t, 0.02 * L.sixteenth, 0.015);
+        if (L.sixteenth > 0.02 && c.drums && s % 2 === 1) hat(t, 0.02 * L.sixteenth, 0.015);
         if (L.arp > 0.02 && s % 4 === 0) synth(t, ch.v[(s / 4) % ch.v.length] + 12, len * 3.5, 0.03 * L.arp, 'triangle', 1400);
         if (c.mel) {
             const d = len * c.mel.len * 1.05;

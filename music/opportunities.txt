@@ -72,14 +72,13 @@ THE THREE MOST IMPACTFUL
 
 FOUND IN REVIEW (2026-11-14; each checked against the code, none by ear)
 ======================================================================
-A. THE BREAKDOWN IS NOT "DRUMS OUT"
+A. THE BREAKDOWN WAS NOT "DRUMS OUT" (FIXED in sfx.js, 2026-11-14)
    The breakdown sets `drums` false for its first six bars, and only the kick, the clap and the stealth
-   tick check it. Hats don't, in any track: Classic keeps 12 hat hits a bar (4 off-beat, 8 on the 16ths),
-   Dark its open hats and ride, Ominous its clock, Retro its hats, Soft 9 (8 shakers and the rim). So while
-   training, with the layers in, the breakdown is "kick and clap out", which is a much smaller drop.
-   Fix: one check per hat line in each style's `step` (about ten lines in sfx.js). Whether a track should
-   keep a quiet hat through its breakdown is then a choice per track, not an accident. Ominous keeping
-   its clock would be a good choice; Classic keeping 16th hats probably isn't.
+   tick checked it. Hats didn't, in any track. Now every hat line checks it too. Hat hits a bar with every
+   layer in, drums on and then off (counted by running each track's step function):
+   Classic 12 and 0, Dark 22 and 0, Ominous 12 and 0, Retro 12 and 0, Soft 9 and 0.
+   Not yet listened to. Still open, as a choice per track: a track may want one quiet element through its
+   breakdown on purpose (Ominous keeping its clock would suit it). That is now a decision, not an accident.
 
 B. THE INSTRUMENTS ARE THINNER THAN THEIR NAMES
    Soft's Rhodes is one sine per note; its kalimba a sine and a short octave tone; its shaker and rim one

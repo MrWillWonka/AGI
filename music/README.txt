@@ -42,9 +42,8 @@ WHAT EVERY TRACK SHARES (the considerations behind all five)
   A song       An eight-bar chord progression, a bass pattern, the chords' rhythm, a four-bar melody (A) and
                an eight-bar one (B), and a level trim.
   The form     Eight bars a section: intro, A, B, A, a breakdown, B, A with a harmony a third below, out.
-               The breakdown is meant to be "drums out", but only the kick, the clap and the stealth tick
-               obey it: in all five tracks the hats (Soft's shakers and rim) keep playing through it.
-               See opportunities.txt, "Found in review". Two minutes, then the area's other song. Changing rooms changes song on the
+               The breakdown is drums out for its first six bars: kick, clap, hats, shakers, rim and
+               the stealth tick (the hats used to play through it; fixed in sfx.js on 2026-11-14). Two minutes, then the area's other song. Changing rooms changes song on the
                next downbeat; coming back picks the song up at the section it left.
   It builds    Progress through the game and the run's speed add up to how many parts play, each fading in:
                kick and bass always, then chords, off-beat hats, the melody, a clap, 16th hats, the harmony,

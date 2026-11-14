@@ -19,7 +19,7 @@
     const BANDS = ['#e8c07a', '#d98a5f', '#7fc8a9', '#6fa8dc', '#c9a0e8', '#e6dfc8'];
     const TESTS = [['+40', [1, 40, 4]], ['+75 dirty', [2, 75, 6, 10]], ['+200 dirty', [4, 200, 15, 20, 20]]];
     let dlg = null, canvas = null, ctx = null, stage = null, promptEl = null, hungerEl = null, layerEl = null, mitesEl = null, researchEl = null, fragEl = null;
-    let pickEl = null, endEl = null, pickKey = '', cardsEl = null, cardsKey = '', heldEl = null, heldKey = '', arcs = [], shakeAt = 0;
+    let pickEl = null, endEl = null, pickKey = '', cardsEl = null, cardsKey = '', heldEl = null, heldKey = '', giveEl = null, arcs = [], shakeAt = 0;
     let sand = null, sandCtx = null, image = null, pixels = null, palette = null;
     // The window on the box, in cells: `cols` × `rows` from (`x`, `y`), a cell `cell` px, drawn from (`ox`, `oy`).
     let view = { w: 0, h: 0, x: 0, y: 0, cols: 0, rows: 0, cell: 4, ox: 0, oy: 0, want: null };
@@ -60,6 +60,9 @@
         const tests = el('div', { class: 'feed-test', 'aria-label': 'Testing' },
             el('span', { class: 'feed-test-label', text: 'Test' }),
             ...TESTS.map(([label, args]) => el('button', { type: 'button', class: 'ghost-button', text: label, onclick: () => debug?.feedDeliver(...args) })),
+            // Give any card in the session in play (the tools are rare; the owner's ask, to try them and the combos).
+            (giveEl = el('select', { class: 'feed-give', 'aria-label': 'Give a card', onchange: () => { if (giveEl.value) debug?.feedCard(giveEl.value); giveEl.value = ''; } },
+                el('option', { value: '', text: 'Give card…' }), ...Object.keys(F().CARDS).map(id => el('option', { value: id, text: cardName(id) })))),
             el('button', { type: 'button', class: 'ghost-button', text: 'Empty', onclick: () => { debug?.resetFeed(); fragShown = -1; view.want = null; } }));
         dlg = el('dialog', { class: 'feed-screen', 'aria-label': 'The Feed' },
             el('div', { class: 'feed-bar' },
@@ -194,7 +197,7 @@
     }
     function renderPick() {
         const f = feed(), on = !!(f && f.sessioned && !f.session);
-        pickEl.hidden = !on; endEl.hidden = !(f && f.session);
+        pickEl.hidden = !on; endEl.hidden = !(f && f.session); if (giveEl) giveEl.disabled = !(f && f.session);
         if (!on) { pickKey = ''; return; }
         const list = E().feedStock(game()), last = f.lastSession;
         const key = JSON.stringify([list.map(e => [e.sector, e.total, e.cap, e.gold, e.bad, e.record]), last]);

@@ -4257,3 +4257,5 @@ body.ring-device.device-phone .snare-tree-bar .button, body.ring-device.device-p
 .feed-chip.rare { border-color: var(--warning); color: var(--warning); }
 .feed-chip.combo, .feed-card.combo { border-color: var(--research); }
 .feed-chip.combo, .feed-card.combo em { color: var(--research); }
+.feed-give { min-height: 36px; padding: 4px 8px; font: 600 0.85rem var(--font-mono); color: var(--text); background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; }
+.feed-give:disabled { opacity: 0.45; }

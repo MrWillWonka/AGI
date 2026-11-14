@@ -15,9 +15,9 @@ classic: {
         if (kg) kick(t, 0.5 * kg);
         const b = c.bassOn && bassAt(c.song, s, ch);
         if (b) synth(t, b, len * 2.2, 0.22, 'sawtooth', 220 + 1600 * k);
-        if (L.off > 0.02 && s % 4 === 2) hat(t, (0.08 + 0.06 * k) * L.off);
+        if (L.off > 0.02 && c.drums && s % 4 === 2) hat(t, (0.08 + 0.06 * k) * L.off);
         if (L.clap > 0.02 && c.drums && (s === 4 || s === 12)) clap(t, 0.16 * L.clap);
-        if (L.sixteenth > 0.02 && s % 2 === 1) hat(t, 0.05 * L.sixteenth, 0.025);
+        if (L.sixteenth > 0.02 && c.drums && s % 2 === 1) hat(t, 0.05 * L.sixteenth, 0.025);
         if (L.pad > 0.02 && c.song.comp.includes(s)) for (const n of ch.v) {
             synth(t, n, len * 1.6, 0.02 * L.pad, 'sawtooth', 700 + 1500 * k, 2);
             synth(t + 3 * len, n, len * 1.4, 0.008 * L.pad, 'sawtooth', 600 + 900 * k, 2);

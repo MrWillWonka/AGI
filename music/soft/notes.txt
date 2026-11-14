@@ -19,9 +19,7 @@ THE INSTRUMENTS (instruments.js)
   Arpeggio  Sines on the 8ths, rising for two bars and falling for two.
   In plain terms, the names promise more than the synthesis delivers: the "Rhodes" is one sine oscillator
   per note with a volume envelope, the "kalimba" one sine plus a brief octave tone, the "shaker" and "rim"
-  the same noise hat at two lengths. None has the attack, the overtones or the decay of the real thing.
-  The shakers and the rim also ignore the breakdown's "drums out" and play through it.
-  Fill      A rim pattern and the next chord's top note, leading in.
+  the same noise hat at two lengths. None has the attack, the overtones or the decay of the real thing.  Fill      A rim pattern and the next chord's top note, leading in.
   Mood      The master filter runs 700 to 5,200 Hz: the darkest ceiling after Ominous. No drive.
 
 THE SONGS (songs.js; chords as written: they sound a fourth higher)

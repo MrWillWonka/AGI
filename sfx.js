@@ -1734,9 +1734,9 @@
                 if (kg) kick(t, 0.5 * kg);
                 const b = c.bassOn && bassAt(c.song, s, ch);
                 if (b) synth(t, b, len * 2.2, 0.22, 'sawtooth', 220 + 1600 * k);
-                if (L.off > 0.02 && s % 4 === 2) hat(t, (0.08 + 0.06 * k) * L.off);
+                if (L.off > 0.02 && c.drums && s % 4 === 2) hat(t, (0.08 + 0.06 * k) * L.off);
                 if (L.clap > 0.02 && c.drums && (s === 4 || s === 12)) clap(t, 0.16 * L.clap);
-                if (L.sixteenth > 0.02 && s % 2 === 1) hat(t, 0.05 * L.sixteenth, 0.025);
+                if (L.sixteenth > 0.02 && c.drums && s % 2 === 1) hat(t, 0.05 * L.sixteenth, 0.025);
                 if (L.pad > 0.02 && c.song.comp.includes(s)) for (const n of ch.v) {
                     synth(t, n, len * 1.6, 0.02 * L.pad, 'sawtooth', 700 + 1500 * k, 2);
                     synth(t + 3 * len, n, len * 1.4, 0.008 * L.pad, 'sawtooth', 600 + 900 * k, 2);
@@ -1776,9 +1776,9 @@
                 const off = (B ? DARK_ACID_B : DARK_ACID)[s], acc = (B ? DARK_ACCENT_B : DARK_ACCENT)[s];
                 // Always there (quieter at rest and in the lab's songs), opening up with speed.
                 if (off != null && c.bassOn) synth(t, snap(song, ch.root + 12 + off), len * (acc ? 1.4 : 0.8), (acc ? 0.08 : 0.055) * (0.6 + 0.4 * L.off) * acid, 'sawtooth', 600 + 2200 * k, 12, acc ? 5 : 2.5);
-                if (L.off > 0.02 && s % 4 === 2) hat(t, (0.09 + 0.05 * k) * L.off, 0.11);
+                if (L.off > 0.02 && c.drums && s % 4 === 2) hat(t, (0.09 + 0.05 * k) * L.off, 0.11);
                 if (L.clap > 0.02 && c.drums && (s === 4 || s === 12)) { clap(t, 0.2 * L.clap); hat(t, 0.08 * L.clap, 0.05); }
-                if (L.sixteenth > 0.02) hat(t, (s % 4 === 2 ? 0 : s % 2 ? 0.045 : 0.025) * L.sixteenth, 0.02);
+                if (L.sixteenth > 0.02 && c.drums) hat(t, (s % 4 === 2 ? 0 : s % 2 ? 0.045 : 0.025) * L.sixteenth, 0.02);
                 if (L.pad > 0.02 && s === 0 && song.comp.includes(0)) for (const [n, dt] of ch.v.map((n, i) => [n, i % 2 ? 9 : -9])) synth(t, n - 12, len * 16, 0.014 * L.pad, 'sawtooth', 500 + 700 * k, 1, 0, dt, 0.35);
                 if (L.pad > 0.02) for (const st of song.comp) if (st && st === s) for (const n of ch.v) synth(t, n, len * 1.2, 0.018 * L.pad, 'sawtooth', 1600 + 1600 * k, 3, 1.5);
                 if (L.arp > 0.02 && c.bar % 2 === 1 && (s === 0 || s === 10)) ch.v.slice(0, 3).forEach((n, i) => synth(t, n + 12, len * 3, 0.026 * L.arp, 'sawtooth', 1800 + 2400 * L.arp, 2, 0, [-14, 12, -6][i]));
@@ -1809,9 +1809,9 @@
                 if (c.bassOn && s === 0) synth(t, ch.root, len * 16, 0.13, 'sawtooth', 160 + 260 * k);
                 if (L.pad > 0.02 && s === 0 && c.bar % 2 === 0) { synth(t, ch.bell, len * 12, 0.05 * L.pad, 'sine', 4000); synth(t, ch.bell + 19, len * 6, 0.012 * L.pad, 'sine', 4000); }
                 if (L.off > 0.02 && s === 0 && c.song.comp.includes(0)) pad(t, ch.v.map(n => n - 12), len * 16, 0.016 * L.off, 'triangle', 900);
-                if (L.off > 0.02 && s % 4 === 2) hat(t, 0.035 * L.off, 0.02);
+                if (L.off > 0.02 && c.drums && s % 4 === 2) hat(t, 0.035 * L.off, 0.02);
                 if (L.clap > 0.02 && c.drums && s === 12) clap(t, 0.08 * L.clap);
-                if (L.sixteenth > 0.02 && s % 2 === 1) hat(t, 0.02 * L.sixteenth, 0.015);
+                if (L.sixteenth > 0.02 && c.drums && s % 2 === 1) hat(t, 0.02 * L.sixteenth, 0.015);
                 if (L.arp > 0.02 && s % 4 === 0) synth(t, ch.v[(s / 4) % ch.v.length] + 12, len * 3.5, 0.03 * L.arp, 'triangle', 1400);
                 if (c.mel) {
                     const d = len * c.mel.len * 1.05;
@@ -1839,9 +1839,9 @@
                 // The bass bounces octaves on the 8ths; a song with its own line (`walk`) tiptoes it, staccato.
                 if (c.bassOn && c.song.walk) { const b = bassAt(c.song, s, ch); if (b) synth(t, b + 12, len * 0.9, 0.16, 'triangle', 9000); }
                 else if (c.bassOn && s % 2 === 0) synth(t, ch.root + 12 + (s % 4 === 2 ? 12 : 0), len * 1.6, 0.14, 'triangle', 9000);
-                if (L.off > 0.02 && s % 4 === 2) hat(t, 0.07 * L.off, 0.02);
+                if (L.off > 0.02 && c.drums && s % 4 === 2) hat(t, 0.07 * L.off, 0.02);
                 if (L.clap > 0.02 && c.drums && (s === 4 || s === 12)) clap(t, 0.13 * L.clap);
-                if (L.sixteenth > 0.02 && s % 2 === 1) hat(t, 0.035 * L.sixteenth, 0.012);
+                if (L.sixteenth > 0.02 && c.drums && s % 2 === 1) hat(t, 0.035 * L.sixteenth, 0.012);
                 const every = L.arp > 0.5 ? 1 : 2;
                 // Up on even bars, down on odd ones.
                 if (L.pad > 0.02 && s % every === 0) {
@@ -1875,8 +1875,8 @@
                 if (L.pad > 0.02 && s === 0) pad(t, ch.v, len * 16, 0.02 * L.pad);
                 const b = c.bassOn && bassAt(c.song, s, ch);
                 if (b) synth(t, b, len * 3, 0.16, 'triangle', 500 + 600 * k);
-                if (L.off > 0.02 && s % 2 === 1) hat(t, 0.025 * L.off, 0.03);
-                if (L.clap > 0.02 && s === 12) hat(t, 0.06 * L.clap, 0.08);
+                if (L.off > 0.02 && c.drums && s % 2 === 1) hat(t, 0.025 * L.off, 0.03);
+                if (L.clap > 0.02 && c.drums && s === 12) hat(t, 0.06 * L.clap, 0.08);
                 if (L.off > 0.02 && c.song.comp.includes(s)) for (const n of ch.v) synth(t, n + 12, len * 2.5, 0.009 * L.off, 'sine', 3000, 1);
                 if (L.arp > 0.02 && s % 2 === 0) {
                     const v = ch.v, i = (s / 2) % v.length;

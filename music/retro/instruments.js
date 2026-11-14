@@ -16,9 +16,9 @@ retro: {
         // The bass bounces octaves on the 8ths; a song with its own line (`walk`) tiptoes it, staccato.
         if (c.bassOn && c.song.walk) { const b = bassAt(c.song, s, ch); if (b) synth(t, b + 12, len * 0.9, 0.16, 'triangle', 9000); }
         else if (c.bassOn && s % 2 === 0) synth(t, ch.root + 12 + (s % 4 === 2 ? 12 : 0), len * 1.6, 0.14, 'triangle', 9000);
-        if (L.off > 0.02 && s % 4 === 2) hat(t, 0.07 * L.off, 0.02);
+        if (L.off > 0.02 && c.drums && s % 4 === 2) hat(t, 0.07 * L.off, 0.02);
         if (L.clap > 0.02 && c.drums && (s === 4 || s === 12)) clap(t, 0.13 * L.clap);
-        if (L.sixteenth > 0.02 && s % 2 === 1) hat(t, 0.035 * L.sixteenth, 0.012);
+        if (L.sixteenth > 0.02 && c.drums && s % 2 === 1) hat(t, 0.035 * L.sixteenth, 0.012);
         const every = L.arp > 0.5 ? 1 : 2;
         // Up on even bars, down on odd ones.
         if (L.pad > 0.02 && s % every === 0) {

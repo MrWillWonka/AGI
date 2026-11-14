@@ -16,8 +16,8 @@ soft: {
         if (L.pad > 0.02 && s === 0) pad(t, ch.v, len * 16, 0.02 * L.pad);
         const b = c.bassOn && bassAt(c.song, s, ch);
         if (b) synth(t, b, len * 3, 0.16, 'triangle', 500 + 600 * k);
-        if (L.off > 0.02 && s % 2 === 1) hat(t, 0.025 * L.off, 0.03);
-        if (L.clap > 0.02 && s === 12) hat(t, 0.06 * L.clap, 0.08);
+        if (L.off > 0.02 && c.drums && s % 2 === 1) hat(t, 0.025 * L.off, 0.03);
+        if (L.clap > 0.02 && c.drums && s === 12) hat(t, 0.06 * L.clap, 0.08);
         if (L.off > 0.02 && c.song.comp.includes(s)) for (const n of ch.v) synth(t, n + 12, len * 2.5, 0.009 * L.off, 'sine', 3000, 1);
         if (L.arp > 0.02 && s % 2 === 0) {
             const v = ch.v, i = (s / 2) % v.length;
