@@ -6,7 +6,9 @@ const Feed = require('../feed.js');
 const Model = require('../tools/ring-model.js');
 
 const { w: W, h: H, grains: G } = Feed.FEED;
-const FAST = { chew: 60, graze: 1, speed: 160 };   // for tests that only care what was eaten, not how long it took
+const FAST = { chew: 60, graze: 1, speed: 160 };
+// A swarm with no mind of its own: straight to the point, eating what is nearest it (the base rule under the roaming).
+const STRAIGHT = { roam: 0, wobble: 0, character: 0 };   // for tests that only care what was eaten, not how long it took
 // Steps `seconds` in tenths, gathering what was paid and every event. `lead(state)` gives the point held, if any.
 function play(s, seconds, opts, lead) {
     let research = 0; const events = [];
@@ -132,11 +134,11 @@ test('left alone, the swarm eats from the outside in: every grain it takes is on
 });
 
 test('led, a mite eats two packets a second; left alone, a quarter of that', () => {
-    const rate = lead => {
+    const rate = (lead, mind = STRAIGHT) => {
         const s = Feed.newFeed({ seed: 9 });
         Feed.deliver(s, { sector: 1, packets: 300, gold: 0 });
         Feed.step(s, 12, { chew: 0 });
-        const one = { miteFirst: 99 };   // one mite throughout: no second one joining part way
+        const one = { miteFirst: 99, ...mind };   // one mite throughout: no second one joining part way
         play(s, 6, one, lead);   // time to reach the pile
         const from = s.stats.eaten;
         play(s, 20, one, lead);
@@ -145,6 +147,9 @@ test('led, a mite eats two packets a second; left alone, a quarter of that', () 
     const led = rate(bottom), alone = rate(null);
     assert.ok(Math.abs(led - 2) < 0.25, `led: ${led} packets a second`);
     assert.ok(Math.abs(alone - 0.5) < 0.1, `alone: ${alone} packets a second`);
+    // With its own mind (the owner's call: strong roaming, and a slower swarm for it) it still eats, well under that.
+    const roaming = rate(bottom, {});
+    assert.ok(roaming > 0.3 && roaming < led, `roaming: ${roaming} packets a second`);
 });
 
 test('the swarm goes where you hold: to a point in empty air it eats nothing, and through sand it eats its way', () => {
@@ -153,12 +158,12 @@ test('the swarm goes where you hold: to a point in empty air it eats nothing, an
     Feed.step(s, 10, { chew: 0 });
     s.mites = 3; s.swarm.push({ x: 10.5, y: 1.5, b: 0, t: -1 }, { x: 50.5, y: 1.5, b: 0, t: -1 });
     const air = { x: 6.5, y: 20.5 };
-    play(s, 5, undefined, () => air);
+    play(s, 5, STRAIGHT, () => air);
     assert.equal(s.stats.eaten, 0);
     for (const m of s.swarm) assert.ok(Math.hypot(m.x - air.x, m.y - air.y) < 1, 'every mite came to the point');
     // Now a point on the floor under the pile's middle: they tunnel to it.
     const deep = { x: W / 2 + 0.5, y: H - 0.5 };
-    const { events } = play(s, 40, undefined, () => deep);
+    const { events } = play(s, 40, STRAIGHT, () => deep);
     const eats = events.filter(e => e.type === 'eat');
     assert.ok(eats.length > 40);
     assert.ok(eats.some(e => Math.hypot(e.x + 0.5 - deep.x, e.y + 0.5 - deep.y) < 3), 'they ate down to the point');
@@ -283,7 +288,7 @@ test('garbled sand is slow to eat and pays nothing; it comes from garbled catche
     assert.equal(s.fed, 0, 'it is no part of a layer');
     assert.ok(events.filter(e => e.type === 'eat').every(e => e.kind === 'garbled' && e.pays === false));
     // The same weight of good sand goes much faster.
-    const time = load => { const t = Feed.newFeed({ seed: 8 }); Feed.deliver(t, load); Feed.step(t, 6, { chew: 0 }); let n = 0; while (Feed.left(t) > 0 && n < 4000) { Feed.point(t, bottom(t)); Feed.step(t, 0.1); n++; } return n / 10; };
+    const time = load => { const t = Feed.newFeed({ seed: 8 }); Feed.deliver(t, load); Feed.step(t, 6, { chew: 0 }); let n = 0; while (Feed.left(t) > 0 && n < 4000) { Feed.point(t, bottom(t)); Feed.step(t, 0.1, STRAIGHT); n++; } return n / 10; };
     const good = time({ sector: 1, packets: 8 }), bad = time({ sector: 1, packets: 0, garbled: 8 });
     assert.ok(bad > good * 2.5, `bad ${bad} s, good ${good} s`);
 });

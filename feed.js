@@ -75,6 +75,12 @@
         puff: 6,            // how far its grains scatter as it melts, in cells
         hop: 8,             // one landing grain in this many hops (and one in eight of those hops high)
         full: 0.8,          // the spout waits while this share of the box is sand
+        // The swarm's own mind (the owner's call, 2026-11-14: mites roam round the point and meander to it; each has a
+        // character). All three at 0 is a swarm that goes straight to the point and eats what is nearest it.
+        roam: 40,           // how far from the point you hold a mite picks its own spot to work, in cells (the owner's pick: strong)
+        wobble: 0.9,        // how far off the straight line it swings on its way there, in radians
+        character: 1,       // 1: each mite follows its character's priorities (`CHARACTERS`)
+        megaChance: 0.08,   // the chance a new mite at a split is a mega mite, which takes sand two grains at a time
         gravity: 4,         // a falling grain speeds up: a cell a pass at first, up to this many (the owner's call: so sand reads as falling)
         slump: 4,           // a resting grain on a slope steeper than one in two rolls a cell down it, one pass in this many: heaps settle shallower and slide
         fall: 120,          // cells a second a grain falls
@@ -143,6 +149,7 @@
         hunger: { stat: 'hungerTime', by: 1.25 },
         speed: { stat: 'speed', by: 1.3 },
         pay: { stat: 'pay', by: 1.2 },
+        focus: { stat: 'roam', by: 0.7 },      // the swarm tracks the point more tightly: less roaming, a straighter way there
         // Tools (the owner's cards): rare, they work on their own, and a copy makes one stronger.
         scanner: { rare: true, tool: true },   // a beam crosses the box and shows what the sand is (gold, fragments)
         pulse: { rare: true, tool: true },     // a burst at the point you hold (else a mite) eats every grain in a circle
@@ -163,6 +170,11 @@
         drum: { rare: true, combo: ['arc', 'rhythm'] }         // each beat a row of sparks drops on the pile: top and bottom layers are worn down, soft sand collected
     };
     const CARD_IDS = Object.keys(CARDS);
+    // Mites' characters (the owner's picks). A new mite's is drawn at random; `mega` is rare (`megaChance`).
+    //   gold: goes for gold it can see · tidy: goes for garbled sand, which the others leave · loner: works away from
+    //   the rest · follower: keeps beside another mite · mega: no priority, takes two grains at a bite.
+    // Later the AI is to sway what they go for and how far they obey (design/ring.md): `goalFor` and `liked` are where.
+    const CHARACTERS = ['gold', 'tidy', 'loner', 'follower'];
     const COMBOS = CARD_IDS.filter(id => CARDS[id].combo);
     // A tool's level this session: its copies. (A combo uses its two tools up; it is a thing of its own.)
     const toolLevel = (state, id) => state.session?.cards?.[id] || 0;
@@ -241,7 +253,7 @@
         return cells.length === size ? cells : null;
     }
     const saveable = state => Object.defineProperty(state, 'toJSON', { value() { return { ...this, cells: pack(this.cells) }; }, enumerable: false });
-    const mitePlace = (state, n) => ({ x: FEED.w / 2 + ((n * 7) % 11 - 5) * 4 + 0.5, y: 2.5, b: 0, t: -1 });
+    const mitePlace = (state, n) => ({ x: FEED.w / 2 + ((n * 7) % 11 - 5) * 4 + 0.5, y: 2.5, b: 0, t: -1, c: CHARACTERS[n % CHARACTERS.length], a: n * 1.7, ox: 0, oy: 0, rt: 0 });
 
     function startLayer(state, o) {
         state.fed = 0;
@@ -281,7 +293,7 @@
     const cardMult = (state, stat) => { let m = 1; const c = state.session?.cards; if (c) for (const id of CARD_IDS) if (CARDS[id].stat === stat && c[id]) m *= Math.pow(CARDS[id].by, c[id]); return m; };
     const payMult = (state, o) => (state.session ? (1 + o.sectorPay * (state.session.sector - 1)) * cardMult(state, 'pay') : 1);
     // The dials as this session's cards have them.
-    const withCards = (state, o) => { const c = state.session?.cards; if (!c || !Object.keys(c).length) return o; const out = { ...o }; for (const stat of ['chew', 'hungerTime', 'speed']) out[stat] = o[stat] * cardMult(state, stat); return out; };
+    const withCards = (state, o) => { const c = state.session?.cards; if (!c || !Object.keys(c).length) return o; const out = { ...o }; for (const stat of ['chew', 'hungerTime', 'speed', 'roam']) out[stat] = o[stat] * cardMult(state, stat); out.wobble = o.wobble * cardMult(state, 'roam'); return out; };
     // Offer cards: `cardChoices` different ones, each slot a rare one at `cardRare` when there are any left to offer.
     function offerCards(state, o, out) {
         const s = state.session, pool = { common: CARD_IDS.filter(id => !CARDS[id].rare), rare: CARD_IDS.filter(id => CARDS[id].rare && offerable(state, id)) }, offer = [];
@@ -845,7 +857,7 @@
             state.layers++;
             if (state.session) { state.life = 1; state.session.picks = (state.session.picks || 0) + 1; }   // a split fills the hunger bar and offers cards (`step`)
             const mite = state.layers >= o.miteFirst && (state.layers - o.miteFirst) % o.miteEvery === 0;
-            if (mite) { state.swarm.push(mitePlace(state, state.mites)); state.mites++; }
+            if (mite) { const m = mitePlace(state, state.mites); m.c = rand(state) < o.megaChance ? 'mega' : CHARACTERS[Math.floor(rand(state) * CHARACTERS.length)]; state.swarm.push(m); state.mites++; }
             state.owed += pay;
             out.events.push({ type: 'layer', layer: state.layers, pay, mite, mites: state.mites });
             startLayer(state, o);
@@ -854,13 +866,66 @@
     }
 
     // One mite for one step: head for the point you hold (or the nearest sand on the surface), biting what is in the way.
+    // The grain nearest a point within `r` cells that `want(cell)` accepts, or −1.
+    function nearestWhere(state, px, py, r, want) {
+        const { w, h, cells } = state;
+        let best = -1, bestD = r * r;
+        for (let y = Math.max(0, Math.floor(py - r)); y <= Math.min(h - 1, Math.floor(py + r)); y++) for (let x = Math.max(0, Math.floor(px - r)); x <= Math.min(w - 1, Math.floor(px + r)); x++) {
+            const v = cells[y * w + x]; if (!v || !want(v)) continue;
+            const d = (x + 0.5 - px) * (x + 0.5 - px) + (y + 0.5 - py) * (y + 0.5 - py);
+            if (d <= bestD) { bestD = d; best = y * w + x; }
+        }
+        return best;
+    }
+    const GOLD = v => kindOf(v) === 2 && seenOf(v) === 1, BAD = v => kindOf(v) === 6, GOOD = v => kindOf(v) !== 6;
+    // What a mite would rather eat near a point: gold it can see for the gold-hungry, garbled sand for the tidy, and
+    // anything but garbled for the rest; failing that, whatever is nearest.
+    function liked(state, o, m, x, y, r) {
+        if (o.character) { const i = nearestWhere(state, x, y, r, m.c === 'gold' ? GOLD : m.c === 'tidy' ? BAD : GOOD); if (i >= 0) return i; }
+        return nearestWithin(state, x, y, r);
+    }
+    // Where a led mite is heading: its own spot within `roam` cells of the point you hold, picked afresh every second or
+    // two. A loner's is pushed away from the rest of the swarm; a follower's is beside the mite before it.
+    function goalFor(state, o, m, dt) {
+        const aim = state.aim, { w, h, swarm } = state;
+        if (!(o.roam > 0)) return aim;
+        m.rt = (m.rt || 0) - dt;
+        if (m.rt <= 0) { const ang = rand(state) * Math.PI * 2, r = Math.sqrt(rand(state)) * o.roam; m.ox = Math.cos(ang) * r; m.oy = Math.sin(ang) * r * 0.5; m.rt = 1 + rand(state) * 1.5; }
+        let x = aim.x + m.ox, y = aim.y + m.oy;
+        if (o.character && swarm.length > 1) {
+            if (m.c === 'loner') {
+                let cx = 0, cy = 0; for (const q of swarm) if (q !== m) { cx += q.x; cy += q.y; }
+                cx /= swarm.length - 1; cy /= swarm.length - 1;
+                const d = Math.hypot(m.x - cx, m.y - cy) || 1;
+                x += (m.x - cx) / d * o.roam * 0.8; y += (m.y - cy) / d * o.roam * 0.3;
+            } else if (m.c === 'follower') {
+                const n = swarm.indexOf(m), lead = swarm[(n + swarm.length - 1) % swarm.length];
+                x = lead.x + m.ox * 0.25; y = lead.y + m.oy * 0.25;
+            }
+        }
+        return { x: Math.max(0.5, Math.min(w - 0.5, x)), y: Math.max(0.5, Math.min(h - 0.5, y)) };
+    }
+    // A mite takes the grain at `i`; a mega mite takes one beside it too.
+    function take(state, o, m, i, out) {
+        const x = i % state.w + 0.5, y = Math.floor(i / state.w) + 0.5;
+        eat(state, o, i, out);
+        if (m.c === 'mega') { const j = nearestWithin(state, x, y, 1.6); if (j >= 0) eat(state, o, j, out); }
+    }
     function mite(state, o, m, dt, out) {
         const led = !!state.aim, { w, h, cells } = state;
         m.b = Math.min(m.b + o.chew * o.grains * (led ? 1 : o.graze) * dt, o.grains / 8);   // bites saved up while it moves: an eighth of a packet's worth, whatever the grain's size
         let gx, gy, food = -1;
         if (led) {
-            gx = state.aim.x; gy = state.aim.y;
-            if ((m.x - gx) * (m.x - gx) + (m.y - gy) * (m.y - gy) <= o.near * o.near) food = nearestWithin(state, gx, gy, o.near);
+            const g = goalFor(state, o, m, dt);
+            gx = g.x; gy = g.y;
+            if ((m.x - gx) * (m.x - gx) + (m.y - gy) * (m.y - gy) <= o.near * o.near) {
+                food = liked(state, o, m, gx, gy, o.near);
+                // Nothing to eat at its own spot: back to the point itself.
+                if (food < 0 && g !== state.aim) { gx = state.aim.x; gy = state.aim.y; if ((m.x - gx) * (m.x - gx) + (m.y - gy) * (m.y - gy) <= o.near * o.near) food = liked(state, o, m, gx, gy, o.near); }
+            } else if (o.character && o.roam > 0 && (m.c === 'gold' || m.c === 'tidy')) {
+                // On its way: it stops for what it likes best, when that is right beside it.
+                food = nearestWhere(state, m.x, m.y, o.lamp / 2, m.c === 'gold' ? GOLD : BAD);
+            }
         } else {
             if (m.t < 0 || !cells[m.t]) m.t = state.grains ? nearestSurface(state, m.x, m.y) : -1;
             food = m.t;
@@ -869,10 +934,13 @@
         if (food >= 0) { gx = food % w + 0.5; gy = Math.floor(food / w) + 0.5; }
         const here = Math.floor(m.y) * w + Math.floor(m.x);
         if (food === here && cells[here]) {
-            while (m.b >= 1 && cells[here]) { m.b -= 1; const v = cells[here], hp = hpOf(v) - 1; if (hp > 0) cells[here] = cell(kindOf(v), bandOf(v), hp, seenOf(v)); else eat(state, o, here, out); }
+            while (m.b >= 1 && cells[here]) { m.b -= 1; const v = cells[here], hp = hpOf(v) - 1; if (hp > 0) cells[here] = cell(kindOf(v), bandOf(v), hp, seenOf(v)); else take(state, o, m, here, out); }
             return;
         }
-        const dx = gx - m.x, dy = gy - m.y, d = Math.hypot(dx, dy);
+        let dx = gx - m.x, dy = gy - m.y;
+        const d = Math.hypot(dx, dy);
+        // Meandering: led and still a way off, it swings from side to side of the straight line, each mite on its own beat.
+        if (led && o.wobble > 0 && d > o.near) { m.a = ((m.a || 0) + dt * (2.2 + (state.swarm.indexOf(m) % 5) * 0.5)) % (Math.PI * 2); const t = Math.sin(m.a) * o.wobble, cs = Math.cos(t), sn = Math.sin(t), rx = dx * cs - dy * sn; dy = dx * sn + dy * cs; dx = rx; }
         if (d < 0.05) { if (food < 0) m.b = Math.min(m.b, o.grains / 16); return; }
         const go = Math.min(d, o.speed * dt), nx = Math.max(0.01, Math.min(w - 0.01, m.x + dx / d * go)), ny = Math.max(0.01, Math.min(h - 0.01, m.y + dy / d * go));
         // The cell it would step into; when the step stays in its own cell, the next one toward the goal.
@@ -888,7 +956,7 @@
                 m.b -= 1;
                 const v = cells[ci], hp = hpOf(v) - 1;
                 if (hp > 0) cells[ci] = cell(kindOf(v), bandOf(v), hp, seenOf(v));
-                else eat(state, o, ci, out);
+                else take(state, o, m, ci, out);
             }
             return;
         }
@@ -1068,12 +1136,13 @@
         }
         state.swarm = Array.from({ length: state.mites }, (_, n) => {
             const m = sized && Array.isArray(raw.swarm) ? raw.swarm[n] : null, d = mitePlace(state, n);
-            return { x: real(m?.x, 0, FEED.w - 0.01, d.x), y: real(m?.y, 0, FEED.h - 0.01, d.y), b: real(m?.b, 0, 64, 0), t: Number.isInteger(m?.t) && m.t >= -1 && m.t < FEED.w * FEED.h ? m.t : -1 };
+            return { x: real(m?.x, 0, FEED.w - 0.01, d.x), y: real(m?.y, 0, FEED.h - 0.01, d.y), b: real(m?.b, 0, 64, 0), t: Number.isInteger(m?.t) && m.t >= -1 && m.t < FEED.w * FEED.h ? m.t : -1,
+                c: m?.c === 'mega' || CHARACTERS.includes(m?.c) ? m.c : d.c, a: real(m?.a, 0, 7, d.a % (Math.PI * 2)), ox: real(m?.ox, -1e3, 1e3, 0), oy: real(m?.oy, -1e3, 1e3, 0), rt: real(m?.rt, -1, 10, 0) };
         });
         return state;
     }
 
     return { FEED, KINDS, KIND_IDS, LOCKED, FRAGMENTS, STEP, newFeed, clean, deliver, point, step, setReadable, readableFor,
-        sessions, startSession, endSession, stockList, stockOf, stockCap, CARDS, COMBOS, pickCard, cardMult, toolLevel,
+        sessions, startSession, endSession, stockList, stockOf, stockCap, CARDS, COMBOS, CHARACTERS, pickCard, cardMult, toolLevel,
         pack, unpack, spoutX, left, waiting, fill, census, hunger, layerSize, bitesFor, kindOf, bandOf, seenOf, airOf, hpOf };
 });

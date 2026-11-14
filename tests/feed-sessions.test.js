@@ -277,3 +277,43 @@ test('a save keeps the tools going exactly', () => {
     assert.deepEqual(JSON.parse(JSON.stringify(back)), JSON.parse(JSON.stringify(s)));
     assert.deepEqual(Feed.step(back, 5), Feed.step(s, 5));
 });
+
+// The swarm's own mind (the owner's cards, 2026-11-14): mites roam round the point and meander to it, each with a character.
+test('led mites keep to their own spots round the point; Focus draws them in; the rare mega mite eats in pairs', () => {
+    const spread = cards => {
+        const s = fresh(); Feed.deliver(s, { sector: 1, packets: 120 }); Feed.startSession(s, 1); Object.assign(s.session.cards, cards);
+        for (let n = 0; n < 150; n++) Feed.step(s, 0.1, { chew: 0 });
+        s.mites = 4; while (s.swarm.length < 4) s.swarm.push({ x: 100 + s.swarm.length * 10, y: 300, b: 0, t: -1, c: Feed.CHARACTERS[s.swarm.length], a: 0, ox: 0, oy: 0, rt: 0 });
+        const at = { x: s.w / 2, y: s.h - 60 }; let sum = 0, n = 0;
+        for (let t = 0; t < 200; t++) { Feed.point(s, at); Feed.step(s, 0.1, { chew: 0, hungerTime: 1e6 }); if (t > 60) for (const m of s.swarm) { sum += Math.hypot(m.x - at.x, m.y - at.y); n++; } }
+        return sum / n;
+    };
+    const loose = spread({}), tight = spread({ focus: 4 });
+    assert.ok(loose > 12, `they roam: ${loose.toFixed(1)} cells from the point on average`);
+    assert.ok(tight < loose * 0.6, `Focus draws them in: ${tight.toFixed(1)} against ${loose.toFixed(1)}`);
+    assert.deepEqual(Feed.CARDS.focus, { stat: 'roam', by: 0.7 });
+    // Characters: a new mite's is one of the four, or now and then a mega mite.
+    const s = fresh(); for (let i = 0; i < 3; i++) Feed.deliver(s, { sector: 1, packets: 400 }); Feed.startSession(s, 1);
+    for (let t = 0; t < 3000 && s.session && s.mites < 5; t++) { if (s.session.offer) Feed.pickCard(s, 0); Feed.step(s, 0.1, { megaChance: 0.5, layerFirst: 4, hungerTime: 1e6 }); }
+    assert.ok(s.swarm.length >= 4 && s.swarm.every(m => m.c === 'mega' || Feed.CHARACTERS.includes(m.c)));
+    assert.ok(s.swarm.some(m => m.c === 'mega'), 'a mega mite came');
+    assert.deepEqual(Feed.clean(JSON.parse(JSON.stringify(s))).swarm, JSON.parse(JSON.stringify(s.swarm)), 'a save keeps who they are');
+});
+
+test("characters: the tidy go for garbled sand and the gold-hungry for gold they can see; the rest head for good sand (and still eat what is in their way)", () => {
+    const eats = c => {
+        const s = fresh(); Feed.deliver(s, { sector: 1, packets: 60, gold: 20, garbled: 60 }); Feed.startSession(s, 1);
+        for (let n = 0; n < 160; n++) Feed.step(s, 0.1, { chew: 0, hungerTime: 1e6 });
+        for (let i = 0; i < s.cells.length; i++) if (s.cells[i]) s.cells[i] |= 64;   // everything seen
+        s.swarm[0].c = c;
+        // The point is held on top of the pile, so nothing is eaten only because it was in the way.
+        const top = () => { const x = s.w / 2 | 0; for (let y = 0; y < s.h; y++) if (s.cells[y * s.w + x]) return { x: x + 0.5, y: y - 0.5 }; return null; };
+        const kinds = {};
+        for (let t = 0; t < 250; t++) { Feed.point(s, top()); for (const e of Feed.step(s, 0.1, { miteFirst: 99, hungerTime: 1e6, roam: 0, wobble: 0, near: 50 }).events) if (e.type === 'eat') kinds[e.kind] = (kinds[e.kind] || 0) + 1; }
+        const all = Object.values(kinds).reduce((n, v) => n + v, 0) || 1;
+        return { gold: (kinds.vein || 0) / all, bad: (kinds.garbled || 0) / all };
+    };
+    const gold = eats('gold'), tidy = eats('tidy'), loner = eats('loner');
+    assert.ok(gold.gold > loner.gold * 1.5, `gold-hungry ${gold.gold.toFixed(2)} gold against ${loner.gold.toFixed(2)}`);
+    assert.ok(tidy.bad > loner.bad + 0.1, `tidy ${tidy.bad.toFixed(2)} garbled, loner ${loner.bad.toFixed(2)}`);
+});

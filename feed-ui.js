@@ -166,7 +166,7 @@
     function endNow() { if (feed()?.session) { window.AGI.feedEnd(); pickKey = ''; } }
     function start(sector) { if (window.AGI.feedStart(sector)) { pickKey = ''; view.want = null; pops = []; } }
     // The cards' words (placeholders, for the owner to write): a name and what a copy does.
-    const CARD_TEXT = { chew: ['Sharper jaws', 'Mites eat 25% faster.'], hunger: ['Slow burn', 'The hunger bar drains 25% slower.'], speed: ['Quick legs', 'Mites move 30% faster.'], pay: ['Rich grain', 'Good sand pays 20% more research.'],
+    const CARD_TEXT = { chew: ['Sharper jaws', 'Mites eat 25% faster.'], hunger: ['Slow burn', 'The hunger bar drains 25% slower.'], speed: ['Quick legs', 'Mites move 30% faster.'], pay: ['Rich grain', 'Good sand pays 20% more research.'], focus: ['Focus', 'The swarm tracks your point more tightly: less roaming, a straighter way there.'],
         scanner: ['Scanner', 'A beam sweeps the box and shows the gold and fragments hidden in the sand.'], pulse: ['Pulse', 'A burst eats every grain in a circle where you point.'],
         arc: ['Arc', 'Sparks jump between nearby mites and eat the sand between them.'], sorter: ['Sorter bots', 'Bots move gold to one side and garbled sand to the other.'],
         rhythm: ['Algo-rhythm', 'The box shakes on a beat. Garbled sand sinks and the rest rises.'],
@@ -348,9 +348,20 @@
         f.swarm.forEach((m, n) => {
             let [x, y] = px(m.x, m.y);
             if (!still) { x += Math.cos(now / 90 + n * 2.4) * r * 0.25; y += Math.sin(now / 70 + n * 1.7) * r * 0.25; }
-            ctx.fillStyle = colors.bg; ctx.beginPath(); ctx.arc(x, y, r + 1.5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = colors.good; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = colors.bg; ctx.beginPath(); ctx.arc(x + r * 0.35, y - r * 0.2, r * 0.32, 0, Math.PI * 2); ctx.fill();
+            // Each character its own colour and one small mark: the gold-hungry a feeler, the tidy a hat, the loner an
+            // extra leg, the follower a tail; a mega mite is half as big again, with two eyes.
+            const kind = m.c, q = kind === 'mega' ? r * 1.5 : r;
+            const body = kind === 'gold' ? colors.gold : kind === 'tidy' ? colors.primary : kind === 'loner' ? colors.research : kind === 'mega' ? colors.text : colors.good;
+            ctx.fillStyle = colors.bg; ctx.beginPath(); ctx.arc(x, y, q + 1.5, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = body; ctx.lineWidth = Math.max(1.5, q * 0.28); ctx.lineCap = 'round'; ctx.beginPath();
+            if (kind === 'gold') { ctx.moveTo(x - q * 0.2, y - q * 0.8); ctx.quadraticCurveTo(x - q * 0.2, y - q * 1.9, x + q * 0.7, y - q * 1.7); }
+            else if (kind === 'loner') { ctx.moveTo(x - q * 0.7, y + q * 0.5); ctx.lineTo(x - q * 1.5, y + q * 1.3); ctx.moveTo(x + q * 0.7, y + q * 0.5); ctx.lineTo(x + q * 1.5, y + q * 1.3); ctx.moveTo(x, y + q * 0.8); ctx.lineTo(x, y + q * 1.6); }
+            else if (kind === 'follower') { ctx.moveTo(x - q * 0.8, y + q * 0.3); ctx.quadraticCurveTo(x - q * 1.8, y + q * 0.2, x - q * 1.7, y - q * 0.7); }
+            ctx.stroke();
+            ctx.fillStyle = body; ctx.beginPath(); ctx.arc(x, y, q, 0, Math.PI * 2); ctx.fill();
+            if (kind === 'tidy') { ctx.fillStyle = colors.text; ctx.fillRect(x - q * 0.95, y - q * 1.0, q * 1.9, q * 0.3); ctx.fillRect(x - q * 0.55, y - q * 1.65, q * 1.1, q * 0.7); }
+            ctx.fillStyle = colors.bg; ctx.beginPath(); ctx.arc(x + q * 0.35, y - q * 0.2, q * 0.32, 0, Math.PI * 2); ctx.fill();
+            if (kind === 'mega') { ctx.beginPath(); ctx.arc(x - q * 0.35, y - q * 0.2, q * 0.32, 0, Math.PI * 2); ctx.fill(); }
         });
         // Pops: what a layer paid, a fragment found.
         pops = pops.filter(p => now - p.at < POP_MS);
