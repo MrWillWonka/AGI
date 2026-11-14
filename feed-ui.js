@@ -19,7 +19,7 @@
     const BANDS = ['#e8c07a', '#d98a5f', '#7fc8a9', '#6fa8dc', '#c9a0e8', '#e6dfc8'];
     const TESTS = [['+40', [1, 40, 4]], ['+75 dirty', [2, 75, 6, 10]], ['+200 dirty', [4, 200, 15, 20, 20]]];
     let dlg = null, canvas = null, ctx = null, stage = null, promptEl = null, hungerEl = null, layerEl = null, mitesEl = null, researchEl = null, fragEl = null;
-    let pickEl = null, endEl = null, pickKey = '';
+    let pickEl = null, endEl = null, pickKey = '', cardsEl = null, cardsKey = '';
     let sand = null, sandCtx = null, image = null, pixels = null, palette = null;
     // The window on the box, in cells: `cols` × `rows` from (`x`, `y`), a cell `cell` px, drawn from (`ox`, `oy`).
     let view = { w: 0, h: 0, x: 0, y: 0, cols: 0, rows: 0, cell: 4, ox: 0, oy: 0, want: null };
@@ -51,7 +51,9 @@
         canvas = el('canvas', { class: 'feed-canvas', 'aria-label': 'The pile. Hold a point to lead the swarm there.' });
         // Between sessions (the ring): the stockpiles to pick from, over the empty box.
         pickEl = el('div', { class: 'feed-pick', hidden: '' });
-        stage = el('div', { class: 'feed-stage' }, canvas, pickEl);
+        // At a split in a session: the cards to pick one from. The session waits.
+        cardsEl = el('div', { class: 'feed-cards', hidden: '' });
+        stage = el('div', { class: 'feed-stage' }, canvas, pickEl, cardsEl);
         endEl = el('button', { type: 'button', class: 'ghost-button feed-end', text: 'End', hidden: '', onclick: endNow });
         fragEl = el('div', { class: 'feed-fragment' });
         const debug = window.AGI?.debug;
@@ -160,6 +162,21 @@
     const WHY = { hunger: 'The swarm went hungry.', empty: 'The stockpile is eaten.', left: 'You ended the session.' };
     function endNow() { if (feed()?.session) { window.AGI.feedEnd(); pickKey = ''; } }
     function start(sector) { if (window.AGI.feedStart(sector)) { pickKey = ''; view.want = null; pops = []; } }
+    // The cards' words (placeholders, for the owner to write): a name and what a copy does.
+    const CARD_TEXT = { chew: ['Sharper jaws', 'Mites eat 25% faster.'], hunger: ['Slow burn', 'The hunger bar drains 25% slower.'], speed: ['Quick legs', 'Mites move 30% faster.'], pay: ['Rich grain', 'Good sand pays 20% more research.'] };
+    function renderCards() {
+        const s = feed()?.session, offer = s?.offer;
+        cardsEl.hidden = !offer;
+        const key = offer ? offer.join(',') + '|' + JSON.stringify(s.cards) : '';
+        if (key === cardsKey) return;
+        cardsKey = key;
+        if (!offer) return;
+        if (held !== null) letGo();
+        cardsEl.replaceChildren(el('h3', { class: 'feed-cards-title', text: 'The swarm split. Pick one.' }),
+            el('div', { class: 'feed-cards-row' }, ...offer.map((id, n) => { const [name, what] = CARD_TEXT[id] || [id, '']; const have = s.cards[id] || 0;
+                return el('button', { type: 'button', class: `feed-card${F().CARDS[id]?.rare ? ' rare' : ''}`, onclick: () => window.AGI.feedPick(n) },
+                    el('strong', { text: name }), el('span', { text: what }), el('em', { text: have ? `You have ${have}` : 'New' })); })));
+    }
     function renderPick() {
         const f = feed(), on = !!(f && f.sessioned && !f.session);
         pickEl.hidden = !on; endEl.hidden = !(f && f.session);
@@ -171,7 +188,7 @@
         const kids = [];
         if (last) kids.push(el('div', { class: 'feed-last' },
             el('strong', { text: WHY[last.why] || 'Session over.' }),
-            el('span', { text: `Sector ${last.sector} · ${plural(last.layers, 'split', 'splits')} · +${E().format(last.research)} research · ${last.time} s${last.record ? ' · New best' : ''}` })));
+            el('span', { text: `Sector ${last.sector} · ${plural(last.layers, 'split', 'splits')} · +${E().format(last.research)} research · ${last.time} s${last.record ? ' · New best' : ''}${last.cards ? ` · ${plural(last.cards, 'card', 'cards')}` : ''}` })));
         kids.push(el('h3', { class: 'feed-pick-title', text: 'Stockpiles' }));
         if (!list.some(e => e.total > 0)) kids.push(el('p', { class: 'feed-pick-none', text: 'Nothing stockpiled. Catch packets in Packet Snare to fill one.' }));
         for (const e of list) {
@@ -333,7 +350,7 @@
         const hunger = F().hunger(f), split = Math.round(hunger.share * 100), pct = f.sessioned ? Math.round(hunger.life * 100) : split;
         text(layerEl, f.sessioned ? (f.session ? `Split ${split}%` : '') : `Hunger ${pct}%`);
         hungerEl.classList.toggle('life', !!f.sessioned); hungerEl.classList.toggle('low', !!f.session && hunger.life < 0.25);
-        renderPick();
+        renderPick(); renderCards();
         if (hungerEl.firstChild.style.width !== pct + '%') { hungerEl.firstChild.style.width = pct + '%'; hungerEl.setAttribute('aria-valuenow', String(pct)); }
         text(mitesEl, plural(f.mites, 'mite', 'mites'));
         text(researchEl, `${E().format(Math.floor(game().res.rp))} research`);
@@ -348,7 +365,7 @@
         if (!dlg) build();
         if (dlg.open) return;
         dlg.showModal();
-        readColors(); pops = []; sparks = []; held = null; fragShown = -1; pickKey = ''; view.cols = view.rows = 0;
+        readColors(); pops = []; sparks = []; held = null; fragShown = -1; pickKey = ''; cardsKey = ''; view.cols = view.rows = 0;
         resize();
         cancelAnimationFrame(raf); raf = requestAnimationFrame(tick);
     }

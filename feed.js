@@ -86,8 +86,20 @@
         stockMin: 60,       // and this many packets at the least
         hungerTime: 25,     // seconds a full hunger bar takes to empty
         hungerFill: 0.6,    // eating this share of the layer's worth of paying sand refills the whole bar
-        sectorPay: 0.5      // a packet from sector k pays 1 + this × (k − 1) times as much
+        sectorPay: 0.5,     // a packet from sector k pays 1 + this × (k − 1) times as much
+        cardChoices: 3,     // cards offered at a split, to pick one (the owner's call: the session waits while you choose)
+        cardRare: 0.12      // the chance each offered card is a rare one, when there are rare ones to offer
     };
+    // Cards (the owner's cards, 2026-11-14): a split in a session offers `cardChoices` of these and you pick one; it
+    // lasts the session and stacks. `stat` is the dial it multiplies (`pay` is research per grain), `by` the multiplier
+    // a copy. `rare` cards (the tools and machines, to come) turn up at `cardRare`. Numbers are placeholders.
+    const CARDS = {
+        chew: { stat: 'chew', by: 1.25 },
+        hunger: { stat: 'hungerTime', by: 1.25 },
+        speed: { stat: 'speed', by: 1.3 },
+        pay: { stat: 'pay', by: 1.2 }
+    };
+    const CARD_IDS = Object.keys(CARDS);
     const STEP = 0.05;      // the rules' own time step, in seconds
 
     // Kinds by their number in a cell (0 is empty), what a packet of each pays when eaten, and the skill a kind waits for.
@@ -192,7 +204,30 @@
     // ---- sessions ---------------------------------------------------------------------------------------------------
     const stockOf = (state, sector) => { const e = state.stock[sector]; return e ? e.n + e.gold + e.bad : 0; };
     const stockCap = (state, sector, opts) => { const o = opt(opts); return Math.max(o.stockMin, o.stockRuns * (state.best[sector] || 0)); };
-    const payMult = (state, o) => (state.session ? 1 + o.sectorPay * (state.session.sector - 1) : 1);
+    const cardMult = (state, stat) => { let m = 1; const c = state.session?.cards; if (c) for (const id of CARD_IDS) if (CARDS[id].stat === stat && c[id]) m *= Math.pow(CARDS[id].by, c[id]); return m; };
+    const payMult = (state, o) => (state.session ? (1 + o.sectorPay * (state.session.sector - 1)) * cardMult(state, 'pay') : 1);
+    // The dials as this session's cards have them.
+    const withCards = (state, o) => { const c = state.session?.cards; if (!c || !Object.keys(c).length) return o; const out = { ...o }; for (const stat of ['chew', 'hungerTime', 'speed']) out[stat] = o[stat] * cardMult(state, stat); return out; };
+    // Offer cards: `cardChoices` different ones, each slot a rare one at `cardRare` when there are any left to offer.
+    function offerCards(state, o, out) {
+        const s = state.session, pool = { common: CARD_IDS.filter(id => !CARDS[id].rare), rare: CARD_IDS.filter(id => CARDS[id].rare) }, offer = [];
+        for (let n = 0; n < o.cardChoices; n++) {
+            const from = pool.rare.length && (rand(state) < o.cardRare || !pool.common.length) ? pool.rare : pool.common;
+            if (!from.length) break;
+            offer.push(from.splice(Math.floor(rand(state) * from.length), 1)[0]);
+        }
+        s.offer = offer.length ? offer : null;
+        if (s.offer) out.events.push({ type: 'offer', cards: [...s.offer] }); else s.picks = 0;
+    }
+    // Take card `n` of the offer. The session carries on (or offers again, when splits came together).
+    function pickCard(state, n, opts) {
+        const o = opt(opts), s = state.session, id = s?.offer?.[n], out = { research: 0, events: [] };
+        if (!id) return null;
+        s.cards[id] = (s.cards[id] || 0) + 1; s.offer = null; s.picks = Math.max(0, (s.picks || 0) - 1);
+        out.events.push({ type: 'card', card: id, level: s.cards[id] });
+        if (s.picks > 0) offerCards(state, o, out);
+        return out;
+    }
     // An empty box and a swarm of one: how every session starts, and what is left when one ends.
     function clearBox(state, o) {
         state.cells.fill(0); state.grains = 0; state.drops = []; state.backlog = []; state.rest = true; state.dry = false;
@@ -238,7 +273,7 @@
         state.band = (state.band + 1) % o.bands;
         state.backlog.push({ sector: k, n: e.n, gold: e.gold, bad: e.bad, band: state.band });
         delete state.stock[k];
-        state.session = { sector: k, research: 0, time: 0, packets: e.n + e.gold + e.bad };
+        state.session = { sector: k, research: 0, time: 0, packets: e.n + e.gold + e.bad, cards: {}, offer: null, picks: 0 };
         state.life = 1; state.lastSession = null; state.stats.sessions++;
         return true;
     }
@@ -248,7 +283,7 @@
         const o = opt(opts), s = state.session;
         if (!s) return null;
         for (const e of state.backlog) { const t = state.stock[e.sector] || (state.stock[e.sector] = { n: 0, gold: 0, bad: 0 }); t.n += e.n; t.gold += e.gold; t.bad += e.bad; }
-        const result = { type: 'over', why, sector: s.sector, layers: state.layers, mites: state.mites, research: s.research, time: Math.round(s.time), record: state.layers > (state.record[s.sector] || 0) };
+        const result = { type: 'over', why, sector: s.sector, layers: state.layers, mites: state.mites, research: s.research, time: Math.round(s.time), cards: Object.values(s.cards || {}).reduce((n, v) => n + v, 0), record: state.layers > (state.record[s.sector] || 0) };
         if (result.record) state.record[s.sector] = state.layers;
         clearBox(state, o);
         state.session = null; state.life = 1; state.lastSession = { ...result };
@@ -451,7 +486,7 @@
         if (state.fed >= need) {
             const over = state.fed - need, pay = Math.max(1, Math.round(o.layerPay * layerSize(state.layers, o) * payMult(state, o)));
             state.layers++;
-            if (state.session) state.life = 1;   // a split fills the hunger bar
+            if (state.session) { state.life = 1; state.session.picks = (state.session.picks || 0) + 1; }   // a split fills the hunger bar and offers cards (`step`)
             const mite = state.layers >= o.miteFirst && (state.layers - o.miteFirst) % o.miteEvery === 0;
             if (mite) { state.swarm.push(mitePlace(state, state.mites)); state.mites++; }
             state.owed += pay;
@@ -519,12 +554,15 @@
 
     // `dt` seconds pass. Returns { research, events }: research earned (whole numbers) and what the screen should show.
     function step(state, dt, opts) {
-        const o = opt(opts), out = { research: 0, events: [] };
+        const base = opt(opts), out = { research: 0, events: [] };
         if (!(dt > 0) || !Number.isFinite(dt)) return out;
         if (state.sessioned && !state.session) return out;   // nothing eats outside a session
+        if (state.session?.offer) return out;                // the session waits while you choose a card
+        const o = withCards(state, base);
         const steps = Math.min(6000, Math.max(1, Math.round(dt / STEP))), each = dt / steps;
-        let ended = null;
+        let ended = null, done = 0;
         for (let n = 0; n < steps; n++) {
+            done++;
                     state.fallAcc += o.fall * each;
             const passes = Math.floor(state.fallAcc);
             state.fallAcc -= passes;
@@ -544,13 +582,14 @@
                 if (!state.dry && state.stats.delivered > 0) { state.dry = true; out.events.push({ type: 'empty' }); }
             }
             if (state.session) {
+                if (state.session.picks > 0) { offerCards(state, base, out); if (state.session.offer) break; }
                 state.life -= each / o.hungerTime;
                 if (state.life <= 0) { state.life = 0; ended = 'hunger'; break; }
             }
         }
         const whole = Math.floor(state.owed + 1e-9);
         if (whole > 0) { state.owed -= whole; state.stats.research += whole; out.research = whole; }
-        if (state.session) { state.session.research += out.research; state.session.time += dt; }
+        if (state.session) { state.session.research += out.research; state.session.time += each * done; }
         if (ended) endSession(state, ended, opts, out);
         return out;
     }
@@ -650,11 +689,13 @@
             state.record = bySector(raw.record, v => whole(v, 200) || null);
             const sess = raw.session, sector = whole(sess?.sector, 99);
             if (sized && sess && sector) {
-                state.session = { sector, research: whole(sess.research, 1e12), time: real(sess.time, 0, 1e7, 0), packets: whole(sess.packets, 1e8) };
+                const cards = {}; for (const id of CARD_IDS) { const n = whole(sess.cards?.[id], 200); if (n) cards[id] = n; }
+                const offer = Array.isArray(sess.offer) ? [...new Set(sess.offer.filter(id => typeof id === 'string' && Object.prototype.hasOwnProperty.call(CARDS, id)))].slice(0, o.cardChoices) : [];
+                state.session = { sector, research: whole(sess.research, 1e12), time: real(sess.time, 0, 1e7, 0), packets: whole(sess.packets, 1e8), cards, offer: offer.length ? offer : null, picks: offer.length ? Math.max(1, whole(sess.picks, 200)) : whole(sess.picks, 200) };
                 state.life = real(raw.life, 0, 1, 1);
             } else { clearBox(state, o); state.life = 1; }
             const last = raw.lastSession;
-            if (last && whole(last.sector, 99)) state.lastSession = { type: 'over', why: ['hunger', 'empty', 'left'].includes(last.why) ? last.why : 'hunger', sector: whole(last.sector, 99), layers: whole(last.layers, 200), mites: Math.max(1, whole(last.mites, 999)), research: whole(last.research, 1e12), time: whole(last.time, 1e7), record: last.record === true };
+            if (last && whole(last.sector, 99)) state.lastSession = { type: 'over', why: ['hunger', 'empty', 'left'].includes(last.why) ? last.why : 'hunger', sector: whole(last.sector, 99), layers: whole(last.layers, 200), mites: Math.max(1, whole(last.mites, 999)), research: whole(last.research, 1e12), time: whole(last.time, 1e7), cards: whole(last.cards, 1e4), record: last.record === true };
         }
         state.swarm = Array.from({ length: state.mites }, (_, n) => {
             const m = sized && Array.isArray(raw.swarm) ? raw.swarm[n] : null, d = mitePlace(state, n);
@@ -664,6 +705,6 @@
     }
 
     return { FEED, KINDS, KIND_IDS, LOCKED, FRAGMENTS, STEP, newFeed, clean, deliver, point, step, setReadable, readableFor,
-        sessions, startSession, endSession, stockList, stockOf, stockCap,
+        sessions, startSession, endSession, stockList, stockOf, stockCap, CARDS, pickCard, cardMult,
         pack, unpack, spoutX, left, waiting, fill, census, hunger, layerSize, bitesFor, kindOf, bandOf, seenOf, airOf, hpOf };
 });

@@ -109,7 +109,7 @@ window.AGI = (function () {
             if (ev.type === 'layer') pt('feedLayer', { layer: ev.layer, pay: ev.pay, mites: ev.mites, eaten: state.feed.stats.eaten, cleaned: state.feed.stats.cleaned });
             else if (ev.type === 'fragment') pt('feedFragment', { set: ev.set, found: ev.found });
             else if (ev.type === 'empty') pt('feedEmpty', { layer: state.feed.layers + 1, eaten: state.feed.stats.eaten });
-            else if (ev.type === 'over') { pt('feedSession', { why: ev.why, sector: ev.sector, splits: ev.layers, mites: ev.mites, research: ev.research, seconds: ev.time, record: ev.record ? 1 : 0 }); save(); }
+            else if (ev.type === 'over') { pt('feedSession', { why: ev.why, sector: ev.sector, splits: ev.layers, mites: ev.mites, research: ev.research, seconds: ev.time, cards: ev.cards, record: ev.record ? 1 : 0 }); save(); }
         }
         if (out.events.length) window.FeedUI?.events(out.events);
     }
@@ -13833,6 +13833,7 @@ window.AGI = (function () {
         // The Feed's screen starts and ends sessions through these, so they are logged and saved (feed-ui.js).
         feedStart(sector) { const ok = E.feedStart(state, sector); if (ok) { pt('feedStart', { sector, held: state.feed.backlog.reduce((n, e) => n + e.n + e.gold + e.bad, 0) }); save(); } return ok; },
         feedEnd() { const r = E.feedLeave(state); if (r) feedShow({ events: [r] }); return r; },
+        feedPick(n) { const offer = state.feed.session?.offer, out = E.feedPick(state, n); if (out) { pt('feedCard', { card: offer[n], offered: offer.join(','), level: state.feed.session.cards[offer[n]], split: state.feed.layers }); feedShow(out); save(); } return !!out; },
         debug: {
             // The music: the area's other song, or the next section of this one (on the next downbeat).
             nextSong: () => window.SFX?.songCmd?.('song'),
