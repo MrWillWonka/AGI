@@ -2051,10 +2051,13 @@ test('Packet Snare: red is the early fight (22% on sector 2, 35% on sectors 3–
     const before = E.snareOpts(s, 1).corruptShare;
     s.levels.snareSanitizer = 1;
     assert.ok(E.snareOpts(s, 1).corruptShare < before * 0.9, 'Sanitizer: fewer red');
-    // the owner's call (Snare 17): the Decoder Bot comes early, in Scrubbers' place; since Sprawl and Sanitizer swapped
-    // (2026-11-14) its cell adjoins Sprawl, whose first level is 15 Signal
+    // the owner's call (Snare 17): the Decoder Bot comes early, one step off the Sanitizer; since Sprawl and Sanitizer
+    // swapped (2026-11-14) it sits in Flow beside it ("feels more like a flow option"), Gold Plating after it
     const cb = E.UPGRADE_BY_ID.snareCleanerBot;
-    assert.ok(cb.requires === 'snareSprawl' && cb.cost.signal <= 150 && E.upgradeCost(E.UPGRADE_BY_ID.snareSprawl, 0).signal <= 20, 'an early buy off the cheap first level of the boss branch');
+    assert.ok(cb.requires === 'snareSanitizer' && cb.cost.signal <= 150, 'an early buy off the Sanitizer');
+    assert.deepEqual([cb.snare, E.UPGRADE_BY_ID.snareGoldPlate.snare], [{ x: 1, y: 1 }, { x: 2, y: 1 }]);
+    assert.equal(E.UPGRADE_BY_ID.snareRicochet.requires, 'snareKernelPanic', 'Ricochet moved beside the boss branch, off Kernel Panic');
+    assert.equal(E.upgradeCost(E.UPGRADE_BY_ID.snareSprawl, 0).signal, 15);
     // Sprawl roots the boss branch and climbs steeply; Sanitizer starts Flow and leads to gold and containment
     assert.deepEqual([E.UPGRADE_BY_ID.snareSprawl.snare, E.UPGRADE_BY_ID.snareSanitizer.snare], [{ x: 0, y: 1 }, { x: 1, y: 0 }]);
     assert.deepEqual(['snareGold', 'snareContain', 'snareKernelPanic'].map(id => E.UPGRADE_BY_ID[id].requires), ['snareSanitizer', 'snareSanitizer', 'snareSprawl']);
