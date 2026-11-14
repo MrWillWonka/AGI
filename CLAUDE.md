@@ -23,6 +23,10 @@ works, what was measured, what is open), `design/audio/STATUS.md` (the owner's c
 - **Each track is a file**, `music/<theme>.js` (loaded before `sfx.js`, listed in index.html and
   `tools/review/artifact-files.js`): its tempo (Classic 124, Dark 130, Soft 93 with swing, Ominous 62, Retro 144),
   layer order, space, instruments, six songs with their own forms, effects, meter parts and levels.
+- **A theme's six songs differ on purpose** (the owner's call after a first listen: they sounded alike; Uptime,
+  Overclock, Morning Lab, Vigil, Lights Out, Pixel Desk and Hide and Seek are liked and left alone): a song may set its
+  own `bpm`, `swing`, meter (`steps`), drum patterns (`kit`), lead and other voices, and home note, with phrases of any
+  length. `tests/audio.test.js` holds each theme to the spread; `design/audio/STATUS.md`, "The variety pass".
 - **`sfx.js` is the engine**, a factory (`build(env)`): forms and playlists as data, sends and stereo, a
   music/effects mixer with a limiter, faults reported (`SFX.faults`).
 - **`tools/audio/`** renders the game's own engine offline and measures it with FFmpeg: `survey.js`, `calibrate.js`,

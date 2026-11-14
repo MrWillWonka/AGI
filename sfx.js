@@ -1233,6 +1233,11 @@
     //            place to come back in unless `entry: false`; `fill: false` ends it without the track's fill.
     //            Without a form a song plays its track's (`form` on the style), else the old eight-section one.
     //   swing    how far odd 16ths are delayed, as a share of a step (else the track's)
+    //   steps    16ths in a bar (default 16; 12 is 3/4 or 6/8, 14 is 7/8, 20 is 5/4): melodies have steps / 2 tokens a
+    //            bar, bass and drum patterns `steps` characters; `pulse`: 16ths in a beat (default 4), for the tempo shown
+    //   kit      its own drum patterns in place of the track's: { kick, snare, hat }, a character a step ('x', 'o' a
+    //            softer one; hat 'O' an open one). The track's step reads them as `c.kit` and voices them its own way.
+    //   lead, bassVoice, compVoice…  names the track's step understands: another voice for that part (music/<theme>.js)
     const AEOL = [0, 2, 3, 5, 7, 8, 10], PHRY = [0, 1, 3, 5, 7, 8, 10], DOR = [0, 2, 3, 5, 7, 9, 10];
     const HARM = [0, 2, 3, 5, 7, 8, 11], ION = [0, 2, 4, 5, 7, 9, 11], MIXO = [0, 2, 4, 5, 7, 9, 10], LYD = [0, 2, 4, 6, 7, 9, 11];
     const PC = { A: 0, B: 2, C: 3, D: 5, E: 7, F: 8, G: 10 };
@@ -1278,7 +1283,7 @@
     // 8th into two 16ths; 'x/y/z' is a triplet across a quarter note (it takes the place of two tokens). Bars
     // may be split with '|' for reading. Any whole number of bars. Each note: { deg, acc, len, off } in 16ths
     // (`off`: how far past its step it starts, for triplets).
-    function parseMelody(str) {
+    function parseMelody(str, steps = 16) {
         const ev = [];
         let i = 0, cur = null;
         const mk = tok => {
@@ -1307,7 +1312,7 @@
             } else if (tk.includes('+')) tk.split('+').forEach(put);
             else { put(tk); put(tk === '.' ? '.' : '-'); }
         }
-        if (!i || i % 16) throw new Error(`melody of ${i} steps: not whole bars`);
+        if (!i || i % steps) throw new Error(`melody of ${i} steps: not whole bars of ${steps}`);
         for (let k = 0; k < i; k++) ev[k] = ev[k] || null;
         return ev;
     }
@@ -1349,7 +1354,12 @@
     ];
     const byName = (v, fallback) => (v && typeof v === 'object' && !Array.isArray(v) ? v : { A: v ?? fallback });
     function buildSong(def, st = {}) {
-        const song = { tonic: 0, oct: 0, lvl: 1, acid: 1, ...def };
+        const song = { tonic: 0, oct: 0, lvl: 1, acid: 1, steps: 16, ...def };
+        const N = song.steps;
+        if (!(N >= 8 && N <= 32) || N % 2) throw new Error('steps a bar: ' + N);
+        // A song's own drum patterns (`kit`: kick, snare, hat, a character a step) and its hushed kick and clock.
+        for (const [k, p] of [...Object.entries(def.kit || {}), ['kick', def.kick], ['tick', def.tick]])
+            if (p != null && (typeof p !== 'string' || p.length !== N)) throw new Error(`pattern ${k}: ${N} characters a bar, not "${p}"`);
         song.prog = {};
         for (const [key, names] of Object.entries(byName(def.chords))) {
             if (!Array.isArray(names) || !names.length) throw new Error('chords ' + key + ' are missing');
@@ -1368,16 +1378,16 @@
             });
         }
         song.chords = song.prog.A || Object.values(song.prog)[0];
-        song.bassBy = byName(def.bass, 'r.......r.......');
+        song.bassBy = byName(def.bass, ('r' + '.'.repeat(7)).repeat(4).slice(0, song.steps));
         song.compBy = byName(def.comp, []);
-        for (const [k, p] of Object.entries(song.bassBy)) if (typeof p !== 'string' || p.length !== 16) throw new Error(`bass ${k}: 16 characters a bar, not "${p}"`);
+        for (const [k, p] of Object.entries(song.bassBy)) if (typeof p !== 'string' || p.length !== N) throw new Error(`bass ${k}: ${N} characters a bar, not "${p}"`);
         song.bass = song.bassBy.A || Object.values(song.bassBy)[0];
         song.comp = song.compBy.A || Object.values(song.compBy)[0];
         const mels = def.mel || { A: def.melA, B: def.melB };
         song.mel = {};
         for (const [k, str] of Object.entries(mels)) {
             if (typeof str !== 'string') throw new Error('melody ' + k + ' is missing');
-            try { song.mel[k] = parseMelody(str); } catch (e) { throw new Error(`melody ${k}: ${e.message}`); }
+            try { song.mel[k] = parseMelody(str, N); } catch (e) { throw new Error(`melody ${k}: ${e.message}`); }
         }
         let start = 0;
         const form = def.form || st.form || LEGACY_FORM;
@@ -1426,9 +1436,9 @@
     function kickLevel(c, s, on) {
         if (!c.drums) return 0;
         const p = c.song.kick;
-        if (!p) return on ? 1 : 0;
+        if (!p) return +on || 0;
         const hid = (p[s] === 'x' ? 1 : p[s] === 'o' ? 0.6 : 0) * (c.song.hush ?? 1);
-        const g = hid * (1 - c.spot) + (on ? c.spot : 0);
+        const g = hid * (1 - c.spot) + (+on || 0) * c.spot;
         return g > 0.02 ? g : 0;
     }
     function stealthStep(t, s, k, len, L, c) {
@@ -1443,7 +1453,7 @@
     // plain voice; no hats, claps, chords, arpeggios, fills, sends or drive.
     function simpleStep(st, t, s, k, len, c, L) {
         const sv = st.simpleVoice || 'triangle';
-        const kg = kickLevel(c, s, s % (st.simpleKick || (st === STYLES.ominous ? 8 : 4)) === 0);
+        const kg = kickLevel(c, s, c.kit ? c.kit.kick : s % (st.simpleKick || (st === STYLES.ominous ? 8 : 4)) === 0);
         if (kg) kick(t, 0.38 * kg, 130, 45, 0.22);
         if (c.bassOn && (s === 0 || s === 8)) synth(t, c.chord.root + 12, len * 6, 0.16, sv, 700, 1);
         if (L.pad > 0.02 && s === 0) synth(t, c.chord.hold, len * 14, 0.035 * L.pad, 'sine', 3000, 1);
@@ -1486,7 +1496,7 @@
     function songTurn(s) {
         const m = music;
         const song = m.songs[m.song];
-        const bar = Math.floor((m.step - m.songStep) / 16);
+        const bar = Math.floor((m.step - m.songStep) / song.steps);
         let moved = false;
         if (m.area !== area) {
             m.left[m.area] = { song: m.song, bar: entryAt(song, Math.min(bar, song.bars - 1)) };
@@ -1494,7 +1504,7 @@
             m.area = area;
             m.songs = areaSongs(area);
             m.song = (back ? back.song : songFor[area]) % m.songs.length;
-            m.songStep = m.step - 16 * (back ? back.bar : 0);
+            m.songStep = m.step - m.songs[m.song].steps * (back ? back.bar : 0);
             moved = true;
         } else if (s !== 0) return false;
         else if (m.cmd === 'song' || bar >= song.bars) {
@@ -1503,7 +1513,7 @@
             moved = true;
         } else if (m.cmd === 'section') {
             const sec = sectionAt(song, bar);
-            m.songStep = m.step - 16 * ((sec.start + sec.bars) % song.bars);
+            m.songStep = m.step - song.steps * ((sec.start + sec.bars) % song.bars);
             moved = true;
         }
         m.cmd = null;
@@ -1514,15 +1524,16 @@
         }
         return moved;
     }
+    const PAT = (p, s) => { const ch = p && p[s]; return ch === 'x' ? 1 : ch === 'o' ? 0.5 : ch === 'O' ? 2 : 0; };
     const hash = (a, b) => { let x = (Math.imul(a + 1, 0x9E3779B1) ^ Math.imul(b + 7, 0x85EBCA6B)) >>> 0; x ^= x >>> 15; x = Math.imul(x, 0x2C1B3C6D) >>> 0; x ^= x >>> 12; return x / 4294967296; };
     function songContext(s) {
         const m = music, song = m.songs[m.song];
-        const bar = Math.max(0, Math.floor((m.step - m.songStep) / 16));
+        const N = song.steps, bar = Math.max(0, Math.floor((m.step - m.songStep) / N));
         const i = song.form.indexOf(sectionAt(song, bar)), sec = song.form[i], barIn = bar - sec.start;
         const chords = song.prog[sec.chords];
         const after = song.form[(i + 1) % song.form.length];
         const mel = sec.mel != null ? song.mel[sec.mel] : null;
-        const e = mel ? mel[((barIn + sec.from) * 16 + s) % mel.length] : null;
+        const e = mel ? mel[((barIn + sec.from) * N + s) % mel.length] : null;
         const chord = chords[(barIn + sec.from) % chords.length];
         // The older tracks read these off the song.
         song.bass = song.bassBy[sec.bass];
@@ -1532,7 +1543,10 @@
             next: barIn + 1 < sec.bars ? chords[(barIn + 1 + sec.from) % chords.length] : song.prog[after.chords][after.from % song.prog[after.chords].length],
             mel: e && { n: melNote(song, e), len: e.len, off: e.off, harm: sec.harm ? harmNote(song, e, chord) : 0 },
             melGain: sec.melGain, drums: sec.drums !== 'none', sparse: sec.drums === 'sparse', bassOn: sec.bassOn, comp: song.comp,
-            pick: (n, salt = 0) => Math.floor(hash(m.song * 131 + bar, salt) * n)
+            pick: (n, salt = 0) => Math.floor(hash(m.song * 131 + bar, salt) * n),
+            // The song's own drum patterns on this step (null: the track's). Each a level: kick and snare 1 ('x') or a
+            // softer one ('o'); hat 1 a main hat ('x'), 0.5 a light one ('o'), 2 an open one ('O').
+            steps: N, kit: song.kit ? { kick: PAT(song.kit.kick, s), snare: PAT(song.kit.snare, s), hat: PAT(song.kit.hat, s) } : null
         };
     }
     function schedule() {
@@ -1553,8 +1567,9 @@
         const slow = mode === 'flow' || mode === 'freeze';
         const st = styleOf();
         while (music.nextStep < now + 0.12) {
-            let s = (((music.step - music.origin) % 16) + 16) % 16;
-            if (s === 0 || (music.area !== area && s % 4 === 0 && 16 * clock.len > 2)) { if (songTurn(s)) s = 0; }
+            const N0 = music.songs[music.song].steps;
+            let s = (((music.step - music.origin) % N0) + N0) % N0;
+            if (s === 0 || (music.area !== area && s % 4 === 0 && N0 * clock.len > 2)) { if (songTurn(s)) s = 0; }
             // The tempo glides a step at a time into and out of a slow-down (about a bar to settle); a new song's
             // tempo starts at once.
             const target = stepOf(music.bpm) / (slow ? 0.6 : 1);
@@ -1591,7 +1606,7 @@
                     st.step(t, s, k, len, L, c);
                     if (c.song.tick) stealthStep(t, s, k, len, L, c);
                     // A section ends in the track's fill, so the song phrases instead of repeating one bar for ever.
-                    if (st.fill && c.fill && s >= 12) st.fill(t, s, k, len, L, c);
+                    if (st.fill && c.fill && s >= c.steps - 4) st.fill(t, s - (c.steps - 16), k, len, L, c);
                 }
             } catch (e) { fault(`music ${style} "${c.song.name || ''}" ${c.sec} bar ${c.barIn + 1} step ${s}`, e); }   // a bad note never stops the music
             songLvl = 1;
@@ -1616,7 +1631,7 @@
     // next section.
     function songNow() {
         if (!music) return null;
-        const song = music.songs[music.song], bar = Math.max(0, Math.floor((music.step - music.songStep) / 16)), sec = sectionAt(song, bar);
+        const song = music.songs[music.song], bar = Math.max(0, Math.floor((music.step - music.songStep) / song.steps)), sec = sectionAt(song, bar);
         return { area: music.area, song: music.song + 1, of: music.songs.length, name: song.name || null, section: sec.name, index: song.form.indexOf(sec), bar: bar - sec.start + 1, bars: sec.bars, bpm: music.bpm, voices: voices.music };
     }
     function songCmd(cmd) { if (music) music.cmd = cmd; }
@@ -1735,8 +1750,8 @@
             out[name] = { bpm: st.bpm || 124, swing: st.swing || 0, pitch: PITCH[name], layers: st.layers ? { ...st.layers } : null, space: st.space || null, holdDiv: st.holdDiv || null,
                 meter: METERS[name] ? METERS[name].length : 0, own: Object.keys(TRACK_SOUNDS[name]), fx: { ...FX_TRIM[name] }, songs: {} };
             for (const [a, list] of Object.entries(areas)) out[name].songs[a] = list.map(sg => ({
-                name: sg.name || null, bpm: sg.bpm || st.bpm || 124, bars: sg.bars, seconds: Math.round(sg.bars * 16 * stepOf(sg.bpm || st.bpm || 124)), stealth: !!sg.kick,
-                melodies: Object.fromEntries(Object.entries(sg.mel).map(([k, v]) => [k, v.length / 16])), progressions: Object.fromEntries(Object.entries(sg.prog).map(([k, v]) => [k, v.map(c => c.name)])),
+                name: sg.name || null, bpm: sg.bpm || st.bpm || 124, bars: sg.bars, steps: sg.steps, tempo: Math.round((sg.bpm || st.bpm || 124) * 4 / (sg.pulse || 4)), swing: sg.swing ?? st.swing ?? 0, lead: sg.lead || null, kit: sg.kit || null, seconds: Math.round(sg.bars * sg.steps * stepOf(sg.bpm || st.bpm || 124)), stealth: !!sg.kick,
+                melodies: Object.fromEntries(Object.entries(sg.mel).map(([k, v]) => [k, v.length / sg.steps])), progressions: Object.fromEntries(Object.entries(sg.prog).map(([k, v]) => [k, v.map(c => c.name)])),
                 sections: sg.form.map(x => ({ name: x.name, bars: x.bars, start: x.start, drums: x.drums, mel: x.mel, chords: x.chords, bassOn: x.bassOn, harm: x.harm, lift: x.lift, up: x.up, entry: x.entry }))
             }));
         }

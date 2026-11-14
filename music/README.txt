@@ -22,9 +22,22 @@ THE SONGS
   Ominous   Vigil, Static              Descent, Undertow           Crawlspace, Lights Out
   Retro     Pixel Desk, Save Point     Boss Rush, Turbo            Sneaking Mission, Hide and Seek
 
+SIX SONGS, NOT ONE SONG SIX TIMES (the owner's call, 2026-11-14: inside a theme the songs sounded alike)
+  Kept as they were: Uptime, Overclock, Morning Lab, Vigil, Lights Out, Pixel Desk, Hide and Seek. The other 23 were
+  rewritten so that a theme's songs differ in the things that made them one song: tempo, meter, drum pattern, lead
+  voice, home note, phrase length and running time. A song may now set
+    bpm, swing     its own tempo and swing (Classic runs 98 to 136, Ominous 50 to 92)
+    steps, pulse   16ths in a bar (12: 3/4 or 6/8; 14: 7/8; 20: 5/4; 12 with pulse 3: a shuffle) and in a beat
+    kit            its own kick, snare and hat patterns, a character a step ('x', 'o' softer, 'O' an open hat)
+    lead           one of the theme's other lead voices; bassVoice, compVoice, reese, march, rock: other parts
+    scale, tonic   another home on the theme's own notes (D Dorian, E Phrygian, F Lydian…), so the sound effects,
+                   which stay in the theme's key, still fit
+  and its progressions and melodies need not be four or eight bars. design/audio/coverage.md lists every song's
+  tempo, meter, lead, length and form; tests/audio.test.js holds each theme to the spread.
+
 WHAT EVERY TRACK SHARES
-  Its own tempo  Classic 124 BPM, Dark 130, Soft 93 (with swing), Ominous 62, Retro 144. The game's income never
-               follows it: held jobs pay 4.13 times a second in every track (engine.js, holdClock).
+  Its own tempo  Classic 124 BPM, Dark 130, Soft 93 (with swing), Ominous 62, Retro 144, unless a song sets its own.
+               The game's income never follows it: held jobs pay 4.13 times a second in every track (engine.js, holdClock).
   The grid     The music schedules on the track's clock, and every sound effect waits for its grid (never longer
                than 121 ms). While a job is held its click figure plays on the track's own subdivision, so it is
                not a note a repeat everywhere (about three a second in Soft, nearly five in Retro).

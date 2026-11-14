@@ -65,6 +65,24 @@ After the checkpoint: Classic and Soft effects and sprint-meter parts, then Dark
 then the production pass (levels against the agreed target, phone translation, simple mode, performance) and the
 review package.
 
+## The variety pass (the owner's first listen, 2026-11-14)
+
+The owner's verdict on the album: the themes are distinct from each other, but inside a theme the six songs sound too
+alike, with similar running times and predictable phrasing. Liked as they are, and left untouched: **Uptime, Overclock,
+Morning Lab, Vigil, Lights Out, Pixel Desk, Hide and Seek**. The other 23 were rewritten.
+
+- **Why they sounded alike (code facts):** every song of a theme shared one tempo, one drum pattern, one lead, bass and
+  chord voice and one home note; nearly every progression was eight bars and every section four or eight; forms were
+  the same shape (Soft had four songs of exactly 124 s).
+- **What a song can now set:** `bpm`, `swing`, `steps` (meter: 3/4, 6/8, 7/8, 5/4, a 12-step shuffle), `kit` (its own
+  kick, snare and hat patterns), `lead` and other part voices the theme offers, another home on the theme's notes, and
+  phrases of any length. The engine counts bars by the song's `steps`; nothing else about the clocks changed.
+- **The spread now** (`design/audio/coverage.md`): each theme has at least five different pulses, two or more meters,
+  three or more lead voices, phrases of 3, 5, 6 or 7 bars, and running times from under a minute to two or three
+  (Classic 0:56–2:39, Dark 1:01–2:24, Soft 1:06–2:29, Ominous 0:57–3:17, Retro 0:43–1:38). `tests/audio.test.js` holds
+  every theme to it.
+- **Not known:** whether any of it sounds good. The new voices and songs were written and measured, not heard.
+
 ## Open questions for the owner
 
 1. The loudness target at default sliders (see above).

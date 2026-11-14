@@ -149,12 +149,12 @@ function build() {
         const th = THEMES[k], sec = el('section');
         sec.style.setProperty('--a', th.a);
         const h = el('h2', null, th.label), info = ALBUM.themes[k];
-        h.append(el('small', null, info ? `${info.bpm} BPM${info.swing ? ', swung' : ''} · ${th.blurb}` : th.blurb));
+        h.append(el('small', null, info ? th.blurb : th.blurb));
         const ol = el('ol');
         for (const i of ids) {
             const t = tracks[i], li = el('li'), play = el('button', 'play');
             play.append(el('span', 'num', i ? String(i).padStart(2, '0') : '★'), el('span', 'name', t.name), el('span', 'room', ROOMS[t.area] || t.area),
-                el('span', 'bpm', t.bpm ? t.bpm + ' BPM' : ''), el('span', 'len', clock(t.seconds)));
+                el('span', 'bpm', t.bpm ? t.bpm + ' BPM' + (t.meter && t.meter !== '4/4' ? ' · ' + t.meter : '') : ''), el('span', 'len', clock(t.seconds)));
             play.setAttribute('aria-label', `Play ${t.name}, ${th.label}, ${clock(t.seconds)}`);
             play.addEventListener('click', () => at === i ? toggle() : start(i));
             const dl = el('button', 'dl', '↓');

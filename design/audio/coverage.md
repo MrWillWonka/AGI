@@ -16,38 +16,38 @@ Bold layers are always in. Income is 4.13 repeats a second in every track (engin
 
 ## Songs (30)
 
-| Track | Area | Song | BPM | Bars | Length | Form (bars; n = no drums, s = sparse) | What the overhaul did |
-|---|---|---|---|---|---|---|---|
-| Classic | lab | Night Survey | 124 | 56 | 1:48 | intro 4s · A 8 · B 8 · A 8 · dub 4n · dub 4s · B 8 · A 8 · out 4s | A kept and given an answering phrase; new B progression and melody; new form |
-| Classic | lab | Uptime | 124 | 50 | 1:37 | intro 2s · A 8 · A 8 · B 8 · break 4n · A 8 · B 8 · out 4 | Melodies kept; A now turns through G6, only B takes the E7; new form |
-| Classic | server | Overclock | 124 | 54 | 1:45 | intro 4 · A 8 · B 8 · A 8 · break 4n · build 4s · B 8 · A 8 · out 2 | Riff kept with a 16th pick-up; new B progression and melody; new form |
-| Classic | server | Packet Storm | 124 | 56 | 1:48 | intro 2s · A 8 · B 8 · A 8 · break 4n · break 4s · A 8 · B 8 · A 4 · out 2 | Hook kept; new B progression and melody (with 16ths); new form |
-| Classic | snare | Packet Sniffer | 124 | 48 | 1:33 | in 4 · A 8 · B 8 · A 8 · wait 4 · B 8 · A 8 | Kept; new stealth form |
-| Classic | snare | Dead Drop | 124 | 44 | 1:25 | A 8 · B 8 · wait 4 · A 8 · B 8 · A 8 | Kept; new stealth form |
-| Dark | lab | Foundry | 130 | 56 | 1:43 | intro 8s · A 8 · A 8 · B 8 · A 8 · strip 4n · A 8 · out 4s | New riff on the flat second (A) and a held line over a pedal (B); club form |
-| Dark | lab | Rust | 130 | 44 | 1:21 | intro 4s · A 8 · B 8 · strip 4n · A 8 · B 8 · out 4s | Melodies kept (a slow lab line); new form with a strip-down |
-| Dark | server | Warehouse | 130 | 60 | 1:51 | intro 8s · A 8 · A 8 · break 4n · build 4s · drop 8 · B 8 · A 8 · out 4s | Riff kept; its own acid line; breakdown, build and drop |
-| Dark | server | Pressure | 130 | 40 | 1:14 | intro 4 · A 8 · B 8 · strip 2n · A 8 · B 8 · out 2 | Riffs kept; its own acid line; new form |
-| Dark | snare | Black Box | 130 | 48 | 1:29 | in 4 · A 8 · B 8 · A 8 · wait 4 · B 8 · A 8 | Kept; new stealth form |
-| Dark | snare | Tripwire | 130 | 44 | 1:21 | A 8 · B 8 · wait 4 · A 8 · B 8 · A 8 | Kept; new stealth form |
-| Soft | lab | Morning Lab | 93 | 52 | 2:14 | intro 4n · A 8 · B 8 · A 8 · breathe 4n · B 8 · A 8 · out 4s | New syncopated A (8 bars); new B through the relative minor and a borrowed iv; new form |
-| Soft | lab | Window Seat | 93 | 48 | 2:04 | A 8 · A 8 · B 8 · still 4n · A 8 · B 8 · out 4s | Melodies kept; starts on the tune; a drumless middle; new form |
-| Soft | server | Gentle Climb | 93 | 48 | 2:04 | intro 2n · A 8 · B 8 · A 8 · break 4n · B 8 · A 8 · out 2 | Melodies kept; new form |
-| Soft | server | Glide Path | 93 | 48 | 2:04 | A 8 · B 8 · A 8 · vamp 4s · B 8 · A 8 · out 4 | Melodies kept; a two-chord vamp; new form |
-| Soft | snare | Tiptoe | 93 | 48 | 2:04 | in 4 · A 8 · B 8 · A 8 · wait 4 · B 8 · A 8 | Kept; new stealth form |
-| Soft | snare | Hushed Channel | 93 | 44 | 1:54 | A 8 · B 8 · wait 4 · A 8 · B 8 · A 8 | Kept; new stealth form |
-| Ominous | lab | Vigil | 62 | 44 | 2:50 | drone 4n · A 8n · A 8s · B 8 · still 4n · A 8 · out 4n | Rewritten for 62 BPM: a four-note cell with bars of silence; new B through a diminished chord |
-| Ominous | lab | Static | 62 | 38 | 2:27 | A 8n · B 8s · void 2n · A 8 · B 8 · out 4n | Rewritten for 62 BPM around the fall to the flat second; a two-bar void |
-| Ominous | server | Descent | 62 | 50 | 3:14 | intro 4s · A 8 · B 8 · A 8 · void 4n · B 8 · A 8 · out 2n | New A with a pulse to it; B kept; new form |
-| Ominous | server | Undertow | 62 | 46 | 2:58 | A 8s · A 8 · B 8 · hold 4n · A 8 · B 8 · out 2n | A kept; B rewritten with triplets; new form |
-| Ominous | snare | Crawlspace | 62 | 28 | 1:48 | in 2 · A 4 · B 8 · wait 2 · A 4 · B 8 | Kept, slower; heartbeat re-set for 62 BPM; short through-form |
-| Ominous | snare | Lights Out | 62 | 30 | 1:56 | A 4 · B 8 · wait 2 · A 4 · B 8 · A 4 | Kept, slower; short through-form |
-| Retro | lab | Pixel Desk | 144 | 54 | 1:30 | intro 4 · A 8 · A 8 · B 8 · A 8 · B 8 · A 8↑2 · turn 2 | Melodies kept; a walking bass; last chorus up a tone |
-| Retro | lab | Save Point | 144 | 44 | 1:13 | A 8 · B 8 · A 8 · bridge 4s · B 8 · A 8 | Melodies kept; starts on the tune; a bridge |
-| Retro | server | Boss Rush | 144 | 48 | 1:20 | intro 2 · A 8 · B 8 · A 8 · break 4n · B 8 · A 8↑2 · out 2 | Melodies kept; breakbeat and galloping bass; last chorus up a tone |
-| Retro | server | Turbo | 144 | 44 | 1:13 | intro 4 · A 8 · B 8 · A 8 · B 8 · A 8↑2 | Melodies kept; breakbeat; last lap up a tone |
-| Retro | snare | Sneaking Mission | 144 | 48 | 1:20 | in 4 · A 8 · B 8 · A 8 · wait 4 · B 8 · A 8 | Kept; new stealth form |
-| Retro | snare | Hide and Seek | 144 | 44 | 1:13 | A 8 · B 8 · wait 4 · A 8 · B 8 · A 8 | Kept; new stealth form |
+| Track | Area | Song | Tempo | Meter | Lead | Bars | Length | Form (bars; n = no drums, s = sparse) | What the overhaul did |
+|---|---|---|---|---|---|---|---|---|---|
+| Classic | lab | Night Survey | 98 | 4/4 | glass, own kit | 65 | 2:39 | intro 6n · A 6s · A 6 · B 5 · A 6 · drift 5n · B 5 · A 6 · B 5 · A 6 · A 6s · out 3n | Variety pass: rewritten as slow dub in D Dorian, half-time, glass-bell lead, phrases of 6 and 5 bars |
+| Classic | lab | Uptime | 124 | 4/4 | the track's | 50 | 1:37 | intro 2s · A 8 · A 8 · B 8 · break 4n · A 8 · B 8 · out 4 | Kept (the owner likes it) |
+| Classic | server | Overclock | 124 | 4/4 | the track's | 54 | 1:45 | intro 4 · A 8 · B 8 · A 8 · break 4n · build 4s · B 8 · A 8 · out 2 | Kept (the owner likes it) |
+| Classic | server | Packet Storm | 136 | 4/4 | pluck, own kit | 41 | 1:12 | A 4 · A 4 · B 6 · A 4 · A 4 · break 3n · B 6 · A 4 · A 4 · out 2 | Variety pass: rewritten as electro in E Phrygian, broken kick, plucked 16th riff, 4- and 6-bar phrases |
+| Classic | snare | Packet Sniffer | 75 | 6/8 | pluck, own kit | 35 | 0:56 | in 2 · A 6 · B 6 · A 6 · wait 3 · B 6 · A 6 | Variety pass: rewritten in 6/8, muted plucks, 6-bar phrases |
+| Classic | snare | Dead Drop | 124 | 7/8 | pad, own kit | 38 | 1:04 | A 4 · A 4 · B 8 · wait 2 · A 4 · B 8 · A 4 · A 4 | Variety pass: rewritten in 7/8, a soft lead, a chord a bar |
+| Dark | lab | Foundry | 100 | 4/4 | bell, own kit | 50 | 2:00 | intro 4s · A 4 · A 4 · B 6 · A 4 · strip 2n · B 6 · A 4 · A 4 · B 6 · A 4 · out 2s | Variety pass: rewritten half-time in D minor: reese bass, struck-metal lead, no acid line |
+| Dark | lab | Rust | 76 | 4/4 | siren, own kit | 42 | 2:13 | A 5n · A 5s · B 7 · A 5 · void 3n · B 7 · A 5 · A 5n | Variety pass: rewritten nearly beatless: drone bass, a sliding voice, phrases of 5 and 7 bars |
+| Dark | server | Warehouse | 140 | 4/4 | the track's | 84 | 2:24 | intro 8s · groove 8 · A 8 · A 8 · break 8n · build 4s · drop 16 · B 8 · A 8 · out 8s | Variety pass: melodies and acid line kept; faster; a club form with a 16-bar drop |
+| Dark | server | Pressure | 126 | 12/8 | stab, own kit | 38 | 1:12 | intro 3 · A 3 · A 3 · A 3 · B 4 · A 3 · A 3 · strip 2n · B 4 · A 3 · A 3 · A 3 · out 1 | Variety pass: rewritten as a 12-step shuffle: square stabs in 3-bar phrases, a triplet acid line |
+| Dark | snare | Black Box | 108 | 4/4 | bell, own kit | 35 | 1:18 | in 2 · A 6 · B 6 · wait 3 · A 6 · B 6 · A 6 | Variety pass: rewritten slower, struck metal in 6-bar phrases |
+| Dark | snare | Tripwire | 150 | 4/4 | stab, own kit | 38 | 1:01 | A 4 · A 4 · B 8 · wait 2 · A 4 · A 4 · B 8 · A 4 | Variety pass: rewritten fast in G Dorian, broken kick, square stabs |
+| Soft | lab | Morning Lab | 93 swung | 4/4 | the track's | 52 | 2:14 | intro 4n · A 8 · B 8 · A 8 · breathe 4n · B 8 · A 8 · out 4s | Kept (the owner likes it) |
+| Soft | lab | Window Seat | 104 | 3/4 | flute, own kit | 52 | 1:30 | A 8 · A 8 · B 6 · A 8 · still 4n · B 6 · A 8 · out 4s | Variety pass: rewritten as a waltz: flute lead, guitar on two and three |
+| Soft | server | Gentle Climb | 116 | 4/4 | ep, own kit | 72 | 2:29 | intro 4s · A 8 · A 8 · B 8 · break 4n · build 4s · B 8 · A 8 · B 8 · A 8 · out 4 | Variety pass: melodies kept; soft house, straight, the electric piano leads; the long one |
+| Soft | server | Glide Path | 120 | 4/4 | guitar, own kit | 36 | 1:12 | A 4 · A 4 · B 8 · A 4 · vamp 4 · B 8 · A 4 | Variety pass: melodies kept; a bossa on the clave, nylon guitar; short |
+| Soft | snare | Tiptoe | 84 swung | 4/4 | glass | 36 | 1:43 | in 2 · A 4 · A 4 · B 8 · wait 2 · A 4 · B 8 · A 4 | Variety pass: rewritten as a slow shuffle, glass bell, a chord a bar |
+| Soft | snare | Hushed Channel | 80 | 4/4 | ep | 22 | 1:06 | A 5 · B 5 · wait 2 · A 5 · B 5 | Variety pass: rewritten as a lullaby in F Lydian, 5-bar phrases, no struck chords |
+| Ominous | lab | Vigil | 62 | 4/4 | the track's | 44 | 2:50 | drone 4n · A 8n · A 8s · B 8 · still 4n · A 8 · out 4n | Kept (the owner likes it) |
+| Ominous | lab | Static | 50 | 4/4 | bell | 41 | 3:17 | A 7n · B 5n · void 2n · A 7s · B 5 · A 7 · B 5s · out 3n | Variety pass: rewritten with no pulse, heard from E (Phrygian dominant), the tune tolled on a bell, phrases of 7 and 5 bars |
+| Ominous | server | Descent | 92 | 4/4 | choir, own kit | 35 | 1:31 | A 4s · A 4 · B 6 · A 4 · A 4 · void 2n · B 6 · A 4 · out 1n | Variety pass: rewritten as a march: bowed low strings, a limping kick, voices, 4- and 6-bar phrases |
+| Ominous | server | Undertow | 46 | 6/8 | the track's, own kit | 51 | 2:13 | A 6s · A 6 · B 8 · hold 3n · A 6 · A 6 · B 8 · A 6 · out 2n | Variety pass: rewritten in 6/8 over a rocking arpeggio, phrases of 6 and 8 bars |
+| Ominous | snare | Crawlspace | 88 | 4/4 | box | 21 | 0:57 | A 5 · B 5 · wait 1 · A 5 · B 5 | Variety pass: rewritten for a music box, faster, 5-bar phrases |
+| Ominous | snare | Lights Out | 62 | 4/4 | the track's | 30 | 1:56 | A 4 · B 8 · wait 2 · A 4 · B 8 · A 4 | Kept (the owner likes it) |
+| Retro | lab | Pixel Desk | 144 | 4/4 | the track's | 54 | 1:30 | intro 4 · A 8 · A 8 · B 8 · A 8 · B 8 · A 8↑2 · turn 2 | Kept (the owner likes it) |
+| Retro | lab | Save Point | 100 | 3/4 | tri, own kit | 24 | 0:43 | A 8 · B 6 · A 8 · turn 2 | Variety pass: rewritten as a lullaby in three, triangle lead, no kick; a short loop |
+| Retro | server | Boss Rush | 176 | 4/4 | fat | 72 | 1:38 | intro 2 · A 4 · A 4 · B 6 · A 4 · A 4 · break 4n · B 6 · A 4 · A 4 · B 6 · A 4 · A 4↑2 · A 4↑2 · B 6↑2 · A 4↑2 · out 2 | Variety pass: rewritten faster in D Dorian, a hammered 16th riff on two squares, 4- and 6-bar phrases; the long one |
+| Retro | server | Turbo | 152 swung | 4/4 | the track's | 33 | 0:52 | intro 1 · A 4 · A 4 · B 4 · A 4 · B 4 · A 4↑2 · B 4↑2 · A 4↑2 | Variety pass: rewritten as a shuffle in G Mixolydian with a boogie bass; three short laps |
+| Retro | snare | Sneaking Mission | 116 | 5/4 | the track's, own kit | 32 | 1:23 | in 2 · A 4 · B 4 · A 4 · wait 2 · B 4 · A 4 · B 4 · A 4 | Variety pass: rewritten in 5/4 (3 + 3 + 2 + 2) |
+| Retro | snare | Hide and Seek | 144 | 4/4 | the track's | 44 | 1:13 | A 8 · B 8 · wait 4 · A 8 · B 8 · A 8 | Kept (the owner likes it) |
 
 ## Effects (56 names)
 
@@ -125,19 +125,15 @@ Sprint meter: Classic plays the four shared parts; Dark, Soft, Ominous, Retro ha
 
 A note an 8th or longer that starts on a beat a semitone away from a tone of its chord (and isn't one). Some are meant (Dark's and Ominous's flat seconds); none is changed automatically.
 
-- Classic, Night Survey (lab), melody A bar 4 beat 1: over Fmaj7
 - Classic, Uptime (lab), melody A bar 1 beat 2: over Am7
 - Classic, Uptime (lab), melody A bar 3 beat 1: over Dm7
 - Classic, Uptime (lab), melody B bar 5 beat 2: over Am7
 - Classic, Uptime (lab), melody B bar 7 beat 1: over Dm7
 - Classic, Overclock (server), melody A bar 4 beat 1: over Dm7
 - Classic, Overclock (server), melody A bar 4 beat 3: over E7
-- Classic, Packet Storm (server), melody A bar 4 beat 3: over E7
-- Dark, Foundry (lab), melody A bar 4 beat 4: over Am
-- Dark, Foundry (lab), melody B bar 1 beat 4: over Am
-- Dark, Foundry (lab), melody B bar 7 beat 4: over Am
-- Dark, Rust (lab), melody B bar 7 beat 4: over F
-- Dark, Rust (lab), melody B bar 8 beat 3: over Bb
+- Dark, Foundry (lab), melody A bar 2 beat 3: over Dm
+- Dark, Foundry (lab), melody B bar 1 beat 4: over Gm
+- Dark, Foundry (lab), melody B bar 3 beat 4: over Dm
 - Dark, Warehouse (server), melody A bar 1 beat 4: over Am
 - Dark, Warehouse (server), melody A bar 3 beat 1: over F
 - Dark, Warehouse (server), melody B bar 1 beat 3: over Am
@@ -145,38 +141,16 @@ A note an 8th or longer that starts on a beat a semitone away from a tone of its
 - Dark, Warehouse (server), melody B bar 5 beat 2: over Am
 - Dark, Warehouse (server), melody B bar 5 beat 4: over Am
 - Dark, Warehouse (server), melody B bar 7 beat 2: over F
-- Dark, Black Box (snare), melody B bar 1 beat 3: over Am
-- Dark, Black Box (snare), melody B bar 6 beat 3: over Am
-- Soft, Window Seat (lab), melody A bar 1 beat 1: over Dm7
-- Soft, Window Seat (lab), melody A bar 1 beat 4: over Dm7
 - Soft, Gentle Climb (server), melody A bar 3 beat 3: over Cadd9
 - Soft, Gentle Climb (server), melody A bar 1 beat 3: over Dm9
 - Soft, Gentle Climb (server), melody B bar 3 beat 1: over Cadd9
 - Soft, Gentle Climb (server), melody B bar 7 beat 3: over Cadd9
 - Soft, Glide Path (server), melody A bar 3 beat 3: over Am7
-- Soft, Glide Path (server), melody A bar 2 beat 1: over G
 - Soft, Glide Path (server), melody B bar 3 beat 1: over Am7
 - Ominous, Vigil (lab), melody A bar 1 beat 3: over Am
 - Ominous, Vigil (lab), melody A bar 5 beat 3: over Dm
 - Ominous, Vigil (lab), melody A bar 6 beat 4: over Dm
-- Ominous, Static (lab), melody A bar 1 beat 2: over Am
-- Ominous, Static (lab), melody A bar 5 beat 2: over Am
-- Ominous, Static (lab), melody B bar 3 beat 2: over Am
-- Ominous, Descent (server), melody A bar 1 beat 3: over Am
-- Ominous, Descent (server), melody A bar 3 beat 3: over Am
-- Ominous, Descent (server), melody B bar 7 beat 4: over Bb
-- Ominous, Descent (server), melody B bar 8 beat 3: over E7
-- Ominous, Undertow (server), melody A bar 2 beat 1: over Am
-- Ominous, Undertow (server), melody A bar 4 beat 4: over E7
-- Ominous, Undertow (server), melody B bar 1 beat 4: over Am
-- Ominous, Undertow (server), melody B bar 5 beat 4: over Am
+- Ominous, Static (lab), melody A bar 1 beat 4: over E
 - Retro, Pixel Desk (lab), melody A bar 4 beat 2: over F
 - Retro, Pixel Desk (lab), melody A bar 3 beat 1: over F
 - Retro, Pixel Desk (lab), melody B bar 5 beat 2: over C
-- Retro, Boss Rush (server), melody A bar 2 beat 4: over F
-- Retro, Boss Rush (server), melody B bar 2 beat 3: over F
-- Retro, Turbo (server), melody A bar 3 beat 1: over F
-- Retro, Turbo (server), melody A bar 3 beat 2: over F
-- Retro, Turbo (server), melody A bar 3 beat 4: over F
-- Retro, Turbo (server), melody A bar 4 beat 1: over G
-- Retro, Turbo (server), melody B bar 5 beat 4: over Am

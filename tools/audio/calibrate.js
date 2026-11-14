@@ -19,11 +19,13 @@ const R = require('./render.js');
     const dir = path.resolve('review-out/audio/calibrate');
     const s = await R.open();
     const rows = [];
+    const cat = await s.page.evaluate(() => window.SFX.catalog);
     for (const area of ['lab', 'server', 'snare']) for (const song of [1, 2]) {
-        const row = { area, song };
+        // A short song is measured alone: the render stops before the area's next song takes over.
+        const row = { area, song }, secs = Math.min(seconds, cat[style].songs[area][song - 1].seconds - 1);
         for (const [k, mix] of [['full', { beat: 1, tones: 1 }], ['beat', { beat: 1, tones: 0 }], ['tones', { beat: 0, tones: 1 }]]) {
             const file = path.join(dir, `${style}-${area}-${song}-${k}.wav`);
-            const r = await R.render(s, { ...R.PRESETS.song({ style, area, song, seconds, simple }), musicMix: mix }, file);
+            const r = await R.render(s, { ...R.PRESETS.song({ style, area, song, seconds: secs, simple }), musicMix: mix }, file);
             row[k] = r.lufs; row.name = r.song && r.song.name; row.peak = Math.max(row.peak ?? -99, r.truePeak);
             if (r.faults.length) row.faults = r.faults;
             fs.unlinkSync(file);
@@ -40,4 +42,10 @@ const R = require('./render.js');
     console.log(`  ${simple ? 'simpleMix.beat' : 'beat'} × ${lin(tones - 2 - beat).toFixed(3)}`);
     console.log(`  ${simple ? 'simpleMix.gain' : 'gain'} × ${lin(target - full).toFixed(3)}   (to sit at ${target} LUFS; after changing beat, measure again)`);
     for (const r of rows) console.log(`  ${simple ? 'slvl' : 'lvl'} of ${(r.name || r.area + ' ' + r.song).padEnd(18)} × ${lin(tones - r.tones).toFixed(3)}`);
+    // Songs with their own drum patterns: the same hits make more or less of the mix, so match the whole mix instead
+    // (its tones make up what its drums leave of the target). Use these for a song that has a `kit`.
+    console.log(`Or, for the whole mix of each song to sit at ${target} LUFS (JSON for a script):`);
+    const pw = db => Math.pow(10, db / 10), out = {};
+    for (const r of rows) out[r.name] = +Math.sqrt(Math.max(0.05 * pw(target), pw(target) - pw(r.beat)) / pw(r.tones)).toFixed(3);
+    console.log('MIX ' + JSON.stringify(out));
 })().catch(e => { console.error(e); process.exit(1); });

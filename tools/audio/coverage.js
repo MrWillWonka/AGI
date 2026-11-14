@@ -16,27 +16,29 @@ const Cap = s => s[0].toUpperCase() + s.slice(1);
 
 // What the overhaul did with each song (the owner's brief asks for all thirty to be accounted for).
 const DISPOSITION = {
-    'Night Survey': 'A kept and given an answering phrase; new B progression and melody; new form',
-    'Uptime': 'Melodies kept; A now turns through G6, only B takes the E7; new form',
-    'Overclock': 'Riff kept with a 16th pick-up; new B progression and melody; new form',
-    'Packet Storm': 'Hook kept; new B progression and melody (with 16ths); new form',
-    'Packet Sniffer': 'Kept; new stealth form', 'Dead Drop': 'Kept; new stealth form',
-    'Foundry': 'New riff on the flat second (A) and a held line over a pedal (B); club form',
-    'Rust': 'Melodies kept (a slow lab line); new form with a strip-down',
-    'Warehouse': 'Riff kept; its own acid line; breakdown, build and drop',
-    'Pressure': 'Riffs kept; its own acid line; new form',
-    'Black Box': 'Kept; new stealth form', 'Tripwire': 'Kept; new stealth form',
-    'Morning Lab': 'New syncopated A (8 bars); new B through the relative minor and a borrowed iv; new form',
-    'Window Seat': 'Melodies kept; starts on the tune; a drumless middle; new form',
-    'Gentle Climb': 'Melodies kept; new form', 'Glide Path': 'Melodies kept; a two-chord vamp; new form',
-    'Tiptoe': 'Kept; new stealth form', 'Hushed Channel': 'Kept; new stealth form',
-    'Vigil': 'Rewritten for 62 BPM: a four-note cell with bars of silence; new B through a diminished chord',
-    'Static': 'Rewritten for 62 BPM around the fall to the flat second; a two-bar void',
-    'Descent': 'New A with a pulse to it; B kept; new form', 'Undertow': 'A kept; B rewritten with triplets; new form',
-    'Crawlspace': 'Kept, slower; heartbeat re-set for 62 BPM; short through-form', 'Lights Out': 'Kept, slower; short through-form',
-    'Pixel Desk': 'Melodies kept; a walking bass; last chorus up a tone', 'Save Point': 'Melodies kept; starts on the tune; a bridge',
-    'Boss Rush': 'Melodies kept; breakbeat and galloping bass; last chorus up a tone', 'Turbo': 'Melodies kept; breakbeat; last lap up a tone',
-    'Sneaking Mission': 'Kept; new stealth form', 'Hide and Seek': 'Kept; new stealth form'
+    'Night Survey': 'Variety pass: rewritten as slow dub in D Dorian, half-time, glass-bell lead, phrases of 6 and 5 bars',
+    'Uptime': 'Kept (the owner likes it)', 'Overclock': 'Kept (the owner likes it)',
+    'Packet Storm': 'Variety pass: rewritten as electro in E Phrygian, broken kick, plucked 16th riff, 4- and 6-bar phrases',
+    'Packet Sniffer': 'Variety pass: rewritten in 6/8, muted plucks, 6-bar phrases', 'Dead Drop': 'Variety pass: rewritten in 7/8, a soft lead, a chord a bar',
+    'Foundry': 'Variety pass: rewritten half-time in D minor: reese bass, struck-metal lead, no acid line',
+    'Rust': 'Variety pass: rewritten nearly beatless: drone bass, a sliding voice, phrases of 5 and 7 bars',
+    'Warehouse': 'Variety pass: melodies and acid line kept; faster; a club form with a 16-bar drop',
+    'Pressure': 'Variety pass: rewritten as a 12-step shuffle: square stabs in 3-bar phrases, a triplet acid line',
+    'Black Box': 'Variety pass: rewritten slower, struck metal in 6-bar phrases', 'Tripwire': 'Variety pass: rewritten fast in G Dorian, broken kick, square stabs',
+    'Morning Lab': 'Kept (the owner likes it)',
+    'Window Seat': 'Variety pass: rewritten as a waltz: flute lead, guitar on two and three',
+    'Gentle Climb': 'Variety pass: melodies kept; soft house, straight, the electric piano leads; the long one',
+    'Glide Path': 'Variety pass: melodies kept; a bossa on the clave, nylon guitar; short',
+    'Tiptoe': 'Variety pass: rewritten as a slow shuffle, glass bell, a chord a bar', 'Hushed Channel': 'Variety pass: rewritten as a lullaby in F Lydian, 5-bar phrases, no struck chords',
+    'Vigil': 'Kept (the owner likes it)',
+    'Static': 'Variety pass: rewritten with no pulse, heard from E (Phrygian dominant), the tune tolled on a bell, phrases of 7 and 5 bars',
+    'Descent': 'Variety pass: rewritten as a march: bowed low strings, a limping kick, voices, 4- and 6-bar phrases',
+    'Undertow': 'Variety pass: rewritten in 6/8 over a rocking arpeggio, phrases of 6 and 8 bars',
+    'Crawlspace': 'Variety pass: rewritten for a music box, faster, 5-bar phrases', 'Lights Out': 'Kept (the owner likes it)',
+    'Pixel Desk': 'Kept (the owner likes it)', 'Save Point': 'Variety pass: rewritten as a lullaby in three, triangle lead, no kick; a short loop',
+    'Boss Rush': 'Variety pass: rewritten faster in D Dorian, a hammered 16th riff on two squares, 4- and 6-bar phrases; the long one',
+    'Turbo': 'Variety pass: rewritten as a shuffle in G Mixolydian with a boogie bass; three short laps',
+    'Sneaking Mission': 'Variety pass: rewritten in 5/4 (3 + 3 + 2 + 2)', 'Hide and Seek': 'Kept (the owner likes it)'
 };
 
 let md = `# Audio coverage\n\nWritten by \`node tools/audio/coverage.js\` from the engine and the theme files. Do not edit by hand.\n\n## Tracks\n\n| Track | BPM | Swing | Held-job notes a second | Effects' pitch | Layer order (first to last) | Space |\n|---|---|---|---|---|---|---|\n`;
@@ -47,12 +49,13 @@ for (const th of THEMES) {
     const sp = c.space || {};
     md += `| ${Cap(th)} | ${c.bpm} | ${c.swing ? Math.round(c.swing * 100) + '% of a 16th' : 'straight'} | ${(1 / hold).toFixed(2)} | ${c.pitch === 'key' ? "the track's key (tension kept)" : 'fitted to the chord'} | ${order} | ${[sp.reverb && `reverb ${sp.reverb.seconds} s`, sp.delay && `delay ${sp.delay.steps} steps`, sp.width != null && `width ${sp.width}`].filter(Boolean).join(', ') || 'dry'} |\n`;
 }
-md += `\nBold layers are always in. Income is 4.13 repeats a second in every track (engine.js \`holdClock\`).\n\n## Songs (${THEMES.reduce((a, t) => a + Object.values(cat[t].songs).flat().length, 0)})\n\n| Track | Area | Song | BPM | Bars | Length | Form (bars; n = no drums, s = sparse) | What the overhaul did |\n|---|---|---|---|---|---|---|---|\n`;
+md += `\nBold layers are always in. Income is 4.13 repeats a second in every track (engine.js \`holdClock\`).\n\n## Songs (${THEMES.reduce((a, t) => a + Object.values(cat[t].songs).flat().length, 0)})\n\n| Track | Area | Song | Tempo | Meter | Lead | Bars | Length | Form (bars; n = no drums, s = sparse) | What the overhaul did |\n|---|---|---|---|---|---|---|---|---|---|\n`;
 const missing = [];
+const METER = { '16/4': '4/4', '12/4': '3/4', '12/6': '6/8', '12/3': '12/8', '14/4': '7/8', '20/4': '5/4' };
 for (const th of THEMES) for (const [area, list] of Object.entries(cat[th].songs)) for (const s of list) {
     if (!DISPOSITION[s.name]) missing.push(s.name);
     const form = s.sections.map(x => `${x.name} ${x.bars}${x.drums === 'none' ? 'n' : x.drums === 'sparse' ? 's' : ''}${x.up ? '↑' + x.up : ''}`).join(' · ');
-    md += `| ${Cap(th)} | ${area} | ${s.name} | ${s.bpm} | ${s.bars} | ${Math.floor(s.seconds / 60)}:${String(s.seconds % 60).padStart(2, '0')} | ${form} | ${DISPOSITION[s.name] || '?'} |\n`;
+    md += `| ${Cap(th)} | ${area} | ${s.name} | ${s.tempo}${s.swing ? ' swung' : ''} | ${METER[s.steps + '/' + (s.tempo === s.bpm ? 4 : Math.round(4 * s.bpm / s.tempo))] || s.steps + ' steps'} | ${s.lead || "the track's"}${s.kit ? ', own kit' : ''} | ${s.bars} | ${Math.floor(s.seconds / 60)}:${String(s.seconds % 60).padStart(2, '0')} | ${form} | ${DISPOSITION[s.name] || '?'} |\n`;
 }
 
 const names = SFX.sounds;
@@ -74,15 +77,16 @@ for (const th of THEMES) for (const [area, list] of Object.entries(lab.songs[th]
     for (const sec of song.form) {
         if (sec.mel == null) continue;
         const mel = song.mel[sec.mel], chords = song.prog[sec.chords];
-        for (let bar = 0; bar < sec.bars; bar++) for (let s = 0; s < 16; s += 4) {
-            const e = mel[((bar + sec.from) * 16 + s) % mel.length];
+        const N = song.steps;
+        for (let bar = 0; bar < sec.bars; bar++) for (let s = 0; s < N; s += 4) {
+            const e = mel[((bar + sec.from) * N + s) % mel.length];
             if (!e || e.len < 2) continue;
             const ch = chords[(bar + sec.from) % chords.length], n = lab.melNote(song, e), tones = ch.iv.map(x => (ch.pc + x) % 12);
             if (tones.includes(pc(n)) || !tones.some(p => [1, 11].includes((pc(n) - p + 12) % 12))) continue;
-            const key = `${sec.mel}:${(bar + sec.from) % (mel.length / 16)}:${s}:${ch.name}`;
+            const key = `${sec.mel}:${(bar + sec.from) % (mel.length / N)}:${s}:${ch.name}`;
             if (seen.has(key)) continue;
             seen.add(key); flagged++;
-            md += `- ${Cap(th)}, ${song.name} (${area}), melody ${sec.mel} bar ${((bar + sec.from) % (mel.length / 16)) + 1} beat ${s / 4 + 1}: over ${ch.name}\n`;
+            md += `- ${Cap(th)}, ${song.name} (${area}), melody ${sec.mel} bar ${((bar + sec.from) % (mel.length / N)) + 1} beat ${s / 4 + 1}: over ${ch.name}\n`;
         }
     }
 }

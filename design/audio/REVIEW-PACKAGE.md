@@ -48,6 +48,10 @@ whole number of bars (with triplets), and a form: sections with their melody, ch
 `none`), bass on or off, lift, key change, entry points and fills. A song that fails validation is reported with its
 track, area, number and name, and left out; the others play. Playlists are the arrays' real length.
 
+**A song's own pulse and voices (the variety pass).** A song may set its tempo, swing, meter (`steps`: 16ths in a
+bar, counted everywhere a bar is), drum patterns (`kit`) and which of its theme's voices play its lead, bass and chords.
+23 of the 30 songs do; the seven the owner liked are unchanged. See `STATUS.md`, "The variety pass".
+
 **Layers.** Progress and speed give one number; each track maps it to its own parts at its own thresholds (`layers`),
 each fading over a band. The harmony line has a continuous gain and avoids semitones against the chord (`harmNote`).
 
@@ -77,6 +81,8 @@ node tools/audio/fx-levels.js <style>          # its single effects and meter pa
 node tools/audio/coverage.js                   # design/audio/coverage.md
 node tools/audio/package.js                    # review-out/audio/package (clips, manifest, metrics)
 node tools/audio/render.js run --style soft    # one timeline; presets: song, build, hold, run, stress, effects
+node tools/audio/album.js                      # every song once through its form, and a player page for them
+node tools/audio/showcase.js                   # a reference clip per track and the five in a row
 ```
 
 Needs Playwright with Chromium (as the review tools) and FFmpeg (`winget install --id Gyan.FFmpeg`). Renders are the

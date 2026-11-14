@@ -59,9 +59,15 @@
             fillAt: 0.3,
             step(t, s, k, len, L, c) {
                 const ch = c.chord, song = c.song;
-                const kg = kickLevel(c, s, song.breakbeat ? s === 0 || s === 6 || s === 10 : s % 4 === 0);
+                // A song may bring its own drum patterns (`kit`) and lead (`lead`).
+                const K = c.kit;
+                const kg = kickLevel(c, s, K ? K.kick : song.breakbeat ? s === 0 || s === 6 || s === 10 : s % 4 === 0);
                 if (kg) kick(t, 0.45 * kg, 220, 50, 0.12);
-                if (c.drums && !c.sparse) {
+                if (c.drums && !c.sparse && K) {
+                    if (K.snare && L.clap > 0.02) { perc(t, 0.12 * K.snare * L.clap, { f: 1800, q: 0.8, len: 0.1 }); perc(t, 0.05 * K.snare * L.clap, { type: 'highpass', f: 5000, len: 0.07 }); }
+                    if (K.hat >= 1 && L.off > 0.02) hat(t, 0.05 * L.off, K.hat === 2 ? 0.06 : 0.018, { pan: 0.2 });
+                    else if (K.hat && L.sixteenth > 0.02) hat(t, 0.028 * L.sixteenth, 0.012, { pan: 0.2 });
+                } else if (c.drums && !c.sparse) {
                     if (L.clap > 0.02 && (s === 4 || s === 12)) { perc(t, 0.12 * L.clap, { f: 1800, q: 0.8, len: 0.1 }); perc(t, 0.05 * L.clap, { type: 'highpass', f: 5000, len: 0.07 }); }
                     if (song.breakbeat && L.clap > 0.4 && s === 15 && c.pick(2, 6)) perc(t, 0.05 * L.clap, { f: 1800, q: 0.8, len: 0.05 });
                     if (L.sixteenth > 0.02) { if (s % 4 !== 1) hat(t, (s % 4 === 0 ? 0.04 : 0.028) * L.sixteenth, 0.012, { pan: 0.2 }); }
@@ -76,7 +82,15 @@
                     const v = ch.v, i = (s / every) % v.length, idx = c.bar % 2 ? v.length - 1 - i : i;
                     note(t, v[idx], len * 0.8, (0.016 + 0.014 * Math.max(L.clap, L.arp)) * L.pad, { wave: 'pulse12', sus: 0.8, dec: 0.02, rel: 0.01, pan: -0.5, low: true });
                 }
-                if (c.mel) {
+                if (c.mel && song.lead === 'tri') {           // the triangle takes the tune, an octave up: a console's flute
+                    const d = len * c.mel.len * 0.92, env = { sus: 0.9, dec: 0.02, rel: 0.02 };
+                    note(c.mel.t, c.mel.n + 12, d, 0.085 * c.melGain, { type: 'triangle', ...env, vib: c.mel.len >= 3 ? { rate: 5.5, depth: 14, delay: 0.18 } : null, pan: 0.1 });
+                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.014 * c.harmGain * c.melGain, { wave: 'pulse12', ...env, pan: -0.3 });
+                } else if (c.mel && song.lead === 'fat') {    // two square waves a few cents apart: the boss's theme
+                    const d = len * c.mel.len * 0.8, env = { sus: 0.85, dec: 0.03, rel: 0.012 };
+                    for (const dt of [-9, 9]) note(c.mel.t, c.mel.n, d, 0.02 * c.melGain, { type: 'square', detune: dt, ...env, glide: s === 0 ? c.mel.n - 12 : null, glideTime: 0.02, pan: dt > 0 ? 0.35 : -0.1 });
+                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.016 * c.harmGain * c.melGain, { wave: 'pulse12', ...env, pan: -0.3 });
+                } else if (c.mel) {
                     const d = len * c.mel.len * 0.85, env = { sus: 0.85, dec: 0.03, rel: 0.012 };
                     note(c.mel.t, c.mel.n, d, 0.03 * c.melGain, { wave: 'pulse25', ...env, glide: s === 0 ? c.mel.n - 12 : null, glideTime: 0.025,
                         vib: c.mel.len >= 4 ? { rate: 6.5, depth: 16, delay: 0.14 } : null, pan: 0.15 });
@@ -107,43 +121,55 @@
                     },
                     form: [['intro', 4, { mel: null }], ['A', 8], ['A', 8, { harm: true }], ['B', 8], ['A', 8], ['B', 8], ['A', 8, { up: 2, harm: true, lift: 0.06 }], ['turn', 2, { mel: null }]]
                 },
-                {   // Save Point: IV – I – V – vi, gentle; it starts on the tune.
-                    name: 'Save Point', lvl: 1.11, scale: ION, tonic: 3, chords: ['F', 'C', 'G', 'Am', 'F', 'C', 'Dm', 'G'], bass: 'r.....f.r...o...',
+                {   // Save Point: a lullaby in three at 100: no kick, the triangle singing an octave up over the chord's
+                    // arpeggio. Eight bars and six, then round again: forty seconds.
+                    name: 'Save Point', lvl: 1.08, bpm: 100, steps: 12, scale: ION, tonic: 3, lead: 'tri',
+                    kit: { kick: '............', snare: '............', hat: '....x...x...' },
+                    chords: { A: ['F', 'G', 'Em', 'Am', 'F', 'G', 'C', 'C'], B: ['Am', 'Em', 'F', 'C', 'Dm', 'G'] }, bass: 'r.......f...',
                     mel: {
-                        A: "6 - 5 - 4 - 1 - | 3 - 2 - 1 - 5, - | 7, - 2 - 5 - 4 - | 3 - - - 2 - - .",
-                        B: "1' - 6 - 4 - 6 - | 5 - 3 - 1 - 3 - | 2 - 7, - 2 - 4 - | 3 - 6 - 1' - - - | 1' - 6 - 5 - 4 - | 3 - 5 - 1' - 5 - | 4 - 6 - 2' - 1' - | 7 - - - 5 - - -"
+                        A: "6 - - 1' - - | 7 - 5 - 2 - | 5 - - 7 - - | 1' - 6 - 3 - | 4 - 6 - 1' - | 2' - 7 - 5 - | 3' - - - 1' - | 5 - - - - .",
+                        B: "1' - 6 - 3 - | 5 - - 7 - - | 6 - 4 - 1 - | 3 - - 5 - - | 4 - 2 - 6 - | 5 - - 2 - -"
                     },
-                    form: [['A', 8], ['B', 8], ['A', 8, { harm: true }], ['bridge', 4, { mel: null, drums: 'sparse', fill: false }], ['B', 8], ['A', 8]]
+                    form: [['A', 8], ['B', 6, { chords: 'B' }], ['A', 8, { harm: true }], ['turn', 2, { mel: null, fill: false }]]
                 }
             ],
             server: [
-                {   // Boss Rush: A minor over a breakbeat, a riff of repeated notes, a galloping bass; the last chorus up a tone.
-                    name: 'Boss Rush', lvl: 0.67, scale: AEOL, breakbeat: true, chords: ['Am', 'F', 'G', 'Em', 'Am', 'F', 'Dm', 'E5'], bass: 'r.ror.rof.ror.ro',
+                {   // Boss Rush: 176 in D Dorian over the breakbeat: a riff of hammered 16ths on two fat squares, four bars
+                    // at a time; a six-bar second tune; and the whole last round up a tone.
+                    name: 'Boss Rush', lvl: 0.66, bpm: 176, scale: DOR, tonic: 5, oct: -1, breakbeat: true, lead: 'fat',
+                    chords: { A: ['Dm', 'Dm', 'C', 'G'], B: ['F', 'G', 'Em', 'Am', 'F', 'G'] }, bass: 'r.ror.rof.ror.ro',
                     mel: {
-                        A: "1 1 5 1' . 7 5 3 | 1 1 6 1' . 6 5 3 | 7, 7, 2 5 . 4 2 7, | 5, 5, 7, 2 . 5 2 7,",
-                        B: "1' - 7 - 1' - 3' - | 1' - 6 - 5 - 3 - | 2' - 1' - 7 - 5 - | 7 - 5 - 2 - - - | 1' - 5 - 1' - 3' - | 1' - 3' - 6 - 1' - | 4' - 3' - 2' - 6 - | 5 - - - 7 - 2' -"
+                        A: "1'+1' 5 1'+1' 5 7 5 4+5 7 | 1'+1' 5 1'+1' 5 3' - 1' - | 7+7 4 7+7 4 5 4 2+4 5 | 6+6 4 6+6 4 2' - 6 -",
+                        B: "3' - - - 1' - 5 - | 4' - - - 2' - 6 - | 2' - 1' - 6 - 4 - | 5 - - - 7 - 2' - | 3' - 1' - 5 - 3 - | 4 - 6 - 2' - 4' -"
                     },
-                    form: [['intro', 2, { mel: null }], ['A', 8], ['B', 8], ['A', 8, { harm: true }], ['break', 4, { mel: 'A', melGain: 0.7, drums: 'none', fill: false }],
-                        ['B', 8, { lift: 0.08 }], ['A', 8, { up: 2, harm: true, lift: 0.1 }], ['out', 2, { mel: null, fill: false }]]
+                    form: [['intro', 2, { mel: null }], ['A', 4], ['A', 4], ['B', 6, { chords: 'B' }], ['A', 4, { harm: true }], ['A', 4], ['break', 4, { mel: 'A', melGain: 0.7, drums: 'none', fill: false }],
+                        ['B', 6, { chords: 'B', lift: 0.08 }], ['A', 4], ['A', 4, { harm: true }], ['B', 6, { chords: 'B' }], ['A', 4],
+                        ['A', 4, { up: 2, harm: true, lift: 0.1 }], ['A', 4, { up: 2 }], ['B', 6, { chords: 'B', up: 2 }], ['A', 4, { up: 2, harm: true }], ['out', 2, { mel: null, fill: false }]]
                 },
-                {   // Turbo: the raised sixth over D, a race to the finish, and up a tone for the last lap.
-                    name: 'Turbo', lvl: 0.71, scale: AEOL, breakbeat: true, chords: ['Am', 'Am', 'C', 'D', 'Am', 'Am', 'F', 'G'], bass: 'rr.orr.orr.off.o',
+                {   // Turbo: a shuffle at 152 in G Mixolydian, bright: a boogie bass in 8ths, four on the floor, a tune that
+                    // skips. Three short laps, the last a tone up, and it's over inside a minute.
+                    name: 'Turbo', lvl: 0.79, bpm: 152, swing: 0.3, scale: MIXO, tonic: 10, oct: -1,
+                    chords: { A: ['G', 'G', 'F', 'C'], B: ['Em', 'F', 'C', 'G'] }, bass: 'r.o.f.o.r.o.f.o.',
                     mel: {
-                        A: "1' . 1' . 5 . 7 1' | . 1' 7 5 . 3 5 . | 5 . 5 . 3 . 5 1' | #6 . 5 . 4 - - .",
-                        B: "1 . 3 . 5 . 1' . | 7 . 5 . 3 . 5 . | 3' . 1' . 5 . 3 . | #6 . 4 . 1' . #6 . | 5 . 1' . 3' . 2' . | 1' . 7 . 5 - - . | 6 . 1' . 3' . 1' . | 2' . 7 . 5 . 2' ."
+                        A: "1 . 3 5 . 6 5 . | 1' - 5 . 3 . 5 . | 7 . 4 2 . 4 7 . | 4 - 6 - 1' - - .",
+                        B: "6 - 5 3 . 5 6 . | 7 - 4 2 . 4 7 . | 1' - 6 4 . 6 1' . | 2' - 1' - 5 - 3 -"
                     },
-                    form: [['intro', 4, { mel: null }], ['A', 8], ['B', 8], ['A', 8], ['B', 8, { harm: true }], ['A', 8, { up: 2, lift: 0.1 }]]
+                    form: [['intro', 1, { mel: null }], ['A', 4], ['A', 4], ['B', 4, { chords: 'B' }], ['A', 4, { harm: true }], ['B', 4, { chords: 'B' }],
+                        ['A', 4, { up: 2, lift: 0.1 }], ['B', 4, { chords: 'B', up: 2 }], ['A', 4, { up: 2, harm: true }]]
                 }
             ],
             snare: [
-                {   // Sneaking Mission: an 8-bit infiltration: a triangle bass tiptoeing, a pulse creeping up the A minor.
-                    name: 'Sneaking Mission', lvl: 1.34, rest: 1.29, slvl: 0.91, srest: 1.27, scale: AEOL, chords: ['Am', 'Am', 'F', 'G', 'Am', 'Am', 'F', 'Esus4'],
-                    bass: 'r...f...r...f.o.', walk: true, kick: 'x.......x.......', hush: 0.5, tick: '..x...x...x...x.', cut: 0.85,
+                {   // Sneaking Mission: five beats to the bar at 116 (3 + 3 + 2 + 2): a triangle bass on the long counts, a
+                    // pulse creeping up the A minor and ducking back.
+                    name: 'Sneaking Mission', lvl: 1.53, rest: 1.29, slvl: 0.91, srest: 1.27, bpm: 116, steps: 20, scale: AEOL,
+                    chords: { A: ['Am', 'Am', 'F', 'G'], B: ['Dm', 'Am', 'F', 'Esus4'] },
+                    bass: 'r.....r.....f...o...', walk: true, kick: 'x.....x.....o...o...', hush: 0.5, tick: '..x...x...x...x...x.', cut: 0.85,
+                    kit: { kick: 'x.....x.............', snare: '............x...x...', hat: 'x.x.x.x.x.x.x.x.x.x.' },
                     mel: {
-                        A: "1 . 1 . . . 3 . | 5, . . . . . . . | 6 . 6 . . . 1' . | 5 - - - . . . .",
-                        B: "1 . 3 . 5 . 1' . | 7 . 5 . 3 . 5 . | 6 . 1' . 3' . 1' . | 2' - - - 7 - - - | 1' . 1' . 7 . 5 . | 3 . 5 . 1' - - - | 6 . 4 . 6 . 1' . | 2' - - - 1' - - -"
+                        A: "1 . . 1 . . 3 . 5 . | 5, . . . . . . . . . | 6 . . 6 . . 1' . 4' . | 2' - - - . . 7 . 5 .",
+                        B: "4 . 6 . 1' . 6 . 4 . | 5 . 3 . 1 . 3 . 5 . | 6 . 4 . 1 . 4 . 6 . | 2 - - - 5 - - - . ."
                     },
-                    form: [['in', 4, { mel: null }], ['A', 8], ['B', 8], ['A', 8], ['wait', 4, { mel: null, fill: false }], ['B', 8], ['A', 8]]
+                    form: [['in', 2, { mel: null }], ['A', 4], ['B', 4, { chords: 'B' }], ['A', 4], ['wait', 2, { mel: null, fill: false }], ['B', 4, { chords: 'B' }], ['A', 4, { harm: true }], ['B', 4, { chords: 'B' }], ['A', 4]]
                 },
                 {   // Hide and Seek: A minor seen from C, sus chords that never land, a pulse peeking out and back.
                     name: 'Hide and Seek', lvl: 1.58, rest: 1.51, slvl: 0.85, srest: 1.29, scale: ION, tonic: 3, chords: ['Am', 'Am', 'Fmaj7', 'Fmaj7', 'Dm7', 'Dm7', 'Gsus4', 'Gsus4'],

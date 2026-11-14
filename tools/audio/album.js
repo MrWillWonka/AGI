@@ -47,12 +47,13 @@ const START = 0.55;      // the music's first downbeat is 0.6 s into a render
         if (r.faults.length) throw new Error(`${style} ${song.name}: ${r.faults[0]}`);
         const file = `audio/${String(++n).padStart(2, '0')}-${style}-${slug(song.name)}.mp4`;
         const e = encode(raw, path.join(out, file), START, song.seconds, 1.2);
-        tracks.push({ file, theme: style, name: song.name, area, bpm: song.bpm, seconds: song.seconds, ...e });
+        const pulse = Math.round(4 * song.bpm / song.tempo);
+        tracks.push({ file, theme: style, name: song.name, area, bpm: song.tempo, meter: { '16/4': '4/4', '12/4': '3/4', '12/6': '6/8', '12/3': '12/8', '14/4': '7/8', '20/4': '5/4' }[song.steps + '/' + pulse] || '', seconds: song.seconds, ...e });
         console.log(`${file.padEnd(46)} ${String(song.seconds).padStart(4)} s  ${e.lufs} LUFS  ${e.truePeak} dBTP  ${(e.bytes / 1048576).toFixed(1)} MB`);
         // The sampler: eight seconds of each track's first server-room song, from the top of its tune.
         if (area === 'server' && i === 0) {
             const sec = song.sections.find(x => x.mel != null && x.drums === 'full') || song.sections[0];
-            const from = 0.6 + sec.start * 16 * (60 / song.bpm / 4), p = path.join(out, 'tmp', `part-${style}.mp4`);
+            const from = 0.6 + sec.start * song.steps * (60 / song.bpm / 4), p = path.join(out, 'tmp', `part-${style}.mp4`);
             encode(raw, p, from, 8, 0.35);
             parts.push(p);
         }

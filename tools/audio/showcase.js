@@ -28,7 +28,7 @@ const ORDER = ['classic', 'dark', 'soft', 'ominous', 'retro'];
         const song = cat[style].songs.server[0];
         // From the top of the tune: the first section with a melody and the full kit.
         const sec = song.sections.find(x => x.mel != null && x.drums === 'full') || song.sections[0];
-        const bar = 16 * (60 / song.bpm / 4), from = 0.6 + sec.start * bar;
+        const bar = song.steps * (60 / song.bpm / 4), from = 0.6 + sec.start * bar;
         const raw = path.join(out, 'tmp', style + '.wav');
         await R.render(s, R.PRESETS.song({ style, area: 'server', song: 1, seconds: from + each + 2 }), raw, { measure: false });
         const cut = (dst, secs) => {

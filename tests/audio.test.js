@@ -72,7 +72,7 @@ test('the five tracks build with no fault: thirty songs, each with a name, a for
             assert.ok(s.bars > 0 && s.sections.length >= 3, `${s.name}: a form`);
             assert.ok(s.sections[0].entry, `${s.name}: its first section is an entry`);
             assert.strictEqual(s.sections.reduce((a, x) => a + x.bars, 0), s.bars);
-            assert.ok(s.seconds >= 60 && s.seconds <= 260, `${s.name}: ${s.seconds} s`);
+            assert.ok(s.seconds >= 35 && s.seconds <= 260, `${s.name}: ${s.seconds} s`);
             for (const x of s.sections) {
                 assert.ok(['full', 'sparse', 'none'].includes(x.drums));
                 if (x.mel != null) assert.ok(s.melodies[x.mel] > 0, `${s.name} ${x.name}: melody ${x.mel}`);
@@ -107,6 +107,35 @@ test('each track is its own: a tempo, a layer order, a space, and forms that dif
         assert.strictEqual(cat[th].meter, 4, th + ' meter parts');
         for (const fx of ['smash', 'windup', 'crunch', 'flow', 'freeze', 'release', 'viral', 'system']) assert.ok(cat[th].own.includes(fx), `${th} writes its own ${fx}`);
     }
+});
+
+test('a track\'s six songs are not one song six times: tempos, meters, lengths, phrase lengths and leads differ', () => {
+    const cat = win.SFX.catalog;
+    for (const th of THEMES) {
+        const songs = ['lab', 'server', 'snare'].flatMap(a => cat[th].songs[a]);
+        const kinds = k => new Set(songs.map(k)).size;
+        assert.ok(kinds(x => x.bpm + '/' + x.steps + '/' + x.swing) >= 5, th + ': at least five different pulses (tempo, meter, swing)');
+        assert.ok(kinds(x => x.steps) >= 2, th + ': more than one meter');
+        assert.ok(kinds(x => x.lead) >= 3, th + ': at least three lead voices');
+        const secs = songs.map(x => x.seconds).sort((a, b) => a - b);
+        assert.ok(secs[5] >= 2 * secs[0], `${th}: the longest song is at least twice the shortest (${secs.join(', ')} s)`);
+        for (let i = 1; i < 6; i++) for (let j = 0; j < i; j++) assert.ok(Math.abs(songs[i].seconds - songs[j].seconds) >= 4 || songs[i].bpm !== songs[j].bpm, `${th}: ${songs[i].name} and ${songs[j].name} run the same length at the same tempo`);
+        // Phrases: not every tune and progression is four or eight bars.
+        const odd = songs.filter(x => [...Object.values(x.melodies), ...Object.values(x.progressions).map(p => p.length)].some(n => n % 4));
+        assert.ok(odd.length >= 2, th + ': at least two songs with a phrase that is not four or eight bars');
+    }
+});
+
+test('a song in another meter keeps its bar: melodies, bass and drum patterns are checked against its steps', () => {
+    const { buildSong, scales } = win.SFX.lab;
+    const base = { scale: scales.AEOL, chords: ['Am', 'F'], form: [['A', 4]] };
+    const w = buildSong({ ...base, steps: 12, bass: 'r.......f...', mel: { A: '1 - 3 - 5 - | 4 - - - - .' }, kit: { kick: 'x.....x.....' } });
+    assert.strictEqual(w.steps, 12);
+    assert.strictEqual(w.mel.A.length, 24);
+    assert.throws(() => buildSong({ ...base, steps: 12, mel: { A: '1 - 3 - 5 - 3 -' } }), /whole bars of 12/);
+    assert.throws(() => buildSong({ ...base, steps: 12, mel: { A: '1 - 3 - 5 -' }, bass: 'r.......r.......' }), /12 characters/);
+    assert.throws(() => buildSong({ ...base, mel: { A: '1 - 3 - 5 - 3 -' }, kit: { kick: 'x...' } }), /pattern kick/);
+    assert.throws(() => buildSong({ ...base, steps: 13, mel: { A: '1 -' } }), /steps a bar/);
 });
 
 test('melodies: whole bars, triplets, and a useful error', () => {
@@ -168,7 +197,7 @@ test('a section with no drums has none: no kick, hat, clap, shaker, rim or fill,
             if (e.ctx.currentTime - since < 0.4) { mark = e.ctx.log.length; return; }
             const sec = cat.sections[key];
             if (sec.drums === 'none') {
-                const end = since + sec.bars * 16 * (60 / cat.bpm / 4) - 0.4;
+                const end = since + sec.bars * cat.steps * (60 / cat.bpm / 4) - 0.4;
                 for (const n of e.ctx.log.slice(mark)) if (n.t < end && reaches(n, beat())) assert.fail(`${th} ${cat.name}, section ${sec.name}: a drum at ${n.t.toFixed(2)} s`);
                 checked++;
             }
@@ -206,7 +235,12 @@ test('back from a stall the music picks up from now: no burst of the notes it mi
 
 test('a held job plays its figure on the track\'s grid, at the track\'s own rate, and stops with the hold', () => {
     const E = require('../engine.js');
-    const expect = { classic: 124 * 2 / 60, dark: 130 * 2 / 60, soft: 93 * 2 / 60, ominous: 62 * 4 / 60, retro: 144 * 2 / 60 };
+    // The figure's grid is the division of the playing song's 16th nearest an 8th at 124 BPM (a track may set its own).
+    const expect = {};
+    for (const th of THEMES) {
+        const c = win.SFX.catalog[th], step = 60 / c.songs.lab[0].bpm / 4;
+        expect[th] = 1 / ((c.holdDiv || 2 * Math.pow(2, Math.round(Math.log2(0.121 / step)))) * step);
+    }
     for (const th of THEMES) {
         const e = engine(th, { area: 'lab', training: false });
         e.run(2);
@@ -262,7 +296,7 @@ test('changing track and room a hundred times leaves the music running at the ri
         e.run(0.4 + (i % 5) * 0.3);
         const now = e.sfx.song;
         assert.ok(now, `music is playing after switch ${i}`);
-        assert.strictEqual(now.bpm, cat[th].bpm, `switch ${i}: ${th} plays at its tempo`);
+        assert.strictEqual(now.bpm, cat[th].songs[area][now.song - 1].bpm, `switch ${i}: ${th} plays its song's tempo`);
     }
     assert.deepStrictEqual(e.faults, []);
 });

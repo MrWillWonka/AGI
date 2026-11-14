@@ -44,27 +44,53 @@
             step(t, s, k, len, L, c) {
                 const ch = c.chord, song = c.song;
                 // Drums. A sparse section is the kick alone; a section with none has none (hats included).
-                const kg = kickLevel(c, s, s % 4 === 0);
+                // A song may bring its own drum patterns (`kit`), bass (`bassVoice`), chords (`compVoice`) and lead (`lead`).
+                const K = c.kit;
+                const kg = kickLevel(c, s, K ? K.kick : s % 4 === 0);
                 if (kg) kick(t, 0.5 * kg, 150, 45, 0.28, { drive: 0.12 });
-                if (c.drums && !c.sparse) {
+                if (c.drums && !c.sparse && K) {
+                    if (K.hat === 2 && L.off > 0.02) hat(t, (0.055 + 0.04 * k) * L.off, 0.2, { pan: 0.25, rev: 0.15 });
+                    else if (K.hat === 1 && L.off > 0.02) hat(t, (0.07 + 0.05 * k) * L.off, 0.06, { pan: 0.25, rev: 0.12 });
+                    else if (K.hat && L.sixteenth > 0.02) hat(t, 0.045 * L.sixteenth, 0.025, { pan: -0.3 });
+                    if (K.snare && L.clap > 0.02) clap(t, 0.15 * K.snare * L.clap, { rev: 0.3, pan: -0.05 });
+                } else if (c.drums && !c.sparse) {
                     // A ghost kick into the next phrase, some of the times a phrase ends.
-                    if (!song.kick && c.last && s === 14 && c.pick(3, 1) === 0) kick(t, 0.22, 140, 50, 0.16);
+                    if (!song.kick && c.last && s === c.steps - 2 && c.pick(3, 1) === 0) kick(t, 0.22, 140, 50, 0.16);
                     if (L.off > 0.02 && s % 4 === 2) hat(t, (0.07 + 0.05 * k) * L.off * (s === 10 ? 1.15 : 1), 0.07, { pan: 0.25, rev: 0.12 });
                     if (L.clap > 0.02 && (s === 4 || s === 12)) clap(t, 0.15 * L.clap, { rev: 0.3, pan: -0.05 });
                     if (L.sixteenth > 0.02 && s % 2 === 1) hat(t, 0.05 * L.sixteenth * [0.6, 1, 0.75, 1][(s >> 1) % 4], 0.025, { pan: -0.3 });
                 }
                 // The bass: the song's line, leaning on the beats, each note held and let go.
                 const b = c.bassOn && bassAt(song, s, ch);
-                if (b) note(t, b, len * 1.9, (s % 4 === 0 ? 0.2 : 0.155) * L.bass, { type: 'sawtooth', cutoff: 200 + 1500 * k, q: 4, env: 1.2, envTime: 0.09, sus: 0.55, dec: 0.07, rel: 0.04 });
+                if (b && song.bassVoice === 'sub') {         // a sub that holds, with a soft octave over it
+                    note(t, b, len * 3.6, 0.13 * L.bass, { type: 'sine', attack: 0.012, sus: 0.8, dec: 0.12, rel: 0.12 });
+                    note(t, b + 12, len * 2.4, 0.03 * L.bass, { type: 'triangle', cutoff: 500 + 600 * k, sus: 0.5, dec: 0.1, rel: 0.08 });
+                } else if (b && song.bassVoice === 'pluck') note(t, b, len * 0.9, 0.2 * L.bass, { type: 'square', cutoff: 260 + 1700 * k, q: 6, env: 2.4, envTime: 0.06 });
+                else if (b) note(t, b, len * 1.9, (s % 4 === 0 ? 0.2 : 0.155) * L.bass, { type: 'sawtooth', cutoff: 200 + 1500 * k, q: 4, env: 1.2, envTime: 0.09, sus: 0.55, dec: 0.07, rel: 0.04 });
                 // Dub chords: detuned saws through a filter that snaps shut, spread a little, into the delay.
-                if (L.pad > 0.02 && c.comp.includes(s)) ch.v.forEach((n, i) => note(t, n, len * 1.5, 0.021 * L.pad,
+                if (L.pad > 0.02 && c.comp.includes(s) && song.compVoice === 'pad') ch.v.forEach((n, i) => note(t, n, len * (c.steps - s) * 0.96, 0.008 * L.pad,
+                    { type: 'sawtooth', detune: i % 2 ? 6 : -6, cutoff: 520 + 900 * k, q: 0.8, attack: 0.3, sus: 0.85, dec: 0.3, rel: 0.5, rev: 0.45, pan: (i - 1.5) * 0.25 }));
+                else if (L.pad > 0.02 && c.comp.includes(s)) ch.v.forEach((n, i) => note(t, n, len * 1.5, 0.021 * L.pad,
                     { type: 'sawtooth', detune: i % 2 ? 7 : -7, cutoff: 650 + 1500 * k, q: 2.5, env: 1.6, envTime: 0.12, dly: 0.6, rev: 0.25, pan: (i - 1.5) * 0.18 }));
                 // A pad breathing under it: the chord's outer notes every other bar, slow in, far back.
                 if (L.pad > 0.3 && s === 0 && c.barIn % 2 === 0 && !song.kick) pad(t, [ch.v[0], ch.v[ch.v.length - 1]], len * 30, 0.008 * L.pad, 'triangle', 900 + 600 * k, { rev: 0.5, pan: -0.2 });
                 // The arpeggio starts a step later each bar, so the figure turns over a four-bar phrase.
                 if (L.arp > 0.02) note(t, ch.v[(s + 2 * (c.bar % 4)) % ch.v.length] + 12, len * 0.9, 0.035 * L.arp,
                     { wave: 'pulse25', cutoff: 1200 + 2000 * L.arp, q: 2, pan: s % 2 ? 0.45 : -0.45, dly: 0.25, low: true });
-                if (c.mel) {
+                if (c.mel && song.lead === 'glass') {         // a glass bell that rings on into the delay
+                    const d = Math.max(0.5, len * c.mel.len);
+                    note(c.mel.t, c.mel.n, d, 0.055 * c.melGain, { type: 'sine', fm: { ratio: 3.5, index: 1.3, decay: 0.3, sus: 0.05 }, attack: 0.004, sus: 0.3, dec: 0.5, rel: 0.6, dly: 0.6, rev: 0.4, pan: -0.1 });
+                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.026 * c.harmGain * c.melGain, { type: 'sine', sus: 0.3, dec: 0.5, rel: 0.6, rev: 0.4, pan: 0.3, low: true });
+                } else if (c.mel && song.lead === 'pluck') {  // a muted saw pluck, each note shut by its filter
+                    const d = Math.min(len * c.mel.len * 0.92, len * 1.8);
+                    note(c.mel.t, c.mel.n, d, 0.065 * c.melGain, { type: 'sawtooth', cutoff: 800 + 1900 * k, q: 6, env: 3, envTime: 0.07, dly: 0.35, rev: 0.1, pan: s % 4 >= 2 ? 0.2 : -0.2 });
+                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.03 * c.harmGain * c.melGain, { type: 'sawtooth', cutoff: 1200, q: 4, env: 2, envTime: 0.07, pan: 0.35, low: true });
+                } else if (c.mel && song.lead === 'pad') {    // two soft triangles swelling in
+                    const d = len * c.mel.len * 1.05;
+                    for (const dt of [-9, 9]) note(c.mel.t, c.mel.n, d, 0.034 * c.melGain, { type: 'triangle', detune: dt, cutoff: 1900, attack: Math.min(0.12, d * 0.3), sus: 0.8, dec: 0.2, rel: 0.35, rev: 0.45, dly: 0.25, pan: dt > 0 ? 0.2 : -0.2,
+                        vib: c.mel.len >= 4 ? { rate: 4.6, depth: 8, delay: 0.25 } : null });
+                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.022 * c.harmGain * c.melGain, { type: 'triangle', cutoff: 1400, attack: 0.1, sus: 0.8, dec: 0.2, rel: 0.35, rev: 0.4, pan: 0.35, low: true });
+                } else if (c.mel) {
                     const d = len * c.mel.len * 0.92, long = c.mel.len >= 4;
                     note(c.mel.t, c.mel.n, d, 0.05 * c.melGain, { type: 'square', cutoff: 1700 + 1500 * k, q: 2, sus: 0.6, dec: 0.1, rel: 0.06, dly: 0.45, rev: 0.15,
                         vib: long ? { rate: 5.2, depth: 9, delay: 0.18 } : null });
@@ -88,18 +114,19 @@
         // song measures the same; a stealth song's `rest` lifts its tones while its drums are hushed.
         songs: {
             lab: [
-                {   // Night Survey: two bars a chord, a long-breathed line and its answer; B drifts through F and E minor
-                    // to a G that never lands. It never touches a dominant: it floats.
-                    name: 'Night Survey', lvl: 1.05, scale: AEOL,
-                    chords: { A: ['Am9', 'Am9', 'Fmaj7', 'Fmaj7', 'Cmaj7', 'Cmaj7', 'Dm7', 'Cmaj7'], B: ['Fmaj9', 'Fmaj9', 'Em7', 'Em7', 'Dm9', 'Dm9', 'G6', 'Gsus4'] },
-                    bass: { A: 'r..r..o.r..r.f..', B: 'r.....r...o..f..' }, comp: { A: [2, 10], B: [6, 14] },
+                {   // Night Survey: slow dub in D Dorian at 98, half-time: a sub, held chords, a glass bell with long echoes.
+                    // Phrases of six bars and five; it takes its time (two and a half minutes) and never lands.
+                    name: 'Night Survey', lvl: 0.99, bpm: 98, scale: DOR, tonic: 5, oct: -1, lead: 'glass', bassVoice: 'sub', compVoice: 'pad',
+                    kit: { kick: 'x.......o.x.....', snare: '........x.......', hat: '..x...x...x...xo' },
+                    chords: { A: ['Dm9', 'Dm9', 'Am7', 'Am7', 'Fmaj7', 'G6'], B: ['Fmaj7', 'Em7', 'Dm9', 'Cmaj7', 'G6'] },
+                    bass: { A: 'r.........r...f.', B: 'r.....r.....f...' }, comp: { A: [0], B: [0, 10] },
                     mel: {
-                        A: "5 - 1' - 7 5 - 3 | 4 3 1 - - - . . | 3 - 5 - 6 5 3 1 | 2 - 3 - 7, - - . | 5 - 7 - 1' 7 5 - | 3 - - - 5 - . 2+3 | 4 - 6 - 1' 6 4 - | 3 - 2 - 3 - - .",
-                        B: "1' - - 7 1' - 3' - | 3' - 1' - 7 - 5 - | 5 - - 7 2' - 7 - | 4' - 2' - 7 - 5 - | 6 - - 4 6 - 1' - | 3' - 1' - 6 - 4 - | 7 - 2' - 4' - 2' - | 3' - - - 4' - - ."
+                        A: "5 - - - 7 - 1' - | 2' - - - - - 1' 7 | 5 - - - - - 4 5 | 2 - - - - - . . | 3 - - - 5 - 7 - | 6 - - - 4 - - .",
+                        B: "1' - - 7 5 - 3 - | 2 - - - 4 - 6 - | 5 - - - 3 - 1 - | 2 - 4 - 7, - - - | 6, - - - 2 - - ."
                     },
-                    form: [['intro', 4, { mel: null, drums: 'sparse' }], ['A', 8], ['B', 8, { chords: 'B' }], ['A', 8, { harm: true }],
-                        ['dub', 4, { mel: null, chords: 'B', drums: 'none', lift: -0.15, fill: false }], ['dub', 4, { mel: null, chords: 'B', from: 4, drums: 'sparse', entry: false }],
-                        ['B', 8, { chords: 'B' }], ['A', 8], ['out', 4, { mel: null, drums: 'sparse', fill: false }]]
+                    form: [['intro', 6, { mel: null, drums: 'none' }], ['A', 6, { drums: 'sparse' }], ['A', 6], ['B', 5, { chords: 'B' }], ['A', 6, { harm: true }],
+                        ['drift', 5, { mel: null, chords: 'B', drums: 'none', bassOn: false, lift: -0.15, fill: false }], ['B', 5, { chords: 'B' }], ['A', 6], ['B', 5, { chords: 'B', harm: true }],
+                        ['A', 6], ['A', 6, { melGain: 0.7, drums: 'sparse', fill: false }], ['out', 3, { mel: null, drums: 'none', fill: false }]]
                 },
                 {   // Uptime: i – VI – III – VII, wide and hopeful, chords late in the bar. A turns back through G; only B
                     // takes the E7 home, so the dominant is an event.
@@ -127,38 +154,44 @@
                         ['break', 4, { mel: 'A', melGain: 0.6, drums: 'none', bassOn: false, fill: false }], ['build', 4, { mel: null, drums: 'sparse', from: 4, entry: false }],
                         ['B', 8, { chords: 'B', lift: 0.1 }], ['A', 8], ['out', 2, { mel: null, fill: false }]]
                 },
-                {   // Packet Storm: the Andalusian cadence (Am – G – F – E) under a busy hook; B opens out in long notes
-                    // over F, G and C before the E7 pulls it back.
-                    name: 'Packet Storm', lvl: 0.88, scale: AEOL,
-                    chords: { A: ['Am', 'G', 'Fmaj7', 'E7', 'Am', 'G', 'Dm9', 'E7'], B: ['Fmaj7', 'G', 'Am', 'Am', 'Dm9', 'G', 'C6', 'E7'] },
-                    bass: { A: 'r.o.r.o.r.o.f.o.', B: 'r.o.r.f.r.o.r.o.' }, comp: { A: [2, 7, 10], B: [2, 10] },
+                {   // Packet Storm: electro at 136 in E Phrygian: a broken kick, a plucked riff in 16ths over a four-bar loop;
+                    // B opens into six bars of long notes. Short and hard: it starts on the riff and is over in 70 seconds.
+                    name: 'Packet Storm', lvl: 1.78, bpm: 136, scale: PHRY, tonic: 7, oct: -1, lead: 'pluck', bassVoice: 'pluck',
+                    kit: { kick: 'x.....x...x.....', snare: '....x.......x..o', hat: 'x.x.x.xOx.x.x.xO' },
+                    chords: { A: ['Em', 'Em', 'F', 'Dm'], B: ['Am', 'G', 'F', 'Em', 'Dm', 'F'] },
+                    bass: { A: 'r.rr.rr.r.rr.ro.', B: 'r..r..r.r..r..f.' }, comp: { A: [3, 11], B: [3, 10] },
                     mel: {
-                        A: "1' 7 1' 5 . 1' 7 5 | 7 5 7 2 . 7 5 2 | 6 5 6 1 . 6 5 3 | #7, 2 #7, 2 3 2 #7, .",
-                        B: "1' - - - 3' - 1' - | 2' - 7 - 4' - - . | 3' - 2'+3' 2'+1' 7 - 5 - | 1' - - - 5 - - . | 6 - 1' - 4' - 3' - | 2' - - - 7 - 4 - | 3 - 5 - 7 - 1' - | #7 - 2' - #7 - . ."
+                        A: "1'+1' 7+1' . 5 1'+1' 7+1' . 3 | 1'+1' 7+1' . 5 7 - 5 - | 2'+2' 1'+2' . 6 2'+2' 1'+2' . 4 | 7+7 6+7 . 4 6 - 4 -",
+                        B: "4 - - - 6 - 1' - | 7 - - - 5 - 3 - | 2 - - - 4 - 6 - | 5 - - - 3 - 1 - | 7, - - 2 4 - 2 - | 2 - 4 - 6 - 2' -"
                     },
-                    form: [['intro', 2, { mel: null, drums: 'sparse' }], ['A', 8], ['B', 8, { chords: 'B' }], ['A', 8, { harm: true, lift: 0.06 }],
-                        ['break', 4, { mel: 'B', melGain: 0.6, chords: 'B', drums: 'none', bassOn: false, fill: false }], ['break', 4, { mel: 'B', melGain: 0.8, chords: 'B', from: 4, drums: 'sparse', entry: false }],
-                        ['A', 8], ['B', 8, { chords: 'B' }], ['A', 4], ['out', 2, { mel: null, fill: false }]]
+                    form: [['A', 4], ['A', 4], ['B', 6, { chords: 'B' }], ['A', 4, { harm: true, lift: 0.08 }], ['A', 4],
+                        ['break', 3, { mel: null, drums: 'none', bassOn: false, fill: false }], ['B', 6, { chords: 'B', lift: 0.1 }], ['A', 4], ['A', 4, { harm: true }], ['out', 2, { mel: null, fill: false }]]
                 }
             ],
             snare: [
-                {   // Packet Sniffer: dub techno gone quiet: Am9 and Dm9 hanging on an unresolved Esus4, one muted stab a bar.
-                    name: 'Packet Sniffer', lvl: 1.38, rest: 1.40, slvl: 0.82, srest: 1.34, scale: AEOL, chords: ['Am9', 'Am9', 'Fmaj7', 'Fmaj7', 'Dm9', 'Dm9', 'Esus4', 'Esus4'],
-                    bass: 'r..r......r.....', comp: [10], kick: 'x.........x.....', hush: 0.45, tick: '..o..x..o.o..x..', cut: 0.75,
+                {   // Packet Sniffer: 6/8 at 75 to the dotted quarter: a rocking pulse, muted plucks in six-bar phrases over
+                    // Am9 and an Esus4 that never resolves. Under a minute.
+                    name: 'Packet Sniffer', lvl: 1.87, rest: 1.40, slvl: 0.82, srest: 1.34, bpm: 112, steps: 12, pulse: 6, scale: AEOL, lead: 'pluck',
+                    chords: ['Am9', 'Fmaj7', 'Dm9', 'Am9', 'Fmaj7', 'Esus4'],
+                    bass: 'r.....f.....', comp: [6], kick: 'x.....o.....', hush: 0.45, tick: '..o..x..o..x', cut: 0.75,
+                    kit: { kick: 'x.........o.', snare: '......x.....', hat: 'x.ox.ox.ox.o' },
                     mel: {
-                        A: "5, . . 1 . . 3 . | 1 - - - . . . . | 5 . . . 1' . . . | 5 - - - . . . .",
-                        B: "1 . 1 . 3 . 5 . | 7 - - - 5 . 3 . | 1 . 1 . 3 . 5 . | 1' - - - 5 - - - | 6 . 4 . 3 . 1 . | 3 - - - 5 - - - | 5 . 4 . 5 . 1' . | 2' - - - 1' - - -"
+                        A: "5, . 1 . 3 . | 1 - - - . . | 4 . 3 . 6, . | 5, - - - . . | 1 . 3 . 5 . | 4 - - - 2 .",
+                        B: "1 . 3 5 . 7 | 6 - - 5 3 . | 4 . 6 1' . 6 | 5 - - 3 1 . | 6 . 5 3 . 1 | 2 - - - 5, -"
                     },
-                    form: [['in', 4, { mel: null }], ['A', 8], ['B', 8], ['A', 8], ['wait', 4, { mel: null, bassOn: false, fill: false }], ['B', 8], ['A', 8]]
+                    form: [['in', 2, { mel: null }], ['A', 6], ['B', 6], ['A', 6], ['wait', 3, { mel: null, bassOn: false, fill: false }], ['B', 6], ['A', 6, { harm: true }]]
                 },
-                {   // Dead Drop: i – v – VI – VII held on sus chords, a bass that steps and stops.
-                    name: 'Dead Drop', lvl: 1.2, rest: 1.36, slvl: 0.85, srest: 1.30, scale: AEOL, chords: ['Am7', 'Am7', 'Em7', 'Em7', 'Fmaj7', 'Fmaj7', 'Gsus4', 'Gsus4'],
-                    bass: 'r..r..r.....r...', comp: [6], kick: 'x......x........', hush: 0.45, tick: 'o..x..o...o..x..', cut: 0.75,
+                {   // Dead Drop: 7/8 (2 + 2 + 3), a limp in the step: a soft lead over i – v – VI – VII, a chord a bar,
+                    // the bass stepping and stopping.
+                    name: 'Dead Drop', lvl: 0.92, rest: 1.36, slvl: 0.85, srest: 1.30, steps: 14, scale: AEOL, lead: 'pad', bassVoice: 'sub',
+                    chords: ['Am7', 'Em7', 'Fmaj7', 'Gsus4'],
+                    bass: 'r.......r...f.', comp: [8], kick: 'x.......o.....', hush: 0.45, tick: '..x...x....x..', cut: 0.75,
+                    kit: { kick: 'x.......x.....', snare: '....x.....x...', hat: '..x...x...x.x.' },
                     mel: {
-                        A: ". . 3 . . . 1 . | 5, - - - . . . . | . . 5 . . . 4 . | 5 - - - . . . .",
-                        B: "1 . . 3 . . 5 . | 3 - - - 1 - - - | 5 . . 7 . . 2' . | 7 - - - 5 - - - | 6 . . 1' . . 3' . | 1' - - - 5 - - - | 4 . . 5 . . 1' . | 4 - - - 5 - - -"
+                        A: "3 - - . 1 - . | 5, - - - - . . | 3 - - . 5 - . | 4 - - - - . .",
+                        B: "1 . 3 . 5 - - | 7 . 5 . 2 - - | 6 . 1' . 3' - - | 4' - - - 4 - . | 5 . 3 . 1 - - | 2 . 5 . 7 - - | 1' . 6 . 4 - - | 4 - - - - . ."
                     },
-                    form: [['A', 8], ['B', 8], ['wait', 4, { mel: null, bassOn: false, fill: false }], ['A', 8], ['B', 8], ['A', 8, { harm: true }]]
+                    form: [['A', 4], ['A', 4], ['B', 8], ['wait', 2, { mel: null, bassOn: false, fill: false }], ['A', 4], ['B', 8], ['A', 4, { harm: true }], ['A', 4]]
                 }
             ]
         },
