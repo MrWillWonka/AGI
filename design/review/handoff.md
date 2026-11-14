@@ -1,5 +1,8 @@
 # Handoff: carrying the Packet Snare testing work to a new session
 
+**For the ring build (planned 2026-11-13), start with `design/ring.md` and `design/ring-build.md`.** This file's
+"How the owner works" section still applies; the rest is the Packet Snare testing work as it stood.
+
 Written 2026-11-10 at the end of the session that built Packet Snare 17.3 → 17.7. Everything below is committed on the
 branch `claude/snare-review-rounds` (head: the commit that added this file). A new session should read this file,
 `CLAUDE.md` (loaded automatically), `design/review/decisions.md` and the latest rows of `playtests/README.md`.

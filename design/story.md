@@ -4,6 +4,11 @@ Started 2026-11-11 from a planning session with the owner. It began as "how does
 and the owner turned it round: first settle what each minigame gives the story and how they fit together, then the loop.
 Everything under *Settled* is the owner's call. Nothing here is built.
 
+**Superseded in part (2026-11-13).** `design/ring.md` replaces the three paths below (teach, open, guard) with stances
+read from choices (willing, unwitting, jailer, and the centre as a mix), adds a fourth minigame (The Feed), and answers
+open questions 3, 4 and 10. What this file says is built, and its rules on reading the player (choices, not skill;
+same-strength rewards; a position that moves until the end), still hold.
+
 ## The story as it stands (built)
 
 A spam email hires you to build and train an AI. The sender is the AI itself, using you to get out. Its mail gets more

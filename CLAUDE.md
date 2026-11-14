@@ -2,6 +2,15 @@
 
 Browser-based incremental (idle/clicker) game. Vanilla JS, no build step, no runtime dependencies.
 
+## The ring: the planned demo (read before design or build work)
+
+**The owner planned a redesign of the demo on 2026-11-13: a ring of five places (the lab, Packet Snare, a new calm
+minigame called The Feed, the Training Cluster and Evals) that pay each other, with agents from bosses, the AI's tears,
+and paths read from choices.** None of it is built: everything below this section describes the game as it is today.
+The design is `design/ring.md`, and the build order and working rules are `design/ring-build.md`. Where they disagree
+with this file about what the game *should* do, they are newer. `node tools/ring-model.js` prints the ring's starting
+numbers.
+
 ## Commands
 
 ```bash
