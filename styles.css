@@ -4245,3 +4245,8 @@ body.ring-device.device-phone .snare-tree-bar .button, body.ring-device.device-p
 .feed-card.rare { border-color: var(--warning); }
 .feed-card.rare em { color: var(--warning); }
 @media (max-width: 420px) { .feed-cards-row { flex-direction: column; } .feed-card { min-height: 0; flex: none; } .feed-card span { flex: none; } }
+/* In a session the bar also carries End: on a narrow phone the title gives way so the × stays on screen. */
+.feed-bar { min-width: 0; }
+.feed-title { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
+.feed-close, .feed-end { flex: none; }
+@media (max-width: 520px) { .feed-bar:has(.feed-end:not([hidden])) .feed-title { display: none; } .feed-bar:has(.feed-end:not([hidden])) .feed-stat:first-of-type { margin-right: auto; } }
