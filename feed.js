@@ -120,7 +120,17 @@
         magnetRate: 160,    // Magnet: gold grains a second drawn toward the point you hold,
         magnetHop: 14,      // and how many cells each is drawn, at the most
         resoEvery: 2,       // Resonance: seconds between beats,
-        resoR: 1.6          // and the small circle round each mite a beat eats, in cells (the owner's call: much smaller than a pulse)
+        resoR: 1.6,         // and the small circle round each mite a beat eats, in cells (the owner's call: much smaller than a pulse)
+        siftEvery: 4,       // Sifter: seconds between sweeps (every other beat),
+        siftRise: 5,        // and how many cells each gold grain the beam crosses is shaken up
+        demoEvery: 4,       // Demolition bots: seconds between charges,
+        demoR: 4,           // and the circle a charge blows away, in cells
+        relayEvery: 3,      // Relay bots: seconds between chains,
+        relayBots: 2,       // the bots that hover over the pile,
+        relayMax: 30,       // and the grains a spark eats on one leg of the chain, at the most
+        drumEvery: 2,       // Drum line: seconds between beats,
+        drumSparks: 10,     // sparks in the row,
+        drumHit: 2          // and the bites each takes out of the grain it lands on: a grain with no more left is collected
     };
     // Cards (the owner's cards, 2026-11-14): a split in a session offers `cardChoices` of these and you pick one; it
     // lasts the session and stacks. `stat` is the dial it multiplies (`pay` is research per grain), `by` the multiplier
@@ -143,7 +153,11 @@
         defrag: { rare: true, combo: ['sorter', 'rhythm'] },   // garbled sand packed in a clump is rewritten into good sand
         tracer: { rare: true, combo: ['scanner', 'arc'] },     // sparks jump from each mite to gold in reach and take it
         magnet: { rare: true, combo: ['scanner', 'sorter'] },  // gold is drawn toward the point you hold
-        resonance: { rare: true, combo: ['pulse', 'rhythm'] }  // each beat sets off a small pulse at every mite at once
+        resonance: { rare: true, combo: ['pulse', 'rhythm'] }, // each beat sets off a small pulse at every mite at once
+        sifter: { rare: true, combo: ['scanner', 'rhythm'] },  // the beam sweeps on the beat and shakes the gold it crosses up toward the surface
+        demolition: { rare: true, combo: ['pulse', 'sorter'] },// bots fly to the biggest clumps of garbled sand and blow them away
+        relay: { rare: true, combo: ['arc', 'sorter'] },       // sparks jump mite to bot to mite across the pile
+        drum: { rare: true, combo: ['arc', 'rhythm'] }         // each beat a row of sparks drops on the pile: top and bottom layers are worn down, soft sand collected
     };
     const CARD_IDS = Object.keys(CARDS);
     const COMBOS = CARD_IDS.filter(id => CARDS[id].combo);
@@ -434,6 +448,60 @@
             let eaten = 0; for (const m of state.swarm) { const i = nearestWithin(state, m.x, m.y, 6); eaten += i < 0 ? 0 : burst(state, o, i % w + 0.5, Math.floor(i / w) + 0.5, o.resoR, out); }
             out.events.push({ type: 'shake', sunk: 0, eaten });
         }
+        // Sifter: the beam sweeps on the beat, showing the sand, and every gold grain it crosses is shaken up to
+        // `siftRise` cells through the sand above it.
+        if (c.sifter) {
+            if (!(s.sift >= 0) && state.grains && due('sift', 1, o.siftEvery)) { s.sift = 0; out.events.push({ type: 'shake', sunk: 0 }); }
+            if (s.sift >= 0) {
+                const to = Math.min(w, s.sift + o.scanSpeed * dt); let rose = 0;
+                for (let x = Math.floor(s.sift); x < Math.ceil(to) && x < w; x++) for (let y = 0; y < h; y++) {
+                    let i = y * w + x; const v = cells[i];
+                    if (!v || !settled(state, i)) continue;
+                    if (!seenOf(v)) cells[i] = v | 64;
+                    if (kindOf(v) !== KINDS.vein.id) continue;
+                    for (let n = 0; n < o.siftRise && i >= w; n++) { const u = cells[i - w]; if (!u || kindOf(u) === KINDS.vein.id || !settled(state, i - w)) break; cells[i] = u; cells[i - w] = v | 64; i -= w; rose++; }
+                }
+                s.sift = to >= w ? -1 : to;
+                if (rose) out.sifted = (out.sifted || 0) + rose;
+            }
+        } else if (s.sift >= 0) s.sift = -1;
+        // Demolition bots: a bot flies to a clump of garbled sand (else any garbled grain) and blows a circle of it away.
+        if (c.demolition) {
+            if (state.grains && due('demo', 1, o.demoEvery)) {
+                const bad = KINDS.garbled.id; let best = -1, bestN = -1;
+                for (let n = 0, from = Math.floor(rand(state) * cells.length), found = 0; n < cells.length && found < 40; n++) {
+                    const i = (from + n) % cells.length; if (kindOf(cells[i]) !== bad) continue;
+                    const x = i % w, y = (i - x) / w; let near = 0; found++;
+                    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const nx = x + dx, ny = y + dy; if (nx >= 0 && nx < w && ny >= 0 && ny < h && kindOf(cells[ny * w + nx]) === bad) near++; }
+                    if (near > bestN) { bestN = near; best = i; }
+                }
+                if (best >= 0) { const x = best % w + 0.5, y = Math.floor(best / w) + 0.5; s.dbot = { x, y }; burst(state, o, x, y, o.demoR, out); }
+            }
+        } else if (s.dbot) s.dbot = null;
+        // Relay bots: bots hover on the pile and a spark runs mite, bot, mite, bot… eating along every leg.
+        if (c.relay) {
+            if (state.grains && due('relay', 1, o.relayEvery)) {
+                s.rbots = [];
+                for (let b = 0; b < o.relayBots; b++) for (let n = 0, from = Math.floor(rand(state) * cells.length); n < cells.length; n++) { const i = (from + n) % cells.length; if (cells[i] && settled(state, i)) { s.rbots.push({ x: i % w + 0.5, y: Math.floor(i / w) + 0.5 }); break; } }
+                const chain = [];
+                for (let n = 0; n < Math.max(state.swarm.length, s.rbots.length); n++) { if (state.swarm[n]) chain.push(state.swarm[n]); if (s.rbots[n]) chain.push(s.rbots[n]); }
+                for (let n = 0; n + 1 < chain.length; n++) { const a = chain[n], b = chain[n + 1]; out.events.push({ type: 'arc', x1: a.x, y1: a.y, x2: b.x, y2: b.y, eaten: lineEat(state, o, a, b, o.relayMax, out), from: 'relay' }); }
+            }
+        } else if (s.rbots && s.rbots.length) s.rbots = [];
+        // Drum line (the owner's design): each beat a row of sparks drops on the pile. Each wears the top grain of its
+        // column and the one on the floor under it by `drumHit` bites: soft sand is collected, hard sand is left easier.
+        if (c.drum && state.grains && due('drum', 1, o.drumEvery)) {
+            const cols = []; for (let x = 0; x < w; x++) if (cells[(h - 1) * w + x]) cols.push(x);
+            const hits = []; let eaten = 0;
+            const strike = i => { const v = cells[i]; if (!v) return; const hp = hpOf(v) - o.drumHit; if (hp > 0) cells[i] = cell(kindOf(v), bandOf(v), hp, seenOf(v), airOf(v)); else { eat(state, o, i, out); eaten++; } };
+            for (let n = 0; n < o.drumSparks && cols.length; n++) {
+                const x = cols.splice(Math.floor(rand(state) * cols.length), 1)[0];
+                let top = 0; while (top < h - 1 && (!cells[top * w + x] || !settled(state, top * w + x))) top++;
+                strike(top * w + x); if (top < h - 1) strike((h - 1) * w + x);
+                hits.push([x + 0.5, top + 0.5]);
+            }
+            out.events.push({ type: 'drum', hits, eaten }, { type: 'shake', sunk: 0 });
+        }
         // Magnet: gold is drawn through the pile toward the point you hold (else the first mite).
         if (c.magnet && state.grains) {
             const to = state.aim || state.swarm[0];
@@ -445,6 +513,15 @@
                 if (carry(state, i, to.x, to.y, o.magnetHop) !== i) break;
             }
         }
+    }
+    // Eat the sand along the line from `a` to `b`, `max` grains at the most. Returns how many.
+    function lineEat(state, o, a, b, max, out) {
+        const { w, h, cells } = state, len = Math.hypot(b.x - a.x, b.y - a.y); let eaten = 0;
+        for (let k = 0, steps = Math.max(1, Math.ceil(len * 2)); k <= steps && eaten < max; k++) {
+            const x = Math.floor(a.x + (b.x - a.x) * k / steps), y = Math.floor(a.y + (b.y - a.y) * k / steps), i = y * w + x;
+            if (x >= 0 && x < w && y >= 0 && y < h && cells[i]) { eat(state, o, i, out); eaten++; }
+        }
+        return eaten;
     }
     // Carry the grain at `i` up to `hops` cells toward a point, through settled sand of other kinds (it changes
     // places with each grain on the way; never into empty space). Returns where it ends up.
@@ -514,7 +591,7 @@
         state.band = (state.band + 1) % o.bands;
         state.backlog.push({ sector: k, n: e.n, gold: e.gold, bad: e.bad, band: state.band });
         delete state.stock[k];
-        state.session = { sector: k, research: 0, time: 0, packets: e.n + e.gold + e.bad, cards: {}, offer: null, picks: 0, tt: {}, beam: -1, ring: null, bots: [] };
+        state.session = { sector: k, research: 0, time: 0, packets: e.n + e.gold + e.bad, cards: {}, offer: null, picks: 0, tt: {}, beam: -1, ring: null, bots: [], sift: -1, dbot: null, rbots: [] };
         state.life = 1; state.lastSession = null; state.stats.sessions++;
         return true;
     }
@@ -935,9 +1012,13 @@
                 const offer = Array.isArray(sess.offer) ? [...new Set(sess.offer.filter(id => typeof id === 'string' && Object.prototype.hasOwnProperty.call(CARDS, id)))].slice(0, o.cardChoices) : [];
                 state.session = { sector, research: whole(sess.research, 1e12), time: real(sess.time, 0, 1e7, 0), packets: whole(sess.packets, 1e8), cards, offer: offer.length ? offer : null, picks: offer.length ? Math.max(1, whole(sess.picks, 200)) : whole(sess.picks, 200) };
                 // The tools' clocks, the scanner's beam and the sorter bots.
-                const tt = {}; for (const key of ['scan', 'pulse', 'arc', 'sort', 'shake', 'sonar', 'storm', 'defrag', 'tracer', 'magnet', 'reso']) { if (typeof sess.tt?.[key] === 'number') tt[key] = real(sess.tt[key], 0, 1e4, 0); }
+                const tt = {}; for (const key of ['scan', 'pulse', 'arc', 'sort', 'shake', 'sonar', 'storm', 'defrag', 'tracer', 'magnet', 'reso', 'sift', 'demo', 'relay', 'drum']) { if (typeof sess.tt?.[key] === 'number') tt[key] = real(sess.tt[key], 0, 1e4, 0); }
                 state.session.tt = tt; state.session.beam = real(sess.beam, 0, FEED.w, -1);
                 const ring = sess.ring; state.session.ring = ring && typeof ring === 'object' ? { x: real(ring.x, 0, FEED.w, FEED.w / 2), y: real(ring.y, 0, FEED.h, FEED.h - 1), r: real(ring.r, 0, 1e3, 0) } : null;
+                const spot = b => ({ x: real(b?.x, 0, FEED.w, FEED.w / 2), y: real(b?.y, 0, FEED.h, FEED.h - 1) });
+                state.session.sift = real(sess.sift, 0, FEED.w, -1);
+                state.session.dbot = sess.dbot && typeof sess.dbot === 'object' ? spot(sess.dbot) : null;
+                state.session.rbots = (Array.isArray(sess.rbots) ? sess.rbots.slice(0, 20) : []).map(spot);
                 state.session.bots = (Array.isArray(sess.bots) ? sess.bots.slice(0, 50) : []).map(b => ({ x: real(b?.x, 0, FEED.w, FEED.w / 2), y: real(b?.y, 0, FEED.h, FEED.h - 1) }));
                 state.life = real(raw.life, 0, 1, 1);
             } else { clearBox(state, o); state.life = 1; }

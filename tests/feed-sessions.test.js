@@ -242,6 +242,25 @@ test('each combo is an effect of its own', () => {
     const re = play(copy({ resonance: 1 }), 7, false);
     const beats = re.filter(e => e.type === 'shake'), small = re.filter(e => e.type === 'pulse');
     assert.ok(beats.length >= 3 && small.length >= beats.length && small.every(e => e.r < Feed.FEED.pulseR / 2) && beats.some(e => e.eaten > 0));
+    // Sifter: gold the beam crosses rises (rows count down the box, so its mean row falls).
+    const si = copy({ sifter: 1 }), sn = copy({});
+    for (let n = 0; n < 90; n++) { Feed.step(si, 0.1, { chew: 0 }); Feed.step(sn, 0.1, { chew: 0 }); }
+    assert.ok(mean(si, 2, 'y') < mean(sn, 2, 'y') - 1.5, `gold at row ${mean(si, 2, 'y').toFixed(1)} against ${mean(sn, 2, 'y').toFixed(1)}`);
+    assert.equal(count(si, 2), count(sn, 2));
+    // Demolition bots: a charge goes off in the garbled sand.
+    const dm = copy({ demolition: 1 }), dn = copy({});
+    const blasts = []; for (let n = 0; n < 90; n++) { blasts.push(...Feed.step(dm, 0.1, { chew: 0 }).events.filter(e => e.type === 'pulse')); Feed.step(dn, 0.1, { chew: 0 }); }
+    assert.ok(blasts.length >= 2 && dm.session.dbot && count(dm, 6) < count(dn, 6) - 20, `garbled ${count(dm, 6)} against ${count(dn, 6)}`);
+    // Relay bots: a chain through the bots eats along its legs.
+    const rl = copy({ relay: 1 });
+    const legs = []; for (let n = 0; n < 70; n++) legs.push(...Feed.step(rl, 0.1, { chew: 0 }).events.filter(e => e.type === 'arc'));
+    assert.ok(legs.length >= 2 && legs.every(e => e.from === 'relay' && e.eaten <= Feed.FEED.relayMax) && legs.some(e => e.eaten > 0) && rl.session.rbots.length === Feed.FEED.relayBots);
+    // Drum line: each beat a row of sparks; soft sand is collected, hard sand worn down.
+    const dr = copy({ drum: 1 }), hpSum = s => s.cells.reduce((n, v) => n + (Feed.kindOf(v) === 6 ? Feed.hpOf(v) : 0), 0), hp0 = hpSum(dr), g0 = dr.grains;
+    const drums = []; for (let n = 0; n < 70; n++) drums.push(...Feed.step(dr, 0.1, { chew: 0 }).events.filter(e => e.type === 'drum'));
+    assert.ok(drums.length >= 3 && drums.every(e => e.hits.length > 0 && e.hits.length <= Feed.FEED.drumSparks));
+    assert.ok(drums.some(e => e.eaten > 0) && dr.grains < g0, 'soft sand is collected');
+    assert.ok(hpSum(dr) < hp0, 'and garbled sand is worn down');
     // Magnet: gold gathers toward the point you hold.
     const ma = copy({ magnet: 1 }), mb = copy({});
     const goal = { x: 20, y: pile.h - 3 };
@@ -251,7 +270,7 @@ test('each combo is an effect of its own', () => {
 });
 
 test('a save keeps the tools going exactly', () => {
-    const s = session({ sector: 1, packets: 100, gold: 20, garbled: 30 }, { scanner: 1, pulse: 1, arc: 1, sorter: 1, rhythm: 1, sonar: 1, storm: 1, defrag: 1, tracer: 1, magnet: 1, resonance: 1 });
+    const s = session({ sector: 1, packets: 100, gold: 20, garbled: 30 }, { scanner: 1, pulse: 1, arc: 1, sorter: 1, rhythm: 1, sonar: 1, storm: 1, defrag: 1, tracer: 1, magnet: 1, resonance: 1, sifter: 1, demolition: 1, relay: 1, drum: 1 });
     play(s, 7.5);
     const back = Feed.clean(JSON.parse(JSON.stringify(s)));
     assert.deepEqual(JSON.parse(JSON.stringify(back)), JSON.parse(JSON.stringify(s)));

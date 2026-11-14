@@ -172,7 +172,10 @@
         rhythm: ['Algo-rhythm', 'The box shakes on a beat. Garbled sand sinks and the rest rises.'],
         sonar: ['Sonar', 'A ring spreads from your finger, shows the sand it crosses, then draws the gold back in.'], storm: ['Storm', 'Chain lightning. Each mite sends bolts out through the sand round it.'],
         defrag: ['Defrag', 'Garbled sand packed in a clump is rewritten into good sand.'], tracer: ['Tracer', 'Sparks jump from each mite to gold in reach and take it.'],
-        magnet: ['Magnet', 'Gold is drawn through the pile to where you point.'], resonance: ['Resonance', 'On every beat a small pulse goes off at each mite at once.'] };
+        magnet: ['Magnet', 'Gold is drawn through the pile to where you point.'], resonance: ['Resonance', 'On every beat a small pulse goes off at each mite at once.'],
+        sifter: ['Sifter', 'A beam sweeps on the beat and shakes the gold it crosses up toward the surface.'], demolition: ['Demolition bots', 'Bots fly to the biggest clumps of garbled sand and blow them away.'],
+        relay: ['Relay bots', 'Sparks jump mite to bot to mite, right across the pile, eating along every line.'],
+        drum: ['Drum line', 'Each beat a row of sparks drops on the pile. Soft sand is collected and hard sand is worn down, top and bottom.'] };
     const recipe = id => { const k = F().CARDS[id]; return k && k.combo ? k.combo.map(cardName).join(' + ') : ''; };
     const cardName = id => (CARD_TEXT[id] || [id])[0];
     function renderHeld() {
@@ -236,6 +239,7 @@
             else if (ev.type === 'shake') shakeAt = now;
             else if (ev.type === 'sonar') sparks.push({ at: now, x: ev.x, y: ev.y, kind: 'sonar', r: ev.r });
             else if (ev.type === 'bolt') bolts.push({ at: now, pts: ev.pts });
+            else if (ev.type === 'drum') for (const [x, y] of ev.hits) arcs.push({ at: now, x1: x, y1: Math.max(0, y - 40), x2: x, y2: y, gold: true });
             else if (ev.type === 'defrag') sparks.push({ at: now, x: ev.x, y: ev.y, kind: 'pulse', r: 3 });
             else if (ev.type === 'card' && ev.merged) pops.push({ at: now, text: `${ev.merged.map(cardName).join(' + ')} = ${cardName(ev.card)}`, color: 'gold', big: true });
             else if (ev.type === 'fragment') pops.push({ at: now, text: `Fragment ${ev.found}/${ev.of}`, color: 'primary' });
@@ -323,6 +327,8 @@
         // The tools: the scanner's beam, arcs between mites, the sorter bots.
         const sess = f.session;
         if (sess && sess.beam >= 0) { const [bx] = px(sess.beam, 0); ctx.strokeStyle = colors.primary; ctx.globalAlpha = 0.7; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bx, 0); ctx.lineTo(bx, view.h); ctx.stroke(); ctx.globalAlpha = 0.12; ctx.fillStyle = colors.primary; ctx.fillRect(bx - c * 4, 0, c * 4, view.h); ctx.globalAlpha = 1; }
+        if (sess && sess.sift >= 0) { const [bx] = px(sess.sift, 0); ctx.strokeStyle = colors.gold; ctx.globalAlpha = 0.8; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bx, 0); ctx.lineTo(bx, view.h); ctx.stroke(); ctx.globalAlpha = 1; }
+        if (sess) for (const b of [sess.dbot, ...(sess.rbots || [])]) if (b) { const [x, y] = px(b.x, b.y), q = Math.max(4, c * 1.4); ctx.fillStyle = colors.bg; ctx.fillRect(x - q / 2 - 1, y - q * 1.5 - 1, q + 2, q + 2); ctx.fillStyle = b === sess.dbot ? colors.packetBad : colors.text; ctx.fillRect(x - q / 2, y - q * 1.5, q, q); }
         if (sess && sess.ring) { const [rx, ry] = px(sess.ring.x, sess.ring.y); ctx.strokeStyle = colors.primary; ctx.globalAlpha = 0.75; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(rx, ry, Math.max(1, sess.ring.r * c), 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
         bolts = bolts.filter(b => now - b.at < 320);
         for (const b of bolts) { ctx.globalAlpha = 1 - (now - b.at) / 320; ctx.strokeStyle = colors.text; ctx.lineWidth = 2; ctx.beginPath(); b.pts.forEach((p, n) => { const [x, y] = px(p[0], p[1]); n ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); }
