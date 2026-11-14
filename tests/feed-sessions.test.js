@@ -173,14 +173,20 @@ test('tool cards are rare, and a combo is offered only once you hold both its to
     assert.ok(offers.length >= 2);
     assert.ok(offers[0].every(id => Feed.CARDS[id].tool), 'with the rare chance at 1, every card is a tool');
     assert.ok(offers.flat().every(id => !Feed.CARDS[id].combo || Feed.CARDS[id].combo.every(t => s.session.cards[t] || s.session.cards[id])), 'no combo before its tools');
-    // Taking a combo merges its tools: their cards go, copies past the first carry over, and it works both harder.
+    // Taking a combo uses its two tools up, every copy; it is one card, made once, and the tools can be picked again.
     const m = session({ sector: 1, packets: 60 }, { scanner: 2, pulse: 1, chew: 1 });
     assert.equal(Feed.toolLevel(m, 'scanner'), 2);
     m.session.offer = ['sonar']; m.session.picks = 1;
     const out = Feed.pickCard(m, 0);
-    assert.deepEqual(out.events, [{ type: 'card', card: 'sonar', level: 2, merged: ['scanner', 'pulse'] }]);
-    assert.deepEqual(m.session.cards, { chew: 1, sonar: 2 });
-    assert.deepEqual([Feed.toolLevel(m, 'scanner'), Feed.toolLevel(m, 'pulse'), Feed.toolLevel(m, 'arc')], [4, 4, 0]);
+    assert.deepEqual(out.events, [{ type: 'card', card: 'sonar', level: 1, merged: ['scanner', 'pulse'] }]);
+    assert.deepEqual(m.session.cards, { chew: 1, sonar: 1 });
+    assert.deepEqual([Feed.toolLevel(m, 'scanner'), Feed.toolLevel(m, 'pulse')], [0, 0]);
+    Object.assign(m.session.cards, { scanner: 1, pulse: 1, arc: 1 });
+    const rare = new Set();
+    for (let n = 0; n < 60; n++) { m.session.picks = 1; m.session.offer = null; Feed.step(m, 0.05, { cardRare: 1 }); for (const id of m.session.offer || []) rare.add(id); m.session.offer = null; m.session.picks = 0; }
+    assert.ok(!rare.has('sonar'), 'the same combo is not made twice');
+    assert.ok(rare.has('storm') && rare.has('tracer'), 'the tools picked again go into other recipes');
+    assert.ok(!rare.has('defrag') && !rare.has('magnet'), 'and never a recipe you lack a tool for');
 });
 
 test('each tool does its job on its own', () => {
@@ -208,9 +214,41 @@ test('each tool does its job on its own', () => {
     assert.equal(sorted.grains, plain.grains, 'sorting moves sand, it never makes or loses any');
 });
 
+test('each combo is an effect of its own', () => {
+    const pile = fresh(); Feed.deliver(pile, { sector: 1, packets: 50, gold: 20, garbled: 40 }); Feed.startSession(pile, 1); play(pile, 14, false);
+    const copy = cards => { const s = Feed.clean(JSON.parse(JSON.stringify(pile))); Object.assign(s.session.cards, cards); return s; };
+    const count = (s, kind) => s.cells.filter(v => Feed.kindOf(v) === kind).length;
+    const spread = (s, at) => { let n = 0, sum = 0; s.cells.forEach((v, i) => { if (Feed.kindOf(v) === 2) { n++; sum += Math.hypot(i % s.w + 0.5 - at.x, Math.floor(i / s.w) + 0.5 - at.y); } }); return sum / n; };
+    // Sonar: a ring from the point you hold shows the sand it crosses, then gold is drawn in toward it.
+    const at = { x: pile.w / 2, y: pile.h - 6 };
+    const so = copy({ sonar: 1 }), plain = copy({});
+    Feed.point(so, at); Feed.point(plain, at);
+    const ev = []; for (let n = 0; n < 90; n++) { ev.push(...Feed.step(so, 0.1).events); Feed.step(plain, 0.1); }
+    const rings = ev.filter(e => e.type === 'sonar');
+    assert.ok(rings.length >= 1 && rings[0].pulled > 0, 'a ring went out and drew gold in');
+    // Storm: bolts from the mites run through the sand and eat it.
+    const bolts = play(copy({ storm: 1 }), 8, false).filter(e => e.type === 'bolt');
+    assert.ok(bolts.length >= 2 && bolts.some(b => b.eaten > 5 && b.pts.length > 2));
+    // Defrag: clumped garbled sand becomes plain sand; none is made or lost.
+    const de = copy({ defrag: 1 }), was = [count(de, 6), count(de, 1), de.grains];
+    const fixed = []; for (let n = 0; n < 100; n++) fixed.push(...Feed.step(de, 0.1, { chew: 0 }).events.filter(e => e.type === 'defrag'));
+    assert.ok(fixed.length && count(de, 6) < was[0] * 0.7, `garbled ${count(de, 6)} of ${was[0]}`);
+    assert.ok(de.grains >= was[2] - 3, "it rewrites sand, it does not eat it");
+    // Tracer: sparks from the mites take gold at a distance.
+    const tr = copy({ tracer: 1 }), no = copy({});
+    const sparks = []; for (let n = 0; n < 60; n++) { sparks.push(...Feed.step(tr, 0.1, { chew: 0 }).events.filter(e => e.type === 'arc')); Feed.step(no, 0.1, { chew: 0 }); }
+    assert.ok(sparks.length && sparks.every(e => e.gold) && count(tr, 2) < count(no, 2));
+    // Magnet: gold gathers toward the point you hold.
+    const ma = copy({ magnet: 1 }), mb = copy({});
+    const goal = { x: 20, y: pile.h - 3 };
+    Feed.point(ma, goal); Feed.point(mb, goal);
+    for (let n = 0; n < 80; n++) { Feed.step(ma, 0.1, { chew: 0 }); Feed.step(mb, 0.1, { chew: 0 }); }
+    assert.ok(spread(ma, goal) < spread(mb, goal) - 4, `gold ${spread(ma, goal).toFixed(1)} against ${spread(mb, goal).toFixed(1)} from the point`);
+});
+
 test('a save keeps the tools going exactly', () => {
-    const s = session({ sector: 1, packets: 100, gold: 20, garbled: 30 }, { scanner: 1, pulse: 1, arc: 1, sorter: 1, rhythm: 1 });
-    play(s, 7);
+    const s = session({ sector: 1, packets: 100, gold: 20, garbled: 30 }, { scanner: 1, pulse: 1, arc: 1, sorter: 1, rhythm: 1, sonar: 1, storm: 1, defrag: 1, tracer: 1, magnet: 1 });
+    play(s, 7.5);
     const back = Feed.clean(JSON.parse(JSON.stringify(s)));
     assert.deepEqual(JSON.parse(JSON.stringify(back)), JSON.parse(JSON.stringify(s)));
     assert.deepEqual(Feed.step(back, 5), Feed.step(s, 5));

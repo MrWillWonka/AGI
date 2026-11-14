@@ -103,8 +103,22 @@
         sortHop: 14,        // and how many cells it carries one, at the most
         shakeEvery: 2,      // algo-rhythm: seconds between beats,
         shakeMoves: 300,    // and garbled grains a beat that sink a cell, a level
-        stormR: 3,          // the Storm's bursts at each end of an arc
-        comboLevels: 2      // a combo works its two tools at this many levels each, a level of its own
+        // The combos: each its own effect (the owner's call, 2026-11-14: a new thing, not the two tools made stronger).
+        sonarEvery: 7,      // Sonar: seconds between rings,
+        sonarR: 26,         // how far a ring spreads from the point you hold, in cells,
+        sonarSpeed: 45,     // cells a second it spreads,
+        sonarPull: 16,      // and how many cells it draws each valuable grain back in
+        stormEvery: 3,      // Storm: seconds between strikes,
+        stormLen: 28,       // grains a mite's bolt runs through,
+        stormForks: 2,      // and bolts a mite sends
+        defragEvery: 2,     // Defrag: seconds between passes,
+        defragPack: 6,      // a garbled grain with this many garbled neighbours (of eight) is in a clump,
+        defragMax: 80,      // and this many clumped grains a pass are rewritten into good sand
+        tracerEvery: 1.5,   // Tracer: seconds between sparks,
+        tracerReach: 26,    // how far from a mite a spark finds gold, in cells,
+        tracerEat: 4,       // and the gold grains a spark takes
+        magnetRate: 160,    // Magnet: gold grains a second drawn toward the point you hold,
+        magnetHop: 14       // and how many cells each is drawn, at the most
     };
     // Cards (the owner's cards, 2026-11-14): a split in a session offers `cardChoices` of these and you pick one; it
     // lasts the session and stacks. `stat` is the dial it multiplies (`pay` is research per grain), `by` the multiplier
@@ -122,16 +136,18 @@
         rhythm: { rare: true, tool: true },    // the box shakes on a beat: the dense garbled sand sinks, the rest rises
         // Combos (the owner's call, from a picture of recipes): hold both tools and the combo may be offered; taking it
         // merges the two into one tool that does both jobs harder, with a twist of its own.
-        sonar: { rare: true, combo: ['scanner', 'pulse'] },   // the pulse goes off on gold
-        storm: { rare: true, combo: ['pulse', 'arc'] },       // every arc ends in a small burst at each mite
-        defrag: { rare: true, combo: ['sorter', 'rhythm'] }   // sorts and settles together
+        sonar: { rare: true, combo: ['scanner', 'pulse'] },    // a ring spreads from your finger, shows the sand it crosses, then draws the valuable sand back in
+        storm: { rare: true, combo: ['pulse', 'arc'] },        // chain lightning: each mite sends bolts out through the sand round it
+        defrag: { rare: true, combo: ['sorter', 'rhythm'] },   // garbled sand packed in a clump is rewritten into good sand
+        tracer: { rare: true, combo: ['scanner', 'arc'] },     // sparks jump from each mite to gold in reach and take it
+        magnet: { rare: true, combo: ['scanner', 'sorter'] }   // gold is drawn toward the point you hold
     };
     const CARD_IDS = Object.keys(CARDS);
     const COMBOS = CARD_IDS.filter(id => CARDS[id].combo);
-    // A tool's level this session: its own copies, and `comboLevels` for each level of a combo it was merged into.
-    const toolLevel = (state, id, opts) => { const c = state.session?.cards; if (!c) return 0; let n = c[id] || 0; for (const k of COMBOS) if (c[k] && CARDS[k].combo.includes(id)) n += opt(opts).comboLevels * c[k]; return n; };
+    // A tool's level this session: its copies. (A combo uses its two tools up; it is a thing of its own.)
+    const toolLevel = (state, id) => state.session?.cards?.[id] || 0;
     // May this card be offered now? A combo only once you hold both its tools (or already hold it).
-    const offerable = (state, id) => { const k = CARDS[id], c = state.session?.cards || {}; return !k.combo || !!c[id] || k.combo.every(t => c[t] > 0); };
+    const offerable = (state, id) => { const k = CARDS[id], c = state.session?.cards || {}; return !k.combo || (!c[id] && k.combo.every(t => c[t] > 0)); };   // one copy of a combo, made once (the owner's calls)
     const STEP = 0.05;      // the rules' own time step, in seconds
 
     // Kinds by their number in a cell (0 is empty), what a packet of each pays when eaten, and the skill a kind waits for.
@@ -256,9 +272,9 @@
         const o = opt(opts), s = state.session, id = s?.offer?.[n], out = { research: 0, events: [] };
         if (!id) return null;
         s.cards[id] = (s.cards[id] || 0) + 1; s.offer = null; s.picks = Math.max(0, (s.picks || 0) - 1);
-        // A combo merges its two tools into itself: their cards go, and copies they had past the first carry over as levels.
+        // A combo uses its two tools up (every copy of them); either can be picked again later, for itself or another recipe.
         let merged = null;
-        if (CARDS[id].combo && CARDS[id].combo.every(t => s.cards[t] > 0)) { merged = [...CARDS[id].combo]; for (const t of merged) { s.cards[id] += s.cards[t] - 1; delete s.cards[t]; } }
+        if (CARDS[id].combo) { s.cards[id] = 1; merged = CARDS[id].combo.filter(t => s.cards[t] > 0); for (const t of merged) delete s.cards[t]; if (!merged.length) merged = null; }
         out.events.push(merged ? { type: 'card', card: id, level: s.cards[id], merged } : { type: 'card', card: id, level: s.cards[id] });
         if (s.picks > 0) offerCards(state, o, out);
         return out;
@@ -295,9 +311,7 @@
             }
         }
         if (pulse && state.grains && due('pulse', pulse, o.pulseEvery)) {
-            let at = state.aim || state.swarm[Math.floor(rand(state) * state.swarm.length)];
-            // Sonar: it goes off on gold, when a few tries find some.
-            if (s.cards.sonar) for (let n = 0; n < 300; n++) { const i = Math.floor(rand(state) * cells.length); if (kindOf(cells[i]) === KINDS.vein.id && settled(state, i)) { at = { x: i % w + 0.5, y: Math.floor(i / w) + 0.5 }; break; } }
+            const at = state.aim || state.swarm[Math.floor(rand(state) * state.swarm.length)];
             burst(state, o, at.x, at.y, o.pulseR + o.pulseGrow * (pulse - 1), out);
         }
         if (arc && state.swarm.length > 1 && state.grains && due('arc', arc, o.arcEvery)) {
@@ -311,7 +325,6 @@
                     if (x >= 0 && x < w && y >= 0 && y < h && cells[i]) { eat(state, o, i, out); eaten++; }
                 }
                 out.events.push({ type: 'arc', x1: a.x, y1: a.y, x2: b.x, y2: b.y, eaten });
-                if (s.cards.storm) { burst(state, o, a.x, a.y, o.stormR, out); burst(state, o, b.x, b.y, o.stormR, out); }
             }
         }
         if (sort && state.grains) {
@@ -346,6 +359,106 @@
             }
             out.events.push({ type: 'shake', sunk });
         }
+        // ---- the combos ----
+        const c = s.cards, valuable = k => k === KINDS.vein.id || k === KINDS.fragment.id;
+        // Sonar: a ring spreads from the point you hold (else a mite), showing the sand it crosses; at its full
+        // reach it draws the gold and fragments inside back toward its middle.
+        if (c.sonar) {
+            if (!s.ring && state.grains && due('sonar', 1, o.sonarEvery)) { const at = state.aim || state.swarm[Math.floor(rand(state) * state.swarm.length)]; s.ring = { x: at.x, y: at.y, r: 0 }; }
+            if (s.ring) {
+                const g = s.ring, r0 = g.r, r1 = Math.min(o.sonarR, g.r + o.sonarSpeed * dt), list = [];
+                for (let y = Math.max(0, Math.floor(g.y - r1)); y <= Math.min(h - 1, Math.floor(g.y + r1)); y++) for (let x = Math.max(0, Math.floor(g.x - r1)); x <= Math.min(w - 1, Math.floor(g.x + r1)); x++) {
+                    const i = y * w + x, v = cells[i]; if (!v) continue;
+                    const d = Math.hypot(x + 0.5 - g.x, y + 0.5 - g.y); if (d > r1) continue;
+                    if (d >= r0 && !seenOf(v) && settled(state, i)) { cells[i] = v | 64; if (valuable(kindOf(v))) out.events.push({ type: 'found', x, y, kind: KIND_IDS[kindOf(v)] }); }
+                    if (r1 >= o.sonarR && valuable(kindOf(v)) && settled(state, i)) list.push([d, i]);
+                }
+                g.r = r1;
+                if (r1 >= o.sonarR) {
+                    list.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+                    let pulled = 0; for (const [, i] of list) if (carry(state, i, g.x, g.y, o.sonarPull) !== i) pulled++;
+                    out.events.push({ type: 'sonar', x: g.x, y: g.y, r: o.sonarR, pulled });
+                    s.ring = null;
+                }
+            }
+        } else if (s.ring) s.ring = null;
+        // Storm: chain lightning. Each mite sends bolts out through the sand round it, grain to touching grain.
+        if (c.storm && state.grains && due('storm', 1, o.stormEvery)) {
+            for (const m of state.swarm) for (let f = 0; f < o.stormForks; f++) {
+                let at = nearestWithin(state, m.x, m.y, 8); if (at < 0) continue;
+                const pts = [[m.x, m.y]]; let eaten = 0;
+                for (let n = 0; n < o.stormLen && at >= 0; n++) {
+                    const x = at % w, y = (at - x) / w; pts.push([x + 0.5, y + 0.5]);
+                    eat(state, o, at, out); eaten++;
+                    // On to a touching grain, picked at random.
+                    let next = -1, seen = 0;
+                    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const nx = x + dx, ny = y + dy; if ((dx || dy) && nx >= 0 && nx < w && ny >= 0 && ny < h && cells[ny * w + nx] && rand(state) * ++seen < 1) next = ny * w + nx; }
+                    at = next;
+                }
+                out.events.push({ type: 'bolt', pts: pts.filter((p, n) => n % 3 === 0 || n === pts.length - 1), eaten });
+            }
+        }
+        // Defrag: garbled grains packed in a clump are rewritten into plain, paying sand.
+        if (c.defrag && state.grains && due('defrag', 1, o.defragEvery)) {
+            const bad = KINDS.garbled.id, fix = [];
+            for (let n = 0, from = Math.floor(rand(state) * cells.length); n < cells.length && fix.length < o.defragMax; n++) {
+                const i = (from + n) % cells.length; if (kindOf(cells[i]) !== bad) continue;
+                const x = i % w, y = (i - x) / w; let near = 0;
+                for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const nx = x + dx, ny = y + dy; if ((dx || dy) && nx >= 0 && nx < w && ny >= 0 && ny < h && kindOf(cells[ny * w + nx]) === bad) near++; }
+                if (near >= o.defragPack) fix.push(i);
+            }
+            for (const i of fix) cells[i] = cell(KINDS.plain.id, bandOf(cells[i]), Math.max(1, Math.ceil(hpOf(cells[i]) / o.slow)), 1, airOf(cells[i]));
+            if (fix.length) out.events.push({ type: 'defrag', fixed: fix.length, x: fix[0] % w + 0.5, y: Math.floor(fix[0] / w) + 0.5 });
+        }
+        // Tracer: a spark from each mite to the gold nearest it, which it takes.
+        if (c.tracer && state.grains && due('tracer', 1, o.tracerEvery)) {
+            for (const m of state.swarm) {
+                const r = o.tracerReach, found = [];
+                for (let y = Math.max(0, Math.floor(m.y - r)); y <= Math.min(h - 1, Math.floor(m.y + r)); y++) for (let x = Math.max(0, Math.floor(m.x - r)); x <= Math.min(w - 1, Math.floor(m.x + r)); x++) {
+                    const i = y * w + x; if (kindOf(cells[i]) !== KINDS.vein.id) continue;
+                    const d = Math.hypot(x + 0.5 - m.x, y + 0.5 - m.y); if (d <= r) found.push([d, i]);
+                }
+                if (!found.length) continue;
+                found.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+                const first = found[0][1], take = found.slice(0, o.tracerEat);
+                for (const [, i] of take) if (cells[i]) eat(state, o, i, out);
+                out.events.push({ type: 'arc', x1: m.x, y1: m.y, x2: first % w + 0.5, y2: Math.floor(first / w) + 0.5, eaten: take.length, gold: true });
+            }
+        }
+        // Magnet: gold is drawn through the pile toward the point you hold (else the first mite).
+        if (c.magnet && state.grains) {
+            const to = state.aim || state.swarm[0];
+            tt.magnet = (tt.magnet || 0) + o.magnetRate * dt;
+            const moves = Math.floor(tt.magnet); tt.magnet -= moves;
+            for (let m = 0; m < moves; m++) for (let tries = 0, from = Math.floor(rand(state) * cells.length), span = cells.length >> 2; tries < span; tries++) {
+                const i = (from + tries) % cells.length;
+                if (kindOf(cells[i]) !== KINDS.vein.id || !settled(state, i)) continue;
+                if (carry(state, i, to.x, to.y, o.magnetHop) !== i) break;
+            }
+        }
+    }
+    // Carry the grain at `i` up to `hops` cells toward a point, through settled sand of other kinds (it changes
+    // places with each grain on the way; never into empty space). Returns where it ends up.
+    function carry(state, i, tx, ty, hops) {
+        const { w, h, cells } = state, v = cells[i], k = kindOf(v);
+        let at = i;
+        for (let n = 0; n < hops; n++) {
+            const x = at % w, y = (at - x) / w, dx = tx - (x + 0.5), dy = ty - (y + 0.5);
+            if (Math.abs(dx) < 1 && Math.abs(dy) < 1) break;
+            const sx = Math.abs(dx) >= 1 ? Math.sign(dx) : 0, sy = Math.abs(dy) >= 1 ? Math.sign(dy) : 0;
+            // The longer way first, then the other.
+            const ways = Math.abs(dx) >= Math.abs(dy) ? [[sx, 0], [0, sy]] : [[0, sy], [sx, 0]];
+            let moved = false;
+            for (const [mx, my] of ways) {
+                if (!mx && !my) continue;
+                const nx = x + mx, ny = y + my; if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                const j = ny * w + nx, u = cells[j];
+                if (!u || kindOf(u) === k || !settled(state, j)) continue;
+                cells[at] = u; cells[j] = v; at = j; moved = true; break;
+            }
+            if (!moved) break;
+        }
+        return at;
     }
     // An empty box and a swarm of one: how every session starts, and what is left when one ends.
     function clearBox(state, o) {
@@ -392,7 +505,7 @@
         state.band = (state.band + 1) % o.bands;
         state.backlog.push({ sector: k, n: e.n, gold: e.gold, bad: e.bad, band: state.band });
         delete state.stock[k];
-        state.session = { sector: k, research: 0, time: 0, packets: e.n + e.gold + e.bad, cards: {}, offer: null, picks: 0, tt: {}, beam: -1, bots: [] };
+        state.session = { sector: k, research: 0, time: 0, packets: e.n + e.gold + e.bad, cards: {}, offer: null, picks: 0, tt: {}, beam: -1, ring: null, bots: [] };
         state.life = 1; state.lastSession = null; state.stats.sessions++;
         return true;
     }
@@ -813,8 +926,9 @@
                 const offer = Array.isArray(sess.offer) ? [...new Set(sess.offer.filter(id => typeof id === 'string' && Object.prototype.hasOwnProperty.call(CARDS, id)))].slice(0, o.cardChoices) : [];
                 state.session = { sector, research: whole(sess.research, 1e12), time: real(sess.time, 0, 1e7, 0), packets: whole(sess.packets, 1e8), cards, offer: offer.length ? offer : null, picks: offer.length ? Math.max(1, whole(sess.picks, 200)) : whole(sess.picks, 200) };
                 // The tools' clocks, the scanner's beam and the sorter bots.
-                const tt = {}; for (const key of ['scan', 'pulse', 'arc', 'sort', 'shake']) { if (typeof sess.tt?.[key] === 'number') tt[key] = real(sess.tt[key], 0, 1e4, 0); }
+                const tt = {}; for (const key of ['scan', 'pulse', 'arc', 'sort', 'shake', 'sonar', 'storm', 'defrag', 'tracer', 'magnet']) { if (typeof sess.tt?.[key] === 'number') tt[key] = real(sess.tt[key], 0, 1e4, 0); }
                 state.session.tt = tt; state.session.beam = real(sess.beam, 0, FEED.w, -1);
+                const ring = sess.ring; state.session.ring = ring && typeof ring === 'object' ? { x: real(ring.x, 0, FEED.w, FEED.w / 2), y: real(ring.y, 0, FEED.h, FEED.h - 1), r: real(ring.r, 0, 1e3, 0) } : null;
                 state.session.bots = (Array.isArray(sess.bots) ? sess.bots.slice(0, 50) : []).map(b => ({ x: real(b?.x, 0, FEED.w, FEED.w / 2), y: real(b?.y, 0, FEED.h, FEED.h - 1) }));
                 state.life = real(raw.life, 0, 1, 1);
             } else { clearBox(state, o); state.life = 1; }
