@@ -4260,9 +4260,10 @@ body.ring-device.device-phone .snare-tree-bar .button, body.ring-device.device-p
 .feed-give { min-height: 36px; padding: 4px 8px; font: 600 0.85rem var(--font-mono); color: var(--text); background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; }
 .feed-give:disabled { opacity: 0.45; }
 .feed-card-uses { font: 600 0.72rem var(--font-mono); color: var(--warning); }
-/* The Feed's zoom buttons, in the stage's corner; the reset shows only while zoomed. */
-.feed-zoom { position: absolute; right: 8px; top: 8px; display: flex; flex-direction: column; gap: 6px; z-index: 1; }
-.feed-zoom .ghost-button { width: 44px; height: 44px; padding: 0; font: 700 1.3rem var(--font-mono); line-height: 1; background: color-mix(in srgb, var(--bg) 80%, transparent); }
+/* The Feed's view controls, in a row under the box (thumb reach): the camera's choice, zoom, and the reset, which shows only while zoomed. */
+.feed-zoom { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 6px 10px; border-top: 1px solid var(--border); }
+.feed-cam { margin-right: auto; min-height: 44px; padding: 4px 12px; font: 600 0.8rem var(--font-mono); white-space: nowrap; }
+.feed-zoom .ghost-button:not(.feed-cam) { width: 48px; height: 44px; padding: 0; font: 700 1.3rem var(--font-mono); line-height: 1; background: color-mix(in srgb, var(--bg) 80%, transparent); }
 .feed-zoom-reset { visibility: hidden; }
 .feed-zoom.zoomed .feed-zoom-reset { visibility: visible; }
 .feed-zoom[hidden] { display: none; }

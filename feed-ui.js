@@ -23,8 +23,13 @@
     // Your own zoom on the box (the owner's ask: to work a spot closely): `k` times the view's own size, centred on a
     // cell. Pinch or two-finger drag on a touch screen; the wheel, a right-button drag, or the buttons with a mouse.
     const ZOOM_MAX = 6;
-    const HOLD_MS = 450;
-    let ate = [];   // when each mite last took a grain (by its place in the swarm), for the sand in its hands
+    // The camera (the owner's ask: a finger hides what it points at): a small window just above the point you hold,
+    // showing the sand under it enlarged. Docked, it stays in the box's top corner instead (a choice kept on this device).
+    const CAM_W = 138, CAM_H = 96, CAM_CELL = 6, CAM_UP = 46;
+    let camDock = false, camEl = null;
+    try { camDock = localStorage.getItem('agiFeedCam') === 'dock'; } catch { /* private mode */ }
+    const camLabel = () => { if (camEl) { camEl.textContent = camDock ? 'Camera: docked' : 'Camera: follows'; camEl.setAttribute('aria-pressed', String(camDock)); } };
+    const resetZoom = () => { zoom = { k: 1, cx: 0, cy: 0 }; zoomEl?.classList.remove('zoomed'); };
     let zoom = { k: 1, cx: 0, cy: 0 }, touches = new Map(), pinch = null, pan = null, zoomEl = null;
     let sand = null, sandCtx = null, image = null, pixels = null, palette = null;
     // The window on the box, in cells: `cols` × `rows` from (`x`, `y`), a cell `cell` px, drawn from (`ox`, `oy`).
@@ -59,11 +64,14 @@
         pickEl = el('div', { class: 'feed-pick', hidden: '' });
         // At a split in a session: the cards to pick one from. The session waits.
         cardsEl = el('div', { class: 'feed-cards', hidden: '' });
-        zoomEl = el('div', { class: 'feed-zoom', 'aria-label': 'Zoom' },
+        // Zoom and the camera, in a row under the box where a thumb reaches (the owner's call; they were in the box's top corner).
+        camEl = el('button', { type: 'button', class: 'ghost-button feed-cam', onclick: () => { camDock = !camDock; try { localStorage.setItem('agiFeedCam', camDock ? 'dock' : 'follow'); } catch { /* private mode */ } camLabel(); } });
+        camLabel();
+        zoomEl = el('div', { class: 'feed-zoom', 'aria-label': 'View' }, camEl,
             el('button', { type: 'button', class: 'ghost-button', 'aria-label': 'Zoom in', text: '+', onclick: () => { const [sx, sy] = swarmXY(); zoomAt(sx, sy, 1.5); } }),
             el('button', { type: 'button', class: 'ghost-button', 'aria-label': 'Zoom out', text: '−', onclick: () => zoomAt(view.w / 2, view.h / 2, 1 / 1.5) }),
             el('button', { type: 'button', class: 'ghost-button feed-zoom-reset', 'aria-label': 'Show the whole pile', text: '⟲', onclick: () => zoomAt(view.w / 2, view.h / 2, 0) }));
-        stage = el('div', { class: 'feed-stage' }, canvas, zoomEl, pickEl, cardsEl);
+        stage = el('div', { class: 'feed-stage' }, canvas, pickEl, cardsEl);
         endEl = el('button', { type: 'button', class: 'ghost-button feed-end', text: 'End', hidden: '', onclick: endNow });
         fragEl = el('div', { class: 'feed-fragment' });
         const debug = window.AGI?.debug;
@@ -78,7 +86,7 @@
             el('div', { class: 'feed-bar' },
                 el('span', { class: 'feed-title', text: 'The Feed' }), layerEl, mitesEl, researchEl, endEl,
                 el('button', { type: 'button', class: 'ghost-button feed-close', 'aria-label': 'Close The Feed', text: '×', onclick: close })),
-            hungerEl, (heldEl = el('div', { class: 'feed-held', hidden: '', 'aria-label': 'Cards this session' })), tests, promptEl, stage, fragEl);
+            hungerEl, (heldEl = el('div', { class: 'feed-held', hidden: '', 'aria-label': 'Cards this session' })), tests, promptEl, stage, zoomEl, fragEl);
         dlg.addEventListener('close', stop);
         // One finger (or the left button) leads the swarm; two fingers zoom and move the view; the right button drags it.
         canvas.addEventListener('pointerdown', e => {
@@ -229,7 +237,7 @@
     // ---- sessions (the ring): the stockpiles between them, and ending one --------------------------------------------
     const WHY = { hunger: 'The swarm went hungry.', empty: 'The stockpile is eaten.', left: 'You ended the session.' };
     function endNow() { if (feed()?.session) { window.AGI.feedEnd(); pickKey = ''; } }
-    function start(sector) { if (window.AGI.feedStart(sector)) { pickKey = ''; view.want = null; pops = []; } }
+    function start(sector) { if (window.AGI.feedStart(sector)) { pickKey = ''; view.want = null; pops = []; resetZoom(); } }
     // The cards' words (placeholders, for the owner to write): a name and what a copy does.
     const CARD_TEXT = { chew: ['Sharper jaws', 'Mites eat 25% faster.'], hunger: ['Slow burn', 'The hunger bar drains 25% slower.'], speed: ['Quick legs', 'Mites move 30% faster.'], pay: ['Rich grain', 'Good sand pays 20% more research.'], focus: ['Focus', 'The swarm tracks your point more tightly: less roaming, a straighter way there.'],
         scanner: ['Scanner', 'A beam sweeps the box and shows the gold and fragments hidden in the sand.'], pulse: ['Pulse', 'A burst eats every grain in a circle where you point.'],
@@ -298,8 +306,7 @@
         const now = performance.now();
         let gold = 0;
         for (const ev of list) {
-            if (ev.type === 'eat') { const sw = feed()?.swarm || []; let best = -1, bd = 36; sw.forEach((m, n) => { const d = (m.x - ev.x - 0.5) ** 2 + (m.y - ev.y - 0.5) ** 2; if (d < bd) { bd = d; best = n; } }); if (best >= 0) ate[best] = now; }
-            else if (ev.type === 'found') { if (ev.kind === 'fragment' || gold++ % 8 === 0) sparks.push({ at: now, x: ev.x + 0.5, y: ev.y + 0.5, kind: ev.kind }); }
+            if (ev.type === 'found') { if (ev.kind === 'fragment' || gold++ % 8 === 0) sparks.push({ at: now, x: ev.x + 0.5, y: ev.y + 0.5, kind: ev.kind }); }
             else if (ev.type === 'pulse') sparks.push({ at: now, x: ev.x, y: ev.y, kind: 'pulse', r: ev.r });
             else if (ev.type === 'arc') arcs.push({ at: now, ...ev });
             else if (ev.type === 'shake') shakeAt = now;
@@ -344,10 +351,10 @@
         sandCtx.putImageData(image, 0, 0);
     }
     // A mite (the owner's character sheet, 2026-11-14; their own colours, the same in every theme): the gold-hungry a
-    // yellow blob in round glasses holding a nugget; the tidy an orange burst with a row of sorted squares under it; the
+    // yellow blob in round glasses with a small frown; the tidy an orange burst of eight spokes; the
     // loner a grey mound with two big eyes; the follower a blue four-pointed star with sparkles; the mega mite a big
-    // cream puff with a nugget in each hand. `q` is its radius in px.
-    const INK = '#0b1a1c', NUGGET = '#f2b632';
+    // cream puff with a body to it. Empty-handed (the owner's call: the sheet with sand in their hands is not used). `q` is its radius in px.
+    const INK = '#0b1a1c';
     function blob(x, y, q, lobes, color) {
         const lw = Math.max(1.5, q * 0.16), at = k => { const a = k / lobes * Math.PI * 2 + 0.3; return [x + Math.cos(a) * q * 0.55, y + Math.sin(a) * q * 0.5]; };
         ctx.fillStyle = INK;
@@ -361,30 +368,23 @@
         if (white) { ctx.fillStyle = '#ffffff'; ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, r * 0.28); ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
         ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(x + lookX, y, white ? r * 0.5 : r, 0, Math.PI * 2); ctx.fill();
     }
-    function nugget(x, y, s, turn) {
-        ctx.save(); ctx.translate(x, y); ctx.rotate(turn);
-        ctx.fillStyle = NUGGET; ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, s * 0.22);
-        ctx.beginPath(); ctx.roundRect(-s / 2, -s / 2, s, s, s * 0.25); ctx.fill(); ctx.stroke();
-        ctx.restore();
-    }
     function star4(x, y, rx, ry, pinch) {
         ctx.beginPath(); ctx.moveTo(x, y - ry);
         ctx.quadraticCurveTo(x + rx * pinch, y - ry * pinch, x + rx, y); ctx.quadraticCurveTo(x + rx * pinch, y + ry * pinch, x, y + ry);
         ctx.quadraticCurveTo(x - rx * pinch, y + ry * pinch, x - rx, y); ctx.quadraticCurveTo(x - rx * pinch, y - ry * pinch, x, y - ry);
         ctx.closePath();
     }
-    function drawMite(kind, x, y, q, holding) {
+    function drawMite(kind, x, y, q) {
         const lw = Math.max(1.5, q * 0.16);
         ctx.lineJoin = 'round'; ctx.lineCap = 'round';
         if (kind === 'tidy') {
-            // A burst of eight rounded spokes, and its sorted squares in a row under it.
+            // A burst of eight rounded spokes.
             for (const [color, w] of [[INK, q * 0.5 + lw * 2], ['#e8743b', q * 0.5]]) {
                 ctx.strokeStyle = color; ctx.lineWidth = w; ctx.beginPath();
                 for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2 + 0.2; ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * q * 0.95, y + Math.sin(a) * q * 0.95); }
                 ctx.stroke();
             }
             eye(x - q * 0.2, y - q * 0.05, q * 0.11, 0); eye(x + q * 0.2, y - q * 0.05, q * 0.11, 0);
-            if (holding) { ctx.fillStyle = '#f3d9a0'; const s = q * 0.3; for (let k = 0; k < 4; k++) ctx.fillRect(x - q * 0.75 + k * q * 0.4, y + q * 1.3, s, s); }
         } else if (kind === 'loner') {
             // A grey mound, flat on the ground, with two oversized eyes looking the same way.
             ctx.beginPath(); ctx.moveTo(x - q, y + q * 0.7); ctx.bezierCurveTo(x - q * 1.05, y - q * 0.75, x + q * 1.05, y - q * 0.75, x + q, y + q * 0.7); ctx.quadraticCurveTo(x, y + q * 0.95, x - q, y + q * 0.7); ctx.closePath();
@@ -398,7 +398,7 @@
             ctx.fillStyle = '#4c9bf6'; star4(x + q * 0.75, y - q * 1.0, q * 0.26, q * 0.3, 0.2); ctx.fill(); star4(x + q * 1.1, y - q * 0.6, q * 0.18, q * 0.2, 0.2); ctx.fill();
         } else if (kind === 'mega') {
             // A big cream puff with a body to it (the owner's sheet): a scalloped head over a wider belly, bumps down its
-            // sides and two feet; its face in a soft ring; arms open when empty, round a nugget each when it has just eaten.
+            // sides and two feet; its face in a soft ring; its arms open.
             const puffs = [[0, 0.3, 0.74], [0, -0.42, 0.6], [-0.36, 0.98, 0.27], [0.36, 0.98, 0.27]];
             for (let k = 0; k < 7; k++) { const t = Math.PI * (1.08 + k * 0.14); puffs.push([Math.cos(t) * 0.6, -0.42 + Math.sin(t) * 0.58, 0.25]); }
             for (const s of [-1, 1]) puffs.push([s * 0.66, -0.12, 0.25], [s * 0.76, 0.24, 0.27], [s * 0.7, 0.62, 0.27]);
@@ -412,15 +412,13 @@
             ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, q * 0.07);
             ctx.beginPath(); ctx.arc(x - q * 0.34, y + q * 0.36, q * 0.17, 0.1 * Math.PI, 1.3 * Math.PI, true); ctx.stroke();
             ctx.beginPath(); ctx.arc(x + q * 0.34, y + q * 0.36, q * 0.17, 0.9 * Math.PI, -0.3 * Math.PI); ctx.stroke();
-            if (holding) { nugget(x - q * 0.3, y + q * 0.3, q * 0.24, -0.3); nugget(x + q * 0.3, y + q * 0.3, q * 0.24, 0.3); }
         } else {
-            // The gold-hungry (and any mite with no character): a yellow blob in round glasses, a nugget held to its mouth.
+            // The gold-hungry (and any mite with no character): a yellow blob in round glasses.
             blob(x, y, q, 7, '#f9c22e');
             ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, q * 0.09); ctx.beginPath(); ctx.moveTo(x - q * 0.03, y - q * 0.15); ctx.lineTo(x + q * 0.07, y - q * 0.15); ctx.stroke();
             eye(x - q * 0.3, y - q * 0.15, q * 0.27, q * 0.08, true); eye(x + q * 0.34, y - q * 0.15, q * 0.27, q * 0.08, true);
-            // A small frown; with a nugget held to it when it has just eaten.
+            // A small frown.
             ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, q * 0.09); ctx.beginPath(); ctx.arc(x + q * 0.38, y + q * 0.5, q * 0.14, 1.15 * Math.PI, 1.85 * Math.PI); ctx.stroke();
-            if (holding) nugget(x + q * 0.85, y + q * 0.3, q * 0.34, 0.5);
         }
     }
     function draw(now) {
@@ -495,8 +493,30 @@
         f.swarm.forEach((m, n) => {
             let [x, y] = px(m.x, m.y);
             if (!still) { x += Math.cos(now / 90 + n * 2.4) * r * 0.2; y += Math.sin(now / 70 + n * 1.7) * r * 0.2; }
-            drawMite(m.c, x, y, m.c === 'mega' ? r * 1.5 : r, now - (ate[n] || -1e9) < HOLD_MS);
+            drawMite(m.c, x, y, m.c === 'mega' ? r * 1.5 : r);
         });
+        // The camera: the sand and the mites under the point you hold, enlarged, in a window of its own.
+        if (f.aim && held !== null) {
+            const [fx, fy] = px(f.aim.x, f.aim.y), k = Math.max(CAM_CELL, c * 2), cols = CAM_W / k, rows = CAM_H / k;
+            let lx = 8, ly = 8;
+            if (!camDock) { lx = Math.max(4, Math.min(view.w - CAM_W - 4, fx - CAM_W / 2)); ly = fy - CAM_UP - CAM_H; if (ly < 4) ly = Math.min(view.h - CAM_H - 4, fy + CAM_UP); }
+            const x0 = f.aim.x - cols / 2, y0 = f.aim.y - rows / 2;
+            ctx.save();
+            ctx.beginPath(); ctx.roundRect(lx, ly, CAM_W, CAM_H, 8); ctx.clip();
+            ctx.fillStyle = colors.bg; ctx.fillRect(lx, ly, CAM_W, CAM_H);
+            // The part of the box that is in its frame (never asking the sand's canvas for pixels outside it).
+            const sx0 = Math.max(0, x0), sy0 = Math.max(0, y0), sx1 = Math.min(box.w, x0 + cols), sy1 = Math.min(box.h, y0 + rows);
+            if (sx1 > sx0 && sy1 > sy0) { ctx.imageSmoothingEnabled = false; ctx.drawImage(sand, sx0 * SUB, sy0 * SUB, (sx1 - sx0) * SUB, (sy1 - sy0) * SUB, lx + (sx0 - x0) * k, ly + (sy0 - y0) * k, (sx1 - sx0) * k, (sy1 - sy0) * k); }
+            if (y0 + rows > box.h) { ctx.fillStyle = colors.border; ctx.fillRect(lx, ly + (box.h - y0) * k, CAM_W, 2); }
+            const mr = Math.max(7, Math.min(14, k * 1.8));
+            for (const m of f.swarm) { const mx = lx + (m.x - x0) * k, my = ly + (m.y - y0) * k; if (mx > lx - 40 && mx < lx + CAM_W + 40 && my > ly - 40 && my < ly + CAM_H + 40) drawMite(m.c, mx, my, m.c === 'mega' ? mr * 1.5 : mr); }
+            // The point itself.
+            ctx.strokeStyle = colors.text; ctx.globalAlpha = 0.9; ctx.lineWidth = 1.5;
+            const cx = lx + CAM_W / 2, cy = ly + CAM_H / 2;
+            ctx.beginPath(); ctx.moveTo(cx - 7, cy); ctx.lineTo(cx - 2, cy); ctx.moveTo(cx + 2, cy); ctx.lineTo(cx + 7, cy); ctx.moveTo(cx, cy - 7); ctx.lineTo(cx, cy - 2); ctx.moveTo(cx, cy + 2); ctx.lineTo(cx, cy + 7); ctx.stroke();
+            ctx.restore();
+            ctx.globalAlpha = 1; ctx.strokeStyle = colors.good; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(lx, ly, CAM_W, CAM_H, 8); ctx.stroke();
+        }
         // Pops: what a layer paid, a fragment found.
         pops = pops.filter(p => now - p.at < POP_MS);
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -559,7 +579,7 @@
         if (!dlg) build();
         if (dlg.open) return;
         dlg.showModal();
-        ate = []; zoom = { k: 1, cx: 0, cy: 0 }; touches.clear(); pinch = null; pan = null; zoomEl?.classList.remove('zoomed');
+        zoom = { k: 1, cx: 0, cy: 0 }; touches.clear(); pinch = null; pan = null; zoomEl?.classList.remove('zoomed');
         readColors(); pops = []; sparks = []; held = null; fragShown = -1; pickKey = ''; cardsKey = ''; heldKey = '\u0000'; arcs = []; bolts = []; view.cols = view.rows = 0;
         resize();
         lastNow = 0;
