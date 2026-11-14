@@ -4023,3 +4023,45 @@ body.ring-device.screen-monitor dialog[open]::before { border-color: #20292c; bo
    over them), so a long mail is read before it is answered. */
 body.ring-device .inbox-message .dialog-actions { position: static; margin: 16px 0 0; padding: 0; background: none; border: 0; box-shadow: none; flex-wrap: wrap; }
 .inbox-notice { min-height: 1.4em; margin: 0 0 6px; padding: 0 2px; font: 0.82rem var(--font-mono); color: var(--success); }
+
+/* The device's home screen (game.js renderHome): over the page, under the bezel and the crack. A laptop's desktop has
+   its icons down the left and a taskbar along the bottom; a phone's has a status bar on top and its icons in a grid. */
+.device-home { position: fixed; inset: 0; z-index: 3000; display: flex; flex-direction: column; padding: 16px 16px 22px;
+    background: radial-gradient(120% 90% at 30% 20%, #17333a 0%, #0c1c20 55%, #050b0d 100%); color: var(--text); }
+.home-status { display: none; justify-content: space-between; padding: 8px 14px 0; font: 600 0.85rem var(--font-mono); color: var(--muted); }
+.home-icons { flex: 1; display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; gap: 14px; padding: 14px 8px; min-height: 0; }
+.device-home[hidden], .home-icon[hidden], .home-badge[hidden], .home-popup[hidden] { display: none; }
+.home-icon { position: relative; width: 92px; display: grid; justify-items: center; gap: 4px; padding: 8px 4px; border: 1px solid transparent; border-radius: 10px; background: none; color: var(--warning); cursor: pointer; font: inherit; }
+.home-icon:hover, .home-icon:focus-visible { border-color: var(--border); background: rgba(255, 255, 255, 0.06); }
+.home-icon-lab { color: var(--success); }
+.home-icon:disabled { cursor: default; }
+.home-icon-art { width: 52px; height: 52px; display: block; }
+.home-icon-art svg { width: 100%; height: 100%; display: block; }
+.home-icon-name { font: 600 0.8rem var(--font-body); color: var(--text); white-space: nowrap; }
+.home-badge { position: absolute; top: 2px; right: 12px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--danger); color: #fff; font: 700 0.75rem/20px var(--font-mono); text-align: center; }
+/* The Lab's icon while it loads: dim, filling in from the bottom (--load, 0 to 1). */
+.home-icon.loading .home-icon-art { opacity: 0.35; }
+.home-icon.loading::after { content: ''; position: absolute; left: 20px; right: 20px; top: 62px; height: 4px; border-radius: 2px;
+    background: linear-gradient(90deg, var(--success) calc(var(--load, 0) * 100%), rgba(255, 255, 255, 0.15) 0); }
+.home-popup { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); width: min(340px, calc(100% - 48px)); padding: 0 14px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6); }
+.home-popup-title { margin: 0 -14px 10px; padding: 6px 12px; border-radius: 8px 8px 0 0; background: rgba(255, 255, 255, 0.08); font: 600 0.8rem var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; }
+.home-popup-text { margin: 0 0 10px; font: 0.9rem var(--font-body); }
+.home-bar { height: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.home-bar-fill { height: 100%; width: 0; background: var(--success); transition: width 0.2s linear; }
+.home-popup-actions { display: flex; justify-content: flex-end; min-height: 44px; margin-top: 10px; }
+.home-taskbar { display: flex; align-items: center; gap: 12px; margin: 0 -16px -22px; padding: 8px 14px 14px; background: rgba(0, 0, 0, 0.45); border-top: 1px solid var(--border); font: 600 0.85rem var(--font-mono); color: var(--muted); }
+.home-start { font-size: 1.1rem; color: var(--primary); }
+.home-taskbar-clock { margin-left: auto; }
+/* A phone: a status bar, a grid of icons, no taskbar; the download shows on the icon, not in a window. */
+body.device-phone .device-home { padding: 14px 10px 18px; }
+body.device-phone .home-status { display: flex; }
+body.device-phone .home-icons { flex-direction: row; align-content: flex-start; gap: 10px 6px; padding: 22px 6px; }
+body.device-phone .home-icon { width: 25%; min-width: 76px; }
+body.device-phone .home-taskbar, body.device-phone .home-popup { display: none; }
+@media (prefers-reduced-motion: reduce) { .home-bar-fill { transition: none; } }
+/* The lab's welcome (placeholder words). */
+.ring-welcome { width: min(440px, calc(100vw / var(--zoom, 1) - 28px)); padding: 18px 18px 16px; }
+.ring-welcome h2 { margin: 0 0 10px; font: 700 1.2rem var(--font-display); }
+.ring-welcome-steps { margin: 0 0 14px; padding-left: 22px; display: grid; gap: 10px; }
+.ring-welcome-steps li strong { display: block; }
+.ring-welcome-steps li span { color: var(--muted); }

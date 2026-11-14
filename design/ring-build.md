@@ -86,7 +86,15 @@ you; on the offer the next nag still comes, as it does when you close it and lea
 counted; the ring's **first offer** is from someone who wants rid of an AI (the 20 nags are as they were, for Build
 4); after the last nag the **forced final offer** has no Report and no close. **The whole view is the device's
 screen** (bezel, crack and dimness until the monitor), with a desktop of icons (Mail, Packet Snare, The Feed) and the
-lab's panels as its windows (Compute, Parts). That is Build 1, bar tuning from play. **For Build 2:** the server asked for when the boss shows, and training's icon on the monitor.
+lab's panels as its windows (Compute, Parts). That is Build 1, bar tuning from play.
+
+**After the owner's first look (2026-11-13; built):** the crack, lines and bezel lie over dialogs too; your brother's
+mail reads like a brother's; Report spam is a button like the reply, both after the mail's words; the junk has a reply
+of its own; a nag waits unread and never opens itself. **A new game starts on the device's home screen** once mail is
+set up (`renderHome` in game.js): a laptop's desktop with a taskbar, or a phone's home screen with a status bar, with
+Mail on it. When the offer is taken **the Lab downloads itself** (a window with a bar on the laptop, an icon filling in
+on the phone) and, opened, takes you to the lab with **a welcome** of four plain steps (placeholder words: what to do
+and why you click). Flags in `intro`: `ring:labInstalled`, `ring:labOpened`, `ring:welcome`. **For Build 2:** the server asked for when the boss shows, and training's icon on the monitor.
 
 Done when: a fresh save under the switch reaches The Feed inside about two minutes of the server room opening, the
 loop can be repeated without getting stuck, research rises, and all existing tests pass with the switch off.

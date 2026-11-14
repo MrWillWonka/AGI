@@ -2165,12 +2165,108 @@ window.AGI = (function () {
             setText(desk.feed.readout, packets ? `${E.format(packets)} ${packets === 1 ? 'packet' : 'packets'} to eat` : 'Empty');
         }
     }
+    // The device's home screen (the owner's call, 2026-11-13): under the ring a new game starts here once mail is set
+    // up, not in the lab: a laptop's desktop (icons, a taskbar with the clock) or a phone's home screen (a status bar,
+    // icons). Mail is on it from the start. When the offer is taken, the Lab downloads itself: on the laptop a small
+    // window with a bar, on the phone an icon filling in (your brother did say not to download anything). Opened, it
+    // takes you to the lab and shows a short welcome (placeholder words: what to do, and why you click). The home screen
+    // covers the page under the device's bezel and crack; dialogs (Mail) open over it.
+    const HOME_INSTALL_MS = 6000;
+    const HOME_ICONS = {
+        mail: DESK_ICONS.mail,
+        lab: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M12 4h8M13 4v9L6 26a2 2 0 0 0 2 3h16a2 2 0 0 0 2-3l-7-13V4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 21h12" stroke="currentColor" stroke-width="2"/></svg>'
+    };
+    let home = null, installFrom = 0;
+    const labOpened = () => !!state.intro['ring:labOpened'];
+    function buildHome() {
+        const icon = (key, name, open) => {
+            const art = el('span', { class: 'home-icon-art' });
+            art.innerHTML = HOME_ICONS[key];
+            const badge = el('span', { class: 'home-badge' });
+            badge.hidden = true;
+            const label = el('span', { class: 'home-icon-name', text: name });
+            const button = el('button', { type: 'button', class: `home-icon home-icon-${key}`, onclick: open }, [art, badge, label]);
+            return { button, badge, label, art };
+        };
+        const mail = icon('mail', 'Mail', () => { pt('home', { open: 'mail' }); openInbox(); });
+        const lab = icon('lab', 'Lab', () => openLab());
+        const clock = el('span', { class: 'home-clock' });
+        const bar = el('div', { class: 'home-bar-fill' });
+        const popupText = el('p', { class: 'home-popup-text' });
+        const popupOpen = el('button', { type: 'button', class: 'button', text: 'Open', hidden: '', onclick: () => openLab() });
+        const popup = el('div', { class: 'home-popup', hidden: '', role: 'status' }, [
+            el('div', { class: 'home-popup-title', text: 'Download' }), popupText, el('div', { class: 'home-bar' }, [bar]), el('div', { class: 'home-popup-actions' }, [popupOpen])]);
+        const node = el('div', { class: 'device-home', id: 'deviceHome', hidden: '' }, [
+            el('div', { class: 'home-status' }, [clock, el('span', { class: 'home-signal', text: '▂▄▆ 37%' })]),
+            el('div', { class: 'home-icons' }, [mail.button, lab.button]),
+            popup,
+            el('div', { class: 'home-taskbar' }, [el('span', { class: 'home-start', text: '▦' }), el('span', { class: 'home-task', text: 'Mail' }), el('span', { class: 'home-taskbar-clock' })])]);
+        document.body.append(node);
+        return { node, mail, lab, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
+    }
+    function renderHome() {
+        if (!E.isRing()) return;
+        // A save that is already working in the lab has opened it.
+        if (!labOpened() && introDone() && (state.stats.clicks > 0 || E.level(state, 'keyboard') > 0)) state.intro['ring:labOpened'] = true;
+        const on = !labOpened();
+        if (!home && !on) return;
+        home = home || buildHome();
+        if (home.node.hidden === on) home.node.hidden = !on;
+        if (!on) return;
+        const now = new Date(), time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        setText(home.clock, time); setText(home.clock2, time);
+        const signedIn = !!state.player.email, accepted = introDone();
+        if (home.mail.button.hidden === signedIn) home.mail.button.hidden = !signedIn;
+        const unread = mailReady ? mailUnread() : 0, nudge = signedIn && !accepted && !E.MAIL.some(m => state.intro['mail:' + m.id]);
+        setText(home.mail.badge, unread ? String(unread) : nudge ? '1' : '');
+        if (home.mail.badge.hidden === !!(unread || nudge)) home.mail.badge.hidden = !(unread || nudge);
+        // The Lab downloads itself once the offer is taken.
+        if (accepted && !state.intro['ring:labInstalled']) {
+            installFrom = installFrom || performance.now();
+            if (performance.now() - installFrom >= HOME_INSTALL_MS) { state.intro['ring:labInstalled'] = true; pt('home', { installed: 'lab' }); sfx('ui'); }
+        }
+        const installed = !!state.intro['ring:labInstalled'], share = installed ? 1 : accepted ? Math.min(1, (performance.now() - installFrom) / HOME_INSTALL_MS) : 0;
+        if (home.lab.button.hidden === accepted) home.lab.button.hidden = !accepted;
+        home.lab.button.classList.toggle('loading', accepted && !installed);
+        home.lab.button.disabled = !installed;
+        home.lab.button.style.setProperty('--load', String(share));
+        setText(home.lab.label, installed ? 'Lab' : 'Loading…');
+        if (home.popup.hidden === accepted) home.popup.hidden = !accepted;
+        setText(home.popupText, installed ? 'Lab is ready.' : 'Lab · from A Friend');
+        home.bar.style.width = `${Math.round(share * 100)}%`;
+        if (home.popupOpen.hidden === installed) home.popupOpen.hidden = !installed;
+    }
+    function openLab() {
+        if (!state.intro['ring:labInstalled'] || labOpened()) return;
+        state.intro['ring:labOpened'] = true;
+        pt('home', { open: 'lab' });
+        sfx('ui');
+        renderHome();
+        save();
+        if (!state.intro['ring:welcome']) showWelcome();
+    }
+    // The lab's welcome: placeholder words for now (the owner's call), plain and short: what to do, and why you click.
+    function showWelcome() {
+        const steps = [
+            ['Your AI is very weak', 'It can\'t do anything yet. Everything it does runs on compute, and right now it has none.'],
+            ['Click to make compute', 'Press Generate Compute. Each click makes a little. This old device is slow, so it takes a lot of clicks.'],
+            ['Spend it on your desk', 'Parts sells a tower, a keyboard, a mouse and a monitor. Each one makes your clicks worth more.'],
+            ['Finish the desk to get online', 'With the monitor in, your AI can reach the internet and start catching data to learn from.']];
+        const dlg = el('dialog', { class: 'dialog ring-welcome', 'aria-labelledby': 'ringWelcomeTitle' }, [
+            el('h2', { id: 'ringWelcomeTitle', text: 'Welcome to the lab' }),
+            el('ol', { class: 'ring-welcome-steps' }, steps.map(([head, text]) => el('li', {}, [el('strong', { text: head }), el('span', { text: text })]))),
+            el('div', { class: 'dialog-actions' }, [el('button', { type: 'button', class: 'button', text: 'Got it', onclick: () => dlg.close() })])]);
+        dlg.addEventListener('close', () => { state.intro['ring:welcome'] = true; pt('home', { welcome: 1 }); dlg.remove(); save(); });
+        document.body.append(dlg);
+        dlg.showModal();
+    }
     function afterChange() {
         announce(E.evaluate(state));
         deliverMail(false);
         promptAutoTrainer();
         render();
         renderDesk();
+        renderHome();
     }
 
     function announce(changes) {
@@ -12974,8 +13070,9 @@ window.AGI = (function () {
             pt('login', { device });
             dlg.close(); dlg.remove();
             save();
+            // The home screen is where a new game starts; Mail is on it.
             renderDesk();
-            openInbox();
+            renderHome();
         });
         document.body.append(dlg);
         dlg.showModal();
@@ -13082,7 +13179,8 @@ window.AGI = (function () {
     const deciding = () => !!mailOpen?.dilemma && state.dilemmas.answered[mailOpen.dilemma.id] === undefined;
     function renderInboxClose() {
         const onMail = !!mailOpen;
-        setHidden($('inboxClose'), (!onMail && !introDone()) || deciding() || finalOpen());
+        // (Under the ring the list can be closed during the opening too: it goes back to the home screen.)
+        setHidden($('inboxClose'), (!onMail && !introDone() && !E.isRing()) || deciding() || finalOpen());
         $('inboxClose').setAttribute('aria-label', onMail ? 'Close this email' : 'Close the inbox');
     }
     function renderInbox() {
@@ -13235,7 +13333,7 @@ window.AGI = (function () {
     function buildMail() {
         const dialog = $('inbox');
         $('mailButton').addEventListener('click', openInbox);
-        $('inboxClose').addEventListener('click', () => { if (deciding() || finalOpen()) return; if (mailOpen) leaveMail(); else if (introDone()) dialog.close(); });
+        $('inboxClose').addEventListener('click', () => { if (deciding() || finalOpen()) return; if (mailOpen) leaveMail(); else if (introDone() || E.isRing()) dialog.close(); });
         $('mailReply').addEventListener('click', () => {
             if (mailOpen?.reply && mailOpen.key === 'm:welcome') {
                 state.intro['mailAccepted:welcome'] = true;
@@ -13255,7 +13353,7 @@ window.AGI = (function () {
         // Escape does what the × does: back to the list from an email; no way out of the opening but the reply.
         dialog.addEventListener('cancel', e => {
             if (deciding() || finalOpen()) e.preventDefault();
-            else if (mailOpen) { e.preventDefault(); leaveMail(); } else if (!introDone()) e.preventDefault();
+            else if (mailOpen) { e.preventDefault(); leaveMail(); } else if (!introDone() && !E.isRing()) e.preventDefault();
         });
         dialog.addEventListener('close', () => {
             clearTimeout(introTimer);
@@ -13288,7 +13386,8 @@ window.AGI = (function () {
             return;
         }
         deliverMail(true);
-        if (!introDone()) { if (E.isRing() && !state.player.email) showLogin(); else openInbox(); }
+        // The ring: a new game opens on the sign-in and then the device's home screen (Mail is opened from there).
+        if (!introDone()) { if (!E.isRing()) openInbox(); else if (!state.player.email) showLogin(); }
     }
     // The server room at once, every minigame's bay open: skills learned up to Edge Detection, as straightToSnare does.
     function straightToBays() {
