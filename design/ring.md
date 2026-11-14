@@ -122,6 +122,27 @@ In-Context Learning, General AI and the ending.
 funding round for each rival passed. It opens as a real bay when the first boss falls. Marks and the seven upgrades
 are frozen for the slice.
 
+## Where the places live: the desk, then the garage
+
+The owner's call, 2026-11-13: with five places, a row of bays in a server room no longer makes sense. The places grow
+from the desk outward, which is the fantasy itself (something trivial at home, then a building). Each place is an
+object you tap; it opens its game full-screen (as Evals and The Feed do). Objects appear one at a time, each in a spot
+reserved for it. The names below are *proposed* placeholders.
+
+1. **Your bedroom** (minute 0 to about 15): the lab screen is your desk. The laptop's connection is **the wire**
+   (Packet Snare), there once the desk is finished. The old **drive** beside it is where the data lands (The Feed),
+   there after the first run. **The tower** under the desk starts training when the first boss is met.
+2. **The garage** (after the first boss falls): your backers' money buys **the rack**; training moves onto it and is
+   the Training Cluster; **a test bench** arrives for Evals (backers want benchmarks); **the roster** arrives with the
+   first agent. The wire and the drive come along. A funding round is, literally, more room.
+3. **The lab** (later funding rounds): a real server room, and in time a room per place. *Proposed:* the demo can end
+   in the garage; this stage can wait.
+
+What this changes: under the ring the finished desk does not open the server room. The server room's hub, the minimap
+and Surveillance assume today's rooms and change or wait. The lab screen is dense on a phone and needs a design pass to
+hold the objects. *Cheaper fallback, if the garage is too much to draw now:* today's server room stands in as the
+garage and only the bedroom stage is new.
+
 ## The Feed
 
 You show a swarm of tiny bots where to eat, and what they uncover is the reward. It is the calm game in the ring: no

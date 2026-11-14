@@ -62,6 +62,13 @@ A fresh save goes round the lab, Packet Snare and The Feed a few times, and rese
 | The lab without two buttons | Under the switch: no Collect Data or Research buttons, and the finished desk opens the server room with Packet Snare first | `engine.js`: `ACTIONS`, the `module:path` and `module:snare` milestones; `game.js`: `ROOMS.servers` |
 | Training waits | Under the switch the Training Cluster stays sealed in this build (its sprints still cost compute and data until Build 2) | `game.js`: `BAYS` |
 
+**Changed on 2026-11-13 (the owner's calls while building):** the places live on the desk, then in a garage
+(`design/ring.md` → Where the places live), so where this table says "a bay in the server room" or "opens the server
+room", read: an object on the desk (the wire for Packet Snare, the drive for The Feed). The Feed's screen is a
+full-screen dialog (built, behind `#feed` and the debug panel until its door exists). The order inside the build: The
+Feed's rules, save and screen (done), then runs fill the heap, compute buys the clock, the lab without two buttons with
+the desk's doors and training sealed, and the opening last.
+
 Done when: a fresh save under the switch reaches The Feed inside about two minutes of the server room opening, the
 loop can be repeated without getting stuck, research rises, and all existing tests pass with the switch off.
 
