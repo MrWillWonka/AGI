@@ -2901,6 +2901,7 @@ window.AGI = (function () {
         const stageWidth = $('stage').clientWidth || 1200;
         for (const [id, cam] of Object.entries(CAMERAS)) {
             const tile = $('facilityPlan').querySelector(`[data-room-id="${id}"]`);
+            if (!tile) continue;   // the ring builds no tile for the server room
             const screen = tile.querySelector('.fr-cam');
             const live = roomOpen(id);
             screen.hidden = !live;
@@ -2967,7 +2968,9 @@ window.AGI = (function () {
         for (const b of document.querySelectorAll('[data-facility]')) b.addEventListener('click', zoomOut);
         try { seenRooms = new Set(['lab', ...JSON.parse(storageGet(SEEN_KEY) || '[]')]); } catch { /* keep default */ }
         const saved = storageGet(VIEW_KEY);
-        if (saved === 'facility' || ROOMS[saved]) view = saved;
+        // The ring has no Surveillance screen (its home is the device's home screen): a device that last stood there in
+        // the old game opened on it, where the missing server-room tile threw on every frame (the owner's phone).
+        if ((saved === 'facility' && !E.isRing()) || (ROOMS[saved] && !ringHides(saved))) view = saved;
     }
 
     // The whole floor plan is there from the start: every locked room is an anonymous sealed wing. A room
