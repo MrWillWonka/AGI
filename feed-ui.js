@@ -397,17 +397,22 @@
             ctx.fillStyle = INK; for (const ex of [-0.17, 0.17]) { ctx.beginPath(); ctx.ellipse(x + q * ex, y, q * 0.07, q * 0.12, 0, 0, Math.PI * 2); ctx.fill(); }
             ctx.fillStyle = '#4c9bf6'; star4(x + q * 0.75, y - q * 1.0, q * 0.26, q * 0.3, 0.2); ctx.fill(); star4(x + q * 1.1, y - q * 0.6, q * 0.18, q * 0.2, 0.2); ctx.fill();
         } else if (kind === 'mega') {
-            // A big cream puff: eyes, a smile, a blush, and a nugget in each hand.
-            blob(x, y, q, 9, '#f6e6c8');
-            eye(x - q * 0.24, y - q * 0.2, q * 0.09, 0); eye(x + q * 0.24, y - q * 0.2, q * 0.09, 0);
-            ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, q * 0.07); ctx.beginPath(); ctx.arc(x, y - q * 0.1, q * 0.14, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
-            ctx.fillStyle = 'rgba(240, 130, 110, 0.75)'; for (const bx of [-0.45, 0.45]) { ctx.beginPath(); ctx.arc(x + q * bx, y - q * 0.05, q * 0.11, 0, Math.PI * 2); ctx.fill(); }
-            // Its face in a soft ring, and its arms: open when empty, round a nugget each when it has just eaten.
-            ctx.strokeStyle = '#d9b98a'; ctx.lineWidth = Math.max(1, q * 0.06); ctx.beginPath(); ctx.ellipse(x, y - q * 0.15, q * 0.6, q * 0.42, 0, 0, Math.PI * 2); ctx.stroke();
-            ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, q * 0.08);
-            ctx.beginPath(); ctx.arc(x - q * 0.36, y + q * 0.4, q * 0.17, 0.1 * Math.PI, 1.3 * Math.PI, true); ctx.stroke();
-            ctx.beginPath(); ctx.arc(x + q * 0.36, y + q * 0.4, q * 0.17, 0.9 * Math.PI, -0.3 * Math.PI); ctx.stroke();
-            if (holding) { nugget(x - q * 0.3, y + q * 0.32, q * 0.26, -0.3); nugget(x + q * 0.3, y + q * 0.32, q * 0.26, 0.3); }
+            // A big cream puff with a body to it (the owner's sheet): a scalloped head over a wider belly, bumps down its
+            // sides and two feet; its face in a soft ring; arms open when empty, round a nugget each when it has just eaten.
+            const puffs = [[0, 0.3, 0.74], [0, -0.42, 0.6], [-0.36, 0.98, 0.27], [0.36, 0.98, 0.27]];
+            for (let k = 0; k < 7; k++) { const t = Math.PI * (1.08 + k * 0.14); puffs.push([Math.cos(t) * 0.6, -0.42 + Math.sin(t) * 0.58, 0.25]); }
+            for (const s of [-1, 1]) puffs.push([s * 0.66, -0.12, 0.25], [s * 0.76, 0.24, 0.27], [s * 0.7, 0.62, 0.27]);
+            ctx.fillStyle = INK; for (const [px0, py0, pr] of puffs) { ctx.beginPath(); ctx.arc(x + px0 * q, y + py0 * q, pr * q + lw, 0, Math.PI * 2); ctx.fill(); }
+            ctx.fillStyle = '#f6e6c8'; for (const [px0, py0, pr] of puffs) { ctx.beginPath(); ctx.arc(x + px0 * q, y + py0 * q, pr * q, 0, Math.PI * 2); ctx.fill(); }
+            const fy = y - q * 0.42;
+            ctx.strokeStyle = '#d9b98a'; ctx.lineWidth = Math.max(1, q * 0.055); ctx.beginPath(); ctx.ellipse(x, fy, q * 0.5, q * 0.36, 0, 0, Math.PI * 2); ctx.stroke();
+            eye(x - q * 0.2, fy - q * 0.06, q * 0.08, 0); eye(x + q * 0.2, fy - q * 0.06, q * 0.08, 0);
+            ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, q * 0.06); ctx.beginPath(); ctx.arc(x, fy + q * 0.02, q * 0.11, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+            ctx.fillStyle = 'rgba(240, 130, 110, 0.75)'; for (const bx of [-0.36, 0.36]) { ctx.beginPath(); ctx.arc(x + q * bx, fy + q * 0.08, q * 0.09, 0, Math.PI * 2); ctx.fill(); }
+            ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, q * 0.07);
+            ctx.beginPath(); ctx.arc(x - q * 0.34, y + q * 0.36, q * 0.17, 0.1 * Math.PI, 1.3 * Math.PI, true); ctx.stroke();
+            ctx.beginPath(); ctx.arc(x + q * 0.34, y + q * 0.36, q * 0.17, 0.9 * Math.PI, -0.3 * Math.PI); ctx.stroke();
+            if (holding) { nugget(x - q * 0.3, y + q * 0.3, q * 0.24, -0.3); nugget(x + q * 0.3, y + q * 0.3, q * 0.24, 0.3); }
         } else {
             // The gold-hungry (and any mite with no character): a yellow blob in round glasses, a nugget held to its mouth.
             blob(x, y, q, 7, '#f9c22e');
@@ -563,6 +568,6 @@
     function stop() { cancelAnimationFrame(raf); raf = 0; if (held !== null) letGo(); }
     function close() { if (dlg?.open) { dlg.close(); stop(); } }
 
-    window.FeedUI = { open, close, events, get isOpen() { return !!(dlg && dlg.open); }, get view() { return view; }, get zoom() { return zoom.k; }, zoomAt, px };
+    window.FeedUI = { open, close, events, get isOpen() { return !!(dlg && dlg.open); }, get view() { return view; }, get zoom() { return zoom.k; }, zoomAt, px, drawMite };
     if (location.hash === '#feed') window.addEventListener('load', () => setTimeout(open, 600));
 })();
