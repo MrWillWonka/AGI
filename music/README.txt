@@ -1,24 +1,18 @@
-MUSIC AND SOUND EFFECTS: a working copy, by theme
-=================================================
-Copied from sfx.js on 2026-11-14. The game still plays sfx.js: nothing in this folder is loaded by it.
-Edit here, then carry a change back into sfx.js (every copied section is labelled with the sfx.js lines it
-came from, and every section was checked to match the source exactly).
-
-There are no audio files in the game. Everything is synthesised in the browser with Web Audio, so a
-"track" is data (songs) plus code (instruments), and a "sound effect" is a few lines of code.
+MUSIC AND SOUND EFFECTS, by theme
+=================================
+This folder is the source: the game loads music/<theme>.js (index.html), and sfx.js, the engine, builds each
+track from it. There are no audio files. Everything is synthesised in the browser with Web Audio, so a "track"
+is data (songs) plus code (instruments), and a "sound effect" is a few lines of code.
 
 WHAT IS HERE
-  classic/  dark/  soft/  ominous/  retro/      one folder per theme, each with
-      songs.js          its six songs: two for the lab, two for the server room, two for Packet Snare
-      instruments.js    its drums and instruments, and how they play a song step by step
-      sound-effects.js  its key, profile, levels, and every effect written for it
-      notes.txt         what went into the track and its effects
-  shared/
-      notation.js       how a song is written: scales, chords, melody and bass notation, the form
-      music-engine.js   what plays the songs: the bus, the voices, layers, stealth and simple versions
-      sound-engine.js   what plays the effects: tone and noise, the grid, keys, profiles, variations,
-                        groups, simple sounds, the sprint meter
-  opportunities.txt     where the tracks and effects could go next
+  classic.js  dark.js  soft.js  ominous.js  retro.js
+                        one live file per theme: its key, profile and levels, its instruments (style), its six
+                        songs and the sound effects written for it
+  <theme>/notes.txt     what went into the track and its effects (written against the tracks as they were on
+                        2026-11-14, before the overhaul)
+  opportunities.txt     where the tracks and effects could go next (the same date)
+  ../sfx.js             the engine: how a song is written ("Songs"), the voices, the grid, the mixer
+  ../tools/audio/       renders and measurements (FFmpeg); ../design/audio/STATUS.md is the overhaul's status
 
 THE SONGS
   Theme     Lab                        Server room                 Packet Snare
