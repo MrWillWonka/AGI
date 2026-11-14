@@ -681,7 +681,7 @@
         // Every sound lands on the track's grid, in every track and in simple sounds: the next 16th (a held
         // click and the stingers the next 8th, `q` from game.js or QUANT). If a slowed track puts the 8th too
         // far off, the next 16th.
-        const g1 = gridMul(), div = (opts?.q ?? QUANT[name] ?? 1) * g1;
+        const g1 = tapMul(), div = (opts?.q ?? QUANT[name] ?? 1) * g1;
         base = Math.max(0, (at ?? nextStep(div).t) - now);
         if (at == null && base > 0.3 && div > g1) base = Math.max(0, nextStep(g1).t - now);
         startAt = now + base;
@@ -737,7 +737,7 @@
         const until = ctx.currentTime + HOLD_KEEP;
         if (holdPart) { holdPart.res = res; holdPart.until = until; return; }
         const from = Math.max(ctx.currentTime, lastClickAt + S() / 2);
-        const g1 = Math.min(gridMul(), holdDiv());
+        const g1 = Math.min(tapMul(), holdDiv());
         holdPart = { res, until, next: Math.ceil(stepAt(from) / g1 - 1e-6) * g1, first: true, timer: every(holdTick, 25) };
         holdTick();
     }
@@ -962,6 +962,9 @@
     const stepOf = bpm => 60 / bpm / 4;
     const baseLen = () => stepOf(music ? music.bpm : bpmOf(null));
     const gridMul = () => Math.pow(2, Math.round(Math.log2(0.121 / baseLen())));
+    // Taps and stingers wait for a finer grid where they must: the coarsest division that is never longer than that
+    // old 16th, so no tap waits longer in any track than it did at 124 BPM (`tapMul`: 1 at 124, ½ at 93 and at 62).
+    const tapMul = () => Math.pow(2, Math.floor(Math.log2(0.121 / baseLen()) + 1e-3));
     // The clock takes a new tempo from now on, without a jump in step time.
     function tempoNow(bpm) {
         if (!ctx) return;
@@ -1614,7 +1617,7 @@
     function songNow() {
         if (!music) return null;
         const song = music.songs[music.song], bar = Math.max(0, Math.floor((music.step - music.songStep) / 16)), sec = sectionAt(song, bar);
-        return { area: music.area, song: music.song + 1, of: music.songs.length, name: song.name || null, section: sec.name, bar: bar - sec.start + 1, bars: sec.bars, bpm: music.bpm, voices: voices.music };
+        return { area: music.area, song: music.song + 1, of: music.songs.length, name: song.name || null, section: sec.name, index: song.form.indexOf(sec), bar: bar - sec.start + 1, bars: sec.bars, bpm: music.bpm, voices: voices.music };
     }
     function songCmd(cmd) { if (music) music.cmd = cmd; }
 
@@ -1724,6 +1727,24 @@
         }
     }
 
-    return { tick, setPolicy, get voices() { return { ...voices }; }, get context() { return ctx; }, get faults() { return { ...faults }; }, get sounds() { return Object.keys(SOUNDS); }, play, held, setArea, setDepth, setTraining, songCmd, get song() { return songNow(); }, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
+    // What there is to play, for tools and tests: every track's tempo, layers, space and songs with their forms.
+    function catalog() {
+        const out = {};
+        for (const [name, areas] of Object.entries(SONGS)) {
+            const st = STYLES[name];
+            out[name] = { bpm: st.bpm || 124, swing: st.swing || 0, pitch: PITCH[name], layers: st.layers ? { ...st.layers } : null, space: st.space || null, holdDiv: st.holdDiv || null,
+                meter: METERS[name] ? METERS[name].length : 0, own: Object.keys(TRACK_SOUNDS[name]), fx: { ...FX_TRIM[name] }, songs: {} };
+            for (const [a, list] of Object.entries(areas)) out[name].songs[a] = list.map(sg => ({
+                name: sg.name || null, bpm: sg.bpm || st.bpm || 124, bars: sg.bars, seconds: Math.round(sg.bars * 16 * stepOf(sg.bpm || st.bpm || 124)), stealth: !!sg.kick,
+                melodies: Object.fromEntries(Object.entries(sg.mel).map(([k, v]) => [k, v.length / 16])), progressions: Object.fromEntries(Object.entries(sg.prog).map(([k, v]) => [k, v.map(c => c.name)])),
+                sections: sg.form.map(x => ({ name: x.name, bars: x.bars, start: x.start, drums: x.drums, mel: x.mel, chords: x.chords, bassOn: x.bassOn, harm: x.harm, lift: x.lift, up: x.up, entry: x.entry }))
+            }));
+        }
+        return out;
+    }
+    // For tests (tests/audio.test.js): the song builders, and a look at the running music.
+    const lab = { parseMelody, parseChord, buildSong, harmNote, melNote, songs: SONGS, music: () => music, master: () => master, gridMul: () => gridMul(), scales: { AEOL, PHRY, DOR, HARM, ION } };
+
+    return { tick, setPolicy, get catalog() { return catalog(); }, lab, get voices() { return { ...voices }; }, get context() { return ctx; }, get faults() { return { ...faults }; }, get sounds() { return Object.keys(SOUNDS); }, play, held, setArea, setDepth, setTraining, songCmd, get song() { return songNow(); }, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
     }
 })();
