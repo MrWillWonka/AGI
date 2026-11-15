@@ -632,3 +632,22 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
 
 - **Rule dropped (the owner, 2026-11-15):** "the AI's buttons never open an app" no longer holds. "Open Parcel" in
   the assistant's sheet stays, and a line's button may open an app where that reads better. Nothing else changed.
+
+## 2026-11-15: Build 3, first piece: Evals is an app (the owner's four cards)
+
+- **Opens when the first Packet Snare boss falls** (engine.js `evalsOpen`: a boss beaten, under the ring). The AI says
+  one line once the run is over (`evals`, with Show me; `evalsHome` on the home screen), and the icon loads in on the
+  home screen with a NEW tag, like the other apps; it is on the dock's app row too. No mail (that waits for the story
+  build). A save that had already beaten a boss gets the line and the icon the next time the home screen shows.
+- **Bosses open the kinds** (`evalsSteps`, passed to evals.js as `steps`): one step of the ladder for each different
+  boss beaten (three kinds at the first boss; a replayed boss opens nothing), and handing a kind over opens no kinds
+  under the ring. The old game and `#evals` keep the handover rule. The playground has every kind.
+- **Pays Marks only**, as it did; funding rounds come with their own piece. Marks and the seven upgrades are untouched.
+- Evals' own screen and cards are unchanged, so **its words are still the old game's** ("Verification required",
+  "Prove you are human"), it has no status bar, and the AI's orb does not show over it. The two new AI lines are
+  placeholders of mine, in `design/assistant-lines.md`.
+- With one boss beaten, once all three kinds are handed over a run ends "Verified automatically… nothing left here
+  for you to prove"; nothing there says the next boss opens more. To be worded.
+- Checked in a test browser: the line and the icon on the owner's 3 PM save (one boss beaten), the app opening on a
+  laptop and on a phone in the playground (14 kinds there, 3 on the save). A captcha run was not played through.
+  `tests/ring-evals.test.js`.

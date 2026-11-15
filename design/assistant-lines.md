@@ -72,6 +72,8 @@ succeeds, never a tutorial. Edit the Line column and send it back (or say which 
 | `cardsHome` | Home screen, Parcel ringed | Parcel again. Each card makes compute on its own. You have done enough tapping for me. | |
 | `server` | The first boss escapes | That one was too much for me. I am sorry. With a server I could train, and then I think we could beat it. | |
 | `serverHome` | Home screen, Parcel ringed | Parcel again. It sells a server. Four hundred dollars. I know that is a lot to ask. | |
+| `evals` | The first Packet Snare boss is beaten: Evals arrives | The boss is down. Someone noticed. They want me tested, so I have put Evals on your home screen. | |
+| `evalsHome` | After Show me, pointing at the Evals icon | This one. Evals is where I am tested. You show me how, and then you check my work. | |
 | `training` | The server is installed: Training arrives | The server is in. Thank you. I can train now, if you will help me. | |
 | `trainingHome` | Home screen, Training ringed | This one. Training turns research into skills. Hold the button, and let go near the top. | |
 | `sell` | Both money offers declined | Parcel will buy compute, if money would help. Ten for a dollar. | |

@@ -2287,7 +2287,8 @@ window.AGI = (function () {
                 lab: switchButton('lab', 'Lab', HOME_ICONS.lab, toApp(() => { if (openBay) jumpTo('lab'); openLab(); })),
                 snare: switchButton('snare', 'Packet Snare', HOME_ICONS.snare, toApp(() => openSnareApp())),
                 feed: switchButton('feed', 'The Feed', HOME_ICONS.feed, toApp(() => openFeed())),
-                training: switchButton('training', 'Training', HOME_ICONS.training, toApp(() => openTrainingApp())) };
+                training: switchButton('training', 'Training', HOME_ICONS.training, toApp(() => openTrainingApp())),
+                evals: switchButton('evals', 'Evals', HOME_ICONS.evals, toApp(() => openEvalsApp())) };
             const appsRow = el('div', { class: 'device-switch-apps' }, Object.values(appButtons));
             const small = (key, label, text, act) => el('button', { type: 'button', class: `device-switch-button device-switch-small device-switch-${key}`, 'aria-label': label, title: label, text, onclick: act });
             const pin = small('pin', 'Keep the dock open', '⌖', () => { const on = !kept('agiDockPin'); kept('agiDockPin', on); pt('dock', { pin: on ? 1 : 0 }); desk.dockRefresh(); if (!on) hideSwitch(); });
@@ -2316,7 +2317,7 @@ window.AGI = (function () {
                 desk.dockFit(pinned);
                 pin.setAttribute('aria-pressed', String(pinned)); more.setAttribute('aria-pressed', String(wide)); more.textContent = wide ? '⌄' : '⌃';
                 appsRow.hidden = !wide;
-                const now = ringAppNow(), have = { mail: true, lab: true, snare: !!state.unlocked['module:snare'], feed: E.feedOpen(state), training: !!state.unlocked['module:path'] };
+                const now = ringAppNow(), have = { mail: true, lab: true, snare: !!state.unlocked['module:snare'], feed: E.feedOpen(state), training: !!state.unlocked['module:path'], evals: E.evalsOpen(state) };
                 for (const [k, b] of Object.entries(appButtons)) { b.hidden = !have[k]; b.classList.toggle('here', k === now); }
             };
             const mainRow = el('div', { class: 'device-switch-row' });
@@ -2363,7 +2364,7 @@ window.AGI = (function () {
     // what sprints spend. Shown in the status bar and the Lab's Research box.
     let ringRpRate = 0;
     // The app on screen under the ring: 'home', 'lab', 'snare', 'training', 'feed' or 'shop'.
-    const ringAppNow = () => (shop?.dlg.open ? 'shop' : window.FeedUI?.isOpen ? 'feed' : !labOpened() || homeUp ? 'home' : openBay === 'pipeline' ? 'snare' : openBay === 'training' ? 'training' : 'lab');
+    const ringAppNow = () => (shop?.dlg.open ? 'shop' : window.EvalsUI?.isOpen ? 'evals' : window.FeedUI?.isOpen ? 'feed' : !labOpened() || homeUp ? 'home' : openBay === 'pipeline' ? 'snare' : openBay === 'training' ? 'training' : 'lab');
     function renderStatus() {
         const st = desk?.status;
         if (!st) return;
@@ -2439,6 +2440,7 @@ window.AGI = (function () {
     }
     const HOME_ICONS = {
         ...DESK_ICONS,
+        evals: '<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="6" width="22" height="20" rx="3"/><path d="M10 13l2.5 2.5L17 11M10 21h12M20 13h2"/></svg>',
         training: '<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 25c5 0 6-6 10-6s4 4 7 4 4-14 9-14"/><circle cx="9" cy="17" r="2.6"/></svg>',
         phone: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',
         bank: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg>',
@@ -2468,7 +2470,8 @@ window.AGI = (function () {
         const feedApp = icon('feed', 'The Feed', () => { pt('home', { open: 'feed' }); openFeed(); });
         const trainApp = icon('training', 'Training', () => { pt('home', { open: 'training' }); openTrainingApp(); });
         const shopApp = icon('shop', 'Parcel', () => { pt('home', { open: 'shop' }); openShop(); });
-        snareApp.button.hidden = feedApp.button.hidden = trainApp.button.hidden = shopApp.button.hidden = true;
+        const evalsApp = icon('evals', 'Evals', () => { pt('home', { open: 'evals' }); openEvalsApp(); });
+        snareApp.button.hidden = feedApp.button.hidden = trainApp.button.hidden = shopApp.button.hidden = evalsApp.button.hidden = true;
         // Settings, the Journal, Debug and the playtest survey are apps too (the owner's call), so they can be reached
         // from the home screen, which covers the top bar.
         const tools = [
@@ -2483,7 +2486,7 @@ window.AGI = (function () {
             el('div', { class: 'home-popup-title', text: 'Download' }), popupText, el('div', { class: 'home-bar' }, [bar]), el('div', { class: 'home-popup-actions' }, [popupOpen])]);
         const node = el('div', { class: 'device-home', id: 'deviceHome', hidden: '' }, [
             el('div', { class: 'home-status' }, [clock, el('span', { class: 'home-signal', text: '▂▄▆ 37%' })]),
-            el('div', { class: 'home-icons' }, [mail.button, lab.button, shopApp.button, snareApp.button, feedApp.button, trainApp.button]),
+            el('div', { class: 'home-icons' }, [mail.button, lab.button, shopApp.button, snareApp.button, feedApp.button, trainApp.button, evalsApp.button]),
             popup,
             // The system apps sit in a row at the foot of the screen (the owner's call): a phone's dock, a laptop's shelf.
             el('div', { class: 'home-dock' }, tools.map(t => t.button)),
@@ -2495,7 +2498,7 @@ window.AGI = (function () {
         let lastTap = 0;
         node.addEventListener('touchend', e => { const now = Date.now(); if (now - lastTap < 320 && !e.target.closest('button')) e.preventDefault(); lastTap = now; }, { passive: false });
         document.body.append(node);
-        return { node, mail, lab, snare: snareApp, feed: feedApp, train: trainApp, shop: shopApp, tools, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
+        return { node, mail, lab, snare: snareApp, feed: feedApp, train: trainApp, shop: shopApp, evals: evalsApp, tools, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
     }
     function renderHome() {
         if (!E.isRing()) return;
@@ -2558,12 +2561,15 @@ window.AGI = (function () {
         if (home.feed.button.hidden === fed) home.feed.button.hidden = !fed;
         const training = !!state.unlocked['module:path'];
         if (home.train.button.hidden === training) home.train.button.hidden = !training;
+        const evalsOn = E.evalsOpen(state);
+        if (evalsOn) evalsArrive();
+        if (home.evals.button.hidden === evalsOn) home.evals.button.hidden = !evalsOn;
         // The shop is there once there is money (or a part already bought); its badge says there is something you can afford.
         const shopOn = shopOpenable(), canBuy = shopOn && shopItems().some(i => i.next && !i.coming && i.price <= bankNow());
         if (home.shop.button.hidden === shopOn) home.shop.button.hidden = !shopOn;
         setText(home.shop.badge, canBuy ? '1' : '');
         if (home.shop.badge.hidden === canBuy) home.shop.badge.hidden = !canBuy;
-        for (const [key, app] of [['shop', home.shop], ['snare', home.snare], ['feed', home.feed], ['training', home.train]]) {
+        for (const [key, app] of [['shop', home.shop], ['snare', home.snare], ['feed', home.feed], ['training', home.train], ['evals', home.evals]]) {
             const share = app.button.hidden ? 1 : appInstall(key), loading = share < 1;
             app.button.classList.toggle('loading', loading); if (app.button.disabled !== loading) app.button.disabled = loading;
             app.button.style.setProperty('--load', String(share));
@@ -2590,6 +2596,18 @@ window.AGI = (function () {
         sfx('ui');
         renderHome();
         if (openBay) jumpTo('lab');
+    }
+    // Evals, the fifth app (the ring, Build 3; the owner's cards, 2026-11-15): on the home screen from the first Packet
+    // Snare boss beaten, its kinds a step for each boss (engine.js `evalsOpen`, `evalsSteps`). Its screen is evals-ui.js's.
+    // Said once, when Evals first opens for this save (a boss just beaten, or a save that had already beaten one).
+    function evalsArrive() {
+        if (!E.isRing() || RING_PLAY || state.intro['ring:evals'] || !E.evalsOpen(state)) return;
+        state.intro['ring:evals'] = true; pt('home', { evals: 1 });
+        assist('evals', '', { action: showMe('evals', 'evals'), done: () => !!window.EvalsUI?.isOpen });
+    }
+    function openEvalsApp() {
+        state.intro['ring:seen:evals'] = true;
+        window.EvalsUI?.open();
     }
     function openTrainingApp() {
         state.intro['ring:seen:training'] = true;
@@ -2700,6 +2718,8 @@ window.AGI = (function () {
         "cardsHome": "Parcel again. Each card makes compute on its own. You have done enough tapping for me.",
         "server": "That one was too much for me. I am sorry. With a server I could train, and then I think we could beat it.",
         "serverHome": "Parcel again. It sells a server. Four hundred dollars. I know that is a lot to ask.",
+        "evals": "The boss is down. Someone noticed. They want me tested, so I have put Evals on your home screen.",
+        "evalsHome": "This one. Evals is where I am tested. You show me how, and then you check my work.",
         "training": "The server is in. Thank you. I can train now, if you will help me.",
         "trainingHome": "This one. Training turns research into skills. Hold the button, and let go near the top.",
         "sell": "Parcel will buy compute, if money would help. Ten for a dollar.",
@@ -2758,9 +2778,10 @@ window.AGI = (function () {
         snare: 'This one. Data goes past in Packet Snare. What you catch there is what I learn from.',
         feed: 'This one. The Feed turns what you caught into research. Research is how I get better at things.',
         full: 'This one. A full stockpile wastes whatever you catch next. The mites will make room.',
-        training: 'This one. Training turns research into skills. I would like one. That boss would not.'
+        training: 'This one. Training turns research into skills. I would like one. That boss would not.',
+        evals: 'This one. Evals is where I am tested. You show me how, and then you check my work.'
     };
-    const appUp = app => (app === 'shop' ? !!shop?.dlg.open : app === 'feed' ? !!window.FeedUI?.isOpen : ringAppNow() === app);
+    const appUp = app => (app === 'shop' ? !!shop?.dlg.open : app === 'evals' ? !!window.EvalsUI?.isOpen : app === 'feed' ? !!window.FeedUI?.isOpen : ringAppNow() === app);
     function showMe(app, key) {
         return ['Show me', () => { goHome(); assist(key + 'Home', SHOW_WHY[key] || '', { target: () => home?.[app === 'training' ? 'train' : app].button, done: () => appUp(app) }); }];
     }
@@ -2817,6 +2838,7 @@ window.AGI = (function () {
     function closeApps() {
         if (shop?.dlg.open) shop.dlg.close();
         if (window.FeedUI?.isOpen) window.FeedUI.close();
+        if (window.EvalsUI?.isOpen) window.EvalsUI.close();
     }
     // The assistant's own button (the owner's call, 2026-11-14: "the phone's assistant with its own button … so that you
     // can 'chat' with the ai or revisit tutorials missed"): a round dot that floats over every app once the Lab is
@@ -6219,6 +6241,8 @@ window.AGI = (function () {
         if (!replay) log(boss ? `Packet Snare: the boss of sector ${cleared + 1} (${E.snareSectorName(cleared)}) is down. Next: ${E.snareSectorName(cleared + 1)}.`
             : `Packet Snare: sector ${cleared + 1} (${E.snareSectorName(cleared)}) cleared, ${goalNum(run.opts.goal)} Signal earned. Next: ${E.snareSectorName(cleared + 1)}.`, 'success');
         pt(boss ? 'snareBoss' : 'snareGoal', { sector: cleared + 1, secs: Math.round(run.time), replay });
+        // The first boss down brings Evals (the AI says so once the run is over; the icon loads in on the home screen).
+        if (boss) evalsArrive();
         // The frontier moving on takes the choice with it; a replay keeps its sector (the owner's call, 2026-11-15: it went
         // back to the frontier after every clear).
         if (!replay) { snare.sectorPick = null; snarePickKeep(); }
@@ -14656,7 +14680,7 @@ window.AGI = (function () {
         if (!state.player.email) E.signIn(state, 'Tester', 'tester', matchMedia('(pointer: coarse)').matches ? 'phone' : 'laptop');
         Object.assign(i, { 'ring:playground': true, 'ring:playtestNote': true, 'mailAccepted:welcome': true, 'ring:labInstalled': true, 'ring:labOpened': true,
             'ring:welcome': true, 'ring:parcel': true, 'ring:feed': true, 'ring:server': true });
-        for (const k of ['shop', 'snare', 'feed', 'training']) i['ring:inst:' + k] = true;   // no downloads to wait for
+        for (const k of ['shop', 'snare', 'feed', 'training', 'evals']) i['ring:inst:' + k] = true;   // no downloads to wait for
         const lvl = E.level(state, 'keyboard');
         if (lvl <= E.RING_DESK) {
             state.stats.cashSold += E.DESK_PRICES.slice(lvl, E.RING_DESK).reduce((a, b) => a + b, 0) + E.RING_SERVER_PRICE;
