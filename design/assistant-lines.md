@@ -10,7 +10,9 @@ succeeds, never a tutorial. Edit the Line column and send it back (or say which 
 | `download` | Home screen, two seconds after the offer is taken; the Lab starts loading two seconds later | One moment. I am downloading something that will help. It is small. It will not take long. | |
 | `lab1` | The Lab, first time it opens | Hello. I am new here. If you tap Generate Compute, I think I can be useful. | |
 | `lab2` | The Lab, after the first few taps | Thank you. That helps more than you would think. A few more, if you do not mind. | |
-| `money` | Parcel arrives (100 compute made) | That is a hundred compute. I found a shop that will buy it. A tower would help. And I have seen your screen. You could fix the screen too. You deserve the extras. | |
+| `hold` | The Lab, after about twelve taps | You can hold the button down as well. It repeats about four times a second, which is easier on your hand. | |
+| `money` | Parcel arrives (100 compute made); goes on its own after a few seconds | You have made a hundred compute. I found a shop that will buy it, so you can afford a tower now. | |
+| `money2` | Straight after, with the Show me button | I also noticed your screen is cracked. You could fix the screen there too, and I think you deserve a few extras. | |
 | `back` | The tower is delivered | The tower is in. Thank you. Back to the Lab, if you would. | |
 | `dock1` | The Lab, after the tower: the dock opens, Parcel ringed | I put Parcel down here for you. You can buy things without leaving. I thought it would save you the trip. | |
 | `dock2` | Next, the whole dock ringed | Home is the one in the middle. Settings and Playtest are beside it. The pin keeps this open. The arrow shows your other apps. | |

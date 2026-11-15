@@ -376,3 +376,28 @@ All numbers (4 s, 50 ms a character, 2 s and 2 s) are placeholders of mine.
   picture of why the minigame exists. Notes 8 and 18 are a pair, for batch 4. **The playground is free to do
   everything**: no money story (`fundStep` null there), no lines from the AI, and $10,000, 100,000 compute and
   10,000 research on top (amounts mine).
+
+## 2026-11-15: the owner's calls on twelve phone screenshots of batches 1 and 2
+
+Asked as cards, one per problem seen; built as answered.
+
+- **The orb looks like a glass lens** (the owner pointed at the iPhone's magnifier that appeared over it): dark glass,
+  a highlight across the top, a light inside. It never changes size; only its glow pulses (stronger while it speaks,
+  a flare as compute lands).
+- **Where the orb is** (`assistMode`): it **floats on the home screen** (dragged anywhere, as before); **the Lab is its
+  home**: the orb sits at the top of the Lab with its lines under it (`.ai-home`), then the Compute counter and the
+  Compute button, all in one centred column on a phone and a laptop alike; **in a session** (Packet Snare, The Feed,
+  Training, Parcel) it sits small in the status bar beside the clock. (The owner: it could also go on the dock if
+  needed; not done.)
+- **Its arrival:** a second after you reach the home screen with the offer taken, the screen flickers, and then the
+  orb is there with its first line (`ai-arriving`, `HOME_FLICKER_MS`).
+- **The thread on the home screen** goes from the orb to the app's ring, and from the ring on to the line; an app's
+  name wraps inside its icon so the ring goes round all of it.
+- **Tap numbers fly to the orb** (`orbGain`), exact (+1.25, not +1.3), and the orb flares as each lands.
+- **Lines:** the Parcel line is two (`money`, which goes on its own, then `money2` with Show me), in plainer
+  sentences; holding the button is one of the Lab's first lines (`hold`, after about twelve taps), and the old tip
+  card at the monitor is gone under the ring. PLACEHOLDERS.
+- **The dock:** its handle is a short pale bar (the green dot looked like the orb). Pinned, the handle goes and a
+  bar mark on the dock, where the pin was, unpins it. A pinned dock is given room: pages end above it and a game's
+  field is shortened so its cards and buttons are clear (`desk.dockFit`, `--dock-room`).
+- **Achievement banners** stay as they are (the owner's call).

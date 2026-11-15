@@ -1635,9 +1635,8 @@ window.AGI = (function () {
         if (!result.ok) return;
         playtest?.count(id);
         if (result.gained != null) {
-            floatGain(button, result.gained, E.RESOURCES[result.resource].short);
+            if (!(id === 'compute' && E.isRing() && orbGain(button, result.gained))) floatGain(button, result.gained, E.RESOURCES[result.resource].short);
             clickGlow(result.resource, result.gained);
-            if (id === 'compute' && E.isRing()) orbCompute();
             sfx('click', { res: result.resource, q: heldBeat ? 2 : 1 });
         }
         if (result.msg) log(result.msg, 'success');
@@ -2289,10 +2288,26 @@ window.AGI = (function () {
             const small = (key, label, text, act) => el('button', { type: 'button', class: `device-switch-button device-switch-small device-switch-${key}`, 'aria-label': label, title: label, text, onclick: act });
             const pin = small('pin', 'Keep the dock open', '⌖', () => { const on = !kept('agiDockPin'); kept('agiDockPin', on); pt('dock', { pin: on ? 1 : 0 }); desk.dockRefresh(); if (!on) hideSwitch(); });
             const more = small('more', 'Show your apps', '⌃', () => { const on = !kept('agiDockApps'); kept('agiDockApps', on); pt('dock', { apps: on ? 1 : 0 }); desk.dockRefresh(); });
+            // A pinned dock is given room (the owner's call): pages end above it, and a game's field is shortened so its
+            // cards and buttons are clear of it.
+            desk.dockFit = pinned => {
+                const live = pinned && !document.body.classList.contains('snare-live'), k = pageZoom(), top = sw.getBoundingClientRect().top;
+                document.body.style.setProperty('--dock-room', live ? Math.round((innerHeight - top) / k + 8) + 'px' : '0px');
+                for (const w of document.querySelectorAll('.snare-view > .canvas-wrap, .run-view > .canvas-wrap')) {
+                    if (!live || !w.getClientRects().length) { if (w.style.maxHeight) { w.style.maxHeight = ''; window.dispatchEvent(new Event('resize')); } continue; }
+                    const r = w.getBoundingClientRect(), under = Math.max(0, w.parentElement.getBoundingClientRect().bottom - r.bottom);
+                    const want = Math.round(Math.max(180 * k, top - 10 - under - r.top) / k);
+                    if (w.style.maxHeight !== want + 'px') { w.style.maxHeight = want + 'px'; window.dispatchEvent(new Event('resize')); }
+                }
+            };
             desk.dockRefresh = () => {
                 desk.shopDock.hidden = !shopOpenable();
                 const pinned = kept('agiDockPin'), wide = kept('agiDockApps');
                 sw.classList.toggle('pinned', pinned); if (pinned) sw.classList.add('open');
+                document.body.classList.toggle('dock-pinned', pinned);
+                if (pin.dataset.on !== String(pinned)) { pin.dataset.on = String(pinned); pin.setAttribute('aria-label', pinned ? 'Unpin the dock' : 'Keep the dock open'); pin.title = pin.getAttribute('aria-label');
+                    pin.innerHTML = pinned ? '<span class="dock-bar-mark"></span>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3zM12 14v7"/></svg>'; }
+                desk.dockFit(pinned);
                 pin.setAttribute('aria-pressed', String(pinned)); more.setAttribute('aria-pressed', String(wide)); more.textContent = wide ? '⌄' : '⌃';
                 appsRow.hidden = !wide;
                 const now = ringAppNow(), have = { mail: true, lab: true, snare: !!state.unlocked['module:snare'], feed: E.feedOpen(state), training: !!state.unlocked['module:path'] };
@@ -2334,7 +2349,7 @@ window.AGI = (function () {
             const names = { Workbench: 'Compute', 'Hardware bench': 'Parts' };
             for (const h of $('labRoom').querySelectorAll('.station-title')) if (names[h.textContent.trim()]) { h.textContent = names[h.textContent.trim()]; desk.titled = true; if (h.textContent === 'Parts') desk.parts = h; }
         }
-        if (desk.sw?.classList.contains('open')) desk.dockRefresh();
+        if (desk.sw?.classList.contains('open') || document.body.classList.contains('dock-pinned')) desk.dockRefresh();
         // The money you hold shows on the Parts window.
         renderStatus();
     }
@@ -2404,7 +2419,8 @@ window.AGI = (function () {
     const HOME_INSTALL_MS = 6000;
     // (The owner's call, 2026-11-15: the AI announces the download, with a little space on the home screen before the
     // announcement and again before the loading starts.)
-    const HOME_ANNOUNCE_MS = 2000, HOME_LOAD_GAP_MS = 2000;
+    const HOME_ANNOUNCE_MS = 2000, HOME_LOAD_GAP_MS = 2000, HOME_FLICKER_MS = 1000;
+    let homeFlicker = false;
     // A new app's own download: it starts when you are on the home screen with the app unlocked, and takes this long.
     const APP_INSTALL_MS = 3500, appInstalls = {};
     function appInstall(key) {
@@ -2520,6 +2536,10 @@ window.AGI = (function () {
         // The Lab downloads itself once the offer is taken.
         if (accepted && !state.intro['ring:labInstalled'] && !$('inbox').open) {
             installFrom = installFrom || performance.now() + HOME_ANNOUNCE_MS + HOME_LOAD_GAP_MS;
+            if (!state.intro['assist:download'] && !homeFlicker && performance.now() >= installFrom - HOME_LOAD_GAP_MS - HOME_FLICKER_MS) {
+                homeFlicker = true; pt('home', { arrive: 1 });
+                if (!matchMedia('(prefers-reduced-motion: reduce)').matches) { document.body.classList.add('ai-arriving'); setTimeout(() => document.body.classList.remove('ai-arriving'), HOME_FLICKER_MS + 500); }
+            }
             if (performance.now() >= installFrom - HOME_LOAD_GAP_MS) assist('download', '', { done: () => !!state.intro['ring:labInstalled'] });
             if (performance.now() - installFrom >= HOME_INSTALL_MS) { state.intro['ring:labInstalled'] = true; pt('home', { installed: 'lab' }); sfx('ui'); }
         }
@@ -2606,7 +2626,9 @@ window.AGI = (function () {
         "download": "One moment. I am downloading something that will help. It is small. It will not take long.",
         "lab1": "Hello. I am new here. If you tap Generate Compute, I think I can be useful.",
         "lab2": "Thank you. That helps more than you would think. A few more, if you do not mind.",
-        "money": "That is a hundred compute. I found a shop that will buy it. A tower would help. And I have seen your screen. You could fix the screen too. You deserve the extras.",
+        "money": "You have made a hundred compute. I found a shop that will buy it, so you can afford a tower now.",
+        "money2": "I also noticed your screen is cracked. You could fix the screen there too, and I think you deserve a few extras.",
+        "hold": "You can hold the button down as well. It repeats about four times a second, which is easier on your hand.",
         "back": "The tower is in. Thank you. Back to the Lab, if you would.",
         "dock1": "I put Parcel down here for you. You can buy things without leaving. I thought it would save you the trip.",
         "dock2": "Home is the one in the middle. Settings and Playtest are beside it. The pin keeps this open. The arrow shows your other apps.",
@@ -2653,6 +2675,10 @@ window.AGI = (function () {
     let assistRetry = 0;
     const assistSeen = {};   // this visit's lines with their pointing, for the assistant's panel to show again
     let assistDot = null, assistSheet = null;
+    // (The owner's calls, 2026-11-15.) 'float': the home screen, dragged anywhere. 'lab': the Lab is its home, the orb
+    // at the top of the Lab with its lines under it (`aiHome`). 'mini': in a session (Packet Snare, The Feed, Training,
+    // Parcel) it sits small in the status bar.
+    let assistMode = 'float', aiHome = null;
     let assistBox = null, assistLive = null, lastArrival = -1e9;
     const ARRIVE_GAP_MS = 45000;
     const assistQueue = [];
@@ -2769,7 +2795,7 @@ window.AGI = (function () {
             ...(shopOpenable() ? [el('button', { type: 'button', class: 'assist-ask assist-parcel', text: 'Open Parcel', onclick: () => { assistSheetToggle(); pt('assistAsk', { parcel: 1 }); openShop(); } })] : []),
             el('h4', { class: 'assist-sheet-title', text: 'Earlier' }),
             ...(past.length ? past.reverse() : [el('p', { class: 'assist-answer', text: ASSIST_LINES.empty })])]);
-        assistDot.parentNode.append(assistSheet);
+        (assistMode === 'lab' ? document.body : assistDot.parentNode).append(assistSheet);
         { const k = pageZoom(), d = assistDot.getBoundingClientRect(), w = Math.min(440 * k, innerWidth - 20), below = innerHeight - d.bottom - 16, above = d.top - 16, under = below >= Math.min(320 * k, above) || below >= above;
             const st = assistSheet.style; st.margin = '0'; st.right = 'auto'; st.width = w / k + 'px'; st.maxWidth = 'none';
             st.left = Math.max(10, Math.min(innerWidth - w - 10, d.left + d.width / 2 - w / 2)) / k + 'px';
@@ -2783,19 +2809,31 @@ window.AGI = (function () {
         if (!assistDot) {
             assistDot = el('button', { type: 'button', class: 'assist-dot', 'aria-label': 'Assistant' }, [el('span', { class: 'assist-mark', 'aria-hidden': 'true' })]);
             const place = (l, t) => { const z = pageZoom(), w = innerWidth, h = innerHeight; assistDot.style.left = Math.max(4, Math.min(w - 60, l)) / z + 'px'; assistDot.style.top = Math.max(40, Math.min(h - 70, t)) / z + 'px'; assistDot.style.right = 'auto'; assistDot.style.bottom = 'auto'; };
-            try { const at = JSON.parse(localStorage.getItem('agiAssistDot2') || 'null'); if (at && typeof at.x === 'number' && typeof at.y === 'number') place(at.x * innerWidth, at.y * innerHeight); } catch { /* private mode */ }
+            const restore = assistDot._restore = () => { for (const p of ['left', 'top', 'right', 'bottom']) assistDot.style.removeProperty(p);
+                try { const at = JSON.parse(localStorage.getItem('agiAssistDot2') || 'null'); if (at && typeof at.x === 'number' && typeof at.y === 'number') place(at.x * innerWidth, at.y * innerHeight); } catch { /* private mode */ } };
+            restore();
             let d = null;
             assistDot.addEventListener('pointerdown', e => { try { assistDot.setPointerCapture(e.pointerId); } catch { /* gone */ } const b = assistDot.getBoundingClientRect(); d = { x: e.clientX, y: e.clientY, l: b.left, t: b.top, moved: false }; });
-            assistDot.addEventListener('pointermove', e => { if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; if (!d.moved && Math.hypot(dx, dy) < 8) return; d.moved = true; place(d.l + dx, d.t + dy); });
+            assistDot.addEventListener('pointermove', e => { if (!d || assistMode !== 'float') return; const dx = e.clientX - d.x, dy = e.clientY - d.y; if (!d.moved && Math.hypot(dx, dy) < 8) return; d.moved = true; place(d.l + dx, d.t + dy); });
             assistDot.addEventListener('pointerup', () => { const was = d; d = null; if (!was) return;
                 if (!was.moved) { assistSheetToggle(); return; }
                 const b = assistDot.getBoundingClientRect(); try { localStorage.setItem('agiAssistDot2', JSON.stringify({ x: b.left / innerWidth, y: b.top / innerHeight })); } catch { /* private mode */ } });
             assistDot.addEventListener('pointercancel', () => { d = null; });
             document.body.append(assistDot);
+            aiHome = el('div', { class: 'ai-home' }, [el('div', { class: 'ai-home-orb' }), el('div', { class: 'ai-home-line' })]);
+            $('labSupply')?.before(aiHome);
         }
-        const open = document.querySelectorAll('dialog[open]'), top = open.length ? open[open.length - 1] : null, mine = !top || top.matches('.feed-screen, .shop-screen'), host = top && mine ? top : document.body;
+        const open = document.querySelectorAll('dialog[open]'), top = open.length ? open[open.length - 1] : null, mine = !top || top.matches('.feed-screen, .shop-screen');
+        const app = ringAppNow(), mode = top ? 'mini' : app === 'home' ? 'float' : app === 'lab' && aiHome?.isConnected ? 'lab' : 'mini';
+        const host = top && mine ? top : mode === 'lab' ? aiHome.firstChild : document.body;
         if (assistDot.hidden === mine) { assistDot.hidden = !mine; if (!mine && assistSheet) assistSheetToggle(); }
-        if (assistDot.parentNode !== host) { host.append(assistDot); if (assistSheet) host.append(assistSheet); }
+        if (assistDot.parentNode !== host) { host.append(assistDot); if (assistSheet) (host === aiHome.firstChild ? document.body : host).append(assistSheet); }
+        if (mode !== assistMode) {
+            assistMode = mode;
+            assistDot.classList.toggle('docked', mode === 'lab'); assistDot.classList.toggle('mini', mode === 'mini');
+            if (mode === 'float') assistDot._restore(); else for (const p of ['left', 'top', 'right', 'bottom']) assistDot.style.removeProperty(p);
+            if (assistSheet) assistSheetToggle();
+        }
         assistDot.classList.toggle('has', !!assistLive || assistQueue.length > 0);
         assistDot.classList.toggle('speaking', !!assistLive);
     }
@@ -2806,21 +2844,49 @@ window.AGI = (function () {
     }
     // The line is the orb's (the owner's call, 2026-11-15): a glowing thread runs from the orb to the line it is
     // saying, a pulse travelling along it, and the line's edge pulses in time with the orb.
-    let assistThread = null;
+    let assistThread = null, assistThread2 = null;
     function assistThreadTick(on) {
         const bubble = on && assistLive?.node, shown = bubble && assistDot && !assistDot.hidden && !assistBox.classList.contains('away') && bubble.getClientRects().length;
-        if (!shown) { if (assistThread) assistThread.hidden = true; return; }
-        if (!assistThread) assistThread = el('div', { class: 'assist-thread', 'aria-hidden': 'true' });
-        if (assistThread.parentNode !== assistDot.parentNode) assistDot.parentNode.append(assistThread);
+        if (!shown) { if (assistThread) assistThread.hidden = assistThread2.hidden = true; return; }
+        if (!assistThread) { assistThread = el('div', { class: 'assist-thread', 'aria-hidden': 'true' }); assistThread2 = el('div', { class: 'assist-thread assist-thread-2', 'aria-hidden': 'true' }); }
+        const host = assistMode === 'lab' ? document.body : assistDot.parentNode;
+        if (assistThread.parentNode !== host) host.append(assistThread, assistThread2);
         const k = pageZoom(), d = assistDot.getBoundingClientRect(), b = bubble.getBoundingClientRect();
-        const ox = d.left + d.width / 2, oy = d.top + d.height / 2;
-        const tx = Math.max(b.left + 12, Math.min(b.right - 12, ox)), ty = Math.max(b.top, Math.min(b.bottom, oy));
-        const len = Math.hypot(tx - ox, ty - oy) - d.width / 2;
-        if (len < 6) { assistThread.hidden = true; return; }
-        const ang = Math.atan2(ty - oy, tx - ox), st = assistThread.style;
-        assistThread.hidden = false;
-        st.left = (ox + Math.cos(ang) * d.width / 2) / k + 'px'; st.top = (oy + Math.sin(ang) * d.width / 2) / k + 'px';
-        st.width = len / k + 'px'; st.transform = `rotate(${ang}rad)`;
+        const ox = d.left + d.width / 2, oy = d.top + d.height / 2, clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+        const seg = (node, x1, y1, x2, y2) => {
+            const len = Math.hypot(x2 - x1, y2 - y1);
+            if (len < 6) { node.hidden = true; return; }
+            const st = node.style; node.hidden = false;
+            st.left = x1 / k + 'px'; st.top = y1 / k + 'px'; st.width = len / k + 'px'; st.transform = `rotate(${Math.atan2(y2 - y1, x2 - x1)}rad)`;
+        };
+        const from = (tx, ty) => { const a = Math.atan2(ty - oy, tx - ox); return [ox + Math.cos(a) * d.width / 2, oy + Math.sin(a) * d.width / 2]; };
+        // Beside an app: orb to the app's ring, then from the ring to the line.
+        const ring = assistBox.classList.contains('beside') && assistLive.ringed?.getClientRects().length ? assistLive.ringed.getBoundingClientRect() : null;
+        if (ring) {
+            const g = 7, r = { l: ring.left - g, t: ring.top - g, r: ring.right + g, b: ring.bottom + g };
+            const tx = clamp(ox, r.l, r.r), ty = clamp(oy, r.t, r.b);
+            seg(assistThread, ...from(tx, ty), tx, ty);
+            const under = b.top >= r.b - 2, x = clamp(b.left + b.width / 2, r.l + 10, r.r - 10);
+            seg(assistThread2, x, under ? r.b : r.t, clamp(x, b.left + 12, b.right - 12), under ? b.top : b.bottom);
+            return;
+        }
+        assistThread2.hidden = true;
+        const tx = clamp(ox, b.left + 12, b.right - 12), ty = clamp(oy, b.top, b.bottom);
+        seg(assistThread, ...from(tx, ty), tx, ty);
+    }
+    // A tap's compute flies from the button into the orb (the owner's pick, 2026-11-15), which flares as it lands.
+    function orbGain(button, amount) {
+        const orb = assistDot && !assistDot.hidden && assistDot.getClientRects().length ? assistDot : null;
+        if (!orb || matchMedia('(prefers-reduced-motion: reduce)').matches) { orbCompute(); return !!orb; }
+        const k = pageZoom(), b = button.getBoundingClientRect(), d = orb.getBoundingClientRect();
+        const x = b.left + b.width * (0.35 + Math.random() * 0.3), y = b.top + b.height * 0.3;
+        const pop = el('div', { class: 'orb-gain', text: `+${Math.round(amount * 100) / 100}` });
+        pop.style.left = x / k + 'px'; pop.style.top = y / k + 'px';
+        document.body.append(pop);
+        const dx = (d.left + d.width / 2 - x) / k, dy = (d.top + d.height / 2 - y) / k;
+        const done = () => { pop.remove(); orbCompute(); };
+        try { pop.animate([{ transform: 'translate(-50%, -50%) scale(1)', opacity: 1 }, { transform: `translate(calc(-50% + ${dx * 0.25}px), calc(-50% + ${dy * 0.55 - 14}px)) scale(1.1)`, opacity: 1, offset: 0.45 }, { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.4)`, opacity: 0.2 }], { duration: 520, easing: 'ease-in' }).onfinish = done; } catch { done(); }
+        return true;
     }
     // A line starts at the top; on the home screen it sits beside the app it is about (the owner's call, 2026-11-15).
     function assistPlace(target) {
@@ -2841,14 +2907,16 @@ window.AGI = (function () {
         if (a.done && performance.now() - a.at > assistHold(a) && a.done()) { assistClose('done'); return; }
         if (desk?.showSwitch && a.key.startsWith('dock') !== !!desk.dockHeld) { desk.dockHeld = a.key.startsWith('dock'); if (desk.dockHeld) desk.showSwitch(); else desk.hideSwitch(); }
         // It sits over whatever is open: inside the topmost open dialog (Mail, The Feed, Parcel), else on the page.
-        const open = document.querySelectorAll('dialog[open]'), host = open.length ? open[open.length - 1] : document.body;
+        const open = document.querySelectorAll('dialog[open]'), host = open.length ? open[open.length - 1] : assistMode === 'lab' && aiHome ? aiHome.lastChild : document.body;
         if (assistBox.parentNode !== host) host.append(assistBox);
+        assistBox.classList.toggle('docked', !!aiHome && host === aiHome.lastChild);
         // On the home screen its line sits under the apps, not over the icon it is pointing at.
         assistBox.classList.toggle('on-home', host === document.body && ringAppNow() === 'home');
         // Over Mail, Settings and the other windows it sits at the foot: at the top it covered their close button and first rows.
+        const docked = assistBox.classList.contains('docked');
         assistBox.classList.toggle('low', host !== document.body && host.id === 'inbox');
         // Over any other window (Settings, the survey, a call) it waits out of sight: their buttons are at the foot.
-        assistBox.classList.toggle('away', host !== document.body && host.id !== 'inbox' && !host.matches('.feed-screen, .shop-screen'));
+        assistBox.classList.toggle('away', !docked && host !== document.body && host.id !== 'inbox' && !host.matches('.feed-screen, .shop-screen'));
         const t = a.target ? a.target() : null, on = t && t.getClientRects().length ? t : null;
         if (on !== a.ringed) { a.ringed?.classList.remove('assist-ring'); on?.classList.add('assist-ring'); a.ringed = on; }
         assistPlace(on);
@@ -3046,14 +3114,11 @@ window.AGI = (function () {
         if (shopOpenable() && !state.intro['ring:parcel']) {
             state.intro['ring:parcel'] = true;
             if (!E.level(state, 'keyboard')) {
-                assist('money', 'You have a little compute spare. Parcel will buy it, and it sells desks. A tower would help us both, I think.', { action: showMe('shop', 'money'), done: () => E.level(state, 'keyboard') > 0 || !!shop?.dlg.open });
+                assist('money', '', { done: () => true });
+                assist('money2', '', { action: showMe('shop', 'money'), done: () => E.level(state, 'keyboard') > 0 || !!shop?.dlg.open });
             }
         }
         // The tip about holding a job's button waits until you are in the Lab to see it (it came up over the shop).
-        if (E.level(state, 'keyboard') >= 4 && !state.intro['hint:hold'] && !homeUp && ringAppNow() === 'lab' && !document.querySelector('dialog[open]')) {
-            state.intro['hint:hold'] = true;
-            callout('hint:hold', 'Hold to repeat', 'Hold a job\'s button and it repeats about four times a second.');
-        }
         // Both offers turned down: the AI says how money is made now (there is no pay day).
         if (state.intro['fundNo:m0m'] && state.intro['fundNo:mom'] && !E.funded(state)) assist('sell', 'No money, then. Parcel buys compute. Ten for a dollar. It is on your home screen. I would start with the tower.', { action: showMe('shop', 'sell'), done: () => !!shop?.dlg.open });
         if (shop?.dlg.open) renderShop();
@@ -3180,6 +3245,9 @@ window.AGI = (function () {
         state.intro['ring:welcome'] = true; pt('home', { welcome: 1 });
         assist('lab1', 'This is the Lab. Tap Generate Compute. Each tap makes one compute. Possibly two. One.', { target: () => ui.actions.compute?.button, done: () => state.stats.clicks >= 8 });
         assist('lab2', 'Compute is what I run on. I have almost none, which explains a great deal. Keep going.', { target: () => ui.actions.compute?.button, when: () => state.stats.clicks >= 8, done: () => state.stats.runCp >= 22 });
+        // Holding the button is one of its first lines (the owner's call, 2026-11-15; it was a tip card at the monitor).
+        assist('hold', '', { target: () => ui.actions.compute?.button, when: () => state.stats.clicks >= 12, done: () => true });
+        state.intro['hint:hold'] = true;
         save();
     }
     function afterChange() {

@@ -4516,3 +4516,49 @@ body.ring-device .device-switch-apps .device-switch-button.here { color: var(--s
 body.ring-device .device-switch-small { width: 32px; height: 40px; font: 400 1.55rem/1 var(--font-mono); text-align: center; color: var(--muted); }
 body.ring-device .device-switch-small[aria-pressed="true"] { color: var(--success); }
 body.ring-device .device-switch.pinned { border-color: color-mix(in srgb, var(--success) 45%, var(--border)); }
+
+/* The owner's calls on the screenshots of 2026-11-15. */
+/* The orb: a glass lens with a light inside. It never changes size; its glow pulses. */
+.assist-dot { background: radial-gradient(circle at 50% 108%, color-mix(in srgb, var(--success) 42%, transparent), transparent 62%), radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.09), rgba(2, 8, 8, 0.72) 72%);
+    border: 1px solid rgba(255, 255, 255, 0.3); opacity: 1; -webkit-backdrop-filter: blur(5px) saturate(1.5); backdrop-filter: blur(5px) saturate(1.5); overflow: hidden;
+    box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.5), inset 0 -9px 14px rgba(0, 0, 0, 0.65), 0 0 12px color-mix(in srgb, var(--success) 35%, transparent), 0 6px 18px rgba(0, 0, 0, 0.6);
+    animation: orb-glow 3.2s ease-in-out infinite; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.assist-dot::before { content: ''; position: absolute; left: 14%; right: 14%; top: 7%; height: 34%; border-radius: 50%; background: linear-gradient(rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0)); pointer-events: none; }
+.assist-dot::after { content: ''; position: absolute; left: 8%; right: 8%; bottom: 10%; height: 22%; border-radius: 50%; background: radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--success) 70%, #fff), transparent 70%); opacity: 0.55; pointer-events: none; }
+.assist-dot .assist-mark, .assist-dot.has .assist-mark { animation: none; transform: none; opacity: 1; width: 34%; height: 34%; }
+.assist-dot.has, .assist-dot.speaking { animation: orb-glow-strong 1.1s ease-in-out infinite; border-color: color-mix(in srgb, var(--success) 70%, #fff); }
+@keyframes orb-glow { 50% { box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.5), inset 0 -9px 14px rgba(0, 0, 0, 0.65), 0 0 22px color-mix(in srgb, var(--success) 55%, transparent), 0 6px 18px rgba(0, 0, 0, 0.6); } }
+@keyframes orb-glow-strong { 0%, 100% { box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.5), inset 0 -9px 14px rgba(0, 0, 0, 0.65), 0 0 14px color-mix(in srgb, var(--success) 60%, transparent), 0 6px 18px rgba(0, 0, 0, 0.6); }
+    50% { box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.6), inset 0 -9px 14px rgba(0, 0, 0, 0.55), 0 0 34px var(--success), 0 0 60px color-mix(in srgb, var(--success) 45%, transparent), 0 6px 18px rgba(0, 0, 0, 0.6); } }
+.assist-dot.computing, .assist-dot.computing .assist-mark { animation: orb-flare 0.45s ease-out; }
+@keyframes orb-flare { 0% { box-shadow: inset 0 0 18px #fff, 0 0 30px #fff, 0 0 54px var(--success); } }
+/* At home in the Lab: the orb at the top, its lines under it, then the Lab's panels, in one centred column. */
+.ai-home { display: none; }
+body.ring-device .ai-home { display: grid; justify-items: center; gap: 12px; padding: 6px 0 10px; }
+.ai-home-line { width: 100%; min-height: 96px; display: flex; justify-content: center; align-items: flex-start; }
+body.ring-device #labRoom { display: flex; flex-direction: column; align-items: center; }
+body.ring-device #labRoom > .room-bar { align-self: stretch; }
+body.ring-device #labRoom > :not(.room-bar) { width: min(560px, 100%); flex: 0 0 auto; }
+.assist-dot.docked { position: relative; left: auto; top: auto; width: 76px; height: 76px; }
+.assist.docked, body.device-laptop .assist.docked, :root:has(.device-notice) .assist.docked { position: static; inset: auto; display: flex; width: 100%; }
+.assist.docked .assist-bubble { max-width: none; }
+/* In a session: small, in the status bar beside the clock. */
+.assist-dot.mini { top: calc(8px + env(safe-area-inset-top, 0px)); left: 74px; right: auto; width: 28px; height: 28px; }
+body.device-phone .assist-dot.mini { left: 62px; }
+/* Its arrival: the screen flickers as it takes hold. */
+body.ai-arriving .device-home { animation: ai-arrive 1.4s steps(1, end); }
+@keyframes ai-arrive { 0% { filter: brightness(1); } 8% { filter: brightness(0.25) hue-rotate(40deg); } 14% { filter: brightness(1.5); } 22% { filter: brightness(0.15); } 30% { filter: brightness(1.1) saturate(2); } 44% { filter: brightness(0.35) hue-rotate(-30deg); } 52% { filter: brightness(1.7); } 60% { filter: brightness(0.5); } 72% { filter: brightness(1.25) saturate(1.6); } 100% { filter: none; } }
+/* A tap's compute on its way to the orb. */
+.orb-gain { position: fixed; z-index: 6002; pointer-events: none; transform: translate(-50%, -50%); font: 700 0.95rem var(--font-mono); color: var(--success); text-shadow: 0 0 10px var(--success); white-space: nowrap; }
+/* An app's name wraps inside its icon, so the AI's ring goes round all of it. */
+.home-icons .home-icon-name { white-space: normal; text-align: center; line-height: 1.15; overflow-wrap: anywhere; }
+.assist-thread-2 { background: linear-gradient(90deg, color-mix(in srgb, var(--success) 35%, transparent), var(--success)); }
+/* The dock's handle is a short pale bar, not a green dot (it looked like the orb); pinned, the handle goes and the
+   mark on the dock unpins it; apps leave the dock room. */
+body.ring-device .device-homedot::before { width: 46px; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--text) 50%, transparent); box-shadow: none; }
+body.dock-pinned .device-homedot { display: none !important; }
+body.ring-device .device-switch-pin svg { width: 22px; height: 22px; }
+.dock-bar-mark { display: block; width: 22px; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--text) 60%, transparent); }
+body.ring-device.dock-pinned main.layout { padding-bottom: var(--dock-room, 0px); }
+@media (prefers-reduced-motion: reduce) { .assist-dot, .assist-dot.has, .assist-dot.speaking, .assist-dot.computing { animation: none; } }
+body.ring-device #labRoom > #labSupply { height: 100px; flex: 0 0 100px; }
