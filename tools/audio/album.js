@@ -3,6 +3,9 @@
 // Writes
 //   audio/<nn>-<track>-<song>.mp4   each of the 30 songs once through its form, everything in (a fast run late in
 //                                   the game), AAC 128 kbit/s in MP4 (the format an artifact page can offer to save)
+//   audio/<nn>-…-simple.mp4         the same song in Simple sounds (the stripped version: Settings → Simple sounds only)
+//   audio/<nn>-…-calm.mp4           a Packet Snare song before you are spotted (a calm field: the hushed kick, the clock)
+//                                   both at 64 kbit/s, for reference
 //   audio/00-five-themes.mp4        eight seconds of each track in turn (as showcase.js)
 //   index.html                      the player: tools/audio/album.html with the track list filled in
 //   tracks.json                     the list, with each file's gain, loudness and peak
@@ -26,13 +29,13 @@ const START = 0.55;      // the music's first downbeat is 0.6 s into a render
     const ff = a => spawnSync(M.ffmpeg(), ['-hide_banner', '-nostats', '-y', ...a], { encoding: 'utf8' });
     const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     // A window of a render, gained and faded, as AAC.
-    const encode = (raw, dst, from, secs, fade) => {
+    const encode = (raw, dst, from, secs, fade, rate = '128k') => {
         const m = M.measure(raw, { from, to: from + secs });
         // A song whose peaks would pass -1.5 dB at that gain (Retro's short kick) goes through a limiter there instead
         // of coming out quieter than the rest.
         const gain = target - m.lufs, limit = m.truePeak + gain > -1.5 ? 'alimiter=limit=0.8:attack=2:release=40:level=false,' : '';
         ff(['-ss', String(from), '-t', String(secs), '-i', raw, '-af', `volume=${gain.toFixed(2)}dB,${limit}afade=t=in:d=0.02,afade=t=out:st=${(secs - fade).toFixed(2)}:d=${fade}`,
-            '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', dst]);
+            '-c:a', 'aac', '-b:a', rate, '-movflags', '+faststart', dst]);
         if (!fs.existsSync(dst)) throw new Error('not written: ' + dst);
         const d = M.measure(dst);
         return { gainDb: +gain.toFixed(2), limited: !!limit, lufs: d.lufs, truePeak: d.truePeak, bytes: fs.statSync(dst).size };
@@ -47,8 +50,17 @@ const START = 0.55;      // the music's first downbeat is 0.6 s into a render
         if (r.faults.length) throw new Error(`${style} ${song.name}: ${r.faults[0]}`);
         const file = `audio/${String(++n).padStart(2, '0')}-${style}-${slug(song.name)}.mp4`;
         const e = encode(raw, path.join(out, file), START, song.seconds, 1.2);
+        // The reference versions: Simple sounds, and for Packet Snare the song before detection.
+        const alts = [];
+        for (const [key, label, o] of [['simple', 'Simple', { simple: true }], ...(area === 'snare' ? [['calm', 'Before spotted', { intensity: 0.12 }]] : [])]) {
+            const ra = await R.render(s, R.PRESETS.song({ style, area, song: i + 1, seconds: START + song.seconds + 1, ...o }), raw, { measure: false });
+            if (ra.faults.length) throw new Error(`${style} ${song.name} (${key}): ${ra.faults[0]}`);
+            const f = file.replace('.mp4', `-${key}.mp4`), ea = encode(raw, path.join(out, f), START, song.seconds, 1.2, '64k');
+            alts.push({ key, label, file: f, ...ea });
+        }
+        e.bytes += alts.reduce((a, x) => a + x.bytes, 0);
         const pulse = Math.round(4 * song.bpm / song.tempo);
-        tracks.push({ file, theme: style, name: song.name, area, bpm: song.tempo, meter: { '16/4': '4/4', '12/4': '3/4', '12/6': '6/8', '12/3': '12/8', '14/4': '7/8', '20/4': '5/4' }[song.steps + '/' + pulse] || '', seconds: song.seconds, ...e });
+        tracks.push({ file, theme: style, name: song.name, area, bpm: song.tempo, meter: { '16/4': '4/4', '12/4': '3/4', '12/6': '6/8', '12/3': '12/8', '14/4': '7/8', '20/4': '5/4' }[song.steps + '/' + pulse] || '', seconds: song.seconds, ...e, alts });
         console.log(`${file.padEnd(46)} ${String(song.seconds).padStart(4)} s  ${e.lufs} LUFS  ${e.truePeak} dBTP  ${(e.bytes / 1048576).toFixed(1)} MB`);
         // The sampler: eight seconds of each track's first server-room song, from the top of its tune.
         if (area === 'server' && i === 0) {

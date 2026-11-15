@@ -142,6 +142,19 @@ different phrasings and mixes of melody, harmony and choirs, "a dreamy soundscap
   **Tiptoe** in three at 66: a clarinet asks, a flute answers, a cello under them. 1:27.
 - Not heard by its author.
 
+### The owner's fifth listen (2026-11-15)
+
+- **A mood for each room** (the owner's call, for every track): lab songs are **curious and experimental**, Training
+  Cluster (server room) songs are **movement and road trips**, Packet Snare songs are **stealth and sneaking**.
+  Applied so far only to Soft's Morning Lab; the other 29 songs have not been checked against it.
+- **Save Point** (Retro): its triangle tune an octave lower, easing in, a shallower wobble (the high tune was jarring).
+- **Morning Lab** (Soft) redone to the lab's mood: C Lydian at 92, an oboe (new voice) asking in two-bar phrases that
+  start off the beat and hang on the raised fourth, a flute answering; six-bar middles that tinker in 8ths over a
+  rolling chord and pass through A flat; a cello the second time, the choir on the second middle. A section can have
+  its own lead (`leadIn`), unused for now.
+- **The soundtrack page carries reference versions** (`tools/audio/album.js`, `alts` on a track): every song in Simple
+  sounds, and each Packet Snare song before you are spotted (intensity 0.12), at 64 kbit/s, as chips under the song.
+
 ## Open questions for the owner
 
 1. The loudness target at default sliders (see above).

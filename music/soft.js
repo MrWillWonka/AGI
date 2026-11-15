@@ -51,7 +51,7 @@
         // Soft: a small orchestra in a long hall, and a dream: no drums, and nothing struck or plucked. Every note
         // swells in and lets go slowly. The chord is a string section (two detuned saws a note behind a low filter,
         // spread left to right) that holds each bar and overlaps the next; a low string holds the bass; a high note shimmers over it late on. The tune is sung legato by
-        // one of: the strings, a flute, a horn, a clarinet, a choir or a hum (`lead` on the song), with a quiet
+        // one of: the strings, a flute, a horn, a clarinet, an oboe, a choir or a hum (`lead` on the song; `leadIn` gives a section its own), with a quiet
         // line under it when a section asks for harmony. Each song mixes its own textures over that (`choir`, `flow`,
         // `inner`, `pedal`, `answer`, `compVoice: 'swell'`: see the step), so no two are built alike. The section ends on a held note leading into the next.
         // Its click figure plays the track's 8ths (322 ms: about three notes a second while a job is held).
@@ -100,7 +100,7 @@
                     const d = Math.max(len * c.mel.len * 1.3, 0.6), g = c.melGain, at = c.mel.t, n = c.mel.n;
                     const env = { attack: Math.min(0.18, d * 0.4), sus: 0.9, dec: 0.25, rel: 0.5, rev: 0.55 };
                     const vib = c.mel.len >= 3 ? { rate: 4.8, depth: 8, delay: 0.3 } : null;
-                    const lead = (song.answer && c.barIn % 4 >= 2 ? song.answer : song.lead) || 'strings';
+                    const lead = (song.leadIn && song.leadIn[c.sec]) || (song.answer && c.barIn % 4 >= 2 ? song.answer : song.lead) || 'strings';
                     if (lead === 'flute') {
                         note(at, n, d, 0.055 * g, { type: 'sine', ...env, vib, pan: 0.1 });
                         note(at, n + 12, d, 0.005 * g, { type: 'sine', ...env, low: true });
@@ -109,6 +109,9 @@
                         note(at, n, d, 0.02 * g, { type: 'sine', ...env, vib, pan: -0.1 });
                     } else if (lead === 'clarinet') {
                         note(at, n, d, 0.03 * g, { type: 'square', cutoff: 950, q: 0.5, ...env, vib, pan: -0.2 });
+                    } else if (lead === 'oboe') {     // thin and a little nasal: a saw through a narrow, ringing filter over a sine
+                        note(at, n, d, 0.013 * g, { type: 'sawtooth', cutoff: 1500, q: 3, ...env, vib, pan: -0.15 });
+                        note(at, n, d, 0.03 * g, { type: 'sine', ...env, vib, pan: -0.15 });
                     } else if (lead === 'choir') {
                         [-9, 0, 9].forEach((dt, i) => note(at, n, d, 0.027 * g, { type: 'triangle', detune: dt, cutoff: 1100, q: 0.5, ...env, attack: Math.min(0.24, d * 0.4), vib, pan: (i - 1) * 0.35, low: i > 0 }));
                     } else if (lead === 'oo') {       // voices singing "oo": sines a few cents apart, an octave under them faintly
@@ -135,17 +138,20 @@
         // the same; a stealth song's `rest` lifts its tones while its drums are hushed.
         songs: {
             lab: [
-                {   // Morning Lab: sunrise at 72, straight. The violins sing in long notes, two to a bar, over major
-                    // sevenths; the choir comes in for the middle eight (through a borrowed F minor) and stays; a cello
-                    // moves inside the last verse.
-                    name: 'Morning Lab', lvl: 0.99, bpm: 72, swing: 0, scale: ION, tonic: 3, oct: -1, choir: ['B', 'A2', 'out'], inner: ['A2'],
-                    chords: { A: ['Cmaj7', 'Am7', 'Fmaj7', 'G6', 'Cmaj7', 'Em7', 'Fmaj7', 'Gsus4'], B: ['Am7', 'Am7', 'Dm9', 'G7sus4', 'Cmaj7', 'Fmaj7', 'Fm6', 'G6'] },
+                {   // Morning Lab: curious, an experiment. C Lydian at 92, straight: an oboe asks a question that climbs
+                    // and hangs (two bars, each starting off the beat), a flute tries an answer; the middle six bars
+                    // tinker in 8ths over a rolling chord and take a wrong turn through A flat before finding the
+                    // raised fourth an octave up. A cello joins the second time, the choir the second experiment.
+                    name: 'Morning Lab', lvl: 1.06, bpm: 92, swing: 0, scale: LYD, tonic: 3, oct: -1, lead: 'oboe', answer: 'flute',
+                    flow: ['B', 'B2'], choir: ['B2', 'out'], inner: ['A2', 'A3'],
+                    chords: { A: ['Cmaj7', 'D/C', 'Cmaj7', 'Bm7', 'Am9', 'D', 'Em7', 'Dsus4'], B: ['Am9', 'Abmaj7', 'Cmaj7', 'Bm7', 'Em7', 'D'] },
                     bass: { A: 'r...............', B: 'r.......f.......' },
                     mel: {
-                        A: "3 - - - 5 - - - | 1' - - - - - 5 - | 6 - - - 1' - - - | 7 - - - - - - . | 5 - - - 3' - - - | 2' - - - - - 7 - | 1' - - - 6 - - - | 5 - - - - - - .",
-                        B: "3 - - - 5 - - - | 6 - - - - - 5 - | 4 - - - 6 - - - | 5 - - - - - 2' - | 3' - - - - - 1' - | 6 - - - 1' - - - | b6 - - - 1' - - - | 7 - - - 2' - - ."
+                        A: ". 1 2 3 5 - - - | . 2 3 4 6 - - - | 7 - 5 3 - 4 5 - | 4 - - - - - . . | . 6, 1 3 5 - 7 - | . 2 4 6 2' - - - | 3' - 2' 7 - 5 7 - | 6 - - - - - . .",
+                        B: "3 5 3 5 7 - 5 - | 5 - 1' - b3' - - - | 3' - 1' 7 5 - 3 - | 4 - 6 - 2' - - - | 7 - 5 7 2' - 3' - | 4' - - - - - . ."
                     },
-                    form: [['dawn', 2, { mel: null, fill: false }], ['A', 8], ['B', 8, { chords: 'B' }], ['A2', 8, { mel: 'A', harm: true, lift: 0.06 }], ['out', 4, { mel: null, fill: false }]]
+                    form: [['in', 2, { mel: null, fill: false }], ['A', 8], ['B', 6, { chords: 'B' }], ['A2', 8, { mel: 'A', harm: true }], ['still', 2, { mel: null, bassOn: false, fill: false, lift: -0.15 }],
+                        ['B2', 6, { mel: 'B', chords: 'B', lift: 0.08 }], ['A3', 8, { mel: 'A', lift: 0.06 }], ['out', 2, { mel: null, fill: false }]]
                 },
                 {   // Window Seat: a slow waltz in C at 88, straight: the bass on one, strings swelling on two, a
                     // flute for the tune. Eight bars, then six that wander and come home.
