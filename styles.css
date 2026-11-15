@@ -4660,3 +4660,6 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 .shop-installed-list { display: grid; gap: 8px; padding: 0 8px 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); }
 /* In the status bar the orb's halo stays close, so it never sits over the numbers beside it. */
 .assist-dot.mini::before { inset: -18%; }
+
+/* Parcel's sell box is one line now (its Sell buttons are gone: the owner's call, 2026-11-15). */
+.shop-have { margin-bottom: 0; }

@@ -532,3 +532,11 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   Lab's icon until it is opened. The longer introduction stays the Lab's (`lab1`).
 - Both lines are placeholders. `lab1` still opens "Hello. I am new here.", which now repeats the hello: the owner's
   to rewrite as the longer introduction.
+
+## 2026-11-15: back to the Lab, and Parcel without Sell buttons (the owner's calls on a phone screenshot)
+
+- **The "back to the Lab" line has a button that opens the Lab** (`back`, "Back to the Lab"). This is the one line
+  whose button opens an app; the others still take you home and ring the icon (the call of 2026-11-14 stands for them).
+- **Parcel's Sell 100 / Sell half / Sell all buttons are gone.** The box keeps its one line ("You have n compute.
+  Parcel pays $1 for every 10."); a part's own button sells what it needs ("Sell 100 compute and buy"). So compute is
+  only ever sold to buy something, and the bank holds money only from the story's offers and change.

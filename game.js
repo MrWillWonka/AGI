@@ -3186,12 +3186,6 @@ window.AGI = (function () {
         pt('shopOrder', { item: id === 'cpu' ? 'card' : id === 'server' ? 'rig' : k, price: item.price, queue: parcels.length });
         renderShop(true);
     }
-    function shopSell(cp) {
-        const dollars = E.sellCompute(state, cp);
-        if (!dollars) { sfx('error'); return; }
-        sfx('claim'); pt('shopSell', { dollars, cp: dollars * E.RING_CP_PER_DOLLAR });
-        afterChange(); renderShop(true);
-    }
     // An order arrives: it is bought and installed now (its money has been held since it was placed).
     let shopCame = {};   // what has arrived in this run of deliveries, by name
     function shopTick() {
@@ -3214,7 +3208,7 @@ window.AGI = (function () {
                 shopCame = {};
             }
             // The first part in: back to the Lab (the owner's note), where the AI shows the dock it put Parcel on.
-            if (p.id === 'keyboard' && p.k === 0) assist('back', '', { target: () => (ringAppNow() === 'home' ? home?.lab.button : null), done: () => ringAppNow() === 'lab' });
+            if (p.id === 'keyboard' && p.k === 0) assist('back', '', { target: () => (ringAppNow() === 'home' ? home?.lab.button : null), action: ['Back to the Lab', () => openLab()], done: () => ringAppNow() === 'lab' });
             afterChange(); save();
         }
         // Parcel arrives once there is compute to sell: a notice, and the AI's line (PLACEHOLDER words).
@@ -3235,7 +3229,6 @@ window.AGI = (function () {
         const items = shopItems(), bank = bankNow(), cp = Math.floor(state.res.cp), rate = E.RING_CP_PER_DOLLAR;
         setText(shop.bank, `$${E.format(bank)}`);
         setText(shop.have, `You have ${E.format(cp)} compute. Parcel pays $1 for every ${rate}.`);
-        for (const [btn, amount] of shop.sells) { const n = Math.floor(amount(cp) / rate); btn.disabled = n < 1 || amount(cp) > cp; setText(btn.lastChild, n < 1 ? '' : ` · $${E.format(n)}`); }
         const key = JSON.stringify([items.map(i => [i.id, i.k, i.owned, i.next, i.coming, i.onWay, i.full, Math.max(0, i.price - bank), cp >= Math.max(0, i.price - bank) * rate]), parcels.length]);
         if (key !== shop.key || force) {
             shop.key = key;
@@ -3273,17 +3266,15 @@ window.AGI = (function () {
         if (!shop) {
             const bank = el('b', { class: 'shop-bank-value' }), list = el('div', { class: 'shop-list' }), have = el('p', { class: 'shop-have' });
             const fill = el('span', { class: 'shop-track-fill' }), trackText = el('span'), track = el('div', { class: 'shop-coming shop-way', hidden: '' }, [trackText, el('span', { class: 'shop-track' }, [fill])]);
-            const sell = (label, amount) => { const b = el('button', { type: 'button', class: 'ghost-button shop-sell', onclick: () => shopSell(amount(Math.floor(state.res.cp))) }, [document.createTextNode(label), el('span')]); return [b, amount]; };
-            const sells = [sell('Sell 100', () => 100), sell('Sell half', cp => cp / 2), sell('Sell all', cp => cp)];
             const dlg = el('dialog', { class: 'shop-screen', 'aria-label': 'Parcel' }, [
                 el('div', { class: 'shop-bar' }, [el('span', { class: 'shop-title', text: 'Parcel' }), el('span', { class: 'shop-bank' }, [el('i', { text: 'Bank' }), bank]),
                     el('button', { type: 'button', class: 'ghost-button shop-close', 'aria-label': 'Close Parcel', text: '×', onclick: () => dlg.close() })]),
                 el('div', { class: 'shop-chips' }, [['Desk', true], ['Garage · later'], ['Warehouse · later']].map(([text, on]) => el('span', { class: `shop-chip${on ? ' on' : ''}`, text }))),
-                el('section', { class: 'shop-sellbox', 'aria-label': 'Sell compute' }, [el('h3', { text: 'Sell compute' }), have, el('div', { class: 'shop-sells' }, sells.map(s => s[0]))]),
+                el('section', { class: 'shop-sellbox', 'aria-label': 'Sell compute' }, [el('h3', { text: 'Sell compute' }), have]),
                 track, list]);
             dlg.addEventListener('close', () => { sfx('ui'); renderHome(); });
             document.body.append(dlg);
-            shop = { dlg, bank, list, have, sells, track, trackText, fill, key: '' };
+            shop = { dlg, bank, list, have, track, trackText, fill, key: '' };
         }
         if (shop.dlg.open) return;
         state.intro['ring:seen:shop'] = true;
