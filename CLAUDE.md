@@ -11,6 +11,28 @@ The design is `design/ring.md`, and the build order and working rules are `desig
 with this file about what the game *should* do, they are newer. `node tools/ring-model.js` prints the ring's starting
 numbers.
 
+## The audio overhaul (read before audio work)
+
+**The audio was overhauled on 2026-11-14 (branch `claude/audio-overhaul`): the long `sfx.js` row in the Layout table
+below describes it as it was before.** Where they disagree, these are newer: `design/audio/REVIEW-PACKAGE.md` (how it
+works, what was measured, what is open), `design/audio/STATUS.md` (the owner's calls), `music/README.txt` and
+`design/audio/coverage.md`. In short:
+- **Held jobs run on the game's clock** (`E.holdClock`, 4.1333 repeats a second at any tempo, muted or with no audio);
+  `SFX.holdDelay` is gone and nothing in the game reads the audio clock. The music plays a held job's click figure on
+  its own grid (`SFX.held`).
+- **Each track is a file**, `music/<theme>.js` (loaded before `sfx.js`, listed in index.html and
+  `tools/review/artifact-files.js`): its tempo (Classic 124, Dark 130, Soft 93 with swing, Ominous 62, Retro 144),
+  layer order, space, instruments, six songs with their own forms, effects, meter parts and levels.
+- **A theme's six songs differ on purpose** (the owner's call after a first listen: they sounded alike; Uptime,
+  Overclock, Morning Lab, Vigil, Lights Out, Pixel Desk and Hide and Seek are liked and left alone): a song may set its
+  own `bpm`, `swing`, meter (`steps`), drum patterns (`kit`), lead and other voices, and home note, with phrases of any
+  length. `tests/audio.test.js` holds each theme to the spread; `design/audio/STATUS.md`, "The variety pass".
+- **`sfx.js` is the engine**, a factory (`build(env)`): forms and playlists as data, sends and stereo, a
+  music/effects mixer with a limiter, faults reported (`SFX.faults`).
+- **`tools/audio/`** renders the game's own engine offline and measures it with FFmpeg: `survey.js`, `calibrate.js`,
+  `fx-levels.js`, `coverage.js`, `package.js`, `live-check.js`. Re-measure after changing a track; `tests/audio.test.js`
+  runs the scheduler in Node.
+
 ## Commands
 
 ```bash

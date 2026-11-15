@@ -42,6 +42,30 @@
     // The server room opens for it straight away; the Training Cluster keeps its own gate (module:path). Set false to
     // open it with Edge Detection again.
     const SNARE_OPEN_AT_START = true;
+    // Held jobs repeat on the game's own clock, never the music's (the audio overhaul, 2026-11-14): the comfort
+    // rate, 4.1333 a second (one every 241.935 ms: an 8th note at 124 BPM, where it came from), whatever the track's
+    // tempo, with sound on or off. `holdClock(startMs)` is one hold: repeat k is due at startMs + k × the interval,
+    // anchored to the press so late timers never add up to drift. `take(nowMs)` is 1 when a repeat is due (never
+    // more: deadlines missed while the page stalled are skipped, counted in `skipped`, not paid in a burst) and
+    // `wait(nowMs)` is the time to the next one.
+    const HOLD_RATE = (124 * 2) / 60;
+    const HOLD_INTERVAL_MS = 1000 / HOLD_RATE;
+    function holdClock(startMs) {
+        let fired = 0, paid = 0, skipped = 0;
+        return {
+            take(nowMs) {
+                const k = Math.floor((nowMs - startMs) / HOLD_INTERVAL_MS + 1e-9);
+                if (k <= fired) return 0;
+                skipped += k - fired - 1;
+                fired = k;
+                paid++;
+                return 1;
+            },
+            wait(nowMs) { return Math.max(0, startMs + (fired + 1) * HOLD_INTERVAL_MS - nowMs); },
+            get paid() { return paid; },
+            get skipped() { return skipped; }
+        };
+    }
     // The ring (design/ring.md, the planned demo; the owner's call on the switch, 2026-11-13): its rules apply only while
     // this is on. Off, the game and every older test are as they were. game.js turns it on for `#ring` in the address;
     // tests turn it on and off with `setRing`, so both rule sets are covered in one run.
@@ -3733,7 +3757,7 @@
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
-        prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, PLAYTEST_BUILD, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, SNARE_OPEN_AT_START, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
+        prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, PLAYTEST_BUILD, HOLD_RATE, HOLD_INTERVAL_MS, holdClock, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, SNARE_OPEN_AT_START, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
         SNARE_RED_UNIT, SNARE_RED_FLOOR, snareRedShare, SNARE_DESKTOP, snareDesktop, SNARE_RUN_FLOORS, snareCatch, snareBossDown, snareMeltPool, snareMeltPay, snareGoalMet, snareGoal, isSnareBossSector, SNARE_BOSS_EVERY, SNARE_FIRST_BOSS, snareBossOrdinal, finishSnare, snareOpts, SNARE_STAGES, RED_SECTOR, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, SNARE_GATE_SKILLS, SNARE_GATE_ARMOR, setPlayground, isPlayground, snareGateSkill, SNARE_END_BOSS, snareGoalOrdinal, snareBossHp, snareBossHealth, SNARE_SKILL_BUFFS, snareSkillBuffs, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,

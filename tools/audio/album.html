@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Path to AGI: Soundtrack</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+    --bg: #0a1416; --panel: #102024; --panel-hi: #16292e; --border: #21393f; --text: #e4eee9; --muted: #8fa9a2;
+    --primary: #6fb3d9; --warning: #ffb547; --a: #ffb547;
+    --display: 'Chakra Petch', 'Segoe UI', sans-serif; --body: 'Atkinson Hyperlegible', 'Segoe UI', sans-serif; --mono: 'JetBrains Mono', Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body {
+    margin: 0; color: var(--text); font: 16px/1.45 var(--body); -webkit-tap-highlight-color: transparent;
+    background:
+        linear-gradient(rgba(111, 179, 217, 0.035) 1px, transparent 1px) 0 0 / 100% 28px,
+        linear-gradient(90deg, rgba(111, 179, 217, 0.035) 1px, transparent 1px) 0 0 / 28px 100%,
+        radial-gradient(ellipse at 50% -10%, #12282d 0%, var(--bg) 60%);
+    background-attachment: fixed;
+}
+main { max-width: 880px; margin: 0 auto; padding: 28px 16px 150px; }
+header { margin-bottom: 22px; }
+.brand { font: 600 12px var(--mono); letter-spacing: 0.22em; text-transform: uppercase; color: var(--warning); }
+.brand::before { content: '◆ '; }
+h1 { font: 700 clamp(30px, 6vw, 44px)/1.05 var(--display); letter-spacing: 0.02em; text-transform: uppercase; margin: 6px 0 8px; }
+.sub { color: var(--muted); max-width: 60ch; margin: 0; }
+.crumbs { font: 12px var(--mono); color: var(--muted); margin-bottom: 18px; }
+.crumbs b { color: var(--text); font-weight: 400; }
+
+section { --a: var(--warning); margin-top: 18px; border: 1px solid var(--border); border-radius: 6px; background: color-mix(in srgb, var(--panel) 92%, var(--a)); overflow: hidden; }
+section > h2 {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0; padding: 12px 14px 10px;
+    font: 700 20px var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--a);
+    border-bottom: 1px solid var(--border); background: linear-gradient(90deg, color-mix(in srgb, var(--a) 14%, transparent), transparent 70%);
+}
+section > h2 small { font: 400 12px var(--mono); letter-spacing: 0.04em; text-transform: none; color: var(--muted); }
+ol { list-style: none; margin: 0; padding: 0; }
+li { display: grid; grid-template-columns: 34px 1fr auto auto auto 40px; align-items: center; gap: 10px; padding: 0 6px 0 4px; border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+li:first-child { border-top: 0; }
+li.on { background: color-mix(in srgb, var(--a) 13%, transparent); box-shadow: inset 3px 0 0 var(--a); }
+.play { all: unset; grid-column: 1 / 6; display: grid; grid-template-columns: subgrid; align-items: center; cursor: pointer; padding: 11px 0; min-height: 24px; }
+.play:focus-visible, .dl:focus-visible, .ctl:focus-visible { outline: 2px solid var(--a); outline-offset: -2px; border-radius: 4px; }
+.num { font: 12px var(--mono); color: var(--muted); text-align: center; }
+li.on .num { color: var(--a); }
+.name { font: 600 16px var(--display); letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+li.on .name { color: var(--a); }
+.room { font: 11px var(--mono); color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+.bpm, .len { font: 12px var(--mono); color: var(--muted); white-space: nowrap; }
+.len { min-width: 4ch; text-align: right; }
+.alts { grid-column: 2 / -1; display: flex; gap: 6px; flex-wrap: wrap; margin: -6px 0 9px; }
+.alt { all: unset; cursor: pointer; font: 11px var(--mono); color: var(--muted); border: 1px dashed var(--border); border-radius: 999px; padding: 3px 9px; min-height: 18px; }
+.alt.on { color: var(--a); border-color: var(--a); border-style: solid; }
+li.on .alt.on { color: #0a1416; background: var(--a); border-color: var(--a); border-style: solid; }
+.alt:focus-visible { outline: 2px solid var(--a); outline-offset: 1px; }
+.dl { all: unset; cursor: pointer; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 4px; color: var(--muted); font: 16px var(--mono); }
+.dl[hidden] { display: none; }
+.dl.busy { opacity: 0.5; pointer-events: none; }
+@media (hover: hover) { .play:hover .name { color: var(--a); } .alt:hover { color: var(--a); border-color: var(--a); } .dl:hover { color: var(--a); background: color-mix(in srgb, var(--a) 12%, transparent); } .ctl:hover { border-color: var(--a); color: var(--a); } }
+
+footer.note { margin-top: 22px; color: var(--muted); font-size: 14px; }
+
+.deck { --a: var(--warning); position: fixed; left: 0; right: 0; bottom: 0; background: color-mix(in srgb, #0c191c 94%, var(--a)); border-top: 1px solid var(--a); box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5); padding-bottom: env(safe-area-inset-bottom); }
+.deck-in { max-width: 880px; margin: 0 auto; padding: 10px 16px 12px; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; align-items: center; }
+.ctls { display: flex; gap: 8px; }
+.ctl { all: unset; cursor: pointer; width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 4px; font: 15px var(--mono); color: var(--text); }
+.ctl.main { width: 48px; border-color: var(--a); color: #0a1416; background: var(--a); font-size: 17px; }
+.now { min-width: 0; }
+.now-title { font: 600 16px var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.now-meta { font: 12px var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.now-meta b { color: var(--a); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
+.seek { grid-column: 1 / -1; display: grid; grid-template-columns: 5ch 1fr 5ch auto; gap: 10px; align-items: center; font: 12px var(--mono); color: var(--muted); }
+.seek #dur { text-align: right; }
+.vol { display: flex; align-items: center; gap: 6px; margin-left: 8px; letter-spacing: 0.08em; }
+.vol input { width: 96px; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; background: transparent; margin: 0; cursor: pointer; }
+input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--a) var(--p, 0%), var(--border) var(--p, 0%)); }
+input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--border); }
+input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--a); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; margin-top: -4px; border-radius: 50%; background: var(--a); border: 0; }
+input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--a); border: 0; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+@media (max-width: 640px) {
+    .vol input { width: 64px; }
+    main { padding: 18px 10px 160px; }
+    li { grid-template-columns: 28px 1fr auto auto 36px; gap: 8px; }
+    .play { grid-column: 1 / 5; }
+    .bpm { display: none; }
+    .name { font-size: 15px; }
+    .room { font-size: 10px; padding: 2px 6px; }
+}
+</style>
+</head>
+<body>
+<main>
+    <header>
+        <div class="crumbs">⌂ surveillance/<b>soundtrack</b></div>
+        <div class="brand">The Path to AGI</div>
+        <h1>Soundtrack</h1>
+        <p class="sub" id="sub"></p>
+    </header>
+    <div id="list"></div>
+    <footer class="note" id="note"></footer>
+</main>
+<div class="deck" id="deck">
+    <div class="deck-in">
+        <div class="ctls">
+            <button class="ctl" id="prev" aria-label="Previous song">⏮</button>
+            <button class="ctl main" id="toggle" aria-label="Play">▶</button>
+            <button class="ctl" id="next" aria-label="Next song">⏭</button>
+        </div>
+        <div class="now">
+            <div class="now-title" id="nowTitle">Pick a song</div>
+            <div class="now-meta" id="nowMeta">Nothing playing</div>
+        </div>
+        <div class="seek">
+            <span id="cur">0:00</span>
+            <input type="range" id="seek" min="0" max="1000" value="0" aria-label="Position in the song">
+            <span id="dur">0:00</span>
+            <label class="vol"><span aria-hidden="true">VOL</span><input type="range" id="vol" min="0" max="100" value="80" aria-label="Volume"></label>
+        </div>
+    </div>
+</div>
+<div class="sr" id="say" aria-live="polite"></div>
+<audio id="audio" preload="none"></audio>
+<script>
+'use strict';
+const ALBUM = /*ALBUM*/null;
+const THEMES = {
+    all: { label: 'Sampler', a: '#ffb547', blurb: 'All five, one after another' },
+    classic: { label: 'Classic', a: '#ffb547', blurb: 'techno, dub chords' },
+    dark: { label: 'Dark', a: '#ff4d5e', blurb: 'warehouse techno, acid lines' },
+    soft: { label: 'Soft', a: '#f6a8cf', blurb: 'a drumless orchestra' },
+    ominous: { label: 'Ominous', a: '#8f82ff', blurb: 'a drone, bells, a long hall' },
+    retro: { label: 'Retro', a: '#00e5ff', blurb: 'chiptune, a breakbeat' }
+};
+const ROOMS = { lab: 'Lab', server: 'Server room', snare: 'Packet Snare', sampler: 'Sampler' };
+const $ = id => document.getElementById(id);
+const audio = $('audio');
+const clock = s => { s = Math.max(0, Math.round(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+
+const tracks = ALBUM ? [ALBUM.sampler, ...ALBUM.tracks] : [];
+let at = -1, saver = null;
+// A song's versions, in the order shown; the first is picked to begin with. '' is the full recording (Standard; Spotted
+// for a Packet Snare song), 'calm' the Packet Snare song before you are spotted (Stealth), 'simple' Simple sounds.
+const sel = [];
+const VERSIONS = t => (t.area === 'snare' ? [['calm', 'Stealth'], ['', 'Spotted'], ['simple', 'Simple']] : [['', 'Standard'], ['simple', 'Simple']])
+    .filter(([k]) => !k || (t.alts || []).some(a => a.key === k)).map(([key, label]) => ({ key, label }));
+const version = i => { const t = tracks[i]; return (sel[i] && (t.alts || []).find(a => a.key === sel[i])) || null; };
+const versionName = i => { const v = VERSIONS(tracks[i]); return v.length > 1 ? (v.find(x => x.key === (sel[i] || '')) || v[0]).label : ''; };
+const rows = [];
+
+function build() {
+    if (!ALBUM) { $('sub').textContent = 'No tracks were built into this page.'; return; }
+    const mins = Math.round(ALBUM.tracks.reduce((a, t) => a + t.seconds, 0) / 60);
+    $('sub').textContent = `${ALBUM.tracks.length} songs across five tracks, ${mins} minutes. Every note is synthesised by the game as it plays: these are recordings of its engine.`;
+    $('note').textContent = `Recorded ${ALBUM.made} with every part in, as on a fast training run late in the game, and raised to a normal listening level (the game itself plays quieter). Each song is one pass through its form. Packet Snare's songs are the stealth versions, here after being spotted. Each song has versions to pick from: Standard (the full recording) and Simple (the stripped version the game plays with Simple sounds on); a Packet Snare song has Stealth (before you are spotted), Spotted (the full recording) and Simple.`;
+    const groups = [['all', [0]]];
+    for (const k of Object.keys(ALBUM.themes)) groups.push([k, tracks.map((t, i) => t.theme === k ? i : -1).filter(i => i > 0)]);
+    for (const [k, ids] of groups) {
+        const th = THEMES[k], sec = el('section');
+        sec.style.setProperty('--a', th.a);
+        const h = el('h2', null, th.label), info = ALBUM.themes[k];
+        h.append(el('small', null, info ? th.blurb : th.blurb));
+        const ol = el('ol');
+        for (const i of ids) {
+            const t = tracks[i], li = el('li'), play = el('button', 'play');
+            play.append(el('span', 'num', i ? String(i).padStart(2, '0') : '★'), el('span', 'name', t.name), el('span', 'room', ROOMS[t.area] || t.area),
+                el('span', 'bpm', t.bpm ? t.bpm + ' BPM' + (t.meter && t.meter !== '4/4' ? ' · ' + t.meter : '') : ''), el('span', 'len', clock(t.seconds)));
+            play.setAttribute('aria-label', `Play ${t.name}, ${th.label}, ${clock(t.seconds)}`);
+            play.addEventListener('click', () => at === i ? toggle() : start(i));
+            const dl = el('button', 'dl', '↓');
+            dl.hidden = true;
+            dl.setAttribute('aria-label', `Download ${t.name}`);
+            dl.title = 'Download';
+            dl.addEventListener('click', () => download(i, dl));
+            li.append(play, dl);
+            const chips = {};
+            if (t.alts && t.alts.length) {
+                const vs = VERSIONS(t);
+                sel[i] = vs[0].key || null;
+                const box = el('div', 'alts');
+                for (const x of vs) {
+                    const b = el('button', 'alt', x.label);
+                    b.setAttribute('aria-label', `${t.name}: the ${x.label.toLowerCase()} version`);
+                    b.addEventListener('click', () => { const same = at === i && (sel[i] || '') === x.key; sel[i] = x.key || null; same ? toggle() : start(i); });
+                    box.append(b);
+                    chips[x.key] = b;
+                }
+                li.append(box);
+            }
+            ol.append(li);
+            rows[i] = { li, dl, num: play.firstChild, chips };
+        }
+        sec.append(h, ol);
+        $('list').append(sec);
+    }
+}
+
+function mark() {
+    const playing = at >= 0 && !audio.paused;
+    rows.forEach((r, i) => { r.li.classList.toggle('on', i === at); for (const k in r.chips) { const on = (sel[i] || '') === k; r.chips[k].classList.toggle('on', on); r.chips[k].setAttribute('aria-pressed', on); } r.num.textContent = i === at && playing ? '▶' : i ? String(i).padStart(2, '0') : '★'; });
+    $('toggle').textContent = playing ? '❚❚' : '▶';
+    $('toggle').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+}
+function start(i) {
+    if (!tracks.length) return;
+    at = (i + tracks.length) % tracks.length;
+    const t = tracks[at], th = THEMES[t.theme], x = version(at);
+    $('deck').style.setProperty('--a', th.a);
+    $('nowTitle').textContent = t.name + (versionName(at) ? ` (${versionName(at).toLowerCase()})` : '');
+    $('nowMeta').innerHTML = '';
+    $('nowMeta').append(el('b', null, th.label), ` · ${ROOMS[t.area] || t.area}${t.bpm ? ' · ' + t.bpm + ' BPM' : ''}`);
+    $('dur').textContent = clock(t.seconds);
+    audio.src = x ? x.file : t.file;
+    audio.play().then(mark, () => { $('nowMeta').textContent = 'This browser would not play it: press play again.'; mark(); });
+    mark();
+}
+function toggle() {
+    if (at < 0) return start(0);
+    if (audio.paused) audio.play().then(mark, mark); else audio.pause();
+}
+$('toggle').addEventListener('click', toggle);
+$('prev').addEventListener('click', () => audio.currentTime > 3 ? (audio.currentTime = 0) : start(at <= 0 ? tracks.length - 1 : at - 1));
+$('next').addEventListener('click', () => start(at + 1));
+audio.addEventListener('play', mark);
+audio.addEventListener('pause', mark);
+audio.addEventListener('ended', () => at + 1 < tracks.length ? start(at + 1) : mark());
+let dragging = false;
+const length = () => Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : (tracks[at] ? tracks[at].seconds : 0);
+audio.addEventListener('timeupdate', () => {
+    if (dragging) return;
+    const d = length(), p = d ? audio.currentTime / d : 0;
+    $('seek').value = Math.round(p * 1000);
+    $('seek').style.setProperty('--p', (p * 100).toFixed(1) + '%');
+    $('cur').textContent = clock(audio.currentTime);
+});
+$('seek').addEventListener('input', () => { dragging = true; const p = $('seek').value / 1000; $('seek').style.setProperty('--p', (p * 100).toFixed(1) + '%'); $('cur').textContent = clock(p * length()); });
+// Volume: remembered on this device where the page may keep things. (iPhones ignore it: use the phone's buttons.)
+const setVol = v => { audio.volume = v / 100; $('vol').value = v; $('vol').style.setProperty('--p', v + '%'); };
+let vol0 = 80; try { const v = Number(localStorage.getItem('agiAlbumVol')); if (v >= 0 && v <= 100 && localStorage.getItem('agiAlbumVol') != null) vol0 = v; } catch (e) { /* no storage here */ }
+setVol(vol0);
+$('vol').addEventListener('input', () => { setVol(Number($('vol').value)); try { localStorage.setItem('agiAlbumVol', $('vol').value); } catch (e) { /* no storage here */ } });
+$('seek').addEventListener('change', () => { dragging = false; if (at >= 0 && length()) audio.currentTime = $('seek').value / 1000 * length(); });
+document.addEventListener('keydown', e => {
+    if (e.target.closest('button, input, a')) return;
+    if (e.code === 'Space') { e.preventDefault(); toggle(); }
+});
+
+// Saving a file goes through the viewer (a page can't start a download itself): the buttons show only where it can.
+async function download(i, btn) {
+    if (!saver) return;
+    const t = tracks[i];
+    btn.classList.add('busy');
+    try {
+        const file = (version(i) || t).file, blob = await (await fetch(file)).blob();
+        await saver.save({ filename: file.split('/').pop(), data: blob });
+        $('say').textContent = `Saved ${t.name}.`;
+    } catch (e) {
+        const code = e && e.code;
+        if (code !== 'declined') $('say').textContent = `Couldn't save ${t.name}.`;
+        if (code && !['declined', 'rate_limited', 'too_large', 'bad_request'].includes(code)) rows.forEach(r => { r.dl.hidden = true; });
+    }
+    btn.classList.remove('busy');
+}
+async function findSaver(tries) {
+    try {
+        if (!window.claude || !window.claude.use) { if (tries > 0) setTimeout(() => findSaver(tries - 1), 500); return; }
+        saver = await window.claude.use('downloads');
+        if (saver) rows.forEach(r => { r.dl.hidden = false; });
+    } catch (e) { /* no saving in this view */ }
+}
+build();
+mark();
+findSaver(10);
+</script>
+</body>
+</html>

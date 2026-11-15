@@ -1,3 +1,7 @@
+NOTE: written before the audio overhaul (2026-11-14), which acted on most of it: a tempo, groove, space, form and
+layer order per track, real synthesis for the instruments, the missing power-up effects, meter parts per track, a
+limiter, the measuring tools. What was done and what is still open: design/audio/REVIEW-PACKAGE.md.
+
 OPPORTUNITIES: making the tracks and effects less like Classic, and better
 ===========================================================================
 Written 2026-11-14 from a read of sfx.js (the copies in this folder). These are suggestions, not decisions:

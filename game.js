@@ -36,7 +36,7 @@ window.AGI = (function () {
     const BACKUP_MS = 10 * 60000;
     const TICK_MS = 100;
     const AUTOSAVE_MS = 30000;
-    const HOLD_REPEAT_MS = 242;       // holding a job repeats on the music's 8th notes (124 BPM: 4.13 clicks a second, a comfort option, not a turbo); this is the fallback without audio
+    const HOLD_REPEAT_MS = E.HOLD_INTERVAL_MS;   // holding a job repeats at the game's comfort rate (4.13 clicks a second, not a turbo), on the game's own clock: `E.holdClock`
     const LOG_LIMIT = 60;
 
     let state;
@@ -925,9 +925,10 @@ window.AGI = (function () {
     // Fires on press (no wait), then repeats at HOLD_REPEAT_MS while held; the pointer's own click is
     // ignored, so a tap counts once. Keyboard activation only sends a click, so it still works.
     // `onHold` fires once per press, the first time holding repeats the job.
-    // The repeats follow the music's 8th notes (`SFX.holdDelay`): the timer fires a little early and the click's
-    // sound waits for the grid point (`heldBeat`), so a hold plays along with the track.
-    const HOLD_LEAD_MS = 30;
+    // The repeats run on the game's clock (`E.holdClock`, anchored to the press): the music never times them, so
+    // income is the same at any tempo, muted or with no audio at all. The sound is the music's business: while a
+    // job is held it plays that job's click figure on the track's own grid (`SFX.held`), which needn't be one
+    // note a repeat.
     function holdable(button, fn, onHold) {
         let repeat = null;
         let lastKey = 0;
@@ -936,6 +937,7 @@ window.AGI = (function () {
             clearTimeout(repeat);
             repeat = null;
             button.classList.remove('held');
+            window.SFX?.held?.(null);
         };
 
         button.addEventListener('pointerdown', e => {
@@ -943,18 +945,18 @@ window.AGI = (function () {
             fn();
             button.classList.add('held');
             let first = true;
-            const next = minMs => {
-                const ms = window.SFX?.holdDelay?.(minMs);
-                repeat = setTimeout(beat, ms == null ? HOLD_REPEAT_MS : Math.max(0, ms - HOLD_LEAD_MS));
-            };
+            const hold = E.holdClock(performance.now());
+            const next = () => { repeat = setTimeout(beat, hold.wait(performance.now())); };
             const beat = () => {
                 if (button.disabled) return stop();
-                heldBeat = true;
-                try { fn(); } finally { heldBeat = false; }
-                if (first) { first = false; onHold?.(); }
-                next(HOLD_LEAD_MS + 40);
+                if (hold.take(performance.now())) {
+                    heldBeat = true;
+                    try { fn(); } finally { heldBeat = false; }
+                    if (first) { first = false; onHold?.(); }
+                }
+                next();
             };
-            next(150);   // the first repeat skips a grid point too close to the press
+            next();
         });
         ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => button.addEventListener(t, stop));
         // Keyboard: only a key *held down* (the OS auto-repeat, `e.repeat`) is held to the comfort rate; every
@@ -1638,7 +1640,8 @@ window.AGI = (function () {
         if (result.gained != null) {
             if (!(id === 'compute' && E.isRing() && orbGain(button, result.gained))) floatGain(button, result.gained, E.RESOURCES[result.resource].short);
             clickGlow(result.resource, result.gained);
-            sfx('click', { res: result.resource, q: heldBeat ? 2 : 1 });
+            if (heldBeat) window.SFX?.held?.(result.resource);   // a held job's figure plays on the track's grid
+            else sfx('click', { res: result.resource, q: 1 });
         }
         if (result.msg) log(result.msg, 'success');
         afterChange();

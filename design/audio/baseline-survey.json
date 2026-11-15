@@ -1,0 +1,1212 @@
+{
+ "label": "baseline",
+ "commit": "75c6083",
+ "date": "2026-11-14T16:56:18.192Z",
+ "settings": {
+  "sound": 0.5,
+  "music": 0.35,
+  "sampleRate": 48000
+ },
+ "rows": [
+  {
+   "name": "classic-lab-1",
+   "style": "classic",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -34.61,
+   "truePeak": -13.89,
+   "lra": 1.8,
+   "crest": 22.62,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "lab",
+    "song": 2,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "classic-lab-2",
+   "style": "classic",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -34.25,
+   "truePeak": -12.76,
+   "lra": 2.2,
+   "crest": 23.54,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "lab",
+    "song": 1,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "classic-server-1",
+   "style": "classic",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -33.98,
+   "truePeak": -14.56,
+   "lra": 1.6,
+   "crest": 21.33,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 2,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "classic-server-2",
+   "style": "classic",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -34.27,
+   "truePeak": -14.46,
+   "lra": 1.9,
+   "crest": 21.9,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "classic-snare-1",
+   "style": "classic",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -33.22,
+   "truePeak": -10.43,
+   "lra": 2.1,
+   "crest": 24.75,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "snare",
+    "song": 2,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "classic-snare-2",
+   "style": "classic",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -33.49,
+   "truePeak": -10.2,
+   "lra": 1.6,
+   "crest": 25.25,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "snare",
+    "song": 1,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "classic-build",
+   "style": "classic",
+   "simple": false,
+   "seconds": 96,
+   "lufs": -34.11,
+   "truePeak": -14.09,
+   "lra": 2.4,
+   "crest": 21.82,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A2",
+    "bar": 1
+   }
+  },
+  {
+   "name": "classic-lab-held",
+   "style": "classic",
+   "simple": false,
+   "seconds": 60,
+   "lufs": -36.25,
+   "truePeak": -15.19,
+   "lra": 1,
+   "crest": 22.67,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "lab",
+    "song": 1,
+    "section": "A",
+    "bar": 7
+   }
+  },
+  {
+   "name": "classic-run",
+   "style": "classic",
+   "simple": false,
+   "seconds": 60,
+   "lufs": -32.92,
+   "truePeak": -7.55,
+   "lra": 2.2,
+   "crest": 27.25,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A",
+    "bar": 7
+   }
+  },
+  {
+   "name": "classic-stress",
+   "style": "classic",
+   "simple": false,
+   "seconds": 32,
+   "lufs": -19.87,
+   "truePeak": -4.57,
+   "lra": 18.2,
+   "crest": 19.49,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A",
+    "bar": 4
+   }
+  },
+  {
+   "name": "classic-simple-server-1",
+   "style": "classic",
+   "simple": true,
+   "seconds": 64,
+   "lufs": -34.83,
+   "truePeak": -15.9,
+   "lra": 1.5,
+   "crest": 20.93,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "break",
+    "bar": 1
+   }
+  },
+  {
+   "name": "classic-simple-run",
+   "style": "classic",
+   "simple": true,
+   "seconds": 60,
+   "lufs": -33.72,
+   "truePeak": -6.25,
+   "lra": 1.7,
+   "crest": 29.62,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A",
+    "bar": 7
+   }
+  },
+  {
+   "name": "dark-lab-1",
+   "style": "dark",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -32.1,
+   "truePeak": -15.44,
+   "lra": 2.1,
+   "crest": 17.98,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "lab",
+    "song": 2,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "dark-lab-2",
+   "style": "dark",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -33.09,
+   "truePeak": -17.72,
+   "lra": 1.6,
+   "crest": 16.77,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "lab",
+    "song": 1,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "dark-server-1",
+   "style": "dark",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -32.64,
+   "truePeak": -14.67,
+   "lra": 1.6,
+   "crest": 19.54,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 2,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "dark-server-2",
+   "style": "dark",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -32.89,
+   "truePeak": -16.54,
+   "lra": 1.3,
+   "crest": 17.88,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "dark-snare-1",
+   "style": "dark",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -32.65,
+   "truePeak": -16.39,
+   "lra": 1.3,
+   "crest": 17.66,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "snare",
+    "song": 2,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "dark-snare-2",
+   "style": "dark",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -32.65,
+   "truePeak": -16.86,
+   "lra": 1.3,
+   "crest": 17.23,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "snare",
+    "song": 1,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "dark-build",
+   "style": "dark",
+   "simple": false,
+   "seconds": 96,
+   "lufs": -32.96,
+   "truePeak": -14.67,
+   "lra": 2.8,
+   "crest": 19.82,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A2",
+    "bar": 1
+   }
+  },
+  {
+   "name": "dark-lab-held",
+   "style": "dark",
+   "simple": false,
+   "seconds": 60,
+   "lufs": -33.93,
+   "truePeak": -16.74,
+   "lra": 1,
+   "crest": 17.85,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "lab",
+    "song": 1,
+    "section": "A",
+    "bar": 7
+   }
+  },
+  {
+   "name": "dark-run",
+   "style": "dark",
+   "simple": false,
+   "seconds": 60,
+   "lufs": -31.23,
+   "truePeak": -8.36,
+   "lra": 2.2,
+   "crest": 24.42,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A",
+    "bar": 7
+   }
+  },
+  {
+   "name": "dark-stress",
+   "style": "dark",
+   "simple": false,
+   "seconds": 32,
+   "lufs": -24.19,
+   "truePeak": -4.33,
+   "lra": 14.4,
+   "crest": 21.14,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A",
+    "bar": 4
+   }
+  },
+  {
+   "name": "dark-simple-server-1",
+   "style": "dark",
+   "simple": true,
+   "seconds": 64,
+   "lufs": -33.81,
+   "truePeak": -14.11,
+   "lra": 1.5,
+   "crest": 21.55,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "break",
+    "bar": 1
+   }
+  },
+  {
+   "name": "dark-simple-run",
+   "style": "dark",
+   "simple": true,
+   "seconds": 60,
+   "lufs": -32.22,
+   "truePeak": -5.39,
+   "lra": 4.6,
+   "crest": 28.66,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A",
+    "bar": 7
+   }
+  },
+  {
+   "name": "soft-lab-1",
+   "style": "soft",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -34.59,
+   "truePeak": -15.38,
+   "lra": 3,
+   "crest": 20.87,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "lab",
+    "song": 2,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "soft-lab-2",
+   "style": "soft",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -34.52,
+   "truePeak": -15.17,
+   "lra": 1.8,
+   "crest": 20.98,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "lab",
+    "song": 1,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "soft-server-1",
+   "style": "soft",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -34.32,
+   "truePeak": -14.93,
+   "lra": 2.5,
+   "crest": 21.1,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 2,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "soft-server-2",
+   "style": "soft",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -33.95,
+   "truePeak": -15.39,
+   "lra": 2.1,
+   "crest": 20.16,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "soft-snare-1",
+   "style": "soft",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -34.05,
+   "truePeak": -13.66,
+   "lra": 2.3,
+   "crest": 22.13,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "snare",
+    "song": 2,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "soft-snare-2",
+   "style": "soft",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -33.86,
+   "truePeak": -12.86,
+   "lra": 2.5,
+   "crest": 22.62,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "snare",
+    "song": 1,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "soft-build",
+   "style": "soft",
+   "simple": false,
+   "seconds": 96,
+   "lufs": -34.54,
+   "truePeak": -15.87,
+   "lra": 2.9,
+   "crest": 20.43,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A2",
+    "bar": 1
+   }
+  },
+  {
+   "name": "soft-lab-held",
+   "style": "soft",
+   "simple": false,
+   "seconds": 60,
+   "lufs": -36.85,
+   "truePeak": -19.41,
+   "lra": 1.9,
+   "crest": 19.46,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "lab",
+    "song": 1,
+    "section": "A",
+    "bar": 7
+   }
+  },
+  {
+   "name": "soft-run",
+   "style": "soft",
+   "simple": false,
+   "seconds": 60,
+   "lufs": -32.97,
+   "truePeak": -5.51,
+   "lra": 3.4,
+   "crest": 29.01,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A",
+    "bar": 7
+   }
+  },
+  {
+   "name": "soft-stress",
+   "style": "soft",
+   "simple": false,
+   "seconds": 32,
+   "lufs": -17.77,
+   "truePeak": -2.68,
+   "lra": 19.9,
+   "crest": 20.65,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A",
+    "bar": 4
+   }
+  },
+  {
+   "name": "soft-simple-server-1",
+   "style": "soft",
+   "simple": true,
+   "seconds": 64,
+   "lufs": -34.08,
+   "truePeak": -16.75,
+   "lra": 0.8,
+   "crest": 19.5,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "break",
+    "bar": 1
+   }
+  },
+  {
+   "name": "soft-simple-run",
+   "style": "soft",
+   "simple": true,
+   "seconds": 60,
+   "lufs": -33.19,
+   "truePeak": -6.75,
+   "lra": 2,
+   "crest": 28.35,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A",
+    "bar": 7
+   }
+  },
+  {
+   "name": "ominous-lab-1",
+   "style": "ominous",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -32.45,
+   "truePeak": -12.77,
+   "lra": 2.3,
+   "crest": 21.49,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "lab",
+    "song": 2,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "ominous-lab-2",
+   "style": "ominous",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -31.94,
+   "truePeak": -12.78,
+   "lra": 2.5,
+   "crest": 21.18,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "lab",
+    "song": 1,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "ominous-server-1",
+   "style": "ominous",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -32.17,
+   "truePeak": -12.77,
+   "lra": 2.3,
+   "crest": 21.29,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 2,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "ominous-server-2",
+   "style": "ominous",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -32.15,
+   "truePeak": -12.33,
+   "lra": 2.4,
+   "crest": 21.6,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "ominous-snare-1",
+   "style": "ominous",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -31.75,
+   "truePeak": -12.78,
+   "lra": 2.3,
+   "crest": 21.31,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "snare",
+    "song": 2,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "ominous-snare-2",
+   "style": "ominous",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -32.06,
+   "truePeak": -12.9,
+   "lra": 2.4,
+   "crest": 21.37,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "snare",
+    "song": 1,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "ominous-build",
+   "style": "ominous",
+   "simple": false,
+   "seconds": 96,
+   "lufs": -32.24,
+   "truePeak": -13.21,
+   "lra": 3,
+   "crest": 21.04,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A2",
+    "bar": 1
+   }
+  },
+  {
+   "name": "ominous-lab-held",
+   "style": "ominous",
+   "simple": false,
+   "seconds": 60,
+   "lufs": -34.25,
+   "truePeak": -16.06,
+   "lra": 3.4,
+   "crest": 20.75,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "lab",
+    "song": 1,
+    "section": "A",
+    "bar": 7
+   }
+  },
+  {
+   "name": "ominous-run",
+   "style": "ominous",
+   "simple": false,
+   "seconds": 60,
+   "lufs": -31.23,
+   "truePeak": -8.15,
+   "lra": 2.4,
+   "crest": 24.73,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A",
+    "bar": 7
+   }
+  },
+  {
+   "name": "ominous-stress",
+   "style": "ominous",
+   "simple": false,
+   "seconds": 32,
+   "lufs": -19.43,
+   "truePeak": -2.4,
+   "lra": 17.7,
+   "crest": 20.29,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A",
+    "bar": 4
+   }
+  },
+  {
+   "name": "ominous-simple-server-1",
+   "style": "ominous",
+   "simple": true,
+   "seconds": 64,
+   "lufs": -32.18,
+   "truePeak": -15.38,
+   "lra": 0.9,
+   "crest": 20.9,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "break",
+    "bar": 1
+   }
+  },
+  {
+   "name": "ominous-simple-run",
+   "style": "ominous",
+   "simple": true,
+   "seconds": 60,
+   "lufs": -31.83,
+   "truePeak": -7.36,
+   "lra": 1.5,
+   "crest": 27.75,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A",
+    "bar": 7
+   }
+  },
+  {
+   "name": "retro-lab-1",
+   "style": "retro",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -33.97,
+   "truePeak": -15.16,
+   "lra": 2,
+   "crest": 21.08,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "lab",
+    "song": 2,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "retro-lab-2",
+   "style": "retro",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -33.72,
+   "truePeak": -14.75,
+   "lra": 2,
+   "crest": 21.28,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "lab",
+    "song": 1,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "retro-server-1",
+   "style": "retro",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -34.16,
+   "truePeak": -16.21,
+   "lra": 1.6,
+   "crest": 20.23,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 2,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "retro-server-2",
+   "style": "retro",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -34.04,
+   "truePeak": -14.8,
+   "lra": 2.1,
+   "crest": 21.44,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "retro-snare-1",
+   "style": "retro",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -33.7,
+   "truePeak": -11.33,
+   "lra": 2.4,
+   "crest": 24.67,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "snare",
+    "song": 2,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "retro-snare-2",
+   "style": "retro",
+   "simple": false,
+   "seconds": 128,
+   "lufs": -34.01,
+   "truePeak": -12.37,
+   "lra": 2.5,
+   "crest": 23.88,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "snare",
+    "song": 1,
+    "section": "intro",
+    "bar": 2
+   }
+  },
+  {
+   "name": "retro-build",
+   "style": "retro",
+   "simple": false,
+   "seconds": 96,
+   "lufs": -34.55,
+   "truePeak": -16.1,
+   "lra": 2.7,
+   "crest": 20.67,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A2",
+    "bar": 1
+   }
+  },
+  {
+   "name": "retro-lab-held",
+   "style": "retro",
+   "simple": false,
+   "seconds": 60,
+   "lufs": -35.89,
+   "truePeak": -16.47,
+   "lra": 1.1,
+   "crest": 21.75,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "lab",
+    "song": 1,
+    "section": "A",
+    "bar": 7
+   }
+  },
+  {
+   "name": "retro-run",
+   "style": "retro",
+   "simple": false,
+   "seconds": 60,
+   "lufs": -32.87,
+   "truePeak": -6.06,
+   "lra": 2.4,
+   "crest": 29.14,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A",
+    "bar": 7
+   }
+  },
+  {
+   "name": "retro-stress",
+   "style": "retro",
+   "simple": false,
+   "seconds": 32,
+   "lufs": -18.65,
+   "truePeak": -2.5,
+   "lra": 18.9,
+   "crest": 21.63,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A",
+    "bar": 4
+   }
+  },
+  {
+   "name": "retro-simple-server-1",
+   "style": "retro",
+   "simple": true,
+   "seconds": 64,
+   "lufs": -34.25,
+   "truePeak": -17,
+   "lra": 1.4,
+   "crest": 19.35,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "break",
+    "bar": 1
+   }
+  },
+  {
+   "name": "retro-simple-run",
+   "style": "retro",
+   "simple": true,
+   "seconds": 60,
+   "lufs": -33.58,
+   "truePeak": -6.86,
+   "lra": 1.6,
+   "crest": 28.58,
+   "mono": 0,
+   "bad": 0,
+   "faults": [],
+   "errors": [],
+   "song": {
+    "area": "server",
+    "song": 1,
+    "section": "A",
+    "bar": 7
+   }
+  }
+ ]
+}
