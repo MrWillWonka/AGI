@@ -52,7 +52,7 @@
         // swells in and lets go slowly. The chord is a string section (two detuned saws a note behind a low filter,
         // spread left to right) that holds each bar and overlaps the next; a low string holds the bass; a high note shimmers over it late on. The tune is sung legato by
         // one of: the strings, a flute, a horn, a clarinet, an oboe, a choir or a hum (`lead` on the song; `leadIn` gives a section its own), with a quiet
-        // line under it when a section asks for harmony. Each song mixes its own textures over that (`choir`, `flow`,
+        // line under it when a section asks for harmony. Each song mixes its own textures over that (`choir`, `flow`, `pulse`,
         // `inner`, `pedal`, `answer`, `compVoice: 'swell'`: see the step), so no two are built alike. The section ends on a held note leading into the next.
         // Its click figure plays the track's 8ths (322 ms: about three notes a second while a job is held).
         style: {
@@ -82,6 +82,10 @@
                     note(ts, n, len * 5, 0.021, { type: 'sine', attack: 0.05, sus: 0.5, dec: 0.5, rel: 0.8, rev: 0.5, dly: 0.15, pan: i % 2 ? 0.4 : -0.4 });
                     note(ts, n, len * 3, 0.006, { type: 'triangle', cutoff: 1200, attack: 0.06, sus: 0.4, dec: 0.4, rel: 0.5, rev: 0.5, pan: i % 2 ? 0.4 : -0.4, low: true });
                 }
+                // `pulse`: the upper strings re-bowed on every beat, each stroke eased in and run into the next: motion
+                // without anything struck.
+                if (s % 4 === 0 && has('pulse')) ch.v.forEach((n, i) =>
+                    note(ts, n + 12, len * 4.6, 0.0085, { type: 'triangle', cutoff: 1500, q: 0.5, attack: 0.09, sus: 0.6, dec: 0.25, rel: 0.5, rev: 0.45, pan: (i - 1.5) * 0.3 }));
                 // `inner`: a cello moving inside the chord, its third for half the bar and its fifth for the rest.
                 if ((s === 0 || s === N / 2) && has('inner'))
                     note(t, ch.v[s === 0 ? 1 : 2 % ch.v.length], bar * 0.55, 0.034, { type: 'triangle', cutoff: 650, q: 0.5, attack: 0.2, sus: 0.85, dec: 0.3, rel: 0.7, rev: 0.45, pan: -0.25 });
@@ -153,17 +157,18 @@
                     form: [['in', 2, { mel: null, fill: false }], ['A', 8], ['B', 6, { chords: 'B' }], ['A2', 8, { mel: 'A', harm: true }], ['still', 2, { mel: null, bassOn: false, fill: false, lift: -0.15 }],
                         ['B2', 6, { mel: 'B', chords: 'B', lift: 0.08 }], ['A3', 8, { mel: 'A', lift: 0.06 }], ['out', 2, { mel: null, fill: false }]]
                 },
-                {   // Window Seat: a slow waltz in C at 88, straight: the bass on one, strings swelling on two, a
-                    // flute for the tune. Eight bars, then six that wander and come home.
-                    name: 'Window Seat', lvl: 0.97, bpm: 88, steps: 12, swing: 0, scale: ION, tonic: 3, oct: -1, lead: 'flute', compVoice: 'swell',
-                    chords: { A: ['Cmaj7', 'Em7', 'Fmaj7', 'G6', 'Am7', 'Fmaj7', 'G7sus4', 'Cmaj7'], B: ['Am7', 'Em7', 'Fmaj7', 'Cmaj7', 'Dm7', 'G6'] },
-                    bass: { A: 'r...........', B: 'r.......t...' }, comp: [4],
+                {   // Window Seat: curious, in five (3 + 2) at 104, E Dorian: a flute turns one small figure over, a
+                    // little higher each time, with the upper strings breathing in on the fourth beat; six bars in
+                    // the violins that open on a borrowed C major, as if looking out at something new.
+                    name: 'Window Seat', lvl: 0.93, bpm: 104, steps: 20, swing: 0, scale: DOR, tonic: 7, oct: -1, lead: 'flute', leadIn: { B: 'strings' }, compVoice: 'swell',
+                    inner: ['A2'], chords: { A: ['Em9', 'A', 'Em9', 'Gmaj7', 'Cmaj7', 'Bm7', 'A', 'Bsus4'], B: ['Cmaj7', 'D', 'Bm7', 'Em9', 'Cmaj7', 'Bsus4'] },
+                    bass: 'r...........f.......', comp: [12],
                     mel: {
-                        A: "3 - - 5 - - | 7 - - 5 - 3 | 6 - 5 - 4 - | 2 - - - - . | 1 - 3 - 5 - | 6 - - 1' - - | 5 - 4 - 2 - | 5 - - - - .",
-                        B: "1' - - 5 - 6 | 5 - - 3 - - | 4 - 6 - 1' - | 7 - - 5 - - | 6 - 4 - 2 - | 2 - - - 5 -"
+                        A: "5 - 3 5 7 - 2' - - - | 1' - 6 - 4 - 6 - - . | 5 - 3 5 7 - 3' - - - | 2' - 7 - 5 - - - . . | 3 - 5 - 1' - 5 - - - | 2 - 4 - 7 - 4 - - - | 6 - 1' - 4' - 3' - 1' - | 2' - - - - - - - . .",
+                        B: "5 - - 3 1' - - - 7 - | 4 - - 2 7 - - - 4' - | 2' - - 7 4 - - - 2 - | 3 - 5 - 7 - 2' - - - | 3' - - 1' 5 - - - 3 - | 2 - - - 5 - - - . ."
                     },
-                    form: [['A', 8], ['A', 8, { harm: true }], ['B', 6, { chords: 'B' }], ['A', 8], ['still', 4, { mel: null, chords: 'B', from: 2, drums: 'none', fill: false, lift: -0.15 }],
-                        ['B', 6, { chords: 'B' }], ['A', 8, { lift: 0.06 }], ['out', 4, { mel: null, from: 4, drums: 'sparse', fill: false }]]
+                    form: [['A', 8], ['B', 6, { chords: 'B' }], ['A2', 8, { mel: 'A', harm: true }], ['still', 3, { mel: null, chords: 'B', from: 3, fill: false, lift: -0.15 }],
+                        ['B', 6, { chords: 'B' }], ['A', 8, { lift: 0.06 }], ['out', 2, { mel: null, from: 6, fill: false }]]
                 }
             ],
             server: [
@@ -179,16 +184,19 @@
                     form: [['intro', 4, { mel: null, fill: false }], ['A', 8], ['A2', 8, { mel: 'A', harm: true }], ['B', 8], ['still', 4, { mel: null, bassOn: false, fill: false, lift: -0.15 }],
                         ['B2', 8, { mel: 'B', lift: 0.08 }], ['A3', 8, { mel: 'A', harm: true }], ['out', 4, { mel: null, fill: false }]]
                 },
-                {   // Glide Path: 60, almost still, in A Dorian: voices carry the tune ("oo") in notes a bar long over a
-                    // bass that only holds; four bars on two chords, then six that lift to F and G with the choir behind.
-                    name: 'Glide Path', lvl: 0.77, bpm: 60, swing: 0, scale: DOR, lead: 'oo', pedal: true, choir: ['B', 'B2'], inner: ['A2', 'A3'],
-                    chords: { A: ['Am9', 'Am9', 'D9', 'D9'], B: ['Fmaj7', 'Fmaj7', 'G', 'G', 'Am9', 'Am9'] },
-                    bass: 'r...............',
+                {   // Glide Path: the open road at 96, in G: the strings re-bowed softly on every beat (`pulse`: the wheels),
+                    // a bass that walks root to fifth, voices ("oo") singing long arcs with a pickup into each bar;
+                    // the chorus goes to the violins with the choir, and the last one lifts a tone.
+                    name: 'Glide Path', lvl: 0.83, bpm: 96, swing: 0, scale: ION, tonic: 10, oct: -1, lead: 'oo', leadIn: { B2: 'strings', B3: 'strings' },
+                    pulse: ['A', 'B', 'A2', 'B2', 'B3'], choir: ['B2', 'B3', 'out'], inner: ['A2'],
+                    chords: { A: ['Gadd9', 'Gadd9', 'Em7', 'Cadd9', 'Gadd9', 'D', 'Em7', 'Cadd9'], B: ['Cadd9', 'D', 'Em7', 'Bm7', 'Cadd9', 'D', 'F', 'Dsus4'] },
+                    bass: 'r.......f.......',
                     mel: {
-                        A: "5 - - - - - - - | 7 - - - 5 - - - | 6 - - - - - - - | 5 - - - 3 - - .",
-                        B: "3 - - - - - 5 - | 1' - - - - - - - | 7 - - - - - 2' - | 4' - - - - - - - | 3' - - - 1' - - - | 5 - - - - - - ."
+                        A: "3 - - - 5 - 3 2 | 1 - - - - - 2 3 | 5 - - - 3 - 2 1 | 1 - - - - - 5, 1 | 3 - - - 5 - 6 5 | 6 - - 5 - - 2 - | 3 - - - 5 - 6 - | 5 - - - - - . .",
+                        B: "6 - - - 5 - 2 - | 7 - - - 6 - 5 - | 1' - - - 6 - 5 - | 7 - - - - - 5 6 | 1' - - - 6 - 5 - | 2' - - - 7 - 6 - | 1' - - - 4 - 2 - | 2 - - - - - . ."
                     },
-                    form: [['A', 4], ['A2', 4, { mel: 'A', harm: true }], ['B', 6, { chords: 'B' }], ['A3', 4, { mel: 'A' }], ['B2', 6, { mel: 'B', chords: 'B', lift: 0.06 }], ['out', 2, { mel: null, fill: false }]]
+                    form: [['intro', 4, { mel: null, fill: false }], ['A', 8], ['B', 8, { chords: 'B' }], ['A2', 8, { mel: 'A', harm: true }], ['B2', 8, { mel: 'B', chords: 'B', lift: 0.08 }],
+                        ['B3', 8, { mel: 'B', chords: 'B', up: 2, lift: 0.1 }], ['out', 4, { mel: null, fill: false }]]
                 }
             ],
             snare: [

@@ -146,14 +146,37 @@ different phrasings and mixes of melody, harmony and choirs, "a dreamy soundscap
 
 - **A mood for each room** (the owner's call, for every track): lab songs are **curious and experimental**, Training
   Cluster (server room) songs are **movement and road trips**, Packet Snare songs are **stealth and sneaking**.
-  Applied so far only to Soft's Morning Lab; the other 29 songs have not been checked against it.
+  Every song was then judged against its room (the liked songs left alone), one agent a theme; none of it has been
+  heard. **Rewritten:** Classic's Night Survey (F Lydian at 104, a glass bell asking, a pluck answering, seven-bar
+  verses) and Packet Storm (G Mixolydian at 128, a bass in 8ths, long lines on a soft saw, the last chorus a tone up);
+  Dark's Foundry (B flat Lydian at 112, metal asking, the acid answering), Rust (7/8 at 104, the acid line in five
+  forms), Pressure (a galloping bass under one long line, a tone up at the end) and Tripwire (5/4 at 100, G Dorian,
+  a creeping bass, motifs with rests; its `rest` 2.20 → 1.05); Soft's Window Seat (5/4 at 104, E Dorian, a flute
+  turning one figure over) and Glide Path (G at 96, the strings re-bowed on every beat, `pulse`, the last chorus a
+  tone up); Ominous's Static (72, a bell asking and a triangle answering), Undertow (6/8 at 80, a plucked bass on
+  every 8th, long arcs) and Crawlspace (5/4 at 80, A Phrygian, a low pluck and footsteps: the high music box is
+  gone); Retro's Save Point (F Lydian in three at 100, no kick, the triangle asking and a dull square answering),
+  Boss Rush (an overworld drive at 132 in C over a bass walking down) and Turbo (long notes over the same shuffle, a
+  build over three laps). **Small changes:** Dark's Warehouse riff an octave lower, Black Box's middle thinned.
+  **Kept:** Uptime, Overclock, Packet Sniffer, Dead Drop, Gentle Climb, Tiptoe, Hushed Channel, Vigil, Descent,
+  Lights Out, Pixel Desk, Sneaking Mission, Hide and Seek. New song flags per theme: `tinker`, `answer`, `sing`
+  (Classic); `acidEvery`, `acidGate`, `motor`, the `glow` lead (Dark); `roll`, `creep`, `leads`, the `pizz` lead
+  (Ominous); `tinker`, `answer` (Retro); `pulse`, `leadIn`, the `oboe` lead (Soft).
+- **Open from that pass:** `c.pick` in sfx.js can return a negative number (its hash goes signed; the themes guard
+  it; fixing the hash would change the liked songs' variations); `rest`/`srest` have no measuring tool (Tripwire's and
+  Crawlspace's were set by an agent's own method: depth 0, intensity 0.12 to 0.3 against spotted); Classic's songs are
+  levelled by whole mix, not tones; Lights Out's simple version is about 0.6 dB hot and Pixel Desk's and Hide and
+  Seek's simple versions 1.3 dB hot and 1 dB quiet; Dead Drop's B tune reaches D6; Hushed Channel is a lullaby more
+  than it sneaks.
 - **Save Point** (Retro): its triangle tune an octave lower, easing in, a shallower wobble (the high tune was jarring).
 - **Morning Lab** (Soft) redone to the lab's mood: C Lydian at 92, an oboe (new voice) asking in two-bar phrases that
   start off the beat and hang on the raised fourth, a flute answering; six-bar middles that tinker in 8ths over a
   rolling chord and pass through A flat; a cello the second time, the choir on the second middle. A section can have
   its own lead (`leadIn`), unused for now.
 - **The soundtrack page carries reference versions** (`tools/audio/album.js`, `alts` on a track): every song in Simple
-  sounds, and each Packet Snare song before you are spotted (intensity 0.12), at 64 kbit/s, as chips under the song.
+  sounds, and each Packet Snare song before you are spotted (intensity 0.12), at 64 kbit/s. The owner named them:
+  **Standard** (Simple sounds, picked to begin with), **Stealth** (before spotted) and **Spotted** (the full one;
+  **Full** on songs outside Packet Snare), a selector under each song that always shows which is picked.
 
 ## Open questions for the owner
 

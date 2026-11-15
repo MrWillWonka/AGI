@@ -26,7 +26,7 @@ SIX SONGS, NOT ONE SONG SIX TIMES (the owner's call, 2026-11-14: inside a theme 
   Kept as they were: Uptime, Overclock, Morning Lab, Vigil, Lights Out, Pixel Desk, Hide and Seek. The other 23 were
   rewritten so that a theme's songs differ in the things that made them one song: tempo, meter, drum pattern, lead
   voice, home note, phrase length and running time. A song may now set
-    bpm, swing     its own tempo and swing (Classic runs 98 to 136, Ominous 50 to 92)
+    bpm, swing     its own tempo and swing (Ominous runs 62 to 92)
     steps, pulse   16ths in a bar (12: 3/4 or 6/8; 14: 7/8; 20: 5/4; 12 with pulse 3: a shuffle) and in a beat
     kit            its own kick, snare and hat patterns, a character a step ('x', 'o' softer, 'O' an open hat)
     lead           one of the theme's other lead voices; bassVoice, compVoice, reese, march, rock: other parts

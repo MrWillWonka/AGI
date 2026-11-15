@@ -11,6 +11,8 @@
     const sq = (n, o = {}) => T(n, { type: 'square', dur: 0.07, gain: 0.03, ...o });
     const tri = (n, o = {}) => T(n, { type: 'triangle', dur: 0.12, gain: 0.08, ...o });
     const chipNoise = (dur, gain, at = 0) => noise({ dur, gain, f0: 6000, type: 'highpass', at });
+    // A `tinker` song's figures on the chord, an 8th a slot: which chord tone (past the top: the bottom ones an octave up), -1 a gap.
+    const TINKER = [[0, 2, 1, -1, 2, -1], [0, -1, 1, 2, -1, 1], [-1, 0, 2, -1, 1, 3], [0, 1, 2, 3, -1, -1], [2, -1, 0, -1, 1, -1]];
 
     return {
         // The key its sound effects are moved into (they are written in A minor pentatonic): C major pentatonic: C D E G A.
@@ -80,11 +82,20 @@
                 if (b) note(t, b + 12, len * (song.walk ? 0.9 : 1.5), 0.13 * L.bass, { type: 'triangle', attack: 0.006, sus: 0.9, dec: 0.02, rel: 0.03 });
                 // The chord as an arpeggio in 8ths: up on even bars, down on odd ones.
                 const every = 2;
-                if (L.pad > 0.02 && s % every === 0) {
+                if (song.tinker) {
+                    // `tinker`: in place of the steady arpeggio, the thin pulse tries a different little figure on the
+                    // chord each bar (the same one whenever that bar comes round), with gaps in it.
+                    const f = TINKER[Math.abs(c.pick(TINKER.length, 3)) % TINKER.length], i = s % 2 ? -1 : f[(s / 2) % f.length], v = ch.v;
+                    if (L.pad > 0.02 && i >= 0) note(t, i < v.length ? v[i] : v[i - v.length] + 12, len * 1.1, (0.016 + 0.014 * Math.max(L.clap, L.arp)) * M * L.pad,
+                        { wave: 'pulse25', cutoff: 1500, q: 0.6, attack: 0.01, sus: 0.8, dec: 0.03, rel: 0.04, pan: -0.5, low: true });
+                } else if (L.pad > 0.02 && s % every === 0) {
                     const v = ch.v, i = (s / every) % v.length, idx = c.bar % 2 ? v.length - 1 - i : i;
                     note(t, v[idx], len * 0.8, (0.016 + 0.014 * Math.max(L.clap, L.arp)) * M * L.pad, { wave: 'pulse25', cutoff: song.mellow ? 1500 : 2000, q: 0.6, attack: 0.006, sus: 0.8, dec: 0.02, rel: 0.02, pan: -0.5, low: true });
                 }
-                if (c.mel && song.lead === 'tri') {           // the triangle takes the tune, in the middle of the keyboard, easing in
+                if (c.mel && song.answer && c.sec === song.answer.sec && c.barIn % song.answer.every >= song.answer.from) {
+                    // `answer`: in that section the last bars of each phrase are answered by the other channel, a dull square, quieter.
+                    note(c.mel.t, c.mel.n, len * c.mel.len * 0.9, 0.026 * c.melGain, { type: 'square', cutoff: 1200, q: 0.7, attack: 0.03, sus: 0.85, dec: 0.04, rel: 0.06, pan: -0.3 });
+                } else if (c.mel && song.lead === 'tri') {    // the triangle takes the tune, in the middle of the keyboard, easing in
                     const d = len * c.mel.len * 0.95, env = { attack: 0.04, sus: 0.9, dec: 0.03, rel: 0.08 };
                     note(c.mel.t, c.mel.n, d, 0.1 * c.melGain, { type: 'triangle', ...env, vib: c.mel.len >= 3 ? { rate: 4.5, depth: 5, delay: 0.3 } : null, pan: 0.1 });
                     if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.035 * c.harmGain * c.melGain, { type: 'triangle', ...env, pan: -0.3 });
@@ -123,40 +134,47 @@
                     },
                     form: [['intro', 4, { mel: null }], ['A', 8], ['A', 8, { harm: true }], ['B', 8], ['A', 8], ['B', 8], ['A', 8, { up: 2, harm: true, lift: 0.06 }], ['turn', 2, { mel: null }]]
                 },
-                {   // Save Point: a lullaby in three at 96: no kick, the triangle singing low and plainly over the chord's
-                    // arpeggio. Eight bars and six, then round again: under a minute.
-                    name: 'Save Point', lvl: 0.98, bpm: 96, steps: 12, scale: ION, tonic: 3, oct: -1, lead: 'tri', mellow: true,
+                {   // Save Point: curious, poking at things. F Lydian in three at 100, no kick. Five-bar phrases: the
+                    // triangle (middle of the keyboard, easing in) asks for three bars, starting off the beat, climbing and
+                    // hanging on the raised fourth; a dull square on the other channel answers for two. Under it the thin
+                    // pulse tinkers, a different figure each bar. The middle six bars try 8ths, take a wrong turn through
+                    // B flat and find the raised fourth again. Under a minute.
+                    name: 'Save Point', lvl: 1.022, slvl: 0.855, bpm: 100, steps: 12, scale: LYD, tonic: 8, oct: -2, lead: 'tri', mellow: true, tinker: true, answer: { sec: 'A', every: 5, from: 3 },
                     kit: { kick: '............', snare: '............', hat: '....o...o...' },
-                    chords: { A: ['C', 'G', 'Am', 'G', 'F', 'G', 'C', 'C'], B: ['Am', 'Em', 'F', 'C', 'Dm', 'G'] }, bass: 'r.......f...',
+                    chords: { A: ['Fmaj7', 'G/F', 'Fmaj7', 'Em7', 'Am7', 'Fmaj7', 'G/F', 'Dm7', 'Cmaj7', 'G/F'], B: ['Dm7', 'Em7', 'Fmaj7', 'Bbmaj7', 'G/F', 'Cmaj7'] }, bass: 'r.......o...',
                     mel: {
-                        A: "3 - - 5 - - | 2 - - - 5, - | 1 - - 3 - - | 2 - - - - . | 4 - - 6 - - | 5 - 4 - 2 - | 3 - - - 1 - | 1 - - - - .",
-                        B: "6 - - 5 - 3 | 5 - - - 3 - | 4 - - 6 - - | 5 - - 3 - - | 4 - 2 - 4 - | 2 - - - 5, -"
+                        A: ". 5 6 1' - - | . 6 2' 4' - - | 3' - - 1' - 7 | 7 - 2' - 4' - | 3' - - - - . | . 6 1' 3' - - | . 7 2' 4' - - | 3' - - 1' - 6 | 2' - 7 - 5 - | 4' - - - - .",
+                        B: "6 1' 3' 1' 6 1' | 7 2' 4' 2' 7 2' | 1' 3' 5' 3' 1' - | b4' - - 3' - 1' | 2' - 4' - - - | 7 - 5 - - ."
                     },
-                    form: [['A', 8], ['B', 6, { chords: 'B' }], ['A', 8, { harm: true }], ['turn', 2, { mel: null, fill: false }]]
+                    form: [['A', 10, { fill: false }], ['B', 6, { chords: 'B', fill: false }], ['A', 10, { harm: true, fill: false }], ['turn', 2, { mel: null, fill: false }]]
                 }
             ],
             server: [
-                {   // Boss Rush: 138 in D Dorian over the breakbeat: a riff in 8ths on a filtered square, kept in the middle of
-                    // the keyboard, four bars at a time; a six-bar second tune; the last round up a tone.
-                    name: 'Boss Rush', lvl: 0.92, bpm: 138, scale: DOR, tonic: 5, oct: -1, breakbeat: true, lead: 'soft', mellow: true,
-                    chords: { A: ['Dm', 'Dm', 'C', 'G'], B: ['F', 'G', 'Em', 'Am', 'F', 'G'] }, bass: 'r...r.o.f...r.o.',
+                {   // Boss Rush: the road between the bosses. An overworld tune at 132 in C, straight: the bass drives in
+                    // 8ths down a line that steps from C to D and turns round on a suspended G; a filtered square sings one
+                    // long eight-bar arc over it, in the middle of the keyboard. A six-bar climb leads back in each time;
+                    // a stretch of open road with only the kick and the bass; the last two choruses a tone up.
+                    name: 'Boss Rush', lvl: 0.813, slvl: 0.941, bpm: 132, scale: ION, tonic: 3, oct: -1, lead: 'soft', mellow: true,
+                    kit: { kick: 'x.......x.x.....', snare: '....x.......x...', hat: 'x.o.x.o.x.o.x.o.' },
+                    chords: { A: ['C', 'G/B', 'Am', 'C/G', 'F', 'C/E', 'Dm7', 'Gsus4'], B: ['F', 'G', 'Em', 'Am', 'Dm7', 'G'] }, bass: 'r.r.o.r.r.r.o.r.',
                     mel: {
-                        A: "1' - 5 - 7 5 4 5 | 1' - 5 - 3' - 1' - | 7 - 4 - 5 4 2 4 | 6 - 4 - 2' - 6 -",
-                        B: "3' - - - 1' - 5 - | 4' - - - 2' - 6 - | 2' - 1' - 6 - 4 - | 5 - - - 7 - 2' - | 3' - 1' - 5 - 3 - | 4 - 6 - 2' - 4' -"
+                        A: "5, - 1 - 3 - - - | 2 - - 5 - - 7, - | 1 - 3 - 6 - - 5 | 5 - - - 3 - - . | 6, - 1 - 4 - - - | 3 - - 5 - - 1' - | 2' - 1' - 6 - 4 - | 5 - - - 2 - - .",
+                        B: "6 - - 1' - - 6 - | 7 - - 2' - - 7 - | 3' - - - 7 - 5 - | 1' - - - 6 - 3 - | 4 - 6 - 1' - 2' - | 2' - - - 5 - 7 -"
                     },
-                    form: [['intro', 2, { mel: null }], ['A', 4], ['A', 4], ['B', 6, { chords: 'B' }], ['A', 4, { harm: true }], ['break', 4, { mel: 'A', melGain: 0.7, drums: 'none', fill: false }],
-                        ['B', 6, { chords: 'B', lift: 0.08 }], ['A', 4], ['A', 4, { up: 2, harm: true, lift: 0.1 }], ['B', 6, { chords: 'B', up: 2 }], ['A', 4, { up: 2 }], ['out', 2, { mel: null, fill: false }]]
+                    form: [['intro', 4, { mel: null }], ['A', 8], ['A', 8, { harm: true }], ['B', 6, { chords: 'B' }], ['A', 8, { lift: 0.06 }], ['road', 4, { mel: null, drums: 'sparse', fill: false, lift: -0.1 }],
+                        ['B', 6, { chords: 'B', lift: 0.08 }], ['A', 8, { up: 2, harm: true, lift: 0.1 }], ['A', 8, { up: 2, lift: 0.12 }], ['out', 2, { mel: null, up: 2, fill: false }]]
                 },
-                {   // Turbo: an easy shuffle at 120 in G Mixolydian: a walking bass in 8ths, four on the floor, a tune that
-                    // skips. Three short laps, the last a tone up.
-                    name: 'Turbo', lvl: 0.81, bpm: 120, swing: 0.3, scale: MIXO, tonic: 10, oct: -1, mellow: true,
-                    chords: { A: ['G', 'G', 'F', 'C'], B: ['Em', 'F', 'C', 'G'] }, bass: 'r.o.f.o.r.o.f.o.',
+                {   // Turbo: cruising. An easy shuffle at 120 in G Mixolydian: a walking bass in 8ths, four on the floor,
+                    // and a tune in long notes that arcs over eight bars (up to the octave and home). Six bars that climb
+                    // to a suspended chord and wait there; three laps, the second fuller, the last a tone up.
+                    name: 'Turbo', lvl: 0.818, slvl: 0.916, bpm: 120, swing: 0.3, scale: MIXO, tonic: 10, oct: -1, mellow: true,
+                    chords: { A: ['G', 'G', 'F', 'C'], B: ['Em', 'F', 'C', 'G', 'Am', 'D7sus4'] }, bass: 'r.o.f.o.r.o.f.o.',
                     mel: {
-                        A: "1 . 3 5 . 6 5 . | 1' - 5 . 3 . 5 . | 7 . 4 2 . 4 7 . | 4 - 6 - 1' - - .",
-                        B: "6 - 5 3 . 5 6 . | 7 - 4 2 . 4 7 . | 1' - 6 4 . 6 1' . | 2' - 1' - 5 - 3 -"
+                        A: "1 - - 3 5 - - - | 6 - 5 - 3 - 1 - | 7 - - 2 4 - - - | 6 - 4 - 5 - - . | 1 - - 3 5 - - 6 | 1' - - - 6 - 5 - | 4 - - 6 7 - 4 - | 5 - - - 1 - - .",
+                        B: "6 - - - 3 - 5 - | 7 - - - 4 - 2 - | 1' - - - 6 - 5 - | 3 - - 5 - - 2 - | 1 - 2 - 4 - 6 - | 5 - - - - - . ."
                     },
-                    form: [['intro', 1, { mel: null }], ['A', 4], ['A', 4], ['B', 4, { chords: 'B' }], ['A', 4, { harm: true }], ['B', 4, { chords: 'B' }],
-                        ['A', 4, { up: 2, lift: 0.1 }], ['B', 4, { chords: 'B', up: 2 }], ['A', 4, { up: 2, harm: true }]]
+                    form: [['intro', 2, { mel: null }], ['A', 8], ['B', 6, { chords: 'B' }], ['A', 8, { harm: true, lift: 0.05 }], ['B', 6, { chords: 'B', lift: 0.08 }],
+                        ['A', 8, { up: 2, harm: true, lift: 0.1 }], ['out', 2, { mel: null, up: 2, fill: false }]]
                 }
             ],
             snare: [

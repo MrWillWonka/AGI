@@ -82,13 +82,22 @@
                 // A reese: the song's bass line on two saws pulling apart, low and held.
                 const rb = song.reese && c.bassOn && bassAt(song, s, ch);
                 if (rb) for (const dt of [-16, 16]) note(t, rb, len * (song.reese === 'long' ? N * 0.97 : 3.2), 0.036 * L.bass, { type: 'sawtooth', detune: dt, cutoff: 260 + 500 * k, q: 2, attack: 0.02, sus: 0.85, dec: 0.15, rel: 0.12 });
-                // The acid line: the song's own if it has one (two bars, then two that answer), else the track's.
+                // A motor: the song's bass line as short picked notes an octave over the rumble, an ostinato that drives.
+                const mb = song.motor && c.bassOn && bassAt(song, s, ch);
+                if (mb) note(t, mb + 12, len * 1.1, 0.075 * L.bass, { type: 'sawtooth', cutoff: 420 + 800 * k, q: 4, env: 2, envTime: 0.06, attack: 0.004 });
+                // The acid line: the song's own if it has one (two bars, then two that answer), else the track's. A song
+                // with `acidEvery` walks through all of its lines, a new one every that many bars: a figure that mutates.
                 const B = c.bar % 4 >= 2;
-                const line = song.acidLine ? song.acidLine[B ? 1 : 0] : (B ? DARK_ACID_B : DARK_ACID), accs = song.acidAccent ? song.acidAccent[B ? 1 : 0] : (B ? DARK_ACCENT_B : DARK_ACCENT);
+                const ai = song.acidLine && song.acidEvery ? Math.floor(c.bar / song.acidEvery) % song.acidLine.length : B ? 1 : 0;
+                const line = song.acidLine ? song.acidLine[ai] : (B ? DARK_ACID_B : DARK_ACID), accs = song.acidAccent ? song.acidAccent[ai] : (B ? DARK_ACCENT_B : DARK_ACCENT);
                 const off = line[s], acc = accs[s];
-                if (off != null && c.bassOn && acid > 0.01) {
+                // `acidGate`: by section name, a character a bar ('x' the line plays, 'o' at half, '.' it leaves the bar
+                // to the tune: call and answer). Until the tune has come in, the line fills those bars itself.
+                const gp = song.acidGate && song.acidGate[c.sec], gc = gp ? gp[c.barIn % gp.length] : 'x', g0 = gc === 'x' ? 1 : gc === 'o' ? 0.5 : 0;
+                const gate = g0 + (1 - g0) * 0.8 * (1 - L.mel);
+                if (off != null && c.bassOn && acid * gate > 0.01) {
                     const prev = line[(s + N - 1) % N];
-                    note(t, snap(song, ch.root + 12 + off), len * (acc ? 1.4 : 0.8), (acc ? 0.08 : 0.055) * (0.6 + 0.4 * L.off) * acid,
+                    note(t, snap(song, ch.root + 12 + off), len * (acc ? 1.4 : 0.8), (acc ? 0.08 : 0.055) * (0.6 + 0.4 * L.off) * acid * gate,
                         { type: 'sawtooth', cutoff: 600 + 2200 * k, q: 12, env: acc ? 5 : 2.5, glide: acc && prev != null ? snap(song, ch.root + 12 + prev) : null, glideTime: 0.05, dly: acc ? 0.18 : 0 });
                 }
                 if (c.drums && !c.sparse && K) {
@@ -124,6 +133,11 @@
                         vib: { rate: 3.4, depth: 18, delay: 0.5 }, rev: 0.6, dly: 0.3 });
                     note(c.mel.t, c.mel.n - 12, d, 0.02 * c.melGain, { type: 'sawtooth', cutoff: 700, glide: c.mel.n - 17, glideTime: Math.min(0.5, d * 0.35), attack: 0.1, sus: 0.85, dec: 0.2, rel: 0.4, rev: 0.4 });
                     if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.022 * c.harmGain * c.melGain, { type: 'triangle', cutoff: 1200, attack: 0.1, sus: 0.85, dec: 0.2, rel: 0.4, rev: 0.6, pan: 0.3, low: true });
+                } else if (c.mel && song.lead === 'glow') {   // headlights: two soft saws and a triangle under them, legato, no bend
+                    const d = len * c.mel.len;
+                    for (const dt of [-6, 6]) note(c.mel.t, c.mel.n, d, 0.03 * c.melGain, { type: 'sawtooth', detune: dt, cutoff: 900 + 1100 * k, q: 1, attack: 0.04, sus: 0.8, dec: 0.15, rel: 0.25, rev: 0.4, dly: 0.15, pan: dt > 0 ? 0.2 : -0.2 });
+                    note(c.mel.t, c.mel.n - 12, d, 0.028 * c.melGain, { type: 'triangle', attack: 0.04, sus: 0.85, dec: 0.15, rel: 0.25 });
+                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.02 * c.harmGain * c.melGain, { type: 'sawtooth', cutoff: 900, q: 1, attack: 0.05, sus: 0.8, dec: 0.15, rel: 0.25, rev: 0.4, pan: 0.3, low: true });
                 } else if (c.mel) {
                     const d = len * c.mel.len * 0.95;
                     for (const dt of [-12, 12]) note(c.mel.t, c.mel.n, d, 0.026 * c.melGain,
@@ -144,85 +158,117 @@
         // and hammer the flat second (the 2 of this scale). `acid` is how much of the acid line a song has;
         // `acidLine` and `acidAccent` give a song its own (two bars, then two that answer; offsets in semitones from
         // the chord's root, snapped into the scale). `lvl` trims a song's pitched voices so every song measures the same.
+        // The rooms have moods (the owner's call): the lab's songs are curious and experimental, the server room's
+        // are movement, a road trip, Packet Snare's are stealth. For those a song may also set `acidEvery` (its
+        // acid line walks through all of its forms, a new one every that many bars), `acidGate` (by section name, a
+        // character a bar: where the line plays, 'x', plays at half, 'o', or leaves the bar to the tune, '.'),
+        // `motor` (its bass line picked as an ostinato) and the lead 'glow' (soft saws, legato).
         songs: {
             lab: [
-                {   // Foundry: half-time at 100 in D minor: a slow broken kick, the snare on three, a reese bass and struck
-                    // metal for a tune. No acid line. Four-bar hammering, six-bar answers.
-                    name: 'Foundry', lvl: 0.77, bpm: 100, scale: AEOL, tonic: 5, oct: -1, acid: 0, rumble: 0.5, reese: true, lead: 'bell', comp: [0],
-                    kit: { kick: 'x.....x...x.....', snare: '........x.......', hat: '..x.o.x...x.o.x.' },
-                    chords: { A: ['Dm', 'Dm', 'Bb', 'C'], B: ['Gm', 'Gm', 'Dm', 'Dm', 'Bb', 'A5'] }, bass: 'r.......r..r..f.',
+                {   // Foundry: curious, an alloy on the test bench. 112 in B flat Lydian (the theme's flat second as a home, its
+                    // raised fourth the note every question hangs on). Five-bar phrases: struck metal asks twice, each time
+                    // starting off the beat, climbing and stopping on the raised fourth; the acid line answers for two bars
+                    // and is never the same twice (four forms of one dotted figure, a new one every bar against the five);
+                    // the metal asks once more over the theme's own home and is left hanging. The six-bar middles tinker:
+                    // one three-note figure tried, tried an 8th late, tried again longer, through a half-diminished wrong
+                    // turn, then a run up to the raised fourth an octave higher.
+                    name: 'Foundry', lvl: 0.722, slvl: 0.752, bpm: 112, scale: LYD, tonic: 1, oct: -1, acid: 0.8, rumble: 0.5, reese: true, lead: 'bell', comp: [0],
+                    kit: { kick: 'x..x..x.....x...', snare: '........x.......', hat: '..x...x.o.x...xo' },
+                    chords: { A: ['Bb', 'C/Bb', 'Gm', 'Bb', 'Am'], B: ['Gm', 'Dm', 'Em7b5', 'F', 'C', 'C/Bb'] }, bass: 'r.....r.....o...',
+                    acidEvery: 1, acidGate: { ask: '..xxo', tinker: 'o..o.x' },
+                    acidLine: [[0, null, null, 7, null, null, 12, null, null, 9, null, null, 7, null, null, null], [0, null, null, 7, null, null, 12, null, null, 9, null, null, 14, null, null, null],
+                        [null, 0, null, null, 7, null, null, 12, null, null, 9, null, null, 14, null, 16], [0, null, 7, null, 12, null, 9, null, 14, null, 16, null, null, null, 19, null]],
+                    acidAccent: [[1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                        [0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0], [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0]],
                     mel: {
-                        A: "1 . . 1 5 . . . | 1 . . 1 6 . 5 . | 6 . . 6 3' . . . | 7 . . 7 4' . 2' .",
-                        B: "4 - - - - - 5 4 | 3 - - - 1 - - - | 5 - - - - - 6 5 | 3 - - - . . . . | 6 - - - 4 - 1' - | 5 - - - - - . ."
+                        A: ". 1 3 5 6 - - - | . 2 4 6 - 4' - - | . . . . . . . . | . . . . . . . . | . 7 2' 4' - - . .",
+                        B: "6, 1 3 - . . . . | . 7, 3 5 - . . . | . . 4 6 1' 3' - - | 2' - 7 - 5 - . . | 6, 2 4 6 2' 4' - - | - - - - - - . ."
                     },
-                    form: [['intro', 4, { mel: null, drums: 'sparse' }], ['A', 4], ['A', 4], ['B', 6, { chords: 'B' }], ['A', 4, { harm: true }], ['strip', 2, { mel: null, drums: 'none', fill: false }],
-                        ['B', 6, { chords: 'B', lift: 0.1 }], ['A', 4], ['A', 4], ['B', 6, { chords: 'B', harm: true }], ['A', 4], ['out', 2, { mel: null, drums: 'sparse', fill: false }]]
+                    form: [['ask', 5, { mel: 'A' }], ['ask', 5, { mel: 'A' }], ['tinker', 6, { mel: 'B', chords: 'B' }], ['ask', 5, { mel: 'A', harm: true }], ['hum', 3, { mel: null, drums: 'none', fill: false, lift: -0.1 }],
+                        ['tinker', 6, { mel: 'B', chords: 'B', lift: 0.1 }], ['ask', 5, { mel: 'A' }], ['out', 2, { mel: null, drums: 'sparse', fill: false }]]
                 },
-                {   // Rust: almost no beat. 76 BPM, one kick a bar, a drone bass, a lone voice sliding between long notes in
-                    // phrases of five bars and seven.
-                    name: 'Rust', lvl: 0.51, bpm: 76, scale: PHRY, acid: 0, rumble: 0, reese: 'long', lead: 'siren', comp: [0],
-                    kit: { kick: 'x...............', snare: '................', hat: '......o.......o.' },
-                    chords: { A: ['Am', 'Am', 'Bb', 'Gm', 'Am'], B: ['Dm', 'Dm', 'Bb', 'Bb', 'F', 'Gm', 'Am'] }, bass: 'r...............',
+                {   // Rust: an experiment that keeps changing. Seven-eight at 104 (two, two and three) in E Phrygian over a
+                    // drone: the acid line is the subject, five forms of one figure, each adding, moving or dropping a note,
+                    // a new one every bar, so the seven-bar phrase never hears the same order twice. A far voice slides up
+                    // into a few long notes and ends each phrase held on the flat second, a question; the five-bar middles
+                    // give it the tune, through a half-diminished turn to a suspended chord that doesn't resolve.
+                    name: 'Rust', lvl: 0.487, slvl: 0.729, bpm: 104, steps: 14, scale: PHRY, acid: 0.9, rumble: 0, reese: 'long', lead: 'siren', comp: [0],
+                    kit: { kick: 'x...x...x.....', snare: '..........x...', hat: '..x...x.....x.' },
+                    chords: { A: ['Am', 'Am', 'Bb', 'Am', 'Gm', 'Bb', 'Bb'], B: ['Dm', 'F', 'Em7b5', 'Bb', 'Asus4'] }, bass: 'r.............',
+                    acidEvery: 1, acidGate: { B: 'o' },
+                    acidLine: [[0, null, null, null, 3, null, null, null, 1, null, 0, null, null, null], [0, null, null, null, 3, null, null, null, 1, null, 0, null, 5, null],
+                        [0, null, 12, null, 3, null, null, null, 1, null, 0, null, 5, null], [0, null, 12, null, 3, null, 1, null, null, null, 0, null, 5, 7],
+                        [null, null, 0, null, null, null, 3, null, 1, null, null, null, 13, null]],
+                    acidAccent: [[1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0], [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+                        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1], [0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0]],
                     mel: {
-                        A: "5 - - - - - - - | 3 - - - 1 - - - | 2 - - - - - 4 - | 7, - - - 2 - - - | 1 - - - - - . .",
-                        B: "4 - - - 6 - - - | 1' - - - - - 6 - | 6 - - - 4 - - - | 2 - - - - - . . | 3 - - - 6 - - - | 7 - - - 4 - 2 - | 1 - - - - - - -"
+                        A: ". . . . . . . | . . . . 5, - - | 6, - - - . . . | . . . . . . . | 4, - - - 7, - - | 2 - - - - - - | - - - - . . .",
+                        B: "4, - - - 6, - - | 1 - - - - - 6, | 7, - - - 2 - - | 4 - - - - - 2 | 4 - - - - . ."
                     },
-                    form: [['A', 5, { drums: 'none' }], ['A', 5, { drums: 'sparse' }], ['B', 7, { chords: 'B' }], ['A', 5, { harm: true }],
-                        ['void', 3, { mel: null, drums: 'none', bassOn: false, fill: false, lift: -0.15 }], ['B', 7, { chords: 'B' }], ['A', 5], ['A', 5, { drums: 'none', fill: false }]]
+                    form: [['trial', 4, { mel: null, drums: 'sparse' }], ['A', 7], ['B', 5, { chords: 'B' }], ['A', 7, { harm: true }],
+                        ['void', 2, { mel: null, drums: 'none', bassOn: false, fill: false, lift: -0.15 }], ['B', 5, { chords: 'B', lift: 0.1 }], ['A', 7], ['out', 3, { mel: null, drums: 'sparse', fill: false }]]
                 }
             ],
             server: [
                 {   // Warehouse: the track at full tilt, 140: its own acid line, a hoover riff on a dotted rhythm. Built like
                     // a club record: a long way in, eight bars with everything taken away, a sixteen-bar drop.
-                    name: 'Warehouse', lvl: 0.89, bpm: 140, scale: PHRY, chords: ['Am', 'Am', 'Bb', 'Bb', 'Am', 'Am', 'F', 'Gm'], comp: [0],
+                    name: 'Warehouse', lvl: 1.091, slvl: 0.854, bpm: 140, scale: PHRY, chords: ['Am', 'Am', 'Bb', 'Bb', 'Am', 'Am', 'F', 'Gm'], comp: [0],
                     acidLine: [[0, null, 0, 0, null, 12, null, 0, 1, null, 0, null, 12, null, 7, null], [0, null, 12, 0, null, 1, null, 0, null, 0, 13, null, 12, null, 0, 3]],
                     acidAccent: [[1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0], [1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1]],
                     mel: {
-                        A: "1' . . 1' . . 2' . | 1' . . 7 . . 5 . | 2' . . 2' . . 4' . | 3' . . 2' . . 6 .",
+                        A: "1 . . 1 . . 2 . | 1 . . 7, . . 5, . | 2 . . 2 . . 4 . | 3 . . 2 . . 6, .",
                         B: "5 - - - 6 - 5 - | 1' - - - 7 - 6 - | 4 - - - 6 - 4 - | 2 - - - - - . . | 5 - 6 - 1' - 2' - | 1' - 7 - 5 - - - | 6 - 5 - 3 - 1 - | 2 - 4 - 7 - - -"
                     },
                     form: [['intro', 8, { mel: null, drums: 'sparse' }], ['groove', 8, { mel: null }], ['A', 8], ['A', 8, { lift: 0.08 }],
                         ['break', 8, { mel: 'B', melGain: 0.7, drums: 'none', bassOn: false, fill: false, lift: -0.1 }], ['build', 4, { mel: null, drums: 'sparse', entry: false }],
                         ['drop', 16, { mel: 'A', lift: 0.15 }], ['B', 8], ['A', 8, { harm: true }], ['out', 8, { mel: null, drums: 'sparse', fill: false }]]
                 },
-                {   // Pressure: a shuffle: twelve steps a bar, four beats of three (126 to the beat). Square stabs on the
-                    // beats in a three-bar phrase, an acid line of its own rolling in triplets under them.
-                    name: 'Pressure', lvl: 1, bpm: 94.5, steps: 12, pulse: 3, scale: PHRY, lead: 'stab', comp: [0, 9],
+                {   // Pressure: a night drive. A shuffle, twelve steps a bar, four beats of three (126 to the beat), the kick on
+                    // every beat and a picked bass galloping under it on the chord's root (the motor). Over it one long line
+                    // on soft saws, every note on a beat: four bars that climb an octave and a half and come down (Am, F, C,
+                    // Gm: a road that keeps going), six bars that build from D up to the top and hold it. The last two
+                    // choruses are a tone higher.
+                    name: 'Pressure', lvl: 0.689, slvl: 0.672, bpm: 94.5, steps: 12, pulse: 3, scale: PHRY, oct: -1, acid: 0.7, rumble: 0.35, motor: true, lead: 'glow', comp: [0],
                     kit: { kick: 'x..x..x..x..', snare: '...x.....x..', hat: '.ox.ox.ox.ox' },
-                    chords: { A: ['Am', 'Am', 'Bb'], B: ['Dm', 'C', 'Bb', 'Am'] },
+                    chords: { A: ['Am', 'F', 'C', 'Gm'], B: ['Dm', 'Dm', 'Bb', 'F', 'C', 'C'] }, bass: 'r.rr.ro.rr.f',
                     acidLine: [[0, null, 12, 0, null, 0, 1, null, 12, 0, null, 7], [0, null, 0, 12, null, 1, 0, null, 13, 12, null, 0]],
                     acidAccent: [[1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0], [1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0]],
                     mel: {
-                        A: "1 .+1 . 1 .+2 . | 1 .+1 . 3 .+1 . | 2 .+2 . 2 .+4 2+.",
-                        B: "4 - - 6 - - | 3 - - 5 - - | 2 - - 4 - 6 | 5 - - - - ."
+                        A: "5 - - 7 -+1' - | 3' - - - -+1' - | 5' - - 3' -+7 - | 4' - - 2' -+7 -",
+                        B: "4 - - - - - | 6 - - 4 -+6 - | 6 - - 2' - - | 1' - - - -+3' - | 5' - - - - - | - - - 3' -+7 -"
                     },
-                    form: [['intro', 3, { mel: null }], ['A', 3], ['A', 3], ['A', 3, { lift: 0.06 }], ['B', 4, { chords: 'B' }], ['A', 3], ['A', 3, { harm: true }], ['strip', 2, { mel: null, drums: 'none', fill: false }],
-                        ['B', 4, { chords: 'B', lift: 0.12 }], ['A', 3], ['A', 3], ['A', 3, { lift: 0.1 }], ['out', 1, { mel: null, fill: false }]]
+                    form: [['ignition', 4, { mel: null, drums: 'sparse' }], ['cruise', 4, { mel: null }], ['A', 4], ['A', 4, { harm: true }], ['B', 6, { chords: 'B', lift: 0.06 }], ['A', 4],
+                        ['coast', 2, { mel: null, drums: 'none', fill: false, lift: -0.1 }], ['B', 6, { chords: 'B', lift: 0.1 }], ['A', 4, { up: 2, lift: 0.12 }], ['A', 4, { up: 2, harm: true, lift: 0.15 }],
+                        ['out', 2, { mel: null, up: 2, fill: false }]]
                 }
             ],
             snare: [
                 {   // Black Box: 108 and patient: struck metal far apart in six-bar phrases, the acid line low and closed,
                     // the kick a pulse, the flat second waiting.
-                    name: 'Black Box', lvl: 0.92, rest: 2.01, slvl: 0.80, srest: 1.39, bpm: 108, scale: PHRY, chords: ['Am', 'Am', 'Bb', 'Am', 'Gm', 'Gm'], comp: [0], acid: 0.3, rumble: 0.6, lead: 'bell',
+                    name: 'Black Box', lvl: 0.908, rest: 2.01, slvl: 0.738, srest: 1.39, bpm: 108, scale: PHRY, chords: ['Am', 'Am', 'Bb', 'Am', 'Gm', 'Gm'], comp: [0], acid: 0.3, rumble: 0.6, lead: 'bell',
                     kick: 'x.......o.......', hush: 0.5, tick: 'x..o..x..o..x.o.', cut: 0.7,
                     kit: { kick: 'x.........x.....', snare: '....x.......x...', hat: '..x...x...x...x.' },
                     mel: {
                         A: "1 - - - . . . . | . . 5, - 1 - - . | 2 - - - . . 4 . | 1 - - - . . . . | 7, - - - . . 2 . | 2 - - - - - . .",
-                        B: "1 . 1 . 3 . 1 . | 5 - - - 3 - - - | 4 . 4 . 6 . 4 . | 3 - - - 1 - - - | 2 . 4 . 7 . 4 . | 4 - - - 2 - - -"
+                        B: "1 . . 1 3 - . . | 5 - - - 3 - - - | 4 . . 4 6 - . . | 3 - - - 1 - - - | 2 . . 4 7 - . . | 4 - - - 2 - - -"
                     },
                     form: [['in', 2, { mel: null }], ['A', 6], ['B', 6], ['wait', 3, { mel: null, fill: false }], ['A', 6], ['B', 6], ['A', 6, { harm: true }]]
                 },
-                {   // Tripwire: 150 and nervous, in G Dorian: a broken kick, short square stabs in a four-bar loop, eight
-                    // bars of long notes falling through the chords. A minute, then round again.
-                    name: 'Tripwire', lvl: 0.88, rest: 2.20, slvl: 0.82, srest: 1.32, bpm: 150, scale: DOR, tonic: 10, oct: -1, comp: [0], acid: 0.25, rumble: 0.5, lead: 'stab',
-                    chords: { A: ['Gm', 'Gm', 'C', 'Bb'], B: ['Dm', 'C', 'Bb', 'Am', 'Gm', 'F', 'C', 'C'] },
-                    kick: 'x.........o.....', hush: 0.5, tick: '..x..x..x..x..x.', cut: 0.7,
-                    kit: { kick: 'x.....x..x......', snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.x.' },
+                {   // Tripwire: creeping in five-four at 100, in G Dorian: a bass that steps three, three, two and two (root,
+                    // root, the suspended note, the fifth below), suspended chords that never resolve, and short square
+                    // motifs of two or three notes with most of the bar left empty; the acid line a few low notes. Four-bar
+                    // phrases answered by three; the last chord is the theme's home, still suspended. A minute.
+                    name: 'Tripwire', lvl: 0.739, rest: 1.05, slvl: 0.746, srest: 1.32, bpm: 100, steps: 20, scale: DOR, tonic: 10, oct: -1, comp: [0], acid: 0.2, rumble: 0.4, reese: true, lead: 'stab',
+                    chords: { A: ['G7sus4', 'G7sus4', 'Fsus2', 'Dsus4'], B: ['Csus2', 'Bbmaj7', 'Asus4'] }, bass: 'r.....r.....t...d...',
+                    kick: 'x.........o.........', hush: 0.5, tick: 'x..o..x..o..x.o.x.o.', cut: 0.7,
+                    kit: { kick: 'x.....x.........x...', snare: '............x.......', hat: '...x.....x....x...x.' },
+                    acidLine: [[0, null, null, null, null, null, 0, null, null, 3, null, null, null, null, null, null, 0, null, null, null], [0, null, null, null, null, null, 0, null, null, null, null, null, 5, null, null, null, null, null, 3, null]],
+                    acidAccent: [[1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]],
                     mel: {
-                        A: "1 . . 1 . 3 . . | 5 . 4 . 3 . 1 . | 4 . . 4 . 6 . . | 3 . 1 . 3 - - .",
-                        B: "5 - - - 2' - - - | 1' - - - 6 - 4 - | 7 - - - 5 - 3 - | 6 - 5 - 2 - - - | 5 - 3 - 1 - 3 - | 4 - - - 2 - 7, - | 1 - 4 - 6 - 4 - | 6 - - - - - . ."
+                        A: "1 . . 4 . . . . . . | . . . . . . 5 . 4 . | 7, . . 1 . . . . . . | . . . . . . 2 . 1 -",
+                        B: "5 . 4 . . . . . . . | 3 . . 5 . . 7 - . . | . . . . 2 - - - . ."
                     },
-                    form: [['A', 4], ['A', 4], ['B', 8, { chords: 'B' }], ['wait', 2, { mel: null, fill: false }], ['A', 4], ['A', 4, { harm: true }], ['B', 8, { chords: 'B' }], ['A', 4]]
+                    form: [['A', 4], ['B', 3, { chords: 'B' }], ['wait', 2, { mel: null, fill: false }], ['A', 4, { harm: true }], ['B', 3, { chords: 'B' }], ['A', 4]]
                 }
             ]
         },
