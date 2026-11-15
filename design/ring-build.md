@@ -557,3 +557,14 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   the contour lines brighten with a glow, the innermost loop fades out, three amber rings ripple out from the core
   (2.1 s, staggered), and the core swells. It eases back when the line is put away. Under reduced motion the rings
   stand still.
+
+## 2026-11-15: the orb grown strong (the owner's third picture)
+
+- The orb changes form as it gains strength. `--orb-strong` (CSS, from `--orb-power`) is 0 until about 10K of a
+  run's compute and reaches 1 at about 2M; across that stretch the calm contour lines fade into **three ribbons of
+  lines sweeping round the core** (turning very slowly), each pinched at an amber node, the **core grows to five
+  times its size and moves to the centre** with a ring round it, the rim glows more, and **broken teal and amber arcs
+  appear outside the sphere** (`.orb-arcs`, not on the small status-bar orb). The talking state works on both forms.
+- **What "strength" is measured by is a placeholder:** the run's compute, because that is what the glow already
+  followed. The thresholds (10K to 2M) are mine; whether strength should be compute, skills learned, or story beats
+  is the owner's to say.

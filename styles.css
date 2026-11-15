@@ -4702,3 +4702,27 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 .assist-dot.speaking .orb-ring-3 { animation-delay: -1.4s; }
 @keyframes orb-ring { 0% { transform: scale(0.45); opacity: 0; } 18% { opacity: 0.95; } 100% { transform: scale(1.25); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .assist-dot.speaking .orb-ring { animation: none; opacity: 0.6; } }
+
+/* The orb grown strong (the owner's third picture, 2026-11-15). --orb-strong goes 0 to 1 over the top of --orb-power
+   (from about 10K of a run's compute to about 2M): the calm contour lines give way to three ribbons sweeping round a
+   core that grows and moves to the centre, each ribbon pinched at an amber node, and broken arcs appear outside. */
+.assist-dot { --orb-strong: clamp(0, calc((var(--orb-power) - 0.66) * 3.2), 1); }
+.orb-face .orb-lines { opacity: calc(1 - var(--orb-strong)); transition: opacity 0.9s ease; }
+.orb-face .orb-strong { opacity: var(--orb-strong); transition: opacity 0.9s ease; }
+.orb-face .orb-strong path { fill: none; stroke: color-mix(in srgb, var(--success) 78%, #fff); stroke-width: 0.85; stroke-linecap: round; }
+.orb-face .orb-strong-turn { animation: orb-turn 90s linear infinite; }
+@keyframes orb-turn { to { transform: rotate(360deg); } }
+.orb-face .orb-node { fill: #fff3b8; stroke: var(--warning); stroke-width: 0.7; }
+.orb-face .orb-core-ring { fill: none; stroke: var(--warning); stroke-width: 0.6; opacity: 0.7; }
+.orb-face .orb-core { fill: url(#orbCoreFill); transform: translate(calc(var(--orb-strong) * -0.5px), calc(var(--orb-strong) * 3px)) scale(calc(1 + 4 * var(--orb-strong))); transition: transform 0.9s ease; }
+.assist-dot.speaking .orb-core { transform: translate(calc(var(--orb-strong) * -0.5px), calc(var(--orb-strong) * 3px)) scale(calc(1.35 + 3.85 * var(--orb-strong))); }
+.orb-face .orb-core-glow, .orb-face .orb-rings { translate: calc(var(--orb-strong) * -0.5px) calc(var(--orb-strong) * 3px); }
+.orb-face .orb-rings { transform-origin: 50.5px 43px; transform: scale(calc(1 + 1.3 * var(--orb-strong))); }
+.assist-dot .assist-mark.orb-face { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--success) 88%, #fff), inset 0 0 calc(9px + 14px * var(--orb-strong)) color-mix(in srgb, var(--success) 55%, transparent), 0 0 calc(7px + 10px * var(--orb-strong)) color-mix(in srgb, var(--success) 60%, transparent), 0 6px 18px rgba(0, 0, 0, 0.55); }
+.orb-arcs { position: absolute; inset: -13%; pointer-events: none; opacity: var(--orb-strong); transition: opacity 0.9s ease; }
+.orb-arcs svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.orb-arc { fill: none; stroke: color-mix(in srgb, var(--success) 80%, #fff); stroke-width: 0.7; stroke-linecap: round; }
+.orb-arc-warm { stroke: var(--warning); }
+.orb-arcs-turn { transform-origin: 50px 50px; animation: orb-turn 140s linear infinite reverse; }
+.assist-dot.mini .orb-arcs { display: none; }
+@media (prefers-reduced-motion: reduce) { .orb-face .orb-strong-turn, .orb-arcs-turn { animation: none; } }
