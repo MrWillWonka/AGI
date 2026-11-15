@@ -79,6 +79,7 @@
             event, count, takeCounts, flush, clear, setEnabled,
             get enabled() { return log.on; },
             get events() { return log.events; },
+            get started() { return log.started; },   // when this log began: names its file in the playtest inbox
             report: meta => report(log, meta)
         };
     }

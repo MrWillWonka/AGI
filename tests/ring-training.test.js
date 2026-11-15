@@ -8,8 +8,8 @@ const up = () => E.UPGRADES.find(u => u.id === 'keyboard');
 const online = () => {
     E.setRing(true);
     const s = E.defaultState(Date.now());
-    Object.assign(s.intro, { 'mailAccepted:welcome': true, 'ring:call': true, 'fund:m0m': true });
-    s.stats.clicks = 40; s.stats.runCp = 40;
+    Object.assign(s.intro, { 'mailAccepted:welcome': true, 'ring:call': true, 'fundNo:m0m': true });
+    s.stats.clicks = 40; s.stats.runCp = 40; s.stats.cashSold = E.DESK_PRICES.reduce((a, b) => a + b, 0);   // the desk is bought with compute sold
     E.evaluate(s);
     for (let i = 0; i < E.RING_DESK; i++) assert.equal(E.buy(s, 'keyboard').ok, true);
     E.evaluate(s);
@@ -39,12 +39,9 @@ test('the ring: the finished desk has no card until the server is offered; the s
     assert.equal(E.isUpgradeVisible(s, up()), true);
     assert.equal(E.upgradeName(s, up()), 'Server');
     assert.deepEqual(E.upgradeCost(up(), E.RING_DESK), { cash: E.RING_SERVER_PRICE });
-    // M0M's money went on the desk: short, so a deposit comes (after Mom's own, which is still owed).
     assert.equal(E.deskCash(s), 0);
     assert.equal(E.buy(s, 'keyboard').ok, false);
-    s.intro['mail:mom'] = true; E.fundDecide(s, 'mom', true);
-    assert.equal(E.deskCash(s), E.RING_DEPOSIT, 'Mom\'s real transfer covers the server');
-    assert.equal(E.fundStep(s), null, 'no deposit needed');
+    s.stats.cashSold += E.RING_SERVER_PRICE;
     assert.equal(E.buy(s, 'keyboard').ok, true);
     assert.equal(E.deskCash(s), 0);
     assert.equal(E.isUpgradeVisible(s, up()), false, 'bought: the card goes again');
@@ -53,13 +50,14 @@ test('the ring: the finished desk has no card until the server is offered; the s
     assert.equal(changes.milestones.find(m => m.key === 'module:path').ringCallout[1], 'Training Cluster has been added to your home screen.');
 });
 
-test('the ring: short of the server\'s price, a deposit comes once', () => {
+test('the ring: no money comes for the server; it is bought with what compute sells for', () => {
     const s = online();
     s.intro['mail:mom'] = true; E.fundDecide(s, 'mom', false);   // (as if her transfer never came)
     s.intro['ring:server'] = true;
     assert.equal(E.deskCash(s), 0);
-    assert.equal(E.fundStep(s), 'deposit:server');
-    E.fundDecide(s, 'server', true);
+    assert.equal(E.fundStep(s), null, 'no deposit');
+    assert.equal(E.buy(s, 'keyboard').ok, false);
+    s.res.cp = E.RING_SERVER_PRICE * E.RING_CP_PER_DOLLAR; E.sellCompute(s, s.res.cp);
     assert.equal(E.deskCash(s), E.RING_SERVER_PRICE);
     assert.equal(E.fundStep(s), null);
     assert.equal(E.buy(s, 'keyboard').ok, true);
@@ -68,7 +66,7 @@ test('the ring: short of the server\'s price, a deposit comes once', () => {
 
 test('the ring: a sprint costs research, on the old shape by charge; the old game still charges compute and data', () => {
     const s = online();
-    s.intro['ring:server'] = true; s.intro['fund:server'] = true;
+    s.intro['ring:server'] = true; s.stats.cashSold += E.RING_SERVER_PRICE;
     E.buy(s, 'keyboard'); E.evaluate(s);
     assert.deepEqual(E.pushCost(s, 1), { rp: E.RING_SPRINT_RP });
     assert.deepEqual(Object.keys(E.pushCost(s, 0.5)), ['rp']);
@@ -79,13 +77,19 @@ test('the ring: a sprint costs research, on the old shape by charge; the old gam
     assert.equal(E.payPush(s, 1), true);
     assert.equal(s.res.rp, 0);
     assert.equal(s.res.cp, 1e6);
+    // cheap to start, 1.6 times more for each skill after the warm-up; a replayed leg at its own price
+    assert.equal(E.RING_SPRINT_RP, 15);
+    const at = n => { s.path.learned = n; return E.pushCost(s, 1).rp; };
+    assert.deepEqual([0, 1, 2, 3, 4, 5].map(at), [15, 15, 24, 39, 62, 99]);
+    assert.equal(E.pushCost(s, 1, 2).rp, 24, 'an earlier leg costs what it did');
+    s.path.learned = 0;
     E.setRing(false);
     assert.deepEqual(Object.keys(E.pushCost(s, 1)).sort(), ['cp', 'dp']);
 });
 
 test('the ring: five frontier runs that get nowhere bring a surge offer for half your compute; a record resets the count', () => {
     const s = online();
-    s.intro['ring:server'] = true; s.intro['fund:server'] = true;
+    s.intro['ring:server'] = true; s.stats.cashSold += E.RING_SERVER_PRICE;
     E.buy(s, 'keyboard'); E.evaluate(s);
     s.res.cp = 1000;
     assert.equal(E.finishRoll(s, 0.4, false).record, true);
@@ -118,14 +122,15 @@ test('the ring: five frontier runs that get nowhere bring a surge offer for half
 
 test('the ring: the old lab stays hidden once training opens (no Server Clusters, software, Auto-Trainer, tabs or choice mails)', () => {
     const s = online();
-    s.intro['ring:server'] = true; s.intro['fund:server'] = true;
+    s.intro['ring:server'] = true; s.stats.cashSold += E.RING_SERVER_PRICE;
     E.buy(s, 'keyboard');
     // A long way in: skills learned, lots earned, many runs.
     s.path.learned = 8; s.stats.rolls = 60; s.stats.runCp = 5e6; s.res.cp = 5e6; s.stats.clicks = 5000; s.levels.cpu = 30; s.stats.playTime = 5000;
     for (let i = 0; i < 50; i++) { E.evaluate(s); E.tick(s, 1); }
     const shown = E.UPGRADES.filter(u => ['hardware', 'software', 'algorithms', 'consciousness'].includes(u.tab) && E.isUpgradeVisible(s, u)).map(u => u.id);
-    assert.deepEqual(shown.sort(), ['cpu']);
-    assert.equal(E.buy(s, 'server').ok, false);
+    assert.deepEqual(shown.sort(), ['cpu', 'server'], 'the cards and, past ten of them, the bigger machine (Parcel sells both)');
+    assert.equal(E.upgradeName(s, E.UPGRADE_BY_ID.server), 'Mining Rig');
+    assert.equal(E.buy(s, 'quantum').ok, false);
     for (const key of ['auto:trainer', 'tab:algorithms', 'tab:consciousness']) assert.equal(!!s.unlocked[key], false, key);
     assert.equal(s.dilemmas.open, null);
     assert.equal(s.dilemmas.order.length, 0, 'no choice mail arrived');

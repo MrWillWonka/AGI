@@ -15,7 +15,28 @@ const root = path.join(__dirname, '..', '..');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
     '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8', '.md': 'text/plain; charset=utf-8' };
 
+// The playtest inbox (the owner's ask, 2026-11-14): the game served from here sends its playtest log and snapshots, and
+// they are saved under playtests/inbox/ (git-ignored), so a run can be read without pasting it.
+//   GET  /__playtest/ping                          'playtest-inbox' (the game asks before it sends anything)
+//   POST /__playtest/log?id=<run>                  the log as text            -> playtests/inbox/<run>.txt (rewritten each time)
+//   POST /__playtest/shot?id=<run>&name=<n>&ext=   a png, jpg, webp or json   -> playtests/inbox/<run>/<n>.<ext>
+const INBOX = path.join(root, 'playtests', 'inbox'), SAFE = /^[A-Za-z0-9_-]{1,80}$/, EXTS = new Set(['png', 'jpg', 'webp', 'json']), MAX_BODY = 25 * 1024 * 1024;
+function playtestInbox(req, res) {
+    const u = new URL(req.url, 'http://x'), kind = u.pathname.slice('/__playtest/'.length), say = (code, text) => { res.writeHead(code, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' }); res.end(text); };
+    if (kind === 'ping') return say(200, 'playtest-inbox');
+    const id = u.searchParams.get('id') || '', name = u.searchParams.get('name') || '', ext = u.searchParams.get('ext') || '';
+    if (req.method !== 'POST' || !SAFE.test(id) || (kind !== 'log' && !(kind === 'shot' && SAFE.test(name) && EXTS.has(ext)))) return say(400, 'bad request');
+    const chunks = []; let size = 0;
+    req.on('data', c => { size += c.length; if (size > MAX_BODY) { say(413, 'too large'); req.destroy(); } else chunks.push(c); });
+    req.on('end', () => {
+        if (size > MAX_BODY) return;
+        const file = kind === 'log' ? path.join(INBOX, id + '.txt') : path.join(INBOX, id, `${name}.${ext}`);
+        fs.mkdir(path.dirname(file), { recursive: true }, e1 => { if (e1) return say(500, 'cannot save'); fs.writeFile(file, Buffer.concat(chunks), e2 => say(e2 ? 500 : 200, e2 ? 'cannot save' : 'saved')); });
+    });
+}
+
 function handler(req, res) {
+    if (req.url.startsWith('/__playtest/')) return playtestInbox(req, res);
     let rel;
     try { rel = decodeURIComponent(req.url.split(/[?#]/)[0]); } catch { res.writeHead(400); return res.end(); }
     if (rel.endsWith('/')) rel += 'index.html';

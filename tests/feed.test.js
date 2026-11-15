@@ -4,9 +4,15 @@ const test = require('node:test');
 const assert = require('node:assert');
 const Feed = require('../feed.js');
 const Model = require('../tools/ring-model.js');
+// These tests were written at the sand's first dials and test its mechanics at them. The dials the game plays at now
+// (twice the eating and moving, smaller splits, two mites to start: the owner's calls, 2026-11-14) are tested in
+// tests/feed-pace.test.js.
+Object.assign(Feed.FEED, { chew: 2, layerFirst: 30, layerGrow: 1.8, pour: 8, speed: 180, startMites: 1, payScale: 1, stockTop: 1 });
 
 const { w: W, h: H, grains: G } = Feed.FEED;
-const FAST = { chew: 60, graze: 1, speed: 80 };   // for tests that only care what was eaten, not how long it took
+const FAST = { chew: 60, graze: 1, speed: 160 };
+// A swarm with no mind of its own: straight to the point, eating what is nearest it (the base rule under the roaming).
+const STRAIGHT = { roam: 0, wobble: 0, character: 0 };   // for tests that only care what was eaten, not how long it took
 // Steps `seconds` in tenths, gathering what was paid and every event. `lead(state)` gives the point held, if any.
 function play(s, seconds, opts, lead) {
     let research = 0; const events = [];
@@ -59,14 +65,14 @@ test('data falls as packets from a spout that swings from side to side, and melt
         for (const d of s.drops) xs.add(d.x);
         for (const [d, y] of before) if (!s.drops.includes(d)) melted.push({ y, m: d.m });
     }
-    assert.ok(Math.max(...spout) - Math.min(...spout) > 60, 'the spout swings wide');
-    assert.ok(Math.max(...xs) - Math.min(...xs) > 60, 'and packets fall along its whole swing');
+    assert.ok(Math.max(...spout) - Math.min(...spout) > 120, 'the spout swings wide');
+    assert.ok(Math.max(...xs) - Math.min(...xs) > 120, 'and packets fall along its whole swing');
     assert.ok(melted.length > 30);
     // Over an empty floor a packet melts about half way down the box; none reaches the floor whole.
-    assert.ok(melted.slice(0, 10).every(d => Math.abs(d.m - H / 2) <= 1 && d.y < H * 0.6), 'they melt half way down');
+    assert.ok(melted.slice(0, 10).every(d => Math.abs(d.m - H / 2) <= 2 && d.y < H * 0.6), 'they melt half way down');
     // A small delivery is laid narrow, so a first pile is a pile; a big one is laid in a bed across the floor.
-    const bed = packets => { const t = Feed.newFeed({ seed: 2 }); Feed.deliver(t, { sector: 1, packets, gold: 0 }); Feed.step(t, 12, { chew: 0 }); assert.equal(t.drops.length, 0); assert.equal(t.grains, packets * G); return t.cells.slice((H - 1) * W).filter(Boolean).length; };
-    assert.ok(bed(40) < 70, 'a first pile ' + bed(40) + ' cells wide');
+    const bed = packets => { const t = Feed.newFeed({ seed: 2 }); Feed.deliver(t, { sector: 1, packets, gold: 0 }); Feed.step(t, 20, { chew: 0 }); assert.equal(t.drops.length, 0); assert.equal(t.grains, packets * G); return t.cells.slice((H - 1) * W).filter(Boolean).length; };
+    assert.ok(bed(40) < 170, 'a first pile ' + bed(40) + ' cells wide');
     assert.ok(Feed.spoutX(Feed.newFeed()) === W / 2);
 });
 
@@ -91,7 +97,7 @@ test('packets pour in as sand, sixteen grains each, and settle into a pile on th
         assert.equal(s.grains, 0, 'nothing is in the box until it pours');
         Feed.step(s, 0.5, { chew: 0 });
         assert.ok(s.drops.length > 0 && Feed.waiting(s) > 0, 'it pours over time');
-        Feed.step(s, 12, { chew: 0 });
+        Feed.step(s, 25, { chew: 0 });
         assert.equal(s.grains, 40 * G, `seed ${seed}`);
         assert.equal(Feed.waiting(s), 0);
         const c = Feed.census(s);
@@ -113,7 +119,7 @@ test('the same seed makes the same pile; another seed another', () => {
 test('left alone, the swarm eats from the outside in: every grain it takes is on the pile\'s surface', () => {
     const s = Feed.newFeed({ seed: 4 });
     Feed.deliver(s, { sector: 1, packets: 60, gold: 0 });
-    Feed.step(s, 12, { chew: 0 });
+    Feed.step(s, 25, { chew: 0 });
     assert.equal(s.rest, true);
     let eaten = 0;
     for (let i = 0; i < 1500 && eaten < 40; i++) {
@@ -132,11 +138,11 @@ test('left alone, the swarm eats from the outside in: every grain it takes is on
 });
 
 test('led, a mite eats two packets a second; left alone, a quarter of that', () => {
-    const rate = lead => {
+    const rate = (lead, mind = STRAIGHT) => {
         const s = Feed.newFeed({ seed: 9 });
         Feed.deliver(s, { sector: 1, packets: 300, gold: 0 });
         Feed.step(s, 12, { chew: 0 });
-        const one = { miteFirst: 99 };   // one mite throughout: no second one joining part way
+        const one = { miteFirst: 99, ...mind };   // one mite throughout: no second one joining part way
         play(s, 6, one, lead);   // time to reach the pile
         const from = s.stats.eaten;
         play(s, 20, one, lead);
@@ -145,6 +151,9 @@ test('led, a mite eats two packets a second; left alone, a quarter of that', () 
     const led = rate(bottom), alone = rate(null);
     assert.ok(Math.abs(led - 2) < 0.25, `led: ${led} packets a second`);
     assert.ok(Math.abs(alone - 0.5) < 0.1, `alone: ${alone} packets a second`);
+    // With its own mind (the owner's call: strong roaming, and a slower swarm for it) it still eats, well under that.
+    const roaming = rate(bottom, {});
+    assert.ok(roaming > 0.3 && roaming < led, `roaming: ${roaming} packets a second`);
 });
 
 test('the swarm goes where you hold: to a point in empty air it eats nothing, and through sand it eats its way', () => {
@@ -153,12 +162,12 @@ test('the swarm goes where you hold: to a point in empty air it eats nothing, an
     Feed.step(s, 10, { chew: 0 });
     s.mites = 3; s.swarm.push({ x: 10.5, y: 1.5, b: 0, t: -1 }, { x: 50.5, y: 1.5, b: 0, t: -1 });
     const air = { x: 6.5, y: 20.5 };
-    play(s, 5, undefined, () => air);
+    play(s, 5, STRAIGHT, () => air);
     assert.equal(s.stats.eaten, 0);
     for (const m of s.swarm) assert.ok(Math.hypot(m.x - air.x, m.y - air.y) < 1, 'every mite came to the point');
     // Now a point on the floor under the pile's middle: they tunnel to it.
     const deep = { x: W / 2 + 0.5, y: H - 0.5 };
-    const { events } = play(s, 40, undefined, () => deep);
+    const { events } = play(s, 40, STRAIGHT, () => deep);
     const eats = events.filter(e => e.type === 'eat');
     assert.ok(eats.length > 40);
     assert.ok(eats.some(e => Math.hypot(e.x + 0.5 - deep.x, e.y + 0.5 - deep.y) < 3), 'they ate down to the point');
@@ -244,7 +253,7 @@ test('gold pours in together: most gold grains lie against another', () => {
 
 test('one fragment a layer until the parcel set is whole, then no more', () => {
     // Small layers, so six of them fit in a small pile.
-    const small = { ...FAST, layerFirst: 6, layerGrow: 1.3, fragFrom: 1, fragSpread: 2 };
+    const small = { ...FAST, layerFirst: 6, layerGrow: 1.3, fragFrom: 1, fragSpread: 2, pour: 2 };   // poured slowly, so the swarm keeps up with it
     for (const seed of [1, 2, 3]) {
         const s = Feed.newFeed({ seed, ...small });
         Feed.deliver(s, { sector: 1, packets: 90, gold: 0 });
@@ -263,8 +272,8 @@ test('numbers come from sector 2 and pictures from sector 4, about a tenth each'
     const one = count(1), two = count(2), four = count(4);
     assert.equal(one.numbers, undefined);
     assert.equal(two.pictures, undefined);
-    assert.ok(Math.abs(two.numbers - 400) < 100, `${two.numbers}`);
-    assert.ok(Math.abs(four.numbers - 400) < 100 && Math.abs(four.pictures - 400) < 100);
+    assert.ok(Math.abs(two.numbers - 25 * G) < 6 * G, `${two.numbers}`);
+    assert.ok(Math.abs(four.numbers - 25 * G) < 6 * G && Math.abs(four.pictures - 25 * G) < 6 * G);
     assert.deepEqual(Feed.LOCKED, ['numbers', 'pictures']);
     assert.deepEqual(Feed.LOCKED.map(k => Feed.KINDS[k].skill), ['Embeddings', 'Edge Detection']);
 });
@@ -283,7 +292,7 @@ test('garbled sand is slow to eat and pays nothing; it comes from garbled catche
     assert.equal(s.fed, 0, 'it is no part of a layer');
     assert.ok(events.filter(e => e.type === 'eat').every(e => e.kind === 'garbled' && e.pays === false));
     // The same weight of good sand goes much faster.
-    const time = load => { const t = Feed.newFeed({ seed: 8 }); Feed.deliver(t, load); Feed.step(t, 6, { chew: 0 }); let n = 0; while (Feed.left(t) > 0 && n < 4000) { Feed.point(t, bottom(t)); Feed.step(t, 0.1); n++; } return n / 10; };
+    const time = load => { const t = Feed.newFeed({ seed: 8 }); Feed.deliver(t, load); Feed.step(t, 6, { chew: 0 }); let n = 0; while (Feed.left(t) > 0 && n < 4000) { Feed.point(t, bottom(t)); Feed.step(t, 0.1, STRAIGHT); n++; } return n / 10; };
     const good = time({ sector: 1, packets: 8 }), bad = time({ sector: 1, packets: 0, garbled: 8 });
     assert.ok(bad > good * 2.5, `bad ${bad} s, good ${good} s`);
 });

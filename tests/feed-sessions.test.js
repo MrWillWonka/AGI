@@ -5,9 +5,13 @@ const test = require('node:test');
 const assert = require('node:assert');
 const Feed = require('../feed.js');
 const E = require('../engine.js');
+// These tests were written at the sand's first dials and test its mechanics at them. The dials the game plays at now
+// (twice the eating and moving, smaller splits, two mites to start: the owner's calls, 2026-11-14) are tested in
+// tests/feed-pace.test.js.
+Object.assign(Feed.FEED, { chew: 2, layerFirst: 30, layerGrow: 1.8, pour: 8, speed: 180, startMites: 1, payScale: 1, stockTop: 1 });
 
 const fresh = () => Feed.sessions(Feed.newFeed({ seed: 7 }));
-const run = (s, seconds, lead) => { const all = { research: 0, events: [] }; for (let t = 0; t < seconds * 10 && (s.session || t === 0); t++) { if (s.session && s.session.offer) Feed.pickCard(s, 0); if (lead && s.session) { let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i]) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); } const o = Feed.step(s, 0.1); all.research += o.research; all.events.push(...o.events); } return all; };
+const run = (s, seconds, lead) => { const all = { research: 0, events: [] }; for (let t = 0; t < seconds * 10 && (s.session || t === 0); t++) { if (s.session && s.session.offer) Feed.pickCard(s, 0); if (lead && s.session) { let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i] && !Feed.airOf(s.cells[i])) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); } const o = Feed.step(s, 0.1); all.research += o.research; all.events.push(...o.events); } return all; };
 test.afterEach(() => E.setRing(false));
 
 test('stockpiles: a run goes to its sector, up to three of your best run there; the rest is lost', () => {
@@ -116,7 +120,7 @@ test('the ring turns sessions on: runs stockpile, research comes only from a ses
 });
 
 // Cards (the owner's cards, 2026-11-14): a split in a session offers three, the session waits, the pick lasts the session.
-const toOffer = s => { for (let t = 0; t < 4000 && s.session && !s.session.offer; t++) { let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i]) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); Feed.step(s, 0.1); } return s.session && s.session.offer; };
+const toOffer = s => { for (let t = 0; t < 4000 && s.session && !s.session.offer; t++) { let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i] && !Feed.airOf(s.cells[i])) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); Feed.step(s, 0.1); } return s.session && s.session.offer; };
 test('a split offers three different cards and the session waits until one is picked', () => {
     const s = fresh();
     for (let i = 0; i < 3; i++) Feed.deliver(s, { sector: 1, packets: 100 });
@@ -150,7 +154,7 @@ test('a card does what it says, stacks, and is gone with the session', () => {
     const drain = cards => { const t = fresh(); Feed.deliver(t, { sector: 1, garbled: 200 }); Feed.startSession(t, 1); t.session.cards = cards; Feed.step(t, 5); return 1 - t.life; };
     assert.ok(Math.abs(drain({ hunger: 1 }) / drain({}) - 0.8) < 0.01);
     // Rich grain: the same sand pays more.
-    const pay = cards => { const t = fresh(); Feed.deliver(t, { sector: 1, packets: 20 }); Feed.startSession(t, 1); t.session.cards = cards; let r = 0; for (let i = 0; i < 4000 && t.session; i++) { if (t.session.offer) Feed.pickCard(t, 0); let top = -1; for (let j = 0; j < t.cells.length; j++) if (t.cells[j]) { top = j; break; } if (top >= 0) Feed.point(t, { x: top % t.w + 0.5, y: Math.floor(top / t.w) + 0.5 }); r += Feed.step(t, 0.1).research; } return r; };
+    const pay = cards => { const t = fresh(); Feed.deliver(t, { sector: 1, packets: 20 }); Feed.startSession(t, 1); t.session.cards = cards; let r = 0; for (let i = 0; i < 4000 && t.session; i++) { if (t.session.offer) Feed.pickCard(t, 0); let top = -1; for (let j = 0; j < t.cells.length; j++) if (t.cells[j] && !Feed.airOf(t.cells[j])) { top = j; break; } if (top >= 0) Feed.point(t, { x: top % t.w + 0.5, y: Math.floor(top / t.w) + 0.5 }); r += Feed.step(t, 0.1).research; } return r; };
     assert.ok(pay({ pay: 3 }) > pay({}) * 1.5);
     const r = Feed.endSession(s, 'left');
     assert.equal(r.cards, 5);
@@ -163,13 +167,13 @@ test('a card does what it says, stacks, and is gone with the session', () => {
 
 // Tools and combos (the owner's cards, 2026-11-14): rare cards that work on their own; two tools merge into a combo.
 const session = (load, cards) => { const s = fresh(); for (let i = 0; i < 3; i++) Feed.deliver(s, load); Feed.startSession(s, load.sector || 1); Object.assign(s.session.cards, cards); return s; };
-const play = (s, seconds, lead = true) => { const ev = []; for (let t = 0; t < seconds * 10 && s.session; t++) { if (s.session.offer) Feed.pickCard(s, 0); if (lead) { let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i]) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); } ev.push(...Feed.step(s, 0.1).events); } return ev; };
+const play = (s, seconds, lead = true) => { const ev = []; for (let t = 0; t < seconds * 10 && s.session; t++) { if (s.session.offer) Feed.pickCard(s, 0); if (lead) { let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i] && !Feed.airOf(s.cells[i])) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); } ev.push(...Feed.step(s, 0.1).events); } return ev; };
 const mean = (s, kind, axis) => { let n = 0, sum = 0; s.cells.forEach((v, i) => { if (Feed.kindOf(v) === kind) { n++; sum += axis === 'x' ? i % s.w : Math.floor(i / s.w); } }); return n ? sum / n : null; };
 
 test('tool cards are rare, and a combo is offered only once you hold both its tools', () => {
     const s = session({ sector: 1, packets: 100 }, {});
     const offers = [];
-    for (let t = 0; t < 6000 && s.session && offers.length < 3; t++) { if (s.session.offer) { offers.push(s.session.offer); Feed.pickCard(s, 0); } let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i]) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); Feed.step(s, 0.1, { cardRare: 1 }); }
+    for (let t = 0; t < 6000 && s.session && offers.length < 3; t++) { if (s.session.offer) { offers.push(s.session.offer); Feed.pickCard(s, 0); } let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i] && !Feed.airOf(s.cells[i])) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); Feed.step(s, 0.1, { cardRare: 1 }); }
     assert.ok(offers.length >= 2);
     assert.ok(offers[0].every(id => Feed.CARDS[id].tool), 'with the rare chance at 1, every card is a tool');
     assert.ok(offers.flat().every(id => !Feed.CARDS[id].combo || Feed.CARDS[id].combo.every(t => s.session.cards[t] || s.session.cards[id])), 'no combo before its tools');
@@ -211,7 +215,8 @@ test('each tool does its job on its own', () => {
     assert.ok(gap(sorted) > gap(plain) + 10, `sorted ${gap(sorted).toFixed(1)} against ${gap(plain).toFixed(1)}`);
     assert.equal(sorted.session.bots.length, 2);
     assert.ok(mean(shaken, 6, 'y') > mean(plain, 6, 'y') + 2, `sunk ${mean(shaken, 6, 'y').toFixed(1)} against ${mean(plain, 6, 'y').toFixed(1)}`);
-    assert.equal(sorted.grains, plain.grains, 'sorting moves sand, it never makes or loses any');
+    const sand = s => s.grains + s.stats.eaten + s.stats.cleaned;
+    assert.equal(sand(sorted), sand(plain), 'sorting moves sand, it never makes or loses any');
 });
 
 test('each combo is an effect of its own', () => {
@@ -242,6 +247,25 @@ test('each combo is an effect of its own', () => {
     const re = play(copy({ resonance: 1 }), 7, false);
     const beats = re.filter(e => e.type === 'shake'), small = re.filter(e => e.type === 'pulse');
     assert.ok(beats.length >= 3 && small.length >= beats.length && small.every(e => e.r < Feed.FEED.pulseR / 2) && beats.some(e => e.eaten > 0));
+    // Sifter: gold the beam crosses rises (rows count down the box, so its mean row falls).
+    const si = copy({ sifter: 1 }), sn = copy({});
+    for (let n = 0; n < 90; n++) { Feed.step(si, 0.1, { chew: 0, hungerTime: 1e6 }); Feed.step(sn, 0.1, { chew: 0, hungerTime: 1e6 }); }
+    assert.ok(mean(si, 2, 'y') < mean(sn, 2, 'y') - 0.3, `gold at row ${mean(si, 2, 'y').toFixed(1)} against ${mean(sn, 2, 'y').toFixed(1)}`);
+    assert.equal(count(si, 2), count(sn, 2));
+    // Demolition bots: a charge goes off in the garbled sand.
+    const dm = copy({ demolition: 1 }), dn = copy({});
+    const blasts = []; for (let n = 0; n < 90; n++) { blasts.push(...Feed.step(dm, 0.1, { chew: 0 }).events.filter(e => e.type === 'pulse')); Feed.step(dn, 0.1, { chew: 0 }); }
+    assert.ok(blasts.length >= 2 && dm.session.dbot && count(dm, 6) < count(dn, 6) - 20, `garbled ${count(dm, 6)} against ${count(dn, 6)}`);
+    // Relay bots: a chain through the bots eats along its legs.
+    const rl = copy({ relay: 1 });
+    const legs = []; for (let n = 0; n < 70; n++) legs.push(...Feed.step(rl, 0.1, { chew: 0 }).events.filter(e => e.type === 'arc'));
+    assert.ok(legs.length >= 2 && legs.every(e => e.from === 'relay' && e.eaten <= Feed.FEED.relayMax) && legs.some(e => e.eaten > 0) && rl.session.rbots.length === Feed.FEED.relayBots);
+    // Drum line: each beat a row of sparks; soft sand is collected, hard sand worn down.
+    const dr = copy({ drum: 1 }), hpSum = s => s.cells.reduce((n, v) => n + (Feed.kindOf(v) === 6 ? Feed.hpOf(v) : 0), 0), hp0 = hpSum(dr), g0 = dr.grains;
+    const drums = []; for (let n = 0; n < 70; n++) drums.push(...Feed.step(dr, 0.1, { chew: 0 }).events.filter(e => e.type === 'drum'));
+    assert.ok(drums.length >= 3 && drums.every(e => e.hits.length > 0 && e.hits.length <= Feed.FEED.drumSparks));
+    assert.ok(drums.some(e => e.eaten > 0) && dr.grains < g0, 'soft sand is collected');
+    assert.ok(hpSum(dr) < hp0, 'and garbled sand is worn down');
     // Magnet: gold gathers toward the point you hold.
     const ma = copy({ magnet: 1 }), mb = copy({});
     const goal = { x: 20, y: pile.h - 3 };
@@ -251,9 +275,70 @@ test('each combo is an effect of its own', () => {
 });
 
 test('a save keeps the tools going exactly', () => {
-    const s = session({ sector: 1, packets: 100, gold: 20, garbled: 30 }, { scanner: 1, pulse: 1, arc: 1, sorter: 1, rhythm: 1, sonar: 1, storm: 1, defrag: 1, tracer: 1, magnet: 1, resonance: 1 });
+    const s = session({ sector: 1, packets: 100, gold: 20, garbled: 30 }, { scanner: 1, pulse: 1, arc: 1, sorter: 1, rhythm: 1, sonar: 1, storm: 1, defrag: 1, tracer: 1, magnet: 1, resonance: 1, sifter: 1, demolition: 1, relay: 1, drum: 1 });
     play(s, 7.5);
     const back = Feed.clean(JSON.parse(JSON.stringify(s)));
     assert.deepEqual(JSON.parse(JSON.stringify(back)), JSON.parse(JSON.stringify(s)));
     assert.deepEqual(Feed.step(back, 5), Feed.step(s, 5));
+});
+
+// The swarm's own mind (the owner's cards, 2026-11-14): mites roam round the point and meander to it, each with a character.
+test('led mites keep to their own spots round the point; Focus draws them in; the rare mega mite eats in pairs', () => {
+    const spread = cards => {
+        const s = fresh(); Feed.deliver(s, { sector: 1, packets: 120 }); Feed.startSession(s, 1); Object.assign(s.session.cards, cards);
+        for (let n = 0; n < 150; n++) Feed.step(s, 0.1, { chew: 0 });
+        s.mites = 4; while (s.swarm.length < 4) s.swarm.push({ x: 100 + s.swarm.length * 10, y: 300, b: 0, t: -1, c: Feed.CHARACTERS[s.swarm.length], a: 0, ox: 0, oy: 0, rt: 0 });
+        const at = { x: s.w / 2, y: s.h - 60 }; let sum = 0, n = 0;
+        for (let t = 0; t < 200; t++) { Feed.point(s, at); Feed.step(s, 0.1, { chew: 0, hungerTime: 1e6 }); if (t > 60) for (const m of s.swarm) { sum += Math.hypot(m.x - at.x, m.y - at.y); n++; } }
+        return sum / n;
+    };
+    const loose = spread({}), tight = spread({ focus: 4 });
+    assert.ok(loose > 12, `they roam: ${loose.toFixed(1)} cells from the point on average`);
+    assert.ok(tight < loose * 0.6, `Focus draws them in: ${tight.toFixed(1)} against ${loose.toFixed(1)}`);
+    assert.deepEqual(Feed.CARDS.focus, { stat: 'roam', by: 0.7 });
+    // Characters: a new mite's is one of the four, or now and then a mega mite.
+    const s = fresh(); for (let i = 0; i < 3; i++) Feed.deliver(s, { sector: 1, packets: 400 }); Feed.startSession(s, 1);
+    for (let t = 0; t < 3000 && s.session && s.mites < 5; t++) { if (s.session.offer) Feed.pickCard(s, 0); Feed.step(s, 0.1, { megaChance: 0.5, layerFirst: 4, hungerTime: 1e6 }); }
+    assert.ok(s.swarm.length >= 4 && s.swarm.every(m => m.c === 'mega' || Feed.CHARACTERS.includes(m.c)));
+    assert.ok(s.swarm.some(m => m.c === 'mega'), 'a mega mite came');
+    assert.deepEqual(Feed.clean(JSON.parse(JSON.stringify(s))).swarm, JSON.parse(JSON.stringify(s.swarm)), 'a save keeps who they are');
+});
+
+test('characters: with a garbled grain, a plain one and a seen gold one in reach, the tidy takes the garbled, the gold-hungry the gold, the rest the nearest good grain', () => {
+    const first = c => {
+        const s = fresh(); Feed.deliver(s, { sector: 1, packets: 5 }); Feed.startSession(s, 1);
+        // Three grains on the floor, side by side with gaps: garbled, plain, gold (seen). The mite stands over the plain one.
+        s.cells.fill(0); s.backlog = []; s.drops = [];
+        const y = s.h - 1, x = s.w / 2 | 0, put = (dx, kind) => { s.cells[y * s.w + x + dx] = kind | 64 | (1 << 8); };
+        put(-4, 6); put(0, 1); put(5, 2); s.grains = 3;
+        s.swarm[0] = { x: x + 0.5, y: y - 2.5, b: 0, t: -1, c, a: 0, ox: 0, oy: 0, rt: 0 };
+        Feed.point(s, { x: x + 0.5, y: y + 0.5 });
+        for (let t = 0; t < 200; t++) { const e = Feed.step(s, 0.05, { roam: 0, wobble: 0, hungerTime: 1e6, miteFirst: 99 }).events.find(e => e.type === 'eat'); if (e) return e.kind; }
+        return null;
+    };
+    assert.equal(first('tidy'), 'garbled');
+    assert.equal(first('gold'), 'vein');
+    assert.equal(first('loner'), 'plain');
+    assert.equal(first('follower'), 'plain');
+});
+
+test('a tapped point stays and the swarm works round it, slower than when led; tough sand feeds the bar more a grain', () => {
+    const eaten = how => { const s = fresh(); Feed.deliver(s, { sector: 1, packets: 200 }); Feed.startSession(s, 1);
+        for (let n = 0; n < 150; n++) Feed.step(s, 0.1, { chew: 0, hungerTime: 1e6 });
+        const top = () => { const x = s.w / 2 | 0; for (let y = 0; y < s.h; y++) if (s.cells[y * s.w + x]) return { x: x + 0.5, y: y + 0.5 }; return null; };
+        const from = s.stats.eaten;
+        const at = top();   // the same fixed point, tapped or held
+        if (how === 'tap') Feed.mark(s, at);
+        for (let t = 0; t < 200; t++) { if (how === 'hold') Feed.point(s, at); Feed.step(s, 0.1, { miteFirst: 99, hungerTime: 1e6 }); }
+        return { n: s.stats.eaten - from, spot: s.spot }; };
+    const alone = eaten('none'), tap = eaten('tap'), hold = eaten('hold');
+    assert.ok(tap.spot, 'the tapped point is still there');
+    assert.ok(tap.n > alone.n * 1.5 && tap.n < hold.n, `alone ${alone.n}, tapped ${tap.n}, held ${hold.n}`);
+    const s = fresh(); Feed.deliver(s, { sector: 1, packets: 20 }); Feed.startSession(s, 1); Feed.step(s, 1); Feed.mark(s, { x: 5, y: 5 });
+    assert.deepEqual(Feed.clean(JSON.parse(JSON.stringify(s))).spot, { x: 5, y: 5 }, 'a save keeps it'); Feed.endSession(s, 'left'); assert.equal(s.spot, null, 'and it goes with the session');
+    // Tough sand: a grain from sector 3 takes three bites and fills the bar 1 + 2 × toughFeed times a soft grain's.
+    const fill = sector => { const t = fresh(); Feed.deliver(t, { sector, packets: 60 }); Feed.startSession(t, sector); for (let n = 0; n < 120; n++) Feed.step(t, 0.1, { chew: 0, hungerTime: 1e6 });
+        t.life = 0.2; const from = t.stats.eaten; for (let n = 0; n < 60 && t.stats.eaten - from < 40; n++) Feed.step(t, 0.1, { hungerTime: 1e6, miteFirst: 99 }); return (t.life - 0.2) / (t.stats.eaten - from); };
+    const ratio = fill(3) / fill(1);
+    assert.ok(Math.abs(ratio - (1 + 2 * Feed.FEED.toughFeed)) < 0.05, `a sector 3 grain feeds ${ratio.toFixed(2)} times a sector 1 grain`);
 });

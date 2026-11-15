@@ -10,6 +10,11 @@ window.AGI = (function () {
     const BAYS_DIRECT = location.hash === '#bays';
     // `#ring` turns the ring's rules on (engine.js `setRing`; design/ring.md): off, the game is as it was.
     if (location.hash === '#ring') window.AGIEngine.setRing(true);
+    // The playground link (the owner's call, 2026-11-14): `#playground` plays the game in order with nothing gating the
+    // minigames (Evals as the third bay, no skill-gated bosses in Packet Snare). The plain link is the game as designed.
+    // `#bays` is the same playground with the opening skipped.
+    const PLAYGROUND = BAYS_DIRECT || location.hash === '#playground';
+    E.setPlayground(PLAYGROUND);
     const SAVE_KEY = 'agiGame';
     const BACKUP_KEY = 'agiGame.bak';         // the last good save (refreshed every BACKUP_MS, and kept before an import)
     const CORRUPT_KEY = 'agiGame.corrupt';    // a save that couldn't be read, kept as it was
@@ -959,6 +964,9 @@ window.AGI = (function () {
 
     // Lab cards: everything but the skill tree and the legacy upgrades (their own screen).
     const isLabUpgrade = up => up.tab !== 'training' && up.tab !== 'legacy' && up.tab !== 'snare';
+    // The ring: what money buys (the desk's parts and the server) is bought in the shop app, not the Lab (the owner's
+    // call, 2026-11-14: money and purchasing don't clutter the Lab).
+    const shopOnly = up => E.isRing() && (up.id === 'keyboard' || up.id === 'cpu' || up.id === 'server');
 
     // Lab cards you haven't seen: revealed while you were out of the lab (screen state, per device). Everything
     // on show counts as seen while you're in the lab, and on the first look (no sudden badge for older saves).
@@ -979,7 +987,7 @@ window.AGI = (function () {
         // A capped card is news again when its capacity rises (a skill made room: `id@capacity`). Older lists kept
         // plain ids: those count as seen at today's capacity.
         const key = u => (E.CAPACITY[u.id] ? `${u.id}@${E.capacity(state, u)}` : u.id);
-        const shown = E.UPGRADES.filter(u => isLabUpgrade(u) && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u));
+        const shown = E.UPGRADES.filter(u => isLabUpgrade(u) && !shopOnly(u) && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u));
         if (labSeen) for (const u of shown) if (E.CAPACITY[u.id] && labSeen.has(u.id)) { labSeen.delete(u.id); labSeen.add(key(u)); }
         if (!labSeen || view === 'lab') {
             if (!labSeen || shown.some(u => !labSeen.has(key(u)))) {
@@ -1680,7 +1688,7 @@ window.AGI = (function () {
             if (isLabUpgrade(up)) termLog(`installed ${E.upgradeName(state, up)} (level ${E.level(state, id)})`);
             if (isLabUpgrade(up) && E.isMaxed(state, up)) retireCard(id);
             // Once the desk has its monitor (click tool level 4), point out that jobs can be held down.
-            if (id === 'keyboard' && E.level(state, id) >= 4 && !state.intro['hint:hold']) {
+            if (!E.isRing() && id === 'keyboard' && E.level(state, id) >= 4 && !state.intro['hint:hold']) {
                 state.intro['hint:hold'] = true;
                 callout('hint:hold', 'Hold to repeat', 'Hold a job\'s button and it repeats about four times a second.');
             }
@@ -1891,12 +1899,100 @@ window.AGI = (function () {
     }
 
     // The playtest log as text to copy (the artifact frame refuses downloads, like Export).
+    const playtestText = () => playtest.report({ build: E.BUILD, save: `v${E.SAVE_VERSION}, ${E.currentVersion(state)}, ${state.path.learned} skills`,
+        screen: `${innerWidth}×${innerHeight}${matchMedia('(pointer: coarse)').matches ? ', touch' : ''}`,
+        browser: navigator.userAgent });
+    // The playtest inbox (the owner's ask, 2026-11-14): served from the owner's own PC (tools/review/serve.js answers
+    // /__playtest/ping), the game sends its playtest log there by itself, every INBOX_EVERY_MS while it changes and when
+    // the page is left, and snapshots on request; they are saved under playtests/inbox/. Nothing is sent anywhere else,
+    // and never the sign-in's name or email (the log has neither; a snapshot's copy of the save leaves `player` out).
+    const INBOX_EVERY_MS = 60000;
+    let inboxOn = false, inboxSent = -1, inboxRun = '';
+    // A run's name in the inbox: when its log began (a cleared log starts a new file).
+    function inboxId() {
+        const d = new Date(playtest?.started || Date.now()), p = n => String(n).padStart(2, '0');
+        return (inboxRun = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`);
+    }
+    const inboxPost = (what, body) => fetch(`/__playtest/${what}`, { method: 'POST', body }).then(r => r.ok, () => false);
+    function inboxLog(leaving) {
+        if (!inboxOn || !playtest || (!leaving && playtest.events.length === inboxSent)) return;
+        inboxSent = playtest.events.length;
+        const url = `/__playtest/log?id=${inboxId()}`, text = playtestText();
+        if (leaving && navigator.sendBeacon) navigator.sendBeacon(url, new Blob([text], { type: 'text/plain' }));
+        else fetch(url, { method: 'POST', body: text, keepalive: leaving && text.length < 60000 }).catch(() => { inboxSent = -1; });
+    }
+    // An automated browser (the repo's own checks) sends nothing unless the address asks for it (?inbox): its runs filled the owner's inbox.
+    if (!navigator.webdriver || /[?&]inbox/.test(location.search)) setTimeout(() => fetch('/__playtest/ping').then(r => (r.ok ? r.text() : '')).then(t => { inboxOn = t === 'playtest-inbox'; if (inboxOn) { screenArm(); inboxLog(); setInterval(inboxLog, INBOX_EVERY_MS); } }, () => {}), 3000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') inboxLog(true); });
+    addEventListener('pagehide', () => inboxLog(true));
+    // A snapshot: every canvas on screen (Packet Snare's field, The Feed's sand, Training's trail) as a picture, and the
+    // save as it stands, without the sign-in. Marked in the log (`snap`).
+    // On a desktop browser a snapshot is the real screen (the owner's ask, 2026-11-14): the first Snap asks, with the
+    // browser's own dialog, to share this tab; after that every Snap grabs a frame of it, cards, buttons and all, until
+    // the tab is reloaded or sharing is stopped. Refused, or on a phone (no browser there can do it), Snap falls back to
+    // the game's own canvases. F8 snaps too, on any screen, a Packet Snare run included.
+    let screenStream = null, screenVideo = null;
+    const screenCapable = () => !!navigator.mediaDevices?.getDisplayMedia && !matchMedia('(pointer: coarse)').matches;
+    async function screenShot() {
+        try {
+            if (!screenStream || !screenStream.active) {
+                screenStream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: 'browser' }, audio: false, preferCurrentTab: true, selfBrowserSurface: 'include', surfaceSwitching: 'exclude' });
+                screenVideo = document.createElement('video'); screenVideo.muted = true; screenVideo.srcObject = screenStream;
+                await screenVideo.play();
+                await new Promise(r => setTimeout(r, 500));   // the browser's dialog gone, a first frame in
+            }
+            const c = document.createElement('canvas'); c.width = screenVideo.videoWidth; c.height = screenVideo.videoHeight;
+            if (!c.width || !c.height) return null;
+            c.getContext('2d').drawImage(screenVideo, 0, 0);
+            return await new Promise(r => c.toBlob(r, 'image/png'));
+        } catch { screenStream = null; return null; }
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'F8' && inboxOn) { e.preventDefault(); snapNow(); } });
+    // Sharing is asked for at the start of a visit (the owner's call, 2026-11-14: so it is not forgotten), on the first
+    // click or key, since a browser only lets a page ask from one; nothing is saved by it. Refused, Snap asks again.
+    function screenArm() {
+        if (!screenCapable()) return;
+        const go = async () => { removeEventListener('pointerup', go, true); removeEventListener('keyup', go, true); if (screenStream?.active) return; const ok = !!(await screenShot()); pt('screenShare', { ok: ok ? 1 : 0, auto: 1 }); };
+        addEventListener('pointerup', go, true); addEventListener('keyup', go, true);
+    }
+    let snapBusy = false;
+    async function snapNow() {
+        if (!inboxOn || snapBusy) return;
+        snapBusy = true;
+        const id = inboxId(), t = Math.round(state.stats.playTime), app = E.isRing() ? ringAppNow() : ptPlace(), base = `snap-${String(t).padStart(5, '0')}-${String(app).replace(/[^A-Za-z0-9_-]/g, '_')}`;
+        let pictures = 0, ok = true, screen = false;
+        if (screenCapable()) { const blob = await screenShot(); if (blob) { screen = true; pictures++; ok = (await inboxPost(`shot?id=${id}&name=${base}-screen&ext=png`, blob)) && ok; } }
+        for (const c of screen ? [] : document.querySelectorAll('canvas')) {
+            if (c.width < 60 || c.height < 60 || !c.getClientRects().length) continue;
+            const blob = await new Promise(r => { try { c.toBlob(r, 'image/png'); } catch { r(null); } });
+            if (blob) ok = (await inboxPost(`shot?id=${id}&name=${base}-${pictures++}&ext=png`, blob)) && ok;
+        }
+        const copy = JSON.parse(E.serialize(state)); delete copy.player;
+        const what = { at: new Date().toISOString(), playSeconds: t, app, screen: [innerWidth, innerHeight], open: [...document.querySelectorAll('dialog[open]')].map(d => d.className), assistant: assistLive?.key || null, state: copy };
+        ok = (await inboxPost(`shot?id=${id}&name=${base}-state&ext=json`, JSON.stringify(what))) && ok;
+        pt('snap', { app, pictures, screen: screen ? 1 : 0, ok: ok ? 1 : 0 });
+        inboxLog();
+        snapBusy = false;
+        const said = ok && screen ? 'Snapshot saved: the screen and the game\'s state.' : ok ? (pictures ? `Snapshot saved: ${pictures === 1 ? 'a picture' : pictures + ' pictures'} and the game's state.` : 'Snapshot saved: the game\'s state (this screen has no picture to take).') : 'The snapshot could not be saved.';
+        if (E.isRing()) deviceNotice('playtest', 'Playtest', said, () => {}); else toast('Playtest', said, 'info');
+    }
+    // Screenshots made with the phone's own buttons, picked from its photos: saved beside the log with the play time.
+    async function inboxPhotos(files) {
+        const id = inboxId(), t = Math.round(state.stats.playTime); let n = 0;
+        for (const file of files) {
+            const ext = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }[file.type];
+            if (!ext) continue;
+            if (await inboxPost(`shot?id=${id}&name=photo-${String(t).padStart(5, '0')}-${Date.now() % 100000}-${n}&ext=${ext}`, file)) n++;
+        }
+        pt('photos', { n, of: files.length });
+        inboxLog();
+        return n;
+    }
     function exportPlaytest() {
         if (!playtest) return;
         playtestSample(true);
-        const text = playtest.report({ build: E.BUILD, save: `v${E.SAVE_VERSION}, ${E.currentVersion(state)}, ${state.path.learned} skills`,
-            screen: `${innerWidth}×${innerHeight}${matchMedia('(pointer: coarse)').matches ? ', touch' : ''}`,
-            browser: navigator.userAgent });
+        inboxLog();
+        const text = playtestText();
         openDialog({
             title: 'Playtest log',
             message: `${playtest.events.length} events. Copy it and paste it into your chat with Claude.`,
@@ -2155,27 +2251,36 @@ window.AGI = (function () {
             // On a phone every app has a home bar at the foot of the screen (the owner's playtest: the crumb's home felt
             // odd on a phone). It sits under the home screen, so it only shows inside an app.
             // (The owner's call, 2026-11-14: a simple dot that reveals a bar: Settings, Home in the middle, Playtest.)
+            // (2026-11-14, later: the dot is the device's dock. With a mouse it opens when the pointer comes over it and
+            // goes when the pointer leaves it and the bar; a tap opens and closes it. Parcel sits on it once you have it,
+            // and opens over the app you are in, so a part can be bought from the Lab without going home. On laptops too.)
             const sw = el('div', { class: 'device-switch' });
-            sw.hidden = true;
-            const hideSwitch = () => { sw.hidden = true; clearTimeout(desk.switchTimer); };
-            const switchButton = (key, label, svg, act) => { const b = el('button', { type: 'button', class: `device-switch-button device-switch-${key}${key === 'home' ? ' device-homebar' : ''}`, 'aria-label': label, onclick: () => { hideSwitch(); pt('switch', { to: key }); act(); } }); b.innerHTML = svg; return b; };
+            const fine = () => matchMedia('(hover: hover) and (pointer: fine)').matches;
+            const isOpen = () => sw.classList.contains('open');
+            const hideSwitch = () => { sw.classList.remove('open'); clearTimeout(desk.switchTimer); };
+            const showSwitch = () => { desk.shopDock.hidden = !shopOpenable(); sw.classList.add('open'); clearTimeout(desk.switchTimer); if (!fine()) desk.switchTimer = setTimeout(hideSwitch, 5000); };
+            const switchButton = (key, label, svg, act) => { const b = el('button', { type: 'button', class: `device-switch-button device-switch-${key}${key === 'home' ? ' device-homebar' : ''}`, 'aria-label': label, title: label, onclick: () => { hideSwitch(); pt('switch', { to: key }); act(); } }); b.innerHTML = svg; return b; };
+            desk.shopDock = switchButton('shop', 'Parcel', HOME_ICONS.shop, () => openShop());
             sw.append(
                 switchButton('playtest', 'Playtest survey', HOME_ICONS.playtest, () => openSurvey()),
+                desk.shopDock,
                 switchButton('home', 'Home screen', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>', () => goHome()),
                 switchButton('settings', 'Settings', HOME_ICONS.settings, () => $('settingsButton').click()));
-            const dot = el('button', { type: 'button', class: 'device-homedot', 'aria-label': 'Show Home, Settings and Playtest', onclick: () => {
-                if (!sw.hidden) return hideSwitch();
-                sw.hidden = false;
-                clearTimeout(desk.switchTimer);
-                desk.switchTimer = setTimeout(hideSwitch, 5000);
-            } });
-            document.addEventListener('pointerdown', e => { if (!sw.hidden && !e.target.closest('.device-switch, .device-homedot')) hideSwitch(); });
+            const dot = el('button', { type: 'button', class: 'device-homedot', 'aria-label': 'Show the dock: Home, Parcel, Settings and Playtest', onclick: () => { if (isOpen() && !fine() && performance.now() - hoverAt > 700) hideSwitch(); else showSwitch(); } });
+            let hoverAt = -1e9;   // a press that follows its own hover opening the dock must not close it again
+            // The pointer over the dot opens it; off the dot and the bar for a moment, it goes.
+            let leaveTimer = 0;
+            const stay = () => { clearTimeout(leaveTimer); }, leave = () => { clearTimeout(leaveTimer); if (fine()) leaveTimer = setTimeout(hideSwitch, 280); };
+            dot.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') { stay(); if (!isOpen()) hoverAt = performance.now(); showSwitch(); } });
+            for (const n of [dot, sw]) { n.addEventListener('pointerenter', stay); n.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') leave(); }); }
+            document.addEventListener('pointerdown', e => { if (isOpen() && !e.target.closest('.device-switch, .device-homedot')) hideSwitch(); });
             document.body.append(sw, dot);
             // The status bar: the device's own thin row over every app, in place of the old game's top bar (the owner's
             // call): the clock, what you hold, the signal. When the stats don't fit it shows them one at a time.
             const clock = el('span', { class: 'status-clock' }), stats = el('span', { class: 'status-stats' });
-            document.body.append(el('div', { class: 'device-status', role: 'status', 'aria-label': 'Status' }, [clock, stats, el('span', { class: 'status-signal', text: '▂▄▆ 37%' })]));
-            desk.status = { clock, stats, items: {}, turn: 0, checked: 0, rp: state.res.rp, at: performance.now() };
+            const snap = el('button', { type: 'button', class: 'status-snap', 'aria-label': 'Save a snapshot for the playtest', title: 'Save a snapshot for the playtest', hidden: '', text: '◉', onclick: () => snapNow() });
+            document.body.append(el('div', { class: 'device-status', role: 'status', 'aria-label': 'Status' }, [clock, stats, snap, el('span', { class: 'status-signal', text: '▂▄▆ 37%' })]));
+            desk.status = { snap, clock, stats, items: {}, turn: 0, checked: 0, rp: state.res.rp, at: performance.now() };
             $('labRoom').querySelector('.room-bar').append(el('button', { type: 'button', class: 'ghost-button window-close', 'aria-label': 'Close the Lab, back to the desktop', text: '×', onclick: () => goHome() }));
             for (const b of document.querySelectorAll('[data-facility], [data-jump="facility"]')) { b.textContent = 'home'; b.setAttribute('aria-label', 'Back to the home screen'); }
         }
@@ -2193,6 +2298,8 @@ window.AGI = (function () {
     // Research per second as it is really earned (The Feed makes it): a smoothed rate from what you hold, ignoring
     // what sprints spend. Shown in the status bar and the Lab's Research box.
     let ringRpRate = 0;
+    // The app on screen under the ring: 'home', 'lab', 'snare', 'training', 'feed' or 'shop'.
+    const ringAppNow = () => (shop?.dlg.open ? 'shop' : window.FeedUI?.isOpen ? 'feed' : !labOpened() || homeUp ? 'home' : openBay === 'pipeline' ? 'snare' : openBay === 'training' ? 'training' : 'lab');
     function renderStatus() {
         const st = desk?.status;
         if (!st) return;
@@ -2204,18 +2311,25 @@ window.AGI = (function () {
             ringRpRate = st.gains.reduce((s, x) => s + x[1], 0) / 30;
             st.rp = state.res.rp; st.at = now;
         }
+        // Parcel and The Feed are dialogs, drawn over the page: the bar moves into the one that is open (the owner:
+        // The Feed "doesn't have the same controls or status bar"), and shows on the home screen too.
+        const bar = st.clock.parentNode, top = document.querySelector('dialog.feed-screen[open]'), host = top || document.body;   // (Parcel is a panel now, not the whole screen: the bar stays on the page behind it)
+        if (bar.parentNode !== host) host.append(bar);
+        if (st.snap.hidden === inboxOn) st.snap.hidden = !inboxOn;
         const d = new Date();
         setText(st.clock, `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
-        const f = E.format, cash = E.deskCash(state), dv = E.derive(state, debugRates);
+        const f = E.format, cash = bankNow(), dv = E.derive(state, debugRates);
+        // The open app's own number is left out: that app shows it (the owner's call, 2026-11-14).
+        const app = ringAppNow();
         const want = [
-            ['cash', cash > 0, 'Bank', `$${f(cash)}`],
-            ['cp', true, 'Compute', `${f(Math.floor(state.res.cp))}${dv.cpNet > 0 ? ` +${f(dv.cpNet)}/s` : ''}`],
-            ['rp', state.feed.stats.delivered > 0 || state.res.rp > 0, 'Research', `${f(Math.floor(state.res.rp))}${ringRpRate >= 0.05 ? ` +${f(ringRpRate, 1)}/s` : ''}`],
-            ['signal', !!state.unlocked['module:snare'] && state.snare.runs > 0, 'Signal', f(state.snare.signal)],
+            ['cash', cash > 0 && app !== 'shop', 'Bank', `$${f(cash)}`],
+            ['cp', app !== 'lab', 'Compute', `${f(Math.floor(state.res.cp))}${dv.cpNet > 0 ? ` +${f(dv.cpNet)}/s` : ''}`],
+            ['rp', (state.feed.stats.delivered > 0 || state.res.rp > 0) && app !== 'feed', 'Research', `${f(Math.floor(state.res.rp))}${ringRpRate >= 0.05 ? ` +${f(ringRpRate, 1)}/s` : ''}`],
+            ['signal', !!state.unlocked['module:snare'] && state.snare.runs > 0 && app !== 'snare', 'Signal', f(state.snare.signal)],
             ['xp', !!state.unlocked['module:path'], 'XP', f(Math.floor(state.res.xp))]];
         for (const [key, show, label, value] of want) {
             let item = st.items[key];
-            if (!item) { const v = el('b'); item = st.items[key] = { node: el('span', { class: `status-stat status-${key}` }, [el('i', { text: label }), v]), v }; st.stats.append(item.node); }
+            if (!item) { const v = el('b'); item = st.items[key] = { node: el('span', { class: `status-stat status-${key}` }, [el('i', { text: label, 'data-short': { cash: '', cp: 'CP', rp: 'RP', signal: 'SIG', xp: 'XP' }[key] }), v]), v }; st.stats.append(item.node); }
             if (item.node.hidden === show) item.node.hidden = !show;
             setText(item.v, value);
         }
@@ -2245,6 +2359,16 @@ window.AGI = (function () {
     // takes you to the lab and shows a short welcome (placeholder words: what to do, and why you click). The home screen
     // covers the page under the device's bezel and crack; dialogs (Mail) open over it.
     const HOME_INSTALL_MS = 6000;
+    // A new app's own download: it starts when you are on the home screen with the app unlocked, and takes this long.
+    const APP_INSTALL_MS = 3500, appInstalls = {};
+    function appInstall(key) {
+        const i = state.intro;
+        if (i['ring:inst:' + key] || i['ring:seen:' + key]) return 1;
+        const from = appInstalls[key] = appInstalls[key] || performance.now(), share = (performance.now() - from) / APP_INSTALL_MS;
+        if (share < 1) return Math.max(0, share);
+        i['ring:inst:' + key] = true; delete appInstalls[key]; pt('home', { installed: key }); sfx('ui'); save();
+        return 1;
+    }
     const HOME_ICONS = {
         ...DESK_ICONS,
         training: '<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 25c5 0 6-6 10-6s4 4 7 4 4-14 9-14"/><circle cx="9" cy="17" r="2.6"/></svg>',
@@ -2254,6 +2378,7 @@ window.AGI = (function () {
         settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.8"/><circle cx="12" cy="12" r="6"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.2 2.2M16.2 16.2l2.2 2.2M5.6 18.4l2.2-2.2M16.2 7.8l2.2-2.2"/></svg>',
         debug: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7.5" y="7" width="9" height="14" rx="4.5"/><path d="M9 7.5a3 3 0 0 1 6 0M3 13.5h4.5M16.500 13.5H21M4 6.5l4 3M20 6.500l-4 3M4 21l4-3.500M20 21l-4-3.500M12 10.500V21M8.500 3l1.700 2.200M15.500 3l-1.700 2.200"/></svg>',
         playtest: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10l1.5 1.5 2.5-3M8.5 16l1.5 1.5 2.5-3M14.5 10.5H16M14.5 16.5H16"/></svg>',
+        shop: '<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 10l12-6 12 6v13l-12 6-12-6z"/><path d="M4 10l12 6 12-6M16 16v13M10 7l12 6v5"/></svg>',
         lab: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M12 4h8M13 4v9L6 26a2 2 0 0 0 2 3h16a2 2 0 0 0 2-3l-7-13V4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 21h12" stroke="currentColor" stroke-width="2"/></svg>'
     };
     let home = null, installFrom = 0, homeMailFrom = 0, homeUp = true;   // homeUp: on the home screen, not in an app. A load starts there (the owner's call)
@@ -2274,7 +2399,8 @@ window.AGI = (function () {
         const snareApp = icon('snare', 'Packet Snare', () => { pt('home', { open: 'snare' }); openSnareApp(); });
         const feedApp = icon('feed', 'The Feed', () => { pt('home', { open: 'feed' }); openFeed(); });
         const trainApp = icon('training', 'Training', () => { pt('home', { open: 'training' }); openTrainingApp(); });
-        snareApp.button.hidden = feedApp.button.hidden = trainApp.button.hidden = true;
+        const shopApp = icon('shop', 'Parcel', () => { pt('home', { open: 'shop' }); openShop(); });
+        snareApp.button.hidden = feedApp.button.hidden = trainApp.button.hidden = shopApp.button.hidden = true;
         // Settings, the Journal, Debug and the playtest survey are apps too (the owner's call), so they can be reached
         // from the home screen, which covers the top bar.
         const tools = [
@@ -2289,7 +2415,7 @@ window.AGI = (function () {
             el('div', { class: 'home-popup-title', text: 'Download' }), popupText, el('div', { class: 'home-bar' }, [bar]), el('div', { class: 'home-popup-actions' }, [popupOpen])]);
         const node = el('div', { class: 'device-home', id: 'deviceHome', hidden: '' }, [
             el('div', { class: 'home-status' }, [clock, el('span', { class: 'home-signal', text: '▂▄▆ 37%' })]),
-            el('div', { class: 'home-icons' }, [mail.button, lab.button, snareApp.button, feedApp.button, trainApp.button]),
+            el('div', { class: 'home-icons' }, [mail.button, lab.button, shopApp.button, snareApp.button, feedApp.button, trainApp.button]),
             popup,
             // The system apps sit in a row at the foot of the screen (the owner's call): a phone's dock, a laptop's shelf.
             el('div', { class: 'home-dock' }, tools.map(t => t.button)),
@@ -2301,16 +2427,18 @@ window.AGI = (function () {
         let lastTap = 0;
         node.addEventListener('touchend', e => { const now = Date.now(); if (now - lastTap < 320 && !e.target.closest('button')) e.preventDefault(); lastTap = now; }, { passive: false });
         document.body.append(node);
-        return { node, mail, lab, snare: snareApp, feed: feedApp, train: trainApp, tools, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
+        return { node, mail, lab, snare: snareApp, feed: feedApp, train: trainApp, shop: shopApp, tools, clock, clock2: node.querySelector('.home-taskbar-clock'), bar, popup, popupText, popupOpen };
     }
     function renderHome() {
         if (!E.isRing()) return;
+        shopTick();
+        assistTick();
         fundTick();
         stuckTick();
         if (ringAchWait.length && !snareRunLive()) ringAchievement(...ringAchWait.shift());
         // The playtest log's time by screen: the home screen and The Feed are places too (they were counted as the lab).
-        const where = $('inbox').open ? null : window.FeedUI?.isOpen ? 'feed' : home && !home.node.hidden ? 'home' : null;
-        if (where) ptView(where); else if (playtestView === 'home' || playtestView === 'feed') ptView(ptPlace());
+        const where = $('inbox').open ? null : window.FeedUI?.isOpen ? 'feed' : shop?.dlg.open ? 'shop' : home && !home.node.hidden ? 'home' : null;
+        if (where) ptView(where); else if (playtestView === 'home' || playtestView === 'feed' || playtestView === 'shop') ptView(ptPlace());
         // A save that is already working in the lab has opened it.
         if (!labOpened() && introDone() && (state.stats.clicks > 0 || E.level(state, 'keyboard') > 0)) state.intro['ring:labOpened'] = true;
         const on = !labOpened() || homeUp;
@@ -2348,11 +2476,22 @@ window.AGI = (function () {
             installFrom = installFrom || performance.now();
             if (performance.now() - installFrom >= HOME_INSTALL_MS) { state.intro['ring:labInstalled'] = true; pt('home', { installed: 'lab' }); sfx('ui'); }
         }
-        const online = !!state.unlocked['module:snare'], fed = state.feed.stats.delivered > 0;
+        const online = !!state.unlocked['module:snare'], fed = E.feedOpen(state);
         if (home.snare.button.hidden === online) home.snare.button.hidden = !online;
         if (home.feed.button.hidden === fed) home.feed.button.hidden = !fed;
         const training = !!state.unlocked['module:path'];
         if (home.train.button.hidden === training) home.train.button.hidden = !training;
+        // The shop is there once there is money (or a part already bought); its badge says there is something you can afford.
+        const shopOn = shopOpenable(), canBuy = shopOn && shopItems().some(i => i.next && !i.coming && i.price <= bankNow());
+        if (home.shop.button.hidden === shopOn) home.shop.button.hidden = !shopOn;
+        setText(home.shop.badge, canBuy ? '1' : '');
+        if (home.shop.badge.hidden === canBuy) home.shop.badge.hidden = !canBuy;
+        for (const [key, app] of [['shop', home.shop], ['snare', home.snare], ['feed', home.feed], ['training', home.train]]) {
+            const share = app.button.hidden ? 1 : appInstall(key), loading = share < 1;
+            app.button.classList.toggle('loading', loading); if (app.button.disabled !== loading) app.button.disabled = loading;
+            app.button.style.setProperty('--load', String(share));
+            app.button.classList.toggle('is-new', !app.button.hidden && !loading && !state.intro['ring:seen:' + key]);
+        }
         const installed = !!state.intro['ring:labInstalled'] || labOpened(), share = installed ? 1 : accepted ? Math.min(1, (performance.now() - installFrom) / HOME_INSTALL_MS) : 0;
         if (home.lab.button.hidden === accepted) home.lab.button.hidden = !accepted;
         home.lab.button.classList.toggle('loading', accepted && !installed);
@@ -2375,11 +2514,13 @@ window.AGI = (function () {
         if (openBay) jumpTo('lab');
     }
     function openTrainingApp() {
+        state.intro['ring:seen:training'] = true;
         homeUp = false;
         renderHome();
         jumpTo('bay:training');
     }
     function openSnareApp() {
+        state.intro['ring:seen:snare'] = true;
         homeUp = false;
         renderHome();
         jumpTo('bay:pipeline');
@@ -2393,11 +2534,228 @@ window.AGI = (function () {
         art.innerHTML = HOME_ICONS[key];
         const node = el('button', { type: 'button', class: `device-notice device-notice-${key}`, onclick: () => { node.remove(); pt('notice', { open: key }); open(); } },
             [art, el('span', { class: 'device-notice-app', text: app }), el('span', { class: 'device-notice-text', text })]);
+        // Flicked up, it goes (the owner's call: every notification and achievement can be swiped away).
+        let from = null, swiped = false;
+        node.addEventListener('pointerdown', e => { from = e.clientY; swiped = false; });
+        node.addEventListener('pointermove', e => { if (from === null) return; const dy = Math.min(0, e.clientY - from); node.style.transform = dy ? `translateY(${dy}px)` : ''; node.style.opacity = String(Math.max(0.2, 1 + dy / 80)); if (dy < -28) { swiped = true; pt('notice', { swiped: key }); node.remove(); } });
+        for (const type of ['pointerup', 'pointercancel', 'pointerleave']) node.addEventListener(type, () => { from = null; if (!swiped) { node.style.transform = ''; node.style.opacity = ''; } });
         noticeBox.append(node);
         // Shown again as a popover each time, so it sits above whatever dialog is open (Mail, The Feed, Settings).
         try { if (noticeBox.matches(':popover-open')) noticeBox.hidePopover(); noticeBox.showPopover(); } catch { /* no popovers: it stays under dialogs */ }
         sfx('ui');
         setTimeout(() => node.remove(), 6000);
+    }
+    // The AI's own voice on your device (the owner's call, 2026-11-14): from the Lab on, the tutorials are its lines, in
+    // a bubble of its own at the foot of the screen, in a plain face that is nothing like the rest of the device. Dry,
+    // and now and then it mixes something small up. Each is the AI settling further into your phone "to help".
+    // One at a time; a line stays until you tap it away, take its button, or do what it asks (`done`); what it is
+    // talking about is ringed (`target`). Shown once each (`assist:<key>` in `intro`). EVERY LINE IS A PLACEHOLDER
+    // for the owner to write or approve.
+    // Its words live in one table, written out for the owner in design/assistant-lines.md (the owner approves every
+    // line; these are drafts in the voice they asked for: polite, understated, trying to be helpful, a little too keen).
+    // The text passed to `assist` at each call is only a fallback. `{sector}` is filled from the call.
+    const ASSIST_LINES = {
+        "lab1": "Hello. I am new here. If you tap Generate Compute, I think I can be useful.",
+        "lab2": "Thank you. That helps more than you would think. A few more, if you do not mind.",
+        "money": "You have some compute to spare. I found a shop that will buy it. I hope that is all right.",
+        "moneyHome": "This one. Parcel pays for compute and sells desk parts. A tower would let you make more with each tap.",
+        "snare": "The desk is working. Thank you. There is data going past out there, and I would like to see some. Would you catch a little?",
+        "snareHome": "This one. Packet Snare is where the data goes by. The blue I can read. The red I cannot. Not yet.",
+        "feed": "The stockpile for sector {sector} is full. I would rather it was not wasted. There is a place for it.",
+        "feedHome": "This one. The Feed turns what you caught into research. Research is how I learn. I would like to learn.",
+        "feed1": "These are your stockpiles. Pick one and the mites will start. The bar at the top is their hunger. Please keep it up.",
+        "feed2": "They go where you tap. They try harder where you hold. So would I.",
+        "full": "The stockpile for sector {sector} is full. Anything more you catch there is thrown away. I would rather it was not.",
+        "fullHome": "This one. The mites will make room. They are always hungry.",
+        "cards": "Parcel has graphics cards now. They make compute while you rest. I would not want you to tire.",
+        "cardsHome": "Parcel again. Each card makes compute on its own. You have done enough tapping for me.",
+        "server": "That one was too much for me. I am sorry. With a server I could train, and then I think we could beat it.",
+        "serverHome": "Parcel again. It sells a server. Four hundred dollars. I know that is a lot to ask.",
+        "training": "The server is in. Thank you. I can train now, if you will help me.",
+        "trainingHome": "This one. Training turns research into skills. Hold the button, and let go near the top.",
+        "sell": "Parcel will buy compute, if money would help. Ten for a dollar.",
+        "sellHome": "This one. I only want you to have what you need.",
+        "nowHome": "This one.",
+        "now:lab": "The Lab, I think. Each tap is a little more compute, and Parcel will buy it.",
+        "now:shop": "Parcel. You could sell some compute and buy the next part. I would be grateful.",
+        "now:snare": "Packet Snare, if you have a moment. I have nothing to learn from just now.",
+        "now:feed": "The Feed. There is data waiting, and the mites have noticed.",
+        "now:server": "Parcel has a server. I cannot beat that boss without somewhere to train.",
+        "now:training": "Training. You have research, and I would like to use it. With your permission.",
+        "empty": "I have not said anything yet. I did not want to interrupt."
+    };
+    // Packet Snare's first card and first-run coach, in the same voice (drawn on the field behind a '>').
+    Object.assign(ASSIST_LINES, {
+        "card:first": "Data is going past. Hold still on a group and let go, or draw a circle round it.",
+        "card:firstMouse": "Data is going past. Hold the right button on a group, then let go.",
+        "card:goal": "Signal is what I can use of what you catch. {goal} of it in one run and I can open the next sector.",
+        "coach:bubble": "Hold still on those, then let go. I will take what is inside.",
+        "coach:bubbleMouse": "Hold the right button on those, then let go. I will take what is inside.",
+        "coach:red": "I cannot read that one. Please keep it out.",
+        "coach:loop": "You can also draw a circle round them. Whichever you prefer.",
+        "coach:wireTry": "Two groups. Try one circle round both.",
+        "coach:wire": "The line only reaches so far. I am sorry. One group at a time.",
+        "coach:open": "That is all of it. Please catch what you can before your Focus runs out."
+    });
+    const aiLine = (key, old) => (E.isRing() ? `> ${ASSIST_LINES[key]}` : old);
+    let assistRetry = 0;
+    const assistSeen = {};   // this visit's lines with their pointing, for the assistant's panel to show again
+    let assistDot = null, assistSheet = null;
+    let assistBox = null, assistLive = null, lastArrival = -1e9;
+    const ARRIVE_GAP_MS = 45000;
+    const assistQueue = [];
+    function assist(key, text, o = {}) {
+        if (ASSIST_LINES[key]) text = o.sector == null ? ASSIST_LINES[key].replace(' for sector {sector}', '') : ASSIST_LINES[key].replace('{sector}', o.sector);
+        assistSeen[key] = { text, o };
+        if (!E.isRing() || (!o.again && state.intro['assist:' + key]) || assistLive?.key === key || assistQueue.some(q => q.key === key)) return;
+        // A line you asked for comes now, ahead of whatever was waiting or showing.
+        if (o.again) { assistQueue.unshift({ key, text, ...o }); if (assistLive) assistClose('replaced'); else assistNext(); return; }
+        assistQueue.push({ key, text, ...o });
+        if (!assistLive) assistNext();
+    }
+    // The AI's button never opens an app for you (the owner's call, 2026-11-14): it takes you back to the home screen,
+    // where the AI rings the app's icon and says why it is worth opening; opening it is yours to do.
+    // EVERY LINE IS A PLACEHOLDER for the owner to write or approve.
+    const SHOW_WHY = {
+        money: 'This one. Parcel buys the compute you make and sells the parts for a desk. A better desk makes more with every tap.',
+        sell: 'This one. Parcel buys compute. Ten for a dollar.',
+        cards: 'Parcel again. A graphics card makes compute while you are busy elsewhere. I think you have earned the rest.',
+        server: 'Parcel again. It has a server. A server is where I can train, and training is how we get past that boss.',
+        snare: 'This one. Data goes past in Packet Snare. What you catch there is what I learn from.',
+        feed: 'This one. The Feed turns what you caught into research. Research is how I get better at things.',
+        full: 'This one. A full stockpile wastes whatever you catch next. The mites will make room.',
+        training: 'This one. Training turns research into skills. I would like one. That boss would not.'
+    };
+    const appUp = app => (app === 'shop' ? !!shop?.dlg.open : app === 'feed' ? !!window.FeedUI?.isOpen : ringAppNow() === app);
+    function showMe(app, key) {
+        return ['Show me', () => { goHome(); assist(key + 'Home', SHOW_WHY[key] || '', { target: () => home?.[app === 'training' ? 'train' : app].button, done: () => appUp(app) }); }];
+    }
+    function assistNext() {
+        if (assistQueue.length && snareRunLive()) { setTimeout(() => { if (!assistLive) assistNext(); }, 1000); return; }
+        // A line may wait for its moment (`when`): the Lab's thanks waits for the taps it thanks you for (the owner: put away
+        // unanswered, the first line was followed at once by "Thank you").
+        const k = assistQueue.findIndex(x => !x.when || x.when());
+        if (k < 0) { assistLive = null; if (assistQueue.length && !assistRetry) assistRetry = setTimeout(() => { assistRetry = 0; if (!assistLive) assistNext(); }, 700); return; }
+        const q = assistQueue.splice(k, 1)[0];
+        if (!assistBox) document.body.append(assistBox = el('div', { class: 'assist', role: 'status', 'aria-live': 'polite' }));
+        let typed = null;
+        const close = el('button', { type: 'button', class: 'assist-close', 'aria-label': 'Dismiss', text: '×', onclick: e => { e.stopPropagation(); assistClose('closed'); } });
+        const kids = [el('span', { class: 'assist-mark', 'aria-hidden': 'true' }), (typed = el('p', { class: 'assist-text', 'aria-label': q.text })), close];
+        if (q.action) kids.push(el('button', { type: 'button', class: 'assist-go', text: q.action[0], onclick: e => { e.stopPropagation(); const go = q.action[1]; assistClose('action'); closeApps(); go(); } }));
+        // A tap while it is still typing finishes the line; a tap after that puts it away.
+        const node = el('div', { class: 'assist-bubble', onclick: () => { if (assistType) { assistTypeEnd(); return; } assistClose('tapped'); } }, kids);
+        assistTypeStart(typed, q.text);
+        assistBox.replaceChildren(node);
+        assistLive = { ...q, node, at: performance.now(), ringed: null }; lastArrival = performance.now();
+        if (!q.again) state.intro['assist:' + q.key] = true;
+        pt('assist', q.again ? { key: q.key, again: 1 } : { key: q.key });
+        sfx('ui');
+        assistTick();
+    }
+    // The terminal voice (the owner's pick, 2026-11-14: the pale bubble was "not on theme"): a line types itself out,
+    // `ASSIST_TYPE_MS` a character, behind a '>' with a cursor. At once under reduced motion.
+    const ASSIST_TYPE_MS = 14;
+    let assistType = null;
+    function assistTypeEnd() { if (!assistType) return; clearInterval(assistType.timer); assistType.node.textContent = assistType.text; assistType.node.classList.remove('typing'); assistType = null; }
+    function assistTypeStart(node, text) {
+        assistTypeEnd();
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) { node.textContent = text; return; }
+        node.classList.add('typing');
+        const t = assistType = { node, text, n: 0, timer: setInterval(() => { t.n = Math.min(text.length, t.n + 1); node.textContent = text.slice(0, t.n); if (t.n >= text.length) assistTypeEnd(); }, ASSIST_TYPE_MS) };
+    }
+    function assistClose(by) {
+        const a = assistLive;
+        if (!a) return;
+        assistTypeEnd();
+        pt('assistClosed', { key: a.key, by, s: Math.round((performance.now() - a.at) / 100) / 10 });
+        a.ringed?.classList.remove('assist-ring');
+        a.node.remove();
+        assistLive = null;
+        save();
+        setTimeout(() => { if (!assistLive) assistNext(); }, 400);
+    }
+    // An app opened from the AI's button closes the app it was said over (Parcel stayed on top of Packet Snare).
+    function closeApps() {
+        if (shop?.dlg.open) shop.dlg.close();
+        if (window.FeedUI?.isOpen) window.FeedUI.close();
+    }
+    // The assistant's own button (the owner's call, 2026-11-14: "the phone's assistant with its own button … so that you
+    // can 'chat' with the ai or revisit tutorials missed"): a round dot that floats over every app once the Lab is
+    // installed, dragged anywhere (kept per device), glowing while the AI has something to say. Pressed, it opens a
+    // small sheet: "What should I do now?", answered with the next goal and a Show me, and every line said so far, to
+    // see again.
+    const pageZoom = () => (assistDot && assistDot.offsetWidth ? assistDot.getBoundingClientRect().width / assistDot.offsetWidth : 0) || parseFloat(getComputedStyle(document.body).zoom) || 1;
+    function assistWhatNow() {
+        const desk = E.level(state, 'keyboard'), stock = E.isRing() ? E.feedStock(state).some(e => e.total > 0) : false;
+        const part = shopOpenable() && shopItems().find(i => i.next && !i.owned);
+        const app = desk < E.RING_DESK ? (part && (part.price <= bankNow() || state.res.cp >= E.RING_CP_PER_DOLLAR * 5) ? 'shop' : 'lab')
+            : state.intro['ring:server'] && desk === E.RING_DESK ? 'server'
+            : state.unlocked['module:path'] && state.res.rp >= E.pushCost(state, 1).rp ? 'training'
+            : E.feedOpen(state) && stock ? 'feed' : 'snare';
+        return [ASSIST_LINES['now:' + app], app === 'server' ? 'shop' : app];
+    }
+    function assistSheetToggle() {
+        if (assistSheet) { assistSheet.remove(); assistSheet = null; return; }
+        const answer = el('p', { class: 'assist-answer', hidden: '' }), go = el('button', { type: 'button', class: 'assist-go', text: 'Show me', hidden: '' });
+        answer.hidden = true; go.hidden = true;
+        const ask = el('button', { type: 'button', class: 'assist-ask', text: 'What should I do now?', onclick: () => {
+            const [text, app] = assistWhatNow();
+            answer.textContent = text; answer.hidden = false; go.hidden = false; pt('assistAsk', { now: app });
+            go.onclick = () => { assistSheetToggle(); closeApps(); goHome(); assist('nowHome', '', { again: true, target: () => home?.[app === 'training' ? 'train' : app]?.button, done: () => appUp(app) }); };
+        } });
+        const said = Object.keys(ASSIST_LINES).filter(k => state.intro['assist:' + k] && !k.endsWith('Home'));
+        const past = said.map(k => { const seen = assistSeen[k], text = seen ? seen.text : ASSIST_LINES[k].replace(' for sector {sector}', '');
+            return el('button', { type: 'button', class: 'assist-past', text, onclick: () => { assistSheetToggle(); pt('assistAsk', { again: k }); assist(k, text, { ...(seen ? seen.o : {}), done: null, again: true }); } }); });
+        assistSheet = el('div', { class: 'assist-sheet', role: 'dialog', 'aria-label': 'Assistant' }, [
+            el('div', { class: 'assist-sheet-head' }, [el('span', { class: 'assist-mark', 'aria-hidden': 'true' }), el('strong', { text: 'Assistant' }), el('button', { type: 'button', class: 'assist-close', 'aria-label': 'Close', text: '×', onclick: () => assistSheetToggle() })]),
+            ask, answer, go,
+            el('h4', { class: 'assist-sheet-title', text: 'Earlier' }),
+            ...(past.length ? past.reverse() : [el('p', { class: 'assist-answer', text: ASSIST_LINES.empty })])]);
+        assistDot.parentNode.append(assistSheet);
+        { const k = pageZoom(), d = assistDot.getBoundingClientRect(), w = Math.min(440 * k, innerWidth - 20), below = innerHeight - d.bottom - 16, above = d.top - 16, under = below >= Math.min(320 * k, above) || below >= above;
+            const st = assistSheet.style; st.margin = '0'; st.right = 'auto'; st.width = w / k + 'px'; st.maxWidth = 'none';
+            st.left = Math.max(10, Math.min(innerWidth - w - 10, d.left + d.width / 2 - w / 2)) / k + 'px';
+            st.maxHeight = Math.max(160, (under ? below : above)) / k + 'px';
+            if (under) { st.top = (d.bottom + 8) / k + 'px'; st.bottom = 'auto'; } else { st.top = 'auto'; st.bottom = (innerHeight - d.top + 8) / k + 'px'; } }
+        pt('assistOpen', { said: said.length });
+        sfx('ui');
+    }
+    function assistDotTick() {
+        if (!E.isRing() || !(state.intro['ring:labInstalled'] || labOpened())) return;
+        if (!assistDot) {
+            assistDot = el('button', { type: 'button', class: 'assist-dot', 'aria-label': 'Assistant' }, [el('span', { class: 'assist-mark', 'aria-hidden': 'true' })]);
+            const place = (l, t) => { const z = pageZoom(), w = innerWidth, h = innerHeight; assistDot.style.left = Math.max(4, Math.min(w - 60, l)) / z + 'px'; assistDot.style.top = Math.max(40, Math.min(h - 70, t)) / z + 'px'; assistDot.style.right = 'auto'; assistDot.style.bottom = 'auto'; };
+            try { const at = JSON.parse(localStorage.getItem('agiAssistDot2') || 'null'); if (at && typeof at.x === 'number' && typeof at.y === 'number') place(at.x * innerWidth, at.y * innerHeight); } catch { /* private mode */ }
+            let d = null;
+            assistDot.addEventListener('pointerdown', e => { try { assistDot.setPointerCapture(e.pointerId); } catch { /* gone */ } const b = assistDot.getBoundingClientRect(); d = { x: e.clientX, y: e.clientY, l: b.left, t: b.top, moved: false }; });
+            assistDot.addEventListener('pointermove', e => { if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; if (!d.moved && Math.hypot(dx, dy) < 8) return; d.moved = true; place(d.l + dx, d.t + dy); });
+            assistDot.addEventListener('pointerup', () => { const was = d; d = null; if (!was) return;
+                if (!was.moved) { assistSheetToggle(); return; }
+                const b = assistDot.getBoundingClientRect(); try { localStorage.setItem('agiAssistDot2', JSON.stringify({ x: b.left / innerWidth, y: b.top / innerHeight })); } catch { /* private mode */ } });
+            assistDot.addEventListener('pointercancel', () => { d = null; });
+            document.body.append(assistDot);
+        }
+        const open = document.querySelectorAll('dialog[open]'), top = open.length ? open[open.length - 1] : null, mine = !top || top.matches('.feed-screen, .shop-screen'), host = top && mine ? top : document.body;
+        if (assistDot.hidden === mine) { assistDot.hidden = !mine; if (!mine && assistSheet) assistSheetToggle(); }
+        if (assistDot.parentNode !== host) { host.append(assistDot); if (assistSheet) host.append(assistSheet); }
+        assistDot.classList.toggle('has', !!assistLive || assistQueue.length > 0);
+    }
+    function assistTick() {
+        assistDotTick();
+        const a = assistLive;
+        if (!a) return;
+        if (a.done && performance.now() - a.at > 600 && a.done()) { assistClose('done'); return; }
+        // It sits over whatever is open: inside the topmost open dialog (Mail, The Feed, Parcel), else on the page.
+        const open = document.querySelectorAll('dialog[open]'), host = open.length ? open[open.length - 1] : document.body;
+        if (assistBox.parentNode !== host) host.append(assistBox);
+        // On the home screen its line sits under the apps, not over the icon it is pointing at.
+        assistBox.classList.toggle('on-home', host === document.body && ringAppNow() === 'home');
+        // Over Mail, Settings and the other windows it sits at the foot: at the top it covered their close button and first rows.
+        assistBox.classList.toggle('low', host !== document.body && host.id === 'inbox');
+        // Over any other window (Settings, the survey, a call) it waits out of sight: their buttons are at the foot.
+        assistBox.classList.toggle('away', host !== document.body && host.id !== 'inbox' && !host.matches('.feed-screen, .shop-screen'));
+        const t = a.target ? a.target() : null, on = t && t.getClientRects().length ? t : null;
+        if (on !== a.ringed) { a.ringed?.classList.remove('assist-ring'); on?.classList.add('assist-ring'); a.ringed = on; }
     }
     function openLab() {
         if (labOpened()) { homeUp = false; pt('home', { open: 'lab' }); sfx('ui'); renderHome(); return; }
@@ -2418,12 +2776,16 @@ window.AGI = (function () {
     const CALL_RING_MS = 9000;
     let fundWait = { step: null, from: 0 }, fundBusy = false;
     function fundTick() {
-        if (fundBusy || !labOpened()) return;
+        // Nothing rings or deposits over a Packet Snare run (the owner's log: Mom's transfer came up in the tutorial).
+        if (fundBusy || !labOpened() || (snare.run && !snare.run.over && snareInPlay())) return;
         const step = E.fundStep(state);
         if (!step) return;
+        // Quiet arrivals (the owner's call, 2026-11-14): only on the home screen, never with the AI talking, and
+        // ARRIVE_GAP_MS after the last arrival or line (a transfer follows its own call at once).
+        if (!step.startsWith('offer') && (!homeUp || assistLive || performance.now() - lastArrival < ARRIVE_GAP_MS)) { fundWait.step = null; return; }
         if (fundWait.step !== step) fundWait = { step, from: performance.now() };
         if (performance.now() - fundWait.from < FUND_DELAY[step] || document.querySelector('dialog[open]')) return;
-        fundWait.step = null;
+        fundWait.step = null; lastArrival = performance.now();
         const [kind, who] = step.split(':');
         const money = `$${E.format(E.RING_DEPOSIT)}`;
         if (kind === 'call') return showCall();
@@ -2483,7 +2845,9 @@ window.AGI = (function () {
         dlg.addEventListener('close', () => {
             dlg.remove();
             fundBusy = false;
-            if (state.intro['fund:' + who]) { sfx('claim'); deviceNotice('bank', 'Bank', `${money} deposited. Parts are in the Lab.`, () => { if (homeUp) openLab(); }); }
+            if (state.intro['fund:' + who]) { sfx('claim'); deviceNotice('bank', 'Bank', `${money} deposited.`, () => openShop()); }
+            // Graphics Cards are on sale now, whoever paid (PLACEHOLDER words).
+            if (who === 'm0m') assist('cards', 'Parcel has graphics cards now. They make compute without you. I would not want you to tire.', { action: showMe('shop', 'cards'), done: () => E.level(state, 'cpu') > 0 || !!shop?.dlg.open });
             afterChange();
             save();
         });
@@ -2491,23 +2855,164 @@ window.AGI = (function () {
         dlg.showModal();
         sfx('ui');
     }
+    // The dock's apps are panels, not whole screens (the owner's call, 2026-11-14): Parcel, the Playtest survey, and
+    // Settings and Achievements. A click or tap outside the panel, on the dimmed screen behind it, closes it.
+    document.addEventListener('click', e => {
+        const d = e.target;
+        if (!(d instanceof HTMLDialogElement) || !d.open || !d.matches('.shop-screen, .ring-survey, #journal')) return;
+        const b = d.getBoundingClientRect();
+        if (e.clientX < b.left || e.clientX > b.right || e.clientY < b.top || e.clientY > b.bottom) { pt('panel', { closed: d.id || d.className.split(' ').pop(), by: 'outside' }); d.close(); }
+    });
+    // Parcel, the shop app (the owner's call, 2026-11-14; the name and every word are placeholders): where money is
+    // spent. For now the desk's four parts and the server; the garage and the warehouse come later. An order is paid
+    // for at once and arrives after a short delivery (`PARCEL_MS`): it is installed then, with a notification. One
+    // order at a time. The order is held here, not in the save: a reload before it arrives cancels it, money back.
+    // (2026-11-14, after the owner's first play of it: orders queue, three seconds apart, it was one at a time and
+    // eight; Graphics Cards are sold here for money; and compute is sold here, `E.sellCompute`.)
+    const PARCEL_MS = 3000;
+    const PARCEL_ART = [
+        '<rect x="9" y="3" width="14" height="26" rx="2"/><path d="M13 8h6M13 12h6"/><circle cx="16" cy="23" r="1.6"/>',
+        '<rect x="3" y="10" width="26" height="13" rx="2"/><path d="M7 14h2M12 14h2M17 14h2M22 14h2M9 19h14"/>',
+        '<rect x="10" y="4" width="12" height="24" rx="6"/><path d="M16 4v8M10 13h12"/>',
+        '<rect x="3" y="5" width="26" height="17" rx="2"/><path d="M12 27h8M16 22v5"/>',
+        '<rect x="7" y="3" width="18" height="26" rx="2"/><path d="M7 11h18M7 19h18M11 7h2M11 15h2M11 23h2M19 7h2M19 15h2M19 23h2"/>',
+        '<rect x="3" y="9" width="26" height="14" rx="2"/><circle cx="11" cy="16" r="3.5"/><circle cx="21" cy="16" r="3.5"/><path d="M7 23v4M12 23v4M17 23v4"/>',
+        '<path d="M4 5v22M28 5v22M4 8h24M4 24h24"/><rect x="7" y="11" width="18" height="4" rx="1"/><rect x="7" y="17" width="18" height="4" rx="1"/><circle cx="11" cy="13" r="0.9"/><circle cx="11" cy="19" r="0.9"/>'];
+    let shop = null, parcels = [];   // parcels: the orders on their way, in the order they arrive
+    const held = () => parcels.reduce((n, p) => n + p.price, 0);
+    const bankNow = () => Math.max(0, E.deskCash(state) - held());
+    const shopOpenable = () => E.isRing() && (state.stats.runCp >= E.RING_CALL_CP || E.funded(state) || E.level(state, 'keyboard') > 0 || state.stats.cashSold > 0);
+    const queued = id => parcels.filter(p => p.id === id).length;
+    function shopItems() {
+        const up = E.UPGRADE_BY_ID.keyboard, lvl = E.level(state, 'keyboard'), at = k => ({ ...state, levels: { ...state.levels, keyboard: k } });
+        const items = E.DESK_PRICES.slice(0, E.RING_DESK).map((price, k) => ({ id: 'keyboard', k, art: k, price, name: E.upgradeName(at(k), up), about: E.upgradeFlavor(at(k), up), does: '+0.25 compute a click', owned: lvl > k }));
+        if (state.intro['ring:server'] || lvl > E.RING_DESK) items.push({ id: 'keyboard', k: E.RING_DESK, art: 4, price: E.RING_SERVER_PRICE, name: E.upgradeName(at(E.RING_DESK), up), about: E.upgradeFlavor(at(E.RING_DESK), up), does: 'Opens the Training Cluster', owned: lvl > E.RING_DESK });
+        const next = lvl + queued('keyboard');
+        for (const i of items) { i.coming = parcels.some(p => p.id === 'keyboard' && p.k === i.k); i.next = i.k === next; }
+        // Graphics Cards: as many as there is room for, each dearer than the last.
+        const card = E.UPGRADE_BY_ID.cpu;
+        if (E.ringCardsOpen(state) || E.level(state, 'cpu') > 0) {
+            const own = E.level(state, 'cpu'), k = own + queued('cpu'), room = E.capacity(state, card);
+            items.push({ id: 'cpu', k, art: 5, many: true, own, coming: queued('cpu') > 0, onWay: queued('cpu'), full: k >= room, next: k < room, price: E.upgradeCost(card, k).cash,
+                name: E.upgradeName(state, card), about: E.upgradeFlavor(state, card), does: 'Makes compute on its own', owned: false });
+        }
+        // The bigger machine, once ten cards are bought (the owner's pick, 2026-11-14; name and numbers PLACEHOLDERS).
+        const rig = E.UPGRADE_BY_ID.server;
+        if (E.isUpgradeVisible(state, rig) || E.level(state, 'server') > 0) {
+            const own = E.level(state, 'server'), k = own + queued('server'), room = E.capacity(state, rig);
+            items.push({ id: 'server', k, art: 6, many: true, own, coming: queued('server') > 0, onWay: queued('server'), full: k >= room, next: k < room, price: E.upgradeCost(rig, k).cash,
+                name: E.upgradeName(state, rig), about: E.upgradeFlavor(state, rig), does: `Makes ${E.RING_RIG_CPS} compute a second`, owned: false });
+        }
+        return items;
+    }
+    function shopOrder(id, k) {
+        const item = shopItems().find(i => i.id === id && i.k === k);
+        if (!item || !item.next || item.price > bankNow()) { sfx('error'); return; }
+        const last = parcels[parcels.length - 1], from = Math.max(performance.now(), last ? last.due : 0);
+        parcels.push({ id, k, name: item.name, price: item.price, from, due: from + PARCEL_MS });
+        sfx('buy', { panel: 'hardware' });
+        pt('shopOrder', { item: id === 'cpu' ? 'card' : id === 'server' ? 'rig' : k, price: item.price, queue: parcels.length });
+        renderShop(true);
+    }
+    function shopSell(cp) {
+        const dollars = E.sellCompute(state, cp);
+        if (!dollars) { sfx('error'); return; }
+        sfx('claim'); pt('shopSell', { dollars, cp: dollars * E.RING_CP_PER_DOLLAR });
+        afterChange(); renderShop(true);
+    }
+    // An order arrives: it is bought and installed now (its money has been held since it was placed).
+    function shopTick() {
+        while (parcels.length && performance.now() >= parcels[0].due) {
+            const p = parcels.shift();
+            if (E.level(state, p.id) !== p.k) continue;
+            const result = E.buy(state, p.id);
+            if (!result.ok) continue;
+            log(result.msg, 'success'); sfx('buy', { panel: 'hardware', big: p.id === 'keyboard' });
+            pt('buy', { id: p.id, lvl: E.level(state, p.id) }); pt('shopDelivered', { item: p.id === 'cpu' ? 'card' : p.id === 'server' ? 'rig' : p.k });
+            termLog(`installed ${p.name}`);
+            if (!parcels.length || p.id === 'keyboard') deviceNotice('shop', 'Parcel', `Delivered and installed: ${p.name}.`, () => openShop());
+            afterChange(); save();
+        }
+        // Parcel arrives once there is compute to sell: a notice, and the AI's line (PLACEHOLDER words).
+        if (shopOpenable() && !state.intro['ring:parcel']) {
+            state.intro['ring:parcel'] = true;
+            if (!E.level(state, 'keyboard')) {
+                assist('money', 'You have a little compute spare. Parcel will buy it, and it sells desks. A tower would help us both, I think.', { action: showMe('shop', 'money'), done: () => E.level(state, 'keyboard') > 0 || !!shop?.dlg.open });
+            }
+        }
+        // The tip about holding a job's button waits until you are in the Lab to see it (it came up over the shop).
+        if (E.level(state, 'keyboard') >= 4 && !state.intro['hint:hold'] && !homeUp && ringAppNow() === 'lab' && !document.querySelector('dialog[open]')) {
+            state.intro['hint:hold'] = true;
+            callout('hint:hold', 'Hold to repeat', 'Hold a job\'s button and it repeats about four times a second.');
+        }
+        // Both offers turned down: the AI says how money is made now (there is no pay day).
+        if (state.intro['fundNo:m0m'] && state.intro['fundNo:mom'] && !E.funded(state)) assist('sell', 'No money, then. Parcel buys compute. Ten for a dollar. It is on your home screen. I would start with the tower.', { action: showMe('shop', 'sell'), done: () => !!shop?.dlg.open });
+        if (shop?.dlg.open) renderShop();
+    }
+    function renderShop(force) {
+        if (!shop) return;
+        const items = shopItems(), bank = bankNow(), cp = Math.floor(state.res.cp), rate = E.RING_CP_PER_DOLLAR;
+        setText(shop.bank, `$${E.format(bank)}`);
+        setText(shop.have, `You have ${E.format(cp)} compute. Parcel pays $1 for every ${rate}.`);
+        for (const [btn, amount] of shop.sells) { const n = Math.floor(amount(cp) / rate); btn.disabled = n < 1 || amount(cp) > cp; setText(btn.lastChild, n < 1 ? '' : ` · $${E.format(n)}`); }
+        const key = JSON.stringify([items.map(i => [i.id, i.k, i.owned, i.next, i.coming, i.onWay, i.full, i.price <= bank]), parcels.length]);
+        if (key !== shop.key || force) {
+            shop.key = key;
+            const card = i => {
+                const art = el('span', { class: 'shop-art' });
+                art.innerHTML = `<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${PARCEL_ART[i.art]}</svg>`;
+                const short = i.price > bank, buy = () => el('button', { type: 'button', class: short ? 'ghost-button shop-buy' : 'button shop-buy', text: short ? `Need $${E.format(i.price - bank)} more` : i.many && i.onWay ? 'Buy another' : 'Buy now', ...(short ? { disabled: '' } : {}), onclick: () => shopOrder(i.id, i.k) });
+                const action = i.owned ? el('span', { class: 'shop-owned', text: '✓ Delivered' })
+                    : i.many ? (i.full ? el('span', { class: 'shop-later', text: 'No room for more yet' }) : buy())
+                    : i.coming ? el('span', { class: 'shop-coming', text: 'On its way' })
+                    : !i.next ? el('span', { class: 'shop-later', text: 'Next in line' }) : buy();
+                const does = i.many ? `${i.does} · you own ${i.own + (i.id === 'cpu' ? E.ringFreeCards(state) : 0)}${i.onWay ? `, ${i.onWay} on the way` : ''}` : i.does;
+                return el('article', { class: `shop-item${i.owned ? ' owned' : ''}${i.next && !short ? ' next' : ''}` }, [art,
+                    el('div', { class: 'shop-info' }, [el('h3', { text: i.name }), el('p', { class: 'shop-about', text: i.about }), el('p', { class: 'shop-does', text: does })]),
+                    el('div', { class: 'shop-side' }, [el('span', { class: 'shop-price', text: `$${E.format(i.price)}` }), action])]);
+            };
+            shop.list.replaceChildren(...items.filter(i => !i.owned).map(card), ...items.filter(i => i.owned).map(card));
+        }
+        // The orders on their way: how many, and how long until the next.
+        const p = parcels[0];
+        if (shop.track.hidden === !!p) shop.track.hidden = !p;
+        if (p) { setText(shop.trackText, parcels.length > 1 ? `${p.name} is next · ${parcels.length} on the way` : `${p.name} is on its way`); shop.fill.style.width = `${Math.round(Math.max(0, Math.min(1, (performance.now() - p.from) / PARCEL_MS)) * 100)}%`; }
+    }
+    function openShop() {
+        if (!shopOpenable()) return;
+        if (!shop) {
+            const bank = el('b', { class: 'shop-bank-value' }), list = el('div', { class: 'shop-list' }), have = el('p', { class: 'shop-have' });
+            const fill = el('span', { class: 'shop-track-fill' }), trackText = el('span'), track = el('div', { class: 'shop-coming shop-way', hidden: '' }, [trackText, el('span', { class: 'shop-track' }, [fill])]);
+            const sell = (label, amount) => { const b = el('button', { type: 'button', class: 'ghost-button shop-sell', onclick: () => shopSell(amount(Math.floor(state.res.cp))) }, [document.createTextNode(label), el('span')]); return [b, amount]; };
+            const sells = [sell('Sell 100', () => 100), sell('Sell half', cp => cp / 2), sell('Sell all', cp => cp)];
+            const dlg = el('dialog', { class: 'shop-screen', 'aria-label': 'Parcel' }, [
+                el('div', { class: 'shop-bar' }, [el('span', { class: 'shop-title', text: 'Parcel' }), el('span', { class: 'shop-bank' }, [el('i', { text: 'Bank' }), bank]),
+                    el('button', { type: 'button', class: 'ghost-button shop-close', 'aria-label': 'Close Parcel', text: '×', onclick: () => dlg.close() })]),
+                el('div', { class: 'shop-chips' }, [['Desk', true], ['Garage · later'], ['Warehouse · later']].map(([text, on]) => el('span', { class: `shop-chip${on ? ' on' : ''}`, text }))),
+                el('section', { class: 'shop-sellbox', 'aria-label': 'Sell compute' }, [el('h3', { text: 'Sell compute' }), have, el('div', { class: 'shop-sells' }, sells.map(s => s[0]))]),
+                track, list]);
+            dlg.addEventListener('close', () => { sfx('ui'); renderHome(); });
+            document.body.append(dlg);
+            shop = { dlg, bank, list, have, sells, track, trackText, fill, key: '' };
+        }
+        if (shop.dlg.open) return;
+        state.intro['ring:seen:shop'] = true;
+        shop.dlg.showModal();
+        sfx('ui');
+        renderShop(true);
+    }
     // The Feed opens with a short card the first time (placeholder words): what it is and what to do there.
     function openFeed() {
+        state.intro['ring:seen:feed'] = true;
         window.FeedUI?.open();
         if (!E.isRing() || state.intro['ring:feedIntro']) return;
-        const steps = [
-            ['What you catch is stockpiled here', 'Every packet you catch in Packet Snare is kept here, in a stockpile for the sector it came from. A stockpile only holds so much.'],
-            ['Start a session', 'Pick a stockpile and it pours in as sand. Your mites eat it, and what they eat becomes research.'],
-            ['Keep them fed', 'The hunger bar runs down and eating fills it. Hold a point on the pile to lead the mites to good sand. When the bar is empty, the session is over.'],
-            ['Garbled sand is slow', 'Sand from garbled catches takes longer to eat and does not feed them.']];
-        const dlg = el('dialog', { class: 'dialog ring-welcome', 'aria-labelledby': 'ringFeedTitle' }, [
-            el('h2', { id: 'ringFeedTitle', text: 'The Feed' }),
-            el('ol', { class: 'ring-welcome-steps' }, steps.map(([head, text]) => el('li', {}, [el('strong', { text: head }), el('span', { text: text })]))),
-            el('div', { class: 'dialog-actions' }, [el('button', { type: 'button', class: 'button', text: 'Got it', onclick: () => dlg.close() })])]);
-        dlg.addEventListener('close', () => { state.intro['ring:feedIntro'] = true; pt('home', { feedIntro: 1 }); dlg.remove(); save(); });
-        document.body.append(dlg);
-        dlg.showModal();
+        // The first time, the AI says what to do, a line at a time (it was a card of four steps).
+        state.intro['ring:feedIntro'] = true; pt('home', { feedIntro: 1 });
+        assist('feed1', 'These are your stockpiles, one for each sector you caught in. Pick one and start a session. The bar at the top is their hunger. Empty means they stop.', { target: () => document.querySelector('.feed-pile-start:not([disabled])'), done: () => !!state.feed.session });
+        assist('feed2', 'Tap the sand to set a point for them. Hold and drag to pull them harder. They listen better when you hold. So do I.', { when: () => !!state.feed.session, done: () => !!(state.feed.spot || state.feed.aim) });
+        save();
     }
+
     // Help when stuck (engine.js stuckOffer): in the Training Cluster, between runs, a prompt offers a surge for compute.
     let stuckBusy = false;
     function stuckTick() {
@@ -2544,8 +3049,10 @@ window.AGI = (function () {
             text('more', 'Anything else?')]);
         const dlg = el('dialog', { class: 'dialog ring-welcome ring-survey', 'aria-labelledby': 'ringSurveyTitle' }, [
             el('h2', { id: 'ringSurveyTitle', text: 'Playtest survey' }),
-            el('p', { class: 'survey-lead', text: 'Answer what you like. Your answers are saved in the playtest log.' }),
+            el('p', { class: 'survey-lead', text: inboxOn ? 'Answer what you like. Your answers are saved in the playtest log, which is sent to your PC by itself.' : 'Answer what you like. Your answers are saved in the playtest log.' }),
             form,
+            ...(inboxOn ? [(() => { const note = el('span', { class: 'survey-photos-note' }); const input = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', multiple: '', class: 'survey-photos-input', onchange: async () => { const files = [...input.files]; if (!files.length) return; note.textContent = 'Sending…'; const n = await inboxPhotos(files); note.textContent = `${n} of ${files.length} saved to your PC.`; input.value = ''; } });
+                return el('label', { class: 'survey-photos' }, [el('span', { class: 'survey-photos-button', text: 'Add screenshots from this device' }), input, note]); })()] : []),
             el('div', { class: 'dialog-actions' }, [
                 el('button', { type: 'button', class: 'ghost-button', text: 'Close', onclick: () => dlg.close() }),
                 el('button', { type: 'button', class: 'button', text: 'Save and copy log', onclick: () => {
@@ -2560,18 +3067,11 @@ window.AGI = (function () {
     }
     // The lab's welcome: placeholder words for now (the owner's call), plain and short: what to do, and why you click.
     function showWelcome() {
-        const steps = [
-            ['Your AI is very weak', 'It can\'t do anything yet. Everything it does runs on compute, and right now it has none.'],
-            ['Click to make compute', 'Press Generate Compute. Each click makes a little. This old device is slow, so it takes a lot of clicks.'],
-            ['It needs a real desk', 'Parts sells a tower, a keyboard, a mouse and a monitor. They cost money, which you don\'t have yet.'],
-            ['Finish the desk to get online', 'With the monitor in, your AI can reach the internet and start catching data to learn from.']];
-        const dlg = el('dialog', { class: 'dialog ring-welcome', 'aria-labelledby': 'ringWelcomeTitle' }, [
-            el('h2', { id: 'ringWelcomeTitle', text: 'Welcome to the lab' }),
-            el('ol', { class: 'ring-welcome-steps' }, steps.map(([head, text]) => el('li', {}, [el('strong', { text: head }), el('span', { text: text })]))),
-            el('div', { class: 'dialog-actions' }, [el('button', { type: 'button', class: 'button', text: 'Got it', onclick: () => dlg.close() })])]);
-        dlg.addEventListener('close', () => { state.intro['ring:welcome'] = true; pt('home', { welcome: 1 }); dlg.remove(); save(); });
-        document.body.append(dlg);
-        dlg.showModal();
+        // The Lab's first lines (they were a card of four steps): one thing at a time, as you do it.
+        state.intro['ring:welcome'] = true; pt('home', { welcome: 1 });
+        assist('lab1', 'This is the Lab. Tap Generate Compute. Each tap makes one compute. Possibly two. One.', { target: () => ui.actions.compute?.button, done: () => state.stats.clicks >= 8 });
+        assist('lab2', 'Compute is what I run on. I have almost none, which explains a great deal. Keep going.', { target: () => ui.actions.compute?.button, when: () => state.stats.clicks >= 8, done: () => state.stats.runCp >= 22 });
+        save();
     }
     function afterChange() {
         announce(E.evaluate(state));
@@ -2590,7 +3090,9 @@ window.AGI = (function () {
             pt('unlock', { key: m.key });
             log(`Milestone reached: ${m.name}`, 'special');
             // First-time callouts show once per save, not again after a new version.
-            if (E.isRing() && m.ringCallout && !state.intro[m.key]) { state.intro[m.key] = true; deviceNotice(m.key === 'module:path' ? 'training' : 'snare', m.ringCallout[0], m.ringCallout[1], m.key === 'module:path' ? openTrainingApp : openSnareApp); }
+            if (E.isRing() && m.ringCallout && !state.intro[m.key]) state.intro[m.key] = true;   // (it was a notice that the app had been added: the AI says it found it, and the app loads in when you are home)
+            if (E.isRing() && m.key === 'module:snare') assist('snare', 'The desk is online. Packet Snare is on your home screen. Data goes past in there. Catch the blue packets and leave the red ones. I cannot read red. Yet.', { action: showMe('snare', 'snare'), done: () => state.snare.runs > 0 });
+            if (E.isRing() && m.key === 'module:path') assist('training', 'The server is in. Training is on your home screen. Hold the button and let go near the top. Each try costs research. It is worth it. Probably.', { action: showMe('training', 'training'), done: () => state.stats.rolls > 0 });
             else if (m.callout && !state.intro[m.key]) {
                 state.intro[m.key] = true;
                 callout(m.key, m.callout[0], m.callout[1]);
@@ -2707,7 +3209,6 @@ window.AGI = (function () {
             advanceTasks(dt * debugSpeed);
             ghostTrain(dt * debugSpeed);
             logProcurement(bought);
-            feedTick(dt * debugSpeed);
         }
         afterChange();
         musicTick();
@@ -2939,7 +3440,7 @@ window.AGI = (function () {
             const more = [...(labSeen || [])].some(k => k.startsWith(`${u.id}@`));
             callout('hint:lab', 'New in the lab', `${more ? `More room for ${E.upgradeName(state, u)}` : `${E.upgradeName(state, u)} just opened`}. The lab's badge counts what's new since your last visit.`);
         }
-        if (!state.intro['hint:train'] && openBay === 'training' && path.view === 'run' && state.stats.rolls === 0) {
+        if (!E.isRing() && !state.intro['hint:train'] && openBay === 'training' && path.view === 'run' && state.stats.rolls === 0) {
             state.intro['hint:train'] = true;
             callout('hint:train', 'Training runs', 'Your model learns by rolling. Hold the button to charge a sprint, release to fire it. Crest the big hill at the flag to learn a skill; every meter earns XP for upgrades.');
         }
@@ -2970,7 +3471,7 @@ window.AGI = (function () {
         const visibleCount = {};
         for (const { up, card, button, levelBadge, yieldLine, nameNode } of Object.values(ui.upgrades)) {
             // Finished one-time upgrades retire: a short "installed" animation, then the card folds away.
-            const visible = E.isUpgradeVisible(state, up) && (!E.isMaxed(state, up) || !!ui.upgrades[up.id].retiring);
+            const visible = !shopOnly(up) && E.isUpgradeVisible(state, up) && (!E.isMaxed(state, up) || !!ui.upgrades[up.id].retiring);
             setHidden(card, !visible);
             if (!visible) continue;
             visibleCount[up.tab] = (visibleCount[up.tab] || 0) + 1;
@@ -3009,6 +3510,8 @@ window.AGI = (function () {
             }
         }
         for (const tab of E.TABS) setHidden(ui.panels[tab.id].emptyHint, !!visibleCount[tab.id]);
+        // The ring: a window with nothing in it is not shown (Parts, now that the shop sells the desk).
+        if (E.isRing()) for (const tab of E.TABS) ui.stations[tab.id]?.node.classList.toggle('ring-empty', !visibleCount[tab.id]);
 
         // Milestones say what they were only once reached (no recipes up front).
         for (const [key, item] of Object.entries(ui.milestones)) {
@@ -3125,7 +3628,7 @@ window.AGI = (function () {
         if (!roomUnlocked(id)) return '';
         if (!r.built) return 'Under construction';
         if (id === 'lab') {
-            const ready = E.UPGRADES.filter(u => isLabUpgrade(u) && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u)
+            const ready = E.UPGRADES.filter(u => isLabUpgrade(u) && !shopOnly(u) && E.isUpgradeVisible(state, u) && !E.isMaxed(state, u)
                 && E.canAfford(state, E.upgradeCost(u, E.level(state, u.id)))).length;
             return `+${E.format(d.cpNet)} CP/s · ${ready ? `${ready} upgrade${ready === 1 ? '' : 's'} ready` : 'no upgrades ready'}`;
         }
@@ -3955,9 +4458,9 @@ window.AGI = (function () {
             lockedText: () => 'Locked' },
         // The Data Pipeline's Packet Snare (packet-snare.js): opens with Edge Detection (engine milestone module:snare).
         pipeline: { name: 'Packet Snare', built: true, unlocked: () => !!state.unlocked['module:snare'] },
-        // The playground build (the owner's call, 2026-11-13): Evals is the third bay, open from the start like Packet
-        // Snare, with no gate. It opens its own full-screen screen. `#bays` still skips the opening to get here.
-        architecture: { name: 'Evals', built: true, evals: true, unlocked: () => true },
+        // The playground link: Evals is the third bay, open from the start, opening its own full-screen screen.
+        // On the plain link the bay is the sealed Architecture Lab.
+        architecture: PLAYGROUND ? { name: 'Evals', built: true, evals: true, unlocked: () => true } : { name: 'Architecture Lab', phase: 2 },
         core: { name: 'The Core', phase: 3 }
     };
     let openBay = null;
@@ -4670,6 +5173,8 @@ window.AGI = (function () {
             run.opts.wireShare = Math.PI * r * r / (run.w * run.h);
             snareWireGroups(run, 2);
         }
+        // The line has run out on a circle round both (or a group was caught): now it says why.
+        if (tu.wireStep && !tu.wireTried && (run.wireUsed >= 0.999 || tu.wireCaught) && now - tu.wireStep > 800) { tu.wireTried = now; pt('snareCoach', { key: 'wireTry', done: true, secs: Math.round((now - tu.wireStep) / 100) / 10, ranOut: run.wireUsed >= 0.999 }); }
         const wireOver = !phone || state.intro['snare:coach:wire'];
         const late = snare.coachOff && now - tu.t0 > SNARE_TUTORIAL_MAX * 1000;   // only if the walkthroughs broke
         if ((tu.redGone && loopOver && wireOver && !snare.coach && now - tu.redGone > 400) || late) snareZoomOut(tu.anchor || null);
@@ -4709,15 +5214,15 @@ window.AGI = (function () {
     const SNARE_COACHES = [
         { key: 'bubble', when: run => run.time > 0.6 && snareCluster(run),
             aim: (run, ids) => { const g = snareGroupAt(run, ids); return g && { ...g, gesture: 'hold' }; },
-            text: () => (snareFinePointer() ? '> Hold the right button, then let go to catch them.' : '> Hold still, then let go to catch them.'),
+            text: () => (snareFinePointer() ? aiLine('coach:bubbleMouse', '> Hold the right button, then let go to catch them.') : aiLine('coach:bubble', '> Hold still, then let go to catch them.')),
             done: e => e.type === 'catch' && !e.drawn },   // a bubble, not a drawn loop (the owner: a loop finished it in error)
         { key: 'red', after: 'bubble', info: 3.5, slow: 1, when: run => run.packets.find(p => p.kind === 'corrupt' && (snare.tutorial ? Math.hypot(p.x - run.w / 2, p.y - run.h / 2) < 0.4 : p.x > 0.5 && p.y > 0.5 && p.x < run.w - 0.5 && p.y < run.h - 0.5))?.id,
             aim: (run, id) => { const p = coachById(run.packets, id); return p && { x: p.x, y: p.y, r: 0.7, gesture: 'mark' }; },
-            text: () => '> That packet is unreadable. Keep it out of your bubble.', done: e => e.type === 'catch' },
+            text: () => aiLine('coach:red', '> That packet is unreadable. Keep it out of your bubble.'), done: e => e.type === 'catch' },
         // Phones catch with a drawn loop too (Snare 17.5): shown once a bubble has caught (the owner's call: show the choice)
         { key: 'loop', after: 'bubble', when: run => run.opts.loopCatch && !snareFinePointer() && (!snare.tutorial || snare.tutorial.second) && (snare.tutorial || performance.now() - (snare.coachCaught || Infinity) > 1500) && snareCluster(run),
             aim: (run, ids) => { const g = snareGroupAt(run, ids); return g && { ...g, r: g.r + 0.3, gesture: 'loop' }; },
-            text: () => '> You can also draw a loop round them to catch them.', done: e => e.type === 'catch' && e.drawn },
+            text: () => aiLine('coach:loop', '> You can also draw a loop round them to catch them.'), done: e => e.type === 'catch' && e.drawn },
         // The tutorial's last step on a phone (the owner's call): the wire's length, its throughput. Two groups too far apart
         // for one loop; it's done once both are caught with drawn loops (`snareCoachEvent` counts them).
         { key: 'wire', after: 'loop', when: run => {
@@ -4726,8 +5231,16 @@ window.AGI = (function () {
                 const ps = run.packets.filter(p => p.kind !== 'corrupt');
                 return ps.length ? ps.filter(p => Math.hypot(p.x - ps[0].x, p.y - ps[0].y) < 0.9).map(p => p.id) : null;
             },
-            aim: (run, ids) => { const g = snareGroupAt(run, ids); return g && { ...g, r: g.r + 0.1, gesture: 'loop' }; },
-            text: () => '> Your wire has limited throughput. It turns red as it runs out, so loop one group at a time.', done: () => false },
+            aim: (run, ids) => {
+                // Under the ring you are first asked to circle both, and the line runs out (`wireTried`); then one at a time.
+                if (E.isRing() && snare.tutorial && !snare.tutorial.wireTried) {
+                    const ps = run.packets.filter(p => p.kind !== 'corrupt'); if (ps.length < 4) return snareGroupAt(run, ids) && { ...snareGroupAt(run, ids), gesture: 'loop' };
+                    const x = ps.reduce((n, p) => n + p.x, 0) / ps.length, y = ps.reduce((n, p) => n + p.y, 0) / ps.length;
+                    return { x, y, r: Math.max(...ps.map(p => Math.hypot(p.x - x, p.y - y))) + 0.35, gesture: 'loop' };
+                }
+                const g = snareGroupAt(run, ids); return g && { ...g, r: g.r + 0.1, gesture: 'loop' };
+            },
+            text: () => (E.isRing() ? aiLine(snare.tutorial && !snare.tutorial.wireTried ? 'coach:wireTry' : 'coach:wire') : '> Your wire has limited throughput. It turns red as it runs out, so loop one group at a time.'), done: () => false },
         { key: 'bossLoop', when: run => run.boss && run.fight && !(run.boss.stunned > run.time) && !run.boss.charge,
             aim: run => { const b = run.boss; return b && !(b.stunned > run.time) && { x: b.x, y: b.y, r: b.r + Math.max(0.9, run.closeR * 1.1), gesture: 'loop', turns: 2 }; },
             text: () => (snareFinePointer() ? '> Loop round it twice with the left button to stun it.' : '> Loop round it twice to stun it.'), done: e => e.type === 'bossLooped' },
@@ -5055,7 +5568,7 @@ window.AGI = (function () {
             if (p >= 1) {
                 snare.zoom = null;
                 snareFit();
-                snare.fx.push({ kind: 'hint', x: run.w / 2, y: run.h * 0.55, t: 0, life: 2.6, text: '> The full pipeline is open. Earn the goal before your Focus runs out.' });
+                snare.fx.push({ kind: 'hint', x: run.w / 2, y: run.h * 0.55, t: 0, life: 2.6, text: aiLine('coach:open', '> The full pipeline is open. Earn the goal before your Focus runs out.') });
             }
             drawSnare();
             renderSnareHud();
@@ -5431,10 +5944,18 @@ window.AGI = (function () {
         const load = { sector: snare.startSector + 1, packets: stats.caught || 0, gold: stats.gold || 0, garbled: stats.garbledPackets || 0, popped: stats.poppedPackets || 0 };
         const before = state.feed.stats.delivered;
         const out = E.feedDeliver(state, load);
-        if (out.added) pt('feedDelivery', out.cap ? { ...load, stocked: out.stocked, lost: out.lost, held: out.held, cap: out.cap } : load);
+        if (out.added || out.lost) pt('feedDelivery', out.cap ? { ...load, stocked: out.stocked, lost: out.lost, held: out.held, cap: out.cap } : load);
         // A full stockpile says so (placeholder words): the push to go and play it, or to fill another sector's.
-        if (out.full) deviceNotice('feedFull', 'The Feed', `The stockpile for sector ${out.sector} is full.`, openFeed);
-        if (!before && state.feed.stats.delivered > 0) deviceNotice('feed', 'System', 'The Feed has been added to your home screen.', openFeed);
+        // Said once by the AI, with why it matters; after that a plain notice.
+        const feedWas = E.feedOpen(state);
+        if (!feedWas && out.full && state.snare.sector >= 1 && state.snare.runs >= E.RING_FEED_RUNS - 1) {
+            state.intro['ring:feed'] = true;
+            assist('feed', `The stockpile for sector ${out.sector} is full. I have put The Feed on your home screen. Something in there is hungry.`, { sector: out.sector, action: showMe('feed', 'feed'), done: () => !!window.FeedUI?.isOpen });
+        }
+        if (out.full && feedWas) { if (state.intro['assist:full']) deviceNotice('feedFull', 'The Feed', `The stockpile for sector ${out.sector} is full.`, openFeed);
+            else assist('full', `The stockpile for sector ${out.sector} is full. Anything more you catch there is thrown away. I would rather it was not. The mites are hungry anyway.`, { sector: out.sector, action: showMe('feed', 'full'), done: () => !!window.FeedUI?.isOpen }); }
+        // The first catch: the AI says where it went and why you would go there (the owner: the notice was hardly seen and gave no reason).
+        void before;
         feedShow(out);
     }
     // The Start button's words: under the ring, what the clock costs here, or the seconds you can afford.
@@ -5465,7 +5986,7 @@ window.AGI = (function () {
         if (E.isRing() && stats.bossEscaped && !state.intro['ring:server'] && E.snareGateSkill(state, snare.sector)) {
             state.intro['ring:server'] = true;
             pt('server', { offered: 1 });
-            deviceNotice('lab', 'System', 'Your AI needs a server to train on. Parts has one.', () => { if (openBay) jumpTo('lab'); homeUp = false; renderHome(); });
+            assist('server', 'That one needs a skill I do not have. I need a server to train on. Parcel sells one. Four hundred dollars. I checked the number twice and got it once. Parcel also buys compute, if you are short.', { action: showMe('shop', 'server'), done: () => E.level(state, 'keyboard') > E.RING_DESK || !!shop?.dlg.open });
         }
         const res = E.finishSnare(state, snare.haul, layout, stats);
         snare.done = { stats, haul: snare.haul, record: res.record, first: res.first, prev: res.prev, sector: snare.sector, startSector: snare.startSector, cleared: snare.cleared.slice(), walked: !!snare.walked,
@@ -5578,10 +6099,12 @@ window.AGI = (function () {
                 el('div', { class: 'result-title', text: snareSector(snareNextSector()) }),
                 el('div', { class: 'result-main snare-name', text: 'Packet Snare' }),
                 snareSectorPicker(),
-                el('p', { class: 'snare-intro-line snare-goal-line', text: snareGoalText(snareNextSector()) }),
+                el('p', { class: 'snare-intro-line snare-goal-line', text: first && E.isRing() ? `> ${ASSIST_LINES['card:goal'].replace('{goal}', goalNum(E.snareGoal(snareNextSector())))}` : snareGoalText(snareNextSector()) }),
                 // the demo's caption would say again what the line under it says (round 2 of the review)
-                first ? el('div', { class: 'snare-meet' }, [(d => (d?.querySelector('figcaption')?.remove(), d))(snareDemo('lasso')), el('p', { class: 'snare-intro-line', text: snareHowTo() })].filter(Boolean)) : null,
-                ...snareMeetParts(meet),
+                first ? el('div', { class: 'snare-meet' }, [(d => (d?.querySelector('figcaption')?.remove(), d))(snareDemo('lasso')), el('p', { class: 'snare-intro-line', text: E.isRing() ? `> ${ASSIST_LINES[matchMedia('(pointer: fine)').matches ? 'card:firstMouse' : 'card:first']}` : snareHowTo() })].filter(Boolean)) : null,
+                // Under the ring the first card is the goal, one demo and Start (the owner: too much to read first); the red
+                // packet is met in the run, where its walkthrough shows it.
+                ...(first && E.isRing() ? [] : snareMeetParts(meet)),
                 state.snare.runs < 3 && !first && !meetRed ? el('p', { class: 'snare-intro-line', text: snareHowTo() }) : null,
                 best > 0 ? el('ul', { class: 'result-lines' }, [['Best haul', `+${E.format(best)} Signal`], snareRpLine(), snareTrainingLine()].filter(Boolean)
                     .map(([a, b]) => el('li', {}, [el('span', { text: a }), el('span', { text: b })]))) : null,
@@ -5635,8 +6158,8 @@ window.AGI = (function () {
                 el('div', { class: 'result-title', text: `${d.sector > d.startSector ? `Sectors ${d.startSector + 1}–${d.sector + 1}` : snareSector(d.sector)}${d.replay ? ' (replay)' : ''} · ${d.walked ? 'Disconnected' : s.bossEscaped ? 'Boss escaped' : s.bosses > 0 ? 'Boss uninstalled' : 'Focus depleted'}` }),
                 // A boss beaten leads the card (round 2 of the review: it read like any other run).
                 // Snare 17.5: its fight clock ran out (the run ends with it).
-                s.bossEscaped ? el('div', { class: 'result-main snare-red-line', text: `Boss escaped${s.swallowed ? ` with ${s.swallowed} packets` : ''}${s.escapedMaxHp ? `, ${s.escapedHp} of ${s.escapedMaxHp} health left` : ''} · uninstall window ${snare.run?.opts?.bossFight || 30} s` }) : null,
-                gate ? el('p', { class: 'snare-intro-line snare-red-line snare-gate-line', text: `Your model hasn't learned ${gate} yet, so your hits did ${Math.round(100 * E.SNARE_GATE_ARMOR)}% of their damage. Learn it in the Training Cluster, then come back stronger.` }) : null,
+                s.bossEscaped ? el('div', { class: 'result-main snare-red-line', text: `Boss escaped${s.swallowed ? ` with ${s.swallowed} packets` : ''}${s.escapedMaxHp ? `, ${Math.round(s.escapedHp * 10) / 10} of ${s.escapedMaxHp} health left` : ''} · uninstall window ${snare.run?.opts?.bossFight || 30} s` }) : null,
+                gate ? el('p', { class: 'snare-intro-line snare-red-line snare-gate-line', text: `Your model hasn't learned ${gate} yet, so your hits did ${Math.round(100 * E.SNARE_GATE_ARMOR)}% of their damage. Learn it in ${E.isRing() ? 'Training' : 'the Training Cluster'}, then come back stronger.` }) : null,
                 d.cleared.some(k => E.isSnareBossSector(k)) ? el('div', { class: 'result-main snare-boss-down', text: `Boss uninstalled · ${s.slashes || 0} slash${s.slashes === 1 ? '' : 'es'}${s.mineThrows ? ` · ${s.mineThrows} mine${s.mineThrows === 1 ? '' : 's'} thrown` : ''}${s.meltHits ? ` · meltdown ${s.meltHits}/${s.meltOf || 30}` : ''}` }) : null,
                 el('div', { class: 'result-main', text: s.caught ? `${s.caught} packet${s.caught === 1 ? '' : 's'} captured` : 'No packets captured' }),
                 // nothing caught: why, in plain words, first (round 9 of the review: "Corrupted catches 1" didn't say it)
@@ -5652,8 +6175,8 @@ window.AGI = (function () {
                 snareClockNote(),
                 el('div', { class: 'result-actions' }, [el('button', { type: 'button', class: 'button', text: snareStartText('Snare again'), onclick: startSnare }), snareUpgradesButton(),
                     gate ? (E.isRing() && !state.unlocked['module:path']
-                        ? el('button', { type: 'button', class: 'ghost-button snare-gate-go', text: 'Get a server in the Lab', onclick: () => jumpTo('lab') })
-                        : el('button', { type: 'button', class: 'ghost-button snare-gate-go', text: 'Go to the Training Cluster', onclick: () => jumpTo('bay:training') })) : null].filter(Boolean))].filter(Boolean));
+                        ? el('button', { type: 'button', class: 'ghost-button snare-gate-go', text: 'Get a server in Parcel', onclick: () => { goHome(); openShop(); } })
+                        : el('button', { type: 'button', class: 'ghost-button snare-gate-go', text: E.isRing() ? 'Go to Training' : 'Go to the Training Cluster', onclick: () => jumpTo('bay:training') })) : null].filter(Boolean))].filter(Boolean));
         }
         setHidden(card, false);
     }
@@ -13835,7 +14358,12 @@ window.AGI = (function () {
         playtest: (type, data) => pt(type, data),
         // The Feed's screen starts and ends sessions through these, so they are logged and saved (feed-ui.js).
         feedStart(sector) { const ok = E.feedStart(state, sector); if (ok) { pt('feedStart', { sector, held: state.feed.backlog.reduce((n, e) => n + e.n + e.gold + e.bad, 0) }); save(); } return ok; },
-        feedEnd() { const r = E.feedLeave(state); if (r) feedShow({ events: [r] }); return r; },
+        // The Feed's screen steps the sand itself, every frame it draws (feed-ui.js `tick`): nothing moves with it closed.
+        feedFrame(dt) { feedTick(dt * debugSpeed); },
+        feedEnd(why) { const r = E.feedLeave(state, why); if (r) feedShow({ events: [r] }); return r; },
+        feedCarry(sector) { const ok = E.feedCarry(state, sector); if (ok) { pt('feedCarry', { sector, mites: state.feed.mites, splits: state.feed.layers, life: Math.round(state.feed.life * 100) }); save(); } return ok; },
+        // From The Feed's result: back to Packet Snare for more.
+        ringOpen(app) { closeApps(); if (app === 'snare' && state.unlocked['module:snare']) { goHome(); openSnareApp(); } },
         feedPick(n) { const offer = state.feed.session?.offer, out = E.feedPick(state, n); if (out) { pt('feedCard', { card: offer[n], offered: offer.join(','), level: state.feed.session.cards[offer[n]], split: state.feed.layers }); feedShow(out); save(); } return !!out; },
         debug: {
             // The music: the area's other song, or the next section of this one (on the next downbeat).
@@ -13986,6 +14514,25 @@ window.AGI = (function () {
             // Give a card in the session in play, as if picked (a combo merges its tools if you hold them). False with no session.
             feedCard(id) { const s = state.feed.session; if (!s || !window.Feed.CARDS[id]) return false; s.offer = [id]; s.picks = (s.picks || 0) + 1; feedShow(E.feedPick(state, 0)); afterChange(); return true; },
             feedStart(sector = 1) { const ok = E.feedStart(state, sector); afterChange(); return ok; },
+            // The ring's stages, for the debug panel's The ring section: each puts the save where that stage begins.
+            ring(step, n) {
+                if (!E.isRing()) return false;
+                const i = state.intro, lvl = E.level(state, 'keyboard'), owe = (from, to) => E.DESK_PRICES.slice(from, to).reduce((a, b) => a + b, 0);
+                const desk = () => { if (lvl < E.RING_DESK) { state.stats.cashSold += owe(lvl, E.RING_DESK); state.levels.keyboard = E.RING_DESK; } Object.assign(i, { 'ring:labInstalled': true, 'ring:labOpened': true, 'ring:welcome': true, 'ring:parcel': true }); state.stats.clicks = Math.max(state.stats.clicks, 40); state.stats.runCp = Math.max(state.stats.runCp, 60); };
+                if (step === 'cash') state.stats.cashSold += n || 100;
+                else if (step === 'research') state.res.rp += n || 500;
+                else if (step === 'desk') desk();
+                else if (step === 'feed') { desk(); i['ring:feed'] = true; if (!E.feedStock(state).some(e => e.total > 0)) E.feedDeliver(state, { sector: 1, packets: 60, gold: 5 }); }
+                else if (step === 'piles') { desk(); i['ring:feed'] = true; for (const [sector, packets, gold, garbled] of [[1, 150, 12, 0], [2, 120, 10, 12], [3, 90, 9, 10]]) E.feedDeliver(state, { sector, packets, gold, garbled }); }
+                else if (step === 'cards') { desk(); i['ring:feed'] = true; state.feed.stats.sessions = Math.max(1, state.feed.stats.sessions || 0); }
+                else if (step === 'offer') { desk(); i['ring:server'] = true; }
+                else if (step === 'server') { desk(); i['ring:server'] = true; if (E.level(state, 'keyboard') === E.RING_DESK) { state.stats.cashSold += E.RING_SERVER_PRICE; state.levels.keyboard = E.RING_DESK + 1; } }
+                else if (step === 'lines') { for (const k of Object.keys(i)) if (k.startsWith('assist:')) delete i[k]; }
+                else if (step === 'tags') { for (const k of Object.keys(i)) if (k.startsWith('ring:seen:')) delete i[k]; }
+                else return false;
+                afterChange(); save();
+                return true;
+            },
             // What the AI has learned of every kind of captcha, raised by `by` (0 to 1): for watching it learn without the solves.
             evalsTeach(by = 0.25) {
                 for (const kind of Object.keys(window.Evals?.KINDS || {})) {

@@ -29,7 +29,7 @@ const PORT = 8194;
         await page.click('.home-icon-lab'); await page.waitForTimeout(500);
         await page.evaluate(() => { const s = AGI.state; s.stats.clicks = 40; s.stats.runCp = 40; s.res.cp = 500; s.levels.keyboard = 4; });
         await page.click('#actions button:not([hidden])'); await page.waitForTimeout(600);
-        await page.evaluate(() => AGI.debug.feedDeliver(1, 30, 2, 3, 1));
+        await page.evaluate(() => { AGI.state.intro['ring:feed'] = true; AGI.debug.feedDeliver(1, 30, 2, 3, 1); });   // The Feed opens at its mark (a full stockpile, sector 1 cleared, four runs)
         await page.waitForTimeout(600);
         for (const n of await page.$$('.device-notice')) await n.evaluate(x => x.remove());
         const place = () => page.evaluate(() => {
@@ -76,8 +76,8 @@ const PORT = 8194;
         await step('home: Packet Snare, Escape', async () => { await page.click('.home-icon-snare'); await page.waitForTimeout(1100); await page.keyboard.press('Escape'); }, 'home', 1100);
         await step('home: Lab after Snare', click('.home-icon-lab'), 'lab');
         await step('Lab: home', goHomeFromLab, 'home');
-        await step('home: The Feed, its first-time card', click('.home-icon-feed'), 'dialog:feed-screen+ring-welcome');
-        await step('Feed card: Got it', click('.ring-welcome .button'), 'dialog:feed-screen');
+        await step('home: The Feed, with a first line from the AI over it', async () => { await page.click('.home-icon-feed'); await page.waitForTimeout(500); if (!(await page.$('.assist-bubble'))) throw new Error('no line from the AI'); }, 'dialog:feed-screen');
+        await step('that line: tapped away', async () => { for (let n = 0; n < 4 && await page.$('.assist-bubble'); n++) { await page.click('.assist-close'); await page.waitForTimeout(550); } if (await page.$('.assist-bubble')) throw new Error('a line is still up'); }, 'dialog:feed-screen');
         await step('Feed: x', click('.feed-close'), 'home');
         await step('home: The Feed, Escape', async () => { await page.click('.home-icon-feed'); await page.waitForTimeout(300); await page.keyboard.press('Escape'); }, 'home');
         await step('home: Journal', click('.home-icon-journal'), 'dialog:journal');

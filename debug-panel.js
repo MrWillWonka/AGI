@@ -144,8 +144,25 @@
 
         // Ordered by how often they're used (the owner's call): starting over and Packet Snare first, then jumping
         // ahead, training, resources and time, then the rest; each section folds away.
+        // The ring's own tools (only under #ring): each stage button puts the save where that stage begins.
+        const ringOn = !!E.isRing?.();
+        const cards = window.Feed?.CARDS ? Object.keys(window.Feed.CARDS) : [];
+        const give = document.createElement('select');
+        give.className = 'debug-select';
+        give.append(new Option('Give a card (in a session)…', ''), ...cards.map(id => new Option(id, id)));
+        give.addEventListener('change', () => { if (give.value) AGI.debug.feedCard(give.value); give.value = ''; });
+        const ringSection = ringOn ? [section('The ring',
+            group('Stages', button('Desk built (Packet Snare opens)', () => AGI.debug.ring('desk')), button('The Feed open, a first pile', () => AGI.debug.ring('feed')),
+                button('First Feed session done', () => AGI.debug.ring('cards')), button('Server offered', () => AGI.debug.ring('offer')),
+                button('Server bought (Training opens)', () => AGI.debug.ring('server'))),
+            group('Give', button('+$100', () => AGI.debug.ring('cash', 100)), button('+$1,000', () => AGI.debug.ring('cash', 1000)), button('+500 research', () => AGI.debug.ring('research', 500)),
+                button('Fill three stockpiles', () => AGI.debug.ring('piles'))),
+            group('Assistant', button('Say every line again', () => AGI.debug.ring('lines')), button('NEW tags back on the apps', () => AGI.debug.ring('tags'))))] : [];
+        // Under the ring the old game's lab offers, server room and versions do nothing: left out.
+        const oldOnly = (...sections) => (ringOn ? [] : sections);
         body.append(
             top,
+            ...ringSection,
             section('Packet Snare', button('Open Packet Snare', () => { AGI.debug.openSnare(); toggle(false); }),
                 button('Boss now / clear sector', () => AGI.debug.snareBoss()), button('Max snare tree', () => AGI.debug.snareMax()),
                 group('Go to sector', sectorAmount, button('Go', () => AGI.debug.snareSector(Math.max(1, Math.floor(Number(sectorAmount.value) || 1)) - 1))),
@@ -157,6 +174,7 @@
                 button('+40 packets (a first pile)', () => AGI.debug.feedDeliver(1, 40, 3)),
                 button('+75 packets, 10 garbled (a sector 2 run)', () => AGI.debug.feedDeliver(2, 75, 6, 10)),
                 button('+200 packets, 30 garbled (a sector 4 run)', () => AGI.debug.feedDeliver(4, 200, 15, 20, 20)),
+                button('Start a session (sector 1)', () => AGI.debug.feedStart(1)), give,
                 dangerButton('Reset The Feed (one mite, empty)', () => AGI.debug.resetFeed())),
             section('Evals', button('Open Evals', () => { toggle(false); AGI.debug.openEvals(); }),
                 button('Teach it (+25% every kind)', () => AGI.debug.evalsTeach(0.25)),
@@ -180,7 +198,7 @@
                 group('Per second', ...incomeInputs), group('Rate multipliers', ...rateInputs)),
             section('Time', group('Game speed', ...speedButtons),
                 group('Simulate', simAmount, button('Simulate seconds', () => AGI.debug.simulate(Number(simAmount.value) || 0)))),
-            section('Lab', button('Fill investor offers', AGI.debug.fillOffers), button('Finish offers', AGI.debug.finishOffers),
+            ...oldOnly(section('Lab', button('Fill investor offers', AGI.debug.fillOffers), button('Finish offers', AGI.debug.finishOffers),
                 button('Clear offers', AGI.debug.clearOffers), button('Meet automation gates', AGI.debug.meetAutomation),
                 button('+10 every hardware', () => AGI.debug.addHardware(10)), button('+1 every lab upgrade', AGI.debug.buyLabUpgrades),
                 button('Lab log line', () => AGI.debug.labLog())),
@@ -188,7 +206,7 @@
                 button('Reset room visits', AGI.debug.resetVisits)),
             section('Versions', button('Add a version (+10 Insight)', AGI.debug.addVersion), button('Ship next version now', AGI.debug.shipVersion),
                 button('Max legacy nodes', AGI.debug.maxLegacy), button('Open challenges', AGI.debug.openChallenges),
-                button('Beat the running challenge', AGI.debug.beatChallenge), button('Ready to transcend', AGI.debug.readyTranscend)),
+                button('Beat the running challenge', AGI.debug.beatChallenge), button('Ready to transcend', AGI.debug.readyTranscend))),
             section('Music', songLabel, button('Next song', AGI.debug.nextSong), button('Next section', AGI.debug.nextSection)),
             section('State', stateView)
         );
@@ -204,12 +222,18 @@
         }, 500);
     }
 
+    // Parcel, The Feed and Mail are dialogs, drawn over the page: the panel moves into the open one, or it would sit
+    // under it unseen.
+    const rehost = () => { if (!panel) return; const open = document.querySelectorAll('dialog[open]'), host = open.length ? open[open.length - 1] : document.body; if (panel.parentNode !== host) host.append(panel); };
+    setInterval(() => { if (panel && !panel.hidden) rehost(); }, 500);
     function toggle(show) {
         if (!panel) build();
         panel.hidden = !show;
+        if (show) rehost();
         flag(show);
     }
-    // The ring's home screen has a Debug icon (game.js buildHome).
+    // Opened by the ` key, ?debug in the address (with #ring: /?debug#ring), three fingers at once, or holding the top
+    // strip of the screen; the ring's home screen has no icon for it.
     window.DebugPanel = { toggle: () => toggle(!panel || panel.hidden) };
     // Two shortcuts that work on every screen (the owner's call, 2026-11-14: the title was a small target and not every
     // screen had it): a tap with three fingers anywhere, or holding the top strip of the screen (the status bar's

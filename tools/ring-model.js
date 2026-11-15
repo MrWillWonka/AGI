@@ -26,7 +26,7 @@
 
 'use strict';
 
-const DEFAULTS = { q: 10, qGrow: 1.6, s: 35, chew: 2, graze: 0.25, tough: [1, 2, 3], layerGrow: 1.8, miteFirst: 1, miteEvery: 1, payback: 120, clicks: 2.5 };
+const DEFAULTS = { q: 10, qGrow: 1.35, s: 35, chew: 2, graze: 0.25, tough: [1, 2, 3], layerGrow: 1.8, miteFirst: 1, miteEvery: 1, payback: 120, clicks: 2.5 };
 const DESK = [15, 25, 40, 60];   // the tower, keyboard, mouse and monitor: the server waits for the first boss
 const PACKETS = { 1: 45, 2: 75, 3: 75 };
 const CLOCK = { 1: 12, 2: 12.5, 3: 14 };

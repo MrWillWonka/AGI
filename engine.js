@@ -14,7 +14,7 @@
     // against the features it had (playtests/README.md lists the builds). Bump it with every publish: the date and
     // time (UTC) and a few words on what changed.
     const BUILD = '2026-11-11 20:54 (review branch) · Packet Snare 18.8: a 15-sector campaign with skill-gated bosses, racing combos, a limited wire and defences in the fight';
-    const SAVE_VERSION = 42;   // 42: The Feed's sessions (`feed.sessioned`, `stock`, `best`, `record`, `session`, `life`, `lastSession`; feed.js `clean` reads them). 41: Packet Snare's tree refunded (Sprawl and Sanitizer swapped, Sprawl far dearer). 40: `path.stuck`, the frontier runs in a row that got nowhere (the ring's help when stuck). 39: who is playing under the ring (`player`: the sign-in's name and email name, the device, the opening's reports and closes); 38: The Feed, the ring's calm minigame (`feed`: its heap, layer, mites and fragments; feed.js `clean`), new and empty; 37: Evals' Marks (`evals.marks`, `earned`), the rivals passed on its score sheet (`passed`) and its upgrades (`levels`); 36: Evals' loopholes (how misaligned the AI is, `evals.learn.mis`, and the loopholes closed for a kind, `closed`); 35: Evals' handovers (a kind's `handed` and `own`: you hand kinds to the AI, it never takes them); 34: Evals, the third minigame: what the AI has learned by watching you (`evals`), new and empty. 33: Packet Snare's flick nodes gone (Packet Spoofing, Forged Headers, Privilege Escalation; the owner's call on D20), the laser line and Blue Screen re-hung, the tree refunded again; 32: Packet Snare 18.4 (Garbage Collection, Second Wind, Clean Sweep, Quarantine Relay, Zero Trust and IDS Evasion gone, Chain Lightning a travelling bolt, Hijack reworked), the tree refunded again; 31: Packet Snare's repeats folded into four deep roots round a seed (Handshake), Scrubbers gone, the Decoder Bot early, the tree refunded; 30: Packet Snare's red-packet nodes back (Sanitizer, Checksums, Spam Filter, Reputation Check, Rate Limiter, Error Correction, Parity Check, Signature Database), the Cleaner Bot later, the Bouncer and Escort bots and both towers gone, the tree refunded again; 29: Packet Snare's red-packet nodes became helpers (Cleaner Bot at the root, Bouncer and Escort bots, Checksum and Jammer towers), the packet and red nodes folded into the early ones, the tree refunded again; 28: Packet Snare's tree after the review rounds (Input Validation and Mirror Port folded in, Chain Lightning at 250), refunded again; 27: Packet Snare 15 (bubbles are the way to catch: Split, Supernova, Bigger Buffers, mines grabbed), the tree refunded again; 26: Packet Snare 14 (bots earlier, powers with five levels, Collector Bot), the tree refunded again; 25: Packet Snare 12 (the boss looped, the tree repriced and Root Access moved), the tree refunded again; 24: Packet Snare's tree rearranged so no node does the same thing as the one it grows from, every level refunded; 23: Packet Snare's Firewalls became sections (layout.zones; drawn walls dropped), its tree regrown again with every level refunded; 22: Packet Snare's tree regrown (Snare 10: four wedges, capstones), every level refunded; 21: Packet Snare's placements (snare.layout: walls, decoys, turrets, towers; the anchors went), its tree regrown; 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
+    const SAVE_VERSION = 43;   // 43: the ring sells compute for money (`stats.cashSold`), and Graphics Cards cost money: a ring save's cards are paid for. 42: The Feed's sessions (`feed.sessioned`, `stock`, `best`, `record`, `session`, `life`, `lastSession`; feed.js `clean` reads them). 41: Packet Snare's tree refunded (Sprawl and Sanitizer swapped, Sprawl far dearer). 40: `path.stuck`, the frontier runs in a row that got nowhere (the ring's help when stuck). 39: who is playing under the ring (`player`: the sign-in's name and email name, the device, the opening's reports and closes); 38: The Feed, the ring's calm minigame (`feed`: its heap, layer, mites and fragments; feed.js `clean`), new and empty; 37: Evals' Marks (`evals.marks`, `earned`), the rivals passed on its score sheet (`passed`) and its upgrades (`levels`); 36: Evals' loopholes (how misaligned the AI is, `evals.learn.mis`, and the loopholes closed for a kind, `closed`); 35: Evals' handovers (a kind's `handed` and `own`: you hand kinds to the AI, it never takes them); 34: Evals, the third minigame: what the AI has learned by watching you (`evals`), new and empty. 33: Packet Snare's flick nodes gone (Packet Spoofing, Forged Headers, Privilege Escalation; the owner's call on D20), the laser line and Blue Screen re-hung, the tree refunded again; 32: Packet Snare 18.4 (Garbage Collection, Second Wind, Clean Sweep, Quarantine Relay, Zero Trust and IDS Evasion gone, Chain Lightning a travelling bolt, Hijack reworked), the tree refunded again; 31: Packet Snare's repeats folded into four deep roots round a seed (Handshake), Scrubbers gone, the Decoder Bot early, the tree refunded; 30: Packet Snare's red-packet nodes back (Sanitizer, Checksums, Spam Filter, Reputation Check, Rate Limiter, Error Correction, Parity Check, Signature Database), the Cleaner Bot later, the Bouncer and Escort bots and both towers gone, the tree refunded again; 29: Packet Snare's red-packet nodes became helpers (Cleaner Bot at the root, Bouncer and Escort bots, Checksum and Jammer towers), the packet and red nodes folded into the early ones, the tree refunded again; 28: Packet Snare's tree after the review rounds (Input Validation and Mirror Port folded in, Chain Lightning at 250), refunded again; 27: Packet Snare 15 (bubbles are the way to catch: Split, Supernova, Bigger Buffers, mines grabbed), the tree refunded again; 26: Packet Snare 14 (bots earlier, powers with five levels, Collector Bot), the tree refunded again; 25: Packet Snare 12 (the boss looped, the tree repriced and Root Access moved), the tree refunded again; 24: Packet Snare's tree rearranged so no node does the same thing as the one it grows from, every level refunded; 23: Packet Snare's Firewalls became sections (layout.zones; drawn walls dropped), its tree regrown again with every level refunded; 22: Packet Snare's tree regrown (Snare 10: four wedges, capstones), every level refunded; 21: Packet Snare's placements (snare.layout: walls, decoys, turrets, towers; the anchors went), its tree regrown; 20: Packet Snare pays Signal (snare.signal, earned), sectors and bosses (snare.sector, bosses); 19: Packet Snare (snare: the Data Pipeline's record and runs); 18: act one doubled (twelve real skills, act two from leg 13: learned, laps, best runs and leg strengths re-indexed); 17: the Auto-Trainer's ghost strength per leg (path.legPower); 16: dilemmas (questions by email, the mail's arrival order); 15: Procurement's fund (tasks.procurement.fund), the wall surge (path.surge); 14: the breakthrough guarantee's countdown (path.breakDue); 3: investor projects; 4: automated laps per cleared stretch (path.auto); 5: versions (legacy nodes, Insight), scheduled tasks; 6: best run per leg (path.legBest); 7: first-time intros remembered across versions (intro); 8: the warm-up leg (Tokenization) in front; 9: notation, sound and shake settings; 10: best runs per leg stored without XP multipliers, text size and calm settings, lifetime hand counts; 11: no offline setting, challenges, Transcend; 12: Head Start became a starter kit (Muscle Memory keeps its old effect), runPlayStart; 13: Transcendence perks (transcend.perks), long flights
     // Insight ever earned (spending it on legacy nodes keeps the bonus) multiplies automated production and
     // training XP by 1 + 0.07·√Insight: ×1.12 at 3, ×1.33 at 22, ×1.7 at 100. Legacy upgrades (the
     // Auto-Trainer, XP nodes) carry most of a new version's speed, so this stays small: at 0.2 a second run
@@ -324,7 +324,7 @@
         { id: 'server', tab: 'hardware', name: 'Server Cluster', cps: 3.3, effect: 'Generates compute', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 300 }, scale: 1.15,
             // Only after the first real skill (Pattern Matching), the owner's call: opened by the first run (the warm-up),
             // it sent you to the Training Cluster and straight back to the lab, which didn't feel good.
-            unlock: s => tierReady(s, 'server') && s.path.learned > FIRST_REAL_SKILL, hint: 'More Graphics Cards, more compute earned, and the first real skill' },
+            unlock: s => (ring ? level(s, 'cpu') >= RING_RIG_CARDS : tierReady(s, 'server') && s.path.learned > FIRST_REAL_SKILL), hint: 'More Graphics Cards, more compute earned, and the first real skill' },
         { id: 'quantum', tab: 'hardware', name: 'Quantum Processor', cps: 22, effect: 'Generates compute', flavor: 'It\'s both working and not working until you check.', cost: { cp: 6000 }, scale: 1.15,
             unlock: s => tierReady(s, 'quantum'), hint: 'More Server Clusters, and more compute earned' },
         { id: 'neural', tab: 'hardware', name: 'Neural Network Chip', cps: 150, effect: 'Generates compute', flavor: 'A chip shaped like the thing you\'re trying to build.', cost: { cp: 120000 }, scale: 1.15,
@@ -536,12 +536,52 @@
     // (`ring:server` in intro, set by the game) and bought with money. Whoever hasn't the money for it gets a deposit
     // (`fund:server`). Buying it opens the Training Cluster (the `module:path` milestone), where a sprint costs
     // research (RING_SPRINT_RP for a full one on the first legs), which The Feed makes. Placeholder numbers.
-    const RING_CALL_CP = 25, RING_DEPOSIT = 400, DESK_PRICES = [150, 40, 30, 180], RING_SERVER_PRICE = 400, RING_SPRINT_RP = 35;
+    // Sprint prices (the owner's picks, 2026-11-14, from their desktop log: the first Feed session paid 126 research
+    // against about 140 a run at 35 a sprint, so the second skill took 19 runs over four sessions; then one long
+    // session paid 3,802 and bought five skills in six minutes, a run costing 140 at skill 2 and only 280 at skill 6):
+    // a full sprint is RING_SPRINT_RP 15 until Pattern Matching and RING_SPRINT_GROWTH 1.6 times more for each skill
+    // learned after the warm-up (15, 24, 38, 61, 98 ...), in place of the old game's half steps. The numbers are mine.
+    // Pace (the owner's calls, 2026-11-14, after a log where the Lab, money, the desk, Packet Snare and The Feed all came
+    // inside 150 s): **no loan to start**. Parcel appears at RING_CALL_CP compute made and buys compute; the desk's
+    // parts are bought one at a time with what it pays (DESK_PRICES, in dollars: about 600 compute in all, PLACEHOLDER
+    // numbers of mine). **The Feed** opens once sector 1 is cleared, four runs are played and a stockpile has filled
+    // (`ring:feed` in intro, set by the game). **Graphics Cards** are sold only after the first Feed session
+    // (`ringCardsOpen`), the first RING_CARD_PRICE dollars and each RING_CARD_GROWTH times the last; M0M's call comes
+    // then, with RING_DEPOSIT dollars "to start automating".
+    const RING_CALL_CP = 25, RING_DEPOSIT = 100, DESK_PRICES = [10, 15, 15, 20], RING_SERVER_PRICE = 400, RING_SPRINT_RP = 15, RING_SPRINT_GROWTH = 1.6, RING_CARD_PRICE = 10, RING_CARD_GROWTH = 1.15, RING_FEED_RUNS = 4;
+    // Compute later on (the owner's picks, 2026-11-14, from their desktop log: a sector-8 run cost 7,517 compute against
+    // 11.4 a second, and no card was bought after the 17th, the 18th at $444 paying back in 2.5 hours): cards cost 15%
+    // more each (was 25%), a run's clock 1.35 times more a sector (was 1.6, `RING_CLOCK_GROWTH`), and once you have
+    // bought RING_RIG_CARDS cards Parcel sells a bigger machine: the old game's Server Cluster under another name,
+    // RING_RIG_PRICE dollars, RING_RIG_GROWTH times more each, RING_RIG_CPS compute a second. Name and numbers are
+    // placeholders of mine.
+    const RING_RIG = { name: 'Mining Rig', flavor: 'Ten cards on one frame. It heats the room.' };
+    const RING_RIG_PRICE = 250, RING_RIG_GROWTH = 1.25, RING_RIG_CPS = 5, RING_RIG_CARDS = 10;
+    // The phone has a graphics card in it, and the Desktop Tower comes with one (the owner's call, 2026-11-14): free
+    // cards, worked out here and never stored or paid for (`levels.cpu` stays the cards bought). The phone's starts
+    // working once the Lab has been opened.
+    const ringFreeCards = s => (!ring ? 0 : (s.intro['ring:labOpened'] || (s.stats.clicks || 0) > 0 ? 1 : 0) + ((s.levels.keyboard || 0) >= 1 ? 1 : 0));
+    // (Later that day, from the owner's log: 13 active minutes and five runs after the desk with no Feed and so no cards,
+    // 150 to 200 compute clicked for every run, $38 of compute sold with nothing to buy. Cards go on sale, and M0M
+    // calls, when the desk is finished.)
+    const ringCardsOpen = s => ring && (s.levels.keyboard || 0) >= RING_DESK;
+    const feedOpen = s => ring && (!!s.intro['ring:feed'] || !!s.intro['ring:feedIntro'] || ((s.feed && s.feed.stats && s.feed.stats.sessions) || 0) > 0);
     const RING_SERVER = { name: 'Server', flavor: 'One server. Your AI needs somewhere to train.' };
     const serverOffered = s => !!s.intro['ring:server'];
     const FUNDERS = ['m0m', 'dad', 'mom', 'payday', 'server'];
     const funded = s => FUNDERS.some(k => s.intro['fund:' + k]);
-    const deskCash = s => Math.max(0, FUNDERS.filter(k => s.intro['fund:' + k]).length * RING_DEPOSIT
+    // Compute is sold for money (the owner's call, 2026-11-14: a reason for the money that needs no offer taken, and
+    // later a hook for whose models your compute is feeding): `RING_CP_PER_DOLLAR` compute a dollar, whole dollars.
+    // Graphics Cards cost money under the ring, their compute price at that rate (a dollar at the least).
+    const RING_CP_PER_DOLLAR = 10;
+    function sellCompute(s, cp) {
+        const dollars = Math.floor(Math.max(0, Math.min(cp, s.res.cp)) / RING_CP_PER_DOLLAR);
+        if (!ring || dollars < 1) return 0;
+        s.res.cp -= dollars * RING_CP_PER_DOLLAR; s.stats.cashSold += dollars;
+        return dollars;
+    }
+    const cardsSpent = s => { let n = 0; if (ring) for (const id of ['cpu', 'server']) for (let l = 0, own = s.levels[id] || 0; l < own; l++) n += upgradeCost(UPGRADE_BY_ID[id], l).cash; return n; };
+    const deskCash = s => Math.max(0, FUNDERS.filter(k => s.intro['fund:' + k]).length * RING_DEPOSIT + (s.stats.cashSold || 0) - cardsSpent(s)
         - DESK_PRICES.slice(0, Math.min(RING_DESK, s.levels.keyboard || 0)).reduce((a, b) => a + b, 0) - ((s.levels.keyboard || 0) > RING_DESK ? RING_SERVER_PRICE : 0));
     // The next beat of the money story, or null: 'call', 'offer:<who>' (accept or decline), 'mail:<id>',
     // 'deposit:<who>' (no question). The game times them and shows them.
@@ -549,15 +589,14 @@
         if (!ring || !s.intro['mailAccepted:welcome']) return null;
         const step = deskFundStep(s);
         if (step) return step;
-        // The server: short of its price once it's offered, a deposit comes (once).
-        if (serverOffered(s) && (s.levels.keyboard || 0) <= RING_DESK && deskCash(s) < RING_SERVER_PRICE && !s.intro['fund:server']) return 'deposit:server';
+        // No money comes for the server (the owner's call, 2026-11-14: "players just get $400 for the server"): it is
+        // earned by selling compute. (A save that was given it keeps it: `fund:server` still counts in `deskCash`.)
         return null;
     }
     function deskFundStep(s) {
         const i = s.intro, decided = k => i['fund:' + k] || i['fundNo:' + k];
         if (!i['ring:call']) {
-            if ((s.levels.keyboard || 0) >= RING_DESK) return null;   // a desk built before money existed
-            return s.stats.runCp >= RING_CALL_CP ? 'call' : null;
+            return ringCardsOpen(s) ? 'call' : null;   // the call comes when Graphics Cards go on sale
         }
         if (!decided('m0m')) return 'offer:m0m';
         // Taken: the main beat (the owner's call). Mom writes that she is sending money and thinks it has gone through,
@@ -568,8 +607,8 @@
         // Dad's mail waits for the story build.
         if (!i['mail:mom']) return 'mail:mom';
         if (!decided('mom')) return 'offer:mom';
-        if (i['fund:mom']) return null;
-        return i['fund:payday'] ? null : 'deposit:payday';
+        // Both declined: no pay day any more (the owner's call, 2026-11-14): selling compute is how that player gets money.
+        return null;
     }
     function fundDecide(s, who, yes) {
         if (!FUNDERS.includes(who) || s.intro['fund:' + who] || s.intro['fundNo:' + who]) return false;
@@ -600,8 +639,8 @@
     // finished desk's card is the monitor's, not the server's it can't buy yet.
     const deskStage = s => clickTool(ring && level(s, 'keyboard') >= RING_DESK ? RING_DESK - 1 : level(s, 'keyboard'));
     const ringServerCard = (s, up) => ring && up.id === 'keyboard' && level(s, 'keyboard') === RING_DESK && !!s.intro['ring:server'];
-    const upgradeName = (s, up) => (ringServerCard(s, up) ? RING_SERVER.name : up.id === 'keyboard' ? deskStage(s).name : up.name);
-    const upgradeFlavor = (s, up) => (ringServerCard(s, up) ? RING_SERVER.flavor : up.id === 'keyboard' ? deskStage(s).flavor : up.flavor);
+    const upgradeName = (s, up) => (ring && up.id === 'server' ? RING_RIG.name : ringServerCard(s, up) ? RING_SERVER.name : up.id === 'keyboard' ? deskStage(s).name : up.name);
+    const upgradeFlavor = (s, up) => (ring && up.id === 'server' ? RING_RIG.flavor : ringServerCard(s, up) ? RING_SERVER.flavor : up.id === 'keyboard' ? deskStage(s).flavor : up.flavor);
     // A hardware tier shows up once you own TIER_REVEAL_OWNED of the tier below and have earned its full
     // price this run: late enough that the tier below has done its job, early enough to save up for it.
     const TIER_REVEAL_OWNED = 10;
@@ -1343,6 +1382,7 @@
                 tokens: 0,            // XP tokens taken
                 collectsEver: 0,      // hand collections and research runs in earlier versions (automation gates)
                 researchManualEver: 0,
+                cashSold: 0,          // the ring: dollars from compute sold (`sellCompute`)
                 finishedAt: 0         // play seconds when chapter one ended (ENDING_PHASE); 0 = not yet. Kept for good
             },
             path: { learned: 0, best: 0, auto: [], legBest: [], legPower: [], breakDue: 0, surge: 0, stuck: 0 },
@@ -1504,8 +1544,8 @@
         const hardwareRates = {};
         let cpPerSec = 0;
         for (const up of HARDWARE) {
-            const n = L(up.id);
-            const each = up.cps * hardwareDoubling(n) * hardwareMult;
+            const n = L(up.id) + (up.id === 'cpu' ? ringFreeCards(s) : 0);
+            const each = (ring && up.id === 'server' ? RING_RIG_CPS : up.cps) * hardwareDoubling(n) * hardwareMult;
             hardwareRates[up.id] = { each, total: each * n, nextDoubling: HARDWARE_DOUBLINGS.find(t => n < t) || null };
             cpPerSec += each * n;
         }
@@ -1642,6 +1682,11 @@
     // ---- Costs & purchases ----------------------------------------------
 
     function upgradeCost(up, lvl) {
+        const cost = upgradeCostBase(up, lvl);
+        if (ring && up.id === 'server') return { cash: Math.round(RING_RIG_PRICE * Math.pow(RING_RIG_GROWTH, lvl)) };
+        return ring && up.id === 'cpu' && cost.cp ? { cash: Math.round(RING_CARD_PRICE * Math.pow(RING_CARD_GROWTH, lvl)) } : cost;
+    }
+    function upgradeCostBase(up, lvl) {
         if (ring && up.id === 'keyboard' && lvl < RING_DESK) return { cash: DESK_PRICES[lvl] };   // the ring: the desk costs money
         if (ring && up.id === 'keyboard' && lvl === RING_DESK) return { cash: RING_SERVER_PRICE };   // and so does the server
         // Hand-priced first levels (`costs`), then `cost` (else the last hand price) grows by `scale` per level
@@ -1692,7 +1737,7 @@
         dataProcessor: [6, 3], autoCollector: [0, 2]
     };
     function capacity(s, up) {
-        const c = CAPACITY[up.id];
+        const c = CAPACITY[ring && up.id === 'server' ? 'cpu' : up.id];   // the ring: as much room for rigs as for cards
         if (ring && up.id === 'keyboard') return RING_DESK + (serverOffered(s) ? 1 : 0);   // the ring: the server waits for the first boss
         return c ? c[0] + Math.floor(c[1] * Math.max(0, legPos(s.path.learned) - 1)) : Infinity;
     }
@@ -1708,7 +1753,7 @@
     // back once training opened, and compute went to 160,000). Of the lab's own tabs only the desk and the Graphics
     // Card show; the Training and Packet Snare trees are untouched. The milestones that open the old tabs and the
     // Auto-Trainer don't fire, and no choice mail arrives.
-    const RING_LAB = new Set(['keyboard', 'cpu']);
+    const RING_LAB = new Set(['keyboard', 'cpu', 'server']);
     const RING_LAB_TABS = new Set(['hardware', 'software', 'algorithms', 'consciousness']);
     const RING_NO_MILESTONES = new Set(['auto:trainer', 'tab:algorithms', 'tab:consciousness']);
     const ringHides = up => ring && RING_LAB_TABS.has(up.tab) && !RING_LAB.has(up.id);
@@ -2032,7 +2077,7 @@
     function pushCost(s, charge = 1, leg = s.path.learned) {
         const n = Math.max(0, legPos(Math.min(leg, s.path.learned)) - 1);   // the warm-up and Pattern Matching's leg cost the base; act one climbs in half steps
         const early = Math.min(n, PATH.pushCostRampFrom);
-        const factor = Math.pow(PATH.pushCostScale, early) * Math.pow(PATH.pushCostLate, n - early) * charge * charge * challengeMods(s).costMult;
+        const factor = (ring ? Math.pow(RING_SPRINT_GROWTH, Math.max(0, Math.min(leg, s.path.learned) - 1)) : Math.pow(PATH.pushCostScale, early) * Math.pow(PATH.pushCostLate, n - early)) * charge * charge * challengeMods(s).costMult;
         const cost = {};
         // Computer Vision sees what matters and skips the rest: sprints need 30% less compute.
         const use = { cp: level(s, 'computerVision') ? 0.7 : 1 };
@@ -2375,11 +2420,14 @@
     // a grind can still do it: your hits do `SNARE_GATE_ARMOR` of their damage. A later boss needs every gate before it.
     const SNARE_GATE_SKILLS = [[MINE_SECTOR, 'Image Recognition'], [MINION_SECTOR, 'Speech Recognition'], [NET_SECTOR, 'Translation'], [SWARM_SECTOR, 'Analogy']];
     const SNARE_GATE_ARMOR = 0.3;
-    // The playground build (the owner's call, 2026-11-13): no boss waits on a Training skill. Set true to bring the gates back.
-    const SNARE_SKILL_GATES = false;
+    // The playground link (`#playground`, the owner's call, 2026-11-14): no boss waits on a Training skill there.
+    // game.js calls `setPlayground(true)` for that link; the plain game keeps the gates.
+    let playground = false;
+    const setPlayground = on => { playground = !!on; };
+    const isPlayground = () => playground;
     // The first skill a boss on sector k needs that you haven't learned (null when none).
-    const snareGateSkill = (s, k) => { if (ring && k === SNARE_FIRST_BOSS) return knows(s, 'Pattern Matching') ? null : 'Pattern Matching';   // the ring: the first gate
-        if (!SNARE_SKILL_GATES || !isSnareBossSector(k)) return null; const g = SNARE_GATE_SKILLS.find(([sec, name]) => k >= sec && !knows(s, name)); return g ? g[1] : null; };
+    const snareGateSkill = (s, k) => { if (ring) return k === SNARE_FIRST_BOSS && !knows(s, 'Pattern Matching') ? 'Pattern Matching' : null;   // the ring: the first gate only
+        if (playground || !isSnareBossSector(k)) return null; const g = SNARE_GATE_SKILLS.find(([sec, name]) => k >= sec && !knows(s, name)); return g ? g[1] : null; };
     const SNARE_GATES = [MINE_SECTOR, NET_SECTOR, MINION_SECTOR, SWARM_SECTOR];
     const SNARE_STAGES = [
         { sector: 0, adds: 'packets' }, { sector: RED_SECTOR, adds: 'red' }, { sector: AV_SECTOR, adds: 'antivirus' },
@@ -2797,7 +2845,7 @@
     // sector 1, ×`RING_CLOCK_GROWTH` a sector (tools/ring-model.js's `q` and `qGrow`). Paid at Start for the run's whole
     // clock (`focus` seconds); short of it, you play the seconds you can afford, down to `RING_CLOCK_MIN`. The first run
     // ever (the tutorial) is free, and going deeper mid-run costs nothing more. With the ring off, every run is free.
-    const RING_CLOCK = 10, RING_CLOCK_GROWTH = 1.6, RING_CLOCK_MIN = 3;
+    const RING_CLOCK = 10, RING_CLOCK_GROWTH = 1.35, RING_CLOCK_MIN = 3;
     function snareClock(s, k, focus) {
         const full = Math.max(0, num(focus, 0)), free = !ring || s.snare.runs === 0;
         const perSecond = RING_CLOCK * Math.pow(RING_CLOCK_GROWTH, Math.max(0, Math.floor(num(k, 0))));
@@ -2863,9 +2911,11 @@
     const feedOn = s => (ring && !s.feed.sessioned ? feedLib().sessions(s.feed) : s.feed);
     const feedDeliver = (s, load) => feedPay(s, feedLib().deliver(feedOn(s), load));
     const feedPoint = (s, cells) => feedLib().point(s.feed, cells);
+    const feedMark = (s, cells) => feedLib().mark(s.feed, cells);
     const feedStart = (s, sector) => feedLib().startSession(feedOn(s), sector);
     const feedStock = s => feedLib().stockList(feedOn(s));
-    const feedLeave = s => feedLib().endSession(feedOn(s), 'left');
+    const feedLeave = (s, why) => feedLib().endSession(feedOn(s), why === 'empty' ? 'empty' : 'left');
+    const feedCarry = (s, sector) => feedLib().carryOn(feedOn(s), sector);
     const feedPick = (s, n) => feedLib().pickCard(feedOn(s), n);
     function feedStep(s, dt) {
         const synced = feedSync(s), out = feedPay(s, feedLib().step(feedOn(s), dt));
@@ -3458,6 +3508,8 @@
         }
         for (const k of Object.keys(s.stats)) s.stats[k] = num(raw.stats?.[k], s.stats[k]);
         // Data earned this version is new: older saves start from what they hold and what they collected by hand.
+        // The ring, before compute was sold: the Graphics Cards a save already holds are paid for.
+        if (ring && raw.stats && raw.stats.cashSold === undefined) s.stats.cashSold = cardsSpent(s);
         if (raw.stats && raw.stats.runDp === undefined) s.stats.runDp = num(raw.res?.dp, 0) + s.stats.collects;
         // Sprints weren't counted before; older saves past the first skill get an estimate (about 2 per run).
         if (raw.stats && raw.stats.skilledSprints === undefined && num(raw.path?.learned, 0) >= 1) s.stats.skilledSprints = s.stats.rolls * 2;
@@ -3693,15 +3745,15 @@
     }
 
     return {
-        RING_STUCK_RUNS, RING_SURGE_SHARE, stuckOffer, takeSurge, passSurge, RING_SERVER_PRICE, RING_SPRINT_RP, RING_CALL_CP, RING_DEPOSIT, DESK_PRICES, deskCash, funded, fundStep, fundDecide,
-        feedStart, feedStock, feedLeave, feedPick,
+        RING_STUCK_RUNS, RING_SURGE_SHARE, stuckOffer, takeSurge, passSurge, RING_SERVER_PRICE, RING_SPRINT_RP, RING_SPRINT_GROWTH, RING_CALL_CP, RING_DEPOSIT, DESK_PRICES, RING_CARD_PRICE, RING_CARD_GROWTH, RING_RIG, RING_RIG_PRICE, RING_RIG_GROWTH, RING_RIG_CPS, RING_RIG_CARDS, RING_FEED_RUNS, ringCardsOpen, ringFreeCards, feedOpen, RING_CP_PER_DOLLAR, sellCompute, deskCash, funded, fundStep, fundDecide,
+        feedStart, feedStock, feedLeave, feedCarry, feedPick, feedMark,
         SAVE_VERSION, newPlayer, cleanPlayer, signIn, mailFill, WELCOME_FINAL, setRing, isRing, RING_DESK, deskLevels, deskDone, RING_CLOCK, RING_CLOCK_GROWTH, RING_CLOCK_MIN, snareClock, snarePayClock, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
         versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, startBreakCountdown, WALL_SURGE_RUNS, SURGE_POWER, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, ENDINGS, ending, recordLegPower, legPower, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
         upgradeCost, actionCost, canAfford, isMaxed, isUpgradeVisible, buy, act, tick, evaluate,
         prestigeGain, prestige, insightMult, insightBoost, CHALLENGES, CHALLENGES_AFTER, challengesOpen, challengeMods, startChallenge, abandonChallenge, canTranscend, transcendGain, transcend, TRANSCEND_PERKS, perkLevel, perkCost, buyPerk, LONG_FLIGHT, BUILD, HOLD_RATE, HOLD_INTERVAL_MS, holdClock, EXPLOIT_CHARGES, AUDIT_FLAGS, AUDIT_PAY, exploitCharges, grantExploit, LEG_CHARACTERS, legCharacter, characterLength, ACT_TWO_LEG, ACT_TWO_LOCKED, SNARE_OPEN_AT_START, frontierLeg, actTwoLocked, endingPhase, legPos, SKILL_INDEX, knows, WALL_EVERY, isWallLeg,
-        SNARE_RED_UNIT, SNARE_RED_FLOOR, snareRedShare, SNARE_DESKTOP, snareDesktop, SNARE_RUN_FLOORS, snareCatch, snareBossDown, snareMeltPool, snareMeltPay, snareGoalMet, snareGoal, isSnareBossSector, SNARE_BOSS_EVERY, SNARE_FIRST_BOSS, snareBossOrdinal, finishSnare, snareOpts, SNARE_STAGES, RED_SECTOR, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, SNARE_GATE_SKILLS, SNARE_GATE_ARMOR, SNARE_SKILL_GATES, snareGateSkill, SNARE_END_BOSS, snareGoalOrdinal, snareBossHp, snareBossHealth, SNARE_SKILL_BUFFS, snareSkillBuffs, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
+        SNARE_RED_UNIT, SNARE_RED_FLOOR, snareRedShare, SNARE_DESKTOP, snareDesktop, SNARE_RUN_FLOORS, snareCatch, snareBossDown, snareMeltPool, snareMeltPay, snareGoalMet, snareGoal, isSnareBossSector, SNARE_BOSS_EVERY, SNARE_FIRST_BOSS, snareBossOrdinal, finishSnare, snareOpts, SNARE_STAGES, RED_SECTOR, SWEEP_SECTOR, AV_SECTOR, MINION_SECTOR, FAST_SWEEP_SECTOR, MINE_SECTOR, NET_SECTOR, SWARM_SECTOR, SNARE_GATES, SNARE_GATE_SKILLS, SNARE_GATE_ARMOR, setPlayground, isPlayground, snareGateSkill, SNARE_END_BOSS, snareGoalOrdinal, snareBossHp, snareBossHealth, SNARE_SKILL_BUFFS, snareSkillBuffs, snareLevels, snareOverclock, SNARE_RP_CAP, SNARE_TREE, snareTreeReady, ROGUE_SECTOR, SNARE_SECTORS, snareSectorName, snareBossHits, snareSectorPay, snareRpPerSec, SNARE_RP_SIGNAL,
         skillAt, pushCost, affordableCharge, rollSeed, payPush, bonusZone, zoneHit, cleanUnits, rollXp, pushBonusXp, grantPushBonus, finishRoll, crestSkill, learnSkill, stretchXpAt, legMetres, CLICK_TOOLS, clickTool, clickToolPower, nextClickTool, upgradeName, upgradeFlavor, sprintStrength, breakthroughHit, windfallHit, crunchHit, maxEffortHit, flowHit, superHit, luck,
         migrate, serialize, deserialize,
         format, formatCost, formatDuration, setNotation, NOTATIONS, bulkCost, maxAffordable, buyMany
