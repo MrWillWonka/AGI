@@ -4626,20 +4626,6 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2), inset 0 1.5px 1.5px rgba(255, 255, 255, 0.4), inset 0 -8px 14px rgba(0, 0, 0, 0.5), 0 6px 18px rgba(0, 0, 0, 0.6);
     transition: filter 0.4s ease-out; }
 .assist-dot.swell .assist-mark.orb-face { filter: brightness(1.3); transition-duration: 0.12s; }
-.orb-face svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; opacity: calc(0.6 + 0.4 * var(--orb-power)); }
-.orb-face path { fill: none; stroke-linecap: round; }
-.orb-core { fill: var(--success); opacity: calc(0.25 + 0.45 * var(--orb-power)); }
-.orb-w-glow { stroke: var(--success); stroke-width: 11; opacity: 0.85; }
-.orb-w-f1 { stroke: #7fe9ff; stroke-width: 3.2; opacity: 0.6; transform: translateY(-1.8px); }
-.orb-w-f2 { stroke: #ff8ad0; stroke-width: 3.2; opacity: 0.45; transform: translateY(1.8px); }
-.orb-w-core { stroke: #fff; stroke-width: 2.4; }
-.orb-w-thin { stroke-width: 1.3; opacity: 0.8; }
-.orb-wave-b .orb-w-glow { stroke-width: 5; opacity: 0.6; }
-.orb-wave-a { animation: orb-wave-a 9s linear infinite; }
-.orb-wave-b { animation: orb-wave-b 6.5s linear infinite; }
-@keyframes orb-wave-a { to { transform: translateX(80px); } }
-@keyframes orb-wave-b { to { transform: translateX(-56px); } }
-.assist-dot.mini .orb-w-core { stroke-width: 4; }
 /* The wire from the orb to what it points at and on to its line: soft elbowed corners, a pulse travelling along it. */
 .assist-thread { display: none !important; }
 .assist-wire { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 6000; overflow: visible; filter: drop-shadow(0 0 5px var(--success)); }
@@ -4664,95 +4650,36 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 /* Parcel's sell box is one line now (its Sell buttons are gone: the owner's call, 2026-11-15). */
 .shop-have { margin-bottom: 0; }
 
-/* The orb, fourth look (the owner's own picture, 2026-11-15): a teal glass sphere with a bright rim, fine contour lines
-   flowing across it and winding into a small amber core. The core's glow and the halo follow --orb-power. */
-.assist-dot .assist-mark.orb-face, .assist-dot.has .assist-mark.orb-face {
-    background: radial-gradient(circle at 50% 43%, color-mix(in srgb, var(--success) 20%, #06120f), color-mix(in srgb, var(--success) 13%, #030a09) 70%, color-mix(in srgb, var(--success) 24%, #030a09) 100%);
-    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--success) 88%, #fff), inset 0 0 9px color-mix(in srgb, var(--success) 55%, transparent), 0 0 7px color-mix(in srgb, var(--success) 60%, transparent), 0 6px 18px rgba(0, 0, 0, 0.55); }
-.orb-face svg { opacity: 1; }
-.orb-face .orb-sheen { fill: color-mix(in srgb, var(--success) 60%, #fff); stroke: none; opacity: 0.07; }
-.orb-face .orb-lines path { fill: none; stroke: color-mix(in srgb, var(--success) 85%, #fff); stroke-width: 0.9; stroke-linecap: round; opacity: calc(0.5 + 0.4 * var(--orb-power)); stroke-dasharray: 46 5; animation: orb-flow 14s linear infinite; }
-.orb-face .orb-lines path:nth-child(even) { animation-duration: 19s; }
-@keyframes orb-flow { to { stroke-dashoffset: -102; } }
-.orb-face .orb-core { fill: var(--warning); opacity: 1; }
-.orb-face .orb-core-glow { opacity: calc(0.25 + 0.75 * var(--orb-power)); transform-origin: 50.5px 43px; transition: opacity 0.9s ease; }
-.assist-dot.making .orb-core-glow, .assist-dot.has .orb-core-glow, .assist-dot.speaking .orb-core-glow { animation: orb-core 2.8s ease-in-out infinite; }
-.assist-dot.has .orb-core-glow, .assist-dot.speaking .orb-core-glow { animation-duration: 1.5s; }
-@keyframes orb-core { 50% { opacity: calc(0.45 + 0.55 * var(--orb-power)); transform: scale(1.25); } }
-.assist-dot.mini .orb-lines path { stroke-width: 1.8; }
-.assist-dot.mini .orb-core { r: 5px; }
-@media (prefers-reduced-motion: reduce) { .orb-face .orb-lines path, .assist-dot .orb-core-glow { animation: none !important; } }
-/* The contour lines are whole and still (dashes read as broken lines at this size); only the core and the halo move. */
-.orb-face .orb-lines path { stroke-dasharray: none; animation: none; stroke-width: 0.75; }
-
-/* The orb talking (the owner's second picture, 2026-11-15): while a line is up the rim and the lines brighten and
-   glow, the innermost loop gives way to amber rings that ripple out from the core, and the core swells. */
-.orb-face .orb-ring { fill: none; stroke: var(--warning); stroke-width: 0.8; opacity: 0; transform-origin: 50.5px 43px; }
-.orb-face .orb-core { transform-origin: 50.5px 43px; transition: transform 0.5s ease; }
-.orb-face .orb-lines path { transition: opacity 0.5s ease, stroke-width 0.5s ease; }
-.orb-face svg { transition: filter 0.5s ease; }
-.assist-dot.speaking .assist-mark.orb-face { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--success) 75%, #fff), inset 0 0 14px color-mix(in srgb, var(--success) 70%, transparent), 0 0 14px var(--success), 0 0 30px color-mix(in srgb, var(--success) 45%, transparent), 0 6px 18px rgba(0, 0, 0, 0.55); }
-.assist-dot.speaking .orb-face svg { filter: drop-shadow(0 0 1.6px var(--success)); }
-.assist-dot.speaking .orb-lines path { opacity: 1; stroke-width: 1.05; stroke: color-mix(in srgb, var(--success) 70%, #fff); }
-.assist-dot.speaking .orb-lines path:nth-child(5) { opacity: 0; }
-.assist-dot.speaking .orb-core { transform: scale(1.35); }
-.assist-dot.speaking .orb-core-glow { opacity: 1; }
-.assist-dot.speaking .orb-ring { animation: orb-ring 2.1s ease-out infinite; }
-.assist-dot.speaking .orb-ring-2 { animation-delay: -0.7s; }
-.assist-dot.speaking .orb-ring-3 { animation-delay: -1.4s; }
-@keyframes orb-ring { 0% { transform: scale(0.45); opacity: 0; } 18% { opacity: 0.95; } 100% { transform: scale(1.25); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .assist-dot.speaking .orb-ring { animation: none; opacity: 0.6; } }
-
-/* The orb grown strong (the owner's third picture, 2026-11-15). --orb-strong goes 0 to 1 over the top of --orb-power
-   (from about 10K of a run's compute to about 2M): the calm contour lines give way to three ribbons sweeping round a
-   core that grows and moves to the centre, each ribbon pinched at an amber node, and broken arcs appear outside. */
-.assist-dot { --orb-strong: clamp(0, calc((var(--orb-power) - 0.66) * 3.2), 1); }
-.orb-face .orb-lines { opacity: calc(1 - var(--orb-strong)); transition: opacity 0.9s ease; }
-.orb-face .orb-strong { opacity: var(--orb-strong); transition: opacity 0.9s ease; }
-.orb-face .orb-strong path { fill: none; stroke: color-mix(in srgb, var(--success) 78%, #fff); stroke-width: 0.85; stroke-linecap: round; }
-.orb-face .orb-strong-turn { animation: orb-turn 90s linear infinite; }
-@keyframes orb-turn { to { transform: rotate(360deg); } }
-.orb-face .orb-node { fill: #fff3b8; stroke: var(--warning); stroke-width: 0.7; }
-.orb-face .orb-core-ring { fill: none; stroke: var(--warning); stroke-width: 0.6; opacity: 0.7; }
-.orb-face .orb-core { fill: url(#orbCoreFill); transform: translate(calc(var(--orb-strong) * -0.5px), calc(var(--orb-strong) * 3px)) scale(calc(1 + 4 * var(--orb-strong))); transition: transform 0.9s ease; }
-.assist-dot.speaking .orb-core { transform: translate(calc(var(--orb-strong) * -0.5px), calc(var(--orb-strong) * 3px)) scale(calc(1.35 + 3.85 * var(--orb-strong))); }
-.orb-face .orb-core-glow, .orb-face .orb-rings { translate: calc(var(--orb-strong) * -0.5px) calc(var(--orb-strong) * 3px); }
-.orb-face .orb-rings { transform-origin: 50.5px 43px; transform: scale(calc(1 + 1.3 * var(--orb-strong))); }
-.assist-dot .assist-mark.orb-face { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--success) 88%, #fff), inset 0 0 calc(9px + 14px * var(--orb-strong)) color-mix(in srgb, var(--success) 55%, transparent), 0 0 calc(7px + 10px * var(--orb-strong)) color-mix(in srgb, var(--success) 60%, transparent), 0 6px 18px rgba(0, 0, 0, 0.55); }
-.orb-arcs { position: absolute; inset: -13%; pointer-events: none; opacity: var(--orb-strong); transition: opacity 0.9s ease; }
-.orb-arcs svg { width: 100%; height: 100%; display: block; overflow: visible; }
-.orb-arc { fill: none; stroke: color-mix(in srgb, var(--success) 80%, #fff); stroke-width: 0.7; stroke-linecap: round; }
-.orb-arc-warm { stroke: var(--warning); }
-.orb-arcs-turn { transform-origin: 50px 50px; animation: orb-turn 140s linear infinite reverse; }
-.assist-dot.mini .orb-arcs { display: none; }
-@media (prefers-reduced-motion: reduce) { .orb-face .orb-strong-turn, .orb-arcs-turn { animation: none; } }
-
-/* The AI's four forms (the owner's pictures, 2026-11-15), a class on the orb: form-1 the calm sphere, form-2 the strong
-   sphere, form-3 unbound (no sphere: ribbons streaming from three nodes round a flame), form-4 the final knot. */
-.assist-dot { --orb-strong: 0; }
-.assist-dot.form-2 { --orb-strong: 1; }
-.orb-face .orb-free, .orb-face .orb-final { opacity: 0; transition: opacity 1.2s ease; transform-origin: 50px 50px; }
-.assist-dot.form-3 .orb-free, .assist-dot.form-4 .orb-final { opacity: 1; }
-.assist-dot.form-3 .assist-mark.orb-face, .assist-dot.form-4 .assist-mark.orb-face { background: none; box-shadow: none; overflow: visible; }
-.assist-dot.form-3 .orb-face svg, .assist-dot.form-4 .orb-face svg { filter: drop-shadow(0 0 1.5px color-mix(in srgb, var(--success) 70%, transparent)); }
-.assist-dot.form-3 .orb-lines, .assist-dot.form-4 .orb-lines, .assist-dot.form-3 .orb-sheen, .assist-dot.form-4 .orb-sheen,
-.assist-dot.form-3 .orb-core, .assist-dot.form-4 .orb-core, .assist-dot.form-3 .orb-core-glow, .assist-dot.form-4 .orb-core-glow { opacity: 0; animation: none; }
-.orb-face .orb-free path, .orb-face .orb-final .orb-flame path { fill: none; stroke: color-mix(in srgb, var(--success) 80%, #fff); stroke-width: 0.8; stroke-linecap: round; }
-.orb-face .orb-flame path { stroke: var(--warning); stroke-width: 0.9; }
-.orb-face .orb-flame .orb-flame-body { fill: url(#orbCoreFill); stroke: none; }
-.orb-face .orb-flame-glow { opacity: calc(0.5 + 0.5 * var(--orb-power)); transform-origin: 50px 47px; }
-.assist-dot.making .orb-flame-glow, .assist-dot.speaking .orb-flame-glow { animation: orb-core 2.8s ease-in-out infinite; }
-.orb-face .orb-ribbon { transform-origin: 50px 45px; animation: orb-sway 9s ease-in-out infinite alternate; }
-.orb-face .orb-ribbon:nth-child(2) { animation-duration: 11s; animation-direction: alternate-reverse; }
-.orb-face .orb-ribbon:nth-child(3) { animation-duration: 13s; }
-@keyframes orb-sway { from { transform: rotate(-3.5deg); } to { transform: rotate(3.5deg); } }
-.orb-face .orb-band { fill: color-mix(in srgb, var(--success) 60%, #fff); fill-opacity: 0.1; stroke: color-mix(in srgb, var(--success) 80%, #fff); stroke-width: 0.6; stroke-opacity: 0.85; }
-.orb-face .orb-band-in { fill-opacity: 0.14; stroke-opacity: 0.5; }
-.orb-face .orb-star { fill: var(--warning); fill-opacity: 0.45; stroke: var(--warning); stroke-width: 0.6; }
-.orb-face .orb-star-in { fill: url(#orbCoreFill); fill-opacity: 0.9; stroke: #fff3b8; }
-.orb-face .orb-final { animation: orb-final 8s ease-in-out infinite alternate; }
-@keyframes orb-final { from { transform: scale(0.97); } to { transform: scale(1.04); } }
-.assist-dot.form-3 .orb-rings { translate: -0.5px 2px; }
-.assist-dot.form-4 .orb-rings { translate: -0.5px 7px; transform: scale(1.4); }
+/* The orb's face is the owner's pictures (art/orb-*.webp; tools/orb-art.js): form-1 the calm sphere (and its talking
+   picture), form-2 the strong sphere, form-3 unbound, form-4 the final knot. In the art the sphere's edge is at 80.66%
+   of the half-picture, so the pictures are drawn at 124% of the orb for the sphere to fill the orb's circle; the
+   strong form's outer arcs and the loose forms reach past it. The halo behind and the brightness follow --orb-power. */
+.assist-dot .assist-mark.orb-face, .assist-dot.has .assist-mark.orb-face, .assist-dot.speaking .assist-mark.orb-face { background: none; box-shadow: none; overflow: visible; border-radius: 0; filter: brightness(calc(0.86 + 0.2 * var(--orb-power))); }
+.assist-dot.swell .assist-mark.orb-face { filter: brightness(calc(1.06 + 0.2 * var(--orb-power))); }
+.orb-img { position: absolute; left: 50%; top: 50%; width: 124%; height: 124%; max-width: none; transform: translate(-50%, -50%); opacity: 0; transition: opacity 1.1s ease; pointer-events: none; -webkit-user-select: none; user-select: none; -webkit-user-drag: none; }
+.assist-dot.form-1 .orb-img-calm, .assist-dot.form-2 .orb-img-strong, .assist-dot.form-3 .orb-img-free, .assist-dot.form-4 .orb-img-final { opacity: 1; }
+/* Talking: the calm form shows its talking picture, its rings and rim swelling; the later forms brighten and swell in the same rhythm. */
+.assist-dot.form-1.speaking .orb-img-talk { opacity: 1; transition-duration: 0.45s; animation: orb-talk 1.5s ease-in-out infinite; }
+.assist-dot.form-1.speaking .orb-img-calm { opacity: 0; transition-delay: 0.3s; }
+.assist-dot.form-2.speaking .orb-img-strong, .assist-dot.form-3.speaking .orb-img-free, .assist-dot.form-4.speaking .orb-img-final { animation: orb-talk 1.5s ease-in-out infinite; }
+@keyframes orb-talk { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.35) saturate(1.15); } }
+/* Making compute: a slow, slight breath of light. */
+.assist-dot.making:not(.speaking) .orb-img { animation: orb-make 2.8s ease-in-out infinite; }
+@keyframes orb-make { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(calc(1.06 + 0.12 * var(--orb-power))); } }
+/* The loose forms move a little: the ribbons sway, the knot breathes. */
+.assist-dot.form-3 .orb-img-free { animation: orb-sway 11s ease-in-out infinite alternate; }
+.assist-dot.form-4 .orb-img-final { animation: orb-knot 8s ease-in-out infinite alternate; }
+.assist-dot.form-3.speaking .orb-img-free { animation: orb-sway 11s ease-in-out infinite alternate, orb-talk 1.5s ease-in-out infinite; }
+.assist-dot.form-4.speaking .orb-img-final { animation: orb-knot 8s ease-in-out infinite alternate, orb-talk 1.5s ease-in-out infinite; }
+@keyframes orb-sway { from { transform: translate(-50%, -50%) rotate(-3deg); } to { transform: translate(-50%, -50%) rotate(3deg); } }
+@keyframes orb-knot { from { transform: translate(-50%, -50%) scale(0.97); } to { transform: translate(-50%, -50%) scale(1.03); } }
+/* The halo behind sits closer on the forms that glow by themselves. */
+.assist-dot.form-3::before, .assist-dot.form-4::before { opacity: calc(0.06 + 0.2 * var(--orb-power)); }
 .assist-form { opacity: 0.8; }
-@media (prefers-reduced-motion: reduce) { .orb-face .orb-ribbon, .orb-face .orb-final, .assist-dot .orb-flame-glow { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .orb-img { animation: none !important; } }
+/* The halo is quieter now that the art carries its own glow: a soft breath behind it, less on the later forms. */
+.assist-dot::before { opacity: calc(0.06 + 0.16 * var(--orb-power)); }
+@keyframes orb-breathe {
+    0%, 100% { opacity: calc(0.06 + 0.16 * var(--orb-power)); transform: scale(calc(0.72 + 0.2 * var(--orb-power))); }
+    50% { opacity: calc(0.12 + 0.34 * var(--orb-power)); transform: scale(calc(0.78 + 0.26 * var(--orb-power))); } }
+.assist-dot.form-2::before, .assist-dot.form-3::before, .assist-dot.form-4::before { filter: opacity(0.55); }

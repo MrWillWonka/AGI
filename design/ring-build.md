@@ -581,3 +581,17 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   What strength is measured by is the owner's to say (asked; open).
 - **Playground preview:** the assistant's sheet (tap the orb) has "Orb form: … (tap to change)", stepping through
   1 to 4 and back to "by compute". Playground only.
+
+## 2026-11-15: the orb is the owner's pictures themselves (the owner: the drawn forms didn't look right)
+
+- My SVG redrawings of the forms are gone. The orb's face is now the owner's five pictures: the originals are kept in
+  `design/orb/` (calm, talking, strong, unbound, final), and `node tools/orb-art.js` makes the game's art from them
+  (`art/orb-*.webp`, 512 px, about 850 KB together): cropped square about the subject, the dark ground turned into
+  transparency so the glow and the loose ribbons sit on the game's own background, the inside of a sphere kept solid.
+- Forms as before (`form-1` to `form-4`, cross-fading); talking shows the talking picture on the calm form and a
+  brightening pulse on the others; making compute is a slow, slight breath of light; the unbound form sways a few
+  degrees and the final form breathes. The halo behind is much quieter, since the art has its own glow.
+- **Not following the theme:** the art is teal and amber in every theme (the drawn orb took the theme's colours).
+- **The review artifact's file list (`tools/review/artifact-files.js`) is text only** and does not carry `art/`; a
+  published artifact would show no orb until that is extended. The play server serves it (`.webp` added to serve.js).
+- Still a placeholder: what moves the AI from form to form (`ORB_FORMS`, the run's compute at 10K, 10M, 10B).
