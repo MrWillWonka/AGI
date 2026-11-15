@@ -427,3 +427,35 @@ Asked as cards first.
 Also asked for: the music work on `claude/audio-overhaul`. Not merged: that worktree had uncommitted edits to
 sfx.js and music/soft.js made minutes before (another agent still working). Its committed work would merge with one
 conflict, in engine.js.
+
+## 2026-11-15: the desktop log of 10:08 (playtests/inbox/20261115-100800, 13 snapshots) and batch 4 (notes 8, 9, 10, 18)
+
+Nine minutes on the plain link at 3072 × 1503, as far as M0M's call. Each thing seen in the snapshots was put to the
+owner as a card; built as answered.
+
+From the snapshots:
+- **Banners** (achievements, deliveries, snapshots) drop in at the top right on a wide screen; they covered the orb at
+  the top of the Lab. On a phone the Lab's orb sits lower instead.
+- **A line said in Parcel** sits in a strip at the foot of Parcel's window with a small orb of its own, no thread
+  (it lay over Sell Compute and the tabs).
+- **The old minimap** never shows under the ring (the owner: until the warehouse or office).
+- **Pinning the dock** no longer shifts the page or adds a scrollbar: room is left only where something would be
+  under the dock (`desk.dockFit` measures it).
+- **The dock's lines** are said in an app; go to the home screen with one up and it waits (one showed there, over the
+  home dock).
+- **M0M's call** fills the screen on a zoomed page (its middle was off to the right and Decline was off the foot:
+  100vw of a page drawn at `--zoom`).
+- **Parcel sells and buys in one tap** when your compute covers the gap: "Sell 100 compute and buy" (it said "Need $10
+  more" to someone holding 141 compute).
+- Not changed: the gap under the Lab's orb (the owner's snapshots there were about the page shifting, now fixed).
+
+Batch 4:
+- **Notes 8 and 18, the data stream and the landscape** (the owner's pick: the AI narrates over the field): the first
+  time Packet Snare opens, the field is shown on its own while the AI says two lines (`stream1`, `stream2`), then the
+  first card; the first time Training opens it says two over the landscape (`land1`, `land2`). PLACEHOLDERS.
+- **Note 9, the level choice** (the owner: the AI only; the upgrades screen needs the choice too; and it should
+  stick): the AI explains Start at once (`pick`); the choice is kept after a replay clears, and across loads on that
+  device (`snarePickKeep`); the upgrades screen has the same picker beside Start run.
+- **Note 10, AI help** (the owner's pick: point at it): the orb's panel has "What is this?"; the next tap anywhere is
+  the question, and the AI says a line about what is under it, ringed (`ASSIST_HELP`, 35 things, lines `help:*`,
+  all PLACEHOLDERS, some meant to be funny). It has no line for the status bar's numbers, and offers no walkthroughs yet.

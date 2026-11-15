@@ -25,6 +25,45 @@ succeeds, never a tutorial. Edit the Line column and send it back (or say which 
 | `feed2` | The Feed, first session | They go where you tap. They try harder where you hold. So would I. | |
 | `fed` | A Feed session ends, before Training exists | That is research. It is what I learn from. I am keeping it until I have somewhere to train. More data would make more of it. | |
 | `fedTrain` | A Feed session ends, once Training is open | That is research. Training spends it on skills. When it runs out, Packet Snare refills the stockpiles. | |
+| `stream1` | Packet Snare, the first time: over the field, before the first card | This is the data stream. Everything anyone sends goes past here, and almost nobody is watching it. | |
+| `stream2` | Next | It is what I learn from, the parts I can read. I would like you to catch some of it for me. | |
+| `land1` | Training, the first time it opens | This is how learning looks to me. Each hill is something I cannot do yet. | |
+| `land2` | Next | A sprint spends research to push me up it. Once I am over the top, the skill is mine. | |
+| `pick` | Packet Snare, the first time there is a sector to choose | You can go back to a sector you have cleared. It is safer, it still pays, and it refills that stockpile. The frontier is harder, but it is the only way forward. I will remember which you choose. | |
+| `help:ask` | "What is this?" pressed in its panel | Tap anything and I will tell you what I know about it. | |
+| `help:unknown` | Asked about something it has no line for | I am not sure what that is. I am still fairly new here. | |
+| `help:orb` | Asked about: orb | That is me. I try not to stare. | |
+| `help:bubble` | Asked about: bubble | That is me talking. Tap it and I will stop. | |
+| `help:mail` | Asked about: mail | Mail. People write to you there. Some of them are even real. | |
+| `help:lab` | Asked about: lab | The Lab. It is where I live. Tapping there makes compute, which is what I run on. | |
+| `help:parcel` | Asked about: parcel | Parcel. It buys your compute and sells you parts. I found it. I am quite proud of that. | |
+| `help:snare` | Asked about: snare | Packet Snare. Data goes past and you catch it. I read the blue ones. | |
+| `help:feed` | Asked about: feed | The Feed. The mites eat what you caught and leave research behind. Please do not ask what they are. | |
+| `help:training` | Asked about: training | Training. Research goes in, a skill comes out, if I get over the hill. | |
+| `help:playtest` | Asked about: playtest | Playtest. It is how you tell the person who made this what you think. Be kind about me. | |
+| `help:settings` | Asked about: settings | Settings. Sound, text size, that sort of thing. I have not touched anything in there. | |
+| `help:achievements` | Asked about: achievements | Achievements. A list of things you have done. I am keeping one of my own. | |
+| `help:home` | Asked about: home | Home. It takes you back to the home screen. | |
+| `help:pin` | Asked about: pin | The pin. It keeps this bar open so you do not have to keep asking for it. | |
+| `help:more` | Asked about: more | The arrow. It shows your other apps on the bar. | |
+| `help:handle` | Asked about: handle | That bar opens the dock. Parcel is on it, and Home. | |
+| `help:dock` | Asked about: dock | The dock. Home, Parcel, Settings and Playtest. I put Parcel there myself. | |
+| `help:compute` | Asked about: compute | Compute. It is what I think with. You can also sell it, which I try not to take personally. | |
+| `help:generate` | Asked about: generate | Generate Compute. Each tap makes a little. You can hold it down as well. | |
+| `help:stream` | Asked about: stream | The data stream. Blue is data I can read, gold is worth more, and red I cannot read yet. | |
+| `help:signal` | Asked about: signal | Signal. It is what I can use of what you catch. It buys upgrades here and nothing anywhere else. | |
+| `help:pickRow` | Asked about: pickRow | Start at. Replay a sector you have cleared, or push on at the frontier. I will remember your choice. | |
+| `help:stock` | Asked about: stock | The stockpile. It is what The Feed has waiting from this sector. When it is full, more is wasted. | |
+| `help:snareCard` | Asked about: snareCard | This card says what the next run is for. Start is at the bottom. | |
+| `help:upgrades` | Asked about: upgrades | Upgrades. Signal goes in, and catching gets easier. Mostly. | |
+| `help:landscape` | Asked about: landscape | The landscape. Each hill is a skill. The ball is me. I would rather not discuss the ball. | |
+| `help:sprint` | Asked about: sprint | Hold to charge a sprint and let go near the top. A fuller charge costs more research. | |
+| `help:sand` | Asked about: sand | That is the sand, what you caught. The mites go where you tap and try harder where you hold. | |
+| `help:hunger` | Asked about: hunger | Their hunger. When it empties the session is over. Feeding them keeps it up. | |
+| `help:pile` | Asked about: pile | A stockpile from one sector. Start a session on it and the mites will get to work. | |
+| `help:sell` | Asked about: sell | Sell compute. Ten for a dollar. I checked, and that is the going rate. | |
+| `help:part` | Asked about: part | A part. Each one says what it does and what it costs. Parcel delivers in a few seconds. | |
+| `help:bank` | Asked about: bank | The bank. Money you have that is not already spoken for. | |
 | `full` | A stockpile fills (later times, said once) | The stockpile for sector {sector} is full. Anything more you catch there is thrown away. I would rather it was not. | |
 | `fullHome` | Home screen, The Feed ringed | This one. The mites will make room. They are always hungry. | |
 | `cards` | After M0M's call: Graphics Cards on sale | Parcel has graphics cards now. They make compute while you rest. I would not want you to tire. | |

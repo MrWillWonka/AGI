@@ -4576,3 +4576,21 @@ body.ring-device #labRoom > #labSupply { height: 100px; flex: 0 0 100px; }
 .feed-dial input { width: 100%; }
 .feed-dial b { color: var(--text); text-align: right; }
 .feed-dial-out { display: block; margin: 6px 0; color: var(--text); overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
+
+/* The owner's calls on the desktop screenshots of 2026-11-15, 10:10 to 10:17. */
+/* Banners drop in at the top right on a wide screen (they covered the orb at the top of the Lab); on a phone the Lab's orb sits lower. */
+body.device-laptop .device-notices, body.device-laptop .device-notices[popover] { left: auto; right: 22px; top: 48px; transform: none; }
+body.device-phone .ai-home { padding-top: 30px; }
+/* A line said in Parcel sits in a strip inside its window, with a small orb of its own and no thread. */
+.assist.in-shop, body.device-laptop .assist.in-shop, :root:has(.device-notice) .assist.in-shop { position: absolute; inset: auto 14px 14px 14px; top: auto; display: flex; justify-content: center; }
+.assist.in-shop .assist-bubble { max-width: none; grid-template-columns: auto 1fr auto; align-items: center; }
+.assist.in-shop .assist-bubble > .assist-mark { display: block; width: 22px; height: 22px; margin: 0 4px 0 0; }
+/* The old game's map waits for the warehouse (the owner's call): never under the ring for now. */
+body.ring-device .minimap { display: none !important; }
+/* The call fills the screen on a zoomed page too (it was 100vw of a page drawn at --zoom, so its middle was off to the right and Decline off the foot). */
+.device-call { width: calc(100vw / var(--zoom, 1)); height: calc(100dvh / var(--zoom, 1)); }
+
+/* Batch 4: asking the AI about something (the next tap is the question), and the sector choice on the upgrades screen. */
+.assist-veil { position: fixed; inset: 0; z-index: 6003; cursor: help; background: rgba(0, 0, 0, 0.22); }
+.snare-tree-pick { display: inline-flex; align-items: center; }
+.snare-tree-pick .snare-sector-row { margin: 0; }

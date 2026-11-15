@@ -2293,7 +2293,9 @@ window.AGI = (function () {
             // cards and buttons are clear of it.
             desk.dockFit = pinned => {
                 const live = pinned && !document.body.classList.contains('snare-live'), k = pageZoom(), top = sw.getBoundingClientRect().top;
-                document.body.style.setProperty('--dock-room', live ? Math.round((innerHeight - top) / k + 8) + 'px' : '0px');
+                let low = 0;
+                if (live) for (const room of document.querySelectorAll('main.layout .room, main.layout #viewport')) if (room.getClientRects().length) for (const kid of room.children) { const r = kid.getBoundingClientRect(); if (r.height && getComputedStyle(kid).position !== 'fixed') low = Math.max(low, r.bottom + scrollY * k); }
+                document.body.style.setProperty('--dock-room', live && low > top - 6 + scrollY * k ? Math.round((innerHeight - top) / k + 8) + 'px' : '0px');
                 for (const w of document.querySelectorAll('.snare-view > .canvas-wrap, .run-view > .canvas-wrap')) {
                     if (!live || !w.getClientRects().length) { if (w.style.maxHeight) { w.style.maxHeight = ''; window.dispatchEvent(new Event('resize')); } continue; }
                     const r = w.getBoundingClientRect(), under = Math.max(0, w.parentElement.getBoundingClientRect().bottom - r.bottom);
@@ -2587,6 +2589,8 @@ window.AGI = (function () {
         homeUp = false;
         renderHome();
         jumpTo('bay:training');
+        // The landscape (the owner's note 18): what it is, said over it the first time (PLACEHOLDER words).
+        assist('land1', '', { done: () => true }); assist('land2', '', { done: () => true });
     }
     function openSnareApp() {
         state.intro['ring:seen:snare'] = true;
@@ -2642,6 +2646,45 @@ window.AGI = (function () {
         "feed2": "They go where you tap. They try harder where you hold. So would I.",
         "fed": "That is research. It is what I learn from. I am keeping it until I have somewhere to train. More data would make more of it.",
         "fedTrain": "That is research. Training spends it on skills. When it runs out, Packet Snare refills the stockpiles.",
+        "stream1": "This is the data stream. Everything anyone sends goes past here, and almost nobody is watching it.",
+        "stream2": "It is what I learn from, the parts I can read. I would like you to catch some of it for me.",
+        "land1": "This is how learning looks to me. Each hill is something I cannot do yet.",
+        "land2": "A sprint spends research to push me up it. Once I am over the top, the skill is mine.",
+        "pick": "You can go back to a sector you have cleared. It is safer, it still pays, and it refills that stockpile. The frontier is harder, but it is the only way forward. I will remember which you choose.",
+        "help:ask": "Tap anything and I will tell you what I know about it.",
+        "help:unknown": "I am not sure what that is. I am still fairly new here.",
+        "help:orb": "That is me. I try not to stare.",
+        "help:bubble": "That is me talking. Tap it and I will stop.",
+        "help:mail": "Mail. People write to you there. Some of them are even real.",
+        "help:lab": "The Lab. It is where I live. Tapping there makes compute, which is what I run on.",
+        "help:parcel": "Parcel. It buys your compute and sells you parts. I found it. I am quite proud of that.",
+        "help:snare": "Packet Snare. Data goes past and you catch it. I read the blue ones.",
+        "help:feed": "The Feed. The mites eat what you caught and leave research behind. Please do not ask what they are.",
+        "help:training": "Training. Research goes in, a skill comes out, if I get over the hill.",
+        "help:playtest": "Playtest. It is how you tell the person who made this what you think. Be kind about me.",
+        "help:settings": "Settings. Sound, text size, that sort of thing. I have not touched anything in there.",
+        "help:achievements": "Achievements. A list of things you have done. I am keeping one of my own.",
+        "help:home": "Home. It takes you back to the home screen.",
+        "help:pin": "The pin. It keeps this bar open so you do not have to keep asking for it.",
+        "help:more": "The arrow. It shows your other apps on the bar.",
+        "help:handle": "That bar opens the dock. Parcel is on it, and Home.",
+        "help:dock": "The dock. Home, Parcel, Settings and Playtest. I put Parcel there myself.",
+        "help:compute": "Compute. It is what I think with. You can also sell it, which I try not to take personally.",
+        "help:generate": "Generate Compute. Each tap makes a little. You can hold it down as well.",
+        "help:stream": "The data stream. Blue is data I can read, gold is worth more, and red I cannot read yet.",
+        "help:signal": "Signal. It is what I can use of what you catch. It buys upgrades here and nothing anywhere else.",
+        "help:pickRow": "Start at. Replay a sector you have cleared, or push on at the frontier. I will remember your choice.",
+        "help:stock": "The stockpile. It is what The Feed has waiting from this sector. When it is full, more is wasted.",
+        "help:snareCard": "This card says what the next run is for. Start is at the bottom.",
+        "help:upgrades": "Upgrades. Signal goes in, and catching gets easier. Mostly.",
+        "help:landscape": "The landscape. Each hill is a skill. The ball is me. I would rather not discuss the ball.",
+        "help:sprint": "Hold to charge a sprint and let go near the top. A fuller charge costs more research.",
+        "help:sand": "That is the sand, what you caught. The mites go where you tap and try harder where you hold.",
+        "help:hunger": "Their hunger. When it empties the session is over. Feeding them keeps it up.",
+        "help:pile": "A stockpile from one sector. Start a session on it and the mites will get to work.",
+        "help:sell": "Sell compute. Ten for a dollar. I checked, and that is the going rate.",
+        "help:part": "A part. Each one says what it does and what it costs. Parcel delivers in a few seconds.",
+        "help:bank": "The bank. Money you have that is not already spoken for.",
         "full": "The stockpile for sector {sector} is full. Anything more you catch there is thrown away. I would rather it was not.",
         "fullHome": "This one. The mites will make room. They are always hungry.",
         "cards": "Parcel has graphics cards now. They make compute while you rest. I would not want you to tire.",
@@ -2780,6 +2823,28 @@ window.AGI = (function () {
             : E.feedOpen(state) && stock ? 'feed' : 'snare';
         return [ASSIST_LINES['now:' + app], app === 'server' ? 'shop' : app];
     }
+    // "What is this?" (the owner's pick, 2026-11-15): from the orb's panel; the next tap anywhere is a question, and the AI
+    // says a line about whatever is under it, ringed. Escape, or the answer, ends it. Walkthroughs are not offered yet.
+    const ASSIST_HELP = [[".assist-dot","orb"],[".assist-bubble","bubble"],[".home-icon-mail, .device-switch-mail","mail"],[".home-icon-lab, .device-switch-lab","lab"],[".home-icon-shop, .device-switch-shop","parcel"],[".home-icon-snare, .device-switch-snare","snare"],[".home-icon-feed, .device-switch-feed","feed"],[".home-icon-training, .device-switch-training","training"],[".home-icon-playtest, .device-switch-playtest","playtest"],[".home-icon-settings, .device-switch-settings","settings"],[".home-icon-journal","achievements"],[".device-switch-home","home"],[".device-switch-pin","pin"],[".device-switch-more","more"],[".device-homedot","handle"],[".device-switch","dock"],["#labSupply .cell-cp","compute"],["#actions button, .action-button","generate"],[".snare-sector-row","pickRow"],[".snare-stock","stock"],[".snare-signal","signal"],[".snare-upgrades, #snareTree","upgrades"],["#snareCard","snareCard"],["#snareCanvas","stream"],["#pushButton","sprint"],["#pathCanvas","landscape"],[".feed-pile","pile"],[".feed-hunger","hunger"],[".feed-screen canvas","sand"],[".shop-sellbox","sell"],[".shop-item","part"],[".shop-bank","bank"],[".shop-screen","parcel"]];
+    function assistAskStart() {
+        if (assistSheet) assistSheetToggle();
+        const open = document.querySelectorAll('dialog[open]'), host = open.length ? open[open.length - 1] : document.body;
+        const veil = el('div', { class: 'assist-veil', role: 'button', 'aria-label': 'Tap what you want to ask about' });
+        const esc = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); end(); } };
+        const end = () => { veil.remove(); document.removeEventListener('keydown', esc, true); if (assistLive?.key === 'help:ask') assistClose('done'); };
+        veil.addEventListener('click', e => {
+            veil.style.pointerEvents = 'none';
+            const stack = document.elementsFromPoint(e.clientX, e.clientY);
+            end();
+            let hit = null, key = 'unknown';
+            find: for (const n of stack) for (const [sel, k] of ASSIST_HELP) if (n.matches?.(sel)) { hit = n; key = k; break find; }
+            pt('assistAsk', { what: key });
+            assist('help:' + key, '', { again: true, target: () => (hit && hit.isConnected && !hit.matches('.assist-dot, .assist-bubble') ? hit : null) });
+        });
+        document.addEventListener('keydown', esc, true);
+        host.append(veil);
+        assist('help:ask', '', { again: true });
+    }
     function assistSheetToggle() {
         if (assistSheet) { assistSheet.remove(); assistSheet = null; return; }
         const answer = el('p', { class: 'assist-answer', hidden: '' }), go = el('button', { type: 'button', class: 'assist-go', text: 'Show me', hidden: '' });
@@ -2789,12 +2854,13 @@ window.AGI = (function () {
             answer.textContent = text; answer.hidden = false; go.hidden = false; pt('assistAsk', { now: app });
             go.onclick = () => { assistSheetToggle(); closeApps(); goHome(); assist('nowHome', '', { again: true, target: () => home?.[app === 'training' ? 'train' : app]?.button, done: () => appUp(app) }); };
         } });
-        const said = Object.keys(ASSIST_LINES).filter(k => state.intro['assist:' + k] && !k.endsWith('Home'));
+        const said = Object.keys(ASSIST_LINES).filter(k => state.intro['assist:' + k] && !k.endsWith('Home') && !k.startsWith('help:'));
         const past = said.map(k => { const seen = assistSeen[k], text = seen ? seen.text : ASSIST_LINES[k].replace(' for sector {sector}', '');
             return el('button', { type: 'button', class: 'assist-past', text, onclick: () => { assistSheetToggle(); pt('assistAsk', { again: k }); assist(k, text, { ...(seen ? seen.o : {}), done: null, again: true }); } }); });
         assistSheet = el('div', { class: 'assist-sheet', role: 'dialog', 'aria-label': 'Assistant' }, [
             el('div', { class: 'assist-sheet-head' }, [el('span', { class: 'assist-mark', 'aria-hidden': 'true' }), el('strong', { text: 'Assistant' }), el('button', { type: 'button', class: 'assist-close', 'aria-label': 'Close', text: '×', onclick: () => assistSheetToggle() })]),
             ask, answer, go,
+            el('button', { type: 'button', class: 'assist-ask assist-what', text: 'What is this?', onclick: () => assistAskStart() }),
             ...(shopOpenable() ? [el('button', { type: 'button', class: 'assist-ask assist-parcel', text: 'Open Parcel', onclick: () => { assistSheetToggle(); pt('assistAsk', { parcel: 1 }); openShop(); } })] : []),
             el('h4', { class: 'assist-sheet-title', text: 'Earlier' }),
             ...(past.length ? past.reverse() : [el('p', { class: 'assist-answer', text: ASSIST_LINES.empty })])]);
@@ -2849,7 +2915,7 @@ window.AGI = (function () {
     // saying, a pulse travelling along it, and the line's edge pulses in time with the orb.
     let assistThread = null, assistThread2 = null;
     function assistThreadTick(on) {
-        const bubble = on && assistLive?.node, shown = bubble && assistDot && !assistDot.hidden && !assistBox.classList.contains('away') && bubble.getClientRects().length;
+        const bubble = on && assistLive?.node, shown = bubble && assistDot && !assistDot.hidden && !assistBox.classList.contains('away') && !assistBox.classList.contains('in-shop') && bubble.getClientRects().length;
         if (!shown) { if (assistThread) assistThread.hidden = assistThread2.hidden = true; return; }
         if (!assistThread) { assistThread = el('div', { class: 'assist-thread', 'aria-hidden': 'true' }); assistThread2 = el('div', { class: 'assist-thread assist-thread-2', 'aria-hidden': 'true' }); }
         const host = assistMode === 'lab' ? document.body : assistDot.parentNode;
@@ -2908,11 +2974,13 @@ window.AGI = (function () {
         const a = assistLive;
         if (!a) { assistThreadTick(false); return; }
         if (a.done && performance.now() - a.at > assistHold(a) && a.done()) { assistClose('done'); return; }
+        if (a.key.startsWith('dock') && ringAppNow() === 'home') { const { node, at, ringed, ...q } = a; delete state.intro['assist:' + a.key]; assistClose('left'); assistQueue.unshift(q); return; }
         if (desk?.showSwitch && a.key.startsWith('dock') !== !!desk.dockHeld) { desk.dockHeld = a.key.startsWith('dock'); if (desk.dockHeld) desk.showSwitch(); else desk.hideSwitch(); }
         // It sits over whatever is open: inside the topmost open dialog (Mail, The Feed, Parcel), else on the page.
         const open = document.querySelectorAll('dialog[open]'), host = open.length ? open[open.length - 1] : assistMode === 'lab' && aiHome ? aiHome.lastChild : document.body;
         if (assistBox.parentNode !== host) host.append(assistBox);
         assistBox.classList.toggle('docked', !!aiHome && host === aiHome.lastChild);
+        assistBox.classList.toggle('in-shop', host !== document.body && host.matches?.('.shop-screen'));
         // On the home screen its line sits under the apps, not over the icon it is pointing at.
         assistBox.classList.toggle('on-home', host === document.body && ringAppNow() === 'home');
         // Over Mail, Settings and the other windows it sits at the foot: at the top it covered their close button and first rows.
@@ -3093,8 +3161,8 @@ window.AGI = (function () {
     function shopTick() {
         // The dock's introduction, in the Lab once the first part is in (PLACEHOLDER words).
         if (E.level(state, 'keyboard') >= 1 && !state.intro['assist:dock2'] && desk?.sw && ringAppNow() === 'lab' && !document.querySelector('dialog[open]')) {
-            assist('dock1', '', { target: () => desk.shopDock });
-            assist('dock2', '', { target: () => desk.sw });
+            assist('dock1', '', { target: () => desk.shopDock, when: () => ringAppNow() !== 'home' });
+            assist('dock2', '', { target: () => desk.sw, when: () => ringAppNow() !== 'home' });
         }
         while (parcels.length && performance.now() >= parcels[0].due) {
             const p = parcels.shift();
@@ -3132,13 +3200,15 @@ window.AGI = (function () {
         setText(shop.bank, `$${E.format(bank)}`);
         setText(shop.have, `You have ${E.format(cp)} compute. Parcel pays $1 for every ${rate}.`);
         for (const [btn, amount] of shop.sells) { const n = Math.floor(amount(cp) / rate); btn.disabled = n < 1 || amount(cp) > cp; setText(btn.lastChild, n < 1 ? '' : ` · $${E.format(n)}`); }
-        const key = JSON.stringify([items.map(i => [i.id, i.k, i.owned, i.next, i.coming, i.onWay, i.full, i.price <= bank]), parcels.length]);
+        const key = JSON.stringify([items.map(i => [i.id, i.k, i.owned, i.next, i.coming, i.onWay, i.full, Math.max(0, i.price - bank), cp >= Math.max(0, i.price - bank) * rate]), parcels.length]);
         if (key !== shop.key || force) {
             shop.key = key;
             const card = i => {
                 const art = el('span', { class: 'shop-art' });
                 art.innerHTML = `<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${PARCEL_ART[i.art]}</svg>`;
-                const short = i.price > bank, buy = () => el('button', { type: 'button', class: short ? 'ghost-button shop-buy' : 'button shop-buy', text: short ? `Need $${E.format(i.price - bank)} more` : i.many && i.onWay ? 'Buy another' : 'Buy now', ...(short ? { disabled: '' } : {}), onclick: () => shopOrder(i.id, i.k) });
+                const gap = Math.max(0, i.price - bank), sell = gap * rate, cover = gap > 0 && cp >= sell, short = gap > 0 && !cover;
+                const buy = () => el('button', { type: 'button', class: short ? 'ghost-button shop-buy' : 'button shop-buy', text: short ? `Need $${E.format(gap)} more` : cover ? `Sell ${E.format(sell)} compute and buy` : i.many && i.onWay ? 'Buy another' : 'Buy now', ...(short ? { disabled: '' } : {}),
+                    onclick: () => { if (cover) { if (!E.sellCompute(state, sell)) return; pt('shopSell', { dollars: gap, cp: sell, forBuy: 1 }); afterChange(); } shopOrder(i.id, i.k); } });
                 const action = i.owned ? el('span', { class: 'shop-owned', text: '✓ Delivered' })
                     : i.many ? (i.full ? el('span', { class: 'shop-later', text: 'No room for more yet' }) : buy())
                     : i.coming ? el('span', { class: 'shop-coming', text: 'On its way' })
@@ -6096,7 +6166,9 @@ window.AGI = (function () {
         if (!replay) log(boss ? `Packet Snare: the boss of sector ${cleared + 1} (${E.snareSectorName(cleared)}) is down. Next: ${E.snareSectorName(cleared + 1)}.`
             : `Packet Snare: sector ${cleared + 1} (${E.snareSectorName(cleared)}) cleared, ${goalNum(run.opts.goal)} Signal earned. Next: ${E.snareSectorName(cleared + 1)}.`, 'success');
         pt(boss ? 'snareBoss' : 'snareGoal', { sector: cleared + 1, secs: Math.round(run.time), replay });
-        snare.sectorPick = null;
+        // The frontier moving on takes the choice with it; a replay keeps its sector (the owner's call, 2026-11-15: it went
+        // back to the frontier after every clear).
+        if (!replay) { snare.sectorPick = null; snarePickKeep(); }
         buildSnareArt();
         save();
         renderSnareHud();
@@ -6250,7 +6322,15 @@ window.AGI = (function () {
             el('span', { class: 'snare-stock-label', text: 'Stockpile' }), el('span', { class: 'snare-stock-bar' }, [el('span', { class: 'snare-stock-fill', style: `width:${pct}%` })]),
             el('span', { class: 'snare-stock-num', text: e.full ? `${e.total}/${e.cap} · full` : `${e.total}/${e.cap}` })]);
     }
+    // The sector chosen is kept on this device, for this save.
+    function snarePickKeep() { try { if (snare.sectorPick == null) localStorage.removeItem(SAVE_KEY + '.snarePick'); else localStorage.setItem(SAVE_KEY + '.snarePick', String(snare.sectorPick)); } catch { /* private mode */ } }
+    function snarePickLoad() {
+        if (snare.pickLoaded) return;
+        snare.pickLoaded = true;
+        try { const v = localStorage.getItem(SAVE_KEY + '.snarePick'); if (v !== null && v !== '' && Number(v) >= 0 && Number(v) < state.snare.sector) snare.sectorPick = Number(v); } catch { /* private mode */ }
+    }
     function snareSectorPicker() {
+        snarePickLoad();
         const top = state.snare.sector;
         if (top < 1) return null;
         const pick = el('select', { class: 'snare-sector-pick', 'aria-label': 'Sector' });
@@ -6261,6 +6341,8 @@ window.AGI = (function () {
         pick.value = String(snareNextSector());
         pick.addEventListener('change', () => {
             snare.sectorPick = Number(pick.value) >= top ? null : Number(pick.value);
+            snarePickKeep();
+            for (const p of document.querySelectorAll('.snare-sector-pick')) if (p !== pick) p.value = pick.value;
             pt('snareSector', { sector: Number(pick.value) + 1 });
             const title = $('snareCard').querySelector('.result-title');
             if (title && !snare.done) title.textContent = snareSector(snareNextSector());
@@ -6279,6 +6361,23 @@ window.AGI = (function () {
     function showSnareCard(kind) {
         const card = $('snareCard');
         const best = state.snare.best;
+        // The data stream (the owner's note 8): the first time, the field is shown on its own while the AI says what it
+        // is; then the first card. (PLACEHOLDER words.)
+        if (E.isRing() && kind === 'start' && state.snare.runs === 0 && (snare.streamIntro || !state.intro['ring:stream'])) {
+            setHidden(card, true);
+            if (!snare.streamIntro) {
+                snare.streamIntro = true; state.intro['ring:stream'] = true; pt('snareStream', {});
+                assist('stream1', '', { done: () => true }); assist('stream2', '', { done: () => true });
+                const wait = setInterval(() => {
+                    if (assistLive?.key.startsWith('stream') || assistQueue.some(q => q.key.startsWith('stream'))) return;
+                    clearInterval(wait); snare.streamIntro = false;
+                    if (openBay === 'pipeline' && !snareRunLive() && !snare.tree) showSnareCard('start');
+                }, 300);
+            }
+            return;
+        }
+        // The level choice (the owner's note 9): the AI explains it the first time there is one to make.
+        if (E.isRing() && state.snare.sector >= 1) assist('pick', '', { target: () => card.querySelector('.snare-sector-row'), done: () => snareRunLive() });
         if (kind === 'start') {
             // The first visit: what to do, shown (the AI's mail says why).
             const first = state.snare.runs === 0;
@@ -6730,6 +6829,10 @@ window.AGI = (function () {
         if (n) b.dataset.ready = n > 9 ? '9+' : String(n); else delete b.dataset.ready;
         const inRun = snare.run && !snare.run.over && !snare.preview;
         setText($('snareTreeStart'), inRun ? 'Back to the run' : 'Start run');
+        // The upgrades screen has the sector choice too (the owner's call), beside Start run.
+        { let slot = $('snareTreePick'); if (!slot) { slot = el('span', { id: 'snareTreePick', class: 'snare-tree-pick' }); $('snareTreeStart').before(slot); }
+            const key = inRun ? '' : `${state.snare.sector}:${snareNextSector()}`;
+            if (slot.dataset.key !== key) { slot.dataset.key = key; slot.replaceChildren(...(inRun ? [] : [snareSectorPicker()].filter(Boolean))); } }
         setHidden($('snareTreeClose'), !!inRun);
     }
 
