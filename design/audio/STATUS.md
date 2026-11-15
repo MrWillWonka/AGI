@@ -123,6 +123,25 @@ Applied to both themes whole, the liked songs included (their notes are untouche
   is left about 1.5 dB under the others on purpose.
 - Still not heard by its author.
 
+### The owner's fourth listen (2026-11-14)
+
+A volume slider on the soundtrack page (`tools/audio/album.html`; iPhones ignore it). Then: reimagine Morning Lab,
+Gentle Climb, Glide Path and Tiptoe: "almost all have a simple tone playing every other beat that makes them too
+similar and some of the tempos and the timings for the tones and melodies are strange"; each should feel distinct, with
+different phrasings and mixes of melody, harmony and choirs, "a dreamy soundscape that you can float through".
+
+- **The tone every other beat** was the upper strings on each song's comp steps: now only where a song asks
+  (`compVoice: 'swell'`: Window Seat). **The strange timings** were the swing (off in all six songs now) and tunes
+  written for a kalimba, short notes with rests, played legato: the four are rewritten in long notes on chord tones.
+- **A song mixes its own textures** (lists of section names, or true): `choir` (voices on the chord), `flow` (the chord
+  rolling in 8ths, eased in), `inner` (a cello moving inside the chord), `pedal` (a bass that only holds), `answer` (a
+  second voice takes every other pair of bars), lead `oo`.
+- **Morning Lab** 72: violins, two notes a bar; the choir from the middle eight; a cello in the last verse. 1:40.
+  **Gentle Climb** 76: the rolling chord throughout, a horn climbing, the choir on the high tune. 2:44.
+  **Glide Path** 60: voices carry the tune a note a bar over a held bass; 4- and 6-bar phrases. 1:44.
+  **Tiptoe** in three at 66: a clarinet asks, a flute answers, a cello under them. 1:27.
+- Not heard by its author.
+
 ## Open questions for the owner
 
 1. The loudness target at default sliders (see above).

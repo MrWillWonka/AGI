@@ -30,11 +30,11 @@ Bold layers are always in. Income is 4.13 repeats a second in every track (engin
 | Dark | server | Pressure | 126 | 12/8 | stab, own kit | 38 | 1:12 | intro 3 · A 3 · A 3 · A 3 · B 4 · A 3 · A 3 · strip 2n · B 4 · A 3 · A 3 · A 3 · out 1 | Variety pass: rewritten as a 12-step shuffle: square stabs in 3-bar phrases, a triplet acid line |
 | Dark | snare | Black Box | 108 | 4/4 | bell, own kit | 35 | 1:18 | in 2 · A 6 · B 6 · wait 3 · A 6 · B 6 · A 6 | Variety pass: rewritten slower, struck metal in 6-bar phrases |
 | Dark | snare | Tripwire | 150 | 4/4 | stab, own kit | 38 | 1:01 | A 4 · A 4 · B 8 · wait 2 · A 4 · A 4 · B 8 · A 4 | Variety pass: rewritten fast in G Dorian, broken kick, square stabs |
-| Soft | lab | Morning Lab | 93 swung | 4/4 | the track's | 52 | 2:14 | intro 4n · A 8 · B 8 · A 8 · breathe 4n · B 8 · A 8 · out 4s | Kept (the owner likes it) |
+| Soft | lab | Morning Lab | 72 | 4/4 | the track's | 30 | 1:40 | dawn 2 · A 8 · B 8 · A2 8 · out 4 | Reimagined: 72, violins in long notes, the choir from the middle eight, a cello inside the last verse |
 | Soft | lab | Window Seat | 88 | 3/4 | flute | 52 | 1:46 | A 8 · A 8 · B 6 · A 8 · still 4n · B 6 · A 8 · out 4s | Third listen: a slow waltz, no drums, strings and a flute |
-| Soft | server | Gentle Climb | 100 | 4/4 | horn | 72 | 2:53 | intro 4s · A 8 · A 8 · B 8 · break 4n · build 4s · B 8 · A 8 · B 8 · A 8 · out 4 | Third listen: melodies kept; no drums, strings and a horn; the long one |
-| Soft | server | Glide Path | 104 | 4/4 | hum | 36 | 1:23 | A 4 · A 4 · B 8 · A 4 · vamp 4 · B 8 · A 4 | Third listen: melodies kept; no drums, strings and a hummed tune; short |
-| Soft | snare | Tiptoe | 84 swung | 4/4 | clarinet | 36 | 1:43 | in 2 · A 4 · A 4 · B 8 · wait 2 · A 4 · B 8 · A 4 | Third listen: no drums or ticks, strings and a clarinet, a chord a bar |
+| Soft | server | Gentle Climb | 76 | 4/4 | horn | 52 | 2:44 | intro 4 · A 8 · A2 8 · B 8 · still 4 · B2 8 · A3 8 · out 4 | Reimagined: 76, the chord rolling in 8ths, a horn climbing, the choir on the high tune; the long one |
+| Soft | server | Glide Path | 60 | 4/4 | oo | 26 | 1:44 | A 4 · A2 4 · B 6 · A3 4 · B2 6 · out 2 | Reimagined: 60, voices carry the tune over a held bass, 4- and 6-bar phrases |
+| Soft | snare | Tiptoe | 66 | 3/4 | clarinet | 32 | 1:27 | in 2 · A 4 · A2 4 · B 8 · wait 2 · A3 4 · B2 8 | Reimagined: in three at 66, a clarinet asks and a flute answers over a cello |
 | Soft | snare | Hushed Channel | 80 | 4/4 | choir | 22 | 1:06 | A 5 · B 5 · wait 2 · A 5 · B 5 | Third listen: a lullaby in F Lydian, 5-bar phrases, held strings and a choir |
 | Ominous | lab | Vigil | 62 | 4/4 | the track's | 44 | 2:50 | drone 4n · A 8n · A 8s · B 8 · still 4n · A 8 · out 4n | Kept (the owner likes it) |
 | Ominous | lab | Static | 50 | 4/4 | bell | 41 | 3:17 | A 7n · B 5n · void 2n · A 7s · B 5 · A 7 · B 5s · out 3n | Variety pass: rewritten with no pulse, heard from E (Phrygian dominant), the tune tolled on a bell, phrases of 7 and 5 bars |
@@ -141,12 +141,6 @@ A note an 8th or longer that starts on a beat a semitone away from a tone of its
 - Dark, Warehouse (server), melody B bar 5 beat 2: over Am
 - Dark, Warehouse (server), melody B bar 5 beat 4: over Am
 - Dark, Warehouse (server), melody B bar 7 beat 2: over F
-- Soft, Gentle Climb (server), melody A bar 3 beat 3: over Cadd9
-- Soft, Gentle Climb (server), melody A bar 1 beat 3: over Dm9
-- Soft, Gentle Climb (server), melody B bar 3 beat 1: over Cadd9
-- Soft, Gentle Climb (server), melody B bar 7 beat 3: over Cadd9
-- Soft, Glide Path (server), melody A bar 3 beat 3: over Am7
-- Soft, Glide Path (server), melody B bar 3 beat 1: over Am7
 - Ominous, Vigil (lab), melody A bar 1 beat 3: over Am
 - Ominous, Vigil (lab), melody A bar 5 beat 3: over Dm
 - Ominous, Vigil (lab), melody A bar 6 beat 4: over Dm

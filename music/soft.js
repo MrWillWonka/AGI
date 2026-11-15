@@ -50,10 +50,10 @@
         // ---- Instruments: the voices, and how they play a song step by step ------------------------------------
         // Soft: a small orchestra in a long hall, and a dream: no drums, and nothing struck or plucked. Every note
         // swells in and lets go slowly. The chord is a string section (two detuned saws a note behind a low filter,
-        // spread left to right) that holds each bar and overlaps the next; upper strings breathe in on the song's
-        // comp steps; a low string holds the bass; a high note shimmers over it late on. The tune is sung legato by
+        // spread left to right) that holds each bar and overlaps the next; a low string holds the bass; a high note shimmers over it late on. The tune is sung legato by
         // one of: the strings, a flute, a horn, a clarinet, a choir or a hum (`lead` on the song), with a quiet
-        // line under it when a section asks for harmony. The section ends on a held note leading into the next.
+        // line under it when a section asks for harmony. Each song mixes its own textures over that (`choir`, `flow`,
+        // `inner`, `pedal`, `answer`, `compVoice: 'swell'`: see the step), so no two are built alike. The section ends on a held note leading into the next.
         // Its click figure plays the track's 8ths (322 ms: about three notes a second while a job is held).
         style: {
             bpm: 93, swing: 0.2,
@@ -64,28 +64,43 @@
             layers: { keys: -1, pad: -1, bass: 0.06, mel: 0.2, off: 0.38, kick: 0.46, harm: 0.5, clap: 0.58, sixteenth: 0.7, arp: 0.8 },
             fillAt: 0.42,
             step(t, s, k, len, L, c) {
-                const ch = c.chord, song = c.song, ts = t + c.sw, bar = len * c.steps;
+                const ch = c.chord, song = c.song, ts = t + c.sw, N = c.steps, bar = len * N;
+                // A song says which of its sections a texture plays in (a list of section names), or true for all.
+                const has = key => (Array.isArray(song[key]) ? song[key].includes(c.sec) : !!song[key]);
                 // The string section: the chord through the whole bar, swelling in, overlapping the bar before.
-                if (L.pad > 0.02 && s === 0) ch.v.forEach((n, i) => {
+                if (L.pad > 0.02 && s === 0 && !has('stringsOut')) ch.v.forEach((n, i) => {
                     const pan = (i - 1.5) * 0.3, o = { type: 'sawtooth', cutoff: 650 + 450 * k, q: 0.5, attack: Math.min(0.9, bar * 0.35), sus: 0.9, dec: 0.4, rel: 1.2, rev: 0.6 };
                     note(t, n, bar * 1.02, 0.0085 * L.pad, { ...o, detune: -6, pan });
                     note(t, n, bar * 1.02, 0.0085 * L.pad, { ...o, detune: 7, pan: -pan, low: true });
                 });
-                // The low strings hold the bass.
+                // `choir`: voices on the chord an octave up, "ah", slower in than the strings.
+                if (s === 0 && has('choir')) ch.v.forEach((n, i) => [-8, 8].forEach((dt, j) =>
+                    note(t, n + 12, bar * 1.05, 0.0075, { type: 'triangle', detune: dt, cutoff: 1000, q: 0.5, attack: Math.min(1.4, bar * 0.45), sus: 0.9, dec: 0.4, rel: 1.5, rev: 0.7, pan: (i - 1.5) * 0.3 * (j ? -1 : 1), low: j > 0 })));
+                // `flow`: the chord rolling up and back in 8ths, every note eased in and left to ring.
+                if (s % 2 === 0 && has('flow')) {
+                    const v = ch.v, m = 2 * v.length - 2 || 1, i = (s / 2) % m, n = v[i < v.length ? i : m - i] + 12;
+                    note(ts, n, len * 5, 0.021, { type: 'sine', attack: 0.05, sus: 0.5, dec: 0.5, rel: 0.8, rev: 0.5, dly: 0.15, pan: i % 2 ? 0.4 : -0.4 });
+                    note(ts, n, len * 3, 0.006, { type: 'triangle', cutoff: 1200, attack: 0.06, sus: 0.4, dec: 0.4, rel: 0.5, rev: 0.5, pan: i % 2 ? 0.4 : -0.4, low: true });
+                }
+                // `inner`: a cello moving inside the chord, its third for half the bar and its fifth for the rest.
+                if ((s === 0 || s === N / 2) && has('inner'))
+                    note(t, ch.v[s === 0 ? 1 : 2 % ch.v.length], bar * 0.55, 0.034, { type: 'triangle', cutoff: 650, q: 0.5, attack: 0.2, sus: 0.85, dec: 0.3, rel: 0.7, rev: 0.45, pan: -0.25 });
+                // The low strings hold the bass (`pedal`: through the whole bar, slower in).
                 const b = c.bassOn && L.bass > 0.02 && bassAt(song, s, ch);
-                if (b) note(ts, b, len * 5, 0.15 * L.bass, { type: 'triangle', cutoff: 300 + 300 * k, q: 0.6, attack: 0.1, sus: 0.85, dec: 0.3, rel: 0.6, rev: 0.3 });
-                // The upper strings breathe in on the song's comp steps.
-                if (L.keys > 0.02 && c.comp.includes(s) && song.compVoice !== 'none')
+                if (b) note(ts, b, song.pedal ? bar * 1.02 : len * 5, 0.15 * L.bass, { type: 'triangle', cutoff: 300 + 300 * k, q: 0.6, attack: song.pedal ? 0.35 : 0.1, sus: 0.85, dec: 0.3, rel: song.pedal ? 1 : 0.6, rev: 0.3 });
+                // Upper strings breathing in on the song's comp steps (only where a song asks: `compVoice: 'swell'`).
+                if (L.keys > 0.02 && c.comp.includes(s) && song.compVoice === 'swell')
                     ch.v.forEach((n, i) => note(ts + i * 0.04, n + 12, len * 6, 0.017 * L.keys, { type: 'sine', attack: 0.28, sus: 0.7, dec: 0.5, rel: 0.9, rev: 0.6, pan: (i - 1.5) * 0.25 }));
                 // A high note held over two bars, late on.
                 if (L.arp > 0.02 && s === 0 && c.bar % 2 === 0)
                     note(t, ch.v[ch.v.length - 1] + 24, bar * 2, 0.007 * L.arp, { type: 'sine', attack: bar * 0.5, sus: 0.9, dec: 0.3, rel: 1.2, rev: 0.7, pan: 0.3, low: true });
-                // The tune, legato: each note swells in and overlaps the next.
+                // The tune, legato: each note swells in and overlaps the next. `answer`: a second voice takes every
+                // other pair of bars.
                 if (c.mel) {
                     const d = Math.max(len * c.mel.len * 1.3, 0.6), g = c.melGain, at = c.mel.t, n = c.mel.n;
                     const env = { attack: Math.min(0.18, d * 0.4), sus: 0.9, dec: 0.25, rel: 0.5, rev: 0.55 };
                     const vib = c.mel.len >= 3 ? { rate: 4.8, depth: 8, delay: 0.3 } : null;
-                    const lead = song.lead || 'strings';
+                    const lead = (song.answer && c.barIn % 4 >= 2 ? song.answer : song.lead) || 'strings';
                     if (lead === 'flute') {
                         note(at, n, d, 0.055 * g, { type: 'sine', ...env, vib, pan: 0.1 });
                         note(at, n + 12, d, 0.005 * g, { type: 'sine', ...env, low: true });
@@ -93,9 +108,12 @@
                         note(at, n, d, 0.07 * g, { type: 'triangle', cutoff: 800 + 300 * k, q: 0.5, ...env, pan: -0.1 });
                         note(at, n, d, 0.02 * g, { type: 'sine', ...env, vib, pan: -0.1 });
                     } else if (lead === 'clarinet') {
-                        note(at, n, d, 0.03 * g, { type: 'square', cutoff: 950, q: 0.5, ...env, vib, pan: 0.15 });
+                        note(at, n, d, 0.03 * g, { type: 'square', cutoff: 950, q: 0.5, ...env, vib, pan: -0.2 });
                     } else if (lead === 'choir') {
                         [-9, 0, 9].forEach((dt, i) => note(at, n, d, 0.027 * g, { type: 'triangle', detune: dt, cutoff: 1100, q: 0.5, ...env, attack: Math.min(0.24, d * 0.4), vib, pan: (i - 1) * 0.35, low: i > 0 }));
+                    } else if (lead === 'oo') {       // voices singing "oo": sines a few cents apart, an octave under them faintly
+                        [-6, 6].forEach((dt, i) => note(at, n, d, 0.034 * g, { type: 'sine', detune: dt, ...env, attack: Math.min(0.3, d * 0.4), rel: 0.8, vib, pan: i ? 0.3 : -0.3 }));
+                        note(at, n - 12, d, 0.016 * g, { type: 'sine', ...env, attack: Math.min(0.3, d * 0.4), rel: 0.8, low: true });
                     } else if (lead === 'hum') {
                         note(at, n, d, 0.05 * g, { type: 'sine', ...env, vib, pan: 0.1 });
                         note(at, n - 12, d, 0.022 * g, { type: 'triangle', cutoff: 700, ...env, pan: -0.1 });
@@ -117,21 +135,21 @@
         // the same; a stealth song's `rest` lifts its tones while its drums are hushed.
         songs: {
             lab: [
-                {   // Morning Lab: major sevenths, the upper strings on the off-beats, a string line that leans across the beat.
-                    // B goes to the relative minor and comes home through a borrowed chord (F minor: the iv of C).
-                    name: 'Morning Lab', lvl: 0.76, scale: ION, tonic: 3, oct: -1,
+                {   // Morning Lab: sunrise at 72, straight. The violins sing in long notes, two to a bar, over major
+                    // sevenths; the choir comes in for the middle eight (through a borrowed F minor) and stays; a cello
+                    // moves inside the last verse.
+                    name: 'Morning Lab', lvl: 0.99, bpm: 72, swing: 0, scale: ION, tonic: 3, oct: -1, choir: ['B', 'A2', 'out'], inner: ['A2'],
                     chords: { A: ['Cmaj7', 'Am7', 'Fmaj7', 'G6', 'Cmaj7', 'Em7', 'Fmaj7', 'Gsus4'], B: ['Am7', 'Am7', 'Dm9', 'G7sus4', 'Cmaj7', 'Fmaj7', 'Fm6', 'G6'] },
-                    bass: { A: 'r......r..f.....', B: 'r.....f...r..t..' }, comp: { A: [6, 14], B: [6, 11] },
+                    bass: { A: 'r...............', B: 'r.......f.......' },
                     mel: {
-                        A: "3 - 5 - . 7 - 5 | 6 - - 5 - 3 - . | 4 - 6 - . 1' - 6 | 5 - - - 2 - 3+5 - | 3 - 5 - . 7 - 1' | 7 - - 5 - 3 - . | 6 - 1' - . 6 - 4 | 5 - - - 2 - - .",
-                        B: "1' - - 6 - 5 - 3 | 5 - 6 - 1' - - . | 2' - - 1' - 6 - 4 | 5 - 4 - 2 - - . | 3 - 5 - 1' - 7 - | 6 - - 1' - 3' - - | b6 - - 1' - 2' - - | 2' - 7 - 5 - - ."
+                        A: "3 - - - 5 - - - | 1' - - - - - 5 - | 6 - - - 1' - - - | 7 - - - - - - . | 5 - - - 3' - - - | 2' - - - - - 7 - | 1' - - - 6 - - - | 5 - - - - - - .",
+                        B: "3 - - - 5 - - - | 6 - - - - - 5 - | 4 - - - 6 - - - | 5 - - - - - 2' - | 3' - - - - - 1' - | 6 - - - 1' - - - | b6 - - - 1' - - - | 7 - - - 2' - - ."
                     },
-                    form: [['intro', 4, { mel: null, drums: 'none' }], ['A', 8], ['B', 8, { chords: 'B' }], ['A', 8, { harm: true }],
-                        ['breathe', 4, { mel: null, drums: 'none', bassOn: false, fill: false, lift: -0.2 }], ['B', 8, { chords: 'B' }], ['A', 8], ['out', 4, { mel: null, drums: 'sparse', fill: false }]]
+                    form: [['dawn', 2, { mel: null, fill: false }], ['A', 8], ['B', 8, { chords: 'B' }], ['A2', 8, { mel: 'A', harm: true, lift: 0.06 }], ['out', 4, { mel: null, fill: false }]]
                 },
                 {   // Window Seat: a slow waltz in C at 88, straight: the bass on one, strings swelling on two, a
                     // flute for the tune. Eight bars, then six that wander and come home.
-                    name: 'Window Seat', lvl: 0.97, bpm: 88, steps: 12, swing: 0, scale: ION, tonic: 3, oct: -1, lead: 'flute',
+                    name: 'Window Seat', lvl: 0.97, bpm: 88, steps: 12, swing: 0, scale: ION, tonic: 3, oct: -1, lead: 'flute', compVoice: 'swell',
                     chords: { A: ['Cmaj7', 'Em7', 'Fmaj7', 'G6', 'Am7', 'Fmaj7', 'G7sus4', 'Cmaj7'], B: ['Am7', 'Em7', 'Fmaj7', 'Cmaj7', 'Dm7', 'G6'] },
                     bass: { A: 'r...........', B: 'r.......t...' }, comp: [4],
                     mel: {
@@ -143,39 +161,41 @@
                 }
             ],
             server: [
-                {   // Gentle Climb: 100 and straight, unhurried: a horn carrying the tune over minor ninths; the longest
-                    // song here.
-                    name: 'Gentle Climb', lvl: 0.79, bpm: 100, swing: 0, scale: AEOL, lead: 'horn', chords: ['Am9', 'Fmaj7', 'Cadd9', 'G6', 'Dm9', 'Fmaj7', 'Cadd9', 'Esus4'],
-                    bass: 'r.........f.....', comp: [3, 10],
+                {   // Gentle Climb: 76, and the one that moves: the chord rolls up and back in 8ths the whole way, a horn
+                    // climbs over it a phrase at a time, and the choir opens up on the high tune. The longest song here.
+                    name: 'Gentle Climb', lvl: 0.99, bpm: 76, swing: 0, scale: AEOL, lead: 'horn', chords: ['Am9', 'Fmaj7', 'Cadd9', 'G6', 'Dm9', 'Fmaj7', 'Cadd9', 'Esus4'],
+                    flow: ['intro', 'A', 'A2', 'B', 'B2', 'A3'], choir: ['B', 'B2', 'out'],
+                    bass: 'r...............',
                     mel: {
-                        A: "5 - 3 - 2 - 3 - | 1 - - - 3 - 5 - | 4 - 3 - 2 - 5, - | 2 - - - 7, - - .",
-                        B: "1' - 7 - 5 - 3 - | 5 - - - 3 - 1 - | 2 - 3 - 5 - 7 - | 5 - - - 2' - - - | 1' - - - 6 - 4 - | 3 - 5 - 1' - 7 - | 5 - 3 - 2 - 1 - | 2 - - - - - . ."
+                        A: "1 - - - 3 - 5 - | 6 - - - - - 3 - | 5 - - - 7 - - - | 2' - - - - - - .",
+                        B: "3' - - - 1' - - - | 1' - - - 6 - - - | 7 - - - 5 - - - | 5 - - - 4 - 2 - | 4 - - - 6 - 1' - | 3' - - - - - 1' - | 4' - - - 3' - - - | 2' - - - - - - ."
                     },
-                    form: [['intro', 4, { mel: null, drums: 'sparse' }], ['A', 8], ['A', 8, { harm: true }], ['B', 8], ['break', 4, { mel: 'A', melGain: 0.7, drums: 'none', bassOn: false, fill: false }],
-                        ['build', 4, { mel: 'A', melGain: 0.85, drums: 'sparse', entry: false }], ['B', 8, { lift: 0.08 }], ['A', 8], ['B', 8], ['A', 8, { harm: true, lift: 0.1 }], ['out', 4, { mel: null, fill: false }]]
+                    form: [['intro', 4, { mel: null, fill: false }], ['A', 8], ['A2', 8, { mel: 'A', harm: true }], ['B', 8], ['still', 4, { mel: null, bassOn: false, fill: false, lift: -0.15 }],
+                        ['B2', 8, { mel: 'B', lift: 0.08 }], ['A3', 8, { mel: 'A', harm: true }], ['out', 4, { mel: null, fill: false }]]
                 },
-                {   // Glide Path: 104 in A Dorian: a hummed tune over a two-chord vamp, the strings swaying between them.
-                    // Short.
-                    name: 'Glide Path', lvl: 0.86, bpm: 104, swing: 0, scale: DOR, lead: 'hum',
-                    chords: { A: ['Am7', 'D9', 'Am7', 'D9'], B: ['Am7', 'D9', 'Am7', 'D9', 'Fmaj7', 'G', 'Am7', 'Esus4'] },
-                    bass: 'r.......f.......', comp: [0, 10],
+                {   // Glide Path: 60, almost still, in A Dorian: voices carry the tune ("oo") in notes a bar long over a
+                    // bass that only holds; four bars on two chords, then six that lift to F and G with the choir behind.
+                    name: 'Glide Path', lvl: 0.77, bpm: 60, swing: 0, scale: DOR, lead: 'oo', pedal: true, choir: ['B', 'B2'], inner: ['A2', 'A3'],
+                    chords: { A: ['Am9', 'Am9', 'D9', 'D9'], B: ['Fmaj7', 'Fmaj7', 'G', 'G', 'Am9', 'Am9'] },
+                    bass: 'r...............',
                     mel: {
-                        A: "5 - 7 - 1' - 7 5 | 6 - 5 - 4 - 1 - | 5 - 7 - 2' - 1' 7 | 6 - - - 4 - - .",
-                        B: "1' - - 7 5 - 3 - | 4 - 6 - 1' - 3' - | 2' - 1' - 7 - 5 - | 6 - - - 3' - - - | 3' - 1' - 7 - 5 - | 4' - - - 2' - 7 - | 1' - 5 - 3 - 1 - | 2 - - - 4 - - -"
+                        A: "5 - - - - - - - | 7 - - - 5 - - - | 6 - - - - - - - | 5 - - - 3 - - .",
+                        B: "3 - - - - - 5 - | 1' - - - - - - - | 7 - - - - - 2' - | 4' - - - - - - - | 3' - - - 1' - - - | 5 - - - - - - ."
                     },
-                    form: [['A', 4], ['A', 4], ['B', 8, { chords: 'B' }], ['A', 4, { harm: true }], ['vamp', 4, { mel: null, fill: false }], ['B', 8, { chords: 'B', lift: 0.06 }], ['A', 4]]
+                    form: [['A', 4], ['A2', 4, { mel: 'A', harm: true }], ['B', 6, { chords: 'B' }], ['A3', 4, { mel: 'A' }], ['B2', 6, { mel: 'B', chords: 'B', lift: 0.06 }], ['out', 2, { mel: null, fill: false }]]
                 }
             ],
             snare: [
-                {   // Tiptoe: 84, every second 16th late by a third: a clarinet stepping down a chord a bar, the bass
-                    // on one and three.
-                    name: 'Tiptoe', lvl: 0.91, rest: 1.32, slvl: 0.85, srest: 1.31, bpm: 84, swing: 0.33, scale: AEOL, lead: 'clarinet', chords: ['Am9', 'Gsus2', 'Fmaj7', 'Esus4'],
-                    bass: 'r.......f.......', comp: [6, 14], cut: 0.8,
+                {   // Tiptoe: in three at 66: a clarinet asks for two bars and a flute answers for two, a cello turning
+                    // under them, the bass only holding.
+                    name: 'Tiptoe', lvl: 0.81, rest: 1.32, slvl: 0.85, srest: 1.31, bpm: 66, steps: 12, swing: 0, scale: AEOL, lead: 'clarinet', answer: 'flute', pedal: true,
+                    inner: ['A', 'A2', 'A3', 'B', 'B2'], chords: ['Am9', 'Fmaj7', 'Dm9', 'Esus4'],
+                    bass: 'r...........', cut: 0.8,
                     mel: {
-                        A: "5 . 3 . 1 . . . | 4 . 2 . 7, . . . | 3 . 1 . 6, . . . | 2 - - - . . 5, .",
-                        B: "1 . 3 . 5 . 7 . | 4 - - - 2 - - - | 6 . 5 . 3 . 1 . | 2 - - - 5, - - - | 1' . 7 . 5 . 3 . | 4 - - - 7, - - - | 3 . 5 . 6 . 1' . | 7 - - - 5 - - -"
+                        A: "1 - - 3 - - | 5 - - - - . | 6 - - 4 - - | 2 - - - - .",
+                        B: "3 - 5 - 7 - | 6 - - - - - | 4 - 6 - 1' - | 2' - - 5 - - | 3' - - 1' - - | 1' - - 6 - - | 6 - 4 - 3 - | 2 - - - - ."
                     },
-                    form: [['in', 2, { mel: null }], ['A', 4], ['A', 4], ['B', 8], ['wait', 2, { mel: null, bassOn: false, fill: false }], ['A', 4], ['B', 8], ['A', 4, { harm: true }]]
+                    form: [['in', 2, { mel: null, fill: false }], ['A', 4], ['A2', 4, { mel: 'A', harm: true }], ['B', 8], ['wait', 2, { mel: null, bassOn: false, fill: false }], ['A3', 4, { mel: 'A' }], ['B2', 8, { mel: 'B' }]]
                 },
                 {   // Hushed Channel: a lullaby at 80 in F Lydian: only the held strings, and a choir alone in five-bar
                     // phrases over a Gsus4 that never lands.

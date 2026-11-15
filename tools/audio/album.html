@@ -66,8 +66,10 @@ footer.note { margin-top: 22px; color: var(--muted); font-size: 14px; }
 .now-title { font: 600 16px var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .now-meta { font: 12px var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .now-meta b { color: var(--a); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
-.seek { grid-column: 1 / -1; display: grid; grid-template-columns: 5ch 1fr 5ch; gap: 10px; align-items: center; font: 12px var(--mono); color: var(--muted); }
-.seek span:last-child { text-align: right; }
+.seek { grid-column: 1 / -1; display: grid; grid-template-columns: 5ch 1fr 5ch auto; gap: 10px; align-items: center; font: 12px var(--mono); color: var(--muted); }
+.seek #dur { text-align: right; }
+.vol { display: flex; align-items: center; gap: 6px; margin-left: 8px; letter-spacing: 0.08em; }
+.vol input { width: 96px; }
 input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; background: transparent; margin: 0; cursor: pointer; }
 input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--a) var(--p, 0%), var(--border) var(--p, 0%)); }
 input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--border); }
@@ -77,6 +79,7 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
 @media (max-width: 640px) {
+    .vol input { width: 64px; }
     main { padding: 18px 10px 160px; }
     li { grid-template-columns: 28px 1fr auto auto 36px; gap: 8px; }
     .play { grid-column: 1 / 5; }
@@ -112,6 +115,7 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
             <span id="cur">0:00</span>
             <input type="range" id="seek" min="0" max="1000" value="0" aria-label="Position in the song">
             <span id="dur">0:00</span>
+            <label class="vol"><span aria-hidden="true">VOL</span><input type="range" id="vol" min="0" max="100" value="80" aria-label="Volume"></label>
         </div>
     </div>
 </div>
@@ -210,6 +214,11 @@ audio.addEventListener('timeupdate', () => {
     $('cur').textContent = clock(audio.currentTime);
 });
 $('seek').addEventListener('input', () => { dragging = true; const p = $('seek').value / 1000; $('seek').style.setProperty('--p', (p * 100).toFixed(1) + '%'); $('cur').textContent = clock(p * length()); });
+// Volume: remembered on this device where the page may keep things. (iPhones ignore it: use the phone's buttons.)
+const setVol = v => { audio.volume = v / 100; $('vol').value = v; $('vol').style.setProperty('--p', v + '%'); };
+let vol0 = 80; try { const v = Number(localStorage.getItem('agiAlbumVol')); if (v >= 0 && v <= 100 && localStorage.getItem('agiAlbumVol') != null) vol0 = v; } catch (e) { /* no storage here */ }
+setVol(vol0);
+$('vol').addEventListener('input', () => { setVol(Number($('vol').value)); try { localStorage.setItem('agiAlbumVol', $('vol').value); } catch (e) { /* no storage here */ } });
 $('seek').addEventListener('change', () => { dragging = false; if (at >= 0 && length()) audio.currentTime = $('seek').value / 1000 * length(); });
 document.addEventListener('keydown', e => {
     if (e.target.closest('button, input, a')) return;
