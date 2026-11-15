@@ -4726,3 +4726,33 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 .orb-arcs-turn { transform-origin: 50px 50px; animation: orb-turn 140s linear infinite reverse; }
 .assist-dot.mini .orb-arcs { display: none; }
 @media (prefers-reduced-motion: reduce) { .orb-face .orb-strong-turn, .orb-arcs-turn { animation: none; } }
+
+/* The AI's four forms (the owner's pictures, 2026-11-15), a class on the orb: form-1 the calm sphere, form-2 the strong
+   sphere, form-3 unbound (no sphere: ribbons streaming from three nodes round a flame), form-4 the final knot. */
+.assist-dot { --orb-strong: 0; }
+.assist-dot.form-2 { --orb-strong: 1; }
+.orb-face .orb-free, .orb-face .orb-final { opacity: 0; transition: opacity 1.2s ease; transform-origin: 50px 50px; }
+.assist-dot.form-3 .orb-free, .assist-dot.form-4 .orb-final { opacity: 1; }
+.assist-dot.form-3 .assist-mark.orb-face, .assist-dot.form-4 .assist-mark.orb-face { background: none; box-shadow: none; overflow: visible; }
+.assist-dot.form-3 .orb-face svg, .assist-dot.form-4 .orb-face svg { filter: drop-shadow(0 0 1.5px color-mix(in srgb, var(--success) 70%, transparent)); }
+.assist-dot.form-3 .orb-lines, .assist-dot.form-4 .orb-lines, .assist-dot.form-3 .orb-sheen, .assist-dot.form-4 .orb-sheen,
+.assist-dot.form-3 .orb-core, .assist-dot.form-4 .orb-core, .assist-dot.form-3 .orb-core-glow, .assist-dot.form-4 .orb-core-glow { opacity: 0; animation: none; }
+.orb-face .orb-free path, .orb-face .orb-final .orb-flame path { fill: none; stroke: color-mix(in srgb, var(--success) 80%, #fff); stroke-width: 0.8; stroke-linecap: round; }
+.orb-face .orb-flame path { stroke: var(--warning); stroke-width: 0.9; }
+.orb-face .orb-flame .orb-flame-body { fill: url(#orbCoreFill); stroke: none; }
+.orb-face .orb-flame-glow { opacity: calc(0.5 + 0.5 * var(--orb-power)); transform-origin: 50px 47px; }
+.assist-dot.making .orb-flame-glow, .assist-dot.speaking .orb-flame-glow { animation: orb-core 2.8s ease-in-out infinite; }
+.orb-face .orb-ribbon { transform-origin: 50px 45px; animation: orb-sway 9s ease-in-out infinite alternate; }
+.orb-face .orb-ribbon:nth-child(2) { animation-duration: 11s; animation-direction: alternate-reverse; }
+.orb-face .orb-ribbon:nth-child(3) { animation-duration: 13s; }
+@keyframes orb-sway { from { transform: rotate(-3.5deg); } to { transform: rotate(3.5deg); } }
+.orb-face .orb-band { fill: color-mix(in srgb, var(--success) 60%, #fff); fill-opacity: 0.1; stroke: color-mix(in srgb, var(--success) 80%, #fff); stroke-width: 0.6; stroke-opacity: 0.85; }
+.orb-face .orb-band-in { fill-opacity: 0.14; stroke-opacity: 0.5; }
+.orb-face .orb-star { fill: var(--warning); fill-opacity: 0.45; stroke: var(--warning); stroke-width: 0.6; }
+.orb-face .orb-star-in { fill: url(#orbCoreFill); fill-opacity: 0.9; stroke: #fff3b8; }
+.orb-face .orb-final { animation: orb-final 8s ease-in-out infinite alternate; }
+@keyframes orb-final { from { transform: scale(0.97); } to { transform: scale(1.04); } }
+.assist-dot.form-3 .orb-rings { translate: -0.5px 2px; }
+.assist-dot.form-4 .orb-rings { translate: -0.5px 7px; transform: scale(1.4); }
+.assist-form { opacity: 0.8; }
+@media (prefers-reduced-motion: reduce) { .orb-face .orb-ribbon, .orb-face .orb-final, .assist-dot .orb-flame-glow { animation: none !important; } }
