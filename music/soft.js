@@ -56,7 +56,7 @@
         // `inner`, `pedal`, `answer`, `compVoice: 'swell'`: see the step), so no two are built alike. The section ends on a held note leading into the next.
         // Its click figure plays the track's 8ths (322 ms: about three notes a second while a job is held).
         style: {
-            bpm: 93, swing: 0.2, hide: true,      // spotted in Packet Snare, it goes quiet instead of opening up (the owner's call)
+            bpm: 93, swing: 0.2,
             cutoff: k => 1100 + 3200 * k * k, drive: 0, gain: 0.915, shift: 5,     // D minor / F major
             beat: 1.53, tones: 1.487,   // it has no drums: `beat` is kept for the mixer only
             simpleMix: { gain: 1, beat: 0.997, tones: 2.032 }, simpleVoice: 'sine',   // the simple version (simpleStep)
@@ -66,8 +66,16 @@
             step(t, s, k, len, L, c) {
                 const ch = c.chord, song = c.song, ts = t + c.sw, N = c.steps, bar = len * N;
                 // A song says which of its sections a texture plays in (a list of section names), or true for all.
-                // `hides`: textures a stealth song drops once you are spotted (this track hides: it goes quiet then).
-                const has = key => (song.hides && song.hides.includes(key) && c.spot > 0.3 ? false : Array.isArray(song[key]) ? song[key].includes(c.sec) : !!song[key]);
+                // `spotted`: textures a stealth song adds only once you are spotted (it has no drums to bring in), faded in by `sp`.
+                const sp = Math.max(0, Math.min(1, (c.spot - 0.15) / 0.6));
+                const has = key => (song.spotted && song.spotted.includes(key) ? sp > 0 : Array.isArray(song[key]) ? song[key].includes(c.sec) : !!song[key]);
+                // `shiver`: the strings trembling, the chord re-bowed on every step, each stroke eased in and run into the
+                // next: nerves, with nothing struck (the owner's call: going quiet when spotted was wrong).
+                if (has('shiver')) ch.v.forEach((n, i) =>
+                    note(ts, n, len * 1.35, 0.0075 * sp * (s % 2 ? 0.75 : 1), { type: 'sawtooth', cutoff: 850 + 250 * k, q: 0.5, detune: i % 2 ? 6 : -6, attack: 0.045, sus: 0.7, dec: 0.08, rel: 0.13, rev: 0.4, pan: (i - 1.5) * 0.3 }));
+                // `heart`: the low strings swelling twice on each beat, a pulse under everything.
+                if (s % 4 === 0 && has('heart')) [[0, 0.055], [1.4, 0.034]].forEach(([at, g]) =>
+                    note(ts + at * len, ch.v[0] - 12, len * 1.5, g * sp, { type: 'triangle', cutoff: 240, q: 0.5, attack: 0.06, sus: 0.7, dec: 0.12, rel: 0.25, rev: 0.25 }));
                 // The string section: the chord through the whole bar, swelling in, overlapping the bar before.
                 if (L.pad > 0.02 && s === 0 && !has('stringsOut')) ch.v.forEach((n, i) => {
                     const pan = (i - 1.5) * 0.3, o = { type: 'sawtooth', cutoff: 650 + 450 * k, q: 0.5, attack: Math.min(0.9, bar * 0.35), sus: 0.9, dec: 0.4, rel: 1.2, rev: 0.6 };
@@ -205,7 +213,7 @@
             snare: [
                 {   // Tiptoe: in three at 66: a clarinet asks for two bars and a flute answers for two, a cello turning
                     // under them, the bass only holding.
-                    name: 'Tiptoe', lvl: 0.789, rest: 1.32, slvl: 0.85, srest: 1.31, bpm: 66, steps: 12, swing: 0, scale: AEOL, lead: 'clarinet', answer: 'flute', pedal: true, hides: ['inner'],
+                    name: 'Tiptoe', lvl: 0.721, rest: 0.9, slvl: 0.85, srest: 1.31, bpm: 66, steps: 12, swing: 0, scale: AEOL, lead: 'clarinet', answer: 'flute', pedal: true, spotted: ['shiver', 'heart'],
                     inner: ['A', 'A2', 'A3', 'B', 'B2'], chords: ['Am9', 'Fmaj7', 'Dm9', 'Esus4'],
                     bass: 'r...........', cut: 0.8,
                     mel: {
@@ -216,7 +224,7 @@
                 },
                 {   // Hushed Channel: a lullaby at 80 in F Lydian: only the held strings, and a choir alone in five-bar
                     // phrases over a Gsus4 that never lands.
-                    name: 'Hushed Channel', lvl: 0.873, rest: 1.26, slvl: 0.85, srest: 1.31, bpm: 80, swing: 0, scale: LYD, tonic: 8, oct: -1, lead: 'choir', compVoice: 'none', inner: true, hides: ['inner'],
+                    name: 'Hushed Channel', lvl: 0.851, rest: 0.87, slvl: 0.85, srest: 1.31, bpm: 80, swing: 0, scale: LYD, tonic: 8, oct: -1, lead: 'choir', compVoice: 'none', inner: true, spotted: ['shiver', 'heart'],
                     chords: { A: ['Fmaj7', 'Fmaj7', 'Em7', 'Dm9', 'Gsus4'], B: ['Am7', 'Fmaj7', 'Dm9', 'Em7', 'Gsus4'] },
                     bass: 'r.....r.........', comp: [10], cut: 0.8,
                     mel: {
