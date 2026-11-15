@@ -595,3 +595,11 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
 - **The review artifact's file list (`tools/review/artifact-files.js`) is text only** and does not carry `art/`; a
   published artifact would show no orb until that is extended. The play server serves it (`.webp` added to serve.js).
 - Still a placeholder: what moves the AI from form to form (`ORB_FORMS`, the run's compute at 10K, 10M, 10B).
+
+## 2026-11-15: the AI's forms change at story beats (the owner's call)
+
+- Asked what moves the AI from form to form, the owner chose **story beats**, and said which beats can wait until the
+  rebuild plan is finished. So the compute stand-in is gone: **the AI stays in its first form in play** until the
+  beats are set. The glow still follows compute. The playground's sheet steps through forms 1 to 4 to look at them.
+- **Open, for after the rebuild plan:** the three beats (my suggestions were the first boss falling, sector 9's
+  boss, and General AI at the ending).

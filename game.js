@@ -2871,7 +2871,7 @@ window.AGI = (function () {
             ask, answer, go,
             el('button', { type: 'button', class: 'assist-ask assist-what', text: 'What is this?', onclick: () => assistAskStart() }),
             // The playground can look at each form (0 goes back to the form the compute gives).
-            ...(RING_PLAY ? [el('button', { type: 'button', class: 'assist-ask assist-form', text: `Orb form: ${orbFormShow || 'by compute'} (tap to change)`, onclick: e => { orbFormShow = (orbFormShow + 1) % 5; e.currentTarget.textContent = `Orb form: ${orbFormShow || 'by compute'} (tap to change)`; assistDotTick(); } })] : []),
+            ...(RING_PLAY ? [el('button', { type: 'button', class: 'assist-ask assist-form', text: `Orb form: ${orbFormShow || 1} (tap to change)`, onclick: e => { orbFormShow = orbFormShow % 4 + 1; e.currentTarget.textContent = `Orb form: ${orbFormShow} (tap to change)`; assistDotTick(); } })] : []),
             ...(shopOpenable() ? [el('button', { type: 'button', class: 'assist-ask assist-parcel', text: 'Open Parcel', onclick: () => { assistSheetToggle(); pt('assistAsk', { parcel: 1 }); openShop(); } })] : []),
             el('h4', { class: 'assist-sheet-title', text: 'Earlier' }),
             ...(past.length ? past.reverse() : [el('p', { class: 'assist-answer', text: ASSIST_LINES.empty })])]);
@@ -2920,7 +2920,7 @@ window.AGI = (function () {
             const p = Math.min(1, 0.12 + 0.88 * Math.log10(1 + cp) / 6.5);
             if (Math.abs(p - orbPower) > 0.004) { orbPower = p; assistDot.style.setProperty('--orb-power', p.toFixed(3)); }
             assistDot.classList.toggle('making', now - orbAt < 1600);
-            const form = orbFormShow || (cp >= ORB_FORMS[2] ? 4 : cp >= ORB_FORMS[1] ? 3 : cp >= ORB_FORMS[0] ? 2 : 1);
+            const form = orbFormShow || 1;
             if (form !== orbForm) { if (orbForm) assistDot.classList.remove('form-' + orbForm); assistDot.classList.add('form-' + (orbForm = form)); } }
         assistDot.classList.toggle('has', !!assistLive || assistQueue.length > 0);
         assistDot.classList.toggle('speaking', !!assistLive);
@@ -2930,8 +2930,8 @@ window.AGI = (function () {
     // (--orb-power, set in assistDotTick); a tap is a gentle swell, never a flash, and the orb never changes size.
     const ORB_FACE = "<img class=\"orb-img orb-img-calm\" src=\"art/orb-calm.webp\" alt=\"\" draggable=\"false\" decoding=\"async\"><img class=\"orb-img orb-img-talk\" src=\"art/orb-talk.webp\" alt=\"\" draggable=\"false\" decoding=\"async\"><img class=\"orb-img orb-img-strong\" src=\"art/orb-strong.webp\" alt=\"\" draggable=\"false\" decoding=\"async\"><img class=\"orb-img orb-img-free\" src=\"art/orb-free.webp\" alt=\"\" draggable=\"false\" decoding=\"async\"><img class=\"orb-img orb-img-final\" src=\"art/orb-final.webp\" alt=\"\" draggable=\"false\" decoding=\"async\">";
     // The AI's four forms (the owner's pictures, 2026-11-15): 1 the calm sphere, 2 the strong sphere, 3 unbound ribbons, 4 the final knot.
-    // PLACEHOLDER: the form follows the run's compute at these amounts until the owner says what strength is measured by.
-    const ORB_FORMS = [1e4, 1e7, 1e10];
+    // The form changes at story beats (the owner's call, 2026-11-15); which beats is decided once the rebuild plan is
+    // finished, so until then the AI stays in its first form. The playground's sheet can show each form.
     let orbCp = null, orbAt = -1e9, orbPower = -1, orbSwell = 0, orbForm = 0, orbFormShow = 0;
     function orbCompute() {
         if (!assistDot || assistDot.hidden) return;
