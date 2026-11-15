@@ -512,6 +512,11 @@
     // (`ring:server` in intro, set by the game) and bought with money. Whoever hasn't the money for it gets a deposit
     // (`fund:server`). Buying it opens the Training Cluster (the `module:path` milestone), where a sprint costs
     // research (RING_SPRINT_RP for a full one on the first legs), which The Feed makes. Placeholder numbers.
+    // Sprint prices (the owner's picks, 2026-11-14, from their desktop log: the first Feed session paid 126 research
+    // against about 140 a run at 35 a sprint, so the second skill took 19 runs over four sessions; then one long
+    // session paid 3,802 and bought five skills in six minutes, a run costing 140 at skill 2 and only 280 at skill 6):
+    // a full sprint is RING_SPRINT_RP 15 until Pattern Matching and RING_SPRINT_GROWTH 1.6 times more for each skill
+    // learned after the warm-up (15, 24, 38, 61, 98 ...), in place of the old game's half steps. The numbers are mine.
     // Pace (the owner's calls, 2026-11-14, after a log where the Lab, money, the desk, Packet Snare and The Feed all came
     // inside 150 s): **no loan to start**. Parcel appears at RING_CALL_CP compute made and buys compute; the desk's
     // parts are bought one at a time with what it pays (DESK_PRICES, in dollars: about 600 compute in all, PLACEHOLDER
@@ -519,7 +524,7 @@
     // (`ring:feed` in intro, set by the game). **Graphics Cards** are sold only after the first Feed session
     // (`ringCardsOpen`), the first RING_CARD_PRICE dollars and each RING_CARD_GROWTH times the last; M0M's call comes
     // then, with RING_DEPOSIT dollars "to start automating".
-    const RING_CALL_CP = 25, RING_DEPOSIT = 100, DESK_PRICES = [10, 15, 15, 20], RING_SERVER_PRICE = 400, RING_SPRINT_RP = 35, RING_CARD_PRICE = 10, RING_CARD_GROWTH = 1.25, RING_FEED_RUNS = 4;
+    const RING_CALL_CP = 25, RING_DEPOSIT = 100, DESK_PRICES = [10, 15, 15, 20], RING_SERVER_PRICE = 400, RING_SPRINT_RP = 15, RING_SPRINT_GROWTH = 1.6, RING_CARD_PRICE = 10, RING_CARD_GROWTH = 1.25, RING_FEED_RUNS = 4;
     // The phone has a graphics card in it, and the Desktop Tower comes with one (the owner's call, 2026-11-14): free
     // cards, worked out here and never stored or paid for (`levels.cpu` stays the cards bought). The phone's starts
     // working once the Lab has been opened.
@@ -2039,7 +2044,7 @@
     function pushCost(s, charge = 1, leg = s.path.learned) {
         const n = Math.max(0, legPos(Math.min(leg, s.path.learned)) - 1);   // the warm-up and Pattern Matching's leg cost the base; act one climbs in half steps
         const early = Math.min(n, PATH.pushCostRampFrom);
-        const factor = Math.pow(PATH.pushCostScale, early) * Math.pow(PATH.pushCostLate, n - early) * charge * charge * challengeMods(s).costMult;
+        const factor = (ring ? Math.pow(RING_SPRINT_GROWTH, Math.max(0, Math.min(leg, s.path.learned) - 1)) : Math.pow(PATH.pushCostScale, early) * Math.pow(PATH.pushCostLate, n - early)) * charge * charge * challengeMods(s).costMult;
         const cost = {};
         // Computer Vision sees what matters and skips the rest: sprints need 30% less compute.
         const use = { cp: level(s, 'computerVision') ? 0.7 : 1 };
@@ -3704,7 +3709,7 @@
     }
 
     return {
-        RING_STUCK_RUNS, RING_SURGE_SHARE, stuckOffer, takeSurge, passSurge, RING_SERVER_PRICE, RING_SPRINT_RP, RING_CALL_CP, RING_DEPOSIT, DESK_PRICES, RING_CARD_PRICE, RING_CARD_GROWTH, RING_FEED_RUNS, ringCardsOpen, ringFreeCards, feedOpen, RING_CP_PER_DOLLAR, sellCompute, deskCash, funded, fundStep, fundDecide,
+        RING_STUCK_RUNS, RING_SURGE_SHARE, stuckOffer, takeSurge, passSurge, RING_SERVER_PRICE, RING_SPRINT_RP, RING_SPRINT_GROWTH, RING_CALL_CP, RING_DEPOSIT, DESK_PRICES, RING_CARD_PRICE, RING_CARD_GROWTH, RING_FEED_RUNS, ringCardsOpen, ringFreeCards, feedOpen, RING_CP_PER_DOLLAR, sellCompute, deskCash, funded, fundStep, fundDecide,
         feedStart, feedStock, feedLeave, feedCarry, feedPick, feedMark,
         SAVE_VERSION, newPlayer, cleanPlayer, signIn, mailFill, WELCOME_FINAL, setRing, isRing, RING_DESK, deskLevels, deskDone, RING_CLOCK, RING_CLOCK_GROWTH, RING_CLOCK_MIN, snareClock, snarePayClock, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
         versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, startBreakCountdown, WALL_SURGE_RUNS, SURGE_POWER, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, ENDINGS, ending, recordLegPower, legPower, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,

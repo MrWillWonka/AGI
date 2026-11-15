@@ -77,6 +77,12 @@ test('the ring: a sprint costs research, on the old shape by charge; the old gam
     assert.equal(E.payPush(s, 1), true);
     assert.equal(s.res.rp, 0);
     assert.equal(s.res.cp, 1e6);
+    // cheap to start, 1.6 times more for each skill after the warm-up; a replayed leg at its own price
+    assert.equal(E.RING_SPRINT_RP, 15);
+    const at = n => { s.path.learned = n; return E.pushCost(s, 1).rp; };
+    assert.deepEqual([0, 1, 2, 3, 4, 5].map(at), [15, 15, 24, 39, 62, 99]);
+    assert.equal(E.pushCost(s, 1, 2).rp, 24, 'an earlier leg costs what it did');
+    s.path.learned = 0;
     E.setRing(false);
     assert.deepEqual(Object.keys(E.pushCost(s, 1)).sort(), ['cp', 'dp']);
 });

@@ -2682,7 +2682,7 @@ window.AGI = (function () {
         const part = shopOpenable() && shopItems().find(i => i.next && !i.owned);
         const app = desk < E.RING_DESK ? (part && (part.price <= bankNow() || state.res.cp >= E.RING_CP_PER_DOLLAR * 5) ? 'shop' : 'lab')
             : state.intro['ring:server'] && desk === E.RING_DESK ? 'server'
-            : state.unlocked['module:path'] && state.res.rp >= E.RING_SPRINT_RP ? 'training'
+            : state.unlocked['module:path'] && state.res.rp >= E.pushCost(state, 1).rp ? 'training'
             : E.feedOpen(state) && stock ? 'feed' : 'snare';
         return [ASSIST_LINES['now:' + app], app === 'server' ? 'shop' : app];
     }
