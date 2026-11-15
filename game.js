@@ -2270,15 +2270,43 @@ window.AGI = (function () {
             const sw = el('div', { class: 'device-switch' });
             const fine = () => matchMedia('(hover: hover) and (pointer: fine)').matches;
             const isOpen = () => sw.classList.contains('open');
-            const hideSwitch = () => { sw.classList.remove('open'); clearTimeout(desk.switchTimer); };
-            const showSwitch = () => { desk.shopDock.hidden = !shopOpenable(); sw.classList.add('open'); clearTimeout(desk.switchTimer); if (!fine()) desk.switchTimer = setTimeout(hideSwitch, 5000); };
+            // (The owner's notes, 2026-11-15: the dock can be pinned open, and expanded to show your apps for quick
+            // navigation, both kept per device; and it stays open while the AI is introducing it, `desk.dockHeld`.)
+            const kept = (key, set) => { try { if (set !== undefined) localStorage.setItem(key, set ? '1' : '0'); return localStorage.getItem(key) === '1'; } catch { return false; } };
+            const hideSwitch = () => { if (desk.dockHeld || kept('agiDockPin')) return; sw.classList.remove('open'); clearTimeout(desk.switchTimer); };
+            const showSwitch = () => { desk.dockRefresh(); sw.classList.add('open'); clearTimeout(desk.switchTimer); if (!fine()) desk.switchTimer = setTimeout(hideSwitch, 5000); };
+            desk.showSwitch = showSwitch; desk.hideSwitch = hideSwitch; desk.sw = sw;
             const switchButton = (key, label, svg, act) => { const b = el('button', { type: 'button', class: `device-switch-button device-switch-${key}${key === 'home' ? ' device-homebar' : ''}`, 'aria-label': label, title: label, onclick: () => { hideSwitch(); pt('switch', { to: key }); act(); } }); b.innerHTML = svg; return b; };
             desk.shopDock = switchButton('shop', 'Parcel', HOME_ICONS.shop, () => openShop());
-            sw.append(
+            const toApp = go => () => { closeApps(); go(); };
+            const appButtons = {
+                mail: switchButton('mail', 'Mail', HOME_ICONS.mail, toApp(() => openInbox())),
+                lab: switchButton('lab', 'Lab', HOME_ICONS.lab, toApp(() => { if (openBay) jumpTo('lab'); openLab(); })),
+                snare: switchButton('snare', 'Packet Snare', HOME_ICONS.snare, toApp(() => openSnareApp())),
+                feed: switchButton('feed', 'The Feed', HOME_ICONS.feed, toApp(() => openFeed())),
+                training: switchButton('training', 'Training', HOME_ICONS.training, toApp(() => openTrainingApp())) };
+            const appsRow = el('div', { class: 'device-switch-apps' }, Object.values(appButtons));
+            const small = (key, label, text, act) => el('button', { type: 'button', class: `device-switch-button device-switch-small device-switch-${key}`, 'aria-label': label, title: label, text, onclick: act });
+            const pin = small('pin', 'Keep the dock open', '⌖', () => { const on = !kept('agiDockPin'); kept('agiDockPin', on); pt('dock', { pin: on ? 1 : 0 }); desk.dockRefresh(); if (!on) hideSwitch(); });
+            const more = small('more', 'Show your apps', '⌃', () => { const on = !kept('agiDockApps'); kept('agiDockApps', on); pt('dock', { apps: on ? 1 : 0 }); desk.dockRefresh(); });
+            desk.dockRefresh = () => {
+                desk.shopDock.hidden = !shopOpenable();
+                const pinned = kept('agiDockPin'), wide = kept('agiDockApps');
+                sw.classList.toggle('pinned', pinned); if (pinned) sw.classList.add('open');
+                pin.setAttribute('aria-pressed', String(pinned)); more.setAttribute('aria-pressed', String(wide)); more.textContent = wide ? '⌄' : '⌃';
+                appsRow.hidden = !wide;
+                const now = ringAppNow(), have = { mail: true, lab: true, snare: !!state.unlocked['module:snare'], feed: E.feedOpen(state), training: !!state.unlocked['module:path'] };
+                for (const [k, b] of Object.entries(appButtons)) { b.hidden = !have[k]; b.classList.toggle('here', k === now); }
+            };
+            const mainRow = el('div', { class: 'device-switch-row' });
+            sw.append(appsRow, mainRow);
+            mainRow.append(
+                pin,
                 switchButton('playtest', 'Playtest survey', HOME_ICONS.playtest, () => openSurvey()),
                 desk.shopDock,
                 switchButton('home', 'Home screen', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>', () => goHome()),
-                switchButton('settings', 'Settings', HOME_ICONS.settings, () => $('settingsButton').click()));
+                switchButton('settings', 'Settings', HOME_ICONS.settings, () => $('settingsButton').click()),
+                more);
             const dot = el('button', { type: 'button', class: 'device-homedot', 'aria-label': 'Show the dock: Home, Parcel, Settings and Playtest', onclick: () => { if (isOpen() && !fine() && performance.now() - hoverAt > 700) hideSwitch(); else showSwitch(); } });
             let hoverAt = -1e9;   // a press that follows its own hover opening the dock must not close it again
             // The pointer over the dot opens it; off the dot and the bar for a moment, it goes.
@@ -2288,6 +2316,7 @@ window.AGI = (function () {
             for (const n of [dot, sw]) { n.addEventListener('pointerenter', stay); n.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') leave(); }); }
             document.addEventListener('pointerdown', e => { if (isOpen() && !e.target.closest('.device-switch, .device-homedot')) hideSwitch(); });
             document.body.append(sw, dot);
+            desk.dockRefresh();
             // The status bar: the device's own thin row over every app, in place of the old game's top bar (the owner's
             // call): the clock, what you hold, the signal. When the stats don't fit it shows them one at a time.
             const clock = el('span', { class: 'status-clock' }), stats = el('span', { class: 'status-stats' });
@@ -2305,6 +2334,7 @@ window.AGI = (function () {
             const names = { Workbench: 'Compute', 'Hardware bench': 'Parts' };
             for (const h of $('labRoom').querySelectorAll('.station-title')) if (names[h.textContent.trim()]) { h.textContent = names[h.textContent.trim()]; desk.titled = true; if (h.textContent === 'Parts') desk.parts = h; }
         }
+        if (desk.sw?.classList.contains('open')) desk.dockRefresh();
         // The money you hold shows on the Parts window.
         renderStatus();
     }
@@ -2576,7 +2606,10 @@ window.AGI = (function () {
         "download": "One moment. I am downloading something that will help. It is small. It will not take long.",
         "lab1": "Hello. I am new here. If you tap Generate Compute, I think I can be useful.",
         "lab2": "Thank you. That helps more than you would think. A few more, if you do not mind.",
-        "money": "You have some compute to spare. I found a shop that will buy it. I hope that is all right.",
+        "money": "That is a hundred compute. I found a shop that will buy it. A tower would help. And I have seen your screen. You could fix the screen too. You deserve the extras.",
+        "back": "The tower is in. Thank you. Back to the Lab, if you would.",
+        "dock1": "I put Parcel down here for you. You can buy things without leaving. I thought it would save you the trip.",
+        "dock2": "Home is the one in the middle. Settings and Playtest are beside it. The pin keeps this open. The arrow shows your other apps.",
         "moneyHome": "This one. Parcel pays for compute and sells desk parts. A tower would let you make more with each tap.",
         "snare": "The desk is working. Thank you. There is data going past out there, and I would like to see some. Would you catch a little?",
         "snareHome": "This one. Packet Snare is where the data goes by. The blue I can read. The red I cannot. Not yet.",
@@ -2694,6 +2727,7 @@ window.AGI = (function () {
         a.ringed?.classList.remove('assist-ring');
         a.node.remove();
         assistLive = null;
+        if (desk?.dockHeld) { desk.dockHeld = false; desk.hideSwitch(); }
         save();
         setTimeout(() => { if (!assistLive) assistNext(); }, 400);
     }
@@ -2732,6 +2766,7 @@ window.AGI = (function () {
         assistSheet = el('div', { class: 'assist-sheet', role: 'dialog', 'aria-label': 'Assistant' }, [
             el('div', { class: 'assist-sheet-head' }, [el('span', { class: 'assist-mark', 'aria-hidden': 'true' }), el('strong', { text: 'Assistant' }), el('button', { type: 'button', class: 'assist-close', 'aria-label': 'Close', text: '×', onclick: () => assistSheetToggle() })]),
             ask, answer, go,
+            ...(shopOpenable() ? [el('button', { type: 'button', class: 'assist-ask assist-parcel', text: 'Open Parcel', onclick: () => { assistSheetToggle(); pt('assistAsk', { parcel: 1 }); openShop(); } })] : []),
             el('h4', { class: 'assist-sheet-title', text: 'Earlier' }),
             ...(past.length ? past.reverse() : [el('p', { class: 'assist-answer', text: ASSIST_LINES.empty })])]);
         assistDot.parentNode.append(assistSheet);
@@ -2804,6 +2839,7 @@ window.AGI = (function () {
         const a = assistLive;
         if (!a) { assistThreadTick(false); return; }
         if (a.done && performance.now() - a.at > assistHold(a) && a.done()) { assistClose('done'); return; }
+        if (desk?.showSwitch && a.key.startsWith('dock') !== !!desk.dockHeld) { desk.dockHeld = a.key.startsWith('dock'); if (desk.dockHeld) desk.showSwitch(); else desk.hideSwitch(); }
         // It sits over whatever is open: inside the topmost open dialog (Mail, The Feed, Parcel), else on the page.
         const open = document.querySelectorAll('dialog[open]'), host = open.length ? open[open.length - 1] : document.body;
         if (assistBox.parentNode !== host) host.append(assistBox);
@@ -2982,7 +3018,13 @@ window.AGI = (function () {
         afterChange(); renderShop(true);
     }
     // An order arrives: it is bought and installed now (its money has been held since it was placed).
+    let shopCame = {};   // what has arrived in this run of deliveries, by name
     function shopTick() {
+        // The dock's introduction, in the Lab once the first part is in (PLACEHOLDER words).
+        if (E.level(state, 'keyboard') >= 1 && !state.intro['assist:dock2'] && desk?.sw && ringAppNow() === 'lab' && !document.querySelector('dialog[open]')) {
+            assist('dock1', '', { target: () => desk.shopDock });
+            assist('dock2', '', { target: () => desk.sw });
+        }
         while (parcels.length && performance.now() >= parcels[0].due) {
             const p = parcels.shift();
             if (E.level(state, p.id) !== p.k) continue;
@@ -2991,7 +3033,13 @@ window.AGI = (function () {
             log(result.msg, 'success'); sfx('buy', { panel: 'hardware', big: p.id === 'keyboard' });
             pt('buy', { id: p.id, lvl: E.level(state, p.id) }); pt('shopDelivered', { item: p.id === 'cpu' ? 'card' : p.id === 'server' ? 'rig' : p.k });
             termLog(`installed ${p.name}`);
-            if (!parcels.length || p.id === 'keyboard') deviceNotice('shop', 'Parcel', `Delivered and installed: ${p.name}.`, () => openShop());
+            shopCame[p.name] = (shopCame[p.name] || 0) + 1;
+            if (!parcels.length || p.id === 'keyboard') {
+                for (const [name, n] of Object.entries(shopCame)) deviceNotice('shop', `${name}${n > 1 ? ` ×${n}` : ''} delivered`, 'Installed.', () => openShop());
+                shopCame = {};
+            }
+            // The first part in: back to the Lab (the owner's note), where the AI shows the dock it put Parcel on.
+            if (p.id === 'keyboard' && p.k === 0) assist('back', '', { target: () => (ringAppNow() === 'home' ? home?.lab.button : null), done: () => ringAppNow() === 'lab' });
             afterChange(); save();
         }
         // Parcel arrives once there is compute to sell: a notice, and the AI's line (PLACEHOLDER words).
@@ -14351,6 +14399,11 @@ window.AGI = (function () {
     // (PLACEHOLDER amounts of mine).
     function straightToRing() {
         const i = state.intro;
+        // (The owner's call, 2026-11-15: "free to do everything, just to mess around": no money story, no lines from the
+        // AI, and plenty of everything. `ring:playground2` tops up a playground save made before that.)
+        for (const k of Object.keys(ASSIST_LINES)) i['assist:' + k] = true;
+        Object.assign(i, { 'ring:call': true, 'hint:hold': true });
+        if (!i['ring:playground2']) { i['ring:playground2'] = true; state.stats.cashSold += 10000; state.res.cp += 100000; state.res.rp += 10000; if (i['ring:playground']) { afterChange(); save(); } }
         if (i['ring:playground']) return;
         for (const m of E.MAIL.filter(m => m.intro)) i['mail:' + m.id] = i['mailRead:' + m.id] = true;
         if (!state.player.email) E.signIn(state, 'Tester', 'tester', matchMedia('(pointer: coarse)').matches ? 'phone' : 'laptop');

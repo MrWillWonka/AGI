@@ -357,3 +357,22 @@ The owner's notes, as given:
   wording goes into the Parcel line of note 6 (batch 2).
 
 All numbers (4 s, 50 ms a character, 2 s and 2 s) are placeholders of mine.
+
+## 2026-11-15: batch 2 of the owner's notes (Parcel and the dock; notes 6, 7, 11, 15, 16) and two answers
+
+- **Note 6, Parcel at 100:** `RING_CALL_CP` is 100 (was 25): Parcel arrives when there is enough compute to sell for
+  the $10 tower. The AI's line names the tower, the screen ("fix the screen", note 7) and the extras. When the tower is
+  delivered it asks you back to the Lab (`back`), and there it opens the dock and introduces it: Parcel, which it
+  put there (`dock1`), then Home, Settings, Playtest, the pin and the arrow (`dock2`). The dock stays open while it
+  talks about it (`desk.dockHeld`). All four lines are PLACEHOLDERS.
+- **Note 11, pin and expand:** the dock has a pin (it stays open) and an arrow (a second row with the apps you have:
+  Mail, Lab, Packet Snare, The Feed, Training; the one you are in is lit). Both kept per device (`agiDockPin`,
+  `agiDockApps`); logged as `dock`.
+- **Note 15, deliveries:** one notice for a run of deliveries, named and counted: "Graphics Card ×5 delivered", with
+  "Installed." under it.
+- **Note 16, Parcel in the AI's interface:** a first step only: the orb's panel has an Open Parcel button, and the
+  dock's introduction says the AI put Parcel there. What more "integrated" should mean is the owner's to say.
+- **The owner's answers:** "Data Stream" (note 8) is Packet Snare's field, as the landscape is Training's: the thematic
+  picture of why the minigame exists. Notes 8 and 18 are a pair, for batch 4. **The playground is free to do
+  everything**: no money story (`fundStep` null there), no lines from the AI, and $10,000, 100,000 compute and
+  10,000 research on top (amounts mine).

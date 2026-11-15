@@ -528,7 +528,8 @@
     // (`ring:feed` in intro, set by the game). **Graphics Cards** are sold only after the first Feed session
     // (`ringCardsOpen`), the first RING_CARD_PRICE dollars and each RING_CARD_GROWTH times the last; M0M's call comes
     // then, with RING_DEPOSIT dollars "to start automating".
-    const RING_CALL_CP = 25, RING_DEPOSIT = 100, DESK_PRICES = [10, 15, 15, 20], RING_SERVER_PRICE = 400, RING_SPRINT_RP = 15, RING_SPRINT_GROWTH = 1.6, RING_CARD_PRICE = 10, RING_CARD_GROWTH = 1.15, RING_FEED_RUNS = 4;
+    const RING_CALL_CP = 100,   // (the owner's call, 2026-11-15: Parcel arrives at 100 compute made, enough to sell for the $10 tower; it was 25)
+         RING_DEPOSIT = 100, DESK_PRICES = [10, 15, 15, 20], RING_SERVER_PRICE = 400, RING_SPRINT_RP = 15, RING_SPRINT_GROWTH = 1.6, RING_CARD_PRICE = 10, RING_CARD_GROWTH = 1.15, RING_FEED_RUNS = 4;
     // Compute later on (the owner's picks, 2026-11-14, from their desktop log: a sector-8 run cost 7,517 compute against
     // 11.4 a second, and no card was bought after the 17th, the 18th at $444 paying back in 2.5 hours): cards cost 15%
     // more each (was 25%), a run's clock 1.35 times more a sector (was 1.6, `RING_CLOCK_GROWTH`), and once you have
@@ -566,7 +567,7 @@
     // The next beat of the money story, or null: 'call', 'offer:<who>' (accept or decline), 'mail:<id>',
     // 'deposit:<who>' (no question). The game times them and shows them.
     function fundStep(s) {
-        if (!ring || !s.intro['mailAccepted:welcome']) return null;
+        if (!ring || playground || !s.intro['mailAccepted:welcome']) return null;   // the playground has no money story (the owner's call, 2026-11-15)
         const step = deskFundStep(s);
         if (step) return step;
         // No money comes for the server (the owner's call, 2026-11-14: "players just get $400 for the server"): it is

@@ -4505,3 +4505,14 @@ body.device-phone .shop-screen { width: calc(100vw / var(--zoom, 1) - 16px); hei
 @keyframes assist-compute-ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 70%, transparent), 0 4px 16px rgba(0, 0, 0, 0.6); } 100% { box-shadow: 0 0 0 16px transparent, 0 4px 16px rgba(0, 0, 0, 0.6); } }
 .assist.beside, body.device-laptop .assist.beside, :root:has(.device-notice) .assist.beside { display: block; inset: auto; }
 @media (prefers-reduced-motion: reduce) { .assist-thread::after, .assist-bubble, .assist-dot.computing, .assist-dot.computing .assist-mark { animation: none; } }
+
+/* The dock, pinned and expanded (the owner's notes, 2026-11-15): two rows, your apps over the dock's own buttons. */
+body.ring-device .device-switch, body.ring-device.device-phone .device-switch, body.ring-device.device-phone .device-switch[hidden] { flex-direction: column; gap: 6px; max-width: calc(100vw - 12px); box-sizing: border-box; }
+.device-switch-row, .device-switch-apps { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.device-switch-apps[hidden] { display: none; }
+.device-switch-apps { padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+body.ring-device .device-switch-apps .device-switch-button { color: var(--text); }
+body.ring-device .device-switch-apps .device-switch-button.here { color: var(--success); background: rgba(255, 255, 255, 0.07); }
+body.ring-device .device-switch-small { width: 32px; height: 40px; font: 400 1.55rem/1 var(--font-mono); text-align: center; color: var(--muted); }
+body.ring-device .device-switch-small[aria-pressed="true"] { color: var(--success); }
+body.ring-device .device-switch.pinned { border-color: color-mix(in srgb, var(--success) 45%, var(--border)); }

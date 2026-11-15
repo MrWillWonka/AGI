@@ -10,7 +10,10 @@ succeeds, never a tutorial. Edit the Line column and send it back (or say which 
 | `download` | Home screen, two seconds after the offer is taken; the Lab starts loading two seconds later | One moment. I am downloading something that will help. It is small. It will not take long. | |
 | `lab1` | The Lab, first time it opens | Hello. I am new here. If you tap Generate Compute, I think I can be useful. | |
 | `lab2` | The Lab, after the first few taps | Thank you. That helps more than you would think. A few more, if you do not mind. | |
-| `money` | Parcel arrives (25 compute made) | You have some compute to spare. I found a shop that will buy it. I hope that is all right. | |
+| `money` | Parcel arrives (100 compute made) | That is a hundred compute. I found a shop that will buy it. A tower would help. And I have seen your screen. You could fix the screen too. You deserve the extras. | |
+| `back` | The tower is delivered | The tower is in. Thank you. Back to the Lab, if you would. | |
+| `dock1` | The Lab, after the tower: the dock opens, Parcel ringed | I put Parcel down here for you. You can buy things without leaving. I thought it would save you the trip. | |
+| `dock2` | Next, the whole dock ringed | Home is the one in the middle. Settings and Playtest are beside it. The pin keeps this open. The arrow shows your other apps. | |
 | `moneyHome` | Home screen, Parcel ringed | This one. Parcel pays for compute and sells desk parts. A tower would let you make more with each tap. | |
 | `snare` | The desk is finished: Packet Snare arrives | The desk is working. Thank you. There is data going past out there, and I would like to see some. Would you catch a little? | |
 | `snareHome` | Home screen, Packet Snare ringed | This one. Packet Snare is where the data goes by. The blue I can read. The red I cannot. Not yet. | |

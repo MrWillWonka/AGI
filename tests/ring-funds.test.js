@@ -146,3 +146,10 @@ test('the ring: the phone has a graphics card in it and the tower comes with one
     E.setRing(false);
     assert.equal(E.ringFreeCards(s), 0);
 });
+
+test('the playground has no money story', () => {
+    const s = game(); s.levels.keyboard = E.RING_DESK;
+    assert.equal(E.fundStep(s), 'call');
+    E.setPlayground(true);
+    try { assert.equal(E.fundStep(s), null); } finally { E.setPlayground(false); }
+});
