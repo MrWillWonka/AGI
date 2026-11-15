@@ -30,9 +30,15 @@
     // A quick tap (under `TAP_MS`, the finger barely moving) sets a point that stays; a tap on that point clears it.
     const TAP_MS = 260, TAP_PX = 10;
     let downAt = 0, downXY = null;
-    let camDock = false, camEl = null;
-    try { camDock = localStorage.getItem('agiFeedCam') === 'dock'; } catch { /* private mode */ }
-    const camLabel = () => { if (camEl) { camEl.textContent = camDock ? 'Camera: docked' : 'Camera: follows'; camEl.setAttribute('aria-pressed', String(camDock)); } };
+    // (2026-11-14, the owner: "still way too small, I'd like the option to make it larger or smaller": the button goes
+    // round Follows, Small, Large and Off; Large is most of the stage's width and a third of its height.)
+    const CAM_MODES = ['follow', 'small', 'large', 'off'], CAM_NAME = { follow: 'follows', small: 'small', large: 'large', off: 'off' };
+    let camMode = 'large', camEl = null;
+    try { const v = localStorage.getItem('agiFeedCam'); camMode = v === 'dock' ? 'small' : CAM_MODES.includes(v) ? v : 'large'; } catch { /* private mode */ }
+    const camLabel = () => { if (camEl) camEl.textContent = `Camera: ${CAM_NAME[camMode]}`; };
+    const camSize = () => (camMode === 'large' ? [Math.max(CAM_W, Math.min(view.w - 16, view.w * 0.9)), Math.max(CAM_H, view.h * 0.34)] : camMode === 'follow' ? [Math.min(view.w - 16, 270), 180] : [CAM_W, CAM_H]);
+    // The joystick (the owner's call: two fingers to move the view was awkward): shown while zoomed in; arrow keys too.
+    let joyEl = null, joyKnob = null, joy = null, legendEl = null;
     const resetZoom = () => { zoom = { k: 1, cx: 0, cy: 0 }; zoomEl?.classList.remove('zoomed'); };
     let zoom = { k: 1, cx: 0, cy: 0 }, touches = new Map(), pinch = null, pan = null, zoomEl = null;
     let sand = null, sandCtx = null, image = null, pixels = null, palette = null;
@@ -69,13 +75,22 @@
         // At a split in a session: the cards to pick one from. The session waits.
         cardsEl = el('div', { class: 'feed-cards', hidden: '' });
         // Zoom and the camera, in a row under the box where a thumb reaches (the owner's call; they were in the box's top corner).
-        camEl = el('button', { type: 'button', class: 'ghost-button feed-cam', onclick: () => { camDock = !camDock; try { localStorage.setItem('agiFeedCam', camDock ? 'dock' : 'follow'); } catch { /* private mode */ } camLabel(); } });
+        camEl = el('button', { type: 'button', class: 'ghost-button feed-cam', onclick: () => { camMode = CAM_MODES[(CAM_MODES.indexOf(camMode) + 1) % CAM_MODES.length]; try { localStorage.setItem('agiFeedCam', camMode); } catch { /* private mode */ } camLabel(); } });
         camLabel();
         zoomEl = el('div', { class: 'feed-zoom', 'aria-label': 'View' }, camEl,
             el('button', { type: 'button', class: 'ghost-button', 'aria-label': 'Zoom in', text: '+', onclick: () => { const [sx, sy] = swarmXY(); zoomAt(sx, sy, 1.5); } }),
             el('button', { type: 'button', class: 'ghost-button', 'aria-label': 'Zoom out', text: '−', onclick: () => zoomAt(view.w / 2, view.h / 2, 1 / 1.5) }),
             el('button', { type: 'button', class: 'ghost-button feed-zoom-reset', 'aria-label': 'Show the whole pile', text: '⟲', onclick: () => zoomAt(view.w / 2, view.h / 2, 0) }));
-        stage = el('div', { class: 'feed-stage' }, canvas, pickEl, cardsEl);
+        joyKnob = el('span', { class: 'feed-joy-knob' });
+        joyEl = el('div', { class: 'feed-joy', hidden: '', role: 'slider', 'aria-label': 'Move the view' }, joyKnob);
+        const joyAt = e => { const b = joyEl.getBoundingClientRect(), r = b.width / 2; let x = (e.clientX - b.left - r) / r, y = (e.clientY - b.top - r) / r; const d = Math.hypot(x, y); if (d > 1) { x /= d; y /= d; } joy = { id: e.pointerId, x, y }; joyKnob.style.transform = `translate(${x * r * 0.55}px, ${y * r * 0.55}px)`; };
+        joyEl.addEventListener('pointerdown', e => { e.preventDefault(); try { joyEl.setPointerCapture(e.pointerId); } catch { /* gone */ } joyAt(e); });
+        joyEl.addEventListener('pointermove', e => { if (joy && joy.id === e.pointerId) joyAt(e); });
+        for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) joyEl.addEventListener(type, e => { if (joy && joy.id === e.pointerId) { joy = null; joyKnob.style.transform = ''; } });
+        // What the sand is (the owner: "nothing to say what's good or bad sand"). PLACEHOLDER words.
+        legendEl = el('div', { class: 'feed-legend', hidden: '', 'aria-label': 'What the sand is' },
+            ...[['plain', 'data'], ['gold', 'gold: pays more'], ['bad', 'garbled: pays nothing']].map(([k, label]) => el('span', { class: 'feed-key feed-key-' + k }, el('i'), document.createTextNode(label))));
+        stage = el('div', { class: 'feed-stage' }, canvas, joyEl, pickEl, cardsEl);
         endEl = el('button', { type: 'button', class: 'ghost-button feed-end', text: 'End', hidden: '', onclick: endNow });
         fragEl = el('div', { class: 'feed-fragment' });
         const debug = window.AGI?.debug;
@@ -90,8 +105,9 @@
             el('div', { class: 'feed-bar' },
                 el('span', { class: 'feed-title', text: 'The Feed' }), layerEl, mitesEl, researchEl, endEl,
                 el('button', { type: 'button', class: 'ghost-button feed-close', 'aria-label': 'Close The Feed', text: '×', onclick: close })),
-            hungerEl, (heldEl = el('div', { class: 'feed-held', hidden: '', 'aria-label': 'Cards this session' })), ...(/debug|feedtest/.test(location.hash + location.search) ? [tests] : []), promptEl, stage, zoomEl, fragEl);
+            hungerEl, (heldEl = el('div', { class: 'feed-held', hidden: '', 'aria-label': 'Cards this session' })), ...(/debug|feedtest/.test(location.hash + location.search) ? [tests] : []), legendEl, promptEl, stage, zoomEl, fragEl);
         dlg.addEventListener('close', stop);
+        dlg.addEventListener('keydown', e => { const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key]; if (d && zoom.k > 1) { e.preventDefault(); zoom.cx += d[0] * view.vc * 0.15; zoom.cy += d[1] * view.vr * 0.15; } });
         // One finger (or the left button) leads the swarm; two fingers zoom and move the view; the right button drags it.
         canvas.addEventListener('pointerdown', e => {
             try { canvas.setPointerCapture?.(e.pointerId); } catch { /* a pointer that is already gone */ }
@@ -281,29 +297,37 @@
                 return el('button', { type: 'button', class: `feed-card${k.combo ? ' combo' : k.rare ? ' rare' : ''}`, onclick: () => window.AGI.feedPick(n) },
                     el('strong', { text: name }), el('span', { text: what }), ...(k.combo ? [el('small', { class: 'feed-card-uses', text: `Uses up ${recipe(id)}` })] : []), el('em', { text: tag })); })));
     }
+    function carry(sector) { if (window.AGI.feedCarry(sector)) { pickKey = ''; view.want = null; resetZoom(); } }
     function renderPick() {
-        const f = feed(), on = !!(f && f.sessioned && !f.session);
-        pickEl.hidden = !on; endEl.hidden = !(f && f.session); if (zoomEl) zoomEl.hidden = !(f && f.session) || !!f.session.offer; if (giveEl) giveEl.disabled = !(f && f.session);
+        const f = feed(), wait = !!f?.session?.wait, on = !!(f && f.sessioned && (!f.session || wait)), live = !!(f && f.session) && !wait;
+        pickEl.hidden = !on; endEl.hidden = !live; if (zoomEl) zoomEl.hidden = !live || !!f.session.offer; if (giveEl) giveEl.disabled = !live;
+        if (legendEl) legendEl.hidden = !live;
+        if (joyEl) joyEl.hidden = !live || zoom.k <= 1 || !!f.session.offer;
         if (!on) { pickKey = ''; return; }
-        const list = E().feedStock(game()), last = f.lastSession;
-        const key = JSON.stringify([list.map(e => [e.sector, e.total, e.cap, e.gold, e.bad, e.record]), last]);
+        const list = E().feedStock(game()), last = f.lastSession, s = f.session;
+        const key = JSON.stringify([list.map(e => [e.sector, e.total, e.cap, e.gold, e.bad, e.record]), last, wait]);
         if (key === pickKey) return;
         pickKey = key;
-        const kids = [];
-        if (last) kids.push(el('div', { class: 'feed-last' },
-            el('strong', { text: WHY[last.why] || 'Session over.' }),
-            el('span', { text: `Sector ${last.sector} · ${plural(last.layers, 'split', 'splits')} · +${E().format(last.research)} research · ${last.time} s${last.record ? ' · New best' : ''}${last.cards ? ` · ${plural(last.cards, 'card', 'cards')}` : ''}` })));
-        kids.push(el('h3', { class: 'feed-pick-title', text: 'Stockpiles' }));
-        if (!list.some(e => e.total > 0)) kids.push(el('p', { class: 'feed-pick-none', text: 'Nothing stockpiled. Catch packets in Packet Snare to fill one.' }));
+        const kids = [], some = list.some(e => e.total > 0);
+        // A result: the research first and large, then how it went. (PLACEHOLDER words.)
+        const result = (head, research, detail) => el('div', { class: 'feed-last' }, el('strong', { text: head }), el('b', { class: 'feed-last-sum', text: `+${E().format(research)} research` }), el('span', { text: detail }));
+        if (wait) kids.push(result(`Sector ${s.sector} is eaten. Your swarm is still hungry.`, s.research, `${plural(f.mites, 'mite', 'mites')} · ${plural(f.layers, 'split', 'splits')} · ${Math.round(s.time)} s so far`));
+        else if (last) kids.push(result(WHY[last.why] || 'Session over.', last.research,
+            `${last.piles > 1 ? `${last.piles} stockpiles` : `Sector ${last.sector}`} · ${plural(last.mites, 'mite', 'mites')} · ${plural(last.layers, 'split', 'splits')} · ${last.time} s${last.record ? ' · New best' : ''}${last.cards ? ` · ${plural(last.cards, 'card', 'cards')}` : ''}`));
+        kids.push(el('h3', { class: 'feed-pick-title', text: wait ? 'Carry on with' : 'Stockpiles' }));
+        if (!some) kids.push(el('p', { class: 'feed-pick-none', text: 'Nothing stockpiled. Catch packets in Packet Snare to fill one.' }),
+            el('button', { type: 'button', class: 'button feed-pick-snare', text: 'Go to Packet Snare', onclick: () => window.AGI.ringOpen?.('snare') }));
         for (const e of list) {
+            if (!e.total && (wait || !some)) continue;   // an empty stockpile's dead button is noise
             const pct = Math.round(Math.min(1, e.total / e.cap) * 100);
             const parts = [`${e.total}/${e.cap} packets`]; if (e.gold) parts.push(`${e.gold} gold`); if (e.bad) parts.push(`${e.bad} garbled`); if (e.record) parts.push(`best ${plural(e.record, 'split', 'splits')}`);
             kids.push(el('div', { class: e.full ? 'feed-pile full' : 'feed-pile' },
                 el('div', { class: 'feed-pile-head' }, el('strong', { text: `Sector ${e.sector}` }), el('span', { class: 'feed-pile-tag', text: e.full ? 'Full' : '' })),
                 el('div', { class: 'feed-pile-bar' }, el('div', { class: 'feed-pile-fill', style: `width:${pct}%` })),
                 el('div', { class: 'feed-pile-foot' }, el('span', { text: parts.join(' · ') }),
-                    el('button', { type: 'button', class: 'button feed-pile-start', text: 'Start session', ...(e.total > 0 ? {} : { disabled: '' }), onclick: () => start(e.sector) }))));
+                    el('button', { type: 'button', class: 'button feed-pile-start', text: wait ? 'Carry on' : 'Start session', ...(e.total > 0 ? {} : { disabled: '' }), onclick: () => (wait ? carry(e.sector) : start(e.sector)) }))));
         }
+        if (wait) kids.push(el('button', { type: 'button', class: 'ghost-button feed-pick-finish', text: 'Finish here', onclick: () => { window.AGI.feedEnd('empty'); pickKey = ''; } }));
         pickEl.replaceChildren(...kids);
     }
     function letGo() { held = null; if (feed()) E().feedPoint(game(), null); }
@@ -513,26 +537,27 @@
             drawMite(m.c, x, y, m.c === 'mega' ? r * 1.5 : r);
         });
         // The camera: the sand and the mites under the point you hold, enlarged, in a window of its own.
-        if (f.aim && held !== null) {
-            const [fx, fy] = px(f.aim.x, f.aim.y), k = Math.max(CAM_CELL, c * 1.6), cols = CAM_W / k, rows = CAM_H / k;
-            let lx = 8, ly = 8;
-            if (!camDock) { lx = Math.max(4, Math.min(view.w - CAM_W - 4, fx - CAM_W / 2)); ly = fy - CAM_UP - CAM_H; if (ly < 4) ly = Math.min(view.h - CAM_H - 4, fy + CAM_UP); }
+        if (f.aim && held !== null && camMode !== 'off') {
+            const [CW, CH] = camSize();
+            const [fx, fy] = px(f.aim.x, f.aim.y), k = Math.max(CAM_CELL, c * 1.6), cols = CW / k, rows = CH / k;
+            let lx = Math.max(8, (view.w - CW) / 2), ly = 8;
+            if (camMode === 'follow') { lx = Math.max(4, Math.min(view.w - CW - 4, fx - CW / 2)); ly = fy - CAM_UP - CH; if (ly < 4) ly = Math.min(view.h - CH - 4, fy + CAM_UP); }
             const x0 = f.aim.x - cols / 2, y0 = f.aim.y - rows / 2;
             ctx.save();
-            ctx.beginPath(); ctx.roundRect(lx, ly, CAM_W, CAM_H, 8); ctx.clip();
-            ctx.fillStyle = colors.bg; ctx.fillRect(lx, ly, CAM_W, CAM_H);
+            ctx.beginPath(); ctx.roundRect(lx, ly, CW, CH, 8); ctx.clip();
+            ctx.fillStyle = colors.bg; ctx.fillRect(lx, ly, CW, CH);
             // The part of the box that is in its frame (never asking the sand's canvas for pixels outside it).
             const sx0 = Math.max(0, x0), sy0 = Math.max(0, y0), sx1 = Math.min(box.w, x0 + cols), sy1 = Math.min(box.h, y0 + rows);
             if (sx1 > sx0 && sy1 > sy0) { ctx.imageSmoothingEnabled = false; ctx.drawImage(sand, sx0 * SUB, sy0 * SUB, (sx1 - sx0) * SUB, (sy1 - sy0) * SUB, lx + (sx0 - x0) * k, ly + (sy0 - y0) * k, (sx1 - sx0) * k, (sy1 - sy0) * k); }
-            if (y0 + rows > box.h) { ctx.fillStyle = colors.border; ctx.fillRect(lx, ly + (box.h - y0) * k, CAM_W, 2); }
+            if (y0 + rows > box.h) { ctx.fillStyle = colors.border; ctx.fillRect(lx, ly + (box.h - y0) * k, CW, 2); }
             const mr = Math.max(7, Math.min(14, k * 2.6));
-            for (const m of f.swarm) { const mx = lx + (m.x - x0) * k, my = ly + (m.y - y0) * k; if (mx > lx - 40 && mx < lx + CAM_W + 40 && my > ly - 40 && my < ly + CAM_H + 40) drawMite(m.c, mx, my, m.c === 'mega' ? mr * 1.5 : mr); }
+            for (const m of f.swarm) { const mx = lx + (m.x - x0) * k, my = ly + (m.y - y0) * k; if (mx > lx - 40 && mx < lx + CW + 40 && my > ly - 40 && my < ly + CH + 40) drawMite(m.c, mx, my, m.c === 'mega' ? mr * 1.5 : mr); }
             // The point itself.
             ctx.strokeStyle = colors.text; ctx.globalAlpha = 0.9; ctx.lineWidth = 1.5;
-            const cx = lx + CAM_W / 2, cy = ly + CAM_H / 2;
+            const cx = lx + CW / 2, cy = ly + CH / 2;
             ctx.beginPath(); ctx.moveTo(cx - 7, cy); ctx.lineTo(cx - 2, cy); ctx.moveTo(cx + 2, cy); ctx.lineTo(cx + 7, cy); ctx.moveTo(cx, cy - 7); ctx.lineTo(cx, cy - 2); ctx.moveTo(cx, cy + 2); ctx.lineTo(cx, cy + 7); ctx.stroke();
             ctx.restore();
-            ctx.globalAlpha = 1; ctx.strokeStyle = colors.good; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(lx, ly, CAM_W, CAM_H, 8); ctx.stroke();
+            ctx.globalAlpha = 1; ctx.strokeStyle = colors.good; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(lx, ly, CW, CH, 8); ctx.stroke();
         }
         // Pops: what a layer paid, a fragment found.
         pops = pops.filter(p => now - p.at < POP_MS);
@@ -552,7 +577,7 @@
     // ---- the words round the pile ---------------------------------------------------------------------------------
     function prompt() {
         const f = feed(), lib = F();
-        if (f.sessioned) return !f.session ? '' : f.life < 0.25 ? '> They are starving. Lead them to good sand.' : !f.aim && !f.spot ? '> Tap to set a point, or hold and drag to lead them.' : '';
+        if (f.sessioned) return !f.session || f.session.wait ? '' : f.life < 0.25 ? '> They are starving. Lead them to good sand.' : !f.aim && !f.spot ? '> Tap to set a point, or hold and drag to lead them.' : '';
         if (!f.stats.delivered) return '> Nothing to eat yet.';
         if (lib.left(f) === 0) return '> It is still hungry.';
         if (!f.stats.eaten && !f.stats.cleaned && !f.aim) return '> Show it where to start.';
@@ -565,7 +590,7 @@
         const all = mail ? [mail.subject, ...(mail.body || [])].join(' ').split(/\s+/) : [];
         const per = Math.max(1, Math.min(9, Math.floor(all.length / of)));
         const scraps = Array.from({ length: of }, (_, n) => (found.includes(n) && all.length ? all.slice(n * per, n * per + per).join(' ') : '░░░░░░'));
-        fragEl.replaceChildren(el('span', { class: 'feed-fragment-count', text: `Fragment ${found.length}/${of}` }),
+        fragEl.replaceChildren(el('span', { class: 'feed-fragment-count', title: 'Scraps of a message, found in the sand', text: `Message scraps ${found.length}/${of}` }),
             ...scraps.map((text, n) => el('span', { class: found.includes(n) ? 'feed-scrap found' : 'feed-scrap', text })));
         fragEl.classList.toggle('none', !found.length);
     }
@@ -577,6 +602,7 @@
         // The sand moves every frame it is drawn (it was stepped by the game's loop, ten times a second, and looked it).
         const dt = lastNow ? Math.min(0.1, Math.max(0, (now - lastNow) / 1000)) : 0; lastNow = now;
         if (dt > 0) window.AGI?.feedFrame?.(dt);
+        if (joy && zoom.k > 1) { zoom.cx += joy.x * view.vc * 0.9 * dt; zoom.cy += joy.y * view.vr * 0.9 * dt; }
         // In a session the bar is the hunger bar (it empties; the session ends at nothing) and the stat is the way to the next split.
         const hunger = F().hunger(f), split = Math.round(hunger.share * 100), pct = f.sessioned ? Math.round(hunger.life * 100) : split;
         text(layerEl, f.sessioned ? (f.session ? `Split ${split}%` : '') : `Hunger ${pct}%`);

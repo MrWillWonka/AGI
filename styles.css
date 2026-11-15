@@ -4376,3 +4376,16 @@ body.snare-live .assist { display: none; }
 /* A new app on the home screen wears a tag until it is first opened. */
 .home-icon { position: relative; }
 .home-icon.is-new::after { content: 'NEW'; position: absolute; top: -4px; right: 6px; padding: 2px 6px; border-radius: 999px; background: var(--primary, #5fdcaa); color: #06110f; font: 700 0.62rem/1.2 system-ui, sans-serif; letter-spacing: 0.06em; }
+/* The Feed: the view's joystick (while zoomed in), the sand's key, the result's sum, and the picker's other buttons. */
+.feed-joy { position: absolute; left: 12px; bottom: 12px; width: 92px; height: 92px; border-radius: 50%; border: 1px solid var(--border); background: color-mix(in srgb, var(--bg) 70%, transparent); display: grid; place-items: center; touch-action: none; z-index: 2; }
+.feed-joy[hidden] { display: none; }
+.feed-joy-knob { width: 40px; height: 40px; border-radius: 50%; background: color-mix(in srgb, var(--text) 55%, transparent); pointer-events: none; }
+.feed-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 4px 12px; font: 500 0.74rem var(--font-mono); color: var(--muted); }
+.feed-legend[hidden] { display: none; }
+.feed-key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.feed-key i { width: 10px; height: 10px; border-radius: 2px; background: var(--primary); }
+.feed-key-gold i { background: var(--warning); }
+.feed-key-bad i { background: color-mix(in srgb, var(--snare-bad, var(--danger)) 62%, var(--bg)); }
+.feed-key-plain i { background: linear-gradient(90deg, #e8c07a 0 25%, #d98a5f 25% 50%, #7fc8a9 50% 75%, #6fa8dc 75%); }
+.feed-last .feed-last-sum { font: 700 1.6rem var(--font-display, inherit); color: var(--research); }
+.feed-pick-snare, .feed-pick-finish { align-self: flex-start; min-height: 44px; }

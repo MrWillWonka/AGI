@@ -4,6 +4,8 @@ const test = require('node:test');
 const assert = require('node:assert');
 const E = require('../engine.js');
 const Feed = require('../feed.js');
+// Written at the sand's first dials (see tests/feed-pace.test.js for the ones the game plays at now).
+Object.assign(Feed.FEED, { chew: 2, layerFirst: 30, layerGrow: 1.8, pour: 8, speed: 180, startMites: 1 });
 const NOW = 1_700_000_000_000;
 const { w: W, h: H, grains: G } = Feed.FEED;
 const skillsTo = name => E.SKILLS.findIndex(k => k.name === name) + 1;

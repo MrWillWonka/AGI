@@ -54,17 +54,19 @@
         w: 256, h: 448,     // the box, in cells: tall, for an upright phone; finer sand (the owner's call, 2026-11-14: grains half the size, so
                             // every length below is in these smaller cells and a packet makes four times the grains)
         grains: 64,         // grains of sand a packet makes
-        chew: 2,            // packets' worth of bites a second a mite, when led (the model's `chew`)
+        chew: 4,            // packets' worth of bites a second a mite, when led (the model's `chew`)
         graze: 0.25,        // the share of that when left alone (the owner's call; the model's `graze`)
         tough: [1, 2, 3],   // bites a grain takes, by the sector it came from (the model's `tough`); +1 a sector past the list
         slow: 4,            // slow sand (garbled, or a kind with no skill yet) takes this many times the bites
         popped: 0.5,        // the share of a popped bubble's or snapped loop's packets that arrive garbled
-        layerFirst: 30,     // packets' worth of paying sand in the first layer
-        layerGrow: 1.8,     // each layer is this much bigger than the last (the model's `layerGrow`)
+        layerFirst: 15,     // packets' worth of paying sand in the first layer
+        layerGrow: 1.5,     // each layer is this much bigger than the last (the model's `layerGrow`)
         miteFirst: 1,       // the first new mite comes with this layer (the owner's call: the first; the model's `miteFirst`)
+        startMites: 2,      // a session starts with this many mites (the owner's call, 2026-11-14: one felt like nothing was happening)
+        // (Also that day, "the sand is so slow": chew 4 (2), speed 360 (180), pour 16 (8), and splits at 15, 23, 34, 51… packets (30, ×1.8). A packet pays what it did.)
         miteEvery: 1,       // and another every this many after it: every split (the owner's call; the model's `miteEvery`)
         layerPay: 0.2,      // a layer's lump of research, as a share of its packets
-        pour: 8,            // packets a second through the spout: slow enough that the pile sheds it and no column backs up
+        pour: 16,            // packets a second through the spout: slow enough that the pile sheds it and no column backs up
         sweep: 92,          // how far the spout swings either side of the middle at the most, in cells
         sweepMin: 12,       // its swing over an empty box,
         sweepGrow: 0.3,     // and what the square root of the grains there are adds to it
@@ -90,7 +92,7 @@
         gravity: 4,         // a falling grain speeds up: a cell a pass at first, up to this many (the owner's call: so sand reads as falling)
         slump: 4,           // a resting grain on a slope steeper than one in two rolls a cell down it, one pass in this many: heaps settle shallower and slide
         fall: 120,          // cells a second a grain falls
-        speed: 180,         // cells a second a mite moves
+        speed: 360,         // cells a second a mite moves
         near: 16,           // a led mite this close to the point eats the sand nearest the point
         lamp: 14,           // a mite shows what the sand within this many cells of it really is (gold, fragments)
         stick: 0.92,        // how likely the next grain poured is the same sort as the last: sorts lie in patches
@@ -618,9 +620,23 @@
         state.band = (state.band + 1) % o.bands;
         state.backlog.push({ sector: k, n: e.n, gold: e.gold, bad: e.bad, band: state.band });
         delete state.stock[k];
-        state.session = { sector: k, research: 0, time: 0, packets: e.n + e.gold + e.bad, cards: {}, offer: null, picks: 0, tt: {}, beam: -1, ring: null, bots: [], sift: -1, dbot: null, rbots: [] };
+        state.session = { sector: k, research: 0, time: 0, packets: e.n + e.gold + e.bad, cards: {}, offer: null, picks: 0, wait: false, piles: 1, tt: {}, beam: -1, ring: null, bots: [], sift: -1, dbot: null, rbots: [] };
         state.life = 1; state.lastSession = null; state.stats.sessions++;
         state.swarm[0].c = CHARACTERS[Math.floor(rand(state) * CHARACTERS.length)];   // the first mite is anyone (the owner's call: it was always the gold-hungry)
+        while (state.mites < o.startMites) { const m = mitePlace(state, state.mites); m.c = CHARACTERS[Math.floor(rand(state) * CHARACTERS.length)]; state.swarm.push(m); state.mites++; }
+        return true;
+    }
+    // The pile is eaten and other stockpiles have sand: the session waits (`session.wait`, a `cleared` event) and may
+    // carry on with one of them (the owner's call, 2026-11-14): the mites, the splits so far, the cards and the hunger
+    // bar all come along; only the sand and its sector change.
+    function carryOn(state, sector, opts) {
+        const o = opt(opts), k = Math.floor(sector) || 0, e = state.stock[k], s = state.session;
+        if (!s || !s.wait || !e || e.n + e.gold + e.bad <= 0) return false;
+        state.band = (state.band + 1) % o.bands;
+        state.backlog.push({ sector: k, n: e.n, gold: e.gold, bad: e.bad, band: state.band });
+        delete state.stock[k];
+        s.sector = k; s.packets += e.n + e.gold + e.bad; s.piles = (s.piles || 1) + 1; s.wait = false;
+        state.rest = false; state.dry = false; state.spot = null; state.aim = null;
         return true;
     }
     // The session is over (`why`: 'hunger', 'empty', or 'left' when you end it yourself). Sand not yet poured goes back
@@ -629,7 +645,7 @@
         const o = opt(opts), s = state.session;
         if (!s) return null;
         for (const e of state.backlog) { const t = state.stock[e.sector] || (state.stock[e.sector] = { n: 0, gold: 0, bad: 0 }); t.n += e.n; t.gold += e.gold; t.bad += e.bad; }
-        const result = { type: 'over', why, sector: s.sector, layers: state.layers, mites: state.mites, research: s.research, time: Math.round(s.time), cards: Object.values(s.cards || {}).reduce((n, v) => n + v, 0), record: state.layers > (state.record[s.sector] || 0) };
+        const result = { type: 'over', why, sector: s.sector, layers: state.layers, mites: state.mites, research: s.research, time: Math.round(s.time), piles: s.piles || 1, cards: Object.values(s.cards || {}).reduce((n, v) => n + v, 0), record: state.layers > (state.record[s.sector] || 0) };
         if (result.record) state.record[s.sector] = state.layers;
         clearBox(state, o);
         state.session = null; state.life = 1; state.lastSession = { ...result };
@@ -1007,6 +1023,7 @@
         if (!(dt > 0) || !Number.isFinite(dt)) return out;
         if (state.sessioned && !state.session) return out;   // nothing eats outside a session
         if (state.session?.offer) return out;                // the session waits while you choose a card
+        if (state.session?.wait) return out;                 // and while you choose the next stockpile
         const o = withCards(state, base);
         const steps = Math.min(6000, Math.max(1, Math.round(dt / STEP))), each = dt / steps;
         let ended = null, done = 0;
@@ -1029,7 +1046,10 @@
             }
             else if (!state.backlog.length && !state.drops.length) {
                 for (const m of state.swarm) { m.b = 0; m.t = -1; }
-                if (state.session) { ended = 'empty'; break; }
+                if (state.session) {
+                    if (Object.keys(state.stock).some(k => stockOf(state, k) > 0)) { state.session.wait = true; out.events.push({ type: 'cleared', sector: state.session.sector }); break; }
+                    ended = 'empty'; break;
+                }
                 if (!state.dry && state.stats.delivered > 0) { state.dry = true; out.events.push({ type: 'empty' }); }
             }
             if (state.session) {
@@ -1144,7 +1164,7 @@
             if (sized && sess && sector) {
                 const cards = {}; for (const id of CARD_IDS) { const n = whole(sess.cards?.[id], 200); if (n) cards[id] = n; }
                 const offer = Array.isArray(sess.offer) ? [...new Set(sess.offer.filter(id => typeof id === 'string' && Object.prototype.hasOwnProperty.call(CARDS, id)))].slice(0, o.cardChoices) : [];
-                state.session = { sector, research: whole(sess.research, 1e12), time: real(sess.time, 0, 1e7, 0), packets: whole(sess.packets, 1e8), cards, offer: offer.length ? offer : null, picks: offer.length ? Math.max(1, whole(sess.picks, 200)) : whole(sess.picks, 200) };
+                state.session = { sector, research: whole(sess.research, 1e12), time: real(sess.time, 0, 1e7, 0), packets: whole(sess.packets, 1e8), cards, offer: offer.length ? offer : null, picks: offer.length ? Math.max(1, whole(sess.picks, 200)) : whole(sess.picks, 200), wait: sess.wait === true, piles: Math.max(1, whole(sess.piles, 99)) };
                 // The tools' clocks, the scanner's beam and the sorter bots.
                 const tt = {}; for (const key of ['scan', 'pulse', 'arc', 'sort', 'shake', 'sonar', 'storm', 'defrag', 'tracer', 'magnet', 'reso', 'sift', 'demo', 'relay', 'drum']) { if (typeof sess.tt?.[key] === 'number') tt[key] = real(sess.tt[key], 0, 1e4, 0); }
                 state.session.tt = tt; state.session.beam = real(sess.beam, 0, FEED.w, -1);
@@ -1169,5 +1189,5 @@
 
     return { FEED, KINDS, KIND_IDS, LOCKED, FRAGMENTS, STEP, newFeed, clean, deliver, point, mark, step, setReadable, readableFor,
         sessions, startSession, endSession, stockList, stockOf, stockCap, CARDS, COMBOS, CHARACTERS, pickCard, cardMult, toolLevel,
-        pack, unpack, spoutX, left, waiting, fill, census, hunger, layerSize, bitesFor, kindOf, bandOf, seenOf, airOf, hpOf };
+        carryOn, pack, unpack, spoutX, left, waiting, fill, census, hunger, layerSize, bitesFor, kindOf, bandOf, seenOf, airOf, hpOf };
 });

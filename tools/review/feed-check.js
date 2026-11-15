@@ -83,15 +83,30 @@ const PORT = 8179, URL = `http://localhost:${PORT}`, T = { timeout: 6000 };
             const cam0 = await page.evaluate(() => document.querySelector('.feed-cam').textContent);
             await page.click('.feed-cam', T);
             const cam1 = await page.evaluate(() => [document.querySelector('.feed-cam').textContent, localStorage.getItem('agiFeedCam'), FeedUI.zoom]);
-            await page.click('.feed-cam', T);
-            check('the camera can be docked and the view zoomed', cam0 !== cam1[0] && cam1[1] === 'dock' && cam1[2] > 1, [cam0, ...cam1]);
+            const joy = await page.evaluate(() => { const j = document.querySelector('.feed-joy'); return !!j && !j.hidden && j.getBoundingClientRect().width > 60; });
+            for (let k = 0; k < 3; k++) await page.click('.feed-cam', T);   // round to where it began
+            const cam2 = await page.evaluate(() => document.querySelector('.feed-cam').textContent);
+            check('the camera button goes round its sizes, the view zooms, and the joystick shows while zoomed', cam0 !== cam1[0] && ['follow', 'small', 'large', 'off'].includes(cam1[1]) && cam2 === cam0 && cam1[2] > 1 && joy, [cam0, ...cam1, cam2, joy]);
             // To the end.
             await forward('false');
             await page.waitForTimeout(600);
             await page.screenshot({ path: `${out}/feed-check-${name}-3-over.png` });
+            // The pile eaten with another stockpile waiting: the session waits; carry on with it, then play to the end.
+            const wait = await page.evaluate(() => ({ wait: !!AGI.state.feed.session?.wait, mites: AGI.state.feed.mites, card: document.querySelector('.feed-last')?.innerText.replace(/\n+/g, ' | '), buttons: [...document.querySelectorAll('.feed-pick button')].map(b => b.textContent) }));
+            if (wait.wait) {
+                await page.screenshot({ path: `${out}/feed-check-${name}-3-carry.png` });
+                await page.click('.feed-pile-start', T); await page.waitForTimeout(300);
+                const on = await page.evaluate(() => ({ wait: !!AGI.state.feed.session?.wait, mites: AGI.state.feed.mites, piles: AGI.state.feed.session?.piles }));
+                check('a pile eaten with another waiting: carry on keeps the swarm', wait.buttons.includes('Carry on') && wait.buttons.includes('Finish here') && on.wait === false && on.mites === wait.mites && on.piles === 2, { wait, on });
+                await forward('false');
+                await page.waitForTimeout(600);
+                if (await page.evaluate(() => !!AGI.state.feed.session?.wait)) { await page.click('.feed-pick-finish', T); await page.waitForTimeout(300); }
+            }
             const over = await page.evaluate(() => ({ session: AGI.state.feed.session, last: AGI.state.feed.lastSession, rp: Math.round(AGI.state.res.rp), card: document.querySelector('.feed-last')?.innerText.replace(/\n+/g, ' | '), picker: !document.querySelector('.feed-pick').hidden }));
             check('the session ends and says how', over.session === null && !!over.last && ['hunger', 'empty'].includes(over.last.why) && over.rp > 0 && !!over.card && over.picker, { why: over.last?.why, splits: over.last?.layers, research: over.last?.research, card: over.card });
             // End by hand: what had not poured goes back to the stockpile; the new session starts at the whole view.
+            await page.evaluate(() => AGI.debug.feedDeliver(2, 30, 3));   // (carrying on ate sector 2's)
+            await page.waitForTimeout(300);
             await page.click('.feed-pile-start:not([disabled])', T); await page.waitForTimeout(500);
             const zoom = await page.evaluate(() => FeedUI.zoom);
             await page.click('.feed-end', T); await page.waitForTimeout(400);

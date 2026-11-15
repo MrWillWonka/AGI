@@ -14062,7 +14062,10 @@ window.AGI = (function () {
         feedStart(sector) { const ok = E.feedStart(state, sector); if (ok) { pt('feedStart', { sector, held: state.feed.backlog.reduce((n, e) => n + e.n + e.gold + e.bad, 0) }); save(); } return ok; },
         // The Feed's screen steps the sand itself, every frame it draws (feed-ui.js `tick`): nothing moves with it closed.
         feedFrame(dt) { feedTick(dt * debugSpeed); },
-        feedEnd() { const r = E.feedLeave(state); if (r) feedShow({ events: [r] }); return r; },
+        feedEnd(why) { const r = E.feedLeave(state, why); if (r) feedShow({ events: [r] }); return r; },
+        feedCarry(sector) { const ok = E.feedCarry(state, sector); if (ok) { pt('feedCarry', { sector, mites: state.feed.mites, splits: state.feed.layers, life: Math.round(state.feed.life * 100) }); save(); } return ok; },
+        // From The Feed's result: back to Packet Snare for more.
+        ringOpen(app) { closeApps(); if (app === 'snare' && state.unlocked['module:snare']) { goHome(); openSnareApp(); } },
         feedPick(n) { const offer = state.feed.session?.offer, out = E.feedPick(state, n); if (out) { pt('feedCard', { card: offer[n], offered: offer.join(','), level: state.feed.session.cards[offer[n]], split: state.feed.layers }); feedShow(out); save(); } return !!out; },
         debug: {
             // The music: the area's other song, or the next section of this one (on the next downbeat).
