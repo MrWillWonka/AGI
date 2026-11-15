@@ -629,3 +629,6 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   has its own scrollbar; the old minimap shows in the Lab as the monitor arrives (10:14); the call's words sit far
   right with no button showing (10:16); the Training field is about 180 px tall (15:08). All four look like a layout
   made for another window size; that session's window was 798x730, then 3072x1559, then 1920x911.
+
+- **Rule dropped (the owner, 2026-11-15):** "the AI's buttons never open an app" no longer holds. "Open Parcel" in
+  the assistant's sheet stays, and a line's button may open an app where that reads better. Nothing else changed.
