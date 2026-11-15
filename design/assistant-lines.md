@@ -7,7 +7,9 @@ succeeds, never a tutorial. Edit the Line column and send it back (or say which 
 
 | Key | When it shows | Line | Approved |
 |---|---|---|---|
-| `download` | Home screen, two seconds after the offer is taken; the Lab starts loading two seconds later | One moment. I am downloading something that will help. It is small. It will not take long. | |
+| `hello` | Home screen, two seconds after the offer is taken, with the screen's flicker: the AI's first words | Hello. I am the assistant on this device. You accepted the offer, so here I am. | |
+| `meet` | Home screen, when the Lab has finished downloading: it rings the Lab's icon until you open it | It is ready. Meet me in the Lab and I will introduce myself properly. | |
+| `download` | Home screen, five seconds after `hello`; the Lab starts loading two seconds later | One moment. I am downloading something that will help. It is small. It will not take long. | |
 | `lab1` | The Lab, first time it opens | Hello. I am new here. If you tap Generate Compute, I think I can be useful. | |
 | `lab2` | The Lab, after the first few taps | Thank you. That helps more than you would think. A few more, if you do not mind. | |
 | `hold` | The Lab, after about twelve taps | You can hold the button down as well. It repeats about four times a second, which is easier on your hand. | |
