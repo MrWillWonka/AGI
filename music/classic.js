@@ -195,7 +195,7 @@
             snare: [
                 {   // Packet Sniffer: 6/8 at 75 to the dotted quarter: a rocking pulse, muted plucks in six-bar phrases over
                     // Am9 and an Esus4 that never resolves. Under a minute.
-                    name: 'Packet Sniffer', lvl: 1.87, rest: 1.40, slvl: 0.82, srest: 1.34, bpm: 112, steps: 12, pulse: 6, scale: AEOL, lead: 'pluck',
+                    name: 'Packet Sniffer', lvl: 1.87, rest: 0.76, slvl: 0.82, srest: 0.73, bpm: 112, steps: 12, pulse: 6, scale: AEOL, lead: 'pluck',
                     chords: ['Am9', 'Fmaj7', 'Dm9', 'Am9', 'Fmaj7', 'Esus4'],
                     bass: 'r.....f.....', comp: [6], kick: 'x.....o.....', hush: 0.45, tick: '..o..x..o..x', cut: 0.75,
                     kit: { kick: 'x.........o.', snare: '......x.....', hat: 'x.ox.ox.ox.o' },
@@ -207,7 +207,7 @@
                 },
                 {   // Dead Drop: 7/8 (2 + 2 + 3), a limp in the step: a soft lead over i – v – VI – VII, a chord a bar,
                     // the bass stepping and stopping.
-                    name: 'Dead Drop', lvl: 0.92, rest: 1.36, slvl: 0.85, srest: 1.30, steps: 14, scale: AEOL, lead: 'pad', bassVoice: 'sub',
+                    name: 'Dead Drop', lvl: 0.92, rest: 0.88, slvl: 0.85, srest: 0.84, steps: 14, scale: AEOL, lead: 'pad', bassVoice: 'sub',
                     chords: ['Am7', 'Em7', 'Fmaj7', 'Gsus4'],
                     bass: 'r.......r...f.', comp: [8], kick: 'x.......o.....', hush: 0.45, tick: '..x...x....x..', cut: 0.75,
                     kit: { kick: 'x.......x.....', snare: '....x.....x...', hat: '..x...x...x.x.' },

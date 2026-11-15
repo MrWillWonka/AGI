@@ -182,7 +182,7 @@
             snare: [
                 {   // Sneaking Mission: five beats to the bar at 108 (3 + 3 + 2 + 2): a triangle bass on the long counts, a
                     // filtered square creeping up the A minor and ducking back, never high.
-                    name: 'Sneaking Mission', lvl: 1.503, rest: 1.29, slvl: 0.91, srest: 1.27, bpm: 108, steps: 20, scale: AEOL, lead: 'soft', mellow: true,
+                    name: 'Sneaking Mission', lvl: 1.503, rest: 0.79, slvl: 0.91, srest: 0.78, bpm: 108, steps: 20, scale: AEOL, lead: 'soft', mellow: true,
                     chords: { A: ['Am', 'Am', 'F', 'G'], B: ['Dm', 'Am', 'F', 'Esus4'] },
                     bass: 'r.....r.....f...o...', walk: true, kick: 'x.....x.....o...o...', hush: 0.5, tick: '..x...x...x...x...x.', cut: 0.85,
                     kit: { kick: 'x.....x.............', snare: '............x...x...', hat: 'x...x...x...x...x...' },
@@ -193,7 +193,7 @@
                     form: [['in', 2, { mel: null }], ['A', 4], ['B', 4, { chords: 'B' }], ['A', 4], ['wait', 2, { mel: null, fill: false }], ['B', 4, { chords: 'B' }], ['A', 4, { harm: true }], ['B', 4, { chords: 'B' }], ['A', 4]]
                 },
                 {   // Hide and Seek: A minor seen from C, sus chords that never land, a pulse peeking out and back.
-                    name: 'Hide and Seek', lvl: 1.65, rest: 1.51, slvl: 0.85, srest: 1.29, scale: ION, tonic: 3, chords: ['Am', 'Am', 'Fmaj7', 'Fmaj7', 'Dm7', 'Dm7', 'Gsus4', 'Gsus4'],
+                    name: 'Hide and Seek', lvl: 1.65, rest: 0.77, slvl: 0.85, srest: 0.66, scale: ION, tonic: 3, chords: ['Am', 'Am', 'Fmaj7', 'Fmaj7', 'Dm7', 'Dm7', 'Gsus4', 'Gsus4'],
                     bass: 'r.....r...o.....', walk: true, kick: 'x.....x.........', hush: 0.5, tick: 'o...x...o...x.o.', cut: 0.85,
                     mel: {
                         A: "6, . . 1 . . . . | 2 - - - . . . . | 6, . . 1 . . . . | 2 - - - 5, . . .",

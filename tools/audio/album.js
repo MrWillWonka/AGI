@@ -29,8 +29,8 @@ const START = 0.55;      // the music's first downbeat is 0.6 s into a render
     const ff = a => spawnSync(M.ffmpeg(), ['-hide_banner', '-nostats', '-y', ...a], { encoding: 'utf8' });
     const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     // A window of a render, gained and faded, as AAC.
-    const encode = (raw, dst, from, secs, fade, rate = '128k') => {
-        const m = M.measure(raw, { from, to: from + secs });
+    const encode = (raw, dst, from, secs, fade, rate = '128k', ref = null) => {
+        const m = ref || M.measure(raw, { from, to: from + secs });      // `ref`: gain it as that measurement would be
         // A song whose peaks would pass -1.5 dB at that gain (Retro's short kick) goes through a limiter there instead
         // of coming out quieter than the rest.
         const gain = target - m.lufs, limit = m.truePeak + gain > -1.5 ? 'alimiter=limit=0.8:attack=2:release=40:level=false,' : '';
@@ -49,13 +49,21 @@ const START = 0.55;      // the music's first downbeat is 0.6 s into a render
         const r = await R.render(s, R.PRESETS.song({ style, area, song: i + 1, seconds: START + song.seconds + 1 }), raw, { measure: false });
         if (r.faults.length) throw new Error(`${style} ${song.name}: ${r.faults[0]}`);
         const file = `audio/${String(++n).padStart(2, '0')}-${style}-${slug(song.name)}.mp4`;
-        const e = encode(raw, path.join(out, file), START, song.seconds, 1.2);
+        // A Packet Snare song's Stealth and Spotted keep their difference in level: both are gained as the louder one would be.
+        let pair = null;
+        if (area === 'snare') {
+            const calm = path.join(out, 'tmp', 'calm.wav');
+            await R.render(s, R.PRESETS.song({ style, area, song: i + 1, seconds: START + song.seconds + 1, intensity: 0.12 }), calm, { measure: false });
+            const a = M.measure(raw, { from: START, to: START + song.seconds }), b = M.measure(calm, { from: START, to: START + song.seconds });
+            pair = a.lufs >= b.lufs ? a : b;
+        }
+        const e = encode(raw, path.join(out, file), START, song.seconds, 1.2, '128k', pair);
         // The reference versions: Simple sounds, and for Packet Snare the song before detection.
         const alts = [];
         for (const [key, label, o] of [['simple', 'Simple', { simple: true }], ...(area === 'snare' ? [['calm', 'Stealth', { intensity: 0.12 }]] : [])]) {
             const ra = await R.render(s, R.PRESETS.song({ style, area, song: i + 1, seconds: START + song.seconds + 1, ...o }), raw, { measure: false });
             if (ra.faults.length) throw new Error(`${style} ${song.name} (${key}): ${ra.faults[0]}`);
-            const f = file.replace('.mp4', `-${key}.mp4`), ea = encode(raw, path.join(out, f), START, song.seconds, 1.2, '64k');
+            const f = file.replace('.mp4', `-${key}.mp4`), ea = encode(raw, path.join(out, f), START, song.seconds, 1.2, '64k', key === 'calm' ? pair : null);
             alts.push({ key, label, file: f, ...ea });
         }
         e.bytes += alts.reduce((a, x) => a + x.bytes, 0);

@@ -56,7 +56,7 @@
         // `inner`, `pedal`, `answer`, `compVoice: 'swell'`: see the step), so no two are built alike. The section ends on a held note leading into the next.
         // Its click figure plays the track's 8ths (322 ms: about three notes a second while a job is held).
         style: {
-            bpm: 93, swing: 0.2,
+            bpm: 93, swing: 0.2, hide: true,      // spotted in Packet Snare, it goes quiet instead of opening up (the owner's call)
             cutoff: k => 1100 + 3200 * k * k, drive: 0, gain: 0.915, shift: 5,     // D minor / F major
             beat: 1.53, tones: 1.487,   // it has no drums: `beat` is kept for the mixer only
             simpleMix: { gain: 1, beat: 0.997, tones: 2.032 }, simpleVoice: 'sine',   // the simple version (simpleStep)
@@ -66,8 +66,8 @@
             step(t, s, k, len, L, c) {
                 const ch = c.chord, song = c.song, ts = t + c.sw, N = c.steps, bar = len * N;
                 // A song says which of its sections a texture plays in (a list of section names), or true for all.
-                // `spotted`: textures a stealth song adds only once you are spotted.
-                const has = key => (song.spotted && song.spotted.includes(key) ? c.spot > 0.3 : Array.isArray(song[key]) ? song[key].includes(c.sec) : !!song[key]);
+                // `hides`: textures a stealth song drops once you are spotted (this track hides: it goes quiet then).
+                const has = key => (song.hides && song.hides.includes(key) && c.spot > 0.3 ? false : Array.isArray(song[key]) ? song[key].includes(c.sec) : !!song[key]);
                 // The string section: the chord through the whole bar, swelling in, overlapping the bar before.
                 if (L.pad > 0.02 && s === 0 && !has('stringsOut')) ch.v.forEach((n, i) => {
                     const pan = (i - 1.5) * 0.3, o = { type: 'sawtooth', cutoff: 650 + 450 * k, q: 0.5, attack: Math.min(0.9, bar * 0.35), sus: 0.9, dec: 0.4, rel: 1.2, rev: 0.6 };
@@ -205,7 +205,7 @@
             snare: [
                 {   // Tiptoe: in three at 66: a clarinet asks for two bars and a flute answers for two, a cello turning
                     // under them, the bass only holding.
-                    name: 'Tiptoe', lvl: 0.789, rest: 1.32, slvl: 0.85, srest: 1.31, bpm: 66, steps: 12, swing: 0, scale: AEOL, lead: 'clarinet', answer: 'flute', pedal: true, spotted: ['pulse', 'choir'],
+                    name: 'Tiptoe', lvl: 0.789, rest: 1.32, slvl: 0.85, srest: 1.31, bpm: 66, steps: 12, swing: 0, scale: AEOL, lead: 'clarinet', answer: 'flute', pedal: true, hides: ['inner'],
                     inner: ['A', 'A2', 'A3', 'B', 'B2'], chords: ['Am9', 'Fmaj7', 'Dm9', 'Esus4'],
                     bass: 'r...........', cut: 0.8,
                     mel: {
@@ -216,7 +216,7 @@
                 },
                 {   // Hushed Channel: a lullaby at 80 in F Lydian: only the held strings, and a choir alone in five-bar
                     // phrases over a Gsus4 that never lands.
-                    name: 'Hushed Channel', lvl: 0.873, rest: 1.26, slvl: 0.85, srest: 1.31, bpm: 80, swing: 0, scale: LYD, tonic: 8, oct: -1, lead: 'choir', compVoice: 'none', spotted: ['pulse', 'inner'],
+                    name: 'Hushed Channel', lvl: 0.873, rest: 1.26, slvl: 0.85, srest: 1.31, bpm: 80, swing: 0, scale: LYD, tonic: 8, oct: -1, lead: 'choir', compVoice: 'none', inner: true, hides: ['inner'],
                     chords: { A: ['Fmaj7', 'Fmaj7', 'Em7', 'Dm9', 'Gsus4'], B: ['Am7', 'Fmaj7', 'Dm9', 'Em7', 'Gsus4'] },
                     bass: 'r.....r.........', comp: [10], cut: 0.8,
                     mel: {

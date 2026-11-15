@@ -189,8 +189,11 @@ different phrasings and mixes of melody, harmony and choirs, "a dreamy soundscap
 - **Stealth and spotted are different arrangements** (the owner's call: several sounded identical). Late in the game
   progress alone had brought every part in, so being spotted changed nothing. In Packet Snare the arrangement now
   follows the field: `S = 0.15·depth + (k − 0.05)` (elsewhere 0.6 and 0.6), and the tune plays at half level until
-  spotted. Soft, with no drums, adds textures when spotted (`spotted` on a song: Tiptoe the re-bowed strings and the
-  choir, Hushed Channel the re-bowed strings and a cello). `rest`/`srest` were not re-measured against this.
+  spotted. **Soft hides instead** (the owner's call: spotted should make it quieter, "like you are trying to hide";
+  `hide` on the style): spotted, its level halves, the tune all but stops, the cello drops out (`hides` on a song) and
+  the filter closes; measured, about 8 dB under its stealth. Classic's and Retro's `rest`/`srest` were lowered so
+  stealth sits about 2 dB under spotted (it had come out 2 to 4 dB over); Dark and Ominous measure about level. The
+  soundtrack page gains a Packet Snare song's two versions alike, so the difference is heard.
 
 ## Open questions for the owner
 

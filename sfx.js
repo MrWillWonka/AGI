@@ -1590,7 +1590,9 @@
             // A stealth song's tones stand a little forward while its drums are hushed (`rest`), so it keeps the level.
             c.spot = L.clap;
             const lvl = simple ? c.song.slvl ?? c.song.lvl : c.song.lvl, rest = simple ? c.song.srest ?? c.song.rest : c.song.rest;
-            songLvl = lvl * (rest ? 1 + (rest - 1) * (1 - c.spot) : 1);
+            // A track that hides (`hide` on the style: Soft) goes quiet when you are spotted, holding its breath.
+            const hides = hid && st.hide;
+            songLvl = lvl * (rest ? 1 + (rest - 1) * (1 - c.spot) : 1) * (hides ? 1 - 0.5 * c.spot : 1);
             c.len = len;
             c.sw = s % 2 ? (c.song.swing ?? st.swing ?? 0) * len : 0;
             c.trip = i => (i * len * 4) / 3;
@@ -1598,7 +1600,8 @@
             // The melody waits for its layer; the harmony fades in with its own (the older tracks switch it).
             if (c.mel && L.mel <= 0.02) c.mel = null;
             if (c.mel) {
-                c.melGain *= L.mel * (hid ? 0.5 + 0.5 * c.spot : 1);      // the tune keeps its voice down until you are spotted
+                // The tune keeps its voice down until you are spotted; in a track that hides it all but stops then.
+                c.melGain *= L.mel * (hides ? 1 - 0.8 * c.spot : hid ? 0.5 + 0.5 * c.spot : 1);
                 c.mel.t = t + c.mel.off * len + (c.mel.off ? 0 : c.sw);
                 if (!st.layers && L.harm < 0.5) c.mel.harm = 0;
             }
@@ -1620,7 +1623,8 @@
         // The mood: muffled in flow and bullet time, distorted in a crunch, opening up with speed. A swell owns
         // the filter until it has landed (`music.hold`).
         const cut = music.songs[music.song]?.cut;
-        const cutoff = slow ? 600 : st.cutoff(k) * (cut ? cut + (1 - cut) * k : 1);
+        const kc = music.area === 'snare' && st.hide ? 0.3 * (1 - k) : k;      // a track that hides closes up as the field heats
+        const cutoff = slow ? 600 : st.cutoff(kc) * (cut ? cut + (1 - cut) * kc : 1);
         if (!(music.hold > now)) music.filter.frequency.setTargetAtTime(cutoff, now, slow ? 0.6 : 0.5);
         music.wet.gain.setTargetAtTime(mode === 'crunch' ? 0.55 : simple ? 0 : st.drive || 0, now, 0.15);
         music.dry.gain.setTargetAtTime(mode === 'crunch' ? 0.6 : 1, now, 0.15);
