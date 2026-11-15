@@ -4463,3 +4463,10 @@ body.device-laptop .assist, body.device-laptop .assist-sheet { bottom: 64px; }
 .assist-sheet, body.device-laptop .assist-sheet { inset: calc(92px + env(safe-area-inset-top, 0px)) 10px auto 10px; left: 10px; right: 10px; bottom: auto; width: auto; max-width: 440px; margin: 0 auto; }
 :root:has(.device-notice) .assist { top: calc(170px + env(safe-area-inset-top, 0px)); }
 @keyframes assist-in { from { opacity: 0; transform: translateY(-10px); } }
+.assist.on-home, body.device-laptop .assist.on-home { top: 46%; }
+:root:has(.device-notice) .assist.on-home { top: 46%; }
+.assist-dot[hidden] { display: none; }
+.home-icon.loading { cursor: default; }
+.assist.low, body.device-laptop .assist.low, :root:has(.device-notice) .assist.low { top: auto; bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
+.assist.away { display: none !important; }
+.survey-photos-button { display: inline-flex; align-items: center; min-height: 40px; padding: 6px 14px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); font: 600 0.85rem var(--font-body); }

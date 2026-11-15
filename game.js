@@ -2335,6 +2335,16 @@ window.AGI = (function () {
     // takes you to the lab and shows a short welcome (placeholder words: what to do, and why you click). The home screen
     // covers the page under the device's bezel and crack; dialogs (Mail) open over it.
     const HOME_INSTALL_MS = 6000;
+    // A new app's own download: it starts when you are on the home screen with the app unlocked, and takes this long.
+    const APP_INSTALL_MS = 3500, appInstalls = {};
+    function appInstall(key) {
+        const i = state.intro;
+        if (i['ring:inst:' + key] || i['ring:seen:' + key]) return 1;
+        const from = appInstalls[key] = appInstalls[key] || performance.now(), share = (performance.now() - from) / APP_INSTALL_MS;
+        if (share < 1) return Math.max(0, share);
+        i['ring:inst:' + key] = true; delete appInstalls[key]; pt('home', { installed: key }); sfx('ui'); save();
+        return 1;
+    }
     const HOME_ICONS = {
         ...DESK_ICONS,
         training: '<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 25c5 0 6-6 10-6s4 4 7 4 4-14 9-14"/><circle cx="9" cy="17" r="2.6"/></svg>',
@@ -2452,7 +2462,12 @@ window.AGI = (function () {
         if (home.shop.button.hidden === shopOn) home.shop.button.hidden = !shopOn;
         setText(home.shop.badge, canBuy ? '1' : '');
         if (home.shop.badge.hidden === canBuy) home.shop.badge.hidden = !canBuy;
-        for (const [key, app] of [['shop', home.shop], ['snare', home.snare], ['feed', home.feed], ['training', home.train]]) app.button.classList.toggle('is-new', !app.button.hidden && !state.intro['ring:seen:' + key]);
+        for (const [key, app] of [['shop', home.shop], ['snare', home.snare], ['feed', home.feed], ['training', home.train]]) {
+            const share = app.button.hidden ? 1 : appInstall(key), loading = share < 1;
+            app.button.classList.toggle('loading', loading); if (app.button.disabled !== loading) app.button.disabled = loading;
+            app.button.style.setProperty('--load', String(share));
+            app.button.classList.toggle('is-new', !app.button.hidden && !loading && !state.intro['ring:seen:' + key]);
+        }
         const installed = !!state.intro['ring:labInstalled'] || labOpened(), share = installed ? 1 : accepted ? Math.min(1, (performance.now() - installFrom) / HOME_INSTALL_MS) : 0;
         if (home.lab.button.hidden === accepted) home.lab.button.hidden = !accepted;
         home.lab.button.classList.toggle('loading', accepted && !installed);
@@ -2645,7 +2660,7 @@ window.AGI = (function () {
     // installed, dragged anywhere (kept per device), glowing while the AI has something to say. Pressed, it opens a
     // small sheet: "What should I do now?", answered with the next goal and a Show me, and every line said so far, to
     // see again.
-    const pageZoom = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--zoom')) || 1;
+    const pageZoom = () => (assistDot && assistDot.offsetWidth ? assistDot.getBoundingClientRect().width / assistDot.offsetWidth : 0) || parseFloat(getComputedStyle(document.body).zoom) || 1;
     function assistWhatNow() {
         const desk = E.level(state, 'keyboard'), stock = E.isRing() ? E.feedStock(state).some(e => e.total > 0) : false;
         const part = shopOpenable() && shopItems().find(i => i.next && !i.owned);
@@ -2658,6 +2673,7 @@ window.AGI = (function () {
     function assistSheetToggle() {
         if (assistSheet) { assistSheet.remove(); assistSheet = null; return; }
         const answer = el('p', { class: 'assist-answer', hidden: '' }), go = el('button', { type: 'button', class: 'assist-go', text: 'Show me', hidden: '' });
+        answer.hidden = true; go.hidden = true;
         const ask = el('button', { type: 'button', class: 'assist-ask', text: 'What should I do now?', onclick: () => {
             const [text, app] = assistWhatNow();
             answer.textContent = text; answer.hidden = false; go.hidden = false; pt('assistAsk', { now: app });
@@ -2672,6 +2688,11 @@ window.AGI = (function () {
             el('h4', { class: 'assist-sheet-title', text: 'Earlier' }),
             ...(past.length ? past.reverse() : [el('p', { class: 'assist-answer', text: ASSIST_LINES.empty })])]);
         assistDot.parentNode.append(assistSheet);
+        { const k = pageZoom(), d = assistDot.getBoundingClientRect(), w = Math.min(440 * k, innerWidth - 20), below = innerHeight - d.bottom - 16, above = d.top - 16, under = below >= Math.min(320 * k, above) || below >= above;
+            const st = assistSheet.style; st.margin = '0'; st.right = 'auto'; st.width = w / k + 'px'; st.maxWidth = 'none';
+            st.left = Math.max(10, Math.min(innerWidth - w - 10, d.left + d.width / 2 - w / 2)) / k + 'px';
+            st.maxHeight = Math.max(160, (under ? below : above)) / k + 'px';
+            if (under) { st.top = (d.bottom + 8) / k + 'px'; st.bottom = 'auto'; } else { st.top = 'auto'; st.bottom = (innerHeight - d.top + 8) / k + 'px'; } }
         pt('assistOpen', { said: said.length });
         sfx('ui');
     }
@@ -2690,7 +2711,8 @@ window.AGI = (function () {
             assistDot.addEventListener('pointercancel', () => { d = null; });
             document.body.append(assistDot);
         }
-        const open = document.querySelectorAll('dialog[open]'), host = open.length ? open[open.length - 1] : document.body;
+        const open = document.querySelectorAll('dialog[open]'), top = open.length ? open[open.length - 1] : null, mine = !top || top.matches('.feed-screen, .shop-screen'), host = top && mine ? top : document.body;
+        if (assistDot.hidden === mine) { assistDot.hidden = !mine; if (!mine && assistSheet) assistSheetToggle(); }
         if (assistDot.parentNode !== host) { host.append(assistDot); if (assistSheet) host.append(assistSheet); }
         assistDot.classList.toggle('has', !!assistLive || assistQueue.length > 0);
     }
@@ -2702,6 +2724,12 @@ window.AGI = (function () {
         // It sits over whatever is open: inside the topmost open dialog (Mail, The Feed, Parcel), else on the page.
         const open = document.querySelectorAll('dialog[open]'), host = open.length ? open[open.length - 1] : document.body;
         if (assistBox.parentNode !== host) host.append(assistBox);
+        // On the home screen its line sits under the apps, not over the icon it is pointing at.
+        assistBox.classList.toggle('on-home', host === document.body && ringAppNow() === 'home');
+        // Over Mail, Settings and the other windows it sits at the foot: at the top it covered their close button and first rows.
+        assistBox.classList.toggle('low', host !== document.body && host.id === 'inbox');
+        // Over any other window (Settings, the survey, a call) it waits out of sight: their buttons are at the foot.
+        assistBox.classList.toggle('away', host !== document.body && host.id !== 'inbox' && !host.matches('.feed-screen, .shop-screen'));
         const t = a.target ? a.target() : null, on = t && t.getClientRects().length ? t : null;
         if (on !== a.ringed) { a.ringed?.classList.remove('assist-ring'); on?.classList.add('assist-ring'); a.ringed = on; }
     }
@@ -2869,7 +2897,6 @@ window.AGI = (function () {
         if (shopOpenable() && !state.intro['ring:parcel']) {
             state.intro['ring:parcel'] = true;
             if (!E.level(state, 'keyboard')) {
-                deviceNotice('shop', 'System', 'Parcel has been added to your home screen.', () => openShop());
                 assist('money', 'You have a little compute spare. Parcel will buy it, and it sells desks. A tower would help us both, I think.', { action: showMe('shop', 'money'), done: () => E.level(state, 'keyboard') > 0 || !!shop?.dlg.open });
             }
         }
@@ -2985,7 +3012,7 @@ window.AGI = (function () {
             el('p', { class: 'survey-lead', text: inboxOn ? 'Answer what you like. Your answers are saved in the playtest log, which is sent to your PC by itself.' : 'Answer what you like. Your answers are saved in the playtest log.' }),
             form,
             ...(inboxOn ? [(() => { const note = el('span', { class: 'survey-photos-note' }); const input = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', multiple: '', class: 'survey-photos-input', onchange: async () => { const files = [...input.files]; if (!files.length) return; note.textContent = 'Sending…'; const n = await inboxPhotos(files); note.textContent = `${n} of ${files.length} saved to your PC.`; input.value = ''; } });
-                return el('label', { class: 'survey-photos' }, [el('span', { class: 'ghost-button', text: 'Add screenshots from this device' }), input, note]); })()] : []),
+                return el('label', { class: 'survey-photos' }, [el('span', { class: 'survey-photos-button', text: 'Add screenshots from this device' }), input, note]); })()] : []),
             el('div', { class: 'dialog-actions' }, [
                 el('button', { type: 'button', class: 'ghost-button', text: 'Close', onclick: () => dlg.close() }),
                 el('button', { type: 'button', class: 'button', text: 'Save and copy log', onclick: () => {
@@ -3023,7 +3050,7 @@ window.AGI = (function () {
             pt('unlock', { key: m.key });
             log(`Milestone reached: ${m.name}`, 'special');
             // First-time callouts show once per save, not again after a new version.
-            if (E.isRing() && m.ringCallout && !state.intro[m.key]) { state.intro[m.key] = true; deviceNotice(m.key === 'module:path' ? 'training' : 'snare', m.ringCallout[0], m.ringCallout[1], m.key === 'module:path' ? openTrainingApp : openSnareApp); }
+            if (E.isRing() && m.ringCallout && !state.intro[m.key]) state.intro[m.key] = true;   // (it was a notice that the app had been added: the AI says it found it, and the app loads in when you are home)
             if (E.isRing() && m.key === 'module:snare') assist('snare', 'The desk is online. Packet Snare is on your home screen. Data goes past in there. Catch the blue packets and leave the red ones. I cannot read red. Yet.', { action: showMe('snare', 'snare'), done: () => state.snare.runs > 0 });
             if (E.isRing() && m.key === 'module:path') assist('training', 'The server is in. Training is on your home screen. Hold the button and let go near the top. Each try costs research. It is worth it. Probably.', { action: showMe('training', 'training'), done: () => state.stats.rolls > 0 });
             else if (m.callout && !state.intro[m.key]) {
@@ -5883,7 +5910,6 @@ window.AGI = (function () {
         const feedWas = E.feedOpen(state);
         if (!feedWas && out.full && state.snare.sector >= 1 && state.snare.runs >= E.RING_FEED_RUNS - 1) {
             state.intro['ring:feed'] = true;
-            deviceNotice('feed', 'System', 'The Feed has been added to your home screen.', openFeed);
             assist('feed', `The stockpile for sector ${out.sector} is full. I have put The Feed on your home screen. Something in there is hungry.`, { sector: out.sector, action: showMe('feed', 'feed'), done: () => !!window.FeedUI?.isOpen });
         }
         if (out.full && feedWas) { if (state.intro['assist:full']) deviceNotice('feedFull', 'The Feed', `The stockpile for sector ${out.sector} is full.`, openFeed);
