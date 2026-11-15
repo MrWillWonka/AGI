@@ -7,6 +7,7 @@ succeeds, never a tutorial. Edit the Line column and send it back (or say which 
 
 | Key | When it shows | Line | Approved |
 |---|---|---|---|
+| `download` | Home screen, two seconds after the offer is taken; the Lab starts loading two seconds later | One moment. I am downloading something that will help. It is small. It will not take long. | |
 | `lab1` | The Lab, first time it opens | Hello. I am new here. If you tap Generate Compute, I think I can be useful. | |
 | `lab2` | The Lab, after the first few taps | Thank you. That helps more than you would think. A few more, if you do not mind. | |
 | `money` | Parcel arrives (25 compute made) | You have some compute to spare. I found a shop that will buy it. I hope that is all right. | |

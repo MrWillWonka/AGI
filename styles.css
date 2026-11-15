@@ -4488,3 +4488,20 @@ body.ring-device .device-switch-settings { color: var(--primary); } body.ring-de
 .shop-screen::backdrop, .ring-survey::backdrop, #journal::backdrop { background: rgba(2, 8, 9, 0.6); }
 .shop-bar, body .shop-bar { padding-top: 8px; position: sticky; top: 0; z-index: 1; background: var(--bg); }
 body.device-phone .shop-screen { width: calc(100vw / var(--zoom, 1) - 16px); height: 78dvh; margin: auto auto calc(52px + env(safe-area-inset-bottom, 0px)); }
+
+/* The orb and its line (the owner's notes, 2026-11-15). The thread from the orb to the line it is saying; the line's
+   edge pulsing in time with the orb; the orb's flare as compute is made; a line beside the app it is about. */
+.assist-thread { position: fixed; height: 2px; margin-top: -1px; transform-origin: 0 50%; pointer-events: none; z-index: 6000; border-radius: 2px;
+    background: linear-gradient(90deg, var(--success), color-mix(in srgb, var(--success) 35%, transparent)); box-shadow: 0 0 8px var(--success); opacity: 0.85; overflow: hidden; }
+.assist-thread[hidden] { display: none; }
+.assist-thread::after { content: ''; position: absolute; inset: 0 auto 0 0; width: 26px; background: linear-gradient(90deg, transparent, #fff, transparent); animation: assist-thread 1.1s linear infinite; }
+@keyframes assist-thread { from { transform: translateX(-26px); } to { transform: translateX(460px); } }
+.assist-bubble { animation: assist-in 0.3s ease-out, assist-speak 1.1s ease-in-out 0.3s infinite; }
+@keyframes assist-speak { 50% { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 34px color-mix(in srgb, var(--success) 55%, transparent), 0 10px 30px rgba(0, 0, 0, 0.6); border-color: color-mix(in srgb, var(--success) 70%, #fff); } }
+.assist-dot.speaking { box-shadow: 0 0 0 1px var(--success), 0 0 22px color-mix(in srgb, var(--success) 70%, transparent), 0 4px 16px rgba(0, 0, 0, 0.6); }
+.assist-dot.computing .assist-mark { animation: assist-compute 0.45s ease-out; }
+.assist-dot.computing { animation: assist-compute-ring 0.45s ease-out; }
+@keyframes assist-compute { 0% { transform: scale(1.45); box-shadow: 0 0 26px #fff, 0 0 44px var(--success); } 100% { transform: scale(1); } }
+@keyframes assist-compute-ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 70%, transparent), 0 4px 16px rgba(0, 0, 0, 0.6); } 100% { box-shadow: 0 0 0 16px transparent, 0 4px 16px rgba(0, 0, 0, 0.6); } }
+.assist.beside, body.device-laptop .assist.beside, :root:has(.device-notice) .assist.beside { display: block; inset: auto; }
+@media (prefers-reduced-motion: reduce) { .assist-thread::after, .assist-bubble, .assist-dot.computing, .assist-dot.computing .assist-mark { animation: none; } }

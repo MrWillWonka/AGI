@@ -172,3 +172,16 @@ test('boss fights: only your own moves stun it (the game sets ownStuns; the rule
     assert.equal(E.snareOpts(s, E.SNARE_FIRST_BOSS).ownStuns, 1);
     assert.equal(require('../packet-snare.js').SNARE.ownStuns, 0);
 });
+
+// The owner's log of 2026-11-15: going deeper from sector 2 into the gated boss skipped its armour (40 hits did 40).
+test('going deeper into the gated boss keeps its armour', () => {
+    const P = require('../packet-snare.js');
+    E.setRing(true);
+    const s = E.defaultState(Date.now()), boss = E.SNARE_FIRST_BOSS;
+    assert.equal(E.snareOpts(s, boss).bossArmor, E.SNARE_GATE_ARMOR, 'no Pattern Matching: the boss is gated');
+    const r = P.createSnare({ ...E.snareOpts(s, boss - 1), seed: 3 });
+    assert.equal(r.opts.bossArmor ?? 1, 1);
+    r.nextSector(E.snareOpts(s, boss));
+    assert.equal(r.opts.bossArmor, E.SNARE_GATE_ARMOR, 'the armour comes with the sector');
+    E.setRing(false);
+});

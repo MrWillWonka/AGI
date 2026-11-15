@@ -336,3 +336,24 @@ The owner's notes, as given:
 16. Parcel integrated into the AI's interface, as a quality-of-life gift from the AI.
 17. A way to see stockpiles in Packet Snare after feeding.
 18. A Training landscape intro.
+
+## 2026-11-15: batch 1 of the owner's notes (the AI's voice and the orb; notes 1 to 5, and the boss bug)
+
+- **The boss gate when going deeper** (the bug in that morning's log): `bossArmor` is now one of the options a deeper
+  sector brings (`SECTOR_KEYS`), so the gated boss keeps its 30% armour however the run reaches it. Tested.
+- **Note 1, the line is the orb's:** a glowing thread runs from the orb to the line it is saying with a pulse
+  travelling along it (`assistThreadTick`, `.assist-thread`), the line's edge pulses in time with the orb, and the orb
+  is ringed while it speaks.
+- **Note 2, the orb glows as you compute:** a flare on every tap of Generate Compute (`orbCompute`). The second half
+  (the Lab as where the AI lives and grows) is written into design/ring.md as a plan; nothing built.
+- **Note 3, time to read:** doing what a line asks puts it away only once it has been up 4 s, longer for a longer
+  line (50 ms a character; `assistHold`). The "This one." lines that point at an app still go when the app opens.
+- **Note 4, the download:** two seconds on the home screen, then the AI says it is downloading (`download`, a
+  PLACEHOLDER line), then two seconds later the Lab's icon and the Download window appear and the loading starts
+  (`HOME_ANNOUNCE_MS`, `HOME_LOAD_GAP_MS`). The orb is on screen from that first line.
+- **Note 5, where lines sit:** at the top as before; on the home screen a line that points at an app sits beside that
+  app (`assistPlace`, under it, or over it with no room).
+- **Note 7, "fix the screen":** no "fix the monitor" is in the game today, so there was nothing to change; the
+  wording goes into the Parcel line of note 6 (batch 2).
+
+All numbers (4 s, 50 ms a character, 2 s and 2 s) are placeholders of mine.

@@ -467,3 +467,10 @@ agents in Evals.
 - **Cards at each split.** A pick of cards: stat boosts, and the four tools (scanner sweep, pulse, sorting pipe, arc between mites) among them, so sessions differ.
 - **Nothing eats outside a session.** Research comes only from playing one. Research and fragments carry over; mites, cards and tools reset.
 - **Build order (proposed):** stockpiles and their cap, with sessions that start and end on hunger; then cards that are stat boosts; then the four tools as cards.
+
+## The Lab is where the AI lives (the owner's direction, 2026-11-15; a plan, nothing built)
+
+The Lab is the space the AI lives in, and it grows with the AI. Today it is a plain layout with plain buttons. With
+progression it becomes more its own: less a panel of controls, more a place that is recognisably the AI's. The orb is
+the AI's presence everywhere on the device; the Lab is its home. What the stages are, and what moves them (skills,
+bosses, the server, the garage), is for the owner to design: nothing here is decided.

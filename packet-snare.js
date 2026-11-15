@@ -2684,7 +2684,7 @@
             // Each clear in a run gives half the last's (0.4, 0.2, 0.1 of the bar): going deeper chained sectors for free.
             return Math.round(refill(o.clearFocus * Math.pow(0.5, s.clears++) * s.maxFocus));
         }
-        const SECTOR_KEYS = ['corruptShare', 'avSpeed', 'packetSpeed', 'antivirus', 'sweepFirst', 'sweepEvery', 'rogue', 'rogueFirst', 'rogueEvery',
+        const SECTOR_KEYS = ['bossArmor', 'corruptShare', 'avSpeed', 'packetSpeed', 'antivirus', 'sweepFirst', 'sweepEvery', 'rogue', 'rogueFirst', 'rogueEvery',
             'teachRed', 'boss', 'goal', 'goalPay', 'bossAt', 'bossCatch', 'bossArrive', 'bossIncoming', 'bossFight', 'fightPenalty', 'bossSwallow', 'bossFocus', 'bossR', 'bossSpeed', 'bossCharge', 'bossWarn', 'bossStun', 'bossMines', 'mineEvery', 'bossMinions'];
         function nextSector(next = {}) {
             if (s.over) return;

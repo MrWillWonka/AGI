@@ -1637,6 +1637,7 @@ window.AGI = (function () {
         if (result.gained != null) {
             floatGain(button, result.gained, E.RESOURCES[result.resource].short);
             clickGlow(result.resource, result.gained);
+            if (id === 'compute' && E.isRing()) orbCompute();
             sfx('click', { res: result.resource, q: heldBeat ? 2 : 1 });
         }
         if (result.msg) log(result.msg, 'success');
@@ -2371,6 +2372,9 @@ window.AGI = (function () {
     // takes you to the lab and shows a short welcome (placeholder words: what to do, and why you click). The home screen
     // covers the page under the device's bezel and crack; dialogs (Mail) open over it.
     const HOME_INSTALL_MS = 6000;
+    // (The owner's call, 2026-11-15: the AI announces the download, with a little space on the home screen before the
+    // announcement and again before the loading starts.)
+    const HOME_ANNOUNCE_MS = 2000, HOME_LOAD_GAP_MS = 2000;
     // A new app's own download: it starts when you are on the home screen with the app unlocked, and takes this long.
     const APP_INSTALL_MS = 3500, appInstalls = {};
     function appInstall(key) {
@@ -2484,8 +2488,9 @@ window.AGI = (function () {
         setText(home.mail.badge, unread ? String(unread) : '');
         if (home.mail.badge.hidden === !!unread) home.mail.badge.hidden = !unread;
         // The Lab downloads itself once the offer is taken.
-        if (accepted && !state.intro['ring:labInstalled']) {
-            installFrom = installFrom || performance.now();
+        if (accepted && !state.intro['ring:labInstalled'] && !$('inbox').open) {
+            installFrom = installFrom || performance.now() + HOME_ANNOUNCE_MS + HOME_LOAD_GAP_MS;
+            if (performance.now() >= installFrom - HOME_LOAD_GAP_MS) assist('download', '', { done: () => !!state.intro['ring:labInstalled'] });
             if (performance.now() - installFrom >= HOME_INSTALL_MS) { state.intro['ring:labInstalled'] = true; pt('home', { installed: 'lab' }); sfx('ui'); }
         }
         const online = !!state.unlocked['module:snare'], fed = E.feedOpen(state);
@@ -2504,13 +2509,14 @@ window.AGI = (function () {
             app.button.style.setProperty('--load', String(share));
             app.button.classList.toggle('is-new', !app.button.hidden && !loading && !state.intro['ring:seen:' + key]);
         }
-        const installed = !!state.intro['ring:labInstalled'] || labOpened(), share = installed ? 1 : accepted ? Math.min(1, (performance.now() - installFrom) / HOME_INSTALL_MS) : 0;
-        if (home.lab.button.hidden === accepted) home.lab.button.hidden = !accepted;
-        home.lab.button.classList.toggle('loading', accepted && !installed);
+        const installed = !!state.intro['ring:labInstalled'] || labOpened(), loading = installed || (accepted && installFrom > 0 && performance.now() >= installFrom);
+        const share = installed ? 1 : loading ? Math.min(1, (performance.now() - installFrom) / HOME_INSTALL_MS) : 0;
+        if (home.lab.button.hidden === loading) home.lab.button.hidden = !loading;
+        home.lab.button.classList.toggle('loading', loading && !installed);
         home.lab.button.disabled = !installed;
         home.lab.button.style.setProperty('--load', String(share));
         setText(home.lab.label, installed ? 'Lab' : 'Loading…');
-        const popping = accepted && !labOpened();
+        const popping = loading && !labOpened();
         if (home.popup.hidden === popping) home.popup.hidden = !popping;
         setText(home.popupText, installed ? 'Lab is ready.' : 'Lab · from A Friend');
         home.bar.style.width = `${Math.round(share * 100)}%`;
@@ -2567,6 +2573,7 @@ window.AGI = (function () {
     // line; these are drafts in the voice they asked for: polite, understated, trying to be helpful, a little too keen).
     // The text passed to `assist` at each call is only a fallback. `{sector}` is filled from the call.
     const ASSIST_LINES = {
+        "download": "One moment. I am downloading something that will help. It is small. It will not take long.",
         "lab1": "Hello. I am new here. If you tap Generate Compute, I think I can be useful.",
         "lab2": "Thank you. That helps more than you would think. A few more, if you do not mind.",
         "money": "You have some compute to spare. I found a shop that will buy it. I hope that is all right.",
@@ -2667,6 +2674,10 @@ window.AGI = (function () {
     // The terminal voice (the owner's pick, 2026-11-14: the pale bubble was "not on theme"): a line types itself out,
     // `ASSIST_TYPE_MS` a character, behind a '>' with a cursor. At once under reduced motion.
     const ASSIST_TYPE_MS = 14;
+    // Time to read (the owner's call, 2026-11-15: the first lines went by too quickly while computing; one closed after
+    // 1.3 s): doing what a line asks puts it away only once it has been up this long, 4 s at the least and longer for
+    // a longer line. The "This one." lines that point at an app go when the app opens. PLACEHOLDER numbers of mine.
+    const assistHold = a => (a.key.endsWith('Home') ? 600 : Math.max(4000, a.text.length * 50));
     let assistType = null;
     function assistTypeEnd() { if (!assistType) return; clearInterval(assistType.timer); assistType.node.textContent = assistType.text; assistType.node.classList.remove('typing'); assistType = null; }
     function assistTypeStart(node, text) {
@@ -2733,7 +2744,7 @@ window.AGI = (function () {
         sfx('ui');
     }
     function assistDotTick() {
-        if (!E.isRing() || !(state.intro['ring:labInstalled'] || labOpened())) return;
+        if (!E.isRing() || !(state.intro['ring:labInstalled'] || labOpened() || assistLive || state.intro['assist:download'])) return;
         if (!assistDot) {
             assistDot = el('button', { type: 'button', class: 'assist-dot', 'aria-label': 'Assistant' }, [el('span', { class: 'assist-mark', 'aria-hidden': 'true' })]);
             const place = (l, t) => { const z = pageZoom(), w = innerWidth, h = innerHeight; assistDot.style.left = Math.max(4, Math.min(w - 60, l)) / z + 'px'; assistDot.style.top = Math.max(40, Math.min(h - 70, t)) / z + 'px'; assistDot.style.right = 'auto'; assistDot.style.bottom = 'auto'; };
@@ -2751,12 +2762,48 @@ window.AGI = (function () {
         if (assistDot.hidden === mine) { assistDot.hidden = !mine; if (!mine && assistSheet) assistSheetToggle(); }
         if (assistDot.parentNode !== host) { host.append(assistDot); if (assistSheet) host.append(assistSheet); }
         assistDot.classList.toggle('has', !!assistLive || assistQueue.length > 0);
+        assistDot.classList.toggle('speaking', !!assistLive);
+    }
+    // The orb glows as compute is made (the owner's call, 2026-11-15): a flare on every tap of Generate Compute.
+    function orbCompute() {
+        if (!assistDot || assistDot.hidden) return;
+        assistDot.classList.remove('computing'); void assistDot.offsetWidth; assistDot.classList.add('computing');
+    }
+    // The line is the orb's (the owner's call, 2026-11-15): a glowing thread runs from the orb to the line it is
+    // saying, a pulse travelling along it, and the line's edge pulses in time with the orb.
+    let assistThread = null;
+    function assistThreadTick(on) {
+        const bubble = on && assistLive?.node, shown = bubble && assistDot && !assistDot.hidden && !assistBox.classList.contains('away') && bubble.getClientRects().length;
+        if (!shown) { if (assistThread) assistThread.hidden = true; return; }
+        if (!assistThread) assistThread = el('div', { class: 'assist-thread', 'aria-hidden': 'true' });
+        if (assistThread.parentNode !== assistDot.parentNode) assistDot.parentNode.append(assistThread);
+        const k = pageZoom(), d = assistDot.getBoundingClientRect(), b = bubble.getBoundingClientRect();
+        const ox = d.left + d.width / 2, oy = d.top + d.height / 2;
+        const tx = Math.max(b.left + 12, Math.min(b.right - 12, ox)), ty = Math.max(b.top, Math.min(b.bottom, oy));
+        const len = Math.hypot(tx - ox, ty - oy) - d.width / 2;
+        if (len < 6) { assistThread.hidden = true; return; }
+        const ang = Math.atan2(ty - oy, tx - ox), st = assistThread.style;
+        assistThread.hidden = false;
+        st.left = (ox + Math.cos(ang) * d.width / 2) / k + 'px'; st.top = (oy + Math.sin(ang) * d.width / 2) / k + 'px';
+        st.width = len / k + 'px'; st.transform = `rotate(${ang}rad)`;
+    }
+    // A line starts at the top; on the home screen it sits beside the app it is about (the owner's call, 2026-11-15).
+    function assistPlace(target) {
+        const st = assistBox.style, node = assistLive?.node;
+        const beside = target && node && assistBox.classList.contains('on-home') && !assistBox.classList.contains('away');
+        assistBox.classList.toggle('beside', !!beside);
+        if (!beside) { for (const p of ['top', 'left', 'right', 'bottom', 'width']) st.removeProperty(p); return; }
+        const k = pageZoom(), r = target.getBoundingClientRect(), w = Math.min(440 * k, innerWidth - 20), h = node.getBoundingClientRect().height || 90 * k;
+        const below = r.bottom + 16 + h <= innerHeight - 70 * k;
+        st.width = w / k + 'px'; st.right = 'auto'; st.bottom = 'auto';
+        st.left = Math.max(10, Math.min(innerWidth - w - 10, r.left + r.width / 2 - w / 2)) / k + 'px';
+        st.top = Math.max(50 * k, below ? r.bottom + 16 : r.top - 16 - h) / k + 'px';
     }
     function assistTick() {
         assistDotTick();
         const a = assistLive;
-        if (!a) return;
-        if (a.done && performance.now() - a.at > 600 && a.done()) { assistClose('done'); return; }
+        if (!a) { assistThreadTick(false); return; }
+        if (a.done && performance.now() - a.at > assistHold(a) && a.done()) { assistClose('done'); return; }
         // It sits over whatever is open: inside the topmost open dialog (Mail, The Feed, Parcel), else on the page.
         const open = document.querySelectorAll('dialog[open]'), host = open.length ? open[open.length - 1] : document.body;
         if (assistBox.parentNode !== host) host.append(assistBox);
@@ -2768,6 +2815,8 @@ window.AGI = (function () {
         assistBox.classList.toggle('away', host !== document.body && host.id !== 'inbox' && !host.matches('.feed-screen, .shop-screen'));
         const t = a.target ? a.target() : null, on = t && t.getClientRects().length ? t : null;
         if (on !== a.ringed) { a.ringed?.classList.remove('assist-ring'); on?.classList.add('assist-ring'); a.ringed = on; }
+        assistPlace(on);
+        assistThreadTick(true);
     }
     function openLab() {
         if (labOpened()) { homeUp = false; pt('home', { open: 'lab' }); sfx('ui'); renderHome(); return; }
