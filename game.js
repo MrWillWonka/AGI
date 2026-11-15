@@ -10,6 +10,11 @@ window.AGI = (function () {
     const BAYS_DIRECT = location.hash === '#bays';
     // `#ring` turns the ring's rules on (engine.js `setRing`; design/ring.md): off, the game is as it was.
     if (location.hash === '#ring') window.AGIEngine.setRing(true);
+    // The playground link (the owner's call, 2026-11-14): `#playground` plays the game in order with nothing gating the
+    // minigames (Evals as the third bay, no skill-gated bosses in Packet Snare). The plain link is the game as designed.
+    // `#bays` is the same playground with the opening skipped.
+    const PLAYGROUND = BAYS_DIRECT || location.hash === '#playground';
+    E.setPlayground(PLAYGROUND);
     const SAVE_KEY = 'agiGame';
     const BACKUP_KEY = 'agiGame.bak';         // the last good save (refreshed every BACKUP_MS, and kept before an import)
     const CORRUPT_KEY = 'agiGame.corrupt';    // a save that couldn't be read, kept as it was
@@ -4450,9 +4455,9 @@ window.AGI = (function () {
             lockedText: () => 'Locked' },
         // The Data Pipeline's Packet Snare (packet-snare.js): opens with Edge Detection (engine milestone module:snare).
         pipeline: { name: 'Packet Snare', built: true, unlocked: () => !!state.unlocked['module:snare'] },
-        // The playground build (the owner's call, 2026-11-13): Evals is the third bay, open from the start like Packet
-        // Snare, with no gate. It opens its own full-screen screen. `#bays` still skips the opening to get here.
-        architecture: { name: 'Evals', built: true, evals: true, unlocked: () => true },
+        // The playground link: Evals is the third bay, open from the start, opening its own full-screen screen.
+        // On the plain link the bay is the sealed Architecture Lab.
+        architecture: PLAYGROUND ? { name: 'Evals', built: true, evals: true, unlocked: () => true } : { name: 'Architecture Lab', phase: 2 },
         core: { name: 'The Core', phase: 3 }
     };
     let openBay = null;
