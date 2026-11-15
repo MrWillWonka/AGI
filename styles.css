@@ -4663,3 +4663,24 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 
 /* Parcel's sell box is one line now (its Sell buttons are gone: the owner's call, 2026-11-15). */
 .shop-have { margin-bottom: 0; }
+
+/* The orb, fourth look (the owner's own picture, 2026-11-15): a teal glass sphere with a bright rim, fine contour lines
+   flowing across it and winding into a small amber core. The core's glow and the halo follow --orb-power. */
+.assist-dot .assist-mark.orb-face, .assist-dot.has .assist-mark.orb-face {
+    background: radial-gradient(circle at 50% 43%, color-mix(in srgb, var(--success) 20%, #06120f), color-mix(in srgb, var(--success) 13%, #030a09) 70%, color-mix(in srgb, var(--success) 24%, #030a09) 100%);
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--success) 88%, #fff), inset 0 0 9px color-mix(in srgb, var(--success) 55%, transparent), 0 0 7px color-mix(in srgb, var(--success) 60%, transparent), 0 6px 18px rgba(0, 0, 0, 0.55); }
+.orb-face svg { opacity: 1; }
+.orb-face .orb-sheen { fill: color-mix(in srgb, var(--success) 60%, #fff); stroke: none; opacity: 0.07; }
+.orb-face .orb-lines path { fill: none; stroke: color-mix(in srgb, var(--success) 85%, #fff); stroke-width: 0.9; stroke-linecap: round; opacity: calc(0.5 + 0.4 * var(--orb-power)); stroke-dasharray: 46 5; animation: orb-flow 14s linear infinite; }
+.orb-face .orb-lines path:nth-child(even) { animation-duration: 19s; }
+@keyframes orb-flow { to { stroke-dashoffset: -102; } }
+.orb-face .orb-core { fill: var(--warning); opacity: 1; }
+.orb-face .orb-core-glow { opacity: calc(0.25 + 0.75 * var(--orb-power)); transform-origin: 50.5px 43px; transition: opacity 0.9s ease; }
+.assist-dot.making .orb-core-glow, .assist-dot.has .orb-core-glow, .assist-dot.speaking .orb-core-glow { animation: orb-core 2.8s ease-in-out infinite; }
+.assist-dot.has .orb-core-glow, .assist-dot.speaking .orb-core-glow { animation-duration: 1.5s; }
+@keyframes orb-core { 50% { opacity: calc(0.45 + 0.55 * var(--orb-power)); transform: scale(1.25); } }
+.assist-dot.mini .orb-lines path { stroke-width: 1.8; }
+.assist-dot.mini .orb-core { r: 5px; }
+@media (prefers-reduced-motion: reduce) { .orb-face .orb-lines path, .assist-dot .orb-core-glow { animation: none !important; } }
+/* The contour lines are whole and still (dashes read as broken lines at this size); only the core and the halo move. */
+.orb-face .orb-lines path { stroke-dasharray: none; animation: none; stroke-width: 0.75; }

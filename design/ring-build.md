@@ -540,3 +540,13 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
 - **Parcel's Sell 100 / Sell half / Sell all buttons are gone.** The box keeps its one line ("You have n compute.
   Parcel pays $1 for every 10."); a part's own button sells what it needs ("Sell 100 compute and buy"). So compute is
   only ever sold to buy something, and the bank holds money only from the story's offers and change.
+
+## 2026-11-15: the orb after the owner's picture; "Training Landscape" on the Server's card
+
+- **The orb is redrawn from the owner's picture** (`ORB_FACE`, `.orb-face`): a teal glass sphere with a bright
+  rim, five fine contour lines flowing across it (still: only the core and halo move) and winding into a small amber core, off
+  centre to the right. Drawn in SVG in the theme's colours (`--success`, the core `--warning`), not the picture
+  itself, so it follows the theme and stays sharp at 28, 46 and 76 px. The core's glow and the halo behind the orb
+  grow with compute (`--orb-power`) and breathe while compute comes in, as before. No blur filters any more.
+- **The Server's card in Parcel reads "Opens the Training Landscape"** (the owner's wording). The app's own name on
+  the home screen is still "Training".
