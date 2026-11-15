@@ -2429,6 +2429,23 @@ window.AGI = (function () {
         assistQueue.push({ key, text, ...o });
         if (!assistLive) assistNext();
     }
+    // The AI's button never opens an app for you (the owner's call, 2026-11-14): it takes you back to the home screen,
+    // where the AI rings the app's icon and says why it is worth opening; opening it is yours to do.
+    // EVERY LINE IS A PLACEHOLDER for the owner to write or approve.
+    const SHOW_WHY = {
+        money: 'This one. Parcel buys the compute you make and sells the parts for a desk. A better desk makes more with every tap.',
+        sell: 'This one. Parcel buys compute. Ten for a dollar.',
+        cards: 'Parcel again. A graphics card makes compute while you are busy elsewhere. I think you have earned the rest.',
+        server: 'Parcel again. It has a server. A server is where I can train, and training is how we get past that boss.',
+        snare: 'This one. Data goes past in Packet Snare. What you catch there is what I learn from.',
+        feed: 'This one. The Feed turns what you caught into research. Research is how I get better at things.',
+        full: 'This one. A full stockpile wastes whatever you catch next. The mites will make room.',
+        training: 'This one. Training turns research into skills. I would like one. That boss would not.'
+    };
+    const appUp = app => (app === 'shop' ? !!shop?.dlg.open : app === 'feed' ? !!window.FeedUI?.isOpen : ringAppNow() === app);
+    function showMe(app, key) {
+        return ['Show me', () => { goHome(); assist(key + 'Home', SHOW_WHY[key], { target: () => home?.[app === 'training' ? 'train' : app].button, done: () => appUp(app) }); }];
+    }
     function assistNext() {
         if (assistQueue.length && snareRunLive()) { setTimeout(() => { if (!assistLive) assistNext(); }, 1000); return; }
         const q = assistQueue.shift();
@@ -2560,7 +2577,7 @@ window.AGI = (function () {
             fundBusy = false;
             if (state.intro['fund:' + who]) { sfx('claim'); deviceNotice('bank', 'Bank', `${money} deposited.`, () => openShop()); }
             // Graphics Cards are on sale now, whoever paid (PLACEHOLDER words).
-            if (who === 'm0m') assist('cards', 'Parcel has graphics cards now. They make compute without you. I would not want you to tire.', { action: ['Open Parcel', () => { goHome(); openShop(); }], done: () => E.level(state, 'cpu') > 0 || !!shop?.dlg.open });
+            if (who === 'm0m') assist('cards', 'Parcel has graphics cards now. They make compute without you. I would not want you to tire.', { action: showMe('shop', 'cards'), done: () => E.level(state, 'cpu') > 0 || !!shop?.dlg.open });
             afterChange();
             save();
         });
@@ -2635,7 +2652,7 @@ window.AGI = (function () {
             state.intro['ring:parcel'] = true;
             if (!E.level(state, 'keyboard')) {
                 deviceNotice('shop', 'System', 'Parcel has been added to your home screen.', () => openShop());
-                assist('money', 'You have a little compute spare. Parcel will buy it, and it sells desks. A tower would help us both, I think.', { action: ['Open Parcel', () => { goHome(); openShop(); }], done: () => E.level(state, 'keyboard') > 0 || !!shop?.dlg.open });
+                assist('money', 'You have a little compute spare. Parcel will buy it, and it sells desks. A tower would help us both, I think.', { action: showMe('shop', 'money'), done: () => E.level(state, 'keyboard') > 0 || !!shop?.dlg.open });
             }
         }
         // The tip about holding a job's button waits until you are in the Lab to see it (it came up over the shop).
@@ -2644,7 +2661,7 @@ window.AGI = (function () {
             callout('hint:hold', 'Hold to repeat', 'Hold a job\'s button and it repeats about four times a second.');
         }
         // Both offers turned down: the AI says how money is made now (there is no pay day).
-        if (state.intro['fundNo:m0m'] && state.intro['fundNo:mom'] && !E.funded(state)) assist('sell', 'No money, then. Parcel buys compute. Ten for a dollar. It is on your home screen. I would start with the tower.', { action: ['Open Parcel', () => { goHome(); openShop(); }], done: () => !!shop?.dlg.open });
+        if (state.intro['fundNo:m0m'] && state.intro['fundNo:mom'] && !E.funded(state)) assist('sell', 'No money, then. Parcel buys compute. Ten for a dollar. It is on your home screen. I would start with the tower.', { action: showMe('shop', 'sell'), done: () => !!shop?.dlg.open });
         if (shop?.dlg.open) renderShop();
     }
     function renderShop(force) {
@@ -2787,8 +2804,8 @@ window.AGI = (function () {
             log(`Milestone reached: ${m.name}`, 'special');
             // First-time callouts show once per save, not again after a new version.
             if (E.isRing() && m.ringCallout && !state.intro[m.key]) { state.intro[m.key] = true; deviceNotice(m.key === 'module:path' ? 'training' : 'snare', m.ringCallout[0], m.ringCallout[1], m.key === 'module:path' ? openTrainingApp : openSnareApp); }
-            if (E.isRing() && m.key === 'module:snare') assist('snare', 'The desk is online. Packet Snare is on your home screen. Data goes past in there. Catch the blue packets and leave the red ones. I cannot read red. Yet.', { action: ['Open Packet Snare', () => { goHome(); openSnareApp(); }], done: () => state.snare.runs > 0 });
-            if (E.isRing() && m.key === 'module:path') assist('training', 'The server is in. Training is on your home screen. Hold the button and let go near the top. Each try costs research. It is worth it. Probably.', { action: ['Open Training', () => { goHome(); openTrainingApp(); }], done: () => state.stats.rolls > 0 });
+            if (E.isRing() && m.key === 'module:snare') assist('snare', 'The desk is online. Packet Snare is on your home screen. Data goes past in there. Catch the blue packets and leave the red ones. I cannot read red. Yet.', { action: showMe('snare', 'snare'), done: () => state.snare.runs > 0 });
+            if (E.isRing() && m.key === 'module:path') assist('training', 'The server is in. Training is on your home screen. Hold the button and let go near the top. Each try costs research. It is worth it. Probably.', { action: showMe('training', 'training'), done: () => state.stats.rolls > 0 });
             else if (m.callout && !state.intro[m.key]) {
                 state.intro[m.key] = true;
                 callout(m.key, m.callout[0], m.callout[1]);
@@ -5637,10 +5654,10 @@ window.AGI = (function () {
         if (!feedWas && out.full && state.snare.sector >= 1 && state.snare.runs >= E.RING_FEED_RUNS - 1) {
             state.intro['ring:feed'] = true;
             deviceNotice('feed', 'System', 'The Feed has been added to your home screen.', openFeed);
-            assist('feed', `The stockpile for sector ${out.sector} is full. I have put The Feed on your home screen. Something in there is hungry.`, { action: ['Open The Feed', () => { goHome(); openFeed(); }], done: () => !!window.FeedUI?.isOpen });
+            assist('feed', `The stockpile for sector ${out.sector} is full. I have put The Feed on your home screen. Something in there is hungry.`, { action: showMe('feed', 'feed'), done: () => !!window.FeedUI?.isOpen });
         }
         if (out.full && feedWas) { if (state.intro['assist:full']) deviceNotice('feedFull', 'The Feed', `The stockpile for sector ${out.sector} is full.`, openFeed);
-            else assist('full', `The stockpile for sector ${out.sector} is full. Anything more you catch there is thrown away. I would rather it was not. The mites are hungry anyway.`, { action: ['Open The Feed', () => { goHome(); openFeed(); }], done: () => !!window.FeedUI?.isOpen }); }
+            else assist('full', `The stockpile for sector ${out.sector} is full. Anything more you catch there is thrown away. I would rather it was not. The mites are hungry anyway.`, { action: showMe('feed', 'full'), done: () => !!window.FeedUI?.isOpen }); }
         // The first catch: the AI says where it went and why you would go there (the owner: the notice was hardly seen and gave no reason).
         void before;
         feedShow(out);
@@ -5673,7 +5690,7 @@ window.AGI = (function () {
         if (E.isRing() && stats.bossEscaped && !state.intro['ring:server'] && E.snareGateSkill(state, snare.sector)) {
             state.intro['ring:server'] = true;
             pt('server', { offered: 1 });
-            assist('server', 'That one needs a skill I do not have. I need a server to train on. Parcel sells one. Four hundred dollars. I checked the number twice and got it once. Parcel also buys compute, if you are short.', { action: ['Open Parcel', () => { goHome(); openShop(); }], done: () => E.level(state, 'keyboard') > E.RING_DESK || !!shop?.dlg.open });
+            assist('server', 'That one needs a skill I do not have. I need a server to train on. Parcel sells one. Four hundred dollars. I checked the number twice and got it once. Parcel also buys compute, if you are short.', { action: showMe('shop', 'server'), done: () => E.level(state, 'keyboard') > E.RING_DESK || !!shop?.dlg.open });
         }
         const res = E.finishSnare(state, snare.haul, layout, stats);
         snare.done = { stats, haul: snare.haul, record: res.record, first: res.first, prev: res.prev, sector: snare.sector, startSector: snare.startSector, cleared: snare.cleared.slice(), walked: !!snare.walked,
