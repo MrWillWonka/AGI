@@ -568,3 +568,16 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
 - **What "strength" is measured by is a placeholder:** the run's compute, because that is what the glow already
   followed. The thresholds (10K to 2M) are mine; whether strength should be compute, skills learned, or story beats
   is the owner's to say.
+
+## 2026-11-15: the AI's four forms (the owner's pictures)
+
+- The orb has **four forms**, a class on it (`form-1` to `form-4`, all drawn in the one SVG, cross-fading):
+  1. the calm sphere (contour lines, small core); 2. the strong sphere (large core, three ribbons, arcs outside);
+  3. **unbound**: no sphere, three ribbons streaming out from three amber nodes round a flame of a core, swaying;
+  4. **final**: a symmetrical knot of translucent bands in a diamond with an amber four-pointed star, breathing.
+  The talking state (rings from the core) and the halo work on all four.
+- The form is now a step, not a slide (`--orb-strong` is 0 or 1 by class).
+- **PLACEHOLDER: what moves it from form to form.** `ORB_FORMS` in game.js: the run's compute at 10K, 10M and 10B.
+  What strength is measured by is the owner's to say (asked; open).
+- **Playground preview:** the assistant's sheet (tap the orb) has "Orb form: … (tap to change)", stepping through
+  1 to 4 and back to "by compute". Playground only.
