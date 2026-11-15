@@ -14360,6 +14360,25 @@ window.AGI = (function () {
             // Give a card in the session in play, as if picked (a combo merges its tools if you hold them). False with no session.
             feedCard(id) { const s = state.feed.session; if (!s || !window.Feed.CARDS[id]) return false; s.offer = [id]; s.picks = (s.picks || 0) + 1; feedShow(E.feedPick(state, 0)); afterChange(); return true; },
             feedStart(sector = 1) { const ok = E.feedStart(state, sector); afterChange(); return ok; },
+            // The ring's stages, for the debug panel's The ring section: each puts the save where that stage begins.
+            ring(step, n) {
+                if (!E.isRing()) return false;
+                const i = state.intro, lvl = E.level(state, 'keyboard'), owe = (from, to) => E.DESK_PRICES.slice(from, to).reduce((a, b) => a + b, 0);
+                const desk = () => { if (lvl < E.RING_DESK) { state.stats.cashSold += owe(lvl, E.RING_DESK); state.levels.keyboard = E.RING_DESK; } Object.assign(i, { 'ring:labInstalled': true, 'ring:labOpened': true, 'ring:welcome': true, 'ring:parcel': true }); state.stats.clicks = Math.max(state.stats.clicks, 40); state.stats.runCp = Math.max(state.stats.runCp, 60); };
+                if (step === 'cash') state.stats.cashSold += n || 100;
+                else if (step === 'research') state.res.rp += n || 500;
+                else if (step === 'desk') desk();
+                else if (step === 'feed') { desk(); i['ring:feed'] = true; if (!E.feedStock(state).some(e => e.total > 0)) E.feedDeliver(state, { sector: 1, packets: 60, gold: 5 }); }
+                else if (step === 'piles') { desk(); i['ring:feed'] = true; for (const [sector, packets, gold, garbled] of [[1, 150, 12, 0], [2, 120, 10, 12], [3, 90, 9, 10]]) E.feedDeliver(state, { sector, packets, gold, garbled }); }
+                else if (step === 'cards') { desk(); i['ring:feed'] = true; state.feed.stats.sessions = Math.max(1, state.feed.stats.sessions || 0); }
+                else if (step === 'offer') { desk(); i['ring:server'] = true; }
+                else if (step === 'server') { desk(); i['ring:server'] = true; if (E.level(state, 'keyboard') === E.RING_DESK) { state.stats.cashSold += E.RING_SERVER_PRICE; state.levels.keyboard = E.RING_DESK + 1; } }
+                else if (step === 'lines') { for (const k of Object.keys(i)) if (k.startsWith('assist:')) delete i[k]; }
+                else if (step === 'tags') { for (const k of Object.keys(i)) if (k.startsWith('ring:seen:')) delete i[k]; }
+                else return false;
+                afterChange(); save();
+                return true;
+            },
             // What the AI has learned of every kind of captcha, raised by `by` (0 to 1): for watching it learn without the solves.
             evalsTeach(by = 0.25) {
                 for (const kind of Object.keys(window.Evals?.KINDS || {})) {
