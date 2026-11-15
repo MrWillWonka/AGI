@@ -84,9 +84,9 @@
                     const v = ch.v, i = (s / every) % v.length, idx = c.bar % 2 ? v.length - 1 - i : i;
                     note(t, v[idx], len * 0.8, (0.016 + 0.014 * Math.max(L.clap, L.arp)) * M * L.pad, { wave: 'pulse25', cutoff: song.mellow ? 1500 : 2000, q: 0.6, attack: 0.006, sus: 0.8, dec: 0.02, rel: 0.02, pan: -0.5, low: true });
                 }
-                if (c.mel && song.lead === 'tri') {           // the triangle takes the tune: a console's flute
-                    const d = len * c.mel.len * 0.95, env = { attack: 0.02, sus: 0.9, dec: 0.03, rel: 0.06 };
-                    note(c.mel.t, c.mel.n, d, 0.1 * c.melGain, { type: 'triangle', ...env, vib: c.mel.len >= 3 ? { rate: 5, depth: 9, delay: 0.22 } : null, pan: 0.1 });
+                if (c.mel && song.lead === 'tri') {           // the triangle takes the tune, in the middle of the keyboard, easing in
+                    const d = len * c.mel.len * 0.95, env = { attack: 0.04, sus: 0.9, dec: 0.03, rel: 0.08 };
+                    note(c.mel.t, c.mel.n, d, 0.1 * c.melGain, { type: 'triangle', ...env, vib: c.mel.len >= 3 ? { rate: 4.5, depth: 5, delay: 0.3 } : null, pan: 0.1 });
                     if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.035 * c.harmGain * c.melGain, { type: 'triangle', ...env, pan: -0.3 });
                 } else if (c.mel && song.lead === 'soft') {   // a square with the edge filtered off, a little slower to speak
                     const d = len * c.mel.len * 0.9, env = { attack: 0.016, sus: 0.85, dec: 0.04, rel: 0.04 };
@@ -125,7 +125,7 @@
                 },
                 {   // Save Point: a lullaby in three at 96: no kick, the triangle singing low and plainly over the chord's
                     // arpeggio. Eight bars and six, then round again: under a minute.
-                    name: 'Save Point', lvl: 0.98, bpm: 96, steps: 12, scale: ION, tonic: 3, lead: 'tri', mellow: true,
+                    name: 'Save Point', lvl: 0.98, bpm: 96, steps: 12, scale: ION, tonic: 3, oct: -1, lead: 'tri', mellow: true,
                     kit: { kick: '............', snare: '............', hat: '....o...o...' },
                     chords: { A: ['C', 'G', 'Am', 'G', 'F', 'G', 'C', 'C'], B: ['Am', 'Em', 'F', 'C', 'Dm', 'G'] }, bass: 'r.......f...',
                     mel: {
