@@ -45,16 +45,16 @@
 
         // ---- Instruments: the drums and voices, and how they play a song step by step --------------------------
         // Retro: chiptune at 144 BPM, dry. A console's voices, held to on purpose: a lead on a quarter-width pulse
-        // (it blips up an octave into the first note of a bar, and wobbles on its long notes), an echo channel on a
+        // (it wobbles a little on its long notes), an echo channel on a
         // thinner pulse that the fast arpeggio steals when it comes in, the chord as an arpeggio on that thin pulse,
         // a triangle bass that walks a line of its own, and noise for drums: a short kick, a snare, hats that
         // gallop (an 8th and two 16ths). The server-room songs play a breakbeat (kick on 1, the "and" of 2 and
-        // the "and" of 3). Notes switch on and off; nothing fades. The tune is there from the first bar.
+        // the "and" of 3). Nothing is punchy (the owner's call): every note eases in over 25 ms or more and lets go over about a tenth of a second, the pulses are dark, the drums sit far back, and high notes sit further off. The tune is there from the first bar.
         // Its click figure plays the track's 8ths: nearly five notes a second while a job is held.
         style: {
             bpm: 144,
-            cutoff: k => 3200 + 4500 * k, drive: 0, gain: 0.656,
-            beat: 1.15, tones: 1.829,   // drums about 6 dB under the tones by loudness: its kick is so short that matching the others' 2 dB made it spike 9 dB over them
+            cutoff: k => 2600 + 3400 * k, drive: 0, gain: 0.69,
+            beat: 2, tones: 1.829,   // drums about 6 dB under the tones by loudness: its kick is so short that matching the others' 2 dB made it spike 9 dB over them
             simpleMix: { gain: 1, beat: 1.013, tones: 1.855 }, simpleVoice: 'square',   // the simple version (simpleStep)
             space: { width: 0.6 },      // no room and no delay line: its echo is a voice
             layers: { mel: -1, bass: -1, kick: -1, pad: 0.18, off: 0.3, clap: 0.42, harm: 0.54, sixteenth: 0.62, arp: 0.8 },
@@ -64,9 +64,11 @@
                 // A song may bring its own drum patterns (`kit`) and lead (`lead`).
                 // `mellow`: the same console with the top taken off: pulses through a filter, softer drums and arpeggio, no echo voice.
                 // Understated throughout: every pulse is filtered a little, notes speak a touch slower, the drums sit well back.
-                const K = c.kit, M = song.mellow ? 0.45 : 0.6, soft = { cutoff: song.mellow ? 2000 : 3000, q: 0.6, attack: 0.006 };
+                const K = c.kit, M = song.mellow ? 0.3 : 0.4, soft = { cutoff: song.mellow ? 1500 : 2100, q: 0.5, attack: 0.03 };
+                // High notes sit further off: from the C above middle C upward a note is quieter, down to half an octave up.
+                const far = n => 1 - 0.5 * Math.max(0, Math.min(1, (n - 72) / 12));
                 const kg = kickLevel(c, s, K ? K.kick : song.breakbeat ? s === 0 || s === 6 || s === 10 : s % 4 === 0);
-                if (kg) kick(t, 0.24 * kg, 130, 50, 0.1);
+                if (kg) kick(t, 0.15 * kg, 90, 48, 0.13);
                 if (c.drums && !c.sparse && K) {
                     if (K.snare && L.clap > 0.02) { perc(t, 0.12 * M * K.snare * L.clap, { f: 1800, q: 0.8, len: 0.1 }); perc(t, 0.05 * M * M * K.snare * L.clap, { type: 'highpass', f: 5000, len: 0.07 }); }
                     if (K.hat >= 1 && L.off > 0.02) hat(t, 0.05 * M * L.off, K.hat === 2 ? 0.06 : 0.018, { pan: 0.2 });
@@ -79,7 +81,7 @@
                 }
                 // The triangle bass walks the song's line, staccato.
                 const b = c.bassOn && bassAt(song, s, ch);
-                if (b) note(t, b + 12, len * (song.walk ? 0.9 : 1.5), 0.13 * L.bass, { type: 'triangle', attack: 0.006, sus: 0.9, dec: 0.02, rel: 0.03 });
+                if (b) note(t, b + 12, len * (song.walk ? 0.9 : 1.5), 0.13 * L.bass, { type: 'triangle', attack: 0.025, sus: 0.9, dec: 0.04, rel: 0.09 });
                 // The chord as an arpeggio in 8ths: up on even bars, down on odd ones.
                 const every = 2;
                 if (song.tinker) {
@@ -87,26 +89,26 @@
                     // chord each bar (the same one whenever that bar comes round), with gaps in it.
                     const f = TINKER[Math.abs(c.pick(TINKER.length, 3)) % TINKER.length], i = s % 2 ? -1 : f[(s / 2) % f.length], v = ch.v;
                     if (L.pad > 0.02 && i >= 0) note(t, i < v.length ? v[i] : v[i - v.length] + 12, len * 1.1, (0.016 + 0.014 * Math.max(L.clap, L.arp)) * M * L.pad,
-                        { wave: 'pulse25', cutoff: 1500, q: 0.6, attack: 0.01, sus: 0.8, dec: 0.03, rel: 0.04, pan: -0.5, low: true });
+                        { wave: 'pulse25', cutoff: 1200, q: 0.5, attack: 0.03, sus: 0.8, dec: 0.04, rel: 0.09, pan: -0.5, low: true });
                 } else if (L.pad > 0.02 && s % every === 0) {
                     const v = ch.v, i = (s / every) % v.length, idx = c.bar % 2 ? v.length - 1 - i : i;
-                    note(t, v[idx], len * 0.8, (0.016 + 0.014 * Math.max(L.clap, L.arp)) * M * L.pad, { wave: 'pulse25', cutoff: song.mellow ? 1500 : 2000, q: 0.6, attack: 0.006, sus: 0.8, dec: 0.02, rel: 0.02, pan: -0.5, low: true });
+                    note(t, v[idx], len * 0.8, (0.016 + 0.014 * Math.max(L.clap, L.arp)) * M * L.pad, { wave: 'pulse25', cutoff: song.mellow ? 1200 : 1500, q: 0.5, attack: 0.025, sus: 0.8, dec: 0.04, rel: 0.08, pan: -0.5, low: true });
                 }
                 if (c.mel && song.answer && c.sec === song.answer.sec && c.barIn % song.answer.every >= song.answer.from) {
                     // `answer`: in that section the last bars of each phrase are answered by the other channel, a dull square, quieter.
                     note(c.mel.t, c.mel.n, len * c.mel.len * 0.9, 0.026 * c.melGain, { type: 'square', cutoff: 1200, q: 0.7, attack: 0.03, sus: 0.85, dec: 0.04, rel: 0.06, pan: -0.3 });
                 } else if (c.mel && song.lead === 'tri') {    // the triangle takes the tune, in the middle of the keyboard, easing in
-                    const d = len * c.mel.len * 0.95, env = { attack: 0.04, sus: 0.9, dec: 0.03, rel: 0.08 };
-                    note(c.mel.t, c.mel.n, d, 0.1 * c.melGain, { type: 'triangle', ...env, vib: c.mel.len >= 3 ? { rate: 4.5, depth: 5, delay: 0.3 } : null, pan: 0.1 });
+                    const d = len * c.mel.len * 0.95, env = { attack: 0.05, sus: 0.9, dec: 0.04, rel: 0.14 };
+                    note(c.mel.t, c.mel.n, d, 0.1 * c.melGain * far(c.mel.n), { type: 'triangle', ...env, vib: c.mel.len >= 3 ? { rate: 4.5, depth: 5, delay: 0.3 } : null, pan: 0.1 });
                     if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.035 * c.harmGain * c.melGain, { type: 'triangle', ...env, pan: -0.3 });
                 } else if (c.mel && song.lead === 'soft') {   // a square with the edge filtered off, a little slower to speak
-                    const d = len * c.mel.len * 0.9, env = { attack: 0.016, sus: 0.85, dec: 0.04, rel: 0.04 };
-                    note(c.mel.t, c.mel.n, d, 0.034 * c.melGain, { type: 'square', cutoff: 1500, q: 0.7, ...env, vib: c.mel.len >= 4 ? { rate: 5.5, depth: 10, delay: 0.18 } : null, pan: 0.15 });
+                    const d = len * c.mel.len * 0.9, env = { attack: 0.035, sus: 0.85, dec: 0.05, rel: 0.12 };
+                    note(c.mel.t, c.mel.n, d, 0.034 * c.melGain * far(c.mel.n), { type: 'square', cutoff: 1250, q: 0.5, ...env, vib: c.mel.len >= 4 ? { rate: 5.5, depth: 10, delay: 0.18 } : null, pan: 0.15 });
                     if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.016 * c.harmGain * c.melGain, { type: 'square', cutoff: 1200, q: 0.7, ...env, pan: -0.3 });
                 } else if (c.mel) {
-                    const d = len * c.mel.len * 0.85, env = { sus: 0.85, dec: 0.03, rel: 0.03 };
-                    note(c.mel.t, c.mel.n, d, 0.03 * c.melGain, { wave: 'pulse25', ...env, ...soft, glide: s === 0 && !song.mellow ? c.mel.n - 12 : null, glideTime: 0.025,
-                        vib: c.mel.len >= 4 ? { rate: 6.5, depth: 16, delay: 0.14 } : null, pan: 0.15 });
+                    const d = len * c.mel.len * 0.85, env = { sus: 0.85, dec: 0.05, rel: 0.1 };      // no blip up into the bar's first note any more: it was a click
+                    note(c.mel.t, c.mel.n, d, 0.03 * c.melGain * far(c.mel.n), { wave: 'pulse25', ...env, ...soft,
+                        vib: c.mel.len >= 4 ? { rate: 5.5, depth: 8, delay: 0.2 } : null, pan: 0.15 });
                     if (L.arp <= 0.5 && !song.mellow) note(c.mel.t + 3 * len, c.mel.n, d, 0.006 * c.melGain, { wave: 'pulse25', ...env, ...soft, pan: 0.6, low: true });
                     if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.014 * c.harmGain * c.melGain, { wave: 'pulse25', ...env, ...soft, pan: -0.3 });
                 }
@@ -114,8 +116,8 @@
             // The end of a section: a snare roll with a run up the next chord, or four toms falling.
             fill(t, s, k, len, L, c) {
                 if (c.pick(2, 8)) {
-                    perc(t, 0.035 + 0.008 * (s - 12), { f: 1800, q: 0.8, len: 0.07 });
-                    note(t, c.next.v[(s - 12) % c.next.v.length] + 12, len * 0.8, 0.02, { wave: 'pulse25', cutoff: 2400, q: 0.6, attack: 0.006, sus: 0.85, dec: 0.02, rel: 0.02 });
+                    perc(t, 0.02 + 0.005 * (s - 12), { f: 1500, q: 0.8, len: 0.07 });
+                    note(t, c.next.v[(s - 12) % c.next.v.length] + 12, len * 0.8, 0.02, { wave: 'pulse25', cutoff: 1600, q: 0.5, attack: 0.025, sus: 0.85, dec: 0.04, rel: 0.08 });
                 } else note(t, 57 - 3 * (s - 12), len * 0.9, 0.06, { type: 'triangle', glide: 62 - 3 * (s - 12), glideTime: 0.06, part: 'beat', raw: true });
             }
         },
@@ -139,7 +141,7 @@
                     // hanging on the raised fourth; a dull square on the other channel answers for two. Under it the thin
                     // pulse tinkers, a different figure each bar. The middle six bars try 8ths, take a wrong turn through
                     // B flat and find the raised fourth again. Under a minute.
-                    name: 'Save Point', lvl: 1.022, slvl: 0.855, bpm: 100, steps: 12, scale: LYD, tonic: 8, oct: -2, lead: 'tri', mellow: true, tinker: true, answer: { sec: 'A', every: 5, from: 3 },
+                    name: 'Save Point', lvl: 1.006, slvl: 0.855, bpm: 100, steps: 12, scale: LYD, tonic: 8, oct: -2, lead: 'tri', mellow: true, tinker: true, answer: { sec: 'A', every: 5, from: 3 },
                     kit: { kick: '............', snare: '............', hat: '....o...o...' },
                     chords: { A: ['Fmaj7', 'G/F', 'Fmaj7', 'Em7', 'Am7', 'Fmaj7', 'G/F', 'Dm7', 'Cmaj7', 'G/F'], B: ['Dm7', 'Em7', 'Fmaj7', 'Bbmaj7', 'G/F', 'Cmaj7'] }, bass: 'r.......o...',
                     mel: {
@@ -154,7 +156,7 @@
                     // 8ths down a line that steps from C to D and turns round on a suspended G; a filtered square sings one
                     // long eight-bar arc over it, in the middle of the keyboard. A six-bar climb leads back in each time;
                     // a stretch of open road with only the kick and the bass; the last two choruses a tone up.
-                    name: 'Boss Rush', lvl: 0.813, slvl: 0.941, bpm: 132, scale: ION, tonic: 3, oct: -1, lead: 'soft', mellow: true,
+                    name: 'Boss Rush', lvl: 0.805, slvl: 0.941, bpm: 132, scale: ION, tonic: 3, oct: -1, lead: 'soft', mellow: true,
                     kit: { kick: 'x.......x.x.....', snare: '....x.......x...', hat: 'x.o.x.o.x.o.x.o.' },
                     chords: { A: ['C', 'G/B', 'Am', 'C/G', 'F', 'C/E', 'Dm7', 'Gsus4'], B: ['F', 'G', 'Em', 'Am', 'Dm7', 'G'] }, bass: 'r.r.o.r.r.r.o.r.',
                     mel: {
@@ -167,7 +169,7 @@
                 {   // Turbo: cruising. An easy shuffle at 120 in G Mixolydian: a walking bass in 8ths, four on the floor,
                     // and a tune in long notes that arcs over eight bars (up to the octave and home). Six bars that climb
                     // to a suspended chord and wait there; three laps, the second fuller, the last a tone up.
-                    name: 'Turbo', lvl: 0.818, slvl: 0.916, bpm: 120, swing: 0.3, scale: MIXO, tonic: 10, oct: -1, mellow: true,
+                    name: 'Turbo', lvl: 0.81, slvl: 0.916, bpm: 120, swing: 0.3, scale: MIXO, tonic: 10, oct: -1, mellow: true,
                     chords: { A: ['G', 'G', 'F', 'C'], B: ['Em', 'F', 'C', 'G', 'Am', 'D7sus4'] }, bass: 'r.o.f.o.r.o.f.o.',
                     mel: {
                         A: "1 - - 3 5 - - - | 6 - 5 - 3 - 1 - | 7 - - 2 4 - - - | 6 - 4 - 5 - - . | 1 - - 3 5 - - 6 | 1' - - - 6 - 5 - | 4 - - 6 7 - 4 - | 5 - - - 1 - - .",
@@ -180,7 +182,7 @@
             snare: [
                 {   // Sneaking Mission: five beats to the bar at 108 (3 + 3 + 2 + 2): a triangle bass on the long counts, a
                     // filtered square creeping up the A minor and ducking back, never high.
-                    name: 'Sneaking Mission', lvl: 1.49, rest: 1.29, slvl: 0.91, srest: 1.27, bpm: 108, steps: 20, scale: AEOL, lead: 'soft', mellow: true,
+                    name: 'Sneaking Mission', lvl: 1.503, rest: 1.29, slvl: 0.91, srest: 1.27, bpm: 108, steps: 20, scale: AEOL, lead: 'soft', mellow: true,
                     chords: { A: ['Am', 'Am', 'F', 'G'], B: ['Dm', 'Am', 'F', 'Esus4'] },
                     bass: 'r.....r.....f...o...', walk: true, kick: 'x.....x.....o...o...', hush: 0.5, tick: '..x...x...x...x...x.', cut: 0.85,
                     kit: { kick: 'x.....x.............', snare: '............x...x...', hat: 'x...x...x...x...x...' },
@@ -191,7 +193,7 @@
                     form: [['in', 2, { mel: null }], ['A', 4], ['B', 4, { chords: 'B' }], ['A', 4], ['wait', 2, { mel: null, fill: false }], ['B', 4, { chords: 'B' }], ['A', 4, { harm: true }], ['B', 4, { chords: 'B' }], ['A', 4]]
                 },
                 {   // Hide and Seek: A minor seen from C, sus chords that never land, a pulse peeking out and back.
-                    name: 'Hide and Seek', lvl: 1.61, rest: 1.51, slvl: 0.85, srest: 1.29, scale: ION, tonic: 3, chords: ['Am', 'Am', 'Fmaj7', 'Fmaj7', 'Dm7', 'Dm7', 'Gsus4', 'Gsus4'],
+                    name: 'Hide and Seek', lvl: 1.65, rest: 1.51, slvl: 0.85, srest: 1.29, scale: ION, tonic: 3, chords: ['Am', 'Am', 'Fmaj7', 'Fmaj7', 'Dm7', 'Dm7', 'Gsus4', 'Gsus4'],
                     bass: 'r.....r...o.....', walk: true, kick: 'x.....x.........', hush: 0.5, tick: 'o...x...o...x.o.', cut: 0.85,
                     mel: {
                         A: "6, . . 1 . . . . | 2 - - - . . . . | 6, . . 1 . . . . | 2 - - - 5, . . .",

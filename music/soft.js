@@ -57,7 +57,7 @@
         // Its click figure plays the track's 8ths (322 ms: about three notes a second while a job is held).
         style: {
             bpm: 93, swing: 0.2,
-            cutoff: k => 1100 + 3200 * k * k, drive: 0, gain: 0.85, shift: 5,     // D minor / F major
+            cutoff: k => 1100 + 3200 * k * k, drive: 0, gain: 0.915, shift: 5,     // D minor / F major
             beat: 1.53, tones: 1.487,   // it has no drums: `beat` is kept for the mixer only
             simpleMix: { gain: 1, beat: 0.997, tones: 2.032 }, simpleVoice: 'sine',   // the simple version (simpleStep)
             space: { reverb: { seconds: 2.8, damp: 3000, level: 0.5, pre: 0.02 }, delay: { steps: 4, feedback: 0.2, cutoff: 1500, level: 0.15, pan: -0.2 }, width: 1 },
@@ -66,7 +66,8 @@
             step(t, s, k, len, L, c) {
                 const ch = c.chord, song = c.song, ts = t + c.sw, N = c.steps, bar = len * N;
                 // A song says which of its sections a texture plays in (a list of section names), or true for all.
-                const has = key => (Array.isArray(song[key]) ? song[key].includes(c.sec) : !!song[key]);
+                // `spotted`: textures a stealth song adds only once you are spotted.
+                const has = key => (song.spotted && song.spotted.includes(key) ? c.spot > 0.3 : Array.isArray(song[key]) ? song[key].includes(c.sec) : !!song[key]);
                 // The string section: the chord through the whole bar, swelling in, overlapping the bar before.
                 if (L.pad > 0.02 && s === 0 && !has('stringsOut')) ch.v.forEach((n, i) => {
                     const pan = (i - 1.5) * 0.3, o = { type: 'sawtooth', cutoff: 650 + 450 * k, q: 0.5, attack: Math.min(0.9, bar * 0.35), sus: 0.9, dec: 0.4, rel: 1.2, rev: 0.6 };
@@ -94,20 +95,22 @@
                 if (b) note(ts, b, song.pedal ? bar * 1.02 : len * 5, 0.15 * L.bass, { type: 'triangle', cutoff: 300 + 300 * k, q: 0.6, attack: song.pedal ? 0.35 : 0.1, sus: 0.85, dec: 0.3, rel: song.pedal ? 1 : 0.6, rev: 0.3 });
                 // Upper strings breathing in on the song's comp steps (only where a song asks: `compVoice: 'swell'`).
                 if (L.keys > 0.02 && c.comp.includes(s) && song.compVoice === 'swell')
-                    ch.v.forEach((n, i) => note(ts + i * 0.04, n + 12, len * 6, 0.017 * L.keys, { type: 'sine', attack: 0.28, sus: 0.7, dec: 0.5, rel: 0.9, rev: 0.6, pan: (i - 1.5) * 0.25 }));
+                    ch.v.forEach((n, i) => note(ts + i * 0.04, n + 12, len * 6, 0.009 * L.keys, { type: 'sine', attack: 0.35, sus: 0.7, dec: 0.5, rel: 1.1, rev: 0.85, pan: (i - 1.5) * 0.25 }));
                 // A high note held over two bars, late on.
                 if (L.arp > 0.02 && s === 0 && c.bar % 2 === 0)
                     note(t, ch.v[ch.v.length - 1] + 24, bar * 2, 0.007 * L.arp, { type: 'sine', attack: bar * 0.5, sus: 0.9, dec: 0.3, rel: 1.2, rev: 0.7, pan: 0.3, low: true });
                 // The tune, legato: each note swells in and overlaps the next. `answer`: a second voice takes every
                 // other pair of bars.
                 if (c.mel) {
-                    const d = Math.max(len * c.mel.len * 1.3, 0.6), g = c.melGain, at = c.mel.t, n = c.mel.n;
-                    const env = { attack: Math.min(0.18, d * 0.4), sus: 0.9, dec: 0.25, rel: 0.5, rev: 0.55 };
+                    // High notes sit further off (the owner's call: the high tune was too present): from the C above
+                    // middle C upward a note is quieter, slower in and more in the hall, down to 0.4 an octave up.
+                    const d = Math.max(len * c.mel.len * 1.3, 0.6), at = c.mel.t, n = c.mel.n;
+                    const far = Math.max(0, Math.min(1, (n + 5 - 72) / 12)), g = c.melGain * (1 - 0.6 * far);
+                    const env = { attack: Math.min(0.18 + 0.1 * far, d * 0.4), sus: 0.9, dec: 0.25, rel: 0.5 + 0.3 * far, rev: 0.55 + 0.35 * far };
                     const vib = c.mel.len >= 3 ? { rate: 4.8, depth: 8, delay: 0.3 } : null;
                     const lead = (song.leadIn && song.leadIn[c.sec]) || (song.answer && c.barIn % 4 >= 2 ? song.answer : song.lead) || 'strings';
                     if (lead === 'flute') {
-                        note(at, n, d, 0.055 * g, { type: 'sine', ...env, vib, pan: 0.1 });
-                        note(at, n + 12, d, 0.005 * g, { type: 'sine', ...env, low: true });
+                        note(at, n, d, 0.034 * g, { type: 'sine', ...env, rev: Math.max(env.rev, 0.8), vib, pan: 0.1 });      // the flute: well back in the hall, no octave over it
                     } else if (lead === 'horn') {
                         note(at, n, d, 0.07 * g, { type: 'triangle', cutoff: 800 + 300 * k, q: 0.5, ...env, pan: -0.1 });
                         note(at, n, d, 0.02 * g, { type: 'sine', ...env, vib, pan: -0.1 });
@@ -146,7 +149,7 @@
                     // and hangs (two bars, each starting off the beat), a flute tries an answer; the middle six bars
                     // tinker in 8ths over a rolling chord and take a wrong turn through A flat before finding the
                     // raised fourth an octave up. A cello joins the second time, the choir the second experiment.
-                    name: 'Morning Lab', lvl: 1.06, bpm: 92, swing: 0, scale: LYD, tonic: 3, oct: -1, lead: 'oboe', answer: 'flute',
+                    name: 'Morning Lab', lvl: 1.047, bpm: 92, swing: 0, scale: LYD, tonic: 3, oct: -1, lead: 'oboe', answer: 'flute',
                     flow: ['B', 'B2'], choir: ['B2', 'out'], inner: ['A2', 'A3'],
                     chords: { A: ['Cmaj7', 'D/C', 'Cmaj7', 'Bm7', 'Am9', 'D', 'Em7', 'Dsus4'], B: ['Am9', 'Abmaj7', 'Cmaj7', 'Bm7', 'Em7', 'D'] },
                     bass: { A: 'r...............', B: 'r.......f.......' },
@@ -174,7 +177,7 @@
             server: [
                 {   // Gentle Climb: 76, and the one that moves: the chord rolls up and back in 8ths the whole way, a horn
                     // climbs over it a phrase at a time, and the choir opens up on the high tune. The longest song here.
-                    name: 'Gentle Climb', lvl: 0.99, bpm: 76, swing: 0, scale: AEOL, lead: 'horn', chords: ['Am9', 'Fmaj7', 'Cadd9', 'G6', 'Dm9', 'Fmaj7', 'Cadd9', 'Esus4'],
+                    name: 'Gentle Climb', lvl: 1.113, bpm: 76, swing: 0, scale: AEOL, lead: 'horn', chords: ['Am9', 'Fmaj7', 'Cadd9', 'G6', 'Dm9', 'Fmaj7', 'Cadd9', 'Esus4'],
                     flow: ['intro', 'A', 'A2', 'B', 'B2', 'A3'], choir: ['B', 'B2', 'out'],
                     bass: 'r...............',
                     mel: {
@@ -187,7 +190,7 @@
                 {   // Glide Path: the open road at 96, in G: the strings re-bowed softly on every beat (`pulse`: the wheels),
                     // a bass that walks root to fifth, voices ("oo") singing long arcs with a pickup into each bar;
                     // the chorus goes to the violins with the choir, and the last one lifts a tone.
-                    name: 'Glide Path', lvl: 0.83, bpm: 96, swing: 0, scale: ION, tonic: 10, oct: -1, lead: 'oo', leadIn: { B2: 'strings', B3: 'strings' },
+                    name: 'Glide Path', lvl: 0.807, bpm: 96, swing: 0, scale: ION, tonic: 10, oct: -1, lead: 'oo', leadIn: { B2: 'strings', B3: 'strings' },
                     pulse: ['A', 'B', 'A2', 'B2', 'B3'], choir: ['B2', 'B3', 'out'], inner: ['A2'],
                     chords: { A: ['Gadd9', 'Gadd9', 'Em7', 'Cadd9', 'Gadd9', 'D', 'Em7', 'Cadd9'], B: ['Cadd9', 'D', 'Em7', 'Bm7', 'Cadd9', 'D', 'F', 'Dsus4'] },
                     bass: 'r.......f.......',
@@ -202,7 +205,7 @@
             snare: [
                 {   // Tiptoe: in three at 66: a clarinet asks for two bars and a flute answers for two, a cello turning
                     // under them, the bass only holding.
-                    name: 'Tiptoe', lvl: 0.81, rest: 1.32, slvl: 0.85, srest: 1.31, bpm: 66, steps: 12, swing: 0, scale: AEOL, lead: 'clarinet', answer: 'flute', pedal: true,
+                    name: 'Tiptoe', lvl: 0.789, rest: 1.32, slvl: 0.85, srest: 1.31, bpm: 66, steps: 12, swing: 0, scale: AEOL, lead: 'clarinet', answer: 'flute', pedal: true, spotted: ['pulse', 'choir'],
                     inner: ['A', 'A2', 'A3', 'B', 'B2'], chords: ['Am9', 'Fmaj7', 'Dm9', 'Esus4'],
                     bass: 'r...........', cut: 0.8,
                     mel: {
@@ -213,7 +216,7 @@
                 },
                 {   // Hushed Channel: a lullaby at 80 in F Lydian: only the held strings, and a choir alone in five-bar
                     // phrases over a Gsus4 that never lands.
-                    name: 'Hushed Channel', lvl: 0.92, rest: 1.26, slvl: 0.85, srest: 1.31, bpm: 80, swing: 0, scale: LYD, tonic: 8, oct: -1, lead: 'choir', compVoice: 'none',
+                    name: 'Hushed Channel', lvl: 0.873, rest: 1.26, slvl: 0.85, srest: 1.31, bpm: 80, swing: 0, scale: LYD, tonic: 8, oct: -1, lead: 'choir', compVoice: 'none', spotted: ['pulse', 'inner'],
                     chords: { A: ['Fmaj7', 'Fmaj7', 'Em7', 'Dm9', 'Gsus4'], B: ['Am7', 'Fmaj7', 'Dm9', 'Em7', 'Gsus4'] },
                     bass: 'r.....r.........', comp: [10], cut: 0.8,
                     mel: {

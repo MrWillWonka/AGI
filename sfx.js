@@ -1580,7 +1580,11 @@
             const c = songContext(s);
             // The arrangement builds: what the game has earned (`depth`) and the run's speed (`k`) add up to how
             // many parts play, each fading in over a band; a section may lift or thin it.
-            const S = 0.6 * depth + 0.6 * Math.max(0, k - 0.05) + c.section.lift;
+            // In Packet Snare the field decides (the owner's call: late in the game a song's stealth and spotted
+            // versions were the same, since progress alone had already brought every part in): progress adds
+            // little there, and being spotted brings the rest.
+            const hid = music.area === 'snare';
+            const S = (hid ? 0.15 : 0.6) * depth + (hid ? 1 : 0.6) * Math.max(0, k - 0.05) + c.section.lift;
             const L = levels(st, S);
             if (s === 0) { (music.chordLog ||= []).push({ t, ch: c.chord }); if (music.chordLog.length > 3) music.chordLog.shift(); }
             // A stealth song's tones stand a little forward while its drums are hushed (`rest`), so it keeps the level.
@@ -1594,7 +1598,7 @@
             // The melody waits for its layer; the harmony fades in with its own (the older tracks switch it).
             if (c.mel && L.mel <= 0.02) c.mel = null;
             if (c.mel) {
-                c.melGain *= L.mel;
+                c.melGain *= L.mel * (hid ? 0.5 + 0.5 * c.spot : 1);      // the tune keeps its voice down until you are spotted
                 c.mel.t = t + c.mel.off * len + (c.mel.off ? 0 : c.sw);
                 if (!st.layers && L.harm < 0.5) c.mel.harm = 0;
             }

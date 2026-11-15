@@ -179,6 +179,19 @@ different phrasings and mixes of melody, harmony and choirs, "a dreamy soundscap
   (before spotted, picked to begin with), **Spotted** (the full one) and Simple: a selector under each song that
   always shows which is picked.
 
+- **High notes sit further off** (the owner's call, Window Seat's flute first, then Soft's other tunes): in Soft a tune
+  note from the C above middle C upward is quieter (to 0.4 an octave up), slower in and wetter; the flute is well back
+  whatever it plays, without its octave; the upper-string swell is about half as loud. Soft's `gain` 0.85 → 0.915.
+- **Retro is not punchy** (the owner's call: "those notes are all too punchy still", so the liked songs too): every
+  note eases in over 25 ms or more and lets go over about a tenth of a second, pulses are darker, the lead's blip up
+  into a bar is gone, high notes sit further off, the kick is lower and softer, and the drums are about 12 dB under
+  the tones (`beat` 2; they were 6 dB under). `gain` 0.656 → 0.69.
+- **Stealth and spotted are different arrangements** (the owner's call: several sounded identical). Late in the game
+  progress alone had brought every part in, so being spotted changed nothing. In Packet Snare the arrangement now
+  follows the field: `S = 0.15·depth + (k − 0.05)` (elsewhere 0.6 and 0.6), and the tune plays at half level until
+  spotted. Soft, with no drums, adds textures when spotted (`spotted` on a song: Tiptoe the re-bowed strings and the
+  choir, Hushed Channel the re-bowed strings and a cello). `rest`/`srest` were not re-measured against this.
+
 ## Open questions for the owner
 
 1. The loudness target at default sliders (see above).
