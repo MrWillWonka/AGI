@@ -111,7 +111,11 @@ Applied to both themes whole, the liked songs included (their notes are untouche
   comp steps, a low string holds the bass, and the tune is sung legato (every note swells in over up to 0.18 s) by
   strings (Morning Lab), a flute, a horn, a hum, a clarinet or a choir. A longer hall (2.8 s). The songs' kits, hushed
   kicks and ticks are gone from the data. The Beat slider and the beat-while-training rule do nothing in this track.
-  **Its effects are still mallets and bells**, and its simple version still has a kick: not changed, open.
+  Its simple version still has a kick: not changed, open.
+- **Soft's effects follow** (the owner's yes): every tone swells in (12 ms for the shortest, 20–50 ms otherwise) and
+  lasts at least a tenth of a second; the marimba's and bell's strike partials are gone; noise is 3 dB quieter, capped
+  at 3.5 kHz and eased in. Power-up effects re-measured against Classic's (within 0.4 dB after re-trimming crunch and
+  viral); the Packet Snare effects' trims and the simple sounds were not re-measured.
 - **Retro is understated.** Every pulse goes through a filter (3 kHz, 2 kHz in the mellow songs) and speaks 6 ms
   slower; the kick is half as loud and starts lower (130 Hz, was 220); snare and hats sit at 0.6 (0.45 mellow); the
   arpeggio stays in 8ths; fills are a third as loud; the master filter tops out at 7.7 kHz (was 14). Boss Rush is 138
