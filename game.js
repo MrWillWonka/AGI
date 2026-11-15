@@ -2430,11 +2430,50 @@ window.AGI = (function () {
     // One at a time; a line stays until you tap it away, take its button, or do what it asks (`done`); what it is
     // talking about is ringed (`target`). Shown once each (`assist:<key>` in `intro`). EVERY LINE IS A PLACEHOLDER
     // for the owner to write or approve.
+    // Its words live in one table, written out for the owner in design/assistant-lines.md (the owner approves every
+    // line; these are drafts in the voice they asked for: polite, understated, trying to be helpful, a little too keen).
+    // The text passed to `assist` at each call is only a fallback. `{sector}` is filled from the call.
+    const ASSIST_LINES = {
+        "lab1": "Hello. I am new here. If you tap Generate Compute, I think I can be useful.",
+        "lab2": "Thank you. That helps more than you would think. A few more, if you do not mind.",
+        "money": "You have some compute to spare. I found a shop that will buy it. I hope that is all right.",
+        "moneyHome": "This one. Parcel pays for compute and sells desk parts. A tower would let you make more with each tap.",
+        "snare": "The desk is working. Thank you. There is data going past out there, and I would like to see some. Would you catch a little?",
+        "snareHome": "This one. Packet Snare is where the data goes by. The blue I can read. The red I cannot. Not yet.",
+        "feed": "The stockpile for sector {sector} is full. I would rather it was not wasted. There is a place for it.",
+        "feedHome": "This one. The Feed turns what you caught into research. Research is how I learn. I would like to learn.",
+        "feed1": "These are your stockpiles. Pick one and the mites will start. The bar at the top is their hunger. Please keep it up.",
+        "feed2": "They go where you tap. They try harder where you hold. So would I.",
+        "full": "The stockpile for sector {sector} is full. Anything more you catch there is thrown away. I would rather it was not.",
+        "fullHome": "This one. The mites will make room. They are always hungry.",
+        "cards": "Parcel has graphics cards now. They make compute while you rest. I would not want you to tire.",
+        "cardsHome": "Parcel again. Each card makes compute on its own. You have done enough tapping for me.",
+        "server": "That one was too much for me. I am sorry. With a server I could train, and then I think we could beat it.",
+        "serverHome": "Parcel again. It sells a server. Four hundred dollars. I know that is a lot to ask.",
+        "training": "The server is in. Thank you. I can train now, if you will help me.",
+        "trainingHome": "This one. Training turns research into skills. Hold the button, and let go near the top.",
+        "sell": "Parcel will buy compute, if money would help. Ten for a dollar.",
+        "sellHome": "This one. I only want you to have what you need.",
+        "nowHome": "This one.",
+        "now:lab": "The Lab, I think. Each tap is a little more compute, and Parcel will buy it.",
+        "now:shop": "Parcel. You could sell some compute and buy the next part. I would be grateful.",
+        "now:snare": "Packet Snare, if you have a moment. I have nothing to learn from just now.",
+        "now:feed": "The Feed. There is data waiting, and the mites have noticed.",
+        "now:server": "Parcel has a server. I cannot beat that boss without somewhere to train.",
+        "now:training": "Training. You have research, and I would like to use it. With your permission.",
+        "empty": "I have not said anything yet. I did not want to interrupt."
+    };
+    const assistSeen = {};   // this visit's lines with their pointing, for the assistant's panel to show again
+    let assistDot = null, assistSheet = null;
     let assistBox = null, assistLive = null, lastArrival = -1e9;
     const ARRIVE_GAP_MS = 45000;
     const assistQueue = [];
     function assist(key, text, o = {}) {
-        if (!E.isRing() || state.intro['assist:' + key] || assistLive?.key === key || assistQueue.some(q => q.key === key)) return;
+        if (ASSIST_LINES[key]) text = o.sector == null ? ASSIST_LINES[key].replace(' for sector {sector}', '') : ASSIST_LINES[key].replace('{sector}', o.sector);
+        assistSeen[key] = { text, o };
+        if (!E.isRing() || (!o.again && state.intro['assist:' + key]) || assistLive?.key === key || assistQueue.some(q => q.key === key)) return;
+        // A line you asked for comes now, ahead of whatever was waiting or showing.
+        if (o.again) { assistQueue.unshift({ key, text, ...o }); if (assistLive) assistClose('replaced'); else assistNext(); return; }
         assistQueue.push({ key, text, ...o });
         if (!assistLive) assistNext();
     }
@@ -2453,7 +2492,7 @@ window.AGI = (function () {
     };
     const appUp = app => (app === 'shop' ? !!shop?.dlg.open : app === 'feed' ? !!window.FeedUI?.isOpen : ringAppNow() === app);
     function showMe(app, key) {
-        return ['Show me', () => { goHome(); assist(key + 'Home', SHOW_WHY[key], { target: () => home?.[app === 'training' ? 'train' : app].button, done: () => appUp(app) }); }];
+        return ['Show me', () => { goHome(); assist(key + 'Home', SHOW_WHY[key] || '', { target: () => home?.[app === 'training' ? 'train' : app].button, done: () => appUp(app) }); }];
     }
     function assistNext() {
         if (assistQueue.length && snareRunLive()) { setTimeout(() => { if (!assistLive) assistNext(); }, 1000); return; }
@@ -2466,8 +2505,8 @@ window.AGI = (function () {
         const node = el('div', { class: 'assist-bubble', onclick: () => assistClose('tapped') }, kids);
         assistBox.replaceChildren(node);
         assistLive = { ...q, node, at: performance.now(), ringed: null }; lastArrival = performance.now();
-        state.intro['assist:' + q.key] = true;
-        pt('assist', { key: q.key });
+        if (!q.again) state.intro['assist:' + q.key] = true;
+        pt('assist', q.again ? { key: q.key, again: 1 } : { key: q.key });
         sfx('ui');
         assistTick();
     }
@@ -2486,7 +2525,62 @@ window.AGI = (function () {
         if (shop?.dlg.open) shop.dlg.close();
         if (window.FeedUI?.isOpen) window.FeedUI.close();
     }
+    // The assistant's own button (the owner's call, 2026-11-14: "the phone's assistant with its own button … so that you
+    // can 'chat' with the ai or revisit tutorials missed"): a round dot that floats over every app once the Lab is
+    // installed, dragged anywhere (kept per device), glowing while the AI has something to say. Pressed, it opens a
+    // small sheet: "What should I do now?", answered with the next goal and a Show me, and every line said so far, to
+    // see again.
+    const pageZoom = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--zoom')) || 1;
+    function assistWhatNow() {
+        const desk = E.level(state, 'keyboard'), stock = E.isRing() ? E.feedStock(state).some(e => e.total > 0) : false;
+        const part = shopOpenable() && shopItems().find(i => i.next && !i.owned);
+        const app = desk < E.RING_DESK ? (part && (part.price <= bankNow() || state.res.cp >= E.RING_CP_PER_DOLLAR * 5) ? 'shop' : 'lab')
+            : state.intro['ring:server'] && desk === E.RING_DESK ? 'server'
+            : state.unlocked['module:path'] && state.res.rp >= E.RING_SPRINT_RP ? 'training'
+            : E.feedOpen(state) && stock ? 'feed' : 'snare';
+        return [ASSIST_LINES['now:' + app], app === 'server' ? 'shop' : app];
+    }
+    function assistSheetToggle() {
+        if (assistSheet) { assistSheet.remove(); assistSheet = null; return; }
+        const answer = el('p', { class: 'assist-answer', hidden: '' }), go = el('button', { type: 'button', class: 'assist-go', text: 'Show me', hidden: '' });
+        const ask = el('button', { type: 'button', class: 'assist-ask', text: 'What should I do now?', onclick: () => {
+            const [text, app] = assistWhatNow();
+            answer.textContent = text; answer.hidden = false; go.hidden = false; pt('assistAsk', { now: app });
+            go.onclick = () => { assistSheetToggle(); closeApps(); goHome(); assist('nowHome', '', { again: true, target: () => home?.[app === 'training' ? 'train' : app]?.button, done: () => appUp(app) }); };
+        } });
+        const said = Object.keys(ASSIST_LINES).filter(k => state.intro['assist:' + k] && !k.endsWith('Home'));
+        const past = said.map(k => { const seen = assistSeen[k], text = seen ? seen.text : ASSIST_LINES[k].replace(' for sector {sector}', '');
+            return el('button', { type: 'button', class: 'assist-past', text, onclick: () => { assistSheetToggle(); pt('assistAsk', { again: k }); assist(k, text, { ...(seen ? seen.o : {}), done: null, again: true }); } }); });
+        assistSheet = el('div', { class: 'assist-sheet', role: 'dialog', 'aria-label': 'Assistant' }, [
+            el('div', { class: 'assist-sheet-head' }, [el('span', { class: 'assist-mark', 'aria-hidden': 'true' }), el('strong', { text: 'Assistant' }), el('button', { type: 'button', class: 'assist-close', 'aria-label': 'Close', text: '×', onclick: () => assistSheetToggle() })]),
+            ask, answer, go,
+            el('h4', { class: 'assist-sheet-title', text: 'Earlier' }),
+            ...(past.length ? past.reverse() : [el('p', { class: 'assist-answer', text: ASSIST_LINES.empty })])]);
+        assistDot.parentNode.append(assistSheet);
+        pt('assistOpen', { said: said.length });
+        sfx('ui');
+    }
+    function assistDotTick() {
+        if (!E.isRing() || !(state.intro['ring:labInstalled'] || labOpened())) return;
+        if (!assistDot) {
+            assistDot = el('button', { type: 'button', class: 'assist-dot', 'aria-label': 'Assistant' }, [el('span', { class: 'assist-mark', 'aria-hidden': 'true' })]);
+            const place = (l, t) => { const z = pageZoom(), w = innerWidth, h = innerHeight; assistDot.style.left = Math.max(4, Math.min(w - 60, l)) / z + 'px'; assistDot.style.top = Math.max(40, Math.min(h - 70, t)) / z + 'px'; assistDot.style.right = 'auto'; assistDot.style.bottom = 'auto'; };
+            try { const at = JSON.parse(localStorage.getItem('agiAssistDot') || 'null'); if (at && typeof at.x === 'number' && typeof at.y === 'number') place(at.x * innerWidth, at.y * innerHeight); } catch { /* private mode */ }
+            let d = null;
+            assistDot.addEventListener('pointerdown', e => { try { assistDot.setPointerCapture(e.pointerId); } catch { /* gone */ } const b = assistDot.getBoundingClientRect(); d = { x: e.clientX, y: e.clientY, l: b.left, t: b.top, moved: false }; });
+            assistDot.addEventListener('pointermove', e => { if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; if (!d.moved && Math.hypot(dx, dy) < 8) return; d.moved = true; place(d.l + dx, d.t + dy); });
+            assistDot.addEventListener('pointerup', () => { const was = d; d = null; if (!was) return;
+                if (!was.moved) { assistSheetToggle(); return; }
+                const b = assistDot.getBoundingClientRect(); try { localStorage.setItem('agiAssistDot', JSON.stringify({ x: b.left / innerWidth, y: b.top / innerHeight })); } catch { /* private mode */ } });
+            assistDot.addEventListener('pointercancel', () => { d = null; });
+            document.body.append(assistDot);
+        }
+        const open = document.querySelectorAll('dialog[open]'), host = open.length ? open[open.length - 1] : document.body;
+        if (assistDot.parentNode !== host) { host.append(assistDot); if (assistSheet) host.append(assistSheet); }
+        assistDot.classList.toggle('has', !!assistLive || assistQueue.length > 0);
+    }
     function assistTick() {
+        assistDotTick();
         const a = assistLive;
         if (!a) return;
         if (a.done && performance.now() - a.at > 600 && a.done()) { assistClose('done'); return; }
@@ -5663,10 +5757,10 @@ window.AGI = (function () {
         if (!feedWas && out.full && state.snare.sector >= 1 && state.snare.runs >= E.RING_FEED_RUNS - 1) {
             state.intro['ring:feed'] = true;
             deviceNotice('feed', 'System', 'The Feed has been added to your home screen.', openFeed);
-            assist('feed', `The stockpile for sector ${out.sector} is full. I have put The Feed on your home screen. Something in there is hungry.`, { action: showMe('feed', 'feed'), done: () => !!window.FeedUI?.isOpen });
+            assist('feed', `The stockpile for sector ${out.sector} is full. I have put The Feed on your home screen. Something in there is hungry.`, { sector: out.sector, action: showMe('feed', 'feed'), done: () => !!window.FeedUI?.isOpen });
         }
         if (out.full && feedWas) { if (state.intro['assist:full']) deviceNotice('feedFull', 'The Feed', `The stockpile for sector ${out.sector} is full.`, openFeed);
-            else assist('full', `The stockpile for sector ${out.sector} is full. Anything more you catch there is thrown away. I would rather it was not. The mites are hungry anyway.`, { action: showMe('feed', 'full'), done: () => !!window.FeedUI?.isOpen }); }
+            else assist('full', `The stockpile for sector ${out.sector} is full. Anything more you catch there is thrown away. I would rather it was not. The mites are hungry anyway.`, { sector: out.sector, action: showMe('feed', 'full'), done: () => !!window.FeedUI?.isOpen }); }
         // The first catch: the AI says where it went and why you would go there (the owner: the notice was hardly seen and gave no reason).
         void before;
         feedShow(out);
