@@ -20,7 +20,8 @@
     // device, so the owner can find the values and say them. [key, label, min, max, step, where]
     const DIALS = [['speed', 'Mite speed', 60, 600, 20, 'feed'], ['chew', 'Eating speed', 1, 12, 0.5, 'feed'], ['layerFirst', 'First split (packets)', 5, 80, 1, 'feed'], ['layerGrow', 'Each split bigger by', 1.1, 2.5, 0.05, 'feed'],
         ['hungerTime', 'Hunger bar (s)', 10, 90, 5, 'feed'], ['minCols', 'Closest view (cells across)', 40, 256, 8, 'view'], ['ease', 'View catches up', 0.02, 0.4, 0.02, 'view']];
-    const dial = { minCols: MIN_COLS, ease: EASE };
+    // (The owner, 2026-11-15: the camera zoomed out to start. The view opens on the whole width of the box; + zooms in.)
+    const dial = { minCols: 256, ease: EASE };
     const dialOn = () => /debug|feedtest|playground/.test(location.hash + location.search);
     const dialGet = ([key, , , , , where]) => (where === 'view' ? dial[key] : F().FEED[key]);
     const dialSet = ([key, , , , , where], v) => { if (where === 'view') dial[key] = v; else F().FEED[key] = v; };

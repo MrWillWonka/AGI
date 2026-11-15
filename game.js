@@ -2590,7 +2590,7 @@ window.AGI = (function () {
         renderHome();
         jumpTo('bay:training');
         // The landscape (the owner's note 18): what it is, said over it the first time (PLACEHOLDER words).
-        assist('land1', '', { done: () => true }); assist('land2', '', { done: () => true });
+        { const here = () => ringAppNow() === 'training'; assist('land1', '', { done: () => true, when: here }); assist('land2', '', { done: () => true, when: here }); }
     }
     function openSnareApp() {
         state.intro['ring:seen:snare'] = true;
@@ -6367,8 +6367,10 @@ window.AGI = (function () {
             setHidden(card, true);
             if (!snare.streamIntro) {
                 snare.streamIntro = true; state.intro['ring:stream'] = true; pt('snareStream', {});
-                assist('stream1', '', { done: () => true }); assist('stream2', '', { done: () => true });
+                const here = () => ringAppNow() === 'snare';   // said over the stream, nowhere else (they came up over The Feed)
+                assist('stream1', '', { done: () => true, when: here }); assist('stream2', '', { done: () => true, when: here });
                 const wait = setInterval(() => {
+                    if (!here()) { for (let n = assistQueue.length - 1; n >= 0; n--) if (assistQueue[n].key.startsWith('stream')) assistQueue.splice(n, 1); if (assistLive?.key.startsWith('stream')) assistClose('left'); clearInterval(wait); snare.streamIntro = false; return; }
                     if (assistLive?.key.startsWith('stream') || assistQueue.some(q => q.key.startsWith('stream'))) return;
                     clearInterval(wait); snare.streamIntro = false;
                     if (openBay === 'pipeline' && !snareRunLive() && !snare.tree) showSnareCard('start');

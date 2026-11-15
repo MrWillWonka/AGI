@@ -459,3 +459,7 @@ Batch 4:
 - **Note 10, AI help** (the owner's pick: point at it): the orb's panel has "What is this?"; the next tap anywhere is
   the question, and the AI says a line about what is under it, ringed (`ASSIST_HELP`, 35 things, lines `help:*`,
   all PLACEHOLDERS, some meant to be funny). It has no line for the status bar's numbers, and offers no walkthroughs yet.
+
+After the above: the stream's and the landscape's lines are said only in their own app (they queued and came up over
+The Feed; the navigation check caught it), and **The Feed opens zoomed out** on the whole width of the box (the
+owner's ask, 2026-11-15; `dial.minCols` 256, was 80; the Closest view dial still sets it).
