@@ -35,6 +35,18 @@ succeeds, never a tutorial. Edit the Line column and send it back (or say which 
 | `now:server` | Assistant, "What should I do now?": the server is offered | Parcel has a server. I cannot beat that boss without somewhere to train. | |
 | `now:training` | Assistant, "What should I do now?": research to spend | Training. You have research, and I would like to use it. With your permission. | |
 | `empty` | Assistant, nothing said yet | I have not said anything yet. I did not want to interrupt. | |
+| `card:first` | Packet Snare, the first card (under the demo) | Data is going past. Hold still on a group and let go, or draw a circle round it. | |
+| `card:firstMouse` | The same, with a mouse | Data is going past. Hold the right button on a group, then let go. | |
+| `card:goal` | Packet Snare, the first card (the goal) | Signal is what I can use of what you catch. {goal} of it in one run and I can open the next sector. | |
+| `coach:bubble` | First run, the first group | Hold still on those, then let go. I will take what is inside. | |
+| `coach:bubbleMouse` | The same, with a mouse | Hold the right button on those, then let go. I will take what is inside. | |
+| `coach:red` | First run, the red packet | I cannot read that one. Please keep it out. | |
+| `coach:loop` | First run on a phone, the second group | You can also draw a circle round them. Whichever you prefer. | |
+| `coach:wireTry` | First run on a phone, two groups far apart | Two groups. Try one circle round both. | |
+| `coach:wire` | After the line ran out round both | The line only reaches so far. I am sorry. One group at a time. | |
+| `coach:open` | The field opens out after the first steps | That is all of it. Please catch what you can before your Focus runs out. | |
+
+Rows starting `card:` and `coach:` are Packet Snare's first card and its first-run coach (drawn on the field behind a `>`).
 
 Rows ending in `Home` are said on the home screen after **Show me**, with the app's icon ringed. Rows starting
 `now:` are the assistant's answers to "What should I do now?".

@@ -2463,6 +2463,20 @@ window.AGI = (function () {
         "now:training": "Training. You have research, and I would like to use it. With your permission.",
         "empty": "I have not said anything yet. I did not want to interrupt."
     };
+    // Packet Snare's first card and first-run coach, in the same voice (drawn on the field behind a '>').
+    Object.assign(ASSIST_LINES, {
+        "card:first": "Data is going past. Hold still on a group and let go, or draw a circle round it.",
+        "card:firstMouse": "Data is going past. Hold the right button on a group, then let go.",
+        "card:goal": "Signal is what I can use of what you catch. {goal} of it in one run and I can open the next sector.",
+        "coach:bubble": "Hold still on those, then let go. I will take what is inside.",
+        "coach:bubbleMouse": "Hold the right button on those, then let go. I will take what is inside.",
+        "coach:red": "I cannot read that one. Please keep it out.",
+        "coach:loop": "You can also draw a circle round them. Whichever you prefer.",
+        "coach:wireTry": "Two groups. Try one circle round both.",
+        "coach:wire": "The line only reaches so far. I am sorry. One group at a time.",
+        "coach:open": "That is all of it. Please catch what you can before your Focus runs out."
+    });
+    const aiLine = (key, old) => (E.isRing() ? `> ${ASSIST_LINES[key]}` : old);
     const assistSeen = {};   // this visit's lines with their pointing, for the assistant's panel to show again
     let assistDot = null, assistSheet = null;
     let assistBox = null, assistLive = null, lastArrival = -1e9;
@@ -5004,6 +5018,8 @@ window.AGI = (function () {
             run.opts.wireShare = Math.PI * r * r / (run.w * run.h);
             snareWireGroups(run, 2);
         }
+        // The line has run out on a circle round both (or a group was caught): now it says why.
+        if (tu.wireStep && !tu.wireTried && (run.wireUsed >= 0.999 || tu.wireCaught) && now - tu.wireStep > 800) { tu.wireTried = now; pt('snareCoach', { key: 'wireTry', done: true, secs: Math.round((now - tu.wireStep) / 100) / 10, ranOut: run.wireUsed >= 0.999 }); }
         const wireOver = !phone || state.intro['snare:coach:wire'];
         const late = snare.coachOff && now - tu.t0 > SNARE_TUTORIAL_MAX * 1000;   // only if the walkthroughs broke
         if ((tu.redGone && loopOver && wireOver && !snare.coach && now - tu.redGone > 400) || late) snareZoomOut(tu.anchor || null);
@@ -5043,15 +5059,15 @@ window.AGI = (function () {
     const SNARE_COACHES = [
         { key: 'bubble', when: run => run.time > 0.6 && snareCluster(run),
             aim: (run, ids) => { const g = snareGroupAt(run, ids); return g && { ...g, gesture: 'hold' }; },
-            text: () => (snareFinePointer() ? '> Hold the right button, then let go to catch them.' : '> Hold still, then let go to catch them.'),
+            text: () => (snareFinePointer() ? aiLine('coach:bubbleMouse', '> Hold the right button, then let go to catch them.') : aiLine('coach:bubble', '> Hold still, then let go to catch them.')),
             done: e => e.type === 'catch' && !e.drawn },   // a bubble, not a drawn loop (the owner: a loop finished it in error)
         { key: 'red', after: 'bubble', info: 3.5, slow: 1, when: run => run.packets.find(p => p.kind === 'corrupt' && (snare.tutorial ? Math.hypot(p.x - run.w / 2, p.y - run.h / 2) < 0.4 : p.x > 0.5 && p.y > 0.5 && p.x < run.w - 0.5 && p.y < run.h - 0.5))?.id,
             aim: (run, id) => { const p = coachById(run.packets, id); return p && { x: p.x, y: p.y, r: 0.7, gesture: 'mark' }; },
-            text: () => '> That packet is unreadable. Keep it out of your bubble.', done: e => e.type === 'catch' },
+            text: () => aiLine('coach:red', '> That packet is unreadable. Keep it out of your bubble.'), done: e => e.type === 'catch' },
         // Phones catch with a drawn loop too (Snare 17.5): shown once a bubble has caught (the owner's call: show the choice)
         { key: 'loop', after: 'bubble', when: run => run.opts.loopCatch && !snareFinePointer() && (!snare.tutorial || snare.tutorial.second) && (snare.tutorial || performance.now() - (snare.coachCaught || Infinity) > 1500) && snareCluster(run),
             aim: (run, ids) => { const g = snareGroupAt(run, ids); return g && { ...g, r: g.r + 0.3, gesture: 'loop' }; },
-            text: () => '> You can also draw a loop round them to catch them.', done: e => e.type === 'catch' && e.drawn },
+            text: () => aiLine('coach:loop', '> You can also draw a loop round them to catch them.'), done: e => e.type === 'catch' && e.drawn },
         // The tutorial's last step on a phone (the owner's call): the wire's length, its throughput. Two groups too far apart
         // for one loop; it's done once both are caught with drawn loops (`snareCoachEvent` counts them).
         { key: 'wire', after: 'loop', when: run => {
@@ -5060,8 +5076,16 @@ window.AGI = (function () {
                 const ps = run.packets.filter(p => p.kind !== 'corrupt');
                 return ps.length ? ps.filter(p => Math.hypot(p.x - ps[0].x, p.y - ps[0].y) < 0.9).map(p => p.id) : null;
             },
-            aim: (run, ids) => { const g = snareGroupAt(run, ids); return g && { ...g, r: g.r + 0.1, gesture: 'loop' }; },
-            text: () => '> Your wire has limited throughput. It turns red as it runs out, so loop one group at a time.', done: () => false },
+            aim: (run, ids) => {
+                // Under the ring you are first asked to circle both, and the line runs out (`wireTried`); then one at a time.
+                if (E.isRing() && snare.tutorial && !snare.tutorial.wireTried) {
+                    const ps = run.packets.filter(p => p.kind !== 'corrupt'); if (ps.length < 4) return snareGroupAt(run, ids) && { ...snareGroupAt(run, ids), gesture: 'loop' };
+                    const x = ps.reduce((n, p) => n + p.x, 0) / ps.length, y = ps.reduce((n, p) => n + p.y, 0) / ps.length;
+                    return { x, y, r: Math.max(...ps.map(p => Math.hypot(p.x - x, p.y - y))) + 0.35, gesture: 'loop' };
+                }
+                const g = snareGroupAt(run, ids); return g && { ...g, r: g.r + 0.1, gesture: 'loop' };
+            },
+            text: () => (E.isRing() ? aiLine(snare.tutorial && !snare.tutorial.wireTried ? 'coach:wireTry' : 'coach:wire') : '> Your wire has limited throughput. It turns red as it runs out, so loop one group at a time.'), done: () => false },
         { key: 'bossLoop', when: run => run.boss && run.fight && !(run.boss.stunned > run.time) && !run.boss.charge,
             aim: run => { const b = run.boss; return b && !(b.stunned > run.time) && { x: b.x, y: b.y, r: b.r + Math.max(0.9, run.closeR * 1.1), gesture: 'loop', turns: 2 }; },
             text: () => (snareFinePointer() ? '> Loop round it twice with the left button to stun it.' : '> Loop round it twice to stun it.'), done: e => e.type === 'bossLooped' },
@@ -5389,7 +5413,7 @@ window.AGI = (function () {
             if (p >= 1) {
                 snare.zoom = null;
                 snareFit();
-                snare.fx.push({ kind: 'hint', x: run.w / 2, y: run.h * 0.55, t: 0, life: 2.6, text: '> The full pipeline is open. Earn the goal before your Focus runs out.' });
+                snare.fx.push({ kind: 'hint', x: run.w / 2, y: run.h * 0.55, t: 0, life: 2.6, text: aiLine('coach:open', '> The full pipeline is open. Earn the goal before your Focus runs out.') });
             }
             drawSnare();
             renderSnareHud();
@@ -5921,10 +5945,12 @@ window.AGI = (function () {
                 el('div', { class: 'result-title', text: snareSector(snareNextSector()) }),
                 el('div', { class: 'result-main snare-name', text: 'Packet Snare' }),
                 snareSectorPicker(),
-                el('p', { class: 'snare-intro-line snare-goal-line', text: snareGoalText(snareNextSector()) }),
+                el('p', { class: 'snare-intro-line snare-goal-line', text: first && E.isRing() ? `> ${ASSIST_LINES['card:goal'].replace('{goal}', goalNum(E.snareGoal(snareNextSector())))}` : snareGoalText(snareNextSector()) }),
                 // the demo's caption would say again what the line under it says (round 2 of the review)
-                first ? el('div', { class: 'snare-meet' }, [(d => (d?.querySelector('figcaption')?.remove(), d))(snareDemo('lasso')), el('p', { class: 'snare-intro-line', text: snareHowTo() })].filter(Boolean)) : null,
-                ...snareMeetParts(meet),
+                first ? el('div', { class: 'snare-meet' }, [(d => (d?.querySelector('figcaption')?.remove(), d))(snareDemo('lasso')), el('p', { class: 'snare-intro-line', text: E.isRing() ? `> ${ASSIST_LINES[matchMedia('(pointer: fine)').matches ? 'card:firstMouse' : 'card:first']}` : snareHowTo() })].filter(Boolean)) : null,
+                // Under the ring the first card is the goal, one demo and Start (the owner: too much to read first); the red
+                // packet is met in the run, where its walkthrough shows it.
+                ...(first && E.isRing() ? [] : snareMeetParts(meet)),
                 state.snare.runs < 3 && !first && !meetRed ? el('p', { class: 'snare-intro-line', text: snareHowTo() }) : null,
                 best > 0 ? el('ul', { class: 'result-lines' }, [['Best haul', `+${E.format(best)} Signal`], snareRpLine(), snareTrainingLine()].filter(Boolean)
                     .map(([a, b]) => el('li', {}, [el('span', { text: a }), el('span', { text: b })]))) : null,
