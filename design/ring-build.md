@@ -286,3 +286,20 @@ on a Training skill there. It has its own save and playtest log, so a `#ring` ga
 
 Not done, waiting on the owner: archiving the plain game (what the link with no hash should open). The money story
 still plays in the playground, so Mom's call is the first thing on screen.
+
+## 2026-11-15: three links (playtest, playground, dev)
+
+The owner's call: one link to share that always holds the latest playtest and never carries anything over from an
+older build, a playground, and a version for dev work.
+
+- **Plain link: the playtest.** The ring. Its save and playtest log are kept per playtest number (`E.PLAYTEST_BUILD`,
+  now 1), so when the number goes up a returning player starts a new game. The save before the current one is kept on
+  the device; older ones are removed. The log's build line reads "Playtest n". The number goes up only when the owner
+  publishes a new playtest.
+- **`#playground`:** the ring with everything open, on its own save.
+- **`#ring` (or `#dev`): dev work.** The ring on the save it always had; never started over.
+- **`#classic`:** the old game (with `#bays`, `#snare` and the test doors), on the dev save as before.
+
+Not done: there is no public address yet (the Tailscale address only reaches the owner's devices; GitHub Pages is not
+turned on). The old Packet Snare review tools (`tools/review/kit.js`, `report.js`, `layout.js`, `coaches.js`) still
+load the plain link, which is now the ring; they need `#classic` before they are used again.

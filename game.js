@@ -14,10 +14,22 @@ window.AGI = (function () {
     // (`straightToRing`). It keeps its own save, backup, tab claim and playtest log, so it never touches a `#ring` game.
     // `#bays` is the old game's playground (Evals as the third bay, no gated bosses) with the opening skipped.
     const RING_PLAY = location.hash === '#playground';
-    if (location.hash === '#ring' || RING_PLAY) window.AGIEngine.setRing(true);
+    // The three links (the owner's call, 2026-11-15). The plain link is the PLAYTEST: the ring, on a save and a playtest
+    // log kept per playtest number (`E.PLAYTEST_BUILD`), so nothing from an older build comes along. `#ring` (or `#dev`)
+    // is for DEV work: the ring on the save it always had, never started over. `#playground` is above. The old game is
+    // `#classic` (and `#bays`, `#snare`, and the test doors `#debug`, `#evals`, `#feed`), on the dev save as before.
+    const PLAYTEST = (location.hash === '' || location.hash === '#') && !SNARE_DIRECT;
+    const RING_DEV = location.hash === '#ring' || location.hash === '#dev';
+    if (PLAYTEST || RING_DEV || RING_PLAY) window.AGIEngine.setRing(true);
+    const BUILD_LABEL = PLAYTEST ? `Playtest ${E.PLAYTEST_BUILD} · ${E.BUILD}` : RING_PLAY ? `Playground · ${E.BUILD}` : E.BUILD;
+    const PLAYTEST_LOG_KEY = PLAYTEST ? `agiPlaytest.pt${E.PLAYTEST_BUILD}` : RING_PLAY ? 'agiPlaytest.playground' : undefined;
+    // Older playtests' saves and logs go, all but the one before this (kept in case it is wanted back).
+    if (PLAYTEST) try {
+        for (const k of Object.keys(localStorage)) { const m = /^agi(?:Game|Playtest)\.pt(\d+)(?:\.|$)/.exec(k); if (m && +m[1] < E.PLAYTEST_BUILD - 1) localStorage.removeItem(k); }
+    } catch { /* private mode */ }
     const PLAYGROUND = BAYS_DIRECT;
     E.setPlayground(BAYS_DIRECT || RING_PLAY);
-    const SAVE_KEY = RING_PLAY ? 'agiGame.playground' : 'agiGame';
+    const SAVE_KEY = PLAYTEST ? `agiGame.pt${E.PLAYTEST_BUILD}` : RING_PLAY ? 'agiGame.playground' : 'agiGame';
     const BACKUP_KEY = SAVE_KEY + '.bak';         // the last good save (refreshed every BACKUP_MS, and kept before an import)
     const CORRUPT_KEY = SAVE_KEY + '.corrupt';    // a save that couldn't be read, kept as it was
     const BACKUP_MS = 10 * 60000;
@@ -98,7 +110,7 @@ window.AGI = (function () {
     }
 
     // Playtest recorder (playtest.js): events stamped with play time, kept on this device, copied out from Settings.
-    const playtest = window.Playtest?.create({ get: storageGet, set: storageSet }, RING_PLAY ? 'agiPlaytest.playground' : undefined) || null;
+    const playtest = window.Playtest?.create({ get: storageGet, set: storageSet }, PLAYTEST_LOG_KEY) || null;
     let playtestSampleAt = 0;
     // Rare progression events are written at once: the log is otherwise flushed every 30 s of play and on
     // hide, so a crash or a killed tab lost the funnel's steps since the last sample.
@@ -1898,7 +1910,7 @@ window.AGI = (function () {
     }
 
     // The playtest log as text to copy (the artifact frame refuses downloads, like Export).
-    const playtestText = () => playtest.report({ build: E.BUILD, save: `v${E.SAVE_VERSION}, ${E.currentVersion(state)}, ${state.path.learned} skills`,
+    const playtestText = () => playtest.report({ build: BUILD_LABEL, save: `v${E.SAVE_VERSION}, ${E.currentVersion(state)}, ${state.path.learned} skills`,
         screen: `${innerWidth}×${innerHeight}${matchMedia('(pointer: coarse)').matches ? ', touch' : ''}`,
         browser: navigator.userAgent });
     // The playtest inbox (the owner's ask, 2026-11-14): served from the owner's own PC (tools/review/serve.js answers
@@ -2014,7 +2026,7 @@ window.AGI = (function () {
         const { ok } = await openDialog({ title: 'Clear the playtest log?', message: 'Every recorded event on this device is deleted. Your game is not touched.', okLabel: 'Clear log', danger: true });
         if (!ok) return;
         playtest.clear();
-        pt('session', { cleared: true, build: E.BUILD, skills: state.path.learned, at: playtestView = ptPlace() });
+        pt('session', { cleared: true, build: BUILD_LABEL, skills: state.path.learned, at: playtestView = ptPlace() });
         playtestSample(true);
         log('Playtest log cleared.', 'info');
     }
@@ -13854,7 +13866,7 @@ window.AGI = (function () {
             pt(document.hidden ? 'hidden' : 'shown');
             if (document.hidden) playtest?.flush();
         });
-        pt('session', { build: E.BUILD, save: E.SAVE_VERSION, skills: state.path.learned, version: E.currentVersion(state),
+        pt('session', { build: BUILD_LABEL, save: E.SAVE_VERSION, skills: state.path.learned, version: E.currentVersion(state),
             screen: `${innerWidth}x${innerHeight}`, touch: matchMedia('(pointer: coarse)').matches, at: playtestView = ptPlace() });
         playtestSample(true);
         watchIdle();
