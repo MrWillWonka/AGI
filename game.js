@@ -1106,7 +1106,7 @@ window.AGI = (function () {
     // doubling; for click upgrades, what a click is worth.
     function yieldText(up, lvl, d) {
         const f = E.format;
-        if (E.isRing() && up.id === 'keyboard' && lvl >= E.RING_DESK) return 'Opens the Training Cluster';   // the server's card
+        if (E.isRing() && up.id === 'keyboard' && lvl >= E.RING_DESK) return 'Opens the Training Landscape';   // the server's card (the owner's wording, 2026-11-15)
         if (up.cps) {
             const r = d.hardwareRates[up.id];
             return `+${f(r.each)} CP/s each`;
@@ -2921,10 +2921,10 @@ window.AGI = (function () {
         assistDot.classList.toggle('has', !!assistLive || assistQueue.length > 0);
         assistDot.classList.toggle('speaking', !!assistLive);
     }
-    // The orb (the owner's call, 2026-11-15, with reference pictures): a dark glass sphere with a ribbon of light across
-    // its middle. Its glow is soft and breathes while compute is made, weak at first and stronger as compute grows
+    // The orb (the owner's picture, 2026-11-15): a teal glass sphere with a bright rim, contour lines flowing across it
+    // and winding into a small amber core. Its glow is soft and breathes while compute is made, weak at first and stronger as compute grows
     // (--orb-power, set in assistDotTick); a tap is a gentle swell, never a flash, and the orb never changes size.
-    const ORB_FACE = "<svg viewBox=\"0 0 100 100\" preserveAspectRatio=\"none\" focusable=\"false\"><defs><filter id=\"orbBlurWide\" x=\"-20%\" y=\"-400%\" width=\"140%\" height=\"900%\"><feGaussianBlur stdDeviation=\"5\"/></filter><filter id=\"orbBlurMid\" x=\"-20%\" y=\"-300%\" width=\"140%\" height=\"700%\"><feGaussianBlur stdDeviation=\"1.3\"/></filter><filter id=\"orbBlurFine\" x=\"-20%\" y=\"-300%\" width=\"140%\" height=\"700%\"><feGaussianBlur stdDeviation=\"0.5\"/></filter></defs><ellipse class=\"orb-core\" cx=\"50\" cy=\"51\" rx=\"48\" ry=\"11\" filter=\"url(#orbBlurWide)\"/><g class=\"orb-wave orb-wave-a\"><path class=\"orb-w-glow\" d=\"M-80 50 q20 -18 40 0 t40 0 t40 0 t40 0 t40 0 t40 0\" filter=\"url(#orbBlurWide)\"/><path class=\"orb-w-f1\" d=\"M-80 50 q20 -18 40 0 t40 0 t40 0 t40 0 t40 0 t40 0\" filter=\"url(#orbBlurMid)\"/><path class=\"orb-w-f2\" d=\"M-80 50 q20 -18 40 0 t40 0 t40 0 t40 0 t40 0 t40 0\" filter=\"url(#orbBlurMid)\"/><path class=\"orb-w-core\" d=\"M-80 50 q20 -18 40 0 t40 0 t40 0 t40 0 t40 0 t40 0\" filter=\"url(#orbBlurFine)\"/></g><g class=\"orb-wave orb-wave-b\"><path class=\"orb-w-glow\" d=\"M0 53 q14 10 28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0\" filter=\"url(#orbBlurMid)\"/><path class=\"orb-w-core orb-w-thin\" d=\"M0 53 q14 10 28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0\" filter=\"url(#orbBlurFine)\"/></g></svg>";
+    const ORB_FACE = "<svg viewBox=\"0 0 100 100\" focusable=\"false\"><defs><radialGradient id=\"orbCoreGlow\" cx=\"50%\" cy=\"50%\" r=\"50%\"><stop offset=\"0\" stop-color=\"var(--warning)\" stop-opacity=\"0.9\"/><stop offset=\"0.35\" stop-color=\"var(--warning)\" stop-opacity=\"0.35\"/><stop offset=\"1\" stop-color=\"var(--warning)\" stop-opacity=\"0\"/></radialGradient></defs><path class=\"orb-sheen\" d=\"M8 38 C24 30 44 12 70 12 C50 4 20 12 8 38Z\"/><path class=\"orb-sheen\" d=\"M22 84 C40 72 62 80 82 76 C66 96 36 96 22 84Z\"/><circle class=\"orb-core-glow\" cx=\"50.5\" cy=\"43\" r=\"17\" fill=\"url(#orbCoreGlow)\"/><g class=\"orb-lines\"><path d=\"M10 46 C20 37 31 39 40 34 S57 21 71 21 S87 26 90 31\"/><path d=\"M9 54 C15 44 26 42 36 47 S52 60 66 58 S85 47 81 36 S67 25 56 29\"/><path d=\"M11 62 C18 50 29 50 40 55 C50 60 58 60 64 56 C72 50 71 38 62 34 C54 31 46 34 42 40 C39 45 42 50 48 48 C53 46 54 42 51 40\"/><path d=\"M16 73 C21 60 32 58 42 63 C52 68 60 72 70 68 C82 62 87 48 81 36\"/><path d=\"M41 41 C42 34 54 33 58 40 C61 47 55 53 48 52 C42 51 40 46 41 41\"/></g><circle class=\"orb-core\" cx=\"50.5\" cy=\"43\" r=\"2.6\"/></svg>";
     let orbCp = null, orbAt = -1e9, orbPower = -1, orbSwell = 0;
     function orbCompute() {
         if (!assistDot || assistDot.hidden) return;
