@@ -2832,7 +2832,13 @@
         s.evals.levels[id] = evalsLevel(s, id) + 1;
         return true;
     }
+    // The ring, Build 3 (the owner's cards, 2026-11-15): Evals is an app from the first Packet Snare boss beaten, and
+    // each boss beaten opens a step of its kinds (`evalsSteps`; handing a kind over opens nothing there). The playground has all of it.
+    const evalsOpen = s => ring && (playground || s.snare.bosses >= 1 || !!s.intro['ring:evals']);
+    // Different bosses, not fights won: the boss sectors behind the frontier (a replayed boss counts once).
+    const evalsSteps = s => { if (playground) return 99; let n = 0; for (let k = 0; k < s.snare.sector; k++) if (isSnareBossSector(k)) n++; return Math.max(1, n); };
     const evalsOpts = s => ({
+        ...(ring ? { steps: evalsSteps(s) } : {}),
         lives: 3 + evalsLevel(s, 'lives'), markMult: 1 + 0.25 * evalsLevel(s, 'marks'), learnMult: 1 + 0.2 * evalsLevel(s, 'learn'),
         comboCap: 10 + 5 * evalsLevel(s, 'combo'), reviewBeat: 1 + 0.5 * evalsLevel(s, 'beat'), aiPay: 0.5 + 0.15 * evalsLevel(s, 'aiPay'), forgive: evalsLevel(s, 'forgive'),
     });
@@ -3752,7 +3758,7 @@
     return {
         RING_STUCK_RUNS, RING_SURGE_SHARE, stuckOffer, takeSurge, passSurge, RING_SERVER_PRICE, RING_SPRINT_RP, RING_SPRINT_GROWTH, RING_CALL_CP, RING_DEPOSIT, DESK_PRICES, RING_CARD_PRICE, RING_CARD_GROWTH, RING_RIG, RING_RIG_PRICE, RING_RIG_GROWTH, RING_RIG_CPS, RING_RIG_CARDS, RING_FEED_RUNS, ringCardsOpen, ringFreeCards, feedOpen, RING_CP_PER_DOLLAR, sellCompute, deskCash, funded, fundStep, fundDecide,
         feedStart, feedStock, feedLeave, feedCarry, feedPick, feedMark,
-        SAVE_VERSION, newPlayer, cleanPlayer, signIn, mailFill, WELCOME_FINAL, setRing, isRing, RING_DESK, deskLevels, deskDone, RING_CLOCK, RING_CLOCK_GROWTH, RING_CLOCK_MIN, snareClock, snarePayClock, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
+        evalsOpen, evalsSteps, SAVE_VERSION, newPlayer, cleanPlayer, signIn, mailFill, WELCOME_FINAL, setRing, isRing, RING_DESK, deskLevels, deskDone, RING_CLOCK, RING_CLOCK_GROWTH, RING_CLOCK_MIN, snareClock, snarePayClock, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
         versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, startBreakCountdown, WALL_SURGE_RUNS, SURGE_POWER, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, ENDINGS, ending, recordLegPower, legPower, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,

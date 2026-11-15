@@ -539,6 +539,8 @@
     // The kinds the ladder has opened: a step more for each kind it has taken over.
     function openKinds(learn, o = EVALS) {
         if (!o.ladder) return Object.keys(KINDS);
+        // `steps` (the ring, Build 3: one step for each Packet Snare boss beaten) sets how many are open, whatever was handed over.
+        if (o.steps != null) return LADDER.slice(0, Math.max(1, Math.floor(o.steps))).flatMap(s => s.kinds);
         const taken = Object.keys(learn.kinds).filter(k => learn.kinds[k].taken || learn.kinds[k].handed).length;
         return LADDER.slice(0, taken + 1).flatMap(s => s.kinds);
     }

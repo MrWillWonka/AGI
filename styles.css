@@ -4155,6 +4155,7 @@ body.ring-device.device-phone .app { padding-bottom: 76px; }
 .device-notice-journal { color: var(--research); }
 .device-notice-journal svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .home-icon-training, .device-notice-training { color: var(--research); }
+.home-icon-evals { color: var(--warning); }
 .device-notice-lab { color: var(--success); }
 /* A phone's first row of icons starts below where a notification drops, so one notice never covers an app. */
 body.device-phone .home-icons { padding-top: 92px; }

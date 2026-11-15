@@ -169,7 +169,7 @@
     const ladderOn = () => { try { return localStorage.getItem('agiEvalsLadder') !== '0'; } catch { return true; } };
     const listOf = names => (names.length < 2 ? names.join('') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1]);
     function rotationLine() {
-        const n = window.Evals.rotation(saved().learn, { ...window.Evals.EVALS, ladder: ladderOn() ? 1 : 0 }).length;
+        const n = window.Evals.rotation(saved().learn, { ...window.Evals.EVALS, ...runOpts() }).length;
         const its = Object.keys(window.Evals.takenMap(saved().learn)).length;
         return (n === 1 ? 'One kind of captcha to prove.' : `${n} kinds of captcha to prove.`) + (its ? ` The AI does ${its === 1 ? 'one kind' : its + ' kinds'} for you.` : '');
     }
