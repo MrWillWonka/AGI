@@ -33,7 +33,12 @@ test('each boss past the first names a Training skill, further along each time; 
         assert.equal(E.snareGateSkill(s, 5), null);
         assert.equal(E.snareOpts(s, 5).bossArmor, 1);
         assert.equal(E.snareOpts(s, 14).bossArmor, 1);
-    } finally { E.setPlayground(false); }
+        // And under the ring, where the first boss otherwise waits on Pattern Matching.
+        E.setRing(true);
+        assert.equal(E.snareGateSkill(s, E.SNARE_FIRST_BOSS), null);
+        E.setPlayground(false);
+        assert.equal(E.snareGateSkill(s, E.SNARE_FIRST_BOSS), 'Pattern Matching');
+    } finally { E.setPlayground(false); E.setRing(false); }
     assert.equal(E.snareOpts(s, 5).bossArmor, E.SNARE_GATE_ARMOR);
     s.path.learned = E.SKILL_INDEX['Image Recognition'] + 1;
     assert.equal(E.snareOpts(s, 5).bossArmor, 1, 'learned: full damage');

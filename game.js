@@ -9,15 +9,17 @@ window.AGI = (function () {
     // Training Cluster, Packet Snare and Evals. Evals has no bay of its own yet, so here the third bay opens its screen.
     const BAYS_DIRECT = location.hash === '#bays';
     // `#ring` turns the ring's rules on (engine.js `setRing`; design/ring.md): off, the game is as it was.
-    if (location.hash === '#ring') window.AGIEngine.setRing(true);
-    // The playground link (the owner's call, 2026-11-14): `#playground` plays the game in order with nothing gating the
-    // minigames (Evals as the third bay, no skill-gated bosses in Packet Snare). The plain link is the game as designed.
-    // `#bays` is the same playground with the opening skipped.
-    const PLAYGROUND = BAYS_DIRECT || location.hash === '#playground';
-    E.setPlayground(PLAYGROUND);
-    const SAVE_KEY = 'agiGame';
-    const BACKUP_KEY = 'agiGame.bak';         // the last good save (refreshed every BACKUP_MS, and kept before an import)
-    const CORRUPT_KEY = 'agiGame.corrupt';    // a save that couldn't be read, kept as it was
+    // The playground link (the owner's call, 2026-11-15): `#playground` is the ring with everything open from the
+    // start, for testing: no sign-in, no opening, every app on the home screen, no boss waiting on a Training skill
+    // (`straightToRing`). It keeps its own save, backup, tab claim and playtest log, so it never touches a `#ring` game.
+    // `#bays` is the old game's playground (Evals as the third bay, no gated bosses) with the opening skipped.
+    const RING_PLAY = location.hash === '#playground';
+    if (location.hash === '#ring' || RING_PLAY) window.AGIEngine.setRing(true);
+    const PLAYGROUND = BAYS_DIRECT;
+    E.setPlayground(BAYS_DIRECT || RING_PLAY);
+    const SAVE_KEY = RING_PLAY ? 'agiGame.playground' : 'agiGame';
+    const BACKUP_KEY = SAVE_KEY + '.bak';         // the last good save (refreshed every BACKUP_MS, and kept before an import)
+    const CORRUPT_KEY = SAVE_KEY + '.corrupt';    // a save that couldn't be read, kept as it was
     const BACKUP_MS = 10 * 60000;
     const TICK_MS = 100;
     const AUTOSAVE_MS = 30000;
@@ -96,7 +98,7 @@ window.AGI = (function () {
     }
 
     // Playtest recorder (playtest.js): events stamped with play time, kept on this device, copied out from Settings.
-    const playtest = window.Playtest?.create({ get: storageGet, set: storageSet }) || null;
+    const playtest = window.Playtest?.create({ get: storageGet, set: storageSet }, RING_PLAY ? 'agiPlaytest.playground' : undefined) || null;
     let playtestSampleAt = 0;
     // Rare progression events are written at once: the log is otherwise flushed every 30 s of play and on
     // hide, so a crash or a killed tab lost the funnel's steps since the last sample.
@@ -2107,7 +2109,7 @@ window.AGI = (function () {
         if (typeof BroadcastChannel === 'undefined') return;
         const startedAt = Date.now();
         let channel;
-        try { channel = new BroadcastChannel('agiGame'); } catch { return; }   // a sandboxed frame may refuse it
+        try { channel = new BroadcastChannel(SAVE_KEY); } catch { return; }   // a sandboxed frame may refuse it
         channel.onmessage = e => {
             const m = e.data || {};
             // The newest tab wins (two opening at once mustn't both stand down).
@@ -14276,9 +14278,33 @@ window.AGI = (function () {
             straightToBays();
             return;
         }
+        if (RING_PLAY) straightToRing();
         deliverMail(true);
         // The ring: a new game opens on the sign-in and then the device's home screen (Mail is opened from there).
         if (!introDone()) { if (!E.isRing()) openInbox(); else if (!state.player.email) { if (state.intro['ring:playtestNote']) showLogin(); else showPlaytestNote(showLogin); } }
+    }
+    // The playground link: the ring with every app open. Done once to a save (`ring:playground`): signed in as a
+    // tester, the opening read and the offer taken, the desk and the server bought and paid for, Parcel, Packet Snare,
+    // The Feed and Training installed, three stockpiles for The Feed, and compute, research and money to start with
+    // (PLACEHOLDER amounts of mine).
+    function straightToRing() {
+        const i = state.intro;
+        if (i['ring:playground']) return;
+        for (const m of E.MAIL.filter(m => m.intro)) i['mail:' + m.id] = i['mailRead:' + m.id] = true;
+        if (!state.player.email) E.signIn(state, 'Tester', 'tester', matchMedia('(pointer: coarse)').matches ? 'phone' : 'laptop');
+        Object.assign(i, { 'ring:playground': true, 'ring:playtestNote': true, 'mailAccepted:welcome': true, 'ring:labInstalled': true, 'ring:labOpened': true,
+            'ring:welcome': true, 'ring:parcel': true, 'ring:feed': true, 'ring:server': true });
+        for (const k of ['shop', 'snare', 'feed', 'training']) i['ring:inst:' + k] = true;   // no downloads to wait for
+        const lvl = E.level(state, 'keyboard');
+        if (lvl <= E.RING_DESK) {
+            state.stats.cashSold += E.DESK_PRICES.slice(lvl, E.RING_DESK).reduce((a, b) => a + b, 0) + E.RING_SERVER_PRICE;
+            state.levels.keyboard = E.RING_DESK + 1;
+        }
+        state.stats.cashSold += 500; state.res.cp += 2000; state.res.rp += 500;
+        state.stats.clicks = Math.max(state.stats.clicks, 40); state.stats.runCp = Math.max(state.stats.runCp, 2060);
+        state.unlocked['module:snare'] = state.unlocked['module:path'] = true;
+        for (const [sector, packets, gold, garbled] of [[1, 150, 12, 0], [2, 120, 10, 12], [3, 90, 9, 10]]) E.feedDeliver(state, { sector, packets, gold, garbled });
+        afterChange(); save();
     }
     // The server room at once, every minigame's bay open: skills learned up to Edge Detection, as straightToSnare does.
     function straightToBays() {

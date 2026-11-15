@@ -2402,8 +2402,8 @@
     const setPlayground = on => { playground = !!on; };
     const isPlayground = () => playground;
     // The first skill a boss on sector k needs that you haven't learned (null when none).
-    const snareGateSkill = (s, k) => { if (ring) return k === SNARE_FIRST_BOSS && !knows(s, 'Pattern Matching') ? 'Pattern Matching' : null;   // the ring: the first gate only
-        if (playground || !isSnareBossSector(k)) return null; const g = SNARE_GATE_SKILLS.find(([sec, name]) => k >= sec && !knows(s, name)); return g ? g[1] : null; };
+    const snareGateSkill = (s, k) => { if (playground) return null; if (ring) return k === SNARE_FIRST_BOSS && !knows(s, 'Pattern Matching') ? 'Pattern Matching' : null;   // the ring: the first gate only
+        if (!isSnareBossSector(k)) return null; const g = SNARE_GATE_SKILLS.find(([sec, name]) => k >= sec && !knows(s, name)); return g ? g[1] : null; };
     const SNARE_GATES = [MINE_SECTOR, NET_SECTOR, MINION_SECTOR, SWARM_SECTOR];
     const SNARE_STAGES = [
         { sector: 0, adds: 'packets' }, { sector: RED_SECTOR, adds: 'red' }, { sector: AV_SECTOR, adds: 'antivirus' },
