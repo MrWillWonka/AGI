@@ -4389,3 +4389,13 @@ body.snare-live .assist { display: none; }
 .feed-key-plain i { background: linear-gradient(90deg, #e8c07a 0 25%, #d98a5f 25% 50%, #7fc8a9 50% 75%, #6fa8dc 75%); }
 .feed-last .feed-last-sum { font: 700 1.6rem var(--font-display, inherit); color: var(--research); }
 .feed-pick-snare, .feed-pick-finish { align-self: flex-start; min-height: 44px; }
+/* The status bar shows over the home screen, Parcel and The Feed; the home screen's own clock row gives way to it. */
+body.ring-device .device-status { z-index: 3400; }
+body.ring-device .home-status { visibility: hidden; }
+body.ring-device .feed-screen .feed-bar { padding-top: 30px; }
+.device-notice { touch-action: none; }
+/* Upright phones: the apps sit in three even columns across the screen (they hugged the left). */
+@media (orientation: portrait) {
+    body.device-phone .home-icons { display: grid; grid-template-columns: repeat(3, 1fr); justify-items: center; align-content: start; }
+}
+.home-icon.is-new::after { top: -12px; right: auto; left: 8px; }

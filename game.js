@@ -2206,6 +2206,10 @@ window.AGI = (function () {
             ringRpRate = st.gains.reduce((s, x) => s + x[1], 0) / 30;
             st.rp = state.res.rp; st.at = now;
         }
+        // Parcel and The Feed are dialogs, drawn over the page: the bar moves into the one that is open (the owner:
+        // The Feed "doesn't have the same controls or status bar"), and shows on the home screen too.
+        const bar = st.clock.parentNode, top = shop?.dlg.open ? shop.dlg : document.querySelector('dialog.feed-screen[open]'), host = top || document.body;
+        if (bar.parentNode !== host) host.append(bar);
         const d = new Date();
         setText(st.clock, `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
         const f = E.format, cash = bankNow(), dv = E.derive(state, debugRates);
@@ -2409,6 +2413,11 @@ window.AGI = (function () {
         art.innerHTML = HOME_ICONS[key];
         const node = el('button', { type: 'button', class: `device-notice device-notice-${key}`, onclick: () => { node.remove(); pt('notice', { open: key }); open(); } },
             [art, el('span', { class: 'device-notice-app', text: app }), el('span', { class: 'device-notice-text', text })]);
+        // Flicked up, it goes (the owner's call: every notification and achievement can be swiped away).
+        let from = null, swiped = false;
+        node.addEventListener('pointerdown', e => { from = e.clientY; swiped = false; });
+        node.addEventListener('pointermove', e => { if (from === null) return; const dy = Math.min(0, e.clientY - from); node.style.transform = dy ? `translateY(${dy}px)` : ''; node.style.opacity = String(Math.max(0.2, 1 + dy / 80)); if (dy < -28) { swiped = true; pt('notice', { swiped: key }); node.remove(); } });
+        for (const type of ['pointerup', 'pointercancel', 'pointerleave']) node.addEventListener(type, () => { from = null; if (!swiped) { node.style.transform = ''; node.style.opacity = ''; } });
         noticeBox.append(node);
         // Shown again as a popover each time, so it sits above whatever dialog is open (Mail, The Feed, Settings).
         try { if (noticeBox.matches(':popover-open')) noticeBox.hidePopover(); noticeBox.showPopover(); } catch { /* no popovers: it stays under dialogs */ }
