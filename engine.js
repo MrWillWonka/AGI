@@ -778,7 +778,7 @@
             callout: ['Server room online', 'Your AI can start training. Click the server room, or open the map to see every area.'],
             // Anyone who has trained before (older saves, later versions) gets it back once data flows again.
             // The ring: training waits for Packet Snare's first boss (Build 2); sealed until then.
-            ringCallout: ['System', 'Training Cluster has been added to your home screen.'],
+            ringCallout: ['System', 'Training has been added to your home screen.'],
             check: s => (ring ? level(s, 'keyboard') > RING_DESK : false) || !ring && ((s.stats.collects >= 40 && s.stats.runCp >= 100 && s.stats.runDp >= 40) || ((s.stats.rolls > 0 || s.path.learned > 0) && s.res.dp + s.stats.collects > 0)) },
         // Research is for bigger projects: it opens once training is well under way, and brings the investors
         // (and with them the road to the next version).

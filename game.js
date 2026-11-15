@@ -2389,7 +2389,7 @@ window.AGI = (function () {
             ['cash', cash > 0 && app !== 'shop', 'Bank', `$${f(cash)}`],
             ['cp', app !== 'lab', 'Compute', `${f(Math.floor(state.res.cp))}${dv.cpNet > 0 ? ` +${f(dv.cpNet)}/s` : ''}`],
             ['rp', (state.feed.stats.delivered > 0 || state.res.rp > 0) && app !== 'feed', 'Research', `${f(Math.floor(state.res.rp))}${ringRpRate >= 0.05 ? ` +${f(ringRpRate, 1)}/s` : ''}`],
-            ['signal', !!state.unlocked['module:snare'] && state.snare.runs > 0 && app !== 'snare', 'Signal', f(state.snare.signal)],
+            ['signal', false, 'Signal', f(state.snare.signal)],
             ['xp', !!state.unlocked['module:path'], 'XP', f(Math.floor(state.res.xp))]];
         for (const [key, show, label, value] of want) {
             let item = st.items[key];
@@ -4875,7 +4875,7 @@ window.AGI = (function () {
             minimapKey = '';
         }
         const bay = BAYS[id];
-        setText($('moduleTitle'), crumbName(bay.name));
+        setText($('moduleTitle'), crumbName(E.isRing() && bay === BAYS.training ? 'Training' : bay.name));
         for (const m of document.querySelectorAll('.module')) m.hidden = true;
         if (bay.built) {
             document.querySelector(`.module[data-module="${id}"]`).hidden = false;
@@ -6426,7 +6426,7 @@ window.AGI = (function () {
                 s.corrupted ? ['Garbled catches', `${s.corrupted}`] : null,
                 s.snaps ? [snare.run?.opts.bubble ? 'Popped or snapped' : 'Wires snapped', `${s.snaps}`] : null,
                 // How close the boss came to falling (a log had 8 of 9, twice, and the card said only "8"): near the end it's a key line.
-                d.bossMax && d.bossLeft < d.bossMax ? ['Boss health taken', `${d.bossMax - d.bossLeft} of ${d.bossMax}`, d.bossLeft <= Math.max(1, d.bossMax * 0.25) ? 'key' : ''] : null,
+                d.bossMax && d.bossLeft < d.bossMax ? ['Boss health taken', `${Math.floor(d.bossMax - d.bossLeft + 1e-6)} of ${d.bossMax}`, d.bossLeft <= Math.max(1, d.bossMax * 0.25) ? 'key' : ''] : null,
                 s.chained ? ['Chain lightning', `${s.chained}`] : null,
                 s.lasered ? ['Lasered', `${s.lasered}`] : null,
                 s.stuns ? ['Antivirus stunned', `${s.stuns}`] : null,
@@ -6576,7 +6576,7 @@ window.AGI = (function () {
         // The HUD keeps to Focus and the sector's goal or boss (the owner's call after the review rounds): states (frozen,
         // flagged, snapped, the clock stopped) are small pops on the field where they happen, so the HUD never changes shape.
         // In the fight (Snare 17.5) its health is on the field's bar alone (round 10: it showed three times).
-        const boss = run.boss ? (run.fight ? '' : ` · Boss ${run.boss.hp}/${run.boss.maxHp}`)
+        const boss = run.boss ? (run.fight ? '' : ` · Boss ${Math.ceil(run.boss.hp - 1e-6)}/${run.boss.maxHp}`)
             // A sector with no boss: how far along its goal is (cleared once it's reached).
             : run.bossDone ? ' · Boss down ✓'
             : run.opts.goal > 0 ? ` · ${run.goalDone ? (snareNarrow() ? '✓' : 'Cleared ✓') : `${snareNarrow() ? '' : 'Goal '}${goalNum(Math.min(Math.floor(run.goalProgress()), run.opts.goal))}/${goalNum(run.opts.goal)}`}` : '';
@@ -7408,7 +7408,7 @@ window.AGI = (function () {
             // its health on the left, the fight clock's seconds on the right, the whole fight (round 10: the clock had no
             // number until its last 10 s, and the HUD's Focus seconds read as time left)
             ctx.textAlign = 'left';
-            ctx.fillText(`BOSS ${b.hp}/${b.maxHp}`, bx + 6, by + bh / 2 + 1);
+            ctx.fillText(`BOSS ${Math.ceil(b.hp - 1e-6)}/${b.maxHp}`, bx + 6, by + bh / 2 + 1);
             ctx.textAlign = 'right';
             ctx.fillText(`${Math.ceil(f.left)} s LEFT`, bx + bw - 6, by + bh / 2 + 1);
             ctx.textAlign = 'center';
@@ -8860,7 +8860,7 @@ window.AGI = (function () {
         ctx.strokeStyle = C.bg;
         // its health under it, but not in the fight, where the bar across the top says it (round 10)
         if (!run.fight && !b.melt) {
-            const hpText = `${b.hp}/${b.maxHp}`;
+            const hpText = `${Math.ceil(b.hp - 1e-6)}/${b.maxHp}`;
             ctx.strokeText(hpText, x, y + ringR + 14);
             ctx.fillStyle = C.danger;
             ctx.fillText(hpText, x, y + ringR + 14);
