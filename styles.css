@@ -4648,3 +4648,15 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 .assist-wire .pulse { stroke: #fff; stroke-dasharray: 22 260; animation: assist-wire 1.4s linear infinite; }
 @keyframes assist-wire { from { stroke-dashoffset: 282; } to { stroke-dashoffset: 0; } }
 @media (prefers-reduced-motion: reduce) { .assist-dot::before, .assist-dot.making::before, .assist-dot.has::before, .assist-dot.speaking::before, .orb-wave-a, .orb-wave-b { animation: none; } .assist-wire .pulse { display: none; } }
+
+/* Parcel: delivered parts fold under one "Installed" row, so what can still be bought stays on top (the owner's pick, 2026-11-15). */
+.shop-installed { border: 1px solid var(--border); border-radius: 10px; background: color-mix(in srgb, var(--bg-2) 70%, transparent); }
+.shop-installed > summary { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 14px; cursor: pointer; list-style: none; font: 600 0.9rem var(--font-display); letter-spacing: 0.04em; color: var(--muted); }
+.shop-installed > summary::-webkit-details-marker { display: none; }
+.shop-installed > summary::before { content: '\25B8'; color: var(--success); transition: transform 0.15s ease; }
+.shop-installed[open] > summary::before { transform: rotate(90deg); }
+.shop-installed-count { margin-left: auto; font: 500 0.8rem var(--font-mono); }
+.shop-installed { grid-column: 1 / -1; }
+.shop-installed-list { display: grid; gap: 8px; padding: 0 8px 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); }
+/* In the status bar the orb's halo stays close, so it never sits over the numbers beside it. */
+.assist-dot.mini::before { inset: -18%; }

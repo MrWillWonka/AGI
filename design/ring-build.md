@@ -510,3 +510,17 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   `assistThreadTick`): straight when the orb and its target line up, else out sideways and round one 18 px corner;
   from an app's ring to the line, two corners. A white pulse travels along it.
 - Not seen on a real iPhone yet (the ribbon uses SVG blur filters; checked in Chromium only).
+
+## 2026-11-15: Parcel's Installed fold; the Feed's width (the owner's cards)
+
+- **Parcel:** delivered parts fold under one "Installed · n parts" row at the foot of the list (`.shop-installed`,
+  a details element; open or shut is remembered while Parcel is loaded), so what can still be bought stays on top.
+- **The small orb in the status bar** keeps its halo close (it sat over the numbers beside it).
+- **The compute pile** (39K compute against 23 research): left until the Lab rework. **Deep sand's first split:**
+  waiting on the owner's play notes.
+- **The Feed on wide screens, picked "wider field", not built:** the box is 256 cells wide in the rules and the
+  screen already shows all of it; the empty space is outside the walls. A wider box alone would not spread the sand,
+  because the heap's shape comes from the single spout in the middle, not from the walls. Spreading it needs a change
+  to how sand pours (a spout that sweeps, or several), which changes the rules, the save's box and the pace: back to
+  the owner as a question.
+- Seen in passing: the Server's card in Parcel still says "Opens the Training Cluster" (the app is named Training).
