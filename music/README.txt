@@ -47,7 +47,7 @@ WHAT EVERY TRACK SHARES
   A song       Chord progressions, bass lines, melodies and a form: sections that say which of those they play, for
                how many bars, with how much of the drum kit. Each song has its own form.
   It builds    Progress and the run's speed add up to how many parts play; each track brings its parts in in its
-               own order (the keys before the kick in Soft, the tune first in Retro, drums last in Ominous).
+               own order (the strings first in Soft, which has no drums, the tune first in Retro, drums last in Ominous).
   The beat     Plays only while training (the owner's call; a policy switch in the engine, not a rule of it).
   Space        Each track has its own room and delay (Retro: none), reached through sends; music and effects are in
                stereo. Everything meets at a limiter.

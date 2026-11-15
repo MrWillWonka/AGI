@@ -99,6 +99,26 @@ changing as last time." Read as: the same songs change (Pixel Desk, Hide and See
   is hummed (`hum`); the electric piano lead is rounder.
 - Still not heard by its author.
 
+### The owner's third listen (2026-11-14)
+
+"Both retro and soft are way too punchy, soft and smooth should be very silky and buttery while retro just needs to be
+way more understated." Then: "soft and smooth should try to have no attacks or drums, it should all be done through
+harmonies and things and easy moving notes. Very dreamlike without the harsh bells and mallets, more orchestral."
+Applied to both themes whole, the liked songs included (their notes are untouched; their sound follows the theme).
+
+- **Soft is an orchestra with no drums.** Its `step` plays no kick, hat, rim, tick or fill, and nothing struck or
+  plucked: a string section holds each chord through the bar and overlaps the next, upper strings breathe in on the
+  comp steps, a low string holds the bass, and the tune is sung legato (every note swells in over up to 0.18 s) by
+  strings (Morning Lab), a flute, a horn, a hum, a clarinet or a choir. A longer hall (2.8 s). The songs' kits, hushed
+  kicks and ticks are gone from the data. The Beat slider and the beat-while-training rule do nothing in this track.
+  **Its effects are still mallets and bells**, and its simple version still has a kick: not changed, open.
+- **Retro is understated.** Every pulse goes through a filter (3 kHz, 2 kHz in the mellow songs) and speaks 6 ms
+  slower; the kick is half as loud and starts lower (130 Hz, was 220); snare and hats sit at 0.6 (0.45 mellow); the
+  arpeggio stays in 8ths; fills are a third as loud; the master filter tops out at 7.7 kHz (was 14). Boss Rush is 138
+  (152), Turbo 120 (132). Measured: the drums are 14 dB under the tones (9 before), peaks 3–6 dB lower, and the track
+  is left about 1.5 dB under the others on purpose.
+- Still not heard by its author.
+
 ## Open questions for the owner
 
 1. The loudness target at default sliders (see above).

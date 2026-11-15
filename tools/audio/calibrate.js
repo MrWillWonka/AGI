@@ -46,6 +46,6 @@ const R = require('./render.js');
     // (its tones make up what its drums leave of the target). Use these for a song that has a `kit`.
     console.log(`Or, for the whole mix of each song to sit at ${target} LUFS (JSON for a script):`);
     const pw = db => Math.pow(10, db / 10), out = {};
-    for (const r of rows) out[r.name] = +Math.sqrt(Math.max(0.05 * pw(target), pw(target) - pw(r.beat)) / pw(r.tones)).toFixed(3);
+    for (const r of rows) out[r.name] = +Math.sqrt(Math.max(0.05 * pw(target), pw(target) - (Number.isFinite(r.beat) ? pw(r.beat) : 0)) / pw(r.tones)).toFixed(3);
     console.log('MIX ' + JSON.stringify(out));
 })().catch(e => { console.error(e); process.exit(1); });

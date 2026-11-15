@@ -7,7 +7,8 @@
     // eslint-disable-next-line no-unused-vars
     const { pump, note, perc, harmNote, MIXO, LYD, tone, noise, NOTE, T, seq, S, blip, arp, echo, stab, sub, bell, pluck, run, vary, mapNote, degShift, varDeg, PANEL_INST, PANEL_OCT, phone, PHONE, clickNote, catchNotes, lastAt, raceNote, ping, kick, hat, clap, synth, pad, riser, bassAt, snap, kickLevel, AEOL, PHRY, DOR, HARM, ION } = h;
 
-    // Soft: mallets and bells: a marimba, a kalimba, glassy bells and a warm pad (F major pentatonic).
+    // Its effects: mallets and bells: a marimba, a kalimba, glassy bells and a warm pad (F major pentatonic).
+    // (The music has none of them any more: see the style.)
     const marimba = (n, o = {}) => { T(n, { type: 'sine', dur: 0.25, gain: 0.07, ...o }); T(n + 24, { type: 'sine', dur: 0.05, gain: (o.gain ?? 0.07) * 0.22, at: o.at }); };
     const softBell = (n, o = {}) => { T(n, { type: 'sine', dur: 0.7, gain: 0.05, attack: 0.008, ...o }); T(n + 12, { type: 'triangle', dur: 0.25, gain: (o.gain ?? 0.05) * 0.25, at: o.at }); };
     const padChord = (notes, o = {}) => notes.forEach(n => T(n, { type: 'triangle', dur: 1.4, gain: 0.025, attack: 0.15, cutoff: 1800, ...o }));
@@ -42,110 +43,68 @@
             { raw: true, type: 'sine', gain: 0.014, dur: 0.25, q: 1, cutoff: () => 5000, notes: (l, n, ch) => ch.v.map(x => x + 24) }
         ],
 
-        // ---- Instruments: the drums and voices, and how they play a song step by step --------------------------
-        // Soft: 93 BPM with a light swing (every second 16th leans late), in F major / D minor. It starts from the
-        // keys, not the drums: an electric piano (a sine with a second sine bending its pitch at the strike, so a
-        // harder note barks and a soft one is round, each chord rolled a little and spread left to right), a warm
-        // pad, a round bass that holds its notes. The tune is a kalimba: a sine with a short inharmonic ring at
-        // the pluck and the thumb's tick. Shakers with a soft attack, a rim on the backbeat, and a two-step kick
-        // (1, the late 16th before 3, the "and" of 3) that is the last thing in. A short warm room.
+        // ---- Instruments: the voices, and how they play a song step by step ------------------------------------
+        // Soft: a small orchestra in a long hall, and a dream: no drums, and nothing struck or plucked. Every note
+        // swells in and lets go slowly. The chord is a string section (two detuned saws a note behind a low filter,
+        // spread left to right) that holds each bar and overlaps the next; upper strings breathe in on the song's
+        // comp steps; a low string holds the bass; a high note shimmers over it late on. The tune is sung legato by
+        // one of: the strings, a flute, a horn, a clarinet, a choir or a hum (`lead` on the song), with a quiet
+        // line under it when a section asks for harmony. The section ends on a held note leading into the next.
         // Its click figure plays the track's 8ths (322 ms: about three notes a second while a job is held).
         style: {
             bpm: 93, swing: 0.2,
-            cutoff: k => 900 + 5200 * k * k, drive: 0, gain: 0.85, shift: 5,     // D minor / F major
-            beat: 1.53, tones: 1.487,   // drums about 3.5 dB under the tones, measured: this track keeps them softer than the others
+            cutoff: k => 1100 + 3200 * k * k, drive: 0, gain: 0.85, shift: 5,     // D minor / F major
+            beat: 1.53, tones: 1.487,   // it has no drums: `beat` is kept for the mixer only
             simpleMix: { gain: 1, beat: 0.997, tones: 2.032 }, simpleVoice: 'sine',   // the simple version (simpleStep)
-            space: { reverb: { seconds: 1.2, damp: 3600, level: 0.32, pre: 0.012 }, delay: { steps: 4, feedback: 0.2, cutoff: 1800, level: 0.3, pan: -0.2 }, width: 1 },
+            space: { reverb: { seconds: 2.8, damp: 3000, level: 0.5, pre: 0.02 }, delay: { steps: 4, feedback: 0.2, cutoff: 1500, level: 0.15, pan: -0.2 }, width: 1 },
             layers: { keys: -1, pad: -1, bass: 0.06, mel: 0.2, off: 0.38, kick: 0.46, harm: 0.5, clap: 0.58, sixteenth: 0.7, arp: 0.8 },
             fillAt: 0.42,
             step(t, s, k, len, L, c) {
-                const ch = c.chord, song = c.song, ts = t + c.sw;
-                // Drums. A stealth song keeps its own hushed kick until you're spotted; otherwise the kick waits for
-                // its layer. A sparse section is the kick on 1 alone.
-                // A song may bring its own drum patterns (`kit`), chords (`compVoice`) and lead (`lead`).
-                const K = c.kit, N = c.steps;
-                if (song.kick) { const kg = kickLevel(c, s, K ? K.kick : s === 0 || s === 7 || s === 10); if (kg) kick(ts, 0.3 * kg, 105, 46, 0.24); }
-                else if (K) { if (c.drums && L.kick > 0.02 && K.kick && (s === 0 || !c.sparse)) kick(ts, (s === 0 ? 0.32 : 0.26) * K.kick * L.kick, 105, 46, 0.24); }
-                else if (c.drums && L.kick > 0.02 && (s === 0 || (!c.sparse && (s === 7 || s === 10)))) kick(ts, (s === 0 ? 0.32 : 0.24) * L.kick, 105, 46, 0.24);
-                if (c.drums && !c.sparse && K) {
-                    if (K.hat >= 1 && L.off > 0.02) perc(ts, (K.hat === 2 ? 0.034 : 0.026) * L.off, { f: 6500, q: 1.2, len: K.hat === 2 ? 0.1 : 0.06, attack: 0.012, pan: 0.3 });
-                    else if (K.hat && L.sixteenth > 0.02) perc(ts, 0.013 * L.sixteenth, { f: 7000, q: 1.2, len: 0.04, attack: 0.008, pan: 0.3 });
-                    if (K.snare && L.clap > 0.02) {
-                        perc(ts, 0.03 * K.snare * L.clap, { f: 1500, q: 5, len: 0.04, attack: 0.004, rev: 0.45, pan: -0.2 });
-                        note(ts, 81, 0.03, 0.008 * K.snare * L.clap, { raw: true, type: 'sine', part: 'beat', pan: -0.2 });
-                    }
-                } else if (c.drums && !c.sparse) {
-                    if (L.off > 0.02 && s % 2 === 0) perc(ts, (s % 4 === 2 ? 0.03 : 0.018) * L.off, { f: 6500, q: 1.2, len: 0.06, attack: 0.012, pan: 0.3 });
-                    if (L.sixteenth > 0.02 && s % 2 === 1) perc(ts, 0.012 * L.sixteenth, { f: 7000, q: 1.2, len: 0.04, attack: 0.008, pan: 0.3 });
-                    // The rim: a narrow knock of noise with a short pitched click in it, on 2 and 4.
-                    if (L.clap > 0.02 && (s === 4 || s === 12)) {
-                        perc(ts, 0.05 * L.clap, { f: 1800, q: 7, len: 0.035, rev: 0.35, pan: -0.2 });
-                        note(ts, 81, 0.03, 0.02 * L.clap, { raw: true, type: 'sine', part: 'beat', pan: -0.2 });
-                    }
-                }
-                if (L.pad > 0.02 && s === 0) pad(t, ch.v, len * N, 0.017 * L.pad, 'triangle', 1100 + 500 * k, { rev: 0.45 });
+                const ch = c.chord, song = c.song, ts = t + c.sw, bar = len * c.steps;
+                // The string section: the chord through the whole bar, swelling in, overlapping the bar before.
+                if (L.pad > 0.02 && s === 0) ch.v.forEach((n, i) => {
+                    const pan = (i - 1.5) * 0.3, o = { type: 'sawtooth', cutoff: 650 + 450 * k, q: 0.5, attack: Math.min(0.9, bar * 0.35), sus: 0.9, dec: 0.4, rel: 1.2, rev: 0.6 };
+                    note(t, n, bar * 1.02, 0.0085 * L.pad, { ...o, detune: -6, pan });
+                    note(t, n, bar * 1.02, 0.0085 * L.pad, { ...o, detune: 7, pan: -pan, low: true });
+                });
+                // The low strings hold the bass.
                 const b = c.bassOn && L.bass > 0.02 && bassAt(song, s, ch);
-                if (b) note(ts, b, len * 2.6, 0.17 * L.bass, { type: 'triangle', cutoff: 420 + 600 * k, q: 0.8, sus: 0.7, dec: 0.12, rel: 0.09, attack: 0.012 });
-                // The electric piano on the song's comp steps: harder on the off-beats, and harder as the run speeds up.
-                if (L.keys > 0.02 && c.comp.includes(s) && song.compVoice === 'guitar') {
-                    // A nylon guitar: the chord strummed low to high, each string a soft pluck.
-                    ch.v.forEach((n, i) => note(ts + i * 0.022, n, len * 2.6, 0.03 * L.keys, { type: 'triangle', cutoff: 900 + 1100 * k, q: 1.5, env: 2.2, envTime: 0.05, attack: 0.003, rev: 0.3, pan: -0.15 + i * 0.1 }));
-                } else if (L.keys > 0.02 && c.comp.includes(s) && song.compVoice === 'warm') {
-                    // Warm keys: the chord as sines that swell in and fade, nothing struck.
-                    ch.v.forEach((n, i) => note(ts + i * 0.03, n + 12, len * 5, 0.02 * L.keys, { type: 'sine', attack: 0.06, sus: 0.6, dec: 0.5, rel: 0.6, rev: 0.45, pan: (i - 1.5) * 0.25 }));
-                } else if (L.keys > 0.02 && c.comp.includes(s) && song.compVoice !== 'none') {
-                    const vel = s % 4 === 2 ? 1 : 0.8;
-                    ch.v.forEach((n, i) => {
-                        const at = ts + i * 0.012, pan = (i - 1.5) * 0.22;
-                        note(at, n + 12, len * 3.2, 0.021 * vel * L.keys, { type: 'sine', fm: { ratio: 1, index: 1.1 + 1.3 * vel * (0.5 + k), decay: 0.22, sus: 0.12 },
-                            attack: 0.004, sus: 0.3, dec: 0.4, rel: 0.3, pan, rev: 0.3, dly: 0.12 });
-                        note(at, n + 36, 0.05, 0.004 * vel * L.keys, { type: 'sine', pan, low: true });      // the tine
-                    });
-                }
-                // A mallet arpeggio, rising two bars and falling two, left and right.
-                if (L.arp > 0.02 && s % 2 === 0) {
-                    const v = ch.v, i = (s / 2) % v.length, n = v[c.bar % 4 >= 2 ? v.length - 1 - i : i] + 24;
-                    note(ts, n, len * 1.6, 0.022 * L.arp, { type: 'sine', pan: i % 2 ? 0.5 : -0.5, rev: 0.3, low: true });
-                    note(ts, n + 24, 0.04, 0.005 * L.arp, { type: 'sine', low: true });
-                }
-                // The kalimba: notes on the beat a little harder, every note a little different (the same each time
-                // that bar comes round).
-                if (c.mel && song.lead === 'flute') {         // a breath, then a sine that swells and wavers on its long notes
-                    const d = len * c.mel.len * 0.98;
-                    note(c.mel.t, c.mel.n, d * 1.05, 0.06 * c.melGain, { type: 'sine', attack: Math.min(0.1, d * 0.35), sus: 0.85, dec: 0.2, rel: 0.25, vib: c.mel.len >= 3 ? { rate: 4.6, depth: 7, delay: 0.3 } : null, rev: 0.45, dly: 0.12, pan: 0.1 });
-                    note(c.mel.t, c.mel.n + 12, d, 0.006 * c.melGain, { type: 'sine', attack: 0.08, sus: 0.7, dec: 0.2, rel: 0.2, rev: 0.45, low: true });
-                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.024 * c.harmGain * c.melGain, { type: 'sine', attack: 0.06, sus: 0.85, dec: 0.15, rel: 0.12, rev: 0.4, pan: -0.25, low: true });
-                } else if (c.mel && song.lead === 'ep') {     // the electric piano takes the tune: round, with a bark on the beats
-                    const d = Math.max(0.5, len * c.mel.len * 1.1), vel = s % 4 === 0 ? 1 : 0.8;
-                    note(c.mel.t, c.mel.n, d, 0.06 * vel * c.melGain, { type: 'sine', fm: { ratio: 1, index: 0.7 + 0.5 * vel * (0.5 + k), decay: 0.3, sus: 0.1 }, attack: 0.008, sus: 0.35, dec: 0.45, rel: 0.35, rev: 0.35, dly: 0.2, pan: 0.1 });
-                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.03 * c.harmGain * c.melGain, { type: 'sine', fm: { ratio: 1, index: 0.6, decay: 0.2, sus: 0.1 }, sus: 0.35, dec: 0.45, rel: 0.35, rev: 0.35, pan: -0.25, low: true });
-                } else if (c.mel && song.lead === 'guitar') { // a nylon string: a triangle through a filter that closes
-                    const d = Math.max(0.35, len * c.mel.len * 1.1);
-                    note(c.mel.t, c.mel.n, d, 0.085 * c.melGain, { type: 'triangle', cutoff: 1300 + 1500 * k, q: 1.5, env: 2.5, envTime: 0.06, attack: 0.003, rev: 0.3, dly: 0.1, pan: 0.15 });
-                    perc(c.mel.t, 0.008 * c.melGain, { f: 2200, q: 2, len: 0.01, part: 'tones', pan: 0.15 });
-                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.04 * c.harmGain * c.melGain, { type: 'triangle', cutoff: 1500, q: 1.5, env: 2, envTime: 0.06, rev: 0.3, pan: -0.25, low: true });
-                } else if (c.mel && song.lead === 'glass') {  // a small soft bell: a sine with a faint shimmer at the strike
-                    const d = Math.min(1.1, Math.max(0.45, len * c.mel.len * 1.2));
-                    note(c.mel.t, c.mel.n, d, 0.06 * c.melGain, { type: 'sine', fm: { ratio: 4, index: 0.35, decay: 0.08, sus: 0.02 }, attack: 0.006, rev: 0.5, dly: 0.25, pan: s % 4 >= 2 ? 0.25 : -0.1 });
-                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.025 * c.harmGain * c.melGain, { type: 'sine', rev: 0.5, pan: -0.3, low: true });
-                } else if (c.mel && song.lead === 'hum') {    // a hummed line: a sine with a triangle an octave under it, slow in, joined up
-                    const d = len * c.mel.len * 1.15;
-                    note(c.mel.t, c.mel.n, d, 0.05 * c.melGain, { type: 'sine', attack: Math.min(0.12, d * 0.35), sus: 0.85, dec: 0.2, rel: 0.3, vib: c.mel.len >= 4 ? { rate: 4.2, depth: 6, delay: 0.35 } : null, rev: 0.45, pan: 0.1 });
-                    note(c.mel.t, c.mel.n - 12, d, 0.022 * c.melGain, { type: 'triangle', cutoff: 700, attack: Math.min(0.14, d * 0.35), sus: 0.85, dec: 0.2, rel: 0.3, rev: 0.4, pan: -0.1 });
-                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.024 * c.harmGain * c.melGain, { type: 'sine', attack: 0.1, sus: 0.85, dec: 0.2, rel: 0.3, rev: 0.45, pan: -0.3, low: true });
-                } else if (c.mel) {
-                    const d = Math.min(len * c.mel.len * 1.1, 1.1), vel = (s % 4 === 0 ? 1 : 0.82) * (0.92 + (0.16 * c.pick(8, s)) / 7);
-                    note(c.mel.t, c.mel.n, d, 0.058 * vel * c.melGain, { type: 'sine', fm: { ratio: 5.4, index: 0.8 * vel, decay: 0.045, sus: 0.02 }, attack: 0.002, rev: 0.35, dly: 0.22, pan: 0.12 });
-                    perc(c.mel.t, 0.012 * vel * c.melGain, { f: 2600, q: 2, len: 0.012, part: 'tones', pan: 0.12 });
-                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.03 * c.harmGain * c.melGain,
-                        { type: 'sine', fm: { ratio: 5.4, index: 0.5, decay: 0.04, sus: 0.02 }, rev: 0.35, pan: -0.25, low: true });
+                if (b) note(ts, b, len * 5, 0.15 * L.bass, { type: 'triangle', cutoff: 300 + 300 * k, q: 0.6, attack: 0.1, sus: 0.85, dec: 0.3, rel: 0.6, rev: 0.3 });
+                // The upper strings breathe in on the song's comp steps.
+                if (L.keys > 0.02 && c.comp.includes(s) && song.compVoice !== 'none')
+                    ch.v.forEach((n, i) => note(ts + i * 0.04, n + 12, len * 6, 0.017 * L.keys, { type: 'sine', attack: 0.28, sus: 0.7, dec: 0.5, rel: 0.9, rev: 0.6, pan: (i - 1.5) * 0.25 }));
+                // A high note held over two bars, late on.
+                if (L.arp > 0.02 && s === 0 && c.bar % 2 === 0)
+                    note(t, ch.v[ch.v.length - 1] + 24, bar * 2, 0.007 * L.arp, { type: 'sine', attack: bar * 0.5, sus: 0.9, dec: 0.3, rel: 1.2, rev: 0.7, pan: 0.3, low: true });
+                // The tune, legato: each note swells in and overlaps the next.
+                if (c.mel) {
+                    const d = Math.max(len * c.mel.len * 1.3, 0.6), g = c.melGain, at = c.mel.t, n = c.mel.n;
+                    const env = { attack: Math.min(0.18, d * 0.4), sus: 0.9, dec: 0.25, rel: 0.5, rev: 0.55 };
+                    const vib = c.mel.len >= 3 ? { rate: 4.8, depth: 8, delay: 0.3 } : null;
+                    const lead = song.lead || 'strings';
+                    if (lead === 'flute') {
+                        note(at, n, d, 0.055 * g, { type: 'sine', ...env, vib, pan: 0.1 });
+                        note(at, n + 12, d, 0.005 * g, { type: 'sine', ...env, low: true });
+                    } else if (lead === 'horn') {
+                        note(at, n, d, 0.07 * g, { type: 'triangle', cutoff: 800 + 300 * k, q: 0.5, ...env, pan: -0.1 });
+                        note(at, n, d, 0.02 * g, { type: 'sine', ...env, vib, pan: -0.1 });
+                    } else if (lead === 'clarinet') {
+                        note(at, n, d, 0.03 * g, { type: 'square', cutoff: 950, q: 0.5, ...env, vib, pan: 0.15 });
+                    } else if (lead === 'choir') {
+                        [-9, 0, 9].forEach((dt, i) => note(at, n, d, 0.027 * g, { type: 'triangle', detune: dt, cutoff: 1100, q: 0.5, ...env, attack: Math.min(0.24, d * 0.4), vib, pan: (i - 1) * 0.35, low: i > 0 }));
+                    } else if (lead === 'hum') {
+                        note(at, n, d, 0.05 * g, { type: 'sine', ...env, vib, pan: 0.1 });
+                        note(at, n - 12, d, 0.022 * g, { type: 'triangle', cutoff: 700, ...env, pan: -0.1 });
+                    } else {
+                        note(at, n, d, 0.02 * g, { type: 'sawtooth', detune: -7, cutoff: 1400 + 500 * k, q: 0.5, ...env, vib, pan: 0.2 });
+                        note(at, n, d, 0.02 * g, { type: 'sawtooth', detune: 7, cutoff: 1400 + 500 * k, q: 0.5, ...env, vib, pan: -0.05 });
+                    }
+                    if (c.mel.harm && c.harmGain > 0.02) note(at, c.mel.harm, d, 0.022 * c.harmGain * g, { type: 'sine', ...env, pan: -0.3, low: true });
                 }
             },
-            // The end of a section: a rim figure (one of two) and the next chord's top note leading in.
+            // The end of a section: the next chord's top note, swelling in over the last beat.
             fill(t, s, k, len, L, c) {
-                const ts = t + c.sw;
-                if (c.pick(2, 5) === 0 ? (s === 12 || s === 14 || s === 15) : (s === 13 || s === 14)) perc(ts, 0.045, { f: 1800, q: 7, len: 0.035, rev: 0.35, pan: -0.2 });
-                if (s === 14) note(ts, c.next.v[c.next.v.length - 1] + 12, len * 3, 0.03, { type: 'sine', fm: { ratio: 5.4, index: 0.6, decay: 0.045, sus: 0.02 }, rev: 0.4 });
+                if (s === 12) note(t + c.sw, c.next.v[c.next.v.length - 1] + 12, len * 5, 0.02, { type: 'sine', attack: len * 3, sus: 0.9, dec: 0.2, rel: 0.6, rev: 0.6 });
             }
         },
 
@@ -154,9 +113,9 @@
         // the same; a stealth song's `rest` lifts its tones while its drums are hushed.
         songs: {
             lab: [
-                {   // Morning Lab: major sevenths, the keys on the off-beats, a kalimba line that leans across the beat.
+                {   // Morning Lab: major sevenths, the upper strings on the off-beats, a string line that leans across the beat.
                     // B goes to the relative minor and comes home through a borrowed chord (F minor: the iv of C).
-                    name: 'Morning Lab', lvl: 0.92, scale: ION, tonic: 3, oct: -1,
+                    name: 'Morning Lab', lvl: 0.76, scale: ION, tonic: 3, oct: -1,
                     chords: { A: ['Cmaj7', 'Am7', 'Fmaj7', 'G6', 'Cmaj7', 'Em7', 'Fmaj7', 'Gsus4'], B: ['Am7', 'Am7', 'Dm9', 'G7sus4', 'Cmaj7', 'Fmaj7', 'Fm6', 'G6'] },
                     bass: { A: 'r......r..f.....', B: 'r.....f...r..t..' }, comp: { A: [6, 14], B: [6, 11] },
                     mel: {
@@ -166,10 +125,9 @@
                     form: [['intro', 4, { mel: null, drums: 'none' }], ['A', 8], ['B', 8, { chords: 'B' }], ['A', 8, { harm: true }],
                         ['breathe', 4, { mel: null, drums: 'none', bassOn: false, fill: false, lift: -0.2 }], ['B', 8, { chords: 'B' }], ['A', 8], ['out', 4, { mel: null, drums: 'sparse', fill: false }]]
                 },
-                {   // Window Seat: a slow waltz in C at 88, straight: the bass on one, warm keys swelling on two, a soft
-                    // flute for the tune and almost no drums. Eight bars, then six that wander and come home.
-                    name: 'Window Seat', lvl: 1.21, bpm: 88, steps: 12, swing: 0, scale: ION, tonic: 3, oct: -1, lead: 'flute', compVoice: 'warm',
-                    kit: { kick: 'x...........', snare: '............', hat: '....o...o...' },
+                {   // Window Seat: a slow waltz in C at 88, straight: the bass on one, strings swelling on two, a
+                    // flute for the tune. Eight bars, then six that wander and come home.
+                    name: 'Window Seat', lvl: 0.97, bpm: 88, steps: 12, swing: 0, scale: ION, tonic: 3, oct: -1, lead: 'flute',
                     chords: { A: ['Cmaj7', 'Em7', 'Fmaj7', 'G6', 'Am7', 'Fmaj7', 'G7sus4', 'Cmaj7'], B: ['Am7', 'Em7', 'Fmaj7', 'Cmaj7', 'Dm7', 'G6'] },
                     bass: { A: 'r...........', B: 'r.......t...' }, comp: [4],
                     mel: {
@@ -181,11 +139,10 @@
                 }
             ],
             server: [
-                {   // Gentle Climb: 100 and straight, unhurried: a kick on one and the "and" of three, a rim once a bar, a
-                    // round electric piano carrying the tune over minor ninths; the longest song here.
-                    name: 'Gentle Climb', lvl: 0.93, bpm: 100, swing: 0, scale: AEOL, lead: 'ep', compVoice: 'warm', chords: ['Am9', 'Fmaj7', 'Cadd9', 'G6', 'Dm9', 'Fmaj7', 'Cadd9', 'Esus4'],
-                    kit: { kick: 'x.........x.....', snare: '............o...', hat: '..o...o...o...o.' },
-                    bass: 'r......r..f.....', comp: [3, 10],
+                {   // Gentle Climb: 100 and straight, unhurried: a horn carrying the tune over minor ninths; the longest
+                    // song here.
+                    name: 'Gentle Climb', lvl: 0.79, bpm: 100, swing: 0, scale: AEOL, lead: 'horn', chords: ['Am9', 'Fmaj7', 'Cadd9', 'G6', 'Dm9', 'Fmaj7', 'Cadd9', 'Esus4'],
+                    bass: 'r.........f.....', comp: [3, 10],
                     mel: {
                         A: "5 - 3 - 2 - 3 - | 1 - - - 3 - 5 - | 4 - 3 - 2 - 5, - | 2 - - - 7, - - .",
                         B: "1' - 7 - 5 - 3 - | 5 - - - 3 - 1 - | 2 - 3 - 5 - 7 - | 5 - - - 2' - - - | 1' - - - 6 - 4 - | 3 - 5 - 1' - 7 - | 5 - 3 - 2 - 1 - | 2 - - - - - . ."
@@ -193,12 +150,11 @@
                     form: [['intro', 4, { mel: null, drums: 'sparse' }], ['A', 8], ['A', 8, { harm: true }], ['B', 8], ['break', 4, { mel: 'A', melGain: 0.7, drums: 'none', bassOn: false, fill: false }],
                         ['build', 4, { mel: 'A', melGain: 0.85, drums: 'sparse', entry: false }], ['B', 8, { lift: 0.08 }], ['A', 8], ['B', 8], ['A', 8, { harm: true, lift: 0.1 }], ['out', 4, { mel: null, fill: false }]]
                 },
-                {   // Glide Path: a slow bossa at 104 in A Dorian: the kick's sway, three quiet rims, soft shakers, warm keys
-                    // and a hummed tune over a two-chord vamp. Short.
-                    name: 'Glide Path', lvl: 0.83, bpm: 104, swing: 0, scale: DOR, lead: 'hum', compVoice: 'warm',
-                    kit: { kick: 'x..x....x..x....', snare: '...o..o.....o...', hat: 'o.o.o.o.o.o.o.o.' },
+                {   // Glide Path: 104 in A Dorian: a hummed tune over a two-chord vamp, the strings swaying between them.
+                    // Short.
+                    name: 'Glide Path', lvl: 0.86, bpm: 104, swing: 0, scale: DOR, lead: 'hum',
                     chords: { A: ['Am7', 'D9', 'Am7', 'D9'], B: ['Am7', 'D9', 'Am7', 'D9', 'Fmaj7', 'G', 'Am7', 'Esus4'] },
-                    bass: 'r..r....f..f....', comp: [0, 10],
+                    bass: 'r.......f.......', comp: [0, 10],
                     mel: {
                         A: "5 - 7 - 1' - 7 5 | 6 - 5 - 4 - 1 - | 5 - 7 - 2' - 1' 7 | 6 - - - 4 - - .",
                         B: "1' - - 7 5 - 3 - | 4 - 6 - 1' - 3' - | 2' - 1' - 7 - 5 - | 6 - - - 3' - - - | 3' - 1' - 7 - 5 - | 4' - - - 2' - 7 - | 1' - 5 - 3 - 1 - | 2 - - - 4 - - -"
@@ -207,21 +163,21 @@
                 }
             ],
             snare: [
-                {   // Tiptoe: a shuffle at 84, every second 16th late by a third: a little glass bell stepping down a chord
-                    // a bar, the bass on one and three.
-                    name: 'Tiptoe', lvl: 1.07, rest: 1.32, slvl: 0.85, srest: 1.31, bpm: 84, swing: 0.33, scale: AEOL, lead: 'glass', chords: ['Am9', 'Gsus2', 'Fmaj7', 'Esus4'],
-                    bass: 'r.......f.......', comp: [6, 14], kick: 'x.......o.......', hush: 0.5, tick: '...o...x...o..o.', cut: 0.8,
+                {   // Tiptoe: 84, every second 16th late by a third: a clarinet stepping down a chord a bar, the bass
+                    // on one and three.
+                    name: 'Tiptoe', lvl: 0.91, rest: 1.32, slvl: 0.85, srest: 1.31, bpm: 84, swing: 0.33, scale: AEOL, lead: 'clarinet', chords: ['Am9', 'Gsus2', 'Fmaj7', 'Esus4'],
+                    bass: 'r.......f.......', comp: [6, 14], cut: 0.8,
                     mel: {
                         A: "5 . 3 . 1 . . . | 4 . 2 . 7, . . . | 3 . 1 . 6, . . . | 2 - - - . . 5, .",
                         B: "1 . 3 . 5 . 7 . | 4 - - - 2 - - - | 6 . 5 . 3 . 1 . | 2 - - - 5, - - - | 1' . 7 . 5 . 3 . | 4 - - - 7, - - - | 3 . 5 . 6 . 1' . | 7 - - - 5 - - -"
                     },
                     form: [['in', 2, { mel: null }], ['A', 4], ['A', 4], ['B', 8], ['wait', 2, { mel: null, bassOn: false, fill: false }], ['A', 4], ['B', 8], ['A', 4, { harm: true }]]
                 },
-                {   // Hushed Channel: a lullaby at 80 in F Lydian: no chords struck, only the pad, and the electric piano
-                    // alone in five-bar phrases over a Gsus4 that never lands.
-                    name: 'Hushed Channel', lvl: 1.05, rest: 1.26, slvl: 0.85, srest: 1.31, bpm: 80, swing: 0, scale: LYD, tonic: 8, oct: -1, lead: 'ep', compVoice: 'none',
+                {   // Hushed Channel: a lullaby at 80 in F Lydian: only the held strings, and a choir alone in five-bar
+                    // phrases over a Gsus4 that never lands.
+                    name: 'Hushed Channel', lvl: 0.92, rest: 1.26, slvl: 0.85, srest: 1.31, bpm: 80, swing: 0, scale: LYD, tonic: 8, oct: -1, lead: 'choir', compVoice: 'none',
                     chords: { A: ['Fmaj7', 'Fmaj7', 'Em7', 'Dm9', 'Gsus4'], B: ['Am7', 'Fmaj7', 'Dm9', 'Em7', 'Gsus4'] },
-                    bass: 'r.....r.........', comp: [10], kick: 'x.....x.........', hush: 0.5, tick: '.o...o...o...x..', cut: 0.8,
+                    bass: 'r.....r.........', comp: [10], cut: 0.8,
                     mel: {
                         A: "5 - - - 3 - - - | 7 - - - - - 5 - | 4 - - - 2 - - - | 6 - - - 3 - 1 - | 2 - - - - - . .",
                         B: "3 - 5 - 7 - - - | 7 - - - 5 - 3 - | 6 - - - 3 - - - | 2 - 4 - 7 - - - | 6 - - - 5 - - ."

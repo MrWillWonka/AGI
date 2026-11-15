@@ -8,7 +8,7 @@ Written by `node tools/audio/coverage.js` from the engine and the theme files. D
 |---|---|---|---|---|---|---|
 | Classic | 124 | straight | 4.13 | fitted to the chord | **kick**, **bass**, pad, mel, off, clap, sixteenth, harm, arp | reverb 1.3 s, delay 3 steps, width 0.8 |
 | Dark | 130 | straight | 4.33 | the track's key (tension kept) | **kick**, **bass**, pad, off, clap, sixteenth, mel, arp, harm | reverb 0.5 s, delay 3 steps, width 0.5 |
-| Soft | 93 | 20% of a 16th | 3.10 | fitted to the chord | **keys**, **pad**, bass, mel, off, kick, harm, clap, sixteenth, arp | reverb 1.2 s, delay 4 steps, width 1 |
+| Soft | 93 | 20% of a 16th | 3.10 | fitted to the chord | **keys**, **pad**, bass, mel, off, kick, harm, clap, sixteenth, arp | reverb 2.8 s, delay 4 steps, width 1 |
 | Ominous | 62 | straight | 4.13 | the track's key (tension kept) | **bass**, **pad**, mel, off, knock, harm, kick, clap, sixteenth, arp | reverb 3.2 s, delay 6 steps, width 1 |
 | Retro | 144 | straight | 4.80 | fitted to the chord | **mel**, **bass**, **kick**, pad, off, clap, harm, sixteenth, arp | width 0.6 |
 
@@ -31,11 +31,11 @@ Bold layers are always in. Income is 4.13 repeats a second in every track (engin
 | Dark | snare | Black Box | 108 | 4/4 | bell, own kit | 35 | 1:18 | in 2 · A 6 · B 6 · wait 3 · A 6 · B 6 · A 6 | Variety pass: rewritten slower, struck metal in 6-bar phrases |
 | Dark | snare | Tripwire | 150 | 4/4 | stab, own kit | 38 | 1:01 | A 4 · A 4 · B 8 · wait 2 · A 4 · A 4 · B 8 · A 4 | Variety pass: rewritten fast in G Dorian, broken kick, square stabs |
 | Soft | lab | Morning Lab | 93 swung | 4/4 | the track's | 52 | 2:14 | intro 4n · A 8 · B 8 · A 8 · breathe 4n · B 8 · A 8 · out 4s | Kept (the owner likes it) |
-| Soft | lab | Window Seat | 88 | 3/4 | flute, own kit | 52 | 1:46 | A 8 · A 8 · B 6 · A 8 · still 4n · B 6 · A 8 · out 4s | Variety pass, then softened: a slow waltz, a soft flute, warm keys, almost no drums |
-| Soft | server | Gentle Climb | 100 | 4/4 | ep, own kit | 72 | 2:53 | intro 4s · A 8 · A 8 · B 8 · break 4n · build 4s · B 8 · A 8 · B 8 · A 8 · out 4 | Variety pass, then softened: melodies kept; straight and unhurried, a round electric piano leads; the long one |
-| Soft | server | Glide Path | 104 | 4/4 | hum, own kit | 36 | 1:23 | A 4 · A 4 · B 8 · A 4 · vamp 4 · B 8 · A 4 | Variety pass, then softened: melodies kept; a slow bossa, warm keys, a hummed tune; short |
-| Soft | snare | Tiptoe | 84 swung | 4/4 | glass | 36 | 1:43 | in 2 · A 4 · A 4 · B 8 · wait 2 · A 4 · B 8 · A 4 | Variety pass, then softened: a slow shuffle, a small soft bell, a chord a bar |
-| Soft | snare | Hushed Channel | 80 | 4/4 | ep | 22 | 1:06 | A 5 · B 5 · wait 2 · A 5 · B 5 | Variety pass: rewritten as a lullaby in F Lydian, 5-bar phrases, no struck chords |
+| Soft | lab | Window Seat | 88 | 3/4 | flute | 52 | 1:46 | A 8 · A 8 · B 6 · A 8 · still 4n · B 6 · A 8 · out 4s | Third listen: a slow waltz, no drums, strings and a flute |
+| Soft | server | Gentle Climb | 100 | 4/4 | horn | 72 | 2:53 | intro 4s · A 8 · A 8 · B 8 · break 4n · build 4s · B 8 · A 8 · B 8 · A 8 · out 4 | Third listen: melodies kept; no drums, strings and a horn; the long one |
+| Soft | server | Glide Path | 104 | 4/4 | hum | 36 | 1:23 | A 4 · A 4 · B 8 · A 4 · vamp 4 · B 8 · A 4 | Third listen: melodies kept; no drums, strings and a hummed tune; short |
+| Soft | snare | Tiptoe | 84 swung | 4/4 | clarinet | 36 | 1:43 | in 2 · A 4 · A 4 · B 8 · wait 2 · A 4 · B 8 · A 4 | Third listen: no drums or ticks, strings and a clarinet, a chord a bar |
+| Soft | snare | Hushed Channel | 80 | 4/4 | choir | 22 | 1:06 | A 5 · B 5 · wait 2 · A 5 · B 5 | Third listen: a lullaby in F Lydian, 5-bar phrases, held strings and a choir |
 | Ominous | lab | Vigil | 62 | 4/4 | the track's | 44 | 2:50 | drone 4n · A 8n · A 8s · B 8 · still 4n · A 8 · out 4n | Kept (the owner likes it) |
 | Ominous | lab | Static | 50 | 4/4 | bell | 41 | 3:17 | A 7n · B 5n · void 2n · A 7s · B 5 · A 7 · B 5s · out 3n | Variety pass: rewritten with no pulse, heard from E (Phrygian dominant), the tune tolled on a bell, phrases of 7 and 5 bars |
 | Ominous | server | Descent | 92 | 4/4 | choir, own kit | 35 | 1:31 | A 4s · A 4 · B 6 · A 4 · A 4 · void 2n · B 6 · A 4 · out 1n | Variety pass: rewritten as a march: bowed low strings, a limping kick, voices, 4- and 6-bar phrases |
@@ -44,8 +44,8 @@ Bold layers are always in. Income is 4.13 repeats a second in every track (engin
 | Ominous | snare | Lights Out | 62 | 4/4 | the track's | 30 | 1:56 | A 4 · B 8 · wait 2 · A 4 · B 8 · A 4 | Kept (the owner likes it) |
 | Retro | lab | Pixel Desk | 144 | 4/4 | the track's | 54 | 1:30 | intro 4 · A 8 · A 8 · B 8 · A 8 · B 8 · A 8↑2 · turn 2 | Kept (the owner likes it) |
 | Retro | lab | Save Point | 96 | 3/4 | tri, own kit | 24 | 0:45 | A 8 · B 6 · A 8 · turn 2 | Done over twice: a lullaby in three, the triangle low and plain, no kick; a short loop |
-| Retro | server | Boss Rush | 152 | 4/4 | soft | 50 | 1:19 | intro 2 · A 4 · A 4 · B 6 · A 4 · break 4n · B 6 · A 4 · A 4↑2 · B 6↑2 · A 4↑2 · out 2 | Done over twice: D Dorian, a riff in 8ths on a filtered square in the middle register, 4- and 6-bar phrases |
-| Retro | server | Turbo | 132 swung | 4/4 | the track's | 33 | 1:00 | intro 1 · A 4 · A 4 · B 4 · A 4 · B 4 · A 4↑2 · B 4↑2 · A 4↑2 | Done over twice: an easy shuffle in G Mixolydian, the top filtered off; three short laps |
+| Retro | server | Boss Rush | 138 | 4/4 | soft | 50 | 1:27 | intro 2 · A 4 · A 4 · B 6 · A 4 · break 4n · B 6 · A 4 · A 4↑2 · B 6↑2 · A 4↑2 · out 2 | Done over twice: D Dorian, a riff in 8ths on a filtered square in the middle register, 4- and 6-bar phrases |
+| Retro | server | Turbo | 120 swung | 4/4 | the track's | 33 | 1:06 | intro 1 · A 4 · A 4 · B 4 · A 4 · B 4 · A 4↑2 · B 4↑2 · A 4↑2 | Done over twice: an easy shuffle in G Mixolydian, the top filtered off; three short laps |
 | Retro | snare | Sneaking Mission | 108 | 5/4 | soft, own kit | 32 | 1:29 | in 2 · A 4 · B 4 · A 4 · wait 2 · B 4 · A 4 · B 4 · A 4 | Done over twice: 5/4 (3 + 3 + 2 + 2), a filtered square, never high |
 | Retro | snare | Hide and Seek | 144 | 4/4 | the track's | 44 | 1:13 | A 8 · B 8 · wait 4 · A 8 · B 8 · A 8 | Kept (the owner likes it) |
 
