@@ -615,3 +615,17 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
 - **Not reproduced:** the Training field only about 180 px tall on the owner's 3072 px screen, cutting the Skill
   learned card off. The same saved state gives a 526 px field here, after a window resize and after leaving Packet
   Snare mid-run too.
+
+## 2026-11-15: every snapshot from the day, gone through (17 pictures)
+
+- **Fixed since they were taken:** the Sell buttons, the old orb and its straight line, "Back to the Lab" with no
+  button, the long Parcel list, the Mining Rig card's text in a one-word column (11:21), two Upgrades buttons in
+  Training, the line over the app names.
+- **Seen in the pictures, not rechecked on today's build, the owner's to call:** achievement and delivery toasts land
+  on the orb in the Lab (10:10, 10:14); the dock line's bubble covers the dock it describes (10:12); a click's "+2"
+  floats over the AI's words (10:14); the assistant's sheet has "Open Parcel" (against "the AI's buttons never open an
+  app"); in Parcel the Graphics Card and Mining Rig cards are laid out differently.
+- **In the pictures, not reproduced from the same saved state (also at 1.25 display scaling):** from 10:13 on the page
+  has its own scrollbar; the old minimap shows in the Lab as the monitor arrives (10:14); the call's words sit far
+  right with no button showing (10:16); the Training field is about 180 px tall (15:08). All four look like a layout
+  made for another window size; that session's window was 798x730, then 3072x1559, then 1920x911.
