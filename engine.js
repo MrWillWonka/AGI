@@ -520,6 +520,10 @@
     // (`ringCardsOpen`), the first RING_CARD_PRICE dollars and each RING_CARD_GROWTH times the last; M0M's call comes
     // then, with RING_DEPOSIT dollars "to start automating".
     const RING_CALL_CP = 25, RING_DEPOSIT = 100, DESK_PRICES = [10, 15, 15, 20], RING_SERVER_PRICE = 400, RING_SPRINT_RP = 35, RING_CARD_PRICE = 10, RING_CARD_GROWTH = 1.25, RING_FEED_RUNS = 4;
+    // The phone has a graphics card in it, and the Desktop Tower comes with one (the owner's call, 2026-11-14): free
+    // cards, worked out here and never stored or paid for (`levels.cpu` stays the cards bought). The phone's starts
+    // working once the Lab has been opened.
+    const ringFreeCards = s => (!ring ? 0 : (s.intro['ring:labOpened'] || (s.stats.clicks || 0) > 0 ? 1 : 0) + ((s.levels.keyboard || 0) >= 1 ? 1 : 0));
     const ringCardsOpen = s => ring && (s.levels.keyboard || 0) >= RING_DESK && ((s.feed && s.feed.stats && s.feed.stats.sessions) || 0) >= 1;
     const feedOpen = s => ring && (!!s.intro['ring:feed'] || !!s.intro['ring:feedIntro'] || ((s.feed && s.feed.stats && s.feed.stats.sessions) || 0) > 0);
     const RING_SERVER = { name: 'Server', flavor: 'One server. Your AI needs somewhere to train.' };
@@ -1500,7 +1504,7 @@
         const hardwareRates = {};
         let cpPerSec = 0;
         for (const up of HARDWARE) {
-            const n = L(up.id);
+            const n = L(up.id) + (up.id === 'cpu' ? ringFreeCards(s) : 0);
             const each = up.cps * hardwareDoubling(n) * hardwareMult;
             hardwareRates[up.id] = { each, total: each * n, nextDoubling: HARDWARE_DOUBLINGS.find(t => n < t) || null };
             cpPerSec += each * n;
@@ -3697,7 +3701,7 @@
     }
 
     return {
-        RING_STUCK_RUNS, RING_SURGE_SHARE, stuckOffer, takeSurge, passSurge, RING_SERVER_PRICE, RING_SPRINT_RP, RING_CALL_CP, RING_DEPOSIT, DESK_PRICES, RING_CARD_PRICE, RING_CARD_GROWTH, RING_FEED_RUNS, ringCardsOpen, feedOpen, RING_CP_PER_DOLLAR, sellCompute, deskCash, funded, fundStep, fundDecide,
+        RING_STUCK_RUNS, RING_SURGE_SHARE, stuckOffer, takeSurge, passSurge, RING_SERVER_PRICE, RING_SPRINT_RP, RING_CALL_CP, RING_DEPOSIT, DESK_PRICES, RING_CARD_PRICE, RING_CARD_GROWTH, RING_FEED_RUNS, ringCardsOpen, ringFreeCards, feedOpen, RING_CP_PER_DOLLAR, sellCompute, deskCash, funded, fundStep, fundDecide,
         feedStart, feedStock, feedLeave, feedCarry, feedPick, feedMark,
         SAVE_VERSION, newPlayer, cleanPlayer, signIn, mailFill, WELCOME_FINAL, setRing, isRing, RING_DESK, deskLevels, deskDone, RING_CLOCK, RING_CLOCK_GROWTH, RING_CLOCK_MIN, snareClock, snarePayClock, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
         versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, startBreakCountdown, WALL_SURGE_RUNS, SURGE_POWER, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, ENDINGS, ending, recordLegPower, legPower, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,

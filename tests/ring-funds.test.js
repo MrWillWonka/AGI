@@ -114,3 +114,22 @@ test('the ring: compute is sold for money in whole dollars, and Graphics Cards c
     assert.equal(E.sellCompute(E.defaultState(Date.now()), 500), 0);
     E.setRing(true);
 });
+
+test('the ring: the phone has a graphics card in it and the tower comes with one, free and unpriced', () => {
+    const s = game();
+    assert.equal(E.ringFreeCards(s), 0, 'nothing runs before the Lab is opened');
+    assert.equal(E.derive(s).cpPerSec, 0);
+    s.intro['ring:labOpened'] = true;
+    assert.equal(E.ringFreeCards(s), 1);
+    const one = E.derive(s).cpPerSec;
+    assert.ok(one > 0, 'the phone makes compute on its own');
+    s.stats.clicks = 30; E.evaluate(s); s.stats.cashSold = E.DESK_PRICES[0];
+    assert.equal(E.buy(s, 'keyboard').ok, true);
+    assert.equal(E.ringFreeCards(s), 2);
+    assert.equal(E.derive(s).cpPerSec, 2 * one);
+    assert.equal(s.levels.cpu || 0, 0, 'no card was bought');
+    assert.equal(E.deskCash(s), 0, 'and none is charged for');
+    assert.equal(E.upgradeCost(E.UPGRADE_BY_ID.cpu, 0).cash, E.RING_CARD_PRICE, 'the first one bought is still the first price');
+    E.setRing(false);
+    assert.equal(E.ringFreeCards(s), 0);
+});

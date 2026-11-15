@@ -2935,7 +2935,7 @@ window.AGI = (function () {
                     : i.many ? (i.full ? el('span', { class: 'shop-later', text: 'No room for more yet' }) : buy())
                     : i.coming ? el('span', { class: 'shop-coming', text: 'On its way' })
                     : !i.next ? el('span', { class: 'shop-later', text: 'Next in line' }) : buy();
-                const does = i.many ? `${i.does} · you own ${i.own}${i.onWay ? `, ${i.onWay} on the way` : ''}` : i.does;
+                const does = i.many ? `${i.does} · you own ${i.own + E.ringFreeCards(state)}${i.onWay ? `, ${i.onWay} on the way` : ''}` : i.does;
                 return el('article', { class: `shop-item${i.owned ? ' owned' : ''}${i.next && !short ? ' next' : ''}` }, [art,
                     el('div', { class: 'shop-info' }, [el('h3', { text: i.name }), el('p', { class: 'shop-about', text: i.about }), el('p', { class: 'shop-does', text: does })]),
                     el('div', { class: 'shop-side' }, [el('span', { class: 'shop-price', text: `$${E.format(i.price)}` }), action])]);
