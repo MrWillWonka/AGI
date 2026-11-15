@@ -603,3 +603,15 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   beats are set. The glow still follows compute. The playground's sheet steps through forms 1 to 4 to look at them.
 - **Open, for after the rebuild plan:** the three beats (my suggestions were the first boss falling, sector 9's
   boss, and General AI at the ending).
+
+## 2026-11-15: from the owner's 3 PM snapshots (two fixes, one not reproduced)
+
+- **Two Upgrades buttons in Training:** Packet Snare's bar button was only put away while its own bay was open; on the
+  device an app opens straight from another, so it stayed. `render()` now hides it outside the bay. Replayed from the
+  owner's saved state: one button.
+- **The AI's line over the app names:** pointing at an app in the home column, the line ran along the top and down
+  through Parcel, Packet Snare and The Feed's names. A target further to the side than up or down is now reached down
+  first, then across into its side (`toBox` in `assistThreadTick`). Not seen in a browser yet.
+- **Not reproduced:** the Training field only about 180 px tall on the owner's 3072 px screen, cutting the Skill
+  learned card off. The same saved state gives a 526 px field here, after a window resize and after leaving Packet
+  Snare mid-run too.
