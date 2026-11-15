@@ -16,10 +16,11 @@ window.AGI = (function () {
     const RING_PLAY = location.hash === '#playground';
     // The three links (the owner's call, 2026-11-15). The plain link is the PLAYTEST: the ring, on a save and a playtest
     // log kept per playtest number (`E.PLAYTEST_BUILD`), so nothing from an older build comes along. `#ring` (or `#dev`)
-    // is for DEV work: the ring on the save it always had, never started over. `#playground` is above. The old game is
-    // `#classic` (and `#bays`, `#snare`, and the test doors `#debug`, `#evals`, `#feed`), on the dev save as before.
-    const PLAYTEST = (location.hash === '' || location.hash === '#') && !SNARE_DIRECT;
+    // is for DEV work: the ring on the save it always had, never started over. `#playground` is above. The old game has
+    // no link of its own (the owner's call: archived): any other address is the playtest. Only the old test doors still
+    // open it (`#bays`, `#snare`, `#debug`, `#evals`, `#feed`), on the dev save as before.
     const RING_DEV = location.hash === '#ring' || location.hash === '#dev';
+    const PLAYTEST = !RING_DEV && !RING_PLAY && !SNARE_DIRECT && !['#bays', '#debug', '#evals', '#feed'].includes(location.hash);
     if (PLAYTEST || RING_DEV || RING_PLAY) window.AGIEngine.setRing(true);
     const BUILD_LABEL = PLAYTEST ? `Playtest ${E.PLAYTEST_BUILD} · ${E.BUILD}` : RING_PLAY ? `Playground · ${E.BUILD}` : E.BUILD;
     const PLAYTEST_LOG_KEY = PLAYTEST ? `agiPlaytest.pt${E.PLAYTEST_BUILD}` : RING_PLAY ? 'agiPlaytest.playground' : undefined;

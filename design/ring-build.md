@@ -298,8 +298,9 @@ older build, a playground, and a version for dev work.
   publishes a new playtest.
 - **`#playground`:** the ring with everything open, on its own save.
 - **`#ring` (or `#dev`): dev work.** The ring on the save it always had; never started over.
-- **`#classic`:** the old game (with `#bays`, `#snare` and the test doors), on the dev save as before.
+- **The old game:** archived, no link of its own (the owner's call, later that day): any other address opens the
+  playtest. Only the old test doors (`#bays`, `#snare`, `#debug`, `#evals`, `#feed`) still open it, on the dev save.
 
 Not done: there is no public address yet (the Tailscale address only reaches the owner's devices; GitHub Pages is not
 turned on). The old Packet Snare review tools (`tools/review/kit.js`, `report.js`, `layout.js`, `coaches.js`) still
-load the plain link, which is now the ring; they need `#classic` before they are used again.
+load the plain link, which is now the ring; they need one of the old test doors before they are used again.
