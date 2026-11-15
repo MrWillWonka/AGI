@@ -175,8 +175,9 @@ different phrasings and mixes of melody, harmony and choirs, "a dreamy soundscap
   its own lead (`leadIn`), unused for now.
 - **The soundtrack page carries reference versions** (`tools/audio/album.js`, `alts` on a track): every song in Simple
   sounds, and each Packet Snare song before you are spotted (intensity 0.12), at 64 kbit/s. The owner named them:
-  **Standard** (Simple sounds, picked to begin with), **Stealth** (before spotted) and **Spotted** (the full one;
-  **Full** on songs outside Packet Snare), a selector under each song that always shows which is picked.
+  **Standard** (the full one, picked to begin with) and **Simple** (Simple sounds); for Packet Snare **Stealth**
+  (before spotted, picked to begin with), **Spotted** (the full one) and Simple: a selector under each song that
+  always shows which is picked.
 
 ## Open questions for the owner
 

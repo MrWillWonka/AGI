@@ -145,15 +145,20 @@ const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls)
 
 const tracks = ALBUM ? [ALBUM.sampler, ...ALBUM.tracks] : [];
 let at = -1, saver = null;
-const sel = [];      // the version picked for each song: 'simple' (Standard, the first pick), 'calm' (Stealth) or null (the full one)
+// A song's versions, in the order shown; the first is picked to begin with. '' is the full recording (Standard; Spotted
+// for a Packet Snare song), 'calm' the Packet Snare song before you are spotted (Stealth), 'simple' Simple sounds.
+const sel = [];
+const VERSIONS = t => (t.area === 'snare' ? [['calm', 'Stealth'], ['', 'Spotted'], ['simple', 'Simple']] : [['', 'Standard'], ['simple', 'Simple']])
+    .filter(([k]) => !k || (t.alts || []).some(a => a.key === k)).map(([key, label]) => ({ key, label }));
 const version = i => { const t = tracks[i]; return (sel[i] && (t.alts || []).find(a => a.key === sel[i])) || null; };
+const versionName = i => { const v = VERSIONS(tracks[i]); return v.length > 1 ? (v.find(x => x.key === (sel[i] || '')) || v[0]).label : ''; };
 const rows = [];
 
 function build() {
     if (!ALBUM) { $('sub').textContent = 'No tracks were built into this page.'; return; }
     const mins = Math.round(ALBUM.tracks.reduce((a, t) => a + t.seconds, 0) / 60);
     $('sub').textContent = `${ALBUM.tracks.length} songs across five tracks, ${mins} minutes. Every note is synthesised by the game as it plays: these are recordings of its engine.`;
-    $('note').textContent = `Recorded ${ALBUM.made} with every part in, as on a fast training run late in the game, and raised to a normal listening level (the game itself plays quieter). Each song is one pass through its form. Packet Snare's songs are the stealth versions, here after being spotted. Each song has versions to pick from: Standard (the stripped version the game plays with Simple sounds on, picked to begin with) and Full; a Packet Snare song has Standard, Stealth (before you are spotted) and Spotted.`;
+    $('note').textContent = `Recorded ${ALBUM.made} with every part in, as on a fast training run late in the game, and raised to a normal listening level (the game itself plays quieter). Each song is one pass through its form. Packet Snare's songs are the stealth versions, here after being spotted. Each song has versions to pick from: Standard (the full recording) and Simple (the stripped version the game plays with Simple sounds on); a Packet Snare song has Stealth (before you are spotted), Spotted (the full recording) and Simple.`;
     const groups = [['all', [0]]];
     for (const k of Object.keys(ALBUM.themes)) groups.push([k, tracks.map((t, i) => t.theme === k ? i : -1).filter(i => i > 0)]);
     for (const [k, ids] of groups) {
@@ -176,9 +181,10 @@ function build() {
             li.append(play, dl);
             const chips = {};
             if (t.alts && t.alts.length) {
-                sel[i] = t.alts[0].key;
+                const vs = VERSIONS(t);
+                sel[i] = vs[0].key || null;
                 const box = el('div', 'alts');
-                for (const x of [...t.alts, { key: '', label: t.area === 'snare' ? 'Spotted' : 'Full' }]) {
+                for (const x of vs) {
                     const b = el('button', 'alt', x.label);
                     b.setAttribute('aria-label', `${t.name}: the ${x.label.toLowerCase()} version`);
                     b.addEventListener('click', () => { const same = at === i && (sel[i] || '') === x.key; sel[i] = x.key || null; same ? toggle() : start(i); });
@@ -206,7 +212,7 @@ function start(i) {
     at = (i + tracks.length) % tracks.length;
     const t = tracks[at], th = THEMES[t.theme], x = version(at);
     $('deck').style.setProperty('--a', th.a);
-    $('nowTitle').textContent = t.name + (t.alts && t.alts.length ? ` (${(x ? x.label : t.area === 'snare' ? 'Spotted' : 'Full').toLowerCase()})` : '');
+    $('nowTitle').textContent = t.name + (versionName(at) ? ` (${versionName(at).toLowerCase()})` : '');
     $('nowMeta').innerHTML = '';
     $('nowMeta').append(el('b', null, th.label), ` · ${ROOMS[t.area] || t.area}${t.bpm ? ' · ' + t.bpm + ' BPM' : ''}`);
     $('dur').textContent = clock(t.seconds);

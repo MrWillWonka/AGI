@@ -52,7 +52,7 @@ const START = 0.55;      // the music's first downbeat is 0.6 s into a render
         const e = encode(raw, path.join(out, file), START, song.seconds, 1.2);
         // The reference versions: Simple sounds, and for Packet Snare the song before detection.
         const alts = [];
-        for (const [key, label, o] of [['simple', 'Standard', { simple: true }], ...(area === 'snare' ? [['calm', 'Stealth', { intensity: 0.12 }]] : [])]) {
+        for (const [key, label, o] of [['simple', 'Simple', { simple: true }], ...(area === 'snare' ? [['calm', 'Stealth', { intensity: 0.12 }]] : [])]) {
             const ra = await R.render(s, R.PRESETS.song({ style, area, song: i + 1, seconds: START + song.seconds + 1, ...o }), raw, { measure: false });
             if (ra.faults.length) throw new Error(`${style} ${song.name} (${key}): ${ra.faults[0]}`);
             const f = file.replace('.mp4', `-${key}.mp4`), ea = encode(raw, path.join(out, f), START, song.seconds, 1.2, '64k');
