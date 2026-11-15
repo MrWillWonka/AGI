@@ -112,12 +112,17 @@
                 if (c.mel) {
                     // High notes sit further off (the owner's call: the high tune was too present): from the C above
                     // middle C upward a note is quieter, slower in and more in the hall, down to 0.4 an octave up.
-                    const d = Math.max(len * c.mel.len * 1.3, 0.6), at = c.mel.t, n = c.mel.n;
+                    // `low` (a spotted texture): once spotted the tune drops an octave to a cello.
+                    const low = sp > 0.5 && has('low') && c.mel.n - 12 >= 43;
+                    const d = Math.max(len * c.mel.len * 1.3, 0.6), at = c.mel.t, n = c.mel.n - (low ? 12 : 0);
                     const far = Math.max(0, Math.min(1, (n + 5 - 72) / 12)), g = c.melGain * (1 - 0.6 * far);
                     const env = { attack: Math.min(0.18 + 0.1 * far, d * 0.4), sus: 0.9, dec: 0.25, rel: 0.5 + 0.3 * far, rev: 0.55 + 0.35 * far };
                     const vib = c.mel.len >= 3 ? { rate: 4.8, depth: 8, delay: 0.3 } : null;
-                    const lead = (song.leadIn && song.leadIn[c.sec]) || (song.answer && c.barIn % 4 >= 2 ? song.answer : song.lead) || 'strings';
-                    if (lead === 'flute') {
+                    const lead = low ? 'cello' : (song.leadIn && song.leadIn[c.sec]) || (song.answer && c.barIn % 4 >= 2 ? song.answer : song.lead) || 'strings';
+                    if (lead === 'cello') {
+                        note(at, n, d, 0.075 * g, { type: 'triangle', cutoff: 700 + 200 * k, q: 0.5, ...env, attack: Math.min(0.22, d * 0.4), vib, pan: -0.2 });
+                        note(at, n, d, 0.008 * g, { type: 'sawtooth', cutoff: 900, q: 0.5, ...env, attack: Math.min(0.22, d * 0.4), pan: -0.2, low: true });
+                    } else if (lead === 'flute') {
                         note(at, n, d, 0.034 * g, { type: 'sine', ...env, rev: Math.max(env.rev, 0.8), vib, pan: 0.1 });      // the flute: well back in the hall, no octave over it
                     } else if (lead === 'horn') {
                         note(at, n, d, 0.07 * g, { type: 'triangle', cutoff: 800 + 300 * k, q: 0.5, ...env, pan: -0.1 });
@@ -213,7 +218,7 @@
             snare: [
                 {   // Tiptoe: in three at 66: a clarinet asks for two bars and a flute answers for two, a cello turning
                     // under them, the bass only holding.
-                    name: 'Tiptoe', lvl: 0.721, rest: 0.9, slvl: 0.85, srest: 1.31, bpm: 66, steps: 12, swing: 0, scale: AEOL, lead: 'clarinet', answer: 'flute', pedal: true, spotted: ['shiver', 'heart'],
+                    name: 'Tiptoe', lvl: 0.65, rest: 1, slvl: 0.85, srest: 1.31, bpm: 66, steps: 12, swing: 0, scale: AEOL, lead: 'clarinet', answer: 'flute', pedal: true, spotted: ['heart', 'low'],
                     inner: ['A', 'A2', 'A3', 'B', 'B2'], chords: ['Am9', 'Fmaj7', 'Dm9', 'Esus4'],
                     bass: 'r...........', cut: 0.8,
                     mel: {
@@ -224,7 +229,7 @@
                 },
                 {   // Hushed Channel: a lullaby at 80 in F Lydian: only the held strings, and a choir alone in five-bar
                     // phrases over a Gsus4 that never lands.
-                    name: 'Hushed Channel', lvl: 0.851, rest: 0.87, slvl: 0.85, srest: 1.31, bpm: 80, swing: 0, scale: LYD, tonic: 8, oct: -1, lead: 'choir', compVoice: 'none', inner: true, spotted: ['shiver', 'heart'],
+                    name: 'Hushed Channel', lvl: 0.749, rest: 0.98, slvl: 0.85, srest: 1.31, bpm: 80, swing: 0, scale: LYD, tonic: 8, oct: -1, lead: 'choir', compVoice: 'none', inner: true, spotted: ['heart', 'low'],
                     chords: { A: ['Fmaj7', 'Fmaj7', 'Em7', 'Dm9', 'Gsus4'], B: ['Am7', 'Fmaj7', 'Dm9', 'Em7', 'Gsus4'] },
                     bass: 'r.....r.........', comp: [10], cut: 0.8,
                     mel: {

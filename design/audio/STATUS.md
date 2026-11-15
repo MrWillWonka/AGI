@@ -189,9 +189,10 @@ different phrasings and mixes of melody, harmony and choirs, "a dreamy soundscap
 - **Stealth and spotted are different arrangements** (the owner's call: several sounded identical). Late in the game
   progress alone had brought every part in, so being spotted changed nothing. In Packet Snare the arrangement now
   follows the field: `S = 0.15·depth + (k − 0.05)` (elsewhere 0.6 and 0.6), and the tune plays at half level until
-  spotted. **Soft trembles** (the owner's call: going quiet when spotted, tried first, was wrong): its two
-  songs add `shiver` (the strings re-bowed on every step, eased in, nothing struck) and `heart` (the low strings
-  swelling twice a beat) once spotted (`spotted` on a song), and their stealth sits about 1.6 dB under. Classic's and Retro's `rest`/`srest` were lowered so
+  spotted. **Soft keeps low** (the owner's calls: going quiet when spotted was wrong, and
+  trembling strings, `shiver`, were tried next and set aside): once spotted its two songs add `heart` (the low
+  strings swelling twice a beat) and `low` (the tune drops an octave to a cello) (`spotted` on a song); their
+  stealth sits about 1.6 dB under. Classic's and Retro's `rest`/`srest` were lowered so
   stealth sits about 2 dB under spotted (it had come out 2 to 4 dB over); Dark and Ominous measure about level. The
   soundtrack page gains a Packet Snare song's two versions alike, so the difference is heard.
 
