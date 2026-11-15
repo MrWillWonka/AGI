@@ -4443,3 +4443,10 @@ body.device-laptop .assist-sheet { left: 16px; right: auto; width: 400px; bottom
 .assist-past { background: color-mix(in srgb, var(--text) 6%, transparent); color: var(--muted); border-radius: 6px; }
 .assist-past::before { content: '> '; color: color-mix(in srgb, var(--success) 60%, transparent); }
 @media (prefers-reduced-motion: reduce) { .assist-text::after, .assist-dot .assist-mark, .assist-dot.has .assist-mark { animation: none; } }
+/* The playtest's snapshot button in the status bar, and the survey's screenshots picker. */
+.status-snap { pointer-events: auto; width: 30px; height: 26px; margin: -4px 0; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: color-mix(in srgb, var(--bg) 70%, transparent); color: var(--muted); font: 600 0.8rem var(--font-mono); cursor: pointer; }
+.status-snap[hidden] { display: none; }
+.status-snap:active { color: var(--primary); border-color: var(--primary); }
+.survey-photos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 4px 0 10px; cursor: pointer; }
+.survey-photos-input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.survey-photos-note { font: 500 0.8rem var(--font-mono); color: var(--muted); }

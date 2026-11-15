@@ -1891,12 +1891,70 @@ window.AGI = (function () {
     }
 
     // The playtest log as text to copy (the artifact frame refuses downloads, like Export).
+    const playtestText = () => playtest.report({ build: E.BUILD, save: `v${E.SAVE_VERSION}, ${E.currentVersion(state)}, ${state.path.learned} skills`,
+        screen: `${innerWidth}×${innerHeight}${matchMedia('(pointer: coarse)').matches ? ', touch' : ''}`,
+        browser: navigator.userAgent });
+    // The playtest inbox (the owner's ask, 2026-11-14): served from the owner's own PC (tools/review/serve.js answers
+    // /__playtest/ping), the game sends its playtest log there by itself, every INBOX_EVERY_MS while it changes and when
+    // the page is left, and snapshots on request; they are saved under playtests/inbox/. Nothing is sent anywhere else,
+    // and never the sign-in's name or email (the log has neither; a snapshot's copy of the save leaves `player` out).
+    const INBOX_EVERY_MS = 60000;
+    let inboxOn = false, inboxSent = -1, inboxRun = '';
+    // A run's name in the inbox: when its log began (a cleared log starts a new file).
+    function inboxId() {
+        const d = new Date(playtest?.started || Date.now()), p = n => String(n).padStart(2, '0');
+        return (inboxRun = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`);
+    }
+    const inboxPost = (what, body) => fetch(`/__playtest/${what}`, { method: 'POST', body }).then(r => r.ok, () => false);
+    function inboxLog(leaving) {
+        if (!inboxOn || !playtest || (!leaving && playtest.events.length === inboxSent)) return;
+        inboxSent = playtest.events.length;
+        const url = `/__playtest/log?id=${inboxId()}`, text = playtestText();
+        if (leaving && navigator.sendBeacon) navigator.sendBeacon(url, new Blob([text], { type: 'text/plain' }));
+        else fetch(url, { method: 'POST', body: text, keepalive: leaving && text.length < 60000 }).catch(() => { inboxSent = -1; });
+    }
+    setTimeout(() => fetch('/__playtest/ping').then(r => (r.ok ? r.text() : '')).then(t => { inboxOn = t === 'playtest-inbox'; if (inboxOn) { inboxLog(); setInterval(inboxLog, INBOX_EVERY_MS); } }, () => {}), 3000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') inboxLog(true); });
+    addEventListener('pagehide', () => inboxLog(true));
+    // A snapshot: every canvas on screen (Packet Snare's field, The Feed's sand, Training's trail) as a picture, and the
+    // save as it stands, without the sign-in. Marked in the log (`snap`).
+    let snapBusy = false;
+    async function snapNow() {
+        if (!inboxOn || snapBusy) return;
+        snapBusy = true;
+        const id = inboxId(), t = Math.round(state.stats.playTime), app = E.isRing() ? ringAppNow() : ptPlace(), base = `snap-${String(t).padStart(5, '0')}-${String(app).replace(/[^A-Za-z0-9_-]/g, '_')}`;
+        let pictures = 0, ok = true;
+        for (const c of document.querySelectorAll('canvas')) {
+            if (c.width < 60 || c.height < 60 || !c.getClientRects().length) continue;
+            const blob = await new Promise(r => { try { c.toBlob(r, 'image/png'); } catch { r(null); } });
+            if (blob) ok = (await inboxPost(`shot?id=${id}&name=${base}-${pictures++}&ext=png`, blob)) && ok;
+        }
+        const copy = JSON.parse(E.serialize(state)); delete copy.player;
+        const what = { at: new Date().toISOString(), playSeconds: t, app, screen: [innerWidth, innerHeight], open: [...document.querySelectorAll('dialog[open]')].map(d => d.className), assistant: assistLive?.key || null, state: copy };
+        ok = (await inboxPost(`shot?id=${id}&name=${base}-state&ext=json`, JSON.stringify(what))) && ok;
+        pt('snap', { app, pictures, ok: ok ? 1 : 0 });
+        inboxLog();
+        snapBusy = false;
+        const said = ok ? (pictures ? `Snapshot saved: ${pictures === 1 ? 'a picture' : pictures + ' pictures'} and the game's state.` : 'Snapshot saved: the game\'s state (this screen has no picture to take).') : 'The snapshot could not be saved.';
+        if (E.isRing()) deviceNotice('playtest', 'Playtest', said, () => {}); else toast('Playtest', said, 'info');
+    }
+    // Screenshots made with the phone's own buttons, picked from its photos: saved beside the log with the play time.
+    async function inboxPhotos(files) {
+        const id = inboxId(), t = Math.round(state.stats.playTime); let n = 0;
+        for (const file of files) {
+            const ext = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }[file.type];
+            if (!ext) continue;
+            if (await inboxPost(`shot?id=${id}&name=photo-${String(t).padStart(5, '0')}-${Date.now() % 100000}-${n}&ext=${ext}`, file)) n++;
+        }
+        pt('photos', { n, of: files.length });
+        inboxLog();
+        return n;
+    }
     function exportPlaytest() {
         if (!playtest) return;
         playtestSample(true);
-        const text = playtest.report({ build: E.BUILD, save: `v${E.SAVE_VERSION}, ${E.currentVersion(state)}, ${state.path.learned} skills`,
-            screen: `${innerWidth}×${innerHeight}${matchMedia('(pointer: coarse)').matches ? ', touch' : ''}`,
-            browser: navigator.userAgent });
+        inboxLog();
+        const text = playtestText();
         openDialog({
             title: 'Playtest log',
             message: `${playtest.events.length} events. Copy it and paste it into your chat with Claude.`,
@@ -2174,8 +2232,9 @@ window.AGI = (function () {
             // The status bar: the device's own thin row over every app, in place of the old game's top bar (the owner's
             // call): the clock, what you hold, the signal. When the stats don't fit it shows them one at a time.
             const clock = el('span', { class: 'status-clock' }), stats = el('span', { class: 'status-stats' });
-            document.body.append(el('div', { class: 'device-status', role: 'status', 'aria-label': 'Status' }, [clock, stats, el('span', { class: 'status-signal', text: '▂▄▆ 37%' })]));
-            desk.status = { clock, stats, items: {}, turn: 0, checked: 0, rp: state.res.rp, at: performance.now() };
+            const snap = el('button', { type: 'button', class: 'status-snap', 'aria-label': 'Save a snapshot for the playtest', title: 'Save a snapshot for the playtest', hidden: '', text: '◉', onclick: () => snapNow() });
+            document.body.append(el('div', { class: 'device-status', role: 'status', 'aria-label': 'Status' }, [clock, stats, snap, el('span', { class: 'status-signal', text: '▂▄▆ 37%' })]));
+            desk.status = { snap, clock, stats, items: {}, turn: 0, checked: 0, rp: state.res.rp, at: performance.now() };
             $('labRoom').querySelector('.room-bar').append(el('button', { type: 'button', class: 'ghost-button window-close', 'aria-label': 'Close the Lab, back to the desktop', text: '×', onclick: () => goHome() }));
             for (const b of document.querySelectorAll('[data-facility], [data-jump="facility"]')) { b.textContent = 'home'; b.setAttribute('aria-label', 'Back to the home screen'); }
         }
@@ -2210,6 +2269,7 @@ window.AGI = (function () {
         // The Feed "doesn't have the same controls or status bar"), and shows on the home screen too.
         const bar = st.clock.parentNode, top = shop?.dlg.open ? shop.dlg : document.querySelector('dialog.feed-screen[open]'), host = top || document.body;
         if (bar.parentNode !== host) host.append(bar);
+        if (st.snap.hidden === inboxOn) st.snap.hidden = !inboxOn;
         const d = new Date();
         setText(st.clock, `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
         const f = E.format, cash = bankNow(), dv = E.derive(state, debugRates);
@@ -2896,8 +2956,10 @@ window.AGI = (function () {
             text('more', 'Anything else?')]);
         const dlg = el('dialog', { class: 'dialog ring-welcome ring-survey', 'aria-labelledby': 'ringSurveyTitle' }, [
             el('h2', { id: 'ringSurveyTitle', text: 'Playtest survey' }),
-            el('p', { class: 'survey-lead', text: 'Answer what you like. Your answers are saved in the playtest log.' }),
+            el('p', { class: 'survey-lead', text: inboxOn ? 'Answer what you like. Your answers are saved in the playtest log, which is sent to your PC by itself.' : 'Answer what you like. Your answers are saved in the playtest log.' }),
             form,
+            ...(inboxOn ? [(() => { const note = el('span', { class: 'survey-photos-note' }); const input = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', multiple: '', class: 'survey-photos-input', onchange: async () => { const files = [...input.files]; if (!files.length) return; note.textContent = 'Sending…'; const n = await inboxPhotos(files); note.textContent = `${n} of ${files.length} saved to your PC.`; input.value = ''; } });
+                return el('label', { class: 'survey-photos' }, [el('span', { class: 'ghost-button', text: 'Add screenshots from this device' }), input, note]); })()] : []),
             el('div', { class: 'dialog-actions' }, [
                 el('button', { type: 'button', class: 'ghost-button', text: 'Close', onclick: () => dlg.close() }),
                 el('button', { type: 'button', class: 'button', text: 'Save and copy log', onclick: () => {
