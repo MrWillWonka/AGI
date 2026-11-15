@@ -1913,7 +1913,8 @@ window.AGI = (function () {
         if (leaving && navigator.sendBeacon) navigator.sendBeacon(url, new Blob([text], { type: 'text/plain' }));
         else fetch(url, { method: 'POST', body: text, keepalive: leaving && text.length < 60000 }).catch(() => { inboxSent = -1; });
     }
-    setTimeout(() => fetch('/__playtest/ping').then(r => (r.ok ? r.text() : '')).then(t => { inboxOn = t === 'playtest-inbox'; if (inboxOn) { inboxLog(); setInterval(inboxLog, INBOX_EVERY_MS); } }, () => {}), 3000);
+    // An automated browser (the repo's own checks) sends nothing unless the address asks for it (?inbox): its runs filled the owner's inbox.
+    if (!navigator.webdriver || /[?&]inbox/.test(location.search)) setTimeout(() => fetch('/__playtest/ping').then(r => (r.ok ? r.text() : '')).then(t => { inboxOn = t === 'playtest-inbox'; if (inboxOn) { inboxLog(); setInterval(inboxLog, INBOX_EVERY_MS); } }, () => {}), 3000);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') inboxLog(true); });
     addEventListener('pagehide', () => inboxLog(true));
     // A snapshot: every canvas on screen (Packet Snare's field, The Feed's sand, Training's trail) as a picture, and the
