@@ -26,11 +26,11 @@
     const dialGet = ([key, , , , , where]) => (where === 'view' ? dial[key] : F().FEED[key]);
     const dialSet = ([key, , , , , where], v) => { if (where === 'view') dial[key] = v; else F().FEED[key] = v; };
     let dialBase = null;
-    const dialSave = () => { try { localStorage.setItem('agiFeedDials', JSON.stringify(Object.fromEntries(DIALS.map(d => [d[0], dialGet(d)])))); } catch { /* private mode */ } };
+    const dialSave = () => { try { localStorage.setItem('agiFeedDials2', JSON.stringify(Object.fromEntries(DIALS.map(d => [d[0], dialGet(d)])))); } catch { /* private mode */ } };
     function dialLoad() {
         if (dialBase || !dialOn()) return;
         dialBase = Object.fromEntries(DIALS.map(d => [d[0], dialGet(d)]));
-        try { const kept = JSON.parse(localStorage.getItem('agiFeedDials') || 'null'); if (kept) for (const d of DIALS) if (typeof kept[d[0]] === 'number' && kept[d[0]] >= d[2] && kept[d[0]] <= d[3]) dialSet(d, kept[d[0]]); } catch { /* private mode */ }
+        try { const kept = JSON.parse(localStorage.getItem('agiFeedDials2') || 'null'); if (kept) for (const d of DIALS) if (typeof kept[d[0]] === 'number' && kept[d[0]] >= d[2] && kept[d[0]] <= d[3]) dialSet(d, kept[d[0]]); } catch { /* private mode */ }
     }
     function dialPanel() {
         dialLoad();

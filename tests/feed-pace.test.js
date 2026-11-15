@@ -17,10 +17,10 @@ function play(s, seconds) {
     return events;
 }
 
-test('the dials: twice the eating and moving, splits at 15, 23, 34, 51 packets, two mites to start', () => {
+test('the dials: splits at 30, 36, 43, 52 packets, mites at 240, two mites to start', () => {
     const f = Feed.FEED;
-    assert.deepEqual([f.chew, f.speed, f.pour, f.startMites, f.payScale], [4, 360, 16, 2, 0.25]);
-    assert.deepEqual([0, 1, 2, 3].map(n => Feed.layerSize(n)), [15, 23, 34, 51]);
+    assert.deepEqual([f.chew, f.speed, f.pour, f.startMites, f.payScale], [4, 240, 16, 2, 0.25]);
+    assert.deepEqual([0, 1, 2, 3].map(n => Feed.layerSize(n)), [30, 36, 43, 52]);
     const s = fresh();
     Feed.deliver(s, { sector: 1, packets: 40 });
     assert.equal(Feed.startSession(s, 1), true);

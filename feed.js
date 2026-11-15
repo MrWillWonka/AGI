@@ -59,8 +59,12 @@
         tough: [1, 2, 3],   // bites a grain takes, by the sector it came from (the model's `tough`); +1 a sector past the list
         slow: 4,            // slow sand (garbled, or a kind with no skill yet) takes this many times the bites
         popped: 0.5,        // the share of a popped bubble's or snapped loop's packets that arrive garbled
-        layerFirst: 15,     // packets' worth of paying sand in the first layer
-        layerGrow: 1.5,     // each layer is this much bigger than the last (the model's `layerGrow`)
+        // (2026-11-15, the owner: mites too fast, early splits too quick, the late game stalls, "you set what you recommend".
+        // Measured with a bot on a 1,300-packet haul: at 15 and ×1.5 the splits came 4 3 3 3 4 8 17 31 52 s apart; at 30 and
+        // ×1.2, 7 3 5 3 3 3 17 12 16 29 41, for the same research. Mites move at 240, was 360: the pace is the same within
+        // a few seconds, they are only easier to follow. All three are mine, to be played.)
+        layerFirst: 30,     // packets' worth of paying sand in the first layer (was 15)
+        layerGrow: 1.2,     // each layer is this much bigger than the last (was 1.5; the model's `layerGrow`)
         miteFirst: 1,       // the first new mite comes with this layer (the owner's call: the first; the model's `miteFirst`)
         startMites: 2,      // a session starts with this many mites (the owner's call, 2026-11-14: one felt like nothing was happening)
         // (Also that day, "the sand is so slow": chew 4 (2), speed 360 (180), pour 16 (8), and splits at 15, 23, 34, 51… packets (30, ×1.8). A packet pays what it did.)
@@ -92,7 +96,7 @@
         gravity: 4,         // a falling grain speeds up: a cell a pass at first, up to this many (the owner's call: so sand reads as falling)
         slump: 4,           // a resting grain on a slope steeper than one in two rolls a cell down it, one pass in this many: heaps settle shallower and slide
         fall: 120,          // cells a second a grain falls
-        speed: 360,         // cells a second a mite moves
+        speed: 240,         // cells a second a mite moves (was 360)
         near: 16,           // a led mite this close to the point eats the sand nearest the point
         lamp: 14,           // a mite shows what the sand within this many cells of it really is (gold, fragments)
         stick: 0.92,        // how likely the next grain poured is the same sort as the last: sorts lie in patches

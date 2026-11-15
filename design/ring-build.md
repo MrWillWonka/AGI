@@ -463,3 +463,20 @@ Batch 4:
 After the above: the stream's and the landscape's lines are said only in their own app (they queued and came up over
 The Feed; the navigation check caught it), and **The Feed opens zoomed out** on the whole width of the box (the
 owner's ask, 2026-11-15; `dial.minCols` 256, was 80; the Closest view dial still sets it).
+
+## 2026-11-15: The Feed's pace (note 12; the owner: "you set what you recommend")
+
+The owner's complaints: mites move too fast, the early splits come too quickly, the late game stalls. Measured with
+the pace test's bot (it leads the swarm to the lowest sand and takes the first card), three seeds each:
+
+| | first pile, 65 packets | three piles, 390 | a big haul, 1,300 (seconds between splits) |
+|---|---|---|---|
+| before: 15 packets, ×1.5, mites 360 | 2 splits, 9 s, 24 research | 6 splits, 48 s, 226 | 4 3 3 3 4 8 17 31 52 · 141 s · 1,089 research |
+| now: 30 packets, ×1.2, mites 240 | 2 splits, 19 s, 24 research | 6 splits, 55 s, 237 | 7 3 5 3 3 3 17 12 16 29 41 · 145 s · 1,073 research |
+
+Set: `layerFirst` 30 (was 15), `layerGrow` 1.2 (was 1.5), `speed` 240 (was 360). The first split takes about twice as
+long, the last gaps are shorter, and a session's length and research are about what they were. Mite speed alone moves
+the pace by a few seconds; it is for following them. A person plays two or three times slower than the bot, so read
+the gaps as ratios. Still a run of quick splits in the middle (3 to 5 s for the bot), because each split adds a mite
+while a layer grows only a fifth: `miteEvery` would be the next lever. All numbers mine, to be played; the dials
+(now kept as `agiFeedDials2`, so an earlier trial does not hide these) still change them live.
