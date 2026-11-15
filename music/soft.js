@@ -71,8 +71,8 @@
                     if (K.hat >= 1 && L.off > 0.02) perc(ts, (K.hat === 2 ? 0.034 : 0.026) * L.off, { f: 6500, q: 1.2, len: K.hat === 2 ? 0.1 : 0.06, attack: 0.012, pan: 0.3 });
                     else if (K.hat && L.sixteenth > 0.02) perc(ts, 0.013 * L.sixteenth, { f: 7000, q: 1.2, len: 0.04, attack: 0.008, pan: 0.3 });
                     if (K.snare && L.clap > 0.02) {
-                        perc(ts, 0.05 * K.snare * L.clap, { f: 1800, q: 7, len: 0.035, rev: 0.35, pan: -0.2 });
-                        note(ts, 81, 0.03, 0.02 * K.snare * L.clap, { raw: true, type: 'sine', part: 'beat', pan: -0.2 });
+                        perc(ts, 0.03 * K.snare * L.clap, { f: 1500, q: 5, len: 0.04, attack: 0.004, rev: 0.45, pan: -0.2 });
+                        note(ts, 81, 0.03, 0.008 * K.snare * L.clap, { raw: true, type: 'sine', part: 'beat', pan: -0.2 });
                     }
                 } else if (c.drums && !c.sparse) {
                     if (L.off > 0.02 && s % 2 === 0) perc(ts, (s % 4 === 2 ? 0.03 : 0.018) * L.off, { f: 6500, q: 1.2, len: 0.06, attack: 0.012, pan: 0.3 });
@@ -90,6 +90,9 @@
                 if (L.keys > 0.02 && c.comp.includes(s) && song.compVoice === 'guitar') {
                     // A nylon guitar: the chord strummed low to high, each string a soft pluck.
                     ch.v.forEach((n, i) => note(ts + i * 0.022, n, len * 2.6, 0.03 * L.keys, { type: 'triangle', cutoff: 900 + 1100 * k, q: 1.5, env: 2.2, envTime: 0.05, attack: 0.003, rev: 0.3, pan: -0.15 + i * 0.1 }));
+                } else if (L.keys > 0.02 && c.comp.includes(s) && song.compVoice === 'warm') {
+                    // Warm keys: the chord as sines that swell in and fade, nothing struck.
+                    ch.v.forEach((n, i) => note(ts + i * 0.03, n + 12, len * 5, 0.02 * L.keys, { type: 'sine', attack: 0.06, sus: 0.6, dec: 0.5, rel: 0.6, rev: 0.45, pan: (i - 1.5) * 0.25 }));
                 } else if (L.keys > 0.02 && c.comp.includes(s) && song.compVoice !== 'none') {
                     const vel = s % 4 === 2 ? 1 : 0.8;
                     ch.v.forEach((n, i) => {
@@ -109,24 +112,27 @@
                 // that bar comes round).
                 if (c.mel && song.lead === 'flute') {         // a breath, then a sine that swells and wavers on its long notes
                     const d = len * c.mel.len * 0.98;
-                    note(c.mel.t, c.mel.n + 12, d, 0.05 * c.melGain, { type: 'sine', attack: Math.min(0.07, d * 0.3), sus: 0.85, dec: 0.15, rel: 0.12, vib: c.mel.len >= 3 ? { rate: 5, depth: 10, delay: 0.22 } : null, rev: 0.4, dly: 0.12, pan: 0.1 });
-                    note(c.mel.t, c.mel.n + 24, d, 0.006 * c.melGain, { type: 'sine', attack: 0.05, sus: 0.7, dec: 0.1, rel: 0.1, rev: 0.4, low: true });
-                    perc(c.mel.t, 0.012 * c.melGain, { f: 3200, q: 1.5, len: 0.07, attack: 0.02, part: 'tones', rev: 0.3, pan: 0.1 });
-                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm + 12, d, 0.024 * c.harmGain * c.melGain, { type: 'sine', attack: 0.06, sus: 0.85, dec: 0.15, rel: 0.12, rev: 0.4, pan: -0.25, low: true });
+                    note(c.mel.t, c.mel.n, d * 1.05, 0.06 * c.melGain, { type: 'sine', attack: Math.min(0.1, d * 0.35), sus: 0.85, dec: 0.2, rel: 0.25, vib: c.mel.len >= 3 ? { rate: 4.6, depth: 7, delay: 0.3 } : null, rev: 0.45, dly: 0.12, pan: 0.1 });
+                    note(c.mel.t, c.mel.n + 12, d, 0.006 * c.melGain, { type: 'sine', attack: 0.08, sus: 0.7, dec: 0.2, rel: 0.2, rev: 0.45, low: true });
+                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.024 * c.harmGain * c.melGain, { type: 'sine', attack: 0.06, sus: 0.85, dec: 0.15, rel: 0.12, rev: 0.4, pan: -0.25, low: true });
                 } else if (c.mel && song.lead === 'ep') {     // the electric piano takes the tune: round, with a bark on the beats
                     const d = Math.max(0.5, len * c.mel.len * 1.1), vel = s % 4 === 0 ? 1 : 0.8;
-                    note(c.mel.t, c.mel.n, d, 0.06 * vel * c.melGain, { type: 'sine', fm: { ratio: 1, index: 1.6 + 1.2 * vel * (0.5 + k), decay: 0.25, sus: 0.1 }, attack: 0.004, sus: 0.35, dec: 0.45, rel: 0.35, rev: 0.35, dly: 0.2, pan: 0.1 });
-                    note(c.mel.t, c.mel.n + 24, 0.05, 0.006 * vel * c.melGain, { type: 'sine', low: true });
-                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.03 * c.harmGain * c.melGain, { type: 'sine', fm: { ratio: 1, index: 1.2, decay: 0.2, sus: 0.1 }, sus: 0.35, dec: 0.45, rel: 0.35, rev: 0.35, pan: -0.25, low: true });
+                    note(c.mel.t, c.mel.n, d, 0.06 * vel * c.melGain, { type: 'sine', fm: { ratio: 1, index: 0.7 + 0.5 * vel * (0.5 + k), decay: 0.3, sus: 0.1 }, attack: 0.008, sus: 0.35, dec: 0.45, rel: 0.35, rev: 0.35, dly: 0.2, pan: 0.1 });
+                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.03 * c.harmGain * c.melGain, { type: 'sine', fm: { ratio: 1, index: 0.6, decay: 0.2, sus: 0.1 }, sus: 0.35, dec: 0.45, rel: 0.35, rev: 0.35, pan: -0.25, low: true });
                 } else if (c.mel && song.lead === 'guitar') { // a nylon string: a triangle through a filter that closes
                     const d = Math.max(0.35, len * c.mel.len * 1.1);
                     note(c.mel.t, c.mel.n, d, 0.085 * c.melGain, { type: 'triangle', cutoff: 1300 + 1500 * k, q: 1.5, env: 2.5, envTime: 0.06, attack: 0.003, rev: 0.3, dly: 0.1, pan: 0.15 });
                     perc(c.mel.t, 0.008 * c.melGain, { f: 2200, q: 2, len: 0.01, part: 'tones', pan: 0.15 });
                     if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.04 * c.harmGain * c.melGain, { type: 'triangle', cutoff: 1500, q: 1.5, env: 2, envTime: 0.06, rev: 0.3, pan: -0.25, low: true });
-                } else if (c.mel && song.lead === 'glass') {  // a small glass bell an octave up, staccato
-                    const d = Math.min(0.7, Math.max(0.25, len * c.mel.len));
-                    note(c.mel.t, c.mel.n + 12, d, 0.04 * c.melGain, { type: 'sine', fm: { ratio: 7, index: 0.9, decay: 0.06, sus: 0.02 }, attack: 0.002, rev: 0.45, dly: 0.3, pan: s % 4 >= 2 ? 0.3 : -0.1 });
-                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm + 12, d, 0.02 * c.harmGain * c.melGain, { type: 'sine', rev: 0.45, pan: -0.3, low: true });
+                } else if (c.mel && song.lead === 'glass') {  // a small soft bell: a sine with a faint shimmer at the strike
+                    const d = Math.min(1.1, Math.max(0.45, len * c.mel.len * 1.2));
+                    note(c.mel.t, c.mel.n, d, 0.06 * c.melGain, { type: 'sine', fm: { ratio: 4, index: 0.35, decay: 0.08, sus: 0.02 }, attack: 0.006, rev: 0.5, dly: 0.25, pan: s % 4 >= 2 ? 0.25 : -0.1 });
+                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.025 * c.harmGain * c.melGain, { type: 'sine', rev: 0.5, pan: -0.3, low: true });
+                } else if (c.mel && song.lead === 'hum') {    // a hummed line: a sine with a triangle an octave under it, slow in, joined up
+                    const d = len * c.mel.len * 1.15;
+                    note(c.mel.t, c.mel.n, d, 0.05 * c.melGain, { type: 'sine', attack: Math.min(0.12, d * 0.35), sus: 0.85, dec: 0.2, rel: 0.3, vib: c.mel.len >= 4 ? { rate: 4.2, depth: 6, delay: 0.35 } : null, rev: 0.45, pan: 0.1 });
+                    note(c.mel.t, c.mel.n - 12, d, 0.022 * c.melGain, { type: 'triangle', cutoff: 700, attack: Math.min(0.14, d * 0.35), sus: 0.85, dec: 0.2, rel: 0.3, rev: 0.4, pan: -0.1 });
+                    if (c.mel.harm && c.harmGain > 0.02) note(c.mel.t, c.mel.harm, d, 0.024 * c.harmGain * c.melGain, { type: 'sine', attack: 0.1, sus: 0.85, dec: 0.2, rel: 0.3, rev: 0.45, pan: -0.3, low: true });
                 } else if (c.mel) {
                     const d = Math.min(len * c.mel.len * 1.1, 1.1), vel = (s % 4 === 0 ? 1 : 0.82) * (0.92 + (0.16 * c.pick(8, s)) / 7);
                     note(c.mel.t, c.mel.n, d, 0.058 * vel * c.melGain, { type: 'sine', fm: { ratio: 5.4, index: 0.8 * vel, decay: 0.045, sus: 0.02 }, attack: 0.002, rev: 0.35, dly: 0.22, pan: 0.12 });
@@ -160,12 +166,12 @@
                     form: [['intro', 4, { mel: null, drums: 'none' }], ['A', 8], ['B', 8, { chords: 'B' }], ['A', 8, { harm: true }],
                         ['breathe', 4, { mel: null, drums: 'none', bassOn: false, fill: false, lift: -0.2 }], ['B', 8, { chords: 'B' }], ['A', 8], ['out', 4, { mel: null, drums: 'sparse', fill: false }]]
                 },
-                {   // Window Seat: a waltz in C at 104, straight: the bass on one, a guitar on two and three, a flute for
-                    // the tune. Eight bars, then six that wander and come home.
-                    name: 'Window Seat', lvl: 1.21, bpm: 104, steps: 12, swing: 0, scale: ION, tonic: 3, oct: -1, lead: 'flute', compVoice: 'guitar',
-                    kit: { kick: 'x...........', snare: '........o...', hat: '....x...x...' },
+                {   // Window Seat: a slow waltz in C at 88, straight: the bass on one, warm keys swelling on two, a soft
+                    // flute for the tune and almost no drums. Eight bars, then six that wander and come home.
+                    name: 'Window Seat', lvl: 1.21, bpm: 88, steps: 12, swing: 0, scale: ION, tonic: 3, oct: -1, lead: 'flute', compVoice: 'warm',
+                    kit: { kick: 'x...........', snare: '............', hat: '....o...o...' },
                     chords: { A: ['Cmaj7', 'Em7', 'Fmaj7', 'G6', 'Am7', 'Fmaj7', 'G7sus4', 'Cmaj7'], B: ['Am7', 'Em7', 'Fmaj7', 'Cmaj7', 'Dm7', 'G6'] },
-                    bass: { A: 'r...........', B: 'r.......t...' }, comp: [4, 8],
+                    bass: { A: 'r...........', B: 'r.......t...' }, comp: [4],
                     mel: {
                         A: "3 - - 5 - - | 7 - - 5 - 3 | 6 - 5 - 4 - | 2 - - - - . | 1 - 3 - 5 - | 6 - - 1' - - | 5 - 4 - 2 - | 5 - - - - .",
                         B: "1' - - 5 - 6 | 5 - - 3 - - | 4 - 6 - 1' - | 7 - - 5 - - | 6 - 4 - 2 - | 2 - - - 5 -"
@@ -175,10 +181,10 @@
                 }
             ],
             server: [
-                {   // Gentle Climb: soft house at 116, straight, a kick on every beat. Minor ninths, the electric piano
-                    // carrying the tune; the longest song here, with a second climb after the break.
-                    name: 'Gentle Climb', lvl: 0.93, bpm: 116, swing: 0, scale: AEOL, lead: 'ep', chords: ['Am9', 'Fmaj7', 'Cadd9', 'G6', 'Dm9', 'Fmaj7', 'Cadd9', 'Esus4'],
-                    kit: { kick: 'x...x...x...x...', snare: '....x.......x...', hat: '.ox..ox..ox..ox.' },
+                {   // Gentle Climb: 100 and straight, unhurried: a kick on one and the "and" of three, a rim once a bar, a
+                    // round electric piano carrying the tune over minor ninths; the longest song here.
+                    name: 'Gentle Climb', lvl: 0.93, bpm: 100, swing: 0, scale: AEOL, lead: 'ep', compVoice: 'warm', chords: ['Am9', 'Fmaj7', 'Cadd9', 'G6', 'Dm9', 'Fmaj7', 'Cadd9', 'Esus4'],
+                    kit: { kick: 'x.........x.....', snare: '............o...', hat: '..o...o...o...o.' },
                     bass: 'r......r..f.....', comp: [3, 10],
                     mel: {
                         A: "5 - 3 - 2 - 3 - | 1 - - - 3 - 5 - | 4 - 3 - 2 - 5, - | 2 - - - 7, - - .",
@@ -187,12 +193,12 @@
                     form: [['intro', 4, { mel: null, drums: 'sparse' }], ['A', 8], ['A', 8, { harm: true }], ['B', 8], ['break', 4, { mel: 'A', melGain: 0.7, drums: 'none', bassOn: false, fill: false }],
                         ['build', 4, { mel: 'A', melGain: 0.85, drums: 'sparse', entry: false }], ['B', 8, { lift: 0.08 }], ['A', 8], ['B', 8], ['A', 8, { harm: true, lift: 0.1 }], ['out', 4, { mel: null, fill: false }]]
                 },
-                {   // Glide Path: a bossa at 120 in A Dorian: the kick and rim on the clave, a nylon guitar for the chords and
-                    // another for the tune over a two-chord vamp. Short: just over a minute.
-                    name: 'Glide Path', lvl: 0.83, bpm: 120, swing: 0, scale: DOR, lead: 'guitar', compVoice: 'guitar',
-                    kit: { kick: 'x..x....x..x....', snare: 'x..x..x...x..x..', hat: 'x.x.x.x.x.x.x.x.' },
+                {   // Glide Path: a slow bossa at 104 in A Dorian: the kick's sway, three quiet rims, soft shakers, warm keys
+                    // and a hummed tune over a two-chord vamp. Short.
+                    name: 'Glide Path', lvl: 0.83, bpm: 104, swing: 0, scale: DOR, lead: 'hum', compVoice: 'warm',
+                    kit: { kick: 'x..x....x..x....', snare: '...o..o.....o...', hat: 'o.o.o.o.o.o.o.o.' },
                     chords: { A: ['Am7', 'D9', 'Am7', 'D9'], B: ['Am7', 'D9', 'Am7', 'D9', 'Fmaj7', 'G', 'Am7', 'Esus4'] },
-                    bass: 'r..r....f..f....', comp: [0, 6, 10],
+                    bass: 'r..r....f..f....', comp: [0, 10],
                     mel: {
                         A: "5 - 7 - 1' - 7 5 | 6 - 5 - 4 - 1 - | 5 - 7 - 2' - 1' 7 | 6 - - - 4 - - .",
                         B: "1' - - 7 5 - 3 - | 4 - 6 - 1' - 3' - | 2' - 1' - 7 - 5 - | 6 - - - 3' - - - | 3' - 1' - 7 - 5 - | 4' - - - 2' - 7 - | 1' - 5 - 3 - 1 - | 2 - - - 4 - - -"

@@ -79,9 +79,25 @@ Morning Lab, Vigil, Lights Out, Pixel Desk, Hide and Seek**. The other 23 were r
   phrases of any length. The engine counts bars by the song's `steps`; nothing else about the clocks changed.
 - **The spread now** (`design/audio/coverage.md`): each theme has at least five different pulses, two or more meters,
   three or more lead voices, phrases of 3, 5, 6 or 7 bars, and running times from under a minute to two or three
-  (Classic 0:56–2:39, Dark 1:01–2:24, Soft 1:06–2:29, Ominous 0:57–3:17, Retro 0:43–1:38). `tests/audio.test.js` holds
+  (Classic 0:56–2:39, Dark 1:01–2:24, Soft 1:06–2:53, Ominous 0:57–3:17, Retro 0:45–1:30). `tests/audio.test.js` holds
   every theme to it.
 - **Not known:** whether any of it sounds good. The new voices and songs were written and measured, not heard.
+
+### The owner's second listen (2026-11-14)
+
+"Retro is a complete do over as it's really grating on the ears, and soft should be more soft and smooth, same songs
+changing as last time." Read as: the same songs change (Pixel Desk, Hide and Seek and Morning Lab stay as they are).
+
+- **Retro's four, done over.** What was harsh, from the code: Save Point's triangle played an octave up and reached E7;
+  Boss Rush hammered 16ths at 176 on two detuned raw squares; every pulse was unfiltered. Now a song can be `mellow`
+  (pulses through a 2.2 kHz filter, quieter hats, snare and arpeggio, no echo voice); the triangle lead plays at the
+  written octave; the detuned pair is gone and a filtered square (`soft`) replaces it; tempos came down (96, 152, 132,
+  108); the tunes sit in the middle register and move in 8ths.
+- **Soft's five, softened.** Slower (88, 100, 104; Tiptoe and Hushed Channel as they were); no four-on-the-floor kick
+  and no clave of rims; the plucked guitar is replaced by keys that swell in (`warm`); the flute lost its breath noise
+  and speaks slower, at the written octave; the glass bell came down an octave with a gentler strike; Glide Path's tune
+  is hummed (`hum`); the electric piano lead is rounder.
+- Still not heard by its author.
 
 ## Open questions for the owner
 

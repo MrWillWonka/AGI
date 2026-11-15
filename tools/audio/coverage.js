@@ -26,19 +26,19 @@ const DISPOSITION = {
     'Pressure': 'Variety pass: rewritten as a 12-step shuffle: square stabs in 3-bar phrases, a triplet acid line',
     'Black Box': 'Variety pass: rewritten slower, struck metal in 6-bar phrases', 'Tripwire': 'Variety pass: rewritten fast in G Dorian, broken kick, square stabs',
     'Morning Lab': 'Kept (the owner likes it)',
-    'Window Seat': 'Variety pass: rewritten as a waltz: flute lead, guitar on two and three',
-    'Gentle Climb': 'Variety pass: melodies kept; soft house, straight, the electric piano leads; the long one',
-    'Glide Path': 'Variety pass: melodies kept; a bossa on the clave, nylon guitar; short',
-    'Tiptoe': 'Variety pass: rewritten as a slow shuffle, glass bell, a chord a bar', 'Hushed Channel': 'Variety pass: rewritten as a lullaby in F Lydian, 5-bar phrases, no struck chords',
+    'Window Seat': 'Variety pass, then softened: a slow waltz, a soft flute, warm keys, almost no drums',
+    'Gentle Climb': 'Variety pass, then softened: melodies kept; straight and unhurried, a round electric piano leads; the long one',
+    'Glide Path': 'Variety pass, then softened: melodies kept; a slow bossa, warm keys, a hummed tune; short',
+    'Tiptoe': 'Variety pass, then softened: a slow shuffle, a small soft bell, a chord a bar', 'Hushed Channel': 'Variety pass: rewritten as a lullaby in F Lydian, 5-bar phrases, no struck chords',
     'Vigil': 'Kept (the owner likes it)',
     'Static': 'Variety pass: rewritten with no pulse, heard from E (Phrygian dominant), the tune tolled on a bell, phrases of 7 and 5 bars',
     'Descent': 'Variety pass: rewritten as a march: bowed low strings, a limping kick, voices, 4- and 6-bar phrases',
     'Undertow': 'Variety pass: rewritten in 6/8 over a rocking arpeggio, phrases of 6 and 8 bars',
     'Crawlspace': 'Variety pass: rewritten for a music box, faster, 5-bar phrases', 'Lights Out': 'Kept (the owner likes it)',
-    'Pixel Desk': 'Kept (the owner likes it)', 'Save Point': 'Variety pass: rewritten as a lullaby in three, triangle lead, no kick; a short loop',
-    'Boss Rush': 'Variety pass: rewritten faster in D Dorian, a hammered 16th riff on two squares, 4- and 6-bar phrases; the long one',
-    'Turbo': 'Variety pass: rewritten as a shuffle in G Mixolydian with a boogie bass; three short laps',
-    'Sneaking Mission': 'Variety pass: rewritten in 5/4 (3 + 3 + 2 + 2)', 'Hide and Seek': 'Kept (the owner likes it)'
+    'Pixel Desk': 'Kept (the owner likes it)', 'Save Point': 'Done over twice: a lullaby in three, the triangle low and plain, no kick; a short loop',
+    'Boss Rush': 'Done over twice: D Dorian, a riff in 8ths on a filtered square in the middle register, 4- and 6-bar phrases',
+    'Turbo': 'Done over twice: an easy shuffle in G Mixolydian, the top filtered off; three short laps',
+    'Sneaking Mission': 'Done over twice: 5/4 (3 + 3 + 2 + 2), a filtered square, never high', 'Hide and Seek': 'Kept (the owner likes it)'
 };
 
 let md = `# Audio coverage\n\nWritten by \`node tools/audio/coverage.js\` from the engine and the theme files. Do not edit by hand.\n\n## Tracks\n\n| Track | BPM | Swing | Held-job notes a second | Effects' pitch | Layer order (first to last) | Space |\n|---|---|---|---|---|---|---|\n`;

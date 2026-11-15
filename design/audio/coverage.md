@@ -31,10 +31,10 @@ Bold layers are always in. Income is 4.13 repeats a second in every track (engin
 | Dark | snare | Black Box | 108 | 4/4 | bell, own kit | 35 | 1:18 | in 2 · A 6 · B 6 · wait 3 · A 6 · B 6 · A 6 | Variety pass: rewritten slower, struck metal in 6-bar phrases |
 | Dark | snare | Tripwire | 150 | 4/4 | stab, own kit | 38 | 1:01 | A 4 · A 4 · B 8 · wait 2 · A 4 · A 4 · B 8 · A 4 | Variety pass: rewritten fast in G Dorian, broken kick, square stabs |
 | Soft | lab | Morning Lab | 93 swung | 4/4 | the track's | 52 | 2:14 | intro 4n · A 8 · B 8 · A 8 · breathe 4n · B 8 · A 8 · out 4s | Kept (the owner likes it) |
-| Soft | lab | Window Seat | 104 | 3/4 | flute, own kit | 52 | 1:30 | A 8 · A 8 · B 6 · A 8 · still 4n · B 6 · A 8 · out 4s | Variety pass: rewritten as a waltz: flute lead, guitar on two and three |
-| Soft | server | Gentle Climb | 116 | 4/4 | ep, own kit | 72 | 2:29 | intro 4s · A 8 · A 8 · B 8 · break 4n · build 4s · B 8 · A 8 · B 8 · A 8 · out 4 | Variety pass: melodies kept; soft house, straight, the electric piano leads; the long one |
-| Soft | server | Glide Path | 120 | 4/4 | guitar, own kit | 36 | 1:12 | A 4 · A 4 · B 8 · A 4 · vamp 4 · B 8 · A 4 | Variety pass: melodies kept; a bossa on the clave, nylon guitar; short |
-| Soft | snare | Tiptoe | 84 swung | 4/4 | glass | 36 | 1:43 | in 2 · A 4 · A 4 · B 8 · wait 2 · A 4 · B 8 · A 4 | Variety pass: rewritten as a slow shuffle, glass bell, a chord a bar |
+| Soft | lab | Window Seat | 88 | 3/4 | flute, own kit | 52 | 1:46 | A 8 · A 8 · B 6 · A 8 · still 4n · B 6 · A 8 · out 4s | Variety pass, then softened: a slow waltz, a soft flute, warm keys, almost no drums |
+| Soft | server | Gentle Climb | 100 | 4/4 | ep, own kit | 72 | 2:53 | intro 4s · A 8 · A 8 · B 8 · break 4n · build 4s · B 8 · A 8 · B 8 · A 8 · out 4 | Variety pass, then softened: melodies kept; straight and unhurried, a round electric piano leads; the long one |
+| Soft | server | Glide Path | 104 | 4/4 | hum, own kit | 36 | 1:23 | A 4 · A 4 · B 8 · A 4 · vamp 4 · B 8 · A 4 | Variety pass, then softened: melodies kept; a slow bossa, warm keys, a hummed tune; short |
+| Soft | snare | Tiptoe | 84 swung | 4/4 | glass | 36 | 1:43 | in 2 · A 4 · A 4 · B 8 · wait 2 · A 4 · B 8 · A 4 | Variety pass, then softened: a slow shuffle, a small soft bell, a chord a bar |
 | Soft | snare | Hushed Channel | 80 | 4/4 | ep | 22 | 1:06 | A 5 · B 5 · wait 2 · A 5 · B 5 | Variety pass: rewritten as a lullaby in F Lydian, 5-bar phrases, no struck chords |
 | Ominous | lab | Vigil | 62 | 4/4 | the track's | 44 | 2:50 | drone 4n · A 8n · A 8s · B 8 · still 4n · A 8 · out 4n | Kept (the owner likes it) |
 | Ominous | lab | Static | 50 | 4/4 | bell | 41 | 3:17 | A 7n · B 5n · void 2n · A 7s · B 5 · A 7 · B 5s · out 3n | Variety pass: rewritten with no pulse, heard from E (Phrygian dominant), the tune tolled on a bell, phrases of 7 and 5 bars |
@@ -43,10 +43,10 @@ Bold layers are always in. Income is 4.13 repeats a second in every track (engin
 | Ominous | snare | Crawlspace | 88 | 4/4 | box | 21 | 0:57 | A 5 · B 5 · wait 1 · A 5 · B 5 | Variety pass: rewritten for a music box, faster, 5-bar phrases |
 | Ominous | snare | Lights Out | 62 | 4/4 | the track's | 30 | 1:56 | A 4 · B 8 · wait 2 · A 4 · B 8 · A 4 | Kept (the owner likes it) |
 | Retro | lab | Pixel Desk | 144 | 4/4 | the track's | 54 | 1:30 | intro 4 · A 8 · A 8 · B 8 · A 8 · B 8 · A 8↑2 · turn 2 | Kept (the owner likes it) |
-| Retro | lab | Save Point | 100 | 3/4 | tri, own kit | 24 | 0:43 | A 8 · B 6 · A 8 · turn 2 | Variety pass: rewritten as a lullaby in three, triangle lead, no kick; a short loop |
-| Retro | server | Boss Rush | 176 | 4/4 | fat | 72 | 1:38 | intro 2 · A 4 · A 4 · B 6 · A 4 · A 4 · break 4n · B 6 · A 4 · A 4 · B 6 · A 4 · A 4↑2 · A 4↑2 · B 6↑2 · A 4↑2 · out 2 | Variety pass: rewritten faster in D Dorian, a hammered 16th riff on two squares, 4- and 6-bar phrases; the long one |
-| Retro | server | Turbo | 152 swung | 4/4 | the track's | 33 | 0:52 | intro 1 · A 4 · A 4 · B 4 · A 4 · B 4 · A 4↑2 · B 4↑2 · A 4↑2 | Variety pass: rewritten as a shuffle in G Mixolydian with a boogie bass; three short laps |
-| Retro | snare | Sneaking Mission | 116 | 5/4 | the track's, own kit | 32 | 1:23 | in 2 · A 4 · B 4 · A 4 · wait 2 · B 4 · A 4 · B 4 · A 4 | Variety pass: rewritten in 5/4 (3 + 3 + 2 + 2) |
+| Retro | lab | Save Point | 96 | 3/4 | tri, own kit | 24 | 0:45 | A 8 · B 6 · A 8 · turn 2 | Done over twice: a lullaby in three, the triangle low and plain, no kick; a short loop |
+| Retro | server | Boss Rush | 152 | 4/4 | soft | 50 | 1:19 | intro 2 · A 4 · A 4 · B 6 · A 4 · break 4n · B 6 · A 4 · A 4↑2 · B 6↑2 · A 4↑2 · out 2 | Done over twice: D Dorian, a riff in 8ths on a filtered square in the middle register, 4- and 6-bar phrases |
+| Retro | server | Turbo | 132 swung | 4/4 | the track's | 33 | 1:00 | intro 1 · A 4 · A 4 · B 4 · A 4 · B 4 · A 4↑2 · B 4↑2 · A 4↑2 | Done over twice: an easy shuffle in G Mixolydian, the top filtered off; three short laps |
+| Retro | snare | Sneaking Mission | 108 | 5/4 | soft, own kit | 32 | 1:29 | in 2 · A 4 · B 4 · A 4 · wait 2 · B 4 · A 4 · B 4 · A 4 | Done over twice: 5/4 (3 + 3 + 2 + 2), a filtered square, never high |
 | Retro | snare | Hide and Seek | 144 | 4/4 | the track's | 44 | 1:13 | A 8 · B 8 · wait 4 · A 8 · B 8 · A 8 | Kept (the owner likes it) |
 
 ## Effects (56 names)
