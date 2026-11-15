@@ -304,3 +304,35 @@ older build, a playground, and a version for dev work.
 Not done: there is no public address yet (the Tailscale address only reaches the owner's devices; GitHub Pages is not
 turned on). The old Packet Snare review tools (`tools/review/kit.js`, `report.js`, `layout.js`, `coaches.js`) still
 load the plain link, which is now the ring; they need one of the old test doors before they are used again.
+
+## 2026-11-15: the owner's notes on the playtest of that morning (18, none built yet)
+
+Log: the pasted export of 2026-11-15T13:25 (the last hour is the playthrough on the new card and run prices).
+Found in it: going deeper into the gated boss sector skips the 30% armour (`bossArmor` is not in packet-snare.js
+`SECTOR_KEYS`), so the boss fell with no skill learned and Training never opened; the Mining Rig was never bought
+(cards 11 to 17 were, up to $94); the stockpile overflowed five times (303 packets lost).
+
+The owner's notes, as given:
+
+1. Connect the AI's lines more clearly to the orb (glowing, pulsing).
+2. The orb glows when computing. Plan for the Lab to be where the AI "lives" and grows, from plain layout and buttons
+   today to more unique ones with progression.
+3. The first AI lines move on too quickly while computing; give more time to read them.
+4. The AI announces that it will download; a little more space between reaching the home screen, the announcement,
+   and the loading starting.
+5. AI messages start at the top but move by context, for example next to a newly introduced app.
+6. Introduce Parcel at 100 so the player can at least buy a tower; mention the cracked screen and that they deserve to
+   splurge on the extras. Then send them back to the Lab and point out the AI put Parcel on the taskbar, alongside
+   introductions of the other apps there (Settings, Home, Playtest).
+7. "Fix the screen", not "fix the monitor".
+8. A Data Stream introduction.
+9. Explain Packet Snare's level selection: why stay on a level or move on.
+10. AI help: select the orb, then a button for a tutorial, a walkthrough or a funny comment about an item.
+11. Let players pin the taskbar and expand the apps for quick navigation.
+12. Review mite speed and progression.
+13. Start with some sand already poured.
+14. After feeding, a tip on how to continue.
+15. "Graphics card ×5 delivered" instead of "Parcel" (exact wording open).
+16. Parcel integrated into the AI's interface, as a quality-of-life gift from the AI.
+17. A way to see stockpiles in Packet Snare after feeding.
+18. A Training landscape intro.
