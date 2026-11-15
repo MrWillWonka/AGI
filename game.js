@@ -2962,6 +2962,14 @@ window.AGI = (function () {
             if (inX) { const up = oy > r.b; return `M${n(ox)} ${n(oy + (up ? -R : R))}V${n(up ? r.b : r.t)}`; }
             if (inY) { const left = ox > r.r; return `M${n(ox + (left ? -R : R))} ${n(oy)}H${n(left ? r.r : r.l)}`; }
             const sx = ox < r.l ? 1 : -1, sy = oy < r.t ? 1 : -1, tx = clamp(ox,r.l + Math.min(24 * k, (r.r - r.l) / 2), r.r - Math.min(24 * k, (r.r - r.l) / 2)), ty = sy > 0 ? r.t : r.b;
+            // A box further off to the side than it is above or below (an app on the home screen's column): down first,
+            // then across into its side, so the line crosses the open desktop and not the other apps' names.
+            const txs = sx > 0 ? r.l : r.r;
+            if (Math.abs(txs - ox) > Math.abs(ty - oy)) {
+                const m = Math.min(24 * k, (r.b - r.t) / 2), tys = clamp(oy, r.t + m, r.b - m), qs = Math.min(RAD, Math.abs(tys - oy) - R, Math.abs(txs - ox));
+                if (qs < 3) return `M${n(ox + sx * R)} ${n(oy)}L${n(txs)} ${n(tys)}`;
+                return `M${n(ox)} ${n(oy + sy * R)}V${n(tys - sy * qs)}Q${n(ox)} ${n(tys)} ${n(ox + sx * qs)} ${n(tys)}H${n(txs)}`;
+            }
             const q = Math.min(RAD, Math.abs(tx - ox) - R, Math.abs(ty - oy));
             if (q < 3) return `M${n(ox + sx * R)} ${n(oy)}L${n(tx)} ${n(ty)}`;
             return `M${n(ox + sx * R)} ${n(oy)}H${n(tx - sx * q)}Q${n(tx)} ${n(oy)} ${n(tx)} ${n(oy + sy * q)}V${n(ty)}`;
@@ -3675,6 +3683,9 @@ window.AGI = (function () {
         renderLegacy();
         if (snare.tree) renderSnareTree();
         if (openBay === 'pipeline') renderSnareBar();
+        // On the device an app opens straight from another, so Packet Snare's Upgrades button is put away here too
+        // (the owner's 2026-11-15 snapshot: two Upgrades buttons in Training).
+        else if (!$('snareTreeButton').hidden) setHidden($('snareTreeButton'), true);
         // A toast outlives a zoom (6–7.5 s against 0.5 s): placed for the screen it arrived on, it sat over the
         // next screen's status line (the lab's supply cells). Keep clearing whatever is on screen now.
         if (toastLive) placeToasts();
