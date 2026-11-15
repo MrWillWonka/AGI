@@ -4684,3 +4684,21 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 @media (prefers-reduced-motion: reduce) { .orb-face .orb-lines path, .assist-dot .orb-core-glow { animation: none !important; } }
 /* The contour lines are whole and still (dashes read as broken lines at this size); only the core and the halo move. */
 .orb-face .orb-lines path { stroke-dasharray: none; animation: none; stroke-width: 0.75; }
+
+/* The orb talking (the owner's second picture, 2026-11-15): while a line is up the rim and the lines brighten and
+   glow, the innermost loop gives way to amber rings that ripple out from the core, and the core swells. */
+.orb-face .orb-ring { fill: none; stroke: var(--warning); stroke-width: 0.8; opacity: 0; transform-origin: 50.5px 43px; }
+.orb-face .orb-core { transform-origin: 50.5px 43px; transition: transform 0.5s ease; }
+.orb-face .orb-lines path { transition: opacity 0.5s ease, stroke-width 0.5s ease; }
+.orb-face svg { transition: filter 0.5s ease; }
+.assist-dot.speaking .assist-mark.orb-face { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--success) 75%, #fff), inset 0 0 14px color-mix(in srgb, var(--success) 70%, transparent), 0 0 14px var(--success), 0 0 30px color-mix(in srgb, var(--success) 45%, transparent), 0 6px 18px rgba(0, 0, 0, 0.55); }
+.assist-dot.speaking .orb-face svg { filter: drop-shadow(0 0 1.6px var(--success)); }
+.assist-dot.speaking .orb-lines path { opacity: 1; stroke-width: 1.05; stroke: color-mix(in srgb, var(--success) 70%, #fff); }
+.assist-dot.speaking .orb-lines path:nth-child(5) { opacity: 0; }
+.assist-dot.speaking .orb-core { transform: scale(1.35); }
+.assist-dot.speaking .orb-core-glow { opacity: 1; }
+.assist-dot.speaking .orb-ring { animation: orb-ring 2.1s ease-out infinite; }
+.assist-dot.speaking .orb-ring-2 { animation-delay: -0.7s; }
+.assist-dot.speaking .orb-ring-3 { animation-delay: -1.4s; }
+@keyframes orb-ring { 0% { transform: scale(0.45); opacity: 0; } 18% { opacity: 0.95; } 100% { transform: scale(1.25); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .assist-dot.speaking .orb-ring { animation: none; opacity: 0.6; } }

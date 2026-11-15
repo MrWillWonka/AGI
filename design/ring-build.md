@@ -550,3 +550,10 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   grow with compute (`--orb-power`) and breathe while compute comes in, as before. No blur filters any more.
 - **The Server's card in Parcel reads "Opens the Training Landscape"** (the owner's wording). The app's own name on
   the home screen is still "Training".
+
+## 2026-11-15: the orb talking (the owner's second picture)
+
+- While a line is up (`.assist-dot.speaking`) the orb is the picture's "talking and glowing" version: the rim and
+  the contour lines brighten with a glow, the innermost loop fades out, three amber rings ripple out from the core
+  (2.1 s, staggered), and the core swells. It eases back when the line is put away. Under reduced motion the rings
+  stand still.
