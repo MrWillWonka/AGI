@@ -103,6 +103,7 @@
         stockMin: 60,       // and this many packets at the least
         hungerTime: 25,     // seconds a full hunger bar takes to empty
         hungerFill: 0.6,    // eating this share of the layer's worth of paying sand refills the whole bar
+        payScale: 0.25,     // what a session pays, times this: the faster dials earned about four times the research a second (measured on four stockpiles), and the owner wants the earning as it was
         sectorPay: 0.5,     // a packet from sector k pays 1 + this × (k − 1) times as much
         cardChoices: 3,     // cards offered at a split, to pick one (the owner's call: the session waits while you choose)
         cardRare: 0.12,     // the chance each offered card is a rare one, when there are rare ones to offer
@@ -299,7 +300,7 @@
     const stockOf = (state, sector) => { const e = state.stock[sector]; return e ? e.n + e.gold + e.bad : 0; };
     const stockCap = (state, sector, opts) => { const o = opt(opts); return Math.max(o.stockMin, o.stockRuns * (state.best[sector] || 0)); };
     const cardMult = (state, stat) => { let m = 1; const c = state.session?.cards; if (c) for (const id of CARD_IDS) if (CARDS[id].stat === stat && c[id]) m *= Math.pow(CARDS[id].by, c[id]); return m; };
-    const payMult = (state, o) => (state.session ? (1 + o.sectorPay * (state.session.sector - 1)) * cardMult(state, 'pay') : 1);
+    const payMult = (state, o) => (state.session ? o.payScale * (1 + o.sectorPay * (state.session.sector - 1)) * cardMult(state, 'pay') : 1);
     // The dials as this session's cards have them.
     const withCards = (state, o) => { const c = state.session?.cards; if (!c || !Object.keys(c).length) return o; const out = { ...o }; for (const stat of ['chew', 'hungerTime', 'speed', 'roam']) out[stat] = o[stat] * cardMult(state, stat); out.wobble = o.wobble * cardMult(state, 'roam'); return out; };
     // Offer cards: `cardChoices` different ones, each slot a rare one at `cardRare` when there are any left to offer.

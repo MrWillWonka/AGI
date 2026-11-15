@@ -19,7 +19,7 @@ function play(s, seconds) {
 
 test('the dials: twice the eating and moving, splits at 15, 23, 34, 51 packets, two mites to start', () => {
     const f = Feed.FEED;
-    assert.deepEqual([f.chew, f.speed, f.pour, f.startMites], [4, 360, 16, 2]);
+    assert.deepEqual([f.chew, f.speed, f.pour, f.startMites, f.payScale], [4, 360, 16, 2, 0.25]);
     assert.deepEqual([0, 1, 2, 3].map(n => Feed.layerSize(n)), [15, 23, 34, 51]);
     const s = fresh();
     Feed.deliver(s, { sector: 1, packets: 40 });

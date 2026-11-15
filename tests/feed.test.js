@@ -7,7 +7,7 @@ const Model = require('../tools/ring-model.js');
 // These tests were written at the sand's first dials and test its mechanics at them. The dials the game plays at now
 // (twice the eating and moving, smaller splits, two mites to start: the owner's calls, 2026-11-14) are tested in
 // tests/feed-pace.test.js.
-Object.assign(Feed.FEED, { chew: 2, layerFirst: 30, layerGrow: 1.8, pour: 8, speed: 180, startMites: 1 });
+Object.assign(Feed.FEED, { chew: 2, layerFirst: 30, layerGrow: 1.8, pour: 8, speed: 180, startMites: 1, payScale: 1 });
 
 const { w: W, h: H, grains: G } = Feed.FEED;
 const FAST = { chew: 60, graze: 1, speed: 160 };
