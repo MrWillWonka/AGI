@@ -651,3 +651,19 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
 - Checked in a test browser: the line and the icon on the owner's 3 PM save (one boss beaten), the app opening on a
   laptop and on a phone in the playground (14 kinds there, 3 on the save). A captcha run was not played through.
   `tests/ring-evals.test.js`.
+
+## 2026-11-15: Build 3, second piece: funding rounds (the owner's three cards)
+
+- **A rival passed on Evals' score sheet is a funding round, and a round is room** (engine.js `fundingRounds`,
+  `ringRoom`, `capacity`): `RING_ROOM` 20 Graphics Cards and 20 Mining Rigs to start, `RING_ROOM_ROUND` 10 more of each
+  a round (eight rivals: 100). **Skills give no room under the ring** (they gave 10 a skill step). No money: a round
+  is an event. Hardware a save already owns past its room is kept; it just cannot buy more.
+- **Shown** on the run's end card ("Funding round 1: room for 10 more Graphics Cards and Mining Rigs in Parcel (30 of
+  each)."), as a notice from the top that opens Parcel, and by the AI once (`funding`, a placeholder of mine). Parcel's
+  cards read "you own 22 · room for 32" (the free cards counted in both) and, full, "Full. A funding round in Evals
+  makes room" once Evals is open.
+- Debug: `AGI.debug.fundRound()` passes the next rival without playing. Logged as `funding` (round, room).
+- Checked in a test browser on the owner's save with 20 cards: full before, a round, the notice, the AI's line, room
+  for 32 after. **The end card's line was not seen** (no Evals run was played to a rival). **How long the first rival
+  (Parrot-7B, score 12) takes to pass is not measured**; the plan wants the first round within a few minutes of the
+  first boss. `tests/ring-evals.test.js`.
