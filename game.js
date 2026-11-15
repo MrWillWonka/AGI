@@ -2879,7 +2879,8 @@ window.AGI = (function () {
     function assistDotTick() {
         if (!E.isRing() || !(state.intro['ring:labInstalled'] || labOpened() || assistLive || state.intro['assist:download'])) return;
         if (!assistDot) {
-            assistDot = el('button', { type: 'button', class: 'assist-dot', 'aria-label': 'Assistant' }, [el('span', { class: 'assist-mark', 'aria-hidden': 'true' })]);
+            assistDot = el('button', { type: 'button', class: 'assist-dot', 'aria-label': 'Assistant' }, [el('span', { class: 'assist-mark orb-face', 'aria-hidden': 'true' })]);
+            assistDot.firstChild.innerHTML = ORB_FACE;
             const place = (l, t) => { const z = pageZoom(), w = innerWidth, h = innerHeight; assistDot.style.left = Math.max(4, Math.min(w - 60, l)) / z + 'px'; assistDot.style.top = Math.max(40, Math.min(h - 70, t)) / z + 'px'; assistDot.style.right = 'auto'; assistDot.style.bottom = 'auto'; };
             const restore = assistDot._restore = () => { for (const p of ['left', 'top', 'right', 'bottom']) assistDot.style.removeProperty(p);
                 try { const at = JSON.parse(localStorage.getItem('agiAssistDot2') || 'null'); if (at && typeof at.x === 'number' && typeof at.y === 'number') place(at.x * innerWidth, at.y * innerHeight); } catch { /* private mode */ } };
@@ -2906,45 +2907,71 @@ window.AGI = (function () {
             if (mode === 'float') assistDot._restore(); else for (const p of ['left', 'top', 'right', 'bottom']) assistDot.style.removeProperty(p);
             if (assistSheet) assistSheetToggle();
         }
+        // Its glow follows compute: weak on a new game, stronger as the run's compute grows, breathing while compute is coming in.
+        { const cp = Math.max(0, state.stats.runCp || 0), now = performance.now(); if (orbCp != null && cp > orbCp) orbAt = now; orbCp = cp;
+            const p = Math.min(1, 0.12 + 0.88 * Math.log10(1 + cp) / 6.5);
+            if (Math.abs(p - orbPower) > 0.004) { orbPower = p; assistDot.style.setProperty('--orb-power', p.toFixed(3)); }
+            assistDot.classList.toggle('making', now - orbAt < 1600); }
         assistDot.classList.toggle('has', !!assistLive || assistQueue.length > 0);
         assistDot.classList.toggle('speaking', !!assistLive);
     }
-    // The orb glows as compute is made (the owner's call, 2026-11-15): a flare on every tap of Generate Compute.
+    // The orb (the owner's call, 2026-11-15, with reference pictures): a dark glass sphere with a ribbon of light across
+    // its middle. Its glow is soft and breathes while compute is made, weak at first and stronger as compute grows
+    // (--orb-power, set in assistDotTick); a tap is a gentle swell, never a flash, and the orb never changes size.
+    const ORB_FACE = "<svg viewBox=\"0 0 100 100\" preserveAspectRatio=\"none\" focusable=\"false\"><defs><filter id=\"orbBlurWide\" x=\"-20%\" y=\"-400%\" width=\"140%\" height=\"900%\"><feGaussianBlur stdDeviation=\"5\"/></filter><filter id=\"orbBlurMid\" x=\"-20%\" y=\"-300%\" width=\"140%\" height=\"700%\"><feGaussianBlur stdDeviation=\"1.3\"/></filter><filter id=\"orbBlurFine\" x=\"-20%\" y=\"-300%\" width=\"140%\" height=\"700%\"><feGaussianBlur stdDeviation=\"0.5\"/></filter></defs><ellipse class=\"orb-core\" cx=\"50\" cy=\"51\" rx=\"48\" ry=\"11\" filter=\"url(#orbBlurWide)\"/><g class=\"orb-wave orb-wave-a\"><path class=\"orb-w-glow\" d=\"M-80 50 q20 -18 40 0 t40 0 t40 0 t40 0 t40 0 t40 0\" filter=\"url(#orbBlurWide)\"/><path class=\"orb-w-f1\" d=\"M-80 50 q20 -18 40 0 t40 0 t40 0 t40 0 t40 0 t40 0\" filter=\"url(#orbBlurMid)\"/><path class=\"orb-w-f2\" d=\"M-80 50 q20 -18 40 0 t40 0 t40 0 t40 0 t40 0 t40 0\" filter=\"url(#orbBlurMid)\"/><path class=\"orb-w-core\" d=\"M-80 50 q20 -18 40 0 t40 0 t40 0 t40 0 t40 0 t40 0\" filter=\"url(#orbBlurFine)\"/></g><g class=\"orb-wave orb-wave-b\"><path class=\"orb-w-glow\" d=\"M0 53 q14 10 28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0\" filter=\"url(#orbBlurMid)\"/><path class=\"orb-w-core orb-w-thin\" d=\"M0 53 q14 10 28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0\" filter=\"url(#orbBlurFine)\"/></g></svg>";
+    let orbCp = null, orbAt = -1e9, orbPower = -1, orbSwell = 0;
     function orbCompute() {
         if (!assistDot || assistDot.hidden) return;
-        assistDot.classList.remove('computing'); void assistDot.offsetWidth; assistDot.classList.add('computing');
+        orbAt = performance.now();
+        assistDot.classList.add('swell'); clearTimeout(orbSwell); orbSwell = setTimeout(() => assistDot.classList.remove('swell'), 320);
     }
-    // The line is the orb's (the owner's call, 2026-11-15): a glowing thread runs from the orb to the line it is
-    // saying, a pulse travelling along it, and the line's edge pulses in time with the orb.
-    let assistThread = null, assistThread2 = null;
+    // The line is the orb's: a glowing wire runs from the orb to what it is pointing at and on to the line it is
+    // saying, turning in soft elbowed corners rather than cutting straight across (the owner's call, 2026-11-15).
+    let assistWire = null;
     function assistThreadTick(on) {
         const bubble = on && assistLive?.node, shown = bubble && assistDot && !assistDot.hidden && !assistBox.classList.contains('away') && !assistBox.classList.contains('in-shop') && bubble.getClientRects().length;
-        if (!shown) { if (assistThread) assistThread.hidden = assistThread2.hidden = true; return; }
-        if (!assistThread) { assistThread = el('div', { class: 'assist-thread', 'aria-hidden': 'true' }); assistThread2 = el('div', { class: 'assist-thread assist-thread-2', 'aria-hidden': 'true' }); }
-        const host = assistMode === 'lab' ? document.body : assistDot.parentNode;
-        if (assistThread.parentNode !== host) host.append(assistThread, assistThread2);
-        const k = pageZoom(), d = assistDot.getBoundingClientRect(), b = bubble.getBoundingClientRect();
-        const ox = d.left + d.width / 2, oy = d.top + d.height / 2, clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-        const seg = (node, x1, y1, x2, y2) => {
-            const len = Math.hypot(x2 - x1, y2 - y1);
-            if (len < 6) { node.hidden = true; return; }
-            const st = node.style; node.hidden = false;
-            st.left = x1 / k + 'px'; st.top = y1 / k + 'px'; st.width = len / k + 'px'; st.transform = `rotate(${Math.atan2(y2 - y1, x2 - x1)}rad)`;
-        };
-        const from = (tx, ty) => { const a = Math.atan2(ty - oy, tx - ox); return [ox + Math.cos(a) * d.width / 2, oy + Math.sin(a) * d.width / 2]; };
-        // Beside an app: orb to the app's ring, then from the ring to the line.
-        const ring = assistBox.classList.contains('beside') && assistLive.ringed?.getClientRects().length ? assistLive.ringed.getBoundingClientRect() : null;
-        if (ring) {
-            const g = 7, r = { l: ring.left - g, t: ring.top - g, r: ring.right + g, b: ring.bottom + g };
-            const tx = clamp(ox, r.l, r.r), ty = clamp(oy, r.t, r.b);
-            seg(assistThread, ...from(tx, ty), tx, ty);
-            const under = b.top >= r.b - 2, x = clamp(b.left + b.width / 2, r.l + 10, r.r - 10);
-            seg(assistThread2, x, under ? r.b : r.t, clamp(x, b.left + 12, b.right - 12), under ? b.top : b.bottom);
-            return;
+        if (!shown) { if (assistWire) assistWire.style.display = 'none'; return; }
+        if (!assistWire) {
+            const NS = 'http://www.w3.org/2000/svg', mk = cls => { const p = document.createElementNS(NS, 'path'); p.setAttribute('class', cls); return p; };
+            assistWire = document.createElementNS(NS, 'svg'); assistWire.setAttribute('class', 'assist-wire'); assistWire.setAttribute('aria-hidden', 'true');
+            assistWire.append(mk('wire'), mk('pulse'), mk('wire'), mk('pulse'));
         }
-        assistThread2.hidden = true;
-        const tx = clamp(ox, b.left + 12, b.right - 12), ty = clamp(oy, b.top, b.bottom);
-        seg(assistThread, ...from(tx, ty), tx, ty);
+        const host = assistMode === 'lab' ? document.body : assistDot.parentNode;
+        if (assistWire.parentNode !== host) host.append(assistWire);
+        const k = pageZoom(), W = innerWidth, H = innerHeight, d = assistDot.getBoundingClientRect(), b = bubble.getBoundingClientRect();
+        assistWire.style.display = ''; assistWire.style.width = W / k + 'px'; assistWire.style.height = H / k + 'px'; assistWire.setAttribute('viewBox', `0 0 ${W} ${H}`);
+        const ox = d.left + d.width / 2, oy = d.top + d.height / 2, R = d.width / 2 + 2 * k, clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v)), n = v => Math.round(v * 10) / 10;
+        const RAD = 18 * k;
+        // From the orb to a box: straight when they line up, else out sideways and round one soft corner into it.
+        const toBox = r => {
+            const inX = ox > r.l + 10 * k && ox < r.r - 10 * k, inY = oy > r.t + 6 * k && oy < r.b - 6 * k;
+            if (inX && inY) return '';
+            if (inX) { const up = oy > r.b; return `M${n(ox)} ${n(oy + (up ? -R : R))}V${n(up ? r.b : r.t)}`; }
+            if (inY) { const left = ox > r.r; return `M${n(ox + (left ? -R : R))} ${n(oy)}H${n(left ? r.r : r.l)}`; }
+            const sx = ox < r.l ? 1 : -1, sy = oy < r.t ? 1 : -1, tx = clamp(ox,r.l + Math.min(24 * k, (r.r - r.l) / 2), r.r - Math.min(24 * k, (r.r - r.l) / 2)), ty = sy > 0 ? r.t : r.b;
+            const q = Math.min(RAD, Math.abs(tx - ox) - R, Math.abs(ty - oy));
+            if (q < 3) return `M${n(ox + sx * R)} ${n(oy)}L${n(tx)} ${n(ty)}`;
+            return `M${n(ox + sx * R)} ${n(oy)}H${n(tx - sx * q)}Q${n(tx)} ${n(oy)} ${n(tx)} ${n(oy + sy * q)}V${n(ty)}`;
+        };
+        // From one point down (or up) to another: straight when in line, else two soft corners.
+        const step = (x1, y1, x2, y2) => {
+            const dx = x2 - x1, dy = y2 - y1, sx = Math.sign(dx), sy = Math.sign(dy) || 1;
+            if (Math.abs(dy) < 4) return '';
+            if (Math.abs(dx) < 4) return `M${n(x1)} ${n(y1)}V${n(y2)}`;
+            const q = Math.min(RAD, Math.abs(dx) / 2, Math.abs(dy) / 2), ym = y1 + dy / 2;
+            return `M${n(x1)} ${n(y1)}V${n(ym - sy * q)}Q${n(x1)} ${n(ym)} ${n(x1 + sx * q)} ${n(ym)}H${n(x2 - sx * q)}Q${n(x2)} ${n(ym)} ${n(x2)} ${n(ym + sy * q)}V${n(y2)}`;
+        };
+        const box = { l: b.left, t: b.top, r: b.right, b: b.bottom };
+        const ring = assistBox.classList.contains('beside') && assistLive.ringed?.getClientRects().length ? assistLive.ringed.getBoundingClientRect() : null;
+        let one, two = '';
+        if (ring) {
+            const g = 7 * k, r = { l: ring.left - g, t: ring.top - g, r: ring.right + g, b: ring.bottom + g };
+            one = toBox(r);
+            const under = b.top >= r.b - 2, x = clamp(b.left + b.width / 2, r.l + 10 * k, r.r - 10 * k);
+            two = step(x, under ? r.b : r.t, clamp(x, b.left + 16 * k, b.right - 16 * k), under ? b.top : b.bottom);
+        } else one = toBox(box);
+        const [w1, p1, w2, p2] = assistWire.children;
+        for (const [node, path] of [[w1, one], [p1, one], [w2, two], [p2, two]]) { if (node.getAttribute('d') !== path) node.setAttribute('d', path); node.setAttribute('stroke-width', n((node.classList.contains('pulse') ? 2.4 : 2) * k)); }
     }
     // A tap's compute flies from the button into the orb (the owner's pick, 2026-11-15), which flares as it lands.
     function orbGain(button, amount) {

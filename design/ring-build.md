@@ -495,3 +495,18 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   from the fifth on. Whether a long first split on tough sand is right is the owner's to say.
 - The phone playtest log (-085018) is the morning's session again with a declined call and a start-over added; the
   two short ones are a 40-second look and another agent's test of the old game.
+
+## 2026-11-15: the orb's third look, its glow from compute, elbowed lines (the owner's call, with reference pictures)
+
+- **The orb is a dark glass sphere with a ribbon of light across its middle** (`ORB_FACE` in game.js, an inline SVG
+  in the orb's mark, `.orb-face`): two waves drifting at different speeds, a white core with the theme's colour round
+  it and a faint blue and pink fringe. It is the game's own orb in that style, in the theme's colour.
+- **Its glow follows compute, with no flash:** a soft halo behind it (`.assist-dot::before`) whose strength is
+  `--orb-power`, 0.12 on a new game rising with the log of the run's compute to 1 at about 3M (set in
+  `assistDotTick`). While compute is coming in (class `making`, for 1.6 s after the last gain) the halo breathes
+  on a 2.8 s cycle; while a line is up, 1.5 s. A tap brightens the sphere a little for a third of a second
+  (`swell`). The orb never changes size. The 0-to-100 flare (`computing`, `orb-flare`) is no longer used.
+- **Lines turn in soft corners:** the two rotated bars are replaced by one SVG overlay (`.assist-wire`,
+  `assistThreadTick`): straight when the orb and its target line up, else out sideways and round one 18 px corner;
+  from an app's ring to the line, two corners. A white pulse travels along it.
+- Not seen on a real iPhone yet (the ribbon uses SVG blur filters; checked in Chromium only).
