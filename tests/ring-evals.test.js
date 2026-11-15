@@ -38,3 +38,21 @@ test('Evals: with steps given, handing a kind over opens no kinds', () => {
     assert.deepEqual(Evals.openKinds(learn, two), [...Evals.LADDER[0].kinds, ...Evals.LADDER[1].kinds]);
     assert.equal(Evals.openKinds(learn, { ...one, steps: 99 }).length, Evals.LADDER.flatMap(x => x.kinds).length);
 });
+
+test('the ring: a funding round is room for cards and rigs; skills give none; the old game keeps skills', () => {
+    E.setRing(true);
+    const s = E.defaultState(Date.now());
+    const card = E.UPGRADE_BY_ID.cpu, rig = E.UPGRADE_BY_ID.server;
+    assert.equal(E.capacity(s, card), E.RING_ROOM);
+    assert.equal(E.capacity(s, rig), E.RING_ROOM);
+    s.path.learned = 6;
+    assert.equal(E.capacity(s, card), E.RING_ROOM, 'skills give no room under the ring');
+    const paid = E.evalsPassed(s, 2, Evals.RIVALS.map(r => r.bounty));
+    assert.equal(paid, Evals.RIVALS[0].bounty + Evals.RIVALS[1].bounty, 'the bounty is still Marks');
+    assert.equal(E.fundingRounds(s), 2);
+    assert.equal(E.capacity(s, card), E.RING_ROOM + 2 * E.RING_ROOM_ROUND);
+    assert.equal(E.capacity(s, rig), E.RING_ROOM + 2 * E.RING_ROOM_ROUND);
+    E.setRing(false);
+    assert.equal(E.fundingRounds(s), 0);
+    assert.ok(E.capacity(s, card) > 20, 'the old game: room from skills');
+});

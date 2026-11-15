@@ -2605,6 +2605,16 @@ window.AGI = (function () {
         state.intro['ring:evals'] = true; pt('home', { evals: 1 });
         assist('evals', '', { action: showMe('evals', 'evals'), done: () => !!window.EvalsUI?.isOpen });
     }
+    // A funding round (evals-ui.js calls this when a run's end passes a rival): a notice that opens Parcel, and the AI's
+    // line the first time (PLACEHOLDER words).
+    function fundingRound(before, after) {
+        if (!E.isRing() || after <= before) return;
+        pt('funding', { round: after, room: E.ringRoom(state) });
+        deviceNotice('shop', 'Funding round ' + after, `Room for ${E.RING_ROOM_ROUND * (after - before)} more Graphics Cards and Mining Rigs.`, () => { closeApps(); openShop(); });
+        assist('funding', '', { done: () => true, when: () => !window.EvalsUI?.run || window.EvalsUI.run.over });
+        if (shop?.dlg.open) renderShop(true);
+        save();
+    }
     function openEvalsApp() {
         state.intro['ring:seen:evals'] = true;
         window.EvalsUI?.open();
@@ -2718,6 +2728,7 @@ window.AGI = (function () {
         "cardsHome": "Parcel again. Each card makes compute on its own. You have done enough tapping for me.",
         "server": "That one was too much for me. I am sorry. With a server I could train, and then I think we could beat it.",
         "serverHome": "Parcel again. It sells a server. Four hundred dollars. I know that is a lot to ask.",
+        "funding": "I passed one of the others. Someone has decided we are worth more room. Parcel will sell you more hardware now.",
         "evals": "The boss is down. Someone noticed. They want me tested, so I have put Evals on your home screen.",
         "evalsHome": "This one. Evals is where I am tested. You show me how, and then you check my work.",
         "training": "The server is in. Thank you. I can train now, if you will help me.",
@@ -3203,14 +3214,14 @@ window.AGI = (function () {
         const card = E.UPGRADE_BY_ID.cpu;
         if (E.ringCardsOpen(state) || E.level(state, 'cpu') > 0) {
             const own = E.level(state, 'cpu'), k = own + queued('cpu'), room = E.capacity(state, card);
-            items.push({ id: 'cpu', k, art: 5, many: true, own, coming: queued('cpu') > 0, onWay: queued('cpu'), full: k >= room, next: k < room, price: E.upgradeCost(card, k).cash,
+            items.push({ id: 'cpu', k, art: 5, many: true, own, room, coming: queued('cpu') > 0, onWay: queued('cpu'), full: k >= room, next: k < room, price: E.upgradeCost(card, k).cash,
                 name: E.upgradeName(state, card), about: E.upgradeFlavor(state, card), does: 'Makes compute on its own', owned: false });
         }
         // The bigger machine, once ten cards are bought (the owner's pick, 2026-11-14; name and numbers PLACEHOLDERS).
         const rig = E.UPGRADE_BY_ID.server;
         if (E.isUpgradeVisible(state, rig) || E.level(state, 'server') > 0) {
             const own = E.level(state, 'server'), k = own + queued('server'), room = E.capacity(state, rig);
-            items.push({ id: 'server', k, art: 6, many: true, own, coming: queued('server') > 0, onWay: queued('server'), full: k >= room, next: k < room, price: E.upgradeCost(rig, k).cash,
+            items.push({ id: 'server', k, art: 6, many: true, own, room, coming: queued('server') > 0, onWay: queued('server'), full: k >= room, next: k < room, price: E.upgradeCost(rig, k).cash,
                 name: E.upgradeName(state, rig), about: E.upgradeFlavor(state, rig), does: `Makes ${E.RING_RIG_CPS} compute a second`, owned: false });
         }
         return items;
@@ -3277,10 +3288,10 @@ window.AGI = (function () {
                 const buy = () => el('button', { type: 'button', class: short ? 'ghost-button shop-buy' : cover ? 'button shop-buy sell-buy' : 'button shop-buy', text: short ? `Need $${E.format(gap)} more` : cover ? `Sell ${E.format(sell)} compute and buy` : i.many && i.onWay ? 'Buy another' : 'Buy now', ...(short ? { disabled: '' } : {}),
                     onclick: () => { if (cover) { if (!E.sellCompute(state, sell)) return; pt('shopSell', { dollars: gap, cp: sell, forBuy: 1 }); afterChange(); } shopOrder(i.id, i.k); } });
                 const action = i.owned ? el('span', { class: 'shop-owned', text: '✓ Delivered' })
-                    : i.many ? (i.full ? el('span', { class: 'shop-later', text: 'No room for more yet' }) : buy())
+                    : i.many ? (i.full ? el('span', { class: 'shop-later', text: E.evalsOpen(state) ? 'Full. A funding round in Evals makes room' : 'No room for more yet' }) : buy())
                     : i.coming ? el('span', { class: 'shop-coming', text: 'On its way' })
                     : !i.next ? el('span', { class: 'shop-later', text: 'Next in line' }) : buy();
-                const does = i.many ? `${i.does} · you own ${i.own + (i.id === 'cpu' ? E.ringFreeCards(state) : 0)}${i.onWay ? `, ${i.onWay} on the way` : ''}` : i.does;
+                const does = i.many ? `${i.does} · you own ${i.own + (i.id === 'cpu' ? E.ringFreeCards(state) : 0)}${i.onWay ? `, ${i.onWay} on the way` : ''} · room for ${i.room + (i.id === 'cpu' ? E.ringFreeCards(state) : 0)}` : i.does;
                 return el('article', { class: `shop-item${i.owned ? ' owned' : ''}${i.next && !short ? ' next' : ''}` }, [art,
                     el('div', { class: 'shop-info' }, [el('h3', { text: i.name }), el('p', { class: 'shop-about', text: i.about }), el('p', { class: 'shop-does', text: does })]),
                     el('div', { class: 'shop-side' }, [el('span', { class: 'shop-price', text: `$${E.format(i.price)}` }), action])]);
@@ -14769,6 +14780,7 @@ window.AGI = (function () {
         feedStart(sector) { const ok = E.feedStart(state, sector); if (ok) { pt('feedStart', { sector, held: state.feed.backlog.reduce((n, e) => n + e.n + e.gold + e.bad, 0) }); save(); } return ok; },
         // The Feed's screen steps the sand itself, every frame it draws (feed-ui.js `tick`): nothing moves with it closed.
         feedFrame(dt) { feedTick(dt * debugSpeed); },
+        fundingRound(before, after) { fundingRound(before, after); },
         feedEnd(why) { const r = E.feedLeave(state, why); if (r) feedShow({ events: [r] }); return r; },
         feedCarry(sector) { const ok = E.feedCarry(state, sector); if (ok) { pt('feedCarry', { sector, mites: state.feed.mites, splits: state.feed.layers, life: Math.round(state.feed.life * 100) }); save(); } return ok; },
         // From The Feed's result: back to Packet Snare for more.
@@ -14915,6 +14927,8 @@ window.AGI = (function () {
             openSnare: () => straightToSnare(),
             // Evals, the third minigame (stage 1: its own screen, opened from here or with #evals).
             openEvals: () => window.EvalsUI?.open(),
+            // A rival passed without playing (the ring's funding rounds): the next one on the score sheet.
+            fundRound: () => { const b = state.evals.passed; if (b >= window.Evals.RIVALS.length) return b; state.evals.passed = b + 1; fundingRound(b, b + 1); afterChange(); return b + 1; },
             // The Feed (Build 1 of the ring: its screen behind a test door, opened from here or with #feed).
             openFeed: () => { window.FeedUI?.open(); pt('view', { v: 'feed' }); },
             // A Packet Snare run's worth of packets on the heap, for testing before runs fill it.

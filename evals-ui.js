@@ -203,6 +203,9 @@
             const s = window.Evals.sheet(saved().learn, run.opts), before = window.AGI.state.evals.passed;
             run.bounty = window.AGIEngine.evalsPassed(window.AGI.state, s.passed, window.Evals.RIVALS.map(r => r.bounty));
             run.passedNames = window.Evals.RIVALS.slice(before, s.passed).map(r => r.name);
+            // The ring: each rival passed is a funding round, and a round is room for hardware (engine.js `fundingRounds`).
+            const E = window.AGIEngine, after = window.AGI.state.evals.passed;
+            if (E.isRing?.() && after > before) { run.rounds = [before + 1, after]; run.roomMore = E.RING_ROOM_ROUND * (after - before); run.room = E.ringRoom(window.AGI.state); window.AGI.fundingRound?.(before, after); }
         } else { run.counted = true; const s = saved(); s.runs++; s.best = Math.max(s.best, run.solved); s.marks = (s.marks || 0) + run.marks; }
         window.AGI?.save?.();
     }
@@ -235,6 +238,7 @@
         const lines = [`You solved ${solved}.`, solved > was ? 'That is your best run.' : `Your best run: ${was} solved.`];
         lines.push(`You earned ${run.marks.toLocaleString('en-US')} Marks${run.bestCombo > 1 ? `, with a best combo of ${run.bestCombo}` : ''}.`);
         if (run.bounty) lines.push(`Your model passed ${listOf(run.passedNames)} on the score sheet: ${run.bounty.toLocaleString('en-US')} Marks more.`);
+        if (run.rounds) lines.push(`${run.rounds[0] === run.rounds[1] ? `Funding round ${run.rounds[1]}` : `Funding rounds ${run.rounds[0]} to ${run.rounds[1]}`}: room for ${run.roomMore} more Graphics Cards and Mining Rigs in Parcel (${run.room} of each).`);
         if (run.slipped) lines.push(`${run.slipped === 1 ? 'One pass was' : run.slipped + ' passes were'} by loophole, worth half.`);
         if (window.Evals.misaligned(saved().learn) >= window.Evals.EVALS.misShow) lines.push('The AI is misaligned: it looks for loopholes wherever it works alone. Catch them to bring it back.');
         run.endLines = [...lines, ...progress()];

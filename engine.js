@@ -1741,8 +1741,15 @@
         keyboard: [10, 1], cpu: [20, 10], server: [5, 5], quantum: [1, 2], neural: [0, 1], datacenter: [0, 1], optical: [0, 1],
         dataProcessor: [6, 3], autoCollector: [0, 2]
     };
+    // The ring, Build 3: funding rounds (the owner's cards, 2026-11-15). Each rival your model has passed on Evals'
+    // score sheet (`evals.passed`) is a round, and a round is room: `RING_ROOM` Graphics Cards and as many Mining Rigs to
+    // start, `RING_ROOM_ROUND` more of each a round. Skills give no room there. A round is an event, not a currency: no money.
+    const RING_ROOM = 20, RING_ROOM_ROUND = 10;
+    const fundingRounds = s => (ring ? Math.max(0, Math.floor(num(s.evals && s.evals.passed, 0))) : 0);
+    const ringRoom = s => RING_ROOM + RING_ROOM_ROUND * fundingRounds(s);
     function capacity(s, up) {
-        const c = CAPACITY[ring && up.id === 'server' ? 'cpu' : up.id];   // the ring: as much room for rigs as for cards
+        if (ring && (up.id === 'cpu' || up.id === 'server')) return ringRoom(s);
+        const c = CAPACITY[up.id];
         if (ring && up.id === 'keyboard') return RING_DESK + (serverOffered(s) ? 1 : 0);   // the ring: the server waits for the first boss
         return c ? c[0] + Math.floor(c[1] * Math.max(0, legPos(s.path.learned) - 1)) : Infinity;
     }
@@ -3758,7 +3765,7 @@
     return {
         RING_STUCK_RUNS, RING_SURGE_SHARE, stuckOffer, takeSurge, passSurge, RING_SERVER_PRICE, RING_SPRINT_RP, RING_SPRINT_GROWTH, RING_CALL_CP, RING_DEPOSIT, DESK_PRICES, RING_CARD_PRICE, RING_CARD_GROWTH, RING_RIG, RING_RIG_PRICE, RING_RIG_GROWTH, RING_RIG_CPS, RING_RIG_CARDS, RING_FEED_RUNS, ringCardsOpen, ringFreeCards, feedOpen, RING_CP_PER_DOLLAR, sellCompute, deskCash, funded, fundStep, fundDecide,
         feedStart, feedStock, feedLeave, feedCarry, feedPick, feedMark,
-        evalsOpen, evalsSteps, SAVE_VERSION, newPlayer, cleanPlayer, signIn, mailFill, WELCOME_FINAL, setRing, isRing, RING_DESK, deskLevels, deskDone, RING_CLOCK, RING_CLOCK_GROWTH, RING_CLOCK_MIN, snareClock, snarePayClock, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
+        evalsOpen, evalsSteps, RING_ROOM, RING_ROOM_ROUND, fundingRounds, ringRoom, SAVE_VERSION, newPlayer, cleanPlayer, signIn, mailFill, WELCOME_FINAL, setRing, isRing, RING_DESK, deskLevels, deskDone, RING_CLOCK, RING_CLOCK_GROWTH, RING_CLOCK_MIN, snareClock, snarePayClock, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
         versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, startBreakCountdown, WALL_SURGE_RUNS, SURGE_POWER, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, ENDINGS, ending, recordLegPower, legPower, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
         RESOURCES, ATTRIBUTES, PHASES, ACTIONS, TABS, UPGRADES, UPGRADE_BY_ID, TREE_BRANCHES, MILESTONES, ACHIEVEMENTS,
         defaultState, derive, level, phaseIndex, phaseProgress, ENDING_PHASE,
