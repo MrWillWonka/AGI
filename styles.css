@@ -4601,3 +4601,9 @@ body.ring-device .minimap { display: none !important; }
 .shop-item:has(.sell-buy) .shop-side { grid-column: 1 / -1; grid-template-columns: auto 1fr; align-items: center; justify-items: stretch; }
 .shop-item:has(.sell-buy) .shop-side > :last-child { justify-self: end; }
 .shop-item > :nth-child(2) { min-width: 0; }
+
+/* Leftovers from the old game under the ring (the owner's log findings): no server room in the path ("home /
+   packet_snare"), and the Upgrades button's count sits inside the button, where the screen's edge cannot clip it. */
+body.ring-device #backButton, body.ring-device #backButton + .crumb-sep { display: none; }
+body.ring-device .snare-upgrades[data-ready] { padding-right: 30px; }
+body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; transform: translateY(-50%); box-shadow: none; }

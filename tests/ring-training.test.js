@@ -47,7 +47,7 @@ test('the ring: the finished desk has no card until the server is offered; the s
     assert.equal(E.isUpgradeVisible(s, up()), false, 'bought: the card goes again');
     const changes = E.evaluate(s);
     assert.equal(!!s.unlocked['module:path'], true, 'the Training Cluster opens');
-    assert.equal(changes.milestones.find(m => m.key === 'module:path').ringCallout[1], 'Training Cluster has been added to your home screen.');
+    assert.equal(changes.milestones.find(m => m.key === 'module:path').ringCallout[1], 'Training has been added to your home screen.');
 });
 
 test('the ring: no money comes for the server; it is bought with what compute sells for', () => {
