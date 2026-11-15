@@ -1914,7 +1914,7 @@ window.AGI = (function () {
         else fetch(url, { method: 'POST', body: text, keepalive: leaving && text.length < 60000 }).catch(() => { inboxSent = -1; });
     }
     // An automated browser (the repo's own checks) sends nothing unless the address asks for it (?inbox): its runs filled the owner's inbox.
-    if (!navigator.webdriver || /[?&]inbox/.test(location.search)) setTimeout(() => fetch('/__playtest/ping').then(r => (r.ok ? r.text() : '')).then(t => { inboxOn = t === 'playtest-inbox'; if (inboxOn) { inboxLog(); setInterval(inboxLog, INBOX_EVERY_MS); } }, () => {}), 3000);
+    if (!navigator.webdriver || /[?&]inbox/.test(location.search)) setTimeout(() => fetch('/__playtest/ping').then(r => (r.ok ? r.text() : '')).then(t => { inboxOn = t === 'playtest-inbox'; if (inboxOn) { screenArm(); inboxLog(); setInterval(inboxLog, INBOX_EVERY_MS); } }, () => {}), 3000);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') inboxLog(true); });
     addEventListener('pagehide', () => inboxLog(true));
     // A snapshot: every canvas on screen (Packet Snare's field, The Feed's sand, Training's trail) as a picture, and the
@@ -1940,6 +1940,13 @@ window.AGI = (function () {
         } catch { screenStream = null; return null; }
     }
     document.addEventListener('keydown', e => { if (e.key === 'F8' && inboxOn) { e.preventDefault(); snapNow(); } });
+    // Sharing is asked for at the start of a visit (the owner's call, 2026-11-14: so it is not forgotten), on the first
+    // click or key, since a browser only lets a page ask from one; nothing is saved by it. Refused, Snap asks again.
+    function screenArm() {
+        if (!screenCapable()) return;
+        const go = async () => { removeEventListener('pointerup', go, true); removeEventListener('keyup', go, true); if (screenStream?.active) return; const ok = !!(await screenShot()); pt('screenShare', { ok: ok ? 1 : 0, auto: 1 }); };
+        addEventListener('pointerup', go, true); addEventListener('keyup', go, true);
+    }
     let snapBusy = false;
     async function snapNow() {
         if (!inboxOn || snapBusy) return;
