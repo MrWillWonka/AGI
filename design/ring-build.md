@@ -480,3 +480,18 @@ the pace by a few seconds; it is for following them. A person plays two or three
 the gaps as ratios. Still a run of quick splits in the middle (3 to 5 s for the bot), because each split adds a mite
 while a layer grows only a fifth: `miteEvery` would be the next lever. All numbers mine, to be played; the dials
 (now kept as `agiFeedDials2`, so an earlier trial does not hide these) still change them live.
+
+## 2026-11-15: the logs and snapshot of late morning (inbox: 20261115-113840, -085018, -113759; snap-04387 in -100800)
+
+- **Snapshot, 11:21, desktop, Parcel over Packet Snare:** the Mining Rig's card was squeezed to a word a line and
+  five times its height by the new "Sell 2.03K compute and buy" button. Fixed: that button gets a row of its own under
+  the part. The same picture shows 39,230 compute banked against 23 research, with 15 cards and one rig.
+- **Playground on the iPhone, 19 minutes (before the pace change):** nine minutes on the home screen trying the music
+  (the Soft track, at full volume), then two Feed sessions. On sector 1 the splits came 8, 12 and 9 s apart. On a
+  sector-4 pile with garbled sand the first split took 49 s and the second 66, then 25 to 38 s each: ten splits, 311 s,
+  500 research. Packet Snare and Training were not opened.
+- **The pace change and deep sectors (not acted on):** the first split is now twice the size (30 packets), so on a
+  deep, tough pile it will take about twice as long as the 49 s above. Later splits there are smaller than they were
+  from the fifth on. Whether a long first split on tough sand is right is the owner's to say.
+- The phone playtest log (-085018) is the morning's session again with a declined call and a start-over added; the
+  two short ones are a 40-second look and another agent's test of the old game.

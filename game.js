@@ -3210,7 +3210,7 @@ window.AGI = (function () {
                 const art = el('span', { class: 'shop-art' });
                 art.innerHTML = `<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${PARCEL_ART[i.art]}</svg>`;
                 const gap = Math.max(0, i.price - bank), sell = gap * rate, cover = gap > 0 && cp >= sell, short = gap > 0 && !cover;
-                const buy = () => el('button', { type: 'button', class: short ? 'ghost-button shop-buy' : 'button shop-buy', text: short ? `Need $${E.format(gap)} more` : cover ? `Sell ${E.format(sell)} compute and buy` : i.many && i.onWay ? 'Buy another' : 'Buy now', ...(short ? { disabled: '' } : {}),
+                const buy = () => el('button', { type: 'button', class: short ? 'ghost-button shop-buy' : cover ? 'button shop-buy sell-buy' : 'button shop-buy', text: short ? `Need $${E.format(gap)} more` : cover ? `Sell ${E.format(sell)} compute and buy` : i.many && i.onWay ? 'Buy another' : 'Buy now', ...(short ? { disabled: '' } : {}),
                     onclick: () => { if (cover) { if (!E.sellCompute(state, sell)) return; pt('shopSell', { dollars: gap, cp: sell, forBuy: 1 }); afterChange(); } shopOrder(i.id, i.k); } });
                 const action = i.owned ? el('span', { class: 'shop-owned', text: '✓ Delivered' })
                     : i.many ? (i.full ? el('span', { class: 'shop-later', text: 'No room for more yet' }) : buy())
