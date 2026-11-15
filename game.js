@@ -2236,21 +2236,29 @@ window.AGI = (function () {
             // On a phone every app has a home bar at the foot of the screen (the owner's playtest: the crumb's home felt
             // odd on a phone). It sits under the home screen, so it only shows inside an app.
             // (The owner's call, 2026-11-14: a simple dot that reveals a bar: Settings, Home in the middle, Playtest.)
+            // (2026-11-14, later: the dot is the device's dock. With a mouse it opens when the pointer comes over it and
+            // goes when the pointer leaves it and the bar; a tap opens and closes it. Parcel sits on it once you have it,
+            // and opens over the app you are in, so a part can be bought from the Lab without going home. On laptops too.)
             const sw = el('div', { class: 'device-switch' });
-            sw.hidden = true;
-            const hideSwitch = () => { sw.hidden = true; clearTimeout(desk.switchTimer); };
-            const switchButton = (key, label, svg, act) => { const b = el('button', { type: 'button', class: `device-switch-button device-switch-${key}${key === 'home' ? ' device-homebar' : ''}`, 'aria-label': label, onclick: () => { hideSwitch(); pt('switch', { to: key }); act(); } }); b.innerHTML = svg; return b; };
+            const fine = () => matchMedia('(hover: hover) and (pointer: fine)').matches;
+            const isOpen = () => sw.classList.contains('open');
+            const hideSwitch = () => { sw.classList.remove('open'); clearTimeout(desk.switchTimer); };
+            const showSwitch = () => { desk.shopDock.hidden = !shopOpenable(); sw.classList.add('open'); clearTimeout(desk.switchTimer); if (!fine()) desk.switchTimer = setTimeout(hideSwitch, 5000); };
+            const switchButton = (key, label, svg, act) => { const b = el('button', { type: 'button', class: `device-switch-button device-switch-${key}${key === 'home' ? ' device-homebar' : ''}`, 'aria-label': label, title: label, onclick: () => { hideSwitch(); pt('switch', { to: key }); act(); } }); b.innerHTML = svg; return b; };
+            desk.shopDock = switchButton('shop', 'Parcel', HOME_ICONS.shop, () => openShop());
             sw.append(
                 switchButton('playtest', 'Playtest survey', HOME_ICONS.playtest, () => openSurvey()),
+                desk.shopDock,
                 switchButton('home', 'Home screen', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>', () => goHome()),
                 switchButton('settings', 'Settings', HOME_ICONS.settings, () => $('settingsButton').click()));
-            const dot = el('button', { type: 'button', class: 'device-homedot', 'aria-label': 'Show Home, Settings and Playtest', onclick: () => {
-                if (!sw.hidden) return hideSwitch();
-                sw.hidden = false;
-                clearTimeout(desk.switchTimer);
-                desk.switchTimer = setTimeout(hideSwitch, 5000);
-            } });
-            document.addEventListener('pointerdown', e => { if (!sw.hidden && !e.target.closest('.device-switch, .device-homedot')) hideSwitch(); });
+            const dot = el('button', { type: 'button', class: 'device-homedot', 'aria-label': 'Show the dock: Home, Parcel, Settings and Playtest', onclick: () => { if (isOpen() && !fine() && performance.now() - hoverAt > 700) hideSwitch(); else showSwitch(); } });
+            let hoverAt = -1e9;   // a press that follows its own hover opening the dock must not close it again
+            // The pointer over the dot opens it; off the dot and the bar for a moment, it goes.
+            let leaveTimer = 0;
+            const stay = () => { clearTimeout(leaveTimer); }, leave = () => { clearTimeout(leaveTimer); if (fine()) leaveTimer = setTimeout(hideSwitch, 280); };
+            dot.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') { stay(); if (!isOpen()) hoverAt = performance.now(); showSwitch(); } });
+            for (const n of [dot, sw]) { n.addEventListener('pointerenter', stay); n.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') leave(); }); }
+            document.addEventListener('pointerdown', e => { if (isOpen() && !e.target.closest('.device-switch, .device-homedot')) hideSwitch(); });
             document.body.append(sw, dot);
             // The status bar: the device's own thin row over every app, in place of the old game's top bar (the owner's
             // call): the clock, what you hold, the signal. When the stats don't fit it shows them one at a time.

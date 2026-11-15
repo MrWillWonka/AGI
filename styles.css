@@ -4470,3 +4470,16 @@ body.device-laptop .assist, body.device-laptop .assist-sheet { bottom: 64px; }
 .assist.low, body.device-laptop .assist.low, :root:has(.device-notice) .assist.low { top: auto; bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
 .assist.away { display: none !important; }
 .survey-photos-button { display: inline-flex; align-items: center; min-height: 40px; padding: 6px 14px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); font: 600 0.85rem var(--font-body); }
+/* The dock: the dot at the foot of every app, on laptops as on phones; its bar slides up and fades in when the pointer
+   comes over the dot (or it is tapped), and goes when the pointer leaves. Parcel sits on it. */
+body.ring-device .device-homedot { display: grid; place-items: center; position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 2500; width: 64px; height: 30px; padding: 0; border: 0; background: none; cursor: pointer; }
+body.ring-device .device-switch, body.ring-device.device-phone .device-switch, body.ring-device.device-phone .device-switch[hidden] { display: flex; align-items: center; gap: 10px; position: fixed; left: 50%; bottom: calc(40px + env(safe-area-inset-bottom, 0px)); z-index: 2500; padding: 8px 14px; border: 1px solid var(--border); border-radius: 26px; background: var(--panel); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    opacity: 0; transform: translate(-50%, 14px) scale(0.94); transform-origin: 50% 100%; pointer-events: none; visibility: hidden; transition: opacity 0.2s ease, transform 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.2), visibility 0s linear 0.24s; }
+body.ring-device .device-switch.open, body.ring-device.device-phone .device-switch.open { opacity: 1; transform: translate(-50%, 0) scale(1); pointer-events: auto; visibility: visible; transition-delay: 0s; }
+body.ring-device .device-switch-button { all: unset; box-sizing: border-box; display: grid; place-items: center; width: 52px; height: 46px; border-radius: 14px; color: var(--muted); cursor: pointer; transition: transform 0.15s ease, background 0.15s ease; }
+body.ring-device .device-switch-button[hidden] { display: none; }
+body.ring-device .device-switch-button svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+body.ring-device .device-switch-home { width: 64px; color: var(--success); background: rgba(255, 255, 255, 0.07); }
+body.ring-device .device-switch-settings { color: var(--primary); } body.ring-device .device-switch-playtest, body.ring-device .device-switch-shop { color: var(--warning); }
+@media (hover: hover) { body.ring-device .device-switch-button:hover { transform: translateY(-3px) scale(1.08); background: rgba(255, 255, 255, 0.1); } }
+@media (prefers-reduced-motion: reduce) { body.ring-device .device-switch, body.ring-device .device-switch-button { transition: none; } }
