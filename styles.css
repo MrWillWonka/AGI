@@ -4607,3 +4607,44 @@ body.ring-device .minimap { display: none !important; }
 body.ring-device #backButton, body.ring-device #backButton + .crumb-sep { display: none; }
 body.ring-device .snare-upgrades[data-ready] { padding-right: 30px; }
 body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; transform: translateY(-50%); box-shadow: none; }
+
+/* The orb, third look (the owner's call with reference pictures, 2026-11-15): a dark glass sphere with a ribbon of
+   light across its middle. A soft halo behind it breathes while compute is made: weak on a new game, stronger as the
+   run's compute grows (--orb-power, 0.12 to 1, from game.js). No flash, and the orb never changes size. */
+.assist-dot, .assist-dot.has, .assist-dot.speaking, .assist-dot.computing { --orb-power: 0.3; background: none; border: 0; box-shadow: none; overflow: visible; animation: none; opacity: 1; isolation: isolate; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.assist-dot::after { content: none; }
+.assist-dot::before { content: ''; position: absolute; inset: -45%; left: -45%; right: -45%; top: -45%; height: auto; z-index: -1; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle, color-mix(in srgb, var(--success) 75%, #fff) 0%, color-mix(in srgb, var(--success) 60%, transparent) 30%, transparent 68%);
+    opacity: calc(0.1 + 0.3 * var(--orb-power)); transform: scale(calc(0.72 + 0.2 * var(--orb-power))); transition: opacity 0.9s ease, transform 0.9s ease; }
+.assist-dot.making::before { animation: orb-breathe 2.8s ease-in-out infinite; }
+.assist-dot.has::before, .assist-dot.speaking::before { animation: orb-breathe 1.5s ease-in-out infinite; }
+@keyframes orb-breathe {
+    0%, 100% { opacity: calc(0.1 + 0.3 * var(--orb-power)); transform: scale(calc(0.72 + 0.2 * var(--orb-power))); }
+    50% { opacity: calc(0.22 + 0.7 * var(--orb-power)); transform: scale(calc(0.8 + 0.3 * var(--orb-power))); } }
+.assist-dot .assist-mark.orb-face, .assist-dot.has .assist-mark.orb-face { position: absolute; inset: 0; width: auto; height: auto; margin: 0; border-radius: 50%; overflow: hidden; animation: none; transform: none; opacity: 1;
+    background: radial-gradient(ellipse 90% 60% at 50% 112%, rgba(214, 222, 226, 0.5), rgba(120, 130, 136, 0.14) 55%, transparent 72%), radial-gradient(circle at 50% 28%, #23292d, #0a0d0f 58%, #030405 100%);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2), inset 0 1.5px 1.5px rgba(255, 255, 255, 0.4), inset 0 -8px 14px rgba(0, 0, 0, 0.5), 0 6px 18px rgba(0, 0, 0, 0.6);
+    transition: filter 0.4s ease-out; }
+.assist-dot.swell .assist-mark.orb-face { filter: brightness(1.3); transition-duration: 0.12s; }
+.orb-face svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; opacity: calc(0.6 + 0.4 * var(--orb-power)); }
+.orb-face path { fill: none; stroke-linecap: round; }
+.orb-core { fill: var(--success); opacity: calc(0.25 + 0.45 * var(--orb-power)); }
+.orb-w-glow { stroke: var(--success); stroke-width: 11; opacity: 0.85; }
+.orb-w-f1 { stroke: #7fe9ff; stroke-width: 3.2; opacity: 0.6; transform: translateY(-1.8px); }
+.orb-w-f2 { stroke: #ff8ad0; stroke-width: 3.2; opacity: 0.45; transform: translateY(1.8px); }
+.orb-w-core { stroke: #fff; stroke-width: 2.4; }
+.orb-w-thin { stroke-width: 1.3; opacity: 0.8; }
+.orb-wave-b .orb-w-glow { stroke-width: 5; opacity: 0.6; }
+.orb-wave-a { animation: orb-wave-a 9s linear infinite; }
+.orb-wave-b { animation: orb-wave-b 6.5s linear infinite; }
+@keyframes orb-wave-a { to { transform: translateX(80px); } }
+@keyframes orb-wave-b { to { transform: translateX(-56px); } }
+.assist-dot.mini .orb-w-core { stroke-width: 4; }
+/* The wire from the orb to what it points at and on to its line: soft elbowed corners, a pulse travelling along it. */
+.assist-thread { display: none !important; }
+.assist-wire { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 6000; overflow: visible; filter: drop-shadow(0 0 5px var(--success)); }
+.assist-wire path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.assist-wire .wire { stroke: var(--success); opacity: 0.8; }
+.assist-wire .pulse { stroke: #fff; stroke-dasharray: 22 260; animation: assist-wire 1.4s linear infinite; }
+@keyframes assist-wire { from { stroke-dashoffset: 282; } to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .assist-dot::before, .assist-dot.making::before, .assist-dot.has::before, .assist-dot.speaking::before, .orb-wave-a, .orb-wave-b { animation: none; } .assist-wire .pulse { display: none; } }
