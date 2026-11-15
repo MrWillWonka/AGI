@@ -2746,8 +2746,9 @@ window.AGI = (function () {
         assistQueue.push({ key, text, ...o });
         if (!assistLive) assistNext();
     }
-    // The AI's button never opens an app for you (the owner's call, 2026-11-14): it takes you back to the home screen,
-    // where the AI rings the app's icon and says why it is worth opening; opening it is yours to do.
+    // "Show me" takes you back to the home screen, where the AI rings the app's icon and says why it is worth opening.
+    // That is how these lines work today, not a rule: the owner dropped "the AI's buttons never open an app" on
+    // 2026-11-15, so a button may open an app where that reads better.
     // EVERY LINE IS A PLACEHOLDER for the owner to write or approve.
     const SHOW_WHY = {
         money: 'This one. Parcel buys the compute you make and sells the parts for a desk. A better desk makes more with every tap.',
