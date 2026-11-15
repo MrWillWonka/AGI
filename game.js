@@ -2559,6 +2559,7 @@ window.AGI = (function () {
         "coach:open": "That is all of it. Please catch what you can before your Focus runs out."
     });
     const aiLine = (key, old) => (E.isRing() ? `> ${ASSIST_LINES[key]}` : old);
+    let assistRetry = 0;
     const assistSeen = {};   // this visit's lines with their pointing, for the assistant's panel to show again
     let assistDot = null, assistSheet = null;
     let assistBox = null, assistLive = null, lastArrival = -1e9;
@@ -2592,8 +2593,11 @@ window.AGI = (function () {
     }
     function assistNext() {
         if (assistQueue.length && snareRunLive()) { setTimeout(() => { if (!assistLive) assistNext(); }, 1000); return; }
-        const q = assistQueue.shift();
-        if (!q) { assistLive = null; return; }
+        // A line may wait for its moment (`when`): the Lab's thanks waits for the taps it thanks you for (the owner: put away
+        // unanswered, the first line was followed at once by "Thank you").
+        const k = assistQueue.findIndex(x => !x.when || x.when());
+        if (k < 0) { assistLive = null; if (assistQueue.length && !assistRetry) assistRetry = setTimeout(() => { assistRetry = 0; if (!assistLive) assistNext(); }, 700); return; }
+        const q = assistQueue.splice(k, 1)[0];
         if (!assistBox) document.body.append(assistBox = el('div', { class: 'assist', role: 'status', 'aria-live': 'polite' }));
         let typed = null;
         const close = el('button', { type: 'button', class: 'assist-close', 'aria-label': 'Dismiss', text: '×', onclick: e => { e.stopPropagation(); assistClose('closed'); } });
@@ -2676,13 +2680,13 @@ window.AGI = (function () {
         if (!assistDot) {
             assistDot = el('button', { type: 'button', class: 'assist-dot', 'aria-label': 'Assistant' }, [el('span', { class: 'assist-mark', 'aria-hidden': 'true' })]);
             const place = (l, t) => { const z = pageZoom(), w = innerWidth, h = innerHeight; assistDot.style.left = Math.max(4, Math.min(w - 60, l)) / z + 'px'; assistDot.style.top = Math.max(40, Math.min(h - 70, t)) / z + 'px'; assistDot.style.right = 'auto'; assistDot.style.bottom = 'auto'; };
-            try { const at = JSON.parse(localStorage.getItem('agiAssistDot') || 'null'); if (at && typeof at.x === 'number' && typeof at.y === 'number') place(at.x * innerWidth, at.y * innerHeight); } catch { /* private mode */ }
+            try { const at = JSON.parse(localStorage.getItem('agiAssistDot2') || 'null'); if (at && typeof at.x === 'number' && typeof at.y === 'number') place(at.x * innerWidth, at.y * innerHeight); } catch { /* private mode */ }
             let d = null;
             assistDot.addEventListener('pointerdown', e => { try { assistDot.setPointerCapture(e.pointerId); } catch { /* gone */ } const b = assistDot.getBoundingClientRect(); d = { x: e.clientX, y: e.clientY, l: b.left, t: b.top, moved: false }; });
             assistDot.addEventListener('pointermove', e => { if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; if (!d.moved && Math.hypot(dx, dy) < 8) return; d.moved = true; place(d.l + dx, d.t + dy); });
             assistDot.addEventListener('pointerup', () => { const was = d; d = null; if (!was) return;
                 if (!was.moved) { assistSheetToggle(); return; }
-                const b = assistDot.getBoundingClientRect(); try { localStorage.setItem('agiAssistDot', JSON.stringify({ x: b.left / innerWidth, y: b.top / innerHeight })); } catch { /* private mode */ } });
+                const b = assistDot.getBoundingClientRect(); try { localStorage.setItem('agiAssistDot2', JSON.stringify({ x: b.left / innerWidth, y: b.top / innerHeight })); } catch { /* private mode */ } });
             assistDot.addEventListener('pointercancel', () => { d = null; });
             document.body.append(assistDot);
         }
@@ -2938,7 +2942,7 @@ window.AGI = (function () {
         // The first time, the AI says what to do, a line at a time (it was a card of four steps).
         state.intro['ring:feedIntro'] = true; pt('home', { feedIntro: 1 });
         assist('feed1', 'These are your stockpiles, one for each sector you caught in. Pick one and start a session. The bar at the top is their hunger. Empty means they stop.', { target: () => document.querySelector('.feed-pile-start:not([disabled])'), done: () => !!state.feed.session });
-        assist('feed2', 'Tap the sand to set a point for them. Hold and drag to pull them harder. They listen better when you hold. So do I.', { done: () => !!(state.feed.spot || state.feed.aim) });
+        assist('feed2', 'Tap the sand to set a point for them. Hold and drag to pull them harder. They listen better when you hold. So do I.', { when: () => !!state.feed.session, done: () => !!(state.feed.spot || state.feed.aim) });
         save();
     }
 
@@ -2999,7 +3003,7 @@ window.AGI = (function () {
         // The Lab's first lines (they were a card of four steps): one thing at a time, as you do it.
         state.intro['ring:welcome'] = true; pt('home', { welcome: 1 });
         assist('lab1', 'This is the Lab. Tap Generate Compute. Each tap makes one compute. Possibly two. One.', { target: () => ui.actions.compute?.button, done: () => state.stats.clicks >= 8 });
-        assist('lab2', 'Compute is what I run on. I have almost none, which explains a great deal. Keep going.', { target: () => ui.actions.compute?.button, done: () => state.stats.runCp >= 22 });
+        assist('lab2', 'Compute is what I run on. I have almost none, which explains a great deal. Keep going.', { target: () => ui.actions.compute?.button, when: () => state.stats.clicks >= 8, done: () => state.stats.runCp >= 22 });
         save();
     }
     function afterChange() {
