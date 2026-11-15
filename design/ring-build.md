@@ -401,3 +401,29 @@ Asked as cards, one per problem seen; built as answered.
   bar mark on the dock, where the pin was, unpins it. A pinned dock is given room: pages end above it and a game's
   field is shortened so its cards and buttons are clear (`desk.dockFit`, `--dock-room`).
 - **Achievement banners** stay as they are (the owner's call).
+
+## 2026-11-15: batch 3 of the owner's notes (The Feed; notes 12, 13, 14, 17)
+
+Asked as cards first.
+
+- **Note 13, sand at the start** (the owner's pick: enough for the first split): a session opens with the first
+  split's worth of sand already settled in a heap (`prePour` 1 in feed.js, `prePour()`: that many packets leave the
+  stockpile through the spout and settle before anyone eats, with no time passing for the hunger bar). The rest pours
+  as before. A stockpile smaller than that is all there.
+- **Note 14, after feeding** (the owner's pick: an AI line and a button): the result has one button for the next
+  step, "Spend it in Training" when a sprint can be paid for, else "Catch more in Packet Snare"; the AI says what
+  research is for the first time a session ends, in two versions (`fed` before Training, `fedTrain` after).
+  PLACEHOLDER lines.
+- **Note 17, stockpiles in Packet Snare** (the owner's pick: on the cards and the picker): the start and end cards
+  show the chosen sector's stockpile as a bar ("Stockpile 150/450", amber and "full" when full), and each sector in
+  the Start at list says its fill.
+- **Note 12, mite speed and progression: not changed.** The owner's answer: mites move too fast, early splits come
+  too quickly, the late game stalls, "and I need to look at the camera to dial in what I want". So the Feed's test
+  panel has **dials** (in the playground, and with `#debug` or `#feedtest`): mite speed, eating speed, the first
+  split's size, how much bigger each split is, the hunger bar, the closest the view comes, and how fast the view
+  catches up. They set the game's own numbers live, are kept per device, and print one line of values to read back.
+  The owner finds the values; then they go into feed.js.
+
+Also asked for: the music work on `claude/audio-overhaul`. Not merged: that worktree had uncommitted edits to
+sfx.js and music/soft.js made minutes before (another agent still working). Its committed work would merge with one
+conflict, in engine.js.

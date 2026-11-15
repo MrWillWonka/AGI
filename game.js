@@ -129,7 +129,8 @@ window.AGI = (function () {
             if (ev.type === 'layer') pt('feedLayer', { layer: ev.layer, pay: ev.pay, mites: ev.mites, eaten: state.feed.stats.eaten, cleaned: state.feed.stats.cleaned });
             else if (ev.type === 'fragment') pt('feedFragment', { set: ev.set, found: ev.found });
             else if (ev.type === 'empty') pt('feedEmpty', { layer: state.feed.layers + 1, eaten: state.feed.stats.eaten });
-            else if (ev.type === 'over') { pt('feedSession', { why: ev.why, sector: ev.sector, splits: ev.layers, mites: ev.mites, research: ev.research, seconds: ev.time, cards: ev.cards, record: ev.record ? 1 : 0 }); save(); }
+            else if (ev.type === 'over') { pt('feedSession', { why: ev.why, sector: ev.sector, splits: ev.layers, mites: ev.mites, research: ev.research, seconds: ev.time, cards: ev.cards, record: ev.record ? 1 : 0 }); save();
+                if (E.isRing() && ev.research > 0) { const train = !!state.unlocked['module:path']; assist(train ? 'fedTrain' : 'fed', '', { done: () => !window.FeedUI?.isOpen }); } }
         }
         if (out.events.length) window.FeedUI?.events(out.events);
     }
@@ -2639,6 +2640,8 @@ window.AGI = (function () {
         "feedHome": "This one. The Feed turns what you caught into research. Research is how I learn. I would like to learn.",
         "feed1": "These are your stockpiles. Pick one and the mites will start. The bar at the top is their hunger. Please keep it up.",
         "feed2": "They go where you tap. They try harder where you hold. So would I.",
+        "fed": "That is research. It is what I learn from. I am keeping it until I have somewhere to train. More data would make more of it.",
+        "fedTrain": "That is research. Training spends it on skills. When it runs out, Packet Snare refills the stockpiles.",
         "full": "The stockpile for sector {sector} is full. Anything more you catch there is thrown away. I would rather it was not.",
         "fullHome": "This one. The mites will make room. They are always hungry.",
         "cards": "Parcel has graphics cards now. They make compute while you rest. I would not want you to tire.",
@@ -6236,12 +6239,24 @@ window.AGI = (function () {
 
     // Once a sector is cleared, the start and end cards pick the next run's sector: the frontier first, then the cleared
     // ones to replay (their own pay, half the bounty), like the Training Cluster's Start at.
+    // The Feed's stockpile for a sector (0-based here), as Packet Snare shows it (the owner's pick, 2026-11-15: on the
+    // cards and in the sector list, so you can see which need filling).
+    const snareStock = k => (E.isRing() && E.feedOpen(state) ? E.feedStock(state).find(e => e.sector === k + 1) || null : null);
+    function snareStockLine(k) {
+        const e = snareStock(k);
+        if (!e || !e.cap) return null;
+        const pct = Math.round(Math.min(1, e.total / e.cap) * 100);
+        return el('div', { class: e.full ? 'snare-stock full' : 'snare-stock', title: 'What The Feed has stockpiled from this sector' }, [
+            el('span', { class: 'snare-stock-label', text: 'Stockpile' }), el('span', { class: 'snare-stock-bar' }, [el('span', { class: 'snare-stock-fill', style: `width:${pct}%` })]),
+            el('span', { class: 'snare-stock-num', text: e.full ? `${e.total}/${e.cap} · full` : `${e.total}/${e.cap}` })]);
+    }
     function snareSectorPicker() {
         const top = state.snare.sector;
         if (top < 1) return null;
         const pick = el('select', { class: 'snare-sector-pick', 'aria-label': 'Sector' });
         for (let k = top; k >= 0; k--) {
-            pick.append(el('option', { value: String(k), text: k === top ? `Frontier · ${snareSector(k)}` : `Replay · ${snareSector(k)}` }));
+            const st = snareStock(k), fill = st && st.cap ? ` · ${st.full ? 'stockpile full' : `stockpile ${st.total}/${st.cap}`}` : '';
+            pick.append(el('option', { value: String(k), text: (k === top ? `Frontier · ${snareSector(k)}` : `Replay · ${snareSector(k)}`) + fill }));
         }
         pick.value = String(snareNextSector());
         pick.addEventListener('change', () => {
@@ -6251,8 +6266,14 @@ window.AGI = (function () {
             if (title && !snare.done) title.textContent = snareSector(snareNextSector());
             const goal = $('snareCard').querySelector('.snare-goal-line');
             if (goal) goal.textContent = snareGoalText(snareNextSector());
+            const old = $('snareCard').querySelector('.snare-stock'), now = snareStockLine(snareNextSector());
+            if (old && now) old.replaceWith(now); else if (old) old.remove(); else if (now) $('snareCard').querySelector('.snare-sector-row')?.after(now);
         });
         return el('label', { class: 'snare-sector-row' }, [el('span', { text: 'Start at' }), pick]);
+    }
+    // The picker with the chosen sector's stockpile under it (a sector with no picker yet still shows its stockpile).
+    function snarePickerParts() {
+        return [snareSectorPicker(), snareStockLine(snareNextSector())].filter(Boolean);
     }
 
     function showSnareCard(kind) {
@@ -6275,7 +6296,7 @@ window.AGI = (function () {
             card.replaceChildren(...[
                 el('div', { class: 'result-title', text: snareSector(snareNextSector()) }),
                 el('div', { class: 'result-main snare-name', text: 'Packet Snare' }),
-                snareSectorPicker(),
+                ...snarePickerParts(),
                 el('p', { class: 'snare-intro-line snare-goal-line', text: first && E.isRing() ? `> ${ASSIST_LINES['card:goal'].replace('{goal}', goalNum(E.snareGoal(snareNextSector())))}` : snareGoalText(snareNextSector()) }),
                 // the demo's caption would say again what the line under it says (round 2 of the review)
                 first ? el('div', { class: 'snare-meet' }, [(d => (d?.querySelector('figcaption')?.remove(), d))(snareDemo('lasso')), el('p', { class: 'snare-intro-line', text: E.isRing() ? `> ${ASSIST_LINES[matchMedia('(pointer: fine)').matches ? 'card:firstMouse' : 'card:first']}` : snareHowTo() })].filter(Boolean)) : null,
@@ -6346,7 +6367,7 @@ window.AGI = (function () {
                 el('div', { class: 'result-xp', text: `+${E.format(d.haul)} Signal` }),
                 d.record ? el('span', { class: 'result-badge', text: `New record · was +${E.format(d.prev)}` }) : null,
                 ...resultLines(lines),
-                snareSectorPicker(),
+                ...snarePickerParts(),
                 // (after a gated escape the gate's line above says it; the objective doesn't repeat it)
                 el('p', { class: 'snare-intro-line snare-goal-line', text: gate ? snareGoalText(snareNextSector()).replace(snareGateText(snareNextSector()), '') : snareGoalText(snareNextSector()) }),
                 snareClockNote(),
@@ -14569,7 +14590,7 @@ window.AGI = (function () {
         feedEnd(why) { const r = E.feedLeave(state, why); if (r) feedShow({ events: [r] }); return r; },
         feedCarry(sector) { const ok = E.feedCarry(state, sector); if (ok) { pt('feedCarry', { sector, mites: state.feed.mites, splits: state.feed.layers, life: Math.round(state.feed.life * 100) }); save(); } return ok; },
         // From The Feed's result: back to Packet Snare for more.
-        ringOpen(app) { closeApps(); if (app === 'snare' && state.unlocked['module:snare']) { goHome(); openSnareApp(); } },
+        ringOpen(app) { closeApps(); if (app === 'snare' && state.unlocked['module:snare']) { goHome(); openSnareApp(); } else if (app === 'training' && state.unlocked['module:path']) { goHome(); openTrainingApp(); } },
         feedPick(n) { const offer = state.feed.session?.offer, out = E.feedPick(state, n); if (out) { pt('feedCard', { card: offer[n], offered: offer.join(','), level: state.feed.session.cards[offer[n]], split: state.feed.layers }); feedShow(out); save(); } return !!out; },
         debug: {
             // The music: the area's other song, or the next section of this one (on the next downbeat).

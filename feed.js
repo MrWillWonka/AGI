@@ -102,6 +102,7 @@
         stockTop: 5,        // a stockpile's size comes from the average of this many of your best runs there (the owner's call, 2026-11-14: "like in cauldron"; with one best run the target moved with every better run)
         stockRuns: 3,       // sessions: a sector's stockpile holds this many of your best run there (the owner's call),
         stockMin: 60,       // and this many packets at the least
+        prePour: 1,         // a session opens with this many first layers' worth of sand already lying in the box (the owner's call, 2026-11-15: enough for the first split; it opened on an empty box)
         hungerTime: 25,     // seconds a full hunger bar takes to empty
         hungerFill: 0.6,    // eating this share of the layer's worth of paying sand refills the whole bar
         payScale: 0.25,     // what a session pays, times this: the faster dials earned about four times the research a second (measured on four stockpiles), and the owner wants the earning as it was
@@ -619,6 +620,22 @@
         Object.assign(out, { added: take * o.grains, stocked: take, lost: total - take, sector, held: have + take, cap, full: have + take >= cap });
         return out;
     }
+    // Some of a session's sand is already lying there when it opens: `packets` of it leave the stockpile through the
+    // spout and settle, with no one eating and no time passing for the hunger bar.
+    function prePour(state, o, packets) {
+        const left = () => state.backlog.reduce((n, e) => n + e.n + e.gold + e.bad, 0), from = left(), quick = { ...o, pour: o.pour * 4 };
+        if (!(packets > 0)) return;
+        for (let n = 0; n < 1200; n++) {
+            const poured = from - left() >= packets || !state.backlog.length;
+            if (!poured) pour(state, quick, STEP);
+            if (state.drops.length) dropStep(state, o, STEP);
+            state.fallAcc += o.fall * STEP;
+            const passes = Math.floor(state.fallAcc); state.fallAcc -= passes;
+            let moved = false;
+            for (let k = 0; k < passes; k++) moved = fallPass(state, o) || moved;
+            if (poured && !state.drops.length && passes && !moved) break;
+        }
+    }
     // Start a session on a sector's stockpile. False when sessions are off, one is in play, or there is nothing there.
     function startSession(state, sector, opts) {
         const o = opt(opts), k = Math.floor(sector) || 0, e = state.stock[k];
@@ -631,6 +648,7 @@
         state.life = 1; state.lastSession = null; state.stats.sessions++;
         state.swarm[0].c = CHARACTERS[Math.floor(rand(state) * CHARACTERS.length)];   // the first mite is anyone (the owner's call: it was always the gold-hungry)
         while (state.mites < o.startMites) { const m = mitePlace(state, state.mites); m.c = CHARACTERS[Math.floor(rand(state) * CHARACTERS.length)]; state.swarm.push(m); state.mites++; }
+        prePour(state, o, o.prePour * layerSize(0, o));
         return true;
     }
     // The pile is eaten and other stockpiles have sand: the session waits (`session.wait`, a `cleared` event) and may

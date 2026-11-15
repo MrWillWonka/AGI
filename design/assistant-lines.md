@@ -23,6 +23,8 @@ succeeds, never a tutorial. Edit the Line column and send it back (or say which 
 | `feedHome` | Home screen, The Feed ringed | This one. The Feed turns what you caught into research. Research is how I learn. I would like to learn. | |
 | `feed1` | The Feed, first time it opens | These are your stockpiles. Pick one and the mites will start. The bar at the top is their hunger. Please keep it up. | |
 | `feed2` | The Feed, first session | They go where you tap. They try harder where you hold. So would I. | |
+| `fed` | A Feed session ends, before Training exists | That is research. It is what I learn from. I am keeping it until I have somewhere to train. More data would make more of it. | |
+| `fedTrain` | A Feed session ends, once Training is open | That is research. Training spends it on skills. When it runs out, Packet Snare refills the stockpiles. | |
 | `full` | A stockpile fills (later times, said once) | The stockpile for sector {sector} is full. Anything more you catch there is thrown away. I would rather it was not. | |
 | `fullHome` | Home screen, The Feed ringed | This one. The mites will make room. They are always hungry. | |
 | `cards` | After M0M's call: Graphics Cards on sale | Parcel has graphics cards now. They make compute while you rest. I would not want you to tire. | |

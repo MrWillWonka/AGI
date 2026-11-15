@@ -8,7 +8,7 @@ const E = require('../engine.js');
 // These tests were written at the sand's first dials and test its mechanics at them. The dials the game plays at now
 // (twice the eating and moving, smaller splits, two mites to start: the owner's calls, 2026-11-14) are tested in
 // tests/feed-pace.test.js.
-Object.assign(Feed.FEED, { chew: 2, layerFirst: 30, layerGrow: 1.8, pour: 8, speed: 180, startMites: 1, payScale: 1, stockTop: 1 });
+Object.assign(Feed.FEED, { chew: 2, layerFirst: 30, layerGrow: 1.8, pour: 8, speed: 180, startMites: 1, payScale: 1, stockTop: 1, prePour: 0 });   // prePour: these start on an empty box, as sessions did when they were written
 
 const fresh = () => Feed.sessions(Feed.newFeed({ seed: 7 }));
 const run = (s, seconds, lead) => { const all = { research: 0, events: [] }; for (let t = 0; t < seconds * 10 && (s.session || t === 0); t++) { if (s.session && s.session.offer) Feed.pickCard(s, 0); if (lead && s.session) { let top = -1; for (let i = 0; i < s.cells.length; i++) if (s.cells[i] && !Feed.airOf(s.cells[i])) { top = i; break; } if (top >= 0) Feed.point(s, { x: top % s.w + 0.5, y: Math.floor(top / s.w) + 0.5 }); } const o = Feed.step(s, 0.1); all.research += o.research; all.events.push(...o.events); } return all; };
@@ -341,4 +341,21 @@ test('a tapped point stays and the swarm works round it, slower than when led; t
         t.life = 0.2; const from = t.stats.eaten; for (let n = 0; n < 60 && t.stats.eaten - from < 40; n++) Feed.step(t, 0.1, { hungerTime: 1e6, miteFirst: 99 }); return (t.life - 0.2) / (t.stats.eaten - from); };
     const ratio = fill(3) / fill(1);
     assert.ok(Math.abs(ratio - (1 + 2 * Feed.FEED.toughFeed)) < 0.05, `a sector 3 grain feeds ${ratio.toFixed(2)} times a sector 1 grain`);
+});
+
+// The owner's call, 2026-11-15: a session opens with enough sand for the first split already in the box.
+test('a session opens on a heap, enough for the first split', () => {
+    const s = fresh();
+    Feed.deliver(s, { sector: 1, packets: 60, gold: 6 });
+    assert.equal(Feed.startSession(s, 1, { prePour: 1 }), true);
+    const need = Feed.layerSize(0), lying = s.grains / Feed.FEED.grains, waiting = s.backlog.reduce((n, e) => n + e.n + e.gold + e.bad, 0);
+    assert.ok(lying >= need && lying <= need + 4, `about the first split's worth is lying there (${lying} of ${need})`);
+    assert.equal(s.drops.length, 0, 'settled, nothing in the air');
+    assert.equal(Math.round(lying) + waiting, 60, 'the rest still waits to pour');
+    assert.equal(s.life, 1, 'no time has passed for the hunger bar');
+    const small = fresh();
+    Feed.deliver(small, { sector: 1, packets: 6 });
+    Feed.startSession(small, 1, { prePour: 1 });
+    assert.equal(small.grains / Feed.FEED.grains, 6, 'a stockpile smaller than that is all there');
+    assert.equal(Feed.FEED.prePour, 0, 'off in this file');
 });

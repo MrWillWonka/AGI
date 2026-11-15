@@ -4562,3 +4562,17 @@ body.ring-device .device-switch-pin svg { width: 22px; height: 22px; }
 body.ring-device.dock-pinned main.layout { padding-bottom: var(--dock-room, 0px); }
 @media (prefers-reduced-motion: reduce) { .assist-dot, .assist-dot.has, .assist-dot.speaking, .assist-dot.computing { animation: none; } }
 body.ring-device #labRoom > #labSupply { height: 100px; flex: 0 0 100px; }
+
+/* Batch 3 (the owner's notes, 2026-11-15): the stockpile on Packet Snare's cards; the Feed's next step; the dials. */
+.snare-stock { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin: 2px 0 6px; font: 600 0.8rem var(--font-mono); color: var(--muted); }
+.snare-stock-bar { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--text) 12%, transparent); overflow: hidden; }
+.snare-stock-fill { display: block; height: 100%; background: var(--success); }
+.snare-stock.full .snare-stock-fill { background: var(--warning); }
+.snare-stock.full .snare-stock-num { color: var(--warning); }
+.feed-next { justify-self: start; margin: 4px 0 10px; }
+.feed-dials { margin: 4px 8px; padding: 6px 10px; border: 1px dashed var(--border); border-radius: 8px; font: 500 0.78rem var(--font-mono); color: var(--muted); position: relative; z-index: 3; background: color-mix(in srgb, var(--bg) 88%, transparent); }
+.feed-dials summary { cursor: pointer; color: var(--text); }
+.feed-dial { display: grid; grid-template-columns: 11em 1fr 3.2em; align-items: center; gap: 8px; margin: 4px 0; }
+.feed-dial input { width: 100%; }
+.feed-dial b { color: var(--text); text-align: right; }
+.feed-dial-out { display: block; margin: 6px 0; color: var(--text); overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }

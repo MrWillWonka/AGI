@@ -15,6 +15,33 @@
 (function () {
     'use strict';
     const POP_MS = 1800, SPARK_MS = 500, SUB = 2, MIN_COLS = 80, MARGIN = 12, EASE = 0.07;
+    // The owner's dials (2026-11-15: "need to look at the camera to dial in what I want", mites too fast, early splits
+    // too quick, late game stalls): sliders in the test panel that set the rules' own numbers and the view's, kept per
+    // device, so the owner can find the values and say them. [key, label, min, max, step, where]
+    const DIALS = [['speed', 'Mite speed', 60, 600, 20, 'feed'], ['chew', 'Eating speed', 1, 12, 0.5, 'feed'], ['layerFirst', 'First split (packets)', 5, 80, 1, 'feed'], ['layerGrow', 'Each split bigger by', 1.1, 2.5, 0.05, 'feed'],
+        ['hungerTime', 'Hunger bar (s)', 10, 90, 5, 'feed'], ['minCols', 'Closest view (cells across)', 40, 256, 8, 'view'], ['ease', 'View catches up', 0.02, 0.4, 0.02, 'view']];
+    const dial = { minCols: MIN_COLS, ease: EASE };
+    const dialOn = () => /debug|feedtest|playground/.test(location.hash + location.search);
+    const dialGet = ([key, , , , , where]) => (where === 'view' ? dial[key] : F().FEED[key]);
+    const dialSet = ([key, , , , , where], v) => { if (where === 'view') dial[key] = v; else F().FEED[key] = v; };
+    let dialBase = null;
+    const dialSave = () => { try { localStorage.setItem('agiFeedDials', JSON.stringify(Object.fromEntries(DIALS.map(d => [d[0], dialGet(d)])))); } catch { /* private mode */ } };
+    function dialLoad() {
+        if (dialBase || !dialOn()) return;
+        dialBase = Object.fromEntries(DIALS.map(d => [d[0], dialGet(d)]));
+        try { const kept = JSON.parse(localStorage.getItem('agiFeedDials') || 'null'); if (kept) for (const d of DIALS) if (typeof kept[d[0]] === 'number' && kept[d[0]] >= d[2] && kept[d[0]] <= d[3]) dialSet(d, kept[d[0]]); } catch { /* private mode */ }
+    }
+    function dialPanel() {
+        dialLoad();
+        const out = el('output', { class: 'feed-dial-out' });
+        const say = () => { out.textContent = DIALS.map(d => `${d[0]} ${dialGet(d)}`).join(' · '); };
+        const rows = DIALS.map(d => { const val = el('b', { text: String(dialGet(d)) });
+            const input = el('input', { type: 'range', min: String(d[2]), max: String(d[3]), step: String(d[4]), value: String(dialGet(d)), 'aria-label': d[1], oninput: () => { dialSet(d, Number(input.value)); val.textContent = input.value; view.want = null; dialSave(); say(); } });
+            return el('label', { class: 'feed-dial' }, el('span', { text: d[1] }), input, val); });
+        say();
+        return el('details', { class: 'feed-dials' }, el('summary', { text: 'Dials' }), ...rows, out,
+            el('button', { type: 'button', class: 'ghost-button', text: 'Back to the game\'s values', onclick: e => { for (const d of DIALS) dialSet(d, dialBase[d[0]]); dialSave(); const box = e.target.closest('.feed-dials'); box.replaceWith(dialPanel()); } }));
+    }
     // Strata, in the order deliveries come (feed.js `bands`). Chosen to sit apart on the dark themes.
     const BANDS = ['#e8c07a', '#d98a5f', '#7fc8a9', '#6fa8dc', '#c9a0e8', '#e6dfc8'];
     const TESTS = [['+40', [1, 40, 4]], ['+75 dirty', [2, 75, 6, 10]], ['+200 dirty', [4, 200, 15, 20, 20]]];
@@ -105,7 +132,7 @@
             el('div', { class: 'feed-bar' },
                 el('span', { class: 'feed-title', text: 'The Feed' }), layerEl, mitesEl, researchEl, endEl,
                 el('button', { type: 'button', class: 'ghost-button feed-close', 'aria-label': 'Close The Feed', text: '×', onclick: close })),
-            hungerEl, (heldEl = el('div', { class: 'feed-held', hidden: '', 'aria-label': 'Cards this session' })), ...(/debug|feedtest/.test(location.hash + location.search) ? [tests] : []), legendEl, promptEl, stage, zoomEl, fragEl);
+            hungerEl, (heldEl = el('div', { class: 'feed-held', hidden: '', 'aria-label': 'Cards this session' })), ...(dialOn() ? [tests, dialPanel()] : []), legendEl, promptEl, stage, zoomEl, fragEl);
         dlg.addEventListener('close', stop);
         dlg.addEventListener('keydown', e => { const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key]; if (d && zoom.k > 1) { e.preventDefault(); zoom.cx += d[0] * view.vc * 0.15; zoom.cy += d[1] * view.vr * 0.15; } });
         // One finger (or the left button) leads the swarm; two fingers zoom and move the view; the right button drags it.
@@ -204,14 +231,14 @@
         }
         const pad = 8, aspect = (view.w - pad * 2) / (view.h - pad * 2);
         const reach = maxX < 0 ? 0 : Math.max(w / 2 - minX, maxX + 1 - w / 2) * 2;   // the pile's width about the spout's line
-        let cols = Math.max(MIN_COLS, reach + MARGIN * 2), rows = Math.max(h - top + MARGIN * 2, cols / aspect);
+        let cols = Math.max(dial.minCols, reach + MARGIN * 2), rows = Math.max(h - top + MARGIN * 2, cols / aspect);
         rows = Math.min(box.h, rows); cols = Math.min(box.w, Math.max(cols, rows * aspect));
         return { cols, rows };
     }
     function settle(f, snap) {
         const box = F().FEED, pad = 8;
         if (!view.want || frames % 8 === 0) view.want = frame(f);
-        const k = snap || reduced() || !view.cols ? 1 : EASE;
+        const k = snap || reduced() || !view.cols ? 1 : dial.ease;
         view.cols += (view.want.cols - view.cols) * k; view.rows += (view.want.rows - view.rows) * k;
         view.cell = Math.min((view.w - pad * 2) / view.cols, (view.h - pad * 2) / view.rows);
         // Show as much of the box as the stage has room for at that size, the floor at the bottom, the spout's line in the middle.
@@ -305,13 +332,18 @@
         if (joyEl) joyEl.hidden = !live || zoom.k <= 1 || !!f.session.offer;
         if (!on) { pickKey = ''; return; }
         const list = E().feedStock(game()), last = f.lastSession, s = f.session;
-        const key = JSON.stringify([list.map(e => [e.sector, e.total, e.cap, e.gold, e.bad, e.record]), last, wait]);
+        const key = JSON.stringify([list.map(e => [e.sector, e.total, e.cap, e.gold, e.bad, e.record]), last, wait, !!game().unlocked['module:path'] && game().res.rp >= E().pushCost(game(), 1).rp]);
         if (key === pickKey) return;
         pickKey = key;
         const kids = [], some = list.some(e => e.total > 0);
         // A result: the research first and large, then how it went. (PLACEHOLDER words.)
         const result = (head, research, detail) => el('div', { class: 'feed-last' }, el('strong', { text: head }), el('b', { class: 'feed-last-sum', text: `+${E().format(research)} research` }), el('span', { text: detail }));
         if (wait) kids.push(result(`Sector ${s.sector} is eaten. Your swarm is still hungry.`, s.research, `${plural(f.mites, 'mite', 'mites')} · ${plural(f.layers, 'split', 'splits')} · ${Math.round(s.time)} s so far`));
+        // What next (the owner's pick, 2026-11-15): one button, Training when a sprint can be paid for, else Packet Snare.
+        const next = () => { const g = game(), train = !!g.unlocked['module:path'] && g.res.rp >= E().pushCost(g, 1).rp;
+            return el('button', { type: 'button', class: 'button feed-next', text: train ? 'Spend it in Training' : 'Catch more in Packet Snare', onclick: () => window.AGI.ringOpen?.(train ? 'training' : 'snare') }); };
+        if (!wait && last && E().isRing()) { kids.push(result(WHY[last.why] || 'Session over.', last.research,
+            `${last.piles > 1 ? `${last.piles} stockpiles` : `Sector ${last.sector}`} · ${plural(last.mites, 'mite', 'mites')} · ${plural(last.layers, 'split', 'splits')} · ${last.time} s${last.record ? ' · New best' : ''}${last.cards ? ` · ${plural(last.cards, 'card', 'cards')}` : ''}`), next()); }
         else if (last) kids.push(result(WHY[last.why] || 'Session over.', last.research,
             `${last.piles > 1 ? `${last.piles} stockpiles` : `Sector ${last.sector}`} · ${plural(last.mites, 'mite', 'mites')} · ${plural(last.layers, 'split', 'splits')} · ${last.time} s${last.record ? ' · New best' : ''}${last.cards ? ` · ${plural(last.cards, 'card', 'cards')}` : ''}`));
         kids.push(el('h3', { class: 'feed-pick-title', text: wait ? 'Carry on with' : 'Stockpiles' }));
