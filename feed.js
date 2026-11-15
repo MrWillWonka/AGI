@@ -99,6 +99,7 @@
         bands: 6,           // colours of strata before they repeat
         fragFrom: 2,        // a layer's fragment is one of its first plain packets: this many in at the least,
         fragSpread: 10,     // and up to this many more
+        stockTop: 5,        // a stockpile's size comes from the average of this many of your best runs there (the owner's call, 2026-11-14: "like in cauldron"; with one best run the target moved with every better run)
         stockRuns: 3,       // sessions: a sector's stockpile holds this many of your best run there (the owner's call),
         stockMin: 60,       // and this many packets at the least
         hungerTime: 25,     // seconds a full hunger bar takes to empty
@@ -279,7 +280,7 @@
             mites: 1, swarm: [], aim: null, spot: null, layers: 0, fed: 0, owed: 0, plain: 0, fragAt: 0, fragPlaced: false, fragNext: 0, fragments: {},
             backlog: [], drops: [], last: 0, band: 0, sweepAt: 0, pourAcc: 0, fallAcc: 0, readable: [], dry: false,
             // Sessions: stockpiles and best runs by sector, the session in play (or null), the hunger bar, the last one's result.
-            sessioned: false, stock: {}, best: {}, record: {}, session: null, life: 1, lastSession: null,
+            sessioned: false, stock: {}, best: {}, tops: {}, record: {}, session: null, life: 1, lastSession: null,
             stats: { delivered: 0, eaten: 0, cleaned: 0, research: 0, veins: 0, hops: 0, sessions: 0, lost: 0 }
         };
         state.swarm.push(mitePlace(state, 0));
@@ -298,7 +299,10 @@
     // which a share arrives garbled. They pour in over the next seconds.
     // ---- sessions ---------------------------------------------------------------------------------------------------
     const stockOf = (state, sector) => { const e = state.stock[sector]; return e ? e.n + e.gold + e.bad : 0; };
-    const stockCap = (state, sector, opts) => { const o = opt(opts); return Math.max(o.stockMin, o.stockRuns * (state.best[sector] || 0)); };
+    // What a sector's stockpile holds: `stockRuns` times the average of your best `stockTop` runs there (`tops`, the
+    // runs' packets, best first), `stockMin` at the least. A save from before `tops` goes by its one best run.
+    const stockAvg = (state, sector, o) => { const t = (state.tops && state.tops[sector] || []).slice(0, Math.max(1, o.stockTop)); return t.length ? t.reduce((a, b) => a + b, 0) / t.length : state.best[sector] || 0; };
+    const stockCap = (state, sector, opts) => { const o = opt(opts); return Math.max(o.stockMin, Math.round(o.stockRuns * stockAvg(state, sector, o))); };
     const cardMult = (state, stat) => { let m = 1; const c = state.session?.cards; if (c) for (const id of CARD_IDS) if (CARDS[id].stat === stat && c[id]) m *= Math.pow(CARDS[id].by, c[id]); return m; };
     const payMult = (state, o) => (state.session ? o.payScale * (1 + o.sectorPay * (state.session.sector - 1)) * cardMult(state, 'pay') : 1);
     // The dials as this session's cards have them.
@@ -605,6 +609,8 @@
     // A run's packets go to their sector's stockpile, as far as it has room. `lost`: what didn't fit.
     function stockpile(state, sector, packets, gold, bad, o, out) {
         state.best[sector] = Math.max(state.best[sector] || 0, packets);
+        if (!state.tops) state.tops = {};
+        state.tops[sector] = [...(state.tops[sector] || (state.best[sector] > packets ? [state.best[sector]] : [])), packets].sort((a, b) => b - a).slice(0, 5);
         const total = packets + bad, cap = stockCap(state, sector, o), have = stockOf(state, sector);
         const take = Math.max(0, Math.min(cap - have, total)), share = total ? take / total : 0;
         const addBad = Math.min(bad, Math.round(bad * share)), addGood = take - addBad, addGold = Math.min(addGood, Math.round(gold * share));
@@ -1160,6 +1166,7 @@
             const bySector = (src, read) => { const dst = {}; if (src && typeof src === 'object') for (const key of Object.keys(src).slice(0, 200)) { const k = whole(Number(key), 99); const v = k ? read(src[key]) : null; if (v) dst[k] = v; } return dst; };
             state.stock = bySector(raw.stock, e => { const v = { n: whole(e?.n, 1e8), gold: whole(e?.gold, 1e8), bad: whole(e?.bad, 1e8) }; return v.n + v.gold + v.bad > 0 ? v : null; });
             state.best = bySector(raw.best, v => whole(v, 1e8) || null);
+            state.tops = bySector(raw.tops, v => { const t = (Array.isArray(v) ? v : []).map(n => whole(n, 1e8)).filter(n => n > 0).sort((a, b) => b - a).slice(0, 5); return t.length ? t : null; });
             state.record = bySector(raw.record, v => whole(v, 200) || null);
             const sess = raw.session, sector = whole(sess?.sector, 99);
             if (sized && sess && sector) {

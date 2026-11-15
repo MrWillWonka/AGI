@@ -21,15 +21,13 @@ test('the ring: the desk costs money, not compute, and compute alone buys none o
     assert.equal(E.deskDone(s), true);
 });
 
-test('the ring: M0M calls when Graphics Cards go on sale (desk built, a Feed session played); then only Mom writes, and her money still comes', () => {
+test('the ring: M0M calls when Graphics Cards go on sale (the desk built); then only Mom writes, and her money still comes', () => {
     const s = game();
     s.stats.runCp = 1e5;
     assert.equal(E.fundStep(s), null, 'nothing for compute alone');
-    s.levels.keyboard = E.RING_DESK; s.stats.cashSold = E.DESK_PRICES.reduce((a, b) => a + b, 0);
     assert.equal(E.ringCardsOpen(s), false);
-    assert.equal(E.fundStep(s), null, 'nor for the desk alone');
-    s.feed.stats.sessions = 1;
-    assert.equal(E.ringCardsOpen(s), true);
+    s.levels.keyboard = E.RING_DESK; s.stats.cashSold = E.DESK_PRICES.reduce((a, b) => a + b, 0);
+    assert.equal(E.ringCardsOpen(s), true, 'cards go on sale with the finished desk');
     assert.equal(E.fundStep(s), 'call');
     s.intro['ring:call'] = true;
     assert.equal(E.fundStep(s), 'offer:m0m');

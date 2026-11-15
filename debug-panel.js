@@ -153,7 +153,7 @@
         give.addEventListener('change', () => { if (give.value) AGI.debug.feedCard(give.value); give.value = ''; });
         const ringSection = ringOn ? [section('The ring',
             group('Stages', button('Desk built (Packet Snare opens)', () => AGI.debug.ring('desk')), button('The Feed open, a first pile', () => AGI.debug.ring('feed')),
-                button('First Feed session done (cards, M0M calls)', () => AGI.debug.ring('cards')), button('Server offered', () => AGI.debug.ring('offer')),
+                button('First Feed session done', () => AGI.debug.ring('cards')), button('Server offered', () => AGI.debug.ring('offer')),
                 button('Server bought (Training opens)', () => AGI.debug.ring('server'))),
             group('Give', button('+$100', () => AGI.debug.ring('cash', 100)), button('+$1,000', () => AGI.debug.ring('cash', 1000)), button('+500 research', () => AGI.debug.ring('research', 500)),
                 button('Fill three stockpiles', () => AGI.debug.ring('piles'))),

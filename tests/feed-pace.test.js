@@ -67,3 +67,20 @@ test('a pile eaten with other stockpiles waiting: the session waits, and carries
     assert.ok(over.research > before.research);
     assert.equal(Feed.carryOn(s, 2), false, 'no session to carry on');
 });
+
+test('a stockpile holds three times the average of your best five runs there', () => {
+    const s = fresh();
+    assert.equal(Feed.FEED.stockTop, 5);
+    assert.equal(Feed.deliver(s, { sector: 2, packets: 40 }).cap, 120, 'one run: three of it');
+    assert.equal(Feed.deliver(s, { sector: 2, packets: 20 }).cap, 90, 'two runs: three times their average');
+    assert.deepEqual(s.tops[2], [40, 20]);
+    for (const n of [10, 10, 10, 10]) Feed.deliver(s, { sector: 2, packets: n });
+    assert.deepEqual(s.tops[2], [40, 20, 10, 10, 10], 'the best five, best first');
+    assert.equal(Feed.stockCap(s, 2), 60, 'never under the least');
+    assert.equal(Feed.deliver(s, { sector: 2, packets: 100 }).cap, Math.round(3 * (100 + 40 + 20 + 10 + 10) / 5), 'a better run lifts the average, not the whole target');
+    // it survives a save, and a save from before goes by its one best run
+    const back = Feed.clean(JSON.parse(JSON.stringify(s)));
+    assert.deepEqual(back.tops[2], [100, 40, 20, 10, 10]);
+    const old = Feed.clean(JSON.parse(JSON.stringify({ ...JSON.parse(JSON.stringify(s)), tops: undefined })));
+    assert.equal(Feed.stockCap(old, 2), 300);
+});

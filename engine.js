@@ -524,7 +524,10 @@
     // cards, worked out here and never stored or paid for (`levels.cpu` stays the cards bought). The phone's starts
     // working once the Lab has been opened.
     const ringFreeCards = s => (!ring ? 0 : (s.intro['ring:labOpened'] || (s.stats.clicks || 0) > 0 ? 1 : 0) + ((s.levels.keyboard || 0) >= 1 ? 1 : 0));
-    const ringCardsOpen = s => ring && (s.levels.keyboard || 0) >= RING_DESK && ((s.feed && s.feed.stats && s.feed.stats.sessions) || 0) >= 1;
+    // (Later that day, from the owner's log: 13 active minutes and five runs after the desk with no Feed and so no cards,
+    // 150 to 200 compute clicked for every run, $38 of compute sold with nothing to buy. Cards go on sale, and M0M
+    // calls, when the desk is finished.)
+    const ringCardsOpen = s => ring && (s.levels.keyboard || 0) >= RING_DESK;
     const feedOpen = s => ring && (!!s.intro['ring:feed'] || !!s.intro['ring:feedIntro'] || ((s.feed && s.feed.stats && s.feed.stats.sessions) || 0) > 0);
     const RING_SERVER = { name: 'Server', flavor: 'One server. Your AI needs somewhere to train.' };
     const serverOffered = s => !!s.intro['ring:server'];
