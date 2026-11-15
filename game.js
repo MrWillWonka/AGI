@@ -3248,7 +3248,14 @@ window.AGI = (function () {
                     el('div', { class: 'shop-info' }, [el('h3', { text: i.name }), el('p', { class: 'shop-about', text: i.about }), el('p', { class: 'shop-does', text: does })]),
                     el('div', { class: 'shop-side' }, [el('span', { class: 'shop-price', text: `$${E.format(i.price)}` }), action])]);
             };
-            shop.list.replaceChildren(...items.filter(i => !i.owned).map(card), ...items.filter(i => i.owned).map(card));
+            // What you can still buy stays on top; everything delivered folds under one "Installed" row (the owner's pick, 2026-11-15).
+            const owned = items.filter(i => i.owned), kids = items.filter(i => !i.owned).map(card);
+            if (owned.length) {
+                const fold = el('details', { class: 'shop-installed', ...(shop.installedOpen ? { open: '' } : {}) }, [el('summary', {}, [el('span', { text: 'Installed' }), el('span', { class: 'shop-installed-count', text: `${owned.length} ${owned.length === 1 ? 'part' : 'parts'}` })]), el('div', { class: 'shop-installed-list' }, owned.map(card))]);
+                fold.addEventListener('toggle', () => { shop.installedOpen = fold.open; });
+                kids.push(fold);
+            }
+            shop.list.replaceChildren(...kids);
         }
         // The orders on their way: how many, and how long until the next.
         const p = parcels[0];
