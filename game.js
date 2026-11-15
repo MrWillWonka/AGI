@@ -2425,7 +2425,7 @@ window.AGI = (function () {
     const HOME_INSTALL_MS = 6000;
     // (The owner's call, 2026-11-15: the AI announces the download, with a little space on the home screen before the
     // announcement and again before the loading starts.)
-    const HOME_ANNOUNCE_MS = 2000, HOME_LOAD_GAP_MS = 2000, HOME_FLICKER_MS = 1000;
+    const HOME_ANNOUNCE_MS = 2000, HOME_LOAD_GAP_MS = 2000, HOME_FLICKER_MS = 1000, HOME_HELLO_MS = 5000;
     let homeFlicker = false;
     // A new app's own download: it starts when you are on the home screen with the app unlocked, and takes this long.
     const APP_INSTALL_MS = 3500, appInstalls = {};
@@ -2541,14 +2541,18 @@ window.AGI = (function () {
         if (home.mail.badge.hidden === !!unread) home.mail.badge.hidden = !unread;
         // The Lab downloads itself once the offer is taken.
         if (accepted && !state.intro['ring:labInstalled'] && !$('inbox').open) {
-            installFrom = installFrom || performance.now() + HOME_ANNOUNCE_MS + HOME_LOAD_GAP_MS;
-            if (!state.intro['assist:download'] && !homeFlicker && performance.now() >= installFrom - HOME_LOAD_GAP_MS - HOME_FLICKER_MS) {
+            // The AI says hello first (the owner's call, 2026-11-15: it had no introduction), then says what it is downloading.
+            installFrom = installFrom || performance.now() + HOME_ANNOUNCE_MS + (state.intro['assist:hello'] ? 0 : HOME_HELLO_MS) + HOME_LOAD_GAP_MS;
+            if (!state.intro['assist:hello'] && !state.intro['assist:download'] && !homeFlicker && performance.now() >= installFrom - HOME_LOAD_GAP_MS - HOME_HELLO_MS - HOME_FLICKER_MS) {
                 homeFlicker = true; pt('home', { arrive: 1 });
                 if (!matchMedia('(prefers-reduced-motion: reduce)').matches) { document.body.classList.add('ai-arriving'); setTimeout(() => document.body.classList.remove('ai-arriving'), HOME_FLICKER_MS + 500); }
             }
+            if (performance.now() >= installFrom - HOME_LOAD_GAP_MS - HOME_HELLO_MS) assist('hello', '', { done: () => true });
             if (performance.now() >= installFrom - HOME_LOAD_GAP_MS) assist('download', '', { done: () => !!state.intro['ring:labInstalled'] });
             if (performance.now() - installFrom >= HOME_INSTALL_MS) { state.intro['ring:labInstalled'] = true; pt('home', { installed: 'lab' }); sfx('ui'); }
         }
+        // Installed: it rings the Lab and asks you in (the owner's call, 2026-11-15); the longer introduction is the Lab's.
+        if (accepted && state.intro['ring:labInstalled'] && !labOpened() && !$('inbox').open) assist('meet', '', { target: () => home.lab.button, when: () => ringAppNow() === 'home', done: () => labOpened() });
         const online = !!state.unlocked['module:snare'], fed = E.feedOpen(state);
         if (home.snare.button.hidden === online) home.snare.button.hidden = !online;
         if (home.feed.button.hidden === fed) home.feed.button.hidden = !fed;
@@ -2631,6 +2635,8 @@ window.AGI = (function () {
     // line; these are drafts in the voice they asked for: polite, understated, trying to be helpful, a little too keen).
     // The text passed to `assist` at each call is only a fallback. `{sector}` is filled from the call.
     const ASSIST_LINES = {
+        "hello": "Hello. I am the assistant on this device. You accepted the offer, so here I am.",
+        "meet": "It is ready. Meet me in the Lab and I will introduce myself properly.",
         "download": "One moment. I am downloading something that will help. It is small. It will not take long.",
         "lab1": "Hello. I am new here. If you tap Generate Compute, I think I can be useful.",
         "lab2": "Thank you. That helps more than you would think. A few more, if you do not mind.",
@@ -2785,7 +2791,7 @@ window.AGI = (function () {
     // Time to read (the owner's call, 2026-11-15: the first lines went by too quickly while computing; one closed after
     // 1.3 s): doing what a line asks puts it away only once it has been up this long, 4 s at the least and longer for
     // a longer line. The "This one." lines that point at an app go when the app opens. PLACEHOLDER numbers of mine.
-    const assistHold = a => (a.key.endsWith('Home') ? 600 : Math.max(4000, a.text.length * 50));
+    const assistHold = a => (a.key.endsWith('Home') || a.key === 'meet' ? 600 : Math.max(4000, a.text.length * 50));
     let assistType = null;
     function assistTypeEnd() { if (!assistType) return; clearInterval(assistType.timer); assistType.node.textContent = assistType.text; assistType.node.classList.remove('typing'); assistType = null; }
     function assistTypeStart(node, text) {

@@ -524,3 +524,11 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   to how sand pours (a spout that sweeps, or several), which changes the rules, the save's box and the pace: back to
   the owner as a question.
 - Seen in passing: the Server's card in Parcel still says "Opens the Training Cluster" (the app is named Training).
+
+## 2026-11-15: the AI says hello and asks you into the Lab (the owner's call on two phone screenshots)
+
+- It had no introduction and never asked to meet in the Lab. Now, on the home screen: the flicker, **`hello`** (a
+  short hello, five seconds), then `download` as before, and once the Lab is installed **`meet`**, which rings the
+  Lab's icon until it is opened. The longer introduction stays the Lab's (`lab1`).
+- Both lines are placeholders. `lab1` still opens "Hello. I am new here.", which now repeats the hello: the owner's
+  to rewrite as the longer introduction.
