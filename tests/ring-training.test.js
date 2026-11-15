@@ -128,8 +128,9 @@ test('the ring: the old lab stays hidden once training opens (no Server Clusters
     s.path.learned = 8; s.stats.rolls = 60; s.stats.runCp = 5e6; s.res.cp = 5e6; s.stats.clicks = 5000; s.levels.cpu = 30; s.stats.playTime = 5000;
     for (let i = 0; i < 50; i++) { E.evaluate(s); E.tick(s, 1); }
     const shown = E.UPGRADES.filter(u => ['hardware', 'software', 'algorithms', 'consciousness'].includes(u.tab) && E.isUpgradeVisible(s, u)).map(u => u.id);
-    assert.deepEqual(shown.sort(), ['cpu']);
-    assert.equal(E.buy(s, 'server').ok, false);
+    assert.deepEqual(shown.sort(), ['cpu', 'server'], 'the cards and, past ten of them, the bigger machine (Parcel sells both)');
+    assert.equal(E.upgradeName(s, E.UPGRADE_BY_ID.server), 'Mining Rig');
+    assert.equal(E.buy(s, 'quantum').ok, false);
     for (const key of ['auto:trainer', 'tab:algorithms', 'tab:consciousness']) assert.equal(!!s.unlocked[key], false, key);
     assert.equal(s.dilemmas.open, null);
     assert.equal(s.dilemmas.order.length, 0, 'no choice mail arrived');

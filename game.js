@@ -959,7 +959,7 @@ window.AGI = (function () {
     const isLabUpgrade = up => up.tab !== 'training' && up.tab !== 'legacy' && up.tab !== 'snare';
     // The ring: what money buys (the desk's parts and the server) is bought in the shop app, not the Lab (the owner's
     // call, 2026-11-14: money and purchasing don't clutter the Lab).
-    const shopOnly = up => E.isRing() && (up.id === 'keyboard' || up.id === 'cpu');
+    const shopOnly = up => E.isRing() && (up.id === 'keyboard' || up.id === 'cpu' || up.id === 'server');
 
     // Lab cards you haven't seen: revealed while you were out of the lab (screen state, per device). Everything
     // on show counts as seen while you're in the lab, and on the first look (no sudden badge for older saves).
@@ -2868,7 +2868,8 @@ window.AGI = (function () {
         '<rect x="10" y="4" width="12" height="24" rx="6"/><path d="M16 4v8M10 13h12"/>',
         '<rect x="3" y="5" width="26" height="17" rx="2"/><path d="M12 27h8M16 22v5"/>',
         '<rect x="7" y="3" width="18" height="26" rx="2"/><path d="M7 11h18M7 19h18M11 7h2M11 15h2M11 23h2M19 7h2M19 15h2M19 23h2"/>',
-        '<rect x="3" y="9" width="26" height="14" rx="2"/><circle cx="11" cy="16" r="3.5"/><circle cx="21" cy="16" r="3.5"/><path d="M7 23v4M12 23v4M17 23v4"/>'];
+        '<rect x="3" y="9" width="26" height="14" rx="2"/><circle cx="11" cy="16" r="3.5"/><circle cx="21" cy="16" r="3.5"/><path d="M7 23v4M12 23v4M17 23v4"/>',
+        '<path d="M4 5v22M28 5v22M4 8h24M4 24h24"/><rect x="7" y="11" width="18" height="4" rx="1"/><rect x="7" y="17" width="18" height="4" rx="1"/><circle cx="11" cy="13" r="0.9"/><circle cx="11" cy="19" r="0.9"/>'];
     let shop = null, parcels = [];   // parcels: the orders on their way, in the order they arrive
     const held = () => parcels.reduce((n, p) => n + p.price, 0);
     const bankNow = () => Math.max(0, E.deskCash(state) - held());
@@ -2887,6 +2888,13 @@ window.AGI = (function () {
             items.push({ id: 'cpu', k, art: 5, many: true, own, coming: queued('cpu') > 0, onWay: queued('cpu'), full: k >= room, next: k < room, price: E.upgradeCost(card, k).cash,
                 name: E.upgradeName(state, card), about: E.upgradeFlavor(state, card), does: 'Makes compute on its own', owned: false });
         }
+        // The bigger machine, once ten cards are bought (the owner's pick, 2026-11-14; name and numbers PLACEHOLDERS).
+        const rig = E.UPGRADE_BY_ID.server;
+        if (E.isUpgradeVisible(state, rig) || E.level(state, 'server') > 0) {
+            const own = E.level(state, 'server'), k = own + queued('server'), room = E.capacity(state, rig);
+            items.push({ id: 'server', k, art: 6, many: true, own, coming: queued('server') > 0, onWay: queued('server'), full: k >= room, next: k < room, price: E.upgradeCost(rig, k).cash,
+                name: E.upgradeName(state, rig), about: E.upgradeFlavor(state, rig), does: `Makes ${E.RING_RIG_CPS} compute a second`, owned: false });
+        }
         return items;
     }
     function shopOrder(id, k) {
@@ -2895,7 +2903,7 @@ window.AGI = (function () {
         const last = parcels[parcels.length - 1], from = Math.max(performance.now(), last ? last.due : 0);
         parcels.push({ id, k, name: item.name, price: item.price, from, due: from + PARCEL_MS });
         sfx('buy', { panel: 'hardware' });
-        pt('shopOrder', { item: id === 'cpu' ? 'card' : k, price: item.price, queue: parcels.length });
+        pt('shopOrder', { item: id === 'cpu' ? 'card' : id === 'server' ? 'rig' : k, price: item.price, queue: parcels.length });
         renderShop(true);
     }
     function shopSell(cp) {
@@ -2912,7 +2920,7 @@ window.AGI = (function () {
             const result = E.buy(state, p.id);
             if (!result.ok) continue;
             log(result.msg, 'success'); sfx('buy', { panel: 'hardware', big: p.id === 'keyboard' });
-            pt('buy', { id: p.id, lvl: E.level(state, p.id) }); pt('shopDelivered', { item: p.id === 'cpu' ? 'card' : p.k });
+            pt('buy', { id: p.id, lvl: E.level(state, p.id) }); pt('shopDelivered', { item: p.id === 'cpu' ? 'card' : p.id === 'server' ? 'rig' : p.k });
             termLog(`installed ${p.name}`);
             if (!parcels.length || p.id === 'keyboard') deviceNotice('shop', 'Parcel', `Delivered and installed: ${p.name}.`, () => openShop());
             afterChange(); save();
@@ -2950,7 +2958,7 @@ window.AGI = (function () {
                     : i.many ? (i.full ? el('span', { class: 'shop-later', text: 'No room for more yet' }) : buy())
                     : i.coming ? el('span', { class: 'shop-coming', text: 'On its way' })
                     : !i.next ? el('span', { class: 'shop-later', text: 'Next in line' }) : buy();
-                const does = i.many ? `${i.does} · you own ${i.own + E.ringFreeCards(state)}${i.onWay ? `, ${i.onWay} on the way` : ''}` : i.does;
+                const does = i.many ? `${i.does} · you own ${i.own + (i.id === 'cpu' ? E.ringFreeCards(state) : 0)}${i.onWay ? `, ${i.onWay} on the way` : ''}` : i.does;
                 return el('article', { class: `shop-item${i.owned ? ' owned' : ''}${i.next && !short ? ' next' : ''}` }, [art,
                     el('div', { class: 'shop-info' }, [el('h3', { text: i.name }), el('p', { class: 'shop-about', text: i.about }), el('p', { class: 'shop-does', text: does })]),
                     el('div', { class: 'shop-side' }, [el('span', { class: 'shop-price', text: `$${E.format(i.price)}` }), action])]);

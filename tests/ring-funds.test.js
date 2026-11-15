@@ -99,6 +99,21 @@ test('the ring: compute is sold for money in whole dollars, and Graphics Cards c
     assert.deepEqual(Object.keys(first), ['cash']);
     assert.equal(first.cash, E.RING_CARD_PRICE);
     assert.equal(E.upgradeCost(card, 10).cash, Math.round(E.RING_CARD_PRICE * Math.pow(E.RING_CARD_GROWTH, 10)));
+    assert.equal(E.RING_CARD_GROWTH, 1.15);
+    // The bigger machine: on sale once ten cards are bought, for money, five compute a second.
+    const rig = E.UPGRADE_BY_ID.server, g = game();
+    g.intro['ring:labOpened'] = true; g.stats.clicks = 100; g.levels.keyboard = E.RING_DESK; g.levels.cpu = 9; E.evaluate(g);
+    assert.equal(E.isUpgradeVisible(g, rig), false, 'not at nine cards');
+    g.levels.cpu = 10; E.evaluate(g);
+    assert.equal(E.isUpgradeVisible(g, rig), true);
+    assert.equal(E.upgradeName(g, rig), 'Mining Rig');
+    assert.deepEqual(E.upgradeCost(rig, 0), { cash: 250 });
+    assert.equal(E.upgradeCost(rig, 2).cash, Math.round(250 * 1.25 * 1.25));
+    g.stats.cashSold = 5000;
+    const before = E.derive(g).cpPerSec, bank = E.deskCash(g);
+    assert.equal(E.buy(g, 'server').ok, true);
+    assert.equal(E.derive(g).cpPerSec - before, 5);
+    assert.equal(bank - E.deskCash(g), 250, 'its price comes out of the bank');
     assert.equal(E.feedOpen(s), false, 'The Feed waits for its mark'); s.intro['ring:feed'] = true; assert.equal(E.feedOpen(s), true);
     s.levels.cpu = 3;
     assert.equal(E.deskCash(s), 200 - [0, 1, 2].reduce((n, l) => n + E.upgradeCost(card, l).cash, 0));

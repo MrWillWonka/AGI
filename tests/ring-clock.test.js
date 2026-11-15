@@ -17,16 +17,17 @@ test('the clock\'s price starts at the ring model\'s numbers', () => {
 
 test('with the ring off every run is free, whatever you hold', () => {
     const s = game(0);
-    assert.deepEqual(E.snareClock(s, 4, 12), { free: true, perSecond: 10 * 1.6 ** 4, price: 0, cost: 0, seconds: 12, full: true, ok: true });
+    assert.deepEqual(E.snareClock(s, 4, 12), { free: true, perSecond: 10 * 1.35 ** 4, price: 0, cost: 0, seconds: 12, full: true, ok: true });
     assert.ok(E.snarePayClock(s, 4, 12).free);
     assert.equal(s.res.cp, 0);
 });
 
-test('under the ring a run costs 10 compute a second on sector 1, and 1.6 times more each sector', () => ring(() => {
+test('under the ring a run costs 10 compute a second on sector 1, and 1.35 times more each sector', () => ring(() => {
     const s = game(1000);
     assert.deepEqual(E.snareClock(s, 0, 10), { free: false, perSecond: 10, price: 100, cost: 100, seconds: 10, full: true, ok: true });
-    assert.equal(E.snareClock(s, 1, 10).price, 160);
-    assert.equal(E.snareClock(s, 2, 12.5).price, Math.ceil(12.5 * 25.6));
+    assert.equal(E.snareClock(s, 1, 10).price, 135);
+    assert.equal(E.snareClock(s, 2, 12.5).price, Math.ceil(12.5 * 18.225));
+    assert.equal(E.snareClock(s, 7, 28).price, 2289, 'sector 8 was 7,517');
     const paid = E.snarePayClock(s, 0, 10);
     assert.equal(paid.seconds, 10);
     assert.equal(s.res.cp, 900);

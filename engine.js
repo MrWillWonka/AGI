@@ -300,7 +300,7 @@
         { id: 'server', tab: 'hardware', name: 'Server Cluster', cps: 3.3, effect: 'Generates compute', flavor: 'Rack-mounted, fan-cooled, slightly too loud for the office.', cost: { cp: 300 }, scale: 1.15,
             // Only after the first real skill (Pattern Matching), the owner's call: opened by the first run (the warm-up),
             // it sent you to the Training Cluster and straight back to the lab, which didn't feel good.
-            unlock: s => tierReady(s, 'server') && s.path.learned > FIRST_REAL_SKILL, hint: 'More Graphics Cards, more compute earned, and the first real skill' },
+            unlock: s => (ring ? level(s, 'cpu') >= RING_RIG_CARDS : tierReady(s, 'server') && s.path.learned > FIRST_REAL_SKILL), hint: 'More Graphics Cards, more compute earned, and the first real skill' },
         { id: 'quantum', tab: 'hardware', name: 'Quantum Processor', cps: 22, effect: 'Generates compute', flavor: 'It\'s both working and not working until you check.', cost: { cp: 6000 }, scale: 1.15,
             unlock: s => tierReady(s, 'quantum'), hint: 'More Server Clusters, and more compute earned' },
         { id: 'neural', tab: 'hardware', name: 'Neural Network Chip', cps: 150, effect: 'Generates compute', flavor: 'A chip shaped like the thing you\'re trying to build.', cost: { cp: 120000 }, scale: 1.15,
@@ -524,7 +524,15 @@
     // (`ring:feed` in intro, set by the game). **Graphics Cards** are sold only after the first Feed session
     // (`ringCardsOpen`), the first RING_CARD_PRICE dollars and each RING_CARD_GROWTH times the last; M0M's call comes
     // then, with RING_DEPOSIT dollars "to start automating".
-    const RING_CALL_CP = 25, RING_DEPOSIT = 100, DESK_PRICES = [10, 15, 15, 20], RING_SERVER_PRICE = 400, RING_SPRINT_RP = 15, RING_SPRINT_GROWTH = 1.6, RING_CARD_PRICE = 10, RING_CARD_GROWTH = 1.25, RING_FEED_RUNS = 4;
+    const RING_CALL_CP = 25, RING_DEPOSIT = 100, DESK_PRICES = [10, 15, 15, 20], RING_SERVER_PRICE = 400, RING_SPRINT_RP = 15, RING_SPRINT_GROWTH = 1.6, RING_CARD_PRICE = 10, RING_CARD_GROWTH = 1.15, RING_FEED_RUNS = 4;
+    // Compute later on (the owner's picks, 2026-11-14, from their desktop log: a sector-8 run cost 7,517 compute against
+    // 11.4 a second, and no card was bought after the 17th, the 18th at $444 paying back in 2.5 hours): cards cost 15%
+    // more each (was 25%), a run's clock 1.35 times more a sector (was 1.6, `RING_CLOCK_GROWTH`), and once you have
+    // bought RING_RIG_CARDS cards Parcel sells a bigger machine: the old game's Server Cluster under another name,
+    // RING_RIG_PRICE dollars, RING_RIG_GROWTH times more each, RING_RIG_CPS compute a second. Name and numbers are
+    // placeholders of mine.
+    const RING_RIG = { name: 'Mining Rig', flavor: 'Ten cards on one frame. It heats the room.' };
+    const RING_RIG_PRICE = 250, RING_RIG_GROWTH = 1.25, RING_RIG_CPS = 5, RING_RIG_CARDS = 10;
     // The phone has a graphics card in it, and the Desktop Tower comes with one (the owner's call, 2026-11-14): free
     // cards, worked out here and never stored or paid for (`levels.cpu` stays the cards bought). The phone's starts
     // working once the Lab has been opened.
@@ -548,7 +556,7 @@
         s.res.cp -= dollars * RING_CP_PER_DOLLAR; s.stats.cashSold += dollars;
         return dollars;
     }
-    const cardsSpent = s => { let n = 0; if (ring) for (let l = 0, own = s.levels.cpu || 0; l < own; l++) n += upgradeCost(UPGRADE_BY_ID.cpu, l).cash; return n; };
+    const cardsSpent = s => { let n = 0; if (ring) for (const id of ['cpu', 'server']) for (let l = 0, own = s.levels[id] || 0; l < own; l++) n += upgradeCost(UPGRADE_BY_ID[id], l).cash; return n; };
     const deskCash = s => Math.max(0, FUNDERS.filter(k => s.intro['fund:' + k]).length * RING_DEPOSIT + (s.stats.cashSold || 0) - cardsSpent(s)
         - DESK_PRICES.slice(0, Math.min(RING_DESK, s.levels.keyboard || 0)).reduce((a, b) => a + b, 0) - ((s.levels.keyboard || 0) > RING_DESK ? RING_SERVER_PRICE : 0));
     // The next beat of the money story, or null: 'call', 'offer:<who>' (accept or decline), 'mail:<id>',
@@ -607,8 +615,8 @@
     // finished desk's card is the monitor's, not the server's it can't buy yet.
     const deskStage = s => clickTool(ring && level(s, 'keyboard') >= RING_DESK ? RING_DESK - 1 : level(s, 'keyboard'));
     const ringServerCard = (s, up) => ring && up.id === 'keyboard' && level(s, 'keyboard') === RING_DESK && !!s.intro['ring:server'];
-    const upgradeName = (s, up) => (ringServerCard(s, up) ? RING_SERVER.name : up.id === 'keyboard' ? deskStage(s).name : up.name);
-    const upgradeFlavor = (s, up) => (ringServerCard(s, up) ? RING_SERVER.flavor : up.id === 'keyboard' ? deskStage(s).flavor : up.flavor);
+    const upgradeName = (s, up) => (ring && up.id === 'server' ? RING_RIG.name : ringServerCard(s, up) ? RING_SERVER.name : up.id === 'keyboard' ? deskStage(s).name : up.name);
+    const upgradeFlavor = (s, up) => (ring && up.id === 'server' ? RING_RIG.flavor : ringServerCard(s, up) ? RING_SERVER.flavor : up.id === 'keyboard' ? deskStage(s).flavor : up.flavor);
     // A hardware tier shows up once you own TIER_REVEAL_OWNED of the tier below and have earned its full
     // price this run: late enough that the tier below has done its job, early enough to save up for it.
     const TIER_REVEAL_OWNED = 10;
@@ -1513,7 +1521,7 @@
         let cpPerSec = 0;
         for (const up of HARDWARE) {
             const n = L(up.id) + (up.id === 'cpu' ? ringFreeCards(s) : 0);
-            const each = up.cps * hardwareDoubling(n) * hardwareMult;
+            const each = (ring && up.id === 'server' ? RING_RIG_CPS : up.cps) * hardwareDoubling(n) * hardwareMult;
             hardwareRates[up.id] = { each, total: each * n, nextDoubling: HARDWARE_DOUBLINGS.find(t => n < t) || null };
             cpPerSec += each * n;
         }
@@ -1651,6 +1659,7 @@
 
     function upgradeCost(up, lvl) {
         const cost = upgradeCostBase(up, lvl);
+        if (ring && up.id === 'server') return { cash: Math.round(RING_RIG_PRICE * Math.pow(RING_RIG_GROWTH, lvl)) };
         return ring && up.id === 'cpu' && cost.cp ? { cash: Math.round(RING_CARD_PRICE * Math.pow(RING_CARD_GROWTH, lvl)) } : cost;
     }
     function upgradeCostBase(up, lvl) {
@@ -1704,7 +1713,7 @@
         dataProcessor: [6, 3], autoCollector: [0, 2]
     };
     function capacity(s, up) {
-        const c = CAPACITY[up.id];
+        const c = CAPACITY[ring && up.id === 'server' ? 'cpu' : up.id];   // the ring: as much room for rigs as for cards
         if (ring && up.id === 'keyboard') return RING_DESK + (serverOffered(s) ? 1 : 0);   // the ring: the server waits for the first boss
         return c ? c[0] + Math.floor(c[1] * Math.max(0, legPos(s.path.learned) - 1)) : Infinity;
     }
@@ -1720,7 +1729,7 @@
     // back once training opened, and compute went to 160,000). Of the lab's own tabs only the desk and the Graphics
     // Card show; the Training and Packet Snare trees are untouched. The milestones that open the old tabs and the
     // Auto-Trainer don't fire, and no choice mail arrives.
-    const RING_LAB = new Set(['keyboard', 'cpu']);
+    const RING_LAB = new Set(['keyboard', 'cpu', 'server']);
     const RING_LAB_TABS = new Set(['hardware', 'software', 'algorithms', 'consciousness']);
     const RING_NO_MILESTONES = new Set(['auto:trainer', 'tab:algorithms', 'tab:consciousness']);
     const ringHides = up => ring && RING_LAB_TABS.has(up.tab) && !RING_LAB.has(up.id);
@@ -2809,7 +2818,7 @@
     // sector 1, ×`RING_CLOCK_GROWTH` a sector (tools/ring-model.js's `q` and `qGrow`). Paid at Start for the run's whole
     // clock (`focus` seconds); short of it, you play the seconds you can afford, down to `RING_CLOCK_MIN`. The first run
     // ever (the tutorial) is free, and going deeper mid-run costs nothing more. With the ring off, every run is free.
-    const RING_CLOCK = 10, RING_CLOCK_GROWTH = 1.6, RING_CLOCK_MIN = 3;
+    const RING_CLOCK = 10, RING_CLOCK_GROWTH = 1.35, RING_CLOCK_MIN = 3;
     function snareClock(s, k, focus) {
         const full = Math.max(0, num(focus, 0)), free = !ring || s.snare.runs === 0;
         const perSecond = RING_CLOCK * Math.pow(RING_CLOCK_GROWTH, Math.max(0, Math.floor(num(k, 0))));
@@ -3709,7 +3718,7 @@
     }
 
     return {
-        RING_STUCK_RUNS, RING_SURGE_SHARE, stuckOffer, takeSurge, passSurge, RING_SERVER_PRICE, RING_SPRINT_RP, RING_SPRINT_GROWTH, RING_CALL_CP, RING_DEPOSIT, DESK_PRICES, RING_CARD_PRICE, RING_CARD_GROWTH, RING_FEED_RUNS, ringCardsOpen, ringFreeCards, feedOpen, RING_CP_PER_DOLLAR, sellCompute, deskCash, funded, fundStep, fundDecide,
+        RING_STUCK_RUNS, RING_SURGE_SHARE, stuckOffer, takeSurge, passSurge, RING_SERVER_PRICE, RING_SPRINT_RP, RING_SPRINT_GROWTH, RING_CALL_CP, RING_DEPOSIT, DESK_PRICES, RING_CARD_PRICE, RING_CARD_GROWTH, RING_RIG, RING_RIG_PRICE, RING_RIG_GROWTH, RING_RIG_CPS, RING_RIG_CARDS, RING_FEED_RUNS, ringCardsOpen, ringFreeCards, feedOpen, RING_CP_PER_DOLLAR, sellCompute, deskCash, funded, fundStep, fundDecide,
         feedStart, feedStock, feedLeave, feedCarry, feedPick, feedMark,
         SAVE_VERSION, newPlayer, cleanPlayer, signIn, mailFill, WELCOME_FINAL, setRing, isRing, RING_DESK, deskLevels, deskDone, RING_CLOCK, RING_CLOCK_GROWTH, RING_CLOCK_MIN, snareClock, snarePayClock, feedDeliver, feedPoint, feedStep, feedSync, feedReadable, evalsRunEnd, cleanEvals, EVALS_TREE, evalsLevel, evalsCost, evalsBuy, evalsOpts, evalsPassed, FIRST_REAL_SKILL, TEXT_SIZES, AUTO_BUDGET, TASKS, taskOn, taskShares, taskDemand, setTaskShare, setTaskOn, autoTrainerLevel,
         versionName, currentVersion, nextVersion, insightAt, nextInsightAt, clearedPeriod, legBestXp, legXpRate, recordRun, recordLegs, restartCost, CAPACITY, capacity, atCapacity, breakGuaranteed, startBreakCountdown, WALL_SURGE_RUNS, SURGE_POWER, surgeSprint, settleSurge, settleBreakCountdown, BREAK_WINDOW, legClearXp, clearLeg, collectToken, burnCost, payBurn, NEAR_MISS, nearMiss, speedShort, chainMult, PROJECTS, PROJECT_TASKS, PROJECT_REWARDS, projectProgress, projectBoosts, claimProject, dismissProject, makeOffer, AUTOMATION, automationGate, procurementPick, ENDINGS, ending, recordLegPower, legPower, MAIL, WELCOME_NAGS, DILEMMAS, DILEMMA_GAP, FREEDOM_XP, tickDilemmas, chooseDilemma, dilemmaOutcome, mailArrive, AUTO_TRAINER_RUNS, AUTO_TRAINER_SKILL, REVEALS, PRESTIGE_MIN_INTELLIGENCE, RESEARCH_SPRINTS, CPU_AFTER_CLICK_LEVEL, PATH, SKILLS,
