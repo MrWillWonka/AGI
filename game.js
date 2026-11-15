@@ -1918,13 +1918,35 @@ window.AGI = (function () {
     addEventListener('pagehide', () => inboxLog(true));
     // A snapshot: every canvas on screen (Packet Snare's field, The Feed's sand, Training's trail) as a picture, and the
     // save as it stands, without the sign-in. Marked in the log (`snap`).
+    // On a desktop browser a snapshot is the real screen (the owner's ask, 2026-11-14): the first Snap asks, with the
+    // browser's own dialog, to share this tab; after that every Snap grabs a frame of it, cards, buttons and all, until
+    // the tab is reloaded or sharing is stopped. Refused, or on a phone (no browser there can do it), Snap falls back to
+    // the game's own canvases. F8 snaps too, on any screen, a Packet Snare run included.
+    let screenStream = null, screenVideo = null;
+    const screenCapable = () => !!navigator.mediaDevices?.getDisplayMedia && !matchMedia('(pointer: coarse)').matches;
+    async function screenShot() {
+        try {
+            if (!screenStream || !screenStream.active) {
+                screenStream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: 'browser' }, audio: false, preferCurrentTab: true, selfBrowserSurface: 'include', surfaceSwitching: 'exclude' });
+                screenVideo = document.createElement('video'); screenVideo.muted = true; screenVideo.srcObject = screenStream;
+                await screenVideo.play();
+                await new Promise(r => setTimeout(r, 500));   // the browser's dialog gone, a first frame in
+            }
+            const c = document.createElement('canvas'); c.width = screenVideo.videoWidth; c.height = screenVideo.videoHeight;
+            if (!c.width || !c.height) return null;
+            c.getContext('2d').drawImage(screenVideo, 0, 0);
+            return await new Promise(r => c.toBlob(r, 'image/png'));
+        } catch { screenStream = null; return null; }
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'F8' && inboxOn) { e.preventDefault(); snapNow(); } });
     let snapBusy = false;
     async function snapNow() {
         if (!inboxOn || snapBusy) return;
         snapBusy = true;
         const id = inboxId(), t = Math.round(state.stats.playTime), app = E.isRing() ? ringAppNow() : ptPlace(), base = `snap-${String(t).padStart(5, '0')}-${String(app).replace(/[^A-Za-z0-9_-]/g, '_')}`;
-        let pictures = 0, ok = true;
-        for (const c of document.querySelectorAll('canvas')) {
+        let pictures = 0, ok = true, screen = false;
+        if (screenCapable()) { const blob = await screenShot(); if (blob) { screen = true; pictures++; ok = (await inboxPost(`shot?id=${id}&name=${base}-screen&ext=png`, blob)) && ok; } }
+        for (const c of screen ? [] : document.querySelectorAll('canvas')) {
             if (c.width < 60 || c.height < 60 || !c.getClientRects().length) continue;
             const blob = await new Promise(r => { try { c.toBlob(r, 'image/png'); } catch { r(null); } });
             if (blob) ok = (await inboxPost(`shot?id=${id}&name=${base}-${pictures++}&ext=png`, blob)) && ok;
@@ -1932,10 +1954,10 @@ window.AGI = (function () {
         const copy = JSON.parse(E.serialize(state)); delete copy.player;
         const what = { at: new Date().toISOString(), playSeconds: t, app, screen: [innerWidth, innerHeight], open: [...document.querySelectorAll('dialog[open]')].map(d => d.className), assistant: assistLive?.key || null, state: copy };
         ok = (await inboxPost(`shot?id=${id}&name=${base}-state&ext=json`, JSON.stringify(what))) && ok;
-        pt('snap', { app, pictures, ok: ok ? 1 : 0 });
+        pt('snap', { app, pictures, screen: screen ? 1 : 0, ok: ok ? 1 : 0 });
         inboxLog();
         snapBusy = false;
-        const said = ok ? (pictures ? `Snapshot saved: ${pictures === 1 ? 'a picture' : pictures + ' pictures'} and the game's state.` : 'Snapshot saved: the game\'s state (this screen has no picture to take).') : 'The snapshot could not be saved.';
+        const said = ok && screen ? 'Snapshot saved: the screen and the game\'s state.' : ok ? (pictures ? `Snapshot saved: ${pictures === 1 ? 'a picture' : pictures + ' pictures'} and the game's state.` : 'Snapshot saved: the game\'s state (this screen has no picture to take).') : 'The snapshot could not be saved.';
         if (E.isRing()) deviceNotice('playtest', 'Playtest', said, () => {}); else toast('Playtest', said, 'info');
     }
     // Screenshots made with the phone's own buttons, picked from its photos: saved beside the log with the play time.
