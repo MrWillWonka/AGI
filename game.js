@@ -2499,10 +2499,13 @@ window.AGI = (function () {
         const q = assistQueue.shift();
         if (!q) { assistLive = null; return; }
         if (!assistBox) document.body.append(assistBox = el('div', { class: 'assist', role: 'status', 'aria-live': 'polite' }));
+        let typed = null;
         const close = el('button', { type: 'button', class: 'assist-close', 'aria-label': 'Dismiss', text: '×', onclick: e => { e.stopPropagation(); assistClose('closed'); } });
-        const kids = [el('span', { class: 'assist-mark', 'aria-hidden': 'true' }), el('p', { class: 'assist-text', text: q.text }), close];
+        const kids = [el('span', { class: 'assist-mark', 'aria-hidden': 'true' }), (typed = el('p', { class: 'assist-text', 'aria-label': q.text })), close];
         if (q.action) kids.push(el('button', { type: 'button', class: 'assist-go', text: q.action[0], onclick: e => { e.stopPropagation(); const go = q.action[1]; assistClose('action'); closeApps(); go(); } }));
-        const node = el('div', { class: 'assist-bubble', onclick: () => assistClose('tapped') }, kids);
+        // A tap while it is still typing finishes the line; a tap after that puts it away.
+        const node = el('div', { class: 'assist-bubble', onclick: () => { if (assistType) { assistTypeEnd(); return; } assistClose('tapped'); } }, kids);
+        assistTypeStart(typed, q.text);
         assistBox.replaceChildren(node);
         assistLive = { ...q, node, at: performance.now(), ringed: null }; lastArrival = performance.now();
         if (!q.again) state.intro['assist:' + q.key] = true;
@@ -2510,9 +2513,21 @@ window.AGI = (function () {
         sfx('ui');
         assistTick();
     }
+    // The terminal voice (the owner's pick, 2026-11-14: the pale bubble was "not on theme"): a line types itself out,
+    // `ASSIST_TYPE_MS` a character, behind a '>' with a cursor. At once under reduced motion.
+    const ASSIST_TYPE_MS = 14;
+    let assistType = null;
+    function assistTypeEnd() { if (!assistType) return; clearInterval(assistType.timer); assistType.node.textContent = assistType.text; assistType.node.classList.remove('typing'); assistType = null; }
+    function assistTypeStart(node, text) {
+        assistTypeEnd();
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) { node.textContent = text; return; }
+        node.classList.add('typing');
+        const t = assistType = { node, text, n: 0, timer: setInterval(() => { t.n = Math.min(text.length, t.n + 1); node.textContent = text.slice(0, t.n); if (t.n >= text.length) assistTypeEnd(); }, ASSIST_TYPE_MS) };
+    }
     function assistClose(by) {
         const a = assistLive;
         if (!a) return;
+        assistTypeEnd();
         pt('assistClosed', { key: a.key, by, s: Math.round((performance.now() - a.at) / 100) / 10 });
         a.ringed?.classList.remove('assist-ring');
         a.node.remove();
