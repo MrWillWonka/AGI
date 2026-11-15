@@ -5,29 +5,33 @@
 (window.SFXThemes = window.SFXThemes || {}).soft = function (h) {
     'use strict';
     // eslint-disable-next-line no-unused-vars
-    const { pump, note, perc, harmNote, MIXO, LYD, tone, noise, NOTE, T, seq, S, blip, arp, echo, stab, sub, bell, pluck, run, vary, mapNote, degShift, varDeg, PANEL_INST, PANEL_OCT, phone, PHONE, clickNote, catchNotes, lastAt, raceNote, ping, kick, hat, clap, synth, pad, riser, bassAt, snap, kickLevel, AEOL, PHRY, DOR, HARM, ION } = h;
+    const { pump, note, perc, harmNote, MIXO, LYD, tone, noise: noise0, NOTE, T: T0, seq, S, blip, arp, echo, stab, sub, bell, pluck, run, vary, mapNote, degShift, varDeg, PANEL_INST, PANEL_OCT, phone, PHONE, clickNote, catchNotes, lastAt, raceNote, ping, kick, hat, clap, synth, pad, riser, bassAt, snap, kickLevel, AEOL, PHRY, DOR, HARM, ION } = h;
 
-    // Its effects: mallets and bells: a marimba, a kalimba, glassy bells and a warm pad (F major pentatonic).
-    // (The music has none of them any more: see the style.)
-    const marimba = (n, o = {}) => { T(n, { type: 'sine', dur: 0.25, gain: 0.07, ...o }); T(n + 24, { type: 'sine', dur: 0.05, gain: (o.gain ?? 0.07) * 0.22, at: o.at }); };
-    const softBell = (n, o = {}) => { T(n, { type: 'sine', dur: 0.7, gain: 0.05, attack: 0.008, ...o }); T(n + 12, { type: 'triangle', dur: 0.25, gain: (o.gain ?? 0.05) * 0.25, at: o.at }); };
+    // Its effects match its music: nothing struck. Every tone swells in (a short one in 12 ms, the rest in 20 or
+    // more) and is never shorter than a tenth of a second; noise is quieter, darker and eased in. The two voices the
+    // effects are written in keep their old names: `marimba` is a round low sine with a breath of its octave,
+    // `softBell` a sine that swells and rings with a soft triangle over it. F major pentatonic.
+    const T = (n, o = {}) => T0(n, { attack: (o.dur ?? 0.2) < 0.08 ? 0.012 : 0.02, ...o, dur: Math.max(0.1, o.dur ?? 0.2) });
+    const noise = (o = {}) => noise0({ ...o, attack: Math.max(0.03, o.attack ?? 0), gain: (o.gain ?? 0.05) * 0.7, f0: Math.min(3500, o.f0 ?? 3000), ...(o.f1 ? { f1: Math.min(3500, o.f1) } : null), dur: Math.max(0.08, o.dur ?? 0.1) });
+    const marimba = (n, o = {}) => { T(n, { type: 'sine', gain: 0.07, attack: 0.025, ...o, dur: Math.max(0.3, o.dur ?? 0.3) }); T(n + 12, { type: 'sine', dur: 0.2, gain: (o.gain ?? 0.07) * 0.12, attack: 0.03, at: o.at }); };
+    const softBell = (n, o = {}) => { T(n, { type: 'sine', dur: 0.7, gain: 0.05, attack: 0.04, ...o }); T(n + 12, { type: 'triangle', dur: Math.min(0.5, o.dur ?? 0.5), gain: (o.gain ?? 0.05) * 0.15, attack: 0.05, cutoff: 2400, at: o.at }); };
     const padChord = (notes, o = {}) => notes.forEach(n => T(n, { type: 'triangle', dur: 1.4, gain: 0.025, attack: 0.15, cutoff: 1800, ...o }));
 
     return {
         // The key its sound effects are moved into (they are written in A minor pentatonic): F major pentatonic: F G A C D.
         key: { root: 53, set: [0, 2, 4, 7, 9] },
         // What it does to any effect it doesn't write itself.
-        profile: { wave: t => (t === 'square' || t === 'sawtooth' ? 'triangle' : t), cut: 0.55, lp: 2200, gain: 0.85, len: 1.25, attack: 0.012,
+        profile: { wave: t => (t === 'square' || t === 'sawtooth' ? 'triangle' : t), cut: 0.55, lp: 1800, gain: 0.85, len: 1.25, attack: 0.025,
             noise: n => ({ ...n, gain: n.gain * 0.7 }) },
         // The plain voice of its simple sounds.
-        simpleVoice: { type: 'sine', oct: 0, len: 1.4, gain: 1, attack: 0.008 },
+        simpleVoice: { type: 'sine', oct: 0, len: 1.4, gain: 1, attack: 0.02 },
         // Levels, all measured (re-measure when the track or its sounds change: tools/audio). `sfx` and `simple`: its
         // effects against Classic's. `charge`: the sprint meter's parts (arpeggio, hops, acid, gated chord, thrust), after
         // `base`. `snare`: each Packet Snare effect against this track's own effects.
         trims: {
             sfx: 1.21, simple: 1.56,
             base: 1.48, baseSimple: 1.22,
-            fx: {system: 0.82, smash: 1.3, windup: 0.69, crunch: 0.93, flow: 1.38, freeze: 1.32, release: 0.99, viral: 0.76},      // single effects against Classic's (tools/audio/fx-levels.js)
+            fx: {system: 0.82, smash: 1.3, windup: 0.69, crunch: 0.78, flow: 1.38, freeze: 1.32, release: 0.99, viral: 0.68},      // single effects against Classic's (tools/audio/fx-levels.js)
             charge: [1.7, 2.33, 3.04, 2.71, 3.05], chargeSimple: [0.17, 0.72, 6.12, 5.25, 3.8],
             snare: { snareCatch: 1.37, snareSpoil: 0.6, snareSnap: 1.16, snareLaser: 1.77, snareChain: 1.77, snareSweep: 1.59, snareCharge: 2.67, snareBoss: 0.97, snareHit: 1.22, 'snarePlace:wall': 0.74, 'snarePlace:decoy': 1.59, 'snarePlace:turret': 2.01, 'snarePlace:tower': 0.96, snareRemove: 1.53, 'snarePower:freeze': 1.05, 'snarePower:purge': 1.39, snareZap: 2, snareDecoy: 1.72, snareQuarantine: 0.85, snareStun: 0.8, snareCore: 0.54, snareBossDown: 0.71, snareParry: 1.43, snareSlash: 2.27, snareSpoof: 1.68, snareGarbage: 1.11, snareRace: 3.14, snareHijack: 1.27, snareTaken: 4.12, snareFlag: 2.3, snareIds: 1.11, snareRebuild: 0.76, snareHerdStun: 1.57 },
             snareSimple: { snareCatch: 0.98, snareSpoil: 0.9, snareSnap: 1.65, snareLaser: 1.94, snareChain: 1.69, snareSweep: 2.5, snareCharge: 1.25, snareBoss: 1.36, snareHit: 0.9, 'snarePlace:wall': 1.19, 'snarePlace:decoy': 1.3, 'snarePlace:turret': 1.25, 'snarePlace:tower': 1.29, snareRemove: 1.19, 'snarePower:freeze': 1.03, 'snarePower:purge': 1.37, snareZap: 1.66, snareDecoy: 1.55, snareQuarantine: 1.13, snareStun: 1.17, snareCore: 0.88, snareBossDown: 0.68, snareParry: 2.45, snareSlash: 1.62, snareSpoof: 1.78, snareGarbage: 1.62, snareRace: 2.59, snareHijack: 2.15, snareTaken: 4.06, snareFlag: 1.66, snareIds: 1.92, snareRebuild: 1.56, snareHerdStun: 1.38 }
@@ -189,7 +193,7 @@
 
         // ---- Sound effects written for this track (anything else plays the shared one through `profile`) --------
         sounds: {
-            // Compute a marimba, data a glassy kalimba, research a bell.
+            // Compute a round low tone, data a short high sine, research a swelling one.
             click: ({ res = 'cp' }) => {
                 const n = clickNote(res);
                 if (res === 'cp') { marimba(n, { gain: 0.06 }); T(n + 24, { type: 'sine', dur: 0.04, gain: 0.03 }); }
@@ -221,7 +225,7 @@
             breakthrough: () => { noise({ dur: 0.6, gain: 0.1, f0: 300, f1: 2500, type: 'lowpass', attack: 0.4 }); padChord([57, 64, 69, 76], { at: 0.45, dur: 1.4 }); softBell(88, { at: 0.45, gain: 0.05 }); },
             phase: () => { [57, 64, 69, 72, 76, 81, 84, 88].forEach((n, i) => T(n, { type: 'sine', dur: 0.8, gain: 0.035, at: i * S() / 2 })); padChord([57, 64, 69], { at: 4 * S() }); },
             ship: () => { padChord([57, 64, 69, 72, 76], { dur: 2 }); [69, 76, 81, 88].forEach((n, i) => softBell(n, { at: i * S(), gain: 0.04 })); },
-            // Packet Snare, secretive: muted triangles and glassy sines, soft bells, a sine heartbeat, a warm pad.
+            // Packet Snare, secretive: muted triangles and sines that ease in, a sine heartbeat, a warm pad.
             snareCatch: ({ mult = 1 }) => { const f = catchNotes(mult); f.forEach((n, i) => T(n, { type: 'triangle', dur: 0.08, gain: 0.07, cutoff: 1000 + 200 * i, at: i * S() / 2 })); T(f[f.length - 1] + 24, { type: 'sine', dur: 0.12, gain: 0.02, at: lastAt(f) }); },
             snareSpoil: () => { T(52, { to: 45, type: 'sine', dur: 0.35, gain: 0.09 }); T(53, { to: 46, type: 'triangle', dur: 0.3, gain: 0.035, cutoff: 600 }); noise({ dur: 0.15, gain: 0.04, f0: 400, type: 'lowpass' }); },
             snareSnap: () => { noise({ dur: 0.04, gain: 0.06, f0: 5000, q: 2 }); T(45, { type: 'sine', dur: 0.12, gain: 0.12 }); T(64, { type: 'triangle', dur: 0.05, gain: 0.03, cutoff: 1500 }); },
@@ -274,7 +278,7 @@
             snareIds: () => { [76, 70, 76, 70].forEach((n, i) => softBell(n, { gain: 0.045, dur: 0.22, at: i * S() })); T(45, { type: 'sine', dur: 0.15, gain: 0.12 }); },
             snareRebuild: () => { [57, 62, 64, 69].forEach((n, i) => marimba(n, { gain: 0.04 + 0.01 * i, at: i * S() / 4 })); noise({ dur: 0.02, gain: 0.03, f0: 3000, q: 3, at: S() }); },
             snareHerdStun: () => { T(72, { to: 52, type: 'sine', dur: 0.28, gain: 0.05 }); noise({ dur: 0.04, gain: 0.03, f0: 5000, type: 'highpass' }); },
-            // The power-up moments, in this track's mallets, bells and pad: they still land, warmly.
+            // The power-up moments, in this track's swelling tones and pad: they still land, warmly.
             system: () => { [69, 72, 76, 79, 81, 84, 88, 91, 93].forEach((n, i) => softBell(n, { at: i * S() / 2, gain: 0.035, dur: 0.6 })); padChord([57, 64, 69, 72], { at: S() * 2, dur: 1.6 }); },
             smash: () => { T(40, { to: 28, type: 'sine', dur: 0.7, gain: 0.35 }); noise({ dur: 0.7, gain: 0.14, f0: 900, f1: 120, type: 'lowpass' }); padChord([45, 52, 57, 64], { dur: 1.4, gain: 0.035, at: 0.05 }); marimba(45, { gain: 0.1 }); },
             windup: () => { noise({ dur: 0.6, gain: 0.06, f0: 300, f1: 1800, type: 'lowpass', attack: 0.5 }); [57, 60, 64, 69].forEach((n, i) => T(n, { type: 'sine', dur: 0.5, gain: 0.03, at: i * 0.12, attack: 0.05 })); },
