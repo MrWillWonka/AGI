@@ -4483,3 +4483,8 @@ body.ring-device .device-switch-home { width: 64px; color: var(--success); backg
 body.ring-device .device-switch-settings { color: var(--primary); } body.ring-device .device-switch-playtest, body.ring-device .device-switch-shop { color: var(--warning); }
 @media (hover: hover) { body.ring-device .device-switch-button:hover { transform: translateY(-3px) scale(1.08); background: rgba(255, 255, 255, 0.1); } }
 @media (prefers-reduced-motion: reduce) { body.ring-device .device-switch, body.ring-device .device-switch-button { transition: none; } }
+/* The dock's apps are panels over the app you are in: a click on the dimmed screen behind closes them. */
+.shop-screen { width: min(760px, calc(100vw / var(--zoom, 1) - 24px)); height: min(84dvh, 820px); max-height: calc(100dvh / var(--zoom, 1) - 70px); margin: auto; border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7); overflow: hidden; }
+.shop-screen::backdrop, .ring-survey::backdrop, #journal::backdrop { background: rgba(2, 8, 9, 0.6); }
+.shop-bar, body .shop-bar { padding-top: 8px; position: sticky; top: 0; z-index: 1; background: var(--bg); }
+body.device-phone .shop-screen { width: calc(100vw / var(--zoom, 1) - 16px); height: 78dvh; margin: auto auto calc(52px + env(safe-area-inset-bottom, 0px)); }

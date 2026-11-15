@@ -2305,7 +2305,7 @@ window.AGI = (function () {
         }
         // Parcel and The Feed are dialogs, drawn over the page: the bar moves into the one that is open (the owner:
         // The Feed "doesn't have the same controls or status bar"), and shows on the home screen too.
-        const bar = st.clock.parentNode, top = shop?.dlg.open ? shop.dlg : document.querySelector('dialog.feed-screen[open]'), host = top || document.body;
+        const bar = st.clock.parentNode, top = document.querySelector('dialog.feed-screen[open]'), host = top || document.body;   // (Parcel is a panel now, not the whole screen: the bar stays on the page behind it)
         if (bar.parentNode !== host) host.append(bar);
         if (st.snap.hidden === inboxOn) st.snap.hidden = !inboxOn;
         const d = new Date();
@@ -2847,6 +2847,14 @@ window.AGI = (function () {
         dlg.showModal();
         sfx('ui');
     }
+    // The dock's apps are panels, not whole screens (the owner's call, 2026-11-14): Parcel, the Playtest survey, and
+    // Settings and Achievements. A click or tap outside the panel, on the dimmed screen behind it, closes it.
+    document.addEventListener('click', e => {
+        const d = e.target;
+        if (!(d instanceof HTMLDialogElement) || !d.open || !d.matches('.shop-screen, .ring-survey, #journal')) return;
+        const b = d.getBoundingClientRect();
+        if (e.clientX < b.left || e.clientX > b.right || e.clientY < b.top || e.clientY > b.bottom) { pt('panel', { closed: d.id || d.className.split(' ').pop(), by: 'outside' }); d.close(); }
+    });
     // Parcel, the shop app (the owner's call, 2026-11-14; the name and every word are placeholders): where money is
     // spent. For now the desk's four parts and the server; the garage and the warehouse come later. An order is paid
     // for at once and arrives after a short delivery (`PARCEL_MS`): it is installed then, with a notification. One
