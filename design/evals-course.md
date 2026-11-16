@@ -39,17 +39,46 @@ owner's husband's. What is written under "The owner's calls" is decided; everyth
   create new tracks eventually would also be cool if we had rules around how it should be built that could be
   measured."
 
-## Proposed (open, for the owner)
+## The rhythm run: the owner's calls (twelve cards, 2026-11-16)
 
-- **The rhythm run, a first sketch (mine).** Notes fall down two to four lanes on the music's own grid and are the
-  game's things: a packet is a slash, a gold packet a held note, an unreadable packet one you must not touch, an
-  Antivirus a slash in its direction, a boss a roll. You build a chart on a grid of bars and lanes over one of the
-  game's songs, and each hit plays that song's note, so your hits finish the music. Parts to unlock: lanes, note
-  kinds, song layers, tempo, length. Missing too many in a row ends the run, which is the "fail scores nothing".
-  **Rules a chart could be measured by** (so a chart the AI writes can be judged): every note on the grid; in the
-  song's key; notes a bar inside a range; nothing closer together in one lane than a thumb can play, and no more than
-  two at once; a shape over its length (sparse opening, a build, a break, a finish); variety (no bar repeated more than
-  so many times, at least so many kinds of note); and whether its writer could clear it.
+1. **The music, with more freedom unlocking over time.** First **the game's own tracks**. Then **a MIDI-like board**
+   where you create with the game's sounds and **the notes are placed for you**. Then **creative freedom to arrange**,
+   and to change **how the notes are placed, spaced, connected and interacted with on the field**.
+2. **How notes arrive, in steps too.** **Lanes** first, then **the whole field**, then **appearing anywhere**, as in
+   other rhythm games like osu!. "Because players are building themselves it should naturally lead to courses they can
+   do until the AI takes over."
+3. **The hits.** Taps, holds, slashes; **several taps together**, several holds and slashes; and perhaps **a hold you
+   aim at another spot and then have to hold there**, "like flinging the puck to another spot and having to tap and hold
+   it with the other finger".
+4. **What the game's things are.**
+   - **Regular notes are all the Training ball.**
+   - **Packets and notes are all the regular colour; a combo turns them gold and opens up the full backing of the song.**
+   - **Packets can still be held notes, with movement as you hold.**
+   - **Bad ones garble the sound.**
+   - **The boss is a freestyle moment**: you tap out a beat of your own, trying to stay on tempo.
+5. **Failing: the song falls apart.** A meter rises with hits and falls with misses. High: gold notes and the full
+   backing. Low: layers drop out one by one. Empty: the track stops and scores nothing.
+6. **You against the AI: accuracy and the longest combo.** Each hit is graded by how close to the beat it lands; the
+   score is notes hit times accuracy, with a bonus for the longest unbroken combo.
+7. **A freestyle is judged on the beat, and not boring**: each tap by how close it lands to a division of the beat,
+   with a bonus for variety and for filling the bars. What you tap is kept and becomes part of the track.
+8. **The first prototype is step 1**: the game's tracks, in lanes.
+9. **In step 1 you pick the track and its difficulty**: how much of the song is turned into notes (the kick; kick and
+   bass; with the melody). More notes is worth more and is harder for both of you.
+10. **The AI copies your timing, then tightens**: it starts by hitting each note about when you did, early or late
+    where you were, with shaky hands on top; with practice it drifts to the exact beat and stops missing.
+11. **The AI writes tracks later, after composing exists.** The rules a track is measured by are written down now so
+    the board is built to be measured: on the grid; in key; playable by two thumbs; notes a bar within a range; a shape
+    (sparse start, build, break, finish); variety; clearable by its writer.
+12. **The audio overhaul is done**: "you can fully bring over anything needed."
+
+## The third kind: the owner's call (2026-11-16)
+
+"A version of the puck physics we have where it's a mix of mini golf and target practice": Packet Snare's flung mine
+(a puck that flies the way it is slung and bounces off the edges, air-hockey style) as its own course. Not designed
+further yet; the rhythm run is built first.
+
+## Proposed (open, for the owner)
 
 - **The loop of one course.** Build (place obstacles on a short course, within a budget) → Test (you run it; it must
   be cleared once before it can be handed over, and your time is the par) → Hand over (the AI runs it, a few attempts

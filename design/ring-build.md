@@ -861,3 +861,11 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   with a first sketch of mine and the rules a chart could be measured by). Nothing built. **A risk for the rhythm run:**
   the music engine on this branch is the one from before the audio overhaul (another agent's branch,
   `claude/audio-overhaul`), so a rhythm kind built here would be built on the old engine.
+
+- **2026-11-16: the rhythm run's twelve decisions** are the owner's and are written in `design/evals-course.md` (they
+  changed four of my assumptions: the music is built in three steps of freedom, not charted over a finished song; the
+  notes go from lanes to the whole field to anywhere; every kind of hit is wanted, chords and a flung hold included;
+  and what the game's things mean: the Training ball is the regular note, packets are held notes that move, a combo
+  turns everything gold and opens the backing, bad ones garble the sound, a boss is a freestyle). **Built first.**
+  **The third kind** is a puck course, mini-golf crossed with target practice. **The audio overhaul is done** and may
+  be brought over.
