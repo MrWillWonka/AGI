@@ -154,17 +154,58 @@
         relayMax: 120,      // and the grains a spark eats on one leg of the chain, at the most
         drumEvery: 2,       // Drum line: seconds between beats,
         drumSparks: 30,     // sparks in the row,
-        drumHit: 2          // and the bites each takes out of the grain it lands on: a grain with no more left is collected
+        drumHit: 2,         // and the bites each takes out of the grain it lands on: a grain with no more left is collected
+        // ---- The tank (the owner's call, 2026-11-16: "the stockpiles are literally a measure of how much sand is filled up in
+        // those spaces"). A session opens on its sector's tank already filled to the stockpile's level, and what isn't eaten stays
+        // there for next time. A tank's size is its stockpile's cap; it stands in the middle of the box, upright for a phone.
+        tankAspect: 1.6,    // a tank's height over its width, as near as the box allows
+        tankMinW: 48,       // the narrowest a tank is, in cells
+        stockMax: 1600,     // the most a stockpile holds, in packets (about nine tenths of the box)
+        wave: 4,            // how far the strata swing up and down across the tank, in cells
+        strata: 6,          // colours of strata a full tank is laid in
+        clearPay: 0.1,      // eating a tank bare pays this share of its packets again, as a lump
+        // ---- Buried caches (the owner's pick): a knot of something rich, deep in the tank, hidden like gold. A bite of it cracks
+        // the whole knot: a lump of research and a free card.
+        cacheEvery: 120,    // a cache for every this many packets in a tank (at least one in a tank of `cacheMin` packets),
+        cacheMin: 40,
+        cacheR: 4,          // its radius in cells,
+        cacheBits: 12,      // the grains of one it takes to crack it (fewer: a crumb of one, only sand),
+        cacheDeep: 0.45,    // and it lies in the lower part of the sand: below this share of the sand's height from the top,
+        cachePay: 8,        // and pays this many packets' worth of research (at the session's pay)
+        // ---- Corruption (the owner's call): in a session, garbled sand slowly turns the good sand touching it garbled.
+        // Never outside a session. A scrubber mite wards the sand round it.
+        corruptEvery: 0.5,  // seconds between spreads,
+        corruptChance: 0.025,// the chance a garbled grain on the edge of good sand turns one neighbour each spread,
+        corruptGold: 0.5,   // gold resists: this times the chance,
+        ward: 22,           // and a scrubber mite stops it within this many cells
+        // ---- The feeding frenzy (the owner's pick): keep the swarm eating good sand at its pace and it heats up. Each tier pays
+        // more and makes the swarm quicker; grazing, or chewing garbled sand, cools it.
+        frenzyFloor: 0.4,   // the share of the swarm's full eating it has to keep up to build heat,
+        frenzyStep: 4,      // heat (about seconds of good eating) a tier,
+        frenzyMax: 4,       // tiers at the most,
+        frenzyPay: 0.25,    // research a tier: +25%,
+        frenzySpeed: 0.1,   // mite speed and eating a tier: +10%,
+        frenzyCool: 1.5,    // heat lost a second while it isn't kept up (at nothing eaten; less nearer the floor),
+        frenzyBad: 2,       // and heat lost for a packet's worth of garbled sand chewed
+        // ---- The squad (the owner's call): you choose which kinds of mite come; new ones come in that order.
+        squadSize: 2,       // kinds a squad holds (the game may give more)
+        drillBite: 3        // a driller's bite takes this many bites off a grain: tough sand is soft to it
     };
     // Cards (the owner's cards, 2026-11-14): a split in a session offers `cardChoices` of these and you pick one; it
     // lasts the session and stacks. `stat` is the dial it multiplies (`pay` is research per grain), `by` the multiplier
     // a copy. `rare` cards (the tools and machines, to come) turn up at `cardRare`. Numbers are placeholders.
+    // (2026-11-16, the owner's pick "fewer, bolder": every offer holds a tool or a combo when one can be offered, the plain
+    // boosts are bigger, and some cards trade one thing for another. `stats`: dial → multiplier a copy; `mites`: mites now.)
     const CARDS = {
-        chew: { stat: 'chew', by: 1.25 },
-        hunger: { stat: 'hungerTime', by: 1.25 },
-        speed: { stat: 'speed', by: 1.3 },
-        pay: { stat: 'pay', by: 1.2 },
-        focus: { stat: 'roam', by: 0.7 },      // the swarm tracks the point more tightly: less roaming, a straighter way there
+        chew: { stats: { chew: 1.4 } },
+        hunger: { stats: { hungerTime: 1.35 } },
+        speed: { stats: { speed: 1.35 } },
+        pay: { stats: { pay: 1.3 } },
+        focus: { stats: { roam: 0.6 } },       // the swarm tracks the point more tightly: less roaming, a straighter way there
+        glutton: { stats: { chew: 1.8, hungerTime: 0.7 } },   // eat far faster, starve sooner
+        gambler: { stats: { pay: 1.6, speed: 0.8 } },         // every grain pays more, the swarm slows
+        brood: { mites: 2, stats: { chew: 0.85 } },           // two more mites now, each a little slower to eat
+        adrenaline: { stats: { frenzy: 2, hungerTime: 0.8 } },// the frenzy builds twice as fast, the hunger bar drains sooner
         // Tools (the owner's cards): rare, they work on their own, and a copy makes one stronger.
         scanner: { rare: true, tool: true },   // a beam crosses the box and shows what the sand is (gold, fragments)
         pulse: { rare: true, tool: true },     // a burst at the point you hold (else a mite) eats every grain in a circle
@@ -190,6 +231,17 @@
     //   the rest · follower: keeps beside another mite · mega: no priority, takes two grains at a bite.
     // Later the AI is to sway what they go for and how far they obey (design/ring.md): `goalFor` and `liked` are where.
     const CHARACTERS = ['gold', 'tidy', 'loner', 'follower'];
+    // Kinds of mite you bring (the owner's call, 2026-11-16: "give the player the option to choose which mites they want to bring
+    // in", gated behind skills and sectors; which kind opens when is the game's, engine.js `feedMiteKinds`). Each kind is a
+    // character above, made a choice: `c` its behaviour. A grazer works the sand plainly and takes a wandering character.
+    //   grazer      eats what you lead it to                            (always)
+    //   prospector  goes for gold it can see, and its lamp reaches twice as far
+    //   scrubber    decodes garbled sand into good sand instead of chewing it, and wards the sand round it from corruption
+    //   chomper     takes two grains a bite
+    //   driller     its bite takes `drillBite` bites off a grain: tough sand from deep sectors is soft to it
+    const MITES = { grazer: { c: null }, prospector: { c: 'gold', lamp: 2 }, scrubber: { c: 'tidy' }, chomper: { c: 'mega' }, driller: { c: 'drill' } };
+    const MITE_IDS = Object.keys(MITES);
+    const miteKindOf = c => (c === 'gold' ? 'prospector' : c === 'tidy' ? 'scrubber' : c === 'mega' ? 'chomper' : c === 'drill' ? 'driller' : 'grazer');
     const COMBOS = CARD_IDS.filter(id => CARDS[id].combo);
     // A tool's level this session: its copies. (A combo uses its two tools up; it is a thing of its own.)
     const toolLevel = (state, id) => state.session?.cards?.[id] || 0;
@@ -198,14 +250,15 @@
     const STEP = 0.05;      // the rules' own time step, in seconds
 
     // Kinds by their number in a cell (0 is empty), what a packet of each pays when eaten, and the skill a kind waits for.
-    const KIND_IDS = [null, 'plain', 'vein', 'fragment', 'numbers', 'pictures', 'garbled'];
+    const KIND_IDS = [null, 'plain', 'vein', 'fragment', 'numbers', 'pictures', 'garbled', 'cache'];
     const KINDS = {
         plain: { id: 1, pay: 1 },
         vein: { id: 2, pay: 3 },
         fragment: { id: 3, pay: 2 },
         numbers: { id: 4, pay: 2, skill: 'Embeddings', from: 2, share: 0.1 },
         pictures: { id: 5, pay: 2, skill: 'Edge Detection', from: 4, share: 0.1 },
-        garbled: { id: 6, pay: 0, bad: true }
+        garbled: { id: 6, pay: 0, bad: true },
+        cache: { id: 7, pay: 1 }   // a buried cache's knot: a bite cracks the whole of it (`crack`)
     };
     // The kinds that wait for a skill, in the order their skills are learned. `from`: the first sector that brings them.
     const LOCKED = Object.keys(KINDS).filter(k => KINDS[k].skill);
@@ -230,10 +283,22 @@
     // The highest row that may hold sand, remembered between passes so falling skips the empty box above it (not part
     // of the state: unknown is row 0, and anything that puts a grain higher says so with `raise`).
     const TOP = new WeakMap();
-    const raise = (state, y) => { if (y < (TOP.get(state) ?? 0)) TOP.set(state, y); };
+    // (A box from a save doesn't know: it is found once, the first time it is asked.)
+    const topOf = state => { let t = TOP.get(state); if (t === undefined) { const i = state.cells.findIndex(v => v); t = i < 0 ? state.h - 1 : Math.floor(i / state.w); TOP.set(state, t); } return t; };
+    const raise = (state, y) => { if (y < topOf(state)) TOP.set(state, y); };
+    // Where the sand may move (not part of the state): for each column, the lowest row that changed since the last pass of
+    // falling. A pass looks only at the columns round a change, from the top of the sand down to it, so a full tank at rest
+    // costs nothing and one being eaten costs what is eaten. Unknown (a new or loaded box) is everywhere.
+    const DIRTY = new WeakMap();
+    function dirtyOf(state) {
+        let d = DIRTY.get(state);
+        if (!d || d.hi.length !== state.w) { d = { hi: new Int16Array(state.w).fill(state.h - 1), need: new Int16Array(state.w) }; DIRTY.set(state, d); }
+        return d;
+    }
+    const touch = (state, x, y) => { const d = DIRTY.get(state); if (d && y > d.hi[x]) d.hi[x] = y; };
     // A whole number from a cell's place and the pass it is, the same every time: for hops and scatter, with no generator.
     const hash = (a, b) => { let x = (Math.imul(a + 1, 2654435761) ^ Math.imul(b + 7, 40503)) >>> 0; x ^= x >>> 15; x = Math.imul(x, 2246822519) >>> 0; return (x ^ (x >>> 13)) >>> 0; };
-    const HIDDEN = [2, 3];   // vein, fragment
+    const HIDDEN = [2, 3, 7];   // vein, fragment, cache
 
     // Mulberry32 (as packet-snare.js and evals.js), stepped from a position kept in the state.
     function rand(state) {
@@ -268,7 +333,10 @@
         return cells.length === size ? cells : null;
     }
     const saveable = state => Object.defineProperty(state, 'toJSON', { value() { return { ...this, cells: pack(this.cells) }; }, enumerable: false });
-    const mitePlace = (state, n) => ({ x: FEED.w / 2 + ((n * 7) % 11 - 5) * 4 + 0.5, y: 2.5, b: 0, t: -1, c: CHARACTERS[n % CHARACTERS.length], a: n * 1.7, ox: 0, oy: 0, rt: 0 });
+    // A new mite: over the middle of the tank (the box, outside a session), a little apart from the others.
+    const mitePlace = (state, n) => ({ x: Math.max(lo(state) + 0.5, Math.min(hi(state) - 0.5, (lo(state) + hi(state)) / 2 + ((n * 7) % 11 - 5) * 4 + 0.5)), y: Math.max(2.5, (state.tankTop || 0) - 6), b: 0, t: -1, c: CHARACTERS[n % CHARACTERS.length], a: n * 1.7, ox: 0, oy: 0, rt: 0 });
+    // The tank's walls: sand lies only in columns `x0` to `x1` (the whole box outside a session). `tankTop` is its rim.
+    const lo = state => state.x0 || 0, hi = state => state.x1 || state.w;
 
     function startLayer(state, o) {
         state.fed = 0;
@@ -282,11 +350,11 @@
         const o = opt(opts);
         const state = {
             rs: (opts.seed ?? 1) >>> 0, w: FEED.w, h: FEED.h, cells: new Array(FEED.w * FEED.h).fill(0), grains: 0, rest: true, tick: 0,
-            mites: 1, swarm: [], aim: null, spot: null, layers: 0, fed: 0, owed: 0, plain: 0, fragAt: 0, fragPlaced: false, fragNext: 0, fragments: {},
+            mites: 1, swarm: [], squad: ['grazer'], x0: 0, x1: FEED.w, tankTop: 0, aim: null, spot: null, layers: 0, fed: 0, owed: 0, plain: 0, fragAt: 0, fragPlaced: false, fragNext: 0, fragments: {},
             backlog: [], drops: [], last: 0, band: 0, sweepAt: 0, pourAcc: 0, fallAcc: 0, readable: [], dry: false,
             // Sessions: stockpiles and best runs by sector, the session in play (or null), the hunger bar, the last one's result.
             sessioned: false, stock: {}, best: {}, tops: {}, record: {}, session: null, life: 1, lastSession: null,
-            stats: { delivered: 0, eaten: 0, cleaned: 0, research: 0, veins: 0, hops: 0, sessions: 0, lost: 0 }
+            stats: { delivered: 0, eaten: 0, cleaned: 0, research: 0, veins: 0, hops: 0, sessions: 0, lost: 0, corrupted: 0, decoded: 0, caches: 0, cleared: 0 }
         };
         state.swarm.push(mitePlace(state, 0));
         startLayer(state, o);
@@ -307,16 +375,30 @@
     // What a sector's stockpile holds: `stockRuns` times the average of your best `stockTop` runs there (`tops`, the
     // runs' packets, best first), `stockMin` at the least. A save from before `tops` goes by its one best run.
     const stockAvg = (state, sector, o) => { const t = (state.tops && state.tops[sector] || []).slice(0, Math.max(1, o.stockTop)); return t.length ? t.reduce((a, b) => a + b, 0) / t.length : state.best[sector] || 0; };
-    const stockCap = (state, sector, opts) => { const o = opt(opts); return Math.max(o.stockMin, Math.round(o.stockRuns * stockAvg(state, sector, o))); };
-    const cardMult = (state, stat) => { let m = 1; const c = state.session?.cards; if (c) for (const id of CARD_IDS) if (CARDS[id].stat === stat && c[id]) m *= Math.pow(CARDS[id].by, c[id]); return m; };
-    const payMult = (state, o) => (state.session ? o.payScale * (1 + o.sectorPay * (state.session.sector - 1)) * cardMult(state, 'pay') : 1);
-    // The dials as this session's cards have them.
-    const withCards = (state, o) => { const c = state.session?.cards; if (!c || !Object.keys(c).length) return o; const out = { ...o }; for (const stat of ['chew', 'hungerTime', 'speed', 'roam']) out[stat] = o[stat] * cardMult(state, stat); out.wobble = o.wobble * cardMult(state, 'roam'); return out; };
+    const stockCap = (state, sector, opts) => { const o = opt(opts); return Math.min(o.stockMax, Math.max(o.stockMin, Math.round(o.stockRuns * stockAvg(state, sector, o)))); };
+    const cardMult = (state, stat) => { let m = 1; const c = state.session?.cards; if (c) for (const id of CARD_IDS) { const by = CARDS[id].stats?.[stat]; if (by && c[id]) m *= Math.pow(by, c[id]); } return m; };
+    // The frenzy's tier this session (0 outside one).
+    const tierOf = state => (state.session ? state.session.tier || 0 : 0);
+    const payMult = (state, o) => (state.session ? o.payScale * (1 + o.sectorPay * (state.session.sector - 1)) * cardMult(state, 'pay') * (1 + o.frenzyPay * tierOf(state)) : 1);
+    // The dials as this session's cards and its frenzy have them.
+    const withCards = (state, o) => {
+        const c = state.session?.cards, tier = tierOf(state);
+        if ((!c || !Object.keys(c).length) && !tier) return o;
+        const out = { ...o };
+        for (const stat of ['chew', 'hungerTime', 'speed', 'roam']) out[stat] = o[stat] * cardMult(state, stat);
+        out.wobble = o.wobble * cardMult(state, 'roam');
+        out.chew *= 1 + o.frenzySpeed * tier; out.speed *= 1 + o.frenzySpeed * tier;
+        return out;
+    };
     // Offer cards: `cardChoices` different ones, each slot a rare one at `cardRare` when there are any left to offer.
     function offerCards(state, o, out) {
         const s = state.session, pool = { common: CARD_IDS.filter(id => !CARDS[id].rare), rare: CARD_IDS.filter(id => CARDS[id].rare && offerable(state, id)) }, offer = [];
-        for (let n = 0; n < o.cardChoices; n++) {
-            const from = pool.rare.length && (rand(state) < o.cardRare || !pool.common.length) ? pool.rare : pool.common;
+        // The first card is a tool or a combo whenever one can be offered (combos first: they're the reward for collecting);
+        // the others are plain at `cardRare`'s odds of another rare one.
+        const combos = pool.rare.filter(id => CARDS[id].combo);
+        if (combos.length && rand(state) < 0.6) { const id = combos[Math.floor(rand(state) * combos.length)]; offer.push(id); pool.rare.splice(pool.rare.indexOf(id), 1); }
+        for (let n = offer.length; n < o.cardChoices; n++) {
+            const from = pool.rare.length && (n === 0 || rand(state) < o.cardRare || !pool.common.length) ? pool.rare : pool.common;
             if (!from.length) break;
             offer.push(from.splice(Math.floor(rand(state) * from.length), 1)[0]);
         }
@@ -331,6 +413,7 @@
         // A combo uses its two tools up (every copy of them); either can be picked again later, for itself or another recipe.
         let merged = null;
         if (CARDS[id].combo) { s.cards[id] = 1; merged = CARDS[id].combo.filter(t => s.cards[t] > 0); for (const t of merged) delete s.cards[t]; if (!merged.length) merged = null; }
+        for (let k = 0; k < (CARDS[id].mites || 0); k++) addMite(state, o);
         out.events.push(merged ? { type: 'card', card: id, level: s.cards[id], merged } : { type: 'card', card: id, level: s.cards[id] });
         if (s.picks > 0) offerCards(state, o, out);
         return out;
@@ -391,9 +474,10 @@
             const moves = Math.floor(tt.sort); tt.sort -= moves;
             for (const bot of s.bots) for (let m = 0; m < moves; m++) {
                 // Gold a cell toward the right wall, garbled a cell toward the left, past sand of another kind.
-                // (looked for from a random cell on, a quarter of the box at the most)
-                for (let tries = 0, from = Math.floor(rand(state) * cells.length), span = cells.length >> 2; tries < span; tries++) {
-                    const i = (from + tries) % cells.length, v = cells[i], k = kindOf(v);
+                // (looked for from a random cell on, a quarter of the sand's rows at the most: a tank is mostly air above it)
+                const base = (state.tankTop || 0) * w, size = cells.length - base;
+                for (let tries = 0, from = Math.floor(rand(state) * size), span = Math.max(1, size >> 2); tries < span; tries++) {
+                    const i = base + (from + tries) % size, v = cells[i], k = kindOf(v);
                     const dir = k === KINDS.vein.id ? 1 : k === KINDS.garbled.id ? -1 : 0, x = i % w;
                     if (!dir || x + dir < 0 || x + dir >= w) continue;
                     if (!settled(state, i)) continue;
@@ -546,8 +630,9 @@
             const to = state.aim || state.spot || state.swarm[0];
             tt.magnet = (tt.magnet || 0) + o.magnetRate * dt;
             const moves = Math.floor(tt.magnet); tt.magnet -= moves;
-            for (let m = 0; m < moves; m++) for (let tries = 0, from = Math.floor(rand(state) * cells.length), span = cells.length >> 2; tries < span; tries++) {
-                const i = (from + tries) % cells.length;
+            const base = (state.tankTop || 0) * w, size = cells.length - base;
+            for (let m = 0; m < moves; m++) for (let tries = 0, from = Math.floor(rand(state) * size), span = Math.max(1, size >> 2); tries < span; tries++) {
+                const i = base + (from + tries) % size;
                 if (kindOf(cells[i]) !== KINDS.vein.id || !settled(state, i)) continue;
                 if (carry(state, i, to.x, to.y, o.magnetHop) !== i) break;
             }
@@ -588,6 +673,7 @@
     // An empty box and a swarm of one: how every session starts, and what is left when one ends.
     function clearBox(state, o) {
         state.cells.fill(0); state.grains = 0; state.drops = []; state.backlog = []; state.rest = true; state.dry = false;
+        state.x0 = 0; state.x1 = state.w; state.tankTop = 0; TOP.set(state, 0); DIRTY.delete(state);
         state.mites = 1; state.swarm = [mitePlace(state, 0)]; state.layers = 0; state.aim = null; state.spot = null; state.last = 0; state.sweepAt = 0; state.pourAcc = 0;
         startLayer(state, o);
     }
@@ -616,7 +702,7 @@
         state.best[sector] = Math.max(state.best[sector] || 0, packets);
         if (!state.tops) state.tops = {};
         state.tops[sector] = [...(state.tops[sector] || (state.best[sector] > packets ? [state.best[sector]] : [])), packets].sort((a, b) => b - a).slice(0, 5);
-        const total = packets + bad, cap = stockCap(state, sector, o), have = stockOf(state, sector);
+        const total = packets + bad, cap = stockCap(state, sector, o), have = stockOf(state, sector) + inTank(state, sector, o);
         const take = Math.max(0, Math.min(cap - have, total)), share = total ? take / total : 0;
         const addBad = Math.min(bad, Math.round(bad * share)), addGood = take - addBad, addGold = Math.min(addGood, Math.round(gold * share));
         if (take > 0) { const e = state.stock[sector] || (state.stock[sector] = { n: 0, gold: 0, bad: 0 }); e.n += addGood - addGold; e.gold += addGold; e.bad += addBad; }
@@ -624,57 +710,134 @@
         Object.assign(out, { added: take * o.grains, stocked: take, lost: total - take, sector, held: have + take, cap, full: have + take >= cap });
         return out;
     }
-    // Some of a session's sand is already lying there when it opens: `packets` of it leave the stockpile through the
-    // spout and settle, with no one eating and no time passing for the hunger bar.
-    function prePour(state, o, packets) {
-        const left = () => state.backlog.reduce((n, e) => n + e.n + e.gold + e.bad, 0), from = left(), quick = { ...o, pour: o.pour * 4 };
-        if (!(packets > 0)) return;
-        for (let n = 0; n < 1200; n++) {
-            const poured = from - left() >= packets || !state.backlog.length;
-            if (!poured) pour(state, quick, STEP);
-            if (state.drops.length) dropStep(state, o, STEP);
-            state.fallAcc += o.fall * STEP;
-            const passes = Math.floor(state.fallAcc); state.fallAcc -= passes;
-            let moved = false;
-            for (let k = 0; k < passes; k++) moved = fallPass(state, o) || moved;
-            if (poured && !state.drops.length && passes && !moved) break;
-        }
+    // The sand in the tank in play, in packets, when it is `sector`'s (0 otherwise): a stockpile counts what lies in its tank.
+    const inTank = (state, sector, o) => (state.session && state.session.sector === Number(sector) ? Math.round(state.grains / o.grains) : 0);
+    // A tank's walls for a sector: as many cells as its stockpile's cap holds, upright, in the middle of the box.
+    function tankRect(state, sector, o) {
+        const cells = stockCap(state, sector, o) * o.grains, { w, h } = state;
+        let W = Math.round(Math.sqrt(cells / o.tankAspect));
+        W = Math.max(o.tankMinW, Math.min(w, W + (W & 1)));
+        const H = Math.min(h - 8, Math.ceil(cells / W));
+        if (H * W < cells) W = Math.min(w, Math.ceil(cells / H));
+        state.x0 = Math.floor((w - W) / 2); state.x1 = state.x0 + W; state.tankTop = h - H;
     }
-    // Start a session on a sector's stockpile. False when sessions are off, one is in play, or there is nothing there.
+    // Fill the tank with a stockpile's sand at once (the owner's call, 2026-11-16: the tank is full when you arrive): laid from
+    // the floor up in wavy strata, each packet a streak of its own sort, gold and garbled lying in seams; then the caches.
+    function fillTank(state, o, sector, e) {
+        const { w, h, cells } = state, L = state.x0, R = state.x1, top = state.tankTop;
+        const total = e.n + e.gold + e.bad;
+        if (total <= 0) return 0;
+        const ph1 = rand(state) * 6.283, ph2 = rand(state) * 6.283, f1 = 0.05 + rand(state) * 0.04, f2 = 0.015 + rand(state) * 0.015;
+        const wave = x => o.wave * (Math.sin(x * f1 + ph1) * 0.65 + Math.sin(x * f2 + ph2) * 0.35);
+        const order = [];
+        for (let y = h - 1; y >= top; y--) for (let x = L; x < R; x++) order.push(y * w + x);
+        const keyOf = i => { const x = i % w; return (h - 1 - (i - x) / w) + wave(x); };
+        const keys = new Float64Array(cells.length);
+        for (const i of order) keys[i] = keyOf(i);
+        order.sort((a, b) => keys[a] - keys[b] || a - b);
+        state.backlog = [{ sector, n: e.n, gold: e.gold, bad: e.bad, band: 0 }];
+        state.last = 0;
+        const perBand = Math.max(6, Math.ceil(total / o.strata));
+        let at = 0, packet = 0;
+        while (state.backlog.length && at < order.length) {
+            const p = nextPacket(state, o), band = (state.band + Math.floor(packet / perBand)) % o.bands;
+            packet++;
+            for (let g = 0; g < o.grains && at < order.length; g++, at++) {
+                const kind = p.k === 3 && g > 0 ? 1 : p.k;
+                cells[order[at]] = cell(kind, band, kind === 1 && p.k === 3 ? bitesFor(p.q, o) : p.hp, !HIDDEN.includes(kind), 0);
+            }
+        }
+        state.backlog = [];
+        state.band = (state.band + o.strata) % o.bands;
+        state.grains = at;
+        // The caches: knots of rich sand in the lower part of the sand, hidden until a lamp or a bite finds them.
+        const caches = total >= o.cacheMin ? Math.max(1, Math.floor(total / o.cacheEvery)) : 0;
+        if (caches && at) {
+            let surface = h - 1; for (let i = 0; i < at; i++) surface = Math.min(surface, Math.floor(order[i] / w));
+            const yTop = surface + Math.ceil((h - surface) * o.cacheDeep), r = o.cacheR;
+            for (let c = 0; c < caches; c++) {
+                const cx = L + r + 1 + Math.floor(rand(state) * Math.max(1, R - L - 2 * r - 2)), cy = Math.min(h - r - 1, yTop + Math.floor(rand(state) * Math.max(1, h - r - 1 - yTop)));
+                for (let y = cy - r; y <= cy + r; y++) for (let x = cx - r; x <= cx + r; x++) {
+                    const i = y * w + x;
+                    if (x >= L && x < R && y >= 0 && y < h && cells[i] && (x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r) cells[i] = cell(KINDS.cache.id, bandOf(cells[i]), bitesFor(sector, o), 0, 0);
+                }
+            }
+        }
+        TOP.set(state, top); DIRTY.delete(state);
+        state.rest = false;
+        return at;
+    }
+    // What lies in the box, back in packets by sort (plain, gold, garbled): a session's leftovers, for its stockpile.
+    function boxStock(state, o) {
+        const c = census(state), g = o.grains;
+        const bad = Math.round((c.garbled || 0) / g), gold = Math.round(((c.vein || 0) + (c.cache || 0)) / g);
+        const n = Math.round(((c.plain || 0) + (c.fragment || 0) + (c.numbers || 0) + (c.pictures || 0)) / g);
+        return { n, gold, bad };
+    }
+    // Start a session on a sector's stockpile: its tank, full to the stockpile's level. False when sessions are off, one is in
+    // play, or there is nothing there. `opts.squad`: the kinds of mite that come (`MITES`), in order.
     function startSession(state, sector, opts) {
         const o = opt(opts), k = Math.floor(sector) || 0, e = state.stock[k];
         if (!state.sessioned || state.session || !e || e.n + e.gold + e.bad <= 0) return false;
         clearBox(state, o);
-        state.band = (state.band + 1) % o.bands;
-        state.backlog.push({ sector: k, n: e.n, gold: e.gold, bad: e.bad, band: state.band });
+        if (opts && Array.isArray(opts.squad)) setSquad(state, opts.squad, opts);
+        tankRect(state, k, o);
         delete state.stock[k];
-        state.session = { sector: k, research: 0, time: 0, packets: e.n + e.gold + e.bad, cards: {}, offer: null, picks: 0, wait: false, piles: 1, tt: {}, beam: -1, ring: null, bots: [], sift: -1, dbot: null, rbots: [] };
+        state.session = { sector: k, research: 0, time: 0, packets: e.n + e.gold + e.bad, cards: {}, offer: null, picks: 0, wait: false, piles: 1, tt: {}, beam: -1, ring: null, bots: [], sift: -1, dbot: null, rbots: [],
+            heat: 0, tier: 0, peak: 0, ate: 0, ct: 0, cn: 0, caches: 0, corrupted: 0, start: 0 };
+        fillTank(state, o, k, e);
+        state.session.start = state.grains;
         state.life = 1; state.lastSession = null; state.stats.sessions++;
-        state.swarm[0].c = CHARACTERS[Math.floor(rand(state) * CHARACTERS.length)];   // the first mite is anyone (the owner's call: it was always the gold-hungry)
-        while (state.mites < o.startMites) { const m = mitePlace(state, state.mites); m.c = CHARACTERS[Math.floor(rand(state) * CHARACTERS.length)]; state.swarm.push(m); state.mites++; }
-        prePour(state, o, o.prePour * layerSize(0, o));
+        state.swarm = [];
+        state.mites = 0;
+        while (state.mites < o.startMites) addMite(state, o);
         return true;
     }
-    // The pile is eaten and other stockpiles have sand: the session waits (`session.wait`, a `cleared` event) and may
+    // A new mite of the squad's next kind (the squad in turn), or, outside the squad, as the old Feed drew them.
+    function addMite(state, o, random) {
+        const m = mitePlace(state, state.mites), squad = state.squad && state.squad.length ? state.squad : ['grazer'];
+        if (random) m.c = rand(state) < o.megaChance ? 'mega' : CHARACTERS[Math.floor(rand(state) * CHARACTERS.length)];
+        else {
+            const kind = squad[state.mites % squad.length];
+            m.c = MITES[kind]?.c || (rand(state) < 0.5 ? 'loner' : 'follower');
+        }
+        state.swarm.push(m); state.mites++;
+        return m;
+    }
+    // Choose the squad: up to `squadSize` (or `opts.slots`) different kinds, from `opts.kinds` (the kinds open), grazer if none.
+    function setSquad(state, kinds, opts) {
+        const o = opt(opts), open = Array.isArray(opts?.kinds) ? opts.kinds.filter(k => MITES[k]) : MITE_IDS, slots = Math.max(1, Math.floor(opts?.slots || o.squadSize));
+        const squad = [...new Set((Array.isArray(kinds) ? kinds : []).filter(k => MITES[k] && open.includes(k)))].slice(0, slots);
+        state.squad = squad.length ? squad : ['grazer'];
+        return state.squad;
+    }
+    // The tank is eaten bare and other stockpiles have sand: the session waits (`session.wait`, a `cleared` event) and may
     // carry on with one of them (the owner's call, 2026-11-14): the mites, the splits so far, the cards and the hunger
-    // bar all come along; only the sand and its sector change.
+    // bar all come along; only the tank and its sector change.
     function carryOn(state, sector, opts) {
         const o = opt(opts), k = Math.floor(sector) || 0, e = state.stock[k], s = state.session;
         if (!s || !s.wait || !e || e.n + e.gold + e.bad <= 0) return false;
-        state.band = (state.band + 1) % o.bands;
-        state.backlog.push({ sector: k, n: e.n, gold: e.gold, bad: e.bad, band: state.band });
         delete state.stock[k];
+        tankRect(state, k, o);
         s.sector = k; s.packets += e.n + e.gold + e.bad; s.piles = (s.piles || 1) + 1; s.wait = false;
-        state.rest = false; state.dry = false; state.spot = null; state.aim = null;
+        fillTank(state, o, k, e);
+        s.start = state.grains;
+        for (const m of state.swarm) { m.x = Math.max(state.x0 + 0.5, Math.min(state.x1 - 0.5, m.x)); m.y = Math.max(1.5, state.tankTop - 6); m.t = -1; }
+        state.dry = false; state.spot = null; state.aim = null;
         return true;
     }
-    // The session is over (`why`: 'hunger', 'empty', or 'left' when you end it yourself). Sand not yet poured goes back
-    // to its stockpile; sand in the box is gone.
+    // The session is over (`why`: 'hunger', 'empty', or 'left' when you end it yourself). What is left in the tank stays in
+    // its stockpile (the owner's call, 2026-11-16), garbled sand and all; `left` in the result says how much.
     function endSession(state, why, opts, out) {
         const o = opt(opts), s = state.session;
         if (!s) return null;
         for (const e of state.backlog) { const t = state.stock[e.sector] || (state.stock[e.sector] = { n: 0, gold: 0, bad: 0 }); t.n += e.n; t.gold += e.gold; t.bad += e.bad; }
-        const result = { type: 'over', why, sector: s.sector, layers: state.layers, mites: state.mites, research: s.research, time: Math.round(s.time), piles: s.piles || 1, cards: Object.values(s.cards || {}).reduce((n, v) => n + v, 0), record: state.layers > (state.record[s.sector] || 0) };
+        state.backlog = [];
+        const back = boxStock(state, o), kept = back.n + back.gold + back.bad;
+        if (kept > 0) { const t = state.stock[s.sector] || (state.stock[s.sector] = { n: 0, gold: 0, bad: 0 }); t.n += back.n; t.gold += back.gold; t.bad += back.bad; }
+        const eaten = s.start ? Math.max(0, Math.min(1, 1 - state.grains / s.start)) : 1;
+        const result = { type: 'over', why, sector: s.sector, layers: state.layers, mites: state.mites, research: s.research, time: Math.round(s.time), piles: s.piles || 1, cards: Object.values(s.cards || {}).reduce((n, v) => n + v, 0), record: state.layers > (state.record[s.sector] || 0),
+            left: kept, bad: back.bad, cleared: Math.round(eaten * 100), caches: s.caches || 0, corrupted: Math.round((s.corrupted || 0) / o.grains), frenzy: s.peak || 0 };
         if (result.record) state.record[s.sector] = state.layers;
         clearBox(state, o);
         state.session = null; state.life = 1; state.lastSession = { ...result };
@@ -782,7 +945,7 @@
                 // A fragment's packet is one fragment grain and plain sand round it.
                 const kind = d.k === 3 && g > 0 ? 1 : d.k;
                 cells[y * w + x] = cell(kind, d.band, kind === 1 && d.k === 3 ? bitesFor(d.q, o) : d.hp, !HIDDEN.includes(kind), 1);
-                state.grains++; d.n--; raise(state, y);
+                state.grains++; d.n--; raise(state, y); touch(state, x, y);
             }
             state.rest = false;
             if (d.n <= 0) state.drops.splice(n, 1);
@@ -792,16 +955,29 @@
 
     // One pass of falling: every grain with room under it drops a cell, else slides down and across.
     function fallPass(state, o) {
-        const { w, h, cells } = state;
+        const { w, h, cells } = state, L = lo(state), R = hi(state);
         let moved = false;
         state.tick++;
+        // The columns to look at: within two of a change (a grain slumps two across), and how far down in each.
+        const d = dirtyOf(state), need = d.need, cols = [];
+        let low = -1, full = true;
+        for (let x = 0; x < w; x++) {
+            let m = -1;
+            for (let k = Math.max(0, x - 2); k <= Math.min(w - 1, x + 2); k++) if (d.hi[k] > m) m = d.hi[k];
+            need[x] = m;
+            if (m >= 0) { cols.push(x); if (m > low) low = m; }
+            if (m < h - 2) full = false;
+        }
+        d.hi.fill(-1);
+        if (!cols.length) return false;
         for (let x = 0, i = (h - 1) * w; x < w; x++, i++) if (cells[i] & AIR) moved = land(state, o, i, x, h - 1) || moved;
-        const from = TOP.get(state) ?? 0; let seen = h - 1;
-        TOP.set(state, h - 1);
-        for (let y = h - 2; y >= from; y--) {
-            const row = y * w, flip = (state.tick + y) & 1;
-            for (let n = 0; n < w; n++) {
-                const x = flip ? w - 1 - n : n, i = row + x, v = cells[i];
+        const from = topOf(state); let seen = h - 1;
+        for (let y = Math.min(h - 2, low); y >= from; y--) {
+            const row = y * w, flip = (state.tick + y) & 1, nc = cols.length;
+            for (let n = 0; n < nc; n++) {
+                const x = cols[flip ? nc - 1 - n : n];
+                if (need[x] < y) continue;
+                const i = row + x, v = cells[i];
                 if (!v) continue;
                 seen = y;
                 const below = i + w;
@@ -811,30 +987,31 @@
                     let to = below;
                     for (let k = 1; k < reach && to + w < cells.length && !cells[to + w]; k++) to += w;
                     cells[to] = still(v) | (Math.min(7, vel + 1) << 16); cells[i] = 0; moved = true;
+                    touch(state, x, (to - x) / w); touch(state, x, y);
                     continue;
                 }
                 let to = -1;
                 const first = (x + state.tick) & 1 ? -1 : 1;
                 for (const d of [first, -first]) {
                     const nx = x + d;
-                    if (nx >= 0 && nx < w && !cells[below + d] && !cells[i + d]) { to = below + d; break; }
+                    if (nx >= L && nx < R && !cells[below + d] && !cells[i + d]) { to = below + d; break; }
                 }
                 // Slumping: at rest on a ledge with a drop two cells across, it rolls a cell that way (now and then, so a
                 // heap slides rather than snaps). One waiting its turn still counts as movement: the pile is not at rest.
                 if (to < 0 && o.slump > 0 && !(v & AIR)) {
                     for (const d of [first, -first]) {
                         const nx = x + 2 * d;
-                        if (nx < 0 || nx >= w || cells[i + d] || !cells[below + d] || cells[i + 2 * d] || cells[below + 2 * d]) continue;
-                        if (hash(i, state.tick) % o.slump === 0) to = i + d; else moved = true;
+                        if (nx < L || nx >= R || cells[i + d] || !cells[below + d] || cells[i + 2 * d] || cells[below + 2 * d]) continue;
+                        if (hash(i, state.tick) % o.slump === 0) to = i + d; else { moved = true; touch(state, x, y); }
                         break;
                     }
                 }
-                if (to >= 0) { cells[to] = still(v); cells[i] = 0; moved = true; }
+                if (to >= 0) { cells[to] = still(v); cells[i] = 0; moved = true; const tx = to % w; touch(state, tx, (to - tx) / w); touch(state, x, y); }
                 else if (v & AIR) moved = land(state, o, i, x, y) || moved;
                 else if (v > 0xFFFF) cells[i] = still(v);
             }
         }
-        raise(state, seen);
+        if (full) TOP.set(state, seen); else raise(state, seen);   // a partial look can't tell the top has come down
         return moved;
     }
     // A grain lands for the first time since it melted. One in `hop` jumps: up and across a few cells (now and then a
@@ -845,8 +1022,8 @@
         if (!(o.hop > 0) || j % o.hop) return false;
         const high = (j >>> 4) % 8 === 0, up = high ? 14 + (j >>> 8) % 12 : 4 + (j >>> 8) % 6, across = ((j >>> 12) & 1 ? 1 : -1) * (2 + (j >>> 14) % (high ? 10 : 6));
         const nx = x + across, ny = y - up;
-        if (nx < 0 || nx >= w || ny < 0 || cells[ny * w + nx]) return false;
-        cells[ny * w + nx] = v; cells[i] = 0; raise(state, ny);
+        if (nx < lo(state) || nx >= hi(state) || ny < 0 || cells[ny * w + nx]) return false;
+        cells[ny * w + nx] = v; cells[i] = 0; raise(state, ny); touch(state, nx, ny); touch(state, x, y);
         state.stats.hops++;
         return true;
     }
@@ -854,7 +1031,8 @@
     // The grain on the pile's surface nearest a point: one with an empty cell beside it (or at the box's top).
     function nearestSurface(state, px, py) {
         const { w, h, cells } = state;
-        const surface = (i, x, y) => !(y < h - 1 && !cells[i + w]) && (y === 0 || !cells[i - w] || (x > 0 && !cells[i - 1]) || (x < w - 1 && !cells[i + 1]));
+        const L = lo(state), R = hi(state);   // the tank's walls count as sand: a grain against one is not on the surface
+        const surface = (i, x, y) => !(y < h - 1 && !cells[i + w]) && (y === 0 || !cells[i - w] || (x > L && !cells[i - 1]) || (x < R - 1 && !cells[i + 1]));
         // Near first: any surface grain within `r` cells is nearer than everything outside the square round it.
         for (const r of [12, 40]) {
             let best = -1, bestD = r * r;
@@ -891,8 +1069,9 @@
 
     function eat(state, o, i, out) {
         const { w } = state, v = state.cells[i], kind = KIND_IDS[kindOf(v)], x = i % w, y = (i - x) / w;
-        state.cells[i] = 0; state.grains--; state.rest = false;
+        state.cells[i] = 0; state.grains--; state.rest = false; touch(state, x, y);
         const pays = !slowSand(state, kind);
+        if (state.session) { if (pays) state.session.ate += bitesFor(state.session.sector, o); else if (KINDS[kind].bad) state.session.heat = Math.max(0, (state.session.heat || 0) - o.frenzyBad / o.grains); }
         if (pays) {
             state.stats.eaten++;
             state.owed += KINDS[kind].pay / o.grains * payMult(state, o);
@@ -902,6 +1081,7 @@
             if (kind === 'vein') state.stats.veins++;
         } else state.stats.cleaned++;
         out.events.push({ type: 'eat', x, y, kind, pays });
+        if (kind === 'cache' && !cracking) crack(state, o, x + 0.5, y + 0.5, out);
         if (kind === 'fragment') {
             const set = FRAGMENT_ORDER[0], found = state.fragments[set] || (state.fragments[set] = []);
             if (found.length < FRAGMENTS[set].pieces) {
@@ -915,7 +1095,7 @@
             state.layers++;
             if (state.session) { state.life = 1; state.session.picks = (state.session.picks || 0) + 1; }   // a split fills the hunger bar and offers cards (`step`)
             const mite = state.layers >= o.miteFirst && (state.layers - o.miteFirst) % o.miteEvery === 0;
-            if (mite) { const m = mitePlace(state, state.mites); m.c = rand(state) < o.megaChance ? 'mega' : CHARACTERS[Math.floor(rand(state) * CHARACTERS.length)]; state.swarm.push(m); state.mites++; }
+            if (mite) addMite(state, o, !state.session);   // in a session the squad's next kind; outside one, as the old Feed drew them
             state.owed += pay;
             out.events.push({ type: 'layer', layer: state.layers, pay, mite, mites: state.mites });
             startLayer(state, o);
@@ -923,6 +1103,45 @@
         }
     }
 
+    // A bite of a cache cracks the whole knot: every cache grain round it is taken, it pays `cachePay` packets' worth, and
+    // (in a session) it gives a free card.
+    // (The knot is found by its grains, near each other within `gap` cells: sand falling past can pull a knot apart a little.
+    // A crumb of one that was cracked, found later on its own, is only sand: it takes `cacheBits` grains to crack one.)
+    let cracking = false;
+    function crack(state, o, x, y, out) {
+        const { w, h, cells } = state, gap = 3, id = KINDS.cache.id, seen = new Set([Math.floor(y) * w + Math.floor(x)]), todo = [Math.floor(y) * w + Math.floor(x)], knot = [];
+        while (todo.length && knot.length < 400) {
+            const i = todo.pop(), cx = i % w, cy = (i - cx) / w;
+            for (let dy = -gap; dy <= gap; dy++) for (let dx = -gap; dx <= gap; dx++) {
+                const nx = cx + dx, ny = cy + dy, j = ny * w + nx;
+                if (nx < 0 || nx >= w || ny < 0 || ny >= h || seen.has(j)) continue;
+                seen.add(j);
+                if (kindOf(cells[j]) === id) { knot.push(j); todo.push(j); }
+            }
+        }
+        cracking = true;
+        for (const i of knot) if (cells[i]) eat(state, o, i, out);
+        cracking = false;
+        const n = knot.length;
+        if (n + 1 < o.cacheBits) return;
+        const pay = Math.max(1, Math.round(o.cachePay * payMult(state, o)));
+        state.owed += pay; state.stats.caches++;
+        if (state.session) { state.session.caches = (state.session.caches || 0) + 1; state.session.picks = (state.session.picks || 0) + 1; }
+        out.events.push({ type: 'cache', x, y, pay, grains: n + 1 });
+    }
+    // One bite of the grain at `i`. A scrubber in a session decodes garbled sand into good sand instead of chewing it; a
+    // driller's bite takes `drillBite` bites off.
+    function bite(state, o, m, i, out) {
+        const v = state.cells[i], k = kindOf(v);
+        if (m.c === 'tidy' && k === KINDS.garbled.id && state.session) {
+            state.cells[i] = cell(KINDS.plain.id, bandOf(v), bitesFor(state.session.sector, o), 1, 0);
+            state.stats.decoded++;
+            out.events.push({ type: 'decode', x: i % state.w, y: Math.floor(i / state.w) });
+            return;
+        }
+        const hp = hpOf(v) - (m.c === 'drill' ? o.drillBite : 1);
+        if (hp > 0) state.cells[i] = cell(k, bandOf(v), hp, seenOf(v)); else take(state, o, m, i, out);
+    }
     // One mite for one step: head for the point you hold (or the nearest sand on the surface), biting what is in the way.
     // The grain nearest a point within `r` cells that `want(cell)` accepts, or −1.
     function nearestWhere(state, px, py, r, want) {
@@ -939,7 +1158,7 @@
     // What a mite would rather eat near a point: gold it can see for the gold-hungry, garbled sand for the tidy, and
     // anything but garbled for the rest; failing that, whatever is nearest.
     function liked(state, o, m, x, y, r) {
-        const tidy = m.c === 'tidy' && (!state.session || state.life > o.tidyAbove);
+        const tidy = m.c === 'tidy';   // (a scrubber decodes what it goes for, so it feeds the swarm: it no longer waits on the hunger bar)
         if (o.character) { const i = nearestWhere(state, x, y, r, m.c === 'gold' ? GOLD : tidy ? BAD : GOOD); if (i >= 0) return i; }
         return nearestWithin(state, x, y, r);
     }
@@ -949,7 +1168,9 @@
         const aim = state.aim || state.spot, loose = state.aim ? 1 : o.tapRoam, { w, h, swarm } = state;
         if (!(o.roam > 0)) return aim;
         m.rt = (m.rt || 0) - dt;
-        if (m.rt <= 0) { const ang = rand(state) * Math.PI * 2, r = Math.sqrt(rand(state)) * o.roam * loose; m.ox = Math.cos(ang) * r; m.oy = Math.sin(ang) * r * 0.5; m.rt = 1 + rand(state) * 1.5; }
+        // (Its spot lies round and below the point: in a full tank the point is mostly on the surface, and a spot in the air
+        // over it sent mites back and forth with nothing to eat. 2026-11-16.)
+        if (m.rt <= 0) { const ang = rand(state) * Math.PI * 2, r = Math.sqrt(rand(state)) * o.roam * loose; m.ox = Math.cos(ang) * r; m.oy = Math.abs(Math.sin(ang)) * r * 0.5; m.rt = 1 + rand(state) * 1.5; }
         let x = aim.x + m.ox, y = aim.y + m.oy;
         if (o.character && swarm.length > 1) {
             if (m.c === 'loner') {
@@ -962,7 +1183,7 @@
                 x = lead.x + m.ox * 0.25; y = lead.y + m.oy * 0.25;
             }
         }
-        return { x: Math.max(0.5, Math.min(w - 0.5, x)), y: Math.max(0.5, Math.min(h - 0.5, y)) };
+        return { x: Math.max(lo(state) + 0.5, Math.min(hi(state) - 0.5, x)), y: Math.max(0.5, Math.min(h - 0.5, y)) };
     }
     // A mite takes the grain at `i`; a mega mite takes one beside it too.
     function take(state, o, m, i, out) {
@@ -993,7 +1214,7 @@
                 if (food < 0 && g !== pt) { gx = pt.x; gy = pt.y; if ((m.x - gx) * (m.x - gx) + (m.y - gy) * (m.y - gy) <= o.near * o.near) food = liked(state, o, m, gx, gy, o.near); }
             } else if (o.character && o.roam > 0 && (m.c === 'gold' || m.c === 'tidy')) {
                 // On its way: it stops for what it likes best, when that is right beside it.
-                if (m.c === 'gold' || !state.session || state.life > o.tidyAbove) food = nearestWhere(state, m.x, m.y, o.lamp / 2, m.c === 'gold' ? GOLD : BAD);
+                food = nearestWhere(state, m.x, m.y, o.lamp / 2, m.c === 'gold' ? GOLD : BAD);
             }
         } else {
             if (m.t < 0 || !cells[m.t]) m.t = state.grains ? nearestSurface(state, m.x, m.y) : -1;
@@ -1003,7 +1224,7 @@
         if (food >= 0) { gx = food % w + 0.5; gy = Math.floor(food / w) + 0.5; }
         const here = Math.floor(m.y) * w + Math.floor(m.x);
         if (food === here && cells[here]) {
-            while (m.b >= 1 && cells[here]) { m.b -= 1; const v = cells[here], hp = hpOf(v) - 1; if (hp > 0) cells[here] = cell(kindOf(v), bandOf(v), hp, seenOf(v)); else take(state, o, m, here, out); }
+            while (m.b >= 1 && cells[here]) { m.b -= 1; bite(state, o, m, here, out); }
             return;
         }
         let dx = gx - m.x, dy = gy - m.y;
@@ -1011,7 +1232,7 @@
         // Meandering: led and still a way off, it swings from side to side of the straight line, each mite on its own beat.
         if (led && o.wobble > 0 && d > o.near) { m.a = ((m.a || 0) + dt * (2.2 + (state.swarm.indexOf(m) % 5) * 0.5)) % (Math.PI * 2); const t = Math.sin(m.a) * o.wobble, cs = Math.cos(t), sn = Math.sin(t), rx = dx * cs - dy * sn; dy = dx * sn + dy * cs; dx = rx; }
         if (d < 0.05) { if (food < 0) m.b = Math.min(m.b, o.grains / 16); return; }
-        const go = Math.min(d, o.speed * dt), nx = Math.max(0.01, Math.min(w - 0.01, m.x + dx / d * go)), ny = Math.max(0.01, Math.min(h - 0.01, m.y + dy / d * go));
+        const go = Math.min(d, o.speed * dt), nx = Math.max(lo(state) + 0.01, Math.min(hi(state) - 0.01, m.x + dx / d * go)), ny = Math.max(0.01, Math.min(h - 0.01, m.y + dy / d * go));
         // The cell it would step into; when the step stays in its own cell, the next one toward the goal.
         let ci = Math.floor(ny) * w + Math.floor(nx);
         const own = Math.floor(m.y) * w + Math.floor(m.x);
@@ -1021,12 +1242,7 @@
         }
         if (cells[ci] && ci !== own) {
             // Sand in the way: bite it, and move in once it is gone.
-            while (m.b >= 1 && cells[ci]) {
-                m.b -= 1;
-                const v = cells[ci], hp = hpOf(v) - 1;
-                if (hp > 0) cells[ci] = cell(kindOf(v), bandOf(v), hp, seenOf(v));
-                else take(state, o, m, ci, out);
-            }
+            while (m.b >= 1 && cells[ci]) { m.b -= 1; bite(state, o, m, ci, out); }
             return;
         }
         m.x = nx; m.y = ny;
@@ -1035,7 +1251,7 @@
 
     // A mite's lamp: hidden sand lying within `lamp` cells of it shows what it is, for good (sand still falling past doesn't).
     function lamp(state, o, m, out) {
-        const { w, h, cells } = state, r = o.lamp, r2 = r * r;
+        const { w, h, cells } = state, r = o.lamp * (m.c === 'gold' ? MITES.prospector.lamp : 1), r2 = r * r;
         for (let y = Math.max(0, Math.floor(m.y - r)); y <= Math.min(h - 1, Math.floor(m.y + r)); y++) {
             for (let x = Math.max(0, Math.floor(m.x - r)); x <= Math.min(w - 1, Math.floor(m.x + r)); x++) {
                 const i = y * w + x, v = cells[i];
@@ -1046,6 +1262,48 @@
         }
     }
 
+    // The feeding frenzy for one step: how much of the swarm's full eating the good sand eaten this step was. Kept above
+    // `frenzyFloor`, heat builds (a second's heat a second at full eating, ×2 at the most); below it, it cools. Each
+    // `frenzyStep` of heat is a tier. `o` is the step's dials (cards and frenzy in), `base` the plain ones.
+    function heat(state, base, o, dt, out) {
+        const s = state.session, full = state.swarm.length * o.chew * o.grains * dt, eff = full > 0 ? (s.ate || 0) / full : 0;
+        s.ate = 0;
+        const floor = base.frenzyFloor, top = (base.frenzyMax + 1) * base.frenzyStep;
+        if (eff >= floor) s.heat = Math.min(top, (s.heat || 0) + dt * cardMult(state, 'frenzy') * Math.min(2, 0.5 + 1.5 * (eff - floor) / (1 - floor)));
+        else s.heat = Math.max(0, (s.heat || 0) - dt * base.frenzyCool * (1 - eff / floor));
+        let tier = Math.min(base.frenzyMax, Math.floor((s.heat || 0) / base.frenzyStep));
+        if (tier < (s.tier || 0) && s.heat > ((s.tier || 0) - 0.35) * base.frenzyStep) tier = s.tier;   // a tier holds a little past its edge: no flicker
+        if (tier !== (s.tier || 0)) { out.events.push({ type: 'frenzy', tier, from: s.tier || 0 }); s.tier = tier; s.peak = Math.max(s.peak || 0, tier); }
+    }
+    // Corruption (the owner's call, 2026-11-16): each garbled grain touching good sand may turn one neighbour garbled
+    // (gold at `corruptGold` of the chance, caches never), except within `ward` cells of a scrubber. Only in a session.
+    function corrupt(state, o, out) {
+        const { w, h, cells } = state, L = lo(state), R = hi(state), bad = KINDS.garbled.id, s = state.session;
+        const wards = state.swarm.filter(m => m.c === 'tidy'), r2 = o.ward * o.ward, picked = new Set();
+        const chance = Math.round(o.corruptChance * 4294967296), goldChance = Math.round(o.corruptChance * o.corruptGold * 4294967296);
+        const DIRS = [-1, 1, -w, w], round = s.cn = (s.cn || 0) + 1;   // its own count, so a pile at rest still spreads
+        for (let y = topOf(state); y < h; y++) for (let x = L; x < R; x++) {
+            const i = y * w + x; if (kindOf(cells[i]) !== bad) continue;
+            const roll = hash(i, round * 7919 + 1);
+            if (roll >= chance) continue;
+            const d = DIRS[(roll >>> 3) & 3], j = i + d, nx = x + (d === -1 ? -1 : d === 1 ? 1 : 0);
+            if (nx < L || nx >= R || j < 0 || j >= cells.length) continue;
+            const u = cells[j], k = kindOf(u);
+            if (!u || k === bad || k === KINDS.cache.id || !settled(state, j)) continue;
+            if (k === KINDS.vein.id && roll >= goldChance) continue;
+            const jx = j % w, jy = (j - jx) / w;
+            if (wards.some(m => (m.x - jx - 0.5) * (m.x - jx - 0.5) + (m.y - jy - 0.5) * (m.y - jy - 0.5) <= r2)) continue;
+            picked.add(j);
+        }
+        const turn = [...picked];
+        if (!turn.length) return 0;
+        const hp = Math.min(255, bitesFor(s.sector, o) * o.slow);
+        for (const j of turn) cells[j] = cell(bad, bandOf(cells[j]), hp, 1, 0);
+        s.corrupted = (s.corrupted || 0) + turn.length; state.stats.corrupted += turn.length;
+        const pts = []; for (let n = 0; n < turn.length && pts.length < 24; n += Math.max(1, Math.floor(turn.length / 24))) pts.push([turn[n] % w + 0.5, Math.floor(turn[n] / w) + 0.5]);
+        out.events.push({ type: 'corrupt', n: turn.length, pts });
+        return turn.length;
+    }
     // `dt` seconds pass. Returns { research, events }: research earned (whole numbers) and what the screen should show.
     function step(state, dt, opts) {
         const base = opt(opts), out = { research: 0, events: [] };
@@ -1075,6 +1333,12 @@
             }
             else if (!state.backlog.length && !state.drops.length) {
                 for (const m of state.swarm) { m.b = 0; m.t = -1; }
+                if (state.session && state.session.start > 0) {
+                    // The tank eaten bare: a lump, once a tank.
+                    const s = state.session, pay = Math.max(1, Math.round(o.clearPay * s.start / o.grains * payMult(state, o)));
+                    state.owed += pay; s.start = 0; state.stats.cleared++;
+                    out.events.push({ type: 'tankClear', sector: s.sector, pay });
+                }
                 if (state.session) {
                     if (Object.keys(state.stock).some(k => stockOf(state, k) > 0)) { state.session.wait = true; out.events.push({ type: 'cleared', sector: state.session.sector }); break; }
                     ended = 'empty'; break;
@@ -1082,6 +1346,10 @@
                 if (!state.dry && state.stats.delivered > 0) { state.dry = true; out.events.push({ type: 'empty' }); }
             }
             if (state.session) {
+                heat(state, base, o, each, out);
+                const s = state.session;
+                s.ct = (s.ct || 0) + each;
+                if (s.ct >= base.corruptEvery) { s.ct -= base.corruptEvery; if (state.grains) corrupt(state, base, out); }
                 tools(state, o, each, out);
                 if (state.session.picks > 0) { offerCards(state, base, out); if (state.session.offer) break; }
                 state.life -= each / o.hungerTime;
@@ -1134,7 +1402,7 @@
         const state = newFeed(opts);
         if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return state;
         state.layers = whole(raw.layers, 200);
-        state.mites = Math.max(1, Math.min(whole(raw.mites, 999), 1 + state.layers));
+        state.mites = Math.max(1, Math.min(whole(raw.mites, 999), 1 + state.layers + (raw.sessioned === true && raw.session ? o.startMites + 2 * whole(raw.session.cards?.brood, 200) : 0)));   // a session starts with `startMites`, and Brood brings two
         const pieces = FRAGMENT_ORDER.reduce((n, id) => n + FRAGMENTS[id].pieces, 0);
         state.fragNext = whole(raw.fragNext, pieces);
         for (const id of FRAGMENT_ORDER) {
@@ -1142,6 +1410,7 @@
             if (found) state.fragments[id] = Array.from({ length: found }, (_, n) => n);
         }
         state.readable = LOCKED.filter(k => Array.isArray(raw.readable) && raw.readable.includes(k));
+        if (Array.isArray(raw.squad)) setSquad(state, raw.squad, { slots: 8 });
         for (const key of Object.keys(state.stats)) state.stats[key] = whole(raw.stats?.[key], 1e15);
         const box = raw.w === FEED.w && raw.h === FEED.h ? (typeof raw.cells === 'string' ? unpack(raw.cells, FEED.w * FEED.h) : raw.cells) : null;
         const sized = Array.isArray(box) && box.length === FEED.w * FEED.h;
@@ -1194,7 +1463,11 @@
             if (sized && sess && sector) {
                 const cards = {}; for (const id of CARD_IDS) { const n = whole(sess.cards?.[id], 200); if (n) cards[id] = n; }
                 const offer = Array.isArray(sess.offer) ? [...new Set(sess.offer.filter(id => typeof id === 'string' && Object.prototype.hasOwnProperty.call(CARDS, id)))].slice(0, o.cardChoices) : [];
-                state.session = { sector, research: whole(sess.research, 1e12), time: real(sess.time, 0, 1e7, 0), packets: whole(sess.packets, 1e8), cards, offer: offer.length ? offer : null, picks: offer.length ? Math.max(1, whole(sess.picks, 200)) : whole(sess.picks, 200), wait: sess.wait === true, piles: Math.max(1, whole(sess.piles, 99)) };
+                state.session = { sector, research: whole(sess.research, 1e12), time: real(sess.time, 0, 1e7, 0), packets: whole(sess.packets, 1e8), cards, offer: offer.length ? offer : null, picks: offer.length ? Math.max(1, whole(sess.picks, 200)) : whole(sess.picks, 200), wait: sess.wait === true, piles: Math.max(1, whole(sess.piles, 99)),
+                    heat: real(sess.heat, 0, 1e3, 0), tier: whole(sess.tier, o.frenzyMax), peak: whole(sess.peak, o.frenzyMax), ate: whole(sess.ate, 1e9), ct: real(sess.ct, 0, 10, 0), cn: whole(sess.cn, 1e12), caches: whole(sess.caches, 1e4), corrupted: whole(sess.corrupted, 1e9), start: whole(sess.start, FEED.w * FEED.h) };
+                // The tank's walls (a save from before tanks: the whole box).
+                const x0 = whole(raw.x0, FEED.w - 1), x1 = whole(raw.x1, FEED.w);
+                if (x1 > x0 + 1) { state.x0 = x0; state.x1 = x1; state.tankTop = whole(raw.tankTop, FEED.h - 1); }
                 // The tools' clocks, the scanner's beam and the sorter bots.
                 const tt = {}; for (const key of ['scan', 'pulse', 'arc', 'sort', 'shake', 'sonar', 'storm', 'defrag', 'tracer', 'magnet', 'reso', 'sift', 'demo', 'relay', 'drum']) { if (typeof sess.tt?.[key] === 'number') tt[key] = real(sess.tt[key], 0, 1e4, 0); }
                 state.session.tt = tt; state.session.beam = real(sess.beam, 0, FEED.w, -1);
@@ -1207,17 +1480,19 @@
                 state.life = real(raw.life, 0, 1, 1);
             } else { clearBox(state, o); state.life = 1; }
             const last = raw.lastSession;
-            if (last && whole(last.sector, 99)) state.lastSession = { type: 'over', why: ['hunger', 'empty', 'left'].includes(last.why) ? last.why : 'hunger', sector: whole(last.sector, 99), layers: whole(last.layers, 200), mites: Math.max(1, whole(last.mites, 999)), research: whole(last.research, 1e12), time: whole(last.time, 1e7), cards: whole(last.cards, 1e4), record: last.record === true };
+            if (last && whole(last.sector, 99)) state.lastSession = { type: 'over', why: ['hunger', 'empty', 'left'].includes(last.why) ? last.why : 'hunger', sector: whole(last.sector, 99), layers: whole(last.layers, 200), mites: Math.max(1, whole(last.mites, 999)), research: whole(last.research, 1e12), time: whole(last.time, 1e7), cards: whole(last.cards, 1e4), record: last.record === true,
+                left: whole(last.left, 1e8), bad: whole(last.bad, 1e8), cleared: whole(last.cleared, 100), caches: whole(last.caches, 1e4), corrupted: whole(last.corrupted, 1e8), frenzy: whole(last.frenzy, o.frenzyMax) };
         }
         state.swarm = Array.from({ length: state.mites }, (_, n) => {
             const m = sized && Array.isArray(raw.swarm) ? raw.swarm[n] : null, d = mitePlace(state, n);
             return { x: real(m?.x, 0, FEED.w - 0.01, d.x), y: real(m?.y, 0, FEED.h - 0.01, d.y), b: real(m?.b, 0, 64, 0), t: Number.isInteger(m?.t) && m.t >= -1 && m.t < FEED.w * FEED.h ? m.t : -1,
-                c: m?.c === 'mega' || CHARACTERS.includes(m?.c) ? m.c : d.c, a: real(m?.a, 0, 7, d.a % (Math.PI * 2)), ox: real(m?.ox, -1e3, 1e3, 0), oy: real(m?.oy, -1e3, 1e3, 0), rt: real(m?.rt, -1, 10, 0) };
+                c: m?.c === 'mega' || m?.c === 'drill' || CHARACTERS.includes(m?.c) ? m.c : d.c, a: real(m?.a, 0, 7, d.a % (Math.PI * 2)), ox: real(m?.ox, -1e3, 1e3, 0), oy: real(m?.oy, -1e3, 1e3, 0), rt: real(m?.rt, -1, 10, 0) };
         });
         return state;
     }
 
     return { FEED, KINDS, KIND_IDS, LOCKED, FRAGMENTS, STEP, newFeed, clean, deliver, point, mark, step, setReadable, readableFor,
         sessions, startSession, endSession, stockList, stockOf, stockCap, CARDS, COMBOS, CHARACTERS, pickCard, cardMult, toolLevel,
+        MITES, MITE_IDS, miteKindOf, setSquad, boxStock, tierOf,
         carryOn, pack, unpack, spoutX, left, waiting, fill, census, hunger, layerSize, bitesFor, kindOf, bandOf, seenOf, airOf, hpOf };
 });
