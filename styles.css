@@ -3955,7 +3955,18 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
 .feed-stage { flex: 1; min-height: 0; position: relative; }
 .feed-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; cursor: crosshair; }
 /* Test buttons, while The Feed is behind its test door (the debug panel can't be reached under a dialog). */
-.feed-test { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-bottom: 1px dashed var(--border); overflow-x: auto; }
+.feed-test { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 4px; }
+/* The test tools, folded into one button in the bar; open, a drop-down over the field (2026-11-16). */
+.feed-screen .feed-bar { position: relative; }
+.feed-testbox { position: static; }
+.feed-testbox > summary { list-style: none; min-height: 36px; padding: 4px 10px; font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center; }
+.feed-testbox > summary::-webkit-details-marker { display: none; }
+.feed-testbox[open] > summary { border-color: var(--warning); color: var(--warning); }
+.feed-testbox-body { position: absolute; right: 8px; top: calc(100% + 4px); z-index: 20; width: min(92vw, 440px); max-height: 70vh; overflow-y: auto; padding: 8px;
+    border: 1px solid var(--border); border-radius: 10px; background: var(--bg-2); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
+.feed-prompt[hidden] { display: none; }
+.feed-testbox-short { display: none; }
+@media (max-width: 520px) { .feed-screen .feed-bar { gap: 6px; padding-left: 8px; } .feed-screen .feed-stat { font-size: 0.74rem; } .feed-screen .feed-end { padding: 4px 9px; } .feed-testbox-long { display: none; } .feed-testbox-short { display: inline; font-size: 1rem; } .feed-testbox > summary { min-width: 36px; padding: 4px 8px; justify-content: center; } }
 .feed-test-label { font: 600 0.75rem var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
 .feed-test .ghost-button { min-height: 36px; padding: 4px 10px; font-size: 0.85rem; white-space: nowrap; }
 .feed-fragment {

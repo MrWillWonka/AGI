@@ -60,9 +60,13 @@
     let downAt = 0, downXY = null;
     // (2026-11-14, the owner: "still way too small, I'd like the option to make it larger or smaller": the button goes
     // round Follows, Small, Large and Off; Large is most of the stage's width and a third of its height.)
-    const CAM_MODES = ['follow', 'small', 'large', 'off'], CAM_NAME = { follow: 'follows', small: 'small', large: 'large', off: 'off' };
-    let camMode = 'large', camEl = null;
-    try { const v = localStorage.getItem('agiFeedCam'); camMode = v === 'dock' ? 'small' : CAM_MODES.includes(v) ? v : 'large'; } catch { /* private mode */ }
+    // (2026-11-16, the owner: on a phone the camera is off to start, and the small corner window when switched on, now that the
+    // view closes in by itself; a desktop keeps the large one until the owner has judged it. A new key, so the old default
+    // kept on a phone doesn't hold.)
+    const PHONE = matchMedia('(pointer: coarse)').matches;
+    const CAM_MODES = PHONE ? ['off', 'small', 'follow', 'large'] : ['follow', 'small', 'large', 'off'], CAM_NAME = { follow: 'follows', small: 'small', large: 'large', off: 'off' };
+    let camMode = PHONE ? 'off' : 'large', camEl = null;
+    try { const v = localStorage.getItem('agiFeedCam2'); if (CAM_MODES.includes(v)) camMode = v; } catch { /* private mode */ }
     const camLabel = () => { if (camEl) camEl.textContent = `Camera: ${CAM_NAME[camMode]}`; };
     const camSize = () => (camMode === 'large' ? [Math.max(CAM_W, Math.min(view.w - 16, view.w * 0.9)), Math.max(CAM_H, view.h * 0.34)] : camMode === 'follow' ? [Math.min(view.w - 16, 270), 180] : [CAM_W, CAM_H]);
     // The joystick (the owner's call: two fingers to move the view was awkward): shown while zoomed in; arrow keys too.
@@ -111,7 +115,7 @@
         // At a split in a session: the cards to pick one from. The session waits.
         cardsEl = el('div', { class: 'feed-cards', hidden: '' });
         // Zoom and the camera, in a row under the box where a thumb reaches (the owner's call; they were in the box's top corner).
-        camEl = el('button', { type: 'button', class: 'ghost-button feed-cam', onclick: () => { camMode = CAM_MODES[(CAM_MODES.indexOf(camMode) + 1) % CAM_MODES.length]; try { localStorage.setItem('agiFeedCam', camMode); } catch { /* private mode */ } camLabel(); } });
+        camEl = el('button', { type: 'button', class: 'ghost-button feed-cam', onclick: () => { camMode = CAM_MODES[(CAM_MODES.indexOf(camMode) + 1) % CAM_MODES.length]; try { localStorage.setItem('agiFeedCam2', camMode); } catch { /* private mode */ } camLabel(); } });
         camLabel();
         zoomEl = el('div', { class: 'feed-zoom', 'aria-label': 'View' }, camEl,
             el('button', { type: 'button', class: 'ghost-button', 'aria-label': 'Zoom in', text: '+', onclick: () => { const [sx, sy] = swarmXY(); zoomAt(sx, sy, 1.5); } }),
@@ -137,11 +141,13 @@
             (giveEl = el('select', { class: 'feed-give', 'aria-label': 'Give a card', onchange: () => { if (giveEl.value) debug?.feedCard(giveEl.value); giveEl.value = ''; } },
                 el('option', { value: '', text: 'Give card…' }), ...Object.keys(F().CARDS).map(id => el('option', { value: id, text: cardName(id) })))),
             el('button', { type: 'button', class: 'ghost-button', text: 'Empty', onclick: () => { debug?.resetFeed(); fragShown = -1; view.want = null; } }));
+        // The test tools fold into one button in the bar (the owner's call, 2026-11-16): a drop-down over the field.
+        const testBox = dialOn() ? el('details', { class: 'feed-testbox' }, el('summary', { class: 'ghost-button', 'aria-label': 'Test tools' }, el('span', { class: 'feed-testbox-long', text: 'Test' }), el('span', { class: 'feed-testbox-short', text: '⚙' })), el('div', { class: 'feed-testbox-body' }, tests, dialPanel())) : null;
         dlg = el('dialog', { class: 'feed-screen', 'aria-label': 'The Feed' },
             el('div', { class: 'feed-bar' },
-                el('span', { class: 'feed-title', text: 'The Feed' }), layerEl, mitesEl, researchEl, endEl,
+                el('span', { class: 'feed-title', text: 'The Feed' }), layerEl, mitesEl, researchEl, ...(testBox ? [testBox] : []), endEl,
                 el('button', { type: 'button', class: 'ghost-button feed-close', 'aria-label': 'Close The Feed', text: '×', onclick: close })),
-            hungerEl, frenzyEl, (heldEl = el('div', { class: 'feed-held', hidden: '', 'aria-label': 'Cards this session' })), ...(dialOn() ? [tests, dialPanel()] : []), legendEl, promptEl, stage, zoomEl, fragEl);
+            hungerEl, frenzyEl, (heldEl = el('div', { class: 'feed-held', hidden: '', 'aria-label': 'Cards this session' })), promptEl, stage, zoomEl, fragEl);   // (the legend and the prompt are not shown in a run: the owner's call, 2026-11-16)
         dlg.addEventListener('close', stop);
         dlg.addEventListener('keydown', e => { const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key]; if (d && zoom.k > 1) { e.preventDefault(); zoom.cx += d[0] * view.vc * 0.15; zoom.cy += d[1] * view.vr * 0.15; } });
         // One finger (or the left button) leads the swarm; two fingers zoom and move the view; the right button drags it.
@@ -396,7 +402,8 @@
     function renderPick() {
         const f = feed(), wait = !!f?.session?.wait, on = !!(f && f.sessioned && (!f.session || wait)), live = !!(f && f.session) && !wait;
         pickEl.hidden = !on; endEl.hidden = !live; if (zoomEl) zoomEl.hidden = !live || !!f.session.offer; if (giveEl) giveEl.disabled = !live;
-        if (legendEl) legendEl.hidden = !live;
+        if (legendEl) legendEl.hidden = true;
+        promptEl.hidden = !!f?.sessioned;   // the prompt only where there are no sessions (the old Feed's test door)
         if (joyEl) joyEl.hidden = !live || zoom.k <= 1 || !!f.session.offer;
         if (!on) { pickKey = ''; return; }
         const list = E().feedStock(game()), last = f.lastSession, s = f.session;
