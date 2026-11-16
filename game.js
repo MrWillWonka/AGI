@@ -2658,10 +2658,12 @@ window.AGI = (function () {
     }
     // The obstacle course (design/evals-course.md, a prototype) is Evals in the playground; the playtest keeps the
     // captcha Evals until the course is ready.
-    const evalsUp = () => !!(window.EvalsUI?.isOpen || window.CourseUI?.isOpen);
+    const evalsUp = () => !!(window.EvalsUI?.isOpen || window.CourseUI?.isOpen || window.MazeUI?.isOpen);
     function openEvalsApp() {
         state.intro['ring:seen:evals'] = true;
-        if (RING_PLAY && window.CourseUI) window.CourseUI.open(); else window.EvalsUI?.open();
+        // (Two kinds of course so far, the track and the maze; each has a button to the other, and the last one used opens.)
+        const maze = (() => { try { return localStorage.getItem('agiCourseKind') === 'maze'; } catch { return false; } })();
+        if (RING_PLAY && maze && window.MazeUI) window.MazeUI.open(); else if (RING_PLAY && window.CourseUI) window.CourseUI.open(); else window.EvalsUI?.open();
     }
     function openTrainingApp() {
         state.intro['ring:seen:training'] = true;
@@ -2896,6 +2898,7 @@ window.AGI = (function () {
         if (window.FeedUI?.isOpen) window.FeedUI.close();
         if (window.EvalsUI?.isOpen) window.EvalsUI.close();
         if (window.CourseUI?.isOpen) window.CourseUI.close();
+        if (window.MazeUI?.isOpen) window.MazeUI.close();
     }
     // The assistant's own button (the owner's call, 2026-11-14: "the phone's assistant with its own button … so that you
     // can 'chat' with the ai or revisit tutorials missed"): a round dot that floats over every app once the Lab is

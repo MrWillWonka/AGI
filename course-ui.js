@@ -30,7 +30,8 @@
         const lift = e => { e.preventDefault(); if (mode === 'test' && run) run.up(); };
         for (const n of [padEl, canvas]) { n.addEventListener('pointerdown', press); n.addEventListener('pointerup', lift); n.addEventListener('pointercancel', lift); n.addEventListener('pointerleave', lift); }
         dlg = el('dialog', { class: 'evals-screen course-screen', 'aria-label': 'Evals: the course' },
-            el('div', { class: 'evals-bar' }, el('span', { class: 'evals-title', text: 'Evals' }), marksEl,
+            el('div', { class: 'evals-bar' }, el('span', { class: 'evals-title', text: 'Evals' }),
+                el('button', { type: 'button', class: 'ghost-button course-switch', text: 'Maze', 'aria-label': 'Switch to the maze course', onclick: () => { close(); try { localStorage.setItem('agiCourseKind', 'maze'); } catch { /* private mode */ } window.MazeUI?.open(); } }), marksEl,
                 el('button', { type: 'button', class: 'ghost-button evals-close', 'aria-label': 'Close Evals', text: '×', onclick: close })),
             el('div', { class: 'course-body' }, sayEl, canvas, slotsEl, padEl, actionsEl));
         dlg.addEventListener('close', stop);
