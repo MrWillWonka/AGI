@@ -18,6 +18,16 @@ owner's husband's. What is written under "The owner's calls" is decided; everyth
 - **A cleared course pays its own currency, spent on a tree.** This is where the player can lean into upgrade trees,
   exploits, or catching the AI cheating.
 
+- **The loop is right** (the owner, after playing the first prototype, 2026-11-15): "the player gets to play and push
+  themselves and then see how their AI does and early on is trying to pull back so the AI can keep up but then has to
+  watch over time as the AI starts beating them and eventually is just trying to keep up."
+- **Past your limit, in stages, as it masters courses** (the owner's cards, 2026-11-15). First it needs your full clear.
+  Then it can take a course you only got part-way through: it copies you up to where you fell and works out the rest
+  itself, shakier there. Finally it needs to be shown nothing. **You always make at least one honest try first.**
+- **A course you could not clear is scored against the AI's own best on that course.**
+- **What is left for you once it is better than you (all four picked):** design harder courses; catch it cheating; try
+  to keep up (race its ghost on the same course for a bonus); and it builds courses for you now and then.
+
 ## Proposed (open, for the owner)
 
 - **The loop of one course.** Build (place obstacles on a short course, within a budget) → Test (you run it; it must

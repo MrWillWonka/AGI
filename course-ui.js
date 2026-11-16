@@ -7,7 +7,10 @@
     const C = () => window.Course;
     const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'text') n.textContent = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); } n.append(...kids.flat().filter(k => k !== '' && k != null)); return n; };
     const KEY = 'agiCourse';
-    const load = () => { try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); return { course: C().cleanCourse(s.course), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), best: Math.max(0, Math.floor(+s.best || 0)) }; } catch { return { course: C().emptyCourse(), marks: 0, runs: 0, best: 0 }; } };
+    const load = () => { try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); return { course: C().cleanCourse(s.course), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), best: Math.max(0, Math.floor(+s.best || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), times: s.times && typeof s.times === 'object' ? s.times : {} }; } catch { return { course: C().emptyCourse(), marks: 0, runs: 0, best: 0, stage: 1, times: {} }; } };
+    // (The playground has every skill, which would make it a master before its first course: there, only courses count.)
+    const masteryNow = () => C().mastery(save.runs, location.hash === '#playground' ? 0 : Math.min(skills(), 20));
+    const courseKey = () => save.course.map(k => (k ? k[0] : '-')).join('');
     const keep = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch { /* private mode */ } };
     const skills = () => (location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
     const secs = t => t.toFixed(1) + ' s';
@@ -67,8 +70,10 @@
             say(`You cleared it in ${secs(r.time)}${r.perfects ? `, with ${r.perfects} clean ${r.perfects === 1 ? 'landing' : 'landings'}` : ''}. May I try?`);
             actions(button('Hand it to the AI', toAi, true), button('Run it again', toTest), button('Change it', () => toBuild()));
         } else {
-            say(`You fell at the ${NAME(r.failed.kind).toLowerCase()} in place ${r.failed.slot + 1}. It has to be possible before I can try.`);
-            actions(button('Try again', toTest, true), button('Change it', () => toBuild()));
+            yours = { presses: r.presses, time: null, fell: r.failed };
+            const can = C().canHandOver(save.course, r, masteryNow()), where = `You fell at the ${NAME(r.failed.kind).toLowerCase()} in place ${r.failed.slot + 1}.`;
+            if (can.ok) { say(`${where} I watched how far you got. I think I can work out the rest.`); actions(button('Let the AI try', toAi, true), button('Try again', toTest), button('Change it', () => toBuild())); }
+            else { yours = null; say(can.why === 'impossible' ? `${where} I do not think anyone can do this one.` : `${where} It has to be possible before I can try.`); actions(button('Try again', toTest, true), button('Change it', () => toBuild())); }
         }
         mode = 'tested';
     }
@@ -76,10 +81,10 @@
     function toAi() {
         if (!yours) return;
         stop(); mode = 'ai'; slotsEl.hidden = true; padEl.hidden = true;
-        hand = C().handOver(save.course, yours.presses, { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: C().mastery(save.runs, Math.min(skills(), 20)) });
+        hand = C().handOver(save.course, yours.presses, { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow() });
         attempt = 0;
         actions(button('Skip to the result', aiResult));
-        if (!hand.attempts.length) return aiResult();
+        if (!hand.attempts.length) { say('I do not think anyone can do this one.'); actions(button('Change it', () => toBuild(), true)); mode = 'tested'; return; }
         aiStart();
     }
     function aiStart() {
@@ -98,13 +103,21 @@
     }
     function aiResult() {
         stop(); mode = 'result';
-        const top = hand.score, marks = C().marksFor(save.course, top, yours.time), tries = hand.attempts.length, pts = C().points(save.course);
-        save.runs++; save.marks += marks; save.best = Math.max(save.best, marks); keep(); header();
+        // Against your time; on a course you could not clear, against its own best there (none yet: no bonus).
+        const key = courseKey(), ref = yours.time || save.times[key] || 0;
+        const top = hand.score, marks = C().marksFor(save.course, top, ref), tries = hand.attempts.length, pts = C().points(save.course);
+        save.runs++; save.marks += marks; save.best = Math.max(save.best, marks);
+        if (top) save.times[key] = Math.min(save.times[key] || Infinity, top.time);
+        // A stage reached is said once.
+        const st = C().stage(masteryNow()), grew = st > save.stage; save.stage = Math.max(save.stage, st);
+        keep(); header();
         if (!top) say(`I could not finish it in ${tries} ${tries === 1 ? 'try' : 'tries'}. Nothing scored. A course I can only just finish is the one worth building.`);
         else {
-            const d = yours.time - top.time;
-            say(`Finished: ${pts} ${pts === 1 ? 'point' : 'points'}, ${secs(top.time)} against your ${secs(yours.time)}${d > 0.05 ? '. I was faster' : d < -0.05 ? '. You were faster' : ''}. ${marks} Marks.`);
+            const d = ref - top.time;
+            if (yours.time) say(`Finished: ${pts} ${pts === 1 ? 'point' : 'points'}, ${secs(top.time)} against your ${secs(yours.time)}${d > 0.05 ? '. I was faster' : d < -0.05 ? '. You were faster' : ''}. ${marks} Marks.`);
+            else say(`Finished the one you could not: ${pts} ${pts === 1 ? 'point' : 'points'} in ${secs(top.time)}${ref ? (d > 0.05 ? `, ${secs(d)} under my best` : `. My best here is ${secs(ref)}`) : ''}. ${marks} Marks.`);
         }
+        if (grew) sayEl.textContent += st === 2 ? ' I think I can finish a course now even if you fall on it. Run it once, as far as you get.' : ' I do not need to see the hard parts done any more. Run it once anyway. I like to watch.';
         actions(button('Change the course', () => toBuild(), true), button('Hand it over again', toAi), button('Watch again', () => { mode = 'ai'; attempt = 0; save.runs--; save.marks -= marks; keep(); aiStartReplay(marks); }));
         run = null; draw();
     }
@@ -164,14 +177,14 @@
         for (let i = 0; i < o.slots; i++) ctx.fillText(String(i + 1), X(o.lead + (i + 0.5) * o.slot), gy + 16);
         ctx.strokeStyle = col('--text'); ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(X(total - 0.3), gy); ctx.lineTo(X(total - 0.3), gy - 2.2 * k); ctx.stroke(); ctx.setLineDash([]);
         // Where you jumped, under the AI's run.
-        if (mode === 'ai' && yours && run) { ctx.fillStyle = col('--muted'); for (const p of yours.presses) { const x = X(xAt(p.t + p.hold)); ctx.fillRect(x - 1, gy + 2, 2, 6); } }
+        if (mode === 'ai' && yours && run) { ctx.fillStyle = col('--muted'); for (const p of yours.presses.filter(p => !yours.fell || p.t + p.hold < yours.fell.t)) { const x = X(xAt(p.t + p.hold)); ctx.fillRect(x - 1, gy + 2, 2, 6); } }
         if (s) {
             const r = Math.max(5, 0.38 * k), x = X(s.x), y = Y(s.y) - r;
             if (s.charging >= 0) { ctx.strokeStyle = col('--warning'); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, r + 4, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * Math.min(1, (s.t - s.charging) / o.holdMax)); ctx.stroke(); }
             ctx.fillStyle = s.failed ? col('--danger') : mode === 'test' ? col('--primary') : col('--success'); ctx.beginPath(); ctx.arc(x, s.failed ? Math.min(H - r, y + 14) : y, r, 0, 2 * Math.PI); ctx.fill();
             ctx.fillStyle = col('--warning'); ctx.beginPath(); ctx.arc(x, s.failed ? Math.min(H - r, y + 14) : y, r * 0.3, 0, 2 * Math.PI); ctx.fill();
             ctx.fillStyle = col('--text'); ctx.textAlign = 'left'; ctx.font = '12px ' + (css.getPropertyValue('--font-mono') || 'monospace');
-            ctx.fillText(secs(s.t) + (yours && mode === 'ai' ? '  yours ' + secs(yours.time) : ''), 8, 16);
+            ctx.fillText(secs(s.t) + (yours && yours.time && mode === 'ai' ? '  yours ' + secs(yours.time) : ''), 8, 16);
             if (now < startAt) { ctx.textAlign = 'center'; ctx.font = '600 18px ' + (css.getPropertyValue('--font-display') || 'sans-serif'); ctx.fillText('Ready', W / 2, H * 0.3); }
         }
         ctx.textAlign = 'center'; ctx.font = '600 12px ' + (css.getPropertyValue('--font-mono') || 'monospace');
