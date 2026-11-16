@@ -732,3 +732,33 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   phases (side-on track, grid maze, platformer rooms), the trick questions perhaps a fourth; its own currency and tree.
 - The captcha redesign proposal and the whack-a-mole sketch are dropped. **Nothing is built or deleted yet:** the
   captcha Evals is still the Evals app, and funding rounds still run on its score sheet.
+
+## 2026-11-15: the obstacle course, a first rough prototype (phase 1, playground only)
+
+- **Where:** the playground's Evals app opens it (`#playground`; game.js `openEvalsApp`, `RING_PLAY`). The playtest
+  and `#ring` still open the captcha Evals. Rules `course.js` (pure, `tests/course.test.js`, 9), screen
+  `course-ui.js`. **It keeps its own progress on the device (`localStorage['agiCourse']`) and pays nothing into the
+  game's save**: its Marks are a number on its own screen. No save version change.
+- **What it is:** a track of 8 places. A runner goes along by itself; the one control is the jump (a tap hops, a hold
+  then letting go jumps higher; a press in the air is acted on at touchdown). **Build:** tap a place to go round
+  what you have: Gap (1 point), Wall (2, needs the charged jump), Spikes (2, two short gaps with a ledge), Booster
+  (an ability: faster for a stretch, no points). **Test:** you run it; only a cleared run can be handed over, and
+  your time is what the AI is measured against. **Hand over:** the AI gets up to 4 tries shown one after another.
+  **Score:** points x 10 Marks x (your time / its time, between a half and double) if it finishes; nothing if not.
+- **The AI ("both", the owner's call):** each jump starts from your own jump at that obstacle, moves toward the
+  cleanest timing by its mastery, and its hands shake (0.05 s at first, steadier with mastery, halved at an obstacle
+  each time it fails there, which is the iterating you watch). Mastery grows with courses run (and a little with
+  skills learned). A landing just past an obstacle is "clean" and gives a burst of speed, which is how a practised AI
+  ends up faster than you.
+- **Measured** (course.js alone, 300 hand-overs each, a careful stand-in for the player): a 2-obstacle course is
+  cleared 91% of the time by a new AI, a 4-obstacle one (6 points) 43%, rising to 86% after 5 courses and 99 to 100%
+  after 10. **Obstacles are given by skills learned** (Gap from the start, Wall at 1, Spikes at 2, Booster at 3; the
+  playground has all four).
+- **ALL OF IT IS PLACEHOLDER:** the physics is its own small model, not Training's (training-path.js builds its ground
+  from a leg and a seed and could not take a course without surgery); every number; every word; the look.
+- **Not built:** cheating and catching it; the tree; exploits; phases 2 and 3; the trick questions; a currency in the
+  save; anything in the playtest. Some neighbouring pairs cannot be cleared at all (wall then wall), which the test
+  run is there to catch.
+- **Checked in a test browser on a phone:** build, a cleared test run, the hand-over and the result (60 Marks for a
+  6-point course). **On a laptop my scripted test run fell at the wall**, so the hand-over was not seen there; no
+  errors on either. Not played by a person.

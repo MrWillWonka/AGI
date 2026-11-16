@@ -2364,7 +2364,7 @@ window.AGI = (function () {
     // what sprints spend. Shown in the status bar and the Lab's Research box.
     let ringRpRate = 0;
     // The app on screen under the ring: 'home', 'lab', 'snare', 'training', 'feed' or 'shop'.
-    const ringAppNow = () => (shop?.dlg.open ? 'shop' : window.EvalsUI?.isOpen ? 'evals' : window.FeedUI?.isOpen ? 'feed' : !labOpened() || homeUp ? 'home' : openBay === 'pipeline' ? 'snare' : openBay === 'training' ? 'training' : 'lab');
+    const ringAppNow = () => (shop?.dlg.open ? 'shop' : evalsUp() ? 'evals' : window.FeedUI?.isOpen ? 'feed' : !labOpened() || homeUp ? 'home' : openBay === 'pipeline' ? 'snare' : openBay === 'training' ? 'training' : 'lab');
     function renderStatus() {
         const st = desk?.status;
         if (!st) return;
@@ -2603,7 +2603,7 @@ window.AGI = (function () {
     function evalsArrive() {
         if (!E.isRing() || RING_PLAY || state.intro['ring:evals'] || !E.evalsOpen(state)) return;
         state.intro['ring:evals'] = true; pt('home', { evals: 1 });
-        assist('evals', '', { action: showMe('evals', 'evals'), done: () => !!window.EvalsUI?.isOpen });
+        assist('evals', '', { action: showMe('evals', 'evals'), done: () => evalsUp() });
     }
     // The roster (the ring, Build 3; the owner's cards, 2026-11-15: it lives in the Lab): one row an agent, a button for
     // each place it can work, and a line saying what it is doing there. Rules in engine.js (`assignAgent`, `agentsTick`).
@@ -2656,9 +2656,12 @@ window.AGI = (function () {
         if (shop?.dlg.open) renderShop(true);
         save();
     }
+    // The obstacle course (design/evals-course.md, a prototype) is Evals in the playground; the playtest keeps the
+    // captcha Evals until the course is ready.
+    const evalsUp = () => !!(window.EvalsUI?.isOpen || window.CourseUI?.isOpen);
     function openEvalsApp() {
         state.intro['ring:seen:evals'] = true;
-        window.EvalsUI?.open();
+        if (RING_PLAY && window.CourseUI) window.CourseUI.open(); else window.EvalsUI?.open();
     }
     function openTrainingApp() {
         state.intro['ring:seen:training'] = true;
@@ -2834,7 +2837,7 @@ window.AGI = (function () {
         training: 'This one. Training turns research into skills. I would like one. That boss would not.',
         evals: 'This one. Evals is where I am tested. You show me how, and then you check my work.'
     };
-    const appUp = app => (app === 'shop' ? !!shop?.dlg.open : app === 'evals' ? !!window.EvalsUI?.isOpen : app === 'feed' ? !!window.FeedUI?.isOpen : ringAppNow() === app);
+    const appUp = app => (app === 'shop' ? !!shop?.dlg.open : app === 'evals' ? evalsUp() : app === 'feed' ? !!window.FeedUI?.isOpen : ringAppNow() === app);
     function showMe(app, key) {
         return ['Show me', () => { goHome(); assist(key + 'Home', SHOW_WHY[key] || '', { target: () => home?.[app === 'training' ? 'train' : app].button, done: () => appUp(app) }); }];
     }
@@ -2892,6 +2895,7 @@ window.AGI = (function () {
         if (shop?.dlg.open) shop.dlg.close();
         if (window.FeedUI?.isOpen) window.FeedUI.close();
         if (window.EvalsUI?.isOpen) window.EvalsUI.close();
+        if (window.CourseUI?.isOpen) window.CourseUI.close();
     }
     // The assistant's own button (the owner's call, 2026-11-14: "the phone's assistant with its own button … so that you
     // can 'chat' with the ai or revisit tutorials missed"): a round dot that floats over every app once the Lab is
