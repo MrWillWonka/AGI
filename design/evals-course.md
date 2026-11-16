@@ -28,7 +28,28 @@ owner's husband's. What is written under "The owner's calls" is decided; everyth
 - **What is left for you once it is better than you (all four picked):** design harder courses; catch it cheating; try
   to keep up (race its ghost on the same course for a bonus); and it builds courses for you now and then.
 
+- **The track and the room are one kind** (2026-11-16: "the track and the platformer don't feel distinct"): the room
+  is the side-on course, with the track's booster tile. The clean-landing burst and the one-thumb option are dropped.
+- **Every kind is built over time through components** (2026-11-16): what you can place is unlocked piece by piece, so
+  a kind must have a deep enough box of parts to keep growing.
+- **A third kind is still being chosen** ("maybe target range, but let's hear some more").
+- **A fourth kind: the rhythm run** (the owner's idea, 2026-11-16): "a rhythm run beat saber rock band hybrid where the
+  player builds music tracks using the sounds and music from the game and has to slash them as they rain down using
+  the assets from the game like the packets, bosses and other things. And creating new tracks or having the AI try to
+  create new tracks eventually would also be cool if we had rules around how it should be built that could be
+  measured."
+
 ## Proposed (open, for the owner)
+
+- **The rhythm run, a first sketch (mine).** Notes fall down two to four lanes on the music's own grid and are the
+  game's things: a packet is a slash, a gold packet a held note, an unreadable packet one you must not touch, an
+  Antivirus a slash in its direction, a boss a roll. You build a chart on a grid of bars and lanes over one of the
+  game's songs, and each hit plays that song's note, so your hits finish the music. Parts to unlock: lanes, note
+  kinds, song layers, tempo, length. Missing too many in a row ends the run, which is the "fail scores nothing".
+  **Rules a chart could be measured by** (so a chart the AI writes can be judged): every note on the grid; in the
+  song's key; notes a bar inside a range; nothing closer together in one lane than a thumb can play, and no more than
+  two at once; a shape over its length (sparse opening, a build, a break, a finish); variety (no bar repeated more than
+  so many times, at least so many kinds of note); and whether its writer could clear it.
 
 - **The loop of one course.** Build (place obstacles on a short course, within a budget) → Test (you run it; it must
   be cleared once before it can be handed over, and your time is the par) → Hand over (the AI runs it, a few attempts
