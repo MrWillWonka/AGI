@@ -4684,3 +4684,16 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
     0%, 100% { opacity: calc(0.06 + 0.16 * var(--orb-power)); transform: scale(calc(0.72 + 0.2 * var(--orb-power))); }
     50% { opacity: calc(0.12 + 0.34 * var(--orb-power)); transform: scale(calc(0.78 + 0.26 * var(--orb-power))); } }
 .assist-dot.form-2::before, .assist-dot.form-3::before, .assist-dot.form-4::before { filter: opacity(0.55); }
+
+/* The ring's roster (Build 3): the Lab's panel of agents, a row each, a button a place. */
+.roster-panel { display: flex; flex-direction: column; gap: 10px; }
+.roster-count { font-family: var(--mono, monospace); font-size: 0.78rem; color: var(--muted); }
+.roster-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.roster-agent { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--bg) 60%, transparent); }
+.roster-name { font-family: var(--display, inherit); font-weight: 600; }
+.roster-places { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.roster-place { min-height: 34px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; font-size: 0.86rem; cursor: pointer; }
+.roster-place.on { border-color: var(--success); color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); }
+.roster-place:disabled { opacity: 0.4; cursor: default; }
+.roster-status { grid-column: 1 / -1; margin: 0; font-size: 0.84rem; color: var(--muted); }
+@media (max-width: 520px) { .roster-agent { grid-template-columns: 1fr; } .roster-places { justify-content: flex-start; } }
