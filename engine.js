@@ -2918,12 +2918,12 @@
     const feedPoint = (s, cells) => feedLib().point(s.feed, cells);
     const feedMark = (s, cells) => feedLib().mark(s.feed, cells);
     // The squad (the owner's call, 2026-11-16: you choose which mites come, and kinds are gated behind skills, sectors and
-    // bosses, so the agents a boss gives are what clear the later, tougher tanks). *Proposed* gates: a scrubber once the
-    // second sector is open (where garbled packets begin), a prospector with Pattern Matching, a driller with the first boss
+    // bosses, so the agents a boss gives are what clear the later, tougher tanks). *Proposed* gates: a scrubber with the first
+    // boss beaten (the owner's call, 2026-11-16), a prospector with Pattern Matching, a driller with the first boss
     // beaten (deep sectors' tough sand), a chomper with the second. Squad slots: two, three with the first boss beaten.
     const FEED_MITE_GATES = {
         grazer: () => true,
-        scrubber: s => (s.snare.sector || 0) >= 1,
+        scrubber: s => (s.snare.bosses || 0) >= 1,   // (with the first boss, the owner's call, 2026-11-16: it opened at sector 2 and was the obvious pick from then on)
         prospector: s => knows(s, 'Pattern Matching'),
         driller: s => (s.snare.bosses || 0) >= 1,
         chomper: s => (s.snare.bosses || 0) >= 2

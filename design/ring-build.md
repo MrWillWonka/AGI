@@ -573,3 +573,14 @@ shade apart; garbled sand keeps the bad packets' colour; **gold shows only near 
 twice as far) or under the scanner's beam, and looks like any other sand elsewhere (a drawing rule: the rules' `seen`
 is unchanged, so the prospector still remembers what it found); sand the model can't read yet stays grey, sand it has
 learned to read is plain sand; a found cache keeps its violet.
+
+**Tuning, the owner's picks on measured options (2026-11-16)** (sessions simulated three ways, holding a finger, tapping
+every 2.5 s and grazing, on sectors 1–5, three seeds; research a session, sector 5, two grazers: holding 510, tapping 60):
+- **The frenzy's bar lowered for everyone**: `frenzyFloor` 0.4 → 0.3 (tapping on sector 5 measured about 470, holding
+  about the same), and only a led swarm heats up: left to graze it cools at the full `frenzyCool` (at 0.3 grazing's
+  quarter pace sat just under the bar and barely cooled). `frenzyTap` stays 1 (the "tap counts as a hold" option, not
+  picked).
+- **Corruption as now** (`corruptChance` 2.5%; measured: no spreading 1,760, 1.5% 1,030, 2.5% 510; with a scrubber 2,190).
+- **The scrubber opens with the first boss** (it opened at sector 2 and beat every other mite on dirty sand: grazer +
+  scrubber 2,190, + driller 1,020, + prospector 800), so the early dirty tanks are a struggle the boss's reward answers;
+  the driller and the third slot come with the same boss.

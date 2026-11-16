@@ -76,6 +76,18 @@ test('the frenzy: led onto good sand the swarm heats up tier by tier; left to gr
     assert.ok(heat({ adrenaline: 1 }) > heat({}) * 1.5);
 });
 
+test('a tapped point builds the frenzy on dirty sand too (the bar at 0.3, the owner\'s call)', () => {
+    const s = tank({ sector: 2, packets: 400, gold: 25, garbled: 40 });
+    let peak = 0;
+    for (let t = 0; t < 600 && s.session && !s.session.wait; t++) {
+        if (s.session.offer) Feed.pickCard(s, 0);
+        if (t % 25 === 0) { for (let i = 0; i < s.cells.length; i++) if (s.cells[i] && Feed.kindOf(s.cells[i]) !== 6) { Feed.mark(s, { x: i % s.w + 0.5, y: Math.floor(i / s.w) + 0.5 }); break; } }
+        Feed.step(s, 0.1);
+        if (s.session) peak = Math.max(peak, s.session.tier || 0);
+    }
+    assert.ok(peak >= 1, `peak tier ${peak}`);
+});
+
 test('buried caches: hidden knots deep in the tank that crack whole for research and a free card', () => {
     const s = tank({ sector: 1, packets: 200 });
     const knots = count(s, 7);
@@ -132,7 +144,9 @@ test('the squad: mites come in the squad\'s order; kinds open as the game goes o
         const g = E.defaultState(Date.now());
         assert.deepEqual(E.feedMiteKinds(g), ['grazer']);
         assert.equal(E.feedSquadSlots(g), 2);
-        g.snare.sector = 1; g.path.learned = E.SKILL_INDEX['Pattern Matching'] + 1; g.snare.bosses = 1;
+        g.snare.sector = 1;
+        assert.deepEqual(E.feedMiteKinds(g), ['grazer'], 'the scrubber waits for the first boss (the owner\'s call), not sector 2');
+        g.path.learned = E.SKILL_INDEX['Pattern Matching'] + 1; g.snare.bosses = 1;
         assert.deepEqual(E.feedMiteKinds(g), ['grazer', 'prospector', 'scrubber', 'driller']);
         assert.equal(E.feedSquadSlots(g), 3);
         assert.deepEqual(E.feedSquad(g, ['chomper', 'driller']), ['driller'], 'a kind not open yet is left out');

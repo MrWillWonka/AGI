@@ -180,7 +180,8 @@
         ward: 22,           // and a scrubber mite stops it within this many cells
         // ---- The feeding frenzy (the owner's pick): keep the swarm eating good sand at its pace and it heats up. Each tier pays
         // more and makes the swarm quicker; grazing, or chewing garbled sand, cools it.
-        frenzyFloor: 0.4,   // the share of the swarm's full eating it has to keep up to build heat,
+        frenzyFloor: 0.3,   // the share of the swarm's full eating it has to keep up to build heat (0.4 until the owner's call,
+                            // 2026-11-16: a tapped point on dirty sand never got there),
         frenzyTap: 1,       // at a tapped point, its full eating counted at this share (1: as a held one; `tapRate` would judge a tap by what a tap can do),
         frenzyStep: 4,      // heat (about seconds of good eating) a tier,
         frenzyMax: 4,       // tiers at the most,
@@ -1274,8 +1275,11 @@
         const s = state.session, full = state.swarm.length * o.chew * o.grains * dt * (!state.aim && state.spot ? base.frenzyTap : 1) - (s.slow || 0), eff = full > 0 ? (s.ate || 0) / full : 0;
         s.ate = 0; s.slow = 0;
         const floor = base.frenzyFloor, top = (base.frenzyMax + 1) * base.frenzyStep;
-        if (eff >= floor) s.heat = Math.min(top, (s.heat || 0) + dt * cardMult(state, 'frenzy') * Math.min(2, 0.5 + 1.5 * (eff - floor) / (1 - floor)));
-        else s.heat = Math.max(0, (s.heat || 0) - dt * base.frenzyCool * (1 - eff / floor));
+        // Only a swarm you lead heats up; left to graze it cools at the full rate (with the bar at 0.3, grazing's quarter
+        // pace sat just under it and barely cooled).
+        const led = !!(state.aim || state.spot);
+        if (led && eff >= floor) s.heat = Math.min(top, (s.heat || 0) + dt * cardMult(state, 'frenzy') * Math.min(2, 0.5 + 1.5 * (eff - floor) / (1 - floor)));
+        else s.heat = Math.max(0, (s.heat || 0) - dt * base.frenzyCool * (led ? 1 - eff / floor : 1));
         let tier = Math.min(base.frenzyMax, Math.floor((s.heat || 0) / base.frenzyStep));
         if (tier < (s.tier || 0) && s.heat > ((s.tier || 0) - 0.35) * base.frenzyStep) tier = s.tier;   // a tier holds a little past its edge: no flicker
         if (tier !== (s.tier || 0)) { out.events.push({ type: 'frenzy', tier, from: s.tier || 0 }); s.tier = tier; s.peak = Math.max(s.peak || 0, tier); }
