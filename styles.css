@@ -4726,3 +4726,12 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 .maze-dir { border-radius: 12px; border: 1px solid var(--primary); background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--text); font-size: 1.2rem; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
 .maze-dir:active { background: color-mix(in srgb, var(--primary) 32%, transparent); }
 .maze-dir-0 { grid-column: 2; grid-row: 1; } .maze-dir-3 { grid-column: 1; grid-row: 2; } .maze-dir-2 { grid-column: 2; grid-row: 2; } .maze-dir-1 { grid-column: 3; grid-row: 2; }
+
+/* The platformer room (rooms-ui.js; a prototype), in the course's screen. */
+.rooms-canvas { display: block; align-self: center; width: min(100%, calc((100dvh / var(--zoom, 1) - 380px) * 12 / 7)); aspect-ratio: 12 / 7; min-width: 280px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-2); touch-action: none; user-select: none; -webkit-user-select: none; }
+.rooms-pad { display: flex; justify-content: space-between; align-items: stretch; gap: 12px; }
+.rooms-pad[hidden] { display: none; }
+.rooms-move { display: flex; gap: 8px; }
+.rooms-key { min-width: 72px; min-height: 72px; padding: 0 14px; }
+.rooms-jump { min-width: 120px; font: 700 1.05rem var(--font-display); }
+@media (max-width: 520px) { .course-say { min-height: 4.8em; } }

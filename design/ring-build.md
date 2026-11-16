@@ -810,3 +810,34 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
 - **Checked in a test browser, phone and laptop:** switching from the track, placing tiles by taps on the grid, a
   walked run (driven by a script holding the directions), the hand-over, the result, switching back; no errors, no
   page scroll, cells 52 px on a phone. Not played by a person.
+
+## 2026-11-15: the third kind of course, a platformer room (a rough prototype, playground only)
+
+- **Where:** the playground's Evals app; the button in the bar now goes round **Track → Maze → Rooms → Track** (the last
+  one used opens next time). Rules `rooms.js` (pure, `tests/rooms.test.js`, 7), screen `rooms-ui.js`. Its own progress
+  on the device (`localStorage['agiRooms']`), nothing paid into the save. So all three kinds can now be compared.
+- **What it is:** a room seen from the side, 12 tiles wide and 7 high, with a floor. You start bottom left; the flag is
+  on a ledge at the top right, too high to reach from the floor, so every room needs a way up. Controls: left, right,
+  jump (a jump clears two tiles; buttons on a phone, arrow keys and space on a laptop). **Tiles:** Block (the way up,
+  no points), Spike (1), Pit (1, in the floor row only), Saw (2, slides back and forth), Spring (an ability: throws you
+  nearly five tiles up). A hazard scores when you cross its middle within three tiles of it, and only with the flag
+  reached.
+- **The same loop:** run it yourself; hand it over; up to 4 tries; Marks for the points got past x how its time
+  compares with yours (or its own best on a room you could not finish).
+- **The AI:** it is given the tiles you stood on, in order, and gets from each to the next with its own hands. A
+  beginner takes off from the wrong spot and aims its landing badly (0.42 tiles off at first), and misjudges a saw's
+  moment (35% of the time); both lessen with mastery and halve at a jump each time it fails there. It looks ahead a
+  jump before setting off under a saw. Come down on the wrong tile, it works out the way on from there. It stands
+  about where you stood, less as it masters rooms, which is how it ends up faster.
+- **It can find its own way** (a search over which tile can be reached from which, tried with its own controller), so
+  the stages past your limit work here too, and a room with no way up is refused: "I do not think anyone can do this
+  one." Where it cannot copy a move of yours it joins your tiles up with moves it can make.
+- **Measured** (rooms.js alone): a new AI reaches the flag in a room of two spikes 58% of the time, one with two saws
+  70%, one with a spike, a pit and a saw 83%, in three to four tries; all 97 to 100% after three to six rooms, and
+  from about five it is faster than a careful player nearly every time.
+- **ALL PLACEHOLDER.** Its physics is its own. **Not built:** cheating, the tree, anything in the playtest. A new AI
+  fails by "being stuck" (it waits too long for a saw) about as often as by a saw, which reads oddly and wants a look.
+- **Checked in a test browser, phone and laptop:** going round the three kinds, placing tiles by taps (a pit off the
+  floor is refused with a line), a run (driven by a script pressing the keys), the hand-over and the result; no
+  errors, no page scroll, tiles 30 px on a phone. In that check the new AI failed all four tries on both screens.
+  **On a phone the room is small** (30 px tiles in a 362 by 211 px view). Not played by a person.
