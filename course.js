@@ -32,6 +32,11 @@
         // and half as unsteady at an obstacle for each time it has failed there.
         sigma: 0.05, sigmaFloor: 0.004, tries: 4, masteryRuns: 6,
         margin: 0.035,      // it aims this long after the earliest jump that clears (the very earliest is a knife edge)
+        // Past your limit, in stages (the owner's cards, 2026-11-15). Stage 1: it needs a run you cleared. Stage 2, from
+        // this mastery: it takes a course you fell on, copying you up to there and working the rest out itself, its
+        // hands `unseen` times as unsteady at the jumps you never showed it. Stage 3: no unsteadier there than anywhere.
+        // You always run a course once yourself first (the owner's call).
+        stage2: 0.35, stage3: 0.75, unseen: 2.5,
         marks: 10,          // Marks a point, before the speed bonus
         bonusMin: 0.5, bonusMax: 2,
     };
@@ -159,6 +164,15 @@
     // How well it knows tracks in general, 0 to 1: from the courses it has run and the skills it has trained.
     const mastery = (runs, skills = 0, o = COURSE) => 1 - Math.exp(-(Math.max(0, runs) + 0.5 * Math.max(0, skills)) / o.masteryRuns);
 
+    const stage = (m, o = COURSE) => (m >= o.stage3 ? 3 : m >= o.stage2 ? 2 : 1);
+    // Can it be given this course after your run of it? { ok, why }: a cleared run always; a run you fell on from
+    // stage 2, if the course can be done at all.
+    function canHandOver(course, yourRun, m, o = COURSE) {
+        if (!yourRun) return { ok: false, why: 'untried' };
+        if (yourRun.finished) return { ok: true, why: 'cleared' };
+        if (stage(m, o) < 2) return { ok: false, why: 'stage' };
+        return bestPresses(course, o) ? { ok: true, why: 'beyond' } : { ok: false, why: 'impossible' };
+    }
     // The AI's presses for one attempt (the owner: "both"): it starts from the jumps of yours that got you past
     // something, moves each toward the cleanest timing by its mastery, and its hands shake. `fixes[i]`: how many times
     // it has already failed at the hazard press i is for (each halves the shake there).
@@ -170,7 +184,7 @@
             yours.forEach((p, k) => { const d = Math.abs(p.t + p.hold - bRel); if (!used.has(k) && d < 0.6 && (pick < 0 || d < Math.abs(yours[pick].t + yours[pick].hold - bRel))) pick = k; });
             const p = pick >= 0 ? yours[pick] : b;
             if (pick >= 0) used.add(pick);
-            const sigma = o.sigma * (1 - m) * 0.5 ** ((a.fixes && a.fixes[i]) || 0) + o.sigmaFloor;
+            const sigma = o.sigma * (1 - m) * (pick < 0 ? a.unseen || 1 : 1) * 0.5 ** ((a.fixes && a.fixes[i]) || 0) + o.sigmaFloor;
             const hold = Math.max(0, Math.min(o.holdMax, p.hold + m * (b.hold - p.hold) + 0.4 * sigma * bell(r)));
             const rel = (p.t + p.hold) + m * (bRel - (p.t + p.hold)) + sigma * bell(r);
             return { t: Math.max(0, rel - hold), hold };
@@ -192,24 +206,29 @@
     // ({ presses, result }) and the score: its best finished run, or nothing.
     function handOver(course, yours, a, o = COURSE) {
         // (A course you cleared that the search could not: it works from your own jumps.)
-        const best = bestPresses(course, o) || simulate(course, yours, o).presses;
-        if (!best.length && points(course)) return { attempts: [], score: null, best: null };
+        const shown = simulate(course, yours, o), found = bestPresses(course, o);
+        if (!found && !shown.finished) return { attempts: [], score: null, best: null, impossible: true };
+        const best = found || shown.presses;
+        // What you showed it: the jumps of a run you cleared, or of one you fell on up to the fall.
+        yours = shown.finished ? yours : yours.filter(p => p.t + p.hold <= shown.time - 0.05);
+        const unseen = stage(a.mastery || 0, o) >= 3 ? 1 : o.unseen;
         const aim = aimPresses(course, best, o), fixes = best.map(() => 0), attempts = [];
         let top = null;
         for (let n = 0; n < (a.tries || o.tries); n++) {
-            const presses = aiPresses(course, yours, aim, { seed: (a.seed + n * 7919) >>> 0, mastery: a.mastery, fixes }, o), res = simulate(course, presses, o);
+            const presses = aiPresses(course, yours, aim, { seed: (a.seed + n * 7919) >>> 0, mastery: a.mastery, fixes, unseen }, o), res = simulate(course, presses, o);
             attempts.push({ presses, result: res });
             if (res.finished) { if (!top || res.time < top.time) top = res; if (n >= 1) break; }   // a clear, then one more go at a better time
             else if (res.failed) fixes[pressFor(aim, res.failed)]++;
         }
         return { attempts, score: top, best };
     }
-    // What a cleared course pays: Marks for its points, times how its time compares with yours.
+    // What a cleared course pays: Marks for its points, times how its time compares with yours (on a course you
+    // could not clear, with its own best there: the owner's call; with neither, no bonus either way).
     function marksFor(course, res, yourTime, o = COURSE) {
         if (!res || !res.finished) return 0;
         const bonus = Math.max(o.bonusMin, Math.min(o.bonusMax, yourTime > 0 ? yourTime / res.time : 1));
         return Math.round(points(course) * o.marks * bonus);
     }
 
-    return { COURSE, OBSTACLES, ORDER, palette, emptyCourse, cleanCourse, length, points, layout, createRun, simulate, result, bestPresses, aimPresses, mastery, aiPresses, pressFor, handOver, marksFor, rng };
+    return { COURSE, OBSTACLES, ORDER, palette, emptyCourse, cleanCourse, length, points, layout, createRun, simulate, result, bestPresses, aimPresses, mastery, stage, canHandOver, aiPresses, pressFor, handOver, marksFor, rng };
 });

@@ -762,3 +762,23 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
 - **Checked in a test browser on a phone:** build, a cleared test run, the hand-over and the result (60 Marks for a
   6-point course). **On a laptop my scripted test run fell at the wall**, so the hand-over was not seen there; no
   errors on either. Not played by a person.
+
+## 2026-11-15: the course, past your limit (the owner's cards after playing the prototype)
+
+- The owner: the loop "was great"; the open problem was the time when the player cannot complete the course. Their
+  calls are in `design/evals-course.md` (stages by mastery; always one honest try; scored against its own best;
+  later you design harder courses, catch cheating, try to keep up, and it builds courses for you).
+- **Built (course.js `stage`, `canHandOver`; PLACEHOLDER numbers):** stage 2 from mastery 0.35 (about 3 courses run),
+  stage 3 from 0.75 (about 9). From stage 2 a run you fell on can be handed over ("Let the AI try"): it uses your jumps
+  up to the fall and its own line after, its hands 2.5 times as unsteady at the jumps you never showed it; at stage 3
+  no unsteadier there. A course nobody can do (the search finds no way through and you did not clear it) is refused:
+  "I do not think anyone can do this one." With no time of yours, the speed bonus is against its best time on that
+  exact course (kept on the device); the first clear there has no bonus either way. The AI says once when a stage is
+  reached.
+- **A fault in the first prototype, fixed:** the playground has every skill learned, and skills counted toward the
+  AI's mastery, so in the playground it began at about 0.8 mastery, already near its best. **The AI the owner played
+  was not a beginner.** In the playground only courses run count now, so it starts shaky (a 4-obstacle course about
+  4 times in 10) and the early "pull back so it can keep up" part can be felt.
+- **Not built of the owner's picks:** harder and longer courses, cheating, racing its ghost, courses it builds for you.
+- Checked in a test browser on a phone at 0, 4 and 12 courses run: refused at stage 1, handed over and finished at
+  stages 2 and 3, a second hand-over measured against its own best. `tests/course.test.js` (11).

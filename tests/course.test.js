@@ -88,3 +88,35 @@ test('course: you are given obstacles as skills are learned', () => {
     assert.deepEqual(C.palette(99), ['gap', 'wall', 'spikes', 'boost']);
     assert.deepEqual(C.cleanCourse(['gap', 'moon', 3]).slice(0, 3), ['gap', null, null]);
 });
+
+test('course: past your limit in stages. Stage 1 needs your clear; from stage 2 it takes a course you fell on; an impossible course is refused', () => {
+    assert.equal(C.stage(0), 1);
+    assert.equal(C.stage(C.COURSE.stage2), 2);
+    assert.equal(C.stage(C.COURSE.stage3), 3);
+    const c = course('gap', null, 'wall', null, 'gap'), best = C.bestPresses(c);
+    const fell = C.simulate(c, best.slice(0, 1).map(p => ({ t: p.t + 0.04, hold: p.hold })));   // over the first gap, then into the wall
+    assert.equal(fell.finished, false);
+    assert.equal(fell.failed.slot, 2);
+    assert.deepEqual(C.canHandOver(c, null, 1), { ok: false, why: 'untried' });
+    assert.deepEqual(C.canHandOver(c, fell, 0), { ok: false, why: 'stage' });
+    assert.deepEqual(C.canHandOver(c, fell, C.COURSE.stage2), { ok: true, why: 'beyond' });
+    assert.deepEqual(C.canHandOver(c, C.simulate(c, best), 0), { ok: true, why: 'cleared' });
+    const none = course('wall', 'wall');   // two walls back to back cannot be jumped
+    assert.equal(C.bestPresses(none), null);
+    assert.deepEqual(C.canHandOver(none, C.simulate(none, []), 1), { ok: false, why: 'impossible' });
+    assert.equal(C.handOver(none, [], { seed: 1, mastery: 1 }).impossible, true);
+});
+
+test('course: on a course you fell on it finishes what you could not, more surely at stage 3 than at stage 2', () => {
+    const c = course('gap', null, 'wall', null, 'spikes', null, 'gap'), best = C.bestPresses(c);
+    const yours = best.slice(0, 1).map(p => ({ t: p.t + 0.04, hold: p.hold }));
+    const rate = m => { let n = 0; for (let s = 1; s <= 200; s++) if (C.handOver(c, yours, { seed: s * 311, mastery: m }).score) n++; return n; };
+    const two = rate(C.COURSE.stage2), three = rate(C.COURSE.stage3), full = rate(1);
+    assert.ok(two > 0, 'it can finish at stage 2: ' + two);
+    assert.ok(three > two && full >= three, 'and more surely later: ' + [two, three, full]);
+    assert.ok(full >= 190);
+    // With no time of yours and none of its own yet there is no bonus; then it races its own best.
+    const res = C.handOver(c, yours, { seed: 5, mastery: 1 }).score;
+    assert.equal(C.marksFor(c, res, 0), C.points(c) * C.COURSE.marks);
+    assert.ok(C.marksFor(c, res, res.time + 0.5) > C.points(c) * C.COURSE.marks);
+});
