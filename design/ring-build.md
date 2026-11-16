@@ -667,3 +667,27 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   for 32 after. **The end card's line was not seen** (no Evals run was played to a rival). **How long the first rival
   (Parrot-7B, score 12) takes to pass is not measured**; the plan wants the first round within a few minutes of the
   first boss. `tests/ring-evals.test.js`.
+
+## 2026-11-15: Build 3, third piece: agents and the roster (the owner's four cards)
+
+- **One agent for each different boss beaten** (engine.js `agentCount`, `bossesBeaten`; a replayed boss gives none).
+  **Moving one is instant** for now (`assignAgent`). A place must be open to take one. Two in a place: the second adds
+  half (`AGENT_STACK`). Save v44 (`state.agents`: where each works, the Lab agent's fund, the Feed agent's job).
+- **The roster is a panel in the Lab** (`#rosterPanel`, game.js `renderRoster`): a row an agent, buttons Idle, Lab,
+  The Feed, Training, and a line saying what it is doing. The AI says one line with the first agent (`agent`, with
+  Open the Lab).
+- **Three jobs** (the owner's pick; Packet Snare's waits for tears, Evals' comes next). ALL NUMBERS ARE MINE, UNPLAYED:
+  - **Lab:** sets aside 30% of the compute coming in (`AGENT_LAB_SHARE`; 45% with two, never over 90%) and buys the
+    Graphics Card or Mining Rig with the most compute a second for its price whenever that covers it, at Parcel's
+    rate of ten compute a dollar. With no room it saves nothing. Moved away, what it had saved comes back.
+  - **The Feed:** while you are not in a session it works the fullest stockpile down, a packet a second
+    (`AGENT_FEED_RATE`), paying 0.15 research a packet on sector 1 and half as much again a sector deeper, gold three
+    times, garbled nothing (`AGENT_FEED_PAY`: about half of a hand session's 0.31 a packet measured on sector 1). A
+    notice says what a finished stockpile paid. **It is worked out, not played: no mites, no box, no cards.** The
+    owner picked "runs sessions for you, slower"; this is the cheap reading of that and is theirs to accept or not.
+  - **Training:** cleared hills train twice as fast on their own (`AGENT_TRAIN_XP`; 2.5 times with two).
+- Not done: the Packet Snare and Evals jobs; the plan's "an agent never sets your records" (none of these can); the
+  minute to move; "no obvious best home" is unmeasured. The old game's scheduled tasks are untouched (hidden under the
+  ring as before). On a phone the Lab with the roster is a little taller than the screen (889 against 844 px).
+- Checked in a test browser on the owner's 3 PM save: the AI's line and its button, the panel on a laptop and a phone,
+  each assignment and its status line. `tests/ring-agents.test.js` (6).

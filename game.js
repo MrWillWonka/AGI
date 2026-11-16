@@ -2605,6 +2605,47 @@ window.AGI = (function () {
         state.intro['ring:evals'] = true; pt('home', { evals: 1 });
         assist('evals', '', { action: showMe('evals', 'evals'), done: () => !!window.EvalsUI?.isOpen });
     }
+    // The roster (the ring, Build 3; the owner's cards, 2026-11-15: it lives in the Lab): one row an agent, a button for
+    // each place it can work, and a line saying what it is doing there. Rules in engine.js (`assignAgent`, `agentsTick`).
+    // EVERY WORD HERE IS A PLACEHOLDER for the owner to write or approve.
+    const AGENT_PLACE_NAME = { lab: 'Lab', feed: 'The Feed', training: 'Training' };
+    let rosterKey = '';
+    function agentStatus(place) {
+        if (place === 'lab') { const pick = E.agentLabPick(state); return pick ? `Saving for a ${E.upgradeName(state, E.UPGRADE_BY_ID[pick.id])}: ${E.format(state.agents.fund)} of ${E.format(pick.cost)} compute.` : 'No room for more hardware. A funding round in Evals makes room.'; }
+        if (place === 'feed') { const job = state.agents.feed; return state.feed.session ? 'Waiting while you run a session.' : job ? `Working the stockpile for sector ${job.sector}: ${E.format(job.research)} research so far.` : 'Waiting for a stockpile.'; }
+        if (place === 'training') return state.path.learned > 0 ? `Cleared hills train ${1 + E.AGENT_TRAIN_XP * E.agentPower(E.agentsAt(state, 'training'))} times as fast.` : 'Waiting for a cleared hill.';
+        return 'Idle. Pick a place for it to work.';
+    }
+    function renderRoster() {
+        const panel = $('rosterPanel'), n = E.isRing() ? E.agentCount(state) : 0;
+        if (!panel) return;
+        setHidden(panel, !n);
+        if (!n) return;
+        const open = E.AGENT_PLACES.map(p => (E.agentPlaceOpen(state, p) ? 1 : 0)).join(''), key = `${n}|${state.agents.at.slice(0, n).join(',')}|${open}`;
+        if (key !== rosterKey) {
+            rosterKey = key;
+            setText($('rosterCount'), n === 1 ? '1 agent' : `${n} agents`);
+            $('rosterList').replaceChildren(...Array.from({ length: n }, (_, i) => {
+                const at = state.agents.at[i] || null;
+                const pick = (place, text) => el('button', { type: 'button', class: 'roster-place' + (at === place ? ' on' : ''), text, 'aria-pressed': String(at === place), ...(place && !E.agentPlaceOpen(state, place) ? { disabled: '' } : {}),
+                    onclick: () => { if (E.assignAgent(state, i, place)) { pt('agent', { i: i + 1, to: place || 'idle' }); sfx('ui'); afterChange(); save(); } } });
+                return el('li', { class: 'roster-agent' }, [
+                    el('span', { class: 'roster-name', text: `Agent ${i + 1}` }),
+                    el('div', { class: 'roster-places', role: 'group', 'aria-label': `Where agent ${i + 1} works` }, [pick(null, 'Idle'), ...E.AGENT_PLACES.map(p => pick(p, AGENT_PLACE_NAME[p]))]),
+                    el('p', { class: 'roster-status', 'data-place': at || '' })]);
+            }));
+        }
+        for (const p of $('rosterList').querySelectorAll('.roster-status')) setText(p, agentStatus(p.dataset.place || null));
+        // The first agent: the AI says so once (the Lab is where the roster is).
+        if (!state.intro['ring:agent']) { state.intro['ring:agent'] = true; pt('home', { agent: 1 }); assist('agent', '', { action: ['Open the Lab', () => { closeApps(); openLab(); }], target: () => $('rosterPanel'), done: () => state.agents.at.slice(0, E.agentCount(state)).some(Boolean) }); }
+    }
+    // What the agents did this tick, beyond the Lab's buys (those are logged with procurement's).
+    function agentNews(did) {
+        for (const e of did || []) if (e.type === 'fed') {
+            pt('agentFed', { sector: e.sector, research: e.research, packets: e.packets });
+            deviceNotice('feed', 'The Feed', `Your agent finished the stockpile for sector ${e.sector}: +${E.format(e.research)} research.`, () => { closeApps(); openFeed(); });
+        }
+    }
     // A funding round (evals-ui.js calls this when a run's end passes a rival): a notice that opens Parcel, and the AI's
     // line the first time (PLACEHOLDER words).
     function fundingRound(before, after) {
@@ -2728,6 +2769,7 @@ window.AGI = (function () {
         "cardsHome": "Parcel again. Each card makes compute on its own. You have done enough tapping for me.",
         "server": "That one was too much for me. I am sorry. With a server I could train, and then I think we could beat it.",
         "serverHome": "Parcel again. It sells a server. Four hundred dollars. I know that is a lot to ask.",
+        "agent": "That boss left something behind. It works for us now. I have put it on a roster in the Lab, and you choose where it works.",
         "funding": "I passed one of the others. Someone has decided we are worth more room. Parcel will sell you more hardware now.",
         "evals": "The boss is down. Someone noticed. They want me tested, so I have put Evals on your home screen.",
         "evalsHome": "This one. Evals is where I am tested. You show me how, and then you check my work.",
@@ -3542,6 +3584,7 @@ window.AGI = (function () {
             advanceTasks(dt * debugSpeed);
             ghostTrain(dt * debugSpeed);
             logProcurement(bought);
+            agentNews(bought.agents);
         }
         afterChange();
         musicTick();
@@ -3716,6 +3759,7 @@ window.AGI = (function () {
         for (const b of ui.binds) setText(b.node, bindValue(b.key, d));
         renderLegacy();
         if (snare.tree) renderSnareTree();
+        renderRoster();
         if (openBay === 'pipeline') renderSnareBar();
         // On the device an app opens straight from another, so Packet Snare's Upgrades button is put away here too
         // (the owner's 2026-11-15 snapshot: two Upgrades buttons in Training).

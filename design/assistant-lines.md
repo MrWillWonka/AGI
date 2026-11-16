@@ -72,6 +72,7 @@ succeeds, never a tutorial. Edit the Line column and send it back (or say which 
 | `cardsHome` | Home screen, Parcel ringed | Parcel again. Each card makes compute on its own. You have done enough tapping for me. | |
 | `server` | The first boss escapes | That one was too much for me. I am sorry. With a server I could train, and then I think we could beat it. | |
 | `serverHome` | Home screen, Parcel ringed | Parcel again. It sells a server. Four hundred dollars. I know that is a lot to ask. | |
+| `agent` | The first agent: a Packet Snare boss beaten for the first time | That boss left something behind. It works for us now. I have put it on a roster in the Lab, and you choose where it works. | |
 | `funding` | The first funding round: a rival passed in Evals | I passed one of the others. Someone has decided we are worth more room. Parcel will sell you more hardware now. | |
 | `evals` | The first Packet Snare boss is beaten: Evals arrives | The boss is down. Someone noticed. They want me tested, so I have put Evals on your home screen. | |
 | `evalsHome` | After Show me, pointing at the Evals icon | This one. Evals is where I am tested. You show me how, and then you check my work. | |
