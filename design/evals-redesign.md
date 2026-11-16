@@ -1,5 +1,8 @@
 # Evals redesign: a proposal (2026-11-15)
 
+**SUPERSEDED the same day by `design/evals-course.md`** (the owner: "Scratch what we have"; Evals becomes an obstacle
+course you build for the AI). Kept for its diagnosis of the captcha version only.
+
 Nothing here is decided. The owner asked for a redesign in parallel with a shell-and-words pass and a play-through
 review ("the evals needs a lot of work to match the rest of the game"); the framing **"you teach, the AI is tested"**
 is the owner's call. Numbers and copy are placeholders. Written from the design files and the code, not from play.
