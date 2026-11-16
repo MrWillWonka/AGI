@@ -566,3 +566,10 @@ as it bores; the prospector casts a lamp of gold ahead of it and a glint crosses
 game's own effects, at most a few a second: grazers and the prospector on gold, the scrubber on decoding, the driller
 (`snareSlash`) and chomper (`snareHit`) on every bite. `FeedUI.drawMiteOn` draws one on any canvas (a review sheet).
 Also `FEED.frenzyTap` (1: the rule as it was), for the tuning question on tapping.
+
+**One colour of sand** (the owner's call, 2026-11-16: "the multi color doesn't make as much visual sense now that we
+separate by sector"; feed-ui.js `BAND_TONE`): good sand is the packets' colour (`--snare-good`), its layers only a
+shade apart; garbled sand keeps the bad packets' colour; **gold shows only near a mite** (in its lamp, a prospector's
+twice as far) or under the scanner's beam, and looks like any other sand elsewhere (a drawing rule: the rules' `seen`
+is unchanged, so the prospector still remembers what it found); sand the model can't read yet stays grey, sand it has
+learned to read is plain sand; a found cache keeps its violet.

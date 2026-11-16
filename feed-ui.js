@@ -44,7 +44,8 @@
             el('button', { type: 'button', class: 'ghost-button', text: 'Back to the game\'s values', onclick: e => { for (const d of DIALS) dialSet(d, dialBase[d[0]]); dialSave(); const box = e.target.closest('.feed-dials'); box.replaceWith(dialPanel()); } }));
     }
     // Strata, in the order deliveries come (feed.js `bands`). Chosen to sit apart on the dark themes.
-    const BANDS = ['#e8c07a', '#d98a5f', '#7fc8a9', '#6fa8dc', '#c9a0e8', '#e6dfc8'];
+    // The layers' tones (2026-11-16: one colour, the packets', in six shades; the sand used to be six colours).
+    const BAND_TONE = [0.84, 0.9, 0.96, 0.9, 0.82, 0.93];
     const TESTS = [['+40', [1, 40, 4]], ['+75 dirty', [2, 75, 6, 10]], ['+200 dirty', [4, 200, 15, 20, 20]]];
     let dlg = null, canvas = null, ctx = null, stage = null, promptEl = null, hungerEl = null, layerEl = null, mitesEl = null, researchEl = null, fragEl = null;
     let pickEl = null, endEl = null, pickKey = '', cardsEl = null, cardsKey = '', heldEl = null, heldKey = '', giveEl = null, arcs = [], bolts = [], shakeAt = 0, lastNow = 0;
@@ -219,11 +220,13 @@
         // The same colours as numbers, for see-through glows (`tint`).
         for (const k of ['primary', 'good', 'gold', 'research', 'hot', 'packetBad', 'text', 'bg']) rgbs[k] = rgb(colors[k]);
         const bg = rgb(colors.bg), muted = rgb(colors.muted), bad = rgb(v('--snare-bad') || v('--danger')), text = rgb(colors.text);
-        const bands = BANDS.map(rgb);
+        // (The owner's call, 2026-11-16: "the multi color doesn't make as much visual sense now that we separate by sector".)
+        // Good sand is the packets' colour, its layers only a shade apart so the depth still reads.
+        const pk = rgb(colors.packet), bands = BAND_TONE.map(k => pk.map(v => Math.min(255, Math.round(v * k))));
         palette = {
             bands: bands.map(shades), known: bands.map(c => shades(mix(c, text, 0.35))), gold: shades(rgb(colors.gold)), fragment: text,
-            // Sand just melted out of a packet and still in the air: half way between the packet's colour and its own.
-            falling: bands.map(c => shades(mix(c, rgb(colors.packet), 0.5))), fallingBad: shades(bad),
+            // Sand just melted out of a packet and still in the air: a little brighter than it will be.
+            falling: bands.map(c => shades(mix(c, text, 0.25))), fallingBad: shades(bad),
             // Sand the model has no skill for: grey, cold. Garbled sand: the bad packets' colour, dark. Both read as "not for eating".
             numbers: [shades(mix(bg, muted, 0.75)), shades(mix(bg, muted, 0.4))], pictures: [shades(mix(bg, rgb(colors.primary), 0.5)), shades(mix(bg, muted, 0.45))],
             garbled: [shades(mix(bg, bad, 0.62)), shades(mix(bg, bad, 0.32))],
@@ -547,6 +550,10 @@
         const blink = words(palette.fragment, reduced() ? 1 : 0.6 + 0.4 * Math.sin(now / 160)), flick = reduced() || !f.session ? 0 : 1 + ((now / 90) | 0);   // garbled sand seethes, a little at a time
         pixels.fill(0);
         const first = Math.max(0, Math.floor(view.y) - 1) * w;
+        // Gold shows only near a mite (in its lamp; a prospector's reaches twice as far) or under the scanner's beam (the
+        // owner's call, 2026-11-16: "making the gold only show up when nearby"); elsewhere it looks like any other sand.
+        const lamp = F().FEED.lamp, lamps = f.swarm.map(m => [m.x, m.y, (lamp * (m.c === 'gold' ? F().MITES.prospector.lamp : 1)) ** 2]), beam = f.session?.beam ?? -1;
+        const near = (x, y) => (beam >= 0 && x > beam - 8 && x <= beam) || lamps.some(([mx, my, r2]) => (x + 0.5 - mx) ** 2 + (y + 0.5 - my) ** 2 <= r2);
         for (let i = first; i < cells.length; i++) {
             const v = cells[i];
             if (!v) continue;
@@ -557,9 +564,9 @@
             else if (kind === 7 && lib.seenOf(v)) c = palette.cache[((x + y + (now >> 7)) & 3) === 0 ? 1 : 0][shade];
             else if (falling) c = palette.falling[band][shade];
             else if (kind === 1 || !lib.seenOf(v)) c = palette.bands[band][shade];
-            else if (kind === 2) c = palette.gold[2 + (shade & 1)];
+            else if (kind === 2) c = near(x, y) ? palette.gold[2 + (shade & 1)] : palette.bands[band][shade];
             else if (kind === 3) c = blink;
-            else if (f.readable.includes(lib.KIND_IDS[kind])) c = palette.known[band][shade];
+            else if (f.readable.includes(lib.KIND_IDS[kind])) c = palette.bands[band][shade];   // (sand the model has learned to read is just sand)
             else c = kind === 4 ? palette.numbers[(x + y) & 1][shade] : palette.pictures[x & 1][shade];
             // A grain: two by two, solid, in its own shade (fine sand reads as sand by its shades; the faded corners the
             // coarser grains had drew a mesh over a pile this fine).
