@@ -4714,3 +4714,15 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 .course-pad { min-height: 96px; border-radius: 12px; border: 1px solid var(--primary); background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--text); font: 700 1.2rem var(--font-display); letter-spacing: 0.04em; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
 .course-pad:active { background: color-mix(in srgb, var(--primary) 30%, transparent); }
 .course-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* The maze course (maze-ui.js; a prototype), in the course's screen. */
+.course-switch { min-height: 36px; padding: 4px 12px; font-size: 0.82rem; }
+.maze-canvas { display: block; align-self: center; width: min(100%, calc((100dvh / var(--zoom, 1) - 330px) * 7 / 9)); aspect-ratio: 7 / 9; min-width: 210px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-2); touch-action: none; user-select: none; -webkit-user-select: none; }
+.maze-tools { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.maze-tools[hidden], .maze-pad[hidden] { display: none; }
+.maze-tool { min-height: 40px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; font-size: 0.86rem; cursor: pointer; }
+.maze-tool.on { border-color: var(--success); color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); }
+.maze-pad { display: grid; grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(2, 56px); gap: 6px; justify-content: center; }
+.maze-dir { border-radius: 12px; border: 1px solid var(--primary); background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--text); font-size: 1.2rem; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
+.maze-dir:active { background: color-mix(in srgb, var(--primary) 32%, transparent); }
+.maze-dir-0 { grid-column: 2; grid-row: 1; } .maze-dir-3 { grid-column: 1; grid-row: 2; } .maze-dir-2 { grid-column: 2; grid-row: 2; } .maze-dir-1 { grid-column: 3; grid-row: 2; }

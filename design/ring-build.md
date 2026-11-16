@@ -782,3 +782,31 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
 - **Not built of the owner's picks:** harder and longer courses, cheating, racing its ghost, courses it builds for you.
 - Checked in a test browser on a phone at 0, 4 and 12 courses run: refused at stage 1, handed over and finished at
   stages 2 and 3, a second hand-over measured against its own best. `tests/course.test.js` (11).
+
+## 2026-11-15: the second kind of course, a maze (a rough prototype, playground only)
+
+- **Where:** in the playground's Evals app a button in the bar switches between **Track** and **Maze** (the last one
+  used opens next time). Rules `maze.js` (pure, `tests/maze.test.js`, 7), screen `maze-ui.js`. Its own progress on the
+  device (`localStorage['agiMaze']`), nothing paid into the save, as with the track.
+- **What it is:** a grid 7 wide and 9 high, seen from above, start bottom left, exit top right. Time goes in ticks of
+  0.16 s: hold a direction to walk a cell a tick, let go to stand. **Tiles:** Wall (shapes the way, no points), Trap
+  (1 point: live four ticks, safe four, each on its own beat), Patrol (2: walks its row back and forth, a cell every
+  two ticks), Key and Door (2 for the door; one of each). **Only what is got past scores, and only with the exit
+  reached**, so a hazard off the way is worth nothing. Built by picking a tile and tapping the grid; the hazards keep
+  time while you build, so their rhythm can be seen.
+- **The same loop as the track:** walk it yourself; hand it over; up to 4 tries shown one after another; Marks for the
+  points got past x how its time compares with yours (or with its own best on a maze you could not finish).
+- **The AI:** it walks your route. It knows the safe moment to step, stands about where you stood by as much as it
+  has not yet mastered, and at a hazard may misjudge the moment (30% of hazard steps at first, less with mastery,
+  halved at a step each time it is caught there). The same three stages past your limit as the track: caught part-way,
+  it follows you to there and takes the shortest way on.
+- **Measured** (maze.js alone, 300 hand-overs each): a maze of four traps is got out of 82% of the time by a new AI in
+  about 3 tries, an 8-point maze with two patrols 78%; both 100% after five to ten mazes, and by ten it is faster than
+  a careful player nine times in ten.
+- **Found while testing:** a patrol's row can be crossed but not walked along (it catches you at its turn), so a way
+  that needs that has no way through, and the AI says so.
+- **ALL PLACEHOLDER** (numbers, words, look). **Not built:** the third kind (platformer rooms), cheating, the tree,
+  anything in the playtest. It chooses no cleverer route than yours when you finished: it only times yours better.
+- **Checked in a test browser, phone and laptop:** switching from the track, placing tiles by taps on the grid, a
+  walked run (driven by a script holding the directions), the hand-over, the result, switching back; no errors, no
+  page scroll, cells 52 px on a phone. Not played by a person.
