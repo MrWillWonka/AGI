@@ -691,3 +691,9 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   ring as before). On a phone the Lab with the roster is a little taller than the screen (889 against 844 px).
 - Checked in a test browser on the owner's 3 PM save: the AI's line and its button, the panel on a laptop and a phone,
   each assignment and its status line. `tests/ring-agents.test.js` (6).
+
+- **The owner accepted the calculated Feed agent for now** (2026-11-15: "Yes, fine for now"). Playing its sessions out
+  with mites stays open for later.
+- **Build 3's research trickle is already retired:** `snareRpPerSec` pays nothing under the ring (it has been `!ring`
+  since Build 1). So of Build 3's five pieces, only **the first tear** is left, plus the two agent jobs that wait on
+  it and on Evals.
