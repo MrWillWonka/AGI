@@ -9,7 +9,7 @@
     const R = () => window.Rhythm;
     const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'text') n.textContent = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); } n.append(...kids.flat().filter(k => k !== '' && k != null)); return n; };
     const KEY = 'agiRhythm';
-    const load = () => { try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); return { marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), best: s.best && typeof s.best === 'object' ? s.best : {}, track: +s.track || 0, level: Math.max(0, Math.min(2, Math.floor(+s.level || 0))) }; } catch { return { marks: 0, runs: 0, stage: 1, best: {}, track: 0, level: 0 }; } };
+    const load = () => { try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); return { marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), best: s.best && typeof s.best === 'object' ? s.best : {}, track: +s.track || 0, level: Math.max(0, Math.min(3, Math.floor(+s.level || 0))) }; } catch { return { marks: 0, runs: 0, stage: 1, best: {}, track: 0, level: 0 }; } };
     const keep = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch { /* private mode */ } };
     const skills = () => (location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
     const masteryNow = () => R().mastery(save.runs, location.hash === '#playground' ? 0 : Math.min(skills(), 20));
@@ -34,11 +34,10 @@
         sayEl = el('p', { class: 'course-say', role: 'status' });
         marksEl = el('span', { class: 'evals-marks' });
         pickEl = el('div', { class: 'rhythm-pick' });
-        const lane = i => { const b = el('button', { type: 'button', class: 'maze-dir rhythm-lane', 'aria-label': LANES[i], text: LANES[i] }); const down = e => { e.preventDefault(); press(i); }, up = e => { e.preventDefault(); release(i); };
-            b.addEventListener('pointerdown', down); b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up); return b; };
+        const lane = i => { const b = el('button', { type: 'button', class: 'maze-dir rhythm-lane', 'aria-label': LANES[i], text: LANES[i] }); hook(b, () => i); return b; };
         padEl = el('div', { class: 'rhythm-pad', hidden: '' }, lane(0), lane(1), lane(2));
-        const anyDown = e => { if (mode !== 'test' || !mouse()) return; e.preventDefault(); mouseLane = dueLane(); press(mouseLane); }, anyUp = e => { if (mouseLane < 0) return; e.preventDefault(); release(mouseLane); mouseLane = -1; };
-        canvas.addEventListener('pointerdown', anyDown); canvas.addEventListener('pointerup', anyUp); canvas.addEventListener('pointercancel', anyUp); canvas.addEventListener('pointerleave', anyUp);
+        hook(canvas, e => { if (mouse() && !inFree()) return dueLane(); const r = canvas.getBoundingClientRect(); return Math.max(0, Math.min(2, Math.floor((e.clientX - r.left) / (r.width / 3)))); });
+
         actionsEl = el('div', { class: 'course-actions' });
         dlg = el('dialog', { class: 'evals-screen course-screen rhythm-screen', 'aria-label': 'Evals: the rhythm run' },
             el('div', { class: 'evals-bar' }, el('span', { class: 'evals-title', text: 'Evals' }),
@@ -47,6 +46,8 @@
             el('div', { class: 'course-body rhythm-body' }, sayEl, pickEl, canvas, padEl, actionsEl));
         dlg.addEventListener('close', () => { stop(); music = { area: 'lab', level: 0.4 }; });
         const KEYS = { a: 0, s: 1, d: 2, j: 0, k: 1, l: 2, ArrowLeft: 0, ArrowDown: 1, ArrowRight: 2 }, heldKeys = {};
+        // W slashes whichever slash is due (a mouse flick across the notes does too).
+        dlg.addEventListener('keydown', e => { if (mode !== 'test' || e.repeat || (e.key !== 'w' && e.key !== 'W' && e.key !== 'ArrowUp')) return; e.preventDefault(); const l = dueLane('slash'); press(l, 'slash'); release(l); });
         let spaceLane = -1;
         dlg.addEventListener('keydown', e => {
             if (mode !== 'test' || e.repeat) return;
@@ -65,6 +66,8 @@
         addEventListener('resize', () => { if (dlg.open) draw(); });
     }
     const say = text => { sayEl.textContent = '> ' + text; };
+    // "20 of 22 notes and 6 freestyle taps": the notes hit, apart from the taps of a freestyle bar.
+    const tally = r => `${r.hits - r.freeTaps} of ${r.total} notes${r.freeTaps ? ` and ${r.freeTaps} freestyle ${r.freeTaps === 1 ? 'tap' : 'taps'}` : ''}`;
     const button = (text, action, main) => el('button', { type: 'button', class: main ? 'evals-go' : 'ghost-button evals-extra', text, onclick: action });
     const actions = (...list) => actionsEl.replaceChildren(...list);
     function header() { marksEl.textContent = '◈ ' + save.marks.toLocaleString('en-US'); marksEl.setAttribute('aria-label', save.marks + ' Marks'); }
@@ -74,11 +77,11 @@
         stop(); mode = 'pick'; run = null; hand = null; padEl.hidden = true; pickEl.hidden = false; canvas.hidden = true; music = { area: (trackNow() || {}).area || 'lab', level: 0.4 };
         const all = tracks(), tr = trackNow();
         if (!tr) { say('There is no music to play. The game\'s tracks did not load.'); actions(); return; }
-        const notes = lvl => R().chartFrom(tr.song, lvl, undefined, undefined, hands()).length;
+        const notes = lvl => R().chartFor(tr.song, lvl).filter(n => !n.free).length;
         pickEl.replaceChildren(
             el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'Track' }, ...all.map((t, i) => el('button', { type: 'button', class: 'maze-tool' + (i === save.track ? ' on' : ''), 'aria-pressed': String(i === save.track), text: t.name, onclick: () => { save.track = i; yours = null; keep(); toPick(); } }))),
-            el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'How much of it is notes' }, ...R().LEVELS.map((l, i) => el('button', { type: 'button', class: 'maze-tool' + (i === save.level ? ' on' : ''), 'aria-pressed': String(i === save.level), text: `${l.name} · ${notes(i)}`, onclick: () => { save.level = i; yours = null; keep(); toPick(); } }))));
-        say(text || `${tr.name}, ${notes(save.level)} notes over ${R().RHYTHM.bars} bars. Keep the song together to the end and I will try it after you. Let it fall apart and it scores nothing.`);
+            el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'How hard' }, ...R().MODES.map((l, i) => el('button', { type: 'button', class: 'maze-tool' + (i === save.level ? ' on' : ''), 'aria-pressed': String(i === save.level), text: `${l.name} · ${notes(i)}`, onclick: () => { save.level = i; yours = null; keep(); toPick(); } }))));
+        say(text || `${tr.name} on ${R().modeOf(save.level).name}: ${notes(save.level)} notes over ${R().RHYTHM.bars} bars. Keep the song together to the end and I will try it after you. Let it fall apart and it scores nothing.`);
         actions(button('Play it yourself', () => begin('you'), true), ...(yours ? [button(yours.finished ? 'Hand it to the AI' : 'Let the AI try', toAi)] : []));
         header();
     }
@@ -93,17 +96,30 @@
         else { stepLen = 60 / (tr.song.bpm || 120) / 4; start(tr, from, performance.now() / 1000 + tr.song.steps * stepLen); }
         feed = by === 'ai' ? { events: hand.attempts[attempt].events.slice().sort((a, b) => a.t - b.t), i: 0 } : null;
         run = null; chart = null;
-        if (by === 'you') { say(mouse() ? 'A, S and D are the lanes. A click, or the spacebar, takes whichever note is due. Hold for the long ones.' : 'Tap each note as it reaches the line. Hold the long ones.'); actions(button('Stop', () => toPick())); }
+        if (by === 'you') { say(mouse() ? 'A, S and D are the lanes; a click or the spacebar takes whichever note is due. Hold the long ones. W, or a flick of the mouse, for a slash. In a freestyle bar, play a beat of your own.' : 'Tap each note at the line and hold the long ones. Swipe the diamonds. In a freestyle bar, tap a beat of your own.'); actions(button('Stop', () => toPick())); }
         cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
     }
     function start(tr, from, at) {
-        chart = R().timed(R().chartFrom(tr.song, save.level, from, undefined, hands()), stepLen); end = R().lengthOf(tr.song, stepLen); run = R().createRun(chart); t0 = at;
+        chart = R().timed(R().chartFor(tr.song, save.level, from), stepLen); end = R().lengthOf(tr.song, stepLen); run = R().createRun(chart, R().rulesFor(save.level)); t0 = at;
     }
     const clockNow = () => { if (!audio) return performance.now() / 1000; const c = window.SFX.context; return c.currentTime - (c.outputLatency || 0); };
     const now = () => (t0 == null ? -99 : clockNow() - t0);
     // The lane of the note nearest its moment (a mouse click goes there); with none near, the middle lane.
-    function dueLane() { if (!run) return 1; const t = now(); let pick = null; for (const n of run.state.notes) if (n.state === 'wait' && Math.abs(n.t - t) <= R().RHYTHM.good && (!pick || Math.abs(n.t - t) < Math.abs(pick.t - t))) pick = n; return pick ? pick.lane : 1; }
-    function press(lane) { if (mode !== 'test' || !run || run.state.over) return; show(run.press(lane, now())); }
+    // The lane of the note nearest its moment (a click or the spacebar goes there); with none near, the middle lane.
+    function dueNote(kind) { if (!run) return null; const t = now(); let pick = null; for (const n of run.state.notes) if (!n.free && n.state === 'wait' && (!kind || n.kind === kind) && Math.abs(n.t - t) <= R().RHYTHM.good + 0.08 && (!pick || Math.abs(n.t - t) < Math.abs(pick.t - t))) pick = n; return pick; }
+    function dueLane(kind) { const n = dueNote(kind) || dueNote(); return n ? n.lane : 1; }
+    const inFree = () => !!(run && run.freeAt(now()));
+    // A press on a pad or on the notes. Where the note due in that lane is a slash, the press waits to see whether the
+    // finger moves (a slash) or lifts (only a tap).
+    const SWIPE = 22, pending = new Map();
+    function hook(node, laneOf) {
+        node.addEventListener('pointerdown', e => { if (mode !== 'test') return; e.preventDefault(); const l = laneOf(e), t = now(), due = run && run.state.notes.find(n => !n.free && n.lane === l && n.state === 'wait' && Math.abs(n.t - t) <= R().RHYTHM.good + 0.08);
+            if (due && due.kind === 'slash') pending.set(e.pointerId, { lane: l, x: e.clientX, y: e.clientY, sent: false }); else { pending.set(e.pointerId, { lane: l, sent: true }); press(l); } });
+        node.addEventListener('pointermove', e => { const p = pending.get(e.pointerId); if (!p || p.sent) return; if (Math.hypot(e.clientX - p.x, e.clientY - p.y) >= SWIPE) { p.sent = true; press(p.lane, 'slash'); } });
+        const up = e => { const p = pending.get(e.pointerId); if (!p) return; e.preventDefault(); pending.delete(e.pointerId); if (!p.sent) press(p.lane); release(p.lane); };
+        node.addEventListener('pointerup', up); node.addEventListener('pointercancel', up); node.addEventListener('pointerleave', up);
+    }
+    function press(lane, kind) { if (mode !== 'test' || !run || run.state.over) return; show(run.press(lane, now(), kind)); }
     function release(lane) { if (mode !== 'test' || !run || run.state.over) return; show(run.release(lane, now())); }
     // What just happened, for the eye and the ear.
     function show(events) {
@@ -111,6 +127,7 @@
             if (e.type === 'perfect' || e.type === 'good') { pops.push({ lane: e.lane, text: e.type === 'perfect' ? 'PERFECT' : 'GOOD', at: performance.now(), good: true }); if (who === 'you') window.SFX?.play?.('click', { res: SOUND[e.lane] }); }
             else if (e.type === 'miss') pops.push({ lane: e.lane, text: 'MISS', at: performance.now(), good: false });
             else if (e.type === 'stray') pops.push({ lane: e.lane, text: '·', at: performance.now(), good: false });
+            else if (e.type === 'flair') pops.push({ lane: 1, text: 'NICE', at: performance.now(), good: true });
         }
     }
     function frame() {
@@ -137,7 +154,7 @@
         const r = R().result(run); padEl.hidden = true; mode = 'tested';
         if (r.finished) {
             yours = r;
-            say(`You kept it together: ${r.hits} of ${r.total} notes, ${r.perfect} perfect, a best combo of ${r.combo}. May I try?`);
+            say(`You kept it together: ${tally(r)}, ${r.perfect} perfect, a best combo of ${r.combo}. May I try?`);
             actions(button('Hand it to the AI', toAi, true), button('Play it again', () => begin('you')), button('Change it', () => toPick()));
             return;
         }
@@ -149,28 +166,28 @@
         if (!yours) return;
         const tr = trackNow();
         stepLen = stepLen || 60 / (tr.song.bpm || 120) / 4;
-        const c = R().timed(R().chartFrom(tr.song, save.level, Math.max(1, R().startBar(tr.song)), undefined, hands()), stepLen);
-        hand = R().handOver(c, yours, R().lengthOf(tr.song, stepLen), { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow() });
+        const c = R().timed(R().chartFor(tr.song, save.level, Math.max(1, R().startBar(tr.song))), stepLen);
+        hand = R().handOver(c, yours, R().lengthOf(tr.song, stepLen), { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow() }, R().rulesFor(save.level));
         attempt = 0; actions(button('Skip to the result', aiResult)); aiStart();
     }
     function aiStart() { begin('ai'); say(`Attempt ${attempt + 1} of ${hand.attempts.length}.`); actions(button('Skip to the result', aiResult)); }
     function aiOver() {
         const r = hand.attempts[attempt].result; mode = 'aiwait';
-        say(r.finished ? `Played through: ${r.hits} of ${r.total}, ${r.perfect} perfect.` : `It fell apart on me after ${r.hits} notes. I will listen more closely there.`);
+        say(r.finished ? `Played through: ${tally(r)}, ${r.perfect} perfect.` : `It fell apart on me after ${r.hits} notes. I will listen more closely there.`);
         attempt++;
         setTimeout(() => { if (mode !== 'aiwait') return; if (attempt < hand.attempts.length) aiStart(); else aiResult(); }, 1400);
     }
     function aiResult() {
         stop(); mode = 'result'; padEl.hidden = true;
-        const tr = trackNow(), key = `${tr.area}:${tr.index}:${save.level}`, ref = (yours.finished && yours.score) || save.best[key] || 0, top = hand.score, marks = R().marksFor(top, ref), tries = hand.attempts.length;
+        const tr = trackNow(), key = `${tr.area}:${tr.index}:${R().modeOf(save.level).key}`, ref = (yours.finished && yours.score) || save.best[key] || 0, top = hand.score, marks = R().marksFor(top, ref), tries = hand.attempts.length;
         save.runs++; save.marks += marks;
         if (top) save.best[key] = Math.max(save.best[key] || 0, top.score);
         const st = R().stage(masteryNow()), grew = st > save.stage; save.stage = Math.max(save.stage, st);
         keep(); header();
         const pct = r => Math.round(r.accuracy * 100) + '%';
         if (!top) say(`I could not keep it together in ${tries} ${tries === 1 ? 'try' : 'tries'}. Nothing scored.`);
-        else if (yours.finished) say(`Played through: ${top.hits} of ${top.total}, ${pct(top)} on the beat against your ${pct(yours)}, a combo of ${top.combo} against your ${yours.combo}${top.score > yours.score + 0.01 ? '. I was tighter' : top.score < yours.score - 0.01 ? '. You were tighter' : ''}. ${marks} Marks.`);
-        else say(`Played the one you could not: ${top.hits} of ${top.total}, ${pct(top)} on the beat. ${marks} Marks.`);
+        else if (yours.finished) say(`Played through: ${tally(top)}, ${pct(top)} on the beat against your ${pct(yours)}, a combo of ${top.combo} against your ${yours.combo}${top.score > yours.score + 0.01 ? '. I was tighter' : top.score < yours.score - 0.01 ? '. You were tighter' : ''}. ${marks} Marks.`);
+        else say(`Played the one you could not: ${tally(top)}, ${pct(top)} on the beat. ${marks} Marks.`);
         if (grew) sayEl.textContent += st === 2 ? ' I think I can play a track through now even if it falls apart on you. Play it once, as far as you get.' : ' I do not need to hear the hard parts first any more. Play it once anyway.';
         actions(button('Change the track', () => toPick(), true), button('Hand it over again', toAi));
         music.level = 0.4; draw();
@@ -189,12 +206,17 @@
         // The beats, drawn through.
         if (run) { const beat = stepLen * 4; ctx.globalAlpha = 0.35; for (let b = Math.ceil((t - 0.2) / beat); b * beat < t + look; b++) { const y = yOf(b * beat); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); } ctx.globalAlpha = 1; }
         ctx.strokeStyle = gold ? col('--warning') : col('--success'); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(W, hitY); ctx.stroke(); ctx.lineWidth = 1;
+        if (run) for (const f of s.notes) if (f.free && f.t - t < look && f.t + f.dur > t - 0.2) { const y0 = Math.max(0, yOf(f.t + f.dur)), y1 = Math.min(H, yOf(f.t)); ctx.fillStyle = col('--research') || col('--primary'); ctx.globalAlpha = 0.13; ctx.fillRect(0, y0, W, y1 - y0); ctx.globalAlpha = 1; ctx.fillStyle = col('--text'); ctx.font = '600 12px ' + mono; ctx.textAlign = 'center'; ctx.fillText('FREESTYLE', W / 2, Math.max(16, Math.min(hitY - 40, (y0 + y1) / 2))); for (const tap of f.taps) { ctx.fillStyle = col('--success'); ctx.beginPath(); ctx.arc((tap.lane + 0.5) * lw, yOf(f.t + tap.k * f.grid), r * 0.5, 0, 2 * Math.PI); ctx.fill(); } }
         if (run) for (const n of s.notes) {
+            if (n.free) continue;
             if (n.t - t > look || (n.state !== 'wait' && n.state !== 'held')) continue;
             const x = (n.lane + 0.5) * lw, y = n.state === 'held' ? hitY : yOf(n.t), c = gold ? col('--warning') : n.hold > 0 ? (col('--snare-good') || col('--primary')) : col('--primary');
             if (n.hold > 0) {   // a packet: a held note, its tail the time to hold
                 const yEnd = yOf(n.t + n.hold); ctx.strokeStyle = c; ctx.globalAlpha = 0.5; ctx.lineWidth = r * 0.9; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, Math.min(y, yEnd)); ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 1;
                 ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(x, y + r); ctx.lineTo(x + r, y - r * 0.8); ctx.lineTo(x, y - r * 0.3); ctx.lineTo(x - r, y - r * 0.8); ctx.closePath(); ctx.fill();
+            } else if (n.kind === 'slash') {   // a slash: a diamond with the stroke through it
+                ctx.fillStyle = gold ? col('--warning') : col('--danger'); ctx.beginPath(); ctx.moveTo(x, y - r * 1.15); ctx.lineTo(x + r * 1.15, y); ctx.lineTo(x, y + r * 1.15); ctx.lineTo(x - r * 1.15, y); ctx.closePath(); ctx.fill();
+                ctx.strokeStyle = col('--text'); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x - r * 1.5, y + r * 0.6); ctx.lineTo(x + r * 1.5, y - r * 0.6); ctx.stroke(); ctx.lineWidth = 1;
             } else {            // the Training ball: a regular note
                 ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI); ctx.fill();
                 ctx.fillStyle = gold ? col('--text') : col('--warning'); ctx.beginPath(); ctx.arc(x, y, r * 0.32, 0, 2 * Math.PI); ctx.fill();

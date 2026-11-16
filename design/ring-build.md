@@ -925,3 +925,32 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   (shown under them), and **a click on the notes or the spacebar takes whichever note is due**; the lane pads show on a
   desktop too. **The room** already has A, D, W and the spacebar, and **the maze** W A S D, so both fit the rule as
   they are. The room's question about a mouse alone is closed.
+
+## 2026-11-16: the rhythm run's modes (the owner: "more forgiving", Easy, Medium, Hard instead of the instruments)
+
+- The owner: "we need to be a bit more forgiving and have the modes be easy medium and hard instead of bass kick and
+  lead"; "we can mix parts between the instruments to change the difficulty and the extreme version would be everything
+  together with a mix of slashing, holds, multiple shots and freestyle; early easy would be mostly notes and freestyles
+  with some holds."
+- **Four modes** (rhythm.js `MODES`, `chartFor`): **Easy, Medium, Hard, Extreme**. Each bar keeps the song's weightiest
+  notes (the beats, the melody) from all three instruments, up to the mode's count and spacing. ALL NUMBERS MINE:
+  | Mode | Notes a bar at most | Least gap | Two at once | Held notes kept | Slashes | Freestyle bars | A miss costs |
+  |---|---|---|---|---|---|---|---|
+  | Easy | 5 | a beat | none | half | none | 2 of 8 | 4.5% of the meter |
+  | Medium | 8 | half a beat | about one a bar | all | none | 1 | 6% |
+  | Hard | 11 | half a beat | about two a bar | all | a quarter of single notes | 1 | 7.5% |
+  | Extreme | all the song has | a quarter beat | any | all | four in ten | 1 | 9% |
+  On Night Survey that is 22, 46, 49 and 56 notes; on Overclock 24, 56, 69 and 101.
+- **More forgiving:** perfect is within 0.07 s of the beat (was 0.05), good within 0.15 s (0.11); the meter starts at
+  60% (50%); a tap where there is no note costs 1.2% (3%); a hold may be let go a quarter of a second early (0.14 s).
+- **Slashes** (new): a diamond. On a phone, swipe the lane's pad or the lane itself; on a desktop, **W** or a flick of
+  the mouse. Slashed on the beat it is perfect; only tapped, good at best.
+- **Freestyle bars** (new; the owner's boss moment, judged "on the beat, and not boring"): a bar with no notes, shown
+  as a band. Your taps count when they land near a half-beat, up to eight a bar; taps off the beat cost nothing; a bar
+  with at least four taps on two lanes at more than one spacing earns a bonus ("NICE"); a bar left silent is one miss.
+  The taps are not yet kept as part of the track (the owner's call 7 asks for that).
+- **Two at once** ("multiple shots") were already there. **The AI** slashes or only taps a slash, and plays freestyle
+  bars sparsely on one lane at first, fuller and across the lanes with mastery.
+- Checked in a test browser on a phone with real touch events on the pads: Easy and Extreme of Night Survey played
+  clean (taps, holds, six swiped slashes, freestyle with the bonus), then the AI's tries; no errors.
+  `tests/rhythm.test.js` (12). Not heard, and not played by a person.
