@@ -363,9 +363,10 @@
         const key = offer ? offer.join(',') + '|' + JSON.stringify(s.cards) : '';
         if (key === cardsKey) return;
         cardsKey = key;
+        const hint = coachCards(!!offer);
         if (!offer) return;
         if (held !== null) letGo();
-        cardsEl.replaceChildren(el('h3', { class: 'feed-cards-title', text: 'The swarm split. Pick one.' }),
+        cardsEl.replaceChildren(el('h3', { class: 'feed-cards-title', text: 'The swarm split. Pick one.' }), ...(hint ? [hint] : []),
             el('div', { class: 'feed-cards-row' }, ...offer.map((id, n) => { const [name, what] = CARD_TEXT[id] || [id, '']; const have = s.cards[id] || 0;
                 const k = F().CARDS[id] || {}, tag = k.combo && !have ? 'Combo' : have ? `You have ${have}` : k.tool ? 'Tool' : 'New';
                 return el('button', { type: 'button', class: `feed-card${k.combo ? ' combo' : k.rare ? ' rare' : ''}`, onclick: () => window.AGI.feedPick(n) },
@@ -461,6 +462,7 @@
             if (ev.type === 'decode') { if (!still && decodes++ < 3) burstBits(ev.x + 0.5, ev.y + 0.5, colors.good, 3, 5); continue; }
             if (ev.type === 'corrupt') { if (!still) for (const [x, y] of ev.pts.slice(0, 8)) burstBits(x, y, colors.packetBad, 2, 3); continue; }
             if (ev.type === 'cache') {
+                if (coach?.key === 'cache') coachEnd(true); else if (game()) game().intro['feed:coach:cache'] = true;
                 burstBits(ev.x, ev.y, colors.research, 46, 26); burstBits(ev.x, ev.y, colors.gold, 26, 18);
                 sparks.push({ at: now, x: ev.x, y: ev.y, kind: 'cache', r: 18 });
                 floatText(ev.x, ev.y - 6, `CACHE +${E().format(ev.pay)}`, 'research', true);
@@ -849,6 +851,7 @@
             const pulse = 0.5 + 0.5 * Math.sin(now / (tier >= 4 ? 110 : 180));
             ctx.strokeStyle = tint(FRENZY_COLOR[tier], 0.25 + pulse * 0.35); ctx.lineWidth = 6 + pulse * 6; ctx.strokeRect(0, 0, view.w, view.h);
         }
+        drawCoach(now);
         // Pops: what a layer paid, a fragment found.
         pops = pops.filter(p => now - p.at < POP_MS);
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -878,6 +881,145 @@
         if (!f.stats.eaten && !f.stats.cleaned && !f.aim) return '> Show it where to start.';
         return '';
     }
+    // ---- the walkthrough ---------------------------------------------------------------------------------------------
+    // (The owner's call, 2026-11-16: no legend or prompt in a run, "we can have a tutorial if anything to walk through the
+    // game the first time".) As Packet Snare's walkthroughs: the first time each thing comes up in a session, a spotlight on
+    // it, a ghost finger playing the gesture, and one line; the field slows while you're shown what to do with your hands
+    // (`slow`), and a step that only tells you something shows for `info` seconds at full speed. Each step is done once
+    // (state.intro `feed:coach:<key>`), or shown twice if you never do it (`feed:coachSeen:<key>`); Reset The Feed clears
+    // them. The words are PLACEHOLDERS, in the terminal voice.
+    const COACH_SLOW = 0.2, COACH_TRIES = 2, COACH_MAX = 14;
+    let coach = null, coachOffer = false;
+    const intro = () => game()?.intro || {};
+    const swarmMid = f => { const n = f.swarm.length || 1; const x = f.swarm.reduce((a, m) => a + m.x, 0) / n, y = f.swarm.reduce((a, m) => a + m.y, 0) / n; return { x, y, r: Math.max(6, ...f.swarm.map(m => Math.hypot(m.x - x, m.y - y))) + 5 }; };
+    // The good grain nearest the top of the sand, a little way from the swarm (somewhere worth leading them to).
+    function goodTarget(f) {
+        const lib = F(), { w, cells } = f, mid = swarmMid(f), lo = f.x0 || 0, hi = f.x1 || w;
+        // a little under the surface, so the spotlight is on the field (a full tank's sand reaches the top of the view)
+        const first = cells.findIndex(v => v), from = first < 0 ? 0 : (Math.floor(first / w) + 8) * w;
+        let best = null;
+        for (let i = from; i < cells.length && !best; i++) {
+            const v = cells[i], x = i % w;
+            if (!v || x < lo + 4 || x >= hi - 4) continue;
+            const k = lib.kindOf(v);
+            if ((k === 1 || k === 2 || k === 3) && Math.abs(x - mid.x) > Math.max(12, (hi - lo) * 0.25)) best = { x: x + 0.5, y: Math.floor(i / w) + 2.5 };
+        }
+        return best;
+    }
+    // The grain of a kind nearest the swarm (a garbled one; a found cache).
+    function nearestOf(f, test) {
+        const lib = F(), { w, cells } = f, mid = swarmMid(f);
+        let best = null, d = Infinity;
+        for (let i = 0; i < cells.length; i++) { const v = cells[i]; if (!v || !test(lib.kindOf(v), v)) continue; const x = i % w + 0.5, y = Math.floor(i / w) + 0.5, dd = Math.hypot(x - mid.x, y - mid.y); if (dd < d) { d = dd; best = { x, y }; } }
+        return best;
+    }
+    const COACHES = [
+        { key: 'lead', slow: COACH_SLOW, when: f => f.session.time > 0.4 && goodTarget(f),
+            aim: (f, t) => { const m = swarmMid(f); return { x: t.x, y: t.y, r: 7, gesture: 'drag', from: { x: m.x, y: m.y } }; },
+            keep: true,
+            text: () => (PHONE ? '> Hold and drag to lead the swarm. They eat where you point.' : '> Hold the mouse button and drag to lead the swarm. They eat where you point.'),
+            // done once you've led them and they've eaten a little there
+            done: (f, c) => !!c.touched && (f.stats.eaten - c.eaten0) >= 12 },
+        { key: 'garbled', after: 'lead', info: 4.5, when: f => nearestOf(f, k => k === 6),
+            aim: (f, t) => ({ x: t.x, y: t.y, r: 6, gesture: 'mark', color: 'packetBad' }),
+            text: () => '> That sand is garbled. It pays nothing, and it slowly turns the sand round it garbled too.' },
+        { key: 'frenzy', after: 'lead', info: 4.5, when: f => (f.session.tier || 0) >= 1 && true,
+            aim: f => ({ ...swarmMid(f), gesture: 'mark', color: 'gold' }), pulse: () => frenzyEl,
+            text: () => '> A frenzy. Keep them eating and every grain pays more. Let them stop and it cools.' },
+        { key: 'hunger', after: 'lead', info: 4.5, when: f => f.life < 0.4 && f.session.time > 4,
+            aim: f => ({ ...swarmMid(f), gesture: 'mark', color: 'hot' }), pulse: () => hungerEl,
+            text: () => '> They are getting hungry. Good sand feeds them. When the bar runs out, the session ends.' },
+        { key: 'cache', after: 'lead', info: 5, when: f => nearestOf(f, (k, v) => k === 7 && F().seenOf(v)),
+            aim: (f, t) => ({ x: t.x, y: t.y, r: F().FEED.cacheR + 4, gesture: 'mark', color: 'research' }),
+            text: () => '> Something is buried here. Eat down to it and it cracks open for research and a free card.' }
+    ];
+    const coachDone = key => !!intro()[`feed:coach:${key}`];
+    const coachTries = key => intro()[`feed:coachSeen:${key}`] || 0;
+    function coachEnd(done) {
+        if (!coach) return;
+        const g = game(), def = COACHES.find(d => d.key === coach.key);
+        if (g) { if (done) g.intro[`feed:coach:${coach.key}`] = true; else g.intro[`feed:coachSeen:${coach.key}`] = coachTries(coach.key) + 1; }
+        window.AGI?.playtest?.('feedCoach', { key: coach.key, done: done ? 1 : 0, s: Math.round((performance.now() - coach.t0) / 100) / 10 });
+        def?.pulse?.()?.classList.remove('coached');
+        coach = null;
+    }
+    // Each frame: keep the step up, or start the next one due. Never stops the game: a step that throws is dropped.
+    function coachStep(f) {
+        try {
+            const s = f?.session;
+            if (!s || s.wait || s.offer || !f.sessioned) { if (coach && coach.key !== 'lead') coachEnd(false); return; }
+            if (coach) {
+                const def = COACHES.find(d => d.key === coach.key), secs = (performance.now() - coach.t0) / 1000;
+                if (f.aim || f.spot) coach.touched = true;
+                if (def.done?.(f, coach)) return coachEnd(true);
+                if (def.info) { if (secs > def.info) coachEnd(true); return; }
+                if (secs > COACH_MAX && !f.aim) return coachEnd(false);
+                const t = def.when(f);
+                if (t) coach.at = def.aim(f, t); else if (!def.keep) coachEnd(false);
+                return;
+            }
+            for (const def of COACHES) {
+                if (coachDone(def.key) || coachTries(def.key) >= COACH_TRIES || (def.after && !coachDone(def.after))) continue;
+                const t = def.when(f);
+                if (!t) continue;
+                coach = { key: def.key, t0: performance.now(), at: def.aim(f, t), eaten0: f.stats.eaten, touched: false };
+                def.pulse?.()?.classList.add('coached');
+                return;
+            }
+        } catch (err) { coach = null; window.AGI?.playtest?.('feedCoachError', { msg: String(err?.message || err).slice(0, 80) }); }
+    }
+    // How fast the field runs this frame: slowed while a step waits for your hands and they're not on the sand yet.
+    const coachSpeed = () => { const def = coach && COACHES.find(d => d.key === coach.key); return def?.slow && held === null && !coach.touched ? def.slow : 1; };
+    function wrap(text, width) {
+        const out = []; let line = '';
+        for (const word of text.split(' ')) { const next = line ? line + ' ' + word : word; if (line && ctx.measureText(next).width > width) { out.push(line); line = word; } else line = next; }
+        if (line) out.push(line);
+        return out;
+    }
+    // The step on the field: the rest dimmed round a dashed spotlight, the ghost finger (hidden while yours is down), the line.
+    function drawCoach(now) {
+        if (!coach?.at) return;
+        const def = COACHES.find(d => d.key === coach.key), at = coach.at, c = view.cell, calm = reduced();
+        const real = (now - coach.t0) / 1000, fade = Math.min(1, real / 0.35);
+        const sr = Math.max(26, at.r * c), [sx, sy0] = px(at.x, at.y), sy = Math.max(Math.min(sr, 40), sy0);   // (kept on the field)
+        ctx.save();
+        if (!def.info) {
+            ctx.globalAlpha = 0.5 * fade; ctx.fillStyle = colors.bg;
+            ctx.beginPath(); ctx.rect(0, 0, view.w, view.h); ctx.moveTo(sx + sr, sy); ctx.arc(sx, sy, sr, 0, Math.PI * 2, true); ctx.fill('evenodd');
+        }
+        ctx.globalAlpha = 0.8 * fade; ctx.strokeStyle = colors[at.color] || colors.text; ctx.lineWidth = at.gesture === 'mark' ? 2.5 : 1.5;
+        ctx.setLineDash([5, 7]); ctx.lineDashOffset = calm ? 0 : -now / 60;
+        ctx.beginPath(); ctx.arc(sx, sy, sr * (at.gesture === 'mark' && !calm ? 1 + 0.06 * Math.sin(now / 180) : 1), 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+        if (at.gesture === 'drag' && held === null) {
+            // a finger presses by the swarm and drags to the good sand, holding; a trail behind it
+            const p = calm ? 0.7 : (real % 2.4) / 2.4, [fx, fy0] = px(at.from.x, at.from.y), fy = Math.max(18, fy0);
+            const go = Math.max(0, Math.min(1, (p - 0.15) / 0.55)), ease = go * go * (3 - 2 * go), x = fx + (sx - fx) * ease, y = fy + (sy - fy) * ease;
+            const down = p > 0.12 && p < 0.88, a = (p < 0.12 ? p / 0.12 : p > 0.88 ? 1 - (p - 0.88) / 0.12 : 1) * fade;
+            if (go > 0) { ctx.globalAlpha = 0.55 * a; ctx.strokeStyle = colors.good; ctx.lineWidth = 3; ctx.setLineDash([2, 6]); ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(x, y); ctx.stroke(); ctx.setLineDash([]); }
+            ctx.globalAlpha = a; ctx.strokeStyle = colors.text; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, down ? 11 : 14, 0, Math.PI * 2); ctx.stroke();
+            ctx.globalAlpha = a * (down ? 0.55 : 0.2); ctx.fillStyle = colors.text; ctx.beginPath(); ctx.arc(x, y, down ? 9 : 12, 0, Math.PI * 2); ctx.fill();
+        }
+        // the line: under the spotlight, or over it near the foot of the field, wrapped to the field
+        ctx.font = `600 15px ${getComputedStyle(dlg).getPropertyValue('--font-body') || 'sans-serif'}`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const lines = wrap(def.text(), Math.min(420, view.w - 32)), lh = 20, block = lines.length * lh;
+        const below = sy + sr + 18 + block < view.h - 8, top = below ? sy + sr + 22 : Math.max(18, sy - sr - 14 - block + lh);
+        lines.forEach((line, i) => {
+            const tw = ctx.measureText(line).width, x = Math.max(tw / 2 + 10, Math.min(view.w - tw / 2 - 10, sx)), y = Math.min(view.h - 14 - (lines.length - 1 - i) * lh, top + i * lh);
+            ctx.globalAlpha = fade; ctx.lineWidth = 5; ctx.strokeStyle = colors.bg; ctx.lineJoin = 'round'; ctx.strokeText(line, x, y);
+            ctx.fillStyle = colors.text; ctx.fillText(line, x, y);
+        });
+        ctx.restore();
+    }
+    // The cards' step is in the cards themselves: a line over them the first time, done once one is picked.
+    function coachCards(offer) {
+        if (offer) { coachOffer = !coachDone('cards'); return coachOffer ? el('p', { class: 'feed-cards-hint', text: '> The card you pick lasts for the rest of this session.' }) : null; }
+        if (coachOffer && game()) { game().intro['feed:coach:cards'] = true; window.AGI?.playtest?.('feedCoach', { key: 'cards', done: 1 }); }
+        coachOffer = false;
+        return null;
+    }
+
     // The fragment set as found so far: the parcel spam's own words (engine.js MAIL), cut into as many scraps as pieces.
     function renderFragment() {
         const f = feed(), set = 'parcel', of = F().FRAGMENTS[set].pieces, found = f.fragments[set] || [];
@@ -905,7 +1047,8 @@
         frames++;
         // The sand moves every frame it is drawn (it was stepped by the game's loop, ten times a second, and looked it).
         const dt = lastNow ? Math.min(0.1, Math.max(0, (now - lastNow) / 1000)) : 0; lastNow = now;
-        if (dt > 0) window.AGI?.feedFrame?.(dt);
+        coachStep(f);
+        if (dt > 0) window.AGI?.feedFrame?.(dt * coachSpeed());
         if (joy && zoom.k > 1) { zoom.cx += joy.x * view.vc * 0.9 * dt; zoom.cy += joy.y * view.vr * 0.9 * dt; }
         // In a session the bar is the hunger bar (it empties; the session ends at nothing) and the stat is the way to the next split.
         const hunger = F().hunger(f), split = Math.round(hunger.share * 100), pct = f.sessioned ? Math.round(hunger.life * 100) : split;
@@ -933,9 +1076,9 @@
         lastNow = 0;
         cancelAnimationFrame(raf); raf = requestAnimationFrame(tick);
     }
-    function stop() { cancelAnimationFrame(raf); raf = 0; if (held !== null) letGo(); }
+    function stop() { cancelAnimationFrame(raf); raf = 0; if (held !== null) letGo(); if (coach) coachEnd(false); }
     function close() { if (dlg?.open) { dlg.close(); stop(); } }
 
-    window.FeedUI = { open, close, events, get isOpen() { return !!(dlg && dlg.open); }, get view() { return view; }, get zoom() { return zoom.k; }, zoomAt, px, drawMite };
+    window.FeedUI = { open, close, events, get coach() { return coach && { key: coach.key, at: coach.at }; }, get isOpen() { return !!(dlg && dlg.open); }, get view() { return view; }, get zoom() { return zoom.k; }, zoomAt, px, drawMite };
     if (location.hash === '#feed') window.addEventListener('load', () => setTimeout(open, 600));
 })();

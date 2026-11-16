@@ -14850,7 +14850,7 @@ window.AGI = (function () {
             openFeed: () => { window.FeedUI?.open(); pt('view', { v: 'feed' }); },
             // A Packet Snare run's worth of packets on the heap, for testing before runs fill it.
             feedDeliver(sector = 1, packets = 40, gold = 0, garbled = 0, popped = 0) { feedShow(E.feedDeliver(state, { sector, packets, gold, garbled, popped })); afterChange(); },
-            resetFeed() { state.feed = E.defaultState(Date.now()).feed; afterChange(); },
+            resetFeed() { state.feed = E.defaultState(Date.now()).feed; for (const k of Object.keys(state.intro)) if (k.startsWith('feed:coach')) delete state.intro[k]; afterChange(); },   // (its walkthrough shown again too)
             // Give a card in the session in play, as if picked (a combo merges its tools if you hold them). False with no session.
             feedCard(id) { const s = state.feed.session; if (!s || !window.Feed.CARDS[id]) return false; s.offer = [id]; s.picks = (s.picks || 0) + 1; feedShow(E.feedPick(state, 0)); afterChange(); return true; },
             feedStart(sector = 1) { const ok = E.feedStart(state, sector); afterChange(); return ok; },

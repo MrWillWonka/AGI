@@ -544,3 +544,16 @@ What was built (numbers mine, to be played; the dials panel still sets the old o
 
 Open, for the owner: the squad's gates and slots; whether tapping should build the frenzy on dirty tanks; corruption's
 strength; mite and card names and lines (all PLACEHOLDERS).
+
+**After (the owner's calls on a phone screenshot, 2026-11-16):** the test tools fold into one bar button (⚙ on a
+phone, Test on a desktop) that drops down over the field; no legend or prompt in a run ("we can have a tutorial if
+anything to walk through the game the first time"); on a phone the camera is off to start and the small window first
+when switched on (`agiFeedCam2`), a desktop unchanged until the owner has judged it.
+
+**The first-time walkthrough** (the owner's pick, 2026-11-16; feed-ui.js `COACHES`): as Packet Snare's, each step the
+first time it comes up in a session, a spotlight, a ghost finger and one line in the terminal voice (PLACEHOLDER words):
+**lead** (hold and drag to lead the swarm; the field runs at `COACH_SLOW` 0.2 until your finger is on the sand, done
+once they've eaten 12 grains where you led them), then, each shown for a few seconds at full speed: **garbled** sand (it
+pays nothing and spreads), the **frenzy** (its meter pulses), **hunger** (below 40%; its bar pulses) and a found
+**cache**; the first **cards** carry a line over them. Done once each (`feed:coach:<key>` in `state.intro`), or shown
+twice if never done; Reset The Feed shows them again. Logged as `feedCoach`.

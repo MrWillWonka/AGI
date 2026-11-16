@@ -4636,3 +4636,8 @@ body.ring-device .minimap { display: none !important; }
 .assist-veil { position: fixed; inset: 0; z-index: 6003; cursor: help; background: rgba(0, 0, 0, 0.22); }
 .snare-tree-pick { display: inline-flex; align-items: center; }
 .snare-tree-pick .snare-sector-row { margin: 0; }
+/* The Feed's walkthrough (2026-11-16): the line over the first cards, and the meter a step is about, pulsing. */
+.feed-cards-hint { margin: 2px 0 0; font: 600 0.9rem/1.35 var(--font-mono); color: var(--text); text-align: center; }
+.feed-frenzy.coached, .feed-hunger.coached { animation: feed-coached 0.9s ease-in-out infinite alternate; }
+@keyframes feed-coached { from { box-shadow: 0 0 0 0 transparent; } to { box-shadow: 0 0 0 2px color-mix(in srgb, var(--warning) 70%, transparent), 0 0 14px color-mix(in srgb, var(--warning) 45%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .feed-frenzy.coached, .feed-hunger.coached { animation: none; box-shadow: 0 0 0 2px var(--warning); } }
