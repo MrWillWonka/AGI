@@ -723,3 +723,12 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   it: Play again lay over the entered row, sums sat in half the width), and the score sheet's leaderboard no longer
   takes the ball board's grid. Replayed on a phone, all 14 kinds, no errors.
 - Everything else in the review is design and waits on the redesign's direction (`design/evals-redesign.md`).
+
+## 2026-11-15: Evals becomes an obstacle course (the owner: "Scratch what we have")
+
+- The owner's husband's idea, the owner's calls, written in **`design/evals-course.md`**: you build a course, test it,
+  hand it to the AI; score for every obstacle cleared and for speed, nothing for a failure; skills give obstacle types
+  and abilities; the AI uses both its training and your run, improves in front of you and ends up beating you; three
+  phases (side-on track, grid maze, platformer rooms), the trick questions perhaps a fourth; its own currency and tree.
+- The captcha redesign proposal and the whack-a-mole sketch are dropped. **Nothing is built or deleted yet:** the
+  captcha Evals is still the Evals app, and funding rounds still run on its score sheet.
