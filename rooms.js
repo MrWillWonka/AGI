@@ -16,6 +16,7 @@
         w: 0.6, h: 0.8,          // the runner's box
         coyote: 5, buffer: 6,    // steps of grace: a jump just after leaving a ledge, or pressed just before landing
         sawReach: 1.5, sawPeriod: 150, sawR: 0.42,
+        boost: 1.6, boostSteps: 75,   // a booster (from the track, the owner's pick, 2026-11-16): this much faster for this long
         spikeTop: 0.55, spikeIn: 0.2,   // a spike fills its tile below this far from the top, and this far in from each side
         near: 3,                 // a hazard counts as got past when you cross its middle within this many tiles of it
         horizon: 60 * 45, stuck: 60 * 8,
@@ -31,8 +32,9 @@
         pit: { name: 'Pit', points: 1, needs: 1, floor: true },
         saw: { name: 'Saw', points: 2, needs: 2 },
         spring: { name: 'Spring', points: 0, needs: 3, ability: true },
+        boost: { name: 'Booster', points: 0, needs: 3, ability: true },
     };
-    const ORDER = ['block', 'spike', 'pit', 'saw', 'spring'];
+    const ORDER = ['block', 'spike', 'pit', 'saw', 'spring', 'boost'];
     const palette = skills => ORDER.filter(k => TILES[k].needs <= skills);
     const size = (o = ROOM) => o.cols * o.rows;
     const id = (cx, cy, o = ROOM) => cy * o.cols + cx;
@@ -63,7 +65,7 @@
     // A run. `step({ dir: -1 | 0 | 1, jump: bool })` once a physics step. y grows downward; (x, y) is the middle of the feet.
     function createRun(room, o = ROOM, from) {
         const hz = hazards(room, o), saws = hz.filter(h => h.kind === 'saw');
-        const s = from ? JSON.parse(JSON.stringify(from)) : { n: 0, x: 0.5, y: o.rows - 1, vy: 0, ground: true, coy: 0, buf: 0, held: false, over: false, finished: false, failed: null, points: 0, done: {}, stood: [], bounced: 0 };
+        const s = from ? JSON.parse(JSON.stringify(from)) : { n: 0, x: 0.5, y: o.rows - 1, vy: 0, ground: true, coy: 0, buf: 0, held: false, over: false, finished: false, failed: null, points: 0, done: {}, stood: [], bounced: 0, boost: -1 };
         const under = (x, y) => { const cy = Math.round(y), c = Math.floor(x); if (solid(room, c, cy, o)) return id(c, cy, o); for (const e of [Math.floor(x - o.w / 2 + 0.001), Math.floor(x + o.w / 2 - 0.001)]) if (solid(room, e, cy, o)) return id(Math.max(0, Math.min(o.cols - 1, e)), cy, o); return -1; };
         const stand = t => { if (t >= 0 && (!s.stood.length || s.stood[s.stood.length - 1].t !== t)) s.stood.push({ t, n: s.n }); };
         const fail = type => { s.over = true; s.failed = { type, x: s.x, y: s.y, n: s.n }; };
@@ -78,7 +80,9 @@
             if (s.buf > 0) s.buf--;
             if (s.coy > 0) s.coy--;
             // Sideways, stopped by anything solid beside the box.
-            let nx = s.x + (input.dir || 0) * o.speed * dt;
+            // A booster is a pad in the tile you are standing in: run over it and you are faster for a while.
+            if (s.ground && at(room, Math.floor(s.x), Math.floor(s.y - 0.01), o) === 'boost') s.boost = s.n + o.boostSteps;
+            let nx = s.x + (input.dir || 0) * o.speed * (s.n <= s.boost ? o.boost : 1) * dt;
             if (input.dir) {
                 const lead = Math.floor(nx + (input.dir > 0 ? o.w / 2 : -o.w / 2));
                 for (let cy = Math.floor(s.y - o.h + 0.001); cy <= Math.floor(s.y - 0.001); cy++) if (solid(room, lead, cy, o)) { nx = input.dir > 0 ? lead - o.w / 2 - 0.0005 : lead + 1 + o.w / 2 + 0.0005; break; }

@@ -57,7 +57,7 @@ test('rooms: tiles go only where they may; pits in the floor, the start and the 
     assert.equal(R.allowed('block', R.startCell()), false);
     assert.equal(R.allowed('spike', R.goalTile() - o.cols), false);
     assert.deepEqual(R.palette(0), ['block', 'spike']);
-    assert.deepEqual(R.palette(99), ['block', 'spike', 'pit', 'saw', 'spring']);
+    assert.deepEqual(R.palette(99), ['block', 'spike', 'pit', 'saw', 'spring', 'boost']);
 });
 
 test('rooms: the same inputs always give the same run', () => {
@@ -88,4 +88,16 @@ test('rooms: past your limit in stages; a room with no way up is refused', () =>
     const none = R.emptyRoom(), tried = R.simulate(none, Array(80).fill({ dir: 1, jump: false }));
     assert.deepEqual(R.canHandOver(none, tried, 1), { ok: false, why: 'impossible' });
     assert.equal(R.handOver(none, tried, { seed: 1, mastery: 1 }).impossible, true);
+});
+
+test('rooms: a booster makes the same walk quicker, scores nothing, and a room with one can still be handed over', () => {
+    const walk = Array(120).fill({ dir: 1, jump: false });
+    const plain = R.createRun(R.emptyRoom()), fast = R.createRun(build([['boost', 2, 5]]));
+    for (const i of walk) { plain.step(i); fast.step(i); }
+    assert.ok(fast.state.x > plain.state.x + 1 || fast.state.x > 11, 'further in the same time: ' + fast.state.x.toFixed(2) + ' against ' + plain.state.x.toFixed(2));
+    assert.equal(R.points(build([['boost', 2, 5]])), 0);
+    const room = build([['boost', 2, 5], ['spike', 5, 5], ...STAIRS]), you = person(room);
+    assert.equal(you.finished, true);
+    let up = 0; for (let s = 1; s <= 40; s++) if (R.handOver(room, you, { seed: s * 17, mastery: 1 }).score) up++;
+    assert.ok(up >= 38, 'a master reaches the flag through a booster: ' + up + ' of 40');
 });
