@@ -85,6 +85,8 @@ window.AGI = (function () {
     const MUSIC_DEFAULT = '0.35';
     function musicTick() {
         if (!window.SFX?.musicState) return;
+        // Evals' rhythm run plays the music itself: its track's area, the beat on, and as much of the song as its meter has earned.
+        if (window.RhythmUI?.isOpen) { const m = window.RhythmUI.music; window.SFX.setArea?.(m.area); window.SFX.setDepth?.(m.level); window.SFX.setTraining?.(true); window.SFX.musicState(m.level, null); return; }
         // The lab (with Surveillance and R&D) and the server room (with its bays) each have their own songs.
         window.SFX.setArea?.(openBay === 'pipeline' ? 'snare' : openBay || view === 'servers' ? 'server' : 'lab');
         // How much of the arrangement the game has earned: a new game is a kick and a bass, and every skill
@@ -2658,13 +2660,13 @@ window.AGI = (function () {
     }
     // The obstacle course (design/evals-course.md, a prototype) is Evals in the playground; the playtest keeps the
     // captcha Evals until the course is ready.
-    const evalsUp = () => !!(window.EvalsUI?.isOpen || window.CourseUI?.isOpen || window.MazeUI?.isOpen || window.RoomsUI?.isOpen);
+    const evalsUp = () => !!(window.EvalsUI?.isOpen || window.CourseUI?.isOpen || window.MazeUI?.isOpen || window.RoomsUI?.isOpen || window.RhythmUI?.isOpen);
     function openEvalsApp() {
         state.intro['ring:seen:evals'] = true;
         // (Two kinds of course: the room and the maze, a button in each to the other; the last one used opens. The track
         // was folded into the room, the owner's call, 2026-11-16: the two did not feel distinct. A third kind is being chosen.)
         const kind = (() => { try { return localStorage.getItem('agiCourseKind'); } catch { return null; } })();
-        const ui = kind === 'maze' ? window.MazeUI : window.RoomsUI;
+        const ui = kind === 'maze' ? window.MazeUI : kind === 'rhythm' ? window.RhythmUI : window.RoomsUI;
         if (RING_PLAY && ui) ui.open(); else window.EvalsUI?.open();
     }
     function openTrainingApp() {
@@ -2902,6 +2904,7 @@ window.AGI = (function () {
         if (window.CourseUI?.isOpen) window.CourseUI.close();
         if (window.MazeUI?.isOpen) window.MazeUI.close();
         if (window.RoomsUI?.isOpen) window.RoomsUI.close();
+        if (window.RhythmUI?.isOpen) window.RhythmUI.close();
     }
     // The assistant's own button (the owner's call, 2026-11-14: "the phone's assistant with its own button … so that you
     // can 'chat' with the ai or revisit tutorials missed"): a round dot that floats over every app once the Lab is
