@@ -979,3 +979,27 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
 - Looked at in a test browser on a phone and a laptop (pictures in `review-out/evals-art/`); no errors. Drawing only:
   no rule changed and the tests are untouched. The orb's picture reads dark at the room's small size. All of it is a
   first pass for the owner to react to.
+
+## 2026-11-16: the rhythm run's look, second pass (the owner: "I like the direction")
+
+- **Packets point forward** (the owner: "like you are writing the packet forward instead of it coming towards you"):
+  a held note's arrowhead points up the lane, its tail is the dashed path still to write, and while you hold, what has
+  been written burns bright behind the head with sparks coming off it; let go at its end and **the finished packet
+  flies on up the lane**.
+- **Particles and glow:** sparks from every hit (more for a perfect, more the better the run is going), a ring opening
+  out from the ring you hit, red shards and a red wash of the lane on a miss, a burst across all lanes for a freestyle
+  bonus and at combos of 10, 25, 50, 75 and 100 ("25 in a row"). Particles are drawn additively and capped at 220;
+  under reduced motion there are none.
+- **The music itself drives the backdrop:** an analyser listens to the engine's music bus (it adds nothing to what is
+  heard) and its levels stand as columns behind the lanes, the low end under the kick's lane, the middle under the
+  bass, the top under the melody. The lanes, the line, the rings, the notes and the combo breathe on the beat, with a
+  wash on each bar. With the music off the columns are simply absent.
+- **It follows how the run is going** (`energy`, eased from the meter): streaks run up the lanes, more, faster and
+  brighter the fuller the meter; the lane tints deepen; near empty the picture goes dull, the edges close in and a red
+  frame pulses; the whole frame flashes red when the song falls apart.
+- **Timing, shown:** a strip under the line, the middle the beat and the green band "perfect", with the last hits as
+  dots. **While the AI plays, your own spread is a faint bar behind its dots**, so its hands can be seen closing in on
+  the beat from where yours were. The orb sits beside the lanes, swelling on its hits and dimming as it loses the song.
+- Drawing only (rhythm-ui.js `draw`, `show`); the rules and their tests are untouched. Looked at on a phone and a
+  laptop in a test browser with the music running; no errors. Not seen on a real phone, where the particle count and
+  the analyser want checking for speed.
