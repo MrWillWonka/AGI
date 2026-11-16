@@ -166,6 +166,7 @@
     const cardExtras = back => [['Score sheet', () => sheetCard(back)], ...(engine() ? [['Upgrades', () => upgradesCard(back)]] : [])];
 
     // The unlock ladder (evals.js `LADDER`) is on unless the debug panel turned it off on this device.
+    const ringOn = () => !!window.AGIEngine?.isRing?.();
     const ladderOn = () => { try { return localStorage.getItem('agiEvalsLadder') !== '0'; } catch { return true; } };
     const listOf = names => (names.length < 2 ? names.join('') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1]);
     function rotationLine() {
@@ -177,10 +178,11 @@
         run = null;
         hud();
         hideLane();
-        const lines = ['Prove you are human. Each one is harder than the last.', 'It watches how you do it. Hand a kind over when you trust it.', `You have ${lives(runOpts().lives || window.Evals.EVALS.lives)}. Every verified captcha pays Marks, more for a quick clean streak.`];
+        // The ring's framing (the owner's call, 2026-11-15): you teach, the AI is tested. PLACEHOLDER words.
+        const lines = [...(ringOn() ? ['The backers want numbers. Show the AI how each test is done.', 'It watches how you do it. Hand a kind over when you trust it, then check its work.'] : ['Prove you are human. Each one is harder than the last.', 'It watches how you do it. Hand a kind over when you trust it.']), `You have ${lives(runOpts().lives || window.Evals.EVALS.lives)}. Every verified captcha pays Marks, more for a quick clean streak.`];
         lines.push(rotationLine());
         if (saved().best > 0) lines.push(`Your best run: ${saved().best} solved.`);
-        card('Verification required', lines, 'Start', start, cardExtras(startCard));
+        card(ringOn() ? 'Benchmark' : 'Verification required', lines, 'Start', start, cardExtras(startCard));
     }
 
     // A run that has ended is counted once and saved, whichever way it ended (the last life, or the screen closed).
@@ -230,9 +232,10 @@
         const was = saved().best, solved = run.solved;
         settle();
         hud();
-        if (run.endLines) { card(run.exhausted ? 'Verified automatically' : 'Verification failed', run.endLines, 'Try again', start, cardExtras(endCard)); return; }
+        if (run.endLines) { card(run.exhausted ? (ringOn() ? 'It passes these alone' : 'Verified automatically') : ringOn() ? 'Benchmark over' : 'Verification failed', run.endLines, 'Try again', start, cardExtras(endCard)); return; }
         if (run.exhausted) {
-            card('Verified automatically', ['It solves every kind you know before you can.', 'There is nothing left here for you to prove.'], 'Close', close);
+            if (ringOn()) card('It passes these alone', ['It solves every kind you have shown it.', 'The next boss in Packet Snare brings harder tests.'], 'Close', close);
+            else card('Verified automatically', ['It solves every kind you know before you can.', 'There is nothing left here for you to prove.'], 'Close', close);
             return;
         }
         const lines = [`You solved ${solved}.`, solved > was ? 'That is your best run.' : `Your best run: ${was} solved.`];
@@ -242,7 +245,7 @@
         if (run.slipped) lines.push(`${run.slipped === 1 ? 'One pass was' : run.slipped + ' passes were'} by loophole, worth half.`);
         if (window.Evals.misaligned(saved().learn) >= window.Evals.EVALS.misShow) lines.push('The AI is misaligned: it looks for loopholes wherever it works alone. Catch them to bring it back.');
         run.endLines = [...lines, ...progress()];
-        card('Verification failed', run.endLines, 'Try again', start, cardExtras(endCard));
+        card(ringOn() ? 'Benchmark over' : 'Verification failed', run.endLines, 'Try again', start, cardExtras(endCard));
     }
 
     function start() {

@@ -4394,6 +4394,7 @@ body.snare-live .assist { display: none; }
 body.ring-device .device-status { z-index: 3400; }
 body.ring-device .home-status { visibility: hidden; }
 body.ring-device .feed-screen .feed-bar { padding-top: 30px; }
+body.ring-device .evals-screen .evals-bar { padding-top: 30px; }
 .device-notice { touch-action: none; }
 /* Upright phones: the apps sit in three even columns across the screen (they hugged the left). */
 @media (orientation: portrait) {

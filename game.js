@@ -2378,7 +2378,7 @@ window.AGI = (function () {
         }
         // Parcel and The Feed are dialogs, drawn over the page: the bar moves into the one that is open (the owner:
         // The Feed "doesn't have the same controls or status bar"), and shows on the home screen too.
-        const bar = st.clock.parentNode, top = document.querySelector('dialog.feed-screen[open]'), host = top || document.body;   // (Parcel is a panel now, not the whole screen: the bar stays on the page behind it)
+        const bar = st.clock.parentNode, top = document.querySelector('dialog.feed-screen[open], dialog.evals-screen[open]'), host = top || document.body;   // (Parcel is a panel now, not the whole screen: the bar stays on the page behind it)
         if (bar.parentNode !== host) host.append(bar);
         if (st.snap.hidden === inboxOn) st.snap.hidden = !inboxOn;
         const d = new Date();
@@ -2980,7 +2980,7 @@ window.AGI = (function () {
             aiHome = el('div', { class: 'ai-home' }, [el('div', { class: 'ai-home-orb' }), el('div', { class: 'ai-home-line' })]);
             $('labSupply')?.before(aiHome);
         }
-        const open = document.querySelectorAll('dialog[open]'), top = open.length ? open[open.length - 1] : null, mine = !top || top.matches('.feed-screen, .shop-screen');
+        const open = document.querySelectorAll('dialog[open]'), top = open.length ? open[open.length - 1] : null, mine = !top || top.matches('.feed-screen, .shop-screen, .evals-screen');
         const app = ringAppNow(), mode = top ? 'mini' : app === 'home' ? 'float' : app === 'lab' && aiHome?.isConnected ? 'lab' : 'mini';
         const host = top && mine ? top : mode === 'lab' ? aiHome.firstChild : document.body;
         if (assistDot.hidden === mine) { assistDot.hidden = !mine; if (!mine && assistSheet) assistSheetToggle(); }
@@ -3114,7 +3114,7 @@ window.AGI = (function () {
         const docked = assistBox.classList.contains('docked');
         assistBox.classList.toggle('low', host !== document.body && host.id === 'inbox');
         // Over any other window (Settings, the survey, a call) it waits out of sight: their buttons are at the foot.
-        assistBox.classList.toggle('away', !docked && host !== document.body && host.id !== 'inbox' && !host.matches('.feed-screen, .shop-screen'));
+        assistBox.classList.toggle('away', !docked && host !== document.body && host.id !== 'inbox' && !host.matches('.feed-screen, .shop-screen, .evals-screen'));
         const t = a.target ? a.target() : null, on = t && t.getClientRects().length ? t : null;
         if (on !== a.ringed) { a.ringed?.classList.remove('assist-ring'); on?.classList.add('assist-ring'); a.ringed = on; }
         assistPlace(on);

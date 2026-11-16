@@ -697,3 +697,16 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
 - **Build 3's research trickle is already retired:** `snareRpPerSec` pays nothing under the ring (it has been `!ring`
   since Build 1). So of Build 3's five pieces, only **the first tear** is left, plus the two agent jobs that wait on
   it and on Evals.
+
+## 2026-11-15: Evals "needs a lot of work to match the rest of the game" (the owner)
+
+- The owner's cards: all four parts are off (look and shell, words and the AI's voice, how it plays, rewards and
+  upgrades); the framing is **"you teach, the AI is tested"** (backers want benchmarks), not "prove you are human";
+  and shell-and-words, a play-through review and a redesign are to go **in parallel**.
+- **Shell and words, first step (built):** under the ring Evals' screen carries the device's status bar and the AI's
+  orb (as The Feed's does), its start card reads Benchmark ("The backers want numbers. Show the AI how each test is
+  done."), its end cards Benchmark over and It passes these alone (which now says the next Packet Snare boss brings
+  harder tests). All placeholders of mine. The old game keeps its words. Seen on a phone: the small orb sits over the
+  first number in the status bar (it does in the other full-screen apps too).
+- **Running:** a play-through review with screenshots (`review-out/evals-review/REVIEW.md`) and a redesign proposal.
+  Nothing of how it plays or pays is changed until the owner has seen both.
