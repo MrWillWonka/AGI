@@ -459,6 +459,18 @@ challenges and Transcend; new themes and music tracks; desktop-only tuning round
 what the ring needs; more Evals upgrades; trail exploits beyond Hop; versions that change your role; agents teaching
 agents in Evals.
 
+### The Feed's tanks (the owner's calls, 2026-11-16; built, see design/ring-build.md for the numbers)
+
+- **A stockpile is a tank:** how full a sector's tank is. A session opens on it full to that level, and **what is not
+  eaten stays** in it, garbled sand included. The camera starts on the whole tank and closes in as it is eaten.
+- **Garbled sand corrupts the good sand round it, only in a session.** Playing well in Packet Snare makes a cleaner
+  tank; playing badly means time in The Feed clearing bad sand before going back.
+- **A feeding frenzy and buried caches**; **fewer, bolder cards**.
+- **You choose which mites come** (the squad), kinds gated behind skills, sectors and bosses, so the agents a boss gives
+  are what clear later sectors. *Proposed:* grazer, scrubber (sector 2), prospector (Pattern Matching), driller (the
+  first boss), chomper (the second); two slots, three after the first boss.
+- The hunger bar still ends a session.
+
 ### The Feed's sessions (the owner's cards, 2026-11-14; not built yet)
 
 - **Stockpiles by sector.** Packet Snare runs stockpile sand by the sector they were caught in. Each sector's stockpile holds about three good runs' worth; when it is full, more is lost, which sends the player to fill other sectors or to play a session.

@@ -480,3 +480,61 @@ the pace by a few seconds; it is for following them. A person plays two or three
 the gaps as ratios. Still a run of quick splits in the middle (3 to 5 s for the bot), because each split adds a mite
 while a layer grows only a fifth: `miteEvery` would be the next lever. All numbers mine, to be played; the dials
 (now kept as `agiFeedDials2`, so an earlier trial does not hide these) still change them live.
+
+## 2026-11-16: The Feed's overhaul (full tanks, corruption, frenzy, caches, bolder cards, the squad, the look)
+
+Built in the cloud while the owner's home internet was out, on `claude/trusting-dijkstra-skhxsb` from `main` at
+8e0d67d. The Evals courses work on the owner's PC (rhythm, maze, rooms, course art) was left alone; this touches
+`feed.js`, `feed-ui.js`, `engine.js` (the squad's gates, save v44), `game.js` (the squad API, research to the screen,
+log fields) and `styles.css`. Asked as cards first; the owner's answers:
+
+- **Excitement:** a feeding frenzy and buried caches (picked); and the owner's own: **garbled sand slowly corrupts the
+  sand round it**, which gives different mites a reason, and **you choose which mites to bring**, kinds gated behind
+  skills, sectors and bosses, so the agents a boss gives are what clear the later sectors.
+- **Cards:** fewer, bolder (picked).
+- **Look:** frame the pile, eating feedback, a living tank (all picked); and the owner's own: **the stockpiles are the
+  tanks**: a stockpile is how full its sector's tank is, so a session opens full to the brim and the goal is to empty as
+  much as you can; the camera starts zoomed out and closes in as the pile is eaten; playing well in Packet Snare means a
+  better Feed, playing badly means time in The Feed clearing bad sand.
+- **Rules asked:** what you don't eat **stays** in the tank (garbled too); corruption spreads **only in a session**; the
+  **hunger bar** still ends one; build it **all at once**.
+
+What was built (numbers mine, to be played; the dials panel still sets the old ones live):
+- **Tanks** (`tankRect`, `fillTank`, `boxStock` in feed.js): a session opens on its sector's tank, as many cells as
+  the stockpile's cap (`stockMax` 1,600 packets), upright (`tankAspect` 1.6), walled (sand never leaves its columns),
+  laid at once in wavy strata (`wave`, `strata`). Ending a session puts what is left back in the stockpile by sort;
+  while a session holds a tank, runs only fill the room it has. Eating a tank bare pays `clearPay` 10% of it again.
+  `prePour` is no longer used by sessions.
+- **Corruption** (`corrupt`): every `corruptEvery` 0.5 s each garbled grain touching good sand may turn one neighbour
+  (`corruptChance` 2.5%, gold half that, caches never); about 8% of a dirty tank in 30 idle seconds. Nothing within
+  `ward` 22 cells of a scrubber turns.
+- **The frenzy** (`heat`): the share of the swarm's full eating it keeps up on good sand (bites on sand that can't pay
+  don't count) builds heat over `frenzyFloor` 0.4; four tiers, each +25% research and +10% speed and eating; it cools
+  when grazing; garbled sand chewed costs `frenzyBad` 0.6 a packet. Measured: holding a finger on the swarm reaches tier
+  4 in every sector; a tapped point reaches tier 3 on clean sand and none on dirty tanks (**watch this in play**).
+- **Caches** (kind 7, `crack`): one per 120 packets, deep in the sand, hidden until a lamp finds it; one bite cracks
+  the whole knot for `cachePay` 8 packets' worth of research and a free card.
+- **Cards:** the first card of every offer is a tool or a combo while one can be offered (a combo 60% of the time when
+  one can be made); plain boosts bigger (eat +40%, hunger +35%, legs +35%, pay +30%); four trade-offs: Gluttons,
+  High stakes, Brood (two mites now), Adrenaline.
+- **The squad** (`MITES`, `setSquad`; engine.js `FEED_MITE_GATES`, all *proposed*): grazer always; **scrubber** once
+  sector 2 is open (decodes garbled sand into good sand, wards corruption); **prospector** with Pattern Matching (goes
+  for gold, lamp ×2); **driller** with the first boss beaten (its bite takes three: tough deep-sector sand); **chomper**
+  with the second boss (two grains a bite). Two slots, three after the first boss. New mites come in the squad's order.
+- **Speed:** falling sand looks only at the columns that changed (`DIRTY`): a full tank at rest costs nothing, about
+  20× cheaper than before while eaten.
+- **The look** (feed-ui.js): the tank as lit glass with a grid, motes, fill marks and a dashed rim, its walls in the
+  frenzy's colour; the camera frames the tank and closes in as the sand goes down, following the swarm once narrower
+  than the tank; crumbs from eaten sand, numbers rising off the swarm, gold glints, split and cache shockwaves, a flash
+  and a small shake at big moments, frenzied mites glowing with trails, the edges burning at tiers 3 and 4, garbled
+  sand seething; a frenzy meter (four pips, ×multiplier) under the hunger bar; the squad as a row of drawn tiles on
+  the pick screen (`???` for kinds not found); tanks' bars show their garbled share; the result card says how much was
+  eaten, what is left (and how much garbled), caches, the frenzy reached and what turned. A **driller** sprite in the
+  sheet's style (placeholder). Sounds: the game's own effects by name (a split `claim`, a cache `record`, a tank bare
+  `snareBossDown`, each frenzy tier `snareRace` a step up); nothing added to sfx.js.
+- **Log:** `feedSession` adds cleared, left, bad, corrupted, caches, frenzy and squad; new `feedCache`,
+  `feedTankClear`, `feedSquad`; `feedStart` carries packets and squad.
+- **Tests:** `tests/feed-tanks.test.js`; the session tests turn the new effects off to see each old mechanic alone.
+
+Open, for the owner: the squad's gates and slots; whether tapping should build the frenzy on dirty tanks; corruption's
+strength; mite and card names and lines (all PLACEHOLDERS).

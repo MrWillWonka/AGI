@@ -186,7 +186,7 @@
         frenzyPay: 0.25,    // research a tier: +25%,
         frenzySpeed: 0.1,   // mite speed and eating a tier: +10%,
         frenzyCool: 1.5,    // heat lost a second while it isn't kept up (at nothing eaten; less nearer the floor),
-        frenzyBad: 2,       // and heat lost for a packet's worth of garbled sand chewed
+        frenzyBad: 0.6,     // and heat lost for a packet's worth of garbled sand chewed (2 made a dirty tank, garbled across its top, never heat up)
         // ---- The squad (the owner's call): you choose which kinds of mite come; new ones come in that order.
         squadSize: 2,       // kinds a squad holds (the game may give more)
         drillBite: 3        // a driller's bite takes this many bites off a grain: tough sand is soft to it
@@ -694,7 +694,9 @@
     // Every stockpile with sand in it, and every sector you have a best run on: for the screen's list.
     function stockList(state, opts) {
         const keys = [...new Set([...Object.keys(state.stock), ...Object.keys(state.best)])].map(Number).filter(k => k >= 1).sort((a, b) => a - b);
-        return keys.map(sector => { const e = state.stock[sector] || { n: 0, gold: 0, bad: 0 }, total = e.n + e.gold + e.bad, cap = stockCap(state, sector, opts);
+        // (A session paused on a sector counts what lies in its tank: Packet Snare's cards show the stockpile whole.)
+        if (state.session && !state.session.wait && !keys.includes(state.session.sector)) { keys.push(state.session.sector); keys.sort((a, b) => a - b); }
+        return keys.map(sector => { const e = state.stock[sector] || { n: 0, gold: 0, bad: 0 }, total = e.n + e.gold + e.bad + (state.session?.wait ? 0 : inTank(state, sector, opt(opts))), cap = stockCap(state, sector, opts);
             return { sector, n: e.n, gold: e.gold, bad: e.bad, total, cap, full: total >= cap, best: state.best[sector] || 0, record: state.record[sector] || 0 }; });
     }
     // A run's packets go to their sector's stockpile, as far as it has room. `lost`: what didn't fit.
@@ -784,7 +786,7 @@
         tankRect(state, k, o);
         delete state.stock[k];
         state.session = { sector: k, research: 0, time: 0, packets: e.n + e.gold + e.bad, cards: {}, offer: null, picks: 0, wait: false, piles: 1, tt: {}, beam: -1, ring: null, bots: [], sift: -1, dbot: null, rbots: [],
-            heat: 0, tier: 0, peak: 0, ate: 0, ct: 0, cn: 0, caches: 0, corrupted: 0, start: 0 };
+            heat: 0, tier: 0, peak: 0, ate: 0, slow: 0, ct: 0, cn: 0, caches: 0, corrupted: 0, start: 0 };
         fillTank(state, o, k, e);
         state.session.start = state.grains;
         state.life = 1; state.lastSession = null; state.stats.sessions++;
@@ -1140,6 +1142,8 @@
             return;
         }
         const hp = hpOf(v) - (m.c === 'drill' ? o.drillBite : 1);
+        // Bites on sand that can't pay don't count against the frenzy (garbled sand cools it on its own, `frenzyBad`).
+        if (state.session && slowSand(state, KIND_IDS[k])) state.session.slow = (state.session.slow || 0) + (m.c === 'drill' ? o.drillBite : 1);
         if (hp > 0) state.cells[i] = cell(k, bandOf(v), hp, seenOf(v)); else take(state, o, m, i, out);
     }
     // One mite for one step: head for the point you hold (or the nearest sand on the surface), biting what is in the way.
@@ -1266,8 +1270,8 @@
     // `frenzyFloor`, heat builds (a second's heat a second at full eating, ×2 at the most); below it, it cools. Each
     // `frenzyStep` of heat is a tier. `o` is the step's dials (cards and frenzy in), `base` the plain ones.
     function heat(state, base, o, dt, out) {
-        const s = state.session, full = state.swarm.length * o.chew * o.grains * dt, eff = full > 0 ? (s.ate || 0) / full : 0;
-        s.ate = 0;
+        const s = state.session, full = state.swarm.length * o.chew * o.grains * dt - (s.slow || 0), eff = full > 0 ? (s.ate || 0) / full : 0;
+        s.ate = 0; s.slow = 0;
         const floor = base.frenzyFloor, top = (base.frenzyMax + 1) * base.frenzyStep;
         if (eff >= floor) s.heat = Math.min(top, (s.heat || 0) + dt * cardMult(state, 'frenzy') * Math.min(2, 0.5 + 1.5 * (eff - floor) / (1 - floor)));
         else s.heat = Math.max(0, (s.heat || 0) - dt * base.frenzyCool * (1 - eff / floor));
@@ -1464,7 +1468,7 @@
                 const cards = {}; for (const id of CARD_IDS) { const n = whole(sess.cards?.[id], 200); if (n) cards[id] = n; }
                 const offer = Array.isArray(sess.offer) ? [...new Set(sess.offer.filter(id => typeof id === 'string' && Object.prototype.hasOwnProperty.call(CARDS, id)))].slice(0, o.cardChoices) : [];
                 state.session = { sector, research: whole(sess.research, 1e12), time: real(sess.time, 0, 1e7, 0), packets: whole(sess.packets, 1e8), cards, offer: offer.length ? offer : null, picks: offer.length ? Math.max(1, whole(sess.picks, 200)) : whole(sess.picks, 200), wait: sess.wait === true, piles: Math.max(1, whole(sess.piles, 99)),
-                    heat: real(sess.heat, 0, 1e3, 0), tier: whole(sess.tier, o.frenzyMax), peak: whole(sess.peak, o.frenzyMax), ate: whole(sess.ate, 1e9), ct: real(sess.ct, 0, 10, 0), cn: whole(sess.cn, 1e12), caches: whole(sess.caches, 1e4), corrupted: whole(sess.corrupted, 1e9), start: whole(sess.start, FEED.w * FEED.h) };
+                    heat: real(sess.heat, 0, 1e3, 0), tier: whole(sess.tier, o.frenzyMax), peak: whole(sess.peak, o.frenzyMax), ate: whole(sess.ate, 1e9), slow: whole(sess.slow, 1e9), ct: real(sess.ct, 0, 10, 0), cn: whole(sess.cn, 1e12), caches: whole(sess.caches, 1e4), corrupted: whole(sess.corrupted, 1e9), start: whole(sess.start, FEED.w * FEED.h) };
                 // The tank's walls (a save from before tanks: the whole box).
                 const x0 = whole(raw.x0, FEED.w - 1), x1 = whole(raw.x1, FEED.w);
                 if (x1 > x0 + 1) { state.x0 = x0; state.x1 = x1; state.tankTop = whole(raw.tankTop, FEED.h - 1); }
