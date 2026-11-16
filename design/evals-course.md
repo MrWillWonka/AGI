@@ -30,6 +30,9 @@ owner's husband's. What is written under "The owner's calls" is decided; everyth
 
 - **The track and the room are one kind** (2026-11-16: "the track and the platformer don't feel distinct"): the room
   is the side-on course, with the track's booster tile. The clean-landing burst and the one-thumb option are dropped.
+- **Controls, every kind** (2026-11-16): on a phone **two thumbs at most**; on a desktop **W A S D, the spacebar and the
+  mouse** (the owner first said the mouse alone, then: "mouse and keyboard is fine ... we can plan for WASD spacebar and
+  mouse").
 - **Every kind is built over time through components** (2026-11-16): what you can place is unlocked piece by piece, so
   a kind must have a deep enough box of parts to keep growing.
 - **A third kind is still being chosen** ("maybe target range, but let's hear some more").

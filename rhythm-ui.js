@@ -14,10 +14,11 @@
     const skills = () => (location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
     const masteryNow = () => R().mastery(save.runs, location.hash === '#playground' ? 0 : Math.min(skills(), 20));
     const LANES = ['Kick', 'Bass', 'Melody'], SOUND = ['compute', 'data', 'research'];
-    // One mouse or two thumbs (the owner, 2026-11-16). A mouse cannot aim at a lane in time, so it clicks anywhere on
-    // the notes and the click goes to whichever note is due; its charts are thinned to one thing at a time.
+    // Two thumbs on a phone; W A S D, the spacebar and the mouse on a desktop (the owner, 2026-11-16). So a desktop has
+    // two hands too: A, S and D are the lanes, and a click on the notes (or the spacebar) goes to whichever note is due.
     const mouse = () => { try { return matchMedia('(pointer: fine)').matches && !matchMedia('(any-pointer: coarse)').matches; } catch { return false; } };
-    const hands = () => (mouse() ? 1 : 2);
+    const hands = () => 2;
+    const KEYNAME = ['A', 'S', 'D'];
     let mouseLane = -1;
     const AREAS = ['lab', 'server', 'snare'];
 
@@ -46,8 +47,20 @@
             el('div', { class: 'course-body rhythm-body' }, sayEl, pickEl, canvas, padEl, actionsEl));
         dlg.addEventListener('close', () => { stop(); music = { area: 'lab', level: 0.4 }; });
         const KEYS = { a: 0, s: 1, d: 2, j: 0, k: 1, l: 2, ArrowLeft: 0, ArrowDown: 1, ArrowRight: 2 }, heldKeys = {};
-        dlg.addEventListener('keydown', e => { if (mode !== 'test' || !(e.key in KEYS) || e.repeat) return; e.preventDefault(); heldKeys[e.key] = true; press(KEYS[e.key]); });
-        dlg.addEventListener('keyup', e => { if (!(e.key in KEYS) || !heldKeys[e.key]) return; heldKeys[e.key] = false; if (mode === 'test') release(KEYS[e.key]); });
+        let spaceLane = -1;
+        dlg.addEventListener('keydown', e => {
+            if (mode !== 'test' || e.repeat) return;
+            if (e.key === ' ') { e.preventDefault(); spaceLane = dueLane(); press(spaceLane); return; }
+            const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+            if (!(k in KEYS)) return;
+            e.preventDefault(); heldKeys[k] = true; press(KEYS[k]);
+        });
+        dlg.addEventListener('keyup', e => {
+            if (e.key === ' ') { if (spaceLane >= 0) { if (mode === 'test') release(spaceLane); spaceLane = -1; } return; }
+            const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+            if (!(k in KEYS) || !heldKeys[k]) return;
+            heldKeys[k] = false; if (mode === 'test') release(KEYS[k]);
+        });
         document.body.append(dlg);
         addEventListener('resize', () => { if (dlg.open) draw(); });
     }
@@ -71,7 +84,7 @@
     }
     // A run begins: ask the engine for the song a bar before the notes start, and line the chart up with its clock.
     function begin(by) {
-        stop(); who = by; mode = by === 'you' ? 'test' : 'ai'; pickEl.hidden = true; canvas.hidden = false; padEl.hidden = by !== 'you' || mouse(); pops = []; mouseLane = -1;
+        stop(); who = by; mode = by === 'you' ? 'test' : 'ai'; pickEl.hidden = true; canvas.hidden = false; padEl.hidden = by !== 'you'; pops = []; mouseLane = -1;
         const tr = trackNow(), o = R().RHYTHM, from = Math.max(1, R().startBar(tr.song)), sfx = window.SFX, lab = sfx && sfx.lab;
         audio = !!(sfx && sfx.playing && lab && lab.clock && lab.clock() && lab.music());
         music = { area: tr.area, level: 0.5 };
@@ -80,7 +93,7 @@
         else { stepLen = 60 / (tr.song.bpm || 120) / 4; start(tr, from, performance.now() / 1000 + tr.song.steps * stepLen); }
         feed = by === 'ai' ? { events: hand.attempts[attempt].events.slice().sort((a, b) => a.t - b.t), i: 0 } : null;
         run = null; chart = null;
-        if (by === 'you') { say(mouse() ? 'Click as each note reaches the line. Hold the button for the long ones.' : 'Tap each note as it reaches the line. Hold the long ones.'); actions(button('Stop', () => toPick())); }
+        if (by === 'you') { say(mouse() ? 'A, S and D are the lanes. A click, or the spacebar, takes whichever note is due. Hold for the long ones.' : 'Tap each note as it reaches the line. Hold the long ones.'); actions(button('Stop', () => toPick())); }
         cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
     }
     function start(tr, from, at) {
@@ -190,7 +203,7 @@
         ctx.font = '600 12px ' + mono; ctx.textAlign = 'center';
         pops = pops.filter(p => performance.now() - p.at < 600);
         for (const p of pops) { const a = (performance.now() - p.at) / 600; ctx.globalAlpha = 1 - a; ctx.fillStyle = p.good ? col('--success') : col('--danger'); ctx.fillText(p.text, (p.lane + 0.5) * lw, hitY - 26 - a * 18); ctx.globalAlpha = 1; }
-        ctx.fillStyle = col('--muted'); ctx.font = '11px ' + mono; for (let i = 0; i < o.lanes; i++) ctx.fillText(LANES[i], (i + 0.5) * lw, H - 6);
+        ctx.fillStyle = col('--muted'); ctx.font = '11px ' + mono; for (let i = 0; i < o.lanes; i++) ctx.fillText(mouse() ? `${LANES[i]} [${KEYNAME[i]}]` : LANES[i], (i + 0.5) * lw, H - 6);
         if (s) {   // the meter down the left side, and the combo
             const mh = (H - 16) * s.meter; ctx.fillStyle = col('--panel-2'); ctx.fillRect(3, 8, 6, H - 16); ctx.fillStyle = gold ? col('--warning') : s.meter < 0.25 ? col('--danger') : col('--success'); ctx.fillRect(3, 8 + (H - 16) - mh, 6, mh);
             ctx.fillStyle = col('--text'); ctx.font = '600 13px ' + mono; ctx.textAlign = 'right'; ctx.fillText(s.combo > 1 ? 'x' + s.combo : '', W - 8, 18);
