@@ -127,7 +127,8 @@
             el('div', { class: 'evals-card-actions' },
                 el('button', { type: 'button', class: 'evals-go', text: button, onclick: action }),
                 ...extras.map(([label, act]) => el('button', { type: 'button', class: 'ghost-button evals-extra', text: label, onclick: act })))));
-        stage.querySelector('.evals-go').focus();
+        stage.querySelector('.evals-go').focus({ preventScroll: true });
+        stage.scrollTop = 0; stage.firstChild.scrollTop = 0;
     }
     const engine = () => (window.AGIEngine?.evalsOpts && window.AGI?.state ? window.AGIEngine : null);
     // A run's options: what the upgrades have bought, and this device's debug switches.
@@ -405,7 +406,7 @@
         const c = shown = run.current;
         const hand = el('span', { class: 'evals-hand', 'aria-hidden': 'true' });
         hand.innerHTML = '<svg viewBox="0 0 24 24"><path d="M5 2.5v17l4.6-4.2 3 6.4 2.7-1.3-3-6.3 6.2-.5z"/></svg>';
-        play = el('div', { class: `evals-play evals-${c.layout}` }, ...LAYOUTS[c.layout](c), hand);
+        play = el('div', { class: `evals-play evals-lay-${c.layout}` }, ...LAYOUTS[c.layout](c), hand);
         const canHand = !!run.opts.handoff;
         stage.replaceChildren(el('div', { class: `evals-captcha is-${c.layout}` + (c.auto ? ' is-auto' : '') },
             c.family === 'trick' ? el('p', { class: 'evals-quiz', text: `Question ${c.at + 1} of ${c.of}` }) : '',

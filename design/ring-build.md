@@ -710,3 +710,16 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   first number in the status bar (it does in the other full-screen apps too).
 - **Running:** a play-through review with screenshots (`review-out/evals-review/REVIEW.md`) and a redesign proposal.
   Nothing of how it plays or pays is changed until the owner has seen both.
+
+- **The play-through review is in** (`review-out/evals-review/REVIEW.md`, 204 screenshots, all 14 kinds on laptop and
+  phone, no console errors; git-ignored). Its 16 problems, the first ten: the framing is half changed (captcha, "to
+  prove", "I'm not a robot" between the new cards); nothing is in the AI's voice; tall cards opened scrolled to the
+  foot; the play box took its children's styles; the AI's attempt shows before you answer; the ghost hand lies on the
+  buttons and is a mouse arrow on touch; the card's height jumps between kinds (Verify moves 112 px on a phone); the
+  combo pill caps at ×2.0 while the end card reports a combo of 55; handing over has no moment under the ring; the
+  upgrades are a text list that does not read as rewards. No Evals target is under 40 px and nothing scrolls the page.
+- **Fixed from it (plain bugs):** a card opens at its top (its button was focused with a scroll); the play box's class
+  is `evals-lay-<layout>` (as `evals-<layout>` it took the styles of the pads, choices, order, grid and tick inside
+  it: Play again lay over the entered row, sums sat in half the width), and the score sheet's leaderboard no longer
+  takes the ball board's grid. Replayed on a phone, all 14 kinds, no errors.
+- Everything else in the review is design and waits on the redesign's direction (`design/evals-redesign.md`).
