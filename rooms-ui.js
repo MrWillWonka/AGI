@@ -130,39 +130,72 @@
         raf = requestAnimationFrame(frame);
     }
 
+    // Drawing (course-art.js for the runner, the burst and the theme's colours). Nothing here decides anything.
+    let trail = [], trailRun = null, endAt = 0, endRun = null;
     function draw() {
         if (!canvas || !dlg.open) return;
-        const o = R().ROOM, css = getComputedStyle(dlg), col = n => css.getPropertyValue(n).trim() || '#888';
+        const A = window.CourseArt, o = R().ROOM, C = A.colours(dlg), now = performance.now();
         const rect = canvas.getBoundingClientRect(), dpr = Math.min(3, window.devicePixelRatio || 1), W = Math.max(50, rect.width), H = Math.max(50, rect.height);
         if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
         const ctx = canvas.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
-        const k = W / o.cols, s = run ? run.state : null, n = s ? s.n : preview, mono = css.getPropertyValue('--font-mono') || 'monospace';
-        if (mode === 'build') { ctx.strokeStyle = col('--border'); ctx.globalAlpha = 0.5; for (let cx = 1; cx < o.cols; cx++) { ctx.beginPath(); ctx.moveTo(cx * k, 0); ctx.lineTo(cx * k, H); ctx.stroke(); } for (let cy = 1; cy < o.rows; cy++) { ctx.beginPath(); ctx.moveTo(0, cy * k); ctx.lineTo(W, cy * k); ctx.stroke(); } ctx.globalAlpha = 1; }
+        const k = W / o.cols, s = run ? run.state : null, n = s ? s.n : preview, ai = mode === 'ai' || (mode === 'result' && !!s);
+        // The back wall: faint dots at the tile corners, a little brighter while building.
+        ctx.fillStyle = C.text; ctx.globalAlpha = mode === 'build' ? 0.16 : 0.07;
+        for (let cy = 1; cy < o.rows; cy++) for (let cx = 1; cx < o.cols; cx++) ctx.fillRect(cx * k - 1, cy * k - 1, 2, 2);
+        ctx.globalAlpha = 1;
         for (let cy = 0; cy < o.rows; cy++) for (let cx = 0; cx < o.cols; cx++) {
-            const t = R().at(save.room, cx, cy), x = cx * k, y = cy * k;
-            if (t === 'ground') { ctx.fillStyle = col('--panel-2'); ctx.fillRect(x, y, k + 0.5, k); ctx.fillStyle = col('--success'); ctx.fillRect(x, y, k + 0.5, 2); }
-            else if (t === 'block') { ctx.fillStyle = col('--panel-2'); ctx.fillRect(x + 0.5, y + 0.5, k - 1, k - 1); ctx.strokeStyle = col('--muted'); ctx.strokeRect(x + 1, y + 1, k - 2, k - 2); }
-            else if (t === 'spring') { ctx.fillStyle = col('--panel-2'); ctx.fillRect(x + 0.5, y + k * 0.35, k - 1, k * 0.65); ctx.fillStyle = col('--primary'); ctx.fillRect(x + 2, y, k - 4, k * 0.3); }
-            else if (t === 'boost') { ctx.fillStyle = col('--primary'); for (let a = 0; a < 3; a++) { const bx = x + k * (0.2 + a * 0.26); ctx.beginPath(); ctx.moveTo(bx, y + k - 2); ctx.lineTo(bx + k * 0.16, y + k * 0.72); ctx.lineTo(bx, y + k * 0.5); ctx.closePath(); ctx.fill(); } }
-            else if (t === 'spike') { ctx.fillStyle = col('--danger'); ctx.beginPath(); ctx.moveTo(x + k * 0.2, y + k); ctx.lineTo(x + k * 0.5, y + k * 0.5); ctx.lineTo(x + k * 0.8, y + k); ctx.closePath(); ctx.fill(); }
-            else if (cy === o.rows - 1 && save.room[R().id(cx, cy)] === 'pit') { ctx.fillStyle = col('--danger'); ctx.globalAlpha = 0.22; ctx.fillRect(x, y, k + 0.5, k); ctx.globalAlpha = 1; }
+            const t = R().at(save.room, cx, cy), x = cx * k, y = cy * k, raw = save.room[R().id(cx, cy)];
+            if (t === 'ground') {
+                ctx.fillStyle = C.panel; ctx.fillRect(x, y, k + 0.5, k);
+                ctx.strokeStyle = C.border; ctx.globalAlpha = 0.6; ctx.beginPath(); for (let i = 0; i < 3; i++) { ctx.moveTo(x + k * (0.15 + i * 0.3), y + k); ctx.lineTo(x + k * (0.45 + i * 0.3), y + k * 0.35); } ctx.stroke(); ctx.globalAlpha = 1;
+                ctx.fillStyle = C.success; ctx.fillRect(x, y, k + 0.5, 2); ctx.globalAlpha = 0.18; ctx.fillRect(x, y + 2, k + 0.5, 4); ctx.globalAlpha = 1;
+            } else if (t === 'block') A.tile(ctx, x, y, k, k, C, Math.max(2, k * 0.12));
+            else if (t === 'spring') {
+                A.tile(ctx, x, y + k * 0.45, k, k * 0.55, C, 3);
+                ctx.strokeStyle = C.primary; ctx.lineWidth = Math.max(1.5, k * 0.07); ctx.beginPath(); for (let i = 0; i <= 4; i++) { const px = x + k * (0.22 + (i % 2) * 0.56), py = y + k * (0.45 - i * 0.075); if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); } ctx.stroke(); ctx.lineWidth = 1;
+                ctx.fillStyle = C.primary; ctx.fillRect(x + k * 0.1, y + k * 0.04, k * 0.8, Math.max(3, k * 0.12));
+            } else if (t === 'boost') {
+                const ph = (now / 260) % 1;
+                for (let a = 0; a < 3; a++) { const bx = x + k * (0.12 + ((a + ph) % 3) * 0.28); ctx.fillStyle = C.primary; ctx.globalAlpha = 0.35 + 0.55 * (((a + ph) % 3) / 3); ctx.beginPath(); ctx.moveTo(bx, y + k - 2); ctx.lineTo(bx + k * 0.2, y + k * 0.72); ctx.lineTo(bx, y + k * 0.46); ctx.lineTo(bx + k * 0.08, y + k * 0.72); ctx.closePath(); ctx.fill(); }
+                ctx.globalAlpha = 1;
+            } else if (t === 'spike') {
+                for (let i = 0; i < 3; i++) { const sx = x + k * (0.2 + i * 0.2); ctx.fillStyle = C.danger; ctx.beginPath(); ctx.moveTo(sx, y + k); ctx.lineTo(sx + k * 0.1, y + k * 0.5); ctx.lineTo(sx + k * 0.2, y + k); ctx.closePath(); ctx.fill(); ctx.fillStyle = C.text; ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.moveTo(sx + k * 0.07, y + k * 0.66); ctx.lineTo(sx + k * 0.1, y + k * 0.5); ctx.lineTo(sx + k * 0.13, y + k * 0.66); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1; }
+            } else if (cy === o.rows - 1 && raw === 'pit') {
+                ctx.fillStyle = C.bg; ctx.fillRect(x, y, k + 0.5, k);
+                for (let i = 0; i < 4; i++) { ctx.fillStyle = C.danger; ctx.globalAlpha = 0.07 + 0.07 * i; ctx.fillRect(x, y + k * (i / 4), k + 0.5, k / 4); }
+                ctx.globalAlpha = 1;
+            }
         }
-        // The flag, and where you start.
-        const g = R().goalTile(), gx = (g % o.cols) * k, gy = Math.floor(g / o.cols) * k;
-        ctx.strokeStyle = col('--success'); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(gx + k * 0.5, gy); ctx.lineTo(gx + k * 0.5, gy - k * 0.9); ctx.stroke(); ctx.fillStyle = col('--success'); ctx.beginPath(); ctx.moveTo(gx + k * 0.5, gy - k * 0.9); ctx.lineTo(gx + k * 0.95, gy - k * 0.7); ctx.lineTo(gx + k * 0.5, gy - k * 0.5); ctx.closePath(); ctx.fill(); ctx.lineWidth = 1;
+        // The flag on its ledge, with a slow beacon.
+        const g = R().goalTile(), gx = (g % o.cols) * k, gy = Math.floor(g / o.cols) * k, wave = Math.sin(now / 300) * k * 0.06;
+        ctx.strokeStyle = C.success; ctx.globalAlpha = 0.5 * (1 - ((now / 1400) % 1)); ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(gx + k * 0.5, gy, k * (0.3 + 0.5 * ((now / 1400) % 1)), k * 0.12, 0, 0, A.TAU); ctx.stroke(); ctx.globalAlpha = 1;
+        ctx.beginPath(); ctx.moveTo(gx + k * 0.5, gy); ctx.lineTo(gx + k * 0.5, gy - k * 0.95); ctx.stroke(); ctx.lineWidth = 1;
+        ctx.fillStyle = C.success; ctx.beginPath(); ctx.moveTo(gx + k * 0.5, gy - k * 0.95); ctx.quadraticCurveTo(gx + k * 0.75, gy - k * 0.9 + wave, gx + k, gy - k * 0.72 + wave); ctx.quadraticCurveTo(gx + k * 0.75, gy - k * 0.62 + wave, gx + k * 0.5, gy - k * 0.5); ctx.closePath(); ctx.fill();
+        // Saws: a rail, and a toothed wheel turning on it.
         for (const h of R().hazards(save.room)) if (h.kind === 'saw') {
-            const p = R().sawAt(h, n);
-            ctx.strokeStyle = col('--research') || col('--primary'); ctx.setLineDash([3, 4]); ctx.beginPath(); ctx.moveTo((h.cx + 0.5 - o.sawReach) * k, p.y * k); ctx.lineTo((h.cx + 0.5 + o.sawReach) * k, p.y * k); ctx.stroke(); ctx.setLineDash([]);
-            ctx.fillStyle = col('--research') || col('--primary'); ctx.beginPath(); for (let a = 0; a < 8; a++) { const ang = a * Math.PI / 4 + n * 0.2, r = o.sawR * k * (a % 2 ? 0.7 : 1.05); ctx.lineTo(p.x * k + r * Math.cos(ang), p.y * k + r * Math.sin(ang)); } ctx.closePath(); ctx.fill();
+            const p = R().sawAt(h, n), px = p.x * k, py = p.y * k, rr = o.sawR * k;
+            ctx.strokeStyle = C.research; ctx.globalAlpha = 0.45; ctx.setLineDash([3, 4]); ctx.beginPath(); ctx.moveTo((h.cx + 0.5 - o.sawReach) * k, py); ctx.lineTo((h.cx + 0.5 + o.sawReach) * k, py); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+            A.glow(ctx, px, py, rr, C.research, 0.7);
+            ctx.fillStyle = C.research; ctx.beginPath(); for (let a = 0; a < 16; a++) { const ang = a * Math.PI / 8 + n * 0.22, r2 = rr * (a % 2 ? 0.72 : 1.12); ctx.lineTo(px + r2 * Math.cos(ang), py + r2 * Math.sin(ang)); } ctx.closePath(); ctx.fill();
+            ctx.fillStyle = C.bg2; ctx.beginPath(); ctx.arc(px, py, rr * 0.32, 0, A.TAU); ctx.fill();
         }
-        if (mode === 'ai' && hand && hand.route) { ctx.fillStyle = col('--muted'); ctx.globalAlpha = 0.6; for (const t of hand.route.route) ctx.fillRect(((t % o.cols) + 0.5) * k - 2, Math.floor(t / o.cols) * k - 5, 4, 4); ctx.globalAlpha = 1; }
+        // The way the AI was given, as a dotted line over the tiles' tops.
+        if (ai && hand && hand.route) { ctx.strokeStyle = C.muted; ctx.globalAlpha = 0.5; ctx.setLineDash([2, 5]); ctx.beginPath(); hand.route.route.forEach((t, i) => { const px = ((t % o.cols) + 0.5) * k, py = Math.floor(t / o.cols) * k - 3; if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); }); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; }
         if (s) {
-            const x = s.x * k, y = s.y * k, w = o.w * k, h = o.h * k;
-            ctx.fillStyle = s.failed ? col('--danger') : mode === 'test' || mode === 'tested' ? col('--primary') : col('--success');
-            ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x - w / 2, y - h, w, h, 5) : ctx.rect(x - w / 2, y - h, w, h); ctx.fill();
-            ctx.fillStyle = col('--warning'); ctx.beginPath(); ctx.arc(x, y - h * 0.6, w * 0.16, 0, 2 * Math.PI); ctx.fill();
-            ctx.fillStyle = col('--text'); ctx.font = '12px ' + mono; ctx.textAlign = 'left'; ctx.fillText(secs(s.n * o.step) + '  ' + s.points + ' pts', 6, 14);
-        } else if (mode === 'build') { const st = R().startCell(); ctx.fillStyle = col('--muted'); ctx.font = '600 10px ' + mono; ctx.textAlign = 'center'; ctx.fillText('START', ((st % o.cols) + 0.5) * k, (Math.floor(st / o.cols) + 0.6) * k); }
+            if (trailRun !== run) { trailRun = run; trail = []; }
+            if (!s.over && (!trail.length || Math.hypot(trail[trail.length - 1].x - s.x, trail[trail.length - 1].y - s.y) > 0.12)) { trail.push({ x: s.x, y: s.y }); if (trail.length > 14) trail.shift(); }
+            if (s.over && endRun !== run) { endRun = run; endAt = now; }
+            const body = ai ? C.success : C.primary, rr = o.h * k * 0.5, x = s.x * k, y = s.y * k - rr;
+            trail.forEach((p, i) => { ctx.fillStyle = body; ctx.globalAlpha = 0.05 + 0.25 * (i / trail.length); ctx.beginPath(); ctx.arc(p.x * k, p.y * k - rr, rr * (0.25 + 0.5 * (i / trail.length)), 0, A.TAU); ctx.fill(); });
+            ctx.globalAlpha = 1;
+            if (s.n <= s.boost) { ctx.strokeStyle = C.primary; ctx.globalAlpha = 0.7; ctx.lineWidth = 2; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(x - rr * (1.4 + i * 0.5), y - rr * 0.5 + i * rr * 0.5); ctx.lineTo(x - rr * (2.2 + i * 0.5), y - rr * 0.5 + i * rr * 0.5); ctx.stroke(); } ctx.lineWidth = 1; ctx.globalAlpha = 1; }
+            const stretch = Math.max(-0.22, Math.min(0.22, -s.vy / 45));
+            A.runner(ctx, x, y, rr, C, ai, { now, dead: !!s.failed, sx: 1 - stretch * (s.ground ? 0 : 1), sy: 1 + stretch * (s.ground ? 0 : 1) });
+            if (s.failed && endRun === run) A.burst(ctx, x, y, rr * 1.4, C.danger, endAt, now);
+            if (s.finished && endRun === run) A.burst(ctx, x, y, rr * 1.6, C.success, endAt, now, 900);
+            A.pill(ctx, `${secs(s.n * o.step)}  ${s.points} ${s.points === 1 ? 'pt' : 'pts'}`, 6, 6, C);
+            if (ai && hand) A.pill(ctx, `try ${Math.min(attempt + 1, hand.attempts.length)} of ${hand.attempts.length}`, W - 6, 6, C, 'right');
+        } else if (mode === 'build') { const st = R().startCell(), sx = ((st % o.cols) + 0.5) * k, sy = (Math.floor(st / o.cols) + 1) * k - o.h * k * 0.5; ctx.globalAlpha = 0.55; A.ball(ctx, sx, sy, o.h * k * 0.5, C); ctx.globalAlpha = 1; }
     }
 
     function open() {

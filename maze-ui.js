@@ -128,35 +128,75 @@
         timer = setTimeout(tick, o.tick * 1000);
     }
 
+    // Drawing (course-art.js for the runner, the burst and the theme's colours). Nothing here decides anything.
+    // The rules move in ticks; the picture glides between them (`tickAt`: when the count last changed).
+    let lastN = -1, tickAt = 0, shown = -1, from = -1, movedAt = 0, endAt = 0, endRun = null, painting = 0;
+    function paint() { painting = 0; if (!dlg || !dlg.open) return; draw(); }   // draw() asks for the next frame itself
     function draw() {
         if (!canvas || !dlg.open) return;
-        const o = M().MAZE, css = getComputedStyle(dlg), col = n => css.getPropertyValue(n).trim() || '#888';
+        if (!painting) painting = requestAnimationFrame(paint);
+        const A = window.CourseArt, o = M().MAZE, C = A.colours(dlg), now = performance.now();
         const rect = canvas.getBoundingClientRect(), dpr = Math.min(3, window.devicePixelRatio || 1), W = Math.max(50, rect.width), H = Math.max(50, rect.height);
         if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
         const ctx = canvas.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
-        const cw = W / o.cols, ch = H / o.rows, s = run ? run.state : null, n = s ? s.n : preview, w = run ? run.world : M().world(save.maze);
-        const X = i => (i % o.cols) * cw, Y = i => Math.floor(i / o.cols) * ch, mono = css.getPropertyValue('--font-mono') || 'monospace';
-        ctx.strokeStyle = col('--border'); ctx.lineWidth = 1;
+        const cw = W / o.cols, ch = H / o.rows, s = run ? run.state : null, n = s ? s.n : preview, w = run ? run.world : M().world(save.maze), ai = mode === 'ai' || (mode === 'result' && !!s);
+        if (n !== lastN) { lastN = n; tickAt = now; }
+        const frac = s && s.over ? 1 : Math.max(0, Math.min(1, (now - tickAt) / (o.tick * 1000)));
+        const X = i => (i % o.cols) * cw, Y = i => Math.floor(i / o.cols) * ch, cx = i => X(i) + cw / 2, cy = i => Y(i) + ch / 2, u = Math.min(cw, ch);
+        // The floor: a quiet checker.
+        for (let i = 0; i < M().size(); i++) { ctx.fillStyle = C.text; ctx.globalAlpha = ((i % o.cols) + Math.floor(i / o.cols)) % 2 ? 0.025 : 0.05; ctx.fillRect(X(i), Y(i), cw, ch); }
+        ctx.globalAlpha = 1;
+        // The start and the exit.
+        const st = M().startCell(), ex = M().exitCell(), beat = (now / 1300) % 1;
+        ctx.strokeStyle = C.muted; ctx.lineWidth = 1.5; ctx.setLineDash([3, 4]); ctx.beginPath(); ctx.arc(cx(st), cy(st), u * 0.36, 0, A.TAU); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = C.success; ctx.globalAlpha = 0.16; ctx.fillRect(X(ex) + 2, Y(ex) + 2, cw - 4, ch - 4); ctx.globalAlpha = 1;
+        ctx.strokeStyle = C.success; ctx.lineWidth = 2; ctx.globalAlpha = 1 - beat; ctx.strokeRect(X(ex) + 2 + u * 0.3 * (1 - beat), Y(ex) + 2 + u * 0.3 * (1 - beat), cw - 4 - u * 0.6 * (1 - beat), ch - 4 - u * 0.6 * (1 - beat)); ctx.globalAlpha = 1;
+        ctx.fillStyle = C.success; ctx.font = '700 11px ' + C.mono; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('EXIT', cx(ex), cy(ex));
+        ctx.lineWidth = 1;
         for (let i = 0; i < M().size(); i++) {
             const x = X(i), y = Y(i), k = save.maze[i];
-            ctx.strokeRect(x + 0.5, y + 0.5, cw - 1, ch - 1);
-            if (k === 'wall') { ctx.fillStyle = col('--panel-2'); ctx.fillRect(x + 1, y + 1, cw - 2, ch - 2); ctx.fillStyle = col('--muted'); ctx.globalAlpha = 0.25; ctx.fillRect(x + 1, y + 1, cw - 2, ch - 2); ctx.globalAlpha = 1; }
-            else if (k === 'trap') { const live = w.trapLive(i, n); ctx.fillStyle = col('--danger'); ctx.globalAlpha = live ? 0.85 : 0.15; ctx.fillRect(x + 4, y + 4, cw - 8, ch - 8); ctx.globalAlpha = 1; if (!live) { ctx.strokeStyle = col('--danger'); ctx.strokeRect(x + 4.5, y + 4.5, cw - 9, ch - 9); ctx.strokeStyle = col('--border'); } }
-            else if (k === 'key' && !(s && s.key)) { ctx.fillStyle = col('--warning'); ctx.beginPath(); ctx.arc(x + cw * 0.4, y + ch * 0.5, Math.min(cw, ch) * 0.16, 0, 2 * Math.PI); ctx.fill(); ctx.fillRect(x + cw * 0.5, y + ch * 0.46, cw * 0.28, ch * 0.08); }
-            else if (k === 'door') { ctx.fillStyle = col('--warning'); ctx.globalAlpha = s && s.key ? 0.25 : 0.9; ctx.fillRect(x + 2, y + ch * 0.3, cw - 4, ch * 0.4); ctx.globalAlpha = 1; }
-            else if (k === 'patrol') { const p = w.patrols.find(q => q.cell === i); ctx.strokeStyle = col('--research') || col('--primary'); ctx.setLineDash([3, 4]); ctx.beginPath(); ctx.moveTo(p.a * cw + cw / 2, y + ch / 2); ctx.lineTo(p.b * cw + cw / 2, y + ch / 2); ctx.stroke(); ctx.setLineDash([]); ctx.strokeStyle = col('--border'); }
+            if (k === 'wall') { A.tile(ctx, x + 1, y + 1, cw - 2, ch - 2, C, 5); ctx.fillStyle = C.bg; ctx.globalAlpha = 0.35; ctx.fillRect(x + 4, y + ch - 6, cw - 8, 3); ctx.globalAlpha = 1; }
+            else if (k === 'trap') {
+                // Live: the spikes are up. About to be: a warning ring. Safe: the plate alone.
+                const live = w.trapLive(i, n), soon = !live && (w.trapLive(i, n + 1) || w.trapLive(i, n + 2)), up = live ? 1 : 0;
+                ctx.strokeStyle = live ? C.danger : soon ? C.warning : C.border; ctx.lineWidth = live || soon ? 2 : 1; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x + 5, y + 5, cw - 10, ch - 10, 4); else ctx.rect(x + 5, y + 5, cw - 10, ch - 10); ctx.stroke(); ctx.lineWidth = 1;
+                if (live) { ctx.fillStyle = C.danger; ctx.globalAlpha = 0.25; ctx.fill(); ctx.globalAlpha = 1; }
+                for (let a = 0; a < 4; a++) { const px = x + cw * (0.3 + (a % 2) * 0.4), py = y + ch * (0.34 + Math.floor(a / 2) * 0.36), r = u * (0.05 + 0.1 * up); ctx.fillStyle = live ? C.danger : soon ? C.warning : C.muted; ctx.globalAlpha = live ? 1 : soon ? 0.85 : 0.4; ctx.beginPath(); ctx.moveTo(px - r, py + r); ctx.lineTo(px, py - r * (0.6 + up)); ctx.lineTo(px + r, py + r); ctx.closePath(); ctx.fill(); }
+                ctx.globalAlpha = 1;
+            } else if (k === 'key' && !(s && s.key)) {
+                const bob = Math.sin(now / 350 + i) * u * 0.04; A.glow(ctx, cx(i) - u * 0.1, cy(i) + bob, u * 0.16, C.warning, 0.9);
+                ctx.strokeStyle = C.warning; ctx.lineWidth = Math.max(2, u * 0.07); ctx.beginPath(); ctx.arc(cx(i) - u * 0.12, cy(i) + bob, u * 0.12, 0, A.TAU); ctx.moveTo(cx(i), cy(i) + bob); ctx.lineTo(cx(i) + u * 0.26, cy(i) + bob); ctx.moveTo(cx(i) + u * 0.18, cy(i) + bob); ctx.lineTo(cx(i) + u * 0.18, cy(i) + bob + u * 0.1); ctx.stroke(); ctx.lineWidth = 1;
+            } else if (k === 'door') {
+                const open = !!(s && s.key);
+                ctx.strokeStyle = C.warning; ctx.globalAlpha = open ? 0.35 : 1; ctx.lineWidth = 2; ctx.strokeRect(x + 3, y + 3, cw - 6, ch - 6);
+                if (!open) for (let b = 1; b <= 3; b++) { ctx.beginPath(); ctx.moveTo(x + cw * b / 4, y + 4); ctx.lineTo(x + cw * b / 4, y + ch - 4); ctx.stroke(); }
+                ctx.lineWidth = 1; ctx.globalAlpha = 1;
+            }
         }
-        const label = (i, text, c) => { ctx.fillStyle = c; ctx.font = '600 11px ' + mono; ctx.textAlign = 'center'; ctx.fillText(text, X(i) + cw / 2, Y(i) + ch / 2 + 4); };
-        label(M().startCell(), 'START', col('--muted')); label(M().exitCell(), 'EXIT', col('--success'));
-        // What you showed it, under the AI's run.
-        if (mode === 'ai' && yours) { ctx.strokeStyle = col('--muted'); ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.beginPath(); yours.route.forEach((c, k) => { const px = X(c) + cw / 2, py = Y(c) + ch / 2; if (k) ctx.lineTo(px, py); else ctx.moveTo(px, py); }); ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 1; }
-        for (const p of w.patrols) { const c = w.patrolCell(p, n); ctx.fillStyle = col('--research') || col('--primary'); ctx.beginPath(); ctx.arc(X(c) + cw / 2, Y(c) + ch / 2, Math.min(cw, ch) * 0.3, 0, 2 * Math.PI); ctx.fill(); }
+        // What you showed it, under the AI's run; and where the runner has been.
+        if (ai && yours) { ctx.strokeStyle = C.muted; ctx.globalAlpha = 0.45; ctx.lineWidth = 2; ctx.setLineDash([4, 5]); ctx.beginPath(); yours.route.forEach((c, k) => { if (k) ctx.lineTo(cx(c), cy(c)); else ctx.moveTo(cx(c), cy(c)); }); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.lineWidth = 1; }
+        if (s && s.route.length > 1) { ctx.strokeStyle = ai ? C.success : C.primary; ctx.globalAlpha = 0.3; ctx.lineWidth = Math.max(2, u * 0.1); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); s.route.forEach((c, k) => { if (k) ctx.lineTo(cx(c), cy(c)); else ctx.moveTo(cx(c), cy(c)); }); ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 1; }
+        // Patrols: Packet Snare's Antivirus, a ring with four notches, gliding along its row.
+        for (const p of w.patrols) {
+            const a = w.patrolCell(p, Math.max(0, n - 1)), b = w.patrolCell(p, n), px = cx(a) + (cx(b) - cx(a)) * frac, py = cy(b), r = u * 0.3;
+            ctx.strokeStyle = C.bad; ctx.globalAlpha = 0.4; ctx.setLineDash([3, 5]); ctx.beginPath(); ctx.moveTo(p.a * cw + cw / 2, py); ctx.lineTo(p.b * cw + cw / 2, py); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+            A.glow(ctx, px, py, r, C.bad, 0.8);
+            ctx.strokeStyle = C.bad; ctx.lineWidth = Math.max(2, u * 0.08); ctx.beginPath(); ctx.arc(px, py, r, 0, A.TAU); ctx.stroke();
+            for (let q = 0; q < 4; q++) { const ang = q * Math.PI / 2 + now / 900; ctx.beginPath(); ctx.moveTo(px + Math.cos(ang) * r * 0.55, py + Math.sin(ang) * r * 0.55); ctx.lineTo(px + Math.cos(ang) * r * 1.3, py + Math.sin(ang) * r * 1.3); ctx.stroke(); }
+            ctx.lineWidth = 1; ctx.fillStyle = C.bad; ctx.beginPath(); ctx.arc(px, py, r * 0.25, 0, A.TAU); ctx.fill();
+        }
         if (s) {
-            const r = Math.min(cw, ch) * 0.3, x = X(s.cell) + cw / 2, y = Y(s.cell) + ch / 2;
-            ctx.fillStyle = s.failed ? col('--danger') : mode === 'test' || mode === 'tested' ? col('--primary') : col('--success'); ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI); ctx.fill();
-            ctx.fillStyle = col('--warning'); ctx.beginPath(); ctx.arc(x, y, r * 0.3, 0, 2 * Math.PI); ctx.fill();
-            ctx.fillStyle = col('--text'); ctx.font = '12px ' + mono; ctx.textAlign = 'left'; ctx.fillText(secs(s.n * o.tick) + '  ' + s.points + ' pts', 6, 14);
-        }
+            if (s.cell !== shown) { from = shown < 0 ? s.cell : shown; shown = s.cell; movedAt = now; }
+            if (s.over && endRun !== run) { endRun = run; endAt = now; }
+            const g = Math.max(0, Math.min(1, (now - movedAt) / (o.tick * 1000))), ease = g * (2 - g), fromOk = from >= 0 && Math.abs((from % o.cols) - (s.cell % o.cols)) + Math.abs(Math.floor(from / o.cols) - Math.floor(s.cell / o.cols)) === 1;
+            const x = fromOk ? cx(from) + (cx(s.cell) - cx(from)) * ease : cx(s.cell), y = fromOk ? cy(from) + (cy(s.cell) - cy(from)) * ease : cy(s.cell), r = u * 0.3;
+            A.runner(ctx, x, y, r, C, ai, { now, dead: !!s.failed });
+            if (s.key) { ctx.fillStyle = C.warning; ctx.beginPath(); ctx.arc(x + r * 0.9, y - r * 0.9, r * 0.28, 0, A.TAU); ctx.fill(); }
+            if (s.failed && endRun === run) A.burst(ctx, x, y, r * 1.4, C.danger, endAt, now);
+            if (s.finished && endRun === run) A.burst(ctx, x, y, r * 1.7, C.success, endAt, now, 900);
+            A.pill(ctx, `${secs(s.n * o.tick)}  ${s.points} ${s.points === 1 ? 'pt' : 'pts'}`, 6, 6, C);
+            if (ai && hand) A.pill(ctx, `try ${Math.min(attempt + 1, hand.attempts.length)} of ${hand.attempts.length}`, W - 6, H - 26, C, 'right');
+        } else { shown = -1; ctx.globalAlpha = 0.6; A.ball(ctx, cx(st), cy(st), u * 0.28, C); ctx.globalAlpha = 1; }
     }
 
     function open() {

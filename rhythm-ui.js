@@ -193,44 +193,91 @@
         music.level = 0.4; draw();
     }
 
+    // Drawing (course-art.js for the ball and the theme's colours). Nothing here decides anything.
     function draw() {
         if (!canvas || !dlg.open || canvas.hidden) return;
-        const o = R().RHYTHM, css = getComputedStyle(dlg), col = n => css.getPropertyValue(n).trim() || '#888', mono = css.getPropertyValue('--font-mono') || 'monospace';
+        const A = window.CourseArt, o = R().RHYTHM, C = A.colours(dlg), nowMs = performance.now();
         const rect = canvas.getBoundingClientRect(), dpr = Math.min(3, window.devicePixelRatio || 1), W = Math.max(50, rect.width), H = Math.max(50, rect.height);
         if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
         const ctx = canvas.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
-        const lw = W / o.lanes, hitY = H * 0.84, look = 1.7, t = now(), s = run ? run.state : null, gold = s && s.combo >= o.goldCombo;
-        const yOf = nt => hitY - (nt - t) / look * hitY, r = Math.min(lw * 0.22, 20);
-        ctx.strokeStyle = col('--border'); ctx.lineWidth = 1;
+        const lw = W / o.lanes, hitY = H * 0.84, look = 1.7, t = now(), s = run ? run.state : null, gold = !!(s && s.combo >= o.goldCombo), ai = who === 'ai';
+        const yOf = nt => hitY - (nt - t) / look * hitY, r = Math.min(lw * 0.22, 20), beatLen = stepLen * 4, LANE = [C.primary, C.research, C.success];
+        const beatPhase = run && t >= 0 ? (t / beatLen) % 1 : 1, pulse = Math.max(0, 1 - beatPhase * 3);
+        // The lanes: a tint each, brighter toward the line, and a breath on every beat.
+        for (let i = 0; i < o.lanes; i++) {
+            ctx.fillStyle = gold ? C.warning : LANE[i];
+            ctx.globalAlpha = 0.035 + 0.03 * pulse; ctx.fillRect(i * lw, 0, lw, H);
+            ctx.globalAlpha = 0.05 + 0.05 * pulse; ctx.fillRect(i * lw, hitY * 0.55, lw, H - hitY * 0.55);
+        }
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = C.border; ctx.lineWidth = 1;
         for (let i = 1; i < o.lanes; i++) { ctx.beginPath(); ctx.moveTo(i * lw, 0); ctx.lineTo(i * lw, H); ctx.stroke(); }
-        // The beats, drawn through.
-        if (run) { const beat = stepLen * 4; ctx.globalAlpha = 0.35; for (let b = Math.ceil((t - 0.2) / beat); b * beat < t + look; b++) { const y = yOf(b * beat); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); } ctx.globalAlpha = 1; }
-        ctx.strokeStyle = gold ? col('--warning') : col('--success'); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(W, hitY); ctx.stroke(); ctx.lineWidth = 1;
-        if (run) for (const f of s.notes) if (f.free && f.t - t < look && f.t + f.dur > t - 0.2) { const y0 = Math.max(0, yOf(f.t + f.dur)), y1 = Math.min(H, yOf(f.t)); ctx.fillStyle = col('--research') || col('--primary'); ctx.globalAlpha = 0.13; ctx.fillRect(0, y0, W, y1 - y0); ctx.globalAlpha = 1; ctx.fillStyle = col('--text'); ctx.font = '600 12px ' + mono; ctx.textAlign = 'center'; ctx.fillText('FREESTYLE', W / 2, Math.max(16, Math.min(hitY - 40, (y0 + y1) / 2))); for (const tap of f.taps) { ctx.fillStyle = col('--success'); ctx.beginPath(); ctx.arc((tap.lane + 0.5) * lw, yOf(f.t + tap.k * f.grid), r * 0.5, 0, 2 * Math.PI); ctx.fill(); } }
+        // The beats, and the bar lines heavier.
+        if (run) for (let b = Math.ceil((t - 0.2) / beatLen); b * beatLen < t + look; b++) { const y = yOf(b * beatLen); ctx.strokeStyle = C.text; ctx.globalAlpha = b % 4 === 0 ? 0.22 : 0.08; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+        ctx.globalAlpha = 1;
+        // The combo, large and faint, behind everything that moves.
+        if (s && s.combo > 1) { ctx.fillStyle = gold ? C.warning : C.text; ctx.globalAlpha = gold ? 0.2 : 0.1; ctx.font = `700 ${Math.round(Math.min(W * 0.34, 120))}px ${C.display}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(s.combo), W / 2, hitY * 0.42); ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic'; }
+        // A freestyle bar: a band of moving stripes, a mark on the line for every half-beat, and the taps you made.
+        if (run) for (const f of s.notes) if (f.free && f.t - t < look && f.t + f.dur > t - 0.2) {
+            const y0 = Math.max(0, yOf(f.t + f.dur)), y1 = Math.min(H, yOf(f.t)), live = t >= f.t - o.good && t < f.t + f.dur;
+            ctx.save(); ctx.beginPath(); ctx.rect(0, y0, W, y1 - y0); ctx.clip();
+            ctx.fillStyle = C.research; ctx.globalAlpha = live ? 0.2 : 0.12; ctx.fillRect(0, y0, W, y1 - y0);
+            ctx.strokeStyle = C.research; ctx.globalAlpha = 0.28; ctx.lineWidth = 6; const off = (nowMs / 40) % 28;
+            for (let x = -H; x < W + H; x += 28) { ctx.beginPath(); ctx.moveTo(x + off, y1); ctx.lineTo(x + off + (y1 - y0), y0); ctx.stroke(); }
+            ctx.restore(); ctx.lineWidth = 1;
+            for (let k = 0; k * f.grid < f.dur - 1e-9; k++) { const y = yOf(f.t + k * f.grid); if (y < 0 || y > H) continue; ctx.strokeStyle = C.text; ctx.globalAlpha = k % 2 ? 0.25 : 0.5; ctx.setLineDash([2, 6]); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); ctx.setLineDash([]); }
+            ctx.globalAlpha = 1;
+            for (const tap of f.taps) { const y = yOf(f.t + tap.k * f.grid); A.glow(ctx, (tap.lane + 0.5) * lw, y, r * 0.5, C.success, 0.9); ctx.fillStyle = C.success; ctx.beginPath(); ctx.arc((tap.lane + 0.5) * lw, y, r * 0.45, 0, A.TAU); ctx.fill(); }
+            ctx.fillStyle = C.text; ctx.font = '700 13px ' + C.mono; ctx.textAlign = 'center'; ctx.fillText(live ? 'FREESTYLE · your beat' : 'FREESTYLE', W / 2, Math.max(18, Math.min(hitY - 44, y0 + 20)));
+        }
+        // The line, and a ring to hit in each lane (it flashes when you do).
+        ctx.strokeStyle = gold ? C.warning : C.success; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(W, hitY); ctx.stroke(); ctx.lineWidth = 1;
+        for (let i = 0; i < o.lanes; i++) {
+            const x = (i + 0.5) * lw, p = pops.find(q => q.lane === i && q.good && nowMs - q.at < 220), a = p ? 1 - (nowMs - p.at) / 220 : 0;
+            ctx.strokeStyle = gold ? C.warning : LANE[i]; ctx.lineWidth = 2 + 2 * a; ctx.globalAlpha = 0.55 + 0.45 * a; ctx.beginPath(); ctx.arc(x, hitY, r * (1.15 + 0.35 * a), 0, A.TAU); ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 1;
+            if (p) { ctx.fillStyle = gold ? C.warning : LANE[i]; ctx.globalAlpha = 0.35 * a; ctx.beginPath(); ctx.arc(x, hitY, r * 1.1, 0, A.TAU); ctx.fill(); ctx.globalAlpha = 1; A.burst(ctx, x, hitY, r * 0.9, gold ? C.warning : LANE[i], p.at, nowMs, 320); }
+        }
+        // The notes.
         if (run) for (const n of s.notes) {
-            if (n.free) continue;
-            if (n.t - t > look || (n.state !== 'wait' && n.state !== 'held')) continue;
-            const x = (n.lane + 0.5) * lw, y = n.state === 'held' ? hitY : yOf(n.t), c = gold ? col('--warning') : n.hold > 0 ? (col('--snare-good') || col('--primary')) : col('--primary');
-            if (n.hold > 0) {   // a packet: a held note, its tail the time to hold
-                const yEnd = yOf(n.t + n.hold); ctx.strokeStyle = c; ctx.globalAlpha = 0.5; ctx.lineWidth = r * 0.9; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, Math.min(y, yEnd)); ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 1;
-                ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(x, y + r); ctx.lineTo(x + r, y - r * 0.8); ctx.lineTo(x, y - r * 0.3); ctx.lineTo(x - r, y - r * 0.8); ctx.closePath(); ctx.fill();
-            } else if (n.kind === 'slash') {   // a slash: a diamond with the stroke through it
-                ctx.fillStyle = gold ? col('--warning') : col('--danger'); ctx.beginPath(); ctx.moveTo(x, y - r * 1.15); ctx.lineTo(x + r * 1.15, y); ctx.lineTo(x, y + r * 1.15); ctx.lineTo(x - r * 1.15, y); ctx.closePath(); ctx.fill();
-                ctx.strokeStyle = col('--text'); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x - r * 1.5, y + r * 0.6); ctx.lineTo(x + r * 1.5, y - r * 0.6); ctx.stroke(); ctx.lineWidth = 1;
-            } else {            // the Training ball: a regular note
-                ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI); ctx.fill();
-                ctx.fillStyle = gold ? col('--text') : col('--warning'); ctx.beginPath(); ctx.arc(x, y, r * 0.32, 0, 2 * Math.PI); ctx.fill();
+            if (n.free || n.t - t > look || (n.state !== 'wait' && n.state !== 'held')) continue;
+            const x = (n.lane + 0.5) * lw, held = n.state === 'held', y = held ? hitY : yOf(n.t), c = gold ? C.warning : LANE[n.lane];
+            if (n.hold > 0) {           // a packet: a held note, its tail the time to hold
+                const yEnd = Math.min(y, yOf(n.t + n.hold));
+                ctx.lineCap = 'round'; ctx.strokeStyle = c; ctx.globalAlpha = 0.25; ctx.lineWidth = r * 1.2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, yEnd); ctx.stroke();
+                ctx.globalAlpha = held ? 0.95 : 0.6; ctx.lineWidth = r * 0.5; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, yEnd); ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 1;
+                if (held) A.glow(ctx, x, y, r * 1.2, c, 1.3);
+                ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(x, y + r * 1.05); ctx.lineTo(x + r * 1.05, y - r * 0.85); ctx.lineTo(x, y - r * 0.3); ctx.lineTo(x - r * 1.05, y - r * 0.85); ctx.closePath(); ctx.fill();
+                ctx.fillStyle = C.bg; ctx.globalAlpha = 0.55; ctx.beginPath(); ctx.arc(x, y + r * 0.1, r * 0.22, 0, A.TAU); ctx.fill(); ctx.globalAlpha = 1;
+            } else if (n.kind === 'slash') {   // a slash: a diamond, with the stroke to make drawn through it
+                const cs = gold ? C.warning : C.danger; A.glow(ctx, x, y, r, cs, 0.8);
+                ctx.fillStyle = cs; ctx.beginPath(); ctx.moveTo(x, y - r * 1.2); ctx.lineTo(x + r * 1.2, y); ctx.lineTo(x, y + r * 1.2); ctx.lineTo(x - r * 1.2, y); ctx.closePath(); ctx.fill();
+                ctx.strokeStyle = C.text; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x - r * 1.6, y + r * 0.65); ctx.lineTo(x + r * 1.6, y - r * 0.65); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x + r * 1.6, y - r * 0.65); ctx.lineTo(x + r * 1.05, y - r * 0.75); ctx.moveTo(x + r * 1.6, y - r * 0.65); ctx.lineTo(x + r * 1.3, y - r * 0.2); ctx.stroke(); ctx.lineWidth = 1;
+            } else {                     // the Training ball: a regular note, with a short streak behind it
+                ctx.strokeStyle = c; ctx.globalAlpha = 0.3; ctx.lineWidth = r * 0.9; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x, y - r * 0.4); ctx.lineTo(x, y - r * 2.1); ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 1;
+                A.ball(ctx, x, y, r, { ...C, primary: LANE[n.lane] }, 1, 1, false, gold);
             }
         }
-        ctx.font = '600 12px ' + mono; ctx.textAlign = 'center';
-        pops = pops.filter(p => performance.now() - p.at < 600);
-        for (const p of pops) { const a = (performance.now() - p.at) / 600; ctx.globalAlpha = 1 - a; ctx.fillStyle = p.good ? col('--success') : col('--danger'); ctx.fillText(p.text, (p.lane + 0.5) * lw, hitY - 26 - a * 18); ctx.globalAlpha = 1; }
-        ctx.fillStyle = col('--muted'); ctx.font = '11px ' + mono; for (let i = 0; i < o.lanes; i++) ctx.fillText(mouse() ? `${LANES[i]} [${KEYNAME[i]}]` : LANES[i], (i + 0.5) * lw, H - 6);
-        if (s) {   // the meter down the left side, and the combo
-            const mh = (H - 16) * s.meter; ctx.fillStyle = col('--panel-2'); ctx.fillRect(3, 8, 6, H - 16); ctx.fillStyle = gold ? col('--warning') : s.meter < 0.25 ? col('--danger') : col('--success'); ctx.fillRect(3, 8 + (H - 16) - mh, 6, mh);
-            ctx.fillStyle = col('--text'); ctx.font = '600 13px ' + mono; ctx.textAlign = 'right'; ctx.fillText(s.combo > 1 ? 'x' + s.combo : '', W - 8, 18);
+        // What each hit was.
+        ctx.textAlign = 'center';
+        pops = pops.filter(p => nowMs - p.at < 600);
+        for (const p of pops) { const a = (nowMs - p.at) / 600; ctx.globalAlpha = 1 - a; ctx.font = `700 ${p.text === 'PERFECT' || p.text === 'NICE' ? 13 : 12}px ${C.mono}`; ctx.fillStyle = !p.good ? C.danger : p.text === 'GOOD' ? C.text : gold ? C.warning : C.success; ctx.fillText(p.text, (p.lane + 0.5) * lw, hitY - 30 - a * 22); }
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = C.muted; ctx.font = '11px ' + C.mono; for (let i = 0; i < o.lanes; i++) ctx.fillText(mouse() ? `${LANES[i]} [${KEYNAME[i]}]` : LANES[i], (i + 0.5) * lw, H - 7);
+        if (s) {   // the meter down the left side: how much of the song is holding together
+            const top = 10, mh = H - 20, fill = mh * s.meter, c = gold ? C.warning : s.meter < 0.25 ? C.danger : C.success;
+            ctx.fillStyle = C.bg; ctx.globalAlpha = 0.7; ctx.fillRect(4, top, 8, mh); ctx.globalAlpha = 1;
+            ctx.fillStyle = c; ctx.fillRect(4, top + mh - fill, 8, fill);
+            ctx.fillStyle = C.bg; for (let q = 1; q < 8; q++) ctx.fillRect(4, top + mh * q / 8 - 0.5, 8, 1.5);
+            if (gold) A.glow(ctx, 8, top + mh - fill, 6, C.warning, 1.2);
+            if (s.meter < 0.25 && !s.over) { ctx.strokeStyle = C.danger; ctx.globalAlpha = 0.25 + 0.35 * Math.abs(Math.sin(nowMs / 160)); ctx.lineWidth = 4; ctx.strokeRect(2, 2, W - 4, H - 4); ctx.globalAlpha = 1; ctx.lineWidth = 1; }
+            if (ai && hand) A.pill(ctx, `try ${Math.min(attempt + 1, hand.attempts.length)} of ${hand.attempts.length}`, W - 6, 6, C, 'right');
+            if (ai) A.orb(ctx, W - 26, hitY * 0.5, 14, C, nowMs, s.failed);
         }
-        if (t0 == null || t < 0) { ctx.fillStyle = col('--text'); ctx.textAlign = 'center'; ctx.font = '600 18px ' + (css.getPropertyValue('--font-display') || 'sans-serif'); ctx.fillText(t0 == null ? 'Listen' : 'Ready', W / 2, H * 0.4); if (!audio && t0 != null) { ctx.font = '12px ' + mono; ctx.fillStyle = col('--muted'); ctx.fillText('The music is off: no sound', W / 2, H * 0.4 + 22); } }
+        if (t0 == null || t < 0) {
+            ctx.fillStyle = C.text; ctx.textAlign = 'center'; ctx.font = '700 20px ' + C.display; ctx.fillText(t0 == null ? 'Listen' : t > -beatLen * 3.5 ? String(Math.max(1, Math.ceil(-t / beatLen))) : 'Ready', W / 2, H * 0.4);
+            if (!audio && t0 != null) { ctx.font = '12px ' + C.mono; ctx.fillStyle = C.muted; ctx.fillText('The music is off: no sound', W / 2, H * 0.4 + 24); }
+        }
     }
 
     function open() {
