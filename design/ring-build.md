@@ -20,6 +20,12 @@ and the first cut of Evals); the tests there pass (496, 1 skipped, about 7 s).
 - **The owner's brother is the main playtester** and the target player. He plays each build as it lands; file his
   logs as `playtests/README.md` describes.
 - **Tone:** friendly, plain, short reports: what changed, what was checked, what to watch.
+- **Feel is the owner's to judge** (2026-11-16): whether something feels good or is fun is never ours to decide.
+  Measure what can be measured; for anything subjective, ask, with options built on the owner's feedback.
+- **The test link goes at the end of every round's summary** (2026-11-16), not the top: the play server
+  (https://wpc.tail0d614c.ts.net/, `#playground` for everything open) when the owner's PC is up, else the artifact
+  "The Path to AGI · test build" (https://claude.ai/artifact/9Sc3mL6iQFeDVNmdnjtP5Q, the game's own index.html, so the
+  plain link is the playtest and `#playground` is the playground), republished each round with every file.
 - **Before the first line of code,** confirm with the owner: the switch (below), the order inside Build 1, and
   anything in `design/ring.md` marked *open* that the piece in hand depends on.
 
