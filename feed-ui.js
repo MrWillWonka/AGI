@@ -1015,8 +1015,12 @@
     // Each frame: keep the step up, or start the next one due. Never stops the game: a step that throws is dropped.
     function coachStep(f) {
         try {
-            const s = f?.session;
-            if (!s || s.wait || s.offer || !f.sessioned) { if (coach && coach.key !== 'lead') coachEnd(false); return; }
+            const s = f?.session, now = performance.now();
+            // A split's cards (or the stockpile picker) pause a step rather than end it: in the owner's first log a split
+            // every four seconds cut the frenzy's and garbled sand's steps off twice each, and they were never seen whole.
+            if (s && f.sessioned && (s.offer || s.wait)) { if (coach && !coach.paused) coach.paused = now; return; }
+            if (!s || !f.sessioned) { if (coach) coachEnd(false); return; }
+            if (coach?.paused) { coach.t0 += now - coach.paused; coach.paused = 0; }
             if (coach) {
                 const def = COACHES.find(d => d.key === coach.key), secs = (performance.now() - coach.t0) / 1000;
                 if (f.aim || f.spot) coach.touched = true;
@@ -1047,7 +1051,7 @@
     }
     // The step on the field: the rest dimmed round a dashed spotlight, the ghost finger (hidden while yours is down), the line.
     function drawCoach(now) {
-        if (!coach?.at) return;
+        if (!coach?.at || coach.paused) return;
         const def = COACHES.find(d => d.key === coach.key), at = coach.at, c = view.cell, calm = reduced();
         const real = (now - coach.t0) / 1000, fade = Math.min(1, real / 0.35);
         const sr = Math.max(26, at.r * c), [sx, sy0] = px(at.x, at.y), sy = Math.max(Math.min(sr, 40), sy0);   // (kept on the field)
