@@ -918,3 +918,10 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   hidden). The AI plays the same thinned chart. Night Survey with the melody: 79 notes as written, fewer once thinned.
 - **Open, the same rule elsewhere:** the room needs left or right held while jump is pressed, which one mouse cannot
   do (it works with two thumbs, and with the keyboard); the maze is one direction at a time and is fine.
+
+- **2026-11-16, the desktop rule revised by the owner:** "Mouse and keyboard is fine ... we can plan for WASD spacebar
+  and mouse." So a desktop has two hands as a phone does. **Rhythm run:** charts are the two-thumb ones on every
+  device (the one-at-a-time mouse charts are gone; `playable` still takes a hand count); **A, S and D are the lanes**
+  (shown under them), and **a click on the notes or the spacebar takes whichever note is due**; the lane pads show on a
+  desktop too. **The room** already has A, D, W and the spacebar, and **the maze** W A S D, so both fit the rule as
+  they are. The room's question about a mouse alone is closed.
