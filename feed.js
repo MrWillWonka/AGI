@@ -181,6 +181,7 @@
         // ---- The feeding frenzy (the owner's pick): keep the swarm eating good sand at its pace and it heats up. Each tier pays
         // more and makes the swarm quicker; grazing, or chewing garbled sand, cools it.
         frenzyFloor: 0.4,   // the share of the swarm's full eating it has to keep up to build heat,
+        frenzyTap: 1,       // at a tapped point, its full eating counted at this share (1: as a held one; `tapRate` would judge a tap by what a tap can do),
         frenzyStep: 4,      // heat (about seconds of good eating) a tier,
         frenzyMax: 4,       // tiers at the most,
         frenzyPay: 0.25,    // research a tier: +25%,
@@ -1270,7 +1271,7 @@
     // `frenzyFloor`, heat builds (a second's heat a second at full eating, ×2 at the most); below it, it cools. Each
     // `frenzyStep` of heat is a tier. `o` is the step's dials (cards and frenzy in), `base` the plain ones.
     function heat(state, base, o, dt, out) {
-        const s = state.session, full = state.swarm.length * o.chew * o.grains * dt - (s.slow || 0), eff = full > 0 ? (s.ate || 0) / full : 0;
+        const s = state.session, full = state.swarm.length * o.chew * o.grains * dt * (!state.aim && state.spot ? base.frenzyTap : 1) - (s.slow || 0), eff = full > 0 ? (s.ate || 0) / full : 0;
         s.ate = 0; s.slow = 0;
         const floor = base.frenzyFloor, top = (base.frenzyMax + 1) * base.frenzyStep;
         if (eff >= floor) s.heat = Math.min(top, (s.heat || 0) + dt * cardMult(state, 'frenzy') * Math.min(2, 0.5 + 1.5 * (eff - floor) / (1 - floor)));

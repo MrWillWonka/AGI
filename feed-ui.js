@@ -82,6 +82,10 @@
     // a shake, `motes`: dust drifting in the tank's light. All drawing; nothing here decides anything.
     let bits = [], floats = [], trails = [], flash = null, quake = 0, motes = [], paidAcc = 0, paidAt = 0, frenzyEl = null, lastDraw = 0;
     const MAX_BITS = 420;
+    let life = [];
+    // Whether the tank holds garbled sand (looked at twice a second: the scrubber's ward shows only where it matters).
+    let garbledAt = 0, garbledHas = false;
+    const hasGarbled = f => { const now = performance.now(); if (now - garbledAt > 500) { garbledAt = now; const lib = F(); garbledHas = f.cells.some(v => v && lib.kindOf(v) === 6); } return garbledHas; };
 
     function el(tag, props = {}, ...kids) {
         const n = document.createElement(tag);
@@ -447,6 +451,20 @@
     // ---- what happened (from game.js's loop) ------------------------------------------------------------------------
     // Sounds (2026-11-16): the game's own effects, by name, in the track's key and on its beat (sfx.js); none of The Feed's own yet.
     const sfx = (name, opts) => { try { window.SFX?.play?.(name, opts); } catch { /* no audio */ } };
+    // The mite that took a grain (the nearest), and its bite's sound: each kind its own, a few a second at the most.
+    function chewer(x, y) { const sw = feed()?.swarm || []; let best = -1, d = 36; sw.forEach((m, n) => { const dd = (m.x - x) ** 2 + (m.y - y) ** 2; if (dd < d && life[n]) { d = dd; best = n; } }); return best; }
+    const BITE = { loner: ['click', { res: 'cp' }], follower: ['click', { res: 'cp' }], gold: ['click', { res: 'dp' }], tidy: ['click', { res: 'rp' }], drill: ['snareSlash'], mega: ['snareHit'] };
+    const BITE_GAP = { drill: 260, mega: 340 };
+    let biteAt = {};
+    function biteSound(c, ev) {
+        // the grazers only on a grain that pays well (gold), the others on what they're for: the prospector's gold, the
+        // scrubber's decoding, the driller's tough sand, the chomper's big bites
+        const kind = c || 'loner', now = performance.now();
+        const worth = kind === 'gold' || kind === 'loner' || kind === 'follower' ? ev.kind === 'vein' : kind === 'tidy' ? ev.type === 'decode' : true;
+        if (!worth || now - (biteAt[kind] || 0) < (BITE_GAP[kind] || 160)) return;
+        biteAt[kind] = now;
+        const [name, opts] = BITE[kind] || BITE.loner; sfx(name, opts);
+    }
     function events(list, research = 0) {
         if (!dlg?.open) return;
         const now = performance.now();
@@ -454,6 +472,7 @@
         if (research > 0) paidAcc += research;
         const still = reduced();
         for (const ev of list) {
+            if (ev.type === 'eat' || ev.type === 'decode') { const m = chewer(ev.x + 0.5, ev.y + 0.5); if (m >= 0) { life[m].chewAt = now; if (ev.type === 'decode') life[m].washAt = now; biteSound(feed().swarm[m].c, ev); } }
             if (ev.type === 'eat') {
                 // Crumbs: a few of the grains eaten each frame throw a crumb of their own colour.
                 if (!still && (eats++ < 6 || Math.random() < 0.04)) crumb(ev.x + 0.5, ev.y + 0.5, ev.pays ? (ev.kind === 'vein' ? colors.gold : ev.kind === 'cache' ? colors.research : null) : colors.packetBad);
@@ -573,28 +592,43 @@
         ctx.quadraticCurveTo(x - rx * pinch, y + ry * pinch, x - rx, y); ctx.quadraticCurveTo(x - rx * pinch, y - ry * pinch, x, y - ry);
         ctx.closePath();
     }
-    function drawMite(kind, x, y, q) {
-        const lw = Math.max(1.5, q * 0.16);
+    // (2026-11-16, the owner's pick, mites with character: each kind moves like itself. `st`, when given: `look` the way it
+    // is heading (−1 left … 1 right), `chew` how far into a bite (0–1), `spin` how far its working part has turned, `now`.
+    // The icons on the pick screen draw it at rest.)
+    function drawMite(kind, x, y, q, st) {
+        const lw = Math.max(1.5, q * 0.16), look = st ? st.look : 0.35, chew = st ? st.chew : 0, spin = st ? st.spin : 0;
         ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        // A bite squashes it a little, from its feet.
+        const squash = kind === 'drill' || kind === 'tidy' ? 0 : chew;
+        if (squash) { ctx.save(); ctx.translate(x, y + q * 0.7); ctx.scale(1 + 0.1 * squash, 1 - 0.13 * squash); ctx.translate(-x, -y - q * 0.7); }
+        try { drawMiteBody(kind, x, y, q, lw, look, chew, spin, st); } finally { if (squash) ctx.restore(); }
+    }
+    function drawMiteBody(kind, x, y, q, lw, look, chew, spin, st) {
         if (kind === 'tidy') {
-            // A burst of eight rounded spokes.
+            // A burst of eight rounded spokes, turning as it scrubs (faster while it decodes).
             for (const [color, w] of [[INK, q * 0.5 + lw * 2], ['#e8743b', q * 0.5]]) {
                 ctx.strokeStyle = color; ctx.lineWidth = w; ctx.beginPath();
-                for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2 + 0.2; ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * q * 0.95, y + Math.sin(a) * q * 0.95); }
+                for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2 + 0.2 + spin; ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * q * 0.95, y + Math.sin(a) * q * 0.95); }
                 ctx.stroke();
             }
-            eye(x - q * 0.2, y - q * 0.05, q * 0.11, 0); eye(x + q * 0.2, y - q * 0.05, q * 0.11, 0);
+            eye(x - q * 0.2, y - q * 0.05, q * 0.11, q * 0.04 * look); eye(x + q * 0.2, y - q * 0.05, q * 0.11, q * 0.04 * look);
         } else if (kind === 'loner') {
-            // A grey mound, flat on the ground, with two oversized eyes looking the same way.
+            // A grey mound, flat on the ground, with two oversized eyes looking the way it's going.
             ctx.beginPath(); ctx.moveTo(x - q, y + q * 0.7); ctx.bezierCurveTo(x - q * 1.05, y - q * 0.75, x + q * 1.05, y - q * 0.75, x + q, y + q * 0.7); ctx.quadraticCurveTo(x, y + q * 0.95, x - q, y + q * 0.7); ctx.closePath();
             ctx.fillStyle = '#c4c7cc'; ctx.strokeStyle = INK; ctx.lineWidth = lw; ctx.fill(); ctx.stroke();
-            eye(x - q * 0.36, y - q * 0.5, q * 0.46, q * 0.16, true); eye(x + q * 0.5, y - q * 0.55, q * 0.46, q * 0.16, true);
+            const lx = q * 0.16 * Math.sign(look || 1) * Math.max(0.4, Math.abs(look)), ex = look < -0.2 ? -0.07 : 0;
+            eye(x + q * (-0.36 + ex), y - q * 0.5, q * 0.46, lx, true); eye(x + q * (0.5 + ex), y - q * 0.55, q * 0.46, lx, true);
+            // its mouth, open mid-bite
+            if (chew > 0.2) { ctx.fillStyle = INK; ctx.beginPath(); ctx.ellipse(x + q * 0.08 * look, y + q * 0.32, q * 0.16, q * 0.1 * chew, 0, 0, Math.PI * 2); ctx.fill(); }
         } else if (kind === 'follower') {
-            // A four-pointed star, blue to violet, with two small sparkles.
+            // A four-pointed star, blue to violet, leaning the way it's going, with two small sparkles that twinkle.
+            ctx.save(); ctx.translate(x, y); ctx.rotate(0.18 * look); ctx.translate(-x, -y);
             const g = ctx.createLinearGradient(x - q, y - q, x + q, y + q); g.addColorStop(0, '#4c9bf6'); g.addColorStop(1, '#8b6cf0');
             star4(x, y, q * 1.15, q * 1.25, 0.2); ctx.fillStyle = g; ctx.strokeStyle = INK; ctx.lineWidth = lw; ctx.fill(); ctx.stroke();
-            ctx.fillStyle = INK; for (const ex of [-0.17, 0.17]) { ctx.beginPath(); ctx.ellipse(x + q * ex, y, q * 0.07, q * 0.12, 0, 0, Math.PI * 2); ctx.fill(); }
-            ctx.fillStyle = '#4c9bf6'; star4(x + q * 0.75, y - q * 1.0, q * 0.26, q * 0.3, 0.2); ctx.fill(); star4(x + q * 1.1, y - q * 0.6, q * 0.18, q * 0.2, 0.2); ctx.fill();
+            ctx.fillStyle = INK; for (const ex of [-0.17, 0.17]) { ctx.beginPath(); ctx.ellipse(x + q * (ex + 0.06 * look), y, q * 0.07, q * 0.12 * (1 - 0.6 * chew), 0, 0, Math.PI * 2); ctx.fill(); }
+            const tw = st ? 0.75 + 0.25 * Math.sin(st.now / 160 + x) : 1;
+            ctx.fillStyle = '#4c9bf6'; star4(x + q * 0.75, y - q * 1.0, q * 0.26 * tw, q * 0.3 * tw, 0.2); ctx.fill(); star4(x + q * 1.1, y - q * 0.6, q * 0.18 * (1.75 - tw), q * 0.2 * (1.75 - tw), 0.2); ctx.fill();
+            ctx.restore();
         } else if (kind === 'mega') {
             // A big cream puff with a body to it (the owner's sheet): a scalloped head over a wider belly, bumps down its
             // sides and two feet; its face in a soft ring; its arms open.
@@ -606,27 +640,35 @@
             const fy = y - q * 0.42;
             ctx.strokeStyle = '#d9b98a'; ctx.lineWidth = Math.max(1, q * 0.055); ctx.beginPath(); ctx.ellipse(x, fy, q * 0.5, q * 0.36, 0, 0, Math.PI * 2); ctx.stroke();
             eye(x - q * 0.2, fy - q * 0.06, q * 0.08, 0); eye(x + q * 0.2, fy - q * 0.06, q * 0.08, 0);
-            ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, q * 0.06); ctx.beginPath(); ctx.arc(x, fy + q * 0.02, q * 0.11, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+            if (chew > 0.2) { ctx.fillStyle = INK; ctx.beginPath(); ctx.ellipse(x, fy + q * 0.12, q * 0.13, q * 0.13 * chew, 0, 0, Math.PI * 2); ctx.fill(); }   // a big chomp
+            else { ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, q * 0.06); ctx.beginPath(); ctx.arc(x, fy + q * 0.02, q * 0.11, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke(); }
             ctx.fillStyle = 'rgba(240, 130, 110, 0.75)'; for (const bx of [-0.36, 0.36]) { ctx.beginPath(); ctx.arc(x + q * bx, fy + q * 0.08, q * 0.09, 0, Math.PI * 2); ctx.fill(); }
             ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, q * 0.07);
             ctx.beginPath(); ctx.arc(x - q * 0.34, y + q * 0.36, q * 0.17, 0.1 * Math.PI, 1.3 * Math.PI, true); ctx.stroke();
             ctx.beginPath(); ctx.arc(x + q * 0.34, y + q * 0.36, q * 0.17, 0.9 * Math.PI, -0.3 * Math.PI); ctx.stroke();
         } else if (kind === 'drill') {
             // The driller (2026-11-16, placeholder art in the sheet's style): a teal drill bit pointing down, a spiral groove
-            // round it, a darker cap with two eyes on top.
+            // round it, a darker cap with two eyes on top. It leans the way it's going, and its groove runs as it bores.
+            ctx.save(); ctx.translate(x, y); ctx.rotate(-0.4 * look); ctx.translate(-x, -y);
+            if (chew) { ctx.translate(Math.sin(spin * 9) * q * 0.05, 0); }
             ctx.beginPath(); ctx.moveTo(x - q * 0.8, y - q * 0.35); ctx.lineTo(x + q * 0.8, y - q * 0.35); ctx.lineTo(x + q * 0.12, y + q * 1.05); ctx.lineTo(x - q * 0.12, y + q * 1.05); ctx.closePath();
             ctx.fillStyle = '#3cc6b8'; ctx.strokeStyle = INK; ctx.lineWidth = lw; ctx.fill(); ctx.stroke();
             ctx.strokeStyle = '#1f6f68'; ctx.lineWidth = Math.max(1, q * 0.1); ctx.beginPath();
-            for (const k of [0, 1, 2]) { const yy = y - q * 0.1 + k * q * 0.36, half = q * 0.68 * (1 - (k + 0.4) / 3.2); ctx.moveTo(x - half, yy); ctx.lineTo(x + half, yy + q * 0.16); }
+            const run = ((spin % 1) + 1) % 1;
+            for (const k of [0, 1, 2]) { const t = k + run, yy = y - q * 0.1 + t * q * 0.36, half = q * 0.68 * (1 - (t + 0.4) / 3.2); if (half > q * 0.05) { ctx.moveTo(x - half, yy); ctx.lineTo(x + half, yy + q * 0.16); } }
             ctx.stroke();
             ctx.beginPath(); ctx.roundRect(x - q * 0.62, y - q * 0.95, q * 1.24, q * 0.66, q * 0.24);
             ctx.fillStyle = '#2a8f86'; ctx.strokeStyle = INK; ctx.lineWidth = lw; ctx.fill(); ctx.stroke();
-            eye(x - q * 0.22, y - q * 0.62, q * 0.17, q * 0.05, true); eye(x + q * 0.22, y - q * 0.62, q * 0.17, q * 0.05, true);
+            eye(x - q * 0.22, y - q * 0.62, q * 0.17, q * 0.06 * look, true); eye(x + q * 0.22, y - q * 0.62, q * 0.17, q * 0.06 * look, true);
+            ctx.restore();
         } else {
             // The gold-hungry (and any mite with no character): a yellow blob in round glasses.
             blob(x, y, q, 7, '#f9c22e');
             ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, q * 0.09); ctx.beginPath(); ctx.moveTo(x - q * 0.03, y - q * 0.15); ctx.lineTo(x + q * 0.07, y - q * 0.15); ctx.stroke();
-            eye(x - q * 0.3, y - q * 0.15, q * 0.27, q * 0.08, true); eye(x + q * 0.34, y - q * 0.15, q * 0.27, q * 0.08, true);
+            eye(x - q * 0.3, y - q * 0.15, q * 0.27, q * 0.1 * look, true); eye(x + q * 0.34, y - q * 0.15, q * 0.27, q * 0.1 * look, true);
+            // a glint sweeps across its glasses now and then
+            const gl = st ? ((st.now / 1000 + x * 0.01) % 2.6) / 0.5 : 9;
+            if (gl < 1) { ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = Math.max(1, q * 0.07); for (const ex of [-0.3, 0.34]) { const gx = x + q * ex + q * 0.27 * (gl * 2 - 1) * 0.7; ctx.beginPath(); ctx.moveTo(gx - q * 0.06, y - q * 0.27); ctx.lineTo(gx + q * 0.06, y - q * 0.03); ctx.stroke(); } }
             // A small frown.
             ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1, q * 0.09); ctx.beginPath(); ctx.arc(x + q * 0.38, y + q * 0.5, q * 0.14, 1.15 * Math.PI, 1.85 * Math.PI); ctx.stroke();
         }
@@ -808,8 +850,28 @@
         const r = Math.max(6, Math.min(26, c * 3.2));
         if (inTank && !still) drawTrails(f, tier, r);
         const bob = 1 + tier * 0.35;   // a frenzied swarm jitters faster
+        // What each mite is up to, for the drawing (`life`): where it's heading, how far into a bite, its working part's turn.
+        while (life.length < f.swarm.length) life.push({ x: null, y: null, look: 0.35, chewAt: -1e9, spin: 0, washAt: -1e9 });
+        life.length = f.swarm.length;
+        // The scrubber's ward (where nothing turns garbled) and the prospector's lamp, under the swarm.
+        if (inTank) f.swarm.forEach((m, n) => {
+            const [x, y] = px(m.x, m.y);
+            if (m.c === 'tidy' && (f.session.corrupted || hasGarbled(f))) {
+                ctx.save(); ctx.globalAlpha = 0.16; ctx.strokeStyle = '#e8743b'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 7]); ctx.lineDashOffset = still ? 0 : -now / 90;
+                ctx.beginPath(); ctx.arc(x, y, box.ward * c, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+            } else if (m.c === 'gold') {
+                const a = life[n].look >= 0 ? 0.35 : Math.PI - 0.35, reach = box.lamp * F().MITES.prospector.lamp * c;
+                const g = ctx.createRadialGradient(x, y, r * 0.5, x, y, reach); g.addColorStop(0, tint('gold', 0.2)); g.addColorStop(1, tint('gold', 0));
+                ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x, y); ctx.arc(x, y, reach, a - 0.45, a + 0.45); ctx.closePath(); ctx.fill();
+            }
+        });
         f.swarm.forEach((m, n) => {
             let [x, y] = px(m.x, m.y);
+            const L = life[n], dt2 = Math.max(0.001, dt);
+            if (L.x != null) { const vx = (m.x - L.x) / dt2; if (Math.abs(vx) > 2) L.look += (Math.max(-1, Math.min(1, vx / 25)) - L.look) * Math.min(1, dt2 * 6); }
+            L.x = m.x; L.y = m.y;
+            const since = (now - L.chewAt) / 1000, chew = still || since > 0.25 ? 0 : Math.abs(Math.sin(since / 0.25 * Math.PI));
+            L.spin += dt2 * (m.c === 'tidy' ? (now - L.washAt < 400 ? 3 : 0.6) : m.c === 'drill' ? (since < 0.3 ? 4 : 0.3) : 0);
             if (!still) { x += Math.cos(now / 90 * bob + n * 2.4) * r * 0.2; y += Math.sin(now / 70 * bob + n * 1.7) * r * 0.2; }
             if (tier > 0) {
                 // A frenzied mite glows: wider and hotter with each tier.
@@ -817,7 +879,7 @@
                 glow.addColorStop(0, tint(FRENZY_COLOR[tier], 0.18 + tier * 0.08)); glow.addColorStop(1, tint(FRENZY_COLOR[tier], 0));
                 ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(x, y, r * (1.6 + tier * 0.35), 0, Math.PI * 2); ctx.fill();
             }
-            drawMite(m.c, x, y, m.c === 'mega' ? r * 1.5 : r);
+            drawMite(m.c, x, y, m.c === 'mega' ? r * 1.5 : r, still ? null : { look: L.look, chew, spin: L.spin, now });
         });
         drawBits(c, dt);
         // The camera: the sand and the mites under the point you hold, enlarged, in a window of its own.
@@ -1079,6 +1141,8 @@
     function stop() { cancelAnimationFrame(raf); raf = 0; if (held !== null) letGo(); if (coach) coachEnd(false); }
     function close() { if (dlg?.open) { dlg.close(); stop(); } }
 
-    window.FeedUI = { open, close, events, get coach() { return coach && { key: coach.key, at: coach.at }; }, get isOpen() { return !!(dlg && dlg.open); }, get view() { return view; }, get zoom() { return zoom.k; }, zoomAt, px, drawMite };
+    window.FeedUI = { open, close, events, get coach() { return coach && { key: coach.key, at: coach.at }; }, get isOpen() { return !!(dlg && dlg.open); }, get view() { return view; }, get zoom() { return zoom.k; }, zoomAt, px, drawMite,
+        // A mite drawn on any canvas (a sheet of them for review): `st` as `drawMite`'s.
+        drawMiteOn(c2, kind, x, y, q, st) { const keep = ctx; ctx = c2; try { drawMite(kind, x, y, q, st); } finally { ctx = keep; } } };
     if (location.hash === '#feed') window.addEventListener('load', () => setTimeout(open, 600));
 })();

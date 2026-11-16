@@ -557,3 +557,12 @@ once they've eaten 12 grains where you led them), then, each shown for a few sec
 pays nothing and spreads), the **frenzy** (its meter pulses), **hunger** (below 40%; its bar pulses) and a found
 **cache**; the first **cards** carry a line over them. Done once each (`feed:coach:<key>` in `state.intro`), or shown
 twice if never done; Reset The Feed shows them again. Logged as `feedCoach`.
+
+**Mites with character** (the owner's pick, 2026-11-16; feed-ui.js `drawMite`'s `st`, `life`, `biteSound`; placeholder
+art and sounds, for the owner to judge): each mite looks the way it's heading and squashes as it bites (the grey mound
+opens its mouth, the chomper chomps, the star leans and squints); the scrubber's spokes turn, faster while it decodes,
+and a dashed ring shows its ward while the tank holds garbled sand; the driller leans into its way and its groove runs
+as it bores; the prospector casts a lamp of gold ahead of it and a glint crosses its glasses. Bite sounds by kind, the
+game's own effects, at most a few a second: grazers and the prospector on gold, the scrubber on decoding, the driller
+(`snareSlash`) and chomper (`snareHit`) on every bite. `FeedUI.drawMiteOn` draws one on any canvas (a review sheet).
+Also `FEED.frenzyTap` (1: the rule as it was), for the tuning question on tapping.
