@@ -841,3 +841,12 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   floor is refused with a line), a run (driven by a script pressing the keys), the hand-over and the result; no
   errors, no page scroll, tiles 30 px on a phone. In that check the new AI failed all four tries on both screens.
   **On a phone the room is small** (30 px tiles in a 362 by 211 px view). Not played by a person.
+
+## 2026-11-16: the track and the room are combined (the owner's call)
+
+- The owner: "the track and the platformer don't feel distinct from each other"; asked whether to combine them or
+  make them distinct, they chose **combine**, and a **third kind** is to be thought up with them.
+- **The room is the side-on course.** In the playground the Evals app opens the room (or the maze, whichever was used
+  last) and the bar's button goes Rooms and Maze. **The track is no longer reachable**; `course.js`, `course-ui.js` and
+  their tests are still in the repo, untouched, until the third kind is settled. Nothing of the track's (the one
+  button, the clean landing's burst of speed, the booster) has been carried into the room yet.

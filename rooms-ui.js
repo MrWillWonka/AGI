@@ -30,7 +30,7 @@
         canvas.addEventListener('pointerdown', e => { if (mode !== 'build') return; e.preventDefault(); const r = canvas.getBoundingClientRect(), o = R().ROOM; place(R().id(Math.floor((e.clientX - r.left) / (r.width / o.cols)), Math.floor((e.clientY - r.top) / (r.height / o.rows)))); });
         dlg = el('dialog', { class: 'evals-screen course-screen rooms-screen', 'aria-label': 'Evals: the room' },
             el('div', { class: 'evals-bar' }, el('span', { class: 'evals-title', text: 'Evals' }),
-                el('button', { type: 'button', class: 'ghost-button course-switch', text: 'Track', 'aria-label': 'Switch to the track course', onclick: () => { close(); try { localStorage.setItem('agiCourseKind', 'track'); } catch { /* private mode */ } window.CourseUI?.open(); } }),
+                el('button', { type: 'button', class: 'ghost-button course-switch', text: 'Maze', 'aria-label': 'Switch to the maze course', onclick: () => { close(); try { localStorage.setItem('agiCourseKind', 'maze'); } catch { /* private mode */ } window.MazeUI?.open(); } }),
                 marksEl, el('button', { type: 'button', class: 'ghost-button evals-close', 'aria-label': 'Close Evals', text: '×', onclick: close })),
             el('div', { class: 'course-body rooms-body' }, sayEl, canvas, toolsEl, padEl, actionsEl));
         dlg.addEventListener('close', stop);

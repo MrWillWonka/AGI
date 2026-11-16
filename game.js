@@ -2661,10 +2661,11 @@ window.AGI = (function () {
     const evalsUp = () => !!(window.EvalsUI?.isOpen || window.CourseUI?.isOpen || window.MazeUI?.isOpen || window.RoomsUI?.isOpen);
     function openEvalsApp() {
         state.intro['ring:seen:evals'] = true;
-        // (Three kinds of course: the track, the maze, the room. A button in each goes on to the next, and the last one used opens.)
+        // (Two kinds of course: the room and the maze, a button in each to the other; the last one used opens. The track
+        // was folded into the room, the owner's call, 2026-11-16: the two did not feel distinct. A third kind is being chosen.)
         const kind = (() => { try { return localStorage.getItem('agiCourseKind'); } catch { return null; } })();
-        const ui = kind === 'maze' ? window.MazeUI : kind === 'rooms' ? window.RoomsUI : window.CourseUI;
-        if (RING_PLAY && (ui || window.CourseUI)) (ui || window.CourseUI).open(); else window.EvalsUI?.open();
+        const ui = kind === 'maze' ? window.MazeUI : window.RoomsUI;
+        if (RING_PLAY && ui) ui.open(); else window.EvalsUI?.open();
     }
     function openTrainingApp() {
         state.intro['ring:seen:training'] = true;
