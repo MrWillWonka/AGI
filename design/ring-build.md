@@ -869,3 +869,39 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   turns everything gold and opens the backing, bad ones garble the sound, a boss is a freestyle). **Built first.**
   **The third kind** is a puck course, mini-golf crossed with target practice. **The audio overhaul is done** and may
   be brought over.
+
+## 2026-11-16: the rhythm run, step 1 (a rough prototype, playground only)
+
+- **Nothing needed bringing over:** the audio overhaul branch (`claude/audio-overhaul`) is already wholly in this
+  branch (its tip is an ancestor of this one, its worktree clean), so the finished engine is what the game here plays.
+- **Where:** the playground's Evals app; the bar's button goes round **Rooms → Maze → Rhythm → Rooms**. Rules
+  `rhythm.js` (pure, `tests/rhythm.test.js`, 6), screen `rhythm-ui.js`. Its own progress on the device
+  (`localStorage['agiRhythm']`), nothing paid into the save.
+- **What step 1 is** (the owner's calls 5, 6, 8, 9, 10): you pick one of the theme's six songs and how much of it is
+  notes (**Kick**, **Kick and bass**, **With the melody**: 24, 47 and 79 notes over 8 bars of Night Survey). **The
+  notes are read out of the song's own data** (its kick pattern, its bass pattern, its melody; a melody note four
+  steps long or more is a held note), a lane an instrument, thinned so no two in a lane are closer than two steps.
+  Regular notes are drawn as **the Training ball**, held notes as **a packet** with a tail. A hit within 0.05 s of the
+  beat is perfect, within 0.11 s good. **The meter:** it rises with hits and falls with misses; at a combo of 8 the
+  notes and the line **turn gold**; empty, **the song has fallen apart**, the run stops and scores nothing. Tapping
+  where there is no note costs a little. Score: hits by how well, plus up to half again for the longest combo.
+- **It plays the game's own music.** The run asks the engine for the chosen song a bar before the notes start
+  (`SFX.songCmd({ area, song, bar })`, new in sfx.js: this song of this area from this bar on the next downbeat),
+  lines the chart up with the engine's clock (`SFX.lab.clock()`, new), and **its meter is the engine's intensity**
+  (game.js `musicTick` reads `RhythmUI.music`): a full meter is the whole arrangement, a low one strips it to a kick
+  and a bass. A hit plays the engine's click for its lane, which the engine puts on the grid. With the music off or
+  not yet allowed by the browser, the run keeps a silent clock of its own and says so.
+- **The AI** (call 10): for each note it presses about when you did, as early or late as you were, less so with
+  mastery, with shaky hands on top (0.06 s at first) and a 14% chance of missing a note outright; both shrink with
+  mastery and halve at a note each time it gets it wrong, so a second try is tighter where the first was loose. Up to
+  3 tries. The stages past your limit apply: a track that fell apart on you can be handed over from stage 2.
+- **Marks:** 2.5 a note it hit, times how its score compares with yours (or its own best on that track and level).
+- **ALL PLACEHOLDER.** **Not in step 1** (the owner's calls 1 to 4, 7, 11): the composing board and arranging; the whole
+  field and notes anywhere; slashes, chords, flung holds; packets that move as you hold; bad notes that garble the
+  sound; the boss's freestyle; the AI writing tracks.
+- **Checked in a test browser, phone and laptop**, with real taps so the music was allowed to start: the engine turned
+  to the chosen song on cue, the run used its clock, the meter at full gave full intensity; a scripted player tapping
+  30 ms late played 79 of 79; the AI's tries and the result showed; no errors, no page scroll. `tests/audio.test.js`
+  still passes (14). **Not checked, and not checkable from here: whether the notes fall in time with what is heard.**
+  The picture is lined up with the audio clock less the output delay the browser reports; a real phone, and
+  Bluetooth headphones above all, will need a calibration setting. Not played by a person.

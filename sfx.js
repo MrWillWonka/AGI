@@ -1498,7 +1498,16 @@
         const song = m.songs[m.song];
         const bar = Math.floor((m.step - m.songStep) / song.steps);
         let moved = false;
-        if (m.area !== area) {
+        if (s === 0 && m.cmd && typeof m.cmd === 'object') {
+            // { area, song, bar }: this song of this area, from this bar, starting on this downbeat (Evals' rhythm run).
+            if (AREAS.includes(m.cmd.area)) area = m.cmd.area;
+            m.area = area;
+            m.songs = areaSongs(area);
+            m.song = songFor[area] = Math.max(0, Math.floor(m.cmd.song || 0)) % m.songs.length;
+            m.songStep = m.step - m.songs[m.song].steps * Math.max(0, Math.floor(m.cmd.bar || 0));
+            m.asked = (m.asked || 0) + 1;
+            moved = true;
+        } else if (m.area !== area) {
             m.left[m.area] = { song: m.song, bar: entryAt(song, Math.min(bar, song.bars - 1)) };
             const back = m.left[area];
             m.area = area;
@@ -1762,7 +1771,7 @@
         return out;
     }
     // For tests (tests/audio.test.js): the song builders, and a look at the running music.
-    const lab = { parseMelody, parseChord, buildSong, harmNote, melNote, songs: SONGS, music: () => music, master: () => master, gridMul: () => gridMul(), scales: { AEOL, PHRY, DOR, HARM, ION } };
+    const lab = { parseMelody, parseChord, buildSong, harmNote, melNote, songs: SONGS, music: () => music, clock: () => (clock ? { ...clock } : null), areaSongs: a => areaSongs(a), master: () => master, gridMul: () => gridMul(), scales: { AEOL, PHRY, DOR, HARM, ION } };
 
     return { tick, setPolicy, get catalog() { return catalog(); }, lab, get voices() { return { ...voices }; }, get context() { return ctx; }, get faults() { return { ...faults }; }, get sounds() { return Object.keys(SOUNDS); }, play, held, setArea, setDepth, setTraining, songCmd, get song() { return songNow(); }, setMusicMix, get musicMix() { return { ...musicMix }; }, setMix, setSimple, get mix() { return { ...mix }; }, get simple() { return simple; }, setMusicStyle, MUSIC_STYLES: ['classic', 'dark', 'soft', 'ominous', 'retro'], get musicStyle() { return style; }, charge, chargeStop, setVolume, setMusic, musicState, swell, get volume() { return volume; }, get state() { return ctx ? ctx.state : 'none'; }, get playing() { return !!music; }, get musicVolume() { return musicVolume; } };
     }

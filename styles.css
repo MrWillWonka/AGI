@@ -4735,3 +4735,11 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 .rooms-key { min-width: 72px; min-height: 72px; padding: 0 14px; }
 .rooms-jump { min-width: 120px; font: 700 1.05rem var(--font-display); }
 @media (max-width: 520px) { .course-say { min-height: 4.8em; } }
+
+/* The rhythm run (rhythm-ui.js; a prototype), in the course's screen. */
+.rhythm-canvas { display: block; align-self: center; width: min(100%, 520px); height: clamp(260px, calc(100dvh / var(--zoom, 1) - 400px), 560px); border: 1px solid var(--border); border-radius: 10px; background: var(--bg-2); touch-action: none; user-select: none; -webkit-user-select: none; }
+.rhythm-canvas[hidden], .rhythm-pick[hidden], .rhythm-pad[hidden] { display: none; }
+.rhythm-pick { display: flex; flex-direction: column; gap: 10px; }
+.rhythm-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.rhythm-pad { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-self: center; width: min(100%, 520px); }
+.rhythm-lane { min-height: 84px; font: 700 0.95rem var(--font-display); }
