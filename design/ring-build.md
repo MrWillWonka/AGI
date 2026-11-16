@@ -850,3 +850,8 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   last) and the bar's button goes Rooms and Maze. **The track is no longer reachable**; `course.js`, `course-ui.js` and
   their tests are still in the repo, untouched, until the third kind is settled. Nothing of the track's (the one
   button, the clean landing's burst of speed, the booster) has been carried into the room yet.
+
+- **The booster carries over into the room** (the owner's pick of the track's three things; the clean-landing burst and
+  the one-thumb option are dropped): a pad in a tile above the floor or a block; run over it and you are 1.6 times as
+  fast for 1.25 s (`boost`, `boostSteps`; PLACEHOLDER). An ability, no points, given with the spring.
+- **The third kind is still open:** the owner said "maybe target range, but let's hear some more".

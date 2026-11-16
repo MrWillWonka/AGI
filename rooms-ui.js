@@ -143,6 +143,7 @@
             if (t === 'ground') { ctx.fillStyle = col('--panel-2'); ctx.fillRect(x, y, k + 0.5, k); ctx.fillStyle = col('--success'); ctx.fillRect(x, y, k + 0.5, 2); }
             else if (t === 'block') { ctx.fillStyle = col('--panel-2'); ctx.fillRect(x + 0.5, y + 0.5, k - 1, k - 1); ctx.strokeStyle = col('--muted'); ctx.strokeRect(x + 1, y + 1, k - 2, k - 2); }
             else if (t === 'spring') { ctx.fillStyle = col('--panel-2'); ctx.fillRect(x + 0.5, y + k * 0.35, k - 1, k * 0.65); ctx.fillStyle = col('--primary'); ctx.fillRect(x + 2, y, k - 4, k * 0.3); }
+            else if (t === 'boost') { ctx.fillStyle = col('--primary'); for (let a = 0; a < 3; a++) { const bx = x + k * (0.2 + a * 0.26); ctx.beginPath(); ctx.moveTo(bx, y + k - 2); ctx.lineTo(bx + k * 0.16, y + k * 0.72); ctx.lineTo(bx, y + k * 0.5); ctx.closePath(); ctx.fill(); } }
             else if (t === 'spike') { ctx.fillStyle = col('--danger'); ctx.beginPath(); ctx.moveTo(x + k * 0.2, y + k); ctx.lineTo(x + k * 0.5, y + k * 0.5); ctx.lineTo(x + k * 0.8, y + k); ctx.closePath(); ctx.fill(); }
             else if (cy === o.rows - 1 && save.room[R().id(cx, cy)] === 'pit') { ctx.fillStyle = col('--danger'); ctx.globalAlpha = 0.22; ctx.fillRect(x, y, k + 0.5, k); ctx.globalAlpha = 1; }
         }
