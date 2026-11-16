@@ -855,3 +855,9 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   the one-thumb option are dropped): a pad in a tile above the floor or a block; run over it and you are 1.6 times as
   fast for 1.25 s (`boost`, `boostSteps`; PLACEHOLDER). An ability, no points, given with the spring.
 - **The third kind is still open:** the owner said "maybe target range, but let's hear some more".
+
+- **2026-11-16, the owner on the kinds of course:** each should be something "the player can build over time through
+  components"; more ideas wanted for the third; and a fourth, **the rhythm run**, is theirs (in `design/evals-course.md`
+  with a first sketch of mine and the rules a chart could be measured by). Nothing built. **A risk for the rhythm run:**
+  the music engine on this branch is the one from before the audio overhaul (another agent's branch,
+  `claude/audio-overhaul`), so a rhythm kind built here would be built on the old engine.
