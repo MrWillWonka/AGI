@@ -106,3 +106,76 @@ test('rhythm: a chart never asks for more than two thumbs, and for a mouse never
     assert.ok(two.filter(n => n.lane === 2).length >= raw.filter(n => n.lane === 2).length - 1, 'the melody is what is kept');
     assert.ok(one.some(n => n.len > 0) && one.some(n => n.lane === 0), 'a mouse still gets held notes and the kick');
 });
+
+// ---- The modes (the owner, 2026-11-16): Easy, Medium, Hard, Extreme, mixing the instruments ----
+const modeChart = m => R.timed(R.chartFor(SONG, m), STEP);
+const kinds = c => ({ notes: c.filter(n => !n.free).length, holds: c.filter(n => n.kind === 'hold').length, slashes: c.filter(n => n.kind === 'slash').length, free: c.filter(n => n.free).length,
+    chords: c.filter((n, i) => !n.free && c.some((m, j) => j > i && !m.free && m.t === n.t)).length, lanes: new Set(c.filter(n => !n.free).map(n => n.lane)).size });
+// Every note on its beat, held ones held, slashes slashed, and in a freestyle bar a varied beat of its own.
+const playAll = (c, off = 0) => c.flatMap(n => (n.free
+    ? [0, 1, 3, 4, 6].flatMap((k, i) => [{ t: n.t + k * n.grid + off, lane: i % 2, down: true }, { t: n.t + k * n.grid + off + 0.04, lane: i % 2, down: false }])
+    : [{ t: n.t + off, lane: n.lane, down: true, kind: n.kind === 'slash' ? 'slash' : undefined }, { t: n.t + off + (n.hold > 0 ? n.hold : 0.05), lane: n.lane, down: false }]));
+
+test('rhythm modes: each is busier than the last; Easy is single notes, freestyle and a few holds; Extreme has it all', () => {
+    const [easy, medium, hard, extreme] = [0, 1, 2, 3].map(m => kinds(modeChart(m)));
+    assert.ok(easy.notes < medium.notes && medium.notes < hard.notes && hard.notes <= extreme.notes, JSON.stringify({ easy, medium, hard, extreme }));
+    assert.equal(easy.chords, 0);
+    assert.equal(easy.slashes, 0);
+    assert.equal(easy.free, 2);
+    assert.ok(easy.holds >= 1 && easy.holds < extreme.holds, 'some holds, fewer than there are');
+    assert.ok(easy.lanes >= 2, 'the instruments are mixed, not one lane');
+    assert.ok(medium.chords >= 1 && medium.slashes === 0);
+    assert.ok(hard.slashes >= 1 && extreme.slashes > hard.slashes);
+    assert.ok(extreme.chords >= hard.chords && extreme.free >= 1 && extreme.holds >= 1);
+    assert.deepEqual(R.MODES.map(m => m.name), ['Easy', 'Medium', 'Hard', 'Extreme']);
+    assert.ok(R.rulesFor(0).meterMiss < R.rulesFor(3).meterMiss, 'a miss costs less on Easy');
+    for (const m of [0, 1, 2, 3]) { const c = R.chartFor(SONG, m).filter(n => !n.free); for (const n of c) assert.ok(c.filter(x => x.step <= n.step && (x.len > 0 ? x.step + x.len > n.step : x.step === n.step)).length <= 2, 'two thumbs'); }
+});
+
+test('rhythm modes: every mode can be played clean, and the notes of a freestyle bar are yours', () => {
+    for (const m of [0, 1, 2, 3]) {
+        const c = modeChart(m), r = R.simulate(c, playAll(c), END, R.rulesFor(m));
+        assert.equal(r.finished, true, R.MODES[m].name);
+        assert.equal(r.miss, 0, R.MODES[m].name + ' misses');
+        assert.equal(r.good, 0, R.MODES[m].name + ' is all perfect');
+        assert.equal(r.freeTaps, 5 * c.filter(n => n.free).length);
+        assert.equal(r.flairs, c.filter(n => n.free).length, 'a varied bar has flair');
+    }
+});
+
+test('rhythm freestyle: on the beat counts, off it does not (and costs nothing); the same tap over and over has no flair; silence is a miss', () => {
+    const c = modeChart(0), f = c.find(n => n.free), run = R.createRun(c, R.rulesFor(0));
+    run.advance(f.t - 0.3);
+    const before = { ...run.state, notes: null };
+    run.press(0, f.t + 0.01); run.release(0, f.t + 0.05);
+    assert.equal(run.state.freeTaps, 1);
+    run.press(0, f.t + f.grid * 1.5); run.release(0, f.t + f.grid * 1.5 + 0.04);   // between two half-beats
+    assert.equal(run.state.freeTaps, 1);
+    assert.equal(run.state.stray, before.stray, 'a loose tap in a freestyle is no stray');
+    assert.equal(run.state.miss, before.miss);
+    const dull = R.createRun(c, R.rulesFor(0)); dull.advance(f.t - 0.3);
+    const m0 = dull.state.miss;
+    for (let k = 0; k < 6; k++) { dull.press(1, f.t + k * f.grid); dull.release(1, f.t + k * f.grid + 0.03); }
+    dull.advance(f.t + f.dur + 0.01);
+    assert.equal(dull.state.freeTaps, 6);
+    assert.equal(dull.state.flairs, 0, 'one lane at one spacing is boring');
+    assert.equal(dull.state.miss, m0);
+    const silent = R.createRun(c, R.rulesFor(0)); silent.advance(f.t - 0.3); const m1 = silent.state.miss; silent.advance(f.t + f.dur + 0.01);
+    assert.equal(silent.state.miss - m1 >= 1, true);
+});
+
+test('rhythm slashes: slashed on the beat is perfect, tapped is good at best', () => {
+    const c = modeChart(3), n = c.find(x => x.kind === 'slash'), i = c.indexOf(n);
+    const a = R.createRun(c); a.advance(n.t - 0.16); a.press(n.lane, n.t, 'slash');
+    assert.equal(a.state.notes[i].state, 'perfect');
+    const b = R.createRun(c); b.advance(n.t - 0.16); b.press(n.lane, n.t);
+    assert.equal(b.state.notes[i].state, 'good');
+});
+
+test('rhythm modes: the AI plays freestyle bars and slashes too, better with practice; Easy is kinder to a beginner than Extreme', () => {
+    const rate = (m, runs) => { const c = modeChart(m), you = R.simulate(c, playAll(c, 0.09), END, R.rulesFor(m)); let fin = 0, taps = 0, flairs = 0; for (let s = 1; s <= 100; s++) { const h = R.handOver(c, you, END, { seed: s * 613, mastery: R.mastery(runs) }, R.rulesFor(m)); if (h.score) { fin++; taps += h.score.freeTaps; flairs += h.score.flairs; } } return { fin, taps: taps / Math.max(1, fin), flairs: flairs / Math.max(1, fin), you: you.finished }; };
+    const easyNew = rate(0, 0), extremeNew = rate(3, 0), extremeOld = rate(3, 40);
+    assert.ok(easyNew.you && extremeNew.you);
+    assert.ok(easyNew.fin >= extremeNew.fin && easyNew.fin >= 90, JSON.stringify({ easyNew, extremeNew }));
+    assert.ok(extremeOld.fin >= 98 && extremeOld.taps > extremeNew.taps && extremeOld.flairs > extremeNew.flairs, JSON.stringify({ extremeNew, extremeOld }));
+});
