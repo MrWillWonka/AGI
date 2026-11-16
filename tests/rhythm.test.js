@@ -94,3 +94,15 @@ test('rhythm: later tries are steadier on the notes it got wrong; past your limi
     assert.equal(R.marksFor(res, 0), Math.round(res.hits * o.marks));
     assert.ok(R.marksFor(res, res.score / 2) > R.marksFor(res, res.score));
 });
+
+test('rhythm: a chart never asks for more than two thumbs, and for a mouse never more than one thing at a time', () => {
+    const down = notes => { let most = 0; for (const n of notes) most = Math.max(most, notes.filter(m => m !== n && m.step <= n.step && (m.len > 0 ? m.step + m.len > n.step : m.step === n.step)).length + 1); return most; };
+    const raw = R.chartFrom(SONG, 2, undefined, undefined, 9), two = R.chartFrom(SONG, 2), one = R.chartFrom(SONG, 2, undefined, undefined, 1);
+    assert.equal(down(raw), 3, 'the song itself has the kick, the bass and the melody together');
+    assert.equal(down(two), 2);
+    assert.equal(down(one), 1);
+    assert.ok(raw.length > two.length && two.length > one.length);
+    for (let i = 1; i < one.length; i++) assert.ok(one[i].step - one[i - 1].step >= o.oneGap);
+    assert.ok(two.filter(n => n.lane === 2).length >= raw.filter(n => n.lane === 2).length - 1, 'the melody is what is kept');
+    assert.ok(one.some(n => n.len > 0) && one.some(n => n.lane === 0), 'a mouse still gets held notes and the kick');
+});
