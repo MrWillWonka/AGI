@@ -954,3 +954,28 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
 - Checked in a test browser on a phone with real touch events on the pads: Easy and Extreme of Night Survey played
   clean (taps, holds, six swiped slashes, freestyle with the bonus), then the AI's tries; no errors.
   `tests/rhythm.test.js` (12). Not heard, and not played by a person.
+
+## 2026-11-16: a first pass at how the three courses look (the owner: "work on the visuals for each eval")
+
+- **Shared (`course-art.js`, new):** the AI's runner is **the orb** (its picture in a glowing ring), yours is **the
+  Training ball** (blue, an amber core, squashing and stretching in the room); a burst where a run ends (red for a
+  fall, green at the finish); the clock and points in a pill; "try 2 of 4" while the AI plays; glows drawn as faint
+  rings, no blur (slow on phones). Colours are the theme's own.
+- **The room:** dots at the tile corners; a floor with a lit top edge; raised blocks; three-pronged spikes; pits that
+  fade down into red; saws as toothed wheels on a dotted rail; a coiled spring; booster chevrons that run; a waving
+  flag with a beacon; a trail behind the runner; speed lines while boosted; the AI's given way as a dotted line.
+- **The maze:** a checkered floor; raised walls; traps whose spikes come up when live and **turn amber a tick or two
+  before**, so the rhythm can be read; patrols drawn as **Packet Snare's Antivirus** (a red ring with four notches)
+  gliding along a dashed row; a bobbing key and a barred door that opens; a pulsing exit; the runner's path behind it.
+  **Movement now glides between ticks** (the rules still step; the picture is redrawn every frame).
+- **The rhythm run:** a tint for each lane (kick blue, bass violet, melody green) that breathes on the beat; bar lines
+  heavier than beats; **a ring to hit in each lane** that flashes with a burst on a hit; notes as the Training ball
+  with a streak, held notes as a packet with a thick tail that lights while held, slashes as a red diamond with the
+  stroke drawn through it; **the combo large and faint behind the notes**; everything amber at a combo of 8; the
+  freestyle bar as a band of moving stripes with a mark for each half-beat and a dot where you tapped; a segmented
+  meter, and a red frame when the song is close to falling apart; a count-in over the last three beats.
+- **A fault of mine while the owner was playing:** for a few minutes the maze asked for two redraws for every one it
+  drew, doubling each frame, which froze the page. Fixed (found by a screenshot timing out).
+- Looked at in a test browser on a phone and a laptop (pictures in `review-out/evals-art/`); no errors. Drawing only:
+  no rule changed and the tests are untouched. The orb's picture reads dark at the room's small size. All of it is a
+  first pass for the owner to react to.
