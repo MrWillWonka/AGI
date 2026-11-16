@@ -14,6 +14,11 @@
     const skills = () => (location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
     const masteryNow = () => R().mastery(save.runs, location.hash === '#playground' ? 0 : Math.min(skills(), 20));
     const LANES = ['Kick', 'Bass', 'Melody'], SOUND = ['compute', 'data', 'research'];
+    // One mouse or two thumbs (the owner, 2026-11-16). A mouse cannot aim at a lane in time, so it clicks anywhere on
+    // the notes and the click goes to whichever note is due; its charts are thinned to one thing at a time.
+    const mouse = () => { try { return matchMedia('(pointer: fine)').matches && !matchMedia('(any-pointer: coarse)').matches; } catch { return false; } };
+    const hands = () => (mouse() ? 1 : 2);
+    let mouseLane = -1;
     const AREAS = ['lab', 'server', 'snare'];
 
     let dlg, canvas, sayEl, marksEl, pickEl, padEl, actionsEl, save, mode = 'pick', run = null, chart = null, end = 0, feed = null, yours = null, hand = null, attempt = 0, raf = 0, pops = [], who = 'you';
@@ -31,6 +36,8 @@
         const lane = i => { const b = el('button', { type: 'button', class: 'maze-dir rhythm-lane', 'aria-label': LANES[i], text: LANES[i] }); const down = e => { e.preventDefault(); press(i); }, up = e => { e.preventDefault(); release(i); };
             b.addEventListener('pointerdown', down); b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up); return b; };
         padEl = el('div', { class: 'rhythm-pad', hidden: '' }, lane(0), lane(1), lane(2));
+        const anyDown = e => { if (mode !== 'test' || !mouse()) return; e.preventDefault(); mouseLane = dueLane(); press(mouseLane); }, anyUp = e => { if (mouseLane < 0) return; e.preventDefault(); release(mouseLane); mouseLane = -1; };
+        canvas.addEventListener('pointerdown', anyDown); canvas.addEventListener('pointerup', anyUp); canvas.addEventListener('pointercancel', anyUp); canvas.addEventListener('pointerleave', anyUp);
         actionsEl = el('div', { class: 'course-actions' });
         dlg = el('dialog', { class: 'evals-screen course-screen rhythm-screen', 'aria-label': 'Evals: the rhythm run' },
             el('div', { class: 'evals-bar' }, el('span', { class: 'evals-title', text: 'Evals' }),
@@ -54,7 +61,7 @@
         stop(); mode = 'pick'; run = null; hand = null; padEl.hidden = true; pickEl.hidden = false; canvas.hidden = true; music = { area: (trackNow() || {}).area || 'lab', level: 0.4 };
         const all = tracks(), tr = trackNow();
         if (!tr) { say('There is no music to play. The game\'s tracks did not load.'); actions(); return; }
-        const notes = lvl => R().chartFrom(tr.song, lvl).length;
+        const notes = lvl => R().chartFrom(tr.song, lvl, undefined, undefined, hands()).length;
         pickEl.replaceChildren(
             el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'Track' }, ...all.map((t, i) => el('button', { type: 'button', class: 'maze-tool' + (i === save.track ? ' on' : ''), 'aria-pressed': String(i === save.track), text: t.name, onclick: () => { save.track = i; yours = null; keep(); toPick(); } }))),
             el('div', { class: 'rhythm-row', role: 'group', 'aria-label': 'How much of it is notes' }, ...R().LEVELS.map((l, i) => el('button', { type: 'button', class: 'maze-tool' + (i === save.level ? ' on' : ''), 'aria-pressed': String(i === save.level), text: `${l.name} · ${notes(i)}`, onclick: () => { save.level = i; yours = null; keep(); toPick(); } }))));
@@ -64,7 +71,7 @@
     }
     // A run begins: ask the engine for the song a bar before the notes start, and line the chart up with its clock.
     function begin(by) {
-        stop(); who = by; mode = by === 'you' ? 'test' : 'ai'; pickEl.hidden = true; canvas.hidden = false; padEl.hidden = by !== 'you'; pops = [];
+        stop(); who = by; mode = by === 'you' ? 'test' : 'ai'; pickEl.hidden = true; canvas.hidden = false; padEl.hidden = by !== 'you' || mouse(); pops = []; mouseLane = -1;
         const tr = trackNow(), o = R().RHYTHM, from = Math.max(1, R().startBar(tr.song)), sfx = window.SFX, lab = sfx && sfx.lab;
         audio = !!(sfx && sfx.playing && lab && lab.clock && lab.clock() && lab.music());
         music = { area: tr.area, level: 0.5 };
@@ -73,14 +80,16 @@
         else { stepLen = 60 / (tr.song.bpm || 120) / 4; start(tr, from, performance.now() / 1000 + tr.song.steps * stepLen); }
         feed = by === 'ai' ? { events: hand.attempts[attempt].events.slice().sort((a, b) => a.t - b.t), i: 0 } : null;
         run = null; chart = null;
-        if (by === 'you') { say('Tap each note as it reaches the line. Hold the long ones.'); actions(button('Stop', () => toPick())); }
+        if (by === 'you') { say(mouse() ? 'Click as each note reaches the line. Hold the button for the long ones.' : 'Tap each note as it reaches the line. Hold the long ones.'); actions(button('Stop', () => toPick())); }
         cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
     }
     function start(tr, from, at) {
-        chart = R().timed(R().chartFrom(tr.song, save.level, from), stepLen); end = R().lengthOf(tr.song, stepLen); run = R().createRun(chart); t0 = at;
+        chart = R().timed(R().chartFrom(tr.song, save.level, from, undefined, hands()), stepLen); end = R().lengthOf(tr.song, stepLen); run = R().createRun(chart); t0 = at;
     }
     const clockNow = () => { if (!audio) return performance.now() / 1000; const c = window.SFX.context; return c.currentTime - (c.outputLatency || 0); };
     const now = () => (t0 == null ? -99 : clockNow() - t0);
+    // The lane of the note nearest its moment (a mouse click goes there); with none near, the middle lane.
+    function dueLane() { if (!run) return 1; const t = now(); let pick = null; for (const n of run.state.notes) if (n.state === 'wait' && Math.abs(n.t - t) <= R().RHYTHM.good && (!pick || Math.abs(n.t - t) < Math.abs(pick.t - t))) pick = n; return pick ? pick.lane : 1; }
     function press(lane) { if (mode !== 'test' || !run || run.state.over) return; show(run.press(lane, now())); }
     function release(lane) { if (mode !== 'test' || !run || run.state.over) return; show(run.release(lane, now())); }
     // What just happened, for the eye and the ear.
@@ -127,7 +136,7 @@
         if (!yours) return;
         const tr = trackNow();
         stepLen = stepLen || 60 / (tr.song.bpm || 120) / 4;
-        const c = R().timed(R().chartFrom(tr.song, save.level, Math.max(1, R().startBar(tr.song))), stepLen);
+        const c = R().timed(R().chartFrom(tr.song, save.level, Math.max(1, R().startBar(tr.song)), undefined, hands()), stepLen);
         hand = R().handOver(c, yours, R().lengthOf(tr.song, stepLen), { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow() });
         attempt = 0; actions(button('Skip to the result', aiResult)); aiStart();
     }

@@ -15,6 +15,10 @@
         lanes: 3,               // kick, bass, melody
         bars: 8,                // a run's length
         gap: 2,                 // the least steps between two notes in one lane (closer ones are thinned out)
+        // Playable by the hands there are (the owner, 2026-11-16: "two thumbs at most" on a phone, "just mouse" on a
+        // desktop): `hands` things can be down at once, a held note counting as one for as long as it is held. With one
+        // hand (a mouse) notes are also at least `oneGap` steps apart. At a clash the melody is kept, then the kick.
+        hands: 2, oneGap: 2, keep: [2, 0, 1],
         holdFrom: 4,            // a melody note this many steps long or more is a held note
         perfect: 0.05, good: 0.11, miss: 0.16,   // seconds from the beat: inside `perfect`, inside `good`, and when a note is gone
         holdSlack: 0.14,        // a hold may be let go this long before its end
@@ -38,7 +42,7 @@
     const startBar = song => { const s = song.form.find(x => x.mel && x.drums && x.drums !== 'none'); return s ? s.start : (song.form.find(x => x.mel) || song.form[0]).start; };
     // The notes of `bars` bars of a song from `from`, at a level (0: the kick; 1: and the bass; 2: and the melody).
     // Each: { step (from the chart's start), lane, len (steps held; 0: a tap) }. In time order.
-    function chartFrom(song, level, from = startBar(song), o = RHYTHM) {
+    function chartFrom(song, level, from = startBar(song), o = RHYTHM, hands = o.hands) {
         const lanes = LEVELS[Math.max(0, Math.min(LEVELS.length - 1, level))].lanes, steps = song.steps, notes = [], last = {};
         const add = (step, lane, len) => { if (last[lane] != null && step - last[lane] < o.gap) return; last[lane] = step + Math.max(0, len); notes.push({ step, lane, len }); };
         for (let b = 0; b < o.bars; b++) {
@@ -49,7 +53,20 @@
                 if (lanes.includes(2) && sec.mel && song.mel[sec.mel]) { const mel = song.mel[sec.mel], n = mel[((bar - sec.start) * steps + s) % mel.length]; if (n) { const len = Math.min(n.len || 1, o.bars * steps - (at + s)); add(at + s, 2, len >= o.holdFrom ? len - 1 : 0); } }
             }
         }
-        return notes.sort((a, b) => a.step - b.step || a.lane - b.lane);
+        return playable(notes, hands, o).sort((a, b) => a.step - b.step || a.lane - b.lane);
+    }
+    // Thin a chart to what `hands` hands can play: never more down at once than there are hands.
+    function playable(notes, hands, o = RHYTHM) {
+        const rank = n => o.keep.indexOf(n.lane), out = [], ends = [];
+        let lastStep = -99;
+        for (const n of notes.slice().sort((a, b) => a.step - b.step || rank(a) - rank(b))) {
+            const busy = ends.filter(e => e > n.step).length + out.filter(m => m.step === n.step && m.len === 0).length;
+            if (busy >= hands) continue;
+            if (hands < 2 && n.step - lastStep < o.oneGap) continue;
+            out.push(n); lastStep = n.step;
+            if (n.len > 0) ends.push(n.step + n.len);
+        }
+        return out;
     }
     // A chart in seconds for a step length: { t, lane, hold (seconds; 0: a tap) }, and how long the run lasts.
     const timed = (notes, stepLen) => notes.map(n => ({ t: n.step * stepLen, lane: n.lane, hold: n.len * stepLen }));
@@ -154,5 +171,5 @@
         return Math.round(res.hits * o.marks * bonus);
     }
 
-    return { RHYTHM, LEVELS, mastery, stage, sectionAt, startBar, chartFrom, timed, lengthOf, createRun, result, simulate, aiEvents, canHandOver, handOver, marksFor, rng };
+    return { RHYTHM, LEVELS, mastery, stage, sectionAt, startBar, chartFrom, playable, timed, lengthOf, createRun, result, simulate, aiEvents, canHandOver, handOver, marksFor, rng };
 });

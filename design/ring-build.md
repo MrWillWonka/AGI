@@ -905,3 +905,16 @@ while a layer grows only a fifth: `miteEvery` would be the next lever. All numbe
   still passes (14). **Not checked, and not checkable from here: whether the notes fall in time with what is heard.**
   The picture is lined up with the audio clock less the output delay the browser reports; a real phone, and
   Bluetooth headphones above all, will need a calibration setting. Not played by a person.
+
+## 2026-11-16: two thumbs at most, and a mouse alone (the owner, on a phone screenshot of the rhythm run)
+
+- The owner's first run on a phone fell apart after 6 notes: "With the melody" asked for the kick, the bass and the
+  melody at the same moment. Their rule: **"on mobile we are shooting for two thumbs at most, and desktop will need to
+  rely on just mouse."** It holds for every kind of course.
+- **Rhythm run, built:** a chart is thinned to the hands there are (rhythm.js `playable`, `hands`): on a phone never
+  more than two things down at once, a held note counting as one while it is held; at a clash the melody is kept,
+  then the kick, then the bass. **With a mouse** it is one thing at a time, notes at least two steps apart, and **a
+  click anywhere on the notes goes to whichever note is due** (a mouse cannot aim at a lane in time; the lane pads are
+  hidden). The AI plays the same thinned chart. Night Survey with the melody: 79 notes as written, fewer once thinned.
+- **Open, the same rule elsewhere:** the room needs left or right held while jump is pressed, which one mouse cannot
+  do (it works with two thumbs, and with the keyboard); the maze is one direction at a time and is fine.
