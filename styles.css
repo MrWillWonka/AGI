@@ -3810,7 +3810,7 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
 .evals-piece-shape { display: inline-block; position: relative; z-index: 2; min-width: 56px; padding: 6px 8px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .evals-piece-shape.dragging { cursor: grabbing; }
 .evals-slot.over { border-color: var(--warning); }
-.evals-slide:has(.evals-slot[aria-pressed="true"]) .evals-piece-shape:not(.dragging) { opacity: 0.3; }
+.evals-lay-slide:has(.evals-slot[aria-pressed="true"]) .evals-piece-shape:not(.dragging) { opacity: 0.3; }
 .evals-slot { width: 56px; height: 56px; font-size: 1.9rem; line-height: 1; }
 .evals-outline { color: transparent; -webkit-text-stroke: 1.5px var(--text); }
 .evals-slot[aria-pressed="true"] .evals-outline, .evals-slot.right .evals-outline { color: var(--warning); -webkit-text-stroke: 0; }
@@ -3831,8 +3831,8 @@ body:has(#snareTreeDetail.docked:not([hidden])) .toasts.dock-low { top: max(8px,
 .evals-tick .evals-mark { display: none !important; }
 
 /* Future: a board of arrows with the ball over it, and bins under it. */
-.evals-board, .evals-bins { display: grid; grid-template-columns: repeat(var(--side), 1fr); gap: 4px; text-align: center; }
-.evals-board { font: 700 1.4rem var(--font-mono); background: var(--bg-2); border-radius: 10px; padding: 8px 0; }
+.evals-play .evals-board, .evals-bins { display: grid; grid-template-columns: repeat(var(--side), 1fr); gap: 4px; text-align: center; }
+.evals-play .evals-board { font: 700 1.4rem var(--font-mono); background: var(--bg-2); border-radius: 10px; padding: 8px 0; }
 .evals-ball { color: var(--warning); min-height: 1.4em; }
 .evals-arrow { color: var(--muted); padding: 3px 0; }
 .evals-bin { min-height: 48px; font: 700 1.1rem var(--font-mono); }
