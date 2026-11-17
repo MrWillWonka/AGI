@@ -30,7 +30,7 @@ test('what is left in a tank stays for next time, garbled sand and all, and coun
 
 test('corruption: in a session garbled sand turns good sand garbled; a scrubber wards the sand round it; never outside a session', () => {
     const load = { sector: 2, packets: 150, gold: 10, garbled: 40 };
-    const idle = s => { const ev = []; for (let t = 0; t < 300; t++) ev.push(...Feed.step(s, 0.1, { chew: 0, hungerTime: 1e6 }).events); return ev; };
+    const idle = s => { const ev = []; for (let t = 0; t < 1200; t++) ev.push(...Feed.step(s, 0.1, { chew: 0, hungerTime: 1e6 }).events); return ev; };
     const a = tank(load), bad0 = count(a, 6);
     const ev = idle(a);
     assert.ok(count(a, 6) > bad0 * 1.06, `garbled ${bad0} → ${count(a, 6)}`);
@@ -40,7 +40,7 @@ test('corruption: in a session garbled sand turns good sand garbled; a scrubber 
     const turned = squad => {
         const t = tank(load, { squad }), m = t.swarm[0], x = (t.x0 + t.x1) / 2, y = t.h - 30;
         const was = t.cells.map(v => Feed.kindOf(v));
-        for (let n = 0; n < 400; n++) { for (const q of t.swarm) { q.x = x; q.y = y; } Feed.step(t, 0.1, { chew: 0, speed: 0, hungerTime: 1e6 }); }
+        for (let n = 0; n < 1600; n++) { for (const q of t.swarm) { q.x = x; q.y = y; } Feed.step(t, 0.1, { chew: 0, speed: 0, hungerTime: 1e6 }); }
         let near = 0; t.cells.forEach((v, i) => { if (Feed.kindOf(v) === 6 && was[i] !== 6 && Math.hypot(i % t.w + 0.5 - x, Math.floor(i / t.w) + 0.5 - y) <= Feed.FEED.ward) near++; });
         return near;
     };
@@ -96,7 +96,7 @@ test('buried caches: hidden knots deep in the tank that crack whole for research
     // They lie low: below the upper part of the sand.
     let top = s.h; s.cells.forEach((v, i) => { if (v) top = Math.min(top, Math.floor(i / s.w)); });
     s.cells.forEach((v, i) => { if (Feed.kindOf(v) === 7) assert.ok(Math.floor(i / s.w) >= top + (s.h - top) * 0.4 - Feed.FEED.cacheR); });
-    const ev = play(s, 60);
+    const ev = play(s, 240);
     const cracks = ev.filter(e => e.type === 'cache');
     assert.ok(cracks.length >= 1 && cracks.every(e => e.pay > 0 && e.grains >= Feed.FEED.cacheBits), 'cracked whole');
     assert.equal(cracks.length, s.stats.caches);
@@ -155,6 +155,50 @@ test('the squad: mites come in the squad\'s order; kinds open as the game goes o
         assert.ok(g.feed.swarm.every(m => Feed.miteKindOf(m.c) === 'driller'));
         assert.equal(E.SAVE_VERSION, 44);
         assert.deepEqual(E.migrate(JSON.parse(JSON.stringify(g)), Date.now()).feed.squad, ['driller']);
+    } finally { E.setRing(false); }
+});
+
+test('the first sessions come in stages: splits and mites, then cards, then the frenzy and the caches', () => {
+    const s = fresh();
+    const session = () => { Feed.deliver(s, { sector: 1, packets: 400 }); Feed.startSession(s, 1, { staged: true }); const ev = play(s, 70); const r = Feed.endSession(s, 'left'); return { ev, r }; };
+    // Session 1: a split adds a mite, but offers no card; no frenzy; no cache lies in the tank.
+    Feed.deliver(s, { sector: 1, packets: 400 }); Feed.startSession(s, 1, { staged: true });
+    assert.equal(s.session.stage, 1);
+    assert.equal(count(s, 7), 0, 'no caches');
+    const one = play(s, 70);
+    assert.ok(one.some(e => e.type === 'layer') && s.mites > 2, 'it split');
+    assert.equal(one.some(e => e.type === 'offer' || e.type === 'frenzy'), false);
+    assert.equal(Feed.endSession(s, 'left').stage, 1);
+    // Session 2: cards, still no frenzy or caches.
+    Feed.deliver(s, { sector: 1, packets: 400 }); Feed.startSession(s, 1, { staged: true });
+    assert.equal(s.session.stage, 2);
+    assert.equal(count(s, 7), 0);
+    const two = play(s, 70);
+    assert.ok(two.some(e => e.type === 'offer'));
+    assert.equal(two.some(e => e.type === 'frenzy'), false);
+    Feed.endSession(s, 'left');
+    // Session 3 on: everything.
+    const three = session();
+    assert.equal(three.r.stage, 3);
+    assert.ok(three.ev.some(e => e.type === 'frenzy'));
+    Feed.deliver(s, { sector: 1, packets: 400 }); Feed.startSession(s, 1, { staged: true });
+    assert.ok(count(s, 7) > 0, 'caches');
+    // A session that never reached a split doesn't count; a save keeps the count; without `staged`, everything.
+    const t = fresh(); Feed.deliver(t, { sector: 1, packets: 100 }); Feed.startSession(t, 1, { staged: true }); play(t, 2); Feed.endSession(t, 'left');
+    assert.equal(Feed.stageOf(t), 1);
+    assert.equal(Feed.clean(JSON.parse(JSON.stringify(s))).played, s.played);
+    Feed.deliver(t, { sector: 1, packets: 100 }); Feed.startSession(t, 1);
+    assert.equal(t.session.stage, 3);
+    // A save from before the stages that has played sessions has seen everything.
+    const old = JSON.parse(JSON.stringify(fresh())); delete old.played; old.stats.sessions = 4;
+    assert.equal(Feed.stageOf(Feed.clean(old)), 3);
+    // The game stages a new player's sessions; the playground has everything.
+    E.setRing(true);
+    try {
+        const g = E.defaultState(Date.now());
+        E.feedDeliver(g, { sector: 1, packets: 60 });
+        E.feedStart(g, 1);
+        assert.equal(g.feed.session.stage, 1);
     } finally { E.setRing(false); }
 });
 

@@ -54,7 +54,11 @@
         w: 256, h: 448,     // the box, in cells: tall, for an upright phone; finer sand (the owner's call, 2026-11-14: grains half the size, so
                             // every length below is in these smaller cells and a packet makes four times the grains)
         grains: 64,         // grains of sand a packet makes
-        chew: 4,            // packets' worth of bites a second a mite, when led (the model's `chew`)
+        // (2026-11-17, the owner on the first log of the tanks: "the pacing is wildly too fast, I had no sense of what was going
+        // on or why". Measured, a full first tank of 450 packets led well: 36 s, a split every 3–9 s, the frenzy at its top
+        // by 28 s. The owner's pick from three measured paces, the slowest: `chew` 1 (4), `layerFirst` 45 (30), `layerGrow`
+        // 1.5 (1.2), `frenzyStep` 8 (4): about 1¾ minutes, four splits 20–26 s apart, the same research.)
+        chew: 1,            // packets' worth of bites a second a mite, when led (the model's `chew`)
         graze: 0.25,        // the share of that when left alone (the owner's call; the model's `graze`)
         tough: [1, 2, 3],   // bites a grain takes, by the sector it came from (the model's `tough`); +1 a sector past the list
         slow: 4,            // slow sand (garbled, or a kind with no skill yet) takes this many times the bites
@@ -63,8 +67,8 @@
         // Measured with a bot on a 1,300-packet haul: at 15 and ×1.5 the splits came 4 3 3 3 4 8 17 31 52 s apart; at 30 and
         // ×1.2, 7 3 5 3 3 3 17 12 16 29 41, for the same research. Mites move at 240, was 360: the pace is the same within
         // a few seconds, they are only easier to follow. All three are mine, to be played.)
-        layerFirst: 30,     // packets' worth of paying sand in the first layer (was 15)
-        layerGrow: 1.2,     // each layer is this much bigger than the last (was 1.5; the model's `layerGrow`)
+        layerFirst: 45,     // packets' worth of paying sand in the first layer (was 15, then 30)
+        layerGrow: 1.5,     // each layer is this much bigger than the last (was 1.5, then 1.2; the model's `layerGrow`)
         miteFirst: 1,       // the first new mite comes with this layer (the owner's call: the first; the model's `miteFirst`)
         startMites: 2,      // a session starts with this many mites (the owner's call, 2026-11-14: one felt like nothing was happening)
         // (Also that day, "the sand is so slow": chew 4 (2), speed 360 (180), pour 16 (8), and splits at 15, 23, 34, 51… packets (30, ×1.8). A packet pays what it did.)
@@ -107,8 +111,12 @@
         stockRuns: 3,       // sessions: a sector's stockpile holds this many of your best run there (the owner's call),
         stockMin: 60,       // and this many packets at the least
         prePour: 1,         // a session opens with this many first layers' worth of sand already lying in the box (the owner's call, 2026-11-15: enough for the first split; it opened on an empty box)
-        hungerTime: 25,     // seconds a full hunger bar takes to empty
-        hungerFill: 0.6,    // eating this share of the layer's worth of paying sand refills the whole bar
+        // (2026-11-17: with eating at a quarter, the clocks that race it go at a quarter too, so the balance is as it was:
+        // the hunger bar 100 s (25) with `hungerFill` 0.4 (0.6: the first layer is 45 packets, was 30), corruption every 2 s
+        // (0.5). Unscaled, a sector 2 tank ended on hunger at 15% eaten (it was eaten bare); scaled, measured against the
+        // old pace: holding, sector 2 100% eaten (100%), 3 100% (100%), 5 49% (51%); tapping 72% (100%), 69% (51%), 68% (61%).)
+        hungerTime: 100,    // seconds a full hunger bar takes to empty
+        hungerFill: 0.4,    // eating this share of the layer's worth of paying sand refills the whole bar
         payScale: 0.25,     // what a session pays, times this: the faster dials earned about four times the research a second (measured on four stockpiles), and the owner wants the earning as it was
         sectorPay: 0.5,     // a packet from sector k pays 1 + this × (k − 1) times as much
         cardChoices: 3,     // cards offered at a split, to pick one (the owner's call: the session waits while you choose)
@@ -174,7 +182,7 @@
         cachePay: 8,        // and pays this many packets' worth of research (at the session's pay)
         // ---- Corruption (the owner's call): in a session, garbled sand slowly turns the good sand touching it garbled.
         // Never outside a session. A scrubber mite wards the sand round it.
-        corruptEvery: 0.5,  // seconds between spreads,
+        corruptEvery: 2,    // seconds between spreads,
         corruptChance: 0.025,// the chance a garbled grain on the edge of good sand turns one neighbour each spread,
         corruptGold: 0.5,   // gold resists: this times the chance,
         ward: 22,           // and a scrubber mite stops it within this many cells
@@ -183,7 +191,7 @@
         frenzyFloor: 0.3,   // the share of the swarm's full eating it has to keep up to build heat (0.4 until the owner's call,
                             // 2026-11-16: a tapped point on dirty sand never got there),
         frenzyTap: 1,       // at a tapped point, its full eating counted at this share (1: as a held one; `tapRate` would judge a tap by what a tap can do),
-        frenzyStep: 4,      // heat (about seconds of good eating) a tier,
+        frenzyStep: 8,      // heat (about seconds of good eating) a tier (4 until 2026-11-17),
         frenzyMax: 4,       // tiers at the most,
         frenzyPay: 0.25,    // research a tier: +25%,
         frenzySpeed: 0.1,   // mite speed and eating a tier: +10%,
@@ -352,7 +360,7 @@
         const o = opt(opts);
         const state = {
             rs: (opts.seed ?? 1) >>> 0, w: FEED.w, h: FEED.h, cells: new Array(FEED.w * FEED.h).fill(0), grains: 0, rest: true, tick: 0,
-            mites: 1, swarm: [], squad: ['grazer'], x0: 0, x1: FEED.w, tankTop: 0, aim: null, spot: null, layers: 0, fed: 0, owed: 0, plain: 0, fragAt: 0, fragPlaced: false, fragNext: 0, fragments: {},
+            mites: 1, swarm: [], squad: ['grazer'], played: 0, x0: 0, x1: FEED.w, tankTop: 0, aim: null, spot: null, layers: 0, fed: 0, owed: 0, plain: 0, fragAt: 0, fragPlaced: false, fragNext: 0, fragments: {},
             backlog: [], drops: [], last: 0, band: 0, sweepAt: 0, pourAcc: 0, fallAcc: 0, readable: [], dry: false,
             // Sessions: stockpiles and best runs by sector, the session in play (or null), the hunger bar, the last one's result.
             sessioned: false, stock: {}, best: {}, tops: {}, record: {}, session: null, life: 1, lastSession: null,
@@ -755,7 +763,7 @@
         state.band = (state.band + o.strata) % o.bands;
         state.grains = at;
         // The caches: knots of rich sand in the lower part of the sand, hidden until a lamp or a bite finds them.
-        const caches = total >= o.cacheMin ? Math.max(1, Math.floor(total / o.cacheEvery)) : 0;
+        const caches = total >= o.cacheMin && stageNow(state) >= STAGE_ALL ? Math.max(1, Math.floor(total / o.cacheEvery)) : 0;
         if (caches && at) {
             let surface = h - 1; for (let i = 0; i < at; i++) surface = Math.min(surface, Math.floor(order[i] / w));
             const yTop = surface + Math.ceil((h - surface) * o.cacheDeep), r = o.cacheR;
@@ -787,8 +795,11 @@
         if (opts && Array.isArray(opts.squad)) setSquad(state, opts.squad, opts);
         tankRect(state, k, o);
         delete state.stock[k];
+        // The first sessions come in stages (the owner's pick, 2026-11-17: a first session showed everything at once): with
+        // `opts.staged`, session 1 is leading, eating and splits that add mites; session 2 adds the cards; session 3 the
+        // frenzy and the caches (`stageOf`: by the sessions played that reached a split, `state.played`). Otherwise all of it.
         state.session = { sector: k, research: 0, time: 0, packets: e.n + e.gold + e.bad, cards: {}, offer: null, picks: 0, wait: false, piles: 1, tt: {}, beam: -1, ring: null, bots: [], sift: -1, dbot: null, rbots: [],
-            heat: 0, tier: 0, peak: 0, ate: 0, slow: 0, ct: 0, cn: 0, caches: 0, corrupted: 0, start: 0 };
+            heat: 0, tier: 0, peak: 0, ate: 0, slow: 0, ct: 0, cn: 0, caches: 0, corrupted: 0, start: 0, stage: opts && opts.staged ? stageOf(state) : STAGES };
         fillTank(state, o, k, e);
         state.session.start = state.grains;
         state.life = 1; state.lastSession = null; state.stats.sessions++;
@@ -832,16 +843,21 @@
     }
     // The session is over (`why`: 'hunger', 'empty', or 'left' when you end it yourself). What is left in the tank stays in
     // its stockpile (the owner's call, 2026-11-16), garbled sand and all; `left` in the result says how much.
+    // The stages of the first sessions: 1 leading and splits, 2 the cards too, 3 everything (the frenzy and the caches).
+    const STAGES = 3, STAGE_CARDS = 2, STAGE_ALL = 3;
+    const stageOf = state => Math.min(STAGES, (state.played || 0) + 1);
+    const stageNow = state => state.session?.stage || STAGES;
     function endSession(state, why, opts, out) {
         const o = opt(opts), s = state.session;
         if (!s) return null;
+        if (state.layers > 0) state.played = Math.min(99, (state.played || 0) + 1);   // a session that reached a split counts toward the stages
         for (const e of state.backlog) { const t = state.stock[e.sector] || (state.stock[e.sector] = { n: 0, gold: 0, bad: 0 }); t.n += e.n; t.gold += e.gold; t.bad += e.bad; }
         state.backlog = [];
         const back = boxStock(state, o), kept = back.n + back.gold + back.bad;
         if (kept > 0) { const t = state.stock[s.sector] || (state.stock[s.sector] = { n: 0, gold: 0, bad: 0 }); t.n += back.n; t.gold += back.gold; t.bad += back.bad; }
         const eaten = s.start ? Math.max(0, Math.min(1, 1 - state.grains / s.start)) : 1;
         const result = { type: 'over', why, sector: s.sector, layers: state.layers, mites: state.mites, research: s.research, time: Math.round(s.time), piles: s.piles || 1, cards: Object.values(s.cards || {}).reduce((n, v) => n + v, 0), record: state.layers > (state.record[s.sector] || 0),
-            left: kept, bad: back.bad, cleared: Math.round(eaten * 100), caches: s.caches || 0, corrupted: Math.round((s.corrupted || 0) / o.grains), frenzy: s.peak || 0 };
+            left: kept, bad: back.bad, cleared: Math.round(eaten * 100), caches: s.caches || 0, corrupted: Math.round((s.corrupted || 0) / o.grains), frenzy: s.peak || 0, stage: s.stage || STAGES };
         if (result.record) state.record[s.sector] = state.layers;
         clearBox(state, o);
         state.session = null; state.life = 1; state.lastSession = { ...result };
@@ -1097,7 +1113,7 @@
         if (state.fed >= need) {
             const over = state.fed - need, pay = Math.max(1, Math.round(o.layerPay * layerSize(state.layers, o) * payMult(state, o)));
             state.layers++;
-            if (state.session) { state.life = 1; state.session.picks = (state.session.picks || 0) + 1; }   // a split fills the hunger bar and offers cards (`step`)
+            if (state.session) { state.life = 1; if (stageNow(state) >= STAGE_CARDS) state.session.picks = (state.session.picks || 0) + 1; }   // a split fills the hunger bar and offers cards (`step`)
             const mite = state.layers >= o.miteFirst && (state.layers - o.miteFirst) % o.miteEvery === 0;
             if (mite) addMite(state, o, !state.session);   // in a session the squad's next kind; outside one, as the old Feed drew them
             state.owed += pay;
@@ -1355,7 +1371,7 @@
                 if (!state.dry && state.stats.delivered > 0) { state.dry = true; out.events.push({ type: 'empty' }); }
             }
             if (state.session) {
-                heat(state, base, o, each, out);
+                if (stageNow(state) >= STAGE_ALL) heat(state, base, o, each, out);
                 const s = state.session;
                 s.ct = (s.ct || 0) + each;
                 if (s.ct >= base.corruptEvery) { s.ct -= base.corruptEvery; if (state.grains) corrupt(state, base, out); }
@@ -1420,6 +1436,8 @@
         }
         state.readable = LOCKED.filter(k => Array.isArray(raw.readable) && raw.readable.includes(k));
         if (Array.isArray(raw.squad)) setSquad(state, raw.squad, { slots: 8 });
+        // The stages of the first sessions: a save from before them that has played sessions has seen everything.
+        state.played = raw.played === undefined ? (whole(raw.stats?.sessions, 1e9) > 0 ? STAGES : 0) : whole(raw.played, 99);
         for (const key of Object.keys(state.stats)) state.stats[key] = whole(raw.stats?.[key], 1e15);
         const box = raw.w === FEED.w && raw.h === FEED.h ? (typeof raw.cells === 'string' ? unpack(raw.cells, FEED.w * FEED.h) : raw.cells) : null;
         const sized = Array.isArray(box) && box.length === FEED.w * FEED.h;
@@ -1473,7 +1491,7 @@
                 const cards = {}; for (const id of CARD_IDS) { const n = whole(sess.cards?.[id], 200); if (n) cards[id] = n; }
                 const offer = Array.isArray(sess.offer) ? [...new Set(sess.offer.filter(id => typeof id === 'string' && Object.prototype.hasOwnProperty.call(CARDS, id)))].slice(0, o.cardChoices) : [];
                 state.session = { sector, research: whole(sess.research, 1e12), time: real(sess.time, 0, 1e7, 0), packets: whole(sess.packets, 1e8), cards, offer: offer.length ? offer : null, picks: offer.length ? Math.max(1, whole(sess.picks, 200)) : whole(sess.picks, 200), wait: sess.wait === true, piles: Math.max(1, whole(sess.piles, 99)),
-                    heat: real(sess.heat, 0, 1e3, 0), tier: whole(sess.tier, o.frenzyMax), peak: whole(sess.peak, o.frenzyMax), ate: whole(sess.ate, 1e9), slow: whole(sess.slow, 1e9), ct: real(sess.ct, 0, 10, 0), cn: whole(sess.cn, 1e12), caches: whole(sess.caches, 1e4), corrupted: whole(sess.corrupted, 1e9), start: whole(sess.start, FEED.w * FEED.h) };
+                    heat: real(sess.heat, 0, 1e3, 0), tier: whole(sess.tier, o.frenzyMax), peak: whole(sess.peak, o.frenzyMax), ate: whole(sess.ate, 1e9), slow: whole(sess.slow, 1e9), ct: real(sess.ct, 0, 10, 0), cn: whole(sess.cn, 1e12), caches: whole(sess.caches, 1e4), corrupted: whole(sess.corrupted, 1e9), start: whole(sess.start, FEED.w * FEED.h), stage: Math.max(1, whole(sess.stage === undefined ? STAGES : sess.stage, STAGES)) };
                 // The tank's walls (a save from before tanks: the whole box).
                 const x0 = whole(raw.x0, FEED.w - 1), x1 = whole(raw.x1, FEED.w);
                 if (x1 > x0 + 1) { state.x0 = x0; state.x1 = x1; state.tankTop = whole(raw.tankTop, FEED.h - 1); }
@@ -1490,7 +1508,7 @@
             } else { clearBox(state, o); state.life = 1; }
             const last = raw.lastSession;
             if (last && whole(last.sector, 99)) state.lastSession = { type: 'over', why: ['hunger', 'empty', 'left'].includes(last.why) ? last.why : 'hunger', sector: whole(last.sector, 99), layers: whole(last.layers, 200), mites: Math.max(1, whole(last.mites, 999)), research: whole(last.research, 1e12), time: whole(last.time, 1e7), cards: whole(last.cards, 1e4), record: last.record === true,
-                left: whole(last.left, 1e8), bad: whole(last.bad, 1e8), cleared: whole(last.cleared, 100), caches: whole(last.caches, 1e4), corrupted: whole(last.corrupted, 1e8), frenzy: whole(last.frenzy, o.frenzyMax) };
+                left: whole(last.left, 1e8), bad: whole(last.bad, 1e8), cleared: whole(last.cleared, 100), caches: whole(last.caches, 1e4), corrupted: whole(last.corrupted, 1e8), frenzy: whole(last.frenzy, o.frenzyMax), stage: Math.max(1, whole(last.stage === undefined ? STAGES : last.stage, STAGES)) };
         }
         state.swarm = Array.from({ length: state.mites }, (_, n) => {
             const m = sized && Array.isArray(raw.swarm) ? raw.swarm[n] : null, d = mitePlace(state, n);
@@ -1502,6 +1520,6 @@
 
     return { FEED, KINDS, KIND_IDS, LOCKED, FRAGMENTS, STEP, newFeed, clean, deliver, point, mark, step, setReadable, readableFor,
         sessions, startSession, endSession, stockList, stockOf, stockCap, CARDS, COMBOS, CHARACTERS, pickCard, cardMult, toolLevel,
-        MITES, MITE_IDS, miteKindOf, setSquad, boxStock, tierOf,
+        MITES, MITE_IDS, miteKindOf, setSquad, boxStock, tierOf, STAGES, stageOf,
         carryOn, pack, unpack, spoutX, left, waiting, fill, census, hunger, layerSize, bitesFor, kindOf, bandOf, seenOf, airOf, hpOf };
 });

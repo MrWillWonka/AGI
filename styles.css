@@ -4641,3 +4641,5 @@ body.ring-device .minimap { display: none !important; }
 .feed-frenzy.coached, .feed-hunger.coached { animation: feed-coached 0.9s ease-in-out infinite alternate; }
 @keyframes feed-coached { from { box-shadow: 0 0 0 0 transparent; } to { box-shadow: 0 0 0 2px color-mix(in srgb, var(--warning) 70%, transparent), 0 0 14px color-mix(in srgb, var(--warning) 45%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .feed-frenzy.coached, .feed-hunger.coached { animation: none; box-shadow: 0 0 0 2px var(--warning); } }
+/* The Feed's stages (2026-11-17): what the next session adds, on the result card. */
+.feed-last-new { margin: 2px 0 0; font: 600 0.84rem/1.35 var(--font-body); color: var(--success); }

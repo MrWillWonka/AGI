@@ -17,10 +17,10 @@ function play(s, seconds) {
     return events;
 }
 
-test('the dials: splits at 30, 36, 43, 52 packets, mites at 240, two mites to start', () => {
+test('the dials: splits at 45, 68, 101, 152 packets, mites at 240 eating a packet a second, two mites to start (the owner\'s pick, 2026-11-17: the slowest of three measured paces)', () => {
     const f = Feed.FEED;
-    assert.deepEqual([f.chew, f.speed, f.pour, f.startMites, f.payScale], [4, 240, 16, 2, 0.25]);
-    assert.deepEqual([0, 1, 2, 3].map(n => Feed.layerSize(n)), [30, 36, 43, 52]);
+    assert.deepEqual([f.chew, f.speed, f.pour, f.startMites, f.payScale], [1, 240, 16, 2, 0.25]);
+    assert.deepEqual([0, 1, 2, 3].map(n => Feed.layerSize(n)), [45, 68, 101, 152]);
     const s = fresh();
     Feed.deliver(s, { sector: 1, packets: 40 });
     assert.equal(Feed.startSession(s, 1), true);
@@ -29,21 +29,22 @@ test('the dials: splits at 30, 36, 43, 52 packets, mites at 240, two mites to st
     assert.ok(s.swarm.every(m => Feed.CHARACTERS.includes(m.c)));
 });
 
-test('a session splits early: the first split inside 15 seconds on soft sand', () => {
+test('the first split comes inside 40 seconds on soft sand, and not inside 10 (it came in 5)', () => {
     const s = fresh();
     Feed.deliver(s, { sector: 1, packets: 200 });
     Feed.startSession(s, 1);
-    const events = play(s, 15);
-    assert.ok(events.some(e => e.type === 'layer'), 'a split in 15 s');
+    assert.equal(play(s, 10).some(e => e.type === 'layer'), false, 'no split in 10 s');
+    const events = play(s, 30);
+    assert.ok(events.some(e => e.type === 'layer'), 'a split in 40 s');
     assert.ok(s.mites >= 3);
 });
 
 test('a pile eaten with other stockpiles waiting: the session waits, and carries on with mites, splits, cards and hunger', () => {
     const s = fresh();
-    Feed.deliver(s, { sector: 1, packets: 40 });
+    Feed.deliver(s, { sector: 1, packets: 60 });
     Feed.deliver(s, { sector: 2, packets: 30, gold: 3 });
     Feed.startSession(s, 1);
-    const events = play(s, 120);
+    const events = play(s, 240);
     assert.ok(s.session && s.session.wait, 'waiting, not over');
     assert.ok(events.some(e => e.type === 'cleared' && e.sector === 1));
     assert.equal(events.some(e => e.type === 'over'), false);

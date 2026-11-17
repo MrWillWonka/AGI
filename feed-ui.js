@@ -18,7 +18,7 @@
     // The owner's dials (2026-11-15: "need to look at the camera to dial in what I want", mites too fast, early splits
     // too quick, late game stalls): sliders in the test panel that set the rules' own numbers and the view's, kept per
     // device, so the owner can find the values and say them. [key, label, min, max, step, where]
-    const DIALS = [['speed', 'Mite speed', 60, 600, 20, 'feed'], ['chew', 'Eating speed', 1, 12, 0.5, 'feed'], ['layerFirst', 'First split (packets)', 5, 80, 1, 'feed'], ['layerGrow', 'Each split bigger by', 1.1, 2.5, 0.05, 'feed'],
+    const DIALS = [['speed', 'Mite speed', 60, 600, 20, 'feed'], ['chew', 'Eating speed', 0.25, 6, 0.25, 'feed'], ['layerFirst', 'First split (packets)', 5, 120, 1, 'feed'], ['layerGrow', 'Each split bigger by', 1.1, 2.5, 0.05, 'feed'],
         ['hungerTime', 'Hunger bar (s)', 10, 90, 5, 'feed'], ['minCols', 'Closest view (cells across)', 40, 256, 8, 'view'], ['ease', 'View catches up', 0.02, 0.4, 0.02, 'view']];
     // (The owner, 2026-11-15: the camera zoomed out to start. The view opens on the whole width of the box; + zooms in.)
     const dial = { minCols: 256, ease: EASE };
@@ -26,11 +26,11 @@
     const dialGet = ([key, , , , , where]) => (where === 'view' ? dial[key] : F().FEED[key]);
     const dialSet = ([key, , , , , where], v) => { if (where === 'view') dial[key] = v; else F().FEED[key] = v; };
     let dialBase = null;
-    const dialSave = () => { try { localStorage.setItem('agiFeedDials2', JSON.stringify(Object.fromEntries(DIALS.map(d => [d[0], dialGet(d)])))); } catch { /* private mode */ } };
+    const dialSave = () => { try { localStorage.setItem('agiFeedDials3', JSON.stringify(Object.fromEntries(DIALS.map(d => [d[0], dialGet(d)])))); } catch { /* private mode */ } };
     function dialLoad() {
         if (dialBase || !dialOn()) return;
         dialBase = Object.fromEntries(DIALS.map(d => [d[0], dialGet(d)]));
-        try { const kept = JSON.parse(localStorage.getItem('agiFeedDials2') || 'null'); if (kept) for (const d of DIALS) if (typeof kept[d[0]] === 'number' && kept[d[0]] >= d[2] && kept[d[0]] <= d[3]) dialSet(d, kept[d[0]]); } catch { /* private mode */ }
+        try { const kept = JSON.parse(localStorage.getItem('agiFeedDials3') || 'null'); if (kept) for (const d of DIALS) if (typeof kept[d[0]] === 'number' && kept[d[0]] >= d[2] && kept[d[0]] <= d[3]) dialSet(d, kept[d[0]]); } catch { /* private mode */ }
     }
     function dialPanel() {
         dialLoad();
@@ -379,6 +379,9 @@
                 return el('button', { type: 'button', class: `feed-card${k.combo ? ' combo' : k.rare ? ' rare' : ''}`, onclick: () => window.AGI.feedPick(n) },
                     el('strong', { text: name }), el('span', { text: what }), ...(k.combo ? [el('small', { class: 'feed-card-uses', text: `Uses up ${recipe(id)}` })] : []), el('em', { text: tag })); })));
     }
+    // The first sessions come in stages (feed.js `stageOf`): the result says what the next session adds. PLACEHOLDER words.
+    const STAGE_NEWS = { 2: 'New next session: at each split you pick a card for the swarm.', 3: 'New next session: the frenzy, and caches buried in the sand.' };
+    const stageNews = (last, f) => { const next = F().stageOf(f); return last.stage && last.stage < F().STAGES && next > last.stage ? STAGE_NEWS[next] || '' : ''; };
     // The squad (2026-11-16, the owner's call: you choose which mites come). Names and lines are PLACEHOLDERS.
     const MITE_TEXT = { grazer: ['Grazer', 'Eats what you lead it to.'], prospector: ['Prospector', 'Goes for gold, and sees it from twice as far.'],
         scrubber: ['Scrubber', 'Decodes garbled sand into good sand, and stops it spreading nearby.'], driller: ['Driller', 'Bites through tough sand three times as fast.'],
@@ -428,7 +431,7 @@
         // How the tank went (2026-11-16): how much was eaten, what is left in it, and the moments.
         const tankLine = l => [l.cleared !== undefined ? `${l.cleared}% eaten` : '', l.left ? `${l.left} left in the tank${l.bad ? ` (${l.bad} garbled)` : ''}` : '', l.caches ? plural(l.caches, 'cache', 'caches') : '', l.frenzy ? `frenzy ${l.frenzy}` : '', l.corrupted ? `${l.corrupted} turned garbled` : ''].filter(Boolean).join(' · ');
         if (!wait && last && E().isRing()) { kids.push(result(WHY[last.why] || 'Session over.', last.research,
-            `${last.piles > 1 ? `${last.piles} stockpiles` : `Sector ${last.sector}`} · ${plural(last.mites, 'mite', 'mites')} · ${plural(last.layers, 'split', 'splits')} · ${last.time} s${last.record ? ' · New best' : ''}${last.cards ? ` · ${plural(last.cards, 'card', 'cards')}` : ''}`), ...(tankLine(last) ? [el('p', { class: 'feed-last-tank', text: tankLine(last) })] : []), next()); }
+            `${last.piles > 1 ? `${last.piles} stockpiles` : `Sector ${last.sector}`} · ${plural(last.mites, 'mite', 'mites')} · ${plural(last.layers, 'split', 'splits')} · ${last.time} s${last.record ? ' · New best' : ''}${last.cards ? ` · ${plural(last.cards, 'card', 'cards')}` : ''}`), ...(tankLine(last) ? [el('p', { class: 'feed-last-tank', text: tankLine(last) })] : []), ...(stageNews(last, f) ? [el('p', { class: 'feed-last-new', text: stageNews(last, f) })] : []), next()); }
         else if (last) kids.push(result(WHY[last.why] || 'Session over.', last.research,
             `${last.piles > 1 ? `${last.piles} stockpiles` : `Sector ${last.sector}`} · ${plural(last.mites, 'mite', 'mites')} · ${plural(last.layers, 'split', 'splits')} · ${last.time} s${last.record ? ' · New best' : ''}${last.cards ? ` · ${plural(last.cards, 'card', 'cards')}` : ''}`));
         if (!wait && some) renderSquad(kids);
@@ -1106,7 +1109,7 @@
     }
     function text(node, value) { if (node.textContent !== value) node.textContent = value; }
     function renderFrenzy(f) {
-        const s = f.session, on = !!(s && !s.wait);
+        const s = f.session, on = !!(s && !s.wait) && (s.stage || 3) >= 3;   // (not before its stage)
         frenzyEl.hidden = !on;
         if (!on) return;
         const step = F().FEED.frenzyStep, tier = s.tier || 0, heat = s.heat || 0;

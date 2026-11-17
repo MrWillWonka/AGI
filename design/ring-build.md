@@ -584,3 +584,25 @@ every 2.5 s and grazing, on sectors 1–5, three seeds; research a session, sect
 - **The scrubber opens with the first boss** (it opened at sector 2 and beat every other mite on dirty sand: grazer +
   scrubber 2,190, + driller 1,020, + prospector 800), so the early dirty tanks are a struggle the boss's reward answers;
   the driller and the third slot come with the same boss.
+
+**The Feed's first log and its pace (2026-11-17)** (`playtests/feed/2026-11-16-owner-feed-1.txt`; the owner: "The pacing
+is wildly too fast, I had no sense of what was going on or why"). Measured, a full first tank (450 packets) led well: 36 s,
+a split every 3–9 s, a card stop every 3 s with the caches', the frenzy at its top by 28 s. Asked as cards with measured
+options; the owner's picks:
+- **Pace: the slowest of three, about 1¾ minutes a first tank**: `chew` 1 (4), `layerFirst` 45 (30), `layerGrow` 1.5
+  (1.2), `frenzyStep` 8 (4). Measured after: 105 s, four splits 20–26 s apart, the same research (323 against 299); the
+  playground's 150-packet tank 44 s.
+- **Cards: as now** (a card at every split and every cache, each offer leading with a tool).
+- **The first sessions in stages** (feed.js `stageOf`, `state.played`, `session.stage`; `opts.staged` from engine.js
+  `feedStart`, not in the playground): session 1 is leading, eating and splits that add mites; session 2 adds the cards;
+  session 3 the frenzy and the caches. A session counts once it reached a split. The frenzy meter is hidden before its
+  stage; the result card says what the next session adds (PLACEHOLDER words); each thing's walkthrough step comes when
+  it does. A save from before that has played sessions is at stage 3.
+- **Mine, to keep the balance where it was (for the owner to confirm):** the clocks that race the eating go at a quarter
+  too: `hungerTime` 100 (25), `hungerFill` 0.4 (0.6), `corruptEvery` 2 s (0.5). Unscaled, a sector 2 tank ended on hunger
+  at 15% eaten. Scaled, against the old pace: holding, sectors 2, 3, 5 eaten 100%, 100%, 49% (100%, 100%, 51%); tapping
+  72%, 69%, 68% (100%, 51%, 61%). The tools' timers are unchanged (so each is about four times stronger against a mite).
+- **Open:** tougher sand takes as many times longer as it did: a 360-packet sector 2 tank is about 4¼ minutes with a
+  split every 80–95 s, and a full 1,600-packet tank about 10 minutes on sector 2 and 20 on sector 5.
+- Also: a split pauses a walkthrough step instead of ending it; the dials' kept values moved to `agiFeedDials3` (the old
+  pace's would have held), eating's dial goes down to 0.25.
