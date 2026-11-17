@@ -130,11 +130,13 @@ window.AGI = (function () {
         for (const ev of out.events) {
             if (ev.type === 'layer') pt('feedLayer', { layer: ev.layer, pay: ev.pay, mites: ev.mites, eaten: state.feed.stats.eaten, cleaned: state.feed.stats.cleaned });
             else if (ev.type === 'fragment') pt('feedFragment', { set: ev.set, found: ev.found });
+            else if (ev.type === 'cache') pt('feedCache', { pay: ev.pay, grains: ev.grains });
+            else if (ev.type === 'tankClear') pt('feedTankClear', { sector: ev.sector, pay: ev.pay });
             else if (ev.type === 'empty') pt('feedEmpty', { layer: state.feed.layers + 1, eaten: state.feed.stats.eaten });
-            else if (ev.type === 'over') { pt('feedSession', { why: ev.why, sector: ev.sector, splits: ev.layers, mites: ev.mites, research: ev.research, seconds: ev.time, cards: ev.cards, record: ev.record ? 1 : 0 }); save();
+            else if (ev.type === 'over') { pt('feedSession', { why: ev.why, sector: ev.sector, splits: ev.layers, mites: ev.mites, research: ev.research, seconds: ev.time, cards: ev.cards, record: ev.record ? 1 : 0, cleared: ev.cleared, left: ev.left, bad: ev.bad, corrupted: ev.corrupted, caches: ev.caches, frenzy: ev.frenzy, squad: (state.feed.squad || []).join(',') }); save();
                 if (E.isRing() && ev.research > 0) { const train = !!state.unlocked['module:path']; assist(train ? 'fedTrain' : 'fed', '', { done: () => !window.FeedUI?.isOpen }); } }
         }
-        if (out.events.length) window.FeedUI?.events(out.events);
+        if (out.events.length || out.research) window.FeedUI?.events(out.events, out.research || 0);   // (the research, for the numbers that fly up)
     }
     function pt(type, data) {
         if (!playtest || !state) return;
@@ -14834,7 +14836,10 @@ window.AGI = (function () {
         // A line in the playtest log from a screen of its own (evals-ui.js).
         playtest: (type, data) => pt(type, data),
         // The Feed's screen starts and ends sessions through these, so they are logged and saved (feed-ui.js).
-        feedStart(sector) { const ok = E.feedStart(state, sector); if (ok) { pt('feedStart', { sector, held: state.feed.backlog.reduce((n, e) => n + e.n + e.gold + e.bad, 0) }); save(); } return ok; },
+        feedStart(sector) { const ok = E.feedStart(state, sector); if (ok) { pt('feedStart', { sector, packets: state.feed.session.packets, squad: (state.feed.squad || []).join(',') }); save(); } return ok; },
+        // The squad of mites (the owner's call, 2026-11-16): which kinds come, from those open; the slots it has.
+        feedSquad(kinds) { const out = E.feedSquad(state, kinds); pt('feedSquad', { squad: out.join(',') }); save(); return out; },
+        feedMites() { return { open: E.feedMiteKinds(state), slots: E.feedSquadSlots(state), squad: [...(state.feed.squad || [])] }; },
         // The Feed's screen steps the sand itself, every frame it draws (feed-ui.js `tick`): nothing moves with it closed.
         feedFrame(dt) { feedTick(dt * debugSpeed); },
         fundingRound(before, after) { fundingRound(before, after); },
@@ -14990,7 +14995,7 @@ window.AGI = (function () {
             openFeed: () => { window.FeedUI?.open(); pt('view', { v: 'feed' }); },
             // A Packet Snare run's worth of packets on the heap, for testing before runs fill it.
             feedDeliver(sector = 1, packets = 40, gold = 0, garbled = 0, popped = 0) { feedShow(E.feedDeliver(state, { sector, packets, gold, garbled, popped })); afterChange(); },
-            resetFeed() { state.feed = E.defaultState(Date.now()).feed; afterChange(); },
+            resetFeed() { state.feed = E.defaultState(Date.now()).feed; for (const k of Object.keys(state.intro)) if (k.startsWith('feed:coach')) delete state.intro[k]; afterChange(); },   // (its walkthrough shown again too)
             // Give a card in the session in play, as if picked (a combo merges its tools if you hold them). False with no session.
             feedCard(id) { const s = state.feed.session; if (!s || !window.Feed.CARDS[id]) return false; s.offer = [id]; s.picks = (s.picks || 0) + 1; feedShow(E.feedPick(state, 0)); afterChange(); return true; },
             feedStart(sector = 1) { const ok = E.feedStart(state, sector); afterChange(); return ok; },
