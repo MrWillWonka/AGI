@@ -1168,3 +1168,9 @@ are in `design/evals-course.md` -> The unlocks. In short: behind a padlock in ea
 on, a kind's parts open every 2 clears by the AI in that kind, and the kinds open in the owner's order (Rhythm, Maze,
 Puck, Rooms) after 3 clears in the newest. `course-unlocks.js` (rules on top, the browser's part below),
 `tests/course-unlocks.test.js`. With the switch on each kind uses a second save (`.u`). All numbers mine.
+
+**The Marks tree (2026-11-17, playground only).** The owner's six calls, the nodes and what was built are in
+`design/evals-course.md` -> The Marks tree. In short: one pool of Marks for the four kinds (the old counts added
+together), opened from the Marks count in a course's bar; a trunk, a branch a kind, and optional exploits that pay more
+and add to a hidden count against the AI (`mis`, read by nothing yet). `course-tree.js` (rules on top, the browser's
+part below), `tests/course-tree.test.js`; the maze gained `lives` for Second Life. All names, effects and prices mine.

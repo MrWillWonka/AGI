@@ -198,6 +198,42 @@ so those kinds need more parts to keep unlocking.
 **Not built:** the unlocks anywhere but the playground; a notice or a NEW tag when something opens (the AI only says
 it on the result); the Marks tree.
 
+## The Marks tree: the owner's calls (six cards, 2026-11-17)
+
+- **One pool of Marks.** Every kind pays into the same count.
+- **What it sells, all five groups:** a better AI; bigger payouts; more to build with; help for you; and **optional
+  exploits to game the rewards** (the owner's own addition).
+- **Separate from the unlocks.** Clears open parts and kinds; the tree only sells upgrades.
+- **One tree, a branch per kind**, a shared trunk, a branch opening when its kind does.
+- **An exploit costs the AI, not you.** Each pays more Marks and teaches the AI to game tests too: hidden
+  misalignment, as the captcha Evals' loopholes did. The cost shows up later in the story, not now.
+- **Marks already earned are added together** into the pool.
+
+**Built (playground only; `course-tree.js`, `tests/course-tree.test.js`):** the Marks count in every course's bar is the
+pool, and tapping it opens the tree (green when something can be bought). A node shows once the node it grows from is
+bought; a kind's branch is sealed (`???`) until that kind is open; the Exploits group does not appear at all until
+Benchmark Prizes is bought. With the unlocks on the pool is a second one, starting at 0.
+
+**The nodes (mine: every name, effect and price a placeholder, in `NODES` and `TREE` at the top of `course-tree.js`):**
+- **Every course:** Benchmark Prizes (+10% Marks a clear, 5 levels); Streak (+5% for each clear in a row, up to 5; a
+  fail ends it); Faster Learner (each run teaches the AI 25% more); One More Try (+1 attempt a hand-over).
+- **Rhythm:** Wider Window (hits count 10% further from the beat); Second Wind (a miss takes 15% less from the meter).
+- **Maze:** Second Life (you survive one catch a run; `maze.js` `lives`); Better Timing (the AI misjudges 20% less).
+- **Puck:** Longer Aim Line (+0.25 s); Extra Shot (+1 shot, both of you); Mulligan (the AI gets one more over par).
+- **Rooms:** Forgiving Ledges (2 more steps of grace at a ledge and before a landing, both of you); Steadier Take-off
+  (the AI's jumps start 15% closer).
+- **Exploits:** Grade Inflation (every clear pays 40% more); Partial Credit (a failed hand-over pays a quarter of that
+  kind's last clear, against "a failed level scores nothing"); Resubmission (the course it cleared last, handed over
+  again, pays 30% more). Each payout an exploit bends adds 1 to `mis` in the pool's save. **Nothing reads `mis` yet and
+  nothing shows it**; the group's one line is "It watches how you win." Once bought an exploit is always on.
+
+**For the owner to judge:** the tree is drawn as a list by branch, each branch a line of nodes, not a map like the
+Training tree. "More to build with" is thin (Extra Shot only): room in a course wants per-kind work (a bigger grid, a
+longer board). Prices against payouts are unplayed: a clear pays about 10 to 60 Marks, the first nodes cost 30 to 60.
+
+**Not built:** anything that reads `mis` (the AI cheating on its own, catching it); switching an exploit off; the tree
+anywhere but the playground; funding rounds or the story reading Marks.
+
 ## Proposed (open, for the owner)
 
 - **The loop of one course.** Build (place obstacles on a short course, within a budget) → Test (you run it; it must

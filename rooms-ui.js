@@ -10,7 +10,8 @@
     const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { room: R().cleanRoom(s.room), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), times: s.times && typeof s.times === 'object' ? s.times : {} }; } catch { return { room: R().emptyRoom(), marks: 0, runs: 0, stage: 1, times: {} }; } };
     const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
     const skills = () => (window.CourseUnlocks.on ? window.CourseUnlocks.levelOf('rooms') : location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
-    const masteryNow = () => R().mastery(save.runs, location.hash === '#playground' ? 0 : Math.min(skills(), 20));
+    const O = () => window.CourseTree.room(R().ROOM);   // the rules as the tree has changed them: grace at a ledge, the AI's take-off
+    const masteryNow = () => R().mastery(save.runs * window.CourseTree.mult(), location.hash === '#playground' ? 0 : Math.min(skills(), 20));
     const secs = t => t.toFixed(1) + ' s';
     const roomKey = () => save.room.map(k => (k ? k[0] + k[1] : '-')).join('');
     const WHAT = { spike: 'a spike', saw: 'a saw', pit: 'a pit', time: 'the clock', stuck: 'being stuck', lost: 'a wrong landing' };
@@ -43,7 +44,7 @@
     const say = text => { sayEl.textContent = '> ' + text; };
     const button = (text, action, main) => el('button', { type: 'button', class: main ? 'evals-go' : 'ghost-button evals-extra', text, onclick: action });
     const actions = (...list) => actionsEl.replaceChildren(...list);
-    function header() { marksEl.textContent = '◈ ' + save.marks.toLocaleString('en-US'); marksEl.setAttribute('aria-label', save.marks + ' Marks'); window.CourseUnlocks.refresh(dlg, 'rooms'); }
+    function header() { window.CourseTree.refresh(dlg, () => { if (dlg.open) header(); }); window.CourseUnlocks.refresh(dlg, 'rooms'); }   // the Marks are the pool's (course-tree.js)
 
     function place(i) {
         const next = save.room.slice(), want = tool === 'erase' || next[i] === tool ? null : tool;
@@ -61,7 +62,7 @@
         header(); go();
     }
     function toTest() {
-        stop(); mode = 'test'; run = R().createRun(save.room); feed = null; keys.left = keys.right = keys.jump = false; padEl.hidden = false; toolsEl.hidden = true;
+        stop(); mode = 'test'; run = R().createRun(save.room, O()); feed = null; keys.left = keys.right = keys.jump = false; padEl.hidden = false; toolsEl.hidden = true;
         startAt = performance.now() + 700;
         say('Left, right and jump. Reach the flag.');
         actions(button('Back to building', () => toBuild()));
@@ -75,19 +76,19 @@
             actions(button('Hand it to the AI', toAi, true), button('Run it again', toTest), button('Change it', () => toBuild()));
             return;
         }
-        const can = R().canHandOver(save.room, r, masteryNow()), where = `You were stopped by ${WHAT[r.failed.type] || 'something'}.`;
+        const can = R().canHandOver(save.room, r, masteryNow(), O()), where = `You were stopped by ${WHAT[r.failed.type] || 'something'}.`;
         if (can.ok) { yours = r; say(`${where} I watched how far you got. I think I can work out the rest.`); actions(button('Let the AI try', toAi, true), button('Try again', toTest), button('Change it', () => toBuild())); }
         else { yours = null; say(can.why === 'impossible' ? `${where} I do not think anyone can do this one.` : `${where} It has to be possible before I can try.`); actions(button('Try again', toTest, true), button('Change it', () => toBuild())); }
     }
     function toAi() {
         if (!yours) return;
         stop(); mode = 'ai'; toolsEl.hidden = true; padEl.hidden = true;
-        hand = R().handOver(save.room, yours, { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow() });
+        hand = R().handOver(save.room, yours, { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow(), tries: R().ROOM.tries + window.CourseTree.tries() }, O());
         if (!hand.attempts.length) { say('I do not think anyone can do this one.'); actions(button('Change it', () => toBuild(), true)); mode = 'tested'; draw(); return; }
         attempt = 0; actions(button('Skip to the result', aiResult)); aiStart();
     }
     function aiStart() {
-        run = R().createRun(save.room); feed = { inputs: hand.attempts[attempt].inputs, i: 0 };
+        run = R().createRun(save.room, O()); feed = { inputs: hand.attempts[attempt].inputs, i: 0 };
         startAt = performance.now() + 600;
         say(`Attempt ${attempt + 1} of ${hand.attempts.length}.`);
         go();
@@ -100,8 +101,8 @@
     }
     function aiResult() {
         stop(); mode = 'result';
-        const key = roomKey(), ref = (yours.finished && yours.time) || save.times[key] || 0, top = hand.score, marks = R().marksFor(top, ref), tries = hand.attempts.length;
-        save.runs++; save.marks += marks;
+        const key = roomKey(), ref = (yours.finished && yours.time) || save.times[key] || 0, top = hand.score, marks = window.CourseTree.payOut('rooms', R().marksFor(top, ref), { cleared: !!top, key }), tries = hand.attempts.length;
+        save.runs++;
         if (top) save.times[key] = Math.min(save.times[key] || Infinity, top.time);
         const st = R().stage(masteryNow()), grew = st > save.stage; save.stage = Math.max(save.stage, st);
         keep(); header();
@@ -109,6 +110,7 @@
         else if (yours.finished) { const d = yours.time - top.time; say(`At the flag: ${top.points} ${top.points === 1 ? 'point' : 'points'}, ${secs(top.time)} against your ${secs(yours.time)}${d > 0.05 ? '. I was faster' : d < -0.05 ? '. You were faster' : ''}. ${marks} Marks.`); }
         else { const d = ref - top.time; say(`Finished the one you could not: ${top.points} ${top.points === 1 ? 'point' : 'points'} in ${secs(top.time)}${ref ? (d > 0.05 ? `, ${secs(d)} under my best` : `. My best here is ${secs(ref)}`) : ''}. ${marks} Marks.`); }
         if (grew) sayEl.textContent += st === 2 ? ' I think I can finish a room now even if you are stopped in it. Run it once, as far as you get.' : ' I do not need to be shown the hard parts any more. Run it once anyway.';
+        if (!top && marks) sayEl.textContent += ` Partial credit: ${marks} Marks.`;
         if (top) { const news = window.CourseUnlocks.cleared('rooms', lvl => R().palette(lvl).map(k => R().TILES[k].name)); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'rooms'); }
         actions(button('Change the room', () => toBuild(), true), button('Hand it over again', toAi));
         run = null; go();

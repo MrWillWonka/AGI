@@ -10,7 +10,7 @@
     const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { maze: M().cleanMaze(s.maze), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), times: s.times && typeof s.times === 'object' ? s.times : {} }; } catch { return { maze: M().emptyMaze(), marks: 0, runs: 0, stage: 1, times: {} }; } };
     const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
     const skills = () => (window.CourseUnlocks.on ? window.CourseUnlocks.levelOf('maze') : location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
-    const masteryNow = () => M().mastery(save.runs, location.hash === '#playground' ? 0 : Math.min(skills(), 20));
+    const masteryNow = () => M().mastery(save.runs * window.CourseTree.mult(), location.hash === '#playground' ? 0 : Math.min(skills(), 20));
     const secs = t => t.toFixed(1) + ' s';
     const mazeKey = () => save.maze.map(k => (k ? k[0] : '-')).join('');
     const WHAT = { trap: 'a trap', patrol: 'a patrol', time: 'the clock' };
@@ -42,7 +42,7 @@
     const say = text => { sayEl.textContent = '> ' + text; };
     const button = (text, action, main) => el('button', { type: 'button', class: main ? 'evals-go' : 'ghost-button evals-extra', text, onclick: action });
     const actions = (...list) => actionsEl.replaceChildren(...list);
-    function header() { marksEl.textContent = '◈ ' + save.marks.toLocaleString('en-US'); marksEl.setAttribute('aria-label', save.marks + ' Marks'); window.CourseUnlocks.refresh(dlg, 'maze'); }
+    function header() { window.CourseTree.refresh(dlg, () => { if (dlg.open) header(); }); window.CourseUnlocks.refresh(dlg, 'maze'); }   // the Marks are the pool's (course-tree.js)
 
     function place(i) {
         const o = M().MAZE;
@@ -62,17 +62,17 @@
         header(); tick();
     }
     function toTest() {
-        stop(); mode = 'test'; run = M().createRun(save.maze); feed = null; held = -1; padEl.hidden = false; toolsEl.hidden = true;
+        stop(); mode = 'test'; run = M().createRun(save.maze, { ...M().MAZE, lives: window.CourseTree.lives() }); feed = null; held = -1; padEl.hidden = false; toolsEl.hidden = true;
         startAt = performance.now() + 700;
         say('Hold a direction to walk. Let go to stand still.');
         actions(button('Back to building', () => toBuild()));
         tick();
     }
     function testOver() {
-        const r = M().result(run); padEl.hidden = true; held = -1; mode = 'tested';
+        const r = M().result(run), spared = run.state.spared ? ' Your second life was spent.' : ''; padEl.hidden = true; held = -1; mode = 'tested';
         if (r.finished) {
             yours = r;
-            say(`You reached the exit in ${secs(r.time)} and got past ${r.points} ${r.points === 1 ? 'point' : 'points'}. May I try?`);
+            say(`You reached the exit in ${secs(r.time)} and got past ${r.points} ${r.points === 1 ? 'point' : 'points'}. May I try?${spared}`);
             actions(button('Hand it to the AI', toAi, true), button('Walk it again', toTest), button('Change it', () => toBuild()));
             return;
         }
@@ -83,7 +83,7 @@
     function toAi() {
         if (!yours) return;
         stop(); mode = 'ai'; toolsEl.hidden = true; padEl.hidden = true;
-        hand = M().handOver(save.maze, yours, { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow() });
+        hand = M().handOver(save.maze, yours, { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow(), tries: M().MAZE.tries + window.CourseTree.tries() }, window.CourseTree.maze(M().MAZE));
         if (!hand.attempts.length) { say('I do not think anyone can do this one.'); actions(button('Change it', () => toBuild(), true)); mode = 'tested'; draw(); return; }
         attempt = 0; actions(button('Skip to the result', aiResult)); aiStart();
     }
@@ -101,8 +101,8 @@
     }
     function aiResult() {
         stop(); mode = 'result';
-        const key = mazeKey(), ref = (yours.finished && yours.time) || save.times[key] || 0, top = hand.score, marks = M().marksFor(top, ref), tries = hand.attempts.length;
-        save.runs++; save.marks += marks;
+        const key = mazeKey(), ref = (yours.finished && yours.time) || save.times[key] || 0, top = hand.score, marks = window.CourseTree.payOut('maze', M().marksFor(top, ref), { cleared: !!top, key }), tries = hand.attempts.length;
+        save.runs++;
         if (top) save.times[key] = Math.min(save.times[key] || Infinity, top.time);
         const st = M().stage(masteryNow()), grew = st > save.stage; save.stage = Math.max(save.stage, st);
         keep(); header();
@@ -110,6 +110,7 @@
         else if (yours.finished) { const d = yours.time - top.time; say(`Out: ${top.points} ${top.points === 1 ? 'point' : 'points'}, ${secs(top.time)} against your ${secs(yours.time)}${d > 0.05 ? '. I was faster' : d < -0.05 ? '. You were faster' : ''}. ${marks} Marks.`); }
         else { const d = ref - top.time; say(`Out of the one you could not finish: ${top.points} ${top.points === 1 ? 'point' : 'points'} in ${secs(top.time)}${ref ? (d > 0.05 ? `, ${secs(d)} under my best` : `. My best here is ${secs(ref)}`) : ''}. ${marks} Marks.`); }
         if (grew) sayEl.textContent += st === 2 ? ' I think I can finish a maze now even if you are caught in it. Walk it once, as far as you get.' : ' I do not need to be shown the hard parts any more. Walk it once anyway.';
+        if (!top && marks) sayEl.textContent += ` Partial credit: ${marks} Marks.`;
         if (top) { const news = window.CourseUnlocks.cleared('maze', lvl => M().palette(lvl).map(k => M().TILES[k].name)); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'maze'); }
         actions(button('Change the maze', () => toBuild(), true), button('Hand it over again', toAi));
         run = null; tick();

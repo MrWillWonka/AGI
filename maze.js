@@ -15,6 +15,7 @@
         trapPeriod: 8, trapOn: 4,   // a trap: live for trapOn ticks of every trapPeriod
         patrolPace: 2,          // a patrol steps a cell every this many ticks
         horizon: 600,           // ticks a run may last
+        shield: 6,              // ticks nothing can catch you after a second life is spent
         // The AI: how often it misjudges a hazard's moment at first (it goes when it should have waited), less with
         // mastery, half as often at a step for each time it has failed there; and how much of your own waiting it copies.
         err: 0.3, tries: 4, masteryRuns: 6, stage2: 0.35, stage3: 0.75, unseen: 2,
@@ -72,14 +73,17 @@
     // A run: `act(d)` once a tick with the direction held (0 to 3, or -1 to stand).
     function createRun(maze, o = MAZE) {
         const w = world(maze, o);
-        const s = { n: 0, cell: startCell(o), key: false, over: false, finished: false, failed: null, route: [startCell(o)], at: [0], acts: [], done: {}, points: 0, in: {} };
+        const s = { n: 0, lives: o.lives || 0, shield: 0, spared: null, cell: startCell(o), key: false, over: false, finished: false, failed: null, route: [startCell(o)], at: [0], acts: [], done: {}, points: 0, in: {} };
         const clear = (id, pts) => { if (!s.done[id]) { s.done[id] = true; s.points += pts; } };
         function act(d) {
             if (s.over) return;
             const from = s.cell; let to = from;
             if (d >= 0) { const t = step(from, d, o); if (t >= 0 && maze[t] !== 'wall' && (maze[t] !== 'door' || s.key)) to = t; }
             s.acts.push(to === from ? -1 : d);
-            const dead = w.deadly(from, to, s.n);
+            // A second life (course-tree.js, yours only): the first catch is survived, and nothing can catch you for a moment.
+            let dead = s.shield > 0 ? null : w.deadly(from, to, s.n);
+            if (s.shield > 0) s.shield--;
+            if (dead && s.lives > 0) { s.lives--; s.shield = o.shield; s.spared = { type: dead, tick: s.n + 1 }; dead = null; }
             s.n++; s.cell = to;
             if (to !== from) { s.route.push(to); s.at.push(s.n); }
             if (dead) { s.over = true; s.failed = { type: dead, cell: to, tick: s.n, step: s.route.length - 1 }; return; }

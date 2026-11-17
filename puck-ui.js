@@ -11,9 +11,10 @@
     const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { course: P().cleanCourse(s.course), marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), best: s.best && typeof s.best === 'object' ? s.best : {} }; } catch { return blank(); } };
     const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
     const skills = () => (window.CourseUnlocks.on ? window.CourseUnlocks.levelOf('puck') : location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
-    const masteryNow = () => P().mastery(save.runs, location.hash === '#playground' ? 0 : Math.min(skills(), 20));
+    const masteryNow = () => P().mastery(save.runs * window.CourseTree.mult(), location.hash === '#playground' ? 0 : Math.min(skills(), 20));
     const courseKey = () => save.course.map(t => (t ? t[0] + (/\d$/.test(t) ? t.slice(-1) : '') : '-')).join('');
     const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+    const O = () => window.CourseTree.puck(P().PUCK);   // the rules as the tree has changed them: shots, the AI's shots over par
     const SLING = 0.4;          // a pull this share of the field's width is a full shot
     const AIM_SECONDS = 0.35;   // how much of the shot the aim line shows
     const FPS = 60;             // a trace keeps a frame every two physics steps
@@ -44,7 +45,7 @@
     const say = text => { sayEl.textContent = '> ' + text; };
     const button = (text, action, main) => el('button', { type: 'button', class: main ? 'evals-go' : 'ghost-button evals-extra', text, onclick: action });
     const actions = (...list) => actionsEl.replaceChildren(...list);
-    function header() { marksEl.textContent = '◈ ' + save.marks.toLocaleString('en-US'); marksEl.setAttribute('aria-label', save.marks + ' Marks'); window.CourseUnlocks.refresh(dlg, 'puck'); }
+    function header() { window.CourseTree.refresh(dlg, () => { if (dlg.open) header(); }); window.CourseUnlocks.refresh(dlg, 'puck'); }   // the Marks are the pool's (course-tree.js)
     function stop() { clearTimeout(timer); timer = 0; anim = null; pull = null; aim = null; }
     function reset() { const w = P().world(save.course); seen = {}; at = { x: w.tee.x, y: w.tee.y }; shotsShown = 0; pointsShown = 0; paths = []; endKind = null; }
 
@@ -72,8 +73,8 @@
         header(); draw();
     }
     function toTest() {
-        stop(); mode = 'test'; run = P().createRun(save.course); toolsEl.hidden = true; reset(); yourPaths = [];
-        say(`Pull back anywhere and let go to shoot. ${plural(P().PUCK.limit, 'shot')} at most.`);
+        stop(); mode = 'test'; run = P().createRun(save.course, O()); toolsEl.hidden = true; reset(); yourPaths = [];
+        say(`Pull back anywhere and let go to shoot. ${plural(O().limit, 'shot')} at most.`);
         actions(button('Back to building', () => toBuild()));
         draw();
     }
@@ -85,14 +86,14 @@
             actions(button('Hand it to the AI', toAi, true), button('Play it again', toTest), button('Change it', () => toBuild()));
             return;
         }
-        const can = R.canHandOver(save.course, r, masteryNow());
+        const can = R.canHandOver(save.course, r, masteryNow(), O());
         if (can.ok) { yours = r; say('You ran out of shots. I watched how you started. I think I can work out the rest.'); actions(button('Let the AI try', toAi, true), button('Try again', toTest), button('Change it', () => toBuild())); }
         else { yours = null; say(can.why === 'impossible' ? 'You ran out of shots. I do not think anyone can do this one.' : 'You ran out of shots. It has to be possible before I can try.'); actions(button('Try again', toTest, true), button('Change it', () => toBuild())); }
     }
     function toAi() {
         if (!yours) return;
         stop(); mode = 'ai'; run = null; toolsEl.hidden = true;
-        hand = P().handOver(save.course, yours, { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow(), par: save.best[courseKey()] || 0 });
+        hand = P().handOver(save.course, yours, { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow(), tries: P().PUCK.tries + window.CourseTree.tries(), par: save.best[courseKey()] || 0 }, O());
         if (!hand.attempts.length) { say('I do not think anyone can do this one.'); actions(button('Change it', () => toBuild(), true)); mode = 'tested'; draw(); return; }
         attempt = 0; actions(button('Skip to the result', aiResult)); aiStart();
     }
@@ -117,8 +118,8 @@
     }
     function aiResult() {
         stop(); mode = 'result';
-        const R = P(), key = courseKey(), par = hand.par, top = hand.score, marks = R.marksFor(top, par), tries = hand.attempts.length;
-        save.runs++; save.marks += marks;
+        const R = P(), key = courseKey(), par = hand.par, top = hand.score, marks = window.CourseTree.payOut('puck', R.marksFor(top, par), { cleared: !!top, key }), tries = hand.attempts.length;
+        save.runs++;
         if (top) save.best[key] = Math.min(save.best[key] || Infinity, top.shots);
         const st = R.stage(masteryNow()), grew = st > save.stage; save.stage = Math.max(save.stage, st);
         keep(); header();
@@ -126,6 +127,7 @@
         else if (yours.finished) { const d = yours.shots - top.shots, more = top.points - yours.points; say(`In: ${plural(top.points, 'point')} in ${plural(top.shots, 'shot')}, against your ${yours.points} in ${yours.shots}${d > 0 ? '. I needed fewer' : d < 0 ? '. You needed fewer' : ''}${more > 0 ? '. I found more to hit' : ''}. ${marks} Marks.`); }
         else say(`In, on the one you could not finish: ${plural(top.points, 'point')} in ${plural(top.shots, 'shot')}${par ? `. My best here was ${par}` : ''}. ${marks} Marks.`);
         if (grew) sayEl.textContent += st === 2 ? ' I think I can finish a course now even if you run out of shots. Play it once, as far as you get.' : ' I do not need to be shown the way any more. Play it once anyway.';
+        if (!top && marks) sayEl.textContent += ` Partial credit: ${marks} Marks.`;
         if (top) { const news = window.CourseUnlocks.cleared('puck', lvl => P().palette(lvl).map(k => P().TILES[k].name)); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'puck'); }
         actions(button('Change the course', () => toBuild(), true), button('Hand it over again', toAi));
         // Leave its best attempt (or its last) on the field.
@@ -164,7 +166,7 @@
             shotI++;
             if (shotI < hand.attempts[attempt].shots.length) timer = setTimeout(aiShot, tr.pit ? 700 : 350); else aiOver();
         } else if (run.state.over) testOver();
-        else say(tr.pit ? 'Into the pit. The puck is back where you shot from.' : `${plural(run.state.shots, 'shot')} taken, ${P().PUCK.limit - run.state.shots} left.`);
+        else say(tr.pit ? 'Into the pit. The puck is back where you shot from.' : `${plural(run.state.shots, 'shot')} taken, ${O().limit - run.state.shots} left.`);
     }
 
     // Drawing (course-art.js for the puck, the burst and the theme's colours). Nothing here decides anything.
@@ -172,7 +174,7 @@
     function paint() { painting = 0; if (!dlg || !dlg.open) return; draw(); }
     function draw() {
         if (!canvas || !dlg.open) return;
-        const R = P(), A = window.CourseArt, o = R.PUCK, C = A.colours(dlg), now = performance.now();
+        const R = P(), A = window.CourseArt, o = O(), C = A.colours(dlg), now = performance.now();
         const rect = canvas.getBoundingClientRect(), dpr = Math.min(3, window.devicePixelRatio || 1), W = Math.max(50, rect.width), H = Math.max(50, rect.height);
         if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
         const ctx = canvas.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
@@ -237,7 +239,7 @@
         // The aim: the pull, and the first stretch of the shot.
         const shot = aim || shotOf();
         if (shot && !anim) {
-            const pts = R.preview(w, run ? run.state : { x: at.x, y: at.y, t: steps, hit: seen }, shot.angle, shot.power, AIM_SECONDS);
+            const pts = R.preview(w, run ? run.state : { x: at.x, y: at.y, t: steps, hit: seen }, shot.angle, shot.power, AIM_SECONDS + window.CourseTree.aim());
             ctx.strokeStyle = ai ? C.success : C.text; ctx.globalAlpha = 0.85; ctx.lineWidth = 2; ctx.setLineDash([2, 6]); ctx.lineCap = 'round'; ctx.beginPath(); pts.forEach((p, k) => { if (k) ctx.lineTo(p[0] * u, p[1] * v); else ctx.moveTo(p[0] * u, p[1] * v); }); ctx.stroke(); ctx.setLineDash([]);
             ctx.globalAlpha = 0.5; ctx.lineWidth = Math.max(2, u * 0.07); ctx.beginPath(); ctx.moveTo(px * u, py * v); ctx.lineTo((px - Math.cos(shot.angle) * shot.power * 1.6) * u, (py - Math.sin(shot.angle) * shot.power * 1.6) * v); ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 1;
             A.pill(ctx, Math.round(shot.power * 100) + '%', W - 6, 6, C, 'right');

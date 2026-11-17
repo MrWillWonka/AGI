@@ -12,7 +12,7 @@
     const load = () => { try { const s = JSON.parse(localStorage.getItem(window.CourseUnlocks.key(KEY)) || '{}'); return { marks: Math.max(0, Math.floor(+s.marks || 0)), runs: Math.max(0, Math.floor(+s.runs || 0)), stage: Math.max(1, Math.min(3, Math.floor(+s.stage || 1))), best: s.best && typeof s.best === 'object' ? s.best : {}, track: +s.track || 0, level: Math.max(0, Math.min(3, Math.floor(+s.level || 0))), own: !!s.own, field: !!s.field, boards: s.boards && typeof s.boards === 'object' ? s.boards : {} }; } catch { return { marks: 0, runs: 0, stage: 1, best: {}, track: 0, level: 0, own: false, field: false, boards: {} }; } };
     const keep = () => { try { localStorage.setItem(window.CourseUnlocks.key(KEY), JSON.stringify(save)); } catch { /* private mode */ } };
     const skills = () => (location.hash === '#playground' ? 99 : (window.AGI && window.AGI.state && window.AGI.state.path.learned) || 0);
-    const masteryNow = () => R().mastery(save.runs, location.hash === '#playground' ? 0 : Math.min(skills(), 20));
+    const masteryNow = () => R().mastery(save.runs * window.CourseTree.mult(), location.hash === '#playground' ? 0 : Math.min(skills(), 20));
     const LANES = ['Kick', 'Bass', 'Melody'], SOUND = ['compute', 'data', 'research'];
     // Two thumbs on a phone; W A S D, the spacebar and the mouse on a desktop (the owner, 2026-11-16). So a desktop has
     // two hands too: A, S and D are the lanes, and a click on the notes (or the spacebar) goes to whichever note is due.
@@ -40,7 +40,7 @@
         const board = boardNow(tr);
         return (sel = { area: tr.area, index: tr.index, song: R().compose(tr.song, board, { lead: true }), name: 'Your track', from: 1, bars: board.len, key: 'own:' + palKey(tr), own: true });
     }
-    const rules = (lvl = save.level) => ({ ...R().rulesFor(lvl), bars: sel.bars, field: !!save.field, hands: save.field && mouse() ? 1 : 2 });
+    const rules = (lvl = save.level) => ({ ...R().rulesFor(lvl), ...window.CourseTree.rhythm(R().rulesFor(lvl)), bars: sel.bars, field: !!save.field, hands: save.field && mouse() ? 1 : 2 });
     const chartNow = (lvl = save.level) => (save.field ? R().fieldFor : R().chartFor)(sel.song, lvl, sel.from, rules(lvl));
     // The whole field (the owner's calls, 2026-11-17): where the mouse is aiming, the fingers that are down (a hand
     // each), and the AI's hands while it plays. Positions are shares of the field's width.
@@ -144,7 +144,7 @@
     const tally = r => `${r.hits - r.freeTaps} of ${r.total} notes${r.freeTaps ? ` and ${r.freeTaps} freestyle ${r.freeTaps === 1 ? 'tap' : 'taps'}` : ''}`;
     const button = (text, action, main) => el('button', { type: 'button', class: main ? 'evals-go' : 'ghost-button evals-extra', text, onclick: action });
     const actions = (...list) => actionsEl.replaceChildren(...list);
-    function header() { marksEl.textContent = '◈ ' + save.marks.toLocaleString('en-US'); marksEl.setAttribute('aria-label', save.marks + ' Marks'); window.CourseUnlocks.refresh(dlg, 'rhythm'); }
+    function header() { window.CourseTree.refresh(dlg, () => { if (dlg.open) header(); }); window.CourseUnlocks.refresh(dlg, 'rhythm'); }   // the Marks are the pool's (course-tree.js)
 
     // Pick: the track and how much of it is notes.
     function toPick(text) {
@@ -295,7 +295,7 @@
         if (!sel) pickSel();
         stepLen = stepLen || 60 / (sel.song.bpm || 120) / 4;
         const o = rules(), c = R().timed(chartNow(), stepLen, o);
-        hand = R().handOver(c, yours, R().lengthOf(sel.song, stepLen, o), { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow() }, o);
+        hand = R().handOver(c, yours, R().lengthOf(sel.song, stepLen, o), { seed: (Date.now() ^ (save.runs * 2654435761)) >>> 0, mastery: masteryNow(), tries: R().RHYTHM.tries + window.CourseTree.tries() }, o);
         attempt = 0; actions(button('Skip to the result', aiResult)); aiStart();
     }
     function aiStart() { begin('ai'); say(`Attempt ${attempt + 1} of ${hand.attempts.length}.`); actions(button('Skip to the result', aiResult)); }
@@ -307,8 +307,8 @@
     }
     function aiResult() {
         stop(); mode = 'result'; padEl.hidden = true;
-        const key = `${sel.key}:${R().modeOf(save.level).key}`, ref = (yours.finished && yours.score) || save.best[key] || 0, top = hand.score, marks = R().marksFor(top, ref), tries = hand.attempts.length;
-        save.runs++; save.marks += marks;
+        const key = `${sel.key}:${R().modeOf(save.level).key}`, ref = (yours.finished && yours.score) || save.best[key] || 0, top = hand.score, marks = window.CourseTree.payOut('rhythm', R().marksFor(top, ref), { cleared: !!top, key }), tries = hand.attempts.length;
+        save.runs++;
         if (top) save.best[key] = Math.max(save.best[key] || 0, top.score);
         const st = R().stage(masteryNow()), grew = st > save.stage; save.stage = Math.max(save.stage, st);
         keep(); header();
@@ -317,6 +317,7 @@
         else if (yours.finished) say(`Played through: ${tally(top)}, ${pct(top)} on the beat against your ${pct(yours)}, a combo of ${top.combo} against your ${yours.combo}${top.score > yours.score + 0.01 ? '. I was tighter' : top.score < yours.score - 0.01 ? '. You were tighter' : ''}. ${marks} Marks.`);
         else say(`Played the one you could not: ${tally(top)}, ${pct(top)} on the beat. ${marks} Marks.`);
         if (grew) sayEl.textContent += st === 2 ? ' I think I can play a track through now even if it falls apart on you. Play it once, as far as you get.' : ' I do not need to hear the hard parts first any more. Play it once anyway.';
+        if (!top && marks) sayEl.textContent += ` Partial credit: ${marks} Marks.`;
         if (top) { const news = window.CourseUnlocks.cleared('rhythm', window.CourseUnlocks.rhythmNames); if (news) sayEl.textContent += ' ' + news; window.CourseUnlocks.refresh(dlg, 'rhythm'); }
         actions(button('Change the track', () => toPick(), true), button('Hand it over again', toAi));
         music.level = 0.4; draw();
