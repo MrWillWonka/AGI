@@ -1138,6 +1138,8 @@ were rebuilt in the cloud session from the PC session's recorded tool calls (eve
 order on a clean checkout of `8e0d67d`) so the test build could carry them. When the PC pushed (`346bc2e`, with The
 Feed's overhaul merged in), the rebuild was compared with the PC's own tip (`bfccc14`): **37 commits with the same
 messages, and every text file byte for byte the same**; only the pictures differed (the *unbound* orb picture, which the
-rebuild stood in for, and two `.webp` files a few bytes apart from a different encoder build). The rebuilt copy was then
-dropped: this branch was restarted from `main` (the PC's real history) and only the Feed agent's slowdown carried over.
-Both merges had chosen save v45 on their own.
+rebuild stood in for, and two `.webp` files a few bytes apart from a different encoder build). The rebuilt copy is
+superseded: this branch's files are now `main`'s (the PC's real history) plus the Feed agent's slowdown, joined by a merge
+that takes `main`'s files whole. The rebuilt commits are still in this branch's history (a forced push to drop them was
+not allowed here), so **merging this branch into `main` would bring 37 duplicate commits with it: cherry-pick the agent
+commit instead, or let the owner allow the forced push.** Both merges had chosen save v45 on their own.
