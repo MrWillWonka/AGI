@@ -75,7 +75,8 @@ test('agents: the Feed agent works a stockpile down for research, and stops for 
     assert.equal(E.assignAgent(s, 0, 'feed'), true);
     const rp = s.res.rp;
     let fed = null;
-    for (let t = 0; t < 200 && !fed; t++) fed = (E.tick(s, 1).agents || []).find(e => e.type === 'fed') || null;
+    for (let t = 0; t < 800 && !fed; t++) fed = (E.tick(s, 1).agents || []).find(e => e.type === 'fed') || null;   // (a quarter of a packet a second: 66 packets take 264 s)
+    assert.equal(E.AGENT_FEED_RATE, 0.25, 'a quarter of a led mite, as it was before The Feed slowed');
     assert.ok(fed, 'it finished the stockpile');
     assert.equal(stock(), 0);
     assert.equal(fed.packets, had);
