@@ -93,7 +93,7 @@
     // mode's count and spacing; some single notes become slashes; the mode's freestyle bars have no notes at all.
     // Notes: { step, lane, len, kind: 'tap' | 'hold' | 'slash' }. Freestyle: { step, len, free: true }.
     function chartFor(song, mode, from = startBar(song), o = RHYTHM) {
-        const M = modeOf(mode), steps = song.steps, all = chartFrom(song, 2, from, o, 9), out = [];
+        const mo = modeOf(mode), M = song.free ? { ...mo, free: song.free } : mo, steps = song.steps, all = chartFrom(song, 2, from, o, 9), out = [];   // a composed track says itself which bars are freestyle
         const weight = n => (n.lane === 2 ? (n.len > 0 ? 5 : 3) : n.lane === 0 ? 2 : 1) + (n.step % 4 === 0 ? 3 : n.step % 2 === 0 ? 1 : 0);
         let holdSeen = 0, chords = 0;
         for (let b = 0; b < o.bars; b++) {
@@ -123,6 +123,74 @@
     // A chart in seconds for a step length: notes { t, lane, hold (0: not held), kind }, freestyle { t, dur, grid, free }.
     const timed = (notes, stepLen, o = RHYTHM) => notes.map(n => (n.free ? { t: n.step * stepLen, dur: n.len * stepLen, grid: o.freeDiv * stepLen, free: true, lane: -1, hold: 0 } : { t: n.step * stepLen, lane: n.lane, hold: n.len * stepLen, kind: n.kind || (n.len > 0 ? 'hold' : 'tap') }));
     const lengthOf = (song, stepLen, o = RHYTHM) => o.bars * song.steps * stepLen;
+
+    // ---- Step 2: the board (the owner's calls, 2026-11-17: pattern blocks first, their steps edited later; a track's
+    // length grows with unlocks). You compose a short track from one of the game's songs: a grid of bars across and
+    // four parts down (the beat, the bass, the chords, the melody), each cell one of that song's own one-bar blocks.
+    // Every block comes from the same song, so whatever you place is on the grid and in its key; the notes are then
+    // placed for you, as on the game's own tracks (`chartFor`). A bar may be a freestyle bar instead of a melody.
+    const BOARD = { rows: ['beat', 'bass', 'chords', 'mel'], lengths: [4, 8, 16], length: 4, perBarMost: 12 };
+    const BEATS = [{ id: 'full', name: 'Full' }, { id: 'sparse', name: 'Light' }, { id: 'none', name: 'None' }];
+    const melBar = (song, key, b) => (song.mel[key] || []).slice(b * song.steps, (b + 1) * song.steps);
+    const melSig = bar => bar.map((e, s) => (e ? `${s}:${e.deg}:${e.acc || 0}:${e.len}:${e.off || 0}` : '')).filter(Boolean).join(' ');
+    // The box of parts a song gives: for each row its blocks { id, name }, alike ones listed once (`same`: a block's id
+    // to the one that stands for it).
+    function blocksOf(song) {
+        const same = {}, mel = [{ id: 'rest', name: 'Rest' }, { id: 'free', name: 'Free' }], chords = [], bass = [{ id: 'off', name: 'None' }], seen = { mel: {}, chords: {}, bass: {} };
+        const once = (row, list, id, sig, name) => { if (seen[row][sig]) { same[row + id] = seen[row][sig]; return; } seen[row][sig] = id; list.push({ id, name: name(list.length) }); };
+        for (const [k, arr] of Object.entries(song.mel || {})) for (let b = 0; b * song.steps < arr.length; b++) { const sig = melSig(melBar(song, k, b)); if (sig) once('mel', mel, `${k}:${b}`, sig, () => `${k}${b + 1}`); }
+        for (const [k, list] of Object.entries(song.prog || {})) list.forEach((c, i) => once('chords', chords, `${k}:${i}`, c.name || `${k}${i}`, () => c.name || `${k}${i + 1}`));
+        for (const [k, p] of Object.entries(song.bassBy || {})) once('bass', bass, k, p, n => 'Line ' + n);
+        return { beat: BEATS.slice(), bass, chords, mel, same };
+    }
+    // A board for a song: its own bars from where a run of it starts, `len` of them. { len, beat, bass, chords, mel }.
+    function boardFrom(song, len = BOARD.length) {
+        const box = blocksOf(song), from = startBar(song), board = { len, beat: [], bass: [], chords: [], mel: [] }, norm = (row, id) => box.same[row + id] || id;
+        for (let b = 0; b < len; b++) {
+            const bar = (from + b) % song.bars, sec = sectionAt(song, bar), at = bar - sec.start + (sec.from || 0);
+            const prog = song.prog[sec.chords], mb = sec.mel ? Math.round(song.mel[sec.mel].length / song.steps) : 0, mid = mb ? `${sec.mel}:${at % mb}` : 'rest';
+            board.beat.push(sec.drums || 'full'); board.bass.push(sec.bassOn === false ? 'off' : norm('bass', sec.bass));
+            board.chords.push(norm('chords', `${sec.chords}:${at % prog.length}`));
+            board.mel.push(mb && melSig(melBar(song, sec.mel, at % mb)) ? norm('mel', mid) : 'rest');
+        }
+        return board;
+    }
+    // A board made sound for a song: cells that name a block the song does not have fall back to its first.
+    function cleanBoard(song, board) {
+        const box = blocksOf(song), len = BOARD.lengths.includes(board && board.len) ? board.len : BOARD.length, base = boardFrom(song, len), out = { len };
+        for (const row of BOARD.rows) out[row] = Array.from({ length: len }, (_, b) => { const id = board && Array.isArray(board[row]) ? board[row][b] : null; return box[row].some(x => x.id === id) ? id : base[row][b]; });
+        return out;
+    }
+    // The song a board makes, as the music engine plays one (a bar a section). `lead`: a bar of count-in in front, so
+    // the track starts at bar 1. `free` lists its freestyle bars, counted from the track's first.
+    function compose(song, board, opts = {}) {
+        const N = song.steps, bd = cleanBoard(song, board), out = { ...song, name: 'Your track', custom: true, prog: {}, bassBy: {}, compBy: { ...song.compBy }, mel: {}, form: [], free: [] };
+        const comp0 = Object.keys(song.compBy || {})[0], bass0 = Object.keys(song.bassBy)[0];
+        let start = 0;
+        const add = (b, lead) => {
+            const [ck, ci] = bd.chords[b].split(':'), pk = 'c' + bd.chords[b], bk = bd.bass[b] === 'off' ? bass0 : bd.bass[b], mid = bd.mel[b];
+            out.prog[pk] = [song.prog[ck][+ci]]; out.bassBy[bk] = song.bassBy[bk];
+            let mel = null;
+            if (!lead && mid !== 'rest' && mid !== 'free') { const [mk, mi] = mid.split(':'); mel = 'm' + mid; out.mel[mel] = melBar(song, mk, +mi).map((e, s) => (e ? { ...e, len: Math.min(e.len, N - s) } : null)); }
+            if (!lead && mid === 'free') out.free.push(b);
+            out.form.push({ name: lead ? 'count' : 'bar ' + (b + 1), bars: 1, start, mel, chords: pk, bass: bk, comp: song.compBy && song.compBy[ck] ? ck : comp0, drums: lead ? 'full' : bd.beat[b], bassOn: !lead && bd.bass[b] !== 'off',
+                melGain: 1, harm: false, lift: 0, up: 0, entry: true, fill: false, from: 0 });
+            start++;
+        };
+        if (opts.lead) add(0, true);
+        for (let b = 0; b < bd.len; b++) add(b, false);
+        out.bars = start; out.chords = out.prog[out.form[0].chords]; out.bass = out.bassBy[out.form[0].bass]; out.comp = out.compBy[out.form[0].comp];
+        return out;
+    }
+    // What a track is measured by (the owner's rule 11; the AI will write tracks to these later): its notes a bar, how
+    // many different bars it has, and whether it has the shape of a track (a start no busier than its busiest bar, an end).
+    function measure(notes, bars, steps, o = BOARD) {
+        const perBar = Array.from({ length: bars }, () => 0), sig = Array.from({ length: bars }, () => []), free = new Set();
+        for (const n of notes) { const b = Math.floor(n.step / steps); if (b < 0 || b >= bars) continue; if (n.free) { free.add(b); continue; } perBar[b]++; sig[b].push(`${n.step - b * steps}:${n.lane}:${n.len > 0 ? 1 : 0}`); }
+        const played = perBar.filter((_, b) => !free.has(b)), total = perBar.reduce((a, b) => a + b, 0), least = played.length ? Math.min(...played) : 0, most = played.length ? Math.max(...played) : 0;
+        const kinds = new Set(sig.map((s, b) => (free.has(b) ? 'free' : s.join(' ')))).size;
+        return { total, perBar, least, most, kinds, free: free.size, playable: total > 0, inRange: most <= o.perBarMost, varied: kinds >= Math.min(3, Math.ceil(bars / 2)), shaped: bars < 2 || perBar[0] <= most };
+    }
 
     // A run of a timed chart. `press(lane, t, kind)` and `release(lane, t)` as the fingers go down and up (`kind`
     // 'slash' for a swipe), `advance(t)` as time passes. Each returns what happened, for the screen to show.
@@ -251,5 +319,5 @@
         return Math.round(res.hits * o.marks * bonus);
     }
 
-    return { RHYTHM, LEVELS, MODES, modeOf, rulesFor, mastery, stage, sectionAt, startBar, chartFrom, chartFor, playable, timed, lengthOf, createRun, result, simulate, aiEvents, canHandOver, handOver, marksFor, rng };
+    return { RHYTHM, LEVELS, MODES, modeOf, rulesFor, mastery, stage, sectionAt, startBar, chartFrom, chartFor, playable, timed, BOARD, BEATS, blocksOf, boardFrom, cleanBoard, compose, measure, lengthOf, createRun, result, simulate, aiEvents, canHandOver, handOver, marksFor, rng };
 });

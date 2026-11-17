@@ -4783,6 +4783,20 @@ body.ring-device .snare-upgrades[data-ready]::after { top: 50%; right: 6px; tran
 .rhythm-canvas[hidden], .rhythm-pick[hidden], .rhythm-pad[hidden] { display: none; }
 .rhythm-pick { display: flex; flex-direction: column; gap: 10px; }
 .rhythm-row { display: flex; flex-wrap: wrap; gap: 6px; }
+/* The board (step 2): bars across, the four parts down, eight bars to a band; a cell is one of the song's blocks. */
+.rhythm-board { display: flex; flex-direction: column; gap: 8px; }
+.rhythm-band { display: grid; grid-template-columns: 3.4em repeat(var(--cols, 8), minmax(0, 1fr)); gap: 3px; align-items: center; }
+.rhythm-barno, .rhythm-rowname, .rhythm-hint { color: var(--muted); font: 0.68rem var(--font-mono); margin: 0; }
+.rhythm-barno { text-align: center; }
+.rhythm-cell-beat { --c: var(--primary); } .rhythm-cell-bass { --c: var(--research); } .rhythm-cell-chords { --c: var(--muted); } .rhythm-cell-mel { --c: var(--success); }
+.rhythm-cell { min-width: 0; min-height: 40px; padding: 0 1px; border: 1px solid color-mix(in srgb, var(--c) 45%, var(--border)); border-radius: 6px; background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--text); font: 0.68rem var(--font-mono); overflow: hidden; white-space: nowrap; cursor: pointer; }
+.rhythm-cell.empty { opacity: 0.45; background: transparent; }
+.rhythm-cell.free { --c: var(--warning); }
+.rhythm-cell.playing { background: color-mix(in srgb, var(--c) 45%, transparent); opacity: 1; }
+.rhythm-cell.on { outline: 2px solid var(--text); outline-offset: 1px; opacity: 1; }
+@media (max-width: 520px) { .rhythm-band[style*="--cols:8"] .rhythm-cell { font-size: 0.6rem; letter-spacing: -0.03em; } }
+.rhythm-blocks { align-items: center; }
+.rhythm-block.on { border-color: var(--c); color: var(--text); background: color-mix(in srgb, var(--c) 22%, transparent); }
 .rhythm-pad { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-self: center; width: min(100%, 520px); }
 .rhythm-lane { min-height: 84px; font: 700 0.95rem var(--font-display); }
 

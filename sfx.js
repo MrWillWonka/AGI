@@ -1502,8 +1502,10 @@
             // { area, song, bar }: this song of this area, from this bar, starting on this downbeat (Evals' rhythm run).
             if (AREAS.includes(m.cmd.area)) area = m.cmd.area;
             m.area = area;
-            m.songs = areaSongs(area);
-            m.song = songFor[area] = Math.max(0, Math.floor(m.cmd.song || 0)) % m.songs.length;
+            // `custom`: a song built outside the tracks (the rhythm run's board), played on its own, looping, until
+            // another command or a change of area puts the area's songs back.
+            m.songs = m.cmd.custom ? [m.cmd.custom] : areaSongs(area);
+            m.song = m.cmd.custom ? 0 : (songFor[area] = Math.max(0, Math.floor(m.cmd.song || 0)) % m.songs.length);
             m.songStep = m.step - m.songs[m.song].steps * Math.max(0, Math.floor(m.cmd.bar || 0));
             m.asked = (m.asked || 0) + 1;
             moved = true;
@@ -1517,7 +1519,8 @@
             moved = true;
         } else if (s !== 0) return false;
         else if (m.cmd === 'song' || bar >= song.bars) {
-            m.song = songFor[area] = (m.song + 1) % m.songs.length;
+            m.song = (m.song + 1) % m.songs.length;
+            if (!m.songs[m.song].custom) songFor[area] = m.song;
             m.songStep = m.step;
             moved = true;
         } else if (m.cmd === 'section') {

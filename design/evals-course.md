@@ -75,6 +75,30 @@ owner's husband's. What is written under "The owner's calls" is decided; everyth
     (sparse start, build, break, finish); variety; clearable by its writer.
 12. **The audio overhaul is done**: "you can fully bring over anything needed."
 
+### Step 2, the board: the owner's calls (four cards, 2026-11-17)
+
+- **The board first**; whole-field notes come after it. Notes stay in three lanes.
+- **Blocks, then steps**: you place ready-made one-bar pattern blocks; opening a block to edit its steps is a later
+  unlock (not built).
+- **A track's length grows with unlocks**: 4 bars to start, then 8, then 16.
+- **In the playground everything is open**, and the unlock order below is a proposal for the owner to approve.
+
+**Built (playground only, `rhythm.js` → Step 2, `rhythm-ui.js`):** on the pick card, *The song as written* or *Your
+board*. The board is bars across and four parts down (Beat, Bass, Chords, Melody). Every block comes from the picked
+song, so anything placed is on the grid and in its key: the beat full, light or none; the song's bass lines or none;
+each of its chords; each bar of its melodies, a rest, or a **freestyle bar** (the bar where you tap your own beat is now
+something you place). Tap a bar, then a block. **Listen** loops the track on the game's music engine and lights the bar
+being played; edits are heard as it plays. The notes are placed for you by the same rules as the game's tracks, per
+mode. The card says what the track measures: notes, notes a bar, different bars, freestyle bars (`measure`, the start
+of rule 11). Boards are kept per song on the device.
+
+**Proposed unlock order (open, for the owner):** 4 bars with Beat and Melody rows only → the Bass row → the Chords row →
+the freestyle block → 8 bars → blocks from the picked song's other section (its B melody and chords) → 16 bars →
+editing a block's steps → blocks from other songs of the same track.
+
+**Not built:** step editing; blocks from other songs; the rules of 11 as a pass or fail (they are only shown); saving
+more than one board a song; the AI writing a board.
+
 ## The third kind: the owner's call (2026-11-16)
 
 "A version of the puck physics we have where it's a mix of mini golf and target practice": Packet Snare's flung mine

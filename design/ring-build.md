@@ -1143,3 +1143,10 @@ superseded: this branch's files are now `main`'s (the PC's real history) plus th
 that takes `main`'s files whole. The rebuilt commits are still in this branch's history (a forced push to drop them was
 not allowed here), so **merging this branch into `main` would bring 37 duplicate commits with it: cherry-pick the agent
 commit instead, or let the owner allow the forced push.** Both merges had chosen save v45 on their own.
+
+**Rhythm run, step 2: the board (2026-11-17, playground only).** The owner's four calls and what was built are in
+`design/evals-course.md` → Step 2. In short: *Your board* on the rhythm run's pick card composes a 4, 8 or 16 bar track
+from the picked song's one-bar blocks (beat, bass, chords, melody, a freestyle bar); Listen loops it on the music engine
+(`SFX.songCmd({ custom })`, a song played on its own until the area's songs are asked back); the notes are placed by
+`chartFor` as before. `tests/rhythm-board.test.js` plays a composed song of every track through the real engine.
+Not built: step editing, the unlocks themselves (everything is open), whole-field notes.
